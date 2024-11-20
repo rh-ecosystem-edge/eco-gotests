@@ -11,4 +11,8 @@ const (
 	RhwaOperatorNs = "openshift-workload-availability"
 	// DefaultTimeout represents the default timeout.
 	DefaultTimeout = 300 * time.Second
+	// TestNamespaceName namespace where all dast test cases are performed
+	TestNamespaceName = "dast-tests"
+
+	TestContainerDast = "quay.io/frmoreno/eco-dast:latest"
 )
