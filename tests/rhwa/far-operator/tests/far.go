@@ -1,10 +1,10 @@
 package tests
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
@@ -20,6 +20,38 @@ import (
 	v1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+type DASTReport struct {
+	ClusterName string
+	Resources   []struct {
+		Name      string
+		Namespace string
+		Results   []struct {
+			Target         string
+			Class          string
+			Type           string
+			MisconfSummary struct {
+				Success    int
+				Failures   int
+				Exceptions int
+			}
+			Misconfigurations []struct {
+				Type        string
+				ID          string
+				AVDID       string
+				Description string
+				Message     string
+				Namespace   string
+				Query       string
+				Resolution  string
+				Severity    string
+				PrimaryURL  string
+				References  []string
+				Status      string
+			}
+		}
+	}
+}
 
 var _ = Describe(
 	"FAR Post Deployment tests",
@@ -79,31 +111,41 @@ var _ = Describe(
 				Name:      "trivy-service-account",
 				Namespace: rhwaparams.TestNamespaceName,
 			}).Create()
-			Expect(err).ToNot(HaveOccurred(), "Failed to create Cluster Role Binding")
+			Expect(err).ToNot(HaveOccurred(), "Failed to create ClusterRoleBinding")
 
+			By("Creating client test pod")
 			dastTestPod := pod.NewBuilder(
 				APIClient, "rapidastclientpod", rhwaparams.TestNamespaceName, rhwaparams.TestContainerDast).
 				DefineOnNode(nodes[0].Object.Name).
 				WithTolerationToMaster().
 				WithPrivilegedFlag()
+			Expect(err).ToNot(HaveOccurred(), "Failed to create client test pod")
 
 			dastTestPod.Definition.Spec.ServiceAccountName = "trivy-service-account"
 
 			By("Creating client test pod")
-			dastTestPod, err = pod.NewBuilder(
-				APIClient, "rapidastclientpod", rhwaparams.TestNamespaceName, rhwaparams.TestContainerDast).
-				DefineOnNode(nodes[0].Object.Name).
-				WithTolerationToMaster().
-				WithPrivilegedFlag().CreateAndWaitUntilRunning(time.Minute)
+			_, err = dastTestPod.CreateAndWaitUntilRunning(time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "Failed to create client test pod")
 
-			//TODO: check that the command can be actually executed by the pod.
-			command := []string{"bash", "-c", "export NAMESPACE=openshift-workload-availability rapidast.py --config ./config/rapidastConfig.yaml"}
+			By("Running vulnerability scan")
+			command := []string{"bash", "-c", "NAMESPACE=openshift-workload-availability rapidast.py --config ./config/rapidastConfig.yaml 2> /dev/null"}
 			output, err := dastTestPod.ExecCommand(command)
 			Expect(err).ToNot(HaveOccurred(), "Command failed")
 
-			//TODO: The output of the rapidast command is a JSON that can be handled
-			glog.V(90).Infof("TRIVY command output: %s/n:", output.String())
+			By("Checking vulnerability scan results")
+			var parsableStruct DASTReport
+			err = json.Unmarshal(output.Bytes(), &parsableStruct)
+			Expect(err).ToNot(HaveOccurred())
 
+			var vulnerability_found bool = false
+			for _, resource := range parsableStruct.Resources {
+				for _, result := range resource.Results {
+					if result.MisconfSummary.Failures > 0 {
+						fmt.Printf("%d vulnerability(s) found in %s\n", result.MisconfSummary.Failures, resource.Name)
+						vulnerability_found = true
+					}
+				}
+			}
+			Expect(vulnerability_found).NotTo(BeTrue(), "Found vulnerability(s)")
 		})
 	})
