@@ -39,8 +39,16 @@ scanners:
     # 'inline' is used when container.type is not 'podman'
     # 'toolDir' specifies the default directory where inline scripts are located
     #toolDir: scanners/generic/tools
+<<<<<<< HEAD
     inline: "trivy k8s --include-namespaces $NAMESPACE --include-kinds pod --severity=HIGH,CRITICAL --scanners=misconfig --report all --format json"
     container:
       parameters:
         # Optional: list of expected return codes, anything else will be considered as an error. by default: [0]
         validReturns: [ 0 ]
+=======
+    inline: "trivy k8s -n $NAMESPACE pod --severity=HIGH,CRITICAL --scanners=misconfig --report all --format json"
+    container:
+      parameters:
+        # Optional: list of expected return codes, anything else will be considered as an error. by default: [0]
+        validReturns: [ 0 ]
+>>>>>>> 963ff25d (Retrieve scan results)

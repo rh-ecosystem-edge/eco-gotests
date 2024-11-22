@@ -48,8 +48,8 @@ var _ = ReportAfterSuite("", func(report Report) {
 		report, RHWAConfig.GetReportPath(), RHWAConfig.TCPrefix)
 })
 
-//var _ = AfterSuite(func() {
-//	By("Deleting test namespace")
-//	err := testNS.DeleteAndWait(rhwaparams.DefaultTimeout)
-//	Expect(err).ToNot(HaveOccurred(), "error to delete test namespace")
-//})
+var _ = AfterSuite(func() {
+	By("Deleting test namespace")
+	err := testNS.DeleteAndWait(rhwaparams.DefaultTimeout)
+	Expect(err).ToNot(HaveOccurred(), "error to delete test namespace")
+})
