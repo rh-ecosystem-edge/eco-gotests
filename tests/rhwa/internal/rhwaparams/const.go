@@ -14,5 +14,7 @@ const (
 	// TestNamespaceName namespace where all dast test cases are performed
 	TestNamespaceName = "dast-tests"
 
+	LogLevel = 90
+
 	TestContainerDast = "quay.io/frmoreno/eco-dast:latest"
 )
