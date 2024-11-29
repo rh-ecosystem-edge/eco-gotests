@@ -128,7 +128,8 @@ var _ = Describe(
 			Expect(err).ToNot(HaveOccurred(), "Failed to create client test pod")
 
 			By("Running vulnerability scan")
-			command := []string{"bash", "-c", "NAMESPACE=openshift-workload-availability rapidast.py --config ./config/rapidastConfig.yaml 2> /dev/null"}
+			command := []string{"bash", "-c",
+				fmt.Sprintf("NAMESPACE=%s rapidast.py --config ./config/rapidastConfig.yaml 2> /dev/null", rhwaparams.RhwaOperatorNs)}
 			output, err := dastTestPod.ExecCommand(command)
 			Expect(err).ToNot(HaveOccurred(), "Command failed")
 
