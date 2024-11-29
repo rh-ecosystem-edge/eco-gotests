@@ -3,10 +3,10 @@ package tests
 import (
 	"encoding/json"
 	"fmt"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+<<<<<<< HEAD
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
@@ -16,8 +16,18 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/rhwa/far-operator/internal/farparams"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/rhwa/internal/rhwainittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/rhwa/internal/rhwaparams"
+=======
 
-	v1 "k8s.io/api/rbac/v1"
+	"github.com/openshift-kni/eco-goinfra/pkg/deployment"
+	"github.com/openshift-kni/eco-goinfra/pkg/pod"
+	"github.com/openshift-kni/eco-goinfra/pkg/reportxml"
+
+	"github.com/openshift-kni/eco-gotests/tests/rhwa/far-operator/internal/farparams"
+	. "github.com/openshift-kni/eco-gotests/tests/rhwa/internal/rapidast"
+	. "github.com/openshift-kni/eco-gotests/tests/rhwa/internal/rhwainittools"
+	"github.com/openshift-kni/eco-gotests/tests/rhwa/internal/rhwaparams"
+>>>>>>> e8f14f6a (extract preparation of rapidast pod)
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -83,49 +93,7 @@ var _ = Describe(
 
 		It("Verify FAR Operator passes trivy scan without vulnerabilities", reportxml.ID("76877"), func() {
 
-			By("Retrieve list of nodes")
-			nodes, err := nodes.List(APIClient)
-			Expect(err).ToNot(HaveOccurred(), "Error getting nodes list")
-
-			By("Create service account")
-			_, err = serviceaccount.NewBuilder(APIClient, "trivy-service-account", rhwaparams.TestNamespaceName).Create()
-			Expect(err).ToNot(HaveOccurred(), "Failed to create Service Account")
-
-			_, err = rbac.NewClusterRoleBuilder(APIClient, "trivy-clusterrole", v1.PolicyRule{
-				APIGroups: []string{
-					"",
-				},
-				Resources: []string{
-					"pods",
-				},
-				Verbs: []string{
-					"get",
-					"list",
-					"watch",
-				},
-			}).Create()
-			Expect(err).ToNot(HaveOccurred(), "Failed to create Cluster Role")
-
-			_, err = rbac.NewClusterRoleBindingBuilder(APIClient, "trivy-clusterrole-binding", "trivy-clusterrole", v1.Subject{
-				Kind:      "ServiceAccount",
-				Name:      "trivy-service-account",
-				Namespace: rhwaparams.TestNamespaceName,
-			}).Create()
-			Expect(err).ToNot(HaveOccurred(), "Failed to create ClusterRoleBinding")
-
-			By("Creating client test pod")
-			dastTestPod := pod.NewBuilder(
-				APIClient, "rapidastclientpod", rhwaparams.TestNamespaceName, rhwaparams.TestContainerDast).
-				DefineOnNode(nodes[0].Object.Name).
-				WithTolerationToMaster().
-				WithPrivilegedFlag()
-			Expect(err).ToNot(HaveOccurred(), "Failed to create client test pod")
-
-			dastTestPod.Definition.Spec.ServiceAccountName = "trivy-service-account"
-
-			By("Creating client test pod")
-			_, err = dastTestPod.CreateAndWaitUntilRunning(time.Minute)
-			Expect(err).ToNot(HaveOccurred(), "Failed to create client test pod")
+			dastTestPod := PrepareRapidastPod(APIClient)
 
 			By("Running vulnerability scan")
 			command := []string{"bash", "-c",
