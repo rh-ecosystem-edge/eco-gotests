@@ -31,38 +31,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type DASTReport struct {
-	ClusterName string
-	Resources   []struct {
-		Name      string
-		Namespace string
-		Results   []struct {
-			Target         string
-			Class          string
-			Type           string
-			MisconfSummary struct {
-				Success    int
-				Failures   int
-				Exceptions int
-			}
-			Misconfigurations []struct {
-				Type        string
-				ID          string
-				AVDID       string
-				Description string
-				Message     string
-				Namespace   string
-				Query       string
-				Resolution  string
-				Severity    string
-				PrimaryURL  string
-				References  []string
-				Status      string
-			}
-		}
-	}
-}
-
 var _ = Describe(
 	"FAR Post Deployment tests",
 	Ordered,
@@ -93,6 +61,7 @@ var _ = Describe(
 
 		It("Verify FAR Operator passes trivy scan without vulnerabilities", reportxml.ID("76877"), func() {
 
+			By("Creating rapidast pod")
 			dastTestPod := PrepareRapidastPod(APIClient)
 
 			By("Running vulnerability scan")
