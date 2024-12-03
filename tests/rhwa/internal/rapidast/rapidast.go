@@ -1,6 +1,8 @@
 package rapidast
 
 import (
+	"bytes"
+	"fmt"
 	"time"
 
 	"github.com/golang/glog"
@@ -19,6 +21,7 @@ const (
 	logLevel = rhwaparams.LogLevel
 )
 
+// PrepareRapidastPod initializes the pod in the cluster that allows to run rapidast.
 func PrepareRapidastPod(apiClient *clients.Settings) *pod.Builder {
 	nodes, err := nodes.List(apiClient)
 	if err != nil {
@@ -65,11 +68,6 @@ func PrepareRapidastPod(apiClient *clients.Settings) *pod.Builder {
 		DefineOnNode(nodes[0].Object.Name).
 		WithTolerationToMaster().
 		WithPrivilegedFlag()
-	if err != nil {
-		glog.V(logLevel).Infof(
-			"Error in rapidast client pod definition %s", err.Error())
-	}
-
 	dastTestPod.Definition.Spec.ServiceAccountName = "trivy-service-account"
 
 	_, err = dastTestPod.CreateAndWaitUntilRunning(time.Minute)
@@ -79,5 +77,12 @@ func PrepareRapidastPod(apiClient *clients.Settings) *pod.Builder {
 	}
 
 	return dastTestPod
+}
 
+// RunRapidastScan executes the rapidast scan configured in the container.
+func RunRapidastScan(dastTestPod pod.Builder, namespace string) (bytes.Buffer, error) {
+	command := []string{"bash", "-c",
+		fmt.Sprintf("NAMESPACE=%s rapidast.py --config ./config/rapidastConfig.yaml 2> /dev/null", namespace)}
+
+	return dastTestPod.ExecCommand(command)
 }
