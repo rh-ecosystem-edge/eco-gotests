@@ -1,5 +1,6 @@
 package rapidast
 
+// DASTReport struct that receives the results of the rapidast scan.
 type DASTReport struct {
 	ClusterName string
 	Resources   []struct {
