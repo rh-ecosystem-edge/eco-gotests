@@ -16,5 +16,5 @@ const (
 	// LogLevel for the supporting functions.
 	LogLevel = 90
 	// TestContainerDast specifies the container image to use for rapidast tests.
-	TestContainerDast = "quay.io/frmoreno/eco-dast:latest"
+	TestContainerDast = "quay.io/ocp-edge-qe/eco-dast:latest"
 )
