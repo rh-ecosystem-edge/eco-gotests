@@ -34,7 +34,8 @@ var _ = Describe(
 		It("Verify FAR Operator passes trivy scan without vulnerabilities", reportxml.ID("76877"), func() {
 
 			By("Creating rapidast pod")
-			dastTestPod := rapidast.PrepareRapidastPod(APIClient)
+			dastTestPod, err := rapidast.PrepareRapidastPod(APIClient)
+			Expect(err).ToNot(HaveOccurred())
 
 			output, err := rapidast.RunRapidastScan(*dastTestPod, rhwaparams.RhwaOperatorNs)
 			Expect(err).ToNot(HaveOccurred())

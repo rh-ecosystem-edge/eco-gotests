@@ -22,17 +22,17 @@ const (
 )
 
 // PrepareRapidastPod initializes the pod in the cluster that allows to run rapidast.
-func PrepareRapidastPod(apiClient *clients.Settings) *pod.Builder {
+func PrepareRapidastPod(apiClient *clients.Settings) (*pod.Builder, error) {
 	nodes, err := nodes.List(apiClient)
 	if err != nil {
-		glog.V(logLevel).Infof(
-			"Error in node list retrieval %s", err.Error())
+		glog.V(logLevel).Infof("Error in node list retrieval %s", err.Error())
+		return nil, err
 	}
 
 	_, err = serviceaccount.NewBuilder(APIClient, "trivy-service-account", rhwaparams.TestNamespaceName).Create()
 	if err != nil {
-		glog.V(logLevel).Infof(
-			"Error in service acount creation %s", err.Error())
+		glog.V(logLevel).Infof("Error in service account creation %s", err.Error())
+		return nil, err
 	}
 
 	_, err = rbac.NewClusterRoleBuilder(APIClient, "trivy-clusterrole", v1.PolicyRule{
@@ -49,8 +49,8 @@ func PrepareRapidastPod(apiClient *clients.Settings) *pod.Builder {
 		},
 	}).Create()
 	if err != nil {
-		glog.V(logLevel).Infof(
-			"Error in ClusterRoleBuilder creation %s", err.Error())
+		glog.V(logLevel).Infof("Error in ClusterRoleBuilder creation %s", err.Error())
+		return nil, err
 	}
 
 	_, err = rbac.NewClusterRoleBindingBuilder(APIClient, "trivy-clusterrole-binding", "trivy-clusterrole", v1.Subject{
@@ -59,8 +59,8 @@ func PrepareRapidastPod(apiClient *clients.Settings) *pod.Builder {
 		Namespace: rhwaparams.TestNamespaceName,
 	}).Create()
 	if err != nil {
-		glog.V(logLevel).Infof(
-			"Error in ClusterRoleBindingBuilder creation %s", err.Error())
+		glog.V(logLevel).Infof("Error in ClusterRoleBindingBuilder creation %s", err.Error())
+		return nil, err
 	}
 
 	dastTestPod := pod.NewBuilder(
@@ -72,11 +72,11 @@ func PrepareRapidastPod(apiClient *clients.Settings) *pod.Builder {
 
 	_, err = dastTestPod.CreateAndWaitUntilRunning(time.Minute)
 	if err != nil {
-		glog.V(logLevel).Infof(
-			"Error in rapidast client pod creation %s", err.Error())
+		glog.V(logLevel).Infof("Error in rapidast client pod creation %s", err.Error())
+		return nil, err
 	}
 
-	return dastTestPod
+	return dastTestPod, nil
 }
 
 // RunRapidastScan executes the rapidast scan configured in the container.
