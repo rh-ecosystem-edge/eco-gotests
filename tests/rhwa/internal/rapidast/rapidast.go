@@ -21,17 +21,19 @@ const (
 	logLevel = rhwaparams.LogLevel
 )
 
-// PrepareRapidastPod initializes the pod responsible for running rapidast scanner
+// PrepareRapidastPod initializes the pod responsible for running rapidast scanner.
 func PrepareRapidastPod(apiClient *clients.Settings) (*pod.Builder, error) {
 	nodes, err := nodes.List(apiClient)
 	if err != nil {
 		glog.V(logLevel).Infof("Error in node list retrieval %s", err.Error())
+
 		return nil, err
 	}
 
 	_, err = serviceaccount.NewBuilder(APIClient, "trivy-service-account", rhwaparams.TestNamespaceName).Create()
 	if err != nil {
 		glog.V(logLevel).Infof("Error in service account creation %s", err.Error())
+
 		return nil, err
 	}
 
@@ -50,6 +52,7 @@ func PrepareRapidastPod(apiClient *clients.Settings) (*pod.Builder, error) {
 	}).Create()
 	if err != nil {
 		glog.V(logLevel).Infof("Error in ClusterRoleBuilder creation %s", err.Error())
+
 		return nil, err
 	}
 
@@ -60,6 +63,7 @@ func PrepareRapidastPod(apiClient *clients.Settings) (*pod.Builder, error) {
 	}).Create()
 	if err != nil {
 		glog.V(logLevel).Infof("Error in ClusterRoleBindingBuilder creation %s", err.Error())
+
 		return nil, err
 	}
 
@@ -73,6 +77,7 @@ func PrepareRapidastPod(apiClient *clients.Settings) (*pod.Builder, error) {
 	_, err = dastTestPod.CreateAndWaitUntilRunning(time.Minute)
 	if err != nil {
 		glog.V(logLevel).Infof("Error in rapidast client pod creation %s", err.Error())
+
 		return nil, err
 	}
 
