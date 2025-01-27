@@ -21,7 +21,7 @@ const (
 	logLevel = rhwaparams.LogLevel
 )
 
-// PrepareRapidastPod initializes the pod in the cluster that allows to run rapidast.
+// PrepareRapidastPod initializes the pod responsible for running rapidast scanner
 func PrepareRapidastPod(apiClient *clients.Settings) (*pod.Builder, error) {
 	nodes, err := nodes.List(apiClient)
 	if err != nil {
