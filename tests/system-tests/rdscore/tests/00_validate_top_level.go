@@ -64,13 +64,28 @@ var _ = Describe(
 				Label("kdump", "kdump-cp"), reportxml.ID("75620"),
 				rdscorecommon.VerifyKDumpOnControlPlane)
 
+			It("Cleanup UnexpectedAdmission pods after KDump test on Control Plane node",
+				Label("kdump", "kdump-cp", "kdump-cp-cleanup"),
+				MustPassRepeatedly(3),
+				rdscorecommon.CleanupUnexpectedAdmissionPodsCP)
+
 			It("Verifies KDump service on Worker node",
 				Label("kdump", "kdump-worker"), reportxml.ID("75621"),
 				rdscorecommon.VerifyKDumpOnWorkerMCP)
 
+			It("Cleanup UnexpectedAdmission pods after KDump test on Worker node",
+				Label("kdump", "kdump-worker", "kdump-worker-cleanup"),
+				MustPassRepeatedly(3),
+				rdscorecommon.CleanupUnexpectedAdmissionPodsWorker)
+
 			It("Verifies KDump service on CNF node",
 				Label("kdump", "kdump-cnf"), reportxml.ID("75622"),
 				rdscorecommon.VerifyKDumpOnCNFMCP)
+
+			It("Cleanup UnexpectedAdmission pods after KDump test on CNF node",
+				Label("kdump", "kdump-cnf", "kdump-cnf-cleanup"),
+				MustPassRepeatedly(3),
+				rdscorecommon.CleanupUnexpectedAdmissionPodsCNF)
 
 			It("Verifies mount namespace service on Control Plane node",
 				Label("mount-ns", "mount-ns-cp"), reportxml.ID("75048"),
