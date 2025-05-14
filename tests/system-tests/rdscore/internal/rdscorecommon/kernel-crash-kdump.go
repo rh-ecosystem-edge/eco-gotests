@@ -131,8 +131,8 @@ func VerifyKDumpOnCNFMCP(ctx SpecContext) {
 	crashNodeKDump(RDSCoreConfig.KDumpCNFMCPNodeLabel)
 }
 
-// CleanupUnexpectedAdmissionPods cleans up pods with UnexpectedAdmissionError status
-// on the CNF nodes.
+// CleanupUnexpectedAdmissionPods retains the original 4.18 cleanup entry point.
+// It cleans up pods with UnexpectedAdmissionError status on all KDump node groups.
 func CleanupUnexpectedAdmissionPods() {
 	mcpNodeLabelList := []string{RDSCoreConfig.KDumpCPNodeLabel,
 		RDSCoreConfig.KDumpCNFMCPNodeLabel, RDSCoreConfig.KDumpWorkerMCPNodeLabel}
@@ -140,6 +140,24 @@ func CleanupUnexpectedAdmissionPods() {
 	for _, mcpNodeLabel := range mcpNodeLabelList {
 		cleanupUnexpectedPods(mcpNodeLabel)
 	}
+}
+
+// CleanupUnexpectedAdmissionPodsCP cleans up pods with UnexpectedAdmissionError status
+// on the Control Plane nodes.
+func CleanupUnexpectedAdmissionPodsCP(ctx SpecContext) {
+	cleanupUnexpectedPods(RDSCoreConfig.KDumpCPNodeLabel)
+}
+
+// CleanupUnexpectedAdmissionPodsWorker cleans up pods with UnexpectedAdmissionError status
+// on the Worker nodes.
+func CleanupUnexpectedAdmissionPodsWorker(ctx SpecContext) {
+	cleanupUnexpectedPods(RDSCoreConfig.KDumpWorkerMCPNodeLabel)
+}
+
+// CleanupUnexpectedAdmissionPodsCNF cleans up pods with UnexpectedAdmissionError status
+// on the CNF nodes.
+func CleanupUnexpectedAdmissionPodsCNF(ctx SpecContext) {
+	cleanupUnexpectedPods(RDSCoreConfig.KDumpCNFMCPNodeLabel)
 }
 
 func cleanupUnexpectedPods(nodeLabel string) {
