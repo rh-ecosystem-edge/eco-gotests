@@ -534,7 +534,23 @@ type CoreConfig struct {
 	//nolint:lll,nolintlint
 	RootlessDPDKClientIPVlanIPv4Dummy string `yaml:"rdscore_rootless_dpdk_client_ipvlan_ipv4_dummy" envconfig:"ECO_RDSCORE_ROOTLESS_DPDK_CLIENT_IPVLAN_IPV4_DUMMY"`
 	//nolint:lll,nolintlint
-	DpdkTestContainer     string `yaml:"rdscore_dpdk_test_container" envconfig:"ECO_RDSCORE_DPDK_TEST_CONTAINER"`
+	DpdkTestContainer string `yaml:"rdscore_dpdk_test_container" envconfig:"ECO_RDSCORE_DPDK_TEST_CONTAINER"`
+	KafkaLogsLabel    string `yaml:"rdscore_kafka_logs_label" envconfig:"ECO_RDSCORE_KAFKA_LOGS_LABEL"`
+	WhereaboutNS      string `yaml:"rdscore_whereabout_ns" envconfig:"ECO_RDSCORE_WHEREABOUT_NS"`
+	//nolint:lll,nolintlint
+	WhereaboutsSTImageOne string `yaml:"rdscore_whereabouts_st_image_one" envconfig:"ECO_RDSCORE_WHEREABOUTS_ST_IMAGE_ONE"`
+	WhereaboutsSTImageTwo string `yaml:"rdscore_whereabouts_st_image_two" envconfig:"ECO_RDSCORE_WHEREABOUTS_ST_IMAGE_TWO"`
+	//nolint:lll,nolintlint
+	WhereaboutsSTOneCMD EnvSliceString `yaml:"rdscore_whereabouts_st_one_cmd" envconfig:"ECO_RDSCORE_WHEREABOUTS_ST_ONE_CMD"`
+	//nolint:lll,nolintlint
+	WhereaboutsSTTwoCMD EnvSliceString `yaml:"rdscore_whereabouts_st_two_cmd" envconfig:"ECO_RDSCORE_WHEREABOUTS_ST_TWO_CMD"`
+	//nolint:lll,nolintlint
+	WhereaboutsSTOnePort string `yaml:"rdscore_whereabouts_st_one_port" envconfig:"ECO_RDSCORE_WHEREABOUTS_ST_ONE_PORT"`
+	//nolint:lll,nolintlint
+	WhereaboutsSTTwoPort string `yaml:"rdscore_whereabouts_st_two_port" envconfig:"ECO_RDSCORE_WHEREABOUTS_ST_TWO_PORT"`
+	//nolint:lll,nolintlint
+	WhereaboutsSTOneNAD   string `yaml:"rdscore_whereabouts_st_one_nad" envconfig:"ECO_RDSCORE_WHEREABOUTS_ST_ONE_NAD"`
+	WhereaboutsSTTwoNAD   string `yaml:"rdscore_whereabouts_st_two_nad" envconfig:"ECO_RDSCORE_WHEREABOUTS_ST_TWO_NAD"`
 	WorkerLabelListOption metav1.ListOptions
 }
 

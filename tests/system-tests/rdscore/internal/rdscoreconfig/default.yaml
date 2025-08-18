@@ -169,3 +169,15 @@ rdscore_pod_level_bond_two_name: 'rdscore-pod-level-bond-two'
 rdscore_pod_level_bond_port: '9090'
 rdscore_pod_level_bond_sriov_net_one: 'sriov-bonded-net-one'
 rdscore_pod_level_bond_sriov_net_two: 'sriov-bonded-net-two'
+# Log Forwarding
+rdscore_kafka_logs_label: ''
+# Whereabouts testing
+rdscore_whereabout_ns: rds-whereabout-ns
+rdscore_whereabouts_st_image_one: ''
+rdscore_whereabouts_st_image_two: ''
+rdscore_whereabouts_st_one_cmd: []
+rdscore_whereabouts_st_two_cmd: []
+rdscore_whereabouts_st_one_port: '1111'
+rdscore_whereabouts_st_two_port: '1111'
+rdscore_whereabouts_st_one_nad: ''
+rdscore_whereabouts_st_two_nad: ''

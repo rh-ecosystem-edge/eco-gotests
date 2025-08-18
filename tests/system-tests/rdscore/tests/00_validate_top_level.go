@@ -230,6 +230,38 @@ var _ = Describe(
 				Label("dpdk", "dpdk-ip-vlan", "dpdk-different-nodes"), reportxml.ID("77490"),
 				rdscorecommon.VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleIPVlans)
 
+			It("Verifies connectivity between pods from statefuleset running on different nodes after pod's termination",
+				Label("statefulset-whereabouts", "statefulset-different-nodes-termination"),
+				MustPassRepeatedly(3),
+				reportxml.ID("82769"),
+				rdscorecommon.EnsurePodConnectivityBetweenDifferentNodesAfterPodTermination)
+
+			It("Verifies connectivity between pods from statefuleset running on the same node after pod's termination",
+				Label("statefulset-whereabouts", "statefulset-same-node-termination"),
+				MustPassRepeatedly(3),
+				reportxml.ID("82790"),
+				rdscorecommon.EnsurePodConnectivityOnSameNodeAfterPodTermination)
+
+			It("Verifies connectivity between pods from statefuleset running on different nodes after node's power off",
+				Label("statefulset-whereabouts", "statefulset-different-nodes-power-off"),
+				reportxml.ID("82906"),
+				rdscorecommon.EnsurePodConnectivityBetweenDifferentNodesAfterNodePowerOff)
+
+			It("Verifies connectivity between pods from statefuleset running on the same node after node's power off",
+				Label("statefulset-whereabouts", "statefulset-same-node-power-off"),
+				reportxml.ID("82908"),
+				rdscorecommon.EnsurePodConnectivityOnSameNodeAfterNodePowerOff)
+
+			It("Verifies connectivity between pods from statefuleset running on different nodes after node's drain",
+				Label("statefulset-whereabouts", "statefulset-different-nodes-drain"),
+				reportxml.ID("82798"),
+				rdscorecommon.EnsurePodConnectivityBetweenDifferentNodesAfterNodeDrain)
+
+			It("Verifies connectivity between pods from statefuleset running on the same node after node's drain",
+				Label("statefulset-whereabouts", "statefulset-same-node-drain"),
+				reportxml.ID("82799"),
+				rdscorecommon.EnsurePodConnectivityOnSameNodeAfterNodeDrain)
+
 			AfterEach(func(ctx SpecContext) {
 				By("Cleanup UnexpectedAdmission pods after KDump test")
 				rdscorecommon.CleanupUnexpectedAdmissionPods()
@@ -279,6 +311,12 @@ var _ = Describe(
 
 				By("Creating SR-IOV workload on different nodes and different SR-IOV networks")
 				rdscorecommon.VerifySRIOVWorkloadsOnDifferentNodesDifferentNet(ctx)
+
+				By("Creating Whereabouts Statefulset on the same node")
+				rdscorecommon.CreateStatefulsetOnSameNode(ctx)
+
+				By("Creating Whereabouts Statefulset on different nodes")
+				rdscorecommon.CreateStatefulsetOnDifferentNode(ctx)
 			})
 
 			It("Setups EgressService with Cluster ExternalTrafficPolicy",
@@ -530,6 +568,16 @@ var _ = Describe(
 				Label("dpdk", "dpdk-ip-vlan", "dpdk-different-nodes"), reportxml.ID("81430"),
 				rdscorecommon.VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleIPVlans)
 
+			It("Verifies connectivity between pods from statefuleset scheduled on the same node post hard reboot",
+				Label("statefulset-whereabouts", "statefulset-same-node-validate"),
+				reportxml.ID("82919"),
+				rdscorecommon.ValidatePodConnectivityOnSameNodeAfterClusterReboot)
+
+			It("Verifies connectivity between pods from statefuleset scheduled on different nodes post hard reboot",
+				Label("statefulset-whereabouts", "statefulset-different-nodes-validate"),
+				reportxml.ID("82920"),
+				rdscorecommon.ValidatePodConnectivityBetweenDifferentNodesAfterClusterReboot)
+
 			AfterEach(func(ctx SpecContext) {
 				By("Ensure rootless DPDK server deployment was deleted")
 				rdscorecommon.CleanupRootlessDPDKServerDeployment()
@@ -573,6 +621,12 @@ var _ = Describe(
 
 				By("Creating SR-IOV workload on different nodes and different SR-IOV networks")
 				rdscorecommon.VerifySRIOVWorkloadsOnDifferentNodesDifferentNet(ctx)
+
+				By("Creating Whereabouts Statefulset on the same node")
+				rdscorecommon.CreateStatefulsetOnSameNode(ctx)
+
+				By("Creating Whereabouts Statefulset on different nodes")
+				rdscorecommon.CreateStatefulsetOnDifferentNode(ctx)
 			})
 
 			It("Setups EgressService with Cluster ExternalTrafficPolicy",
@@ -780,6 +834,16 @@ var _ = Describe(
 			It("Verifies rootless DPDK pod workloads on the different nodes, multiple IP-VLANs post soft reboot",
 				Label("dpdk", "dpdk-ip-vlan", "dpdk-different-nodes"), reportxml.ID("81422"),
 				rdscorecommon.VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleIPVlans)
+
+			It("Verifies connectivity between pods from statefuleset scheduled on the same node post soft reboot",
+				Label("statefulset-whereabouts", "statefulset-same-node-validate"),
+				reportxml.ID("82911"),
+				rdscorecommon.ValidatePodConnectivityOnSameNodeAfterClusterReboot)
+
+			It("Verifies connectivity between pods from statefuleset scheduled on different nodes post soft reboot",
+				Label("statefulset-whereabouts", "statefulset-different-nodes-validate"),
+				reportxml.ID("82918"),
+				rdscorecommon.ValidatePodConnectivityBetweenDifferentNodesAfterClusterReboot)
 
 			AfterEach(func(ctx SpecContext) {
 				By("Ensure rootless DPDK server deployment was deleted")
