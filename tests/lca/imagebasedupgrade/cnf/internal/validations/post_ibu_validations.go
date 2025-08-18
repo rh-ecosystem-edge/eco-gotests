@@ -96,6 +96,13 @@ func ValidateClusterVersionCSVs() {
 			})
 			By("Validate CSVs were upgraded", func() {
 				for _, preUpgradeOperator := range cnfclusterinfo.PreUpgradeClusterInfo.Operators {
+					// Skip cluster-logging operator as it is not OCP-aligned and not always upgraded
+					if strings.Contains(preUpgradeOperator, "cluster-logging") {
+						glog.V(100).Infof("Skipping cluster-logging operator validation: %s", preUpgradeOperator)
+
+						continue
+					}
+
 					for _, postUpgradeOperator := range cnfclusterinfo.PostUpgradeClusterInfo.Operators {
 						Expect(preUpgradeOperator).ToNot(Equal(postUpgradeOperator), "Operator %s was not upgraded", preUpgradeOperator)
 					}
@@ -214,7 +221,12 @@ func ValidateNetworkConfig() {
 func ValidateSeedHostnameRefLogs() {
 	It("Validate no seed hostname references in pod logs", reportxml.ID("71392"), Label("ValidateSeedRefPodLogs"), func() {
 		By("Validate no seed hostname references in pod logs", func() {
-			logCmd := "grep -Ri " + seedInfo.SNOHostname + " /var/log/pods | grep -v lifecycle-agent-controller-manager | wc -l"
+			// Seed refs from garbage-collector-controller are expected during IBU; exclude them from this check.
+			logCmd := fmt.Sprintf(
+				`grep -Ri %q /var/log/pods | `+
+					`grep -vE 'lifecycle-agent-controller-manager|garbage-collector-controller' | wc -l`,
+				seedInfo.SNOHostname,
+			)
 			logRes, err := cluster.ExecCmdWithStdout(TargetSNOAPIClient, logCmd)
 			Expect(err).ToNot(HaveOccurred(), "could not execute command: %s", err)
 
@@ -378,9 +390,16 @@ func ValidateSeedRefLogs() {
 				return true
 			}, 1*time.Minute, 5*time.Second).Should(BeTrue(), "Failed to get kcat logs")
 
-			Expect(kcatPodOut).ToNot(
-				ContainSubstring(seedInfo.SNOHostname),
-				"Seed cluster name references detected in kcat logs: %s", kcatPodOut)
+			failedLines := []string{}
+			logLines := strings.Split(kcatPodOut, "\n")
+
+			for _, line := range logLines {
+				if strings.Contains(line, seedInfo.SNOHostname) {
+					failedLines = append(failedLines, line)
+				}
+			}
+
+			Expect(failedLines).To(BeEmpty(), "Seed cluster name references detected in exported logs")
 		})
 	})
 }
