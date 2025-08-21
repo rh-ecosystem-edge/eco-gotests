@@ -10,6 +10,7 @@ import (
 	"github.com/openshift-kni/eco-goinfra/pkg/clients"
 	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
 	"github.com/openshift-kni/eco-goinfra/pkg/olm"
+	operatorsV1alpha1 "github.com/openshift-kni/eco-goinfra/pkg/schemes/olm/operators/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,8 +34,9 @@ type OperatorInstallConfig struct {
 	Channel                string
 	SkipNamespaceCreation  bool
 	SkipOperatorGroup      bool
-	TargetNamespaces       []string // Custom targetNamespaces for OperatorGroup
+	TargetNamespaces       []string
 	LogLevel               glog.Level
+	InstallPlanApproval    string
 }
 
 // OperatorInstaller provides generic operator installation functionality.
@@ -291,7 +293,9 @@ func (o *OperatorInstaller) createSubscription() error {
 		o.config.CatalogSource,
 		o.config.CatalogSourceNamespace,
 		o.config.PackageName)
+
 	sub.WithChannel(o.config.Channel)
+	sub.WithInstallPlanApproval(convertToInstallPlanApproval(o.config.InstallPlanApproval))
 
 	if sub.Exists() {
 		glog.V(o.config.LogLevel).Infof("Subscription %s already exists", o.config.SubscriptionName)
@@ -313,4 +317,15 @@ func (o *OperatorInstaller) createSubscription() error {
 	}
 
 	return nil
+}
+
+func convertToInstallPlanApproval(approval string) operatorsV1alpha1.Approval {
+	switch strings.ToLower(approval) {
+	case "automatic":
+		return operatorsV1alpha1.ApprovalAutomatic
+	case "manual":
+		return operatorsV1alpha1.ApprovalManual
+	default:
+		return operatorsV1alpha1.ApprovalAutomatic
+	}
 }
