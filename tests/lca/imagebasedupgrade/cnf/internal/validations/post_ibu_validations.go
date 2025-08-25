@@ -96,6 +96,13 @@ func ValidateClusterVersionCSVs() {
 			})
 			By("Validate CSVs were upgraded", func() {
 				for _, preUpgradeOperator := range cnfclusterinfo.PreUpgradeClusterInfo.Operators {
+					// Skip cluster-logging operator as it is not OCP-aligned and not always upgraded
+					if strings.Contains(preUpgradeOperator, "cluster-logging") {
+						glog.V(100).Infof("Skipping cluster-logging operator validation: %s", preUpgradeOperator)
+
+						continue
+					}
+
 					for _, postUpgradeOperator := range cnfclusterinfo.PostUpgradeClusterInfo.Operators {
 						Expect(preUpgradeOperator).ToNot(Equal(postUpgradeOperator), "Operator %s was not upgraded", preUpgradeOperator)
 					}
@@ -214,7 +221,8 @@ func ValidateNetworkConfig() {
 func ValidateSeedHostnameRefLogs() {
 	It("Validate no seed hostname references in pod logs", reportxml.ID("71392"), Label("ValidateSeedRefPodLogs"), func() {
 		By("Validate no seed hostname references in pod logs", func() {
-			logCmd := "grep -Ri " + seedInfo.SNOHostname + " /var/log/pods | grep -v lifecycle-agent-controller-manager | wc -l"
+			// Seed references in the OAuth pod logs are expected during upgrade so they are excluded from the check
+			logCmd := "grep -Ri " + seedInfo.SNOHostname + " /var/log/pods | grep -v lifecycle-agent-controller-manager |grep -v authentication | wc -l"
 			logRes, err := cluster.ExecCmdWithStdout(TargetSNOAPIClient, logCmd)
 			Expect(err).ToNot(HaveOccurred(), "could not execute command: %s", err)
 
