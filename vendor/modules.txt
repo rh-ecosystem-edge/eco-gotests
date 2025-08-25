@@ -1070,6 +1070,7 @@ github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/filter
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/artifacts
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/common
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/provisioning
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/pfstatus
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/proxy
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/rbac
@@ -1167,6 +1168,7 @@ github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/operators/v1alpha1
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/package-server/operators
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/package-server/operators/v1
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/version
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/pfstatus/pfstatustypes
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/siteconfig/v1alpha1
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/secret
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/service
