@@ -58,7 +58,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelLong
 			mcpName = get.MachineConfigPoolName(APIClient)
 		})
 
-		AfterEach(func() {
+		AfterAll(func() {
 			By("Delete Module")
 			_, _ = kmm.NewModuleBuilder(APIClient, moduleName, kmmparams.RealtimeKernelNamespace).Delete()
 
@@ -211,11 +211,6 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelLong
 				Skip("could not detect cluster architecture")
 			}
 			dtkImage := get.PreflightImage(arch)
-
-			By("Wait for realtime module to be fully deployed before creating preflight")
-			err = await.ModuleDeployment(APIClient, moduleName, kmmparams.RealtimeKernelNamespace, 2*time.Minute,
-				GeneralConfig.WorkerLabelMap)
-			Expect(err).ToNot(HaveOccurred(), "error while waiting for realtime module deployment")
 
 			By("Create preflightvalidationocp for realtime kernel")
 			pre, err := kmm.NewPreflightValidationOCPBuilder(APIClient, kmmparams.PreflightName,
