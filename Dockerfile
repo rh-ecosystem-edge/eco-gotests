@@ -1,7 +1,7 @@
 FROM registry.access.redhat.com/ubi9/ubi:latest
 
-ARG GO_VER=go1.24.4
-ARG GINKGO_VER=ginkgo@v2.22.2
+ARG GO_VER=go1.25.0
+ARG GINKGO_VER=ginkgo@v2.23.4
 ARG CONTAINERUSER=testuser
 
 LABEL description="eco-gotests development image"
