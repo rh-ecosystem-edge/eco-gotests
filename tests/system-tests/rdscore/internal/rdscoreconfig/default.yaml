@@ -182,3 +182,21 @@ rdscore_whereabouts_st_one_port: '1111'
 rdscore_whereabouts_st_two_port: '1111'
 rdscore_whereabouts_st_one_nad: ''
 rdscore_whereabouts_st_two_nad: ''
+
+rdscore_whereabouts_deploy_image_one: ''
+rdscore_whereabouts_deploy_image_two: ''
+rdscore_whereabouts_deploy_one_cmd: []
+rdscore_whereabouts_deploy_two_cmd: []
+rdscore_whereabouts_deploy_one_port: '1111'
+rdscore_whereabouts_deploy_two_port: '1111'
+rdscore_whereabouts_deploy_one_nad: ''
+rdscore_whereabouts_deploy_two_nad: ''
+
+rdscore_whereabouts_deploy_image_3: ''
+rdscore_whereabouts_deploy_image_4: ''
+rdscore_whereabouts_deploy_3_cmd: []
+rdscore_whereabouts_deploy_4_cmd: []
+rdscore_whereabouts_deploy_3_port: '1111'
+rdscore_whereabouts_deploy_4_port: '1111'
+rdscore_whereabouts_deploy_3_nad: ''
+rdscore_whereabouts_deploy_4_nad: ''
