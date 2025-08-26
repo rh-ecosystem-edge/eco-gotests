@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpuparams"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/internal/exec"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpuparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/exec"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -133,6 +133,12 @@ func checkModuleBlacklist(apiClient *clients.Settings, nodeName string) bool {
 	}
 
 	glog.V(amdgpuparams.LogLevel).Infof("Node %s amdgpu module blacklist status: %s", nodeName, output)
+
+	if !strings.Contains(output, "BLACKLISTED") {
+		glog.V(amdgpuparams.LogLevel).Infof("FAIL: amdgpu is not blacklisted on node %s", nodeName)
+
+		return false
+	}
 
 	return true
 }

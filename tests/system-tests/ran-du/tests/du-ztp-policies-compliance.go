@@ -4,10 +4,10 @@ import (
 	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/openshift-kni/eco-goinfra/pkg/ocm"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/internal/platform"
-	. "github.com/openshift-kni/eco-gotests/tests/system-tests/ran-du/internal/randuinittools"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/ran-du/internal/randuparams"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ocm"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/platform"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ran-du/internal/randuinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ran-du/internal/randuparams"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 

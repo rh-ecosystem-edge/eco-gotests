@@ -7,17 +7,17 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/kelseyhightower/envconfig"
-	"github.com/openshift-kni/eco-goinfra/pkg/assisted"
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-goinfra/pkg/configmap"
-	"github.com/openshift-kni/eco-goinfra/pkg/hive"
-	"github.com/openshift-kni/eco-goinfra/pkg/pod"
-	"github.com/openshift-kni/eco-goinfra/pkg/secret"
-	"github.com/openshift-kni/eco-gotests/tests/assisted/internal/assistedconfig"
-	"github.com/openshift-kni/eco-gotests/tests/assisted/ztp/internal/find"
-	"github.com/openshift-kni/eco-gotests/tests/assisted/ztp/internal/ztpparams"
-	"github.com/openshift-kni/eco-gotests/tests/internal/cluster"
-	. "github.com/openshift-kni/eco-gotests/tests/internal/inittools"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/assisted"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/configmap"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/hive"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/secret"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/internal/assistedconfig"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/internal/find"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/internal/ztpparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 )
 
 // ZTPConfig type contains ztp configuration.

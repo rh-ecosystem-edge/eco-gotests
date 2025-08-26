@@ -4,9 +4,9 @@ import (
 	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	. "github.com/openshift-kni/eco-gotests/tests/system-tests/ipsec/internal/ipsecinittools"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/ipsec/internal/ipsecparams"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/ipsec/internal/ipsectunnel"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ipsec/internal/ipsecinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ipsec/internal/ipsecparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ipsec/internal/ipsectunnel"
 )
 
 var _ = Describe(

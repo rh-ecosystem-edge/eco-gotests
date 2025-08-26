@@ -8,18 +8,18 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/clusteroperator"
-	"github.com/openshift-kni/eco-goinfra/pkg/clusterversion"
-	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
-	"github.com/openshift-kni/eco-goinfra/pkg/pod"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clusteroperator"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clusterversion"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/reportxml"
-	"github.com/openshift-kni/eco-goinfra/pkg/route"
-	. "github.com/openshift-kni/eco-gotests/tests/accel/internal/accelinittools"
-	"github.com/openshift-kni/eco-gotests/tests/accel/upgrade/internal/createres"
-	"github.com/openshift-kni/eco-gotests/tests/accel/upgrade/internal/deleteres"
-	"github.com/openshift-kni/eco-gotests/tests/accel/upgrade/internal/upgradeparams"
-	"github.com/openshift-kni/eco-gotests/tests/internal/url"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/route"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/accel/internal/accelinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/accel/upgrade/internal/createres"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/accel/upgrade/internal/deleteres"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/accel/upgrade/internal/upgradeparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/url"
 )
 
 var (

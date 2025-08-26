@@ -36,8 +36,8 @@ Assisted ZTP tests are developed for the purpose of testing the infrastructure o
 
 ### Eco-goinfra pkgs
 
-- [**assisted**](https://github.com/openshift-kni/eco-goinfra/tree/main/pkg/assisted)
-- [**hive**](https://github.com/openshift-kni/eco-goinfra/tree/main/pkg/hive)
+- [**assisted**](https://github.com/rh-ecosystem-edge/eco-goinfra/tree/main/pkg/assisted)
+- [**hive**](https://github.com/rh-ecosystem-edge/eco-goinfra/tree/main/pkg/hive)
 
 ### Inputs
 - `ECO_ASSISTED_ZTP_SPOKE_KUBECONFIG`: Location of the spoke cluster kubeconfig file

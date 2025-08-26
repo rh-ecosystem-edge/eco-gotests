@@ -36,7 +36,7 @@ Some test suites (ZTP, TALM) require clusters to be deployed via GitOps ZTP and 
 
 ### Eco-goinfra pkgs
 
-[**README**](https://github.com/openshift-kni/eco-goinfra#readme)
+[**README**](https://github.com/rh-ecosystem-edge/eco-goinfra#readme)
 
 ### Inputs
 

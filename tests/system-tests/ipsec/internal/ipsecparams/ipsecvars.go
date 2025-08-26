@@ -5,8 +5,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/internal/systemtestsparams"
 	"github.com/openshift-kni/k8sreporter"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/systemtestsparams"
 	corev1 "k8s.io/api/core/v1"
 )
 

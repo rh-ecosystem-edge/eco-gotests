@@ -8,20 +8,20 @@ import (
 	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/openshift-kni/eco-goinfra/pkg/amdgpu"
-	"github.com/openshift-kni/eco-goinfra/pkg/nodes"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpudeviceconfig"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpuhelpers"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpunfd"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpuparams"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpuregistry"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/internal/deviceconfig"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/internal/labels"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/internal/pods"
-	amdparams "github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/params"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/internal/deploy"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/nfd/nfdparams"
-	"github.com/openshift-kni/eco-gotests/tests/internal/inittools"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/amdgpu"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpudeviceconfig"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpuhelpers"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpunfd"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpuparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpuregistry"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/deviceconfig"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/labels"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/pods"
+	amdparams "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/params"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/internal/deploy"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/nfdparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -65,7 +65,7 @@ var _ = Describe("AMD GPU Basic Tests", Ordered, Label(amdparams.LabelSuite), fu
 			amdgpuUninstallConfig := amdgpuhelpers.GetDefaultAMDGPUUninstallConfig(
 				apiClient,
 				"amd-gpu-operator-group",
-				"amd-gpu-operator")
+				"amd-gpu-subscription")
 			amdgpuUninstaller := deploy.NewOperatorUninstaller(amdgpuUninstallConfig)
 			err := amdgpuUninstaller.Uninstall()
 			if err != nil {

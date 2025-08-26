@@ -3,7 +3,7 @@ package assistedconfig
 import (
 	"log"
 
-	"github.com/openshift-kni/eco-gotests/tests/internal/config"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/config"
 )
 
 // AssistedConfig type contains assisted installer configuration.

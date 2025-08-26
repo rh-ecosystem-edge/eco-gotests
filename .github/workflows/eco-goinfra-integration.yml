@@ -13,7 +13,7 @@ jobs:
     env:
       SHELL: /bin/bash
       ECO_GOINFRA_PATH: goinfra
-      ECO_GOINFRA_REPO: openshift-kni/eco-goinfra
+      ECO_GOINFRA_REPO: rh-ecosystem-edge/eco-goinfra
 
     steps:
       - name: Check out the eco-gotests code
@@ -39,7 +39,7 @@ jobs:
       - name: Update go.mod in eco-gotests
         if: ${{ !contains(github.event.*.labels.*.name, 'ignore-dep-check') }}
         run: |
-          go mod edit -replace github.com/openshift-kni/eco-goinfra=${{ github.workspace }}/${{ env.ECO_GOINFRA_PATH }}
+          go mod edit -replace github.com/rh-ecosystem-edge/eco-goinfra=${{ github.workspace }}/${{ env.ECO_GOINFRA_PATH }}
           go mod tidy
           go mod vendor
 

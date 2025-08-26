@@ -1,8 +1,8 @@
 package mgmtparams
 
 import (
-	"github.com/openshift-kni/eco-gotests/tests/lca/imagebasedupgrade/internal/ibuparams"
-	"github.com/openshift-kni/eco-gotests/tests/lca/internal/brutil"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/internal/ibuparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/internal/brutil"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	veleroScheme "github.com/vmware-tanzu/velero/pkg/util"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

@@ -1,9 +1,9 @@
 package accelinittools
 
 import (
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-gotests/tests/accel/internal/accelconfig"
-	"github.com/openshift-kni/eco-gotests/tests/internal/inittools"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/accel/internal/accelconfig"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 )
 
 var (

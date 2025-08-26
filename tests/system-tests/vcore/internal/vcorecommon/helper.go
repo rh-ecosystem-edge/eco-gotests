@@ -7,11 +7,11 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/onsi/gomega"
-	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/internal/mirroring"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/internal/platform"
-	. "github.com/openshift-kni/eco-gotests/tests/system-tests/vcore/internal/vcoreinittools"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/vcore/internal/vcoreparams"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/mirroring"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/platform"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/vcore/internal/vcoreinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/vcore/internal/vcoreparams"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 

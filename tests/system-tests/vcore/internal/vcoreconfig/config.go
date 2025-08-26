@@ -10,7 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/kelseyhightower/envconfig"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/internal/systemtestsconfig"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/systemtestsconfig"
 	"gopkg.in/yaml.v2"
 )
 

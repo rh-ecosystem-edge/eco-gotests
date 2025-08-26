@@ -1,6 +1,6 @@
 package tsparams
 
-import "github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpuparams"
+import "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpuparams"
 
 const (
 	// LabelSuite represents amdgpu label that can be used for test cases selection.

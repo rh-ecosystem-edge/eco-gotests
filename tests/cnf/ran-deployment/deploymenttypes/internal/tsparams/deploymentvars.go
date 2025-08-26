@@ -1,13 +1,13 @@
 package tsparams
 
 import (
-	"github.com/openshift-kni/eco-goinfra/pkg/schemes/argocd/argocdoperator"
-	argocdtypes "github.com/openshift-kni/eco-goinfra/pkg/schemes/argocd/argocdtypes/v1alpha1"
-	hiveV1 "github.com/openshift-kni/eco-goinfra/pkg/schemes/hive/api/v1"
-	clusterV1 "github.com/openshift-kni/eco-goinfra/pkg/schemes/ocm/clusterv1"
-	siteconfig "github.com/openshift-kni/eco-goinfra/pkg/schemes/siteconfig/v1alpha1"
-	"github.com/openshift-kni/eco-gotests/tests/cnf/ran-deployment/internal/ranparam"
 	"github.com/openshift-kni/k8sreporter"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/argocd/argocdoperator"
+	argocdtypes "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/argocd/argocdtypes/v1alpha1"
+	hiveV1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/hive/api/v1"
+	clusterV1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ocm/clusterv1"
+	siteconfig "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/siteconfig/v1alpha1"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran-deployment/internal/ranparam"
 	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
 )
 

@@ -7,14 +7,14 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/openshift-kni/eco-goinfra/pkg/assisted"
-	"github.com/openshift-kni/eco-goinfra/pkg/network"
-	"github.com/openshift-kni/eco-goinfra/pkg/reportxml"
-	"github.com/openshift-kni/eco-goinfra/pkg/schemes/assisted/api/hiveextension/v1beta1"
-	"github.com/openshift-kni/eco-goinfra/pkg/schemes/assisted/models"
-	"github.com/openshift-kni/eco-gotests/tests/assisted/ztp/internal/meets"
-	. "github.com/openshift-kni/eco-gotests/tests/assisted/ztp/internal/ztpinittools"
-	"github.com/openshift-kni/eco-gotests/tests/assisted/ztp/spoke/internal/tsparams"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/assisted"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/network"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/api/hiveextension/v1beta1"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/models"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/internal/meets"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/internal/ztpinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/spoke/internal/tsparams"
 	corev1 "k8s.io/api/core/v1"
 )
 

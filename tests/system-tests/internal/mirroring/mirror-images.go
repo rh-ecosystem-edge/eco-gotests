@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"github.com/golang/glog"
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/internal/platform"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/internal/remote"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/platform"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/remote"
 )
 
 // MirrorImageToTheLocalRegistry downloads image to the local mirror registry.

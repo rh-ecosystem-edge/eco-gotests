@@ -18,7 +18,7 @@ deps-update:
 	go mod vendor
 
 sync-eco-goinfra:
-	go get github.com/openshift-kni/eco-goinfra
+	go get github.com/rh-ecosystem-edge/eco-goinfra
 	go mod tidy
 	go mod vendor
 

@@ -90,6 +90,8 @@ linters:
             - golang.org/x/crypto/ssh
             - github.com/klauspost/compress/zstd
             - github.com/vmware-tanzu/velero/pkg/util
+            - github.com/rh-ecosystem-edge/eco-goinfra
+            - github.com/rh-ecosystem-edge/eco-gotests
           deny:
             - pkg: github.com/onsi**
     funlen:
@@ -118,25 +120,25 @@ linters:
       dot-import-whitelist:
         - github.com/onsi/gomega
         - github.com/onsi/ginkgo/v2
-        - github.com/openshift-kni/eco-gotests/tests/internal/inittools
-        - github.com/openshift-kni/eco-gotests/tests/cnf/core/network/internal/netinittools
-        - github.com/openshift-kni/eco-gotests/tests/cnf/ran/internal/raninittools
-        - github.com/openshift-kni/eco-gotests/tests/cnf/ran-deployment/internal/raninittools
-        - github.com/openshift-kni/eco-gotests/tests/assisted/ztp/internal/ztpinittools
-        - github.com/openshift-kni/eco-gotests/tests/system-tests/ipsec/internal/ipsecinittools
-        - github.com/openshift-kni/eco-gotests/tests/system-tests/ran-du/internal/randuinittools
-        - github.com/openshift-kni/eco-gotests/tests/system-tests/internal/systemtestsinittools
-        - github.com/openshift-kni/eco-gotests/tests/system-tests/spk/internal/spkinittools
-        - github.com/openshift-kni/eco-gotests/tests/system-tests/vcore/internal/vcoreinittools
-        - github.com/openshift-kni/eco-gotests/tests/lca/imagebasedupgrade/cnf/internal/cnfinittools
-        - github.com/openshift-kni/eco-gotests/tests/hw-accel/kmm/internal/kmminittools
-        - github.com/openshift-kni/eco-gotests/tests/rhwa/internal/rhwainittools
-        - github.com/openshift-kni/eco-gotests/tests/system-tests/rdscore/internal/rdscoreinittools
-        - github.com/openshift-kni/eco-gotests/tests/lca/imagebasedupgrade/mgmt/internal/mgmtinittools
-        - github.com/openshift-kni/eco-gotests/tests/accel/internal/accelinittools
-        - github.com/openshift-kni/eco-gotests/tests/lca/imagebasedinstall/mgmt/internal/mgmtinittools
-        - github.com/openshift-kni/eco-gotests/tests/system-tests/diskencryption/internal/diskencryptioninittools
-        - github.com/openshift-kni/eco-gotests/tests/system-tests/o-cloud/internal/ocloudinittools
+        - github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools
+        - github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools
+        - github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools
+        - github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran-deployment/internal/raninittools
+        - github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/internal/ztpinittools
+        - github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ipsec/internal/ipsecinittools
+        - github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ran-du/internal/randuinittools
+        - github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/systemtestsinittools
+        - github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/spk/internal/spkinittools
+        - github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/vcore/internal/vcoreinittools
+        - github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/cnf/internal/cnfinittools
+        - github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmminittools
+        - github.com/rh-ecosystem-edge/eco-gotests/tests/rhwa/internal/rhwainittools
+        - github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreinittools
+        - github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/mgmt/internal/mgmtinittools
+        - github.com/rh-ecosystem-edge/eco-gotests/tests/accel/internal/accelinittools
+        - github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedinstall/mgmt/internal/mgmtinittools
+        - github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/diskencryption/internal/diskencryptioninittools
+        - github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/o-cloud/internal/ocloudinittools
     wsl:
       strict-append: false
   exclusions:

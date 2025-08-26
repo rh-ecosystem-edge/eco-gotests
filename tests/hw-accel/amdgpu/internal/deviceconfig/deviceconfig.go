@@ -5,12 +5,16 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/amdgpu"
-	amdparams "github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/params"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/amdgpu"
+	amdparams "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/params"
 )
 
 // GetEnableNodeLabeller - Get the value of 'enableNodeLabeller' from the deviceConfig.
 func GetEnableNodeLabeller(builder *amdgpu.Builder) *bool {
+	if builder == nil {
+		return nil
+	}
+
 	if builder.Exists() {
 		return builder.Object.Spec.DevicePlugin.EnableNodeLabeller
 	}

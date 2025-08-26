@@ -3,11 +3,11 @@ package ranconfig
 import (
 	"github.com/golang/glog"
 	"github.com/kelseyhightower/envconfig"
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-goinfra/pkg/ocm"
-	"github.com/openshift-kni/eco-gotests/tests/cnf/internal/cnfconfig"
-	"github.com/openshift-kni/eco-gotests/tests/cnf/ran-deployment/internal/ranparam"
-	"github.com/openshift-kni/eco-gotests/tests/cnf/ran-deployment/internal/version"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ocm"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/internal/cnfconfig"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran-deployment/internal/ranparam"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran-deployment/internal/version"
 )
 
 // RANConfig contains configuration for the RAN Deployment directory.

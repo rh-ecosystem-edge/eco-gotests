@@ -1,6 +1,6 @@
 package tsparams
 
-import "github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpuparams"
+import "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpuparams"
 
 // Re-export variables from amdgpuparams for convenience.
 var (

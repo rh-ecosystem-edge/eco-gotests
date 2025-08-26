@@ -5,12 +5,15 @@ import "github.com/golang/glog"
 const (
 	// LabelSuite is the label applied to all cases in the oran suite.
 	LabelSuite = "oran"
-	// LabelPreProvision is the label applied to just the pre-provision test cases.
+	// LabelPreProvision is the label applied to the pre-provision test cases and any other test cases that are
+	// intended to be run before provisioning.
 	LabelPreProvision = "pre-provision"
 	// LabelProvision is the label applied to just the provision test cases.
 	LabelProvision = "provision"
 	// LabelPostProvision is the label applied to just the post-provision test cases.
 	LabelPostProvision = "post-provision"
+	// LabelTemplateInventory is the label applied to just the template inventory test cases.
+	LabelTemplateInventory = "template-inventory"
 )
 
 const (
@@ -35,6 +38,8 @@ const (
 	PolicySelectorLabel = "sno-ran-du-policy"
 	// ClusterInstanceDefaultsKey is the key used for the ClusterInstance defaults in its ConfigMap.
 	ClusterInstanceDefaultsKey = "clusterinstance-defaults"
+	// PolicyTemplateDefaultsKey is the key used for the PolicyTemplate defaults in its ConfigMap.
+	PolicyTemplateDefaultsKey = "policytemplate-defaults"
 
 	// ImmutableMessage is the message to expect in a Policy's history when an immutable field cannot be updated.
 	ImmutableMessage = "cannot be updated, likely due to immutable fields not matching"

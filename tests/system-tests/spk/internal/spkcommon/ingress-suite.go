@@ -7,16 +7,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/pod"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/openshift-kni/eco-gotests/tests/internal/url"
-	. "github.com/openshift-kni/eco-gotests/tests/system-tests/spk/internal/spkinittools"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/spk/internal/spkparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/url"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/spk/internal/spkinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/spk/internal/spkparams"
 )
 
 //nolint:unparam

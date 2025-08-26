@@ -1,8 +1,8 @@
 package amdgpuparams
 
 import (
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/internal/hwaccelparams"
 	"github.com/openshift-kni/k8sreporter"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/internal/hwaccelparams"
 )
 
 var (
@@ -36,7 +36,7 @@ sources:
   pci:
     deviceClassWhitelist:
       - "03"
-      - "0300"  
+      - "0300"
       - "0302"
     deviceLabelFields:
       - vendor
