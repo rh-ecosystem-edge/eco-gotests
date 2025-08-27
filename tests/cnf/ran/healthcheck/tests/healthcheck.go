@@ -5,13 +5,13 @@ import (
 	"fmt"     // For formatted string output
 
 	. "github.com/onsi/ginkgo/v2" // Ginkgo BDD-style testing framework
-	. "github.com/onsi/gomega"   // Gomega matcher library for assertions
+	. "github.com/onsi/gomega"    // Gomega matcher library for assertions
 
-	"github.com/openshift-kni/eco-goinfra/pkg/nodes"      // eco-goinfra package for Kubernetes Node operations
-	"github.com/openshift-kni/eco-goinfra/pkg/reportxml" // eco-goinfra package for JUnit XML reporting IDs
+	"github.com/openshift-kni/eco-goinfra/pkg/nodes"                                   // eco-goinfra package for Kubernetes Node operations
+	"github.com/openshift-kni/eco-goinfra/pkg/reportxml"                               // eco-goinfra package for JUnit XML reporting IDs
 	"github.com/openshift-kni/eco-gotests/tests/cnf/ran/healthcheck/internal/tsparams" // Our test suite parameters (for labels)
 	. "github.com/openshift-kni/eco-gotests/tests/cnf/ran/internal/raninittools"       // Provides Spoke1APIClient for cluster access
-	corev1 "k8s.io/api/core/v1" // Kubernetes core API types (e.g., Node, NodeCondition)
+	corev1 "k8s.io/api/core/v1"                                                        // Kubernetes core API types (e.g., Node, NodeCondition)
 )
 
 // Define the test suite for "Cluster Health Check".
@@ -27,7 +27,7 @@ var _ = Describe("Cluster Health Check", Label(tsparams.LabelHealthCheckTestCase
 		// context.TODO() is used here for simplicity; in more complex scenarios,
 		// a context with timeout or cancellation might be preferred.
 		nodeList, err := nodes.List(Spoke1APIClient, context.TODO())
-		Expect(err).ToNot(HaveOccurred(), "Failed to list cluster nodes: %v", err)
+		Expect(err).ToNot(HaveOccurred(), "Failed to list cluster nodes")
 		// Assert that at least one node was found, otherwise the cluster is likely empty or inaccessible.
 		Expect(nodeList).ToNot(BeEmpty(), "No nodes found in the cluster. This indicates a critical issue.")
 
@@ -45,11 +45,11 @@ var _ = Describe("Cluster Health Check", Label(tsparams.LabelHealthCheckTestCase
 				}
 			}
 			// Assert that the node is ready. If not, the test will fail and report the node's name.
-			Expect(isReady).To(BeTrue(), fmt.Sprintf("Node %s is not in Ready state. Current conditions: %+v", node.Name, node.Status.Conditions))
-			// Print a message to the Ginkgo output (Jenkins console) for successful nodes.
-			GinkgoWriter.Printf("Node %s is Ready.\n", node.Name)
+			Expect(isReady).To(BeTrue(), "Node %s is not in Ready state. Current conditions: %+v", node.Name, node.Status.Conditions)
+			// Print a message to the glog output for successful nodes.
+			glog.V(tsparams.LogLevel).Infof("Node %s is Ready.", node.Name)
 		}
 		// Final confirmation message if all nodes are ready.
-		GinkgoWriter.Printf("All %d nodes are in Ready state.\n", len(nodeList))
+		glog.V(tsparams.LogLevel).Infof("All %d nodes are in Ready state.", len(nodeList))
 	})
 })
