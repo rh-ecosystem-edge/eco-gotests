@@ -24,7 +24,7 @@ import (
 )
 
 // OCSInitializationSpec defines the desired state of OCSInitialization
-type OCSInitializationSpec struct{}
+type OCSInitializationSpec struct {}
 
 // OCSInitializationStatus defines the observed state of OCSInitialization
 type OCSInitializationStatus struct {
@@ -41,9 +41,9 @@ type OCSInitializationStatus struct {
 	// operator. Object references will be added to this list after they have
 	// been created AND found in the cluster.
 	// +optional
-	RelatedObjects []corev1.ObjectReference `json:"relatedObjects,omitempty"`
-	ErrorMessage   string                   `json:"errorMessage,omitempty"`
-	SCCsCreated    bool                     `json:"sCCsCreated,omitempty"`
+	RelatedObjects                []corev1.ObjectReference     `json:"relatedObjects,omitempty"`
+	ErrorMessage                  string                       `json:"errorMessage,omitempty"`
+	SCCsCreated                   bool                         `json:"sCCsCreated,omitempty"`
 }
 
 // +kubebuilder:object:root=true

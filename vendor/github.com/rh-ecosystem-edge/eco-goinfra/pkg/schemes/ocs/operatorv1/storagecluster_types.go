@@ -20,10 +20,10 @@ import (
 	"os"
 	"time"
 
+	nbv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ocs/noobaa"
 	quotav1 "github.com/openshift/api/quota/v1"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	rookCephv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ocs/ceph.rook.io/v1"
-	nbv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ocs/noobaa"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -267,8 +267,8 @@ type ManageCephNonResilientPools struct {
 
 // ManageCephFilesystems defines how to reconcile CephFilesystems
 type ManageCephFilesystems struct {
-	ReconcileStrategy     string `json:"reconcileStrategy,omitempty"`
-	ActiveMetadataServers int    `json:"activeMetadataServers,omitempty"`
+	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
+	ActiveMetadataServers int  `json:"activeMetadataServers,omitempty"`
 	// StorageClassName specifies the name of the storage class created for cephfs
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
@@ -284,9 +284,9 @@ type ManageCephFilesystems struct {
 // ManageCephObjectStores defines how to reconcile CephObjectStores
 type ManageCephObjectStores struct {
 	ReconcileStrategy string `json:"reconcileStrategy,omitempty"`
-	GatewayInstances  int    `json:"gatewayInstances,omitempty"`
-	DisableRoute      bool   `json:"disableRoute,omitempty"`
-	HostNetwork       *bool  `json:"hostNetwork,omitempty"`
+	GatewayInstances    int   `json:"gatewayInstances,omitempty"`
+	DisableRoute        bool  `json:"disableRoute,omitempty"`
+	HostNetwork         *bool `json:"hostNetwork,omitempty"`
 	// StorageClassName specifies the name of the storage class created for ceph obc's
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$

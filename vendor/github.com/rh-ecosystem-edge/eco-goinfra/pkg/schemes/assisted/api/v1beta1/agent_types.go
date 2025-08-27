@@ -17,9 +17,9 @@ limitations under the License.
 package v1beta1
 
 import (
-	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/api/common"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/models"
+	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

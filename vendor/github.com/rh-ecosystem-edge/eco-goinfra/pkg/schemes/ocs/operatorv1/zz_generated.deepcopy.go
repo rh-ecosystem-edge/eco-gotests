@@ -21,9 +21,9 @@ limitations under the License.
 package operatorv1
 
 import (
+	v1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ocs/noobaa"
 	conditionsv1 "github.com/openshift/custom-resource-status/conditions/v1"
 	ceph_rook_iov1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ocs/ceph.rook.io/v1"
-	v1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ocs/noobaa"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"

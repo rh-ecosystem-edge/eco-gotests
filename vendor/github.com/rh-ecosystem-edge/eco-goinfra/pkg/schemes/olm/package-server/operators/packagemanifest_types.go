@@ -1,8 +1,8 @@
 package operators
 
 import (
-	operatorv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/operators/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/version"
+	operatorv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/operators/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
