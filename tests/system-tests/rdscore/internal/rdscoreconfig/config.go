@@ -549,8 +549,42 @@ type CoreConfig struct {
 	//nolint:lll,nolintlint
 	WhereaboutsSTTwoPort string `yaml:"rdscore_whereabouts_st_two_port" envconfig:"ECO_RDSCORE_WHEREABOUTS_ST_TWO_PORT"`
 	//nolint:lll,nolintlint
-	WhereaboutsSTOneNAD   string `yaml:"rdscore_whereabouts_st_one_nad" envconfig:"ECO_RDSCORE_WHEREABOUTS_ST_ONE_NAD"`
-	WhereaboutsSTTwoNAD   string `yaml:"rdscore_whereabouts_st_two_nad" envconfig:"ECO_RDSCORE_WHEREABOUTS_ST_TWO_NAD"`
+	WhereaboutsSTOneNAD string `yaml:"rdscore_whereabouts_st_one_nad" envconfig:"ECO_RDSCORE_WHEREABOUTS_ST_ONE_NAD"`
+	WhereaboutsSTTwoNAD string `yaml:"rdscore_whereabouts_st_two_nad" envconfig:"ECO_RDSCORE_WHEREABOUTS_ST_TWO_NAD"`
+
+	//nolint:lll,nolintlint
+	WhereaboutsDeployImageOne string `yaml:"rdscore_whereabouts_deploy_image_one" envconfig:"ECO_RDSCORE_WHEREABOUTS_DEPLOY_IMAGE_ONE"`
+	//nolint:lll,nolintlint
+	WhereaboutsDeployImageTwo string `yaml:"rdscore_whereabouts_deploy_image_two" envconfig:"ECO_RDSCORE_WHEREABOUTS_DEPLOY_IMAGE_TWO"`
+	//nolint:lll,nolintlint
+	WhereaboutsDeployOneCMD EnvSliceString `yaml:"rdscore_whereabouts_deploy_one_cmd" envconfig:"ECO_RDSCORE_WHEREABOUTS_DEPLOY_ONE_CMD"`
+	//nolint:lll,nolintlint
+	WhereaboutsDeployTwoCMD EnvSliceString `yaml:"rdscore_whereabouts_deploy_two_cmd" envconfig:"ECO_RDSCORE_WHEREABOUTS_DEPLOY_TWO_CMD"`
+	//nolint:lll,nolintlint
+	WhereaboutsDeployOnePort string `yaml:"rdscore_whereabouts_deploy_one_port" envconfig:"ECO_RDSCORE_WHEREABOUTS_DEPLOY_ONE_PORT"`
+	//nolint:lll,nolintlint
+	WhereaboutsDeployTwoPort string `yaml:"rdscore_whereabouts_deploy_two_port" envconfig:"ECO_RDSCORE_WHEREABOUTS_DEPLOY_TWO_PORT"`
+	//nolint:lll,nolintlint
+	WhereaboutsDeployOneNAD string `yaml:"rdscore_whereabouts_deploy_one_nad" envconfig:"ECO_RDSCORE_WHEREABOUTS_DEPLOY_ONE_NAD"`
+	//nolint:lll,nolintlint
+	WhereaboutsDeployTwoNAD string `yaml:"rdscore_whereabouts_deploy_two_nad" envconfig:"ECO_RDSCORE_WHEREABOUTS_DEPLOY_TWO_NAD"`
+
+	//nolint:lll,nolintlint
+	WhereaboutsDeployImage3 string `yaml:"rdscore_whereabouts_deploy_image_3" envconfig:"ECO_RDSCORE_WHEREABOUTS_DEPLOY_IMAGE_3"`
+	//nolint:lll,nolintlint
+	WhereaboutsDeployImage4 string `yaml:"rdscore_whereabouts_deploy_image_4" envconfig:"ECO_RDSCORE_WHEREABOUTS_DEPLOY_IMAGE_4"`
+	//nolint:lll,nolintlint
+	WhereaboutsDeploy3CMD EnvSliceString `yaml:"rdscore_whereabouts_deploy_3_cmd" envconfig:"ECO_RDSCORE_WHEREABOUTS_DEPLOY_3_CMD"`
+	//nolint:lll,nolintlint
+	WhereaboutsDeploy4CMD EnvSliceString `yaml:"rdscore_whereabouts_deploy_4_cmd" envconfig:"ECO_RDSCORE_WHEREABOUTS_DEPLOY_4_CMD"`
+	//nolint:lll,nolintlint
+	WhereaboutsDeploy3Port string `yaml:"rdscore_whereabouts_deploy_3_port" envconfig:"ECO_RDSCORE_WHEREABOUTS_DEPLOY_3_PORT"`
+	//nolint:lll,nolintlint
+	WhereaboutsDeploy4Port string `yaml:"rdscore_whereabouts_deploy_4_port" envconfig:"ECO_RDSCORE_WHEREABOUTS_DEPLOY_4_PORT"`
+	//nolint:lll,nolintlint
+	WhereaboutsDeploy3NAD string `yaml:"rdscore_whereabouts_deploy_3_nad" envconfig:"ECO_RDSCORE_WHEREABOUTS_DEPLOY_3_NAD"`
+	//nolint:lll,nolintlint
+	WhereaboutsDeploy4NAD string `yaml:"rdscore_whereabouts_deploy_4_nad" envconfig:"ECO_RDSCORE_WHEREABOUTS_DEPLOY_4_NAD"`
 	WorkerLabelListOption metav1.ListOptions
 }
 
