@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"strings"
@@ -26,6 +27,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/ipaddr"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/metallb/internal/frr"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/metallb/internal/metallbenv"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/metallb/internal/prometheus"
@@ -38,31 +40,136 @@ import (
 
 // test cases variables that are accessible across entire package.
 var (
-	ipv4metalLbIPList  []string
-	ipv4NodeAddrList   []string
-	ipv6metalLbIPList  []string
-	ipv6NodeAddrList   []string
-	cnfWorkerNodeList  []*nodes.Builder
-	workerNodeList     []*nodes.Builder
-	masterNodeList     []*nodes.Builder
-	workerLabelMap     map[string]string
-	metalLbTestsLabel  = map[string]string{"metallb": "metallbtests"}
-	frrK8WebHookServer = "frr-k8s-webhook-server"
+	clusterIPVersion  string
+	ipv4metalLbIPList []string
+	ipv4NodeAddrList  []string
+	ipv6metalLbIPList []string
+	ipv6NodeAddrList  []string
+	nodeAddrList      map[string][]string
+	metallbAddrList   map[string][]string
+	cnfWorkerNodeList []*nodes.Builder
+	workerNodeList    []*nodes.Builder
+	masterNodeList    []*nodes.Builder
+	workerLabelMap    map[string]string
 )
+
+var (
+	metalLbTestsLabel    = map[string]string{"metallb": "metallbtests"}
+	frrK8WebHookServer   = "frr-k8s-webhook-server"
+	ovnExternalAddresses = "k8s.ovn.org/node-primary-ifaddr"
+	frrPodSubnet         = map[string]string{
+		netparam.IPV4Family: netparam.IPSubnet24,
+		netparam.IPV6Family: netparam.IPSubnet64,
+	}
+	defaultAggLen = map[string]int{
+		netparam.IPV4Family: netparam.IPSubnetInt32,
+		netparam.IPV6Family: netparam.IPSubnetInt128,
+	}
+)
+
+const (
+	ipv4 = netparam.IPV4Family
+	ipv6 = netparam.IPV6Family
+)
+
+func clusterSupportsIPv6() bool {
+	return clusterIPVersion == netparam.IPV6Family || clusterIPVersion == netparam.DualIPFamily
+}
+
+func clusterSupportsIPv4() bool {
+	return clusterIPVersion == netparam.IPV4Family || clusterIPVersion == netparam.DualIPFamily
+}
+
+func getClusterIPVersion() (string, error) {
+	nodesList, err := nodes.List(APIClient)
+	if err != nil {
+		return "", err
+	}
+
+	if len(nodesList) == 0 {
+		return "", fmt.Errorf("no nodes found")
+	}
+
+	var ipVersion string
+
+	for nodeIndex, node := range nodesList {
+		ipVersion, _, err = getNodeExternalIP(node)
+		if err != nil {
+			return "", err
+		}
+
+		if nodeIndex == 0 {
+			clusterIPVersion = ipVersion
+
+			continue
+		}
+
+		if ipVersion != clusterIPVersion {
+			return "", fmt.Errorf("mixed IP families detected: %s and %s", clusterIPVersion, ipVersion)
+		}
+	}
+
+	return clusterIPVersion, nil
+}
+
+func getNodeExternalIP(nodeBuilder *nodes.Builder) (string, nodes.ExternalNetworks, error) {
+	var extNetwork nodes.ExternalNetworks
+
+	raw := nodeBuilder.Object.Annotations[ovnExternalAddresses]
+	if raw == "" {
+		return "", nodes.ExternalNetworks{}, fmt.Errorf(
+			"node %q missing %q annotation",
+			nodeBuilder.Object.Name,
+			ovnExternalAddresses,
+		)
+	}
+
+	err := json.Unmarshal([]byte(raw), &extNetwork)
+	if err != nil {
+		return "", nodes.ExternalNetworks{}, err
+	}
+
+	switch {
+	case extNetwork.IPv4 != "" && extNetwork.IPv6 == "":
+		return netparam.IPV4Family, extNetwork, nil
+	case extNetwork.IPv4 == "" && extNetwork.IPv6 != "":
+		return netparam.IPV6Family, extNetwork, nil
+	case extNetwork.IPv4 != "" && extNetwork.IPv6 != "":
+		return netparam.DualIPFamily, extNetwork, nil
+	default:
+		return "", nodes.ExternalNetworks{}, fmt.Errorf("no IPv4 or IPv6 nodes found")
+	}
+}
 
 // Initializes and validates Vars:
 // ipv4metalLbIPList, ipv6metalLbIPList,
-// cnfWorkerNodeList, workerLabelMap, ipv4NodeAddrList,
+// ipv4NodeAddrList, ipv6NodeAddrList,
+// nodeAddrList, metallbAddrList,
+// cnfWorkerNodeList, workerLabelMap,
 // workerNodeList, masterNodeList.
 func validateEnvVarAndGetNodeList() {
 	var err error
+	// Initialize maps before assignment to avoid nil map panic
+	nodeAddrList = make(map[string][]string)
+	metallbAddrList = make(map[string][]string)
+
+	By("Getting cluster IP version")
+
+	clusterIPVersion, err = getClusterIPVersion()
+	Expect(err).ToNot(HaveOccurred(), "Failed to get cluster IP version")
 
 	By("Fetching IPv4 and IPv6 IPs from ENV VAR to be used for External FRR Pod")
 
 	ipv4metalLbIPList, ipv6metalLbIPList, err = metallbenv.GetMetalLbIPByIPStack()
 	Expect(err).ToNot(HaveOccurred(), tsparams.MlbAddressListError)
-	Expect(len(ipv4metalLbIPList)).To(BeNumerically(">=", 2))
-	Expect(len(ipv6metalLbIPList)).To(BeNumerically(">=", 2))
+
+	if clusterSupportsIPv4() {
+		Expect(len(ipv4metalLbIPList)).To(BeNumerically(">=", 2))
+	}
+
+	if clusterSupportsIPv6() {
+		Expect(len(ipv6metalLbIPList)).To(BeNumerically(">=", 2))
+	}
 
 	By("Selecting Worker nodes for the test")
 
@@ -74,12 +181,31 @@ func validateEnvVarAndGetNodeList() {
 
 	By("Validating whether the IPv4 addresses of ENV VAR are in the same subnet as Worker Nodes external IPv4 range")
 
-	ipv4NodeAddrList, err = nodes.ListExternalIPv4Networks(
-		APIClient, metav1.ListOptions{LabelSelector: labels.Set(workerLabelMap).String()})
-	Expect(err).ToNot(HaveOccurred(), "Failed to collect external nodes ip addresses")
+	if clusterSupportsIPv4() {
+		ipv4NodeAddrList, err = nodes.ListExternalIPv4Networks(
+			APIClient, metav1.ListOptions{LabelSelector: labels.Set(workerLabelMap).String()})
+		Expect(err).ToNot(HaveOccurred(), "Failed to collect external nodes ipv4 addresses")
 
-	err = metallbenv.IsEnvVarMetalLbIPinNodeExtNetRange(ipv4NodeAddrList, ipv4metalLbIPList, nil)
-	Expect(err).ToNot(HaveOccurred(), "Failed to validate metalLb exported ip address")
+		err = metallbenv.IsEnvVarMetalLbIPinNodeExtNetRange(ipv4NodeAddrList, ipv4metalLbIPList, nil)
+		Expect(err).ToNot(HaveOccurred(), "Failed to validate metalLb exported ipv4 address")
+
+		nodeAddrList[ipv4] = ipv4NodeAddrList
+		metallbAddrList[ipv4] = ipv4metalLbIPList
+	}
+
+	By("Validating whether the IPv6 addresses of ENV VAR are in the same subnet as Worker Nodes external IPv6 range")
+
+	if clusterSupportsIPv6() {
+		ipv6NodeAddrList, err = nodes.ListExternalIPv6Networks(
+			APIClient, metav1.ListOptions{LabelSelector: labels.Set(workerLabelMap).String()})
+		Expect(err).ToNot(HaveOccurred(), "Failed to collect external nodes ipv6 addresses")
+
+		err = metallbenv.IsEnvVarMetalLbIPinNodeExtNetRange(ipv6NodeAddrList, nil, ipv6metalLbIPList)
+		Expect(err).ToNot(HaveOccurred(), "Failed to validate metalLb exported ipv6 address")
+
+		nodeAddrList[ipv6] = ipv6NodeAddrList
+		metallbAddrList[ipv6] = ipv6metalLbIPList
+	}
 
 	By("Listing Master Nodes")
 
@@ -129,7 +255,7 @@ func updateNodeLabel(workerNodeList []*nodes.Builder, nodeLabel map[string]strin
 
 func createConfigMap(
 	bgpAsn int, nodeAddrList []string, enableMultiHop, enableBFD bool) *configmap.Builder {
-	frrBFDConfig := frr.DefineBGPConfig(
+	frrBFDConfig := frr.DefineBGPConfigWithIPv4AndIPv6(
 		bgpAsn, tsparams.LocalBGPASN, netcmd.RemovePrefixFromIPList(nodeAddrList), enableMultiHop, enableBFD)
 	configMapData := frrconfig.DefineBaseConfig(frrconfig.DaemonsFile, frrBFDConfig, "")
 	masterConfigMap, err := configmap.NewBuilder(APIClient, "frr-master-node-config", tsparams.TestNamespaceName).
@@ -354,7 +480,9 @@ func createFrrPod(
 		frrContainer := pod.NewContainerBuilder(
 			tsparams.FRRSecondContainerName,
 			NetConfig.CnfNetTestContainer,
-			[]string{"/bin/bash", "-c", "ip route del default && sleep INF"}).
+			[]string{"/bin/bash", "-c",
+				"while ip -4 route del default 2>/dev/null; do :; done; " +
+					"while ip -6 route del default 2>/dev/null; do :; done; sleep INF"}).
 			WithSecurityCapabilities([]string{"NET_ADMIN", "NET_RAW", "SYS_ADMIN"}, true)
 
 		frrCtr, err := frrContainer.GetContainerCfg()
@@ -413,6 +541,40 @@ func setupMetalLbService(
 	Expect(err).ToNot(HaveOccurred(), "Failed to create MetalLB Service")
 }
 
+//nolint:unparam
+func setupLoadBalancerService(
+	name,
+	ipStack,
+	labelValue string,
+	ipAddressPool *metallb.IPAddressPoolBuilder,
+	extTrafficPolicy corev1.ServiceExternalTrafficPolicyType,
+	protocol corev1.Protocol,
+	port, targetPort int32) {
+	servicePort, err := service.DefineServicePort(port, targetPort, protocol)
+	Expect(err).ToNot(HaveOccurred(), "Failed to define service port")
+
+	var (
+		ipFamily       []corev1.IPFamily
+		ipFamilyPolicy corev1.IPFamilyPolicyType
+	)
+
+	if ipStack == netparam.DualIPFamily {
+		ipFamily = []corev1.IPFamily{corev1.IPFamily(netparam.IPV4Family), corev1.IPFamily(netparam.IPV6Family)}
+		ipFamilyPolicy = corev1.IPFamilyPolicyRequireDualStack
+	} else {
+		ipFamily = []corev1.IPFamily{corev1.IPFamily(ipStack)}
+		ipFamilyPolicy = corev1.IPFamilyPolicySingleStack
+	}
+
+	_, err = service.NewBuilder(APIClient, name, tsparams.TestNamespaceName,
+		map[string]string{"app": labelValue}, *servicePort).
+		WithExternalTrafficPolicy(extTrafficPolicy).
+		WithIPFamily(ipFamily, ipFamilyPolicy).
+		WithAnnotation(map[string]string{"metallb.universe.tf/address-pool": ipAddressPool.Definition.Name}).
+		Create()
+	Expect(err).ToNot(HaveOccurred(), "Failed to create MetalLB Service")
+}
+
 func setupNGNXPod(podName, nodeName, labelValue string) {
 	_, err := pod.NewBuilder(
 		APIClient, podName, tsparams.TestNamespaceName, NetConfig.CnfNetTestContainer).
@@ -423,13 +585,20 @@ func setupNGNXPod(podName, nodeName, labelValue string) {
 	Expect(err).ToNot(HaveOccurred(), "Failed to create nginx test pod")
 }
 
-func setupNGNXPodAndSCTPServer(podName, nodeName, labelValue string) {
+//nolint:unparam
+func setupNGNXPodAndSCTPServer(podName, nodeName, labelValue string, sctpIPv6 ...bool) {
+	var sctpIPv6Cmd string
+
+	if len(sctpIPv6) > 0 && sctpIPv6[0] {
+		sctpIPv6Cmd = "--server ::"
+	}
+
 	_, err := pod.NewBuilder(
 		APIClient, podName, tsparams.TestNamespaceName, NetConfig.CnfNetTestContainer).
 		DefineOnNode(nodeName).
 		WithLabel("app", labelValue).
 		RedefineDefaultCMD([]string{"/bin/bash", "-c",
-			"nginx && /usr/bin/testcmd -listen -interface eth0 -port 50000 -protocol sctp"}).
+			fmt.Sprintf("nginx && /usr/bin/testcmd -listen -interface eth0 -port 50000 -protocol sctp %s", sctpIPv6Cmd)}).
 		WithPrivilegedFlag().CreateAndWaitUntilRunning(tsparams.DefaultTimeout)
 	Expect(err).ToNot(HaveOccurred(), "Failed to create nginx test pod")
 }

@@ -37,7 +37,7 @@ var _ = Describe("BGP", Ordered, Label("pool-selector"), ContinueOnFailure, func
 	})
 
 	BeforeEach(func() {
-		setupIPv4TestEnv(32, false)
+		setupTestEnv(ipv4, 32, false)
 	})
 
 	AfterEach(func() {
