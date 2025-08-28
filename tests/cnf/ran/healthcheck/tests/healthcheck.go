@@ -2,16 +2,16 @@ package tests
 
 import (
 	"context" // For context.TODO() in API calls
-	"fmt"     // For formatted string output
 
+	"github.com/golang/glog"      // Logging
 	. "github.com/onsi/ginkgo/v2" // Ginkgo BDD-style testing framework
 	. "github.com/onsi/gomega"    // Gomega matcher library for assertions
 
-	"github.com/openshift-kni/eco-goinfra/pkg/nodes"                                   // eco-goinfra package for Kubernetes Node operations
-	"github.com/openshift-kni/eco-goinfra/pkg/reportxml"                               // eco-goinfra package for JUnit XML reporting IDs
-	"github.com/openshift-kni/eco-gotests/tests/cnf/ran/healthcheck/internal/tsparams" // Our test suite parameters (for labels)
-	. "github.com/openshift-kni/eco-gotests/tests/cnf/ran/internal/raninittools"       // Provides Spoke1APIClient for cluster access
-	corev1 "k8s.io/api/core/v1"                                                        // Kubernetes core API types (e.g., Node, NodeCondition)
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"                                   // eco-goinfra package for Kubernetes Node operations
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"                               // eco-goinfra package for JUnit XML reporting IDs
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/healthcheck/internal/tsparams" // Our test suite parameters (for labels)
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"       // Provides Spoke1APIClient for cluster access
+	corev1 "k8s.io/api/core/v1"                                                            // Kubernetes core API types (e.g., Node, NodeCondition)
 )
 
 // Define the test suite for "Cluster Health Check".
