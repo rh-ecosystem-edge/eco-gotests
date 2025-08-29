@@ -257,7 +257,8 @@ func (builder *PolicyBuilder) WithInterfaceAndVFs(sriovInterface string, numberO
 }
 
 // WithBondInterface adds Bond interface configuration to the NodeNetworkConfigurationPolicy.
-func (builder *PolicyBuilder) WithBondInterface(slavePorts []string, bondName, mode string) *PolicyBuilder {
+func (builder *PolicyBuilder) WithBondInterface(slavePorts []string, bondName, mode string,
+	options ...OptionsLinkAggregation) *PolicyBuilder {
 	if valid, err := builder.validate(); !valid {
 		builder.errorMsg = err.Error()
 
@@ -291,6 +292,10 @@ func (builder *PolicyBuilder) WithBondInterface(slavePorts []string, bondName, m
 			Mode: mode,
 			Port: slavePorts,
 		},
+	}
+
+	if len(options) > 0 {
+		newInterface.LinkAggregation.Options = options[0]
 	}
 
 	return builder.withInterface(newInterface)

@@ -85,6 +85,8 @@ type OptionsLinkAggregation struct {
 	Primary     string `yaml:"primary,omitempty"`
 	Miimon      int    `yaml:"miimon,omitempty"`
 	FailOverMac string `yaml:"fail_over_mac,omitempty"`
+	LacpRate    string `yaml:"lacp_rate,omitempty"`
+	MinLinks    int    `yaml:"min_links,omitempty"`
 }
 
 // Vlan provides struct for the NMState Interface Ethernet Vlan Options state object
