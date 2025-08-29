@@ -3,6 +3,7 @@ package rdscorecommon
 import (
 	"fmt"
 	"maps"
+	"math/rand"
 	"strconv"
 	"time"
 
@@ -63,10 +64,16 @@ const (
 	DefaultAffinityWeight = 100
 	// DefaultDeploymentTimeout value for the timeout of the deployment creation.
 	DefaultDeploymentTimeout = 5 * time.Minute
+	// DefaultDeploymentPollingInterval value for the polling interval of the deployment creation.
+	DefaultDeploymentPollingInterval = 15 * time.Second
 	// DefaultCleanupPollingInterval value for the polling interval of the cleanup.
 	DefaultCleanupPollingInterval = 15 * time.Second
 	// DefaultCleanupTimeout value for the timeout of the cleanup.
 	DefaultCleanupTimeout = 5 * time.Minute
+	// DefaultPodTerminationPollingInterval value for the polling interval of the pod termination.
+	DefaultPodTerminationPollingInterval = 15 * time.Second
+	// DefaultPodTerminationTimeout value for the timeout of the pod termination.
+	DefaultPodTerminationTimeout = 5 * time.Minute
 
 	waDeployment3                    = "rds-whereabouts-3"
 	waDeployment3Label               = "app=rds-whereabouts-3"
@@ -633,6 +640,61 @@ func VerifyWhereaboutsInterDeploymentPodCommunication(
 	verifyInterPodCommunication(activePods, podWhereaboutsIPs, podsMapping, parsedPort)
 }
 
+// terminateAndWaitPodFromDeployment terminates a random pod from a deployment and waits for it to be terminated.
+func terminateAndWaitPodFromDeployment(config WhereaboutsDeploymentConfig) {
+	By(fmt.Sprintf("Terminating pod from deployment %q", config.Name))
+
+	activePods := getActivePods(config.Label, RDSCoreConfig.WhereaboutNS)
+
+	Expect(len(activePods)).To(Equal(int(config.Replicas)),
+		"Number of active pods %d is not equal to number of replicas %d", len(activePods), config.Replicas)
+
+	// Ensure we have pods to terminate
+	Expect(len(activePods)).To(BeNumerically(">", 0),
+		"No active pods found for deployment %q", config.Name)
+
+	By("Randomly picking up pod for termination")
+
+	randomPodIndex := rand.Intn(len(activePods))
+	terminatedPod := activePods[randomPodIndex]
+
+	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Picked up pod %q for termination", terminatedPod.Object.Name)
+
+	By(fmt.Sprintf("Terminating pod %q", terminatedPod.Object.Name))
+
+	terminatedPod, err := terminatedPod.DeleteAndWait(DefaultPodTerminationTimeout)
+
+	Expect(err).ToNot(HaveOccurred(), "Failed to terminate pod %q due to %v", terminatedPod.Definition.Name, err)
+}
+
+// waitForDeploymentReplicas waits for a deployment to have a given number of replicas
+// and checks that amount of active pods is equal to the number of replicas.
+func waitForDeploymentReplicas(ctx SpecContext, config WhereaboutsDeploymentConfig, replicas int32) {
+	By(fmt.Sprintf("Waiting for deployment %q to have %d replicas", config.Name, replicas))
+
+	Eventually(func() bool {
+		mDeploy, err := deployment.Pull(APIClient, config.Name, RDSCoreConfig.WhereaboutNS)
+
+		if err != nil {
+			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to pull deployment %q: %v", config.Name, err)
+
+			return false
+		}
+
+		return mDeploy.Object.Status.ReadyReplicas == replicas
+	}).WithContext(ctx).WithTimeout(DefaultDeploymentTimeout).WithPolling(DefaultDeploymentPollingInterval).Should(
+		BeTrue(),
+		fmt.Sprintf("Deployment %q did not reach %d replicas", config.Name, replicas))
+
+	Eventually(func() bool {
+		activePods := getActivePods(config.Label, RDSCoreConfig.WhereaboutNS)
+
+		return len(activePods) == int(replicas)
+	}).WithContext(ctx).WithTimeout(DefaultDeploymentTimeout).WithPolling(DefaultDeploymentPollingInterval).Should(
+		BeTrue(),
+		fmt.Sprintf("Deployment %q did not reach %d active pods", config.Name, replicas))
+}
+
 // VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNode creates two deployments
 // with pods scheduled on the same node and verifies inter pod communication between them.
 func VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNode(ctx SpecContext) {
@@ -678,5 +740,97 @@ func VerifyWhereaboutsInterDeploymentPodCommunicationOnDifferentNodes(ctx SpecCo
 
 	CreateWhereaboutsDeployment(ctx, configTwo)
 
+	VerifyWhereaboutsInterDeploymentPodCommunication(ctx, configOne, configTwo)
+}
+
+// VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNodeAfterPodTermination creates two deployments
+// with pods scheduled on the same node, terminates a pod from one of the deployments and verifies
+// inter pod communication between them.
+func VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNodeAfterPodTermination(ctx SpecContext) {
+	configOne := SameNodeDeploymentOneConfig
+	// Set runtime configuration values
+	configOne.Port = RDSCoreConfig.WhereaboutsDeployOnePort
+	configOne.Image = RDSCoreConfig.WhereaboutsDeployImageOne
+	configOne.Command = RDSCoreConfig.WhereaboutsDeployOneCMD
+	configOne.NAD = RDSCoreConfig.WhereaboutsDeployOneNAD
+
+	configTwo := SameNodeDeploymentTwoConfig
+	// Set runtime configuration values
+	configTwo.Port = RDSCoreConfig.WhereaboutsDeployTwoPort
+	configTwo.Image = RDSCoreConfig.WhereaboutsDeployImageTwo
+	configTwo.Command = RDSCoreConfig.WhereaboutsDeployTwoCMD
+	configTwo.NAD = RDSCoreConfig.WhereaboutsDeployTwoNAD
+
+	CreateWhereaboutsDeployment(ctx, configOne)
+
+	CreateWhereaboutsDeployment(ctx, configTwo)
+
+	// Ensure inter pod communication between the deployments works before pod termination
+	VerifyWhereaboutsInterDeploymentPodCommunication(ctx, configOne, configTwo)
+
+	By("Randomly picking up deployment for pod termination")
+
+	whereaboutsDeployments := []WhereaboutsDeploymentConfig{configOne, configTwo}
+
+	randomIndex := rand.Intn(len(whereaboutsDeployments))
+
+	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Picked up deployment %q for pod termination",
+		whereaboutsDeployments[randomIndex].Name)
+
+	terminateAndWaitPodFromDeployment(whereaboutsDeployments[randomIndex])
+
+	By("Waiting for deployment to have new pods running")
+
+	waitForDeploymentReplicas(ctx, whereaboutsDeployments[randomIndex], whereaboutsDeployments[randomIndex].Replicas)
+
+	By("Verifying inter pod communication between the deployments works after pod termination")
+
+	// Ensure inter pod communication between the deployments works after pod termination
+	VerifyWhereaboutsInterDeploymentPodCommunication(ctx, configOne, configTwo)
+}
+
+// VerifyWhereaboutsInterDeploymentPodCommunicationOnDifferentNodesAfterPodTermination creates two deployments
+// with pods scheduled on different nodes, terminates a pod from one of the deployments and verifies
+// inter pod communication between them.
+func VerifyWhereaboutsInterDeploymentPodCommunicationOnDifferentNodesAfterPodTermination(ctx SpecContext) {
+	configOne := DiffNodeDeploymentOneConfig
+	// Set runtime configuration values
+	configOne.Port = RDSCoreConfig.WhereaboutsDeploy3Port
+	configOne.Image = RDSCoreConfig.WhereaboutsDeployImage3
+	configOne.Command = RDSCoreConfig.WhereaboutsDeploy3CMD
+	configOne.NAD = RDSCoreConfig.WhereaboutsDeploy3NAD
+
+	configTwo := DiffNodeDeploymentTwoConfig
+	// Set runtime configuration values
+	configTwo.Port = RDSCoreConfig.WhereaboutsDeploy4Port
+	configTwo.Image = RDSCoreConfig.WhereaboutsDeployImage4
+	configTwo.Command = RDSCoreConfig.WhereaboutsDeploy4CMD
+	configTwo.NAD = RDSCoreConfig.WhereaboutsDeploy4NAD
+
+	CreateWhereaboutsDeployment(ctx, configOne)
+
+	CreateWhereaboutsDeployment(ctx, configTwo)
+
+	// Ensure inter pod communication between the deployments works before pod termination
+	VerifyWhereaboutsInterDeploymentPodCommunication(ctx, configOne, configTwo)
+
+	By("Randomly picking up deployment for pod termination")
+
+	whereaboutsDeployments := []WhereaboutsDeploymentConfig{configOne, configTwo}
+
+	randomIndex := rand.Intn(len(whereaboutsDeployments))
+
+	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Picked up deployment %q for pod termination",
+		whereaboutsDeployments[randomIndex].Name)
+
+	terminateAndWaitPodFromDeployment(whereaboutsDeployments[randomIndex])
+
+	By("Waiting for deployment to have new pods running")
+
+	waitForDeploymentReplicas(ctx, whereaboutsDeployments[randomIndex], whereaboutsDeployments[randomIndex].Replicas)
+
+	By("Verifying inter pod communication between the deployments works after pod termination")
+
+	// Ensure inter pod communication between the deployments works after pod termination
 	VerifyWhereaboutsInterDeploymentPodCommunication(ctx, configOne, configTwo)
 }
