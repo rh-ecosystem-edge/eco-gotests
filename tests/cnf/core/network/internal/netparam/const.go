@@ -19,8 +19,14 @@ const (
 	IPSubnet64 = "64"
 	// IPSubnet32 represents prefix 32 ipv4 subnet.
 	IPSubnet32 = "32"
+	// IPSubnetInt24 represents prefix 24 ipv4 subnet.
+	IPSubnetInt24 = 24
 	// IPSubnetInt32 represents prefix 32 ipv4 subnet.
 	IPSubnetInt32 = 32
+	// IPSubnetInt64 represents prefix 64 ipv6 subnet.
+	IPSubnetInt64 = 64
+	// IPSubnetInt128 represents prefix 128 ipv6 subnet.
+	IPSubnetInt128 = 128
 	// LogLevelDebug represents log level debug.
 	LogLevelDebug = "debug"
 )
