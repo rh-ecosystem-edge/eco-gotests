@@ -139,16 +139,20 @@ func PreflightImage(arch string) string {
 	return kmmparams.PreflightDTKImageX86
 }
 
+// PreflightKernel returns predefined kernel version string based on architecture and realtime flag.
 func PreflightKernel(arch string, realtime bool) string {
 	if arch == "arm64" || arch == "aarch64" {
 		if realtime {
 			return kmmparams.KernelForDTKArm64Realtime
 		}
+
 		return kmmparams.KernelForDTKArm64
 	}
+
 	if realtime {
 		return kmmparams.KernelForDTKX86Realtime
 	}
+
 	return kmmparams.KernelForDTKX86
 }
 

@@ -195,7 +195,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			}
 
 			By("Get kernel version from cluster")
-			kernelVersion := get.PreflightKernel(arch, true)
+			kernelVersion := get.PreflightKernel(arch, false)
 
 			By("Get the DTK Image for preflight test")
 			dtkImage := get.PreflightImage(arch)
