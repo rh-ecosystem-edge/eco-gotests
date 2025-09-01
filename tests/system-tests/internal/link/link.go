@@ -8,7 +8,8 @@ import (
 	"github.com/golang/glog"
 )
 
-type link struct {
+// Link represents a network link.
+type Link struct {
 	Ifindex   int      `json:"ifindex,omitempty"`
 	Link      string   `json:"link,omitempty"`
 	Ifname    string   `json:"ifname,omitempty"`
@@ -41,10 +42,10 @@ type link struct {
 	} `json:"stats64,omitempty"`
 }
 
-type links []link
+type links []Link
 
 // NewBuilder returns Link struct.
-func NewBuilder(jsonOutput bytes.Buffer) (*link, error) {
+func NewBuilder(jsonOutput bytes.Buffer) (*Link, error) {
 	var link links
 
 	if len(jsonOutput.Bytes()) == 0 {
@@ -76,12 +77,12 @@ func NewBuilder(jsonOutput bytes.Buffer) (*link, error) {
 }
 
 // GetRxByte returns number of unicast bytes received on link.
-func (l *link) GetRxByte() int {
+func (l *Link) GetRxByte() int {
 	return l.Stats64.Rx.Bytes
 }
 
 // NewListBuilder returns Link struct.
-func NewListBuilder(jsonOutput bytes.Buffer) ([]link, error) {
+func NewListBuilder(jsonOutput bytes.Buffer) ([]Link, error) {
 	var linkList links
 
 	if len(jsonOutput.Bytes()) == 0 {
