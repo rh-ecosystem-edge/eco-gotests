@@ -59,6 +59,12 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelLong
 		})
 
 		AfterAll(func() {
+			By("Delete preflight validation")
+			pre, _ := kmm.PullPreflightValidationOCP(APIClient, kmmparams.PreflightName, kmmparams.RealtimeKernelNamespace)
+			if pre != nil {
+				_, _ = pre.Delete()
+			}
+
 			By("Delete Module")
 			_, _ = kmm.NewModuleBuilder(APIClient, moduleName, kmmparams.RealtimeKernelNamespace).Delete()
 
@@ -199,21 +205,20 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelLong
 		})
 
 		It("should be able to run preflightvalidation for realtime kernel", reportxml.ID("84177"), func() {
-			By("Get kernel version from cluster")
-			kernelVersion, err := get.KernelFullVersion(APIClient, GeneralConfig.WorkerLabelMap)
-			if err != nil {
-				Skip("could not get cluster kernel version")
-			}
-
 			By("Detecting cluster architecture")
 			arch, err := get.ClusterArchitecture(APIClient, GeneralConfig.WorkerLabelMap)
 			if err != nil {
 				Skip("could not detect cluster architecture")
 			}
+
+			By("Get kernel version from cluster")
+			kernelVersion := get.PreflightKernel(arch, true)
+
+			By("Get the DTK Image for preflight test")
 			dtkImage := get.PreflightImage(arch)
 
 			By("Create preflightvalidationocp for realtime kernel")
-			pre, err := kmm.NewPreflightValidationOCPBuilder(APIClient, kmmparams.PreflightName,
+			_, err = kmm.NewPreflightValidationOCPBuilder(APIClient, kmmparams.PreflightName,
 				kmmparams.RealtimeKernelNamespace).
 				WithKernelVersion(kernelVersion).
 				WithDtkImage(dtkImage).
