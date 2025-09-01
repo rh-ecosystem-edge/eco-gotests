@@ -231,10 +231,6 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelLong
 				kmmparams.RealtimeKernelNamespace)
 			Expect(strings.Contains(status, "Verification successful")).
 				To(BeTrue(), "expected realtime preflight success message not found")
-
-			By("Delete realtime preflight validation")
-			_, err = pre.Delete()
-			Expect(err).ToNot(HaveOccurred(), "error deleting realtime preflightvalidation")
 		})
 	})
 })
