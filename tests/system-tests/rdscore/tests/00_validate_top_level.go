@@ -272,6 +272,16 @@ var _ = Describe(
 				reportxml.ID("82713"),
 				rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnDifferentNodes)
 
+			It("Verify Whereabouts Deployment on the same node after pod termination",
+				Label("whereabouts", "whereabouts-deployment-same-node-termination", "whereabouts-deployment"),
+				reportxml.ID("82741"),
+				rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNodeAfterPodTermination)
+
+			It("Verify Whereabouts Deployment on the different nodes after pod termination",
+				Label("whereabouts", "whereabouts-deployment-different-nodes-termination", "whereabouts-deployment"),
+				reportxml.ID("82740"),
+				rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnDifferentNodesAfterPodTermination)
+
 			AfterEach(func(ctx SpecContext) {
 				By("Cleanup UnexpectedAdmission pods after KDump test")
 				rdscorecommon.CleanupUnexpectedAdmissionPods()
