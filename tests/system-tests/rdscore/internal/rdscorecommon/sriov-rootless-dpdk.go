@@ -408,8 +408,9 @@ func rxTrafficOnClientPod(clientPod *pod.Builder, clientRxCmd string) error {
 
 func getCurrentLinkRx(runningPod *pod.Builder) (map[string]int, error) {
 	var (
-		linksRawInfo bytes.Buffer
-		err          error
+		linksRawInfo  bytes.Buffer
+		linksInfoList []link.Link
+		err           error
 	)
 
 	linksInfoMap := make(map[string]int)
@@ -429,6 +430,17 @@ func getCurrentLinkRx(runningPod *pod.Builder) (map[string]int, error) {
 				return false, nil
 			}
 
+			tmpLinksInfoList, err := link.NewListBuilder(linksRawInfo)
+
+			if err != nil {
+				glog.V(100).Infof("Failed to build a links object list for %q due to %v",
+					linksRawInfo, err)
+
+				return false, nil
+			}
+
+			linksInfoList = tmpLinksInfoList
+
 			return true, nil
 		})
 
@@ -438,15 +450,6 @@ func getCurrentLinkRx(runningPod *pod.Builder) (map[string]int, error) {
 
 		return nil, fmt.Errorf("failed to get links info from pod %s in namespace %s with error %w",
 			runningPod.Definition.Name, runningPod.Definition.Namespace, err)
-	}
-
-	linksInfoList, err := link.NewListBuilder(linksRawInfo)
-	if err != nil {
-		glog.V(100).Infof("Failed to build a links object list for %q due to %v",
-			linksRawInfo, err)
-
-		return nil, fmt.Errorf("failed to build a links object list for %q due to %w",
-			linksRawInfo, err)
 	}
 
 	for _, linkInfo := range linksInfoList {
