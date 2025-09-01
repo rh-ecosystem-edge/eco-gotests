@@ -139,6 +139,19 @@ func PreflightImage(arch string) string {
 	return kmmparams.PreflightDTKImageX86
 }
 
+func PreflightKernel(arch string, realtime bool) string {
+	if arch == "arm64" || arch == "aarch64" {
+		if realtime {
+			return kmmparams.KernelForDTKArm64Realtime
+		}
+		return kmmparams.KernelForDTKArm64
+	}
+	if realtime {
+		return kmmparams.KernelForDTKX86Realtime
+	}
+	return kmmparams.KernelForDTKX86
+}
+
 // ModuleLoadedMessage returns message for a module loaded event.
 func ModuleLoadedMessage(module, nsname string) string {
 	message := fmt.Sprintf("Module %s/%s loaded into the kernel", nsname, module)

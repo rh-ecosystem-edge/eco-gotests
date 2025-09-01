@@ -188,17 +188,16 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 		})
 
 		It("should be able to run preflightvalidation with no push to registry", reportxml.ID("56330"), func() {
-			By("Get kernel version from cluster")
-			kernelVersion, err := get.KernelFullVersion(APIClient, GeneralConfig.WorkerLabelMap)
-			if err != nil {
-				Skip("could not get cluster kernel version")
-			}
-
 			By("Detecting cluster architecture")
 			arch, err := get.ClusterArchitecture(APIClient, GeneralConfig.WorkerLabelMap)
 			if err != nil {
 				Skip("could not detect cluster architecture")
 			}
+
+			By("Get kernel version from cluster")
+			kernelVersion := get.PreflightKernel(arch, true)
+
+			By("Get the DTK Image for preflight test")
 			dtkImage := get.PreflightImage(arch)
 
 			By("Wait for module to be fully deployed before creating preflight")
@@ -239,17 +238,16 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 		})
 
 		It("should be able to run preflightvalidation and push to registry", reportxml.ID("56328"), func() {
-			By("Get kernel version from cluster")
-			kernelVersion, err := get.KernelFullVersion(APIClient, GeneralConfig.WorkerLabelMap)
-			if err != nil {
-				Skip("could not get cluster kernel version")
-			}
-
 			By("Detecting cluster architecture")
 			arch, err := get.ClusterArchitecture(APIClient, GeneralConfig.WorkerLabelMap)
 			if err != nil {
 				Skip("could not detect cluster architecture")
 			}
+
+			By("Get kernel version from cluster")
+			kernelVersion := get.PreflightKernel(arch, false)
+
+			By("Get the DTK Image for preflight test")
 			dtkImage := get.PreflightImage(arch)
 
 			By("Create preflightvalidationocp")

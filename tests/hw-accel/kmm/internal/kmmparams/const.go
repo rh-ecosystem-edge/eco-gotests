@@ -227,6 +227,14 @@ const (
 	// Compatible with OpenShift Container Platform 4.18.
 	PreflightDTKImageARM64 = "quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:" +
 		"ada767898092f36e8d965292843f9a772b2df449aeda06580430162696bd5ddf"
+	// KernelForDTKArm64 represents kernel string for arm64 dtk image
+	KernelForDTKArm64 = "5.14.0-284.52.1.el9_2.aarch64"
+	// KernelForDTKArm64Realtime represents kernel string for arm64 realtime dtk image
+	KernelForDTKArm64Realtime = "not supported"
+	// KernelForDTKX86 represents kernel string for x86 dtk image
+	KernelForDTKX86 = "5.14.0-427.81.1.el9_4.x86_64"
+	// KernelForDTKX86Realtime represents kernel string for x86 realtime dtk image
+	KernelForDTKX86Realtime = "5.14.0-427.81.1.el9_4.x86_64+rt"
 	// PreflightName represents preflightvalidation ocp object name.
 	PreflightName = "preflight"
 	// ScannerTestNamespace represents test case namespace name.
