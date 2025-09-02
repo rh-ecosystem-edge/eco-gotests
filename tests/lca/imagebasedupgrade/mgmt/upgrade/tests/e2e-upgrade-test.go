@@ -3,6 +3,7 @@ package upgrade_test
 import (
 	"context"
 	"fmt"
+	"net"
 	"regexp"
 	"strconv"
 	"strings"
@@ -581,6 +582,17 @@ var _ = Describe(
 				"error: ibu seedimage updated with wrong next stage")
 		})
 
+		It("detects dual-stack service network", reportxml.ID("84293"), func() {
+
+			By("Validate Service Network")
+
+			if validateDualStackDeployment() {
+				glog.V(mgmtparams.MGMTLogLevel).Infof("Cluster is a dual stack deployment")
+			} else {
+				Skip("Cluster is not a dual stack deployment")
+			}
+		})
+
 		It("successfully loads kmm module", reportxml.ID("73457"), func() {
 			if !findInstalledCSV("kernel-module-management") {
 				Skip("Target was not installed with KMM")
@@ -796,6 +808,46 @@ func updateIBUWithCustomCatalogSources(imagebasedupgrade *lca.ImageBasedUpgradeB
 			imagebasedupgrade.WithExtraManifests(fmt.Sprintf("%s-configmap", catalogSource.Object.Name), mgmtparams.LCANamespace)
 		}
 	}
+}
+
+func validateDualStackDeployment() bool {
+	ipv4Network := false
+	ipv6Network := false
+
+	By("Get OCP cluster network config")
+
+	clusterNetworkConfigObj, err := cluster.GetOCPNetworkConfig(APIClient)
+	Expect(err).NotTo(HaveOccurred(), "error getting OCP cluster network config")
+
+	for _, serviceNetwork := range clusterNetworkConfigObj.Object.Spec.ServiceNetwork {
+		glog.V(mgmtparams.MGMTLogLevel).Infof("Service Network: %s", serviceNetwork)
+
+		By("Validate Service Network entry is a CIDR")
+
+		if strings.Contains(serviceNetwork, "/") {
+			ipAddress, _, err := net.ParseCIDR(serviceNetwork)
+			Expect(err).NotTo(HaveOccurred(), "error parsing CIDR")
+
+			switch {
+			case ipAddress.To4() != nil:
+				glog.V(mgmtparams.MGMTLogLevel).Infof("Valid IPv4 CIDR: %s", serviceNetwork)
+
+				ipv4Network = true
+			case ipAddress.To16() != nil:
+				glog.V(mgmtparams.MGMTLogLevel).Infof("Valid IPv6 CIDR: %s", serviceNetwork)
+
+				ipv6Network = true
+			default:
+				glog.V(2).Infof("Unknown IP family for CIDR: %s", serviceNetwork)
+			}
+
+			if ipv4Network && ipv6Network {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 func startTestWorkload() {
