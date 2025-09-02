@@ -202,7 +202,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 				Skip("could not detect cluster architecture")
 			}
 
-			By("Get kernel version from cluster")
+			By("Get kernel version for preflight")
 			kernelVersion := get.PreflightKernel(arch, false)
 
 			By("Get the DTK Image for preflight test")
@@ -244,7 +244,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 				Skip("could not detect cluster architecture")
 			}
 
-			By("Get kernel version from cluster")
+			By("Get kernel version for preflight")
 			kernelVersion := get.PreflightKernel(arch, false)
 
 			By("Get the DTK Image for preflight test")
