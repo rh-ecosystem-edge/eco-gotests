@@ -224,7 +224,7 @@ func ValidateSeedHostnameRefLogs() {
 			// Seed refs from garbage-collector-controller are expected during IBU; exclude them from this check.
 			logCmd := fmt.Sprintf(
 				`grep -Ri %q /var/log/pods | `+
-					`grep -vE 'lifecycle-agent-controller-manager|garbage-collector-controller' | wc -l`,
+					`grep -vE "lifecycle-agent-controller-manager|garbage-collector-controller" | wc -l`,
 				seedInfo.SNOHostname,
 			)
 			logRes, err := cluster.ExecCmdWithStdout(TargetSNOAPIClient, logCmd)
