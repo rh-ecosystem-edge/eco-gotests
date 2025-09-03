@@ -92,8 +92,8 @@ var _ = Describe("allmulti", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 			srIovPolicyNode1Name,
 			NetConfig.SriovOperatorNamespace,
 			srIovPolicyNode0ResName,
-			5,
-			[]string{fmt.Sprintf("%s#0-4", srIovInterfacesUnderTest[0])},
+			6,
+			[]string{fmt.Sprintf("%s#0-5", srIovInterfacesUnderTest[0])},
 			nodeSelectorWorker0).WithMTU(9000).WithVhostNet(true).Create()
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to create an sriov policy on %s",
 			workerNodes[0].Definition.Name))
@@ -108,8 +108,8 @@ var _ = Describe("allmulti", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 			srIovPolicyNode2Name,
 			NetConfig.SriovOperatorNamespace,
 			srIovPolicyNode1ResName,
-			5,
-			[]string{fmt.Sprintf("%s#0-4", srIovInterfacesUnderTest[0])},
+			6,
+			[]string{fmt.Sprintf("%s#0-5", srIovInterfacesUnderTest[0])},
 			nodeSelectorWorker1).WithMTU(9000).WithVhostNet(true).Create()
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to create an sriov policy on %s",
 			workerNodes[1].Definition.Name))

@@ -73,8 +73,8 @@ var _ = Describe("rdmaMetricsAPI", Ordered, Label(tsparams.LabelRdmaMetricsAPITe
 
 				By("Create Sriov Node Policy and Network")
 
-				tPol1 = defineAndCreateNodePolicy("rdmapolicy1", "sriovpf1", sriovInterfacesUnderTest[0], 5, 1)
-				tPol2 = defineAndCreateNodePolicy("rdmapolicy2", "sriovpf2", sriovInterfacesUnderTest[1], 5, 1)
+				tPol1 = defineAndCreateNodePolicy("rdmapolicy1", "sriovpf1", sriovInterfacesUnderTest[0], 6, 1)
+				tPol2 = defineAndCreateNodePolicy("rdmapolicy2", "sriovpf2", sriovInterfacesUnderTest[1], 6, 1)
 				tNet1 = defineAndCreateSriovNetworkWithRdma("sriovnet1", tPol1.Object.Spec.ResourceName, true)
 				tNet2 = defineAndCreateSriovNetworkWithRdma("sriovnet2", tPol2.Object.Spec.ResourceName, true)
 
@@ -146,7 +146,7 @@ var _ = Describe("rdmaMetricsAPI", Ordered, Label(tsparams.LabelRdmaMetricsAPITe
 
 				By("Create Sriov Node Policy and Network")
 
-				tPol1 = defineAndCreateNodePolicy("rdmapolicy1", "sriovpf1", sriovInterfacesUnderTest[0], 1, 0)
+				tPol1 = defineAndCreateNodePolicy("rdmapolicy1", "sriovpf1", sriovInterfacesUnderTest[0], 6, 0)
 				tNet1 = defineAndCreateSriovNetworkWithRdma("sriovnet1", tPol1.Object.Spec.ResourceName, false)
 
 				err := netenv.WaitForMcpStable(APIClient, tsparams.MCOWaitTimeout, 1*time.Minute, NetConfig.CnfMcpLabel)

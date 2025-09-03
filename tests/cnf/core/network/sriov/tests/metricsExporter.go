@@ -281,19 +281,19 @@ func definePolicy(role, devType, nicVendor, pfName string, vfRange int) *sriov.P
 	switch devType {
 	case "netdevice":
 		policy = sriov.NewPolicyBuilder(APIClient,
-			role+devType, NetConfig.SriovOperatorNamespace, role+devType, 5, []string{pfName}, NetConfig.WorkerLabelMap).
+			role+devType, NetConfig.SriovOperatorNamespace, role+devType, 6, []string{pfName}, NetConfig.WorkerLabelMap).
 			WithDevType("netdevice").
 			WithVFRange(vfRange, vfRange)
 	case "vfiopci":
 		if nicVendor != netparam.MlxVendorID {
 			policy = sriov.NewPolicyBuilder(APIClient,
-				role+devType, NetConfig.SriovOperatorNamespace, role+devType, 5, []string{pfName}, NetConfig.WorkerLabelMap).
+				role+devType, NetConfig.SriovOperatorNamespace, role+devType, 6, []string{pfName}, NetConfig.WorkerLabelMap).
 				WithDevType("vfio-pci").
 				WithVFRange(vfRange, vfRange).
 				WithRDMA(false)
 		} else {
 			policy = sriov.NewPolicyBuilder(APIClient,
-				role+devType, NetConfig.SriovOperatorNamespace, role+devType, 5, []string{pfName}, NetConfig.WorkerLabelMap).
+				role+devType, NetConfig.SriovOperatorNamespace, role+devType, 6, []string{pfName}, NetConfig.WorkerLabelMap).
 				WithDevType("netdevice").
 				WithVFRange(vfRange, vfRange).
 				WithRDMA(true)
