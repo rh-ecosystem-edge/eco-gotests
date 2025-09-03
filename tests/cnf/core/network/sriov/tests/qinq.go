@@ -1022,8 +1022,8 @@ func defineCreateSriovNetPolices(vfioPCIName, vfioPCIResName, sriovInterface,
 		vfioPCIName,
 		NetConfig.SriovOperatorNamespace,
 		vfioPCIResName,
-		5,
-		[]string{fmt.Sprintf("%s#0-4", sriovInterface)},
+		6,
+		[]string{fmt.Sprintf("%s#0-5", sriovInterface)},
 		NetConfig.WorkerLabelMap).WithVhostNet(true)
 
 	switch reqDriver {

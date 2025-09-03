@@ -73,7 +73,7 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 			"policysriov",
 			NetConfig.SriovOperatorNamespace,
 			"sriovpolicy",
-			5,
+			6,
 			srIovInterfacesUnderTest,
 			NetConfig.WorkerLabelMap).Create()
 		Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV policy")
