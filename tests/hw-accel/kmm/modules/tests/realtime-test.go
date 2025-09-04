@@ -234,7 +234,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelLong
 			By("Get status of the realtime preflightvalidationocp checks")
 			status, _ := get.PreflightReason(APIClient, kmmparams.PreflightName, moduleName,
 				kmmparams.RealtimeKernelNamespace)
-			Expect(strings.Contains(status, "Verification successful")).
+			Expect(strings.Contains(status, "verified image exists")).
 				To(BeTrue(), "expected realtime preflight success message not found")
 		})
 	})

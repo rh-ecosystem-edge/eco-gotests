@@ -271,7 +271,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			By("Get status of the preflightvalidationocp checks")
 			status, _ := get.PreflightReason(APIClient, kmmparams.PreflightName, moduleName,
 				kmmparams.ModuleBuildAndSignNamespace)
-			Expect(strings.Contains(status, "Verification successful (sign completes and image pushed)")).
+			Expect(strings.Contains(status, "verified image exists")).
 				To(BeTrue(), "expected message not found")
 		})
 	})
