@@ -1014,7 +1014,7 @@ github.com/r3labs/diff/v3
 # github.com/red-hat-storage/odf-operator v0.0.0-20250716125006-48092cb5468b
 ## explicit; go 1.23.0
 github.com/red-hat-storage/odf-operator/api/v1alpha1
-# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20250903132316-9bdcf90a8021
+# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20250904172741-6cb2ceae341c
 ## explicit; go 1.24.5
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/amdgpu
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/apiservers
@@ -1070,6 +1070,7 @@ github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/filter
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/artifacts
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/common
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/provisioning
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/pfstatus
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/proxy
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/rbac
@@ -1167,6 +1168,7 @@ github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/operators/v1alpha1
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/package-server/operators
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/package-server/operators/v1
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/version
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/pfstatus/pfstatustypes
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/siteconfig/v1alpha1
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/secret
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/service
