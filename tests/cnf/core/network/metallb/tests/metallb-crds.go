@@ -2,6 +2,7 @@ package tests
 
 import (
 	"fmt"
+	"net"
 	"strings"
 	"time"
 
@@ -184,8 +185,16 @@ func addOrDeleteNodeSecIPAddViaFRRK8S(action string,
 
 func httpTrafficValidation(testPod *pod.Builder, srcIPAddress, dstIPAddress string, secContainerName ...string) {
 	Eventually(func() error {
-		_, err := mlbcmd.Curl(
-			testPod, srcIPAddress, dstIPAddress, netparam.IPV4Family, secContainerName...)
+		var err error
+
+		if net.ParseIP(dstIPAddress).To4() == nil {
+			_, err = mlbcmd.Curl(
+				testPod, srcIPAddress, dstIPAddress, netparam.IPV6Family, secContainerName...)
+
+		} else {
+			_, err = mlbcmd.Curl(
+				testPod, srcIPAddress, dstIPAddress, netparam.IPV4Family, secContainerName...)
+		}
 
 		return err
 	}, 15*time.Second, 5*time.Second).ShouldNot(HaveOccurred(),

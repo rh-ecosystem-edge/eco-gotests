@@ -101,6 +101,20 @@ var (
 	LBipv4Range1 = []string{"1.1.1.1", "1.1.1.240"}
 	// LBipv4Range2 represents the LoadBalancer IPv4 Address Pool.
 	LBipv4Range2 = []string{"2.2.2.1", "2.2.2.240"}
+	// LBipRange1 represents the LoadBalancer IPv4 and IPv6 Address Pool.
+	LBipRange1 = map[string][]string{
+		"IPv4": {"1.1.1.1", "1.1.1.240"},
+		"IPv6": {"2002:1:1::", "2002:1:1::ffff:ffff:ffff:ffff"},
+		"dual": {"1.1.1.1", "1.1.1.240", "2002:1:1::", "2002:1:1::ffff:ffff:ffff:ffff"}}
+	// LBipRange2 represents the LoadBalancer IPv4 and IPv6 Address Pool.
+	LBipRange2 = map[string][]string{
+		"IPv4": {"2.2.2.2", "2.2.2.240"},
+		"IPv6": {"2002:2:2::", "2002:2:2::ffff:ffff:ffff:ffff"},
+		"dual": {"2.2.2.2", "2.2.2.240", "2002:2:2::", "2002:2:2::ffff:ffff:ffff:ffff"}}
+	// ExtFrrConnectedPools represents custom network prefixes to advertise from external FRR pod.
+	ExtFrrConnectedPools = map[string][]string{
+		"IPv4": {"80.80.80.80/32", "40.40.40.40/32"},
+		"IPv6": {"2002:a:a::/128", "2002:b:b::/128"}}
 )
 
 func setUnstructured(kind string) *unstructured.UnstructuredList {
