@@ -16,6 +16,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreparams"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -695,6 +696,174 @@ func waitForDeploymentReplicas(ctx SpecContext, config WhereaboutsDeploymentConf
 		fmt.Sprintf("Deployment %q did not reach %d active pods", config.Name, replicas))
 }
 
+// getRandomPodNode gets a node from a random pod matching the label.
+func getRandomPodNode(podsLabel, namespace string, expectedReplicas int32) (string, error) {
+	By("Getting list of active pods")
+
+	activePods := getActivePods(podsLabel, namespace)
+
+	Expect(int32(len(activePods))).To(Equal(expectedReplicas),
+		"Number of active pods is not equal to number of expected replicas")
+
+	for _, pod := range activePods {
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is running on node %q", pod.Object.Name, pod.Object.Spec.NodeName)
+	}
+
+	By("Generating random pod index")
+
+	randomPodIndex := rand.Intn(len(activePods))
+
+	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Random pod index: %d pod name: %q",
+		randomPodIndex, activePods[randomPodIndex].Object.Name)
+
+	selectedPod := activePods[randomPodIndex]
+
+	nodeToDrain := selectedPod.Object.Spec.NodeName
+
+	if nodeToDrain == "" {
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node to drain is empty")
+
+		return "", fmt.Errorf("node to drain is empty")
+	}
+
+	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node to drain: %q", nodeToDrain)
+
+	return nodeToDrain, nil
+}
+
+// VerifyConnectivityAfterNodeDrain verifies inter pod communication between the deployments
+// after a node is drained.
+//
+// sameNode parameter distinguishes between the case where the deployments are scheduled on the same node
+// and the case where they are scheduled on different nodes.
+//
+//nolint:funlen,gocognit
+func VerifyConnectivityAfterNodeDrain(
+	ctx SpecContext,
+	configOne, configTwo WhereaboutsDeploymentConfig,
+	sameNode bool) {
+	By("Randomly picking up deployment for node drain")
+
+	whereaboutsDeployments := []WhereaboutsDeploymentConfig{configOne, configTwo}
+
+	randomIndex := rand.Intn(len(whereaboutsDeployments))
+
+	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Picked up deployment %q for node drain",
+		whereaboutsDeployments[randomIndex].Name)
+
+	nodeToDrain, err := getRandomPodNode(whereaboutsDeployments[randomIndex].Label,
+		RDSCoreConfig.WhereaboutNS, whereaboutsDeployments[randomIndex].Replicas)
+
+	Expect(err).ToNot(HaveOccurred(),
+		fmt.Sprintf("Failed to get random pod node due to: %v", err))
+
+	By("Checking there are enough Ready nodes")
+
+	Eventually(func() bool {
+		nodesList, err := nodes.List(APIClient, metav1.ListOptions{LabelSelector: "node-role.kubernetes.io/worker"})
+
+		if err != nil {
+			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list nodes due to: %v", err)
+
+			return false
+		}
+
+		var readyNodes int
+
+		for _, node := range nodesList {
+			if node.Object.Name == nodeToDrain {
+				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping node %q as it is the node to drain",
+					node.Object.Name)
+
+				continue
+			}
+
+			for _, condition := range node.Object.Status.Conditions {
+				if condition.Type == corev1.NodeReady {
+					if condition.Status == corev1.ConditionTrue && !node.Object.Spec.Unschedulable {
+						glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q is Ready and schedulable", node.Object.Name)
+
+						readyNodes++
+
+						break
+					}
+				}
+			}
+		}
+
+		// We need at least one node in Ready state to host pods migrated away from the drained node
+		return readyNodes >= 1
+	}).WithContext(ctx).WithTimeout(DefaultDeploymentTimeout).WithPolling(DefaultDeploymentPollingInterval).Should(
+		BeTrue(), "Not enough nodes in Ready state found")
+
+	By(fmt.Sprintf("Pulling node object %q", nodeToDrain))
+
+	nodeObj, err := nodes.Pull(APIClient, nodeToDrain)
+
+	Expect(err).ToNot(HaveOccurred(),
+		fmt.Sprintf("Failed to retrieve node %s object due to: %v", nodeToDrain, err))
+
+	By(fmt.Sprintf("Cordoning node %q", nodeToDrain))
+
+	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cordoning node %q", nodeToDrain)
+
+	err = nodeObj.Cordon()
+
+	Expect(err).ToNot(HaveOccurred(),
+		fmt.Sprintf("Failed to cordon node %s due to: %v", nodeToDrain, err))
+
+	defer uncordonNode(nodeObj, 15*time.Second, 3*time.Minute)
+
+	By(fmt.Sprintf("Draining node %q", nodeToDrain))
+
+	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Draining node %q", nodeToDrain)
+
+	err = nodeObj.Drain()
+
+	Expect(err).ToNot(HaveOccurred(),
+		fmt.Sprintf("Failed to drain node %s due to: %v", nodeToDrain, err))
+
+	By(fmt.Sprintf("Waiting for deployment %q to have pods running", whereaboutsDeployments[randomIndex].Name))
+
+	waitForDeploymentReplicas(ctx, whereaboutsDeployments[randomIndex], whereaboutsDeployments[randomIndex].Replicas)
+
+	for _, _deployment := range whereaboutsDeployments {
+		if _deployment.Name != whereaboutsDeployments[randomIndex].Name {
+			By(fmt.Sprintf("Waiting for deployment %q to have pods running", _deployment.Name))
+
+			waitForDeploymentReplicas(ctx, _deployment, _deployment.Replicas)
+		}
+	}
+
+	By("Verifying pods were rescheduled away from drained node")
+
+	Eventually(func() bool {
+		var allPods []*pod.Builder
+
+		if sameNode {
+			allPods = append(
+				getActivePods(configOne.Label, RDSCoreConfig.WhereaboutNS),
+				getActivePods(configTwo.Label, RDSCoreConfig.WhereaboutNS)...)
+		} else {
+			allPods = getActivePods(whereaboutsDeployments[randomIndex].Label, RDSCoreConfig.WhereaboutNS)
+		}
+
+		for _, pod := range allPods {
+			if pod.Object.Spec.NodeName == nodeToDrain {
+				return false // Pod still on drained node
+			}
+		}
+
+		return true
+	}).WithContext(ctx).WithTimeout(DefaultDeploymentTimeout).WithPolling(DefaultDeploymentPollingInterval).Should(
+		BeTrue(), "Pods were not rescheduled away from drained node")
+
+	By("Verifying inter pod communication between the deployments works after node drain")
+
+	// Ensure inter pod communication between the deployments works after node drain
+	VerifyWhereaboutsInterDeploymentPodCommunication(ctx, configOne, configTwo)
+}
+
 // VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNode creates two deployments
 // with pods scheduled on the same node and verifies inter pod communication between them.
 func VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNode(ctx SpecContext) {
@@ -833,4 +1002,60 @@ func VerifyWhereaboutsInterDeploymentPodCommunicationOnDifferentNodesAfterPodTer
 
 	// Ensure inter pod communication between the deployments works after pod termination
 	VerifyWhereaboutsInterDeploymentPodCommunication(ctx, configOne, configTwo)
+}
+
+// VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNodeAfterNodeDrain creates two deployments
+// with pods scheduled on the same node, drains a node and verifies
+// inter pod communication between them.
+func VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNodeAfterNodeDrain(ctx SpecContext) {
+	configOne := SameNodeDeploymentOneConfig
+	// Set runtime configuration values
+	configOne.Port = RDSCoreConfig.WhereaboutsDeployOnePort
+	configOne.Image = RDSCoreConfig.WhereaboutsDeployImageOne
+	configOne.Command = RDSCoreConfig.WhereaboutsDeployOneCMD
+	configOne.NAD = RDSCoreConfig.WhereaboutsDeployOneNAD
+
+	configTwo := SameNodeDeploymentTwoConfig
+	// Set runtime configuration values
+	configTwo.Port = RDSCoreConfig.WhereaboutsDeployTwoPort
+	configTwo.Image = RDSCoreConfig.WhereaboutsDeployImageTwo
+	configTwo.Command = RDSCoreConfig.WhereaboutsDeployTwoCMD
+	configTwo.NAD = RDSCoreConfig.WhereaboutsDeployTwoNAD
+
+	CreateWhereaboutsDeployment(ctx, configOne)
+
+	CreateWhereaboutsDeployment(ctx, configTwo)
+
+	// Ensure inter pod communication between the deployments works before node drain
+	VerifyWhereaboutsInterDeploymentPodCommunication(ctx, configOne, configTwo)
+
+	VerifyConnectivityAfterNodeDrain(ctx, configOne, configTwo, true)
+}
+
+// VerifyWhereaboutsInterDeploymentPodCommunicationOnDifferentNodesAfterNodeDrain creates two deployments
+// with pods scheduled on different nodes, drains a node and verifies
+// inter pod communication between them.
+func VerifyWhereaboutsInterDeploymentPodCommunicationOnDifferentNodesAfterNodeDrain(ctx SpecContext) {
+	configOne := DiffNodeDeploymentOneConfig
+	// Set runtime configuration values
+	configOne.Port = RDSCoreConfig.WhereaboutsDeploy3Port
+	configOne.Image = RDSCoreConfig.WhereaboutsDeployImage3
+	configOne.Command = RDSCoreConfig.WhereaboutsDeploy3CMD
+	configOne.NAD = RDSCoreConfig.WhereaboutsDeploy3NAD
+
+	configTwo := DiffNodeDeploymentTwoConfig
+	// Set runtime configuration values
+	configTwo.Port = RDSCoreConfig.WhereaboutsDeploy4Port
+	configTwo.Image = RDSCoreConfig.WhereaboutsDeployImage4
+	configTwo.Command = RDSCoreConfig.WhereaboutsDeploy4CMD
+	configTwo.NAD = RDSCoreConfig.WhereaboutsDeploy4NAD
+
+	CreateWhereaboutsDeployment(ctx, configOne)
+
+	CreateWhereaboutsDeployment(ctx, configTwo)
+
+	// Ensure inter pod communication between the deployments works before node drain
+	VerifyWhereaboutsInterDeploymentPodCommunication(ctx, configOne, configTwo)
+
+	VerifyConnectivityAfterNodeDrain(ctx, configOne, configTwo, false)
 }
