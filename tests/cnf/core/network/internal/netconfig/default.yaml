@@ -4,6 +4,7 @@ cnf_net_test_container: quay.io/ocp-edge-qe/eco-gotests-network-client:v4.15.2
 dpdk_test_container: quay.io/ocp-edge-qe/eco-gotests-rootless-dpdk:v4.15.0
 metal_lb_operator_namespace: metallb-system
 frr-k8s_namespace: openshift-frr-k8s
+pf_status_relay_operator_namespace: openshift-pf-status-relay-operator
 multus_namespace: openshift-multus
 prometheus_operator_namespace: openshift-monitoring
 frr_image: quay.io/ocp-edge-qe/frr:stable_7.5
