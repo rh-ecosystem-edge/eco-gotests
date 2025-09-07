@@ -27,4 +27,16 @@ var (
 	ReporterCRDsToDump = []k8sreporter.CRData{
 		{Cr: &corev1.PodList{}},
 	}
+
+	// RequiredAnnotations defines the required annotations and their expected values for FAR CSV.
+	RequiredAnnotations = map[string]string{
+		"features.operators.openshift.io/tls-profiles":   "false",
+		"features.operators.openshift.io/disconnected":   "true",
+		"features.operators.openshift.io/fips-compliant": "true",
+		"features.operators.openshift.io/proxy-aware":    "false",
+		"features.operators.openshift.io/cnf":            "false",
+		"features.operators.openshift.io/cni":            "false",
+		"features.operators.openshift.io/csi":            "false",
+		"operatorframework.io/suggested-namespace":       rhwaparams.RhwaOperatorNs,
+	}
 )
