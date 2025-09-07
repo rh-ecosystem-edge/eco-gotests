@@ -273,6 +273,11 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 				kmmparams.ModuleBuildAndSignNamespace)
 			Expect(strings.Contains(status, "verified image exists")).
 				To(BeTrue(), "expected message not found")
+
+			By("Validate imagestream if using internal registry")
+			err = get.CheckImageStreamForModule(APIClient, kmmparams.ModuleBuildAndSignNamespace,
+				moduleName, kernelVersion)
+			Expect(err).ToNot(HaveOccurred(), "imagestream validation failed")
 		})
 	})
 })

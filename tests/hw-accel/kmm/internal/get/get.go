@@ -1,19 +1,24 @@
 package get
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/hashicorp/go-version"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/imagestream"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/kmm"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/olm"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 // NumberOfNodesForSelector returns the number or worker nodes.
@@ -227,4 +232,61 @@ func operatorVersion(apiClient *clients.Settings, namePattern, namespace string)
 	}
 
 	return nil, fmt.Errorf("no matching CSV were found")
+}
+
+// CheckImageStreamForModule validates that an imagestream exists with the correct kernel tag
+// This only runs when using OpenShift internal registry
+func CheckImageStreamForModule(apiClient *clients.Settings, namespace, moduleName, kernelVersion string) error {
+	// Check if module uses internal registry
+	module, err := kmm.Pull(apiClient, moduleName, namespace)
+	if err != nil {
+		// Module doesn't exist yet, skip validation
+		glog.V(kmmparams.KmmLogLevel).Infof("Module %s not found in namespace %s, skipping imagestream check",
+			moduleName, namespace)
+		return nil
+	}
+
+	usesInternalRegistry := false
+	if module.Object != nil && module.Object.Spec.ModuleLoader != nil {
+		for _, km := range module.Object.Spec.ModuleLoader.Container.KernelMappings {
+			if strings.Contains(km.ContainerImage, "image-registry.openshift-image-registry.svc") {
+				usesInternalRegistry = true
+				break
+			}
+		}
+	}
+
+	// Skip validation if not using internal registry
+	if !usesInternalRegistry {
+		glog.V(kmmparams.KmmLogLevel).Infof("Module %s not using internal registry, skipping imagestream check",
+			moduleName)
+		return nil
+	}
+
+	glog.V(kmmparams.KmmLogLevel).Infof("Checking imagestream %s/%s for kernel tag %s",
+		namespace, moduleName, kernelVersion)
+
+	// Wait for imagestream to have the kernel tag
+	return wait.PollUntilContextTimeout(context.TODO(), 5*time.Second, 2*time.Minute, true,
+		func(ctx context.Context) (bool, error) {
+			imgStream, err := imagestream.Pull(apiClient, moduleName, namespace)
+			if err != nil {
+				glog.V(kmmparams.KmmLogLevel).Infof("ImageStream %s/%s not found yet",
+					namespace, moduleName)
+				return false, nil
+			}
+
+			hasTag, err := imgStream.HasTag(kernelVersion)
+			if err != nil {
+				glog.V(kmmparams.KmmLogLevel).Infof("Error checking tag: %v", err)
+				return false, nil
+			}
+
+			if hasTag {
+				glog.V(kmmparams.KmmLogLevel).Infof("ImageStream %s/%s has kernel tag %s",
+					namespace, moduleName, kernelVersion)
+			}
+
+			return hasTag, nil
+		})
 }
