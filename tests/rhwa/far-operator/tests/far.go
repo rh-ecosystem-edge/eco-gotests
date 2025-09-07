@@ -60,8 +60,8 @@ var _ = Describe(
 			// Check each required annotation
 			for annotationKey, expectedValue := range farparams.RequiredAnnotations {
 				annotationValue, exists := farCSV.Object.Annotations[annotationKey]
-				Expect(exists).To(BeTrue(), fmt.Sprintf("Required annotation '%s' should exist on FAR CSV", annotationKey))
-				Expect(annotationValue).To(Equal(expectedValue), fmt.Sprintf("Annotation '%s' should have value '%s'", annotationKey, expectedValue))
+				Expect(exists).To(BeTrue(), "Required annotation %q should exist on FAR CSV", annotationKey)
+				Expect(annotationValue).To(Equal(expectedValue), "Annotation %q should have value %q", annotationKey, expectedValue)
 			}
 		})
 	})
