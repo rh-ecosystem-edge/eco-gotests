@@ -37,6 +37,6 @@ var (
 		"features.operators.openshift.io/cnf":            "false",
 		"features.operators.openshift.io/cni":            "false",
 		"features.operators.openshift.io/csi":            "false",
-		"operatorframework.io/suggested-namespace":       "openshift-workload-availability",
+		"operatorframework.io/suggested-namespace":       rhwaparams.RhwaOperatorNs,
 	}
 )
