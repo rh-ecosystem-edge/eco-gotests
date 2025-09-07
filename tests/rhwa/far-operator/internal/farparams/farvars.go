@@ -27,7 +27,4 @@ var (
 	ReporterCRDsToDump = []k8sreporter.CRData{
 		{Cr: &corev1.PodList{}},
 	}
-
-	// ExpectedReplicas defines the expected number of replicas for FAR controller manager.
-	ExpectedReplicas = int32(2)
 )
