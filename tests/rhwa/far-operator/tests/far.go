@@ -22,9 +22,12 @@ var _ = Describe(
 	Ordered,
 	ContinueOnFailure,
 	Label(farparams.Label), func() {
+		var farDeployment *deployment.Builder
+
 		BeforeAll(func() {
 			By("Get FAR deployment object")
-			farDeployment, err := deployment.Pull(
+			var err error
+			farDeployment, err = deployment.Pull(
 				APIClient, farparams.OperatorDeploymentName, rhwaparams.RhwaOperatorNs)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get FAR deployment")
 
@@ -43,5 +46,16 @@ var _ = Describe(
 				listOptions,
 			)
 			Expect(err).ToNot(HaveOccurred(), "Pod is not ready")
+		})
+
+		It("Verify FAR controller manager has correct number of replicas", reportxml.ID("OCP-61222"), func() {
+			By("Checking deployment replicas")
+			Expect(farDeployment.Object.Spec.Replicas).ToNot(BeNil(), "Deployment replicas should not be nil")
+			Expect(*farDeployment.Object.Spec.Replicas).To(Equal(farparams.ExpectedReplicas),
+				"Expected %d replica(s), found %d", farparams.ExpectedReplicas, *farDeployment.Object.Spec.Replicas)
+
+			By("Verifying ready replicas")
+			Expect(farDeployment.Object.Status.ReadyReplicas).To(Equal(farparams.ExpectedReplicas),
+				"Expected %d ready replica(s), found %d", farparams.ExpectedReplicas, farDeployment.Object.Status.ReadyReplicas)
 		})
 	})
