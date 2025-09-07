@@ -10,6 +10,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/hashicorp/go-version"
 
+	imagev1 "github.com/openshift/api/image/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/imagestream"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/kmm"
@@ -19,6 +20,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
+	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // NumberOfNodesForSelector returns the number or worker nodes.
@@ -263,30 +265,42 @@ func CheckImageStreamForModule(apiClient *clients.Settings, namespace, moduleNam
 		return nil
 	}
 
-	glog.V(kmmparams.KmmLogLevel).Infof("Checking imagestream %s/%s for kernel tag %s",
-		namespace, moduleName, kernelVersion)
+	// Be agnostic to ImageStream name: scan all IS in the namespace
+	_ = apiClient.AttachScheme(imagev1.AddToScheme)
+	glog.V(kmmparams.KmmLogLevel).Infof("Checking imagestreams in namespace %s for kernel tag %s",
+		namespace, kernelVersion)
 
 	// Wait for imagestream to have the kernel tag
 	return wait.PollUntilContextTimeout(context.TODO(), 5*time.Second, 2*time.Minute, true,
 		func(ctx context.Context) (bool, error) {
-			imgStream, err := imagestream.Pull(apiClient, moduleName, namespace)
-			if err != nil {
-				glog.V(kmmparams.KmmLogLevel).Infof("ImageStream %s/%s not found yet",
-					namespace, moduleName)
+			var isList imagev1.ImageStreamList
+			if err := apiClient.Client.List(ctx, &isList, goclient.InNamespace(namespace)); err != nil {
+				glog.V(kmmparams.KmmLogLevel).Infof("Failed listing ImageStreams in %s: %v", namespace, err)
 				return false, nil
 			}
 
-			hasTag, err := imgStream.HasTag(kernelVersion)
-			if err != nil {
-				glog.V(kmmparams.KmmLogLevel).Infof("Error checking tag: %v", err)
+			if len(isList.Items) == 0 {
+				glog.V(kmmparams.KmmLogLevel).Infof("No ImageStreams found yet in %s", namespace)
 				return false, nil
 			}
 
-			if hasTag {
-				glog.V(kmmparams.KmmLogLevel).Infof("ImageStream %s/%s has kernel tag %s",
-					namespace, moduleName, kernelVersion)
+			for _, is := range isList.Items {
+				// Reuse imagestream.Builder HasTag to check both spec and status
+				imgStreamBuilder, err := imagestream.Pull(apiClient, is.Name, namespace)
+				if err != nil {
+					continue
+				}
+				hasTag, err := imgStreamBuilder.HasTag(kernelVersion)
+				if err != nil {
+					continue
+				}
+				if hasTag {
+					glog.V(kmmparams.KmmLogLevel).Infof("ImageStream %s/%s has kernel tag %s", namespace, is.Name, kernelVersion)
+					return true, nil
+				}
 			}
 
-			return hasTag, nil
+			glog.V(kmmparams.KmmLogLevel).Infof("Kernel tag %s not found in any ImageStream in %s", kernelVersion, namespace)
+			return false, nil
 		})
 }
