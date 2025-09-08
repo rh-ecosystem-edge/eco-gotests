@@ -287,3 +287,5 @@ replace (
 	k8s.io/client-go => k8s.io/client-go v0.32.6
 	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.19.7
 )
+
+replace github.com/rh-ecosystem-edge/eco-goinfra => ../eco-goinfra

@@ -285,18 +285,23 @@ func CheckImageStreamForModule(apiClient *clients.Settings, namespace, moduleNam
 			}
 
 			for _, is := range isList.Items {
-				// Reuse imagestream.Builder HasTag to check both spec and status
+				// Get status tags and check if kernel version exists
 				imgStreamBuilder, err := imagestream.Pull(apiClient, is.Name, namespace)
 				if err != nil {
 					continue
 				}
-				hasTag, err := imgStreamBuilder.HasTag(kernelVersion)
+				statusTags, err := imgStreamBuilder.GetStatusTags()
 				if err != nil {
 					continue
 				}
-				if hasTag {
-					glog.V(kmmparams.KmmLogLevel).Infof("ImageStream %s/%s has kernel tag %s", namespace, is.Name, kernelVersion)
-					return true, nil
+				
+				// Check if kernel version exists in status tags
+				for _, tag := range statusTags {
+					if tag == kernelVersion {
+						glog.V(kmmparams.KmmLogLevel).Infof("ImageStream %s/%s has kernel tag %s in status",
+							namespace, is.Name, kernelVersion)
+						return true, nil
+					}
 				}
 			}
 

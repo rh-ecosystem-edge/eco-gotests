@@ -1014,7 +1014,7 @@ github.com/r3labs/diff/v3
 # github.com/red-hat-storage/odf-operator v0.0.0-20250716125006-48092cb5468b
 ## explicit; go 1.23.0
 github.com/red-hat-storage/odf-operator/api/v1alpha1
-# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20250910143238-3f82d867f9ee
+# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20250904172741-6cb2ceae341c => ../eco-goinfra
 ## explicit; go 1.25
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/amdgpu
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/apiservers
@@ -1039,6 +1039,7 @@ github.com/rh-ecosystem-edge/eco-goinfra/pkg/hive
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/ibgu
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/ibi
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/imageregistry
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/imagestream
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/infrastructure
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/ingress
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/keda
@@ -2260,3 +2261,4 @@ sigs.k8s.io/yaml/goyaml.v2
 # github.com/portworx/sched-ops => github.com/portworx/sched-ops v1.20.4-rc1
 # k8s.io/client-go => k8s.io/client-go v0.32.6
 # sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.19.7
+# github.com/rh-ecosystem-edge/eco-goinfra => ../eco-goinfra
