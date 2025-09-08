@@ -116,7 +116,7 @@ var _ = Describe("Mellanox Secure Boot", Ordered, Label(tsparams.LabelMlxSecureB
 				sriovAndResourceNameSecureBoot,
 				NetConfig.SriovOperatorNamespace,
 				sriovAndResourceNameSecureBoot,
-				5,
+				6,
 				sriovInterfacesUnderTest[:1],
 				map[string]string{"kubernetes.io/hostname": workerNodeList[0].Definition.Name})
 

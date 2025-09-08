@@ -371,7 +371,7 @@ var _ = Describe("ExternallyManaged", Ordered, Label(tsparams.LabelExternallyMan
 					sriovAndResourceNameExManagedTrue,
 					NetConfig.SriovOperatorNamespace,
 					sriovAndResourceNameExManagedTrue,
-					5, []string{fmt.Sprintf("%s#%d-%d", pfInterface, 2, 2)}, NetConfig.WorkerLabelMap).
+					6, []string{fmt.Sprintf("%s#%d-%d", pfInterface, 2, 2)}, NetConfig.WorkerLabelMap).
 					WithExternallyManaged(true)
 
 				err = sriovenv.CreateSriovPolicyAndWaitUntilItsApplied(sriovPolicy, tsparams.MCOWaitTimeout)
