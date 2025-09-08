@@ -238,9 +238,9 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelLong
 				To(BeTrue(), "expected realtime preflight success message not found")
 
 			By("Validate imagestream if using internal registry")
-			err = get.CheckImageStreamForModule(APIClient, kmmparams.RealtimeKernelNamespace,
+			err = check.ImageStreamExistsForModule(APIClient, kmmparams.RealtimeKernelNamespace,
 				moduleName, kernelVersion)
-			Expect(err).ToNot(HaveOccurred(), "imagestream validation failed")
+			Expect(err).To(HaveOccurred(), " imagstream exists while it is expected not to be there ")
 		})
 	})
 })

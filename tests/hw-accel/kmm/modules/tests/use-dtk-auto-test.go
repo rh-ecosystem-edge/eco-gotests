@@ -278,7 +278,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 				To(BeTrue(), "expected message not found")
 
 			By("Validate imagestream if using internal registry")
-			err = get.CheckImageStreamForModule(APIClient, kmmparams.UseDtkModuleTestNamespace,
+			err = check.ImageStreamExistsForModule(APIClient, kmmparams.UseDtkModuleTestNamespace,
 				moduleName, kernelVersion)
 			Expect(err).ToNot(HaveOccurred(), "imagestream validation failed")
 		})
