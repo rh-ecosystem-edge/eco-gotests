@@ -5,26 +5,14 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-<<<<<<< HEAD
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/rbac"
+
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/serviceaccount"
+
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/rhwa/far-operator/internal/farparams"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/rhwa/internal/rhwainittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/rhwa/internal/rhwaparams"
-=======
-
-	"github.com/openshift-kni/eco-goinfra/pkg/deployment"
-	"github.com/openshift-kni/eco-goinfra/pkg/pod"
-	"github.com/openshift-kni/eco-goinfra/pkg/reportxml"
-
-	"github.com/openshift-kni/eco-gotests/tests/rhwa/far-operator/internal/farparams"
-	. "github.com/openshift-kni/eco-gotests/tests/rhwa/internal/rhwainittools"
-	"github.com/openshift-kni/eco-gotests/tests/rhwa/internal/rhwaparams"
->>>>>>> e8f14f6a (extract preparation of rapidast pod)
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
