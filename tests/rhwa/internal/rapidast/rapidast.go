@@ -6,13 +6,13 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-goinfra/pkg/nodes"
-	"github.com/openshift-kni/eco-goinfra/pkg/pod"
-	"github.com/openshift-kni/eco-goinfra/pkg/rbac"
-	"github.com/openshift-kni/eco-goinfra/pkg/serviceaccount"
-	. "github.com/openshift-kni/eco-gotests/tests/rhwa/internal/rhwainittools"
-	"github.com/openshift-kni/eco-gotests/tests/rhwa/internal/rhwaparams"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/rbac"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/serviceaccount"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/rhwa/internal/rhwainittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/rhwa/internal/rhwaparams"
 
 	v1 "k8s.io/api/rbac/v1"
 )
