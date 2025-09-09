@@ -239,7 +239,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelLong
 
 			By("Validate imagestream if using internal registry")
 			err = check.ImageStreamExistsForModule(APIClient, kmmparams.RealtimeKernelNamespace,
-				moduleName, kernelVersion)
+				moduleName, kmodName, kernelVersion)
 			Expect(err).To(HaveOccurred(), " imagstream exists while it is expected not to be there ")
 		})
 	})

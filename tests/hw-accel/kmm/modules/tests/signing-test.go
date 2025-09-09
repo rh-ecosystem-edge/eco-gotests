@@ -276,7 +276,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 
 			By("Validate imagestream if using internal registry")
 			err = check.ImageStreamExistsForModule(APIClient, kmmparams.ModuleBuildAndSignNamespace,
-				moduleName, kernelVersion)
+				moduleName, kmodName, kernelVersion)
 			Expect(err).ToNot(HaveOccurred(), "imagestream validation failed")
 		})
 	})

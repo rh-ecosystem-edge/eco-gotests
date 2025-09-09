@@ -16,14 +16,12 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 
 	"github.com/golang/glog"
-	imagev1 "github.com/openshift/api/image/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
-	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // NodeLabel checks if label is present on the node.
@@ -165,7 +163,7 @@ func runCommandOnTestPods(apiClient *clients.Settings,
 
 // ImageStreamExistsForModule validates that an imagestream exists with the correct kernel tag
 // This only runs when using OpenShift internal registry
-func ImageStreamExistsForModule(apiClient *clients.Settings, namespace, moduleName, tag string) error {
+func ImageStreamExistsForModule(apiClient *clients.Settings, namespace, moduleName, kmodName, tag string) error {
 	// Check if module uses internal registry
 	module, err := kmm.Pull(apiClient, moduleName, namespace)
 	if err != nil {
@@ -197,40 +195,30 @@ func ImageStreamExistsForModule(apiClient *clients.Settings, namespace, moduleNa
 		return nil
 	}
 
-	// Be agnostic to ImageStream name: scan all IS in the namespace
-	glog.V(kmmparams.KmmLogLevel).Infof("Checking imagestreams in namespace %s for kernel tag %s",
-		namespace, tag)
+	// ImageStream name is the same as kmod name
+	imagestreamName := kmodName
+	glog.V(kmmparams.KmmLogLevel).Infof("Checking ImageStream %s/%s for kernel tag %s",
+		namespace, imagestreamName, tag)
 
-	// Check current state of imagestreams (no polling needed since PreflightValidationOCP already completed)
-	var isList imagev1.ImageStreamList
-	if err := apiClient.Client.List(context.TODO(), &isList, goclient.InNamespace(namespace)); err != nil {
-		return fmt.Errorf("failed to list ImageStreams in %s: %w", namespace, err)
+	// Pull the specific ImageStream
+	imgStreamBuilder, err := imagestream.Pull(apiClient, imagestreamName, namespace)
+	if err != nil {
+		return fmt.Errorf("failed to pull ImageStream %s/%s: %w", namespace, imagestreamName, err)
 	}
 
-	if len(isList.Items) == 0 {
-		return fmt.Errorf("no ImageStreams found in namespace %s", namespace)
+	statusTags, err := imgStreamBuilder.GetStatusTags()
+	if err != nil {
+		return fmt.Errorf("failed to get status tags for ImageStream %s/%s: %w", namespace, imagestreamName, err)
 	}
 
-	for _, is := range isList.Items {
-		// Get status tags and check if kernel version exists
-		imgStreamBuilder, err := imagestream.Pull(apiClient, is.Name, namespace)
-		if err != nil {
-			continue
-		}
-		statusTags, err := imgStreamBuilder.GetStatusTags()
-		if err != nil {
-			continue
-		}
-
-		// Check if kernel version exists in status tags
-		for _, statusTag := range statusTags {
-			if statusTag == tag {
-				glog.V(kmmparams.KmmLogLevel).Infof("ImageStream %s/%s has kernel tag %s in status",
-					namespace, is.Name, tag)
-				return nil
-			}
+	// Check if kernel version exists in status tags
+	for _, statusTag := range statusTags {
+		if statusTag == tag {
+			glog.V(kmmparams.KmmLogLevel).Infof("ImageStream %s/%s has kernel tag %s in status",
+				namespace, imagestreamName, tag)
+			return nil
 		}
 	}
 
-	return fmt.Errorf("kernel tag %s not found in any ImageStream in namespace %s", tag, namespace)
+	return fmt.Errorf("kernel tag %s not found in ImageStream %s/%s", tag, namespace, imagestreamName)
 }
