@@ -23,19 +23,20 @@ const (
 // NetworkConfig type keeps network configuration.
 type NetworkConfig struct {
 	*coreconfig.CoreConfig
-	CnfNetTestContainer     string `yaml:"cnf_net_test_container" envconfig:"ECO_CNF_CORE_NET_TEST_CONTAINER"`
-	DpdkTestContainer       string `yaml:"dpdk_test_container" envconfig:"ECO_CNF_CORE_NET_DPDK_TEST_CONTAINER"`
-	MlbOperatorNamespace    string `yaml:"metal_lb_operator_namespace" envconfig:"ECO_CNF_CORE_NET_MLB_OPERATOR_NAMESPACE"`
-	Frrk8sNamespace         string `yaml:"frr-k8s_namespace" envconfig:"ECO_CNF_CORE_NET_FRR-K8S_NAMESPACE"`
-	CnfMcpLabel             string `yaml:"cnf_mcp_label" envconfig:"ECO_CNF_CORE_NET_CNF_MCP_LABEL"`
-	MultusNamesapce         string `yaml:"multus_namespace" envconfig:"ECO_CNF_CORE_NET_MULTUS_NAMESPACE"`
-	SwitchUser              string `envconfig:"ECO_CNF_CORE_NET_SWITCH_USER"`
-	SwitchPass              string `envconfig:"ECO_CNF_CORE_NET_SWITCH_PASS"`
-	SwitchIP                string `envconfig:"ECO_CNF_CORE_NET_SWITCH_IP"`
-	SwitchInterfaces        string `envconfig:"ECO_CNF_CORE_NET_SWITCH_INTERFACES"`
-	PrimarySwitchInterfaces string `envconfig:"ECO_CNF_CORE_NET_PRIMARY_SWITCH_INTERFACES"`
-	SwitchLagNames          string `envconfig:"ECO_CNF_CORE_NET_SWITCH_LAGS"`
-	ClusterVlan             string `envconfig:"ECO_CNF_CORE_NET_CLUSTER_VLAN"`
+	CnfNetTestContainer            string `yaml:"cnf_net_test_container" envconfig:"ECO_CNF_CORE_NET_TEST_CONTAINER"`
+	DpdkTestContainer              string `yaml:"dpdk_test_container" envconfig:"ECO_CNF_CORE_NET_DPDK_TEST_CONTAINER"`
+	MlbOperatorNamespace           string `yaml:"metal_lb_operator_namespace" envconfig:"ECO_CNF_CORE_NET_MLB_OPERATOR_NAMESPACE"` //nolint:lll
+	Frrk8sNamespace                string `yaml:"frr-k8s_namespace" envconfig:"ECO_CNF_CORE_NET_FRR-K8S_NAMESPACE"`
+	PFStatusRelayOperatorNamespace string `yaml:"pf_status_relay_operator_namespace" envconfig:"ECO_CNF_CORE_NET_PF_STATUS_RELAY_OPERATOR_NAMESPACE"` //nolint:lll
+	CnfMcpLabel                    string `yaml:"cnf_mcp_label" envconfig:"ECO_CNF_CORE_NET_CNF_MCP_LABEL"`
+	MultusNamesapce                string `yaml:"multus_namespace" envconfig:"ECO_CNF_CORE_NET_MULTUS_NAMESPACE"`
+	SwitchUser                     string `envconfig:"ECO_CNF_CORE_NET_SWITCH_USER"`
+	SwitchPass                     string `envconfig:"ECO_CNF_CORE_NET_SWITCH_PASS"`
+	SwitchIP                       string `envconfig:"ECO_CNF_CORE_NET_SWITCH_IP"`
+	SwitchInterfaces               string `envconfig:"ECO_CNF_CORE_NET_SWITCH_INTERFACES"`
+	PrimarySwitchInterfaces        string `envconfig:"ECO_CNF_CORE_NET_PRIMARY_SWITCH_INTERFACES"`
+	SwitchLagNames                 string `envconfig:"ECO_CNF_CORE_NET_SWITCH_LAGS"`
+	ClusterVlan                    string `envconfig:"ECO_CNF_CORE_NET_CLUSTER_VLAN"`
 	//nolint:lll
 	PrometheusOperatorNamespace string `yaml:"prometheus_operator_namespace" envconfig:"ECO_CNF_CORE_NET_PROMETHEUS_OPERATOR_NAMESPACE"`
 	MlbAddressPoolIP            string `envconfig:"ECO_CNF_CORE_NET_MLB_ADDR_LIST"`
