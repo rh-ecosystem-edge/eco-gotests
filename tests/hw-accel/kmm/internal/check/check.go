@@ -162,7 +162,7 @@ func runCommandOnTestPods(apiClient *clients.Settings,
 }
 
 // ImageStreamExistsForModule validates that an imagestream exists with the correct kernel tag
-// This only runs when using OpenShift internal registry
+// This only runs when using OpenShift internal registry.
 func ImageStreamExistsForModule(apiClient *clients.Settings, namespace, moduleName, kmodName, tag string) error {
 	// Check if module uses internal registry
 	module, err := kmm.Pull(apiClient, moduleName, namespace)
@@ -170,18 +170,22 @@ func ImageStreamExistsForModule(apiClient *clients.Settings, namespace, moduleNa
 		if apierrors.IsNotFound(err) {
 			glog.V(kmmparams.KmmLogLevel).Infof("Module %s not found in namespace %s, skipping imagestream check",
 				moduleName, namespace)
+
 			return nil
 		}
+
 		return fmt.Errorf("failed to pull module %s/%s: %w", namespace, moduleName, err)
 	}
 
 	usesInternalRegistry := false
+
 	if module.Object != nil && module.Object.Spec.ModuleLoader != nil {
 		container := module.Object.Spec.ModuleLoader.Container
 		if len(container.KernelMappings) > 0 {
 			for _, km := range container.KernelMappings {
 				if strings.Contains(km.ContainerImage, "image-registry.openshift-image-registry.svc") {
 					usesInternalRegistry = true
+
 					break
 				}
 			}
@@ -192,6 +196,7 @@ func ImageStreamExistsForModule(apiClient *clients.Settings, namespace, moduleNa
 	if !usesInternalRegistry {
 		glog.V(kmmparams.KmmLogLevel).Infof("Module %s not using internal registry, skipping imagestream check",
 			moduleName)
+
 		return nil
 	}
 
@@ -216,6 +221,7 @@ func ImageStreamExistsForModule(apiClient *clients.Settings, namespace, moduleNa
 		if statusTag == tag {
 			glog.V(kmmparams.KmmLogLevel).Infof("ImageStream %s/%s has kernel tag %s in status",
 				namespace, imagestreamName, tag)
+
 			return nil
 		}
 	}
