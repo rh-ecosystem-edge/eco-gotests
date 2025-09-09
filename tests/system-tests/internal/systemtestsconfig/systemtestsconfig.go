@@ -8,7 +8,7 @@ import (
 
 	"github.com/kelseyhightower/envconfig"
 
-	"github.com/openshift-kni/eco-gotests/tests/internal/config"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/config"
 
 	"gopkg.in/yaml.v2"
 )

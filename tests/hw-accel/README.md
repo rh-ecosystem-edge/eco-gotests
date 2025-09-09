@@ -51,10 +51,10 @@ Notes:
 
 ### Eco-goinfra pkgs
 
-- [**nfd**](https://github.com/openshift-kni/eco-goinfra/tree/main/pkg/nfd)
-- [**olm**](https://github.com/openshift-kni/eco-goinfra/tree/main/pkg/olm)
-- [**nodes**](https://github.com/openshift-kni/eco-goinfra/tree/main/pkg/nodes)
-- [**pod**](https://github.com/openshift-kni/eco-goinfra/tree/main/pkg/pod)
+- [**nfd**](https://github.com/rh-ecosystem-edge/eco-goinfra/tree/main/pkg/nfd)
+- [**olm**](https://github.com/rh-ecosystem-edge/eco-goinfra/tree/main/pkg/olm)
+- [**nodes**](https://github.com/rh-ecosystem-edge/eco-goinfra/tree/main/pkg/nodes)
+- [**pod**](https://github.com/rh-ecosystem-edge/eco-goinfra/tree/main/pkg/pod)
 
 ### Inputs and Environment Variables
 

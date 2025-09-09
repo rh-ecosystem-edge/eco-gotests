@@ -1,9 +1,9 @@
 package tsparams
 
 import (
-	moduleV1Beta1 "github.com/openshift-kni/eco-goinfra/pkg/schemes/kmm/v1beta1"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 	"github.com/openshift-kni/k8sreporter"
+	moduleV1Beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/kmm/v1beta1"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 	corev1 "k8s.io/api/core/v1"
 )
 

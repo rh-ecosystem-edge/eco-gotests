@@ -1,8 +1,8 @@
 package nmoparams
 
 import (
-	"github.com/openshift-kni/eco-gotests/tests/rhwa/internal/rhwaparams"
 	"github.com/openshift-kni/k8sreporter"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/rhwa/internal/rhwaparams"
 	corev1 "k8s.io/api/core/v1"
 )
 

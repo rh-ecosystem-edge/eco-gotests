@@ -9,9 +9,9 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/onsi/ginkgo/v2/types"
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-gotests/tests/internal/cluster"
-	. "github.com/openshift-kni/eco-gotests/tests/internal/inittools"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 	"golang.org/x/crypto/ssh"
 )
 

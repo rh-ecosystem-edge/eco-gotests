@@ -1,7 +1,7 @@
 package sriovenv
 
 import (
-	"github.com/openshift-kni/eco-gotests/tests/cnf/core/network/internal/netconfig"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netconfig"
 )
 
 // SwitchCredentials creates the struct to ssh to the lab switch.

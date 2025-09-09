@@ -1,5 +1,7 @@
 package params
 
+import "time"
+
 const (
 	// Label represents gpu that can be used for test cases selection.
 	Label = "amd-gpu"
@@ -15,12 +17,21 @@ const (
 	DeviceConfigName = "amd-gpu-device-config"
 	// LabelSuite represents 'AMD GPU Basic' label that can be used for test cases selection.
 	LabelSuite = "amd-gpu-basic"
-	// MaxAttempts - Max retry attempts.
-	MaxAttempts = 10
-	// DefaultTimeout - The default timeout in seconds.
-	DefaultTimeout = 20
+	//	ClusterStabilityTimeout - The timeout for waiting for cluster stability.
+	ClusterStabilityTimeout = 10 * time.Minute
+	// DefaultTimeout - The default timeout in minutes.
+	DefaultTimeout = 5 * time.Minute
 	// DefaultSleepInterval - The default sleep time interval between checks.
-	DefaultSleepInterval = 1
+	DefaultSleepInterval = 5 * time.Second
 	// MaxNodeLabellerPodsPerNode - Maximum Node Labeller Pods on each AMD GPU worker node.
 	MaxNodeLabellerPodsPerNode = 1
+
+	// NFDNamespace represents NFD operator namespace (re-export for convenience).
+	NFDNamespace = "openshift-nfd"
+
+	// DefaultDeviceConfigName represents the default DeviceConfig CR name.
+	DefaultDeviceConfigName = "amd-gpu-device-config"
+
+	// DefaultMachineConfigName represents the default MachineConfig name for blacklisting.
+	DefaultMachineConfigName = "amdgpu-module-blacklist"
 )

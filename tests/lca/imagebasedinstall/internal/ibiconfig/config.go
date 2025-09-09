@@ -2,8 +2,8 @@ package ibiconfig
 
 import (
 	"github.com/golang/glog"
-	"github.com/openshift-kni/eco-gotests/tests/lca/imagebasedinstall/internal/ibiparams"
-	"github.com/openshift-kni/eco-gotests/tests/lca/internal/lcaconfig"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedinstall/internal/ibiparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/internal/lcaconfig"
 )
 
 // IBIConfig type contains imagebasedupgrade configuration.

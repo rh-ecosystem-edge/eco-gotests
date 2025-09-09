@@ -4,10 +4,10 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/internal/deploy"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/nfd/internal/nfddelete"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/nfd/nfdparams"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/internal/deploy"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/internal/nfddelete"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/nfdparams"
 )
 
 // NFDInstallConfigOptions holds optional overrides for NFD installation configuration.

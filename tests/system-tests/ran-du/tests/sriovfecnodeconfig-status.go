@@ -6,12 +6,12 @@ import (
 	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	sriovfec "github.com/openshift-kni/eco-goinfra/pkg/sriov-fec"
-	. "github.com/openshift-kni/eco-gotests/tests/system-tests/ran-du/internal/randuinittools"
+	sriovfec "github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov-fec"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ran-du/internal/randuinittools"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/nodes"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/ran-du/internal/randuparams"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ran-du/internal/randuparams"
 )
 
 var _ = Describe(

@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-goinfra/pkg/olm"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/olm"
 
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/nfd/nfdparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/nfdparams"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 

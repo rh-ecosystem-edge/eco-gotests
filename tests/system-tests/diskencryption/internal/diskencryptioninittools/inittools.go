@@ -2,11 +2,11 @@ package diskencryptioninittools
 
 import (
 	"github.com/golang/glog"
-	"github.com/openshift-kni/eco-goinfra/pkg/bmc"
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-goinfra/pkg/nodes"
-	"github.com/openshift-kni/eco-gotests/tests/internal/inittools"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/diskencryption/internal/config"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/bmc"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/diskencryption/internal/config"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

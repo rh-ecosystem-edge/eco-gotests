@@ -1,7 +1,7 @@
 package mgmtparams
 
 import (
-	"github.com/openshift-kni/eco-gotests/tests/lca/imagebasedinstall/internal/ibiparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedinstall/internal/ibiparams"
 )
 
 var (

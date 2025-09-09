@@ -3,8 +3,8 @@ package gitdetails
 import (
 	"fmt"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/argocd"
-	"github.com/openshift-kni/eco-gotests/tests/cnf/ran/gitopsztp/internal/tsparams"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/argocd"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/gitopsztp/internal/tsparams"
 )
 
 // GetGitPath retrieves the git path from the provided Argo CD application. It returns an error if it encounters any nil

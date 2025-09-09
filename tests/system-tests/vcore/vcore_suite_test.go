@@ -7,15 +7,15 @@ import (
 	"testing"
 
 	"github.com/golang/glog"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/internal/remote"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/remote"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/openshift-kni/eco-goinfra/pkg/reportxml"
-	"github.com/openshift-kni/eco-gotests/tests/internal/reporter"
-	. "github.com/openshift-kni/eco-gotests/tests/system-tests/vcore/internal/vcoreinittools"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/vcore/internal/vcoreparams"
-	_ "github.com/openshift-kni/eco-gotests/tests/system-tests/vcore/tests"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/reporter"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/vcore/internal/vcoreinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/vcore/internal/vcoreparams"
+	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/vcore/tests"
 )
 
 var _, currentFile, _, _ = runtime.Caller(0)

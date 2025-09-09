@@ -40,7 +40,7 @@ Notes:
 
 ### Eco-goinfra pkgs
 
-- [**kmm**](https://github.com/openshift-kni/eco-goinfra/tree/main/pkg/kmm)
+- [**kmm**](https://github.com/rh-ecosystem-edge/eco-goinfra/tree/main/pkg/kmm)
 
 ### Inputs
 

@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    if: ${{ github.repository_owner }} == 'openshift-kni'
+    if: ${{ github.repository_owner }} == 'rh-ecosystem-edge'
     runs-on: ubuntu-latest
     env:
       SHELL: /bin/bash
@@ -73,7 +73,7 @@ jobs:
           
   deploy:
     needs: build
-    if: ${{ github.repository_owner }} == 'openshift-kni'
+    if: ${{ github.repository_owner }} == 'rh-ecosystem-edge'
 
     permissions:
       pages: write

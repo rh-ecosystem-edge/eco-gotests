@@ -7,18 +7,18 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/openshift-kni/eco-goinfra/pkg/assisted"
-	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
-	"github.com/openshift-kni/eco-goinfra/pkg/pod"
-	"github.com/openshift-kni/eco-goinfra/pkg/reportxml"
-	"github.com/openshift-kni/eco-goinfra/pkg/schemes/assisted/api/v1beta1"
-	"github.com/openshift-kni/eco-goinfra/pkg/service"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/assisted"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/api/v1beta1"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/service"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/storage"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/storage"
 
-	"github.com/openshift-kni/eco-gotests/tests/assisted/ztp/internal/meets"
-	. "github.com/openshift-kni/eco-gotests/tests/assisted/ztp/internal/ztpinittools"
-	"github.com/openshift-kni/eco-gotests/tests/assisted/ztp/operator/internal/tsparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/internal/meets"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/internal/ztpinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/operator/internal/tsparams"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )

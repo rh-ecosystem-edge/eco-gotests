@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpuparams"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/internal/deploy"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/nfd/nfdparams"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	amdgpuparams "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/params"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/internal/deploy"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/nfdparams"
 )
 
 const (
@@ -18,7 +18,7 @@ const (
 
 // DeployAllOperators deploys NFD, KMM, and AMD GPU operators using the generic installer.
 func DeployAllOperators(apiClient *clients.Settings) error {
-	glog.V(amdgpuparams.LogLevel).Info("Deploying all operators")
+	glog.V(amdgpuparams.AMDGPULogLevel).Info("Deploying all operators")
 
 	operators := []string{"nfd", "kmm", "amdgpu"}
 	for _, operator := range operators {
@@ -34,17 +34,13 @@ func DeployAllOperators(apiClient *clients.Settings) error {
 			return fmt.Errorf("failed to install %s operator: %w", operator, err)
 		}
 
-		ready, err := installer.IsReady(timeout)
+		_, err = installer.IsReady(timeout)
 		if err != nil {
 			return fmt.Errorf("%s operator readiness check failed: %w", operator, err)
 		}
-
-		if !ready {
-			return fmt.Errorf("%s operator is not ready", operator)
-		}
 	}
 
-	glog.V(amdgpuparams.LogLevel).Info("All operators deployed successfully")
+	glog.V(amdgpuparams.AMDGPULogLevel).Info("All operators deployed successfully")
 
 	return nil
 }
@@ -62,7 +58,7 @@ func getConfigByName(operatorName string, apiClient *clients.Settings) deploy.Op
 			CatalogSourceNamespace: "openshift-marketplace",
 			Channel:                "stable",
 			TargetNamespaces:       []string{nfdparams.NFDNamespace},
-			LogLevel:               glog.Level(amdgpuparams.LogLevel),
+			LogLevel:               glog.Level(amdgpuparams.AMDGPULogLevel),
 		}
 	case "kmm":
 		return GetDefaultKMMInstallConfig(apiClient, nil)

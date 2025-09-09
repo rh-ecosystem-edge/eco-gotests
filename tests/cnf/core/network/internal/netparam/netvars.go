@@ -3,7 +3,7 @@ package netparam
 import (
 	"time"
 
-	"github.com/openshift-kni/eco-gotests/tests/cnf/core/internal/coreparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/internal/coreparams"
 )
 
 var (

@@ -3,7 +3,7 @@ package kmmparams
 import (
 	"fmt"
 
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/internal/hwaccelparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/internal/hwaccelparams"
 	corev1 "k8s.io/api/core/v1"
 )
 

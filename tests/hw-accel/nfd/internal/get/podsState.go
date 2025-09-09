@@ -5,10 +5,10 @@ import (
 
 	"github.com/golang/glog"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-goinfra/pkg/pod"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/nfd/internal/nfdhelpersparams"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/nfd/nfdparams"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/internal/nfdhelpersparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/nfdparams"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

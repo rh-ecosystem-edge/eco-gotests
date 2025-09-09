@@ -6,13 +6,13 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-goinfra/pkg/clusterversion"
-	"github.com/openshift-kni/eco-goinfra/pkg/infrastructure"
-	"github.com/openshift-kni/eco-goinfra/pkg/network"
-	"github.com/openshift-kni/eco-goinfra/pkg/proxy"
-	"github.com/openshift-kni/eco-goinfra/pkg/secret"
 	configv1 "github.com/openshift/api/config/v1"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clusterversion"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/infrastructure"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/network"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/proxy"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/secret"
 )
 
 // APIClientGetter is an interface that returns an APIClient from a struct.

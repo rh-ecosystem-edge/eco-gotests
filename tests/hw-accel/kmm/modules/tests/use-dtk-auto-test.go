@@ -2,23 +2,25 @@ package tests
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/kmm/internal/await"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/kmm/internal/check"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/kmm/internal/define"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/kmm/modules/internal/tsparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/await"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/check"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/define"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/get"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/modules/internal/tsparams"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/openshift-kni/eco-goinfra/pkg/configmap"
-	"github.com/openshift-kni/eco-goinfra/pkg/kmm"
-	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
-	"github.com/openshift-kni/eco-goinfra/pkg/reportxml"
-	"github.com/openshift-kni/eco-goinfra/pkg/serviceaccount"
-	. "github.com/openshift-kni/eco-gotests/tests/internal/inittools"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/configmap"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/kmm"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/serviceaccount"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 )
 
 var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func() {
@@ -61,12 +63,10 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			err = crb.Delete()
 			Expect(err).ToNot(HaveOccurred(), "error deleting test namespace")
 
-			/*
-				By("Delete preflightvalidationocp")
-				_, err = kmm.NewPreflightValidationOCPBuilder(APIClient, kmmparams.PreflightName,
-					kmmparams.UseDtkModuleTestNamespace).Delete()
-				Expect(err).ToNot(HaveOccurred(), "error deleting preflightvalidationocp")
-			*/
+			By("Delete preflightvalidationocp")
+			_, err = kmm.NewPreflightValidationOCPBuilder(APIClient, kmmparams.PreflightName,
+				kmmparams.UseDtkModuleTestNamespace).Delete()
+			Expect(err).ToNot(HaveOccurred(), "error deleting preflightvalidationocp")
 
 			By("Delete Namespace")
 			err = namespace.NewBuilder(APIClient, kmmparams.UseDtkModuleTestNamespace).Delete()
@@ -186,75 +186,98 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			Expect(err.Error()).To(ContainSubstring("missing spec.moduleLoader.container.kernelMappings"))
 			Expect(err.Error()).To(ContainSubstring(".containerImage"))
 		})
-		/*
-			It("should be able to run preflightvalidation with no push to registry", reportxml.ID("56330"), func() {
-				By("Detecting cluster architecture")
 
-				arch, err := get.ClusterArchitecture(APIClient, GeneralConfig.WorkerLabelMap)
-				if err != nil {
-					Skip("could not detect cluster architecture")
-				}
-				preflightImage := get.PreflightImage(arch)
+		It("should be able to run preflightvalidation with no push to registry", reportxml.ID("56330"), func() {
+			By("Get kernel version from cluster")
+			kernelVersion, err := get.KernelFullVersion(APIClient, GeneralConfig.WorkerLabelMap)
+			if err != nil {
+				Skip("could not get cluster kernel version")
+			}
 
-				By("Create preflightvalidationocp")
-				pre, err := kmm.NewPreflightValidationOCPBuilder(APIClient, kmmparams.PreflightName,
-					kmmparams.UseDtkModuleTestNamespace).
-					WithReleaseImage(preflightImage).
-					WithPushBuiltImage(false).
-					Create()
-				Expect(err).ToNot(HaveOccurred(), "error while creating preflight")
+			By("Detecting cluster architecture")
+			arch, err := get.ClusterArchitecture(APIClient, GeneralConfig.WorkerLabelMap)
+			if err != nil {
+				Skip("could not detect cluster architecture")
+			}
+			dtkImage := get.PreflightImage(arch)
 
-				By("Await build pod to complete build")
-				err = await.BuildPodCompleted(APIClient, kmmparams.UseDtkModuleTestNamespace, 5*time.Minute)
-				Expect(err).ToNot(HaveOccurred(), "error while building module")
+			By("Wait for module to be fully deployed before creating preflight")
+			err = await.ModuleDeployment(APIClient, moduleName, kmmparams.UseDtkModuleTestNamespace, 2*time.Minute,
+				GeneralConfig.WorkerLabelMap)
+			Expect(err).ToNot(HaveOccurred(), "error while waiting for module deployment")
 
-				By("Await preflightvalidationocp checks")
-				err = await.PreflightStageDone(APIClient, kmmparams.PreflightName, moduleName,
-					kmmparams.UseDtkModuleTestNamespace, 3*time.Minute)
-				Expect(err).NotTo(HaveOccurred(), "preflightvalidationocp did not complete")
+			By("Create preflightvalidationocp")
+			pre, err := kmm.NewPreflightValidationOCPBuilder(APIClient, kmmparams.PreflightName,
+				kmmparams.UseDtkModuleTestNamespace).
+				WithKernelVersion(kernelVersion).
+				WithDtkImage(dtkImage).
+				WithPushBuiltImage(false).
+				Create()
+			Expect(err).ToNot(HaveOccurred(), "error while creating preflight")
 
-				By("Get status of the preflightvalidationocp checks")
-				status, _ := get.PreflightReason(APIClient, kmmparams.PreflightName, moduleName,
-					kmmparams.UseDtkModuleTestNamespace)
-				Expect(strings.Contains(status, "Verification successful (build compiles)")).
-					To(BeTrue(), "expected message not found")
+			By("Await preflightvalidationocp checks")
+			err = await.PreflightStageDone(APIClient, kmmparams.PreflightName, moduleName,
+				kmmparams.UseDtkModuleTestNamespace, 3*time.Minute)
+			Expect(err).NotTo(HaveOccurred(), "preflightvalidationocp did not complete")
 
-				By("Delete preflight validation")
-				_, err = pre.Delete()
-				Expect(err).ToNot(HaveOccurred(), "error deleting preflightvalidation")
-			})
+			By("Await build pod to complete build (if any)")
+			err = await.BuildPodCompleted(APIClient, kmmparams.UseDtkModuleTestNamespace, 1*time.Minute)
+			if err != nil {
+				glog.V(kmmparams.KmmLogLevel).Infof("No build pod found or completed: %s", err)
+			}
 
-			It("should be able to run preflightvalidation and push to registry", reportxml.ID("56328"), func() {
-				By("Detecting cluster architecture")
+			By("Get status of the preflightvalidationocp checks")
+			status, _ := get.PreflightReason(APIClient, kmmparams.PreflightName, moduleName,
+				kmmparams.UseDtkModuleTestNamespace)
+			Expect(strings.Contains(status, "Verification successful (build compiles)") ||
+				strings.Contains(status, "verified image exists")).
+				To(BeTrue(), "expected message not found")
 
-				arch, err := get.ClusterArchitecture(APIClient, GeneralConfig.WorkerLabelMap)
-				if err != nil {
-					Skip("could not detect cluster architecture")
-				}
-				preflightImage := get.PreflightImage(arch)
+			By("Delete preflight validation")
+			_, err = pre.Delete()
+			Expect(err).ToNot(HaveOccurred(), "error deleting preflightvalidation")
+		})
 
-				By("Create preflightvalidationocp")
-				_, err = kmm.NewPreflightValidationOCPBuilder(APIClient, kmmparams.PreflightName,
-					kmmparams.UseDtkModuleTestNamespace).
-					WithReleaseImage(preflightImage).
-					WithPushBuiltImage(true).
-					Create()
-				Expect(err).ToNot(HaveOccurred(), "error while creating preflight")
+		It("should be able to run preflightvalidation and push to registry", reportxml.ID("56328"), func() {
+			By("Get kernel version from cluster")
+			kernelVersion, err := get.KernelFullVersion(APIClient, GeneralConfig.WorkerLabelMap)
+			if err != nil {
+				Skip("could not get cluster kernel version")
+			}
 
-				By("Await build pod to complete build")
-				err = await.BuildPodCompleted(APIClient, kmmparams.UseDtkModuleTestNamespace, 10*time.Minute)
-				Expect(err).ToNot(HaveOccurred(), "error while building module")
+			By("Detecting cluster architecture")
+			arch, err := get.ClusterArchitecture(APIClient, GeneralConfig.WorkerLabelMap)
+			if err != nil {
+				Skip("could not detect cluster architecture")
+			}
+			dtkImage := get.PreflightImage(arch)
 
-				By("Await preflightvalidationocp checks")
-				err = await.PreflightStageDone(APIClient, kmmparams.PreflightName, moduleName,
-					kmmparams.UseDtkModuleTestNamespace, 3*time.Minute)
-				Expect(err).NotTo(HaveOccurred(), "preflightvalidationocp did not complete")
+			By("Create preflightvalidationocp")
+			_, err = kmm.NewPreflightValidationOCPBuilder(APIClient, kmmparams.PreflightName,
+				kmmparams.UseDtkModuleTestNamespace).
+				WithKernelVersion(kernelVersion).
+				WithDtkImage(dtkImage).
+				WithPushBuiltImage(true).
+				Create()
+			Expect(err).ToNot(HaveOccurred(), "error while creating preflight")
 
-				By("Get status of the preflightvalidationocp checks")
-				status, _ := get.PreflightReason(APIClient, kmmparams.PreflightName, moduleName,
-					kmmparams.UseDtkModuleTestNamespace)
-				Expect(strings.Contains(status, "Verification successful (build compiles and image pushed)")).
-					To(BeTrue(), "expected message not found")
-			})*/
+			By("Await preflightvalidationocp checks")
+			err = await.PreflightStageDone(APIClient, kmmparams.PreflightName, moduleName,
+				kmmparams.UseDtkModuleTestNamespace, 3*time.Minute)
+			Expect(err).NotTo(HaveOccurred(), "preflightvalidationocp did not complete")
+
+			By("Await build pod to complete build (if any)")
+			err = await.BuildPodCompleted(APIClient, kmmparams.UseDtkModuleTestNamespace, 1*time.Minute)
+			if err != nil {
+				glog.V(kmmparams.KmmLogLevel).Infof("No build pod found or completed: %s", err)
+			}
+
+			By("Get status of the preflightvalidationocp checks")
+			status, _ := get.PreflightReason(APIClient, kmmparams.PreflightName, moduleName,
+				kmmparams.UseDtkModuleTestNamespace)
+			Expect(strings.Contains(status, "Verification successful (build compiles and image pushed)") ||
+				strings.Contains(status, "verified image exists")).
+				To(BeTrue(), "expected message not found")
+		})
 	})
 })

@@ -1,6 +1,6 @@
 package nhcparams
 
-import "github.com/openshift-kni/eco-gotests/tests/rhwa/internal/rhwaparams"
+import "github.com/rh-ecosystem-edge/eco-gotests/tests/rhwa/internal/rhwaparams"
 
 var (
 	// Labels represents the range of labels that can be used for test cases selection.

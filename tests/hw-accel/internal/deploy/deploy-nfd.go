@@ -8,13 +8,13 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	deploymentbuilder "github.com/openshift-kni/eco-goinfra/pkg/deployment"
-	ns "github.com/openshift-kni/eco-goinfra/pkg/namespace"
-	nodefeature "github.com/openshift-kni/eco-goinfra/pkg/nfd"
-	"github.com/openshift-kni/eco-goinfra/pkg/olm"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/nfd/nfdparams"
-	. "github.com/openshift-kni/eco-gotests/tests/internal/inittools"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	deploymentbuilder "github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
+	ns "github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
+	nodefeature "github.com/rh-ecosystem-edge/eco-goinfra/pkg/nfd"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/olm"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/nfdparams"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 

@@ -6,9 +6,9 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	. "github.com/openshift-kni/eco-gotests/tests/system-tests/o-cloud/internal/ocloudinittools"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/o-cloud/internal/ocloudinittools"
 
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/o-cloud/internal/ocloudparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/o-cloud/internal/ocloudparams"
 
 	"sync"
 
@@ -17,13 +17,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-goinfra/pkg/olm"
-	"github.com/openshift-kni/eco-goinfra/pkg/oran"
-	"github.com/openshift-kni/eco-goinfra/pkg/schemes/olm/version"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/olm"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/version"
 
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/internal/csv"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/internal/shell"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/csv"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/shell"
 )
 
 // VerifySuccessfulOperatorUpgrade verifies the test case of the successful upgrade of the operators in all

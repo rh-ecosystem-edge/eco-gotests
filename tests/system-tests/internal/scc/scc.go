@@ -3,8 +3,8 @@ package systemtestsscc
 import (
 	"fmt"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/scc"
-	. "github.com/openshift-kni/eco-gotests/tests/system-tests/internal/systemtestsinittools"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/scc"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/systemtestsinittools"
 )
 
 // AddPrivilegedSCCtoDefaultSA adds default service account in a namespace to the privileged SCC.

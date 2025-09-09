@@ -3,7 +3,7 @@ package lcaconfig
 import (
 	"log"
 
-	"github.com/openshift-kni/eco-gotests/tests/internal/config"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/config"
 )
 
 // LCAConfig type contains lifecycle agent configuration.

@@ -7,10 +7,11 @@ import (
 	"github.com/golang/glog"
 	"github.com/hashicorp/go-version"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-goinfra/pkg/nodes"
-	"github.com/openshift-kni/eco-goinfra/pkg/olm"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/kmm"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/olm"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
@@ -127,17 +128,15 @@ func SigningData(key string, value string) map[string][]byte {
 	return secretContents
 }
 
-// PreflightImage returns preflightvalidationocp image to be used based on architecture.
+// PreflightImage returns preflightvalidationocp DTK image to be used based on architecture.
 func PreflightImage(arch string) string {
-	if arch == "arm64" {
-		arch = "aarch64"
+	// Use specific DTK images with SHA for KMM 2.4 compatibility
+	if arch == "arm64" || arch == "aarch64" {
+		return kmmparams.PreflightDTKImageARM64
 	}
 
-	if arch == "amd64" {
-		arch = "x86_64"
-	}
-
-	return fmt.Sprintf(kmmparams.PreflightTemplateImage, arch)
+	// Default to x86_64/amd64
+	return kmmparams.PreflightDTKImageX86
 }
 
 // ModuleLoadedMessage returns message for a module loaded event.
@@ -149,22 +148,31 @@ func ModuleLoadedMessage(module, nsname string) string {
 }
 
 // PreflightReason returns the reason of a preflightvalidationocp check.
-/**
 func PreflightReason(apiClient *clients.Settings, preflight, module, nsname string) (string, error) {
-	pre, _ := kmm.PullPreflightValidationOCP(apiClient, preflight, nsname)
-
-	preflightValidationOCP, err := pre.Get()
-
-	if err == nil {
-		reason := preflightValidationOCP.Status.CRStatuses[module].StatusReason
-		glog.V(kmmparams.KmmLogLevel).Infof("VerificationStatus: %s", reason)
-
-		return reason, nil
+	pre, err := kmm.PullPreflightValidationOCP(apiClient, preflight, nsname)
+	if err != nil {
+		return "", err
 	}
 
-	return "", err
+	preflightValidationOCP, err := pre.Get()
+	if err != nil {
+		return "", err
+	}
+
+	// Search for the module in the new Modules array structure
+	for _, moduleStatus := range preflightValidationOCP.Status.Modules {
+		if moduleStatus.Name == module && moduleStatus.Namespace == nsname {
+			reason := moduleStatus.StatusReason
+			glog.V(kmmparams.KmmLogLevel).Infof("VerificationStatus: %s", reason)
+
+			return reason, nil
+		}
+	}
+
+	glog.V(kmmparams.KmmLogLevel).Infof("module %s not found in preflight validation status", module)
+
+	return "", fmt.Errorf("module %s not found in namespace %s", module, nsname)
 }
-**/
 
 // ModuleUnloadedMessage returns message for a module unloaded event.
 func ModuleUnloadedMessage(module, nsname string) string {

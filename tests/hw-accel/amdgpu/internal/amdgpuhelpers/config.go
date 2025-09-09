@@ -6,12 +6,12 @@ import (
 
 	"github.com/golang/glog"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpuconfig"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpudelete"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpumachineconfig"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpuparams"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/internal/deploy"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpuconfig"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpudelete"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpumachineconfig"
+	amdgpuparams "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/params"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/internal/deploy"
 )
 
 // AMDGPUInstallConfigOptions holds optional overrides for operator installation configuration.
@@ -41,7 +41,7 @@ func GetDefaultKMMInstallConfig(
 		Channel:                "stable",
 		SkipOperatorGroup:      false,
 		TargetNamespaces:       []string{},
-		LogLevel:               glog.Level(amdgpuparams.LogLevel),
+		LogLevel:               glog.Level(amdgpuparams.AMDGPULogLevel),
 	}
 
 	if options != nil {
@@ -97,7 +97,7 @@ func GetAlternativeKMMInstallConfig(
 		Channel:                "fast",
 		SkipOperatorGroup:      false,
 		TargetNamespaces:       []string{""},
-		LogLevel:               glog.Level(amdgpuparams.LogLevel),
+		LogLevel:               glog.Level(amdgpuparams.AMDGPULogLevel),
 	}
 
 	if options != nil {
@@ -153,7 +153,7 @@ func GetLegacyKMMInstallConfig(
 		Channel:                "1.0",
 		SkipOperatorGroup:      false,
 		TargetNamespaces:       []string{"openshift-kmm"},
-		LogLevel:               glog.Level(amdgpuparams.LogLevel),
+		LogLevel:               glog.Level(amdgpuparams.AMDGPULogLevel),
 	}
 
 	if options != nil {
@@ -210,7 +210,7 @@ func GetCustomKMMInstallConfig(
 		CatalogSourceNamespace: "openshift-marketplace",
 		Channel:                channel,
 		SkipOperatorGroup:      true,
-		LogLevel:               glog.Level(amdgpuparams.LogLevel),
+		LogLevel:               glog.Level(amdgpuparams.AMDGPULogLevel),
 	}
 }
 
@@ -220,7 +220,7 @@ func GetDefaultAMDGPUInstallConfig(
 	options *AMDGPUInstallConfigOptions) deploy.OperatorInstallConfig {
 	config := deploy.OperatorInstallConfig{
 		APIClient:              apiClient,
-		Namespace:              amdgpuparams.AMDGPUOperatorNamespace,
+		Namespace:              amdgpuparams.AMDGPUNamespace,
 		OperatorGroupName:      "amd-gpu-operator-group",
 		SubscriptionName:       "amd-gpu-subscription",
 		PackageName:            "amd-gpu-operator",
@@ -229,7 +229,7 @@ func GetDefaultAMDGPUInstallConfig(
 		Channel:                "alpha",
 
 		TargetNamespaces: []string{},
-		LogLevel:         glog.Level(amdgpuparams.LogLevel),
+		LogLevel:         glog.Level(amdgpuparams.AMDGPULogLevel),
 	}
 
 	if options != nil {
@@ -272,16 +272,16 @@ func GetDefaultAMDGPUUninstallConfig(
 	subscriptionName string) deploy.OperatorUninstallConfig {
 	amdgpuCleaner := amdgpudelete.NewAMDGPUCustomResourceCleaner(
 		apiClient,
-		amdgpuparams.AMDGPUOperatorNamespace,
-		glog.Level(amdgpuparams.LogLevel))
+		amdgpuparams.AMDGPUNamespace,
+		glog.Level(amdgpuparams.AMDGPULogLevel))
 
 	return deploy.OperatorUninstallConfig{
 		APIClient:             apiClient,
-		Namespace:             amdgpuparams.AMDGPUOperatorNamespace,
+		Namespace:             amdgpuparams.AMDGPUNamespace,
 		OperatorGroupName:     operatorGroupName,
 		SubscriptionName:      subscriptionName,
 		CustomResourceCleaner: amdgpuCleaner,
-		LogLevel:              glog.Level(amdgpuparams.LogLevel),
+		LogLevel:              glog.Level(amdgpuparams.AMDGPULogLevel),
 	}
 }
 
@@ -291,8 +291,8 @@ func GetDefaultKMMUninstallConfig(
 	options *AMDGPUInstallConfigOptions) deploy.OperatorUninstallConfig {
 	kmmCleaner := deploy.NewKMMCustomResourceCleaner(
 		apiClient,
-		amdgpuparams.AMDGPUOperatorNamespace,
-		glog.Level(amdgpuparams.LogLevel))
+		amdgpuparams.AMDGPUNamespace,
+		glog.Level(amdgpuparams.AMDGPULogLevel))
 
 	return deploy.OperatorUninstallConfig{
 		APIClient:             apiClient,
@@ -300,46 +300,46 @@ func GetDefaultKMMUninstallConfig(
 		OperatorGroupName:     "kernel-module-management",
 		SubscriptionName:      "kernel-module-management",
 		CustomResourceCleaner: kmmCleaner,
-		LogLevel:              glog.Level(amdgpuparams.LogLevel),
+		LogLevel:              glog.Level(amdgpuparams.AMDGPULogLevel),
 	}
 }
 
 // CreateBlacklistMachineConfig creates a MachineConfig to blacklist the amdgpu kernel module.
 func CreateBlacklistMachineConfig(apiClient *clients.Settings) error {
-	glog.V(amdgpuparams.LogLevel).Info(
+	glog.V(amdgpuparams.AMDGPULogLevel).Info(
 		"Creating MachineConfig to blacklist amdgpu module (auto-detecting SNO vs multi-node)")
 
 	err := amdgpumachineconfig.CreateAMDGPUBlacklist(apiClient, "worker")
 	if err != nil {
-		glog.V(amdgpuparams.LogLevel).Infof("MachineConfig creation result: %v", err)
+		glog.V(amdgpuparams.AMDGPULogLevel).Infof("MachineConfig creation result: %v", err)
 
 		return fmt.Errorf("MachineConfig creation requires cluster admin privileges or may already exist")
 	}
 
-	glog.V(amdgpuparams.LogLevel).Info(
+	glog.V(amdgpuparams.AMDGPULogLevel).Info(
 		"Waiting for MachineConfigPool to become stable after node reboots (auto-detecting MCP name)")
 
 	mcpName, err := amdgpumachineconfig.DetermineMachineConfigPoolName(apiClient)
 	if err != nil {
-		glog.V(amdgpuparams.LogLevel).Infof("Failed to determine MachineConfigPool name: %v", err)
+		glog.V(amdgpuparams.AMDGPULogLevel).Infof("Failed to determine MachineConfigPool name: %v", err)
 
 		return fmt.Errorf("failed to determine correct MachineConfigPool name")
 	}
 
-	glog.V(amdgpuparams.LogLevel).Infof("Using MachineConfigPool: %s", mcpName)
+	glog.V(amdgpuparams.AMDGPULogLevel).Infof("Using MachineConfigPool: %s", mcpName)
 
 	err = amdgpumachineconfig.WaitForMachineConfigPoolStable(apiClient, mcpName, 60*time.Minute)
 	if err != nil {
-		glog.V(amdgpuparams.LogLevel).Infof("MachineConfigPool stability check failed: %v", err)
+		glog.V(amdgpuparams.AMDGPULogLevel).Infof("MachineConfigPool stability check failed: %v", err)
 
 		return fmt.Errorf("MachineConfigPool stability check failed - may need more time or manual intervention")
 	}
 
-	glog.V(amdgpuparams.LogLevel).Info("Verifying amdgpu kernel module is properly blacklisted")
+	glog.V(amdgpuparams.AMDGPULogLevel).Info("Verifying amdgpu kernel module is properly blacklisted")
 
 	err = amdgpuconfig.VerifyAMDGPUKernelModule(apiClient)
 	if err != nil {
-		glog.V(amdgpuparams.LogLevel).Infof("Kernel module verification failed (ignoring): %v", err)
+		glog.V(amdgpuparams.AMDGPULogLevel).Infof("Kernel module verification failed (ignoring): %v", err)
 	}
 
 	return nil

@@ -3,8 +3,8 @@ package gitdetails
 import (
 	"fmt"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/argocd"
-	argocdtypes "github.com/openshift-kni/eco-goinfra/pkg/schemes/argocd/argocdtypes/v1alpha1"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/argocd"
+	argocdtypes "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/argocd/argocdtypes/v1alpha1"
 )
 
 // GetGitSource gets the ApplicationSource from the ApplicationsBuilder.

@@ -1,8 +1,8 @@
 package ztpinittools
 
 import (
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-gotests/tests/assisted/ztp/internal/ztpconfig"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/internal/ztpconfig"
 )
 
 var (

@@ -7,19 +7,16 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpuparams"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/internal/exec"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/exec"
+	amdgpuparams "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/params"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// This package now focuses only on node labeling and verification operations
-// Other functionality has been moved to more focused packages:
-// - amdgpudeviceconfig: DeviceConfig CRD operations
-// - amdgpumachineconfig: MachineConfig and MCP operations
-// - amdgpuregistry: Image registry management
-// - amdgpunfd: NodeFeatureDiscovery operations
+const (
+	executionTimeout = 10 * time.Minute
+)
 
 // WaitForAMDGPUNodes waits for nodes to be labeled with AMD GPU features.
 func WaitForAMDGPUNodes(apiClient *clients.Settings, timeout time.Duration) error {
@@ -62,17 +59,17 @@ func WaitForNodeLabel(apiClient *clients.Settings, labelKey, labelValue string, 
 
 // VerifyAMDGPUKernelModule checks if the amdgpu kernel module is properly blacklisted.
 func VerifyAMDGPUKernelModule(apiClient *clients.Settings) error {
-	glog.V(amdgpuparams.LogLevel).Infof("Verifying amdgpu kernel module is blacklisted on nodes")
+	glog.V(amdgpuparams.AMDGPULogLevel).Infof("Verifying amdgpu kernel module is blacklisted on nodes")
 
 	nodes, err := getAMDGPUNodes(apiClient)
 	if err != nil {
-		glog.V(amdgpuparams.LogLevel).Infof("Failed to get AMD GPU nodes (this may be expected): %v", err)
+		glog.V(amdgpuparams.AMDGPULogLevel).Infof("Failed to get AMD GPU nodes (this may be expected): %v", err)
 
 		return nil
 	}
 
 	if len(nodes.Items) == 0 {
-		glog.V(amdgpuparams.LogLevel).Infof("No nodes with AMD GPU labels found - verification skipped")
+		glog.V(amdgpuparams.AMDGPULogLevel).Infof("No nodes with AMD GPU labels found - verification skipped")
 
 		return nil
 	}
@@ -112,7 +109,7 @@ func verifyKernelModuleOnNodes(apiClient *clients.Settings, nodes []corev1.Node)
 
 // checkKernelModuleOnNode checks kernel module status on a single node.
 func checkKernelModuleOnNode(apiClient *clients.Settings, nodeName string) bool {
-	glog.V(amdgpuparams.LogLevel).Infof("Checking amdgpu module status on node %s", nodeName)
+	glog.V(amdgpuparams.AMDGPULogLevel).Infof("Checking amdgpu module status on node %s", nodeName)
 
 	if !checkModuleBlacklist(apiClient, nodeName) {
 		return false
@@ -125,14 +122,20 @@ func checkKernelModuleOnNode(apiClient *clients.Settings, nodeName string) bool 
 func checkModuleBlacklist(apiClient *clients.Settings, nodeName string) bool {
 	blacklistCheck := "modprobe -n -v amdgpu | grep -q 'blacklisted' && echo 'BLACKLISTED' || echo 'NOT_BLACKLISTED'"
 
-	output, err := execCommandOnNode(apiClient, nodeName, blacklistCheck)
+	output, err := execCommandOnNode(apiClient, nodeName, blacklistCheck, executionTimeout)
 	if err != nil {
-		glog.V(amdgpuparams.LogLevel).Infof("Error checking blacklist on node %s: %v", nodeName, err)
+		glog.V(amdgpuparams.AMDGPULogLevel).Infof("Error checking blacklist on node %s: %v", nodeName, err)
 
 		return false
 	}
 
-	glog.V(amdgpuparams.LogLevel).Infof("Node %s amdgpu module blacklist status: %s", nodeName, output)
+	glog.V(amdgpuparams.AMDGPULogLevel).Infof("Node %s amdgpu module blacklist status: %s", nodeName, output)
+
+	if !strings.Contains(output, "BLACKLISTED") {
+		glog.V(amdgpuparams.AMDGPULogLevel).Infof("FAIL: amdgpu is not blacklisted on node %s", nodeName)
+
+		return false
+	}
 
 	return true
 }
@@ -140,10 +143,10 @@ func checkModuleBlacklist(apiClient *clients.Settings, nodeName string) bool {
 // checkModuleLoadStatus checks if amdgpu module is loaded.
 func checkModuleLoadStatus(apiClient *clients.Settings, nodeName string) bool {
 	loadedCheck := "lsmod | grep amdgpu || echo 'MODULE_NOT_LOADED'"
-	output, err := execCommandOnNode(apiClient, nodeName, loadedCheck)
+	output, err := execCommandOnNode(apiClient, nodeName, loadedCheck, executionTimeout)
 
 	if err != nil {
-		glog.V(amdgpuparams.LogLevel).Infof("Error checking module load status on node %s: %v", nodeName, err)
+		glog.V(amdgpuparams.AMDGPULogLevel).Infof("Error checking module load status on node %s: %v", nodeName, err)
 
 		return false
 	}
@@ -156,16 +159,19 @@ func checkModuleLoadStatus(apiClient *clients.Settings, nodeName string) bool {
 // logModuleLoadStatus logs the module load status.
 func logModuleLoadStatus(nodeName, output string) {
 	if strings.Contains(output, "amdgpu") && !strings.Contains(output, "MODULE_NOT_LOADED") {
-		glog.V(amdgpuparams.LogLevel).Infof("WARNING: amdgpu module is still loaded on node %s", nodeName)
-		glog.V(amdgpuparams.LogLevel).Infof("Module status: %s", output)
+		glog.V(amdgpuparams.AMDGPULogLevel).Infof("WARNING: amdgpu module is still loaded on node %s", nodeName)
+		glog.V(amdgpuparams.AMDGPULogLevel).Infof("Module status: %s", output)
 	} else {
-		glog.V(amdgpuparams.LogLevel).Infof("Good: amdgpu module is not loaded on node %s", nodeName)
+		glog.V(amdgpuparams.AMDGPULogLevel).Infof("Good: amdgpu module is not loaded on node %s", nodeName)
 	}
 }
 
 // execCommandOnNode executes a command on a specific node and returns the output.
-func execCommandOnNode(apiClient *clients.Settings, nodeName, command string) (string, error) {
-	glog.V(amdgpuparams.LogLevel).Infof("Executing command on node %s: %s", nodeName, command)
+func execCommandOnNode(
+	apiClient *clients.Settings,
+	nodeName, command string,
+	executionTime time.Duration) (string, error) {
+	glog.V(amdgpuparams.AMDGPULogLevel).Infof("Executing command on node %s: %s", nodeName, command)
 
 	podName := fmt.Sprintf("debug-amdgpu-%s", strings.ToLower(nodeName))
 
@@ -192,14 +198,14 @@ func execCommandOnNode(apiClient *clients.Settings, nodeName, command string) (s
 		WithHostNetwork(true).
 		WithHostPID(true)
 
-	output, err := podCommand.ExecuteAndCleanup(2 * time.Minute)
+	output, err := podCommand.ExecuteAndCleanup(executionTime)
 	if err != nil {
-		glog.V(amdgpuparams.LogLevel).Infof("Command execution failed on node %s: %v", nodeName, err)
+		glog.V(amdgpuparams.AMDGPULogLevel).Infof("Command execution failed on node %s: %v", nodeName, err)
 
 		return output, err
 	}
 
-	glog.V(amdgpuparams.LogLevel).Infof("Command executed successfully on node %s", nodeName)
+	glog.V(amdgpuparams.AMDGPULogLevel).Infof("Command executed successfully on node %s", nodeName)
 
 	return output, nil
 }

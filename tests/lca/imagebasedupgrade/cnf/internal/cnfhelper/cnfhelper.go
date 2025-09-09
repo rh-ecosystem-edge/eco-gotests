@@ -3,9 +3,9 @@ package cnfhelper
 import (
 	"time"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/cgu"
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-gotests/tests/lca/imagebasedupgrade/cnf/internal/cnfinittools"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/cgu"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/cnf/internal/cnfinittools"
 )
 
 // GetAllTestClients is used to quickly obtain a list of all the test clients.

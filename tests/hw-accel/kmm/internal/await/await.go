@@ -6,14 +6,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/kmm"
-	"github.com/openshift-kni/eco-goinfra/pkg/nodes"
-	"github.com/openshift-kni/eco-goinfra/pkg/pod"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/kmm/internal/get"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/kmm"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/get"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 
 	"github.com/golang/glog"
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -28,7 +28,8 @@ func BuildPodCompleted(apiClient *clients.Settings, nsname string, timeout time.
 			var err error
 
 			if buildPod[nsname] == "" {
-				pods, err := pod.List(apiClient, nsname, metav1.ListOptions{FieldSelector: "status.phase=Running"})
+				// Search across all pod phases to catch build pods that may complete quickly
+				pods, err := pod.List(apiClient, nsname, metav1.ListOptions{})
 
 				if err != nil {
 					glog.V(kmmparams.KmmLogLevel).Infof("build list error: %s", err)
@@ -37,7 +38,7 @@ func BuildPodCompleted(apiClient *clients.Settings, nsname string, timeout time.
 				for _, podObj := range pods {
 					if strings.Contains(podObj.Object.Name, "-build") {
 						buildPod[nsname] = podObj.Object.Name
-						glog.V(kmmparams.KmmLogLevel).Infof("Build podObj '%s' is Running\n", podObj.Object.Name)
+						glog.V(kmmparams.KmmLogLevel).Infof("Build pod '%s' found\n", podObj.Object.Name)
 					}
 				}
 			}
@@ -127,7 +128,6 @@ func ModuleObjectDeleted(apiClient *clients.Settings, moduleName, nsName string,
 		})
 }
 
-/**
 // PreflightStageDone awaits preflightvalidationocp to be in stage Done.
 func PreflightStageDone(apiClient *clients.Settings, preflight, module, nsname string,
 	timeout time.Duration) error {
@@ -141,18 +141,25 @@ func PreflightStageDone(apiClient *clients.Settings, preflight, module, nsname s
 			}
 
 			preflightValidationOCP, err := pre.Get()
-
-			if err == nil {
-				status := preflightValidationOCP.Status.CRStatuses[module].VerificationStage
-				glog.V(kmmparams.KmmLogLevel).Infof("Stage: %s", status)
-
-				return status == "Done", nil
+			if err != nil {
+				return false, err
 			}
 
-			return false, err
+			// Search for the module in the new Modules array structure
+			for _, moduleStatus := range preflightValidationOCP.Status.Modules {
+				if moduleStatus.Name == module && moduleStatus.Namespace == nsname {
+					status := moduleStatus.VerificationStage
+					glog.V(kmmparams.KmmLogLevel).Infof("Stage: %s", status)
+
+					return status == "Done", nil
+				}
+			}
+
+			glog.V(kmmparams.KmmLogLevel).Infof("module %s not found in preflight validation status", module)
+
+			return false, nil
 		})
 }
-**/
 
 func deploymentPerLabel(apiClient *clients.Settings, moduleName, label string,
 	timeout time.Duration, selector map[string]string) error {

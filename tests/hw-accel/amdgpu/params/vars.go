@@ -1,9 +1,9 @@
 package params
 
 import (
-	amdgpuv1 "github.com/openshift-kni/eco-goinfra/pkg/schemes/amd/gpu-operator/api/v1alpha1"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/internal/hwaccelparams"
 	"github.com/openshift-kni/k8sreporter"
+	amdgpuv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/amd/gpu-operator/api/v1alpha1"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/internal/hwaccelparams"
 )
 
 var (
@@ -14,6 +14,7 @@ var (
 	ReporterNamespacesToDump = map[string]string{
 		hwaccelparams.NFDNamespace: "nfd-operator",
 		"amd-gpu-operator":         "openshift-amd-gpu",
+		"openshift-kmm":            "kmm-operator",
 	}
 
 	// ReporterCRDsToDump tells to the reporter what CRs to dump.

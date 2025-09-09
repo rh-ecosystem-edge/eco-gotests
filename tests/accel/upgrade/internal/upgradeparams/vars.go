@@ -3,9 +3,9 @@ package upgradeparams
 import (
 	"fmt"
 
-	"github.com/openshift-kni/eco-gotests/tests/accel/internal/accelparams"
 	"github.com/openshift-kni/k8sreporter"
 	configv1 "github.com/openshift/api/config/v1"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/accel/internal/accelparams"
 	corev1 "k8s.io/api/core/v1"
 )
 

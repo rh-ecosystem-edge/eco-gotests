@@ -3,7 +3,7 @@ package hwaccelconfig
 import (
 	"log"
 
-	"github.com/openshift-kni/eco-gotests/tests/internal/config"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/config"
 )
 
 // HwAccelConfig contains Hardware Accelerators configuration.

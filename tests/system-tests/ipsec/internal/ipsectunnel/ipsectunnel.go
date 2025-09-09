@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/internal/remote"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/ipsec/internal/ipsecparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/remote"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ipsec/internal/ipsecparams"
 )
 
 // IpsecTunnelPackets IPSec Tunnel packet counters.

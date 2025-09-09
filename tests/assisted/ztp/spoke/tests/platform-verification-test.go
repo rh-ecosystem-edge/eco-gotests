@@ -5,12 +5,12 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/openshift-kni/eco-goinfra/pkg/reportxml"
-	hiveextV1Beta1 "github.com/openshift-kni/eco-goinfra/pkg/schemes/assisted/api/hiveextension/v1beta1"
-	"github.com/openshift-kni/eco-gotests/tests/assisted/ztp/internal/installconfig"
-	. "github.com/openshift-kni/eco-gotests/tests/assisted/ztp/internal/ztpinittools"
-	"github.com/openshift-kni/eco-gotests/tests/assisted/ztp/spoke/internal/tsparams"
 	installerTypes "github.com/openshift/installer/pkg/types"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	hiveextV1Beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/api/hiveextension/v1beta1"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/internal/installconfig"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/internal/ztpinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/spoke/internal/tsparams"
 )
 
 var _ = Describe(

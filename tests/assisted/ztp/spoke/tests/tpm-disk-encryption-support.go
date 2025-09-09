@@ -5,11 +5,11 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/openshift-kni/eco-goinfra/pkg/reportxml"
-	"github.com/openshift-kni/eco-goinfra/pkg/schemes/assisted/models"
-	. "github.com/openshift-kni/eco-gotests/tests/assisted/ztp/internal/ztpinittools"
-	"github.com/openshift-kni/eco-gotests/tests/assisted/ztp/spoke/internal/diskencryption"
-	"github.com/openshift-kni/eco-gotests/tests/assisted/ztp/spoke/internal/tsparams"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/models"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/internal/ztpinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/spoke/internal/diskencryption"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/spoke/internal/tsparams"
 	"golang.org/x/exp/slices"
 )
 

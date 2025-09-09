@@ -4,7 +4,7 @@ import (
 	"html/template"
 	"strings"
 
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 )
 
 // MultiStageConfigMapContent returns the configmap multi-stage contents for a specified module name.

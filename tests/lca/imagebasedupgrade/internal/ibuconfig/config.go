@@ -2,8 +2,8 @@ package ibuconfig
 
 import (
 	"github.com/golang/glog"
-	"github.com/openshift-kni/eco-gotests/tests/lca/imagebasedupgrade/internal/ibuparams"
-	"github.com/openshift-kni/eco-gotests/tests/lca/internal/lcaconfig"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/internal/ibuparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/internal/lcaconfig"
 )
 
 // IBUConfig type contains imagebasedupgrade configuration.

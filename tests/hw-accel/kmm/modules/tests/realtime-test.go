@@ -2,29 +2,29 @@ package tests
 
 import (
 	"fmt"
-
+	"strings"
 	"time"
 
 	"github.com/golang/glog"
 	"github.com/hashicorp/go-version"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
-	"github.com/openshift-kni/eco-gotests/tests/internal/cluster"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/openshift-kni/eco-goinfra/pkg/configmap"
-	"github.com/openshift-kni/eco-goinfra/pkg/kmm"
-	"github.com/openshift-kni/eco-goinfra/pkg/mco"
-	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
-	"github.com/openshift-kni/eco-goinfra/pkg/nto"
-	"github.com/openshift-kni/eco-goinfra/pkg/reportxml"
-	"github.com/openshift-kni/eco-goinfra/pkg/serviceaccount"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/kmm/internal/await"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/kmm/internal/check"
-	define "github.com/openshift-kni/eco-gotests/tests/hw-accel/kmm/internal/define"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/kmm/internal/get"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/kmm/modules/internal/tsparams"
-	. "github.com/openshift-kni/eco-gotests/tests/internal/inittools"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/configmap"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/kmm"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/mco"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nto"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/serviceaccount"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/await"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/check"
+	define "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/define"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/get"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/modules/internal/tsparams"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 )
 
 var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelLongRun), func() {
@@ -58,7 +58,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelLong
 			mcpName = get.MachineConfigPoolName(APIClient)
 		})
 
-		AfterEach(func() {
+		AfterAll(func() {
 			By("Delete Module")
 			_, _ = kmm.NewModuleBuilder(APIClient, moduleName, kmmparams.RealtimeKernelNamespace).Delete()
 
@@ -196,6 +196,45 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelLong
 				GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
 
+		})
+
+		It("should be able to run preflightvalidation for realtime kernel", reportxml.ID("84177"), func() {
+			By("Get kernel version from cluster")
+			kernelVersion, err := get.KernelFullVersion(APIClient, GeneralConfig.WorkerLabelMap)
+			if err != nil {
+				Skip("could not get cluster kernel version")
+			}
+
+			By("Detecting cluster architecture")
+			arch, err := get.ClusterArchitecture(APIClient, GeneralConfig.WorkerLabelMap)
+			if err != nil {
+				Skip("could not detect cluster architecture")
+			}
+			dtkImage := get.PreflightImage(arch)
+
+			By("Create preflightvalidationocp for realtime kernel")
+			pre, err := kmm.NewPreflightValidationOCPBuilder(APIClient, kmmparams.PreflightName,
+				kmmparams.RealtimeKernelNamespace).
+				WithKernelVersion(kernelVersion).
+				WithDtkImage(dtkImage).
+				WithPushBuiltImage(false).
+				Create()
+			Expect(err).ToNot(HaveOccurred(), "error while creating realtime preflight")
+
+			By("Await preflightvalidationocp checks for realtime kernel")
+			err = await.PreflightStageDone(APIClient, kmmparams.PreflightName, moduleName,
+				kmmparams.RealtimeKernelNamespace, 3*time.Minute)
+			Expect(err).NotTo(HaveOccurred(), "preflightvalidationocp did not complete for realtime kernel")
+
+			By("Get status of the realtime preflightvalidationocp checks")
+			status, _ := get.PreflightReason(APIClient, kmmparams.PreflightName, moduleName,
+				kmmparams.RealtimeKernelNamespace)
+			Expect(strings.Contains(status, "Verification successful")).
+				To(BeTrue(), "expected realtime preflight success message not found")
+
+			By("Delete realtime preflight validation")
+			_, err = pre.Delete()
+			Expect(err).ToNot(HaveOccurred(), "error deleting realtime preflightvalidation")
 		})
 	})
 })

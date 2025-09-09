@@ -3,9 +3,9 @@ package define
 import (
 	"fmt"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/rbac"
-	"github.com/openshift-kni/eco-goinfra/pkg/serviceaccount"
-	"github.com/openshift-kni/eco-gotests/tests/internal/inittools"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/rbac"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/serviceaccount"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 	rbacv1 "k8s.io/api/rbac/v1"
 )
 

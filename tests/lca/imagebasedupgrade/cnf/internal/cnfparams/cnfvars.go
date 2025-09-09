@@ -3,7 +3,7 @@ package cnfparams
 import (
 	"time"
 
-	"github.com/openshift-kni/eco-gotests/tests/lca/imagebasedupgrade/internal/ibuparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/internal/ibuparams"
 )
 
 var (

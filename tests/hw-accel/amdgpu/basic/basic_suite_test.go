@@ -6,11 +6,11 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/openshift-kni/eco-goinfra/pkg/reportxml"
-	_ "github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/basic/tests"
-	amdparams "github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/params"
-	. "github.com/openshift-kni/eco-gotests/tests/internal/inittools"
-	"github.com/openshift-kni/eco-gotests/tests/internal/reporter"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/basic/tests"
+	amdparams "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/params"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/reporter"
 )
 
 var _, currentFile, _, _ = runtime.Caller(0)

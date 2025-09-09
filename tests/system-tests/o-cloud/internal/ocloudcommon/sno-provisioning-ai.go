@@ -3,15 +3,15 @@ package ocloudcommon
 import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	. "github.com/openshift-kni/eco-gotests/tests/system-tests/o-cloud/internal/ocloudinittools"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/o-cloud/internal/ocloudinittools"
 
 	"fmt"
 	"sync"
 
 	"github.com/golang/glog"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/oran"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/o-cloud/internal/ocloudparams"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/o-cloud/internal/ocloudparams"
 )
 
 // VerifySuccessfulSnoProvisioning verifies the successful provisioning of a SNO cluster using

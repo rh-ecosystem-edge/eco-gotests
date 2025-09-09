@@ -16,12 +16,12 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-goinfra/pkg/nodes"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	amdparams "github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/params"
+	amdparams "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/params"
 )
 
 // LabelPresentOnAllNodes checks if label is present on all nodes matching nodeSelector.
@@ -181,7 +181,7 @@ func LabelsExistOnNode(parentCtx context.Context, labelNode *nodes.Builder, labe
 // NodeLabellersLabelsMissingOnAllAMDGPUNode - Make sure Node Labeller Labels don't exit on all AMD GPU Worker Nodes.
 func NodeLabellersLabelsMissingOnAllAMDGPUNode(amdGpuNodes []*nodes.Builder) error {
 	return LabelsMissingOnAllNode(amdGpuNodes, amdparams.NodeLabellerLabels,
-		amdparams.DefaultTimeout*time.Second, amdparams.DefaultSleepInterval*time.Second)
+		amdparams.DefaultTimeout, amdparams.DefaultSleepInterval)
 }
 
 // LabelsMissingOnAllNode - Make sure the given labels don't exist on all given nodes.

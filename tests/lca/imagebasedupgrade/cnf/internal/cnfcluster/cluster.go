@@ -3,7 +3,7 @@ package cnfcluster
 import (
 	"errors"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 )
 
 // CheckClustersPresent can be used to check for the presence of specific clusters.

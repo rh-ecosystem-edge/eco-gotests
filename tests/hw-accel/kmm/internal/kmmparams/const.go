@@ -219,8 +219,14 @@ const (
 	TolerationModuleTestNamespace = "79205-tol"
 	// DefaultNodesNamespace represents namespace of the nodes events.
 	DefaultNodesNamespace = "default"
-	// PreflightTemplateImage represents image against which preflightvalidationocp will build against.
-	PreflightTemplateImage = "quay.io/openshift-release-dev/ocp-release:4.16.15-%s"
+	// PreflightDTKImageX86 represents x86_64 DTK image for KMM 2.4 preflightvalidationocp.
+	// Compatible with OpenShift Container Platform 4.18.
+	PreflightDTKImageX86 = "quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:" +
+		"7bfeb4d93b12a70c561de0d104d21c1898dac65d96808ff2d2f772134b4261e8"
+	// PreflightDTKImageARM64 represents ARM64 DTK image for KMM 2.4 preflightvalidationocp.
+	// Compatible with OpenShift Container Platform 4.18.
+	PreflightDTKImageARM64 = "quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:" +
+		"ada767898092f36e8d965292843f9a772b2df449aeda06580430162696bd5ddf"
 	// PreflightName represents preflightvalidation ocp object name.
 	PreflightName = "preflight"
 	// ScannerTestNamespace represents test case namespace name.

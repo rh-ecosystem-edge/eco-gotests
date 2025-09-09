@@ -6,9 +6,9 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	_ "github.com/openshift-kni/eco-gotests/tests/system-tests/diskencryption/tests"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/diskencryption/tsparams"
-	. "github.com/openshift-kni/eco-gotests/tests/system-tests/internal/systemtestsinittools"
+	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/diskencryption/tests"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/diskencryption/tsparams"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/systemtestsinittools"
 )
 
 var _, currentFile, _, _ = runtime.Caller(0)

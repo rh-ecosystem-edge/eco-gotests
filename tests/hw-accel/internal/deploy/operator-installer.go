@@ -7,10 +7,11 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
-	"github.com/openshift-kni/eco-goinfra/pkg/olm"
-	operatorsV1alpha1 "github.com/openshift-kni/eco-goinfra/pkg/schemes/olm/operators/v1alpha1"
+
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/olm"
+	operatorsV1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/operators/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -321,8 +322,6 @@ func (o *OperatorInstaller) createSubscription() error {
 
 func convertToInstallPlanApproval(approval string) operatorsV1alpha1.Approval {
 	switch strings.ToLower(approval) {
-	case "automatic":
-		return operatorsV1alpha1.ApprovalAutomatic
 	case "manual":
 		return operatorsV1alpha1.ApprovalManual
 	default:

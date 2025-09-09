@@ -3,7 +3,7 @@ package ocloudcommon
 import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	. "github.com/openshift-kni/eco-gotests/tests/system-tests/o-cloud/internal/ocloudinittools"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/o-cloud/internal/ocloudinittools"
 
 	"bytes"
 	"context"
@@ -17,22 +17,22 @@ import (
 	"github.com/golang/glog"
 
 	bmhv1alpha1 "github.com/metal3-io/baremetal-operator/apis/metal3.io/v1alpha1"
-	"github.com/openshift-kni/eco-goinfra/pkg/bmh"
-	"github.com/openshift-kni/eco-goinfra/pkg/ibi"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/bmh"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ibi"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/Masterminds/sprig/v3"
-	"github.com/openshift-kni/eco-goinfra/pkg/bmc"
-	"github.com/openshift-kni/eco-goinfra/pkg/lca"
-	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
-	"github.com/openshift-kni/eco-goinfra/pkg/ocm"
-	"github.com/openshift-kni/eco-goinfra/pkg/oran"
-	"github.com/openshift-kni/eco-goinfra/pkg/secret"
-	"github.com/openshift-kni/eco-goinfra/pkg/sriov"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/internal/files"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/internal/shell"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/internal/sshcommand"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/o-cloud/internal/ocloudparams"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/bmc"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/lca"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ocm"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/secret"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/files"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/shell"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/sshcommand"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/o-cloud/internal/ocloudparams"
 )
 
 // ImageBasedInstallConfigData struct holds the configuration data required for the image based install.

@@ -5,12 +5,16 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/amdgpu"
-	amdparams "github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/params"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/amdgpu"
+	amdparams "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/params"
 )
 
 // GetEnableNodeLabeller - Get the value of 'enableNodeLabeller' from the deviceConfig.
 func GetEnableNodeLabeller(builder *amdgpu.Builder) *bool {
+	if builder == nil {
+		return nil
+	}
+
 	if builder.Exists() {
 		return builder.Object.Spec.DevicePlugin.EnableNodeLabeller
 	}
@@ -31,14 +35,18 @@ func IsNodeLabellerEnabled(builder *amdgpu.Builder) bool {
 
 // SetEnableNodeLabeller - Enable/Disable the Node Labeller.
 func SetEnableNodeLabeller(enable bool, builder *amdgpu.Builder, force bool) error {
-	builder.Definition.Spec.DevicePlugin.EnableNodeLabeller = &enable
+	if builder.Definition.Spec.DevicePlugin.EnableNodeLabeller == nil {
+		builder.Definition.Spec.DevicePlugin.EnableNodeLabeller = new(bool)
+	}
+
+	*builder.Definition.Spec.DevicePlugin.EnableNodeLabeller = enable
 
 	builder, updateErr := builder.Update(force)
 	if updateErr != nil {
 		return updateErr
 	}
 
-	validateCtx, cancelValidateCtx := context.WithTimeout(context.TODO(), amdparams.DefaultTimeout*time.Second)
+	validateCtx, cancelValidateCtx := context.WithTimeout(context.TODO(), 10*time.Second)
 	defer cancelValidateCtx()
 
 	var actualVal bool
@@ -47,7 +55,7 @@ func SetEnableNodeLabeller(enable bool, builder *amdgpu.Builder, force bool) err
 		select {
 		case <-validateCtx.Done():
 			return fmt.Errorf("mismatch in enableNodeLabeller - Expected: '%v', Got: '%v'", enable, actualVal)
-		case <-time.After(amdparams.DefaultSleepInterval * time.Second):
+		case <-time.After(amdparams.DefaultSleepInterval):
 			enableNodeLabeller := GetEnableNodeLabeller(builder)
 			if enableNodeLabeller != nil {
 				actualVal = *enableNodeLabeller

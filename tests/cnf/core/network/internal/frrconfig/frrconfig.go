@@ -1,7 +1,7 @@
 package frrconfig
 
 import (
-	"github.com/openshift-kni/eco-goinfra/pkg/pod"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"gopkg.in/k8snetworkplumbingwg/multus-cni.v4/pkg/types"
 )
 

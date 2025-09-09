@@ -1,9 +1,9 @@
 package tsparams
 
 import (
-	mcmV1Beta1 "github.com/openshift-kni/eco-goinfra/pkg/schemes/kmm-hub/v1beta1"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 	"github.com/openshift-kni/k8sreporter"
+	mcmV1Beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/kmm-hub/v1beta1"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 )
 
 var (
