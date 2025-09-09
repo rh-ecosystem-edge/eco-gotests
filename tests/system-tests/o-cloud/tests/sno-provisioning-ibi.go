@@ -3,8 +3,8 @@ package o_cloud_system_test
 import (
 	. "github.com/onsi/ginkgo/v2"
 
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/o-cloud/internal/ocloudcommon"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/o-cloud/internal/ocloudparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/o-cloud/internal/ocloudcommon"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/o-cloud/internal/ocloudparams"
 )
 
 var _ = Describe(

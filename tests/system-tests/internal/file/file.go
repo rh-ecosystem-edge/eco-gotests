@@ -3,8 +3,8 @@ package file
 import (
 	"fmt"
 
-	"github.com/openshift-kni/eco-gotests/tests/internal/cluster"
-	. "github.com/openshift-kni/eco-gotests/tests/system-tests/internal/systemtestsinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/systemtestsinittools"
 )
 
 // TouchFile touches the file passed in parameter.

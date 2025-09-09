@@ -9,12 +9,12 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
-	"github.com/openshift-kni/eco-goinfra/pkg/argocd"
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-goinfra/pkg/olm"
-	"github.com/openshift-kni/eco-gotests/tests/cnf/ran/internal/ranparam"
-	"github.com/openshift-kni/eco-gotests/tests/internal/cluster"
 	configv1 "github.com/openshift/api/config/v1"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/argocd"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/olm"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 	"k8s.io/client-go/tools/clientcmd"
 )
 

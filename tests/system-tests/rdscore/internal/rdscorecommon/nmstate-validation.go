@@ -11,13 +11,13 @@ import (
 
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
-	"github.com/openshift-kni/eco-goinfra/pkg/nmstate"
-	"github.com/openshift-kni/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nmstate"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	. "github.com/openshift-kni/eco-gotests/tests/system-tests/rdscore/internal/rdscoreinittools"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/rdscore/internal/rdscoreparams"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreparams"
 )
 
 // VerifyNMStateNamespaceExists asserts namespace for NMState operator exists.

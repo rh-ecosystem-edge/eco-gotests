@@ -8,11 +8,11 @@ import (
 	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/openshift-kni/eco-goinfra/pkg/reportxml"
-	. "github.com/openshift-kni/eco-gotests/tests/internal/inittools"
-	"github.com/openshift-kni/eco-gotests/tests/internal/reporter"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/o-cloud/internal/ocloudparams"
-	_ "github.com/openshift-kni/eco-gotests/tests/system-tests/o-cloud/tests"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/reporter"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/o-cloud/internal/ocloudparams"
+	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/o-cloud/tests"
 )
 
 var (

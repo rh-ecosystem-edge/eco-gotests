@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-goinfra/pkg/hive"
-	"github.com/openshift-kni/eco-goinfra/pkg/pod"
-	"github.com/openshift-kni/eco-gotests/tests/internal/cluster"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/hive"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

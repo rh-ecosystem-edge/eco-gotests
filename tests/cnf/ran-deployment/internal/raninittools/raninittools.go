@@ -1,8 +1,8 @@
 package raninittools
 
 import (
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-gotests/tests/cnf/ran-deployment/internal/ranconfig"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran-deployment/internal/ranconfig"
 )
 
 var (

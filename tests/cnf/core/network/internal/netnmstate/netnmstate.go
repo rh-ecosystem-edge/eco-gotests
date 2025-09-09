@@ -10,16 +10,16 @@ import (
 
 	"github.com/golang/glog"
 	nmstateShared "github.com/nmstate/kubernetes-nmstate/api/shared"
-	"github.com/openshift-kni/eco-goinfra/pkg/daemonset"
-	"github.com/openshift-kni/eco-goinfra/pkg/deployment"
-	"github.com/openshift-kni/eco-goinfra/pkg/nmstate"
-	"github.com/openshift-kni/eco-goinfra/pkg/nodes"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/daemonset"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nmstate"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/openshift-kni/eco-gotests/tests/cnf/core/network/internal/cmd"
-	. "github.com/openshift-kni/eco-gotests/tests/cnf/core/network/internal/netinittools"
-	"github.com/openshift-kni/eco-gotests/tests/cnf/core/network/internal/netparam"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/cmd"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 
 	"k8s.io/apimachinery/pkg/util/wait"
 )

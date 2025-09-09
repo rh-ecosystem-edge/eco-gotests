@@ -15,12 +15,23 @@ const (
 	DeviceConfigName = "amd-gpu-device-config"
 	// LabelSuite represents 'AMD GPU Basic' label that can be used for test cases selection.
 	LabelSuite = "amd-gpu-basic"
-	// MaxAttempts - Max retry attempts.
-	MaxAttempts = 10
+
 	// DefaultTimeout - The default timeout in seconds.
 	DefaultTimeout = 20
 	// DefaultSleepInterval - The default sleep time interval between checks.
 	DefaultSleepInterval = 1
 	// MaxNodeLabellerPodsPerNode - Maximum Node Labeller Pods on each AMD GPU worker node.
 	MaxNodeLabellerPodsPerNode = 1
+
+	// NFDNamespace represents NFD operator namespace (re-export for convenience).
+	NFDNamespace = "openshift-nfd"
+
+	// DefaultDeviceConfigName represents the default DeviceConfig CR name.
+	DefaultDeviceConfigName = "amd-gpu-device-config"
+
+	// DefaultMachineConfigName represents the default MachineConfig name for blacklisting.
+	DefaultMachineConfigName = "amdgpu-module-blacklist"
+
+	// DefaultDriverVersion represents the default AMD GPU driver version.
+	DefaultDriverVersion = "6.4.3"
 )

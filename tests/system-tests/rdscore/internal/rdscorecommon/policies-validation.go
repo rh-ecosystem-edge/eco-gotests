@@ -8,11 +8,11 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/ocm"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ocm"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	. "github.com/openshift-kni/eco-gotests/tests/system-tests/rdscore/internal/rdscoreinittools"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/rdscore/internal/rdscoreparams"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreparams"
 )
 
 // ValidateAllPoliciesCompliant asserts all policies are compliant.

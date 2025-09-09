@@ -10,11 +10,11 @@ import (
 	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/internal/sshcommand"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/ipsec/internal/iperf3workload"
-	. "github.com/openshift-kni/eco-gotests/tests/system-tests/ipsec/internal/ipsecinittools"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/ipsec/internal/ipsecparams"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/ipsec/internal/ipsectunnel"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/sshcommand"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ipsec/internal/iperf3workload"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ipsec/internal/ipsecinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ipsec/internal/ipsecparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ipsec/internal/ipsectunnel"
 )
 
 // The iperf3 client and server should be started as follows for this test case:

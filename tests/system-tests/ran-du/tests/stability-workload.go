@@ -6,14 +6,14 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
-	"github.com/openshift-kni/eco-goinfra/pkg/reportxml"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/internal/await"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/internal/platform"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/internal/shell"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/internal/stability"
-	. "github.com/openshift-kni/eco-gotests/tests/system-tests/ran-du/internal/randuinittools"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/ran-du/internal/randuparams"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/await"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/platform"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/shell"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/stability"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ran-du/internal/randuinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ran-du/internal/randuparams"
 )
 
 var _ = Describe(

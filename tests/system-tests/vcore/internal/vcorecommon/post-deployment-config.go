@@ -6,29 +6,29 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/vcore/internal/ocpcli"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/vcore/internal/ocpcli"
 
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/internal/remote"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/remote"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/clusterversion"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clusterversion"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/clusteroperator"
-	"github.com/openshift-kni/eco-goinfra/pkg/mco"
-	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
-	"github.com/openshift-kni/eco-goinfra/pkg/networkpolicy"
-	"github.com/openshift-kni/eco-goinfra/pkg/nodes"
-	"github.com/openshift-kni/eco-goinfra/pkg/scc"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/internal/imageregistryconfig"
 	operatorv1 "github.com/openshift/api/operator/v1"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clusteroperator"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/mco"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/networkpolicy"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/scc"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/imageregistryconfig"
 
 	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	. "github.com/openshift-kni/eco-gotests/tests/system-tests/vcore/internal/vcoreinittools"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/vcore/internal/vcoreparams"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/vcore/internal/vcoreinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/vcore/internal/vcoreparams"
 )
 
 // VerifyPostDeploymentConfig container that contains tests for basic post-deployment config verification.

@@ -2,8 +2,8 @@ package spk_system_test
 
 import (
 	. "github.com/onsi/ginkgo/v2"
-	"github.com/openshift-kni/eco-goinfra/pkg/reportxml"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/spk/internal/spkcommon"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/spk/internal/spkcommon"
 )
 
 var _ = Describe(

@@ -8,15 +8,15 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/deployment"
-	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
-	"github.com/openshift-kni/eco-goinfra/pkg/olm"
-	"github.com/openshift-kni/eco-goinfra/pkg/reportxml"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/kmm/internal/get"
-	. "github.com/openshift-kni/eco-gotests/tests/hw-accel/kmm/internal/kmminittools"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/kmm/mcm/internal/tsparams"
-	. "github.com/openshift-kni/eco-gotests/tests/internal/inittools"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/olm"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/get"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmminittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/mcm/internal/tsparams"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 )
 
 var _ = Describe("KMM-Hub", Ordered, Label(tsparams.LabelSuite), func() {

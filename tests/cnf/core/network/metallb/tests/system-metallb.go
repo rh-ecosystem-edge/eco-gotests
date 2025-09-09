@@ -5,14 +5,14 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/openshift-kni/eco-goinfra/pkg/metallb"
-	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
-	"github.com/openshift-kni/eco-goinfra/pkg/pod"
-	"github.com/openshift-kni/eco-goinfra/pkg/reportxml"
-	"github.com/openshift-kni/eco-goinfra/pkg/service"
-	. "github.com/openshift-kni/eco-gotests/tests/cnf/core/network/internal/netinittools"
-	"github.com/openshift-kni/eco-gotests/tests/cnf/core/network/metallb/internal/metallbenv"
-	"github.com/openshift-kni/eco-gotests/tests/cnf/core/network/metallb/internal/tsparams"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/metallb"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/service"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/metallb/internal/metallbenv"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/metallb/internal/tsparams"
 )
 
 var _ = Describe("BGP", Ordered, Label("pool-selector"), ContinueOnFailure, func() {

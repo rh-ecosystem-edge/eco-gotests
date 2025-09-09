@@ -6,13 +6,13 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/deployment"
-	"github.com/openshift-kni/eco-goinfra/pkg/pod"
-	"github.com/openshift-kni/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 
-	. "github.com/openshift-kni/eco-gotests/tests/rhwa/internal/rhwainittools"
-	"github.com/openshift-kni/eco-gotests/tests/rhwa/internal/rhwaparams"
-	"github.com/openshift-kni/eco-gotests/tests/rhwa/nmo-operator/internal/nmoparams"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/rhwa/internal/rhwainittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/rhwa/internal/rhwaparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/rhwa/nmo-operator/internal/nmoparams"
 )
 
 var _ = Describe(

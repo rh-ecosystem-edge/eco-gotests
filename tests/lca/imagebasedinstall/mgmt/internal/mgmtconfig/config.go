@@ -5,9 +5,9 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/kelseyhightower/envconfig"
-	"github.com/openshift-kni/eco-gotests/tests/lca/imagebasedinstall/internal/ibiconfig"
-	"github.com/openshift-kni/eco-gotests/tests/lca/imagebasedinstall/mgmt/internal/mgmtparams"
-	"github.com/openshift-kni/eco-gotests/tests/lca/internal/seedimage"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedinstall/internal/ibiconfig"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedinstall/mgmt/internal/mgmtparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/internal/seedimage"
 
 	"gopkg.in/yaml.v2"
 )

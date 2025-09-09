@@ -7,14 +7,14 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/openshift-kni/eco-goinfra/pkg/configmap"
-	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
-	"github.com/openshift-kni/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/configmap"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 
-	"github.com/openshift-kni/eco-gotests/tests/internal/cluster"
-	"github.com/openshift-kni/eco-gotests/tests/lca/imagebasedinstall/mgmt/deploy/internal/tsparams"
-	. "github.com/openshift-kni/eco-gotests/tests/lca/imagebasedinstall/mgmt/internal/mgmtinittools"
-	"github.com/openshift-kni/eco-gotests/tests/lca/internal/installconfig"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedinstall/mgmt/deploy/internal/tsparams"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedinstall/mgmt/internal/mgmtinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/internal/installconfig"
 )
 
 var _ = Describe(

@@ -1,9 +1,9 @@
 package tsparams
 
 import (
-	"github.com/openshift-kni/eco-gotests/tests/lca/imagebasedupgrade/mgmt/internal/mgmtparams"
 	"github.com/openshift-kni/k8sreporter"
 	lcav1 "github.com/openshift-kni/lifecycle-agent/api/imagebasedupgrade/v1"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/mgmt/internal/mgmtparams"
 	corev1 "k8s.io/api/core/v1"
 )
 

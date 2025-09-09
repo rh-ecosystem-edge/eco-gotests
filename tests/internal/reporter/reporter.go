@@ -10,8 +10,8 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/onsi/ginkgo/v2/types"
-	. "github.com/openshift-kni/eco-gotests/tests/internal/inittools"
 	"github.com/openshift-kni/k8sreporter"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 

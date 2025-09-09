@@ -41,9 +41,9 @@ instance in order to label the cluster worker nodes with nvidia gpu-specific lab
 
 ### Eco-goinfra pkgs
 
-- [**nfd**](https://github.com/openshift-kni/eco-goinfra/tree/main/pkg/nfd)
-- [**olm**](https://github.com/openshift-kni/eco-goinfra/tree/main/pkg/olm)
-- [**nvidiagpu**](https://github.com/openshift-kni/eco-goinfra/tree/main/pkg/nvidiagpu)
+- [**nfd**](https://github.com/rh-ecosystem-edge/eco-goinfra/tree/main/pkg/nfd)
+- [**olm**](https://github.com/rh-ecosystem-edge/eco-goinfra/tree/main/pkg/olm)
+- [**nvidiagpu**](https://github.com/rh-ecosystem-edge/eco-goinfra/tree/main/pkg/nvidiagpu)
 
 ### Inputs and General environment variables
 

@@ -11,13 +11,13 @@ import (
 	"github.com/cavaliergopher/cpio"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/openshift-kni/eco-goinfra/pkg/hive"
-	"github.com/openshift-kni/eco-goinfra/pkg/reportxml"
-	"github.com/openshift-kni/eco-gotests/tests/assisted/ztp/internal/meets"
-	"github.com/openshift-kni/eco-gotests/tests/assisted/ztp/internal/setup"
-	. "github.com/openshift-kni/eco-gotests/tests/assisted/ztp/internal/ztpinittools"
-	"github.com/openshift-kni/eco-gotests/tests/assisted/ztp/operator/internal/tsparams"
-	"github.com/openshift-kni/eco-gotests/tests/internal/url"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/hive"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/internal/meets"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/internal/setup"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/internal/ztpinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/operator/internal/tsparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/url"
 )
 
 const (

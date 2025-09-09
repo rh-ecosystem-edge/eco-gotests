@@ -7,13 +7,13 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/openshift-kni/eco-goinfra/pkg/namespace"
-	"github.com/openshift-kni/eco-goinfra/pkg/reportxml"
-	. "github.com/openshift-kni/eco-gotests/tests/internal/inittools"
-	"github.com/openshift-kni/eco-gotests/tests/internal/reporter"
-	systemtestsparams "github.com/openshift-kni/eco-gotests/tests/system-tests/internal/systemtestsparams"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/ipsec/internal/ipsecparams"
-	_ "github.com/openshift-kni/eco-gotests/tests/system-tests/ipsec/tests"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/reporter"
+	systemtestsparams "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/systemtestsparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ipsec/internal/ipsecparams"
+	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ipsec/tests"
 )
 
 var (

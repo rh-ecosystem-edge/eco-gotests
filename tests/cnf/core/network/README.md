@@ -51,7 +51,7 @@ The eco-goinfra project contains a collection of generic packages that can be us
 Utilizing the expertise of each team and to decrease the duplication of coding efforts.
 Eco-infra project requires golang v1.19.x.
 
-- [**README**](https://github.com/openshift-kni/eco-goinfra#readme)
+- [**README**](https://github.com/rh-ecosystem-edge/eco-goinfra#readme)
 
 ### Inputs
 

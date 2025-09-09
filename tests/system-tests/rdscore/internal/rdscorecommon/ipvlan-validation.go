@@ -8,9 +8,9 @@ import (
 	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/openshift-kni/eco-goinfra/pkg/deployment"
-	. "github.com/openshift-kni/eco-gotests/tests/system-tests/rdscore/internal/rdscoreinittools"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/rdscore/internal/rdscoreparams"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreparams"
 	multus "gopkg.in/k8snetworkplumbingwg/multus-cni.v4/pkg/types"
 	corev1 "k8s.io/api/core/v1"
 )

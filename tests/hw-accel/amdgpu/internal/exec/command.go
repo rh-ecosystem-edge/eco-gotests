@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-goinfra/pkg/pod"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpucommon"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpucommon"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -237,7 +237,7 @@ func (p *PodCommand) getContainerConfig() (*corev1.Container, error) {
 			return nil, fmt.Errorf("failed to create shell container: %w", err)
 		}
 
-		container.Args = append(container.Args, p.commad...)
+		container.Args = []string{strings.Join(p.commad, " ")}
 
 	case BashScript:
 		containerBuilder = pod.NewContainerBuilder(p.containerName, p.image, []string{"/bin/bash"})
@@ -272,7 +272,10 @@ func (p *PodCommand) getContainerConfig() (*corev1.Container, error) {
 	}
 
 	// Apply common configuration
-	container.Resources = p.resources.toResourceRequirements()
+	container.Resources, err = p.resources.toResourceRequirements()
+	if err != nil {
+		return nil, fmt.Errorf("failed to set resources: %w", err)
+	}
 
 	// Configure security context
 	if p.privileged {
@@ -286,22 +289,29 @@ func (p *PodCommand) getContainerConfig() (*corev1.Container, error) {
 	return container, nil
 }
 
-func (rs *ResourceSettings) toResourceRequirements() corev1.ResourceRequirements {
+func (rs *ResourceSettings) toResourceRequirements() (corev1.ResourceRequirements, error) {
 	reqs := corev1.ResourceList{}
 	lims := corev1.ResourceList{}
 
-	for k, v := range rs.Requests {
-		reqs[k] = resource.MustParse(v)
+	for res, value := range rs.Requests {
+		q, err := resource.ParseQuantity(value)
+		if err != nil {
+			return corev1.ResourceRequirements{}, fmt.Errorf("invalid request %s=%q: %w", res, value, err)
+		}
+
+		reqs[res] = q
 	}
 
-	for k, v := range rs.Limits {
-		lims[k] = resource.MustParse(v)
+	for res, value := range rs.Limits {
+		q, err := resource.ParseQuantity(value)
+		if err != nil {
+			return corev1.ResourceRequirements{}, fmt.Errorf("invalid limit %s=%q: %w", res, value, err)
+		}
+
+		lims[res] = q
 	}
 
-	return corev1.ResourceRequirements{
-		Requests: reqs,
-		Limits:   lims,
-	}
+	return corev1.ResourceRequirements{Requests: reqs, Limits: lims}, nil
 }
 
 func convertToResourceNameMap(input map[string]string) map[corev1.ResourceName]string {

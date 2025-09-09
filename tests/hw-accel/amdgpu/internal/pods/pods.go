@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-goinfra/pkg/nodes"
-	"github.com/openshift-kni/eco-goinfra/pkg/pod"
-	amdparams "github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/params"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
+	amdparams "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/params"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

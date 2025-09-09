@@ -1,6 +1,6 @@
 package juniper
 
-import . "github.com/openshift-kni/eco-gotests/tests/cnf/core/network/internal/netinittools"
+import . "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 
 // SwitchCredentials stores the authentication and connection details for a network switch.
 type SwitchCredentials struct {

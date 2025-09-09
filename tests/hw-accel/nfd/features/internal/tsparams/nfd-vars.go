@@ -1,7 +1,7 @@
 package tsparams
 
 import (
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/internal/hwaccelparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/internal/hwaccelparams"
 
 	"github.com/openshift-kni/k8sreporter"
 	nfdv1 "github.com/openshift/cluster-nfd-operator/api/v1"

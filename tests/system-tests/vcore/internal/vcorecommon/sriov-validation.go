@@ -4,20 +4,20 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/clusteroperator"
-	"github.com/openshift-kni/eco-goinfra/pkg/nodes"
-	"github.com/openshift-kni/eco-goinfra/pkg/sriov"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/internal/await"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clusteroperator"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/await"
 
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/internal/apiobjectshelper"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/apiobjectshelper"
 
 	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	. "github.com/openshift-kni/eco-gotests/tests/system-tests/vcore/internal/vcoreinittools"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/vcore/internal/vcoreparams"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/vcore/internal/vcoreinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/vcore/internal/vcoreparams"
 )
 
 // VerifySRIOVSuite container that contains tests for SR-IOV verification.

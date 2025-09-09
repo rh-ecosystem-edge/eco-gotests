@@ -2,9 +2,9 @@ package tsparams
 
 import (
 	nvidiagpuv1 "github.com/NVIDIA/gpu-operator/api/v1"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/internal/hwaccelparams"
-	"github.com/openshift-kni/eco-gotests/tests/hw-accel/nvidiagpu/internal/gpuparams"
 	"github.com/openshift-kni/k8sreporter"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/internal/hwaccelparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nvidiagpu/internal/gpuparams"
 )
 
 var (

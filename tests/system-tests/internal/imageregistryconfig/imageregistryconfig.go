@@ -7,12 +7,12 @@ import (
 	operatorv1 "github.com/openshift/api/operator/v1"
 
 	"github.com/golang/glog"
-	"github.com/openshift-kni/eco-goinfra/pkg/apiservers"
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-goinfra/pkg/clusteroperator"
-	"github.com/openshift-kni/eco-goinfra/pkg/imageregistry"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/internal/await"
 	imageregistryV1 "github.com/openshift/api/imageregistry/v1"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/apiservers"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clusteroperator"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/imageregistry"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/await"
 )
 
 var imageRegistryObjName = "cluster"

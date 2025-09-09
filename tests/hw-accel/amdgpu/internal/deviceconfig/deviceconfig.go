@@ -3,14 +3,24 @@ package deviceconfig
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"time"
 
-	"github.com/openshift-kni/eco-goinfra/pkg/amdgpu"
-	amdparams "github.com/openshift-kni/eco-gotests/tests/hw-accel/amdgpu/params"
+	"github.com/golang/glog"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/amdgpu"
+	amdparams "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/params"
 )
 
 // GetEnableNodeLabeller - Get the value of 'enableNodeLabeller' from the deviceConfig.
 func GetEnableNodeLabeller(builder *amdgpu.Builder) *bool {
+	_, file, line, _ := runtime.Caller(2)
+
+	glog.Info("builder from %v line:  value:%v", file, line, builder)
+
+	if builder == nil {
+		return nil
+	}
+
 	if builder.Exists() {
 		return builder.Object.Spec.DevicePlugin.EnableNodeLabeller
 	}
@@ -31,7 +41,11 @@ func IsNodeLabellerEnabled(builder *amdgpu.Builder) bool {
 
 // SetEnableNodeLabeller - Enable/Disable the Node Labeller.
 func SetEnableNodeLabeller(enable bool, builder *amdgpu.Builder, force bool) error {
-	builder.Definition.Spec.DevicePlugin.EnableNodeLabeller = &enable
+	if builder.Definition.Spec.DevicePlugin.EnableNodeLabeller == nil {
+		builder.Definition.Spec.DevicePlugin.EnableNodeLabeller = new(bool)
+	}
+
+	*builder.Definition.Spec.DevicePlugin.EnableNodeLabeller = enable
 
 	builder, updateErr := builder.Update(force)
 	if updateErr != nil {

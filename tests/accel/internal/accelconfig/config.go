@@ -8,8 +8,8 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/kelseyhightower/envconfig"
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-gotests/tests/internal/config"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/config"
 	"gopkg.in/yaml.v2"
 )
 

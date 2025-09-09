@@ -9,11 +9,11 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/containers/image/v5/pkg/sysregistriesv2"
 	"github.com/golang/glog"
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-goinfra/pkg/nodes"
-	"github.com/openshift-kni/eco-gotests/tests/internal/cluster"
 	"github.com/openshift-kni/lifecycle-agent/lca-cli/seedclusterinfo"
 	configv1 "github.com/openshift/api/config/v1"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

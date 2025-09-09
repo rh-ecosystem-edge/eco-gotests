@@ -8,12 +8,12 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/kelseyhightower/envconfig"
-	"github.com/openshift-kni/eco-goinfra/pkg/bmc"
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-gotests/tests/cnf/internal/cnfconfig"
-	"github.com/openshift-kni/eco-gotests/tests/cnf/ran/internal/ranparam"
-	"github.com/openshift-kni/eco-gotests/tests/cnf/ran/internal/version"
-	"github.com/openshift-kni/eco-gotests/tests/internal/inittools"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/bmc"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/internal/cnfconfig"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/version"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 	"gopkg.in/yaml.v2"
 )
 

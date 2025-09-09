@@ -10,7 +10,7 @@ on:
 jobs:
   build:
     name: Build and push docker image
-    if: github.repository_owner == 'openshift-kni'
+    if: github.repository_owner == 'rh-ecosystem-edge'
     runs-on: ubuntu-latest
 
     steps:

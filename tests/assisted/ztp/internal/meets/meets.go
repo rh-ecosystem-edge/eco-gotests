@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-version"
-	"github.com/openshift-kni/eco-goinfra/pkg/hive"
-	"github.com/openshift-kni/eco-goinfra/pkg/pod"
-	. "github.com/openshift-kni/eco-gotests/tests/assisted/ztp/internal/ztpinittools"
-	"github.com/openshift-kni/eco-gotests/tests/internal/cluster"
 	configv1 "github.com/openshift/api/config/v1"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/hive"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/internal/ztpinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 	corev1 "k8s.io/api/core/v1"
 )
 

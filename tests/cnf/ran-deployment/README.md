@@ -33,7 +33,7 @@ results can be aggregated in a "union" set of results.
 
 ### Eco-goinfra pkgs
 
-[**README**](https://github.com/openshift-kni/eco-goinfra#readme)
+[**README**](https://github.com/rh-ecosystem-edge/eco-goinfra#readme)
 
 ### Inputs
 

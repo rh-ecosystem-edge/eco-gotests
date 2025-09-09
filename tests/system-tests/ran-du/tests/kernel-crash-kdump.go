@@ -5,15 +5,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/internal/remote"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/remote"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/openshift-kni/eco-goinfra/pkg/deployment"
-	"github.com/openshift-kni/eco-goinfra/pkg/nodes"
-	"github.com/openshift-kni/eco-goinfra/pkg/reportxml"
-	"github.com/openshift-kni/eco-gotests/tests/system-tests/internal/reboot"
-	. "github.com/openshift-kni/eco-gotests/tests/system-tests/ran-du/internal/randuinittools"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/reboot"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ran-du/internal/randuinittools"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

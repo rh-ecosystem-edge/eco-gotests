@@ -8,7 +8,7 @@ permissions:
 jobs:
   main:
     name: Eco-goinfra module bump
-    if: github.repository_owner == 'openshift-kni'
+    if: github.repository_owner == 'rh-ecosystem-edge'
 
     permissions:
       contents: write  # for peter-evans/create-pull-request to create branch
@@ -38,7 +38,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_KEY }}
         with:
-          commit-message: "deps: bump github.com/openshift-kni/eco-goinfra"
+          commit-message: "deps: bump github.com/rh-ecosystem-edge/eco-goinfra"
           author: ${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>
           title: Bump eco-goinfra dependency
           branch: eco-goinfra-bump

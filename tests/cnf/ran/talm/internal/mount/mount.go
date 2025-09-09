@@ -5,10 +5,10 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-gotests/tests/cnf/ran/internal/ranparam"
-	"github.com/openshift-kni/eco-gotests/tests/cnf/ran/talm/internal/tsparams"
-	"github.com/openshift-kni/eco-gotests/tests/internal/cluster"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/talm/internal/tsparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 )
 
 // PrepareEnvWithSmallMountPoint creates a virtual filesystem mounted at the backup path using a loopback device backed

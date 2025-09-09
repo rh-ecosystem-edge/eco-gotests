@@ -7,8 +7,8 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/kelseyhightower/envconfig"
-	"github.com/openshift-kni/eco-gotests/tests/lca/imagebasedupgrade/cnf/internal/cnfparams"
-	"github.com/openshift-kni/eco-gotests/tests/lca/imagebasedupgrade/internal/ibuconfig"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/cnf/internal/cnfparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/internal/ibuconfig"
 	"gopkg.in/yaml.v2"
 )
 

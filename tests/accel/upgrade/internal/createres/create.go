@@ -5,14 +5,14 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/openshift-kni/eco-goinfra/pkg/clients"
-	"github.com/openshift-kni/eco-goinfra/pkg/deployment"
-	"github.com/openshift-kni/eco-goinfra/pkg/pod"
-	"github.com/openshift-kni/eco-goinfra/pkg/route"
-	"github.com/openshift-kni/eco-goinfra/pkg/service"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/route"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/service"
 
-	upgradeinittools "github.com/openshift-kni/eco-gotests/tests/accel/internal/accelinittools"
-	"github.com/openshift-kni/eco-gotests/tests/accel/upgrade/internal/upgradeparams"
+	upgradeinittools "github.com/rh-ecosystem-edge/eco-gotests/tests/accel/internal/accelinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/accel/upgrade/internal/upgradeparams"
 	corev1 "k8s.io/api/core/v1"
 )
 
