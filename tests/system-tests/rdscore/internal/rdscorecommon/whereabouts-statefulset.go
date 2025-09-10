@@ -423,8 +423,13 @@ func getActivePods(podLabel, namespace string) []*pod.Builder {
 		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q in %q namespace is in phase %q",
 			_pod.Object.Name, _pod.Object.Namespace, _pod.Object.Status.Phase)
 
-		if _pod.Object.Status.Phase == corev1.PodRunning {
+		if _pod.Object.Status.Phase == corev1.PodRunning && _pod.Object.DeletionTimestamp == nil {
+			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is active(running and not marked for deletion)",
+				_pod.Object.Name)
+
 			activePods = append(activePods, _pod)
+		} else if _pod.Object.DeletionTimestamp != nil {
+			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is marked for deletion, skipping", _pod.Object.Name)
 		}
 	}
 
@@ -617,6 +622,10 @@ func powerOnNodeWaitReady(bmcClient *bmc.BMC, nodeToPowerOff string, stopCh chan
 	By("Stopping keepNodePoweredOff goroutine")
 
 	stopCh <- true
+
+	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Closing stop channel")
+
+	close(stopCh)
 
 	By(fmt.Sprintf("Powering on node %q", nodeToPowerOff))
 
