@@ -32,6 +32,13 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 )
 
+var (
+	secondServiceIPPool         = []string{"192.168.255.1", "192.168.255.2"}
+	secondServicePoolName       = "second-bgp-adv-and-addr-pool"
+	secondServiceAppLabel       = "second-app"
+	secondServiceNginxPodPrefix = "second-nginx-pod-"
+)
+
 var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFailure, func() {
 
 	BeforeAll(func() {
@@ -97,6 +104,43 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 			Expect(err).ToNot(HaveOccurred(), "Failed to list prometheus pods")
 
 			verifyMetricPresentInPrometheus(frrk8sPods, prometheusPods[0], "frrk8s_bfd_")
+		})
+
+		It("Verify BGP over BFD session remains stable during service change", reportxml.ID("76013"), func() {
+			By("Getting existing FRR pod created by BeforeEach")
+			frrPod, err := pod.Pull(APIClient, tsparams.FRRContainerName, tsparams.TestNamespaceName)
+			Expect(err).ToNot(HaveOccurred(), "Failed to pull FRR test pod")
+
+			By("Verifying initial BFD session stability before service operations")
+			verifyMetalLbBFDAndBGPSessionsRemainStable(frrPod, ipv4NodeAddrList)
+
+			By("Creating initial MetalLB service")
+			createCompleteMetalLBService(tsparams.BGPAdvAndAddressPoolName, tsparams.LBipv4Range,
+				tsparams.MetallbServiceName, tsparams.LabelValue1, tsparams.MLBNginxPodName,
+				workerNodeList[0].Definition.Name)
+			verifyMetalLbBFDAndBGPSessionsRemainStable(frrPod, ipv4NodeAddrList)
+
+			By("Creating additional MetalLB service to test service addition")
+			createCompleteMetalLBService(secondServicePoolName, secondServiceIPPool,
+				tsparams.MetallbServiceName2, secondServiceAppLabel, secondServiceNginxPodPrefix,
+				workerNodeList[0].Definition.Name)
+			verifyMetalLbBFDAndBGPSessionsRemainStable(frrPod, ipv4NodeAddrList)
+
+			By("Testing endpoint modification by adding second service backend pod")
+			if len(workerNodeList) > 1 {
+				By("Creating additional nginx pod on second worker to modify endpoints")
+				setupNGNXPod(tsparams.MLBNginxPodName+workerNodeList[1].Definition.Name,
+					workerNodeList[1].Definition.Name, tsparams.LabelValue1)
+				verifyMetalLbBFDAndBGPSessionsRemainStable(frrPod, ipv4NodeAddrList)
+			}
+
+			By("Testing BFD stability during service deletion")
+			deleteMetalLBService(tsparams.MetallbServiceName2)
+			verifyMetalLbBFDAndBGPSessionsRemainStable(frrPod, ipv4NodeAddrList)
+
+			By("Deleting primary MetalLB service to complete cleanup")
+			deleteMetalLBService(tsparams.MetallbServiceName)
+			verifyMetalLbBFDAndBGPSessionsRemainStable(frrPod, ipv4NodeAddrList)
 		})
 
 		AfterEach(func() {
@@ -435,6 +479,19 @@ func verifyMetalLbBFDAndBGPSessionsAreUPOnFrrPod(frrPod *pod.Builder, peerAddrLi
 	}
 }
 
+func verifyMetalLbBFDAndBGPSessionsRemainStable(frrPod *pod.Builder, peerAddrList []string) {
+	for _, peerAddress := range netcmd.RemovePrefixFromIPList(peerAddrList) {
+		Consistently(frr.BGPNeighborshipHasState,
+			30*time.Second, tsparams.DefaultRetryInterval).
+			WithArguments(frrPod, peerAddress, "Established").Should(
+			BeTrue(), "BGP session did not remain stable")
+		Consistently(netenv.BFDHasStatus,
+			30*time.Second, tsparams.DefaultRetryInterval).
+			WithArguments(frrPod, peerAddress, "up").
+			ShouldNot(HaveOccurred(), "BFD session did not remain stable")
+	}
+}
+
 func buildRoutesMap(podList []*pod.Builder, nextHopList []string) (map[string]string, error) {
 	if len(podList) == 0 {
 		return nil, fmt.Errorf("pod list is empty")
@@ -493,4 +550,22 @@ func removeNFTTable(nodeName string) {
 		APIClient, "nft delete table inet my_table",
 		metav1.ListOptions{LabelSelector: corev1.LabelHostname + "=" + nodeName})
 	Expect(err).ToNot(HaveOccurred(), "Failed to delete nft table")
+}
+
+func createCompleteMetalLBService(poolName string, ipPool []string, serviceName, appLabel, podNamePrefix,
+	workerNode string) {
+	ipAddressPool := setupBgpAdvertisementAndIPAddressPool(poolName, ipPool, netparam.IPSubnetInt32)
+
+	setupMetalLbService(serviceName, netparam.IPV4Family, appLabel, ipAddressPool,
+		corev1.ServiceExternalTrafficPolicyTypeCluster)
+
+	setupNGNXPod(podNamePrefix+workerNode, workerNode, appLabel)
+}
+
+func deleteMetalLBService(serviceName string) {
+	By(fmt.Sprintf("Testing service deletion - removing service '%s'", serviceName))
+	svc, err := service.Pull(APIClient, serviceName, tsparams.TestNamespaceName)
+	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to pull MetalLB service '%s'", serviceName))
+	err = svc.Delete()
+	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to delete MetalLB service '%s'", serviceName))
 }
