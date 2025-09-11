@@ -166,28 +166,24 @@ func (builder *Builder) GetStatusTags() ([]string, error) {
 		return nil, err
 	}
 
-	// Get fresh object to ensure we have latest status
-	freshObj, err := builder.Get()
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			return nil, nil
-		}
+	if !builder.Exists() {
+		glog.V(100).Infof("ImageStream %s does not exist", builder.Definition.Name)
 
-		return nil, fmt.Errorf("getting ImageStream: %w", err)
+		return nil, fmt.Errorf("cannot get status tags from non-existent imageStream")
 	}
 
-	if len(freshObj.Status.Tags) == 0 {
+	if len(builder.Object.Status.Tags) == 0 {
 		return nil, fmt.Errorf("imageStream object %s in namespace %s has no status tags",
 			builder.Definition.Name, builder.Definition.Namespace)
 	}
 
 	var tagNames []string
-	for _, tag := range freshObj.Status.Tags {
+	for _, tag := range builder.Object.Status.Tags {
 		tagNames = append(tagNames, tag.Tag)
 	}
 
 	glog.V(100).Infof("Retrieved %d status tags from imageStream %s/%s: %v",
-		len(freshObj.Status.Tags), builder.Definition.Namespace, builder.Definition.Name, tagNames)
+		len(tagNames), builder.Definition.Namespace, builder.Definition.Name, tagNames)
 
 	return tagNames, nil
 }
