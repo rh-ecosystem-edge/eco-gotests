@@ -263,11 +263,20 @@ var _ = Describe("MetalLB NodeSelector", Ordered, Label(tsparams.LabelBGPTestCas
 })
 
 func createIPAddressPool(name string, ipPrefix []string) *metallb.IPAddressPoolBuilder {
+	var ipPools []string
+
+	Expect(len(ipPrefix)).To(BeNumerically(">", 0), "IPPrefix must contain at least one start-end pair")
+	Expect(len(ipPrefix)%2).To(Equal(0), "IPPrefix length must be even (start,end pairs)")
+
+	for i := 0; i < len(ipPrefix); i += 2 {
+		ipPools = append(ipPools, fmt.Sprintf("%s-%s", ipPrefix[i], ipPrefix[i+1]))
+	}
+
 	ipAddressPool, err := metallb.NewIPAddressPoolBuilder(
 		APIClient,
 		name,
 		NetConfig.MlbOperatorNamespace,
-		[]string{fmt.Sprintf("%s-%s", ipPrefix[0], ipPrefix[1])}).Create()
+		ipPools).Create()
 	Expect(err).ToNot(HaveOccurred(), "Failed to create IPAddressPool")
 
 	return ipAddressPool
