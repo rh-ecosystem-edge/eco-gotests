@@ -292,6 +292,16 @@ var _ = Describe(
 				reportxml.ID("82744"),
 				rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNodeAfterNodeDrain)
 
+			It("Verify Whereabouts Deployment on different nodes after node power off",
+				Label("whereabouts", "whereabouts-deployment-different-nodes-power-off", "whereabouts-deployment"),
+				reportxml.ID("82909"),
+				rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnDifferentNodesAfterNodePowerOff)
+
+			It("Verify Whereabouts Deployment on the same node after node power off",
+				Label("whereabouts", "whereabouts-deployment-same-node-power-off", "whereabouts-deployment"),
+				reportxml.ID("82910"),
+				rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNodeAfterNodePowerOff)
+
 			AfterEach(func(ctx SpecContext) {
 				By("Cleanup UnexpectedAdmission pods after KDump test")
 				rdscorecommon.CleanupUnexpectedAdmissionPods()
@@ -347,6 +357,12 @@ var _ = Describe(
 
 				By("Creating Whereabouts Statefulset on different nodes")
 				rdscorecommon.CreateStatefulsetOnDifferentNode(ctx)
+
+				By("Creating Whereabouts Deployment on the same node")
+				rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNode(ctx)
+
+				By("Creating Whereabouts Deployment on different nodes")
+				rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnDifferentNodes(ctx)
 			})
 
 			It("Setups EgressService with Cluster ExternalTrafficPolicy",
@@ -608,6 +624,16 @@ var _ = Describe(
 				reportxml.ID("82920"),
 				rdscorecommon.ValidatePodConnectivityBetweenDifferentNodesAfterClusterReboot)
 
+			It("Verifies connectivity between pods from deployment scheduled on the same node post hard reboot",
+				Label("whereabouts", "deployment-whereabouts", "deployment-same-node-validate"),
+				reportxml.ID("82735"),
+				rdscorecommon.VerifyPodCommunicationOnSameNodeAfterClusterReboot)
+
+			It("Verifies connectivity between pods from deployment scheduled on different nodes post hard reboot",
+				Label("whereabouts", "deployment-whereabouts", "deployment-different-nodes-validate"),
+				reportxml.ID("82734"),
+				rdscorecommon.VerifyPodCommunicationOnDifferentNodesAfterClusterReboot)
+
 			AfterEach(func(ctx SpecContext) {
 				By("Ensure rootless DPDK server deployment was deleted")
 				rdscorecommon.CleanupRootlessDPDKServerDeployment()
@@ -657,6 +683,12 @@ var _ = Describe(
 
 				By("Creating Whereabouts Statefulset on different nodes")
 				rdscorecommon.CreateStatefulsetOnDifferentNode(ctx)
+
+				By("Creating Whereabouts Deployment on the same node")
+				rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNode(ctx)
+
+				By("Creating Whereabouts Deployment on different nodes")
+				rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnDifferentNodes(ctx)
 			})
 
 			It("Setups EgressService with Cluster ExternalTrafficPolicy",
@@ -874,6 +906,16 @@ var _ = Describe(
 				Label("statefulset-whereabouts", "statefulset-different-nodes-validate"),
 				reportxml.ID("82918"),
 				rdscorecommon.ValidatePodConnectivityBetweenDifferentNodesAfterClusterReboot)
+
+			It("Verifies connectivity between pods from deployment scheduled on the same node post soft reboot",
+				Label("whereabouts", "deployment-whereabouts", "deployment-same-node-validate"),
+				reportxml.ID("82737"),
+				rdscorecommon.VerifyPodCommunicationOnSameNodeAfterClusterReboot)
+
+			It("Verifies connectivity between pods from deployment scheduled on different nodes post soft reboot",
+				Label("whereabouts", "deployment-whereabouts", "deployment-different-nodes-validate"),
+				reportxml.ID("82736"),
+				rdscorecommon.VerifyPodCommunicationOnDifferentNodesAfterClusterReboot)
 
 			AfterEach(func(ctx SpecContext) {
 				By("Ensure rootless DPDK server deployment was deleted")
