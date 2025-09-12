@@ -7,6 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/olm"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 
@@ -43,5 +44,24 @@ var _ = Describe(
 				listOptions,
 			)
 			Expect(err).ToNot(HaveOccurred(), "Pod is not ready")
+		})
+
+		It("Verify FAR CSV has required annotations", reportxml.ID("OCP-70637"), func() {
+			By("Getting FAR ClusterServiceVersion")
+			farCSVs, err := olm.ListClusterServiceVersionWithNamePattern(
+				APIClient, "fence-agents-remediation", rhwaparams.RhwaOperatorNs)
+			Expect(err).ToNot(HaveOccurred(), "Failed to list FAR ClusterServiceVersions")
+			Expect(len(farCSVs)).To(Equal(1), "Expected exactly one FAR ClusterServiceVersion, found %d", len(farCSVs))
+
+			By("Checking annotation values on FAR CSV")
+			farCSV := farCSVs[0]
+			Expect(farCSV.Object.Annotations).ToNot(BeNil(), "CSV annotations should not be nil")
+
+			// Check each required annotation
+			for annotationKey, expectedValue := range farparams.RequiredAnnotations {
+				annotationValue, exists := farCSV.Object.Annotations[annotationKey]
+				Expect(exists).To(BeTrue(), "Required annotation %q should exist on FAR CSV", annotationKey)
+				Expect(annotationValue).To(Equal(expectedValue), "Annotation %q should have value %q", annotationKey, expectedValue)
+			}
 		})
 	})
