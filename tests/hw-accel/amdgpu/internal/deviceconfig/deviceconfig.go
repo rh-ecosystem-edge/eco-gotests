@@ -3,17 +3,29 @@ package deviceconfig
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/amdgpu"
 	amdparams "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/params"
 )
 
 // GetEnableNodeLabeller - Get the value of 'enableNodeLabeller' from the deviceConfig.
 func GetEnableNodeLabeller(builder *amdgpu.Builder) *bool {
-	builder.Exists()
+	_, file, line, _ := runtime.Caller(2)
 
-	return builder.Object.Spec.DevicePlugin.EnableNodeLabeller
+	glog.Info("builder from %v line:  value:%v", file, line, builder)
+
+	if builder == nil {
+		return nil
+	}
+
+	if builder.Exists() {
+		return builder.Object.Spec.DevicePlugin.EnableNodeLabeller
+	}
+
+	return nil
 }
 
 // IsNodeLabellerEnabled - The function returns a boolean value indicating the
@@ -35,7 +47,7 @@ func SetEnableNodeLabeller(enable bool, builder *amdgpu.Builder, force bool) err
 
 	*builder.Definition.Spec.DevicePlugin.EnableNodeLabeller = enable
 
-	_, updateErr := builder.Update(force)
+	builder, updateErr := builder.Update(force)
 	if updateErr != nil {
 		return updateErr
 	}
@@ -50,9 +62,12 @@ func SetEnableNodeLabeller(enable bool, builder *amdgpu.Builder, force bool) err
 		case <-validateCtx.Done():
 			return fmt.Errorf("mismatch in enableNodeLabeller - Expected: '%v', Got: '%v'", enable, actualVal)
 		case <-time.After(amdparams.DefaultSleepInterval * time.Second):
-			actualVal = *GetEnableNodeLabeller(builder)
-			if actualVal == enable {
-				return nil
+			enableNodeLabeller := GetEnableNodeLabeller(builder)
+			if enableNodeLabeller != nil {
+				actualVal = *enableNodeLabeller
+				if actualVal == enable {
+					return nil
+				}
 			}
 		}
 	}

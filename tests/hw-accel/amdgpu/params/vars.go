@@ -14,6 +14,7 @@ var (
 	ReporterNamespacesToDump = map[string]string{
 		hwaccelparams.NFDNamespace: "nfd-operator",
 		"amd-gpu-operator":         "openshift-amd-gpu",
+		"openshift-kmm":            "kmm-operator",
 	}
 
 	// ReporterCRDsToDump tells to the reporter what CRs to dump.
