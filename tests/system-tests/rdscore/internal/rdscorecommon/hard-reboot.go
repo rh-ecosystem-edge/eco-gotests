@@ -207,6 +207,9 @@ func VerifySoftReboot(ctx SpecContext) {
 		err := _node.Cordon()
 		Expect(err).ToNot(HaveOccurred(),
 			fmt.Sprintf("Failed to cordon %q due to %v", _node.Definition.Name, err))
+
+		defer UncordonNode(_node, uncordonNodeInterval, uncordonNodeTimeout)
+
 		time.Sleep(5 * time.Second)
 
 		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Draining node %q", _node.Definition.Name)

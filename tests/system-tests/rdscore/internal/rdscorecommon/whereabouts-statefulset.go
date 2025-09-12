@@ -533,7 +533,7 @@ func ensurePodConnectivityAfterNodeDrain(stLabel, namespace, targetPort string, 
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to cordon node %s due to: %v", nodeToDrain, err))
 
-	defer uncordonNode(nodeObj, 15*time.Second, 3*time.Minute)
+	defer UncordonNode(nodeObj, uncordonNodeInterval, uncordonNodeTimeout)
 
 	By(fmt.Sprintf("Draining node %q", nodeToDrain))
 
@@ -593,29 +593,6 @@ func ensurePodConnectivityAfterNodeDrain(stLabel, namespace, targetPort string, 
 		fmt.Sprintf("Failed to parse port number: %v", targetPort))
 
 	VerifyPodConnectivity(stLabel, namespace, interfaceName, parsedPort)
-}
-
-func uncordonNode(nodeToUncordon *nodes.Builder, interval, timeout time.Duration) {
-	By(fmt.Sprintf("Uncordoning node %q", nodeToUncordon.Definition.Name))
-
-	err := wait.PollUntilContextTimeout(context.TODO(), interval, timeout, true,
-		func(context.Context) (bool, error) {
-			err := nodeToUncordon.Uncordon()
-
-			if err != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to uncordon %q: %v", nodeToUncordon.Definition.Name, err)
-
-				return false, nil
-			}
-
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Successfully uncordon %q", nodeToUncordon.Definition.Name)
-
-			return err == nil, nil
-		})
-
-	if err != nil {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to uncordon %q: %v", nodeToUncordon.Definition.Name, err)
-	}
 }
 
 func powerOnNodeWaitReady(bmcClient *bmc.BMC, nodeToPowerOff string, stopCh chan bool) {
