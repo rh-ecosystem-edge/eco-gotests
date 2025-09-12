@@ -92,6 +92,8 @@ linters:
             - github.com/vmware-tanzu/velero/pkg/util
             - github.com/rh-ecosystem-edge/eco-goinfra
             - github.com/rh-ecosystem-edge/eco-gotests
+            - github.com/prometheus/client_golang
+            - github.com/prometheus/common
           deny:
             - pkg: github.com/onsi**
     funlen:

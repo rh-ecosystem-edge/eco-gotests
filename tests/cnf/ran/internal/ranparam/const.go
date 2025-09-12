@@ -37,6 +37,22 @@ const (
 	RetryCount = 3
 )
 
+// Querier package constants.
+const (
+	// ThanosQuerierRouteName is the name of the Thanos querier route.
+	ThanosQuerierRouteName = "thanos-querier"
+	// OpenshiftMonitoringNamespace is the namespace for the OpenShift Monitoring.
+	OpenshiftMonitoringNamespace = "openshift-monitoring"
+	// OpenshiftMonitoringViewRole is the role for the OpenShift Monitoring.
+	OpenshiftMonitoringViewRole = "cluster-monitoring-view"
+	// QuerierServiceAccountName is the name of the querier service account that gets created by the querier
+	// package.
+	QuerierServiceAccountName = "ran-querier"
+	// QuerierCRBName is the name of the querier cluster role binding that gets created by the querier package to
+	// bind the querier service account to the cluster monitoring view role.
+	QuerierCRBName = "ran-querier-crb"
+)
+
 // HubOperatorName represets the possible operator names that may have associated versions on the hub cluster.
 type HubOperatorName string
 
