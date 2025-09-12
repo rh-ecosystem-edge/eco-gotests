@@ -18,6 +18,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/grafana/loki/operator/apis/loki v0.0.0-20241021105923-5e970e50b166
 	github.com/hashicorp/go-version v1.7.0
+	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/k8snetworkplumbingwg/multi-networkpolicy v1.0.1
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.7
 	github.com/k8snetworkplumbingwg/sriov-network-operator v1.5.0
@@ -26,6 +27,7 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/klauspost/compress v1.18.0
 	github.com/metal3-io/baremetal-operator/apis v0.10.2
+	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
 	github.com/nmstate/kubernetes-nmstate/api v0.0.0-20250711164732-0e728986112f
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.37.0
@@ -44,6 +46,8 @@ require (
 	github.com/operator-framework/api v0.30.0
 	github.com/povsister/scp v0.0.0-20240802064259-28781e87b246
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.82.2
+	github.com/prometheus/client_golang v1.22.0
+	github.com/prometheus/common v0.65.0
 	github.com/stretchr/testify v1.10.0
 	github.com/vmware-tanzu/velero v1.15.2
 	github.com/walle/targz v0.0.0-20140417120357-57fe4206da5a
@@ -196,9 +200,7 @@ require (
 	github.com/pjbgf/sha1cd v0.3.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/prometheus/client_golang v1.22.0 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
-	github.com/prometheus/common v0.65.0 // indirect
 	github.com/prometheus/procfs v0.17.0 // indirect
 	github.com/r3labs/diff/v3 v3.0.1 // indirect
 	github.com/red-hat-storage/odf-operator v0.0.0-20250716125006-48092cb5468b // indirect
