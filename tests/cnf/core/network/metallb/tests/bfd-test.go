@@ -99,6 +99,111 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 			verifyMetricPresentInPrometheus(frrk8sPods, prometheusPods[0], "frrk8s_bfd_")
 		})
 
+		It("Verify BGP over BFD session remains stable during service change", reportxml.ID("76013"), func() {
+			By("Verifying that the frrk8sPod deployment is in Ready state and create a list of the pods on " +
+				"worker nodes.")
+			frrk8sPods := verifyAndCreateFRRk8sPodList()
+
+			By("Creating BFD profile")
+			bfdProfile := createBFDProfileAndVerifyIfItsReady(frrk8sPods)
+
+			By("Creating BGP peer config with BFD profile")
+			createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, ipv4metalLbIPList[0], bfdProfile.Definition.Name,
+				tsparams.RemoteBGPASN, false, 0, frrk8sPods)
+
+			By("Creating MetalLb configMap with BFD enabled")
+			bfdConfigMap := createConfigMap(tsparams.RemoteBGPASN, ipv4NodeAddrList, false, true)
+
+			By("Creating static ip annotation")
+			staticIPAnnotation := pod.StaticIPAnnotation(
+				frrconfig.ExternalMacVlanNADName, []string{fmt.Sprintf("%s/%s", ipv4metalLbIPList[0],
+					netparam.IPSubnet24)})
+
+			By("Creating FRR Pod with BFD enabled")
+			frrPod := createFrrPod(
+				masterNodeList[0].Object.Name, bfdConfigMap.Object.Name, []string{}, staticIPAnnotation)
+
+			By("Checking that BGP and BFD sessions are established and up")
+			verifyMetalLbBFDAndBGPSessionsAreUPOnFrrPod(frrPod, ipv4NodeAddrList)
+
+			By("Setting test iteration parameters")
+			_, _, _, _, addressPool, _, err :=
+				metallbenv.DefineIterationParams(
+					ipv4metalLbIPList, ipv6metalLbIPList, ipv4NodeAddrList, ipv6NodeAddrList, netparam.IPV4Family)
+			Expect(err).ToNot(HaveOccurred(), "Fail to set iteration parameters")
+
+			By("Creating initial IPAddressPool and BGPAdvertisement")
+			ipAddressPool := setupBgpAdvertisementAndIPAddressPool(
+				tsparams.BGPAdvAndAddressPoolName, addressPool, netparam.IPSubnetInt32)
+
+			By("Creating initial MetalLB service")
+			setupMetalLbService(
+				tsparams.MetallbServiceName,
+				netparam.IPV4Family,
+				tsparams.LabelValue1,
+				ipAddressPool,
+				corev1.ServiceExternalTrafficPolicyTypeCluster)
+
+			By("Creating nginx test pod on worker node")
+			setupNGNXPod(tsparams.MLBNginxPodName+workerNodeList[0].Definition.Name,
+				workerNodeList[0].Definition.Name,
+				tsparams.LabelValue1)
+
+			By("Verifying initial BGP and BFD sessions are still up after service creation")
+			verifyMetalLbBFDAndBGPSessionsAreUPOnFrrPod(frrPod, ipv4NodeAddrList)
+
+			By("Creating additional MetalLB service to test service addition")
+			secondIPAddressPool := setupBgpAdvertisementAndIPAddressPool(
+				"second-bgp-adv-and-addr-pool", []string{"192.168.255.1", "192.168.255.2"}, netparam.IPSubnetInt32)
+
+			setupMetalLbService(
+				"second-metallb-service",
+				netparam.IPV4Family,
+				"second-app",
+				secondIPAddressPool,
+				corev1.ServiceExternalTrafficPolicyTypeCluster)
+
+			By("Creating second nginx test pod")
+			setupNGNXPod("second-nginx-pod-"+workerNodeList[0].Definition.Name,
+				workerNodeList[0].Definition.Name,
+				"second-app")
+
+			By("Verifying BGP and BFD sessions remain stable after adding second service")
+			verifyMetalLbBFDAndBGPSessionsAreUPOnFrrPod(frrPod, ipv4NodeAddrList)
+
+			By("Testing endpoint modification by scaling nginx deployment")
+			if len(workerNodeList) > 1 {
+				By("Creating additional nginx pod on second worker to modify endpoints")
+				setupNGNXPod(tsparams.MLBNginxPodName+workerNodeList[1].Definition.Name,
+					workerNodeList[1].Definition.Name,
+					tsparams.LabelValue1)
+
+				By("Verifying BGP and BFD sessions remain stable after endpoint modification")
+				verifyMetalLbBFDAndBGPSessionsAreUPOnFrrPod(frrPod, ipv4NodeAddrList)
+			}
+
+			By("Testing service deletion - removing the second service")
+			secondService, err := service.Pull(APIClient, "second-metallb-service", tsparams.TestNamespaceName)
+			Expect(err).ToNot(HaveOccurred(), "Failed to pull second MetalLB service")
+			err = secondService.Delete()
+			Expect(err).ToNot(HaveOccurred(), "Failed to delete second MetalLB service")
+
+			By("Verifying BGP and BFD sessions remain stable after service deletion")
+			verifyMetalLbBFDAndBGPSessionsAreUPOnFrrPod(frrPod, ipv4NodeAddrList)
+
+			By("Testing complete cleanup - removing the first service")
+			firstService, err := service.Pull(APIClient, tsparams.MetallbServiceName, tsparams.TestNamespaceName)
+			Expect(err).ToNot(HaveOccurred(), "Failed to pull first MetalLB service")
+			err = firstService.Delete()
+			Expect(err).ToNot(HaveOccurred(), "Failed to delete first MetalLB service")
+
+			By("Verifying BGP and BFD sessions remain stable after deleting all services")
+			verifyMetalLbBFDAndBGPSessionsAreUPOnFrrPod(frrPod, ipv4NodeAddrList)
+
+			By("Final verification that BGP and BFD sessions have remained stable throughout all operations")
+			verifyMetalLbBFDAndBGPSessionsAreUPOnFrrPod(frrPod, ipv4NodeAddrList)
+		})
+
 		AfterEach(func() {
 			By("Removing custom nft table if exists")
 			removeNFTTable(workerNodeList[0].Object.Name)
