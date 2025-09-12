@@ -61,6 +61,12 @@ rdscore_wlkd_sriov_3_ns: rds-sriov-wlkd
 rdscore_wlkd_sriov_4_ns: rds-sriov-wlkd
 rdscore_wlkd_sriov_net_one: sriov-net-one
 rdscore_wlkd_sriov_net_two: sriov-net-two
+rdscore_wlkd_sriov_net_21: sriov-net-one
+rdscore_wlkd_sriov_net_22: sriov-net-two
+rdscore_wlkd_sriov_net_31: sriov-net-one
+rdscore_wlkd_sriov_net_32: sriov-net-two
+rdscore_wlkd_sriov_net_41: sriov-net-one
+rdscore_wlkd_sriov_net_42: sriov-net-two
 rdscore_tolerations_list: []
 rdscore_mcvlan_ns_one: rds-macvlan-wlkd
 rdscore_mcvlan_cm_data_one: {}
