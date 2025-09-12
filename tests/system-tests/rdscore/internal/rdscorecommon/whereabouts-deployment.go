@@ -845,7 +845,7 @@ func VerifyConnectivityAfterNodeDrain(
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to cordon node %s due to: %v", nodeToDrain, err))
 
-	defer uncordonNode(nodeObj, 15*time.Second, 3*time.Minute)
+	defer UncordonNode(nodeObj, uncordonNodeInterval, uncordonNodeTimeout)
 
 	By(fmt.Sprintf("Draining node %q", nodeToDrain))
 
