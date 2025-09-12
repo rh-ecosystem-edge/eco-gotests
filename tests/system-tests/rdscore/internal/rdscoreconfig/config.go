@@ -187,6 +187,12 @@ type CoreConfig struct {
 	WlkdNROPDeployTwoImage  string      `yaml:"rdscore_wlkd_nrop_two_image" envconfig:"ECO_RDSCORE_WLKD_NROP_TWO_IMG"`
 	WlkdSRIOVNetOne         string      `yaml:"rdscore_wlkd_sriov_net_one" envconfig:"ECO_RDSCORE_WLKD_SRIOV_NET_ONE"`
 	WlkdSRIOVNetTwo         string      `yaml:"rdscore_wlkd_sriov_net_two" envconfig:"ECO_RDSCORE_WLKD_SRIOV_NET_TWO"`
+	WlkdSRIOVNet21          string      `yaml:"rdscore_wlkd_sriov_net_21" envconfig:"ECO_RDSCORE_WLKD_SRIOV_NET_21"`
+	WlkdSRIOVNet22          string      `yaml:"rdscore_wlkd_sriov_net_22" envconfig:"ECO_RDSCORE_WLKD_SRIOV_NET_22"`
+	WlkdSRIOVNet31          string      `yaml:"rdscore_wlkd_sriov_net_31" envconfig:"ECO_RDSCORE_WLKD_SRIOV_NET_31"`
+	WlkdSRIOVNet32          string      `yaml:"rdscore_wlkd_sriov_net_32" envconfig:"ECO_RDSCORE_WLKD_SRIOV_NET_32"`
+	WlkdSRIOVNet41          string      `yaml:"rdscore_wlkd_sriov_net_41" envconfig:"ECO_RDSCORE_WLKD_SRIOV_NET_41"`
+	WlkdSRIOVNet42          string      `yaml:"rdscore_wlkd_sriov_net_42" envconfig:"ECO_RDSCORE_WLKD_SRIOV_NET_42"`
 	WlkdSRIOVTwoSa          string      `yaml:"rdscore_wlkd_sriov_two_sa" envconfig:"ECO_RDSCORE_WLKD_SRIOV_TWO_SA"`
 	NROPSchedulerName       string      `yaml:"rdscore_nrop_scheduler_name" envconfig:"ECO_RDSCORE_NROP_SCHEDULER_NAME"`
 	//nolint:lll

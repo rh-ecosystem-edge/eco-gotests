@@ -314,7 +314,7 @@ func createConfigMap(cmName, nsName string, data map[string]string) {
 			cmResult.Definition.Name, nsName)
 
 		return true
-	}).WithContext(ctx).WithPolling(5*time.Second).WithPolling(1*time.Minute).Should(BeTrue(),
+	}).WithContext(ctx).WithPolling(5*time.Second).WithTimeout(1*time.Minute).Should(BeTrue(),
 		"Failed to crete configMap")
 }
 
@@ -819,6 +819,22 @@ func VerifySRIOVWorkloadsOnSameNode(ctx SpecContext) {
 //
 //nolint:funlen
 func VerifySRIOVWorkloadsOnDifferentNodes(ctx SpecContext) {
+	if strings.TrimSpace(RDSCoreConfig.WlkdSRIOVNet21) == "" || strings.TrimSpace(RDSCoreConfig.WlkdSRIOVNet22) == "" {
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("SR-IOV networks cannot be empty")
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("SRIOV Network 1: %s", RDSCoreConfig.WlkdSRIOVNet21)
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("SRIOV Network 2: %s", RDSCoreConfig.WlkdSRIOVNet22)
+
+		Skip("SR-IOV networks cannot be empty")
+	}
+
+	if strings.TrimSpace(RDSCoreConfig.WlkdSRIOVNet21) != strings.TrimSpace(RDSCoreConfig.WlkdSRIOVNet22) {
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("SR-IOV networks are not the same")
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("SRIOV Network 1: %s", RDSCoreConfig.WlkdSRIOVNet21)
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("SRIOV Network 2: %s", RDSCoreConfig.WlkdSRIOVNet22)
+
+		Skip("SR-IOV networks are not the same")
+	}
+
 	By("Retrieving SR-IOV Operator config")
 
 	SriovOperatorConfig, oerr := getSRIOVOperatorConfig()
@@ -914,7 +930,7 @@ func VerifySRIOVWorkloadsOnDifferentNodes(ctx SpecContext) {
 	deploy := defineDeployment(deployContainerCfg,
 		sriovDeploy2OneName,
 		RDSCoreConfig.WlkdSRIOVOneNS,
-		RDSCoreConfig.WlkdSRIOVNetOne,
+		RDSCoreConfig.WlkdSRIOVNet21,
 		sriovDeploy2CMName,
 		sriovDeploy2SAName,
 		deployOneLabels,
@@ -937,7 +953,7 @@ func VerifySRIOVWorkloadsOnDifferentNodes(ctx SpecContext) {
 	deployTwo := defineDeployment(deployContainerTwoCfg,
 		sriovDeploy2TwoName,
 		RDSCoreConfig.WlkdSRIOVOneNS,
-		RDSCoreConfig.WlkdSRIOVNetOne,
+		RDSCoreConfig.WlkdSRIOVNet22,
 		sriovDeploy2CMName,
 		sriovDeploy2SAName,
 		deployTwoLabels,
@@ -1134,6 +1150,22 @@ func VerifySRIOVConnectivityOnSameNodeAndDifferentNets() {
 //
 //nolint:funlen
 func VerifySRIOVWorkloadsOnSameNodeDifferentNet(ctx SpecContext) {
+	if strings.TrimSpace(RDSCoreConfig.WlkdSRIOVNet31) == "" || strings.TrimSpace(RDSCoreConfig.WlkdSRIOVNet32) == "" {
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("SR-IOV networks cannot be empty")
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("SRIOV Network 1: %s", RDSCoreConfig.WlkdSRIOVNet31)
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("SRIOV Network 2: %s", RDSCoreConfig.WlkdSRIOVNet32)
+
+		Skip("SR-IOV networks cannot be empty")
+	}
+
+	if strings.TrimSpace(RDSCoreConfig.WlkdSRIOVNet31) == strings.TrimSpace(RDSCoreConfig.WlkdSRIOVNet32) {
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("SR-IOV networks are the same but should be different")
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("SRIOV Network 1: %s", RDSCoreConfig.WlkdSRIOVNet31)
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("SRIOV Network 2: %s", RDSCoreConfig.WlkdSRIOVNet32)
+
+		Skip("SR-IOV networks are the same but should be different")
+	}
+
 	By("Retrieving SR-IOV Operator config")
 
 	SriovOperatorConfig, oerr := getSRIOVOperatorConfig()
@@ -1235,7 +1267,7 @@ func VerifySRIOVWorkloadsOnSameNodeDifferentNet(ctx SpecContext) {
 	deploy := defineDeployment(deployContainerCfg,
 		sriovDeploy3OneName,
 		RDSCoreConfig.WlkdSRIOV3NS,
-		RDSCoreConfig.WlkdSRIOVNetOne,
+		RDSCoreConfig.WlkdSRIOVNet31,
 		sriovDeploy3CMName,
 		sriovDeploy3SAName,
 		deployOneLabels,
@@ -1258,7 +1290,7 @@ func VerifySRIOVWorkloadsOnSameNodeDifferentNet(ctx SpecContext) {
 	deployTwo := defineDeployment(deployContainerTwoCfg,
 		sriovDeploy3TwoName,
 		RDSCoreConfig.WlkdSRIOV3NS,
-		RDSCoreConfig.WlkdSRIOVNetTwo,
+		RDSCoreConfig.WlkdSRIOVNet32,
 		sriovDeploy3CMName,
 		sriovDeploy3SAName,
 		deployTwoLabels,
@@ -1367,6 +1399,22 @@ func VerifySRIOVConnectivityOnDifferentNodesAndDifferentNetworks() {
 //
 //nolint:funlen
 func VerifySRIOVWorkloadsOnDifferentNodesDifferentNet(ctx SpecContext) {
+	if strings.TrimSpace(RDSCoreConfig.WlkdSRIOVNet41) == "" || strings.TrimSpace(RDSCoreConfig.WlkdSRIOVNet42) == "" {
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("SR-IOV networks cannot be empty")
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("SRIOV Network 1: %s", RDSCoreConfig.WlkdSRIOVNet41)
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("SRIOV Network 2: %s", RDSCoreConfig.WlkdSRIOVNet42)
+
+		Skip("SR-IOV networks cannot be empty")
+	}
+
+	if strings.TrimSpace(RDSCoreConfig.WlkdSRIOVNet41) == strings.TrimSpace(RDSCoreConfig.WlkdSRIOVNet42) {
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("SR-IOV networks are the same but should be different")
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("SRIOV Network 1: %s", RDSCoreConfig.WlkdSRIOVNet41)
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("SRIOV Network 2: %s", RDSCoreConfig.WlkdSRIOVNet42)
+
+		Skip("SR-IOV networks are the same but should be different")
+	}
+
 	By("Retrieving SR-IOV Operator config")
 
 	SriovOperatorConfig, oerr := getSRIOVOperatorConfig()
@@ -1468,7 +1516,7 @@ func VerifySRIOVWorkloadsOnDifferentNodesDifferentNet(ctx SpecContext) {
 	deploy := defineDeployment(deployContainerCfg,
 		sriovDeploy4OneName,
 		RDSCoreConfig.WlkdSRIOV4NS,
-		RDSCoreConfig.WlkdSRIOVNetOne,
+		RDSCoreConfig.WlkdSRIOVNet41,
 		sriovDeploy4CMName,
 		sriovDeploy4SAName,
 		deployOneLabels,
@@ -1491,7 +1539,7 @@ func VerifySRIOVWorkloadsOnDifferentNodesDifferentNet(ctx SpecContext) {
 	deployTwo := defineDeployment(deployContainerTwoCfg,
 		sriovDeploy4TwoName,
 		RDSCoreConfig.WlkdSRIOV4NS,
-		RDSCoreConfig.WlkdSRIOVNetTwo,
+		RDSCoreConfig.WlkdSRIOVNet42,
 		sriovDeploy4CMName,
 		sriovDeploy4SAName,
 		deployTwoLabels,
