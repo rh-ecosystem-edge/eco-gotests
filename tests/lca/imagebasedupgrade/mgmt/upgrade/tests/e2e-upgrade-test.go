@@ -26,6 +26,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/kmm"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/lca"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/network"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/olm"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
@@ -582,14 +583,14 @@ var _ = Describe(
 				"error: ibu seedimage updated with wrong next stage")
 		})
 
-		It("detects dual-stack service network", reportxml.ID("84293"), func() {
+		It("detects dual-stack service network with primary IPv4", reportxml.ID("84293"), func() {
 
-			By("Validate Service Network")
+			By("Validate Service Network is in a dual stack deployment with primary IPv4")
 
-			if validateDualStackDeployment() {
-				glog.V(mgmtparams.MGMTLogLevel).Infof("Cluster is a dual stack deployment")
+			if validateDualStackDeploymentPrimaryIPv4() {
+				glog.V(mgmtparams.MGMTLogLevel).Infof("Cluster is a dual stack deployment with primary IPv4")
 			} else {
-				Skip("Cluster is not a dual stack deployment")
+				Skip("Cluster is not a dual stack deployment with primary IPv4")
 			}
 		})
 
@@ -810,14 +811,37 @@ func updateIBUWithCustomCatalogSources(imagebasedupgrade *lca.ImageBasedUpgradeB
 	}
 }
 
-func validateDualStackDeployment() bool {
-	ipv4Network := false
-	ipv6Network := false
-
+func validateDualStackDeploymentPrimaryIPv4() bool {
 	By("Get OCP cluster network config")
 
 	clusterNetworkConfigObj, err := cluster.GetOCPNetworkConfig(APIClient)
 	Expect(err).NotTo(HaveOccurred(), "error getting OCP cluster network config")
+
+	if !validateDualStackDeployment(clusterNetworkConfigObj) {
+		return false
+	}
+
+	firstServiceNetwork := clusterNetworkConfigObj.Object.Spec.ServiceNetwork[0]
+
+	By("Validate Service Network entry is a CIDR")
+
+	if strings.Contains(firstServiceNetwork, "/") {
+		ipAddress, _, err := net.ParseCIDR(firstServiceNetwork)
+		Expect(err).NotTo(HaveOccurred(), "error parsing CIDR")
+
+		if ipAddress.To4() != nil {
+			glog.V(mgmtparams.MGMTLogLevel).Infof("Valid IPv4 CIDR: %s", firstServiceNetwork)
+
+			return true
+		}
+	}
+
+	return false
+}
+
+func validateDualStackDeployment(clusterNetworkConfigObj *network.ConfigBuilder) bool {
+	ipv4Network := false
+	ipv6Network := false
 
 	for _, serviceNetwork := range clusterNetworkConfigObj.Object.Spec.ServiceNetwork {
 		glog.V(mgmtparams.MGMTLogLevel).Infof("Service Network: %s", serviceNetwork)
