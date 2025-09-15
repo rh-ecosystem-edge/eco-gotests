@@ -50,8 +50,8 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelLong
 				Skip("could not detect cluster architecture")
 			}
 
-			if arch == "arm64" {
-				Skip("ARM platform does not support realtime kernel.")
+			if arch == "arm64" || arch == "ppc64le" {
+				Skip("ARM  and ppc64le platforms do not support the realtime kernel.")
 			}
 
 			By("Collect MachineConfigPoolName")
