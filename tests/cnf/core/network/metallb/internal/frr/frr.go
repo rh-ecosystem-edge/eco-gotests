@@ -442,11 +442,20 @@ func getBgpStatus(frrPod *pod.Builder, cmd string, containerName ...string) (*bg
 
 	bgpStatus := bgpStatus{}
 
+	// DEBUG: Log raw JSON before parsing
+	glog.V(0).Infof("🔍 RAW BGP JSON OUTPUT: %s", bgpStateOut.String())
+
 	err = json.Unmarshal(bgpStateOut.Bytes(), &bgpStatus)
 	if err != nil {
 		glog.V(90).Infof("Failed to Unmarshal bgpStatus string: %s in to bgpStatus struct", bgpStateOut.String())
 
 		return nil, err
+	}
+
+	// DEBUG: Log parsed routes
+	glog.V(0).Infof("🔍 PARSED BGP ROUTES COUNT: %d", len(bgpStatus.Routes))
+	for prefix, routes := range bgpStatus.Routes {
+		glog.V(0).Infof("🔍 PARSED ROUTE: %s -> %d entries", prefix, len(routes))
 	}
 
 	return &bgpStatus, nil

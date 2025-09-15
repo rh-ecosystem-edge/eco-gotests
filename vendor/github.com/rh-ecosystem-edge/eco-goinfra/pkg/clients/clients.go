@@ -25,6 +25,7 @@ import (
 	imageregistryV1 "github.com/openshift/api/imageregistry/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	agentInstallV1Beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/api/v1beta1"
+	ovnRouteAdvV1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ovn/routeadvertisement/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	coreV1Client "k8s.io/client-go/kubernetes/typed/core/v1"
 	storageV1Client "k8s.io/client-go/kubernetes/typed/storage/v1"
@@ -166,6 +167,10 @@ func SetScheme(crScheme *runtime.Scheme) error {
 	}
 
 	if err := policyv1.AddToScheme(crScheme); err != nil {
+		return err
+	}
+
+	if err := ovnRouteAdvV1.AddToScheme(crScheme); err != nil {
 		return err
 	}
 

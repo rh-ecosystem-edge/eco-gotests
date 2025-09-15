@@ -544,9 +544,10 @@ func validatePrefix(
 				return false
 			}
 
-			return len(bgpStatus.Routes) > 0
+			_, exists := bgpStatus.Routes[subnet.String()]
+			return exists
 		}, time.Minute, tsparams.DefaultRetryInterval).
-			Should(BeTrue(), "Expected BGP status to contain routes, but it was empty")
+			Should(BeTrue(), fmt.Sprintf("Expected BGP status to contain route %s", subnet.String()))
 
 		bgpStatus, err := frr.GetBGPStatus(masterNodeFRRPod, strings.ToLower(ipProtoVersion), "test")
 
