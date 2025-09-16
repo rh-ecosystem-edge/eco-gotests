@@ -27,6 +27,26 @@ COPY --from=builder /etc/driver-toolkit-release.json /etc/
 COPY --from=builder /build/kmm-kmod/*.ko /opt/lib/modules/${KERNEL_VERSION}/
 RUN depmod -b /opt ${KERNEL_VERSION}
 `
+
+	// UserDTKContents represents the Dockerfile where user specifies DTK image and Module.
+	UserDTKContents = `FROM {{.DTKImage}} as builder
+ARG KERNEL_VERSION
+ARG MY_MODULE
+WORKDIR /build
+RUN git clone https://github.com/cdvultur/kmm-kmod.git
+WORKDIR /build/kmm-kmod
+RUN cp kmm_ci_a.c {{.Module}}.c
+RUN make KVER=${KERNEL_VERSION}
+
+FROM registry.redhat.io/ubi9/ubi-minimal
+ARG KERNEL_VERSION
+ARG MY_MODULE
+RUN microdnf -y install kmod
+
+COPY --from=builder /etc/driver-toolkit-release.json /etc/
+COPY --from=builder /build/kmm-kmod/*.ko /opt/lib/modules/${KERNEL_VERSION}/
+RUN depmod -b /opt ${KERNEL_VERSION}
+`
 	// SimpleKmodContents represents the Dockerfile contents for simple-kmod build.
 	SimpleKmodContents = `ARG DTK_AUTO
 FROM ${DTK_AUTO} as builder
