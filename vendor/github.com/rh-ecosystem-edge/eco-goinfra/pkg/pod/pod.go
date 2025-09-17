@@ -428,6 +428,14 @@ func (builder *Builder) ExecCommand(command []string, containerName ...string) (
 		return bytes.Buffer{}, err
 	}
 
+	if !builder.Exists() {
+		glog.V(100).Infof("Cannot execute command on pod %s in namespace %s because it does not exist",
+			builder.Definition.Name, builder.Definition.Namespace)
+
+		return bytes.Buffer{}, fmt.Errorf("pod object %s does not exist in namespace %s",
+			builder.Definition.Name, builder.Definition.Namespace)
+	}
+
 	var (
 		buffer bytes.Buffer
 		cName  string
@@ -463,6 +471,90 @@ func (builder *Builder) ExecCommand(command []string, containerName ...string) (
 	}
 
 	err = exec.StreamWithContext(context.TODO(), remotecommand.StreamOptions{
+		Stdout: &buffer,
+		Stderr: os.Stderr,
+		Tty:    true,
+	})
+
+	if err != nil {
+		return buffer, err
+	}
+
+	return buffer, nil
+}
+
+// ExecCommandWithTimeout runs command in the pod and waits for the duration of the defined timeout or
+// until the command completes. Returns context.DeadlineExceeded error if the timeout is reached.
+// Parameters:
+//   - command: the command to execute
+//   - timeout: maximum duration to wait for command completion
+//   - containerName: optional container name (uses first container if not specified)
+func (builder *Builder) ExecCommandWithTimeout(
+	command []string,
+	timeout time.Duration,
+	containerName ...string) (bytes.Buffer, error) {
+	if valid, err := builder.validate(); !valid {
+		return bytes.Buffer{}, err
+	}
+
+	if timeout <= 0 {
+		glog.V(100).Infof("Timeout must be greater than 0")
+
+		return bytes.Buffer{}, fmt.Errorf("timeout must be greater than 0")
+	}
+
+	if len(command) == 0 {
+		glog.V(100).Infof("Command must be provided")
+
+		return bytes.Buffer{}, fmt.Errorf("command must be provided")
+	}
+
+	if !builder.Exists() {
+		glog.V(100).Infof("Cannot execute command on pod %s in namespace %s because it does not exist",
+			builder.Definition.Name, builder.Definition.Namespace)
+
+		return bytes.Buffer{}, fmt.Errorf("pod object %s does not exist in namespace %s",
+			builder.Definition.Name, builder.Definition.Namespace)
+	}
+
+	var (
+		buffer bytes.Buffer
+		cName  string
+	)
+
+	if len(containerName) > 0 {
+		cName = containerName[0]
+	} else {
+		cName = builder.Definition.Spec.Containers[0].Name
+	}
+
+	glog.V(100).Infof("Execute command %v in the pod %s container %s in namespace %s with %s timeout",
+		command, builder.Object.Name, cName, builder.Object.Namespace, timeout.String())
+
+	req := builder.apiClient.CoreV1Interface.RESTClient().
+		Post().
+		Namespace(builder.Object.Namespace).
+		Resource("pods").
+		Name(builder.Object.Name).
+		SubResource("exec").
+		VersionedParams(&corev1.PodExecOptions{
+			Container: cName,
+			Command:   command,
+			Stdout:    true,
+			Stderr:    true,
+			TTY:       true,
+		}, scheme.ParameterCodec)
+
+	exec, err := remotecommand.NewSPDYExecutor(builder.apiClient.Config, "POST", req.URL())
+
+	if err != nil {
+		return buffer, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdout: &buffer,
 		Stderr: os.Stderr,
 		Tty:    true,
