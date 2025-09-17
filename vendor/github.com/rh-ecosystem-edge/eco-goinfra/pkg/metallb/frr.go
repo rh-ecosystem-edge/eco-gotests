@@ -398,6 +398,78 @@ func (builder *FrrConfigurationBuilder) WithEBGPMultiHop(routerIndex, neighborIn
 	return builder
 }
 
+// WithBGPNeighborDisableMP sets the DisableMP flag for the specified neighbor.
+func (builder *FrrConfigurationBuilder) WithBGPNeighborDisableMP(disableMP bool,
+	routerIndex, neighborIndex uint) *FrrConfigurationBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	glog.V(100).Infof(
+		"Setting FRRConfiguration %s neighbor disableMP to %t",
+		builder.Definition.Name, disableMP)
+
+	// Check if the routerIndex is within bounds
+	if routerIndex >= uint(len(builder.Definition.Spec.BGP.Routers)) {
+		glog.V(100).Infof("Invalid routerIndex: %d", routerIndex)
+
+		builder.errorMsg = fmt.Sprintf("invalid routerIndex: %d", routerIndex)
+
+		return builder
+	}
+
+	// Check if the neighborIndex is within bounds
+	if neighborIndex >= uint(len(builder.Definition.Spec.BGP.Routers[routerIndex].Neighbors)) {
+		glog.V(100).Infof("Invalid neighborIndex: %d", neighborIndex)
+
+		builder.errorMsg = fmt.Sprintf("invalid neighborIndex: %d", neighborIndex)
+
+		return builder
+	}
+
+	// Set the DisableMP for the specified neighbor
+	builder.Definition.Spec.BGP.Routers[routerIndex].Neighbors[neighborIndex].DisableMP = disableMP
+
+	return builder
+}
+
+// WithBGPNeighborDualStackAddressFamily enables dual stack address family for the specified BGP neighbor.
+// This allows to advertise/receive IPv4 prefixes over IPv6 sessions and vice versa.
+func (builder *FrrConfigurationBuilder) WithBGPNeighborDualStackAddressFamily(dualStackAddressFamily bool,
+	routerIndex, neighborIndex uint) *FrrConfigurationBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	glog.V(100).Infof(
+		"Setting FRRConfiguration %s neighbor dualStackAddressFamily to %t",
+		builder.Definition.Name, dualStackAddressFamily)
+
+	// Check if the routerIndex is within bounds
+	if routerIndex >= uint(len(builder.Definition.Spec.BGP.Routers)) {
+		glog.V(100).Infof("Invalid routerIndex: %d", routerIndex)
+
+		builder.errorMsg = fmt.Sprintf("invalid routerIndex: %d", routerIndex)
+
+		return builder
+	}
+
+	// Check if the neighborIndex is within bounds
+	if neighborIndex >= uint(len(builder.Definition.Spec.BGP.Routers[routerIndex].Neighbors)) {
+		glog.V(100).Infof("Invalid neighborIndex: %d", neighborIndex)
+
+		builder.errorMsg = fmt.Sprintf("invalid neighborIndex: %d", neighborIndex)
+
+		return builder
+	}
+
+	// Set the DualStackAddressFamily for the specified neighbor
+	builder.Definition.Spec.BGP.Routers[routerIndex].Neighbors[neighborIndex].
+		DualStackAddressFamily = dualStackAddressFamily
+
+	return builder
+}
+
 // WithHoldTime defines the holdTime placed in the FrrConfiguration spec.
 func (builder *FrrConfigurationBuilder) WithHoldTime(holdTime metav1.Duration, routerIndex,
 	neighborIndex uint) *FrrConfigurationBuilder {

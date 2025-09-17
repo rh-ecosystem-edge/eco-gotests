@@ -27,6 +27,27 @@ func MultiStageConfigMapContent(module string) map[string]string {
 	return configmapContents
 }
 
+// UserDtkMultiStateConfigMapContents returns the configmap contents for speficied DTK image and module name.
+func UserDtkMultiStateConfigMapContents(module, dtkImage string) map[string]string {
+	data := map[string]interface{}{
+		"Module":   module,
+		"DTKImage": dtkImage,
+	}
+
+	templateInstance := template.Must(template.New("contents").Parse(kmmparams.UserDTKContents))
+	builder := &strings.Builder{}
+
+	if err := templateInstance.Execute(builder, data); err != nil {
+		panic(err)
+	}
+
+	content := builder.String()
+
+	configmapContents := map[string]string{"dockerfile": content}
+
+	return configmapContents
+}
+
 // SimpleKmodConfigMapContents returns the configmap for simple-kmod example.
 func SimpleKmodConfigMapContents() map[string]string {
 	configmapContents := map[string]string{"dockerfile": kmmparams.SimpleKmodContents}

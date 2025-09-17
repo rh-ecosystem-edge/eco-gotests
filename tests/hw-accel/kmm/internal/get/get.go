@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/go-version"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/imagestream"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/kmm"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/olm"
@@ -207,6 +208,25 @@ func KmmOperatorVersion(apiClient *clients.Settings) (ver *version.Version, err 
 // KmmHubOperatorVersion returns CSV version of the installed KMM-HUB operator.
 func KmmHubOperatorVersion(apiClient *clients.Settings) (ver *version.Version, err error) {
 	return operatorVersion(apiClient, "hub", kmmparams.KmmHubOperatorNamespace)
+}
+
+// DTKImage returns the DockerImage of the drivertoolkit imagestream.
+func DTKImage(apiClient *clients.Settings) (dtkImage string, err error) {
+	dtkIS, err := imagestream.Pull(apiClient, kmmparams.DTKImageStream, kmmparams.DTKImageStreamNamespace)
+
+	if err != nil {
+		return "", err
+	}
+
+	dtkImage, err = dtkIS.GetDockerImage("latest")
+
+	if err != nil {
+		return "", err
+	}
+
+	glog.V(kmmparams.KmmLogLevel).Infof("DTK Image: %s", dtkImage)
+
+	return dtkImage, nil
 }
 
 func operatorVersion(apiClient *clients.Settings, namePattern, namespace string) (ver *version.Version, err error) {

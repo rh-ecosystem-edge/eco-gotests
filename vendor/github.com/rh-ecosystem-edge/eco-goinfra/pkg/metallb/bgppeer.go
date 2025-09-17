@@ -600,6 +600,33 @@ func (builder *BGPPeerBuilder) WithGracefulRestart(gracefulRestart bool) *BGPPee
 	return builder
 }
 
+// WithDisableMP disables Multiprotocol BGP for this peer.
+func (builder *BGPPeerBuilder) WithDisableMP(disableMP bool) *BGPPeerBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	glog.V(100).Infof("Setting BGPPeer %s disableMP to %t", builder.Definition.Name, disableMP)
+
+	builder.Definition.Spec.DisableMP = disableMP
+
+	return builder
+}
+
+// WithDualStackAddressFamily enables dual stack address family for this BGP peer.
+// This allows to advertise/receive IPv4 prefixes over IPv6 sessions and vice versa.
+func (builder *BGPPeerBuilder) WithDualStackAddressFamily(dualStackAddressFamily bool) *BGPPeerBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	glog.V(100).Infof("Setting BGPPeer %s dualStackAddressFamily to %t", builder.Definition.Name, dualStackAddressFamily)
+
+	builder.Definition.Spec.DualStackAddressFamily = dualStackAddressFamily
+
+	return builder
+}
+
 // WithOptions creates BGPPeer with generic mutation options.
 func (builder *BGPPeerBuilder) WithOptions(options ...BGPPeerAdditionalOptions) *BGPPeerBuilder {
 	if valid, _ := builder.validate(); !valid {

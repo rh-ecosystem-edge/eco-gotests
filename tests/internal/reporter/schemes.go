@@ -21,6 +21,7 @@ import (
 	inventoryv1alpha1 "github.com/openshift-kni/oran-o2ims/api/inventory/v1alpha1"
 	provisioningv1alpha1 "github.com/openshift-kni/oran-o2ims/api/provisioning/v1alpha1"
 	configv1 "github.com/openshift/api/config/v1"
+	imagev1 "github.com/openshift/api/image/v1"
 	imageregistryv1 "github.com/openshift/api/imageregistry/v1"
 	machineconfigv1 "github.com/openshift/api/machineconfiguration/v1"
 	nfdv1 "github.com/openshift/cluster-nfd-operator/api/v1"
@@ -45,6 +46,7 @@ var reporterSchemes = []clients.SchemeAttacher{
 	agentinstallv1beta1.AddToScheme,
 	bmhv1alpha1.AddToScheme,
 	configv1.Install,
+	imagev1.AddToScheme,
 	nadv1.AddToScheme,
 	nmstatev1.AddToScheme,
 	nmstatev1beta1.AddToScheme,

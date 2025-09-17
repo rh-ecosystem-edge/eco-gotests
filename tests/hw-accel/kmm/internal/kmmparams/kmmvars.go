@@ -20,6 +20,12 @@ var (
 	// KmmTestHelperLabelName represents label set on the helper resources.
 	KmmTestHelperLabelName = "kmm-test-helper"
 
+	// DTKImageStream represents DTK imagestream name.
+	DTKImageStream = "driver-toolkit"
+
+	// DTKImageStreamNamespace represents namespace where imagestream is found.
+	DTKImageStreamNamespace = "openshift"
+
 	// DTKImage represents Driver Toolkit image in internal image registry.
 	DTKImage = "image-registry.openshift-image-registry.svc:5000/openshift/driver-toolkit"
 

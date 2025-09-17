@@ -11,6 +11,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/await"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/check"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/define"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/get"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/mcm/internal/tsparams"
 	corev1 "k8s.io/api/core/v1"
@@ -79,8 +80,12 @@ var _ = Describe("KMM-Hub", Ordered, Label(tsparams.LabelSuite), func() {
 				kmmparams.KmmOperatorNamespace, corev1.SecretTypeDockerConfigJson).WithData(secretContent).Create()
 			Expect(err).ToNot(HaveOccurred(), "error creating secret on spoke")
 
+			By("Obtain DTK image from the Spoke")
+			dtkImage, err := get.DTKImage(ModulesConfig.SpokeAPIClient)
+			Expect(err).ToNot(HaveOccurred(), "Could not get spoke's DTK image.")
+
 			By("Create ConfigMap")
-			configmapContents := define.MultiStageConfigMapContent(moduleName)
+			configmapContents := define.UserDtkMultiStateConfigMapContents(moduleName, dtkImage)
 			dockerfileConfigMap, err := configmap.
 				NewBuilder(APIClient, moduleName, kmmparams.KmmHubOperatorNamespace).
 				WithData(configmapContents).Create()

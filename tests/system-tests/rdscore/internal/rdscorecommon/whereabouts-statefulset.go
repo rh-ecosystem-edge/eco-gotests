@@ -423,8 +423,13 @@ func getActivePods(podLabel, namespace string) []*pod.Builder {
 		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q in %q namespace is in phase %q",
 			_pod.Object.Name, _pod.Object.Namespace, _pod.Object.Status.Phase)
 
-		if _pod.Object.Status.Phase == corev1.PodRunning {
+		if _pod.Object.Status.Phase == corev1.PodRunning && _pod.Object.DeletionTimestamp == nil {
+			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is active(running and not marked for deletion)",
+				_pod.Object.Name)
+
 			activePods = append(activePods, _pod)
+		} else if _pod.Object.DeletionTimestamp != nil {
+			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is marked for deletion, skipping", _pod.Object.Name)
 		}
 	}
 
@@ -528,7 +533,7 @@ func ensurePodConnectivityAfterNodeDrain(stLabel, namespace, targetPort string, 
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to cordon node %s due to: %v", nodeToDrain, err))
 
-	defer uncordonNode(nodeObj, 15*time.Second, 3*time.Minute)
+	defer UncordonNode(nodeObj, uncordonNodeInterval, uncordonNodeTimeout)
 
 	By(fmt.Sprintf("Draining node %q", nodeToDrain))
 
@@ -590,33 +595,14 @@ func ensurePodConnectivityAfterNodeDrain(stLabel, namespace, targetPort string, 
 	VerifyPodConnectivity(stLabel, namespace, interfaceName, parsedPort)
 }
 
-func uncordonNode(nodeToUncordon *nodes.Builder, interval, timeout time.Duration) {
-	By(fmt.Sprintf("Uncordoning node %q", nodeToUncordon.Definition.Name))
-
-	err := wait.PollUntilContextTimeout(context.TODO(), interval, timeout, true,
-		func(context.Context) (bool, error) {
-			err := nodeToUncordon.Uncordon()
-
-			if err != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to uncordon %q: %v", nodeToUncordon.Definition.Name, err)
-
-				return false, nil
-			}
-
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Successfully uncordon %q", nodeToUncordon.Definition.Name)
-
-			return err == nil, nil
-		})
-
-	if err != nil {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to uncordon %q: %v", nodeToUncordon.Definition.Name, err)
-	}
-}
-
 func powerOnNodeWaitReady(bmcClient *bmc.BMC, nodeToPowerOff string, stopCh chan bool) {
 	By("Stopping keepNodePoweredOff goroutine")
 
 	stopCh <- true
+
+	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Closing stop channel")
+
+	close(stopCh)
 
 	By(fmt.Sprintf("Powering on node %q", nodeToPowerOff))
 

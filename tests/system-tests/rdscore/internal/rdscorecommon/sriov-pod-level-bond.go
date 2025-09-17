@@ -772,17 +772,46 @@ func getPodObjectByNamePattern(apiClient *clients.Settings, podNamePattern, podN
 				return false, nil
 			}
 
-			if len(podObjList) > 1 {
-				glog.V(100).Infof("Wrong pod %s count %d was found in namespace %q", podNamePattern, len(podObjList), podNamespace)
+			// Filter out pods that are not running or marked for deletion
+			var runningPods []*pod.Builder
 
-				for _, _pod := range podObjList {
-					glog.V(100).Infof("Pod %q is in %q phase", _pod.Definition.Name, _pod.Object.Status.Phase)
+			for _, _pod := range podObjList {
+				switch {
+				case _pod.Object.Status.Phase == corev1.PodRunning && _pod.Object.DeletionTimestamp == nil:
+					glog.V(100).Infof("Pod %q is active (running and not marked for deletion)",
+						_pod.Definition.Name)
+
+					runningPods = append(runningPods, _pod)
+				case _pod.Object.DeletionTimestamp != nil:
+					glog.V(100).Infof("Pod %q is marked for deletion, skipping", _pod.Definition.Name)
+				default:
+					glog.V(100).Infof("Pod %q is in %q phase, skipping", _pod.Definition.Name, _pod.Object.Status.Phase)
 				}
+			}
+
+			switch {
+			case len(runningPods) == 0:
+				glog.V(100).Infof("No running pods %s were found in namespace %q", podNamePattern, podNamespace)
+
+				return false, nil
+			case len(runningPods) > 1:
+				glog.V(100).Infof("Wrong pod %s count %d was found in namespace %q",
+					podNamePattern, len(runningPods), podNamespace)
+
+				unexpectedRunningPods := make([]string, 0, len(runningPods))
+				for _, _pod := range runningPods {
+					unexpectedRunningPods = append(unexpectedRunningPods, _pod.Definition.Name)
+				}
+
+				glog.V(100).Infof("Unexpected running pods %v were found in namespace %q",
+					unexpectedRunningPods, podNamespace)
 
 				return false, nil
 			}
 
-			podObj = podObjList[0]
+			podObj = runningPods[0]
+
+			glog.V(100).Infof("Selected pod %q in namespace %q", podObj.Definition.Name, podObj.Definition.Namespace)
 
 			return true, nil
 		})
