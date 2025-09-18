@@ -117,6 +117,8 @@ func (plugin *MasterMacVlanPlugin) WithLinkInContainer() *MasterMacVlanPlugin {
 	if plugin.masterPlugin == nil {
 		glog.V(100).Infof(msg.UndefinedCrdObjectErrString("MasterMacVlanPlugin"))
 		plugin.errorMsg = msg.UndefinedCrdObjectErrString("MasterMacVlanPlugin")
+
+		return plugin
 	}
 
 	plugin.masterPlugin.LinkInContainer = true
@@ -552,7 +554,7 @@ func (plugin *MasterBondPlugin) WithIPAM(ipam *IPAM) *MasterBondPlugin {
 func (plugin *MasterBondPlugin) WithVLANInContainer(vlan uint16) *MasterBondPlugin {
 	glog.V(100).Infof("Adding vlan %d to MasterBoundPlugin", vlan)
 
-	if vlan > 4095 {
+	if vlan > 4094 {
 		glog.V(100).Infof("error adding incorrect vlan id %d to MasterBondPlugin", vlan)
 
 		plugin.errorMsg = "error adding incorrect vlan to MasterBondPlugin"
