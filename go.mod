@@ -247,7 +247,7 @@ require (
 
 require (
 	github.com/go-git/go-git/v5 v5.12.0
-	github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20250821184427-4e079ad3d7e9
+	github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20250917191550-ca5479a7ebf7
 )
 
 require (
