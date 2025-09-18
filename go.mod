@@ -284,6 +284,7 @@ replace (
 	github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20250630191919-ed2ed7381926 // release-4.19
 	github.com/openshift/installer => github.com/openshift/installer v0.91.0 // master
 	github.com/portworx/sched-ops => github.com/portworx/sched-ops v1.20.4-rc1
+	github.com/rh-ecosystem-edge/eco-goinfra => github.com/gkopels/eco-goinfra v0.0.0-20250901090738-8d39017a34ca
 	k8s.io/client-go => k8s.io/client-go v0.32.6
 	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.19.7
 )
