@@ -181,7 +181,7 @@ func LabelsExistOnNode(parentCtx context.Context, labelNode *nodes.Builder, labe
 // NodeLabellersLabelsMissingOnAllAMDGPUNode - Make sure Node Labeller Labels don't exit on all AMD GPU Worker Nodes.
 func NodeLabellersLabelsMissingOnAllAMDGPUNode(amdGpuNodes []*nodes.Builder) error {
 	return LabelsMissingOnAllNode(amdGpuNodes, amdparams.NodeLabellerLabels,
-		amdparams.DefaultTimeout*time.Second, amdparams.DefaultSleepInterval*time.Second)
+		amdparams.DefaultTimeout, amdparams.DefaultSleepInterval)
 }
 
 // LabelsMissingOnAllNode - Make sure the given labels don't exist on all given nodes.

@@ -17,40 +17,48 @@ import (
 
 // NodeLabellerPodsFromNodes - Get all Node Labeller Pods from the given nodes.
 func NodeLabellerPodsFromNodes(apiClient *clients.Settings, nodes []*nodes.Builder) ([]*pod.Builder, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), amdparams.DefaultTimeout*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), amdparams.DefaultTimeout)
 	defer cancel()
 
 	var waitGroup sync.WaitGroup
 
+	var lock sync.Mutex
+
 	var nodeLabellerPodBuilders []*pod.Builder
 
 	errCh := make(chan error, len(nodes)*amdparams.MaxNodeLabellerPodsPerNode)
-
-	defer close(errCh)
 
 	nodeLabellerPodNamePrefix := fmt.Sprintf("%s-node-labeller-", amdparams.DeviceConfigName)
 
 	for _, node := range nodes {
 		waitGroup.Add(1)
 
-		go PodsFromNodeByPrefixWithTimeout(ctx, &waitGroup, errCh, apiClient, &nodeLabellerPodBuilders, node,
-			nodeLabellerPodNamePrefix, amdparams.MaxNodeLabellerPodsPerNode, amdparams.DefaultTimeout*time.Second,
-			amdparams.DefaultSleepInterval*time.Second)
+		go PodsFromNodeByPrefixWithTimeout(ctx, &waitGroup, &lock, errCh, apiClient, &nodeLabellerPodBuilders, node,
+			nodeLabellerPodNamePrefix, amdparams.MaxNodeLabellerPodsPerNode, amdparams.DefaultTimeout,
+			amdparams.DefaultSleepInterval)
 	}
 
 	waitGroup.Wait()
+	close(errCh)
 
-	select {
-	case err := <-errCh:
-		return nil, fmt.Errorf("got the following error while trying to get Node Labeller Pods: %w", err)
-	default:
-		return nodeLabellerPodBuilders, nil
+	var allErrors []string
+
+	for err := range errCh {
+		if err != nil {
+			allErrors = append(allErrors, err.Error())
+		}
 	}
+
+	if len(allErrors) > 0 {
+		return nil, fmt.Errorf("encountered errors on %d node(s): %s", len(allErrors), strings.Join(allErrors, "; "))
+	}
+
+	return nodeLabellerPodBuilders, nil
 }
 
 // PodsFromNodeByPrefixWithTimeout - Get all the Pods with the given Prefix on a node
 // and store in 'podsResults *[]*pod.Builder'.
-func PodsFromNodeByPrefixWithTimeout(ctx context.Context, waitGroup *sync.WaitGroup, errCh chan error,
+func PodsFromNodeByPrefixWithTimeout(ctx context.Context, waitGroup *sync.WaitGroup, lock *sync.Mutex, errCh chan error,
 	apiClient *clients.Settings, podsResults *[]*pod.Builder, node *nodes.Builder,
 	prefix string, cnt int, timeout time.Duration, interval time.Duration) {
 	defer waitGroup.Done()
@@ -95,7 +103,9 @@ func PodsFromNodeByPrefixWithTimeout(ctx context.Context, waitGroup *sync.WaitGr
 			}
 
 			if len(podsWithPrefix) == cnt {
+				lock.Lock()
 				*podsResults = append(*podsResults, podsWithPrefix...)
+				lock.Unlock()
 
 				return
 			}
@@ -108,7 +118,7 @@ func WaitUntilNoNodeLabellerPodes(apiClient *clients.Settings) error {
 	nodeLabellerPodNamePrefix := fmt.Sprintf("%s-node-labeller-", amdparams.DeviceConfigName)
 
 	return WaitUntilNoMorePodsInNamespaceByNameWithTimeout(context.TODO(), apiClient, amdparams.AMDGPUNamespace,
-		nodeLabellerPodNamePrefix, amdparams.DefaultTimeout*time.Second, amdparams.DefaultSleepInterval*time.Second)
+		nodeLabellerPodNamePrefix, amdparams.DefaultTimeout, amdparams.DefaultSleepInterval)
 }
 
 // WaitUntilNoMorePodsInNamespaceByNameWithTimeout - Wait until no more pods with the given prefix on the cluster.
