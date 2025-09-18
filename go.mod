@@ -248,7 +248,7 @@ require (
 
 require gopkg.in/yaml.v3 v3.0.1
 
-require github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20250821185848-43745f5d5e72
+require github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20250918072008-53bbc8540dca
 
 replace (
 	github.com/imdario/mergo => github.com/imdario/mergo v0.3.16
