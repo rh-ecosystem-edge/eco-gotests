@@ -857,7 +857,7 @@ github.com/r3labs/diff/v3
 # github.com/red-hat-storage/odf-operator v0.0.0-20241124050455-02681e6c10df
 ## explicit; go 1.22.7
 github.com/red-hat-storage/odf-operator/api/v1alpha1
-# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20250821185848-43745f5d5e72
+# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20250918072008-53bbc8540dca
 ## explicit; go 1.24.1
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/apiservers
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/argocd
