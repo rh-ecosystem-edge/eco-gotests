@@ -13,6 +13,7 @@ const (
 	LabelNoContainer = "no-container"
 	// AcmOperatorNamespace ACM's namespace.
 	AcmOperatorNamespace = "rhacm"
+
 	// MceOperatorNamespace is the namespace for the MCE operator.
 	MceOperatorNamespace = "multicluster-engine"
 	// TalmOperatorHubNamespace TALM namespace.
@@ -53,6 +54,17 @@ const (
 	// QuerierCRBName is the name of the querier cluster role binding that gets created by the querier package to
 	// bind the querier service account to the cluster monitoring view role.
 	QuerierCRBName = "ran-querier-crb"
+)
+
+// Params for the alerter package. These are used for getting a token for the ACM Observability Alertmanager instance.
+const (
+	// ACMObservabilityNamespace is the namespace for the ACM Observability component.
+	ACMObservabilityNamespace = "open-cluster-management-observability"
+	// ACMObservabilityAMRouteName is the name of the route for the ACM Observability Alertmanager instance.
+	ACMObservabilityAMRouteName = "alertmanager"
+	// ACMObservabilityAMSecretName is the name of the secret for the ACM Observability Alertmanager instance which
+	// contains the token and CA certs.
+	ACMObservabilityAMSecretName = "observability-alertmanager-accessor-token"
 )
 
 // HubOperatorName represets the possible operator names that may have associated versions on the hub cluster.
