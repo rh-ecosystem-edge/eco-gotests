@@ -2,6 +2,7 @@ package helper
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strings"
 	"time"
@@ -10,10 +11,12 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ocm"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran"
+	oranapi "github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api"
 	siteconfigv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/siteconfig/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/siteconfig"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/tsparams"
+	subscriber "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/oran-subscriber"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
@@ -155,5 +158,94 @@ func WaitForPolicyVersion(client *clients.Settings, version string, timeout time
 			}
 
 			return true, nil
+		})
+}
+
+// WaitForAlarmToExist waits up to timeout until an alarm with the matching extensions exists. This is done by listing
+// all alarms and returning the first alarm where each key-value pair in matchingExtensions is a key-value pair in the
+// alarm's extensions.
+//
+// The returned alarm is guaranteed to be non-nil if error is nil.
+func WaitForAlarmToExist(
+	alarmsClient *oranapi.AlarmsClient,
+	matchingExtensions map[string]string,
+	timeout time.Duration) (*oranapi.AlarmEventRecord, error) {
+	var matchingAlarm *oranapi.AlarmEventRecord
+
+	err := wait.PollUntilContextTimeout(
+		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			alarms, err := alarmsClient.ListAlarms()
+			if err != nil {
+				glog.V(tsparams.LogLevel).Infof("Failed to list alarms: %v", err)
+
+				return false, nil
+			}
+
+			for _, alarm := range alarms {
+				if matchesExtensions(alarm.Extensions, matchingExtensions) {
+					matchingAlarm = &alarm
+
+					return true, nil
+				}
+			}
+
+			return false, nil
+		})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to wait for alarm matching %v to exist: %w", matchingExtensions, err)
+	}
+
+	return matchingAlarm, nil
+}
+
+// matchesExtensions returns true if each key-value pair in matchingExtensions is a key-value pair in the extensions
+// map. Keys not in matchingExtensions are ignored.
+func matchesExtensions(extensions map[string]string, matchingExtensions map[string]string) bool {
+	for key, value := range matchingExtensions {
+		if extensions[key] != value {
+			return false
+		}
+	}
+
+	return true
+}
+
+// WaitForAllNotifications waits up to timeout until all the expected trackers have been received as notifications by
+// the subscriber. The expectedTrackers map is modified in place as trackers are found; when all trackers are received,
+// the map will be empty.
+func WaitForAllNotifications(
+	client *clients.Settings,
+	namespace string,
+	startTime time.Time,
+	expectedTrackers map[string]bool,
+	timeout time.Duration) error {
+	return wait.PollUntilContextTimeout(
+		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			// Set the new start time to right before we check so there is no risk of missing a
+			// notification. Delete is a no-op if the tracker is not in the map, so we can tolerate
+			// duplicates.
+			newStartTime := time.Now()
+
+			receivedNotifications, err := subscriber.ListReceivedNotifications(client, namespace, startTime)
+			if err != nil {
+				glog.V(tsparams.LogLevel).Infof("Failed to list received notifications: %v", err)
+
+				return false, nil
+			}
+
+			for _, notification := range receivedNotifications {
+				if tracker, ok := notification.Extensions["tracker"]; ok {
+					glog.V(tsparams.LogLevel).Infof("Deleting expected tracker %s", tracker)
+
+					delete(expectedTrackers, tracker)
+				}
+			}
+
+			startTime = newStartTime
+
+			glog.V(tsparams.LogLevel).Infof("Waiting for %d more notifications", len(expectedTrackers))
+
+			return len(expectedTrackers) == 0, nil
 		})
 }

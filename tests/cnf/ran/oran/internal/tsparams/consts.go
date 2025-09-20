@@ -14,6 +14,8 @@ const (
 	LabelPostProvision = "post-provision"
 	// LabelTemplateInventory is the label applied to just the template inventory test cases.
 	LabelTemplateInventory = "template-inventory"
+	// LabelAlarms is the label applied to just the alarms test cases.
+	LabelAlarms = "alarms"
 )
 
 const (
@@ -80,6 +82,14 @@ const (
 	// TestBase64Credential is a base64 encoded version of the string "wrongpassword" for when an obviously invalid
 	// credential is needed.
 	TestBase64Credential = "d3JvbmdwYXNzd29yZA=="
+)
+
+const (
+	// SubscriberSubdomain is the subdomain for the subscriber deployment. It is expected that there exists a *.apps
+	// route for this subdomain.
+	SubscriberSubdomain = "oran-subscriber"
+	// SubscriberNamespace is the namespace for the subscriber deployment.
+	SubscriberNamespace = "oran-subscriber"
 )
 
 // LogLevel is the glog verbosity level to use for logs in this suite or its helpers.

@@ -155,6 +155,22 @@ func DoesClusterLabelExist(client *clients.Settings, clusterName string, label s
 	return exists, nil
 }
 
+// GetManagedClusterID gets the cluster ID from the managed cluster labels. It returns an error if the managed cluster
+// or its ID could not be found.
+func GetManagedClusterID(client *clients.Settings, clusterName string) (string, error) {
+	managedCluster, err := ocm.PullManagedCluster(client, clusterName)
+	if err != nil {
+		return "", fmt.Errorf("failed to pull managed cluster: %w", err)
+	}
+
+	clusterID := managedCluster.Object.GetLabels()["clusterID"]
+	if clusterID == "" {
+		return "", fmt.Errorf("cluster ID not found in managed cluster labels")
+	}
+
+	return clusterID, nil
+}
+
 // PowerOffAndWait will trigger a power off and poll every 30 seconds for up to 3 minutes until the system is off.
 func PowerOffAndWait(bmcClient *bmc.BMC) error {
 	err := bmcClient.SystemPowerOff()

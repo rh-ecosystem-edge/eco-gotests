@@ -98,6 +98,7 @@ linters:
             - github.com/go-openapi/runtime
             - github.com/go-openapi/strfmt
             - golang.org/x/oauth2
+            - github.com/google/uuid
           deny:
             - pkg: github.com/onsi**
     funlen:

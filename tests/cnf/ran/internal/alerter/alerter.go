@@ -7,6 +7,7 @@ import (
 
 	openapiruntime "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
+	"github.com/golang/glog"
 	alertmanagerv2 "github.com/prometheus/alertmanager/api/v2/client"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/route"
@@ -29,7 +30,9 @@ func FindAlertmanagerAddress(client *clients.Settings) (string, error) {
 	return routeBuilder.Definition.Status.Ingress[0].Host, nil
 }
 
-// GetAlertmanagerTokenAndCAPool gets the token and CA pool from the ACM Observability Alertmanager secret.
+// GetAlertmanagerTokenAndCAPool gets the token and CA pool from the ACM Observability Alertmanager secret. It fails
+// fast on a missing token and returns a nil CA pool if the ca.crt key is empty. This will have the downstream effect of
+// disabling TLS verification.
 func GetAlertmanagerTokenAndCAPool(client *clients.Settings) (string, *x509.CertPool, error) {
 	secretBuilder, err := secret.Pull(client, ranparam.ACMObservabilityAMSecretName, ranparam.ACMObservabilityNamespace)
 	if err != nil {
@@ -39,9 +42,15 @@ func GetAlertmanagerTokenAndCAPool(client *clients.Settings) (string, *x509.Cert
 	token := secretBuilder.Definition.Data["token"]
 	caCrt := secretBuilder.Definition.Data["ca.crt"]
 
+	if len(token) == 0 {
+		return "", nil, fmt.Errorf("token is empty")
+	}
+
 	caPool := x509.NewCertPool()
 	if !caPool.AppendCertsFromPEM(caCrt) {
-		return "", nil, fmt.Errorf("failed to append CA certs to pool")
+		glog.V(ranparam.LogLevel).Infof("Failed to append CA certs to pool, returning nil CA pool")
+
+		return string(token), nil, nil
 	}
 
 	return string(token), caPool, nil
