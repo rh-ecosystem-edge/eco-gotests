@@ -272,7 +272,18 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
-require github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20250917195837-2ca0149fb3b0
+require (
+	github.com/prometheus/alertmanager v0.28.1
+	github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20250917195837-2ca0149fb3b0
+)
+
+require (
+	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/go-openapi/runtime v0.28.0 // indirect
+	github.com/opentracing/opentracing-go v1.2.0 // indirect
+	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
+	go.opentelemetry.io/otel/metric v1.35.0 // indirect
+)
 
 replace (
 	github.com/imdario/mergo => github.com/imdario/mergo v0.3.16
