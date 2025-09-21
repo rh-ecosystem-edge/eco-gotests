@@ -103,7 +103,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 			resetOperatorAndTestNS()
 		})
 
-		FIt("Verify the FRR node only receives routes that are configured in the allowed prefixes",
+		It("Verify the FRR node only receives routes that are configured in the allowed prefixes",
 			reportxml.ID("74272"), func() {
 				prefixToFilter := externalAdvertisedIPv4Routes[1]
 
