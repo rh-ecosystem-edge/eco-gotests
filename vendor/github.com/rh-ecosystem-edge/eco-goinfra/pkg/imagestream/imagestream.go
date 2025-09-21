@@ -160,6 +160,34 @@ func (builder *Builder) GetDockerImage(imageTag string) (string, error) {
 		imageTag, builder.Definition.Name, builder.Definition.Namespace)
 }
 
+// GetStatusTags returns the status tags from the imageStream as an array of tag names.
+func (builder *Builder) GetStatusTags() ([]string, error) {
+	if valid, err := builder.validate(); !valid {
+		return nil, err
+	}
+
+	if !builder.Exists() {
+		glog.V(100).Infof("ImageStream %s does not exist", builder.Definition.Name)
+
+		return nil, fmt.Errorf("cannot get status tags from non-existent imageStream")
+	}
+
+	if len(builder.Object.Status.Tags) == 0 {
+		return nil, fmt.Errorf("imageStream object %s in namespace %s has no status tags",
+			builder.Definition.Name, builder.Definition.Namespace)
+	}
+
+	var tagNames []string
+	for _, tag := range builder.Object.Status.Tags {
+		tagNames = append(tagNames, tag.Tag)
+	}
+
+	glog.V(100).Infof("Retrieved %d status tags from imageStream %s/%s: %v",
+		len(tagNames), builder.Definition.Namespace, builder.Definition.Name, tagNames)
+
+	return tagNames, nil
+}
+
 // validate will check that the builder and builder definition are properly initialized before
 // accessing any member fields.
 func (builder *Builder) validate() (bool, error) {
