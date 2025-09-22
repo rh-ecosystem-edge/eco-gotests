@@ -42,6 +42,10 @@ const (
 	secondInterfaceBasedOnTapTwo   = "ext1.2"
 	firstInterfaceBasedOnTapThree  = "ext2.1"
 	secondInterfaceBasedOnTapThree = "ext2.2"
+
+	dpdkTestpmdTimeout = 20 * time.Second
+	clientRxCmdTimeout = dpdkTestpmdTimeout + 2*time.Second
+	getLinkRxTimeout   = 3 * time.Second
 )
 
 var (
@@ -368,9 +372,11 @@ func rxTrafficOnClientPod(clientPod *pod.Builder, clientRxCmd string) error {
 		time.Minute*2,
 		false,
 		func(ctx context.Context) (bool, error) {
-			clientOut, err = clientPod.ExecCommand([]string{"/bin/bash", "-c", clientRxCmd})
+			clientOut, err = clientPod.ExecCommandWithTimeout([]string{"/bin/bash", "-c", clientRxCmd}, clientRxCmdTimeout)
 
 			if err != nil {
+				glog.V(100).Infof("Error running command: %v", err)
+
 				if err.Error() != timeoutError {
 					glog.V(100).Infof("Failed to run the dpdk-pmd command %s; %v", clientRxCmd, err)
 
@@ -421,8 +427,8 @@ func getCurrentLinkRx(runningPod *pod.Builder) (map[string]int, error) {
 		time.Minute*2,
 		true,
 		func(ctx context.Context) (bool, error) {
-			linksRawInfo, err = runningPod.ExecCommand(
-				[]string{"/bin/bash", "-c", "ip --json -s link show"})
+			linksRawInfo, err = runningPod.ExecCommandWithTimeout(
+				[]string{"/bin/bash", "-c", "ip --json -s link show"}, getLinkRxTimeout)
 			if err != nil {
 				glog.V(100).Infof("The links info is not available for the pod %s in namespace %s with error %v",
 					runningPod.Definition.Name, runningPod.Definition.Namespace, err)
@@ -523,9 +529,9 @@ func defineTestServerPmdCmd(ethPeer, pciAddress, txIPs string) []string {
 }
 
 func defineTestPmdCmd(interfaceName string, pciAddress string) string {
-	return fmt.Sprintf("timeout -s SIGKILL 20 dpdk-testpmd "+
+	return fmt.Sprintf("timeout -s SIGKILL %d dpdk-testpmd "+
 		"--vdev=virtio_user0,path=/dev/vhost-net,queues=2,queue_size=1024,iface=%s "+
-		"-a %s -- --stats-period 5", interfaceName, pciAddress)
+		"-a %s -- --stats-period 5", int(dpdkTestpmdTimeout.Seconds()), interfaceName, pciAddress)
 }
 
 func checkRxOutputRateForInterfaces(
@@ -573,12 +579,12 @@ func getLinkRx(runningPod *pod.Builder, linkName string) (int, error) {
 
 	err = wait.PollUntilContextTimeout(
 		context.TODO(),
-		time.Second,
+		5*time.Second,
 		time.Minute,
 		false,
 		func(ctx context.Context) (bool, error) {
-			linkRawInfo, err = runningPod.ExecCommand(
-				[]string{"/bin/bash", "-c", fmt.Sprintf("ip --json -s link show dev %s", linkName)})
+			linkRawInfo, err = runningPod.ExecCommandWithTimeout(
+				[]string{"/bin/bash", "-c", fmt.Sprintf("ip --json -s link show dev %s", linkName)}, getLinkRxTimeout)
 			if err != nil {
 				glog.V(100).Infof("The link %s info is not available for the pod %s in namespace %s "+
 					"with error %v",
