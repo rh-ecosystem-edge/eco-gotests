@@ -146,6 +146,7 @@ func (builder *PlacementBindingBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -166,7 +167,6 @@ func (builder *PlacementBindingBuilder) Get() (*policiesv1.PlacementBinding, err
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, placementBinding)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to get placementBinding %s in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
@@ -219,7 +219,6 @@ func (builder *PlacementBindingBuilder) Delete() (*PlacementBindingBuilder, erro
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("can not delete placementBinding: %w", err)
 	}
@@ -246,8 +245,8 @@ func (builder *PlacementBindingBuilder) Update(force bool) (*PlacementBindingBui
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 
+	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		if force {
 			glog.V(100).Infof(

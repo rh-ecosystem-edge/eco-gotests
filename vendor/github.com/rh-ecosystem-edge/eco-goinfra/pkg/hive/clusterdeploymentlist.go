@@ -44,8 +44,8 @@ func ListClusterDeploymentsInAllNamespaces(
 	glog.V(100).Infof(logMessage)
 
 	clusterDeployments := new(hiveV1.ClusterDeploymentList)
-	err = apiClient.List(context.TODO(), clusterDeployments, &passedOptions)
 
+	err = apiClient.List(context.TODO(), clusterDeployments, &passedOptions)
 	if err != nil {
 		glog.V(100).Infof("Failed to list all clusterDeployments due to %s", err.Error())
 

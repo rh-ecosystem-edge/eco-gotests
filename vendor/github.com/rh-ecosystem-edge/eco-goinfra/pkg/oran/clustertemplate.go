@@ -88,11 +88,11 @@ func (builder *ClusterTemplateBuilder) Get() (*provisioningv1alpha1.ClusterTempl
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	clusterTemplate := &provisioningv1alpha1.ClusterTemplate{}
+
 	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, clusterTemplate)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to get ClusterTemplate object %s in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
@@ -113,6 +113,7 @@ func (builder *ClusterTemplateBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -140,8 +141,8 @@ func (builder *ClusterTemplateBuilder) WaitForCondition(
 	err := wait.PollUntilContextTimeout(
 		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			var err error
-			builder.Object, err = builder.Get()
 
+			builder.Object, err = builder.Get()
 			if err != nil {
 				glog.V(100).Infof("Failed to get ClusterTemplate %s in namespace %s: %v",
 					builder.Definition.Name, builder.Definition.Namespace, err)
@@ -173,7 +174,6 @@ func (builder *ClusterTemplateBuilder) WaitForCondition(
 
 			return false, nil
 		})
-
 	if err != nil {
 		return nil, err
 	}

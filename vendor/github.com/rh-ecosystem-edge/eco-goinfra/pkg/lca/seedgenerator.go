@@ -84,7 +84,6 @@ func (builder *SeedGeneratorBuilder) WithOptions(options ...SeedGeneratorAdditio
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 
@@ -175,7 +174,6 @@ func (builder *SeedGeneratorBuilder) Delete() (*SeedGeneratorBuilder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("can not delete seedgenerator: %w", err)
 	}
@@ -195,10 +193,10 @@ func (builder *SeedGeneratorBuilder) Get() (*lcasgv1.SeedGenerator, error) {
 		builder.Definition.Name)
 
 	seedgenerator := &lcasgv1.SeedGenerator{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, seedgenerator)
-
 	if err != nil {
 		return nil, err
 	}
@@ -216,6 +214,7 @@ func (builder *SeedGeneratorBuilder) Exists() bool {
 		builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -283,10 +282,10 @@ func (builder *SeedGeneratorBuilder) WaitUntilComplete(timeout time.Duration) (*
 
 	// Polls periodically to determine if seedgenerator is in desired state.
 	var err error
+
 	err = wait.PollUntilContextTimeout(
 		context.TODO(), time.Second*3, timeout, true, func(ctx context.Context) (bool, error) {
 			builder.Object, err = builder.Get()
-
 			if err != nil {
 				return false, nil
 			}
@@ -300,7 +299,6 @@ func (builder *SeedGeneratorBuilder) WaitUntilComplete(timeout time.Duration) (*
 
 			return false, nil
 		})
-
 	if err == nil {
 		return builder, nil
 	}

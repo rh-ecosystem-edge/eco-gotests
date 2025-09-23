@@ -297,8 +297,8 @@ func dataFromProvisioningRequest(
 	}
 
 	params := make(map[string]any)
-	err = json.Unmarshal(provisioningRequest.Spec.TemplateParameters.Raw, &params)
 
+	err = json.Unmarshal(provisioningRequest.Spec.TemplateParameters.Raw, &params)
 	if err != nil {
 		return provisioning.ProvisioningRequestData{}, fmt.Errorf("failed to unmarshal TemplateParameters: %w", err)
 	}

@@ -199,7 +199,6 @@ func (builder *Builder) WithSecondaryNetwork(networks []*multus.NetworkSelection
 	}
 
 	netAnnotation, err := json.Marshal(networks)
-
 	if err != nil {
 		builder.errorMsg = fmt.Sprintf("error to unmarshal networks annotation due to: %s", err.Error())
 
@@ -408,7 +407,6 @@ func (builder *Builder) WithOptions(options ...AdditionalOptions) *Builder {
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 
@@ -448,6 +446,7 @@ func (builder *Builder) Update() (*Builder, error) {
 	glog.V(100).Infof("Updating deployment %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.apiClient.Deployments(builder.Definition.Namespace).Update(
 		context.TODO(), builder.Definition, metav1.UpdateOptions{})
 
@@ -474,7 +473,6 @@ func (builder *Builder) Delete() error {
 
 	err := builder.apiClient.Deployments(builder.Definition.Namespace).Delete(
 		context.TODO(), builder.Definition.Name, metav1.DeleteOptions{})
-
 	if err != nil {
 		return err
 	}
@@ -516,7 +514,6 @@ func (builder *Builder) DeleteGraceful(gracePeriod *int64) error {
 
 	err := builder.apiClient.Deployments(builder.Definition.Namespace).Delete(
 		context.TODO(), builder.Definition.Name, metav1.DeleteOptions{GracePeriodSeconds: gracePeriod})
-
 	if err != nil {
 		return err
 	}
@@ -566,9 +563,9 @@ func (builder *Builder) IsReady(timeout time.Duration) bool {
 	err := wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			var err error
+
 			builder.Object, err = builder.apiClient.Deployments(builder.Definition.Namespace).Get(
 				context.TODO(), builder.Definition.Name, metav1.GetOptions{})
-
 			if err != nil {
 				glog.V(100).Infof("Failed to get deployment from cluster. Error is: '%s'", err.Error())
 
@@ -621,6 +618,7 @@ func (builder *Builder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.apiClient.Deployments(builder.Definition.Namespace).Get(
 		context.TODO(), builder.Definition.Name, metav1.GetOptions{})
 

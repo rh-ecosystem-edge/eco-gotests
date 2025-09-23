@@ -132,11 +132,11 @@ func (builder *ControllerBuilder) Get() (*kedav1alpha1.KedaController, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	kedaObj := &kedav1alpha1.KedaController{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, kedaObj)
-
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +183,6 @@ func (builder *ControllerBuilder) Delete() (*ControllerBuilder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("can not delete kedaController: %w", err)
 	}
@@ -203,6 +202,7 @@ func (builder *ControllerBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -218,7 +218,6 @@ func (builder *ControllerBuilder) Update() (*ControllerBuilder, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		glog.V(100).Infof(
 			msg.FailToUpdateError("kedaController", builder.Definition.Name, builder.Definition.Namespace))

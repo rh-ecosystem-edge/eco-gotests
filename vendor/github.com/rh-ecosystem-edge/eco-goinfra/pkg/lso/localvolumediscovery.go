@@ -139,11 +139,11 @@ func (builder *LocalVolumeDiscoveryBuilder) Get() (*lsov1alpha1.LocalVolumeDisco
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	lvd := &lsov1alpha1.LocalVolumeDiscovery{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, lvd)
-
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +188,6 @@ func (builder *LocalVolumeDiscoveryBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return fmt.Errorf("can not delete localVolumeDiscovery %s from namespace %s: %w",
 			builder.Definition.Name, builder.Definition.Namespace, err)
@@ -209,6 +208,7 @@ func (builder *LocalVolumeDiscoveryBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -228,7 +228,6 @@ func (builder *LocalVolumeDiscoveryBuilder) IsDiscovering(timeout time.Duration)
 			var err error
 
 			phase, err := builder.GetPhase()
-
 			if err != nil {
 				glog.V(100).Infof("failed to get phase value for localVolumeDiscovery %s in namespace %s due to %w",
 					builder.Definition.Name, builder.Definition.Namespace, err)
@@ -238,7 +237,6 @@ func (builder *LocalVolumeDiscoveryBuilder) IsDiscovering(timeout time.Duration)
 
 			return phase == "Discovering", nil
 		})
-
 	if err != nil {
 		glog.V(100).Infof("localVolumeDiscovery %s in namespace %s is found not in the discovering state; %w",
 			builder.Definition.Name, builder.Definition.Namespace, err)

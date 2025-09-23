@@ -84,11 +84,11 @@ func (builder *AllocatedNodeBuilder) Get() (*pluginsv1alpha1.AllocatedNode, erro
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	node := &pluginsv1alpha1.AllocatedNode{}
+
 	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, node)
-
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +106,6 @@ func (builder *AllocatedNodeBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	object, err := builder.Get()
-
 	if err != nil {
 		glog.V(100).Infof("Failed to get AllocatedNode object %s in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)

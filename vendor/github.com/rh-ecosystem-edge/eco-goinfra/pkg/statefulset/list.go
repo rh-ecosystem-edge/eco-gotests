@@ -34,7 +34,6 @@ func List(apiClient *clients.Settings, nsname string, options ...metav1.ListOpti
 	glog.V(100).Infof(logMessage)
 
 	statefulsetList, err := apiClient.StatefulSets(nsname).List(context.TODO(), passedOptions)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to list statefulsets in the namespace %s due to %s", nsname, err.Error())
 
@@ -76,7 +75,6 @@ func ListInAllNamespaces(apiClient *clients.Settings, options ...metav1.ListOpti
 	glog.V(100).Infof(logMessage)
 
 	statefulsetList, err := apiClient.StatefulSets("").List(context.TODO(), passedOptions)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to list statefulsets in all namespaces due to %s", err.Error())
 

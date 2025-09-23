@@ -330,17 +330,16 @@ func (builder *AgentClusterInstallBuilder) WaitForState(
 
 	// Polls every second to determine if agentclusterinstall in desired state.
 	var err error
+
 	err = wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			builder.Object, err = builder.Get()
-
 			if err != nil {
 				return false, nil
 			}
 
 			return builder.Object.Status.DebugInfo.State == state, err
 		})
-
 	if err == nil {
 		return builder, nil
 	}
@@ -358,17 +357,16 @@ func (builder *AgentClusterInstallBuilder) WaitForStateInfo(
 
 	// Polls every second to determine if agentclusterinstall has the desired stateinfo message.
 	var err error
+
 	err = wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			builder.Object, err = builder.Get()
-
 			if err != nil {
 				return false, nil
 			}
 
 			return builder.Object.Status.DebugInfo.StateInfo == stateInfo, err
 		})
-
 	if err == nil {
 		return builder, nil
 	}
@@ -388,7 +386,6 @@ func (builder *AgentClusterInstallBuilder) WithOptions(
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 
@@ -506,7 +503,6 @@ func (builder *AgentClusterInstallBuilder) Get() (*hiveextV1Beta1.AgentClusterIn
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, agentClusterInstall)
-
 	if err != nil {
 		return nil, err
 	}
@@ -596,7 +592,6 @@ func (builder *AgentClusterInstallBuilder) Update(force bool) (*AgentClusterInst
 	}
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		if force {
 			glog.V(100).Infof(
@@ -688,6 +683,7 @@ func (builder *AgentClusterInstallBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -714,7 +710,6 @@ func (builder *AgentClusterInstallBuilder) getCondition(
 
 			return false, nil
 		})
-
 	if err != nil {
 		return nil, fmt.Errorf("error while waiting for conditions to be published: %w", err)
 	}

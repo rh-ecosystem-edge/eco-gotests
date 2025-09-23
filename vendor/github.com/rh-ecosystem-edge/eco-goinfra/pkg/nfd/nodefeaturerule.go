@@ -134,7 +134,6 @@ func getNodeFeatureRuleFromAlmExample(almExample string) (*nfdv1.NodeFeatureRule
 	}
 
 	err := json.Unmarshal([]byte(almExample), &nodeFeatureRuleList.Items)
-
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +163,6 @@ func (builder *NodeFeatureRuleBuilder) Create() (*NodeFeatureRuleBuilder, error)
 	var err error
 	if !builder.Exists() {
 		err = builder.apiClient.Create(context.TODO(), builder.Definition)
-
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -184,8 +182,8 @@ func (builder *NodeFeatureRuleBuilder) Exists() bool {
 		builder.Definition.Namespace)
 
 	var err error
-	builder.Object, err = builder.Get()
 
+	builder.Object, err = builder.Get()
 	if err != nil {
 		glog.V(100).Infof("Failed to collect NodeFeatureRule object due to %s", err.Error())
 	}
@@ -203,11 +201,11 @@ func (builder *NodeFeatureRuleBuilder) Get() (*nfdv1.NodeFeatureRule, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	NodeFeatureRule := &nfdv1.NodeFeatureRule{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, NodeFeatureRule)
-
 	if err != nil {
 		glog.V(100).Infof("NodeFeatureRule object %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)

@@ -68,11 +68,11 @@ func (builder *Builder) Get() (*operatorv1.IngressController, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	lvs := &operatorv1.IngressController{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, lvs)
-
 	if err != nil {
 		return nil, err
 	}
@@ -90,6 +90,7 @@ func (builder *Builder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -113,7 +114,6 @@ func (builder *Builder) Update() (*Builder, error) {
 	builder.Definition.ResourceVersion = ""
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return nil, fmt.Errorf("cannot update ingresscontroller: %w", err)
 	}
@@ -133,7 +133,6 @@ func (builder *Builder) Create() (*Builder, error) {
 	var err error
 	if !builder.Exists() {
 		err = builder.apiClient.Create(context.TODO(), builder.Definition)
-
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -158,7 +157,6 @@ func (builder *Builder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return fmt.Errorf("cannot delete ingresscontroller: %w", err)
 	}

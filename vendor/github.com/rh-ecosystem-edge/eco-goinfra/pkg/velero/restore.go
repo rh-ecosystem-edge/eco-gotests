@@ -169,10 +169,10 @@ func (builder *RestoreBuilder) Get() (*velerov1.Restore, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	restore := &velerov1.Restore{}
+
 	err := builder.apiClient.Get(
 		context.TODO(),
 		goclient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace}, restore)
-
 	if err != nil {
 		glog.V(100).Infof("Restore object %s does not exist in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
@@ -193,6 +193,7 @@ func (builder *RestoreBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -234,8 +235,8 @@ func (builder *RestoreBuilder) Update() (*RestoreBuilder, error) {
 	}
 
 	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 
+	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err == nil {
 		builder.Object = builder.Definition
 	}
@@ -263,7 +264,6 @@ func (builder *RestoreBuilder) Delete() (*RestoreBuilder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("can not delete restore: %w", err)
 	}

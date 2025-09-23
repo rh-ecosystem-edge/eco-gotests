@@ -43,8 +43,8 @@ func (builder *StateBuilder) Exists() bool {
 	glog.V(100).Infof("Checking if NodeNetworkState %s exists", builder.Object.Name)
 
 	var err error
-	builder.Object, err = builder.Get()
 
+	builder.Object, err = builder.Get()
 	if err != nil {
 		glog.V(100).Infof("Failed to collect NodeNetworkState object due to %s", err.Error())
 	}
@@ -61,10 +61,10 @@ func (builder *StateBuilder) Get() (*nmstateV1beta1.NodeNetworkState, error) {
 	glog.V(100).Infof("Collecting NodeNetworkState object %s", builder.Object.Name)
 
 	nodeNetworkState := &nmstateV1beta1.NodeNetworkState{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name: builder.Object.Name,
 	}, nodeNetworkState)
-
 	if err != nil {
 		glog.V(100).Infof("NodeNetworkState object %s does not exist", builder.Object.Name)
 

@@ -135,11 +135,11 @@ func (builder *Builder) Get() (*monv1.ServiceMonitor, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	serviceMonitorObj := &monv1.ServiceMonitor{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, serviceMonitorObj)
-
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +187,6 @@ func (builder *Builder) Delete() (*Builder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("can not delete serviceMonitor: %w", err)
 	}
@@ -207,6 +206,7 @@ func (builder *Builder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -222,7 +222,6 @@ func (builder *Builder) Update() (*Builder, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		glog.V(100).Infof(
 			msg.FailToUpdateError("serviceMonitor", builder.Definition.Name, builder.Definition.Namespace))

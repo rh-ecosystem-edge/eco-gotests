@@ -2,23 +2,19 @@ package lca
 
 import (
 	"context"
-	"time"
-
-	"k8s.io/utils/strings/slices"
-
-	goclient "sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/golang/glog"
-
 	"fmt"
-
-	lcav1 "github.com/openshift-kni/lifecycle-agent/api/imagebasedupgrade/v1"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
+	"time"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/utils/strings/slices"
+	goclient "sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/golang/glog"
+	lcav1 "github.com/openshift-kni/lifecycle-agent/api/imagebasedupgrade/v1"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 )
 
 const (
@@ -58,7 +54,6 @@ func (builder *ImageBasedUpgradeBuilder) WithOptions(options ...AdditionalOption
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 
@@ -145,7 +140,6 @@ func (builder *ImageBasedUpgradeBuilder) Update() (*ImageBasedUpgradeBuilder, er
 
 				return false, nil
 			})
-
 		if err == nil {
 			builder.Definition = builder.Object
 		}
@@ -175,7 +169,6 @@ func (builder *ImageBasedUpgradeBuilder) Delete() (*ImageBasedUpgradeBuilder, er
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("can not delete imagebasedupgrade: %w", err)
 	}
@@ -195,10 +188,10 @@ func (builder *ImageBasedUpgradeBuilder) Get() (*lcav1.ImageBasedUpgrade, error)
 		builder.Definition.Name)
 
 	imagebasedupgrade := &lcav1.ImageBasedUpgrade{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, imagebasedupgrade)
-
 	if err != nil {
 		return nil, err
 	}
@@ -216,6 +209,7 @@ func (builder *ImageBasedUpgradeBuilder) Exists() bool {
 		builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -393,10 +387,10 @@ func (builder *ImageBasedUpgradeBuilder) WaitUntilStageComplete(stage string) (*
 
 	// Polls periodically to determine if imagebasedupgrade is in desired state.
 	var err error
+
 	err = wait.PollUntilContextTimeout(
 		context.TODO(), time.Second*3, time.Minute*30, true, func(ctx context.Context) (bool, error) {
 			builder.Object, err = builder.Get()
-
 			if err != nil {
 				return false, nil
 			}
@@ -434,7 +428,6 @@ func (builder *ImageBasedUpgradeBuilder) WaitUntilStageComplete(stage string) (*
 
 			return false, nil
 		})
-
 	if err == nil {
 		return builder, nil
 	}

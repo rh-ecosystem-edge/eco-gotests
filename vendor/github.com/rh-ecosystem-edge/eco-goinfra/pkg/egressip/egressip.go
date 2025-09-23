@@ -179,6 +179,7 @@ func (builder *EgressIPBuilder) Exists() bool {
 	glog.V(100).Infof("Checking if egressIP %q exists", builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -197,7 +198,6 @@ func (builder *EgressIPBuilder) Get() (*egressipv1.EgressIP, error) {
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, egrIP)
-
 	if err != nil {
 		glog.V(100).Infof("Error retrieving egressIP: %v", err)
 
@@ -219,7 +219,6 @@ func (builder *EgressIPBuilder) Create() (*EgressIPBuilder, error) {
 
 	if !builder.Exists() {
 		err = builder.apiClient.Create(context.TODO(), builder.Definition)
-
 		if err == nil {
 			glog.V(100).Infof("Created egressIP %q", builder.Definition.Name)
 
@@ -249,7 +248,6 @@ func (builder *EgressIPBuilder) Delete() (*EgressIPBuilder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		glog.V(100).Infof("Error deleting egressIP: %v", err)
 
@@ -272,7 +270,6 @@ func (builder *EgressIPBuilder) Update() (*EgressIPBuilder, error) {
 	glog.V(100).Infof("Updating egressIP %s", builder.Definition.Name)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		glog.V(100).Infof("Error updating egressIP: %v", err)
 

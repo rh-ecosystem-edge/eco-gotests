@@ -44,8 +44,8 @@ func ListPlacementBindingsInAllNamespaces(apiClient *clients.Settings,
 	glog.V(100).Infof(logMessage)
 
 	placementBindingList := new(policiesv1.PlacementBindingList)
-	err = apiClient.List(context.TODO(), placementBindingList, &passedOptions)
 
+	err = apiClient.List(context.TODO(), placementBindingList, &passedOptions)
 	if err != nil {
 		glog.V(100).Infof("Failed to list all placementBindings in all namespaces due to %s", err.Error())
 

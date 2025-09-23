@@ -160,6 +160,7 @@ func (builder *Builder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.apiClient.Services(builder.Definition.Namespace).Get(
 		context.TODO(), builder.Definition.Name, metav1.GetOptions{})
 
@@ -182,7 +183,6 @@ func (builder *Builder) Delete() error {
 
 	err := builder.apiClient.Services(builder.Definition.Namespace).Delete(
 		context.TODO(), builder.Definition.Name, metav1.DeleteOptions{})
-
 	if err != nil {
 		return err
 	}
@@ -202,6 +202,7 @@ func (builder *Builder) Update() (*Builder, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.apiClient.Services(builder.Definition.Namespace).Update(
 		context.TODO(), builder.Definition, metav1.UpdateOptions{})
 
@@ -219,7 +220,6 @@ func (builder *Builder) WithOptions(options ...AdditionalOptions) *Builder {
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 

@@ -90,10 +90,10 @@ func (builder *IPAddressPoolBuilder) Get() (*mlbtypes.IPAddressPool, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	ipAddressPool := &mlbtypes.IPAddressPool{}
+
 	err := builder.apiClient.Get(context.TODO(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		ipAddressPool)
-
 	if err != nil {
 		glog.V(100).Infof(
 			"IPAddressPool object %s does not exist in namespace %s",
@@ -116,6 +116,7 @@ func (builder *IPAddressPoolBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -132,7 +133,6 @@ func PullAddressPool(apiClient *clients.Settings, name, nsname string) (*IPAddre
 	}
 
 	err := apiClient.AttachScheme(mlbtypes.AddToScheme)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to add metallb scheme to client schemes")
 
@@ -214,7 +214,6 @@ func (builder *IPAddressPoolBuilder) Delete() (*IPAddressPoolBuilder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("can not delete IPAddressPool: %w", err)
 	}
@@ -239,14 +238,12 @@ func (builder *IPAddressPoolBuilder) Update(force bool) (*IPAddressPoolBuilder, 
 	}
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		if force {
 			glog.V(100).Infof(
 				msg.FailToUpdateNotification("IPAddressPool", builder.Definition.Name, builder.Definition.Namespace))
 
 			builder, err := builder.Delete()
-
 			if err != nil {
 				glog.V(100).Infof(
 					msg.FailToUpdateError("IPAddressPool", builder.Definition.Name, builder.Definition.Namespace))
@@ -310,7 +307,6 @@ func (builder *IPAddressPoolBuilder) WithOptions(options ...IPAddressPoolAdditio
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 

@@ -38,7 +38,6 @@ func List(apiClient *clients.Settings, nsname string) ([]*Builder, error) {
 	nadList := &nadV1.NetworkAttachmentDefinitionList{}
 
 	err = apiClient.List(context.TODO(), nadList, &goclient.ListOptions{Namespace: nsname})
-
 	if err != nil {
 		glog.V(100).Infof("Failed to list NADs in namespace: %s due to %s",
 			nsname, err.Error())

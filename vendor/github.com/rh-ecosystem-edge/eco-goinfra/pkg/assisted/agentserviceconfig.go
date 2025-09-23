@@ -236,7 +236,6 @@ func (builder *AgentServiceConfigBuilder) WithOptions(
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 
@@ -268,10 +267,10 @@ func (builder *AgentServiceConfigBuilder) WaitUntilDeployed(timeout time.Duratio
 	conditionIndex := -1
 
 	var err error
+
 	err = wait.PollUntilContextTimeout(
 		context.TODO(), retryInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			builder.Object, err = builder.Get()
-
 			if err != nil {
 				return false, nil
 			}
@@ -290,7 +289,6 @@ func (builder *AgentServiceConfigBuilder) WaitUntilDeployed(timeout time.Duratio
 
 			return builder.Object.Status.Conditions[conditionIndex].Status == "True", nil
 		})
-
 	if err == nil {
 		return builder, nil
 	}
@@ -340,7 +338,6 @@ func (builder *AgentServiceConfigBuilder) Get() (*agentInstallV1Beta1.AgentServi
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, agentServiceConfig)
-
 	if err != nil {
 		return nil, err
 	}
@@ -385,7 +382,6 @@ func (builder *AgentServiceConfigBuilder) Update(force bool) (*AgentServiceConfi
 	}
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		if force {
 			glog.V(100).Infof(
@@ -432,7 +428,6 @@ func (builder *AgentServiceConfigBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return fmt.Errorf("cannot delete agentserviceconfig: %w", err)
 	}
@@ -479,6 +474,7 @@ func (builder *AgentServiceConfigBuilder) Exists() bool {
 		builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)

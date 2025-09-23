@@ -209,10 +209,10 @@ func (builder *CguBuilder) Get() (*v1alpha1.ClusterGroupUpgrade, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	clusterGroupUpgrade := &v1alpha1.ClusterGroupUpgrade{}
+
 	err := builder.apiClient.Get(context.TODO(),
 		goclient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		clusterGroupUpgrade)
-
 	if err != nil {
 		glog.V(100).Infof(
 			"clusterGroupUpgrade object %s does not exist in namespace %s",
@@ -234,6 +234,7 @@ func (builder *CguBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -282,7 +283,6 @@ func (builder *CguBuilder) Delete() (*CguBuilder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("can not delete cgu: %w", err)
 	}
@@ -301,7 +301,6 @@ func (builder *CguBuilder) Update(force bool) (*CguBuilder, error) {
 	glog.V(100).Infof("Updating the cgu object", builder.Definition.Name)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err == nil {
 		builder.Object = builder.Definition
 	} else if force {
@@ -394,8 +393,8 @@ func (builder *CguBuilder) WaitForCondition(expected metav1.Condition, timeout t
 	err := wait.PollUntilContextTimeout(
 		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			var err error
-			builder.Object, err = builder.Get()
 
+			builder.Object, err = builder.Get()
 			if err != nil {
 				glog.V(100).Info("failed to get cgu %s/%s: %w", builder.Definition.Name, builder.Definition.Namespace, err)
 
@@ -463,6 +462,7 @@ func (builder *CguBuilder) WaitUntilClusterInState(cluster, state string, timeou
 	}
 
 	var err error
+
 	err = wait.PollUntilContextTimeout(
 		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			builder.Object, err = builder.Get()
@@ -481,7 +481,6 @@ func (builder *CguBuilder) WaitUntilClusterInState(cluster, state string, timeou
 
 			return status.State == state, nil
 		})
-
 	if err != nil {
 		return nil, err
 	}
@@ -515,6 +514,7 @@ func (builder *CguBuilder) WaitUntilBackupStarts(timeout time.Duration) (*CguBui
 	}
 
 	var err error
+
 	err = wait.PollUntilContextTimeout(context.TODO(), 3*time.Second, timeout, true, func(context.Context) (bool, error) {
 		builder.Object, err = builder.Get()
 		if err != nil {
@@ -526,7 +526,6 @@ func (builder *CguBuilder) WaitUntilBackupStarts(timeout time.Duration) (*CguBui
 
 		return builder.Object.Status.Backup != nil, nil
 	})
-
 	if err == nil {
 		return builder, nil
 	}

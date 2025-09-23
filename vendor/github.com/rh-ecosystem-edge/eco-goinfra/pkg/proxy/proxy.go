@@ -73,8 +73,8 @@ func (builder *Builder) Get() (*configv1.Proxy, error) {
 	glog.V(100).Infof("Getting proxy object %s", builder.Definition.Name)
 
 	proxy := &configv1.Proxy{}
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{Name: builder.Definition.Name}, proxy)
 
+	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{Name: builder.Definition.Name}, proxy)
 	if err != nil {
 		glog.V(100).Infof("Proxy object %s does not exist: %v", builder.Definition.Name, err)
 
@@ -93,6 +93,7 @@ func (builder *Builder) Exists() bool {
 	glog.V(100).Infof("Checking if proxy %s exists", builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)

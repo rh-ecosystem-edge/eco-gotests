@@ -143,8 +143,8 @@ func (builder *ClusterConfigBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
-	builder.Object, err = builder.Get()
 
+	builder.Object, err = builder.Get()
 	if err != nil {
 		glog.V(100).Infof("Failed to collect SriovFecClusterConfig object due to %s", err.Error())
 	}
@@ -184,11 +184,11 @@ func (builder *ClusterConfigBuilder) Get() (*sriovfectypes.SriovFecClusterConfig
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	clusterConfig := &sriovfectypes.SriovFecClusterConfig{}
+
 	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, clusterConfig)
-
 	if err != nil {
 		glog.V(100).Infof(
 			"SriovFecClusterConfig object %s does not exist in namespace %s: %v",
@@ -247,8 +247,8 @@ func (builder *ClusterConfigBuilder) Update(force bool) (*ClusterConfigBuilder, 
 	}
 
 	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 
+	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		if force {
 			glog.V(100).Infof(
@@ -284,7 +284,6 @@ func (builder *ClusterConfigBuilder) WithOptions(options ...ClusterAdditionalOpt
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 

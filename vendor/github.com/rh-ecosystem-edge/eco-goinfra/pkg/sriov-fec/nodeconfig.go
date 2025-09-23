@@ -145,8 +145,8 @@ func (builder *NodeConfigBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
-	builder.Object, err = builder.Get()
 
+	builder.Object, err = builder.Get()
 	if err != nil {
 		glog.V(100).Infof("Failed to collect SriovFecNodeConfig object due to %s", err.Error())
 	}
@@ -186,11 +186,11 @@ func (builder *NodeConfigBuilder) Get() (*sriovfectypes.SriovFecNodeConfig, erro
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	nodeConfig := &sriovfectypes.SriovFecNodeConfig{}
+
 	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, nodeConfig)
-
 	if err != nil {
 		glog.V(100).Infof(
 			"SriovFecNodeConfig object %s does not exist in namespace %s: %v",
@@ -249,8 +249,8 @@ func (builder *NodeConfigBuilder) Update(force bool) (*NodeConfigBuilder, error)
 	}
 
 	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 
+	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		if force {
 			glog.V(100).Infof(
@@ -286,7 +286,6 @@ func (builder *NodeConfigBuilder) WithOptions(options ...AdditionalOptions) *Nod
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 

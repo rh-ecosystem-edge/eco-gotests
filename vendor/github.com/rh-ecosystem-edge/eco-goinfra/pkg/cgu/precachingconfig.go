@@ -130,6 +130,7 @@ func (builder *PreCachingConfigBuilder) Exists() bool {
 		"Checking if preCachingConfig %s exists in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)

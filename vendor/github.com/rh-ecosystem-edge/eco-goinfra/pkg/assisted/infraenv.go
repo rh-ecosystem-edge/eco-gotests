@@ -259,7 +259,6 @@ func (builder *InfraEnvBuilder) WithOptions(
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 
@@ -281,17 +280,16 @@ func (builder *InfraEnvBuilder) WaitForDiscoveryISOCreation(timeout time.Duratio
 
 	// Polls every retryInterval to determine if infraenv in desired state.
 	var err error
+
 	err = wait.PollUntilContextTimeout(
 		context.TODO(), retryInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			builder.Object, err = builder.Get()
-
 			if err != nil {
 				return false, nil
 			}
 
 			return builder.Object.Status.CreatedTime != nil, nil
 		})
-
 	if err == nil {
 		return builder, nil
 	}
@@ -451,7 +449,6 @@ func (builder *InfraEnvBuilder) WaitForAgentsToRegister(timeout time.Duration) (
 	}
 
 	agentclusterinstall, err := builder.GetAgentClusterInstallFromInfraEnv()
-
 	if err != nil {
 		return nil, err
 	}
@@ -465,7 +462,6 @@ func (builder *InfraEnvBuilder) WaitForAgentsToRegister(timeout time.Duration) (
 	err = wait.PollUntilContextTimeout(
 		context.TODO(), retryInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			agentList, err = builder.GetAllAgents()
-
 			if err != nil {
 				return false, err
 			}
@@ -484,7 +480,6 @@ func (builder *InfraEnvBuilder) WaitForMasterAgents(timeout time.Duration) ([]*a
 	}
 
 	agentclusterinstall, err := builder.GetAgentClusterInstallFromInfraEnv()
-
 	if err != nil {
 		return nil, err
 	}
@@ -560,7 +555,6 @@ func (builder *InfraEnvBuilder) WaitForWorkerAgents(timeout time.Duration) ([]*a
 	}
 
 	agentclusterinstall, err := builder.GetAgentClusterInstallFromInfraEnv()
-
 	if err != nil {
 		return nil, err
 	}
@@ -665,7 +659,6 @@ func (builder *InfraEnvBuilder) GetAgentClusterInstallFromInfraEnv() (*hiveextV1
 		Name:      builder.Object.Spec.ClusterRef.Name,
 		Namespace: builder.Object.Spec.ClusterRef.Namespace,
 	}, &clusterdeployment)
-
 	if err != nil {
 		glog.V(100).Infof("Unable to get clusterdeployment %s referenced by infraenv %s",
 			builder.Object.Spec.ClusterRef.Name, builder.Definition.Name)
@@ -682,7 +675,6 @@ func (builder *InfraEnvBuilder) GetAgentClusterInstallFromInfraEnv() (*hiveextV1
 		Name:      clusterdeployment.Spec.ClusterInstallRef.Name,
 		Namespace: clusterdeployment.Namespace,
 	}, &agentclusterinstall)
-
 	if err != nil {
 		glog.V(100).Infof("Unable to get agentclusterinstall %s referenced by clusterdeployment %s",
 			clusterdeployment.Spec.ClusterInstallRef.Name, clusterdeployment.Name)
@@ -708,7 +700,6 @@ func (builder *InfraEnvBuilder) Get() (*agentInstallV1Beta1.InfraEnv, error) {
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, infraEnv)
-
 	if err != nil {
 		return nil, err
 	}
@@ -794,7 +785,6 @@ func (builder *InfraEnvBuilder) Update(force bool) (*InfraEnvBuilder, error) {
 	}
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		if force {
 			glog.V(100).Infof(
@@ -843,7 +833,6 @@ func (builder *InfraEnvBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return fmt.Errorf("cannot delete infraenv: %w", err)
 	}
@@ -889,6 +878,7 @@ func (builder *InfraEnvBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)

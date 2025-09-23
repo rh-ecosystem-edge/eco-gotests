@@ -233,10 +233,10 @@ func (builder *ProvisioningRequestBuilder) Get() (*provisioningv1alpha1.Provisio
 		"Getting ProvisioningRequest object %s", builder.Definition.Name)
 
 	provisioningRequest := &provisioningv1alpha1.ProvisioningRequest{}
+
 	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, provisioningRequest)
-
 	if err != nil {
 		return nil, err
 	}
@@ -253,8 +253,8 @@ func (builder *ProvisioningRequestBuilder) Exists() bool {
 	glog.V(100).Infof("Checking if ProvisioningRequest %s exists", builder.Definition.Name)
 
 	var err error
-	builder.Object, err = builder.Get()
 
+	builder.Object, err = builder.Get()
 	if err != nil {
 		glog.V(100).Infof("ProvisioningRequest %s does not exist: %v", builder.Definition.Name, err)
 	}
@@ -380,8 +380,8 @@ func (builder *ProvisioningRequestBuilder) WaitForCondition(
 	err := wait.PollUntilContextTimeout(
 		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			var err error
-			builder.Object, err = builder.Get()
 
+			builder.Object, err = builder.Get()
 			if err != nil {
 				glog.V(100).Infof("Failed to get ProvisioningRequest %s: %v", builder.Definition.Name, err)
 
@@ -412,7 +412,6 @@ func (builder *ProvisioningRequestBuilder) WaitForCondition(
 
 			return false, nil
 		})
-
 	if err != nil {
 		return nil, err
 	}
@@ -458,8 +457,8 @@ func (builder *ProvisioningRequestBuilder) WaitForPhaseAfter(
 	err := wait.PollUntilContextTimeout(
 		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			var err error
-			builder.Object, err = builder.Get()
 
+			builder.Object, err = builder.Get()
 			if err != nil {
 				glog.V(100).Infof("Failed to get ProvisioningRequest %s: %v", builder.Definition.Name, err)
 
@@ -473,7 +472,6 @@ func (builder *ProvisioningRequestBuilder) WaitForPhaseAfter(
 
 			return inPhase && (updatedAfterStart || start.IsZero()), nil
 		})
-
 	if err != nil {
 		return err
 	}

@@ -70,10 +70,10 @@ func (builder *Builder) Get() (*configV1.Node, error) {
 	glog.V(100).Infof("Getting existing nodesConfig with name %s from cluster", builder.Definition.Name)
 
 	nodesConfig := &configV1.Node{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, nodesConfig)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to get nodesConfig object %s from cluster due to: %w",
 			builder.Definition.Name, err)
@@ -93,6 +93,7 @@ func (builder *Builder) Exists() bool {
 	glog.V(100).Infof("Checking if nodesConfig %s exists", builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)

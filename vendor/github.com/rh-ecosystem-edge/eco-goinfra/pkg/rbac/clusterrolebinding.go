@@ -116,7 +116,6 @@ func (builder *ClusterRoleBindingBuilder) WithOptions(
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 
@@ -196,7 +195,6 @@ func (builder *ClusterRoleBindingBuilder) Delete() error {
 
 	err := builder.apiClient.ClusterRoleBindings().Delete(
 		context.TODO(), builder.Definition.Name, metav1.DeleteOptions{})
-
 	if err != nil {
 		return err
 	}
@@ -216,6 +214,7 @@ func (builder *ClusterRoleBindingBuilder) Update() (*ClusterRoleBindingBuilder, 
 		builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.apiClient.ClusterRoleBindings().Update(
 		context.TODO(), builder.Definition, metav1.UpdateOptions{})
 
@@ -232,6 +231,7 @@ func (builder *ClusterRoleBindingBuilder) Exists() bool {
 		builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.apiClient.ClusterRoleBindings().Get(
 		context.TODO(), builder.Definition.Name, metav1.GetOptions{})
 

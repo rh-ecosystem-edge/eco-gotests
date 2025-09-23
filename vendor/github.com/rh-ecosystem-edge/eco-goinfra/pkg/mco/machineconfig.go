@@ -117,8 +117,8 @@ func (builder *MCBuilder) Get() (*mcv1.MachineConfig, error) {
 	glog.V(100).Infof("Getting MachineConfig object %s", builder.Definition.Name)
 
 	machineConfig := &mcv1.MachineConfig{}
-	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, machineConfig)
 
+	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, machineConfig)
 	if err != nil {
 		glog.V(100).Infof("MachineConfig object %s does not exist", builder.Definition.Name)
 
@@ -198,6 +198,7 @@ func (builder *MCBuilder) Exists() bool {
 	glog.V(100).Infof("Checking if the MachineConfig object %s exists", builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -239,7 +240,6 @@ func (builder *MCBuilder) WithOptions(options ...MCAdditionalOptions) *MCBuilder
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 

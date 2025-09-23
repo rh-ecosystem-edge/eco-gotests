@@ -30,7 +30,6 @@ func List(apiClient *clients.Settings, options ...metav1.ListOptions) ([]*Builde
 	glog.V(100).Infof(logMessage)
 
 	coList, err := apiClient.ClusterOperators().List(context.TODO(), passedOptions)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to list clusterOperators due to %s", err.Error())
 
@@ -60,7 +59,6 @@ func WaitForAllClusteroperatorsAvailable(
 
 	err := wait.PollUntilContextTimeout(context.TODO(), fiveScds, timeout, true, func(ctx context.Context) (bool, error) {
 		coList, err := List(apiClient, options...)
-
 		if err != nil {
 			glog.V(100).Infof("Failed to list all clusterOperators due to %s", err.Error())
 
@@ -78,7 +76,6 @@ func WaitForAllClusteroperatorsAvailable(
 
 		return true, nil
 	})
-
 	if err == nil {
 		glog.V(100).Infof("All clusterOperators were found available before timeout: %v",
 			timeout)
@@ -117,7 +114,6 @@ func WaitForAllClusteroperatorsStopProgressing(
 
 		return true, nil
 	})
-
 	if err == nil {
 		glog.V(100).Infof("All clusterOperators stopped progressing before timeout: %v",
 			timeout)
@@ -151,8 +147,8 @@ func VerifyClusterOperatorsVersion(desiredVersion string, clusterOperatorList []
 
 	for _, operator := range clusterOperatorList {
 		glog.V(100).Infof("Checking %s clusterOperator version", operator.Definition.Name)
-		hasDesiredVersion, err := operator.HasDesiredVersion(desiredVersion)
 
+		hasDesiredVersion, err := operator.HasDesiredVersion(desiredVersion)
 		if err != nil {
 			return false, err
 		}

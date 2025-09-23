@@ -132,11 +132,11 @@ func (builder *ElasticsearchBuilder) Get() (*eskv1.Elasticsearch, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	elasticsearchObj := &eskv1.Elasticsearch{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, elasticsearchObj)
-
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +178,6 @@ func (builder *ElasticsearchBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return fmt.Errorf("can not delete elasticsearch: %w", err)
 	}
@@ -198,6 +197,7 @@ func (builder *ElasticsearchBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -213,7 +213,6 @@ func (builder *ElasticsearchBuilder) Update() (*ElasticsearchBuilder, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		glog.V(100).Infof(
 			msg.FailToUpdateError("elasticsearch", builder.Definition.Name, builder.Definition.Namespace))

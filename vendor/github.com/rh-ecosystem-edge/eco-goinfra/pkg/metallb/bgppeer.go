@@ -147,10 +147,10 @@ func (builder *BGPPeerBuilder) Get() (*mlbtypesv1beta2.BGPPeer, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	bgpPeer := &mlbtypesv1beta2.BGPPeer{}
+
 	err := builder.apiClient.Get(context.TODO(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		bgpPeer)
-
 	if err != nil {
 		glog.V(100).Infof(
 			"Failed to Unmarshal BGPPeer: unstructured object to structure in namespace %s",
@@ -173,6 +173,7 @@ func (builder *BGPPeerBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -238,7 +239,6 @@ func (builder *BGPPeerBuilder) Create() (*BGPPeerBuilder, error) {
 
 	if !builder.Exists() {
 		err := builder.apiClient.Create(context.TODO(), builder.Definition)
-
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -267,7 +267,6 @@ func (builder *BGPPeerBuilder) Delete() (*BGPPeerBuilder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("can not delete BGPPeer: %w", err)
 	}
@@ -288,14 +287,12 @@ func (builder *BGPPeerBuilder) Update(force bool) (*BGPPeerBuilder, error) {
 	)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		if force {
 			glog.V(100).Infof(
 				msg.FailToUpdateNotification("BGPPeer", builder.Definition.Name, builder.Definition.Namespace))
 
 			builder, err := builder.Delete()
-
 			if err != nil {
 				glog.V(100).Infof(
 					msg.FailToUpdateError("BGPPeer", builder.Definition.Name, builder.Definition.Namespace))
@@ -638,7 +635,6 @@ func (builder *BGPPeerBuilder) WithOptions(options ...BGPPeerAdditionalOptions) 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 

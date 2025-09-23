@@ -536,7 +536,6 @@ func (builder *Builder) Create() (*Builder, error) {
 	var err error
 	if !builder.Exists() {
 		err = builder.apiClient.Create(context.TODO(), builder.Definition)
-
 		if err != nil {
 			glog.V(100).Infof("Failed to create SecurityContextConstraints")
 
@@ -601,8 +600,8 @@ func (builder *Builder) Get() (*securityV1.SecurityContextConstraints, error) {
 	glog.V(100).Infof("Collecting SecurityContextConstraints object %s", builder.Definition.Name)
 
 	scc := &securityV1.SecurityContextConstraints{}
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{Name: builder.Definition.Name}, scc)
 
+	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{Name: builder.Definition.Name}, scc)
 	if err != nil {
 		glog.V(100).Infof("SecurityContextConstraints object %s does not exist", builder.Definition.Name)
 
@@ -621,8 +620,8 @@ func (builder *Builder) Exists() bool {
 	glog.V(100).Infof("Checking if SecurityContextConstraints %s exists", builder.Definition.Name)
 
 	var err error
-	builder.Object, err = builder.Get()
 
+	builder.Object, err = builder.Get()
 	if err != nil {
 		glog.V(100).Infof("Failed to collect SecurityContextConstraints object due to %s", err.Error())
 	}

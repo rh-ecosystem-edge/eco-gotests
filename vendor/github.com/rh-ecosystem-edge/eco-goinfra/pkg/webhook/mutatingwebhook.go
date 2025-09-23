@@ -76,6 +76,7 @@ func (builder *MutatingConfigurationBuilder) Exists() bool {
 	}
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -88,10 +89,10 @@ func (builder *MutatingConfigurationBuilder) Get() (*admregv1.MutatingWebhookCon
 	}
 
 	mutatingWebhookConfiguration := &admregv1.MutatingWebhookConfiguration{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, mutatingWebhookConfiguration)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to get MutatingWebhookConfiguration %s: %v", builder.Definition.Name, err)
 
@@ -144,8 +145,8 @@ func (builder *MutatingConfigurationBuilder) Update() (*MutatingConfigurationBui
 	}
 
 	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 
+	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		return builder, err
 	}

@@ -87,10 +87,10 @@ func (builder *ClusterServiceVersionBuilder) Get() (*oplmV1alpha1.ClusterService
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	clusterServiceVersion := &oplmV1alpha1.ClusterServiceVersion{}
+
 	err := builder.apiClient.Get(context.TODO(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		clusterServiceVersion)
-
 	if err != nil {
 		glog.V(100).Infof(
 			"ClusterServiceVersion object %s does not exist in namespace %s",
@@ -113,6 +113,7 @@ func (builder *ClusterServiceVersionBuilder) Exists() bool {
 		builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -137,7 +138,6 @@ func (builder *ClusterServiceVersionBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return err
 	}
@@ -206,7 +206,6 @@ func (builder *ClusterServiceVersionBuilder) IsSuccessful() (bool, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	phase, err := builder.GetPhase()
-
 	if err != nil {
 		return false, fmt.Errorf("failed to get phase value for %s clusterserviceversion in %s namespace due to %w",
 			builder.Definition.Name, builder.Definition.Namespace, err)

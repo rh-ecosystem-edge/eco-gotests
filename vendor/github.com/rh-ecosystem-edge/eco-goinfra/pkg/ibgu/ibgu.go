@@ -274,7 +274,6 @@ func (builder *IbguBuilder) Get() (*v1alpha1.ImageBasedGroupUpgrade, error) {
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, imagebasedgroupupgrade)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to get imagebasedgroupupgrade %s in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
@@ -295,6 +294,7 @@ func (builder *IbguBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -336,7 +336,6 @@ func (builder *IbguBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Object)
-
 	if err != nil {
 		return err
 	}
@@ -462,8 +461,8 @@ func (builder *IbguBuilder) WaitForCondition(expected metav1.Condition, timeout 
 	err := wait.PollUntilContextTimeout(
 		context.TODO(), 10*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			var err error
-			builder.Object, err = builder.Get()
 
+			builder.Object, err = builder.Get()
 			if err != nil {
 				glog.V(100).Info("failed to get ibgu %s/%s: %w", builder.Definition.Namespace, builder.Definition.Name, err)
 

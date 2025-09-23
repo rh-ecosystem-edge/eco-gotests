@@ -73,8 +73,8 @@ func (builder *Builder) Get() (*configv1.Infrastructure, error) {
 	glog.V(100).Infof("Getting Infrastructure object %s", builder.Definition.Name)
 
 	infrastructure := &configv1.Infrastructure{}
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{Name: builder.Definition.Name}, infrastructure)
 
+	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{Name: builder.Definition.Name}, infrastructure)
 	if err != nil {
 		glog.V(100).Infof("Failed to get Infrastructure object %s: %v", builder.Definition.Name, err)
 
@@ -93,6 +93,7 @@ func (builder *Builder) Exists() bool {
 	glog.V(100).Infof("Checking if infrastructure %s exists", builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)

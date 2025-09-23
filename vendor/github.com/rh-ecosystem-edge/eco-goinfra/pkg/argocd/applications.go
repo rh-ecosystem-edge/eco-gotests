@@ -91,6 +91,7 @@ func (builder *ApplicationBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -106,11 +107,11 @@ func (builder *ApplicationBuilder) Get() (*argocdtypes.Application, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	application := &argocdtypes.Application{}
+
 	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, application)
-
 	if err != nil {
 		glog.V(100).Infof(
 			"Failed to Get Application object in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
@@ -297,6 +298,7 @@ func (builder *ApplicationBuilder) WaitForCondition(
 	}
 
 	var err error
+
 	err = wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			builder.Object, err = builder.Get()
@@ -322,7 +324,6 @@ func (builder *ApplicationBuilder) WaitForCondition(
 
 			return false, nil
 		})
-
 	if err != nil {
 		return nil, err
 	}
@@ -348,8 +349,8 @@ func (builder *ApplicationBuilder) DoesGitPathExist(elements ...string) bool {
 	}
 
 	repoURL := strings.TrimSuffix(builder.Definition.Spec.Source.RepoURL, ".git")
-	rawURL, err := url.ParseRequestURI(repoURL)
 
+	rawURL, err := url.ParseRequestURI(repoURL)
 	if err != nil {
 		glog.V(100).Infof("Failed to parse repo URL %s: %v", builder.Definition.Spec.Source.RepoURL, err)
 
@@ -417,8 +418,8 @@ func (builder *ApplicationBuilder) WaitForSourceUpdate(synced bool, timeout time
 	return wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			var err error
-			builder.Object, err = builder.Get()
 
+			builder.Object, err = builder.Get()
 			if err != nil {
 				glog.V(100).Infof("Failed to get Argo CD Application %s in namespace %s: %v",
 					builder.Definition.Name, builder.Definition.Namespace, err)

@@ -117,8 +117,8 @@ func (builder *KlusterletBuilder) Get() (*operatorv1.Klusterlet, error) {
 	glog.V(100).Infof("Getting Klusterlet object %s", builder.Definition.Name)
 
 	klusterlet := &operatorv1.Klusterlet{}
-	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, klusterlet)
 
+	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, klusterlet)
 	if err != nil {
 		glog.V(100).Infof("Failed to get Klusterlet object %s: %v", builder.Definition.Name, err)
 
@@ -137,6 +137,7 @@ func (builder *KlusterletBuilder) Exists() bool {
 	glog.V(100).Infof("Checking if Klusterlet %s", builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)

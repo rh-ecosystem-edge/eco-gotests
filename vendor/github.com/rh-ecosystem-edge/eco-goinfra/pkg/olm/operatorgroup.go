@@ -90,10 +90,10 @@ func (builder *OperatorGroupBuilder) Get() (*operatorsv1.OperatorGroup, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	operatorGroup := &operatorsv1.OperatorGroup{}
+
 	err := builder.apiClient.Get(context.TODO(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		operatorGroup)
-
 	if err != nil {
 		glog.V(100).Infof(
 			"OperatorGroup object %s does not exist in namespace %s",
@@ -137,6 +137,7 @@ func (builder *OperatorGroupBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -161,7 +162,6 @@ func (builder *OperatorGroupBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return err
 	}
@@ -185,7 +185,6 @@ func (builder *OperatorGroupBuilder) Update() (*OperatorGroupBuilder, error) {
 	}
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err == nil {
 		builder.Object = builder.Definition
 	}

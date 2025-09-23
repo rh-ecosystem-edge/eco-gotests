@@ -72,8 +72,8 @@ func (builder *Builder) Get() (*configv1.DNS, error) {
 	glog.V(100).Infof("Getting DNS object %s", builder.Definition.Name)
 
 	dnsObject := &configv1.DNS{}
-	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, dnsObject)
 
+	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, dnsObject)
 	if err != nil {
 		glog.V(100).Infof("Failed to get DNS %s: %s", builder.Definition.Name, err)
 
@@ -92,6 +92,7 @@ func (builder *Builder) Exists() bool {
 	glog.V(100).Infof("Checking if DNS %s exists", builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)

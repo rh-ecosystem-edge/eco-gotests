@@ -57,7 +57,6 @@ func NewSetBuilderFromCopy(
 	}
 
 	newSetBuilder, err := createNewWorkerMachineSetFromCopy(apiClient, nsName, instanceType, workerLabel, replicas)
-
 	if err != nil {
 		glog.V(100).Infof("Error initializing MachineSet from copy: %s", err.Error())
 
@@ -69,7 +68,6 @@ func NewSetBuilderFromCopy(
 	builder.Definition = newSetBuilder.Definition
 
 	err = builder.getPublicCloudKind()
-
 	if err != nil {
 		builder.errorMsg = fmt.Sprintf("error getting the public cloud kind: %v", err.Error())
 
@@ -79,7 +77,6 @@ func NewSetBuilderFromCopy(
 	glog.V(100).Infof("Updating copied MachineSet provider instanceType to: %s", instanceType)
 
 	err = builder.ChangeCloudProviderInstanceType(instanceType)
-
 	if err != nil {
 		builder.errorMsg = fmt.Sprintf("error changing the instanceType: %v", err.Error())
 
@@ -175,9 +172,9 @@ func (builder *SetBuilder) Exists() bool {
 		builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.apiClient.MachineSets(builder.Definition.Namespace).Get(context.TODO(),
 		builder.Definition.Name, metav1.GetOptions{})
-
 	if err != nil {
 		glog.V(100).Infof("Failed to collect MachineSet object due to %s", err.Error())
 	}
@@ -221,7 +218,6 @@ func (builder *SetBuilder) Delete() error {
 
 	err := builder.apiClient.MachineSets(builder.Definition.Namespace).Delete(
 		context.TODO(), builder.Definition.Name, metav1.DeleteOptions{})
-
 	if err != nil {
 		return fmt.Errorf("cannot delete MachineSet: %w", err)
 	}
@@ -238,7 +234,6 @@ func WaitForMachineSetReady(
 	return wait.PollUntilContextTimeout(
 		context.TODO(), 30*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			machineSetPulled, err := PullSet(apiClient, namespace, machineSetName)
-
 			if err != nil {
 				glog.V(100).Infof("MachineSet pull from cluster error: %v\n", err)
 
@@ -274,7 +269,6 @@ func (builder *SetBuilder) ChangeCloudProviderInstanceType(instanceType string) 
 		glog.V(100).Infof("Updating ProviderSpec InstanceType param for AWS public cloud")
 
 		err := builder.AWSChangeProviderInstanceType(instanceType)
-
 		if err != nil {
 			return fmt.Errorf("error from func AWSChangeProviderInstanceType(instanceType): %w", err)
 		}
@@ -284,7 +278,6 @@ func (builder *SetBuilder) ChangeCloudProviderInstanceType(instanceType string) 
 			"GCP public cloud")
 
 		err := builder.GCPChangeProviderMachineType(instanceType)
-
 		if err != nil {
 			return fmt.Errorf("error from func GCPChangeProviderMachineType(instanceType): %w", err)
 		}
@@ -293,7 +286,6 @@ func (builder *SetBuilder) ChangeCloudProviderInstanceType(instanceType string) 
 		glog.V(100).Infof("Updating ProviderSpec VMSize param for Azure public cloud")
 
 		err := builder.AzureChangeProviderVMSize(instanceType)
-
 		if err != nil {
 			return fmt.Errorf("error from func AzureChangeProviderVMSize(instanceType): %w", err)
 		}
@@ -318,7 +310,6 @@ func (builder *SetBuilder) AWSChangeProviderInstanceType(instanceType string) er
 	}
 
 	byteArray, err := json.Marshal(builder.Definition.Spec.Template.Spec.ProviderSpec.Value)
-
 	if err != nil {
 		return fmt.Errorf("error marshalling machineSet providerSpec.Value into byte array: %w", err)
 	}
@@ -327,8 +318,8 @@ func (builder *SetBuilder) AWSChangeProviderInstanceType(instanceType string) er
 		instanceType)
 
 	var AWSProviderSpecObject *machinev1beta1.AWSMachineProviderConfig
-	err = json.Unmarshal(byteArray, &AWSProviderSpecObject)
 
+	err = json.Unmarshal(byteArray, &AWSProviderSpecObject)
 	if err != nil {
 		glog.V(100).Infof("error unmarshalling byte array into AWSMachineProviderConfig object: %v", err)
 
@@ -340,7 +331,6 @@ func (builder *SetBuilder) AWSChangeProviderInstanceType(instanceType string) er
 	AWSProviderSpecObject.InstanceType = instanceType
 
 	byteArrayAWS, err := json.Marshal(AWSProviderSpecObject)
-
 	if err != nil {
 		glog.V(100).Infof("error marshalling AWSMachineProviderConfig object into byte array: %v", err)
 
@@ -348,7 +338,6 @@ func (builder *SetBuilder) AWSChangeProviderInstanceType(instanceType string) er
 	}
 
 	err = json.Unmarshal(byteArrayAWS, builder.Definition.Spec.Template.Spec.ProviderSpec.Value)
-
 	if err != nil {
 		glog.V(100).Infof("error unmarshalling AWSMachineProviderConfig byte array into "+
 			"ProviderSpec.Value object: %v", err)
@@ -370,7 +359,6 @@ func (builder *SetBuilder) GCPChangeProviderMachineType(machineType string) erro
 	}
 
 	byteArray, err := json.Marshal(builder.Definition.Spec.Template.Spec.ProviderSpec.Value)
-
 	if err != nil {
 		return fmt.Errorf("error marshalling machineSet providerSpec.Value into byte array: %w", err)
 	}
@@ -378,8 +366,8 @@ func (builder *SetBuilder) GCPChangeProviderMachineType(machineType string) erro
 	glog.V(100).Infof("Updating ProviderSpec MachineType param '%s' for GCP public cloud", machineType)
 
 	var GCPProviderSpecObject *machinev1beta1.GCPMachineProviderSpec
-	err = json.Unmarshal(byteArray, &GCPProviderSpecObject)
 
+	err = json.Unmarshal(byteArray, &GCPProviderSpecObject)
 	if err != nil {
 		glog.V(100).Infof("error unmarshalling byte array into GCPMachineProviderSpec object: %v", err)
 
@@ -391,7 +379,6 @@ func (builder *SetBuilder) GCPChangeProviderMachineType(machineType string) erro
 	GCPProviderSpecObject.MachineType = machineType
 
 	byteArrayGCP, err := json.Marshal(GCPProviderSpecObject)
-
 	if err != nil {
 		glog.V(100).Infof("error marshalling GCPMachineProviderSpec object into byte array: %v", err)
 
@@ -399,7 +386,6 @@ func (builder *SetBuilder) GCPChangeProviderMachineType(machineType string) erro
 	}
 
 	err = json.Unmarshal(byteArrayGCP, builder.Definition.Spec.Template.Spec.ProviderSpec.Value)
-
 	if err != nil {
 		glog.V(100).Infof("error unmarshalling ProviderSpec byte array into ProviderSpec.Value: %v", err)
 
@@ -420,7 +406,6 @@ func (builder *SetBuilder) AzureChangeProviderVMSize(vmSize string) error {
 	}
 
 	byteArray, err := json.Marshal(builder.Definition.Spec.Template.Spec.ProviderSpec.Value)
-
 	if err != nil {
 		return fmt.Errorf("error marshalling machineSet providerSpec.Value into byte array: %w", err)
 	}
@@ -429,8 +414,8 @@ func (builder *SetBuilder) AzureChangeProviderVMSize(vmSize string) error {
 		vmSize)
 
 	var AzureProviderSpecObject *machinev1beta1.AzureMachineProviderSpec
-	err = json.Unmarshal(byteArray, &AzureProviderSpecObject)
 
+	err = json.Unmarshal(byteArray, &AzureProviderSpecObject)
 	if err != nil {
 		glog.V(100).Infof("error unmarshalling byte array into AzureMachineProviderSpec object: %v", err)
 
@@ -442,7 +427,6 @@ func (builder *SetBuilder) AzureChangeProviderVMSize(vmSize string) error {
 	AzureProviderSpecObject.VMSize = vmSize
 
 	byteArrayAzure, err := json.Marshal(AzureProviderSpecObject)
-
 	if err != nil {
 		glog.V(100).Infof("error marshalling AzureMachineProviderSpec object into byte array: %v", err)
 
@@ -450,7 +434,6 @@ func (builder *SetBuilder) AzureChangeProviderVMSize(vmSize string) error {
 	}
 
 	err = json.Unmarshal(byteArrayAzure, builder.Definition.Spec.Template.Spec.ProviderSpec.Value)
-
 	if err != nil {
 		glog.V(100).Infof("error unmarshalling AzureMachineProviderSpec byte array into "+
 			"ProviderSpec.Value object: %v", err)
@@ -469,7 +452,6 @@ func createNewWorkerMachineSetFromCopy(
 	workerLabel string,
 	replicas int32) (*SetBuilder, error) {
 	workerSetBuilders, err := ListWorkerMachineSets(apiClient, namespace, workerLabel)
-
 	if err != nil {
 		return nil, fmt.Errorf("could not list worker MachineSets: %w", err)
 	}
@@ -531,7 +513,6 @@ func (builder *SetBuilder) getPublicCloudKind() error {
 
 	// Value field is of type *runtime.RawExtension
 	byteArray, err := json.Marshal(builder.Definition.Spec.Template.Spec.ProviderSpec.Value)
-
 	if err != nil {
 		builder.errorMsg = fmt.Sprintf("error determining public cloud kind: %v", err)
 
@@ -539,7 +520,6 @@ func (builder *SetBuilder) getPublicCloudKind() error {
 	}
 
 	err = json.Unmarshal(byteArray, &providerSpecMap)
-
 	if err != nil {
 		builder.errorMsg = fmt.Sprintf("error determining public cloud kind: %v", err)
 

@@ -48,8 +48,8 @@ func List(apiClient *clients.Settings, nsname string, options ...client.ListOpti
 	glog.V(100).Infof(logMessage)
 
 	sfncList := new(sriovfectypes.SriovFecNodeConfigList)
-	err = apiClient.List(context.TODO(), sfncList, &passedOptions)
 
+	err = apiClient.List(context.TODO(), sfncList, &passedOptions)
 	if err != nil {
 		glog.V(100).Infof("Failed to list SriovFecNodeConfigs in the namespace %s due to %s", nsname, err.Error())
 

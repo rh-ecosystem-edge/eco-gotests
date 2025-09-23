@@ -250,10 +250,10 @@ func (builder *MultiNetworkPolicyBuilder) Get() (*v1beta1.MultiNetworkPolicy, er
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	network := &v1beta1.MultiNetworkPolicy{}
+
 	err := builder.apiClient.Get(context.TODO(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		network)
-
 	if err != nil {
 		glog.V(100).Infof(
 			"MultiNetworkPolicy object %s does not exist in namespace %s",
@@ -277,7 +277,6 @@ func (builder *MultiNetworkPolicyBuilder) Create() (*MultiNetworkPolicyBuilder, 
 	var err error
 	if !builder.Exists() {
 		err := builder.apiClient.Create(context.TODO(), builder.Definition)
-
 		if err != nil {
 			glog.V(100).Infof("Failed to create MultiNetworkPolicy object")
 
@@ -300,6 +299,7 @@ func (builder *MultiNetworkPolicyBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -321,7 +321,6 @@ func (builder *MultiNetworkPolicyBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return fmt.Errorf("cannot delete MultiNetworkPolicy: %w", err)
 	}
@@ -345,7 +344,6 @@ func (builder *MultiNetworkPolicyBuilder) Update() (*MultiNetworkPolicyBuilder, 
 	}
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err == nil {
 		builder.Object = builder.Definition
 	}

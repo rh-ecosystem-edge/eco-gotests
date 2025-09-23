@@ -41,7 +41,6 @@ func PullPackageManifest(apiClient *clients.Settings, name, nsname string) (*Pac
 	}
 
 	err := apiClient.AttachScheme(operatorv1.AddToScheme)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to add operatorv1 scheme to client schemes")
 
@@ -92,7 +91,6 @@ func PullPackageManifestByCatalog(apiClient *clients.Settings, name, nsname,
 	}
 
 	fieldSelector, err := fields.ParseSelector(fmt.Sprintf("metadata.name=%s", name))
-
 	if err != nil {
 		glog.V(100).Infof("Failed to parse invalid packageManifest name %s", name)
 
@@ -106,7 +104,6 @@ func PullPackageManifestByCatalog(apiClient *clients.Settings, name, nsname,
 	}
 
 	labelSelector, err := labels.Parse(fmt.Sprintf("catalog=%s", catalog))
-
 	if err != nil {
 		glog.V(100).Infof("Failed to parse invalid catalog name %s", catalog)
 
@@ -117,7 +114,6 @@ func PullPackageManifestByCatalog(apiClient *clients.Settings, name, nsname,
 		LabelSelector: labelSelector,
 		FieldSelector: fieldSelector,
 	})
-
 	if err != nil {
 		glog.V(100).Infof("Failed to list PackageManifests with name %s in namespace %s from catalog"+
 			" %s due to %s", name, nsname, catalog, err.Error())
@@ -151,10 +147,10 @@ func (builder *PackageManifestBuilder) Get() (*operatorv1.PackageManifest, error
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	packageManifest := &operatorv1.PackageManifest{}
+
 	err := builder.apiClient.Get(context.TODO(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		packageManifest)
-
 	if err != nil {
 		glog.V(100).Infof(
 			"PackageManifest object %s does not exist in namespace %s",
@@ -176,6 +172,7 @@ func (builder *PackageManifestBuilder) Exists() bool {
 		"Checking if PackageManifest %s exists", builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -200,7 +197,6 @@ func (builder *PackageManifestBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return err
 	}

@@ -86,7 +86,6 @@ func (builder *OperatorConfigBuilder) Create() (*OperatorConfigBuilder, error) {
 
 	if !builder.Exists() {
 		err := builder.apiClient.Create(context.TODO(), builder.Definition)
-
 		if err != nil {
 			glog.V(100).Infof("Failed to create the SriovOperatorConfig")
 
@@ -152,10 +151,10 @@ func (builder *OperatorConfigBuilder) Get() (*srIovV1.SriovOperatorConfig, error
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	operatorConfig := &srIovV1.SriovOperatorConfig{}
+
 	err := builder.apiClient.Get(context.TODO(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		operatorConfig)
-
 	if err != nil {
 		glog.V(100).Infof("SriovOperatorConfig object %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
@@ -176,6 +175,7 @@ func (builder *OperatorConfigBuilder) Exists() bool {
 		"Checking if SriovOperatorConfig %s exists", builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -297,7 +297,6 @@ func (builder *OperatorConfigBuilder) Update() (*OperatorConfigBuilder, error) {
 	)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err == nil {
 		builder.Object = builder.Definition
 	}

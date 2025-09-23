@@ -135,11 +135,11 @@ func (builder *KACBuilder) Get() (*kacv1.KlusterletAddonConfig, error) {
 		"Getting KlusterletAddonConfig object %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	klusterletAddonConfig := &kacv1.KlusterletAddonConfig{}
+
 	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, klusterletAddonConfig)
-
 	if err != nil {
 		glog.V(100).Infof(
 			"KlusterletAddonConfig object %s does not exist in namespace %s",
@@ -161,6 +161,7 @@ func (builder *KACBuilder) Exists() bool {
 		"Checking if KlusterletAddonConfig %s exists in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -279,15 +280,16 @@ func (builder *KACBuilder) WaitUntilSearchCollectorEnabled(timeout time.Duration
 	}
 
 	var err error
-	err = wait.PollUntilContextTimeout(context.TODO(), time.Second, timeout, true, func(context.Context) (bool, error) {
-		builder.Object, err = builder.Get()
-		if err != nil {
-			return false, nil
-		}
 
-		return builder.Object.Spec.SearchCollectorConfig.Enabled, nil
-	})
+	err = wait.PollUntilContextTimeout(
+		context.TODO(), time.Second, timeout, true, func(context.Context) (bool, error) {
+			builder.Object, err = builder.Get()
+			if err != nil {
+				return false, nil
+			}
 
+			return builder.Object.Spec.SearchCollectorConfig.Enabled, nil
+		})
 	if err != nil {
 		return nil, err
 	}

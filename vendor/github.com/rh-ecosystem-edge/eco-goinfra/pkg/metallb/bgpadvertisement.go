@@ -79,6 +79,7 @@ func (builder *BGPAdvertisementBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -95,10 +96,10 @@ func (builder *BGPAdvertisementBuilder) Get() (*mlbtypes.BGPAdvertisement, error
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	bgpAdvertisement := &mlbtypes.BGPAdvertisement{}
+
 	err := builder.apiClient.Get(context.TODO(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		bgpAdvertisement)
-
 	if err != nil {
 		glog.V(100).Infof(
 			"BGPAdvertisement object %s does not exist in namespace %s",
@@ -170,7 +171,6 @@ func (builder *BGPAdvertisementBuilder) Create() (*BGPAdvertisementBuilder, erro
 
 	if !builder.Exists() {
 		err := builder.apiClient.Create(context.TODO(), builder.Definition)
-
 		if err != nil {
 			glog.V(100).Infof("Failed to create BGPAdvertisement")
 
@@ -203,7 +203,6 @@ func (builder *BGPAdvertisementBuilder) Delete() (*BGPAdvertisementBuilder, erro
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("can not delete BGPAdvertisement: %w", err)
 	}
@@ -234,15 +233,14 @@ func (builder *BGPAdvertisementBuilder) Update(force bool) (*BGPAdvertisementBui
 	}
 
 	builder.Object.Spec = builder.Definition.Spec
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 
+	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		if force {
 			glog.V(100).Infof(
 				msg.FailToUpdateNotification("BGPAdvertisement", builder.Definition.Name, builder.Definition.Namespace))
 
 			builder, err := builder.Delete()
-
 			if err != nil {
 				glog.V(100).Infof(
 					msg.FailToUpdateError("BGPAdvertisement", builder.Definition.Name, builder.Definition.Namespace))
@@ -436,7 +434,6 @@ func (builder *BGPAdvertisementBuilder) WithOptions(
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 

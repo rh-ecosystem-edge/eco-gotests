@@ -175,20 +175,19 @@ func (builder *BackupStorageLocationBuilder) WaitUntilAvailable(
 	}
 
 	var err error
+
 	err = wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			glog.V(100).Infof("Waiting for the backupstoragelocation %s in %s to become available",
 				builder.Definition.Name, builder.Definition.Namespace)
 
 			builder.Object, err = builder.Get()
-
 			if err != nil {
 				return false, err
 			}
 
 			return builder.Object.Status.Phase == velerov1.BackupStorageLocationPhaseAvailable, nil
 		})
-
 	if err == nil {
 		return builder, nil
 	}
@@ -208,20 +207,19 @@ func (builder *BackupStorageLocationBuilder) WaitUntilUnavailable(
 	}
 
 	var err error
+
 	err = wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			glog.V(100).Infof("Waiting for the backupstoragelocation %s in %s to become unavailable",
 				builder.Definition.Name, builder.Definition.Namespace)
 
 			builder.Object, err = builder.Get()
-
 			if err != nil {
 				return false, err
 			}
 
 			return builder.Object.Status.Phase == velerov1.BackupStorageLocationPhaseUnavailable, nil
 		})
-
 	if err == nil {
 		return builder, nil
 	}
@@ -238,10 +236,10 @@ func (builder *BackupStorageLocationBuilder) Get() (*velerov1.BackupStorageLocat
 	glog.V(100).Infof("Collecting BackupStorageLocation object %s", builder.Definition.Name)
 
 	backupStorageLocation := &velerov1.BackupStorageLocation{}
+
 	err := builder.apiClient.Get(
 		context.TODO(),
 		goclient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace}, backupStorageLocation)
-
 	if err != nil {
 		glog.V(100).Infof("BackupStorageLocation object %s does not exist", builder.Definition.Name)
 
@@ -261,6 +259,7 @@ func (builder *BackupStorageLocationBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -301,7 +300,6 @@ func (builder *BackupStorageLocationBuilder) Update() (*BackupStorageLocationBui
 	}
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err == nil {
 		builder.Object = builder.Definition
 	}
@@ -328,7 +326,6 @@ func (builder *BackupStorageLocationBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return fmt.Errorf("can not delete backupstoragelocation: %w", err)
 	}

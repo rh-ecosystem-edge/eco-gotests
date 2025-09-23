@@ -35,7 +35,6 @@ func List(
 	glog.V(100).Infof(logMessage)
 
 	eventList, err := apiClient.Events(nsname).List(context.TODO(), passedOptions)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to list Events in the namespace %s due to %s", nsname, err.Error())
 

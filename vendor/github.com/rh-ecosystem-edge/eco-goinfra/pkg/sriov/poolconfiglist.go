@@ -34,7 +34,6 @@ func ListPoolConfigs(apiClient *clients.Settings, namespace string) ([]*PoolConf
 	}
 
 	err = apiClient.List(context.TODO(), sriovNetworkPoolConfigList, &client.ListOptions{Namespace: namespace})
-
 	if err != nil {
 		glog.V(100).Infof("Failed to list SriovNetworkPoolConfigs in namespace: %s due to %s",
 			namespace, err.Error())
@@ -70,7 +69,6 @@ func CleanAllPoolConfigs(
 	}
 
 	poolConfigs, err := ListPoolConfigs(apiClient, operatornsname)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to list SriovNetworkPoolConfigs in namespace: %s", operatornsname)
 
@@ -79,7 +77,6 @@ func CleanAllPoolConfigs(
 
 	for _, poolConfig := range poolConfigs {
 		err = poolConfig.Delete()
-
 		if err != nil {
 			glog.V(100).Infof("Failed to delete SriovNetworkPoolConfigs: %s", poolConfig.Object.Name)
 

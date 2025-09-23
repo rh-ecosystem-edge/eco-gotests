@@ -233,7 +233,6 @@ func createNewReportFile(outputFile string, testCases *TestSuite) {
 	encoder.Indent("  ", "    ")
 
 	err = encoder.Encode(testCases)
-
 	if err != nil {
 		panic(fmt.Errorf("failed to dump report to file: %w", err))
 	}
@@ -250,14 +249,13 @@ func appendToExistingReportFile(outputFile string, newReport *TestSuite) {
 	}()
 
 	existingTestSuiteByteFormat, err := os.ReadFile(outputFile)
-
 	if err != nil {
 		panic(fmt.Errorf("failed to read existing report file: %s\n\t%w", outputFile, err))
 	}
 
 	var reportTestSuite *TestSuite
-	err = xml.Unmarshal(existingTestSuiteByteFormat, &reportTestSuite)
 
+	err = xml.Unmarshal(existingTestSuiteByteFormat, &reportTestSuite)
 	if err != nil {
 		panic(fmt.Errorf("failed to unmarshal existing report file: %s\n\t%w", outputFile, err))
 	}
@@ -282,7 +280,6 @@ func appendToExistingReportFile(outputFile string, newReport *TestSuite) {
 	encoder.Indent("  ", "    ")
 
 	err = encoder.Encode(reportTestSuite)
-
 	if err != nil {
 		panic(fmt.Errorf("failed to generate aggregated report\n\t%w", err))
 	}
@@ -319,8 +316,8 @@ func failureMessage(failure types.Failure) string {
 //nolint:gochecknoinits
 func init() {
 	var err error
-	config, err = newConfig()
 
+	config, err = newConfig()
 	if err != nil {
 		panic(fmt.Sprintf("Failed to init reportxml config. Error: %s", err.Error()))
 	}

@@ -131,6 +131,7 @@ func (builder *Builder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -146,11 +147,11 @@ func (builder *Builder) Get() (*argocdoperator.ArgoCD, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	argocd := &argocdoperator.ArgoCD{}
+
 	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, argocd)
-
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +198,6 @@ func (builder *Builder) Delete() (*Builder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("can not delete argocd: %w", err)
 	}
@@ -216,14 +216,12 @@ func (builder *Builder) Update(force bool) (*Builder, error) {
 	glog.V(100).Infof("Updating the argocd object", builder.Definition.Name)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		if force {
 			glog.V(100).Infof(
 				msg.FailToUpdateNotification("argocd", builder.Definition.Name))
 
 			builder, err := builder.Delete()
-
 			if err != nil {
 				glog.V(100).Infof(
 					msg.FailToUpdateError("argocd", builder.Definition.Name))

@@ -136,11 +136,11 @@ func (builder *Builder) Get() (*amdgpuv1.DeviceConfig, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	deviceConfig := &amdgpuv1.DeviceConfig{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, deviceConfig)
-
 	if err != nil {
 		glog.V(100).Infof("DeviceConfig object %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
@@ -162,8 +162,8 @@ func (builder *Builder) Exists() bool {
 		builder.Definition.Namespace)
 
 	var err error
-	builder.Object, err = builder.Get()
 
+	builder.Object, err = builder.Get()
 	if err != nil {
 		glog.V(100).Infof("Failed to collect DeviceConfig object due to %s", err.Error())
 	}
@@ -190,7 +190,6 @@ func (builder *Builder) Delete() (*Builder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("cannot delete DeviceConfig: %w", err)
 	}
@@ -212,7 +211,6 @@ func (builder *Builder) Create() (*Builder, error) {
 	var err error
 	if !builder.Exists() {
 		err = builder.apiClient.Create(context.TODO(), builder.Definition)
-
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -231,14 +229,12 @@ func (builder *Builder) Update(force bool) (*Builder, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		if force {
 			glog.V(100).Infof(
 				msg.FailToUpdateNotification("DeviceConfig", builder.Definition.Name, builder.Definition.Namespace))
 
 			builder, err := builder.Delete()
-
 			if err != nil {
 				glog.V(100).Infof(
 					msg.FailToUpdateError("DeviceConfig", builder.Definition.Name, builder.Definition.Namespace))
@@ -262,7 +258,6 @@ func getDeviceConfigFromAlmExample(almExample string) (*amdgpuv1.DeviceConfig, e
 	}
 
 	err := json.Unmarshal([]byte(almExample), &deviceConfigList.Items)
-
 	if err != nil {
 		return nil, err
 	}

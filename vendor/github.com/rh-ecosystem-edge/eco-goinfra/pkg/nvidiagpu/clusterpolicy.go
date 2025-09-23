@@ -47,7 +47,6 @@ func NewBuilderFromObjectString(apiClient *clients.Settings, almExample string) 
 	}
 
 	clusterPolicy, err := getClusterPolicyFromAlmExample(almExample)
-
 	if err != nil {
 		glog.V(100).Infof(
 			"error initializing ClusterPolicy from alm-examples: %s", err.Error())
@@ -129,8 +128,8 @@ func (builder *Builder) Get() (*nvidiagpuv1.ClusterPolicy, error) {
 		"Collecting ClusterPolicy object %s", builder.Definition.Name)
 
 	clusterPolicy := &nvidiagpuv1.ClusterPolicy{}
-	err := builder.apiClient.Get(context.TODO(), runtimeClient.ObjectKey{Name: builder.Definition.Name}, clusterPolicy)
 
+	err := builder.apiClient.Get(context.TODO(), runtimeClient.ObjectKey{Name: builder.Definition.Name}, clusterPolicy)
 	if err != nil {
 		glog.V(100).Infof(
 			"ClusterPolicy object %s does not exist", builder.Definition.Name)
@@ -151,8 +150,8 @@ func (builder *Builder) Exists() bool {
 		"Checking if ClusterPolicy %s exists", builder.Definition.Name)
 
 	var err error
-	builder.Object, err = builder.Get()
 
+	builder.Object, err = builder.Get()
 	if err != nil {
 		glog.V(100).Infof("Failed to collect ClusterPolicy object due to %s", err.Error())
 	}
@@ -175,7 +174,6 @@ func (builder *Builder) Delete() (*Builder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("cannot delete clusterpolicy: %w", err)
 	}
@@ -216,13 +214,11 @@ func (builder *Builder) Update(force bool) (*Builder, error) {
 	glog.V(100).Infof("Updating the ClusterPolicy object named:  %s", builder.Definition.Name)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		if force {
 			glog.V(100).Infof(msg.FailToUpdateNotification("clusterpolicy", builder.Definition.Name))
 
 			builder, err := builder.Delete()
-
 			if err != nil {
 				glog.V(100).Infof(
 					msg.FailToUpdateError("clusterpolicy", builder.Definition.Name))
@@ -278,7 +274,6 @@ func getClusterPolicyFromAlmExample(almExample string) (*nvidiagpuv1.ClusterPoli
 	}
 
 	err := json.Unmarshal([]byte(almExample), &clusterPolicyList.Items)
-
 	if err != nil {
 		return nil, err
 	}

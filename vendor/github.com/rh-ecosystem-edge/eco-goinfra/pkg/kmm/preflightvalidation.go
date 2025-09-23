@@ -123,7 +123,6 @@ func (builder *PreflightValidationBuilder) WithOptions(
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 
@@ -218,7 +217,6 @@ func (builder *PreflightValidationBuilder) Update() (*PreflightValidationBuilder
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err == nil {
 		builder.Object = builder.Definition
 	}
@@ -236,6 +234,7 @@ func (builder *PreflightValidationBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -260,7 +259,6 @@ func (builder *PreflightValidationBuilder) Delete() (*PreflightValidationBuilder
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("cannot delete preflightvalidation: %w", err)
 	}
@@ -286,7 +284,6 @@ func (builder *PreflightValidationBuilder) Get() (*kmmv1beta2.PreflightValidatio
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, preflightvalidation)
-
 	if err != nil {
 		return nil, err
 	}

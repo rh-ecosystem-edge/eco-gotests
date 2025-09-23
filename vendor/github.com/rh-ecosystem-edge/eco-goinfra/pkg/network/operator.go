@@ -72,6 +72,7 @@ func (builder *OperatorBuilder) Exists() bool {
 	glog.V(100).Infof("Checking if network.operator %s exists", builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -84,8 +85,8 @@ func (builder *OperatorBuilder) Get() (*operatorv1.Network, error) {
 	}
 
 	clusterNetwork := &operatorv1.Network{}
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{Name: builder.Definition.Name}, clusterNetwork)
 
+	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{Name: builder.Definition.Name}, clusterNetwork)
 	if err != nil {
 		glog.V(100).Infof("Failed to get network.operator object %s: %v", builder.Definition.Name, err)
 
@@ -129,22 +130,20 @@ func (builder *OperatorBuilder) SetLocalGWMode(state bool, timeout time.Duration
 
 	if builder.Definition.Spec.DefaultNetwork.OVNKubernetesConfig.GatewayConfig.RoutingViaHost != state {
 		builder.Definition.Spec.DefaultNetwork.OVNKubernetesConfig.GatewayConfig.RoutingViaHost = state
-		builder, err := builder.Update()
 
+		builder, err := builder.Update()
 		if err != nil {
 			return nil, err
 		}
 
 		err = builder.WaitUntilInCondition(
 			operatorv1.OperatorStatusTypeProgressing, 300*time.Second, operatorv1.ConditionTrue)
-
 		if err != nil {
 			return nil, err
 		}
 
 		err = builder.WaitUntilInCondition(
 			operatorv1.OperatorStatusTypeProgressing, timeout, operatorv1.ConditionFalse)
-
 		if err != nil {
 			return nil, err
 		}
@@ -168,22 +167,20 @@ func (builder *OperatorBuilder) SetMultiNetworkPolicy(state bool, timeout time.D
 
 	if *builder.Definition.Spec.UseMultiNetworkPolicy != state {
 		builder.Definition.Spec.UseMultiNetworkPolicy = &state
-		builder, err := builder.Update()
 
+		builder, err := builder.Update()
 		if err != nil {
 			return nil, err
 		}
 
 		err = builder.WaitUntilInCondition(
 			operatorv1.OperatorStatusTypeProgressing, 60*time.Second, operatorv1.ConditionTrue)
-
 		if err != nil {
 			return nil, err
 		}
 
 		err = builder.WaitUntilInCondition(
 			operatorv1.OperatorStatusTypeProgressing, timeout, operatorv1.ConditionFalse)
-
 		if err != nil {
 			return nil, err
 		}

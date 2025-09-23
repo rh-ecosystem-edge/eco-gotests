@@ -154,7 +154,6 @@ func (builder *ClassBuilder) WithOptions(options ...AdditionalOptions) *ClassBui
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 
@@ -214,6 +213,7 @@ func (builder *ClassBuilder) Exists() bool {
 		builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.apiClient.StorageClasses().Get(
 		context.TODO(), builder.Definition.Name, metav1.GetOptions{})
 
@@ -255,7 +255,6 @@ func (builder *ClassBuilder) Delete() error {
 
 	err := builder.apiClient.StorageClasses().Delete(
 		context.TODO(), builder.Definition.Name, metav1.DeleteOptions{})
-
 	if err != nil {
 		return err
 	}
@@ -328,9 +327,9 @@ func (builder *ClassBuilder) Update(force bool) (*ClassBuilder, error) {
 	}
 
 	var err error
+
 	builder.Object, err = builder.apiClient.StorageClasses().
 		Update(context.TODO(), builder.Definition, metav1.UpdateOptions{})
-
 	if err != nil {
 		if force {
 			glog.V(100).Infof(

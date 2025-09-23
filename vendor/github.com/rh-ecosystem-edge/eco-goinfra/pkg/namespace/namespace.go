@@ -125,7 +125,6 @@ func (builder *Builder) WithOptions(options ...AdditionalOptions) *Builder {
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 
@@ -170,6 +169,7 @@ func (builder *Builder) Update() (*Builder, error) {
 	glog.V(100).Infof("Updating the namespace %s with the namespace definition in the builder", builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.apiClient.Namespaces().Update(
 		context.TODO(), builder.Definition, metav1.UpdateOptions{})
 
@@ -193,7 +193,6 @@ func (builder *Builder) Delete() error {
 	}
 
 	err := builder.apiClient.Namespaces().Delete(context.TODO(), builder.Definition.Name, metav1.DeleteOptions{})
-
 	if err != nil {
 		return err
 	}
@@ -239,6 +238,7 @@ func (builder *Builder) Exists() bool {
 	glog.V(100).Infof("Checking if namespace %s exists", builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.apiClient.Namespaces().Get(
 		context.TODO(), builder.Definition.Name, metav1.GetOptions{})
 
@@ -297,7 +297,6 @@ func (builder *Builder) CleanObjects(cleanTimeout time.Duration, objects ...sche
 
 		err := builder.apiClient.Resource(resource).Namespace(builder.Definition.Name).DeleteCollection(
 			context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{})
-
 		if err != nil {
 			glog.V(100).Infof("Failed to remove resources: %s in namespace: %s",
 				resource.Resource, builder.Definition.Name)
@@ -322,7 +321,6 @@ func (builder *Builder) CleanObjects(cleanTimeout time.Duration, objects ...sche
 
 				return true, err
 			})
-
 		if err != nil {
 			glog.V(100).Infof("Failed to remove resources: %s in namespace: %s",
 				resource.Resource, builder.Definition.Name)

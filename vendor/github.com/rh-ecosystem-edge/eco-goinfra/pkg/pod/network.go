@@ -215,6 +215,7 @@ func StaticIPBondAnnotationWithInterface(
 		if staticAnnotation == nil {
 			return nil
 		}
+
 		annotation = append(annotation, staticAnnotation)
 	}
 
@@ -266,10 +267,8 @@ func StaticIPMultiNetDualStackAnnotation(sriovNets, ipAddr []string) ([]*multus.
 func ipValid(ipAddrBond []string) bool {
 	for _, ipAddr := range ipAddrBond {
 		_, err := netip.ParsePrefix(ipAddr)
-
 		if err != nil {
 			_, err = netip.ParseAddr(ipAddr)
-
 			if err != nil {
 				glog.V(100).Infof("The ip address %s in ip address list is invalid", ipAddr)
 

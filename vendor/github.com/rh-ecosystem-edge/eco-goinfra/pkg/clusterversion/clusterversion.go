@@ -76,8 +76,8 @@ func (builder *Builder) Get() (*configv1.ClusterVersion, error) {
 	glog.V(100).Infof("Getting ClusterVersion object %s", builder.Definition.Name)
 
 	clusterVersion := &configv1.ClusterVersion{}
-	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, clusterVersion)
 
+	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, clusterVersion)
 	if err != nil {
 		glog.V(100).Infof("Failed to get ClusterVersion %s: %s", builder.Definition.Name, err)
 
@@ -96,6 +96,7 @@ func (builder *Builder) Exists() bool {
 	glog.V(100).Infof("Checking if ClusterVersion %s exists", builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -196,8 +197,8 @@ func (builder *Builder) WaitUntilConditionTrue(
 	return wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			var err error
-			builder.Object, err = builder.Get()
 
+			builder.Object, err = builder.Get()
 			if err != nil {
 				glog.V(100).Infof("Failed to get the ClusterVersion with error %s", err)
 
@@ -238,8 +239,8 @@ func (builder *Builder) WaitUntilUpdateHistoryStateTrue(
 	return wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			var err error
-			builder.Object, err = builder.Get()
 
+			builder.Object, err = builder.Get()
 			if err != nil {
 				glog.V(100).Infof("Failed to get the ClusterVersion with error %s", err)
 
@@ -307,7 +308,6 @@ func (builder *Builder) isStreamUpdate(version, updateVersion, stream string) (i
 	}
 
 	semVersion, semVersionError := semver.NewVersion(version)
-
 	if semVersionError != nil {
 		return false, fmt.Errorf("the version %s is invalid", version)
 	}

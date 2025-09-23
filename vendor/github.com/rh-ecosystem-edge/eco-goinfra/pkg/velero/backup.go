@@ -276,10 +276,10 @@ func (builder *BackupBuilder) Get() (*velerov1.Backup, error) {
 	glog.V(100).Infof("Collecting Backup object %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	backup := &velerov1.Backup{}
+
 	err := builder.apiClient.Get(
 		context.TODO(),
 		goclient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace}, backup)
-
 	if err != nil {
 		glog.V(100).Infof("Backup object %s does not exist in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
@@ -300,6 +300,7 @@ func (builder *BackupBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -341,8 +342,8 @@ func (builder *BackupBuilder) Update() (*BackupBuilder, error) {
 	}
 
 	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 
+	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err == nil {
 		builder.Object = builder.Definition
 	}
@@ -369,7 +370,6 @@ func (builder *BackupBuilder) Delete() (*BackupBuilder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("can not delete backup: %w", err)
 	}

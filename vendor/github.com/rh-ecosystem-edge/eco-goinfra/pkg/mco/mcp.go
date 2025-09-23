@@ -125,8 +125,8 @@ func (builder *MCPBuilder) Get() (*mcv1.MachineConfigPool, error) {
 	glog.V(100).Infof("Getting MachineConfigPool object %s", builder.Definition.Name)
 
 	machineConfigPool := &mcv1.MachineConfigPool{}
-	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, machineConfigPool)
 
+	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, machineConfigPool)
 	if err != nil {
 		glog.V(100).Infof("MachineConfigPool object %s does not exist", builder.Definition.Name)
 
@@ -193,6 +193,7 @@ func (builder *MCPBuilder) Exists() bool {
 		builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -284,7 +285,6 @@ func (builder *MCPBuilder) WaitForUpdate(timeout time.Duration) error {
 
 					return false, nil
 				})
-
 			if err != nil {
 				return err
 			}
@@ -371,7 +371,6 @@ func (builder *MCPBuilder) WithOptions(options ...MCPAdditionalOptions) *MCPBuil
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 

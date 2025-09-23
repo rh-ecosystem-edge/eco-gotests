@@ -352,7 +352,6 @@ func (builder *BmhBuilder) WithOptions(options ...AdditionalOptions) *BmhBuilder
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 
@@ -453,7 +452,6 @@ func (builder *BmhBuilder) Delete() (*BmhBuilder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("can not delete bmh: %w", err)
 	}
@@ -473,11 +471,11 @@ func (builder *BmhBuilder) Get() (*bmhv1alpha1.BareMetalHost, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	bmh := &bmhv1alpha1.BareMetalHost{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, bmh)
-
 	if err != nil {
 		return nil, err
 	}
@@ -495,6 +493,7 @@ func (builder *BmhBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -581,8 +580,8 @@ func (builder *BmhBuilder) WaitUntilInStatus(status bmhv1alpha1.ProvisioningStat
 	return wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			var err error
-			builder.Object, err = builder.Get()
 
+			builder.Object, err = builder.Get()
 			if err != nil {
 				return false, nil
 			}
@@ -672,6 +671,7 @@ func (builder *BmhBuilder) WaitUntilAnnotationExists(annotation string, timeout 
 	}
 
 	var err error
+
 	err = wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			builder.Object, err = builder.Get()
@@ -687,7 +687,6 @@ func (builder *BmhBuilder) WaitUntilAnnotationExists(annotation string, timeout 
 
 			return true, nil
 		})
-
 	if err != nil {
 		return nil, err
 	}

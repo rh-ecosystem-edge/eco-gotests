@@ -23,7 +23,6 @@ func ListCatalogSources(
 	}
 
 	err := apiClient.AttachScheme(oplmV1alpha1.AddToScheme)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to add oplmV1alpha1 scheme to client schemes")
 
@@ -55,8 +54,8 @@ func ListCatalogSources(
 	passedOptions.Namespace = nsname
 
 	catalogSourceList := new(oplmV1alpha1.CatalogSourceList)
-	err = apiClient.List(context.TODO(), catalogSourceList, &passedOptions)
 
+	err = apiClient.List(context.TODO(), catalogSourceList, &passedOptions)
 	if err != nil {
 		glog.V(100).Infof("Failed to list catalogsources in the namespace %s due to %s", nsname, err.Error())
 

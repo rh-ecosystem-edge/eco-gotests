@@ -135,11 +135,11 @@ func (builder *Builder) Get() (*nfdv1.NodeFeatureDiscovery, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	nodeFeatureDiscovery := &nfdv1.NodeFeatureDiscovery{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, nodeFeatureDiscovery)
-
 	if err != nil {
 		glog.V(100).Infof("NodeFeatureDiscovery object %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
@@ -161,8 +161,8 @@ func (builder *Builder) Exists() bool {
 		builder.Definition.Namespace)
 
 	var err error
-	builder.Object, err = builder.Get()
 
+	builder.Object, err = builder.Get()
 	if err != nil {
 		glog.V(100).Infof("Failed to collect NodeFeatureDiscovery object due to %s", err.Error())
 	}
@@ -189,7 +189,6 @@ func (builder *Builder) Delete() (*Builder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("cannot delete NodeFeaturediscovery: %w", err)
 	}
@@ -211,7 +210,6 @@ func (builder *Builder) Create() (*Builder, error) {
 	var err error
 	if !builder.Exists() {
 		err = builder.apiClient.Create(context.TODO(), builder.Definition)
-
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -230,14 +228,12 @@ func (builder *Builder) Update(force bool) (*Builder, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		if force {
 			glog.V(100).Infof(
 				msg.FailToUpdateNotification("NodeFeatureDiscovery", builder.Definition.Name, builder.Definition.Namespace))
 
 			builder, err := builder.Delete()
-
 			if err != nil {
 				glog.V(100).Infof(
 					msg.FailToUpdateError("NodeFeatureDiscovery", builder.Definition.Name, builder.Definition.Namespace))
@@ -261,7 +257,6 @@ func getNodeFeatureDiscoveryFromAlmExample(almExample string) (*nfdv1.NodeFeatur
 	}
 
 	err := json.Unmarshal([]byte(almExample), &nodeFeatureDiscoveryList.Items)
-
 	if err != nil {
 		return nil, err
 	}

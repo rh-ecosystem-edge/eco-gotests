@@ -454,8 +454,8 @@ func (builder *CIBuilder) WaitForCondition(expected metav1.Condition, timeout ti
 	err := wait.PollUntilContextTimeout(
 		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			var err error
-			builder.Object, err = builder.Get()
 
+			builder.Object, err = builder.Get()
 			if err != nil {
 				glog.V(100).Info("failed to get clusterinstance %s/%s: %w",
 					builder.Definition.Namespace, builder.Definition.Name, err)
@@ -511,8 +511,8 @@ func (builder *CIBuilder) WaitForReinstallCondition(expected metav1.Condition,
 	err := wait.PollUntilContextTimeout(
 		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			var err error
-			builder.Object, err = builder.Get()
 
+			builder.Object, err = builder.Get()
 			if err != nil {
 				glog.V(100).Info("failed to get clusterinstance %s/%s: %v",
 					builder.Definition.Namespace, builder.Definition.Name, err)
@@ -575,8 +575,8 @@ func (builder *CIBuilder) WaitForExtraLabel(kind, label string, timeout time.Dur
 	err := wait.PollUntilContextTimeout(
 		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			var err error
-			builder.Object, err = builder.Get()
 
+			builder.Object, err = builder.Get()
 			if err != nil {
 				glog.V(100).Info("Failed to get ClusterInstance %s in namespace %s: %v",
 					builder.Definition.Name, builder.Definition.Namespace, err)
@@ -599,7 +599,6 @@ func (builder *CIBuilder) WaitForExtraLabel(kind, label string, timeout time.Dur
 
 			return exists, nil
 		})
-
 	if err != nil {
 		return nil, err
 	}
@@ -617,11 +616,11 @@ func (builder *CIBuilder) Get() (*siteconfigv1alpha1.ClusterInstance, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	ClusterInstance := &siteconfigv1alpha1.ClusterInstance{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, ClusterInstance)
-
 	if err != nil {
 		return nil, err
 	}
@@ -666,14 +665,12 @@ func (builder *CIBuilder) Update(force bool) (*CIBuilder, error) {
 	}
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		if force {
 			glog.V(100).Infof(
 				msg.FailToUpdateNotification("clusterinstance", builder.Definition.Name, builder.Definition.Namespace))
 
 			err := builder.Delete()
-
 			if err != nil {
 				glog.V(100).Infof(
 					msg.FailToUpdateError("clusterinstance", builder.Definition.Name, builder.Definition.Namespace))
@@ -711,7 +708,6 @@ func (builder *CIBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return fmt.Errorf("cannot delete clusterinstance: %w", err)
 	}
@@ -731,6 +727,7 @@ func (builder *CIBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)

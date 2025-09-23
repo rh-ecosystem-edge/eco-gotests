@@ -165,7 +165,6 @@ func (builder *DPABuilder) Get() (*oadpv1alpha1.DataProtectionApplication, error
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, dataprotectionapplication)
-
 	if err != nil {
 		return nil, err
 	}
@@ -183,6 +182,7 @@ func (builder *DPABuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -224,7 +224,6 @@ func (builder *DPABuilder) Update(force bool) (*DPABuilder, error) {
 	}
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		if force {
 			glog.V(100).Infof(
@@ -268,7 +267,6 @@ func (builder *DPABuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return fmt.Errorf("cannot delete dataprotectionapplication: %w", err)
 	}

@@ -43,8 +43,8 @@ func ListFrrNodeState(
 	glog.V(100).Infof(logMessage)
 
 	frrNodeStateList := new(frrtypes.FRRNodeStateList)
-	err = apiClient.List(context.TODO(), frrNodeStateList, &passedOptions)
 
+	err = apiClient.List(context.TODO(), frrNodeStateList, &passedOptions)
 	if err != nil {
 		glog.V(100).Infof("Failed to list FrrNodeStates due to %s", err.Error())
 

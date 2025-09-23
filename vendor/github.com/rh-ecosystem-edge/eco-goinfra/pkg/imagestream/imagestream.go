@@ -87,11 +87,11 @@ func (builder *Builder) Get() (*imagev1.ImageStream, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	imageStreamObj := &imagev1.ImageStream{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, imageStreamObj)
-
 	if err != nil {
 		glog.V(100).Infof("imageStream object %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
@@ -112,6 +112,7 @@ func (builder *Builder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)

@@ -1,5 +1,4 @@
 package nto //nolint:misspell
-
 import (
 	"context"
 	"fmt"
@@ -407,13 +406,11 @@ func (builder *Builder) Create() (*Builder, error) {
 
 	if !builder.Exists() {
 		err := builder.apiClient.Create(context.TODO(), builder.Definition)
-
 		if err != nil {
 			return nil, err
 		}
 
 		builder.Object, err = builder.Get()
-
 		if err != nil {
 			return nil, err
 		}
@@ -431,6 +428,7 @@ func (builder *Builder) Exists() bool {
 	glog.V(100).Infof("Checking if PerformanceProfile %s exists", builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -449,7 +447,6 @@ func (builder *Builder) Get() (*performanceprofilev2.PerformanceProfile, error) 
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, module)
-
 	if err != nil {
 		return nil, err
 	}
@@ -475,7 +472,6 @@ func (builder *Builder) Delete() (*Builder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, err
 	}
@@ -494,7 +490,6 @@ func (builder *Builder) Update(force bool) (*Builder, error) {
 	glog.V(100).Infof("Updating the PerformanceProfile object: %s", builder.Definition.Name)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		if force {
 			glog.V(100).Infof(
@@ -502,7 +497,6 @@ func (builder *Builder) Update(force bool) (*Builder, error) {
 					"Note: Force flag set, executed delete/create methods instead", builder.Definition.Name)
 
 			builder, err := builder.Delete()
-
 			if err != nil {
 				glog.V(100).Infof(
 					"Failed to update the PerformanceProfile object %s, "+

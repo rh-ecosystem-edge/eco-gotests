@@ -76,6 +76,7 @@ func (builder *NmStateConfigBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -91,11 +92,11 @@ func (builder *NmStateConfigBuilder) Get() (*assistedv1beta1.NMStateConfig, erro
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	nmStateConfig := &assistedv1beta1.NMStateConfig{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, nmStateConfig)
-
 	if err != nil {
 		glog.V(100).Infof("nmstateconfig object %s does not exist", builder.Definition.Name)
 
@@ -135,7 +136,6 @@ func (builder *NmStateConfigBuilder) Delete() error {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return fmt.Errorf("can not delete nmstateconfig: %w", err)
 	}
@@ -156,7 +156,6 @@ func ListNmStateConfigsInAllNamespaces(apiClient *clients.Settings) ([]*NmStateC
 	}
 
 	err := apiClient.List(context.TODO(), nmStateConfigList, &goclient.ListOptions{})
-
 	if err != nil {
 		glog.V(100).Infof("Failed to list nmStateConfigs across all namespaces due to %s", err.Error())
 
@@ -194,7 +193,6 @@ func ListNmStateConfigs(apiClient *clients.Settings, namespace string) ([]*NmSta
 	}
 
 	err := apiClient.List(context.TODO(), nmStateConfigList, &goclient.ListOptions{Namespace: namespace})
-
 	if err != nil {
 		glog.V(100).Infof("Failed to list nmStateConfigs in namespace: %s due to %s",
 			namespace, err.Error())

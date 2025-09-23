@@ -47,8 +47,8 @@ func ListBackupStorageLocationBuilder(
 	glog.V(100).Infof(logMessage)
 
 	bslList := &velerov1.BackupStorageLocationList{}
-	err = apiClient.List(context.TODO(), bslList, &passedOptions)
 
+	err = apiClient.List(context.TODO(), bslList, &passedOptions)
 	if err != nil {
 		glog.V(100).Infof("Failed to list backupstoragelocations in the nsname %s due to %s", nsname, err.Error())
 

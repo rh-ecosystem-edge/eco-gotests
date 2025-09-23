@@ -42,8 +42,8 @@ func ListMC(apiClient *clients.Settings, options ...runtimeclient.ListOptions) (
 	glog.V(100).Infof(logMessage)
 
 	mcList := new(mcv1.MachineConfigList)
-	err = apiClient.List(context.TODO(), mcList, &passedOptions)
 
+	err = apiClient.List(context.TODO(), mcList, &passedOptions)
 	if err != nil {
 		glog.V(100).Info("Failed to list MC objects due to %s", err.Error())
 

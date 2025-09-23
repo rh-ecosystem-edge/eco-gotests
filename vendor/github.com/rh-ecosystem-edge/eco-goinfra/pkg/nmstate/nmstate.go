@@ -73,8 +73,8 @@ func (builder *Builder) Exists() bool {
 	glog.V(100).Infof("Checking if NMState %s exists", builder.Definition.Name)
 
 	var err error
-	builder.Object, err = builder.Get()
 
+	builder.Object, err = builder.Get()
 	if err != nil {
 		glog.V(100).Infof("Failed to collect NMState object due to %s", err.Error())
 	}
@@ -91,8 +91,8 @@ func (builder *Builder) Get() (*nmstateV1.NMState, error) {
 	glog.V(100).Infof("Collecting NMState object %s", builder.Definition.Name)
 
 	nmstate := &nmstateV1.NMState{}
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{Name: builder.Definition.Name}, nmstate)
 
+	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{Name: builder.Definition.Name}, nmstate)
 	if err != nil {
 		glog.V(100).Infof("NMState object %s does not exist", builder.Definition.Name)
 
@@ -142,7 +142,6 @@ func (builder *Builder) Delete() (*Builder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("can not delete NMState: %w", err)
 	}
@@ -161,7 +160,6 @@ func (builder *Builder) Update(force bool) (*Builder, error) {
 	glog.V(100).Infof("Updating the NMState object", builder.Definition.Name)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err == nil {
 		builder.Object = builder.Definition
 	} else if force {
@@ -169,7 +167,6 @@ func (builder *Builder) Update(force bool) (*Builder, error) {
 			msg.FailToUpdateNotification("NMState", builder.Definition.Name))
 
 		builder, err := builder.Delete()
-
 		if err != nil {
 			glog.V(100).Infof(
 				msg.FailToUpdateError("NMState", builder.Definition.Name))

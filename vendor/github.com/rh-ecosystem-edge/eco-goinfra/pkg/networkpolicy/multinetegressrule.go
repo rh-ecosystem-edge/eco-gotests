@@ -112,7 +112,6 @@ func (builder *EgressRuleBuilder) WithOptions(options ...EgressAdditionalOptions
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 
@@ -166,7 +165,6 @@ func (builder *EgressRuleBuilder) WithCIDR(cidr string, except ...[]string) *Egr
 	}
 
 	_, _, err := net.ParseCIDR(cidr)
-
 	if err != nil {
 		glog.V(100).Infof("Invalid CIDR %s", cidr)
 
@@ -212,7 +210,6 @@ func (builder *EgressRuleBuilder) WithPeerPodSelectorAndCIDR(
 	}
 
 	_, _, err := net.ParseCIDR(cidr)
-
 	if err != nil {
 		glog.V(100).Infof("Invalid CIDR %s", cidr)
 

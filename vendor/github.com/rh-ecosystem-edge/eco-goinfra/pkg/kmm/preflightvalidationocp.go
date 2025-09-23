@@ -142,7 +142,6 @@ func (builder *PreflightValidationOCPBuilder) WithOptions(
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 
@@ -237,7 +236,6 @@ func (builder *PreflightValidationOCPBuilder) Update() (*PreflightValidationOCPB
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err == nil {
 		builder.Object = builder.Definition
 	}
@@ -255,6 +253,7 @@ func (builder *PreflightValidationOCPBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -279,7 +278,6 @@ func (builder *PreflightValidationOCPBuilder) Delete() (*PreflightValidationOCPB
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("cannot delete preflightvalidationocp: %w", err)
 	}
@@ -305,7 +303,6 @@ func (builder *PreflightValidationOCPBuilder) Get() (*kmmv1beta2.PreflightValida
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, preflightvalidationocp)
-
 	if err != nil {
 		glog.V(100).Infof("Preflightvalidationocp object %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)

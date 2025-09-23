@@ -111,7 +111,6 @@ func (builder *IngressRuleBuilder) WithOptions(options ...IngressAdditionalOptio
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 
@@ -160,7 +159,6 @@ func (builder *IngressRuleBuilder) WithCIDR(cidr string, except ...[]string) *In
 	glog.V(100).Infof("Adding peer CIDR %s to Ingress Rule", cidr)
 
 	_, _, err := net.ParseCIDR(cidr)
-
 	if err != nil {
 		glog.V(100).Infof("Invalid CIDR %s", cidr)
 

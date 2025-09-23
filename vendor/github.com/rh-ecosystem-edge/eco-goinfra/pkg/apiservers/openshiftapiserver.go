@@ -66,8 +66,8 @@ func (builder *OpenshiftAPIServerBuilder) Exists() bool {
 	}
 
 	var err error
-	builder.Object, err = builder.Get()
 
+	builder.Object, err = builder.Get()
 	if err != nil {
 		glog.V(100).Infof("Failed to collect openshiftAPIServer object due to %s", err.Error())
 	}
@@ -82,10 +82,10 @@ func (builder *OpenshiftAPIServerBuilder) Get() (*operatorV1.OpenShiftAPIServer,
 	}
 
 	openshiftAPIServer := &operatorV1.OpenShiftAPIServer{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, openshiftAPIServer)
-
 	if err != nil {
 		glog.V(100).Infof("openshiftAPIServer object does not exist")
 
@@ -113,7 +113,6 @@ func (builder *OpenshiftAPIServerBuilder) GetCondition(conditionType string) (
 	}
 
 	openshiftAPIServer, err := builder.Get()
-
 	if err != nil {
 		return nil, "", err
 	}
@@ -148,7 +147,6 @@ func (builder *OpenshiftAPIServerBuilder) WaitUntilConditionTrue(
 	err := wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			builder.Object, errMsg = builder.Get()
-
 			if errMsg != nil {
 				return false, nil
 			}
@@ -169,7 +167,6 @@ func (builder *OpenshiftAPIServerBuilder) WaitUntilConditionTrue(
 
 			return false, nil
 		})
-
 	if err != nil {
 		return fmt.Errorf("%w: %w", errMsg, err)
 	}
@@ -184,7 +181,6 @@ func (builder *OpenshiftAPIServerBuilder) WaitAllPodsAtTheLatestGeneration(timeo
 	verificationStr := "AsExpected"
 
 	err := builder.WaitUntilConditionTrue(conditionType, timeout)
-
 	if err != nil {
 		return err
 	}
@@ -198,7 +194,6 @@ func (builder *OpenshiftAPIServerBuilder) WaitAllPodsAtTheLatestGeneration(timeo
 			var err error
 
 			_, reasonMsg, err := builder.GetCondition(conditionType)
-
 			if err != nil {
 				return false, nil
 			}
@@ -211,7 +206,6 @@ func (builder *OpenshiftAPIServerBuilder) WaitAllPodsAtTheLatestGeneration(timeo
 
 			return true, nil
 		})
-
 	if err != nil {
 		return err
 	}

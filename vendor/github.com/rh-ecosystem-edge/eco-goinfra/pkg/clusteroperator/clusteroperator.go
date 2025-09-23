@@ -2,15 +2,12 @@ package clusteroperator
 
 import (
 	"context"
+	"fmt"
 	"time"
 
-	goclient "sigs.k8s.io/controller-runtime/pkg/client"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"fmt"
-
 	"k8s.io/apimachinery/pkg/util/wait"
+	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/golang/glog"
 	configv1 "github.com/openshift/api/config/v1"
@@ -80,10 +77,10 @@ func (builder *Builder) Get() (*configv1.ClusterOperator, error) {
 	glog.V(100).Infof("Getting existing clusterOperator with name %s from cluster", builder.Definition.Name)
 
 	clusterOperatorObj := &configv1.ClusterOperator{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, clusterOperatorObj)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to get clusterOperator object %s from cluster due to: %w",
 			builder.Definition.Name, err)
@@ -103,6 +100,7 @@ func (builder *Builder) Exists() bool {
 	glog.V(100).Infof("Checking if clusterOperator %s exists", builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -169,7 +167,6 @@ func (builder *Builder) GetConditionReason(conditionType configv1.ClusterStatusC
 		builder.Definition.Name, conditionType)
 
 	err := builder.WaitUntilConditionTrue(conditionType, time.Second)
-
 	if err != nil {
 		return ""
 	}
@@ -207,8 +204,8 @@ func (builder *Builder) WaitUntilConditionTrue(
 	return wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			var err error
-			builder.Object, err = builder.Get()
 
+			builder.Object, err = builder.Get()
 			if err != nil {
 				return false, nil
 			}

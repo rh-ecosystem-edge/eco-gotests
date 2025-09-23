@@ -135,11 +135,11 @@ func (builder *ScaledObjectBuilder) Get() (*kedav2v1alpha1.ScaledObject, error) 
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	scaleObjectObj := &kedav2v1alpha1.ScaledObject{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, scaleObjectObj)
-
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +187,6 @@ func (builder *ScaledObjectBuilder) Delete() (*ScaledObjectBuilder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("can not delete scaledObject: %w", err)
 	}
@@ -207,6 +206,7 @@ func (builder *ScaledObjectBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -222,7 +222,6 @@ func (builder *ScaledObjectBuilder) Update() (*ScaledObjectBuilder, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		glog.V(100).Infof(
 			msg.FailToUpdateError("scaledObject", builder.Definition.Name, builder.Definition.Namespace))

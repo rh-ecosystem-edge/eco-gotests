@@ -43,8 +43,8 @@ func ListNodeAllocationRequests(
 	glog.V(100).Info(logMessage)
 
 	nodeAllocationRequestList := new(pluginsv1alpha1.NodeAllocationRequestList)
-	err = apiClient.List(context.TODO(), nodeAllocationRequestList, &passedOptions)
 
+	err = apiClient.List(context.TODO(), nodeAllocationRequestList, &passedOptions)
 	if err != nil {
 		glog.V(100).Infof("Failed to list NodeAllocationRequests in all namespaces due to %v", err)
 

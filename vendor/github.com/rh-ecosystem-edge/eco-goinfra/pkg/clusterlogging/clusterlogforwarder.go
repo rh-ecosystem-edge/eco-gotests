@@ -236,11 +236,11 @@ func (builder *ClusterLogForwarderBuilder) Get() (*observabilityv1.ClusterLogFor
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	clusterLogForwarder := &observabilityv1.ClusterLogForwarder{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, clusterLogForwarder)
-
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +287,6 @@ func (builder *ClusterLogForwarderBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return fmt.Errorf("can not delete clusterlogforwarder: %w", err)
 	}
@@ -307,6 +306,7 @@ func (builder *ClusterLogForwarderBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -322,14 +322,12 @@ func (builder *ClusterLogForwarderBuilder) Update(force bool) (*ClusterLogForwar
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		if force {
 			glog.V(100).Infof(
 				msg.FailToUpdateNotification("clusterlogforwarder", builder.Definition.Name, builder.Definition.Namespace))
 
 			err := builder.Delete()
-
 			if err != nil {
 				glog.V(100).Infof(
 					msg.FailToUpdateError(

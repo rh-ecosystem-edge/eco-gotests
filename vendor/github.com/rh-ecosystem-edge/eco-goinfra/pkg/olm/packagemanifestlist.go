@@ -29,7 +29,6 @@ func ListPackageManifest(
 	}
 
 	err := apiClient.AttachScheme(operatorv1.AddToScheme)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to add packageManifest scheme to client schemes")
 
@@ -53,8 +52,8 @@ func ListPackageManifest(
 	glog.V(100).Infof(logMessage)
 
 	pkgManifestList := new(operatorv1.PackageManifestList)
-	err = apiClient.List(context.TODO(), pkgManifestList, &passedOptions)
 
+	err = apiClient.List(context.TODO(), pkgManifestList, &passedOptions)
 	if err != nil {
 		glog.V(100).Infof("Failed to list PackageManifests in the namespace %s due to %s",
 			nsname, err.Error())

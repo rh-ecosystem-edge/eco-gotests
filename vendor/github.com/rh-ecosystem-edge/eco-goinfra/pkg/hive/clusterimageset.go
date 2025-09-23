@@ -125,10 +125,10 @@ func (builder *ClusterImageSetBuilder) Get() (*hiveV1.ClusterImageSet, error) {
 	glog.V(100).Infof("Getting clusterimageset %s", builder.Definition.Name)
 
 	clusterimageset := &hiveV1.ClusterImageSet{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, clusterimageset)
-
 	if err != nil {
 		return nil, err
 	}
@@ -164,14 +164,12 @@ func (builder *ClusterImageSetBuilder) Update(force bool) (*ClusterImageSetBuild
 	glog.V(100).Infof("Updating clusterimageset %s", builder.Definition.Name)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		if force {
 			glog.V(100).Infof(
 				msg.FailToUpdateNotification("clusterimageset", builder.Definition.Name, builder.Definition.Namespace))
 
 			err := builder.Delete()
-
 			if err != nil {
 				glog.V(100).Infof(
 					msg.FailToUpdateError("clusterimageset", builder.Definition.Name, builder.Definition.Namespace))
@@ -207,7 +205,6 @@ func (builder *ClusterImageSetBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return fmt.Errorf("cannot delete clusterimageset: %w", err)
 	}
@@ -228,6 +225,7 @@ func (builder *ClusterImageSetBuilder) Exists() bool {
 	glog.V(100).Infof("Checking if clusterimageset %s exists", builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -267,7 +265,6 @@ func (builder *ClusterImageSetBuilder) WithOptions(
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 

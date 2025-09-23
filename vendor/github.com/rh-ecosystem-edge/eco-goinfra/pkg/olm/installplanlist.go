@@ -27,7 +27,6 @@ func ListInstallPlan(
 	}
 
 	err := apiClient.AttachScheme(oplmV1alpha1.AddToScheme)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to add oplmV1alpha1 scheme to client schemes")
 
@@ -51,8 +50,8 @@ func ListInstallPlan(
 	glog.V(100).Infof(logMessage)
 
 	installPlanList := new(oplmV1alpha1.InstallPlanList)
-	err = apiClient.List(context.TODO(), installPlanList, &passedOptions)
 
+	err = apiClient.List(context.TODO(), installPlanList, &passedOptions)
 	if err != nil {
 		glog.V(100).Infof("Failed to list all installplan in namespace %s due to %s",
 			nsname, err.Error())

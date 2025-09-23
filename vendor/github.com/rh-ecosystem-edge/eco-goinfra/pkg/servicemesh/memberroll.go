@@ -137,11 +137,11 @@ func (builder *MemberRollBuilder) Get() (*istiov1.ServiceMeshMemberRoll, error) 
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	servicemeshmemberroll := &istiov1.ServiceMeshMemberRoll{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, servicemeshmemberroll)
-
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +188,6 @@ func (builder *MemberRollBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return fmt.Errorf("can not delete serviceMeshMemberRoll %s in namespace %s due to %w",
 			builder.Definition.Name, builder.Definition.Namespace, err)
@@ -209,14 +208,12 @@ func (builder *MemberRollBuilder) Update(force bool) (*MemberRollBuilder, error)
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		if force {
 			glog.V(100).Infof(
 				msg.FailToUpdateNotification("serviceMeshMemberRoll", builder.Definition.Name, builder.Definition.Namespace))
 
 			err := builder.Delete()
-
 			if err != nil {
 				glog.V(100).Infof(
 					msg.FailToUpdateError("serviceMeshMemberRoll", builder.Definition.Name, builder.Definition.Namespace))
@@ -245,6 +242,7 @@ func (builder *MemberRollBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -310,7 +308,6 @@ func (builder *MemberRollBuilder) IsReady(timeout time.Duration) (bool, error) {
 
 			return false, nil
 		})
-
 	if err != nil {
 		return false, fmt.Errorf("the Ready condition did not reached for the Service Mesh MemberRoll %s in "+
 			"namespace %s during %v; %v", builder.Definition.Name, builder.Definition.Namespace, timeout, err)

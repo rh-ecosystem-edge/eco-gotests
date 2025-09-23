@@ -136,11 +136,11 @@ func (builder *LocalVolumeSetBuilder) Get() (*lsov1alpha1.LocalVolumeSet, error)
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	lvs := &lsov1alpha1.LocalVolumeSet{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, lvs)
-
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +186,6 @@ func (builder *LocalVolumeSetBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return fmt.Errorf("can not delete localVolumeSet: %w", err)
 	}
@@ -206,6 +205,7 @@ func (builder *LocalVolumeSetBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -229,7 +229,6 @@ func (builder *LocalVolumeSetBuilder) Update() (*LocalVolumeSetBuilder, error) {
 	builder.Definition.ResourceVersion = ""
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		glog.V(100).Infof(
 			msg.FailToUpdateError("localVolumeSet", builder.Definition.Name, builder.Definition.Namespace))

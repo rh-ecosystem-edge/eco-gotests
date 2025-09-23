@@ -163,6 +163,7 @@ func (builder *Builder) Update() (*Builder, error) {
 	builder.Definition.ResourceVersion = ""
 
 	var err error
+
 	builder.Object, err = builder.apiClient.CoreV1().Nodes().Update(
 		context.TODO(), builder.Definition, metav1.UpdateOptions{})
 
@@ -178,6 +179,7 @@ func (builder *Builder) Exists() bool {
 	glog.V(100).Infof("Checking if node %s exists", builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.apiClient.CoreV1().Nodes().Get(
 		context.TODO(), builder.Definition.Name, metav1.GetOptions{})
 
@@ -204,7 +206,6 @@ func (builder *Builder) Delete() error {
 		context.TODO(),
 		builder.Definition.Name,
 		metav1.DeleteOptions{})
-
 	if err != nil {
 		return fmt.Errorf("can not delete node %s due to %w", builder.Definition.Name, err)
 	}
@@ -256,7 +257,6 @@ func (builder *Builder) WithOptions(options ...AdditionalOptions) *Builder {
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 
@@ -307,8 +307,8 @@ func (builder *Builder) ExternalIPv4Network() (string, error) {
 	}
 
 	var extNetwork ExternalNetworks
-	err := json.Unmarshal([]byte(builder.Object.Annotations[ovnExternalAddresses]), &extNetwork)
 
+	err := json.Unmarshal([]byte(builder.Object.Annotations[ovnExternalAddresses]), &extNetwork)
 	if err != nil {
 		return "",
 			fmt.Errorf("error to unmarshal node %s, annotation %s due to %w", builder.Object.Name, ovnExternalAddresses, err)
@@ -334,8 +334,8 @@ func (builder *Builder) ExternalIPv6Network() (string, error) {
 	}
 
 	var extNetwork ExternalNetworks
-	err := json.Unmarshal([]byte(builder.Object.Annotations[ovnExternalAddresses]), &extNetwork)
 
+	err := json.Unmarshal([]byte(builder.Object.Annotations[ovnExternalAddresses]), &extNetwork)
 	if err != nil {
 		return "",
 			fmt.Errorf("error to unmarshal node %s, annotation %s due to %w", builder.Object.Name, ovnExternalAddresses, err)

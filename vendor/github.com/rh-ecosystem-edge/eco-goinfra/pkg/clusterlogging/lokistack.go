@@ -136,11 +136,11 @@ func (builder *LokiStackBuilder) Get() (*lokiv1.LokiStack, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	lokiStackObj := &lokiv1.LokiStack{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, lokiStackObj)
-
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +188,6 @@ func (builder *LokiStackBuilder) Delete() (*LokiStackBuilder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("can not delete lokiStack: %w", err)
 	}
@@ -208,6 +207,7 @@ func (builder *LokiStackBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -223,7 +223,6 @@ func (builder *LokiStackBuilder) Update() (*LokiStackBuilder, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		glog.V(100).Infof(
 			msg.FailToUpdateError("lokiStack", builder.Definition.Name, builder.Definition.Namespace))

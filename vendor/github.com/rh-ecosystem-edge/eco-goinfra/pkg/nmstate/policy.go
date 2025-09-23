@@ -107,11 +107,11 @@ func (builder *PolicyBuilder) Get() (*nmstateV1.NodeNetworkConfigurationPolicy, 
 		"Collecting NodeNetworkConfigurationPolicy object %s", builder.Definition.Name)
 
 	nmstatePolicy := &nmstateV1.NodeNetworkConfigurationPolicy{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, nmstatePolicy)
-
 	if err != nil {
 		glog.V(100).Infof("NodeNetworkConfigurationPolicy object %s does not exist", builder.Definition.Name)
 
@@ -132,6 +132,7 @@ func (builder *PolicyBuilder) Exists() bool {
 		builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -177,7 +178,6 @@ func (builder *PolicyBuilder) Delete() (*PolicyBuilder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("can not delete NodeNetworkConfigurationPolicy: %w", err)
 	}
@@ -199,7 +199,6 @@ func (builder *PolicyBuilder) Update(force bool) (*PolicyBuilder, error) {
 	)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err == nil {
 		builder.Object = builder.Definition
 	} else if force {
@@ -208,7 +207,6 @@ func (builder *PolicyBuilder) Update(force bool) (*PolicyBuilder, error) {
 				msg.FailToUpdateNotification("NodeNetworkConfigurationPolicy", builder.Definition.Name))
 
 			builder, err := builder.Delete()
-
 			if err != nil {
 				glog.V(100).Infof(
 					msg.FailToUpdateError("NodeNetworkConfigurationPolicy", builder.Definition.Name))
@@ -536,7 +534,6 @@ func (builder *PolicyBuilder) WithOptions(options ...AdditionalOptions) *PolicyB
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 
@@ -570,7 +567,6 @@ func (builder *PolicyBuilder) WaitUntilCondition(condition nmstateShared.Conditi
 	return wait.PollUntilContextTimeout(
 		context.TODO(), retryInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			builder.Object, err = builder.Get()
-
 			if err != nil {
 				return false, nil
 			}
@@ -631,7 +627,6 @@ func (builder *PolicyBuilder) withInterface(networkInterface NetworkInterface) *
 	var CurrentState DesiredState
 
 	err := yaml.Unmarshal(builder.Definition.Spec.DesiredState.Raw, &CurrentState)
-
 	if err != nil {
 		glog.V(100).Infof("Failed Unmarshal DesiredState")
 
@@ -643,7 +638,6 @@ func (builder *PolicyBuilder) withInterface(networkInterface NetworkInterface) *
 	CurrentState.Interfaces = append(CurrentState.Interfaces, networkInterface)
 
 	desiredStateYaml, err := yaml.Marshal(CurrentState)
-
 	if err != nil {
 		glog.V(100).Infof("Failed Marshal DesiredState")
 

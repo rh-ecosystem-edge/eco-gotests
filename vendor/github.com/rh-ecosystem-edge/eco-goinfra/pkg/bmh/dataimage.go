@@ -89,7 +89,6 @@ func (builder *DataImageBuilder) Delete() (*DataImageBuilder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("cannot delete dataimage: %w", err)
 	}
@@ -109,11 +108,11 @@ func (builder *DataImageBuilder) Get() (*bmhv1alpha1.DataImage, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	dataimage := &bmhv1alpha1.DataImage{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, dataimage)
-
 	if err != nil {
 		return nil, err
 	}
@@ -131,6 +130,7 @@ func (builder *DataImageBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)

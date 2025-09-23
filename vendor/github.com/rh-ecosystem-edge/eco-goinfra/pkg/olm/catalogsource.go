@@ -157,10 +157,10 @@ func (builder *CatalogSourceBuilder) Get() (*oplmV1alpha1.CatalogSource, error) 
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	catalogSource := &oplmV1alpha1.CatalogSource{}
+
 	err := builder.apiClient.Get(context.TODO(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		catalogSource)
-
 	if err != nil {
 		glog.V(100).Infof(
 			"CatalogSource object %s does not exist in namespace %s",
@@ -187,14 +187,12 @@ func (builder *CatalogSourceBuilder) Update(force bool) (*CatalogSourceBuilder, 
 	}
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		if force {
 			glog.V(100).Infof(
 				msg.FailToUpdateNotification("CatalogSource", builder.Definition.Name, builder.Definition.Namespace))
 
 			err := builder.Delete()
-
 			if err != nil {
 				glog.V(100).Infof(
 					msg.FailToUpdateError("CatalogSource", builder.Definition.Name, builder.Definition.Namespace))
@@ -220,6 +218,7 @@ func (builder *CatalogSourceBuilder) Exists() bool {
 		builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -243,7 +242,6 @@ func (builder *CatalogSourceBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return err
 	}

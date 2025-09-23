@@ -239,10 +239,10 @@ func (builder *NetworkPolicyBuilder) Get() (*netv1.NetworkPolicy, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	netPolicy := &netv1.NetworkPolicy{}
+
 	err := builder.apiClient.Get(context.TODO(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		netPolicy)
-
 	if err != nil {
 		glog.V(100).Infof(
 			"NetworkPolicy object %s does not exist in namespace %s",
@@ -266,7 +266,6 @@ func (builder *NetworkPolicyBuilder) Create() (*NetworkPolicyBuilder, error) {
 	var err error
 	if !builder.Exists() {
 		err := builder.apiClient.Create(context.TODO(), builder.Definition)
-
 		if err != nil {
 			glog.V(100).Infof("Failed to create NetworkPolicy object")
 
@@ -289,6 +288,7 @@ func (builder *NetworkPolicyBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -336,7 +336,6 @@ func (builder *NetworkPolicyBuilder) Update() (*NetworkPolicyBuilder, error) {
 	}
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err == nil {
 		builder.Object = builder.Definition
 	}

@@ -289,7 +289,6 @@ func (builder *NetworkBuilder) WithOptions(options ...NetworkAdditionalOptions) 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 
@@ -362,10 +361,10 @@ func (builder *NetworkBuilder) Get() (*srIovV1.SriovNetwork, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	network := &srIovV1.SriovNetwork{}
+
 	err := builder.apiClient.Get(context.TODO(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		network)
-
 	if err != nil {
 		glog.V(100).Infof(
 			"SriovNetwork object %s does not exist in namespace %s",
@@ -385,7 +384,6 @@ func (builder *NetworkBuilder) Create() (*NetworkBuilder, error) {
 
 	if !builder.Exists() {
 		err := builder.apiClient.Create(context.TODO(), builder.Definition)
-
 		if err != nil {
 			glog.V(100).Infof("Failed to create SriovNetwork")
 
@@ -413,7 +411,6 @@ func (builder *NetworkBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return err
 	}
@@ -453,7 +450,6 @@ func (builder *NetworkBuilder) WaitUntilDeleted(timeout time.Duration) error {
 	return wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			_, err := builder.Get()
-
 			if err == nil {
 				glog.V(100).Infof("SrIovNetwork %s/%s still present", builder.Definition.Name, builder.Definition.Namespace)
 
@@ -483,6 +479,7 @@ func (builder *NetworkBuilder) Exists() bool {
 		builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -503,7 +500,6 @@ func (builder *NetworkBuilder) Update(force bool) (*NetworkBuilder, error) {
 	}
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err == nil {
 		builder.Object = builder.Definition
 	} else if force {
@@ -511,7 +507,6 @@ func (builder *NetworkBuilder) Update(force bool) (*NetworkBuilder, error) {
 			msg.FailToUpdateNotification("SrIovNetwork", builder.Definition.Name, builder.Definition.Namespace))
 
 		err = builder.Delete()
-
 		if err != nil {
 			glog.V(100).Infof(
 				msg.FailToUpdateError("SrIovNetwork", builder.Definition.Name, builder.Definition.Namespace))

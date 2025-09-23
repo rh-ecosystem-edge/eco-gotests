@@ -45,8 +45,8 @@ func ListMCP(apiClient *clients.Settings, options ...runtimeclient.ListOptions) 
 	glog.V(100).Infof(logMessage)
 
 	mcpList := new(mcv1.MachineConfigPoolList)
-	err = apiClient.List(context.TODO(), mcpList, &passedOptions)
 
+	err = apiClient.List(context.TODO(), mcpList, &passedOptions)
 	if err != nil {
 		glog.V(100).Infof("Failed to list MCP objects due to %s", err.Error())
 
@@ -75,7 +75,6 @@ func ListMCPByMachineConfigSelector(
 	glog.V(100).Infof("GetByLabel returns MachineConfigPool with the specified label: %v", mcpLabel)
 
 	mcpList, err := ListMCP(apiClient, options...)
-
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +127,6 @@ func ListMCPWaitToBeStableFor(
 			_ = wait.PollUntilContextTimeout(
 				context.TODO(), fiveScds, stableDuration, true, func(ctx2 context.Context) (done bool, err error) {
 					mcpList, err := ListMCP(apiClient, options...)
-
 					if err != nil {
 						return false, err
 					}
@@ -169,7 +167,6 @@ func ListMCPWaitToBeStableFor(
 			// keep iterating in the outer wait.PollUntilContextTimeout waiting for cluster to be stable.
 			return false, nil
 		})
-
 	if err == nil {
 		glog.V(100).Infof("Cluster was stable during stableDuration: %v", stableDuration)
 	} else {

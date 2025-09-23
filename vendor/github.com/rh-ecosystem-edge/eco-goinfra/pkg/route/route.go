@@ -226,6 +226,7 @@ func (builder *Builder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -247,7 +248,6 @@ func (builder *Builder) Get() (*routev1.Route, error) {
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, route)
-
 	if err != nil {
 		return nil, err
 	}
@@ -294,7 +294,6 @@ func (builder *Builder) Delete() (*Builder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("cannot delete route: %w", err)
 	}

@@ -49,8 +49,8 @@ func ListPolicy(apiClient *clients.Settings, nsname string, options ...client.Li
 	glog.V(100).Infof(logMessage)
 
 	networkNodePoliciesList := new(srIovV1.SriovNetworkNodePolicyList)
-	err = apiClient.List(context.TODO(), networkNodePoliciesList, &passedOptions)
 
+	err = apiClient.List(context.TODO(), networkNodePoliciesList, &passedOptions)
 	if err != nil {
 		glog.V(100).Infof("Failed to list SriovNetworkNodePolicies in the namespace %s due to %s",
 			nsname, err.Error())
@@ -85,7 +85,6 @@ func CleanAllNetworkNodePolicies(
 	}
 
 	policies, err := ListPolicy(apiClient, operatornsname, options...)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to list SriovNetworkNodePolicies in namespace: %s", operatornsname)
 
@@ -96,7 +95,6 @@ func CleanAllNetworkNodePolicies(
 		// The "default" SriovNetworkNodePolicy is both mandatory and the default option.
 		if policy.Object.Name != "default" {
 			err = policy.Delete()
-
 			if err != nil {
 				glog.V(100).Infof("Failed to delete SriovNetworkNodePolicy: %s", policy.Object.Name)
 

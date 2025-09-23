@@ -225,7 +225,6 @@ func (builder *PVCBuilder) Delete() error {
 
 	err := builder.apiClient.PersistentVolumeClaims(builder.Definition.Namespace).Delete(
 		context.TODO(), builder.Definition.Name, metav1.DeleteOptions{})
-
 	if err != nil {
 		glog.V(100).Infof("Failed to delete PersistentVolumeClaim %s from %s namespace",
 			builder.Definition.Name, builder.Definition.Namespace)
@@ -330,6 +329,7 @@ func (builder *PVCBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.apiClient.PersistentVolumeClaims(builder.Definition.Namespace).Get(
 		context.TODO(), builder.Definition.Name, metav1.GetOptions{})
 

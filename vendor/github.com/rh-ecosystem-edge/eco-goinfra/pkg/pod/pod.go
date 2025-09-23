@@ -86,7 +86,6 @@ func NewBuilder(apiClient *clients.Settings, name, nsname, image string) *Builde
 	}
 
 	defaultContainer, err := NewContainerBuilder("test", image, []string{"/bin/bash", "-c", "sleep INF"}).GetContainerCfg()
-
 	if err != nil {
 		glog.V(100).Infof("Failed to define the default container settings")
 
@@ -207,7 +206,6 @@ func (builder *Builder) Delete() (*Builder, error) {
 
 	err := builder.apiClient.Pods(builder.Definition.Namespace).Delete(
 		context.TODO(), builder.Object.Name, metav1.DeleteOptions{})
-
 	if err != nil {
 		return builder, fmt.Errorf("can not delete pod: %w", err)
 	}
@@ -232,7 +230,6 @@ func (builder *Builder) DeleteAndWait(timeout time.Duration) (*Builder, error) {
 	}
 
 	err = builder.WaitUntilDeleted(timeout)
-
 	if err != nil {
 		return builder, err
 	}
@@ -261,7 +258,6 @@ func (builder *Builder) DeleteImmediate() (*Builder, error) {
 
 	err := builder.apiClient.Pods(builder.Definition.Namespace).Delete(
 		context.TODO(), builder.Object.Name, metav1.DeleteOptions{GracePeriodSeconds: ptr.To(int64(0))})
-
 	if err != nil {
 		return builder, fmt.Errorf("can not immediately delete pod: %w", err)
 	}
@@ -286,7 +282,6 @@ func (builder *Builder) CreateAndWaitUntilRunning(timeout time.Duration) (*Build
 	}
 
 	err = builder.WaitUntilRunning(timeout)
-
 	if err != nil {
 		return builder, err
 	}
@@ -465,7 +460,6 @@ func (builder *Builder) ExecCommand(command []string, containerName ...string) (
 		}, scheme.ParameterCodec)
 
 	exec, err := remotecommand.NewSPDYExecutor(builder.apiClient.Config, "POST", req.URL())
-
 	if err != nil {
 		return buffer, err
 	}
@@ -475,7 +469,6 @@ func (builder *Builder) ExecCommand(command []string, containerName ...string) (
 		Stderr: os.Stderr,
 		Tty:    true,
 	})
-
 	if err != nil {
 		return buffer, err
 	}
@@ -546,7 +539,6 @@ func (builder *Builder) ExecCommandWithTimeout(
 		}, scheme.ParameterCodec)
 
 	exec, err := remotecommand.NewSPDYExecutor(builder.apiClient.Config, "POST", req.URL())
-
 	if err != nil {
 		return buffer, err
 	}
@@ -559,7 +551,6 @@ func (builder *Builder) ExecCommandWithTimeout(
 		Stderr: os.Stderr,
 		Tty:    true,
 	})
-
 	if err != nil {
 		return buffer, err
 	}
@@ -627,7 +618,6 @@ func (builder *Builder) Copy(path, containerName string, tar bool) (bytes.Buffer
 		Proxier:    proxy,
 		PingPeriod: 0,
 	})
-
 	if err != nil {
 		return bytes.Buffer{}, err
 	}
@@ -638,7 +628,6 @@ func (builder *Builder) Copy(path, containerName string, tar bool) (bytes.Buffer
 	}
 
 	exec, err := remotecommand.NewSPDYExecutorForTransports(wrapper, upgradeRoundTripper, "POST", req.URL())
-
 	if err != nil {
 		return buffer, err
 	}
@@ -649,7 +638,6 @@ func (builder *Builder) Copy(path, containerName string, tar bool) (bytes.Buffer
 		Stderr: os.Stderr,
 		Tty:    false,
 	})
-
 	if err != nil {
 		return buffer, err
 	}
@@ -667,6 +655,7 @@ func (builder *Builder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.apiClient.Pods(builder.Definition.Namespace).Get(
 		context.TODO(), builder.Definition.Name, metav1.GetOptions{})
 
@@ -972,7 +961,6 @@ func (builder *Builder) WithSecondaryNetwork(network []*multus.NetworkSelectionE
 	}
 
 	netAnnotation, err := json.Marshal(network)
-
 	if err != nil {
 		builder.errorMsg = fmt.Sprintf("error to unmarshal network annotation due to: %s", err.Error())
 
@@ -1114,8 +1102,8 @@ func (builder *Builder) PullImage(timeout time.Duration, testCmd []string) error
 
 	builder.WithRestartPolicy(corev1.RestartPolicyNever)
 	builder.RedefineDefaultCMD(testCmd)
-	_, err := builder.Create()
 
+	_, err := builder.Create()
 	if err != nil {
 		glog.V(100).Infof(
 			"Failed to create pod %s in namespace %s and pull image %s to node: %s",
@@ -1126,7 +1114,6 @@ func (builder *Builder) PullImage(timeout time.Duration, testCmd []string) error
 	}
 
 	statusErr := builder.WaitUntilInStatus(corev1.PodSucceeded, timeout)
-
 	if statusErr != nil {
 		glog.V(100).Infof(
 			"Pod status timeout %s. Pod is not in status Succeeded in namespace %s. "+
@@ -1135,7 +1122,6 @@ func (builder *Builder) PullImage(timeout time.Duration, testCmd []string) error
 			builder.Definition.Spec.NodeName)
 
 		_, err = builder.Delete()
-
 		if err != nil {
 			glog.V(100).Infof(
 				"Failed to remove pod %s in namespace %s from node: %s",
@@ -1209,7 +1195,6 @@ func (builder *Builder) WithOptions(options ...AdditionalOptions) *Builder {
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 

@@ -288,7 +288,6 @@ func (builder *KernelMappingBuilder) WithOptions(options ...KernelMappingAdditio
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 

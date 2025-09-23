@@ -82,9 +82,9 @@ func (builder *NetworkNodeStateBuilder) Discover() error {
 		builder.nsName, builder.nodeName)
 
 	nodeNetworkState := &srIovV1.SriovNetworkNodeState{}
+
 	err := builder.apiClient.Get(context.TODO(),
 		runtimeClient.ObjectKey{Name: builder.nodeName, Namespace: builder.nsName}, nodeNetworkState)
-
 	if err == nil {
 		builder.Objects = nodeNetworkState
 	}
@@ -99,8 +99,8 @@ func (builder *NetworkNodeStateBuilder) GetUpNICs() (srIovV1.InterfaceExts, erro
 	}
 
 	glog.V(100).Infof("Collection of sriov interfaces in UP state for node %s", builder.nodeName)
-	sriovNics, err := builder.GetNICs()
 
+	sriovNics, err := builder.GetNICs()
 	if err != nil {
 		glog.V(100).Infof("Error to discover sriov interfaces for node %s", builder.nodeName)
 
@@ -160,7 +160,6 @@ func (builder *NetworkNodeStateBuilder) WaitUntilSyncStatus(syncStatus string, t
 	return wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			err := builder.Discover()
-
 			if err != nil {
 				return false, nil
 			}

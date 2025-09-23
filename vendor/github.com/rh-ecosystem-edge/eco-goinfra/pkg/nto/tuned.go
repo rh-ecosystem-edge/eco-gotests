@@ -132,11 +132,11 @@ func (builder *TunedBuilder) Get() (*tunedv1.Tuned, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	tunedObj := &tunedv1.Tuned{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, tunedObj)
-
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +183,6 @@ func (builder *TunedBuilder) Delete() (*TunedBuilder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("can not delete tuned: %w", err)
 	}
@@ -203,6 +202,7 @@ func (builder *TunedBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -218,7 +218,6 @@ func (builder *TunedBuilder) Update() (*TunedBuilder, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		glog.V(100).Infof(
 			msg.FailToUpdateError("tuned", builder.Definition.Name, builder.Definition.Namespace))

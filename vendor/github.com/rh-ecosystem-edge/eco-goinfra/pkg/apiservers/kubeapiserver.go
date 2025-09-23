@@ -66,8 +66,8 @@ func (builder *KubeAPIServerBuilder) Exists() bool {
 	}
 
 	var err error
-	builder.Object, err = builder.Get()
 
+	builder.Object, err = builder.Get()
 	if err != nil {
 		glog.V(100).Infof("Failed to collect kubeAPIServer object due to %s", err.Error())
 	}
@@ -82,10 +82,10 @@ func (builder *KubeAPIServerBuilder) Get() (*operatorV1.KubeAPIServer, error) {
 	}
 
 	kubeAPIServer := &operatorV1.KubeAPIServer{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, kubeAPIServer)
-
 	if err != nil {
 		glog.V(100).Infof("kubeAPIServer object does not exist")
 
@@ -112,7 +112,6 @@ func (builder *KubeAPIServerBuilder) GetCondition(conditionType string) (*operat
 	}
 
 	kubeAPIServer, err := builder.Get()
-
 	if err != nil {
 		return nil, "", err
 	}
@@ -147,7 +146,6 @@ func (builder *KubeAPIServerBuilder) WaitUntilConditionTrue(
 	err := wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			builder.Object, errMsg = builder.Get()
-
 			if errMsg != nil {
 				return false, nil
 			}
@@ -168,7 +166,6 @@ func (builder *KubeAPIServerBuilder) WaitUntilConditionTrue(
 
 			return false, nil
 		})
-
 	if err != nil {
 		return fmt.Errorf("%w: %w", errMsg, err)
 	}
@@ -183,7 +180,6 @@ func (builder *KubeAPIServerBuilder) WaitAllNodesAtTheLatestRevision(timeout tim
 	verificationStr := "AllNodesAtLatestRevision"
 
 	err := builder.WaitUntilConditionTrue(conditionType, timeout)
-
 	if err != nil {
 		return err
 	}
@@ -193,7 +189,6 @@ func (builder *KubeAPIServerBuilder) WaitAllNodesAtTheLatestRevision(timeout tim
 			var err error
 
 			_, reasonMsg, err := builder.GetCondition(conditionType)
-
 			if err != nil {
 				return false, nil
 			}
@@ -206,7 +201,6 @@ func (builder *KubeAPIServerBuilder) WaitAllNodesAtTheLatestRevision(timeout tim
 
 			return true, nil
 		})
-
 	if err != nil {
 		return err
 	}

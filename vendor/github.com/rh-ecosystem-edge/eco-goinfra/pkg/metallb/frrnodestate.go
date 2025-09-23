@@ -71,6 +71,7 @@ func (builder *FrrNodeStateBuilder) Exists() bool {
 	glog.V(100).Infof("Checking if FrrNodeState %s exists", builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -85,10 +86,10 @@ func (builder *FrrNodeStateBuilder) Get() (*frrtypes.FRRNodeState, error) {
 	glog.V(100).Infof("Collecting FrrNodeState object %s", builder.Definition.Name)
 
 	frrNodeState := &frrtypes.FRRNodeState{}
+
 	err := builder.apiClient.Get(context.TODO(), runtimeClient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, frrNodeState)
-
 	if err != nil {
 		glog.V(100).Infof("FrrNodeState object %s does not exist", builder.Definition.Name)
 

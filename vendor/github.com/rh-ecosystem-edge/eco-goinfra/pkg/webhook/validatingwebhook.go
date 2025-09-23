@@ -76,6 +76,7 @@ func (builder *ValidatingConfigurationBuilder) Exists() bool {
 	}
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -88,10 +89,10 @@ func (builder *ValidatingConfigurationBuilder) Get() (*admregv1.ValidatingWebhoo
 	}
 
 	validatingWebhookConfiguration := &admregv1.ValidatingWebhookConfiguration{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, validatingWebhookConfiguration)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to get ValidatingWebhookConfiguration %s: %v", builder.Definition.Name, err)
 
@@ -144,8 +145,8 @@ func (builder *ValidatingConfigurationBuilder) Update() (*ValidatingConfiguratio
 	}
 
 	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 
+	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		return builder, err
 	}

@@ -44,7 +44,6 @@ func ListWorkerMachineSets(
 	glog.V(100).Infof(logMessage)
 
 	machineSetList, err := apiClient.MachineSets(namespace).List(context.TODO(), passedOptions)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to list MachineSets in the namespace %s due to %s",
 			namespace, err.Error())

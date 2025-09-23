@@ -53,8 +53,8 @@ func ListClusterConfig(
 	passedOptions.Namespace = nsname
 
 	sfncList := new(sriovfectypes.SriovFecClusterConfigList)
-	err = apiClient.List(context.TODO(), sfncList, &passedOptions)
 
+	err = apiClient.List(context.TODO(), sfncList, &passedOptions)
 	if err != nil {
 		glog.V(100).Infof("Failed to list SriovFecClusterConfigs in the namespace %s due to %s", nsname, err.Error())
 

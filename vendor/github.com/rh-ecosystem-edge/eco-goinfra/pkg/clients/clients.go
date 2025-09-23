@@ -112,8 +112,8 @@ func New(kubeconfig string) *Settings {
 	clientSet.Config = config
 
 	clientSet.scheme = runtime.NewScheme()
-	err = SetScheme(clientSet.scheme)
 
+	err = SetScheme(clientSet.scheme)
 	if err != nil {
 		glog.V(100).Info("Error to load apiClient scheme")
 
@@ -123,7 +123,6 @@ func New(kubeconfig string) *Settings {
 	clientSet.Client, err = runtimeClient.New(config, runtimeClient.Options{
 		Scheme: clientSet.scheme,
 	})
-
 	if err != nil {
 		glog.V(100).Info("Error to create apiClient")
 

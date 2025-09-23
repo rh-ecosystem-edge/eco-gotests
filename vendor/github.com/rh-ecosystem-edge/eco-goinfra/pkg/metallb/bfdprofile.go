@@ -79,10 +79,10 @@ func (builder *BFDBuilder) Get() (*mlbtypes.BFDProfile, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	bfdProfile := &mlbtypes.BFDProfile{}
+
 	err := builder.apiClient.Get(context.TODO(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		bfdProfile)
-
 	if err != nil {
 		glog.V(100).Infof(
 			"BFDProfile object %s does not exist in namespace %s",
@@ -105,6 +105,7 @@ func (builder *BFDBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -121,7 +122,6 @@ func PullBFDProfile(apiClient *clients.Settings, name, nsname string) (*BFDBuild
 	}
 
 	err := apiClient.AttachScheme(mlbtypes.AddToScheme)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to add metallb scheme to client schemes")
 
@@ -204,7 +204,6 @@ func (builder *BFDBuilder) Delete() (*BFDBuilder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("can not delete BFDProfile: %w", err)
 	}
@@ -229,14 +228,12 @@ func (builder *BFDBuilder) Update(force bool) (*BFDBuilder, error) {
 	}
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		if force {
 			glog.V(100).Infof(
 				msg.FailToUpdateNotification("BFDProfile", builder.Definition.Name, builder.Definition.Namespace))
 
 			builder, err := builder.Delete()
-
 			if err != nil {
 				glog.V(100).Infof(
 					msg.FailToUpdateError("BFDProfile", builder.Definition.Name, builder.Definition.Namespace))
@@ -317,7 +314,6 @@ func (builder *BFDBuilder) WithOptions(options ...BFDAdditionalOptions) *BFDBuil
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 

@@ -134,10 +134,10 @@ func (builder *InstallPlanBuilder) Get() (*operatorsV1alpha1.InstallPlan, error)
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	installPlan := &operatorsV1alpha1.InstallPlan{}
+
 	err := builder.apiClient.Get(context.TODO(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		installPlan)
-
 	if err != nil {
 		glog.V(100).Infof(
 			"InstallPlan object %s does not exist in namespace %s",
@@ -182,6 +182,7 @@ func (builder *InstallPlanBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -206,7 +207,6 @@ func (builder *InstallPlanBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return err
 	}
@@ -231,7 +231,6 @@ func (builder *InstallPlanBuilder) Update() (*InstallPlanBuilder, error) {
 	}
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err == nil {
 		builder.Object = builder.Definition
 	}

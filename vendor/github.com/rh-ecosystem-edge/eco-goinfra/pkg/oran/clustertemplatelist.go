@@ -43,8 +43,8 @@ func ListClusterTemplates(
 	glog.V(100).Info(logMessage)
 
 	clusterTemplateList := new(provisioningv1alpha1.ClusterTemplateList)
-	err = apiClient.List(context.TODO(), clusterTemplateList, &passedOptions)
 
+	err = apiClient.List(context.TODO(), clusterTemplateList, &passedOptions)
 	if err != nil {
 		glog.V(100).Infof("Failed to list ClusterTemplates in all namespaces due to %v", err)
 

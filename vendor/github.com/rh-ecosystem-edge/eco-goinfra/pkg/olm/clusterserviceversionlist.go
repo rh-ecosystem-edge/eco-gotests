@@ -24,7 +24,6 @@ func ListClusterServiceVersion(
 	}
 
 	err := apiClient.AttachScheme(oplmV1alpha1.AddToScheme)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to add oplmV1alpha1 scheme to client schemes")
 
@@ -54,8 +53,8 @@ func ListClusterServiceVersion(
 	glog.V(100).Infof(logMessage)
 
 	csvList := new(oplmV1alpha1.ClusterServiceVersionList)
-	err = apiClient.List(context.TODO(), csvList, &passedOptions)
 
+	err = apiClient.List(context.TODO(), csvList, &passedOptions)
 	if err != nil {
 		glog.V(100).Infof("Failed to list clusterserviceversion in the nsname %s due to %s", nsname, err.Error())
 
@@ -103,7 +102,6 @@ func ListClusterServiceVersionWithNamePattern(
 		namePattern, nsname)
 
 	notFilteredCsvList, err := ListClusterServiceVersion(apiClient, nsname, options...)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to list all clusterserviceversions in namespace %s due to %s",
 			nsname, err.Error())
@@ -133,7 +131,6 @@ func ListClusterServiceVersionInAllNamespaces(
 	}
 
 	err := apiClient.AttachScheme(oplmV1alpha1.AddToScheme)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to add oplmV1alpha1 scheme to client schemes")
 
@@ -157,8 +154,8 @@ func ListClusterServiceVersionInAllNamespaces(
 	glog.V(100).Infof(logMessage)
 
 	csvList := new(oplmV1alpha1.ClusterServiceVersionList)
-	err = apiClient.List(context.TODO(), csvList, &passedOptions)
 
+	err = apiClient.List(context.TODO(), csvList, &passedOptions)
 	if err != nil {
 		glog.V(100).Infof("Failed to list CSVs in all namespaces due to %s", err.Error())
 

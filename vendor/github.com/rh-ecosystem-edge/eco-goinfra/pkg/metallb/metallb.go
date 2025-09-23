@@ -140,8 +140,8 @@ func (builder *Builder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
-	builder.Object, err = builder.Get()
 
+	builder.Object, err = builder.Get()
 	if err != nil {
 		glog.V(100).Infof("Failed to collect MetalLb object due to %s", err.Error())
 	}
@@ -160,9 +160,9 @@ func (builder *Builder) Get() (*mlbtypes.MetalLB, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	metallb := &mlbtypes.MetalLB{}
+
 	err := builder.apiClient.Get(context.TODO(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace}, metallb)
-
 	if err != nil {
 		glog.V(100).Infof(
 			"metallb object %s does not exist in namespace %s",
@@ -186,7 +186,6 @@ func (builder *Builder) Create() (*Builder, error) {
 
 	if !builder.Exists() {
 		err := builder.apiClient.Create(context.TODO(), builder.Definition)
-
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -215,7 +214,6 @@ func (builder *Builder) Delete() (*Builder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("can not delete metallb: %w", err)
 	}
@@ -243,14 +241,12 @@ func (builder *Builder) Update(force bool) (*Builder, error) {
 	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		if force {
 			glog.V(100).Infof(
 				msg.FailToUpdateNotification("metallb", builder.Definition.Name, builder.Definition.Namespace))
 
 			builder, err := builder.Delete()
-
 			if err != nil {
 				glog.V(100).Infof(
 					msg.FailToUpdateError("metallb", builder.Definition.Name, builder.Definition.Namespace))
@@ -317,7 +313,6 @@ func (builder *Builder) WithOptions(options ...AdditionalOptions) *Builder {
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 

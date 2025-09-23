@@ -257,7 +257,6 @@ func (builder *Builder) WithOptions(options ...AdditionalOptions) *Builder {
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 
@@ -297,6 +296,7 @@ func (builder *Builder) Update() (*Builder, error) {
 	glog.V(100).Infof("Updating daemonset %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.apiClient.Update(
 		context.TODO(), builder.Definition, metav1.UpdateOptions{})
 
@@ -351,7 +351,6 @@ func (builder *Builder) CreateAndWaitUntilReady(timeout time.Duration) (*Builder
 		context.TODO(), retryInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			builder.Object, err = builder.apiClient.Get(
 				context.TODO(), builder.Definition.Name, metav1.GetOptions{})
-
 			if err != nil {
 				return false, nil
 			}
@@ -375,7 +374,6 @@ func (builder *Builder) CreateAndWaitUntilReady(timeout time.Duration) (*Builder
 
 			return false, err
 		})
-
 	if err == nil {
 		return builder, nil
 	}
@@ -419,6 +417,7 @@ func (builder *Builder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.apiClient.Get(
 		context.TODO(), builder.Definition.Name, metav1.GetOptions{})
 
@@ -441,7 +440,6 @@ func (builder *Builder) IsReady(timeout time.Duration) bool {
 
 			builder.Object, err = builder.apiClient.Get(
 				context.TODO(), builder.Definition.Name, metav1.GetOptions{})
-
 			if err != nil {
 				glog.V(100).Infof("Failed to get daemonset from cluster. Error is: '%s'", err.Error())
 

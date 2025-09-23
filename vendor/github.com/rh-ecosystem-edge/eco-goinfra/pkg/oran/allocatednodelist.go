@@ -43,8 +43,8 @@ func ListAllocatedNodes(
 	glog.V(100).Info(logMessage)
 
 	nodeList := new(pluginsv1alpha1.AllocatedNodeList)
-	err = apiClient.List(context.TODO(), nodeList, &passedOptions)
 
+	err = apiClient.List(context.TODO(), nodeList, &passedOptions)
 	if err != nil {
 		glog.V(100).Infof("Failed to list AllocatedNodes in all namespaces due to %v", err)
 

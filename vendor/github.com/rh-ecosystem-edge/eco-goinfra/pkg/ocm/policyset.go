@@ -144,6 +144,7 @@ func (builder *PolicySetBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -164,7 +165,6 @@ func (builder *PolicySetBuilder) Get() (*policiesv1beta1.PolicySet, error) {
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, policySet)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to get policySet %s in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
@@ -217,7 +217,6 @@ func (builder *PolicySetBuilder) Delete() (*PolicySetBuilder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("can not delete policySet: %w", err)
 	}
@@ -244,8 +243,8 @@ func (builder *PolicySetBuilder) Update(force bool) (*PolicySetBuilder, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 
+	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		if force {
 			glog.V(100).Infof(

@@ -89,7 +89,6 @@ func (builder *ManagedClusterBuilder) WithOptions(options ...ManagedClusterAddit
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 
@@ -226,10 +225,10 @@ func (builder *ManagedClusterBuilder) Get() (*clusterv1.ManagedCluster, error) {
 	glog.V(100).Infof("Getting ManagedCluster object %s", builder.Definition.Name)
 
 	managedCluster := &clusterv1.ManagedCluster{}
+
 	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, managedCluster)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to get ManagedCluster object %s: %v", builder.Definition.Name, err)
 
@@ -248,6 +247,7 @@ func (builder *ManagedClusterBuilder) Exists() bool {
 	glog.V(100).Infof("Checking if ManagedCluster %s exists", builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -294,8 +294,8 @@ func (builder *ManagedClusterBuilder) WaitForLabel(
 	err := wait.PollUntilContextTimeout(
 		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			var err error
-			builder.Object, err = builder.Get()
 
+			builder.Object, err = builder.Get()
 			if err != nil {
 				glog.V(100).Info("Failed to get ManagedCluster %s: %v", builder.Definition.Name, err)
 
@@ -312,7 +312,6 @@ func (builder *ManagedClusterBuilder) WaitForLabel(
 
 			return exists, nil
 		})
-
 	if err != nil {
 		return nil, err
 	}

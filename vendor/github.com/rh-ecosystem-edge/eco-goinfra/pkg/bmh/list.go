@@ -114,7 +114,6 @@ func WaitForAllBareMetalHostsInGoodOperationalState(apiClient *clients.Settings,
 
 			return true, nil
 		})
-
 	if err == nil {
 		glog.V(100).Infof("All baremetalhosts were found in the good Operational State "+
 			"during defined timeout: %v", timeout)
@@ -139,8 +138,8 @@ func list(apiClient *clients.Settings, options goclient.ListOptions) ([]*BmhBuil
 	}
 
 	var bmhList bmhv1alpha1.BareMetalHostList
-	err = apiClient.List(context.TODO(), &bmhList, &options)
 
+	err = apiClient.List(context.TODO(), &bmhList, &options)
 	if err != nil {
 		glog.V(100).Infof("Failed to list bareMetalHosts due to %s", err.Error())
 

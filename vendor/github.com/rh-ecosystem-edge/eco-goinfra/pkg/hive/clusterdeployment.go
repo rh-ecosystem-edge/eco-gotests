@@ -207,11 +207,11 @@ func (builder *ClusterDeploymentBuilder) Get() (*hiveV1.ClusterDeployment, error
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	clusterDeployment := &hiveV1.ClusterDeployment{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, clusterDeployment)
-
 	if err != nil {
 		return nil, err
 	}
@@ -299,7 +299,6 @@ func (builder *ClusterDeploymentBuilder) WithOptions(
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 
@@ -323,14 +322,12 @@ func (builder *ClusterDeploymentBuilder) Update(force bool) (*ClusterDeploymentB
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		if force {
 			glog.V(100).Infof(
 				msg.FailToUpdateNotification("clusterdeployment", builder.Definition.Name, builder.Definition.Namespace))
 
 			err := builder.Delete()
-
 			if err != nil {
 				glog.V(100).Infof(
 					msg.FailToUpdateError("clusterdeployment", builder.Definition.Name, builder.Definition.Namespace))
@@ -368,7 +365,6 @@ func (builder *ClusterDeploymentBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return fmt.Errorf("cannot delete clusterdeployment: %w", err)
 	}
@@ -388,6 +384,7 @@ func (builder *ClusterDeploymentBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)

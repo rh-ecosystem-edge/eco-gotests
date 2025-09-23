@@ -49,8 +49,8 @@ func ListDataProtectionApplication(
 	glog.V(100).Infof(logMessage)
 
 	dataprotectionapplications := new(oadpv1alpha1.DataProtectionApplicationList)
-	err := apiClient.List(context.TODO(), dataprotectionapplications, &passedOptions)
 
+	err := apiClient.List(context.TODO(), dataprotectionapplications, &passedOptions)
 	if err != nil {
 		glog.V(100).Infof("Failed to list all dataprotectionapplications due to %s", err.Error())
 

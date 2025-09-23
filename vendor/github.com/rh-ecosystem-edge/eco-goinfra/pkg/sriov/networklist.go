@@ -48,8 +48,8 @@ func List(apiClient *clients.Settings, nsname string, options ...client.ListOpti
 	glog.V(100).Infof(logMessage)
 
 	networkList := new(srIovV1.SriovNetworkList)
-	err = apiClient.List(context.TODO(), networkList, &passedOptions)
 
+	err = apiClient.List(context.TODO(), networkList, &passedOptions)
 	if err != nil {
 		glog.V(100).Infof("Failed to list sriov networks in the namespace %s due to %s", nsname, err.Error())
 
@@ -94,7 +94,6 @@ func CleanAllNetworksByTargetNamespace(
 	}
 
 	networks, err := List(apiClient, operatornsname, options...)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to list sriov networks in namespace: %s", operatornsname)
 

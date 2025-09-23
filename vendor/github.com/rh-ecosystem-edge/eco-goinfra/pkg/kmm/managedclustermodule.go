@@ -134,7 +134,6 @@ func (builder *ManagedClusterModuleBuilder) WithOptions(
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 
@@ -228,7 +227,6 @@ func (builder *ManagedClusterModuleBuilder) Update() (*ManagedClusterModuleBuild
 		builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err == nil {
 		builder.Object = builder.Definition
 	}
@@ -246,6 +244,7 @@ func (builder *ManagedClusterModuleBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -269,7 +268,6 @@ func (builder *ManagedClusterModuleBuilder) Delete() (*ManagedClusterModuleBuild
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, err
 	}
@@ -294,7 +292,6 @@ func (builder *ManagedClusterModuleBuilder) Get() (*mcmV1Beta1.ManagedClusterMod
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, mcm)
-
 	if err != nil {
 		return nil, err
 	}

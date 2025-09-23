@@ -317,11 +317,11 @@ func (builder *ImageClusterInstallBuilder) Get() (*ibiv1alpha1.ImageClusterInsta
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	imageClusterInstall := &ibiv1alpha1.ImageClusterInstall{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, imageClusterInstall)
-
 	if err != nil {
 		return nil, err
 	}
@@ -366,14 +366,12 @@ func (builder *ImageClusterInstallBuilder) Update(force bool) (*ImageClusterInst
 	}
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		if force {
 			glog.V(100).Infof(
 				msg.FailToUpdateNotification("imageclusterinstall", builder.Definition.Name, builder.Definition.Namespace))
 
 			err := builder.Delete()
-
 			if err != nil {
 				glog.V(100).Infof(
 					msg.FailToUpdateError("imageclusterinstall", builder.Definition.Name, builder.Definition.Namespace))
@@ -406,7 +404,6 @@ func (builder *ImageClusterInstallBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return fmt.Errorf("cannot delete imageclusterinstall: %w", err)
 	}
@@ -426,6 +423,7 @@ func (builder *ImageClusterInstallBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)

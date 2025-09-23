@@ -134,11 +134,11 @@ func (builder *StorageClusterBuilder) Get() (*ocsoperatorv1.StorageCluster, erro
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	storageClusterObj := &ocsoperatorv1.StorageCluster{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, storageClusterObj)
-
 	if err != nil {
 		glog.V(100).Infof("storageCluster object %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
@@ -159,6 +159,7 @@ func (builder *StorageClusterBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -205,7 +206,6 @@ func (builder *StorageClusterBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return fmt.Errorf("can not delete storageCluster: %w", err)
 	}
@@ -230,7 +230,6 @@ func (builder *StorageClusterBuilder) Update() (*StorageClusterBuilder, error) {
 	}
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		glog.V(100).Infof(
 			msg.FailToUpdateError("storageCluster", builder.Definition.Name, builder.Definition.Namespace))

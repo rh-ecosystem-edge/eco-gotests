@@ -191,17 +191,16 @@ func (builder *agentBuilder) WaitForState(state string, timeout time.Duration) (
 
 	// Polls every retryInterval to determine if agent is in desired state.
 	var err error
+
 	err = wait.PollUntilContextTimeout(
 		context.TODO(), retryInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			builder.Object, err = builder.Get()
-
 			if err != nil {
 				return false, nil
 			}
 
 			return builder.Object.Status.DebugInfo.State == state, nil
 		})
-
 	if err == nil {
 		return builder, nil
 	}
@@ -220,17 +219,16 @@ func (builder *agentBuilder) WaitForStateInfo(stateInfo string, timeout time.Dur
 
 	// Polls every retryInterval to determine if agent is in desired state.
 	var err error
+
 	err = wait.PollUntilContextTimeout(
 		context.TODO(), retryInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			builder.Object, err = builder.Get()
-
 			if err != nil {
 				return false, nil
 			}
 
 			return builder.Object.Status.DebugInfo.StateInfo == stateInfo, nil
 		})
-
 	if err == nil {
 		return builder, nil
 	}
@@ -249,7 +247,6 @@ func (builder *agentBuilder) WithOptions(options ...AgentAdditionalOptions) *age
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 
@@ -278,7 +275,6 @@ func (builder *agentBuilder) Get() (*agentInstallV1Beta1.Agent, error) {
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, agent)
-
 	if err != nil {
 		return nil, err
 	}
@@ -321,6 +317,7 @@ func (builder *agentBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -345,7 +342,6 @@ func (builder *agentBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return fmt.Errorf("cannot delete agent: %w", err)
 	}

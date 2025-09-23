@@ -387,11 +387,11 @@ func (builder *ControlPlaneBuilder) Get() (*istiov2.ServiceMeshControlPlane, err
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	servicemeshcontrolplane := &istiov2.ServiceMeshControlPlane{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, servicemeshcontrolplane)
-
 	if err != nil {
 		return nil, err
 	}
@@ -440,7 +440,6 @@ func (builder *ControlPlaneBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return fmt.Errorf("can not delete serviceMeshControlPlane %s in namespace %s due to %w",
 			builder.Definition.Name, builder.Definition.Namespace, err)
@@ -461,14 +460,12 @@ func (builder *ControlPlaneBuilder) Update(force bool) (*ControlPlaneBuilder, er
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		if force {
 			glog.V(100).Infof(
 				msg.FailToUpdateNotification("serviceMeshControlPlane", builder.Definition.Name, builder.Definition.Namespace))
 
 			err := builder.Delete()
-
 			if err != nil {
 				glog.V(100).Infof(
 					msg.FailToUpdateError("serviceMeshControlPlane", builder.Definition.Name, builder.Definition.Namespace))
@@ -497,6 +494,7 @@ func (builder *ControlPlaneBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)

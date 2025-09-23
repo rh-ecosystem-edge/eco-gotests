@@ -133,11 +133,11 @@ func (builder *ObjectBucketClaimBuilder) Get() (*noobaav1alpha1.ObjectBucketClai
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	objectBucketClaimObj := &noobaav1alpha1.ObjectBucketClaim{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, objectBucketClaimObj)
-
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +185,6 @@ func (builder *ObjectBucketClaimBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return fmt.Errorf("can not delete objectBucketClaim: %w", err)
 	}
@@ -205,6 +204,7 @@ func (builder *ObjectBucketClaimBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -220,7 +220,6 @@ func (builder *ObjectBucketClaimBuilder) Update() (*ObjectBucketClaimBuilder, er
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		glog.V(100).Infof(
 			msg.FailToUpdateError("objectBucketClaim", builder.Definition.Name, builder.Definition.Namespace))

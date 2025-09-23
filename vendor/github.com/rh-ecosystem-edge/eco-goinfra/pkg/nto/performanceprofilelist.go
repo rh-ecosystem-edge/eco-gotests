@@ -42,8 +42,8 @@ func ListProfiles(apiClient *clients.Settings, options ...goclient.ListOptions) 
 	glog.V(100).Infof(logMessage)
 
 	var performanceProfiles performanceprofilev2.PerformanceProfileList
-	err = apiClient.List(context.TODO(), &performanceProfiles, &passedOptions)
 
+	err = apiClient.List(context.TODO(), &performanceProfiles, &passedOptions)
 	if err != nil {
 		glog.V(100).Infof("Failed to list PerformanceProfiles due to %s", err.Error())
 
@@ -71,7 +71,6 @@ func CleanAllPerformanceProfiles(apiClient *clients.Settings, options ...goclien
 	glog.V(100).Infof("Cleaning up PerformanceProfiles")
 
 	policies, err := ListProfiles(apiClient, options...)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to list PerformanceProfiles")
 
@@ -80,7 +79,6 @@ func CleanAllPerformanceProfiles(apiClient *clients.Settings, options ...goclien
 
 	for _, policy := range policies {
 		_, err = policy.Delete()
-
 		if err != nil {
 			glog.V(100).Infof("Failed to delete PerformanceProfiles: %s", policy.Object.Name)
 

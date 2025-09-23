@@ -147,6 +147,7 @@ func (builder *PolicyBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -167,7 +168,6 @@ func (builder *PolicyBuilder) Get() (*policiesv1.Policy, error) {
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, policy)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to get policy %s in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
@@ -220,7 +220,6 @@ func (builder *PolicyBuilder) Delete() (*PolicyBuilder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("can not delete policy: %w", err)
 	}
@@ -246,8 +245,8 @@ func (builder *PolicyBuilder) Update(force bool) (*PolicyBuilder, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 
+	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		if force {
 			glog.V(100).Infof(
@@ -395,6 +394,7 @@ func (builder *PolicyBuilder) WaitForStatusMessageToContain(
 	}
 
 	var err error
+
 	err = wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			builder.Object, err = builder.Get()
@@ -413,7 +413,6 @@ func (builder *PolicyBuilder) WaitForStatusMessageToContain(
 
 			return false, nil
 		})
-
 	if err != nil {
 		return nil, err
 	}

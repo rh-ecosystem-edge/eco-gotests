@@ -132,6 +132,7 @@ func (builder *PlacementRuleBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -152,7 +153,6 @@ func (builder *PlacementRuleBuilder) Get() (*placementrulev1.PlacementRule, erro
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, placementRule)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to get placementrule %s in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
@@ -231,8 +231,8 @@ func (builder *PlacementRuleBuilder) Update(force bool) (*PlacementRuleBuilder, 
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 
+	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		if force {
 			glog.V(100).Infof(

@@ -82,6 +82,7 @@ func ListExternalIPv4Networks(apiClient *clients.Settings, options ...metav1.Lis
 			return nil, fmt.Errorf(
 				"error getting external IPv4 address from node %s due to %w", node.Definition.Name, err)
 		}
+
 		ipV4ExternalAddresses = append(ipV4ExternalAddresses, extNodeNetwork)
 	}
 
@@ -107,6 +108,7 @@ func ListExternalIPv6Networks(apiClient *clients.Settings, options ...metav1.Lis
 			return nil, fmt.Errorf(
 				"error getting external IPv6 address from node %s due to %w", node.Definition.Name, err)
 		}
+
 		ipV6ExternalAddresses = append(ipV6ExternalAddresses, extNodeNetwork)
 	}
 
@@ -146,7 +148,6 @@ func WaitForAllNodesAreReady(apiClient *clients.Settings,
 
 			return true, nil
 		})
-
 	if err == nil {
 		glog.V(100).Infof("All nodes were found in the Ready State during availableDuration: %v",
 			timeout)
@@ -177,6 +178,7 @@ func WaitForAllNodesToReboot(apiClient *clients.Settings,
 	globalStartTime := time.Now().Unix()
 	readyNodes := []string{}
 	rebootedNodes := []string{}
+
 	err = wait.PollUntilContextTimeout(
 		context.TODO(), backoff, globalRebootTimeout, true, func(ctx context.Context) (done bool, err error) {
 			for _, node := range nodesList {
@@ -205,7 +207,6 @@ func WaitForAllNodesToReboot(apiClient *clients.Settings,
 
 			return len(readyNodes) == len(nodesList), nil
 		})
-
 	if err == nil {
 		globalRebootDuration := time.Now().Unix() - globalStartTime
 		glog.V(100).Infof("All nodes were successfully rebooted during: %v", globalRebootDuration)

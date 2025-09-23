@@ -70,6 +70,7 @@ func (builder *Builder) Exists() bool {
 	glog.V(100).Infof("Checking if Event %s exists", builder.Object.Name)
 
 	var err error
+
 	builder.Object, err = builder.apiClient.Get(context.TODO(),
 		builder.Object.Name, metaV1.GetOptions{})
 

@@ -46,8 +46,8 @@ func ListPoliciesInAllNamespaces(apiClient *clients.Settings,
 	glog.V(100).Infof(logMessage)
 
 	policyList := new(policiesv1.PolicyList)
-	err = apiClient.List(context.TODO(), policyList, &passedOptions)
 
+	err = apiClient.List(context.TODO(), policyList, &passedOptions)
 	if err != nil {
 		glog.V(100).Infof("Failed to list all policies in all namespaces due to %s", err.Error())
 

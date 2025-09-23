@@ -86,7 +86,6 @@ func (builder *PoolConfigBuilder) Create() (*PoolConfigBuilder, error) {
 
 	if !builder.Exists() {
 		err := builder.apiClient.Create(context.TODO(), builder.Definition)
-
 		if err != nil {
 			return nil, err
 		}
@@ -116,7 +115,6 @@ func (builder *PoolConfigBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return err
 	}
@@ -136,6 +134,7 @@ func (builder *PoolConfigBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -152,11 +151,11 @@ func (builder *PoolConfigBuilder) Get() (*srIovV1.SriovNetworkPoolConfig, error)
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	poolConfig := &srIovV1.SriovNetworkPoolConfig{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, poolConfig)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to get SriovNetworkPoolConfig %s in namespace %s", builder.Definition.Name,
 			builder.Definition.Namespace)
@@ -177,7 +176,6 @@ func (builder *PoolConfigBuilder) Update() (*PoolConfigBuilder, error) {
 		builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to update SriovNetworkPoolConfig %s in namespace %s", builder.Definition.Name,
 			builder.Definition.Namespace)

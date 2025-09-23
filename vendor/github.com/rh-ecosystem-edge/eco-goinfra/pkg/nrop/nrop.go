@@ -114,10 +114,10 @@ func (builder *Builder) Get() (*nropv1.NUMAResourcesOperator, error) {
 	glog.V(100).Infof("Getting NUMAResourcesOperator %s", builder.Definition.Name)
 
 	nropObj := &nropv1.NUMAResourcesOperator{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, nropObj)
-
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +162,6 @@ func (builder *Builder) Delete() (*Builder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("can not delete NUMAResourcesOperator: %w", err)
 	}
@@ -181,6 +180,7 @@ func (builder *Builder) Exists() bool {
 	glog.V(100).Infof("Checking if NUMAResourcesOperator %s exists", builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -195,7 +195,6 @@ func (builder *Builder) Update() (*Builder, error) {
 	glog.V(100).Infof("Updating NUMAResourcesOperator %s", builder.Definition.Name)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		glog.V(100).Infof(
 			msg.FailToUpdateError("NUMAResourcesOperator", builder.Definition.Name))

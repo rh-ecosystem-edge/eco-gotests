@@ -72,10 +72,10 @@ func (builder *ConsoleOperatorBuilder) Get() (*operatorv1.Console, error) {
 	glog.V(100).Infof("Getting existing consoleOperator with name %s from cluster", builder.Definition.Name)
 
 	consoleOperator := &operatorv1.Console{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, consoleOperator)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to get consoleOperator object %s from cluster due to: %v",
 			builder.Definition.Name, err)
@@ -95,6 +95,7 @@ func (builder *ConsoleOperatorBuilder) Exists() bool {
 	glog.V(100).Infof("Checking if consoleOperator %s exists", builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)

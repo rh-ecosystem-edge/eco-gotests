@@ -41,7 +41,6 @@ func List(apiClient *clients.Settings, nsname string, options ...metav1.ListOpti
 	glog.V(100).Infof(logMessage)
 
 	configmapList, err := apiClient.ConfigMaps(nsname).List(context.TODO(), passedOptions)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to list configmaps in the namespace %s due to %s", nsname, err.Error())
 
@@ -89,7 +88,6 @@ func ListInAllNamespaces(apiClient *clients.Settings, options ...metav1.ListOpti
 	glog.V(100).Infof(logMessage)
 
 	configmapList, err := apiClient.ConfigMaps("").List(context.TODO(), passedOptions)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to list configmaps in all namespaces due to %s", err.Error())
 

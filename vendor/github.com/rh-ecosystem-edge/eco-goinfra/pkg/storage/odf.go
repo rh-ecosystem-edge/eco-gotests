@@ -135,11 +135,11 @@ func (builder *SystemODFBuilder) Get() (*odfoperatorv1alpha1.StorageSystem, erro
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	storageSystemObj := &odfoperatorv1alpha1.StorageSystem{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, storageSystemObj)
-
 	if err != nil {
 		glog.V(100).Infof("failed to find SystemODF object %s in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
@@ -160,6 +160,7 @@ func (builder *SystemODFBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -206,7 +207,6 @@ func (builder *SystemODFBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return fmt.Errorf("can not delete SystemODF: %w", err)
 	}

@@ -286,7 +286,6 @@ func (builder *ModuleBuilder) WithOptions(options ...ModuleAdditionalOptions) *M
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 
@@ -361,7 +360,6 @@ func (builder *ModuleBuilder) Create() (*ModuleBuilder, error) {
 	var err error
 	if !builder.Exists() {
 		err = builder.apiClient.Create(context.TODO(), builder.Definition)
-
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -381,7 +379,6 @@ func (builder *ModuleBuilder) Update() (*ModuleBuilder, error) {
 		builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err == nil {
 		builder.Object = builder.Definition
 	}
@@ -399,6 +396,7 @@ func (builder *ModuleBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -422,7 +420,6 @@ func (builder *ModuleBuilder) Delete() (*ModuleBuilder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, err
 	}
@@ -447,7 +444,6 @@ func (builder *ModuleBuilder) Get() (*moduleV1Beta1.Module, error) {
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, module)
-
 	if err != nil {
 		return nil, err
 	}

@@ -135,11 +135,11 @@ func (builder *SchedulerBuilder) Get() (*nropv1.NUMAResourcesScheduler, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	nrosObj := &nropv1.NUMAResourcesScheduler{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, nrosObj)
-
 	if err != nil {
 		glog.V(100).Infof("NUMAResourcesScheduler object %s not found in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
@@ -190,7 +190,6 @@ func (builder *SchedulerBuilder) Delete() (*SchedulerBuilder, error) {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("can not delete NUMAResourcesScheduler %s from namespace %s due to %w",
 			builder.Definition.Name, builder.Definition.Namespace, err)
@@ -211,6 +210,7 @@ func (builder *SchedulerBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -226,7 +226,6 @@ func (builder *SchedulerBuilder) Update() (*SchedulerBuilder, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		glog.V(100).Infof(
 			msg.FailToUpdateError("NUMAResourcesScheduler", builder.Definition.Name))

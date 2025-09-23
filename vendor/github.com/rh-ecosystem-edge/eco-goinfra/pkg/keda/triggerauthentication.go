@@ -136,11 +136,11 @@ func (builder *TriggerAuthenticationBuilder) Get() (*kedav2v1alpha1.TriggerAuthe
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	triggerAuthenticationObj := &kedav2v1alpha1.TriggerAuthentication{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, triggerAuthenticationObj)
-
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +188,6 @@ func (builder *TriggerAuthenticationBuilder) Delete() (*TriggerAuthenticationBui
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return builder, fmt.Errorf("can not delete triggerAuthentication: %w", err)
 	}
@@ -208,6 +207,7 @@ func (builder *TriggerAuthenticationBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -223,7 +223,6 @@ func (builder *TriggerAuthenticationBuilder) Update() (*TriggerAuthenticationBui
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
-
 	if err != nil {
 		glog.V(100).Infof(
 			msg.FailToUpdateError("triggerAuthentication", builder.Definition.Name, builder.Definition.Namespace))

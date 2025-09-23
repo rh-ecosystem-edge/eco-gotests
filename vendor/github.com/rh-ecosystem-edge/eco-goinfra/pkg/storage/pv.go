@@ -71,6 +71,7 @@ func (builder *PVBuilder) Exists() bool {
 	glog.V(100).Infof("Checking if PersistentVolume %s exists", builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.apiClient.PersistentVolumes().Get(
 		context.TODO(), builder.Definition.Name, metav1.GetOptions{})
 

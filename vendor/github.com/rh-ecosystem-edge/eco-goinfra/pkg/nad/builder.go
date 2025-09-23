@@ -139,10 +139,10 @@ func (builder *Builder) Get() (*nadV1.NetworkAttachmentDefinition, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	network := &nadV1.NetworkAttachmentDefinition{}
+
 	err := builder.apiClient.Get(context.TODO(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		network)
-
 	if err != nil {
 		glog.V(100).Infof(
 			"NetworkAttachmentDefinition object %s does not exist in namespace %s",
@@ -170,14 +170,12 @@ func (builder *Builder) Create() (*Builder, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.fillConfigureString()
-
 	if err != nil {
 		return builder, fmt.Errorf("failed create NAD object, could not marshal configuration %s", err.Error())
 	}
 
 	if !builder.Exists() {
 		err := builder.apiClient.Create(context.TODO(), builder.Definition)
-
 		if err != nil {
 			glog.V(100).Infof("Failed to create NAD object")
 
@@ -210,7 +208,6 @@ func (builder *Builder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return fmt.Errorf("fail to delete NAD object due to: %w", err)
 	}
@@ -235,8 +232,8 @@ func (builder *Builder) Update() (*Builder, error) {
 
 	builder.Definition.CreationTimestamp = metav1.Time{}
 	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 
+	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err == nil {
 		builder.Object = builder.Definition
 	}
@@ -257,6 +254,7 @@ func (builder *Builder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return nil == err || !k8serrors.IsNotFound(err)
@@ -333,7 +331,6 @@ func (builder *Builder) WithMasterPlugin(masterPlugin *MasterPlugin) *Builder {
 	}
 
 	masterPluginSting, err := json.Marshal(masterPlugin)
-
 	if err != nil {
 		builder.errorMsg = err.Error()
 
@@ -360,7 +357,6 @@ func (builder *Builder) WithPlugins(name string, plugins *[]Plugin) *Builder {
 	}
 
 	pluginsConfigString, err := json.Marshal(pluginsConfig)
-
 	if err != nil {
 		builder.errorMsg = err.Error()
 

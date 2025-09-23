@@ -84,11 +84,11 @@ func (builder *NARBuilder) Get() (*pluginsv1alpha1.NodeAllocationRequest, error)
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	nodeAllocationRequest := &pluginsv1alpha1.NodeAllocationRequest{}
+
 	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, nodeAllocationRequest)
-
 	if err != nil {
 		glog.V(100).Infof("Failed to get NodeAllocationRequest object %s in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
@@ -109,7 +109,6 @@ func (builder *NARBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	object, err := builder.Get()
-
 	if err != nil {
 		glog.V(100).Infof("Failed to get NodeAllocationRequest object %s in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)

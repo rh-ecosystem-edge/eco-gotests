@@ -120,8 +120,8 @@ func (builder *KubeletConfigBuilder) Get() (*mcv1.KubeletConfig, error) {
 	glog.V(100).Infof("Getting KubeletConfig object %s", builder.Definition.Name)
 
 	kubeletConfig := &mcv1.KubeletConfig{}
-	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, kubeletConfig)
 
+	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, kubeletConfig)
 	if err != nil {
 		glog.V(100).Infof("KubeletConfig object %s does not exist", builder.Definition.Name)
 
@@ -185,6 +185,7 @@ func (builder *KubeletConfigBuilder) Exists() bool {
 	glog.V(100).Infof("Checking if the kubeletconfig object %s exists", builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -271,7 +272,6 @@ func (builder *KubeletConfigBuilder) WithOptions(options ...AdditionalOptions) *
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 

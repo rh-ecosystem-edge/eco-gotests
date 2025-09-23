@@ -108,6 +108,7 @@ func (builder *RoleBindingBuilder) WithSubjects(subjects []rbacv1.Subject) *Role
 			return builder
 		}
 	}
+
 	builder.Definition.Subjects = append(builder.Definition.Subjects, subjects...)
 
 	return builder
@@ -124,7 +125,6 @@ func (builder *RoleBindingBuilder) WithOptions(options ...RoleBindingAdditionalO
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 
@@ -227,6 +227,7 @@ func (builder *RoleBindingBuilder) Update() (*RoleBindingBuilder, error) {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.apiClient.RoleBindings(builder.Definition.Namespace).Update(
 		context.TODO(), builder.Definition, metav1.UpdateOptions{})
 
@@ -243,6 +244,7 @@ func (builder *RoleBindingBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.apiClient.RoleBindings(builder.Definition.Namespace).Get(
 		context.TODO(), builder.Definition.Name, metav1.GetOptions{})
 

@@ -81,11 +81,11 @@ func (builder *HFCBuilder) Get() (*bmhv1alpha1.HostFirmwareComponents, error) {
 		"Getting HostFirmwareComponents object %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	hostFirmwareComponents := &bmhv1alpha1.HostFirmwareComponents{}
+
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, hostFirmwareComponents)
-
 	if err != nil {
 		glog.V(100).Infof(
 			"HostFirmwareComponents object %s does not exist in namespace %s",
@@ -107,6 +107,7 @@ func (builder *HFCBuilder) Exists() bool {
 		"Checking if HostFirmwareComponents %s exists in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)

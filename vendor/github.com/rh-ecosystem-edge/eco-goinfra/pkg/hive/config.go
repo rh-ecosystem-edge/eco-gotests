@@ -114,10 +114,10 @@ func (builder *ConfigBuilder) Get() (*hiveV1.HiveConfig, error) {
 	glog.V(100).Infof("Getting HiveConfig %s", builder.Definition.Name)
 
 	HiveConfig := &hiveV1.HiveConfig{}
+
 	err := builder.apiClient.Get(context.TODO(), runtimeClient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, HiveConfig)
-
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +156,6 @@ func (builder *ConfigBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return fmt.Errorf("cannot delete hiveconfig: %w", err)
 	}
@@ -177,6 +176,7 @@ func (builder *ConfigBuilder) Exists() bool {
 	glog.V(100).Infof("Checking if hiveconfig %s exists", builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -193,7 +193,6 @@ func (builder *ConfigBuilder) WithOptions(options ...ConfigAdditionalOptions) *C
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
-
 			if err != nil {
 				glog.V(100).Infof("Error occurred in mutation function")
 

@@ -73,8 +73,8 @@ func (builder *ConfigBuilder) Get() (*configv1.Network, error) {
 	glog.V(100).Infof("Getting network.config object %s", builder.Definition.Name)
 
 	network := &configv1.Network{}
-	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, network)
 
+	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, network)
 	if err != nil {
 		glog.V(100).Infof("Failed to get network.config object %s: %v", builder.Definition.Name, err)
 
@@ -93,6 +93,7 @@ func (builder *ConfigBuilder) Exists() bool {
 	glog.V(100).Infof("Checking if network.config %s exists", builder.Definition.Name)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)

@@ -541,7 +541,6 @@ func (bmc *BMC) SystemPowerCycle() error {
 			// Wait and get power state again.
 			return false, nil
 		})
-
 	if err != nil {
 		glog.V(100).Infof("Failure waiting for system's power state to be %v: %v", redfish.OffPowerState, err)
 
@@ -889,6 +888,7 @@ func (bmc *BMC) RunCLICommand(
 	var combinedOutput []byte
 
 	errCh := make(chan error)
+
 	go func() {
 		var err error
 		if combineOutput {
@@ -896,6 +896,7 @@ func (bmc *BMC) RunCLICommand(
 		} else {
 			err = sshSession.Run(cmd)
 		}
+
 		errCh <- err
 	}()
 

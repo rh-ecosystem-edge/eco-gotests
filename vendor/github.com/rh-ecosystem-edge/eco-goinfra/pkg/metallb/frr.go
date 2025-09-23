@@ -88,7 +88,6 @@ func (builder *FrrConfigurationBuilder) Create() (*FrrConfigurationBuilder, erro
 	var err error
 	if !builder.Exists() {
 		err = builder.apiClient.Create(context.TODO(), builder.Definition)
-
 		if err != nil {
 			glog.V(100).Infof("Failed to create MetalLb")
 
@@ -112,9 +111,9 @@ func (builder *FrrConfigurationBuilder) Get() (*frrtypes.FRRConfiguration, error
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	frrConfig := &frrtypes.FRRConfiguration{}
+
 	err := builder.apiClient.Get(context.TODO(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace}, frrConfig)
-
 	if err != nil {
 		glog.V(100).Infof(
 			"metallb object %s does not exist in namespace %s",
@@ -147,7 +146,6 @@ func (builder *FrrConfigurationBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-
 	if err != nil {
 		return fmt.Errorf("can not delete frrConfiguration: %w", err)
 	}
@@ -175,6 +173,7 @@ func (builder *FrrConfigurationBuilder) Exists() bool {
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
+
 	builder.Object, err = builder.Get()
 
 	return err == nil || !k8serrors.IsNotFound(err)
