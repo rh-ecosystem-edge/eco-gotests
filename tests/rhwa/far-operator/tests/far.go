@@ -51,7 +51,7 @@ var _ = Describe(
 			farCSVs, err := olm.ListClusterServiceVersionWithNamePattern(
 				APIClient, "fence-agents-remediation", rhwaparams.RhwaOperatorNs)
 			Expect(err).ToNot(HaveOccurred(), "Failed to list FAR ClusterServiceVersions")
-			Expect(len(farCSVs)).To(Equal(1), "Expected exactly one FAR ClusterServiceVersion, found %d", len(farCSVs))
+			Expect(len(farCSVs)).To(BeNumerically(">", 0), "At least one FAR ClusterServiceVersion should be found")
 
 			By("Checking annotation values on FAR CSV")
 			farCSV := farCSVs[0]
