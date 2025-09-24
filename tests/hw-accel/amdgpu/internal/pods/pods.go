@@ -143,3 +143,35 @@ func WaitUntilNoMorePodsInNamespaceByNameWithTimeout(ctx context.Context, apiCli
 		}
 	}
 }
+
+// GetPodsFromNamespaceByPrefixWithTimeout - Gets all pods in a namespace whose names start with a specified prefix.
+func GetPodsFromNamespaceByPrefixWithTimeout(
+	apiClient *clients.Settings, nsname string, prefix string) ([]*pod.Builder, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), amdparams.DefaultTimeout*time.Second)
+	defer cancel()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("timeout period has been exceeded while "+
+				"waiting for Pods with prefix '%s' in namespace '%s'", prefix, nsname)
+		case <-time.After(amdparams.DefaultSleepInterval * time.Second):
+			podBuilders, podsListErr := pod.List(apiClient, nsname)
+			if podsListErr != nil {
+				return nil, fmt.Errorf("failed to list Pods in namespace '%s'.\n%w", nsname, podsListErr)
+			}
+
+			var podsWithPrefix []*pod.Builder
+
+			for _, podBuilder := range podBuilders {
+				if strings.HasPrefix(podBuilder.Object.Name, prefix) {
+					podsWithPrefix = append(podsWithPrefix, podBuilder)
+				}
+			}
+
+			if len(podsWithPrefix) > 0 {
+				return podsWithPrefix, nil
+			}
+		}
+	}
+}
