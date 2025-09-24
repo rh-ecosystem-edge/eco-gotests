@@ -14,6 +14,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/pods"
 	amdparams "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/params"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -114,6 +115,42 @@ var _ = Describe("AMD GPU Basic Tests", Ordered, Label(amdparams.LabelSuite), fu
 				Expect(restoringNodeLabellerErr).To(BeNil(),
 					fmt.Sprintf("Failed to restore enableNodeLabeller to '%t'. Error:\n%t\n",
 						nodeLabellerEnabled, *deviceconfig.GetEnableNodeLabeller(deviceConfigBuilderNew)))
+			}
+		})
+
+		It("Device Plugin", func() {
+
+			podsBuilder, podsBuilderErr := pods.GetPodsFromNamespaceByPrefixWithTimeout(
+				apiClient, amdparams.AMDGPUNamespace, amdparams.DeviceConfigName+"-device-plugin-")
+
+			By("Listing Device Plugin Pods")
+			Expect(podsBuilderErr).To(BeNil(),
+				fmt.Sprintf("Failed to get Device Plugin Pod in namespace '%s'. Error:\n%t\n",
+					"openshift-amd-gpu", podsBuilderErr))
+
+			By("Counting Device Plugin Pods")
+			Expect(podsBuilder).To(HaveLen(len(amdNodeBuilders)),
+				fmt.Sprintf("expected one device plugin pod per AMD GPU worker node (found %d, expected %d)",
+					len(podsBuilder), len(amdNodeBuilders)))
+
+			By("Checking Device Plugin Pods is running and healthy")
+			for _, pod := range podsBuilder {
+				Expect(pod.Object.Status.Phase).To(Equal(corev1.PodRunning))
+				Expect(pod.IsHealthy()).To(BeTrue())
+			}
+
+			By("Checking Resource Capacity & Allocatable on AMD GPU Worker Nodes")
+			for _, node := range amdNodeBuilders {
+				capacityQuantity := node.Object.Status.Capacity["amd.com/gpu"]
+				capacity := capacityQuantity.Value()
+
+				allocatableQuantity := node.Object.Status.Allocatable["amd.com/gpu"]
+				allocatable := allocatableQuantity.Value()
+
+				Expect(capacity).To(BeNumerically(">=", 1),
+					fmt.Sprintf("expected at least one AMD GPU in capacity for node %s", node.Object.Name))
+				Expect(allocatable).To(BeNumerically(">=", 1),
+					fmt.Sprintf("expected at least one AMD GPU allocatable for node %s", node.Object.Name))
 			}
 		})
 	})
