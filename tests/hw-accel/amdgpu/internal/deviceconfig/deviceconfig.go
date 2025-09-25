@@ -11,9 +11,15 @@ import (
 
 // GetEnableNodeLabeller - Get the value of 'enableNodeLabeller' from the deviceConfig.
 func GetEnableNodeLabeller(builder *amdgpu.Builder) *bool {
-	builder.Exists()
+	if builder == nil {
+		return nil
+	}
 
-	return builder.Object.Spec.DevicePlugin.EnableNodeLabeller
+	if builder.Exists() {
+		return builder.Object.Spec.DevicePlugin.EnableNodeLabeller
+	}
+
+	return nil
 }
 
 // IsNodeLabellerEnabled - The function returns a boolean value indicating the
@@ -35,12 +41,12 @@ func SetEnableNodeLabeller(enable bool, builder *amdgpu.Builder, force bool) err
 
 	*builder.Definition.Spec.DevicePlugin.EnableNodeLabeller = enable
 
-	_, updateErr := builder.Update(force)
+	builder, updateErr := builder.Update(force)
 	if updateErr != nil {
 		return updateErr
 	}
 
-	validateCtx, cancelValidateCtx := context.WithTimeout(context.TODO(), amdparams.DefaultTimeout*time.Second)
+	validateCtx, cancelValidateCtx := context.WithTimeout(context.TODO(), 10*time.Second)
 	defer cancelValidateCtx()
 
 	var actualVal bool
@@ -49,10 +55,13 @@ func SetEnableNodeLabeller(enable bool, builder *amdgpu.Builder, force bool) err
 		select {
 		case <-validateCtx.Done():
 			return fmt.Errorf("mismatch in enableNodeLabeller - Expected: '%v', Got: '%v'", enable, actualVal)
-		case <-time.After(amdparams.DefaultSleepInterval * time.Second):
-			actualVal = *GetEnableNodeLabeller(builder)
-			if actualVal == enable {
-				return nil
+		case <-time.After(amdparams.DefaultSleepInterval):
+			enableNodeLabeller := GetEnableNodeLabeller(builder)
+			if enableNodeLabeller != nil {
+				actualVal = *enableNodeLabeller
+				if actualVal == enable {
+					return nil
+				}
 			}
 		}
 	}

@@ -7,11 +7,8 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
-	nodefeature "github.com/rh-ecosystem-edge/eco-goinfra/pkg/nfd"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nfd"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // NFDCustomResourceCleaner implements CustomResourceCleaner for NFD operators.
@@ -37,7 +34,6 @@ func NewNFDCustomResourceCleaner(
 func (n *NFDCustomResourceCleaner) CleanupCustomResources() error {
 	glog.V(n.LogLevel).Infof("Deleting NodeFeatureDiscovery custom resources in namespace %s", n.Namespace)
 
-	// Delete the specific NFD CR created in the AMD GPU tests
 	nfdCRName := "amd-gpu-nfd-instance"
 	deletedCount := 0
 
@@ -47,7 +43,6 @@ func (n *NFDCustomResourceCleaner) CleanupCustomResources() error {
 		deletedCount++
 	}
 
-	// Also cleanup AMD GPU FeatureRule
 	if err := n.cleanupAMDGPUFeatureRule(); err != nil {
 		glog.V(n.LogLevel).Infof("AMD GPU FeatureRule cleanup: %v", err)
 	}
@@ -65,8 +60,7 @@ func (n *NFDCustomResourceCleaner) CleanupCustomResources() error {
 func (n *NFDCustomResourceCleaner) deleteNFDCRByName(crName string) error {
 	glog.V(n.LogLevel).Infof("Attempting to delete NFD CR: %s", crName)
 
-	// Use Pull to get existing NFD CR
-	nfdCR, err := nodefeature.Pull(n.APIClient, crName, n.Namespace)
+	nfdCR, err := nfd.Pull(n.APIClient, crName, n.Namespace)
 	if err != nil {
 		if strings.Contains(err.Error(), "does not exist") {
 			glog.V(n.LogLevel).Infof("NFD CR %s does not exist", crName)
@@ -79,7 +73,6 @@ func (n *NFDCustomResourceCleaner) deleteNFDCRByName(crName string) error {
 		return fmt.Errorf("failed to pull NFD CR %s: %w", crName, err)
 	}
 
-	// Remove finalizers if present
 	if len(nfdCR.Object.GetFinalizers()) > 0 {
 		glog.V(n.LogLevel).Infof("Removing finalizers from NFD CR %s", crName)
 		nfdCR.Object.SetFinalizers([]string{})
@@ -109,23 +102,13 @@ func (n *NFDCustomResourceCleaner) deleteNFDCRByName(crName string) error {
 
 // cleanupAMDGPUFeatureRule cleans up the AMD GPU FeatureRule.
 func (n *NFDCustomResourceCleaner) cleanupAMDGPUFeatureRule() error {
-	featureRuleGVK := schema.GroupVersionKind{
-		Group:   "nfd.openshift.io",
-		Version: "v1alpha1",
-		Kind:    "NodeFeatureRule",
-	}
-
-	featureRule := &unstructured.Unstructured{}
-	featureRule.SetGroupVersionKind(featureRuleGVK)
+	nodeFeaturRuleBuilder, err := nfd.PullFeatureRule(n.APIClient, "amd-gpu-feature-rule", "openshift-amd-gpu")
 
 	ctx := context.Background()
-	err := n.APIClient.Client.Get(ctx,
-		client.ObjectKey{Name: "amd-gpu-feature-rule", Namespace: "openshift-amd-gpu"},
-		featureRule)
 
 	if err == nil {
 		glog.V(n.LogLevel).Info("Deleting AMD GPU FeatureRule")
-		err = n.APIClient.Client.Delete(ctx, featureRule)
+		err = n.APIClient.Client.Delete(ctx, nodeFeaturRuleBuilder.Object)
 
 		if err != nil {
 			glog.V(n.LogLevel).Infof("Error deleting AMD GPU FeatureRule: %v", err)
