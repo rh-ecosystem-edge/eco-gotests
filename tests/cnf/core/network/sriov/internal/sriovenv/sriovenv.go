@@ -85,18 +85,46 @@ func CreateSriovNetworkAndWaitForNADCreation(sNet *sriov.NetworkBuilder, timeout
 		return err
 	}
 
+	return WaitForNADCreation(sriovNetwork, timeout)
+}
+
+// WaitForNADCreation waits for the NAD to be created.
+func WaitForNADCreation(sriovNetwork *sriov.NetworkBuilder, timeout time.Duration) error {
 	return wait.PollUntilContextTimeout(context.TODO(),
 		time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			_, err = nad.Pull(APIClient, sriovNetwork.Object.Name, sriovNetwork.Object.Spec.NetworkNamespace)
+			_, err := nad.Pull(APIClient, sriovNetwork.Object.Name, TargetNamespaceOf(sriovNetwork))
 			if err != nil {
 				glog.V(100).Infof("Failed to get NAD %s in namespace %s: %v",
-					sriovNetwork.Object.Name, sriovNetwork.Object.Spec.NetworkNamespace, err)
+					sriovNetwork.Object.Name, TargetNamespaceOf(sriovNetwork), err)
 
 				return false, nil
 			}
 
 			return true, nil
 		})
+}
+
+// WaitForNADDeletion waits for the NAD to be deleted.
+func WaitForNADDeletion(name, namespace string, timeout time.Duration) error {
+	return wait.PollUntilContextTimeout(context.TODO(),
+		time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			_, err := nad.Pull(APIClient, name, namespace)
+			if err != nil {
+				return true, nil
+			}
+
+			return false, nil
+		})
+}
+
+// TargetNamespaceOf returns the target namespace of a SriovNetwork.
+// If the target namespace is not set, it returns the namespace of the SriovNetwork.
+func TargetNamespaceOf(sriovNetwork *sriov.NetworkBuilder) string {
+	if sriovNetwork.Object.Spec.NetworkNamespace != "" {
+		return sriovNetwork.Object.Spec.NetworkNamespace
+	}
+
+	return sriovNetwork.Object.Namespace
 }
 
 // WaitUntilVfsCreated waits until all expected SR-IOV VFs are created.
