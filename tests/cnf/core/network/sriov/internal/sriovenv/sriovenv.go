@@ -12,6 +12,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 
+	nadV1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	sriovV1 "github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/cmd"
@@ -21,8 +22,10 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/tsparams"
 	"gopkg.in/k8snetworkplumbingwg/multus-cni.v4/pkg/types"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // ValidateSriovInterfaces checks that provided interfaces by env var exist on the nodes.
@@ -85,18 +88,48 @@ func CreateSriovNetworkAndWaitForNADCreation(sNet *sriov.NetworkBuilder, timeout
 		return err
 	}
 
+	return WaitForNADCreation(sriovNetwork, timeout)
+}
+
+// WaitForNADCreation waits for the NAD to be created.
+func WaitForNADCreation(sriovNetwork *sriov.NetworkBuilder, timeout time.Duration) error {
 	return wait.PollUntilContextTimeout(context.TODO(),
 		time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			_, err = nad.Pull(APIClient, sriovNetwork.Object.Name, sriovNetwork.Object.Spec.NetworkNamespace)
+			_, err := nad.Pull(APIClient, sriovNetwork.Object.Name, TargetNamespaceOf(sriovNetwork))
 			if err != nil {
 				glog.V(100).Infof("Failed to get NAD %s in namespace %s: %v",
-					sriovNetwork.Object.Name, sriovNetwork.Object.Spec.NetworkNamespace, err)
+					sriovNetwork.Object.Name, TargetNamespaceOf(sriovNetwork), err)
 
 				return false, nil
 			}
 
 			return true, nil
 		})
+}
+
+// WaitForNADDeletion waits for the NAD to be deleted.
+func WaitForNADDeletion(name, namespace string, timeout time.Duration) error {
+	return wait.PollUntilContextTimeout(context.TODO(),
+		time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			var testNAD nadV1.NetworkAttachmentDefinition
+
+			err := APIClient.Client.Get(context.TODO(), k8sclient.ObjectKey{Name: name, Namespace: namespace}, &testNAD)
+			if k8serrors.IsNotFound(err) {
+				return true, nil
+			}
+
+			return false, nil
+		})
+}
+
+// TargetNamespaceOf returns the target namespace of a SriovNetwork.
+// If the target namespace is not set, it returns the namespace of the SriovNetwork.
+func TargetNamespaceOf(sriovNetwork *sriov.NetworkBuilder) string {
+	if sriovNetwork.Object.Spec.NetworkNamespace != "" {
+		return sriovNetwork.Object.Spec.NetworkNamespace
+	}
+
+	return sriovNetwork.Object.Namespace
 }
 
 // WaitUntilVfsCreated waits until all expected SR-IOV VFs are created.
