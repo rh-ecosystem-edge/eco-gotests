@@ -78,17 +78,33 @@ func NewNetworkBuilder(
 		return builder
 	}
 
-	if targetNsname == "" {
-		builder.errorMsg = "SrIovNetwork 'targetNsname' cannot be empty"
-
-		return builder
-	}
-
 	if resName == "" {
 		builder.errorMsg = "SrIovNetwork 'resName' cannot be empty"
 
 		return builder
 	}
+
+	return builder
+}
+
+// WithTargetNamespace sets the target namespace for the SriovNetwork.
+func (builder *NetworkBuilder) WithTargetNamespace(targetNsname string) *NetworkBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	glog.V(100).Infof("Adding targetNsname %s to SriovNetwork %s in namespace %s",
+		targetNsname, builder.Definition.Name, builder.Definition.Namespace)
+
+	if targetNsname == "" {
+		glog.V(100).Infof("SrIovNetwork 'targetNsname' cannot be empty")
+
+		builder.errorMsg = "SrIovNetwork 'targetNsname' cannot be empty"
+
+		return builder
+	}
+
+	builder.Definition.Spec.NetworkNamespace = targetNsname
 
 	return builder
 }
