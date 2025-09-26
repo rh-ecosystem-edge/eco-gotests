@@ -62,8 +62,8 @@ var (
 		"ping -I net1 ff05:5::05"}
 	multicastPingDualNet1Net2StackCMD = []string{"bash", "-c", "sleep 5; ping -I net1 239.100.100.250 & " +
 		"ping -I net1 ff05:5::05 & ping -I net2 239.100.100.250 & ping -I net2 ff05:5::05"}
-	tcpDumpCMD           = []string{"bash", "-c", "tcpdump -i net1 -c 10"}
-	tcpDumpCMDNet2       = []string{"bash", "-c", "tcpdump -i net2 -c 10"}
+	tcpDumpCMD           = []string{"bash", "-c", "timeout 2m tcpdump -i net1 -c 10"}
+	tcpDumpCMDNet2       = []string{"bash", "-c", "timeout 2m tcpdump -i net2 -c 10"}
 	addIPv6MCGroupMacCMD = []string{"bash", "-c", "ip maddr add 33:33:0:0:0:5 dev net1"}
 	addIPv4MCGroupMacCMD = []string{"bash", "-c", "ip maddr add 01:00:5e:64:64:fa dev net1"}
 )
