@@ -27,7 +27,7 @@ reviews:
   in_progress_fortune: true
   poem: false
   labeling_instructions: []
-  path_filters: ['!vendor/']
+  path_filters: ['!vendor/**']
   path_instructions: []
   abort_on_close: true
   disable_cache: false
