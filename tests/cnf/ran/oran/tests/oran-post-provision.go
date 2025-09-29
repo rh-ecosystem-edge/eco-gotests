@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"crypto/tls"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -10,10 +9,10 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/configmap"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ocm"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran"
-	oranapi "github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/siteconfig"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/auth"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/helper"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/tsparams"
 	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
@@ -31,10 +30,10 @@ var _ = Describe("ORAN Post-provision Tests", Label(tsparams.LabelPostProvision)
 		var err error
 
 		By("creating the O2IMS API client")
-		o2imsAPIClient, err = oranapi.NewClientBuilder(RANConfig.O2IMSBaseURL).
-			WithToken(RANConfig.O2IMSToken).
-			WithTLSConfig(&tls.Config{InsecureSkipVerify: true}).
-			BuildProvisioning()
+		clientBuilder, err := auth.NewClientBuilderForConfig(RANConfig)
+		Expect(err).ToNot(HaveOccurred(), "Failed to create the O2IMS API client builder")
+
+		o2imsAPIClient, err = clientBuilder.BuildProvisioning()
 		Expect(err).ToNot(HaveOccurred(), "Failed to create the O2IMS API client")
 
 		By("saving the original ProvisioningRequest spec")

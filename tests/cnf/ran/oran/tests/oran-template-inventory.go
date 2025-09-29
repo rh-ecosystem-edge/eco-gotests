@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -15,6 +14,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/filter"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/auth"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/tsparams"
 	"gopkg.in/yaml.v3"
 )
@@ -29,11 +29,11 @@ var _ = Describe("ORAN Template Inventory", Label(tsparams.LabelPreProvision, ts
 		var err error
 
 		By("creating the O2IMS API client")
-		artifactsClient, err = oranapi.NewClientBuilder(RANConfig.O2IMSBaseURL).
-			WithToken(RANConfig.O2IMSToken).
-			WithTLSConfig(&tls.Config{InsecureSkipVerify: true}).
-			BuildArtifacts()
-		Expect(err).ToNot(HaveOccurred(), "Failed to create the O2IMS API client")
+		clientBuilder, err := auth.NewClientBuilderForConfig(RANConfig)
+		Expect(err).ToNot(HaveOccurred(), "Failed to create the O2IMS API client builder")
+
+		artifactsClient, err = clientBuilder.BuildArtifacts()
+		Expect(err).ToNot(HaveOccurred(), "Failed to create the O2IMS API artifacts client")
 	})
 
 	// 82940 - Successfully list ManagedInfrastructureTemplates

@@ -1,6 +1,7 @@
 package ranconfig
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -50,8 +51,40 @@ type HubConfig struct {
 	ZTPVersion          string
 	HubOperatorVersions map[ranparam.HubOperatorName]string
 	HubKubeconfig       string `envconfig:"ECO_CNF_RAN_KUBECONFIG_HUB"`
-	O2IMSBaseURL        string `envconfig:"ECO_CNF_RAN_O2IMS_BASE_URL"`
-	O2IMSToken          string `envconfig:"ECO_CNF_RAN_O2IMS_TOKEN"`
+
+	// HubAppsDomain is the subdomain for the hub cluster's routes. It should be
+	// apps.<hub-cluster-name>.<hub-cluster-domain> with no leading or trailing dots.
+	//
+	// When running the O-RAN suite, it is assumed that the OAuth endpoint is at keycloak.<hub-apps-domain> and the
+	// O2IMS API is at o2ims.<hub-apps-domain>.
+	HubAppsDomain string `envconfig:"ECO_CNF_RAN_HUB_APPS_DOMAIN"`
+
+	// O2IMSClientCertSecret is the name of the secret in the O2IMSClientCertSecretNamespace namespace that contains
+	// the client certificate to use when interacting with the O2IMS and OAuth APIs.
+	//
+	// It is expected that the secret contains 3 different keys: tls.crt, tls.key, and ca.crt (optional). The
+	// tls.crt and tls.key are used for mTLS and certificate-bound tokens (RFC 8705). If the ca.crt is present, it
+	// is added as a CA certificate when interacting with the O2IMS and OAuth APIs.
+	O2IMSClientCertSecret string `envconfig:"ECO_CNF_RAN_O2IMS_CLIENT_CERT_SECRET"`
+	// O2IMSClientCertSecretNamespace is the namespace for the O2IMS client certificate secret.
+	O2IMSClientCertSecretNamespace string `envconfig:"ECO_CNF_RAN_O2IMS_CLIENT_CERT_SECRET_NAMESPACE"`
+
+	// O2IMSOAuthClientID is the client ID used to request the access token from the OAuth endpoint using the client
+	// credentials grant type.
+	O2IMSOAuthClientID string `envconfig:"ECO_CNF_RAN_O2IMS_OAUTH_CLIENT_ID"`
+	// O2IMSOAuthClientSecret is a string used to request the access token from the OAuth endpoint using the client
+	// credentials grant type.
+	O2IMSOAuthClientSecret string `envconfig:"ECO_CNF_RAN_O2IMS_OAUTH_CLIENT_SECRET"`
+
+	// O2IMSToken is the token for the O-RAN suite to authenticate with the O2IMS API. It is only used when OAuth is
+	// not configured.
+	O2IMSToken string `envconfig:"ECO_CNF_RAN_O2IMS_TOKEN"`
+}
+
+// GetAppsURL returns the apps URL for the given subdomain. It should end up being in a form similar to
+// <subdomain>.apps.<hub-cluster-name>.<hub-cluster-domain>.
+func (hubConfig *HubConfig) GetAppsURL(subdomain string) string {
+	return fmt.Sprintf("%s.%s", subdomain, hubConfig.HubAppsDomain)
 }
 
 // Spoke1Config contains the configuration for the spoke 1 cluster, which should always be present.

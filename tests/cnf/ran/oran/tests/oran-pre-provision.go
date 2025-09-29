@@ -1,16 +1,15 @@
 package tests
 
 import (
-	"crypto/tls"
 	"fmt"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran"
-	oranapi "github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/auth"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/helper"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/tsparams"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -23,10 +22,10 @@ var _ = Describe("ORAN Pre-provision Tests", Label(tsparams.LabelPreProvision), 
 		var err error
 
 		By("creating the O2IMS API client")
-		o2imsAPIClient, err = oranapi.NewClientBuilder(RANConfig.O2IMSBaseURL).
-			WithToken(RANConfig.O2IMSToken).
-			WithTLSConfig(&tls.Config{InsecureSkipVerify: true}).
-			BuildProvisioning()
+		clientBuilder, err := auth.NewClientBuilderForConfig(RANConfig)
+		Expect(err).ToNot(HaveOccurred(), "Failed to create the O2IMS API client builder")
+
+		o2imsAPIClient, err = clientBuilder.BuildProvisioning()
 		Expect(err).ToNot(HaveOccurred(), "Failed to create the O2IMS API client")
 	})
 

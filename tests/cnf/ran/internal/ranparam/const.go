@@ -26,6 +26,8 @@ const (
 	OpenshiftGitOpsNamespace = "openshift-gitops"
 	// OpenshiftGitopsRepoServer ocp git repo server.
 	OpenshiftGitopsRepoServer = "openshift-gitops-repo-server"
+	// OCloudOperatorNamespace is the namespace for the O-Cloud operator.
+	OCloudOperatorNamespace = "oran-o2ims"
 	// PtpContainerName is the name of the container in the PTP daemon pod.
 	PtpContainerName = "linuxptp-daemon-container"
 	// PtpDaemonsetLabelSelector is the label selector to find the PTP daemon pod.
