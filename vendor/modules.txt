@@ -1014,7 +1014,7 @@ github.com/r3labs/diff/v3
 # github.com/red-hat-storage/odf-operator v0.0.0-20250716125006-48092cb5468b
 ## explicit; go 1.23.0
 github.com/red-hat-storage/odf-operator/api/v1alpha1
-# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20250930122535-e5d21d9f1a54
+# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20250930161533-977054842ca5
 ## explicit; go 1.25
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/amdgpu
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/apiservers
@@ -1068,6 +1068,7 @@ github.com/rh-ecosystem-edge/eco-goinfra/pkg/olm
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/filter
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/alarms
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/artifacts
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/common
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/provisioning
