@@ -99,6 +99,7 @@ linters:
             - github.com/go-openapi/strfmt
             - golang.org/x/oauth2
             - github.com/google/uuid
+            - golang.org/x/exp/constraints
           deny:
             - pkg: github.com/onsi**
     funlen:

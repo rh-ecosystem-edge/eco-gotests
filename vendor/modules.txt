@@ -1406,6 +1406,7 @@ golang.org/x/crypto/ssh/internal/bcrypt_pbkdf
 golang.org/x/crypto/ssh/knownhosts
 # golang.org/x/exp v0.0.0-20250711185948-6ae5c78190dc
 ## explicit; go 1.23.0
+golang.org/x/exp/constraints
 golang.org/x/exp/maps
 golang.org/x/exp/slices
 # golang.org/x/net v0.42.0
