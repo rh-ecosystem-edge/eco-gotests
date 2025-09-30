@@ -426,6 +426,8 @@ func NewMasterBondPlugin(name, mode string) *MasterBondPlugin {
 		"balance-rr":    true,
 		"active-backup": true,
 		"balance-xor":   true,
+		"balance-tlb":   true,
+		"balance-alb":   true,
 	}
 
 	builder := &MasterBondPlugin{
