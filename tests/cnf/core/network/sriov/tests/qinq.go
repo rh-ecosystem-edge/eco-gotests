@@ -501,7 +501,8 @@ var _ = Describe(
 
 				By("Define and create sriov-network with 802.1ad S-VLAN")
 				defineAndCreateSrIovNetworkWithQinQ(srIovNetworkDPDKDot1AD, srIovPolicyResNameVfioPci, dot1ad)
-				defineAndCreateSrIovNetworkClientDPDK(srIovNetworkDPDKClient, srIovPolicyResNameVfioPci)
+				err = sriovenv.DefineAndCreateSriovNetwork(srIovNetworkDPDKClient, srIovPolicyResNameVfioPci, false, false)
+				Expect(err).ToNot(HaveOccurred(), "Failed to create DPDK SriovNetwork client")
 
 				By("Define and create sriov-network with 802.1q S-VLAN")
 				defineAndCreateSrIovNetworkWithQinQ(srIovNetworkDPDKDot1Q, srIovPolicyResNameVfioPci, dot1q)
@@ -692,20 +693,6 @@ func defineAndCreateSrIovNetworkWithQinQ(srIovNetwork, resName, vlanProtocol str
 		APIClient, srIovNetwork, NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName, resName).
 		WithVlanProto(vlanProtocol).WithVLAN(uint16(vlan)).WithLogLevel(netparam.LogLevelDebug).Create()
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to create sriov network %s", err))
-
-	Eventually(func() bool {
-		_, err := nad.Pull(APIClient, srIovNetworkObject.Object.Name, tsparams.TestNamespaceName)
-
-		return err == nil
-	}, tsparams.WaitTimeout, tsparams.RetryInterval).Should(BeTrue(),
-		"Fail to pull NetworkAttachmentDefinition")
-}
-
-func defineAndCreateSrIovNetworkClientDPDK(srIovNetworkName, resName string) {
-	srIovNetworkObject, err := sriov.NewNetworkBuilder(
-		APIClient, srIovNetworkName, NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName, resName).
-		WithLogLevel(netparam.LogLevelDebug).Create()
-	Expect(err).ToNot(HaveOccurred(), "Failed to create dpdk sriov-network")
 
 	Eventually(func() bool {
 		_, err := nad.Pull(APIClient, srIovNetworkObject.Object.Name, tsparams.TestNamespaceName)

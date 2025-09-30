@@ -132,6 +132,46 @@ func TargetNamespaceOf(sriovNetwork *sriov.NetworkBuilder) string {
 	return sriovNetwork.Object.Namespace
 }
 
+// DefineAndCreateSriovNetwork creates an enhanced SriovNetwork with optional features and waits for NAD creation.
+func DefineAndCreateSriovNetwork(networkName, resourceName string, withStaticIP, withTrust bool) error {
+	networkBuilder := sriov.NewNetworkBuilder(
+		APIClient, networkName, NetConfig.SriovOperatorNamespace,
+		tsparams.TestNamespaceName, resourceName).
+		WithMacAddressSupport().
+		WithLogLevel(netparam.LogLevelDebug)
+
+	// Enable VF trust for advanced network operations (balance-tlb/alb.)
+	if withTrust {
+		networkBuilder = networkBuilder.WithTrustFlag(true)
+	}
+
+	if withStaticIP {
+		networkBuilder = networkBuilder.WithStaticIpam()
+	}
+
+	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.WaitTimeout)
+}
+
+// DiscoverInterfaceUnderTestDeviceID discovers device ID for a given SR-IOV interface.
+func DiscoverInterfaceUnderTestDeviceID(srIovInterfaceUnderTest, workerNodeName string) string {
+	sriovInterfaces, err := sriov.NewNetworkNodeStateBuilder(
+		APIClient, workerNodeName, NetConfig.SriovOperatorNamespace).GetUpNICs()
+	if err != nil {
+		glog.V(90).Infof("Failed to discover device ID for network interface %s: %v",
+			srIovInterfaceUnderTest, err)
+
+		return ""
+	}
+
+	for _, srIovInterface := range sriovInterfaces {
+		if srIovInterface.Name == srIovInterfaceUnderTest {
+			return srIovInterface.DeviceID
+		}
+	}
+
+	return ""
+}
+
 // WaitUntilVfsCreated waits until all expected SR-IOV VFs are created.
 func WaitUntilVfsCreated(
 	nodeList []*nodes.Builder, sriovInterfaceName string, numberOfVfs int, timeout time.Duration) error {
