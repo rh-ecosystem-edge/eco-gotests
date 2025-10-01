@@ -29,6 +29,8 @@ const (
 	PtpContainerName = "linuxptp-daemon-container"
 	// PtpDaemonsetLabelSelector is the label selector to find the PTP daemon pod.
 	PtpDaemonsetLabelSelector = "app=linuxptp-daemon"
+	// PtpOperatorNamespace is the namespace for the PTP operator.
+	PtpOperatorNamespace = "openshift-ptp"
 	// LogLevel is the verbosity for ran/internal packages.
 	LogLevel glog.Level = 80
 	// RetryInterval retry interval for node exec commands.
