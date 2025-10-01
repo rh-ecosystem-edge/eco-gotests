@@ -5,8 +5,10 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	configv1 "github.com/openshift/api/config/v1"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/infrastructure"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 
@@ -49,6 +51,14 @@ var _ = Describe(
 		})
 
 		It("Verify FAR controller manager has correct number of replicas", reportxml.ID("OCP-61222"), func() {
+			By("Checking cluster topology")
+			infraConfig, err := infrastructure.Pull(APIClient)
+			Expect(err).ToNot(HaveOccurred(), "Failed to pull infrastructure configuration")
+
+			if infraConfig.Object.Status.ControlPlaneTopology == configv1.SingleReplicaTopologyMode {
+				Skip("Skipping test on SNO (Single Node OpenShift) cluster")
+			}
+
 			By("Checking deployment replicas")
 			Expect(farDeployment.Object.Spec.Replicas).ToNot(BeNil(), "Deployment replicas should not be nil")
 			Expect(*farDeployment.Object.Spec.Replicas).To(Equal(farparams.ExpectedReplicas),
