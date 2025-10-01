@@ -14,6 +14,7 @@ import (
 	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/rhwa/far-operator/tests"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/rhwa/internal/rhwainittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/rhwa/internal/rhwaparams"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 var (
@@ -35,7 +36,10 @@ var _ = BeforeSuite(func() {
 		testNS.WithLabel(key, value)
 	}
 	_, err := testNS.Create()
-	Expect(err).ToNot(HaveOccurred(), "error to create test namespace")
+
+	if err != nil && !apierrors.IsAlreadyExists(err) {
+		Expect(err).ToNot(HaveOccurred(), "error to create test namespace")
+	}
 })
 
 var _ = JustAfterEach(func() {
