@@ -2,6 +2,7 @@ package rapidast
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"time"
 
@@ -84,10 +85,34 @@ func PrepareRapidastPod(apiClient *clients.Settings) (*pod.Builder, error) {
 	return dastTestPod, nil
 }
 
-// RunRapidastScan executes the rapidast scan configured in the container.
+// RunRapidastScan executes the rapidast scan configured in the container with a timeout.
+// Returns the command output (for JSON parsing) and any error that occurred (including timeout).
 func RunRapidastScan(dastTestPod pod.Builder, namespace string) (bytes.Buffer, error) {
 	command := []string{"bash", "-c",
 		fmt.Sprintf("NAMESPACE=%s rapidast.py --config ./config/rapidastConfig.yaml 2> /dev/null", namespace)}
 
-	return dastTestPod.ExecCommand(command)
+	// Create a channel to receive the result
+	type result struct {
+		output bytes.Buffer
+		err    error
+	}
+
+	resultCh := make(chan result, 1)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+
+	defer cancel()
+
+	// Execute the command in a goroutine
+	go func() {
+		output, err := dastTestPod.ExecCommand(command)
+		resultCh <- result{output: output, err: err}
+	}()
+
+	// Wait for either completion or timeout
+	select {
+	case res := <-resultCh:
+		return res.output, res.err
+	case <-ctx.Done():
+		return bytes.Buffer{}, fmt.Errorf("rapidast scan exceeded timeout of 10 minutes")
+	}
 }
