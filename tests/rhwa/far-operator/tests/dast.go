@@ -13,6 +13,8 @@ import (
 	rapidast "github.com/rh-ecosystem-edge/eco-gotests/tests/rhwa/internal/rapidast"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/rhwa/internal/rhwainittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/rhwa/internal/rhwaparams"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var _ = Describe(
@@ -21,6 +23,14 @@ var _ = Describe(
 	ContinueOnFailure,
 	Label(farparams.Label), Label("dast"), func() {
 		BeforeAll(func() {
+			By("Verify fence-agents-remediation is the only deployment in namespace")
+			deploymentList, err := deployment.List(APIClient, rhwaparams.RhwaOperatorNs, metav1.ListOptions{})
+			Expect(err).ToNot(HaveOccurred(), "Failed to list deployments")
+
+			if len(deploymentList) != 1 {
+				Skip(fmt.Sprintf("Expected only fence-agents-remediation deployment, found %d deployment(s)", len(deploymentList)))
+			}
+
 			By("Get FAR deployment object")
 			farDeployment, err := deployment.Pull(
 				APIClient, farparams.OperatorDeploymentName, rhwaparams.RhwaOperatorNs)
