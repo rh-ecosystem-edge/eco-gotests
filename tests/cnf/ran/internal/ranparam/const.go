@@ -13,6 +13,7 @@ const (
 	LabelNoContainer = "no-container"
 	// AcmOperatorNamespace ACM's namespace.
 	AcmOperatorNamespace = "rhacm"
+
 	// MceOperatorNamespace is the namespace for the MCE operator.
 	MceOperatorNamespace = "multicluster-engine"
 	// TalmOperatorHubNamespace TALM namespace.
@@ -25,6 +26,8 @@ const (
 	OpenshiftGitOpsNamespace = "openshift-gitops"
 	// OpenshiftGitopsRepoServer ocp git repo server.
 	OpenshiftGitopsRepoServer = "openshift-gitops-repo-server"
+	// OCloudOperatorNamespace is the namespace for the O-Cloud operator.
+	OCloudOperatorNamespace = "oran-o2ims"
 	// PtpContainerName is the name of the container in the PTP daemon pod.
 	PtpContainerName = "linuxptp-daemon-container"
 	// PtpDaemonsetLabelSelector is the label selector to find the PTP daemon pod.
@@ -35,6 +38,17 @@ const (
 	RetryInterval = 10 * time.Second
 	// RetryCount retry count for node exec commands.
 	RetryCount = 3
+)
+
+// Params for the alerter package. These are used for getting a token for the ACM Observability Alertmanager instance.
+const (
+	// ACMObservabilityNamespace is the namespace for the ACM Observability component.
+	ACMObservabilityNamespace = "open-cluster-management-observability"
+	// ACMObservabilityAMRouteName is the name of the route for the ACM Observability Alertmanager instance.
+	ACMObservabilityAMRouteName = "alertmanager"
+	// ACMObservabilityAMSecretName is the name of the secret for the ACM Observability Alertmanager instance which
+	// contains the token and CA certs.
+	ACMObservabilityAMSecretName = "observability-alertmanager-accessor-token"
 )
 
 // HubOperatorName represets the possible operator names that may have associated versions on the hub cluster.

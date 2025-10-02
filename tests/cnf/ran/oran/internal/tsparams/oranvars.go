@@ -20,8 +20,9 @@ var (
 
 	// ReporterHubNamespacesToDump tells the reporter which namespaces on the hub to collect pod logs from.
 	ReporterHubNamespacesToDump = map[string]string{
-		TestName:       "",
-		O2IMSNamespace: "",
+		TestName:            "",
+		O2IMSNamespace:      "",
+		SubscriberNamespace: "",
 	}
 
 	// ReporterSpokeNamespacesToDump tells the reporter which namespaces on the spoke to collect pod logs from.
