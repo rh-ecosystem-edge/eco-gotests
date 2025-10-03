@@ -34,7 +34,7 @@ func Curl(client *pod.Builder, sourceIPAddr, destIPAddr, ipFamily string, contai
 	command := fmt.Sprintf("curl --interface %s %s --max-time 10", sourceIPAddr, destIPAddr)
 
 	if ipFamily == netparam.IPV6Family {
-		command = fmt.Sprint("curl --interface ", sourceIPAddr, "[", destIPAddr, "]", "--max-time 5")
+		command = fmt.Sprint("curl --interface ", sourceIPAddr, " [", destIPAddr, "] ", "--max-time 5")
 	}
 
 	var (
