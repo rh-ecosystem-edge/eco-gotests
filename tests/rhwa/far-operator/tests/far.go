@@ -50,7 +50,7 @@ var _ = Describe(
 			Expect(err).ToNot(HaveOccurred(), "Pod is not ready")
 		})
 
-		It("Verify FAR controller manager has correct number of replicas", reportxml.ID("OCP-61222"), func() {
+		It("Verify FAR controller manager has correct number of replicas", reportxml.ID("61222"), func() {
 			By("Checking cluster topology")
 			infraConfig, err := infrastructure.Pull(APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull infrastructure configuration")
