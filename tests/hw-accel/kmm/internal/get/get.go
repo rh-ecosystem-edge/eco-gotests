@@ -136,6 +136,10 @@ func PreflightImage(arch string) string {
 		return kmmparams.PreflightDTKImageARM64
 	}
 
+	if arch == "ppc64le" {
+		return kmmparams.PreflightDTKImagePPC64LE
+	}
+
 	// Default to x86_64/amd64
 	return kmmparams.PreflightDTKImageX86
 }
@@ -148,6 +152,14 @@ func PreflightKernel(arch string, realtime bool) string {
 		}
 
 		return kmmparams.KernelForDTKArm64
+	}
+
+	if arch == "ppc64le" {
+		if realtime {
+			return kmmparams.KernelForDTKPpc64leRealtime
+		}
+
+		return kmmparams.KernelForDTKPpc64le
 	}
 
 	if realtime {
