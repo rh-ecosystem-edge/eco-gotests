@@ -68,254 +68,255 @@ var (
 	addIPv4MCGroupMacCMD = []string{"bash", "-c", "ip maddr add 01:00:5e:64:64:fa dev net1"}
 )
 
-var _ = Describe("allmulti", Ordered, Label(tsparams.LabelSuite), ContinueOnFailure, func() {
+var _ = Describe(
+	"allmulti", Ordered, Label(tsparams.LabelSuite, tsparams.LabelSriovHWEnabled), ContinueOnFailure, func() {
 
-	BeforeAll(func() {
-		By("Discover worker nodes")
-		var err error
+		BeforeAll(func() {
+			By("Discover worker nodes")
+			var err error
 
-		workerNodes, err = nodes.List(APIClient,
-			metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
-		Expect(err).ToNot(HaveOccurred(), "Fail to discover nodes")
+			workerNodes, err = nodes.List(APIClient,
+				metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
+			Expect(err).ToNot(HaveOccurred(), "Fail to discover nodes")
 
-		By("Collecting SR-IOV interfaces for allmulti testing")
-		srIovInterfacesUnderTest, err := NetConfig.GetSriovInterfaces(1)
-		Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
+			By("Collecting SR-IOV interfaces for allmulti testing")
+			srIovInterfacesUnderTest, err := NetConfig.GetSriovInterfaces(1)
+			Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
 
-		By(fmt.Sprintf("Define and create sriov network policy on %s", workerNodes[0].Definition.Name))
-		nodeSelectorWorker0 := map[string]string{
-			"kubernetes.io/hostname": workerNodes[0].Definition.Name,
-		}
+			By(fmt.Sprintf("Define and create sriov network policy on %s", workerNodes[0].Definition.Name))
+			nodeSelectorWorker0 := map[string]string{
+				"kubernetes.io/hostname": workerNodes[0].Definition.Name,
+			}
 
-		_, err = sriov.NewPolicyBuilder(
-			APIClient,
-			srIovPolicyNode1Name,
-			NetConfig.SriovOperatorNamespace,
-			srIovPolicyNode0ResName,
-			6,
-			[]string{fmt.Sprintf("%s#0-5", srIovInterfacesUnderTest[0])},
-			nodeSelectorWorker0).WithMTU(9000).WithVhostNet(true).Create()
-		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to create an sriov policy on %s",
-			workerNodes[0].Definition.Name))
+			_, err = sriov.NewPolicyBuilder(
+				APIClient,
+				srIovPolicyNode1Name,
+				NetConfig.SriovOperatorNamespace,
+				srIovPolicyNode0ResName,
+				6,
+				[]string{fmt.Sprintf("%s#0-5", srIovInterfacesUnderTest[0])},
+				nodeSelectorWorker0).WithMTU(9000).WithVhostNet(true).Create()
+			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to create an sriov policy on %s",
+				workerNodes[0].Definition.Name))
 
-		By(fmt.Sprintf("Define and create sriov network policy on %s", workerNodes[1].Definition.Name))
-		nodeSelectorWorker1 := map[string]string{
-			"kubernetes.io/hostname": workerNodes[1].Definition.Name,
-		}
+			By(fmt.Sprintf("Define and create sriov network policy on %s", workerNodes[1].Definition.Name))
+			nodeSelectorWorker1 := map[string]string{
+				"kubernetes.io/hostname": workerNodes[1].Definition.Name,
+			}
 
-		_, err = sriov.NewPolicyBuilder(
-			APIClient,
-			srIovPolicyNode2Name,
-			NetConfig.SriovOperatorNamespace,
-			srIovPolicyNode1ResName,
-			6,
-			[]string{fmt.Sprintf("%s#0-5", srIovInterfacesUnderTest[0])},
-			nodeSelectorWorker1).WithMTU(9000).WithVhostNet(true).Create()
-		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to create an sriov policy on %s",
-			workerNodes[1].Definition.Name))
+			_, err = sriov.NewPolicyBuilder(
+				APIClient,
+				srIovPolicyNode2Name,
+				NetConfig.SriovOperatorNamespace,
+				srIovPolicyNode1ResName,
+				6,
+				[]string{fmt.Sprintf("%s#0-5", srIovInterfacesUnderTest[0])},
+				nodeSelectorWorker1).WithMTU(9000).WithVhostNet(true).Create()
+			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to create an sriov policy on %s",
+				workerNodes[1].Definition.Name))
 
-		By("Define and create sriov network with allmuti enabled")
-		defineAndCreateSrIovNetwork(srIovNetworkAllMultiNode1, srIovPolicyNode0ResName, true)
+			By("Define and create sriov network with allmuti enabled")
+			defineAndCreateSrIovNetwork(srIovNetworkAllMultiNode1, srIovPolicyNode0ResName, true)
 
-		By("Define and create sriov network with allmuti disabled")
-		defineAndCreateSrIovNetwork(srIovNetworkDefaultNode1, srIovPolicyNode0ResName, false)
+			By("Define and create sriov network with allmuti disabled")
+			defineAndCreateSrIovNetwork(srIovNetworkDefaultNode1, srIovPolicyNode0ResName, false)
 
-		By("Define and create sriov network with allmuti disabled on a different node")
-		defineAndCreateSrIovNetwork(srIovNetworkDefaultNode2, srIovPolicyNode1ResName, false)
+			By("Define and create sriov network with allmuti disabled on a different node")
+			defineAndCreateSrIovNetwork(srIovNetworkDefaultNode2, srIovPolicyNode1ResName, false)
 
-		By("Define and create sriov network with Bonded Net1 allmuti disabled")
-		defineAndCreateSrIovNetworkWithOutIPAM(srIovNetworkDefaultBondNet1, false)
+			By("Define and create sriov network with Bonded Net1 allmuti disabled")
+			defineAndCreateSrIovNetworkWithOutIPAM(srIovNetworkDefaultBondNet1, false)
 
-		By("Define and create sriov network with Bonded Net2 allmuti disabled")
-		defineAndCreateSrIovNetworkWithOutIPAM(srIovNetworkDefaultBondNet2, false)
+			By("Define and create sriov network with Bonded Net2 allmuti disabled")
+			defineAndCreateSrIovNetworkWithOutIPAM(srIovNetworkDefaultBondNet2, false)
 
-		By("Define and create sriov network with Bonded Net1 allmuti enabled")
-		defineAndCreateSrIovNetworkWithOutIPAM(srIovNetworkAllMultiBondNet1, true)
+			By("Define and create sriov network with Bonded Net1 allmuti enabled")
+			defineAndCreateSrIovNetworkWithOutIPAM(srIovNetworkAllMultiBondNet1, true)
 
-		By("Define and create sriov network with Bonded Net2 allmuti enabled")
-		defineAndCreateSrIovNetworkWithOutIPAM(srIovNetworkAllMultiBondNet2, true)
+			By("Define and create sriov network with Bonded Net2 allmuti enabled")
+			defineAndCreateSrIovNetworkWithOutIPAM(srIovNetworkAllMultiBondNet2, true)
 
-		By("Define and create Bonded network attachment for allmulti client")
-		nadBondAllmultiConfig := defineBondNAD(bondNadNameAllMulti, "active-backup")
+			By("Define and create Bonded network attachment for allmulti client")
+			nadBondAllmultiConfig := defineBondNAD(bondNadNameAllMulti, "active-backup")
 
-		_, err = nadBondAllmultiConfig.Create()
-		Expect(err).ToNot(HaveOccurred(), "Failed to create Bond Nad %s",
-			nadBondAllmultiConfig.Definition.Name)
+			_, err = nadBondAllmultiConfig.Create()
+			Expect(err).ToNot(HaveOccurred(), "Failed to create Bond Nad %s",
+				nadBondAllmultiConfig.Definition.Name)
 
-		By("Define and create Bonded network attachment for default client")
-		nadBondDefaultConfig := defineBondNAD(bondNadNameDefault, "active-backup")
-		_, err = nadBondDefaultConfig.Create()
-		Expect(err).ToNot(HaveOccurred(), "Failed to create Bond Nad %s",
-			nadBondDefaultConfig.Definition.Name)
+			By("Define and create Bonded network attachment for default client")
+			nadBondDefaultConfig := defineBondNAD(bondNadNameDefault, "active-backup")
+			_, err = nadBondDefaultConfig.Create()
+			Expect(err).ToNot(HaveOccurred(), "Failed to create Bond Nad %s",
+				nadBondDefaultConfig.Definition.Name)
 
-		By("Waiting until cluster MCP and SR-IOV are stable")
-		err = netenv.WaitForSriovAndMCPStable(
-			APIClient, tsparams.MCOWaitTimeout, time.Minute, NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
-		Expect(err).ToNot(HaveOccurred(), "Failed cluster is not stable")
-	})
+			By("Waiting until cluster MCP and SR-IOV are stable")
+			err = netenv.WaitForSriovAndMCPStable(
+				APIClient, tsparams.MCOWaitTimeout, time.Minute, NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
+			Expect(err).ToNot(HaveOccurred(), "Failed cluster is not stable")
+		})
 
-	It("Validate a pod can receive non-member multicast IPv6 traffic over a secondary SRIOV interface"+
-		" when allmulti mode is enabled from a multicast source in the same PF", reportxml.ID("67813"), func() {
-		multicastServer := createMulticastServer(srIovNetworkDefaultNode1, multicastServerIPv6Mac,
-			[]string{multicastServerIPv6}, multicastPingIPv6CMD, workerNodes[0].Definition.Name)
-
-		defaultClient := createTestClient(clientDefaultName, srIovNetworkDefaultNode1,
-			clientAllmultiDisabledIPv6Mac, workerNodes[0].Definition.Name, []string{clientAllmultiDisabledIPv6})
-
-		allMultiEnabledClient := createTestClient(clientAllmultiEnabledName, srIovNetworkAllMultiNode1,
-			clientAllmultiEnabledIPv6Mac, workerNodes[0].Definition.Name, []string{clientAllmultiEnabledIPv6})
-
-		runAllMultiTestCases(multicastServer, defaultClient, allMultiEnabledClient, multicastServerIPv6,
-			clientAllmultiDisabledIPv6, multicastIPv6GroupIP, addIPv6MCGroupMacCMD)
-	})
-
-	It("Validate a pod can receive non-member multicast IPv4 traffic over a secondary SRIOV interface"+
-		" when allmulti mode is enabled from a multicast source is on a different node",
-		reportxml.ID("67815"), func() {
-			multicastServer := createMulticastServer(srIovNetworkDefaultNode2,
-				multicastServerIPv4Mac, []string{multicastServerIPv4}, multicastPingIPv4CMD,
-				workerNodes[1].Definition.Name)
+		It("Validate a pod can receive non-member multicast IPv6 traffic over a secondary SRIOV interface"+
+			" when allmulti mode is enabled from a multicast source in the same PF", reportxml.ID("67813"), func() {
+			multicastServer := createMulticastServer(srIovNetworkDefaultNode1, multicastServerIPv6Mac,
+				[]string{multicastServerIPv6}, multicastPingIPv6CMD, workerNodes[0].Definition.Name)
 
 			defaultClient := createTestClient(clientDefaultName, srIovNetworkDefaultNode1,
-				clientAllmultiDisabledIPv4Mac, workerNodes[0].Definition.Name, []string{clientAllmultiDisabledIPv4})
+				clientAllmultiDisabledIPv6Mac, workerNodes[0].Definition.Name, []string{clientAllmultiDisabledIPv6})
 
 			allMultiEnabledClient := createTestClient(clientAllmultiEnabledName, srIovNetworkAllMultiNode1,
-				clientAllmultiEnabledIPv4Mac, workerNodes[0].Definition.Name, []string{clientAllmultiEnabledIPv4})
+				clientAllmultiEnabledIPv6Mac, workerNodes[0].Definition.Name, []string{clientAllmultiEnabledIPv6})
+
+			runAllMultiTestCases(multicastServer, defaultClient, allMultiEnabledClient, multicastServerIPv6,
+				clientAllmultiDisabledIPv6, multicastIPv6GroupIP, addIPv6MCGroupMacCMD)
+		})
+
+		It("Validate a pod can receive non-member multicast IPv4 traffic over a secondary SRIOV interface"+
+			" when allmulti mode is enabled from a multicast source is on a different node",
+			reportxml.ID("67815"), func() {
+				multicastServer := createMulticastServer(srIovNetworkDefaultNode2,
+					multicastServerIPv4Mac, []string{multicastServerIPv4}, multicastPingIPv4CMD,
+					workerNodes[1].Definition.Name)
+
+				defaultClient := createTestClient(clientDefaultName, srIovNetworkDefaultNode1,
+					clientAllmultiDisabledIPv4Mac, workerNodes[0].Definition.Name, []string{clientAllmultiDisabledIPv4})
+
+				allMultiEnabledClient := createTestClient(clientAllmultiEnabledName, srIovNetworkAllMultiNode1,
+					clientAllmultiEnabledIPv4Mac, workerNodes[0].Definition.Name, []string{clientAllmultiEnabledIPv4})
+
+				runAllMultiTestCases(multicastServer, defaultClient, allMultiEnabledClient, clientAllmultiEnabledIPv4,
+					clientAllmultiDisabledIPv4, multicastIPv4GroupIP, addIPv4MCGroupMacCMD)
+			})
+
+		It("Validate a pod can receive non-member multicast IPv6 traffic over a secondary SRIOV interface"+
+			" when allmulti mode is enabled from a multicast source on a different node", reportxml.ID("67816"), func() {
+			multicastServer := createMulticastServer(srIovNetworkDefaultNode2, multicastServerIPv6Mac,
+				[]string{multicastServerIPv6}, multicastPingIPv6CMD, workerNodes[1].Definition.Name)
+
+			defaultClient := createTestClient(clientDefaultName, srIovNetworkDefaultNode1,
+				clientAllmultiDisabledIPv6Mac, workerNodes[0].Definition.Name, []string{clientAllmultiDisabledIPv6})
+
+			allMultiEnabledClient := createTestClient(clientAllmultiEnabledName, srIovNetworkAllMultiNode1,
+				clientAllmultiEnabledIPv6Mac, workerNodes[0].Definition.Name, []string{clientAllmultiEnabledIPv6})
+
+			runAllMultiTestCases(multicastServer, defaultClient, allMultiEnabledClient, multicastServerIPv6,
+				clientAllmultiDisabledIPv6, multicastIPv6GroupIP, addIPv6MCGroupMacCMD)
+		})
+
+		It("Validate a pod can receive non-member multicast traffic over a secondary dual stack SRIOV interface "+
+			"when allmulti mode is enabled from a multicast source in the same PF",
+			reportxml.ID("67817"), func() {
+				multicastServer := createMulticastServer(srIovNetworkDefaultNode1, multicastServerIPv4Mac,
+					[]string{multicastServerIPv4, multicastServerIPv6}, multicastPingDualStackCMD, workerNodes[0].Definition.Name)
+
+				defaultClient := createTestClient(clientDefaultName, srIovNetworkDefaultNode1,
+					clientAllmultiDisabledIPv4Mac, workerNodes[0].Definition.Name, []string{clientAllmultiDisabledIPv4,
+						clientAllmultiDisabledIPv6})
+
+				allMultiEnabledClient := createTestClient(clientAllmultiEnabledName, srIovNetworkAllMultiNode1,
+					clientAllmultiEnabledIPv4Mac, workerNodes[0].Definition.Name, []string{clientAllmultiEnabledIPv4,
+						clientAllmultiEnabledIPv6})
+
+				By("Run Dual Stack IPv4 tests")
+				runAllMultiTestCases(multicastServer, defaultClient, allMultiEnabledClient, clientAllmultiEnabledIPv4,
+					clientAllmultiDisabledIPv4, multicastIPv4GroupIP, addIPv4MCGroupMacCMD)
+
+				By("Run Dual Stack IPv6 tests")
+				runAllMultiTestCases(multicastServer, defaultClient, allMultiEnabledClient, clientAllmultiEnabledIPv6,
+					clientAllmultiDisabledIPv6, multicastIPv6GroupIP, addIPv6MCGroupMacCMD)
+
+			})
+
+		It("Validate a pod can receive non-member multicast IPv4 traffic over a secondary bonded SRIOV interface when "+
+			"allmulti mode is enabled from a multicast source in the same PF", reportxml.ID("67818"), func() {
+			multicastServer := createMulticastServer(srIovNetworkDefaultNode1, multicastServerIPv4Mac,
+				[]string{multicastServerIPv4}, multicastPingIPv4CMD, workerNodes[0].Definition.Name)
+
+			By("Define and run a client pod with allmulti disabled with bonded interfaces")
+			defaultClient := createBondedTestClient(clientDefaultName, srIovNetworkDefaultBondNet1,
+				srIovNetworkDefaultBondNet2, bondNadNameDefault, workerNodes[0].Definition.Name,
+				[]string{clientAllmultiDisabledIPv4})
+
+			By("Define and run a client pod with allmulti enabled")
+			allMultiEnabledClient := createBondedTestClient(clientAllmultiEnabledName, srIovNetworkAllMultiBondNet1,
+				srIovNetworkAllMultiBondNet2, bondNadNameAllMulti, workerNodes[0].Definition.Name,
+				[]string{clientAllmultiEnabledIPv4})
 
 			runAllMultiTestCases(multicastServer, defaultClient, allMultiEnabledClient, clientAllmultiEnabledIPv4,
 				clientAllmultiDisabledIPv4, multicastIPv4GroupIP, addIPv4MCGroupMacCMD)
 		})
 
-	It("Validate a pod can receive non-member multicast IPv6 traffic over a secondary SRIOV interface"+
-		" when allmulti mode is enabled from a multicast source on a different node", reportxml.ID("67816"), func() {
-		multicastServer := createMulticastServer(srIovNetworkDefaultNode2, multicastServerIPv6Mac,
-			[]string{multicastServerIPv6}, multicastPingIPv6CMD, workerNodes[1].Definition.Name)
+		It("Validate a pod can receive non-member multicast IPv6 traffic over a secondary bonded SRIOV interface when "+
+			"allmulti mode is enabled from a multicast source in the same PF", reportxml.ID("67819"), func() {
+			multicastServer := createMulticastServer(srIovNetworkDefaultNode1, multicastServerIPv6Mac,
+				[]string{multicastServerIPv6}, multicastPingIPv6CMD, workerNodes[0].Definition.Name)
 
-		defaultClient := createTestClient(clientDefaultName, srIovNetworkDefaultNode1,
-			clientAllmultiDisabledIPv6Mac, workerNodes[0].Definition.Name, []string{clientAllmultiDisabledIPv6})
+			By("Define and run a client pod with allmulti disabled with bonded interfaces")
+			defaultClient := createBondedTestClient(clientDefaultName, srIovNetworkDefaultBondNet1,
+				srIovNetworkDefaultBondNet2, bondNadNameDefault, workerNodes[0].Definition.Name,
+				[]string{clientAllmultiDisabledIPv6})
 
-		allMultiEnabledClient := createTestClient(clientAllmultiEnabledName, srIovNetworkAllMultiNode1,
-			clientAllmultiEnabledIPv6Mac, workerNodes[0].Definition.Name, []string{clientAllmultiEnabledIPv6})
+			By("Define and run a client pod with allmulti enabled")
+			allMultiEnabledClient := createBondedTestClient(clientAllmultiEnabledName, srIovNetworkAllMultiBondNet1,
+				srIovNetworkAllMultiBondNet2, bondNadNameAllMulti, workerNodes[0].Definition.Name,
+				[]string{clientAllmultiEnabledIPv6})
 
-		runAllMultiTestCases(multicastServer, defaultClient, allMultiEnabledClient, multicastServerIPv6,
-			clientAllmultiDisabledIPv6, multicastIPv6GroupIP, addIPv6MCGroupMacCMD)
-	})
-
-	It("Validate a pod can receive non-member multicast traffic over a secondary dual stack SRIOV interface "+
-		"when allmulti mode is enabled from a multicast source in the same PF",
-		reportxml.ID("67817"), func() {
-			multicastServer := createMulticastServer(srIovNetworkDefaultNode1, multicastServerIPv4Mac,
-				[]string{multicastServerIPv4, multicastServerIPv6}, multicastPingDualStackCMD, workerNodes[0].Definition.Name)
-
-			defaultClient := createTestClient(clientDefaultName, srIovNetworkDefaultNode1,
-				clientAllmultiDisabledIPv4Mac, workerNodes[0].Definition.Name, []string{clientAllmultiDisabledIPv4,
-					clientAllmultiDisabledIPv6})
-
-			allMultiEnabledClient := createTestClient(clientAllmultiEnabledName, srIovNetworkAllMultiNode1,
-				clientAllmultiEnabledIPv4Mac, workerNodes[0].Definition.Name, []string{clientAllmultiEnabledIPv4,
-					clientAllmultiEnabledIPv6})
-
-			By("Run Dual Stack IPv4 tests")
-			runAllMultiTestCases(multicastServer, defaultClient, allMultiEnabledClient, clientAllmultiEnabledIPv4,
-				clientAllmultiDisabledIPv4, multicastIPv4GroupIP, addIPv4MCGroupMacCMD)
-
-			By("Run Dual Stack IPv6 tests")
 			runAllMultiTestCases(multicastServer, defaultClient, allMultiEnabledClient, clientAllmultiEnabledIPv6,
 				clientAllmultiDisabledIPv6, multicastIPv6GroupIP, addIPv6MCGroupMacCMD)
+		})
+
+		It("Validate a pod does not receive non-member multicast traffic over a third SRIOV dual stack interface "+
+			"when allmulti mode is enabled on the second SRIOV interface from a multicast source in the same PF",
+			reportxml.ID("67820"), func() {
+				multicastServer := createMulticastServerWithMultiNets(srIovNetworkDefaultNode1, srIovNetworkDefaultNode1,
+					[]string{multicastServerIPv4, multicastServerIPv6, "192.168.101.20/24", "2001:101::20/64"},
+					multicastPingDualNet1Net2StackCMD, workerNodes[0].Definition.Name)
+
+				defaultClient := createTestClientWithMultiInterfaces(clientDefaultName,
+					srIovNetworkDefaultNode1, srIovNetworkDefaultNode1, workerNodes[0].Definition.Name,
+					[]string{clientAllmultiDisabledIPv4, clientAllmultiDisabledIPv6, "192.168.101.2/24", "2001:101::2/64"})
+
+				allMultiEnabledClient := createTestClientWithMultiInterfaces(clientAllmultiEnabledName,
+					srIovNetworkDefaultNode1, srIovNetworkAllMultiNode1, workerNodes[0].Definition.Name,
+					[]string{clientAllmultiEnabledIPv4, clientAllmultiEnabledIPv6, "192.168.101.1/24", "2001:101::1/64"})
+
+				By("Verify IPv4 and IPv6 on net1 connectivity between the clients and multicast source")
+				err := cmd.ICMPConnectivityCheck(multicastServer, []string{clientAllmultiEnabledIPv4,
+					clientAllmultiEnabledIPv6, clientAllmultiDisabledIPv4,
+					clientAllmultiDisabledIPv6})
+				Expect(err).ToNot(HaveOccurred(),
+					"Failed to ping between the multicast source and the clients")
+
+				By("Verify IPv4 and IPv6 on net2 connectivity between the clients and multicast source")
+				err = cmd.ICMPConnectivityCheck(multicastServer, []string{"192.168.101.1/24", "2001:101::1/64",
+					"192.168.101.2/24", "2001:101::2/64"})
+				Expect(err).ToNot(HaveOccurred(),
+					"Failed to ping between the multicast source and the clients")
+
+				By("Run IPv4 and IPv6 multicast tests on Net1 and Net2")
+				runAllMultiDualInterfaceTestCase(defaultClient, allMultiEnabledClient,
+					multicastIPv4GroupIP, multicastIPv6GroupIP)
+			})
+
+		AfterEach(func() {
+			By("Removing all pods from test namespace")
+			runningNamespace, err := namespace.Pull(APIClient, tsparams.TestNamespaceName)
+			Expect(err).ToNot(HaveOccurred(), "Failed to pull namespace")
+			Expect(runningNamespace.CleanObjects(
+				tsparams.WaitTimeout, pod.GetGVR())).ToNot(HaveOccurred())
 
 		})
 
-	It("Validate a pod can receive non-member multicast IPv4 traffic over a secondary bonded SRIOV interface when "+
-		"allmulti mode is enabled from a multicast source in the same PF", reportxml.ID("67818"), func() {
-		multicastServer := createMulticastServer(srIovNetworkDefaultNode1, multicastServerIPv4Mac,
-			[]string{multicastServerIPv4}, multicastPingIPv4CMD, workerNodes[0].Definition.Name)
+		AfterAll(func() {
+			By("Removing all SR-IOV Policy")
+			err := sriov.CleanAllNetworkNodePolicies(APIClient, NetConfig.SriovOperatorNamespace)
+			Expect(err).ToNot(HaveOccurred(), "Failed to clean srIovPolicy")
 
-		By("Define and run a client pod with allmulti disabled with bonded interfaces")
-		defaultClient := createBondedTestClient(clientDefaultName, srIovNetworkDefaultBondNet1,
-			srIovNetworkDefaultBondNet2, bondNadNameDefault, workerNodes[0].Definition.Name,
-			[]string{clientAllmultiDisabledIPv4})
-
-		By("Define and run a client pod with allmulti enabled")
-		allMultiEnabledClient := createBondedTestClient(clientAllmultiEnabledName, srIovNetworkAllMultiBondNet1,
-			srIovNetworkAllMultiBondNet2, bondNadNameAllMulti, workerNodes[0].Definition.Name,
-			[]string{clientAllmultiEnabledIPv4})
-
-		runAllMultiTestCases(multicastServer, defaultClient, allMultiEnabledClient, clientAllmultiEnabledIPv4,
-			clientAllmultiDisabledIPv4, multicastIPv4GroupIP, addIPv4MCGroupMacCMD)
-	})
-
-	It("Validate a pod can receive non-member multicast IPv6 traffic over a secondary bonded SRIOV interface when "+
-		"allmulti mode is enabled from a multicast source in the same PF", reportxml.ID("67819"), func() {
-		multicastServer := createMulticastServer(srIovNetworkDefaultNode1, multicastServerIPv6Mac,
-			[]string{multicastServerIPv6}, multicastPingIPv6CMD, workerNodes[0].Definition.Name)
-
-		By("Define and run a client pod with allmulti disabled with bonded interfaces")
-		defaultClient := createBondedTestClient(clientDefaultName, srIovNetworkDefaultBondNet1,
-			srIovNetworkDefaultBondNet2, bondNadNameDefault, workerNodes[0].Definition.Name,
-			[]string{clientAllmultiDisabledIPv6})
-
-		By("Define and run a client pod with allmulti enabled")
-		allMultiEnabledClient := createBondedTestClient(clientAllmultiEnabledName, srIovNetworkAllMultiBondNet1,
-			srIovNetworkAllMultiBondNet2, bondNadNameAllMulti, workerNodes[0].Definition.Name,
-			[]string{clientAllmultiEnabledIPv6})
-
-		runAllMultiTestCases(multicastServer, defaultClient, allMultiEnabledClient, clientAllmultiEnabledIPv6,
-			clientAllmultiDisabledIPv6, multicastIPv6GroupIP, addIPv6MCGroupMacCMD)
-	})
-
-	It("Validate a pod does not receive non-member multicast traffic over a third SRIOV dual stack interface "+
-		"when allmulti mode is enabled on the second SRIOV interface from a multicast source in the same PF",
-		reportxml.ID("67820"), func() {
-			multicastServer := createMulticastServerWithMultiNets(srIovNetworkDefaultNode1, srIovNetworkDefaultNode1,
-				[]string{multicastServerIPv4, multicastServerIPv6, "192.168.101.20/24", "2001:101::20/64"},
-				multicastPingDualNet1Net2StackCMD, workerNodes[0].Definition.Name)
-
-			defaultClient := createTestClientWithMultiInterfaces(clientDefaultName,
-				srIovNetworkDefaultNode1, srIovNetworkDefaultNode1, workerNodes[0].Definition.Name,
-				[]string{clientAllmultiDisabledIPv4, clientAllmultiDisabledIPv6, "192.168.101.2/24", "2001:101::2/64"})
-
-			allMultiEnabledClient := createTestClientWithMultiInterfaces(clientAllmultiEnabledName,
-				srIovNetworkDefaultNode1, srIovNetworkAllMultiNode1, workerNodes[0].Definition.Name,
-				[]string{clientAllmultiEnabledIPv4, clientAllmultiEnabledIPv6, "192.168.101.1/24", "2001:101::1/64"})
-
-			By("Verify IPv4 and IPv6 on net1 connectivity between the clients and multicast source")
-			err := cmd.ICMPConnectivityCheck(multicastServer, []string{clientAllmultiEnabledIPv4,
-				clientAllmultiEnabledIPv6, clientAllmultiDisabledIPv4,
-				clientAllmultiDisabledIPv6})
-			Expect(err).ToNot(HaveOccurred(),
-				"Failed to ping between the multicast source and the clients")
-
-			By("Verify IPv4 and IPv6 on net2 connectivity between the clients and multicast source")
-			err = cmd.ICMPConnectivityCheck(multicastServer, []string{"192.168.101.1/24", "2001:101::1/64",
-				"192.168.101.2/24", "2001:101::2/64"})
-			Expect(err).ToNot(HaveOccurred(),
-				"Failed to ping between the multicast source and the clients")
-
-			By("Run IPv4 and IPv6 multicast tests on Net1 and Net2")
-			runAllMultiDualInterfaceTestCase(defaultClient, allMultiEnabledClient,
-				multicastIPv4GroupIP, multicastIPv6GroupIP)
+			By("Removing all srIovNetworks")
+			err = sriov.CleanAllNetworksByTargetNamespace(
+				APIClient, NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName)
+			Expect(err).ToNot(HaveOccurred(), "Failed to clean sriov networks")
 		})
-
-	AfterEach(func() {
-		By("Removing all pods from test namespace")
-		runningNamespace, err := namespace.Pull(APIClient, tsparams.TestNamespaceName)
-		Expect(err).ToNot(HaveOccurred(), "Failed to pull namespace")
-		Expect(runningNamespace.CleanObjects(
-			tsparams.WaitTimeout, pod.GetGVR())).ToNot(HaveOccurred())
-
 	})
-
-	AfterAll(func() {
-		By("Removing all SR-IOV Policy")
-		err := sriov.CleanAllNetworkNodePolicies(APIClient, NetConfig.SriovOperatorNamespace)
-		Expect(err).ToNot(HaveOccurred(), "Failed to clean srIovPolicy")
-
-		By("Removing all srIovNetworks")
-		err = sriov.CleanAllNetworksByTargetNamespace(
-			APIClient, NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName)
-		Expect(err).ToNot(HaveOccurred(), "Failed to clean sriov networks")
-	})
-})
 
 func defineAndCreateSrIovNetwork(srIovNetwork, resName string, allMulti bool) {
 	srIovNetworkObject := sriov.NewNetworkBuilder(
