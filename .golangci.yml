@@ -100,6 +100,7 @@ linters:
             - golang.org/x/oauth2
             - github.com/google/uuid
             - golang.org/x/exp/constraints
+            - github.com/redhat-cne/sdk-go
           deny:
             - pkg: github.com/onsi**
     funlen:

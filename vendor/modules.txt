@@ -111,6 +111,22 @@ github.com/chai2010/gettext-go/po
 # github.com/clarketm/json v1.17.1
 ## explicit
 github.com/clarketm/json
+# github.com/cloudevents/sdk-go/v2 v2.16.0
+## explicit; go 1.22
+github.com/cloudevents/sdk-go/v2
+github.com/cloudevents/sdk-go/v2/binding
+github.com/cloudevents/sdk-go/v2/binding/format
+github.com/cloudevents/sdk-go/v2/binding/spec
+github.com/cloudevents/sdk-go/v2/client
+github.com/cloudevents/sdk-go/v2/context
+github.com/cloudevents/sdk-go/v2/event
+github.com/cloudevents/sdk-go/v2/event/datacodec
+github.com/cloudevents/sdk-go/v2/event/datacodec/json
+github.com/cloudevents/sdk-go/v2/event/datacodec/text
+github.com/cloudevents/sdk-go/v2/event/datacodec/xml
+github.com/cloudevents/sdk-go/v2/protocol
+github.com/cloudevents/sdk-go/v2/protocol/http
+github.com/cloudevents/sdk-go/v2/types
 # github.com/cloudflare/circl v1.3.7
 ## explicit; go 1.19
 github.com/cloudflare/circl/dh/x25519
@@ -1051,6 +1067,13 @@ github.com/r3labs/diff/v3
 # github.com/red-hat-storage/odf-operator v0.0.0-20250716125006-48092cb5468b
 ## explicit; go 1.23.0
 github.com/red-hat-storage/odf-operator/api/v1alpha1
+# github.com/redhat-cne/sdk-go v1.23.4
+## explicit; go 1.23
+github.com/redhat-cne/sdk-go/pkg/event
+github.com/redhat-cne/sdk-go/pkg/event/ptp
+github.com/redhat-cne/sdk-go/pkg/event/redfish
+github.com/redhat-cne/sdk-go/pkg/pubsub
+github.com/redhat-cne/sdk-go/pkg/types
 # github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20251016214850-6acb409a118c
 ## explicit; go 1.25
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/amdgpu

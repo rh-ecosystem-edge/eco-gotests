@@ -49,6 +49,7 @@ require (
 	github.com/prometheus/alertmanager v0.28.1
 	github.com/prometheus/client_golang v1.22.0
 	github.com/prometheus/common v0.65.0
+	github.com/redhat-cne/sdk-go v1.23.4
 	github.com/stretchr/testify v1.10.0
 	github.com/vmware-tanzu/velero v1.15.2
 	github.com/walle/targz v0.0.0-20140417120357-57fe4206da5a
@@ -92,6 +93,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
 	github.com/clarketm/json v1.17.1 // indirect
+	github.com/cloudevents/sdk-go/v2 v2.16.0 // indirect
 	github.com/cloudflare/circl v1.3.7 // indirect
 	github.com/containernetworking/cni v1.3.0 // indirect
 	github.com/containers/storage v1.57.2 // indirect
