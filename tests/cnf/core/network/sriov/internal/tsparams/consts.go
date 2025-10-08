@@ -29,4 +29,7 @@ const (
 	// LabelSriovNetAppNsTestCases represents sriov network application namespace label that can be used
 	// for test cases selection.
 	LabelSriovNetAppNsTestCases = "sriovnet-app-ns"
+	// LabelSriovHWEnabled represents sriov HW Enabled tests that can be used
+	// for test cases selection.
+	LabelSriovHWEnabled = "sriov-hw-enabled"
 )

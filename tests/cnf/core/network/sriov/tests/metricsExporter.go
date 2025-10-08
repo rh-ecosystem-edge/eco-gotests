@@ -43,7 +43,8 @@ var serverPodTXPromQL = []string{"bash", "-c", "promtool query instant -o json "
 	"http://localhost:9090 \"sum(sriov_vf_tx_packets * on(pciAddr) group_left(pod) " +
 	"sriov_kubepoddevice{pod=\\\"serverpod\\\"}) by (pod)\""}
 
-var _ = Describe("SriovMetricsExporter", Ordered, Label(tsparams.LabelSriovMetricsTestCases),
+var _ = Describe(
+	"SriovMetricsExporter", Ordered, Label(tsparams.LabelSriovMetricsTestCases, tsparams.LabelSriovHWEnabled),
 	ContinueOnFailure, func() {
 
 		var (

@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-var _ = Describe("rdmaMetricsAPI", Ordered, Label(tsparams.LabelRdmaMetricsAPITestCases),
+var _ = Describe("rdmaMetricsAPI", Ordered, Label(tsparams.LabelRdmaMetricsAPITestCases, tsparams.LabelSriovHWEnabled),
 	ContinueOnFailure, func() {
 		var (
 			workerNodeList           []*nodes.Builder
