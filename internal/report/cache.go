@@ -16,8 +16,7 @@ import (
 )
 
 const (
-	cacheDir  = "eco-gotests"
-	remoteURL = "https://github.com/openshift-kni/eco-gotests.git"
+	cacheDir = "eco-gotests"
 )
 
 var (
@@ -179,7 +178,7 @@ func (cache *Cache) GetRemotePatterns(patterns []string) (map[CacheKey]*SuiteTre
 		return nil, errCacheMiss
 	}
 
-	revisions, err := GetRemoteRevisions(cache.ctx, remoteURL, slices.Values(patterns))
+	revisions, err := GetRemoteRevisions(cache.ctx, RemoteURL, slices.Values(patterns))
 	if err != nil {
 		return nil, err
 	}
@@ -288,7 +287,7 @@ func (cache *Cache) Update() error {
 		cachedRevisions[key.Branch] = key.Revision
 	}
 
-	remoteRevisions, err := GetRemoteRevisions(cache.ctx, remoteURL, maps.Keys(cachedRevisions))
+	remoteRevisions, err := GetRemoteRevisions(cache.ctx, RemoteURL, maps.Keys(cachedRevisions))
 	if err != nil {
 		return err
 	}

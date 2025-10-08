@@ -187,7 +187,7 @@ func templateTreeMap(treeMap map[CacheKey]*SuiteTree, output string) error {
 			Generated:  time.Now(),
 			Branch:     key.Branch,
 			ActionURL:  template.URL(actionURL),
-			RepoURL:    "https://github.com/openshift-kni/eco-gotests",
+			RepoURL:    RemoteURL,
 			TimeFormat: time.RFC3339,
 		}
 		outputFileName := fmt.Sprintf("report_%s.html", key.Branch)
@@ -211,7 +211,7 @@ func templateTreeMap(treeMap map[CacheKey]*SuiteTree, output string) error {
 		BranchReports: branchReports,
 		Generated:     time.Now(),
 		ActionURL:     template.URL(actionURL),
-		RepoURL:       "https://github.com/openshift-kni/eco-gotests",
+		RepoURL:       RemoteURL,
 		TimeFormat:    time.RFC3339,
 	}
 	outputFilePath := filepath.Join(output, "report.html")
@@ -264,7 +264,7 @@ func getFromCacheOrClone(ctx context.Context, cache *Cache, patterns []string) (
 			continue
 		}
 
-		repoPath, err := CloneRepo(ctx, tempDir, remoteURL, key.Branch)
+		repoPath, err := CloneRepo(ctx, tempDir, RemoteURL, key.Branch)
 		if err != nil {
 			return nil, err
 		}
