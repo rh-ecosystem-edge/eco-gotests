@@ -94,6 +94,7 @@ linters:
             - github.com/rh-ecosystem-edge/eco-gotests
             - github.com/prometheus/client_golang
             - github.com/prometheus/common
+            - github.com/redhat-cne/sdk-go
           deny:
             - pkg: github.com/onsi**
     funlen:
