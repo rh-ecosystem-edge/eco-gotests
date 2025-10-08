@@ -7,6 +7,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/await"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/check"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/define"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/get"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/modules/internal/tsparams"
 
@@ -30,7 +31,20 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 		image := fmt.Sprintf("%s/%s/%s:$KERNEL_FULL_VERSION",
 			tsparams.LocalImageRegistry, kmmparams.InTreeReplacementNamespace, kmodName)
 		buildArgValue := fmt.Sprintf("%s.o", kmodName)
-		kmodToRemove := "ice"
+		var kmodToRemove string
+
+		BeforeAll(func() {
+			By("Get architecture ")
+			arch, err := get.ClusterArchitecture(APIClient, GeneralConfig.WorkerLabelMap)
+			if err != nil {
+				Skip("could not detect cluster architecture")
+			}
+
+			kmodToRemove = "ice"
+			if arch == "s390x" {
+				kmodToRemove = "qeth"
+			}
+		})
 
 		AfterAll(func() {
 			By("Delete Module")
@@ -95,7 +109,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			Expect(err).ToNot(HaveOccurred(), "error creating moduleloadercontainer")
 
 			By("Making sure in-tree-module is loaded")
-			err = check.IntreeICEModuleLoaded(APIClient, time.Minute)
+			err = check.IntreeModuleLoaded(APIClient, kmodToRemove, time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error while loading in-tree module")
 
 			By("Check in-tree-module is loaded on node")

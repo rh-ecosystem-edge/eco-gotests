@@ -92,7 +92,7 @@ var _ = Describe("KMM-Hub", Ordered, Label(tsparams.LabelSuite), func() {
 			Expect(err).ToNot(HaveOccurred(), "error creating configmap")
 
 			By("Making sure in-tree-module is loaded on spoke")
-			err = check.IntreeICEModuleLoaded(ModulesConfig.SpokeAPIClient, time.Minute)
+			err = check.IntreeModuleLoaded(ModulesConfig.SpokeAPIClient, kmodToRemove, time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error while loading in-tree module")
 
 			By("Check in-tree-module is loaded on node")

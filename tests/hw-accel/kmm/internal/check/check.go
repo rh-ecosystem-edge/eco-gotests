@@ -109,9 +109,9 @@ func ModuleSigned(apiClient *clients.Settings, modName, message, nsname, image s
 	return err
 }
 
-// IntreeICEModuleLoaded makes sure the needed in-tree module is present on the nodes.
-func IntreeICEModuleLoaded(apiClient *clients.Settings, timeout time.Duration) error {
-	return runCommandOnTestPods(apiClient, []string{"modprobe", "ice"}, "", timeout)
+// IntreeModuleLoaded makes sure the needed in-tree module is present on the nodes.
+func IntreeModuleLoaded(apiClient *clients.Settings, module string, timeout time.Duration) error {
+	return runCommandOnTestPods(apiClient, []string{"modprobe", module}, "", timeout)
 }
 
 func runCommandOnTestPods(apiClient *clients.Settings,
