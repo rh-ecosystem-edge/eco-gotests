@@ -247,6 +247,10 @@ const (
 	// Compatible with OpenShift Container Platform 4.18.
 	PreflightDTKImageARM64 = "quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:" +
 		"ada767898092f36e8d965292843f9a772b2df449aeda06580430162696bd5ddf"
+	// PreflightDTKImageS390X represents S390X DTK image for KMM 2.4 preflightvalidationocp.
+	// Compatible with OpenShift Container Platform 4.18.
+	PreflightDTKImageS390X = "quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:" +
+		"a61237a389ac9e52841468a5540f810b50f33e9106d9817eb1e1e04cf6064ce8"
 	// PreflightDTKImagePPC64LE represents PPC64LE DTK image for KMM 2.4 preflightvalidationocp.
 	PreflightDTKImagePPC64LE = "quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:" +
 		"7785b2a16b2a2c7443cfc59164c74acb341237b09a9f87c5f0747c9140d21b92"
@@ -262,6 +266,10 @@ const (
 	KernelForDTKX86 = "5.14.0-427.81.1.el9_4.x86_64"
 	// KernelForDTKX86Realtime represents kernel string for x86 realtime dtk image.
 	KernelForDTKX86Realtime = "5.14.0-427.81.1.el9_4.x86_64+rt"
+	// KernelForDTKS390x represents kernel string for s390x dtk image.
+	KernelForDTKS390x = "5.14.0-427.65.1.el9_4.s390x"
+	// KernelForDTKS390xRealtime represents kernel string for s390x realtime dtk image.
+	KernelForDTKS390xRealtime = "not supported"
 	// PreflightName represents preflightvalidation ocp object name.
 	PreflightName = "preflight"
 	// ScannerTestNamespace represents test case namespace name.
