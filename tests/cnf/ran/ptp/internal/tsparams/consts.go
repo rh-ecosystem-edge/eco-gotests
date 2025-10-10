@@ -22,6 +22,18 @@ const (
 	CloudEventsNamespace = "cloud-events"
 )
 
+// These parameters are for the PTP event consumer deployment.
+const (
+	// SidecarConsumerSA is the name of the sidecar consumer service account.
+	SidecarConsumerSA = "sidecar-consumer-sa"
+	// SidecarConsumerRole is the name of the sidecar consumer role.
+	SidecarConsumerRole = "sidecar-consumer-role"
+	// SidecarConsumerRoleBinding is the name of the sidecar consumer role binding.
+	SidecarConsumerRoleBinding = "sidecar-consumer-role-binding"
+	// PrometheusK8s is the name of the prometheus k8s service account and associated Role[Binding]s.
+	PrometheusK8s = "prometheus-k8s"
+)
+
 // LogLevel is the glog level used for all helpers in the PTP suite. It is set so that eco-goinfra is 100, cnf/ran is
 // 90, and the suite itself is 80.
 const LogLevel glog.Level = 80

@@ -15,4 +15,7 @@ ptpOperatorNamespace: "openshift-ptp"
 talmPreCachePolicies:
   - "^common(-v4\\.\\d\\d)?-config-policy"
   - "^common(-v4\\.\\d\\d)?-subscriptions-policy"
+ptpEventConsumerImage: quay.io/redhat-cne/cloud-event-consumer
+ptpEventConsumerV1Tag: ":4.18"
+ptpEventConsumerV2Tag: ":latest"
 ...

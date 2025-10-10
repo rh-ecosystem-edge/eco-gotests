@@ -101,6 +101,7 @@ linters:
             - github.com/google/uuid
             - golang.org/x/exp/constraints
             - github.com/redhat-cne/sdk-go
+            - github.com/prometheus-operator/prometheus-operator
           deny:
             - pkg: github.com/onsi**
     funlen:
