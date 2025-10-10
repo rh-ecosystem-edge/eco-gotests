@@ -33,6 +33,9 @@ import (
 func VerifySuccessfulOperatorUpgrade(ctx SpecContext) {
 	downgradeOperatorImages()
 
+	VerifyBmhIsAvailable(OCloudConfig.BmhSpoke1, OCloudConfig.InventoryPoolNamespace)
+	VerifyBmhIsAvailable(OCloudConfig.BmhSpoke2, OCloudConfig.InventoryPoolNamespace)
+
 	provisioningRequest1 := VerifyProvisionSnoCluster(
 		OCloudConfig.TemplateName,
 		OCloudConfig.TemplateVersionDay2,
@@ -49,13 +52,16 @@ func VerifySuccessfulOperatorUpgrade(ctx SpecContext) {
 		ocloudparams.PolicyTemplateParameters,
 		ocloudparams.ClusterInstanceParameters2)
 
-	node1, nodePool1, namespace1, clusterInstance1 := VerifyAndRetrieveAssociatedCRsForAI(
-		provisioningRequest1.Object.Name, OCloudConfig.ClusterName1, ctx)
-	node2, nodePool2, namespace2, clusterInstance2 := VerifyAndRetrieveAssociatedCRsForAI(
-		provisioningRequest2.Object.Name, OCloudConfig.ClusterName2, ctx)
+	VerifyOcloudCRsExist(provisioningRequest1)
+	nsname1 := provisioningRequest1.Object.Status.Extensions.ClusterDetails.Name
+	clusterInstance1 := VerifyClusterInstanceCompleted(provisioningRequest1, ctx)
 
-	VerifyAllPoliciesInNamespaceAreCompliant(namespace1.Object.Name, ctx, nil, nil)
-	VerifyAllPoliciesInNamespaceAreCompliant(namespace2.Object.Name, ctx, nil, nil)
+	VerifyOcloudCRsExist(provisioningRequest2)
+	nsname2 := provisioningRequest2.Object.Status.Extensions.ClusterDetails.Name
+	clusterInstance2 := VerifyClusterInstanceCompleted(provisioningRequest2, ctx)
+
+	VerifyAllPoliciesInNamespaceAreCompliant(nsname1, ctx, nil, nil)
+	VerifyAllPoliciesInNamespaceAreCompliant(nsname2, ctx, nil, nil)
 
 	provisioningRequest1, err := oran.PullPR(HubAPIClient, provisioningRequest1.Object.Name)
 	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("Failed to retrieve PR %s", provisioningRequest1.Object.Name))
@@ -88,8 +94,8 @@ func VerifySuccessfulOperatorUpgrade(ctx SpecContext) {
 
 	wg1.Wait()
 
-	VerifyAllPoliciesInNamespaceAreCompliant(namespace1.Object.Name, ctx, nil, nil)
-	VerifyAllPoliciesInNamespaceAreCompliant(namespace2.Object.Name, ctx, nil, nil)
+	VerifyAllPoliciesInNamespaceAreCompliant(nsname1, ctx, nil, nil)
+	VerifyAllPoliciesInNamespaceAreCompliant(nsname2, ctx, nil, nil)
 
 	provisioningRequest1, err = oran.PullPR(HubAPIClient, provisioningRequest1.Object.Name)
 	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("Failed to retrieve PR %s", provisioningRequest1.Object.Name))
@@ -121,8 +127,8 @@ func VerifySuccessfulOperatorUpgrade(ctx SpecContext) {
 
 	wg2.Add(2)
 
-	go DeprovisionAiSnoCluster(provisioningRequest1, namespace1, clusterInstance1, node1, nodePool1, ctx, &wg2)
-	go DeprovisionAiSnoCluster(provisioningRequest2, namespace2, clusterInstance2, node2, nodePool2, ctx, &wg2)
+	go DeprovisionAiSnoCluster(provisioningRequest1, clusterInstance1, ctx, &wg2)
+	go DeprovisionAiSnoCluster(provisioningRequest2, clusterInstance2, ctx, &wg2)
 
 	wg2.Wait()
 }
@@ -133,6 +139,9 @@ func VerifySuccessfulOperatorUpgrade(ctx SpecContext) {
 //nolint:funlen
 func VerifyFailedOperatorUpgradeAllSnos(ctx SpecContext) {
 	downgradeOperatorImages()
+
+	VerifyBmhIsAvailable(OCloudConfig.BmhSpoke1, OCloudConfig.InventoryPoolNamespace)
+	VerifyBmhIsAvailable(OCloudConfig.BmhSpoke2, OCloudConfig.InventoryPoolNamespace)
 
 	provisioningRequest1 := VerifyProvisionSnoCluster(
 		OCloudConfig.TemplateName,
@@ -150,10 +159,13 @@ func VerifyFailedOperatorUpgradeAllSnos(ctx SpecContext) {
 		ocloudparams.PolicyTemplateParameters,
 		ocloudparams.ClusterInstanceParameters2)
 
-	node1, nodePool1, namespace1, clusterInstance1 := VerifyAndRetrieveAssociatedCRsForAI(
-		provisioningRequest1.Object.Name, OCloudConfig.ClusterName1, ctx)
-	node2, nodePool2, namespace2, clusterInstance2 := VerifyAndRetrieveAssociatedCRsForAI(
-		provisioningRequest2.Object.Name, OCloudConfig.ClusterName2, ctx)
+	VerifyOcloudCRsExist(provisioningRequest1)
+	nsname1 := provisioningRequest1.Object.Status.Extensions.ClusterDetails.Name
+	clusterInstance1 := VerifyClusterInstanceCompleted(provisioningRequest1, ctx)
+
+	VerifyOcloudCRsExist(provisioningRequest2)
+	nsname2 := provisioningRequest2.Object.Status.Extensions.ClusterDetails.Name
+	clusterInstance2 := VerifyClusterInstanceCompleted(provisioningRequest2, ctx)
 
 	var wg1 sync.WaitGroup
 
@@ -161,8 +173,8 @@ func VerifyFailedOperatorUpgradeAllSnos(ctx SpecContext) {
 
 	wg1.Add(2)
 
-	go VerifyAllPoliciesInNamespaceAreCompliant(namespace1.Object.Name, ctx, &wg1, &mu1)
-	go VerifyAllPoliciesInNamespaceAreCompliant(namespace2.Object.Name, ctx, &wg1, &mu1)
+	go VerifyAllPoliciesInNamespaceAreCompliant(nsname1, ctx, &wg1, &mu1)
+	go VerifyAllPoliciesInNamespaceAreCompliant(nsname2, ctx, &wg1, &mu1)
 
 	wg1.Wait()
 
@@ -252,8 +264,8 @@ func VerifyFailedOperatorUpgradeAllSnos(ctx SpecContext) {
 
 	wg3.Add(2)
 
-	go DeprovisionAiSnoCluster(provisioningRequest1, namespace1, clusterInstance1, node1, nodePool1, ctx, &wg3)
-	go DeprovisionAiSnoCluster(provisioningRequest2, namespace2, clusterInstance2, node2, nodePool2, ctx, &wg3)
+	go DeprovisionAiSnoCluster(provisioningRequest1, clusterInstance1, ctx, &wg3)
+	go DeprovisionAiSnoCluster(provisioningRequest2, clusterInstance2, ctx, &wg3)
 
 	wg3.Wait()
 }
@@ -264,6 +276,9 @@ func VerifyFailedOperatorUpgradeAllSnos(ctx SpecContext) {
 //nolint:funlen
 func VerifyFailedOperatorUpgradeSubsetSnos(ctx SpecContext) {
 	downgradeOperatorImages()
+
+	VerifyBmhIsAvailable(OCloudConfig.BmhSpoke1, OCloudConfig.InventoryPoolNamespace)
+	VerifyBmhIsAvailable(OCloudConfig.BmhSpoke2, OCloudConfig.InventoryPoolNamespace)
 
 	provisioningRequest1 := VerifyProvisionSnoCluster(
 		OCloudConfig.TemplateName,
@@ -281,10 +296,13 @@ func VerifyFailedOperatorUpgradeSubsetSnos(ctx SpecContext) {
 		ocloudparams.PolicyTemplateParameters,
 		ocloudparams.ClusterInstanceParameters2)
 
-	node1, nodePool1, namespace1, clusterInstance1 := VerifyAndRetrieveAssociatedCRsForAI(
-		provisioningRequest1.Object.Name, OCloudConfig.ClusterName1, ctx)
-	node2, nodePool2, namespace2, clusterInstance2 := VerifyAndRetrieveAssociatedCRsForAI(
-		provisioningRequest2.Object.Name, OCloudConfig.ClusterName2, ctx)
+	VerifyOcloudCRsExist(provisioningRequest1)
+	nsname1 := provisioningRequest1.Object.Status.Extensions.ClusterDetails.Name
+	clusterInstance1 := VerifyClusterInstanceCompleted(provisioningRequest1, ctx)
+
+	VerifyOcloudCRsExist(provisioningRequest2)
+	nsname2 := provisioningRequest2.Object.Status.Extensions.ClusterDetails.Name
+	clusterInstance2 := VerifyClusterInstanceCompleted(provisioningRequest2, ctx)
 
 	var wg1 sync.WaitGroup
 
@@ -292,8 +310,8 @@ func VerifyFailedOperatorUpgradeSubsetSnos(ctx SpecContext) {
 
 	wg1.Add(2)
 
-	go VerifyAllPoliciesInNamespaceAreCompliant(namespace1.Object.Name, ctx, &wg1, &mu1)
-	go VerifyAllPoliciesInNamespaceAreCompliant(namespace2.Object.Name, ctx, &wg1, &mu1)
+	go VerifyAllPoliciesInNamespaceAreCompliant(nsname1, ctx, &wg1, &mu1)
+	go VerifyAllPoliciesInNamespaceAreCompliant(nsname2, ctx, &wg1, &mu1)
 
 	wg1.Wait()
 
@@ -342,7 +360,7 @@ func VerifyFailedOperatorUpgradeSubsetSnos(ctx SpecContext) {
 
 	wg2.Wait()
 
-	VerifyAllPoliciesInNamespaceAreCompliant(namespace2.Object.Name, ctx, nil, nil)
+	VerifyAllPoliciesInNamespaceAreCompliant(nsname2, ctx, nil, nil)
 
 	provisioningRequest1, err = oran.PullPR(HubAPIClient, provisioningRequest1.Object.Name)
 	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("Failed to retrieve PR %s", provisioningRequest1.Object.Name))
@@ -374,8 +392,8 @@ func VerifyFailedOperatorUpgradeSubsetSnos(ctx SpecContext) {
 
 	wg4.Add(2)
 
-	go DeprovisionAiSnoCluster(provisioningRequest1, namespace1, clusterInstance1, node1, nodePool1, ctx, &wg4)
-	go DeprovisionAiSnoCluster(provisioningRequest2, namespace2, clusterInstance2, node2, nodePool2, ctx, &wg4)
+	go DeprovisionAiSnoCluster(provisioningRequest1, clusterInstance1, ctx, &wg4)
+	go DeprovisionAiSnoCluster(provisioningRequest2, clusterInstance2, ctx, &wg4)
 
 	wg4.Wait()
 }

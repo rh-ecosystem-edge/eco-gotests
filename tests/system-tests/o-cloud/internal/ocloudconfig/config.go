@@ -49,15 +49,16 @@ type OCloudConfig struct {
 	BaseImageName string `yaml:"base_image_name" envconfig:"ECO_OCLOUD_BASE_IMAGE_NAME"`
 	// InterfaceName interface name
 	InterfaceName string `yaml:"interface_name" envconfig:"ECO_OCLOUD_INTERFACE_NAME"`
-	// InterfaceIpv6 IPv6 address of the interface
-	InterfaceIpv6 string `yaml:"interface_ipv6" envconfig:"ECO_OCLOUD_INTERFACE_IPV6"`
+	// InterfaceIpv6_1 IPv6 address of the interface for the first cluster
+	InterfaceIpv6_1 string `yaml:"interface_ipv6_1" envconfig:"ECO_OCLOUD_INTERFACE_IPV6_1"`
+	// InterfaceIpv6_2 IPv6 address of the interface for the second cluster
+	InterfaceIpv6_2 string `yaml:"interface_ipv6_2" envconfig:"ECO_OCLOUD_INTERFACE_IPV6_2"`
 	// DNSIpv6 IPv6 address of the DNS server
 	DNSIpv6 string `yaml:"dns_ipv6" envconfig:"ECO_OCLOUD_DNS_IPV6"`
 	// NextHopIpv6 IPv6 address of the next hop
 	NextHopIpv6 string `yaml:"next_hop_ipv6" envconfig:"ECO_OCLOUD_NEXT_HOP_IPV6"`
 	// NextHopInterface interface of the next hop
 	NextHopInterface string `yaml:"next_hop_interface" envconfig:"ECO_OCLOUD_NEXT_HOP_INTERFACE"`
-
 	// Spoke1BMC BMC configuration for spoke 1
 	Spoke1BMC *bmc.BMC
 	// Spoke1BMCUsername BMC username for spoke 1
@@ -80,6 +81,13 @@ type OCloudConfig struct {
 	// Spoke2BMCTimeout timeout for BMC for spoke 2
 	Spoke2BMCTimeout time.Duration `yaml:"spoke2_bmc_timeout" envconfig:"ECO_OCLOUD_SPOKE2_BMC_TIMEOUT"`
 
+	// InventoryPoolNamespace is the namespace of the inventory pool.
+	InventoryPoolNamespace string `yaml:"inventory_pool_namespace" envconfig:"ECO_OCLOUD_INVENTORY_POOL_NAMESPACE"`
+	// BmhSpoke1 is the BMH for the first spoke.
+	BmhSpoke1 string `yaml:"bmh_spoke1" envconfig:"ECO_OCLOUD_BMH_SPOKE1"`
+	// BmhSpoke2 is the BMH for the second spoke.
+	BmhSpoke2 string `yaml:"bmh_spoke2" envconfig:"ECO_OCLOUD_BMH_SPOKE2"`
+
 	// TemplateName defines the base name of the referenced ClusterTemplate.
 	TemplateName string `yaml:"template_name" envconfig:"ECO_OCLOUD_TEMPLATE_NAME"`
 	//nolint:lll
@@ -89,8 +97,11 @@ type OCloudConfig struct {
 	// TemplateVersionAIFailure defines the version of the referenced ClusterTemplate used for the failing SNO provisioning using AI.
 	TemplateVersionAIFailure string `yaml:"template_version_ai_failure" envconfig:"ECO_OCLOUD_TEMPLATE_VERSION_AI_FAILURE"`
 	//nolint:lll
-	// TemplateVersionDifferentTemplates defines the version of the referenced ClusterTemplate used for the multicluster provisioning with different templates.
-	TemplateVersionDifferentTemplates string `yaml:"template_version_different_templates" envconfig:"ECO_OCLOUD_TEMPLATE_VERSION_DIFFERENT_TEMPLATES"`
+	// TemplateVersionSimultaneous1 defines the version of the referenced ClusterTemplate used for the multicluster provisioning with different templates.
+	TemplateVersionSimultaneous1 string `yaml:"template_version_simultaneous_1" envconfig:"ECO_OCLOUD_TEMPLATE_VERSION_SIMULTANEOUS_1"`
+	//nolint:lll
+	// TemplateVersionSimultaneous2 defines the version of the referenced ClusterTemplate used for the multicluster provisioning with different templates.
+	TemplateVersionSimultaneous2 string `yaml:"template_version_simultaneous_2" envconfig:"ECO_OCLOUD_TEMPLATE_VERSION_SIMULTANEOUS_2"`
 	//nolint:lll
 	// TemplateVersionIBISuccess defines the version of the referenced ClusterTemplate used for the successful SNO provisioning using IBI.
 	TemplateVersionIBISuccess string `yaml:"template_version_ibi_success" envconfig:"ECO_OCLOUD_TEMPLATE_VERSION_IBI_SUCCESS"`
