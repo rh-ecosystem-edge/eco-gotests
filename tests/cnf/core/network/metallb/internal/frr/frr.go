@@ -407,22 +407,31 @@ func ValidateBGPRemoteAS(frrk8sPods []*pod.Builder, bgpPeerIP string, expectedRe
 
 		// Parsing JSON
 		var bgpData map[string]BGPConnectionInfo
-		err = json.Unmarshal(output.Bytes(), &bgpData)
-
-		if err != nil {
+		if err = json.Unmarshal(output.Bytes(), &bgpData); err != nil {
 			return fmt.Errorf("error parsing BGP neighbor JSON for pod %s: %w", frrk8sPod.Definition.Name, err)
 		}
 
-		// Validate RemoteAS
+		// Validate RemoteAS - fail immediately if not found
+		found := false
+
 		for _, bgpInfo := range bgpData {
 			if bgpInfo.RemoteAS == expectedRemoteAS {
-				return nil // Match found
+				found = true
+
+				break
 			}
+		}
+
+		if !found {
+			return fmt.Errorf("no BGP neighbor with RemoteAS %d found for peer %s in pod %s",
+				expectedRemoteAS, bgpPeerIP, frrk8sPod.Definition.Name)
 		}
 	}
 
-	// If no matches are found across all pods
-	return fmt.Errorf("no BGP neighbor with RemoteAS %d found for peer %s", expectedRemoteAS, bgpPeerIP)
+	// Success - all pods validated
+	glog.V(90).Infof("BGP RemoteAS %d validation successful on all pods", expectedRemoteAS)
+
+	return nil
 }
 
 func getBgpStatus(frrPod *pod.Builder, cmd string, containerName ...string) (*bgpStatus, error) {
