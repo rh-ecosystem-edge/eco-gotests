@@ -32,6 +32,15 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 )
 
+var (
+	primaryServiceIPPool        = []string{"3.3.3.1", "3.3.3.240"} // Standard pool from DefineIterationParams
+	secondServiceIPPool         = []string{"192.168.255.1", "192.168.255.2"}
+	secondServicePoolName       = "second-bgp-adv-and-addr-pool"
+	secondServiceName           = "second-metallb-service"
+	secondServiceAppLabel       = "second-app"
+	secondServiceNginxPodPrefix = "second-nginx-pod-"
+)
+
 var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFailure, func() {
 
 	BeforeAll(func() {
@@ -97,6 +106,48 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 			Expect(err).ToNot(HaveOccurred(), "Failed to list prometheus pods")
 
 			verifyMetricPresentInPrometheus(frrk8sPods, prometheusPods[0], "frrk8s_bfd_")
+		})
+
+		It("Verify BGP over BFD session remains stable during service change", reportxml.ID("76013"), func() {
+			By("Getting existing FRR pod created by BeforeEach")
+			frrPod, err := pod.Pull(APIClient, tsparams.FRRContainerName, tsparams.TestNamespaceName)
+			Expect(err).ToNot(HaveOccurred(), "Failed to pull FRR test pod")
+
+			// Initial verification
+			verifyBFDSessionStability(frrPod, "after BeforeEach setup")
+
+			// Create first service
+			By("Creating initial MetalLB service")
+			createCompleteMetalLBService(tsparams.BGPAdvAndAddressPoolName, primaryServiceIPPool,
+				tsparams.MetallbServiceName, tsparams.LabelValue1, tsparams.MLBNginxPodName,
+				workerNodeList[0].Definition.Name)
+			verifyBFDSessionStability(frrPod, "after service creation")
+
+			// Create second service
+			By("Creating additional MetalLB service to test service addition")
+			createCompleteMetalLBService(secondServicePoolName, secondServiceIPPool,
+				secondServiceName, secondServiceAppLabel, secondServiceNginxPodPrefix,
+				workerNodeList[0].Definition.Name)
+			verifyBFDSessionStability(frrPod, "after adding second service")
+
+			// Scale endpoints
+			By("Testing endpoint modification by scaling nginx deployment")
+			if len(workerNodeList) > 1 {
+				By("Creating additional nginx pod on second worker to modify endpoints")
+				setupNGNXPod(tsparams.MLBNginxPodName+workerNodeList[1].Definition.Name,
+					workerNodeList[1].Definition.Name, tsparams.LabelValue1)
+				verifyBFDSessionStability(frrPod, "after endpoint modification")
+			}
+
+			// Delete services
+			deleteMetalLBService(secondServiceName)
+			verifyBFDSessionStability(frrPod, "after second service deletion")
+
+			deleteMetalLBService(tsparams.MetallbServiceName)
+			verifyBFDSessionStability(frrPod, "after deleting all services")
+
+			By("Final verification that BGP and BFD sessions have remained stable throughout all operations")
+			verifyBFDSessionStability(frrPod, "throughout all operations")
 		})
 
 		AfterEach(func() {
@@ -493,4 +544,27 @@ func removeNFTTable(nodeName string) {
 		APIClient, "nft delete table inet my_table",
 		metav1.ListOptions{LabelSelector: corev1.LabelHostname + "=" + nodeName})
 	Expect(err).ToNot(HaveOccurred(), "Failed to delete nft table")
+}
+
+func verifyBFDSessionStability(frrPod *pod.Builder, context string) {
+	By(fmt.Sprintf("Verifying BGP and BFD sessions remain stable %s", context))
+	verifyMetalLbBFDAndBGPSessionsAreUPOnFrrPod(frrPod, ipv4NodeAddrList)
+}
+
+func createCompleteMetalLBService(poolName string, ipPool []string, serviceName, appLabel, podNamePrefix,
+	workerNode string) {
+	ipAddressPool := setupBgpAdvertisementAndIPAddressPool(poolName, ipPool, netparam.IPSubnetInt32)
+
+	setupMetalLbService(serviceName, netparam.IPV4Family, appLabel, ipAddressPool,
+		corev1.ServiceExternalTrafficPolicyTypeCluster)
+
+	setupNGNXPod(podNamePrefix+workerNode, workerNode, appLabel)
+}
+
+func deleteMetalLBService(serviceName string) {
+	By(fmt.Sprintf("Testing service deletion - removing service '%s'", serviceName))
+	svc, err := service.Pull(APIClient, serviceName, tsparams.TestNamespaceName)
+	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to pull MetalLB service '%s'", serviceName))
+	err = svc.Delete()
+	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to delete MetalLB service '%s'", serviceName))
 }
