@@ -39,6 +39,34 @@ var (
 		"nodes": []map[string]any{
 			{
 				"hostName": OCloudConfig.HostName1,
+				"nodeNetwork": map[string]any{
+					"config": map[string]any{
+						"interfaces": []map[string]any{
+							{
+								"ipv6": map[string]any{
+									"address": []map[string]any{
+										{
+											"ip":            OCloudConfig.InterfaceIpv6_1,
+											"prefix-length": "64",
+										},
+									},
+								},
+							},
+						},
+						"dns-resolver": map[string]any{
+							"config": map[string]any{
+								"server": []string{OCloudConfig.DNSIpv6},
+							},
+						},
+						"routes": map[string]any{
+							"config": []map[string]any{
+								{
+									"next-hop-address": OCloudConfig.NextHopIpv6,
+								},
+							},
+						},
+					},
+				},
 			},
 		},
 	}
@@ -53,22 +81,25 @@ var (
 					"config": map[string]any{
 						"interfaces": []map[string]any{
 							{
-								"name":  OCloudConfig.InterfaceName,
-								"type":  "ethertype",
-								"state": "up",
 								"ipv6": map[string]any{
-									"enabled": "true",
 									"address": []map[string]any{
 										{
-											"ip":            OCloudConfig.InterfaceIpv6,
+											"ip":            OCloudConfig.InterfaceIpv6_2,
 											"prefix-length": "64",
 										},
 									},
-									"dhcp":     "false",
-									"autoconf": "false",
 								},
-								"ipv4": map[string]any{
-									"enabled": "false",
+							},
+						},
+						"dns-resolver": map[string]any{
+							"config": map[string]any{
+								"server": []string{OCloudConfig.DNSIpv6},
+							},
+						},
+						"routes": map[string]any{
+							"config": []map[string]any{
+								{
+									"next-hop-address": OCloudConfig.NextHopIpv6,
 								},
 							},
 						},

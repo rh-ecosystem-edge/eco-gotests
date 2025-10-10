@@ -17,6 +17,11 @@ import (
 // VerifySuccessfulSnoProvisioning verifies the successful provisioning of a SNO cluster using
 // Assisted Installer.
 func VerifySuccessfulSnoProvisioning(ctx SpecContext) {
+	// Verify that both BMHs are available before provisioning the SNO cluster because either of them
+	// can be used to provision the SNO cluster.
+	VerifyBmhIsAvailable(OCloudConfig.BmhSpoke1, OCloudConfig.InventoryPoolNamespace)
+	VerifyBmhIsAvailable(OCloudConfig.BmhSpoke2, OCloudConfig.InventoryPoolNamespace)
+
 	provisioningRequest := VerifyProvisionSnoCluster(
 		OCloudConfig.TemplateName,
 		OCloudConfig.TemplateVersionAISuccess,
@@ -25,21 +30,28 @@ func VerifySuccessfulSnoProvisioning(ctx SpecContext) {
 		ocloudparams.PolicyTemplateParameters,
 		ocloudparams.ClusterInstanceParameters1)
 
-	allocatedNode, nodeAR, namespace, clusterInstance := VerifyAndRetrieveAssociatedCRsForAI(
-		provisioningRequest.Object.Name, OCloudConfig.ClusterName1, ctx)
+	VerifyOcloudCRsExist(provisioningRequest)
 
-	VerifyAllPoliciesInNamespaceAreCompliant(namespace.Object.Name, ctx, nil, nil)
-	glog.V(ocloudparams.OCloudLogLevel).Infof("All the policies in namespace %s are Complete", namespace.Object.Name)
+	clusterInstance := VerifyClusterInstanceCompleted(provisioningRequest, ctx)
+	nsname := provisioningRequest.Object.Status.Extensions.ClusterDetails.Name
+
+	VerifyAllPoliciesInNamespaceAreCompliant(nsname, ctx, nil, nil)
+	glog.V(ocloudparams.OCloudLogLevel).Infof("all the policies in namespace %s are compliant", nsname)
 
 	VerifyProvisioningRequestIsFulfilled(provisioningRequest)
-	glog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s is fulfilled", provisioningRequest.Object.Name)
+	glog.V(ocloudparams.OCloudLogLevel).Infof("provisioning request %s is fulfilled", provisioningRequest.Object.Name)
 
-	DeprovisionAiSnoCluster(provisioningRequest, namespace, clusterInstance, allocatedNode, nodeAR, ctx, nil)
+	DeprovisionAiSnoCluster(provisioningRequest, clusterInstance, ctx, nil)
 }
 
 // VerifyFailedSnoProvisioning verifies that the provisioning of a SNO cluster using
 // Assisted Installer fails.
 func VerifyFailedSnoProvisioning(ctx SpecContext) {
+	// Verify that both BMHs are available before provisioning the SNO cluster because either of them
+	// can be used to provision the SNO cluster.
+	VerifyBmhIsAvailable(OCloudConfig.BmhSpoke1, OCloudConfig.InventoryPoolNamespace)
+	VerifyBmhIsAvailable(OCloudConfig.BmhSpoke2, OCloudConfig.InventoryPoolNamespace)
+
 	provisioningRequest := VerifyProvisionSnoCluster(
 		OCloudConfig.TemplateName,
 		OCloudConfig.TemplateVersionAIFailure,
@@ -48,17 +60,23 @@ func VerifyFailedSnoProvisioning(ctx SpecContext) {
 		ocloudparams.PolicyTemplateParameters,
 		ocloudparams.ClusterInstanceParameters1)
 
-	allocatedNode, nodeAR, namespace, clusterInstance := VerifyAndRetrieveAssociatedCRsForAI(
-		provisioningRequest.Object.Name, OCloudConfig.ClusterName1, ctx)
+	VerifyOcloudCRsExist(provisioningRequest)
+
+	clusterInstance := VerifyClusterInstanceCompleted(provisioningRequest, ctx)
 
 	VerifyProvisioningRequestTimeout(provisioningRequest)
 
-	DeprovisionAiSnoCluster(provisioningRequest, namespace, clusterInstance, allocatedNode, nodeAR, ctx, nil)
+	DeprovisionAiSnoCluster(provisioningRequest, clusterInstance, ctx, nil)
 }
 
 // VerifySimultaneousSnoProvisioningSameClusterTemplate verifies the successful provisioning of two SNO clusters
 // simultaneously with the same cluster templates.
 func VerifySimultaneousSnoProvisioningSameClusterTemplate(ctx SpecContext) {
+	// Verify that both BMHs are available before provisioning the SNO cluster because either of them
+	// can be used to provision the SNO cluster.
+	VerifyBmhIsAvailable(OCloudConfig.BmhSpoke1, OCloudConfig.InventoryPoolNamespace)
+	VerifyBmhIsAvailable(OCloudConfig.BmhSpoke2, OCloudConfig.InventoryPoolNamespace)
+
 	provisioningRequest1 := VerifyProvisionSnoCluster(
 		OCloudConfig.TemplateName,
 		OCloudConfig.TemplateVersionAISuccess,
@@ -74,10 +92,11 @@ func VerifySimultaneousSnoProvisioningSameClusterTemplate(ctx SpecContext) {
 		ocloudparams.PolicyTemplateParameters,
 		ocloudparams.ClusterInstanceParameters2)
 
-	_, _, ns1, _ := VerifyAndRetrieveAssociatedCRsForAI(
-		provisioningRequest1.Object.Name, OCloudConfig.ClusterName1, ctx)
-	_, _, ns2, _ := VerifyAndRetrieveAssociatedCRsForAI(
-		provisioningRequest2.Object.Name, OCloudConfig.ClusterName2, ctx)
+	VerifyOcloudCRsExist(provisioningRequest1)
+	nsname1 := provisioningRequest1.Object.Status.Extensions.ClusterDetails.Name
+
+	VerifyOcloudCRsExist(provisioningRequest2)
+	nsname2 := provisioningRequest2.Object.Status.Extensions.ClusterDetails.Name
 
 	var waitGroup sync.WaitGroup
 
@@ -85,8 +104,8 @@ func VerifySimultaneousSnoProvisioningSameClusterTemplate(ctx SpecContext) {
 
 	waitGroup.Add(2)
 
-	go VerifyAllPoliciesInNamespaceAreCompliant(ns1.Object.Name, ctx, &waitGroup, &mutex)
-	go VerifyAllPoliciesInNamespaceAreCompliant(ns2.Object.Name, ctx, &waitGroup, &mutex)
+	go VerifyAllPoliciesInNamespaceAreCompliant(nsname1, ctx, &waitGroup, &mutex)
+	go VerifyAllPoliciesInNamespaceAreCompliant(nsname2, ctx, &waitGroup, &mutex)
 
 	waitGroup.Wait()
 
@@ -97,8 +116,8 @@ func VerifySimultaneousSnoProvisioningSameClusterTemplate(ctx SpecContext) {
 // VerifySimultaneousSnoDeprovisioningSameClusterTemplate verifies the successful deletion of
 // two SNO clusters with the same cluster template.
 func VerifySimultaneousSnoDeprovisioningSameClusterTemplate(ctx SpecContext) {
-	prName1 := getProvisioningRequestName(OCloudConfig.ClusterName1)
-	prName2 := getProvisioningRequestName(OCloudConfig.ClusterName2)
+	prName1 := GetProvisioningRequestName(OCloudConfig.ClusterName1)
+	prName2 := GetProvisioningRequestName(OCloudConfig.ClusterName2)
 
 	provisioningRequest1, err := oran.PullPR(HubAPIClient, prName1)
 	Expect(err).ToNot(HaveOccurred(), "Failed to get PR %s", prName1)
@@ -115,10 +134,13 @@ func VerifySimultaneousSnoDeprovisioningSameClusterTemplate(ctx SpecContext) {
 	Expect(pr1TemplateVersion).To(Equal(pr2TemplateVersion),
 		fmt.Sprintf("PR %s and %s are not using the same cluster template", prName1, prName2))
 
-	allocatedNode1, nodeAllocationRequest1, namespace1, clusterInstance1 := VerifyAndRetrieveAssociatedCRsForAI(
-		prName1, OCloudConfig.ClusterName1, ctx)
-	allocatedNode2, nodeAllocationRequest2, namespace2, clusterInstance2 := VerifyAndRetrieveAssociatedCRsForAI(
-		prName2, OCloudConfig.ClusterName2, ctx)
+	nodeAllocationRequest1, allocatedNodes1, namespace1 := VerifyOcloudCRsExist(provisioningRequest1)
+	clusterInstance1 := VerifyClusterInstanceCompleted(provisioningRequest1, ctx)
+	bmhs1 := GetBMHsFromAllocatedNodes(allocatedNodes1)
+
+	nodeAllocationRequest2, allocatedNodes2, namespace2 := VerifyOcloudCRsExist(provisioningRequest2)
+	clusterInstance2 := VerifyClusterInstanceCompleted(provisioningRequest2, ctx)
+	bmhs2 := GetBMHsFromAllocatedNodes(allocatedNodes2)
 
 	var waitGroup sync.WaitGroup
 
@@ -130,20 +152,33 @@ func VerifySimultaneousSnoDeprovisioningSameClusterTemplate(ctx SpecContext) {
 	go VerifyNamespaceDoesNotExist(namespace2, &waitGroup, ctx)
 	go VerifyClusterInstanceDoesNotExist(clusterInstance1, &waitGroup, ctx)
 	go VerifyClusterInstanceDoesNotExist(clusterInstance2, &waitGroup, ctx)
-	go VerifyAllocatedNodeDoesNotExist(allocatedNode1, &waitGroup, ctx)
-	go VerifyAllocatedNodeDoesNotExist(allocatedNode2, &waitGroup, ctx)
-	go VerifyNARDoesNotExist(nodeAllocationRequest1, &waitGroup, ctx)
-	go VerifyNARDoesNotExist(nodeAllocationRequest2, &waitGroup, ctx)
+	go VerifyAllocatedNodesDoNotExist(allocatedNodes1, &waitGroup, ctx)
+	go VerifyAllocatedNodesDoNotExist(allocatedNodes2, &waitGroup, ctx)
+	go VerifyNodeAllocationRequestDoesNotExist(nodeAllocationRequest1, &waitGroup, ctx)
+	go VerifyNodeAllocationRequestDoesNotExist(nodeAllocationRequest2, &waitGroup, ctx)
 
 	waitGroup.Wait()
+
+	for _, bmh := range bmhs1 {
+		VerifyBmhIsAvailable(bmh, OCloudConfig.InventoryPoolNamespace)
+	}
+
+	for _, bmh := range bmhs2 {
+		VerifyBmhIsAvailable(bmh, OCloudConfig.InventoryPoolNamespace)
+	}
 }
 
 // VerifySimultaneousSnoProvisioningDifferentClusterTemplates verifies the successful provisioning of
 // two SNO clusters simultaneously with different cluster templates.
 func VerifySimultaneousSnoProvisioningDifferentClusterTemplates(ctx SpecContext) {
+	// Verify that both BMHs are available before provisioning the SNO cluster because either of them
+	// can be used to provision the SNO cluster.
+	VerifyBmhIsAvailable(OCloudConfig.BmhSpoke1, OCloudConfig.InventoryPoolNamespace)
+	VerifyBmhIsAvailable(OCloudConfig.BmhSpoke2, OCloudConfig.InventoryPoolNamespace)
+
 	provisioningRequest1 := VerifyProvisionSnoCluster(
 		OCloudConfig.TemplateName,
-		OCloudConfig.TemplateVersionAISuccess,
+		OCloudConfig.TemplateVersionSimultaneous1,
 		OCloudConfig.NodeClusterName1,
 		OCloudConfig.OCloudSiteID,
 		ocloudparams.PolicyTemplateParameters,
@@ -151,16 +186,17 @@ func VerifySimultaneousSnoProvisioningDifferentClusterTemplates(ctx SpecContext)
 
 	provisioningRequest2 := VerifyProvisionSnoCluster(
 		OCloudConfig.TemplateName,
-		OCloudConfig.TemplateVersionDifferentTemplates,
+		OCloudConfig.TemplateVersionSimultaneous2,
 		OCloudConfig.NodeClusterName2,
 		OCloudConfig.OCloudSiteID,
 		ocloudparams.PolicyTemplateParameters,
 		ocloudparams.ClusterInstanceParameters2)
 
-	_, _, ns1, _ := VerifyAndRetrieveAssociatedCRsForAI(
-		provisioningRequest1.Object.Name, OCloudConfig.ClusterName1, ctx)
-	_, _, ns2, _ := VerifyAndRetrieveAssociatedCRsForAI(
-		provisioningRequest2.Object.Name, OCloudConfig.ClusterName2, ctx)
+	VerifyOcloudCRsExist(provisioningRequest1)
+	nsname1 := provisioningRequest1.Object.Status.Extensions.ClusterDetails.Name
+
+	VerifyOcloudCRsExist(provisioningRequest2)
+	nsname2 := provisioningRequest2.Object.Status.Extensions.ClusterDetails.Name
 
 	var waitGroup sync.WaitGroup
 
@@ -168,8 +204,8 @@ func VerifySimultaneousSnoProvisioningDifferentClusterTemplates(ctx SpecContext)
 
 	waitGroup.Add(2)
 
-	go VerifyAllPoliciesInNamespaceAreCompliant(ns1.Object.Name, ctx, &waitGroup, &mutex)
-	go VerifyAllPoliciesInNamespaceAreCompliant(ns2.Object.Name, ctx, &waitGroup, &mutex)
+	go VerifyAllPoliciesInNamespaceAreCompliant(nsname1, ctx, &waitGroup, &mutex)
+	go VerifyAllPoliciesInNamespaceAreCompliant(nsname2, ctx, &waitGroup, &mutex)
 
 	waitGroup.Wait()
 }
@@ -177,8 +213,8 @@ func VerifySimultaneousSnoProvisioningDifferentClusterTemplates(ctx SpecContext)
 // VerifySimultaneousSnoDeprovisioningDifferentClusterTemplates verifies the successful deletion of
 // two SNO clusters with different cluster templates.
 func VerifySimultaneousSnoDeprovisioningDifferentClusterTemplates(ctx SpecContext) {
-	prName1 := getProvisioningRequestName(OCloudConfig.ClusterName1)
-	prName2 := getProvisioningRequestName(OCloudConfig.ClusterName2)
+	prName1 := GetProvisioningRequestName(OCloudConfig.ClusterName1)
+	prName2 := GetProvisioningRequestName(OCloudConfig.ClusterName2)
 
 	provisioningRequest1, err := oran.PullPR(HubAPIClient, prName1)
 	Expect(err).ToNot(HaveOccurred(), "Failed to get PR %s", prName1)
@@ -196,10 +232,12 @@ func VerifySimultaneousSnoDeprovisioningDifferentClusterTemplates(ctx SpecContex
 	Expect(pr1TemplateVersion).NotTo(Equal(pr2TemplateVersion),
 		fmt.Sprintf("PR %s and %s are using the same cluster template", prName1, prName2))
 
-	allocatedNode1, nodeAllocationRequest1, ns1, clusterInstance1 := VerifyAndRetrieveAssociatedCRsForAI(
-		prName1, OCloudConfig.ClusterName1, ctx)
-	allocatedNode2, nodeAllocationRequest2, ns2, clusterInstance2 := VerifyAndRetrieveAssociatedCRsForAI(
-		prName2, OCloudConfig.ClusterName2, ctx)
+	nodeAllocationRequest1, allocatedNodes1, namespace1 := VerifyOcloudCRsExist(provisioningRequest1)
+	clusterInstance1 := VerifyClusterInstanceCompleted(provisioningRequest1, ctx)
+	bmhs1 := GetBMHsFromAllocatedNodes(allocatedNodes1)
+	nodeAllocationRequest2, allocatedNodes2, namespace2 := VerifyOcloudCRsExist(provisioningRequest2)
+	clusterInstance2 := VerifyClusterInstanceCompleted(provisioningRequest2, ctx)
+	bmhs2 := GetBMHsFromAllocatedNodes(allocatedNodes2)
 
 	var waitGroup sync.WaitGroup
 
@@ -207,28 +245,22 @@ func VerifySimultaneousSnoDeprovisioningDifferentClusterTemplates(ctx SpecContex
 
 	go VerifyProvisioningRequestIsDeleted(provisioningRequest1, &waitGroup, ctx)
 	go VerifyProvisioningRequestIsDeleted(provisioningRequest2, &waitGroup, ctx)
-	go VerifyNamespaceDoesNotExist(ns1, &waitGroup, ctx)
-	go VerifyNamespaceDoesNotExist(ns2, &waitGroup, ctx)
+	go VerifyNamespaceDoesNotExist(namespace1, &waitGroup, ctx)
+	go VerifyNamespaceDoesNotExist(namespace2, &waitGroup, ctx)
 	go VerifyClusterInstanceDoesNotExist(clusterInstance1, &waitGroup, ctx)
 	go VerifyClusterInstanceDoesNotExist(clusterInstance2, &waitGroup, ctx)
-	go VerifyAllocatedNodeDoesNotExist(allocatedNode1, &waitGroup, ctx)
-	go VerifyAllocatedNodeDoesNotExist(allocatedNode2, &waitGroup, ctx)
-	go VerifyNARDoesNotExist(nodeAllocationRequest1, &waitGroup, ctx)
-	go VerifyNARDoesNotExist(nodeAllocationRequest2, &waitGroup, ctx)
+	go VerifyAllocatedNodesDoNotExist(allocatedNodes1, &waitGroup, ctx)
+	go VerifyAllocatedNodesDoNotExist(allocatedNodes2, &waitGroup, ctx)
+	go VerifyNodeAllocationRequestDoesNotExist(nodeAllocationRequest1, &waitGroup, ctx)
+	go VerifyNodeAllocationRequestDoesNotExist(nodeAllocationRequest2, &waitGroup, ctx)
 
 	waitGroup.Wait()
-}
 
-func getProvisioningRequestName(clusterName string) string {
-	nodeAllocationRequest, err := oran.PullNodeAllocationRequest(
-		HubAPIClient, clusterName, ocloudparams.OCloudHardwareManagerPluginNamespace)
-	Expect(err).NotTo(HaveOccurred(), "Failed to retrieve node allocation request %s", OCloudConfig.ClusterName1)
-
-	for _, ownerReference := range nodeAllocationRequest.Object.OwnerReferences {
-		if ownerReference.Kind == "ProvisioningRequest" {
-			return ownerReference.Name
-		}
+	for _, bmh := range bmhs1 {
+		VerifyBmhIsAvailable(bmh, OCloudConfig.InventoryPoolNamespace)
 	}
 
-	return ""
+	for _, bmh := range bmhs2 {
+		VerifyBmhIsAvailable(bmh, OCloudConfig.InventoryPoolNamespace)
+	}
 }
