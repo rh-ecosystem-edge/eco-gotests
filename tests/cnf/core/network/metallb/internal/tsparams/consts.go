@@ -83,4 +83,8 @@ bfd
 	ETPLocal = "Local"
 	// ETPCluster represents externalTrafficPolicy Cluster.
 	ETPCluster = "Cluster"
+	// MetalLBIPv6 represents IPv6 label that can be used for test cases selection.
+	MetalLBIPv6 = "metallbipv6"
+	// MetalLBDual represents dual label that can be used for test cases selection.
+	MetalLBDual = "metallbdual"
 )

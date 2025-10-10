@@ -71,15 +71,13 @@ var _ = Describe("BGP", Ordered, Label(tsparams.LabelBGPTestCases), ContinueOnFa
 		DescribeTable("Creating AddressPool with bgp-advertisement", reportxml.ID("47174"),
 			func(ipStack string, prefixLen int) {
 
-				if ipStack == netparam.IPV6Family {
-					Skip("bgp test cases doesn't support ipv6 yet")
-				}
+				validateIPFamilySupport(ipStack)
 
-				_, extFrrPod, _ := setupIPv4TestEnv(prefixLen, false)
+				_, extFrrPod, _ := setupTestEnv(ipStack, prefixLen, false)
 
 				By("Validating BGP route prefix")
 				validatePrefix(
-					extFrrPod, ipStack, prefixLen, removePrefixFromIPList(ipv4NodeAddrList), tsparams.LBipv4Range)
+					extFrrPod, ipStack, prefixLen, removePrefixFromIPList(nodeAddrList[ipStack]), tsparams.LBipRange1[ipStack])
 			},
 
 			Entry("", netparam.IPV4Family, 32,
@@ -88,16 +86,16 @@ var _ = Describe("BGP", Ordered, Label(tsparams.LabelBGPTestCases), ContinueOnFa
 			Entry("", netparam.IPV4Family, 28,
 				reportxml.SetProperty("IPStack", netparam.IPV4Family),
 				reportxml.SetProperty("PrefixLength", netparam.IPSubnet28)),
-			Entry("", netparam.IPV6Family, 128,
+			Entry("", Label(tsparams.MetalLBIPv6), netparam.IPV6Family, 128,
 				reportxml.SetProperty("IPStack", netparam.IPV6Family),
 				reportxml.SetProperty("PrefixLength", netparam.IPSubnet128)),
-			Entry("", netparam.IPV6Family, 64,
+			Entry("", Label(tsparams.MetalLBIPv6), netparam.IPV6Family, 64,
 				reportxml.SetProperty("IPStack", netparam.IPV6Family),
 				reportxml.SetProperty("PrefixLength", netparam.IPSubnet64)),
 		)
 
 		It("provides Prometheus BGP metrics", reportxml.ID("47202"), func() {
-			frrk8sPods, _, _ := setupIPv4TestEnv(32, false)
+			frrk8sPods, _, _ := setupTestEnv(ipv4, 32, false)
 
 			By("Label namespace")
 			testNs, err := namespace.Pull(APIClient, NetConfig.MlbOperatorNamespace)
@@ -118,16 +116,13 @@ var _ = Describe("BGP", Ordered, Label(tsparams.LabelBGPTestCases), ContinueOnFa
 		DescribeTable("Verify external FRR BGP Peer cannot propagate routes to Speaker",
 			reportxml.ID("47203"),
 			func(ipStack string) {
-				// To-Do: This should be removed once we have dual stack clusters for testing.
-				// Also, the test procedure for IPv6 should be supported.
-				if ipStack == netparam.IPV6Family {
-					Skip("bgp test cases doesn't support ipv6 yet")
-				}
 
-				frrk8sPods, extFrrPod, _ := setupIPv4TestEnv(32, true)
+				validateIPFamilySupport(ipStack)
+
+				frrk8sPods, extFrrPod, _ := setupTestEnv(ipStack, defaultAggLen[ipStack], true)
 
 				By("Verify external FRR is advertising prefixes")
-				advRoutes, err := frr.GetBGPAdvertisedRoutes(extFrrPod, netcmd.RemovePrefixFromIPList(ipv4NodeAddrList))
+				advRoutes, err := frr.GetBGPAdvertisedRoutes(extFrrPod, netcmd.RemovePrefixFromIPList(nodeAddrList[ipStack]))
 				Expect(err).ToNot(HaveOccurred(), "Failed to get BGP Advertised routes")
 				Expect(len(advRoutes)).To(BeNumerically(">", 0), "BGP Advertised routes should not be empty")
 
@@ -135,12 +130,13 @@ var _ = Describe("BGP", Ordered, Label(tsparams.LabelBGPTestCases), ContinueOnFa
 				recRoutes, err := frr.VerifyBGPReceivedRoutesOnFrrNodes(frrk8sPods)
 				Expect(err).ToNot(HaveOccurred(), "Failed to verify BGP routes")
 				Expect(recRoutes).ShouldNot(SatisfyAny(
-					ContainSubstring(tsparams.ExtFrrConnectedPool[0]), ContainSubstring(tsparams.ExtFrrConnectedPool[1])),
+					ContainSubstring(tsparams.ExtFrrConnectedPools[ipStack][0]),
+					ContainSubstring(tsparams.ExtFrrConnectedPools[ipStack][1])),
 					"Received routes validation failed")
 			},
 			Entry("", netparam.IPV4Family,
 				reportxml.SetProperty("IPStack", netparam.IPV4Family)),
-			Entry("", netparam.IPV6Family,
+			Entry("", Label(tsparams.MetalLBIPv6), netparam.IPV6Family,
 				reportxml.SetProperty("IPStack", netparam.IPV6Family)),
 		)
 	})
@@ -187,17 +183,13 @@ var _ = Describe("BGP", Ordered, Label(tsparams.LabelBGPTestCases), ContinueOnFa
 		DescribeTable("Verify bgp-advertisement updates", reportxml.ID("47178"),
 			func(ipStack string, prefixLen int) {
 
-				// To-Do: This should be removed once we have dual stack clusters for testing.
-				// Also, the test procedure for IPv6 should be supported.
-				if ipStack == netparam.IPV6Family {
-					Skip("bgp test cases doesn't support ipv6 yet")
-				}
+				validateIPFamilySupport(ipStack)
 
-				_, extFrrPod, bgpAdv := setupIPv4TestEnv(prefixLen, false)
+				_, extFrrPod, bgpAdv := setupTestEnv(ipStack, prefixLen, false)
 
 				By("Validating BGP route prefix")
 				validatePrefix(
-					extFrrPod, ipStack, prefixLen, removePrefixFromIPList(ipv4NodeAddrList), tsparams.LBipv4Range)
+					extFrrPod, ipStack, prefixLen, removePrefixFromIPList(nodeAddrList[ipStack]), tsparams.LBipRange1[ipStack])
 
 				By("Validate BGP Community is received on the External FRR Pod")
 				bgpStatus, err := frr.GetBGPCommunityStatus(extFrrPod, tsparams.NoAdvertiseCommunity, strings.ToLower(ipStack))
@@ -213,15 +205,30 @@ var _ = Describe("BGP", Ordered, Label(tsparams.LabelBGPTestCases), ContinueOnFa
 				}
 
 				By("Update BGP Advertisements")
-				_, err = bgpAdv.
-					WithLocalPref(200).
-					WithAggregationLength4(28).
-					WithCommunities([]string{tsparams.CustomCommunity}).
-					Update(false)
+				switch ipStack {
+				case ipv4:
+					_, err = bgpAdv.
+						WithLocalPref(200).
+						WithAggregationLength4(28).
+						WithCommunities([]string{tsparams.CustomCommunity}).
+						Update(false)
+				case ipv6:
+					_, err = bgpAdv.
+						WithLocalPref(200).
+						WithAggregationLength6(64).
+						WithCommunities([]string{tsparams.CustomCommunity}).
+						Update(false)
+				}
 				Expect(err).ToNot(HaveOccurred(), "Failed to update BGPAdvertisement")
 
 				By("Validating updated BGP route prefix")
-				_, subnet, err := net.ParseCIDR(tsparams.LBipv4Range[0] + "/28")
+				var subnet *net.IPNet
+				switch ipStack {
+				case ipv4:
+					_, subnet, err = net.ParseCIDR(tsparams.LBipRange1[ipStack][0] + "/28")
+				case ipv6:
+					_, subnet, err = net.ParseCIDR(tsparams.LBipRange1[ipStack][0] + "/64")
+				}
 				Expect(err).ToNot(HaveOccurred(), "Failed to parse CIDR")
 
 				Eventually(func() (map[string][]frr.Route, error) {
@@ -249,16 +256,16 @@ var _ = Describe("BGP", Ordered, Label(tsparams.LabelBGPTestCases), ContinueOnFa
 			Entry("", netparam.IPV4Family, 32,
 				reportxml.SetProperty("IPStack", netparam.IPV4Family),
 				reportxml.SetProperty("PrefixLength", netparam.IPSubnet32)),
-			Entry("", netparam.IPV6Family, 128,
+			Entry("", Label(tsparams.MetalLBIPv6), netparam.IPV6Family, 128,
 				reportxml.SetProperty("IPStack", netparam.IPV6Family),
 				reportxml.SetProperty("PrefixLength", netparam.IPSubnet128)),
 		)
 
 		It("BGP Timer update", reportxml.ID("47180"), func() {
-			frrk8sPods, extFrrPod, _ := setupIPv4TestEnv(32, false)
+			frrk8sPods, extFrrPod, _ := setupTestEnv(ipv4, 32, false)
 
 			By("Verify BGP Timers of neighbors in external FRR Pod")
-			verifyBGPTimer(extFrrPod, ipv4NodeAddrList, 180000, 60000)
+			verifyBGPTimer(extFrrPod, nodeAddrList[ipv4], 180000, 60000)
 
 			By("Update BGP Timers")
 			bgpPeer, err := metallb.PullBGPPeer(APIClient, tsparams.BgpPeerName1, NetConfig.MlbOperatorNamespace)
@@ -280,12 +287,15 @@ var _ = Describe("BGP", Ordered, Label(tsparams.LabelBGPTestCases), ContinueOnFa
 			err = frr.ResetBGPConnection(extFrrPod)
 			Expect(err).NotTo(HaveOccurred(), "Failed to reset BGP connection")
 
-			verifyBGPTimer(extFrrPod, ipv4NodeAddrList, 30000, 10000)
+			verifyBGPTimer(extFrrPod, nodeAddrList[ipv4], 30000, 10000)
 		})
 	})
 })
 
-func setupIPv4TestEnv(prefixLen int, extFrrAdv bool) (
+// Deploys a basic test environment with a single BGPPeer and a single IPAddressPool
+// and creates a BGPAdvertisement with the given prefix length and communities.
+// ipStack is the IP family to use for the test. ipStack can be ipv4 or ipv6 only.
+func setupTestEnv(ipStack string, prefixLen int, extFrrAdv bool) (
 	[]*pod.Builder,
 	*pod.Builder,
 	*metallb.BGPAdvertisementBuilder,
@@ -296,7 +306,7 @@ func setupIPv4TestEnv(prefixLen int, extFrrAdv bool) (
 
 	By("Creating BGPPeer with external FRR Pod")
 	createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1,
-		ipv4metalLbIPList[0], "", tsparams.LocalBGPASN, false, 0, frrk8sPods)
+		metallbAddrList[ipStack][0], "", tsparams.LocalBGPASN, false, 0, frrk8sPods)
 
 	By("Creating an IPAddressPool")
 
@@ -304,23 +314,29 @@ func setupIPv4TestEnv(prefixLen int, extFrrAdv bool) (
 		APIClient,
 		"address-pool",
 		NetConfig.MlbOperatorNamespace,
-		[]string{fmt.Sprintf("%s-%s", tsparams.LBipv4Range[0], tsparams.LBipv4Range[1])}).Create()
+		[]string{fmt.Sprintf("%s-%s", tsparams.LBipRange1[ipStack][0], tsparams.LBipRange1[ipStack][1])}).Create()
 	Expect(err).ToNot(HaveOccurred(), "Failed to create IPAddressPool")
 
 	By("Creating a BGPAdvertisement")
 
-	bgpAdvertisement, err := metallb.
+	bgpAdvertisement := metallb.
 		NewBGPAdvertisementBuilder(APIClient, "bgpadvertisement", NetConfig.MlbOperatorNamespace).
 		WithIPAddressPools([]string{ipAddressPool.Definition.Name}).
-		WithAggregationLength4(int32(prefixLen)).
 		WithCommunities([]string{tsparams.NoAdvertiseCommunity}).
-		WithLocalPref(100).
-		Create()
+		WithLocalPref(100)
+
+	if ipStack == netparam.IPV6Family {
+		bgpAdvertisement = bgpAdvertisement.WithAggregationLength6(int32(prefixLen))
+	} else {
+		bgpAdvertisement = bgpAdvertisement.WithAggregationLength4(int32(prefixLen))
+	}
+
+	bgpAdvertisement, err = bgpAdvertisement.Create()
 	Expect(err).ToNot(HaveOccurred(), "Failed to create BGPAdvertisement")
 
 	By("Deploy nginx on single worker with LB service")
 	setupNGNXPod("nginxpod1", workerNodeList[0].Object.Name, tsparams.LabelValue1)
-	setupMetalLbService(tsparams.MetallbServiceName, netparam.IPV4Family, tsparams.LabelValue1, ipAddressPool,
+	setupMetalLbService(tsparams.MetallbServiceName, ipStack, tsparams.LabelValue1, ipAddressPool,
 		corev1.ServiceExternalTrafficPolicyTypeCluster)
 
 	By("Creating configMap with selected worker nodes as BGP Peers for external FRR Pod")
@@ -329,9 +345,10 @@ func setupIPv4TestEnv(prefixLen int, extFrrAdv bool) (
 
 	if extFrrAdv {
 		masterConfigMap = createConfigMapWithNetwork(
-			tsparams.LocalBGPASN, ipv4NodeAddrList, tsparams.ExtFrrConnectedPool)
+			ipStack, tsparams.LocalBGPASN, nodeAddrList[ipStack], tsparams.ExtFrrConnectedPools[ipStack])
 	} else {
-		masterConfigMap = createConfigMap(tsparams.LocalBGPASN, ipv4NodeAddrList, false, false)
+		masterConfigMap = createConfigMap(
+			tsparams.LocalBGPASN, nodeAddrList[ipStack], false, false)
 	}
 
 	By("Creating macvlan NAD for external FRR Pod")
@@ -342,10 +359,11 @@ func setupIPv4TestEnv(prefixLen int, extFrrAdv bool) (
 	By("Creating external FRR Pod with configMap mount and external NAD")
 
 	extFrrPod := createFrrPod(masterNodeList[0].Object.Name, masterConfigMap.Object.Name, []string{},
-		pod.StaticIPAnnotation(frrconfig.ExternalMacVlanNADName, []string{fmt.Sprintf("%s/%s", ipv4metalLbIPList[0], "24")}))
+		pod.StaticIPAnnotation(frrconfig.ExternalMacVlanNADName,
+			[]string{fmt.Sprintf("%s/%s", metallbAddrList[ipStack][0], frrPodSubnet[ipStack])}))
 
 	By("Checking that BGP session is established on external FRR Pod")
-	verifyMetalLbBGPSessionsAreUPOnFrrPod(extFrrPod, ipv4NodeAddrList)
+	verifyMetalLbBGPSessionsAreUPOnFrrPod(extFrrPod, nodeAddrList[ipStack])
 
 	return frrk8sPods, extFrrPod, bgpAdvertisement
 }
@@ -360,13 +378,37 @@ func verifyBGPTimer(frrPod *pod.Builder, peerAddrList []string, hTimer, aTimer i
 }
 
 func createConfigMapWithNetwork(
+	ipStack string,
 	bgpAsn int,
-	nodeAddrList, externalAdvertisedIPv4Routes []string) *configmap.Builder {
-	frrBFDConfig := frr.DefineBGPConfigWithIPv4Network(bgpAsn, tsparams.LocalBGPASN,
-		externalAdvertisedIPv4Routes, netcmd.RemovePrefixFromIPList(nodeAddrList), false, false)
+	nodeAddrList, externalAdvertisedRoutes []string) *configmap.Builder {
+	var frrBFDConfig string
+
+	if ipStack == ipv6 {
+		frrBFDConfig = frr.DefineBGPConfigWithIPv6Network(
+			bgpAsn,
+			tsparams.LocalBGPASN,
+			externalAdvertisedRoutes,
+			netcmd.RemovePrefixFromIPList(nodeAddrList),
+			false,
+			false,
+		)
+	} else {
+		frrBFDConfig = frr.DefineBGPConfigWithIPv4Network(
+			bgpAsn,
+			tsparams.LocalBGPASN,
+			externalAdvertisedRoutes,
+			netcmd.RemovePrefixFromIPList(nodeAddrList),
+			false,
+			false,
+		)
+	}
+
 	configMapData := frrconfig.DefineBaseConfig(frrconfig.DaemonsFile, frrBFDConfig, "")
+
 	masterConfigMap, err := configmap.NewBuilder(APIClient, "frr-master-node-config", tsparams.TestNamespaceName).
-		WithData(configMapData).Create()
+		WithData(configMapData).
+		Create()
+
 	Expect(err).ToNot(HaveOccurred(), "Failed to create config map")
 
 	return masterConfigMap

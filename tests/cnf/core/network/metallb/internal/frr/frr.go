@@ -3,6 +3,7 @@ package frr
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"strings"
 
 	"github.com/golang/glog"
@@ -177,6 +178,51 @@ func DefineBGPConfig(localBGPASN, remoteBGPASN int, neighborsIPAddresses []strin
 	return bgpConfig
 }
 
+// DefineBGPConfigWithIPv4AndIPv6 returns string which represents BGP config file peering to all given IP addresses.
+func DefineBGPConfigWithIPv4AndIPv6(localBGPASN, remoteBGPASN int, neighborsIPAddresses []string,
+	multiHop, bfd bool) string {
+	bgpConfig := tsparams.FRRBaseConfig +
+		fmt.Sprintf("router bgp %d\n", localBGPASN) +
+		tsparams.FRRDefaultBGPPreConfig
+
+	for _, ipAddress := range neighborsIPAddresses {
+		bgpConfig += fmt.Sprintf("  neighbor %s remote-as %d\n  neighbor %s password %s\n",
+			ipAddress, remoteBGPASN, ipAddress, tsparams.BGPPassword)
+
+		if bfd {
+			bgpConfig += fmt.Sprintf("  neighbor %s bfd\n", ipAddress)
+		}
+
+		if multiHop {
+			bgpConfig += fmt.Sprintf("  neighbor %s ebgp-multihop 2\n", ipAddress)
+		}
+	}
+
+	bgpConfig += "!\naddress-family ipv4 unicast\n"
+
+	for _, ipAddress := range neighborsIPAddresses {
+		if net.ParseIP(ipAddress).To4() == nil {
+			continue
+		}
+
+		bgpConfig += fmt.Sprintf("  neighbor %s activate\n", ipAddress)
+	}
+
+	bgpConfig += "exit-address-family\n!\naddress-family ipv6 unicast\n"
+
+	for _, ipAddress := range neighborsIPAddresses {
+		if net.ParseIP(ipAddress).To4() != nil {
+			continue
+		}
+
+		bgpConfig += fmt.Sprintf("  neighbor %s activate\n", ipAddress)
+	}
+
+	bgpConfig += "exit-address-family\n!\nline vty\n!\nend\n"
+
+	return bgpConfig
+}
+
 // DefineBGPConfigWithStaticRouteAndNetwork defines BGP config file with static route and network.
 //
 //nolint:goconst
@@ -259,6 +305,40 @@ func DefineBGPConfigWithIPv4Network(localBGPASN, remoteBGPASN int,
 	for _, ipAddress := range neighborsIPAddresses {
 		bgpConfig += fmt.Sprintf("  neighbor %s activate\n", ipAddress)
 	}
+
+	bgpConfig += "exit-address-family\n!\nline vty\n!\nend\n"
+
+	return bgpConfig
+}
+
+// DefineBGPConfigWithIPv6Network defines BGP config file with network advertising only ipv6.
+func DefineBGPConfigWithIPv6Network(localBGPASN, remoteBGPASN int,
+	advertisedIPv6Routes, neighborsIPAddresses []string,
+	multiHop, bfd bool) string {
+	bgpConfig := tsparams.FRRBaseConfig +
+		fmt.Sprintf("router bgp %d\n", localBGPASN) +
+		tsparams.FRRDefaultBGPPreConfig
+
+	for _, ipAddress := range neighborsIPAddresses {
+		bgpConfig += fmt.Sprintf("  neighbor %s remote-as %d\n  neighbor %s password %s\n",
+			ipAddress, remoteBGPASN, ipAddress, tsparams.BGPPassword)
+
+		if bfd {
+			bgpConfig += fmt.Sprintf("  neighbor %s bfd\n", ipAddress)
+		}
+
+		if multiHop {
+			bgpConfig += fmt.Sprintf("  neighbor %s ebgp-multihop 2\n", ipAddress)
+		}
+	}
+
+	bgpConfig += "!\naddress-family ipv6 unicast\n"
+	for _, ipAddress := range neighborsIPAddresses {
+		bgpConfig += fmt.Sprintf("  neighbor %s activate\n", ipAddress)
+	}
+
+	bgpConfig += fmt.Sprintf("  network %s\n", advertisedIPv6Routes[0])
+	bgpConfig += fmt.Sprintf("  network %s\n", advertisedIPv6Routes[1])
 
 	bgpConfig += "exit-address-family\n!\nline vty\n!\nend\n"
 
