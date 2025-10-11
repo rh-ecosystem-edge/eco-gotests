@@ -136,6 +136,10 @@ func PreflightImage(arch string) string {
 		return kmmparams.PreflightDTKImageARM64
 	}
 
+	if arch == "s390x" {
+		return kmmparams.PreflightDTKImageS390X
+	}
+
 	if arch == "ppc64le" {
 		return kmmparams.PreflightDTKImagePPC64LE
 	}
@@ -152,6 +156,14 @@ func PreflightKernel(arch string, realtime bool) string {
 		}
 
 		return kmmparams.KernelForDTKArm64
+	}
+
+	if arch == "s390x" {
+		if realtime {
+			return kmmparams.KernelForDTKS390xRealtime
+		}
+
+		return kmmparams.KernelForDTKS390x
 	}
 
 	if arch == "ppc64le" {
