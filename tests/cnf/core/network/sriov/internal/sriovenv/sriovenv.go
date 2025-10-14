@@ -88,17 +88,17 @@ func CreateSriovNetworkAndWaitForNADCreation(sNet *sriov.NetworkBuilder, timeout
 		return err
 	}
 
-	return WaitForNADCreation(sriovNetwork, timeout)
+	return WaitForNADCreation(sriovNetwork.Object.Name, TargetNamespaceOf(sriovNetwork), timeout)
 }
 
 // WaitForNADCreation waits for the NAD to be created.
-func WaitForNADCreation(sriovNetwork *sriov.NetworkBuilder, timeout time.Duration) error {
+func WaitForNADCreation(name, namespace string, timeout time.Duration) error {
 	return wait.PollUntilContextTimeout(context.TODO(),
 		time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			_, err := nad.Pull(APIClient, sriovNetwork.Object.Name, TargetNamespaceOf(sriovNetwork))
+			_, err := nad.Pull(APIClient, name, namespace)
 			if err != nil {
 				glog.V(100).Infof("Failed to get NAD %s in namespace %s: %v",
-					sriovNetwork.Object.Name, TargetNamespaceOf(sriovNetwork), err)
+					name, namespace, err)
 
 				return false, nil
 			}
