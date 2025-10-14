@@ -130,7 +130,7 @@ func VerifySimultaneousSnoDeprovisioningSameClusterTemplate(ctx SpecContext) {
 	By(fmt.Sprintf("Verify that %s PR and %s PR are using the same template version", prName1, prName2))
 
 	pr1TemplateVersion := provisioningRequest1.Object.Spec.TemplateName + provisioningRequest1.Object.Spec.TemplateVersion
-	pr2TemplateVersion := provisioningRequest2.Object.Spec.TemplateName + provisioningRequest1.Object.Spec.TemplateVersion
+	pr2TemplateVersion := provisioningRequest2.Object.Spec.TemplateName + provisioningRequest2.Object.Spec.TemplateVersion
 	Expect(pr1TemplateVersion).To(Equal(pr2TemplateVersion),
 		fmt.Sprintf("PR %s and %s are not using the same cluster template", prName1, prName2))
 

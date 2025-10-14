@@ -186,7 +186,7 @@ func readFile(ocloudConfig *OCloudConfig, cfgFile string) error {
 	}()
 
 	decoder := yaml.NewDecoder(openedCfgFile)
-	err = decoder.Decode(&ocloudConfig)
+	err = decoder.Decode(ocloudConfig)
 
 	if err != nil {
 		return err

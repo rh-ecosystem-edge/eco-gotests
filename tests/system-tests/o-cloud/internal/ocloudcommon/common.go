@@ -92,12 +92,12 @@ func VerifyProvisionSnoCluster(
 
 	By(fmt.Sprintf("Verifing the successful creation of the %s PR", prName))
 
-	provisioningReq := oran.NewPRBuilder(HubAPIClient, prName, templateName, templateVersion).
+	prBuilder := oran.NewPRBuilder(HubAPIClient, prName, templateName, templateVersion).
 		WithTemplateParameter("nodeClusterName", nodeClusterName).
 		WithTemplateParameter("oCloudSiteId", oCloudSiteID).
 		WithTemplateParameter("policyTemplateParameters", policyTemplateParameters).
 		WithTemplateParameter("clusterInstanceParameters", clusterInstanceParameters)
-	provisioningReq, err := provisioningReq.Create()
+	provisioningReq, err := prBuilder.Create()
 	Expect(err).ToNot(HaveOccurred(), "Failed to create PR %s", prName)
 
 	condition := metav1.Condition{
@@ -115,6 +115,14 @@ func VerifyProvisionSnoCluster(
 
 // VerifyProvisioningRequestIsFulfilled verifies that a given provisioning request is fulfilled.
 func VerifyProvisioningRequestIsFulfilled(provisioningReq *oran.ProvisioningRequestBuilder) {
+	if provisioningReq == nil || provisioningReq.Object == nil {
+		Fail("provisioningReq or its Object is nil")
+	}
+
+	if provisioningReq.Object.Name == "" {
+		Fail("provisioningReq.Object.Name is empty")
+	}
+
 	By(fmt.Sprintf("Verifing that PR %s is fulfilled", provisioningReq.Object.Name))
 
 	_, err := provisioningReq.WaitUntilFulfilled(time.Minute * 10)
@@ -125,6 +133,14 @@ func VerifyProvisioningRequestIsFulfilled(provisioningReq *oran.ProvisioningRequ
 
 // VerifyProvisioningRequestTimeout verifies that a provisioning request has timed out.
 func VerifyProvisioningRequestTimeout(provisioningReq *oran.ProvisioningRequestBuilder) {
+	if provisioningReq == nil || provisioningReq.Object == nil {
+		Fail("provisioningReq or its Object is nil")
+	}
+
+	if provisioningReq.Object.Name == "" {
+		Fail("provisioningReq.Object.Name is empty")
+	}
+
 	By(fmt.Sprintf("Verifing that PR %s has timed out", provisioningReq.Object.Name))
 
 	condition := metav1.Condition{
@@ -312,6 +328,14 @@ func VerifyAllocatedNodesDoNotExist(
 	defer GinkgoRecover()
 
 	for _, allocatedNode := range allocatedNodes {
+		if allocatedNode == nil || allocatedNode.Object == nil {
+			Fail("allocatedNode or its Object is nil")
+		}
+
+		if allocatedNode.Object.Name == "" {
+			Fail("allocatedNode.Object.Name is empty")
+		}
+
 		nodeName := allocatedNode.Object.Name
 
 		By(fmt.Sprintf("Verifying that allocated node %s does not exist", nodeName))
@@ -344,6 +368,14 @@ func VerifyNodeAllocationRequestDoesNotExist(
 	nodeAllocationRequest *oran.NARBuilder, waitGroup *sync.WaitGroup, ctx SpecContext) {
 	defer waitGroup.Done()
 	defer GinkgoRecover()
+
+	if nodeAllocationRequest == nil || nodeAllocationRequest.Object == nil {
+		Fail("nodeAllocationRequest or its Object is nil")
+	}
+
+	if nodeAllocationRequest.Object.Name == "" {
+		Fail("nodeAllocationRequest.Object.Name is empty")
+	}
 
 	name := nodeAllocationRequest.Object.Name
 
@@ -402,6 +434,14 @@ func DeprovisionAiSnoCluster(
 		defer GinkgoRecover()
 	}
 
+	if provisioningReq == nil || provisioningReq.Object == nil {
+		Fail("provisioningReq or its Object is nil")
+	}
+
+	if provisioningReq.Object.Name == "" {
+		Fail("provisioningReq.Object.Name is empty")
+	}
+
 	prName := provisioningReq.Object.Name
 	By(fmt.Sprintf("Tearing down PR %s", prName))
 
@@ -433,12 +473,16 @@ func VerifyBmhIsAvailable(hostName string, nsName string) {
 	bareMetalHost, err := bmh.Pull(HubAPIClient, hostName, nsName)
 	Expect(err).ToNot(HaveOccurred(), "Failed to pull BMH %s from namespace %s: %v", hostName, nsName, err)
 
-	err = bareMetalHost.WaitUntilInStatus(bmhv1alpha1.StateAvailable, 60*time.Minute)
+	err = bareMetalHost.WaitUntilInStatus(bmhv1alpha1.StateAvailable, ocloudparams.BMHAvailabilityTimeout)
 	Expect(err).ToNot(HaveOccurred(), "Failed to verify that BMH %s is available", hostName)
 }
 
 // GetBMHsFromAllocatedNodes returns the BMHs from a given AllocatedNodes.
 func GetBMHsFromAllocatedNodes(allocatedNodes []*oran.AllocatedNodeBuilder) []string {
+	if allocatedNodes == nil {
+		Fail("allocatedNodes is nil")
+	}
+
 	bmhs := make([]string, 0)
 
 	for _, allocatedNode := range allocatedNodes {

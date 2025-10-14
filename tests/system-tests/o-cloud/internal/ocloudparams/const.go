@@ -1,11 +1,16 @@
 package ocloudparams
 
+import "time"
+
 const (
 	// Label represents O-Cloud system tests label that can be used for test cases selection.
 	Label = "ocloud"
 
 	// OCloudLogLevel configures logging level for O-Cloud related tests.
 	OCloudLogLevel = 90
+
+	// BMHAvailabilityTimeout is the timeout for BMH availability.
+	BMHAvailabilityTimeout = 60 * time.Minute
 
 	// AcmNamespace is the namespace for ACM.
 	AcmNamespace = "rhacm"
