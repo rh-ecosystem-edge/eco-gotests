@@ -115,10 +115,10 @@ var (
 
 	//nolint:lll
 	// SkopeoRedhatOperatorsUpgrade command to create a tag for the redhat-operators upgrade.
-	SkopeoRedhatOperatorsUpgrade = "skopeo copy --authfile %s --tls-verify=false docker://%s/olm/redhat-operators:v4.18-new docker://%s/olm/redhat-operators:v4.18-day2"
+	SkopeoRedhatOperatorsUpgrade = "skopeo copy --authfile %s --tls-verify=false docker://%s/olm/redhat-operators:v4.20-new docker://%s/olm/redhat-operators:v4.20-day2"
 	//nolint:lll
 	// SkopeoRedhatOperatorsDowngrade command to create a tag for the redhat-operators downgrade.
-	SkopeoRedhatOperatorsDowngrade = "skopeo copy --authfile %s --tls-verify=false docker://%s/olm/redhat-operators:v4.18-old docker://%s/olm/redhat-operators:v4.18-day2"
+	SkopeoRedhatOperatorsDowngrade = "skopeo copy --authfile %s --tls-verify=false docker://%s/olm/redhat-operators:v4.20-old docker://%s/olm/redhat-operators:v4.20-day2"
 	//nolint:lll
 	// SnoKubeconfigCreate command to get the SNO kubeconfig file.
 	SnoKubeconfigCreate = "oc -n %s get secret %s-admin-kubeconfig -o json | jq -r .data.kubeconfig | base64 -d > tmp/%s/auth/kubeconfig"
