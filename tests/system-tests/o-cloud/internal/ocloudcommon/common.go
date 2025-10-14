@@ -278,8 +278,13 @@ func VerifyPoliciesAreNotCompliant(
 	glog.V(ocloudparams.OCloudLogLevel).Infof("all the policies in namespace %s are not compliant", nsName)
 }
 
-// VerifyAllocatedNodesExist verifies that a AllocatedNodes associated to a NodeAllocationReques exist.
+// VerifyAllocatedNodesExist verifies that AllocatedNodes associated with a NodeAllocationRequest exist.
 func VerifyAllocatedNodesExist(nodeAllocationRequest *oran.NARBuilder) []*oran.AllocatedNodeBuilder {
+	if nodeAllocationRequest.Object == nil ||
+		nodeAllocationRequest.Object.Status.Properties.NodeNames == nil {
+		Fail("nodeAllocationRequest is missing required Status.Properties")
+	}
+
 	allocatedNodeNames := nodeAllocationRequest.Object.Status.Properties.NodeNames
 	Expect(len(allocatedNodeNames) > 0).To(BeTrue(),
 		fmt.Sprintf("Failed to verify that AllocatedNodes exist for NodeAllocationRequest %s",
@@ -370,12 +375,18 @@ func CreateSnoAPIClient(nodeName string) *clients.Settings {
 
 // VerifyOcloudCRsExist verifies that a given ProvisioningRequest has generated a Namespace,
 // a NodeAllocationRequest and a AllocatedNodes.
-func VerifyOcloudCRsExist(pr *oran.ProvisioningRequestBuilder) (
+func VerifyOcloudCRsExist(provisioningReq *oran.ProvisioningRequestBuilder) (
 	*oran.NARBuilder, []*oran.AllocatedNodeBuilder, *namespace.Builder) {
+	if provisioningReq.Object == nil ||
+		provisioningReq.Object.Status.Extensions.ClusterDetails == nil ||
+		provisioningReq.Object.Status.Extensions.NodeAllocationRequestRef == nil {
+		Fail("provisioning request is missing required Status.Extensions")
+	}
+
 	nodeAllocationRequest := VerifyNodeAllocationRequestExists(
-		pr.Object.Status.Extensions.NodeAllocationRequestRef.NodeAllocationRequestID)
+		provisioningReq.Object.Status.Extensions.NodeAllocationRequestRef.NodeAllocationRequestID)
 	allocatedNodes := VerifyAllocatedNodesExist(nodeAllocationRequest)
-	namespace := VerifyNamespaceExists(pr.Object.Status.Extensions.ClusterDetails.Name)
+	namespace := VerifyNamespaceExists(provisioningReq.Object.Status.Extensions.ClusterDetails.Name)
 
 	return nodeAllocationRequest, allocatedNodes, namespace
 }
@@ -443,7 +454,17 @@ func GetProvisioningRequestName(clusterID string) string {
 	clusterInstance, err := siteconfig.PullClusterInstance(HubAPIClient, clusterID, clusterID)
 	Expect(err).ToNot(HaveOccurred(), "Failed to pull Cluster Instance %q; %v", clusterID, err)
 
-	labels := clusterInstance.Object.ObjectMeta.Labels
+	if clusterInstance.Object == nil ||
+		clusterInstance.Object.ObjectMeta.Labels == nil {
+		Fail("cluster instance is missing required ObjectMeta.Labels")
+	}
 
-	return labels["provisioningrequest.clcm.openshift.io/name"]
+	labels := clusterInstance.Object.ObjectMeta.Labels
+	provisioningRequestName, exists := labels["provisioningrequest.clcm.openshift.io/name"]
+
+	if !exists {
+		Fail("provisioning request name is missing from cluster instance labels")
+	}
+
+	return provisioningRequestName
 }

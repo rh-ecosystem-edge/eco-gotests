@@ -47,7 +47,7 @@ var (
 									"address": []map[string]any{
 										{
 											"ip":            OCloudConfig.InterfaceIpv6_1,
-											"prefix-length": "64",
+											"prefix-length": 64,
 										},
 									},
 								},
@@ -61,7 +61,9 @@ var (
 						"routes": map[string]any{
 							"config": []map[string]any{
 								{
-									"next-hop-address": OCloudConfig.NextHopIpv6,
+									"destination":        "::/0",
+									"next-hop-interface": OCloudConfig.NextHopInterface,
+									"next-hop-address":   OCloudConfig.NextHopIpv6,
 								},
 							},
 						},
@@ -85,7 +87,7 @@ var (
 									"address": []map[string]any{
 										{
 											"ip":            OCloudConfig.InterfaceIpv6_2,
-											"prefix-length": "64",
+											"prefix-length": 64,
 										},
 									},
 								},
@@ -99,7 +101,9 @@ var (
 						"routes": map[string]any{
 							"config": []map[string]any{
 								{
-									"next-hop-address": OCloudConfig.NextHopIpv6,
+									"destination":        "::/0",
+									"next-hop-interface": OCloudConfig.NextHopInterface,
+									"next-hop-address":   OCloudConfig.NextHopIpv6,
 								},
 							},
 						},

@@ -54,5 +54,5 @@ ssh_address_cluster_2: ""
 hostname1: ""
 hostname2: ""
 
-authfile_path: ""
+authfile_path: /kubeconfig/docker/config.json
 
