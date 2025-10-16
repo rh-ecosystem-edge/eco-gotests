@@ -194,7 +194,7 @@ var _ = Describe(
 				reinstallWithClusterInstance(ipv4AddrFamily)
 			})
 
-		It("through siteconfig operator is successful in an IPv6 proxy-enabled environment with DHCP networking",
+		It("through siteconfig operator is successful in an dual stack proxy-enabled environment with DHCP networking",
 			reportxml.ID("83061"), func() {
 				if MGMTConfig.StaticNetworking {
 					Skip("Cluster is deployed with static networking")
@@ -210,7 +210,8 @@ var _ = Describe(
 
 				tsparams.ReporterNamespacesToDump[MGMTConfig.Cluster.Info.ClusterName] = reporterNamespaceToDump
 
-				reinstallWithClusterInstance(ipv6AddrFamily)
+				reinstallWithClusterInstance(dualstackPrimaryv4AddrFamily)
+
 			})
 	})
 
@@ -252,7 +253,7 @@ func reinstallWithClusterInstance(addressFamily string) {
 
 	for idx := range clusterInstace.Definition.Spec.Nodes {
 		for _, host := range MGMTConfig.Cluster.Info.Hosts {
-			if addressFamily == ipv4AddrFamily {
+			if addressFamily == ipv4AddrFamily || addressFamily == dualstackPrimaryv4AddrFamily {
 				clusterInstace.Definition.Spec.Nodes[idx].BmcAddress = host.BMC.URLv4
 			} else {
 				clusterInstace.Definition.Spec.Nodes[idx].BmcAddress = host.BMC.URLv6
