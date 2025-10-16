@@ -18,7 +18,7 @@ var (
 	// ReporterNamespacesToDump tells to the reporter from where to collect logs.
 	ReporterNamespacesToDump = map[string]string{
 		"oran-hwmgr-plugin": "oran-hwmgr-plugin",
-		"oran-o2ims":        OranO2ImsNamespace,
+		OranO2ImsNamespace:  OranO2ImsNamespace,
 	}
 
 	// ReporterCRDsToDump tells to the reporter what CRs to dump.

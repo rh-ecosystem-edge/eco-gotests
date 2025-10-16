@@ -115,13 +115,9 @@ func VerifyProvisionSnoCluster(
 
 // VerifyProvisioningRequestIsFulfilled verifies that a given provisioning request is fulfilled.
 func VerifyProvisioningRequestIsFulfilled(provisioningReq *oran.ProvisioningRequestBuilder) {
-	if provisioningReq == nil || provisioningReq.Object == nil {
-		Fail("provisioningReq or its Object is nil")
-	}
-
-	if provisioningReq.Object.Name == "" {
-		Fail("provisioningReq.Object.Name is empty")
-	}
+	Expect(provisioningReq).ToNot(BeNil(), "provisioningReq should not be nil")
+	Expect(provisioningReq.Object).ToNot(BeNil(), "provisioningReq.Object should not be nil")
+	Expect(provisioningReq.Object.Name).ToNot(BeEmpty(), "provisioningReq.Object.Name should not be empty")
 
 	By(fmt.Sprintf("Verifing that PR %s is fulfilled", provisioningReq.Object.Name))
 
@@ -133,13 +129,9 @@ func VerifyProvisioningRequestIsFulfilled(provisioningReq *oran.ProvisioningRequ
 
 // VerifyProvisioningRequestTimeout verifies that a provisioning request has timed out.
 func VerifyProvisioningRequestTimeout(provisioningReq *oran.ProvisioningRequestBuilder) {
-	if provisioningReq == nil || provisioningReq.Object == nil {
-		Fail("provisioningReq or its Object is nil")
-	}
-
-	if provisioningReq.Object.Name == "" {
-		Fail("provisioningReq.Object.Name is empty")
-	}
+	Expect(provisioningReq).ToNot(BeNil(), "provisioningReq should not be nil")
+	Expect(provisioningReq.Object).ToNot(BeNil(), "provisioningReq.Object should not be nil")
+	Expect(provisioningReq.Object.Name).ToNot(BeEmpty(), "provisioningReq.Object.Name should not be empty")
 
 	By(fmt.Sprintf("Verifing that PR %s has timed out", provisioningReq.Object.Name))
 
@@ -296,10 +288,9 @@ func VerifyPoliciesAreNotCompliant(
 
 // VerifyAllocatedNodesExist verifies that AllocatedNodes associated with a NodeAllocationRequest exist.
 func VerifyAllocatedNodesExist(nodeAllocationRequest *oran.NARBuilder) []*oran.AllocatedNodeBuilder {
-	if nodeAllocationRequest.Object == nil ||
-		nodeAllocationRequest.Object.Status.Properties.NodeNames == nil {
-		Fail("nodeAllocationRequest is missing required Status.Properties")
-	}
+	Expect(nodeAllocationRequest.Object).ToNot(BeNil(), "nodeAllocationRequest.Object should not be nil")
+	Expect(nodeAllocationRequest.Object.Status.Properties.NodeNames).ToNot(BeNil(),
+		"nodeAllocationRequest.Object.Status.Properties.NodeNames should not be nil")
 
 	allocatedNodeNames := nodeAllocationRequest.Object.Status.Properties.NodeNames
 	Expect(len(allocatedNodeNames) > 0).To(BeTrue(),
@@ -328,13 +319,9 @@ func VerifyAllocatedNodesDoNotExist(
 	defer GinkgoRecover()
 
 	for _, allocatedNode := range allocatedNodes {
-		if allocatedNode == nil || allocatedNode.Object == nil {
-			Fail("allocatedNode or its Object is nil")
-		}
-
-		if allocatedNode.Object.Name == "" {
-			Fail("allocatedNode.Object.Name is empty")
-		}
+		Expect(allocatedNode).ToNot(BeNil(), "allocatedNode should not be nil")
+		Expect(allocatedNode.Object).ToNot(BeNil(), "allocatedNode.Object should not be nil")
+		Expect(allocatedNode.Object.Name).ToNot(BeEmpty(), "allocatedNode.Object.Name should not be empty")
 
 		nodeName := allocatedNode.Object.Name
 
@@ -369,13 +356,9 @@ func VerifyNodeAllocationRequestDoesNotExist(
 	defer waitGroup.Done()
 	defer GinkgoRecover()
 
-	if nodeAllocationRequest == nil || nodeAllocationRequest.Object == nil {
-		Fail("nodeAllocationRequest or its Object is nil")
-	}
-
-	if nodeAllocationRequest.Object.Name == "" {
-		Fail("nodeAllocationRequest.Object.Name is empty")
-	}
+	Expect(nodeAllocationRequest).ToNot(BeNil(), "nodeAllocationRequest should not be nil")
+	Expect(nodeAllocationRequest.Object).ToNot(BeNil(), "nodeAllocationRequest.Object should not be nil")
+	Expect(nodeAllocationRequest.Object.Name).ToNot(BeEmpty(), "nodeAllocationRequest.Object.Name should not be empty")
 
 	name := nodeAllocationRequest.Object.Name
 
@@ -409,11 +392,11 @@ func CreateSnoAPIClient(nodeName string) *clients.Settings {
 // a NodeAllocationRequest and a AllocatedNodes.
 func VerifyOcloudCRsExist(provisioningReq *oran.ProvisioningRequestBuilder) (
 	*oran.NARBuilder, []*oran.AllocatedNodeBuilder, *namespace.Builder) {
-	if provisioningReq.Object == nil ||
-		provisioningReq.Object.Status.Extensions.ClusterDetails == nil ||
-		provisioningReq.Object.Status.Extensions.NodeAllocationRequestRef == nil {
-		Fail("provisioning request is missing required Status.Extensions")
-	}
+	Expect(provisioningReq.Object).ToNot(BeNil(), "provisioningReq.Object should not be nil")
+	Expect(provisioningReq.Object.Status.Extensions.ClusterDetails).ToNot(BeNil(),
+		"provisioningReq.Object.Status.Extensions.ClusterDetails should not be nil")
+	Expect(provisioningReq.Object.Status.Extensions.NodeAllocationRequestRef).ToNot(BeNil(),
+		"provisioningReq.Object.Status.Extensions.NodeAllocationRequestRef should not be nil")
 
 	nodeAllocationRequest := VerifyNodeAllocationRequestExists(
 		provisioningReq.Object.Status.Extensions.NodeAllocationRequestRef.NodeAllocationRequestID)
@@ -434,13 +417,9 @@ func DeprovisionAiSnoCluster(
 		defer GinkgoRecover()
 	}
 
-	if provisioningReq == nil || provisioningReq.Object == nil {
-		Fail("provisioningReq or its Object is nil")
-	}
-
-	if provisioningReq.Object.Name == "" {
-		Fail("provisioningReq.Object.Name is empty")
-	}
+	Expect(provisioningReq).ToNot(BeNil(), "provisioningReq should not be nil")
+	Expect(provisioningReq.Object).ToNot(BeNil(), "provisioningReq.Object should not be nil")
+	Expect(provisioningReq.Object.Name).ToNot(BeEmpty(), "provisioningReq.Object.Name should not be empty")
 
 	prName := provisioningReq.Object.Name
 	By(fmt.Sprintf("Tearing down PR %s", prName))
@@ -479,9 +458,7 @@ func VerifyBmhIsAvailable(hostName string, nsName string) {
 
 // GetBMHsFromAllocatedNodes returns the BMHs from a given AllocatedNodes.
 func GetBMHsFromAllocatedNodes(allocatedNodes []*oran.AllocatedNodeBuilder) []string {
-	if allocatedNodes == nil {
-		Fail("allocatedNodes is nil")
-	}
+	Expect(allocatedNodes).ToNot(BeNil(), "allocatedNodes should not be nil")
 
 	bmhs := make([]string, 0)
 
@@ -498,17 +475,14 @@ func GetProvisioningRequestName(clusterID string) string {
 	clusterInstance, err := siteconfig.PullClusterInstance(HubAPIClient, clusterID, clusterID)
 	Expect(err).ToNot(HaveOccurred(), "Failed to pull Cluster Instance %q; %v", clusterID, err)
 
-	if clusterInstance.Object == nil ||
-		clusterInstance.Object.ObjectMeta.Labels == nil {
-		Fail("cluster instance is missing required ObjectMeta.Labels")
-	}
+	Expect(clusterInstance.Object).ToNot(BeNil(), "clusterInstance.Object should not be nil")
+	Expect(clusterInstance.Object.ObjectMeta.Labels).ToNot(BeNil(),
+		"clusterInstance.Object.ObjectMeta.Labels should not be nil")
 
 	labels := clusterInstance.Object.ObjectMeta.Labels
 	provisioningRequestName, exists := labels["provisioningrequest.clcm.openshift.io/name"]
 
-	if !exists {
-		Fail("provisioning request name is missing from cluster instance labels")
-	}
+	Expect(exists).To(BeTrue(), "provisioning request name is missing from cluster instance labels")
 
 	return provisioningRequestName
 }
