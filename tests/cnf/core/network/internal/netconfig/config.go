@@ -26,7 +26,7 @@ type NetworkConfig struct {
 	CnfNetTestContainer            string `yaml:"cnf_net_test_container" envconfig:"ECO_CNF_CORE_NET_TEST_CONTAINER"`
 	DpdkTestContainer              string `yaml:"dpdk_test_container" envconfig:"ECO_CNF_CORE_NET_DPDK_TEST_CONTAINER"`
 	MlbOperatorNamespace           string `yaml:"metal_lb_operator_namespace" envconfig:"ECO_CNF_CORE_NET_MLB_OPERATOR_NAMESPACE"` //nolint:lll
-	Frrk8sNamespace                string `yaml:"frr-k8s_namespace" envconfig:"ECO_CNF_CORE_NET_FRR-K8S_NAMESPACE"`
+	Frrk8sNamespace                string `yaml:"frr-k8s_namespace" envconfig:"ECO_CNF_CORE_NET_FRR_K8S_NAMESPACE"`
 	PFStatusRelayOperatorNamespace string `yaml:"pf_status_relay_operator_namespace" envconfig:"ECO_CNF_CORE_NET_PF_STATUS_RELAY_OPERATOR_NAMESPACE"` //nolint:lll
 	CnfMcpLabel                    string `yaml:"cnf_mcp_label" envconfig:"ECO_CNF_CORE_NET_CNF_MCP_LABEL"`
 	MultusNamesapce                string `yaml:"multus_namespace" envconfig:"ECO_CNF_CORE_NET_MULTUS_NAMESPACE"`
