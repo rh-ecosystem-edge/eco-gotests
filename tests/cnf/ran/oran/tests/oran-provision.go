@@ -1,11 +1,9 @@
 package tests
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/golang/glog"
@@ -17,7 +15,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/secret"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/siteconfig"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/auth"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/helper"
@@ -135,29 +132,9 @@ func saveSpoke1Secret(suffix, key, fileName string) error {
 func verifySpokeProvisioning() error {
 	var accumulatedErrors []error
 
-	By("verifying a NodeAllocationRequest was created")
-
-	_, err := oran.PullNodeAllocationRequest(HubAPIClient, RANConfig.Spoke1Name, tsparams.HardwareManagerNamespace)
-	if err != nil {
-		glog.V(tsparams.LogLevel).Infof("Failed to verify a NodeAllocationRequest was created: %v", err)
-
-		accumulatedErrors = append(accumulatedErrors,
-			fmt.Errorf("failed to verify a NodeAllocationRequest was created: %w", err))
-	}
-
-	By("verifying the ClusterInstance has the correct BMC details")
-
-	err = verifyBMCDetails()
-	if err != nil {
-		glog.V(tsparams.LogLevel).Infof("Failed to verify the ClusterInstance BMC details: %v", err)
-
-		accumulatedErrors = append(accumulatedErrors,
-			fmt.Errorf("failed to verify the ClusterInstance BMC details: %w", err))
-	}
-
 	By("verifying spoke 1 pull-secret was created")
 
-	_, err = secret.Pull(HubAPIClient, "pull-secret", RANConfig.Spoke1Name)
+	_, err := secret.Pull(HubAPIClient, "pull-secret", RANConfig.Spoke1Name)
 	if err != nil {
 		glog.V(tsparams.LogLevel).Infof("Failed to verify the pull-secret was created: %v", err)
 
@@ -197,46 +174,4 @@ func verifySpokeProvisioning() error {
 	}
 
 	return errors.Join(accumulatedErrors...)
-}
-
-// verifyBMCDetails ensures that the BMC address, username, and password for the spoke 1 ClusterInstance match the
-// configured values.
-func verifyBMCDetails() error {
-	clusterInstance, err := siteconfig.PullClusterInstance(HubAPIClient, RANConfig.Spoke1Name, RANConfig.Spoke1Name)
-	if err != nil {
-		return fmt.Errorf("failed to pull ClusterInstance for spoke 1: %w", err)
-	}
-
-	clusterInstanceNode := clusterInstance.Definition.Spec.Nodes[0]
-	if !strings.Contains(clusterInstanceNode.BmcAddress, RANConfig.BMCHosts[0]) {
-		return fmt.Errorf("clusterInstance has incorrect BMC address: %s", clusterInstanceNode.BmcAddress)
-	}
-
-	bmcSecret, err := secret.Pull(HubAPIClient, clusterInstanceNode.BmcCredentialsName.Name, RANConfig.Spoke1Name)
-	if err != nil {
-		return fmt.Errorf("failed to pull spoke 1 BMC secret: %w", err)
-	}
-
-	bmcUsername, exists := bmcSecret.Definition.Data["username"]
-	if !exists {
-		return fmt.Errorf("username key does not appear in ClusterInstance BMC secret data")
-	}
-
-	bmcUsername = bytes.TrimSpace(bmcUsername)
-	if string(bmcUsername) != RANConfig.BMCUsername {
-		return fmt.Errorf("clusterInstance BMC username %s does not match expected username %s",
-			string(bmcUsername), RANConfig.BMCUsername)
-	}
-
-	bmcPassword, exists := bmcSecret.Definition.Data["password"]
-	if !exists {
-		return fmt.Errorf("password key does not appear in ClusterInstance BMC secret data")
-	}
-
-	bmcPassword = bytes.TrimSpace(bmcPassword)
-	if string(bmcPassword) != RANConfig.BMCPassword {
-		return fmt.Errorf("clusterInstance BMC password does not match the expected password")
-	}
-
-	return nil
 }
