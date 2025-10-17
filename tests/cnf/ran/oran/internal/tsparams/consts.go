@@ -20,8 +20,6 @@ const (
 	// ClusterTemplateName is the name without the version of the ClusterTemplate used in the ORAN tests. It is also
 	// the namespace the ClusterTemplates are in.
 	ClusterTemplateName = "sno-ran-du"
-	// HardwareManagerNamespace is the namespace that HardwareManagers and their secrets use.
-	HardwareManagerNamespace = "oran-hwmgr-plugin"
 	// O2IMSNamespace is the namespace used by the oran-o2ims operator.
 	O2IMSNamespace = "oran-o2ims"
 	// ExtraManifestsName is the name of the generated extra manifests ConfigMap in the cluster Namespace.
