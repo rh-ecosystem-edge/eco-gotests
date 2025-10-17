@@ -39,6 +39,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 		filesToSign := []string{fmt.Sprintf("/opt/lib/modules/$KERNEL_FULL_VERSION/%s.ko", kmodName)}
 
 		AfterAll(func() {
+
 			By("Delete Module")
 			_, err := kmm.NewModuleBuilder(APIClient, moduleName, kmmparams.ModuleBuildAndSignNamespace).Delete()
 			Expect(err).ToNot(HaveOccurred(), "error deleting module")
@@ -231,8 +232,13 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			status, _ := get.PreflightReason(APIClient, kmmparams.PreflightName, moduleName,
 				kmmparams.ModuleBuildAndSignNamespace)
 			Expect(strings.Contains(status, "Verification successful (build compiles)") ||
-				strings.Contains(status, "verified image exists")).
+				strings.Contains(status, "verified image does not exist and build/sign failed")).
 				To(BeTrue(), "expected message not found")
+
+			By("Validate imagestream tag is not created in internal registry")
+			err = check.ImageStreamExistsForModule(APIClient, kmmparams.ModuleBuildAndSignNamespace,
+				moduleName, kmodName, kernelVersion)
+			Expect(err).To(HaveOccurred(), "imagestream tag exists while it should not")
 
 			By("Delete preflight validation")
 			_, err = pre.Delete()
@@ -261,14 +267,14 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 				Create()
 			Expect(err).ToNot(HaveOccurred(), "error while creating preflight")
 
+			By("Await build pod to complete build (if any)")
+			err = await.BuildPodCompleted(APIClient, kmmparams.ModuleBuildAndSignNamespace, 5*time.Minute)
+			Expect(err).ToNot(HaveOccurred(), "No build pod found or completed")
+
 			By("Await preflightvalidationocp checks")
 			err = await.PreflightStageDone(APIClient, kmmparams.PreflightName, moduleName,
 				kmmparams.ModuleBuildAndSignNamespace, 3*time.Minute)
 			Expect(err).NotTo(HaveOccurred(), "preflightvalidationocp did not complete")
-
-			By("Await build pod to complete build (if any)")
-			err = await.BuildPodCompleted(APIClient, kmmparams.ModuleBuildAndSignNamespace, 5*time.Minute)
-			Expect(err).ToNot(HaveOccurred(), "No build pod found or completed")
 
 			By("Get status of the preflightvalidationocp checks")
 			status, _ := get.PreflightReason(APIClient, kmmparams.PreflightName, moduleName,
@@ -276,7 +282,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			Expect(strings.Contains(status, "verified image exists")).
 				To(BeTrue(), "expected message not found")
 
-			By("Validate imagestream if using internal registry")
+			By("Validate new imagestream is created in internal registry")
 			err = check.ImageStreamExistsForModule(APIClient, kmmparams.ModuleBuildAndSignNamespace,
 				moduleName, kmodName, kernelVersion)
 			Expect(err).ToNot(HaveOccurred(), "imagestream validation failed")
