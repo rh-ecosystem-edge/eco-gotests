@@ -142,7 +142,12 @@ func WaitUntilNoMorePodsInNamespaceByNameWithTimeout(ctx context.Context, apiCli
 			}
 
 			for _, podBuilder := range listedPods {
+				glog.V(amdparams.AMDGPULogLevel).Infof("Check if the '%s' Pod's name contains the prefix '%s'",
+					podBuilder.Object.Name, prefix)
+
 				if strings.HasPrefix(podBuilder.Object.Name, prefix) {
+					glog.V(amdparams.AMDGPULogLevel).Infof("The Pod '%s' contains the prefix '%s'",
+						podBuilder.Object.Name, prefix)
 					podsWithPrefix = append(podsWithPrefix, podBuilder)
 				}
 			}

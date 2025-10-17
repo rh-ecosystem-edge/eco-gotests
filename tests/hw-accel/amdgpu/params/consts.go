@@ -5,6 +5,8 @@ import "time"
 const (
 	// Label represents gpu that can be used for test cases selection.
 	Label = "amd-gpu"
+	// AMDGPUCapacityID - ID string for AMD GPU capacity.
+	AMDGPUCapacityID = "amd.com/gpu"
 	// AMDGPULogLevel - Log Level for AMD GPU Tests.
 	AMDGPULogLevel = 90
 	// AMDGPUNamespace - Namespace for the AMD GPU Operator.
