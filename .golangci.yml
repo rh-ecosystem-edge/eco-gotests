@@ -94,6 +94,7 @@ linters:
             - github.com/rh-ecosystem-edge/eco-gotests
             - github.com/prometheus/client_golang
             - github.com/prometheus/common
+            - golang.org/x/exp/constraints
           deny:
             - pkg: github.com/onsi**
     funlen:
