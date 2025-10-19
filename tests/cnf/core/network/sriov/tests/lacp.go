@@ -108,7 +108,7 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 		Expect(err).ToNot(HaveOccurred(), "Failed to get switch credentials")
 
 		By("Collecting switch interfaces")
-		switchInterfaces, err = NetConfig.GetPrimarySwitchInterfaces()
+		switchInterfaces, err = NetConfig.GetSwitchInterfaces()
 		Expect(err).ToNot(HaveOccurred(), "Failed to get switch interfaces")
 		Expect(len(switchInterfaces)).To(BeNumerically(">=", 2),
 			"At least 2 switch interfaces are required for LACP tests")
