@@ -2,7 +2,7 @@ module github.com/rh-ecosystem-edge/eco-gotests
 
 go 1.25
 
-toolchain go1.25.0
+toolchain go1.25.1
 
 require (
 	github.com/BurntSushi/toml v1.4.1-0.20240526193622-a339e1f7089c
@@ -289,3 +289,5 @@ replace (
 	k8s.io/client-go => k8s.io/client-go v0.32.6
 	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.19.7
 )
+
+replace github.com/rh-ecosystem-edge/eco-goinfra => ../eco-goinfra
