@@ -46,3 +46,16 @@ const (
 	// LifecycleAgentNamespace is the namespace for the Lifecycle Agent operator.
 	LifecycleAgentNamespace = "openshift-lifecycle-agent"
 )
+
+const (
+	// SubscriberSubdomain is the subdomain for the subscriber deployment. It is expected that there exists a *.apps
+	// route for this subdomain.
+	SubscriberSubdomain = "oran-subscriber"
+	// SubscriberNamespace is the namespace for the subscriber deployment.
+	SubscriberNamespace = "oran-subscriber"
+)
+
+const (
+	// ConfigFilesFolder path to the config files folder.
+	ConfigFilesFolder = "./internal/ocloudconfig/config-files/"
+)

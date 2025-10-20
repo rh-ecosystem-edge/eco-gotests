@@ -201,23 +201,15 @@ func VerifyFailedOperatorUpgradeAllSnos(ctx SpecContext) {
 
 	upgradeOperatorImages()
 
-	modifyDeploymentResources(
+	modifyPTPDeploymentResources(
 		sno1ApiClient,
-		ocloudparams.PtpOperatorSubscriptionName,
-		ocloudparams.PtpNamespace,
-		ocloudparams.PtpDeploymentName,
-		ocloudparams.PtpContainerName,
 		ocloudparams.PtpCPURequest,
 		ocloudparams.PtpMemoryRequest,
 		ocloudparams.PtpCPULimit,
 		ocloudparams.PtpMemoryLimit)
 
-	modifyDeploymentResources(
+	modifyPTPDeploymentResources(
 		sno2ApiClient,
-		ocloudparams.PtpOperatorSubscriptionName,
-		ocloudparams.PtpNamespace,
-		ocloudparams.PtpDeploymentName,
-		ocloudparams.PtpContainerName,
 		ocloudparams.PtpCPURequest,
 		ocloudparams.PtpMemoryRequest,
 		ocloudparams.PtpCPULimit,
@@ -338,12 +330,8 @@ func VerifyFailedOperatorUpgradeSubsetSnos(ctx SpecContext) {
 
 	upgradeOperatorImages()
 
-	modifyDeploymentResources(
+	modifyPTPDeploymentResources(
 		sno1ApiClient,
-		ocloudparams.PtpOperatorSubscriptionName,
-		ocloudparams.PtpNamespace,
-		ocloudparams.PtpDeploymentName,
-		ocloudparams.PtpContainerName,
 		ocloudparams.PtpCPURequest,
 		ocloudparams.PtpMemoryRequest,
 		ocloudparams.PtpCPULimit,
@@ -414,18 +402,18 @@ func getPtpOperatorVersionInSno(apiClient *clients.Settings) version.OperatorVer
 	return csvObj.Object.Spec.Version
 }
 
-// modifyDeploymentResources modifies the cpu and memory resources available for a given container, in a given
-// deployment in a given subscription.
-func modifyDeploymentResources(
+// modifyPTPDeploymentResources modifies the cpu and memory resources available for the PTP deployment.
+func modifyPTPDeploymentResources(
 	apiClient *clients.Settings,
-	subscriptionName string,
-	nsname string,
-	deploymentName string,
-	containerName string,
 	cpuRequest string,
 	memoryRequest string,
 	cpuLimit string,
 	memoryLimit string) {
+	subscriptionName := ocloudparams.PtpOperatorSubscriptionName
+	nsname := ocloudparams.PtpNamespace
+	containerName := ocloudparams.PtpContainerName
+	deploymentName := ocloudparams.PtpDeploymentName
+
 	csvName, err := csv.GetCurrentCSVNameFromSubscription(apiClient, subscriptionName, nsname)
 	if err != nil {
 		Skip(fmt.Sprintf("csv %s not found in namespace %s", csvName, nsname))

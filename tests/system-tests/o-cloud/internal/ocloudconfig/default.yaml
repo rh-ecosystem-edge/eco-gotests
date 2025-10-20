@@ -56,3 +56,5 @@ hostname2: ""
 
 authfile_path: /kubeconfig/docker/config.json
 
+subscriber_url: ""
+o2ims_base_url: ""

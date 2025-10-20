@@ -32,7 +32,6 @@ var _ = AfterSuite(func() {
 	if err != nil {
 		glog.V(ocloudparams.OCloudLogLevel).Infof("removed tmp/")
 	}
-
 })
 
 var _ = JustAfterEach(func() {

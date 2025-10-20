@@ -258,8 +258,10 @@ func VerifyPoliciesAreNotCompliant(
 	ctx SpecContext,
 	waitGroup *sync.WaitGroup,
 	mutex *sync.Mutex) {
-	defer waitGroup.Done()
-	defer GinkgoRecover()
+	if waitGroup != nil {
+		defer waitGroup.Done()
+		defer GinkgoRecover()
+	}
 
 	By(fmt.Sprintf("Verifying that not all the policies in namespace %s are Compliant", nsName))
 
