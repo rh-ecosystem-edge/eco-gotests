@@ -256,7 +256,7 @@ func KernelCrashKdump(nodeName string) error {
 		return err
 	}
 
-	cmdToExec = []string{"/bin/sh", "-c", "echo c > /proc/sysrq-trigger"}
+	cmdToExec = []string{"chroot", "/rootfs", "/bin/sh", "-c", "echo c | tee /proc/sysrq-trigger"}
 
 	glog.V(90).Infof("Trigerring kernel crash. Exec cmd %v", cmdToExec)
 	_, err = remote.ExecuteOnNodeWithDebugPod(cmdToExec, nodeName)
