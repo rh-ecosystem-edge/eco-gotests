@@ -137,6 +137,8 @@ type OCloudConfig struct {
 
 	// SubscriberURL is the URL of the subscriber.
 	SubscriberURL string `yaml:"subscriber_url" envconfig:"ECO_OCLOUD_SUBSCRIBER_URL"`
+	// SubscriberDomain is the domain of the subscriber.
+	SubscriberDomain string `yaml:"subscriber_domain" envconfig:"ECO_OCLOUD_SUBSCRIBER_DOMAIN"`
 	// O2IMSBaseURL is the base URL for the O2IMS API.
 	O2IMSBaseURL string `yaml:"o2ims_base_url" envconfig:"ECO_OCLOUD_O2IMS_BASE_URL"`
 }

@@ -15,7 +15,8 @@ var _ = Describe(
 
 		BeforeEach(func() {
 			By("deploying the subscriber for alarm notifications")
-			err := subscriber.Deploy(HubAPIClient, "oran-subscriber", OCloudConfig.SubscriberURL, "")
+			Expect(OCloudConfig.SubscriberURL).ToNot(BeEmpty(), "Subscriber URL is not set")
+			err := subscriber.Deploy(HubAPIClient, "oran-subscriber", OCloudConfig.SubscriberDomain, "")
 			Expect(err).ToNot(HaveOccurred(), "Failed to deploy subscriber")
 		})
 
