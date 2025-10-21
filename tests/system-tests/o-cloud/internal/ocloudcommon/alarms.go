@@ -26,7 +26,7 @@ const (
 	// Alarm testing constants.
 	ACMPolicyViolationAlertName = "ACMPolicyViolationDetected"
 	DefaultRetentionPeriod      = 1
-	RetentionPeriodHours        = 2
+	RetentionPeriodHours        = 24
 	AlarmWaitTime               = 2 * time.Minute
 	RetentionCheckInterval      = 1 * time.Hour
 	FinalWaitTime               = 70 * time.Minute
