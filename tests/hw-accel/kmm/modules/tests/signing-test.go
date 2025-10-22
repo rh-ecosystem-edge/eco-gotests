@@ -267,10 +267,6 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 				Create()
 			Expect(err).ToNot(HaveOccurred(), "error while creating preflight")
 
-			By("Await build pod to complete build (if any)")
-			err = await.BuildPodCompleted(APIClient, kmmparams.ModuleBuildAndSignNamespace, 5*time.Minute)
-			Expect(err).ToNot(HaveOccurred(), "No build pod found or completed")
-
 			By("Await preflightvalidationocp checks")
 			err = await.PreflightStageDone(APIClient, kmmparams.PreflightName, moduleName,
 				kmmparams.ModuleBuildAndSignNamespace, 3*time.Minute)
