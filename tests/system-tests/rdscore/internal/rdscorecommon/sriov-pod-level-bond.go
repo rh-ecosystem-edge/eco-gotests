@@ -472,6 +472,13 @@ func getBondActiveInterface(clientPod *pod.Builder) (string, error) {
 				return false, nil
 			}
 
+			if strings.TrimSpace(output.String()) == "" {
+				glog.V(100).Infof("The active_slave interface name is empty for a pod %q in namespace %q",
+					clientPod.Definition.Name, clientPod.Definition.Namespace)
+
+				return false, nil
+			}
+
 			glog.V(100).Infof("Successfully executed command from within a pod %q in namespace %q: %v",
 				clientPod.Definition.Name, clientPod.Definition.Namespace, err)
 
