@@ -39,6 +39,33 @@ func ExecuteOnNodeWithDebugPod(cmdToExec []string, nodeName string) (string, err
 	return buf.String(), err
 }
 
+// ExecuteOnNodeWithDebugPodWithTimeout executes a command on a node with a timeout.
+func ExecuteOnNodeWithDebugPodWithTimeout(cmdToExec []string, nodeName string, timeout time.Duration) (string, error) {
+	listOptions := metav1.ListOptions{
+		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": nodeName}).String(),
+		LabelSelector: labels.SelectorFromSet(labels.Set{"k8s-app": SystemTestsTestConfig.MCOConfigDaemonName}).String(),
+	}
+
+	mcPodList, err := pod.List(APIClient, SystemTestsTestConfig.MCONamespace, listOptions)
+	if err != nil {
+		return "", err
+	}
+
+	glog.V(90).Infof("Exec cmd %v on pod %s", cmdToExec, mcPodList[0].Definition.Name)
+	buf, err := mcPodList[0].ExecCommandWithTimeout(cmdToExec, timeout)
+
+	if err != nil {
+		glog.V(90).Infof("Failed to execute command on node %s: %v",
+			nodeName, err)
+
+		return "", err
+	}
+
+	glog.V(90).Infof("Command executed successfully on node %s", nodeName)
+
+	return buf.String(), nil
+}
+
 // ExecuteOnNodeWithPrivilegedDebugPod executes command on the specific node using privileged debug pod.
 func ExecuteOnNodeWithPrivilegedDebugPod(apiClient *clients.Settings,
 	nodeName, imageName string, cmd []string) (string, error) {

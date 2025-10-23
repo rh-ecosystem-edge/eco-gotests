@@ -2,6 +2,7 @@ package reboot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -256,12 +257,21 @@ func KernelCrashKdump(nodeName string) error {
 		return err
 	}
 
-	cmdToExec = []string{"chroot", "/rootfs", "/bin/sh", "-c", "echo c | tee /proc/sysrq-trigger"}
+	cmdToExec = []string{"chroot", "/rootfs", "/bin/sh", "-c",
+		"echo 1 > /proc/sys/kernel/sysrq && echo c | tee /proc/sysrq-trigger"}
 
 	glog.V(90).Infof("Trigerring kernel crash. Exec cmd %v", cmdToExec)
-	_, err = remote.ExecuteOnNodeWithDebugPod(cmdToExec, nodeName)
+	_, err = remote.ExecuteOnNodeWithDebugPodWithTimeout(cmdToExec, nodeName, 15*time.Second)
 
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			glog.V(90).Infof("Context timeout exceeded while triggering kernel crash, assuming it was triggered")
+
+			return nil // context timeout exceeded, so we can assume the kernel crash was triggered
+		}
+
+		glog.V(90).Infof("Failed to trigger kernel crash: %v", err)
+
 		return err
 	}
 
