@@ -150,7 +150,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			_, err = moduleBuilder.Update()
 			Expect(err).ToNot(HaveOccurred(), "error updating the module")
 
-			By("Wait for old pods to terminate")
+			By("Wait for worker pods to apply changes")
 			time.Sleep(time.Minute)
 
 			By("Await new driver container deployment")
@@ -238,6 +238,9 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			By("Delete preflight validation")
 			_, err = pre.Delete()
 			Expect(err).ToNot(HaveOccurred(), "error deleting preflightvalidation")
+
+			By("Wait for resources cleanup")
+			time.Sleep(time.Minute)
 		})
 
 		It("should be able to run preflightvalidation and push to registry", reportxml.ID("56328"), func() {
