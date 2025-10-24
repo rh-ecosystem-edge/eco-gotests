@@ -20,7 +20,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreparams"
 )
 
-//nolint:funlen
 func crashNodeKDump(nodeLabel string) {
 	var (
 		nodeList []*nodes.Builder
@@ -62,34 +61,18 @@ func crashNodeKDump(nodeLabel string) {
 		err = reboot.KernelCrashKdump(node.Definition.Name)
 		Expect(err).ToNot(HaveOccurred(), "Error triggering a kernel crash on the node.")
 
+		By("Waiting for node to go into NotReady state")
+
+		err = node.WaitUntilNotReady(5 * time.Minute)
+		Expect(err).ToNot(HaveOccurred(), "Error waiting for node to go into NotReady state")
+
 		By("Waiting for node to go into Ready state")
 
 		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Checking node %q got into Ready state",
 			node.Definition.Name)
 
-		Eventually(func() bool {
-			currentNode, err := nodes.Pull(APIClient, node.Definition.Name)
-			if err != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to pull in node %q due to %v",
-					node.Definition.Name, err)
-
-				return false
-			}
-
-			for _, condition := range currentNode.Object.Status.Conditions {
-				if condition.Type == rdscoreparams.ConditionTypeReadyString {
-					if condition.Status == rdscoreparams.ConstantTrueString {
-						glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q is Ready", currentNode.Definition.Name)
-						glog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Reason: %s", condition.Reason)
-
-						return true
-					}
-				}
-			}
-
-			return false
-		}).WithTimeout(5*time.Minute).WithPolling(15*time.Second).WithContext(ctx).Should(BeTrue(),
-			"Node hasn't reached Ready state")
+		err = node.WaitUntilReady(5 * time.Minute)
+		Expect(err).ToNot(HaveOccurred(), "Error waiting for node to go into Ready state")
 
 		By("Assert vmcore dump was generated")
 
