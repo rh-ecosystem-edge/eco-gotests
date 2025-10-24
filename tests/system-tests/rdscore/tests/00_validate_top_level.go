@@ -62,7 +62,7 @@ var _ = Describe(
 
 			It("Verifies KDump service on Control Plane node",
 				Label("kdump", "kdump-cp"), reportxml.ID("75620"),
-				rdscorecommon.VerifyKDumpOnControlPlane)
+				rdscorecommon.VerifyKDumpOnControlPlane, SpecTimeout(15*time.Minute))
 
 			It("Cleanup UnexpectedAdmission pods after KDump test on Control Plane node",
 				Label("kdump", "kdump-cp", "kdump-cp-cleanup"),
@@ -71,7 +71,7 @@ var _ = Describe(
 
 			It("Verifies KDump service on Worker node",
 				Label("kdump", "kdump-worker"), reportxml.ID("75621"),
-				rdscorecommon.VerifyKDumpOnWorkerMCP)
+				rdscorecommon.VerifyKDumpOnWorkerMCP, SpecTimeout(15*time.Minute))
 
 			It("Cleanup UnexpectedAdmission pods after KDump test on Worker node",
 				Label("kdump", "kdump-worker", "kdump-worker-cleanup"),
@@ -80,7 +80,7 @@ var _ = Describe(
 
 			It("Verifies KDump service on CNF node",
 				Label("kdump", "kdump-cnf"), reportxml.ID("75622"),
-				rdscorecommon.VerifyKDumpOnCNFMCP)
+				rdscorecommon.VerifyKDumpOnCNFMCP, SpecTimeout(15*time.Minute))
 
 			It("Cleanup UnexpectedAdmission pods after KDump test on CNF node",
 				Label("kdump", "kdump-cnf", "kdump-cnf-cleanup"),
