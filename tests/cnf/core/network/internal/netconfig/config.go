@@ -46,6 +46,11 @@ type NetworkConfig struct {
 	BMCHostNames                string `envconfig:"ECO_CNF_CORE_NET_BMC_HOST_NAMES"`
 	BMCHostUser                 string `envconfig:"ECO_CNF_CORE_NET_BMC_HOST_USER"`
 	BMCHostPass                 string `envconfig:"ECO_CNF_CORE_NET_BMC_HOST_PASS"`
+	RegistryVMHost              string `envconfig:"ECO_CNF_CORE_NET_REGISTRY_VM_HOST"`
+	RegistryVMUser              string `envconfig:"ECO_CNF_CORE_NET_REGISTRY_VM_USER"`
+	RegistryVMKeyPath           string `envconfig:"ECO_CNF_CORE_NET_REGISTRY_VM_KEY_PATH"`
+	RegistryVMPassword          string `envconfig:"ECO_CNF_CORE_NET_REGISTRY_VM_PASSWORD"`
+	RegistryVMInterface         string `envconfig:"ECO_CNF_CORE_NET_REGISTRY_VM_INTERFACE"`
 }
 
 // NewNetConfig returns instance of NetworkConfig config type.

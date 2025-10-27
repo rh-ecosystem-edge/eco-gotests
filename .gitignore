@@ -21,3 +21,10 @@
 reports
 .vscode
 
+# SSH private keys - never commit these!
+*.key
+*.pem
+id_rsa
+id_ed25519
+*.ppk
+
