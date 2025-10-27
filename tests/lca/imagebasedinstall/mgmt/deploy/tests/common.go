@@ -49,9 +49,11 @@ const (
 	ibiClusterTemplateName = "ibi-cluster-templates-v1"
 	ibiNodeTemplateName    = "ibi-node-templates-v1"
 
-	ipv4AddrFamily          = "ipv4"
-	ipv6AddrFamily          = "ipv6"
-	reporterNamespaceToDump = "spoke namespace"
+	ipv4AddrFamily               = "ipv4"
+	ipv6AddrFamily               = "ipv6"
+	dualstackPrimaryv4AddrFamily = "dualstackv4"
+	dualstackPrimaryv6AddrFamily = "dualstackv6"
+	reporterNamespaceToDump      = "spoke namespace"
 
 	trueStatus  = "True"
 	falseStatus = "False"
@@ -150,7 +152,7 @@ func createIBIOResouces(addressFamily string) {
 
 		var bmcAddress string
 
-		if addressFamily == ipv4AddrFamily {
+		if addressFamily == ipv4AddrFamily || addressFamily == dualstackPrimaryv4AddrFamily {
 			bmcAddress = info.BMC.URLv4
 		} else {
 			bmcAddress = info.BMC.URLv6
@@ -192,10 +194,37 @@ func createIBIOResouces(addressFamily string) {
 		APIClient, MGMTConfig.Cluster.Info.ClusterName, MGMTConfig.Cluster.Info.ClusterName, ibiImageSetName).
 		WithClusterDeployment(MGMTConfig.Cluster.Info.ClusterName).WithHostname(snoNodeName)
 
-	if addressFamily == ipv4AddrFamily {
+	switch addressFamily {
+	case ipv4AddrFamily:
 		imageClusterInstall.WithMachineNetwork(MGMTConfig.Cluster.Info.MachineCIDR.IPv4)
-	} else {
+
+	case ipv6AddrFamily:
 		imageClusterInstall.WithMachineNetwork(MGMTConfig.Cluster.Info.MachineCIDR.IPv6)
+
+	case dualstackPrimaryv4AddrFamily:
+		imageClusterInstall.Definition.Spec.MachineNetworks =
+			append(imageClusterInstall.Definition.Spec.MachineNetworks, ibiv1alpha1.MachineNetworkEntry{
+				CIDR: MGMTConfig.Cluster.Info.MachineCIDR.IPv4,
+			})
+
+		imageClusterInstall.Definition.Spec.MachineNetworks =
+			append(imageClusterInstall.Definition.Spec.MachineNetworks, ibiv1alpha1.MachineNetworkEntry{
+				CIDR: MGMTConfig.Cluster.Info.MachineCIDR.IPv6,
+			})
+
+	case dualstackPrimaryv6AddrFamily:
+		imageClusterInstall.Definition.Spec.MachineNetworks =
+			append(imageClusterInstall.Definition.Spec.MachineNetworks, ibiv1alpha1.MachineNetworkEntry{
+				CIDR: MGMTConfig.Cluster.Info.MachineCIDR.IPv6,
+			})
+
+		imageClusterInstall.Definition.Spec.MachineNetworks =
+			append(imageClusterInstall.Definition.Spec.MachineNetworks, ibiv1alpha1.MachineNetworkEntry{
+				CIDR: MGMTConfig.Cluster.Info.MachineCIDR.IPv4,
+			})
+
+	default:
+		Fail("Invalid address family: " + addressFamily)
 	}
 
 	if MGMTConfig.ExtraManifests {
@@ -219,6 +248,14 @@ func createIBIOResouces(addressFamily string) {
 	imageClusterInstall.Definition.Spec.BareMetalHostRef = &ibiv1alpha1.BareMetalHostReference{
 		Name:      snoNodeName,
 		Namespace: MGMTConfig.Cluster.Info.ClusterName,
+	}
+
+	if MGMTConfig.SeedClusterInfo.HasProxy {
+		imageClusterInstall.Definition.Spec.Proxy = &ibiv1alpha1.Proxy{
+			HTTPProxy:  MGMTConfig.SeedClusterInfo.Proxy.HTTPProxy,
+			HTTPSProxy: MGMTConfig.SeedClusterInfo.Proxy.HTTPSProxy,
+			NoProxy:    MGMTConfig.SeedClusterInfo.Proxy.NOProxy,
+		}
 	}
 
 	By("Create imageclusterinstall for IBI installation")
@@ -295,10 +332,23 @@ func createSiteConfigResouces(addressFamily string) {
 		WithClusterImageSetRef(ibiImageSetName).
 		WithClusterName(MGMTConfig.Cluster.Info.ClusterName)
 
-	if addressFamily == ipv4AddrFamily {
+	switch addressFamily {
+	case ipv4AddrFamily:
 		clusterInstanceBuilder.WithMachineNetwork(MGMTConfig.Cluster.Info.MachineCIDR.IPv4)
-	} else {
+
+	case ipv6AddrFamily:
 		clusterInstanceBuilder.WithMachineNetwork(MGMTConfig.Cluster.Info.MachineCIDR.IPv6)
+
+	case dualstackPrimaryv4AddrFamily:
+		clusterInstanceBuilder.WithMachineNetwork(MGMTConfig.Cluster.Info.MachineCIDR.IPv4)
+		clusterInstanceBuilder.WithMachineNetwork(MGMTConfig.Cluster.Info.MachineCIDR.IPv6)
+
+	case dualstackPrimaryv6AddrFamily:
+		clusterInstanceBuilder.WithMachineNetwork(MGMTConfig.Cluster.Info.MachineCIDR.IPv6)
+		clusterInstanceBuilder.WithMachineNetwork(MGMTConfig.Cluster.Info.MachineCIDR.IPv4)
+
+	default:
+		Fail("Invalid address family: " + addressFamily)
 	}
 
 	if MGMTConfig.PublicSSHKey != "" {
@@ -327,7 +377,7 @@ func createSiteConfigResouces(addressFamily string) {
 	for host, info := range MGMTConfig.Cluster.Info.Hosts {
 		var bmcAddress string
 
-		if addressFamily == ipv4AddrFamily {
+		if addressFamily == ipv4AddrFamily || addressFamily == dualstackPrimaryv4AddrFamily {
 			bmcAddress = info.BMC.URLv4
 		} else {
 			bmcAddress = info.BMC.URLv6

@@ -15,9 +15,10 @@ import (
 // Cluster contains resources information that make up the cluster to be installed.
 type Cluster struct {
 	Info struct {
-		ClusterName string `yaml:"cluster_name"`
-		BaseDomain  string `yaml:"base_domain"`
-		MachineCIDR struct {
+		ClusterName     string `yaml:"cluster_name"`
+		BaseDomain      string `yaml:"base_domain"`
+		PrimaryIPFamily string `yaml:"primary_ip_family"`
+		MachineCIDR     struct {
 			IPv4 string `yaml:"ipv4"`
 			IPv6 string `yaml:"ipv6"`
 		} `yaml:"machine_cidr"`
