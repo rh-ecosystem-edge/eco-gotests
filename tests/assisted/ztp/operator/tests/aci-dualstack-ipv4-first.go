@@ -51,7 +51,7 @@ var _ = Describe(
 				}
 			})
 
-			It("Validates that ACI with dualstack expects IPv4 first", reportxml.ID("44877"), func() {
+			It("Validates that ACI with dualstack expects consistent IP families", reportxml.ID("44877"), func() {
 				agentClusterInstallBuilder := createDualstackSpokeClusterResources()
 
 				By("Waiting for specific error message from SpecSynced condition")
@@ -68,9 +68,7 @@ var _ = Describe(
 					}
 
 					return "", nil
-				}).WithTimeout(time.Minute*2).Should(
-					Equal("The Spec could not be synced due to an input error: First machine network has to be IPv4 subnet"),
-					"didn't get the expected message from SpecSynced condition")
+				}).WithTimeout(time.Minute * 2).Should(ContainSubstring("All networks must have the same IP family first"))
 			})
 
 		})
