@@ -65,7 +65,7 @@ jobs:
           path: ./report
 
       - name: Save report cache
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: report-cache
           overwrite: true
