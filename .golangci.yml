@@ -217,6 +217,9 @@ linters:
           - gochecknoinits
         path: tests/lca/imagebasedinstall/mgmt/internal/mgmtinittools
       - linters:
+          - gochecknoinits
+        path: tests/internal/reporter
+      - linters:
           - depguard
         path: tests/internal/inittools
       - linters:
