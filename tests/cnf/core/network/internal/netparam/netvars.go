@@ -27,12 +27,6 @@ var (
 	MCOWaitTimeout = 35 * time.Minute
 	// VtySh represents default vtysh cmd prefix.
 	VtySh = []string{"vtysh", "-c"}
-	// MlxDeviceID is the Mellanox SRIOV device ID.
-	MlxDeviceID = "1017"
-	// MlxBFDeviceID is the Mellanox Bluefield SRIOV Device ID.
-	MlxBFDeviceID = "a2d6"
-	// 	MlxConnectX6 is the Mellanox Bluefield SRIOV ConnectX-6 Device ID.
-	MlxConnectX6 = "101f"
 	// ClusterMonitoringNSLabel represents Cluster Monitoring label for a NS to enable Prometheus Scraping.
 	ClusterMonitoringNSLabel = map[string]string{"openshift.io/cluster-monitoring": "true"}
 	// MlxVendorID is the Mellanox Sriov Vendor ID.
