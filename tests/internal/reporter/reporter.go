@@ -17,21 +17,21 @@ import (
 
 var (
 	pathToPodExecLogs = "/tmp/pod_exec_logs.log"
-	// generalCfg holds the configuration for reporter operations
+	// generalCfg holds the configuration for reporter operations.
 	generalCfg *config.GeneralConfig
 )
 
-// init initializes the reporter configuration
+// init initializes the reporter configuration.
 func init() {
 	// Skip loading config if running unit tests
 	if os.Getenv("UNIT_TEST") == "true" {
 		return
 	}
-	
+
 	generalCfg = config.NewConfig()
 }
 
-// SetGeneralConfig allows overriding the default configuration
+// SetGeneralConfig allows overriding the default configuration.
 func SetGeneralConfig(cfg *config.GeneralConfig) {
 	generalCfg = cfg
 }
@@ -88,6 +88,7 @@ func ReportIfFailedOnCluster(
 	// If no config is available, skip dumping
 	if generalCfg == nil {
 		glog.V(100).Infof("No reporter configuration available, skipping dump for test: %s", testSuite)
+
 		return
 	}
 
