@@ -3,6 +3,7 @@ package tests
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/golang/glog"
@@ -17,6 +18,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpunfd"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpuregistry"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/deviceconfig"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/exec"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/labels"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/pods"
 	amdgpuparams "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/params"
@@ -77,7 +79,6 @@ var _ = Describe("AMD GPU Basic Tests", Ordered, Label(amdgpuparams.LabelSuite),
 
 		})
 		AfterAll(func() {
-
 			By("Uninstalling all operators in reverse order")
 
 			By("Uninstalling AMD GPU operator")
@@ -330,6 +331,72 @@ var _ = Describe("AMD GPU Basic Tests", Ordered, Label(amdgpuparams.LabelSuite),
 			Expect(missingNodeLabellerLabelsErr).To(BeNil(), fmt.Sprintf("failure occurred while checking "+
 				"that Node Labeller Labels were removed from all AMD GPU Worker Nodes. %v", missingNodeLabellerLabelsErr))
 
+		})
+
+		It("should detect at least one GPU", func() {
+			// Create pod to run rocm-smi
+			cmd := exec.NewPodCommandDirect(
+				apiClient,
+				"amd-gpu-smi",
+				"openshift-amd-gpu",
+				"rocm/rocm-terminal:latest",
+				"amd-gpu-smi",
+				[]string{"rocm-smi"}, // no JSON/concise
+				map[string]string{"amd.com/gpu": "1"},
+				map[string]string{"amd.com/gpu": "1"},
+			)
+
+			// Privileged needed for rocm-smi to access GPU devices
+			cmd.WithPrivileged(true).WithAllowPrivilegeEscalation(true)
+
+			// Run pod and get output
+			output, err := cmd.ExecuteAndCleanup(5 * time.Minute)
+			glog.Infof("rocm-smi output:\n%s", output)
+
+			// Fail if pod execution failed
+			Expect(err).NotTo(HaveOccurred(), "rocm-smi execution failed")
+
+			// Split output into lines and look for GPU entries
+			lines := strings.Split(output, "\n")
+			foundGPU := false
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				// GPU entries usually start with a number (device ID)
+				if len(line) > 0 && (line[0] >= '0' && line[0] <= '9') {
+					foundGPU = true
+
+					break
+				}
+			}
+
+			Expect(foundGPU).To(BeTrue(), "Expected at least one GPU in rocm-smi output")
+		})
+
+		It("should detect at least one GPU and validate card info", func() {
+			cmd := exec.NewPodCommandDirect(
+				apiClient,
+				"amd-gpu-info",
+				"openshift-amd-gpu",
+				"rocm/rocm-terminal:latest",
+				"amd-gpu-info",
+				[]string{"rocminfo"},
+				map[string]string{"amd.com/gpu": "1"},
+				map[string]string{"amd.com/gpu": "1"},
+			)
+
+			// GPU workloads typically need privilege
+			cmd.WithPrivileged(true).WithAllowPrivilegeEscalation(true)
+
+			output, err := cmd.ExecuteAndCleanup(5 * time.Minute)
+			glog.Infof("rocminfo output:\n%s", output)
+
+			Expect(err).NotTo(HaveOccurred(), "rocminfo execution failed")
+
+			// ✅ Text-based validation instead of JSON
+			Expect(output).To(ContainSubstring("gfx"), "Expected GPU architecture (gfx) in rocminfo output")
+			Expect(output).To(MatchRegexp(`GPU|Agent\s+\d+`), "Expected GPU agent info in rocminfo output")
+			Expect(output).To(ContainSubstring("AMD"), "Expected AMD GPU vendor in rocminfo output")
+			Expect(output).To(ContainSubstring("Instinct"), "Expected AMD Instinct GPU name in rocminfo output")
 		})
 	})
 })
