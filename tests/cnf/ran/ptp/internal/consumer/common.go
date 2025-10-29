@@ -22,6 +22,7 @@ const (
 	consumerPortName    = "sub-port"
 	consumerPort        = 9043
 	createDeleteTimeout = 5 * time.Minute
+	consumerLabel       = "cloud-events-consumer"
 )
 
 var workloadManagementAnnotation = map[string]string{
@@ -43,6 +44,22 @@ func GetConsumerPodforNode(client *clients.Settings, nodeName string) (*pod.Buil
 	}
 
 	return podList[0], nil
+}
+
+// ListConsumerPods lists all the consumer pods in the cluster. It returns an error if there are no consumer pods found.
+func ListConsumerPods(client *clients.Settings) ([]*pod.Builder, error) {
+	podList, err := pod.List(client, tsparams.CloudEventsNamespace, metav1.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{consumerLabel: ""}).String(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list consumer pods: %w", err)
+	}
+
+	if len(podList) == 0 {
+		return nil, fmt.Errorf("no consumer pods found in the cluster")
+	}
+
+	return podList, nil
 }
 
 // createConsumerNamespace creates the cloud-events namespace with the necessary labels and annotations. It uses the
@@ -86,10 +103,12 @@ func getConsumerDeploymentName(nodeName string) string {
 }
 
 // getConsumerSelectorLabels returns the labels used to select the cloud-event-consumer deployment for a specific node.
-// This allows for services to be tied to the deployment specifically for that node.
+// This allows for services to be tied to the deployment specifically for that node. It additionally adds the label
+// "cloud-events-consumer" to the labels to allow for easy selection of all consumer pods.
 func getConsumerSelectorLabels(nodeName string) map[string]string {
 	return map[string]string{
-		"app": getConsumerDeploymentName(nodeName),
+		"app":         getConsumerDeploymentName(nodeName),
+		consumerLabel: "",
 	}
 }
 
