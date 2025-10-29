@@ -105,10 +105,13 @@ var _ = Describe(
 
 				// Check 1: Verify runAsNonRoot security context
 				By("Checking pod-level runAsNonRoot security context")
-				Expect(farPod.Object.Spec.SecurityContext).ToNot(BeNil(), "Pod security context should not be nil")
-				Expect(farPod.Object.Spec.SecurityContext.RunAsNonRoot).ToNot(BeNil(), "runAsNonRoot should not be nil")
-
-				if !*farPod.Object.Spec.SecurityContext.RunAsNonRoot {
+				if farPod.Object.Spec.SecurityContext == nil {
+					errorMessages = append(errorMessages,
+						fmt.Sprintf("Pod %s has nil SecurityContext", farPod.Object.Name))
+				} else if farPod.Object.Spec.SecurityContext.RunAsNonRoot == nil {
+					errorMessages = append(errorMessages,
+						fmt.Sprintf("Pod %s has nil runAsNonRoot", farPod.Object.Name))
+				} else if !*farPod.Object.Spec.SecurityContext.RunAsNonRoot {
 					errorMessages = append(errorMessages,
 						fmt.Sprintf("Incorrect runAsNonRoot for pod %s. Expected true, found: %v",
 							farPod.Object.Name, *farPod.Object.Spec.SecurityContext.RunAsNonRoot))
@@ -116,15 +119,17 @@ var _ = Describe(
 
 				// Check 2: Verify all containers' runAsUser
 				By("Checking all containers' runAsUser")
-				Expect(len(farPod.Object.Spec.Containers)).To(BeNumerically(">=", 1),
-					"Pod should have at least one container")
-
-				for i, container := range farPod.Object.Spec.Containers {
-					if container.SecurityContext != nil && container.SecurityContext.RunAsUser != nil {
-						if *container.SecurityContext.RunAsUser == 0 {
-							errorMessages = append(errorMessages,
-								fmt.Sprintf("Incorrect user running container [%d] in pod %s, expected non 0, found: %d",
-									i, farPod.Object.Name, *container.SecurityContext.RunAsUser))
+				if len(farPod.Object.Spec.Containers) < 1 {
+					errorMessages = append(errorMessages,
+						fmt.Sprintf("Pod %s has no containers", farPod.Object.Name))
+				} else {
+					for i, container := range farPod.Object.Spec.Containers {
+						if container.SecurityContext != nil && container.SecurityContext.RunAsUser != nil {
+							if *container.SecurityContext.RunAsUser == 0 {
+								errorMessages = append(errorMessages,
+									fmt.Sprintf("Incorrect user running container [%d] in pod %s, expected non 0, found: %d",
+										i, farPod.Object.Name, *container.SecurityContext.RunAsUser))
+							}
 						}
 					}
 				}
