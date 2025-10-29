@@ -129,6 +129,10 @@ func AssertWithStartTime(startTime time.Time) QueryAssertOption {
 // queries.
 func AssertQuery[V constraints.Integer](
 	ctx context.Context, client prometheusv1.API, query Query[V], expected V, options ...QueryAssertOption) error {
+	if client == nil {
+		return fmt.Errorf("cannot assert query with nil client")
+	}
+
 	opts := newQueryAssertOptions()
 
 	for _, option := range options {
@@ -204,6 +208,10 @@ func AssertThresholds(
 	client prometheusv1.API,
 	query ThresholdQuery,
 	expected map[string]ptpv1.PtpClockThreshold) error {
+	if client == nil {
+		return fmt.Errorf("cannot assert thresholds with nil client")
+	}
+
 	// Since only one query is executed, do not constrain the profile or threshold type labels. These will be
 	// processed as part of the assertion.
 	query.Profile = MetricLabel[string]{}
