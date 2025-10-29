@@ -131,36 +131,6 @@ func WaitForValidPRClusterInstance(client *clients.Settings, timeout time.Durati
 		})
 }
 
-// WaitForPolicyVersion waits up to timeout until all of the policies in the namespace have the specified version.
-// Version is defined as the first hyphen-delimited part of the policy name. Since it lists policies in the spoke
-// namespace, it first splits on the period that separates the policy namespace and name before checking the version.
-func WaitForPolicyVersion(client *clients.Settings, version string, timeout time.Duration) error {
-	return wait.PollUntilContextTimeout(
-		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			policies, err := ocm.ListPoliciesInAllNamespaces(client, runtimeclient.ListOptions{Namespace: RANConfig.Spoke1Name})
-			if err != nil {
-				glog.V(tsparams.LogLevel).Infof("Failed to list all policies in namespace %s: %v", RANConfig.Spoke1Name, err)
-
-				return false, nil
-			}
-
-			for _, policy := range policies {
-				policySegments := strings.SplitN(policy.Definition.Name, ".", 2)
-				policyName := policySegments[len(policySegments)-1]
-
-				policyVersion := strings.SplitN(policyName, "-", 2)[0]
-				if policyVersion != version {
-					glog.V(tsparams.LogLevel).Infof("Policy %s in namespace %s has version %s, expected %s",
-						policy.Definition.Name, policy.Definition.Namespace, policyVersion, version)
-
-					return false, nil
-				}
-			}
-
-			return true, nil
-		})
-}
-
 // WaitForAlarmToExist waits up to timeout until an alarm with the matching extensions exists. This is done by listing
 // all alarms and returning the first alarm where each key-value pair in matchingExtensions is a key-value pair in the
 // alarm's extensions.
