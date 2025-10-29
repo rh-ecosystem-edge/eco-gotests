@@ -192,10 +192,6 @@ func determineProfileType(interfaces map[iface.Name]*InterfaceInfo, profile ptpv
 	}
 }
 
-// clientFlags contains the possible client-only flags that ptp4l supports. It is intended only for use with the
-// [hasClientFlag] function and should not be modified.
-var clientFlags = []string{"-s", "--clientOnly 1", "--clientOnly=1", "--slaveOnly 1", "--slaveOnly=1"}
-
 // hasClientFlag checks if the ptp4lOpts string contains any client-only flags. Though the reference PTP profiles use
 // only `-s`, this function supports all possible client-only flags that ptp4l supports.
 func hasClientFlag(ptp4lOpts *string) bool {
@@ -203,8 +199,27 @@ func hasClientFlag(ptp4lOpts *string) bool {
 		return false
 	}
 
-	for _, flag := range clientFlags {
-		if strings.Contains(*ptp4lOpts, flag) {
+	// Checking for client flags requires splitting fields to ensure that -s is the entire option, not part of
+	// --summary_interval, for example.
+	fields := strings.Fields(*ptp4lOpts)
+
+	//nolint:varnamelen // i for an index is a well-established convention.
+	for i, field := range fields {
+		if field == "-s" {
+			return true
+		}
+
+		if field == "--clientOnly=1" || field == "--slaveOnly=1" {
+			return true
+		}
+
+		// In addition to the single-field flags, ptp4l also supports space-separated flags with a value. For
+		// these we must check that there is a next field and that it is 1.
+		if i+1 >= len(fields) {
+			continue
+		}
+
+		if (field == "--clientOnly" || field == "--slaveOnly") && fields[i+1] == "1" {
 			return true
 		}
 	}
