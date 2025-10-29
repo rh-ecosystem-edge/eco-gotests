@@ -92,10 +92,10 @@ func GetPtp4lPIDsByRelatedProcess(
 
 	getIndexCommand := fmt.Sprintf("pgrep -a %s | grep /var/run | head -n 1", relatedProcess)
 	output, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, getIndexCommand,
-		ptpdaemon.WithRetries(3), ptpdaemon.WithRetryOnEmptyOutput(true))
+		ptpdaemon.WithRetries(3), ptpdaemon.WithRetryOnEmptyOutput(true), ptpdaemon.WithRetryDelay(time.Minute))
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get index for process %s: %w", relatedProcess, err)
 	}
 
 	matches := ptpProcessRegex.FindAllStringSubmatch(output, -1)
@@ -117,11 +117,11 @@ func GetPtp4lPIDsByRelatedProcess(
 		}
 	}
 
-	grepPattern := fmt.Sprintf("\\/var\\/run\\/ptp4l\\.(\\%s\\).config", strings.Join(indices, "|"))
+	grepPattern := fmt.Sprintf("\\/var\\/run\\/ptp4l\\.\\(%s\\).config", strings.Join(indices, "|"))
 	getPIDsCommand := fmt.Sprintf("pgrep -a ptp4l | grep -E %s '%s' | cut -d' ' -f1", grepFlag, grepPattern)
 
 	output, err = ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, getPIDsCommand,
-		ptpdaemon.WithRetries(3), ptpdaemon.WithRetryOnEmptyOutput(true))
+		ptpdaemon.WithRetries(3), ptpdaemon.WithRetryOnEmptyOutput(true), ptpdaemon.WithRetryDelay(time.Minute))
 
 	if err != nil {
 		return nil, err
