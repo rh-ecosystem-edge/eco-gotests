@@ -1189,8 +1189,12 @@ func deleteSingleSriovPolicy() error {
 }
 
 func createDPDKSriovPolicyFixed(policyName, resourceName, interfaceSpec, workerNodeName string) error {
-	By(fmt.Sprintf("Discovering device ID for DPDK interface %s to configure device type", interfaceSpec))
-	sriovDeviceID := sriovenv.DiscoverInterfaceUnderTestDeviceID(interfaceSpec, workerNodeName)
+	By(fmt.Sprintf("Discovering Vendor ID for DPDK interface %s to configure device type", interfaceSpec))
+
+	sriovVendor, err := sriovenv.DiscoverInterfaceUnderTestVendorID(interfaceSpec, workerNodeName)
+	if err != nil {
+		return fmt.Errorf("failed to discover Vendor ID for DPDK interface %s: %w", interfaceSpec, err)
+	}
 
 	sriovPolicy := sriov.NewPolicyBuilder(
 		APIClient,
@@ -1202,8 +1206,7 @@ func createDPDKSriovPolicyFixed(policyName, resourceName, interfaceSpec, workerN
 		NetConfig.WorkerLabelMap).
 		WithVhostNet(true)
 
-	var err error
-	if sriovDeviceID == netparam.MlxDeviceID || sriovDeviceID == netparam.MlxBFDeviceID {
+	if sriovVendor == netparam.MlxVendorID {
 		// Mellanox DPDK: netdevice + RDMA
 		_, err = sriovPolicy.WithRDMA(true).WithDevType("netdevice").Create()
 	} else {

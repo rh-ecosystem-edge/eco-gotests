@@ -56,8 +56,9 @@ var _ = Describe("rdmaMetricsAPI", Ordered, Label(tsparams.LabelRdmaMetricsAPITe
 			Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
 
 			By("Fetching SR-IOV Vendor ID for interface under test")
-			sriovVendor := discoverInterfaceUnderTestVendorID(sriovInterfacesUnderTest[0], workerNodeList[0].Definition.Name)
-			Expect(sriovVendor).ToNot(BeEmpty(), "Expected Sriov Vendor not to be empty")
+			sriovVendor, err := sriovenv.DiscoverInterfaceUnderTestVendorID(
+				sriovInterfacesUnderTest[0], workerNodeList[0].Definition.Name)
+			Expect(err).ToNot(HaveOccurred(), "Failed to fetch SR-IOV Vendor ID for interface under test")
 
 			By("Skipping test cases if the Sriov device is not of Mellanox")
 			if sriovVendor != netparam.MlxVendorID {
@@ -419,19 +420,4 @@ func verifyRdmaMetrics(inputPod *pod.Builder, iName string) {
 		metav1.ListOptions{LabelSelector: fmt.Sprintf("kubernetes.io/hostname=%s", inputPod.Object.Spec.NodeName)})
 	Expect(err).To(HaveOccurred(), "Failed to check counters directory on Host")
 	Expect(err.Error()).To(ContainSubstring("command terminated with exit code 2"), "Failure is not as expected")
-}
-
-func discoverInterfaceUnderTestVendorID(srIovInterfaceUnderTest, workerNodeName string) string {
-	sriovInterfaces, err := sriov.NewNetworkNodeStateBuilder(
-		APIClient, workerNodeName, NetConfig.SriovOperatorNamespace).GetUpNICs()
-	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("fail to discover Vendor ID for network interface %s",
-		srIovInterfaceUnderTest))
-
-	for _, srIovInterface := range sriovInterfaces {
-		if srIovInterface.Name == srIovInterfaceUnderTest {
-			return srIovInterface.Vendor
-		}
-	}
-
-	return ""
 }

@@ -71,9 +71,10 @@ var _ = Describe(
 			sriovInterfacesUnderTest, err = NetConfig.GetSriovInterfaces(2)
 			Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
 
-			By("Fetching SR-IOV Device ID for interface under test")
-			sriovVendorID = discoverInterfaceUnderTestVendorID(sriovInterfacesUnderTest[0], workerNodeList[0].Definition.Name)
-			Expect(sriovVendorID).ToNot(BeEmpty(), "Expected sriovDeviceID not to be empty")
+			By("Fetching SR-IOV Vendor ID for interface under test")
+			sriovVendorID, err = sriovenv.DiscoverInterfaceUnderTestVendorID(
+				sriovInterfacesUnderTest[0], workerNodeList[0].Definition.Name)
+			Expect(err).ToNot(HaveOccurred(), "Failed to fetch SR-IOV Vendor ID for interface under test")
 
 			By("Enable Sriov Metrics Exporter feature in default SriovOperatorConfig CR")
 			setMetricsExporter(true)
