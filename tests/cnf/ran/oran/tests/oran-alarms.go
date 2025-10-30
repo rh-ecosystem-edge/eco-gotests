@@ -129,7 +129,6 @@ var _ = Describe("ORAN Alarms Tests", Label(tsparams.LabelPostProvision, tsparam
 		subscription, err := alarmsClient.CreateSubscription(oranapi.AlarmSubscriptionInfo{
 			ConsumerSubscriptionId: &subscriptionID,
 			Callback:               subscriberURL + "/" + subscriptionID.String(),
-			Filter:                 ptr.To(oranapi.AlarmSubscriptionFilterACKNOWLEDGE),
 		})
 		Expect(err).ToNot(HaveOccurred(), "Failed to create test subscription")
 
