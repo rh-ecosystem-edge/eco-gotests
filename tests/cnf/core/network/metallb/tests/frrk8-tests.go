@@ -87,33 +87,52 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 					"worker nodes.")
 				frrk8sPods = verifyAndCreateFRRk8sPodList()
 
-				frrPod := deployTestPods(addressPool, hubIPv4ExternalAddresses, externalAdvertisedIPv4Routes,
-					externalAdvertisedIPv6Routes)
+				// Set up MetalLB service infrastructure (same as original deployTestPods)
+				By("Creating an IPAddressPool and BGPAdvertisement")
+				ipAddressPool := setupBgpAdvertisementAndIPAddressPool(tsparams.BGPAdvAndAddressPoolName,
+					addressPool, netparam.IPSubnetInt32)
 
-				By("Creating BGP Peers")
+				By("Creating a MetalLB service")
+				setupMetalLbService(
+					tsparams.MetallbServiceName,
+					netparam.IPV4Family,
+					tsparams.LabelValue1,
+					ipAddressPool,
+					corev1.ServiceExternalTrafficPolicyTypeCluster)
+
+				By("Creating nginx test pod on worker node")
+				setupNGNXPod(tsparams.MLBNginxPodName+workerNodeList[0].Definition.Name,
+					workerNodeList[0].Definition.Name,
+					tsparams.LabelValue1)
+
+				// Replace original K8s FRR pod with Registry VM FRR
+				By("Initializing Registry VM configuration")
+				initializeRegistryVMConfig()
+
+				By("Creating BGP Peer to peer with registry VM FRR")
 				createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, ipv4metalLbIPList[0], "",
 					tsparams.LocalBGPASN, false, 0, frrk8sPods)
 
-				By("Checking that BGP session is established and up")
-				verifyMetalLbBGPSessionsAreUPOnFrrPod(frrPod, netcmd.RemovePrefixFromIPList(ipv4NodeAddrList))
+				By("Setting up FRR on Registry VM with Podman and advertised routes")
+				err = setupFRROnRegistryVMWithAdvertisedRoutes(tsparams.LocalBGPASN, ipv4NodeAddrList,
+					hubIPv4ExternalAddresses, externalAdvertisedIPv4Routes, externalAdvertisedIPv6Routes, false, false)
+				Expect(err).ToNot(HaveOccurred(), "Failed to setup FRR on registry VM")
 
-				By("Validating BGP route prefix")
-				validatePrefix(frrPod, netparam.IPV4Family, netparam.IPSubnetInt32,
-					removePrefixFromIPList(nodeAddrList), addressPool)
+				By("Checking that BGP session is established and up on registry VM")
+				verifyMetalLbBGPSessionsAreUPOnRegistryVM(ipv4NodeAddrList)
 
 				By("Create a frrconfiguration with prefix filter")
-
 				createFrrConfiguration("frrconfig-filtered", ipv4metalLbIPList[0],
 					tsparams.LocalBGPASN, []string{externalAdvertisedIPv4Routes[0], externalAdvertisedIPv6Routes[0]},
 					false, false)
 
-				By("Verify that the node FRR pods advertises two routes")
-				verifyExternalAdvertisedRoutes(frrPod, ipv4NodeAddrList, externalAdvertisedIPv4Routes)
-
-				By("Validate BGP received routes")
+				By("Validate BGP received routes on FRR-K8s speakers")
 				verifyReceivedRoutes(frrk8sPods, externalAdvertisedIPv4Routes[0])
-				By("Validate BGP route is filtered")
+				By("Validate BGP route is filtered on FRR-K8s speakers")
 				verifyBlockedRoutes(frrk8sPods, prefixToFilter)
+
+				By("Cleanup Registry VM FRR")
+				cleanupRegistryVMFRR()
 			})
 
 		It("Verify that when the allow all mode is configured all routes are received on the FRR speaker",

@@ -61,24 +61,19 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 			By("Creating BFD profile.")
 			bfdProfile := createBFDProfileAndVerifyIfItsReady(frrk8sPods)
 
-			By("Creating BGP peer config.")
+			By("Initializing Registry VM configuration")
+			initializeRegistryVMConfig()
+
+			By("Creating BGP peer config to peer with registry VM FRR")
 			createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, ipv4metalLbIPList[0], bfdProfile.Definition.Name,
 				tsparams.RemoteBGPASN, false, 0, frrk8sPods)
 
-			By("Creating MetalLb configMap")
-			bfdConfigMap := createConfigMap(tsparams.RemoteBGPASN, ipv4NodeAddrList, false, true)
+			By("Setting up FRR on Registry VM with Podman")
+			err := setupFRROnRegistryVM(tsparams.RemoteBGPASN, ipv4NodeAddrList, true)
+			Expect(err).ToNot(HaveOccurred(), "Failed to setup FRR on registry VM")
 
-			By("Creating static ip annotation")
-			staticIPAnnotation := pod.StaticIPAnnotation(
-				frrconfig.ExternalMacVlanNADName, []string{fmt.Sprintf("%s/%s", ipv4metalLbIPList[0],
-					netparam.IPSubnet24)})
-
-			By("Creating FRR Pod with network and IP address")
-			frrPod := createFrrPod(
-				masterNodeList[0].Object.Name, bfdConfigMap.Object.Name, []string{}, staticIPAnnotation)
-
-			By("Checking that BGP and BFD sessions are established and up")
-			verifyMetalLbBFDAndBGPSessionsAreUPOnFrrPod(frrPod, ipv4NodeAddrList)
+			By("Checking that BGP and BFD sessions are established and up on registry VM")
+			verifyMetalLbBFDAndBGPSessionsAreUPOnRegistryVM(ipv4NodeAddrList)
 		})
 
 		It("basic functionality should provide fast link failure detection", reportxml.ID("47188"), func() {
@@ -107,43 +102,42 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 		})
 
 		It("Verify BGP over BFD session remains stable during service change", reportxml.ID("76013"), func() {
-			By("Getting existing FRR pod created by BeforeEach")
-			frrPod, err := pod.Pull(APIClient, tsparams.FRRContainerName, tsparams.TestNamespaceName)
-			Expect(err).ToNot(HaveOccurred(), "Failed to pull FRR test pod")
-
-			By("Verifying initial BFD session stability before service operations")
-			verifyMetalLbBFDAndBGPSessionsRemainStable(frrPod, ipv4NodeAddrList)
+			By("Verifying initial BFD session stability before service operations on registry VM")
+			verifyMetalLbBFDAndBGPSessionsRemainStableOnRegistryVM(ipv4NodeAddrList)
 
 			By("Creating initial MetalLB service")
 			createCompleteMetalLBService(tsparams.BGPAdvAndAddressPoolName, tsparams.LBipv4Range,
 				tsparams.MetallbServiceName, tsparams.LabelValue1, tsparams.MLBNginxPodName,
 				workerNodeList[0].Definition.Name)
-			verifyMetalLbBFDAndBGPSessionsRemainStable(frrPod, ipv4NodeAddrList)
+			verifyMetalLbBFDAndBGPSessionsRemainStableOnRegistryVM(ipv4NodeAddrList)
 
 			By("Creating additional MetalLB service to test service addition")
 			createCompleteMetalLBService(secondServicePoolName, secondServiceIPPool,
 				tsparams.MetallbServiceName2, secondServiceAppLabel, secondServiceNginxPodPrefix,
 				workerNodeList[0].Definition.Name)
-			verifyMetalLbBFDAndBGPSessionsRemainStable(frrPod, ipv4NodeAddrList)
+			verifyMetalLbBFDAndBGPSessionsRemainStableOnRegistryVM(ipv4NodeAddrList)
 
 			By("Testing endpoint modification by adding second service backend pod")
 			if len(workerNodeList) > 1 {
 				By("Creating additional nginx pod on second worker to modify endpoints")
 				setupNGNXPod(tsparams.MLBNginxPodName+workerNodeList[1].Definition.Name,
 					workerNodeList[1].Definition.Name, tsparams.LabelValue1)
-				verifyMetalLbBFDAndBGPSessionsRemainStable(frrPod, ipv4NodeAddrList)
+				verifyMetalLbBFDAndBGPSessionsRemainStableOnRegistryVM(ipv4NodeAddrList)
 			}
 
 			By("Testing BFD stability during service deletion")
 			deleteMetalLBService(tsparams.MetallbServiceName2)
-			verifyMetalLbBFDAndBGPSessionsRemainStable(frrPod, ipv4NodeAddrList)
+			verifyMetalLbBFDAndBGPSessionsRemainStableOnRegistryVM(ipv4NodeAddrList)
 
 			By("Deleting primary MetalLB service to complete cleanup")
 			deleteMetalLBService(tsparams.MetallbServiceName)
-			verifyMetalLbBFDAndBGPSessionsRemainStable(frrPod, ipv4NodeAddrList)
+			verifyMetalLbBFDAndBGPSessionsRemainStableOnRegistryVM(ipv4NodeAddrList)
 		})
 
 		AfterEach(func() {
+			By("Cleaning up Registry VM FRR Podman pod")
+			cleanupRegistryVMFRR()
+
 			By("Removing custom nft table if exists")
 			removeNFTTable(workerNodeList[0].Object.Name)
 
@@ -384,12 +378,9 @@ func createFrrPodOnMasterNodeAndWaitUntilRunning(
 	)
 }
 func testBFDFailOver() {
-	By("Checking that BGP and BFD sessions are established and up")
+	By("Checking that BGP and BFD sessions are established and up on registry VM")
 
-	frrPod, err := pod.Pull(APIClient, tsparams.FRRContainerName, tsparams.TestNamespaceName)
-	Expect(err).ToNot(HaveOccurred(), "Failed to pull frr test pod")
-
-	verifyMetalLbBFDAndBGPSessionsAreUPOnFrrPod(frrPod, ipv4NodeAddrList)
+	verifyMetalLbBFDAndBGPSessionsAreUPOnRegistryVM(ipv4NodeAddrList)
 
 	firstWorkerNode, err := nodes.Pull(APIClient, workerNodeList[0].Object.Name)
 	Expect(err).ToNot(HaveOccurred(), "Failed to pull worker node object")
@@ -405,32 +396,59 @@ func testBFDFailOver() {
 	// Sleep until BFD timeout
 	time.Sleep(1200 * time.Millisecond)
 
-	bpgUp, err := frr.BGPNeighborshipHasState(frrPod, ipaddr.RemovePrefix(secondWorkerIP), "Established")
-	Expect(err).ToNot(HaveOccurred(), "Failed to collect bgp state from FRR router")
-	Expect(bpgUp).Should(BeTrue(), "BGP is not in expected established state")
-	Expect(netenv.BFDHasStatus(frrPod, ipaddr.RemovePrefix(secondWorkerIP), "up")).Should(BeNil(),
-		"BFD is not in expected up state")
+	By("Verifying BGP session with second worker remains up on registry VM")
+	Eventually(func() bool {
+		output, err := registryVM.ExecVtyshCommand(
+			fmt.Sprintf("show bgp neighbor %s json", ipaddr.RemovePrefix(secondWorkerIP)))
+		if err != nil {
+			return false
+		}
 
-	By("Verifying that FRR pod lost BFD and BGP session with one of the MetalLb speakers")
+		return strings.Contains(output, "Established")
+	}, time.Minute, tsparams.DefaultRetryInterval).Should(BeTrue(), "BGP is not in expected established state")
+
+	Eventually(func() bool {
+		output, err := registryVM.ExecVtyshCommand(
+			fmt.Sprintf("show bfd peer %s", ipaddr.RemovePrefix(secondWorkerIP)))
+		if err != nil {
+			return false
+		}
+
+		return strings.Contains(output, "Status: up")
+	}, time.Minute, tsparams.DefaultRetryInterval).Should(BeTrue(), "BFD is not in expected up state")
+
+	By("Verifying that registry VM FRR lost BFD and BGP session with first MetalLb speaker")
 
 	firstWorkerNodeIP, err := firstWorkerNode.ExternalIPv4Network()
 	Expect(err).ToNot(HaveOccurred(), "Failed to collect external node ip")
-	bpgUp, err = frr.BGPNeighborshipHasState(frrPod, ipaddr.RemovePrefix(firstWorkerNodeIP), "Established")
-	Expect(err).ToNot(HaveOccurred(), "Failed to collect BGP state")
-	Expect(bpgUp).Should(BeFalse(), "BGP is not in expected down state")
-	Expect(netenv.BFDHasStatus(frrPod, ipaddr.RemovePrefix(firstWorkerNodeIP), "up")).
-		Should(HaveOccurred(), "BFD is not expected to be in Up state")
+
+	Eventually(func() bool {
+		output, err := registryVM.ExecVtyshCommand(
+			fmt.Sprintf("show bgp neighbor %s json", ipaddr.RemovePrefix(firstWorkerNodeIP)))
+		if err != nil {
+			return false
+		}
+
+		return !strings.Contains(output, "Established")
+	}, time.Minute, tsparams.DefaultRetryInterval).Should(BeTrue(), "BGP is not in expected down state")
+
+	Eventually(func() bool {
+		output, err := registryVM.ExecVtyshCommand(
+			fmt.Sprintf("show bfd peer %s", ipaddr.RemovePrefix(firstWorkerNodeIP)))
+		if err != nil {
+			return false
+		}
+
+		return !strings.Contains(output, "Status: up")
+	}, time.Minute, tsparams.DefaultRetryInterval).Should(BeTrue(), "BFD is not expected to be in Up state")
 }
 
 func testBFDFailBack() {
 	By("Removing created nft table on a first compute node")
 	removeNFTTable(workerNodeList[0].Object.Name)
 
-	By("Checking that BGP and BFD sessions are established and up")
-
-	frrPod, err := pod.Pull(APIClient, tsparams.FRRContainerName, tsparams.TestNamespaceName)
-	Expect(err).ToNot(HaveOccurred(), "Failed to pull frr test pod")
-	verifyMetalLbBFDAndBGPSessionsAreUPOnFrrPod(frrPod, ipv4NodeAddrList)
+	By("Checking that BGP and BFD sessions are established and up on registry VM")
+	verifyMetalLbBFDAndBGPSessionsAreUPOnRegistryVM(ipv4NodeAddrList)
 }
 
 func createBFDProfileAndVerifyIfItsReady(frrk8sPods []*pod.Builder) *metallb.BFDBuilder {
@@ -476,19 +494,6 @@ func verifyMetalLbBFDAndBGPSessionsAreUPOnFrrPod(frrPod *pod.Builder, peerAddrLi
 			time.Minute, tsparams.DefaultRetryInterval).
 			WithArguments(frrPod, peerAddress, "up").
 			ShouldNot(HaveOccurred(), "Failed to receive BFD status UP")
-	}
-}
-
-func verifyMetalLbBFDAndBGPSessionsRemainStable(frrPod *pod.Builder, peerAddrList []string) {
-	for _, peerAddress := range netcmd.RemovePrefixFromIPList(peerAddrList) {
-		Consistently(frr.BGPNeighborshipHasState,
-			30*time.Second, tsparams.DefaultRetryInterval).
-			WithArguments(frrPod, peerAddress, "Established").Should(
-			BeTrue(), "BGP session did not remain stable")
-		Consistently(netenv.BFDHasStatus,
-			30*time.Second, tsparams.DefaultRetryInterval).
-			WithArguments(frrPod, peerAddress, "up").
-			ShouldNot(HaveOccurred(), "BFD session did not remain stable")
 	}
 }
 
@@ -568,4 +573,58 @@ func deleteMetalLBService(serviceName string) {
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to pull MetalLB service '%s'", serviceName))
 	err = svc.Delete()
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to delete MetalLB service '%s'", serviceName))
+}
+
+// verifyMetalLbBFDAndBGPSessionsAreUPOnRegistryVM verifies BGP and BFD sessions on registry VM FRR.
+func verifyMetalLbBFDAndBGPSessionsAreUPOnRegistryVM(peerAddrList []string) {
+	for _, peerAddress := range netcmd.RemovePrefixFromIPList(peerAddrList) {
+		Eventually(func() bool {
+			output, err := registryVM.ExecVtyshCommand(
+				fmt.Sprintf("show bgp neighbor %s json", peerAddress))
+			if err != nil {
+				return false
+			}
+
+			return strings.Contains(output, "Established")
+		}, time.Minute*4, tsparams.DefaultRetryInterval).Should(
+			BeTrue(), "Failed to receive BGP status UP on registry VM")
+
+		Eventually(func() bool {
+			output, err := registryVM.ExecVtyshCommand(
+				fmt.Sprintf("show bfd peer %s", peerAddress))
+			if err != nil {
+				return false
+			}
+
+			return strings.Contains(output, "Status: up")
+		}, time.Minute, tsparams.DefaultRetryInterval).Should(
+			BeTrue(), "Failed to receive BFD status UP on registry VM")
+	}
+}
+
+// verifyMetalLbBFDAndBGPSessionsRemainStableOnRegistryVM verifies BGP and BFD sessions remain stable on registry VM.
+func verifyMetalLbBFDAndBGPSessionsRemainStableOnRegistryVM(peerAddrList []string) {
+	for _, peerAddress := range netcmd.RemovePrefixFromIPList(peerAddrList) {
+		Consistently(func() bool {
+			output, err := registryVM.ExecVtyshCommand(
+				fmt.Sprintf("show bgp neighbor %s json", peerAddress))
+			if err != nil {
+				return false
+			}
+
+			return strings.Contains(output, "Established")
+		}, 30*time.Second, tsparams.DefaultRetryInterval).Should(
+			BeTrue(), "BGP session did not remain stable on registry VM")
+
+		Consistently(func() bool {
+			output, err := registryVM.ExecVtyshCommand(
+				fmt.Sprintf("show bfd peer %s", peerAddress))
+			if err != nil {
+				return false
+			}
+
+			return strings.Contains(output, "Status: up")
+		}, 30*time.Second, tsparams.DefaultRetryInterval).Should(
+			BeTrue(), "BFD session did not remain stable on registry VM")
+	}
 }

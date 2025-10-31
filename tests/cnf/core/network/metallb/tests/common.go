@@ -28,6 +28,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/registryfrr"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/metallb/internal/frr"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/metallb/internal/metallbenv"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/metallb/internal/prometheus"
@@ -51,6 +52,7 @@ var (
 	workerNodeList    []*nodes.Builder
 	masterNodeList    []*nodes.Builder
 	workerLabelMap    map[string]string
+	registryVM        *registryfrr.RegistryVMConfig
 )
 
 var (
@@ -778,4 +780,154 @@ func verifyAndCreateFRRk8sPodList() []*pod.Builder {
 	}
 
 	return frrk8sPods
+}
+
+// initializeRegistryVMConfig initializes the registry VM configuration from environment variables.
+func initializeRegistryVMConfig() {
+	By("Initializing Registry VM configuration")
+
+	if NetConfig.RegistryVMHost == "" {
+		Skip("Registry VM host not configured. Set ECO_CNF_CORE_NET_REGISTRY_VM_HOST")
+	}
+
+	if NetConfig.RegistryVMUser == "" {
+		Skip("Registry VM user not configured. Set ECO_CNF_CORE_NET_REGISTRY_VM_USER")
+	}
+
+	if NetConfig.RegistryVMKeyPath == "" {
+		Skip("Registry VM key path not configured. Set ECO_CNF_CORE_NET_REGISTRY_VM_KEY_PATH")
+	}
+
+	registryVM = &registryfrr.RegistryVMConfig{
+		Host:    NetConfig.RegistryVMHost,
+		User:    NetConfig.RegistryVMUser,
+		KeyPath: NetConfig.RegistryVMKeyPath,
+	}
+
+	By(fmt.Sprintf("Registry VM configured: %s@%s", registryVM.User, registryVM.Host))
+}
+
+// setupFRROnRegistryVM sets up FRR in a Podman pod on the registry VM.
+func setupFRROnRegistryVM(bgpASN int, nodeAddresses []string, enableBFD bool) error {
+	return setupFRROnRegistryVMWithAdvertisedRoutes(bgpASN, nodeAddresses, nil, nil, nil, enableBFD, false)
+}
+
+// setupFRROnRegistryVMWithAdvertisedRoutes sets up FRR on registry VM with custom advertised routes.
+//
+//nolint:unparam
+func setupFRROnRegistryVMWithAdvertisedRoutes(bgpASN int, nodeAddresses, hubIPAddresses,
+	externalAdvertisedIPv4Routes, externalAdvertisedIPv6Routes []string, enableBFD, enableMultiHop bool) error {
+	By("Setting up FRR on Registry VM using Podman with host network")
+
+	// Clean up any leftover resources from previous test runs
+	By("Cleaning up any leftover FRR resources on registry VM")
+
+	_ = registryVM.CleanupPodmanPod()
+
+	// FRR will use the first MetalLB IP as its BGP peer address
+	frrIPAddress := ipv4metalLbIPList[0]
+	secondaryIP := frrIPAddress + "/24"
+
+	By(fmt.Sprintf("Adding secondary IP %s to baremetal interface on registry VM", secondaryIP))
+
+	if err := registryVM.AddSecondaryIP(secondaryIP, "baremetal"); err != nil {
+		return fmt.Errorf("failed to add secondary IP: %w", err)
+	}
+
+	// Generate FRR configuration
+	var frrConf string
+	if hubIPAddresses != nil && externalAdvertisedIPv4Routes != nil {
+		// Configuration with static routes and network advertisement
+		frrConf = frr.DefineBGPConfigWithStaticRouteAndNetwork(
+			tsparams.LocalBGPASN, tsparams.LocalBGPASN, hubIPAddresses,
+			externalAdvertisedIPv4Routes, externalAdvertisedIPv6Routes,
+			netcmd.RemovePrefixFromIPList(nodeAddresses), enableMultiHop, enableBFD)
+	} else {
+		// Basic BGP configuration
+		frrConf = frr.DefineBGPConfigWithIPv4AndIPv6(
+			tsparams.RemoteBGPASN, tsparams.LocalBGPASN,
+			netcmd.RemovePrefixFromIPList(nodeAddresses), enableMultiHop, enableBFD)
+	}
+
+	// Use the standard daemons template from frrconfig, but modify bfdd setting if needed
+	daemonsConf := frrconfig.DaemonsFile
+	if !enableBFD {
+		// Disable bfdd to avoid socket permission errors on registry VM
+		daemonsConf = strings.Replace(daemonsConf, "bfdd=yes", "bfdd=no", 1)
+	}
+
+	// Pull container images
+	By("Pulling container images on registry VM")
+
+	if err := registryVM.PullImages(); err != nil {
+		return fmt.Errorf("failed to pull images: %w", err)
+	}
+
+	// Create FRR configuration files on host at /etc/frr/
+	By("Creating FRR configuration files in /etc/frr/ on registry VM")
+
+	if err := registryVM.CreateFRRConfigFiles(frrConf, daemonsConf); err != nil {
+		return fmt.Errorf("failed to create FRR config files: %w", err)
+	}
+
+	// Create Podman pod with host networking
+	By("Creating Podman pod with host networking")
+
+	if err := registryVM.CreatePodmanPod(); err != nil {
+		return fmt.Errorf("failed to create Podman pod: %w", err)
+	}
+
+	// Create FRR container with /etc/frr volume mounted
+	By("Creating FRR container with /etc/frr volume")
+
+	if err := registryVM.CreateFRRContainer(); err != nil {
+		return fmt.Errorf("failed to create FRR container: %w", err)
+	}
+
+	// Create test container
+	By("Creating test container")
+
+	if err := registryVM.CreateTestContainer(); err != nil {
+		return fmt.Errorf("failed to create test container: %w", err)
+	}
+
+	// Verify pod is running
+	By("Verifying Podman pod and containers are running")
+
+	if err := registryVM.VerifyPodRunning(); err != nil {
+		return fmt.Errorf("failed to verify pod running: %w", err)
+	}
+
+	By("FRR successfully set up on Registry VM")
+
+	return nil
+}
+
+// cleanupRegistryVMFRR cleans up the FRR Podman pod on the registry VM.
+// Note: Secondary IP is left configured as it's dedicated for testing.
+func cleanupRegistryVMFRR() {
+	if registryVM == nil {
+		return
+	}
+
+	By("Cleaning up FRR Podman pod on Registry VM (leaving secondary IP for reuse)")
+
+	if err := registryVM.CleanupPodmanPod(); err != nil {
+		By(fmt.Sprintf("Warning: cleanup failed: %v", err))
+	}
+}
+
+// verifyMetalLbBGPSessionsAreUPOnRegistryVM verifies BGP sessions on registry VM FRR (without BFD).
+func verifyMetalLbBGPSessionsAreUPOnRegistryVM(peerAddrList []string) {
+	for _, peerAddress := range netcmd.RemovePrefixFromIPList(peerAddrList) {
+		Eventually(func() bool {
+			output, err := registryVM.ExecVtyshCommand(fmt.Sprintf("show bgp neighbor %s json", peerAddress))
+			if err != nil {
+				return false
+			}
+
+			return strings.Contains(output, "Established")
+		}, time.Minute*4, tsparams.DefaultRetryInterval).Should(
+			BeTrue(), "Failed to receive BGP status UP on registry VM")
+	}
 }
