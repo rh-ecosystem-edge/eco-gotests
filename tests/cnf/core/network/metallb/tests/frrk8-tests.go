@@ -16,8 +16,8 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/cmd"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netnmstate"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/metallb/internal/frr"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/metallb/internal/metallbenv"
@@ -37,6 +37,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 		hubIPv4ExternalAddresses     = []string{"172.16.0.10", "172.16.0.11"}
 		frrExternalMasterIPAddress   = "172.16.0.1"
 		frrNodeSecIntIPv4Addresses   = []string{"10.100.100.254", "10.100.100.253"}
+		frrNodeSecIntIPv6Addresses   = []string{"2001:100::254", "2001:100::253"}
 		hubSecIntIPv4Addresses       = []string{"10.100.100.131", "10.100.100.132"}
 		hubPodWorker0                = "hub-pod-worker-0"
 		hubPodWorker1                = "hub-pod-worker-1"
@@ -389,8 +390,12 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 		)
 
 		BeforeEach(func() {
+			By("Cleaning up any existing NMState policies from previous test runs")
+			err := nmstate.CleanAllNMStatePolicies(APIClient)
+			Expect(err).ToNot(HaveOccurred(), "Failed to clean up NMState policies")
+
 			By("Creating a new instance of MetalLB Speakers on workers")
-			err := metallbenv.CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(tsparams.DefaultTimeout, workerLabelMap)
+			err = metallbenv.CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(tsparams.DefaultTimeout, workerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "Failed to recreate metalLb daemonset")
 
 			By("Waiting until the new frr-k8s-webhook-server deployment is in Ready state.")
@@ -441,25 +446,9 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 				Expect(err).ToNot(HaveOccurred(), out)
 			}
 
-			srIovInterfacesUnderTest, err := NetConfig.GetSriovInterfaces(1)
-			Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
+			By("Removing secondary IP addresses from worker nodes")
+			removeSecondaryIPsFromWorkerNodes(workerNodeList, frrNodeSecIntIPv4Addresses, frrNodeSecIntIPv6Addresses)
 
-			vlanID, err := NetConfig.GetVLAN()
-			Expect(err).ToNot(HaveOccurred(), "Fail to set vlanID")
-
-			By("Removing secondary interface on worker node 0")
-			secIntWorker0Policy := nmstate.NewPolicyBuilder(APIClient, "sec-int-worker0", NetConfig.WorkerLabelMap).
-				WithAbsentInterface(fmt.Sprintf("%s.%d", srIovInterfacesUnderTest[0], vlanID))
-			err = netnmstate.UpdatePolicyAndWaitUntilItsAvailable(netparam.DefaultTimeout, secIntWorker0Policy)
-			Expect(err).ToNot(HaveOccurred(), "Failed to update NMState network policy")
-
-			By("Removing secondary interface on worker node 1")
-			secIntWorker1Policy := nmstate.NewPolicyBuilder(APIClient, "sec-int-worker1", NetConfig.WorkerLabelMap).
-				WithAbsentInterface(fmt.Sprintf("%s.%d", srIovInterfacesUnderTest[0], vlanID))
-			err = netnmstate.UpdatePolicyAndWaitUntilItsAvailable(netparam.DefaultTimeout, secIntWorker1Policy)
-			Expect(err).ToNot(HaveOccurred(), "Failed to update NMState network policy")
-
-			By("Collect list of nodeNetworkConfigPolicies and delete them.")
 			By("Removing NMState policies")
 			err = nmstate.CleanAllNMStatePolicies(APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Failed to remove all NMState policies")
@@ -607,20 +596,24 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 		It("Verify Frrk8 iBGP multihop over a secondary interface",
 			reportxml.ID("75248"), func() {
 
-				By("Collecting interface and VLAN information to create the secondary interface")
+				By("Collecting SR-IOV interface for secondary network")
 				srIovInterfacesUnderTest, err := NetConfig.GetSriovInterfaces(1)
 				Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
 
-				vlanID, err := NetConfig.GetVLAN()
-				Expect(err).ToNot(HaveOccurred(), "Fail to set vlanID")
+				By("Assign secondary IP address to base interface on worker node 0")
+				addSecondaryIPToInterface("sec-int-worker0", workerNodeList[0].Definition.Name,
+					srIovInterfacesUnderTest[0], frrNodeSecIntIPv4Addresses[0], frrNodeSecIntIPv6Addresses[0])
 
-				By("create a secondary IP address on the worker node 0")
-				createSecondaryInterfaceOnNode("sec-int-worker0", workerNodeList[0].Definition.Name,
-					srIovInterfacesUnderTest[0], frrNodeSecIntIPv4Addresses[0], "2001:100::254", vlanID)
+				By("Assign secondary IP address to base interface on worker node 1")
+				addSecondaryIPToInterface("sec-int-worker1", workerNodeList[1].Definition.Name,
+					srIovInterfacesUnderTest[0], frrNodeSecIntIPv4Addresses[1], frrNodeSecIntIPv6Addresses[1])
 
-				By("create a secondary IP address on the worker node 1")
-				createSecondaryInterfaceOnNode("sec-int-worker1", workerNodeList[1].Definition.Name,
-					srIovInterfacesUnderTest[0], frrNodeSecIntIPv4Addresses[1], "2001:100::253", vlanID)
+				secondaryInterfaceName := srIovInterfacesUnderTest[0]
+
+				By("Verify secondary interfaces are UP with IP addresses on worker nodes")
+				for _, workerNode := range workerNodeList {
+					checkInterfaceExistsOnNode(workerNode.Definition.Name, secondaryInterfaceName)
+				}
 
 				By("Adding static routes to the speakers")
 				speakerRoutesMap := buildRoutesMapWithSpecificRoutes(frrk8sPods, hubSecIntIPv4Addresses)
@@ -640,10 +633,8 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 						"Failed to add static route for pod %s", frrk8sPod.Definition.Name)
 				}
 
-				interfaceNameWithVlan := fmt.Sprintf("%s.%d", srIovInterfacesUnderTest[0], vlanID)
-
 				By("Creating External NAD for hub FRR pods secondary interface")
-				createExternalNadWithMasterInterface(tsparams.HubMacVlanNADSecIntName, interfaceNameWithVlan)
+				createExternalNadWithMasterInterface(tsparams.HubMacVlanNADSecIntName, secondaryInterfaceName)
 
 				By("Creating External NAD for master FRR pod")
 				createExternalNad(tsparams.ExternalMacVlanNADName)
@@ -890,17 +881,59 @@ func buildRoutesMapWithSpecificRoutes(podList []*pod.Builder, nextHopList []stri
 	return routesMap
 }
 
-func createSecondaryInterfaceOnNode(policyName, nodeName, interfaceName, ipv4Address, ipv6Address string,
-	vlanID uint16) {
-	secondaryInterface := nmstate.NewPolicyBuilder(APIClient, policyName, map[string]string{
-		"kubernetes.io/hostname": nodeName,
-	})
+func addSecondaryIPToInterface(policyName, nodeName, interfaceName, ipv4Address, ipv6Address string) {
+	By(fmt.Sprintf("Adding secondary IPs using policy %s on node %s", policyName, nodeName))
 
-	secondaryInterface.WithVlanInterfaceIP(interfaceName, ipv4Address, ipv6Address, vlanID)
+	ipv4Cmd := fmt.Sprintf("ip addr add %s/24 dev %s 2>/dev/null || true", ipv4Address, interfaceName)
+	_, err := cmd.RunCommandOnHostNetworkPod(nodeName, NetConfig.MlbOperatorNamespace, ipv4Cmd)
+	Expect(err).ToNot(HaveOccurred(), "Failed to add IPv4 address on interface %s", interfaceName)
 
-	_, err := secondaryInterface.Create()
-	Expect(err).ToNot(HaveOccurred(),
-		"fail to create secondary interface: %s.+%d", interfaceName, vlanID)
+	ipv6Cmd := fmt.Sprintf("ip addr add %s/64 dev %s 2>/dev/null || true", ipv6Address, interfaceName)
+	_, err = cmd.RunCommandOnHostNetworkPod(nodeName, NetConfig.MlbOperatorNamespace, ipv6Cmd)
+	Expect(err).ToNot(HaveOccurred(), "Failed to add IPv6 address on interface %s", interfaceName)
+}
+
+func removeSecondaryIPsFromWorkerNodes(workerNodeList []*nodes.Builder, ipv4Addresses, ipv6Addresses []string) {
+	srIovInterfacesUnderTest, err := NetConfig.GetSriovInterfaces(1)
+	Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
+
+	for idx, workerNode := range workerNodeList {
+		if idx >= len(ipv4Addresses) {
+			break
+		}
+
+		ipv4Addr := ipv4Addresses[idx]
+		ipv6Addr := ipv6Addresses[idx]
+
+		if len(srIovInterfacesUnderTest) > 0 {
+			interfaceName := srIovInterfacesUnderTest[0]
+
+			ipv4Cmd := fmt.Sprintf("ip addr del %s/24 dev %s 2>/dev/null || true", ipv4Addr, interfaceName)
+			_, _ = cmd.RunCommandOnHostNetworkPod(workerNode.Definition.Name,
+				NetConfig.MlbOperatorNamespace, ipv4Cmd)
+
+			ipv6Cmd := fmt.Sprintf("ip addr del %s/64 dev %s 2>/dev/null || true", ipv6Addr, interfaceName)
+			_, _ = cmd.RunCommandOnHostNetworkPod(workerNode.Definition.Name,
+				NetConfig.MlbOperatorNamespace, ipv6Cmd)
+		}
+	}
+}
+
+func checkInterfaceExistsOnNode(nodeName, interfaceName string) {
+	nodeNetworkState, err := nmstate.PullNodeNetworkState(APIClient, nodeName)
+	Expect(err).ToNot(HaveOccurred(), "Failed to pull NodeNetworkState for node %s", nodeName)
+
+	netInterface, err := nodeNetworkState.GetInterfaceType(interfaceName, "ethernet")
+	Expect(err).ToNot(HaveOccurred(), "Interface %s not found on node %s", interfaceName, nodeName)
+
+	Expect(netInterface.State).To(Equal("up"),
+		"Interface %s is not UP on node %s (current state: %s)", interfaceName, nodeName, netInterface.State)
+
+	hasIPv4 := netInterface.Ipv4.Enabled && len(netInterface.Ipv4.Address) > 0
+	hasIPv6 := netInterface.Ipv6.Enabled && len(netInterface.Ipv6.Address) > 0
+
+	Expect(hasIPv4 || hasIPv6).To(BeTrue(),
+		"Interface %s does not have an IP address assigned on node %s", interfaceName, nodeName)
 }
 
 func createStaticIPAnnotations(internalNADName, externalNADName string, internalIPAddresses,
