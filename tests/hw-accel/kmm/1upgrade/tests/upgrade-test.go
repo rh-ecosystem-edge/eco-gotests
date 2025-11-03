@@ -172,21 +172,6 @@ var _ = Describe("KMM", Ordered, Label(tsparams.LabelSuite), func() {
 			_, err = sub.Update()
 			Expect(err).ToNot(HaveOccurred(), "failed updating subscription")
 
-			By("Approve install plan for upgrade")
-			installPlans, err := olm.ListInstallPlan(APIClient, opNamespace)
-			Expect(err).ToNot(HaveOccurred(), "failed listing install plans")
-
-			for _, ip := range installPlans {
-				if ip.Object.Spec.Approval == "Manual" && !ip.Object.Spec.Approved {
-					glog.V(90).Infof("Approving install plan: %s", ip.Object.Name)
-					ip.Object.Spec.Approved = true
-					_, err = ip.Update()
-					Expect(err).ToNot(HaveOccurred(), "failed approving install plan")
-
-					break
-				}
-			}
-
 			By("Await operator to be upgraded")
 			err = await.OperatorUpgrade(APIClient, ModulesConfig.UpgradeTargetVersion, 5*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "failed awaiting subscription upgrade")
