@@ -321,14 +321,29 @@ func (sn *sriovNetwork) createSriovNetwork() {
 		networkBuilder.WithLinkState(sn.linkState)
 	}
 
-	_, err := networkBuilder.Create()
+	sriovNetwork, err := networkBuilder.Create()
 	Expect(err).ToNot(HaveOccurred(), "Failed to create SRIOV network")
+
+	// Verify the SRIOV network was created successfully
+	By(fmt.Sprintf("Verifying SRIOV network %s was created", sn.name))
+	createdNetwork, err := sriov.PullNetwork(getAPIClient(), sn.name, sn.namespace)
+	if err != nil {
+		GinkgoLogr.Info("Failed to pull created SRIOV network", "name", sn.name, "namespace", sn.namespace, "error", err)
+	} else {
+		GinkgoLogr.Info("SRIOV network created successfully", "name", sn.name, "namespace", sn.namespace,
+			"resourceName", createdNetwork.Object.Spec.ResourceName, "targetNamespace", createdNetwork.Object.Spec.NetworkNamespace)
+	}
 
 	// Wait for NetworkAttachmentDefinition to be created by the SRIOV operator
 	By(fmt.Sprintf("Waiting for NetworkAttachmentDefinition %s to be created in namespace %s", sn.name, sn.networkNamespace))
 	Eventually(func() error {
 		_, err := nad.Pull(getAPIClient(), sn.name, sn.networkNamespace)
 		if err != nil {
+			// Check if SRIOV network still exists and log its status
+			if network, pullErr := sriov.PullNetwork(getAPIClient(), sn.name, sn.namespace); pullErr == nil {
+				GinkgoLogr.Info("SRIOV network status check", "name", sn.name, "namespace", sn.namespace,
+					"resourceName", network.Object.Spec.ResourceName, "targetNamespace", network.Object.Spec.NetworkNamespace)
+			}
 			GinkgoLogr.Info("NetworkAttachmentDefinition not yet created", "name", sn.name, "namespace", sn.networkNamespace, "error", err)
 		}
 		return err
