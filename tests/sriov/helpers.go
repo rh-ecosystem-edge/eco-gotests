@@ -158,6 +158,9 @@ func waitForSriovPolicyReady(sriovOpNs string) {
 func rmSriovPolicy(name, sriovOpNs string) {
 	By(fmt.Sprintf("Removing SRIOV policy %s if it exists", name))
 
+	// Log equivalent oc command for troubleshooting
+	logOcCommand("get", "sriovnetworknodepolicy", name, sriovOpNs, "&&", fmt.Sprintf("oc delete sriovnetworknodepolicy %s -n %s", name, sriovOpNs))
+
 	// Create a policy builder to check if it exists
 	policyBuilder := sriov.NewPolicyBuilder(
 		getAPIClient(),
@@ -206,6 +209,9 @@ func initVF(name, deviceID, interfaceName, vendor, sriovOpNs string, vfNum int, 
 		pfSelector := fmt.Sprintf("%s#0-%d", interfaceName, vfNum-1)
 		GinkgoLogr.Info("Creating SRIOV policy", "name", name, "node", node.Definition.Name,
 			"pfSelector", pfSelector, "deviceID", deviceID, "vendor", vendor, "interfaceName", interfaceName)
+
+		// Log equivalent oc command for troubleshooting
+		logOcCommand("get", "sriovnetworknodepolicy", name, sriovOpNs, "|| echo 'Policy does not exist, creating...'")
 
 		// Create SRIOV policy
 		sriovPolicy := sriov.NewPolicyBuilder(
@@ -289,6 +295,9 @@ func initDpdkVF(name, deviceID, interfaceName, vendor, sriovOpNs string, vfNum i
 // createSriovNetwork creates a SRIOV network
 func (sn *sriovNetwork) createSriovNetwork() {
 	By(fmt.Sprintf("Creating SRIOV network %s", sn.name))
+
+	// Log equivalent oc command for troubleshooting
+	logOcCommand("get", "sriovnetwork", sn.name, sn.namespace, "|| echo 'Network does not exist, creating...'")
 
 	networkBuilder := sriov.NewNetworkBuilder(
 		getAPIClient(),
@@ -397,6 +406,9 @@ func (sn *sriovNetwork) createSriovNetwork() {
 // rmSriovNetwork removes a SRIOV network by name from the operator namespace
 func rmSriovNetwork(name, sriovOpNs string) {
 	By(fmt.Sprintf("Removing SRIOV network %s", name))
+
+	// Log equivalent oc command for troubleshooting
+	logOcCommand("delete", "sriovnetwork", name, sriovOpNs)
 
 	// Use List to find the network by name
 	listOptions := client.ListOptions{}
@@ -519,6 +531,8 @@ func chkVFStatusWithPassTraffic(networkName, interfaceName, namespace, descripti
 
 	// Test connectivity with timeout
 	By("Testing connectivity between pods")
+	// Log equivalent oc command for troubleshooting
+	logOcCommand("exec", "client", namespace, "", fmt.Sprintf("-- ping -c 3 192.168.1.11"))
 	pingCmd := []string{"ping", "-c", "3", "192.168.1.11"}
 
 	var pingOutput bytes.Buffer
@@ -551,6 +565,9 @@ func chkVFStatusWithPassTraffic(networkName, interfaceName, namespace, descripti
 func createTestPod(name, namespace, networkName, ipAddress, macAddress string) *pod.Builder {
 	By(fmt.Sprintf("Creating test pod %s", name))
 
+	// Log equivalent oc command for troubleshooting
+	logOcCommand("get", "pod", name, namespace, "|| echo 'Pod does not exist, creating...'")
+
 	// Create network annotation
 	networkAnnotation := pod.StaticIPAnnotationWithMacAddress(networkName, []string{ipAddress}, macAddress)
 
@@ -564,12 +581,19 @@ func createTestPod(name, namespace, networkName, ipAddress, macAddress string) *
 	createdPod, err := podBuilder.Create()
 	Expect(err).ToNot(HaveOccurred(), "Failed to create test pod")
 
+	// Log equivalent oc command to check pod status
+	logOcCommand("get", "pod", name, namespace, "-o", "yaml")
+	logOcCommand("describe", "pod", name, namespace)
+
 	return createdPod
 }
 
 // createSriovTestPod creates a SRIOV test pod
 func (stp *sriovTestPod) createSriovTestPod() {
 	By(fmt.Sprintf("Creating SRIOV test pod %s", stp.name))
+
+	// Log equivalent oc command for troubleshooting
+	logOcCommand("get", "pod", stp.name, stp.namespace, "|| echo 'Pod does not exist, creating...'")
 
 	// Create network annotation
 	networkAnnotation := pod.StaticIPAnnotationWithMacAddress(stp.networkName, []string{"192.168.1.10/24"}, "20:04:0f:f1:88:01")
@@ -583,6 +607,10 @@ func (stp *sriovTestPod) createSriovTestPod() {
 
 	_, err := podBuilder.Create()
 	Expect(err).ToNot(HaveOccurred(), "Failed to create SRIOV test pod")
+
+	// Log equivalent oc command to check pod status
+	logOcCommand("get", "pod", stp.name, stp.namespace, "-o", "jsonpath='{.metadata.annotations.k8s\\.v1\\.cni\\.cncf\\.io/network-status}'")
+	logOcCommand("describe", "pod", stp.name, stp.namespace)
 }
 
 // deleteSriovTestPod deletes a SRIOV test pod
@@ -598,6 +626,9 @@ func (stp *sriovTestPod) deleteSriovTestPod() {
 // waitForPodWithLabelReady waits for a pod with specific label to be ready
 func waitForPodWithLabelReady(namespace, labelSelector string) error {
 	By(fmt.Sprintf("Waiting for pod with label %s to be ready", labelSelector))
+
+	// Log equivalent oc command for troubleshooting
+	logOcCommand("get", "pods", "", namespace, "-l", labelSelector)
 
 	// Wait for pod to appear (it might take a moment to be created)
 	var podList []*pod.Builder
@@ -707,4 +738,48 @@ func getPciAddress(namespace, podName, policyName string) string {
 // getRandomString generates a random string for unique naming
 func getRandomString() string {
 	return fmt.Sprintf("%d", time.Now().Unix())
+}
+
+// logOcCommand logs the equivalent oc/kubectl command for debugging
+func logOcCommand(operation, resource, name, namespace string, extraArgs ...string) {
+	var cmd strings.Builder
+	cmd.WriteString("oc ")
+	cmd.WriteString(operation)
+	cmd.WriteString(" ")
+	cmd.WriteString(resource)
+	if name != "" {
+		cmd.WriteString(" ")
+		cmd.WriteString(name)
+	}
+	if namespace != "" {
+		cmd.WriteString(" -n ")
+		cmd.WriteString(namespace)
+	}
+	for _, arg := range extraArgs {
+		cmd.WriteString(" ")
+		cmd.WriteString(arg)
+	}
+	GinkgoLogr.Info("Equivalent oc command", "command", cmd.String())
+}
+
+// logOcCommandYaml logs the equivalent oc/kubectl command with YAML for debugging
+func logOcCommandYaml(operation, resource, name, namespace, yamlFile string) {
+	var cmd strings.Builder
+	cmd.WriteString("oc ")
+	cmd.WriteString(operation)
+	cmd.WriteString(" ")
+	cmd.WriteString(resource)
+	if name != "" {
+		cmd.WriteString(" ")
+		cmd.WriteString(name)
+	}
+	if namespace != "" {
+		cmd.WriteString(" -n ")
+		cmd.WriteString(namespace)
+	}
+	if yamlFile != "" {
+		cmd.WriteString(" -f ")
+		cmd.WriteString(yamlFile)
+	}
+	GinkgoLogr.Info("Equivalent oc command", "command", cmd.String())
 }

@@ -110,6 +110,8 @@ func TestSriovBasic(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	By("Creating test namespace with privileged labels")
+	// Log equivalent oc command for troubleshooting
+	GinkgoLogr.Info("Equivalent oc command", "command", fmt.Sprintf("oc get namespace %s || oc create namespace %s", getTestNS().Definition.Name, getTestNS().Definition.Name))
 	for key, value := range params.PrivilegedNSLabels {
 		getTestNS().WithLabel(key, value)
 	}
@@ -604,11 +606,17 @@ var _ = Describe("[sig-networking] SDN sriov-legacy", func() {
 			// Update the policy with MTU by modifying the definition and using the client
 			targetPolicy.Definition.Spec.Mtu = mtuValue
 
+			// Log equivalent oc command for troubleshooting
+			GinkgoLogr.Info("Equivalent oc command", "command", fmt.Sprintf("oc patch sriovnetworknodepolicy %s -n %s --type merge -p '{\"spec\":{\"mtu\":%d}}'", data.Name, sriovOpNs, mtuValue))
+
 			// Update the policy using the Kubernetes client
 			err = getAPIClient().Client.Update(context.TODO(), targetPolicy.Definition)
 			Expect(err).NotTo(HaveOccurred(), "Failed to update SRIOV policy %s with MTU", data.Name)
 
 			GinkgoLogr.Info("SRIOV policy updated with MTU", "name", data.Name, "mtu", mtuValue)
+
+			// Log equivalent oc command to verify update
+			GinkgoLogr.Info("Equivalent oc command", "command", fmt.Sprintf("oc get sriovnetworknodepolicy %s -n %s -o jsonpath='{.spec.mtu}'", data.Name, sriovOpNs))
 			waitForSriovPolicyReady(sriovOpNs)
 
 			func() {
@@ -729,12 +737,16 @@ var _ = Describe("[sig-networking] SDN sriov-legacy", func() {
 
 				By("Check testpmd running well")
 				// Verify that the VF was properly assigned by checking the PCI address
+				// Log equivalent oc command to check PCI address
+				GinkgoLogr.Info("Equivalent oc command", "command", fmt.Sprintf("oc get pod %s -n %s -o jsonpath='{.metadata.annotations.k8s\\.v1\\.cni\\.cncf\\.io/network-status}'", sriovTestPod.name, sriovTestPod.namespace))
 				pciAddress := getPciAddress(sriovTestPod.namespace, sriovTestPod.name, policyName)
 				Expect(pciAddress).NotTo(Equal("0000:00:00.0"), "PCI address should be assigned from pod network status")
 				GinkgoLogr.Info("PCI address assigned to pod", "pciAddress", pciAddress, "pod", sriovTestPod.name)
 
 				// Get the pod to verify it has the network interface
 				By(fmt.Sprintf("Verifying DPDK VF is available in pod %s", sriovTestPod.name))
+				// Log equivalent oc command to verify network status
+				GinkgoLogr.Info("Equivalent oc command", "command", fmt.Sprintf("oc describe pod %s -n %s", sriovTestPod.name, sriovTestPod.namespace))
 				podBuilder, err := pod.Pull(getAPIClient(), sriovTestPod.name, sriovTestPod.namespace)
 				Expect(err).NotTo(HaveOccurred(), "Failed to pull pod %s", sriovTestPod.name)
 				Expect(podBuilder).NotTo(BeNil(), "Pod builder should not be nil")
