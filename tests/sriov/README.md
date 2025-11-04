@@ -56,13 +56,47 @@ If no environment variable is set, the following default devices are used:
 
 ## Running the Tests
 
+### Basic test execution:
 ```bash
 export GOSUMDB=sum.golang.org
 export GOTOOLCHAIN=auto
 go test ./tests/sriov/... -v
 ```
 
-Note: `GOTOOLCHAIN=auto` ensures Go uses the correct toolchain version as specified in `go.mod`. `GOSUMDB=sum.golang.org` enables checksum verification for module downloads.
+### With additional options:
+```bash
+export GOSUMDB=sum.golang.org
+export GOTOOLCHAIN=auto
+go test ./tests/sriov/... -v -ginkgo.v -timeout 60m
+```
+
+### Run specific tests by label:
+```bash
+export GOSUMDB=sum.golang.org
+export GOTOOLCHAIN=auto
+go test ./tests/sriov/... -v -ginkgo.label-filter="Disruptive && Serial" -timeout 60m
+```
+
+### Run with debugging options:
+```bash
+export GOSUMDB=sum.golang.org
+export GOTOOLCHAIN=auto
+go test ./tests/sriov/... -v -ginkgo.v -ginkgo.trace -timeout 60m
+```
+
+**Common Options:**
+- `-v`: Verbose output
+- `-ginkgo.v`: Ginkgo verbose output (shows detailed test progress)
+- `-ginkgo.trace`: Include full stack trace when a failure occurs
+- `-timeout 60m`: Sets test timeout to 60 minutes (adjust as needed)
+- `-ginkgo.label-filter`: Filter tests by labels (e.g., `"Disruptive && Serial"`, `"!Serial"`)
+- `-ginkgo.focus`: Run only tests matching the given regex (e.g., `-ginkgo.focus="DPDK"`)
+- `-ginkgo.skip`: Skip tests matching the given regex
+- `-ginkgo.keep-going`: Continue running tests even after a failure
+- `-ginkgo.fail-fast`: Stop on first failure
+- `-ginkgo.reportFile`: Generate test report to specified file (e.g., `-ginkgo.reportFile=test-report.json`)
+
+**Note:** `GOTOOLCHAIN=auto` ensures Go uses the correct toolchain version as specified in `go.mod`. `GOSUMDB=sum.golang.org` enables checksum verification for module downloads.
 
 ## Test Data
 
