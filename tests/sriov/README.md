@@ -28,13 +28,13 @@ The tests support both environment variable configuration and default device con
 
 ### Environment Variable
 Set `SRIOV_DEVICES` environment variable with the format:
-```
-SRIOV_DEVICES="name1:deviceid1:vendor1:interface1,name2:deviceid2:vendor2:interface2,..."
+```bash
+export SRIOV_DEVICES="name1:deviceid1:vendor1:interface1,name2:deviceid2:vendor2:interface2,..."
 ```
 
 Example:
-```
-SRIOV_DEVICES="e810xxv:159b:8086:ens2f0,e810c:1593:8086:ens2f2"
+```bash
+export SRIOV_DEVICES="e810xxv:159b:8086:ens2f0,e810c:1593:8086:ens2f2"
 ```
 
 ### Default Devices
