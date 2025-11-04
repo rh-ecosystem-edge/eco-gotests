@@ -103,6 +103,26 @@ func IsSnoPlusOne(client *clients.Settings) (bool, error) {
 	return true, nil
 }
 
+// IsSNO checks if the specified cluster is a SNO cluster. For it to be a SNO cluster, there must be exactly one node
+// that is both a control plane and a worker node.
+func IsSNO(client *clients.Settings) (bool, error) {
+	workers, err := ListNodesByLabel(client, RANConfig.WorkerLabelMap)
+	if err != nil {
+		return false, fmt.Errorf("failed to list worker nodes: %w", err)
+	}
+
+	controlPlanes, err := ListNodesByLabel(client, RANConfig.ControlPlaneLabelMap)
+	if err != nil {
+		return false, fmt.Errorf("failed to list control plane nodes: %w", err)
+	}
+
+	if len(workers) == 1 && len(controlPlanes) == 1 && IsNodeControlPlane(workers[0]) {
+		return true, nil
+	}
+
+	return false, nil
+}
+
 // ListNodesByLabel returns a list of nodes that have the specified label.
 func ListNodesByLabel(client *clients.Settings, labelMap map[string]string) ([]*nodes.Builder, error) {
 	return nodes.List(client, metav1.ListOptions{

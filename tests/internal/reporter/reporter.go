@@ -11,13 +11,30 @@ import (
 	"github.com/golang/glog"
 	"github.com/onsi/ginkgo/v2/types"
 	"github.com/openshift-kni/k8sreporter"
-	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/config"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
 var (
 	pathToPodExecLogs = "/tmp/pod_exec_logs.log"
+	// generalCfg holds the configuration for reporter operations.
+	generalCfg *config.GeneralConfig
 )
+
+// init initializes the reporter configuration.
+func init() {
+	// Skip loading config if running unit tests
+	if os.Getenv("UNIT_TEST") == "true" {
+		return
+	}
+
+	generalCfg = config.NewConfig()
+}
+
+// SetGeneralConfig allows overriding the default configuration.
+func SetGeneralConfig(cfg *config.GeneralConfig) {
+	generalCfg = cfg
+}
 
 func newReporter(
 	reportPath,
@@ -68,7 +85,14 @@ func ReportIfFailedOnCluster(
 		return
 	}
 
-	dumpDir := GeneralConfig.GetDumpFailedTestReportLocation(testSuite)
+	// If no config is available, skip dumping
+	if generalCfg == nil {
+		glog.V(100).Infof("No reporter configuration available, skipping dump for test: %s", testSuite)
+
+		return
+	}
+
+	dumpDir := generalCfg.GetDumpFailedTestReportLocation(testSuite)
 
 	if dumpDir != "" {
 		reporter, err := newReporter(dumpDir, kubeconfig, nSpaces, setReporterSchemes, cRDs)
@@ -83,7 +107,7 @@ func ReportIfFailedOnCluster(
 		_, podExecLogsFName := path.Split(pathToPodExecLogs)
 
 		err = moveFile(
-			pathToPodExecLogs, path.Join(GeneralConfig.ReportsDirAbsPath, tcReportFolderName, podExecLogsFName))
+			pathToPodExecLogs, path.Join(generalCfg.ReportsDirAbsPath, tcReportFolderName, podExecLogsFName))
 
 		if err != nil {
 			glog.Fatalf("Failed to move pod exec logs %s to report folder: %s", pathToPodExecLogs, err)
