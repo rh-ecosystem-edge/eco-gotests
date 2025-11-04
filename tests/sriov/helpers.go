@@ -203,6 +203,10 @@ func initVF(name, deviceID, interfaceName, vendor, sriovOpNs string, vfNum int, 
 
 	// Check if the device exists on any worker node
 	for _, node := range workerNodes {
+		pfSelector := fmt.Sprintf("%s#0-%d", interfaceName, vfNum-1)
+		GinkgoLogr.Info("Creating SRIOV policy", "name", name, "node", node.Definition.Name,
+			"pfSelector", pfSelector, "deviceID", deviceID, "vendor", vendor, "interfaceName", interfaceName)
+
 		// Create SRIOV policy
 		sriovPolicy := sriov.NewPolicyBuilder(
 			getAPIClient(),
@@ -210,27 +214,38 @@ func initVF(name, deviceID, interfaceName, vendor, sriovOpNs string, vfNum int, 
 			sriovOpNs,
 			name,
 			vfNum,
-			[]string{fmt.Sprintf("%s#0-%d", interfaceName, vfNum-1)},
+			[]string{pfSelector},
 			map[string]string{"kubernetes.io/hostname": node.Definition.Name},
 		).WithDevType("netdevice")
 
 		_, err := sriovPolicy.Create()
 		if err != nil {
-			GinkgoLogr.Info("Failed to create SRIOV policy", "error", err, "node", node.Definition.Name)
+			GinkgoLogr.Info("Failed to create SRIOV policy", "error", err, "node", node.Definition.Name,
+				"pfSelector", pfSelector, "deviceID", deviceID, "vendor", vendor, "interfaceName", interfaceName,
+				"hint", "Verify that the interface name matches the PF name on the node. Check node labels and available NICs.")
+			// Clean up any partially created policy
+			rmSriovPolicy(name, sriovOpNs)
 			continue
 		}
+
+		GinkgoLogr.Info("SRIOV policy created successfully, waiting for it to be applied", "name", name, "node", node.Definition.Name)
 
 		// Wait for policy to be applied
 		err = WaitForSriovAndMCPStable(
 			getAPIClient(), 35*time.Minute, time.Minute, NetConfig.CnfMcpLabel, sriovOpNs)
 		if err != nil {
-			GinkgoLogr.Info("Failed to wait for SRIOV policy", "error", err, "node", node.Definition.Name)
+			GinkgoLogr.Info("Failed to wait for SRIOV policy to be applied", "error", err, "node", node.Definition.Name)
+			// Clean up policy if wait fails
+			rmSriovPolicy(name, sriovOpNs)
 			continue
 		}
 
+		GinkgoLogr.Info("SRIOV policy successfully applied", "name", name, "node", node.Definition.Name)
 		return true
 	}
 
+	GinkgoLogr.Info("Failed to create SRIOV policy on any worker node", "name", name, "deviceID", deviceID,
+		"vendor", vendor, "interfaceName", interfaceName)
 	return false
 }
 
@@ -340,6 +355,22 @@ func (sn *sriovNetwork) createSriovNetwork() {
 		}
 	}
 
+	// Verify that a SRIOV policy exists for the resourceName before waiting for NAD
+	By(fmt.Sprintf("Verifying SRIOV policy exists for resource %s", sn.resourceName))
+	Eventually(func() bool {
+		policy, err := sriov.PullPolicy(getAPIClient(), sn.resourceName, sn.namespace)
+		if err == nil && policy != nil && policy.Object != nil {
+			GinkgoLogr.Info("SRIOV policy found", "name", sn.resourceName, "namespace", sn.namespace,
+				"resourceName", policy.Object.Spec.ResourceName, "numVfs", policy.Object.Spec.NumVfs,
+				"pfNames", policy.Object.Spec.NicSelector.PfNames)
+			return true
+		}
+		if err != nil {
+			GinkgoLogr.Info("SRIOV policy not found", "name", sn.resourceName, "namespace", sn.namespace, "error", err)
+		}
+		return false
+	}, 30*time.Second, 2*time.Second).Should(BeTrue(), "SRIOV policy %s must exist in namespace %s before NAD can be created. Ensure initVF succeeded and the policy was created.", sn.resourceName, sn.namespace)
+
 	// Wait for NetworkAttachmentDefinition to be created by the SRIOV operator
 	By(fmt.Sprintf("Waiting for NetworkAttachmentDefinition %s to be created in namespace %s", sn.name, sn.networkNamespace))
 	Eventually(func() error {
@@ -350,10 +381,17 @@ func (sn *sriovNetwork) createSriovNetwork() {
 				GinkgoLogr.Info("SRIOV network status check", "name", sn.name, "namespace", sn.namespace,
 					"resourceName", network.Object.Spec.ResourceName, "targetNamespace", network.Object.Spec.NetworkNamespace)
 			}
+			// Also check if policy still exists
+			if policy, pullErr := sriov.PullPolicy(getAPIClient(), sn.resourceName, sn.namespace); pullErr == nil {
+				GinkgoLogr.Info("SRIOV policy status check", "name", sn.resourceName, "namespace", sn.namespace,
+					"numVfs", policy.Object.Spec.NumVfs, "pfNames", policy.Object.Spec.NicSelector.PfNames)
+			} else {
+				GinkgoLogr.Info("SRIOV policy not found", "name", sn.resourceName, "namespace", sn.namespace, "error", pullErr)
+			}
 			GinkgoLogr.Info("NetworkAttachmentDefinition not yet created", "name", sn.name, "namespace", sn.networkNamespace, "error", err)
 		}
 		return err
-	}, 3*time.Minute, 3*time.Second).Should(BeNil(), "Failed to wait for NetworkAttachmentDefinition %s in namespace %s", sn.name, sn.networkNamespace)
+	}, 3*time.Minute, 3*time.Second).Should(BeNil(), "Failed to wait for NetworkAttachmentDefinition %s in namespace %s. Ensure the SRIOV policy exists and is properly configured.", sn.name, sn.networkNamespace)
 }
 
 // rmSriovNetwork removes a SRIOV network by name from the operator namespace
