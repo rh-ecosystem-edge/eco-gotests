@@ -87,7 +87,12 @@ func createWorkloadWithPVC(fNamespace string, fStorageClass string, fPVCName str
 		if fStorageClass == "fa-file-sc" {
 			By("If SC is fa-file-sc, removing data from PVC before deleting the namespace")
 
-			existingPods, _ := pod.List(APIClient, fNamespace, metav1.ListOptions{LabelSelector: labelsWlkdOneString})
+			existingPods, err := pod.List(APIClient, fNamespace, metav1.ListOptions{LabelSelector: labelsWlkdOneString})
+			if err != nil {
+				glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"Failed to list pods for PVC cleanup in ns %q: %v. Skipping cleanup.",
+					fNamespace, err)
+			}
 			for _, podOne := range existingPods {
 				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cleaning up PVC data via pod %q in ns %q", podOne.Definition.Name, fNamespace)
 
