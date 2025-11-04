@@ -326,12 +326,18 @@ func (sn *sriovNetwork) createSriovNetwork() {
 
 	// Verify the SRIOV network was created successfully
 	By(fmt.Sprintf("Verifying SRIOV network %s was created", sn.name))
-	createdNetwork, err := sriov.PullNetwork(getAPIClient(), sn.name, sn.namespace)
-	if err != nil {
-		GinkgoLogr.Info("Failed to pull created SRIOV network", "name", sn.name, "namespace", sn.namespace, "error", err)
-	} else {
+	if sriovNetwork != nil && sriovNetwork.Object != nil {
 		GinkgoLogr.Info("SRIOV network created successfully", "name", sn.name, "namespace", sn.namespace,
-			"resourceName", createdNetwork.Object.Spec.ResourceName, "targetNamespace", createdNetwork.Object.Spec.NetworkNamespace)
+			"resourceName", sriovNetwork.Object.Spec.ResourceName, "targetNamespace", sriovNetwork.Object.Spec.NetworkNamespace)
+	} else {
+		// Fallback: try to pull the network to verify it exists
+		createdNetwork, pullErr := sriov.PullNetwork(getAPIClient(), sn.name, sn.namespace)
+		if pullErr != nil {
+			GinkgoLogr.Info("Failed to pull created SRIOV network", "name", sn.name, "namespace", sn.namespace, "error", pullErr)
+		} else {
+			GinkgoLogr.Info("SRIOV network created successfully", "name", sn.name, "namespace", sn.namespace,
+				"resourceName", createdNetwork.Object.Spec.ResourceName, "targetNamespace", createdNetwork.Object.Spec.NetworkNamespace)
+		}
 	}
 
 	// Wait for NetworkAttachmentDefinition to be created by the SRIOV operator
