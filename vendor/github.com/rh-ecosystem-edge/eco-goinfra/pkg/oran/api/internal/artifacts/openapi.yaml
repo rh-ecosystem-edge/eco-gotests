@@ -1,0 +1,391 @@
+#
+# Copyright (c) 2024 Red Hat, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in
+# compliance with the License. You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed under the License is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied. See the License for the specific language governing permissions and limitations under the
+# License.
+#
+
+openapi: 3.0.3
+
+info:
+  title: O2IMS Infrastructure Artifacts API
+  version: 1.0.0
+  description: API for O2IMS Infrastructure Artifacts
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+  contact:
+    name: Red Hat
+    url: https://www.redhat.com
+
+externalDocs:
+  description: O-RAN O2ims Interface Specification
+  url: TBD
+
+servers:
+- url: http://localhost:8000
+
+tags:
+- name: managedInfrastructureTemplates
+  description: |
+    Information about infrastructure templates.
+
+security:
+- oauth2:
+  - role:o2ims-admin
+
+paths:
+  /o2ims-infrastructureArtifacts/api_versions:
+    get:
+      operationId: getAllVersions
+      summary: Get API versions
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+      description: |
+        Returns the complete list of API versions implemented by the service.
+      tags:
+      - metadata
+      responses:
+        '200':
+          description: |
+            Successfully obtained the complete list of versions.
+          content:
+            application/json:
+              schema:
+                $ref: "../common/openapi.yaml#/components/schemas/APIVersions"
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+  /o2ims-infrastructureArtifacts/v1/api_versions:
+    get:
+      operationId: getMinorVersions
+      summary: Get minor API versions
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+      description: |
+        Returns the list of minor API versions implemented for this major version of the API.
+      tags:
+      - metadata
+      responses:
+        '200':
+          description: |
+            Success
+          content:
+            application/json:
+              schema:
+                $ref: "../common/openapi.yaml#/components/schemas/APIVersions"
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+  /o2ims-infrastructureArtifacts/v1/managedInfrastructureTemplates:
+    get:
+      operationId: getManagedInfrastructureTemplates
+      summary: Get managed infrastructure templates
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+        - role:o2ims-provisioner
+      description: |
+        Returns the list of managed infrastructure templatess.
+      parameters:
+      - $ref: "../common/openapi.yaml#/components/parameters/allFields"
+      - $ref: "../common/openapi.yaml#/components/parameters/excludeFields"
+      - $ref: "../common/openapi.yaml#/components/parameters/fields"
+      - $ref: "../common/openapi.yaml#/components/parameters/filter"
+      tags:
+      - managedInfrastructureTemplates
+      responses:
+        '200':
+          description: |
+            Successfully obtained the list of managed infrastructure templates.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ManagedInfrastructureTemplate'
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+  /o2ims-infrastructureArtifacts/v1/managedInfrastructureTemplates/{managedInfrastructureTemplateId}:
+    get:
+      operationId: getManagedInfrastructureTemplate
+      summary: Get managed infrastructure templates
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+        - role:o2ims-provisioner
+      description: |
+        Returns the details of a managed infrastructure template.
+      parameters:
+      - $ref: "#/components/parameters/managedInfrastructureTemplateId"
+      tags:
+      - managedInfrastructureTemplates
+      responses:
+        '200':
+          description: |
+            Successfully obtained the details of the managed infrastructure template.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ManagedInfrastructureTemplate"
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '404':
+          description: The specified entity was not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+  /o2ims-infrastructureArtifacts/v1/managedInfrastructureTemplates/{managedInfrastructureTemplateId}/defaults:
+    get:
+      operationId: getManagedInfrastructureTemplateDefaults
+      summary: Get managed infrastructure template defaults
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+        - role:o2ims-provisioner
+      description: |
+        Returns the default values used by a managed infrastructure template.
+      parameters:
+      - $ref: "#/components/parameters/managedInfrastructureTemplateId"
+      tags:
+      - defaults
+      responses:
+        '200':
+          description: |
+            Successfully obtained the defaults of the managed infrastructure template.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ManagedInfrastructureTemplateDefaults"
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '404':
+          description: The specified entity was not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      description: This API uses OAuth 2 with the client credentials flow.
+      flows:
+        clientCredentials:
+          tokenUrl: https://keycloak.example.com/realms/oran/protocol/openid-connect/token
+          scopes:
+            role:o2ims-reader: O2IMS Reader Role
+            role:o2ims-provisioner: O2IMS Provisioner Role
+
+  parameters:
+    managedInfrastructureTemplateId:
+      name: managedInfrastructureTemplateId
+      description: |
+        Unique identifier of a managed infrastructure template.
+      in: path
+      required: true
+      schema:
+        type: string
+      example: name.version
+
+  schemas:
+    ManagedInfrastructureTemplateDefaults:
+      description: |
+        Default values used for cluster provisioning by a ManagedInfrastructureTemplate
+      type: object
+      properties:
+        clusterInstanceDefaults:
+          type: object
+          description: Defines the default values used for cluster installation
+        policyTemplateDefaults:
+          type: object
+          description: Defines the default values used for cluster configuration
+    ManagedInfrastructureTemplate:
+      description: |
+        Information about a managed infrastructure template.
+      type: object
+      properties:
+        artifactResourceId:
+          type: string
+          format: uuid
+          description: Identifier for the managed infrastructure template. This identifier is allocated by the O-Cloud.
+          example: "fa242779-dfef-414e-b2b1-3b75d6f6b65d"
+        version:
+          type: string
+          example: "v4-17-3-1"
+        description:
+          type: string
+          description: Details about the current managed infrastructure template.
+          example: Defines the parameters allowed for cluster provisioning
+        parameterSchema:
+          type: object
+          description: |
+            Defines the parameters required for ClusterTemplate. The parameter definitions should follow the OpenAPI V3 schema and explicitly define required fields.
+          example: {
+            "properties": {
+              "clusterInstanceParameters": {
+                "type": "object"
+              },
+              "nodeClusterName": {
+                "type": "string"
+              },
+              "oCloudSiteId": {
+                "type": "string"
+              },
+              "policyTemplateParameters": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "nodeClusterName",
+              "oCloudSiteId",
+              "policyTemplateParameters",
+              "clusterInstanceParameters"
+            ]
+          }
+        name:
+          type: string
+          description: Human readable description of managed infrastructure template
+          example: sno-ran-du
+        extensions:
+          type: object
+          additionalProperties:
+            type: string
+          description: | 
+            These are unspecified (not standardized) properties (keys) which are tailored by the vendor or 
+            operator to extend the information provided about the Artifact Resource.
+          example: {"status": "ClusterTemplateValidated has Completed: The cluster template validation succeeded"}
+      required:
+      - artifactResourceId
+      - version
+      - description
+      - parameterSchema
+      - name

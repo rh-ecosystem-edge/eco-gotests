@@ -1,0 +1,518 @@
+#
+# Copyright (c) 2025 Red Hat, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in
+# compliance with the License. You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed under the License is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied. See the License for the specific language governing permissions and limitations under the
+# License.
+#
+
+openapi: 3.0.3
+
+info:
+  title: O2IMS Infrastructure Provisioning API
+  version: 1.0.0
+  description: API for O2IMS Infrastructure Provisioning
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+  contact:
+    name: Red Hat
+    url: https://www.redhat.com
+
+externalDocs:
+  description: O-RAN O2ims Interface Specification
+  url: TBD
+
+servers:
+- url: http://localhost:8000
+
+tags:
+- name: provisioniningRequests
+  description: |
+    Information about provisioning requests.
+
+security:
+- oauth2:
+  - role:o2ims-admin
+
+paths:
+  /o2ims-infrastructureProvisioning/api_versions:
+    get:
+      operationId: getAllVersions
+      summary: Get API versions
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+      description: |
+        Returns the complete list of API versions implemented by the service.
+      tags:
+      - metadata
+      responses:
+        '200':
+          description: |
+            Successfully obtained the complete list of versions.
+          content:
+            application/json:
+              schema:
+                $ref: "../common/openapi.yaml#/components/schemas/APIVersions"
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+  /o2ims-infrastructureProvisioning/v1/api_versions:
+    get:
+      operationId: getMinorVersions
+      summary: Get minor API versions
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+      description: |
+        Returns the list of minor API versions implemented for this major version of the API.
+      tags:
+      - metadata
+      responses:
+        '200':
+          description: |
+            Success
+          content:
+            application/json:
+              schema:
+                $ref: "../common/openapi.yaml#/components/schemas/APIVersions"
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+  /o2ims-infrastructureProvisioning/v1/provisioningRequests:
+    get:
+      operationId: getProvisioningRequests
+      summary: Get provisioning requests
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+        - role:o2ims-provisioner
+      description: |
+        Returns the list of provisioning requests.
+      parameters:
+      - $ref: "../common/openapi.yaml#/components/parameters/allFields"
+      - $ref: "../common/openapi.yaml#/components/parameters/excludeFields"
+      - $ref: "../common/openapi.yaml#/components/parameters/fields"
+      - $ref: "../common/openapi.yaml#/components/parameters/filter"
+      tags:
+      - provisioningRequests
+      responses:
+        '200':
+          description: |
+            Successfully obtained the list of provisioning requests.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProvisioningRequestInfo'
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+    post:
+      operationId: createProvisioningRequest
+      summary: Create a provisioning request
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-provisioner
+      description: |
+        Creates a new provisioning request.
+      tags:
+      - provisioningRequests
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProvisioningRequestData"
+      responses:
+        '201':
+          description: Successfully created the provisioning request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProvisioningRequestInfo"
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../common/openapi.yaml#/components/schemas/ProblemDetails"
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../common/openapi.yaml#/components/schemas/ProblemDetails"
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../common/openapi.yaml#/components/schemas/ProblemDetails"
+
+  /o2ims-infrastructureProvisioning/v1/provisioningRequests/{provisioningRequestId}:
+    get:
+      operationId: getProvisioningRequest
+      summary: Get the provisioning request
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+        - role:o2ims-provisioner
+      description: |
+        Returns the details of a provisioning request.
+      parameters:
+      - $ref: "#/components/parameters/provisioningRequestId"
+      tags:
+      - provisioningRequests
+      responses:
+        '200':
+          description: |
+            Successfully obtained the details of the provisioning request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProvisioningRequestInfo"
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '404':
+          description: The specified provisioning request was not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+    put:
+      operationId: updateProvisioningRequest
+      summary: Update a provisioning request
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-provisioner
+      description: |
+        Replaces an existing provisioning request.
+      parameters:
+      - $ref: "#/components/parameters/provisioningRequestId"
+      tags:
+      - provisioningRequests
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProvisioningRequestData"
+      responses:
+        '200':
+          description: Successfully updated the provisioning request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProvisioningRequestInfo"
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../common/openapi.yaml#/components/schemas/ProblemDetails"
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '404':
+          description: The specified provisioning request was not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../common/openapi.yaml#/components/schemas/ProblemDetails"
+        '412':
+          description: Precondition failed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../common/openapi.yaml#/components/schemas/ProblemDetails"
+        '422':
+          description: Unprocessable entity.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../common/openapi.yaml#/components/schemas/ProblemDetails"
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../common/openapi.yaml#/components/schemas/ProblemDetails"
+    delete:
+      operationId: deleteProvisioningRequest
+      summary: Delete a provisioning request
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-provisioner
+      description: |
+        Deletes a provisioning request.
+      parameters:
+      - $ref: "#/components/parameters/provisioningRequestId"
+      tags:
+      - provisioningRequests
+      responses:
+        '200':
+          description: Successfully deleted the provisioning request.
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '404':
+          description: The specified provisioning request was not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../common/openapi.yaml#/components/schemas/ProblemDetails"
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "../common/openapi.yaml#/components/schemas/ProblemDetails"
+
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      description: This API uses OAuth 2 with the client credentials flow.
+      flows:
+        clientCredentials:
+          tokenUrl: https://keycloak.example.com/realms/oran/protocol/openid-connect/token
+          scopes:
+            role:o2ims-reader: O2IMS Reader Role
+            role:o2ims-provisioner: O2IMS Provisioner Role
+
+  parameters:
+    provisioningRequestId:
+      name: provisioningRequestId
+      description: |
+        Unique identifier of a provisioning request.
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      example: 123e4567-e89b-12d3-a456-426614174000
+
+  schemas:
+    ProvisioningRequestInfo:
+      description: |
+        Information about a provisioning request.
+      type: object
+      properties:
+        provisioningRequestData:
+          $ref: "#/components/schemas/ProvisioningRequestData"
+        provisionedResourceSets:
+          $ref: "#/components/schemas/ProvisionedResourceSets"
+        status:
+          $ref: "#/components/schemas/ProvisioningStatus"
+      required:
+      - provisioningRequestData
+      - provisionedResourceSets
+      - status
+
+    ProvisioningRequestData:
+      description: |
+        Input parameters for a provisioning request.
+      type: object
+      # Additional properties are not allowed
+      additionalProperties: false
+      properties:
+        provisioningRequestId:
+          type: string
+          format: uuid
+          description: |
+            Identifier for the provisioning request. This identifier is assigned by the SMO.
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        name:
+          type: string
+          minLength: 1
+          description: Human readable name of the provisioning request.
+          example: "sample-provisioning-request"
+        description:
+          type: string
+          description: Human readable description of the provisioning request.
+          example: "this is an example provisioning request."
+        templateName:
+          type: string
+          minLength: 1
+          description: Name of the template used for the provisioning request.
+          example: "sample-template"
+        templateVersion:
+          type: string
+          minLength: 1
+          description: Version of the template used for the provisioning request.
+          example: "v4-17-3-1"
+        templateParameters:
+          type: object
+          description: Input Parameters that conform to the OpenAPI V3 schema defined in the template.
+          example: {}
+      required:
+      - provisioningRequestId
+      - name
+      - description
+      - templateName
+      - templateVersion
+      - templateParameters
+
+    ProvisioningStatus:
+      type: object
+      description: Details about the status of the provisioning request.
+      properties:
+        updateTime:
+          type: string
+          description: |
+            Timestamp indicating the last time the status of the provisioning request was updated.
+          format: date-time
+          example: 2024-01-15T20:32:28Z
+        message:
+          type: string
+          description: Message describing the status of the provisioning request.
+          example: "Cluster installation is in progress"
+        provisioningPhase:
+          type: string
+          description: Current state of the provisioning request.
+          enum: [pending, progressing, fulfilled, failed, deleting]
+          example: "progressing"
+
+    ProvisionedResourceSets:
+      type: object
+      description: |
+        The resources that have been successfully provisioned as part of the provisioning process.
+      properties:
+        nodeClusterId:
+          type: string
+          format: uuid
+          description: Identifier of the NodeCluster that has been provisioned.
+          example: "a1478db9-651f-4d30-96d6-8af13481d779"

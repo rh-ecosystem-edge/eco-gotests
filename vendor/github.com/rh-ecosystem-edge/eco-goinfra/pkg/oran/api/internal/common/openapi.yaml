@@ -1,0 +1,345 @@
+#
+# Copyright (c) 2023 Red Hat, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in
+# compliance with the License. You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed under the License is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied. See the License for the specific language governing permissions and limitations under the
+# License.
+#
+
+openapi: "3.0.0"
+
+info:
+  title: O2IMS Common Models and Parameters
+  version: 1.0.0
+  description: |
+    O2IMS Common Models and Parameters
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+paths: {}
+
+components:
+  parameters:
+    allFields:
+      name: all_fields
+      description: |
+        This URI query parameter requests that all complex attributes are included in the response.
+
+        ```
+        all_fields
+        ```
+      in: query
+      required: false
+      schema:
+        type: string
+        nullable: true
+        default: "false"
+
+    fields:
+      name: fields
+      description: |
+        Comma separated list of field references to include in the result.
+
+        Each field reference is a field name, or a sequence of field names separated by slashes. For
+        example, to get the `name` field and the `country` subfield of the `extensions` field:
+
+        ```
+        fields=name,extensions/country
+        ```
+
+        When this parameter isn't used all the fields will be returned.
+      in: query
+      required: false
+      schema:
+        type: string
+      example: "name,extensions/country"
+
+    excludeFields:
+      name: exclude_fields
+      description: |
+        Comma separated list of field references to exclude from the result.
+
+        Each field reference is a field name, or a sequence of field names separated by slashes. For
+        example, to exclude the `country` subfield of the `extensions` field:
+
+        ```
+        exclude_fields=extensions/country
+        ```
+
+        When this parameter isn't used no field will be excluded.
+
+        Fields in this list will be excluded even if they are explicitly included using the
+        `fields` parameter.
+      in: query
+      required: false
+      schema:
+        type: string
+      example: "name,extensions/country"
+
+    filter:
+      name: filter
+      description: |
+        Search criteria.
+
+        Contains one or more search criteria, separated by semicolons. Each search criteria is a
+        tuple containing an operator, a field reference and one or more values. The operator can
+        be any of the following strings:
+
+        | Operator | Meaning                                                     |
+        |----------|-------------------------------------------------------------|
+        | `cont`   | Matches if the field contains the value                     |
+        | `eq`     | Matches if the field is equal to the value                  |
+        | `gt`     | Matches if the field is greater than the value              |
+        | `gte`    | Matches if the field is greater than or equal to the value  |
+        | `in`     | Matches if the field is one of the values                   |
+        | `lt`     | Matches if the field is less than the value                 |
+        | `lte`    | Matches if the field is less than or equal to the the value |
+        | `ncont`  | Matches if the field does not contain the value             |
+        | `neq`    | Matches if the field is not equal to the value              |
+        | `nin`    | Matches if the field is not one of the values               |
+
+        The field reference is the name of one of the fields of the object, or a sequence of
+        name of fields separated by slashes. For example, to use the `country` sub-field inside
+        the `extensions` field:
+
+        ```
+        filter=(eq,extensions/country,EQ)
+        ```
+
+        The values are the arguments of the operator. For example, the `eq` operator compares
+        checks if the value of the field is equal to the value.
+
+        The `in` and `nin` operators support multiple values. For example, to check if the `country`
+        sub-field inside the `extensions` field is either `ES` or `US:
+
+        ```
+        filter=(in,extensions/country,ES,US)
+        ```
+
+        When values contain commas, slashes or spaces they need to be surrounded by single quotes.
+        For example, to check if the `name` field is the string `my cluster`:
+
+        ```
+        filter=(eq,name,'my cluster')
+        ```
+
+        When multiple criteria separated by semicolons are used, all of them must match for the
+        complete condition to match. For example, the following will check if the `name` is
+        `my cluster` *and* the `country` extension is `ES`:
+
+        ```
+        filter=(eq,name,'my cluster');(eq,extensions/country,ES)
+        ```
+
+        When this parameter isn't used all the results will be returned.
+      in: query
+      required: false
+      schema:
+        type: string
+      example: "(eq,name,my cluster)"
+
+    alarmDictionaryId:
+      name: alarmDictionaryId
+      description: |
+        Unique identifier of an alarm dictionary.
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      example: 38dcb63b-b1f0-4d2c-88bf-56446670ef01
+
+  schemas:
+
+    APIVersion:
+      description: |
+        Information about a version of the API.
+      type: object
+      properties:
+        version:
+          type: string
+          example: "1.0.0"
+
+    APIVersions:
+      description: |
+        Information about a list of versions of the API.
+      type: object
+      properties:
+        uriPrefix:
+          type: string
+          example: "/o2ims-infrastructureInventory/v1"
+        apiVersions:
+          type: array
+          items:
+            $ref: "#/components/schemas/APIVersion"
+          example:
+          - version: "1.0.0"
+
+    ProblemDetails:
+      type: object
+      properties:
+        type:
+          type: string
+          format: uri
+          description: |
+            A URI reference according to IETF RFC 3986 [3] that identifies the problem type. It is encouraged that the URI provides
+            human-readable documentation for the problem (e.g. usingHTML) when dereferenced. When this member is not present,
+            its value is assumed to be "about:blank".
+          example: 'https://problem.description.com'
+        title:
+          type: string
+          description: |
+            A short, human-readable summary of the problem type. It should not change from occurrence to occurrence of the problem,
+            except for purposes of localization. If type is given and other than "about:blank", this attribute shall also be provided.
+        status:
+          type: integer
+          description: The HTTP status code for this occurrence of the problem.
+        detail:
+          type: string
+          description: A human-readable explanation specific to this occurrence of the problem.
+          example: Connection to database timed out
+        instance:
+          type: string
+          format: uri
+          description: |
+            A URI reference that identifies the specific occurrence of the problem. 
+            It may yield further information if dereferenced.
+        additionalAttributes:
+          type: object
+          additionalProperties:
+            type: string
+          description: Any number of additional attributes, as defined in a specification or by an implementation.
+      required:
+      - status
+      - detail
+
+    AlarmDictionary:
+      description: Information about an alarm dictionary.
+      type: object
+      properties:
+        alarmDictionaryId:
+          type: string
+          format: uuid
+          description: |
+            The Identifier of the Alarm Dictionary. The Identifier is unique within an O-Cloud.
+        alarmDictionaryVersion:
+          type: string
+          description: |
+            Version of the Alarm Dictionary. Version is vendor defined such that the version of the dictionary can be
+            associated with a specific version of the software delivery of this product.
+        alarmDictionarySchemaVersion:
+          type: string
+          description: |
+            Version of the Alarm Dictionary Schema to which this alarm dictionary conforms.
+        entityType:
+          type: string
+          description: |
+            O-RAN entity type emitting the alarm: This shall be unique per vendor ResourceType.model and
+            ResourceType.version
+        vendor:
+          type: string
+          description: |
+            Vendor of the Entity Type to whom this Alarm Dictionary applies. This should be the same value as in the 
+            ResourceType.vendor attribute
+        managementInterfaceId:
+          type: array
+          description: |
+            List of management interface over which alarms are transmitted for this Entity Type.  
+            RESTRICTION: For the O-Cloud IMS Services this value is limited to O2IMS.
+          items:
+            type: string
+            enum: [ O2IMS ]
+        pkNotificationField:
+          type: array
+          description: |
+            Identifies which field or list of fields in the alarm notification contains the primary key (PK) into the
+            Alarm Dictionary for this interface; i.e. which field contains the Alarm Definition ID.
+          items:
+            type: string
+        alarmDefinition:
+          type: array
+          items:
+            $ref: "#/components/schemas/AlarmDefinition"
+      required:
+        - alarmDictionaryId
+        - alarmDictionaryVersion
+        - alarmDictionarySchemaVersion
+        - entityType
+        - vendor
+        - managementInterfaceId
+        - pkNotificationField
+        - alarmDefinition
+
+    AlarmDefinition:
+      description: Information about an alarm definition.
+      type: object
+      properties:
+        alarmDefinitionId:
+          type: string
+          format: uuid
+          description: |
+            Provides a unique identifier of the alarm being raised. This is the Primary Key into the Alarm Dictionary
+        alarmName:
+          type: string
+          description: |
+            Provides short name for the alarm
+        alarmLastChange:
+          type: string
+          description: |
+            Indicates the Alarm Dictionary Version in which this alarm last changed.
+        alarmChangeType:
+          type: string
+          enum: [ ADDED, DELETED, MODIFIED ]
+          description: |
+            Indicates the type of change that occurred during the alarm last change; added, deleted, modified.
+        alarmDescription:
+          type: string
+          description: |
+            Provides a longer descriptive meaning of the alarm condition and a description of the consequences of the
+            alarm condition. This is intended to be read by an operator to give an idea of what happened and a sense of
+            the effects, consequences, and other impacted areas of the system.
+        proposedRepairActions:
+          type: string
+          description: |
+            Provides guidance for proposed repair actions.
+        clearingType:
+          type: string
+          enum: [ AUTOMATIC, MANUAL ]
+          description: |
+            Identifies whether alarm is cleared automatically or manually.
+        managementInterfaceId:
+          type: array
+          items:
+            type: string
+            enum: [ O2IMS ]
+          description: |
+            List of management interface over which alarms are transmitted for this Entity Type.
+            RESTRICTION: For the O-Cloud IMS Services this value is limited to O2IMS.
+        pkNotificationField:
+          type: array
+          items:
+            type: string
+          description: |
+            Identifies which field or list of fields in the alarm notification contains the primary key (PK) into the
+            Alarm Dictionary for this interface; i.e. which field contains the Alarm Definition ID.
+        alarmAdditionalFields:
+          type: object
+          description: |
+            List of metadata key-value pairs used to associate meaningful metadata to the related resource type.
+      required:
+        - alarmDefinitionId
+        - alarmName
+        - alarmLastChange
+        - alarmChangeType
+        - alarmDescription
+        - proposedRepairActions
+        - clearingType
+        - managementInterfaceId
+        - pkNotificationField

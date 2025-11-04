@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/oapi-codegen/oapi-codegen/HEAD/configuration-schema.json
+package: common
+output: common.gen.go
+
+generate:
+  client: false
+  models: true
+
+output-options:
+  skip-fmt: false
+  skip-prune: true
+  nullable-type: true
+  name-normalizer: ToCamelCaseWithDigits
