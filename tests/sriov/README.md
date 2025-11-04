@@ -12,15 +12,15 @@ This directory contains adapted SRIOV basic tests copied from the OpenShift test
 
 The following test cases are included:
 
-1. **Test container with spoofchk is on** - Tests SRIOV VF with spoof checking enabled
-2. **Test container with spoofchk is off** - Tests SRIOV VF with spoof checking disabled
-3. **Test container with trust is off** - Tests SRIOV VF with trust disabled
-4. **Test container with trust is on** - Tests SRIOV VF with trust enabled
-5. **Test container with VF and set vlan minTxRate maxTxRate** - Tests SRIOV VF with VLAN and rate limiting
-6. **Test container with VF and set linkState is auto** - Tests SRIOV VF with auto link state
-7. **Test container with VF and set linkState is enable** - Tests SRIOV VF with enabled link state
-8. **MTU testing for sriov policy** - Tests SRIOV VF with custom MTU settings
-9. **DPDK for sriov vf can be worked well** - Tests SRIOV VF with DPDK
+1. **SR-IOV VF with spoof checking enabled** - Tests SRIOV VF with spoof checking enabled
+2. **SR-IOV VF with spoof checking disabled** - Tests SRIOV VF with spoof checking disabled
+3. **SR-IOV VF with trust disabled** - Tests SRIOV VF with trust disabled
+4. **SR-IOV VF with trust enabled** - Tests SRIOV VF with trust enabled
+5. **SR-IOV VF with VLAN and rate limiting configuration** - Tests SRIOV VF with VLAN and rate limiting
+6. **SR-IOV VF with auto link state** - Tests SRIOV VF with auto link state
+7. **SR-IOV VF with enabled link state** - Tests SRIOV VF with enabled link state
+8. **MTU configuration for SR-IOV policy** - Tests SRIOV VF with custom MTU settings
+9. **DPDK SR-IOV VF functionality validation** - Tests SRIOV VF with DPDK
 
 ## Device Configuration
 
@@ -69,7 +69,7 @@ The `testdata/` directory contains YAML templates for:
 
 ## Notes
 
-- Tests are marked as `[Disruptive]` as they modify cluster networking configuration
+- Tests are marked as `[Disruptive]` and `[Serial]` as they modify cluster networking configuration and must run sequentially
 - Some tests skip certain device types (e.g., x710, bcm devices) due to hardware limitations
 - Tests clean up resources after completion
 - DPDK tests require specific hardware support and may be skipped on unsupported platforms
