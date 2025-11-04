@@ -51,4 +51,7 @@ const (
 
 	// CLOInstanceName is a cluster logging instance name.
 	CLOInstanceName = "instance"
+
+	// PureStorageFileSCName is a pure storage file storage class name.
+	PureStorageFileSCName = "fa-file-sc"
 )

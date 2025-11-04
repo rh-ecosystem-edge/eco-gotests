@@ -68,6 +68,34 @@ func createPVC(fPVCName, fNamespace, fStorageClass, fVolumeMode, fCapacity strin
 	return myPVC
 }
 
+func cleanupPVCDataInNamespace(fNamespace string) {
+	existingPods, err := pod.List(APIClient, fNamespace, metav1.ListOptions{LabelSelector: labelsWlkdOneString})
+	if err != nil {
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Failed to list pods for PVC cleanup in ns %q: %v. Skipping cleanup.",
+			fNamespace, err)
+	}
+	for _, podOne := range existingPods {
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cleaning up PVC data via pod %q in ns %q", podOne.Definition.Name, fNamespace)
+
+		if err := podOne.WaitUntilReady(1 * time.Minute); err != nil {
+			glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"Skipping PVC cleanup for pod %q in ns %q because it is not Ready: %v",
+				podOne.Definition.Name, fNamespace, err)
+			continue
+		}
+
+		cleanupCmd := []string{"/bin/bash", "-c", "rm -rf /opt/cephfs-pvc/*"}
+		podCommandResult, err := podOne.ExecCommand(cleanupCmd, "one")
+		if err != nil {
+			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("PVC cleanup command failed on pod %q: %v", podOne.Definition.Name, err)
+		}
+
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("PVC cleanup command result on pod %q: %s", podOne.Definition.Name, podCommandResult.String())
+
+	}
+}
+
 //nolint:funlen,unparam
 func createWorkloadWithPVC(fNamespace string, fStorageClass string, fPVCName string, fVolumeMode string) {
 	var (
@@ -84,34 +112,10 @@ func createWorkloadWithPVC(fNamespace string, fStorageClass string, fPVCName str
 	if workloadNS, err := namespace.Pull(APIClient, fNamespace); err == nil {
 		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(fmt.Sprintf("Namespace %q exists. Removing...", fNamespace))
 
-		if fStorageClass == "fa-file-sc" {
-			By("If SC is fa-file-sc, removing data from PVC before deleting the namespace")
+		if fStorageClass == rdscoreparams.PureStorageFileSCName {
+			By("If SC is PureStorageFileSCName, removing data from PVC before deleting the namespace")
 
-			existingPods, err := pod.List(APIClient, fNamespace, metav1.ListOptions{LabelSelector: labelsWlkdOneString})
-			if err != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-					"Failed to list pods for PVC cleanup in ns %q: %v. Skipping cleanup.",
-					fNamespace, err)
-			}
-			for _, podOne := range existingPods {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cleaning up PVC data via pod %q in ns %q", podOne.Definition.Name, fNamespace)
-
-				if err := podOne.WaitUntilReady(1 * time.Minute); err != nil {
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-						"Skipping PVC cleanup for pod %q in ns %q because it is not Ready: %v",
-						podOne.Definition.Name, fNamespace, err)
-					continue
-				}
-
-				cleanupCmd := []string{"/bin/bash", "-c", "rm -rf /opt/cephfs-pvc/*"}
-				podCommandResult, err := podOne.ExecCommand(cleanupCmd, "one")
-				if err != nil {
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("PVC cleanup command failed on pod %q: %v", podOne.Definition.Name, err)
-				}
-
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("PVC cleanup command result on pod %q: %v - %s", podOne.Definition.Name, podCommandResult, &podCommandResult)
-
-			}
+			cleanupPVCDataInNamespace(fNamespace)
 		}
 
 		delErr := workloadNS.DeleteAndWait(6 * time.Minute)
