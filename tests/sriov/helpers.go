@@ -45,9 +45,15 @@ func (nc *NetworkConfig) GetJunitReportPath() string {
 // Initialize the test environment
 func init() {
 	// Initialize with default values - these would normally come from environment or config
+	// Allow override via environment variable for multi-arch support (e.g., ARM64)
+	testContainer := os.Getenv("ECO_SRIOV_TEST_CONTAINER")
+	if testContainer == "" {
+		testContainer = "quay.io/openshift-kni/cnf-tests:4.16"
+	}
+
 	NetConfig = &NetworkConfig{
 		WorkerLabel:            "node-role.kubernetes.io/worker",
-		CnfNetTestContainer:    "quay.io/openshift-kni/cnf-tests:4.16",
+		CnfNetTestContainer:    testContainer,
 		CnfMcpLabel:            "machineconfiguration.openshift.io/role=worker",
 		SriovOperatorNamespace: "openshift-sriov-network-operator",
 		WorkerLabelMap:         map[string]string{"node-role.kubernetes.io/worker": ""},

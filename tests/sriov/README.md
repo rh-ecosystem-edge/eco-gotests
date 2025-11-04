@@ -26,7 +26,9 @@ The following test cases are included:
 
 The tests support both environment variable configuration and default device configurations:
 
-### Environment Variable
+### Environment Variables
+
+#### SRIOV_DEVICES
 Set `SRIOV_DEVICES` environment variable with the format:
 ```bash
 export SRIOV_DEVICES="name1:deviceid1:vendor1:interface1,name2:deviceid2:vendor2:interface2,..."
@@ -36,6 +38,14 @@ Example:
 ```bash
 export SRIOV_DEVICES="e810xxv:159b:8086:ens2f0,e810c:1593:8086:ens2f2"
 ```
+
+#### ECO_SRIOV_TEST_CONTAINER
+Override the default test container image (useful for ARM64/multi-arch support):
+```bash
+export ECO_SRIOV_TEST_CONTAINER="quay.io/ocp-edge-qe/eco-gotests-network-client:v4.15.2"
+```
+
+**Note:** The default image `quay.io/openshift-kni/cnf-tests:4.16` may not support ARM64 architecture. For ARM64 clusters, use an image that supports multi-arch (e.g., `quay.io/ocp-edge-qe/eco-gotests-network-client:v4.15.2`).
 
 ### Default Devices
 If no environment variable is set, the following default devices are used:
