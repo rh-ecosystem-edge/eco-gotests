@@ -45,7 +45,27 @@ Override the default test container image (useful for ARM64/multi-arch support):
 export ECO_SRIOV_TEST_CONTAINER="quay.io/ocp-edge-qe/eco-gotests-network-client:v4.15.2"
 ```
 
-**Note:** The default image `quay.io/openshift-kni/cnf-tests:4.16` may not support ARM64 architecture. For ARM64 clusters, use an image that supports multi-arch (e.g., `quay.io/ocp-edge-qe/eco-gotests-network-client:v4.15.2`).
+**Note:** The default image `quay.io/openshift-kni/cnf-tests:4.16` may not support ARM64 architecture. For ARM64 clusters, use an image that supports multi-arch.
+
+**ARM64 Image Options:**
+- `quay.io/ocp-edge-qe/eco-gotests-network-client:v4.15.2` - Recommended for ARM64, multi-arch support
+- `quay.io/ocp-edge-qe/eco-gotests-network-client:latest` - Latest version (may have newer ARM64 fixes)
+- `quay.io/ocp-edge-qe/eco-gotests-network-client:v4.16.0` - If available, newer version
+
+**Troubleshooting ARM64 Issues:**
+If containers keep restarting on ARM64:
+1. Verify image architecture compatibility:
+   ```bash
+   docker manifest inspect quay.io/ocp-edge-qe/eco-gotests-network-client:v4.15.2 | grep architecture
+   ```
+2. Check if the image has `/bin/bash` or `/bin/sh`:
+   ```bash
+   docker run --rm --entrypoint ls quay.io/ocp-edge-qe/eco-gotests-network-client:v4.15.2 /bin/bash /bin/sh
+   ```
+3. Try using a different tag or check pod logs:
+   ```bash
+   kubectl logs <pod-name> -n <namespace> --previous
+   ```
 
 ### Default Devices
 If no environment variable is set, the following default devices are used:
