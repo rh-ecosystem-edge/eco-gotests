@@ -57,8 +57,12 @@ If no environment variable is set, the following default devices are used:
 ## Running the Tests
 
 ```bash
+export GOSUMDB=sum.golang.org
+export GOTOOLCHAIN=auto
 go test ./tests/sriov/... -v
 ```
+
+Note: `GOTOOLCHAIN=auto` ensures Go uses the correct toolchain version as specified in `go.mod`. `GOSUMDB=sum.golang.org` enables checksum verification for module downloads.
 
 ## Test Data
 
