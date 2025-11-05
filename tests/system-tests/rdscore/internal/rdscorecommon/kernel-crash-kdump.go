@@ -63,8 +63,7 @@ func crashNodeKDump(nodeLabel string) {
 
 		By("Waiting for node to go into NotReady state")
 
-		err = node.WaitUntilNotReady(5 * time.Minute)
-		Expect(err).ToNot(HaveOccurred(), "Error waiting for node to go into NotReady state")
+		waitForNodeToBeNotReady(ctx, node.Definition.Name, 5*time.Second, 5*time.Minute)
 
 		By("Waiting for node to go into Ready state")
 
