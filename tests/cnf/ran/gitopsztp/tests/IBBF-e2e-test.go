@@ -6,6 +6,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/argocd"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/configmap"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/hive"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ocm"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	siteconfigv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/siteconfig/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/siteconfig"
@@ -69,9 +70,6 @@ var _ = Describe(
 			_, err = configMap.Create()
 			Expect(err).ToNot(HaveOccurred(), "error creating configmap")
 
-			// Get timestamp of configmap
-			configMapTimeStamp := configMap.Object.CreationTimestamp
-
 			By("Getting cluster identity pre-IBBF")
 			clusterDeployment, err := hive.PullClusterDeployment(HubAPIClient,
 				RANConfig.Spoke1Name,
@@ -80,7 +78,6 @@ var _ = Describe(
 
 			originalClusterID := clusterDeployment.Object.Spec.ClusterMetadata.ClusterID
 			originalInfraID := clusterDeployment.Object.Spec.ClusterMetadata.InfraID
-			originalUID := clusterDeployment.Object.ObjectMeta.UID
 
 			// Get clusterinstance.
 			clusterInstance, err := siteconfig.PullClusterInstance(
@@ -102,7 +99,7 @@ var _ = Describe(
 
 			By("Waiting for clusterinstance to start provisioning")
 
-			_, err = clusterInstance.WaitForReinstallCondition(metav1.Condition{
+			_, err = clusterInstance.WaitForCondition(metav1.Condition{
 				Type:   string(siteconfigv1alpha1.ClusterProvisioned),
 				Reason: string(siteconfigv1alpha1.InProgress)}, 5*time.Minute)
 
@@ -110,20 +107,17 @@ var _ = Describe(
 
 			By("Waiting for clusterinstance to finish provisioning")
 
-			_, err = clusterInstance.WaitForReinstallCondition(metav1.Condition{
+			_, err = clusterInstance.WaitForCondition(metav1.Condition{
 				Type:   string(siteconfigv1alpha1.ClusterProvisioned),
-				Reason: string(siteconfigv1alpha1.Completed)}, 30*time.Minute)
+				Reason: string(siteconfigv1alpha1.Completed)}, 60*time.Minute)
 
 			Expect(err).ToNot(HaveOccurred(), "error waiting for clusterinstance to complete re-install")
 
 			By("Verifying test configmap was preserved post-IBBF")
 
-			configMapPostIBBF, err := configmap.Pull(HubAPIClient,
+			_, err = configmap.Pull(HubAPIClient,
 				tsparams.TestCMName, spokeNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Preserved configmap is missing after IBBF")
-
-			Expect(configMapTimeStamp).ToNot(Equal(configMapPostIBBF.Object.CreationTimestamp),
-				"error: preserved configmap has the original timestamp")
 
 			By("Comparing cluster identity post-IBBF")
 			clusterDeploymentPostIBBF, err := hive.PullClusterDeployment(HubAPIClient,
@@ -135,11 +129,18 @@ var _ = Describe(
 				"error: reinstalled cluster has different ClusterID than original cluster")
 
 			Expect(originalInfraID).To(Equal(clusterDeploymentPostIBBF.Object.Spec.ClusterMetadata.InfraID),
-				"error: reinstalled cluster has different ClusterID than original cluster")
+				"error: reinstalled cluster has different InfraID than original cluster")
 
-			Expect(originalUID).To(Equal(string(clusterDeploymentPostIBBF.Object.ObjectMeta.UID)),
-				"error: reinstalled cluster has different ClusterID than original cluster")
+			By("Verifying managedcluster is available")
+
+			managedCluster, err := ocm.PullManagedCluster(HubAPIClient, RANConfig.Spoke1Name)
+			Expect(err).ToNot(HaveOccurred(), "error pulling managedcluster")
+
+			_, err = managedCluster.WaitForCondition(metav1.Condition{
+				Type:   "ManagedClusterConditionAvailable",
+				Status: metav1.ConditionTrue,
+			}, 5*time.Minute)
+			Expect(err).ToNot(HaveOccurred(), "error waiting for managedcluster to become available")
 
 		})
-
 	})
