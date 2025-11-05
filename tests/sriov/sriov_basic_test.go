@@ -32,8 +32,8 @@ type deviceConfig struct {
 }
 
 // parseDeviceConfig parses device configuration from environment variable
-// Format: SRIOV_DEVICES="name1:deviceid1:vendor1:interface1,name2:deviceid2:vendor2:interface2,..."
-// Example: SRIOV_DEVICES="e810xxv:159b:8086:ens2f0,e810c:1593:8086:ens2f2"
+// Format: export SRIOV_DEVICES="name1:deviceid1:vendor1:interface1,name2:deviceid2:vendor2:interface2,..."
+// Example: export SRIOV_DEVICES="e810xxv:159b:8086:ens2f0,e810c:1593:8086:ens2f2"
 // Returns empty slice if env var is not set or parsing fails
 func parseDeviceConfig() []deviceConfig {
 	envDevices := os.Getenv("SRIOV_DEVICES")
