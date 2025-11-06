@@ -11,8 +11,8 @@ spec:
       "type": "whereabouts",
       "range": "192.168.1.0/24"
     }
-  spoofChk: {{ .spoolchk }}
-  trust: {{ .trust }}
+  spoofChk: "{{ .spoolchk }}"
+  trust: "{{ .trust }}"
   {{- if .vlanId }}
   vlan: {{ .vlanId }}
   {{- end }}
