@@ -96,12 +96,14 @@ func cleanupPVCDataInNamespace(fNamespace string) {
 	}
 
 	for _, podOne := range existingPods {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cleaning up PVC data via pod %q in ns %q", podOne.Definition.Name, fNamespace)
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cleaning up PVC data via pod %q in ns %q",
+			podOne.Definition.Name, fNamespace)
 
 		if err := podOne.WaitUntilReady(1 * time.Minute); err != nil {
 			glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 				"Skipping PVC cleanup for pod %q in ns %q because it is not Ready: %v",
 				podOne.Definition.Name, fNamespace, err)
+
 			continue
 		}
 
@@ -113,7 +115,6 @@ func cleanupPVCDataInNamespace(fNamespace string) {
 
 		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("PVC cleanup command result on pod %q: %s",
 			podOne.Definition.Name, podCommandResult.String())
-
 	}
 }
 
