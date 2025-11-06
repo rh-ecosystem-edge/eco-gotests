@@ -68,6 +68,56 @@ func createPVC(fPVCName, fNamespace, fStorageClass, fVolumeMode, fCapacity strin
 	return myPVC
 }
 
+func cleanupPVCDataInNamespace(fNamespace string) {
+	var (
+		existingPods []*pod.Builder
+		err          error
+		ctx          SpecContext
+	)
+
+	Eventually(func() bool {
+		existingPods, err = pod.List(APIClient, fNamespace, metav1.ListOptions{LabelSelector: labelsWlkdOneString})
+		if err != nil {
+			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods in %q namespace: %v",
+				fNamespace, err)
+
+			return false
+		}
+
+		return true
+	}).WithContext(ctx).WithPolling(15*time.Second).WithTimeout(5*time.Minute).Should(BeTrue(),
+		fmt.Sprintf("Failed to list pods in %q namespace", fNamespace))
+
+	if len(existingPods) == 0 {
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found 0 pod matching label %q in namespace %q",
+			labelsWlkdOneString, fNamespace)
+
+		return
+	}
+
+	for _, podOne := range existingPods {
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cleaning up PVC data via pod %q in ns %q",
+			podOne.Definition.Name, fNamespace)
+
+		if err := podOne.WaitUntilReady(1 * time.Minute); err != nil {
+			glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"Skipping PVC cleanup for pod %q in ns %q because it is not Ready: %v",
+				podOne.Definition.Name, fNamespace, err)
+
+			continue
+		}
+
+		cleanupCmd := []string{"/bin/bash", "-c", "rm -rf /opt/cephfs-pvc/*"}
+		podCommandResult, err := podOne.ExecCommand(cleanupCmd, "one")
+
+		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("PVC cleanup command failed on pod %q: %v; output: %s",
+			podOne.Definition.Name, err, podCommandResult.String()))
+
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("PVC cleanup command result on pod %q: %s",
+			podOne.Definition.Name, podCommandResult.String())
+	}
+}
+
 //nolint:funlen,unparam
 func createWorkloadWithPVC(fNamespace string, fStorageClass string, fPVCName string, fVolumeMode string) {
 	var (
@@ -83,6 +133,12 @@ func createWorkloadWithPVC(fNamespace string, fStorageClass string, fPVCName str
 
 	if workloadNS, err := namespace.Pull(APIClient, fNamespace); err == nil {
 		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(fmt.Sprintf("Namespace %q exists. Removing...", fNamespace))
+
+		if fStorageClass == rdscoreparams.PureStorageFileSCName {
+			By("If SC is PureStorageFileSCName, removing data from PVC before deleting the namespace")
+
+			cleanupPVCDataInNamespace(fNamespace)
+		}
 
 		delErr := workloadNS.DeleteAndWait(6 * time.Minute)
 		Expect(delErr).ToNot(HaveOccurred(), fmt.Sprintf("Failed to delete %q namespace", fNamespace))
