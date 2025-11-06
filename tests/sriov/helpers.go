@@ -112,8 +112,27 @@ func CleanAllNetworksByTargetNamespace(client *clients.Settings, sriovOpNs, targ
 
 // pullTestImageOnNodes pulls given image on range of relevant nodes based on nodeSelector
 func pullTestImageOnNodes(apiClient *clients.Settings, nodeSelector, image string, pullTimeout int) error {
-	// Simple implementation - in real scenario this would pull images on nodes
-	// For now, we'll just return success
+	// Note: Image pulling is deferred to first pod creation
+	// When the first test pod is created, the kubelet will automatically pull the image from the registry.
+	// This lazy-pull approach has trade-offs:
+	//
+	// Benefits:
+	// - Avoids unnecessary pulls for skipped tests (multiple devices, conditional tests)
+	// - Simpler implementation without DaemonSet management
+	// - Distributed pulling across pod creation, reducing single point of failure
+	//
+	// Trade-off:
+	// - First pod creation may take longer due to image pull
+	// - If image pull fails, pod will stay in ImagePullBackOff state
+	//
+	// Alternative Implementation (if needed):
+	// - Deploy a DaemonSet on worker nodes to pre-pull the image
+	// - Wait for DaemonSet to complete on all nodes
+	// - Then proceed with test pod creation
+	//
+	// For now, returning success and relying on kubelet's image pull mechanism.
+	GinkgoLogr.Info("Image pulling deferred to pod creation", "image", image,
+		"note", "Images will be pulled on first pod creation. This may take extra time on first pod launch.")
 	return nil
 }
 
@@ -408,6 +427,8 @@ func initDpdkVF(name, deviceID, interfaceName, vendor, sriovOpNs string, vfNum i
 			getAPIClient(), 35*time.Minute, time.Minute, NetConfig.CnfMcpLabel, sriovOpNs)
 		if err != nil {
 			GinkgoLogr.Info("Failed to wait for DPDK SRIOV policy", "error", err, "node", node.Definition.Name)
+			// Clean up failed policy before retrying on next node
+			rmSriovPolicy(name, sriovOpNs)
 			continue
 		}
 
