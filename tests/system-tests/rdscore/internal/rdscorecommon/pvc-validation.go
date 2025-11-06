@@ -69,12 +69,32 @@ func createPVC(fPVCName, fNamespace, fStorageClass, fVolumeMode, fCapacity strin
 }
 
 func cleanupPVCDataInNamespace(fNamespace string) {
-	existingPods, err := pod.List(APIClient, fNamespace, metav1.ListOptions{LabelSelector: labelsWlkdOneString})
-	if err != nil {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-			"Failed to list pods for PVC cleanup in ns %q: %v. Skipping cleanup.",
-			fNamespace, err)
+	var (
+		existingPods []*pod.Builder
+		err          error
+		ctx          SpecContext
+	)
+
+	Eventually(func() bool {
+		existingPods, err = pod.List(APIClient, fNamespace, metav1.ListOptions{LabelSelector: labelsWlkdOneString})
+		if err != nil {
+			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods in %q namespace: %v",
+				fNamespace, err)
+
+			return false
+		}
+
+		return true
+	}).WithContext(ctx).WithPolling(15*time.Second).WithTimeout(5*time.Minute).Should(BeTrue(),
+		fmt.Sprintf("Failed to list pods in %q namespace", fNamespace))
+
+	if len(existingPods) == 0 {
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found 0 pod matching label %q in namespace %q",
+			labelsWlkdOneString, fNamespace)
+
+		return
 	}
+
 	for _, podOne := range existingPods {
 		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cleaning up PVC data via pod %q in ns %q", podOne.Definition.Name, fNamespace)
 
@@ -87,11 +107,12 @@ func cleanupPVCDataInNamespace(fNamespace string) {
 
 		cleanupCmd := []string{"/bin/bash", "-c", "rm -rf /opt/cephfs-pvc/*"}
 		podCommandResult, err := podOne.ExecCommand(cleanupCmd, "one")
-		if err != nil {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("PVC cleanup command failed on pod %q: %v", podOne.Definition.Name, err)
-		}
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("PVC cleanup command result on pod %q: %s", podOne.Definition.Name, podCommandResult.String())
+		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("PVC cleanup command failed on pod %q: %v; output: %s",
+			podOne.Definition.Name, err, podCommandResult.String()))
+
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("PVC cleanup command result on pod %q: %s",
+			podOne.Definition.Name, podCommandResult.String())
 
 	}
 }
