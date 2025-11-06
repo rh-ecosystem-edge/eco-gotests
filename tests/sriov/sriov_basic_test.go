@@ -109,6 +109,9 @@ func TestSriovBasic(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	By("Cleaning up leftover resources from previous failed test runs")
+	cleanupLeftoverResources(getAPIClient(), NetConfig.SriovOperatorNamespace)
+
 	By("Creating test namespace with privileged labels")
 	// Log equivalent oc command for troubleshooting
 	GinkgoLogr.Info("Equivalent oc command", "command", fmt.Sprintf("oc get namespace %s || oc create namespace %s", getTestNS().Definition.Name, getTestNS().Definition.Name))
@@ -188,6 +191,8 @@ var _ = Describe("[sig-networking] SDN sriov-legacy", func() {
 			}
 			func() {
 				ns1 := "e2e-" + caseID + data.Name
+				// Create unique network name with test case ID to avoid conflicts between tests
+				networkName := caseID + data.Name
 				// Create namespace for the test
 				nsBuilder := namespace.NewBuilder(getAPIClient(), ns1)
 				for key, value := range params.PrivilegedNSLabels {
@@ -200,8 +205,8 @@ var _ = Describe("[sig-networking] SDN sriov-legacy", func() {
 					return nsBuilder.Exists()
 				}, 30*time.Second, time.Second).Should(BeTrue(), "Namespace %s should exist", ns1)
 				defer func() {
-					// Clean up namespace after test
-					err := nsBuilder.DeleteAndWait(30 * time.Second)
+					// Clean up namespace after test (increased timeout for SR-IOV cleanup)
+					err := nsBuilder.DeleteAndWait(120 * time.Second)
 					if err != nil {
 						GinkgoLogr.Info("Failed to delete namespace", "namespace", ns1, "error", err)
 					}
@@ -211,7 +216,7 @@ var _ = Describe("[sig-networking] SDN sriov-legacy", func() {
 				GinkgoLogr.Info("device ID", "deviceID", data.DeviceID)
 				GinkgoLogr.Info("device Name", "deviceName", data.Name)
 				sriovnetwork := sriovNetwork{
-					name:             data.Name,
+					name:             networkName,
 					resourceName:     data.Name,
 					networkNamespace: ns1,
 					template:         sriovNetworkTemplate,
@@ -244,6 +249,8 @@ var _ = Describe("[sig-networking] SDN sriov-legacy", func() {
 			}
 			func() {
 				ns1 := "e2e-" + caseID + data.Name
+				// Create unique network name with test case ID to avoid conflicts between tests
+				networkName := caseID + data.Name
 				// Create namespace for the test
 				nsBuilder := namespace.NewBuilder(getAPIClient(), ns1)
 				for key, value := range params.PrivilegedNSLabels {
@@ -256,8 +263,8 @@ var _ = Describe("[sig-networking] SDN sriov-legacy", func() {
 					return nsBuilder.Exists()
 				}, 30*time.Second, time.Second).Should(BeTrue(), "Namespace %s should exist", ns1)
 				defer func() {
-					// Clean up namespace after test
-					err := nsBuilder.DeleteAndWait(30 * time.Second)
+					// Clean up namespace after test (increased timeout for SR-IOV cleanup)
+					err := nsBuilder.DeleteAndWait(120 * time.Second)
 					if err != nil {
 						GinkgoLogr.Info("Failed to delete namespace", "namespace", ns1, "error", err)
 					}
@@ -267,7 +274,7 @@ var _ = Describe("[sig-networking] SDN sriov-legacy", func() {
 				GinkgoLogr.Info("device ID", "deviceID", data.DeviceID)
 				GinkgoLogr.Info("device Name", "deviceName", data.Name)
 				sriovnetwork := sriovNetwork{
-					name:             data.Name,
+					name:             networkName,
 					resourceName:     data.Name,
 					networkNamespace: ns1,
 					template:         sriovNetworkTemplate,
@@ -299,6 +306,8 @@ var _ = Describe("[sig-networking] SDN sriov-legacy", func() {
 			}
 			func() {
 				ns1 := "e2e-" + caseID + data.Name
+				// Create unique network name with test case ID to avoid conflicts between tests
+				networkName := caseID + data.Name
 				// Create namespace for the test
 				nsBuilder := namespace.NewBuilder(getAPIClient(), ns1)
 				for key, value := range params.PrivilegedNSLabels {
@@ -311,8 +320,8 @@ var _ = Describe("[sig-networking] SDN sriov-legacy", func() {
 					return nsBuilder.Exists()
 				}, 30*time.Second, time.Second).Should(BeTrue(), "Namespace %s should exist", ns1)
 				defer func() {
-					// Clean up namespace after test
-					err := nsBuilder.DeleteAndWait(30 * time.Second)
+					// Clean up namespace after test (increased timeout for SR-IOV cleanup)
+					err := nsBuilder.DeleteAndWait(120 * time.Second)
 					if err != nil {
 						GinkgoLogr.Info("Failed to delete namespace", "namespace", ns1, "error", err)
 					}
@@ -322,7 +331,7 @@ var _ = Describe("[sig-networking] SDN sriov-legacy", func() {
 				GinkgoLogr.Info("device ID", "deviceID", data.DeviceID)
 				GinkgoLogr.Info("device Name", "deviceName", data.Name)
 				sriovnetwork := sriovNetwork{
-					name:             data.Name,
+					name:             networkName,
 					resourceName:     data.Name,
 					networkNamespace: ns1,
 					template:         sriovNetworkTemplate,
@@ -355,6 +364,8 @@ var _ = Describe("[sig-networking] SDN sriov-legacy", func() {
 			}
 			func() {
 				ns1 := "e2e-" + caseID + data.Name
+				// Create unique network name with test case ID to avoid conflicts between tests
+				networkName := caseID + data.Name
 				// Create namespace for the test
 				nsBuilder := namespace.NewBuilder(getAPIClient(), ns1)
 				for key, value := range params.PrivilegedNSLabels {
@@ -367,8 +378,8 @@ var _ = Describe("[sig-networking] SDN sriov-legacy", func() {
 					return nsBuilder.Exists()
 				}, 30*time.Second, time.Second).Should(BeTrue(), "Namespace %s should exist", ns1)
 				defer func() {
-					// Clean up namespace after test
-					err := nsBuilder.DeleteAndWait(30 * time.Second)
+					// Clean up namespace after test (increased timeout for SR-IOV cleanup)
+					err := nsBuilder.DeleteAndWait(120 * time.Second)
 					if err != nil {
 						GinkgoLogr.Info("Failed to delete namespace", "namespace", ns1, "error", err)
 					}
@@ -378,7 +389,7 @@ var _ = Describe("[sig-networking] SDN sriov-legacy", func() {
 				GinkgoLogr.Info("device ID", "deviceID", data.DeviceID)
 				GinkgoLogr.Info("device Name", "deviceName", data.Name)
 				sriovnetwork := sriovNetwork{
-					name:             data.Name,
+					name:             networkName,
 					resourceName:     data.Name,
 					networkNamespace: ns1,
 					template:         sriovNetworkTemplate,
@@ -416,6 +427,8 @@ var _ = Describe("[sig-networking] SDN sriov-legacy", func() {
 			}
 			func() {
 				ns1 := "e2e-" + caseID + data.Name
+				// Create unique network name with test case ID to avoid conflicts between tests
+				networkName := caseID + data.Name
 				// Create namespace for the test
 				nsBuilder := namespace.NewBuilder(getAPIClient(), ns1)
 				for key, value := range params.PrivilegedNSLabels {
@@ -428,8 +441,8 @@ var _ = Describe("[sig-networking] SDN sriov-legacy", func() {
 					return nsBuilder.Exists()
 				}, 30*time.Second, time.Second).Should(BeTrue(), "Namespace %s should exist", ns1)
 				defer func() {
-					// Clean up namespace after test
-					err := nsBuilder.DeleteAndWait(30 * time.Second)
+					// Clean up namespace after test (increased timeout for SR-IOV cleanup)
+					err := nsBuilder.DeleteAndWait(120 * time.Second)
 					if err != nil {
 						GinkgoLogr.Info("Failed to delete namespace", "namespace", ns1, "error", err)
 					}
@@ -439,7 +452,7 @@ var _ = Describe("[sig-networking] SDN sriov-legacy", func() {
 				GinkgoLogr.Info("device ID", "deviceID", data.DeviceID)
 				GinkgoLogr.Info("device Name", "deviceName", data.Name)
 				sriovnetwork := sriovNetwork{
-					name:             data.Name,
+					name:             networkName,
 					resourceName:     data.Name,
 					networkNamespace: ns1,
 					template:         sriovNetworkTemplate,
@@ -474,6 +487,8 @@ var _ = Describe("[sig-networking] SDN sriov-legacy", func() {
 			}
 			func() {
 				ns1 := "e2e-" + caseID + data.Name
+				// Create unique network name with test case ID to avoid conflicts between tests
+				networkName := caseID + data.Name
 				// Create namespace for the test
 				nsBuilder := namespace.NewBuilder(getAPIClient(), ns1)
 				for key, value := range params.PrivilegedNSLabels {
@@ -486,8 +501,8 @@ var _ = Describe("[sig-networking] SDN sriov-legacy", func() {
 					return nsBuilder.Exists()
 				}, 30*time.Second, time.Second).Should(BeTrue(), "Namespace %s should exist", ns1)
 				defer func() {
-					// Clean up namespace after test
-					err := nsBuilder.DeleteAndWait(30 * time.Second)
+					// Clean up namespace after test (increased timeout for SR-IOV cleanup)
+					err := nsBuilder.DeleteAndWait(120 * time.Second)
 					if err != nil {
 						GinkgoLogr.Info("Failed to delete namespace", "namespace", ns1, "error", err)
 					}
@@ -497,7 +512,7 @@ var _ = Describe("[sig-networking] SDN sriov-legacy", func() {
 				GinkgoLogr.Info("device ID", "deviceID", data.DeviceID)
 				GinkgoLogr.Info("device Name", "deviceName", data.Name)
 				sriovnetwork := sriovNetwork{
-					name:             data.Name,
+					name:             networkName,
 					resourceName:     data.Name,
 					networkNamespace: ns1,
 					template:         sriovNetworkTemplate,
@@ -529,6 +544,8 @@ var _ = Describe("[sig-networking] SDN sriov-legacy", func() {
 			}
 			func() {
 				ns1 := "e2e-" + caseID + data.Name
+				// Create unique network name with test case ID to avoid conflicts between tests
+				networkName := caseID + data.Name
 				// Create namespace for the test
 				nsBuilder := namespace.NewBuilder(getAPIClient(), ns1)
 				for key, value := range params.PrivilegedNSLabels {
@@ -541,8 +558,8 @@ var _ = Describe("[sig-networking] SDN sriov-legacy", func() {
 					return nsBuilder.Exists()
 				}, 30*time.Second, time.Second).Should(BeTrue(), "Namespace %s should exist", ns1)
 				defer func() {
-					// Clean up namespace after test
-					err := nsBuilder.DeleteAndWait(30 * time.Second)
+					// Clean up namespace after test (increased timeout for SR-IOV cleanup)
+					err := nsBuilder.DeleteAndWait(120 * time.Second)
 					if err != nil {
 						GinkgoLogr.Info("Failed to delete namespace", "namespace", ns1, "error", err)
 					}
@@ -552,7 +569,7 @@ var _ = Describe("[sig-networking] SDN sriov-legacy", func() {
 				GinkgoLogr.Info("device ID", "deviceID", data.DeviceID)
 				GinkgoLogr.Info("device Name", "deviceName", data.Name)
 				sriovnetwork := sriovNetwork{
-					name:             data.Name,
+					name:             networkName,
 					resourceName:     data.Name,
 					networkNamespace: ns1,
 					template:         sriovNetworkTemplate,
@@ -621,6 +638,8 @@ var _ = Describe("[sig-networking] SDN sriov-legacy", func() {
 
 			func() {
 				ns1 := "e2e-" + caseID + data.Name
+				// Create unique network name with test case ID to avoid conflicts between tests
+				networkName := caseID + data.Name
 				// Create namespace for the test
 				nsBuilder := namespace.NewBuilder(getAPIClient(), ns1)
 				for key, value := range params.PrivilegedNSLabels {
@@ -633,8 +652,8 @@ var _ = Describe("[sig-networking] SDN sriov-legacy", func() {
 					return nsBuilder.Exists()
 				}, 30*time.Second, time.Second).Should(BeTrue(), "Namespace %s should exist", ns1)
 				defer func() {
-					// Clean up namespace after test
-					err := nsBuilder.DeleteAndWait(30 * time.Second)
+					// Clean up namespace after test (increased timeout for SR-IOV cleanup)
+					err := nsBuilder.DeleteAndWait(120 * time.Second)
 					if err != nil {
 						GinkgoLogr.Info("Failed to delete namespace", "namespace", ns1, "error", err)
 					}
@@ -644,7 +663,7 @@ var _ = Describe("[sig-networking] SDN sriov-legacy", func() {
 				GinkgoLogr.Info("device ID", "deviceID", data.DeviceID)
 				GinkgoLogr.Info("device Name", "deviceName", data.Name)
 				sriovnetwork := sriovNetwork{
-					name:             data.Name,
+					name:             networkName,
 					resourceName:     data.Name,
 					networkNamespace: ns1,
 					template:         sriovNetworkTemplate,
@@ -695,8 +714,8 @@ var _ = Describe("[sig-networking] SDN sriov-legacy", func() {
 					return nsBuilder.Exists()
 				}, 30*time.Second, time.Second).Should(BeTrue(), "Namespace %s should exist", ns1)
 				defer func() {
-					// Clean up namespace after test
-					err := nsBuilder.DeleteAndWait(30 * time.Second)
+					// Clean up namespace after test (increased timeout for SR-IOV cleanup)
+					err := nsBuilder.DeleteAndWait(120 * time.Second)
 					if err != nil {
 						GinkgoLogr.Info("Failed to delete namespace", "namespace", ns1, "error", err)
 					}
