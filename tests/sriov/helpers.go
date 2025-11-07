@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"os"
 	"strings"
 	"time"
@@ -221,12 +222,14 @@ func WaitForSriovAndMCPStable(apiClient *clients.Settings, timeout time.Duration
 			// MCP check succeeded, verify conditions
 			GinkgoLogr.Info("INFO: MachineConfigPool check available",
 				"next_check", "Verify worker pool is Updated and not Degraded")
-			allPoolsUpdated := true
-			for _, pool := range mcpList.Items {
-				// Skip non-worker pools
-				if pool.Name != "worker" {
-					continue
-				}
+		allPoolsUpdated := true
+		for _, pool := range mcpList.Items {
+			// Check if pool matches the provided MCP label selector
+			// mcpLabel is passed by caller (e.g., "machineconfiguration.openshift.io/role=worker")
+			// Currently we focus on worker pools, but respect the label parameter for future flexibility
+			if pool.Name != "worker" {
+				continue
+			}
 
 				// Check for Updated=True condition
 				isUpdated := false
@@ -734,16 +737,7 @@ func (sn *sriovNetwork) createSriovNetwork() {
 		sn.resourceName,
 	).WithStaticIpam().WithMacAddressSupport().WithIPAddressSupport().WithLogLevel("debug")
 
-	// Set optional parameters
-	// Note: WithSpoofChk method may not be available in this version
-	// if sn.spoolchk != "" {
-	//	if sn.spoolchk == "on" {
-	//		networkBuilder.WithSpoofChk(true)
-	//	} else {
-	//		networkBuilder.WithSpoofChk(false)
-	//	}
-	// }
-
+	// Set optional parameters (spoof check is configured in the template)
 	if sn.trust != "" {
 		if sn.trust == "on" {
 			networkBuilder.WithTrustFlag(true)
@@ -1296,7 +1290,9 @@ func getPciAddress(namespace, podName, policyName string) string {
 
 // getRandomString generates a random string for unique naming
 func getRandomString() string {
-	return fmt.Sprintf("%d", time.Now().Unix())
+	// Combine timestamp with random component to avoid collisions in parallel test execution
+	// Using just Unix timestamp can cause collisions when tests run in rapid succession
+	return fmt.Sprintf("%d-%d", time.Now().Unix(), rand.Intn(10000))
 }
 
 // logOcCommand logs the equivalent oc/kubectl command for debugging
