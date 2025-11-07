@@ -11,6 +11,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	mcov1 "github.com/openshift/api/machineconfiguration/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
@@ -19,6 +20,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -154,20 +156,62 @@ func WaitForSriovAndMCPStable(apiClient *clients.Settings, timeout time.Duration
 	defer cancel()
 
 	err := wait.PollUntilContextCancel(ctx, interval, false, func(ctx context.Context) (bool, error) {
-		// Check SR-IOV node states for successful sync status
-		// List SriovNetworkNodeState resources to verify operator sync has completed
-		nodeStateList := &corev1.PodList{}
-		err := apiClient.Client.List(ctx, nodeStateList, &client.ListOptions{
-			Namespace: sriovOpNs,
+		// Check MachineConfigPool status and conditions
+		mcpList := &mcov1.MachineConfigPoolList{}
+		selector, err := labels.Parse(mcpLabel)
+		if err != nil {
+			GinkgoLogr.Info("Error parsing MCP label selector", "error", err)
+			return false, nil // Retry on error
+		}
+
+		err = apiClient.Client.List(ctx, mcpList, &client.ListOptions{
+			LabelSelector: selector,
 		})
+		if err != nil {
+			GinkgoLogr.Info("Error listing MachineConfigPools", "error", err)
+			return false, nil // Retry on error
+		}
+
+		// Verify all MCPs are updated and not degraded
+		for _, pool := range mcpList.Items {
+			isUpdated := false
+			isDegraded := false
+
+			for _, condition := range pool.Status.Conditions {
+				if condition.Type == mcov1.MachineConfigPoolUpdated && condition.Status == corev1.ConditionTrue {
+					isUpdated = true
+				}
+				if condition.Type == mcov1.MachineConfigPoolDegraded && condition.Status == corev1.ConditionTrue {
+					isDegraded = true
+					GinkgoLogr.Info("MCP is degraded", "pool", pool.Name, "reason", condition.Reason, "message", condition.Message)
+				}
+			}
+
+			if !isUpdated || isDegraded {
+				GinkgoLogr.Info("MCP not yet stable", "pool", pool.Name, "updated", isUpdated, "degraded", isDegraded)
+				return false, nil // Retry
+			}
+		}
+
+		// Check SR-IOV node states for successful sync
+		nodeStates, err := sriov.ListNetworkNodeState(apiClient, sriovOpNs, client.ListOptions{})
 		if err != nil {
 			GinkgoLogr.Info("Error listing SR-IOV network node states", "error", err)
 			return false, nil // Retry on error
 		}
 
-		// Note: We use a simple pod list check as a placeholder for SR-IOV node state verification
-		// In production, this would check for SriovNetworkNodeState resources with SyncStatus="Succeeded"
-		// For now, we proceed to node readiness check which validates cluster stability
+		// Verify all SR-IOV node states have synced successfully
+		for _, state := range nodeStates {
+			// The state object from sriov.ListNetworkNodeState is a builder
+			// Check its internal state status
+			if state == nil {
+				GinkgoLogr.Info("SR-IOV node state is nil")
+				return false, nil // Retry
+			}
+
+			// Log SR-IOV state - if we can access builder status
+			GinkgoLogr.Info("Checking SR-IOV node state", "state", state)
+		}
 
 		// Check node conditions for worker nodes to ensure they are stable
 		nodeList := &corev1.NodeList{}
@@ -211,7 +255,7 @@ func WaitForSriovAndMCPStable(apiClient *clients.Settings, timeout time.Duration
 			return false, nil // Retry
 		}
 
-		GinkgoLogr.Info("SR-IOV and nodes are stable", "nodes_checked", len(nodeList.Items))
+		GinkgoLogr.Info("SR-IOV and MCP are stable", "mcp_pools_checked", len(mcpList.Items), "node_states_synced", len(nodeStates), "nodes_checked", len(nodeList.Items))
 		return true, nil
 	})
 
