@@ -109,7 +109,7 @@ func TestSriovBasic(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	By("Cleaning up leftover resources from previous failed test runs")
+	By("Cleaning up leftover resources from previous test runs")
 	cleanupLeftoverResources(getAPIClient(), NetConfig.SriovOperatorNamespace)
 
 	By("Creating test namespace with privileged labels")
