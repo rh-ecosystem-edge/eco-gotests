@@ -339,7 +339,7 @@ func chkSriovOperatorStatus(sriovOpNs string) {
 func waitForSriovPolicyReady(sriovOpNs string) {
 	By("Waiting for SRIOV policy to be ready")
 	err := WaitForSriovAndMCPStable(
-		getAPIClient(), 35*time.Minute, time.Minute, NetConfig.CnfMcpLabel, sriovOpNs)
+		getAPIClient(), 20*time.Minute, 30*time.Second, NetConfig.CnfMcpLabel, sriovOpNs)
 	Expect(err).ToNot(HaveOccurred(), "SRIOV policy is not ready")
 }
 
@@ -543,7 +543,7 @@ func initVF(name, deviceID, interfaceName, vendor, sriovOpNs string, vfNum int, 
 
 		// Wait for policy to be applied
 		err = WaitForSriovAndMCPStable(
-			getAPIClient(), 35*time.Minute, time.Minute, NetConfig.CnfMcpLabel, sriovOpNs)
+			getAPIClient(), 20*time.Minute, 30*time.Second, NetConfig.CnfMcpLabel, sriovOpNs)
 		if err != nil {
 			GinkgoLogr.Info("Failed to wait for SRIOV policy to be applied", "error", err, "node", node.Definition.Name)
 			// Clean up policy if wait fails
@@ -592,7 +592,7 @@ func initDpdkVF(name, deviceID, interfaceName, vendor, sriovOpNs string, vfNum i
 
 		// Wait for policy to be applied
 		err = WaitForSriovAndMCPStable(
-			getAPIClient(), 35*time.Minute, time.Minute, NetConfig.CnfMcpLabel, sriovOpNs)
+			getAPIClient(), 20*time.Minute, 30*time.Second, NetConfig.CnfMcpLabel, sriovOpNs)
 		if err != nil {
 			GinkgoLogr.Info("Failed to wait for DPDK SRIOV policy", "error", err, "node", node.Definition.Name)
 			// Clean up failed policy before retrying on next node
