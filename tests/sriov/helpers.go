@@ -222,14 +222,31 @@ func WaitForSriovAndMCPStable(apiClient *clients.Settings, timeout time.Duration
 			// MCP check succeeded, verify conditions
 			GinkgoLogr.Info("INFO: MachineConfigPool check available",
 				"next_check", "Verify worker pool is Updated and not Degraded")
-		allPoolsUpdated := true
-		for _, pool := range mcpList.Items {
-			// Check if pool matches the provided MCP label selector
-			// mcpLabel is passed by caller (e.g., "machineconfiguration.openshift.io/role=worker")
-			// Currently we focus on worker pools, but respect the label parameter for future flexibility
-			if pool.Name != "worker" {
-				continue
-			}
+			allPoolsUpdated := true
+			for _, pool := range mcpList.Items {
+				// Check if pool matches the provided MCP label selector
+				// Parse mcpLabel (e.g., "machineconfiguration.openshift.io/role=worker")
+				// and check if pool has the matching label
+				shouldCheck := false
+				if mcpLabel == "" {
+					// No label filter - check all pools
+					shouldCheck = true
+				} else {
+					// Parse label (format: "key=value")
+					parts := strings.SplitN(mcpLabel, "=", 2)
+					if len(parts) == 2 {
+						labelKey := parts[0]
+						labelValue := parts[1]
+						if pool.Labels != nil {
+							if val, ok := pool.Labels[labelKey]; ok && val == labelValue {
+								shouldCheck = true
+							}
+						}
+					}
+				}
+				if !shouldCheck {
+					continue
+				}
 
 				// Check for Updated=True condition
 				isUpdated := false
