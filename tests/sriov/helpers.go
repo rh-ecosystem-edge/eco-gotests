@@ -96,19 +96,13 @@ func getAPIClient() *clients.Settings {
 func IsSriovDeployed(apiClient *clients.Settings, config *NetworkConfig) error {
 	GinkgoLogr.Info("Checking if SR-IOV operator is deployed", "namespace", config.SriovOperatorNamespace)
 
-	// Check if the SR-IOV operator Deployment exists and is available
+	// Check if the SR-IOV operator pods are running in the namespace
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// List Deployments in the SR-IOV operator namespace
-	deploymentList := &corev1.PodList{}
-	err := apiClient.Client.List(ctx, deploymentList, &client.ListOptions{
-		Namespace: config.SriovOperatorNamespace,
-	})
-
-	// Try alternative approach - check for operator pods
+	// Check for operator pods
 	podList := &corev1.PodList{}
-	err = apiClient.Client.List(ctx, podList, &client.ListOptions{
+	err := apiClient.Client.List(ctx, podList, &client.ListOptions{
 		Namespace: config.SriovOperatorNamespace,
 	})
 	if err != nil {
@@ -317,8 +311,6 @@ func CleanAllNetworksByTargetNamespace(apiClient *clients.Settings, sriovOpNs, t
 		if network.Definition.Spec.NetworkNamespace != targetNs {
 			continue
 		}
-
-		_ = apiClient // Use the client parameter
 
 		GinkgoLogr.Info("Deleting SR-IOV network", "network", network.Definition.Name, "namespace", sriovOpNs, "target_namespace", targetNs)
 

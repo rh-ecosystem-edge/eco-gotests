@@ -84,6 +84,40 @@ If no environment variable is set, the following default devices are used:
 - Test images must be available on the cluster
 - Sufficient privileges to create SRIOV policies and networks
 
+## Test Stability and Readiness Checks
+
+The tests include comprehensive stability checks before starting test execution:
+
+### SR-IOV Operator Readiness
+- Verifies SR-IOV operator pods are running in the operator namespace
+- Confirms SR-IOV CRDs are available by checking `SriovNetwork` resources
+- Validates that `SriovNetworkNodeState` objects have been created by the operator
+
+### SR-IOV Node State Synchronization
+- Waits for all worker nodes to have `SriovNetworkNodeState` objects populated by the operator
+- Validates each node's `SyncStatus` is "Succeeded" (indicates operator has synced config to node)
+- Retries if any node state is missing or not fully synced
+- Treats empty node states as "not ready" to prevent premature test execution
+
+### MachineConfigPool Stability
+- Checks `MachineConfigPool` resources (if available in cluster schema)
+- Verifies MCP `Updated=True` condition on worker pools
+- Ensures MCP is not in `Degraded` or `Updating` state
+- Gracefully falls back to SR-IOV node state sync if MCP check is unavailable
+- Retries if MCP conditions indicate pending configuration updates
+
+### Worker Node Readiness
+- Verifies all worker nodes have `Ready` condition
+- Checks for resource pressure conditions (memory, disk) that indicate instability
+- Retries if any node is not ready or has resource pressure
+
+**Default Timeouts:**
+- Stability check timeout: 20 minutes (configurable)
+- Polling interval: 30 seconds (configurable)
+- Timeout is increased automatically if needed based on cluster load
+
+These checks ensure tests only execute when the cluster is in a stable state and SR-IOV is fully operational.
+
 ## Running the Tests
 
 ### Basic test execution:
@@ -135,9 +169,53 @@ The `testdata/` directory contains YAML templates for:
 - DPDK test pod specifications
 - Network attachment definitions
 
+## Troubleshooting Stability Checks
+
+If tests fail waiting for stability, check the following:
+
+### "No SR-IOV node states available yet"
+- The SR-IOV operator is running but hasn't populated `SriovNetworkNodeState` objects
+- **Solution:** Wait for the operator to complete initialization, or check operator logs:
+  ```bash
+  kubectl logs -n openshift-sriov-network-operator deployment/sriov-network-operator
+  ```
+
+### "SR-IOV node not yet synced"
+- The operator has created node states but sync is still in progress
+- **Solution:** Check individual node state status:
+  ```bash
+  kubectl get sriovnetworknodestates -n openshift-sriov-network-operator
+  kubectl describe sriovnetworknodestate <node-name> -n openshift-sriov-network-operator
+  ```
+
+### "MachineConfigPool not yet updated" or "MachineConfigPool is degraded"
+- Machine configuration updates are still in progress or have encountered errors
+- **Solution:** Check MCP status:
+  ```bash
+  kubectl get mcp
+  kubectl describe mcp worker
+  ```
+
+### "Worker node is not ready" or "Node has resource pressure"
+- Nodes are experiencing issues or resource constraints
+- **Solution:** Inspect node status:
+  ```bash
+  kubectl get nodes -o wide
+  kubectl describe node <node-name>
+  kubectl top node  # Check resource usage
+  ```
+
+### Increasing Timeout
+If the cluster is healthy but needs more time, increase the stability check timeout by setting environment variables:
+```bash
+export SRIOV_STABILITY_TIMEOUT=1800  # 30 minutes (in seconds)
+export SRIOV_STABILITY_INTERVAL=30   # Poll interval in seconds
+```
+
 ## Notes
 
 - Tests are marked as `[Disruptive]` and `[Serial]` as they modify cluster networking configuration and must run sequentially
 - Some tests skip certain device types (e.g., x710, bcm devices) due to hardware limitations
 - Tests clean up resources after completion
 - DPDK tests require specific hardware support and may be skipped on unsupported platforms
+- Comprehensive stability checks prevent test flakiness from races with operator reconciliation
