@@ -164,28 +164,31 @@ func WaitForSriovAndMCPStable(apiClient *clients.Settings, timeout time.Duration
 		}
 
 		// Validate SR-IOV sync status for all node states
-		if len(nodeStates) > 0 {
-			GinkgoLogr.Info("SR-IOV node states available", "count", len(nodeStates))
+		if len(nodeStates) == 0 {
+			GinkgoLogr.Info("No SR-IOV node states available yet, waiting for SR-IOV operator to populate node state objects")
+			return false, nil // Retry - node states not yet available
+		}
 
-			allNodesSynced := true
-			for _, nodeState := range nodeStates {
-				syncStatus := "Unknown"
-				nodeName := "unknown"
+		GinkgoLogr.Info("SR-IOV node states available", "count", len(nodeStates))
 
-				if nodeState.Objects != nil {
-					syncStatus = nodeState.Objects.Status.SyncStatus
-					nodeName = nodeState.Objects.Name
+		allNodesSynced := true
+		for _, nodeState := range nodeStates {
+			syncStatus := "Unknown"
+			nodeName := "unknown"
 
-					if syncStatus != "Succeeded" {
-						GinkgoLogr.Info("SR-IOV node not yet synced", "node", nodeName, "syncStatus", syncStatus)
-						allNodesSynced = false
-					}
+			if nodeState.Objects != nil {
+				syncStatus = nodeState.Objects.Status.SyncStatus
+				nodeName = nodeState.Objects.Name
+
+				if syncStatus != "Succeeded" {
+					GinkgoLogr.Info("SR-IOV node not yet synced", "node", nodeName, "syncStatus", syncStatus)
+					allNodesSynced = false
 				}
 			}
+		}
 
-			if !allNodesSynced {
-				return false, nil // Retry - wait for all nodes to sync
-			}
+		if !allNodesSynced {
+			return false, nil // Retry - wait for all nodes to sync
 		}
 
 		// Attempt to check MachineConfigPool conditions to ensure config is stable
