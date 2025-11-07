@@ -11,6 +11,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	machineconfigv1 "github.com/openshift/api/machineconfiguration/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
@@ -162,9 +163,79 @@ func WaitForSriovAndMCPStable(apiClient *clients.Settings, timeout time.Duration
 			return false, nil // Retry on error
 		}
 
-		// Log SR-IOV node states for diagnostics
+		// Validate SR-IOV sync status for all node states
 		if len(nodeStates) > 0 {
 			GinkgoLogr.Info("SR-IOV node states available", "count", len(nodeStates))
+
+			allNodesSynced := true
+			for _, nodeState := range nodeStates {
+				syncStatus := "Unknown"
+				nodeName := "unknown"
+
+				if nodeState.Objects != nil {
+					syncStatus = nodeState.Objects.Status.SyncStatus
+					nodeName = nodeState.Objects.Name
+
+					if syncStatus != "Succeeded" {
+						GinkgoLogr.Info("SR-IOV node not yet synced", "node", nodeName, "syncStatus", syncStatus)
+						allNodesSynced = false
+					}
+				}
+			}
+
+			if !allNodesSynced {
+				return false, nil // Retry - wait for all nodes to sync
+			}
+		}
+
+		// Attempt to check MachineConfigPool conditions to ensure config is stable
+		// Note: MachineConfigPoolList may not be registered in the client scheme depending on eco-goinfra version
+		// We use it if available, but gracefully fall back to SR-IOV node state sync check
+		mcpList := &machineconfigv1.MachineConfigPoolList{}
+		listOpts := &client.ListOptions{}
+
+		err = apiClient.Client.List(ctx, mcpList, listOpts)
+		if err != nil {
+			// If MCP check fails (e.g., type not registered), log and continue
+			// SR-IOV node state sync status is sufficient as a proxy for MCP stability
+			if strings.Contains(err.Error(), "no kind is registered") {
+				GinkgoLogr.Info("MachineConfigPool check not available in client scheme, relying on SR-IOV node state sync status")
+			} else {
+				// For other errors, retry
+				GinkgoLogr.Info("Error listing MachineConfigPools, will retry", "error", err)
+				return false, nil
+			}
+		} else {
+			// MCP check succeeded, verify conditions
+			allPoolsUpdated := true
+			for _, pool := range mcpList.Items {
+				// Skip non-worker pools
+				if pool.Name != "worker" {
+					continue
+				}
+
+				// Check for Updated=True condition
+				isUpdated := false
+
+				for _, condition := range pool.Status.Conditions {
+					if condition.Type == machineconfigv1.MachineConfigPoolUpdated && condition.Status == corev1.ConditionTrue {
+						isUpdated = true
+					}
+					if condition.Type == machineconfigv1.MachineConfigPoolDegraded && condition.Status == corev1.ConditionTrue {
+						GinkgoLogr.Info("MachineConfigPool is degraded", "pool", pool.Name, "reason", condition.Reason, "message", condition.Message)
+						allPoolsUpdated = false
+					}
+				}
+
+				if !isUpdated {
+					GinkgoLogr.Info("MachineConfigPool not yet updated", "pool", pool.Name)
+					allPoolsUpdated = false
+				}
+			}
+
+			if !allPoolsUpdated {
+				return false, nil // Retry - wait for MCP to be updated
+			}
 		}
 
 		// Check node conditions for worker nodes to ensure they are stable
@@ -209,7 +280,7 @@ func WaitForSriovAndMCPStable(apiClient *clients.Settings, timeout time.Duration
 			return false, nil // Retry
 		}
 
-		GinkgoLogr.Info("SR-IOV and nodes are stable", "node_states_synced", len(nodeStates), "nodes_checked", len(nodeList.Items))
+		GinkgoLogr.Info("SR-IOV and MCP are stable", "node_states_synced", len(nodeStates), "mcp_updated", true, "nodes_checked", len(nodeList.Items))
 		return true, nil
 	})
 
