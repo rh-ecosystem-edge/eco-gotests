@@ -159,11 +159,15 @@ func WaitForSriovAndMCPStable(apiClient *clients.Settings, timeout time.Duration
 
 		// Validate SR-IOV sync status for all node states
 		if len(nodeStates) == 0 {
-			GinkgoLogr.Info("No SR-IOV node states available yet, waiting for SR-IOV operator to populate node state objects")
+			GinkgoLogr.Info("WAITING: No SR-IOV node states available yet",
+				"reason", "Operator still initializing",
+				"suggestion", "Check operator readiness with: oc get deployment -n openshift-sriov-network-operator",
+				"diagnostic_cmd", "oc get sriovnetworknodestates -n openshift-sriov-network-operator")
 			return false, nil // Retry - node states not yet available
 		}
 
-		GinkgoLogr.Info("SR-IOV node states available", "count", len(nodeStates))
+		GinkgoLogr.Info("INFO: SR-IOV node states found", "count", len(nodeStates),
+			"next_check", "Validate each node sync status")
 
 		allNodesSynced := true
 		for _, nodeState := range nodeStates {
@@ -175,13 +179,20 @@ func WaitForSriovAndMCPStable(apiClient *clients.Settings, timeout time.Duration
 				nodeName = nodeState.Objects.Name
 
 				if syncStatus != "Succeeded" {
-					GinkgoLogr.Info("SR-IOV node not yet synced", "node", nodeName, "syncStatus", syncStatus)
+					GinkgoLogr.Info("WAITING: SR-IOV node not yet synced",
+						"node", nodeName,
+						"syncStatus", syncStatus,
+						"diagnostic_cmd", fmt.Sprintf("oc describe sriovnetworknodestate %s -n openshift-sriov-network-operator", nodeName))
 					allNodesSynced = false
+				} else {
+					GinkgoLogr.Info("OK: Node SR-IOV sync complete", "node", nodeName)
 				}
 			}
 		}
 
 		if !allNodesSynced {
+			GinkgoLogr.Info("RETRYING: Some nodes still syncing",
+				"diagnostic_cmd", "oc get sriovnetworknodestates -n openshift-sriov-network-operator -o wide")
 			return false, nil // Retry - wait for all nodes to sync
 		}
 
@@ -196,14 +207,20 @@ func WaitForSriovAndMCPStable(apiClient *clients.Settings, timeout time.Duration
 			// If MCP check fails (e.g., type not registered), log and continue
 			// SR-IOV node state sync status is sufficient as a proxy for MCP stability
 			if strings.Contains(err.Error(), "no kind is registered") {
-				GinkgoLogr.Info("MachineConfigPool check not available in client scheme, relying on SR-IOV node state sync status")
+				GinkgoLogr.Info("INFO: MachineConfigPool check unavailable in scheme",
+					"fallback", "Using SR-IOV node state sync as stability indicator",
+					"verify_mcp_manually", "oc get mcp -o wide")
 			} else {
 				// For other errors, retry
-				GinkgoLogr.Info("Error listing MachineConfigPools, will retry", "error", err)
+				GinkgoLogr.Info("TEMPORARY ERROR: Could not list MachineConfigPools",
+					"error", err.Error(),
+					"diagnostic_cmd", "oc get mcp worker -o yaml")
 				return false, nil
 			}
 		} else {
 			// MCP check succeeded, verify conditions
+			GinkgoLogr.Info("INFO: MachineConfigPool check available",
+				"next_check", "Verify worker pool is Updated and not Degraded")
 			allPoolsUpdated := true
 			for _, pool := range mcpList.Items {
 				// Skip non-worker pools
@@ -217,33 +234,50 @@ func WaitForSriovAndMCPStable(apiClient *clients.Settings, timeout time.Duration
 				for _, condition := range pool.Status.Conditions {
 					if condition.Type == machineconfigv1.MachineConfigPoolUpdated && condition.Status == corev1.ConditionTrue {
 						isUpdated = true
+						GinkgoLogr.Info("OK: MachineConfigPool condition met", "pool", pool.Name, "condition", "Updated=True")
 					}
 					if condition.Type == machineconfigv1.MachineConfigPoolDegraded && condition.Status == corev1.ConditionTrue {
-						GinkgoLogr.Info("MachineConfigPool is degraded", "pool", pool.Name, "reason", condition.Reason, "message", condition.Message)
+						GinkgoLogr.Info("WAITING: MachineConfigPool is degraded",
+							"pool", pool.Name,
+							"reason", condition.Reason,
+							"message", condition.Message,
+							"diagnostic_cmd", "oc describe mcp worker")
 						allPoolsUpdated = false
 					}
 				}
 
 				if !isUpdated {
-					GinkgoLogr.Info("MachineConfigPool not yet updated", "pool", pool.Name)
+					GinkgoLogr.Info("WAITING: MachineConfigPool not yet updated",
+						"pool", pool.Name,
+						"suggestion", "Wait for machine-config-operator to complete update",
+						"diagnostic_cmd", "oc get machineconfig -o wide")
 					allPoolsUpdated = false
 				}
 			}
 
 			if !allPoolsUpdated {
+				GinkgoLogr.Info("RETRYING: MachineConfigPool not ready",
+					"diagnostic_cmd", "oc get mcp -o wide")
 				return false, nil // Retry - wait for MCP to be updated
 			}
+
+			GinkgoLogr.Info("OK: All MachineConfigPools are stable")
 		}
 
 		// Check node conditions for worker nodes to ensure they are stable
+		GinkgoLogr.Info("INFO: Checking worker node readiness",
+			"diagnostic_cmd", "oc get nodes -L node-role.kubernetes.io/worker")
 		nodeList := &corev1.NodeList{}
 		err = apiClient.Client.List(ctx, nodeList, &client.ListOptions{})
 		if err != nil {
-			GinkgoLogr.Info("Error listing nodes", "error", err)
+			GinkgoLogr.Info("TEMPORARY ERROR: Could not list nodes",
+				"error", err.Error(),
+				"diagnostic_cmd", "oc get nodes -o wide")
 			return false, nil // Retry on error
 		}
 
 		allNodesReady := true
+		readyNodeCount := 0
 		for _, node := range nodeList.Items {
 			// Check if this is a worker node
 			if _, isWorker := node.Labels["node-role.kubernetes.io/worker"]; !isWorker {
@@ -255,29 +289,42 @@ func WaitForSriovAndMCPStable(apiClient *clients.Settings, timeout time.Duration
 			for _, condition := range node.Status.Conditions {
 				if condition.Type == corev1.NodeReady && condition.Status == corev1.ConditionTrue {
 					isReady = true
+					readyNodeCount++
+					GinkgoLogr.Info("OK: Worker node is Ready", "node", node.Name)
 					break
 				}
 				// Check for pressure conditions that indicate instability
 				if (condition.Type == corev1.NodeMemoryPressure || condition.Type == corev1.NodeDiskPressure) &&
 					condition.Status == corev1.ConditionTrue {
-					GinkgoLogr.Info("Node has resource pressure", "node", node.Name, "condition", condition.Type)
+					GinkgoLogr.Info("WAITING: Worker node has resource pressure",
+						"node", node.Name,
+						"condition", condition.Type,
+						"suggestion", "Cluster may be under resource stress",
+						"diagnostic_cmd", "oc top node "+node.Name)
 					allNodesReady = false
 					return false, nil // Retry
 				}
 			}
 
 			if !isReady {
-				GinkgoLogr.Info("Worker node is not ready", "node", node.Name)
+				GinkgoLogr.Info("WAITING: Worker node is not yet Ready",
+					"node", node.Name,
+					"diagnostic_cmd", "oc describe node "+node.Name)
 				allNodesReady = false
 				return false, nil // Retry
 			}
 		}
 
 		if !allNodesReady {
+			GinkgoLogr.Info("RETRYING: Some worker nodes not ready",
+				"diagnostic_cmd", "oc get nodes -o wide")
 			return false, nil // Retry
 		}
 
-		GinkgoLogr.Info("SR-IOV and MCP are stable", "node_states_synced", len(nodeStates), "mcp_updated", true, "nodes_checked", len(nodeList.Items))
+		GinkgoLogr.Info("SUCCESS: All stability checks passed",
+			"sr_iov_nodes_synced", len(nodeStates),
+			"worker_nodes_ready", readyNodeCount,
+			"final_verification", "oc get sriovnetworks -A && oc get mcp")
 		return true, nil
 	})
 
