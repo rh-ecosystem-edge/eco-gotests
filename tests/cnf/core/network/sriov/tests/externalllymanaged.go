@@ -75,8 +75,13 @@ var _ = Describe("ExternallyManaged", Ordered, Label(tsparams.LabelExternallyMan
 					netparam.DefaultTimeout)
 				Expect(err).ToNot(HaveOccurred(), "Failed to create VFs via NMState")
 
+				By("Verifying VFs are created in NodeNetworkState (NMState's view)")
+				err = netnmstate.AreVFsCreated(workerNodeList[0].Object.Name, sriovInterfacesUnderTest[0], 5)
+				Expect(err).ToNot(HaveOccurred(), "VFs not found in NodeNetworkState")
+
+				By("Waiting for SR-IOV operator to discover the VFs in SriovNetworkNodeState")
 				err = sriovenv.WaitUntilVfsCreated(workerNodeList, sriovInterfacesUnderTest[0], 5, netparam.DefaultTimeout)
-				Expect(err).ToNot(HaveOccurred(), "Expected number of VFs are not created")
+				Expect(err).ToNot(HaveOccurred(), "Expected number of VFs are not created in SriovNetworkNodeState")
 
 				By("Configure SR-IOV with flag ExternallyManaged true")
 				createSriovConfiguration(sriovAndResourceNameExManagedTrue, sriovInterfacesUnderTest[0], true)
