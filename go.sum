@@ -1363,8 +1363,8 @@ github.com/prometheus/procfs v0.15.1/go.mod h1:fB45yRUv8NstnjriLhBQLuOUt+WW4BsoG
 github.com/red-hat-storage/odf-operator v0.0.0-20240717091720-abe8dbc878d3 h1:XgzSOC4//4Ip5HjSkSM7rL2W7B+tNMxXEhv+HUO0bPE=
 github.com/red-hat-storage/odf-operator v0.0.0-20240717091720-abe8dbc878d3/go.mod h1:uesbNa14YX5DkZKmB1c9NiAdQnxGkGT5TGtlM1Cqg7s=
 github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
-github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20250929122940-23611423f898 h1:7yKnm6/oHJVPWlmipjzlxb2Z8ZKiLwPQv9SuNchQKWA=
-github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20250929122940-23611423f898/go.mod h1:9gUwjsHxYcU8/GUFtU5MI5fluCmkoLvbteONau2CDKw=
+github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20251110155214-d01ff07ad6f4 h1:TGLKHqDXkdPDIHeDTiwQHjGnKSEljfP4eNJRmiug6Ak=
+github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20251110155214-d01ff07ad6f4/go.mod h1:9gUwjsHxYcU8/GUFtU5MI5fluCmkoLvbteONau2CDKw=
 github.com/rh-ecosystem-edge/kernel-module-management v0.0.0-20240925181841-898c27853e89 h1:J8wb1aU7globChbOrZdygjJUBXefv032W168wzi1HC4=
 github.com/rh-ecosystem-edge/kernel-module-management v0.0.0-20240925181841-898c27853e89/go.mod h1:0mxXbAaG90Eh2A3w73YGN97QiWxj4gnaQFGu1pHDkO4=
 github.com/robfig/cron v1.2.0 h1:ZjScXvvxeQ63Dbyxy76Fj3AT3Ut0aKsyd2/tl3DTMuQ=

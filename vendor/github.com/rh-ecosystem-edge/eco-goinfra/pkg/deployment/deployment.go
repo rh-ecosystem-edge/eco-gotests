@@ -361,6 +361,42 @@ func (builder *Builder) WithSchedulerName(schedulerName string) *Builder {
 	return builder
 }
 
+// WithAffinity applies Affinity to the deployment definition.
+func (builder *Builder) WithAffinity(affinity *corev1.Affinity) *Builder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	if affinity == nil {
+		glog.V(100).Infof("The Affinity parameter is empty")
+
+		builder.errorMsg = "affinity parameter is empty"
+
+		return builder
+	}
+
+	glog.V(100).Infof("Adding affinity to deployment %s in namespace %s",
+		builder.Definition.Name, builder.Definition.Namespace)
+
+	builder.Definition.Spec.Template.Spec.Affinity = affinity
+
+	return builder
+}
+
+// WithHostNetwork applies a hostnetwork state to the deployment definition.
+func (builder *Builder) WithHostNetwork(enableHostnetwork bool) *Builder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	glog.V(100).Infof("Setting hostnetwork %v to deployment %s in namespace %s",
+		enableHostnetwork, builder.Definition.Name, builder.Definition.Namespace)
+
+	builder.Definition.Spec.Template.Spec.HostNetwork = enableHostnetwork
+
+	return builder
+}
+
 // WithOptions creates deployment with generic mutation options.
 func (builder *Builder) WithOptions(options ...AdditionalOptions) *Builder {
 	if valid, _ := builder.validate(); !valid {
