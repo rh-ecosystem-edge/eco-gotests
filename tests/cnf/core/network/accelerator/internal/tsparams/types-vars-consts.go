@@ -20,10 +20,18 @@ const (
 	Acc100ResourceName = "intel.com/intel_fec_acc100"
 	// Acc100EnvVar represents the env variable of the acc100.
 	Acc100EnvVar = "PCIDEVICE_INTEL_COM_INTEL_FEC_ACC100"
+	// Acc200DeviceID represents the device id of the acc200.
+	Acc200DeviceID = "57c0"
+	// Acc200ResourceName represents the resource name of the acc200.
+	Acc200ResourceName = "intel.com/intel_fec_acc200"
+	// Acc200EnvVar represents the env variable of the acc200.
+	Acc200EnvVar = "PCIDEVICE_INTEL_COM_INTEL_FEC_ACC200"
 	// TotalNumberBbdevTests represents the total number of bbdev tests.
 	TotalNumberBbdevTests = 33
 	// ExpectedNumberBbdevTestsPassedForAcc100 represents the expected number of bbdev tests passed.
 	ExpectedNumberBbdevTestsPassedForAcc100 = 27
+	// ExpectedNumberBbdevTestsPassedForAcc200 represents the expected number of bbdev tests passed.
+	ExpectedNumberBbdevTestsPassedForAcc200 = 14
 )
 
 var (
