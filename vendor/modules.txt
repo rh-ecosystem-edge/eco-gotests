@@ -746,6 +746,7 @@ github.com/operator-framework/api/pkg/operators/v1alpha1
 github.com/otiai10/copy
 # github.com/ovn-org/ovn-kubernetes/go-controller v0.0.0-20240614144800-61d5c5937bd4
 ## explicit; go 1.21
+github.com/ovn-org/ovn-kubernetes/go-controller/pkg/crd/egressip/v1
 github.com/ovn-org/ovn-kubernetes/go-controller/pkg/crd/egressservice/v1
 # github.com/peterbourgon/diskv v2.0.1+incompatible
 ## explicit
@@ -800,6 +801,7 @@ github.com/rh-ecosystem-edge/eco-goinfra/pkg/configmap
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/console
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/daemonset
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/egressip
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/egressservice
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/events
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/hive

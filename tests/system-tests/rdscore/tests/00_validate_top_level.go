@@ -119,6 +119,45 @@ var _ = Describe(
 			It("Verifies CephRBD",
 				Label("persistent-storage", "odf-cephrbd-pvc"), reportxml.ID("71989"), MustPassRepeatedly(3),
 				rdscorecommon.VerifyCephRBDPVC)
+
+			It("Verify eIPv4 address from the list of defined used for the assigned pods in a single eIP namespace",
+				Label("egressip", "egressip-ipv4", "egressip-single-ns"), reportxml.ID("78105"),
+				rdscorecommon.VerifyEgressIPOneNamespaceThreeNodesBalancedEIPTrafficIPv4)
+
+			It("Verify eIPv6 address from the list of defined used for the assigned pods in a single eIP namespace",
+				Label("egressip", "egressip-ipv6", "egressip-single-ns"), reportxml.ID("78135"),
+				rdscorecommon.VerifyEgressIPOneNamespaceThreeNodesBalancedEIPTrafficIPv6)
+
+			It("Verify eIPv4 address from the list of defined used for the assigned pods in two eIP namespaces",
+				Label("egressip", "egressip-ipv4", "egressip-two-ns"), reportxml.ID("75060"),
+				rdscorecommon.VerifyEgressIPTwoNamespacesThreeNodesIPv4)
+
+			It("Verify eIPv6 address from the list of defined used for the assigned pods in two eIP namespaces",
+				Label("egressip", "egressip-ipv6", "egressip-two-ns"), reportxml.ID("78136"),
+				rdscorecommon.VerifyEgressIPTwoNamespacesThreeNodesIPv6)
+
+			It("Verify eIP address from the list of defined does not used for the assigned pods in single "+
+				"eIP namespace, but with the wrong pod label",
+				Label("egressip", "egressip-single-ns"), reportxml.ID("78106"),
+				rdscorecommon.VerifyEgressIPOneNamespaceOneNodeWrongPodLabel)
+
+			It("Verify eIP address from the list of defined does not used for the assigned pods in single "+
+				"eIP namespace with the wrong label",
+				Label("egressip", "egressip-one-ns"), reportxml.ID("78109"),
+				rdscorecommon.VerifyEgressIPWrongNsLabel)
+
+			It("Verify eIPv4 address assigned to the next available node after node reboot; fail-over",
+				Label("egressip", "egressip-ipv4", "egressip-failover"), reportxml.ID("78280"),
+				rdscorecommon.VerifyEgressIPFailOverIPv4)
+
+			It("Verify eIPv6 address assigned to the next available node after node reboot; fail-over",
+				Label("egressip", "egressip-ipv6", "egressip-failover"), reportxml.ID("78283"),
+				rdscorecommon.VerifyEgressIPFailOverIPv6)
+
+			AfterEach(func(ctx SpecContext) {
+				By("Ensure all nodes are Ready and scheduling enabled")
+				rdscorecommon.EnsureInNodeReadiness(ctx)
+			})
 		})
 
 		Context("Ungraceful Cluster Reboot", Label("ungraceful-cluster-reboot"), func() {
@@ -128,6 +167,9 @@ var _ = Describe(
 
 				By("Creating EgressService with ETP=Local")
 				rdscorecommon.VerifyEgressServiceWithLocalETP(ctx)
+
+				By("Creating EgressIP workload config")
+				rdscorecommon.CreateEgressIPTestDeployment()
 
 				By("Creating a workload with CephFS PVC")
 				rdscorecommon.DeployWorkflowCephFSPVC(ctx)
@@ -258,6 +300,14 @@ var _ = Describe(
 				Label("egress-validate-local-etp", "egress"), reportxml.ID("76672"),
 				rdscorecommon.VerifyEgressServiceETPLocalIngressConnectivity)
 
+			It("Verify EgressIP connectivity over IPv4 address after ungraceful reboot",
+				Label("egressip", "egressip-ipv4"), reportxml.ID("75061"),
+				rdscorecommon.VerifyEgressIPConnectivityThreeNodesIPv4)
+
+			It("Verify EgressIP connectivity over IPv6 address after ungraceful reboot",
+				Label("egressip", "egressip-ipv6"), reportxml.ID("78137"),
+				rdscorecommon.VerifyEgressIPConnectivityThreeNodesIPv6)
+
 			It("Verifies NUMA-aware workload is available after ungraceful reboot",
 				Label("nrop"), reportxml.ID("73727"),
 				rdscorecommon.VerifyNROPWorkloadAvailable)
@@ -322,6 +372,9 @@ var _ = Describe(
 
 				By("Creating EgressService with ETP=Local")
 				rdscorecommon.VerifyEgressServiceWithLocalETP(ctx)
+
+				By("Creating EgressIP workload config")
+				rdscorecommon.CreateEgressIPTestDeployment()
 
 				By("Creating a workload with CephFS PVC")
 				rdscorecommon.DeployWorkflowCephFSPVC(ctx)
@@ -401,6 +454,14 @@ var _ = Describe(
 			It("Verify EgressService ingress with Local ExternalTrafficPolicy after graceful reboot",
 				Label("egress-validate-local-etp", "egress"), reportxml.ID("76673"),
 				rdscorecommon.VerifyEgressServiceETPLocalIngressConnectivity)
+
+			It("Verify EgressIP connectivity over IPv4 address after graceful reboot",
+				Label("egressip", "egressip-ipv4"), reportxml.ID("75062"),
+				rdscorecommon.VerifyEgressIPConnectivityThreeNodesIPv4)
+
+			It("Verify EgressIP connectivity over IPv6 address after graceful reboot",
+				Label("egressip", "egressip-ipv6"), reportxml.ID("78138"),
+				rdscorecommon.VerifyEgressIPConnectivityThreeNodesIPv6)
 
 			It("Verifies NUMA-aware workload is available after soft reboot",
 				Label("nrop"), reportxml.ID("73726"),

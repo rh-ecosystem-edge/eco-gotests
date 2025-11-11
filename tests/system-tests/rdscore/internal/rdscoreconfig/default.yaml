@@ -148,3 +148,10 @@ rdscore_egress_service_2_node_selector:
   node-role.kubernetes.io/worker: ''
 rdscore_egress_service_deploy_2_img: ''
 rdscore_egress_service_deploy_2_ipaddr_pool: 'rds-local-pool'
+# EgressIP
+rdscore_egressip_name: 'egressip-qe'
+rdscore_egressip_ns_one: 'rds-egressip-ns-one'
+rdscore_egressip_ns_two: 'rds-egressip-ns-two'
+rdscore_egressip_ns_label: 'env=sys-qa'
+rdscore_egressip_pod_label: 'app=web'
+rdscore_egressip_tcp_port_number: '9090'
