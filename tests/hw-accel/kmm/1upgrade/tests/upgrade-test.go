@@ -2,7 +2,6 @@ package tests
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/golang/glog"
@@ -40,6 +39,12 @@ var _ = Describe("KMM", Ordered, Label(tsparams.LabelSuite), func() {
 		)
 
 		BeforeAll(func() {
+			// Skip module deployment for KMM-HUB since Module CRD is not available on hub cluster
+			// The test will still run to verify operator upgrade, just without module deployment
+			if check.IsKMMHub() {
+				return
+			}
+
 			By("Create test namespace")
 			_, err := namespace.NewBuilder(APIClient, upgradeTestNamespace).Create()
 			Expect(err).ToNot(HaveOccurred(), "error creating test namespace")
@@ -101,6 +106,11 @@ var _ = Describe("KMM", Ordered, Label(tsparams.LabelSuite), func() {
 		})
 
 		AfterAll(func() {
+			// Skip cleanup for KMM-HUB since no resources were created (test was skipped)
+			if check.IsKMMHub() {
+				return
+			}
+
 			By("Delete Module")
 			_, err := kmm.NewModuleBuilder(APIClient, moduleName, upgradeTestNamespace).Delete()
 			if err != nil {
@@ -153,7 +163,7 @@ var _ = Describe("KMM", Ordered, Label(tsparams.LabelSuite), func() {
 			}
 
 			opNamespace := kmmparams.KmmOperatorNamespace
-			if strings.Contains(ModulesConfig.SubscriptionName, "hub") {
+			if check.IsKMMHub() {
 				opNamespace = kmmparams.KmmHubOperatorNamespace
 			}
 			By("Getting KMM subscription")
@@ -176,14 +186,17 @@ var _ = Describe("KMM", Ordered, Label(tsparams.LabelSuite), func() {
 			err = await.OperatorUpgrade(APIClient, ModulesConfig.UpgradeTargetVersion, 5*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "failed awaiting subscription upgrade")
 
-			By("Verify module is still loaded after upgrade")
-			err = check.ModuleLoaded(APIClient, kmodName, time.Minute)
-			Expect(err).ToNot(HaveOccurred(), "module should remain loaded after operator upgrade")
+			// Skip module verification for KMM-HUB since no module was deployed on hub
+			if !check.IsKMMHub() {
+				By("Verify module is still loaded after upgrade")
+				err = check.ModuleLoaded(APIClient, kmodName, time.Minute)
+				Expect(err).ToNot(HaveOccurred(), "module should remain loaded after operator upgrade")
 
-			By("Check module label is still set on nodes after upgrade")
-			_, err = check.NodeLabel(APIClient, moduleName, upgradeTestNamespace,
-				GeneralConfig.WorkerLabelMap)
-			Expect(err).ToNot(HaveOccurred(), "module labels should remain after upgrade")
+				By("Check module label is still set on nodes after upgrade")
+				_, err = check.NodeLabel(APIClient, moduleName, upgradeTestNamespace,
+					GeneralConfig.WorkerLabelMap)
+				Expect(err).ToNot(HaveOccurred(), "module labels should remain after upgrade")
+			}
 		})
 	})
 })
