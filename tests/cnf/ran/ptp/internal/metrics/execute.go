@@ -23,6 +23,10 @@ import (
 // queries.
 func ExecuteQuery[V constraints.Integer](
 	ctx context.Context, client prometheusv1.API, query Query[V]) (model.Vector, error) {
+	if client == nil {
+		return nil, fmt.Errorf("cannot execute query with nil client")
+	}
+
 	metricQuery := query.ToMetricQuery()
 
 	queryTime := metricQuery.End
@@ -65,6 +69,10 @@ func ExecuteQuery[V constraints.Integer](
 // queries.
 func ExecuteQueryRange[V constraints.Integer](
 	ctx context.Context, client prometheusv1.API, query Query[V]) (model.Matrix, error) {
+	if client == nil {
+		return nil, fmt.Errorf("cannot execute query range with nil client")
+	}
+
 	metricQuery := query.ToMetricQuery()
 	queryString := metricQuery.String()
 
