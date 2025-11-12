@@ -9,6 +9,7 @@ import (
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/get"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmminittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/imagestream"
@@ -23,6 +24,11 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
+
+// IsKMMHub returns true if the test is running against KMM-HUB operator instead of KMM operator.
+func IsKMMHub() bool {
+	return strings.Contains(ModulesConfig.SubscriptionName, "hub")
+}
 
 // NodeLabel checks if label is present on the node.
 func NodeLabel(apiClient *clients.Settings, moduleName, nsname string, nodeSelector map[string]string) (bool, error) {
