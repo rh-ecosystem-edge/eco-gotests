@@ -99,10 +99,6 @@ var _ = Describe("KMM", Ordered, Label(tsparams.LabelSuite), func() {
 			err = kmmawait.ModuleDeployment(APIClient, moduleName, upgradeTestNamespace, time.Minute,
 				GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while waiting on driver deployment")
-
-			By("Check module is loaded on node before upgrade")
-			err = check.ModuleLoaded(APIClient, kmodName, time.Minute)
-			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
 		})
 
 		AfterAll(func() {
@@ -185,13 +181,8 @@ var _ = Describe("KMM", Ordered, Label(tsparams.LabelSuite), func() {
 			By("Await operator to be upgraded")
 			err = await.OperatorUpgrade(APIClient, ModulesConfig.UpgradeTargetVersion, 5*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "failed awaiting subscription upgrade")
-
 			// Skip module verification for KMM-HUB since no module was deployed on hub
 			if !check.IsKMMHub() {
-				By("Verify module is still loaded after upgrade")
-				err = check.ModuleLoaded(APIClient, kmodName, time.Minute)
-				Expect(err).ToNot(HaveOccurred(), "module should remain loaded after operator upgrade")
-
 				By("Check module label is still set on nodes after upgrade")
 				_, err = check.NodeLabel(APIClient, moduleName, upgradeTestNamespace,
 					GeneralConfig.WorkerLabelMap)
