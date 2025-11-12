@@ -846,6 +846,8 @@ func getPodObjectByNamePattern(apiClient *clients.Settings, podNamePattern, podN
 func getBondActiveInterfaceSrIovNetworkName(podObj *pod.Builder) (string, error) {
 	podNetAnnotation := podObj.Object.Annotations["k8s.v1.cni.cncf.io/network-status"]
 
+	glog.V(100).Infof("%q pod's network annotation: %q", podObj.Definition.Name, podNetAnnotation)
+
 	activeInterfaceName, err := getBondActiveInterface(podObj)
 
 	if err != nil {
@@ -866,6 +868,9 @@ func getBondActiveInterfaceSrIovNetworkName(podObj *pod.Builder) (string, error)
 	}
 
 	for _, networkAnnotation := range podNetworkStatusType {
+		glog.V(100).Infof("Comparing network interface: %q with active interface: %q",
+			networkAnnotation.Interface, activeInterfaceName)
+
 		if networkAnnotation.Interface == activeInterfaceName {
 			glog.V(100).Infof("Found sriov network name for the active interface %s in pod %s "+
 				"in namespace %s: %s",
