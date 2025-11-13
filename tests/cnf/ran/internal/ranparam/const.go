@@ -6,6 +6,10 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// UnreachableIPv4Address is the IPv4 address that is unreachable. It is in the 192.0.2.0/24 subnet, which is reserved
+// for documentation and example code.
+const UnreachableIPv4Address = "192.0.2.1"
+
 const (
 	// Label represents the label for the ran test cases.
 	Label = "ran"

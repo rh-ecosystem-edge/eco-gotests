@@ -146,6 +146,12 @@ func getInterfacesFromPtp4lSections(clientFlag bool, sections configSections) ma
 // Additionally, it makes use of ts2phc settings to determine if the profile is GM or MultiNICGM. An error is returned
 // if the profile type cannot be determined.
 func determineProfileType(interfaces map[iface.Name]*InterfaceInfo, profile ptpv1.PtpProfile) (PtpProfileType, error) {
+	// If the profile has chronyd configuration, it is a NTP fallback profile. This must be checked before the GM
+	// profile is determined, otherwise the profile would be incorrectly identified as a GM profile.
+	if profile.ChronydConf != nil && *profile.ChronydConf != "" {
+		return ProfileTypeNTPFallback, nil
+	}
+
 	// If the profile has ts2phc.master set to 1, it means there is a time source and the profile is a GM profile.
 	// If there is also ts2phc.master set to 0, it means there is another NIC acting as a time sink, so it is a
 	// multi-NIC GM profile.

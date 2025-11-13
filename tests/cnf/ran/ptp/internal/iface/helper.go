@@ -1,13 +1,19 @@
 package iface
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/ptpdaemon"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 // GetNICDriver uses ethtool to retrieve the driver for a given network interface on a specified node.
@@ -113,4 +119,92 @@ func SetInterfaceStatus(client *clients.Settings, nodeName string, iface Name, s
 	}
 
 	return nil
+}
+
+var phcCtlCmpRegex = regexp.MustCompile(`offset from CLOCK_REALTIME is ([-0-9]+)ns`)
+
+// GetPTPClockSystemTimeOffset compares a PTP clock with the system clock and returns the offset with nanosecond
+// precision. If the error is not nil, the offset will be 0, so error should be checked before using the offset.
+//
+// Note that the returned value is an offset, so it may be negative even though it is a duration.
+func GetPTPClockSystemTimeOffset(client *clients.Settings, nodeName string, ptpClockIndex int) (time.Duration, error) {
+	command := fmt.Sprintf("phc_ctl /dev/ptp%d cmp", ptpClockIndex)
+
+	output, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, command)
+	if err != nil {
+		return 0, fmt.Errorf("failed to compare PTP clock with system clock on node %s: %w", nodeName, err)
+	}
+
+	matches := phcCtlCmpRegex.FindStringSubmatch(output)
+
+	if len(matches) < 2 {
+		return 0, fmt.Errorf("failed to parse phc_ctl output: %s", output)
+	}
+
+	offset, err := strconv.Atoi(matches[1])
+	if err != nil {
+		return 0, fmt.Errorf("failed to convert offset %s to int: %w", matches[1], err)
+	}
+
+	return time.Duration(offset) * time.Nanosecond, nil
+}
+
+// PollPTPClockSystemTimeOffset repeatedly compares a PTP clock with the system clock every second over a specified
+// duration. It begins by getting the initial offset and then ensures during polling the difference between the current
+// offset and the initial offset does not exceed the threshold.
+//
+// Since the goal is to ensure that one clock does not deviate too much from the other, we use the relative offset
+// instead of the absolute offset to account for any persistent differences between the clocks. These differences may be
+// due to the TAI-UTC offset, for example.
+//
+// Flakiness is tolerated by retrying errors getting the PTP clock system time offset. However, if there are 120
+// consecutive failures, or 2 minutes, the function will return an error.
+func PollPTPClockSystemTimeOffset(
+	client *clients.Settings, nodeName string, ptpClockIndex int, duration time.Duration, threshold time.Duration) error {
+	initialOffset, err := GetPTPClockSystemTimeOffset(client, nodeName, ptpClockIndex)
+	if err != nil {
+		return fmt.Errorf("failed to get initial PTP clock system time offset on node %s: %w", nodeName, err)
+	}
+
+	klog.V(tsparams.LogLevel).Infof("Initial PTP clock system time offset on node %s: %s", nodeName, initialOffset)
+
+	consecutiveFailures := 0
+
+	err = wait.PollUntilContextTimeout(
+		context.TODO(), time.Second, duration, true, func(ctx context.Context) (bool, error) {
+			offset, err := GetPTPClockSystemTimeOffset(client, nodeName, ptpClockIndex)
+			if err != nil {
+				// We want to be somewhat lenient with errors that could be due to network issues or
+				// other transient failures. Deviations outside the threshold are treated more harshly.
+				klog.V(tsparams.LogLevel).Infof("Failed to get PTP clock system time offset on node %s: %v", nodeName, err)
+
+				consecutiveFailures++
+
+				if consecutiveFailures >= 120 {
+					klog.V(tsparams.LogLevel).Info("Maximum consecutive failures reached, returning error")
+
+					return false, fmt.Errorf("maximum consecutive failures reached: %w", err)
+				}
+
+				return false, nil
+			}
+
+			consecutiveFailures = 0
+
+			relativeOffset := offset - initialOffset
+
+			if relativeOffset.Abs() >= threshold {
+				return false, fmt.Errorf("system clock deviation %s exceeds %s", relativeOffset, threshold)
+			}
+
+			return false, nil
+		})
+
+	if err == nil || errors.Is(err, context.DeadlineExceeded) {
+		// If the offset never exceeds the threshold, the function will timeout and return a
+		// context.DeadlineExceeded error. Error should never be nil but is included for completeness.
+		return nil
+	}
+
+	return fmt.Errorf("failed to poll PTP clock system time offset on node %s: %w", nodeName, err)
 }

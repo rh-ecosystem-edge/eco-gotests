@@ -77,10 +77,11 @@ var _ = Describe("PTP Leap File", Label(tsparams.LabelLeapFile), func() {
 			Expect(err).ToNot(HaveOccurred(), "Failed to get node info map")
 
 			for _, nodeInfo := range nodeInfoMap {
-				if len(nodeInfo.GetProfilesByType(profiles.ProfileTypeMultiNICGM)) == 0 &&
-					len(nodeInfo.GetProfilesByType(profiles.ProfileTypeGM)) == 0 {
+				if nodeInfo.Counts[profiles.ProfileTypeMultiNICGM] == 0 &&
+					nodeInfo.Counts[profiles.ProfileTypeGM] == 0 {
 					continue
 				}
+
 				testRanAtLeastOnce = true
 				nodeName = nodeInfo.Name
 				originalLeapConfigMapData := leapConfigMap.Object.Data[nodeName]

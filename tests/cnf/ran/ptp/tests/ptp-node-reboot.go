@@ -88,7 +88,10 @@ var _ = Describe("PTP Node Reboot", Ordered, ContinueOnFailure, Label(tsparams.L
 		prometheusAPI, err := querier.CreatePrometheusAPIForCluster(RANConfig.Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to create Prometheus API client")
 
-		query := metrics.ClockStateQuery{Node: metrics.Equals(nodeName)}
+		query := metrics.ClockStateQuery{
+			Node:    metrics.Equals(nodeName),
+			Process: metrics.DoesNotEqual(metrics.ProcessChronyd),
+		}
 		err = metrics.AssertQuery(context.TODO(), prometheusAPI, query, metrics.ClockStateLocked,
 			metrics.AssertWithStableDuration(10*time.Second),
 			metrics.AssertWithTimeout(10*time.Minute))
