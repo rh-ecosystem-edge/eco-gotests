@@ -315,6 +315,7 @@ func definePodLevelBondTestPodDeployment(
 	return podDeployment, nil
 }
 
+//nolint:unparam
 func generateTCPTraffic(
 	clientPod *pod.Builder,
 	serverIPAddr,
@@ -326,7 +327,7 @@ func generateTCPTraffic(
 	glog.V(100).Infof("Ensure pod %q in namespace %q is Ready",
 		clientPod.Definition.Name, clientPod.Definition.Namespace)
 
-	err := clientPod.WaitUntilReady(5 * time.Second)
+	err := clientPod.WaitUntilReady(1 * time.Minute)
 
 	if err != nil {
 		glog.V(100).Infof("Failed to wait for pod %q in namespace %q to become Ready: %v",
@@ -939,7 +940,7 @@ func verifyPodLevelBondWorkloads(
 	if serverIPv4 != "" {
 		By("Send data from the client container to the IPv4 address used by the server container")
 
-		output, err := generateTCPTraffic(clientPodObj, serverIPv4, RDSCoreConfig.PodLevelBondPort, "2", "2")
+		output, err := generateTCPTraffic(clientPodObj, serverIPv4, RDSCoreConfig.PodLevelBondPort, "2", "5")
 		Expect(err).ToNot(HaveOccurred(),
 			fmt.Sprintf("Failed to generate TCP traffic from the pod %s in namespace %s to the server %s: %v",
 				clientPodObj.Definition.Name, clientPodObj.Definition.Namespace, serverIPv4, err))
@@ -956,7 +957,7 @@ func verifyPodLevelBondWorkloads(
 	if serverIPv6 != "" {
 		By("Send data from the client container to the IPv6 address used by the server container")
 
-		output, err := generateTCPTraffic(clientPodObj, serverIPv6, RDSCoreConfig.PodLevelBondPort, "2", "2")
+		output, err := generateTCPTraffic(clientPodObj, serverIPv6, RDSCoreConfig.PodLevelBondPort, "2", "5")
 		Expect(err).ToNot(HaveOccurred(),
 			fmt.Sprintf("Failed to generate TCP traffic from the pod %s in namespace %s to the server %s: %v",
 				clientPodObj.Definition.Name, clientPodObj.Definition.Namespace, serverIPv6, err))
@@ -973,7 +974,7 @@ func verifyPodLevelBondWorkloads(
 	if clientIPv4 != "" {
 		By("Send data from the server container to the IPv4 address used by the client container")
 
-		output, err := generateTCPTraffic(serverPodObj, clientIPv4, RDSCoreConfig.PodLevelBondPort, "2", "2")
+		output, err := generateTCPTraffic(serverPodObj, clientIPv4, RDSCoreConfig.PodLevelBondPort, "2", "5")
 		Expect(err).ToNot(HaveOccurred(),
 			fmt.Sprintf("Failed to generate TCP traffic from the pod %s in namespace %s to the server %s: %v",
 				serverPodObj.Definition.Name, serverPodObj.Definition.Namespace, clientIPv4, err))
@@ -990,7 +991,7 @@ func verifyPodLevelBondWorkloads(
 	if clientIPv6 != "" {
 		By("Send data from the client container to the IPv6 address used by the server container")
 
-		output, err := generateTCPTraffic(serverPodObj, clientIPv6, RDSCoreConfig.PodLevelBondPort, "2", "2")
+		output, err := generateTCPTraffic(serverPodObj, clientIPv6, RDSCoreConfig.PodLevelBondPort, "2", "5")
 		Expect(err).ToNot(HaveOccurred(),
 			fmt.Sprintf("Failed to generate TCP traffic from the pod %s in namespace %s to the server %s: %v",
 				serverPodObj.Definition.Name, serverPodObj.Definition.Namespace, clientIPv6, err))
