@@ -9,6 +9,7 @@ import (
 	. "github.com/onsi/gomega"
 	prometheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	eventptp "github.com/redhat-cne/sdk-go/pkg/event/ptp"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ptp"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/querier"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
@@ -17,6 +18,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/metrics"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/profiles"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/ptpdaemon"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
 )
 
@@ -128,28 +130,61 @@ var _ = Describe("PTP Events and Metrics", Label(tsparams.LabelEventsAndMetrics)
 		}
 	})
 
-	// 82302 - Validating 'phc2sys' and 'ptp4l' processes state is 'UP' after ptp config change
-	It("verifies phc2sys and ptp4l processes are UP", reportxml.ID("82302"), func() {
-		testRanAtLeastOnce := false
-		nodeInfoMap, err := profiles.GetNodeInfoMap(RANConfig.Spoke1APIClient)
-		Expect(err).ToNot(HaveOccurred(), "Failed to get node info map")
+	When("the PtpConfig is changed", func() {
+		var (
+			savedPtpConfigs []*ptp.PtpConfigBuilder
+			nodeInfoMap     profiles.NodeInfoMap
+		)
 
-		for _, nodeInfo := range nodeInfoMap {
-			By("getting the first profile for the node " + nodeInfo.Name)
-			profile, err := nodeInfo.GetProfileByConfigPath(RANConfig.Spoke1APIClient, nodeInfo.Name, "ptp4l.0.config")
-			Expect(err).ToNot(HaveOccurred(), "Failed to get profile by config path for node %s", nodeInfo.Name)
+		BeforeEach(func() {
+			By("saving PtpConfigs before test")
+			var err error
+			savedPtpConfigs, err = profiles.SavePtpConfigs(RANConfig.Spoke1APIClient)
+			Expect(err).ToNot(HaveOccurred(), "Failed to save PtpConfigs")
 
-			By("updating the holdover timeout")
-			testRanAtLeastOnce = true
+			By("getting node info map")
+			nodeInfoMap, err = profiles.GetNodeInfoMap(RANConfig.Spoke1APIClient)
+			Expect(err).ToNot(HaveOccurred(), "Failed to get node info map")
+		})
 
-			oldHoldovers, err := profiles.SetHoldOverTimeouts(RANConfig.Spoke1APIClient, []*profiles.ProfileInfo{profile}, 60)
-			Expect(err).ToNot(HaveOccurred(), "Failed to set holdover timeout for profile %s", profile.Reference.ProfileName)
+		AfterEach(func() {
+			// If the test did not fail, the PtpConfigs were restored by the test itself.
+			if !CurrentSpecReport().Failed() {
+				return
+			}
 
-			DeferCleanup(func() {
-				// If the test succeeded, the PTP configs were restored by the test itself.
-				if !CurrentSpecReport().Failed() {
-					return
-				}
+			By("restoring PtpConfigs")
+			startTime := time.Now()
+			changedProfiles, err := profiles.RestorePtpConfigs(RANConfig.Spoke1APIClient, savedPtpConfigs)
+			Expect(err).ToNot(HaveOccurred(), "Failed to restore PtpConfigs")
+
+			By("getting node names for changed profiles")
+			nodeNames := nodeInfoMap.GetNodesWithProfiles(changedProfiles)
+
+			By("waiting for profile load on nodes")
+			err = ptpdaemon.WaitForProfileLoadOnNodes(RANConfig.Spoke1APIClient, nodeNames, startTime, 5*time.Minute)
+			Expect(err).ToNot(HaveOccurred(), "Failed to wait for profile load on nodes")
+		})
+
+		// 82302 - Validating 'phc2sys' and 'ptp4l' processes state is 'UP' after PtpConfig change
+		It("verifies phc2sys and ptp4l processes are UP", reportxml.ID("82302"), func() {
+			testRanAtLeastOnce := false
+
+			for _, nodeInfo := range nodeInfoMap {
+				By("getting the first profile for the node " + nodeInfo.Name)
+				profile, err := nodeInfo.GetProfileByConfigPath(RANConfig.Spoke1APIClient, nodeInfo.Name, "ptp4l.0.config")
+				Expect(err).ToNot(HaveOccurred(), "Failed to get profile by config path for node %s", nodeInfo.Name)
+
+				By("updating the holdover timeout")
+				testRanAtLeastOnce = true
+
+				oldHoldovers, err := profiles.SetHoldOverTimeouts(RANConfig.Spoke1APIClient, []*profiles.ProfileInfo{profile}, 60)
+				Expect(err).ToNot(HaveOccurred(), "Failed to set holdover timeout for profile %s", profile.Reference.ProfileName)
+
+				By("waiting for the new holdover timeout to show up in the metrics")
+				err = profiles.WaitForHoldOverTimeouts(
+					prometheusAPI, nodeInfo.Name, []*profiles.ProfileInfo{profile}, 60, 5*time.Minute)
+				Expect(err).ToNot(HaveOccurred(), "Failed to wait for holdover timeout to be set to 60 after 5 minutes")
 
 				By("resetting the holdover timeout")
 				err = profiles.ResetHoldOverTimeouts(RANConfig.Spoke1APIClient, oldHoldovers)
@@ -158,34 +193,21 @@ var _ = Describe("PTP Events and Metrics", Label(tsparams.LabelEventsAndMetrics)
 				By("waiting for the holdover timeout to be reset to original values")
 				err = profiles.WaitForOldHoldOverTimeouts(prometheusAPI, nodeInfo.Name, oldHoldovers, 5*time.Minute)
 				Expect(err).ToNot(HaveOccurred(), "Failed to wait for holdover timeout to be reset to original values")
-			})
 
-			By("waiting for the new holdover timeout to show up in the metrics")
-			err = profiles.WaitForHoldOverTimeouts(
-				prometheusAPI, nodeInfo.Name, []*profiles.ProfileInfo{profile}, 60, 5*time.Minute)
-			Expect(err).ToNot(HaveOccurred(), "Failed to wait for holdover timeout to be set to 60 after 5 minutes")
-
-			By("resetting the holdover timeout")
-			err = profiles.ResetHoldOverTimeouts(RANConfig.Spoke1APIClient, oldHoldovers)
-			Expect(err).ToNot(HaveOccurred(), "Failed to reset holdover timeout for profile %s", profile.Reference.ProfileName)
-
-			By("waiting for the holdover timeout to be reset to original values")
-			err = profiles.WaitForOldHoldOverTimeouts(prometheusAPI, nodeInfo.Name, oldHoldovers, 5*time.Minute)
-			Expect(err).ToNot(HaveOccurred(), "Failed to wait for holdover timeout to be reset to original values")
-
-			By("ensuring the process status is UP for both phc2sys and ptp4l")
-			processQuery := metrics.ProcessStatusQuery{
-				Process: metrics.Includes(metrics.ProcessPHC2SYS, metrics.ProcessPTP4L),
-				Node:    metrics.Equals(nodeInfo.Name),
-				Config:  metrics.Equals("ptp4l.0.config"),
+				By("ensuring the process status is UP for both phc2sys and ptp4l")
+				processQuery := metrics.ProcessStatusQuery{
+					Process: metrics.Includes(metrics.ProcessPHC2SYS, metrics.ProcessPTP4L),
+					Node:    metrics.Equals(nodeInfo.Name),
+					Config:  metrics.Equals("ptp4l.0.config"),
+				}
+				err = metrics.AssertQuery(context.TODO(), prometheusAPI, processQuery, metrics.ProcessStatusUp,
+					metrics.AssertWithTimeout(5*time.Minute))
+				Expect(err).ToNot(HaveOccurred(), "Failed to assert process status is UP after 5 minutes")
 			}
-			err = metrics.AssertQuery(context.TODO(), prometheusAPI, processQuery, metrics.ProcessStatusUp,
-				metrics.AssertWithTimeout(5*time.Minute))
-			Expect(err).ToNot(HaveOccurred(), "Failed to assert process status is UP after 5 minutes")
-		}
 
-		if !testRanAtLeastOnce {
-			Skip("Could not find any node with at least one profile for this test")
-		}
+			if !testRanAtLeastOnce {
+				Skip("Could not find any node with at least one profile for this test")
+			}
+		})
 	})
 })
