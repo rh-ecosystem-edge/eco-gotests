@@ -1,0 +1,102 @@
+package profiles
+
+import (
+	"errors"
+	"fmt"
+	"reflect"
+	"slices"
+
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ptp"
+	ptpv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v1"
+	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+// SavePtpConfigs returns a list of all PtpConfigs in the cluster.
+func SavePtpConfigs(client *clients.Settings) ([]*ptp.PtpConfigBuilder, error) {
+	ptpConfigList, err := ptp.ListPtpConfigs(client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list PtpConfigs: %w", err)
+	}
+
+	return ptpConfigList, nil
+}
+
+// RestorePtpConfigs restores the PtpConfigs from the list to the cluster. It first checks if the PtpConfig has changed
+// using reflect.DeepEqual on the spec then updating if necessary. It collects all the errors and returns them
+// as a single error. It returns a list of profile references that were changed.
+func RestorePtpConfigs(client *clients.Settings, ptpConfigList []*ptp.PtpConfigBuilder) ([]*ProfileReference, error) {
+	var (
+		changedProfiles []*ProfileReference
+		errs            []error
+	)
+
+	for _, ptpConfig := range ptpConfigList {
+		changedProfilesForConfig, err := listChangedProfilesInConfig(ptpConfig)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to list changed profiles in PtpConfig %s in namespace %s: %w",
+				ptpConfig.Definition.Name, ptpConfig.Definition.Namespace, err))
+
+			continue
+		}
+
+		if len(changedProfilesForConfig) == 0 {
+			continue
+		}
+
+		_, err = ptpConfig.Update()
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to update PtpConfig %s in namespace %s: %w",
+				ptpConfig.Definition.Name, ptpConfig.Definition.Namespace, err))
+
+			continue
+		}
+
+		changedProfiles = append(changedProfiles, changedProfilesForConfig...)
+	}
+
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("failed to restore PtpConfigs: %w", errors.Join(errs...))
+	}
+
+	return changedProfiles, nil
+}
+
+// listChangedProfilesInConfig lists the profiles in the PtpConfig that have changed. It considers all the profiles in
+// the original PtpConfig and then uses reflect.DeepEqual to compare each to the latest version of the PtpConfig. It
+// returns a list of profile references that were changed.
+//
+// This function will return an error if a profile is not found in the latest PtpConfig.
+func listChangedProfilesInConfig(ptpConfig *ptp.PtpConfigBuilder) ([]*ProfileReference, error) {
+	latestPtpConfig, err := ptpConfig.Get()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get latest version of PtpConfig: %w", err)
+	}
+
+	var changedProfiles []*ProfileReference
+
+	for _, profile := range ptpConfig.Definition.Spec.Profile {
+		if profile.Name == nil {
+			return nil, fmt.Errorf("profile name is nil")
+		}
+
+		index := slices.IndexFunc(latestPtpConfig.Spec.Profile, func(p ptpv1.PtpProfile) bool {
+			return p.Name != nil && *p.Name == *profile.Name
+		})
+		if index == -1 {
+			return nil, fmt.Errorf("failed to find profile %s in latest PtpConfig", *profile.Name)
+		}
+
+		if reflect.DeepEqual(profile, latestPtpConfig.Spec.Profile[index]) {
+			continue
+		}
+
+		changedProfiles = append(changedProfiles, &ProfileReference{
+			ConfigReference: runtimeclient.ObjectKeyFromObject(ptpConfig.Definition),
+			ProfileIndex:    index,
+			ProfileName:     *profile.Name,
+		})
+	}
+
+	return changedProfiles, nil
+}
