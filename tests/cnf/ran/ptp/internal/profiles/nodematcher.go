@@ -30,7 +30,7 @@ func GetNodeInfoMap(client *clients.Settings) (map[string]*NodeInfo, error) {
 
 	ptpConfigList, err := ptp.ListPtpConfigs(client)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list PTP configs while building NodeInfo map: %w", err)
+		return nil, fmt.Errorf("failed to list PtpConfigs while building NodeInfo map: %w", err)
 	}
 
 	allRecommends := getAllRecommends(ptpConfigList)
@@ -68,14 +68,14 @@ func GetNodeInfoMap(client *clients.Settings) (map[string]*NodeInfo, error) {
 }
 
 // recommendWithProfileReference is a helper struct that combines a PTP recommend with a reference to the profile it
-// applies to. Since all recommends are aggregated from all PTP configs, this struct is used to keep track of the
+// applies to. Since all recommends are aggregated from all PtpConfigs, this struct is used to keep track of the
 // profile reference along with the recommend itself.
 type recommendWithProfileReference struct {
 	recommend ptpv1.PtpRecommend
 	reference ProfileReference
 }
 
-// getAllRecommends returns the recommend structures for all PTP configs provided and sorts by priority in ascending
+// getAllRecommends returns the recommend structures for all PtpConfigs provided and sorts by priority in ascending
 // order. Recommends without profiles, priorities, or matches are filtered out. Recommends that do not match any profile
 // in the config are also filtered out.
 func getAllRecommends(configs []*ptp.PtpConfigBuilder) []recommendWithProfileReference {
@@ -163,9 +163,9 @@ func nodeMatches(node *corev1.Node, recommend ptpv1.PtpRecommend) bool {
 	return false
 }
 
-// getMemoizedAndClonedProfileInfo retrieves a ProfileInfo for the given reference from the provided PTP configs. If the
+// getMemoizedAndClonedProfileInfo retrieves a ProfileInfo for the given reference from the provided PtpConfigs. If the
 // profile has already been parsed and saved in ptpProfileInfos, a clone of it is returned. Otherwise, the profile is
-// parsed from the PTP config, saved in ptpProfileInfos, and a clone is returned. The returned ProfileInfo pointer is
+// parsed from the PtpConfig, saved in ptpProfileInfos, and a clone is returned. The returned ProfileInfo pointer is
 // guaranteed to not be nil if there is no error. Each call returns a unique ProfileInfo instance to ensure
 // modifications don't affect other nodes.
 func getMemoizedAndClonedProfileInfo(
@@ -180,7 +180,7 @@ func getMemoizedAndClonedProfileInfo(
 		return runtimeclient.ObjectKeyFromObject(config.Definition) == reference.ConfigReference
 	})
 	if configIndex == -1 {
-		return nil, fmt.Errorf("failed to find PTP config for reference %v", reference)
+		return nil, fmt.Errorf("failed to find PtpConfig for reference %v", reference)
 	}
 
 	profiles := allConfigs[configIndex].Definition.Spec.Profile

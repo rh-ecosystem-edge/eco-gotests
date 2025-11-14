@@ -57,11 +57,11 @@ type ProfileReference struct {
 	ProfileName string
 }
 
-// PullPtpConfig pulls the PTP config for the profile referenced by this struct.
+// PullPtpConfig pulls the PtpConfig for the profile referenced by this struct.
 func (reference *ProfileReference) PullPtpConfig(client *clients.Settings) (*ptp.PtpConfigBuilder, error) {
 	ptpConfig, err := ptp.PullPtpConfig(client, reference.ConfigReference.Name, reference.ConfigReference.Namespace)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get PTP config for reference %v: %w", reference, err)
+		return nil, fmt.Errorf("failed to get PtpConfig for reference %v: %w", reference, err)
 	}
 
 	return ptpConfig, nil
@@ -149,7 +149,7 @@ func GetInterfacesNames(interfaces []*InterfaceInfo) []iface.Name {
 // indexing using the profile type.
 type ProfileCounts map[PtpProfileType]uint
 
-// NodeInfo contains all the PTP config-related information for a single node. Common operations are provided as methods
+// NodeInfo contains all the PtpConfig-related information for a single node. Common operations are provided as methods
 // on this type to avoid the need to aggregate and query nested data.
 type NodeInfo struct {
 	// Name is the name of the node resource this struct is associated to.
