@@ -1,0 +1,13 @@
+apiVersion: sriovnetwork.openshift.io/v1
+kind: SriovNetwork
+metadata:
+  name: {{ .name }}
+  namespace: {{ .namespace }}
+spec:
+  resourceName: {{ .resourceName }}
+  networkNamespace: {{ .networkNamespace }}
+  ipam: |
+    {
+      "type": "host-local",
+      "subnet": "192.168.1.0/24"
+    }

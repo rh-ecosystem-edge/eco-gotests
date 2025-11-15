@@ -480,7 +480,7 @@ github.com/google/pprof/profile
 ## explicit
 github.com/google/uuid
 # github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
-## explicit; go 1.20
+## explicit; go 1.12
 github.com/gorilla/websocket
 # github.com/grafana/loki/operator/apis/loki v0.0.0-20241021105923-5e970e50b166
 ## explicit; go 1.19
