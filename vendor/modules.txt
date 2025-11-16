@@ -1166,6 +1166,7 @@ github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/hive/scheme
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/models
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/pkg/validations
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/fec/fectypes
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/fec/vrbtypes
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/hive/api/v1
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/hive/api/v1/agent
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/hive/api/v1/aws
@@ -1241,6 +1242,7 @@ github.com/rh-ecosystem-edge/eco-goinfra/pkg/servicemesh
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/siteconfig
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov-fec
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov-vrb
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/statefulset
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/storage
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/velero
