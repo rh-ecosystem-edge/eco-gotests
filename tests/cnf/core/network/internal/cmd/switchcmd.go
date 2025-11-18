@@ -5,12 +5,12 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
 	"github.com/Juniper/go-netconf/netconf"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 var (
@@ -75,7 +75,7 @@ func NewSession(host, user, password string) (*Junos, error) {
 		func(ctx context.Context) (done bool, err error) {
 			session, err = netconf.DialSSH(host, netconf.SSHConfigPassword(user, password))
 			if err != nil {
-				log.Print(err)
+				klog.V(90).Infof("Error: %v", err)
 
 				return false, nil
 			}
@@ -216,4 +216,77 @@ func (j *Junos) GetInterfaceConfig(switchInterface string) (string, error) {
 	}
 
 	return reply.Data, nil
+}
+
+// SaveInterfaceConfigs saves the configuration of multiple switch interfaces.
+func (j *Junos) SaveInterfaceConfigs(interfaces []string) ([]string, error) {
+	if len(interfaces) == 0 {
+		return nil, fmt.Errorf("interfaces list cannot be empty")
+	}
+
+	var configs []string
+
+	for _, iface := range interfaces {
+		config, err := j.GetInterfaceConfig(iface)
+		if err != nil {
+			// Interface might not exist or have no config - that's okay, we'll just skip it
+			klog.V(90).Infof("Failed to get config for interface %s: %v", iface, err)
+
+			continue
+		}
+
+		if config != "" {
+			configs = append(configs, config)
+		}
+	}
+
+	return configs, nil
+}
+
+// RestoreInterfaceConfigs restores the configuration of multiple switch interfaces.
+func (j *Junos) RestoreInterfaceConfigs(configs []string) error {
+	if len(configs) == 0 {
+		return fmt.Errorf("configs list cannot be empty")
+	}
+
+	for _, config := range configs {
+		err := j.ApplyConfigInterface(config)
+		if err != nil {
+			return fmt.Errorf("failed to restore interface config: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// DisableLACP removes LACP configuration from switch interfaces.
+func (j *Junos) DisableLACP(lacpInterfaces, physicalInterfaces []string) error {
+	if len(lacpInterfaces) == 0 {
+		return fmt.Errorf("lacpInterfaces list cannot be empty")
+	}
+
+	if len(physicalInterfaces) == 0 {
+		return fmt.Errorf("physicalInterfaces list cannot be empty")
+	}
+
+	var commands []string
+
+	for _, physicalInterface := range physicalInterfaces {
+		commands = append(commands, fmt.Sprintf("delete interfaces %s ether-options 802.3ad", physicalInterface))
+	}
+
+	for _, lacpInterface := range lacpInterfaces {
+		commands = append(commands, fmt.Sprintf("delete interfaces %s", lacpInterface))
+	}
+
+	for _, physicalInterface := range physicalInterfaces {
+		commands = append(commands, fmt.Sprintf("delete interfaces %s", physicalInterface))
+	}
+
+	err := j.Config(commands)
+	if err != nil {
+		return fmt.Errorf("failed to execute switch cleanup commands: %w", err)
+	}
+
+	return nil
 }
