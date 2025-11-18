@@ -84,24 +84,27 @@ RUN depmod -b /opt ${KERNEL_VERSION}
 	// SimpleKmodFirmwareContents represents the Dockerfile contents for simple-kmod-firmware build.
 	SimpleKmodFirmwareContents = `ARG DTK_AUTO
 FROM ${DTK_AUTO} as builder
-ARG KVER
-ARG KERNEL_VERSION
+ARG KERNEL_FULL_VERSION
+ARG MOD_NAME
+ARG MOD_NAMESPACE
 ARG KMODVER
 
 WORKDIR /build/ 
 RUN git clone https://github.com/cdvultur/simple-kmod.git && \
    cd simple-kmod && \
-   make all       KVER=$KERNEL_VERSION KMODVER=$KMODVER && \
-   make install   KVER=$KERNEL_VERSION KMODVER=$KMODVER
+   make all       KVER=$KERNEL_FULL_VERSION KMODVER=$KMODVER && \
+   make install   KVER=$KERNEL_FULL_VERSION KMODVER=$KMODVER
 
 FROM registry.redhat.io/ubi9/ubi-minimal
-ARG KERNEL_VERSION
+ARG KERNEL_FULL_VERSION
+ARG MOD_NAME
+ARG MOD_NAMESPACE
 RUN microdnf -y install kmod
 
 COPY --from=builder /etc/driver-toolkit-release.json /etc/
-COPY --from=builder /lib/modules/$KERNEL_VERSION/simple-*.ko /opt/lib/modules/${KERNEL_VERSION}/
-COPY --from=builder /lib/modules/$KERNEL_VERSION/modules.* /opt/lib/modules/${KERNEL_VERSION}/
-RUN depmod -b /opt ${KERNEL_VERSION}
+COPY --from=builder /lib/modules/$KERNEL_FULL_VERSION/simple-*.ko /opt/lib/modules/${KERNEL_FULL_VERSION}/
+COPY --from=builder /lib/modules/$KERNEL_FULL_VERSION/modules.* /opt/lib/modules/${KERNEL_FULL_VERSION}/
+RUN depmod -b /opt ${KERNEL_FULL_VERSION}
 
 RUN mkdir /firmware
 RUN echo -n "simple_kmod_firmware validation string" >> /firmware/simple_kmod_firmware.bin
