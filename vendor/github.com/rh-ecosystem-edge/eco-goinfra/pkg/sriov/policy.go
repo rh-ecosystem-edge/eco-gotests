@@ -378,6 +378,58 @@ func (builder *PolicyBuilder) Exists() bool {
 	return err == nil || !k8serrors.IsNotFound(err)
 }
 
+// Update renovates the existing SriovNetworkNodePolicy object with the SriovNetworkNodePolicy definition in builder.
+func (builder *PolicyBuilder) Update(force bool) (*PolicyBuilder, error) {
+	if valid, err := builder.validate(); !valid {
+		return builder, err
+	}
+
+	glog.V(100).Infof("Updating the SriovNetworkNodePolicy object %s in namespace %s",
+		builder.Definition.Name, builder.Definition.Namespace)
+
+	if !builder.Exists() {
+		glog.V(100).Infof("SriovNetworkNodePolicy %s in namespace %s does not exist",
+			builder.Definition.Name, builder.Definition.Namespace)
+
+		return nil, fmt.Errorf("cannot update non-existent SriovNetworkNodePolicy")
+	}
+
+	// Get the current object to preserve ResourceVersion
+	currentObject, err := builder.Get()
+	if err != nil {
+		return builder, fmt.Errorf("failed to get current SriovNetworkNodePolicy: %w", err)
+	}
+
+	// Preserve ResourceVersion for update
+	builder.Definition.ResourceVersion = currentObject.ResourceVersion
+
+	err = builder.apiClient.Update(context.TODO(), builder.Definition)
+	if err != nil {
+		if force {
+			glog.V(100).Infof(
+				msg.FailToUpdateNotification("SriovNetworkNodePolicy", builder.Definition.Name))
+
+			err := builder.Delete()
+			if err != nil {
+				glog.V(100).Infof(
+					msg.FailToUpdateError("SriovNetworkNodePolicy", builder.Definition.Name))
+
+				return nil, err
+			}
+
+			return builder.Create()
+		}
+
+		return builder, err
+	}
+
+	if err == nil {
+		builder.Object = builder.Definition
+	}
+
+	return builder, err
+}
+
 // validate will check that the builder and builder definition are properly initialized before
 // accessing any member fields.
 func (builder *PolicyBuilder) validate() (bool, error) {
