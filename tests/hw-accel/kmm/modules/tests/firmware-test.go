@@ -26,8 +26,8 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 		moduleName := kmmparams.FirmwareTestNamespace
 		kmodName := "simple-kmod-firmware"
 		serviceAccountName := "firmware-manager"
-		image := fmt.Sprintf("%s/%s/%s:$KERNEL_FULL_VERSION",
-			tsparams.LocalImageRegistry, kmmparams.FirmwareTestNamespace, kmodName)
+		image := fmt.Sprintf("%s/$MOD_NAMESPACE/$MOD_NAME:$KERNEL_FULL_VERSION",
+			tsparams.LocalImageRegistry)
 
 		AfterEach(func() {
 			By("Delete Module")
@@ -77,7 +77,6 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			kernelMapping := kmm.NewRegExKernelMappingBuilder("^.+$")
 
 			kernelMapping.WithContainerImage(image).
-				WithBuildArg("KVER", "$KERNEL_VERSION").
 				WithBuildArg("KMODVER", "0.0.1").
 				WithBuildDockerCfgFile(dockerfileConfigMap.Object.Name)
 			kerMapOne, err := kernelMapping.BuildKernelMappingConfig()
