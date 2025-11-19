@@ -29,10 +29,12 @@ import (
 
 var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func() {
 
+	const simpleKmodName = "simple-kmod"
+
 	Context("Module", Ordered, Label("simple-kmod"), func() {
 
-		moduleName := "simple-kmod"
-		kmodName := "simple-kmod"
+		moduleName := simpleKmodName
+		kmodName := simpleKmodName
 		localNsName := kmmparams.SimpleKmodModuleTestNamespace
 		serviceAccountName := "simple-kmod-manager"
 		secretName := "test-build-secret"
@@ -194,8 +196,8 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 	// If 68106 fails, these tests will still run. Reuses namespace/secrets.
 	Context("Module - Additional Tests", Ordered, Label("simple-kmod"), func() {
 
-		moduleName := "simple-kmod"
-		kmodName := "simple-kmod"
+		moduleName := simpleKmodName
+		kmodName := simpleKmodName
 		localNsName := kmmparams.SimpleKmodModuleTestNamespace
 		serviceAccountName := "simple-kmod-manager"
 		secretName := "test-build-secret"
