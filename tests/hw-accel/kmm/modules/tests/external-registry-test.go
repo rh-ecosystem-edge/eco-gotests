@@ -27,9 +27,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func() {
+var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func() {
 
-	Context("Module", Label("simple-kmod"), func() {
+	Context("Module", Ordered, Label("simple-kmod"), func() {
 
 		moduleName := "simple-kmod"
 		kmodName := "simple-kmod"
@@ -38,8 +38,6 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 		secretName := "test-build-secret"
 		image := fmt.Sprintf("%s/%s:$KERNEL_FULL_VERSION-%v",
 			ModulesConfig.Registry, moduleName, time.Now().Unix())
-		imageNotUniq := fmt.Sprintf("%s/%s:$KERNEL_FULL_VERSION",
-			ModulesConfig.Registry, moduleName)
 		buildArgValue := fmt.Sprintf("%s.o", kmodName)
 
 		var module *kmm.ModuleBuilder
@@ -188,6 +186,49 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			}
 			Expect(foundModuleLoadedEvents).To(Equal(totalNodes), "ModuleLoaded events do not match")
 			Expect(foundModuleUnloadedEvents).To(Equal(totalNodes), "ModuleUnloaded events do not match")
+		})
+
+	})
+
+	// Separate context to isolate flaky event test (68106) in first context.
+	// If 68106 fails, these tests will still run. Reuses namespace/secrets.
+	Context("Module - Additional Tests", Ordered, Label("simple-kmod"), func() {
+
+		moduleName := "simple-kmod"
+		kmodName := "simple-kmod"
+		localNsName := kmmparams.SimpleKmodModuleTestNamespace
+		serviceAccountName := "simple-kmod-manager"
+		secretName := "test-build-secret"
+		image := fmt.Sprintf("%s/%s:$KERNEL_FULL_VERSION-%v",
+			ModulesConfig.Registry, moduleName, time.Now().Unix())
+		imageNotUniq := fmt.Sprintf("%s/%s:$KERNEL_FULL_VERSION",
+			ModulesConfig.Registry, moduleName)
+		buildArgValue := fmt.Sprintf("%s.o", kmodName)
+
+		var module *kmm.ModuleBuilder
+		var svcAccount *serviceaccount.Builder
+		var originalSecretMap map[string]map[string]interface{}
+		var secretMap map[string]map[string]interface{}
+
+		BeforeAll(func() {
+			if ModulesConfig.PullSecret == "" || ModulesConfig.Registry == "" {
+				Skip("No external registry secret found in environment, Skipping test")
+			}
+
+			By("Get existing service account from Context 1")
+			var err error
+			svcAccount, err = serviceaccount.Pull(APIClient, serviceAccountName, localNsName)
+			Expect(err).ToNot(HaveOccurred(), "service account should exist from Context 1")
+
+			By("Get cluster's global pull-secret")
+			globalSecret, err := cluster.GetOCPPullSecret(APIClient)
+			Expect(err).ToNot(HaveOccurred(), "error fetching cluster's pull-secret")
+
+			err = json.Unmarshal(globalSecret.Object.Data[".dockerconfigjson"], &secretMap)
+			Expect(err).ToNot(HaveOccurred(), "error unmarshal pull-secret")
+			err = json.Unmarshal(globalSecret.Object.Data[".dockerconfigjson"], &originalSecretMap)
+			Expect(err).ToNot(HaveOccurred(), "error unmarshal pull-secret")
+
 		})
 
 		It("should deploy prebuild image", reportxml.ID("53395"), func() {
@@ -364,23 +405,20 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 		AfterAll(func() {
 			By("Delete Module")
 			_, err := kmm.NewModuleBuilder(APIClient, kmodName, localNsName).Delete()
-			Expect(err).ToNot(HaveOccurred(), "error creating test namespace")
+			Expect(err).ToNot(HaveOccurred(), "error deleting module")
 
 			By("Await module to be deleted")
 			err = await.ModuleObjectDeleted(APIClient, kmodName, localNsName, 3*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error while waiting module to be deleted")
 
-			svcAccount := serviceaccount.NewBuilder(APIClient, serviceAccountName, moduleName)
-			svcAccount.Exists()
-
 			By("Delete ClusterRoleBinding")
 			crb := define.ModuleCRB(*svcAccount, moduleName)
 			err = crb.Delete()
-			Expect(err).ToNot(HaveOccurred(), "error creating test namespace")
+			Expect(err).ToNot(HaveOccurred(), "error deleting clusterrolebinding")
 
 			By("Delete Namespace")
 			err = namespace.NewBuilder(APIClient, moduleName).Delete()
-			Expect(err).ToNot(HaveOccurred(), "error creating test namespace")
+			Expect(err).ToNot(HaveOccurred(), "error deleting namespace")
 
 			By("Restore original global pull-secret")
 			if originalSecretMap["auths"][ModulesConfig.Registry] == nil {
