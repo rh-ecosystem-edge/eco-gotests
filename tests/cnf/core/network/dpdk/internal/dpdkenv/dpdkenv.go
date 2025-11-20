@@ -8,6 +8,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netconfig"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
@@ -42,7 +43,7 @@ func DoesClusterSupportDpdkTests(
 		}
 	}
 
-	err = netenv.IsSriovDeployed(apiClient, netConfig)
+	err = sriovoperator.IsSriovDeployed(apiClient, netConfig.SriovOperatorNamespace)
 	if err != nil {
 		return err
 	}

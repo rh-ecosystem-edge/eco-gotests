@@ -150,6 +150,7 @@ linters:
         - github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/diskencryption/internal/diskencryptioninittools
         - github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/o-cloud/internal/ocloudinittools
         - github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/o-cloud/internal/ocloudcommon
+        - github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/ocpsriovinittools
     wsl:
       strict-append: false
   exclusions:
@@ -198,6 +199,9 @@ linters:
       - linters:
           - gochecknoinits
         path: tests/lca/imagebasedupgrade/cnf/internal/cnfinittools
+      - linters:
+          - gochecknoinits
+        path: tests/ocp/sriov/internal/ocpsriovinittools
       - linters:
           - gochecknoinits
         path: tests/hw-accel/kmm/internal/kmminittools

@@ -9,7 +9,6 @@ import (
 	"github.com/golang/glog"
 	v2 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/performanceprofile/v2"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/daemonset"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/mco"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
@@ -57,30 +56,6 @@ func DoesClusterHasEnoughNodes(
 
 	if len(controlPlaneNodeList) < requiredCPNodeNumber {
 		return fmt.Errorf("cluster has less than %d control-plane nodes", requiredCPNodeNumber)
-	}
-
-	return nil
-}
-
-// IsSriovDeployed verifies that the sriov operator is deployed.
-func IsSriovDeployed(apiClient *clients.Settings, netConfig *netconfig.NetworkConfig) error {
-	sriovNS := namespace.NewBuilder(apiClient, netConfig.SriovOperatorNamespace)
-	if !sriovNS.Exists() {
-		return fmt.Errorf("error SR-IOV namespace %s doesn't exist", sriovNS.Definition.Name)
-	}
-
-	for _, sriovDaemonsetName := range netparam.OperatorSriovDaemonsets {
-		sriovDaemonset, err := daemonset.Pull(
-			apiClient, sriovDaemonsetName, netConfig.SriovOperatorNamespace)
-
-		if err != nil {
-			return fmt.Errorf("error to pull SR-IOV daemonset %s from the cluster", sriovDaemonsetName)
-		}
-
-		if !sriovDaemonset.IsReady(30 * time.Second) {
-			return fmt.Errorf("error SR-IOV daemonset %s is not in ready/ready state",
-				sriovDaemonsetName)
-		}
 	}
 
 	return nil

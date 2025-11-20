@@ -26,6 +26,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/sriovenv"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -78,7 +79,7 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 	BeforeAll(func() {
 
 		By("Verifying SR-IOV operator is running")
-		err := netenv.IsSriovDeployed(APIClient, NetConfig)
+		err := sriovoperator.IsSriovDeployed(APIClient, NetConfig.SriovOperatorNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Cluster doesn't support sriov test cases")
 
 		By("Verifying PF Status Relay operator is running")
