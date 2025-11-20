@@ -13,30 +13,37 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/reporter"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/ocpsriovinittools"
+	sriovenv "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/sriovenv"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/tsparams"
 	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/tests"
 )
 
+var _, currentFile, _, _ = runtime.Caller(0)
+
 var (
-	_, currentFile, _, _ = runtime.Caller(0)
-	testNS               = namespace.NewBuilder(APIClient, tsparams.TestNamespaceName)
+	testNS *namespace.Builder
 )
 
-func TestLB(t *testing.T) {
+func TestSriov(t *testing.T) {
 	_, reporterConfig := GinkgoConfiguration()
 	reporterConfig.JUnitReport = SriovOcpConfig.GetJunitReportPath(currentFile)
 
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "sriov", Label(tsparams.Labels...), reporterConfig)
+	RunSpecs(t, "OCP SR-IOV Suite", Label(tsparams.Labels...), reporterConfig)
 }
 
 var _ = BeforeSuite(func() {
+	By("Cleaning up leftover resources from previous test runs")
+	err := sriovenv.CleanupLeftoverResources(APIClient, SriovOcpConfig.OcpSriovOperatorNamespace)
+	Expect(err).ToNot(HaveOccurred(), "Failed to cleanup leftover resources")
+
 	By("Creating test namespace with privileged labels")
+	testNS = namespace.NewBuilder(APIClient, tsparams.TestNamespaceName)
 	for key, value := range params.PrivilegedNSLabels {
 		testNS.WithLabel(key, value)
 	}
-	_, err := testNS.Create()
-	Expect(err).ToNot(HaveOccurred(), "error to create test namespace")
+	_, err = testNS.Create()
+	Expect(err).ToNot(HaveOccurred(), "Failed to create test namespace %q", testNS.Definition.Name)
 
 	By("Verifying if sriov tests can be executed on given cluster")
 	err = sriovoperator.IsSriovDeployed(APIClient, SriovOcpConfig.OcpSriovOperatorNamespace)
@@ -46,15 +53,21 @@ var _ = BeforeSuite(func() {
 	err = cluster.PullTestImageOnNodes(APIClient, SriovOcpConfig.OcpWorkerLabel, SriovOcpConfig.OcpSriovTestContainer, 300)
 	Expect(err).ToNot(HaveOccurred(), "Failed to pull test image on nodes")
 })
+
 var _ = AfterSuite(func() {
 	By("Deleting test namespace")
-	err := testNS.DeleteAndWait(tsparams.DefaultTimeout)
-	Expect(err).ToNot(HaveOccurred(), "error to delete test namespace")
+	if testNS != nil {
+		err := testNS.DeleteAndWait(tsparams.DefaultTimeout)
+		Expect(err).ToNot(HaveOccurred(), "Failed to delete test namespace")
+	}
 })
 
 var _ = JustAfterEach(func() {
 	reporter.ReportIfFailed(
-		CurrentSpecReport(), currentFile, tsparams.ReporterNamespacesToDump, tsparams.ReporterCRDsToDump)
+		CurrentSpecReport(),
+		currentFile,
+		tsparams.ReporterNamespacesToDump,
+		tsparams.ReporterCRDsToDump)
 })
 
 var _ = ReportAfterSuite("", func(report Report) {
