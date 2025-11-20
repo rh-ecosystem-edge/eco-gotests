@@ -26,7 +26,6 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 
 		var nSpace = kmmparams.MultipleModuleTestNamespace
 		kmodName := "multiplemodules"
-		buildArgValue := fmt.Sprintf("%s.o", kmodName)
 		serviceAccountName := "multiple-sa"
 
 		BeforeAll(func() {
@@ -84,7 +83,6 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 					tsparams.LocalImageRegistry, nSpace, kmodName)
 				kernelMapping, err := kmm.NewRegExKernelMappingBuilder("^.+$").
 					WithContainerImage(image).
-					WithBuildArg(kmmparams.BuildArgName, buildArgValue).
 					WithBuildDockerCfgFile(dockerFileConfigMap.Object.Name).
 					BuildKernelMappingConfig()
 				Expect(err).ToNot(HaveOccurred(), "error creating kernel mapping")
