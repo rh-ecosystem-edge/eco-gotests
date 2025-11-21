@@ -21,6 +21,9 @@
 reports
 .vscode
 
+# Cursor AI configuration
+.cursorrules
+
 # Ignore all markdown files except README.md files
 *.md
 !README.md
