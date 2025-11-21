@@ -34,8 +34,9 @@ var _ = Describe(
 			testData             = tsparams.GetDeviceConfig()
 		)
 
-		// Suppress unused variable warnings for variables that will be used in future test cases
-		_ = sriovNetworkTemplate
+	// Suppress unused variable warnings for variables that will be used in future test cases
+	_ = buildPruningBaseDir
+	_ = sriovNetworkTemplate
 
 		BeforeAll(func() {
 			By("Checking the SR-IOV operator is running")
