@@ -95,7 +95,7 @@ var _ = Describe(
 
 #### Test Organization Principles
 
-1. **Ordered Tests**: Use `Ordered` when tests must run in sequence
+1. **Ordered Tests**: Use `Ordered` when tests must run in sequence, or when `BeforeAll`/`AfterAll` is used
 2. **Labels**: Always use labels for test filtering (`Label(tsparams.LabelFeatureName)`)
 3. **ContinueOnFailure**: 
    - **Important**: `ContinueOnFailure` is typically used in conjunction with `Ordered` containers
