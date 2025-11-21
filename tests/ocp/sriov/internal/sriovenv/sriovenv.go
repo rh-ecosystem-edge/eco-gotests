@@ -67,7 +67,13 @@ func PullTestImageOnNodes(apiClient *clients.Settings, nodeSelector, image strin
 	// - Then proceed with test pod creation
 	//
 	// For now, returning success and relying on kubelet's image pull mechanism.
-	glog.V(90).Infof("Image pulling deferred to pod creation. Image: %q. Note: Images will be pulled on first pod creation. This may take extra time on first pod launch.", image)
+	if apiClient == nil {
+		glog.V(90).Info("API client is nil in PullTestImageOnNodes; continuing because image pull is deferred to kubelet")
+	}
+	glog.V(90).Infof(
+		"Image pulling deferred to pod creation. Image: %q, nodeSelector: %q, pullTimeoutSeconds: %d. "+
+			"Images will be pulled on first pod creation; this may take extra time on first pod launch.",
+		image, nodeSelector, pullTimeout)
 	return nil
 }
 
@@ -675,8 +681,8 @@ type SriovNetworkConfig struct {
 
 // CreateSriovNetwork creates a SRIOV network and waits for it to be ready
 func CreateSriovNetwork(apiClient *clients.Settings, config *SriovNetworkConfig, timeout time.Duration) error {
-	glog.V(90).Infof("Creating SRIOV network %q in namespace %q (target_namespace: %q, resource: %q)",
-		config.Name, config.Namespace, config.NetworkNamespace, config.ResourceName)
+	glog.V(90).Infof("Creating SRIOV network %q in namespace %q (target_namespace: %q, resource: %q, timeoutHint: %v)",
+		config.Name, config.Namespace, config.NetworkNamespace, config.ResourceName, timeout)
 
 	networkBuilder := sriov.NewNetworkBuilder(
 		apiClient,
@@ -847,6 +853,8 @@ func VerifyWorkerNodesReady(apiClient *clients.Settings, workerNodes []*nodes.Bu
 	if apiClient == nil {
 		return fmt.Errorf("API client is nil, cannot verify node readiness")
 	}
+
+	glog.V(90).Infof("Verifying worker node readiness for SRIOV operator namespace %q", sriovOpNs)
 
 	allNodesReady := true
 	var lastErr error
