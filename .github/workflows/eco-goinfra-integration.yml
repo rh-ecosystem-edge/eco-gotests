@@ -18,7 +18,7 @@ jobs:
     steps:
       - name: Check out the eco-gotests code
         if: ${{ !contains(github.event.*.labels.*.name, 'ignore-dep-check') }}
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       
       - name: Set up Go
         if: ${{ !contains(github.event.*.labels.*.name, 'ignore-dep-check') }}
@@ -28,7 +28,7 @@ jobs:
 
       - name: Check out the eco-goinfra code
         if: ${{ !contains(github.event.*.labels.*.name, 'ignore-dep-check') }}
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: ${{ env.ECO_GOINFRA_REPO }}
           # check out the branch name that is targeted by the PR
