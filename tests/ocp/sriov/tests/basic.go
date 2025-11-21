@@ -17,7 +17,6 @@ import (
 	sriovenv "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/sriovenv"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/tsparams"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 )
 
 var _ = Describe(
@@ -46,11 +45,22 @@ var _ = Describe(
 			Expect(err).ToNot(HaveOccurred(), "SR-IOV operator is not running")
 
 			By("Discovering worker nodes")
-			// Create WorkerLabelMap from OcpWorkerLabel
-			workerLabelMap := map[string]string{SriovOcpConfig.OcpWorkerLabel: ""}
+			// Use OcpWorkerLabel directly as label selector string (same as in sriovenv.go)
+			// The config should contain the full label selector (e.g., "node-role.kubernetes.io/worker=")
+			workerLabelSelector := SriovOcpConfig.OcpWorkerLabel
+			// If it's just a label name without "=", construct the full selector
+			if workerLabelSelector != "" && !strings.Contains(workerLabelSelector, "=") {
+				// Construct the full label selector format
+				workerLabelSelector = fmt.Sprintf("%s=", workerLabelSelector)
+			}
+			// Default to standard worker label if not set
+			if workerLabelSelector == "" {
+				workerLabelSelector = "node-role.kubernetes.io/worker="
+			}
 			workerNodes, err = nodes.List(APIClient,
-				metav1.ListOptions{LabelSelector: labels.Set(workerLabelMap).String()})
+				metav1.ListOptions{LabelSelector: workerLabelSelector})
 			Expect(err).ToNot(HaveOccurred(), "Failed to discover nodes")
+			Expect(len(workerNodes)).To(BeNumerically(">", 0), "No worker nodes found")
 		})
 
 		AfterAll(func() {

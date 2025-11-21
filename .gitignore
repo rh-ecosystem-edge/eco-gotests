@@ -21,3 +21,8 @@
 reports
 .vscode
 
+# Ignore all markdown files except README.md files
+*.md
+!README.md
+!**/README.md
+
