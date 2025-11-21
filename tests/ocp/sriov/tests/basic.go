@@ -46,22 +46,10 @@ var _ = Describe(
 			Expect(err).ToNot(HaveOccurred(), "SR-IOV operator is not running")
 
 		By("Discovering worker nodes")
-		// Normalize OcpWorkerLabel to ensure it's a valid label selector
-		// Unlike sriovenv.go which expects "key=" format, we normalize here as a workaround
-		// to handle cases where the label might be provided without the "=" suffix
-		workerLabelSelector := SriovOcpConfig.OcpWorkerLabel
-		// If it's just a label name without "=", construct the full selector
-		if workerLabelSelector != "" && !strings.Contains(workerLabelSelector, "=") {
-			// Construct the full label selector format
-			workerLabelSelector = fmt.Sprintf("%s=", workerLabelSelector)
-		}
-			// Default to standard worker label if not set
-			if workerLabelSelector == "" {
-				workerLabelSelector = "node-role.kubernetes.io/worker="
-			}
-			workerNodes, err = nodes.List(APIClient,
-				metav1.ListOptions{LabelSelector: workerLabelSelector})
-			Expect(err).ToNot(HaveOccurred(), "Failed to discover nodes")
+		// Use OcpWorkerLabel as label selector (validated in BeforeSuite to ensure correct format)
+		workerNodes, err = nodes.List(APIClient,
+			metav1.ListOptions{LabelSelector: SriovOcpConfig.OcpWorkerLabel})
+		Expect(err).ToNot(HaveOccurred(), "Failed to discover nodes")
 			Expect(len(workerNodes)).To(BeNumerically(">", 0), "No worker nodes found")
 		})
 

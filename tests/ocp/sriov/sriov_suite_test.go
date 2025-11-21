@@ -2,6 +2,7 @@ package sriov
 
 import (
 	"runtime"
+	"strings"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -32,6 +33,15 @@ func TestSriov(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	By("Validating test configuration")
+	// Validate and normalize worker label format - must be a valid Kubernetes label selector
+	if SriovOcpConfig.OcpWorkerLabel != "" && !strings.Contains(SriovOcpConfig.OcpWorkerLabel, "=") {
+		Fail("Invalid worker label configuration: OcpWorkerLabel must be in format 'key=value' or 'key=' " +
+			"(e.g., 'node-role.kubernetes.io/worker='). " +
+			"Current value: '" + SriovOcpConfig.OcpWorkerLabel + "'. " +
+			"Please set ECO_OCP_SRIOV_WORKER_LABEL environment variable correctly.")
+	}
+
 	By("Cleaning up leftover resources from previous test runs")
 	err := sriovenv.CleanupLeftoverResources(APIClient, SriovOcpConfig.OcpSriovOperatorNamespace)
 	Expect(err).ToNot(HaveOccurred(), "Failed to cleanup leftover resources")
