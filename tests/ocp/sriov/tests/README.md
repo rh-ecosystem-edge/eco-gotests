@@ -35,6 +35,7 @@ The SR-IOV basic tests validate fundamental SR-IOV functionality on OpenShift Co
 - `ECO_OCP_SRIOV_VF_NUM` - Number of virtual functions to create (default: 2)
 - `SRIOV_VF_NUM` - Alternative VF number environment variable (fallback if `ECO_OCP_SRIOV_VF_NUM` is not set)
 - `SRIOV_DEVICES` - Custom device configuration (format: `name1:deviceid1:vendor1:interface1,name2:deviceid2:vendor2:interface2,...`)
+- `ECO_REPORTS_DUMP_DIR` - Directory for test reports and JUnit XML files (default: `/tmp/reports`). **Note**: If not set to an absolute path, JUnit reports may be written to the test execution directory instead of the reports directory.
 
 #### Device Configuration
 
@@ -520,10 +521,21 @@ make run-tests
 ### XML Reports
 
 XML reports are generated automatically:
-- JUnit report: `/tmp/junit.xml`
-- Test run report: `/tmp/reports/sriov_testrun.xml`
+- JUnit report: `{ECO_REPORTS_DUMP_DIR}/sriov_suite_test_junit.xml` (default: `/tmp/reports/sriov_suite_test_junit.xml`)
+- Test run report: `{ECO_REPORTS_DUMP_DIR}/sriov_testrun.xml` (default: `/tmp/reports/sriov_testrun.xml`)
 
-The reports directory (`/tmp/reports/`) is automatically created if it doesn't exist.
+The reports directory is automatically created if it doesn't exist.
+
+**Important**: The `ECO_REPORTS_DUMP_DIR` environment variable (maps to `ReportsDirAbsPath` in config) must be set to an **absolute path** to ensure JUnit reports are written to the correct location. If not set or set to a relative path, the JUnit report may be written to the test execution directory (e.g., `tests/ocp/sriov/sriov_suite_test_junit.xml`) instead of the reports directory.
+
+**Example**:
+```bash
+# Set absolute path for reports (recommended)
+export ECO_REPORTS_DUMP_DIR="/tmp/reports"
+
+# Or use a custom location
+export ECO_REPORTS_DUMP_DIR="/path/to/custom/reports"
+```
 
 To disable XML reports:
 ```bash
