@@ -34,7 +34,7 @@ func TestSriov(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	By("Validating test configuration")
-	// Validate and normalize worker label format - must be a valid Kubernetes label selector
+	// Ensure worker label uses "key=value" or "key=" format to avoid invalid selectors
 	if SriovOcpConfig.OcpWorkerLabel != "" && !strings.Contains(SriovOcpConfig.OcpWorkerLabel, "=") {
 		Fail("Invalid worker label configuration: OcpWorkerLabel must be in format 'key=value' or 'key=' " +
 			"(e.g., 'node-role.kubernetes.io/worker='). " +
@@ -61,7 +61,11 @@ var _ = BeforeSuite(func() {
 	By("Pulling test images on cluster before running test cases")
 	// Use local PullTestImageOnNodes which defers image pulling to first pod creation
 	// This avoids the bug in cluster.PullTestImageOnNodes and reduces test startup time
-	err = sriovenv.PullTestImageOnNodes(APIClient, SriovOcpConfig.OcpWorkerLabel, SriovOcpConfig.OcpSriovTestContainer, 300)
+	err = sriovenv.PullTestImageOnNodes(
+		APIClient,
+		SriovOcpConfig.OcpWorkerLabel,
+		SriovOcpConfig.OcpSriovTestContainer,
+		int(tsparams.DefaultTimeout.Seconds()))
 	Expect(err).ToNot(HaveOccurred(), "Failed to pull test image on nodes")
 })
 
