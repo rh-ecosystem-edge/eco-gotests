@@ -74,7 +74,7 @@ var _ = Describe(
 				data := data
 				By(fmt.Sprintf("Testing device: %s (DeviceID: %s, Interface: %s)", data.Name, data.DeviceID, data.InterfaceName))
 
-				// Create VF on with given device
+				// Initialize VF for given device
 				result, err := sriovenv.InitVF(APIClient, SriovOcpConfig, data.Name, data.DeviceID, data.InterfaceName, data.Vendor, sriovOpNs, vfNum, workerNodes)
 				Expect(err).ToNot(HaveOccurred(), "Failed to initialize VF for device %q", data.Name)
 				if !result {
@@ -150,7 +150,7 @@ var _ = Describe(
 				data := data
 				By(fmt.Sprintf("Testing device: %s (DeviceID: %s, Interface: %s)", data.Name, data.DeviceID, data.InterfaceName))
 
-				// Create VF on with given device
+				// Initialize VF for given device
 				result, err := sriovenv.InitVF(APIClient, SriovOcpConfig, data.Name, data.DeviceID, data.InterfaceName, data.Vendor, sriovOpNs, vfNum, workerNodes)
 				Expect(err).ToNot(HaveOccurred(), "Failed to initialize VF for device %q", data.Name)
 				if !result {
@@ -591,7 +591,7 @@ var _ = Describe(
 				data := data
 				By(fmt.Sprintf("Testing device: %s (DeviceID: %s, Interface: %s)", data.Name, data.DeviceID, data.InterfaceName))
 
-				// Create VF on with given device
+				// Initialize VF for given device
 				result, err := sriovenv.InitVF(APIClient, SriovOcpConfig, data.Name, data.DeviceID, data.InterfaceName, data.Vendor, sriovOpNs, vfNum, workerNodes)
 				Expect(err).ToNot(HaveOccurred(), "Failed to initialize VF for device %q", data.Name)
 				if !result {
@@ -680,7 +680,7 @@ var _ = Describe(
 					continue
 				}
 
-				// Create DPDK VF on with given device
+				// Initialize DPDK VF for given device
 				policyName := data.Name
 				networkName := data.Name + "dpdk" + "net"
 				result, err := sriovenv.InitDpdkVF(APIClient, SriovOcpConfig, data.Name, data.DeviceID, data.InterfaceName, data.Vendor, sriovOpNs, vfNum, workerNodes)

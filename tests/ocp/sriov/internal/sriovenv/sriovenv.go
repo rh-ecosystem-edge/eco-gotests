@@ -22,6 +22,7 @@ import (
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/ocpsriovinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/tsparams"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,9 +39,8 @@ func IsSriovDeployed(apiClient *clients.Settings, config interface{}) error {
 	default:
 		return fmt.Errorf("unsupported config type")
 	}
-	
+
 	// Delegate to centralized function
-	// This is a placeholder - the actual implementation should use sriovoperator.IsSriovDeployed
 	return sriovoperator.IsSriovDeployed(apiClient, namespace)
 }
 
@@ -365,14 +365,14 @@ func RemoveSriovNetwork(apiClient *clients.Settings, name, sriovOpNs string, tim
 			}
 
 			// Final check - if NAD is gone, that's fine
-			_, finalCheck := nad.Pull(apiClient, name, targetNamespace)
-			if finalCheck != nil {
+			_, finalCheckErr := nad.Pull(apiClient, name, targetNamespace)
+			if finalCheckErr != nil && apierrors.IsNotFound(finalCheckErr) {
 				glog.V(90).Infof("NAD %q is now deleted (after timeout but before final check)", name)
 				return nil
 			}
 
 			return fmt.Errorf("NetworkAttachmentDefinition %q was not deleted from namespace %q within timeout. "+
-				"Please check SR-IOV operator status", name, targetNamespace)
+				"Please check SR-IOV operator status (last error: %v)", name, targetNamespace, finalCheckErr)
 		}
 	}
 
@@ -1262,22 +1262,22 @@ func CheckVFStatusWithPassTraffic(apiClient *clients.Settings, config *sriovconf
 	}
 
 	serverPod, err := CreateTestPod(apiClient, config, "server", namespace, networkName, "192.168.1.11/24", "20:04:0f:f1:88:02")
-		if err != nil {
-			// Try to clean up client pod if server pod creation fails
-			_, _ = clientPod.DeleteAndWait(tsparams.NamespaceTimeout)
-			return fmt.Errorf("failed to create server pod: %w", err)
-		}
+	if err != nil {
+		// Try to clean up client pod if server pod creation fails
+		_, _ = clientPod.DeleteAndWait(tsparams.NamespaceTimeout)
+		return fmt.Errorf("failed to create server pod: %w", err)
+	}
 
-		// Defer cleanup of pods
-		defer func() {
-			glog.V(90).Info("Cleaning up test pods")
-			if clientPod != nil {
-				_, _ = clientPod.DeleteAndWait(tsparams.CleanupTimeout)
-			}
-			if serverPod != nil {
-				_, _ = serverPod.DeleteAndWait(tsparams.CleanupTimeout)
-			}
-		}()
+	// Defer cleanup of pods
+	defer func() {
+		glog.V(90).Info("Cleaning up test pods")
+		if clientPod != nil {
+			_, _ = clientPod.DeleteAndWait(tsparams.CleanupTimeout)
+		}
+		if serverPod != nil {
+			_, _ = serverPod.DeleteAndWait(tsparams.CleanupTimeout)
+		}
+	}()
 
 	// Wait for pods to be ready
 	glog.V(90).Info("Waiting for client pod to be ready")
@@ -1549,8 +1549,7 @@ func GetPciAddress(apiClient *clients.Settings, config *sriovconfig.SriovOcpConf
 }
 
 // UpdateSriovPolicyMTU updates the MTU value of an existing SR-IOV policy
-// Note: This function uses direct client update because eco-goinfra PolicyBuilder
-// doesn't currently have an Update() method. This should be contributed to eco-goinfra in the future.
+// using the eco-goinfra PolicyBuilder Update() helper.
 func UpdateSriovPolicyMTU(apiClient *clients.Settings, policyName, sriovOpNs string, mtuValue int) error {
 	glog.V(90).Infof("Updating SR-IOV policy %q MTU to %d in namespace %q", policyName, mtuValue, sriovOpNs)
 
@@ -1627,4 +1626,3 @@ func DeleteDpdkTestPod(apiClient *clients.Settings, name, namespace string, time
 	glog.V(90).Infof("DPDK test pod %q successfully deleted", name)
 	return nil
 }
-
