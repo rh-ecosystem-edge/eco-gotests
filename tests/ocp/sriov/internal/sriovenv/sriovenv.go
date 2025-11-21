@@ -1529,17 +1529,17 @@ func GetPciAddress(
 
 	podBuilder := pod.NewBuilder(apiClient, podName, namespace, config.OcpSriovTestContainer)
 	if !podBuilder.Exists() {
-		return "0000:00:00.0", fmt.Errorf("pod %q does not exist in namespace %q", podName, namespace)
+		return "", fmt.Errorf("pod %q does not exist in namespace %q", podName, namespace)
 	}
 
 	// Pull the pod to get the latest annotations
 	podObj, err := pod.Pull(apiClient, podName, namespace)
 	if err != nil {
-		return "0000:00:00.0", fmt.Errorf("failed to pull pod %q: %w", podName, err)
+		return "", fmt.Errorf("failed to pull pod %q: %w", podName, err)
 	}
 
 	if podObj == nil || podObj.Object == nil {
-		return "0000:00:00.0", fmt.Errorf("pod object is nil for pod %q", podName)
+		return "", fmt.Errorf("pod object is nil for pod %q", podName)
 	}
 
 	// Get the network status annotation
@@ -1547,7 +1547,7 @@ func GetPciAddress(
 	podNetAnnotation := podObj.Object.Annotations[networkStatusAnnotation]
 	if podNetAnnotation == "" {
 		glog.V(90).Infof("Pod network annotation not found for pod %q in namespace %q", podName, namespace)
-		return "0000:00:00.0", fmt.Errorf("pod %q does not have network status annotation", podName)
+		return "", fmt.Errorf("pod %q does not have network status annotation", podName)
 	}
 
 	// Parse the network status annotation
@@ -1567,7 +1567,7 @@ func GetPciAddress(
 	err = json.Unmarshal([]byte(podNetAnnotation), &annotation)
 	if err != nil {
 		glog.V(90).Infof("Failed to unmarshal pod network status for pod %q: %v", podName, err)
-		return "0000:00:00.0", fmt.Errorf("failed to unmarshal pod network status annotation: %w", err)
+		return "", fmt.Errorf("failed to unmarshal pod network status annotation: %w", err)
 	}
 
 	// Find the network matching the policy name
@@ -1581,7 +1581,7 @@ func GetPciAddress(
 	}
 
 	glog.V(90).Infof("PCI address not found for pod %q with policy %q", podName, policyName)
-	return "0000:00:00.0", fmt.Errorf("PCI address not found for pod %q with policy %q", podName, policyName)
+	return "", fmt.Errorf("PCI address not found for pod %q with policy %q", podName, policyName)
 }
 
 // UpdateSriovPolicyMTU updates the MTU value of an existing SR-IOV policy
