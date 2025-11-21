@@ -427,6 +427,7 @@ func (builder *FrrConfigurationBuilder) WithBGPNeighborDisableMP(disableMP bool,
 	}
 
 	// Set the DisableMP for the specified neighbor
+	//nolint:staticcheck // DisableMP is deprecated, keep for backwards compatibility.
 	builder.Definition.Spec.BGP.Routers[routerIndex].Neighbors[neighborIndex].DisableMP = disableMP
 
 	return builder
