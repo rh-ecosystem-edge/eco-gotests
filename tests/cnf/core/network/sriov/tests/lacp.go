@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
@@ -74,6 +73,8 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 		worker1NodeName          string
 		secondaryInterface0      string
 		secondaryInterface1      string
+		originalInterfaceConfigs []string
+		lacpInterfaces           []string
 	)
 
 	BeforeAll(func() {
@@ -115,15 +116,18 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 			"At least 2 switch interfaces are required for LACP tests")
 
 		By("Configure LACP on switch interfaces")
-		lacpInterfaces, err := NetConfig.GetSwitchLagNames()
+		lacpInterfaces, err = NetConfig.GetSwitchLagNames()
 		Expect(err).ToNot(HaveOccurred(), "Failed to get switch LAG names")
 		err = enableLACPOnSwitchInterfaces(switchCredentials, lacpInterfaces)
 		Expect(err).ToNot(HaveOccurred(), "Failed to enable LACP on the switch")
 
-		By("Configure physical interfaces to join aggregated ethernet interfaces")
 		firstTwoSwitchInterfaces = switchInterfaces[:2]
-		err = configurePhysicalInterfacesForLACP(switchCredentials, firstTwoSwitchInterfaces)
-		Expect(err).ToNot(HaveOccurred(), "Failed to configure physical interfaces for LACP")
+
+		By("Saving switch interface configurations for restoration")
+		originalInterfaceConfigs = saveSwitchInterfaceConfigs(switchCredentials, firstTwoSwitchInterfaces)
+
+		By("Configure physical interfaces to join aggregated ethernet interfaces")
+		configurePhysicalInterfacesForLACP(switchCredentials, firstTwoSwitchInterfaces)
 
 		By("Configure LACP block firewall filter on switch")
 		configureLACPBlockFirewallFilter(switchCredentials)
@@ -133,8 +137,7 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 		Expect(err).ToNot(HaveOccurred(), "Failed to create NMState instance")
 
 		By(fmt.Sprintf("Configure LACP bond interfaces on %s node", worker0NodeName))
-		err = configureLACPBondInterfaces(worker0NodeName, srIovInterfacesUnderTest)
-		Expect(err).ToNot(HaveOccurred(), "Failed to configure LACP bond interfaces")
+		configureLACPBondInterfaces(worker0NodeName, srIovInterfacesUnderTest)
 
 		By("Verify initial LACP bonding status is working properly on node before tests")
 		err = checkBondingStatusOnNode(worker0NodeName)
@@ -143,6 +146,9 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 	})
 
 	AfterAll(func() {
+		By("Restoring switch configuration")
+		lacpSwitchCleanup(switchCredentials, lacpInterfaces, firstTwoSwitchInterfaces, originalInterfaceConfigs)
+
 		By(fmt.Sprintf("Removing LACP bond interfaces (%s, %s)", nodeBond10Interface, nodeBond20Interface))
 		err := removeLACPBondInterfaces(worker0NodeName)
 		Expect(err).ToNot(HaveOccurred(), "Failed to remove LACP bond interfaces")
@@ -150,16 +156,6 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 		By("Removing NMState policies")
 		err = nmstate.CleanAllNMStatePolicies(APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to remove all NMState policies")
-
-		By("Restoring switch configuration to pre-test state")
-		if switchCredentials != nil && firstTwoSwitchInterfaces != nil {
-			lacpInterfaces, err := NetConfig.GetSwitchLagNames()
-			Expect(err).ToNot(HaveOccurred(), "Failed to get switch LAG names")
-			err = disableLACPOnSwitch(switchCredentials, lacpInterfaces, firstTwoSwitchInterfaces)
-			Expect(err).ToNot(HaveOccurred(), "Failed to restore switch configuration")
-		} else {
-			By("Switch credentials or interfaces are nil, skipping switch configuration restore")
-		}
 	})
 
 	Context("linux pod", func() {
@@ -268,10 +264,7 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 				Expect(err).ToNot(HaveOccurred(), "Failed to create initial PFLACPMonitor")
 
 				By("Verifying PFLACPMonitor logs show monitored interface and status")
-				Eventually(func() error {
-					return verifyPFLACPMonitorLogsEventually(worker0NodeName, logTypeInitialization, []string{secondaryInterface0})
-				}, time.Minute, 10*time.Second).Should(Succeed(),
-					"PFLACPMonitor should show proper initialization and interface monitoring within timeout")
+				verifyPFLACPMonitorLogsEventually(worker0NodeName, logTypeInitialization, []string{secondaryInterface0})
 
 				By("Redeploying PFLACPMonitor to add second PF interface")
 				err = updatePFLACPMonitor(pfLacpMonitorName, []string{srIovInterfacesUnderTest[0],
@@ -305,8 +298,7 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 				setupSingleInterfacePFLACPMonitor(worker0NodeName, srIovInterfacesUnderTest[0])
 
 				simulateLACPFailureAndVerify(worker0NodeName, switchCredentials)
-				waitForVFStateChange(worker0NodeName, logTypeVFDisable, []string{srIovInterfacesUnderTest[0]},
-					"PFLACPMonitor should detect LACP failure and disable VFs")
+				waitForVFStateChange(worker0NodeName, logTypeVFDisable, []string{srIovInterfacesUnderTest[0]})
 
 				By("Creating bonded Network Attachment Definition while VFs are disabled")
 				err := createBondedNAD(bondedNADNameActiveBackup)
@@ -327,8 +319,7 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 				Expect(err).ToNot(HaveOccurred(), "Should detect degraded bonding state with one interface down")
 
 				restoreLACPAndVerifyRecovery(worker0NodeName, switchCredentials)
-				waitForVFStateChange(worker0NodeName, logTypeVFEnable, []string{srIovInterfacesUnderTest[0]},
-					"PFLACPMonitor should detect LACP recovery and re-enable VFs")
+				waitForVFStateChange(worker0NodeName, logTypeVFEnable, []string{srIovInterfacesUnderTest[0]})
 
 				By("Verifying bonded pod network functionality after VF recovery")
 				err = checkBondingStatusInPod(bondedClientPod)
@@ -348,25 +339,18 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 				nodeSelectorWorker0 := createNodeSelector(worker0NodeName)
 
 				By("Removing second bond interface to simulate interface without LACP configuration")
-				err := removeSecondaryBondInterface(worker0NodeName)
-				Expect(err).ToNot(HaveOccurred(),
-					"Failed to remove secondary bond interface")
+				removeSecondaryBondInterface(worker0NodeName)
 
 				expandedInterfaces := []string{secondaryInterface0, secondaryInterface1}
-				err = createPFLACPMonitor(pfLacpMonitorName, expandedInterfaces, nodeSelectorWorker0)
+				err := createPFLACPMonitor(pfLacpMonitorName, expandedInterfaces, nodeSelectorWorker0)
 				Expect(err).ToNot(HaveOccurred(),
 					"Failed to create PFLACPMonitor with both interfaces")
 
 				By("Verify PFLACPMonitor logs show first PF with LACP (second PF without LACP should not cause failure)")
-				Eventually(func() error {
-					return verifyPFLACPMonitorLogsEventually(worker0NodeName, logTypeInitialization, []string{secondaryInterface0})
-				}, 2*time.Minute, 10*time.Second).Should(Succeed(),
-					"PFLACPMonitor should show LACP up only on configured interface")
+				verifyPFLACPMonitorLogsEventually(worker0NodeName, logTypeInitialization, []string{secondaryInterface0})
 
 				By("Configure LACP on the second bond interface (node and switch)")
-				err = configureLACPBondInterfaceSecondary(worker0NodeName, secondaryInterface1)
-				Expect(err).ToNot(HaveOccurred(),
-					"Failed to configure LACP bond interface for second interface")
+				configureLACPBondInterfaceSecondary(worker0NodeName, secondaryInterface1)
 
 				By("Verify LACP is up on the new bond interface with port state 63")
 				Eventually(func() error {
@@ -375,10 +359,7 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 					"Second bond interface should show LACP up with port state 63")
 
 				By("Verify PFLACPMonitor logs show the second PF now has LACP configured")
-				Eventually(func() error {
-					return verifyPFLACPMonitorLogsEventually(worker0NodeName, logTypeInitialization, []string{secondaryInterface1})
-				}, 2*time.Minute, 10*time.Second).Should(Succeed(),
-					"PFLACPMonitor should detect LACP configuration on second interface")
+				verifyPFLACPMonitorLogsEventually(worker0NodeName, logTypeInitialization, []string{secondaryInterface1})
 
 				By("Validating both interfaces now show proper LACP functionality")
 				err = checkBondingStatusOnNode(worker0NodeName)
@@ -433,8 +414,7 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 				Expect(err).ToNot(HaveOccurred(), "Failed to reset VFs from enabled to disabled")
 
 				restoreLACPAndVerifyRecovery(worker0NodeName, switchCredentials)
-				waitForVFStateChange(worker0NodeName, logTypeVFEnable, []string{secondaryInterface0},
-					"PFLACPMonitor should detect LACP recovery and re-enable VFs to auto state")
+				waitForVFStateChange(worker0NodeName, logTypeVFEnable, []string{secondaryInterface0})
 
 				By("Validating node bond interface functionality after full recovery (allow extra time for LACP)")
 				Eventually(func() error {
@@ -452,8 +432,7 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 
 				simulateLACPFailureAndVerify(worker0NodeName, switchCredentials)
 
-				waitForVFStateChange(worker0NodeName, logTypeVFDisable, []string{secondaryInterface0},
-					"PFLACPMonitor should detect LACP failure and disable VFs")
+				waitForVFStateChange(worker0NodeName, logTypeVFDisable, []string{secondaryInterface0})
 
 				By("Delete the PFLACPMonitor CRD")
 				err := deletePFLACPMonitor(pfLacpMonitorName)
@@ -478,8 +457,7 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 					"Recreate PFLACPMonitor CRD to monitor interface %s on %s", secondaryInterface0, worker0NodeName))
 				setupSingleInterfacePFLACPMonitor(worker0NodeName, secondaryInterface0)
 
-				waitForVFStateChange(worker0NodeName, logTypeVFEnable, []string{secondaryInterface0},
-					"PFLACPMonitor should detect LACP up and re-enable VFs to auto state")
+				waitForVFStateChange(worker0NodeName, logTypeVFEnable, []string{secondaryInterface0})
 
 				By("Validating final node bond interface functionality")
 				err = checkBondingStatusOnNode(worker0NodeName)
@@ -523,10 +501,7 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 				Expect(err).ToNot(HaveOccurred(), "Failed to wait for SR-IOV and MCP stability")
 
 				By("Verify in PFLACPMonitor logs that monitored PF interface is up and active")
-				Eventually(func() error {
-					return verifyPFLACPMonitorLogsEventually(worker0NodeName, logTypeInitialization, []string{secondaryInterface0})
-				}, 3*time.Minute, 15*time.Second).Should(Succeed(),
-					"PFLACPMonitor should show PF interface is up and active with VFs")
+				verifyPFLACPMonitorLogsEventually(worker0NodeName, logTypeInitialization, []string{secondaryInterface0})
 
 				By("Delete the SriovNetworkNodePolicy associated with monitored PF interface")
 				err = deleteSingleSriovPolicy()
@@ -544,10 +519,7 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 					"PFLACPMonitor should again show 'pf has no VFs' message after policy deletion")
 
 				By("Validating PFLACPMonitor continues monitoring despite VF lifecycle changes")
-				Eventually(func() error {
-					return verifyPFLACPMonitorLogsEventually(worker0NodeName, logTypeInitialization, []string{secondaryInterface0})
-				}, time.Minute, 5*time.Second).Should(Succeed(),
-					fmt.Sprintf("PFLACPMonitor should continue monitoring interface %s", secondaryInterface0))
+				verifyPFLACPMonitorLogsEventually(worker0NodeName, logTypeInitialization, []string{secondaryInterface0})
 
 				By("Restoring SR-IOV configuration for subsequent tests")
 				err = sriov.CleanAllNetworkNodePolicies(APIClient, NetConfig.SriovOperatorNamespace)
@@ -562,10 +534,7 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 				setupSingleInterfacePFLACPMonitor(worker0NodeName, secondaryInterface0)
 
 				By("Verifying first PFLACPMonitor is working correctly")
-				Eventually(func() error {
-					return verifyPFLACPMonitorLogsEventually(worker0NodeName, logTypeInitialization, []string{secondaryInterface0})
-				}, 2*time.Minute, 10*time.Second).Should(Succeed(),
-					"First PFLACPMonitor should be functioning correctly")
+				verifyPFLACPMonitorLogsEventually(worker0NodeName, logTypeInitialization, []string{secondaryInterface0})
 
 				By("Deploy second PFLACPMonitor CRD with same monitored interface (should be rejected by webhook)")
 				conflictingMonitorName := "pflacpmonitor-duplicate"
@@ -628,10 +597,7 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 			setupSingleInterfacePFLACPMonitor(worker0NodeName, secondaryInterface0)
 
 			By("Verify that pfLACPMonitoring pod logs LACP status up for configured interface")
-			Eventually(func() error {
-				return verifyPFLACPMonitorLogsEventually(worker0NodeName, logTypeInitialization, []string{secondaryInterface0})
-			}, 3*time.Minute, 15*time.Second).Should(Succeed(),
-				"PFLACPMonitor should show LACP status up for the configured interface")
+			verifyPFLACPMonitorLogsEventually(worker0NodeName, logTypeInitialization, []string{secondaryInterface0})
 		})
 
 		AfterAll(func() {
@@ -666,10 +632,7 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 				simulateLACPFailureAndVerify(worker0NodeName, switchCredentials)
 
 				By("Verify PFLACPMonitor logs confirm VF interface marked as disabled")
-				Eventually(func() error {
-					return verifyPFLACPMonitorLogsEventually(worker0NodeName, logTypeVFDisable, []string{secondaryInterface0})
-				}, 2*time.Minute, 10*time.Second).Should(Succeed(),
-					"PFLACPMonitor should show VF interface marked as disabled")
+				verifyPFLACPMonitorLogsEventually(worker0NodeName, logTypeVFDisable, []string{secondaryInterface0})
 
 				By("Verify on DPDK client that port 0 is down and port 1 is up")
 				Eventually(func() error {
@@ -679,8 +642,7 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 
 				restoreLACPAndVerifyRecovery(worker0NodeName, switchCredentials)
 
-				waitForVFStateChange(worker0NodeName, logTypeVFEnable, []string{secondaryInterface0},
-					"PFLACPMonitor should show VF interface status updated to up")
+				waitForVFStateChange(worker0NodeName, logTypeVFEnable, []string{secondaryInterface0})
 
 				By("Verify on DPDK client that both ports are up again")
 				Eventually(func() error {
@@ -720,44 +682,32 @@ func defineBondNad(nadName,
 		WithMasterPlugin(masterPluginConfig), nil
 }
 
-func disableLACPOnSwitch(credentials *sriovenv.SwitchCredentials, lacpInterfaces, physicalInterfaces []string) error {
-	if credentials == nil {
-		By("Switch credentials are nil, skipping LACP disable")
+func lacpSwitchCleanup(credentials *sriovenv.SwitchCredentials, lacpInterfaces, interfaces, configs []string) {
+	By("Restoring switch configuration to pre-test state")
 
-		return nil
-	}
-
-	if lacpInterfaces == nil || physicalInterfaces == nil {
-		By("Interface slices are nil, skipping LACP disable")
-
-		return nil
-	}
+	By(fmt.Sprintf("Attempting to restore switch interfaces %v (LACP interfaces: %v)",
+		interfaces, lacpInterfaces))
 
 	jnpr, err := cmd.NewSession(credentials.SwitchIP, credentials.User, credentials.Password)
-	if err != nil {
-		return err
-	}
+	Expect(err).ToNot(HaveOccurred(), "Failed to create switch session")
 	defer jnpr.Close()
 
-	var commands []string
+	// Disable LACP configuration
+	Expect(len(lacpInterfaces)).To(BeNumerically(">", 0), "lacpInterfaces cannot be empty")
+	Expect(len(interfaces)).To(BeNumerically(">", 0), "interfaces cannot be empty")
+	err = jnpr.DisableLACP(lacpInterfaces, interfaces)
+	Expect(err).ToNot(HaveOccurred(), "Failed to disable LACP")
 
-	for _, lacpInterface := range lacpInterfaces {
-		commands = append(commands, fmt.Sprintf("delete interfaces %s", lacpInterface))
+	// Restore interface configurations after LACP cleanup completes
+	if len(configs) > 0 {
+		Eventually(func() error {
+			return jnpr.RestoreInterfaceConfigs(configs)
+		}, 30*time.Second, 2*time.Second).Should(Succeed(),
+			"Failed to restore interface configs after LACP cleanup")
 	}
-
-	for _, physicalInterface := range physicalInterfaces {
-		commands = append(commands, fmt.Sprintf("delete interfaces %s", physicalInterface))
-	}
-
-	err = jnpr.Config(commands)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
-func configureLACPBondInterfaces(workerNodeName string, sriovInterfacesUnderTest []string) error {
+func configureLACPBondInterfaces(workerNodeName string, sriovInterfacesUnderTest []string) {
 	nodeSelector := createNodeSelector(workerNodeName)
 
 	bondInterfaceOptions := nmstate.OptionsLinkAggregation{
@@ -769,22 +719,28 @@ func configureLACPBondInterfaces(workerNodeName string, sriovInterfacesUnderTest
 	bond10Policy := nmstate.NewPolicyBuilder(APIClient, nodeBond10Interface, nodeSelector).
 		WithBondInterface([]string{sriovInterfacesUnderTest[0]}, nodeBond10Interface, bondMode802_3ad, bondInterfaceOptions)
 
-	err := netnmstate.CreatePolicyAndWaitUntilItsAvailable(netparam.DefaultTimeout, bond10Policy)
-	if err != nil {
-		return fmt.Errorf("failed to create %s NMState policy: %w", nodeBond10Interface, err)
+	// Delete existing policy if it exists to ensure clean state
+	if bond10Policy.Exists() {
+		_, err := bond10Policy.Delete()
+		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to delete existing %s NMState policy", nodeBond10Interface))
 	}
+
+	err := netnmstate.CreatePolicyAndWaitUntilItsAvailable(netparam.DefaultTimeout, bond10Policy)
+	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to create %s NMState policy", nodeBond10Interface))
 
 	if len(sriovInterfacesUnderTest) > 1 {
 		bond20Policy := nmstate.NewPolicyBuilder(APIClient, nodeBond20Interface, nodeSelector).
 			WithBondInterface([]string{sriovInterfacesUnderTest[1]}, nodeBond20Interface, bondMode802_3ad, bondInterfaceOptions)
 
-		err = netnmstate.CreatePolicyAndWaitUntilItsAvailable(netparam.DefaultTimeout, bond20Policy)
-		if err != nil {
-			return fmt.Errorf("failed to create %s NMState policy: %w", nodeBond20Interface, err)
+		// Delete existing policy if it exists to ensure clean state
+		if bond20Policy.Exists() {
+			_, err := bond20Policy.Delete()
+			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to delete existing %s NMState policy", nodeBond20Interface))
 		}
-	}
 
-	return nil
+		err = netnmstate.CreatePolicyAndWaitUntilItsAvailable(netparam.DefaultTimeout, bond20Policy)
+		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to create %s NMState policy", nodeBond20Interface))
+	}
 }
 
 func createBondedNAD(nadName string) error {
@@ -951,10 +907,14 @@ func verifyPFLACPMonitorInterfacePresence(
 	shouldBePresent,
 	checkRecentOnly bool,
 ) error {
-	pflacpPod, err := getPFLACPMonitorPod(nodeName)
-	if err != nil {
-		return fmt.Errorf("failed to get PFLACPMonitor pod: %w", err)
-	}
+	var pflacpPod *pod.Builder
+
+	Eventually(func() error {
+		var err error
+		pflacpPod, err = getPFLACPMonitorPod(nodeName)
+
+		return err
+	}, 60*time.Second, 5*time.Second).Should(Succeed(), "Failed to get PFLACPMonitor pod after retries")
 
 	podLogs, err := pflacpPod.GetFullLog("")
 	if err != nil {
@@ -998,27 +958,33 @@ func verifyPFLACPMonitorInterfaceRemovalEventually(nodeName, removedInterface st
 }
 
 func verifyPFLACPMonitorLogsEventually(
-	nodeName, logType string, srIovInterfacesUnderTest []string) error {
-	pflacpPod, err := getPFLACPMonitorPod(nodeName)
-	if err != nil {
-		return fmt.Errorf("failed to get PFLACPMonitor pod: %w", err)
-	}
+	nodeName, logType string, srIovInterfacesUnderTest []string) {
+	var pflacpPod *pod.Builder
+
+	// Retry getting the pod as it may take time for the daemonset to create it
+	Eventually(func() error {
+		var err error
+		pflacpPod, err = getPFLACPMonitorPod(nodeName)
+
+		return err
+	}, 60*time.Second, 5*time.Second).Should(Succeed(), "Failed to get PFLACPMonitor pod after retries")
 
 	podLogs, err := pflacpPod.GetFullLog("")
-	if err != nil {
-		return fmt.Errorf("failed to get PFLACPMonitor pod logs: %w", err)
-	}
+	Expect(err).ToNot(HaveOccurred(), "Failed to get PFLACPMonitor pod logs")
 
 	switch logType {
 	case logTypeInitialization:
-		return verifyInitializationLogsEventually(podLogs, srIovInterfacesUnderTest)
+		err = verifyInitializationLogsEventually(podLogs, srIovInterfacesUnderTest)
+		Expect(err).ToNot(HaveOccurred(), "Failed to verify initialization logs")
 	case logTypeVFDisable:
-		return verifyVFDisableLogsEventually(podLogs)
+		err = verifyVFDisableLogsEventually(podLogs)
+		Expect(err).ToNot(HaveOccurred(), "Failed to verify VF disable logs")
 	case logTypeVFEnable:
-		return verifyVFEnableLogsEventually(podLogs)
+		err = verifyVFEnableLogsEventually(podLogs)
+		Expect(err).ToNot(HaveOccurred(), "Failed to verify VF enable logs")
 	default:
-		return fmt.Errorf("invalid logType '%s'. Use '%s', '%s', or '%s'",
-			logType, logTypeInitialization, logTypeVFDisable, logTypeVFEnable)
+		Fail(fmt.Sprintf("Invalid logType '%s'. Use '%s', '%s', or '%s'",
+			logType, logTypeInitialization, logTypeVFDisable, logTypeVFEnable))
 	}
 }
 
@@ -1074,10 +1040,8 @@ func restoreLACPAndVerifyRecovery(nodeName string, switchCreds *sriovenv.SwitchC
 		"LACP should be up with port state 63")
 }
 
-func waitForVFStateChange(nodeName, logType string, interfaces []string, description string) {
-	Eventually(func() error {
-		return verifyPFLACPMonitorLogsEventually(nodeName, logType, interfaces)
-	}, 2*time.Minute, 10*time.Second).Should(Succeed(), description)
+func waitForVFStateChange(nodeName, logType string, interfaces []string) {
+	verifyPFLACPMonitorLogsEventually(nodeName, logType, interfaces)
 }
 
 func verifyVFDisableLogsEventually(podLogs string) error {
@@ -1156,10 +1120,14 @@ func deletePFLACPMonitor(monitorName string) error {
 func verifyPFHasNoVFsLogs(nodeName, targetInterface string) error {
 	By(fmt.Sprintf("Verifying PFLACPMonitor logs show 'pf has no VFs' for interface %s", targetInterface))
 
-	pflacpPod, err := getPFLACPMonitorPod(nodeName)
-	if err != nil {
-		return fmt.Errorf("failed to get PFLACPMonitor pod: %w", err)
-	}
+	var pflacpPod *pod.Builder
+
+	Eventually(func() error {
+		var err error
+		pflacpPod, err = getPFLACPMonitorPod(nodeName)
+
+		return err
+	}, 60*time.Second, 5*time.Second).Should(Succeed(), "Failed to get PFLACPMonitor pod after retries")
 
 	podLogs, err := pflacpPod.GetFullLog("")
 	if err != nil {
@@ -1292,15 +1260,9 @@ func verifyDPDKPortStatus(dpdkPod *pod.Builder, expectedStatus string) error {
 		By("Both VF resources allocated with PCI addresses")
 
 	case "port0_down_port1_up":
-		// Validate both VF resources are still allocated
 		if !strings.Contains(testpmdOutput, "VF0:0000:") || !strings.Contains(testpmdOutput, "VF1:0000:") {
 			return fmt.Errorf("VF PCI addresses not found during failover: %s", testpmdOutput)
 		}
-
-		// During LACP failure, we expect:
-		// - VF0 (port0) associated with failed LACP interface - may show network issues
-		// - VF1 (port1) on backup path - should remain functional
-		// For DPDK bonding, both VFs should still be allocated but traffic flows differently
 
 		By("DPDK failover validated: VF resources allocated, port0 affected by LACP failure, port1 remains active")
 
@@ -1326,6 +1288,19 @@ func removeLACPBondInterfaces(workerNodeName string) error {
 	}
 
 	return nil
+}
+
+func saveSwitchInterfaceConfigs(credentials *sriovenv.SwitchCredentials, interfaces []string) []string {
+	By("Saving switch interface configurations for restoration")
+
+	jnpr, err := cmd.NewSession(credentials.SwitchIP, credentials.User, credentials.Password)
+	Expect(err).ToNot(HaveOccurred(), "Failed to create switch session for saving configs")
+	defer jnpr.Close()
+
+	configs, err := jnpr.SaveInterfaceConfigs(interfaces)
+	Expect(err).ToNot(HaveOccurred(), "Failed to save interface configs")
+
+	return configs
 }
 
 func enableLACPOnSwitchInterfaces(credentials *sriovenv.SwitchCredentials, lacpInterfaces []string) error {
@@ -1362,37 +1337,34 @@ func enableLACPOnSwitchInterfaces(credentials *sriovenv.SwitchCredentials, lacpI
 	return nil
 }
 
-func configurePhysicalInterfacesForLACP(credentials *sriovenv.SwitchCredentials, physicalInterfaces []string) error {
+func configurePhysicalInterfacesForLACP(credentials *sriovenv.SwitchCredentials, physicalInterfaces []string) {
 	jnpr, err := cmd.NewSession(credentials.SwitchIP, credentials.User, credentials.Password)
-	if err != nil {
-		return err
-	}
+	Expect(err).ToNot(HaveOccurred(), "Failed to create switch session")
 	defer jnpr.Close()
 
 	var commands []string
 
-	for _, physicalInterface := range physicalInterfaces {
-		commands = append(commands, fmt.Sprintf("delete interface %s", physicalInterface))
-	}
-
 	lacpInterfaces, err := NetConfig.GetSwitchLagNames()
-	if err != nil {
-		return err
+	Expect(err).ToNot(HaveOccurred(), "Failed to get switch LAG names")
+
+	Expect(len(physicalInterfaces)).To(BeNumerically(">=", 2), "Need at least 2 physical interfaces")
+	Expect(len(lacpInterfaces)).To(BeNumerically(">=", 2), "Need at least 2 LACP interfaces")
+
+	By(fmt.Sprintf("Configuring physical interfaces for LACP: %s -> %s, %s -> %s",
+		physicalInterfaces[0], lacpInterfaces[0],
+		physicalInterfaces[1], lacpInterfaces[1]))
+
+	for _, physicalInterface := range physicalInterfaces {
+		commands = append(commands, fmt.Sprintf("delete interfaces %s", physicalInterface))
 	}
 
-	if len(physicalInterfaces) >= 2 && len(lacpInterfaces) >= 2 {
-		commands = append(commands,
-			fmt.Sprintf("set interfaces %s ether-options 802.3ad %s", physicalInterfaces[0], lacpInterfaces[0]),
-			fmt.Sprintf("set interfaces %s ether-options 802.3ad %s", physicalInterfaces[1], lacpInterfaces[1]),
-		)
-	}
+	commands = append(commands,
+		fmt.Sprintf("set interfaces %s ether-options 802.3ad %s", physicalInterfaces[0], lacpInterfaces[0]),
+		fmt.Sprintf("set interfaces %s ether-options 802.3ad %s", physicalInterfaces[1], lacpInterfaces[1]),
+	)
 
 	err = jnpr.Config(commands)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	Expect(err).ToNot(HaveOccurred(), "Failed to configure physical interfaces for LACP")
 }
 
 func configureLACPBlockFirewallFilter(credentials *sriovenv.SwitchCredentials) {
@@ -1420,11 +1392,7 @@ func setLACPBlockFilterOnInterface(credentials *sriovenv.SwitchCredentials, enab
 	}
 
 	lacpInterfaces, err := NetConfig.GetSwitchLagNames()
-	if err != nil {
-		glog.Errorf("Failed to get switch LAG names: %v", err)
-
-		return
-	}
+	Expect(err).ToNot(HaveOccurred(), "Failed to get switch LAG names")
 
 	var (
 		command           string
@@ -1566,9 +1534,8 @@ func verifyPFLACPMonitorLogs(
 	case logTypeVFEnable:
 		verifyVFEnableLogs(podLogs, targetInterface, expectedVFs)
 	default:
-		Expect(false).To(BeTrue(),
-			fmt.Sprintf("Invalid logType '%s'. Use '%s', '%s', or '%s'",
-				logType, logTypeInitialization, logTypeVFDisable, logTypeVFEnable))
+		Fail(fmt.Sprintf("Invalid logType '%s'. Use '%s', '%s', or '%s'",
+			logType, logTypeInitialization, logTypeVFDisable, logTypeVFEnable))
 	}
 }
 
@@ -1664,7 +1631,7 @@ func checkBondingStatusOnNode(nodeName string) error {
 	return analyzeLACPPortStates(output, nodeBond10Interface, "node")
 }
 
-func configureLACPBondInterfaceSecondary(nodeName, interfaceName string) error {
+func configureLACPBondInterfaceSecondary(nodeName, interfaceName string) {
 	By(fmt.Sprintf("Configuring LACP bond interface for secondary interface %s on node %s", interfaceName, nodeName))
 
 	nodeSelector := createNodeSelector(nodeName)
@@ -1680,11 +1647,7 @@ func configureLACPBondInterfaceSecondary(nodeName, interfaceName string) error {
 		WithBondInterface([]string{interfaceName}, nodeBond20Interface, bondMode802_3ad, bondInterfaceOptions)
 
 	err := netnmstate.CreatePolicyAndWaitUntilItsAvailable(netparam.DefaultTimeout, secondaryBondPolicy)
-	if err != nil {
-		return fmt.Errorf("failed to create secondary bond policy for %s: %w", nodeBond20Interface, err)
-	}
-
-	return nil
+	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to create secondary bond policy for %s", nodeBond20Interface))
 }
 
 func checkBondingStatusOnNodeSecondary(nodeName string) error {
@@ -1716,7 +1679,7 @@ func checkBondingStatusOnNodeSecondary(nodeName string) error {
 	return nil
 }
 
-func removeSecondaryBondInterface(nodeName string) error {
+func removeSecondaryBondInterface(nodeName string) {
 	By(fmt.Sprintf("Removing secondary bond interface %s from node %s", nodeBond20Interface, nodeName))
 
 	nodeSelector := createNodeSelector(nodeName)
@@ -1725,13 +1688,9 @@ func removeSecondaryBondInterface(nodeName string) error {
 		WithAbsentInterface(nodeBond20Interface)
 
 	err := netnmstate.CreatePolicyAndWaitUntilItsAvailable(netparam.DefaultTimeout, bondRemovalPolicy)
-	if err != nil {
-		return fmt.Errorf("failed to remove secondary bond interface %s: %w", nodeBond20Interface, err)
-	}
+	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to remove secondary bond interface %s", nodeBond20Interface))
 
 	By(fmt.Sprintf("Successfully removed secondary bond interface %s", nodeBond20Interface))
-
-	return nil
 }
 
 func setVFsStateOnNode(nodeName, interfaceName string, vfIDs []int, state string) error {
