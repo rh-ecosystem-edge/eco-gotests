@@ -44,15 +44,16 @@ var _ = Describe(
 			err := sriovenv.CheckSriovOperatorStatus(APIClient, SriovOcpConfig)
 			Expect(err).ToNot(HaveOccurred(), "SR-IOV operator is not running")
 
-			By("Discovering worker nodes")
-			// Use OcpWorkerLabel directly as label selector string (same as in sriovenv.go)
-			// The config should contain the full label selector (e.g., "node-role.kubernetes.io/worker=")
-			workerLabelSelector := SriovOcpConfig.OcpWorkerLabel
-			// If it's just a label name without "=", construct the full selector
-			if workerLabelSelector != "" && !strings.Contains(workerLabelSelector, "=") {
-				// Construct the full label selector format
-				workerLabelSelector = fmt.Sprintf("%s=", workerLabelSelector)
-			}
+		By("Discovering worker nodes")
+		// Normalize OcpWorkerLabel to ensure it's a valid label selector
+		// Unlike sriovenv.go which expects "key=" format, we normalize here as a workaround
+		// to handle cases where the label might be provided without the "=" suffix
+		workerLabelSelector := SriovOcpConfig.OcpWorkerLabel
+		// If it's just a label name without "=", construct the full selector
+		if workerLabelSelector != "" && !strings.Contains(workerLabelSelector, "=") {
+			// Construct the full label selector format
+			workerLabelSelector = fmt.Sprintf("%s=", workerLabelSelector)
+		}
 			// Default to standard worker label if not set
 			if workerLabelSelector == "" {
 				workerLabelSelector = "node-role.kubernetes.io/worker="

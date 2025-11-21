@@ -9,9 +9,9 @@ The SR-IOV basic tests validate fundamental SR-IOV functionality on OpenShift Co
 ## Test Suite Information
 
 - **Test File**: `tests/ocp/sriov/tests/basic.go`
-- **Test Suite Label**: `sriov` and `basic`
-- **Test Namespace**: `sriov-basic-test`
-- **Test Container**: Configurable via `ECO_OCP_SRIOV_TEST_CONTAINER` (default: `quay.io/openshift-kni/cnf-tests:4.16`)
+- **Test Suite Label**: `ocpsriov` and `basic`
+- **Test Namespace**: `sriov-tests`
+- **Test Container**: Configurable via `ECO_OCP_SRIOV_TEST_CONTAINER` (default: `quay.io/ocp-edge-qe/eco-gotests-sriov-client:v4.15.2`)
 
 ## Prerequisites
 
@@ -30,7 +30,7 @@ The SR-IOV basic tests validate fundamental SR-IOV functionality on OpenShift Co
 
 #### Optional
 
-- `ECO_OCP_SRIOV_TEST_CONTAINER` - Test container image (default: `quay.io/openshift-kni/cnf-tests:4.16`)
+- `ECO_OCP_SRIOV_TEST_CONTAINER` - Test container image (default: `quay.io/ocp-edge-qe/eco-gotests-sriov-client:v4.15.2`)
 - `ECO_SRIOV_TEST_CONTAINER` - Alternative test container image (fallback if `ECO_OCP_SRIOV_TEST_CONTAINER` is not set)
 - `ECO_OCP_SRIOV_VF_NUM` - Number of virtual functions to create (default: 2)
 - `SRIOV_VF_NUM` - Alternative VF number environment variable (fallback if `ECO_OCP_SRIOV_VF_NUM` is not set)
@@ -97,10 +97,15 @@ cd tests/ocp/sriov
 ginkgo -timeout=60m --keep-going --require-suite --label-filter="$ECO_TEST_LABELS" -v .
 ```
 
-**Note on filter selection**: 
-- The `basic` label is only present on the 9 basic test cases, making it the most reliable filter to exclude the reinstallation test
-- The `ocpsriov && basic` filter should also work, but the reinstallation test may still run due to Ginkgo suite behavior
-- Using `basic` alone ensures only the 9 basic test cases are executed
+**Note on label usage**: 
+- **Suite-level labels**: The test suite applies only the `ocpsriov` label at the suite level (via `RunSpecs`)
+- **Test-specific labels**: Individual test files add their own labels:
+  - `basic.go`: Adds the `basic` label to all 9 basic test cases
+  - `reinstallation.go`: Has only the `ocpsriov` label (no `basic` label)
+- **Filter behavior**: 
+  - `--label-filter="basic"` - Runs only the 9 basic tests (recommended)
+  - `--label-filter="ocpsriov && basic"` - Also runs only the 9 basic tests (equivalent)
+  - `--label-filter="ocpsriov"` - Runs ALL tests including reinstallation
 
 **Note**: The 60-minute timeout provides sufficient time for all 9 test cases (which typically complete in ~35 minutes) while allowing buffer for slower environments or network delays.
 
