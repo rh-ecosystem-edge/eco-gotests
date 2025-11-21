@@ -1297,11 +1297,6 @@ func verifyDPDKPortStatus(dpdkPod *pod.Builder, expectedStatus string) error {
 			return fmt.Errorf("VF PCI addresses not found during failover: %s", testpmdOutput)
 		}
 
-		// During LACP failure, we expect:
-		// - VF0 (port0) associated with failed LACP interface - may show network issues
-		// - VF1 (port1) on backup path - should remain functional
-		// For DPDK bonding, both VFs should still be allocated but traffic flows differently
-
 		By("DPDK failover validated: VF resources allocated, port0 affected by LACP failure, port1 remains active")
 
 	default:
@@ -1504,29 +1499,14 @@ func getPFLACPMonitorPod(nodeName string) (*pod.Builder, error) {
 
 	monitorNS := NetConfig.PFStatusRelayOperatorNamespace
 
-	var (
-		podList []*pod.Builder
-		err     error
-	)
-
-	possiblePatterns := []string{
-		"pf-status-relay-ds-pflacpmonitor",
-		"pf-status-relay-ds",
-		"pf-status-relay",
-		"pflacpmonitor",
-	}
-
-	for _, pattern := range possiblePatterns {
-		podList, err = pod.ListByNamePattern(APIClient, pattern, monitorNS)
-		if err == nil && len(podList) > 0 {
-			break
-		}
+	podList, err := pod.ListByNamePattern(APIClient, "pf-status-relay-ds-pflacpmonitor", monitorNS)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list PF status relay daemon set pods: %w", err)
 	}
 
 	if len(podList) == 0 {
 		return nil, fmt.Errorf(
-			"no PF status relay daemon set pods found with any pattern in namespace %s. Tried patterns: %v",
-			monitorNS, possiblePatterns)
+			"no PF status relay daemon set pods found in namespace %s", monitorNS)
 	}
 
 	var targetPod *pod.Builder

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+  <testsuites tests="4" disabled="0" errors="0" failures="0" time="5.919883048">
+      <testsuite name="sriov" package="/home/gkopels/Documents/eco-gotests/tests/ocp/sriov" tests="4" disabled="0" skipped="0" errors="0" failures="0" time="5.919883048" timestamp="2025-11-20T21:42:58">
+          <properties>
+              <property name="SuiteSucceeded" value="true"></property>
+              <property name="SuiteHasProgrammaticFocus" value="false"></property>
+              <property name="SpecialSuiteFailureReason" value=""></property>
+              <property name="SuiteLabels" value="[ocpsriov]"></property>
+              <property name="RandomSeed" value="1763696508"></property>
+              <property name="RandomizeAllSpecs" value="false"></property>
+              <property name="LabelFilter" value=""></property>
+              <property name="FocusStrings" value=""></property>
+              <property name="SkipStrings" value=""></property>
+              <property name="FocusFiles" value=""></property>
+              <property name="SkipFiles" value=""></property>
+              <property name="FailOnPending" value="false"></property>
+              <property name="FailOnEmpty" value="false"></property>
+              <property name="FailFast" value="false"></property>
+              <property name="FlakeAttempts" value="0"></property>
+              <property name="DryRun" value="false"></property>
+              <property name="ParallelTotal" value="1"></property>
+              <property name="OutputInterceptorMode" value=""></property>
+          </properties>
+          <testcase name="[BeforeSuite]" classname="sriov" status="passed" time="3.140782995">
+              <system-err>&gt; Enter [BeforeSuite] TOP-LEVEL - /home/gkopels/Documents/eco-gotests/tests/ocp/sriov/sriov_suite_test.go:33 @ 11/20/25 21:42:58.56&#xA;STEP: Creating test namespace with privileged labels - /home/gkopels/Documents/eco-gotests/tests/ocp/sriov/sriov_suite_test.go:34 @ 11/20/25 21:42:58.56&#xA;STEP: Verifying if sriov tests can be executed on given cluster - /home/gkopels/Documents/eco-gotests/tests/ocp/sriov/sriov_suite_test.go:41 @ 11/20/25 21:42:59.91&#xA;STEP: Pulling test images on cluster before running test cases - /home/gkopels/Documents/eco-gotests/tests/ocp/sriov/sriov_suite_test.go:45 @ 11/20/25 21:43:01.478&#xA;&lt; Exit [BeforeSuite] TOP-LEVEL - /home/gkopels/Documents/eco-gotests/tests/ocp/sriov/sriov_suite_test.go:33 @ 11/20/25 21:43:01.7 (3.141s)&#xA;</system-err>
+          </testcase>
+          <testcase name="[It] SRIOV Operator re-installation Verify SR-IOV operator control plane is operational before removal [ocpsriov]" classname="sriov" status="passed" time="0.000243399">
+              <system-err>&gt; Enter [It] Verify SR-IOV operator control plane is operational before removal - /home/gkopels/Documents/eco-gotests/tests/ocp/sriov/tests/reinstallation.go:10 @ 11/20/25 21:43:01.701&#xA;&lt; Exit [It] Verify SR-IOV operator control plane is operational before removal - /home/gkopels/Documents/eco-gotests/tests/ocp/sriov/tests/reinstallation.go:10 @ 11/20/25 21:43:01.701 (0s)&#xA;&gt; Enter [JustAfterEach] TOP-LEVEL - /home/gkopels/Documents/eco-gotests/tests/ocp/sriov/sriov_suite_test.go:55 @ 11/20/25 21:43:01.701&#xA;&lt; Exit [JustAfterEach] TOP-LEVEL - /home/gkopels/Documents/eco-gotests/tests/ocp/sriov/sriov_suite_test.go:55 @ 11/20/25 21:43:01.701 (0s)&#xA;</system-err>
+          </testcase>
+          <testcase name="[AfterSuite]" classname="sriov" status="passed" time="2.7784981650000002">
+              <system-err>&gt; Enter [AfterSuite] TOP-LEVEL - /home/gkopels/Documents/eco-gotests/tests/ocp/sriov/sriov_suite_test.go:49 @ 11/20/25 21:43:01.701&#xA;STEP: Deleting test namespace - /home/gkopels/Documents/eco-gotests/tests/ocp/sriov/sriov_suite_test.go:50 @ 11/20/25 21:43:01.701&#xA;&lt; Exit [AfterSuite] TOP-LEVEL - /home/gkopels/Documents/eco-gotests/tests/ocp/sriov/sriov_suite_test.go:49 @ 11/20/25 21:43:04.479 (2.778s)&#xA;</system-err>
+          </testcase>
+          <testcase name="[ReportAfterSuite]" classname="sriov" status="passed" time="0.00011631">
+              <system-err>&gt; Enter [ReportAfterSuite] TOP-LEVEL - /home/gkopels/Documents/eco-gotests/tests/ocp/sriov/sriov_suite_test.go:60 @ 11/20/25 21:43:04.479&#xA;&lt; Exit [ReportAfterSuite] TOP-LEVEL - /home/gkopels/Documents/eco-gotests/tests/ocp/sriov/sriov_suite_test.go:60 @ 11/20/25 21:43:04.48 (0s)&#xA;</system-err>
+          </testcase>
+      </testsuite>
+  </testsuites>
