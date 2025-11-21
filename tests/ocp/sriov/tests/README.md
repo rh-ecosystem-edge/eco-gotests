@@ -58,25 +58,48 @@ To run only the OCP SR-IOV tests (excluding other SR-IOV test suites), you can u
 
 #### Using `go test` (Recommended)
 
+**Recommended filter: `basic`** (excludes reinstallation test)
+
 ```bash
 export KUBECONFIG=/path/to/kubeconfig
 export SRIOV_DEVICES="e810xxv231:159b:8086:eno12399,cx5ex231:1019:15b3:ens6f0np0"  # Optional: custom device config
 export GOSUMDB=sum.golang.org
 export GOTOOLCHAIN=auto
-go test ./tests/ocp/sriov/... -v -ginkgo.v -ginkgo.label-filter="sriov && basic" -timeout 60m
+go test ./tests/ocp/sriov/... -v -ginkgo.v -ginkgo.label-filter="basic" -timeout 60m
+```
+
+**Alternative filter: `ocpsriov && basic`** (may still include reinstallation test)
+
+```bash
+go test ./tests/ocp/sriov/... -v -ginkgo.v -ginkgo.label-filter="ocpsriov && basic" -timeout 60m
 ```
 
 #### Using `ginkgo` directly
 
+**Recommended filter: `basic`** (excludes reinstallation test)
+
 ```bash
 export KUBECONFIG=/path/to/kubeconfig
 export SRIOV_DEVICES="e810xxv231:159b:8086:eno12399,cx5ex231:1019:15b3:ens6f0np0"  # Optional: custom device config
 export GOSUMDB=sum.golang.org
 export GOTOOLCHAIN=auto
-export ECO_TEST_LABELS="sriov && basic"
+export ECO_TEST_LABELS="basic"
 cd tests/ocp/sriov
 ginkgo -timeout=60m --keep-going --require-suite --label-filter="$ECO_TEST_LABELS" -v .
 ```
+
+**Alternative filter: `ocpsriov && basic`** (may still include reinstallation test)
+
+```bash
+export ECO_TEST_LABELS="ocpsriov && basic"
+cd tests/ocp/sriov
+ginkgo -timeout=60m --keep-going --require-suite --label-filter="$ECO_TEST_LABELS" -v .
+```
+
+**Note on filter selection**: 
+- The `basic` label is only present on the 9 basic test cases, making it the most reliable filter to exclude the reinstallation test
+- The `ocpsriov && basic` filter should also work, but the reinstallation test may still run due to Ginkgo suite behavior
+- Using `basic` alone ensures only the 9 basic test cases are executed
 
 **Note**: The 60-minute timeout provides sufficient time for all 9 test cases (which typically complete in ~35 minutes) while allowing buffer for slower environments or network delays.
 
@@ -86,10 +109,19 @@ ginkgo -timeout=60m --keep-going --require-suite --label-filter="$ECO_TEST_LABEL
 
 **Warning**: The test runner script will discover all directories named "sriov", which may include other SR-IOV test suites. To run only OCP SR-IOV tests, use the direct Ginkgo execution method above.
 
+**Recommended filter: `basic`** (excludes reinstallation test)
+
 ```bash
 export KUBECONFIG=/path/to/kubeconfig
 export ECO_TEST_FEATURES="sriov"
-export ECO_TEST_LABELS="sriov && basic"
+export ECO_TEST_LABELS="basic"
+make run-tests
+```
+
+**Alternative filter: `ocpsriov && basic`** (may still include reinstallation test)
+
+```bash
+export ECO_TEST_LABELS="ocpsriov && basic"
 make run-tests
 ```
 
@@ -129,14 +161,24 @@ ginkgo -timeout=60m --keep-going --require-suite --label-filter="$ECO_TEST_LABEL
 
 **Using `go test`:**
 ```bash
-go test ./tests/ocp/sriov/... -v -ginkgo.v -ginkgo.label-filter="sriov && basic && !69582" -timeout 60m
+# Exclude DPDK test (69582) from basic tests
+go test ./tests/ocp/sriov/... -v -ginkgo.v -ginkgo.label-filter="basic && !69582" -timeout 60m
 ```
 
 **Using `ginkgo`:**
 ```bash
-export ECO_TEST_LABELS="sriov && basic && !69582"  # Exclude DPDK test
+export ECO_TEST_LABELS="basic && !69582"  # Exclude DPDK test
 cd tests/ocp/sriov
 ginkgo -timeout=60m --keep-going --require-suite --label-filter="$ECO_TEST_LABELS" -v .
+```
+
+#### Exclude Reinstallation Test
+
+The reinstallation test only has the `ocpsriov` label (not `basic`), so using the `basic` filter automatically excludes it:
+
+```bash
+# This will only run the 9 basic tests, excluding reinstallation
+go test ./tests/ocp/sriov/... -v -ginkgo.v -ginkgo.label-filter="basic" -timeout 60m
 ```
 
 ## Test Cases

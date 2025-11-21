@@ -118,8 +118,8 @@ func CleanAllNetworksByTargetNamespace(apiClient *clients.Settings, sriovOpNs, t
 
 	glog.V(90).Infof("Cleanup complete: cleaned %d networks for target namespace %q", networksCleaned, targetNs)
 
-	// Give the cluster a moment to process deletions
-	time.Sleep(2 * time.Second)
+	// No need to sleep - deletions are handled asynchronously by Kubernetes
+	// The caller should wait for resources to be deleted if needed
 
 	return nil
 }
@@ -197,8 +197,8 @@ func CleanupLeftoverResources(apiClient *clients.Settings, sriovOperatorNamespac
 				if err != nil {
 					glog.V(90).Infof("Failed to delete leftover SR-IOV policy %q (continuing cleanup): %v", policyName, err)
 				} else {
-					// Wait a bit for the policy to be fully deleted
-					time.Sleep(2 * time.Second)
+					// Policy deletion initiated - Kubernetes will handle it asynchronously
+					// No need to sleep - the deletion will be processed by the API server
 				}
 			}
 		}
@@ -230,7 +230,7 @@ func RemoveSriovPolicy(apiClient *clients.Settings, name, sriovOpNs string, time
 	glog.V(90).Infof("Waiting for SRIOV policy %q to be deleted", name)
 	err = wait.PollUntilContextTimeout(
 		context.TODO(),
-		2*time.Second,
+		tsparams.PollingInterval,
 		timeout,
 		true,
 		func(ctx context.Context) (bool, error) {
@@ -303,7 +303,7 @@ func RemoveSriovNetwork(apiClient *clients.Settings, name, sriovOpNs string, tim
 	glog.V(90).Infof("Waiting for SRIOV network %q to be deleted", name)
 	err = wait.PollUntilContextTimeout(
 		context.TODO(),
-		2*time.Second,
+		tsparams.PollingInterval,
 		timeout,
 		true,
 		func(ctx context.Context) (bool, error) {
@@ -335,8 +335,8 @@ func RemoveSriovNetwork(apiClient *clients.Settings, name, sriovOpNs string, tim
 		// Wait for NAD deletion using wait.PollUntilContextTimeout
 		err = wait.PollUntilContextTimeout(
 			context.TODO(),
-			2*time.Second,
-			3*time.Minute,
+			tsparams.PollingInterval,
+			tsparams.NADTimeout,
 			true,
 			func(ctx context.Context) (bool, error) {
 				_, pullErr := nad.Pull(apiClient, name, targetNamespace)
@@ -359,7 +359,8 @@ func RemoveSriovNetwork(apiClient *clients.Settings, name, sriovOpNs string, tim
 					glog.V(90).Infof("Failed to force delete NAD %q: %v", name, deleteErr)
 				} else {
 					glog.V(90).Infof("Successfully force deleted NAD %q", name)
-					time.Sleep(2 * time.Second)
+					// NAD deletion initiated - Kubernetes will handle it asynchronously
+					// No need to sleep - the deletion will be processed by the API server
 				}
 			}
 
@@ -388,8 +389,8 @@ func WaitForPodWithLabelReady(apiClient *clients.Settings, namespace, labelSelec
 	var listErr error
 	err := wait.PollUntilContextTimeout(
 		context.TODO(),
-		2*time.Second,
-		60*time.Second,
+		tsparams.PollingInterval,
+		tsparams.PodLabelReadyTimeout,
 		true,
 		func(ctx context.Context) (bool, error) {
 			podList, listErr = pod.List(apiClient, namespace, metav1.ListOptions{LabelSelector: labelSelector})
@@ -745,8 +746,8 @@ func CreateSriovNetwork(apiClient *clients.Settings, config *SriovNetworkConfig,
 	glog.V(90).Infof("Verifying SRIOV policy exists for resource %q", config.ResourceName)
 	err = wait.PollUntilContextTimeout(
 		context.TODO(),
-		2*time.Second,
-		30*time.Second,
+		tsparams.PollingInterval,
+		tsparams.NamespaceTimeout,
 		true,
 		func(ctx context.Context) (bool, error) {
 			policy, err := sriov.PullPolicy(apiClient, config.ResourceName, config.Namespace)
@@ -770,8 +771,8 @@ func CreateSriovNetwork(apiClient *clients.Settings, config *SriovNetworkConfig,
 	glog.V(90).Infof("Waiting for NetworkAttachmentDefinition %q to be created in namespace %q", config.Name, config.NetworkNamespace)
 	err = wait.PollUntilContextTimeout(
 		context.TODO(),
-		3*time.Second,
-		3*time.Minute,
+		tsparams.PollingInterval,
+		tsparams.NADTimeout,
 		true,
 		func(ctx context.Context) (bool, error) {
 			_, err := nad.Pull(apiClient, config.Name, config.NetworkNamespace)
@@ -794,8 +795,8 @@ func CreateSriovNetwork(apiClient *clients.Settings, config *SriovNetworkConfig,
 	glog.V(90).Infof("Verifying VF resources are available for %q", config.ResourceName)
 	err = wait.PollUntilContextTimeout(
 		context.TODO(),
-		5*time.Second,
-		2*time.Minute, // Reduced from 5 minutes to 2 minutes to avoid long hangs
+		5*time.Second, // Longer interval for VF resource check as it's a heavier operation
+		tsparams.VFResourceTimeout,
 		true,
 		func(ctx context.Context) (bool, error) {
 			// Use global SriovOcpConfig from ocpsriovinittools
@@ -833,7 +834,7 @@ func CheckSriovOperatorStatus(apiClient *clients.Settings, config *sriovconfig.S
 func WaitForSriovPolicyReady(apiClient *clients.Settings, config *sriovconfig.SriovOcpConfig, timeout time.Duration) error {
 	glog.V(90).Infof("Waiting for SR-IOV policy to be ready (timeout: %v)", timeout)
 	return WaitForSriovAndMCPStable(
-		apiClient, timeout, 30*time.Second, DefaultMcpLabel, config.OcpSriovOperatorNamespace)
+		apiClient, timeout, tsparams.MCPStableInterval, DefaultMcpLabel, config.OcpSriovOperatorNamespace)
 }
 
 // VerifyWorkerNodesReady verifies that all worker nodes are stable and ready for SRIOV initialization
@@ -1022,7 +1023,7 @@ func InitVF(apiClient *clients.Settings, config *sriovconfig.SriovOcpConfig, nam
 
 		// Wait for policy to be applied
 		err = WaitForSriovAndMCPStable(
-			apiClient, 20*time.Minute, 30*time.Second, DefaultMcpLabel, sriovOpNs)
+			apiClient, tsparams.PolicyApplicationTimeout, tsparams.MCPStableInterval, DefaultMcpLabel, sriovOpNs)
 		if err != nil {
 			glog.V(90).Infof("Failed to wait for SRIOV policy to be applied on node %q: %v", node.Definition.Name, err)
 			// Clean up policy if wait fails
@@ -1304,7 +1305,7 @@ func CheckVFStatusWithPassTraffic(apiClient *clients.Settings, config *sriovconf
 	// Test connectivity with timeout
 	glog.V(90).Info("Testing connectivity between pods")
 	pingCmd := []string{"ping", "-c", "3", "192.168.1.11"}
-	pingTimeout := 2 * time.Minute
+	pingTimeout := tsparams.PingTimeout
 
 	var pingOutput bytes.Buffer
 	err = wait.PollUntilContextTimeout(
@@ -1410,7 +1411,7 @@ func InitDpdkVF(apiClient *clients.Settings, config *sriovconfig.SriovOcpConfig,
 
 		// Wait for policy to be applied
 		err = WaitForSriovAndMCPStable(
-			apiClient, 20*time.Minute, 30*time.Second, DefaultMcpLabel, sriovOpNs)
+			apiClient, tsparams.PolicyApplicationTimeout, tsparams.MCPStableInterval, DefaultMcpLabel, sriovOpNs)
 		if err != nil {
 			glog.V(90).Infof("Failed to wait for DPDK SRIOV policy to be applied on node %q: %v", node.Definition.Name, err)
 			// Clean up policy if wait fails

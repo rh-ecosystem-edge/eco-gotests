@@ -17,6 +17,14 @@ const (
 	NamespaceTimeout = 30 * time.Second
 	PodReadyTimeout = 300 * time.Second
 	CleanupTimeout = 120 * time.Second
+	// Specific operation timeouts
+	NADTimeout                = 3 * time.Minute  // Timeout for NetworkAttachmentDefinition operations
+	PodLabelReadyTimeout      = 60 * time.Second // Timeout for waiting for pod with label to be ready
+	PingTimeout               = 2 * time.Minute  // Timeout for ping connectivity tests
+	VFResourceTimeout         = 2 * time.Minute  // Timeout for VF resource availability check
+	PolicyApplicationTimeout  = 20 * time.Minute // Timeout for SR-IOV policy application (includes MCP update)
+	PollingInterval           = 2 * time.Second  // Standard polling interval for wait operations
+	MCPStableInterval         = 30 * time.Second // Polling interval for MachineConfigPool stability checks
 )
 
 var (
