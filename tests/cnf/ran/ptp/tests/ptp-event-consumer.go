@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	prometheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
@@ -26,11 +27,15 @@ import (
 )
 
 var _ = Describe("PTP Event Consumer", Label(tsparams.LabelEventConsumer), func() {
-	var prometheusAPI prometheusv1.API
+	var (
+		prometheusAPI   prometheusv1.API
+		savedPtpConfigs []*ptp.PtpConfigBuilder
+	)
 
 	BeforeEach(func() {
-		By("creating a Prometheus API client")
 		var err error
+
+		By("creating a Prometheus API client")
 		prometheusAPI, err = querier.CreatePrometheusAPIForCluster(RANConfig.Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to create Prometheus API client")
 
@@ -39,11 +44,32 @@ var _ = Describe("PTP Event Consumer", Label(tsparams.LabelEventConsumer), func(
 			metrics.AssertWithStableDuration(10*time.Second),
 			metrics.AssertWithTimeout(5*time.Minute))
 		Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
+
+		By("saving PtpConfigs before testing")
+		savedPtpConfigs, err = profiles.SavePtpConfigs(RANConfig.Spoke1APIClient)
+		Expect(err).ToNot(HaveOccurred(), "Failed to save PtpConfigs")
 	})
 
 	AfterEach(func() {
+		By("restoring PtpConfigs after testing")
+		startTime := time.Now()
+		changedProfiles, err := profiles.RestorePtpConfigs(RANConfig.Spoke1APIClient, savedPtpConfigs)
+		Expect(err).ToNot(HaveOccurred(), "Failed to restore PtpConfigs")
+
+		if len(changedProfiles) > 0 {
+			By("waiting for profile load on nodes")
+			err := ptpdaemon.WaitForProfileLoadOnPTPNodes(RANConfig.Spoke1APIClient,
+				ptpdaemon.WithStartTime(startTime),
+				ptpdaemon.WithTimeout(5*time.Minute))
+			if err != nil {
+				// Timeouts may occur if the profiles changed do not apply to all PTP nodes, so we make
+				// this non-fatal. This only happens in certain scenarios in MNO clusters.
+				glog.V(tsparams.LogLevel).Infof("Failed to wait for profile load on PTP nodes: %v", err)
+			}
+		}
+
 		By("ensuring clocks are locked after testing")
-		err := metrics.AssertQuery(context.TODO(), prometheusAPI, metrics.ClockStateQuery{}, metrics.ClockStateLocked,
+		err = metrics.AssertQuery(context.TODO(), prometheusAPI, metrics.ClockStateQuery{}, metrics.ClockStateLocked,
 			metrics.AssertWithStableDuration(10*time.Second),
 			metrics.AssertWithTimeout(5*time.Minute))
 		Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
