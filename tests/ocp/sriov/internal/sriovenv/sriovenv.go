@@ -446,7 +446,11 @@ func WaitForPodWithLabelReady(apiClient *clients.Settings, namespace, labelSelec
 }
 
 // WaitForSriovAndMCPStable waits for SRIOV and MCP to be stable
-func WaitForSriovAndMCPStable(apiClient *clients.Settings, timeout time.Duration, interval time.Duration, mcpLabel, sriovOpNs string) error {
+func WaitForSriovAndMCPStable(
+	apiClient *clients.Settings,
+	timeout time.Duration,
+	interval time.Duration,
+	mcpLabel, sriovOpNs string) error {
 	glog.V(90).Infof("Waiting for SR-IOV and MCP to be stable (timeout: %v, interval: %v, mcp_label: %q)", timeout, interval, mcpLabel)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -966,7 +970,12 @@ func discoverInterfaceName(apiClient *clients.Settings, nodeName, sriovOpNs, ven
 }
 
 // InitVF initializes VF for the given device
-func InitVF(apiClient *clients.Settings, config *sriovconfig.SriovOcpConfig, name, deviceID, interfaceName, vendor, sriovOpNs string, vfNum int, workerNodes []*nodes.Builder) (bool, error) {
+func InitVF(
+	apiClient *clients.Settings,
+	config *sriovconfig.SriovOcpConfig,
+	name, deviceID, interfaceName, vendor, sriovOpNs string,
+	vfNum int,
+	workerNodes []*nodes.Builder) (bool, error) {
 	glog.V(90).Infof("Initializing VF for device %q (deviceID: %q, vendor: %q, interface: %q, vfNum: %d)",
 		name, deviceID, vendor, interfaceName, vfNum)
 
@@ -1055,7 +1064,10 @@ func InitVF(apiClient *clients.Settings, config *sriovconfig.SriovOcpConfig, nam
 }
 
 // CreateTestPod creates a test pod with SRIOV network
-func CreateTestPod(apiClient *clients.Settings, config *sriovconfig.SriovOcpConfig, name, namespace, networkName, ipAddress, macAddress string) (*pod.Builder, error) {
+func CreateTestPod(
+	apiClient *clients.Settings,
+	config *sriovconfig.SriovOcpConfig,
+	name, namespace, networkName, ipAddress, macAddress string) (*pod.Builder, error) {
 	glog.V(90).Infof("Creating test pod %q in namespace %q with network %q (ip: %q, mac: %q)",
 		name, namespace, networkName, ipAddress, macAddress)
 
@@ -1206,7 +1218,11 @@ func VerifyVFSpoofCheck(nodeName, nicName, podMAC string) error {
 
 // VerifyLinkStateConfiguration verifies that link state configuration is applied without requiring connectivity
 // This function creates a test pod and verifies that the interface is up with the expected configuration
-func VerifyLinkStateConfiguration(apiClient *clients.Settings, config *sriovconfig.SriovOcpConfig, networkName, namespace, description string, timeout time.Duration) (bool, error) {
+func VerifyLinkStateConfiguration(
+	apiClient *clients.Settings,
+	config *sriovconfig.SriovOcpConfig,
+	networkName, namespace, description string,
+	timeout time.Duration) (bool, error) {
 	glog.V(90).Infof("Verifying link state configuration: %q (network: %q, namespace: %q)", description, networkName, namespace)
 
 	// Create a single test pod to verify link state
@@ -1260,7 +1276,11 @@ func VerifyLinkStateConfiguration(apiClient *clients.Settings, config *sriovconf
 // CheckVFStatusWithPassTraffic checks VF status and passes traffic between test pods
 // This function creates client and server pods, verifies interface configuration,
 // checks carrier status, verifies spoof checking, and tests connectivity
-func CheckVFStatusWithPassTraffic(apiClient *clients.Settings, config *sriovconfig.SriovOcpConfig, networkName, interfaceName, namespace, description string, timeout time.Duration) error {
+func CheckVFStatusWithPassTraffic(
+	apiClient *clients.Settings,
+	config *sriovconfig.SriovOcpConfig,
+	networkName, interfaceName, namespace, description string,
+	timeout time.Duration) error {
 	glog.V(90).Infof("Checking VF status with traffic: %q (network: %q, interface: %q, namespace: %q)", description, networkName, interfaceName, namespace)
 
 	// Create test pods
@@ -1407,7 +1427,12 @@ func CheckVFStatusWithPassTraffic(apiClient *clients.Settings, config *sriovconf
 }
 
 // InitDpdkVF initializes DPDK VF for the given device
-func InitDpdkVF(apiClient *clients.Settings, config *sriovconfig.SriovOcpConfig, name, deviceID, interfaceName, vendor, sriovOpNs string, vfNum int, workerNodes []*nodes.Builder) (bool, error) {
+func InitDpdkVF(
+	apiClient *clients.Settings,
+	config *sriovconfig.SriovOcpConfig,
+	name, deviceID, interfaceName, vendor, sriovOpNs string,
+	vfNum int,
+	workerNodes []*nodes.Builder) (bool, error) {
 	glog.V(90).Infof("Initializing DPDK VF for device %q (deviceID: %q, vendor: %q, interface: %q, vfNum: %d)",
 		name, deviceID, vendor, interfaceName, vfNum)
 
@@ -1496,7 +1521,10 @@ func InitDpdkVF(apiClient *clients.Settings, config *sriovconfig.SriovOcpConfig,
 }
 
 // GetPciAddress gets the PCI address for a pod from network status annotation
-func GetPciAddress(apiClient *clients.Settings, config *sriovconfig.SriovOcpConfig, namespace, podName, policyName string) (string, error) {
+func GetPciAddress(
+	apiClient *clients.Settings,
+	config *sriovconfig.SriovOcpConfig,
+	namespace, podName, policyName string) (string, error) {
 	glog.V(90).Infof("Getting PCI address for pod %q in namespace %q (policy: %q)", podName, namespace, policyName)
 
 	podBuilder := pod.NewBuilder(apiClient, podName, namespace, config.OcpSriovTestContainer)
@@ -1594,7 +1622,10 @@ func UpdateSriovPolicyMTU(apiClient *clients.Settings, policyName, sriovOpNs str
 }
 
 // CreateDpdkTestPod creates a DPDK test pod with SR-IOV network
-func CreateDpdkTestPod(apiClient *clients.Settings, config *sriovconfig.SriovOcpConfig, name, namespace, networkName string) (*pod.Builder, error) {
+func CreateDpdkTestPod(
+	apiClient *clients.Settings,
+	config *sriovconfig.SriovOcpConfig,
+	name, namespace, networkName string) (*pod.Builder, error) {
 	glog.V(90).Infof("Creating DPDK test pod %q in namespace %q with network %q", name, namespace, networkName)
 
 	// Create network annotation (DPDK pods use the network name directly)
