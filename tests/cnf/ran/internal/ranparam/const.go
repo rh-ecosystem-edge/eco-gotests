@@ -74,8 +74,21 @@ const (
 	// ACMObservabilityAMRouteName is the name of the route for the ACM Observability Alertmanager instance.
 	ACMObservabilityAMRouteName = "alertmanager"
 	// ACMObservabilityAMSecretName is the name of the secret for the ACM Observability Alertmanager instance which
-	// contains the token and CA certs.
-	ACMObservabilityAMSecretName = "observability-alertmanager-accessor-token"
+	// contains the token for accessing the Alertmanager API.
+	ACMObservabilityAMSecretName = "observability-alertmanager-accessor"
+)
+
+// Params for the default openshift ingress router CA secret. Used by rancluster for getting the CA pool for the default
+// ingress router.
+const (
+	// IngressDefaultRouterCASecret is the name of the secret in the [OpenshiftIngressNamespace] namespace for the
+	// default openshift ingress router CA.
+	IngressDefaultRouterCASecret = "router-certs-default"
+	// IngressDefaultRouterCAKey is the key in the [IngressDefaultRouterCASecret] secret for the default openshift
+	// ingress router CA.
+	IngressDefaultRouterCAKey = "tls.crt"
+	// OpenshiftIngressNamespace is the namespace for the openshift ingress router.
+	OpenshiftIngressNamespace string = "openshift-ingress"
 )
 
 // HubOperatorName represets the possible operator names that may have associated versions on the hub cluster.
