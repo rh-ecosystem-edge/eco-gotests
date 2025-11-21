@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -48,25 +49,9 @@ func IsSriovDeployed(apiClient *clients.Settings, config interface{}) error {
 // Note: Image pulling is deferred to first pod creation. When the first test pod is created,
 // the kubelet will automatically pull the image from the registry.
 func PullTestImageOnNodes(apiClient *clients.Settings, nodeSelector, image string, pullTimeout int) error {
-	// Note: Image pulling is deferred to first pod creation
-	// When the first test pod is created, the kubelet will automatically pull the image from the registry.
-	// This lazy-pull approach has trade-offs:
-	//
-	// Benefits:
-	// - Avoids unnecessary pulls for skipped tests (multiple devices, conditional tests)
-	// - Simpler implementation without DaemonSet management
-	// - Distributed pulling across pod creation, reducing single point of failure
-	//
-	// Trade-off:
-	// - First pod creation may take longer due to image pull
-	// - If image pull fails, pod will stay in ImagePullBackOff state
-	//
-	// Alternative Implementation (if needed):
-	// - Deploy a DaemonSet on worker nodes to pre-pull the image
-	// - Wait for DaemonSet to complete on all nodes
-	// - Then proceed with test pod creation
-	//
-	// For now, returning success and relying on kubelet's image pull mechanism.
+	// Image pulling is deferred to first pod creation. The kubelet automatically pulls images
+	// when pods are created, avoiding unnecessary pulls for skipped tests. Trade-off: first pod
+	// creation may take longer. If pre-pulling is needed, deploy a DaemonSet to pre-pull images.
 	if apiClient == nil {
 		glog.V(90).Info("API client is nil in PullTestImageOnNodes; continuing because image pull is deferred to kubelet")
 	}
@@ -102,7 +87,7 @@ func CleanAllNetworksByTargetNamespace(apiClient *clients.Settings, sriovOpNs, t
 
 		// Delete the SriovNetwork CR
 		err := network.Delete()
-		if err != nil && !strings.Contains(err.Error(), "NotFound") {
+		if err != nil && !apierrors.IsNotFound(err) {
 			glog.V(90).Infof("Error deleting SR-IOV network %q: %v", network.Definition.Name, err)
 			continue
 		}
@@ -115,7 +100,7 @@ func CleanAllNetworksByTargetNamespace(apiClient *clients.Settings, sriovOpNs, t
 		if nadBuilder.Exists() {
 			glog.V(90).Infof("Deleting NetworkAttachmentDefinition %q in namespace %q", nadName, targetNs)
 			err := nadBuilder.Delete()
-			if err != nil && !strings.Contains(err.Error(), "NotFound") {
+			if err != nil && !apierrors.IsNotFound(err) {
 				glog.V(90).Infof("Error deleting NetworkAttachmentDefinition %q: %v", nadName, err)
 				// Continue even if NAD deletion fails
 			}
@@ -165,11 +150,13 @@ func CleanupLeftoverResources(apiClient *clients.Settings, sriovOperatorNamespac
 	if err != nil {
 		glog.V(90).Infof("Failed to list SriovNetworks for cleanup: %v", err)
 	} else {
+		// Match test network names: 5-digit test case ID followed by dash (e.g., "25959-deviceName", "70821-deviceName")
+		// Also match DPDK network names: device name followed by "dpdknet" (e.g., "deviceNamedpdknet")
+		testNetworkPattern := regexp.MustCompile(`^\d{5}-|dpdknet$`)
 		for _, net := range sriovNetworks {
-			// Look for test networks (usually contain test case IDs like "25959-", "70821-", etc.)
 			networkName := net.Definition.Name
-			if strings.Contains(networkName, "-") && (strings.HasPrefix(networkName, "2") || strings.HasPrefix(networkName, "7")) {
-				glog.V(90).Infof("Removing leftover SR-IOV network %q", networkName)
+			if testNetworkPattern.MatchString(networkName) {
+				glog.V(90).Infof("Removing leftover SR-IOV network %q (matches test network pattern)", networkName)
 
 				err := net.Delete()
 				if err != nil {
@@ -180,13 +167,19 @@ func CleanupLeftoverResources(apiClient *clients.Settings, sriovOperatorNamespac
 	}
 
 	// Step 3: Clean up leftover SR-IOV policies that might conflict
-	// Clean up policies that match common test device names to prevent VF range conflicts
+	// Clean up policies that match test device names to prevent VF range conflicts
 	sriovPolicies, err := sriov.ListPolicy(apiClient, sriovOperatorNamespace, client.ListOptions{})
 	if err != nil {
 		glog.V(90).Infof("Failed to list SriovNetworkNodePolicies for cleanup: %v", err)
 	} else {
-		// List of common test device names that should be cleaned up
-		testDeviceNames := []string{"e810xxv", "cx5ex", "e810c", "x710", "bcm57414", "bcm57508", "e810back", "cx7anl244"}
+		// Get test device names from configuration (supports both env var and defaults)
+		deviceConfigs := tsparams.GetDeviceConfig()
+		testDeviceNames := make([]string, 0, len(deviceConfigs))
+		for _, device := range deviceConfigs {
+			testDeviceNames = append(testDeviceNames, device.Name)
+		}
+		// Also include "cx5ex" which may not be in default config
+		testDeviceNames = append(testDeviceNames, "cx5ex")
 		for _, policy := range sriovPolicies {
 			policyName := policy.Definition.Name
 			// Check if policy name matches a test device name (exact match or with suffix)
@@ -372,7 +365,7 @@ func RemoveSriovNetwork(apiClient *clients.Settings, name, sriovOpNs string, tim
 
 			// Final check - if NAD is gone, that's fine
 			_, finalCheckErr := nad.Pull(apiClient, name, targetNamespace)
-			if finalCheckErr != nil && apierrors.IsNotFound(finalCheckErr) {
+			if apierrors.IsNotFound(finalCheckErr) {
 				glog.V(90).Infof("NAD %q is now deleted (after timeout but before final check)", name)
 				return nil
 			}
@@ -810,7 +803,7 @@ func CreateSriovNetwork(apiClient *clients.Settings, config *SriovNetworkConfig,
 	glog.V(90).Infof("Verifying VF resources are available for %q", config.ResourceName)
 	err = wait.PollUntilContextTimeout(
 		context.TODO(),
-		5*time.Second, // Longer interval for VF resource check as it's a heavier operation
+		tsparams.PollingInterval*3, // Longer interval for VF resource check as it's a heavier operation
 		tsparams.VFResourceTimeout,
 		true,
 		func(ctx context.Context) (bool, error) {
@@ -969,15 +962,15 @@ func discoverInterfaceName(apiClient *clients.Settings, nodeName, sriovOpNs, ven
 	return "", fmt.Errorf("no interface found on node %q matching vendor %q and deviceID %q", nodeName, vendor, deviceID)
 }
 
-// InitVF initializes VF for the given device
-func InitVF(
+// initVFWithDevType is a common helper function for initializing VF with a specific device type
+func initVFWithDevType(
 	apiClient *clients.Settings,
 	config *sriovconfig.SriovOcpConfig,
-	name, deviceID, interfaceName, vendor, sriovOpNs string,
+	name, deviceID, interfaceName, vendor, sriovOpNs, devType string,
 	vfNum int,
 	workerNodes []*nodes.Builder) (bool, error) {
-	glog.V(90).Infof("Initializing VF for device %q (deviceID: %q, vendor: %q, interface: %q, vfNum: %d)",
-		name, deviceID, vendor, interfaceName, vfNum)
+	glog.V(90).Infof("Initializing VF for device %q (deviceID: %q, vendor: %q, interface: %q, vfNum: %d, devType: %q)",
+		name, deviceID, vendor, interfaceName, vfNum, devType)
 
 	// Verify all worker nodes are stable and ready before initializing SRIOV
 	err := VerifyWorkerNodesReady(apiClient, workerNodes, sriovOpNs)
@@ -1009,8 +1002,8 @@ func InitVF(
 		}
 
 		pfSelector := fmt.Sprintf("%s#0-%d", actualInterfaceName, vfNum-1)
-		glog.V(90).Infof("Creating SRIOV policy - name: %q, node: %q, pfSelector: %q, deviceID: %q, vendor: %q, interfaceName: %q",
-			name, node.Definition.Name, pfSelector, deviceID, vendor, actualInterfaceName)
+		glog.V(90).Infof("Creating SRIOV policy - name: %q, node: %q, pfSelector: %q, deviceID: %q, vendor: %q, interfaceName: %q, devType: %q",
+			name, node.Definition.Name, pfSelector, deviceID, vendor, actualInterfaceName, devType)
 
 		// Create SRIOV policy
 		sriovPolicy := sriov.NewPolicyBuilder(
@@ -1021,7 +1014,7 @@ func InitVF(
 			vfNum,
 			[]string{pfSelector},
 			map[string]string{"kubernetes.io/hostname": node.Definition.Name},
-		).WithDevType("netdevice")
+		).WithDevType(devType)
 
 		// Set Vendor and DeviceID in NicSelector to help operator match hardware
 		// This is especially important when interface names might not match exactly
@@ -1061,6 +1054,16 @@ func InitVF(
 		name, deviceID, vendor, interfaceName)
 	return false, fmt.Errorf("failed to create SRIOV policy %q on any worker node (deviceID: %q, vendor: %q, interfaceName: %q)",
 		name, deviceID, vendor, interfaceName)
+}
+
+// InitVF initializes VF for the given device
+func InitVF(
+	apiClient *clients.Settings,
+	config *sriovconfig.SriovOcpConfig,
+	name, deviceID, interfaceName, vendor, sriovOpNs string,
+	vfNum int,
+	workerNodes []*nodes.Builder) (bool, error) {
+	return initVFWithDevType(apiClient, config, name, deviceID, interfaceName, vendor, sriovOpNs, "netdevice", vfNum, workerNodes)
 }
 
 // CreateTestPod creates a test pod with SRIOV network
@@ -1396,7 +1399,7 @@ func CheckVFStatusWithPassTraffic(
 	var pingOutput bytes.Buffer
 	err = wait.PollUntilContextTimeout(
 		context.TODO(),
-		5*time.Second,
+		tsparams.PollingInterval*3, // Longer interval for ping operations
 		pingTimeout,
 		true,
 		func(ctx context.Context) (bool, error) {
@@ -1433,91 +1436,7 @@ func InitDpdkVF(
 	name, deviceID, interfaceName, vendor, sriovOpNs string,
 	vfNum int,
 	workerNodes []*nodes.Builder) (bool, error) {
-	glog.V(90).Infof("Initializing DPDK VF for device %q (deviceID: %q, vendor: %q, interface: %q, vfNum: %d)",
-		name, deviceID, vendor, interfaceName, vfNum)
-
-	// Verify all worker nodes are stable and ready before initializing SRIOV
-	err := VerifyWorkerNodesReady(apiClient, workerNodes, sriovOpNs)
-	if err != nil {
-		glog.V(90).Infof("Worker nodes are not ready for DPDK VF initialization: %v", err)
-		return false, fmt.Errorf("worker nodes are not ready for DPDK VF initialization: %w", err)
-	}
-
-	// Clean up any existing policy with the same name before creating a new one
-	// This prevents VF range conflicts from previous test runs
-	glog.V(90).Infof("Checking for existing DPDK SRIOV policy %q that might conflict", name)
-	err = RemoveSriovPolicy(apiClient, name, sriovOpNs, tsparams.NamespaceTimeout)
-	if err != nil {
-		glog.V(90).Infof("Note: Could not remove existing policy %q (may not exist): %v", name, err)
-	}
-
-	// Check if the device exists on any worker node
-	for _, node := range workerNodes {
-		// Try to discover the actual interface name from node state if vendor and deviceID are provided
-		actualInterfaceName := interfaceName
-		if vendor != "" && deviceID != "" {
-			discoveredName, err := discoverInterfaceName(apiClient, node.Definition.Name, sriovOpNs, vendor, deviceID)
-			if err == nil {
-				actualInterfaceName = discoveredName
-				glog.V(90).Infof("Discovered interface name %q for node %q (requested: %q)", actualInterfaceName, node.Definition.Name, interfaceName)
-			} else {
-				glog.V(90).Infof("Could not discover interface name for node %q, using requested name %q: %v", node.Definition.Name, interfaceName, err)
-			}
-		}
-
-		pfSelector := fmt.Sprintf("%s#0-%d", actualInterfaceName, vfNum-1)
-		glog.V(90).Infof("Creating DPDK SRIOV policy - name: %q, node: %q, pfSelector: %q, deviceID: %q, vendor: %q, interfaceName: %q",
-			name, node.Definition.Name, pfSelector, deviceID, vendor, actualInterfaceName)
-
-		// Create SRIOV policy for DPDK (uses vfio-pci dev type)
-		sriovPolicy := sriov.NewPolicyBuilder(
-			apiClient,
-			name,
-			sriovOpNs,
-			name,
-			vfNum,
-			[]string{pfSelector},
-			map[string]string{"kubernetes.io/hostname": node.Definition.Name},
-		).WithDevType("vfio-pci")
-
-		// Set Vendor and DeviceID in NicSelector to help operator match hardware
-		// This is especially important when interface names might not match exactly
-		if vendor != "" {
-			sriovPolicy.Definition.Spec.NicSelector.Vendor = vendor
-		}
-		if deviceID != "" {
-			sriovPolicy.Definition.Spec.NicSelector.DeviceID = deviceID
-		}
-
-		_, err := sriovPolicy.Create()
-		if err != nil {
-			glog.V(90).Infof("Failed to create DPDK SRIOV policy on node %q: %v (pfSelector: %q, deviceID: %q, vendor: %q, interfaceName: %q)",
-				node.Definition.Name, err, pfSelector, deviceID, vendor, actualInterfaceName)
-			// Clean up any partially created policy
-			_ = RemoveSriovPolicy(apiClient, name, sriovOpNs, tsparams.DefaultTimeout)
-			continue
-		}
-
-		glog.V(90).Infof("DPDK SRIOV policy created successfully, waiting for it to be applied - name: %q, node: %q", name, node.Definition.Name)
-
-		// Wait for policy to be applied
-		err = WaitForSriovAndMCPStable(
-			apiClient, tsparams.PolicyApplicationTimeout, tsparams.MCPStableInterval, DefaultMcpLabel, sriovOpNs)
-		if err != nil {
-			glog.V(90).Infof("Failed to wait for DPDK SRIOV policy to be applied on node %q: %v", node.Definition.Name, err)
-			// Clean up policy if wait fails
-			_ = RemoveSriovPolicy(apiClient, name, sriovOpNs, tsparams.DefaultTimeout)
-			continue
-		}
-
-		glog.V(90).Infof("DPDK SRIOV policy successfully applied - name: %q, node: %q", name, node.Definition.Name)
-		return true, nil
-	}
-
-	glog.V(90).Infof("Failed to create DPDK SRIOV policy on any worker node - name: %q, deviceID: %q, vendor: %q, interfaceName: %q",
-		name, deviceID, vendor, interfaceName)
-	return false, fmt.Errorf("failed to create DPDK SRIOV policy %q on any worker node (deviceID: %q, vendor: %q, interfaceName: %q)",
-		name, deviceID, vendor, interfaceName)
+	return initVFWithDevType(apiClient, config, name, deviceID, interfaceName, vendor, sriovOpNs, "vfio-pci", vfNum, workerNodes)
 }
 
 // GetPciAddress gets the PCI address for a pod from network status annotation
