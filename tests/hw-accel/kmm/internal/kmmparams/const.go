@@ -111,22 +111,22 @@ RUN echo -n "simple_kmod_firmware validation string" >> /firmware/simple_kmod_fi
 `
 	// LocalMultiStageContents represents the Dockerfile contents for multi stage build using local registry.
 	LocalMultiStageContents = `FROM image-registry.openshift-image-registry.svc:5000/openshift/driver-toolkit as builder
-ARG KERNEL_VERSION
-ARG MY_MODULE
+ARG KERNEL_FULL_VERSION
+ARG MOD_NAME
 WORKDIR /build
 RUN git clone https://github.com/cdvultur/kmm-kmod.git
 WORKDIR /build/kmm-kmod
-RUN cp kmm_ci_a.c {{.Module}}.c
-RUN make
+RUN cp kmm_ci_a.c $MOD_NAME.c
+RUN echo "obj-m += $MOD_NAME.o" >> Makefile
+RUN make KVER=${KERNEL_FULL_VERSION}
 
 FROM registry.redhat.io/ubi9/ubi-minimal
-ARG KERNEL_VERSION
-ARG MY_MODULE
+ARG KERNEL_FULL_VERSION
 RUN microdnf -y install kmod
 
 COPY --from=builder /etc/driver-toolkit-release.json /etc/
-COPY --from=builder /build/kmm-kmod/*.ko /opt/lib/modules/${KERNEL_VERSION}/
-RUN depmod -b /opt
+COPY --from=builder /build/kmm-kmod/*.ko /opt/lib/modules/${KERNEL_FULL_VERSION}/
+RUN depmod -b /opt ${KERNEL_FULL_VERSION}
 `
 
 	//nolint:lll
