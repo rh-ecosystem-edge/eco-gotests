@@ -20,7 +20,7 @@ jobs:
       # Since we only use the checked out repo for the report generation code,
       # always grab the latest from the default branch rather than the branch
       # that triggered this action.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.repository.default_branch }}
 
