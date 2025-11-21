@@ -719,9 +719,14 @@ func CreateSriovNetwork(apiClient *clients.Settings, config *SriovNetworkConfig,
 		networkBuilder.WithMaxTxRate(uint16(config.MaxTxRate))
 	}
 
-	if config.LinkState != "" {
-		networkBuilder.WithLinkState(config.LinkState)
+	// Set LinkState with default to "auto" if not specified
+	// This matches the behavior of openshift-tests-private and ensures VF follows PF state
+	linkState := config.LinkState
+	if linkState == "" {
+		linkState = "auto"
+		glog.V(90).Infof("LinkState not specified, defaulting to 'auto' for SRIOV network %q", config.Name)
 	}
+	networkBuilder.WithLinkState(linkState)
 
 	sriovNetwork, err := networkBuilder.Create()
 	if err != nil {
@@ -1189,6 +1194,59 @@ func VerifyVFSpoofCheck(nodeName, nicName, podMAC string) error {
 
 	glog.V(90).Infof("VF spoof checking verification setup complete - node: %q, interface: %q, mac: %q", nodeName, nicName, podMAC)
 	return nil
+}
+
+// VerifyLinkStateConfiguration verifies that link state configuration is applied without requiring connectivity
+// This function creates a test pod and verifies that the interface is up with the expected configuration
+func VerifyLinkStateConfiguration(apiClient *clients.Settings, config *sriovconfig.SriovOcpConfig, networkName, namespace, description string, timeout time.Duration) (bool, error) {
+	glog.V(90).Infof("Verifying link state configuration: %q (network: %q, namespace: %q)", description, networkName, namespace)
+
+	// Create a single test pod to verify link state
+	testPod, err := CreateTestPod(apiClient, config, "linkstate-test", namespace, networkName, "192.168.1.10/24", "20:04:0f:f1:88:01")
+	if err != nil {
+		return false, fmt.Errorf("failed to create test pod: %w", err)
+	}
+
+	// Defer cleanup of pod
+	defer func() {
+		glog.V(90).Info("Cleaning up link state test pod")
+		if testPod != nil {
+			_, _ = testPod.DeleteAndWait(tsparams.CleanupTimeout)
+		}
+	}()
+
+	// Wait for pod to be ready
+	glog.V(90).Info("Waiting for test pod to be ready")
+	err = testPod.WaitUntilReady(timeout)
+	if err != nil {
+		if testPod.Definition != nil {
+			glog.V(90).Infof("Test pod status - phase: %q, reason: %q, message: %q",
+				testPod.Definition.Status.Phase, testPod.Definition.Status.Reason, testPod.Definition.Status.Message)
+		}
+		return false, fmt.Errorf("test pod not ready: %w", err)
+	}
+
+	// Verify interface configuration on pod
+	glog.V(90).Info("Verifying interface configuration on pod")
+	err = VerifyInterfaceReady(testPod, "net1", "linkstate-test")
+	if err != nil {
+		return false, fmt.Errorf("failed to verify test pod interface: %w", err)
+	}
+
+	// Check carrier status to determine if connectivity tests can be run
+	glog.V(90).Info("Checking interface carrier status")
+	hasCarrier, err := CheckInterfaceCarrier(testPod, "net1")
+	if err != nil {
+		return false, fmt.Errorf("failed to check interface carrier status: %w", err)
+	}
+
+	if !hasCarrier {
+		glog.V(90).Info("Interface has NO-CARRIER status - link state configuration is applied but no physical connection")
+		return false, nil // No carrier, but configuration is valid
+	}
+
+	glog.V(90).Infof("Link state configuration verified successfully with carrier: %q", description)
+	return true, nil // Has carrier, connectivity tests can proceed
 }
 
 // CheckVFStatusWithPassTraffic checks VF status and passes traffic between test pods

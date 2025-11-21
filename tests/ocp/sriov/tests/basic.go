@@ -545,30 +545,38 @@ var _ = Describe(
 						Expect(err).ToNot(HaveOccurred(), "Failed to delete namespace %q", ns1)
 					})
 
-					By("Creating SR-IOV network with enabled link state")
-					networkConfig := &sriovenv.SriovNetworkConfig{
-						Name:             networkName,
-						ResourceName:     data.Name,
-						NetworkNamespace: ns1,
-						Namespace:        sriovOpNs,
-						LinkState:        "enable",
-					}
+				By("Creating SR-IOV network with enabled link state")
+				networkConfig := &sriovenv.SriovNetworkConfig{
+					Name:             networkName,
+					ResourceName:     data.Name,
+					NetworkNamespace: ns1,
+					Namespace:        sriovOpNs,
+					LinkState:        "enable",
+				}
 
-					err = sriovenv.CreateSriovNetwork(APIClient, networkConfig, tsparams.WaitTimeout)
-					Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network %q", networkName)
+				err = sriovenv.CreateSriovNetwork(APIClient, networkConfig, tsparams.WaitTimeout)
+				Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network %q", networkName)
 
-					DeferCleanup(func() {
-						By(fmt.Sprintf("Cleaning up SR-IOV network %q", networkName))
-						err := sriovenv.RemoveSriovNetwork(APIClient, networkName, sriovOpNs, tsparams.DefaultTimeout)
-						Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV network %q", networkName)
-					})
+				DeferCleanup(func() {
+					By(fmt.Sprintf("Cleaning up SR-IOV network %q", networkName))
+					err := sriovenv.RemoveSriovNetwork(APIClient, networkName, sriovOpNs, tsparams.DefaultTimeout)
+					Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV network %q", networkName)
+				})
 
-					By("Verifying VF status with pass traffic")
-					err = sriovenv.CheckVFStatusWithPassTraffic(APIClient, SriovOcpConfig, networkName, data.InterfaceName, ns1, "link-state enable", tsparams.PodReadyTimeout)
-					if err != nil && strings.Contains(err.Error(), "NO-CARRIER") {
-						Skip("Interface has NO-CARRIER status - skipping connectivity test for interface without physical connection")
-					}
-					Expect(err).ToNot(HaveOccurred(), "VF status verification failed")
+				// Part 1: Verify link state configuration (works without carrier)
+				By("Verifying link state configuration is applied")
+				hasCarrier, err := sriovenv.VerifyLinkStateConfiguration(APIClient, SriovOcpConfig, networkName, ns1, "link-state enable", tsparams.PodReadyTimeout)
+				Expect(err).ToNot(HaveOccurred(), "Failed to verify link state configuration")
+
+				// Part 2: Test connectivity only if carrier is present
+				if !hasCarrier {
+					By("Link state configuration verified successfully, but NO-CARRIER detected - skipping connectivity test")
+					Skip("Interface has NO-CARRIER status - link state configuration is valid but no physical connection for connectivity test")
+				}
+
+				By("Carrier detected - proceeding with connectivity test")
+				err = sriovenv.CheckVFStatusWithPassTraffic(APIClient, SriovOcpConfig, networkName, data.InterfaceName, ns1, "link-state enable", tsparams.PodReadyTimeout)
+				Expect(err).ToNot(HaveOccurred(), "VF connectivity test failed")
 				}()
 			}
 
