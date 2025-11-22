@@ -6,14 +6,14 @@ toolchain go1.25.0
 
 require (
 	github.com/BurntSushi/toml v1.5.0
-	github.com/Juniper/go-netconf v0.3.0
+	github.com/Juniper/go-netconf v0.3.1
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/NVIDIA/gpu-operator v1.11.1
 	github.com/cavaliergopher/cpio v1.0.1
 	github.com/cavaliergopher/grab/v3 v3.0.1
-	github.com/containers/image/v5 v5.36.1
-	github.com/coreos/ignition/v2 v2.23.0
-	github.com/go-git/go-git/v5 v5.13.0
+	github.com/containers/image/v5 v5.36.2
+	github.com/coreos/ignition/v2 v2.24.0
+	github.com/go-git/go-git/v5 v5.16.3
 	github.com/google/uuid v1.6.0
 	github.com/grafana/loki/operator/apis/loki v0.0.0-20241021105923-5e970e50b166
 	github.com/hashicorp/go-version v1.7.0
@@ -23,7 +23,7 @@ require (
 	github.com/kedacore/keda-olm-operator v0.0.0-20251121013310-215d3d336056
 	github.com/kedacore/keda/v2 v2.18.1
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/klauspost/compress v1.18.0
+	github.com/klauspost/compress v1.18.1
 	github.com/metal3-io/baremetal-operator/apis v0.11.2
 	github.com/nmstate/kubernetes-nmstate/api v0.0.0-20251121083040-ba2d4c63597f
 	github.com/onsi/ginkgo/v2 v2.27.2
@@ -40,15 +40,15 @@ require (
 	github.com/openshift/cluster-node-tuning-operator v0.0.0-20251108153041-2ed182ba5710 // release-4.20
 	github.com/openshift/installer v0.0.0-00010101000000-000000000000
 	github.com/openshift/local-storage-operator v0.0.0-20251006201529-b394d7760c51 // release-4.20
-	github.com/operator-framework/api v0.33.0
-	github.com/povsister/scp v0.0.0-20240802064259-28781e87b246
-	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.85.0
-	github.com/prometheus/alertmanager v0.28.1
+	github.com/operator-framework/api v0.34.0
+	github.com/povsister/scp v0.0.0-20250701154629-777cf82de5df
+	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.85.0 // aligned with k8s v0.33
+	github.com/prometheus/alertmanager v0.29.0
 	github.com/prometheus/client_golang v1.23.2
-	github.com/prometheus/common v0.67.3
+	github.com/prometheus/common v0.67.4
 	github.com/redhat-cne/sdk-go v1.23.4
 	github.com/stretchr/testify v1.11.1
-	github.com/vmware-tanzu/velero v1.16.2
+	github.com/vmware-tanzu/velero v1.17.1
 	github.com/walle/targz v0.0.0-20140417120357-57fe4206da5a
 	github.com/wk8/go-ordered-map/v2 v2.1.8
 	golang.org/x/crypto v0.45.0
@@ -79,7 +79,7 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/PaesslerAG/gval v1.0.0 // indirect
 	github.com/PaesslerAG/jsonpath v0.1.1 // indirect
-	github.com/ProtonMail/go-crypto v1.1.3 // indirect
+	github.com/ProtonMail/go-crypto v1.3.0 // indirect
 	github.com/ajeddeloh/go-json v0.0.0-20200220154158-5ae607161559 // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
@@ -101,11 +101,11 @@ require (
 	github.com/coreos/go-json v0.0.0-20230131223807-18775e0fb4fb // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf // indirect
-	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
+	github.com/coreos/go-systemd/v22 v22.6.0 // indirect
 	github.com/coreos/ign-converter v0.0.0-20230417193809-cee89ea7d8ff // indirect
 	github.com/coreos/ignition v0.35.0 // indirect
 	github.com/coreos/vcontext v0.0.0-20231102161604-685dc7299dc5 // indirect
-	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
+	github.com/cyphar/filepath-securejoin v0.6.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.13.0 // indirect
@@ -118,7 +118,7 @@ require (
 	github.com/ghodss/yaml v1.0.1-0.20220118164431-d8423dcdf344 // indirect
 	github.com/go-errors/errors v1.5.1 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
-	github.com/go-git/go-billy/v5 v5.6.0 // indirect
+	github.com/go-git/go-billy/v5 v5.6.2 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -128,7 +128,7 @@ require (
 	github.com/go-openapi/jsonpointer v0.22.3 // indirect
 	github.com/go-openapi/jsonreference v0.21.3 // indirect
 	github.com/go-openapi/loads v0.23.2 // indirect
-	github.com/go-openapi/runtime v0.28.0
+	github.com/go-openapi/runtime v0.29.0
 	github.com/go-openapi/spec v0.22.1 // indirect
 	github.com/go-openapi/strfmt v0.25.0
 	github.com/go-openapi/swag v0.25.3 // indirect
@@ -176,11 +176,12 @@ require (
 	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kdomanski/iso9660 v0.2.1 // indirect
-	github.com/kevinburke/ssh_config v1.2.0 // indirect
+	github.com/kevinburke/ssh_config v1.4.0 // indirect
+	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20221122204822-d1a8c34382f1 // indirect
 	github.com/lib/pq v1.10.9 // indirect
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
-	github.com/mailru/easyjson v0.9.0 // indirect
+	github.com/mailru/easyjson v0.9.1 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
@@ -210,11 +211,10 @@ require (
 	github.com/openshift/elasticsearch-operator v0.0.0-20241202223819-cc1a232913d6 // indirect
 	github.com/openshift/library-go v0.0.0-20251110200504-2685cf1242fc // indirect
 	github.com/openshift/machine-config-operator v0.0.1-0.20250320230514-53e78f3692ee // indirect
-	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/otiai10/copy v1.14.0 // indirect
 	github.com/ovn-org/ovn-kubernetes/go-controller v0.0.0-20250901081027-bc4f9b80d20d // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
-	github.com/pjbgf/sha1cd v0.3.0 // indirect
+	github.com/pjbgf/sha1cd v0.5.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
@@ -224,11 +224,11 @@ require (
 	github.com/robfig/cron v1.2.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
-	github.com/samber/lo v1.51.0 // indirect
+	github.com/samber/lo v1.52.0 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/skeema/knownhosts v1.3.0 // indirect
+	github.com/skeema/knownhosts v1.3.2 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/spf13/cobra v1.10.1 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
@@ -246,10 +246,10 @@ require (
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
 	github.com/xlab/treeprint v1.2.0 // indirect
 	go.mongodb.org/mongo-driver v1.17.6 // indirect
-	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
-	go.opentelemetry.io/otel v1.37.0 // indirect
-	go.opentelemetry.io/otel/metric v1.37.0 // indirect
-	go.opentelemetry.io/otel/trace v1.37.0 // indirect
+	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
+	go.opentelemetry.io/otel v1.38.0 // indirect
+	go.opentelemetry.io/otel/metric v1.38.0 // indirect
+	go.opentelemetry.io/otel/trace v1.38.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.1 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
