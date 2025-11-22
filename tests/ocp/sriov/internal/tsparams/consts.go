@@ -25,6 +25,9 @@ const (
 	PolicyApplicationTimeout = 20 * time.Minute // Timeout for SR-IOV policy application (includes MCP update)
 	PollingInterval          = 2 * time.Second  // Standard polling interval for wait operations
 	MCPStableInterval        = 30 * time.Second // Polling interval for MachineConfigPool stability checks
+	// Polling intervals for heavier operations (3x standard interval)
+	VFResourcePollingInterval = PollingInterval * 3 // Longer interval for VF resource checks (heavier operation)
+	PingPollingInterval       = PollingInterval * 3 // Longer interval for ping operations
 )
 
 var (

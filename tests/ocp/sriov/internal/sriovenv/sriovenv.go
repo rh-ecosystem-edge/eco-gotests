@@ -152,7 +152,8 @@ func CleanupLeftoverResources(apiClient *clients.Settings, sriovOperatorNamespac
 	} else {
 		// Match test network names: 5-digit test case ID followed by dash (e.g., "25959-deviceName", "70821-deviceName")
 		// Also match DPDK network names: device name followed by "dpdknet" (e.g., "deviceNamedpdknet")
-		testNetworkPattern := regexp.MustCompile(`^\d{5}-|dpdknet$`)
+		// Require word characters before "dpdknet" to avoid matching unrelated resources
+		testNetworkPattern := regexp.MustCompile(`^\d{5}-|\w+dpdknet$`)
 		for _, net := range sriovNetworks {
 			networkName := net.Definition.Name
 			if testNetworkPattern.MatchString(networkName) {
@@ -803,7 +804,7 @@ func CreateSriovNetwork(apiClient *clients.Settings, config *SriovNetworkConfig,
 	glog.V(90).Infof("Verifying VF resources are available for %q", config.ResourceName)
 	err = wait.PollUntilContextTimeout(
 		context.TODO(),
-		tsparams.PollingInterval*3, // Longer interval for VF resource check as it's a heavier operation
+		tsparams.VFResourcePollingInterval,
 		tsparams.VFResourceTimeout,
 		true,
 		func(ctx context.Context) (bool, error) {
@@ -1399,7 +1400,7 @@ func CheckVFStatusWithPassTraffic(
 	var pingOutput bytes.Buffer
 	err = wait.PollUntilContextTimeout(
 		context.TODO(),
-		tsparams.PollingInterval*3, // Longer interval for ping operations
+		tsparams.PingPollingInterval,
 		pingTimeout,
 		true,
 		func(ctx context.Context) (bool, error) {
