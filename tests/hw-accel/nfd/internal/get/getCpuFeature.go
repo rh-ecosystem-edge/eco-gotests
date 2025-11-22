@@ -9,8 +9,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
@@ -22,7 +22,7 @@ import (
 func CPUInfo(apiClient *clients.Settings, name, nsname, containerName, image string) map[string]string {
 	workerNodesNames, err := getWorkerNodes(apiClient)
 	if err != nil {
-		glog.V(nfdparams.LogLevel).Infof("Error getting worker nodes: %v\n", err)
+		klog.V(nfdparams.LogLevel).Infof("Error getting worker nodes: %v\n", err)
 
 		return nil
 	}
@@ -35,7 +35,7 @@ func CPUInfo(apiClient *clients.Settings, name, nsname, containerName, image str
 		container, err := containerBuilder.GetContainerCfg()
 
 		if err != nil {
-			glog.V(nfdparams.LogLevel).Infof("Failed to define the default container settings %v", err)
+			klog.V(nfdparams.LogLevel).Infof("Failed to define the default container settings %v", err)
 		}
 
 		podWorker.Definition.Spec.Containers = make([]corev1.Container, 0)
@@ -46,7 +46,7 @@ func CPUInfo(apiClient *clients.Settings, name, nsname, containerName, image str
 
 		_, err = podWorker.Create()
 		if err != nil {
-			glog.V(nfdparams.LogLevel).Infof(
+			klog.V(nfdparams.LogLevel).Infof(
 				"Error creating pod: %s", err.Error())
 
 			return nil
@@ -54,7 +54,7 @@ func CPUInfo(apiClient *clients.Settings, name, nsname, containerName, image str
 
 		err = podWorker.WaitUntilInStatus(corev1.PodSucceeded, 5*time.Minute)
 		if err != nil {
-			glog.V(nfdparams.LogLevel).Infof(
+			klog.V(nfdparams.LogLevel).Infof(
 				"Error in waiting for pod: %s", err.Error())
 
 			return nil
@@ -68,7 +68,7 @@ func CPUInfo(apiClient *clients.Settings, name, nsname, containerName, image str
 		_, err = podWorker.DeleteAndWait(5 * time.Minute)
 
 		if err != nil {
-			glog.V(nfdparams.LogLevel).Infof(
+			klog.V(nfdparams.LogLevel).Infof(
 				"Error creating pod: %s", err.Error())
 
 			return nil
@@ -76,7 +76,7 @@ func CPUInfo(apiClient *clients.Settings, name, nsname, containerName, image str
 
 		err = podLogs.Error()
 		if err != nil {
-			glog.V(nfdparams.LogLevel).Infof(
+			klog.V(nfdparams.LogLevel).Infof(
 				"Failed to retrieve logs: %s", err.Error())
 
 			return nil
@@ -84,7 +84,7 @@ func CPUInfo(apiClient *clients.Settings, name, nsname, containerName, image str
 
 		body, err := podLogs.Raw()
 		if err != nil {
-			glog.V(nfdparams.LogLevel).Infof("Failed to retrieve logs %v", err)
+			klog.V(nfdparams.LogLevel).Infof("Failed to retrieve logs %v", err)
 		}
 
 		nodeCPUFlagsMap[nodeName] = fmt.Sprint(string(body))

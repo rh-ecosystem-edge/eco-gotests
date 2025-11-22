@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
@@ -26,6 +25,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/cpuset"
 )
 
@@ -66,7 +66,7 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 		Expect(err).ToNot(HaveOccurred(), "Failed to get performance profile")
 
 		if reflect.DeepEqual(perfProfile.Object.Spec, originalPerfProfileSpec) {
-			glog.V(tsparams.LogLevel).Info("Performance profile did not change, exiting")
+			klog.V(tsparams.LogLevel).Info("Performance profile did not change, exiting")
 
 			return
 		}

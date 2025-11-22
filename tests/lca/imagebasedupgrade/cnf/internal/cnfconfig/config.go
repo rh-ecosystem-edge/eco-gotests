@@ -5,11 +5,11 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/golang/glog"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/cnf/internal/cnfparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/internal/ibuconfig"
 	"gopkg.in/yaml.v2"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -38,7 +38,7 @@ type CNFConfig struct {
 
 // NewCNFConfig returns instance of CNFConfig type.
 func NewCNFConfig() *CNFConfig {
-	glog.V(cnfparams.CNFLogLevel).Info("Creating new CNFConfig struct")
+	klog.V(cnfparams.CNFLogLevel).Info("Creating new CNFConfig struct")
 
 	var cnfConfig CNFConfig
 	cnfConfig.IBUConfig = ibuconfig.NewIBUConfig()
@@ -49,14 +49,14 @@ func NewCNFConfig() *CNFConfig {
 
 	err := readFile(&cnfConfig, configFile)
 	if err != nil {
-		glog.V(cnfparams.CNFLogLevel).Infof("Error reading config file %s", configFile)
+		klog.V(cnfparams.CNFLogLevel).Infof("Error reading config file %s", configFile)
 
 		return nil
 	}
 
 	err = readEnv(&cnfConfig)
 	if err != nil {
-		glog.V(cnfparams.CNFLogLevel).Infof("Error reading environment variables")
+		klog.V(cnfparams.CNFLogLevel).Infof("Error reading environment variables")
 
 		return nil
 	}

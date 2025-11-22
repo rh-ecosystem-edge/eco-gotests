@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/google/uuid"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/filter"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/alarms"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/common"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 )
 
@@ -30,7 +30,7 @@ type AlarmEventNotificationType = alarms.AlarmEventNotificationNotificationEvent
 // AlarmEventNotification is the type of the AlarmEventNotification resource returned by the API.
 type AlarmEventNotification = alarms.AlarmEventNotification
 
-//nolint:revive,lll // These are just re-exported constants no need for the linting.
+//nolint:revive // These are just re-exported constants no need for the linting.
 const (
 	AlarmEventNotificationTypeACKNOWLEDGE AlarmEventNotificationType = alarms.AlarmEventNotificationNotificationEventTypeACKNOWLEDGE
 	AlarmEventNotificationTypeCHANGE      AlarmEventNotificationType = alarms.AlarmEventNotificationNotificationEventTypeCHANGE
@@ -76,9 +76,9 @@ func (client *AlarmsClient) ListAlarms(filter ...filter.Filter) ([]AlarmEventRec
 	if len(filter) > 0 {
 		filterString = ptr.To(filter[0].Filter())
 
-		glog.V(100).Infof("Listing alarms with filter %q", *filterString)
+		klog.V(100).Infof("Listing alarms with filter %q", *filterString)
 	} else {
-		glog.V(100).Infof("Listing alarms without filter")
+		klog.V(100).Infof("Listing alarms without filter")
 	}
 
 	resp, err := client.GetAlarmsWithResponse(context.TODO(), &alarms.GetAlarmsParams{Filter: filterString})
@@ -95,7 +95,7 @@ func (client *AlarmsClient) ListAlarms(filter ...filter.Filter) ([]AlarmEventRec
 
 // GetAlarm gets an alarm by its ID which must be a valid UUID.
 func (client *AlarmsClient) GetAlarm(id uuid.UUID) (AlarmEventRecord, error) {
-	glog.V(100).Infof("Getting alarm with id %v", id)
+	klog.V(100).Infof("Getting alarm with id %v", id)
 
 	resp, err := client.GetAlarmWithResponse(context.TODO(), id)
 	if err != nil {
@@ -112,7 +112,7 @@ func (client *AlarmsClient) GetAlarm(id uuid.UUID) (AlarmEventRecord, error) {
 // PatchAlarm patches an alarm. Only the non-nil fields of the patch will be applied. The ID must be a valid UUID.
 func (client *AlarmsClient) PatchAlarm(
 	id uuid.UUID, patch AlarmEventRecordModifications) (AlarmEventRecordModifications, error) {
-	glog.V(100).Infof("Patching alarm with id %v with patch %#v", id, patch)
+	klog.V(100).Infof("Patching alarm with id %v with patch %#v", id, patch)
 
 	resp, err := client.PatchAlarmWithApplicationMergePatchPlusJSONBodyWithResponse(context.TODO(), id, patch)
 	if err != nil {
@@ -129,7 +129,7 @@ func (client *AlarmsClient) PatchAlarm(
 
 // GetServiceConfiguration retrieves the alarm service configuration.
 func (client *AlarmsClient) GetServiceConfiguration() (AlarmServiceConfiguration, error) {
-	glog.V(100).Info("Getting service configuration")
+	klog.V(100).Info("Getting service configuration")
 
 	resp, err := client.GetServiceConfigurationWithResponse(context.TODO())
 	if err != nil {
@@ -147,7 +147,7 @@ func (client *AlarmsClient) GetServiceConfiguration() (AlarmServiceConfiguration
 // UpdateAlarmServiceConfiguration modifies all fields of the Alarm Service Configuration.
 func (client *AlarmsClient) UpdateAlarmServiceConfiguration(
 	config AlarmServiceConfiguration) (AlarmServiceConfiguration, error) {
-	glog.V(100).Infof("Updating service configuration with config %#v", config)
+	klog.V(100).Infof("Updating service configuration with config %#v", config)
 
 	resp, err := client.UpdateAlarmServiceConfigurationWithResponse(context.TODO(), config)
 	if err != nil {
@@ -166,7 +166,7 @@ func (client *AlarmsClient) UpdateAlarmServiceConfiguration(
 // PatchAlarmServiceConfiguration modifies individual fields of the Alarm Service Configuration.
 func (client *AlarmsClient) PatchAlarmServiceConfiguration(
 	config AlarmServiceConfiguration) (AlarmServiceConfiguration, error) {
-	glog.V(100).Infof("Patching service configuration with config %#v", config)
+	klog.V(100).Infof("Patching service configuration with config %#v", config)
 
 	// Using generated method names has its downsides.
 	resp, err := client.PatchAlarmServiceConfigurationWithApplicationMergePatchPlusJSONBodyWithResponse(
@@ -192,9 +192,9 @@ func (client *AlarmsClient) ListSubscriptions(filter ...filter.Filter) ([]AlarmS
 	if len(filter) > 0 {
 		filterString = ptr.To(filter[0].Filter())
 
-		glog.V(100).Infof("Listing subscriptions with filter %q", *filterString)
+		klog.V(100).Infof("Listing subscriptions with filter %q", *filterString)
 	} else {
-		glog.V(100).Infof("Listing subscriptions without filter")
+		klog.V(100).Infof("Listing subscriptions without filter")
 	}
 
 	resp, err := client.GetSubscriptionsWithResponse(context.TODO(), &alarms.GetSubscriptionsParams{Filter: filterString})
@@ -211,7 +211,7 @@ func (client *AlarmsClient) ListSubscriptions(filter ...filter.Filter) ([]AlarmS
 
 // CreateSubscription creates a new alarm subscription.
 func (client *AlarmsClient) CreateSubscription(subscription AlarmSubscriptionInfo) (AlarmSubscriptionInfo, error) {
-	glog.V(100).Infof("Creating subscription %#v", subscription)
+	klog.V(100).Infof("Creating subscription %#v", subscription)
 
 	resp, err := client.CreateSubscriptionWithResponse(context.TODO(), subscription)
 	if err != nil {
@@ -228,7 +228,7 @@ func (client *AlarmsClient) CreateSubscription(subscription AlarmSubscriptionInf
 
 // GetSubscription retrieves exactly one subscription by its ID which must be a valid UUID.
 func (client *AlarmsClient) GetSubscription(id uuid.UUID) (AlarmSubscriptionInfo, error) {
-	glog.V(100).Infof("Getting subscription with id %v", id)
+	klog.V(100).Infof("Getting subscription with id %v", id)
 
 	resp, err := client.GetSubscriptionWithResponse(context.TODO(), id)
 	if err != nil {
@@ -245,7 +245,7 @@ func (client *AlarmsClient) GetSubscription(id uuid.UUID) (AlarmSubscriptionInfo
 
 // DeleteSubscription deletes exactly one subscription by its ID which must be a valid UUID.
 func (client *AlarmsClient) DeleteSubscription(id uuid.UUID) error {
-	glog.V(100).Infof("Deleting subscription with id %v", id)
+	klog.V(100).Infof("Deleting subscription with id %v", id)
 
 	resp, err := client.DeleteSubscriptionWithResponse(context.TODO(), id)
 	if err != nil {

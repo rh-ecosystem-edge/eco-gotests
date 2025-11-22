@@ -7,12 +7,12 @@ import (
 
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	ptpv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 // PtpConfigBuilder provides a struct for the PtpConfig resource containing a connection to the cluster and the
@@ -28,17 +28,17 @@ type PtpConfigBuilder struct {
 
 // NewPtpConfigBuilder creates a new instance of a PtpConfig builder.
 func NewPtpConfigBuilder(apiClient *clients.Settings, name, nsname string) *PtpConfigBuilder {
-	glog.V(100).Infof("Initializing new PtpConfig structure with the following params: name: %s, nsname: %s", name, nsname)
+	klog.V(100).Infof("Initializing new PtpConfig structure with the following params: name: %s, nsname: %s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Info("The apiClient of the PtpConfig is nil")
+		klog.V(100).Info("The apiClient of the PtpConfig is nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(ptpv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Info("Failed to add ptp v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add ptp v1 scheme to client schemes")
 
 		return nil
 	}
@@ -54,7 +54,7 @@ func NewPtpConfigBuilder(apiClient *clients.Settings, name, nsname string) *PtpC
 	}
 
 	if name == "" {
-		glog.V(100).Info("The name of the PtpConfig is empty")
+		klog.V(100).Info("The name of the PtpConfig is empty")
 
 		builder.errorMsg = "ptpConfig 'name' cannot be empty"
 
@@ -62,7 +62,7 @@ func NewPtpConfigBuilder(apiClient *clients.Settings, name, nsname string) *PtpC
 	}
 
 	if nsname == "" {
-		glog.V(100).Info("The namespace of the PtpConfig is empty")
+		klog.V(100).Info("The namespace of the PtpConfig is empty")
 
 		builder.errorMsg = "ptpConfig 'nsname' cannot be empty"
 
@@ -79,7 +79,7 @@ func (builder *PtpConfigBuilder) GetE810Plugin(profileName string) (*E810Plugin,
 		return nil, err
 	}
 
-	glog.V(100).Infof("Unmarshalling E810 plugin from PtpConfig %s in namespace %s",
+	klog.V(100).Infof("Unmarshalling E810 plugin from PtpConfig %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	for _, profile := range builder.Definition.Spec.Profile {
@@ -92,7 +92,7 @@ func (builder *PtpConfigBuilder) GetE810Plugin(profileName string) (*E810Plugin,
 
 			err := json.Unmarshal(plugin.Raw, e810Plugin)
 			if err != nil {
-				glog.V(100).Infof("Failed to unmarshal E810 plugin: %v", err)
+				klog.V(100).Infof("Failed to unmarshal E810 plugin: %v", err)
 
 				return nil, err
 			}
@@ -100,12 +100,12 @@ func (builder *PtpConfigBuilder) GetE810Plugin(profileName string) (*E810Plugin,
 			return e810Plugin, nil
 		}
 
-		glog.V(100).Infof("E810 plugin not found for profile %s", profileName)
+		klog.V(100).Infof("E810 plugin not found for profile %s", profileName)
 
 		return nil, fmt.Errorf("ptpProfile %s does not have E810 plugin", profileName)
 	}
 
-	glog.V(100).Infof("Profile %s not found in PtpConfig %s in namespace %s",
+	klog.V(100).Infof("Profile %s not found in PtpConfig %s in namespace %s",
 		profileName, builder.Definition.Name, builder.Definition.Namespace)
 
 	return nil, fmt.Errorf("ptpProfile %s not found", profileName)
@@ -118,7 +118,7 @@ func (builder *PtpConfigBuilder) WithE810Plugin(profileName string, e810Plugin *
 		return builder
 	}
 
-	glog.V(100).Infof("Setting E810 plugin for PtpConfig %s in namespace %s",
+	klog.V(100).Infof("Setting E810 plugin for PtpConfig %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	for profileIndex, profile := range builder.Definition.Spec.Profile {
@@ -128,7 +128,7 @@ func (builder *PtpConfigBuilder) WithE810Plugin(profileName string, e810Plugin *
 
 		e810PluginRaw, err := json.Marshal(e810Plugin)
 		if err != nil {
-			glog.V(100).Infof("Failed to marshal E810 plugin: %v", err)
+			klog.V(100).Infof("Failed to marshal E810 plugin: %v", err)
 
 			builder.errorMsg = fmt.Sprintf("cannot set E810 plugin: failed to marshal plugin struct: %v", err)
 
@@ -152,17 +152,17 @@ func (builder *PtpConfigBuilder) WithE810Plugin(profileName string, e810Plugin *
 
 // PullPtpConfig pulls an existing PtpConfig into a Builder struct.
 func PullPtpConfig(apiClient *clients.Settings, name, nsname string) (*PtpConfigBuilder, error) {
-	glog.V(100).Infof("Pulling existing PtpConfig %s under namespace %s from cluster", name, nsname)
+	klog.V(100).Infof("Pulling existing PtpConfig %s under namespace %s from cluster", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Info("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("ptpConfig 'apiClient' cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(ptpv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Info("Failed to add PtpConfig scheme to client schemes")
+		klog.V(100).Info("Failed to add PtpConfig scheme to client schemes")
 
 		return nil, err
 	}
@@ -178,19 +178,19 @@ func PullPtpConfig(apiClient *clients.Settings, name, nsname string) (*PtpConfig
 	}
 
 	if name == "" {
-		glog.V(100).Info("The name of the PtpConfig is empty")
+		klog.V(100).Info("The name of the PtpConfig is empty")
 
 		return nil, fmt.Errorf("ptpConfig 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Info("The namespace of the PtpConfig is empty")
+		klog.V(100).Info("The namespace of the PtpConfig is empty")
 
 		return nil, fmt.Errorf("ptpConfig 'nsname' cannot be empty")
 	}
 
 	if !builder.Exists() {
-		glog.V(100).Info("The PtpConfig %s does not exist in namespace %s", name, nsname)
+		klog.V(100).Infof("The PtpConfig %s does not exist in namespace %s", name, nsname)
 
 		return nil, fmt.Errorf("ptpConfig object %s does not exist in namespace %s", name, nsname)
 	}
@@ -206,7 +206,7 @@ func (builder *PtpConfigBuilder) Get() (*ptpv1.PtpConfig, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Getting PtpConfig object %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	ptpConfig := &ptpv1.PtpConfig{}
@@ -228,14 +228,14 @@ func (builder *PtpConfigBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Checking if PtpConfig %s exists in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
 
 	builder.Object, err = builder.Get()
 	if err != nil {
-		glog.V(100).Infof("Failed to get PtpConfig %s in namespace %s: %v",
+		klog.V(100).Infof("Failed to get PtpConfig %s in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
 
 		return false
@@ -250,7 +250,7 @@ func (builder *PtpConfigBuilder) Create() (*PtpConfigBuilder, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating PtpConfig %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	if builder.Exists() {
@@ -273,11 +273,11 @@ func (builder *PtpConfigBuilder) Update() (*PtpConfigBuilder, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Updating PtpConfig %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"PtpConfig %s does not exist in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 		return nil, fmt.Errorf("cannot update non-existent ptpConfig")
@@ -301,11 +301,11 @@ func (builder *PtpConfigBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Deleting PtpConfig %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"PtpConfig %s in namespace %s does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
@@ -329,25 +329,25 @@ func (builder *PtpConfigBuilder) validate() (bool, error) {
 	resourceCRD := "ptpConfig"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiClient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiClient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

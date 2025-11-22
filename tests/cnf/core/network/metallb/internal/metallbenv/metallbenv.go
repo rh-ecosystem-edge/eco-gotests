@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/daemonset"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/metallb"
@@ -20,11 +19,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 // DoesClusterSupportMetalLbTests verifies if given environment supports metalLb tests.
 func DoesClusterSupportMetalLbTests(requiredCPNodeNumber, requiredWorkerNodeNumber int) error {
-	glog.V(90).Infof("Verifying if MetalLb operator deployed")
+	klog.V(90).Infof("Verifying if MetalLb operator deployed")
 
 	if err := isMetalLbDeployed(); err != nil {
 		return err
@@ -39,7 +39,7 @@ func DoesClusterSupportMetalLbTests(requiredCPNodeNumber, requiredWorkerNodeNumb
 		return err
 	}
 
-	glog.V(90).Infof("Verifying if cluster has enough workers to run MetalLb tests")
+	klog.V(90).Infof("Verifying if cluster has enough workers to run MetalLb tests")
 
 	if len(workerNodeList) < requiredWorkerNodeNumber {
 		return fmt.Errorf("cluster has less than %d worker nodes", requiredWorkerNodeNumber)
@@ -54,7 +54,7 @@ func DoesClusterSupportMetalLbTests(requiredCPNodeNumber, requiredWorkerNodeNumb
 		return err
 	}
 
-	glog.V(90).Infof("Verifying if cluster has enough control-plane nodes to run MetalLb tests")
+	klog.V(90).Infof("Verifying if cluster has enough control-plane nodes to run MetalLb tests")
 
 	if len(controlPlaneNodeList) < requiredCPNodeNumber {
 		return fmt.Errorf("cluster has less than %d control-plane nodes", requiredCPNodeNumber)
@@ -67,12 +67,12 @@ func DoesClusterSupportMetalLbTests(requiredCPNodeNumber, requiredWorkerNodeNumb
 // daemonset is in Ready state.
 func CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(timeout time.Duration, nodeLabel map[string]string,
 	logLevel ...mlboperator.MetalLBLogLevel) error {
-	glog.V(90).Infof("Verifying if MetalLB daemonset is running")
+	klog.V(90).Infof("Verifying if MetalLB daemonset is running")
 
 	// Check if MetalLB DaemonSet already exists
 	metalLbIo, err := metallb.Pull(APIClient, tsparams.MetalLbIo, NetConfig.MlbOperatorNamespace)
 	if err == nil {
-		glog.V(90).Infof("MetalLB daemonset is running. Removing existing daemonset.")
+		klog.V(90).Infof("MetalLB daemonset is running. Removing existing daemonset.")
 
 		_, err = metalLbIo.Delete()
 		if err != nil {
@@ -85,7 +85,7 @@ func CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(timeout time.Duration, node
 		}
 	}
 
-	glog.V(90).Infof("Creating a new MetalLB speaker daemonSet.")
+	klog.V(90).Infof("Creating a new MetalLB speaker daemonSet.")
 
 	// Create new MetalLB DaemonSet
 	metalLbIo = metallb.NewBuilder(APIClient, tsparams.MetalLbIo, NetConfig.MlbOperatorNamespace, nodeLabel)
@@ -106,7 +106,7 @@ func CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(timeout time.Duration, node
 		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			metalLbDs, err = daemonset.Pull(APIClient, tsparams.MetalLbDsName, NetConfig.MlbOperatorNamespace)
 			if err != nil {
-				glog.V(90).Infof("Error pulling daemonset %s in namespace %s, retrying...",
+				klog.V(90).Infof("Error pulling daemonset %s in namespace %s, retrying...",
 					tsparams.MetalLbDsName, NetConfig.MlbOperatorNamespace)
 
 				return false, nil
@@ -119,14 +119,14 @@ func CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(timeout time.Duration, node
 		return fmt.Errorf("failed to pull MetalLB daemonset: %w", err)
 	}
 
-	glog.V(90).Infof("Waiting until the new MetalLB daemonset is in a Ready state.")
+	klog.V(90).Infof("Waiting until the new MetalLB daemonset is in a Ready state.")
 
 	// Check if the DaemonSet is ready
 	if !metalLbDs.IsReady(timeout) {
 		return fmt.Errorf("MetalLB daemonSet is not ready")
 	}
 
-	glog.V(90).Infof("Verifying if the FRR webhook server is deployed and ready")
+	klog.V(90).Infof("Verifying if the FRR webhook server is deployed and ready")
 
 	// Check FRR Webhook Server Readiness **(LAST STEP)**
 	var frrk8sWebhookDeployment *deployment.Builder
@@ -135,7 +135,7 @@ func CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(timeout time.Duration, node
 		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			frrk8sWebhookDeployment, err = deployment.Pull(APIClient, tsparams.FrrK8WebHookServer, NetConfig.Frrk8sNamespace)
 			if err != nil {
-				glog.V(90).Infof("Error pulling frrk8s webhook %s in namespace %s, retrying...",
+				klog.V(90).Infof("Error pulling frrk8s webhook %s in namespace %s, retrying...",
 					tsparams.FrrK8WebHookServer, NetConfig.Frrk8sNamespace)
 
 				return false, nil
@@ -151,7 +151,7 @@ func CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(timeout time.Duration, node
 		return fmt.Errorf("the frrk8s webhook server deployment is not ready")
 	}
 
-	glog.V(90).Infof("FRR webhook server is ready, MetalLB setup complete.")
+	klog.V(90).Infof("FRR webhook server is ready, MetalLB setup complete.")
 
 	return nil
 }
@@ -161,12 +161,12 @@ func waitForDsDeletion(dsName, dsNamespace string, timeout time.Duration) error 
 		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			_, err := daemonset.Pull(APIClient, dsName, dsNamespace)
 			if err != nil {
-				glog.V(90).Infof("daemonset %s does not exist in namespace %s", dsName, dsNamespace)
+				klog.V(90).Infof("daemonset %s does not exist in namespace %s", dsName, dsNamespace)
 
 				return true, nil
 			}
 
-			glog.V(90).Infof("daemonset %s exists in namespace %s, waiting for deletion...", dsName, dsNamespace)
+			klog.V(90).Infof("daemonset %s exists in namespace %s, waiting for deletion...", dsName, dsNamespace)
 
 			return false, nil
 		})
@@ -177,7 +177,7 @@ func waitForDsDeletion(dsName, dsNamespace string, timeout time.Duration) error 
 func GetMetalLbIPByIPStack() ([]string, []string, error) {
 	var ipv4IPList, ipv6IPList []string
 
-	glog.V(90).Infof("Getting MetalLb virtual ip addresses.")
+	klog.V(90).Infof("Getting MetalLb virtual ip addresses.")
 
 	metalLbIPList, err := NetConfig.GetMetalLbVirIP()
 
@@ -186,13 +186,13 @@ func GetMetalLbIPByIPStack() ([]string, []string, error) {
 	}
 
 	for _, ipAddress := range metalLbIPList {
-		glog.V(90).Infof("Validate if ip address: %s is in the correct format", ipAddress)
+		klog.V(90).Infof("Validate if ip address: %s is in the correct format", ipAddress)
 
 		if net.ParseIP(ipAddress) == nil {
 			return nil, nil, fmt.Errorf("not valid IP %s", ipAddress)
 		}
 
-		glog.V(90).Infof("Sort ip address: %s by ip stack", ipAddress)
+		klog.V(90).Infof("Sort ip address: %s by ip stack", ipAddress)
 
 		if strings.Contains(ipAddress, ":") {
 			ipv6IPList = append(ipv6IPList, ipAddress)
@@ -208,7 +208,7 @@ func GetMetalLbIPByIPStack() ([]string, []string, error) {
 // is in the same IP range as the br-ex interface of the cluster under-test.
 func IsEnvVarMetalLbIPinNodeExtNetRange(nodeExtAddresses, metalLbEnvIPv4, metalLbEnvIPv6 []string) error {
 	// Checks that the ECO_CNF_CORE_NET_MLB_ADDR_LIST is in the range of the cluster br-ex interface.
-	glog.V(90).Infof("Checking if node's external IP is in the same subnet with metalLb virtual IP.")
+	klog.V(90).Infof("Checking if node's external IP is in the same subnet with metalLb virtual IP.")
 
 	if metalLbEnvIPv4 == nil && metalLbEnvIPv6 == nil {
 		return fmt.Errorf("IPv4 and IPv6 address lists are empty please check your env var")

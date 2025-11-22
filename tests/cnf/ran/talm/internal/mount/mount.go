@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/talm/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
+	"k8s.io/klog/v2"
 )
 
 // PrepareEnvWithSmallMountPoint creates a virtual filesystem mounted at the backup path using a loopback device backed
@@ -34,7 +34,7 @@ func PrepareEnvWithSmallMountPoint(client *clients.Settings) (string, error) {
 		return "", err
 	}
 
-	glog.V(tsparams.LogLevel).Info("loopback device path: ", loopbackDevicePath)
+	klog.V(tsparams.LogLevel).Info("loopback device path: ", loopbackDevicePath)
 
 	// create a file with desired size for the filesystem to use
 	_, err = cluster.ExecCommandOnSNOWithRetries(
@@ -122,7 +122,7 @@ func unmountLoopback(client *clients.Settings, loopbackDevicePath, findmntOutput
 		case "part":
 			safeToDeleteBackupDir = false
 
-			glog.V(tsparams.LogLevel).Infof(
+			klog.V(tsparams.LogLevel).Infof(
 				"partition detected for %s, will not attempt to delete the folder (only the content if any)", tsparams.BackupPath)
 		case "loop":
 			if loopbackDevicePath == devicePath {
@@ -136,7 +136,7 @@ func unmountLoopback(client *clients.Settings, loopbackDevicePath, findmntOutput
 			} else {
 				safeToDeleteBackupDir = false
 
-				glog.V(tsparams.LogLevel).Info("found unexpected loopback device, likely error with previous clean up")
+				klog.V(tsparams.LogLevel).Info("found unexpected loopback device, likely error with previous clean up")
 				/*
 					Assuming loop0 is the unwanted one...
 					look for clues with lsblk
@@ -156,7 +156,7 @@ func unmountLoopback(client *clients.Settings, loopbackDevicePath, findmntOutput
 					Once back loop0 should not appear anywhere (lsblk + losetup)
 
 				*/
-				glog.V(tsparams.LogLevel).Infof("see comments for manual cleanup of %s", devicePath)
+				klog.V(tsparams.LogLevel).Infof("see comments for manual cleanup of %s", devicePath)
 			}
 		}
 	}

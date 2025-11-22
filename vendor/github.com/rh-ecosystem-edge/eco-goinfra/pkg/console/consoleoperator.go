@@ -10,11 +10,11 @@ import (
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 
-	"github.com/golang/glog"
 	operatorv1 "github.com/openshift/api/operator/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 // ConsoleOperatorBuilder provides a struct for consoleOperator object from the cluster and a console definition.
@@ -31,10 +31,10 @@ type ConsoleOperatorBuilder struct {
 
 // PullConsoleOperator loads an existing consoleOperator into the ConsoleOperatorBuilder struct.
 func PullConsoleOperator(apiClient *clients.Settings, consoleOperatorName string) (*ConsoleOperatorBuilder, error) {
-	glog.V(100).Infof("Pulling cluster consoleOperator %s", consoleOperatorName)
+	klog.V(100).Infof("Pulling cluster consoleOperator %s", consoleOperatorName)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("consoleOperator 'apiClient' cannot be empty")
 	}
@@ -49,7 +49,7 @@ func PullConsoleOperator(apiClient *clients.Settings, consoleOperatorName string
 	}
 
 	if consoleOperatorName == "" {
-		glog.V(100).Info("The consoleOperatorName of the consoleOperator is empty")
+		klog.V(100).Info("The consoleOperatorName of the consoleOperator is empty")
 
 		return nil, fmt.Errorf("the consoleOperator 'consoleOperatorName' cannot be empty")
 	}
@@ -69,7 +69,7 @@ func (builder *ConsoleOperatorBuilder) Get() (*operatorv1.Console, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting existing consoleOperator with name %s from cluster", builder.Definition.Name)
+	klog.V(100).Infof("Getting existing consoleOperator with name %s from cluster", builder.Definition.Name)
 
 	consoleOperator := &operatorv1.Console{}
 
@@ -77,7 +77,7 @@ func (builder *ConsoleOperatorBuilder) Get() (*operatorv1.Console, error) {
 		Name: builder.Definition.Name,
 	}, consoleOperator)
 	if err != nil {
-		glog.V(100).Infof("Failed to get consoleOperator object %s from cluster due to: %v",
+		klog.V(100).Infof("Failed to get consoleOperator object %s from cluster due to: %v",
 			builder.Definition.Name, err)
 
 		return nil, err
@@ -92,7 +92,7 @@ func (builder *ConsoleOperatorBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if consoleOperator %s exists", builder.Definition.Name)
+	klog.V(100).Infof("Checking if consoleOperator %s exists", builder.Definition.Name)
 
 	var err error
 
@@ -107,7 +107,7 @@ func (builder *ConsoleOperatorBuilder) Update() (*ConsoleOperatorBuilder, error)
 		return builder, err
 	}
 
-	glog.V(100).Info("Updating cluster consoleOperator %s", builder.Definition.Name)
+	klog.V(100).Infof("Updating cluster consoleOperator %s", builder.Definition.Name)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err == nil {
@@ -123,7 +123,7 @@ func (builder *ConsoleOperatorBuilder) GetPlugins() (*[]string, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting consoleOperator plugins list configuration")
+	klog.V(100).Info("Getting consoleOperator plugins list configuration")
 
 	if !builder.Exists() {
 		return nil, fmt.Errorf("consoleOperator %s object does not exist", builder.Definition.Name)
@@ -138,11 +138,11 @@ func (builder *ConsoleOperatorBuilder) WithPlugins(newPluginsList []string, rede
 		return builder
 	}
 
-	glog.V(100).Infof("Setting consoleOperator %s with new plugins: %v",
+	klog.V(100).Infof("Setting consoleOperator %s with new plugins: %v",
 		builder.Definition.Name, newPluginsList)
 
 	if len(newPluginsList) == 0 {
-		glog.V(100).Infof("the newPluginsList can not be empty")
+		klog.V(100).Info("the newPluginsList can not be empty")
 
 		builder.errorMsg = "the newPluginsList can not be empty"
 
@@ -150,21 +150,21 @@ func (builder *ConsoleOperatorBuilder) WithPlugins(newPluginsList []string, rede
 	}
 
 	if builder.Definition.Spec.Plugins == nil {
-		glog.V(100).Infof("Plugins are nil. Initializing one")
+		klog.V(100).Info("Plugins are nil. Initializing one")
 
 		builder.Definition.Spec.Plugins = []string{}
 	}
 
 	if redefine {
-		glog.V(100).Infof("Redefining existing plugins list with %v", newPluginsList)
+		klog.V(100).Infof("Redefining existing plugins list with %v", newPluginsList)
 
 		builder.Definition.Spec.Plugins = newPluginsList
 	} else {
-		glog.V(100).Infof("Existing plugins list will not be redefined")
+		klog.V(100).Info("Existing plugins list will not be redefined")
 
 		for _, newPlugin := range newPluginsList {
 			if slices.Contains(builder.Definition.Spec.Plugins, newPlugin) {
-				glog.V(100).Infof("the newPlugin %s was already defined in Plugins list %v",
+				klog.V(100).Infof("the newPlugin %s was already defined in Plugins list %v",
 					newPlugin, builder.Definition.Spec.Plugins)
 			} else {
 				builder.Definition.Spec.Plugins = append(builder.Definition.Spec.Plugins, newPlugin)
@@ -181,25 +181,25 @@ func (builder *ConsoleOperatorBuilder) validate() (bool, error) {
 	resourceCRD := "Console.Operator"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

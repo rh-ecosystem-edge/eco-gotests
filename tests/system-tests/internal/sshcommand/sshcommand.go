@@ -3,8 +3,8 @@ package sshcommand
 import (
 	"os"
 
-	"github.com/golang/glog"
 	"golang.org/x/crypto/ssh"
+	"k8s.io/klog/v2"
 )
 
 // SSHCommandResult is the result of executing a command via SSH. Upon
@@ -44,7 +44,7 @@ type SSHCommandResult struct {
 // The format of sshAddrStr is "192.168.10.3:22".
 func SSHCommand(command, sshAddrStr, user, hostPrivateKeyPath string) *SSHCommandResult {
 	// The ipsec show command should list 1 line per connection
-	glog.V(100).Infof("Execute cmd %s on remote host %s",
+	klog.V(100).Infof("Execute cmd %s on remote host %s",
 		command, sshAddrStr)
 
 	result := new(SSHCommandResult)
@@ -61,7 +61,7 @@ func SSHCommand(command, sshAddrStr, user, hostPrivateKeyPath string) *SSHComman
 
 	keyBuf, result.Err = os.ReadFile(hostPrivateKeyPath)
 	if result.Err != nil {
-		glog.V(100).Infof("Unable to open private key: %s, err: %v",
+		klog.V(100).Infof("Unable to open private key: %s, err: %v",
 			hostPrivateKeyPath, result.Err)
 
 		return result
@@ -69,7 +69,7 @@ func SSHCommand(command, sshAddrStr, user, hostPrivateKeyPath string) *SSHComman
 
 	signer, result.Err = ssh.ParsePrivateKey(keyBuf)
 	if result.Err != nil {
-		glog.V(100).Infof("Unable to parse private key: %s, err: %v",
+		klog.V(100).Infof("Unable to parse private key: %s, err: %v",
 			hostPrivateKeyPath, result.Err)
 
 		return result
@@ -85,14 +85,14 @@ func SSHCommand(command, sshAddrStr, user, hostPrivateKeyPath string) *SSHComman
 
 	client, result.Err = ssh.Dial("tcp", sshAddrStr, config)
 	if result.Err != nil {
-		glog.V(100).Infof("Failed to dial: %s, err: %v", sshAddrStr, result.Err)
+		klog.V(100).Infof("Failed to dial: %s, err: %v", sshAddrStr, result.Err)
 
 		return result
 	}
 
 	session, result.Err = client.NewSession()
 	if result.Err != nil {
-		glog.V(100).Infof("Failed to create session: %v", result.Err)
+		klog.V(100).Infof("Failed to create session: %v", result.Err)
 
 		return result
 	}
@@ -100,14 +100,14 @@ func SSHCommand(command, sshAddrStr, user, hostPrivateKeyPath string) *SSHComman
 
 	output, result.Err = session.CombinedOutput(command)
 	if result.Err != nil {
-		glog.V(100).Infof("Failed to run command: %s, output: %s, err %v",
+		klog.V(100).Infof("Failed to run command: %s, output: %s, err %v",
 			command, string(output), result.Err)
 
 		return result
 	}
 
 	result.SSHOutput = string(output)
-	glog.V(100).Infof("SSH command output: %s", result.SSHOutput)
+	klog.V(100).Infof("SSH command output: %s", result.SSHOutput)
 
 	return result
 }

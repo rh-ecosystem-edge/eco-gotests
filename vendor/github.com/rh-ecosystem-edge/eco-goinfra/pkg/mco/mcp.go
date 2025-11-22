@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/klog/v2"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	mcv1 "github.com/openshift/api/machineconfiguration/v1"
@@ -39,18 +39,18 @@ type MCPAdditionalOptions func(builder *MCPBuilder) (*MCPBuilder, error)
 
 // NewMCPBuilder method creates new instance of builder.
 func NewMCPBuilder(apiClient *clients.Settings, mcpName string) *MCPBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new MCPBuilder structure with the following params: %s", mcpName)
 
 	if apiClient == nil {
-		glog.V(100).Info("The apiClient of the MachineConfigPool is nil")
+		klog.V(100).Info("The apiClient of the MachineConfigPool is nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(mcv1.Install)
 	if err != nil {
-		glog.V(100).Info("Failed to add machineconfig v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add machineconfig v1 scheme to client schemes")
 
 		return nil
 	}
@@ -65,7 +65,7 @@ func NewMCPBuilder(apiClient *clients.Settings, mcpName string) *MCPBuilder {
 	}
 
 	if mcpName == "" {
-		glog.V(100).Infof("The name of the MachineConfigPool is empty")
+		klog.V(100).Info("The name of the MachineConfigPool is empty")
 
 		builder.errorMsg = "machineconfigpool 'name' cannot be empty"
 
@@ -77,17 +77,17 @@ func NewMCPBuilder(apiClient *clients.Settings, mcpName string) *MCPBuilder {
 
 // Pull pulls existing machineconfigpool from cluster.
 func Pull(apiClient *clients.Settings, name string) (*MCPBuilder, error) {
-	glog.V(100).Infof("Pulling existing machineconfigpool name %s from cluster", name)
+	klog.V(100).Infof("Pulling existing machineconfigpool name %s from cluster", name)
 
 	if apiClient == nil {
-		glog.V(100).Info("The apiClient of the MachineConfigPool is nil")
+		klog.V(100).Info("The apiClient of the MachineConfigPool is nil")
 
 		return nil, fmt.Errorf("machineconfigpool 'apiClient' cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(mcv1.Install)
 	if err != nil {
-		glog.V(100).Info("Failed to add machineconfig v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add machineconfig v1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -102,7 +102,7 @@ func Pull(apiClient *clients.Settings, name string) (*MCPBuilder, error) {
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the machineconfigpool is empty")
+		klog.V(100).Info("The name of the machineconfigpool is empty")
 
 		return nil, fmt.Errorf("machineconfigpool 'name' cannot be empty")
 	}
@@ -122,13 +122,13 @@ func (builder *MCPBuilder) Get() (*mcv1.MachineConfigPool, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting MachineConfigPool object %s", builder.Definition.Name)
+	klog.V(100).Infof("Getting MachineConfigPool object %s", builder.Definition.Name)
 
 	machineConfigPool := &mcv1.MachineConfigPool{}
 
 	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, machineConfigPool)
 	if err != nil {
-		glog.V(100).Infof("MachineConfigPool object %s does not exist", builder.Definition.Name)
+		klog.V(100).Infof("MachineConfigPool object %s does not exist", builder.Definition.Name)
 
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func (builder *MCPBuilder) Create() (*MCPBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the MachineConfigPool %s",
+	klog.V(100).Infof("Creating the MachineConfigPool %s",
 		builder.Definition.Name)
 
 	var err error
@@ -162,11 +162,11 @@ func (builder *MCPBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting the MachineConfigPool object %s",
+	klog.V(100).Infof("Deleting the MachineConfigPool object %s",
 		builder.Definition.Name)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("MachineConfigPool %s cannot be deleted because it does not exist", builder.Definition.Name)
+		klog.V(100).Infof("MachineConfigPool %s cannot be deleted because it does not exist", builder.Definition.Name)
 
 		builder.Object = nil
 
@@ -189,7 +189,7 @@ func (builder *MCPBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if the MachineConfigPool object %s exists",
+	klog.V(100).Infof("Checking if the MachineConfigPool object %s exists",
 		builder.Definition.Name)
 
 	var err error
@@ -205,7 +205,7 @@ func (builder *MCPBuilder) WithMcSelector(mcSelector map[string]string) *MCPBuil
 		return builder
 	}
 
-	glog.V(100).Infof("WithMcSelector updates builder object with "+
+	klog.V(100).Infof("WithMcSelector updates builder object with "+
 		"machineConfigSelector label: %v", mcSelector)
 
 	if len(mcSelector) == 0 {
@@ -234,7 +234,7 @@ func (builder *MCPBuilder) WaitToBeInCondition(
 		return err
 	}
 
-	glog.V(100).Infof("WaitToBeInCondition waits up to specified time duration %v until "+
+	klog.V(100).Infof("WaitToBeInCondition waits up to specified time duration %v until "+
 		"MachineConfigPool condition %v is met", timeout, conditionType)
 
 	return wait.PollUntilContextTimeout(
@@ -260,7 +260,7 @@ func (builder *MCPBuilder) WaitForUpdate(timeout time.Duration) error {
 		return err
 	}
 
-	glog.V(100).Infof("WaitForUpdate waits up to specified time %v until updating"+
+	klog.V(100).Infof("WaitForUpdate waits up to specified time %v until updating"+
 		" machineConfigPool object is updated", timeout)
 
 	mcpUpdating, err := builder.Get()
@@ -300,7 +300,7 @@ func (builder *MCPBuilder) WaitToBeStableFor(stableDuration time.Duration, timeo
 		return err
 	}
 
-	glog.V(100).Infof("WaitToBeStableFor waits up to duration of %v for "+
+	klog.V(100).Infof("WaitToBeStableFor waits up to duration of %v for "+
 		"MachineConfigPool to be stable for %v", timeout, stableDuration)
 
 	isMcpStable := true
@@ -320,7 +320,7 @@ func (builder *MCPBuilder) WaitToBeStableFor(stableDuration time.Duration, timeo
 					if builder.Object.Status.ReadyMachineCount != builder.Object.Status.MachineCount ||
 						builder.Object.Status.MachineCount != builder.Object.Status.UpdatedMachineCount ||
 						builder.Object.Status.DegradedMachineCount != 0 {
-						glog.V(100).Infof("MachineConfigPool: %v degraded and has a mismatch in "+
+						klog.V(100).Infof("MachineConfigPool: %v degraded and has a mismatch in "+
 							"machineCount: %v "+"vs machineCountUpdated: "+"%v vs readyMachineCount: %v and "+
 							"degradedMachineCount is : %v \n", builder.Object.Name,
 							builder.Object.Status.MachineCount, builder.Object.Status.UpdatedMachineCount,
@@ -335,14 +335,14 @@ func (builder *MCPBuilder) WaitToBeStableFor(stableDuration time.Duration, timeo
 				})
 
 			if isMcpStable {
-				glog.V(100).Infof("MachineConfigPool was stable during during stableDuration: %v",
+				klog.V(100).Infof("MachineConfigPool was stable during during stableDuration: %v",
 					stableDuration)
 
 				// this will exit the outer wait.PollUntilContextTimeout block since the mcp was stable during stableDuration
 				return true, nil
 			}
 
-			glog.V(100).Infof("MachineConfigPool was not stable during stableDuration: %v, retrying ...",
+			klog.V(100).Infof("MachineConfigPool was not stable during stableDuration: %v, retrying ...",
 				stableDuration)
 
 			// keep iterating in the outer wait.PollUntilContextTimeout waiting for cluster to be stable
@@ -351,10 +351,10 @@ func (builder *MCPBuilder) WaitToBeStableFor(stableDuration time.Duration, timeo
 
 	// After the timout in outer wait.PollUntilContextTimeout.
 	if err == nil {
-		glog.V(100).Infof("Cluster was stable during stableDuration: %v", stableDuration)
+		klog.V(100).Infof("Cluster was stable during stableDuration: %v", stableDuration)
 	} else {
 		// Here err is "timed out waiting for the condition"
-		glog.V(100).Infof("Cluster was Un-stable during stableDuration: %v", stableDuration)
+		klog.V(100).Infof("Cluster was Un-stable during stableDuration: %v", stableDuration)
 	}
 
 	return err
@@ -366,13 +366,13 @@ func (builder *MCPBuilder) WithOptions(options ...MCPAdditionalOptions) *MCPBuil
 		return builder
 	}
 
-	glog.V(100).Infof("Setting mcp additional options")
+	klog.V(100).Info("Setting mcp additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -391,7 +391,7 @@ func (builder *MCPBuilder) IsInCondition(mcpConditionType mcv1.MachineConfigPool
 		return false
 	}
 
-	glog.V(100).Infof("IsInCondition returns true"+
+	klog.V(100).Infof("IsInCondition returns true"+
 		" if MachineConfigPool object is in a given condition %v, otherwise false", mcpConditionType)
 
 	if builder.Exists() {
@@ -411,25 +411,25 @@ func (builder *MCPBuilder) validate() (bool, error) {
 	resourceCRD := "MachineConfigPool"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

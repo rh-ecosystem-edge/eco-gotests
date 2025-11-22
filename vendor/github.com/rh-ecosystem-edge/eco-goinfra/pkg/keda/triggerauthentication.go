@@ -6,11 +6,11 @@ import (
 
 	kedav2v1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -30,19 +30,19 @@ type TriggerAuthenticationBuilder struct {
 // NewTriggerAuthenticationBuilder creates a new instance of TriggerAuthenticationBuilder.
 func NewTriggerAuthenticationBuilder(
 	apiClient *clients.Settings, name, nsname string) *TriggerAuthenticationBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new triggerAuthentication structure with the following params: "+
 			"name: %s, namespace: %s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("triggerAuthentication 'apiClient' cannot be empty")
+		klog.V(100).Info("triggerAuthentication 'apiClient' cannot be empty")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(kedav2v1alpha1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add kedav2v1alpha1 scheme to client schemes")
+		klog.V(100).Info("Failed to add kedav2v1alpha1 scheme to client schemes")
 
 		return nil
 	}
@@ -58,7 +58,7 @@ func NewTriggerAuthenticationBuilder(
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the triggerAuthentication is empty")
+		klog.V(100).Info("The name of the triggerAuthentication is empty")
 
 		builder.errorMsg = "triggerAuthentication 'name' cannot be empty"
 
@@ -66,7 +66,7 @@ func NewTriggerAuthenticationBuilder(
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The nsname of the triggerAuthentication is empty")
+		klog.V(100).Info("The nsname of the triggerAuthentication is empty")
 
 		builder.errorMsg = "triggerAuthentication 'nsname' cannot be empty"
 
@@ -79,18 +79,18 @@ func NewTriggerAuthenticationBuilder(
 // PullTriggerAuthentication pulls existing triggerAuthentication from cluster.
 func PullTriggerAuthentication(apiClient *clients.Settings,
 	name, nsname string) (*TriggerAuthenticationBuilder, error) {
-	glog.V(100).Infof("Pulling existing triggerAuthentication name %s in namespace %s from cluster",
+	klog.V(100).Infof("Pulling existing triggerAuthentication name %s in namespace %s from cluster",
 		name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("triggerAuthentication 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(kedav2v1alpha1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add kedav2v1alpha1 scheme to client schemes")
+		klog.V(100).Info("Failed to add kedav2v1alpha1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -106,13 +106,13 @@ func PullTriggerAuthentication(apiClient *clients.Settings,
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the triggerAuthentication is empty")
+		klog.V(100).Info("The name of the triggerAuthentication is empty")
 
 		return nil, fmt.Errorf("triggerAuthentication 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the triggerAuthentication is empty")
+		klog.V(100).Info("The namespace of the triggerAuthentication is empty")
 
 		return nil, fmt.Errorf("triggerAuthentication 'nsname' cannot be empty")
 	}
@@ -132,7 +132,7 @@ func (builder *TriggerAuthenticationBuilder) Get() (*kedav2v1alpha1.TriggerAuthe
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting triggerAuthentication %s in namespace %s",
+	klog.V(100).Infof("Getting triggerAuthentication %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	triggerAuthenticationObj := &kedav2v1alpha1.TriggerAuthentication{}
@@ -154,7 +154,7 @@ func (builder *TriggerAuthenticationBuilder) Create() (*TriggerAuthenticationBui
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the triggerAuthentication %s in namespace %s",
+	klog.V(100).Infof("Creating the triggerAuthentication %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -174,11 +174,11 @@ func (builder *TriggerAuthenticationBuilder) Delete() (*TriggerAuthenticationBui
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting the triggerAuthentication %s in namespace %s",
+	klog.V(100).Infof("Deleting the triggerAuthentication %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("triggerAuthentication %s in namespace %s cannot be deleted"+
+		klog.V(100).Infof("triggerAuthentication %s in namespace %s cannot be deleted"+
 			" because it does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
@@ -203,7 +203,7 @@ func (builder *TriggerAuthenticationBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if triggerAuthentication %s exists in namespace %s",
+	klog.V(100).Infof("Checking if triggerAuthentication %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -219,13 +219,12 @@ func (builder *TriggerAuthenticationBuilder) Update() (*TriggerAuthenticationBui
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating triggerAuthentication %s in namespace %s",
+	klog.V(100).Infof("Updating triggerAuthentication %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
-		glog.V(100).Infof(
-			msg.FailToUpdateError("triggerAuthentication", builder.Definition.Name, builder.Definition.Namespace))
+		klog.V(100).Infof("%v", msg.FailToUpdateError("triggerAuthentication", builder.Definition.Name, builder.Definition.Namespace))
 
 		return nil, err
 	}
@@ -238,7 +237,7 @@ func (builder *TriggerAuthenticationBuilder) Update() (*TriggerAuthenticationBui
 // WithSecretTargetRef sets the triggerAuthentication operator's secretTargetRef.
 func (builder *TriggerAuthenticationBuilder) WithSecretTargetRef(
 	secretTargetRef []kedav2v1alpha1.AuthSecretTargetRef) *TriggerAuthenticationBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Adding secretTargetRef to triggerAuthentication %s in namespace %s; secretTargetRef %v",
 		builder.Definition.Name, builder.Definition.Namespace, secretTargetRef)
 
@@ -247,7 +246,7 @@ func (builder *TriggerAuthenticationBuilder) WithSecretTargetRef(
 	}
 
 	if len(secretTargetRef) == 0 {
-		glog.V(100).Infof("'secretTargetRef' argument cannot be empty")
+		klog.V(100).Info("'secretTargetRef' argument cannot be empty")
 
 		builder.errorMsg = "'secretTargetRef' argument cannot be empty"
 
@@ -265,25 +264,25 @@ func (builder *TriggerAuthenticationBuilder) validate() (bool, error) {
 	resourceCRD := "TriggerAuthentication"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

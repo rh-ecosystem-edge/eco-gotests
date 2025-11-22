@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 
 	operatorV1 "github.com/openshift/api/operator/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -33,10 +33,10 @@ var kubeAPIServerObjName = "cluster"
 
 // PullKubeAPIServer pulls existing kubeApiServer from the cluster.
 func PullKubeAPIServer(apiClient *clients.Settings) (*KubeAPIServerBuilder, error) {
-	glog.V(100).Infof("Pulling existing kubeApiServer from cluster")
+	klog.V(100).Info("Pulling existing kubeApiServer from cluster")
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("kubeApiServer 'apiClient' cannot be empty")
 	}
@@ -69,7 +69,7 @@ func (builder *KubeAPIServerBuilder) Exists() bool {
 
 	builder.Object, err = builder.Get()
 	if err != nil {
-		glog.V(100).Infof("Failed to collect kubeAPIServer object due to %s", err.Error())
+		klog.V(100).Infof("Failed to collect kubeAPIServer object due to %s", err.Error())
 	}
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -87,7 +87,7 @@ func (builder *KubeAPIServerBuilder) Get() (*operatorV1.KubeAPIServer, error) {
 		Name: builder.Definition.Name,
 	}, kubeAPIServer)
 	if err != nil {
-		glog.V(100).Infof("kubeAPIServer object does not exist")
+		klog.V(100).Info("kubeAPIServer object does not exist")
 
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func (builder *KubeAPIServerBuilder) GetCondition(conditionType string) (*operat
 		return nil, "", err
 	}
 
-	glog.V(100).Infof("Get %s kubeAPIServer %s condition", builder.Definition.Name, conditionType)
+	klog.V(100).Infof("Get %s kubeAPIServer %s condition", builder.Definition.Name, conditionType)
 
 	if conditionType == "" {
 		return nil, "", fmt.Errorf("kubeAPIServer 'conditionType' cannot be empty")
@@ -193,7 +193,7 @@ func (builder *KubeAPIServerBuilder) WaitAllNodesAtTheLatestRevision(timeout tim
 				return false, nil
 			}
 
-			glog.V(100).Infof("Found reason message: %s", reasonMsg)
+			klog.V(100).Infof("Found reason message: %s", reasonMsg)
 
 			if reasonMsg != verificationStr {
 				return false, nil
@@ -214,25 +214,25 @@ func (builder *KubeAPIServerBuilder) validate() (bool, error) {
 	resourceCRD := "KubeAPIServer"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

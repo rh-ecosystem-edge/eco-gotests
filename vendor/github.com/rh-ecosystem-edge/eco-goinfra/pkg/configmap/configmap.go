@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	corev1 "k8s.io/api/core/v1"
@@ -12,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	corev1Typed "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/klog/v2"
 )
 
 // Builder provides struct for configmap object containing connection to the cluster and the configmap definitions.
@@ -42,18 +42,18 @@ func Pull(apiClient *clients.Settings, name, nsname string) (*Builder, error) {
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the configmap is empty")
+		klog.V(100).Info("The name of the configmap is empty")
 
 		return nil, fmt.Errorf("configmap 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the configmap is empty")
+		klog.V(100).Info("The namespace of the configmap is empty")
 
 		return nil, fmt.Errorf("configmap 'nsname' cannot be empty")
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Pulling configmap object name:%s in namespace: %s", name, nsname)
 
 	if !builder.Exists() {
@@ -67,7 +67,7 @@ func Pull(apiClient *clients.Settings, name, nsname string) (*Builder, error) {
 
 // NewBuilder creates a new instance of Builder.
 func NewBuilder(apiClient *clients.Settings, name, nsname string) *Builder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new configmap structure with the following params: %s, %s", name, nsname)
 
 	builder := &Builder{
@@ -81,7 +81,7 @@ func NewBuilder(apiClient *clients.Settings, name, nsname string) *Builder {
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the configmap is empty")
+		klog.V(100).Info("The name of the configmap is empty")
 
 		builder.errorMsg = "configmap 'name' cannot be empty"
 
@@ -89,7 +89,7 @@ func NewBuilder(apiClient *clients.Settings, name, nsname string) *Builder {
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the configmap is empty")
+		klog.V(100).Info("The namespace of the configmap is empty")
 
 		builder.errorMsg = "configmap 'nsname' cannot be empty"
 
@@ -105,7 +105,7 @@ func (builder *Builder) Create() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the configmap %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
+	klog.V(100).Infof("Creating the configmap %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
 	if !builder.Exists() {
@@ -122,11 +122,11 @@ func (builder *Builder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting the configmap %s from namespace %s",
+	klog.V(100).Infof("Deleting the configmap %s from namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("configmap %s in namespace %s does not exist",
+		klog.V(100).Infof("configmap %s in namespace %s does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -151,7 +151,7 @@ func (builder *Builder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Checking if configmap %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -169,7 +169,7 @@ func (builder *Builder) Update() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating configmap %s in namespace %s",
+	klog.V(100).Infof("Updating configmap %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -177,8 +177,7 @@ func (builder *Builder) Update() (*Builder, error) {
 	builder.Object, err = builder.apiClient.ConfigMaps(builder.Definition.Namespace).
 		Update(context.TODO(), builder.Definition, metav1.UpdateOptions{})
 	if err != nil {
-		glog.V(100).Infof(
-			msg.FailToUpdateError("configmap", builder.Definition.Name, builder.Definition.Namespace))
+		klog.V(100).Infof("%v", msg.FailToUpdateError("configmap", builder.Definition.Name, builder.Definition.Namespace))
 
 		return nil, err
 	}
@@ -194,7 +193,7 @@ func (builder *Builder) WithData(data map[string]string) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating configmap %s in namespace %s with this data: %s",
 		builder.Definition.Name, builder.Definition.Namespace, data)
 
@@ -215,13 +214,13 @@ func (builder *Builder) WithOptions(options ...AdditionalOptions) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Setting configmap additional options")
+	klog.V(100).Info("Setting configmap additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -246,25 +245,25 @@ func (builder *Builder) validate() (bool, error) {
 	resourceCRD := "ConfigMap"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

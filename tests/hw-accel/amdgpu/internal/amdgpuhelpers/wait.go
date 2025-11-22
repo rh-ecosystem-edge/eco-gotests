@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/glog"
 	configv1 "github.com/openshift/api/config/v1"
 	configclient "github.com/openshift/client-go/config/clientset/versioned"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
@@ -18,18 +17,19 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/tools/cache"
 	watchtools "k8s.io/client-go/tools/watch"
+	"k8s.io/klog/v2"
 )
 
 // WaitForClusterStabilityAfterDeviceConfig waits for the cluster to stabilize after DeviceConfig creation.
 func WaitForClusterStabilityAfterDeviceConfig(apiClients *clients.Settings) error {
-	glog.V(amdgpuparams.AMDGPULogLevel).Info("Waiting for cluster stability after DeviceConfig creation")
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("Waiting for cluster stability after DeviceConfig creation")
 
 	WaitForClusterStabilityErr := WaitForClusterStability(apiClients, amdgpuparams.ClusterStabilityTimeout)
 	if WaitForClusterStabilityErr != nil {
 		return fmt.Errorf("cluster stability check after DeviceConfig creation failed: %w", WaitForClusterStabilityErr)
 	}
 
-	glog.V(amdgpuparams.AMDGPULogLevel).Info("Cluster is stable after DeviceConfig creation")
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("Cluster is stable after DeviceConfig creation")
 
 	return nil
 }
@@ -38,7 +38,7 @@ func WaitForClusterStabilityAfterDeviceConfig(apiClients *clients.Settings) erro
 func WaitForClusterStability(
 	apiClients *clients.Settings,
 	timeout time.Duration) error {
-	glog.V(amdgpuparams.AMDGPULogLevel).Info("Waiting for cluster to stabilize...")
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("Waiting for cluster to stabilize...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -72,14 +72,14 @@ func WaitForClusterStability(
 		}
 	}
 
-	glog.V(amdgpuparams.AMDGPULogLevel).Info("Cluster stability check passed.")
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("Cluster stability check passed.")
 
 	return nil
 }
 
 func waitForNodesReadiness(ctx context.Context, wg *sync.WaitGroup, apiClients *clients.Settings, errChan chan error) {
 	defer wg.Done()
-	glog.V(amdgpuparams.AMDGPULogLevel).Info("Setting up watch for Node readiness...")
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("Setting up watch for Node readiness...")
 
 	_, err := watchtools.UntilWithSync(ctx,
 
@@ -99,20 +99,20 @@ func waitForNodesReadiness(ctx context.Context, wg *sync.WaitGroup, apiClients *
 		func(event watch.Event) (bool, error) {
 			nodeList, err := nodes.List(apiClients, metav1.ListOptions{})
 			if err != nil {
-				glog.V(amdgpuparams.AMDGPULogLevel).Infof("Failed to list nodes during watch: %v", err)
+				klog.V(amdgpuparams.AMDGPULogLevel).Infof("Failed to list nodes during watch: %v", err)
 
 				return false, nil
 			}
 
 			for _, node := range nodeList {
 				if ready, err := node.IsReady(); err != nil || !ready {
-					glog.V(amdgpuparams.AMDGPULogLevel).Infof("Node %s is not ready yet error:%v", node.Object.Name, err)
+					klog.V(amdgpuparams.AMDGPULogLevel).Infof("Node %s is not ready yet error:%v", node.Object.Name, err)
 
 					return false, nil
 				}
 			}
 
-			glog.V(amdgpuparams.AMDGPULogLevel).Info("All nodes are ready.")
+			klog.V(amdgpuparams.AMDGPULogLevel).Info("All nodes are ready.")
 
 			return true, nil
 		},
@@ -124,7 +124,7 @@ func waitForNodesReadiness(ctx context.Context, wg *sync.WaitGroup, apiClients *
 
 func waitForClientConfig(ctx context.Context, wg *sync.WaitGroup, apiClients *clients.Settings, errChan chan error) {
 	defer wg.Done()
-	glog.V(amdgpuparams.AMDGPULogLevel).Info("Setting up watch for ClusterOperator stability...")
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("Setting up watch for ClusterOperator stability...")
 
 	configClient, err := configclient.NewForConfig(apiClients.Config)
 
@@ -148,7 +148,7 @@ func waitForClientConfig(ctx context.Context, wg *sync.WaitGroup, apiClients *cl
 		func(event watch.Event) (bool, error) {
 			coList, err := configClient.ConfigV1().ClusterOperators().List(ctx, metav1.ListOptions{})
 			if err != nil {
-				glog.V(amdgpuparams.AMDGPULogLevel).Infof("Failed to list clusteroperators during watch: %v", err)
+				klog.V(amdgpuparams.AMDGPULogLevel).Infof("Failed to list clusteroperators during watch: %v", err)
 
 				return false, nil
 			}
@@ -173,13 +173,13 @@ func waitForClientConfig(ctx context.Context, wg *sync.WaitGroup, apiClients *cl
 				}
 
 				if !isAvailable || isProgressing || isDegraded {
-					glog.V(amdgpuparams.AMDGPULogLevel).Infof("ClusterOperator %s is not stable yet", configClient.Name)
+					klog.V(amdgpuparams.AMDGPULogLevel).Infof("ClusterOperator %s is not stable yet", configClient.Name)
 
 					return false, nil
 				}
 			}
 
-			glog.V(amdgpuparams.AMDGPULogLevel).Info("✅ All cluster operators are stable.")
+			klog.V(amdgpuparams.AMDGPULogLevel).Info("✅ All cluster operators are stable.")
 
 			return true, nil
 		},

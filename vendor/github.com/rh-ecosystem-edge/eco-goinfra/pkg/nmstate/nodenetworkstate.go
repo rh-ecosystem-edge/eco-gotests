@@ -6,8 +6,8 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/golang/glog"
 	"golang.org/x/exp/slices"
+	"k8s.io/klog/v2"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
@@ -40,13 +40,13 @@ func (builder *StateBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if NodeNetworkState %s exists", builder.Object.Name)
+	klog.V(100).Infof("Checking if NodeNetworkState %s exists", builder.Object.Name)
 
 	var err error
 
 	builder.Object, err = builder.Get()
 	if err != nil {
-		glog.V(100).Infof("Failed to collect NodeNetworkState object due to %s", err.Error())
+		klog.V(100).Infof("Failed to collect NodeNetworkState object due to %s", err.Error())
 	}
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -58,7 +58,7 @@ func (builder *StateBuilder) Get() (*nmstateV1beta1.NodeNetworkState, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Collecting NodeNetworkState object %s", builder.Object.Name)
+	klog.V(100).Infof("Collecting NodeNetworkState object %s", builder.Object.Name)
 
 	nodeNetworkState := &nmstateV1beta1.NodeNetworkState{}
 
@@ -66,7 +66,7 @@ func (builder *StateBuilder) Get() (*nmstateV1beta1.NodeNetworkState, error) {
 		Name: builder.Object.Name,
 	}, nodeNetworkState)
 	if err != nil {
-		glog.V(100).Infof("NodeNetworkState object %s does not exist", builder.Object.Name)
+		klog.V(100).Infof("NodeNetworkState object %s does not exist", builder.Object.Name)
 
 		return nil, err
 	}
@@ -80,12 +80,12 @@ func (builder *StateBuilder) GetTotalVFs(sriovInterfaceName string) (int, error)
 		return 0, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Getting total-vfs under interface %s from NodeNetworkState %s",
 		sriovInterfaceName, builder.Object.Name)
 
 	if sriovInterfaceName == "" {
-		glog.V(100).Infof("The sriovInterfaceName can not be empty string")
+		klog.V(100).Info("The sriovInterfaceName can not be empty string")
 
 		return 0, fmt.Errorf("the sriovInterfaceName is empty sting")
 	}
@@ -112,18 +112,18 @@ func (builder *StateBuilder) GetInterfaceType(interfaceName, interfaceType strin
 		return NetworkInterface{}, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Getting interface %s with type %s from NodeNetworkState %s",
 		interfaceName, interfaceType, builder.Object.Name)
 
 	if interfaceName == "" {
-		glog.V(100).Infof("The interfaceName can not be empty string")
+		klog.V(100).Info("The interfaceName can not be empty string")
 
 		return NetworkInterface{}, fmt.Errorf("the interfaceName is empty sting")
 	}
 
 	if !slices.Contains(allowedInterfaceTypes, interfaceType) {
-		glog.V(100).Infof("error to add type %s, allowed types are %v", interfaceType, allowedInterfaceTypes)
+		klog.V(100).Infof("error to add type %s, allowed types are %v", interfaceType, allowedInterfaceTypes)
 
 		return NetworkInterface{}, fmt.Errorf("invalid interfaceType parameter")
 	}
@@ -151,12 +151,12 @@ func (builder *StateBuilder) GetSriovVfs(sriovInterfaceName string) ([]Vf, error
 		return nil, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Getting all configured VFs under interface %s from NodeNetworkState %s",
 		sriovInterfaceName, builder.Object.Name)
 
 	if sriovInterfaceName == "" {
-		glog.V(100).Infof("The sriovInterfaceName can not be empty string")
+		klog.V(100).Info("The sriovInterfaceName can not be empty string")
 
 		return nil, fmt.Errorf("the sriovInterfaceName is empty sting")
 	}
@@ -180,17 +180,17 @@ func (builder *StateBuilder) GetSriovVfs(sriovInterfaceName string) ([]Vf, error
 
 // PullNodeNetworkState retrieves an existing NodeNetworkState object from the cluster.
 func PullNodeNetworkState(apiClient *clients.Settings, name string) (*StateBuilder, error) {
-	glog.V(100).Infof("Pulling NodeNetworkState object name:%s", name)
+	klog.V(100).Infof("Pulling NodeNetworkState object name:%s", name)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil, fmt.Errorf("the apiClient cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(nmstateV1beta1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add nmstate v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add nmstate v1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -205,7 +205,7 @@ func PullNodeNetworkState(apiClient *clients.Settings, name string) (*StateBuild
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the NodeNetworkState is empty")
+		klog.V(100).Info("The name of the NodeNetworkState is empty")
 
 		return nil, fmt.Errorf("nodeNetworkState 'name' cannot be empty")
 	}
@@ -223,25 +223,25 @@ func (builder *StateBuilder) validate() (bool, error) {
 	resourceCRD := "NodeNetworkState"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Object == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

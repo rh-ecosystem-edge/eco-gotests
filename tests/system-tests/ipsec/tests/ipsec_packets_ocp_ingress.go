@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/sshcommand"
@@ -15,6 +14,7 @@ import (
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ipsec/internal/ipsecinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ipsec/internal/ipsecparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ipsec/internal/ipsectunnel"
+	"k8s.io/klog/v2"
 )
 
 // The iperf3 client and server should be started as follows for this test case:
@@ -39,7 +39,7 @@ var _ = Describe(
 	ContinueOnFailure,
 	func() {
 		BeforeAll(func() {
-			glog.V(ipsecparams.IpsecLogLevel).Infof("BeforeAll ipsec_packets_ocp_ingress")
+			klog.V(ipsecparams.IpsecLogLevel).Infof("BeforeAll ipsec_packets_ocp_ingress")
 
 			nodePort, err := strconv.Atoi(IpsecTestConfig.NodePort)
 			Expect(err).ToNot(HaveOccurred(), "Error converting IpsecTestConfig.NodePort")
@@ -55,7 +55,7 @@ var _ = Describe(
 				containerLabelsMap := ipsecparams.CreateContainerLabelsMap(index, serviceDeploymentIngressPrefixName)
 				srvDeplName := ipsecparams.CreateServiceDeploymentName(index, serviceDeploymentIngressPrefixName)
 
-				glog.V(ipsecparams.IpsecLogLevel).Infof(
+				klog.V(ipsecparams.IpsecLogLevel).Infof(
 					"BeforeAll ipsec_packets_ocp_ingress iter node %s, nodePort %d",
 					nodeName,
 					nodePort)
@@ -82,7 +82,7 @@ var _ = Describe(
 		})
 
 		It("Asserts packets received on the SNO cluster are sent via IPSec", func() {
-			glog.V(ipsecparams.IpsecLogLevel).Infof("Check ingress packets on each cluster node are sent via IPSec")
+			klog.V(ipsecparams.IpsecLogLevel).Infof("Check ingress packets on each cluster node are sent via IPSec")
 
 			nodePortStr := IpsecTestConfig.NodePort
 
@@ -96,7 +96,7 @@ var _ = Describe(
 			Expect(err3).ToNot(HaveOccurred(), "Error getting Iperf3ServerOcpIPs")
 
 			for index, nodeName := range nodeNames {
-				glog.V(ipsecparams.IpsecLogLevel).Infof(
+				klog.V(ipsecparams.IpsecLogLevel).Infof(
 					"Checking ingress packets on cluster node: %s, index %d",
 					nodeName,
 					index)
@@ -162,7 +162,7 @@ var _ = Describe(
 				Expect(packetsBefore != nil).To(BeTrue(), "Error unable to get packetsBefore.")
 				Expect(packetsAfter != nil).To(BeTrue(), "Error unable to get packetsAfter.")
 
-				glog.V(ipsecparams.IpsecLogLevel).Infof("Ingress Packets Before in/outBytes %d/%d, After in/outBytes %d/%d",
+				klog.V(ipsecparams.IpsecLogLevel).Infof("Ingress Packets Before in/outBytes %d/%d, After in/outBytes %d/%d",
 					packetsBefore.InBytes, packetsBefore.OutBytes,
 					packetsAfter.InBytes, packetsAfter.OutBytes)
 
@@ -176,7 +176,7 @@ var _ = Describe(
 		})
 
 		AfterAll(func() {
-			glog.V(ipsecparams.IpsecLogLevel).Infof("AfterAll ipsec_packets_ocp_ingress")
+			klog.V(ipsecparams.IpsecLogLevel).Infof("AfterAll ipsec_packets_ocp_ingress")
 
 			nodeNames, err := GetNodeNames()
 			Expect(err).ToNot(HaveOccurred(), "Error getting NodeNames AfterAll ipsec_packets_ocp_ingress")
@@ -186,7 +186,7 @@ var _ = Describe(
 				containerLabels := ipsecparams.CreateContainerLabelsStr(index, serviceDeploymentIngressPrefixName)
 				srvDeplName := ipsecparams.CreateServiceDeploymentName(index, serviceDeploymentIngressPrefixName)
 
-				glog.V(ipsecparams.IpsecLogLevel).Infof(
+				klog.V(ipsecparams.IpsecLogLevel).Infof(
 					"AfterAll ipsec_packets_ocp_ingress iter node %s, labels %s",
 					nodeName,
 					containerLabels)

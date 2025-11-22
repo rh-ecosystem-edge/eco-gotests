@@ -7,7 +7,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clusteroperator"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 
@@ -17,6 +16,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreparams"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 var _ = Describe(
@@ -405,8 +405,8 @@ var _ = Describe(
 				Label("verify-cos"), reportxml.ID("71868"), func() {
 					By("Checking all cluster operators")
 
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Waiting for all ClusterOperators to be Available")
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Sleeping for 3 minutes")
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Waiting for all ClusterOperators to be Available")
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Sleeping for 3 minutes")
 
 					time.Sleep(3 * time.Minute)
 
@@ -420,9 +420,9 @@ var _ = Describe(
 				MustPassRepeatedly(3), func(ctx SpecContext) {
 					By("Remove any pods in UnexpectedAdmissionError state")
 
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Remove pods with UnexpectedAdmissionError status")
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Remove pods with UnexpectedAdmissionError status")
 
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Sleeping for 3 minutes")
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Sleeping for 3 minutes")
 
 					time.Sleep(3 * time.Minute)
 
@@ -437,16 +437,16 @@ var _ = Describe(
 					Eventually(func() bool {
 						podsList, err = pod.ListInAllNamespaces(APIClient, listOptions)
 						if err != nil {
-							glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods: %v", err)
+							klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods: %v", err)
 
 							return false
 						}
 
-						glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d pods matching search criteria",
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d pods matching search criteria",
 							len(podsList))
 
 						for _, failedPod := range podsList {
-							glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q in %q ns matches search criteria",
+							klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q in %q ns matches search criteria",
 								failedPod.Definition.Name, failedPod.Definition.Namespace)
 						}
 
@@ -456,7 +456,7 @@ var _ = Describe(
 
 					for _, failedPod := range podsList {
 						if failedPod.Definition.Status.Reason == "UnexpectedAdmissionError" {
-							glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deleting pod %q in %q ns",
+							klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deleting pod %q in %q ns",
 								failedPod.Definition.Name, failedPod.Definition.Namespace)
 
 							_, err := failedPod.DeleteAndWait(5 * time.Minute)
@@ -734,8 +734,8 @@ var _ = Describe(
 				Label("verify-cos"), reportxml.ID("72040"), func() {
 					By("Checking all cluster operators")
 
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Waiting for all ClusterOperators to be Available")
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Sleeping for 3 minutes")
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Waiting for all ClusterOperators to be Available")
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Sleeping for 3 minutes")
 
 					time.Sleep(3 * time.Minute)
 

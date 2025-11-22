@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
+	"k8s.io/klog/v2"
 )
 
 // WaitForSriovAndMCPStable waits until SR-IOV and MCP stable.
 func WaitForSriovAndMCPStable(
 	apiClient *clients.Settings, waitingTime, stableDuration time.Duration, mcpName, sriovOperatorNamespace string) error {
-	glog.V(90).Infof("Waiting for SR-IOV and MCP become stable.")
+	klog.V(90).Infof("Waiting for SR-IOV and MCP become stable.")
 	time.Sleep(10 * time.Second)
 
 	err := WaitForSriovStable(apiClient, waitingTime, sriovOperatorNamespace)

@@ -3,7 +3,6 @@ package nfddelete
 import (
 	"strings"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/nfdparams"
@@ -11,6 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/util/retry"
+	"k8s.io/klog/v2"
 )
 
 // NfdLabelsByKeys delete labels from a given list.
@@ -18,7 +18,7 @@ func NfdLabelsByKeys(apiClient *clients.Settings, labelsRemove ...string) error 
 	nodes, err := nodes.List(apiClient, metav1.ListOptions{
 		LabelSelector: labels.Set(GeneralConfig.WorkerLabelMap).String()})
 	if err != nil {
-		glog.V(nfdparams.LogLevel).Infof("failed retrieving node list")
+		klog.V(nfdparams.LogLevel).Infof("failed retrieving node list")
 
 		return err
 	}
@@ -45,7 +45,7 @@ func NfdLabelsByKeys(apiClient *clients.Settings, labelsRemove ...string) error 
 				return updateErr
 			})
 			if retryErr != nil {
-				glog.V(nfdparams.LogLevel).Infof("Failed to update node %s: %v\n", node.Definition.Name, retryErr)
+				klog.V(nfdparams.LogLevel).Infof("Failed to update node %s: %v\n", node.Definition.Name, retryErr)
 
 				return retryErr
 			}

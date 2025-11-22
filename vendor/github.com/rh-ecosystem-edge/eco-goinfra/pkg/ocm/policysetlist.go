@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"k8s.io/klog/v2"
 	policiesv1beta1 "open-cluster-management.io/governance-policy-propagator/api/v1beta1"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -15,14 +15,14 @@ func ListPolicieSetsInAllNamespaces(apiClient *clients.Settings,
 	options ...runtimeclient.ListOptions) (
 	[]*PolicySetBuilder, error) {
 	if apiClient == nil {
-		glog.V(100).Info("PolicySets 'apiClient' parameter cannot be nil")
+		klog.V(100).Info("PolicySets 'apiClient' parameter cannot be nil")
 
 		return nil, fmt.Errorf("failed to list policySets, 'apiClient' parameter is nil")
 	}
 
 	err := apiClient.AttachScheme(policiesv1beta1.AddToScheme)
 	if err != nil {
-		glog.V(100).Info("Failed to add PolicySet scheme to client schemes")
+		klog.V(100).Info("Failed to add PolicySet scheme to client schemes")
 
 		return nil, err
 	}
@@ -31,7 +31,7 @@ func ListPolicieSetsInAllNamespaces(apiClient *clients.Settings,
 	passedOptions := runtimeclient.ListOptions{}
 
 	if len(options) > 1 {
-		glog.V(100).Infof("'options' parameter must be empty or single-valued")
+		klog.V(100).Info("'options' parameter must be empty or single-valued")
 
 		return nil, fmt.Errorf("error: more than one ListOptions was passed")
 	}
@@ -41,13 +41,13 @@ func ListPolicieSetsInAllNamespaces(apiClient *clients.Settings,
 		logMessage += fmt.Sprintf(" with the options %v", passedOptions)
 	}
 
-	glog.V(100).Infof(logMessage)
+	klog.V(100).Infof("%v", logMessage)
 
 	policySetList := new(policiesv1beta1.PolicySetList)
 
 	err = apiClient.List(context.TODO(), policySetList, &passedOptions)
 	if err != nil {
-		glog.V(100).Infof("Failed to list all policySets in all namespaces due to %s", err.Error())
+		klog.V(100).Infof("Failed to list all policySets in all namespaces due to %s", err.Error())
 
 		return nil, err
 	}

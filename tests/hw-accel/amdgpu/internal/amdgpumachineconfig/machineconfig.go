@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	mcv1 "github.com/openshift/api/machineconfiguration/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/mco"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpucommon"
 	amdgpuparams "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/params"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -23,7 +23,7 @@ const (
 func CreateAMDGPUBlacklist(apiClient *clients.Settings, roleName string) error {
 	mcBuilder, _ := mco.PullMachineConfig(apiClient, amdgpuparams.DefaultMachineConfigName)
 	if mcBuilder != nil && mcBuilder.Exists() {
-		glog.V(amdgpuparams.AMDGPULogLevel).Info("AMD GPU blacklist MachineConfig already exists")
+		klog.V(amdgpuparams.AMDGPULogLevel).Info("AMD GPU blacklist MachineConfig already exists")
 
 		return nil
 	}
@@ -33,8 +33,8 @@ func CreateAMDGPUBlacklist(apiClient *clients.Settings, roleName string) error {
 		return fmt.Errorf("failed to determine node role: %w", err)
 	}
 
-	glog.V(amdgpuparams.AMDGPULogLevel).Infof("Creating MachineConfig to blacklist amdgpu module for role: %s", actualRole)
-	glog.V(amdgpuparams.AMDGPULogLevel).Info("WARNING: This will trigger automatic node reboots!")
+	klog.V(amdgpuparams.AMDGPULogLevel).Infof("Creating MachineConfig to blacklist amdgpu module for role: %s", actualRole)
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("WARNING: This will trigger automatic node reboots!")
 
 	mcBuilder = mco.NewMCBuilder(apiClient, amdgpuparams.DefaultMachineConfigName)
 	mcBuilder.WithLabel("machineconfiguration.openshift.io/role", actualRole)
@@ -56,7 +56,7 @@ func CreateAMDGPUBlacklist(apiClient *clients.Settings, roleName string) error {
     }`
 	mcBuilder.WithRawConfig([]byte(rawIgnitionJSON))
 
-	glog.V(amdgpuparams.AMDGPULogLevel).Infof("MachineConfig YAML:\n%s", rawIgnitionJSON)
+	klog.V(amdgpuparams.AMDGPULogLevel).Infof("MachineConfig YAML:\n%s", rawIgnitionJSON)
 
 	// Create MachineConfig in cluster
 	if _, err := mcBuilder.Create(); err != nil {
@@ -82,10 +82,10 @@ func DetermineMachineConfigPoolName(apiClient *clients.Settings) (string, error)
 
 // WaitForMachineConfigPoolStable waits for MachineConfigPool to be stable after MachineConfig creation.
 func WaitForMachineConfigPoolStable(apiClient *clients.Settings, mcpName string, timeout time.Duration) error {
-	glog.V(amdgpuparams.AMDGPULogLevel).
+	klog.V(amdgpuparams.AMDGPULogLevel).
 		Infof("Waiting for MachineConfigPool %s to be stable after MachineConfig update",
 			mcpName)
-	glog.V(amdgpuparams.AMDGPULogLevel).Infof("This includes waiting for node reboots to complete...")
+	klog.V(amdgpuparams.AMDGPULogLevel).Infof("This includes waiting for node reboots to complete...")
 
 	isSNO, err := amdgpucommon.IsSingleNodeOpenShift(apiClient)
 	if err != nil {
@@ -93,7 +93,7 @@ func WaitForMachineConfigPoolStable(apiClient *clients.Settings, mcpName string,
 	}
 
 	if isSNO {
-		glog.V(amdgpuparams.AMDGPULogLevel).Info("SNO environment detected - using resilient polling for node reboot")
+		klog.V(amdgpuparams.AMDGPULogLevel).Info("SNO environment detected - using resilient polling for node reboot")
 
 		return waitForMCPStableSNO(apiClient, mcpName, timeout)
 	}
@@ -109,12 +109,12 @@ func determineNodeRole(apiClient *clients.Settings, requestedRole string) (strin
 	}
 
 	if isSNO {
-		glog.V(amdgpuparams.AMDGPULogLevel).Info("SNO environment detected - using 'master' role for MachineConfig")
+		klog.V(amdgpuparams.AMDGPULogLevel).Info("SNO environment detected - using 'master' role for MachineConfig")
 
 		return "master", nil
 	}
 
-	glog.V(amdgpuparams.AMDGPULogLevel).Infof("Multi-node environment detected - using requested role: %s", requestedRole)
+	klog.V(amdgpuparams.AMDGPULogLevel).Infof("Multi-node environment detected - using requested role: %s", requestedRole)
 
 	return requestedRole, nil
 }
@@ -134,7 +134,7 @@ func waitForMCPStableMultiNode(apiClient *clients.Settings, mcpName string, time
 		return fmt.Errorf("MachineConfigPool %s did not become stable: %w", mcpName, err)
 	}
 
-	glog.V(amdgpuparams.AMDGPULogLevel).Infof(
+	klog.V(amdgpuparams.AMDGPULogLevel).Infof(
 		"MachineConfigPool %s is now stable - all nodes rebooted successfully", mcpName)
 
 	return nil
@@ -145,7 +145,7 @@ func waitForMCPStableSNO(apiClient *clients.Settings, mcpName string, timeout ti
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	glog.V(amdgpuparams.AMDGPULogLevel).Info("Waiting for SNO node reboot and recovery...")
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("Waiting for SNO node reboot and recovery...")
 
 	return wait.PollUntilContextTimeout(
 		ctx, 3*time.Minute, timeout, true, func(ctx context.Context) (bool, error) {
@@ -157,14 +157,14 @@ func waitForMCPStableSNO(apiClient *clients.Settings, mcpName string, timeout ti
 func checkSNOMCPStatus(apiClient *clients.Settings, mcpName string) (bool, error) {
 	mcpBuilder := mco.NewMCPBuilder(apiClient, mcpName)
 	if mcpBuilder == nil {
-		glog.V(amdgpuparams.AMDGPULogLevel).Infof("Failed to create MCP builder for %s (expected during SNO reboot)", mcpName)
+		klog.V(amdgpuparams.AMDGPULogLevel).Infof("Failed to create MCP builder for %s (expected during SNO reboot)", mcpName)
 
 		return false, nil
 	}
 
 	_, err := mcpBuilder.Get()
 	if err != nil {
-		glog.V(amdgpuparams.AMDGPULogLevel).Infof("API unavailable during SNO reboot (expected): %v", err)
+		klog.V(amdgpuparams.AMDGPULogLevel).Infof("API unavailable during SNO reboot (expected): %v", err)
 
 		return false, nil
 	}
@@ -181,7 +181,7 @@ func evaluateMCPStability(mcpBuilder *mco.MCPBuilder) (bool, error) {
 
 	isStable := isMCPStable(mcpObj)
 	if isStable && hasMCPUpdatedCondition(mcpObj) {
-		glog.V(amdgpuparams.AMDGPULogLevel).Info("SNO node successfully rebooted and MCP is stable")
+		klog.V(amdgpuparams.AMDGPULogLevel).Info("SNO node successfully rebooted and MCP is stable")
 
 		return true, nil
 	}
@@ -211,40 +211,40 @@ func hasMCPUpdatedCondition(mcp *mcv1.MachineConfigPool) bool {
 
 // logMCPStatus logs the current MCP status for debugging.
 func logMCPStatus(mcp *mcv1.MachineConfigPool) {
-	glog.V(amdgpuparams.AMDGPULogLevel).Infof("SNO MCP status: Ready=%d/%d, Updated=%d/%d, Degraded=%d",
+	klog.V(amdgpuparams.AMDGPULogLevel).Infof("SNO MCP status: Ready=%d/%d, Updated=%d/%d, Degraded=%d",
 		mcp.Status.ReadyMachineCount, mcp.Status.MachineCount,
 		mcp.Status.UpdatedMachineCount, mcp.Status.MachineCount, mcp.Status.DegradedMachineCount)
 }
 
 // waitForMCPUpdating waits for the MachineConfigPool to start updating.
 func waitForMCPUpdating(apiClient *clients.Settings, mcpName string, ctx context.Context) error {
-	glog.V(amdgpuparams.AMDGPULogLevel).Infof("Waiting for MachineConfigPool %s to start updating...", mcpName)
+	klog.V(amdgpuparams.AMDGPULogLevel).Infof("Waiting for MachineConfigPool %s to start updating...", mcpName)
 
 	err := wait.PollUntilContextTimeout(
 		ctx, 30*time.Second, 10*time.Minute, true, func(ctx context.Context) (bool, error) {
 			mcpBuilder := mco.NewMCPBuilder(apiClient, mcpName)
 			if mcpBuilder == nil {
-				glog.V(amdgpuparams.AMDGPULogLevel).Infof("Failed to create MCP builder for %s", mcpName)
+				klog.V(amdgpuparams.AMDGPULogLevel).Infof("Failed to create MCP builder for %s", mcpName)
 
 				return false, nil
 			}
 
 			mcp, err := mcpBuilder.Get()
 			if err != nil {
-				glog.V(amdgpuparams.AMDGPULogLevel).Infof("Error getting MachineConfigPool %s: %v", mcpName, err)
+				klog.V(amdgpuparams.AMDGPULogLevel).Infof("Error getting MachineConfigPool %s: %v", mcpName, err)
 
 				return false, nil
 			}
 
 			for _, condition := range mcp.Status.Conditions {
 				if condition.Type == "Updating" && condition.Status == conditionStatusTrue {
-					glog.V(amdgpuparams.AMDGPULogLevel).Infof("MachineConfigPool %s started updating", mcpName)
+					klog.V(amdgpuparams.AMDGPULogLevel).Infof("MachineConfigPool %s started updating", mcpName)
 
 					return true, nil
 				}
 			}
 
-			glog.V(amdgpuparams.AMDGPULogLevel).Infof("MachineConfigPool %s not yet updating, waiting...", mcpName)
+			klog.V(amdgpuparams.AMDGPULogLevel).Infof("MachineConfigPool %s not yet updating, waiting...", mcpName)
 
 			return false, nil
 		})
@@ -254,20 +254,20 @@ func waitForMCPUpdating(apiClient *clients.Settings, mcpName string, ctx context
 
 // waitForMCPStable waits for the MachineConfigPool to become stable.
 func waitForMCPStable(apiClient *clients.Settings, mcpName string, ctx context.Context) error {
-	glog.V(amdgpuparams.AMDGPULogLevel).Infof("Waiting for MachineConfigPool %s to become stable...", mcpName)
+	klog.V(amdgpuparams.AMDGPULogLevel).Infof("Waiting for MachineConfigPool %s to become stable...", mcpName)
 
 	err := wait.PollUntilContextTimeout(
 		ctx, 30*time.Second, 5*time.Minute, true, func(ctx context.Context) (bool, error) {
 			mcpBuilder := mco.NewMCPBuilder(apiClient, mcpName)
 			if mcpBuilder == nil {
-				glog.V(amdgpuparams.AMDGPULogLevel).Infof("Failed to create MCP builder for %s", mcpName)
+				klog.V(amdgpuparams.AMDGPULogLevel).Infof("Failed to create MCP builder for %s", mcpName)
 
 				return false, nil
 			}
 
 			mcp, err := mcpBuilder.Get()
 			if err != nil {
-				glog.V(amdgpuparams.AMDGPULogLevel).Infof("Error getting MachineConfigPool %s: %v", mcpName, err)
+				klog.V(amdgpuparams.AMDGPULogLevel).Infof("Error getting MachineConfigPool %s: %v", mcpName, err)
 
 				return false, nil
 			}
@@ -279,14 +279,14 @@ func waitForMCPStable(apiClient *clients.Settings, mcpName string, ctx context.C
 			if isStable {
 				for _, condition := range mcp.Status.Conditions {
 					if condition.Type == "Updated" && condition.Status == conditionStatusTrue {
-						glog.V(amdgpuparams.AMDGPULogLevel).Infof("MachineConfigPool %s is stable and updated", mcpName)
+						klog.V(amdgpuparams.AMDGPULogLevel).Infof("MachineConfigPool %s is stable and updated", mcpName)
 
 						return true, nil
 					}
 				}
 			}
 
-			glog.V(amdgpuparams.AMDGPULogLevel).Infof("MachineConfigPool %s status: Ready=%d/%d, Updated=%d/%d, Degraded=%d",
+			klog.V(amdgpuparams.AMDGPULogLevel).Infof("MachineConfigPool %s status: Ready=%d/%d, Updated=%d/%d, Degraded=%d",
 				mcpName, mcp.Status.ReadyMachineCount, mcp.Status.MachineCount,
 				mcp.Status.UpdatedMachineCount, mcp.Status.MachineCount, mcp.Status.DegradedMachineCount)
 

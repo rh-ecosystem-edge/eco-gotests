@@ -9,20 +9,20 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/golang/glog"
+	"k8s.io/klog/v2"
 )
 
 // DownloadFile downloads file from the provided url locally;
 // if fileName is provided, it will be saved under provided name.
 func DownloadFile(fileURL, fileName, targetFolder string) error {
 	if fileURL == "" {
-		glog.V(100).Info("The fileURL is empty")
+		klog.V(100).Info("The fileURL is empty")
 
 		return fmt.Errorf("the fileURL should be provided")
 	}
 
 	if fileName == "" {
-		glog.V(100).Info("Build fileName from the fullPath")
+		klog.V(100).Info("Build fileName from the fullPath")
 
 		fileURL, err := url.Parse(fileURL)
 
@@ -61,13 +61,13 @@ func DownloadFile(fileURL, fileName, targetFolder string) error {
 // CopyFile copies a file from the provided source path to the provided destination path.
 func CopyFile(sourcePath, destinationPath string) error {
 	if sourcePath == "" {
-		glog.V(100).Info("The source path is empty")
+		klog.V(100).Info("The source path is empty")
 
 		return fmt.Errorf("the source path should be provided")
 	}
 
 	if destinationPath == "" {
-		glog.V(100).Info("The destination path is empty")
+		klog.V(100).Info("The destination path is empty")
 
 		return fmt.Errorf("the destination path should be provided")
 	}

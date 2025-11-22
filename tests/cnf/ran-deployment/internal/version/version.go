@@ -3,11 +3,11 @@ package version
 import (
 	"fmt"
 
-	"github.com/golang/glog"
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clusterversion"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran-deployment/internal/ranparam"
+	"k8s.io/klog/v2"
 )
 
 // GetOCPVersion uses the cluster version on a given cluster to find the latest OCP version, returning the desired
@@ -31,7 +31,7 @@ func GetOCPVersion(client *clients.Settings) (string, error) {
 		}
 	}
 
-	glog.V(ranparam.LogLevel).Info("No completed cluster version found in history, returning desired version")
+	klog.V(ranparam.LogLevel).Info("No completed cluster version found in history, returning desired version")
 
 	return clusterVersion.Object.Status.Desired.Version, nil
 }

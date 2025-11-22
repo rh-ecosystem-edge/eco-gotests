@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/remote"
 
@@ -21,7 +21,7 @@ import (
 
 //nolint:funlen
 func mountNamespaceEncapsulation(nodeLabel string) {
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Check encapsulation for nodes %s", nodeLabel)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Check encapsulation for nodes %s", nodeLabel)
 
 	var (
 		nodeList []*nodes.Builder
@@ -38,7 +38,7 @@ func mountNamespaceEncapsulation(nodeLabel string) {
 		)
 
 		if err != nil {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list nodes: %w", err)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list nodes: %v", err)
 
 			return false
 		}
@@ -52,7 +52,7 @@ func mountNamespaceEncapsulation(nodeLabel string) {
 
 		nodeName := node.Definition.Name
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Check the systemd mount namespace on node %s", nodeName)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Check the systemd mount namespace on node %s", nodeName)
 
 		systemdMountNsCmd := []string{"chroot", "/rootfs", "/bin/sh", "-c", "readlink /proc/1/ns/mnt"}
 
@@ -62,7 +62,7 @@ func mountNamespaceEncapsulation(nodeLabel string) {
 
 		systemdMountNs := strings.Split(systemdMountNsOutput, ":")[1]
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Check the kubelet mount namespace on node %s", nodeName)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Check the kubelet mount namespace on node %s", nodeName)
 
 		kubeletMountNsCmd := []string{"chroot", "/rootfs", "/bin/sh", "-c", "readlink /proc/$(pgrep kubelet)/ns/mnt"}
 
@@ -73,14 +73,14 @@ func mountNamespaceEncapsulation(nodeLabel string) {
 				kubeletMountNsOutput, err := remote.ExecuteOnNodeWithDebugPod(kubeletMountNsCmd, nodeName)
 
 				if err != nil {
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to run command %s on node %s due to %v",
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to run command %s on node %s due to %v",
 						kubeletMountNsCmd, nodeName, err)
 
 					return false, nil
 				}
 
 				if len(strings.Split(kubeletMountNsOutput, ":")) < 2 {
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Malformed output: %q", kubeletMountNsOutput)
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Malformed output: %q", kubeletMountNsOutput)
 
 					return false, nil
 				}
@@ -91,12 +91,12 @@ func mountNamespaceEncapsulation(nodeLabel string) {
 			})
 
 		if err != nil {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to check kubelet mount namespace")
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to check kubelet mount namespace")
 
 			Fail(fmt.Sprintf("Failed to check kubelet mount namespace: %v", err))
 		}
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Check the CRI-O mount namespace on node %s", nodeName)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Check the CRI-O mount namespace on node %s", nodeName)
 
 		crioMountNsCmd := []string{"chroot", "/rootfs", "/bin/sh", "-c", "readlink /proc/$(pgrep crio)/ns/mnt"}
 
@@ -107,14 +107,14 @@ func mountNamespaceEncapsulation(nodeLabel string) {
 				crioMountNsOutput, err := remote.ExecuteOnNodeWithDebugPod(crioMountNsCmd, nodeName)
 
 				if err != nil {
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to execute %s cmd on the node %s due to %v",
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to execute %s cmd on the node %s due to %v",
 						crioMountNsCmd, nodeName, err)
 
 					return false, nil
 				}
 
 				if len(strings.Split(crioMountNsOutput, ":")) < 2 {
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Malformed output: %q", crioMountNsOutput)
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Malformed output: %q", crioMountNsOutput)
 
 					return false, nil
 				}
@@ -125,14 +125,14 @@ func mountNamespaceEncapsulation(nodeLabel string) {
 			})
 
 		if err != nil {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to check CRI-O mount namespace")
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to check CRI-O mount namespace")
 
 			Fail(fmt.Sprintf("Failed to check CRI-O mount namespace: %v", err))
 		}
 
 		By("Check that encapsulation is in effect")
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Checking if kubelet and CRI-O are in the same mount namespace")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Checking if kubelet and CRI-O are in the same mount namespace")
 
 		Expect(kubeletMountNs == crioMountNs).To(Equal(true),
 			fmt.Sprintf("General mount namespace failure; kubelet and CRI-O have to be in the same mount namespace;"+
@@ -144,7 +144,7 @@ func mountNamespaceEncapsulation(nodeLabel string) {
 				systemdMountNs, kubeletMountNs, crioMountNs))
 
 		By("Inspecting encapsulated namespaces")
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Check the systemd mount namespace on node %s", nodeName)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Check the systemd mount namespace on node %s", nodeName)
 
 		inspectingCmd := []string{"chroot", "/rootfs", "/bin/sh", "-c", "findmnt -n -oPROPAGATION /run/kubens"}
 

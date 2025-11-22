@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	ibiv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/imagebasedinstall/api/hiveextensions/v1alpha1"
@@ -13,6 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -28,7 +28,7 @@ type ImageClusterInstallBuilder struct {
 // NewImageClusterInstallBuilder creates a new instance of ImageClusterInstallBuilder.
 func NewImageClusterInstallBuilder(
 	apiClient *clients.Settings, name, nsname, imageset string) *ImageClusterInstallBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new imageclusterinstall structure with the following params: "+
 			"name: %s, namespace: %s, imageset: %s",
 		name, nsname, imageset)
@@ -39,7 +39,7 @@ func NewImageClusterInstallBuilder(
 
 	err := apiClient.AttachScheme(ibiv1alpha1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"Failed to add ibiv1alpha1 scheme to client schemes")
 
 		return nil
@@ -61,7 +61,7 @@ func NewImageClusterInstallBuilder(
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the imageclusterinstall is empty")
+		klog.V(100).Info("The name of the imageclusterinstall is empty")
 
 		builder.errorMsg = "imageclusterinstall 'name' cannot be empty"
 
@@ -69,7 +69,7 @@ func NewImageClusterInstallBuilder(
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the imageclusterinstall is empty")
+		klog.V(100).Info("The namespace of the imageclusterinstall is empty")
 
 		builder.errorMsg = "imageclusterinstall 'nsname' cannot be empty"
 
@@ -77,7 +77,7 @@ func NewImageClusterInstallBuilder(
 	}
 
 	if imageset == "" {
-		glog.V(100).Infof("The imageset of the imageclusterinstall is empty")
+		klog.V(100).Info("The imageset of the imageclusterinstall is empty")
 
 		builder.errorMsg = "imageclusterinstall 'imageset' cannot be empty"
 
@@ -89,18 +89,18 @@ func NewImageClusterInstallBuilder(
 
 // PullImageClusterInstall retrieves an existing imageclusterinstall from the cluster.
 func PullImageClusterInstall(apiClient *clients.Settings, name, nsname string) (*ImageClusterInstallBuilder, error) {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Pulling existing imageclusterinstall with name %s from namespace %s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is nil")
+		klog.V(100).Info("The apiClient is nil")
 
 		return nil, fmt.Errorf("apiClient cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(ibiv1alpha1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"Failed to add ibiv1alpha1 scheme to client schemes")
 
 		return nil, fmt.Errorf("failed to add ibiv1alpha1 to client schemes")
@@ -117,13 +117,13 @@ func PullImageClusterInstall(apiClient *clients.Settings, name, nsname string) (
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the imageclusterinstall is empty")
+		klog.V(100).Info("The name of the imageclusterinstall is empty")
 
 		return nil, fmt.Errorf("imageclusterinstall 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the imageclusterinstall is empty")
+		klog.V(100).Info("The namespace of the imageclusterinstall is empty")
 
 		return nil, fmt.Errorf("imageclusterinstall 'nsname' cannot be empty")
 	}
@@ -144,7 +144,7 @@ func (builder *ImageClusterInstallBuilder) WithHostname(hostname string) *ImageC
 	}
 
 	if hostname == "" {
-		glog.V(100).Infof("The imageclusterinstall hostname is empty")
+		klog.V(100).Info("The imageclusterinstall hostname is empty")
 
 		builder.errorMsg = "imageclusterinstall hostname cannot be empty"
 
@@ -164,7 +164,7 @@ func (builder *ImageClusterInstallBuilder) WithClusterDeployment(
 	}
 
 	if clusterDeploymentName == "" {
-		glog.V(100).Infof("The imageclusterinstall clusterdeployment is empty")
+		klog.V(100).Info("The imageclusterinstall clusterdeployment is empty")
 
 		builder.errorMsg = "imageclusterinstall clusterdeployment cannot be empty"
 
@@ -187,7 +187,7 @@ func (builder *ImageClusterInstallBuilder) WithExtraManifests(extraManifestsName
 	}
 
 	if extraManifestsName == "" {
-		glog.V(100).Infof("The imageclusterinstall extramanifest is empty")
+		klog.V(100).Info("The imageclusterinstall extramanifest is empty")
 
 		builder.errorMsg = "imageclusterinstall extramanifest cannot be empty"
 
@@ -209,7 +209,7 @@ func (builder *ImageClusterInstallBuilder) WithCABundle(caBundleConfigMapName st
 	}
 
 	if caBundleConfigMapName == "" {
-		glog.V(100).Infof("The imageclusterinstall cabundle is empty")
+		klog.V(100).Info("The imageclusterinstall cabundle is empty")
 
 		builder.errorMsg = "imageclusterinstall cabundle cannot be empty"
 
@@ -228,7 +228,7 @@ func (builder *ImageClusterInstallBuilder) WithMachineNetwork(network string) *I
 	}
 
 	if _, _, err := net.ParseCIDR(network); err != nil {
-		glog.V(100).Infof("The machinenetwork is not a properly formatted IP network address")
+		klog.V(100).Info("The machinenetwork is not a properly formatted IP network address")
 
 		builder.errorMsg = "imageclusterinstall machinenetwork incorrectly formatted"
 
@@ -247,7 +247,7 @@ func (builder *ImageClusterInstallBuilder) WithSSHKey(sshKey string) *ImageClust
 	}
 
 	if sshKey == "" {
-		glog.V(100).Infof("The imageclusterinstall sshkey is empty")
+		klog.V(100).Info("The imageclusterinstall sshkey is empty")
 
 		builder.errorMsg = "imageclusterinstall sshkey cannot be empty"
 
@@ -265,7 +265,7 @@ func (builder *ImageClusterInstallBuilder) GetCompletedCondition() (*hivev1.Clus
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting Completed condition from imageclusterinstall %s in namespace %s",
+	klog.V(100).Infof("Getting Completed condition from imageclusterinstall %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	return builder.getCondition(hivev1.ClusterInstallCompleted)
@@ -277,7 +277,7 @@ func (builder *ImageClusterInstallBuilder) GetFailedCondition() (*hivev1.Cluster
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting Failed condition from imageclusterinstall %s in namespace %s",
+	klog.V(100).Infof("Getting Failed condition from imageclusterinstall %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	return builder.getCondition(hivev1.ClusterInstallFailed)
@@ -289,7 +289,7 @@ func (builder *ImageClusterInstallBuilder) GetRequirementsMetCondition() (*hivev
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting RequirementsMet condition from imageclusterinstall %s in namespace %s",
+	klog.V(100).Infof("Getting RequirementsMet condition from imageclusterinstall %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	return builder.getCondition(hivev1.ClusterInstallRequirementsMet)
@@ -301,7 +301,7 @@ func (builder *ImageClusterInstallBuilder) GetStoppedCondition() (*hivev1.Cluste
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting Stopped condition from imageclusterinstall %s in namespace %s",
+	klog.V(100).Infof("Getting Stopped condition from imageclusterinstall %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	return builder.getCondition(hivev1.ClusterInstallStopped)
@@ -313,7 +313,7 @@ func (builder *ImageClusterInstallBuilder) Get() (*ibiv1alpha1.ImageClusterInsta
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting imageclusterinstall %s in namespace %s",
+	klog.V(100).Infof("Getting imageclusterinstall %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	imageClusterInstall := &ibiv1alpha1.ImageClusterInstall{}
@@ -335,7 +335,7 @@ func (builder *ImageClusterInstallBuilder) Create() (*ImageClusterInstallBuilder
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the imageclusterinstall %s in namespace %s",
+	klog.V(100).Infof("Creating the imageclusterinstall %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -355,11 +355,11 @@ func (builder *ImageClusterInstallBuilder) Update(force bool) (*ImageClusterInst
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating imageclusterinstall %s in namespace %s",
+	klog.V(100).Infof("Updating imageclusterinstall %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("imageclusterinstall %s does not exist in namespace %s",
+		klog.V(100).Infof("imageclusterinstall %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		return builder, fmt.Errorf("cannot update non-existent imageclusterinstall")
@@ -368,13 +368,11 @@ func (builder *ImageClusterInstallBuilder) Update(force bool) (*ImageClusterInst
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		if force {
-			glog.V(100).Infof(
-				msg.FailToUpdateNotification("imageclusterinstall", builder.Definition.Name, builder.Definition.Namespace))
+			klog.V(100).Infof("%v", msg.FailToUpdateNotification("imageclusterinstall", builder.Definition.Name, builder.Definition.Namespace))
 
 			err := builder.Delete()
 			if err != nil {
-				glog.V(100).Infof(
-					msg.FailToUpdateError("imageclusterinstall", builder.Definition.Name, builder.Definition.Namespace))
+				klog.V(100).Infof("%v", msg.FailToUpdateError("imageclusterinstall", builder.Definition.Name, builder.Definition.Namespace))
 
 				return nil, err
 			}
@@ -396,7 +394,7 @@ func (builder *ImageClusterInstallBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting the imageclusterinstall %s in namespace %s",
+	klog.V(100).Infof("Deleting the imageclusterinstall %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
@@ -419,7 +417,7 @@ func (builder *ImageClusterInstallBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if imageclusterinstall %s exists in namespace %s",
+	klog.V(100).Infof("Checking if imageclusterinstall %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -450,25 +448,25 @@ func (builder *ImageClusterInstallBuilder) validate() (bool, error) {
 	resourceCRD := "ImageClusterInstall"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

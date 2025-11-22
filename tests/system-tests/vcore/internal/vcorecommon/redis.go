@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/remote"
 
@@ -25,7 +26,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/template"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/vcore/internal/vcoreinittools"
@@ -46,7 +46,7 @@ func VerifyRedisSuite() {
 //
 //nolint:funlen
 func VerifyRedisDeploymentProcedure(ctx SpecContext) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Verify Redis can be installed and works correctly")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify Redis can be installed and works correctly")
 
 	redisAppName := "redis-ha"
 	redisNamespace := "redis-ha"
@@ -54,12 +54,12 @@ func VerifyRedisDeploymentProcedure(ctx SpecContext) {
 	redisCustomValuesTemplate := "redis-custom-values.yaml"
 	redisStatefulsetName := "redis-ha-server"
 
-	glog.V(vcoreparams.VCoreLogLevel).Info("Check if redis already installed")
+	klog.V(vcoreparams.VCoreLogLevel).Info("Check if redis already installed")
 
 	redisStatefulset, err := statefulset.Pull(APIClient, redisStatefulsetName, redisNamespace)
 
 	if err == nil && redisStatefulset.IsReady(time.Second) {
-		glog.V(vcoreparams.VCoreLogLevel).Infof("redis statefulset %s in namespace %s exists and ready",
+		klog.V(vcoreparams.VCoreLogLevel).Infof("redis statefulset %s in namespace %s exists and ready",
 			redisStatefulsetName, redisNamespace)
 	} else {
 		redisConfigFilePath := filepath.Join(vcoreparams.ConfigurationFolderPath, redisCustomValuesTemplate)
@@ -68,7 +68,7 @@ func VerifyRedisDeploymentProcedure(ctx SpecContext) {
 		redisImageName := "redis"
 		redisImageTag := "latest"
 
-		glog.V(vcoreparams.VCoreLogLevel).Info("Check that cluster pull-secret can be retrieved")
+		klog.V(vcoreparams.VCoreLogLevel).Info("Check that cluster pull-secret can be retrieved")
 
 		clusterPullSecret, err := cluster.GetOCPPullSecret(APIClient)
 		Expect(err).ToNot(HaveOccurred(), "error occurred when retrieving cluster pull-secret")
@@ -79,7 +79,7 @@ func VerifyRedisDeploymentProcedure(ctx SpecContext) {
 		Expect(err).ToNot(HaveOccurred(), "failed to detect a deployment type")
 
 		if !isDisconnected {
-			glog.V(vcoreparams.VCoreLogLevel).Info("The connected deployment type was detected, " +
+			klog.V(vcoreparams.VCoreLogLevel).Info("The connected deployment type was detected, " +
 				"the images mirroring is not required")
 		} else {
 			_, err = getImageURL(redisImageRepository, redisImageName, redisImageTag)
@@ -88,14 +88,14 @@ func VerifyRedisDeploymentProcedure(ctx SpecContext) {
 					redisImageRepository, redisImageName, redisImageTag, err))
 		}
 
-		glog.V(vcoreparams.VCoreLogLevel).Infof("Install redis")
+		klog.V(vcoreparams.VCoreLogLevel).Infof("Install redis")
 
-		glog.V(100).Infof("Ensure local directory %s exists", vcoreparams.ConfigurationFolderPath)
+		klog.V(100).Infof("Ensure local directory %s exists", vcoreparams.ConfigurationFolderPath)
 
 		err = os.Mkdir(vcoreparams.ConfigurationFolderPath, 0755)
 
 		if err != nil {
-			glog.V(100).Infof("Failed to create directory %s, it is already exists",
+			klog.V(100).Infof("Failed to create directory %s, it is already exists",
 				vcoreparams.ConfigurationFolderPath)
 		}
 
@@ -111,7 +111,7 @@ func VerifyRedisDeploymentProcedure(ctx SpecContext) {
 			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to execute %s command due to %v", cmd, err))
 		}
 
-		glog.V(vcoreparams.VCoreLogLevel).Info("Create redis namespace")
+		klog.V(vcoreparams.VCoreLogLevel).Info("Create redis namespace")
 
 		redisNamespaceBuilder := namespace.NewBuilder(APIClient, redisNamespace)
 
@@ -123,7 +123,7 @@ func VerifyRedisDeploymentProcedure(ctx SpecContext) {
 				fmt.Sprintf("namespace %s not found", redisNamespace))
 		}
 
-		glog.V(vcoreparams.VCoreLogLevel).Infof("Create redis secret %s in namespace %s",
+		klog.V(vcoreparams.VCoreLogLevel).Infof("Create redis secret %s in namespace %s",
 			redisSecretName, redisNamespace)
 
 		redisSecretBuilder := secret.NewBuilder(
@@ -144,14 +144,14 @@ func VerifyRedisDeploymentProcedure(ctx SpecContext) {
 		Expect(redisSecretBuilder.Exists()).To(Equal(true),
 			fmt.Sprintf("Failed to create redis secret %s in namespace %s", redisSecretName, redisNamespace))
 
-		glog.V(vcoreparams.VCoreLogLevel).Info("Get runAsUser and fsGroup values")
+		klog.V(vcoreparams.VCoreLogLevel).Info("Get runAsUser and fsGroup values")
 
 		fsGroupFull := ""
 		_ = wait.PollUntilContextTimeout(
 			context.TODO(), 3*time.Second, 5*time.Minute, true, func(ctx context.Context) (bool, error) {
 				fsGroupFull = redisNamespaceBuilder.Object.Annotations["openshift.io/sa.scc.supplemental-groups"]
 				if fsGroupFull == "" {
-					glog.V(90).Infof("no fsGroup was defined yet, retry")
+					klog.V(90).Infof("no fsGroup was defined yet, retry")
 
 					return false, nil
 				}
@@ -172,7 +172,7 @@ func VerifyRedisDeploymentProcedure(ctx SpecContext) {
 
 		runAsUser := strings.Split(runAsUserFull, "/")[0]
 
-		glog.V(vcoreparams.VCoreLogLevel).Info("Redis custom config")
+		klog.V(vcoreparams.VCoreLogLevel).Info("Redis custom config")
 
 		varsToReplace := make(map[string]interface{})
 		varsToReplace["ImageRepository"] = imageURL
@@ -202,7 +202,7 @@ func VerifyRedisDeploymentProcedure(ctx SpecContext) {
 		customConfigCmd := fmt.Sprintf("helm upgrade --install %s -n %s %s/%s -f %s --kubeconfig=%s",
 			redisAppName, redisNamespace, vcoreparams.ConfigurationFolderPath, redisAppName,
 			redisConfigFilePath, VCoreConfig.KubeconfigPath)
-		glog.V(vcoreparams.VCoreLogLevel).Infof("Execute command %s", customConfigCmd)
+		klog.V(vcoreparams.VCoreLogLevel).Infof("Execute command %s", customConfigCmd)
 
 		result, err := remote.ExecCmdOnHost(VCoreConfig.Host, VCoreConfig.User, VCoreConfig.Pass, customConfigCmd)
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to config redis due to %v", err))
@@ -210,7 +210,7 @@ func VerifyRedisDeploymentProcedure(ctx SpecContext) {
 			fmt.Sprintf("redis is not properly configured: %s", result))
 	}
 
-	glog.V(vcoreparams.VCoreLogLevel).Info("Wait for the statefulset ready")
+	klog.V(vcoreparams.VCoreLogLevel).Info("Wait for the statefulset ready")
 
 	redisStatefulset, err = statefulset.Pull(APIClient, redisStatefulsetName, redisNamespace)
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("statefulset %s not found in namespace %s; %v",
@@ -219,7 +219,7 @@ func VerifyRedisDeploymentProcedure(ctx SpecContext) {
 		fmt.Sprintf("statefulset %s in namespace %s is not ready after 5 minutes",
 			redisStatefulsetName, redisNamespace))
 
-	glog.V(vcoreparams.VCoreLogLevel).Info("Verify redis server pods count")
+	klog.V(vcoreparams.VCoreLogLevel).Info("Verify redis server pods count")
 
 	podsList, err := pod.ListByNamePattern(APIClient, redisAppName, redisNamespace)
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("pods %s not found in namespace %s; %v",

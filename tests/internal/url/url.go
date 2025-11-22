@@ -8,8 +8,7 @@ import (
 	"strings"
 
 	"github.com/cavaliergopher/grab/v3"
-
-	"github.com/golang/glog"
+	"k8s.io/klog/v2"
 )
 
 // Fetch retrieves specified URL using GET or HEAD method.
@@ -25,7 +24,7 @@ func Fetch(url, method string, skipCertVerify bool) (string, int, error) {
 
 	client := &http.Client{Transport: tr}
 
-	glog.V(90).Infof("Attempt to retrieve %v with %s method\n", url, strings.ToUpper(method))
+	klog.V(90).Infof("Attempt to retrieve %v with %s method\n", url, strings.ToUpper(method))
 
 	switch {
 	case strings.EqualFold(method, "get"):
@@ -33,13 +32,13 @@ func Fetch(url, method string, skipCertVerify bool) (string, int, error) {
 	case strings.EqualFold(method, "head"):
 		res, err = client.Head(url)
 	default:
-		glog.Warning(fmt.Sprintf("Unsupported method: %v\n", method))
+		klog.Warning(fmt.Sprintf("Unsupported method: %v\n", method))
 
 		return "", 0, fmt.Errorf("unsupported method %v", method)
 	}
 
 	if err != nil {
-		glog.Warning(fmt.Sprintf("Error accessing %s ; Reason %v\n", url, err))
+		klog.Warning(fmt.Sprintf("Error accessing %s ; Reason %v\n", url, err))
 
 		return "", 0, fmt.Errorf("error accessing %s ; Reason %w", url, err)
 	}
@@ -49,16 +48,16 @@ func Fetch(url, method string, skipCertVerify bool) (string, int, error) {
 	body, err := io.ReadAll(res.Body)
 
 	if err != nil {
-		glog.Warning(fmt.Sprintf("Error reading reply: %v\n", err))
+		klog.Warning(fmt.Sprintf("Error reading reply: %v\n", err))
 
 		return "", 0, fmt.Errorf("error reading reply: %w", err)
 	}
 
-	glog.V(50).Infof("\tReply: %s\n", body)
-	glog.V(50).Infof("\tStatus: %s\n", res.Status)
+	klog.V(50).Infof("\tReply: %s\n", body)
+	klog.V(50).Infof("\tStatus: %s\n", res.Status)
 
 	for key, value := range res.Header {
-		glog.V(50).Infof("  %v: %v\n", key, value)
+		klog.V(50).Infof("  %v: %v\n", key, value)
 	}
 
 	return string(body), res.StatusCode, nil
@@ -77,7 +76,7 @@ func DownloadToDir(url, dirName string, skipCertVerify bool) error {
 		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 
-	glog.V(50).Infof("Attempting to save content from %s into directory %s", url, dirName)
+	klog.V(50).Infof("Attempting to save content from %s into directory %s", url, dirName)
 
 	grabRequest, err := grab.NewRequest(dirName, url)
 	if err != nil {
@@ -85,7 +84,7 @@ func DownloadToDir(url, dirName string, skipCertVerify bool) error {
 	}
 
 	grabResponse := grabClient.Do(grabRequest)
-	glog.V(50).Infof("HTTP response status: %v", grabResponse.HTTPResponse.Status)
+	klog.V(50).Infof("HTTP response status: %v", grabResponse.HTTPResponse.Status)
 
 	if err := grabResponse.Err(); err != nil {
 		return err

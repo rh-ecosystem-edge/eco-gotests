@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -28,19 +28,19 @@ type TunedBuilder struct {
 // NewTunedBuilder creates a new instance of TunedBuilder.
 func NewTunedBuilder(
 	apiClient *clients.Settings, name, nsname string) *TunedBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new Tuned structure with the following params: "+
 			"name: %s, namespace: %s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(tunedv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add tuned v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add tuned v1 scheme to client schemes")
 
 		return nil
 	}
@@ -56,7 +56,7 @@ func NewTunedBuilder(
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the Tuned is empty")
+		klog.V(100).Info("The name of the Tuned is empty")
 
 		builder.errorMsg = "tuned 'name' cannot be empty"
 
@@ -64,7 +64,7 @@ func NewTunedBuilder(
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The nsname of the tuned is empty")
+		klog.V(100).Info("The nsname of the tuned is empty")
 
 		builder.errorMsg = "tuned 'nsname' cannot be empty"
 
@@ -76,17 +76,17 @@ func NewTunedBuilder(
 
 // PullTuned pulls existing Tuned from cluster.
 func PullTuned(apiClient *clients.Settings, name, nsname string) (*TunedBuilder, error) {
-	glog.V(100).Infof("Pulling existing Tuned name %s in namespace %s from cluster", name, nsname)
+	klog.V(100).Infof("Pulling existing Tuned name %s in namespace %s from cluster", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("tuned 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(tunedv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add tuned v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add tuned v1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -102,13 +102,13 @@ func PullTuned(apiClient *clients.Settings, name, nsname string) (*TunedBuilder,
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the tuned is empty")
+		klog.V(100).Info("The name of the tuned is empty")
 
 		return nil, fmt.Errorf("tuned 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the tuned is empty")
+		klog.V(100).Info("The namespace of the tuned is empty")
 
 		return nil, fmt.Errorf("tuned 'nsname' cannot be empty")
 	}
@@ -128,7 +128,7 @@ func (builder *TunedBuilder) Get() (*tunedv1.Tuned, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting Tuned %s in namespace %s",
+	klog.V(100).Infof("Getting Tuned %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	tunedObj := &tunedv1.Tuned{}
@@ -150,7 +150,7 @@ func (builder *TunedBuilder) Create() (*TunedBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the tuned %s in namespace %s",
+	klog.V(100).Infof("Creating the tuned %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -170,11 +170,11 @@ func (builder *TunedBuilder) Delete() (*TunedBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting the tuned %s in namespace %s",
+	klog.V(100).Infof("Deleting the tuned %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("tuned %s in namespace %s cannot be deleted because it does not exist",
+		klog.V(100).Infof("tuned %s in namespace %s cannot be deleted because it does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -198,7 +198,7 @@ func (builder *TunedBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if tuned %s exists in namespace %s",
+	klog.V(100).Infof("Checking if tuned %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -214,13 +214,12 @@ func (builder *TunedBuilder) Update() (*TunedBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating tuned %s in namespace %s",
+	klog.V(100).Infof("Updating tuned %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
-		glog.V(100).Infof(
-			msg.FailToUpdateError("tuned", builder.Definition.Name, builder.Definition.Namespace))
+		klog.V(100).Infof("%v", msg.FailToUpdateError("tuned", builder.Definition.Name, builder.Definition.Namespace))
 
 		return nil, err
 	}
@@ -237,7 +236,7 @@ func (builder *TunedBuilder) WithProfile(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Setting tuned %s in namespace %s with the Profile: %v",
 		builder.Definition.Name, builder.Definition.Namespace, profile)
 
@@ -253,7 +252,7 @@ func (builder *TunedBuilder) WithRecommend(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Setting tuned %s in namespace %s with the Recommend: %v",
 		builder.Definition.Name, builder.Definition.Namespace, recommend)
 
@@ -272,19 +271,19 @@ func (builder *TunedBuilder) validate() (bool, error) {
 	resourceCRD := "Tuned"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}

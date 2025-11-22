@@ -7,8 +7,8 @@ import (
 
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/golang/glog"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 
 	bmhv1alpha1 "github.com/metal3-io/baremetal-operator/apis/metal3.io/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
@@ -21,13 +21,13 @@ const (
 // List returns bareMetalHosts inventory in the given namespace.
 func List(apiClient *clients.Settings, nsname string, options ...goclient.ListOptions) ([]*BmhBuilder, error) {
 	if apiClient == nil || apiClient.Client == nil {
-		glog.V(100).Infof("BareMetalHosts 'apiClient' parameter can not be empty")
+		klog.V(100).Info("BareMetalHosts 'apiClient' parameter can not be empty")
 
 		return nil, fmt.Errorf("failed to list bareMetalHosts, 'apiClient' parameter is empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("bareMetalHost 'nsname' parameter can not be empty")
+		klog.V(100).Info("bareMetalHost 'nsname' parameter can not be empty")
 
 		return nil, fmt.Errorf("failed to list bareMetalHosts, 'nsname' parameter is empty")
 	}
@@ -36,7 +36,7 @@ func List(apiClient *clients.Settings, nsname string, options ...goclient.ListOp
 	passedOptions := goclient.ListOptions{}
 
 	if len(options) > 1 {
-		glog.V(100).Infof("'options' parameter must be empty or single-valued")
+		klog.V(100).Info("'options' parameter must be empty or single-valued")
 
 		return nil, fmt.Errorf("error: more than one ListOptions was passed")
 	}
@@ -48,7 +48,7 @@ func List(apiClient *clients.Settings, nsname string, options ...goclient.ListOp
 
 	passedOptions.Namespace = nsname
 
-	glog.V(100).Infof(logMessage)
+	klog.V(100).Infof("%v", logMessage)
 
 	return list(apiClient, passedOptions)
 }
@@ -56,7 +56,7 @@ func List(apiClient *clients.Settings, nsname string, options ...goclient.ListOp
 // ListInAllNamespaces lists the BareMetalHosts across all namespaces on the provided cluster.
 func ListInAllNamespaces(apiClient *clients.Settings, options ...goclient.ListOptions) ([]*BmhBuilder, error) {
 	if apiClient == nil || apiClient.Client == nil {
-		glog.V(100).Info("BareMetalHost's 'apiClient' parameter cannot be empty")
+		klog.V(100).Info("BareMetalHost's 'apiClient' parameter cannot be empty")
 
 		return nil, fmt.Errorf("failed to list bareMetalHosts, 'apiClient' parameter is empty")
 	}
@@ -65,7 +65,7 @@ func ListInAllNamespaces(apiClient *clients.Settings, options ...goclient.ListOp
 	passedOptions := goclient.ListOptions{}
 
 	if len(options) > 1 {
-		glog.V(100).Info("'options' parameter must be empty or single-valued")
+		klog.V(100).Info("'options' parameter must be empty or single-valued")
 
 		return nil, fmt.Errorf("error: more than one ListOptions was passed")
 	}
@@ -75,7 +75,7 @@ func ListInAllNamespaces(apiClient *clients.Settings, options ...goclient.ListOp
 		logMessage += fmt.Sprintf(" with the options %v", passedOptions)
 	}
 
-	glog.V(100).Info(logMessage)
+	klog.V(100).Info(logMessage)
 
 	return list(apiClient, passedOptions)
 }
@@ -86,12 +86,12 @@ func WaitForAllBareMetalHostsInGoodOperationalState(apiClient *clients.Settings,
 	nsname string,
 	timeout time.Duration,
 	options ...goclient.ListOptions) (bool, error) {
-	glog.V(100).Infof("Waiting for all bareMetalHosts in %s namespace to have OK operationalStatus",
+	klog.V(100).Infof("Waiting for all bareMetalHosts in %s namespace to have OK operationalStatus",
 		nsname)
 
 	bmhList, err := List(apiClient, nsname, options...)
 	if err != nil {
-		glog.V(100).Infof("Failed to list all bareMetalHosts in the %s namespace due to %s",
+		klog.V(100).Infof("Failed to list all bareMetalHosts in the %s namespace due to %s",
 			nsname, err.Error())
 
 		return false, err
@@ -105,7 +105,7 @@ func WaitForAllBareMetalHostsInGoodOperationalState(apiClient *clients.Settings,
 				status := baremetalhost.GetBmhOperationalState()
 
 				if status != bmhv1alpha1.OperationalStatusOK {
-					glog.V(100).Infof("The %s bareMetalHost in namespace %s has an unexpected operational status: %s",
+					klog.V(100).Infof("The %s bareMetalHost in namespace %s has an unexpected operational status: %s",
 						baremetalhost.Object.Name, baremetalhost.Object.Namespace, status)
 
 					return false, nil
@@ -115,14 +115,14 @@ func WaitForAllBareMetalHostsInGoodOperationalState(apiClient *clients.Settings,
 			return true, nil
 		})
 	if err == nil {
-		glog.V(100).Infof("All baremetalhosts were found in the good Operational State "+
+		klog.V(100).Infof("All baremetalhosts were found in the good Operational State "+
 			"during defined timeout: %v", timeout)
 
 		return true, nil
 	}
 
 	// Here err is "timed out waiting for the condition"
-	glog.V(100).Infof("Not all baremetalhosts were found in the good Operational State "+
+	klog.V(100).Infof("Not all baremetalhosts were found in the good Operational State "+
 		"during defined timeout: %v", timeout)
 
 	return false, err
@@ -132,7 +132,7 @@ func WaitForAllBareMetalHostsInGoodOperationalState(apiClient *clients.Settings,
 func list(apiClient *clients.Settings, options goclient.ListOptions) ([]*BmhBuilder, error) {
 	err := apiClient.AttachScheme(bmhv1alpha1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add bmhv1alpha1 scheme to client schemes")
+		klog.V(100).Info("Failed to add bmhv1alpha1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -141,7 +141,7 @@ func list(apiClient *clients.Settings, options goclient.ListOptions) ([]*BmhBuil
 
 	err = apiClient.List(context.TODO(), &bmhList, &options)
 	if err != nil {
-		glog.V(100).Infof("Failed to list bareMetalHosts due to %s", err.Error())
+		klog.V(100).Infof("Failed to list bareMetalHosts due to %s", err.Error())
 
 		return nil, err
 	}

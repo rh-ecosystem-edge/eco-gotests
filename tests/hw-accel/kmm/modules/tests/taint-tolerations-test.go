@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/klog/v2"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/configmap"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/kmm"
@@ -96,7 +96,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 
 			for _, node := range nodeList {
 				if node.Object.Spec.Taints != nil {
-					glog.V(kmmparams.KmmLogLevel).Infof("Node %s already tainted with %v o. Skipping test",
+					klog.V(kmmparams.KmmLogLevel).Infof("Node %s already tainted with %v o. Skipping test",
 						node.Object.Name, node.Object.Spec.Taints)
 					Skip(fmt.Sprintf("Node %s already tainted with %v. Skipping test",
 						node.Object.Name, node.Object.Spec.Taints))

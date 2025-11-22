@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nto"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
@@ -15,6 +14,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/powermanagement/internal/tsparams"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/cpuset"
 )
 
@@ -45,7 +45,7 @@ func GetPowerState(perfProfile *nto.Builder) (string, error) {
 
 // CollectPowerMetricsWithNoWorkload collects metrics with no workload.
 func CollectPowerMetricsWithNoWorkload(duration, interval time.Duration, tag string) (map[string]string, error) {
-	glog.V(tsparams.LogLevel).Infof("Wait for %s for noworkload scenario", duration)
+	klog.V(tsparams.LogLevel).Infof("Wait for %s for noworkload scenario", duration)
 
 	return collectPowerUsageMetrics(duration, interval, "noworkload", tag)
 }
@@ -72,7 +72,7 @@ func CollectPowerMetricsWithSteadyWorkload(
 		return nil, fmt.Errorf("not enough stress-ng pods to run test")
 	}
 
-	glog.V(tsparams.LogLevel).Infof("Wait for %s for steadyworkload scenario", duration.String())
+	klog.V(tsparams.LogLevel).Infof("Wait for %s for steadyworkload scenario", duration.String())
 	result, collectErr := collectPowerUsageMetrics(duration, interval, "steadyworkload", tag)
 
 	// Delete stress-ng pods regardless of whether collectPowerUsageMetrics failed.
@@ -95,7 +95,7 @@ func collectPowerUsageMetrics(duration, interval time.Duration, scenario, tag st
 	for time.Now().Before(endTime) {
 		power, err := BMCClient.PowerUsage()
 		if err != nil {
-			glog.V(tsparams.LogLevel).Infof("error getting power usage: %w", err)
+			klog.V(tsparams.LogLevel).Infof("error getting power usage: %v", err)
 
 			continue
 		}
@@ -105,7 +105,7 @@ func collectPowerUsageMetrics(duration, interval time.Duration, scenario, tag st
 		time.Sleep(interval)
 	}
 
-	glog.V(tsparams.LogLevel).Info("Finished collecting power usage, waiting for results")
+	klog.V(tsparams.LogLevel).Info("Finished collecting power usage, waiting for results")
 
 	if len(powerMeasurements) < 1 {
 		return nil, fmt.Errorf("no power usage metrics were retrieved")
@@ -121,7 +121,7 @@ func deployStressNgPods(stressNgCPUCount, stressngMaxPodCount int, nodeName stri
 	stressngPodsCPUs := parsePodCountAndCpus(stressngMaxPodCount, stressNgCPUCount)
 
 	// Create and wait for stress-ng pods to be Ready
-	glog.V(tsparams.LogLevel).
+	klog.V(tsparams.LogLevel).
 		Infof("Creating up to %d stress-ng pods with total %d cpus", stressngMaxPodCount, stressNgCPUCount)
 
 	stressngPods := []*pod.Builder{}
@@ -142,7 +142,7 @@ func deployStressNgPods(stressNgCPUCount, stressngMaxPodCount int, nodeName stri
 		return nil, err
 	}
 
-	glog.V(tsparams.LogLevel).
+	klog.V(tsparams.LogLevel).
 		Infof("%d stress-ng pods with total %d cpus are created and running", len(stressngPods), stressNgCPUCount)
 
 	return stressngPods, nil
@@ -221,7 +221,7 @@ func computePowerUsageStatistics(
 	samplingInterval time.Duration,
 	scenario,
 	tag string) (map[string]string, error) {
-	glog.V(tsparams.LogLevel).Infof("Power usage measurements for %s: %v", scenario, instantPowerData)
+	klog.V(tsparams.LogLevel).Infof("Power usage measurements for %s: %v", scenario, instantPowerData)
 
 	compMap := make(map[string]string)
 

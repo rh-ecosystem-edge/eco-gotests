@@ -7,13 +7,13 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/golang/glog"
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -34,17 +34,17 @@ type Builder struct {
 
 // Pull loads an existing clusterversion into Builder struct.
 func Pull(apiClient *clients.Settings) (*Builder, error) {
-	glog.V(100).Infof("Pulling existing clusterversion name: %s", clusterVersionName)
+	klog.V(100).Infof("Pulling existing clusterversion name: %s", clusterVersionName)
 
 	if apiClient == nil {
-		glog.V(100).Info("The apiClient of the ClusterVersion is nil")
+		klog.V(100).Info("The apiClient of the ClusterVersion is nil")
 
 		return nil, fmt.Errorf("clusterversion 'apiClient' cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(configv1.Install)
 	if err != nil {
-		glog.V(100).Info("Failed to add config v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add config v1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -73,13 +73,13 @@ func (builder *Builder) Get() (*configv1.ClusterVersion, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting ClusterVersion object %s", builder.Definition.Name)
+	klog.V(100).Infof("Getting ClusterVersion object %s", builder.Definition.Name)
 
 	clusterVersion := &configv1.ClusterVersion{}
 
 	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, clusterVersion)
 	if err != nil {
-		glog.V(100).Infof("Failed to get ClusterVersion %s: %s", builder.Definition.Name, err)
+		klog.V(100).Infof("Failed to get ClusterVersion %s: %s", builder.Definition.Name, err)
 
 		return nil, err
 	}
@@ -93,7 +93,7 @@ func (builder *Builder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if ClusterVersion %s exists", builder.Definition.Name)
+	klog.V(100).Infof("Checking if ClusterVersion %s exists", builder.Definition.Name)
 
 	var err error
 
@@ -108,11 +108,11 @@ func (builder *Builder) WithDesiredUpdateImage(desiredUpdateImage string, force 
 		return builder
 	}
 
-	glog.V(100).Info("Adding the desired image %s to ClusterVersion %s",
+	klog.V(100).Infof("Adding the desired image %s to ClusterVersion %s",
 		desiredUpdateImage, builder.Definition.Name)
 
 	if desiredUpdateImage == "" {
-		glog.V(100).Infof("The desiredUpdateImage is empty")
+		klog.V(100).Info("The desiredUpdateImage is empty")
 
 		builder.errorMsg = "clusterversion 'desiredUpdateImage' cannot be empty"
 
@@ -130,11 +130,11 @@ func (builder *Builder) WithDesiredUpdateChannel(updateChannel string) *Builder 
 		return builder
 	}
 
-	glog.V(100).Info("Adding the desired updateChannel %s to ClusterVersion %s",
+	klog.V(100).Infof("Adding the desired updateChannel %s to ClusterVersion %s",
 		updateChannel, builder.Definition.Name)
 
 	if updateChannel == "" {
-		glog.V(100).Infof("The updateChannel is empty")
+		klog.V(100).Info("The updateChannel is empty")
 
 		builder.errorMsg = "clusterversion 'updateChannel' cannot be empty"
 
@@ -152,7 +152,7 @@ func (builder *Builder) Update() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating ClusterVersion %s", builder.Definition.Name)
+	klog.V(100).Infof("Updating ClusterVersion %s", builder.Definition.Name)
 
 	if !builder.Exists() {
 		return nil, fmt.Errorf("clusterversion object %s does not exist", builder.Definition.Name)
@@ -163,7 +163,7 @@ func (builder *Builder) Update() (*Builder, error) {
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
-		glog.V(100).Infof("Failed to update ClusterVersion %s: %s", builder.Definition.Name, err)
+		klog.V(100).Infof("Failed to update ClusterVersion %s: %s", builder.Definition.Name, err)
 
 		return nil, err
 	}
@@ -200,7 +200,7 @@ func (builder *Builder) WaitUntilConditionTrue(
 
 			builder.Object, err = builder.Get()
 			if err != nil {
-				glog.V(100).Infof("Failed to get the ClusterVersion with error %s", err)
+				klog.V(100).Infof("Failed to get the ClusterVersion with error %s", err)
 
 				return false, nil
 			}
@@ -242,7 +242,7 @@ func (builder *Builder) WaitUntilUpdateHistoryStateTrue(
 
 			builder.Object, err = builder.Get()
 			if err != nil {
-				glog.V(100).Infof("Failed to get the ClusterVersion with error %s", err)
+				klog.V(100).Infof("Failed to get the ClusterVersion with error %s", err)
 
 				return false, nil
 			}
@@ -265,7 +265,7 @@ func (builder *Builder) GetNextUpdateVersionImage(stream string, acceptCondition
 		return "", err
 	}
 
-	glog.V(100).Infof("Getting the update version image in stream %s for clusterversion %s",
+	klog.V(100).Infof("Getting the update version image in stream %s for clusterversion %s",
 		stream, builder.Definition.Name)
 
 	if stream == "" {
@@ -299,10 +299,10 @@ func (builder *Builder) GetNextUpdateVersionImage(stream string, acceptCondition
 
 // isStreamUpdate checks if updateVersion is a 'stream' (X, Y or Z) update for version.
 func (builder *Builder) isStreamUpdate(version, updateVersion, stream string) (isStreamUpdate bool, err error) {
-	glog.V(100).Infof("Verify if updateVersion %s is a stream %s update for version %s", updateVersion, stream, version)
+	klog.V(100).Infof("Verify if updateVersion %s is a stream %s update for version %s", updateVersion, stream, version)
 
 	if !slices.Contains([]string{X, Z, Y}, stream) {
-		glog.V(100).Infof("invalid stream %s", stream)
+		klog.V(100).Infof("invalid stream %s", stream)
 
 		return false, fmt.Errorf("invalid stream %s", stream)
 	}
@@ -313,7 +313,7 @@ func (builder *Builder) isStreamUpdate(version, updateVersion, stream string) (i
 	}
 
 	semUpdateVersion, updateVersionError := semver.NewVersion(updateVersion)
-	glog.V(100).Infof("Testing %s and %s", semVersion.String(), semUpdateVersion.String())
+	klog.V(100).Infof("Testing %s and %s", semVersion.String(), semUpdateVersion.String())
 
 	if updateVersionError != nil {
 		return false, fmt.Errorf("the Update Version %s is invalid", updateVersion)
@@ -322,23 +322,23 @@ func (builder *Builder) isStreamUpdate(version, updateVersion, stream string) (i
 	switch major := semVersion.Major(); {
 	case major == semUpdateVersion.Major() && semVersion.Minor() == semUpdateVersion.Minor() &&
 		semVersion.Patch() < semUpdateVersion.Patch() && stream == Z:
-		glog.V(100).Infof("This version is a z update: %s", semUpdateVersion.String())
+		klog.V(100).Infof("This version is a z update: %s", semUpdateVersion.String())
 
 		return true, nil
 
 	case major == semUpdateVersion.Major() &&
 		semVersion.Minor() < semUpdateVersion.Minor() && stream == Y:
-		glog.V(100).Infof("This version is a y update: %s", semUpdateVersion.String())
+		klog.V(100).Infof("This version is a y update: %s", semUpdateVersion.String())
 
 		return true, nil
 
 	case semVersion.Major() < semUpdateVersion.Major() && stream == X:
-		glog.V(100).Infof("This version is an x update: %s", semUpdateVersion.String())
+		klog.V(100).Infof("This version is an x update: %s", semUpdateVersion.String())
 
 		return true, nil
 
 	default:
-		glog.V(100).Infof("The version %s is not an update for %s ",
+		klog.V(100).Infof("The version %s is not an update for %s ",
 			semUpdateVersion.String(), semVersion.String())
 
 		return false, nil
@@ -351,25 +351,25 @@ func (builder *Builder) validate() (bool, error) {
 	resourceCRD := "ClusterVersion"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

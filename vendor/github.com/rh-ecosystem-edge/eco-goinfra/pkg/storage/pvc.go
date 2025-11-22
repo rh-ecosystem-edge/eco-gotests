@@ -7,7 +7,6 @@ import (
 
 	"golang.org/x/exp/slices"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	corev1 "k8s.io/api/core/v1"
@@ -16,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 var validPVCModesMap = map[string]string{
@@ -39,11 +39,11 @@ type PVCBuilder struct {
 
 // NewPVCBuilder creates a new structure for persistentvolumeclaim.
 func NewPVCBuilder(apiClient *clients.Settings, name, nsname string) *PVCBuilder {
-	glog.V(100).Infof("Creating PersistentVolumeClaim %s in namespace %s",
+	klog.V(100).Infof("Creating PersistentVolumeClaim %s in namespace %s",
 		name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("storageSystem 'apiClient' cannot be empty")
+		klog.V(100).Info("storageSystem 'apiClient' cannot be empty")
 
 		return nil
 	}
@@ -61,7 +61,7 @@ func NewPVCBuilder(apiClient *clients.Settings, name, nsname string) *PVCBuilder
 	builder.apiClient = apiClient
 
 	if name == "" {
-		glog.V(100).Infof("PVC name is empty")
+		klog.V(100).Info("PVC name is empty")
 
 		builder.errorMsg = "PVC name is empty"
 
@@ -69,7 +69,7 @@ func NewPVCBuilder(apiClient *clients.Settings, name, nsname string) *PVCBuilder
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("PVC namespace is empty")
+		klog.V(100).Info("PVC namespace is empty")
 
 		builder.errorMsg = "PVC namespace is empty"
 
@@ -81,16 +81,16 @@ func NewPVCBuilder(apiClient *clients.Settings, name, nsname string) *PVCBuilder
 
 // WithPVCAccessMode configure access mode for the PV.
 func (builder *PVCBuilder) WithPVCAccessMode(accessMode string) (*PVCBuilder, error) {
-	glog.V(100).Infof("Set PVC accessMode: %s", accessMode)
+	klog.V(100).Infof("Set PVC accessMode: %s", accessMode)
 
 	if accessMode == "" {
-		glog.V(100).Infof("Empty accessMode for PVC %s", builder.Definition.Name)
+		klog.V(100).Infof("Empty accessMode for PVC %s", builder.Definition.Name)
 
 		return builder, fmt.Errorf("empty accessMode for PVC requested")
 	}
 
 	if !validatePVCAccessMode(accessMode) {
-		glog.V(100).Infof("Invalid accessMode for PVC %s", accessMode)
+		klog.V(100).Infof("Invalid accessMode for PVC %s", accessMode)
 
 		return builder, fmt.Errorf("invalid accessMode for PVC %s", accessMode)
 	}
@@ -108,7 +108,7 @@ func (builder *PVCBuilder) WithPVCAccessMode(accessMode string) (*PVCBuilder, er
 
 // validatePVCAccessMode validates if requested mode is valid for PVC.
 func validatePVCAccessMode(accessMode string) bool {
-	glog.V(100).Info("Validating accessMode %s", accessMode)
+	klog.V(100).Infof("Validating accessMode %s", accessMode)
 
 	_, ok := validPVCModesMap[accessMode]
 
@@ -118,14 +118,14 @@ func validatePVCAccessMode(accessMode string) bool {
 // WithPVCCapacity configures the minimum resources the volume should have.
 func (builder *PVCBuilder) WithPVCCapacity(capacity string) (*PVCBuilder, error) {
 	if capacity == "" {
-		glog.V(100).Infof("Capacity of the PersistentVolumeClaim is empty")
+		klog.V(100).Info("Capacity of the PersistentVolumeClaim is empty")
 
 		return builder, fmt.Errorf("capacity of the PersistentVolumeClaim is empty")
 	}
 
 	defer func() (*PVCBuilder, error) {
 		if r := recover(); r != nil {
-			glog.V(100).Infof("Failed to parse %v", capacity)
+			klog.V(100).Infof("Failed to parse %v", capacity)
 
 			return builder, fmt.Errorf("failed to parse: %v", capacity)
 		}
@@ -143,10 +143,10 @@ func (builder *PVCBuilder) WithPVCCapacity(capacity string) (*PVCBuilder, error)
 
 // WithStorageClass configures storageClass required by the claim.
 func (builder *PVCBuilder) WithStorageClass(storageClass string) (*PVCBuilder, error) {
-	glog.V(100).Infof("Set storage class %s for the PersistentVolumeClaim", storageClass)
+	klog.V(100).Infof("Set storage class %s for the PersistentVolumeClaim", storageClass)
 
 	if storageClass == "" {
-		glog.V(100).Infof("Empty storageClass requested for the PersistentVolumeClaim", storageClass)
+		klog.V(100).Infof("Empty storageClass requested for the PersistentVolumeClaim")
 
 		return builder, fmt.Errorf("empty storageClass requested for the PersistentVolumeClaim %s",
 			builder.Definition.Name)
@@ -159,18 +159,18 @@ func (builder *PVCBuilder) WithStorageClass(storageClass string) (*PVCBuilder, e
 
 // WithVolumeMode configures what type of volume is required by the claim.
 func (builder *PVCBuilder) WithVolumeMode(volumeMode string) (*PVCBuilder, error) {
-	glog.V(100).Infof("Set VolumeMode %s for the PersistentVolumeClaim", volumeMode)
+	klog.V(100).Infof("Set VolumeMode %s for the PersistentVolumeClaim", volumeMode)
 
 	if volumeMode == "" {
-		glog.V(100).Infof(fmt.Sprintf("Empty volumeMode requested for the PersistentVolumeClaim %s in %s namespace",
-			builder.Definition.Name, builder.Definition.Namespace))
+		klog.V(100).Infof("Empty volumeMode requested for the PersistentVolumeClaim %s in %s namespace",
+			builder.Definition.Name, builder.Definition.Namespace)
 
 		return builder, fmt.Errorf("empty volumeMode requested for the PersistentVolumeClaim %s in %s namespace",
 			builder.Definition.Name, builder.Definition.Namespace)
 	}
 
 	if !validateVolumeMode(volumeMode) {
-		glog.V(100).Infof(fmt.Sprintf("Unsupported VolumeMode: %s", volumeMode))
+		klog.V(100).Infof("Unsupported VolumeMode: %s", volumeMode)
 
 		return builder, fmt.Errorf("unsupported VolumeMode %q requested for %s PersistentVolumeClaim in %s namespace",
 			volumeMode, builder.Definition.Name, builder.Definition.Name)
@@ -191,7 +191,7 @@ func (builder *PVCBuilder) Create() (*PVCBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating persistentVolumeClaim %s", builder.Definition.Name)
+	klog.V(100).Infof("Creating persistentVolumeClaim %s", builder.Definition.Name)
 
 	var err error
 	if !builder.Exists() {
@@ -205,17 +205,17 @@ func (builder *PVCBuilder) Create() (*PVCBuilder, error) {
 // Delete removes PVC from cluster.
 func (builder *PVCBuilder) Delete() error {
 	if valid, err := builder.validate(); !valid {
-		glog.V(100).Infof("PersistentVolumeClaim %s in %s namespace is invalid: %v",
+		klog.V(100).Infof("PersistentVolumeClaim %s in %s namespace is invalid: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
 
 		return err
 	}
 
-	glog.V(100).Infof("Delete PersistentVolumeClaim %s from %s namespace",
+	klog.V(100).Infof("Delete PersistentVolumeClaim %s from %s namespace",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("PersistentVolumeClaim %s not found in %s namespace",
+		klog.V(100).Infof("PersistentVolumeClaim %s not found in %s namespace",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -226,14 +226,14 @@ func (builder *PVCBuilder) Delete() error {
 	err := builder.apiClient.PersistentVolumeClaims(builder.Definition.Namespace).Delete(
 		context.TODO(), builder.Definition.Name, metav1.DeleteOptions{})
 	if err != nil {
-		glog.V(100).Infof("Failed to delete PersistentVolumeClaim %s from %s namespace",
+		klog.V(100).Infof("Failed to delete PersistentVolumeClaim %s from %s namespace",
 			builder.Definition.Name, builder.Definition.Namespace)
-		glog.V(100).Infof("PersistenteVolumeClaim deletion error: %v", err)
+		klog.V(100).Infof("PersistenteVolumeClaim deletion error: %v", err)
 
 		return err
 	}
 
-	glog.V(100).Infof("Deleted PersistentVolumeClaim %s from %s namespace",
+	klog.V(100).Infof("Deleted PersistentVolumeClaim %s from %s namespace",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	builder.Object = nil
@@ -244,19 +244,19 @@ func (builder *PVCBuilder) Delete() error {
 // DeleteAndWait deletes PersistentVolumeClaim and waits until it is removed from the cluster.
 func (builder *PVCBuilder) DeleteAndWait(timeout time.Duration) error {
 	if valid, err := builder.validate(); !valid {
-		glog.V(100).Infof("PersistentVolumeClaim %s in %s namespace is invalid: %v",
+		klog.V(100).Infof("PersistentVolumeClaim %s in %s namespace is invalid: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
 
 		return err
 	}
 
-	glog.V(100).Infof("Deleting PersistenVolumeClaim %s from %s namespace and waiting for the removal to complete",
+	klog.V(100).Infof("Deleting PersistenVolumeClaim %s from %s namespace and waiting for the removal to complete",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if err := builder.Delete(); err != nil {
-		glog.V(100).Infof("Failed to delete PersistentVolumeClaim %s from %s namespace",
+		klog.V(100).Infof("Failed to delete PersistentVolumeClaim %s from %s namespace",
 			builder.Definition.Name, builder.Definition.Namespace)
-		glog.V(100).Infof("PersistenteVolumeClaim deletion error: %v", err)
+		klog.V(100).Infof("PersistenteVolumeClaim deletion error: %v", err)
 
 		return err
 	}
@@ -278,11 +278,11 @@ func (builder *PVCBuilder) DeleteAndWait(timeout time.Duration) error {
 func PullPersistentVolumeClaim(
 	apiClient *clients.Settings, name string, nsname string) (
 	*PVCBuilder, error) {
-	glog.V(100).Infof("Pulling existing PersistentVolumeClaim object: %s from namespace %s",
+	klog.V(100).Infof("Pulling existing PersistentVolumeClaim object: %s from namespace %s",
 		name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Info("The PersistentVolumeClaim apiClient is nil")
+		klog.V(100).Info("The PersistentVolumeClaim apiClient is nil")
 
 		return nil, fmt.Errorf("persistentVolumeClaim 'apiClient' cannot be empty")
 	}
@@ -298,13 +298,13 @@ func PullPersistentVolumeClaim(
 	}
 
 	if name == "" {
-		glog.V(100).Info("The name of the PersistentVolumeClaim is empty")
+		klog.V(100).Info("The name of the PersistentVolumeClaim is empty")
 
 		return nil, fmt.Errorf("persistentVolumeClaim 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Info("The namespace of the PersistentVolumeClaim is empty")
+		klog.V(100).Info("The namespace of the PersistentVolumeClaim is empty")
 
 		return nil, fmt.Errorf("persistentVolumeClaim 'nsname' cannot be empty")
 	}
@@ -325,7 +325,7 @@ func (builder *PVCBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if PersistentVolumeClaim %s exists in namespace %s",
+	klog.V(100).Infof("Checking if PersistentVolumeClaim %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -342,25 +342,25 @@ func (builder *PVCBuilder) validate() (bool, error) {
 	resourceCRD := "PersistentVolumeClaim"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}
@@ -379,7 +379,7 @@ func GetPersistentVolumeClaimGVR() schema.GroupVersionResource {
 
 // validateVolumeMode validates if requested volume mode is valid for PVC.
 func validateVolumeMode(volumeMode string) bool {
-	glog.V(100).Info("Validating volumeMode %s", volumeMode)
+	klog.V(100).Infof("Validating volumeMode %s", volumeMode)
 
 	var validVolumeModes = []string{
 		"Block",

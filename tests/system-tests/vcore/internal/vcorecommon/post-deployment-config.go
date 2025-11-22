@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/vcore/internal/ocpcli"
+	"k8s.io/klog/v2"
 
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/remote"
 
@@ -23,7 +24,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/scc"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/imageregistryconfig"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -55,13 +55,13 @@ func VerifyPostDeploymentConfig() {
 
 // VerifyImageRegistryManagementStateEnablement asserts imageRegistry managementState can be changed to the Managed.
 func VerifyImageRegistryManagementStateEnablement(ctx SpecContext) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Enable local imageregistryconfig; change ManagementState to the Managed")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Enable local imageregistryconfig; change ManagementState to the Managed")
 
 	err := imageregistryconfig.SetManagementState(APIClient, operatorv1.Managed)
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to change imageRegistry state to the Managed; %v", err))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Setup imageRegistry storage")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Setup imageRegistry storage")
 
 	err = imageregistryconfig.SetStorageToTheEmptyDir(APIClient)
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to setup imageRegistry storage; %v", err))
@@ -69,20 +69,20 @@ func VerifyImageRegistryManagementStateEnablement(ctx SpecContext) {
 
 // VerifyNetworkPolicyConfig assert network policy configuration procedure.
 func VerifyNetworkPolicyConfig(ctx SpecContext) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Verify network policy configuration procedure")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify network policy configuration procedure")
 
 	for _, npNamespace := range vcoreparams.NetworkPoliciesNamespaces {
 		nsBuilder := namespace.NewBuilder(APIClient, npNamespace)
 
 		inNamespaceStr := fmt.Sprintf("in namespace %s", npNamespace)
 
-		glog.V(vcoreparams.VCoreLogLevel).Infof("Create %s namespace", npNamespace)
+		klog.V(vcoreparams.VCoreLogLevel).Infof("Create %s namespace", npNamespace)
 
 		_, err := nsBuilder.Create()
 		Expect(err).ToNot(HaveOccurred(), "failed to create namespace %s",
 			npNamespace)
 
-		glog.V(vcoreparams.VCoreLogLevel).Infof("Create networkpolicy %s %s",
+		klog.V(vcoreparams.VCoreLogLevel).Infof("Create networkpolicy %s %s",
 			vcoreparams.MonitoringNetworkPolicyName, inNamespaceStr)
 
 		npBuilder, err := networkpolicy.NewNetworkPolicyBuilder(APIClient,
@@ -92,12 +92,12 @@ func VerifyNetworkPolicyConfig(ctx SpecContext) {
 		Expect(err).ToNot(HaveOccurred(), "failed to create networkpolicy %s %s",
 			vcoreparams.MonitoringNetworkPolicyName, inNamespaceStr)
 
-		glog.V(vcoreparams.VCoreLogLevel).Infof("Verify networkpolicy %s successfully created %s",
+		klog.V(vcoreparams.VCoreLogLevel).Infof("Verify networkpolicy %s successfully created %s",
 			vcoreparams.MonitoringNetworkPolicyName, inNamespaceStr)
 		Expect(npBuilder.Exists()).To(Equal(true), "networkpolicy %s not found %s",
 			vcoreparams.MonitoringNetworkPolicyName, inNamespaceStr)
 
-		glog.V(vcoreparams.VCoreLogLevel).Infof("Create networkpolicy %s %s",
+		klog.V(vcoreparams.VCoreLogLevel).Infof("Create networkpolicy %s %s",
 			vcoreparams.AllowAllNetworkPolicyName, inNamespaceStr)
 
 		npBuilder, err = networkpolicy.NewNetworkPolicyBuilder(APIClient,
@@ -106,7 +106,7 @@ func VerifyNetworkPolicyConfig(ctx SpecContext) {
 		Expect(err).ToNot(HaveOccurred(), "failed to create networkpolicy %s objects %s",
 			vcoreparams.AllowAllNetworkPolicyName, inNamespaceStr)
 
-		glog.V(vcoreparams.VCoreLogLevel).Infof("Verify networkpolicy %s successfully created %s",
+		klog.V(vcoreparams.VCoreLogLevel).Infof("Verify networkpolicy %s successfully created %s",
 			vcoreparams.MonitoringNetworkPolicyName, inNamespaceStr)
 		Expect(npBuilder.Exists()).To(Equal(true), "networkpolicy %s not found %s",
 			vcoreparams.AllowAllNetworkPolicyName, inNamespaceStr)
@@ -115,7 +115,7 @@ func VerifyNetworkPolicyConfig(ctx SpecContext) {
 
 // VerifySCCActivation assert successfully scc activation.
 func VerifySCCActivation(ctx SpecContext) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Verify scc activation succeeded")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify scc activation succeeded")
 
 	nodesList, err := nodes.List(APIClient, VCoreConfig.VCoreCpLabelListOption)
 	Expect(err).ToNot(HaveOccurred(), "Failed to get control-plane-worker nodes list; %s", err)
@@ -140,7 +140,7 @@ func VerifySCCActivation(ctx SpecContext) {
 		WithVolumes(vcoreparams.CpSccVolumes)
 
 	if !sccBuilder.Exists() {
-		glog.V(vcoreparams.VCoreLogLevel).Infof("Create securityContextConstraints instance")
+		klog.V(vcoreparams.VCoreLogLevel).Infof("Create securityContextConstraints instance")
 
 		sccObj, err := sccBuilder.Create()
 		Expect(err).ToNot(HaveOccurred(), "Failed to create %s sccObj instance; %s",
@@ -152,7 +152,7 @@ func VerifySCCActivation(ctx SpecContext) {
 
 // VerifySCTPModuleActivation assert successfully sctp module activation.
 func VerifySCTPModuleActivation(ctx SpecContext) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Verify sctp module activation succeeded")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify sctp module activation succeeded")
 
 	nodesList, err := nodes.List(APIClient, VCoreConfig.VCoreCpLabelListOption)
 	Expect(err).ToNot(HaveOccurred(), "Failed to get control-plane-worker nodes list; %s", err)
@@ -160,7 +160,7 @@ func VerifySCTPModuleActivation(ctx SpecContext) {
 
 	sctpBuilder := mco.NewMCBuilder(APIClient, vcoreparams.SctpModuleName)
 	if !sctpBuilder.Exists() {
-		glog.V(vcoreparams.VCoreLogLevel).Infof("Apply sctp config using shell method")
+		klog.V(vcoreparams.VCoreLogLevel).Infof("Apply sctp config using shell method")
 
 		sctpModuleTemplateName := "sctp-module.yaml"
 		varsToReplace := make(map[string]interface{})
@@ -191,7 +191,7 @@ func VerifySCTPModuleActivation(ctx SpecContext) {
 	_, err = clusteroperator.WaitForAllClusteroperatorsAvailable(APIClient, 60*time.Second)
 	Expect(err).ToNot(HaveOccurred(), "Error waiting for all available clusteroperators: %s", err)
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Verify SCTP was activated on each %s node", VCoreConfig.VCoreCpLabel)
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify SCTP was activated on each %s node", VCoreConfig.VCoreCpLabel)
 
 	for _, node := range nodesList {
 		checkCmd := []string{"chroot", "/rootfs", "/bin/sh", "-c", "lsmod | grep sctp"}
@@ -206,7 +206,7 @@ func VerifySCTPModuleActivation(ctx SpecContext) {
 
 // SetSystemReservedMemoryForMasterNodes assert system reserved memory for masters succeeded.
 func SetSystemReservedMemoryForMasterNodes(ctx SpecContext) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Verify system reserved memory config for masters succeeded")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify system reserved memory config for masters succeeded")
 
 	kubeletConfigName := "set-sysreserved-master"
 	systemReservedBuilder := mco.NewKubeletConfigBuilder(APIClient, kubeletConfigName).
@@ -214,7 +214,7 @@ func SetSystemReservedMemoryForMasterNodes(ctx SpecContext) {
 		WithSystemReserved(vcoreparams.SystemReservedCPU, vcoreparams.SystemReservedMemory)
 
 	if !systemReservedBuilder.Exists() {
-		glog.V(vcoreparams.VCoreLogLevel).Infof("Create system-reserved configuration")
+		klog.V(vcoreparams.VCoreLogLevel).Infof("Create system-reserved configuration")
 
 		systemReserved, err := systemReservedBuilder.Create()
 		Expect(err).ToNot(HaveOccurred(), "Failed to create %s kubeletConfig objects "+
@@ -231,7 +231,7 @@ func SetSystemReservedMemoryForMasterNodes(ctx SpecContext) {
 			"Failed to setup master system reserved memory, %s kubeletConfig not found; %s",
 			kubeletConfigName, err)
 
-		glog.V(vcoreparams.VCoreLogLevel).Infof("Checking all master nodes are Ready")
+		klog.V(vcoreparams.VCoreLogLevel).Infof("Checking all master nodes are Ready")
 
 		var isReady bool
 		isReady, err = nodes.WaitForAllNodesAreReady(
@@ -242,12 +242,12 @@ func SetSystemReservedMemoryForMasterNodes(ctx SpecContext) {
 		Expect(isReady).To(Equal(true),
 			fmt.Sprintf("Failed master nodes status, not all Master node are Ready; %v", isReady))
 
-		glog.V(vcoreparams.VCoreLogLevel).Infof("Checking that the clusterversion is available")
+		klog.V(vcoreparams.VCoreLogLevel).Infof("Checking that the clusterversion is available")
 
 		_, err = clusterversion.Pull(APIClient)
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Error accessing csv: %v", err))
 
-		glog.V(vcoreparams.VCoreLogLevel).Infof("Asserting clusteroperators availability")
+		klog.V(vcoreparams.VCoreLogLevel).Infof("Asserting clusteroperators availability")
 
 		var coBuilder []*clusteroperator.Builder
 		coBuilder, err = clusteroperator.List(APIClient)
@@ -259,7 +259,7 @@ func SetSystemReservedMemoryForMasterNodes(ctx SpecContext) {
 			fmt.Sprintf("Error waiting for all available clusteroperators: %v", err))
 	}
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Verify system reserved data updated for all %s nodes",
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify system reserved data updated for all %s nodes",
 		VCoreConfig.ControlPlaneLabel)
 
 	nodesList, err := nodes.List(APIClient, VCoreConfig.ControlPlaneLabelListOption)

@@ -15,11 +15,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/klog/v2"
 
 	amdparams "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/params"
 )
@@ -32,7 +32,7 @@ func LabelPresentOnAllNodes(apiClient *clients.Settings, nodeLabel, nodeLabelVal
 	// in all the nodes that match the nodeSelectors, look for specific label
 	// For example, look in all the worker nodes for a specific label with specific value
 	if err != nil {
-		glog.V(amdparams.AMDGPULogLevel).Infof("could not discover %v nodes, error encountered: '%v'",
+		klog.V(amdparams.AMDGPULogLevel).Infof("could not discover %v nodes, error encountered: '%v'",
 			nodeSelector, err)
 
 		return false, err
@@ -45,7 +45,7 @@ func LabelPresentOnAllNodes(apiClient *clients.Settings, nodeLabel, nodeLabelVal
 		labelValue := node.Object.Labels[nodeLabel]
 
 		if labelValue == nodeLabelValue {
-			glog.V(amdparams.AMDGPULogLevel).Infof("Found label %v that contains %v with label value %s on "+
+			klog.V(amdparams.AMDGPULogLevel).Infof("Found label %v that contains %v with label value %s on "+
 				"node %v", nodeLabel, nodeLabel, nodeLabelValue, node.Object.Name)
 
 			foundLabels++
@@ -70,7 +70,7 @@ func LabelPresentOnAtLeastOneNode(apiClient *clients.Settings,
 	// Check if at least one node matching the nodeSelector has the specific nodeLabel label set to true
 	// For example, look in all the worker nodes for specific label
 	if err != nil {
-		glog.V(amdparams.AMDGPULogLevel).Infof("could not discover %v nodes", nodeSelector)
+		klog.V(amdparams.AMDGPULogLevel).Infof("could not discover %v nodes", nodeSelector)
 
 		return false, err
 	}
@@ -79,7 +79,7 @@ func LabelPresentOnAtLeastOneNode(apiClient *clients.Settings,
 		labelValue, ok := node.Object.Labels[nodeLabel]
 
 		if ok {
-			glog.V(amdparams.AMDGPULogLevel).Infof("Found label '%v' with label value '%v' on node '%v'",
+			klog.V(amdparams.AMDGPULogLevel).Infof("Found label '%v' with label value '%v' on node '%v'",
 				nodeLabel, labelValue, node.Object.Name)
 
 			return true, nil
@@ -151,7 +151,7 @@ func LabelsExistOnNode(parentCtx context.Context, labelNode *nodes.Builder, labe
 			labelNode.Exists()
 
 			for _, label := range labels {
-				glog.V(amdparams.AMDGPULogLevel).Infof("Checking label '%v' on node '%s'\n", label, labelNode.Object.Name)
+				klog.V(amdparams.AMDGPULogLevel).Infof("Checking label '%v' on node '%s'\n", label, labelNode.Object.Name)
 				labelVal, labelFound := labelNode.Object.Labels[label]
 
 				if labelFound {

@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/strings/slices"
 
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -30,12 +30,12 @@ type Builder struct {
 
 // NewBuilder creates a new instance of Builder.
 func NewBuilder(apiClient *clients.Settings, name, nsname, serviceName string) *Builder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new route structure with the following params: name: %s, namespace: %s, serviceName: %s",
 		name, nsname, serviceName)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is nil")
+		klog.V(100).Info("The apiClient is nil")
 
 		return nil
 	}
@@ -57,7 +57,7 @@ func NewBuilder(apiClient *clients.Settings, name, nsname, serviceName string) *
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the route is empty")
+		klog.V(100).Info("The name of the route is empty")
 
 		builder.errorMsg = "route 'name' cannot be empty"
 
@@ -65,7 +65,7 @@ func NewBuilder(apiClient *clients.Settings, name, nsname, serviceName string) *
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the route is empty")
+		klog.V(100).Info("The namespace of the route is empty")
 
 		builder.errorMsg = "route 'nsname' cannot be empty"
 
@@ -73,7 +73,7 @@ func NewBuilder(apiClient *clients.Settings, name, nsname, serviceName string) *
 	}
 
 	if serviceName == "" {
-		glog.V(100).Infof("The serviceName of the route is empty")
+		klog.V(100).Info("The serviceName of the route is empty")
 
 		builder.errorMsg = "route 'serviceName' cannot be empty"
 
@@ -85,10 +85,10 @@ func NewBuilder(apiClient *clients.Settings, name, nsname, serviceName string) *
 
 // Pull loads existing route from cluster.
 func Pull(apiClient *clients.Settings, name, nsname string) (*Builder, error) {
-	glog.V(100).Infof("Pulling existing route name %s under namespace %s from cluster", name, nsname)
+	klog.V(100).Infof("Pulling existing route name %s under namespace %s from cluster", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is nil")
+		klog.V(100).Info("The apiClient is nil")
 
 		return nil, fmt.Errorf("the apiClient cannot be nil")
 	}
@@ -104,13 +104,13 @@ func Pull(apiClient *clients.Settings, name, nsname string) (*Builder, error) {
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the route is empty")
+		klog.V(100).Info("The name of the route is empty")
 
 		return nil, fmt.Errorf("route 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the route is empty")
+		klog.V(100).Info("The namespace of the route is empty")
 
 		return nil, fmt.Errorf("route 'namespace' cannot be empty")
 	}
@@ -130,7 +130,7 @@ func (builder *Builder) WithTargetPortNumber(port int32) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Adding target port %d to route %s in namespace %s",
+	klog.V(100).Infof("Adding target port %d to route %s in namespace %s",
 		port, builder.Definition.Name, builder.Definition.Namespace)
 
 	if builder.Definition.Spec.Port == nil {
@@ -148,11 +148,11 @@ func (builder *Builder) WithTargetPortName(portName string) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Adding target port %s to route %s in namespace %s",
+	klog.V(100).Infof("Adding target port %s to route %s in namespace %s",
 		portName, builder.Definition.Name, builder.Definition.Namespace)
 
 	if portName == "" {
-		glog.V(100).Infof("Received empty route portName")
+		klog.V(100).Info("Received empty route portName")
 
 		builder.errorMsg = "route target port name cannot be empty string"
 	}
@@ -176,11 +176,11 @@ func (builder *Builder) WithHostDomain(hostDomain string) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Adding route host domain %s to route %s in namespace %s",
+	klog.V(100).Infof("Adding route host domain %s to route %s in namespace %s",
 		hostDomain, builder.Definition.Name, builder.Definition.Namespace)
 
 	if hostDomain == "" {
-		glog.V(100).Infof("Received empty route hostDomain")
+		klog.V(100).Info("Received empty route hostDomain")
 
 		builder.errorMsg = "route host domain cannot be empty string"
 
@@ -198,11 +198,11 @@ func (builder *Builder) WithWildCardPolicy(wildcardPolicy string) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Adding wildcardPolicy %s to route %s in namespace %s",
+	klog.V(100).Infof("Adding wildcardPolicy %s to route %s in namespace %s",
 		wildcardPolicy, builder.Definition.Name, builder.Definition.Namespace)
 
 	if !slices.Contains(supportedWildCardPolicies(), wildcardPolicy) {
-		glog.V(100).Infof("Received unsupported route wildcardPolicy, supported policies: %v", supportedWildCardPolicies())
+		klog.V(100).Infof("Received unsupported route wildcardPolicy, supported policies: %v", supportedWildCardPolicies())
 
 		builder.errorMsg = fmt.Sprintf("received unsupported route wildcardPolicy: supported policies %v",
 			supportedWildCardPolicies())
@@ -221,7 +221,7 @@ func (builder *Builder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Checking if route %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -238,7 +238,7 @@ func (builder *Builder) Get() (*routev1.Route, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Getting route %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -261,7 +261,7 @@ func (builder *Builder) Create() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the route %s in namespace %s",
+	klog.V(100).Infof("Creating the route %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -281,11 +281,11 @@ func (builder *Builder) Delete() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting the route %s in namespace %s",
+	klog.V(100).Infof("Deleting the route %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("Route %s does not exist in namespace %s",
+		klog.V(100).Infof("Route %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -309,25 +309,25 @@ func (builder *Builder) validate() (bool, error) {
 	resourceCRD := "Route"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

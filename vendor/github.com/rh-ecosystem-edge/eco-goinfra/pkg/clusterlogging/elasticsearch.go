@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	eskv1 "github.com/openshift/elasticsearch-operator/apis/logging/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -28,18 +28,18 @@ type ElasticsearchBuilder struct {
 // NewElasticsearchBuilder method creates new instance of builder.
 func NewElasticsearchBuilder(
 	apiClient *clients.Settings, name, nsname string) *ElasticsearchBuilder {
-	glog.V(100).Infof("Initializing new elasticsearch structure with the following params: name: %s, namespace: %s",
+	klog.V(100).Infof("Initializing new elasticsearch structure with the following params: name: %s, namespace: %s",
 		name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("elasticsearch 'apiClient' cannot be empty")
+		klog.V(100).Info("elasticsearch 'apiClient' cannot be empty")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(eskv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add eskv1 scheme to client schemes")
+		klog.V(100).Info("Failed to add eskv1 scheme to client schemes")
 
 		return nil
 	}
@@ -55,7 +55,7 @@ func NewElasticsearchBuilder(
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the elasticsearch is empty")
+		klog.V(100).Info("The name of the elasticsearch is empty")
 
 		builder.errorMsg = "elasticsearch 'name' cannot be empty"
 
@@ -63,7 +63,7 @@ func NewElasticsearchBuilder(
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The nsname of the elasticsearch is empty")
+		klog.V(100).Info("The nsname of the elasticsearch is empty")
 
 		builder.errorMsg = "elasticsearch 'nsname' cannot be empty"
 
@@ -75,18 +75,18 @@ func NewElasticsearchBuilder(
 
 // PullElasticsearch retrieves an existing elasticsearch object from the cluster.
 func PullElasticsearch(apiClient *clients.Settings, name, nsname string) (*ElasticsearchBuilder, error) {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Pulling elasticsearch object name:%s in namespace: %s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("elasticsearch 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(eskv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add eskv1 scheme to client schemes")
+		klog.V(100).Info("Failed to add eskv1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -102,13 +102,13 @@ func PullElasticsearch(apiClient *clients.Settings, name, nsname string) (*Elast
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the elasticsearch is empty")
+		klog.V(100).Info("The name of the elasticsearch is empty")
 
 		return nil, fmt.Errorf("elasticsearch 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the elasticsearch is empty")
+		klog.V(100).Info("The namespace of the elasticsearch is empty")
 
 		return nil, fmt.Errorf("elasticsearch 'nsname' cannot be empty")
 	}
@@ -128,7 +128,7 @@ func (builder *ElasticsearchBuilder) Get() (*eskv1.Elasticsearch, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting elasticsearch %s in namespace %s",
+	klog.V(100).Infof("Getting elasticsearch %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	elasticsearchObj := &eskv1.Elasticsearch{}
@@ -150,7 +150,7 @@ func (builder *ElasticsearchBuilder) Create() (*ElasticsearchBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the elasticsearch %s in namespace %s",
+	klog.V(100).Infof("Creating the elasticsearch %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -170,7 +170,7 @@ func (builder *ElasticsearchBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting the elasticsearch %s in namespace %s",
+	klog.V(100).Infof("Deleting the elasticsearch %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
@@ -193,7 +193,7 @@ func (builder *ElasticsearchBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if elasticsearch %s exists in namespace %s",
+	klog.V(100).Infof("Checking if elasticsearch %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -209,13 +209,12 @@ func (builder *ElasticsearchBuilder) Update() (*ElasticsearchBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Info("Updating elasticsearch %s in namespace %s",
+	klog.V(100).Infof("Updating elasticsearch %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
-		glog.V(100).Infof(
-			msg.FailToUpdateError("elasticsearch", builder.Definition.Name, builder.Definition.Namespace))
+		klog.V(100).Infof("%v", msg.FailToUpdateError("elasticsearch", builder.Definition.Name, builder.Definition.Namespace))
 
 		return nil, err
 	}
@@ -234,7 +233,7 @@ func (builder *ElasticsearchBuilder) WithManagementState(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Setting elasticsearch %s in namespace %s with the ManagementState: %v",
 		builder.Definition.Name, builder.Definition.Namespace, expectedManagementState)
 
@@ -249,7 +248,7 @@ func (builder *ElasticsearchBuilder) GetManagementState() (*eskv1.ManagementStat
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting elasticsearch ManagementState configuration")
+	klog.V(100).Info("Getting elasticsearch ManagementState configuration")
 
 	if !builder.Exists() {
 		return nil, fmt.Errorf("elasticsearch object does not exist")
@@ -264,19 +263,19 @@ func (builder *ElasticsearchBuilder) validate() (bool, error) {
 	resourceCRD := "Elasticsearch"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}

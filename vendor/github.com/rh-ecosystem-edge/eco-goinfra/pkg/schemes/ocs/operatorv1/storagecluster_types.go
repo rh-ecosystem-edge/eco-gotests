@@ -138,8 +138,6 @@ type KeyManagementServiceSpec struct {
 // ManagedResourcesSpec defines how to reconcile auxiliary resources
 type ManagedResourcesSpec struct {
 	CephCluster ManageCephCluster `json:"cephCluster,omitempty"`
-	// +kubebuilder:deprecatedversion:warning="ocs operator has stopped managing the rook config override configMap, this field will be removed in future."
-	CephConfig            ManageCephConfig            `json:"cephConfig,omitempty"`
 	CephDashboard         ManageCephDashboard         `json:"cephDashboard,omitempty"`
 	CephBlockPools        ManageCephBlockPools        `json:"cephBlockPools,omitempty"`
 	CephNonResilientPools ManageCephNonResilientPools `json:"cephNonResilientPools,omitempty"`
@@ -475,6 +473,11 @@ type NFSSpec struct {
 	// Enable specifies whether to enable NFS.
 	// +optional
 	Enable bool `json:"enable,omitempty"`
+	// ExternalEndpoint specifies the externally resolvable IP or the DNS name to use
+	// for NFS Ganesha server in NFS StorageClass. If specified, internal client will
+	// also use this same address.
+	// +optional
+	ExternalEndpoint string `json:"externalEndpoint,omitempty"`
 	// StorageClassName specifies the name of the storage class created for NFS
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$

@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreparams"
@@ -187,7 +187,7 @@ func defineWhereaboutsDeploymentContainer(
 	cName, cImage string,
 	cCmd []string,
 	cRequests, cLimits map[string]string) *pod.ContainerBuilder {
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Defining container %q with %q image and command %q",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Defining container %q with %q image and command %q",
 		cName, cImage, cCmd)
 
 	cBuilder := pod.NewContainerBuilder(cName, cImage, cCmd)
@@ -196,7 +196,7 @@ func defineWhereaboutsDeploymentContainer(
 		containerRequests := corev1.ResourceList{}
 
 		for key, val := range cRequests {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Parsing container's request: %q - %q", key, val)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Parsing container's request: %q - %q", key, val)
 
 			containerRequests[corev1.ResourceName(key)] = resource.MustParse(val)
 		}
@@ -208,7 +208,7 @@ func defineWhereaboutsDeploymentContainer(
 		containerLimits := corev1.ResourceList{}
 
 		for key, val := range cLimits {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Parsing container's limit: %q - %q", key, val)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Parsing container's limit: %q - %q", key, val)
 
 			containerLimits[corev1.ResourceName(key)] = resource.MustParse(val)
 		}
@@ -269,10 +269,10 @@ func cleanupDeployment(waName, namespace, waLabel string) {
 	waOne, err := deployment.Pull(APIClient, waName, namespace)
 
 	if err != nil {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to get deployment %q in %q namespace: %s",
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to get deployment %q in %q namespace: %s",
 			waName, namespace, err)
 	} else {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deleting deployment %q in %q namespace",
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deleting deployment %q in %q namespace",
 			waName, namespace)
 
 		delError := waOne.Delete()
@@ -290,7 +290,7 @@ func cleanupDeployment(waName, namespace, waLabel string) {
 			})
 
 			if err != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods from %q deployment in %q namespace: %s",
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods from %q deployment in %q namespace: %s",
 					waName, namespace, err)
 
 				return false
@@ -307,25 +307,25 @@ func withDeploymentRequiredLabelPodAntiAffinity(
 	matchLabels map[string]string,
 	nsNames []string,
 	topologyKey string) error {
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Adding required pod anti-affinity to deployment %q",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Adding required pod anti-affinity to deployment %q",
 		waBuilder.Definition.Name)
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("RequiredPodAntiAffinity 'matchLabels': %q", matchLabels)
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("RequiredPodAntiAffinity 'namespaces': %q", nsNames)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("RequiredPodAntiAffinity 'matchLabels': %q", matchLabels)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("RequiredPodAntiAffinity 'namespaces': %q", nsNames)
 
 	if matchLabels == nil {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'matchLabels' is not set")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'matchLabels' is not set")
 
 		return fmt.Errorf("option 'matchLabels' is not set")
 	}
 
 	if topologyKey == "" {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'topologyKey' is not set")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'topologyKey' is not set")
 
 		return fmt.Errorf("option 'topologyKey' is not set")
 	}
 
 	if len(nsNames) == 0 {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'namespaces' is not set")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'namespaces' is not set")
 
 		return fmt.Errorf("option 'namespaces' is not set")
 	}
@@ -352,25 +352,25 @@ func withDeploymentRequiredLabelPodAffinity(
 	matchLabels map[string]string,
 	nsNames []string,
 	topologyKey string) error {
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Adding required pod affinity to deployment %q",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Adding required pod affinity to deployment %q",
 		waBuilder.Definition.Name)
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("RequiredLabelPodAffinity 'matchLabels': %q", matchLabels)
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("RequiredLabelPodAffinity 'namespaces': %q", nsNames)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("RequiredLabelPodAffinity 'matchLabels': %q", matchLabels)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("RequiredLabelPodAffinity 'namespaces': %q", nsNames)
 
 	if matchLabels == nil {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'matchLabels' is not set")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'matchLabels' is not set")
 
 		return fmt.Errorf("option 'matchLabels' is not set")
 	}
 
 	if topologyKey == "" {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'topologyKey' is not set")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'topologyKey' is not set")
 
 		return fmt.Errorf("option 'topologyKey' is not set")
 	}
 
 	if len(nsNames) == 0 {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'namespaces' is not set")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'namespaces' is not set")
 
 		return fmt.Errorf("option 'namespaces' is not set")
 	}
@@ -398,31 +398,31 @@ func withDeploymentPreferredLabelPodAffinity(
 	nsNames []string,
 	topologyKey string,
 	weight int32) error {
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Adding preferred pod affinity to deployment %q",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Adding preferred pod affinity to deployment %q",
 		waBuilder.Definition.Name)
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("PreferredPodAffinity 'matchLabels': %q", matchLabels)
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("PreferredPodAffinity 'namespaces': %q", nsNames)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("PreferredPodAffinity 'matchLabels': %q", matchLabels)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("PreferredPodAffinity 'namespaces': %q", nsNames)
 
 	if matchLabels == nil {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'matchLabels' is not set")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'matchLabels' is not set")
 
 		return fmt.Errorf("option 'matchLabels' is not set")
 	}
 
 	if topologyKey == "" {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'topologyKey' is not set")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'topologyKey' is not set")
 
 		return fmt.Errorf("option 'topologyKey' is not set")
 	}
 
 	if len(nsNames) == 0 {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'namespaces' is not set")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'namespaces' is not set")
 
 		return fmt.Errorf("option 'namespaces' is not set")
 	}
 
 	if weight < 1 || weight > 100 {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'weight' is invalid: %d. Must be between 1 and 100", weight)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'weight' is invalid: %d. Must be between 1 and 100", weight)
 
 		return fmt.Errorf("option 'weight' is invalid: %d. Must be between 1 and 100", weight)
 	}
@@ -453,31 +453,31 @@ func withDeploymentPreferredLabelPodAntiAffinity(
 	nsNames []string,
 	topologyKey string,
 	weight int32) error {
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Adding preferred pod anti-affinity to deployment %q",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Adding preferred pod anti-affinity to deployment %q",
 		waBuilder.Definition.Name)
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("PreferredPodAntiAffinity 'matchLabels': %q", matchLabels)
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("PreferredPodAntiAffinity 'namespaces': %q", nsNames)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("PreferredPodAntiAffinity 'matchLabels': %q", matchLabels)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("PreferredPodAntiAffinity 'namespaces': %q", nsNames)
 
 	if matchLabels == nil {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'matchLabels' is not set")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'matchLabels' is not set")
 
 		return fmt.Errorf("option 'matchLabels' is not set")
 	}
 
 	if topologyKey == "" {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'topologyKey' is not set")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'topologyKey' is not set")
 
 		return fmt.Errorf("option 'topologyKey' is not set")
 	}
 
 	if len(nsNames) == 0 {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'namespaces' is not set")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'namespaces' is not set")
 
 		return fmt.Errorf("option 'namespaces' is not set")
 	}
 
 	if weight < 1 || weight > 100 {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'weight' is invalid: %d. Must be between 1 and 100", weight)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Option 'weight' is invalid: %d. Must be between 1 and 100", weight)
 
 		return fmt.Errorf("option 'weight' is invalid: %d. Must be between 1 and 100", weight)
 	}
@@ -627,13 +627,13 @@ func VerifyWhereaboutsInterDeploymentPodCommunication(
 	By("Checking pods IP addresses")
 
 	podWhereaboutsIPs := getPodWhereaboutsIPs(activePods, interfaceName)
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("PodWhereaboutsIPs: %+v", podWhereaboutsIPs)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("PodWhereaboutsIPs: %+v", podWhereaboutsIPs)
 
 	podOneName := activePods[0].Object.Name
 	podTwoName := activePods[len(activePods)-1].Object.Name
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod one %q", podOneName)
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod two %q", podTwoName)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod one %q", podOneName)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod two %q", podTwoName)
 
 	podsMapping := make(map[string]string)
 
@@ -673,7 +673,7 @@ func terminateAndWaitPodFromDeployment(config WhereaboutsDeploymentConfig) {
 	randomPodIndex := rand.Intn(len(activePods))
 	terminatedPod := activePods[randomPodIndex]
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Picked up pod %q for termination", terminatedPod.Object.Name)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Picked up pod %q for termination", terminatedPod.Object.Name)
 
 	By(fmt.Sprintf("Terminating pod %q", terminatedPod.Object.Name))
 
@@ -691,7 +691,7 @@ func waitForDeploymentReplicas(ctx SpecContext, config WhereaboutsDeploymentConf
 		mDeploy, err := deployment.Pull(APIClient, config.Name, RDSCoreConfig.WhereaboutNS)
 
 		if err != nil {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to pull deployment %q: %v", config.Name, err)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to pull deployment %q: %v", config.Name, err)
 
 			return false
 		}
@@ -720,14 +720,14 @@ func getRandomPodNode(podsLabel, namespace string, expectedReplicas int32) (stri
 		"Number of active pods is not equal to number of expected replicas")
 
 	for _, pod := range activePods {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is running on node %q", pod.Object.Name, pod.Object.Spec.NodeName)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is running on node %q", pod.Object.Name, pod.Object.Spec.NodeName)
 	}
 
 	By("Generating random pod index")
 
 	randomPodIndex := rand.Intn(len(activePods))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Random pod index: %d pod name: %q",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Random pod index: %d pod name: %q",
 		randomPodIndex, activePods[randomPodIndex].Object.Name)
 
 	selectedPod := activePods[randomPodIndex]
@@ -735,12 +735,12 @@ func getRandomPodNode(podsLabel, namespace string, expectedReplicas int32) (stri
 	selectedNode := selectedPod.Object.Spec.NodeName
 
 	if selectedNode == "" {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Selected node is empty")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Selected node is empty")
 
 		return "", fmt.Errorf("selected node is empty")
 	}
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Selected node: %q", selectedNode)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Selected node: %q", selectedNode)
 
 	return selectedNode, nil
 }
@@ -762,7 +762,7 @@ func checkEnoughReadyNodes(ctx SpecContext, nodeToDrain, nodeSelector string, ex
 		nodesList, err := nodes.List(APIClient, metav1.ListOptions{LabelSelector: nodeSelector})
 
 		if err != nil {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list nodes due to: %v", err)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list nodes due to: %v", err)
 
 			return false
 		}
@@ -771,14 +771,14 @@ func checkEnoughReadyNodes(ctx SpecContext, nodeToDrain, nodeSelector string, ex
 
 		for _, node := range nodesList {
 			if node.Object.Name == nodeToDrain {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping node %q as it is the node to drain",
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping node %q as it is the node to drain",
 					node.Object.Name)
 
 				continue
 			}
 
 			if node.Object.Spec.Unschedulable {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping node %q as it is unschedulable",
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping node %q as it is unschedulable",
 					node.Object.Name)
 
 				continue
@@ -787,7 +787,7 @@ func checkEnoughReadyNodes(ctx SpecContext, nodeToDrain, nodeSelector string, ex
 			for _, condition := range node.Object.Status.Conditions {
 				if condition.Type == corev1.NodeReady {
 					if condition.Status == corev1.ConditionTrue {
-						glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q is Ready and schedulable", node.Object.Name)
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q is Ready and schedulable", node.Object.Name)
 
 						readyNodes++
 
@@ -818,7 +818,7 @@ func VerifyConnectivityAfterNodeDrain(
 
 	randomIndex := rand.Intn(len(whereaboutsDeployments))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Picked up deployment %q for node drain",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Picked up deployment %q for node drain",
 		whereaboutsDeployments[randomIndex].Name)
 
 	nodeToDrain, err := getRandomPodNode(whereaboutsDeployments[randomIndex].Label,
@@ -838,7 +838,7 @@ func VerifyConnectivityAfterNodeDrain(
 
 	By(fmt.Sprintf("Cordoning node %q", nodeToDrain))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cordoning node %q", nodeToDrain)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cordoning node %q", nodeToDrain)
 
 	err = nodeObj.Cordon()
 
@@ -849,7 +849,7 @@ func VerifyConnectivityAfterNodeDrain(
 
 	By(fmt.Sprintf("Draining node %q", nodeToDrain))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Draining node %q", nodeToDrain)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Draining node %q", nodeToDrain)
 
 	err = nodeObj.Drain()
 
@@ -910,23 +910,23 @@ func waitForPodsToBeMarkedForDeletionOrDeleted(
 
 		for _, oldPod := range existingPods {
 			if oldPod.Exists() {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is still present in %q namespace",
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is still present in %q namespace",
 					oldPod.Definition.Name, oldPod.Definition.Namespace)
 
 				if oldPod.Object.DeletionTimestamp != nil {
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q has DeletionTimestamp set", oldPod.Definition.Name)
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q has DeletionTimestamp set", oldPod.Definition.Name)
 
 					disruptedPods = append(disruptedPods, oldPod)
 
 					continue
 				}
 
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Checking if pod %q is marked for termination", oldPod.Definition.Name)
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Checking if pod %q is marked for termination", oldPod.Definition.Name)
 
 				for _, condition := range oldPod.Object.Status.Conditions {
 					if condition.Type == corev1.DisruptionTarget {
 						if condition.Status == rdscoreparams.ConstantTrueString {
-							glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is about to be terminated due to %q",
+							klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is about to be terminated due to %q",
 								oldPod.Object.Name, condition.Message)
 
 							disruptedPods = append(disruptedPods, oldPod)
@@ -936,7 +936,7 @@ func waitForPodsToBeMarkedForDeletionOrDeleted(
 					}
 				}
 			} else {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is not present", oldPod.Definition.Name)
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is not present", oldPod.Definition.Name)
 
 				disruptedPods = append(disruptedPods, oldPod)
 			}
@@ -955,7 +955,7 @@ func waitForNodeToBeNotReady(ctx SpecContext, nodeToPowerOff string, pollingInte
 		currentNode, err := nodes.Pull(APIClient, nodeToPowerOff)
 
 		if err != nil {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to pull node: %v", err)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to pull node: %v", err)
 
 			return false
 		}
@@ -963,15 +963,15 @@ func waitForNodeToBeNotReady(ctx SpecContext, nodeToPowerOff string, pollingInte
 		for _, condition := range currentNode.Object.Status.Conditions {
 			if condition.Type == rdscoreparams.ConditionTypeReadyString {
 				if condition.Status != rdscoreparams.ConstantTrueString {
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q is notReady", currentNode.Definition.Name)
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Reason: %s", condition.Reason)
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q is notReady", currentNode.Definition.Name)
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Reason: %s", condition.Reason)
 
 					return true
 				}
 			}
 		}
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q is Ready", currentNode.Definition.Name)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q is Ready", currentNode.Definition.Name)
 
 		return false
 	}).WithContext(ctx).WithPolling(pollingInterval).WithTimeout(timeout).Should(BeTrue(),
@@ -999,13 +999,13 @@ func VerifyConnectivityAfterNodePowerOff(
 
 	randomIndex := rand.Intn(len(whereaboutsDeployments))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Picked up deployment %q for node power off",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Picked up deployment %q for node power off",
 		whereaboutsDeployments[randomIndex].Name)
 
 	nodeToPowerOff, err := getRandomPodNode(whereaboutsDeployments[randomIndex].Label,
 		RDSCoreConfig.WhereaboutNS, whereaboutsDeployments[randomIndex].Replicas)
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node to power off: %q", nodeToPowerOff)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node to power off: %q", nodeToPowerOff)
 
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to get random pod node due to: %v", err))
@@ -1041,11 +1041,11 @@ func VerifyConnectivityAfterNodePowerOff(
 		bmcClient *bmc.BMC
 	)
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-		fmt.Sprintf("Creating BMC client for node %s", nodeToPowerOff))
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"Creating BMC client for node %s", nodeToPowerOff)
 
 	if auth, ok := RDSCoreConfig.NodesCredentialsMap[nodeToPowerOff]; !ok {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("BMC Details for %q not found", nodeToPowerOff)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("BMC Details for %q not found", nodeToPowerOff)
 
 		Fail(fmt.Sprintf("BMC Details for %q not found", nodeToPowerOff))
 	} else {
@@ -1264,7 +1264,7 @@ func VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNodeAfterPodTermin
 
 	randomIndex := rand.Intn(len(whereaboutsDeployments))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Picked up deployment %q for pod termination",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Picked up deployment %q for pod termination",
 		whereaboutsDeployments[randomIndex].Name)
 
 	terminateAndWaitPodFromDeployment(whereaboutsDeployments[randomIndex])
@@ -1301,7 +1301,7 @@ func VerifyWhereaboutsInterDeploymentPodCommunicationOnDifferentNodesAfterPodTer
 
 	randomIndex := rand.Intn(len(whereaboutsDeployments))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Picked up deployment %q for pod termination",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Picked up deployment %q for pod termination",
 		whereaboutsDeployments[randomIndex].Name)
 
 	terminateAndWaitPodFromDeployment(whereaboutsDeployments[randomIndex])

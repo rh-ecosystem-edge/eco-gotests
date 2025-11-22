@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ptp"
 	ptpv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v1"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/klog/v2"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -40,7 +40,7 @@ func GetNodeInfoMap(client *clients.Settings) (map[string]*NodeInfo, error) {
 	for _, nodeBuilder := range nodeList {
 		recommendsForNode := getRecommendsForNode(nodeBuilder.Definition, allRecommends)
 		if len(recommendsForNode) == 0 {
-			glog.V(tsparams.LogLevel).Infof("No PTP recommends found for node %s", nodeBuilder.Definition.Name)
+			klog.V(tsparams.LogLevel).Infof("No PTP recommends found for node %s", nodeBuilder.Definition.Name)
 
 			continue
 		}
@@ -52,7 +52,7 @@ func GetNodeInfoMap(client *clients.Settings) (map[string]*NodeInfo, error) {
 		for reference := range recommendsForNode {
 			profileInfo, err := getMemoizedAndClonedProfileInfo(reference, ptpConfigList, ptpProfileInfos)
 			if err != nil {
-				glog.V(tsparams.LogLevel).Infof("Failed to get profile info for reference %v: %v", reference, err)
+				klog.V(tsparams.LogLevel).Infof("Failed to get profile info for reference %v: %v", reference, err)
 
 				continue
 			}

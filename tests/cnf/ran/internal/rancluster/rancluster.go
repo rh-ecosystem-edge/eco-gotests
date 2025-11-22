@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/bmc"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
@@ -16,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 // AreClustersPresent checks all of the provided clusters and returns false if any are nil.
@@ -79,7 +79,7 @@ func IsSnoPlusOne(client *clients.Settings) (bool, error) {
 		return false, nil
 	}
 
-	glog.V(tsparams.LogLevel).Info("Exactly one control plane node found")
+	klog.V(tsparams.LogLevel).Info("Exactly one control plane node found")
 
 	workers, err := ListNodesByLabel(client, RANConfig.WorkerLabelMap)
 	if err != nil {
@@ -98,7 +98,7 @@ func IsSnoPlusOne(client *clients.Settings) (bool, error) {
 		return false, nil
 	}
 
-	glog.V(tsparams.LogLevel).Info("Exactly one worker node found")
+	klog.V(tsparams.LogLevel).Info("Exactly one worker node found")
 
 	return true, nil
 }
@@ -143,7 +143,7 @@ func WaitForNumberOfNodes(client *clients.Settings, expected int, timeout time.D
 				return true, nil
 			}
 
-			glog.V(tsparams.LogLevel).Infof("Expected %d nodes but found %d nodes", expected, len(nodeList))
+			klog.V(tsparams.LogLevel).Infof("Expected %d nodes but found %d nodes", expected, len(nodeList))
 
 			return false, nil
 		})
@@ -195,7 +195,7 @@ func GetManagedClusterID(client *clients.Settings, clusterName string) (string, 
 func PowerOffAndWait(bmcClient *bmc.BMC) error {
 	err := bmcClient.SystemPowerOff()
 	if err != nil {
-		glog.V(ranparam.LogLevel).Infof("Failed to trigger system power off: %v", err)
+		klog.V(ranparam.LogLevel).Infof("Failed to trigger system power off: %v", err)
 
 		return err
 	}
@@ -204,13 +204,13 @@ func PowerOffAndWait(bmcClient *bmc.BMC) error {
 		context.TODO(), 30*time.Second, 3*time.Minute, true, func(ctx context.Context) (bool, error) {
 			powerState, err := bmcClient.SystemPowerState()
 			if err != nil {
-				glog.V(ranparam.LogLevel).Infof("Failed to get system power state: %v", err)
+				klog.V(ranparam.LogLevel).Infof("Failed to get system power state: %v", err)
 
 				return false, err
 			}
 
 			if powerState != "Off" {
-				glog.V(ranparam.LogLevel).Infof("System power state is not Off: %s", powerState)
+				klog.V(ranparam.LogLevel).Infof("System power state is not Off: %s", powerState)
 
 				return false, nil
 			}
@@ -230,7 +230,7 @@ func PowerOffWithRetries(bmcClient *bmc.BMC, retries uint) error {
 			return nil
 		}
 
-		glog.V(ranparam.LogLevel).Infof("Powering off failed with %d retries left: %v", retries-retry-1, err)
+		klog.V(ranparam.LogLevel).Infof("Powering off failed with %d retries left: %v", retries-retry-1, err)
 	}
 
 	return err
@@ -240,7 +240,7 @@ func PowerOffWithRetries(bmcClient *bmc.BMC, retries uint) error {
 func PowerOnAndWait(bmcClient *bmc.BMC) error {
 	err := bmcClient.SystemPowerOn()
 	if err != nil {
-		glog.V(ranparam.LogLevel).Infof("Failed to trigger system power off: %v", err)
+		klog.V(ranparam.LogLevel).Infof("Failed to trigger system power off: %v", err)
 
 		return err
 	}
@@ -249,13 +249,13 @@ func PowerOnAndWait(bmcClient *bmc.BMC) error {
 		context.TODO(), 30*time.Second, 3*time.Minute, true, func(ctx context.Context) (bool, error) {
 			powerState, err := bmcClient.SystemPowerState()
 			if err != nil {
-				glog.V(ranparam.LogLevel).Infof("Failed to get system power state: %v", err)
+				klog.V(ranparam.LogLevel).Infof("Failed to get system power state: %v", err)
 
 				return false, err
 			}
 
 			if powerState != "On" {
-				glog.V(ranparam.LogLevel).Infof("System power state is not On: %s", powerState)
+				klog.V(ranparam.LogLevel).Infof("System power state is not On: %s", powerState)
 
 				return false, nil
 			}
@@ -275,7 +275,7 @@ func PowerOnWithRetries(bmcClient *bmc.BMC, retries uint) error {
 			return nil
 		}
 
-		glog.V(ranparam.LogLevel).Infof("Powering on failed with %d retries left: %v", retries-retry-1, err)
+		klog.V(ranparam.LogLevel).Infof("Powering on failed with %d retries left: %v", retries-retry-1, err)
 	}
 
 	return err

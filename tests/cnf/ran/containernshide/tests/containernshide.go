@@ -5,8 +5,8 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/klog/v2"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/containernshide/internal/tsparams"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
@@ -45,9 +45,9 @@ var _ = Describe("Container Namespace Hiding", Label(tsparams.LabelContainerNSHi
 			crioInode, ok := crioInodes[host]
 			Expect(ok).To(BeTrue(), "Found systemd inode but not crio inode on node %s", host)
 
-			glog.V(tsparams.LogLevel).Infof("systemd inode: %s", systemdInode)
-			glog.V(tsparams.LogLevel).Infof("kubelet inode: %s", kubeletInode)
-			glog.V(tsparams.LogLevel).Infof("crio inode: %s", crioInode)
+			klog.V(tsparams.LogLevel).Infof("systemd inode: %s", systemdInode)
+			klog.V(tsparams.LogLevel).Infof("kubelet inode: %s", kubeletInode)
+			klog.V(tsparams.LogLevel).Infof("crio inode: %s", crioInode)
 			Expect(kubeletInode).To(Equal(crioInode), "kubelet and crio inodes do not match on node %s", host)
 			Expect(systemdInode).NotTo(Equal(kubeletInode),
 				"systemd and kubelet inodes match - namespace is not hidden on node %s", host)

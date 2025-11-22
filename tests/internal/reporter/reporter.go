@@ -8,11 +8,11 @@ import (
 	"path"
 	"strings"
 
-	"github.com/golang/glog"
 	"github.com/onsi/ginkgo/v2/types"
 	"github.com/openshift-kni/k8sreporter"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/config"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
 )
 
 var (
@@ -87,7 +87,7 @@ func ReportIfFailedOnCluster(
 
 	// If no config is available, skip dumping
 	if generalCfg == nil {
-		glog.V(100).Infof("No reporter configuration available, skipping dump for test: %s", testSuite)
+		klog.V(100).Infof("No reporter configuration available, skipping dump for test: %s", testSuite)
 
 		return
 	}
@@ -98,7 +98,7 @@ func ReportIfFailedOnCluster(
 		reporter, err := newReporter(dumpDir, kubeconfig, nSpaces, setReporterSchemes, cRDs)
 
 		if err != nil {
-			glog.Fatalf("Failed to create log reporter due to %s", err)
+			klog.Fatalf("Failed to create log reporter due to %s", err)
 		}
 
 		tcReportFolderName := strings.ReplaceAll(report.FullText(), " ", "_")
@@ -110,13 +110,13 @@ func ReportIfFailedOnCluster(
 			pathToPodExecLogs, path.Join(generalCfg.ReportsDirAbsPath, tcReportFolderName, podExecLogsFName))
 
 		if err != nil {
-			glog.Fatalf("Failed to move pod exec logs %s to report folder: %s", pathToPodExecLogs, err)
+			klog.Fatalf("Failed to move pod exec logs %s to report folder: %s", pathToPodExecLogs, err)
 		}
 	}
 
 	err := removeFile(pathToPodExecLogs)
 	if err != nil {
-		glog.Fatalf(err.Error())
+		klog.Fatal(err.Error())
 	}
 }
 

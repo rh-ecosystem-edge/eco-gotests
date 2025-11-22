@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	operatorv1 "github.com/openshift/api/operator/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -25,7 +25,7 @@ type Builder struct {
 
 // Pull loads an existing ingresscontroller into Builder struct.
 func Pull(apiClient *clients.Settings, name, nsname string) (*Builder, error) {
-	glog.V(100).Infof("Pulling existing ingresscontroller %s in namespace %s", name, nsname)
+	klog.V(100).Infof("Pulling existing ingresscontroller %s in namespace %s", name, nsname)
 
 	builder := &Builder{
 		apiClient: apiClient,
@@ -38,13 +38,13 @@ func Pull(apiClient *clients.Settings, name, nsname string) (*Builder, error) {
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The ingresscontroller name is empty")
+		klog.V(100).Info("The ingresscontroller name is empty")
 
 		return nil, fmt.Errorf("ingresscontroller name cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The ingresscontroller namespace is empty")
+		klog.V(100).Info("The ingresscontroller namespace is empty")
 
 		return nil, fmt.Errorf("ingresscontroller namespace cannot be empty")
 	}
@@ -64,7 +64,7 @@ func (builder *Builder) Get() (*operatorv1.IngressController, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Fetching existing ingresscontroller with name %s under namespace %s from cluster",
+	klog.V(100).Infof("Fetching existing ingresscontroller with name %s under namespace %s from cluster",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	lvs := &operatorv1.IngressController{}
@@ -86,7 +86,7 @@ func (builder *Builder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if ingresscontroller %s exists in namespace %s",
+	klog.V(100).Infof("Checking if ingresscontroller %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -102,7 +102,7 @@ func (builder *Builder) Update() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating the ingresscontroller %s in namespace %s",
+	klog.V(100).Infof("Updating the ingresscontroller %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
@@ -127,7 +127,7 @@ func (builder *Builder) Create() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the ingresscontroller %s in namespace %s",
+	klog.V(100).Infof("Creating the ingresscontroller %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -147,7 +147,7 @@ func (builder *Builder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting the ingresscontroller %s from namespace %s",
+	klog.V(100).Infof("Deleting the ingresscontroller %s from namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
@@ -172,19 +172,19 @@ func (builder *Builder) validate() (bool, error) {
 	resourceCRD := "IngressController"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiClient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiClient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}

@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
@@ -26,6 +25,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/shell"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -47,7 +47,7 @@ func VerifyAllPodsRunningInNamespace(apiClient *clients.Settings, nsName string)
 	Expect(running).To(BeTrue(),
 		fmt.Sprintf("Some %s pods are not in Running state", nsName))
 
-	glog.V(ocloudparams.OCloudLogLevel).Infof("all pods running in %s namespace", nsName)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("all pods running in %s namespace", nsName)
 }
 
 // VerifyNamespaceExists verifies that a specific namespace exists.
@@ -57,7 +57,7 @@ func VerifyNamespaceExists(nsName string) *namespace.Builder {
 	namespace, err := namespace.Pull(HubAPIClient, nsName)
 	Expect(err).ToNot(HaveOccurred(), "Failed to pull namespace %q; %v", nsName, err)
 
-	glog.V(ocloudparams.OCloudLogLevel).Infof("namespace %s exists", nsName)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("namespace %s exists", nsName)
 
 	return namespace
 }
@@ -76,7 +76,7 @@ func VerifyNamespaceDoesNotExist(namespace *namespace.Builder, waitGroup *sync.W
 	}).WithTimeout(30*time.Minute).WithPolling(time.Second).WithContext(ctx).Should(BeTrue(),
 		fmt.Sprintf("Namespace %s still exists", nsName))
 
-	glog.V(ocloudparams.OCloudLogLevel).Infof("namespace %s does not exist", nsName)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("namespace %s does not exist", nsName)
 }
 
 // VerifyProvisionSnoCluster verifies the successful creation or provisioning request and
@@ -108,7 +108,7 @@ func VerifyProvisionSnoCluster(
 	_, err = provisioningReq.WaitForCondition(condition, time.Minute*5)
 	Expect(err).ToNot(HaveOccurred(), "PR %s is not getting processing", prName)
 
-	glog.V(ocloudparams.OCloudLogLevel).Infof("provisioning request %s has been created", prName)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("provisioning request %s has been created", prName)
 
 	return provisioningReq
 }
@@ -124,7 +124,7 @@ func VerifyProvisioningRequestIsFulfilled(provisioningReq *oran.ProvisioningRequ
 	_, err := provisioningReq.WaitUntilFulfilled(time.Minute * 10)
 	Expect(err).ToNot(HaveOccurred(), "PR %s is not fulfilled", provisioningReq.Object.Name)
 
-	glog.V(ocloudparams.OCloudLogLevel).Infof("provisioningrequest %s is fulfilled", provisioningReq.Object.Name)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("provisioningrequest %s is fulfilled", provisioningReq.Object.Name)
 }
 
 // VerifyProvisioningRequestTimeout verifies that a provisioning request has timed out.
@@ -143,7 +143,7 @@ func VerifyProvisioningRequestTimeout(provisioningReq *oran.ProvisioningRequestB
 	_, err := provisioningReq.WaitForCondition(condition, time.Minute*100)
 	Expect(err).ToNot(HaveOccurred(), "PR %s failed to report timeout", provisioningReq.Object.Name)
 
-	glog.V(ocloudparams.OCloudLogLevel).
+	klog.V(ocloudparams.OCloudLogLevel).
 		Infof("provisioningrequest %s has failed (timeout)", provisioningReq.Object.Name)
 }
 
@@ -159,7 +159,7 @@ func VerifyProvisioningRequestIsDeleted(
 	err := provisioningReq.DeleteAndWait(30 * time.Minute)
 	Expect(err).ToNot(HaveOccurred(), "Failed to delete PR %s: %v", prName, err)
 
-	glog.V(ocloudparams.OCloudLogLevel).Infof("provisioningrequest %s deleted", prName)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("provisioningrequest %s deleted", prName)
 }
 
 // VerifyClusterInstanceCompleted verifies that a cluster instance exists, that it is provisioned and
@@ -196,7 +196,7 @@ func VerifyClusterInstanceCompleted(
 	clusterInstance, err = clusterInstance.WaitForCondition(condition, 80*time.Minute)
 	Expect(err).ToNot(HaveOccurred(), "Clusterinstance is not provisioned %s: %v", name, err)
 
-	glog.V(ocloudparams.OCloudLogLevel).Infof("clusterinstance %s is completed", name)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("clusterinstance %s is completed", name)
 
 	return clusterInstance
 }
@@ -214,7 +214,7 @@ func VerifyClusterInstanceDoesNotExist(
 	}).WithTimeout(30*time.Minute).WithPolling(time.Second).WithContext(ctx).Should(BeTrue(),
 		fmt.Sprintf("ClusterInstance %s still exists", ciName))
 
-	glog.V(ocloudparams.OCloudLogLevel).Infof("clusterinstance %s does not exist", ciName)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("clusterinstance %s does not exist", ciName)
 }
 
 // VerifyAllPoliciesInNamespaceAreCompliant verifies that all the policies in a given namespace
@@ -248,7 +248,7 @@ func VerifyAllPoliciesInNamespaceAreCompliant(
 	}).WithTimeout(100*time.Minute).WithPolling(30*time.Second).WithContext(ctx).Should(BeTrue(),
 		fmt.Sprintf("Failed to verify that all the policies in namespace %s are Compliant", nsName))
 
-	glog.V(ocloudparams.OCloudLogLevel).Infof("all the policies in namespace %s are compliant", nsName)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("all the policies in namespace %s are compliant", nsName)
 }
 
 // VerifyPoliciesAreNotCompliant verifies that not all the policies in a given namespace
@@ -285,7 +285,7 @@ func VerifyPoliciesAreNotCompliant(
 	}).WithTimeout(30*time.Minute).WithPolling(3*time.Second).WithContext(ctx).Should(BeTrue(),
 		fmt.Sprintf("Failed to verify that not all the policies in namespace %s are Compliant", nsName))
 
-	glog.V(ocloudparams.OCloudLogLevel).Infof("all the policies in namespace %s are not compliant", nsName)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("all the policies in namespace %s are not compliant", nsName)
 }
 
 // VerifyAllocatedNodesExist verifies that AllocatedNodes associated with a NodeAllocationRequest exist.
@@ -308,7 +308,7 @@ func VerifyAllocatedNodesExist(nodeAllocationRequest *oran.NARBuilder) []*oran.A
 
 		allocatedNodes = append(allocatedNodes, allocatedNode)
 
-		glog.V(ocloudparams.OCloudLogLevel).Infof("allocated node %s exists", allocatedNodeName)
+		klog.V(ocloudparams.OCloudLogLevel).Infof("allocated node %s exists", allocatedNodeName)
 	}
 
 	return allocatedNodes
@@ -334,7 +334,7 @@ func VerifyAllocatedNodesDoNotExist(
 		}).WithTimeout(30*time.Minute).WithPolling(time.Second).WithContext(ctx).Should(BeTrue(),
 			fmt.Sprintf("Allocated node %s still exists", nodeName))
 
-		glog.V(ocloudparams.OCloudLogLevel).Infof("allocated node %s does not exists", nodeName)
+		klog.V(ocloudparams.OCloudLogLevel).Infof("allocated node %s does not exists", nodeName)
 	}
 }
 
@@ -347,7 +347,7 @@ func VerifyNodeAllocationRequestExists(name string) *oran.NARBuilder {
 	Expect(err).ToNot(HaveOccurred(),
 		"Failed to pull node allocation request %s: %v", name, err)
 
-	glog.V(ocloudparams.OCloudLogLevel).Infof("node allocation request %s exists", name)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("node allocation request %s exists", name)
 
 	return nodeAllocationRequest
 }
@@ -371,7 +371,7 @@ func VerifyNodeAllocationRequestDoesNotExist(
 	}).WithTimeout(30*time.Minute).WithPolling(time.Second).WithContext(ctx).Should(BeTrue(),
 		fmt.Sprintf("NodeAllocationRequest %s still exists", name))
 
-	glog.V(ocloudparams.OCloudLogLevel).Infof("node allocation request %s does not exist", name)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("node allocation request %s does not exist", name)
 }
 
 // CreateSnoAPIClient creates a new client for the given node.
@@ -441,7 +441,7 @@ func DeprovisionAiSnoCluster(
 
 	tearDownWg.Wait()
 
-	glog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s has been removed", prName)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s has been removed", prName)
 
 	// Verify the BMHs are available after the SNO cluster is deprovisioned.
 	for _, bmh := range bmhs {

@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/golang/glog"
 	"github.com/onsi/ginkgo/v2/types"
+	"k8s.io/klog/v2"
 )
 
 // SuiteTree represents a tree of test suites. Suites are indentified by their path in in file system.
@@ -33,7 +33,7 @@ type SuiteTree struct {
 
 // NewFromReports creates a new SuiteTree from a list of reports. The root of the tree will be `/`.
 func NewFromReports(reports []types.Report) *SuiteTree {
-	glog.V(100).Infof("Creating SuiteTree from %d reports", len(reports))
+	klog.V(100).Infof("Creating SuiteTree from %d reports", len(reports))
 
 	root := &SuiteTree{
 		Path: "/",
@@ -50,7 +50,7 @@ func NewFromReports(reports []types.Report) *SuiteTree {
 
 // NewFromFile creates a new SuiteTree from a Ginkgo report file. The root of the tree will be `/`.
 func NewFromFile(path string) (*SuiteTree, error) {
-	glog.V(100).Infof("Creating SuiteTree from Ginkgo JSON report at path %s", path)
+	klog.V(100).Infof("Creating SuiteTree from Ginkgo JSON report at path %s", path)
 
 	file, err := os.Open(path)
 	if err != nil {
@@ -80,10 +80,10 @@ func NewFromFile(path string) (*SuiteTree, error) {
 // This assumes that all insertions are leaf nodes, so if a tree contains an internal node with the same path as the
 // inserted suite, the existing children will be lost.
 func (tree *SuiteTree) Insert(suitePath, description string, specs int) *SuiteTree {
-	glog.V(100).Infof("Inserting suite %s with %d specs", suitePath, specs)
+	klog.V(100).Infof("Inserting suite %s with %d specs", suitePath, specs)
 
 	if !strings.HasPrefix(suitePath, tree.Path) {
-		glog.V(100).Infof("Skipping suite %s because it does not start with the tree's path %s", suitePath, tree.Path)
+		klog.V(100).Infof("Skipping suite %s because it does not start with the tree's path %s", suitePath, tree.Path)
 
 		return nil
 	}
@@ -96,7 +96,7 @@ func (tree *SuiteTree) Insert(suitePath, description string, specs int) *SuiteTr
 
 		child := currNode.findChild(elem)
 		if child == nil {
-			glog.V(100).Infof("Creating child %s in tree with path %s", elem, currNode.Path)
+			klog.V(100).Infof("Creating child %s in tree with path %s", elem, currNode.Path)
 
 			child = &SuiteTree{
 				Path: path.Join(currNode.Path, elem),
@@ -117,7 +117,7 @@ func (tree *SuiteTree) Insert(suitePath, description string, specs int) *SuiteTr
 
 // InsertSpecs will add the spec reports to the receiver's children. This assumes that the receiver is a leaf node.
 func (tree *SuiteTree) InsertSpecs(specs types.SpecReports) {
-	glog.V(100).Infof("Inserting specs into suite %s", tree.Path)
+	klog.V(100).Infof("Inserting specs into suite %s", tree.Path)
 
 	specs = specs.WithLeafNodeType(types.NodeTypeIt)
 	for _, spec := range specs {
@@ -136,7 +136,7 @@ func (tree *SuiteTree) InsertSpecs(specs types.SpecReports) {
 // Sort sorts the children of the tree first by the number of specs and then by name. If descending is true, the
 // children are sorted in descending order by number of specs, but the name is still sorted alphabetically.
 func (tree *SuiteTree) Sort(descending bool) {
-	glog.V(100).Infof("Sorting tree with path %s", tree.Path)
+	klog.V(100).Infof("Sorting tree with path %s", tree.Path)
 
 	if len(tree.Children) == 0 {
 		return
@@ -163,13 +163,13 @@ func (tree *SuiteTree) Sort(descending bool) {
 // TrimRoot recurively removes the root node until it encounters a node with more than one child. Note that this will
 // likely prevent the tree from being inserted into anymore.
 func (tree *SuiteTree) TrimRoot() *SuiteTree {
-	glog.V(100).Infof("Trimming root of tree with path %s", tree.Path)
+	klog.V(100).Infof("Trimming root of tree with path %s", tree.Path)
 
 	for len(tree.Children) == 1 {
 		tree = tree.Children[0]
 	}
 
-	glog.V(100).Infof("Trimmed root of tree to path %s", tree.Path)
+	klog.V(100).Infof("Trimmed root of tree to path %s", tree.Path)
 
 	return tree
 }
@@ -203,7 +203,7 @@ func (tree *SuiteTree) stringLevel(builder *strings.Builder, level uint) {
 // findChild returns the child with the given name or nil if no child with that name exists. It only searches direct
 // children of the tree.
 func (tree *SuiteTree) findChild(name string) *SuiteTree {
-	glog.V(100).Infof("Searching for child %s in tree with path %s", name, tree.Path)
+	klog.V(100).Infof("Searching for child %s in tree with path %s", name, tree.Path)
 
 	for _, child := range tree.Children {
 		if child.Name == name {
@@ -211,7 +211,7 @@ func (tree *SuiteTree) findChild(name string) *SuiteTree {
 		}
 	}
 
-	glog.V(100).Infof("No child with name %s found in tree with path %s", name, tree.Path)
+	klog.V(100).Infof("No child with name %s found in tree with path %s", name, tree.Path)
 
 	return nil
 }

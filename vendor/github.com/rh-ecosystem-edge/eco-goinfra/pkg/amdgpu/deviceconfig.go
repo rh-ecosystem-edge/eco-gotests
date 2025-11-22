@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	amdgpuv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/amd/gpu-operator/api/v1alpha1"
+	"k8s.io/klog/v2"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,18 +31,18 @@ type Builder struct {
 
 // NewBuilderFromObjectString creates a Builder object from CSV alm-examples.
 func NewBuilderFromObjectString(apiClient *clients.Settings, almExample string) *Builder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new Builder structure from almExample string")
 
 	if apiClient == nil {
-		glog.V(100).Info("The apiClient of the DeviceConfig is nil")
+		klog.V(100).Info("The apiClient of the DeviceConfig is nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(amdgpuv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Info("Failed to add amdgpu v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add amdgpu v1 scheme to client schemes")
 
 		return nil
 	}
@@ -53,7 +53,7 @@ func NewBuilderFromObjectString(apiClient *clients.Settings, almExample string) 
 
 	deviceConfig, err := getDeviceConfigFromAlmExample(almExample)
 	if err != nil {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"Error initializing DeviceConfig from alm-examples: %s", err.Error())
 
 		builder.errorMsg = fmt.Sprintf("error initializing DeviceConfig from alm-examples: %s",
@@ -64,11 +64,11 @@ func NewBuilderFromObjectString(apiClient *clients.Settings, almExample string) 
 
 	builder.Definition = deviceConfig
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing Builder definition to DeviceConfig object")
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The DeviceConfig object definition is nil")
+		klog.V(100).Info("The DeviceConfig object definition is nil")
 
 		builder.errorMsg = "deviceConfig definition is nil"
 
@@ -80,17 +80,17 @@ func NewBuilderFromObjectString(apiClient *clients.Settings, almExample string) 
 
 // Pull loads an existing DeviceConfig into Builder struct.
 func Pull(apiClient *clients.Settings, name, namespace string) (*Builder, error) {
-	glog.V(100).Infof("Pulling existing deviceConfig name: %s in namespace: %s", name, namespace)
+	klog.V(100).Infof("Pulling existing deviceConfig name: %s in namespace: %s", name, namespace)
 
 	if apiClient == nil {
-		glog.V(100).Info("The apiClient of the Policy is nil")
+		klog.V(100).Info("The apiClient of the Policy is nil")
 
 		return nil, fmt.Errorf("the apiClient of the Policy is nil")
 	}
 
 	err := apiClient.AttachScheme(amdgpuv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Info("Failed to add amdgpu v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add amdgpu v1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -106,13 +106,13 @@ func Pull(apiClient *clients.Settings, name, namespace string) (*Builder, error)
 	}
 
 	if name == "" {
-		glog.V(100).Infof("DeviceConfig name is empty")
+		klog.V(100).Info("DeviceConfig name is empty")
 
 		return nil, fmt.Errorf("DeviceConfig 'name' cannot be empty")
 	}
 
 	if namespace == "" {
-		glog.V(100).Infof("DeviceConfig namespace is empty")
+		klog.V(100).Info("DeviceConfig namespace is empty")
 
 		return nil, fmt.Errorf("DeviceConfig 'namespace' cannot be empty")
 	}
@@ -132,7 +132,7 @@ func (builder *Builder) Get() (*amdgpuv1.DeviceConfig, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Collecting DeviceConfig object %s in namespace %s",
+	klog.V(100).Infof("Collecting DeviceConfig object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	deviceConfig := &amdgpuv1.DeviceConfig{}
@@ -142,7 +142,7 @@ func (builder *Builder) Get() (*amdgpuv1.DeviceConfig, error) {
 		Namespace: builder.Definition.Namespace,
 	}, deviceConfig)
 	if err != nil {
-		glog.V(100).Infof("DeviceConfig object %s does not exist in namespace %s",
+		klog.V(100).Infof("DeviceConfig object %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		return nil, err
@@ -157,7 +157,7 @@ func (builder *Builder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Checking if DeviceConfig %s exists in namespace %s", builder.Definition.Name,
 		builder.Definition.Namespace)
 
@@ -165,7 +165,7 @@ func (builder *Builder) Exists() bool {
 
 	builder.Object, err = builder.Get()
 	if err != nil {
-		glog.V(100).Infof("Failed to collect DeviceConfig object due to %s", err.Error())
+		klog.V(100).Infof("Failed to collect DeviceConfig object due to %s", err.Error())
 	}
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -177,11 +177,11 @@ func (builder *Builder) Delete() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting DeviceConfig %s in namespace %s", builder.Definition.Name,
+	klog.V(100).Infof("Deleting DeviceConfig %s in namespace %s", builder.Definition.Name,
 		builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("DeviceConfig '%s' in namespace '%s' cannot be deleted because it does not exist",
+		klog.V(100).Infof("DeviceConfig '%s' in namespace '%s' cannot be deleted because it does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -205,7 +205,7 @@ func (builder *Builder) Create() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the DeviceConfig %s in namespace %s", builder.Definition.Name,
+	klog.V(100).Infof("Creating the DeviceConfig %s in namespace %s", builder.Definition.Name,
 		builder.Definition.Namespace)
 
 	var err error
@@ -225,19 +225,17 @@ func (builder *Builder) Update(force bool) (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating the DeviceConfig object named: %s in namespace: %s",
+	klog.V(100).Infof("Updating the DeviceConfig object named: %s in namespace: %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		if force {
-			glog.V(100).Infof(
-				msg.FailToUpdateNotification("DeviceConfig", builder.Definition.Name, builder.Definition.Namespace))
+			klog.V(100).Infof("%v", msg.FailToUpdateNotification("DeviceConfig", builder.Definition.Name, builder.Definition.Namespace))
 
 			builder, err := builder.Delete()
 			if err != nil {
-				glog.V(100).Infof(
-					msg.FailToUpdateError("DeviceConfig", builder.Definition.Name, builder.Definition.Namespace))
+				klog.V(100).Infof("%v", msg.FailToUpdateError("DeviceConfig", builder.Definition.Name, builder.Definition.Namespace))
 
 				return nil, err
 			}
@@ -275,19 +273,19 @@ func (builder *Builder) validate() (bool, error) {
 	resourceCRD := "DeviceConfig"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}

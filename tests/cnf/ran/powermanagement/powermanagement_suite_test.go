@@ -4,7 +4,6 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
@@ -14,6 +13,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/powermanagement/internal/tsparams"
 	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/powermanagement/tests"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/reporter"
+	"k8s.io/klog/v2"
 )
 
 var _, currentFile, _, _ = runtime.Caller(0)
@@ -31,11 +31,11 @@ var _ = BeforeSuite(func() {
 	testNamespace := namespace.NewBuilder(Spoke1APIClient, tsparams.TestingNamespace).
 		WithLabel("pod-security.kubernetes.io/enforce", "baseline")
 
-	glog.V(ranparam.LogLevel).Infof("Deleting test namespace ", tsparams.TestingNamespace)
+	klog.V(ranparam.LogLevel).Infof("Deleting test namespace %s", tsparams.TestingNamespace)
 	err := testNamespace.DeleteAndWait(tsparams.PowerSaveTimeout)
 	Expect(err).ToNot(HaveOccurred(), "Failed to delete namespace ", tsparams.TestingNamespace)
 
-	glog.V(ranparam.LogLevel).Infof("Creating test namespace ", tsparams.TestingNamespace)
+	klog.V(ranparam.LogLevel).Infof("Creating test namespace %s", tsparams.TestingNamespace)
 	_, err = testNamespace.Create()
 	Expect(err).ToNot(HaveOccurred(), "Failed to create namespace ", tsparams.TestingNamespace)
 })
@@ -43,7 +43,7 @@ var _ = BeforeSuite(func() {
 var _ = AfterSuite(func() {
 	testNamespace := namespace.NewBuilder(Spoke1APIClient, tsparams.TestingNamespace)
 
-	glog.V(ranparam.LogLevel).Infof("Deleting test namespace", tsparams.TestingNamespace)
+	klog.V(ranparam.LogLevel).Infof("Deleting test namespace %s", tsparams.TestingNamespace)
 	err := testNamespace.DeleteAndWait(tsparams.PowerSaveTimeout)
 	Expect(err).ToNot(HaveOccurred(), "Failed to delete namespace ", tsparams.TestingNamespace)
 

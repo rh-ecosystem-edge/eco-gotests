@@ -3,9 +3,9 @@ package amdgpucommon
 import (
 	"context"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 // IsSingleNodeOpenShift determines if this is a Single Node OpenShift cluster.
@@ -16,7 +16,7 @@ func IsSingleNodeOpenShift(apiClient *clients.Settings) (bool, error) {
 	}
 
 	nodeCount := len(nodes.Items)
-	glog.V(100).Infof("Detected %d nodes in cluster", nodeCount)
+	klog.V(100).Infof("Detected %d nodes in cluster", nodeCount)
 
 	if nodeCount > 1 {
 		return false, nil
@@ -27,12 +27,12 @@ func IsSingleNodeOpenShift(apiClient *clients.Settings) (bool, error) {
 	_, hasMaster := node.Labels["node-role.kubernetes.io/master"]
 
 	if hasMaster || hasControlPlane {
-		glog.V(100).Infof("Confirmed SNO: single node %s has master role or control-plane role", node.Name)
+		klog.V(100).Infof("Confirmed SNO: single node %s has master role or control-plane role", node.Name)
 
 		return true, nil
 	}
 
-	glog.V(100).Infof("Not SNO: node count=%d, node %s labels: master=%v, control-plane=%v",
+	klog.V(100).Infof("Not SNO: node count=%d, node %s labels: master=%v, control-plane=%v",
 		len(nodes.Items), node.Name, hasMaster, hasControlPlane)
 
 	return false, nil

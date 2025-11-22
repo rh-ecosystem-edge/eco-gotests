@@ -8,8 +8,8 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodesconfig"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/cgroup"
+	"k8s.io/klog/v2"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -32,9 +32,9 @@ func VerifyCGroupDefault() {
 
 // VerifyCGroupV2IsADefault assert cGroupV2 is a default for the cluster deployment.
 func VerifyCGroupV2IsADefault(ctx SpecContext) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Verify cgroupv2 is a default for the cluster deployment")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify cgroupv2 is a default for the cluster deployment")
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Get current cgroup mode configured for the cluster")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Get current cgroup mode configured for the cluster")
 
 	nodesConfigObj, err := nodesconfig.Pull(APIClient, "cluster")
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to get nodes.config 'cluster' object due to %v", err))
@@ -43,13 +43,13 @@ func VerifyCGroupV2IsADefault(ctx SpecContext) {
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to get cluster cgroup mode due to %v", err))
 	Expect(cgroupMode).ToNot(Equal(configv1.CgroupModeV1), "wrong cgroup mode default found, v1 instead of v2")
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Verify actual cgroup version configured for the nodes")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify actual cgroup version configured for the nodes")
 
 	nodesList, err := nodes.List(APIClient)
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to get cluster nodes list due to %v", err))
 
 	for _, node := range nodesList {
-		glog.V(vcoreparams.VCoreLogLevel).Infof("Verify actual cgroup version configured for node %s",
+		klog.V(vcoreparams.VCoreLogLevel).Infof("Verify actual cgroup version configured for node %s",
 			node.Definition.Name)
 
 		currentCgroupMode, err := cgroup.GetNodeLinuxCGroupVersion(APIClient, node.Definition.Name)
@@ -64,12 +64,12 @@ func VerifyCGroupV2IsADefault(ctx SpecContext) {
 
 // VerifySwitchBetweenCGroupVersions assert that the cluster can be moved to the cgroupv1 and back.
 func VerifySwitchBetweenCGroupVersions(ctx SpecContext) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Verify that the cluster can be moved to the cgroupv1 and back")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify that the cluster can be moved to the cgroupv1 and back")
 
 	err := cgroup.SetLinuxCGroupVersion(APIClient, configv1.CgroupModeV1)
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to change cluster cgroup mode to the %v due to %v",
 		configv1.CgroupModeV1, err))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("For the vCore test run cgroup version will stay to be configured " +
+	klog.V(vcoreparams.VCoreLogLevel).Infof("For the vCore test run cgroup version will stay to be configured " +
 		"to the v1 because cpu load balancing not supported on cgroupv2")
 } // func VerifySwitchBetweenCGroupVersions (ctx SpecContext)

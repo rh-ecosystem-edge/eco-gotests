@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1beta1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/klog/v2"
 	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -28,19 +28,19 @@ type MultiNetworkPolicyBuilder struct {
 
 // NewMultiNetworkPolicyBuilder method creates new instance of builder.
 func NewMultiNetworkPolicyBuilder(apiClient *clients.Settings, name, nsname string) *MultiNetworkPolicyBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new MultiNetworkPolicyBuilder structure with the following params: name: %s, namespace: %s",
 		name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(v1beta1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add multi-networkpolicy v1beta1 scheme to client schemes")
+		klog.V(100).Info("Failed to add multi-networkpolicy v1beta1 scheme to client schemes")
 
 		return nil
 	}
@@ -56,7 +56,7 @@ func NewMultiNetworkPolicyBuilder(apiClient *clients.Settings, name, nsname stri
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the MultiNetworkPolicy is empty")
+		klog.V(100).Info("The name of the MultiNetworkPolicy is empty")
 
 		builder.errorMsg = "The MultiNetworkPolicy 'name' cannot be empty"
 
@@ -64,7 +64,7 @@ func NewMultiNetworkPolicyBuilder(apiClient *clients.Settings, name, nsname stri
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the MultiNetworkPolicy is empty")
+		klog.V(100).Info("The namespace of the MultiNetworkPolicy is empty")
 
 		builder.errorMsg = "The MultiNetworkPolicy 'namespace' cannot be empty"
 
@@ -80,7 +80,7 @@ func (builder *MultiNetworkPolicyBuilder) WithPodSelector(podSelector metav1.Lab
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating MultiNetworkPolicy %s in %s namespace with the podSelector defined: %v",
 		builder.Definition.Name, builder.Definition.Namespace, podSelector)
 
@@ -95,12 +95,12 @@ func (builder *MultiNetworkPolicyBuilder) WithNetwork(networkName string) *Multi
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating MultiNetworkPolicy %s in %s namespace with the networkName defined: %v",
 		builder.Definition.Name, builder.Definition.Namespace, networkName)
 
 	if networkName == "" {
-		glog.V(100).Infof("The networkName can not be empty string")
+		klog.V(100).Info("The networkName can not be empty string")
 
 		builder.errorMsg = "The networkName is an empty string"
 
@@ -122,7 +122,7 @@ func (builder *MultiNetworkPolicyBuilder) WithEmptyIngress() *MultiNetworkPolicy
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating MultiNetworkPolicy %s in %s namespace with the empty Ingress rule deny all",
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -138,7 +138,7 @@ func (builder *MultiNetworkPolicyBuilder) WithIngressRule(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating multiNetworkPolicy %s in %s namespace with the Ingress rule defined: %v",
 		builder.Definition.Name, builder.Definition.Namespace, ingressRule)
 
@@ -154,7 +154,7 @@ func (builder *MultiNetworkPolicyBuilder) WithEgressRule(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating multiNetworkPolicy %s in %s namespace with the Egress rule defined: %v",
 		builder.Definition.Name, builder.Definition.Namespace, egressRule)
 
@@ -170,12 +170,12 @@ func (builder *MultiNetworkPolicyBuilder) WithPolicyType(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating multiNetworkPolicy %s in %s namespace with the Policy type defined: %v",
 		builder.Definition.Name, builder.Definition.Namespace, policyType)
 
 	if policyType == "" {
-		glog.V(100).Infof("The policy type can not be an empty string")
+		klog.V(100).Info("The policy type can not be an empty string")
 
 		builder.errorMsg = "The policy Type is an empty string"
 
@@ -189,17 +189,17 @@ func (builder *MultiNetworkPolicyBuilder) WithPolicyType(
 
 // PullMultiNetworkPolicy loads an existing MultiNetworkPolicy into the Builder struct.
 func PullMultiNetworkPolicy(apiClient *clients.Settings, name, nsname string) (*MultiNetworkPolicyBuilder, error) {
-	glog.V(100).Infof("Pulling existing MultiNetworkPolicy name: %s, namespace: %s", name, nsname)
+	klog.V(100).Infof("Pulling existing MultiNetworkPolicy name: %s, namespace: %s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil, fmt.Errorf("the apiClient cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(v1beta1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add multi-networkpolicy v1beta1 scheme to client schemes")
+		klog.V(100).Info("Failed to add multi-networkpolicy v1beta1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -215,19 +215,19 @@ func PullMultiNetworkPolicy(apiClient *clients.Settings, name, nsname string) (*
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the MultiNetworkPolicy is empty")
+		klog.V(100).Info("The name of the MultiNetworkPolicy is empty")
 
 		return nil, fmt.Errorf("MultiNetworkPolicy 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the MultiNetworkPolicy is empty")
+		klog.V(100).Info("The namespace of the MultiNetworkPolicy is empty")
 
 		return nil, fmt.Errorf("MultiNetworkPolicy 'namespace' cannot be empty")
 	}
 
 	if !builder.Exists() {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"Failed to pull MultiNetworkPolicy object %s from namespace %s. Object does not exist",
 			name, nsname)
 
@@ -245,7 +245,7 @@ func (builder *MultiNetworkPolicyBuilder) Get() (*v1beta1.MultiNetworkPolicy, er
 		return nil, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Collecting MultiNetworkPolicy object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -255,7 +255,7 @@ func (builder *MultiNetworkPolicyBuilder) Get() (*v1beta1.MultiNetworkPolicy, er
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		network)
 	if err != nil {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"MultiNetworkPolicy object %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
@@ -271,14 +271,14 @@ func (builder *MultiNetworkPolicyBuilder) Create() (*MultiNetworkPolicyBuilder, 
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the MultiNetworkPolicy %s in %s namespace",
+	klog.V(100).Infof("Creating the MultiNetworkPolicy %s in %s namespace",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
 	if !builder.Exists() {
 		err := builder.apiClient.Create(context.TODO(), builder.Definition)
 		if err != nil {
-			glog.V(100).Infof("Failed to create MultiNetworkPolicy object")
+			klog.V(100).Info("Failed to create MultiNetworkPolicy object")
 
 			return nil, err
 		}
@@ -295,7 +295,7 @@ func (builder *MultiNetworkPolicyBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if MultiNetworkPolicy %s exists in namespace %s",
+	klog.V(100).Infof("Checking if MultiNetworkPolicy %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -311,7 +311,7 @@ func (builder *MultiNetworkPolicyBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting the MultiNetworkPolicy object %s from %s namespace",
+	klog.V(100).Infof("Deleting the MultiNetworkPolicy object %s from %s namespace",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
@@ -336,7 +336,7 @@ func (builder *MultiNetworkPolicyBuilder) Update() (*MultiNetworkPolicyBuilder, 
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating MultiNetworkPolicy %s in %s namespace ",
+	klog.V(100).Infof("Updating MultiNetworkPolicy %s in %s namespace ",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
@@ -362,25 +362,25 @@ func (builder *MultiNetworkPolicyBuilder) validate() (bool, error) {
 	resourceCRD := "MultiNetworkPolicy"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

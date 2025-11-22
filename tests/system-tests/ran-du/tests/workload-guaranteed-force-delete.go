@@ -3,7 +3,6 @@ package ran_du_system_test
 import (
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
@@ -14,6 +13,7 @@ import (
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ran-du/internal/randuinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ran-du/internal/randuparams"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 var _ = Describe(
@@ -55,7 +55,7 @@ var _ = Describe(
 
 				for _, runningPod := range podList {
 					if runningPod.Object.Status.QOSClass == "Guaranteed" {
-						glog.V(100).Infof("Force deleting guaranteed pod %s", runningPod.Object.Name)
+						klog.V(100).Infof("Force deleting guaranteed pod %s", runningPod.Object.Name)
 						guaranteedPod, err := pod.Pull(APIClient, runningPod.Object.Name, RanDuTestConfig.TestWorkload.Namespace)
 						Expect(err).ToNot(HaveOccurred(), "Failed to pull pod %s", runningPod.Object.Name)
 

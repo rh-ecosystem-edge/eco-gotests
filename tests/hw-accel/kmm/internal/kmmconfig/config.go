@@ -3,9 +3,9 @@ package kmmconfig
 import (
 	"log"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
+	"k8s.io/klog/v2"
 
 	"github.com/kelseyhightower/envconfig"
 )
@@ -38,11 +38,11 @@ func NewModulesConfig() *ModulesConfig {
 	}
 
 	if modulesConfig.SpokeKubeConfig != "" {
-		glog.V(kmmparams.KmmLogLevel).Infof("Creating spoke api client from %s", modulesConfig.SpokeKubeConfig)
+		klog.V(kmmparams.KmmLogLevel).Infof("Creating spoke api client from %s", modulesConfig.SpokeKubeConfig)
 
 		if modulesConfig.SpokeAPIClient = clients.New(
 			modulesConfig.SpokeKubeConfig); modulesConfig.SpokeAPIClient == nil {
-			glog.V(kmmparams.KmmLogLevel).Infof("failed to load provided spoke kubeconfig: %v", err)
+			klog.V(kmmparams.KmmLogLevel).Infof("failed to load provided spoke kubeconfig: %v", err)
 		}
 	}
 

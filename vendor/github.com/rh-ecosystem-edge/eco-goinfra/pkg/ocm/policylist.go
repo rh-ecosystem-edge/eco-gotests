@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -17,14 +17,14 @@ func ListPoliciesInAllNamespaces(apiClient *clients.Settings,
 	options ...runtimeclient.ListOptions) (
 	[]*PolicyBuilder, error) {
 	if apiClient == nil {
-		glog.V(100).Info("Policies 'apiClient' parameter cannot be nil")
+		klog.V(100).Info("Policies 'apiClient' parameter cannot be nil")
 
 		return nil, fmt.Errorf("failed to list policies, 'apiClient' parameter is nil")
 	}
 
 	err := apiClient.AttachScheme(policiesv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Info("Failed to add Policy scheme to client schemes")
+		klog.V(100).Info("Failed to add Policy scheme to client schemes")
 
 		return nil, err
 	}
@@ -33,7 +33,7 @@ func ListPoliciesInAllNamespaces(apiClient *clients.Settings,
 	passedOptions := runtimeclient.ListOptions{}
 
 	if len(options) > 1 {
-		glog.V(100).Infof("'options' parameter must be empty or single-valued")
+		klog.V(100).Info("'options' parameter must be empty or single-valued")
 
 		return nil, fmt.Errorf("error: more than one ListOptions was passed")
 	}
@@ -43,13 +43,13 @@ func ListPoliciesInAllNamespaces(apiClient *clients.Settings,
 		logMessage += fmt.Sprintf(" with the options %v", passedOptions)
 	}
 
-	glog.V(100).Infof(logMessage)
+	klog.V(100).Infof("%v", logMessage)
 
 	policyList := new(policiesv1.PolicyList)
 
 	err = apiClient.List(context.TODO(), policyList, &passedOptions)
 	if err != nil {
-		glog.V(100).Infof("Failed to list all policies in all namespaces due to %s", err.Error())
+		klog.V(100).Infof("Failed to list all policies in all namespaces due to %s", err.Error())
 
 		return nil, err
 	}
@@ -78,14 +78,14 @@ func WaitForAllPoliciesComplianceState(
 	timeout time.Duration,
 	options ...runtimeclient.ListOptions) error {
 	if apiClient == nil {
-		glog.V(100).Info("Policies 'apiClient' parameter cannot be nil")
+		klog.V(100).Info("Policies 'apiClient' parameter cannot be nil")
 
 		return fmt.Errorf("failed to wait for policies compliance state, 'apiClient' parameter is nil")
 	}
 
 	err := apiClient.AttachScheme(policiesv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Info("Failed to add Policy scheme to client schemes")
+		klog.V(100).Info("Failed to add Policy scheme to client schemes")
 
 		return err
 	}
@@ -94,7 +94,7 @@ func WaitForAllPoliciesComplianceState(
 	passedOptions := runtimeclient.ListOptions{}
 
 	if len(options) > 1 {
-		glog.V(100).Infof("'options' parameter must be empty or single-valued")
+		klog.V(100).Info("'options' parameter must be empty or single-valued")
 
 		return fmt.Errorf("error: more than one ListOptions was passed")
 	}
@@ -104,13 +104,13 @@ func WaitForAllPoliciesComplianceState(
 		logMessage += fmt.Sprintf(", listing with the options %v", passedOptions)
 	}
 
-	glog.V(100).Info(logMessage)
+	klog.V(100).Info(logMessage)
 
 	return wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			policies, err := ListPoliciesInAllNamespaces(apiClient, passedOptions)
 			if err != nil {
-				glog.V(100).Infof("Failed to list policies while waiting for compliance state: %v", err)
+				klog.V(100).Infof("Failed to list policies while waiting for compliance state: %v", err)
 
 				return false, nil
 			}
@@ -118,7 +118,7 @@ func WaitForAllPoliciesComplianceState(
 			for _, policy := range policies {
 				policyComplianceState := policy.Definition.Status.ComplianceState
 				if policyComplianceState != complianceState {
-					glog.V(100).Infof("Policy %s in namespace %s has compliance state %s, not %s",
+					klog.V(100).Infof("Policy %s in namespace %s has compliance state %s, not %s",
 						policy.Definition.Name, policy.Definition.Namespace, policyComplianceState, complianceState)
 
 					return false, nil

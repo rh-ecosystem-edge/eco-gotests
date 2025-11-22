@@ -3,12 +3,12 @@ package amdgpudeviceconfig
 import (
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/amdgpu"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	amdgpuv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/amd/gpu-operator/api/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpucommon"
 	amdgpuparams "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/params"
+	"k8s.io/klog/v2"
 )
 
 // AMDGPUDeviceIDs contains the supported AMD GPU device IDs.
@@ -38,7 +38,7 @@ var AMDVGPUDeviceIDs = []string{
 
 // CreateDeviceConfig creates the DeviceConfig custom resource to trigger AMD GPU driver installation.
 func CreateDeviceConfig(apiClient *clients.Settings, deviceConfigName, driverVersion string) error {
-	glog.V(amdgpuparams.AMDGPULogLevel).Infof("Creating DeviceConfig: %s", deviceConfigName)
+	klog.V(amdgpuparams.AMDGPULogLevel).Infof("Creating DeviceConfig: %s", deviceConfigName)
 
 	deviceConfigBuilder, err := createDeviceConfigBuilder(apiClient, deviceConfigName, driverVersion)
 	if err != nil {
@@ -46,7 +46,7 @@ func CreateDeviceConfig(apiClient *clients.Settings, deviceConfigName, driverVer
 	}
 
 	if deviceConfigBuilder.Exists() {
-		glog.V(amdgpuparams.AMDGPULogLevel).Info("DeviceConfig already exists")
+		klog.V(amdgpuparams.AMDGPULogLevel).Info("DeviceConfig already exists")
 
 		return nil
 	}
@@ -56,8 +56,8 @@ func CreateDeviceConfig(apiClient *clients.Settings, deviceConfigName, driverVer
 		return handleDeviceConfigCreationError(err, deviceConfigName)
 	}
 
-	glog.V(amdgpuparams.AMDGPULogLevel).Info("Successfully created DeviceConfig")
-	glog.V(amdgpuparams.AMDGPULogLevel).Info("This will trigger AMD GPU driver installation via KMM")
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("Successfully created DeviceConfig")
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("This will trigger AMD GPU driver installation via KMM")
 
 	return nil
 }
@@ -78,7 +78,7 @@ func createDeviceConfigBuilder(
 
 	builder, err := amdgpu.Pull(apiClient, deviceConfigName, amdgpuparams.AMDGPUNamespace)
 	if err != nil {
-		glog.V(amdgpuparams.AMDGPULogLevel).Infof("DeviceConfig %s does not exist, will create new one", deviceConfigName)
+		klog.V(amdgpuparams.AMDGPULogLevel).Infof("DeviceConfig %s does not exist, will create new one", deviceConfigName)
 	} else if builder != nil {
 		return builder, nil
 	}
@@ -106,18 +106,18 @@ func createDeviceConfigBuilder(
 		return nil, fmt.Errorf("failed to create DeviceConfig builder from JSON")
 	}
 
-	glog.V(amdgpuparams.AMDGPULogLevel).Infof("Created DeviceConfig builder with definition")
+	klog.V(amdgpuparams.AMDGPULogLevel).Infof("Created DeviceConfig builder with definition")
 
 	return builder, nil
 }
 
 // handleDeviceConfigCreationError handles errors during DeviceConfig creation.
 func handleDeviceConfigCreationError(err error, deviceConfigName string) error {
-	glog.V(amdgpuparams.AMDGPULogLevel).Infof("Error creating DeviceConfig %s: %v", deviceConfigName, err)
+	klog.V(amdgpuparams.AMDGPULogLevel).Infof("Error creating DeviceConfig %s: %v", deviceConfigName, err)
 
 	if amdgpucommon.IsCRDNotAvailable(err) {
-		glog.V(amdgpuparams.AMDGPULogLevel).Info("DeviceConfig CRD not available - manual creation required")
-		glog.V(amdgpuparams.AMDGPULogLevel).Infof("DeviceConfig creation failed - CRD may not be installed")
+		klog.V(amdgpuparams.AMDGPULogLevel).Info("DeviceConfig CRD not available - manual creation required")
+		klog.V(amdgpuparams.AMDGPULogLevel).Infof("DeviceConfig creation failed - CRD may not be installed")
 
 		return fmt.Errorf("DeviceConfig CRD not available, manual creation required")
 	}

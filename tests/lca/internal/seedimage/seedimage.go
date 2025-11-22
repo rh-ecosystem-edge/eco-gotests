@@ -8,7 +8,6 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/containers/image/v5/pkg/sysregistriesv2"
-	"github.com/golang/glog"
 	"github.com/openshift-kni/lifecycle-agent/lca-cli/seedclusterinfo"
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
@@ -16,6 +15,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -248,7 +248,7 @@ func pullAndMountImage(apiClient *clients.Settings, node, pullCommand, image str
 			})
 
 		if err != nil {
-			glog.V(100).Info("Error occurred while unmounting image")
+			klog.V(100).Info("Error occurred while unmounting image")
 		}
 	}, nil
 }

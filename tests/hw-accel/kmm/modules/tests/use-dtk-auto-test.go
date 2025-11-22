@@ -5,13 +5,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/await"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/check"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/define"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/get"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/modules/internal/tsparams"
+	"k8s.io/klog/v2"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -181,7 +181,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 
 			By("Update existing module with something wrong")
 			_, err = moduleBuilder.WithModuleLoaderContainer(moduleLoaderContainerCfg).Update()
-			glog.V(kmmparams.KmmLogLevel).Infof("webhook err: %s", err)
+			klog.V(kmmparams.KmmLogLevel).Infof("webhook err: %s", err)
 			Expect(err).To(HaveOccurred(), "error creating module")
 			Expect(err.Error()).To(ContainSubstring("missing spec.moduleLoader.container.kernelMappings"))
 			Expect(err.Error()).To(ContainSubstring(".containerImage"))

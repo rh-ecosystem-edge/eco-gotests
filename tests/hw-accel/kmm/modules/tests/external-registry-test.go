@@ -6,7 +6,6 @@ import (
 
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/configmap"
@@ -25,6 +24,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/klog/v2"
 )
 
 var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func() {
@@ -174,16 +174,16 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			messageModuleUnloaded := get.ModuleUnloadedMessage(localNsName, moduleName)
 
 			for _, event := range eventList {
-				glog.V(kmmparams.KmmLogLevel).Infof("Reason: %s, Message: %s", event.Object.Reason, event.Object.Message)
+				klog.V(kmmparams.KmmLogLevel).Infof("Reason: %s, Message: %s", event.Object.Reason, event.Object.Message)
 				if event.Object.Reason == kmmparams.ReasonModuleLoaded &&
 					event.Object.Message == messageModuleLoaded {
 					foundModuleLoadedEvents++
-					glog.V(kmmparams.KmmLogLevel).Infof("ModuleLoaded events: %d", foundModuleLoadedEvents)
+					klog.V(kmmparams.KmmLogLevel).Infof("ModuleLoaded events: %d", foundModuleLoadedEvents)
 				}
 				if event.Object.Reason == kmmparams.ReasonModuleUnloaded &&
 					event.Object.Message == messageModuleUnloaded {
 					foundModuleUnloadedEvents++
-					glog.V(kmmparams.KmmLogLevel).Infof("ModuleUnloaded events: %d", foundModuleUnloadedEvents)
+					klog.V(kmmparams.KmmLogLevel).Infof("ModuleUnloaded events: %d", foundModuleUnloadedEvents)
 				}
 			}
 			Expect(foundModuleLoadedEvents).To(Equal(totalNodes), "ModuleLoaded events do not match")

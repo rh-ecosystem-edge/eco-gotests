@@ -6,8 +6,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-
-	"github.com/golang/glog"
+	"k8s.io/klog/v2"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
@@ -23,7 +22,7 @@ import (
 
 // DoesClusterSupportDay1Day2Tests verifies if given environment supports Day1Day2 tests.
 func DoesClusterSupportDay1Day2Tests(requiredCPNodeNumber, requiredWorkerNodeNumber int) error {
-	glog.V(90).Infof("Verifying if NMState operator is deployed")
+	klog.V(90).Infof("Verifying if NMState operator is deployed")
 
 	if err := isNMStateOperatorDeployed(); err != nil {
 		return err
@@ -38,7 +37,7 @@ func DoesClusterSupportDay1Day2Tests(requiredCPNodeNumber, requiredWorkerNodeNum
 		return err
 	}
 
-	glog.V(90).Infof("Verifying if cluster has enough workers to run Day1Day2 tests")
+	klog.V(90).Infof("Verifying if cluster has enough workers to run Day1Day2 tests")
 
 	if len(workerNodeList) < requiredWorkerNodeNumber {
 		return fmt.Errorf("cluster has less than %d worker nodes", requiredWorkerNodeNumber)
@@ -53,7 +52,7 @@ func DoesClusterSupportDay1Day2Tests(requiredCPNodeNumber, requiredWorkerNodeNum
 		return err
 	}
 
-	glog.V(90).Infof("Verifying if cluster has enough control-plane nodes to run Day1Day2 tests")
+	klog.V(90).Infof("Verifying if cluster has enough control-plane nodes to run Day1Day2 tests")
 
 	if len(controlPlaneNodeList) < requiredCPNodeNumber {
 		return fmt.Errorf("cluster has less than %d control-plane nodes", requiredCPNodeNumber)
@@ -64,7 +63,7 @@ func DoesClusterSupportDay1Day2Tests(requiredCPNodeNumber, requiredWorkerNodeNum
 
 // GetBondModeViaCmd returns Bond mode for given Bond interface on a specific node.
 func GetBondModeViaCmd(bondInterfaceName, nodeName string) (string, error) {
-	glog.V(90).Infof("Getting Bond mode for bond interface %s on a node %s", bondInterfaceName, nodeName)
+	klog.V(90).Infof("Getting Bond mode for bond interface %s on a node %s", bondInterfaceName, nodeName)
 
 	bondMode, err := cmd.RunCommandOnHostNetworkPod(nodeName, tsparams.TestNamespaceName,
 		fmt.Sprintf("cat /sys/class/net/%s/bonding/mode", bondInterfaceName))
@@ -77,7 +76,7 @@ func GetBondModeViaCmd(bondInterfaceName, nodeName string) (string, error) {
 
 // GetBondInterfaceMiimon returns miimon value for given bond interface and node.
 func GetBondInterfaceMiimon(nodeName, bondInterfaceName string) (int, error) {
-	glog.V(90).Infof("Getting miimon value for bond interface %s on node %s", bondInterfaceName, nodeName)
+	klog.V(90).Infof("Getting miimon value for bond interface %s on node %s", bondInterfaceName, nodeName)
 
 	nodeNetworkState, err := nmstate.PullNodeNetworkState(APIClient, nodeName)
 	if err != nil {
@@ -94,7 +93,7 @@ func GetBondInterfaceMiimon(nodeName, bondInterfaceName string) (int, error) {
 
 // GetFirstVfInterfaceMaxTxRate returns MaxTxRate value for given interface (VF0) and node.
 func GetFirstVfInterfaceMaxTxRate(nodeName, interfaceName string) (int, error) {
-	glog.V(90).Infof("Getting MaxTxRate value for first VF of interface %s on node %s", interfaceName, nodeName)
+	klog.V(90).Infof("Getting MaxTxRate value for first VF of interface %s on node %s", interfaceName, nodeName)
 
 	nodeNetworkState, err := nmstate.PullNodeNetworkState(APIClient, nodeName)
 	if err != nil {
@@ -112,7 +111,7 @@ func GetFirstVfInterfaceMaxTxRate(nodeName, interfaceName string) (int, error) {
 // CheckConnectivityBetweenMasterAndWorkers creates a hostnetwork pod on the master node and ping all workers nodes.
 // The Pod will be removed at the end.
 func CheckConnectivityBetweenMasterAndWorkers() error {
-	glog.V(90).Infof("Checking connectivity between master node and worker nodes")
+	klog.V(90).Infof("Checking connectivity between master node and worker nodes")
 
 	masterNodes, err := nodes.List(
 		APIClient,

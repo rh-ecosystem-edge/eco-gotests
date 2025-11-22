@@ -7,6 +7,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/klog/v2"
 
 	nropv1 "github.com/openshift-kni/numaresources-operator/api/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clusteroperator"
@@ -20,7 +21,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/apiobjectshelper"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/vcore/internal/vcoreparams"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/vcore/internal/vcoreinittools"
@@ -99,13 +99,13 @@ func VerifyNROPDeployment(ctx SpecContext) {
 
 // VerifyNROPCustomResources asserts Numa Resources Operator custom resource deployment.
 func VerifyNROPCustomResources(ctx SpecContext) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Verify NUMAResourcesOperator %s configuration",
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify NUMAResourcesOperator %s configuration",
 		vcoreparams.NROPInstanceName)
 
 	nropCustomResource := nrop.NewBuilder(APIClient, vcoreparams.NROPInstanceName)
 
 	if !nropCustomResource.Exists() {
-		glog.V(vcoreparams.VCoreLogLevel).Infof("Create new NUMAResourcesOperator %s",
+		klog.V(vcoreparams.VCoreLogLevel).Infof("Create new NUMAResourcesOperator %s",
 			vcoreparams.NROPInstanceName)
 
 		var err error
@@ -123,7 +123,7 @@ func VerifyNROPCustomResources(ctx SpecContext) {
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to create NUMAResourcesOperator %s; %v",
 			vcoreparams.NROPInstanceName, err))
 
-		glog.V(vcoreparams.VCoreLogLevel).Infof(
+		klog.V(vcoreparams.VCoreLogLevel).Infof(
 			"Wait for all nodes rebooting after applying NUMAResourcesOperator %s",
 			vcoreparams.NROPInstanceName)
 
@@ -135,14 +135,14 @@ func VerifyNROPCustomResources(ctx SpecContext) {
 			fmt.Sprintf("Nodes failed to reboot after applying NUMAResourcesOperator %s config; %v",
 				vcoreparams.NROPInstanceName, err))
 
-		glog.V(vcoreparams.VCoreLogLevel).Info("Wait for all clusteroperators availability after nodes reboot")
+		klog.V(vcoreparams.VCoreLogLevel).Info("Wait for all clusteroperators availability after nodes reboot")
 
 		_, err = clusteroperator.WaitForAllClusteroperatorsAvailable(APIClient, 60*time.Second)
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Error waiting for all available clusteroperators: %v",
 			err))
 	}
 
-	glog.V(vcoreparams.VCoreLogLevel).Info("Verify all NUMAResourcesOperator pods was created")
+	klog.V(vcoreparams.VCoreLogLevel).Info("Verify all NUMAResourcesOperator pods was created")
 
 	nropDaemonsetCPName := fmt.Sprintf("%s-%s", vcoreparams.NROPInstanceName, VCoreConfig.VCoreCpMCPName)
 	nropDaemonsetPPName := fmt.Sprintf("%s-%s", vcoreparams.NROPInstanceName, VCoreConfig.VCorePpMCPName)
@@ -176,7 +176,7 @@ func VerifyNROPCustomResources(ctx SpecContext) {
 
 // VerifyNROPAwareSecondaryPodScheduler asserts Numa Resources Operator custom resource deployment.
 func VerifyNROPAwareSecondaryPodScheduler(ctx SpecContext) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Verify NUMAResourcesScheduler %s configuration in namespace %s",
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify NUMAResourcesScheduler %s configuration in namespace %s",
 		vcoreparams.NumaAwareSecondarySchedulerName, vcoreparams.NROPNamespace)
 
 	schedulerDeploymentName := "secondary-scheduler"
@@ -186,7 +186,7 @@ func VerifyNROPAwareSecondaryPodScheduler(ctx SpecContext) {
 		vcoreparams.NROPNamespace)
 
 	if !nropScheduler.Exists() {
-		glog.V(vcoreparams.VCoreLogLevel).Infof("Create new NUMAResourcesScheduler %s in namespace %s",
+		klog.V(vcoreparams.VCoreLogLevel).Infof("Create new NUMAResourcesScheduler %s in namespace %s",
 			vcoreparams.NumaAwareSecondarySchedulerName, vcoreparams.NROPNamespace)
 
 		var err error
@@ -205,14 +205,14 @@ func VerifyNROPAwareSecondaryPodScheduler(ctx SpecContext) {
 			"failed to create NUMAResourcesScheduler %s in namespace %s; %v",
 			vcoreparams.NumaAwareSecondarySchedulerName, vcoreparams.NROPNamespace, err))
 
-		glog.V(vcoreparams.VCoreLogLevel).Info("Wait for all clusteroperators availability")
+		klog.V(vcoreparams.VCoreLogLevel).Info("Wait for all clusteroperators availability")
 
 		_, err = clusteroperator.WaitForAllClusteroperatorsAvailable(APIClient, 60*time.Second)
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Error waiting for all available clusteroperators: %v",
 			err))
 	}
 
-	glog.V(vcoreparams.VCoreLogLevel).Info("Verify all NUMAResourcesScheduler deployment succeeded")
+	klog.V(vcoreparams.VCoreLogLevel).Info("Verify all NUMAResourcesScheduler deployment succeeded")
 
 	err := await.WaitUntilDeploymentReady(APIClient, schedulerDeploymentName, vcoreparams.NROPNamespace, time.Minute*2)
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf(
@@ -231,7 +231,7 @@ func VerifyNROPAwareSecondaryPodScheduler(ctx SpecContext) {
 
 // VerifyNROPSchedulingWorkload asserts namespace for Numa Resources Operator exists.
 func VerifyNROPSchedulingWorkload(ctx SpecContext) {
-	glog.V(vcoreparams.VCoreLogLevel).Info("Deploy Numa-aware scheduler workload")
+	klog.V(vcoreparams.VCoreLogLevel).Info("Deploy Numa-aware scheduler workload")
 
 	wkldImageOriginURL := "quay.io/openshifttest"
 	wkldImageName := "hello-openshift"
@@ -275,7 +275,7 @@ func VerifyNROPSchedulingWorkload(ctx SpecContext) {
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to create deployment %s in namespace %s due to %v",
 		vcoreparams.NumaWorkloadName, vcoreparams.NROPNamespace, err))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Verify that the %s is scheduling the deployed pod",
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify that the %s is scheduling the deployed pod",
 		vcoreparams.NumaAwareSchedulerName)
 
 	isReady, err := await.WaitForThePodReplicasCountInNamespace(APIClient, vcoreparams.NROPNamespace, metav1.ListOptions{

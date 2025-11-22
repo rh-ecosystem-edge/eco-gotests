@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nmstate"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreparams"
@@ -22,16 +22,16 @@ import (
 
 // VerifyNMStateNamespaceExists asserts namespace for NMState operator exists.
 func VerifyNMStateNamespaceExists(ctx SpecContext) {
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Verify namespace %q exists",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Verify namespace %q exists",
 		RDSCoreConfig.NMStateOperatorNamespace)
 
 	err := wait.PollUntilContextTimeout(ctx, 5*time.Second, 1*time.Minute, true,
 		func(ctx context.Context) (bool, error) {
 			_, pullErr := namespace.Pull(APIClient, RDSCoreConfig.NMStateOperatorNamespace)
 			if pullErr != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-					fmt.Sprintf("Failed to pull in namespace %q - %v",
-						RDSCoreConfig.NMStateOperatorNamespace, pullErr))
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"Failed to pull in namespace %q - %v",
+					RDSCoreConfig.NMStateOperatorNamespace, pullErr)
 
 				return false, pullErr
 			}
@@ -44,15 +44,15 @@ func VerifyNMStateNamespaceExists(ctx SpecContext) {
 
 // VerifyNMStateInstanceExists assert that NMState instance exists.
 func VerifyNMStateInstanceExists(ctx SpecContext) {
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Verify NMState instance exists")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Verify NMState instance exists")
 
 	err := wait.PollUntilContextTimeout(ctx, 5*time.Second, 1*time.Minute, true,
 		func(ctx context.Context) (bool, error) {
 			_, pullErr := nmstate.PullNMstate(APIClient, rdscoreparams.NMStateInstanceName)
 			if pullErr != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-					fmt.Sprintf("Failed to pull in NMState instance %q - %v",
-						rdscoreparams.NMStateInstanceName, pullErr))
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"Failed to pull in NMState instance %q - %v",
+					rdscoreparams.NMStateInstanceName, pullErr)
 
 				return false, pullErr
 			}
@@ -66,7 +66,7 @@ func VerifyNMStateInstanceExists(ctx SpecContext) {
 
 // VerifyAllNNCPsAreOK assert all available NNCPs are Available, not progressing and not degraded.
 func VerifyAllNNCPsAreOK(ctx SpecContext) {
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Verify NodeNetworkConfigurationPolicies are Available")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Verify NodeNetworkConfigurationPolicies are Available")
 
 	const ConditionTypeTrue = "True"
 
@@ -79,7 +79,7 @@ func VerifyAllNNCPsAreOK(ctx SpecContext) {
 	degradedNNCP := make(map[string]string)
 
 	for _, nncp := range nncps {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		klog.V(rdscoreparams.RDSCoreLogLevel).Info(
 			fmt.Sprintf("\t Processing %s NodeNetworkConfigurationPolicy", nncp.Definition.Name))
 
 		for _, condition := range nncp.Object.Status.Conditions {
@@ -89,28 +89,28 @@ func VerifyAllNNCPsAreOK(ctx SpecContext) {
 			case "Available":
 				if condition.Status != ConditionTypeTrue {
 					nonAvailableNNCP[nncp.Definition.Name] = condition.Message
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					klog.V(rdscoreparams.RDSCoreLogLevel).Info(
 						fmt.Sprintf("\t%s NNCP is not Available: %s\n", nncp.Definition.Name, condition.Message))
 				} else {
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					klog.V(rdscoreparams.RDSCoreLogLevel).Info(
 						fmt.Sprintf("\t%s NNCP is Available: %s\n", nncp.Definition.Name, condition.Message))
 				}
 			case "Degraded":
 				if condition.Status == ConditionTypeTrue {
 					degradedNNCP[nncp.Definition.Name] = condition.Message
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					klog.V(rdscoreparams.RDSCoreLogLevel).Info(
 						fmt.Sprintf("\t%s NNCP is Degraded: %s\n", nncp.Definition.Name, condition.Message))
 				} else {
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					klog.V(rdscoreparams.RDSCoreLogLevel).Info(
 						fmt.Sprintf("\t%s NNCP is Not-Degraded\n", nncp.Definition.Name))
 				}
 			case "Progressing":
 				if condition.Status == ConditionTypeTrue {
 					progressingNNCP[nncp.Definition.Name] = condition.Message
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					klog.V(rdscoreparams.RDSCoreLogLevel).Info(
 						fmt.Sprintf("\t%s NNCP is Progressing: %s\n", nncp.Definition.Name, condition.Message))
 				} else {
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					klog.V(rdscoreparams.RDSCoreLogLevel).Info(
 						fmt.Sprintf("\t%s NNCP is Not-Progressing\n", nncp.Definition.Name))
 				}
 			}

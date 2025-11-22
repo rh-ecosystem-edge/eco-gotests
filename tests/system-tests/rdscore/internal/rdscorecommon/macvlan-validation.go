@@ -5,11 +5,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
@@ -80,14 +80,14 @@ func assertPodsAreGone(fNamespace, podLabel string) {
 	Eventually(func() bool {
 		podMatchingSelector, err = pod.List(APIClient, fNamespace, podOneSelector)
 		if err != nil {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods in %q namespace: %v",
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods in %q namespace: %v",
 				fNamespace, err)
 
 			return false
 		}
 
 		if len(podMatchingSelector) != 0 {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d pods matching label %q in namespace %q",
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d pods matching label %q in namespace %q",
 				len(podMatchingSelector), podLabel, fNamespace)
 
 			return false
@@ -174,7 +174,7 @@ func VerifyMacVlanOnDifferentNodes() {
 		By("Adding TaintToleration")
 
 		for _, toleration := range RDSCoreConfig.WlkdTolerationList {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Adding toleration: %v", toleration)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Adding toleration: %v", toleration)
 
 			deployOne = deployOne.WithToleration(toleration)
 			deployTwo = deployTwo.WithToleration(toleration)
@@ -187,14 +187,14 @@ func VerifyMacVlanOnDifferentNodes() {
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to create deployment %s: %v", macvlanDeploy10Name, err))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deployment %q created and is Ready in %q namespace",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deployment %q created and is Ready in %q namespace",
 		deployOne.Definition.Name, deployOne.Definition.Namespace)
 
 	deployTwo, err = deployTwo.CreateAndWaitUntilReady(5 * time.Minute)
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to create deployment %s: %v", macvlanDeploy11Name, err))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deployment %q created and is Ready in %q namespace",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deployment %q created and is Ready in %q namespace",
 		deployTwo.Definition.Name, deployTwo.Definition.Namespace)
 
 	VerifyMACVLANConnectivityBetweenDifferentNodes()
@@ -308,7 +308,7 @@ func VerifyMacVlanOnSameNode() {
 		By("Adding TaintToleration")
 
 		for _, toleration := range RDSCoreConfig.WlkdTolerationList {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Adding toleration: %v", toleration)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Adding toleration: %v", toleration)
 
 			deployOne = deployOne.WithToleration(toleration)
 			deployTwo = deployTwo.WithToleration(toleration)
@@ -321,14 +321,14 @@ func VerifyMacVlanOnSameNode() {
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to create deployment %s: %v", macvlanDeploy20Name, err))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deployment %q created and is Ready in %q namespace",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deployment %q created and is Ready in %q namespace",
 		deployOne.Definition.Name, deployOne.Definition.Namespace)
 
 	deployTwo, err = deployTwo.CreateAndWaitUntilReady(5 * time.Minute)
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to create deployment %s: %v", macvlanDeploy21Name, err))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deployment %q created and is Ready in %q namespace",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deployment %q created and is Ready in %q namespace",
 		deployTwo.Definition.Name, deployTwo.Definition.Namespace)
 
 	VerifyMACVLANConnectivityOnSameNode()
@@ -385,7 +385,7 @@ func defineMacVlanDeployment(dName, nsName, dLabels, netDefName, volName string,
 			Name:      netDefName,
 			Namespace: nsName})
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("MACVlan networks:\n\t%#v", networks)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("MACVlan networks:\n\t%#v", networks)
 
 	deploy = deploy.WithSecondaryNetwork(networks)
 

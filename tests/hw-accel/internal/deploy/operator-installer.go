@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
-
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/olm"
@@ -16,6 +14,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -36,7 +35,7 @@ type OperatorInstallConfig struct {
 	SkipNamespaceCreation  bool
 	SkipOperatorGroup      bool
 	TargetNamespaces       []string
-	LogLevel               glog.Level
+	LogLevel               klog.Level
 	InstallPlanApproval    string
 }
 
@@ -49,7 +48,7 @@ type OperatorInstaller struct {
 // NewOperatorInstaller creates a new operator installer with the given configuration.
 func NewOperatorInstaller(config OperatorInstallConfig) *OperatorInstaller {
 	if config.LogLevel == 0 {
-		config.LogLevel = glog.Level(DefaultLogLevel)
+		config.LogLevel = klog.Level(DefaultLogLevel)
 	}
 
 	csvUtils := NewCSVUtils(config.APIClient, config.Namespace, config.LogLevel)
@@ -62,7 +61,7 @@ func NewOperatorInstaller(config OperatorInstallConfig) *OperatorInstaller {
 
 // Install deploys the operator following the standard OLM pattern.
 func (o *OperatorInstaller) Install() error {
-	glog.V(o.config.LogLevel).Infof("Starting operator installation: %s in namespace %s",
+	klog.V(o.config.LogLevel).Infof("Starting operator installation: %s in namespace %s",
 		o.config.PackageName, o.config.Namespace)
 
 	if err := o.validateConfig(); err != nil {
@@ -74,11 +73,11 @@ func (o *OperatorInstaller) Install() error {
 			return fmt.Errorf("failed to create namespace: %w", err)
 		}
 
-		glog.V(o.config.LogLevel).
+		klog.V(o.config.LogLevel).
 			Infof("SUCCESS: Namespace %s created/verified",
 				o.config.Namespace)
 	} else {
-		glog.V(o.config.LogLevel).
+		klog.V(o.config.LogLevel).
 			Infof("Skipping namespace creation for global namespace: %s",
 				o.config.Namespace)
 	}
@@ -88,23 +87,23 @@ func (o *OperatorInstaller) Install() error {
 			return fmt.Errorf("failed to create operator group: %w", err)
 		}
 
-		glog.V(o.config.LogLevel).Infof("SUCCESS: OperatorGroup %s created", o.config.OperatorGroupName)
+		klog.V(o.config.LogLevel).Infof("SUCCESS: OperatorGroup %s created", o.config.OperatorGroupName)
 	} else {
-		glog.V(o.config.LogLevel).Infof("Skipping operator group creation, using existing: %s", o.config.OperatorGroupName)
+		klog.V(o.config.LogLevel).Infof("Skipping operator group creation, using existing: %s", o.config.OperatorGroupName)
 	}
 
 	if err := o.createSubscription(); err != nil {
 		return fmt.Errorf("failed to create subscription: %w", err)
 	}
 
-	glog.V(o.config.LogLevel).Infof("SUCCESS: Subscription %s created", o.config.SubscriptionName)
+	klog.V(o.config.LogLevel).Infof("SUCCESS: Subscription %s created", o.config.SubscriptionName)
 
 	return nil
 }
 
 // IsReady checks if the operator CSV is ready.
 func (o *OperatorInstaller) IsReady(timeout time.Duration) (bool, error) {
-	glog.V(o.config.LogLevel).Infof("Checking operator readiness for package=%s, namespace=%s",
+	klog.V(o.config.LogLevel).Infof("Checking operator readiness for package=%s, namespace=%s",
 		o.config.PackageName, o.config.Namespace)
 
 	ready, err := o.csvUtils.WaitForCSVReady(o.config.PackageName, timeout)
@@ -113,8 +112,8 @@ func (o *OperatorInstaller) IsReady(timeout time.Duration) (bool, error) {
 	}
 
 	if ready {
-		glog.V(o.config.LogLevel).Infof("Operator %s is ready (CSV in Succeeded state)", o.config.PackageName)
-		glog.V(o.config.LogLevel).Infof("Operator %s installation completed", o.config.PackageName)
+		klog.V(o.config.LogLevel).Infof("Operator %s is ready (CSV in Succeeded state)", o.config.PackageName)
+		klog.V(o.config.LogLevel).Infof("Operator %s installation completed", o.config.PackageName)
 	}
 
 	return ready, nil
@@ -172,7 +171,7 @@ func (o *OperatorInstaller) validateConfig() error {
 
 // createNamespaceIfNotExist creates the namespace if it doesn't exist.
 func (o *OperatorInstaller) createNamespaceIfNotExist() error {
-	glog.V(o.config.LogLevel).Infof("Creating namespace %s if it doesn't exist", o.config.Namespace)
+	klog.V(o.config.LogLevel).Infof("Creating namespace %s if it doesn't exist", o.config.Namespace)
 
 	nsBuilder := namespace.NewBuilder(o.config.APIClient, o.config.Namespace)
 
@@ -184,7 +183,7 @@ func (o *OperatorInstaller) createNamespaceIfNotExist() error {
 		}
 
 		if nsObj.Status.Phase == corev1.NamespaceTerminating {
-			glog.V(o.config.LogLevel).
+			klog.V(o.config.LogLevel).
 				Infof("Namespace %s is terminating, waiting for deletion to complete...",
 					o.config.Namespace)
 
@@ -192,11 +191,11 @@ func (o *OperatorInstaller) createNamespaceIfNotExist() error {
 				return fmt.Errorf("failed waiting for namespace %s deletion: %w", o.config.Namespace, err)
 			}
 
-			glog.V(o.config.LogLevel).
+			klog.V(o.config.LogLevel).
 				Infof("Namespace deletion complete, creating fresh namespace %s",
 					o.config.Namespace)
 		} else {
-			glog.V(o.config.LogLevel).
+			klog.V(o.config.LogLevel).
 				Infof("Namespace %s already exists and is active",
 					o.config.Namespace)
 
@@ -209,7 +208,7 @@ func (o *OperatorInstaller) createNamespaceIfNotExist() error {
 		return fmt.Errorf("failed to create namespace %s: %w", o.config.Namespace, err)
 	}
 
-	glog.V(o.config.LogLevel).
+	klog.V(o.config.LogLevel).
 		Infof("Successfully created namespace %s",
 			o.config.Namespace)
 
@@ -219,7 +218,7 @@ func (o *OperatorInstaller) createNamespaceIfNotExist() error {
 // waitForNamespaceDeletion waits for the namespace to be deleted.
 func (o *OperatorInstaller) waitForNamespaceDeletion() error {
 	timeout := 5 * time.Minute
-	glog.V(o.config.LogLevel).Infof("Waiting up to %v for namespace %s to be deleted", timeout, o.config.Namespace)
+	klog.V(o.config.LogLevel).Infof("Waiting up to %v for namespace %s to be deleted", timeout, o.config.Namespace)
 
 	err := wait.PollUntilContextTimeout(
 		context.TODO(), 5*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
@@ -227,17 +226,17 @@ func (o *OperatorInstaller) waitForNamespaceDeletion() error {
 				ctx, o.config.Namespace, metav1.GetOptions{})
 			if err != nil {
 				if apierrors.IsNotFound(err) {
-					glog.V(o.config.LogLevel).Infof("Namespace %s has been successfully deleted", o.config.Namespace)
+					klog.V(o.config.LogLevel).Infof("Namespace %s has been successfully deleted", o.config.Namespace)
 
 					return true, nil
 				}
 
-				glog.V(o.config.LogLevel).Infof("Error checking namespace %s: %v", o.config.Namespace, err)
+				klog.V(o.config.LogLevel).Infof("Error checking namespace %s: %v", o.config.Namespace, err)
 
 				return false, err
 			}
 
-			glog.V(o.config.LogLevel).Infof("Namespace %s still exists, continuing to wait...", o.config.Namespace)
+			klog.V(o.config.LogLevel).Infof("Namespace %s still exists, continuing to wait...", o.config.Namespace)
 
 			return false, nil
 		})
@@ -251,7 +250,7 @@ func (o *OperatorInstaller) waitForNamespaceDeletion() error {
 
 // createOperatorGroup creates the operator group if it doesn't exist.
 func (o *OperatorInstaller) createOperatorGroup() error {
-	glog.V(o.config.LogLevel).Infof("Creating operator group %s in namespace %s",
+	klog.V(o.config.LogLevel).Infof("Creating operator group %s in namespace %s",
 		o.config.OperatorGroupName, o.config.Namespace)
 
 	operatorGroupBuilder := olm.NewOperatorGroupBuilder(
@@ -260,7 +259,7 @@ func (o *OperatorInstaller) createOperatorGroup() error {
 	operatorGroupBuilder.Definition.Spec.TargetNamespaces = o.config.TargetNamespaces
 
 	if operatorGroupBuilder.Exists() {
-		glog.V(o.config.LogLevel).Infof("OperatorGroup %s already exists", o.config.OperatorGroupName)
+		klog.V(o.config.LogLevel).Infof("OperatorGroup %s already exists", o.config.OperatorGroupName)
 
 		return nil
 	}
@@ -282,9 +281,9 @@ func (o *OperatorInstaller) createOperatorGroup() error {
 
 // createSubscription creates the subscription if it doesn't exist.
 func (o *OperatorInstaller) createSubscription() error {
-	glog.V(o.config.LogLevel).Infof("Creating subscription %s in namespace %s",
+	klog.V(o.config.LogLevel).Infof("Creating subscription %s in namespace %s",
 		o.config.SubscriptionName, o.config.Namespace)
-	glog.V(o.config.LogLevel).Infof("Subscription details: Package=%s, CatalogSource=%s, Channel=%s",
+	klog.V(o.config.LogLevel).Infof("Subscription details: Package=%s, CatalogSource=%s, Channel=%s",
 		o.config.PackageName, o.config.CatalogSource, o.config.Channel)
 
 	sub := olm.NewSubscriptionBuilder(
@@ -299,7 +298,7 @@ func (o *OperatorInstaller) createSubscription() error {
 	sub.WithInstallPlanApproval(convertToInstallPlanApproval(o.config.InstallPlanApproval))
 
 	if sub.Exists() {
-		glog.V(o.config.LogLevel).Infof("Subscription %s already exists", o.config.SubscriptionName)
+		klog.V(o.config.LogLevel).Infof("Subscription %s already exists", o.config.SubscriptionName)
 
 		return nil
 	}

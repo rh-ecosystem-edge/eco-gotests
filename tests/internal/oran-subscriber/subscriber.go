@@ -9,7 +9,6 @@ import (
 	"slices"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ingress"
@@ -22,6 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 )
 
@@ -36,7 +36,7 @@ const SubscriberServerPort = 8080
 var SubscriberLabelSelector = map[string]string{"app": "subscriber"}
 
 // LogLevel is the default glog verbosity level for this package.
-const LogLevel glog.Level = 90
+const LogLevel klog.Level = 90
 
 // Deploy deploys the oran-subscriber. It creates all resources in the provided namespace and sets the host on the
 // ingress to the provided domain. If the subscriber image is not provided, [DefaultSubscriberImage] will be used.
@@ -48,7 +48,7 @@ func Deploy(client *clients.Settings, nsname string, subscriberDomain string, su
 		subscriberImage = DefaultSubscriberImage
 	}
 
-	glog.V(LogLevel).Infof("Deploying subscriber in namespace %q with domain %q and image %q",
+	klog.V(LogLevel).Infof("Deploying subscriber in namespace %q with domain %q and image %q",
 		nsname, subscriberDomain, subscriberImage)
 
 	_, err := namespace.NewBuilder(client, nsname).Create()
@@ -56,7 +56,7 @@ func Deploy(client *clients.Settings, nsname string, subscriberDomain string, su
 		return fmt.Errorf("failed to create namespace: %w", err)
 	}
 
-	glog.V(LogLevel).Infof("Successfully created namespace %q for subscriber deployment", nsname)
+	klog.V(LogLevel).Infof("Successfully created namespace %q for subscriber deployment", nsname)
 
 	deploymentBuilder := deployment.NewBuilder(client, "subscriber", nsname, SubscriberLabelSelector, corev1.Container{
 		Name:  "subscriber",
@@ -69,7 +69,7 @@ func Deploy(client *clients.Settings, nsname string, subscriberDomain string, su
 		return fmt.Errorf("failed to create deployment: %w", err)
 	}
 
-	glog.V(LogLevel).Info("Successfully created deployment for subscriber")
+	klog.V(LogLevel).Info("Successfully created deployment for subscriber")
 
 	servicePort, err := service.DefineServicePort(SubscriberServerPort, SubscriberServerPort, corev1.ProtocolTCP)
 	if err != nil {
@@ -83,7 +83,7 @@ func Deploy(client *clients.Settings, nsname string, subscriberDomain string, su
 		return fmt.Errorf("failed to create service: %w", err)
 	}
 
-	glog.V(LogLevel).Info("Successfully created service for subscriber")
+	klog.V(LogLevel).Info("Successfully created service for subscriber")
 
 	ingressBuilder := ingress.NewIngressBuilder(client, "subscriber-ingress", nsname)
 	if ingressBuilder == nil {
@@ -116,7 +116,7 @@ func Deploy(client *clients.Settings, nsname string, subscriberDomain string, su
 		return fmt.Errorf("failed to create ingress: %w", err)
 	}
 
-	glog.V(LogLevel).Info("Successfully created ingress for subscriber")
+	klog.V(LogLevel).Info("Successfully created ingress for subscriber")
 
 	return nil
 }
@@ -132,7 +132,7 @@ func Cleanup(client *clients.Settings, nsname string) error {
 		}
 	}
 
-	glog.V(LogLevel).Info("Successfully cleaned up ingress for subscriber")
+	klog.V(LogLevel).Info("Successfully cleaned up ingress for subscriber")
 
 	serviceBuilder, err := service.Pull(client, "subscriber", nsname)
 	if err == nil {
@@ -142,7 +142,7 @@ func Cleanup(client *clients.Settings, nsname string) error {
 		}
 	}
 
-	glog.V(LogLevel).Info("Successfully cleaned up service for subscriber")
+	klog.V(LogLevel).Info("Successfully cleaned up service for subscriber")
 
 	deploymentBuilder, err := deployment.Pull(client, "subscriber", nsname)
 	if err == nil {
@@ -152,7 +152,7 @@ func Cleanup(client *clients.Settings, nsname string) error {
 		}
 	}
 
-	glog.V(LogLevel).Info("Successfully cleaned up deployment for subscriber")
+	klog.V(LogLevel).Info("Successfully cleaned up deployment for subscriber")
 
 	nsBuilder, err := namespace.Pull(client, nsname)
 	if err == nil {
@@ -162,7 +162,7 @@ func Cleanup(client *clients.Settings, nsname string) error {
 		}
 	}
 
-	glog.V(LogLevel).Info("Successfully cleaned up namespace for subscriber")
+	klog.V(LogLevel).Info("Successfully cleaned up namespace for subscriber")
 
 	return nil
 }
@@ -182,11 +182,11 @@ func PullPod(client *clients.Settings, nsname string) (*pod.Builder, error) {
 	}
 
 	if len(matchingPods) > 1 {
-		glog.V(LogLevel).Infof("Expected 1 pod for the subscriber, but found %d in namespace %q, using the first one",
+		klog.V(LogLevel).Infof("Expected 1 pod for the subscriber, but found %d in namespace %q, using the first one",
 			len(matchingPods), nsname)
 	}
 
-	glog.V(LogLevel).Infof("Successfully pulled pod %q in namespace %q for subscriber",
+	klog.V(LogLevel).Infof("Successfully pulled pod %q in namespace %q for subscriber",
 		matchingPods[0].Definition.Name, nsname)
 
 	return matchingPods[0], nil

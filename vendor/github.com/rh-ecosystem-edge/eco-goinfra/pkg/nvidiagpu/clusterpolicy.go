@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	nvidiagpuv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/nvidiagpu/nvidiagputypes"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/json"
+	"k8s.io/klog/v2"
 	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -30,25 +30,25 @@ type Builder struct {
 
 // NewBuilderFromObjectString creates a Builder object from CSV alm-examples.
 func NewBuilderFromObjectString(apiClient *clients.Settings, almExample string) *Builder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new Builder structure from almExample string")
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(nvidiagpuv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add nvidiagpuv1 scheme to client schemes")
+		klog.V(100).Info("Failed to add nvidiagpuv1 scheme to client schemes")
 
 		return nil
 	}
 
 	clusterPolicy, err := getClusterPolicyFromAlmExample(almExample)
 	if err != nil {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"error initializing ClusterPolicy from alm-examples: %s", err.Error())
 
 		return &Builder{
@@ -57,7 +57,7 @@ func NewBuilderFromObjectString(apiClient *clients.Settings, almExample string) 
 		}
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new Builder structure from almExample string with clusterPolicy name: %s",
 		clusterPolicy.Name)
 
@@ -67,7 +67,7 @@ func NewBuilderFromObjectString(apiClient *clients.Settings, almExample string) 
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The ClusterPolicy object definition is nil")
+		klog.V(100).Info("The ClusterPolicy object definition is nil")
 
 		builder.errorMsg = "ClusterPolicy 'Object.Definition' is nil"
 
@@ -79,17 +79,17 @@ func NewBuilderFromObjectString(apiClient *clients.Settings, almExample string) 
 
 // Pull loads an existing clusterPolicy into Builder struct.
 func Pull(apiClient *clients.Settings, name string) (*Builder, error) {
-	glog.V(100).Infof("Pulling existing clusterPolicy name: %s", name)
+	klog.V(100).Infof("Pulling existing clusterPolicy name: %s", name)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil, fmt.Errorf("clusterPolicy 'apiClient' cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(nvidiagpuv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add nvidiagpuv1 scheme to client schemes")
+		klog.V(100).Info("Failed to add nvidiagpuv1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func Pull(apiClient *clients.Settings, name string) (*Builder, error) {
 	}
 
 	if name == "" {
-		glog.V(100).Infof("ClusterPolicy name is empty")
+		klog.V(100).Info("ClusterPolicy name is empty")
 
 		return nil, fmt.Errorf("clusterPolicy 'name' cannot be empty")
 	}
@@ -124,14 +124,14 @@ func (builder *Builder) Get() (*nvidiagpuv1.ClusterPolicy, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Collecting ClusterPolicy object %s", builder.Definition.Name)
 
 	clusterPolicy := &nvidiagpuv1.ClusterPolicy{}
 
 	err := builder.apiClient.Get(context.TODO(), runtimeClient.ObjectKey{Name: builder.Definition.Name}, clusterPolicy)
 	if err != nil {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"ClusterPolicy object %s does not exist", builder.Definition.Name)
 
 		return nil, err
@@ -146,14 +146,14 @@ func (builder *Builder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Checking if ClusterPolicy %s exists", builder.Definition.Name)
 
 	var err error
 
 	builder.Object, err = builder.Get()
 	if err != nil {
-		glog.V(100).Infof("Failed to collect ClusterPolicy object due to %s", err.Error())
+		klog.V(100).Infof("Failed to collect ClusterPolicy object due to %s", err.Error())
 	}
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -165,10 +165,10 @@ func (builder *Builder) Delete() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting ClusterPolicy %s", builder.Definition.Name)
+	klog.V(100).Infof("Deleting ClusterPolicy %s", builder.Definition.Name)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("clusterpolicy cannot be deleted because it does not exist")
+		klog.V(100).Info("clusterpolicy cannot be deleted because it does not exist")
 
 		return builder, nil
 	}
@@ -189,7 +189,7 @@ func (builder *Builder) Create() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the ClusterPolicy %s", builder.Definition.Name)
+	klog.V(100).Infof("Creating the ClusterPolicy %s", builder.Definition.Name)
 
 	if builder.Exists() {
 		return builder, nil
@@ -211,17 +211,16 @@ func (builder *Builder) Update(force bool) (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating the ClusterPolicy object named:  %s", builder.Definition.Name)
+	klog.V(100).Infof("Updating the ClusterPolicy object named:  %s", builder.Definition.Name)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		if force {
-			glog.V(100).Infof(msg.FailToUpdateNotification("clusterpolicy", builder.Definition.Name))
+			klog.V(100).Infof("%v", msg.FailToUpdateNotification("clusterpolicy", builder.Definition.Name))
 
 			builder, err := builder.Delete()
 			if err != nil {
-				glog.V(100).Infof(
-					msg.FailToUpdateError("clusterpolicy", builder.Definition.Name))
+				klog.V(100).Infof("%v", msg.FailToUpdateError("clusterpolicy", builder.Definition.Name))
 
 				return nil, err
 			}
@@ -239,25 +238,25 @@ func (builder *Builder) validate() (bool, error) {
 	resourceCRD := "ClusterPolicy"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

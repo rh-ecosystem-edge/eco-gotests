@@ -9,12 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/strings/slices"
 
 	lcav1 "github.com/openshift-kni/lifecycle-agent/api/imagebasedupgrade/v1"
@@ -113,7 +112,7 @@ var _ = Describe(
 			Expect(err).NotTo(HaveOccurred(), "error retrieveing the X.Y version of the cluster before upgrade")
 
 			if findInstalledCSV("kernel-module-management") {
-				glog.V(mgmtparams.MGMTLogLevel).Infof("KMM was installed")
+				klog.V(mgmtparams.MGMTLogLevel).Infof("KMM was installed")
 
 				By("Create namespace definition for KMM module")
 				kmmNamespace := namespace.NewBuilder(APIClient, kmmModuleNamespaceName)
@@ -588,7 +587,7 @@ var _ = Describe(
 			By("Validate Service Network is in a dual stack deployment with primary IPv4")
 
 			if validateDualStackDeploymentPrimaryIPv4() {
-				glog.V(mgmtparams.MGMTLogLevel).Infof("Cluster is a dual stack deployment with primary IPv4")
+				klog.V(mgmtparams.MGMTLogLevel).Infof("Cluster is a dual stack deployment with primary IPv4")
 			} else {
 				Skip("Cluster is not a dual stack deployment with primary IPv4")
 			}
@@ -599,7 +598,7 @@ var _ = Describe(
 			By("Validate Service Network is in a dual stack deployment with primary IPv6")
 
 			if validateDualStackDeploymentPrimaryIPv6() {
-				glog.V(mgmtparams.MGMTLogLevel).Infof("Cluster is a dual stack deployment with primary IPv6")
+				klog.V(mgmtparams.MGMTLogLevel).Infof("Cluster is a dual stack deployment with primary IPv6")
 			} else {
 				Skip("Cluster is not a dual stack deployment with primary IPv6")
 			}
@@ -850,7 +849,7 @@ func validateDualStackDeploymentPrimaryIPv6() bool {
 	ipAddress := getFirstServiceNetworkIP()
 
 	if ipAddress != nil && ipAddress.To4() == nil {
-		glog.V(mgmtparams.MGMTLogLevel).Infof("The IP is a valid IPv6 address: %s", ipAddress)
+		klog.V(mgmtparams.MGMTLogLevel).Infof("The IP is a valid IPv6 address: %s", ipAddress)
 
 		return true
 	}
@@ -862,7 +861,7 @@ func validateDualStackDeploymentPrimaryIPv4() bool {
 	ipAddress := getFirstServiceNetworkIP()
 
 	if ipAddress != nil && ipAddress.To4() != nil {
-		glog.V(mgmtparams.MGMTLogLevel).Infof("The IP is a valid IPv4 address: %s", ipAddress)
+		klog.V(mgmtparams.MGMTLogLevel).Infof("The IP is a valid IPv4 address: %s", ipAddress)
 
 		return true
 	}
@@ -875,7 +874,7 @@ func validateDualStackDeployment(clusterNetworkConfigObj *network.ConfigBuilder)
 	ipv6Network := false
 
 	for _, serviceNetwork := range clusterNetworkConfigObj.Object.Spec.ServiceNetwork {
-		glog.V(mgmtparams.MGMTLogLevel).Infof("Service Network: %s", serviceNetwork)
+		klog.V(mgmtparams.MGMTLogLevel).Infof("Service Network: %s", serviceNetwork)
 
 		By("Validate Service Network entry is a CIDR")
 
@@ -885,15 +884,15 @@ func validateDualStackDeployment(clusterNetworkConfigObj *network.ConfigBuilder)
 
 			switch {
 			case ipAddress.To4() != nil:
-				glog.V(mgmtparams.MGMTLogLevel).Infof("Valid IPv4 CIDR: %s", serviceNetwork)
+				klog.V(mgmtparams.MGMTLogLevel).Infof("Valid IPv4 CIDR: %s", serviceNetwork)
 
 				ipv4Network = true
 			case ipAddress.To4() == nil:
-				glog.V(mgmtparams.MGMTLogLevel).Infof("Valid IPv6 CIDR: %s", serviceNetwork)
+				klog.V(mgmtparams.MGMTLogLevel).Infof("Valid IPv6 CIDR: %s", serviceNetwork)
 
 				ipv6Network = true
 			default:
-				glog.V(2).Infof("Unknown IP family for CIDR: %s", serviceNetwork)
+				klog.V(2).Infof("Unknown IP family for CIDR: %s", serviceNetwork)
 			}
 
 			if ipv4Network && ipv6Network {

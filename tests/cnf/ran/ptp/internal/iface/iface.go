@@ -7,8 +7,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
+	"k8s.io/klog/v2"
 )
 
 // nicNameRegexp is a regular expression that matches the name of a network interface. It is used for generating the NIC
@@ -30,7 +30,7 @@ type Name string
 // [Master] unchanged.
 func (iface Name) GetNIC() NICName {
 	if len(iface) < 2 {
-		glog.V(tsparams.LogLevel).Infof("Failed to get NIC name for interface %q: interface name is too short", iface)
+		klog.V(tsparams.LogLevel).Infof("Failed to get NIC name for interface %q: interface name is too short", iface)
 
 		return ""
 	}
@@ -50,7 +50,7 @@ func (iface Name) GetNIC() NICName {
 		return NICName(fmt.Sprintf("%sx%s", matches[1], matches[3]))
 	}
 
-	glog.V(tsparams.LogLevel).Infof(
+	klog.V(tsparams.LogLevel).Infof(
 		"Failed to get NIC name for interface %q: interface name does not match known format", iface)
 
 	return ""

@@ -5,10 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/hashicorp/go-version"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
+	"k8s.io/klog/v2"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -134,7 +134,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelLong
 			Expect(err).ToNot(HaveOccurred(), "error detecting clusterversion")
 
 			ocpVersion, _ := version.NewVersion(clusterVersion.Definition.Status.Desired.Version)
-			glog.V(kmmparams.KmmLogLevel).Infof("Cluster Version: %s", ocpVersion)
+			klog.V(kmmparams.KmmLogLevel).Infof("Cluster Version: %s", ocpVersion)
 			minVersion, _ := version.NewVersion("4.14.0-0.nightly-2023-01-01-184526")
 			maxVersion, _ := version.NewVersion("4.16.0-0.nightly")
 

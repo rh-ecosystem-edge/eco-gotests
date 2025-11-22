@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	operatorv1 "github.com/openshift/api/operator/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/imageregistry"
@@ -17,6 +16,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/gitopsztp/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranhelper"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 	configurationPolicyV1 "open-cluster-management.io/config-policy-controller/api/v1"
 )
 
@@ -70,7 +70,7 @@ func WaitForServiceAccountToExist(
 
 // GetPolicyEvaluationIntervals is used to get the configured evaluation intervals for the specified policy.
 func GetPolicyEvaluationIntervals(policy *ocm.PolicyBuilder) (string, string, error) {
-	glog.V(tsparams.LogLevel).Infof(
+	klog.V(tsparams.LogLevel).Infof(
 		"Checking policy '%s' in namespace '%s' to fetch evaluation intervals",
 		policy.Definition.Name, policy.Definition.Namespace)
 
@@ -127,7 +127,7 @@ func RestoreImageRegistry(
 
 // CleanupImageRegistryConfig deletes the specified resources in the necessary order.
 func CleanupImageRegistryConfig(client *clients.Settings) error {
-	glog.V(tsparams.LogLevel).Infof(
+	klog.V(tsparams.LogLevel).Infof(
 		"Cleaning up image registry resources with sc=%s, pv=%s, pvc=%s",
 		tsparams.ImageRegistrySC, tsparams.ImageRegistryPV, tsparams.ImageRegistryPVC)
 

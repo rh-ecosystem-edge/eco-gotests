@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ocm"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran"
@@ -19,6 +18,7 @@ import (
 	subscriber "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/oran-subscriber"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -79,14 +79,14 @@ func WaitForNoncompliantImmutable(client *clients.Settings, namespace string, ti
 		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			policies, err := ocm.ListPoliciesInAllNamespaces(client, runtimeclient.ListOptions{Namespace: namespace})
 			if err != nil {
-				glog.V(tsparams.LogLevel).Infof("Failed to list all policies in namespace %s: %v", namespace, err)
+				klog.V(tsparams.LogLevel).Infof("Failed to list all policies in namespace %s: %v", namespace, err)
 
 				return false, nil
 			}
 
 			for _, policy := range policies {
 				if policy.Definition.Status.ComplianceState == policiesv1.NonCompliant {
-					glog.V(tsparams.LogLevel).Infof("Policy %s in namespace %s is not compliant, checking history",
+					klog.V(tsparams.LogLevel).Infof("Policy %s in namespace %s is not compliant, checking history",
 						policy.Definition.Name, policy.Definition.Namespace)
 
 					details := policy.Definition.Status.Details
@@ -100,7 +100,7 @@ func WaitForNoncompliantImmutable(client *clients.Settings, namespace string, ti
 					}
 
 					if strings.Contains(history[0].Message, tsparams.ImmutableMessage) {
-						glog.V(tsparams.LogLevel).Infof("Policy %s in namespace %s is not compliant due to an immutable field",
+						klog.V(tsparams.LogLevel).Infof("Policy %s in namespace %s is not compliant due to an immutable field",
 							policy.Definition.Name, policy.Definition.Namespace)
 
 						return true, nil
@@ -119,7 +119,7 @@ func WaitForValidPRClusterInstance(client *clients.Settings, timeout time.Durati
 		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			clusterInstance, err := siteconfig.PullClusterInstance(client, RANConfig.Spoke1Name, RANConfig.Spoke1Name)
 			if err != nil {
-				glog.V(tsparams.LogLevel).Infof("Failed to pull ClusterInstance %s: %v", RANConfig.Spoke1Name, err)
+				klog.V(tsparams.LogLevel).Infof("Failed to pull ClusterInstance %s: %v", RANConfig.Spoke1Name, err)
 
 				return false, nil
 			}
@@ -146,7 +146,7 @@ func WaitForAlarmToExist(
 		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			alarms, err := alarmsClient.ListAlarms()
 			if err != nil {
-				glog.V(tsparams.LogLevel).Infof("Failed to list alarms: %v", err)
+				klog.V(tsparams.LogLevel).Infof("Failed to list alarms: %v", err)
 
 				return false, nil
 			}
@@ -199,14 +199,14 @@ func WaitForAllNotifications(
 
 			receivedNotifications, err := subscriber.ListReceivedNotifications(client, namespace, startTime)
 			if err != nil {
-				glog.V(tsparams.LogLevel).Infof("Failed to list received notifications: %v", err)
+				klog.V(tsparams.LogLevel).Infof("Failed to list received notifications: %v", err)
 
 				return false, nil
 			}
 
 			for _, notification := range receivedNotifications {
 				if tracker, ok := notification.Extensions["tracker"]; ok {
-					glog.V(tsparams.LogLevel).Infof("Deleting expected tracker %s", tracker)
+					klog.V(tsparams.LogLevel).Infof("Deleting expected tracker %s", tracker)
 
 					delete(expectedTrackers, tracker)
 				}
@@ -214,7 +214,7 @@ func WaitForAllNotifications(
 
 			startTime = newStartTime
 
-			glog.V(tsparams.LogLevel).Infof("Waiting for %d more notifications", len(expectedTrackers))
+			klog.V(tsparams.LogLevel).Infof("Waiting for %d more notifications", len(expectedTrackers))
 
 			return len(expectedTrackers) == 0, nil
 		})

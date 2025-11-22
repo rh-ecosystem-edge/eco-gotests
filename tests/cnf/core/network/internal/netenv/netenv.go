@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	v2 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/performanceprofile/v2"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/mco"
@@ -20,6 +19,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/klog/v2"
 )
 
 // DoesClusterHasEnoughNodes verifies if given cluster has enough nodes to run tests.
@@ -28,7 +28,7 @@ func DoesClusterHasEnoughNodes(
 	netConfig *netconfig.NetworkConfig,
 	requiredCPNodeNumber int,
 	requiredWorkerNodeNumber int) error {
-	glog.V(90).Infof("Verifying if cluster has enough workers to run tests")
+	klog.V(90).Infof("Verifying if cluster has enough workers to run tests")
 
 	workerNodeList, err := nodes.List(
 		apiClient,
@@ -52,7 +52,7 @@ func DoesClusterHasEnoughNodes(
 		return err
 	}
 
-	glog.V(90).Infof("Verifying if cluster has enough control-plane nodes to run tests")
+	klog.V(90).Infof("Verifying if cluster has enough control-plane nodes to run tests")
 
 	if len(controlPlaneNodeList) < requiredCPNodeNumber {
 		return fmt.Errorf("cluster has less than %d control-plane nodes", requiredCPNodeNumber)
@@ -107,7 +107,7 @@ func DeployPerformanceProfile(
 	isolatedCPU string,
 	reservedCPU string,
 	hugePages1GCount int32) error {
-	glog.V(90).Infof("Ensuring cluster has correct PerformanceProfile deployed")
+	klog.V(90).Infof("Ensuring cluster has correct PerformanceProfile deployed")
 
 	mcp, err := mco.Pull(apiClient, netConfig.CnfMcpLabel)
 	if err != nil {
@@ -123,13 +123,13 @@ func DeployPerformanceProfile(
 	if len(performanceProfiles) > 0 {
 		for _, perfProfile := range performanceProfiles {
 			if perfProfile.Object.Name == profileName {
-				glog.V(90).Infof("PerformanceProfile %s exists", profileName)
+				klog.V(90).Infof("PerformanceProfile %s exists", profileName)
 
 				return nil
 			}
 		}
 
-		glog.V(90).Infof("PerformanceProfile doesn't exist on cluster. Removing all pre-existing profiles")
+		klog.V(90).Infof("PerformanceProfile doesn't exist on cluster. Removing all pre-existing profiles")
 
 		err := nto.CleanAllPerformanceProfiles(apiClient)
 
@@ -144,7 +144,7 @@ func DeployPerformanceProfile(
 		}
 	}
 
-	glog.V(90).Infof("Required PerformanceProfile doesn't exist. Installing new profile PerformanceProfile")
+	klog.V(90).Infof("Required PerformanceProfile doesn't exist. Installing new profile PerformanceProfile")
 
 	_, err = nto.NewBuilder(apiClient, profileName, isolatedCPU, reservedCPU, netConfig.WorkerLabelMap).
 		WithHugePages("1G", []v2.HugePage{{Size: "1G", Count: hugePages1GCount}}).Create()
@@ -159,18 +159,18 @@ func DeployPerformanceProfile(
 // RemoveSriovConfigurationAndWaitForSriovAndMCPStable removes all SR-IOV networks
 // and policies in SR-IOV operator namespace.
 func RemoveSriovConfigurationAndWaitForSriovAndMCPStable() error {
-	glog.V(90).Infof("Removing all SR-IOV networks and policies")
+	klog.V(90).Infof("Removing all SR-IOV networks and policies")
 
 	err := RemoveAllSriovNetworks()
 	if err != nil {
-		glog.V(90).Infof("Failed to remove all SR-IOV networks")
+		klog.V(90).Infof("Failed to remove all SR-IOV networks")
 
 		return err
 	}
 
 	err = RemoveAllPoliciesAndWaitForSriovAndMCPStable()
 	if err != nil {
-		glog.V(90).Infof("Failed to remove all SR-IOV policies")
+		klog.V(90).Infof("Failed to remove all SR-IOV policies")
 
 		return err
 	}
@@ -180,11 +180,11 @@ func RemoveSriovConfigurationAndWaitForSriovAndMCPStable() error {
 
 // RemoveAllSriovNetworks removes all SR-IOV networks.
 func RemoveAllSriovNetworks() error {
-	glog.V(90).Infof("Removing all SR-IOV networks")
+	klog.V(90).Infof("Removing all SR-IOV networks")
 
 	sriovNs, err := namespace.Pull(netinittools.APIClient, netinittools.NetConfig.SriovOperatorNamespace)
 	if err != nil {
-		glog.V(90).Infof("Failed to pull SR-IOV operator namespace")
+		klog.V(90).Infof("Failed to pull SR-IOV operator namespace")
 
 		return err
 	}
@@ -193,7 +193,7 @@ func RemoveAllSriovNetworks() error {
 		netparam.DefaultTimeout,
 		sriov.GetSriovNetworksGVR())
 	if err != nil {
-		glog.V(90).Infof("Failed to remove SR-IOV networks from SR-IOV operator namespace")
+		klog.V(90).Infof("Failed to remove SR-IOV networks from SR-IOV operator namespace")
 
 		return err
 	}
@@ -204,7 +204,7 @@ func RemoveAllSriovNetworks() error {
 // RemoveAllPoliciesAndWaitForSriovAndMCPStable removes all  SriovNetworkNodePolicies and waits until
 // SR-IOV and MCP become stable.
 func RemoveAllPoliciesAndWaitForSriovAndMCPStable() error {
-	glog.V(90).Infof("Deleting all SriovNetworkNodePolicies and waiting for SR-IOV and MCP become stable.")
+	klog.V(90).Infof("Deleting all SriovNetworkNodePolicies and waiting for SR-IOV and MCP become stable.")
 
 	err := sriov.CleanAllNetworkNodePolicies(netinittools.APIClient, netinittools.NetConfig.SriovOperatorNamespace)
 	if err != nil {
@@ -220,19 +220,19 @@ func RemoveAllPoliciesAndWaitForSriovAndMCPStable() error {
 func BuildRoutesMapWithSpecificRoutes(podList []*pod.Builder, workerNodeList []*nodes.Builder,
 	nextHopList []string) (map[string]string, error) {
 	if len(podList) == 0 {
-		glog.V(90).Infof("Pod list is empty")
+		klog.V(90).Infof("Pod list is empty")
 
 		return nil, fmt.Errorf("pod list is empty")
 	}
 
 	if len(nextHopList) == 0 {
-		glog.V(90).Infof("Nexthop IP addresses list is empty")
+		klog.V(90).Infof("Nexthop IP addresses list is empty")
 
 		return nil, fmt.Errorf("nexthop IP addresses list is empty")
 	}
 
 	if len(nextHopList) < len(podList) {
-		glog.V(90).Infof("Number of speaker IP addresses[%d] is less than the number of pods[%d]",
+		klog.V(90).Infof("Number of speaker IP addresses[%d] is less than the number of pods[%d]",
 			len(nextHopList), len(podList))
 
 		return nil, fmt.Errorf("insufficient speaker IP addresses: got %d, need at least %d",
@@ -259,13 +259,13 @@ func SetStaticRoute(frrPod *pod.Builder, action, destIP, containerName string,
 		[]string{"ip", "route", action, destIP, "via", nextHopMap[frrPod.Definition.Spec.NodeName]}, containerName)
 	if err != nil {
 		if strings.Contains(buffer.String(), "File exists") {
-			glog.V(90).Infof("Warning: Route to %s already exist", destIP)
+			klog.V(90).Infof("Warning: Route to %s already exist", destIP)
 
 			return buffer.String(), nil
 		}
 
 		if strings.Contains(buffer.String(), "No such process") {
-			glog.V(90).Infof("Warning: Route to %s already absent", destIP)
+			klog.V(90).Infof("Warning: Route to %s already absent", destIP)
 
 			return buffer.String(), nil
 		}

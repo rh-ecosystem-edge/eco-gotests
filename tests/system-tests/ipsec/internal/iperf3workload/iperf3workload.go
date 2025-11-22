@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
@@ -14,6 +13,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ipsec/internal/ipsecparams"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -27,7 +27,7 @@ func CreateService(apiClient *clients.Settings,
 	serviceName string,
 	selectorLabels map[string]string,
 	nodePort int32) (*service.Builder, error) {
-	glog.V(ipsecparams.IpsecLogLevel).Infof("Creating Service %s with nodePort %d selectorLables %v",
+	klog.V(ipsecparams.IpsecLogLevel).Infof("Creating Service %s with nodePort %d selectorLables %v",
 		serviceName, nodePort, selectorLabels)
 
 	svcPort, err := service.DefineServicePort(
@@ -36,12 +36,12 @@ func CreateService(apiClient *clients.Settings,
 		corev1.Protocol("TCP"))
 
 	if err != nil {
-		glog.V(ipsecparams.IpsecLogLevel).Infof("Error defining ServicePort: %v", err)
+		klog.V(ipsecparams.IpsecLogLevel).Infof("Error defining ServicePort: %v", err)
 
 		return nil, err
 	}
 
-	glog.V(ipsecparams.IpsecLogLevel).Infof("Creating Service Builder")
+	klog.V(ipsecparams.IpsecLogLevel).Infof("Creating Service Builder")
 
 	// This service will be applied to deployments whose labels match the selectorLabels
 	svcDemo := service.NewBuilder(apiClient,
@@ -56,12 +56,12 @@ func CreateService(apiClient *clients.Settings,
 	svcDemo, err = svcDemo.Create()
 
 	if err != nil {
-		glog.V(ipsecparams.IpsecLogLevel).Infof("Error creating service: %v", err)
+		klog.V(ipsecparams.IpsecLogLevel).Infof("Error creating service: %v", err)
 
 		return nil, err
 	}
 
-	glog.V(ipsecparams.IpsecLogLevel).Infof("Created service: %q in %q namespace",
+	klog.V(ipsecparams.IpsecLogLevel).Infof("Created service: %q in %q namespace",
 		svcDemo.Definition.Name, svcDemo.Definition.Namespace)
 
 	return svcDemo, nil
@@ -70,13 +70,13 @@ func CreateService(apiClient *clients.Settings,
 // DeleteService Deletes a service.
 // Return nil on success, otherwise return an error.
 func DeleteService(apiClient *clients.Settings, serviceName string) error {
-	glog.V(ipsecparams.IpsecLogLevel).Infof("Deleting Service %q in %q namespace",
+	klog.V(ipsecparams.IpsecLogLevel).Infof("Deleting Service %q in %q namespace",
 		serviceName, ipsecparams.TestNamespaceName)
 
 	svcDemo, err := service.Pull(apiClient, serviceName, ipsecparams.TestNamespaceName)
 
 	if err != nil && svcDemo == nil {
-		glog.V(ipsecparams.IpsecLogLevel).Infof("Service %q not found in %q namespace",
+		klog.V(ipsecparams.IpsecLogLevel).Infof("Service %q not found in %q namespace",
 			serviceName, ipsecparams.TestNamespaceName)
 
 		return err
@@ -84,12 +84,12 @@ func DeleteService(apiClient *clients.Settings, serviceName string) error {
 
 	err = svcDemo.Delete()
 	if err != nil {
-		glog.V(ipsecparams.IpsecLogLevel).Infof("Error deleting service: %v", err)
+		klog.V(ipsecparams.IpsecLogLevel).Infof("Error deleting service: %v", err)
 
 		return err
 	}
 
-	glog.V(ipsecparams.IpsecLogLevel).Infof("Deleted service %q in %q namespace",
+	klog.V(ipsecparams.IpsecLogLevel).Infof("Deleted service %q in %q namespace",
 		serviceName, ipsecparams.TestNamespaceName)
 
 	return nil
@@ -103,7 +103,7 @@ func CreateWorkload(apiClient *clients.Settings,
 	nodeName string,
 	workloadLabels map[string]string,
 	iperf3ToolImage string) (*deployment.Builder, error) {
-	glog.V(ipsecparams.IpsecLogLevel).Infof("Creating Workload %s on node %s, image %s with labels %v",
+	klog.V(ipsecparams.IpsecLogLevel).Infof("Creating Workload %s on node %s, image %s with labels %v",
 		deploymentName,
 		nodeName,
 		iperf3ToolImage,
@@ -117,7 +117,7 @@ func CreateWorkload(apiClient *clients.Settings,
 
 	deployContainerCfg, err := deployContainer.GetContainerCfg()
 	if err != nil {
-		glog.V(ipsecparams.IpsecLogLevel).Infof("Error getting container cfg: %s", err)
+		klog.V(ipsecparams.IpsecLogLevel).Infof("Error getting container cfg: %s", err)
 
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func CreateWorkload(apiClient *clients.Settings,
 
 	_, err = createDeploy.CreateAndWaitUntilReady(300 * time.Second)
 	if err != nil {
-		glog.V(ipsecparams.IpsecLogLevel).Infof("Error deploying container: %s", err)
+		klog.V(ipsecparams.IpsecLogLevel).Infof("Error deploying container: %s", err)
 
 		return nil, err
 	}
@@ -151,13 +151,13 @@ func DeleteWorkload(apiClient *clients.Settings, deploymentName string, workload
 
 	pullDeploy, _ := deployment.Pull(apiClient, deploymentName, ipsecparams.TestNamespaceName)
 	if pullDeploy == nil {
-		glog.V(ipsecparams.IpsecLogLevel).Infof("Deployment %q not found in %q ns",
+		klog.V(ipsecparams.IpsecLogLevel).Infof("Deployment %q not found in %q ns",
 			deploymentName, ipsecparams.TestNamespaceName)
 	}
 
 	err = pullDeploy.Delete()
 	if err != nil {
-		glog.V(ipsecparams.IpsecLogLevel).Infof("Failed to delete deployment %q: %v",
+		klog.V(ipsecparams.IpsecLogLevel).Infof("Failed to delete deployment %q: %v",
 			deploymentName, err)
 
 		return err
@@ -175,7 +175,7 @@ func DeleteWorkload(apiClient *clients.Settings, deploymentName string, workload
 			pollSuccess = true
 			continueLooping = false
 
-			glog.V(ipsecparams.IpsecLogLevel).Infof("Found %d pods matching label %q ",
+			klog.V(ipsecparams.IpsecLogLevel).Infof("Found %d pods matching label %q ",
 				len(oldPods), workloadLabels)
 		} else {
 			time.Sleep(pollIntervalSecs)
@@ -188,24 +188,24 @@ func DeleteWorkload(apiClient *clients.Settings, deploymentName string, workload
 	}
 
 	if !pollSuccess {
-		glog.V(ipsecparams.IpsecLogLevel).Infof("Error listing pods in %q namespace",
+		klog.V(ipsecparams.IpsecLogLevel).Infof("Error listing pods in %q namespace",
 			ipsecparams.TestNamespaceName)
 
 		return err
 	}
 
 	if len(oldPods) == 0 {
-		glog.V(ipsecparams.IpsecLogLevel).Infof("No pods matching label %q found in %q namespace",
+		klog.V(ipsecparams.IpsecLogLevel).Infof("No pods matching label %q found in %q namespace",
 			workloadLabels, ipsecparams.TestNamespaceName)
 	}
 
 	for _, _pod := range oldPods {
-		glog.V(ipsecparams.IpsecLogLevel).Infof("Deleting pod %q in %q namspace",
+		klog.V(ipsecparams.IpsecLogLevel).Infof("Deleting pod %q in %q namspace",
 			_pod.Definition.Name, _pod.Definition.Namespace)
 
 		_pod, err = _pod.DeleteAndWait(300 * time.Second)
 		if err != nil {
-			glog.V(ipsecparams.IpsecLogLevel).Infof("Failed to delete pod %q: %v",
+			klog.V(ipsecparams.IpsecLogLevel).Infof("Failed to delete pod %q: %v",
 				_pod.Definition.Name, err)
 
 			return err
@@ -225,13 +225,13 @@ func LaunchIperf3Command(apiClient *clients.Settings,
 	// deployNS         =>  ipsecparams.TestNamespaceName
 	// deployLabel      =>  containerLabels
 	// containerName    =>  deploymentName
-	glog.V(ipsecparams.IpsecLogLevel).Infof("Check deployment %q exists in %q namespace",
+	klog.V(ipsecparams.IpsecLogLevel).Infof("Check deployment %q exists in %q namespace",
 		deploymentName, ipsecparams.TestNamespaceName)
 
 	pullDeploy, _ := deployment.Pull(apiClient, deploymentName, ipsecparams.TestNamespaceName)
 
 	if pullDeploy == nil {
-		glog.V(ipsecparams.IpsecLogLevel).Infof("Deployment %q not found in %q ns",
+		klog.V(ipsecparams.IpsecLogLevel).Infof("Deployment %q not found in %q ns",
 			deploymentName, ipsecparams.TestNamespaceName)
 	}
 
@@ -241,7 +241,7 @@ func LaunchIperf3Command(apiClient *clients.Settings,
 		output  bytes.Buffer
 	)
 
-	glog.V(ipsecparams.IpsecLogLevel).Infof("Finding pod backed by deployment")
+	klog.V(ipsecparams.IpsecLogLevel).Infof("Finding pod backed by deployment")
 
 	totalPollTime := 0
 	pollSuccess := false
@@ -256,7 +256,7 @@ func LaunchIperf3Command(apiClient *clients.Settings,
 			pollSuccess = true
 			continueLooping = false
 
-			glog.V(ipsecparams.IpsecLogLevel).Infof("Found %d pods matching label %q",
+			klog.V(ipsecparams.IpsecLogLevel).Infof("Found %d pods matching label %q",
 				len(appPods), containerLabels)
 		} else {
 			time.Sleep(pollIntervalSecs)
@@ -269,7 +269,7 @@ func LaunchIperf3Command(apiClient *clients.Settings,
 	}
 
 	if !pollSuccess {
-		glog.V(ipsecparams.IpsecLogLevel).Infof("Failed to find pods matching label %q",
+		klog.V(ipsecparams.IpsecLogLevel).Infof("Failed to find pods matching label %q",
 			containerLabels)
 
 		return false
@@ -277,20 +277,20 @@ func LaunchIperf3Command(apiClient *clients.Settings,
 
 	for _, _pod := range appPods {
 		cmdIperf3 := append(slices.Clone(ipsecparams.ContainerCmdBash), strings.Join(iperf3Command, " "))
-		glog.V(ipsecparams.IpsecLogLevel).Infof("Running command %q from within a pod %q with labels %v",
+		klog.V(ipsecparams.IpsecLogLevel).Infof("Running command %q from within a pod %q with labels %v",
 			cmdIperf3, _pod.Definition.Name, _pod.Definition.ObjectMeta.Labels)
 
 		output, err = _pod.ExecCommand(cmdIperf3, deploymentName)
 
 		if err != nil {
-			glog.V(ipsecparams.IpsecLogLevel).Infof(
+			klog.V(ipsecparams.IpsecLogLevel).Infof(
 				"Error running iperf3 lookup from within pod, output: [%s], err [%s]",
-				output, err)
+				output.String(), err)
 
 			return false
 		}
 
-		glog.V(ipsecparams.IpsecLogLevel).Infof("Command's Output:\n%v\n", output.String())
+		klog.V(ipsecparams.IpsecLogLevel).Infof("Command's Output:\n%v\n", output.String())
 	}
 
 	return true

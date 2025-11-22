@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	kmmv1beta2 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/kmm/v1beta2"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -33,18 +33,18 @@ type PreflightValidationAdditionalOptions func(
 // NewPreflightValidationBuilder creates a new instance of PreflightValidationBuilder.
 func NewPreflightValidationBuilder(
 	apiClient *clients.Settings, name, nsname string) *PreflightValidationBuilder {
-	glog.V(100).Infof("Initializing new PreflightValidation structure with following params: %s, %s",
+	klog.V(100).Infof("Initializing new PreflightValidation structure with following params: %s, %s",
 		name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(kmmv1beta2.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add kmm v1beta2 scheme to client schemes")
+		klog.V(100).Info("Failed to add kmm v1beta2 scheme to client schemes")
 
 		return nil
 	}
@@ -60,7 +60,7 @@ func NewPreflightValidationBuilder(
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the PreflightValidation is empty")
+		klog.V(100).Info("The name of the PreflightValidation is empty")
 
 		builder.errorMsg = "PreflightValidation 'name' cannot be empty"
 
@@ -68,7 +68,7 @@ func NewPreflightValidationBuilder(
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the PreflightValidation is empty")
+		klog.V(100).Info("The namespace of the PreflightValidation is empty")
 
 		builder.errorMsg = "PreflightValidation 'nsname' cannot be empty"
 
@@ -90,7 +90,7 @@ func (builder *PreflightValidationBuilder) WithKernelVersion(kernelVersion strin
 		return builder
 	}
 
-	glog.V(100).Infof("Creating new PreflightValidation with kernelVersion: %s",
+	klog.V(100).Infof("Creating new PreflightValidation with kernelVersion: %s",
 		kernelVersion)
 
 	builder.Definition.Spec.KernelVersion = kernelVersion
@@ -104,7 +104,7 @@ func (builder *PreflightValidationBuilder) WithPushBuiltImage(push bool) *Prefli
 		return builder
 	}
 
-	glog.V(100).Infof("Creating new PreflightValidation with PushBuiltImage set to: %s", push)
+	klog.V(100).Infof("Creating new PreflightValidation with PushBuiltImage set to: %v", push)
 
 	builder.Definition.Spec.PushBuiltImage = push
 
@@ -118,13 +118,13 @@ func (builder *PreflightValidationBuilder) WithOptions(
 		return builder
 	}
 
-	glog.V(100).Infof("Setting PreflightValidation additional options")
+	klog.V(100).Info("Setting PreflightValidation additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -139,18 +139,18 @@ func (builder *PreflightValidationBuilder) WithOptions(
 // PullPreflightValidation fetches existing PreflightValidation from the cluster.
 func PullPreflightValidation(apiClient *clients.Settings,
 	name, nsname string) (*PreflightValidationBuilder, error) {
-	glog.V(100).Infof("Pulling existing preflightvalidation name % under namespace %s",
+	klog.V(100).Infof("Pulling existing preflightvalidation name %s under namespace %s",
 		name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("preflightvalidation 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(kmmv1beta2.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add preflightvalidation v1beta2 scheme to client schemes")
+		klog.V(100).Info("Failed to add preflightvalidation v1beta2 scheme to client schemes")
 
 		return nil, err
 	}
@@ -166,13 +166,13 @@ func PullPreflightValidation(apiClient *clients.Settings,
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the preflightvalidation is empty")
+		klog.V(100).Info("The name of the preflightvalidation is empty")
 
 		return builder, fmt.Errorf("%s", "preflightvalidation 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the preflightvalidation is empty")
+		klog.V(100).Info("The namespace of the preflightvalidation is empty")
 
 		return builder, fmt.Errorf("%s", "preflightvalidation 'nsname' cannot be empty")
 	}
@@ -193,7 +193,7 @@ func (builder *PreflightValidationBuilder) Create() (*PreflightValidationBuilder
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating preflightvalidation %s in namespace %s",
+	klog.V(100).Infof("Creating preflightvalidation %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -213,7 +213,7 @@ func (builder *PreflightValidationBuilder) Update() (*PreflightValidationBuilder
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating preflightvalidation %s in namespace %s",
+	klog.V(100).Infof("Updating preflightvalidation %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
@@ -230,7 +230,7 @@ func (builder *PreflightValidationBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if preflightvalidation %s exists in namespace %s",
+	klog.V(100).Infof("Checking if preflightvalidation %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -246,11 +246,11 @@ func (builder *PreflightValidationBuilder) Delete() (*PreflightValidationBuilder
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting preflightvalidation %s in namespace %s",
+	klog.V(100).Infof("Deleting preflightvalidation %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("preflightvalidation %s namespace %s cannot be deleted because it does not exist",
+		klog.V(100).Infof("preflightvalidation %s namespace %s cannot be deleted because it does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -275,7 +275,7 @@ func (builder *PreflightValidationBuilder) Get() (*kmmv1beta2.PreflightValidatio
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting preflightvalidation %s from namespace %s",
+	klog.V(100).Infof("Getting preflightvalidation %s from namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	preflightvalidation := &kmmv1beta2.PreflightValidation{}
@@ -297,25 +297,25 @@ func (builder *PreflightValidationBuilder) validate() (bool, error) {
 	resourceCRD := "PreflightValidation"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

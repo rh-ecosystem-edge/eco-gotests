@@ -7,10 +7,10 @@ import (
 
 	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/golang/glog"
 	srIovV1 "github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 // NetworkNodeStateBuilder provides struct for SriovNetworkNodeState object which contains connection to cluster and
@@ -30,19 +30,19 @@ type NetworkNodeStateBuilder struct {
 
 // NewNetworkNodeStateBuilder creates new instance of NetworkNodeStateBuilder.
 func NewNetworkNodeStateBuilder(apiClient *clients.Settings, nodeName, nsname string) *NetworkNodeStateBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new NetworkNodeStateBuilder structure with the following params: %s, %s",
 		nodeName, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(srIovV1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add sriovv1 scheme to client schemes")
+		klog.V(100).Info("Failed to add sriovv1 scheme to client schemes")
 
 		return nil
 	}
@@ -54,7 +54,7 @@ func NewNetworkNodeStateBuilder(apiClient *clients.Settings, nodeName, nsname st
 	}
 
 	if nodeName == "" {
-		glog.V(100).Infof("The name of the nodeName is empty")
+		klog.V(100).Info("The name of the nodeName is empty")
 
 		builder.errorMsg = "SriovNetworkNodeState 'nodeName' is empty"
 
@@ -62,7 +62,7 @@ func NewNetworkNodeStateBuilder(apiClient *clients.Settings, nodeName, nsname st
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the SriovNetworkNodeState is empty")
+		klog.V(100).Info("The namespace of the SriovNetworkNodeState is empty")
 
 		builder.errorMsg = "SriovNetworkNodeState 'nsname' is empty"
 
@@ -78,7 +78,7 @@ func (builder *NetworkNodeStateBuilder) Discover() error {
 		return err
 	}
 
-	glog.V(100).Infof("Getting the SriovNetworkNodeState object in namespace %s for node %s",
+	klog.V(100).Infof("Getting the SriovNetworkNodeState object in namespace %s for node %s",
 		builder.nsName, builder.nodeName)
 
 	nodeNetworkState := &srIovV1.SriovNetworkNodeState{}
@@ -98,11 +98,11 @@ func (builder *NetworkNodeStateBuilder) GetUpNICs() (srIovV1.InterfaceExts, erro
 		return nil, err
 	}
 
-	glog.V(100).Infof("Collection of sriov interfaces in UP state for node %s", builder.nodeName)
+	klog.V(100).Infof("Collection of sriov interfaces in UP state for node %s", builder.nodeName)
 
 	sriovNics, err := builder.GetNICs()
 	if err != nil {
-		glog.V(100).Infof("Error to discover sriov interfaces for node %s", builder.nodeName)
+		klog.V(100).Infof("Error to discover sriov interfaces for node %s", builder.nodeName)
 
 		return nil, err
 	}
@@ -111,12 +111,12 @@ func (builder *NetworkNodeStateBuilder) GetUpNICs() (srIovV1.InterfaceExts, erro
 
 	for _, nic := range sriovNics {
 		if nic.LinkSpeed != "" && nic.LinkSpeed != "-1 Mb/s" {
-			glog.V(100).Infof("Interface %s is UP on node %s. Append to list", nic.Name, builder.nodeName)
+			klog.V(100).Infof("Interface %s is UP on node %s. Append to list", nic.Name, builder.nodeName)
 			sriovNicsUp = append(sriovNicsUp, nic)
 		}
 	}
 
-	glog.V(100).Infof("Collected sriov UP interfaces list %v for node %s",
+	klog.V(100).Infof("Collected sriov UP interfaces list %v for node %s",
 		builder.Objects.Status.Interfaces, builder.nodeName)
 
 	return sriovNicsUp, nil
@@ -129,12 +129,12 @@ func (builder *NetworkNodeStateBuilder) GetNICs() (srIovV1.InterfaceExts, error)
 	}
 
 	if err := builder.Discover(); err != nil {
-		glog.V(100).Infof("Error to discover sriov interfaces for node %s", builder.nodeName)
+		klog.V(100).Infof("Error to discover sriov interfaces for node %s", builder.nodeName)
 
 		return nil, err
 	}
 
-	glog.V(100).Infof("Collected sriov interfaces list %v for node %s",
+	klog.V(100).Infof("Collected sriov interfaces list %v for node %s",
 		builder.Objects.Status.Interfaces, builder.nodeName)
 
 	return builder.Objects.Status.Interfaces, nil
@@ -147,11 +147,11 @@ func (builder *NetworkNodeStateBuilder) WaitUntilSyncStatus(syncStatus string, t
 		return err
 	}
 
-	glog.V(100).Infof("Waiting for the defined period until SriovNetworkNodeState %s has syncStatus %s",
+	klog.V(100).Infof("Waiting for the defined period until SriovNetworkNodeState %s has syncStatus %s",
 		builder.Objects.Name, syncStatus)
 
 	if syncStatus == "" {
-		glog.V(100).Infof("The syncStatus parameter is empty")
+		klog.V(100).Info("The syncStatus parameter is empty")
 
 		return fmt.Errorf("syncStatus cannot be empty")
 	}
@@ -170,7 +170,7 @@ func (builder *NetworkNodeStateBuilder) WaitUntilSyncStatus(syncStatus string, t
 
 // GetNumVFs returns num-vfs under the given interface.
 func (builder *NetworkNodeStateBuilder) GetNumVFs(sriovInterfaceName string) (int, error) {
-	glog.V(100).Infof("Getting num-vfs under interface %s from SriovNetworkNodeState %s",
+	klog.V(100).Infof("Getting num-vfs under interface %s from SriovNetworkNodeState %s",
 		sriovInterfaceName, builder.nodeName)
 
 	interf, err := builder.findInterfaceByName(sriovInterfaceName)
@@ -183,7 +183,7 @@ func (builder *NetworkNodeStateBuilder) GetNumVFs(sriovInterfaceName string) (in
 
 // GetDriverName returns driver name under the given interface.
 func (builder *NetworkNodeStateBuilder) GetDriverName(sriovInterfaceName string) (string, error) {
-	glog.V(100).Infof("Getting driver name for interface %s from SriovNetworkNodeState %s",
+	klog.V(100).Infof("Getting driver name for interface %s from SriovNetworkNodeState %s",
 		sriovInterfaceName, builder.nodeName)
 
 	interf, err := builder.findInterfaceByName(sriovInterfaceName)
@@ -196,7 +196,7 @@ func (builder *NetworkNodeStateBuilder) GetDriverName(sriovInterfaceName string)
 
 // GetPciAddress returns PciAddress under the given interface.
 func (builder *NetworkNodeStateBuilder) GetPciAddress(sriovInterfaceName string) (string, error) {
-	glog.V(100).Infof("Getting PCI address for interface %s from SriovNetworkNodeState %s",
+	klog.V(100).Infof("Getting PCI address for interface %s from SriovNetworkNodeState %s",
 		sriovInterfaceName, builder.nodeName)
 
 	interf, err := builder.findInterfaceByName(sriovInterfaceName)
@@ -209,7 +209,7 @@ func (builder *NetworkNodeStateBuilder) GetPciAddress(sriovInterfaceName string)
 
 // GetTotalVFs returns total VFs under the given interface.
 func (builder *NetworkNodeStateBuilder) GetTotalVFs(sriovInterfaceName string) (int, error) {
-	glog.V(100).Infof("Getting totalvfs under interface %s from SriovNetworkNodeState %s",
+	klog.V(100).Infof("Getting totalvfs under interface %s from SriovNetworkNodeState %s",
 		sriovInterfaceName, builder.nodeName)
 
 	interf, err := builder.findInterfaceByName(sriovInterfaceName)
@@ -226,7 +226,7 @@ func (builder *NetworkNodeStateBuilder) findInterfaceByName(sriovInterfaceName s
 	}
 
 	if err := builder.Discover(); err != nil {
-		glog.V(100).Infof("Error to discover sriov network node state for node %s", builder.nodeName)
+		klog.V(100).Infof("Error to discover sriov network node state for node %s", builder.nodeName)
 
 		builder.errorMsg = "failed to discover sriov network node state"
 
@@ -234,7 +234,7 @@ func (builder *NetworkNodeStateBuilder) findInterfaceByName(sriovInterfaceName s
 	}
 
 	if sriovInterfaceName == "" {
-		glog.V(100).Infof("The sriovInterface can not be empty string")
+		klog.V(100).Info("The sriovInterface can not be empty string")
 
 		builder.errorMsg = "the sriovInterface is an empty sting"
 
@@ -256,19 +256,19 @@ func (builder *NetworkNodeStateBuilder) validate() (bool, error) {
 	resourceCRD := "SriovNetworkNodeState"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

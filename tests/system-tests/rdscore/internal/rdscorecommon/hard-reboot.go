@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/bmc"
@@ -21,6 +20,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 // WaitAllNodesAreReady waits for all the nodes in the cluster to report Ready state.
@@ -30,19 +30,19 @@ func WaitAllNodesAreReady(ctx SpecContext) {
 	Eventually(func(ctx SpecContext) bool {
 		allNodes, err := nodes.List(APIClient, metav1.ListOptions{})
 		if err != nil {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list all nodes: %s", err)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list all nodes: %s", err)
 
 			return false
 		}
 
 		for _, _node := range allNodes {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Processing node %q", _node.Definition.Name)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Processing node %q", _node.Definition.Name)
 
 			for _, condition := range _node.Object.Status.Conditions {
 				if condition.Type == rdscoreparams.ConditionTypeReadyString {
 					if condition.Status != rdscoreparams.ConstantTrueString {
-						glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q is notReady", _node.Definition.Name)
-						glog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Reason: %s", condition.Reason)
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q is notReady", _node.Definition.Name)
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Reason: %s", condition.Reason)
 
 						return false
 					}
@@ -57,22 +57,22 @@ func WaitAllNodesAreReady(ctx SpecContext) {
 
 // VerifyUngracefulReboot performs ungraceful reboot of the cluster.
 func VerifyUngracefulReboot(ctx SpecContext) {
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t*** VerifyUngracefulReboot started ***")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t*** VerifyUngracefulReboot started ***")
 
 	if len(RDSCoreConfig.NodesCredentialsMap) == 0 {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("BMC Details not specified")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("BMC Details not specified")
 		Skip("BMC Details not specified. Skipping...")
 	}
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+	klog.V(rdscoreparams.RDSCoreLogLevel).Info(
 		fmt.Sprintf("NodesCredentialsMap:\n\t%#v", RDSCoreConfig.NodesCredentialsMap))
 
 	var bmcMap = make(map[string]*bmc.BMC)
 
 	for node, auth := range RDSCoreConfig.NodesCredentialsMap {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		klog.V(rdscoreparams.RDSCoreLogLevel).Info(
 			fmt.Sprintf("Creating BMC client for node %s", node))
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		klog.V(rdscoreparams.RDSCoreLogLevel).Info(
 			fmt.Sprintf("BMC Auth %#v", auth))
 
 		bmcClient := bmc.New(auth.BMCAddress).
@@ -88,25 +88,25 @@ func VerifyUngracefulReboot(ctx SpecContext) {
 		waitGroup.Add(1)
 
 		go func(wg *sync.WaitGroup, nodeName string, client *bmc.BMC) {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			klog.V(rdscoreparams.RDSCoreLogLevel).Info(
 				fmt.Sprintf("Starting go routine for %s", nodeName))
 
 			defer GinkgoRecover()
 			defer wg.Done()
 
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			klog.V(rdscoreparams.RDSCoreLogLevel).Info(
 				fmt.Sprintf("[%s] Setting timeout for context", nodeName))
 
 			By(fmt.Sprintf("Querying power state on %s", nodeName))
 
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			klog.V(rdscoreparams.RDSCoreLogLevel).Info(
 				fmt.Sprintf("Checking power state on %s", nodeName))
 
 			state, err := client.SystemPowerState()
 			Expect(err).ToNot(HaveOccurred(),
 				fmt.Sprintf("Failed to get power state of %s", nodeName))
 
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			klog.V(rdscoreparams.RDSCoreLogLevel).Info(
 				fmt.Sprintf("Power state on %s -> %s", nodeName, state))
 
 			Expect(state).To(Equal("On"),
@@ -115,13 +115,13 @@ func VerifyUngracefulReboot(ctx SpecContext) {
 			err = wait.PollUntilContextTimeout(ctx, 5*time.Second, 5*time.Minute, true,
 				func(ctx context.Context) (bool, error) {
 					if err := client.SystemForceReset(); err != nil {
-						glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+						klog.V(rdscoreparams.RDSCoreLogLevel).Info(
 							fmt.Sprintf("Failed to power cycle %s -> %v", nodeName, err))
 
 						return false, err
 					}
 
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					klog.V(rdscoreparams.RDSCoreLogLevel).Info(
 						fmt.Sprintf("Successfully powered cycle %s", nodeName))
 
 					return true, nil
@@ -135,7 +135,7 @@ func VerifyUngracefulReboot(ctx SpecContext) {
 	By("Wait for all reboots to finish")
 
 	waitGroup.Wait()
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Finished waiting for go routines to finish")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Finished waiting for go routines to finish")
 	time.Sleep(1 * time.Minute)
 
 	WaitAllNodesAreReady(ctx)
@@ -149,27 +149,27 @@ func WaitAllDeploymentsAreAvailable(ctx SpecContext) {
 		allDeployments, err := deployment.ListInAllNamespaces(APIClient, metav1.ListOptions{})
 
 		if err != nil {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list all deployments: %s", err)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list all deployments: %s", err)
 
 			return false
 		}
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		klog.V(rdscoreparams.RDSCoreLogLevel).Info(
 			fmt.Sprintf("Found %d deployments", len(allDeployments)))
 
 		var nonAvailableDeployments []*deployment.Builder
 
 		for _, deploy := range allDeployments {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 				"Processing deployment %q in %q namespace", deploy.Definition.Name, deploy.Definition.Namespace)
 
 			for _, condition := range deploy.Object.Status.Conditions {
 				if condition.Type == "Available" {
 					if condition.Status != rdscoreparams.ConstantTrueString {
-						glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 							"Deployment %q in %q namespace is NotAvailable", deploy.Definition.Name, deploy.Definition.Namespace)
-						glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\tReason: %s", condition.Reason)
-						glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\tMessage: %s", condition.Message)
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\tReason: %s", condition.Reason)
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\tMessage: %s", condition.Message)
 						nonAvailableDeployments = append(nonAvailableDeployments, deploy)
 					}
 				}
@@ -185,10 +185,10 @@ func WaitAllDeploymentsAreAvailable(ctx SpecContext) {
 //
 //nolint:gocognit,funlen
 func VerifySoftReboot(ctx SpecContext) {
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t*** Starting Soft Reboot Test Suite ***")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t*** Starting Soft Reboot Test Suite ***")
 
 	if len(RDSCoreConfig.NodesCredentialsMap) == 0 {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("BMC Details not specified")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("BMC Details not specified")
 		Skip("BMC Details not specified. Skipping...")
 	}
 
@@ -201,9 +201,9 @@ func VerifySoftReboot(ctx SpecContext) {
 	Expect(len(allNodes)).ToNot(Equal(0), "0 nodes found in the cluster")
 
 	for _, _node := range allNodes {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Processing node %q", _node.Definition.Name)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Processing node %q", _node.Definition.Name)
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cordoning node %q", _node.Definition.Name)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cordoning node %q", _node.Definition.Name)
 		err := _node.Cordon()
 		Expect(err).ToNot(HaveOccurred(),
 			fmt.Sprintf("Failed to cordon %q due to %v", _node.Definition.Name, err))
@@ -212,21 +212,21 @@ func VerifySoftReboot(ctx SpecContext) {
 
 		time.Sleep(5 * time.Second)
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Draining node %q", _node.Definition.Name)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Draining node %q", _node.Definition.Name)
 		err = _node.Drain()
 		Expect(err).ToNot(HaveOccurred(),
 			fmt.Sprintf("Failed to drain %q due to %v", _node.Definition.Name, err))
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		klog.V(rdscoreparams.RDSCoreLogLevel).Info(
 			fmt.Sprintf("NodesCredentialsMap:\n\t%#v", RDSCoreConfig.NodesCredentialsMap))
 
 		var bmcClient *bmc.BMC
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		klog.V(rdscoreparams.RDSCoreLogLevel).Info(
 			fmt.Sprintf("Creating BMC client for node %s", _node.Definition.Name))
 
 		if auth, ok := RDSCoreConfig.NodesCredentialsMap[_node.Definition.Name]; !ok {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			klog.V(rdscoreparams.RDSCoreLogLevel).Info(
 				fmt.Sprintf("BMC Details for %q not found", _node.Definition.Name))
 			Fail(fmt.Sprintf("BMC Details for %q not found", _node.Definition.Name))
 		} else {
@@ -238,13 +238,13 @@ func VerifySoftReboot(ctx SpecContext) {
 		err = wait.PollUntilContextTimeout(ctx, 5*time.Second, 5*time.Minute, true,
 			func(ctx context.Context) (bool, error) {
 				if err := bmcClient.SystemForceReset(); err != nil {
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					klog.V(rdscoreparams.RDSCoreLogLevel).Info(
 						fmt.Sprintf("Failed to power cycle %s -> %v", _node.Definition.Name, err))
 
 					return false, err
 				}
 
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				klog.V(rdscoreparams.RDSCoreLogLevel).Info(
 					fmt.Sprintf("Successfully powered cycle %s", _node.Definition.Name))
 
 				return true, nil
@@ -258,7 +258,7 @@ func VerifySoftReboot(ctx SpecContext) {
 		Eventually(func(ctx SpecContext) bool {
 			currentNode, err := nodes.Pull(APIClient, _node.Definition.Name)
 			if err != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to pull node: %v", err)
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to pull node: %v", err)
 
 				return false
 			}
@@ -266,8 +266,8 @@ func VerifySoftReboot(ctx SpecContext) {
 			for _, condition := range currentNode.Object.Status.Conditions {
 				if condition.Type == rdscoreparams.ConditionTypeReadyString {
 					if condition.Status != rdscoreparams.ConstantTrueString {
-						glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q is notReady", currentNode.Definition.Name)
-						glog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Reason: %s", condition.Reason)
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q is notReady", currentNode.Definition.Name)
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Reason: %s", condition.Reason)
 
 						return true
 					}
@@ -283,7 +283,7 @@ func VerifySoftReboot(ctx SpecContext) {
 		Eventually(func(ctx SpecContext) bool {
 			currentNode, err := nodes.Pull(APIClient, _node.Definition.Name)
 			if err != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error pulling in node: %v", err)
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error pulling in node: %v", err)
 
 				return false
 			}
@@ -291,8 +291,8 @@ func VerifySoftReboot(ctx SpecContext) {
 			for _, condition := range currentNode.Object.Status.Conditions {
 				if condition.Type == rdscoreparams.ConditionTypeReadyString {
 					if condition.Status == rdscoreparams.ConstantTrueString {
-						glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q is Ready", currentNode.Definition.Name)
-						glog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Reason: %s", condition.Reason)
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q is Ready", currentNode.Definition.Name)
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Reason: %s", condition.Reason)
 
 						return true
 					}
@@ -303,7 +303,7 @@ func VerifySoftReboot(ctx SpecContext) {
 		}).WithTimeout(25*time.Minute).WithPolling(15*time.Second).WithContext(ctx).Should(BeTrue(),
 			"Node hasn't reached Ready state")
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Uncordoning node %q", _node.Definition.Name)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Uncordoning node %q", _node.Definition.Name)
 		err = _node.Uncordon()
 		Expect(err).ToNot(HaveOccurred(),
 			fmt.Sprintf("Failed to uncordon %q due to %v", _node.Definition.Name, err))
@@ -352,8 +352,8 @@ func VerifyHardRebootSuite() {
 				Label("rds-core-hard-reboot"), reportxml.ID("71868"), func() {
 					By("Checking all cluster operators")
 
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Waiting for all ClusterOperators to be Available")
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Sleeping for 3 minutes")
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Waiting for all ClusterOperators to be Available")
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Sleeping for 3 minutes")
 
 					time.Sleep(3 * time.Minute)
 
@@ -367,9 +367,9 @@ func VerifyHardRebootSuite() {
 				MustPassRepeatedly(3), func(ctx SpecContext) {
 					By("Remove any pods in UnexpectedAdmissionError state")
 
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Remove pods with UnexpectedAdmissionError status")
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Remove pods with UnexpectedAdmissionError status")
 
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Sleeping for 3 minutes")
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Sleeping for 3 minutes")
 
 					time.Sleep(3 * time.Minute)
 
@@ -384,16 +384,16 @@ func VerifyHardRebootSuite() {
 					Eventually(func() bool {
 						podsList, err = pod.ListInAllNamespaces(APIClient, listOptions)
 						if err != nil {
-							glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods: %v", err)
+							klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods: %v", err)
 
 							return false
 						}
 
-						glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d pods matching search criteria",
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d pods matching search criteria",
 							len(podsList))
 
 						for _, failedPod := range podsList {
-							glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q in %q ns matches search criteria",
+							klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q in %q ns matches search criteria",
 								failedPod.Definition.Name, failedPod.Definition.Namespace)
 						}
 
@@ -403,7 +403,7 @@ func VerifyHardRebootSuite() {
 
 					for _, failedPod := range podsList {
 						if failedPod.Definition.Status.Reason == "UnexpectedAdmissionError" {
-							glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deleting pod %q in %q ns",
+							klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deleting pod %q in %q ns",
 								failedPod.Definition.Name, failedPod.Definition.Namespace)
 
 							_, err := failedPod.DeleteAndWait(5 * time.Minute)
@@ -493,8 +493,8 @@ func VerifyGracefulRebootSuite() {
 				Label("rds-core-soft-reboot"), reportxml.ID("72040"), func() {
 					By("Checking all cluster operators")
 
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Waiting for all ClusterOperators to be Available")
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Sleeping for 3 minutes")
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Waiting for all ClusterOperators to be Available")
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Sleeping for 3 minutes")
 
 					time.Sleep(3 * time.Minute)
 

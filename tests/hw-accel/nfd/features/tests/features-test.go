@@ -7,8 +7,8 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/machine"
@@ -81,7 +81,7 @@ var _ = Describe("NFD", Ordered, func() {
 
 			labelExist, labelsError := wait.CheckLabel(APIClient, 15*time.Minute, "feature")
 			if !labelExist || labelsError != nil {
-				glog.Error("feature labels was not found in the given time error=%v", labelsError)
+				klog.Errorf("feature labels was not found in the given time error=%v", labelsError)
 			}
 		})
 
@@ -146,7 +146,7 @@ var _ = Describe("NFD", Ordered, func() {
 			pods, err := pod.List(APIClient, hwaccelparams.NFDNamespace, listOptions)
 			Expect(err).NotTo(HaveOccurred())
 			for _, p := range pods {
-				glog.V(ts.LogLevel).Info("retrieve logs from %v", p.Object.Name)
+				klog.V(ts.LogLevel).Infof("retrieve logs from %v", p.Object.Name)
 				log, err := get.PodLogs(APIClient, hwaccelparams.NFDNamespace, p.Object.Name)
 				Expect(err).NotTo(HaveOccurred(), "Error retrieving pod logs.")
 				Expect(len(log)).NotTo(Equal(0))
@@ -155,7 +155,7 @@ var _ = Describe("NFD", Ordered, func() {
 					logLines := strings.Split(log, "\n")
 					for _, line := range logLines {
 						if strings.Contains(errorKeyword, line) {
-							glog.Error("error found in log:", line)
+							klog.Errorf("error found in log: %v", line)
 						}
 					}
 
@@ -174,10 +174,10 @@ var _ = Describe("NFD", Ordered, func() {
 			pods, err := pod.List(APIClient, hwaccelparams.NFDNamespace, listOptions)
 			Expect(err).NotTo(HaveOccurred())
 			for _, p := range pods {
-				glog.V(ts.LogLevel).Info("retrieve reset count from %v.", p.Object.Name)
+				klog.V(ts.LogLevel).Infof("retrieve reset count from %v.", p.Object.Name)
 				resetCount, err := get.PodRestartCount(APIClient, hwaccelparams.NFDNamespace, p.Object.Name)
 				Expect(err).NotTo(HaveOccurred(), "Error retrieving reset count.")
-				glog.V(ts.LogLevel).Info("Total resets %d.", resetCount)
+				klog.V(ts.LogLevel).Infof("Total resets %d.", resetCount)
 				Expect(resetCount).To(Equal(int32(0)))
 
 			}
@@ -216,16 +216,16 @@ var _ = Describe("NFD", Ordered, func() {
 
 			labelExist, labelsError := wait.CheckLabel(APIClient, 15*time.Minute, "feature")
 			if !labelExist || labelsError != nil {
-				glog.Error("feature labels was not found in the given time error=%v", labelsError)
+				klog.Errorf("feature labels was not found in the given time error=%v", labelsError)
 			}
 
 			err = nfdCRUtils.PrintCr()
 			if err != nil {
-				glog.Error("error in printing NFD CR: %v", err)
+				klog.Errorf("error in printing NFD CR: %v", err)
 			}
 
 			nodelabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
-			glog.V(ts.LogLevel).Info("Received nodelabel: %v", nodelabels)
+			klog.V(ts.LogLevel).Infof("Received nodelabel: %v", nodelabels)
 			Expect(err).NotTo(HaveOccurred())
 			By("Check if features exists")
 			for nodeName := range nodelabels {
@@ -259,12 +259,12 @@ var _ = Describe("NFD", Ordered, func() {
 
 			labelExist, labelsError := wait.CheckLabel(APIClient, time.Minute*15, "feature")
 			if !labelExist || labelsError != nil {
-				glog.Error("feature labels was not found in the given time error=%v", labelsError)
+				klog.Errorf("feature labels was not found in the given time error=%v", labelsError)
 			}
 
 			err = nfdCRUtils.PrintCr()
 			if err != nil {
-				glog.Error("error in printing NFD CR: %v", err)
+				klog.Errorf("error in printing NFD CR: %v", err)
 			}
 
 			cpuFlags = get.CPUFlags(APIClient, hwaccelparams.NFDNamespace, nfdConfig.CPUFlagsHelperImage)
@@ -327,7 +327,7 @@ var _ = Describe("NFD", Ordered, func() {
 			By("Check if features exists")
 			cpuFlags = get.CPUFlags(APIClient, hwaccelparams.NFDNamespace, nfdConfig.CPUFlagsHelperImage)
 			for nodeName := range nodelabels {
-				glog.V(ts.LogLevel).Infof("checking labels in %v", nodeName)
+				klog.V(ts.LogLevel).Infof("checking labels in %v", nodeName)
 				err = helpers.CheckLabelsExist(nodelabels, cpuFlags[nodeName], nil, nodeName)
 				Expect(err).NotTo(HaveOccurred())
 			}
@@ -350,7 +350,7 @@ func runNodeDiscoveryAndTestLabelExistence(
 	enableTopology bool) {
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		_, err := get.PodStatus(APIClient, hwaccelparams.NFDNamespace)
-		glog.Error(err)
+		klog.Error(err)
 
 		return err
 	})

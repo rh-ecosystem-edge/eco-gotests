@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
@@ -14,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
 )
 
 // DoesContainerExistInPod checks if a given container exists in a given pod.
@@ -22,7 +22,7 @@ func DoesContainerExistInPod(pod *pod.Builder, containerName string) bool {
 
 	for _, container := range containers {
 		if container.Name == containerName {
-			glog.V(ranparam.LogLevel).Infof("found %s container", containerName)
+			klog.V(ranparam.LogLevel).Infof("found %s container", containerName)
 
 			return true
 		}
@@ -53,7 +53,7 @@ func UnmarshalRaw[T any](raw []byte) (*T, error) {
 // ExecLocalCommand runs the provided command with the provided args locally, cancelling execution if it exceeds
 // timeout.
 func ExecLocalCommand(timeout time.Duration, command string, args ...string) (string, error) {
-	glog.V(90).Infof("Locally executing command '%s' with args '%v'", command, args)
+	klog.V(90).Infof("Locally executing command '%s' with args '%v'", command, args)
 
 	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
 
@@ -71,13 +71,13 @@ func GetPodNameWithLabel(client *clients.Settings, podNamespace, podLabelSelecto
 		return "", err
 	}
 
-	glog.V(ranparam.LogLevel).Infof("Length of podList matching podLabelSelector is '%v'", len(podList))
+	klog.V(ranparam.LogLevel).Infof("Length of podList matching podLabelSelector is '%v'", len(podList))
 
 	if len(podList) < 1 {
 		return "", fmt.Errorf("no pod found with label %s under namespace %s", podLabelSelector, podNamespace)
 	}
 
-	glog.V(ranparam.LogLevel).Infof("podList[0] matching podLabelSelector is '%v'",
+	klog.V(ranparam.LogLevel).Infof("podList[0] matching podLabelSelector is '%v'",
 		podList[0].Definition.Name)
 
 	return podList[0].Definition.Name, nil

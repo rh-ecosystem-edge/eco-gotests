@@ -8,13 +8,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/uuid"
 	provisioningv1alpha1 "github.com/openshift-kni/oran-o2ims/api/provisioning/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -33,7 +33,7 @@ type ProvisioningRequestBuilder struct {
 // NewPRBuilder creates a new instance of a ProvisioningRequest builder.
 func NewPRBuilder(
 	apiClient runtimeclient.Client, name, templateName, templateVersion string) *ProvisioningRequestBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new ProvisioningRequest structure with the following params: "+
 			"name: %s, templateName: %s, templateVersion: %s",
 		name, templateName, templateVersion)
@@ -41,14 +41,14 @@ func NewPRBuilder(
 	// Since we accept an interface, providing a nil *clients.Settings results in an interface with a nil concrete
 	// type, which must be checked using reflection.
 	if apiClient == nil || reflect.ValueOf(apiClient).IsNil() {
-		glog.V(100).Infof("The apiClient of the ProvisioningRequest is nil")
+		klog.V(100).Info("The apiClient of the ProvisioningRequest is nil")
 
 		return nil
 	}
 
 	err := provisioningv1alpha1.AddToScheme(apiClient.Scheme())
 	if err != nil {
-		glog.V(100).Infof("Failed to add provisioning v1alpha1 scheme to client schemes: %v", err)
+		klog.V(100).Infof("Failed to add provisioning v1alpha1 scheme to client schemes: %v", err)
 
 		return nil
 	}
@@ -70,7 +70,7 @@ func NewPRBuilder(
 	}
 
 	if err := uuid.Validate(name); err != nil {
-		glog.V(100).Infof("The name of the ProvisioningRequest is not a valid UUID: %v", err)
+		klog.V(100).Infof("The name of the ProvisioningRequest is not a valid UUID: %v", err)
 
 		builder.errorMsg = "provisioningRequest 'name' must be a valid UUID"
 
@@ -78,7 +78,7 @@ func NewPRBuilder(
 	}
 
 	if templateName == "" {
-		glog.V(100).Info("The template name of the ProvisioningRequest is empty")
+		klog.V(100).Info("The template name of the ProvisioningRequest is empty")
 
 		builder.errorMsg = "provisioningRequest 'templateName' cannot be empty"
 
@@ -86,7 +86,7 @@ func NewPRBuilder(
 	}
 
 	if templateVersion == "" {
-		glog.V(100).Info("The template version of the ProvisioningRequest is empty")
+		klog.V(100).Info("The template version of the ProvisioningRequest is empty")
 
 		builder.errorMsg = "provisioningRequest 'templateVersion' cannot be empty"
 
@@ -102,10 +102,10 @@ func (builder *ProvisioningRequestBuilder) WithTemplateParameter(key string, val
 		return builder
 	}
 
-	glog.V(100).Infof("Setting ProvisioningRequest TemplateParameter %s to %v", key, value)
+	klog.V(100).Infof("Setting ProvisioningRequest TemplateParameter %s to %v", key, value)
 
 	if key == "" {
-		glog.V(100).Info("ProvisioningRequest TemplateParameter key is empty")
+		klog.V(100).Info("ProvisioningRequest TemplateParameter key is empty")
 
 		builder.errorMsg = "provisioningRequest TemplateParameter 'key' cannot be empty"
 
@@ -114,7 +114,7 @@ func (builder *ProvisioningRequestBuilder) WithTemplateParameter(key string, val
 
 	templateParameters, err := builder.GetTemplateParameters()
 	if err != nil {
-		glog.V(100).Infof("Failed to unmarshal ProvisioningRequest TemplateParameters: %v", err)
+		klog.V(100).Infof("Failed to unmarshal ProvisioningRequest TemplateParameters: %v", err)
 
 		builder.errorMsg = fmt.Sprintf("failed to unmarshal TemplateParameters: %v", err)
 
@@ -134,7 +134,7 @@ func (builder *ProvisioningRequestBuilder) GetTemplateParameters() (map[string]a
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting the TemplateParameters map for ProvisioningRequest %s", builder.Definition.Name)
+	klog.V(100).Infof("Getting the TemplateParameters map for ProvisioningRequest %s", builder.Definition.Name)
 
 	templateParameters := make(map[string]any)
 
@@ -158,7 +158,7 @@ func (builder *ProvisioningRequestBuilder) WithTemplateParameters(
 		return builder
 	}
 
-	glog.V(100).Infof("Setting the TemplateParameters map for ProvisioningRequest %s", builder.Definition.Name)
+	klog.V(100).Infof("Setting the TemplateParameters map for ProvisioningRequest %s", builder.Definition.Name)
 
 	if templateParameters == nil {
 		templateParameters = make(map[string]any)
@@ -166,7 +166,7 @@ func (builder *ProvisioningRequestBuilder) WithTemplateParameters(
 
 	marshaled, err := json.Marshal(templateParameters)
 	if err != nil {
-		glog.V(100).Infof("Failed to marshal TemplateParameters for ProvisioningRequest %s: %v", builder.Definition.Name, err)
+		klog.V(100).Infof("Failed to marshal TemplateParameters for ProvisioningRequest %s: %v", builder.Definition.Name, err)
 
 		builder.errorMsg = fmt.Sprintf("failed to marshal TemplateParameters: %v", err)
 
@@ -180,19 +180,19 @@ func (builder *ProvisioningRequestBuilder) WithTemplateParameters(
 
 // PullPR pulls an existing ProvisioningRequest into a Builder struct.
 func PullPR(apiClient runtimeclient.Client, name string) (*ProvisioningRequestBuilder, error) {
-	glog.V(100).Infof("Pulling existing ProvisioningRequest %s from cluster", name)
+	klog.V(100).Infof("Pulling existing ProvisioningRequest %s from cluster", name)
 
 	// Since we accept an interface, providing a nil *clients.Settings results in an interface with a nil concrete
 	// type, which must be checked using reflection.
 	if apiClient == nil || reflect.ValueOf(apiClient).IsNil() {
-		glog.V(100).Infof("The apiClient of the ProvisioningRequest is nil")
+		klog.V(100).Info("The apiClient of the ProvisioningRequest is nil")
 
 		return nil, fmt.Errorf("provisioningRequest 'apiClient' cannot be nil")
 	}
 
 	err := provisioningv1alpha1.AddToScheme(apiClient.Scheme())
 	if err != nil {
-		glog.V(100).Infof("Failed to add provisioning v1alpha1 scheme to client schemes: %v", err)
+		klog.V(100).Infof("Failed to add provisioning v1alpha1 scheme to client schemes: %v", err)
 
 		return nil, err
 	}
@@ -207,13 +207,13 @@ func PullPR(apiClient runtimeclient.Client, name string) (*ProvisioningRequestBu
 	}
 
 	if name == "" {
-		glog.V(100).Info("The name of the ProvisioningRequest is empty")
+		klog.V(100).Info("The name of the ProvisioningRequest is empty")
 
 		return nil, fmt.Errorf("provisioningRequest 'name' cannot be empty")
 	}
 
 	if !builder.Exists() {
-		glog.V(100).Info("The ProvisioningRequest %s does not exist", name)
+		klog.V(100).Infof("The ProvisioningRequest %s does not exist", name)
 
 		return nil, fmt.Errorf("provisioningRequest object %s does not exist", name)
 	}
@@ -229,7 +229,7 @@ func (builder *ProvisioningRequestBuilder) Get() (*provisioningv1alpha1.Provisio
 		return nil, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Getting ProvisioningRequest object %s", builder.Definition.Name)
 
 	provisioningRequest := &provisioningv1alpha1.ProvisioningRequest{}
@@ -250,13 +250,13 @@ func (builder *ProvisioningRequestBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if ProvisioningRequest %s exists", builder.Definition.Name)
+	klog.V(100).Infof("Checking if ProvisioningRequest %s exists", builder.Definition.Name)
 
 	var err error
 
 	builder.Object, err = builder.Get()
 	if err != nil {
-		glog.V(100).Infof("ProvisioningRequest %s does not exist: %v", builder.Definition.Name, err)
+		klog.V(100).Infof("ProvisioningRequest %s does not exist: %v", builder.Definition.Name, err)
 	}
 
 	return err == nil
@@ -268,7 +268,7 @@ func (builder *ProvisioningRequestBuilder) Create() (*ProvisioningRequestBuilder
 		return nil, err
 	}
 
-	glog.V(100).Infof("Creating ProvisioningRequest %s", builder.Definition.Name)
+	klog.V(100).Infof("Creating ProvisioningRequest %s", builder.Definition.Name)
 
 	if builder.Exists() {
 		return builder, nil
@@ -292,10 +292,10 @@ func (builder *ProvisioningRequestBuilder) Update() (*ProvisioningRequestBuilder
 		return nil, err
 	}
 
-	glog.V(100).Infof("Updating ProvisioningRequest %s", builder.Definition.Name)
+	klog.V(100).Infof("Updating ProvisioningRequest %s", builder.Definition.Name)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("ProvisioningRequest %s does not exist", builder.Definition.Name)
+		klog.V(100).Infof("ProvisioningRequest %s does not exist", builder.Definition.Name)
 
 		return nil, fmt.Errorf("cannot update non-existent provisioningRequest")
 	}
@@ -318,10 +318,10 @@ func (builder *ProvisioningRequestBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting ProvisioningRequest %s", builder.Definition.Name)
+	klog.V(100).Infof("Deleting ProvisioningRequest %s", builder.Definition.Name)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("ProvisioningRequest %s does not exist", builder.Definition.Name)
+		klog.V(100).Infof("ProvisioningRequest %s does not exist", builder.Definition.Name)
 
 		builder.Object = nil
 
@@ -345,7 +345,7 @@ func (builder *ProvisioningRequestBuilder) DeleteAndWait(timeout time.Duration) 
 		return err
 	}
 
-	glog.V(100).Infof("Deleting ProvisioningRequest %s and waiting up to %s until it is deleted",
+	klog.V(100).Infof("Deleting ProvisioningRequest %s and waiting up to %s until it is deleted",
 		builder.Definition.Name, timeout)
 
 	err := builder.Delete()
@@ -368,11 +368,11 @@ func (builder *ProvisioningRequestBuilder) WaitForCondition(
 		return nil, err
 	}
 
-	glog.V(100).Infof("Waiting up to %s until ProvisioningRequest %s has condition %v",
+	klog.V(100).Infof("Waiting up to %s until ProvisioningRequest %s has condition %v",
 		timeout, builder.Definition.Name, expected)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("ProvisioningRequest %s does not exist", builder.Definition.Name)
+		klog.V(100).Infof("ProvisioningRequest %s does not exist", builder.Definition.Name)
 
 		return nil, fmt.Errorf("cannot wait for non-existent ProvisioningRequest")
 	}
@@ -383,7 +383,7 @@ func (builder *ProvisioningRequestBuilder) WaitForCondition(
 
 			builder.Object, err = builder.Get()
 			if err != nil {
-				glog.V(100).Infof("Failed to get ProvisioningRequest %s: %v", builder.Definition.Name, err)
+				klog.V(100).Infof("Failed to get ProvisioningRequest %s: %v", builder.Definition.Name, err)
 
 				return false, nil
 			}
@@ -445,11 +445,11 @@ func (builder *ProvisioningRequestBuilder) WaitForPhaseAfter(
 		return err
 	}
 
-	glog.V(100).Infof("Waiting up to %s until ProvisioningRequest %s is fulfilled after %s",
+	klog.V(100).Infof("Waiting up to %s until ProvisioningRequest %s is fulfilled after %s",
 		timeout, builder.Definition.Name, start)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("ProvisioningRequest %s does not exist", builder.Definition.Name)
+		klog.V(100).Infof("ProvisioningRequest %s does not exist", builder.Definition.Name)
 
 		return fmt.Errorf("cannot wait for non-existent ProvisioningRequest")
 	}
@@ -460,7 +460,7 @@ func (builder *ProvisioningRequestBuilder) WaitForPhaseAfter(
 
 			builder.Object, err = builder.Get()
 			if err != nil {
-				glog.V(100).Infof("Failed to get ProvisioningRequest %s: %v", builder.Definition.Name, err)
+				klog.V(100).Infof("Failed to get ProvisioningRequest %s: %v", builder.Definition.Name, err)
 
 				return false, nil
 			}
@@ -484,25 +484,25 @@ func (builder *ProvisioningRequestBuilder) validate() (bool, error) {
 	resourceCRD := "provisioningRequest"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiClient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiClient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

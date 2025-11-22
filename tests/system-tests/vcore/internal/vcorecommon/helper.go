@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/mirroring"
@@ -13,6 +12,7 @@ import (
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/vcore/internal/vcoreinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/vcore/internal/vcoreparams"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 func getImageURL(repository, name, tag string) (string, error) {
@@ -25,10 +25,10 @@ func getImageURL(repository, name, tag string) (string, error) {
 	}
 
 	if !isDisconnected {
-		glog.V(vcoreparams.VCoreLogLevel).Info("The connected deployment type was detected, " +
+		klog.V(vcoreparams.VCoreLogLevel).Info("The connected deployment type was detected, " +
 			"the images mirroring is not required")
 	} else {
-		glog.V(vcoreparams.VCoreLogLevel).Infof("Mirror image %s:%s locally", imageURL, tag)
+		klog.V(vcoreparams.VCoreLogLevel).Infof("Mirror image %s:%s locally", imageURL, tag)
 
 		imageURL, _, err = mirroring.MirrorImageToTheLocalRegistry(
 			APIClient,
@@ -81,7 +81,7 @@ func ensureNamespaceNotExists(nsName string) bool {
 }
 
 func ensureNamespaceExists(nsName string) bool {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Ensure namespace %q exists", nsName)
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Ensure namespace %q exists", nsName)
 
 	createNs := namespace.NewBuilder(APIClient, nsName)
 
@@ -89,7 +89,7 @@ func ensureNamespaceExists(nsName string) bool {
 		createNs, err := createNs.Create()
 
 		if err != nil {
-			glog.V(vcoreparams.VCoreLogLevel).Infof("Error creating namespace %q: %v", nsName, err)
+			klog.V(vcoreparams.VCoreLogLevel).Infof("Error creating namespace %q: %v", nsName, err)
 
 			return false
 		}
@@ -101,12 +101,12 @@ func ensureNamespaceExists(nsName string) bool {
 			true,
 			func(ctx context.Context) (bool, error) {
 				if !createNs.Exists() {
-					glog.V(vcoreparams.VCoreLogLevel).Infof("Error creating namespace %q", nsName)
+					klog.V(vcoreparams.VCoreLogLevel).Infof("Error creating namespace %q", nsName)
 
 					return false, nil
 				}
 
-				glog.V(vcoreparams.VCoreLogLevel).Infof("Created namespace %q", createNs.Definition.Name)
+				klog.V(vcoreparams.VCoreLogLevel).Infof("Created namespace %q", createNs.Definition.Name)
 
 				return true, nil
 			})

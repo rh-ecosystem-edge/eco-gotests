@@ -3,11 +3,11 @@ package get
 import (
 	"context"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/nfdparams"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/klog/v2"
 )
 
 // PodLogs get a raw log from pod.
@@ -23,7 +23,7 @@ func PodLogs(apiClient *clients.Settings, nsname, podName string) (string, error
 
 	body, err := podLogs.Raw()
 	if err != nil {
-		glog.V(nfdparams.LogLevel).Infof("Failed to retrieve logs %v", err)
+		klog.V(nfdparams.LogLevel).Infof("Failed to retrieve logs %v", err)
 	}
 
 	return string(body), nil

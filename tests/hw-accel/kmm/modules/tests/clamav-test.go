@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -21,6 +20,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/modules/internal/tsparams"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func() {
@@ -85,13 +85,13 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			// pre 4.14 there is no worker image. Swapping it with operator image
 			_, ok := relatedImgMap[kmmparams.RelImgWorker]
 			if !ok {
-				glog.V(kmmparams.KmmLogLevel).Infof("No %s found. Swapping it with operator image %s",
+				klog.V(kmmparams.KmmLogLevel).Infof("No %s found. Swapping it with operator image %s",
 					kmmparams.RelImgWorker, containerImg[0])
 				relatedImgMap[kmmparams.RelImgWorker] = containerImg[0]
 			}
 
-			glog.V(kmmparams.KmmLogLevel).Infof("related: %s", relatedImgMap)
-			glog.V(kmmparams.KmmLogLevel).Infof("container: %s", containerImg)
+			klog.V(kmmparams.KmmLogLevel).Infof("related: %s", relatedImgMap)
+			klog.V(kmmparams.KmmLogLevel).Infof("container: %s", containerImg)
 
 			By("Create kernel mapping")
 			kernelMapping := kmm.NewRegExKernelMappingBuilder("^.+$")
@@ -135,35 +135,35 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			buff, err := scannerPod.ExecCommand([]string{"tail", "-11", "operator.log"})
 			Expect(err).ToNot(HaveOccurred(), "error verifying operator log")
 			opContents := buff.String()
-			glog.V(kmmparams.KmmLogLevel).Infof(opContents)
+			klog.V(kmmparams.KmmLogLevel).Info(opContents)
 			Expect(strings.Contains(opContents, "Infected files: 0")).To(BeTrue(), "infected files not zero")
 
 			By("Checking must-gather image scan")
 			buff, err = scannerPod.ExecCommand([]string{"tail", "-11", "must-gather.log"})
 			Expect(err).ToNot(HaveOccurred(), "error verifying must-gather log")
 			opContents = buff.String()
-			glog.V(kmmparams.KmmLogLevel).Infof(opContents)
+			klog.V(kmmparams.KmmLogLevel).Info(opContents)
 			Expect(strings.Contains(opContents, "Infected files: 0")).To(BeTrue(), "infected files not zero")
 
 			By("Checking sign image scan")
 			buff, err = scannerPod.ExecCommand([]string{"tail", "-11", "sign.log"})
 			Expect(err).ToNot(HaveOccurred(), "error verifying sign log")
 			opContents = buff.String()
-			glog.V(kmmparams.KmmLogLevel).Infof(opContents)
+			klog.V(kmmparams.KmmLogLevel).Info(opContents)
 			Expect(strings.Contains(opContents, "Infected files: 0")).To(BeTrue(), "infected files not zero")
 
 			By("Checking worker image scan")
 			buff, err = scannerPod.ExecCommand([]string{"tail", "-11", "worker.log"})
 			Expect(err).ToNot(HaveOccurred(), "error verifying worker log")
 			opContents = buff.String()
-			glog.V(kmmparams.KmmLogLevel).Infof(opContents)
+			klog.V(kmmparams.KmmLogLevel).Info(opContents)
 			Expect(strings.Contains(opContents, "Infected files: 0")).To(BeTrue(), "infected files not zero")
 
 			By("Checking rbac/webhook image scan")
 			buff, err = scannerPod.ExecCommand([]string{"tail", "-11", "rbac.log"})
 			Expect(err).ToNot(HaveOccurred(), "error verifying rbac log")
 			opContents = buff.String()
-			glog.V(kmmparams.KmmLogLevel).Infof(opContents)
+			klog.V(kmmparams.KmmLogLevel).Info(opContents)
 			Expect(strings.Contains(opContents, "Infected files: 0")).To(BeTrue(), "infected files not zero")
 
 		})

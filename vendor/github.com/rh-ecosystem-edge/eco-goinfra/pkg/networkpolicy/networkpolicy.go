@@ -6,13 +6,13 @@ import (
 
 	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	netv1 "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/klog/v2"
 )
 
 // NetworkPolicyBuilder provides struct for networkPolicy object.
@@ -29,18 +29,18 @@ type NetworkPolicyBuilder struct {
 
 // NewNetworkPolicyBuilder method creates new instance of builder.
 func NewNetworkPolicyBuilder(apiClient *clients.Settings, name, nsname string) *NetworkPolicyBuilder {
-	glog.V(100).Infof("Initializing new NetworkPolicyBuilder structure with the following params: name: %s, namespace: %s",
+	klog.V(100).Infof("Initializing new NetworkPolicyBuilder structure with the following params: name: %s, namespace: %s",
 		name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(netv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add NetworkPolicy v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add NetworkPolicy v1 scheme to client schemes")
 
 		return nil
 	}
@@ -56,7 +56,7 @@ func NewNetworkPolicyBuilder(apiClient *clients.Settings, name, nsname string) *
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the networkPolicy is empty")
+		klog.V(100).Info("The name of the networkPolicy is empty")
 
 		builder.errorMsg = "The networkPolicy 'name' cannot be empty"
 
@@ -64,7 +64,7 @@ func NewNetworkPolicyBuilder(apiClient *clients.Settings, name, nsname string) *
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the networkPolicy is empty")
+		klog.V(100).Info("The namespace of the networkPolicy is empty")
 
 		builder.errorMsg = "The networkPolicy 'namespace' cannot be empty"
 
@@ -82,12 +82,12 @@ func (builder *NetworkPolicyBuilder) WithNamespaceIngressRule(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Applying Ingress rule to networkPolicy %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if len(namespaceIngressMatchLabels) == 0 && len(podIngressMatchLabels) == 0 {
-		glog.V(100).Infof("At least one type of the selector for NetworkPolicy ingress rule should be defined")
+		klog.V(100).Info("At least one type of the selector for NetworkPolicy ingress rule should be defined")
 
 		builder.errorMsg = "Both namespaceIngressMatchLabels and podIngressMatchLabels parameters are empty maps"
 
@@ -97,7 +97,7 @@ func (builder *NetworkPolicyBuilder) WithNamespaceIngressRule(
 	var peerRule netv1.NetworkPolicyPeer
 
 	if len(namespaceIngressMatchLabels) != 0 {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"Applying Ingress rule with namespaceIngressMatchLabels %v parameter to networkPolicy %s in namespace %s",
 			namespaceIngressMatchLabels, builder.Definition.Name, builder.Definition.Namespace)
 
@@ -107,7 +107,7 @@ func (builder *NetworkPolicyBuilder) WithNamespaceIngressRule(
 	}
 
 	if len(podIngressMatchLabels) != 0 {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"Applying Ingress rule with podIngressMatchLabels %v parameter to networkPolicy %s in namespace %s",
 			podIngressMatchLabels, builder.Definition.Name, builder.Definition.Namespace)
 
@@ -133,12 +133,12 @@ func (builder *NetworkPolicyBuilder) WithPolicyType(policyType netv1.PolicyType)
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating networkPolicy %s in %s namespace with the policyType defined: %v",
 		builder.Definition.Name, builder.Definition.Namespace, policyType)
 
 	if policyType == "" {
-		glog.V(100).Infof("The policyType value has to be provided")
+		klog.V(100).Info("The policyType value has to be provided")
 
 		builder.errorMsg = "The policyType is an empty string"
 
@@ -160,12 +160,12 @@ func (builder *NetworkPolicyBuilder) WithPodSelector(podSelectorMatchLabels map[
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating networkPolicy %s in %s namespace with podSelector defined: %v",
 		builder.Definition.Name, builder.Definition.Namespace, podSelectorMatchLabels)
 
 	if len(podSelectorMatchLabels) == 0 {
-		glog.V(100).Infof("The podSelector could not be empty")
+		klog.V(100).Info("The podSelector could not be empty")
 
 		builder.errorMsg = "The podSelector is an empty string"
 
@@ -179,17 +179,17 @@ func (builder *NetworkPolicyBuilder) WithPodSelector(podSelectorMatchLabels map[
 
 // Pull loads an existing networkPolicy into the Builder struct.
 func Pull(apiClient *clients.Settings, name, nsname string) (*NetworkPolicyBuilder, error) {
-	glog.V(100).Infof("Pulling existing networkPolicy name: %s namespace:%s", name, nsname)
+	klog.V(100).Infof("Pulling existing networkPolicy name: %s namespace:%s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is nil")
+		klog.V(100).Info("The apiClient is nil")
 
 		return nil, fmt.Errorf("apiClient cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(netv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add NetworkPolicy v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add NetworkPolicy v1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -205,19 +205,19 @@ func Pull(apiClient *clients.Settings, name, nsname string) (*NetworkPolicyBuild
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the networkPolicy is empty")
+		klog.V(100).Info("The name of the networkPolicy is empty")
 
 		return nil, fmt.Errorf("networkPolicy 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the networkPolicy is empty")
+		klog.V(100).Info("The namespace of the networkPolicy is empty")
 
 		return nil, fmt.Errorf("networkPolicy 'namespace' cannot be empty")
 	}
 
 	if !builder.Exists() {
-		glog.V(100).Infof("Failed to pull networkPolicy object %s from namespace %s. Object does not exist",
+		klog.V(100).Infof("Failed to pull networkPolicy object %s from namespace %s. Object does not exist",
 			name, nsname)
 
 		return nil, fmt.Errorf("networkPolicy object %s does not exist in namespace %s", name, nsname)
@@ -234,7 +234,7 @@ func (builder *NetworkPolicyBuilder) Get() (*netv1.NetworkPolicy, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Collecting NetworkPolicy object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -244,7 +244,7 @@ func (builder *NetworkPolicyBuilder) Get() (*netv1.NetworkPolicy, error) {
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		netPolicy)
 	if err != nil {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"NetworkPolicy object %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
@@ -260,14 +260,14 @@ func (builder *NetworkPolicyBuilder) Create() (*NetworkPolicyBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the networkPolicy %s in %s namespace",
+	klog.V(100).Infof("Creating the networkPolicy %s in %s namespace",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
 	if !builder.Exists() {
 		err := builder.apiClient.Create(context.TODO(), builder.Definition)
 		if err != nil {
-			glog.V(100).Infof("Failed to create NetworkPolicy object")
+			klog.V(100).Info("Failed to create NetworkPolicy object")
 
 			return nil, err
 		}
@@ -284,7 +284,7 @@ func (builder *NetworkPolicyBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if networkPolicy %s exists in namespace %s",
+	klog.V(100).Infof("Checking if networkPolicy %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -300,11 +300,11 @@ func (builder *NetworkPolicyBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting the networkPolicy object %s from %s namespace",
+	klog.V(100).Infof("Deleting the networkPolicy object %s from %s namespace",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("The networkPolicy object %s does not exist in %s namespace")
+		klog.V(100).Infof("The networkPolicy object %s does not exist in %s namespace", builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
 
@@ -328,7 +328,7 @@ func (builder *NetworkPolicyBuilder) Update() (*NetworkPolicyBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating networkPolicy %s in %s namespace ",
+	klog.V(100).Infof("Updating networkPolicy %s in %s namespace ",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
@@ -349,25 +349,25 @@ func (builder *NetworkPolicyBuilder) validate() (bool, error) {
 	resourceCRD := "NetworkPolicy"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

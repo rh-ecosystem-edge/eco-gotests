@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	istiov2 "maistra.io/api/core/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -29,18 +29,18 @@ type ControlPlaneBuilder struct {
 
 // NewControlPlaneBuilder method creates new instance of builder.
 func NewControlPlaneBuilder(apiClient *clients.Settings, name, nsname string) *ControlPlaneBuilder {
-	glog.V(100).Infof("Initializing new ControlPlaneBuilder structure with the following "+
+	klog.V(100).Infof("Initializing new ControlPlaneBuilder structure with the following "+
 		"params: name: %s, namespace: %s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(istiov2.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add istiov2 scheme to client schemes")
+		klog.V(100).Info("Failed to add istiov2 scheme to client schemes")
 
 		return nil
 	}
@@ -56,7 +56,7 @@ func NewControlPlaneBuilder(apiClient *clients.Settings, name, nsname string) *C
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the serviceMeshControlPlane is empty")
+		klog.V(100).Info("The name of the serviceMeshControlPlane is empty")
 
 		builder.errorMsg = "serviceMeshControlPlane 'name' cannot be empty"
 
@@ -64,7 +64,7 @@ func NewControlPlaneBuilder(apiClient *clients.Settings, name, nsname string) *C
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the serviceMeshControlPlane is empty")
+		klog.V(100).Info("The namespace of the serviceMeshControlPlane is empty")
 
 		builder.errorMsg = "serviceMeshControlPlane 'nsname' cannot be empty"
 
@@ -82,7 +82,7 @@ func (builder *ControlPlaneBuilder) WithAllAddonsDisabled() *ControlPlaneBuilder
 
 	enablement := false
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating serviceMeshControlPlane %s in namespace %s with the all addons disabled",
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -115,14 +115,14 @@ func (builder *ControlPlaneBuilder) WithGrafanaAddon(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating serviceMeshControlPlane %s in namespace %s with the Grafana addons defined: enablement %v, "+
 			"grafanaInstallConfig %v, address %s", builder.Definition.Name, builder.Definition.Namespace,
 		enablement, grafanaInstallConfig, address)
 
 	if enablement {
 		if grafanaInstallConfig == nil {
-			glog.V(100).Infof("The grafanaInstallConfig of the Grafana addon is empty")
+			klog.V(100).Info("The grafanaInstallConfig of the Grafana addon is empty")
 
 			builder.errorMsg = "the Grafana addon 'grafanaInstallConfig' cannot be empty when Grafana addon is enabled"
 
@@ -130,7 +130,7 @@ func (builder *ControlPlaneBuilder) WithGrafanaAddon(
 		}
 
 		if address == "" {
-			glog.V(100).Infof("The address of the Grafana addon is empty")
+			klog.V(100).Info("The address of the Grafana addon is empty")
 
 			builder.errorMsg = "the Grafana addon 'address' cannot be empty when Grafana addon is enabled"
 
@@ -163,12 +163,12 @@ func (builder *ControlPlaneBuilder) WithJaegerAddon(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating serviceMeshControlPlane %s in namespace %s with the JaegerAddonConfig defined",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if name == "" {
-		glog.V(100).Infof("The name of the Jaeger addon is empty")
+		klog.V(100).Info("The name of the Jaeger addon is empty")
 
 		builder.errorMsg = "the Jaeger addon 'name' cannot be empty"
 
@@ -176,7 +176,7 @@ func (builder *ControlPlaneBuilder) WithJaegerAddon(
 	}
 
 	if jaegerInstallConfig == nil {
-		glog.V(100).Infof("The jaegerInstallConfig of the Jaeger addon is empty")
+		klog.V(100).Info("The jaegerInstallConfig of the Jaeger addon is empty")
 
 		builder.errorMsg = "the Jaeger addon 'jaegerInstallConfig' cannot be empty"
 
@@ -206,13 +206,13 @@ func (builder *ControlPlaneBuilder) WithKialiAddon(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating serviceMeshControlPlane %s in namespace %s with the KialiAddonConfig defined",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if enablement {
 		if kialiInstallConfig == nil {
-			glog.V(100).Infof("The kialiInstallConfig of the Kiali addon is empty")
+			klog.V(100).Info("The kialiInstallConfig of the Kiali addon is empty")
 
 			builder.errorMsg = "the Kiali addon 'kialiInstallConfig' cannot be empty when Kiali addon is enabled"
 
@@ -220,7 +220,7 @@ func (builder *ControlPlaneBuilder) WithKialiAddon(
 		}
 
 		if name == "" {
-			glog.V(100).Infof("The name of the Kiali addon is empty")
+			klog.V(100).Info("The name of the Kiali addon is empty")
 
 			builder.errorMsg = "the Kiali addon 'name' cannot be empty when Kiali addon is enabled"
 
@@ -256,13 +256,13 @@ func (builder *ControlPlaneBuilder) WithPrometheusAddon(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating serviceMeshControlPlane %s in namespace %s with the PrometheusAddonConfig defined",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if enablement {
 		if prometheusInstallConfig == nil {
-			glog.V(100).Info("The prometheusInstallConfig of the Prometheus addon is empty")
+			klog.V(100).Info("The prometheusInstallConfig of the Prometheus addon is empty")
 
 			builder.errorMsg = "the Prometheus addon 'prometheusInstallConfig' cannot " +
 				"be empty when Prometheus addon is enabled"
@@ -271,7 +271,7 @@ func (builder *ControlPlaneBuilder) WithPrometheusAddon(
 		}
 
 		if metricsExpiryDuration == "" {
-			glog.V(100).Info("The metricsExpiryDuration of the Prometheus addon is empty")
+			klog.V(100).Info("The metricsExpiryDuration of the Prometheus addon is empty")
 
 			builder.errorMsg = "the Prometheus addon 'metricsExpiryDuration' cannot " +
 				"be empty when Prometheus addon is enabled"
@@ -280,7 +280,7 @@ func (builder *ControlPlaneBuilder) WithPrometheusAddon(
 		}
 
 		if address == "" {
-			glog.V(100).Info("The address of the Prometheus addon is empty")
+			klog.V(100).Info("The address of the Prometheus addon is empty")
 
 			builder.errorMsg = "the Prometheus addon 'address' cannot be empty when Prometheus addon is enabled"
 
@@ -313,7 +313,7 @@ func (builder *ControlPlaneBuilder) WithGatewaysEnablement(enablement bool) *Con
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating serviceMeshControlPlane %s in namespace %s with enabled Gateways",
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -330,18 +330,18 @@ func (builder *ControlPlaneBuilder) WithGatewaysEnablement(enablement bool) *Con
 
 // PullControlPlane retrieves an existing serviceMeshControlPlane object from the cluster.
 func PullControlPlane(apiClient *clients.Settings, name, nsname string) (*ControlPlaneBuilder, error) {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Pulling serviceMeshControlPlane object name %s in namespace: %s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("serviceMeshControlPlane 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(istiov2.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add istiov2 scheme to client schemes")
+		klog.V(100).Info("Failed to add istiov2 scheme to client schemes")
 
 		return nil, err
 	}
@@ -357,13 +357,13 @@ func PullControlPlane(apiClient *clients.Settings, name, nsname string) (*Contro
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the serviceMeshControlPlane is empty")
+		klog.V(100).Info("The name of the serviceMeshControlPlane is empty")
 
 		return nil, fmt.Errorf("serviceMeshControlPlane 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the serviceMeshControlPlane is empty")
+		klog.V(100).Info("The namespace of the serviceMeshControlPlane is empty")
 
 		return nil, fmt.Errorf("serviceMeshControlPlane 'nsname' cannot be empty")
 	}
@@ -383,7 +383,7 @@ func (builder *ControlPlaneBuilder) Get() (*istiov2.ServiceMeshControlPlane, err
 		return nil, err
 	}
 
-	glog.V(100).Infof("Pulling existing serviceMeshControlPlane with name %s in namespace %s from cluster",
+	klog.V(100).Infof("Pulling existing serviceMeshControlPlane with name %s in namespace %s from cluster",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	servicemeshcontrolplane := &istiov2.ServiceMeshControlPlane{}
@@ -407,7 +407,7 @@ func (builder *ControlPlaneBuilder) Create() (*ControlPlaneBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the serviceMeshControlPlane %s in namespace %s",
+	klog.V(100).Infof("Creating the serviceMeshControlPlane %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -427,11 +427,11 @@ func (builder *ControlPlaneBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting the serviceMeshControlPlane %s in namespace %s",
+	klog.V(100).Infof("Deleting the serviceMeshControlPlane %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("The serviceMeshControlPlane %s does not exist in namespace %s",
+		klog.V(100).Infof("The serviceMeshControlPlane %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -456,19 +456,17 @@ func (builder *ControlPlaneBuilder) Update(force bool) (*ControlPlaneBuilder, er
 		return builder, err
 	}
 
-	glog.V(100).Info("Updating serviceMeshControlPlane %s in namespace %s",
+	klog.V(100).Infof("Updating serviceMeshControlPlane %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		if force {
-			glog.V(100).Infof(
-				msg.FailToUpdateNotification("serviceMeshControlPlane", builder.Definition.Name, builder.Definition.Namespace))
+			klog.V(100).Infof("%v", msg.FailToUpdateNotification("serviceMeshControlPlane", builder.Definition.Name, builder.Definition.Namespace))
 
 			err := builder.Delete()
 			if err != nil {
-				glog.V(100).Infof(
-					msg.FailToUpdateError("serviceMeshControlPlane", builder.Definition.Name, builder.Definition.Namespace))
+				klog.V(100).Infof("%v", msg.FailToUpdateError("serviceMeshControlPlane", builder.Definition.Name, builder.Definition.Namespace))
 
 				return nil, err
 			}
@@ -490,7 +488,7 @@ func (builder *ControlPlaneBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if serviceMeshControlPlane %s exists in namespace %s",
+	klog.V(100).Infof("Checking if serviceMeshControlPlane %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -506,25 +504,25 @@ func (builder *ControlPlaneBuilder) validate() (bool, error) {
 	resourceCRD := "ServiceMeshControlPlane"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The builder %s has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The builder %s has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	mlbtypes "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/mlboperator"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/klog/v2"
 	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -29,13 +29,13 @@ type AdditionalOptions func(builder *Builder) (*Builder, error)
 
 // NewBuilder creates a new instance of Builder.
 func NewBuilder(apiClient *clients.Settings, name, nsname string, nodeSelector map[string]string) *Builder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new metallb structure with the following params: %s, %s, %v",
 		name, nsname, nodeSelector)
 
 	err := apiClient.AttachScheme(mlbtypes.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add metallb scheme to client schemes")
+		klog.V(100).Info("Failed to add metallb scheme to client schemes")
 
 		return nil
 	}
@@ -54,7 +54,7 @@ func NewBuilder(apiClient *clients.Settings, name, nsname string, nodeSelector m
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the metallb is empty")
+		klog.V(100).Info("The name of the metallb is empty")
 
 		builder.errorMsg = "metallb 'name' cannot be empty"
 
@@ -62,7 +62,7 @@ func NewBuilder(apiClient *clients.Settings, name, nsname string, nodeSelector m
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the metallb is empty")
+		klog.V(100).Info("The namespace of the metallb is empty")
 
 		builder.errorMsg = "metallb 'nsname' cannot be empty"
 
@@ -70,7 +70,7 @@ func NewBuilder(apiClient *clients.Settings, name, nsname string, nodeSelector m
 	}
 
 	if len(nodeSelector) < 1 {
-		glog.V(100).Infof("The SpeakerNodeSelector of the metallb is empty")
+		klog.V(100).Info("The SpeakerNodeSelector of the metallb is empty")
 
 		builder.errorMsg = "metallb 'nodeSelector' cannot be empty"
 
@@ -82,18 +82,18 @@ func NewBuilder(apiClient *clients.Settings, name, nsname string, nodeSelector m
 
 // Pull retrieves an existing metallb.io object from the cluster.
 func Pull(apiClient *clients.Settings, name, nsname string) (*Builder, error) {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Pulling metallb.io object name:%s in namespace: %s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("metallb 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(mlbtypes.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add metallb scheme to client schemes")
+		klog.V(100).Info("Failed to add metallb scheme to client schemes")
 
 		return nil, err
 	}
@@ -109,13 +109,13 @@ func Pull(apiClient *clients.Settings, name, nsname string) (*Builder, error) {
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the metallb is empty")
+		klog.V(100).Info("The name of the metallb is empty")
 
 		return nil, fmt.Errorf("metallb 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the metallb is empty")
+		klog.V(100).Info("The namespace of the metallb is empty")
 
 		return nil, fmt.Errorf("metallb 'nsname' cannot be empty")
 	}
@@ -135,7 +135,7 @@ func (builder *Builder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Checking if MetalLb %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -143,7 +143,7 @@ func (builder *Builder) Exists() bool {
 
 	builder.Object, err = builder.Get()
 	if err != nil {
-		glog.V(100).Infof("Failed to collect MetalLb object due to %s", err.Error())
+		klog.V(100).Infof("Failed to collect MetalLb object due to %s", err.Error())
 	}
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -155,7 +155,7 @@ func (builder *Builder) Get() (*mlbtypes.MetalLB, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Collecting metallb object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -164,7 +164,7 @@ func (builder *Builder) Get() (*mlbtypes.MetalLB, error) {
 	err := builder.apiClient.Get(context.TODO(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace}, metallb)
 	if err != nil {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"metallb object %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
@@ -180,7 +180,7 @@ func (builder *Builder) Create() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the metallb %s in namespace %s",
+	klog.V(100).Infof("Creating the metallb %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace,
 	)
 
@@ -200,12 +200,12 @@ func (builder *Builder) Delete() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting the metallb object %s in namespace %s",
+	klog.V(100).Infof("Deleting the metallb object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace,
 	)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("MetalLb object %s does not exist in namespace %s",
+		klog.V(100).Infof("MetalLb object %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -233,7 +233,7 @@ func (builder *Builder) Update(force bool) (*Builder, error) {
 		return nil, fmt.Errorf("failed to update metallb, object does not exist on cluster")
 	}
 
-	glog.V(100).Infof("Updating the metallb object %s in namespace %s",
+	klog.V(100).Infof("Updating the metallb object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace,
 	)
 
@@ -243,13 +243,11 @@ func (builder *Builder) Update(force bool) (*Builder, error) {
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		if force {
-			glog.V(100).Infof(
-				msg.FailToUpdateNotification("metallb", builder.Definition.Name, builder.Definition.Namespace))
+			klog.V(100).Infof("%v", msg.FailToUpdateNotification("metallb", builder.Definition.Name, builder.Definition.Namespace))
 
 			builder, err := builder.Delete()
 			if err != nil {
-				glog.V(100).Infof(
-					msg.FailToUpdateError("metallb", builder.Definition.Name, builder.Definition.Namespace))
+				klog.V(100).Infof("%v", msg.FailToUpdateError("metallb", builder.Definition.Name, builder.Definition.Namespace))
 
 				return nil, err
 			}
@@ -267,10 +265,10 @@ func (builder *Builder) RemoveLabel(key string) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Removing label %s from metalLbIo %s", key, builder.Definition.Name)
+	klog.V(100).Infof("Removing label %s from metalLbIo %s", key, builder.Definition.Name)
 
 	if key == "" {
-		glog.V(100).Infof("Failed to remove empty label's key from metalLbIo %s", builder.Definition.Name)
+		klog.V(100).Infof("Failed to remove empty label's key from metalLbIo %s", builder.Definition.Name)
 		builder.errorMsg = "error to remove empty key from metalLbIo"
 
 		return builder
@@ -287,7 +285,7 @@ func (builder *Builder) WithSpeakerNodeSelector(label map[string]string) *Builde
 		return builder
 	}
 
-	glog.V(100).Infof("Adding label selector %v to metallb.io object %s",
+	klog.V(100).Infof("Adding label selector %v to metallb.io object %s",
 		label, builder.Definition.Name,
 	)
 
@@ -308,13 +306,13 @@ func (builder *Builder) WithOptions(options ...AdditionalOptions) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Setting metallb additional options")
+	klog.V(100).Info("Setting metallb additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -332,10 +330,10 @@ func (builder *Builder) WithFRRConfigAlwaysBlock(prefixes []string) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Adding prefixes to block in the metallb.io object %s", builder.Definition.Name)
+	klog.V(100).Infof("Adding prefixes to block in the metallb.io object %s", builder.Definition.Name)
 
 	if len(prefixes) < 1 {
-		glog.V(100).Infof("the frrConfiguration prefixes list is empty")
+		klog.V(100).Info("the frrConfiguration prefixes list is empty")
 
 		builder.errorMsg = "can not accept empty prefix list for the metallb alwaysBlock mode"
 
@@ -345,7 +343,7 @@ func (builder *Builder) WithFRRConfigAlwaysBlock(prefixes []string) *Builder {
 	// Validate CIDR prefixes
 	for _, prefix := range prefixes {
 		if _, _, err := net.ParseCIDR(prefix); err != nil {
-			glog.V(100).Infof("the frrConfiguration prefix %s is not a valid CIDR", prefix)
+			klog.V(100).Infof("the frrConfiguration prefix %s is not a valid CIDR", prefix)
 			builder.errorMsg = fmt.Sprintf("the prefix %s is not a valid CIDR", prefix)
 
 			return builder
@@ -370,25 +368,25 @@ func (builder *Builder) validate() (bool, error) {
 	resourceCRD := "MetalLB"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

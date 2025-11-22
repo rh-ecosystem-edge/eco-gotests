@@ -3,7 +3,7 @@ package tsparams
 import (
 	"time"
 
-	"github.com/golang/glog"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -190,5 +190,5 @@ const (
 	TestCMName = "testconfigmap"
 
 	// LogLevel is the verbosity of glog statements in this test suite.
-	LogLevel glog.Level = 90
+	LogLevel klog.Level = 90
 )

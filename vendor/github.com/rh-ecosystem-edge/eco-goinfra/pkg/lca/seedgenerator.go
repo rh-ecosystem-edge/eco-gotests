@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	lcasgv1 "github.com/openshift-kni/lifecycle-agent/api/seedgenerator/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -41,14 +41,14 @@ func NewSeedGeneratorBuilder(
 	name string,
 ) *SeedGeneratorBuilder {
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(lcasgv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add lcasg v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add lcasg v1 scheme to client schemes")
 
 		return nil
 	}
@@ -63,7 +63,7 @@ func NewSeedGeneratorBuilder(
 	}
 
 	if name != seedImageName {
-		glog.V(100).Infof("The name of the seedgenerator must be " + seedImageName)
+		klog.V(100).Infof("The name of the seedgenerator must be " + seedImageName)
 
 		builder.errorMsg = "SeedGenerator name must be " + seedImageName
 
@@ -79,13 +79,13 @@ func (builder *SeedGeneratorBuilder) WithOptions(options ...SeedGeneratorAdditio
 		return builder
 	}
 
-	glog.V(100).Infof("Setting seedgenerator additional options")
+	klog.V(100).Info("Setting seedgenerator additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -103,7 +103,7 @@ func (builder *SeedGeneratorBuilder) Create() (*SeedGeneratorBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the seedgenerator %s",
+	klog.V(100).Infof("Creating the seedgenerator %s",
 		builder.Definition.Name)
 
 	var err error
@@ -119,17 +119,17 @@ func (builder *SeedGeneratorBuilder) Create() (*SeedGeneratorBuilder, error) {
 
 // PullSeedGenerator pulls existing seedgenerator from cluster.
 func PullSeedGenerator(apiClient *clients.Settings, name string) (*SeedGeneratorBuilder, error) {
-	glog.V(100).Infof("Pulling existing seedgenerator name %s from cluster", name)
+	klog.V(100).Infof("Pulling existing seedgenerator name %s from cluster", name)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil, fmt.Errorf("the apiClient is nil")
 	}
 
 	err := apiClient.AttachScheme(lcasgv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add lcasg v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add lcasg v1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -144,7 +144,7 @@ func PullSeedGenerator(apiClient *clients.Settings, name string) (*SeedGenerator
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the seedgenerator is empty")
+		klog.V(100).Info("The name of the seedgenerator is empty")
 
 		return nil, fmt.Errorf("seedgenerator 'name' cannot be empty")
 	}
@@ -164,7 +164,7 @@ func (builder *SeedGeneratorBuilder) Delete() (*SeedGeneratorBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting the seedgenerator %s",
+	klog.V(100).Infof("Deleting the seedgenerator %s",
 		builder.Definition.Name)
 
 	if !builder.Exists() {
@@ -189,7 +189,7 @@ func (builder *SeedGeneratorBuilder) Get() (*lcasgv1.SeedGenerator, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting seedgenerator %s",
+	klog.V(100).Infof("Getting seedgenerator %s",
 		builder.Definition.Name)
 
 	seedgenerator := &lcasgv1.SeedGenerator{}
@@ -210,7 +210,7 @@ func (builder *SeedGeneratorBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if seedgenerator %s exists",
+	klog.V(100).Infof("Checking if seedgenerator %s exists",
 		builder.Definition.Name)
 
 	var err error
@@ -228,14 +228,14 @@ func (builder *SeedGeneratorBuilder) WithSeedImage(
 	}
 
 	if seedImage == "" {
-		glog.V(100).Infof("The name of the seedImage is empty")
+		klog.V(100).Info("The name of the seedImage is empty")
 
 		builder.errorMsg = "seedImage 'name' cannot be empty"
 
 		return builder
 	}
 
-	glog.V(100).Infof("Setting seed image %s in seedgenerator", seedImage)
+	klog.V(100).Infof("Setting seed image %s in seedgenerator", seedImage)
 
 	builder.Definition.Spec.SeedImage = seedImage
 
@@ -250,14 +250,14 @@ func (builder *SeedGeneratorBuilder) WithRecertImage(
 	}
 
 	if recertImage == "" {
-		glog.V(100).Infof("The name of the recertImage is empty")
+		klog.V(100).Info("The name of the recertImage is empty")
 
 		builder.errorMsg = "recertImage 'name' cannot be empty"
 
 		return builder
 	}
 
-	glog.V(100).Infof("Setting recert image %s in seedgenerator", recertImage)
+	klog.V(100).Infof("Setting recert image %s in seedgenerator", recertImage)
 
 	builder.Definition.Spec.RecertImage = recertImage
 
@@ -271,11 +271,11 @@ func (builder *SeedGeneratorBuilder) WaitUntilComplete(timeout time.Duration) (*
 		return builder, err
 	}
 
-	glog.V(100).Infof("Waiting for seedgenerator %s to complete actions",
+	klog.V(100).Infof("Waiting for seedgenerator %s to complete actions",
 		builder.Definition.Name)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("The seedgenerator does not exist on the cluster")
+		klog.V(100).Info("The seedgenerator does not exist on the cluster")
 
 		return builder, fmt.Errorf("%s", builder.errorMsg)
 	}
@@ -312,25 +312,25 @@ func (builder *SeedGeneratorBuilder) validate() (bool, error) {
 	resourceCRD := "SeedGenerator"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

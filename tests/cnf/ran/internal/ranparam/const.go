@@ -3,7 +3,7 @@ package ranparam
 import (
 	"time"
 
-	"github.com/golang/glog"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -43,7 +43,7 @@ const (
 	LinuxPtpDaemonsetName = "linuxptp-daemon"
 
 	// LogLevel is the verbosity for ran/internal packages.
-	LogLevel glog.Level = 80
+	LogLevel klog.Level = 80
 
 	// RetryInterval retry interval for node exec commands.
 	RetryInterval = 10 * time.Second

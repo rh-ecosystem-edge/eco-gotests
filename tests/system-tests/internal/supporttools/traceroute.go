@@ -11,13 +11,13 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/apiobjectshelper"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	scc "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/scc"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -34,14 +34,14 @@ func CreateTraceRouteDeployment(
 	stDeploymentLabel,
 	stImage string,
 	scheduleOnNodes []string) (*deployment.Builder, error) {
-	glog.V(100).Infof("Create support-tools namespace %s", stNamespace)
+	klog.V(100).Infof("Create support-tools namespace %s", stNamespace)
 
 	err := ensureNamespaceExists(apiClient, stNamespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create support-tools namespace %s: %w", stNamespace, err)
 	}
 
-	glog.V(100).Infof("Adding SCC privileged to the support-tools namespace")
+	klog.V(100).Infof("Adding SCC privileged to the support-tools namespace")
 
 	err = scc.AddPrivilegedSCCtoDefaultSA(stNamespace)
 	if err != nil {
@@ -59,18 +59,18 @@ func CreateTraceRouteDeployment(
 	)
 
 	if err != nil {
-		glog.V(100).Infof("Failed to create traceroute deployment %s in namespace %s due to %v",
+		klog.V(100).Infof("Failed to create traceroute deployment %s in namespace %s due to %v",
 			tracerouteDeploymentName, stNamespace, err)
 
 		return stDeployment, fmt.Errorf("failed to create traceroute deployment %s in namespace %s: %w",
 			tracerouteDeploymentName, stNamespace, err)
 	}
 
-	glog.V(100).Infof("Creating deployment")
+	klog.V(100).Infof("Creating deployment")
 
 	stDeployment, err = stDeployment.CreateAndWaitUntilReady(5 * time.Minute)
 	if err != nil {
-		glog.V(100).Infof("Failed to create deployment %s in namespace %s: %v",
+		klog.V(100).Infof("Failed to create deployment %s in namespace %s: %v",
 			tracerouteDeploymentName, stNamespace, err)
 
 		return nil, fmt.Errorf("failed to create deployment %s in namespace %s: %w",
@@ -78,7 +78,7 @@ func CreateTraceRouteDeployment(
 	}
 
 	if stDeployment == nil {
-		glog.V(100).Infof("deployment %s not found in namespace %s", tracerouteDeploymentName, stNamespace)
+		klog.V(100).Infof("deployment %s not found in namespace %s", tracerouteDeploymentName, stNamespace)
 
 		return nil, fmt.Errorf("deployment %s not found in namespace %s", tracerouteDeploymentName, stNamespace)
 	}
@@ -87,7 +87,7 @@ func CreateTraceRouteDeployment(
 }
 
 func ensureNamespaceExists(apiClient *clients.Settings, nsName string) error {
-	glog.V(100).Infof("Create namespace %q", nsName)
+	klog.V(100).Infof("Create namespace %q", nsName)
 
 	createNs := namespace.NewBuilder(apiClient, nsName)
 
@@ -95,7 +95,7 @@ func ensureNamespaceExists(apiClient *clients.Settings, nsName string) error {
 		err := createNs.Delete()
 
 		if err != nil {
-			glog.V(100).Infof("Failed to delete namespace %q: %v", nsName, err)
+			klog.V(100).Infof("Failed to delete namespace %q: %v", nsName, err)
 
 			return fmt.Errorf("failed to delete namespace %q: %w", nsName, err)
 		}
@@ -107,18 +107,18 @@ func ensureNamespaceExists(apiClient *clients.Settings, nsName string) error {
 			true,
 			func(ctx context.Context) (bool, error) {
 				if createNs.Exists() {
-					glog.V(100).Infof("Error deleting namespace %q", nsName)
+					klog.V(100).Infof("Error deleting namespace %q", nsName)
 
 					return false, nil
 				}
 
-				glog.V(100).Infof("Deleted namespace %q", createNs.Definition.Name)
+				klog.V(100).Infof("Deleted namespace %q", createNs.Definition.Name)
 
 				return true, nil
 			})
 
 		if err != nil {
-			glog.V(100).Infof("Failed to delete namespace %s due to %v", nsName, err)
+			klog.V(100).Infof("Failed to delete namespace %s due to %v", nsName, err)
 
 			return fmt.Errorf("failed to delete supporttools namespace %q : %w", nsName, err)
 		}
@@ -127,7 +127,7 @@ func ensureNamespaceExists(apiClient *clients.Settings, nsName string) error {
 	_, err := createNs.Create()
 
 	if err != nil {
-		glog.V(100).Infof("Error creating namespace %q: %v", nsName, err)
+		klog.V(100).Infof("Error creating namespace %q: %v", nsName, err)
 
 		return fmt.Errorf("failed to create namespace %q: %w", nsName, err)
 	}
@@ -139,18 +139,18 @@ func ensureNamespaceExists(apiClient *clients.Settings, nsName string) error {
 		true,
 		func(ctx context.Context) (bool, error) {
 			if !createNs.Exists() {
-				glog.V(100).Infof("Error creating namespace %q", nsName)
+				klog.V(100).Infof("Error creating namespace %q", nsName)
 
 				return false, nil
 			}
 
-			glog.V(100).Infof("Created namespace %q", createNs.Definition.Name)
+			klog.V(100).Infof("Created namespace %q", createNs.Definition.Name)
 
 			return true, nil
 		})
 
 	if err != nil {
-		glog.V(100).Infof("support-tools namespace %q not found created: %v", nsName, err)
+		klog.V(100).Infof("support-tools namespace %q not found created: %v", nsName, err)
 
 		return fmt.Errorf("support-tools namespace %q not found created: %w", nsName, err)
 	}
@@ -168,89 +168,89 @@ func createTraceRouteDeployment(
 	stNamespace,
 	stDeploymentLabel string,
 	scheduleOnHosts []string) (*deployment.Builder, error) {
-	glog.V(100).Infof("Creating the support-tools traceroute deployment with image %s", stImage)
+	klog.V(100).Infof("Creating the support-tools traceroute deployment with image %s", stImage)
 
 	var err error
 
-	glog.V(100).Infof("Checking support-tools deployment %q doesn't exist in namespace %s",
+	klog.V(100).Infof("Checking support-tools deployment %q doesn't exist in namespace %s",
 		stDeploymentName, stNamespace)
 
 	err = apiobjectshelper.DeleteDeployment(apiClient, stDeploymentName, stNamespace)
 
 	if err != nil {
-		glog.V(100).Infof("failed to delete deployment %s from namespace %s due to %v",
+		klog.V(100).Infof("failed to delete deployment %s from namespace %s due to %v",
 			stDeploymentName, stNamespace, err)
 
 		return nil, fmt.Errorf("failed to delete deployment %s from namespace %s due to %w",
 			stDeploymentName, stNamespace, err)
 	}
 
-	glog.V(100).Infof("Sleeping 10 seconds")
+	klog.V(100).Infof("Sleeping 10 seconds")
 	time.Sleep(10 * time.Second)
 
-	glog.V(100).Infof("Removing ServiceAccount %s from namespace %s", stDeploymentName, stNamespace)
+	klog.V(100).Infof("Removing ServiceAccount %s from namespace %s", stDeploymentName, stNamespace)
 
 	err = apiobjectshelper.DeleteServiceAccount(apiClient, supportToolsDeploySAName, stNamespace)
 
 	if err != nil {
-		glog.V(100).Infof("failed to remove serviceAccount %q from namespace %q due to %v",
+		klog.V(100).Infof("failed to remove serviceAccount %q from namespace %q due to %v",
 			supportToolsDeploySAName, stNamespace, err)
 
 		return nil, fmt.Errorf("failed to remove serviceAccount %q from namespace %q due to %w",
 			supportToolsDeploySAName, stNamespace, err)
 	}
 
-	glog.V(100).Infof("Creating ServiceAccount %s in namespace %s", stDeploymentName, stNamespace)
+	klog.V(100).Infof("Creating ServiceAccount %s in namespace %s", stDeploymentName, stNamespace)
 
 	err = apiobjectshelper.CreateServiceAccount(apiClient, supportToolsDeploySAName, stNamespace)
 
 	if err != nil {
-		glog.V(100).Infof("failed to create serviceAccount %q in namespace %q due to %v",
+		klog.V(100).Infof("failed to create serviceAccount %q in namespace %q due to %v",
 			supportToolsDeploySAName, stNamespace, err)
 
 		return nil, fmt.Errorf("failed to create serviceAccount %q in namespace %q due to %w",
 			supportToolsDeploySAName, stNamespace, err)
 	}
 
-	glog.V(100).Infof("Removing Cluster RBAC %s", supportToolsDeployRBACName)
+	klog.V(100).Infof("Removing Cluster RBAC %s", supportToolsDeployRBACName)
 
 	err = apiobjectshelper.DeleteClusterRBAC(apiClient, supportToolsDeployRBACName)
 
 	if err != nil {
-		glog.V(100).Infof("failed to delete supporttools RBAC %q due to %v",
+		klog.V(100).Infof("failed to delete supporttools RBAC %q due to %v",
 			supportToolsDeployRBACName, err)
 
 		return nil, fmt.Errorf("failed to delete supporttools RBAC %q due to %w",
 			supportToolsDeployRBACName, err)
 	}
 
-	glog.V(100).Infof("Creating Cluster RBAC %s", supportToolsDeployRBACName)
+	klog.V(100).Infof("Creating Cluster RBAC %s", supportToolsDeployRBACName)
 
 	err = apiobjectshelper.CreateClusterRBAC(apiClient, supportToolsDeployRBACName, supportToolsRBACRole,
 		supportToolsDeploySAName, stNamespace)
 
 	if err != nil {
-		glog.V(100).Infof("failed to create supporttools RBAC %q in namespace %s due to %v",
+		klog.V(100).Infof("failed to create supporttools RBAC %q in namespace %s due to %v",
 			supportToolsDeployRBACName, stNamespace, err)
 
 		return nil, fmt.Errorf("failed to create supporttools RBAC %q in namespace %s due to %w",
 			supportToolsDeployRBACName, stNamespace, err)
 	}
 
-	glog.V(100).Infof("Defining container configuration")
+	klog.V(100).Infof("Defining container configuration")
 
 	deployContainer := defineTraceRouteContainer(stImage)
 
-	glog.V(100).Infof("Obtaining container definition")
+	klog.V(100).Infof("Obtaining container definition")
 
 	deployContainerCfg, err := deployContainer.GetContainerCfg()
 	if err != nil {
-		glog.V(100).Infof("failed to obtain container definition: %v", err)
+		klog.V(100).Infof("failed to obtain container definition: %v", err)
 
 		return nil, fmt.Errorf("failed to obtain container definition: %w", err)
 	}
 
-	glog.V(100).Infof("Defining deployment %s configuration", stDeploymentName)
+	klog.V(100).Infof("Defining deployment %s configuration", stDeploymentName)
 
 	deployLabelsMap := map[string]string{
 		strings.Split(stDeploymentLabel, "=")[0]: strings.Split(stDeploymentLabel, "=")[1]}
@@ -264,11 +264,11 @@ func createTraceRouteDeployment(
 		scheduleOnHosts,
 		deployLabelsMap)
 
-	glog.V(100).Infof("Creating deployment %s in namespace %s", stDeploymentName, stNamespace)
+	klog.V(100).Infof("Creating deployment %s in namespace %s", stDeploymentName, stNamespace)
 
 	trDeployment, err = trDeployment.CreateAndWaitUntilReady(5 * time.Minute)
 	if err != nil {
-		glog.V(100).Infof("failed to create deployment %s in namespace %s: %v",
+		klog.V(100).Infof("failed to create deployment %s in namespace %s: %v",
 			stDeploymentName, stNamespace, err)
 
 		return nil, fmt.Errorf("failed to create deployment %s in namespace %s: %w",
@@ -276,7 +276,7 @@ func createTraceRouteDeployment(
 	}
 
 	if trDeployment == nil {
-		glog.V(100).Infof("deployment %s not found in namespace %s", stDeploymentName, stNamespace)
+		klog.V(100).Infof("deployment %s not found in namespace %s", stDeploymentName, stNamespace)
 
 		return nil, fmt.Errorf("deployment %s not found in namespace %s", stDeploymentName, stNamespace)
 	}
@@ -290,7 +290,7 @@ func sendProbesAndCheckOutput(
 	targetIP,
 	targetPort,
 	searchString string) (bool, error) {
-	glog.V(100).Infof("Sending requests to the IP %s port %s from the pod %s/%s",
+	klog.V(100).Infof("Sending requests to the IP %s port %s from the pod %s/%s",
 		targetIP, targetPort, trPod.Definition.Namespace, trPod.Definition.Name)
 
 	cmdToRun := []string{"/bin/bash", "-c", fmt.Sprintf("traceroute -p %s %s", targetPort, targetIP)}
@@ -309,17 +309,17 @@ func sendProbesAndCheckOutput(
 			output, err = trPod.ExecCommand(cmdToRun, trPod.Object.Spec.Containers[0].Name)
 
 			if err != nil {
-				glog.V(100).Infof("query failed. Request: %s, Output: %q, Error: %v",
+				klog.V(100).Infof("query failed. Request: %s, Output: %q, Error: %v",
 					targetIP, output, err)
 
 				return false, nil
 			}
 
-			glog.V(100).Infof("Successfully executed command from within a pod %q: %v",
+			klog.V(100).Infof("Successfully executed command from within a pod %q: %v",
 				trPod.Object.Name, cmdToRun)
-			glog.V(100).Infof("Command's output:\n\t%v", output.String())
+			klog.V(100).Infof("Command's output:\n\t%v", output.String())
 
-			glog.V(100).Infof("Make sure that search string %s was seen in response %q",
+			klog.V(100).Infof("Make sure that search string %s was seen in response %q",
 				searchString, output.String())
 
 			if output.String() == "" {
@@ -330,14 +330,14 @@ func sendProbesAndCheckOutput(
 				return false, nil
 			}
 
-			glog.V(100).Infof("Expected string %s was found in the command's output:\n\t%v",
+			klog.V(100).Infof("Expected string %s was found in the command's output:\n\t%v",
 				searchString, output.String())
 
 			return true, nil
 		})
 
 	if err != nil {
-		glog.V(100).Infof("expected string %s not found in traceroute output: %q; %v",
+		klog.V(100).Infof("expected string %s not found in traceroute output: %q; %v",
 			searchString, output.String(), err)
 
 		return false, fmt.Errorf("expected string %s not found in traceroute output: %q; %w",
@@ -375,7 +375,7 @@ func SendTrafficFindExpectedString(
 		})
 
 	if err != nil {
-		glog.V(100).Infof("expected string was not found in the traceroute output; %v", err)
+		klog.V(100).Infof("expected string was not found in the traceroute output; %v", err)
 
 		return fmt.Errorf("expected string was not found in the traceroute output; %w", err)
 	}
@@ -388,11 +388,11 @@ func defineTraceRouteContainer(cImage string) *pod.ContainerBuilder {
 
 	cCmd := []string{"/bin/bash", "-c", "sleep INF"}
 
-	glog.V(100).Infof("Creating container %q", cName)
+	klog.V(100).Infof("Creating container %q", cName)
 
 	deployContainer := pod.NewContainerBuilder(cName, cImage, cCmd)
 
-	glog.V(100).Infof("Defining SecurityContext")
+	klog.V(100).Infof("Defining SecurityContext")
 
 	var trueFlag = true
 
@@ -415,19 +415,19 @@ func defineTraceRouteContainer(cImage string) *pod.ContainerBuilder {
 		},
 	}
 
-	glog.V(100).Infof("Setting SecurityContext")
+	klog.V(100).Infof("Setting SecurityContext")
 
 	deployContainer = deployContainer.WithSecurityContext(securityContext)
 
-	glog.V(100).Infof("Dropping ALL security capability")
+	klog.V(100).Infof("Dropping ALL security capability")
 
 	deployContainer = deployContainer.WithDropSecurityCapabilities([]string{"ALL"}, true)
 
-	glog.V(100).Infof("Enable TTY and Stdin; needed for immediate log propagation")
+	klog.V(100).Infof("Enable TTY and Stdin; needed for immediate log propagation")
 
 	deployContainer = deployContainer.WithTTY(true).WithStdin(true)
 
-	glog.V(100).Infof("%q container's  definition:\n%#v", cName, deployContainer)
+	klog.V(100).Infof("%q container's  definition:\n%#v", cName, deployContainer)
 
 	return deployContainer
 }
@@ -438,9 +438,9 @@ func defineDeployment(
 	deployName, deployNs, saName string,
 	scheduleOnHosts []string,
 	deployLabels map[string]string) *deployment.Builder {
-	glog.V(100).Infof("Defining deployment %q in %q ns", deployName, deployNs)
+	klog.V(100).Infof("Defining deployment %q in %q ns", deployName, deployNs)
 
-	glog.V(100).Infof("-------------------DEBUG: NODES NAMES: %q", scheduleOnHosts)
+	klog.V(100).Infof("-------------------DEBUG: NODES NAMES: %q", scheduleOnHosts)
 
 	nodeAffinity := corev1.Affinity{
 		NodeAffinity: &corev1.NodeAffinity{
@@ -462,11 +462,11 @@ func defineDeployment(
 
 	trDeployment := deployment.NewBuilder(apiClient, deployName, deployNs, deployLabels, *containerConfig)
 
-	glog.V(100).Infof("Assigning ServiceAccount %q to the deployment", saName)
+	klog.V(100).Infof("Assigning ServiceAccount %q to the deployment", saName)
 
 	trDeployment = trDeployment.WithServiceAccountName(saName)
 
-	glog.V(100).Infof("Setting Replicas count")
+	klog.V(100).Infof("Setting Replicas count")
 
 	replicasCnt := len(scheduleOnHosts)
 

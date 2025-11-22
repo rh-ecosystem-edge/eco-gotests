@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	oadpv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/oadp/api/v1alpha1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -28,19 +28,18 @@ type DPABuilder struct {
 // NewDPABuilder creates a new instance of DPABuilder.
 func NewDPABuilder(
 	apiClient *clients.Settings, name, namespace string, config oadpv1alpha1.ApplicationConfig) *DPABuilder {
-	glog.V(100).Infof(
-		"Initializing new dataprotectionapplication structure with the following params: "+
-			"name: %s, namespace: %s, config %v",
-		name, namespace, config, config)
+	klog.V(100).Infof(
+		"Initializing new dataprotectionapplication: name: %s, namespace: %s, config: %v",
+		name, namespace, config)
 
 	if apiClient == nil {
-		glog.V(100).Infof("apiClient is nil")
+		klog.V(100).Info("apiClient is nil")
 
 		return nil
 	}
 
 	if err := apiClient.AttachScheme(oadpv1alpha1.AddToScheme); err != nil {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"Failed to add oadpv1alpha1 scheme to client schemes")
 
 		return nil
@@ -60,19 +59,19 @@ func NewDPABuilder(
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the dataprotectionapplication is empty")
+		klog.V(100).Info("The name of the dataprotectionapplication is empty")
 
 		builder.errorMsg = "dataprotectionapplication 'name' cannot be empty"
 	}
 
 	if namespace == "" {
-		glog.V(100).Infof("The namespace of the dataprotectionapplication is empty")
+		klog.V(100).Info("The namespace of the dataprotectionapplication is empty")
 
 		builder.errorMsg = "dataprotectionapplication 'namespace' cannot be empty"
 	}
 
 	if config.Velero == nil {
-		glog.V(100).Infof("The velero config of the dataprotectionapplication is empty")
+		klog.V(100).Info("The velero config of the dataprotectionapplication is empty")
 
 		builder.errorMsg = "dataprotectionapplication velero config cannot be empty"
 	}
@@ -82,16 +81,16 @@ func NewDPABuilder(
 
 // PullDPA pulls existing dataprotectionapplication from cluster.
 func PullDPA(apiClient *clients.Settings, name, nsname string) (*DPABuilder, error) {
-	glog.V(100).Infof("Pulling existing dataprotectionapplication name %s under namespace %s from cluster", name, nsname)
+	klog.V(100).Infof("Pulling existing dataprotectionapplication name %s under namespace %s from cluster", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil, fmt.Errorf("the apiClient is nil")
 	}
 
 	if err := apiClient.AttachScheme(oadpv1alpha1.AddToScheme); err != nil {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"Failed to add oadpv1alpha1 scheme to client schemes")
 
 		return nil, fmt.Errorf("failed to add oadpv1alpha1 to client schemes")
@@ -108,13 +107,13 @@ func PullDPA(apiClient *clients.Settings, name, nsname string) (*DPABuilder, err
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the dataprotectionapplication is empty")
+		klog.V(100).Info("The name of the dataprotectionapplication is empty")
 
 		return nil, fmt.Errorf("dataprotectionapplication 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the dataprotectionapplication is empty")
+		klog.V(100).Info("The namespace of the dataprotectionapplication is empty")
 
 		return nil, fmt.Errorf("dataprotectionapplication 'namespace' cannot be empty")
 	}
@@ -134,11 +133,11 @@ func (builder *DPABuilder) WithBackupLocation(backupLocation oadpv1alpha1.Backup
 		return builder
 	}
 
-	glog.V(100).Infof("Adding backuplocation to dataprotectionapplication %s in namespace %s: %v",
+	klog.V(100).Infof("Adding backuplocation to dataprotectionapplication %s in namespace %s: %v",
 		builder.Definition.Name, builder.Definition.Namespace, backupLocation)
 
 	if backupLocation.Velero == nil {
-		glog.V(100).Infof("The backuplocation velero config of the dataprotectionapplication is empty")
+		klog.V(100).Info("The backuplocation velero config of the dataprotectionapplication is empty")
 
 		builder.errorMsg = "dataprotectionapplication backuplocation cannot have empty velero config"
 
@@ -156,7 +155,7 @@ func (builder *DPABuilder) Get() (*oadpv1alpha1.DataProtectionApplication, error
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting dataprotectionapplication %s in namespace %s",
+	klog.V(100).Infof("Getting dataprotectionapplication %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	dataprotectionapplication := &oadpv1alpha1.DataProtectionApplication{}
@@ -178,7 +177,7 @@ func (builder *DPABuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if dataprotectionapplication %s exists in namespace %s",
+	klog.V(100).Infof("Checking if dataprotectionapplication %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -195,7 +194,7 @@ func (builder *DPABuilder) Create() (*DPABuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the dataprotectionapplication %s in namespace %s",
+	klog.V(100).Infof("Creating the dataprotectionapplication %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -216,7 +215,7 @@ func (builder *DPABuilder) Update(force bool) (*DPABuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating dataprotectionapplication %s in namespace %s",
+	klog.V(100).Infof("Updating dataprotectionapplication %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
@@ -226,15 +225,13 @@ func (builder *DPABuilder) Update(force bool) (*DPABuilder, error) {
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		if force {
-			glog.V(100).Infof(
-				msg.FailToUpdateNotification("dataprotectionapplication", builder.Definition.Name, builder.Definition.Namespace))
+			klog.V(100).Infof("%v", msg.FailToUpdateNotification("dataprotectionapplication", builder.Definition.Name, builder.Definition.Namespace))
 
 			err = builder.Delete()
 			builder.Definition.ResourceVersion = ""
 
 			if err != nil {
-				glog.V(100).Infof(
-					msg.FailToUpdateError("dataprotectionapplication", builder.Definition.Name, builder.Definition.Namespace))
+				klog.V(100).Infof("%v", msg.FailToUpdateError("dataprotectionapplication", builder.Definition.Name, builder.Definition.Namespace))
 
 				return nil, err
 			}
@@ -256,11 +253,11 @@ func (builder *DPABuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting the dataprotectionapplication %s in namespace %s",
+	klog.V(100).Infof("Deleting the dataprotectionapplication %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("Dataprotectionapplication %s in namespace %s cannot be deleted because it does not exist",
+		klog.V(100).Infof("Dataprotectionapplication %s in namespace %s cannot be deleted because it does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		return nil
@@ -282,25 +279,25 @@ func (builder *DPABuilder) validate() (bool, error) {
 	resourceCRD := "DataProtectionApplication"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		builder.errorMsg = msg.UndefinedCrdObjectErrString(resourceCRD)
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		builder.errorMsg = fmt.Sprintf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

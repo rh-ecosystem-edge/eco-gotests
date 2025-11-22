@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	moduleV1Beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/kmm/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -33,18 +33,18 @@ type ModuleAdditionalOptions func(builder *ModuleBuilder) (*ModuleBuilder, error
 // NewModuleBuilder creates a new instance of ModuleBuilder.
 func NewModuleBuilder(
 	apiClient *clients.Settings, name, nsname string) *ModuleBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new Module structure with following params: %s, %s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(moduleV1Beta1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add module v1beta1 scheme to client schemes")
+		klog.V(100).Info("Failed to add module v1beta1 scheme to client schemes")
 
 		return nil
 	}
@@ -60,7 +60,7 @@ func NewModuleBuilder(
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the Module is empty")
+		klog.V(100).Info("The name of the Module is empty")
 
 		builder.errorMsg = "module 'name' cannot be empty"
 
@@ -68,7 +68,7 @@ func NewModuleBuilder(
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the module is empty")
+		klog.V(100).Info("The namespace of the module is empty")
 
 		builder.errorMsg = "module 'namespace' cannot be empty"
 
@@ -84,12 +84,12 @@ func (builder *ModuleBuilder) WithNodeSelector(nodeSelector map[string]string) *
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating Module %s in namespace %s with this nodeSelector: %s",
 		builder.Definition.Name, builder.Definition.Namespace, nodeSelector)
 
 	if len(nodeSelector) == 0 {
-		glog.V(100).Infof("Can not redefine Module with empty nodeSelector map")
+		klog.V(100).Info("Can not redefine Module with empty nodeSelector map")
 
 		builder.errorMsg = "Module 'nodeSelector' cannot be empty map"
 
@@ -107,7 +107,7 @@ func (builder *ModuleBuilder) WithLoadServiceAccount(srvAccountName string) *Mod
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating Module %s in namespace %s with ModuleLoad ServiceAccount: %s",
 		builder.Definition.Name, builder.Definition.Namespace, srvAccountName)
 
@@ -120,7 +120,7 @@ func (builder *ModuleBuilder) WithDevicePluginServiceAccount(srvAccountName stri
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating Module %s in namespace %s with DevicePlugin ServiceAccount: %s",
 		builder.Definition.Name, builder.Definition.Namespace, srvAccountName)
 
@@ -204,8 +204,8 @@ func (builder *ModuleBuilder) WithToleration(key, operator, value, effect string
 		return builder
 	}
 
-	glog.V(100).Infof(
-		"Appending toleration with key: %s, operator: %s, value: %s, effect: %s and seconds: %s",
+	klog.V(100).Infof(
+		"Appending toleration with key: %s, operator: %s, value: %s, effect: %s and seconds: %v",
 		key, operator, value, effect, seconds)
 
 	builder.Definition.Spec.Tolerations = append(builder.Definition.Spec.Tolerations, []corev1.Toleration{{
@@ -269,7 +269,7 @@ func (builder *ModuleBuilder) BuildModuleSpec() (moduleV1Beta1.ModuleSpec, error
 		return moduleV1Beta1.ModuleSpec{}, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Returning the ModuleSpec structure %v", builder.Definition.Spec)
 
 	return builder.Definition.Spec, nil
@@ -281,13 +281,13 @@ func (builder *ModuleBuilder) WithOptions(options ...ModuleAdditionalOptions) *M
 		return builder
 	}
 
-	glog.V(100).Infof("Setting Module additional options")
+	klog.V(100).Info("Setting Module additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -301,17 +301,17 @@ func (builder *ModuleBuilder) WithOptions(options ...ModuleAdditionalOptions) *M
 
 // Pull pulls existing module from cluster.
 func Pull(apiClient *clients.Settings, name, nsname string) (*ModuleBuilder, error) {
-	glog.V(100).Infof("Pulling existing module name %s under namespace %s from cluster", name, nsname)
+	klog.V(100).Infof("Pulling existing module name %s under namespace %s from cluster", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("module 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(moduleV1Beta1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add module v1beta1 scheme to client schemes")
+		klog.V(100).Info("Failed to add module v1beta1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -327,13 +327,13 @@ func Pull(apiClient *clients.Settings, name, nsname string) (*ModuleBuilder, err
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the module is empty")
+		klog.V(100).Info("The name of the module is empty")
 
 		return nil, fmt.Errorf("module 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the module is empty")
+		klog.V(100).Info("The namespace of the module is empty")
 
 		return nil, fmt.Errorf("module 'namespace' cannot be empty")
 	}
@@ -353,7 +353,7 @@ func (builder *ModuleBuilder) Create() (*ModuleBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating module %s in namespace %s",
+	klog.V(100).Infof("Creating module %s in namespace %s",
 		builder.Definition.Name,
 		builder.Definition.Namespace)
 
@@ -374,7 +374,7 @@ func (builder *ModuleBuilder) Update() (*ModuleBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating module %s in namespace %s",
+	klog.V(100).Infof("Updating module %s in namespace %s",
 		builder.Definition.Name,
 		builder.Definition.Namespace)
 
@@ -392,7 +392,7 @@ func (builder *ModuleBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if module %s exists in namespace %s",
+	klog.V(100).Infof("Checking if module %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -408,11 +408,11 @@ func (builder *ModuleBuilder) Delete() (*ModuleBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting module %s in namespace %s",
+	klog.V(100).Infof("Deleting module %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("module cannot be deleted because it does not exist")
+		klog.V(100).Info("module cannot be deleted because it does not exist")
 
 		builder.Object = nil
 
@@ -435,7 +435,7 @@ func (builder *ModuleBuilder) Get() (*moduleV1Beta1.Module, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting module %s from namespace %s",
+	klog.V(100).Infof("Getting module %s from namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	module := &moduleV1Beta1.Module{}
@@ -490,25 +490,25 @@ func (builder *ModuleBuilder) validate() (bool, error) {
 	resourceCRD := "Module"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

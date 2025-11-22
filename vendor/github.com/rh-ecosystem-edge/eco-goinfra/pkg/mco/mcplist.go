@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	mcv1 "github.com/openshift/api/machineconfiguration/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"k8s.io/klog/v2"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -16,14 +16,14 @@ import (
 // ListMCP returns a list of MachineConfigPoolBuilder.
 func ListMCP(apiClient *clients.Settings, options ...runtimeclient.ListOptions) ([]*MCPBuilder, error) {
 	if apiClient == nil {
-		glog.V(100).Info("MachineConfigPool 'apiClient' can not be empty")
+		klog.V(100).Info("MachineConfigPool 'apiClient' can not be empty")
 
 		return nil, fmt.Errorf("failed to list MachineConfigPools, 'apiClient' parameter is empty")
 	}
 
 	err := apiClient.AttachScheme(mcv1.Install)
 	if err != nil {
-		glog.V(100).Info("Failed to add machineconfig v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add machineconfig v1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -32,7 +32,7 @@ func ListMCP(apiClient *clients.Settings, options ...runtimeclient.ListOptions) 
 	logMessage := "Listing all MCP resources"
 
 	if len(options) > 1 {
-		glog.V(100).Infof("'options' parameter must be empty or single-valued")
+		klog.V(100).Info("'options' parameter must be empty or single-valued")
 
 		return nil, fmt.Errorf("error: more than one ListOptions was passed")
 	}
@@ -42,13 +42,13 @@ func ListMCP(apiClient *clients.Settings, options ...runtimeclient.ListOptions) 
 		logMessage += fmt.Sprintf(" with the options %v", passedOptions)
 	}
 
-	glog.V(100).Infof(logMessage)
+	klog.V(100).Infof("%v", logMessage)
 
 	mcpList := new(mcv1.MachineConfigPoolList)
 
 	err = apiClient.List(context.TODO(), mcpList, &passedOptions)
 	if err != nil {
-		glog.V(100).Infof("Failed to list MCP objects due to %s", err.Error())
+		klog.V(100).Infof("Failed to list MCP objects due to %s", err.Error())
 
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func ListMCP(apiClient *clients.Settings, options ...runtimeclient.ListOptions) 
 // ListMCPByMachineConfigSelector returns a list of MachineConfigurationPoolBuilders for given selector.
 func ListMCPByMachineConfigSelector(
 	apiClient *clients.Settings, mcpLabel string, options ...runtimeclient.ListOptions) (*MCPBuilder, error) {
-	glog.V(100).Infof("GetByLabel returns MachineConfigPool with the specified label: %v", mcpLabel)
+	klog.V(100).Infof("GetByLabel returns MachineConfigPool with the specified label: %v", mcpLabel)
 
 	mcpList, err := ListMCP(apiClient, options...)
 	if err != nil {
@@ -106,12 +106,12 @@ func ListMCPByMachineConfigSelector(
 func ListMCPWaitToBeStableFor(
 	apiClient *clients.Settings, stableDuration, timeout time.Duration, options ...runtimeclient.ListOptions) error {
 	if apiClient == nil {
-		glog.V(100).Info("MachineConfigPool 'apiClient' can not be empty")
+		klog.V(100).Info("MachineConfigPool 'apiClient' can not be empty")
 
 		return fmt.Errorf("failed to list MachineConfigPools, 'apiClient' parameter is empty")
 	}
 
-	glog.V(100).Infof("WaitForMcpListToBeStableFor waits up to duration of %v for "+
+	klog.V(100).Infof("WaitForMcpListToBeStableFor waits up to duration of %v for "+
 		"MachineConfigPoolList to be stable for %v", timeout, stableDuration)
 
 	isMcpListStable := true
@@ -138,7 +138,7 @@ func ListMCPWaitToBeStableFor(
 							mcp.Object.Status.DegradedMachineCount != 0 {
 							isMcpListStable = false
 
-							glog.V(100).Infof("MachineConfigPool: %v degraded and has a mismatch in "+
+							klog.V(100).Infof("MachineConfigPool: %v degraded and has a mismatch in "+
 								"machineCount: %v "+"vs machineCountUpdated: "+"%v vs readyMachineCount: %v and "+
 								"degradedMachineCount is : %v \n", mcp.Object.Name,
 								mcp.Object.Status.MachineCount, mcp.Object.Status.UpdatedMachineCount,
@@ -154,24 +154,24 @@ func ListMCPWaitToBeStableFor(
 				})
 
 			if isMcpListStable {
-				glog.V(100).Infof("MachineConfigPools were stable during during stableDuration: %v",
+				klog.V(100).Infof("MachineConfigPools were stable during during stableDuration: %v",
 					stableDuration)
 
 				// exit the outer wait.PollUntilContextTimeout block since the mcps were stable during stableDuration.
 				return true, nil
 			}
 
-			glog.V(100).Infof("MachineConfigPools were not stable during stableDuration: %v, retrying ...",
+			klog.V(100).Infof("MachineConfigPools were not stable during stableDuration: %v, retrying ...",
 				stableDuration)
 
 			// keep iterating in the outer wait.PollUntilContextTimeout waiting for cluster to be stable.
 			return false, nil
 		})
 	if err == nil {
-		glog.V(100).Infof("Cluster was stable during stableDuration: %v", stableDuration)
+		klog.V(100).Infof("Cluster was stable during stableDuration: %v", stableDuration)
 	} else {
 		// Here err is "timed out waiting for the condition"
-		glog.V(100).Infof("Cluster was Un-stable during stableDuration: %v", stableDuration)
+		klog.V(100).Infof("Cluster was Un-stable during stableDuration: %v", stableDuration)
 	}
 
 	return err

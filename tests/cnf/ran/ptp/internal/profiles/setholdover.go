@@ -6,13 +6,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	prometheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	ptpv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v1"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/metrics"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 // HoldOverMap is a map of profile references to the old HoldOverTimeout values. The value, in seconds, is nil if there
@@ -79,7 +79,7 @@ func SetHoldOverTimeouts(
 		}
 	}
 
-	glog.V(tsparams.LogLevel).Infof(
+	klog.V(tsparams.LogLevel).Infof(
 		"Set holdover timeout to %d seconds while saving original values: %v", holdoverTimeout, oldHoldovers)
 
 	return oldHoldovers, nil
@@ -93,7 +93,7 @@ func WaitForHoldOverTimeouts(
 	profiles []*ProfileInfo,
 	holdoverTimeout int64,
 	timeout time.Duration) error {
-	glog.V(tsparams.LogLevel).Infof(
+	klog.V(tsparams.LogLevel).Infof(
 		"Waiting for holdover timeout to be set to %d seconds for profiles on node %s",
 		holdoverTimeout, nodeName)
 
@@ -110,7 +110,7 @@ func WaitForHoldOverTimeouts(
 		context.TODO(), 5*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			err := metrics.AssertThresholds(ctx, prometheusAPI, thresholdQuery, expected)
 			if err != nil {
-				glog.V(tsparams.LogLevel).Infof("Holdover timeout assertion failed: %v", err)
+				klog.V(tsparams.LogLevel).Infof("Holdover timeout assertion failed: %v", err)
 
 				return false, nil
 			}
@@ -122,7 +122,7 @@ func WaitForHoldOverTimeouts(
 // ResetHoldOverTimeouts resets the HoldOverTimeout for the provided profiles to the original values. The same caveats
 // apply where any errors in pulling or updating the configs may result in a partially modified state.
 func ResetHoldOverTimeouts(client *clients.Settings, oldHoldovers HoldOverMap) error {
-	glog.V(tsparams.LogLevel).Infof("Resetting holdover timeout to original values: %v", oldHoldovers)
+	klog.V(tsparams.LogLevel).Infof("Resetting holdover timeout to original values: %v", oldHoldovers)
 
 	for reference, oldHoldover := range oldHoldovers {
 		ptpConfig, err := reference.PullPtpConfig(client)
@@ -161,7 +161,7 @@ func WaitForOldHoldOverTimeouts(
 	nodeName string,
 	oldHoldovers HoldOverMap,
 	timeout time.Duration) error {
-	glog.V(tsparams.LogLevel).Infof(
+	klog.V(tsparams.LogLevel).Infof(
 		"Waiting for holdover timeout to be set to original values %v for profiles on node %s",
 		oldHoldovers, nodeName)
 
@@ -183,7 +183,7 @@ func WaitForOldHoldOverTimeouts(
 		context.TODO(), 5*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			err := metrics.AssertThresholds(ctx, prometheusAPI, thresholdQuery, expected)
 			if err != nil {
-				glog.V(tsparams.LogLevel).Infof("Holdover timeout assertion failed: %v", err)
+				klog.V(tsparams.LogLevel).Infof("Holdover timeout assertion failed: %v", err)
 
 				return false, nil
 			}

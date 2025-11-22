@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/configmap"
@@ -21,6 +20,7 @@ import (
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmminittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
+	"k8s.io/klog/v2"
 )
 
 var _ = Describe("KMM", Ordered, Label(tsparams.LabelSuite), func() {
@@ -110,19 +110,19 @@ var _ = Describe("KMM", Ordered, Label(tsparams.LabelSuite), func() {
 			By("Delete Module")
 			_, err := kmm.NewModuleBuilder(APIClient, moduleName, upgradeTestNamespace).Delete()
 			if err != nil {
-				glog.V(90).Infof("error deleting module: %v", err)
+				klog.V(90).Infof("error deleting module: %v", err)
 			}
 
 			By("Await module to be deleted")
 			err = kmmawait.ModuleObjectDeleted(APIClient, moduleName, upgradeTestNamespace, 3*time.Minute)
 			if err != nil {
-				glog.V(90).Infof("error while waiting module to be deleted: %v", err)
+				klog.V(90).Infof("error while waiting module to be deleted: %v", err)
 			}
 
 			By("Await pods deletion")
 			err = kmmawait.ModuleUndeployed(APIClient, upgradeTestNamespace, time.Minute)
 			if err != nil {
-				glog.V(90).Infof("error while waiting pods to be deleted: %v", err)
+				klog.V(90).Infof("error while waiting pods to be deleted: %v", err)
 			}
 
 			svcAccount := serviceaccount.NewBuilder(APIClient, serviceAccountName, upgradeTestNamespace)
@@ -131,20 +131,20 @@ var _ = Describe("KMM", Ordered, Label(tsparams.LabelSuite), func() {
 				crb := define.ModuleCRB(*svcAccount, kmodName)
 				err := crb.Delete()
 				if err != nil {
-					glog.V(90).Infof("error deleting clusterrolebinding: %v", err)
+					klog.V(90).Infof("error deleting clusterrolebinding: %v", err)
 				}
 
 				By("Delete ServiceAccount")
 				err = svcAccount.Delete()
 				if err != nil {
-					glog.V(90).Infof("error deleting serviceaccount: %v", err)
+					klog.V(90).Infof("error deleting serviceaccount: %v", err)
 				}
 			}
 
 			By("Delete test namespace")
 			err = namespace.NewBuilder(APIClient, upgradeTestNamespace).Delete()
 			if err != nil {
-				glog.V(90).Infof("error deleting test namespace: %v", err)
+				klog.V(90).Infof("error deleting test namespace: %v", err)
 			}
 		})
 
@@ -168,12 +168,12 @@ var _ = Describe("KMM", Ordered, Label(tsparams.LabelSuite), func() {
 
 			By("Update subscription to use new channel, if defined")
 			if ModulesConfig.CatalogSourceChannel != "" {
-				glog.V(90).Infof("setting subscription channel to: %s", ModulesConfig.CatalogSourceChannel)
+				klog.V(90).Infof("setting subscription channel to: %s", ModulesConfig.CatalogSourceChannel)
 				sub.Definition.Spec.Channel = ModulesConfig.CatalogSourceChannel
 			}
 
 			By("Update subscription to use new catalog source")
-			glog.V(90).Infof("Subscription's catalog source: %s", sub.Object.Spec.CatalogSource)
+			klog.V(90).Infof("Subscription's catalog source: %s", sub.Object.Spec.CatalogSource)
 			sub.Definition.Spec.CatalogSource = ModulesConfig.CatalogSourceName
 			_, err = sub.Update()
 			Expect(err).ToNot(HaveOccurred(), "failed updating subscription")

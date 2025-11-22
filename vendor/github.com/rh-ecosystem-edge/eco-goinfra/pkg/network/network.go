@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -29,17 +29,17 @@ type ConfigBuilder struct {
 
 // PullConfig loads an existing network into ConfigBuilder struct.
 func PullConfig(apiClient *clients.Settings) (*ConfigBuilder, error) {
-	glog.V(100).Infof("Pulling existing network.config name: %s", clusterNetworkName)
+	klog.V(100).Infof("Pulling existing network.config name: %s", clusterNetworkName)
 
 	if apiClient == nil {
-		glog.V(100).Info("The network.configapiClient is nil")
+		klog.V(100).Info("The network.configapiClient is nil")
 
 		return nil, fmt.Errorf("network.config 'apiClient' cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(configv1.Install)
 	if err != nil {
-		glog.V(100).Info("Failed to add config v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add config v1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func PullConfig(apiClient *clients.Settings) (*ConfigBuilder, error) {
 	}
 
 	if !builder.Exists() {
-		glog.V(100).Infof("network.config %s does not exist", clusterNetworkName)
+		klog.V(100).Infof("network.config %s does not exist", clusterNetworkName)
 
 		return nil, fmt.Errorf("network.config object %s does not exist", clusterNetworkName)
 	}
@@ -70,13 +70,13 @@ func (builder *ConfigBuilder) Get() (*configv1.Network, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting network.config object %s", builder.Definition.Name)
+	klog.V(100).Infof("Getting network.config object %s", builder.Definition.Name)
 
 	network := &configv1.Network{}
 
 	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, network)
 	if err != nil {
-		glog.V(100).Infof("Failed to get network.config object %s: %v", builder.Definition.Name, err)
+		klog.V(100).Infof("Failed to get network.config object %s: %v", builder.Definition.Name, err)
 
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func (builder *ConfigBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if network.config %s exists", builder.Definition.Name)
+	klog.V(100).Infof("Checking if network.config %s exists", builder.Definition.Name)
 
 	var err error
 
@@ -105,19 +105,19 @@ func (builder *ConfigBuilder) validate() (bool, error) {
 	resourceCRD := "network.config"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}

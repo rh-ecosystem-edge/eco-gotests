@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	nmstateV1 "github.com/nmstate/kubernetes-nmstate/api/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -16,20 +16,20 @@ func ListPolicy(apiClient *clients.Settings, options ...goclient.ListOptions) ([
 	logMessage := "Listing NodeNetworkConfigurationPolicy"
 
 	if apiClient == nil {
-		glog.V(100).Infof("sriov network 'apiClient' parameter can not be empty")
+		klog.V(100).Info("sriov network 'apiClient' parameter can not be empty")
 
 		return nil, fmt.Errorf("failed to list sriov networks, 'apiClient' parameter is empty")
 	}
 
 	err := apiClient.AttachScheme(nmstateV1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add nmstate v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add nmstate v1 scheme to client schemes")
 
 		return nil, err
 	}
 
 	if len(options) > 1 {
-		glog.V(100).Infof("'options' parameter must be empty or single-valued")
+		klog.V(100).Info("'options' parameter must be empty or single-valued")
 
 		return nil, fmt.Errorf("error: more than one ListOptions was passed")
 	}
@@ -39,13 +39,13 @@ func ListPolicy(apiClient *clients.Settings, options ...goclient.ListOptions) ([
 		logMessage += fmt.Sprintf(" with the options %v", passedOptions)
 	}
 
-	glog.V(100).Infof(logMessage)
+	klog.V(100).Infof("%v", logMessage)
 
 	policyList := &nmstateV1.NodeNetworkConfigurationPolicyList{}
 
 	err = apiClient.List(context.TODO(), policyList, &passedOptions)
 	if err != nil {
-		glog.V(100).Infof("Failed to list NodeNetworkConfigurationPolicy due to %s", err.Error())
+		klog.V(100).Infof("Failed to list NodeNetworkConfigurationPolicy due to %s", err.Error())
 
 		return nil, err
 	}
@@ -67,11 +67,11 @@ func ListPolicy(apiClient *clients.Settings, options ...goclient.ListOptions) ([
 
 // CleanAllNMStatePolicies removes all NodeNetworkConfigurationPolicies.
 func CleanAllNMStatePolicies(apiClient *clients.Settings, options ...goclient.ListOptions) error {
-	glog.V(100).Infof("Cleaning up NodeNetworkConfigurationPolicies")
+	klog.V(100).Info("Cleaning up NodeNetworkConfigurationPolicies")
 
 	nncpList, err := ListPolicy(apiClient, options...)
 	if err != nil {
-		glog.V(100).Infof("Failed to list NodeNetworkConfigurationPolicies")
+		klog.V(100).Info("Failed to list NodeNetworkConfigurationPolicies")
 
 		return err
 	}
@@ -79,7 +79,7 @@ func CleanAllNMStatePolicies(apiClient *clients.Settings, options ...goclient.Li
 	for _, nncpPolicy := range nncpList {
 		_, err = nncpPolicy.Delete()
 		if err != nil {
-			glog.V(100).Infof("Failed to delete NodeNetworkConfigurationPolicy: %s", nncpPolicy.Object.Name)
+			klog.V(100).Infof("Failed to delete NodeNetworkConfigurationPolicy: %s", nncpPolicy.Object.Name)
 
 			return err
 		}

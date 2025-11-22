@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
@@ -12,6 +11,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nvidiagpu/internal/gpuparams"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -27,7 +27,7 @@ func AllNodeLabel(apiClient *clients.Settings, nodeLabel, nodeLabelValue string,
 	// in all the nodes that match the nodeSelectors, look for specific label
 	// For example, look in all the worker nodes for a specific label with specific value
 	if err != nil {
-		glog.V(gpuparams.GpuLogLevel).Infof("could not discover %v nodes, error encountered: '%v'",
+		klog.V(gpuparams.GpuLogLevel).Infof("could not discover %v nodes, error encountered: '%v'",
 			nodeSelector, err)
 
 		return false, err
@@ -40,7 +40,7 @@ func AllNodeLabel(apiClient *clients.Settings, nodeLabel, nodeLabelValue string,
 		labelValue := node.Object.Labels[nodeLabel]
 
 		if labelValue == nodeLabelValue {
-			glog.V(gpuparams.GpuLogLevel).Infof("Found label %v that contains %v with label value % s on "+
+			klog.V(gpuparams.GpuLogLevel).Infof("Found label %v that contains %v with label value % s on "+
 				"node %v", nodeLabel, nodeLabel, nodeLabelValue, node.Object.Name)
 
 			foundLabels++
@@ -64,7 +64,7 @@ func NodeWithLabel(apiClient *clients.Settings, nodeLabel string, nodeSelector m
 	// Check if at least one node matching the nodeSelector has the specific nodeLabel label set to true
 	// For example, look in all the worker nodes for specific label
 	if err != nil {
-		glog.V(gpuparams.GpuLogLevel).Infof("could not discover %v nodes", nodeSelector)
+		klog.V(gpuparams.GpuLogLevel).Infof("could not discover %v nodes", nodeSelector)
 
 		return false, err
 	}
@@ -73,7 +73,7 @@ func NodeWithLabel(apiClient *clients.Settings, nodeLabel string, nodeSelector m
 		labelValue, ok := node.Object.Labels[nodeLabel]
 
 		if ok {
-			glog.V(gpuparams.GpuLogLevel).Infof("Found label '%v' with label value '%v' on node '%v'",
+			klog.V(gpuparams.GpuLogLevel).Infof("Found label '%v' with label value '%v' on node '%v'",
 				nodeLabel, labelValue, node.Object.Name)
 
 			return true, nil
@@ -91,28 +91,28 @@ func NFDDeploymentsReady(apiClient *clients.Settings) (bool, error) {
 	nfdOperatorDeployment, err1 := deployment.Pull(apiClient, nfdOperatorDeployment, hwaccelparams.NFDNamespace)
 
 	if err1 != nil {
-		glog.V(gpuparams.GpuLogLevel).Infof("Error trying to pull NFD operator deployment:  %v ", err1)
+		klog.V(gpuparams.GpuLogLevel).Infof("Error trying to pull NFD operator deployment:  %v ", err1)
 
 		return false, err1
 	}
 
-	glog.V(gpuparams.GpuLogLevel).Infof("Pulled NFD operator deployment is:  %v ",
+	klog.V(gpuparams.GpuLogLevel).Infof("Pulled NFD operator deployment is:  %v ",
 		nfdOperatorDeployment.Definition.Name)
 
 	// Check nfd-master deployment.
 	nfdMasterDeployment, err2 := deployment.Pull(apiClient, nfdMasterDeployment, hwaccelparams.NFDNamespace)
 
 	if err2 != nil {
-		glog.V(gpuparams.GpuLogLevel).Infof("Error trying to pull NFD master deployment:  %v ", err2)
+		klog.V(gpuparams.GpuLogLevel).Infof("Error trying to pull NFD master deployment:  %v ", err2)
 
 		return false, err2
 	}
 
-	glog.V(gpuparams.GpuLogLevel).Infof("Pulled NFD operand master deployment:  %v ",
+	klog.V(gpuparams.GpuLogLevel).Infof("Pulled NFD operand master deployment:  %v ",
 		nfdMasterDeployment.Definition.Name)
 
 	if nfdOperatorDeployment.IsReady(180*time.Second) && nfdMasterDeployment.IsReady(180*time.Second) {
-		glog.V(gpuparams.GpuLogLevel).Infof("NFD operator '%s' and operand '%s' deployments are ready",
+		klog.V(gpuparams.GpuLogLevel).Infof("NFD operator '%s' and operand '%s' deployments are ready",
 			nfdOperatorDeployment.Definition.Name, nfdMasterDeployment.Definition.Name)
 
 		return true, nil

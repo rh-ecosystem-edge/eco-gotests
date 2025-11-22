@@ -14,11 +14,9 @@ require (
 	github.com/containers/image/v5 v5.34.3
 	github.com/coreos/ignition/v2 v2.21.0
 	github.com/go-git/go-git/v5 v5.12.0
-	github.com/golang/glog v1.2.5
 	github.com/google/uuid v1.6.0
 	github.com/grafana/loki/operator/apis/loki v0.0.0-20241021105923-5e970e50b166
 	github.com/hashicorp/go-version v1.7.0
-	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/k8snetworkplumbingwg/multi-networkpolicy v1.0.1
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.7
 	github.com/k8snetworkplumbingwg/sriov-network-operator v1.5.0
@@ -27,7 +25,6 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/klauspost/compress v1.18.0
 	github.com/metal3-io/baremetal-operator/apis v0.10.2
-	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
 	github.com/nmstate/kubernetes-nmstate/api v0.0.0-20250711164732-0e728986112f
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.37.0
@@ -163,6 +160,7 @@ require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
+	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kdomanski/iso9660 v0.2.1 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
@@ -185,6 +183,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
 	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
 	github.com/nutanix-cloud-native/prism-go-client v0.3.4 // indirect
 	github.com/oapi-codegen/runtime v1.1.1 // indirect
@@ -265,7 +264,7 @@ require (
 	k8s.io/cli-runtime v0.32.6 // indirect
 	k8s.io/component-base v0.32.6 // indirect
 	k8s.io/klog v1.0.0 // indirect
-	k8s.io/klog/v2 v2.130.1 // indirect
+	k8s.io/klog/v2 v2.130.1
 	k8s.io/kube-aggregator v0.32.3 // indirect
 	k8s.io/kube-openapi v0.0.0-20250701173324-9bd5c66d9911 // indirect
 	k8s.io/kubectl v0.32.6 // indirect
@@ -282,7 +281,7 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
-require github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20251120211331-cd7a80fc732b
+require github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20251122135553-02115b5b0d14
 
 replace (
 	github.com/imdario/mergo => github.com/imdario/mergo v0.3.16

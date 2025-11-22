@@ -7,12 +7,12 @@ import (
 	re "regexp"
 	"strings"
 
-	"github.com/golang/glog"
 	"github.com/onsi/ginkgo/v2/types"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 	"golang.org/x/crypto/ssh"
+	"k8s.io/klog/v2"
 )
 
 var (
@@ -32,7 +32,7 @@ func ReportIfFailedFromClient(
 	report types.SpecReport, testSuite string, commands []string, apiClient *clients.Settings) {
 	if types.SpecStateFailureStates.Is(report.State) {
 		if apiClient == nil {
-			glog.Errorf("cannot gather system report from nil apiClient")
+			klog.Errorf("cannot gather system report from nil apiClient")
 
 			return
 		}
@@ -45,7 +45,7 @@ func ReportIfFailedFromClient(
 
 		err := os.MkdirAll(systemFolder, 0755)
 		if err != nil {
-			glog.Errorf("failed creating dir for system info: %s", err)
+			klog.Errorf("failed creating dir for system info: %s", err)
 
 			return
 		}
@@ -65,7 +65,7 @@ func ReportIfFailedFromNodeList(report types.SpecReport, testSuite string, comma
 
 		err := os.MkdirAll(systemFolder, 0755)
 		if err != nil {
-			glog.Errorf("failed to create directory for storing system info %s", err)
+			klog.Errorf("failed to create directory for storing system info %s", err)
 
 			return
 		}
@@ -78,21 +78,21 @@ func ReportIfFailedFromNodeList(report types.SpecReport, testSuite string, comma
 // and writes output to specified directory.
 func GatherInfoThroughSSH(commands []string, outputdir string, sshKeyPath string, nodes []string) {
 	if sshKeyPath == "" {
-		glog.Errorf("cannot gather system information without providing ssh key path")
+		klog.Errorf("cannot gather system information without providing ssh key path")
 
 		return
 	}
 
 	privateKey, err := os.ReadFile(sshKeyPath)
 	if err != nil {
-		glog.Errorf("failed to read private ssh key from system: %s", err)
+		klog.Errorf("failed to read private ssh key from system: %s", err)
 
 		return
 	}
 
 	signer, err := ssh.ParsePrivateKey(privateKey)
 	if err != nil {
-		glog.Errorf("failed to parse private ssh key: %s", err)
+		klog.Errorf("failed to parse private ssh key: %s", err)
 
 		return
 	}
@@ -108,7 +108,7 @@ func GatherInfoThroughSSH(commands []string, outputdir string, sshKeyPath string
 	for _, node := range nodes {
 		client, err := ssh.Dial("tcp", fmt.Sprintf("%s:22", node), &config)
 		if err != nil {
-			glog.Errorf("failed to establish SSH connection to %s: %s", node, err)
+			klog.Errorf("failed to establish SSH connection to %s: %s", node, err)
 
 			continue
 		}
@@ -122,7 +122,7 @@ func GatherInfoThroughSSH(commands []string, outputdir string, sshKeyPath string
 
 			session, err := client.NewSession()
 			if err != nil {
-				glog.Errorf("failed to create SSH session on %s: %s", node, err)
+				klog.Errorf("failed to create SSH session on %s: %s", node, err)
 
 				break
 			}
@@ -136,10 +136,10 @@ func GatherInfoThroughSSH(commands []string, outputdir string, sshKeyPath string
 			if err == nil {
 				err = os.WriteFile(outputdir+"/"+node+"_"+fileNameFromCommand(command), output.Bytes(), 0650)
 				if err != nil {
-					glog.Errorf("error writing to file: %s", err)
+					klog.Errorf("error writing to file: %s", err)
 				}
 			} else {
-				glog.Errorf("error executing command '%s' on %s: %s", command, node, stderr.String())
+				klog.Errorf("error executing command '%s' on %s: %s", command, node, stderr.String())
 			}
 		}
 	}
@@ -149,7 +149,7 @@ func GatherInfoThroughSSH(commands []string, outputdir string, sshKeyPath string
 // and writes output to specified directory.
 func GatherInfoThroughKubeClient(commands []string, outputdir string, apiClient *clients.Settings) {
 	if apiClient == nil {
-		glog.Errorf("cannot gather system information from nil APIClient")
+		klog.Errorf("cannot gather system information from nil APIClient")
 
 		return
 	}
@@ -157,7 +157,7 @@ func GatherInfoThroughKubeClient(commands []string, outputdir string, apiClient 
 	for _, command := range commands {
 		output, err := cluster.ExecCmdWithStdout(apiClient, command)
 		if err != nil {
-			glog.Errorf("error occurred while executing command: %s", err)
+			klog.Errorf("error occurred while executing command: %s", err)
 
 			continue
 		}
@@ -165,7 +165,7 @@ func GatherInfoThroughKubeClient(commands []string, outputdir string, apiClient 
 		for node, results := range output {
 			err = os.WriteFile(outputdir+"/"+node+"_"+fileNameFromCommand(command), []byte(results), 0650)
 			if err != nil {
-				glog.Errorf("error writing to file: %s", err)
+				klog.Errorf("error writing to file: %s", err)
 			}
 		}
 	}

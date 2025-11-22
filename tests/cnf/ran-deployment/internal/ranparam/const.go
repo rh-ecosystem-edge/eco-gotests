@@ -1,8 +1,6 @@
 package ranparam
 
-import (
-	"github.com/golang/glog"
-)
+import "k8s.io/klog/v2"
 
 const (
 	// Label represents the label for the ran test cases.
@@ -24,5 +22,5 @@ const (
 	OpenshiftGitopsRepoServer string = "openshift-gitops-repo-server"
 
 	// LogLevel is the verbosity for ran/internal packages.
-	LogLevel glog.Level = 80
+	LogLevel klog.Level = 80
 )

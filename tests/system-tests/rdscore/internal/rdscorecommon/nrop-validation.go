@@ -5,13 +5,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -37,12 +37,12 @@ func defineNROPContainer(cName, cImage string, cCmd []string,
 	nContainer := pod.NewContainerBuilder(cName, cImage, cCmd)
 
 	if len(cRequests) != 0 {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Processing container's requests")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Processing container's requests")
 
 		containerRequests := corev1.ResourceList{}
 
 		for key, val := range cRequests {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Parsing container's request: %q - %q", key, val)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Parsing container's request: %q - %q", key, val)
 
 			containerRequests[corev1.ResourceName(key)] = resource.MustParse(val)
 		}
@@ -51,12 +51,12 @@ func defineNROPContainer(cName, cImage string, cCmd []string,
 	}
 
 	if len(cLimits) != 0 {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Processing container's limits")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Processing container's limits")
 
 		containerLimits := corev1.ResourceList{}
 
 		for key, val := range cLimits {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Parsing container's limit: %q - %q", key, val)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Parsing container's limit: %q - %q", key, val)
 
 			containerLimits[corev1.ResourceName(key)] = resource.MustParse(val)
 		}
@@ -64,14 +64,14 @@ func defineNROPContainer(cName, cImage string, cCmd []string,
 		nContainer = nContainer.WithCustomResourcesLimits(containerLimits)
 	}
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("%q container's  definition:\n%#v", cName, nContainer)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("%q container's  definition:\n%#v", cName, nContainer)
 
 	return nContainer
 }
 
 func defineNROPDeployment(containerConfig *corev1.Container, deployName, deployNs, deployScheduler string,
 	deployLabels, nodeSelector map[string]string) *deployment.Builder {
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Defining deployment %q in %q ns", deployName, deployNs)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Defining deployment %q in %q ns", deployName, deployNs)
 
 	By("Defining NROP deployment")
 
@@ -93,7 +93,7 @@ func defineNROPDeployment(containerConfig *corev1.Container, deployName, deployN
 		By("Adding TaintToleration")
 
 		for _, toleration := range RDSCoreConfig.WlkdNROPTolerationList {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Adding toleration: %v", toleration)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Adding toleration: %v", toleration)
 
 			deployNROP = deployNROP.WithToleration(toleration)
 		}
@@ -110,7 +110,7 @@ func VerifyNROPWorkload(ctx SpecContext) {
 
 	By(fmt.Sprintf("Ensuring pods from %q deployment are gone", sriovDeploy1OneName))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Ensuring pods from %q deployment in %q namespace are gone",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Ensuring pods from %q deployment in %q namespace are gone",
 		nropDeploy1Name, RDSCoreConfig.WlkdNROPOneNS)
 
 	Eventually(func() bool {
@@ -158,7 +158,7 @@ func VerifyNROPWorkload(ctx SpecContext) {
 
 // VerifyNROPWorkloadAvailable verifies NUMA-aware workload is in Ready state.
 func VerifyNROPWorkloadAvailable(ctx SpecContext) {
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Verify NUMA-aware workload is Ready")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Verify NUMA-aware workload is Ready")
 
 	var (
 		deploy *deployment.Builder
@@ -169,14 +169,14 @@ func VerifyNROPWorkloadAvailable(ctx SpecContext) {
 		deploy, err = deployment.Pull(APIClient, nropDeploy1Name, RDSCoreConfig.WlkdNROPOneNS)
 
 		if err != nil {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 				"Error pulling deployment %q from %q namespace",
 				nropDeploy1Name, RDSCoreConfig.WlkdNROPOneNS)
 
 			return false
 		}
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 			"Successfully pulled in deployment %q from %q namespace",
 			nropDeploy1Name, RDSCoreConfig.WlkdNROPOneNS)
 
@@ -198,7 +198,7 @@ func VerifyNROPWorkloadAvailable(ctx SpecContext) {
 		fmt.Sprintf("Failed to find pods matching %q label", nropDeployOneLabel))
 
 	for _, _pod := range nropPods {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Processing pod %q", _pod.Definition.Name)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Processing pod %q", _pod.Definition.Name)
 
 		Expect(_pod.WaitUntilReady(1*time.Minute)).ShouldNot(HaveOccurred(),
 			fmt.Sprintf("Pod %q in %q namespace isn't READY",

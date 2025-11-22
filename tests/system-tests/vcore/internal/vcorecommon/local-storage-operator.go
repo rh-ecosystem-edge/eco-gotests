@@ -10,11 +10,11 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/await"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/apiobjectshelper"
@@ -43,7 +43,7 @@ func VerifyLSONamespaceExists(ctx SpecContext) {
 	err := apiobjectshelper.VerifyNamespaceExists(APIClient, vcoreparams.LSONamespace, time.Second)
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to pull namespace %q; %v", vcoreparams.LSONamespace, err))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Short sleep to stabilize nodes to avoid pv creation failure")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Short sleep to stabilize nodes to avoid pv creation failure")
 
 	time.Sleep(15 * time.Minute)
 } // func VerifyLSONamespaceExists (ctx SpecContext)
@@ -59,7 +59,7 @@ func VerifyLSODeployment(ctx SpecContext) {
 		fmt.Sprintf("operator deployment %s failure in the namespace %s; %v",
 			vcoreparams.LSOName, vcoreparams.LSONamespace, err))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Confirm that LSO %s pod was deployed and running in %s namespace",
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Confirm that LSO %s pod was deployed and running in %s namespace",
 		vcoreparams.LSOName, vcoreparams.LSONamespace)
 
 	lsoPods, err := pod.ListByNamePattern(APIClient, vcoreparams.LSOName, vcoreparams.LSONamespace)
@@ -76,14 +76,14 @@ func VerifyLSODeployment(ctx SpecContext) {
 	err = lsoPod.WaitUntilReady(time.Second)
 	if err != nil {
 		lsoPodLog, _ := lsoPod.GetLog(600*time.Second, vcoreparams.LSOName)
-		glog.Fatalf("%s pod in %s namespace in a bad state: %s",
+		klog.Fatalf("%s pod in %s namespace in a bad state: %s",
 			lsoPodName, vcoreparams.LSONamespace, lsoPodLog)
 	}
 } // func VerifyLSODeployment (ctx SpecContext)
 
 // VerifyLocalVolumeSet asserts localvolumeset instance exists.
 func VerifyLocalVolumeSet(ctx SpecContext) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Create localvolumeset instance %s in namespace %s if not found",
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Create localvolumeset instance %s in namespace %s if not found",
 		vcoreparams.ODFLocalVolumeSetName, vcoreparams.LSONamespace)
 
 	var err error

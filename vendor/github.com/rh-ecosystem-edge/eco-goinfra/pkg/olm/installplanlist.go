@@ -7,28 +7,28 @@ import (
 	oplmV1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/operators/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"k8s.io/klog/v2"
 )
 
 // ListInstallPlan returns a list of installplans found for specific namespace.
 func ListInstallPlan(
 	apiClient *clients.Settings, nsname string, options ...client.ListOptions) ([]*InstallPlanBuilder, error) {
 	if nsname == "" {
-		glog.V(100).Info("The nsname of the installplan is empty")
+		klog.V(100).Info("The nsname of the installplan is empty")
 
 		return nil, fmt.Errorf("the nsname of the installplan is empty")
 	}
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil, fmt.Errorf("failed to list installPlan, 'apiClient' parameter is empty")
 	}
 
 	err := apiClient.AttachScheme(oplmV1alpha1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add oplmV1alpha1 scheme to client schemes")
+		klog.V(100).Info("Failed to add oplmV1alpha1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -37,7 +37,7 @@ func ListInstallPlan(
 	logMessage := fmt.Sprintf("Listing InstallPlans in namespace %s", nsname)
 
 	if len(options) > 1 {
-		glog.V(100).Infof("'options' parameter must be empty or single-valued")
+		klog.V(100).Info("'options' parameter must be empty or single-valued")
 
 		return nil, fmt.Errorf("error: more than one ListOptions was passed")
 	}
@@ -47,13 +47,13 @@ func ListInstallPlan(
 		logMessage += fmt.Sprintf(" with the options %v", passedOptions)
 	}
 
-	glog.V(100).Infof(logMessage)
+	klog.V(100).Infof("%v", logMessage)
 
 	installPlanList := new(oplmV1alpha1.InstallPlanList)
 
 	err = apiClient.List(context.TODO(), installPlanList, &passedOptions)
 	if err != nil {
-		glog.V(100).Infof("Failed to list all installplan in namespace %s due to %s",
+		klog.V(100).Infof("Failed to list all installplan in namespace %s due to %s",
 			nsname, err.Error())
 
 		return nil, err

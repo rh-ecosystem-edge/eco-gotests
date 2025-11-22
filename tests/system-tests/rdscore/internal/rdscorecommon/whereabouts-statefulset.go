@@ -11,7 +11,6 @@ import (
 
 	"encoding/json"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -27,6 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 // AddrInfo represents the address information for a network interface.
@@ -149,10 +149,10 @@ func cleanupStatefulset(stName, namespace, stLabel string) {
 	stOne, err := statefulset.Pull(APIClient, stName, namespace)
 
 	if err != nil {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to get statefulset %q in %q namespace: %s",
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to get statefulset %q in %q namespace: %s",
 			stName, namespace, err)
 	} else {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deleting statefulset %q in %q namespace",
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deleting statefulset %q in %q namespace",
 			stName, namespace)
 
 		delError := stOne.Delete()
@@ -170,7 +170,7 @@ func cleanupStatefulset(stName, namespace, stLabel string) {
 			})
 
 			if err != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods from %q statefulset in %q namespace: %s",
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods from %q statefulset in %q namespace: %s",
 					stName, namespace, err)
 
 				return false
@@ -201,10 +201,10 @@ func createStatefulsetAndWaitReplicasReady(stName, namespace string, stBuilder *
 		exists := stBuilder.Exists()
 
 		if exists {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Statefulset ReadyReplicas: %d",
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Statefulset ReadyReplicas: %d",
 				stBuilder.Object.Status.ReadyReplicas)
 
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Statefulset Spec.Replicas: %d",
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Statefulset Spec.Replicas: %d",
 				*stBuilder.Definition.Spec.Replicas)
 
 			if stBuilder.Definition.Spec.Replicas != nil {
@@ -228,10 +228,10 @@ func setupHeadlessService(svcName, namespace, svcLabel, svcPort string) {
 	svcOne, err := service.Pull(APIClient, svcName, namespace)
 
 	if err != nil {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to get service %q in %q namespace: %s",
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to get service %q in %q namespace: %s",
 			svcName, namespace, err)
 	} else {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deleting service %q in %q namespace",
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deleting service %q in %q namespace",
 			svcName, namespace)
 
 		delError := svcOne.Delete()
@@ -244,11 +244,11 @@ func setupHeadlessService(svcName, namespace, svcLabel, svcPort string) {
 	By(fmt.Sprintf("Creating headless service %q in %q namespace",
 		svcName, namespace))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Defining headless service selector")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Defining headless service selector")
 
 	svcLabelsMap := parseLabelsMap(svcLabel)
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Defining headless service port")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Defining headless service port")
 
 	parsedPort, err := strconv.Atoi(svcPort)
 
@@ -264,7 +264,7 @@ func setupHeadlessService(svcName, namespace, svcLabel, svcPort string) {
 
 	By("Setting ipFamilyPolicy to 'RequireDualStack'")
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Setting ipFamilyPolicy to 'RequireDualStack'")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Setting ipFamilyPolicy to 'RequireDualStack'")
 
 	svcOne = svcOne.WithIPFamily([]corev1.IPFamily{"IPv4", "IPv6"},
 		corev1.IPFamilyPolicyRequireDualStack)
@@ -276,11 +276,11 @@ func setupHeadlessService(svcName, namespace, svcLabel, svcPort string) {
 		svcOne, err = svcOne.Create()
 
 		if err != nil {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to create headless service %q in %q namespace: %s",
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to create headless service %q in %q namespace: %s",
 				svcName, namespace, err)
 		}
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Headless service %q in %q namespace created",
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Headless service %q in %q namespace created",
 			svcName, namespace)
 
 		return err
@@ -298,15 +298,15 @@ func verifyInterPodCommunication(
 	var ctx SpecContext
 
 	for podIndex, _pod := range activePods {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Running from %q to %q",
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Running from %q to %q",
 			_pod.Object.Name, podsMapping[_pod.Object.Name])
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q IP addresses: %+v",
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q IP addresses: %+v",
 			podsMapping[_pod.Object.Name], podWhereaboutsIPs[podsMapping[_pod.Object.Name]])
 
 		for _, dstAddr := range podWhereaboutsIPs[podsMapping[_pod.Object.Name]][0].AddrInfo {
 			if dstAddr.Family == "inet6" && dstAddr.Scope == "link" {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping link-local address %q", dstAddr.Local)
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping link-local address %q", dstAddr.Local)
 
 				continue
 			}
@@ -316,7 +316,7 @@ func verifyInterPodCommunication(
 			msgOne := fmt.Sprintf("Hello from %q to %q with random number %d",
 				_pod.Object.Name, podsMapping[_pod.Object.Name], randomNumber)
 
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Sending data from %q to %q",
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Sending data from %q to %q",
 				_pod.Object.Name, dstAddr.Local)
 
 			targetAddr := fmt.Sprintf("%s %d", dstAddr.Local, parsedPort)
@@ -340,7 +340,7 @@ func verifyInterPodCommunication(
 			}).WithContext(ctx).WithPolling(10*time.Second).WithTimeout(1*time.Minute).Should(BeTrue(),
 				"Failed to send data from pod %q to %q", _pod.Object.Name, targetAddr)
 
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q result: %s", _pod.Object.Name, podOneResult.String())
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q result: %s", _pod.Object.Name, podOneResult.String())
 
 			targetPod := activePods[len(activePods)-(podIndex+1)]
 
@@ -363,37 +363,37 @@ func getPodWhereaboutsIPs(activePods []*pod.Builder, interfaceName string) map[s
 		var networkInterface []NetworkInterface
 
 		Eventually(func() bool {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Executing command %q within pod %q in %q namespace",
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Executing command %q within pod %q in %q namespace",
 				cmdGetIPAddr, _pod.Object.Name, _pod.Object.Namespace)
 
 			addrBuffInfo, err := _pod.ExecCommand(cmdGetIPAddr, _pod.Definition.Spec.Containers[0].Name)
 
 			if err != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to execute command within pod %q in %q namespace: %s",
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to execute command within pod %q in %q namespace: %s",
 					_pod.Object.Name, _pod.Object.Namespace, err)
 
 				return false
 			}
 
 			if addrBuffInfo.Len() == 0 {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Empty output from command within pod %q in %q namespace",
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Empty output from command within pod %q in %q namespace",
 					_pod.Object.Name, _pod.Object.Namespace)
 
 				return false
 			}
 
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Unmarshalling IP addresses")
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Unmarshalling IP addresses")
 
 			err = json.Unmarshal(addrBuffInfo.Bytes(), &networkInterface)
 
 			if err != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to unmarshal IP addresses for pod %q in %q namespace: %s",
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to unmarshal IP addresses for pod %q in %q namespace: %s",
 					_pod.Object.Name, _pod.Object.Namespace, err)
 
 				return false
 			}
 
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("IP addresses: %+v", networkInterface)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("IP addresses: %+v", networkInterface)
 
 			podWhereaboutsIPs[_pod.Object.Name] = networkInterface
 
@@ -414,22 +414,22 @@ func getActivePods(podLabel, namespace string) []*pod.Builder {
 	Expect(pods).ToNot(BeEmpty(), "No pods found with selector %q in %q namespace",
 		podLabel, namespace)
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d pods with selector %q in %q namespace",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d pods with selector %q in %q namespace",
 		len(pods), podLabel, namespace)
 
 	var activePods []*pod.Builder
 
 	for _, _pod := range pods {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q in %q namespace is in phase %q",
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q in %q namespace is in phase %q",
 			_pod.Object.Name, _pod.Object.Namespace, _pod.Object.Status.Phase)
 
 		if _pod.Object.Status.Phase == corev1.PodRunning && _pod.Object.DeletionTimestamp == nil {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is active(running and not marked for deletion)",
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is active(running and not marked for deletion)",
 				_pod.Object.Name)
 
 			activePods = append(activePods, _pod)
 		} else if _pod.Object.DeletionTimestamp != nil {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is marked for deletion, skipping", _pod.Object.Name)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is marked for deletion, skipping", _pod.Object.Name)
 		}
 	}
 
@@ -448,7 +448,7 @@ func ensurePodConnectivityAfterPodTermination(stLabel, namespace, targetPort str
 
 	randomPodIndex := rand.Intn(len(activePods))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Random pod index: %d pod name: %q",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Random pod index: %d pod name: %q",
 		randomPodIndex, activePods[randomPodIndex].Object.Name)
 
 	terminatedPod := activePods[randomPodIndex]
@@ -471,11 +471,11 @@ func ensurePodConnectivityAfterPodTermination(stLabel, namespace, targetPort str
 		activePods := getActivePods(stLabel, namespace)
 
 		for _, _pod := range activePods {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found pod %q in %q namespace with UUID: %q",
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found pod %q in %q namespace with UUID: %q",
 				_pod.Object.Name, _pod.Object.Namespace, _pod.Object.UID)
 
 			if _pod.Object.UID == terminatedPodUID {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found pod's UUID matches the one of the terminated pod")
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found pod's UUID matches the one of the terminated pod")
 
 				return false
 			}
@@ -508,14 +508,14 @@ func ensurePodConnectivityAfterNodeDrain(stLabel, namespace, targetPort string, 
 
 	randomPodIndex := rand.Intn(len(activePods))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Random pod index: %d pod name: %q",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Random pod index: %d pod name: %q",
 		randomPodIndex, activePods[randomPodIndex].Object.Name)
 
 	terminatedPod := activePods[randomPodIndex]
 
 	nodeToDrain := terminatedPod.Object.Spec.NodeName
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node to drain: %q", nodeToDrain)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node to drain: %q", nodeToDrain)
 
 	By(fmt.Sprintf("Pulling in node %q", nodeToDrain))
 
@@ -526,7 +526,7 @@ func ensurePodConnectivityAfterNodeDrain(stLabel, namespace, targetPort string, 
 
 	By(fmt.Sprintf("Cordoning node %q", nodeToDrain))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cordoning node %q", nodeToDrain)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cordoning node %q", nodeToDrain)
 
 	err = nodeObj.Cordon()
 
@@ -537,7 +537,7 @@ func ensurePodConnectivityAfterNodeDrain(stLabel, namespace, targetPort string, 
 
 	By(fmt.Sprintf("Draining node %q", nodeToDrain))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Draining node %q", nodeToDrain)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Draining node %q", nodeToDrain)
 
 	time.Sleep(5 * time.Second)
 
@@ -557,13 +557,13 @@ func ensurePodConnectivityAfterNodeDrain(stLabel, namespace, targetPort string, 
 
 		for _, newPod := range newActivePods {
 
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found pod %q in %q namespace with UUID: %q",
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found pod %q in %q namespace with UUID: %q",
 				newPod.Object.Name, newPod.Object.Namespace, newPod.Object.UID)
 
 			if sameNode {
 				for _, oldPod := range activePods {
 					if newPod.Object.UID == oldPod.Object.UID {
-						glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q in %q namespace matches old UUID: %q",
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q in %q namespace matches old UUID: %q",
 							newPod.Object.Name, newPod.Object.Namespace, newPod.Object.UID)
 
 						found = true
@@ -572,7 +572,7 @@ func ensurePodConnectivityAfterNodeDrain(stLabel, namespace, targetPort string, 
 					}
 				}
 			} else if newPod.Object.UID == terminatedPod.Object.UID {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q in %q namespace matches old UUID: %q",
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q in %q namespace matches old UUID: %q",
 					newPod.Object.Name, newPod.Object.Namespace, terminatedPod.Object.UID)
 
 				found = true
@@ -600,22 +600,22 @@ func powerOnNodeWaitReady(bmcClient *bmc.BMC, nodeToPowerOff string, stopCh chan
 
 	stopCh <- true
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Closing stop channel")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Closing stop channel")
 
 	close(stopCh)
 
 	By(fmt.Sprintf("Powering on node %q", nodeToPowerOff))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Powering on node %q", nodeToPowerOff)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Powering on node %q", nodeToPowerOff)
 
 	err := wait.PollUntilContextTimeout(context.TODO(), 15*time.Second, 6*time.Minute, true,
 		func(context.Context) (bool, error) {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Checking power state of %q", nodeToPowerOff)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Checking power state of %q", nodeToPowerOff)
 
 			powerState, err := bmcClient.SystemPowerState()
 
 			if err != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to get power state of %q: %v",
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to get power state of %q: %v",
 					nodeToPowerOff, err)
 
 				time.Sleep(1 * time.Second)
@@ -623,17 +623,17 @@ func powerOnNodeWaitReady(bmcClient *bmc.BMC, nodeToPowerOff string, stopCh chan
 				return false, nil
 			}
 
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q has power state %q",
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q has power state %q",
 				nodeToPowerOff, powerState)
 
 			if powerState != "On" {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Powering on %q with power state %q",
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Powering on %q with power state %q",
 					nodeToPowerOff, powerState)
 
 				err = bmcClient.SystemPowerOn()
 
 				if err != nil {
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to power on %q: %v", nodeToPowerOff, err)
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to power on %q: %v", nodeToPowerOff, err)
 
 					return false, nil
 				}
@@ -642,7 +642,7 @@ func powerOnNodeWaitReady(bmcClient *bmc.BMC, nodeToPowerOff string, stopCh chan
 			currentNode, err := nodes.Pull(APIClient, nodeToPowerOff)
 
 			if err != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to pull node: %v", err)
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to pull node: %v", err)
 
 				return false, nil
 			}
@@ -650,7 +650,7 @@ func powerOnNodeWaitReady(bmcClient *bmc.BMC, nodeToPowerOff string, stopCh chan
 			for _, condition := range currentNode.Object.Status.Conditions {
 				if condition.Type == rdscoreparams.ConditionTypeReadyString {
 					if condition.Status == rdscoreparams.ConstantTrueString {
-						glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q is Ready", currentNode.Definition.Name)
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q is Ready", currentNode.Definition.Name)
 
 						return true, nil
 					}
@@ -661,10 +661,10 @@ func powerOnNodeWaitReady(bmcClient *bmc.BMC, nodeToPowerOff string, stopCh chan
 		})
 
 	if err != nil {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to power on %q: %v", nodeToPowerOff, err)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to power on %q: %v", nodeToPowerOff, err)
 	}
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Successfully powered on %q", nodeToPowerOff)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Successfully powered on %q", nodeToPowerOff)
 }
 
 func keepNodePoweredOff(bmcClient *bmc.BMC, nodeToPowerOff string, timeout time.Duration, stopCh chan bool) {
@@ -675,20 +675,20 @@ func keepNodePoweredOff(bmcClient *bmc.BMC, nodeToPowerOff string, timeout time.
 	for !stop {
 		select {
 		case <-stopCh:
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Stopping keepNodePoweredOff")
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Stopping keepNodePoweredOff")
 
 			stop = true
 		case <-time.After(timeout):
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Timeout reached, stopping keepNodePoweredOff")
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Timeout reached, stopping keepNodePoweredOff")
 
 			stop = true
 		default:
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Checking power state of %q", nodeToPowerOff)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Checking power state of %q", nodeToPowerOff)
 
 			powerState, err := bmcClient.SystemPowerState()
 
 			if err != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to get power state of %q: %v",
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to get power state of %q: %v",
 					nodeToPowerOff, err)
 
 				time.Sleep(1 * time.Second)
@@ -696,17 +696,17 @@ func keepNodePoweredOff(bmcClient *bmc.BMC, nodeToPowerOff string, timeout time.
 				continue
 			}
 
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q has power state %q",
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q has power state %q",
 				nodeToPowerOff, powerState)
 
 			if powerState != "Off" {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Powering off %q with power state %q",
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Powering off %q with power state %q",
 					nodeToPowerOff, powerState)
 
 				err = bmcClient.SystemPowerOff()
 
 				if err != nil {
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to power off %q: %v",
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to power off %q: %v",
 						nodeToPowerOff, err)
 
 					time.Sleep(1 * time.Second)
@@ -719,7 +719,7 @@ func keepNodePoweredOff(bmcClient *bmc.BMC, nodeToPowerOff string, timeout time.
 		}
 	}
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("keepNodePoweredOff finished")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("keepNodePoweredOff finished")
 }
 
 //nolint:gocognit,funlen
@@ -737,7 +737,7 @@ func ensurePodConnectivityAfterNodePowerOff(stLabel, namespace, targetPort strin
 
 	randomPodIndex := rand.Intn(len(activePods))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Random pod index: %d pod name: %q",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Random pod index: %d pod name: %q",
 		randomPodIndex, activePods[randomPodIndex].Object.Name)
 
 	terminatedPod := activePods[randomPodIndex]
@@ -746,7 +746,7 @@ func ensurePodConnectivityAfterNodePowerOff(stLabel, namespace, targetPort strin
 
 	nodeToPowerOff := terminatedPod.Object.Spec.NodeName
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node to power off: %q", nodeToPowerOff)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node to power off: %q", nodeToPowerOff)
 
 	By(fmt.Sprintf("Powering off node %q", nodeToPowerOff))
 
@@ -755,12 +755,12 @@ func ensurePodConnectivityAfterNodePowerOff(stLabel, namespace, targetPort strin
 		ctx       SpecContext
 	)
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-		fmt.Sprintf("Creating BMC client for node %s", nodeToPowerOff))
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"Creating BMC client for node %s", nodeToPowerOff)
 
 	if auth, ok := RDSCoreConfig.NodesCredentialsMap[nodeToPowerOff]; !ok {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-			fmt.Sprintf("BMC Details for %q not found", nodeToPowerOff))
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"BMC Details for %q not found", nodeToPowerOff)
 		Fail(fmt.Sprintf("BMC Details for %q not found", nodeToPowerOff))
 	} else {
 		bmcClient = bmc.New(auth.BMCAddress).
@@ -780,7 +780,7 @@ func ensurePodConnectivityAfterNodePowerOff(stLabel, namespace, targetPort strin
 		currentNode, err := nodes.Pull(APIClient, nodeToPowerOff)
 
 		if err != nil {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to pull node: %v", err)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to pull node: %v", err)
 
 			return false
 		}
@@ -788,8 +788,8 @@ func ensurePodConnectivityAfterNodePowerOff(stLabel, namespace, targetPort strin
 		for _, condition := range currentNode.Object.Status.Conditions {
 			if condition.Type == rdscoreparams.ConditionTypeReadyString {
 				if condition.Status != rdscoreparams.ConstantTrueString {
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q is notReady", currentNode.Definition.Name)
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Reason: %s", condition.Reason)
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q is notReady", currentNode.Definition.Name)
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Reason: %s", condition.Reason)
 
 					return true
 				}
@@ -810,13 +810,13 @@ func ensurePodConnectivityAfterNodePowerOff(stLabel, namespace, targetPort strin
 		disruptedPods = make([]*pod.Builder, 0)
 
 		for _, _pod := range newPods {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Processing pod %q in %q namespace with UUID: %q",
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Processing pod %q in %q namespace with UUID: %q",
 				_pod.Object.Name, _pod.Object.Namespace, _pod.Object.UID)
 
 			for _, condition := range _pod.Object.Status.Conditions {
 				if condition.Type == corev1.DisruptionTarget {
 					if condition.Status == rdscoreparams.ConstantTrueString {
-						glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is about to be terminated due to %q",
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is about to be terminated due to %q",
 							_pod.Object.Name, condition.Message)
 
 						disruptedPods = append(disruptedPods, _pod)
@@ -825,7 +825,7 @@ func ensurePodConnectivityAfterNodePowerOff(stLabel, namespace, targetPort strin
 			}
 		}
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d pods about to be terminated due to a disruption",
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d pods about to be terminated due to a disruption",
 			len(disruptedPods))
 
 		if sameNode {
@@ -839,12 +839,12 @@ func ensurePodConnectivityAfterNodePowerOff(stLabel, namespace, targetPort strin
 	By("Deleting pods that are about to be terminated due to a disruption")
 
 	for _, _pod := range disruptedPods {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deleting pod %q", _pod.Object.Name)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deleting pod %q", _pod.Object.Name)
 
 		_pod, err := _pod.DeleteImmediate()
 
 		if err != nil {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to delete pod %q: %v", _pod.Definition.Name, err)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to delete pod %q: %v", _pod.Definition.Name, err)
 		}
 	}
 
@@ -857,13 +857,13 @@ func ensurePodConnectivityAfterNodePowerOff(stLabel, namespace, targetPort strin
 
 		for _, newPod := range newActivePods {
 
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found pod %q in %q namespace with UUID: %q",
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found pod %q in %q namespace with UUID: %q",
 				newPod.Object.Name, newPod.Object.Namespace, newPod.Object.UID)
 
 			if sameNode {
 				for _, oldPod := range activePods {
 					if newPod.Object.UID == oldPod.Object.UID {
-						glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q in %q namespace matches old UUID: %q",
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q in %q namespace matches old UUID: %q",
 							newPod.Object.Name, newPod.Object.Namespace, newPod.Object.UID)
 
 						found = true
@@ -872,7 +872,7 @@ func ensurePodConnectivityAfterNodePowerOff(stLabel, namespace, targetPort strin
 					}
 				}
 			} else if newPod.Object.UID == terminatedPod.Object.UID {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q in %q namespace matches old UUID: %q",
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q in %q namespace matches old UUID: %q",
 					newPod.Object.Name, newPod.Object.Namespace, terminatedPod.Object.UID)
 
 				found = true
@@ -1018,18 +1018,18 @@ func configureWhereaboutsIPReconciler() {
 	cmWhereabouts, err := configmap.Pull(APIClient, WhereaboutsReconcilcerCMName, WhereaboutsReconcilerNamespace)
 
 	if err == nil {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Configmap %q exists in %q namespace, updating it",
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Configmap %q exists in %q namespace, updating it",
 			WhereaboutsReconcilcerCMName, WhereaboutsReconcilerNamespace)
 
 		if oldSchedule, ok := cmWhereabouts.Object.Data[WhereaboutsReconcilerKey]; ok {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Key %q already exists in configmap %q in %q namespace, updating it",
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Key %q already exists in configmap %q in %q namespace, updating it",
 				WhereaboutsReconcilerKey, WhereaboutsReconcilcerCMName, WhereaboutsReconcilerNamespace)
 
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Old schedule: %q", oldSchedule)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Old schedule: %q", oldSchedule)
 
 			cmWhereabouts.Object.Data[WhereaboutsReconcilerKey] = WhereaboutsReconcilerSchedule
 		} else {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Key %q does not exist in configmap %q in %q namespace, adding it",
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Key %q does not exist in configmap %q in %q namespace, adding it",
 				WhereaboutsReconcilerKey, WhereaboutsReconcilcerCMName, WhereaboutsReconcilerNamespace)
 
 			cmWhereabouts.Object.Data[WhereaboutsReconcilerKey] = WhereaboutsReconcilerSchedule
@@ -1045,7 +1045,7 @@ func configureWhereaboutsIPReconciler() {
 		}).WithContext(ctx).WithPolling(15*time.Second).WithTimeout(1*time.Minute).Should(Succeed(),
 			"Failed to update configmap %q in %q namespace", WhereaboutsReconcilcerCMName, WhereaboutsReconcilerNamespace)
 	} else {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Configmap %q does not exist in %q namespace, creating it",
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Configmap %q does not exist in %q namespace, creating it",
 			WhereaboutsReconcilcerCMName, WhereaboutsReconcilerNamespace)
 
 		By(fmt.Sprintf("Configuring whereabouts reconciler with configmap %q in %q namespace",
@@ -1071,13 +1071,13 @@ func VerifyPodConnectivity(stLabel, namespace, interfaceName string, targetPort 
 	By("Checking pods IP addresses")
 
 	podWhereaboutsIPs := getPodWhereaboutsIPs(activePods, interfaceName)
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("PodWhereaboutsIPs: %+v", podWhereaboutsIPs)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("PodWhereaboutsIPs: %+v", podWhereaboutsIPs)
 
 	podOneName := activePods[0].Object.Name
 	podTwoName := activePods[len(activePods)-1].Object.Name
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod one %q", podOneName)
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod two %q", podTwoName)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod one %q", podOneName)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod two %q", podTwoName)
 
 	podsMapping := make(map[string]string)
 

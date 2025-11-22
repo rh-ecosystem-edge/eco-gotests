@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	nropv1 "github.com/openshift-kni/numaresources-operator/api/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -28,18 +28,18 @@ type Builder struct {
 // NewBuilder creates a new instance of NUMAResourcesOperator.
 func NewBuilder(
 	apiClient *clients.Settings, name string) *Builder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new NUMAResourcesOperator structure with the following name: %s", name)
 
 	if apiClient == nil {
-		glog.V(100).Infof("NUMAResourcesOperator 'apiClient' cannot be empty")
+		klog.V(100).Info("NUMAResourcesOperator 'apiClient' cannot be empty")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(nropv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add nrop v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add nrop v1 scheme to client schemes")
 
 		return nil
 	}
@@ -54,7 +54,7 @@ func NewBuilder(
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the NUMAResourcesOperator is empty")
+		klog.V(100).Info("The name of the NUMAResourcesOperator is empty")
 
 		builder.errorMsg = "NUMAResourcesOperator 'name' cannot be empty"
 
@@ -66,17 +66,17 @@ func NewBuilder(
 
 // Pull pulls existing NUMAResourcesOperator from cluster.
 func Pull(apiClient *clients.Settings, name string) (*Builder, error) {
-	glog.V(100).Infof("Pulling existing NUMAResourcesOperator %s from the cluster", name)
+	klog.V(100).Infof("Pulling existing NUMAResourcesOperator %s from the cluster", name)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("NUMAResourcesOperator 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(nropv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add nrop v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add nrop v1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func Pull(apiClient *clients.Settings, name string) (*Builder, error) {
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the NUMAResourcesOperator is empty")
+		klog.V(100).Info("The name of the NUMAResourcesOperator is empty")
 
 		return nil, fmt.Errorf("NUMAResourcesOperator 'name' cannot be empty")
 	}
@@ -111,7 +111,7 @@ func (builder *Builder) Get() (*nropv1.NUMAResourcesOperator, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting NUMAResourcesOperator %s", builder.Definition.Name)
+	klog.V(100).Infof("Getting NUMAResourcesOperator %s", builder.Definition.Name)
 
 	nropObj := &nropv1.NUMAResourcesOperator{}
 
@@ -131,7 +131,7 @@ func (builder *Builder) Create() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the NUMAResourcesOperator %s", builder.Definition.Name)
+	klog.V(100).Infof("Creating the NUMAResourcesOperator %s", builder.Definition.Name)
 
 	var err error
 	if !builder.Exists() {
@@ -150,10 +150,10 @@ func (builder *Builder) Delete() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting the NUMAResourcesOperator %s", builder.Definition.Name)
+	klog.V(100).Infof("Deleting the NUMAResourcesOperator %s", builder.Definition.Name)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("NUMAResourcesOperator %s cannot be deleted because it does not exist",
+		klog.V(100).Infof("NUMAResourcesOperator %s cannot be deleted because it does not exist",
 			builder.Definition.Name)
 
 		builder.Object = nil
@@ -177,7 +177,7 @@ func (builder *Builder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if NUMAResourcesOperator %s exists", builder.Definition.Name)
+	klog.V(100).Infof("Checking if NUMAResourcesOperator %s exists", builder.Definition.Name)
 
 	var err error
 
@@ -192,12 +192,11 @@ func (builder *Builder) Update() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating NUMAResourcesOperator %s", builder.Definition.Name)
+	klog.V(100).Infof("Updating NUMAResourcesOperator %s", builder.Definition.Name)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
-		glog.V(100).Infof(
-			msg.FailToUpdateError("NUMAResourcesOperator", builder.Definition.Name))
+		klog.V(100).Infof("%v", msg.FailToUpdateError("NUMAResourcesOperator", builder.Definition.Name))
 
 		return nil, err
 	}
@@ -209,7 +208,7 @@ func (builder *Builder) Update() (*Builder, error) {
 
 // WithMCPSelector sets the NUMAResourcesOperator operator's mcpSelector.
 func (builder *Builder) WithMCPSelector(config nropv1.NodeGroupConfig, mcpSelector metav1.LabelSelector) *Builder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Adding machineConfigPoolSelector to the NUMAResourcesOperator %s; machineConfigPoolSelector %v",
 		builder.Definition.Name, mcpSelector)
 
@@ -223,7 +222,7 @@ func (builder *Builder) WithMCPSelector(config nropv1.NodeGroupConfig, mcpSelect
 	}
 
 	if len(mcpSelector.MatchLabels) == 0 && len(mcpSelector.MatchExpressions) == 0 {
-		glog.V(100).Infof("There are no labels for the machineConfigPoolSelector")
+		klog.V(100).Info("There are no labels for the machineConfigPoolSelector")
 
 		builder.errorMsg = "NUMAResourcesOperator 'machineConfigPoolSelector' cannot be empty"
 
@@ -241,25 +240,25 @@ func (builder *Builder) validate() (bool, error) {
 	resourceCRD := "NUMAResourcesOperator"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

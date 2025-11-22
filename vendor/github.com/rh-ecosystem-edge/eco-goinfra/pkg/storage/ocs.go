@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	ocsoperatorv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ocs/operatorv1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -29,18 +29,18 @@ type StorageClusterBuilder struct {
 
 // NewStorageClusterBuilder creates a new instance of StorageClusterBuilder.
 func NewStorageClusterBuilder(apiClient *clients.Settings, name, nsname string) *StorageClusterBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new storageCluster structure with the following params: %s, %s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("storageCluster 'apiClient' cannot be empty")
+		klog.V(100).Info("storageCluster 'apiClient' cannot be empty")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(ocsoperatorv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add ocs-operator v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add ocs-operator v1 scheme to client schemes")
 
 		return nil
 	}
@@ -56,7 +56,7 @@ func NewStorageClusterBuilder(apiClient *clients.Settings, name, nsname string) 
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the storageCluster is empty")
+		klog.V(100).Info("The name of the storageCluster is empty")
 
 		builder.errorMsg = "storageCluster 'name' cannot be empty"
 
@@ -64,7 +64,7 @@ func NewStorageClusterBuilder(apiClient *clients.Settings, name, nsname string) 
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the storageCluster is empty")
+		klog.V(100).Info("The namespace of the storageCluster is empty")
 
 		builder.errorMsg = "storageCluster 'nsname' cannot be empty"
 
@@ -76,18 +76,18 @@ func NewStorageClusterBuilder(apiClient *clients.Settings, name, nsname string) 
 
 // PullStorageCluster gets an existing storageCluster object from the cluster.
 func PullStorageCluster(apiClient *clients.Settings, name, namespace string) (*StorageClusterBuilder, error) {
-	glog.V(100).Infof("Pulling existing storageCluster object %s from namespace %s",
+	klog.V(100).Infof("Pulling existing storageCluster object %s from namespace %s",
 		name, namespace)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("storageCluster 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(ocsoperatorv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add ocs-operator v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add ocs-operator v1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -103,13 +103,13 @@ func PullStorageCluster(apiClient *clients.Settings, name, namespace string) (*S
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the storageCluster is empty")
+		klog.V(100).Info("The name of the storageCluster is empty")
 
 		return nil, fmt.Errorf("storageCluster 'name' cannot be empty")
 	}
 
 	if namespace == "" {
-		glog.V(100).Infof("The namespace of the storageCluster is empty")
+		klog.V(100).Info("The namespace of the storageCluster is empty")
 
 		return nil, fmt.Errorf("storageCluster 'namespace' cannot be empty")
 	}
@@ -130,7 +130,7 @@ func (builder *StorageClusterBuilder) Get() (*ocsoperatorv1.StorageCluster, erro
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting existing storageCluster with name %s from the namespace %s",
+	klog.V(100).Infof("Getting existing storageCluster with name %s from the namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	storageClusterObj := &ocsoperatorv1.StorageCluster{}
@@ -140,7 +140,7 @@ func (builder *StorageClusterBuilder) Get() (*ocsoperatorv1.StorageCluster, erro
 		Namespace: builder.Definition.Namespace,
 	}, storageClusterObj)
 	if err != nil {
-		glog.V(100).Infof("storageCluster object %s does not exist in namespace %s",
+		klog.V(100).Infof("storageCluster object %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		return nil, err
@@ -155,7 +155,7 @@ func (builder *StorageClusterBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if storageCluster %s exists in namespace %s",
+	klog.V(100).Infof("Checking if storageCluster %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -171,7 +171,7 @@ func (builder *StorageClusterBuilder) Create() (*StorageClusterBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the storageCluster %s in namespace %s",
+	klog.V(100).Infof("Creating the storageCluster %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace,
 	)
 
@@ -192,11 +192,11 @@ func (builder *StorageClusterBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting the storageCluster object %s in namespace %s",
+	klog.V(100).Infof("Deleting the storageCluster object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("storageCluster %s in namespace %s cannot be deleted"+
+		klog.V(100).Infof("storageCluster %s in namespace %s cannot be deleted"+
 			" because it does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
@@ -221,7 +221,7 @@ func (builder *StorageClusterBuilder) Update() (*StorageClusterBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating the storageCluster %s in namespace %s",
+	klog.V(100).Infof("Updating the storageCluster %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
@@ -231,8 +231,7 @@ func (builder *StorageClusterBuilder) Update() (*StorageClusterBuilder, error) {
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
-		glog.V(100).Infof(
-			msg.FailToUpdateError("storageCluster", builder.Definition.Name, builder.Definition.Namespace))
+		klog.V(100).Infof("%v", msg.FailToUpdateError("storageCluster", builder.Definition.Name, builder.Definition.Namespace))
 
 		return nil, err
 	}
@@ -248,7 +247,7 @@ func (builder *StorageClusterBuilder) GetManagedResources() (*ocsoperatorv1.Mana
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting storageCluster %s in namespace %s managedResources configuration",
+	klog.V(100).Infof("Getting storageCluster %s in namespace %s managedResources configuration",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
@@ -265,7 +264,7 @@ func (builder *StorageClusterBuilder) GetMonDataDirHostPath() (string, error) {
 		return "", err
 	}
 
-	glog.V(100).Infof("Getting storageCluster %s in namespace %s monDataDirHostPath configuration",
+	klog.V(100).Infof("Getting storageCluster %s in namespace %s monDataDirHostPath configuration",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
@@ -282,7 +281,7 @@ func (builder *StorageClusterBuilder) GetMultiCloudGateway() (*ocsoperatorv1.Mul
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting storageCluster %s in namespace %s multiCloudGateway configuration",
+	klog.V(100).Infof("Getting storageCluster %s in namespace %s multiCloudGateway configuration",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
@@ -299,7 +298,7 @@ func (builder *StorageClusterBuilder) GetStorageDeviceSets() ([]ocsoperatorv1.St
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting storageCluster %s in namespace %s storageDeviceSets configuration",
+	klog.V(100).Infof("Getting storageCluster %s in namespace %s storageDeviceSets configuration",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
@@ -316,7 +315,7 @@ func (builder *StorageClusterBuilder) WithFlexibleScaling(flexibleScaling bool) 
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Setting storageCluster %s in namespace %s with flexibleScaling value: %t",
 		builder.Definition.Name, builder.Definition.Namespace, flexibleScaling)
 
@@ -332,7 +331,7 @@ func (builder *StorageClusterBuilder) WithManagedResources(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Setting storageCluster %s in namespace %s with managedResources value: %v",
 		builder.Definition.Name, builder.Definition.Namespace, expectedManagedResources)
 
@@ -348,12 +347,12 @@ func (builder *StorageClusterBuilder) WithMonDataDirHostPath(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Setting storageCluster %s in namespace %s with monDataDirHostPath value: %s",
 		builder.Definition.Name, builder.Definition.Namespace, expectedMonDataDirHostPath)
 
 	if expectedMonDataDirHostPath == "" {
-		glog.V(100).Infof("the expectedMonDataDirHostPath can not be empty")
+		klog.V(100).Info("the expectedMonDataDirHostPath can not be empty")
 
 		builder.errorMsg = "the expectedMonDataDirHostPath can not be empty"
 
@@ -372,7 +371,7 @@ func (builder *StorageClusterBuilder) WithMultiCloudGateway(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Setting storageCluster %s in namespace %s with multiCloudGateway value: %v",
 		builder.Definition.Name, builder.Definition.Namespace, expectedMultiCloudGateway)
 
@@ -388,7 +387,7 @@ func (builder *StorageClusterBuilder) WithStorageDeviceSet(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Setting storageCluster %s in namespace %s with storageDeviceSets value: %v",
 		builder.Definition.Name, builder.Definition.Namespace, expectedStorageDeviceSet)
 
@@ -405,12 +404,12 @@ func (builder *StorageClusterBuilder) WithAnnotations(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Setting storageCluster %s in namespace %s with annotations values: %v",
 		builder.Definition.Name, builder.Definition.Namespace, annotations)
 
 	if len(annotations) == 0 {
-		glog.V(100).Infof("'annotations' argument cannot be empty")
+		klog.V(100).Info("'annotations' argument cannot be empty")
 
 		builder.errorMsg = "'annotations' argument cannot be empty"
 
@@ -428,25 +427,25 @@ func (builder *StorageClusterBuilder) validate() (bool, error) {
 	resourceCRD := "StorageCluster"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

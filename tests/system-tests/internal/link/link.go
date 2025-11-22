@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/golang/glog"
+	"k8s.io/klog/v2"
 )
 
 // Link represents a network link.
@@ -49,26 +49,26 @@ func NewBuilder(jsonOutput bytes.Buffer) (*Link, error) {
 	var link links
 
 	if len(jsonOutput.Bytes()) == 0 {
-		glog.V(100).Info("Empty json output")
+		klog.V(100).Info("Empty json output")
 
 		return nil, fmt.Errorf("empty json output")
 	}
 
 	err := json.Unmarshal(jsonOutput.Bytes(), &link)
 	if err != nil {
-		glog.V(100).Infof("json unmarshalling failed: %v", err)
+		klog.V(100).Infof("json unmarshalling failed: %v", err)
 
 		return nil, fmt.Errorf("json unmarshalling failed: %w", err)
 	}
 
 	if len(link) < 1 {
-		glog.V(100).Infof("no links to process found")
+		klog.V(100).Infof("no links to process found")
 
 		return nil, fmt.Errorf("no links to process found")
 	}
 
 	if len(link) > 1 {
-		glog.V(100).Infof("failed to process more than 1 link")
+		klog.V(100).Infof("failed to process more than 1 link")
 
 		return nil, fmt.Errorf("failed to process more than 1 link")
 	}
@@ -86,20 +86,20 @@ func NewListBuilder(jsonOutput bytes.Buffer) ([]Link, error) {
 	var linkList links
 
 	if len(jsonOutput.Bytes()) == 0 {
-		glog.V(100).Info("Empty json output")
+		klog.V(100).Info("Empty json output")
 
 		return nil, fmt.Errorf("empty json output")
 	}
 
 	err := json.Unmarshal(jsonOutput.Bytes(), &linkList)
 	if err != nil {
-		glog.V(100).Infof("json unmarshalling failed: %v", err)
+		klog.V(100).Infof("json unmarshalling failed: %v", err)
 
 		return nil, fmt.Errorf("json unmarshalling failed: %w", err)
 	}
 
 	if len(linkList) < 1 {
-		glog.V(100).Infof("no links to process found")
+		klog.V(100).Infof("no links to process found")
 
 		return nil, fmt.Errorf("no links to process found")
 	}

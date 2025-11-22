@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/remote"
+	"k8s.io/klog/v2"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/files"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/platform"
@@ -25,10 +25,10 @@ func DownloadAndExtractOcBinaryArchive(apiClient *clients.Settings) error {
 
 	ocPath := filepath.Join(tempDir, "oc")
 
-	glog.V(100).Info("Check if oc binary already downloaded locally")
+	klog.V(100).Info("Check if oc binary already downloaded locally")
 
 	if stat, err := os.Stat(ocPath); err == nil && stat.Name() != "" {
-		glog.V(100).Info("oc binary was found, need to be deleted")
+		klog.V(100).Info("oc binary was found, need to be deleted")
 
 		err = os.Remove(ocPath)
 
@@ -37,7 +37,7 @@ func DownloadAndExtractOcBinaryArchive(apiClient *clients.Settings) error {
 		}
 	}
 
-	glog.V(100).Info("install oc binary")
+	klog.V(100).Info("install oc binary")
 
 	clusterVersion, err := platform.GetOCPVersion(apiClient)
 
@@ -162,7 +162,7 @@ func ExecuteViaDebugPodOnNode(
 	cmd string) (string, error) {
 	execCmd := fmt.Sprintf("oc debug nodes/%s -- bash -c \"chroot /host %s\" "+
 		"--insecure-skip-tls-verify --kubeconfig=%s", nodeName, cmd, VCoreConfig.KubeconfigPath)
-	glog.V(100).Infof("Execute command %s", execCmd)
+	klog.V(100).Infof("Execute command %s", execCmd)
 
 	output, err := remote.ExecCmdOnHost(VCoreConfig.Host, VCoreConfig.User, VCoreConfig.Pass, execCmd)
 	if err != nil {

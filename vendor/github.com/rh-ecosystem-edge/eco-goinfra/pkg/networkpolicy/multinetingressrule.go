@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/golang/glog"
 	"github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1beta1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/klog/v2"
 )
 
 // IngressAdditionalOptions additional options for MultiNetworkPolicyIngressRule object.
@@ -25,7 +25,7 @@ type IngressRuleBuilder struct {
 
 // NewIngressRuleBuilder creates a new instance of IngressRuleBuilder.
 func NewIngressRuleBuilder() *IngressRuleBuilder {
-	glog.V(100).Infof("Initializing new Ingress rule structure")
+	klog.V(100).Info("Initializing new Ingress rule structure")
 
 	builder := &IngressRuleBuilder{
 		definition: &v1beta1.MultiNetworkPolicyIngressRule{},
@@ -36,14 +36,14 @@ func NewIngressRuleBuilder() *IngressRuleBuilder {
 
 // WithPortAndProtocol adds port and protocol to Ingress rule.
 func (builder *IngressRuleBuilder) WithPortAndProtocol(port uint16, protocol corev1.Protocol) *IngressRuleBuilder {
-	glog.V(100).Infof("Adding port %d protocol %s to IngressRule", port, protocol)
+	klog.V(100).Infof("Adding port %d protocol %s to IngressRule", port, protocol)
 
 	if valid, _ := builder.validate(); !valid {
 		return builder
 	}
 
 	if port == 0 {
-		glog.V(100).Infof("Port number can not be 0")
+		klog.V(100).Info("Port number can not be 0")
 
 		builder.errorMsg = "port number can not be 0"
 
@@ -64,10 +64,10 @@ func (builder *IngressRuleBuilder) WithProtocol(protocol corev1.Protocol) *Ingre
 		return builder
 	}
 
-	glog.V(100).Infof("Adding protocol %s to IngressRule", protocol)
+	klog.V(100).Infof("Adding protocol %s to IngressRule", protocol)
 
 	if protocol != corev1.ProtocolTCP && protocol != corev1.ProtocolUDP && protocol != corev1.ProtocolSCTP {
-		glog.V(100).Infof("invalid protocol argument")
+		klog.V(100).Info("invalid protocol argument")
 
 		builder.errorMsg = "invalid protocol argument. Allowed protocols: TCP, UDP & SCTP"
 
@@ -86,10 +86,10 @@ func (builder *IngressRuleBuilder) WithPort(port uint16) *IngressRuleBuilder {
 		return builder
 	}
 
-	glog.V(100).Infof("Adding port %d to IngressRule", port)
+	klog.V(100).Infof("Adding port %d to IngressRule", port)
 
 	if port == 0 {
-		glog.V(100).Infof("Cannot set port number to 0")
+		klog.V(100).Info("Cannot set port number to 0")
 
 		builder.errorMsg = "port number cannot be 0"
 
@@ -106,13 +106,13 @@ func (builder *IngressRuleBuilder) WithPort(port uint16) *IngressRuleBuilder {
 
 // WithOptions adds generic options to Ingress rule.
 func (builder *IngressRuleBuilder) WithOptions(options ...IngressAdditionalOptions) *IngressRuleBuilder {
-	glog.V(100).Infof("Setting IngressRule additional options")
+	klog.V(100).Info("Setting IngressRule additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -126,7 +126,7 @@ func (builder *IngressRuleBuilder) WithOptions(options ...IngressAdditionalOptio
 
 // WithPeerPodSelector adds peer pod selector to Ingress rule.
 func (builder *IngressRuleBuilder) WithPeerPodSelector(podSelector metav1.LabelSelector) *IngressRuleBuilder {
-	glog.V(100).Infof("Adding peer pod selector %v to Ingress Rule", podSelector)
+	klog.V(100).Infof("Adding peer pod selector %v to Ingress Rule", podSelector)
 
 	if valid, _ := builder.validate(); !valid {
 		return builder
@@ -142,7 +142,7 @@ func (builder *IngressRuleBuilder) WithPeerPodSelector(podSelector metav1.LabelS
 
 // WithPeerNamespaceSelector appends new item with only NamespaceSelector to From Peer list.
 func (builder *IngressRuleBuilder) WithPeerNamespaceSelector(nsSelector metav1.LabelSelector) *IngressRuleBuilder {
-	glog.V(100).Infof("Adding peer namespace selector %v to IngressRule", nsSelector)
+	klog.V(100).Infof("Adding peer namespace selector %v to IngressRule", nsSelector)
 
 	if valid, _ := builder.validate(); !valid {
 		return builder
@@ -156,11 +156,11 @@ func (builder *IngressRuleBuilder) WithPeerNamespaceSelector(nsSelector metav1.L
 
 // WithCIDR adds CIDR to Ingress rule.
 func (builder *IngressRuleBuilder) WithCIDR(cidr string, except ...[]string) *IngressRuleBuilder {
-	glog.V(100).Infof("Adding peer CIDR %s to Ingress Rule", cidr)
+	klog.V(100).Infof("Adding peer CIDR %s to Ingress Rule", cidr)
 
 	_, _, err := net.ParseCIDR(cidr)
 	if err != nil {
-		glog.V(100).Infof("Invalid CIDR %s", cidr)
+		klog.V(100).Infof("Invalid CIDR %s", cidr)
 
 		builder.errorMsg = fmt.Sprintf("Invalid CIDR argument %s", cidr)
 
@@ -168,7 +168,7 @@ func (builder *IngressRuleBuilder) WithCIDR(cidr string, except ...[]string) *In
 	}
 
 	if len(except) > 0 {
-		glog.V(100).Infof("Adding CIDR except %s to Ingress Rule", except[0])
+		klog.V(100).Infof("Adding CIDR except %s to Ingress Rule", except[0])
 	}
 
 	builder.definition.From = append(builder.definition.From, v1beta1.MultiNetworkPolicyPeer{})
@@ -192,7 +192,7 @@ func (builder *IngressRuleBuilder) WithPeerPodAndNamespaceSelector(
 		return builder
 	}
 
-	glog.V(100).Infof("Adding peer pod selector %v namespace selector %v to IngressRule", podSelector, nsSelector)
+	klog.V(100).Infof("Adding peer pod selector %v namespace selector %v to IngressRule", podSelector, nsSelector)
 
 	builder.definition.From = append(builder.definition.From, v1beta1.MultiNetworkPolicyPeer{
 		PodSelector: &podSelector, NamespaceSelector: &nsSelector})
@@ -203,7 +203,7 @@ func (builder *IngressRuleBuilder) WithPeerPodAndNamespaceSelector(
 // WithPeerPodSelectorAndCIDR adds port and protocol,CIDR to Ingress rule.
 func (builder *IngressRuleBuilder) WithPeerPodSelectorAndCIDR(
 	podSelector metav1.LabelSelector, cidr string, except ...[]string) *IngressRuleBuilder {
-	glog.V(100).Infof("Adding peer pod selector %v and CIDR %s to IngressRule", podSelector, cidr)
+	klog.V(100).Infof("Adding peer pod selector %v and CIDR %s to IngressRule", podSelector, cidr)
 
 	if valid, _ := builder.validate(); !valid {
 		return builder
@@ -217,10 +217,10 @@ func (builder *IngressRuleBuilder) WithPeerPodSelectorAndCIDR(
 
 // GetIngressRuleCfg returns MultiNetworkPolicyIngressRule.
 func (builder *IngressRuleBuilder) GetIngressRuleCfg() (*v1beta1.MultiNetworkPolicyIngressRule, error) {
-	glog.V(100).Infof("Returning configuration for ingress rule")
+	klog.V(100).Info("Returning configuration for ingress rule")
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("Failed to build Ingress rule configuration due to %s", builder.errorMsg)
+		klog.V(100).Infof("Failed to build Ingress rule configuration due to %s", builder.errorMsg)
 
 		return nil, fmt.Errorf("%s", builder.errorMsg)
 	}
@@ -232,19 +232,19 @@ func (builder *IngressRuleBuilder) validate() (bool, error) {
 	objectName := "multiNetworkPolicyIngressRule"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", objectName)
+		klog.V(100).Infof("The %s builder is uninitialized", objectName)
 
 		return false, fmt.Errorf("error: received nil %s builder", objectName)
 	}
 
 	if builder.definition == nil {
-		glog.V(100).Infof("The %s is undefined", objectName)
+		klog.V(100).Infof("The %s is undefined", objectName)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(objectName))
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", objectName, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", objectName, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

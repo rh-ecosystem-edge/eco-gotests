@@ -6,13 +6,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	provisioningv1alpha1 "github.com/openshift-kni/oran-o2ims/api/provisioning/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -30,17 +30,17 @@ type ClusterTemplateBuilder struct {
 
 // PullClusterTemplate pulls an existing ClusterTemplate into a ClusterTemplateBuilder struct.
 func PullClusterTemplate(apiClient *clients.Settings, name, nsname string) (*ClusterTemplateBuilder, error) {
-	glog.V(100).Infof("Pulling existing ClusterTemplate %s in namespace %s from cluster", name, nsname)
+	klog.V(100).Infof("Pulling existing ClusterTemplate %s in namespace %s from cluster", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient of the ClusterTemplate is nil")
+		klog.V(100).Info("The apiClient of the ClusterTemplate is nil")
 
 		return nil, fmt.Errorf("clusterTemplate 'apiClient' cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(provisioningv1alpha1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add provisioning v1alpha1 scheme to client schemes: %v", err)
+		klog.V(100).Infof("Failed to add provisioning v1alpha1 scheme to client schemes: %v", err)
 
 		return nil, err
 	}
@@ -56,19 +56,19 @@ func PullClusterTemplate(apiClient *clients.Settings, name, nsname string) (*Clu
 	}
 
 	if name == "" {
-		glog.V(100).Info("The name of the ClusterTemplate is empty")
+		klog.V(100).Info("The name of the ClusterTemplate is empty")
 
 		return nil, fmt.Errorf("clusterTemplate 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Info("The nsname of the ClusterTemplate is empty")
+		klog.V(100).Info("The nsname of the ClusterTemplate is empty")
 
 		return nil, fmt.Errorf("clusterTemplate 'nsname' cannot be empty")
 	}
 
 	if !builder.Exists() {
-		glog.V(100).Info("The ClusterTemplate %s does not exist in namespace %s", name, nsname)
+		klog.V(100).Infof("The ClusterTemplate %s does not exist in namespace %s", name, nsname)
 
 		return nil, fmt.Errorf("clusterTemplate object %s does not exist in namespace %s", name, nsname)
 	}
@@ -84,7 +84,7 @@ func (builder *ClusterTemplateBuilder) Get() (*provisioningv1alpha1.ClusterTempl
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting ClusterTemplate object %s in namespace %s",
+	klog.V(100).Infof("Getting ClusterTemplate object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	clusterTemplate := &provisioningv1alpha1.ClusterTemplate{}
@@ -94,7 +94,7 @@ func (builder *ClusterTemplateBuilder) Get() (*provisioningv1alpha1.ClusterTempl
 		Namespace: builder.Definition.Namespace,
 	}, clusterTemplate)
 	if err != nil {
-		glog.V(100).Infof("Failed to get ClusterTemplate object %s in namespace %s: %v",
+		klog.V(100).Infof("Failed to get ClusterTemplate object %s in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
 
 		return nil, err
@@ -109,7 +109,7 @@ func (builder *ClusterTemplateBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if ClusterTemplate %s exists in namespace %s",
+	klog.V(100).Infof("Checking if ClusterTemplate %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -128,11 +128,11 @@ func (builder *ClusterTemplateBuilder) WaitForCondition(
 		return nil, err
 	}
 
-	glog.V(100).Infof("Waiting up to %s until ClusterTemplate %s in namespace %s has condition %v",
+	klog.V(100).Infof("Waiting up to %s until ClusterTemplate %s in namespace %s has condition %v",
 		timeout, builder.Definition.Name, builder.Definition.Namespace, expected)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("ClusterTemplate %s does not exist in namespace %s",
+		klog.V(100).Infof("ClusterTemplate %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		return nil, fmt.Errorf("cannot wait for non-existent ClusterTemplate")
@@ -144,7 +144,7 @@ func (builder *ClusterTemplateBuilder) WaitForCondition(
 
 			builder.Object, err = builder.Get()
 			if err != nil {
-				glog.V(100).Infof("Failed to get ClusterTemplate %s in namespace %s: %v",
+				klog.V(100).Infof("Failed to get ClusterTemplate %s in namespace %s: %v",
 					builder.Definition.Name, builder.Definition.Namespace, err)
 
 				return false, nil
@@ -186,25 +186,25 @@ func (builder *ClusterTemplateBuilder) validate() (bool, error) {
 	resourceCRD := "clusterTemplate"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiClient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiClient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

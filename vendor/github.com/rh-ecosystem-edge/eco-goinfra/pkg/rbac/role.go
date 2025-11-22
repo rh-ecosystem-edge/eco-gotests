@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	rbacv1 "k8s.io/api/rbac/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 // RoleBuilder provides a struct for role object containing connection to the cluster and the role definitions.
@@ -30,12 +30,12 @@ type RoleAdditionalOptions func(builder *RoleBuilder) (*RoleBuilder, error)
 
 // NewRoleBuilder create a new instance of RoleBuilder.
 func NewRoleBuilder(apiClient *clients.Settings, name, nsname string, rule rbacv1.PolicyRule) *RoleBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new role structure with the following params: "+
 			"name: %s, namespace: %s, rule %v", name, nsname, rule)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil
 	}
@@ -51,7 +51,7 @@ func NewRoleBuilder(apiClient *clients.Settings, name, nsname string, rule rbacv
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the role is empty")
+		klog.V(100).Info("The name of the role is empty")
 
 		builder.errorMsg = "role 'name' cannot be empty"
 
@@ -59,7 +59,7 @@ func NewRoleBuilder(apiClient *clients.Settings, name, nsname string, rule rbacv
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the role is empty")
+		klog.V(100).Info("The namespace of the role is empty")
 
 		builder.errorMsg = "role 'nsname' cannot be empty"
 
@@ -77,11 +77,11 @@ func (builder *RoleBuilder) WithRules(rules []rbacv1.PolicyRule) *RoleBuilder {
 		return builder
 	}
 
-	glog.V(100).Infof("Adding to role %s the following rules: %v",
+	klog.V(100).Infof("Adding to role %s the following rules: %v",
 		builder.Definition.Name, rules)
 
 	if len(rules) == 0 {
-		glog.V(100).Infof("The list of rules is empty")
+		klog.V(100).Info("The list of rules is empty")
 
 		builder.errorMsg = "cannot create role with empty rule"
 
@@ -90,7 +90,7 @@ func (builder *RoleBuilder) WithRules(rules []rbacv1.PolicyRule) *RoleBuilder {
 
 	for _, rule := range rules {
 		if len(rule.Verbs) == 0 {
-			glog.V(100).Infof("The role has no verbs")
+			klog.V(100).Info("The role has no verbs")
 
 			builder.errorMsg = "role must contain at least one Verb"
 
@@ -98,7 +98,7 @@ func (builder *RoleBuilder) WithRules(rules []rbacv1.PolicyRule) *RoleBuilder {
 		}
 
 		if len(rule.Resources) == 0 {
-			glog.V(100).Infof("The role has no resources")
+			klog.V(100).Info("The role has no resources")
 
 			builder.errorMsg = "role must contain at least one Resource"
 
@@ -106,7 +106,7 @@ func (builder *RoleBuilder) WithRules(rules []rbacv1.PolicyRule) *RoleBuilder {
 		}
 
 		if len(rule.APIGroups) == 0 {
-			glog.V(100).Infof("The role has no apigroups")
+			klog.V(100).Info("The role has no apigroups")
 
 			builder.errorMsg = "role must contain at least one APIGroup"
 
@@ -130,13 +130,13 @@ func (builder *RoleBuilder) WithOptions(
 		return builder
 	}
 
-	glog.V(100).Infof("Setting Role additional options")
+	klog.V(100).Info("Setting Role additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -150,10 +150,10 @@ func (builder *RoleBuilder) WithOptions(
 
 // PullRole pulls existing role from cluster.
 func PullRole(apiClient *clients.Settings, name, nsname string) (*RoleBuilder, error) {
-	glog.V(100).Infof("Pulling existing role name %s under namespace %s from cluster", name, nsname)
+	klog.V(100).Infof("Pulling existing role name %s under namespace %s from cluster", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil, fmt.Errorf("the apiClient cannot be nil")
 	}
@@ -169,13 +169,13 @@ func PullRole(apiClient *clients.Settings, name, nsname string) (*RoleBuilder, e
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the role is empty")
+		klog.V(100).Info("The name of the role is empty")
 
 		return nil, fmt.Errorf("role 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the role is empty")
+		klog.V(100).Info("The namespace of the role is empty")
 
 		return nil, fmt.Errorf("role 'namespace' cannot be empty")
 	}
@@ -195,7 +195,7 @@ func (builder *RoleBuilder) Create() (*RoleBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating role %s under namespace %s",
+	klog.V(100).Infof("Creating role %s under namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -213,11 +213,11 @@ func (builder *RoleBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Removing role %s under namespace %s",
+	klog.V(100).Infof("Removing role %s under namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("Role %s namespace %s does not exist",
+		klog.V(100).Infof("Role %s namespace %s does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -242,7 +242,7 @@ func (builder *RoleBuilder) Update() (*RoleBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating role %s under namespace %s",
+	klog.V(100).Infof("Updating role %s under namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
@@ -263,7 +263,7 @@ func (builder *RoleBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if role %s exists under namespace %s",
+	klog.V(100).Infof("Checking if role %s exists under namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -280,25 +280,25 @@ func (builder *RoleBuilder) validate() (bool, error) {
 	resourceCRD := "role"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

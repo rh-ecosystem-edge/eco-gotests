@@ -3,11 +3,11 @@ package mgmtconfig
 import (
 	"os"
 
-	"github.com/golang/glog"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedinstall/internal/ibiconfig"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedinstall/mgmt/internal/mgmtparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/internal/seedimage"
+	"k8s.io/klog/v2"
 
 	"gopkg.in/yaml.v2"
 )
@@ -88,7 +88,7 @@ type ReinstallConfig struct {
 
 // NewMGMTConfig returns instance of MGMTConfig type.
 func NewMGMTConfig() *MGMTConfig {
-	glog.V(mgmtparams.MGMTLogLevel).Info("Creating new MGMTConfig struct")
+	klog.V(mgmtparams.MGMTLogLevel).Info("Creating new MGMTConfig struct")
 
 	var mgmtConfig MGMTConfig
 	mgmtConfig.IBIConfig = ibiconfig.NewIBIConfig()

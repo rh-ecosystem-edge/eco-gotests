@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/golang/glog"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/config"
 	"gopkg.in/yaml.v2"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -44,7 +44,7 @@ func NewAccelConfig() *AccelConfig {
 
 	err := readFile(&accelConfig, configFile)
 	if err != nil {
-		glog.V(90).Infof("Error reading config file %s", configFile)
+		klog.V(90).Infof("Error reading config file %s", configFile)
 
 		return nil
 	}
@@ -57,11 +57,11 @@ func NewAccelConfig() *AccelConfig {
 	}
 
 	if accelConfig.SpokeKubeConfig != "" {
-		glog.V(90).Infof("Creating spoke api client from %s", accelConfig.SpokeKubeConfig)
+		klog.V(90).Infof("Creating spoke api client from %s", accelConfig.SpokeKubeConfig)
 
 		if accelConfig.SpokeAPIClient = clients.New(
 			accelConfig.SpokeKubeConfig); accelConfig.SpokeAPIClient == nil {
-			glog.V(90).Infof("failed to load provided spoke kubeconfig")
+			klog.V(90).Infof("failed to load provided spoke kubeconfig")
 		}
 	} else {
 		accelConfig.SpokeAPIClient = nil

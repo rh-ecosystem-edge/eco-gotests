@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/openshift-kni/cluster-group-upgrades-operator/pkg/api/clustergroupupgrades/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -28,18 +28,18 @@ type PreCachingConfigBuilder struct {
 
 // NewPreCachingConfigBuilder creates a new instance of PreCachingConfig.
 func NewPreCachingConfigBuilder(apiClient *clients.Settings, name, nsname string) *PreCachingConfigBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new PreCachingConfig structure with the following params: name: %s, nsname: %s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Info("The apiClient for the PreCachingConfig is nil")
+		klog.V(100).Info("The apiClient for the PreCachingConfig is nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(v1alpha1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add cgu v1alpha1 scheme to client schemes")
+		klog.V(100).Info("Failed to add cgu v1alpha1 scheme to client schemes")
 
 		return nil
 	}
@@ -54,7 +54,7 @@ func NewPreCachingConfigBuilder(apiClient *clients.Settings, name, nsname string
 		}}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the PreCachingConfig is empty")
+		klog.V(100).Info("The name of the PreCachingConfig is empty")
 
 		builder.errorMsg = "preCachingConfig 'name' cannot be empty"
 
@@ -62,7 +62,7 @@ func NewPreCachingConfigBuilder(apiClient *clients.Settings, name, nsname string
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the PreCachingConfig is empty")
+		klog.V(100).Info("The namespace of the PreCachingConfig is empty")
 
 		builder.errorMsg = "preCachingConfig 'nsname' cannot be empty"
 
@@ -74,17 +74,17 @@ func NewPreCachingConfigBuilder(apiClient *clients.Settings, name, nsname string
 
 // PullPreCachingConfig pulls an existing PreCachingConfig into a PreCachingConfigBuilder struct.
 func PullPreCachingConfig(apiClient *clients.Settings, name, nsname string) (*PreCachingConfigBuilder, error) {
-	glog.V(100).Infof("Pulling existing PreCachingConfig %s under namespace %s from cluster", name, nsname)
+	klog.V(100).Infof("Pulling existing PreCachingConfig %s under namespace %s from cluster", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Info("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("preCachingConfig 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(v1alpha1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add cgu v1alpha1 scheme to client schemes")
+		klog.V(100).Info("Failed to add cgu v1alpha1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -100,13 +100,13 @@ func PullPreCachingConfig(apiClient *clients.Settings, name, nsname string) (*Pr
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the PreCachingConfig is empty")
+		klog.V(100).Info("The name of the PreCachingConfig is empty")
 
 		return nil, fmt.Errorf("preCachingConfig 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the PreCachingConfig is empty")
+		klog.V(100).Info("The namespace of the PreCachingConfig is empty")
 
 		return nil, fmt.Errorf("preCachingConfig 'nsname' cannot be empty")
 	}
@@ -126,7 +126,7 @@ func (builder *PreCachingConfigBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Checking if preCachingConfig %s exists in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -142,7 +142,7 @@ func (builder *PreCachingConfigBuilder) Get() (*v1alpha1.PreCachingConfig, error
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting PreCachingConfig %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
+	klog.V(100).Infof("Getting PreCachingConfig %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	preCachingConfig := &v1alpha1.PreCachingConfig{}
 
@@ -163,7 +163,7 @@ func (builder *PreCachingConfigBuilder) Create() (*PreCachingConfigBuilder, erro
 		return nil, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating the PreCachingConfig %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	if builder.Exists() {
@@ -186,7 +186,7 @@ func (builder *PreCachingConfigBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Deleting the PreCachingConfig %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
@@ -212,17 +212,17 @@ func (builder *PreCachingConfigBuilder) Update(force bool) (*PreCachingConfigBui
 		return nil, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Updating the PreCachingConfig %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		if force {
-			glog.V(100).Infof(msg.FailToUpdateNotification("preCachingConfig", builder.Definition.Name))
+			klog.V(100).Infof("%v", msg.FailToUpdateNotification("preCachingConfig", builder.Definition.Name))
 
 			err := builder.Delete()
 			if err != nil {
-				glog.V(100).Infof(msg.FailToUpdateError("preCachingConfig", builder.Definition.Name))
+				klog.V(100).Infof("%v", msg.FailToUpdateError("preCachingConfig", builder.Definition.Name))
 
 				return nil, err
 			}
@@ -243,25 +243,25 @@ func (builder *PreCachingConfigBuilder) validate() (bool, error) {
 	resourceCRD := "preCachingConfig"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiClient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiClient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

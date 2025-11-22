@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/olm"
@@ -16,6 +15,7 @@ import (
 	NfdConfig "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/internal/nfdconfig"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/nfdparams"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
+	"k8s.io/klog/v2"
 )
 
 var _ = Describe("NFD", Ordered, Label(nfdparams.Label), func() {
@@ -59,7 +59,7 @@ var _ = Describe("NFD", Ordered, Label(nfdparams.Label), func() {
 			Expect(err).ToNot(HaveOccurred(), "failed getting subscription")
 
 			By("Update subscription to use new catalog source")
-			glog.V(nfdparams.LogLevel).Infof("SUB: %s", sub.Object.Spec.CatalogSource)
+			klog.V(nfdparams.LogLevel).Infof("SUB: %s", sub.Object.Spec.CatalogSource)
 			sub.Definition.Spec.CatalogSource = nfdConfig.CustomCatalogSource
 			_, err = sub.Update()
 			Expect(err).ToNot(HaveOccurred(), "failed updating subscription")

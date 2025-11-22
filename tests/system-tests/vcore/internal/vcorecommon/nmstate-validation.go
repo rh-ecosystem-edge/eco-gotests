@@ -7,13 +7,13 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/apiobjectshelper"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nmstate"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/vcore/internal/vcoreinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/vcore/internal/vcoreparams"
@@ -56,13 +56,13 @@ func VerifyNMStateCSVConditionSucceeded(ctx SpecContext) {
 
 // VerifyNMStateInstanceExists assert that NMState instance exists.
 func VerifyNMStateInstanceExists(ctx SpecContext) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Verify NMState instance exists")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify NMState instance exists")
 
 	err := wait.PollUntilContextTimeout(ctx, 5*time.Second, 1*time.Minute, true,
 		func(ctx context.Context) (bool, error) {
 			_, pullErr := nmstate.PullNMstate(APIClient, vcoreparams.NMStateInstanceName)
 			if pullErr != nil {
-				glog.V(vcoreparams.VCoreLogLevel).Infof("Failed to pull in NMState instance %q due to %v",
+				klog.V(vcoreparams.VCoreLogLevel).Infof("Failed to pull in NMState instance %q due to %v",
 					vcoreparams.NMStateInstanceName, pullErr)
 
 				return false, pullErr

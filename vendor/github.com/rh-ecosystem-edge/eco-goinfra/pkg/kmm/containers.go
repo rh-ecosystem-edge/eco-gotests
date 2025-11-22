@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	moduleV1Beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/kmm/v1beta1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/klog/v2"
 )
 
 // ModuleLoaderContainerBuilder provides struct for the module object containing the ModuleLoaderContainerSpec
@@ -25,7 +25,7 @@ type ModuleLoaderContainerAdditionalOptions func(
 
 // NewModLoaderContainerBuilder creates a new instance of ModuleLoaderContainerBuilder.
 func NewModLoaderContainerBuilder(modName string) *ModuleLoaderContainerBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new ModuleLoaderContainerBuilder structure with following params: %s", modName)
 
 	builder := &ModuleLoaderContainerBuilder{
@@ -37,7 +37,7 @@ func NewModLoaderContainerBuilder(modName string) *ModuleLoaderContainerBuilder 
 	}
 
 	if modName == "" {
-		glog.V(100).Infof("The modName of the NewModLoaderContainerBuilder is empty")
+		klog.V(100).Info("The modName of the NewModLoaderContainerBuilder is empty")
 
 		builder.errorMsg = "'modName' cannot be empty"
 
@@ -54,7 +54,7 @@ func (builder *ModuleLoaderContainerBuilder) WithModprobeSpec(dirName, fwPath st
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating new ModuleLoaderContainerBuilder structure with following modprob params. "+
 			"DirName: %s, FirmwarePath: %s, Parameters: %v, ModuleLoadingOrder: %v",
 		dirName, fwPath, parameters, moduleLoadingOrder)
@@ -90,11 +90,11 @@ func (builder *ModuleLoaderContainerBuilder) WithKernelMapping(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating new ModuleLoaderContainerBuilder structure with following KernelMapping %v", mapping)
 
 	if mapping == nil {
-		glog.V(100).Infof("The mapping is undefined")
+		klog.V(100).Info("The mapping is undefined")
 
 		builder.errorMsg = "'mapping' can not be empty nil"
 
@@ -112,7 +112,7 @@ func (builder *ModuleLoaderContainerBuilder) WithImagePullPolicy(policy string) 
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating new ModuleLoaderContainerBuilder structure with following policy %v", policy)
 
 	if policy == "" {
@@ -132,7 +132,7 @@ func (builder *ModuleLoaderContainerBuilder) WithVersion(version string) *Module
 		return builder
 	}
 
-	glog.V(100).Infof("Setting ModuleLoaderContainer version %v", version)
+	klog.V(100).Infof("Setting ModuleLoaderContainer version %v", version)
 
 	if version == "" {
 		builder.errorMsg = "'version' can not be empty"
@@ -152,13 +152,13 @@ func (builder *ModuleLoaderContainerBuilder) WithOptions(
 		return builder
 	}
 
-	glog.V(100).Infof("Setting ModuleLoaderContainer additional options")
+	klog.V(100).Info("Setting ModuleLoaderContainer additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -177,7 +177,7 @@ func (builder *ModuleLoaderContainerBuilder) BuildModuleLoaderContainerCfg() (
 		return nil, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Returning the ModuleLoaderContainerBuilder structure %v", builder.definition)
 
 	return builder.definition, nil
@@ -189,19 +189,19 @@ func (builder *ModuleLoaderContainerBuilder) validate() (bool, error) {
 	resourceCRD := "ModuleLoaderContainer"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}
@@ -220,7 +220,7 @@ type DevicePluginContainerBuilder struct {
 
 // NewDevicePluginContainerBuilder creates DevicePluginContainerSpec based on given arguments and mutation functs.
 func NewDevicePluginContainerBuilder(image string) *DevicePluginContainerBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new DevPluginContainerBuilder structure with the following params: %s", image)
 
 	builder := &DevicePluginContainerBuilder{
@@ -230,7 +230,7 @@ func NewDevicePluginContainerBuilder(image string) *DevicePluginContainerBuilder
 	}
 
 	if image == "" {
-		glog.V(100).Infof("The image of NewDevicePluginContainerBuilder is empty")
+		klog.V(100).Info("The image of NewDevicePluginContainerBuilder is empty")
 
 		builder.errorMsg = "invalid parameter 'image' cannot be empty"
 
@@ -246,11 +246,11 @@ func (builder *DevicePluginContainerBuilder) WithEnv(name, value string) *Device
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating new DevPluginContainerBuilder structure with following Env. Name: %s, Value: %s", name, value)
 
 	if name == "" {
-		glog.V(100).Infof("The name of WithEnv is empty")
+		klog.V(100).Info("The name of WithEnv is empty")
 
 		builder.errorMsg = "'name' can not be empty for DevicePlugin Env"
 
@@ -258,7 +258,7 @@ func (builder *DevicePluginContainerBuilder) WithEnv(name, value string) *Device
 	}
 
 	if value == "" {
-		glog.V(100).Infof("The value of WithEnv is empty")
+		klog.V(100).Info("The value of WithEnv is empty")
 
 		builder.errorMsg = "'value' can not be empty for DevicePlugin Env"
 
@@ -276,12 +276,12 @@ func (builder *DevicePluginContainerBuilder) WithVolumeMount(mountPath, name str
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating new DevPluginContainerBuilder structure with mountPath Env. Name: %s, MountPath: %s",
 		name, mountPath)
 
 	if name == "" {
-		glog.V(100).Infof("The name of WithVolumeMount is empty")
+		klog.V(100).Info("The name of WithVolumeMount is empty")
 
 		builder.errorMsg = "'name' can not be empty for DevicePlugin mountPath"
 
@@ -289,7 +289,7 @@ func (builder *DevicePluginContainerBuilder) WithVolumeMount(mountPath, name str
 	}
 
 	if mountPath == "" {
-		glog.V(100).Infof("The mountPath of WithVolumeMount is empty")
+		klog.V(100).Info("The mountPath of WithVolumeMount is empty")
 
 		builder.errorMsg = "'mountPath' can not be empty for DevicePlugin mountPath"
 
@@ -318,19 +318,19 @@ func (builder *DevicePluginContainerBuilder) validate() (bool, error) {
 	resourceCRD := "DevicePluginContainer"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", strings.ToLower(resourceCRD))
+		klog.V(100).Infof("The %s builder is uninitialized", strings.ToLower(resourceCRD))
 
 		return false, fmt.Errorf("error: received nil %s builder", strings.ToLower(resourceCRD))
 	}
 
 	if builder.definition == nil {
-		glog.V(100).Infof("The %s is undefined", strings.ToLower(resourceCRD))
+		klog.V(100).Infof("The %s is undefined", strings.ToLower(resourceCRD))
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", strings.ToLower(resourceCRD), builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", strings.ToLower(resourceCRD), builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

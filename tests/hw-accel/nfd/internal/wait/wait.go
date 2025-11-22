@@ -11,19 +11,18 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/internal/get"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/nfdparams"
 
-	"github.com/golang/glog"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 // CheckLabel check that feature labels exist on worker nodes.
 func CheckLabel(apiClient *clients.Settings,
 	timeout time.Duration,
 	label string) (bool, error) {
-	glog.V(nfdparams.LogLevel).
+	klog.V(nfdparams.LogLevel).
 		Infof("Waiting for feature labels containing '%s' on worker nodes (timeout: %v)",
 			label,
 			timeout)
@@ -38,7 +37,7 @@ func CheckLabel(apiClient *clients.Settings,
 
 			workernodes := filterNodesByLabel(nodes, "worker")
 			if len(workernodes) == 0 {
-				glog.V(nfdparams.LogLevel).Infof("No worker nodes found")
+				klog.V(nfdparams.LogLevel).Infof("No worker nodes found")
 
 				return false, nil
 			}
@@ -53,20 +52,20 @@ func CheckLabel(apiClient *clients.Settings,
 				if hasFeatureLabels {
 					nodesWithLabels++
 
-					glog.V(nfdparams.LogLevel).Infof("Node %s has %d feature labels (examples: %v)",
+					klog.V(nfdparams.LogLevel).Infof("Node %s has %d feature labels (examples: %v)",
 						node.Name, featureLabelCount, sampleLabels)
 				} else {
-					glog.V(nfdparams.LogLevel).Infof("Node %s does not have feature labels yet", node.Name)
+					klog.V(nfdparams.LogLevel).Infof("Node %s does not have feature labels yet", node.Name)
 				}
 			}
 
-			glog.V(nfdparams.LogLevel).
+			klog.V(nfdparams.LogLevel).
 				Infof("Feature label progress: %d/%d worker nodes have labels",
 					nodesWithLabels,
 					totalWorkerNodes)
 
 			if nodesWithLabels == totalWorkerNodes {
-				glog.V(nfdparams.LogLevel).Infof("SUCCESS: All %d worker nodes have feature labels", totalWorkerNodes)
+				klog.V(nfdparams.LogLevel).Infof("SUCCESS: All %d worker nodes have feature labels", totalWorkerNodes)
 
 				return true, nil
 			}
@@ -75,7 +74,7 @@ func CheckLabel(apiClient *clients.Settings,
 		})
 
 	if err != nil {
-		glog.V(nfdparams.LogLevel).Infof("Feature label wait failed: %v", err)
+		klog.V(nfdparams.LogLevel).Infof("Feature label wait failed: %v", err)
 
 		return false, err
 	}
@@ -126,13 +125,13 @@ func ForPodsRunning(apiClient *clients.Settings, timeout time.Duration, nsname s
 
 			for _, pod := range pods {
 				if pod.State != string(corev1.PodRunning) {
-					glog.V(nfdparams.LogLevel).Infof("pod %s is in %s state", pod.Name, pod.State)
+					klog.V(nfdparams.LogLevel).Infof("pod %s is in %s state", pod.Name, pod.State)
 
 					return false, nil
 				}
 			}
 
-			glog.V(nfdparams.LogLevel).Info("all pods are in running status")
+			klog.V(nfdparams.LogLevel).Info("all pods are in running status")
 
 			return true, nil
 		})

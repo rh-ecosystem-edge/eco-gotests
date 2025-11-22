@@ -4,13 +4,13 @@ import (
 	"context"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nvidiagpu"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/olm"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nvidiagpu/internal/gpuparams"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 // ClusterPolicyReady Waits until clusterPolicy is Ready.
@@ -21,20 +21,20 @@ func ClusterPolicyReady(apiClient *clients.Settings, clusterPolicyName string, p
 			clusterPolicy, err := nvidiagpu.Pull(apiClient, clusterPolicyName)
 
 			if err != nil {
-				glog.V(gpuparams.GpuLogLevel).Infof("ClusterPolicy pull from cluster error: %s\n", err)
+				klog.V(gpuparams.GpuLogLevel).Infof("ClusterPolicy pull from cluster error: %s\n", err)
 
 				return false, err
 			}
 
 			if clusterPolicy.Object.Status.State == "ready" {
-				glog.V(gpuparams.GpuLogLevel).Infof("ClusterPolicy %s in now in %s state",
+				klog.V(gpuparams.GpuLogLevel).Infof("ClusterPolicy %s in now in %s state",
 					clusterPolicy.Object.Name, clusterPolicy.Object.Status.State)
 
 				// this exists out of the wait.PollImmediate()
 				return true, nil
 			}
 
-			glog.V(gpuparams.GpuLogLevel).Infof("ClusterPolicy %s in now in %s state",
+			klog.V(gpuparams.GpuLogLevel).Infof("ClusterPolicy %s in now in %s state",
 				clusterPolicy.Object.Name, clusterPolicy.Object.Status.State)
 
 			return false, err
@@ -49,20 +49,20 @@ func CSVSucceeded(apiClient *clients.Settings, csvName, csvNamespace string, pol
 			csvPulled, err := olm.PullClusterServiceVersion(apiClient, csvName, csvNamespace)
 
 			if err != nil {
-				glog.V(gpuparams.GpuLogLevel).Infof("ClusterServiceVersion pull from cluster error: %s\n", err)
+				klog.V(gpuparams.GpuLogLevel).Infof("ClusterServiceVersion pull from cluster error: %s\n", err)
 
 				return false, err
 			}
 
 			if csvPulled.Object.Status.Phase == "Succeeded" {
-				glog.V(gpuparams.GpuLogLevel).Infof("ClusterServiceVersion %s in now in %s state",
+				klog.V(gpuparams.GpuLogLevel).Infof("ClusterServiceVersion %s in now in %s state",
 					csvPulled.Object.Name, csvPulled.Object.Status.Phase)
 
 				// this exists out of the wait.PollImmediate().
 				return true, nil
 			}
 
-			glog.V(gpuparams.GpuLogLevel).Infof("clusterPolicy %s in now in %s state",
+			klog.V(gpuparams.GpuLogLevel).Infof("clusterPolicy %s in now in %s state",
 				csvPulled.Object.Name, csvPulled.Object.Status.Phase)
 
 			return false, err
@@ -80,14 +80,14 @@ func DeploymentCreated(apiClient *clients.Settings, deploymentName, deploymentNa
 			deploymentPulled, err := deployment.Pull(apiClient, deploymentName, deploymentNamespace)
 
 			if err != nil {
-				glog.V(gpuparams.GpuLogLevel).Infof("Deployment '%s' pull from cluster namespace '%s' error:"+
+				klog.V(gpuparams.GpuLogLevel).Infof("Deployment '%s' pull from cluster namespace '%s' error:"+
 					" %v", deploymentName, deploymentNamespace, err)
 
 				return false, err
 			}
 
 			if deploymentPulled.Exists() {
-				glog.V(gpuparams.GpuLogLevel).Infof("Deployment '%s' in namespace '%s' has been created",
+				klog.V(gpuparams.GpuLogLevel).Infof("Deployment '%s' in namespace '%s' has been created",
 					deploymentPulled.Object.Name, deploymentNamespace)
 
 				// this exists out of the wait.PollImmediate().

@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
@@ -30,6 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -929,11 +929,11 @@ func discoverNICVendor(srIovInterfaceUnderTest, workerNodeName string) (string, 
 		if srIovInterface.Name == srIovInterfaceUnderTest {
 			switch srIovInterface.Vendor {
 			case mlxVendorID:
-				glog.V(90).Infof("Mellanox NIC detected")
+				klog.V(90).Infof("Mellanox NIC detected")
 
 				return mlxVendorID, nil
 			case intelVendorID:
-				glog.V(90).Infof("Intel NIC detected")
+				klog.V(90).Infof("Intel NIC detected")
 
 				return intelVendorID, nil
 			default:

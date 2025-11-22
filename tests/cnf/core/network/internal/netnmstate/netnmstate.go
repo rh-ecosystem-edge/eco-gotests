@@ -8,7 +8,6 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/golang/glog"
 	nmstateShared "github.com/nmstate/kubernetes-nmstate/api/shared"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/daemonset"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
@@ -16,6 +15,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/klog/v2"
 
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/cmd"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
@@ -27,12 +27,12 @@ import (
 // CreateNewNMStateAndWaitUntilItsRunning creates or recreates the new NMState instance and waits until
 // all daemonsets and deployments are in Ready state.
 func CreateNewNMStateAndWaitUntilItsRunning(timeout time.Duration) error {
-	glog.V(90).Infof("Verifying if NMState instance is installed")
+	klog.V(90).Infof("Verifying if NMState instance is installed")
 
 	nmstateInstance, err := nmstate.PullNMstate(APIClient, netparam.NMState)
 
 	if err == nil {
-		glog.V(90).Infof("NMState exists. Removing NMState.")
+		klog.V(90).Infof("NMState exists. Removing NMState.")
 
 		_, err = nmstateInstance.Delete()
 
@@ -41,7 +41,7 @@ func CreateNewNMStateAndWaitUntilItsRunning(timeout time.Duration) error {
 		}
 	}
 
-	glog.V(90).Infof("Creating a new NMState instance.")
+	klog.V(90).Infof("Creating a new NMState instance.")
 
 	_, err = nmstate.NewBuilder(APIClient, netparam.NMState).Create()
 	if err != nil {
@@ -59,21 +59,21 @@ func CreateNewNMStateAndWaitUntilItsRunning(timeout time.Duration) error {
 // CreatePolicyAndWaitUntilItsAvailable creates NodeNetworkConfigurationPolicy and waits until
 // it's successfully applied.
 func CreatePolicyAndWaitUntilItsAvailable(timeout time.Duration, nmstatePolicy *nmstate.PolicyBuilder) error {
-	glog.V(90).Infof("Creating an NMState policy and wait for its successful application.")
+	klog.V(90).Infof("Creating an NMState policy and wait for its successful application.")
 
 	nmstatePolicy, err := nmstatePolicy.Create()
 	if err != nil {
 		return err
 	}
 
-	glog.V(90).Infof("Waiting for the policy to reach the Progressing state.")
+	klog.V(90).Infof("Waiting for the policy to reach the Progressing state.")
 
 	err = nmstatePolicy.WaitUntilCondition(nmstateShared.NodeNetworkConfigurationPolicyConditionProgressing, timeout)
 	if err != nil {
 		return err
 	}
 
-	glog.V(90).Infof("Waiting for the policy to reach the Available state.")
+	klog.V(90).Infof("Waiting for the policy to reach the Available state.")
 
 	err = nmstatePolicy.WaitUntilCondition(nmstateShared.NodeNetworkConfigurationPolicyConditionAvailable, timeout)
 	if err != nil {
@@ -86,21 +86,21 @@ func CreatePolicyAndWaitUntilItsAvailable(timeout time.Duration, nmstatePolicy *
 // UpdatePolicyAndWaitUntilItsAvailable updates NodeNetworkConfigurationPolicy and waits until
 // it's successfully applied.
 func UpdatePolicyAndWaitUntilItsAvailable(timeout time.Duration, nmstatePolicy *nmstate.PolicyBuilder) error {
-	glog.V(90).Infof("Updating an NMState policy and wait for its successful application.")
+	klog.V(90).Infof("Updating an NMState policy and wait for its successful application.")
 
 	nmstatePolicy, err := nmstatePolicy.Update(true)
 	if err != nil {
 		return err
 	}
 
-	glog.V(90).Infof("Waiting for the policy to reach the Progressing state.")
+	klog.V(90).Infof("Waiting for the policy to reach the Progressing state.")
 
 	err = nmstatePolicy.WaitUntilCondition(nmstateShared.NodeNetworkConfigurationPolicyConditionProgressing, timeout)
 	if err != nil {
 		return err
 	}
 
-	glog.V(90).Infof("Waiting for the policy to reach the Available state.")
+	klog.V(90).Infof("Waiting for the policy to reach the Available state.")
 
 	err = nmstatePolicy.WaitUntilCondition(nmstateShared.NodeNetworkConfigurationPolicyConditionAvailable, timeout)
 	if err != nil {
@@ -118,7 +118,7 @@ func ConfigureVFsAndWaitUntilItsConfigured(
 	nodeLabel map[string]string,
 	numberOfVFs uint8,
 	timeout time.Duration) error {
-	glog.V(90).Infof("Creating an NMState policy with VFs (%d) on interface %s"+
+	klog.V(90).Infof("Creating an NMState policy with VFs (%d) on interface %s"+
 		" and wait for it to be successfully configured.", numberOfVFs, sriovInterfaceName)
 
 	nmstatePolicy := nmstate.NewPolicyBuilder(
@@ -149,7 +149,7 @@ func ConfigureVFsAndWaitUntilItsConfigured(
 // AreVFsCreated verifies that the specified number of VFs has been created by NMState
 // under the given interface.
 func AreVFsCreated(nmstateName, sriovInterfaceName string, numberVFs int) error {
-	glog.V(90).Infof("Verifying that NMState %s has requested the specified number of VFs (%d)"+
+	klog.V(90).Infof("Verifying that NMState %s has requested the specified number of VFs (%d)"+
 		" under the interface %s.", nmstateName, numberVFs, sriovInterfaceName)
 
 	nodeNetworkState, err := nmstate.PullNodeNetworkState(APIClient, nmstateName)
@@ -171,7 +171,7 @@ func AreVFsCreated(nmstateName, sriovInterfaceName string, numberVFs int) error 
 
 // GetPrimaryInterfaceBond returns master ovs system bond interface.
 func GetPrimaryInterfaceBond(nodeName string) (string, error) {
-	glog.V(90).Infof("Verifying that bond interface is a master ovs system interface on the node %s.", nodeName)
+	klog.V(90).Infof("Verifying that bond interface is a master ovs system interface on the node %s.", nodeName)
 
 	nodeNetworkState, err := nmstate.PullNodeNetworkState(APIClient, nodeName)
 	if err != nil {
@@ -189,7 +189,7 @@ func GetPrimaryInterfaceBond(nodeName string) (string, error) {
 		}
 	}
 
-	glog.V(90).Infof("There is no a bond interface in the br-ex bridge ports %v",
+	klog.V(90).Infof("There is no a bond interface in the br-ex bridge ports %v",
 		ovsBridgeInterface.Bridge.Port)
 
 	return "", nil
@@ -197,7 +197,7 @@ func GetPrimaryInterfaceBond(nodeName string) (string, error) {
 
 // GetBondSlaves returns slave ports under given Bond interface name.
 func GetBondSlaves(bondName, nodeNetworkStateName string) ([]string, error) {
-	glog.V(90).Infof("Getting slave ports under Bond interface %s", bondName)
+	klog.V(90).Infof("Getting slave ports under Bond interface %s", bondName)
 
 	nodeNetworkState, err := nmstate.PullNodeNetworkState(APIClient, nodeNetworkStateName)
 	if err != nil {
@@ -214,7 +214,7 @@ func GetBondSlaves(bondName, nodeNetworkStateName string) ([]string, error) {
 
 // GetBondMode returns Bond mode under given Bond interface name.
 func GetBondMode(bondName, nodeNetworkStateName string) (string, error) {
-	glog.V(90).Infof("Getting Bond mode under Bond interface %s", bondName)
+	klog.V(90).Infof("Getting Bond mode under Bond interface %s", bondName)
 
 	nodeNetworkState, err := nmstate.PullNodeNetworkState(APIClient, nodeNetworkStateName)
 	if err != nil {
@@ -233,11 +233,11 @@ func GetBondMode(bondName, nodeNetworkStateName string) (string, error) {
 func WithOptionMaxTxRateOnFirstVf(
 	maxTxRate uint64, sriovInterfaceName string) func(*nmstate.PolicyBuilder) (*nmstate.PolicyBuilder, error) {
 	return func(builder *nmstate.PolicyBuilder) (*nmstate.PolicyBuilder, error) {
-		glog.V(90).Infof("Changing MaxTxRate value for the first VF on given SR-IOV interface to %d",
+		klog.V(90).Infof("Changing MaxTxRate value for the first VF on given SR-IOV interface to %d",
 			maxTxRate)
 
 		if sriovInterfaceName == "" {
-			glog.V(90).Infof("The sriovInterfaceName can not be empty string")
+			klog.V(90).Infof("The sriovInterfaceName can not be empty string")
 
 			return builder, fmt.Errorf("the sriovInterfaceName is empty string")
 		}
@@ -246,7 +246,7 @@ func WithOptionMaxTxRateOnFirstVf(
 
 		err := yaml.Unmarshal(builder.Definition.Spec.DesiredState.Raw, &currentState)
 		if err != nil {
-			glog.V(90).Infof("Failed Unmarshal DesiredState")
+			klog.V(90).Infof("Failed Unmarshal DesiredState")
 
 			return builder, fmt.Errorf("failed Unmarshal DesiredState: %w", err)
 		}
@@ -264,14 +264,14 @@ func WithOptionMaxTxRateOnFirstVf(
 		}
 
 		if !foundInterface {
-			glog.V(90).Infof("Failed to find given SR-IOV interface")
+			klog.V(90).Infof("Failed to find given SR-IOV interface")
 
 			return builder, fmt.Errorf("failed to find SR-IOV interface %s", sriovInterfaceName)
 		}
 
 		desiredStateYaml, err := yaml.Marshal(currentState)
 		if err != nil {
-			glog.V(90).Infof("Failed Marshal DesiredState")
+			klog.V(90).Infof("Failed Marshal DesiredState")
 
 			return builder, fmt.Errorf("failed to Marshal a new Desired state: %w", err)
 		}
@@ -285,7 +285,7 @@ func WithOptionMaxTxRateOnFirstVf(
 // WithBondOptionMiimon returns a function that mutates miimon value.
 func WithBondOptionMiimon(
 	miimon uint64, bondInterfaceName string) func(*nmstate.PolicyBuilder) (*nmstate.PolicyBuilder, error) {
-	glog.V(90).Infof("Changing miimon value %d for the bondInterface to %s", miimon, bondInterfaceName)
+	klog.V(90).Infof("Changing miimon value %d for the bondInterface to %s", miimon, bondInterfaceName)
 
 	return withBondOptionMutator(func(options *nmstate.OptionsLinkAggregation) {
 		options.Miimon = int(miimon)
@@ -297,7 +297,7 @@ func WithBondOptionMiimon(
 // WithBondOptionFailOverMac returns a function that mutates FailOverMac value.
 func WithBondOptionFailOverMac(
 	failOverMacValue, bondInterfaceName string) func(*nmstate.PolicyBuilder) (*nmstate.PolicyBuilder, error) {
-	glog.V(90).Infof("Changing failOverMac value %s for the bondInterface to %s", failOverMacValue, bondInterfaceName)
+	klog.V(90).Infof("Changing failOverMac value %s for the bondInterface to %s", failOverMacValue, bondInterfaceName)
 
 	return withBondOptionMutator(func(options *nmstate.OptionsLinkAggregation) {
 		options.FailOverMac = failOverMacValue
@@ -311,7 +311,7 @@ func WithBondOptionFailOverMac(
 // and VLAN configurations.
 func CheckThatWorkersDeployedWithBondVfs(
 	workerNodes []*nodes.Builder, namespace string) (string, []string, error) {
-	glog.V(90).Infof("Verifying that the cluster deployed via bond interface")
+	klog.V(90).Infof("Verifying that the cluster deployed via bond interface")
 
 	var (
 		bondName string
@@ -321,42 +321,42 @@ func CheckThatWorkersDeployedWithBondVfs(
 	for _, worker := range workerNodes {
 		bondName, err = GetPrimaryInterfaceBond(worker.Definition.Name)
 		if err != nil {
-			glog.V(90).Infof("Failed to get Slave Interfaces for the primary bond interface")
+			klog.V(90).Infof("Failed to get Slave Interfaces for the primary bond interface")
 
 			return "", nil, err
 		}
 
 		if bondName == "" {
-			glog.V(90).Infof("bondName is empty on worker %s", worker.Definition.Name)
+			klog.V(90).Infof("bondName is empty on worker %s", worker.Definition.Name)
 
 			return "", nil, fmt.Errorf("primary interface on worker %s is not a bond interface",
 				worker.Definition.Name)
 		}
 	}
 
-	glog.V(90).Infof("Gathering enslave interfaces for the bond interface")
+	klog.V(90).Infof("Gathering enslave interfaces for the bond interface")
 
 	bondSlaves, err := GetBondSlaves(bondName, workerNodes[0].Definition.Name)
 	if err != nil {
-		glog.V(90).Infof("Failed to get bond slave interfaces")
+		klog.V(90).Infof("Failed to get bond slave interfaces")
 
 		return "", nil, err
 	}
 
-	glog.V(90).Infof(
+	klog.V(90).Infof(
 		"Verifying that enslave interfaces are SR-IOV VF interfaces")
 
 	for _, bondSlave := range bondSlaves {
 		// If a baseInterface has SR-IOV PF, it means that the baseInterface is VF.
 		_, err = cmd.GetSrIovPf(bondSlave, namespace, workerNodes[0].Definition.Name)
 		if err != nil && strings.Contains(err.Error(), "No such file or directory") {
-			glog.V(90).Infof("Failed to find PF for the baseInterface VFs")
+			klog.V(90).Infof("Failed to find PF for the baseInterface VFs")
 
 			return "", nil, fmt.Errorf("bond slaves are not SR-IOV VFs")
 		}
 
 		if err != nil {
-			glog.V(90).Infof("Failed to get SR-IOV PF interface")
+			klog.V(90).Infof("Failed to get SR-IOV PF interface")
 
 			return "", nil, err
 		}
@@ -370,10 +370,10 @@ func withBondOptionMutator(
 	mutateFunc func(*nmstate.OptionsLinkAggregation),
 	bondInterfaceName string) func(*nmstate.PolicyBuilder) (*nmstate.PolicyBuilder, error) {
 	return func(builder *nmstate.PolicyBuilder) (*nmstate.PolicyBuilder, error) {
-		glog.V(90).Infof("Mutating the bond interface %s", bondInterfaceName)
+		klog.V(90).Infof("Mutating the bond interface %s", bondInterfaceName)
 
 		if bondInterfaceName == "" {
-			glog.V(90).Infof("The bondInterfaceName cannot be an empty string")
+			klog.V(90).Infof("The bondInterfaceName cannot be an empty string")
 
 			return builder, fmt.Errorf("the bondInterfaceName is an empty string")
 		}
@@ -382,7 +382,7 @@ func withBondOptionMutator(
 
 		err := yaml.Unmarshal(builder.Definition.Spec.DesiredState.Raw, &currentState)
 		if err != nil {
-			glog.V(90).Infof("Failed to unmarshal DesiredState")
+			klog.V(90).Infof("Failed to unmarshal DesiredState")
 
 			return builder, fmt.Errorf("failed to unmarshal DesiredState: %w", err)
 		}
@@ -400,14 +400,14 @@ func withBondOptionMutator(
 		}
 
 		if !foundInterface {
-			glog.V(90).Infof("Failed to find the given Bond interface")
+			klog.V(90).Infof("Failed to find the given Bond interface")
 
 			return builder, fmt.Errorf("failed to find Bond interface %s", bondInterfaceName)
 		}
 
 		desiredStateYaml, err := yaml.Marshal(currentState)
 		if err != nil {
-			glog.V(90).Infof("Failed to marshal DesiredState")
+			klog.V(90).Infof("Failed to marshal DesiredState")
 
 			return builder, fmt.Errorf("failed to marshal a new Desired state: %w", err)
 		}
@@ -419,7 +419,7 @@ func withBondOptionMutator(
 }
 
 func isNMStateDeployedAndReady(timeout time.Duration) error {
-	glog.V(90).Infof("Checking that NMState deployments and daemonsets are ready.")
+	klog.V(90).Infof("Checking that NMState deployments and daemonsets are ready.")
 
 	var (
 		nmstateHandlerDs         *daemonset.Builder
@@ -427,14 +427,14 @@ func isNMStateDeployedAndReady(timeout time.Duration) error {
 		err                      error
 	)
 
-	glog.V(90).Infof("Pulling all NMState default daemonsets and deployments.")
+	klog.V(90).Infof("Pulling all NMState default daemonsets and deployments.")
 
 	err = wait.PollUntilContextTimeout(
 		context.TODO(), 5*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			nmstateHandlerDs, err = daemonset.Pull(
 				APIClient, netparam.NMStateHandlerDsName, NetConfig.NMStateOperatorNamespace)
 			if err != nil {
-				glog.V(90).Infof("Error to pull daemonset %s from namespace %s, retry",
+				klog.V(90).Infof("Error to pull daemonset %s from namespace %s, retry",
 					netparam.NMStateHandlerDsName, NetConfig.NMStateOperatorNamespace)
 
 				return false, nil
@@ -443,7 +443,7 @@ func isNMStateDeployedAndReady(timeout time.Duration) error {
 			nmstateWebhookDeployment, err = deployment.Pull(
 				APIClient, netparam.NMStateWebhookDeploymentName, NetConfig.NMStateOperatorNamespace)
 			if err != nil {
-				glog.V(90).Infof("Error to pull deployment %s namespace %s, retry",
+				klog.V(90).Infof("Error to pull deployment %s namespace %s, retry",
 					netparam.NMStateWebhookDeploymentName, NetConfig.NMStateOperatorNamespace)
 
 				return false, nil
@@ -456,7 +456,7 @@ func isNMStateDeployedAndReady(timeout time.Duration) error {
 		return err
 	}
 
-	glog.V(90).Infof("Waiting until all NMState resources are Ready.")
+	klog.V(90).Infof("Waiting until all NMState resources are Ready.")
 
 	// Workaround to skip failure "nmstate handler daemonset is not ready"
 	time.Sleep(10 * time.Second)

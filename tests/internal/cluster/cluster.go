@@ -5,13 +5,13 @@ import (
 
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/klog/v2"
 
 	"context"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
@@ -23,7 +23,7 @@ import (
 
 // PullTestImageOnNodes pulls given image on range of relevant nodes based on nodeSelector.
 func PullTestImageOnNodes(apiClient *clients.Settings, nodeSelector, image string, pullTimeout int) error {
-	glog.V(90).Infof("Pulling image %s to nodes with the following label %v", image, nodeSelector)
+	klog.V(90).Infof("Pulling image %s to nodes with the following label %v", image, nodeSelector)
 
 	nodesList, err := nodes.List(
 		apiClient,
@@ -35,7 +35,7 @@ func PullTestImageOnNodes(apiClient *clients.Settings, nodeSelector, image strin
 	}
 
 	for _, node := range nodesList {
-		glog.V(90).Infof("Pulling image %s to node %s", image, node.Object.Name)
+		klog.V(90).Infof("Pulling image %s to node %s", image, node.Object.Name)
 		podBuilder := pod.NewBuilder(
 			apiClient, fmt.Sprintf("pullpod-%s", node.Object.Name), "default", image)
 		err := podBuilder.PullImage(time.Duration(pullTimeout)*time.Second, []string{
@@ -51,7 +51,7 @@ func PullTestImageOnNodes(apiClient *clients.Settings, nodeSelector, image strin
 
 // ExecCmd runc cmd on all nodes that match nodeSelector.
 func ExecCmd(apiClient *clients.Settings, nodeSelector string, shellCmd string) error {
-	glog.V(90).Infof("Executing cmd: %v on nodes based on label: %v using mcp pods", shellCmd, nodeSelector)
+	klog.V(90).Infof("Executing cmd: %v on nodes based on label: %v using mcp pods", shellCmd, nodeSelector)
 
 	nodeList, err := nodes.List(
 		apiClient,
@@ -80,7 +80,7 @@ func ExecCmd(apiClient *clients.Settings, nodeSelector string, shellCmd string) 
 
 			cmdToExec := []string{"sh", "-c", fmt.Sprintf("nsenter --mount=/proc/1/ns/mnt -- sh -c '%s'", shellCmd)}
 
-			glog.V(90).Infof("Exec cmd %v on pod %s", cmdToExec, mcPod.Definition.Name)
+			klog.V(90).Infof("Exec cmd %v on pod %s", cmdToExec, mcPod.Definition.Name)
 			buf, err := mcPod.ExecCommand(cmdToExec)
 
 			if err != nil {
@@ -97,7 +97,7 @@ func ExecCmd(apiClient *clients.Settings, nodeSelector string, shellCmd string) 
 //nolint:funlen
 func ExecCmdWithStdout(
 	apiClient *clients.Settings, shellCmd string, options ...metav1.ListOptions) (map[string]string, error) {
-	glog.V(90).Infof("Executing command '%s' with stdout and options ('%v')", shellCmd, options)
+	klog.V(90).Infof("Executing command '%s' with stdout and options ('%v')", shellCmd, options)
 
 	if GeneralConfig.MCOConfigDaemonName == "" {
 		return nil, fmt.Errorf("error: mco config daemon pod name cannot be empty")
@@ -112,7 +112,7 @@ func ExecCmdWithStdout(
 	passedOptions := metav1.ListOptions{}
 
 	if len(options) > 1 {
-		glog.V(90).Infof("'options' parameter must be empty or single-valued")
+		klog.V(90).Infof("'options' parameter must be empty or single-valued")
 
 		return nil, fmt.Errorf("error: more than one ListOptions was passed")
 	}
@@ -122,7 +122,7 @@ func ExecCmdWithStdout(
 		logMessage += fmt.Sprintf(" with the options %v", passedOptions)
 	}
 
-	glog.V(90).Infof(logMessage)
+	klog.V(90).Info(logMessage)
 
 	nodeList, err := nodes.List(
 		apiClient,
@@ -133,7 +133,7 @@ func ExecCmdWithStdout(
 		return nil, err
 	}
 
-	glog.V(90).Infof("Found %d nodes matching selector", len(nodeList))
+	klog.V(90).Infof("Found %d nodes matching selector", len(nodeList))
 
 	outputMap := make(map[string]string)
 
@@ -163,7 +163,7 @@ func ExecCmdWithStdout(
 
 			cmdToExec := []string{"sh", "-c", fmt.Sprintf("nsenter --mount=/proc/1/ns/mnt -- sh -c '%s'", shellCmd)}
 
-			glog.V(90).Infof("Exec cmd %v on pod %s", cmdToExec, mcPod.Definition.Name)
+			klog.V(90).Infof("Exec cmd %v on pod %s", cmdToExec, mcPod.Definition.Name)
 			commandBuf, err := mcPod.ExecCommand(cmdToExec)
 
 			if err != nil {
@@ -185,7 +185,7 @@ func ExecCmdWithStdout(
 // "retries" times with a "interval" duration between retries, and ignores the stdout.
 func ExecCmdWithRetries(client *clients.Settings, retries uint,
 	interval time.Duration, nodeSelector, command string) error {
-	glog.V(90).Infof("Executing command '%s' with %d retries and interval %v. Node Selector: %v",
+	klog.V(90).Infof("Executing command '%s' with %d retries and interval %v. Node Selector: %v",
 		command, retries, interval, nodeSelector)
 
 	retry := 1
@@ -194,7 +194,7 @@ func ExecCmdWithRetries(client *clients.Settings, retries uint,
 		context.TODO(), interval, time.Duration(retries-1)*interval, true, func(ctx context.Context) (bool, error) {
 			err := ExecCmd(client, nodeSelector, command)
 			if isErrorExecuting(err) {
-				glog.V(90).Infof("Error during command execution, retry %d (%d max): %v", retry, retries, err)
+				klog.V(90).Infof("Error during command execution, retry %d (%d max): %v", retry, retries, err)
 
 				retry++
 
@@ -215,7 +215,7 @@ func ExecCmdWithRetries(client *clients.Settings, retries uint,
 func ExecCmdWithStdoutWithRetries(
 	client *clients.Settings, retries uint, interval time.Duration,
 	command string, options ...metav1.ListOptions) (map[string]string, error) {
-	glog.V(90).Infof("Executing command with stdout '%s' with %d retries and interval %v. Options: %v",
+	klog.V(90).Infof("Executing command with stdout '%s' with %d retries and interval %v. Options: %v",
 		command, retries, interval, options)
 
 	var (
@@ -228,7 +228,7 @@ func ExecCmdWithStdoutWithRetries(
 		context.TODO(), interval, time.Duration(retries-1)*interval, true, func(ctx context.Context) (bool, error) {
 			outputs, err = ExecCmdWithStdout(client, command, options...)
 			if isErrorExecuting(err) {
-				glog.V(90).Infof("Error during command execution, retry %d (%d max): %v", retry, retries, err)
+				klog.V(90).Infof("Error during command execution, retry %d (%d max): %v", retry, retries, err)
 
 				retry++
 
@@ -250,7 +250,7 @@ func ExecCmdWithStdoutWithRetries(
 // waits with a "interval" duration between retries, and returns the stdout.
 func ExecCommandOnSNOWithRetries(client *clients.Settings, retries uint,
 	interval time.Duration, command string) (string, error) {
-	glog.V(90).Infof("Executing command on SNO '%s' with %d retries and interval %v", command, retries, interval)
+	klog.V(90).Infof("Executing command on SNO '%s' with %d retries and interval %v", command, retries, interval)
 
 	outputs, err := ExecCmdWithStdoutWithRetries(client, retries, interval, command)
 	if err != nil {
@@ -270,7 +270,7 @@ func ExecCommandOnSNOWithRetries(client *clients.Settings, retries uint,
 
 // WaitForRecover waits up to timeout for all pods in namespaces on a provided node to recover.
 func WaitForRecover(client *clients.Settings, namespaces []string, timeout time.Duration) error {
-	glog.V(90).Infof("Wait for cluster to recover for namespaces: %v timeout: %v", namespaces, timeout)
+	klog.V(90).Infof("Wait for cluster to recover for namespaces: %v timeout: %v", namespaces, timeout)
 	err := waitForReachable(client, timeout)
 
 	if err != nil {
@@ -287,7 +287,7 @@ func WaitForRecover(client *clients.Settings, namespaces []string, timeout time.
 
 // SoftRebootSNO executes systemctl reboot on a node.
 func SoftRebootSNO(apiClient *clients.Settings, retries uint, interval time.Duration) error {
-	glog.V(90).Infof("Rebooting SNO node with %d retries interval %v", retries, interval)
+	klog.V(90).Infof("Rebooting SNO node with %d retries interval %v", retries, interval)
 
 	cmdToExec := "sudo systemctl reboot"
 
@@ -299,7 +299,7 @@ func SoftRebootSNO(apiClient *clients.Settings, retries uint, interval time.Dura
 // WaitForUnreachable waits up to timeout for the cluster to become unavailable
 // by attempting to list nodes in the cluster.
 func WaitForUnreachable(client *clients.Settings, timeout time.Duration) error {
-	glog.V(90).Infof("Wait for cluster unreachable with timeout: %v", timeout)
+	klog.V(90).Infof("Wait for cluster unreachable with timeout: %v", timeout)
 
 	return wait.PollUntilContextTimeout(
 		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
@@ -315,7 +315,7 @@ func WaitForUnreachable(client *clients.Settings, timeout time.Duration) error {
 // waitForReachable waits up to timeout for the cluster to become available by attempting to list nodes in the
 // cluster.
 func waitForReachable(client *clients.Settings, timeout time.Duration) error {
-	glog.V(90).Infof("Wait for cluster reachable with timeout: %v", timeout)
+	klog.V(90).Infof("Wait for cluster reachable with timeout: %v", timeout)
 
 	return wait.PollUntilContextTimeout(
 		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {

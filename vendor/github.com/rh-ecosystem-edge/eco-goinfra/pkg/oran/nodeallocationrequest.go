@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	pluginsv1alpha1 "github.com/openshift-kni/oran-o2ims/api/hardwaremanagement/plugins/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -26,17 +26,17 @@ type NARBuilder struct {
 
 // PullNodeAllocationRequest pulls an existing NodeAllocationRequest into a NARBuilder struct.
 func PullNodeAllocationRequest(apiClient *clients.Settings, name, nsname string) (*NARBuilder, error) {
-	glog.V(100).Infof("Pulling existing NodeAllocationRequest %s in namespace %s from cluster", name, nsname)
+	klog.V(100).Infof("Pulling existing NodeAllocationRequest %s in namespace %s from cluster", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient of the NodeAllocationRequest is nil")
+		klog.V(100).Info("The apiClient of the NodeAllocationRequest is nil")
 
 		return nil, fmt.Errorf("nodeAllocationRequest 'apiClient' cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(pluginsv1alpha1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add plugins v1alpha1 scheme to client schemes: %v", err)
+		klog.V(100).Infof("Failed to add plugins v1alpha1 scheme to client schemes: %v", err)
 
 		return nil, err
 	}
@@ -52,19 +52,19 @@ func PullNodeAllocationRequest(apiClient *clients.Settings, name, nsname string)
 	}
 
 	if name == "" {
-		glog.V(100).Info("The name of the NodeAllocationRequest is empty")
+		klog.V(100).Info("The name of the NodeAllocationRequest is empty")
 
 		return nil, fmt.Errorf("nodeAllocationRequest 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Info("The nsname of the NodeAllocationRequest is empty")
+		klog.V(100).Info("The nsname of the NodeAllocationRequest is empty")
 
 		return nil, fmt.Errorf("nodeAllocationRequest 'nsname' cannot be empty")
 	}
 
 	if !builder.Exists() {
-		glog.V(100).Info("The NodeAllocationRequest %s does not exist in namespace %s", name, nsname)
+		klog.V(100).Infof("The NodeAllocationRequest %s does not exist in namespace %s", name, nsname)
 
 		return nil, fmt.Errorf("nodeAllocationRequest object %s does not exist in namespace %s", name, nsname)
 	}
@@ -80,7 +80,7 @@ func (builder *NARBuilder) Get() (*pluginsv1alpha1.NodeAllocationRequest, error)
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting NodeAllocationRequest object %s in namespace %s",
+	klog.V(100).Infof("Getting NodeAllocationRequest object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	nodeAllocationRequest := &pluginsv1alpha1.NodeAllocationRequest{}
@@ -90,7 +90,7 @@ func (builder *NARBuilder) Get() (*pluginsv1alpha1.NodeAllocationRequest, error)
 		Namespace: builder.Definition.Namespace,
 	}, nodeAllocationRequest)
 	if err != nil {
-		glog.V(100).Infof("Failed to get NodeAllocationRequest object %s in namespace %s: %v",
+		klog.V(100).Infof("Failed to get NodeAllocationRequest object %s in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
 
 		return nil, err
@@ -105,12 +105,12 @@ func (builder *NARBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if NodeAllocationRequest %s exists in namespace %s",
+	klog.V(100).Infof("Checking if NodeAllocationRequest %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	object, err := builder.Get()
 	if err != nil {
-		glog.V(100).Infof("Failed to get NodeAllocationRequest object %s in namespace %s: %v",
+		klog.V(100).Infof("Failed to get NodeAllocationRequest object %s in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
 
 		return false
@@ -126,25 +126,25 @@ func (builder *NARBuilder) validate() (bool, error) {
 	resourceCRD := "nodeAllocationRequest"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiClient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiClient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

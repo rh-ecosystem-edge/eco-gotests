@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/openshift-kni/cluster-group-upgrades-operator/pkg/api/clustergroupupgrades/v1alpha1"
@@ -32,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 	configurationPolicyv1 "open-cluster-management.io/config-policy-controller/api/v1"
 	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
@@ -404,7 +404,7 @@ var _ = Describe("TALM precache", Label(tsparams.LabelPreCacheTestCases), func()
 			clusters := []*clients.Settings{HubAPIClient, Spoke1APIClient, Spoke2APIClient}
 			for index, cluster := range clusters {
 				if cluster == nil {
-					glog.V(tsparams.LogLevel).Infof("cluster #%d is nil", index)
+					klog.V(tsparams.LogLevel).Infof("cluster #%d is nil", index)
 					Skip("Precaching with multiple spokes requires all clients to not be nil")
 				}
 			}
@@ -560,19 +560,19 @@ func assertPrecacheStatus(spokeName, expected string) {
 			"Failed to pull CGU %s in namespace %s", tsparams.CguName, tsparams.TestNamespace)
 
 		if cguBuilder.Object.Status.Precaching == nil {
-			glog.V(tsparams.LogLevel).Info("precache struct not ready yet")
+			klog.V(tsparams.LogLevel).Info("precache struct not ready yet")
 
 			return ""
 		}
 
 		_, ok := cguBuilder.Object.Status.Precaching.Status[spokeName]
 		if !ok {
-			glog.V(tsparams.LogLevel).Info("cluster name as key did not appear yet")
+			klog.V(tsparams.LogLevel).Info("cluster name as key did not appear yet")
 
 			return ""
 		}
 
-		glog.V(tsparams.LogLevel).Infof("[%s] %s precache status: %s\n",
+		klog.V(tsparams.LogLevel).Infof("[%s] %s precache status: %s\n",
 			cguBuilder.Object.Name, spokeName, cguBuilder.Object.Status.Precaching.Status[spokeName])
 
 		return cguBuilder.Object.Status.Precaching.Status[spokeName]
@@ -593,7 +593,7 @@ func checkPrecachePodLog(client *clients.Settings) error {
 			}
 
 			if len(podList) == 0 {
-				glog.V(tsparams.LogLevel).Info("precache pod does not exist on spoke - skip pod log check.")
+				klog.V(tsparams.LogLevel).Info("precache pod does not exist on spoke - skip pod log check.")
 
 				return true, nil
 			}
@@ -611,7 +611,7 @@ func checkPrecachePodLog(client *clients.Settings) error {
 		})
 
 	if err != nil && plog != "" {
-		glog.V(tsparams.LogLevel).Infof("generated pod logs: ", plog)
+		klog.V(tsparams.LogLevel).Infof("generated pod logs: %s", plog)
 	}
 
 	return err
@@ -658,7 +658,7 @@ func copyPoliciesWithSubscription(policies []*ocm.PolicyBuilder) ([]string, []st
 	)
 
 	for index, policy := range policies {
-		glog.V(tsparams.LogLevel).Infof(
+		klog.V(tsparams.LogLevel).Infof(
 			"checking for subscriptions on policy %s in namespace %s", policy.Definition.Name, policy.Definition.Namespace)
 
 		template := policy.Object.Spec.PolicyTemplates[0]
@@ -683,7 +683,7 @@ func copyPoliciesWithSubscription(policies []*ocm.PolicyBuilder) ([]string, []st
 			suffix := fmt.Sprintf("-with-subscription-%d", index)
 			suffixes = append(suffixes, suffix)
 
-			glog.V(tsparams.LogLevel).Infof(
+			klog.V(tsparams.LogLevel).Infof(
 				"Copying policy %s and generating a new one with suffix %s", policy.Object.Name, suffix)
 
 			copiedConfigPolicy := configPolicy.DeepCopy()

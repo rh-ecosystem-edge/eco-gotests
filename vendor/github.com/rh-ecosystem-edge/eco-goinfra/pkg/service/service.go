@@ -6,7 +6,6 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -14,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	corev1Typed "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/klog/v2"
 )
 
 // Builder provides struct for service object containing connection to the cluster and the service definitions.
@@ -40,7 +40,7 @@ func NewBuilder(
 	nsname string,
 	selector map[string]string,
 	servicePort corev1.ServicePort) *Builder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new service structure with the following params: %s, %s", name, nsname)
 
 	builder := Builder{
@@ -58,7 +58,7 @@ func NewBuilder(
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the service is empty")
+		klog.V(100).Info("The name of the service is empty")
 
 		builder.errorMsg = "Service 'name' cannot be empty"
 
@@ -66,7 +66,7 @@ func NewBuilder(
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the service is empty")
+		klog.V(100).Info("The namespace of the service is empty")
 
 		builder.errorMsg = "Service 'nsname' cannot be empty"
 
@@ -97,10 +97,10 @@ func (builder *Builder) WithNodePort() *Builder {
 
 // Pull loads an existing service into Builder struct.
 func Pull(apiClient *clients.Settings, name, nsname string) (*Builder, error) {
-	glog.V(100).Infof("Pulling existing service name: %s under namespace: %s", name, nsname)
+	klog.V(100).Infof("Pulling existing service name: %s under namespace: %s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("service 'apiClient' cannot be empty")
 	}
@@ -138,7 +138,7 @@ func (builder *Builder) Create() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the service %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
+	klog.V(100).Infof("Creating the service %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
 	if !builder.Exists() {
@@ -155,7 +155,7 @@ func (builder *Builder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Checking if service %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -173,7 +173,7 @@ func (builder *Builder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting the service %s from namespace %s", builder.Definition.Name, builder.Definition.Namespace)
+	klog.V(100).Infof("Deleting the service %s from namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
 		builder.Object = nil
@@ -198,7 +198,7 @@ func (builder *Builder) Update() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating service %s in namespace %s",
+	klog.V(100).Infof("Updating service %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -215,13 +215,13 @@ func (builder *Builder) WithOptions(options ...AdditionalOptions) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Setting service additional options")
+	klog.V(100).Info("Setting service additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -239,11 +239,11 @@ func (builder *Builder) WithExternalTrafficPolicy(policyType corev1.ServiceExter
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Defining service's with ExternalTrafficPolicy: %v", policyType)
 
 	if policyType == "" {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"Failed to set ExternalTrafficPolicy on service %s in namespace %s. "+
 				"policyType can not be empty",
 			builder.Definition.Name, builder.Definition.Namespace)
@@ -265,10 +265,10 @@ func (builder *Builder) WithLabels(labels map[string]string) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Defining service's with labels: %v", labels)
+	klog.V(100).Infof("Defining service's with labels: %v", labels)
 
 	if len(labels) == 0 {
-		glog.V(100).Infof("labels can not be empty")
+		klog.V(100).Info("labels can not be empty")
 
 		builder.errorMsg = "labels can not be empty"
 
@@ -277,7 +277,7 @@ func (builder *Builder) WithLabels(labels map[string]string) *Builder {
 
 	for key := range labels {
 		if key == "" {
-			glog.V(100).Infof("The 'labels' key cannot be empty")
+			klog.V(100).Info("The 'labels' key cannot be empty")
 
 			builder.errorMsg = "can not apply a labels with an empty key"
 
@@ -296,10 +296,10 @@ func (builder *Builder) WithSelector(selector map[string]string) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Defining service's with selector: %v", selector)
+	klog.V(100).Infof("Defining service's with selector: %v", selector)
 
 	if len(selector) == 0 {
-		glog.V(100).Infof("selector can not be empty")
+		klog.V(100).Info("selector can not be empty")
 
 		builder.errorMsg = "selector can not be empty"
 
@@ -308,7 +308,7 @@ func (builder *Builder) WithSelector(selector map[string]string) *Builder {
 
 	for key := range selector {
 		if key == "" {
-			glog.V(100).Infof("The 'selector' key cannot be empty")
+			klog.V(100).Info("The 'selector' key cannot be empty")
 
 			builder.errorMsg = "can not apply a selector with an empty key"
 
@@ -327,10 +327,10 @@ func (builder *Builder) WithAnnotation(annotation map[string]string) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Defining service's Annotation to %v", annotation)
+	klog.V(100).Infof("Defining service's Annotation to %v", annotation)
 
 	if len(annotation) == 0 {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"Failed to set Annotation on service %s in namespace %s. "+
 				"Service Annotation can not be empty",
 			builder.Definition.Name, builder.Definition.Namespace)
@@ -342,7 +342,7 @@ func (builder *Builder) WithAnnotation(annotation map[string]string) *Builder {
 
 	for key := range annotation {
 		if key == "" {
-			glog.V(100).Infof("The 'annotation' key cannot be empty")
+			klog.V(100).Info("The 'annotation' key cannot be empty")
 
 			builder.errorMsg = "can not apply a annotation with an empty key"
 
@@ -361,10 +361,10 @@ func (builder *Builder) WithIPFamily(ipFamily []corev1.IPFamily, ipStackPolicy c
 		return builder
 	}
 
-	glog.V(100).Infof("Defining service's IPFamily: %v and IPFamilyPolicy: %v", ipFamily, ipStackPolicy)
+	klog.V(100).Infof("Defining service's IPFamily: %v and IPFamilyPolicy: %v", ipFamily, ipStackPolicy)
 
 	if ipFamily == nil {
-		glog.V(100).Infof("Failed to set empty ipFamily on service %s in namespace %s",
+		klog.V(100).Infof("Failed to set empty ipFamily on service %s in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.errorMsg = "failed to set empty ipFamily"
@@ -373,7 +373,7 @@ func (builder *Builder) WithIPFamily(ipFamily []corev1.IPFamily, ipStackPolicy c
 	}
 
 	if ipStackPolicy == "" {
-		glog.V(100).Infof("Failed to set empty ipStackPolicy on service %s in namespace %s",
+		klog.V(100).Infof("Failed to set empty ipStackPolicy on service %s in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.errorMsg = "failed to set empty ipStackPolicy"
@@ -389,7 +389,7 @@ func (builder *Builder) WithIPFamily(ipFamily []corev1.IPFamily, ipStackPolicy c
 
 // DefineServicePort helper for creating a Service with a ServicePort.
 func DefineServicePort(port, targetPort int32, protocol corev1.Protocol) (*corev1.ServicePort, error) {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Defining ServicePort with port %d and targetport %d", port, targetPort)
 
 	if !isValidPort(port) {
@@ -430,25 +430,25 @@ func (builder *Builder) validate() (bool, error) {
 	resourceCRD := "Service"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

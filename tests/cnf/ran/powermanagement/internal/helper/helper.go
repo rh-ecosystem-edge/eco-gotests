@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	mcov1 "github.com/openshift/api/machineconfiguration/v1"
 	performancev2 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/performanceprofile/v2"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/mco"
@@ -21,6 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/cpuset"
 	"k8s.io/utils/ptr"
 )
@@ -47,7 +47,7 @@ func GetPerformanceProfileWithCPUSet() (*nto.Builder, error) {
 // and waits for the mcp update.
 func SetPowerModeAndWaitForMcpUpdate(
 	perfProfile *nto.Builder, node nodes.Builder, perPodPowerManagement, highPowerConsumption, realTime bool) error {
-	glog.V(tsparams.LogLevel).Infof("Set powersave mode on performance profile")
+	klog.V(tsparams.LogLevel).Infof("Set powersave mode on performance profile")
 
 	perfProfile.Definition.Spec.WorkloadHints = &performancev2.WorkloadHints{
 		PerPodPowerManagement: ptr.To(perPodPowerManagement),
@@ -86,11 +86,11 @@ func SetCPUFreq(
 	perfProfile *nto.Builder,
 	desiredIsolatedCoreFreq *performancev2.CPUfrequency,
 	desiredReservedCoreFreq *performancev2.CPUfrequency) error {
-	glog.V(tsparams.LogLevel).Infof("Set Reserved and Isolated CPU Frequency on performance profile")
+	klog.V(tsparams.LogLevel).Infof("Set Reserved and Isolated CPU Frequency on performance profile")
 
 	// Exists will ensure that perfProfile.Object is up to date.
 	if !perfProfile.Exists() {
-		glog.V(tsparams.LogLevel).Infof(
+		klog.V(tsparams.LogLevel).Infof(
 			"Performance profile %s provided to SetCPUFreq does not exist", perfProfile.Definition.Name)
 
 		return fmt.Errorf("performance profile %s does not exist", perfProfile.Definition.Name)
@@ -146,7 +146,7 @@ func SetCPUFreq(
 			currIsolatedCoreFreq, err := strconv.Atoi(cmdOut)
 
 			if err != nil {
-				glog.V(tsparams.LogLevel).Infof("converting cpu frequency %s to an int failed: %w", cmdOut, err)
+				klog.V(tsparams.LogLevel).Infof("converting cpu frequency %s to an int failed: %v", cmdOut, err)
 
 				return false, nil
 			}
@@ -167,7 +167,7 @@ func SetCPUFreq(
 			currReservedFreq, err := strconv.Atoi(cmdOut)
 
 			if err != nil {
-				glog.V(tsparams.LogLevel).Infof("converting cpu frequency %s to an int failed: %w", cmdOut, err)
+				klog.V(tsparams.LogLevel).Infof("converting cpu frequency %s to an int failed: %v", cmdOut, err)
 
 				return false, nil
 			}

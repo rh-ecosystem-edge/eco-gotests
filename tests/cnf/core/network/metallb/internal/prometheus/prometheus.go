@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
+	"k8s.io/klog/v2"
 )
 
 type queryOutput struct {
@@ -34,7 +34,7 @@ func PodMetricsPresentInDB(prometheusPod *pod.Builder, podName string, uniqueMet
 		stdout, err := prometheusPod.ExecCommand(command)
 
 		if err != nil {
-			glog.V(90).Infof("Fail to collect metric %s. Stdout %s", metricsKey, stdout.String())
+			klog.V(90).Infof("Fail to collect metric %s. Stdout %s", metricsKey, stdout.String())
 
 			return false, err
 		}

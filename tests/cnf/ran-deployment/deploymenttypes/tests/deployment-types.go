@@ -11,7 +11,6 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/argocd"
@@ -25,6 +24,7 @@ import (
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran-deployment/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran-deployment/internal/ranparam"
 	"gopkg.in/yaml.v3"
+	"k8s.io/klog/v2"
 	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -85,7 +85,7 @@ var _ = Describe("Cluster Deployment Types Tests", Ordered, Label(tsparams.Label
 			isMultiCluster = tsparams.MultiCluster
 
 		} else {
-			glog.V(tsparams.LogLevel).Infof("Second cluster is not available")
+			klog.V(tsparams.LogLevel).Infof("Second cluster is not available")
 			isMultiCluster = tsparams.SingleCluster
 		}
 
@@ -107,7 +107,7 @@ var _ = Describe("Cluster Deployment Types Tests", Ordered, Label(tsparams.Label
 
 		pathSiteConfig = clustersSource.Path
 
-		glog.V(tsparams.LogLevel).Infof("Successful retreival of apps git details")
+		klog.V(tsparams.LogLevel).Infof("Successful retreival of apps git details")
 
 		mkGitCloneDirs()
 
@@ -136,7 +136,7 @@ var _ = Describe("Cluster Deployment Types Tests", Ordered, Label(tsparams.Label
 			Skip(fmt.Sprintf("Not %s deployment", tsparams.MultiCluster))
 		}
 
-		glog.V(tsparams.LogLevel).Info("Deployment is multi cluster")
+		klog.V(tsparams.LogLevel).Info("Deployment is multi cluster")
 	})
 
 	DescribeTable("checks deployment method",
@@ -148,7 +148,7 @@ var _ = Describe("Cluster Deployment Types Tests", Ordered, Label(tsparams.Label
 				Skip(fmt.Sprintf("Not %s install method", kindValue))
 			}
 
-			glog.V(tsparams.LogLevel).Infof("Install method is %s", kindValue)
+			klog.V(tsparams.LogLevel).Infof("Install method is %s", kindValue)
 		},
 		func(methodValue *tsparams.DeploymentType, kindValue tsparams.DeploymentType) string {
 			return fmt.Sprintf("checks if deployment method is %s", kindValue)
@@ -167,7 +167,7 @@ var _ = Describe("Cluster Deployment Types Tests", Ordered, Label(tsparams.Label
 				Skip(fmt.Sprintf("Not %s policy type", kindValue))
 			}
 
-			glog.V(tsparams.LogLevel).Infof("Policy type is %s", kindValue)
+			klog.V(tsparams.LogLevel).Infof("Policy type is %s", kindValue)
 		},
 		func(policyValue *tsparams.PolicyType, kindValue tsparams.PolicyType) string {
 			return fmt.Sprintf("checks if policy type is %s", kindValue)
@@ -187,7 +187,7 @@ var _ = Describe("Cluster Deployment Types Tests", Ordered, Label(tsparams.Label
 				Skip(fmt.Sprintf("Not %s cluster type", kindValue))
 			}
 
-			glog.V(tsparams.LogLevel).Infof("Cluster type is %s", kindValue)
+			klog.V(tsparams.LogLevel).Infof("Cluster type is %s", kindValue)
 		},
 		func(clusterValue *tsparams.ClusterType, kindValue tsparams.ClusterType) string {
 			return fmt.Sprintf("checks if cluster type is %s", kindValue)
@@ -243,9 +243,9 @@ func gitCloneToDirs(clustersApp,
 	})
 	Expect(err).ToNot(HaveOccurred(), "Failed to git clone siteconfig repo %s branch %s to directory %s",
 		clustersSource.RepoURL, clustersSource.TargetRevision, gitSiteConfigCloneDir)
-	glog.V(tsparams.LogLevel).Infof("Successful git clone of sitconfig repo %s branch %s",
+	klog.V(tsparams.LogLevel).Infof("Successful git clone of sitconfig repo %s branch %s",
 		clustersSource.RepoURL, clustersSource.TargetRevision)
-	glog.V(tsparams.LogLevel).Infof("Path in worktree: %s", clustersSource.Path)
+	klog.V(tsparams.LogLevel).Infof("Path in worktree: %s", clustersSource.Path)
 
 	policiesRepo, err = git.PlainClone(gitPolicyTemplatesCloneDir, false, &git.CloneOptions{
 		URL:             policiesSource.RepoURL,
@@ -258,9 +258,9 @@ func gitCloneToDirs(clustersApp,
 	})
 	Expect(err).ToNot(HaveOccurred(), "Failed to git clone policies repo %s branch %s to directory %s",
 		policiesSource.RepoURL, policiesSource.TargetRevision, gitPolicyTemplatesCloneDir)
-	glog.V(tsparams.LogLevel).Infof("Successful git clone of policies repo %s branch %s",
+	klog.V(tsparams.LogLevel).Infof("Successful git clone of policies repo %s branch %s",
 		policiesSource.RepoURL, policiesSource.TargetRevision)
-	glog.V(tsparams.LogLevel).Infof("Path in worktree: %s", policiesSource.Path)
+	klog.V(tsparams.LogLevel).Infof("Path in worktree: %s", policiesSource.Path)
 
 	return siteconfigRepo, policiesRepo
 }
@@ -275,7 +275,7 @@ func getFilesInfo(repo *git.Repository, path string) (tsparams.DeploymentType, t
 	remotes, err := repo.Remotes()
 
 	Expect(err).ToNot(HaveOccurred(), "Failed to get list of remotes")
-	glog.V(tsparams.LogLevel).Infof("Remote: %s", remotes[0].Config().URLs[0])
+	klog.V(tsparams.LogLevel).Infof("Remote: %s", remotes[0].Config().URLs[0])
 
 	head, err := repo.Head()
 	Expect(err).ToNot(HaveOccurred(), "Failed to get branch head")
@@ -292,14 +292,14 @@ func getFilesInfo(repo *git.Repository, path string) (tsparams.DeploymentType, t
 	err = subtree.Files().ForEach(func(fileEntry *object.File) error {
 		for _, ignorePath := range ignorePaths {
 			if strings.Contains(fileEntry.Name, ignorePath) {
-				glog.V(tsparams.LogLevel).Infof("Skipping reference or test CR file: %s", fileEntry.Name)
+				klog.V(tsparams.LogLevel).Infof("Skipping reference or test CR file: %s", fileEntry.Name)
 
 				return nil
 			}
 		}
 
 		if filepath.Ext(fileEntry.Name) == ".yaml" || filepath.Ext(fileEntry.Name) == ".yml" {
-			glog.V(tsparams.LogLevel).Infof("Path: %s", fileEntry.Name)
+			klog.V(tsparams.LogLevel).Infof("Path: %s", fileEntry.Name)
 
 			content, err := fileEntry.Contents()
 			Expect(err).ToNot(HaveOccurred(), "Failed to get file content")
@@ -309,7 +309,7 @@ func getFilesInfo(repo *git.Repository, path string) (tsparams.DeploymentType, t
 			// Get YAML Kind value.
 			kind := getYAMLKind(contentBytes, fileEntry.Name)
 
-			glog.V(tsparams.LogLevel).Infof("Kind from YAML: %s", kind)
+			klog.V(tsparams.LogLevel).Infof("Kind from YAML: %s", kind)
 
 			// Determine deployment and policy types
 			switch kind {
@@ -336,7 +336,7 @@ func getFilesInfo(repo *git.Repository, path string) (tsparams.DeploymentType, t
 			return nil
 		}
 
-		glog.V(tsparams.LogLevel).Infof("Skipping non-YAML file: %s", fileEntry.Name)
+		klog.V(tsparams.LogLevel).Infof("Skipping non-YAML file: %s", fileEntry.Name)
 
 		return nil
 	})
@@ -353,7 +353,7 @@ func getYAMLKind(fileData []byte, fileName string) string {
 
 	kind, result := fileContent["kind"].(string)
 	if !result {
-		glog.V(tsparams.LogLevel).Infof("Failed to determine kind from file %s", fileName)
+		klog.V(tsparams.LogLevel).Infof("Failed to determine kind from file %s", fileName)
 
 		return ""
 	}
@@ -375,7 +375,7 @@ func getClusterType(cluster *clients.Settings, clusterName string) tsparams.Clus
 	)
 
 	if cluster.KubeconfigPath == "" {
-		glog.V(tsparams.LogLevel).Infof("Cluster %s KUBECONFIG is not availabled", clusterName)
+		klog.V(tsparams.LogLevel).Infof("Cluster %s KUBECONFIG is not availabled", clusterName)
 
 		return clusterKind
 	}
@@ -401,7 +401,7 @@ func getClusterType(cluster *clients.Settings, clusterName string) tsparams.Clus
 		}
 	}
 
-	glog.V(tsparams.LogLevel).Infof(
+	klog.V(tsparams.LogLevel).Infof(
 		"controlPlaneCount: %d -- workerCount: %d", controlPlaneCount, workerCount)
 
 	switch {

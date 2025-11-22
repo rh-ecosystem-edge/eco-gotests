@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
+	"k8s.io/klog/v2"
 
 	egresssvcv1 "github.com/ovn-org/ovn-kubernetes/go-controller/pkg/crd/egressservice/v1"
 
@@ -31,20 +31,20 @@ type EgressServiceBuilder struct {
 // NewEgressServiceBuilder creates a new instance of EgressService builder.
 func NewEgressServiceBuilder(
 	apiClient *clients.Settings, name, nsname, sourceIPBy string) *EgressServiceBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new EgressService structure with the following params: "+
 			"name: %s; namespace: %s; sourceIPBy: %s",
 		name, nsname, sourceIPBy)
 
 	if apiClient == nil {
-		glog.V(100).Infof("EgressService 'apiClient' cannot be empty")
+		klog.V(100).Info("EgressService 'apiClient' cannot be empty")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(egresssvcv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add 'egressservice' scheme to client schemes")
+		klog.V(100).Info("Failed to add 'egressservice' scheme to client schemes")
 
 		return nil
 	}
@@ -63,7 +63,7 @@ func NewEgressServiceBuilder(
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name parameter of the EgressService is empty")
+		klog.V(100).Info("The name parameter of the EgressService is empty")
 
 		builder.errorMsg = "the name parameter of the EgressService is empty"
 
@@ -71,7 +71,7 @@ func NewEgressServiceBuilder(
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the EgressService is empty")
+		klog.V(100).Info("The namespace of the EgressService is empty")
 
 		builder.errorMsg = "the namespace of the EgressService is empty"
 
@@ -79,7 +79,7 @@ func NewEgressServiceBuilder(
 	}
 
 	if _, err := validateSourceIPMode(sourceIPBy); err != nil {
-		glog.V(100).Infof("Invalid sourceIPBy parameter for the EgressService")
+		klog.V(100).Info("Invalid sourceIPBy parameter for the EgressService")
 
 		builder.errorMsg = "invalid sourceIPBy parameter for the EgressService"
 
@@ -96,11 +96,11 @@ func (builder *EgressServiceBuilder) WithNodeLabelSelector(selector map[string]s
 		return builder
 	}
 
-	glog.V(100).Infof("Applying nodeSelector %s to EgressService %q in namespace %q",
+	klog.V(100).Infof("Applying nodeSelector %s to EgressService %q in namespace %q",
 		selector, builder.Definition.Name, builder.Definition.Namespace)
 
 	if len(selector) == 0 {
-		glog.V(100).Infof("The nodeselector is empty")
+		klog.V(100).Info("The nodeselector is empty")
 
 		builder.errorMsg = "cannot accept empty map as nodeSelector"
 
@@ -118,11 +118,11 @@ func (builder *EgressServiceBuilder) WithVRFNetwork(vrfnet string) *EgressServic
 		return builder
 	}
 
-	glog.V(100).Infof("Setting VRF network %q to EgressService %q in namespace %q",
+	klog.V(100).Infof("Setting VRF network %q to EgressService %q in namespace %q",
 		vrfnet, builder.Definition.Name, builder.Definition.Namespace)
 
 	if strings.TrimSpace(vrfnet) == "" {
-		glog.V(100).Infof("Cannot use empty VRF network")
+		klog.V(100).Info("Cannot use empty VRF network")
 
 		builder.errorMsg = "cannot use empty VRF network"
 
@@ -136,30 +136,30 @@ func (builder *EgressServiceBuilder) WithVRFNetwork(vrfnet string) *EgressServic
 
 // Pull fetches existing EgressService from the cluster.
 func Pull(apiClient *clients.Settings, name, nsname string) (*EgressServiceBuilder, error) {
-	glog.V(100).Infof("Pulling existing EgressService %q in namespace %q from cluster",
+	klog.V(100).Infof("Pulling existing EgressService %q in namespace %q from cluster",
 		name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("egressService's 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(egresssvcv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add EgressService scheme to client schemes")
+		klog.V(100).Info("Failed to add EgressService scheme to client schemes")
 
 		return nil, err
 	}
 
 	if name == "" {
-		glog.V(100).Infof("EgressService's name cannot be empty")
+		klog.V(100).Info("EgressService's name cannot be empty")
 
 		return nil, fmt.Errorf("egressService's name cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("EgressService's namespace cannot be empty")
+		klog.V(100).Info("EgressService's namespace cannot be empty")
 
 		return nil, fmt.Errorf("egressService's namespace cannot be empty")
 	}
@@ -190,7 +190,7 @@ func (builder *EgressServiceBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if EgressService %q exists in namespace %q",
+	klog.V(100).Infof("Checking if EgressService %q exists in namespace %q",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -206,7 +206,7 @@ func (builder *EgressServiceBuilder) Get() (*egresssvcv1.EgressService, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting EgressService %q in namespace %q",
+	klog.V(100).Infof("Getting EgressService %q in namespace %q",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	egrSvc := &egresssvcv1.EgressService{}
@@ -216,7 +216,7 @@ func (builder *EgressServiceBuilder) Get() (*egresssvcv1.EgressService, error) {
 		Namespace: builder.Definition.Namespace,
 	}, egrSvc)
 	if err != nil {
-		glog.V(100).Infof("Error retrieving EgressService: %v", err)
+		klog.V(100).Infof("Error retrieving EgressService: %v", err)
 
 		return nil, err
 	}
@@ -230,7 +230,7 @@ func (builder *EgressServiceBuilder) Create() (*EgressServiceBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the EgressServcice %q in namespace %q",
+	klog.V(100).Infof("Creating the EgressServcice %q in namespace %q",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -238,7 +238,7 @@ func (builder *EgressServiceBuilder) Create() (*EgressServiceBuilder, error) {
 	if !builder.Exists() {
 		err = builder.apiClient.Create(context.TODO(), builder.Definition)
 		if err == nil {
-			glog.V(100).Infof("Created EgressServcice %q in namespace %q",
+			klog.V(100).Infof("Created EgressServcice %q in namespace %q",
 				builder.Definition.Name, builder.Definition.Namespace)
 
 			builder.Object = builder.Definition
@@ -256,11 +256,11 @@ func (builder *EgressServiceBuilder) Delete() (*EgressServiceBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting EgressService %q in namespace %q",
+	klog.V(100).Infof("Deleting EgressService %q in namespace %q",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("EgressService %q in namespace %q does not exist",
+		klog.V(100).Infof("EgressService %q in namespace %q does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -270,12 +270,12 @@ func (builder *EgressServiceBuilder) Delete() (*EgressServiceBuilder, error) {
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
 	if err != nil {
-		glog.V(100).Infof("Error deleting EgressService: %v", err)
+		klog.V(100).Infof("Error deleting EgressService: %v", err)
 
 		return builder, fmt.Errorf("failed to delete EgressService due to %w", err)
 	}
 
-	glog.V(100).Infof("Deleted EgressService %q in %q namespace",
+	klog.V(100).Infof("Deleted EgressService %q in %q namespace",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	builder.Object = nil
@@ -289,12 +289,12 @@ func (builder *EgressServiceBuilder) Update() (*EgressServiceBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating EgressService %s in namespace %s",
+	klog.V(100).Infof("Updating EgressService %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
-		glog.V(100).Infof("Error updating EgressService: %v", err)
+		klog.V(100).Infof("Error updating EgressService: %v", err)
 
 		return nil, err
 	}
@@ -310,25 +310,25 @@ func (builder *EgressServiceBuilder) validate() (bool, error) {
 	resourceCRD := "egressService"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		builder.errorMsg = msg.UndefinedCrdObjectErrString(resourceCRD)
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		builder.errorMsg = fmt.Sprintf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}
@@ -337,23 +337,23 @@ func (builder *EgressServiceBuilder) validate() (bool, error) {
 }
 
 func validateSourceIPMode(sourceIPMode string) (string, error) {
-	glog.V(100).Infof("Validating requested sourceIPMode %q", sourceIPMode)
+	klog.V(100).Infof("Validating requested sourceIPMode %q", sourceIPMode)
 
 	switch {
 	case strings.EqualFold(strings.TrimSpace(sourceIPMode), ""):
-		glog.V(100).Infof("Invalid sourceIPMode %q(empty)", sourceIPMode)
+		klog.V(100).Infof("Invalid sourceIPMode %q(empty)", sourceIPMode)
 
 		return "", fmt.Errorf("invalid empty sourceIPMode %q", sourceIPMode)
 	case strings.EqualFold(strings.TrimSpace(sourceIPMode), string(egresssvcv1.SourceIPLoadBalancer)):
-		glog.V(100).Infof("Valid sourceIPMode %q", sourceIPMode)
+		klog.V(100).Infof("Valid sourceIPMode %q", sourceIPMode)
 
 		return string(egresssvcv1.SourceIPLoadBalancer), nil
 	case strings.EqualFold(strings.TrimSpace(sourceIPMode), string(egresssvcv1.SourceIPNetwork)):
-		glog.V(100).Infof("Valid sourceIPMode %q", sourceIPMode)
+		klog.V(100).Infof("Valid sourceIPMode %q", sourceIPMode)
 
 		return string(egresssvcv1.SourceIPNetwork), nil
 	default:
-		glog.V(100).Infof("Invalid sourceIPMode %q", sourceIPMode)
+		klog.V(100).Infof("Invalid sourceIPMode %q", sourceIPMode)
 
 		return "", fmt.Errorf("invalid sourceIPMode %s", sourceIPMode)
 	}

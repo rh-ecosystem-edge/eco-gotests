@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	"golang.org/x/exp/slices"
 	rbacv1 "k8s.io/api/rbac/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 // RoleBindingBuilder provides struct for RoleBinding object containing connection
@@ -34,7 +34,7 @@ type RoleBindingAdditionalOptions func(builder *RoleBindingBuilder) (*RoleBindin
 func NewRoleBindingBuilder(apiClient *clients.Settings,
 	name, nsname, role string,
 	subject rbacv1.Subject) *RoleBindingBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new rolebinding structure with the following params: "+
 			"name: %s, namespace: %s, role: %s, subject %v", name, nsname, role, subject)
 
@@ -54,7 +54,7 @@ func NewRoleBindingBuilder(apiClient *clients.Settings,
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the rolebinding is empty")
+		klog.V(100).Info("The name of the rolebinding is empty")
 
 		builder.errorMsg = "RoleBinding 'name' cannot be empty"
 
@@ -62,7 +62,7 @@ func NewRoleBindingBuilder(apiClient *clients.Settings,
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the rolebinding is empty")
+		klog.V(100).Info("The namespace of the rolebinding is empty")
 
 		builder.errorMsg = "RoleBinding 'nsname' cannot be empty"
 
@@ -80,11 +80,11 @@ func (builder *RoleBindingBuilder) WithSubjects(subjects []rbacv1.Subject) *Role
 		return builder
 	}
 
-	glog.V(100).Infof("Adding to the rolebinding %s these specified subjects: %v",
+	klog.V(100).Infof("Adding to the rolebinding %s these specified subjects: %v",
 		builder.Definition.Name, subjects)
 
 	if len(subjects) == 0 {
-		glog.V(100).Infof("The list of subjects is empty")
+		klog.V(100).Info("The list of subjects is empty")
 
 		builder.errorMsg = "cannot create rolebinding with empty subject"
 
@@ -93,7 +93,7 @@ func (builder *RoleBindingBuilder) WithSubjects(subjects []rbacv1.Subject) *Role
 
 	for _, subject := range subjects {
 		if !slices.Contains(allowedSubjectKinds(), subject.Kind) {
-			glog.V(100).Infof("The rolebinding subject kind must be one of 'ServiceAccount', 'User', or 'Group'")
+			klog.V(100).Info("The rolebinding subject kind must be one of 'ServiceAccount', 'User', or 'Group'")
 
 			builder.errorMsg = "rolebinding subject kind must be one of 'ServiceAccount', 'User', 'Group'"
 
@@ -101,7 +101,7 @@ func (builder *RoleBindingBuilder) WithSubjects(subjects []rbacv1.Subject) *Role
 		}
 
 		if subject.Name == "" {
-			glog.V(100).Infof("The rolebinding subject name cannot be empty")
+			klog.V(100).Info("The rolebinding subject name cannot be empty")
 
 			builder.errorMsg = "rolebinding subject name cannot be empty"
 
@@ -120,13 +120,13 @@ func (builder *RoleBindingBuilder) WithOptions(options ...RoleBindingAdditionalO
 		return builder
 	}
 
-	glog.V(100).Infof("Setting RoleBinding additional options")
+	klog.V(100).Info("Setting RoleBinding additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -140,7 +140,7 @@ func (builder *RoleBindingBuilder) WithOptions(options ...RoleBindingAdditionalO
 
 // PullRoleBinding pulls existing rolebinding from cluster.
 func PullRoleBinding(apiClient *clients.Settings, name, nsname string) (*RoleBindingBuilder, error) {
-	glog.V(100).Infof("Pulling existing rolebinding name %s under namespace %s from cluster", name, nsname)
+	klog.V(100).Infof("Pulling existing rolebinding name %s under namespace %s from cluster", name, nsname)
 
 	builder := &RoleBindingBuilder{
 		apiClient: apiClient,
@@ -153,13 +153,13 @@ func PullRoleBinding(apiClient *clients.Settings, name, nsname string) (*RoleBin
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the rolebinding is empty")
+		klog.V(100).Info("The name of the rolebinding is empty")
 
 		return builder, fmt.Errorf("rolebinding 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the rolebinding is empty")
+		klog.V(100).Info("The namespace of the rolebinding is empty")
 
 		return builder, fmt.Errorf("rolebinding 'namespace' cannot be empty")
 	}
@@ -179,7 +179,7 @@ func (builder *RoleBindingBuilder) Create() (*RoleBindingBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating rolebinding %s under namespace %s",
+	klog.V(100).Infof("Creating rolebinding %s under namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -197,11 +197,11 @@ func (builder *RoleBindingBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Removing rolebinding %s under namespace %s",
+	klog.V(100).Infof("Removing rolebinding %s under namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("RoleBinding object %s namespace %s does not exist",
+		klog.V(100).Infof("RoleBinding object %s namespace %s does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -223,7 +223,7 @@ func (builder *RoleBindingBuilder) Update() (*RoleBindingBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating rolebinding %s under namespace %s",
+	klog.V(100).Infof("Updating rolebinding %s under namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -240,7 +240,7 @@ func (builder *RoleBindingBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if rolebinding %s exists under namespace %s",
+	klog.V(100).Infof("Checking if rolebinding %s exists under namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -257,25 +257,25 @@ func (builder *RoleBindingBuilder) validate() (bool, error) {
 	resourceCRD := "RoleBinding"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}
