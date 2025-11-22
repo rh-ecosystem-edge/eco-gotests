@@ -489,6 +489,7 @@ func swapFirstSecondBootItems() {
 	By(fmt.Sprintf("listing current boot Order: %s", bootRefs))
 	// Creates a boot override swapping first and second boot references
 	var bootOverride []string
+
 	bootOverride, err = helper.SwapFirstAndSecondSliceItems(bootRefs)
 	Expect(err).ToNot(HaveOccurred(), "SwapFirstAndSecondSliceItems should not fail")
 	By(fmt.Sprintf("setting new boot Order: %s", bootOverride))

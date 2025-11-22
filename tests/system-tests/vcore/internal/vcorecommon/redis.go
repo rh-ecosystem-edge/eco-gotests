@@ -93,7 +93,6 @@ func VerifyRedisDeploymentProcedure(ctx SpecContext) {
 		klog.V(100).Infof("Ensure local directory %s exists", vcoreparams.ConfigurationFolderPath)
 
 		err = os.Mkdir(vcoreparams.ConfigurationFolderPath, 0755)
-
 		if err != nil {
 			klog.V(100).Infof("Failed to create directory %s, it is already exists",
 				vcoreparams.ConfigurationFolderPath)

@@ -36,7 +36,6 @@ func GetClevisLuksListOutput() (string, error) {
 // getRootDisk returns the name of the encrypted root disk in the form /dev/sdaX.
 func getRootDisk() (string, error) {
 	lsblkoutput, err := getAllDriveListOutput()
-
 	if err != nil {
 		return "", err
 	}
@@ -45,8 +44,8 @@ func getRootDisk() (string, error) {
 
 	for _, name := range driveList {
 		var mounts string
-		mounts, err = getLSBLKMounts(DiskPrefix + name)
 
+		mounts, err = getLSBLKMounts(DiskPrefix + name)
 		if err != nil {
 			return "", err
 		}
@@ -63,9 +62,9 @@ func getRootDisk() (string, error) {
 // false otherwise.
 func IsTTYConsole() (bool, error) {
 	cmdToExec := "sudo cat /proc/cmdline"
+
 	output, err := cluster.ExecCommandOnSNOWithRetries(APIClient, tsparams.RetryCount,
 		tsparams.RetryInterval, cmdToExec)
-
 	if err != nil {
 		return false, fmt.Errorf("error getting kernel command line, err: %w", err)
 	}

@@ -31,8 +31,8 @@ func PodMetricsPresentInDB(prometheusPod *pod.Builder, podName string, uniqueMet
 			"curl",
 			fmt.Sprintf("%squery?query=%s", "http://localhost:9090/api/v1/", metricsKey),
 		}
-		stdout, err := prometheusPod.ExecCommand(command)
 
+		stdout, err := prometheusPod.ExecCommand(command)
 		if err != nil {
 			klog.V(90).Infof("Fail to collect metric %s. Stdout %s", metricsKey, stdout.String())
 
@@ -40,8 +40,8 @@ func PodMetricsPresentInDB(prometheusPod *pod.Builder, podName string, uniqueMet
 		}
 
 		var queryOutput queryOutput
-		err = json.Unmarshal(stdout.Bytes(), &queryOutput)
 
+		err = json.Unmarshal(stdout.Bytes(), &queryOutput)
 		if err != nil {
 			return false, err
 		}

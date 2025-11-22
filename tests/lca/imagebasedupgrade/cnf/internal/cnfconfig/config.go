@@ -41,6 +41,7 @@ func NewCNFConfig() *CNFConfig {
 	klog.V(cnfparams.CNFLogLevel).Info("Creating new CNFConfig struct")
 
 	var cnfConfig CNFConfig
+
 	cnfConfig.IBUConfig = ibuconfig.NewIBUConfig()
 
 	_, filename, _, _ := runtime.Caller(0)

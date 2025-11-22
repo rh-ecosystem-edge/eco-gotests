@@ -14,7 +14,6 @@ import (
 // version if the latest version could not be found.
 func GetOCPVersion(client *clients.Settings) (string, error) {
 	clusterVersion, err := clusterversion.Pull(client)
-
 	if err != nil {
 		return "", err
 	}

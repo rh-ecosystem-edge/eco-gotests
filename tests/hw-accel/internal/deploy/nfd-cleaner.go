@@ -76,8 +76,8 @@ func (n *NFDCustomResourceCleaner) deleteNFDCRByName(crName string) error {
 	if len(nfdCR.Object.GetFinalizers()) > 0 {
 		klog.V(n.LogLevel).Infof("Removing finalizers from NFD CR %s", crName)
 		nfdCR.Object.SetFinalizers([]string{})
-		_, err = nfdCR.Update(true) // force=true to update finalizers
 
+		_, err = nfdCR.Update(true) // force=true to update finalizers
 		if err != nil {
 			klog.V(n.LogLevel).Infof("Warning: failed to remove finalizers from %s: %v", crName, err)
 		}
@@ -108,8 +108,8 @@ func (n *NFDCustomResourceCleaner) cleanupAMDGPUFeatureRule() error {
 
 	if err == nil {
 		klog.V(n.LogLevel).Info("Deleting AMD GPU FeatureRule")
-		err = n.APIClient.Client.Delete(ctx, nodeFeaturRuleBuilder.Object)
 
+		err = n.APIClient.Client.Delete(ctx, nodeFeaturRuleBuilder.Object)
 		if err != nil {
 			klog.V(n.LogLevel).Infof("Error deleting AMD GPU FeatureRule: %v", err)
 

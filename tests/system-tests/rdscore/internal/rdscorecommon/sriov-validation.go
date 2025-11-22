@@ -96,7 +96,6 @@ func getSRIOVOperatorConfig() (*srIovV1.SriovOperatorConfig, error) {
 			var getErr error
 
 			sriovConfig, getErr = sriovConfigBuiler.Get()
-
 			if getErr != nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error retrieving SR-IOV Operator config: %v", getErr)
 
@@ -107,7 +106,6 @@ func getSRIOVOperatorConfig() (*srIovV1.SriovOperatorConfig, error) {
 
 			return true, nil
 		})
-
 	if err != nil {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error retrieving SR-IOV Operator config: %v", err)
 
@@ -149,7 +147,6 @@ func createServiceAccount(saName, nsName string) {
 
 	Eventually(func() bool {
 		deploySa, err := deploySa.Create()
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error creating SA %q in %q namespace: %v",
 				saName, nsName, err)
@@ -181,7 +178,6 @@ func deleteServiceAccount(saName, nsName string) {
 
 		Eventually(func() bool {
 			err := deploySa.Delete()
-
 			if err != nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error deleting ServiceAccount %q in %q namespace: %v",
 					saName, nsName, err)
@@ -215,7 +211,6 @@ func deleteClusterRBAC(rbacName string) {
 
 		Eventually(func() bool {
 			err := crbSa.Delete()
-
 			if err != nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error deleting ClusterRoleBinding %q : %v",
 					rbacName, err)
@@ -301,7 +296,6 @@ func createConfigMap(cmName, nsName string, data map[string]string) {
 	var ctx SpecContext
 
 	Eventually(func() bool {
-
 		cmResult, err := cmBuilder.Create()
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error creating ConfigMap %q in %q namespace",
@@ -534,7 +528,6 @@ func verifyMsgInPodLogs(podObj *pod.Builder, msg, cName string, timeSpan time.Ti
 		}
 
 		podLog, err = podObj.GetLog(logStartTimestamp, cName)
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to get logs from pod %q: %v", podObj.Definition.Name, err)
 
@@ -610,7 +603,6 @@ func verifySRIOVConnectivity(nsOneName, nsTwoName, deployOneLabels, deployTwoLab
 
 	Eventually(func() bool {
 		podOneResult, err = podOne.ExecCommand(sendDataOneCmd, podOne.Definition.Spec.Containers[0].Name)
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to run command within pod: %v", sendDataOneCmd)
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to run command within pod: %v", err)
@@ -665,7 +657,6 @@ func VerifySRIOVWorkloadsOnSameNode(ctx SpecContext) {
 			metav1.ListOptions{LabelSelector: sriovDeployOneLabel})
 
 		return len(oldPods) == 0
-
 	}, 6*time.Minute, 3*time.Second).WithContext(ctx).Should(BeTrue(), "pods matching label() still present")
 
 	By(fmt.Sprintf("Ensuring pods from %q deployment are gone", sriovDeploy1TwoName))
@@ -678,7 +669,6 @@ func VerifySRIOVWorkloadsOnSameNode(ctx SpecContext) {
 			metav1.ListOptions{LabelSelector: sriovDeployTwoLabel})
 
 		return len(oldPods) == 0
-
 	}, 6*time.Minute, 3*time.Second).WithContext(ctx).Should(BeTrue(), "pods matching label() still present")
 
 	By("Removing ConfigMap")
@@ -866,7 +856,6 @@ func VerifySRIOVWorkloadsOnDifferentNodes(ctx SpecContext) {
 			metav1.ListOptions{LabelSelector: sriovDeploy2OneLabel})
 
 		return len(oldPods) == 0
-
 	}, 6*time.Minute, 3*time.Second).WithContext(ctx).Should(BeTrue(), "pods matching label() still present")
 
 	By(fmt.Sprintf("Ensuring pods from %q deployment are gone", sriovDeploy2TwoName))
@@ -879,7 +868,6 @@ func VerifySRIOVWorkloadsOnDifferentNodes(ctx SpecContext) {
 			metav1.ListOptions{LabelSelector: sriovDeploy2TwoLabel})
 
 		return len(oldPods) == 0
-
 	}, 6*time.Minute, 3*time.Second).WithContext(ctx).Should(BeTrue(), "pods matching label() still present")
 
 	By("Removing ConfigMap")
@@ -1197,7 +1185,6 @@ func VerifySRIOVWorkloadsOnSameNodeDifferentNet(ctx SpecContext) {
 			metav1.ListOptions{LabelSelector: sriovDeploy3OneLabel})
 
 		return len(oldPods) == 0
-
 	}).WithContext(ctx).WithPolling(3*time.Second).WithTimeout(6*time.Minute).Should(BeTrue(),
 		"pods matching label() still present")
 
@@ -1211,7 +1198,6 @@ func VerifySRIOVWorkloadsOnSameNodeDifferentNet(ctx SpecContext) {
 			metav1.ListOptions{LabelSelector: sriovDeploy3TwoLabel})
 
 		return len(oldPods) == 0
-
 	}).WithContext(ctx).WithPolling(3*time.Second).WithTimeout(6*time.Minute).Should(BeTrue(),
 		"pods matching label() still present")
 
@@ -1446,7 +1432,6 @@ func VerifySRIOVWorkloadsOnDifferentNodesDifferentNet(ctx SpecContext) {
 			metav1.ListOptions{LabelSelector: sriovDeploy4OneLabel})
 
 		return len(oldPods) == 0
-
 	}).WithContext(ctx).WithPolling(3*time.Second).WithTimeout(6*time.Minute).Should(BeTrue(),
 		"pods matching label() still present")
 
@@ -1460,7 +1445,6 @@ func VerifySRIOVWorkloadsOnDifferentNodesDifferentNet(ctx SpecContext) {
 			metav1.ListOptions{LabelSelector: sriovDeploy4TwoLabel})
 
 		return len(oldPods) == 0
-
 	}).WithContext(ctx).WithPolling(3*time.Second).WithTimeout(6*time.Minute).Should(BeTrue(),
 		"pods matching label() still present")
 

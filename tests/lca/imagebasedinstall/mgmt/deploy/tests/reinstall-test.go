@@ -338,7 +338,6 @@ func reinstallWithClusterInstance(addressFamily string) {
 		for _, condition := range clusterInstace.Object.Status.Conditions {
 			if condition.Type == string(siteconfigv1alpha1.ClusterProvisioned) {
 				return condition.Status == falseStatus && condition.Reason == string(siteconfigv1alpha1.InProgress), nil
-
 			}
 		}
 
@@ -357,7 +356,6 @@ func reinstallWithClusterInstance(addressFamily string) {
 		for _, condition := range clusterInstace.Object.Status.Conditions {
 			if condition.Type == string(siteconfigv1alpha1.ClusterProvisioned) {
 				return condition.Status == trueStatus && condition.Reason == string(siteconfigv1alpha1.Completed), nil
-
 			}
 		}
 

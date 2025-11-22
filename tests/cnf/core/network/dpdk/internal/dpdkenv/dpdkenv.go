@@ -19,7 +19,6 @@ func DoesClusterSupportDpdkTests(
 	klog.V(90).Infof("Verifying if cluster supports dpdk tests")
 
 	err := netenv.DoesClusterHasEnoughNodes(apiClient, netConfig, 1, 2)
-
 	if err != nil {
 		return err
 	}
@@ -28,7 +27,6 @@ func DoesClusterSupportDpdkTests(
 		apiClient,
 		metav1.ListOptions{LabelSelector: labels.Set(netConfig.WorkerLabelMap).String()},
 	)
-
 	if err != nil {
 		return err
 	}

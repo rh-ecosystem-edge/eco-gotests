@@ -34,15 +34,15 @@ func DoesContainerExistInPod(pod *pod.Builder, containerName string) bool {
 // UnmarshalRaw converts raw bytes for a K8s CR into the actual type.
 func UnmarshalRaw[T any](raw []byte) (*T, error) {
 	untyped := &unstructured.Unstructured{}
-	err := untyped.UnmarshalJSON(raw)
 
+	err := untyped.UnmarshalJSON(raw)
 	if err != nil {
 		return nil, err
 	}
 
 	var typed T
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(untyped.UnstructuredContent(), &typed)
 
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(untyped.UnstructuredContent(), &typed)
 	if err != nil {
 		return nil, err
 	}

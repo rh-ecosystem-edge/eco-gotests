@@ -206,7 +206,6 @@ func generateBaseImage(ctx SpecContext) {
 	By("Detaching the seed SNO from the hub")
 
 	cluster, err := ocm.PullManagedCluster(HubAPIClient, OCloudConfig.ClusterName1)
-
 	if err == nil {
 		err = cluster.DeleteAndWait(time.Minute * 10)
 		Expect(err).NotTo(HaveOccurred(),
@@ -268,6 +267,7 @@ func generateBaseImage(ctx SpecContext) {
 	}
 
 	var rendered bytes.Buffer
+
 	err = tmpl.Execute(&rendered, imageBasedConfigData)
 	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("Error executing template file: %v", err))
 

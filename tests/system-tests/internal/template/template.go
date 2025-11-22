@@ -29,7 +29,6 @@ func SaveTemplate(
 	}
 
 	tmpl, err := template.ParseFiles(source)
-
 	if err != nil {
 		klog.V(100).Infof("Error to read config file %s", source)
 
@@ -47,7 +46,6 @@ func SaveTemplate(
 	klog.V(100).Infof("apply the template %s to the vars map and write the result to file", destination)
 
 	err = tmpl.Execute(file, variablesToReplace)
-
 	if err != nil {
 		klog.V(100).Infof("Error to apply the template to the vars map and write the result to file %s",
 			destination)
@@ -56,7 +54,6 @@ func SaveTemplate(
 	}
 
 	err = os.Chmod(destination, 0755)
-
 	if err != nil {
 		klog.V(100).Infof("Error to chmod file %s", destination)
 

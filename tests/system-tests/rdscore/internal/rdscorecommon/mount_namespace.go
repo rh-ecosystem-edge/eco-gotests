@@ -36,7 +36,6 @@ func mountNamespaceEncapsulation(nodeLabel string) {
 			APIClient,
 			metav1.ListOptions{LabelSelector: nodeLabel},
 		)
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list nodes: %v", err)
 
@@ -71,7 +70,6 @@ func mountNamespaceEncapsulation(nodeLabel string) {
 		err = wait.PollUntilContextTimeout(context.TODO(), 3*time.Second, time.Minute, true,
 			func(context.Context) (bool, error) {
 				kubeletMountNsOutput, err := remote.ExecuteOnNodeWithDebugPod(kubeletMountNsCmd, nodeName)
-
 				if err != nil {
 					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to run command %s on node %s due to %v",
 						kubeletMountNsCmd, nodeName, err)
@@ -89,7 +87,6 @@ func mountNamespaceEncapsulation(nodeLabel string) {
 
 				return true, nil
 			})
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to check kubelet mount namespace")
 
@@ -105,7 +102,6 @@ func mountNamespaceEncapsulation(nodeLabel string) {
 		err = wait.PollUntilContextTimeout(context.TODO(), 3*time.Second, time.Minute, true,
 			func(context.Context) (bool, error) {
 				crioMountNsOutput, err := remote.ExecuteOnNodeWithDebugPod(crioMountNsCmd, nodeName)
-
 				if err != nil {
 					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to execute %s cmd on the node %s due to %v",
 						crioMountNsCmd, nodeName, err)
@@ -123,7 +119,6 @@ func mountNamespaceEncapsulation(nodeLabel string) {
 
 				return true, nil
 			})
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to check CRI-O mount namespace")
 

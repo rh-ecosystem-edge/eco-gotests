@@ -430,8 +430,8 @@ func loadCacheFile(cacheFileName string) (*SuiteTree, error) {
 	}
 
 	tree := &SuiteTree{}
-	err = json.NewDecoder(decompressor).Decode(tree)
 
+	err = json.NewDecoder(decompressor).Decode(tree)
 	if err != nil {
 		return nil, err
 	}

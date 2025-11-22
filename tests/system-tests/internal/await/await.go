@@ -27,7 +27,6 @@ import (
 // in the namespace reach the Ready condition.
 func WaitUntilAllDeploymentsReady(apiClient *clients.Settings, nsname string, timeout time.Duration) (bool, error) {
 	deployments, err := deployment.List(apiClient, nsname, metav1.ListOptions{})
-
 	if err != nil {
 		klog.V(100).Infof("deployment list error: %s", err)
 
@@ -54,7 +53,6 @@ func WaitUntilDeploymentReady(apiClient *clients.Settings, name, nsname string, 
 		true,
 		func(ctx context.Context) (bool, error) {
 			irDeployment, err := deployment.Pull(apiClient, name, nsname)
-
 			if err != nil {
 				return false, nil
 			}
@@ -67,10 +65,8 @@ func WaitUntilDeploymentReady(apiClient *clients.Settings, name, nsname string, 
 
 			return false, nil
 		})
-
 	if err != nil {
 		irDeployment, err := deployment.Pull(apiClient, name, nsname)
-
 		if err != nil {
 			klog.V(100).Infof("deployment %s in namespace %s not exists; %v", name, nsname, err)
 
@@ -92,7 +88,6 @@ func WaitUntilDeploymentReady(apiClient *clients.Settings, name, nsname string, 
 // in the namespace reach the Ready condition.
 func WaitUntilAllStatefulSetsReady(apiClient *clients.Settings, nsname string, timeout time.Duration) (bool, error) {
 	statefulsets, err := statefulset.List(apiClient, nsname, metav1.ListOptions{})
-
 	if err != nil {
 		klog.V(100).Infof("statefulsets list error: %s", err)
 
@@ -113,7 +108,6 @@ func WaitUntilAllStatefulSetsReady(apiClient *clients.Settings, nsname string, t
 // in the namespace reach the Ready condition.
 func WaitUntilAllPodsReady(apiClient *clients.Settings, nsname string, timeout time.Duration) (bool, error) {
 	pods, err := pod.List(apiClient, nsname, metav1.ListOptions{})
-
 	if err != nil {
 		klog.V(100).Infof("pods list error: %s", err)
 
@@ -155,8 +149,8 @@ func WaitUntilNodeIsUnreachable(hostname string, timeout time.Duration) error {
 		// Ping the node's IPv4 address
 		if !ip4Unreachable {
 			cmd := exec.Command("ping", "-c", "1", ipv4Addr.String())
-			_, err := cmd.CombinedOutput()
 
+			_, err := cmd.CombinedOutput()
 			if err != nil {
 				ip4Unreachable = true
 			}
@@ -165,8 +159,8 @@ func WaitUntilNodeIsUnreachable(hostname string, timeout time.Duration) error {
 		// Ping the node's IPv6 address
 		if !ip6Unreachable {
 			cmd := exec.Command("ping", "-c", "1", ipv6Addr.String())
-			_, err = cmd.CombinedOutput()
 
+			_, err = cmd.CombinedOutput()
 			if err != nil {
 				ip6Unreachable = true
 			}
@@ -211,7 +205,6 @@ func WaitUntilDaemonSetIsRunning(apiClient *clients.Settings, name, nsname strin
 
 			return true, nil
 		})
-
 	if err != nil {
 		return err
 	}
@@ -240,7 +233,6 @@ func WaitUntilDaemonSetDeleted(apiClient *clients.Settings, name, nsname string,
 
 			return true, nil
 		})
-
 	if err == nil {
 		return nil
 	}
@@ -263,7 +255,6 @@ func WaitUntilConfigMapCreated(apiClient *clients.Settings, name, nsname string,
 
 			return true, nil
 		})
-
 	if err != nil {
 		return fmt.Errorf("configMap %s in namespace %s is not created during timeout %v; %w",
 			name, nsname, timeout, err)
@@ -308,7 +299,6 @@ func WaitForThePodReplicasCountInNamespace(
 
 			return true, nil
 		})
-
 	if err != nil {
 		return false, err
 	}
@@ -341,7 +331,6 @@ func WaitUntilPersistentVolumeCreated(apiClient *clients.Settings,
 
 			return true, nil
 		})
-
 	if err != nil {
 		return fmt.Errorf("persistentVolumes with option %v were not found or count is not as expected %d; %w",
 			options, timeout, err)
@@ -376,7 +365,6 @@ func WaitUntilPersistentVolumeClaimCreated(apiClient *clients.Settings,
 
 			return true, nil
 		})
-
 	if err != nil {
 		return fmt.Errorf("persistentVolumeClaims with option %v were not found or count is not as expected %d; %w",
 			options, timeout, err)
@@ -410,7 +398,6 @@ func WaitUntilLVDIsDiscovering(apiClient *clients.Settings,
 
 			return true, nil
 		})
-
 	if err != nil {
 		return fmt.Errorf("localVolumeDiscovery %s in namespace %s phase not as expected after %v; %w",
 			lvdName, nsname, timeout, err)

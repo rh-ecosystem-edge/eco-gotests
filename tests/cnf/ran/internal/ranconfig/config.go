@@ -131,6 +131,7 @@ func NewRANConfig() *RANConfig {
 	klog.V(ranparam.LogLevel).Infof("Creating new RANConfig struct")
 
 	var ranConfig RANConfig
+
 	ranConfig.CNFConfig = cnfconfig.NewCNFConfig()
 
 	_, filename, _, _ := runtime.Caller(0)

@@ -106,7 +106,6 @@ func NewSPKConfig() *SPKConfig {
 	log.Printf("Open config file %s", confFile)
 
 	err := readFile(&spkConf, confFile)
-
 	if err != nil {
 		log.Printf("Error to read config file %s", confFile)
 
@@ -114,7 +113,6 @@ func NewSPKConfig() *SPKConfig {
 	}
 
 	err = readEnv(&spkConf)
-
 	if err != nil {
 		log.Print("Error to read environment variables")
 
@@ -135,8 +133,8 @@ func readFile(spkConfig *SPKConfig, cfgFile string) error {
 	}()
 
 	decoder := yaml.NewDecoder(openedCfgFile)
-	err = decoder.Decode(&spkConfig)
 
+	err = decoder.Decode(&spkConfig)
 	if err != nil {
 		return err
 	}

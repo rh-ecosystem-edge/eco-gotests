@@ -26,7 +26,6 @@ func UncordonNode(nodeToUncordon *nodes.Builder, interval, timeout time.Duration
 	err := wait.PollUntilContextTimeout(context.TODO(), interval, timeout, true,
 		func(context.Context) (bool, error) {
 			err := nodeToUncordon.Uncordon()
-
 			if err != nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to uncordon %q: %v", nodeToUncordon.Definition.Name, err)
 
@@ -37,7 +36,6 @@ func UncordonNode(nodeToUncordon *nodes.Builder, interval, timeout time.Duration
 
 			return err == nil, nil
 		})
-
 	if err != nil {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to uncordon %q: %v", nodeToUncordon.Definition.Name, err)
 	}

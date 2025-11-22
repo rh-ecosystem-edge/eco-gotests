@@ -65,8 +65,8 @@ func (a *AMDGPUCustomResourceCleaner) listDeviceConfigs() (*amdgpuv1.DeviceConfi
 	deviceConfigList := &amdgpuv1.DeviceConfigList{}
 
 	klog.V(a.LogLevel).Infof("Looking for AMD GPU DeviceConfigs in namespace: %s", a.Namespace)
-	err := a.APIClient.Client.List(ctx, deviceConfigList, client.InNamespace(a.Namespace))
 
+	err := a.APIClient.Client.List(ctx, deviceConfigList, client.InNamespace(a.Namespace))
 	if err != nil {
 		if amdgpucommon.IsCRDNotAvailable(err) {
 			klog.V(a.LogLevel).Info("AMD GPU DeviceConfig CRD not available - skipping DeviceConfig cleanup")
@@ -125,8 +125,8 @@ func (a *AMDGPUCustomResourceCleaner) removeFinalizers(
 	ctx context.Context, deviceConfig *amdgpuv1.DeviceConfig, deviceConfigName string) {
 	klog.V(a.LogLevel).Infof("Removing finalizers from AMD GPU DeviceConfig: %s", deviceConfigName)
 	deviceConfig.SetFinalizers([]string{})
-	err := a.APIClient.Client.Update(ctx, deviceConfig)
 
+	err := a.APIClient.Client.Update(ctx, deviceConfig)
 	if err != nil {
 		klog.V(a.LogLevel).Infof("Warning: failed to remove finalizers from DeviceConfig %s: %v", deviceConfigName, err)
 	}

@@ -36,6 +36,7 @@ func NewAccelConfig() *AccelConfig {
 	log.Print("Creating new AccelConfig")
 
 	var accelConfig AccelConfig
+
 	accelConfig.GeneralConfig = config.NewConfig()
 
 	_, filename, _, _ := runtime.Caller(0)

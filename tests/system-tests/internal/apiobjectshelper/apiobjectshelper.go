@@ -37,7 +37,6 @@ func VerifyNamespaceExists(apiClient *clients.Settings, nsname string, timeout t
 
 			return true, nil
 		})
-
 	if err != nil {
 		return fmt.Errorf("failed to pull in %s namespace", nsname)
 	}
@@ -56,19 +55,16 @@ func VerifyOperatorDeployment(apiClient *clients.Settings,
 
 	if subscriptionName != "" {
 		csvName, err := csv.GetCurrentCSVNameFromSubscription(apiClient, subscriptionName, nsname)
-
 		if err != nil {
 			return fmt.Errorf("csv %s not found in namespace %s", csvName, nsname)
 		}
 
 		csvObj, err := olm.PullClusterServiceVersion(apiClient, csvName, nsname)
-
 		if err != nil {
 			return fmt.Errorf("failed to pull %q csv from the %s namespace", csvName, nsname)
 		}
 
 		isSuccessful, err := csvObj.IsSuccessful()
-
 		if err != nil {
 			return fmt.Errorf("failed to verify csv %s in the namespace %s status", csvName, nsname)
 		}
@@ -82,7 +78,6 @@ func VerifyOperatorDeployment(apiClient *clients.Settings,
 	klog.V(90).Infof("Confirm that operator %s is running in namespace %s", deploymentName, nsname)
 
 	err := await.WaitUntilDeploymentReady(apiClient, deploymentName, nsname, timeout)
-
 	if err != nil {
 		return fmt.Errorf("deployment %s not found in %s namespace; %w", deploymentName, nsname, err)
 	}
@@ -105,7 +100,6 @@ func CreateServiceAccount(apiClient *clients.Settings, saName, nsName string) er
 		true,
 		func(ctx context.Context) (bool, error) {
 			deploySa, err := deploySa.Create()
-
 			if err != nil {
 				klog.V(100).Infof("Error creating SA %q in %q namespace: %v", saName, nsName, err)
 
@@ -117,7 +111,6 @@ func CreateServiceAccount(apiClient *clients.Settings, saName, nsName string) er
 
 			return true, nil
 		})
-
 	if err != nil {
 		return fmt.Errorf("failed to create ServiceAccount %q in %q namespace", saName, nsName)
 	}
@@ -161,7 +154,6 @@ func CreateClusterRBAC(
 
 			return true, nil
 		})
-
 	if err != nil {
 		return fmt.Errorf("failed to create ClusterRoleBinding '%s' during timeout %v; %w",
 			rbacName, time.Minute, err)
@@ -186,7 +178,6 @@ func DeleteService(apiClient *clients.Settings, svcName, nsName string) error {
 			true,
 			func(ctx context.Context) (bool, error) {
 				err := svcObj.Delete()
-
 				if err != nil {
 					klog.V(100).Infof("Error deleting service %q in %q nsname: %v",
 						svcName, nsName, err)
@@ -198,7 +189,6 @@ func DeleteService(apiClient *clients.Settings, svcName, nsName string) error {
 
 				return true, nil
 			})
-
 		if err != nil {
 			return fmt.Errorf("failed to delete service %q from %q ns", svcName, nsName)
 		}
@@ -216,7 +206,6 @@ func DeleteClusterRBAC(apiClient *clients.Settings, rbacName string) error {
 	klog.V(100).Infof("Assert ClusterRoleBinding %q exists", rbacName)
 
 	crbSa, err := rbac.PullClusterRoleBinding(apiClient, rbacName)
-
 	if err != nil {
 		klog.V(100).Infof("ClusterRoleBinding %q not found; %v", rbacName, err)
 
@@ -232,7 +221,6 @@ func DeleteClusterRBAC(apiClient *clients.Settings, rbacName string) error {
 		true,
 		func(ctx context.Context) (bool, error) {
 			err = crbSa.Delete()
-
 			if err != nil {
 				klog.V(100).Infof("Error deleting ClusterRoleBinding %q : %v", rbacName, err)
 
@@ -243,7 +231,6 @@ func DeleteClusterRBAC(apiClient *clients.Settings, rbacName string) error {
 
 			return true, nil
 		})
-
 	if err != nil {
 		return fmt.Errorf("failed to delete Cluster RBAC %q", rbacName)
 	}
@@ -268,7 +255,6 @@ func DeleteServiceAccount(apiClient *clients.Settings, saName, nsName string) er
 			true,
 			func(ctx context.Context) (bool, error) {
 				err := deploySa.Delete()
-
 				if err != nil {
 					klog.V(100).Infof("Error deleting ServiceAccount %q in %q namespace: %v",
 						saName, nsName, err)
@@ -280,7 +266,6 @@ func DeleteServiceAccount(apiClient *clients.Settings, saName, nsName string) er
 
 				return true, nil
 			})
-
 		if err != nil {
 			return fmt.Errorf("failed to delete ServiceAccount %q from %q ns", saName, nsName)
 		}
@@ -301,7 +286,6 @@ func DeleteDeployment(
 		klog.V(100).Infof("Deleting deployment %q from %q namespace", deploymentName, nsName)
 
 		err = deploymentObj.DeleteAndWait(300 * time.Second)
-
 		if err != nil {
 			klog.V(100).Infof("Error deleting deployment %q from %q namespace: %v",
 				deploymentName, nsName, err)
@@ -333,7 +317,6 @@ func EnsureAllPodsRemoved(
 
 			return len(oldPods) == 0, nil
 		})
-
 	if err != nil {
 		return fmt.Errorf("pods matching label(%q) still present in namespace %q",
 			podLabel, nsName)

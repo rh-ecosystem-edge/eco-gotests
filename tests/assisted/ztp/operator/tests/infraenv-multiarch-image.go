@@ -476,8 +476,8 @@ type Images struct {
 // and returns the payload release version and image location.
 func readJSON(urlContent []byte) (Images, error) {
 	var images Images
-	err := json.Unmarshal(urlContent, &images)
 
+	err := json.Unmarshal(urlContent, &images)
 	if err != nil {
 		return images, err
 	}

@@ -234,6 +234,7 @@ func SetSystemReservedMemoryForMasterNodes(ctx SpecContext) {
 		klog.V(vcoreparams.VCoreLogLevel).Infof("Checking all master nodes are Ready")
 
 		var isReady bool
+
 		isReady, err = nodes.WaitForAllNodesAreReady(
 			APIClient,
 			30*time.Second,
@@ -250,6 +251,7 @@ func SetSystemReservedMemoryForMasterNodes(ctx SpecContext) {
 		klog.V(vcoreparams.VCoreLogLevel).Infof("Asserting clusteroperators availability")
 
 		var coBuilder []*clusteroperator.Builder
+
 		coBuilder, err = clusteroperator.List(APIClient)
 		Expect(err).To(BeNil(), fmt.Sprintf("ClusterOperator List not found: %v", err))
 		Expect(len(coBuilder)).ToNot(Equal(0), "Empty clusterOperators list received")

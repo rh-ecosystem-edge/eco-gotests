@@ -74,6 +74,7 @@ func VerifyHealthyClusterStatus(ctx SpecContext) {
 	klog.V(vcoreparams.VCoreLogLevel).Infof("Checking if all BareMetalHosts in good OperationalState")
 
 	var bmhList []*bmh.BmhBuilder
+
 	bmhList, err = bmh.List(APIClient, vcoreparams.OpenshiftMachineAPINamespace)
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Error getting BareMetaHosts list: %v", err))
 	Expect(len(bmhList)).ToNot(Equal(0), "Empty bareMetalHosts list received")
@@ -87,6 +88,7 @@ func VerifyHealthyClusterStatus(ctx SpecContext) {
 	klog.V(vcoreparams.VCoreLogLevel).Infof("Checking available control-plane nodes count")
 
 	var nodesList []*nodes.Builder
+
 	nodesList, err = nodes.List(APIClient, VCoreConfig.ControlPlaneLabelListOption)
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to get master nodes list; %v", err))
 
@@ -97,6 +99,7 @@ func VerifyHealthyClusterStatus(ctx SpecContext) {
 	klog.V(vcoreparams.VCoreLogLevel).Infof("Checking all master nodes are Ready")
 
 	var isReady bool
+
 	isReady, err = nodes.WaitForAllNodesAreReady(
 		APIClient,
 		5*time.Second,
@@ -113,6 +116,7 @@ func VerifyHealthyClusterStatus(ctx SpecContext) {
 	klog.V(vcoreparams.VCoreLogLevel).Infof("Asserting clusteroperators availability")
 
 	var coBuilder []*clusteroperator.Builder
+
 	coBuilder, err = clusteroperator.List(APIClient)
 	Expect(err).To(BeNil(), fmt.Sprintf("ClusterOperator List not found: %v", err))
 	Expect(len(coBuilder)).ToNot(Equal(0), "Empty clusterOperators list received")

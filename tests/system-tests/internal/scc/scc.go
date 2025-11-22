@@ -11,8 +11,8 @@ import (
 func AddPrivilegedSCCtoDefaultSA(nsName string) error {
 	privSCCRequired := true
 	sccUser := fmt.Sprintf("system:serviceaccount:%s:default", nsName)
-	privSCC, err := scc.Pull(APIClient, "privileged")
 
+	privSCC, err := scc.Pull(APIClient, "privileged")
 	if err != nil {
 		return err
 	}

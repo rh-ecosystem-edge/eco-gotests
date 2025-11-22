@@ -16,6 +16,7 @@ func NewLCAConfig() *LCAConfig {
 	log.Print("Creating new LCAConfig struct")
 
 	var lcaConfig LCAConfig
+
 	lcaConfig.GeneralConfig = config.NewConfig()
 
 	return &lcaConfig

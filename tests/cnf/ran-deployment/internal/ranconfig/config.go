@@ -48,6 +48,7 @@ func NewRANConfig() *RANConfig {
 	klog.V(ranparam.LogLevel).Infof("Creating new RANConfig struct")
 
 	var ranConfig RANConfig
+
 	ranConfig.HubConfig = new(HubConfig)
 	ranConfig.Spoke1Config = new(Spoke1Config)
 	ranConfig.Spoke2Config = new(Spoke2Config)

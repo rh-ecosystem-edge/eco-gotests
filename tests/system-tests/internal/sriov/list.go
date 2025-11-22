@@ -24,8 +24,8 @@ func ListNetworksByDeviceType(
 
 	operatornsname := "openshift-sriov-network-operator"
 	options := client.ListOptions{}
-	sriovPolicies, err := sriov.ListPolicy(apiClient, operatornsname, options)
 
+	sriovPolicies, err := sriov.ListPolicy(apiClient, operatornsname, options)
 	if err != nil {
 		klog.V(100).Infof("Failed to list sriov policies in namespace: %s", operatornsname)
 
@@ -33,7 +33,6 @@ func ListNetworksByDeviceType(
 	}
 
 	sriovNetworks, err := sriov.List(apiClient, operatornsname, options)
-
 	if err != nil {
 		klog.V(100).Infof("Failed to list sriov networks in namespace: %s", operatornsname)
 

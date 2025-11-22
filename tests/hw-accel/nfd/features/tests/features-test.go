@@ -385,6 +385,7 @@ func runNodeDiscoveryAndTestLabelExistence(
 	Eventually(func() []string {
 		nodesWithLabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
 		Expect(err).ShouldNot(HaveOccurred())
+
 		allNodeLabels := []string{}
 		for _, labels := range nodesWithLabels {
 			allNodeLabels = append(allNodeLabels, labels...)

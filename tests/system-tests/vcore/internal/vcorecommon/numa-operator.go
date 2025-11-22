@@ -58,7 +58,6 @@ func VerifyNROPSuite() {
 				workloadDeployment, err := deployment.Pull(APIClient,
 					vcoreparams.NumaWorkloadName,
 					vcoreparams.NROPNamespace)
-
 				if err == nil {
 					err = workloadDeployment.DeleteAndWait(time.Minute * 2)
 					Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to delete deployment due to %v", err))

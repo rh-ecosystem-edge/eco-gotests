@@ -18,7 +18,6 @@ func Do(req Request) error {
 	var err error
 	for attempt := 0; attempt < retries; attempt++ {
 		err := req()
-
 		if err == nil {
 			return nil
 		}

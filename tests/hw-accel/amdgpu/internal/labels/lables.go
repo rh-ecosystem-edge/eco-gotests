@@ -141,6 +141,7 @@ func LabelsExistOnNode(parentCtx context.Context, labelNode *nodes.Builder, labe
 					missingLabels = append(missingLabels, label)
 				}
 			}
+
 			errCh <- fmt.Errorf("timeout exceeded while checking "+
 				"labels exist on node %v. Missing labels are: %v", labelNode.Object.Name, missingLabels)
 

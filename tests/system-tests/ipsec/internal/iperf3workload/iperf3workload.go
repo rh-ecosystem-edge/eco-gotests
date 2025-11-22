@@ -34,7 +34,6 @@ func CreateService(apiClient *clients.Settings,
 		nodePort,
 		nodePort,
 		corev1.Protocol("TCP"))
-
 	if err != nil {
 		klog.V(ipsecparams.IpsecLogLevel).Infof("Error defining ServicePort: %v", err)
 
@@ -54,7 +53,6 @@ func CreateService(apiClient *clients.Settings,
 	svcDemo.Definition.Spec.Ports[0].NodePort = nodePort
 
 	svcDemo, err = svcDemo.Create()
-
 	if err != nil {
 		klog.V(ipsecparams.IpsecLogLevel).Infof("Error creating service: %v", err)
 
@@ -170,7 +168,6 @@ func DeleteWorkload(apiClient *clients.Settings, deploymentName string, workload
 	for continueLooping {
 		oldPods, err = pod.List(apiClient, ipsecparams.TestNamespaceName,
 			metav1.ListOptions{LabelSelector: workloadLabels})
-
 		if err == nil {
 			pollSuccess = true
 			continueLooping = false
@@ -251,7 +248,6 @@ func LaunchIperf3Command(apiClient *clients.Settings,
 		appPods, err = pod.List(apiClient,
 			ipsecparams.TestNamespaceName,
 			metav1.ListOptions{LabelSelector: containerLabels})
-
 		if err == nil {
 			pollSuccess = true
 			continueLooping = false
@@ -281,7 +277,6 @@ func LaunchIperf3Command(apiClient *clients.Settings,
 			cmdIperf3, _pod.Definition.Name, _pod.Definition.ObjectMeta.Labels)
 
 		output, err = _pod.ExecCommand(cmdIperf3, deploymentName)
-
 		if err != nil {
 			klog.V(ipsecparams.IpsecLogLevel).Infof(
 				"Error running iperf3 lookup from within pod, output: [%s], err [%s]",

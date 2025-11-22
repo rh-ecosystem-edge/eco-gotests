@@ -540,6 +540,7 @@ func getVfsUnderTest(busyVfs []string) []string {
 		if len(runes) > 0 {
 			runes[len(runes)-1] = '1'
 		}
+
 		vfsUnderTest = append(vfsUnderTest, string(runes))
 	}
 

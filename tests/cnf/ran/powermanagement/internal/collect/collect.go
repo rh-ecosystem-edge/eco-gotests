@@ -210,6 +210,7 @@ func parsePodCountAndCpus(maxPodCount, cpuCount int) []int {
 	for i := 1; i <= podCount-1; i++ {
 		cpus = append(cpus, cpuPerPod)
 	}
+
 	cpus = append(cpus, cpuCount-cpuPerPod*(podCount-1))
 
 	return cpus

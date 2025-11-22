@@ -83,7 +83,6 @@ func createAgnhostRBAC(
 	klog.V(100).Infof("Removing ServiceAccount")
 
 	err = apiobjectshelper.DeleteServiceAccount(apiClient, deploySAName, egressIPNamespace)
-
 	if err != nil {
 		return "", fmt.Errorf("failed to remove serviceAccount %q from egressIPNamespace %q",
 			deploySAName, egressIPNamespace)
@@ -92,7 +91,6 @@ func createAgnhostRBAC(
 	klog.V(100).Infof("Creating ServiceAccount")
 
 	err = apiobjectshelper.CreateServiceAccount(apiClient, deploySAName, egressIPNamespace)
-
 	if err != nil {
 		return "", fmt.Errorf("failed to create serviceAccount %q in egressIPNamespace %q",
 			deploySAName, egressIPNamespace)
@@ -101,7 +99,6 @@ func createAgnhostRBAC(
 	klog.V(100).Infof("Removing Cluster RBAC")
 
 	err = apiobjectshelper.DeleteClusterRBAC(apiClient, deployRBACName)
-
 	if err != nil {
 		return "", fmt.Errorf("failed to delete deployment RBAC %q", deployRBACName)
 	}
@@ -110,7 +107,6 @@ func createAgnhostRBAC(
 
 	err = apiobjectshelper.CreateClusterRBAC(apiClient, deployRBACName, deployRBACRole,
 		deploySAName, egressIPNamespace)
-
 	if err != nil {
 		return "", fmt.Errorf("failed to create deployment RBAC %q in egressIPNamespace %s",
 			deployRBACName, egressIPNamespace)
@@ -127,7 +123,6 @@ func cleanUpDeployments(apiClient *clients.Settings) error {
 
 	for _, nsName := range namespacesList {
 		deploymentsList, err := deployment.List(APIClient, nsName)
-
 		if err != nil {
 			klog.V(100).Infof("Error listing deployments in the namespace %s, %v", nsName, err)
 
@@ -142,7 +137,6 @@ func cleanUpDeployments(apiClient *clients.Settings) error {
 				apiClient,
 				deploy.Definition.Name,
 				nsName)
-
 			if err != nil {
 				return fmt.Errorf("failed to delete deploy %s from nsname %s",
 					deploy.Definition.Name, nsName)
@@ -151,7 +145,6 @@ func cleanUpDeployments(apiClient *clients.Settings) error {
 
 		for _, label := range podLabelsList {
 			err = apiobjectshelper.EnsureAllPodsRemoved(APIClient, nsName, label)
-
 			if err != nil {
 				return fmt.Errorf("failed to delete pods in namespace %s: %w", nsName, err)
 			}
@@ -350,7 +343,6 @@ func sendTrafficCheckIP(clientPods []*pod.Builder, isIPv6 bool, expectedIPs []st
 			true,
 			func(ctx context.Context) (bool, error) {
 				result, err := clientPod.ExecCommand(cmdToRun, clientPod.Object.Spec.Containers[0].Name)
-
 				if err != nil {
 					klog.V(100).Infof("Error running command from within a pod %q: %v",
 						clientPod.Object.Name, err)
@@ -363,7 +355,6 @@ func sendTrafficCheckIP(clientPods []*pod.Builder, isIPv6 bool, expectedIPs []st
 				klog.V(100).Infof("Command's output:\n\t%v", result.String())
 
 				parsedIP, _, err = net.SplitHostPort(result.String())
-
 				if err != nil {
 					klog.V(100).Infof("Failed to parse %q for host/port pair", result.String())
 
@@ -373,7 +364,6 @@ func sendTrafficCheckIP(clientPods []*pod.Builder, isIPv6 bool, expectedIPs []st
 				klog.V(100).Infof("Verify IP version type correctness")
 
 				myIP, err := netip.ParseAddr(parsedIP)
-
 				if err != nil {
 					klog.V(100).Infof("Failed to parse used ip address %q", parsedIP)
 
@@ -398,7 +388,6 @@ func sendTrafficCheckIP(clientPods []*pod.Builder, isIPv6 bool, expectedIPs []st
 
 				return false, nil
 			})
-
 		if err != nil {
 			return fmt.Errorf("failed to run command from within pod %s: %w", clientPod.Object.Name, err)
 		}
@@ -411,7 +400,6 @@ func getEgressIPMap() (map[string]string, error) {
 	By("Getting a map of source nodes and assigned Egress IPs for these nodes")
 
 	egressIPObj, err := egressip.Pull(APIClient, RDSCoreConfig.EgressIPName)
-
 	if err != nil {
 		klog.V(100).Infof("Failed to pull egressIP %q object: %v", RDSCoreConfig.EgressIPName, err)
 
@@ -419,7 +407,6 @@ func getEgressIPMap() (map[string]string, error) {
 	}
 
 	egressIPMap, err := egressIPObj.GetAssignedEgressIPMap()
-
 	if err != nil {
 		klog.V(100).Infof("Failed to retrieve egressIP %s assigned egressIPs map: %v",
 			RDSCoreConfig.EgressIPName, err)
@@ -442,7 +429,6 @@ func getEgressIPList() ([]string, error) {
 	var eIPList []string
 
 	egressIPMap, err := getEgressIPMap()
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve EgressIP map due to %w", err)
 	}
@@ -518,7 +504,6 @@ func gracefulNodeReboot(nodeName string) error {
 	By("Execute graceful node reboot")
 
 	nodeObj, err := nodes.Pull(APIClient, nodeName)
-
 	if err != nil {
 		return fmt.Errorf("failed to retrieve node %s object due to: %w", nodeName, err)
 	}
@@ -526,7 +511,6 @@ func gracefulNodeReboot(nodeName string) error {
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cordoning node %q", nodeName)
 
 	err = nodeObj.Cordon()
-
 	if err != nil {
 		klog.V(100).Infof("Failed to cordon node %q due to %v", nodeName, err)
 
@@ -538,7 +522,6 @@ func gracefulNodeReboot(nodeName string) error {
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Draining node %q", nodeName)
 
 	err = nodeObj.Drain()
-
 	if err != nil {
 		klog.V(100).Infof("Failed to drain node %q due to %v", nodeName, err)
 
@@ -581,7 +564,6 @@ func gracefulNodeReboot(nodeName string) error {
 
 			return true, nil
 		})
-
 	if err != nil {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to reboot node %s", nodeName)
 
@@ -616,7 +598,6 @@ func gracefulNodeReboot(nodeName string) error {
 
 			return false, nil
 		})
-
 	if err != nil {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("The node %s hasn't reached notReady state", nodeName)
 
@@ -651,7 +632,6 @@ func gracefulNodeReboot(nodeName string) error {
 
 			return false, nil
 		})
-
 	if err != nil {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("The node %s hasn't reached Ready state", nodeName)
 
@@ -661,7 +641,6 @@ func gracefulNodeReboot(nodeName string) error {
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Uncordoning node %q", nodeName)
 
 	err = nodeObj.Uncordon()
-
 	if err != nil {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to uncordon %q due to %v", nodeName, err)
 
@@ -677,7 +656,6 @@ func getNodeForReboot(isIPv6 bool) (string, string, error) {
 	By("Find cluster node name to reboot")
 
 	egressIPMap, err := getEgressIPMap()
-
 	if err != nil {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to retrieve egressIP map due to %v", err)
 
@@ -688,7 +666,6 @@ func getNodeForReboot(isIPv6 bool) (string, string, error) {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("IP %q is assigned to %q", egressIPValue, egressIPNode)
 
 		myIP, err := netip.ParseAddr(egressIPValue)
-
 		if err != nil {
 			klog.V(100).Infof("Failed to parse used ip address %q", egressIPValue)
 

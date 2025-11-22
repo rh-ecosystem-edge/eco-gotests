@@ -62,8 +62,8 @@ func SimulateSyncLoss(client *clients.Settings, nodeName string, protocolVersion
 	//   - VAL:    50 is an artificially high number of satellites required for a fix to be attempted.
 	//   - LAYERS: 1 specifies the write is to the RAM layer only, causing the change to be in place until reboot.
 	command := fmt.Sprintf("ubxtool -P %s -w 1 -v 3 -z CFG-NAVSPG-INFIL_NCNOTHRS,50,1", protocolVersion)
-	_, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, command)
 
+	_, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, command)
 	if err != nil {
 		return fmt.Errorf("failed to simulate GNSS loss on node %s: %w", nodeName, err)
 	}
@@ -88,8 +88,8 @@ func SimulateSyncRecovery(client *clients.Settings, nodeName string, protocolVer
 	//   - VAL:    0 is the default number of satellites required for a fix to be attempted.
 	//   - LAYERS: 1 specifies the write is to the RAM layer only, causing the change to be in place until reboot.
 	command := fmt.Sprintf("ubxtool -P %s -w 1 -v 3 -z CFG-NAVSPG-INFIL_NCNOTHRS,0,1", protocolVersion)
-	_, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, command)
 
+	_, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, command)
 	if err != nil {
 		return fmt.Errorf("failed to restore GNSS sync on node %s: %w", nodeName, err)
 	}

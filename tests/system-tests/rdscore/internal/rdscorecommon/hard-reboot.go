@@ -147,7 +147,6 @@ func WaitAllDeploymentsAreAvailable(ctx SpecContext) {
 
 	Eventually(func() bool {
 		allDeployments, err := deployment.ListInAllNamespaces(APIClient, metav1.ListOptions{})
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list all deployments: %s", err)
 
@@ -170,6 +169,7 @@ func WaitAllDeploymentsAreAvailable(ctx SpecContext) {
 							"Deployment %q in %q namespace is NotAvailable", deploy.Definition.Name, deploy.Definition.Namespace)
 						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\tReason: %s", condition.Reason)
 						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\tMessage: %s", condition.Message)
+
 						nonAvailableDeployments = append(nonAvailableDeployments, deploy)
 					}
 				}

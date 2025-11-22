@@ -44,13 +44,14 @@ func NewIpsecConfig() *IpsecConfig {
 	log.Print("Creating new IpsecConfig struct")
 
 	var ipsecConf IpsecConfig
+
 	ipsecConf.SystemTestsConfig = systemtestsconfig.NewSystemTestsConfig()
 
 	_, filename, _, _ := runtime.Caller(0)
 	baseDir := filepath.Dir(filename)
 	confFile := filepath.Join(baseDir, PathToDefaultIpsecParamsFile)
-	err := readFile(&ipsecConf, confFile)
 
+	err := readFile(&ipsecConf, confFile)
 	if err != nil {
 		log.Printf("Error reading config file %s", confFile)
 
@@ -58,7 +59,6 @@ func NewIpsecConfig() *IpsecConfig {
 	}
 
 	err = readEnv(&ipsecConf)
-
 	if err != nil {
 		log.Print("Error reading environment variables")
 
@@ -79,8 +79,8 @@ func readFile(ipsecConfig *IpsecConfig, cfgFile string) error {
 	}()
 
 	decoder := yaml.NewDecoder(openedCfgFile)
-	err = decoder.Decode(&ipsecConfig)
 
+	err = decoder.Decode(&ipsecConfig)
 	if err != nil {
 		return err
 	}

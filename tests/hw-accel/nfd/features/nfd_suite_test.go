@@ -20,6 +20,7 @@ func TestFeatures(t *testing.T) {
 	reporterConfig.JUnitReport = GeneralConfig.GetJunitReportPath(currentFile)
 
 	RegisterFailHandler(Fail)
+
 	tsparams.Labels = append(tsparams.Labels, "feature")
 	RunSpecs(t, "NFD", Label(tsparams.Labels...), reporterConfig)
 }

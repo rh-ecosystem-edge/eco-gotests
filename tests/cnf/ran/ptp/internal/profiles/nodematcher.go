@@ -190,8 +190,8 @@ func getMemoizedAndClonedProfileInfo(
 	}
 
 	profile := profiles[reference.ProfileIndex]
-	profileInfo, err := parsePtpProfile(profile, reference)
 
+	profileInfo, err := parsePtpProfile(profile, reference)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse PTP profile %s: %w", reference.ProfileName, err)
 	}

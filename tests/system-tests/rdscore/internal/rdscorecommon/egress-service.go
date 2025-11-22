@@ -100,7 +100,6 @@ func deleteService(svcName, svcNSName string) {
 		{
 			Eventually(func() bool {
 				err := svcBuilder.Delete()
-
 				if err != nil {
 					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error deleting Service %q in %q namespace: %v",
 						svcBuilder.Definition.Name, svcBuilder.Definition.Namespace, err)
@@ -138,7 +137,6 @@ func deleteEgressService(svcName, svcNSName string) {
 		{
 			Eventually(func() bool {
 				svcBuilder, err := svcBuilder.Delete()
-
 				if err != nil {
 					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error deleting EgressService %q in %q namespace: %v",
 						svcBuilder.Definition.Name, svcBuilder.Definition.Namespace, err)
@@ -170,7 +168,6 @@ func waitForPodsGone(podNS, podSelector string) {
 	Eventually(func() bool {
 		oldPods, err := pod.List(APIClient, podNS,
 			metav1.ListOptions{LabelSelector: podSelector})
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error listing pods: %v", err)
 
@@ -195,9 +192,7 @@ func verifyPodSourceAddress(clientPods []*pod.Builder, cmdToRun []string, expect
 		)
 
 		Eventually(func() bool {
-
 			result, err := clientPod.ExecCommand(cmdToRun, clientPod.Object.Spec.Containers[0].Name)
-
 			if err != nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error running command from within a pod %q: %v",
 					clientPod.Object.Name, err)
@@ -210,7 +205,6 @@ func verifyPodSourceAddress(clientPods []*pod.Builder, cmdToRun []string, expect
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Command's output:\n\t%v", result.String())
 
 			parsedIP, _, err = net.SplitHostPort(result.String())
-
 			if err != nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to parse %q for host/port pair", result.String())
 
@@ -448,7 +442,6 @@ func VerifyEgressServiceETPClusterWrapper(
 			egrSVCBuilder.Definition.Name, egrSVCBuilder.Definition.Namespace)
 
 		refreshEgressSVC, err := egrSVCBuilder.Get()
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to refresh egress service status")
 
@@ -737,7 +730,6 @@ func VerifyEgressServiceWithLocalETPWrapper(
 			egrSVCBuilder.Definition.Name, egrSVCBuilder.Definition.Namespace)
 
 		refreshEgressSVC, err := egrSVCBuilder.Get()
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to refresh egress service status")
 
@@ -853,7 +845,6 @@ func verifySourceIP(svcName, svcNS, podLabels string, cmdToRun []string, useIPv6
 			svcName, svcNS)
 
 		svcBuilder, err = service.Pull(APIClient, svcName, svcNS)
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error pulling %q service from %q namespace: %v",
 				svcName, svcNS, err)
@@ -894,7 +885,6 @@ func verifySourceIP(svcName, svcNS, podLabels string, cmdToRun []string, useIPv6
 			svcName, svcNS)
 
 		egrSVCBuilder, err = egressservice.Pull(APIClient, svcName, svcNS)
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error pulling EgressService %q from %q namespace: %v",
 				svcName, svcNS, err)
@@ -1072,7 +1062,6 @@ func verifyEgressServiceIngressConnectivit(svcName string, validateCode bool) {
 			svcName, RDSCoreConfig.EgressServiceNS)
 
 		svcBuilder, err = service.Pull(APIClient, svcName, RDSCoreConfig.EgressServiceNS)
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error pulling %q service from %q namespace: %v",
 				svcName, RDSCoreConfig.EgressServiceNS, err)
@@ -1180,7 +1169,6 @@ func verifyIngressIP(loadBalancerIP, expectedIP string, servicePort int32, valid
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Running command: %q", cmdExternal.String())
 
 		cmdResult, err = cmdExternal.CombinedOutput()
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error running command: %v", err)
 

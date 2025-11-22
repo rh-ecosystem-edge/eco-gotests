@@ -13,7 +13,6 @@ func DoesClusterSupportAcceleratorTests(
 	klog.V(90).Infof("Verifying if cluster supports accelerator tests")
 
 	err := netenv.DoesClusterHasEnoughNodes(apiClient, netConfig, 1, 2)
-
 	if err != nil {
 		return err
 	}

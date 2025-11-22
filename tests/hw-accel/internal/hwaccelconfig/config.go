@@ -16,6 +16,7 @@ func NewHwAccelConfig() *HwAccelConfig {
 	log.Print("Creating new HwAccelConfig struct")
 
 	var hwaccelConfig HwAccelConfig
+
 	hwaccelConfig.GeneralConfig = config.NewConfig()
 
 	return &hwaccelConfig

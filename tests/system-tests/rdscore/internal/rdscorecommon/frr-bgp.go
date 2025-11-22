@@ -64,7 +64,6 @@ func ReachURLviaFRRroute(ctx SpecContext) {
 			Eventually(func() bool {
 				output, err := _pod.ExecCommand([]string{"/bin/sh", "-c", cmd},
 					rdscoreparams.MetalLBFRRContainerName)
-
 				if err != nil {
 					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to run command due to: %v", err)
 

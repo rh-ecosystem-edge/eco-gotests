@@ -160,8 +160,8 @@ func WaitForNFDOperatorReady(apiClient *clients.Settings, timeout time.Duration)
 // CheckNFDOperatorStatus checks the current status of the NFD operator CSV.
 func CheckNFDOperatorStatus(apiClient *clients.Settings) (string, error) {
 	csvUtils := GetNFDCSVUtils(apiClient)
-	csv, err := csvUtils.GetCSVByPackageName("nfd")
 
+	csv, err := csvUtils.GetCSVByPackageName("nfd")
 	if err != nil {
 		return "", err
 	}

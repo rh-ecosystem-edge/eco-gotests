@@ -118,7 +118,6 @@ func VerifyNROPWorkload(ctx SpecContext) {
 			metav1.ListOptions{LabelSelector: nropDeployOneLabel})
 
 		return len(oldPods) == 0
-
 	}).WithContext(ctx).WithPolling(3*time.Second).WithTimeout(1*time.Minute).Should(
 		BeTrue(), "pods matching label() still present")
 
@@ -167,7 +166,6 @@ func VerifyNROPWorkloadAvailable(ctx SpecContext) {
 
 	Eventually(func() bool {
 		deploy, err = deployment.Pull(APIClient, nropDeploy1Name, RDSCoreConfig.WlkdNROPOneNS)
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 				"Error pulling deployment %q from %q namespace",

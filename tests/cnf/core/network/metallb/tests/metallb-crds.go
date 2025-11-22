@@ -190,7 +190,6 @@ func httpTrafficValidation(testPod *pod.Builder, srcIPAddress, dstIPAddress stri
 		if net.ParseIP(dstIPAddress).To4() == nil {
 			_, err = mlbcmd.Curl(
 				testPod, srcIPAddress, dstIPAddress, netparam.IPV6Family, secContainerName...)
-
 		} else {
 			_, err = mlbcmd.Curl(
 				testPod, srcIPAddress, dstIPAddress, netparam.IPV4Family, secContainerName...)

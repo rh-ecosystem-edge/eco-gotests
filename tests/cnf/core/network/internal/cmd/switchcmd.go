@@ -82,7 +82,6 @@ func NewSession(host, user, password string) (*Junos, error) {
 
 			return true, nil
 		})
-
 	if err != nil {
 		return nil, err
 	}

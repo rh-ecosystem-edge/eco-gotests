@@ -30,7 +30,6 @@ func IsSriovDeployed(apiClient *clients.Settings, sriovOperatorNamespace string)
 	for _, sriovDaemonsetName := range OperatorSriovDaemonsets {
 		sriovDaemonset, err := daemonset.Pull(
 			apiClient, sriovDaemonsetName, sriovOperatorNamespace)
-
 		if err != nil {
 			return fmt.Errorf("error to pull SR-IOV daemonset %s from the cluster", sriovDaemonsetName)
 		}

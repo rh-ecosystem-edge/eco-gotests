@@ -14,6 +14,7 @@ func IsCRDNotAvailable(err error) bool {
 	}
 
 	var noResourceMatchErr *apimeta.NoResourceMatchError
+
 	resourceMatched := errors.As(err, &noResourceMatchErr)
 
 	return apierrors.IsNotFound(err) ||

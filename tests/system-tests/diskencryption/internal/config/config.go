@@ -42,8 +42,8 @@ func NewDiskEncryptionConfig() *DiskEncrptionConfig {
 	_, filename, _, _ := runtime.Caller(0)
 	baseDir := filepath.Dir(filename)
 	confFile := filepath.Join(baseDir, PathToDefaultDiskEncryptionParamsFile)
-	err := readFile(&diskEncryptionConf, confFile)
 
+	err := readFile(&diskEncryptionConf, confFile)
 	if err != nil {
 		log.Printf("Error reading config file %s", confFile)
 
@@ -51,7 +51,6 @@ func NewDiskEncryptionConfig() *DiskEncrptionConfig {
 	}
 
 	err = readEnv(&diskEncryptionConf)
-
 	if err != nil {
 		log.Print("Error reading environment variables")
 
@@ -86,8 +85,8 @@ func readFile(diskEncrptionConfig *DiskEncrptionConfig, cfgFile string) error {
 	}()
 
 	decoder := yaml.NewDecoder(openedCfgFile)
-	err = decoder.Decode(&diskEncrptionConfig)
 
+	err = decoder.Decode(&diskEncrptionConfig)
 	if err != nil {
 		return err
 	}

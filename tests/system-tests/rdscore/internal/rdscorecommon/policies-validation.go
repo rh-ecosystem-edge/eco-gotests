@@ -28,7 +28,6 @@ func ValidateAllPoliciesCompliant() {
 	Eventually(func() bool {
 		allPolicies, err = ocm.ListPoliciesInAllNamespaces(APIClient,
 			runtimeclient.ListOptions{Namespace: RDSCoreConfig.PolicyNS})
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error listing policies: %v", err)
 

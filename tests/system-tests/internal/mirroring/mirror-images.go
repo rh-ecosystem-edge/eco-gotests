@@ -39,8 +39,8 @@ func MirrorImageToTheLocalRegistry(
 	}
 
 	originalImageURL := fmt.Sprintf("%s/%s", originServerURL, imageName)
-	isDisconnected, err := platform.IsDisconnectedDeployment(apiClient)
 
+	isDisconnected, err := platform.IsDisconnectedDeployment(apiClient)
 	if err != nil {
 		return "", "", err
 	}
@@ -52,7 +52,6 @@ func MirrorImageToTheLocalRegistry(
 	}
 
 	localRegistryURL, err := platform.GetLocalMirrorRegistryURL(apiClient)
-
 	if err != nil {
 		return "", "", err
 	}
@@ -63,8 +62,8 @@ func MirrorImageToTheLocalRegistry(
 
 	imageMirrorCmd := fmt.Sprintf("oc --kubeconfig %s image mirror --insecure=true %s:%s %s:%s",
 		kubeconfigPath, originalImageURL, imageTag, localImageURL, imageTag)
-	_, err = remote.ExecCmdOnHost(host, user, pass, imageMirrorCmd)
 
+	_, err = remote.ExecCmdOnHost(host, user, pass, imageMirrorCmd)
 	if err != nil {
 		klog.Infof("failed to execute %s command due to %s", imageMirrorCmd, err)
 

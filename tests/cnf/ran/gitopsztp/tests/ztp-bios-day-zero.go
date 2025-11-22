@@ -127,7 +127,6 @@ func GetNodeNames(spokeAPIClient *clients.Settings) ([]string, error) {
 	nodeList, err := nodes.List(
 		spokeAPIClient,
 	)
-
 	if err != nil {
 		return nil, err
 	}

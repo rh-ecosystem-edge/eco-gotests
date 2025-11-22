@@ -18,7 +18,6 @@ import (
 func InstalledCSVFromSubscription(apiClient *clients.Settings, gpuSubscriptionName,
 	gpuSubscriptionNamespace string) (string, error) {
 	subPulled, err := olm.PullSubscription(apiClient, gpuSubscriptionName, gpuSubscriptionNamespace)
-
 	if err != nil {
 		klog.V(gpuparams.GpuLogLevel).Infof(
 			"error pulling Subscription %s from cluster in namespace %s", gpuSubscriptionName,
@@ -38,7 +37,6 @@ func InstalledCSVFromSubscription(apiClient *clients.Settings, gpuSubscriptionNa
 func CurrentCSVFromSubscription(apiClient *clients.Settings, gpuSubscriptionName,
 	gpuSubscriptionNamespace string) (string, error) {
 	subPulled, err := olm.PullSubscription(apiClient, gpuSubscriptionName, gpuSubscriptionNamespace)
-
 	if err != nil {
 		klog.V(gpuparams.GpuLogLevel).Infof(
 			"error pulling Subscription %s from cluster in namespace %s", gpuSubscriptionName,

@@ -26,13 +26,14 @@ func NewCNFConfig() *CNFConfig {
 	log.Print("Creating new CNFConfig struct")
 
 	var coreConf CNFConfig
+
 	coreConf.GeneralConfig = config.NewConfig()
 
 	_, filename, _, _ := runtime.Caller(0)
 	baseDir := filepath.Dir(filename)
 	confFile := filepath.Join(baseDir, PathToDefaultCnfParamsFile)
-	err := readFile(&coreConf, confFile)
 
+	err := readFile(&coreConf, confFile)
 	if err != nil {
 		log.Printf("Error to read config file %s", confFile)
 
@@ -40,7 +41,6 @@ func NewCNFConfig() *CNFConfig {
 	}
 
 	err = readEnv(&coreConf)
-
 	if err != nil {
 		log.Print("Error to read environment variables")
 
@@ -61,8 +61,8 @@ func readFile(cnfConfig *CNFConfig, cfgFile string) error {
 	}()
 
 	decoder := yaml.NewDecoder(openedCfgFile)
-	err = decoder.Decode(&cnfConfig)
 
+	err = decoder.Decode(&cnfConfig)
 	if err != nil {
 		return err
 	}

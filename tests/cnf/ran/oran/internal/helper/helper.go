@@ -161,7 +161,6 @@ func WaitForAlarmToExist(
 
 			return false, nil
 		})
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to wait for alarm matching %v to exist: %w", matchingExtensions, err)
 	}

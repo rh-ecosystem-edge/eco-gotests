@@ -240,7 +240,6 @@ func (o *OperatorInstaller) waitForNamespaceDeletion() error {
 
 			return false, nil
 		})
-
 	if err != nil {
 		return fmt.Errorf("timeout waiting for namespace %s deletion: %w", o.config.Namespace, err)
 	}
@@ -304,7 +303,6 @@ func (o *OperatorInstaller) createSubscription() error {
 	}
 
 	_, err := sub.Create()
-
 	if err != nil {
 		if strings.Contains(err.Error(), "is being terminated") ||
 			strings.Contains(err.Error(), "NamespaceTerminating") {

@@ -765,6 +765,7 @@ func verifyAndCreateFRRk8sPodList() []*pod.Builder {
 			if err != nil {
 				return err
 			}
+
 			if len(pods) == 0 {
 				return fmt.Errorf("no FRR k8s pod found on node %s", node.Definition.Name)
 			}

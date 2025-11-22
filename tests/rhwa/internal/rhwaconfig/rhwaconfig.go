@@ -26,13 +26,14 @@ func NewRHWAConfig() *RHWAConfig {
 	log.Print("Creating new RHWAConfig struct")
 
 	var rhwaConf RHWAConfig
+
 	rhwaConf.GeneralConfig = config.NewConfig()
 
 	_, filename, _, _ := runtime.Caller(0)
 	baseDir := filepath.Dir(filename)
 	confFile := filepath.Join(baseDir, PathToDefaultRhwaParamsFile)
-	err := readFile(&rhwaConf, confFile)
 
+	err := readFile(&rhwaConf, confFile)
 	if err != nil {
 		log.Printf("Error to read config file %s", confFile)
 
@@ -40,7 +41,6 @@ func NewRHWAConfig() *RHWAConfig {
 	}
 
 	err = readEnv(&rhwaConf)
-
 	if err != nil {
 		log.Print("Error to read environment variables")
 
@@ -61,8 +61,8 @@ func readFile(rhwaConfig *RHWAConfig, cfgFile string) error {
 	}()
 
 	decoder := yaml.NewDecoder(openedCfgFile)
-	err = decoder.Decode(&rhwaConfig)
 
+	err = decoder.Decode(&rhwaConfig)
 	if err != nil {
 		return err
 	}

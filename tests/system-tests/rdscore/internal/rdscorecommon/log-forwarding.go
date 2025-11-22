@@ -204,7 +204,6 @@ func VerifyLogForwardingToKafka() {
 
 	Eventually(func() bool {
 		output, err := kcatPodObj.ExecCommand(cmdToRun, kcatPodObj.Object.Spec.Containers[0].Name)
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 				"Error running command from within a pod %q in namespace %q: %v",
@@ -235,7 +234,6 @@ func VerifyLogForwardingToKafka() {
 			var logMessage kafkaRecord
 
 			err = json.Unmarshal([]byte(line), &logMessage)
-
 			if err != nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error unmarshalling kafka record %q: %v", line, err)
 

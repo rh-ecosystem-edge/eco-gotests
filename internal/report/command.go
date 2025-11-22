@@ -143,6 +143,7 @@ func GetRemoteRevisions(ctx context.Context, repo string, branches iter.Seq[stri
 // command and logs them if the command fails.
 func execCommand(command *exec.Cmd) error {
 	var stdout, stderr bytes.Buffer
+
 	command.Stdout = &stdout
 	command.Stderr = &stderr
 
@@ -161,6 +162,7 @@ func execCommand(command *exec.Cmd) error {
 // captures the stdout and stderr of the command and logs them if the command fails.
 func execCommandWithStdout(command *exec.Cmd) (string, error) {
 	var stdout, stderr bytes.Buffer
+
 	command.Stdout = &stdout
 	command.Stderr = &stderr
 

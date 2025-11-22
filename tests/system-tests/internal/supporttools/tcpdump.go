@@ -70,7 +70,6 @@ func CreateTCPDumpDeployment(
 		captureScript,
 		scheduleOnHosts,
 	)
-
 	if err != nil {
 		klog.V(100).Infof("Failed to create tcpdump deployment %s in namespace %s due to %v",
 			stDeploymentName, tdNamespace, err)
@@ -79,7 +78,6 @@ func CreateTCPDumpDeployment(
 	}
 
 	err = await.WaitUntilDeploymentReady(apiClient, stDeploymentName, tdNamespace, time.Minute)
-
 	if err != nil {
 		klog.V(100).Infof("deployment %s in namespace %s failed to reach ready state due to %v",
 			stDeploymentName, tdNamespace, err)
@@ -111,7 +109,6 @@ func createTCPDumpDeployment(
 		stDeploymentName, stNamespace)
 
 	err = apiobjectshelper.DeleteDeployment(apiClient, stDeploymentName, stNamespace)
-
 	if err != nil {
 		klog.V(100).Infof("Failed to delete deployment %s from namespace %s; %v",
 			stDeploymentName, stNamespace, err)
@@ -126,7 +123,6 @@ func createTCPDumpDeployment(
 	klog.V(100).Infof("Removing ServiceAccount %s from namespace %s", supportToolsDeploySAName, stNamespace)
 
 	err = apiobjectshelper.DeleteServiceAccount(apiClient, supportToolsDeploySAName, stNamespace)
-
 	if err != nil {
 		klog.V(100).Infof("Failed to remove serviceAccount %q from namespace %q; %v",
 			supportToolsDeploySAName, stNamespace, err)
@@ -138,7 +134,6 @@ func createTCPDumpDeployment(
 	klog.V(100).Infof("Creating ServiceAccount %s in namespace %s", supportToolsDeploySAName, stNamespace)
 
 	err = apiobjectshelper.CreateServiceAccount(apiClient, supportToolsDeploySAName, stNamespace)
-
 	if err != nil {
 		klog.V(100).Infof("Failed to create serviceAccount %q in namespace %q; %v",
 			supportToolsDeploySAName, stNamespace, err)
@@ -150,7 +145,6 @@ func createTCPDumpDeployment(
 	klog.V(100).Infof("Removing Cluster RBAC %q", supportToolsDeployRBACName)
 
 	err = apiobjectshelper.DeleteClusterRBAC(apiClient, supportToolsDeployRBACName)
-
 	if err != nil {
 		klog.V(100).Infof("Failed to delete supporttools RBAC %q; %v", supportToolsDeployRBACName, err)
 
@@ -161,7 +155,6 @@ func createTCPDumpDeployment(
 
 	err = apiobjectshelper.CreateClusterRBAC(apiClient, supportToolsDeployRBACName, supportToolsRBACRole,
 		supportToolsDeploySAName, stNamespace)
-
 	if err != nil {
 		klog.V(100).Infof("failed to create supporttools RBAC %q in namespace %s; %v",
 			supportToolsDeployRBACName, stNamespace, err)
@@ -292,6 +285,7 @@ func SendTrafficCheckTCPDumpLogs(
 	targetHost,
 	targetPort string) error {
 	timeout := 3 * time.Minute
+
 	err := wait.PollUntilContextTimeout(
 		context.TODO(),
 		3*time.Second,
@@ -314,7 +308,6 @@ func SendTrafficCheckTCPDumpLogs(
 
 			return false, nil
 		})
-
 	if err != nil {
 		klog.V(100).Infof("Expected request was not found in the packet sniffer logs; %v", err)
 
@@ -365,7 +358,6 @@ func sendProbeAndCheckTCPDumpLogs(
 			tcpdumpPodSelectorLabel,
 			searchString,
 			timeStart)
-
 		if err != nil {
 			errMsg = err
 		} else if numberFound >= 1 {
@@ -436,7 +428,6 @@ func ScanTCPDumpPodLogs(
 			}
 
 			tcpdumpLog, err = tcpdumpPodObj.GetLog(logStartTimestamp, tcpdumpPodObj.Definition.Spec.Containers[0].Name)
-
 			if err != nil {
 				klog.V(100).Infof("Failed to get tcpdumpLog from pod %q, log %s: %v",
 					tcpdumpPodObj.Definition.Name, tcpdumpLog, err)
@@ -455,8 +446,8 @@ func ScanTCPDumpPodLogs(
 			klog.V(100).Infof("len(tcpdumpLog) = %d", len(tcpdumpLog))
 
 			buf := new(bytes.Buffer)
-			_, err = buf.WriteString(tcpdumpLog)
 
+			_, err = buf.WriteString(tcpdumpLog)
 			if err != nil {
 				klog.V(100).Infof("error in copying info from pod tcpdumpLog to buffer: %v", err)
 
@@ -494,7 +485,6 @@ func ScanTCPDumpPodLogs(
 
 			return false, nil
 		})
-
 	if err != nil {
 		klog.V(100).Infof("Error processing logs: %v", err)
 
@@ -522,6 +512,7 @@ func sendProbeToHostPort(
 	var errorMsg error
 
 	timeout := time.Minute * 3
+
 	err := wait.PollUntilContextTimeout(
 		context.TODO(),
 		time.Second*15,
@@ -529,7 +520,6 @@ func sendProbeToHostPort(
 		true,
 		func(ctx context.Context) (bool, error) {
 			output, err := proberPod.ExecCommand(cmdToRun, proberPod.Object.Spec.Containers[0].Name)
-
 			if err != nil {
 				klog.V(100).Infof("query failed. Request: %s, Output: %q, Error: %v", request, output, err)
 
@@ -546,7 +536,6 @@ func sendProbeToHostPort(
 
 			return true, nil
 		})
-
 	if err != nil {
 		return "", fmt.Errorf("failed to execute the command '%s' during timeout %v; %w", cmdToRun, timeout, err)
 	}
