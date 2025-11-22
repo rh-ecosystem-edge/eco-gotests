@@ -2,5 +2,5 @@
 # OCP SR-IOV default configurations.
 ocp_sriov_test_container: quay.io/ocp-edge-qe/eco-gotests-sriov-client:v4.15.2
 sriov_operator_namespace: openshift-sriov-network-operator
-ocp_worker_label: worker
+ocp_worker_label: node-role.kubernetes.io/worker=
 ...
