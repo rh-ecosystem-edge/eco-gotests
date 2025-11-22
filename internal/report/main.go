@@ -73,6 +73,7 @@ func init() {
 	)
 
 	klog.InitFlags(nil)
+	klog.EnableContextualLogging(true)
 
 	_ = flag.Set("logtostderr", "true")
 
