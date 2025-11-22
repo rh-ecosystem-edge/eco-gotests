@@ -1,11 +1,11 @@
 package mco
 
 import (
-	"context"
 	"fmt"
 
 	mcv1 "github.com/openshift/api/machineconfiguration/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"k8s.io/klog/v2"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -43,7 +43,7 @@ func ListMC(apiClient *clients.Settings, options ...runtimeclient.ListOptions) (
 
 	mcList := new(mcv1.MachineConfigList)
 
-	err = apiClient.List(context.TODO(), mcList, &passedOptions)
+	err = apiClient.List(logging.DiscardContext(), mcList, &passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list MC objects due to %s", err.Error())
 

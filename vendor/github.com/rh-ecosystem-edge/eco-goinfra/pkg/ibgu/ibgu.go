@@ -8,6 +8,7 @@ import (
 
 	lcav1 "github.com/openshift-kni/lifecycle-agent/api/imagebasedupgrade/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/imagebasedgroupupgrades/v1alpha1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -270,7 +271,7 @@ func (builder *IbguBuilder) Get() (*v1alpha1.ImageBasedGroupUpgrade, error) {
 
 	imagebasedgroupupgrade := &v1alpha1.ImageBasedGroupUpgrade{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, imagebasedgroupupgrade)
@@ -311,7 +312,7 @@ func (builder *IbguBuilder) Create() (*IbguBuilder, error) {
 
 	var err error
 	if !builder.Exists() {
-		err = builder.apiClient.Create(context.TODO(), builder.Definition)
+		err = builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -335,7 +336,7 @@ func (builder *IbguBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Object)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Object)
 	if err != nil {
 		return err
 	}

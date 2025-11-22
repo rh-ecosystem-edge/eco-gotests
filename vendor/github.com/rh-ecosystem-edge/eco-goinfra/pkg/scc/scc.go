@@ -1,11 +1,11 @@
 package scc
 
 import (
-	"context"
 	"fmt"
 
 	securityV1 "github.com/openshift/api/security/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -535,7 +535,7 @@ func (builder *Builder) Create() (*Builder, error) {
 
 	var err error
 	if !builder.Exists() {
-		err = builder.apiClient.Create(context.TODO(), builder.Definition)
+		err = builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err != nil {
 			klog.V(100).Info("Failed to create SecurityContextConstraints")
 
@@ -564,7 +564,7 @@ func (builder *Builder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return err
 	}
@@ -586,7 +586,7 @@ func (builder *Builder) Update() (*Builder, error) {
 		return nil, fmt.Errorf("failed to update SecurityContextConstraints, object does not exist on cluster")
 	}
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 
 	return builder, err
 }
@@ -601,7 +601,7 @@ func (builder *Builder) Get() (*securityV1.SecurityContextConstraints, error) {
 
 	scc := &securityV1.SecurityContextConstraints{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{Name: builder.Definition.Name}, scc)
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{Name: builder.Definition.Name}, scc)
 	if err != nil {
 		klog.V(100).Infof("SecurityContextConstraints object %s does not exist", builder.Definition.Name)
 

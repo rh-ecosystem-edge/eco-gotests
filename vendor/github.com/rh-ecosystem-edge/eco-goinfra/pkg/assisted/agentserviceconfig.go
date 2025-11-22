@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	agentInstallV1Beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/api/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -335,7 +336,7 @@ func (builder *AgentServiceConfigBuilder) Get() (*agentInstallV1Beta1.AgentServi
 
 	agentServiceConfig := &agentInstallV1Beta1.AgentServiceConfig{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, agentServiceConfig)
 	if err != nil {
@@ -356,7 +357,7 @@ func (builder *AgentServiceConfigBuilder) Create() (*AgentServiceConfigBuilder, 
 
 	var err error
 	if !builder.Exists() {
-		err = builder.apiClient.Create(context.TODO(), builder.Definition)
+		err = builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -381,7 +382,7 @@ func (builder *AgentServiceConfigBuilder) Update(force bool) (*AgentServiceConfi
 		return builder, fmt.Errorf("cannot update non-existent agentserviceconfig")
 	}
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		if force {
 			klog.V(100).Infof("%v", msg.FailToUpdateNotification("agentserviceconfig", builder.Definition.Name))
@@ -425,7 +426,7 @@ func (builder *AgentServiceConfigBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return fmt.Errorf("cannot delete agentserviceconfig: %w", err)
 	}
@@ -442,7 +443,7 @@ func (builder *AgentServiceConfigBuilder) DeleteAndWait(timeout time.Duration) e
 		return err
 	}
 
-	klog.V(100).Infof(`Deleting agentserviceconfig %s and 
+	klog.V(100).Infof(`Deleting agentserviceconfig %s and
 	waiting for the defined period until it is removed`,
 		builder.Definition.Name)
 

@@ -7,6 +7,7 @@ import (
 
 	mcv1 "github.com/openshift/api/machineconfiguration/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"k8s.io/klog/v2"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -46,7 +47,7 @@ func ListMCP(apiClient *clients.Settings, options ...runtimeclient.ListOptions) 
 
 	mcpList := new(mcv1.MachineConfigPoolList)
 
-	err = apiClient.List(context.TODO(), mcpList, &passedOptions)
+	err = apiClient.List(logging.DiscardContext(), mcpList, &passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list MCP objects due to %s", err.Error())
 

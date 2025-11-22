@@ -1,10 +1,10 @@
 package sriovfec
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	sriovfectypes "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/fec/fectypes"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -164,7 +164,7 @@ func (builder *ClusterConfigBuilder) Create() (*ClusterConfigBuilder, error) {
 
 	var err error
 	if !builder.Exists() {
-		err = builder.apiClient.Create(context.TODO(), builder.Definition)
+		err = builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -185,7 +185,7 @@ func (builder *ClusterConfigBuilder) Get() (*sriovfectypes.SriovFecClusterConfig
 
 	clusterConfig := &sriovfectypes.SriovFecClusterConfig{}
 
-	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), runtimeclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, clusterConfig)
@@ -220,7 +220,7 @@ func (builder *ClusterConfigBuilder) Delete() (*ClusterConfigBuilder, error) {
 		return builder, nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Object)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Object)
 	if err != nil {
 		return nil, fmt.Errorf("can not delete SriovFecClusterConfig: %w", err)
 	}
@@ -248,7 +248,7 @@ func (builder *ClusterConfigBuilder) Update(force bool) (*ClusterConfigBuilder, 
 
 	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		if force {
 			klog.V(100).Infof("%v", msg.FailToUpdateNotification("SriovFecClusterConfig", builder.Definition.Name, builder.Definition.Namespace))

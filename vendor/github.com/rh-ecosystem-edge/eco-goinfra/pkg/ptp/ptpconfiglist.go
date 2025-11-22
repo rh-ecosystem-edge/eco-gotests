@@ -1,10 +1,10 @@
 package ptp
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	ptpv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v1"
 	"k8s.io/klog/v2"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -44,7 +44,7 @@ func ListPtpConfigs(
 
 	ptpConfigList := new(ptpv1.PtpConfigList)
 
-	err = apiClient.List(context.TODO(), ptpConfigList, &passedOptions)
+	err = apiClient.List(logging.DiscardContext(), ptpConfigList, &passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list PtpConfigs in all namespaces due to %v", err)
 

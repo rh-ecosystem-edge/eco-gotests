@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	corev1 "k8s.io/api/core/v1"
 	storageV1 "k8s.io/api/storage/v1"
@@ -215,7 +216,7 @@ func (builder *ClassBuilder) Exists() bool {
 	var err error
 
 	builder.Object, err = builder.apiClient.StorageClasses().Get(
-		context.TODO(), builder.Definition.Name, metav1.GetOptions{})
+		logging.DiscardContext(), builder.Definition.Name, metav1.GetOptions{})
 
 	return err == nil || !k8serrors.IsNotFound(err)
 }
@@ -231,7 +232,7 @@ func (builder *ClassBuilder) Create() (*ClassBuilder, error) {
 	var err error
 	if !builder.Exists() {
 		builder.Object, err = builder.apiClient.StorageClasses().Create(
-			context.TODO(), builder.Definition, metav1.CreateOptions{})
+			logging.DiscardContext(), builder.Definition, metav1.CreateOptions{})
 	}
 
 	return builder, err
@@ -254,7 +255,7 @@ func (builder *ClassBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.StorageClasses().Delete(
-		context.TODO(), builder.Definition.Name, metav1.DeleteOptions{})
+		logging.DiscardContext(), builder.Definition.Name, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
@@ -291,7 +292,7 @@ func (builder *ClassBuilder) WaitUntilDeleted(timeout time.Duration) error {
 
 	return wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			_, err := builder.apiClient.StorageClasses().Get(context.TODO(), builder.Definition.Name, metav1.GetOptions{})
+			_, err := builder.apiClient.StorageClasses().Get(logging.DiscardContext(), builder.Definition.Name, metav1.GetOptions{})
 			if err == nil {
 				klog.V(100).Infof("StorageClass %s still present", builder.Definition.Name)
 
@@ -329,7 +330,7 @@ func (builder *ClassBuilder) Update(force bool) (*ClassBuilder, error) {
 	var err error
 
 	builder.Object, err = builder.apiClient.StorageClasses().
-		Update(context.TODO(), builder.Definition, metav1.UpdateOptions{})
+		Update(logging.DiscardContext(), builder.Definition, metav1.UpdateOptions{})
 	if err != nil {
 		if force {
 			klog.V(100).Infof("%v", msg.FailToUpdateNotification("storageclass", builder.Definition.Name))

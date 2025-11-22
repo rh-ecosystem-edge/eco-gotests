@@ -1,10 +1,10 @@
 package events
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	k8sv1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -71,7 +71,7 @@ func (builder *Builder) Exists() bool {
 
 	var err error
 
-	builder.Object, err = builder.apiClient.Get(context.TODO(),
+	builder.Object, err = builder.apiClient.Get(logging.DiscardContext(),
 		builder.Object.Name, metaV1.GetOptions{})
 
 	return err == nil || !k8serrors.IsNotFound(err)

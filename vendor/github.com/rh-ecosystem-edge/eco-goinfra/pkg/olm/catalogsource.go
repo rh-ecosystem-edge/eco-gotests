@@ -1,13 +1,13 @@
 package olm
 
 import (
-	"context"
 	"fmt"
 
 	oplmV1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/operators/v1alpha1"
 	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -136,7 +136,7 @@ func (builder *CatalogSourceBuilder) Create() (*CatalogSourceBuilder, error) {
 		return builder, nil
 	}
 
-	err := builder.apiClient.Create(context.TODO(), builder.Definition)
+	err := builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return builder, err
 	}
@@ -158,7 +158,7 @@ func (builder *CatalogSourceBuilder) Get() (*oplmV1alpha1.CatalogSource, error) 
 
 	catalogSource := &oplmV1alpha1.CatalogSource{}
 
-	err := builder.apiClient.Get(context.TODO(),
+	err := builder.apiClient.Get(logging.DiscardContext(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		catalogSource)
 	if err != nil {
@@ -186,7 +186,7 @@ func (builder *CatalogSourceBuilder) Update(force bool) (*CatalogSourceBuilder, 
 		return nil, fmt.Errorf("failed to update CatalogSource, object does not exist on cluster")
 	}
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		if force {
 			klog.V(100).Infof("%v", msg.FailToUpdateNotification("CatalogSource", builder.Definition.Name, builder.Definition.Namespace))
@@ -239,7 +239,7 @@ func (builder *CatalogSourceBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return err
 	}

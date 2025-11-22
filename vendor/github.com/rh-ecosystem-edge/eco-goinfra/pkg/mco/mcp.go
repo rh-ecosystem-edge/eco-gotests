@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/klog/v2"
@@ -126,7 +127,7 @@ func (builder *MCPBuilder) Get() (*mcv1.MachineConfigPool, error) {
 
 	machineConfigPool := &mcv1.MachineConfigPool{}
 
-	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, machineConfigPool)
+	err := builder.apiClient.Get(logging.DiscardContext(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, machineConfigPool)
 	if err != nil {
 		klog.V(100).Infof("MachineConfigPool object %s does not exist", builder.Definition.Name)
 
@@ -147,7 +148,7 @@ func (builder *MCPBuilder) Create() (*MCPBuilder, error) {
 
 	var err error
 	if !builder.Exists() {
-		err = builder.apiClient.Create(context.TODO(), builder.Definition)
+		err = builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -173,7 +174,7 @@ func (builder *MCPBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Object)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Object)
 	if err != nil {
 		return fmt.Errorf("cannot delete machineconfigpool: %w", err)
 	}

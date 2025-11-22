@@ -1,10 +1,10 @@
 package kmm
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	kmmv1beta2 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/kmm/v1beta2"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -217,7 +217,7 @@ func (builder *PreflightValidationOCPBuilder) Create() (*PreflightValidationOCPB
 
 	var err error
 	if !builder.Exists() {
-		err = builder.apiClient.Create(context.TODO(), builder.Definition)
+		err = builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -235,7 +235,7 @@ func (builder *PreflightValidationOCPBuilder) Update() (*PreflightValidationOCPB
 	klog.V(100).Infof("Updating preflightvalidationocp %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err == nil {
 		builder.Object = builder.Definition
 	}
@@ -277,7 +277,7 @@ func (builder *PreflightValidationOCPBuilder) Delete() (*PreflightValidationOCPB
 		return builder, nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return builder, fmt.Errorf("cannot delete preflightvalidationocp: %w", err)
 	}
@@ -299,7 +299,7 @@ func (builder *PreflightValidationOCPBuilder) Get() (*kmmv1beta2.PreflightValida
 
 	preflightvalidationocp := &kmmv1beta2.PreflightValidationOCP{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, preflightvalidationocp)

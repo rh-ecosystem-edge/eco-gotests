@@ -1,10 +1,10 @@
 package assisted
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	assistedv1beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/api/v1beta1"
 	"k8s.io/klog/v2"
@@ -93,7 +93,7 @@ func (builder *NmStateConfigBuilder) Get() (*assistedv1beta1.NMStateConfig, erro
 
 	nmStateConfig := &assistedv1beta1.NMStateConfig{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, nmStateConfig)
@@ -117,7 +117,7 @@ func (builder *NmStateConfigBuilder) Create() (*NmStateConfigBuilder, error) {
 
 	var err error
 	if !builder.Exists() {
-		err = builder.apiClient.Create(context.TODO(), builder.Definition)
+		err = builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -135,7 +135,7 @@ func (builder *NmStateConfigBuilder) Delete() error {
 	klog.V(100).Infof("Deleting the nmstateconfig object %s in namespace: %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return fmt.Errorf("can not delete nmstateconfig: %w", err)
 	}
@@ -155,7 +155,7 @@ func ListNmStateConfigsInAllNamespaces(apiClient *clients.Settings) ([]*NmStateC
 		return nil, fmt.Errorf("the apiClient is nil")
 	}
 
-	err := apiClient.List(context.TODO(), nmStateConfigList, &goclient.ListOptions{})
+	err := apiClient.List(logging.DiscardContext(), nmStateConfigList, &goclient.ListOptions{})
 	if err != nil {
 		klog.V(100).Infof("Failed to list nmStateConfigs across all namespaces due to %s", err.Error())
 
@@ -192,7 +192,7 @@ func ListNmStateConfigs(apiClient *clients.Settings, namespace string) ([]*NmSta
 		return nil, fmt.Errorf("namespace to list nmstateconfigs cannot be empty")
 	}
 
-	err := apiClient.List(context.TODO(), nmStateConfigList, &goclient.ListOptions{Namespace: namespace})
+	err := apiClient.List(logging.DiscardContext(), nmStateConfigList, &goclient.ListOptions{Namespace: namespace})
 	if err != nil {
 		klog.V(100).Infof("Failed to list nmStateConfigs in namespace: %s due to %s",
 			namespace, err.Error())

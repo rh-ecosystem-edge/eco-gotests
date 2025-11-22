@@ -59,7 +59,7 @@ type HardwareTemplateStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-//+kubebuilder:resource:path=hardwaretemplates,shortName=oranhwtmpl
+//+kubebuilder:resource:path=hardwaretemplates,shortName=hwtmpl
 //+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 //+kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.conditions[-1:].reason"
 //+kubebuilder:printcolumn:name="Details",type="string",JSONPath=".status.conditions[-1:].message"

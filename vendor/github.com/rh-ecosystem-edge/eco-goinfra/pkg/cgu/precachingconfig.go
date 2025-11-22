@@ -1,11 +1,11 @@
 package cgu
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/openshift-kni/cluster-group-upgrades-operator/pkg/api/clustergroupupgrades/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -146,7 +146,7 @@ func (builder *PreCachingConfigBuilder) Get() (*v1alpha1.PreCachingConfig, error
 
 	preCachingConfig := &v1alpha1.PreCachingConfig{}
 
-	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), runtimeclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, preCachingConfig)
@@ -170,7 +170,7 @@ func (builder *PreCachingConfigBuilder) Create() (*PreCachingConfigBuilder, erro
 		return builder, nil
 	}
 
-	err := builder.apiClient.Create(context.TODO(), builder.Definition)
+	err := builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +195,7 @@ func (builder *PreCachingConfigBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return err
 	}
@@ -215,7 +215,7 @@ func (builder *PreCachingConfigBuilder) Update(force bool) (*PreCachingConfigBui
 	klog.V(100).Infof(
 		"Updating the PreCachingConfig %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		if force {
 			klog.V(100).Infof("%v", msg.FailToUpdateNotification("preCachingConfig", builder.Definition.Name))

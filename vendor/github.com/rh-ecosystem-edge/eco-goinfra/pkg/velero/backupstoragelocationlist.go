@@ -1,10 +1,10 @@
 package velero
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -48,7 +48,7 @@ func ListBackupStorageLocationBuilder(
 
 	bslList := &velerov1.BackupStorageLocationList{}
 
-	err = apiClient.List(context.TODO(), bslList, &passedOptions)
+	err = apiClient.List(logging.DiscardContext(), bslList, &passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list backupstoragelocations in the nsname %s due to %s", nsname, err.Error())
 

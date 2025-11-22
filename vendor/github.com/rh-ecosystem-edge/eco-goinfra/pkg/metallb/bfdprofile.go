@@ -1,10 +1,10 @@
 package metallb
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/mlbtypes"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -80,7 +80,7 @@ func (builder *BFDBuilder) Get() (*mlbtypes.BFDProfile, error) {
 
 	bfdProfile := &mlbtypes.BFDProfile{}
 
-	err := builder.apiClient.Get(context.TODO(),
+	err := builder.apiClient.Get(logging.DiscardContext(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		bfdProfile)
 	if err != nil {
@@ -171,7 +171,7 @@ func (builder *BFDBuilder) Create() (*BFDBuilder, error) {
 
 	var err error
 	if !builder.Exists() {
-		err = builder.apiClient.Create(context.TODO(), builder.Definition)
+		err = builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err != nil {
 			klog.V(100).Info("Failed to create BFDProfile")
 
@@ -203,7 +203,7 @@ func (builder *BFDBuilder) Delete() (*BFDBuilder, error) {
 		return builder, nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return builder, fmt.Errorf("can not delete BFDProfile: %w", err)
 	}
@@ -227,7 +227,7 @@ func (builder *BFDBuilder) Update(force bool) (*BFDBuilder, error) {
 		return nil, fmt.Errorf("failed to update BFDProfile, object does not exist on cluster")
 	}
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		if force {
 			klog.V(100).Infof("%v", msg.FailToUpdateNotification("BFDProfile", builder.Definition.Name, builder.Definition.Namespace))

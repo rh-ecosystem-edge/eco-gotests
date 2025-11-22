@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -41,7 +42,7 @@ func List(apiClient *clients.Settings, nsname string, options ...metav1.ListOpti
 
 	klog.V(100).Infof("%v", logMessage)
 
-	podList, err := apiClient.Pods(nsname).List(context.TODO(), passedOptions)
+	podList, err := apiClient.Pods(nsname).List(logging.DiscardContext(), passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list pods in the nsname %s due to %s", nsname, err.Error())
 
@@ -88,7 +89,7 @@ func ListInAllNamespaces(apiClient *clients.Settings, options ...metav1.ListOpti
 
 	klog.V(100).Infof("%v", logMessage)
 
-	podList, err := apiClient.Pods("").List(context.TODO(), passedOptions)
+	podList, err := apiClient.Pods("").List(logging.DiscardContext(), passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list all pods due to %s", err.Error())
 
@@ -127,7 +128,7 @@ func ListByNamePattern(apiClient *clients.Settings, namePattern, nsname string) 
 		return nil, fmt.Errorf("failed to list pods, 'nsname' parameter is empty")
 	}
 
-	podList, err := apiClient.Pods(nsname).List(context.TODO(), metav1.ListOptions{})
+	podList, err := apiClient.Pods(nsname).List(logging.DiscardContext(), metav1.ListOptions{})
 	if err != nil {
 		klog.V(100).Infof("Failed to list pods filtered by the name pattern %s in the nsname %s due to %s",
 			namePattern, nsname, err.Error())

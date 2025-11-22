@@ -1,11 +1,11 @@
 package oran
 
 import (
-	"context"
 	"fmt"
 
 	pluginsv1alpha1 "github.com/openshift-kni/oran-o2ims/api/hardwaremanagement/plugins/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"k8s.io/klog/v2"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -44,7 +44,7 @@ func ListAllocatedNodes(
 
 	nodeList := new(pluginsv1alpha1.AllocatedNodeList)
 
-	err = apiClient.List(context.TODO(), nodeList, &passedOptions)
+	err = apiClient.List(logging.DiscardContext(), nodeList, &passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list AllocatedNodes in all namespaces due to %v", err)
 

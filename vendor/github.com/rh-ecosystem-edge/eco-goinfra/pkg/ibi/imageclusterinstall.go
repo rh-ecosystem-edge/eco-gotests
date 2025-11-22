@@ -1,11 +1,11 @@
 package ibi
 
 import (
-	"context"
 	"fmt"
 	"net"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	ibiv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/imagebasedinstall/api/hiveextensions/v1alpha1"
 	hivev1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/imagebasedinstall/hive/api/v1"
@@ -318,7 +318,7 @@ func (builder *ImageClusterInstallBuilder) Get() (*ibiv1alpha1.ImageClusterInsta
 
 	imageClusterInstall := &ibiv1alpha1.ImageClusterInstall{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, imageClusterInstall)
@@ -340,7 +340,7 @@ func (builder *ImageClusterInstallBuilder) Create() (*ImageClusterInstallBuilder
 
 	var err error
 	if !builder.Exists() {
-		err = builder.apiClient.Create(context.TODO(), builder.Definition)
+		err = builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -365,7 +365,7 @@ func (builder *ImageClusterInstallBuilder) Update(force bool) (*ImageClusterInst
 		return builder, fmt.Errorf("cannot update non-existent imageclusterinstall")
 	}
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		if force {
 			klog.V(100).Infof("%v", msg.FailToUpdateNotification("imageclusterinstall", builder.Definition.Name, builder.Definition.Namespace))
@@ -401,7 +401,7 @@ func (builder *ImageClusterInstallBuilder) Delete() error {
 		return fmt.Errorf("imageclusterinstall cannot be deleted because it does not exist")
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return fmt.Errorf("cannot delete imageclusterinstall: %w", err)
 	}

@@ -1,10 +1,10 @@
 package hive
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	hiveV1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/hive/api/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -115,7 +115,7 @@ func (builder *ConfigBuilder) Get() (*hiveV1.HiveConfig, error) {
 
 	HiveConfig := &hiveV1.HiveConfig{}
 
-	err := builder.apiClient.Get(context.TODO(), runtimeClient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), runtimeClient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, HiveConfig)
 	if err != nil {
@@ -133,7 +133,7 @@ func (builder *ConfigBuilder) Update() (*ConfigBuilder, error) {
 
 	klog.V(100).Infof("Updating HiveConfig %s", builder.Definition.Name)
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	builder.Object = builder.Definition
 
 	return builder, err
@@ -155,7 +155,7 @@ func (builder *ConfigBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return fmt.Errorf("cannot delete hiveconfig: %w", err)
 	}

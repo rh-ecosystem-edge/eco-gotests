@@ -1,13 +1,13 @@
 package mco
 
 import (
-	"context"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
 
 	mcv1 "github.com/openshift/api/machineconfiguration/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -121,7 +121,7 @@ func (builder *KubeletConfigBuilder) Get() (*mcv1.KubeletConfig, error) {
 
 	kubeletConfig := &mcv1.KubeletConfig{}
 
-	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, kubeletConfig)
+	err := builder.apiClient.Get(logging.DiscardContext(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, kubeletConfig)
 	if err != nil {
 		klog.V(100).Infof("KubeletConfig object %s does not exist", builder.Definition.Name)
 
@@ -141,7 +141,7 @@ func (builder *KubeletConfigBuilder) Create() (*KubeletConfigBuilder, error) {
 
 	var err error
 	if !builder.Exists() {
-		err := builder.apiClient.Create(context.TODO(), builder.Definition)
+		err := builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -166,7 +166,7 @@ func (builder *KubeletConfigBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Object)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Object)
 	if err != nil {
 		return fmt.Errorf("cannot delete kubeletconfig: %w", err)
 	}

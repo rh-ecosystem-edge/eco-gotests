@@ -79,7 +79,7 @@ type ClusterTemplateStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-//+kubebuilder:resource:path=clustertemplates,shortName=oranct
+//+kubebuilder:resource:path=clustertemplates,shortName=ct
 //+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 //+kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.conditions[-1:].reason"
 //+kubebuilder:printcolumn:name="Details",type="string",JSONPath=".status.conditions[-1:].message"

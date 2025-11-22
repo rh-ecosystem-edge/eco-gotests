@@ -1,10 +1,10 @@
 package pfstatus
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	pfstatustypes "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/pfstatus/pfstatustypes"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -101,7 +101,7 @@ func (builder *PfStatusConfigurationBuilder) Create() (*PfStatusConfigurationBui
 
 	var err error
 	if !builder.Exists() {
-		err = builder.apiClient.Create(context.TODO(), builder.Definition)
+		err = builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err != nil {
 			klog.V(100).Info("Failed to create pfStatusConfiguration")
 
@@ -158,7 +158,7 @@ func (builder *PfStatusConfigurationBuilder) Get() (*pfstatustypes.PFLACPMonitor
 
 	pfstatusConfig := &pfstatustypes.PFLACPMonitor{}
 
-	err := builder.apiClient.Get(context.TODO(),
+	err := builder.apiClient.Get(logging.DiscardContext(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace}, pfstatusConfig)
 	if err != nil {
 		klog.V(100).Infof(
@@ -241,7 +241,7 @@ func (builder *PfStatusConfigurationBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return fmt.Errorf("can not delete pfStatusConfiguration: %w", err)
 	}

@@ -1,13 +1,13 @@
 package sriov
 
 import (
-	"context"
 	"fmt"
 
 	srIovV1 "github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"k8s.io/klog/v2"
 )
 
@@ -50,7 +50,7 @@ func ListPolicy(apiClient *clients.Settings, nsname string, options ...client.Li
 
 	networkNodePoliciesList := new(srIovV1.SriovNetworkNodePolicyList)
 
-	err = apiClient.List(context.TODO(), networkNodePoliciesList, &passedOptions)
+	err = apiClient.List(logging.DiscardContext(), networkNodePoliciesList, &passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list SriovNetworkNodePolicies in the namespace %s due to %s",
 			nsname, err.Error())

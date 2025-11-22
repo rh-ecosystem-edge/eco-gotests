@@ -1,10 +1,10 @@
 package namespace
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
@@ -27,7 +27,7 @@ func List(apiClient *clients.Settings, options ...metav1.ListOptions) ([]*Builde
 
 	klog.V(100).Infof("%v", logMessage)
 
-	namespacesList, err := apiClient.CoreV1Interface.Namespaces().List(context.TODO(), passedOptions)
+	namespacesList, err := apiClient.CoreV1Interface.Namespaces().List(logging.DiscardContext(), passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list namespaces due to %s", err.Error())
 

@@ -58,6 +58,16 @@ type NMStateSpec struct {
 	// +kubebuilder:default:={}
 	// +optional
 	ProbeConfiguration NMStateProbeConfiguration `json:"probeConfiguration,omitempty"`
+	// MetricsConfiguration is an optional configuration for metrics server.
+	// If MetricsConfiguration is specified, the handler will use the config defined here instead of its default values.
+	// +optional
+	MetricsConfiguration *NMStateMetricsConfiguration `json:"metricsConfiguration,omitempty"`
+	// LogLevel defines the log level for nmstate operations.
+	// Valid values are "info" (default, minimal output) and "debug" (verbose output for debugging).
+	// +kubebuilder:default:="info"
+	// +kubebuilder:validation:Enum=info;debug
+	// +optional
+	LogLevel shared.LogLevel `json:"logLevel,omitempty"`
 }
 
 type SelfSignConfiguration struct {
@@ -84,15 +94,27 @@ type NMStateDNSProbeConfiguration struct {
 	Host string `json:"host,omitempty"`
 }
 
+type NMStateMetricsConfiguration struct {
+	// BindAddress is the TCP address that the controller should bind to
+	// for serving metrics. It can be set to "0" to disable the metrics serving.
+	// +kubebuilder:default:=":8089"
+	// +optional
+	BindAddress string `json:"bindAddress,omitempty"`
+}
+
 // NMStateStatus defines the observed state of NMState
 type NMStateStatus struct {
+	// +optional
 	Conditions shared.ConditionList `json:"conditions,omitempty"`
 }
 
+// +genclient:nonNamespaced
 // +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 // +kubebuilder:resource:path=nmstates,scope=Cluster
-// +kubebuilder:subresource=status
-// +kubebuilder:deprecatedversion
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[?(@.status==\"True\")].type",description="Status"
+// +kubebuilder:printcolumn:name="Reason",type="string",JSONPath=".status.conditions[?(@.status==\"True\")].reason",description="Reason"
+// +kubebuilder:deprecatedversion:warning="nmstate/v1beta1 deprecated, use nmstate/v1 instead"
 
 // NMState is the Schema for the nmstates API
 type NMState struct {

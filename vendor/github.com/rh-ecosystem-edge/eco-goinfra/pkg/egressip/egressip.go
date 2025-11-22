@@ -1,10 +1,10 @@
 package egressip
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	"k8s.io/klog/v2"
 
@@ -195,7 +195,7 @@ func (builder *EgressIPBuilder) Get() (*egressipv1.EgressIP, error) {
 
 	egrIP := &egressipv1.EgressIP{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, egrIP)
 	if err != nil {
@@ -218,7 +218,7 @@ func (builder *EgressIPBuilder) Create() (*EgressIPBuilder, error) {
 	var err error
 
 	if !builder.Exists() {
-		err = builder.apiClient.Create(context.TODO(), builder.Definition)
+		err = builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err == nil {
 			klog.V(100).Infof("Created egressIP %q", builder.Definition.Name)
 
@@ -247,7 +247,7 @@ func (builder *EgressIPBuilder) Delete() (*EgressIPBuilder, error) {
 		return builder, nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		klog.V(100).Infof("Error deleting egressIP: %v", err)
 
@@ -269,7 +269,7 @@ func (builder *EgressIPBuilder) Update() (*EgressIPBuilder, error) {
 
 	klog.V(100).Infof("Updating egressIP %s", builder.Definition.Name)
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		klog.V(100).Infof("Error updating egressIP: %v", err)
 

@@ -1,10 +1,10 @@
 package nmstate
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	"k8s.io/klog/v2"
 
@@ -92,7 +92,7 @@ func (builder *Builder) Get() (*nmstateV1.NMState, error) {
 
 	nmstate := &nmstateV1.NMState{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{Name: builder.Definition.Name}, nmstate)
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{Name: builder.Definition.Name}, nmstate)
 	if err != nil {
 		klog.V(100).Infof("NMState object %s does not exist", builder.Definition.Name)
 
@@ -114,7 +114,7 @@ func (builder *Builder) Create() (*Builder, error) {
 		return builder, nil
 	}
 
-	err := builder.apiClient.Create(context.TODO(), builder.Definition)
+	err := builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return builder, err
 	}
@@ -141,7 +141,7 @@ func (builder *Builder) Delete() (*Builder, error) {
 		return builder, nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return builder, fmt.Errorf("can not delete NMState: %w", err)
 	}
@@ -159,7 +159,7 @@ func (builder *Builder) Update(force bool) (*Builder, error) {
 
 	klog.V(100).Infof("Updating the NMState object %s", builder.Definition.Name)
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err == nil {
 		builder.Object = builder.Definition
 	} else if force {

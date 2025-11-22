@@ -1,11 +1,11 @@
 package keda
 
 import (
-	"context"
 	"fmt"
 
 	kedav1alpha1 "github.com/kedacore/keda-olm-operator/api/keda/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -133,7 +133,7 @@ func (builder *ControllerBuilder) Get() (*kedav1alpha1.KedaController, error) {
 
 	kedaObj := &kedav1alpha1.KedaController{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, kedaObj)
@@ -155,7 +155,7 @@ func (builder *ControllerBuilder) Create() (*ControllerBuilder, error) {
 
 	var err error
 	if !builder.Exists() {
-		err = builder.apiClient.Create(context.TODO(), builder.Definition)
+		err = builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -182,7 +182,7 @@ func (builder *ControllerBuilder) Delete() (*ControllerBuilder, error) {
 		return builder, nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return builder, fmt.Errorf("can not delete kedaController: %w", err)
 	}
@@ -217,7 +217,7 @@ func (builder *ControllerBuilder) Update() (*ControllerBuilder, error) {
 	klog.V(100).Infof("Updating kedaController %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		klog.V(100).Infof("%v", msg.FailToUpdateError("kedaController", builder.Definition.Name, builder.Definition.Namespace))
 

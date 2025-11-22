@@ -1,7 +1,6 @@
 package ptp
 
 import (
-	"context"
 	"fmt"
 	"net/url"
 	"strings"
@@ -9,6 +8,7 @@ import (
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	ptpv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -84,7 +84,7 @@ func (builder *PtpOperatorConfigBuilder) Get() (*ptpv1.PtpOperatorConfig, error)
 
 	ptpOpConfig := &ptpv1.PtpOperatorConfig{}
 
-	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), runtimeclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, ptpOpConfig)
@@ -136,7 +136,7 @@ func (builder *PtpOperatorConfigBuilder) Update() (*PtpOperatorConfigBuilder, er
 	// Preserve the existing resource version to avoid update conflicts
 	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return nil, err
 	}

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -238,7 +239,7 @@ func (builder *BackupStorageLocationBuilder) Get() (*velerov1.BackupStorageLocat
 	backupStorageLocation := &velerov1.BackupStorageLocation{}
 
 	err := builder.apiClient.Get(
-		context.TODO(),
+		logging.DiscardContext(),
 		goclient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace}, backupStorageLocation)
 	if err != nil {
 		klog.V(100).Infof("BackupStorageLocation object %s does not exist", builder.Definition.Name)
@@ -277,7 +278,7 @@ func (builder *BackupStorageLocationBuilder) Create() (*BackupStorageLocationBui
 
 	var err error
 	if !builder.Exists() {
-		err = builder.apiClient.Create(context.TODO(), builder.Definition)
+		err = builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -299,7 +300,7 @@ func (builder *BackupStorageLocationBuilder) Update() (*BackupStorageLocationBui
 		return builder, fmt.Errorf("cannot update non-existent backupstoragelocation")
 	}
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err == nil {
 		builder.Object = builder.Definition
 	}
@@ -325,7 +326,7 @@ func (builder *BackupStorageLocationBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return fmt.Errorf("can not delete backupstoragelocation: %w", err)
 	}

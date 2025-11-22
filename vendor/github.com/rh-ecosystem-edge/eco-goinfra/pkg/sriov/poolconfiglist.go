@@ -1,11 +1,11 @@
 package sriov
 
 import (
-	"context"
 	"fmt"
 
 	srIovV1 "github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -33,7 +33,7 @@ func ListPoolConfigs(apiClient *clients.Settings, namespace string) ([]*PoolConf
 		return nil, fmt.Errorf("failed to list sriovNetworkPoolConfigs, 'namespace' parameter is empty")
 	}
 
-	err = apiClient.List(context.TODO(), sriovNetworkPoolConfigList, &client.ListOptions{Namespace: namespace})
+	err = apiClient.List(logging.DiscardContext(), sriovNetworkPoolConfigList, &client.ListOptions{Namespace: namespace})
 	if err != nil {
 		klog.V(100).Infof("Failed to list SriovNetworkPoolConfigs in namespace: %s due to %s",
 			namespace, err.Error())

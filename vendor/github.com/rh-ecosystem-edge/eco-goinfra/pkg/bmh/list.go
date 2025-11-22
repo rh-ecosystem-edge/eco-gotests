@@ -12,6 +12,7 @@ import (
 
 	bmhv1alpha1 "github.com/metal3-io/baremetal-operator/apis/metal3.io/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 )
 
 const (
@@ -139,7 +140,7 @@ func list(apiClient *clients.Settings, options goclient.ListOptions) ([]*BmhBuil
 
 	var bmhList bmhv1alpha1.BareMetalHostList
 
-	err = apiClient.List(context.TODO(), &bmhList, &options)
+	err = apiClient.List(logging.DiscardContext(), &bmhList, &options)
 	if err != nil {
 		klog.V(100).Infof("Failed to list bareMetalHosts due to %s", err.Error())
 

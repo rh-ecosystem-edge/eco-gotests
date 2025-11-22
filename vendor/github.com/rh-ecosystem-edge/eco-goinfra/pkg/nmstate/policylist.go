@@ -1,11 +1,11 @@
 package nmstate
 
 import (
-	"context"
 	"fmt"
 
 	nmstateV1 "github.com/nmstate/kubernetes-nmstate/api/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -43,7 +43,7 @@ func ListPolicy(apiClient *clients.Settings, options ...goclient.ListOptions) ([
 
 	policyList := &nmstateV1.NodeNetworkConfigurationPolicyList{}
 
-	err = apiClient.List(context.TODO(), policyList, &passedOptions)
+	err = apiClient.List(logging.DiscardContext(), policyList, &passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list NodeNetworkConfigurationPolicy due to %s", err.Error())
 

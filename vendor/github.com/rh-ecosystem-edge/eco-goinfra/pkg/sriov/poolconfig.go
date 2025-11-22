@@ -1,12 +1,12 @@
 package sriov
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	"k8s.io/klog/v2"
 
@@ -85,7 +85,7 @@ func (builder *PoolConfigBuilder) Create() (*PoolConfigBuilder, error) {
 		builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		err := builder.apiClient.Create(context.TODO(), builder.Definition)
+		err := builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err != nil {
 			return nil, err
 		}
@@ -114,7 +114,7 @@ func (builder *PoolConfigBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return err
 	}
@@ -152,7 +152,7 @@ func (builder *PoolConfigBuilder) Get() (*srIovV1.SriovNetworkPoolConfig, error)
 
 	poolConfig := &srIovV1.SriovNetworkPoolConfig{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, poolConfig)
@@ -175,7 +175,7 @@ func (builder *PoolConfigBuilder) Update() (*PoolConfigBuilder, error) {
 	klog.V(100).Infof("Updating the SriovNetworkPoolConfig object %s in namespace %s", builder.Definition.Name,
 		builder.Definition.Namespace)
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		klog.V(100).Infof("Failed to update SriovNetworkPoolConfig %s in namespace %s", builder.Definition.Name,
 			builder.Definition.Namespace)

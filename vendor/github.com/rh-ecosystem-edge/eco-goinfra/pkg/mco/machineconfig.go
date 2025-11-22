@@ -1,11 +1,11 @@
 package mco
 
 import (
-	"context"
 	"fmt"
 
 	mcv1 "github.com/openshift/api/machineconfiguration/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -118,7 +118,7 @@ func (builder *MCBuilder) Get() (*mcv1.MachineConfig, error) {
 
 	machineConfig := &mcv1.MachineConfig{}
 
-	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, machineConfig)
+	err := builder.apiClient.Get(logging.DiscardContext(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, machineConfig)
 	if err != nil {
 		klog.V(100).Infof("MachineConfig object %s does not exist", builder.Definition.Name)
 
@@ -138,7 +138,7 @@ func (builder *MCBuilder) Create() (*MCBuilder, error) {
 
 	var err error
 	if !builder.Exists() {
-		err := builder.apiClient.Create(context.TODO(), builder.Definition)
+		err := builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -163,7 +163,7 @@ func (builder *MCBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return fmt.Errorf("cannot delete machineconfig: %w", err)
 	}
@@ -181,7 +181,7 @@ func (builder *MCBuilder) Update() (*MCBuilder, error) {
 
 	klog.V(100).Infof("Updating machineconfig %s", builder.Definition.Name)
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err == nil {
 		builder.Object = builder.Definition
 	}

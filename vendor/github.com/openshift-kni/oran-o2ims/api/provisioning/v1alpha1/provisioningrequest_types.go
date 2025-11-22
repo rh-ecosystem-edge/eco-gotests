@@ -168,7 +168,7 @@ type ProvisioningRequestStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-//+kubebuilder:resource:scope=Cluster,shortName=oranpr
+//+kubebuilder:resource:scope=Cluster,shortName=pr
 //+kubebuilder:printcolumn:name="DisplayName",type="string",JSONPath=".spec.name"
 //+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 //+kubebuilder:printcolumn:name="ProvisionPhase",type="string",JSONPath=".status.provisioningStatus.provisioningPhase"

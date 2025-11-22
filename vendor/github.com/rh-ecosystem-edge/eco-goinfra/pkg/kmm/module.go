@@ -1,10 +1,10 @@
 package kmm
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	moduleV1Beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/kmm/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -359,7 +359,7 @@ func (builder *ModuleBuilder) Create() (*ModuleBuilder, error) {
 
 	var err error
 	if !builder.Exists() {
-		err = builder.apiClient.Create(context.TODO(), builder.Definition)
+		err = builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -378,7 +378,7 @@ func (builder *ModuleBuilder) Update() (*ModuleBuilder, error) {
 		builder.Definition.Name,
 		builder.Definition.Namespace)
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err == nil {
 		builder.Object = builder.Definition
 	}
@@ -419,7 +419,7 @@ func (builder *ModuleBuilder) Delete() (*ModuleBuilder, error) {
 		return builder, nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return builder, err
 	}
@@ -440,7 +440,7 @@ func (builder *ModuleBuilder) Get() (*moduleV1Beta1.Module, error) {
 
 	module := &moduleV1Beta1.Module{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, module)

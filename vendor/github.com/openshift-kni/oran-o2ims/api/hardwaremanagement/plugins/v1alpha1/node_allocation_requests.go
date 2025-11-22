@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package v1alpha1
 
 import (
+	"github.com/openshift-kni/oran-o2ims/api/common"
 	hwmgmtv1alpha1 "github.com/openshift-kni/oran-o2ims/api/hardwaremanagement/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -24,6 +25,31 @@ type LocationSpec struct {
 	// +kubebuilder:validation:Required
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Site",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	Site string `json:"site"`
+}
+
+// Callback defines the configuration for receiving notifications when a NodeAllocationRequest
+// operation is completed or fails.
+type Callback struct {
+	// CallbackURL is the URL to call when the NodeAllocationRequest operation is completed or fails.
+	// The callback will be made as a POST request with CallbackPayload in the request body.
+	// +kubebuilder:validation:Required
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Callback URL",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	CallbackURL string `json:"callbackURL"`
+
+	// CaBundleName references a config map that contains a set of custom CA certificates
+	// to use when verifying the certificate of the callback URL server. The config map
+	// must contain a key named 'ca-bundle.crt' which contains one or more CA certificates
+	// in PEM format.
+	// +optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="CA Bundle Name",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	CaBundleName *string `json:"caBundleName,omitempty"`
+
+	// AuthClientConfig defines the authentication configuration for the callback requests.
+	// This allows configuring how the plugin should authenticate when making callback requests
+	// to the specified CallbackURL.
+	// +optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Authentication Configuration"
+	AuthClientConfig *common.AuthClientConfig `json:"authClientConfig,omitempty"`
 }
 
 // NodeAllocationRequestSpec describes a group of nodes to allocate
@@ -57,6 +83,12 @@ type NodeAllocationRequestSpec struct {
 	// +kubebuilder:validation:MinLength=1
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Boot Interface Label",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	BootInterfaceLabel string `json:"bootInterfaceLabel"`
+
+	// Callback defines the configuration for receiving notifications when the NodeAllocationRequest
+	// operation is completed or fails. If not specified, no callback will be made.
+	// +optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Callback Configuration"
+	Callback *Callback `json:"callback,omitempty"`
 }
 
 type NodeGroup struct {
@@ -101,7 +133,7 @@ type NodeAllocationRequestStatus struct {
 //
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:path=nodeallocationrequests,shortName=orannar
+// +kubebuilder:resource:path=nodeallocationrequests,shortName=nar
 // +kubebuilder:printcolumn:name="HardwarePlugin",type="string",JSONPath=".spec.hardwarePluginRef"
 // +kubebuilder:printcolumn:name="Cluster ID",type="string",JSONPath=".spec.clusterId"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"

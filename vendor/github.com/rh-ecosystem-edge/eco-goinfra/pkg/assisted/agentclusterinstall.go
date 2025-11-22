@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	hiveextV1Beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/api/hiveextension/v1beta1"
 	hivev1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/hive/api/v1"
@@ -499,7 +500,7 @@ func (builder *AgentClusterInstallBuilder) Get() (*hiveextV1Beta1.AgentClusterIn
 
 	agentClusterInstall := &hiveextV1Beta1.AgentClusterInstall{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, agentClusterInstall)
@@ -569,7 +570,7 @@ func (builder *AgentClusterInstallBuilder) Create() (*AgentClusterInstallBuilder
 
 	var err error
 	if !builder.Exists() {
-		err = builder.apiClient.Create(context.TODO(), builder.Definition)
+		err = builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -591,7 +592,7 @@ func (builder *AgentClusterInstallBuilder) Update(force bool) (*AgentClusterInst
 		return nil, fmt.Errorf("cannot update non-existent agentclusterinstall")
 	}
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		if force {
 			klog.V(100).Infof("%v", msg.FailToUpdateNotification("agentclusterinstall", builder.Definition.Name, builder.Definition.Namespace))
@@ -634,7 +635,7 @@ func (builder *AgentClusterInstallBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 
 	if err != nil && !k8serrors.IsNotFound(err) {
 		return fmt.Errorf("cannot delete agentclusterinstall: %w", err)
@@ -651,7 +652,7 @@ func (builder *AgentClusterInstallBuilder) DeleteAndWait(timeout time.Duration) 
 		return err
 	}
 
-	klog.V(100).Infof(`Deleting agentclusterinstall %s in namespace %s and 
+	klog.V(100).Infof(`Deleting agentclusterinstall %s in namespace %s and
 	waiting for the defined period until it is removed`,
 		builder.Definition.Name, builder.Definition.Namespace)
 

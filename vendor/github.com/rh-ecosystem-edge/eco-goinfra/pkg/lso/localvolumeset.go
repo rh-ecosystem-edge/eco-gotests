@@ -1,7 +1,6 @@
 package lso
 
 import (
-	"context"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -11,6 +10,7 @@ import (
 	lsov1 "github.com/openshift/local-storage-operator/api/v1"
 	lsov1alpha1 "github.com/openshift/local-storage-operator/api/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
@@ -137,7 +137,7 @@ func (builder *LocalVolumeSetBuilder) Get() (*lsov1alpha1.LocalVolumeSet, error)
 
 	lvs := &lsov1alpha1.LocalVolumeSet{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, lvs)
@@ -159,7 +159,7 @@ func (builder *LocalVolumeSetBuilder) Create() (*LocalVolumeSetBuilder, error) {
 
 	var err error
 	if !builder.Exists() {
-		err = builder.apiClient.Create(context.TODO(), builder.Definition)
+		err = builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -185,7 +185,7 @@ func (builder *LocalVolumeSetBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return fmt.Errorf("can not delete localVolumeSet: %w", err)
 	}
@@ -228,7 +228,7 @@ func (builder *LocalVolumeSetBuilder) Update() (*LocalVolumeSetBuilder, error) {
 	builder.Definition.CreationTimestamp = metav1.Time{}
 	builder.Definition.ResourceVersion = ""
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		klog.V(100).Infof("%v", msg.FailToUpdateError("localVolumeSet", builder.Definition.Name, builder.Definition.Namespace))
 

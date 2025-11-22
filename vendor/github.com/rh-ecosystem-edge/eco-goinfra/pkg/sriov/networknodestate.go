@@ -9,6 +9,7 @@ import (
 
 	srIovV1 "github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 )
@@ -83,7 +84,7 @@ func (builder *NetworkNodeStateBuilder) Discover() error {
 
 	nodeNetworkState := &srIovV1.SriovNetworkNodeState{}
 
-	err := builder.apiClient.Get(context.TODO(),
+	err := builder.apiClient.Get(logging.DiscardContext(),
 		runtimeClient.ObjectKey{Name: builder.nodeName, Namespace: builder.nsName}, nodeNetworkState)
 	if err == nil {
 		builder.Objects = nodeNetworkState

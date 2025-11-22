@@ -1,11 +1,11 @@
 package cgu
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/openshift-kni/cluster-group-upgrades-operator/pkg/api/clustergroupupgrades/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -43,7 +43,7 @@ func ListInAllNamespaces(apiClient *clients.Settings, options ...client.ListOpti
 
 	cguList := &v1alpha1.ClusterGroupUpgradeList{}
 
-	err = apiClient.List(context.TODO(), cguList, &passedOptions)
+	err = apiClient.List(logging.DiscardContext(), cguList, &passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list all CGUs in all namespaces due to %s", err.Error())
 

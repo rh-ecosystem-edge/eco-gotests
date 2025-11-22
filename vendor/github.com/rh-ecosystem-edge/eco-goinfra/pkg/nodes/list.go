@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
@@ -40,7 +41,7 @@ func List(apiClient *clients.Settings, options ...metav1.ListOptions) ([]*Builde
 
 	klog.V(100).Infof("%v", logMessage)
 
-	nodeList, err := apiClient.CoreV1Interface.Nodes().List(context.TODO(), passedOptions)
+	nodeList, err := apiClient.CoreV1Interface.Nodes().List(logging.DiscardContext(), passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list nodes due to %s", err.Error())
 

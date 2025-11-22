@@ -1,11 +1,11 @@
 package bmh
 
 import (
-	"context"
 	"fmt"
 
 	bmhv1alpha1 "github.com/metal3-io/baremetal-operator/apis/metal3.io/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -82,7 +82,7 @@ func (builder *HFSBuilder) Get() (*bmhv1alpha1.HostFirmwareSettings, error) {
 
 	hostFirmwareSettings := &bmhv1alpha1.HostFirmwareSettings{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, hostFirmwareSettings)
@@ -126,7 +126,7 @@ func (builder *HFSBuilder) Create() (*HFSBuilder, error) {
 		return builder, nil
 	}
 
-	err := builder.apiClient.Create(context.TODO(), builder.Definition)
+	err := builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +155,7 @@ func (builder *HFSBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Object)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Object)
 	if err != nil {
 		return err
 	}

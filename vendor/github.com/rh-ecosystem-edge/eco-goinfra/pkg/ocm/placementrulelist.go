@@ -1,10 +1,10 @@
 package ocm
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"k8s.io/klog/v2"
 	placementrulev1 "open-cluster-management.io/multicloud-operators-subscription/pkg/apis/apps/placementrule/v1"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -45,7 +45,7 @@ func ListPlacementrulesInAllNamespaces(apiClient *clients.Settings,
 
 	placementRuleList := new(placementrulev1.PlacementRuleList)
 
-	err = apiClient.List(context.TODO(), placementRuleList, &passedOptions)
+	err = apiClient.List(logging.DiscardContext(), placementRuleList, &passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list all placementrules in all namespaces due to %s", err.Error())
 

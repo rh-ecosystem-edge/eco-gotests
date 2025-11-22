@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ocm/kacv1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -136,7 +137,7 @@ func (builder *KACBuilder) Get() (*kacv1.KlusterletAddonConfig, error) {
 
 	klusterletAddonConfig := &kacv1.KlusterletAddonConfig{}
 
-	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), runtimeclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, klusterletAddonConfig)
@@ -180,7 +181,7 @@ func (builder *KACBuilder) Create() (*KACBuilder, error) {
 		return builder, nil
 	}
 
-	err := builder.apiClient.Create(context.TODO(), builder.Definition)
+	err := builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +210,7 @@ func (builder *KACBuilder) Update(force bool) (*KACBuilder, error) {
 
 	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		if force {
 			klog.V(100).Infof("%v", msg.FailToUpdateNotification("klusterletAddonConfig", builder.Definition.Name))
@@ -253,7 +254,7 @@ func (builder *KACBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Object)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Object)
 	if err != nil {
 		return err
 	}

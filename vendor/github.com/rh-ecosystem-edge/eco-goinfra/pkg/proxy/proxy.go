@@ -1,11 +1,11 @@
 package proxy
 
 import (
-	"context"
 	"fmt"
 
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -74,7 +74,7 @@ func (builder *Builder) Get() (*configv1.Proxy, error) {
 
 	proxy := &configv1.Proxy{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{Name: builder.Definition.Name}, proxy)
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{Name: builder.Definition.Name}, proxy)
 	if err != nil {
 		klog.V(100).Infof("Proxy object %s does not exist: %v", builder.Definition.Name, err)
 

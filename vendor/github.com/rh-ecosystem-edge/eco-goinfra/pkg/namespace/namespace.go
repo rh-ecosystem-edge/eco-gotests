@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -152,7 +153,7 @@ func (builder *Builder) Create() (*Builder, error) {
 
 	var err error
 
-	builder.Object, err = builder.apiClient.Namespaces().Create(context.TODO(), builder.Definition, metav1.CreateOptions{})
+	builder.Object, err = builder.apiClient.Namespaces().Create(logging.DiscardContext(), builder.Definition, metav1.CreateOptions{})
 	if err != nil {
 		return builder, err
 	}
@@ -171,7 +172,7 @@ func (builder *Builder) Update() (*Builder, error) {
 	var err error
 
 	builder.Object, err = builder.apiClient.Namespaces().Update(
-		context.TODO(), builder.Definition, metav1.UpdateOptions{})
+		logging.DiscardContext(), builder.Definition, metav1.UpdateOptions{})
 
 	return builder, err
 }
@@ -192,7 +193,7 @@ func (builder *Builder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Namespaces().Delete(context.TODO(), builder.Definition.Name, metav1.DeleteOptions{})
+	err := builder.apiClient.Namespaces().Delete(logging.DiscardContext(), builder.Definition.Name, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
@@ -216,7 +217,7 @@ func (builder *Builder) DeleteAndWait(timeout time.Duration) error {
 
 	return wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			_, err := builder.apiClient.Namespaces().Get(context.TODO(), builder.Definition.Name, metav1.GetOptions{})
+			_, err := builder.apiClient.Namespaces().Get(logging.DiscardContext(), builder.Definition.Name, metav1.GetOptions{})
 			if k8serrors.IsNotFound(err) {
 				return true, nil
 			}
@@ -240,7 +241,7 @@ func (builder *Builder) Exists() bool {
 	var err error
 
 	builder.Object, err = builder.apiClient.Namespaces().Get(
-		context.TODO(), builder.Definition.Name, metav1.GetOptions{})
+		logging.DiscardContext(), builder.Definition.Name, metav1.GetOptions{})
 
 	return err == nil || !k8serrors.IsNotFound(err)
 }
@@ -307,7 +308,7 @@ func (builder *Builder) CleanObjects(cleanTimeout time.Duration, objects ...sche
 		err = wait.PollUntilContextTimeout(
 			context.TODO(), 3*time.Second, cleanTimeout, true, func(ctx context.Context) (bool, error) {
 				objList, err := builder.apiClient.Resource(resource).Namespace(builder.Definition.Name).List(
-					context.TODO(), metav1.ListOptions{})
+					logging.DiscardContext(), metav1.ListOptions{})
 
 				if err != nil || len(objList.Items) > 0 {
 					// avoid timeout due to default automatically created openshift

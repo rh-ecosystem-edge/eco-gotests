@@ -1,11 +1,11 @@
 package nto //nolint:misspell
 
 import (
-	"context"
 	"fmt"
 
 	performanceprofilev2 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/performanceprofile/v2"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -43,7 +43,7 @@ func ListProfiles(apiClient *clients.Settings, options ...goclient.ListOptions) 
 
 	var performanceProfiles performanceprofilev2.PerformanceProfileList
 
-	err = apiClient.List(context.TODO(), &performanceProfiles, &passedOptions)
+	err = apiClient.List(logging.DiscardContext(), &performanceProfiles, &passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list PerformanceProfiles due to %s", err.Error())
 

@@ -1,10 +1,10 @@
 package machine
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
@@ -43,7 +43,7 @@ func ListWorkerMachineSets(
 
 	klog.V(100).Infof("%v", logMessage)
 
-	machineSetList, err := apiClient.MachineSets(namespace).List(context.TODO(), passedOptions)
+	machineSetList, err := apiClient.MachineSets(namespace).List(logging.DiscardContext(), passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list MachineSets in the namespace %s due to %s",
 			namespace, err.Error())

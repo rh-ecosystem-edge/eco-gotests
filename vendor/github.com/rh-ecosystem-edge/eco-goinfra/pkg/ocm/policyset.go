@@ -1,10 +1,10 @@
 package ocm
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -161,7 +161,7 @@ func (builder *PolicySetBuilder) Get() (*policiesv1beta1.PolicySet, error) {
 
 	policySet := &policiesv1beta1.PolicySet{}
 
-	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), runtimeclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, policySet)
@@ -188,7 +188,7 @@ func (builder *PolicySetBuilder) Create() (*PolicySetBuilder, error) {
 		return builder, nil
 	}
 
-	err := builder.apiClient.Create(context.TODO(), builder.Definition)
+	err := builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return builder, err
 	}
@@ -216,7 +216,7 @@ func (builder *PolicySetBuilder) Delete() (*PolicySetBuilder, error) {
 		return builder, nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return builder, fmt.Errorf("can not delete policySet: %w", err)
 	}
@@ -244,7 +244,7 @@ func (builder *PolicySetBuilder) Update(force bool) (*PolicySetBuilder, error) {
 
 	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		if force {
 			klog.V(100).Infof("%v", msg.FailToUpdateNotification("policySet", builder.Definition.Name, builder.Definition.Namespace))

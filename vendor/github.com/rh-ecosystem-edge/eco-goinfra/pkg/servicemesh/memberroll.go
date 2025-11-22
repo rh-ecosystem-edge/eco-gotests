@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
@@ -138,7 +139,7 @@ func (builder *MemberRollBuilder) Get() (*istiov1.ServiceMeshMemberRoll, error) 
 
 	servicemeshmemberroll := &istiov1.ServiceMeshMemberRoll{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, servicemeshmemberroll)
@@ -160,7 +161,7 @@ func (builder *MemberRollBuilder) Create() (*MemberRollBuilder, error) {
 
 	var err error
 	if !builder.Exists() {
-		err = builder.apiClient.Create(context.TODO(), builder.Definition)
+		err = builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -187,7 +188,7 @@ func (builder *MemberRollBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return fmt.Errorf("can not delete serviceMeshMemberRoll %s in namespace %s due to %w",
 			builder.Definition.Name, builder.Definition.Namespace, err)
@@ -207,7 +208,7 @@ func (builder *MemberRollBuilder) Update(force bool) (*MemberRollBuilder, error)
 	klog.V(100).Infof("Updating serviceMeshMemberRoll %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		if force {
 			klog.V(100).Infof("%v", msg.FailToUpdateNotification("serviceMeshMemberRoll", builder.Definition.Name, builder.Definition.Namespace))

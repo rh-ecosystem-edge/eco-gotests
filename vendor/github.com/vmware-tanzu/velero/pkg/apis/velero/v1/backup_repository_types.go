@@ -36,8 +36,9 @@ type BackupRepositorySpec struct {
 	RepositoryType string `json:"repositoryType"`
 
 	// ResticIdentifier is the full restic-compatible string for identifying
-	// this repository.
-	ResticIdentifier string `json:"resticIdentifier"`
+	// this repository. This field is only used when RepositoryType is "restic".
+	// +optional
+	ResticIdentifier string `json:"resticIdentifier,omitempty"`
 
 	// MaintenanceFrequency is how often maintenance should be run.
 	MaintenanceFrequency metav1.Duration `json:"maintenanceFrequency"`
@@ -71,10 +72,43 @@ type BackupRepositoryStatus struct {
 	// +optional
 	Message string `json:"message,omitempty"`
 
-	// LastMaintenanceTime is the last time maintenance was run.
+	// LastMaintenanceTime is the last time repo maintenance succeeded.
 	// +optional
 	// +nullable
 	LastMaintenanceTime *metav1.Time `json:"lastMaintenanceTime,omitempty"`
+
+	// RecentMaintenance is status of the recent repo maintenance.
+	// +optional
+	RecentMaintenance []BackupRepositoryMaintenanceStatus `json:"recentMaintenance,omitempty"`
+}
+
+// BackupRepositoryMaintenanceResult represents the result of a repo maintenance.
+// +kubebuilder:validation:Enum=Succeeded;Failed
+type BackupRepositoryMaintenanceResult string
+
+const (
+	BackupRepositoryMaintenanceSucceeded BackupRepositoryMaintenanceResult = "Succeeded"
+	BackupRepositoryMaintenanceFailed    BackupRepositoryMaintenanceResult = "Failed"
+)
+
+type BackupRepositoryMaintenanceStatus struct {
+	// Result is the result of the repo maintenance.
+	// +optional
+	Result BackupRepositoryMaintenanceResult `json:"result,omitempty"`
+
+	// StartTimestamp is the start time of the repo maintenance.
+	// +optional
+	// +nullable
+	StartTimestamp *metav1.Time `json:"startTimestamp,omitempty"`
+
+	// CompleteTimestamp is the completion time of the repo maintenance.
+	// +optional
+	// +nullable
+	CompleteTimestamp *metav1.Time `json:"completeTimestamp,omitempty"`
+
+	// Message is a message about the current status of the repo maintenance.
+	// +optional
+	Message string `json:"message,omitempty"`
 }
 
 // TODO(2.0) After converting all resources to use the runtime-controller client,

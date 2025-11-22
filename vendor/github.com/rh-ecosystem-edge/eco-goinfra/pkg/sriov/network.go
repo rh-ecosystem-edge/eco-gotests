@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -378,7 +379,7 @@ func (builder *NetworkBuilder) Get() (*srIovV1.SriovNetwork, error) {
 
 	network := &srIovV1.SriovNetwork{}
 
-	err := builder.apiClient.Get(context.TODO(),
+	err := builder.apiClient.Get(logging.DiscardContext(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		network)
 	if err != nil {
@@ -399,7 +400,7 @@ func (builder *NetworkBuilder) Create() (*NetworkBuilder, error) {
 	}
 
 	if !builder.Exists() {
-		err := builder.apiClient.Create(context.TODO(), builder.Definition)
+		err := builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err != nil {
 			klog.V(100).Info("Failed to create SriovNetwork")
 
@@ -426,7 +427,7 @@ func (builder *NetworkBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return err
 	}
@@ -515,7 +516,7 @@ func (builder *NetworkBuilder) Update(force bool) (*NetworkBuilder, error) {
 		return nil, fmt.Errorf("failed to update SriovNetwork, object does not exist on cluster")
 	}
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err == nil {
 		builder.Object = builder.Definition
 	} else if force {

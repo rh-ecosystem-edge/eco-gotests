@@ -1,7 +1,6 @@
 package nmstate
 
 import (
-	"context"
 	"fmt"
 
 	"gopkg.in/yaml.v2"
@@ -10,6 +9,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 
 	nmstateV1beta1 "github.com/nmstate/kubernetes-nmstate/api/v1beta1"
@@ -62,7 +62,7 @@ func (builder *StateBuilder) Get() (*nmstateV1beta1.NodeNetworkState, error) {
 
 	nodeNetworkState := &nmstateV1beta1.NodeNetworkState{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name: builder.Object.Name,
 	}, nodeNetworkState)
 	if err != nil {

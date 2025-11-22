@@ -1,11 +1,11 @@
 package sriov
 
 import (
-	"context"
 	"fmt"
 
 	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	"k8s.io/klog/v2"
 
@@ -306,7 +306,7 @@ func (builder *PolicyBuilder) Get() (*srIovV1.SriovNetworkNodePolicy, error) {
 
 	nodePolicy := &srIovV1.SriovNetworkNodePolicy{}
 
-	err := builder.apiClient.Get(context.TODO(),
+	err := builder.apiClient.Get(logging.DiscardContext(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		nodePolicy)
 	if err != nil {
@@ -327,7 +327,7 @@ func (builder *PolicyBuilder) Create() (*PolicyBuilder, error) {
 	}
 
 	if !builder.Exists() {
-		err := builder.apiClient.Create(context.TODO(), builder.Definition)
+		err := builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err != nil {
 			return nil, err
 		}
@@ -353,7 +353,7 @@ func (builder *PolicyBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return err
 	}
