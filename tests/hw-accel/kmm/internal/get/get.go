@@ -20,7 +20,6 @@ import (
 // NumberOfNodesForSelector returns the number or worker nodes.
 func NumberOfNodesForSelector(apiClient *clients.Settings, selector map[string]string) (int, error) {
 	nodeBuilder, err := nodes.List(apiClient, metav1.ListOptions{LabelSelector: labels.Set(selector).String()})
-
 	if err != nil {
 		fmt.Println("could not discover number of nodes")
 
@@ -98,7 +97,6 @@ func MachineConfigPoolName(apiClient *clients.Settings) string {
 		apiClient,
 		metav1.ListOptions{LabelSelector: labels.Set(map[string]string{"kubernetes.io": ""}).String()},
 	)
-
 	if err != nil {
 		klog.V(kmmparams.KmmLogLevel).Infof("could not discover nodes")
 
@@ -119,7 +117,6 @@ func MachineConfigPoolName(apiClient *clients.Settings) string {
 // SigningData returns struct used for creating secrets for module signing.
 func SigningData(key string, value string) map[string][]byte {
 	val, err := base64.StdEncoding.DecodeString(value)
-
 	if err != nil {
 		klog.V(kmmparams.KmmLogLevel).Infof("Error decoding signing key")
 	}
@@ -237,13 +234,11 @@ func KmmHubOperatorVersion(apiClient *clients.Settings) (ver *version.Version, e
 // DTKImage returns the DockerImage of the drivertoolkit imagestream.
 func DTKImage(apiClient *clients.Settings) (dtkImage string, err error) {
 	dtkIS, err := imagestream.Pull(apiClient, kmmparams.DTKImageStream, kmmparams.DTKImageStreamNamespace)
-
 	if err != nil {
 		return "", err
 	}
 
 	dtkImage, err = dtkIS.GetDockerImage("latest")
-
 	if err != nil {
 		return "", err
 	}
@@ -256,7 +251,6 @@ func DTKImage(apiClient *clients.Settings) (dtkImage string, err error) {
 func operatorVersion(apiClient *clients.Settings, namePattern, namespace string) (ver *version.Version, err error) {
 	csv, err := olm.ListClusterServiceVersionWithNamePattern(apiClient, namePattern,
 		namespace)
-
 	if err != nil {
 		return nil, err
 	}

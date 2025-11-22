@@ -675,7 +675,6 @@ func runTraffic(clientPod *pod.Builder, serverIP, protocol string, port int) err
 		[]string{"testcmd", fmt.Sprintf("-port=%d", port), "-interface=net1",
 			fmt.Sprintf("-server=%s", serverIP), fmt.Sprintf("-protocol=%s", protocol), "-mtu=1200"},
 	)
-
 	if err != nil {
 		return fmt.Errorf("%w: %s", err, buffer.String())
 	}
@@ -700,7 +699,6 @@ func enableMultiNetworkPolicy(status bool) {
 	if status {
 		Eventually(func() error {
 			multusDs, err := daemonset.Pull(APIClient, tsparams.MultiNetworkPolicyDSName, NetConfig.MultusNamesapce)
-
 			if err != nil {
 				return err
 			}
@@ -772,6 +770,7 @@ func createServerPod(
 		initContainer, err := pod.NewContainerBuilder(
 			fmt.Sprintf("init%d", idx), NetConfig.CnfNetTestContainer, initCommand).GetContainerCfg()
 		Expect(err).ToNot(HaveOccurred(), "Failed to define init container")
+
 		initContainers = append(initContainers, initContainer)
 
 		serverPod5003Container, err := pod.NewContainerBuilder(
@@ -779,6 +778,7 @@ func createServerPod(
 			setTestCmdServer(protocol, removePrefixFromIP(serverIP), port5003)).
 			GetContainerCfg()
 		Expect(err).ToNot(HaveOccurred(), "Failed to define server 5003 pod container")
+
 		serverPodContainers = append(serverPodContainers, serverPod5003Container)
 
 		serverPod5001Container, err := pod.NewContainerBuilder(
@@ -786,6 +786,7 @@ func createServerPod(
 			setTestCmdServer(protocol, removePrefixFromIP(serverIP), port5001)).
 			GetContainerCfg()
 		Expect(err).ToNot(HaveOccurred(), "Failed to define server 5001 pod container")
+
 		serverPodContainers = append(serverPodContainers, serverPod5001Container)
 	}
 

@@ -40,6 +40,7 @@ func PodStatus(apiClient *clients.Settings, nsname string) ([]PodState, error) {
 		for _, nfdPodName := range nfdhelpersparams.ValidPodNameList {
 			if strings.Contains(onePod.Object.Name, nfdPodName) {
 				nfdResources[nfdPodName]--
+
 				podStateList = append(podStateList, PodState{Name: onePod.Object.Name, State: string(state)})
 			}
 		}

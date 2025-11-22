@@ -33,7 +33,6 @@ func reachURL(targetURL, pollInterval, pollDuration string, expectedCode int) {
 
 	Eventually(func() bool {
 		data, httpCode, err := url.Fetch(targetURL, "GET", true)
-
 		if err != nil {
 			klog.V(spkparams.SPKLogLevel).Infof("Failed to reach %q: %v", targetURL, err)
 
@@ -234,7 +233,6 @@ func getPodLogs(podObj *pod.Builder, cName string, timeSpan time.Time) string {
 		}
 
 		podLog, err = podObj.GetLog(logStartTimestamp, cName)
-
 		if err != nil {
 			klog.V(spkparams.SPKLogLevel).Infof("Failed to get logs from pod %q: %v", podObj.Definition.Name, err)
 
@@ -369,7 +367,6 @@ func verifyUDPIngress(udpAddr, pollInterval, pollDuration string) {
 		klog.V(spkparams.SPKLogLevel).Infof("Sending message: %q(%d bytes)", udpMSG, len([]byte(udpMSG)))
 
 		bWritten, err = udpConnection.Write([]byte(udpMSG))
-
 		if err != nil {
 			klog.V(spkparams.SPKLogLevel).Infof("Failed to send message: %v", err)
 

@@ -32,8 +32,8 @@ func CPUInfo(apiClient *clients.Settings, name, nsname, containerName, image str
 	for _, nodeName := range workerNodesNames {
 		podWorker := pod.NewBuilder(apiClient, nodeName+name, nsname, image)
 		containerBuilder := pod.NewContainerBuilder(containerName, image, []string{"./cpucheck"})
-		container, err := containerBuilder.GetContainerCfg()
 
+		container, err := containerBuilder.GetContainerCfg()
 		if err != nil {
 			klog.V(nfdparams.LogLevel).Infof("Failed to define the default container settings %v", err)
 		}
@@ -65,8 +65,8 @@ func CPUInfo(apiClient *clients.Settings, name, nsname, containerName, image str
 		}
 
 		podLogs := apiClient.Pods(nsname).GetLogs(podWorker.Definition.Name, &con).Do(context.TODO())
-		_, err = podWorker.DeleteAndWait(5 * time.Minute)
 
+		_, err = podWorker.DeleteAndWait(5 * time.Minute)
 		if err != nil {
 			klog.V(nfdparams.LogLevel).Infof(
 				"Error creating pod: %s", err.Error())

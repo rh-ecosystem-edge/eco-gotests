@@ -211,31 +211,38 @@ var _ = Describe("ZTP Siteconfig Operator's Cluster Instance Delete Tests",
 //nolint:wsl
 func validateAISpokeClusterInstallCRsRemoved() {
 	By("checking the infra env manifests removed on hub")
+
 	_, err := assisted.PullInfraEnvInstall(HubAPIClient, RANConfig.Spoke1Name, RANConfig.Spoke1Name)
 	Expect(err).To(HaveOccurred(), "Found spoke infra env manifests but expected to be removed")
 
 	By("checking the bare metal host manifests removed on hub")
+
 	_, err = bmh.Pull(HubAPIClient, RANConfig.Spoke1Name, RANConfig.Spoke1Name)
 	Expect(err).To(HaveOccurred(), "Found spoke bmh manifests but expected to be removed")
 
 	By("checking the cluster deployment manifests removed on hub")
+
 	_, err = hive.PullClusterDeployment(HubAPIClient, RANConfig.Spoke1Name, RANConfig.Spoke1Name)
 	Expect(err).To(HaveOccurred(), "Found spoke cluster deployment manifests but expected to be removed")
 
 	By("checking the NM state config manifests removed on hub")
+
 	nmStateConfigList, err := assisted.ListNmStateConfigs(HubAPIClient, RANConfig.Spoke1Name)
 	Expect(err).ToNot(HaveOccurred(), "Failed to list NM state config manifests")
 	Expect(nmStateConfigList).To(BeEmpty(), "Found spoke NM state config manifests but expected to be removed")
 
 	By("checking the klusterlet addon config manifests removed on hub")
+
 	_, err = ocm.PullKAC(HubAPIClient, RANConfig.Spoke1Name, RANConfig.Spoke1Name)
 	Expect(err).To(HaveOccurred(), "Found spoke kac manifests but expected to be removed")
 
 	By("checking the agent cluster install manifests removed on hub")
+
 	_, err = assisted.PullAgentClusterInstall(HubAPIClient, RANConfig.Spoke1Name, RANConfig.Spoke1Name)
 	Expect(err).To(HaveOccurred(), "Found spoke ACI manifests but expected to be removed")
 
 	By("verifying installed spoke cluster should still be functional")
+
 	_, err = version.GetOCPVersion(Spoke1APIClient)
 	Expect(err).ToNot(HaveOccurred(), "Failed to get OCP version from spoke and verify spoke cluster access")
 }

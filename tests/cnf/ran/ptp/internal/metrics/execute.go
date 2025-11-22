@@ -79,7 +79,6 @@ func ExecuteQueryRange[V constraints.Integer](
 	klog.V(tsparams.LogLevel).Infof("Executing query range: %s", queryString)
 
 	result, warnings, err := client.QueryRange(ctx, queryString, metricQuery.Range())
-
 	if err != nil {
 		return nil, err
 	}

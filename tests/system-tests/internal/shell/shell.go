@@ -7,8 +7,8 @@ import (
 // ExecuteCmd function executes a shell command.
 func ExecuteCmd(command string) ([]byte, error) {
 	cmd := exec.Command("bash", "-c", command)
-	output, err := cmd.Output()
 
+	output, err := cmd.Output()
 	if err != nil {
 		return nil, err
 	}

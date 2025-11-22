@@ -57,8 +57,8 @@ func SendToClient(alertsClient *alertmanagerv2.AlertmanagerAPI, postableAlert *m
 	postableAlert.Alert.Labels["tracker"] = tracker
 
 	params := alert.NewPostAlertsParams().WithTimeout(30 * time.Second).WithAlerts(models.PostableAlerts{postableAlert})
-	_, err := alertsClient.Alert.PostAlerts(params)
 
+	_, err := alertsClient.Alert.PostAlerts(params)
 	if err != nil {
 		return "", fmt.Errorf("failed to send alert to client: %w", err)
 	}

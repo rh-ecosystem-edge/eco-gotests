@@ -147,7 +147,6 @@ func cleanupStatefulset(stName, namespace, stLabel string) {
 	var ctx SpecContext
 
 	stOne, err := statefulset.Pull(APIClient, stName, namespace)
-
 	if err != nil {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to get statefulset %q in %q namespace: %s",
 			stName, namespace, err)
@@ -168,7 +167,6 @@ func cleanupStatefulset(stName, namespace, stLabel string) {
 			pods, err := pod.List(APIClient, RDSCoreConfig.WhereaboutNS, metav1.ListOptions{
 				LabelSelector: stLabel,
 			})
-
 			if err != nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods from %q statefulset in %q namespace: %s",
 					stName, namespace, err)
@@ -226,7 +224,6 @@ func setupHeadlessService(svcName, namespace, svcLabel, svcPort string) {
 	var ctx SpecContext
 
 	svcOne, err := service.Pull(APIClient, svcName, namespace)
-
 	if err != nil {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to get service %q in %q namespace: %s",
 			svcName, namespace, err)
@@ -274,7 +271,6 @@ func setupHeadlessService(svcName, namespace, svcLabel, svcPort string) {
 
 	Eventually(func() error {
 		svcOne, err = svcOne.Create()
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to create headless service %q in %q namespace: %s",
 				svcName, namespace, err)
@@ -367,7 +363,6 @@ func getPodWhereaboutsIPs(activePods []*pod.Builder, interfaceName string) map[s
 				cmdGetIPAddr, _pod.Object.Name, _pod.Object.Namespace)
 
 			addrBuffInfo, err := _pod.ExecCommand(cmdGetIPAddr, _pod.Definition.Spec.Containers[0].Name)
-
 			if err != nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to execute command within pod %q in %q namespace: %s",
 					_pod.Object.Name, _pod.Object.Namespace, err)
@@ -385,7 +380,6 @@ func getPodWhereaboutsIPs(activePods []*pod.Builder, interfaceName string) map[s
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Unmarshalling IP addresses")
 
 			err = json.Unmarshal(addrBuffInfo.Bytes(), &networkInterface)
-
 			if err != nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to unmarshal IP addresses for pod %q in %q namespace: %s",
 					_pod.Object.Name, _pod.Object.Namespace, err)
@@ -556,7 +550,6 @@ func ensurePodConnectivityAfterNodeDrain(stLabel, namespace, targetPort string, 
 		found := false
 
 		for _, newPod := range newActivePods {
-
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found pod %q in %q namespace with UUID: %q",
 				newPod.Object.Name, newPod.Object.Namespace, newPod.Object.UID)
 
@@ -613,7 +606,6 @@ func powerOnNodeWaitReady(bmcClient *bmc.BMC, nodeToPowerOff string, stopCh chan
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Checking power state of %q", nodeToPowerOff)
 
 			powerState, err := bmcClient.SystemPowerState()
-
 			if err != nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to get power state of %q: %v",
 					nodeToPowerOff, err)
@@ -631,7 +623,6 @@ func powerOnNodeWaitReady(bmcClient *bmc.BMC, nodeToPowerOff string, stopCh chan
 					nodeToPowerOff, powerState)
 
 				err = bmcClient.SystemPowerOn()
-
 				if err != nil {
 					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to power on %q: %v", nodeToPowerOff, err)
 
@@ -640,7 +631,6 @@ func powerOnNodeWaitReady(bmcClient *bmc.BMC, nodeToPowerOff string, stopCh chan
 			}
 
 			currentNode, err := nodes.Pull(APIClient, nodeToPowerOff)
-
 			if err != nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to pull node: %v", err)
 
@@ -659,7 +649,6 @@ func powerOnNodeWaitReady(bmcClient *bmc.BMC, nodeToPowerOff string, stopCh chan
 
 			return false, nil
 		})
-
 	if err != nil {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to power on %q: %v", nodeToPowerOff, err)
 	}
@@ -686,7 +675,6 @@ func keepNodePoweredOff(bmcClient *bmc.BMC, nodeToPowerOff string, timeout time.
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Checking power state of %q", nodeToPowerOff)
 
 			powerState, err := bmcClient.SystemPowerState()
-
 			if err != nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to get power state of %q: %v",
 					nodeToPowerOff, err)
@@ -704,7 +692,6 @@ func keepNodePoweredOff(bmcClient *bmc.BMC, nodeToPowerOff string, timeout time.
 					nodeToPowerOff, powerState)
 
 				err = bmcClient.SystemPowerOff()
-
 				if err != nil {
 					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to power off %q: %v",
 						nodeToPowerOff, err)
@@ -778,7 +765,6 @@ func ensurePodConnectivityAfterNodePowerOff(stLabel, namespace, targetPort strin
 
 	Eventually(func() bool {
 		currentNode, err := nodes.Pull(APIClient, nodeToPowerOff)
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to pull node: %v", err)
 
@@ -842,7 +828,6 @@ func ensurePodConnectivityAfterNodePowerOff(stLabel, namespace, targetPort strin
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deleting pod %q", _pod.Object.Name)
 
 		_pod, err := _pod.DeleteImmediate()
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to delete pod %q: %v", _pod.Definition.Name, err)
 		}
@@ -856,7 +841,6 @@ func ensurePodConnectivityAfterNodePowerOff(stLabel, namespace, targetPort strin
 		found := false
 
 		for _, newPod := range newActivePods {
-
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found pod %q in %q namespace with UUID: %q",
 				newPod.Object.Name, newPod.Object.Namespace, newPod.Object.UID)
 
@@ -1016,7 +1000,6 @@ func configureWhereaboutsIPReconciler() {
 	var ctx SpecContext
 
 	cmWhereabouts, err := configmap.Pull(APIClient, WhereaboutsReconcilcerCMName, WhereaboutsReconcilerNamespace)
-
 	if err == nil {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Configmap %q exists in %q namespace, updating it",
 			WhereaboutsReconcilcerCMName, WhereaboutsReconcilerNamespace)

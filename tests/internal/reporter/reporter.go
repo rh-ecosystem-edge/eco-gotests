@@ -56,7 +56,6 @@ func newReporter(
 	}
 
 	res, err := k8sreporter.New(kubeconfig, apiScheme, nsToDumpFilter, reportPath, cRDs...)
-
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +95,6 @@ func ReportIfFailedOnCluster(
 
 	if dumpDir != "" {
 		reporter, err := newReporter(dumpDir, kubeconfig, nSpaces, setReporterSchemes, cRDs)
-
 		if err != nil {
 			klog.Fatalf("Failed to create log reporter due to %s", err)
 		}
@@ -108,7 +106,6 @@ func ReportIfFailedOnCluster(
 
 		err = moveFile(
 			pathToPodExecLogs, path.Join(generalCfg.ReportsDirAbsPath, tcReportFolderName, podExecLogsFName))
-
 		if err != nil {
 			klog.Fatalf("Failed to move pod exec logs %s to report folder: %s", pathToPodExecLogs, err)
 		}
@@ -127,7 +124,6 @@ func moveFile(sourcePath, destPath string) error {
 	}
 
 	inputFile, err := os.Open(sourcePath)
-
 	if err != nil {
 		return fmt.Errorf("couldn't open source file: %w", err)
 	}
@@ -146,7 +142,6 @@ func moveFile(sourcePath, destPath string) error {
 	}()
 
 	_, err = io.Copy(outputFile, inputFile)
-
 	if err != nil {
 		return fmt.Errorf("writing to output file failed: %w", err)
 	}

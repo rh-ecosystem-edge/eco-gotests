@@ -50,8 +50,8 @@ func NewConfig() *GeneralConfig {
 	_, filename, _, _ := runtime.Caller(0)
 	baseDir := filepath.Dir(filename)
 	confFile := filepath.Join(baseDir, PathToDefaultParamsFile)
-	err := readFile(&conf, confFile)
 
+	err := readFile(&conf, confFile)
 	if err != nil {
 		log.Printf("Error to read config file %s", confFile)
 
@@ -59,7 +59,6 @@ func NewConfig() *GeneralConfig {
 	}
 
 	err = readEnv(&conf)
-
 	if err != nil {
 		log.Print("Error to read environment variables")
 
@@ -67,7 +66,6 @@ func NewConfig() *GeneralConfig {
 	}
 
 	err = deployReportDir(conf.ReportsDirAbsPath)
-
 	if err != nil {
 		log.Printf("Error to deploy report directory %s due to %s", conf.ReportsDirAbsPath, err.Error())
 
@@ -124,8 +122,8 @@ func readFile(cfg *GeneralConfig, cfgFile string) error {
 	}()
 
 	decoder := yaml.NewDecoder(openedCfgFile)
-	err = decoder.Decode(&cfg)
 
+	err = decoder.Decode(&cfg)
 	if err != nil {
 		return err
 	}

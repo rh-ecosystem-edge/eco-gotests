@@ -30,6 +30,7 @@ func NewSriovOcpConfig() *SriovOcpConfig {
 	log.Print("Creating new SriovOcpConfig struct")
 
 	var sriovOcpConf SriovOcpConfig
+
 	sriovOcpConf.OcpConfig = ocpconfig.NewOcpConfig()
 
 	if sriovOcpConf.OcpConfig == nil {
@@ -41,8 +42,8 @@ func NewSriovOcpConfig() *SriovOcpConfig {
 	_, filename, _, _ := runtime.Caller(0)
 	baseDir := filepath.Dir(filename)
 	confFile := filepath.Join(baseDir, PathToDefaultOcpSriovParamsFile)
-	err := readFile(&sriovOcpConf, confFile)
 
+	err := readFile(&sriovOcpConf, confFile)
 	if err != nil {
 		log.Printf("Error to read config file %s", confFile)
 
@@ -50,7 +51,6 @@ func NewSriovOcpConfig() *SriovOcpConfig {
 	}
 
 	err = readEnv(&sriovOcpConf)
-
 	if err != nil {
 		log.Print("Error to read environment variables")
 
@@ -71,8 +71,8 @@ func readFile(sriovOcpConfig *SriovOcpConfig, cfgFile string) error {
 	}()
 
 	decoder := yaml.NewDecoder(openedCfgFile)
-	err = decoder.Decode(sriovOcpConfig)
 
+	err = decoder.Decode(sriovOcpConfig)
 	if err != nil {
 		return err
 	}

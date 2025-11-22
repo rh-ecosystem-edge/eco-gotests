@@ -39,7 +39,6 @@ func TapNad(
 	}
 
 	tap, err := nad.NewBuilder(apiClient, name, nsname).WithPlugins(name, &plugins).Create()
-
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +62,6 @@ func VlanNad(
 	apiClient *clients.Settings, name, nsName, intName string, vlanID uint16, ipam *nad.IPAM) (*nad.Builder, error) {
 	masterPlugin, err := nad.NewMasterVlanPlugin(name, vlanID).WithMasterInterface(intName).
 		WithIPAM(ipam).WithLinkInContainer().GetMasterPluginConfig()
-
 	if err != nil {
 		return nil, err
 	}

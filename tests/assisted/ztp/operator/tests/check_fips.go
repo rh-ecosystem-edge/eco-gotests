@@ -155,8 +155,8 @@ func extractBinaryFromPod(
 	}
 
 	var buf bytes.Buffer
-	buf, err = podbuilder.Copy(binary, containerName, tar)
 
+	buf, err = podbuilder.Copy(binary, containerName, tar)
 	if err != nil {
 		klog.V(ztpparams.ZTPLogLevel).Infof("Got error reading file to buffer. The error is : %s", err)
 

@@ -474,7 +474,6 @@ func fetchNewDeploymentPod(waitUntilRunning bool) *pod.Builder {
 		deploymentPodList, _ = pod.List(APIClient, tsparams.TestNamespaceName, metav1.ListOptions{})
 
 		return len(deploymentPodList) == 1
-
 	}, tsparams.DefaultTimeout, 3*time.Second).Should(BeTrue(), "Failed to collect deployment pods")
 
 	if waitUntilRunning {

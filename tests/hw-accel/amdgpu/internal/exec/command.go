@@ -211,7 +211,6 @@ func (p *PodCommand) Run() error {
 	podWorker.Definition.Spec.TerminationGracePeriodSeconds = &terminationGracePeriod
 
 	p.ActualPod, err = podWorker.Create()
-
 	if err != nil {
 		klog.Errorf("Error creating pod: %s", err.Error())
 
@@ -231,8 +230,8 @@ func (p *PodCommand) getContainerConfig() (*corev1.Container, error) {
 	switch p.executionMode {
 	case ShellCommand:
 		containerBuilder = pod.NewContainerBuilder(p.containerName, p.image, []string{"/bin/sh", "-c"})
-		container, err = containerBuilder.GetContainerCfg()
 
+		container, err = containerBuilder.GetContainerCfg()
 		if err != nil {
 			return nil, fmt.Errorf("failed to create shell container: %w", err)
 		}
@@ -241,8 +240,8 @@ func (p *PodCommand) getContainerConfig() (*corev1.Container, error) {
 
 	case BashScript:
 		containerBuilder = pod.NewContainerBuilder(p.containerName, p.image, []string{"/bin/bash"})
-		container, err = containerBuilder.GetContainerCfg()
 
+		container, err = containerBuilder.GetContainerCfg()
 		if err != nil {
 			return nil, fmt.Errorf("failed to create bash container: %w", err)
 		}
@@ -256,8 +255,8 @@ func (p *PodCommand) getContainerConfig() (*corev1.Container, error) {
 		}
 
 		containerBuilder = pod.NewContainerBuilder(p.containerName, p.image, []string{p.commad[0]})
-		container, err = containerBuilder.GetContainerCfg()
 
+		container, err = containerBuilder.GetContainerCfg()
 		if err != nil {
 			return nil, fmt.Errorf("failed to create direct container: %w", err)
 		}

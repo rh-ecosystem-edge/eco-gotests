@@ -128,7 +128,6 @@ func setEmptyDirStorage(config *unstructured.Unstructured) error {
 	}
 
 	err := unstructured.SetNestedMap(config.Object, newStorageConfig, "spec", "storage")
-
 	if err != nil {
 		return fmt.Errorf("failed to set image registry storage: %w", err)
 	}
@@ -139,8 +138,8 @@ func setEmptyDirStorage(config *unstructured.Unstructured) error {
 // updateRegistryConfig updates the registry configuration in the cluster.
 func updateRegistryConfig(apiClient *clients.Settings, config *unstructured.Unstructured) error {
 	ctx := context.Background()
-	err := apiClient.Client.Update(ctx, config)
 
+	err := apiClient.Client.Update(ctx, config)
 	if err != nil {
 		return fmt.Errorf("failed to update image registry configuration: %w", err)
 	}
@@ -210,7 +209,6 @@ func waitForImageRegistryAvailable(apiClient *clients.Settings, timeout time.Dur
 		timeout, metav1.ListOptions{
 			LabelSelector: "docker-registry=default",
 		})
-
 	if err != nil {
 		return fmt.Errorf("timeout waiting for image registry availability: %w", err)
 	}

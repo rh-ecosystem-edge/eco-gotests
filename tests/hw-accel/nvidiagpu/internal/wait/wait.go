@@ -19,7 +19,6 @@ func ClusterPolicyReady(apiClient *clients.Settings, clusterPolicyName string, p
 	return wait.PollUntilContextTimeout(
 		context.TODO(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			clusterPolicy, err := nvidiagpu.Pull(apiClient, clusterPolicyName)
-
 			if err != nil {
 				klog.V(gpuparams.GpuLogLevel).Infof("ClusterPolicy pull from cluster error: %s\n", err)
 
@@ -47,7 +46,6 @@ func CSVSucceeded(apiClient *clients.Settings, csvName, csvNamespace string, pol
 	return wait.PollUntilContextTimeout(
 		context.TODO(), pollInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			csvPulled, err := olm.PullClusterServiceVersion(apiClient, csvName, csvNamespace)
-
 			if err != nil {
 				klog.V(gpuparams.GpuLogLevel).Infof("ClusterServiceVersion pull from cluster error: %s\n", err)
 
@@ -77,8 +75,8 @@ func DeploymentCreated(apiClient *clients.Settings, deploymentName, deploymentNa
 	err := wait.PollUntilContextTimeout(
 		context.TODO(), pollInterval, timeout, false, func(ctx context.Context) (bool, error) {
 			var err error
-			deploymentPulled, err := deployment.Pull(apiClient, deploymentName, deploymentNamespace)
 
+			deploymentPulled, err := deployment.Pull(apiClient, deploymentName, deploymentNamespace)
 			if err != nil {
 				klog.V(gpuparams.GpuLogLevel).Infof("Deployment '%s' pull from cluster namespace '%s' error:"+
 					" %v", deploymentName, deploymentNamespace, err)

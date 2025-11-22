@@ -89,7 +89,6 @@ func NodeWithLabel(apiClient *clients.Settings, nodeLabel string, nodeSelector m
 func NFDDeploymentsReady(apiClient *clients.Settings) (bool, error) {
 	// here check if the 2 NFD deployments in openshift-nfd namespace are ready, first nfd operator
 	nfdOperatorDeployment, err1 := deployment.Pull(apiClient, nfdOperatorDeployment, hwaccelparams.NFDNamespace)
-
 	if err1 != nil {
 		klog.V(gpuparams.GpuLogLevel).Infof("Error trying to pull NFD operator deployment:  %v ", err1)
 
@@ -101,7 +100,6 @@ func NFDDeploymentsReady(apiClient *clients.Settings) (bool, error) {
 
 	// Check nfd-master deployment.
 	nfdMasterDeployment, err2 := deployment.Pull(apiClient, nfdMasterDeployment, hwaccelparams.NFDNamespace)
-
 	if err2 != nil {
 		klog.V(gpuparams.GpuLogLevel).Infof("Error trying to pull NFD master deployment:  %v ", err2)
 

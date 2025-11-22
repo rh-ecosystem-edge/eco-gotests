@@ -24,7 +24,6 @@ func Workload(apiClient *clients.Settings, workloadImage string) (*deployment.Bu
 		AccelConfig.IBUWorkloadImage, []string{"/hello-openshift"}).WithPorts(
 		[]corev1.ContainerPort{{Name: "http", ContainerPort: 8080}}).
 		WithSecurityContext(upgradeparams.DefaultSC).GetContainerCfg()
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to get containerConfig with error: %w", err)
 	}
@@ -33,7 +32,6 @@ func Workload(apiClient *clients.Settings, workloadImage string) (*deployment.Bu
 		upgradeinittools.HubAPIClient, upgradeparams.DeploymentName, upgradeparams.TestNamespaceName, map[string]string{
 			"app": upgradeparams.DeploymentName,
 		}, *containerConfig).WithLabel("app", upgradeparams.DeploymentName).CreateAndWaitUntilReady(time.Second * 120)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to create workload with error: %w", err)
 	}
@@ -52,7 +50,6 @@ func Service(apiClient *clients.Settings, port int32) (*service.Builder, error) 
 		upgradeparams.ServicePort,
 		upgradeparams.ServicePort,
 		corev1.Protocol("TCP"))
-
 	if err != nil {
 		klog.V(90).Infof("Error defining service port: %v", err)
 
@@ -66,7 +63,6 @@ func Service(apiClient *clients.Settings, port int32) (*service.Builder, error) 
 		upgradeparams.TestNamespaceName,
 		upgradeparams.ContainerLabelsMap,
 		*svcPort).Create()
-
 	if err != nil {
 		klog.V(90).Infof("Error creating service: %v", err)
 
@@ -83,7 +79,6 @@ func Service(apiClient *clients.Settings, port int32) (*service.Builder, error) 
 func WorkloadRoute(apiClient *clients.Settings) (*route.Builder, error) {
 	workloadRoute, err := route.NewBuilder(
 		apiClient, upgradeparams.DeploymentName, upgradeparams.TestNamespaceName, upgradeparams.DeploymentName).Create()
-
 	if err != nil {
 		klog.V(90).Infof("Error creating route: %v", err)
 

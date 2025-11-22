@@ -39,7 +39,6 @@ func CreateGPUBurnConfigMap(apiClient *clients.Settings,
 	configMapBuilderWithData := configMapBuilder.WithData(gpuBurnConfigMapData)
 
 	createdConfigMapBuilderWithData, err := configMapBuilderWithData.Create()
-
 	if err != nil {
 		klog.V(gpuparams.GpuLogLevel).Infof(
 			"error creating ConfigMap with Data named %s and for namespace %s",

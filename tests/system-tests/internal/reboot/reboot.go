@@ -98,8 +98,8 @@ func prepareRebootResources(nodeName, nsName string) ([]*pod.Builder, error) {
 		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": nodeName}).String(),
 		LabelSelector: labels.SelectorFromSet(labels.Set{"test": "hardreboot"}).String(),
 	}
-	ipmiPods, err := pod.List(APIClient, nsName, listOptions)
 
+	ipmiPods, err := pod.List(APIClient, nsName, listOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +207,6 @@ func waitForNodeReady(nodeName string) error {
 
 			return false, nil
 		})
-
 	if err != nil {
 		return fmt.Errorf("node %s did not become Ready within timeout: %w", nodeName, err)
 	}
@@ -251,8 +250,8 @@ func KernelCrashKdump(nodeName string) error {
 	cmdToExec := []string{"chroot", "/rootfs", "/bin/sh", "-c", "rm -rf /var/crash/*"}
 
 	klog.V(90).Infof("Remove any existing crash dumps. Exec cmd %v", cmdToExec)
-	_, err := remote.ExecuteOnNodeWithDebugPod(cmdToExec, nodeName)
 
+	_, err := remote.ExecuteOnNodeWithDebugPod(cmdToExec, nodeName)
 	if err != nil {
 		return err
 	}
@@ -261,8 +260,8 @@ func KernelCrashKdump(nodeName string) error {
 		"echo 1 > /proc/sys/kernel/sysrq && echo c | tee /proc/sysrq-trigger"}
 
 	klog.V(90).Infof("Trigerring kernel crash. Exec cmd %v", cmdToExec)
-	_, err = remote.ExecuteOnNodeWithDebugPodWithTimeout(cmdToExec, nodeName, 15*time.Second)
 
+	_, err = remote.ExecuteOnNodeWithDebugPodWithTimeout(cmdToExec, nodeName, 15*time.Second)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			klog.V(90).Infof("Context timeout exceeded while triggering kernel crash, assuming it was triggered")
@@ -283,7 +282,6 @@ func SoftRebootNode(nodeName string) error {
 	cmdToExec := []string{"chroot", "/rootfs", "systemctl", "reboot"}
 
 	_, err := remote.ExecuteOnNodeWithDebugPod(cmdToExec, nodeName)
-
 	if err != nil {
 		return err
 	}

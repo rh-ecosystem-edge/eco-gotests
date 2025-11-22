@@ -26,6 +26,7 @@ func NewOcpConfig() *OcpConfig {
 	log.Print("Creating new OcpConfig struct")
 
 	var ocpConf OcpConfig
+
 	ocpConf.GeneralConfig = config.NewConfig()
 
 	if ocpConf.GeneralConfig == nil {
@@ -37,8 +38,8 @@ func NewOcpConfig() *OcpConfig {
 	_, filename, _, _ := runtime.Caller(0)
 	baseDir := filepath.Dir(filename)
 	confFile := filepath.Join(baseDir, PathToDefaultOcpParamsFile)
-	err := readFile(&ocpConf, confFile)
 
+	err := readFile(&ocpConf, confFile)
 	if err != nil {
 		log.Printf("Error to read config file %s", confFile)
 
@@ -46,7 +47,6 @@ func NewOcpConfig() *OcpConfig {
 	}
 
 	err = readEnv(&ocpConf)
-
 	if err != nil {
 		log.Print("Error to read environment variables")
 
@@ -67,8 +67,8 @@ func readFile(ocpConfig *OcpConfig, cfgFile string) error {
 	}()
 
 	decoder := yaml.NewDecoder(openedCfgFile)
-	err = decoder.Decode(ocpConfig)
 
+	err = decoder.Decode(ocpConfig)
 	if err != nil {
 		return err
 	}

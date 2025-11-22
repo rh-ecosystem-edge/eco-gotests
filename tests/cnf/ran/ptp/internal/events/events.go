@@ -83,7 +83,6 @@ func WaitForEvent(
 				SinceTime: &metav1.Time{Time: previousStartTime},
 				Container: combinedOptions.container,
 			})
-
 			if err != nil {
 				klog.V(tsparams.LogLevel).Infof("Failed to get logs starting at %s for pod: %v", previousStartTime, err)
 
@@ -133,8 +132,8 @@ func extractEventsFromLogs(logs []byte, ignoreCurrentState bool) []event.Event {
 		// Event provides a custom function for unmarshalling JSON that handles the different field names
 		// between API versions.
 		var extractedEvent event.Event
-		err = json.Unmarshal([]byte(unquotedEventJSON), &extractedEvent)
 
+		err = json.Unmarshal([]byte(unquotedEventJSON), &extractedEvent)
 		if err != nil {
 			klog.V(tsparams.LogLevel).Infof("Failed to unmarshal event: %v", err)
 

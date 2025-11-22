@@ -34,7 +34,6 @@ func DoesClusterSupportMetalLbTests(requiredCPNodeNumber, requiredWorkerNodeNumb
 		APIClient,
 		metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -49,7 +48,6 @@ func DoesClusterSupportMetalLbTests(requiredCPNodeNumber, requiredWorkerNodeNumb
 		APIClient,
 		metav1.ListOptions{LabelSelector: labels.Set(NetConfig.ControlPlaneLabelMap).String()},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -94,7 +92,6 @@ func CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(timeout time.Duration, node
 	}
 
 	_, err = metalLbIo.Create()
-
 	if err != nil {
 		return fmt.Errorf("failed to create MetalLB daemonset: %w", err)
 	}
@@ -114,7 +111,6 @@ func CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(timeout time.Duration, node
 
 			return true, nil
 		})
-
 	if err != nil {
 		return fmt.Errorf("failed to pull MetalLB daemonset: %w", err)
 	}
@@ -180,7 +176,6 @@ func GetMetalLbIPByIPStack() ([]string, []string, error) {
 	klog.V(90).Infof("Getting MetalLb virtual ip addresses.")
 
 	metalLbIPList, err := NetConfig.GetMetalLbVirIP()
-
 	if err != nil {
 		return nil, nil, err
 	}
@@ -216,7 +211,6 @@ func IsEnvVarMetalLbIPinNodeExtNetRange(nodeExtAddresses, metalLbEnvIPv4, metalL
 
 	for _, nodeExtAddress := range nodeExtAddresses {
 		ipaddr, subnet, err := net.ParseCIDR(nodeExtAddress)
-
 		if err != nil {
 			return err
 		}
@@ -296,7 +290,6 @@ func isMetalLbDeployed() error {
 
 	metalLbController, err := deployment.Pull(
 		APIClient, tsparams.OperatorControllerManager, NetConfig.MlbOperatorNamespace)
-
 	if err != nil {
 		return fmt.Errorf("error to pull metallb controller deployment %s from cluster", tsparams.OperatorControllerManager)
 	}
@@ -307,7 +300,6 @@ func isMetalLbDeployed() error {
 	}
 
 	metalLbWebhook, err := deployment.Pull(APIClient, tsparams.OperatorWebhook, NetConfig.MlbOperatorNamespace)
-
 	if err != nil {
 		return fmt.Errorf("error to pull webhook deployment object %s from cluster", tsparams.OperatorWebhook)
 	}

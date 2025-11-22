@@ -38,9 +38,9 @@ var ptpProcessRegex = regexp.MustCompile(`/var/run/(ptp4l|ts2phc|phc2sys)\.(\d+)
 // will return an error if the process is not running.
 func GetPID(client *clients.Settings, nodeName string, process PtpProcess) (string, error) {
 	command := fmt.Sprintf("pgrep %s", process)
+
 	output, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, command,
 		ptpdaemon.WithRetries(3), ptpdaemon.WithRetryOnEmptyOutput(true))
-
 	if err != nil {
 		return "", err
 	}
@@ -65,7 +65,6 @@ func WaitForProcessPID(
 
 			return err == nil, nil
 		})
-
 	if err != nil {
 		return "", err
 	}
@@ -91,9 +90,9 @@ func GetPtp4lPIDsByRelatedProcess(
 	}
 
 	getIndexCommand := fmt.Sprintf("pgrep -a %s | grep /var/run | head -n 1", relatedProcess)
+
 	output, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, getIndexCommand,
 		ptpdaemon.WithRetries(3), ptpdaemon.WithRetryOnEmptyOutput(true), ptpdaemon.WithRetryDelay(time.Minute))
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to get index for process %s: %w", relatedProcess, err)
 	}
@@ -122,7 +121,6 @@ func GetPtp4lPIDsByRelatedProcess(
 
 	output, err = ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, getPIDsCommand,
 		ptpdaemon.WithRetries(3), ptpdaemon.WithRetryOnEmptyOutput(true), ptpdaemon.WithRetryDelay(time.Minute))
-
 	if err != nil {
 		return nil, err
 	}
@@ -136,8 +134,8 @@ func GetPtp4lPIDsByRelatedProcess(
 // [KillPtpProcess] this function accepts the PID, not the process name.
 func KillProcessByPID(client *clients.Settings, nodeName string, pid string) error {
 	command := fmt.Sprintf("kill -9 %s", strings.TrimSpace(pid))
-	_, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, command)
 
+	_, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, command)
 	if err != nil {
 		return err
 	}
@@ -148,8 +146,8 @@ func KillProcessByPID(client *clients.Settings, nodeName string, pid string) err
 // KillPtpProcess kills a PTP process on a node by executing a kill command in the ptp daemon pod.
 func KillPtpProcess(client *clients.Settings, nodeName string, process PtpProcess) error {
 	command := fmt.Sprintf("pkill %s", string(process))
-	_, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, command)
 
+	_, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, command)
 	if err != nil {
 		return err
 	}

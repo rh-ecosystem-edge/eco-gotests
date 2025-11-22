@@ -32,13 +32,14 @@ func NewSystemTestsConfig() *SystemTestsConfig {
 	log.Print("Creating new SystemTestsConfig struct")
 
 	var systemConf SystemTestsConfig
+
 	systemConf.GeneralConfig = config.NewConfig()
 
 	_, filename, _, _ := runtime.Caller(0)
 	baseDir := filepath.Dir(filename)
 	confFile := filepath.Join(baseDir, PathToDefaultSystemTestsParamsFile)
-	err := readFile(&systemConf, confFile)
 
+	err := readFile(&systemConf, confFile)
 	if err != nil {
 		log.Printf("Error to read config file %s", confFile)
 
@@ -46,7 +47,6 @@ func NewSystemTestsConfig() *SystemTestsConfig {
 	}
 
 	err = readEnv(&systemConf)
-
 	if err != nil {
 		log.Print("Error to read environment variables")
 
@@ -67,8 +67,8 @@ func readFile(systemtestsConfig *SystemTestsConfig, cfgFile string) error {
 	}()
 
 	decoder := yaml.NewDecoder(openedCfgFile)
-	err = decoder.Decode(&systemtestsConfig)
 
+	err = decoder.Decode(&systemtestsConfig)
 	if err != nil {
 		return err
 	}

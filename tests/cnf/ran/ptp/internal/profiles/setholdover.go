@@ -72,8 +72,8 @@ func SetHoldOverTimeouts(
 		}
 
 		ptpConfig.Definition.Spec.Profile[profileIndex].PtpClockThreshold.HoldOverTimeout = holdoverTimeout
-		_, err = ptpConfig.Update()
 
+		_, err = ptpConfig.Update()
 		if err != nil {
 			return nil, fmt.Errorf("failed to update PTP config for profile %s: %w", profile.Reference.ProfileName, err)
 		}

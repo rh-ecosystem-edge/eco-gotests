@@ -137,14 +137,13 @@ func SetCPUFreq(
 			// Get current isolated core frequency from spoke cluster and compare to desired frequency
 			cmdOut, err := cluster.ExecCommandOnSNOWithRetries(Spoke1APIClient, ranparam.RetryCount,
 				ranparam.RetryInterval, spokeCommandIsolatedCPUs)
-
 			if err != nil {
 				return false, fmt.Errorf("command failed: %s", cmdOut)
 			}
 
 			cmdOut = strings.TrimSpace(cmdOut)
-			currIsolatedCoreFreq, err := strconv.Atoi(cmdOut)
 
+			currIsolatedCoreFreq, err := strconv.Atoi(cmdOut)
 			if err != nil {
 				klog.V(tsparams.LogLevel).Infof("converting cpu frequency %s to an int failed: %v", cmdOut, err)
 
@@ -158,14 +157,13 @@ func SetCPUFreq(
 			// Get current isolated core frequency from spoke cluster and compare to desired frequency
 			cmdOut, err = cluster.ExecCommandOnSNOWithRetries(Spoke1APIClient, ranparam.RetryCount,
 				ranparam.RetryInterval, spokeCommandReservedCPUs)
-
 			if err != nil {
 				return false, fmt.Errorf("command failed: %s", cmdOut)
 			}
 
 			cmdOut = strings.TrimSpace(cmdOut)
-			currReservedFreq, err := strconv.Atoi(cmdOut)
 
+			currReservedFreq, err := strconv.Atoi(cmdOut)
 			if err != nil {
 				klog.V(tsparams.LogLevel).Infof("converting cpu frequency %s to an int failed: %v", cmdOut, err)
 

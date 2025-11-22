@@ -803,7 +803,6 @@ func createBondedNAD(nadName string) error {
 		_, err := nad.Pull(APIClient, nadName, tsparams.TestNamespaceName)
 
 		return err
-
 	}, tsparams.WaitTimeout, tsparams.RetryInterval).Should(BeNil(),
 		fmt.Sprintf("Failed to pull bonded NAD %s", nadName))
 
@@ -824,7 +823,6 @@ func createLACPTestClient(podName, sriovNetworkName, nodeName string) error {
 		RedefineDefaultCMD(testCmd).
 		WithSecondaryNetwork(networkAnnotation).
 		CreateAndWaitUntilRunning(netparam.DefaultTimeout)
-
 	if err != nil {
 		return fmt.Errorf("failed to create and start test client pod %s: %w", podName, err)
 	}
@@ -905,7 +903,6 @@ func createLACPSriovPolicy(
 		WithVhostNet(true).
 		WithDevType("netdevice").
 		Create()
-
 	if err != nil {
 		return fmt.Errorf("failed to create sriov policy %s on %s: %w", policyName, nodeName, err)
 	}
@@ -1108,7 +1105,6 @@ func createBondedClient(podName, nodeName, nadName string) (*pod.Builder, error)
 		WithPrivilegedFlag().
 		WithSecondaryNetwork(annotation).
 		CreateAndWaitUntilRunning(netparam.DefaultTimeout)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to create and start bonded client pod %s: %w", podName, err)
 	}
@@ -1224,6 +1220,7 @@ func createDPDKSriovPolicyFixed(policyName, resourceName, interfaceSpec, workerN
 
 func createDPDKClientPod(podName, nodeName string) (*pod.Builder, error) {
 	var rootUser int64 = 0
+
 	securityContext := corev1.SecurityContext{
 		RunAsUser: &rootUser,
 		Capabilities: &corev1.Capabilities{
@@ -1238,7 +1235,6 @@ func createDPDKClientPod(podName, nodeName string) (*pod.Builder, error) {
 		WithResourceRequest("2Gi", "1Gi", 4).
 		WithEnvVar("RUN_TYPE", "testcmd").
 		GetContainerCfg()
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to define DPDK container: %w", err)
 	}
@@ -1256,7 +1252,6 @@ func createDPDKClientPod(podName, nodeName string) (*pod.Builder, error) {
 		WithSecondaryNetwork(networkAnnotation).
 		WithHugePages().
 		CreateAndWaitUntilRunning(2 * time.Minute)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to create DPDK client pod: %w", err)
 	}
@@ -1400,6 +1395,7 @@ func configureLACPBlockFirewallFilter(credentials *sriovenv.SwitchCredentials) {
 
 	jnpr, err := cmd.NewSession(credentials.SwitchIP, credentials.User, credentials.Password)
 	Expect(err).ToNot(HaveOccurred(), "Failed to create switch session")
+
 	defer jnpr.Close()
 
 	commands := []string{
@@ -1446,6 +1442,7 @@ func setLACPBlockFilterOnInterface(credentials *sriovenv.SwitchCredentials, enab
 
 	jnpr, err := cmd.NewSession(credentials.SwitchIP, credentials.User, credentials.Password)
 	Expect(err).ToNot(HaveOccurred(), "Failed to create switch session")
+
 	defer jnpr.Close()
 
 	commands := []string{command}
@@ -1651,7 +1648,6 @@ func checkBondingStatusOnNode(nodeName string) error {
 	}
 
 	outputs, err := cluster.ExecCmdWithStdout(APIClient, command, nodeSelector)
-
 	if err != nil {
 		return fmt.Errorf("failed to read bonding status on node %s: %w", nodeName, err)
 	}
@@ -1696,7 +1692,6 @@ func checkBondingStatusOnNodeSecondary(nodeName string) error {
 	}
 
 	outputs, err := cluster.ExecCmdWithStdout(APIClient, command, nodeSelector)
-
 	if err != nil {
 		return fmt.Errorf("failed to read secondary bonding status on node %s: %w", nodeName, err)
 	}
@@ -1767,8 +1762,8 @@ func verifyVFsStateOnNode(nodeName, interfaceName string, vfIDs []int, expectedS
 	}
 
 	command := fmt.Sprintf("ip link show %s", interfaceName)
-	outputs, err := cluster.ExecCmdWithStdout(APIClient, command, nodeSelector)
 
+	outputs, err := cluster.ExecCmdWithStdout(APIClient, command, nodeSelector)
 	if err != nil {
 		return fmt.Errorf("failed to get interface %s information: %w", interfaceName, err)
 	}
@@ -1812,8 +1807,8 @@ func verifyVFsStateOnInterface(nodeName, interfaceName, expectedState string) er
 	}
 
 	command := fmt.Sprintf("ip link show %s", interfaceName)
-	outputs, err := cluster.ExecCmdWithStdout(APIClient, command, nodeSelector)
 
+	outputs, err := cluster.ExecCmdWithStdout(APIClient, command, nodeSelector)
 	if err != nil {
 		return fmt.Errorf("failed to get interface %s information: %w", interfaceName, err)
 	}
@@ -1852,7 +1847,6 @@ func verifyLACPPortStateDown(nodeName, bondInterface string) error {
 	}
 
 	outputs, err := cluster.ExecCmdWithStdout(APIClient, command, nodeSelector)
-
 	if err != nil {
 		return fmt.Errorf("failed to read bonding status on node %s: %w", nodeName, err)
 	}
@@ -1894,8 +1888,8 @@ func verifyInterfaceIsUp(nodeName, interfaceName string) error {
 	}
 
 	command := fmt.Sprintf("ip link show %s", interfaceName)
-	outputs, err := cluster.ExecCmdWithStdout(APIClient, command, nodeSelector)
 
+	outputs, err := cluster.ExecCmdWithStdout(APIClient, command, nodeSelector)
 	if err != nil {
 		return fmt.Errorf("failed to get interface %s status: %w", interfaceName, err)
 	}

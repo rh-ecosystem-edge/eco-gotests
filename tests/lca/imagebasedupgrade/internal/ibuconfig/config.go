@@ -16,6 +16,7 @@ func NewIBUConfig() *IBUConfig {
 	klog.V(ibuparams.IBULogLevel).Info("Creating new IBUConfig struct")
 
 	var ibuConfig IBUConfig
+
 	ibuConfig.LCAConfig = lcaconfig.NewLCAConfig()
 
 	return &ibuConfig

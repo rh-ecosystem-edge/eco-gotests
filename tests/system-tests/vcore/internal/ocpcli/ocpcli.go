@@ -31,7 +31,6 @@ func DownloadAndExtractOcBinaryArchive(apiClient *clients.Settings) error {
 		klog.V(100).Info("oc binary was found, need to be deleted")
 
 		err = os.Remove(ocPath)
-
 		if err != nil {
 			return fmt.Errorf("failed to remove %s", ocPath)
 		}
@@ -40,7 +39,6 @@ func DownloadAndExtractOcBinaryArchive(apiClient *clients.Settings) error {
 	klog.V(100).Info("install oc binary")
 
 	clusterVersion, err := platform.GetOCPVersion(apiClient)
-
 	if err != nil {
 		return err
 	}
@@ -49,28 +47,27 @@ func DownloadAndExtractOcBinaryArchive(apiClient *clients.Settings) error {
 		ocBinaryMirror, clusterVersion, clusterVersion)
 
 	err = files.DownloadFile(ocBinaryURL, localTarArchiveName, tempDir)
-
 	if err != nil {
 		return err
 	}
 
 	tarArchiveLocation := filepath.Join(tempDir, localTarArchiveName)
-	err = targz.Extract(tarArchiveLocation, tempDir)
 
+	err = targz.Extract(tarArchiveLocation, tempDir)
 	if err != nil {
 		return err
 	}
 
 	execCmd := fmt.Sprintf("sudo -u root -i cp %s /usr/local/bin/oc", ocPath)
-	output, err := shell.ExecuteCmd(execCmd)
 
+	output, err := shell.ExecuteCmd(execCmd)
 	if err != nil {
 		return fmt.Errorf("failed to execute %s command due to: %w. \noutput: %v", execCmd, err, output)
 	}
 
 	chmodCmd := "sudo -u root -i chmod 755 /usr/local/bin/oc"
-	_, err = shell.ExecuteCmd(chmodCmd)
 
+	_, err = shell.ExecuteCmd(chmodCmd)
 	if err != nil {
 		return fmt.Errorf("failed to execute %s command due to: %w", chmodCmd, err)
 	}
@@ -84,13 +81,11 @@ func ApplyConfig(
 	pathToConfigFile string,
 	variablesToReplace map[string]interface{}) error {
 	err := template.SaveTemplate(pathToTemplate, pathToConfigFile, variablesToReplace)
-
 	if err != nil {
 		return err
 	}
 
 	err = remote.ScpFileTo(pathToConfigFile, pathToConfigFile, VCoreConfig.Host, VCoreConfig.User, VCoreConfig.Pass)
-
 	if err != nil {
 		return fmt.Errorf("failed to transfer file %s to the %s/%s due to: %w",
 			pathToConfigFile, VCoreConfig.Host, pathToConfigFile, err)
@@ -98,8 +93,8 @@ func ApplyConfig(
 
 	applyCmd := fmt.Sprintf("oc apply -f %s --kubeconfig=%s",
 		pathToConfigFile, VCoreConfig.KubeconfigPath)
-	_, err = remote.ExecCmdOnHost(VCoreConfig.Host, VCoreConfig.User, VCoreConfig.Pass, applyCmd)
 
+	_, err = remote.ExecCmdOnHost(VCoreConfig.Host, VCoreConfig.User, VCoreConfig.Pass, applyCmd)
 	if err != nil {
 		return fmt.Errorf("failed to execute %s command due to: %w", applyCmd, err)
 	}
@@ -113,21 +108,19 @@ func CreateConfig(
 	pathToConfigFile string,
 	variablesToReplace map[string]interface{}) error {
 	err := template.SaveTemplate(pathToTemplate, pathToConfigFile, variablesToReplace)
-
 	if err != nil {
 		return err
 	}
 
 	err = remote.ScpFileTo(pathToConfigFile, pathToConfigFile, VCoreConfig.Host, VCoreConfig.User, VCoreConfig.Pass)
-
 	if err != nil {
 		return fmt.Errorf("failed to transfer file %s to the %s/%s due to: %w",
 			pathToConfigFile, VCoreConfig.Host, pathToConfigFile, err)
 	}
 
 	createCmd := fmt.Sprintf("oc create -f %s --kubeconfig=%s", pathToConfigFile, VCoreConfig.KubeconfigPath)
-	_, err = remote.ExecCmdOnHost(VCoreConfig.Host, VCoreConfig.User, VCoreConfig.Pass, createCmd)
 
+	_, err = remote.ExecCmdOnHost(VCoreConfig.Host, VCoreConfig.User, VCoreConfig.Pass, createCmd)
 	if err != nil {
 		return fmt.Errorf("failed to execute %s command due to: %w", createCmd, err)
 	}

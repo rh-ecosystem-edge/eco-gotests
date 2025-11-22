@@ -8,7 +8,6 @@ import (
 // PodRestartCount get pod's reset count.
 func PodRestartCount(apiClient *clients.Settings, nsname, podName string) (int32, error) {
 	podWorker, err := pod.Pull(apiClient, podName, nsname)
-
 	if err != nil {
 		return 0, err
 	}

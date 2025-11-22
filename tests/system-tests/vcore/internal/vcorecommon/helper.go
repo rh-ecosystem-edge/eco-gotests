@@ -19,7 +19,6 @@ func getImageURL(repository, name, tag string) (string, error) {
 	imageURL := fmt.Sprintf("%s/%s", repository, name)
 
 	isDisconnected, err := platform.IsDisconnectedDeployment(APIClient)
-
 	if err != nil {
 		return "", err
 	}
@@ -40,7 +39,6 @@ func getImageURL(repository, name, tag string) (string, error) {
 			VCoreConfig.Pass,
 			VCoreConfig.RegistryRepository,
 			VCoreConfig.KubeconfigPath)
-
 		if err != nil {
 			return "", fmt.Errorf("failed to mirror image %s:%s locally due to %w",
 				name, tag, err)
@@ -87,7 +85,6 @@ func ensureNamespaceExists(nsName string) bool {
 
 	if !createNs.Exists() {
 		createNs, err := createNs.Create()
-
 		if err != nil {
 			klog.V(vcoreparams.VCoreLogLevel).Infof("Error creating namespace %q: %v", nsName, err)
 
@@ -110,7 +107,6 @@ func ensureNamespaceExists(nsName string) bool {
 
 				return true, nil
 			})
-
 		if err != nil {
 			return false
 		}

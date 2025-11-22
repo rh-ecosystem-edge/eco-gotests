@@ -55,7 +55,6 @@ func mTCPConnect(addr *net.TCPAddr, timeOut int) (*net.TCPConn, error) {
 			time.Now().UnixMilli())
 
 		tConn, err := net.DialTCP(network, laddr, addr)
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to connect to %q due to: %v",
 				raddr.String(), err)
@@ -116,7 +115,6 @@ func verifySingleTCPConnection(loadBalancerIP string, servicePort int32,
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Resolving TCP endpoint %q", endPoint)
 
 			addr, err = net.ResolveTCPAddr("tcp", endPoint)
-
 			if err != nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed resolve TCP address %q : %v", endPoint, err)
 
@@ -127,7 +125,6 @@ func verifySingleTCPConnection(loadBalancerIP string, servicePort int32,
 
 			return true, nil
 		})
-
 	if err != nil {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed resolve TCP address %q : %v", endPoint, err)
 
@@ -151,7 +148,6 @@ func verifySingleTCPConnection(loadBalancerIP string, servicePort int32,
 	err = wait.PollUntilContextTimeout(context.TODO(), time.Second, time.Minute, true,
 		func(context.Context) (bool, error) {
 			lbConnection, err = mTCPConnect(addr, int(1000))
-
 			if err != nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed dailing to %q : %v", endPoint, err)
 
@@ -162,7 +158,6 @@ func verifySingleTCPConnection(loadBalancerIP string, servicePort int32,
 
 			return true, nil
 		})
-
 	if err != nil {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed dailing to %q : %v", endPoint, err)
 
@@ -229,7 +224,6 @@ func verifySingleTCPConnection(loadBalancerIP string, servicePort int32,
 			}
 
 			err = lbConnection.SetReadDeadline(time.Now().Add(300 * time.Millisecond))
-
 			if err != nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed set ReadDeadline: %v", err)
 
@@ -247,7 +241,6 @@ func verifySingleTCPConnection(loadBalancerIP string, servicePort int32,
 			msgReply := make([]byte, 1024)
 
 			bRead, err := lbConnection.Read(msgReply)
-
 			if err != nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to read reply(%v): %v",
 					time.Now().UnixMilli(), err)
@@ -316,7 +309,6 @@ func verifyMultipleTCPConnections(loadBalancerIP string, servicePort int32,
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Resolving TCP endpoint %q", endPoint)
 
 			addr, err = net.ResolveTCPAddr("tcp", endPoint)
-
 			if err != nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed resolve TCP address %q : %v", endPoint, err)
 
@@ -327,7 +319,6 @@ func verifyMultipleTCPConnections(loadBalancerIP string, servicePort int32,
 
 			return true, nil
 		})
-
 	if err != nil {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed resolve TCP address %q : %v", endPoint, err)
 
@@ -360,7 +351,6 @@ func verifyMultipleTCPConnections(loadBalancerIP string, servicePort int32,
 			klog.V(110).Infof("Dialing to the TCP endpoint %q", endPoint)
 
 			lbConnection, err := mTCPConnect(addr, int(300))
-
 			if err != nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed dailing to %q : %v", endPoint, err)
 
@@ -401,7 +391,6 @@ func verifyMultipleTCPConnections(loadBalancerIP string, servicePort int32,
 			}
 
 			err = lbConnection.SetReadDeadline(time.Now().Add(300 * time.Millisecond))
-
 			if err != nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed set ReadDeadline: %v", err)
 
@@ -419,7 +408,6 @@ func verifyMultipleTCPConnections(loadBalancerIP string, servicePort int32,
 			msgReply := make([]byte, 1024)
 
 			bRead, err := lbConnection.Read(msgReply)
-
 			if err != nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to read reply(%v): %v",
 					time.Now().UnixMilli(), err)
@@ -479,7 +467,6 @@ func restartMetallbFRRPod(node string, metallbFRRRestartFailed *bool, start, fin
 			func(context.Context) (bool, error) {
 				mPodList, err = pod.List(APIClient, RDSCoreConfig.MetalLBFRRNamespace,
 					metav1.ListOptions{LabelSelector: rdscoreparams.MetalLBFRRPodSelector})
-
 				if err != nil {
 					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods due to: %v", err)
 
@@ -527,7 +514,6 @@ func restartMetallbFRRPod(node string, metallbFRRRestartFailed *bool, start, fin
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deleting pod %q", prevPod.Definition.Name)
 
 		prevPod, err = prevPod.DeleteAndWait(15 * time.Second)
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to delete pod %q: %v",
 				prevPod.Definition.Name, err)
@@ -547,7 +533,6 @@ func restartMetallbFRRPod(node string, metallbFRRRestartFailed *bool, start, fin
 			func(context.Context) (bool, error) {
 				mPodList, err = pod.List(APIClient, RDSCoreConfig.MetalLBFRRNamespace,
 					metav1.ListOptions{LabelSelector: "app=frr-k8s"})
-
 				if err != nil {
 					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods due to %v", err)
 
@@ -606,7 +591,6 @@ func restartMetallbFRRPod(node string, metallbFRRRestartFailed *bool, start, fin
 			newPod.Definition.Name)
 
 		err = newPod.WaitUntilReady(3 * time.Minute)
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q hasn't reached Ready state",
 				newPod.Definition.Name)
@@ -644,7 +628,6 @@ func verifyGracefulRestartFlow(svcName string, checkIPv6 bool, checkMultipleConn
 			svcName, RDSCoreConfig.GracefulRestartServiceNS)
 
 		svcBuilder, err = service.Pull(APIClient, svcName, RDSCoreConfig.GracefulRestartServiceNS)
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error pulling %q service from %q namespace: %v",
 				svcName, RDSCoreConfig.GracefulRestartServiceNS, err)

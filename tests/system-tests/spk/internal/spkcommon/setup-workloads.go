@@ -97,7 +97,6 @@ func createConfigMap(cmName, nsName string, data map[string]string) {
 	var ctx SpecContext
 
 	Eventually(func() bool {
-
 		cmResult, err := cmBuilder.Create()
 		if err != nil {
 			klog.V(spkparams.SPKLogLevel).Infof("Error creating ConfigMap %q in %q namespace",
@@ -136,7 +135,6 @@ func createSVC() {
 
 	Eventually(func() bool {
 		svcDemo, err = svcDemo.Create()
-
 		if err != nil {
 			klog.V(spkparams.SPKLogLevel).Infof("Error creating service: %v", err)
 
@@ -190,7 +188,6 @@ func createUDPSVC() {
 
 	Eventually(func() bool {
 		svcDemo, err = svcDemo.Create()
-
 		if err != nil {
 			klog.V(spkparams.SPKLogLevel).Infof("Error creating service: %v", err)
 

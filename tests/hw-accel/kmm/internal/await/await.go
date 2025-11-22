@@ -30,7 +30,6 @@ func BuildPodCompleted(apiClient *clients.Settings, nsname string, timeout time.
 			if buildPod[nsname] == "" {
 				// Search across all pod phases to catch build pods that may complete quickly
 				pods, err := pod.List(apiClient, nsname, metav1.ListOptions{})
-
 				if err != nil {
 					klog.V(kmmparams.KmmLogLevel).Infof("build list error: %s", err)
 				}
@@ -100,7 +99,6 @@ func ModuleUndeployed(apiClient *clients.Settings, nsName string, timeout time.D
 	return wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			pods, err := pod.List(apiClient, nsName, metav1.ListOptions{})
-
 			if err != nil {
 				klog.V(kmmparams.KmmLogLevel).Infof("pod list error: %s\n", err)
 
@@ -119,7 +117,6 @@ func ModuleObjectDeleted(apiClient *clients.Settings, moduleName, nsName string,
 	return wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			_, err := kmm.Pull(apiClient, moduleName, nsName)
-
 			if err != nil {
 				klog.V(kmmparams.KmmLogLevel).Infof("error while pulling the module; most likely it is deleted")
 			}
@@ -135,7 +132,6 @@ func PreflightStageDone(apiClient *clients.Settings, preflight, module, nsname s
 		context.TODO(), 5*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			pre, err := kmm.PullPreflightValidationOCP(apiClient, preflight,
 				nsname)
-
 			if err != nil {
 				klog.V(kmmparams.KmmLogLevel).Infof("error pulling preflightvalidationocp")
 			}
@@ -168,13 +164,11 @@ func deploymentPerLabel(apiClient *clients.Settings, moduleName, label string,
 			var err error
 
 			nodeBuilder, err := nodes.List(apiClient, metav1.ListOptions{LabelSelector: labels.Set(selector).String()})
-
 			if err != nil {
 				klog.V(kmmparams.KmmLogLevel).Infof("could not discover %v nodes", selector)
 			}
 
 			nodesForSelector, err := get.NumberOfNodesForSelector(apiClient, selector)
-
 			if err != nil {
 				klog.V(kmmparams.KmmLogLevel).Infof("nodes list error: %s", err)
 

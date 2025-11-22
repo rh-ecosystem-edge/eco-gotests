@@ -79,6 +79,7 @@ func WaitForClusterStability(
 
 func waitForNodesReadiness(ctx context.Context, wg *sync.WaitGroup, apiClients *clients.Settings, errChan chan error) {
 	defer wg.Done()
+
 	klog.V(amdgpuparams.AMDGPULogLevel).Info("Setting up watch for Node readiness...")
 
 	_, err := watchtools.UntilWithSync(ctx,
@@ -124,10 +125,10 @@ func waitForNodesReadiness(ctx context.Context, wg *sync.WaitGroup, apiClients *
 
 func waitForClientConfig(ctx context.Context, wg *sync.WaitGroup, apiClients *clients.Settings, errChan chan error) {
 	defer wg.Done()
+
 	klog.V(amdgpuparams.AMDGPULogLevel).Info("Setting up watch for ClusterOperator stability...")
 
 	configClient, err := configclient.NewForConfig(apiClients.Config)
-
 	if err != nil {
 		errChan <- fmt.Errorf("could not create config client: %w", err)
 
@@ -184,7 +185,6 @@ func waitForClientConfig(ctx context.Context, wg *sync.WaitGroup, apiClients *cl
 			return true, nil
 		},
 	)
-
 	if err != nil {
 		errChan <- fmt.Errorf("failed waiting for clusteroperators to become stable: %w", err)
 	}

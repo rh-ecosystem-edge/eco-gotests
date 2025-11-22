@@ -16,7 +16,6 @@ import (
 func CleanNameSpace(cleanTimeout time.Duration, nsname string) error {
 	err := namespace.NewBuilder(APIClient, nsname).
 		CleanObjects(cleanTimeout, deployment.GetGVR(), statefulset.GetGVR())
-
 	if err != nil {
 		klog.V(100).Infof("Failed to clean up objects in namespace: %s", nsname)
 

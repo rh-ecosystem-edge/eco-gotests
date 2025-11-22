@@ -143,8 +143,8 @@ func checkModuleBlacklist(apiClient *clients.Settings, nodeName string) bool {
 // checkModuleLoadStatus checks if amdgpu module is loaded.
 func checkModuleLoadStatus(apiClient *clients.Settings, nodeName string) bool {
 	loadedCheck := "lsmod | grep amdgpu || echo 'MODULE_NOT_LOADED'"
-	output, err := execCommandOnNode(apiClient, nodeName, loadedCheck, executionTimeout)
 
+	output, err := execCommandOnNode(apiClient, nodeName, loadedCheck, executionTimeout)
 	if err != nil {
 		klog.V(amdgpuparams.AMDGPULogLevel).Infof("Error checking module load status on node %s: %v", nodeName, err)
 

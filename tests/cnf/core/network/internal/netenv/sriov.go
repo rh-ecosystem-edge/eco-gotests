@@ -31,7 +31,6 @@ func WaitForSriovAndMCPStable(
 // WaitForSriovStable waits until all the SR-IOV node states are in sync.
 func WaitForSriovStable(apiClient *clients.Settings, waitingTime time.Duration, sriovOperatorNamespace string) error {
 	networkNodeStateList, err := sriov.ListNetworkNodeState(apiClient, sriovOperatorNamespace)
-
 	if err != nil {
 		return fmt.Errorf("failed to fetch nodes state %w", err)
 	}

@@ -91,6 +91,7 @@ func NewMGMTConfig() *MGMTConfig {
 	klog.V(mgmtparams.MGMTLogLevel).Info("Creating new MGMTConfig struct")
 
 	var mgmtConfig MGMTConfig
+
 	mgmtConfig.IBIConfig = ibiconfig.NewIBIConfig()
 
 	err := envconfig.Process("eco_lca_ibi_mgmt_", &mgmtConfig)

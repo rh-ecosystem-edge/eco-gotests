@@ -55,13 +55,14 @@ func NewVCoreConfig() *VCoreConfig {
 	log.Print("Creating new VCoreConfig struct")
 
 	var vcoreConf VCoreConfig
+
 	vcoreConf.SystemTestsConfig = systemtestsconfig.NewSystemTestsConfig()
 
 	_, filename, _, _ := runtime.Caller(0)
 	baseDir := filepath.Dir(filename)
 	confFile := filepath.Join(baseDir, PathToDefaultVCoreParamsFile)
-	err := readFile(&vcoreConf, confFile)
 
+	err := readFile(&vcoreConf, confFile)
 	if err != nil {
 		log.Printf("Error to read config file %s", confFile)
 
@@ -69,7 +70,6 @@ func NewVCoreConfig() *VCoreConfig {
 	}
 
 	err = readEnv(&vcoreConf)
-
 	if err != nil {
 		log.Print("Error to read environment variables")
 
@@ -90,8 +90,8 @@ func readFile(vcoreConfig *VCoreConfig, cfgFile string) error {
 	}()
 
 	decoder := yaml.NewDecoder(openedCfgFile)
-	err = decoder.Decode(&vcoreConfig)
 
+	err = decoder.Decode(&vcoreConfig)
 	if err != nil {
 		return err
 	}

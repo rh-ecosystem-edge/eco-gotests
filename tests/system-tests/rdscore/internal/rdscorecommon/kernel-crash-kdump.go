@@ -42,7 +42,6 @@ func crashNodeKDump(nodeLabel string) {
 			APIClient,
 			metav1.ListOptions{LabelSelector: nodeLabel},
 		)
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list nodes: %v", err)
 
@@ -180,7 +179,6 @@ func cleanupUnexpectedPods(nodeLabel string) {
 			APIClient,
 			metav1.ListOptions{LabelSelector: nodeLabel},
 		)
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list nodes: %v", err)
 

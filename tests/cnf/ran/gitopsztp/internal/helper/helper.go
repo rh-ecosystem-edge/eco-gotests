@@ -28,8 +28,8 @@ func WaitForPolicyToExist(
 	err := wait.PollUntilContextTimeout(
 		context.TODO(), tsparams.ArgoCdChangeInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			var err error
-			policy, err = ocm.PullPolicy(client, name, namespace)
 
+			policy, err = ocm.PullPolicy(client, name, namespace)
 			if err == nil {
 				return true, nil
 			}
@@ -52,8 +52,8 @@ func WaitForServiceAccountToExist(
 	err := wait.PollUntilContextTimeout(
 		context.TODO(), tsparams.ArgoCdChangeInterval, timeout, true, func(ctx context.Context) (bool, error) {
 			var err error
-			builder, err = serviceaccount.Pull(client, name, namespace)
 
+			builder, err = serviceaccount.Pull(client, name, namespace)
 			if err == nil {
 				return true, nil
 			}

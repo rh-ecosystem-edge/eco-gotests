@@ -40,7 +40,6 @@ func ConfigureSecureBoot(bmcClient *bmc.BMC, action string) error {
 
 				return false, nil
 			})
-
 		if err != nil {
 			klog.V(90).Infof("Failed to enable secure boot")
 
@@ -64,7 +63,6 @@ func ConfigureSecureBoot(bmcClient *bmc.BMC, action string) error {
 
 				return false, nil
 			})
-
 		if err != nil {
 			klog.V(90).Infof("Failed to disable secure boot")
 
@@ -141,7 +139,6 @@ func powerCycleNode(bmcClient *bmc.BMC) error {
 
 			return false, nil
 		})
-
 	if err != nil {
 		klog.V(90).Infof("Failed to power cycle the system")
 

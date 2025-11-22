@@ -33,7 +33,6 @@ func IsKMMHub() bool {
 // NodeLabel checks if label is present on the node.
 func NodeLabel(apiClient *clients.Settings, moduleName, nsname string, nodeSelector map[string]string) (bool, error) {
 	nodeBuilder, err := nodes.List(apiClient, metav1.ListOptions{LabelSelector: labels.Set(nodeSelector).String()})
-
 	if err != nil {
 		klog.V(kmmparams.KmmLogLevel).Infof("could not discover %v nodes", nodeSelector)
 	}
@@ -83,8 +82,8 @@ func ModuleSigned(apiClient *clients.Settings, modName, message, nsname, image s
 
 	processedImage := strings.ReplaceAll(image, "$KERNEL_FULL_VERSION", kernelVersion)
 	testPod := pod.NewBuilder(apiClient, "image-checker", nsname, processedImage)
-	_, err = testPod.CreateAndWaitUntilRunning(2 * time.Minute)
 
+	_, err = testPod.CreateAndWaitUntilRunning(2 * time.Minute)
 	if err != nil {
 		klog.V(kmmparams.KmmLogLevel).Infof("Could not create signing verification pod. Got error : %v", err)
 
@@ -94,7 +93,6 @@ func ModuleSigned(apiClient *clients.Settings, modName, message, nsname, image s
 	klog.V(kmmparams.KmmLogLevel).Infof("\n\nPodName: %v\n\n", testPod.Object.Name)
 
 	buff, err := testPod.ExecCommand(command, "test")
-
 	if err != nil {
 		return err
 	}
@@ -128,7 +126,6 @@ func runCommandOnTestPods(apiClient *clients.Settings,
 				FieldSelector: "status.phase=Running",
 				LabelSelector: kmmparams.KmmTestHelperLabelName,
 			})
-
 			if err != nil {
 				klog.V(kmmparams.KmmLogLevel).Infof("deployment list error: %s\n", err)
 
@@ -143,7 +140,6 @@ func runCommandOnTestPods(apiClient *clients.Settings,
 					iterPod.Object.Name, command, message)
 
 				buff, err := iterPod.ExecCommand(command, "test")
-
 				if err != nil {
 					return false, err
 				}

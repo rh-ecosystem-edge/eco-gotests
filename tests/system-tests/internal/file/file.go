@@ -17,8 +17,8 @@ func TouchFile(path string) error {
 // DeleteFile deletes the file passed in parameter.
 func DeleteFile(path string) error {
 	cmdToExec := fmt.Sprintf("sudo rm -f %s", path)
-	err := cluster.ExecCmd(APIClient, SystemTestsTestConfig.ControlPlaneLabel, cmdToExec)
 
+	err := cluster.ExecCmd(APIClient, SystemTestsTestConfig.ControlPlaneLabel, cmdToExec)
 	if err != nil {
 		return fmt.Errorf("error deleting file %s, err=%w", path, err)
 	}

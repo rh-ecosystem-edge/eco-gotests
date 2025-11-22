@@ -16,6 +16,7 @@ func NewIBIConfig() *IBIConfig {
 	klog.V(ibiparams.IBILogLevel).Info("Creating new IBIConfig struct")
 
 	var ibiConfig IBIConfig
+
 	ibiConfig.LCAConfig = lcaconfig.NewLCAConfig()
 
 	return &ibiConfig

@@ -63,7 +63,6 @@ type ClusterStruct struct {
 //nolint:funlen
 func (upgradeVar *ClusterStruct) SaveClusterInfo() error {
 	clusterVersion, err := cluster.GetOCPClusterVersion(cnfinittools.TargetSNOAPIClient)
-
 	if err != nil {
 		klog.V(cnfparams.CNFLogLevel).Infof("Could not retrieve cluster version")
 
@@ -71,7 +70,6 @@ func (upgradeVar *ClusterStruct) SaveClusterInfo() error {
 	}
 
 	targetSnoClusterName, err := cluster.GetOCPClusterName(cnfinittools.TargetSNOAPIClient)
-
 	if err != nil {
 		klog.V(cnfparams.CNFLogLevel).Infof("Could not retrieve target sno cluster name")
 
@@ -79,7 +77,6 @@ func (upgradeVar *ClusterStruct) SaveClusterInfo() error {
 	}
 
 	csvList, err := olm.ListClusterServiceVersionInAllNamespaces(cnfinittools.TargetSNOAPIClient)
-
 	if err != nil {
 		klog.V(cnfparams.CNFLogLevel).Infof("Could not retrieve csv list")
 
@@ -99,7 +96,6 @@ func (upgradeVar *ClusterStruct) SaveClusterInfo() error {
 	}
 
 	node, err := nodes.List(cnfinittools.TargetSNOAPIClient)
-
 	if err != nil {
 		klog.V(cnfparams.CNFLogLevel).Infof("Could not retrieve node list")
 
@@ -183,8 +179,8 @@ func (upgradeVar *ClusterStruct) getWorkloadInfo() error {
 	}
 
 	cmd := []string{"bash", "-c", "md5sum " + cnfinittools.CNFConfig.IbuWorkloadPVFilePath + " ||true"}
-	getDigest, err := workloadPod.ExecCommand(cmd)
 
+	getDigest, err := workloadPod.ExecCommand(cmd)
 	if err != nil {
 		return err
 	}

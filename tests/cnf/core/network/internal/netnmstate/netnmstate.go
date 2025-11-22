@@ -30,12 +30,10 @@ func CreateNewNMStateAndWaitUntilItsRunning(timeout time.Duration) error {
 	klog.V(90).Infof("Verifying if NMState instance is installed")
 
 	nmstateInstance, err := nmstate.PullNMstate(APIClient, netparam.NMState)
-
 	if err == nil {
 		klog.V(90).Infof("NMState exists. Removing NMState.")
 
 		_, err = nmstateInstance.Delete()
-
 		if err != nil {
 			return err
 		}
@@ -131,7 +129,6 @@ func ConfigureVFsAndWaitUntilItsConfigured(
 
 	// NodeNetworkStates exist for each node and share the same name.
 	nodeList, err := nodes.List(APIClient, metav1.ListOptions{LabelSelector: labels.Set(nodeLabel).String()})
-
 	if err != nil {
 		return err
 	}
@@ -451,7 +448,6 @@ func isNMStateDeployedAndReady(timeout time.Duration) error {
 
 			return true, nil
 		})
-
 	if err != nil {
 		return err
 	}

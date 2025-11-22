@@ -31,7 +31,6 @@ func WaitAllStatefulsetsReady(ctx SpecContext) {
 		)
 
 		statefulsetList, err = statefulset.ListInAllNamespaces(APIClient, metav1.ListOptions{})
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list statefulsets in all namespaces: %s", err)
 

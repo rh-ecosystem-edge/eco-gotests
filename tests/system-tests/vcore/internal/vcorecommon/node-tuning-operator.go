@@ -405,6 +405,7 @@ func unmarshalRaw[T any](raw []byte) T {
 	Expect(err).ToNot(HaveOccurred(), "Failed to unmarshal JSON into unstructured")
 
 	var typed T
+
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(untyped.UnstructuredContent(), &typed)
 	Expect(err).ToNot(HaveOccurred(), "Failed to convert unstructed to structured")
 

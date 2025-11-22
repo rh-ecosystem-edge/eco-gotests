@@ -42,7 +42,6 @@ func CreateNFDNamespace(apiClient *clients.Settings) error {
 	klog.V(gpuparams.GpuLogLevel).Infof("Creating the namespace:  %v", hwaccelparams.NFDNamespace)
 
 	createdNfdNsBuilder, err := nfdNsBuilder.Create()
-
 	if err != nil {
 		klog.V(gpuparams.GpuLogLevel).Infof("error creating NFD namespace '%s' :  %v ",
 			createdNfdNsBuilder.Definition.Name, err)
@@ -62,7 +61,6 @@ func CreateNFDNamespace(apiClient *clients.Settings) error {
 	})
 
 	newLabeledNfdNsBuilder, err := labeledNfdNsBuilder.Update()
-
 	if err != nil {
 		klog.V(gpuparams.GpuLogLevel).Infof("error labeling NFD namespace %s :  %v ",
 			newLabeledNfdNsBuilder.Definition.Name, err)
@@ -90,7 +88,6 @@ func CreateNFDOperatorGroup(apiClient *clients.Settings) error {
 			nfdOperatorGroupName)
 
 		nfdOgBuilderCreated, err := nfdOgBuilder.Create()
-
 		if err != nil {
 			klog.V(gpuparams.GpuLogLevel).Infof("error creating NFD operatorgroup %v :  %v ",
 				nfdOgBuilderCreated.Definition.Name, err)
@@ -115,7 +112,6 @@ func CreateNFDSubscription(apiClient *clients.Settings) error {
 	klog.V(gpuparams.GpuLogLevel).Infof("Creating the NFD subscription, i.e Deploy the NFD operator")
 
 	createdNfdSub, err := nfdSubBuilder.Create()
-
 	if err != nil {
 		klog.V(gpuparams.GpuLogLevel).Infof("error creating NFD subscription %v :  %v ",
 			createdNfdSub.Definition.Name, err)
@@ -142,7 +138,6 @@ func CheckNFDOperatorDeployed(apiClient *clients.Settings, waitTime time.Duratio
 	klog.V(gpuparams.GpuLogLevel).Infof("Check if the NFD operator deployment is ready")
 
 	nfdOperatorDeployment, err := deployment.Pull(apiClient, nfdOperatorDeploymentName, hwaccelparams.NFDNamespace)
-
 	if err != nil {
 		klog.V(gpuparams.GpuLogLevel).Infof("Error trying to pull NFD operator "+
 			"deployment is: %v", err)
@@ -165,7 +160,6 @@ func CheckNFDOperatorDeployed(apiClient *clients.Settings, waitTime time.Duratio
 
 	nfdCurrentCSVFromSub, err := get.CurrentCSVFromSubscription(apiClient, nfdSubscriptionName,
 		nfdSubscriptionNamespace)
-
 	if err != nil {
 		klog.V(gpuparams.GpuLogLevel).Infof("error pulling NFD currentCSV from cluster:  %v", err)
 
@@ -202,7 +196,6 @@ func CheckNFDOperatorDeployed(apiClient *clients.Settings, waitTime time.Duratio
 	klog.V(gpuparams.GpuLogLevel).Infof("Pull existing CSV in NFD Operator Namespace")
 
 	clusterNfdCSV, err := olm.PullClusterServiceVersion(apiClient, nfdCurrentCSVFromSub, hwaccelparams.NFDNamespace)
-
 	if err != nil {
 		klog.V(gpuparams.GpuLogLevel).Infof("error pulling CSV %v from cluster:  %v",
 			nfdCurrentCSVFromSub, err)
@@ -234,7 +227,6 @@ func DeployCRInstance(apiClient *clients.Settings) error {
 
 	nfdCurrentCSVFromSub, err := get.CurrentCSVFromSubscription(apiClient, nfdSubscriptionName,
 		nfdSubscriptionNamespace)
-
 	if err != nil {
 		klog.V(gpuparams.GpuLogLevel).Infof("Error from getting CurrentCSVFromSubscription:  %v ", err)
 
@@ -244,7 +236,6 @@ func DeployCRInstance(apiClient *clients.Settings) error {
 	klog.V(gpuparams.GpuLogLevel).Infof("Pull existing CSV in NFD Operator Namespace")
 
 	clusterNfdCSV, err := olm.PullClusterServiceVersion(apiClient, nfdCurrentCSVFromSub, hwaccelparams.NFDNamespace)
-
 	if err != nil {
 		klog.V(gpuparams.GpuLogLevel).Infof("Error from PullClusterServiceVersion:  %v ", err)
 
@@ -252,7 +243,6 @@ func DeployCRInstance(apiClient *clients.Settings) error {
 	}
 
 	almExamples, err := clusterNfdCSV.GetAlmExamples()
-
 	if err != nil {
 		klog.V(gpuparams.GpuLogLevel).Infof("Error from pulling almExamples from NFD CSV:  %v ", err)
 
@@ -266,7 +256,6 @@ func DeployCRInstance(apiClient *clients.Settings) error {
 	nodeFeatureDiscoveryBuilder := nfd.NewBuilderFromObjectString(apiClient, almExamples)
 
 	_, err = nodeFeatureDiscoveryBuilder.Create()
-
 	if err != nil {
 		klog.V(gpuparams.GpuLogLevel).Infof("Error Creating NodeFeatureDiscovery instance from CSV "+
 			"almExamples  %v ", err)
@@ -288,7 +277,6 @@ func DeployCRInstance(apiClient *clients.Settings) error {
 	klog.V(gpuparams.GpuLogLevel).Infof("Check if the NFD CR deployment is ready")
 
 	nfdCRDeployment, err := deployment.Pull(apiClient, nfdCRDeploymentName, hwaccelparams.NFDNamespace)
-
 	if err != nil {
 		klog.V(gpuparams.GpuLogLevel).Infof("Error pulling NFD CR deployment  %v ", err)
 
@@ -314,7 +302,6 @@ func GetNFDCRJson(apiClient *clients.Settings, nfdCRName string, nfdNamespace st
 		"with updated fields")
 
 	pulledNodeFeatureDiscovery, err := nfd.Pull(apiClient, nfdCRName, nfdNamespace)
-
 	if err != nil {
 		klog.V(gpuparams.GpuLogLevel).Infof("error pulling NodeFeatureDiscovery %s from "+
 			"cluster: %v ", nfdCRName, err)
@@ -323,7 +310,6 @@ func GetNFDCRJson(apiClient *clients.Settings, nfdCRName string, nfdNamespace st
 	}
 
 	nfdCRJson, err := json.MarshalIndent(pulledNodeFeatureDiscovery, "", " ")
-
 	if err == nil {
 		klog.V(gpuparams.GpuLogLevel).Infof("The NodeFeatureDiscovery just created has name:  %v",
 			pulledNodeFeatureDiscovery.Definition.Name)
@@ -344,7 +330,6 @@ func NFDCRDeleteAndWait(apiClient *clients.Settings, nfdCRName string, nfdCRName
 	return wait.PollUntilContextTimeout(
 		context.TODO(), pollInterval, timeout, false, func(ctx context.Context) (bool, error) {
 			nfdCR, err := nfd.Pull(apiClient, nfdCRName, nfdCRNamespace)
-
 			if err != nil {
 				klog.V(gpuparams.GpuLogLevel).Infof("NodeFeatureDiscovery pull from cluster error: %s\n", err)
 
@@ -376,7 +361,6 @@ func DeleteNFDNamespace(apiClient *clients.Settings) error {
 	klog.V(gpuparams.GpuLogLevel).Infof("Deleting NFD namespace '%s'", hwaccelparams.NFDNamespace)
 
 	pulledNFDNsBuilder, err := namespace.Pull(apiClient, hwaccelparams.NFDNamespace)
-
 	if err != nil {
 		klog.V(gpuparams.GpuLogLevel).Infof("error pulling NFD namespace '%s' :  %v ",
 			hwaccelparams.NFDNamespace, err)
@@ -431,7 +415,6 @@ func DeleteNFDCSV(apiClient *clients.Settings) error {
 
 	nfdCurrentCSVFromSub, err := get.CurrentCSVFromSubscription(apiClient, nfdSubscriptionName,
 		nfdSubscriptionNamespace)
-
 	if err != nil {
 		return fmt.Errorf("error trying to get current NFD CSV from subscription '%w'", err)
 	}
@@ -441,7 +424,6 @@ func DeleteNFDCSV(apiClient *clients.Settings) error {
 	}
 
 	clusterNfdCSV, err := olm.PullClusterServiceVersion(apiClient, nfdCurrentCSVFromSub, hwaccelparams.NFDNamespace)
-
 	if err != nil {
 		return fmt.Errorf("error pulling CSV %v from cluster:  %w", nfdCurrentCSVFromSub, err)
 	}

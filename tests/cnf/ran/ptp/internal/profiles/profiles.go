@@ -208,8 +208,8 @@ func (nodeInfo *NodeInfo) GetProfileByConfigPath(
 	// The config file will begin with something like:
 	//  #profile: slave1
 	command := fmt.Sprintf("cat /var/run/%s | head -1 | cut -d' ' -f2", path)
-	output, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, command)
 
+	output, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, command)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get profile by config path %s on node %s: %w", path, nodeName, err)
 	}

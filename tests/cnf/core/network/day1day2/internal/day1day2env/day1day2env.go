@@ -32,7 +32,6 @@ func DoesClusterSupportDay1Day2Tests(requiredCPNodeNumber, requiredWorkerNodeNum
 		APIClient,
 		metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -47,7 +46,6 @@ func DoesClusterSupportDay1Day2Tests(requiredCPNodeNumber, requiredWorkerNodeNum
 		APIClient,
 		metav1.ListOptions{LabelSelector: labels.Set(NetConfig.ControlPlaneLabelMap).String()},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -117,7 +115,6 @@ func CheckConnectivityBetweenMasterAndWorkers() error {
 		APIClient,
 		metav1.ListOptions{LabelSelector: labels.Set(NetConfig.ControlPlaneLabelMap).String()},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -126,7 +123,6 @@ func CheckConnectivityBetweenMasterAndWorkers() error {
 		APIClient,
 		metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -163,7 +159,6 @@ func isNMStateOperatorDeployed() error {
 
 	nmstateOperatorDeployment, err := deployment.Pull(
 		APIClient, "nmstate-operator", NetConfig.NMStateOperatorNamespace)
-
 	if err != nil {
 		return fmt.Errorf("error to pull nmstate-operator deployment from the cluster")
 	}

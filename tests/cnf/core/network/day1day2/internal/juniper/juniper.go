@@ -19,6 +19,7 @@ func DumpInterfaceConfigs(currentSession *JunosSession, switchInterfaces []strin
 		if err != nil {
 			return err
 		}
+
 		InterfaceConfigs = append(InterfaceConfigs, config)
 	}
 

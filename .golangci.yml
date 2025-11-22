@@ -1,6 +1,6 @@
 version: "2"
 run:
-  go: "1.24"
+  go: "1.25"
 output:
   formats:
     text:
@@ -43,7 +43,7 @@ linters:
     - unparam
     - usetesting
     - varnamelen
-    - wsl
+    - wsl_v5
   disable:
     - ireturn
   settings:

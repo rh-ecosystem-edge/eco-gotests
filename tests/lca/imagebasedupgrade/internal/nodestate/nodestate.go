@@ -21,7 +21,6 @@ func WaitForNodeToBeUnreachable(host, port string, timeout time.Duration) (bool,
 			return !CheckIfNodeReachableOnPort(host, port), nil
 		},
 	)
-
 	if err != nil {
 		return false, err
 	}
@@ -38,7 +37,6 @@ func WaitForNodeToBeReachable(host, port string, timeout time.Duration) (bool, e
 			return CheckIfNodeReachableOnPort(host, port), nil
 		},
 	)
-
 	if err != nil {
 		return false, err
 	}
@@ -74,7 +72,6 @@ func WaitForIBUToBeAvailable(
 			var err error
 
 			ibu.Object, err = ibu.Get()
-
 			if err != nil {
 				return false, nil
 			}

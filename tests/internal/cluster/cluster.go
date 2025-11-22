@@ -29,7 +29,6 @@ func PullTestImageOnNodes(apiClient *clients.Settings, nodeSelector, image strin
 		apiClient,
 		metav1.ListOptions{LabelSelector: labels.Set(map[string]string{nodeSelector: ""}).String()},
 	)
-
 	if err != nil {
 		return err
 	}
@@ -38,9 +37,9 @@ func PullTestImageOnNodes(apiClient *clients.Settings, nodeSelector, image strin
 		klog.V(90).Infof("Pulling image %s to node %s", image, node.Object.Name)
 		podBuilder := pod.NewBuilder(
 			apiClient, fmt.Sprintf("pullpod-%s", node.Object.Name), "default", image)
+
 		err := podBuilder.PullImage(time.Duration(pullTimeout)*time.Second, []string{
 			"/bin/sh", "-c", "echo image Pulled && exit 0"})
-
 		if err != nil {
 			return err
 		}
@@ -81,8 +80,8 @@ func ExecCmd(apiClient *clients.Settings, nodeSelector string, shellCmd string) 
 			cmdToExec := []string{"sh", "-c", fmt.Sprintf("nsenter --mount=/proc/1/ns/mnt -- sh -c '%s'", shellCmd)}
 
 			klog.V(90).Infof("Exec cmd %v on pod %s", cmdToExec, mcPod.Definition.Name)
-			buf, err := mcPod.ExecCommand(cmdToExec)
 
+			buf, err := mcPod.ExecCommand(cmdToExec)
 			if err != nil {
 				return fmt.Errorf("%w\n%s", err, buf.String())
 			}
@@ -128,7 +127,6 @@ func ExecCmdWithStdout(
 		apiClient,
 		passedOptions,
 	)
-
 	if err != nil {
 		return nil, err
 	}
@@ -155,8 +153,8 @@ func ExecCmdWithStdout(
 			}
 
 			hostnameCmd := []string{"sh", "-c", "nsenter --mount=/proc/1/ns/mnt -- sh -c 'printf $(hostname)'"}
-			hostnameBuf, err := mcPod.ExecCommand(hostnameCmd)
 
+			hostnameBuf, err := mcPod.ExecCommand(hostnameCmd)
 			if err != nil {
 				return nil, fmt.Errorf("failed gathering node hostname: %w", err)
 			}
@@ -164,8 +162,8 @@ func ExecCmdWithStdout(
 			cmdToExec := []string{"sh", "-c", fmt.Sprintf("nsenter --mount=/proc/1/ns/mnt -- sh -c '%s'", shellCmd)}
 
 			klog.V(90).Infof("Exec cmd %v on pod %s", cmdToExec, mcPod.Definition.Name)
-			commandBuf, err := mcPod.ExecCommand(cmdToExec)
 
+			commandBuf, err := mcPod.ExecCommand(cmdToExec)
 			if err != nil {
 				return nil, fmt.Errorf("failed executing command '%s' on node %s: %w", shellCmd, hostnameBuf.String(), err)
 			}
@@ -271,8 +269,8 @@ func ExecCommandOnSNOWithRetries(client *clients.Settings, retries uint,
 // WaitForRecover waits up to timeout for all pods in namespaces on a provided node to recover.
 func WaitForRecover(client *clients.Settings, namespaces []string, timeout time.Duration) error {
 	klog.V(90).Infof("Wait for cluster to recover for namespaces: %v timeout: %v", namespaces, timeout)
-	err := waitForReachable(client, timeout)
 
+	err := waitForReachable(client, timeout)
 	if err != nil {
 		return err
 	}

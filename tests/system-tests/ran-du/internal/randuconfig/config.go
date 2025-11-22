@@ -43,13 +43,14 @@ func NewRanDuConfig() *RanDuConfig {
 	log.Print("Creating new RanDuConfig struct")
 
 	var randuConf RanDuConfig
+
 	randuConf.SystemTestsConfig = systemtestsconfig.NewSystemTestsConfig()
 
 	_, filename, _, _ := runtime.Caller(0)
 	baseDir := filepath.Dir(filename)
 	confFile := filepath.Join(baseDir, PathToDefaultRanDuParamsFile)
-	err := readFile(&randuConf, confFile)
 
+	err := readFile(&randuConf, confFile)
 	if err != nil {
 		log.Printf("Error to read config file %s", confFile)
 
@@ -57,7 +58,6 @@ func NewRanDuConfig() *RanDuConfig {
 	}
 
 	err = readEnv(&randuConf)
-
 	if err != nil {
 		log.Print("Error to read environment variables")
 
@@ -78,8 +78,8 @@ func readFile(randuConfig *RanDuConfig, cfgFile string) error {
 	}()
 
 	decoder := yaml.NewDecoder(openedCfgFile)
-	err = decoder.Decode(&randuConfig)
 
+	err = decoder.Decode(&randuConfig)
 	if err != nil {
 		return err
 	}

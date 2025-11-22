@@ -232,12 +232,15 @@ func VerifyAllPoliciesInNamespaceAreCompliant(
 		if mutex != nil {
 			mutex.Lock()
 		}
+
 		policies, err := ocm.ListPoliciesInAllNamespaces(
 			HubAPIClient, runtimeclient.ListOptions{Namespace: nsName})
 		Expect(err).ToNot(HaveOccurred(), "Failed to pull policies from namespaces %s: %v", nsName, err)
+
 		if mutex != nil {
 			mutex.Unlock()
 		}
+
 		for _, policy := range policies {
 			if policy.Object.Status.ComplianceState != "Compliant" {
 				return false
@@ -269,12 +272,15 @@ func VerifyPoliciesAreNotCompliant(
 		if mutex != nil {
 			mutex.Lock()
 		}
+
 		policies, err := ocm.ListPoliciesInAllNamespaces(
 			HubAPIClient, runtimeclient.ListOptions{Namespace: nsName})
 		Expect(err).ToNot(HaveOccurred(), "Failed to pull policies from namespace %s: %v", nsName, err)
+
 		if mutex != nil {
 			mutex.Unlock()
 		}
+
 		for _, policy := range policies {
 			if policy.Object.Status.ComplianceState != "Compliant" {
 				return true

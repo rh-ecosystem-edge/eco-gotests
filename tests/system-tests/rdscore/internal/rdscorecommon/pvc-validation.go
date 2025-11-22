@@ -318,7 +318,6 @@ func createWorkloadWithPVC(fNamespace string, fStorageClass string, fPVCName str
 
 	Eventually(func() bool {
 		podOneResult, err = podOne.ExecCommand(writeDataOneCmd, "one")
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to execute command: %v", err)
 
@@ -385,7 +384,6 @@ func rescheduleWorkloadWithPVC(fNamespace, fPodLabel string, fNodeSelector map[s
 	Eventually(func() bool {
 		oldPods, err := pod.List(APIClient, fNamespace,
 			metav1.ListOptions{LabelSelector: labelsWlkdOneString})
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods: %v", err)
 
@@ -400,7 +398,6 @@ func rescheduleWorkloadWithPVC(fNamespace, fPodLabel string, fNodeSelector map[s
 			deploy.Definition.Name, deploy.Definition.Namespace)
 
 		deploy, err = deployment.Pull(APIClient, wlkdODFDeployName, fNamespace)
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("failed to pull in deployment %q in %q namespace",
 				deploy.Definition.Name, deploy.Definition.Namespace)
@@ -542,7 +539,6 @@ func verifyDataOnPVC(fNamespace, podLabel, verificationRegex string, cmdToRun []
 
 		Eventually(func() bool {
 			podCommandResult, err = podOne.ExecCommand(cmdToRun, "one")
-
 			if err != nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to run command on pod %s - %v",
 					podOne.Definition.Name, err)

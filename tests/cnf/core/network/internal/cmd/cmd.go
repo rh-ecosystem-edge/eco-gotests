@@ -92,7 +92,6 @@ func RxTrafficOnClientPod(clientPod *pod.Builder, clientRxCmd string) error {
 		clientRxCmd, clientPod.Definition.Name)
 
 	err := clientPod.WaitUntilRunning(time.Minute)
-
 	if err != nil {
 		return fmt.Errorf("failed to wait until pod is running with error %w", err)
 	}
@@ -152,7 +151,6 @@ func getNumberOfPackets(line, firstFieldSubstr string) int {
 	}
 
 	numberOfPackets, err := strconv.Atoi(splitLine[1])
-
 	if err != nil {
 		klog.V(90).Infof("failed to convert string to integer %s", err)
 

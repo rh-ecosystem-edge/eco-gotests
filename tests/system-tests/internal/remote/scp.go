@@ -54,7 +54,6 @@ func ScpFileFrom(source, destination, remoteHostname, remoteHostUsername, remote
 	klog.V(100).Infof("Dial SSH to %s", remoteHostname)
 
 	scpClient, err := ssh.NewClient(remoteHostname, sshConf, &ssh.ClientOption{})
-
 	if err != nil {
 		return err
 	}
@@ -62,7 +61,6 @@ func ScpFileFrom(source, destination, remoteHostname, remoteHostUsername, remote
 	klog.V(100).Infof("Transfer file %s to %s", source, destination)
 
 	err = scpClient.CopyFileFromRemote(source, destination, &ssh.FileTransferOption{})
-
 	if err != nil {
 		return err
 	}
@@ -122,7 +120,6 @@ func ScpFileTo(source, destination, remoteHostname, remoteHostUsername, remoteHo
 	klog.V(100).Infof("Dial SSH to %s", remoteHostname)
 
 	scpClient, err := ssh.NewClient(remoteHostname, sshConf, &ssh.ClientOption{})
-
 	if err != nil {
 		return err
 	}
@@ -164,7 +161,6 @@ func ScpDirectoryFrom(source, destination, remoteHostname, remoteHostUsername, r
 	klog.V(100).Infof("Create local directory %s if not exists", destination)
 
 	err := os.Mkdir(destination, 0755)
-
 	if err != nil {
 		klog.V(100).Infof("Failed to create directory %s, it is already exists", destination)
 	}
@@ -176,7 +172,6 @@ func ScpDirectoryFrom(source, destination, remoteHostname, remoteHostUsername, r
 	klog.V(100).Infof("Dial SSH to %s", remoteHostname)
 
 	scpClient, err := ssh.NewClient(remoteHostname, sshConf, &ssh.ClientOption{})
-
 	if err != nil {
 		return err
 	}
@@ -184,7 +179,6 @@ func ScpDirectoryFrom(source, destination, remoteHostname, remoteHostUsername, r
 	klog.V(100).Infof("recursively copy from remote directory %s to the %s", source, destination)
 
 	err = scpClient.CopyDirFromRemote(source, destination, &ssh.DirTransferOption{})
-
 	if err != nil {
 		return err
 	}
@@ -233,7 +227,6 @@ func ScpDirectoryTo(source, destination, remoteHostname, remoteHostUsername, rem
 	klog.V(100).Infof("Dial SSH to %s", remoteHostname)
 
 	scpClient, err := ssh.NewClient(remoteHostname, sshConf, &ssh.ClientOption{})
-
 	if err != nil {
 		return err
 	}
@@ -241,7 +234,6 @@ func ScpDirectoryTo(source, destination, remoteHostname, remoteHostUsername, rem
 	klog.V(100).Infof("recursively copy from directory %s to the %s", source, destination)
 
 	err = scpClient.CopyDirToRemote(source, destination, &ssh.DirTransferOption{})
-
 	if err != nil {
 		return err
 	}

@@ -267,7 +267,6 @@ func cleanupDeployment(waName, namespace, waLabel string) {
 	var ctx SpecContext
 
 	waOne, err := deployment.Pull(APIClient, waName, namespace)
-
 	if err != nil {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to get deployment %q in %q namespace: %s",
 			waName, namespace, err)
@@ -288,7 +287,6 @@ func cleanupDeployment(waName, namespace, waLabel string) {
 			pods, err := pod.List(APIClient, namespace, metav1.ListOptions{
 				LabelSelector: waLabel,
 			})
-
 			if err != nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods from %q deployment in %q namespace: %s",
 					waName, namespace, err)
@@ -689,7 +687,6 @@ func waitForDeploymentReplicas(ctx SpecContext, config WhereaboutsDeploymentConf
 
 	Eventually(func() bool {
 		mDeploy, err := deployment.Pull(APIClient, config.Name, RDSCoreConfig.WhereaboutNS)
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to pull deployment %q: %v", config.Name, err)
 
@@ -760,7 +757,6 @@ func checkEnoughReadyNodes(ctx SpecContext, nodeToDrain, nodeSelector string, ex
 
 	Eventually(func() bool {
 		nodesList, err := nodes.List(APIClient, metav1.ListOptions{LabelSelector: nodeSelector})
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list nodes due to: %v", err)
 
@@ -953,7 +949,6 @@ func waitForNodeToBeNotReady(ctx SpecContext, nodeToPowerOff string, pollingInte
 
 	Eventually(func() bool {
 		currentNode, err := nodes.Pull(APIClient, nodeToPowerOff)
-
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to pull node: %v", err)
 

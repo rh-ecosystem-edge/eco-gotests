@@ -54,9 +54,9 @@ func GetQuerierToken(client *clients.Settings) (string, error) {
 		Name:      ranparam.QuerierServiceAccountName,
 		Namespace: ranparam.OpenshiftMonitoringNamespace,
 	}
+
 	_, err = rbac.NewClusterRoleBindingBuilder(
 		client, ranparam.QuerierCRBName, ranparam.OpenshiftMonitoringViewRole, saSubject).Create()
-
 	if err != nil {
 		return "", fmt.Errorf("failed to create querier cluster role binding: %w", err)
 	}

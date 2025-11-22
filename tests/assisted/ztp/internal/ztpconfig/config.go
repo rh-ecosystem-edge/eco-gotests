@@ -60,6 +60,7 @@ func NewZTPConfig() *ZTPConfig {
 	klog.V(ztpparams.ZTPLogLevel).Info("Creating new ZTPConfig struct")
 
 	var ztpconfig ZTPConfig
+
 	ztpconfig.AssistedConfig = assistedconfig.NewAssistedConfig()
 
 	ztpconfig.HubConfig = new(HubConfig)

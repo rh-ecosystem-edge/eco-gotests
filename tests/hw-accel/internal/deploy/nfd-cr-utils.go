@@ -58,8 +58,8 @@ func (nfd *NFDCRUtils) DeployNFDCR(config NFDCRConfig) error {
 	}
 
 	klog.V(nfd.LogLevel).Infof("Creating NFD CR: %v", nfdBuilder.Definition)
-	_, err = nfdBuilder.Create()
 
+	_, err = nfdBuilder.Create()
 	if err != nil {
 		return fmt.Errorf("failed to create NFD CR: %w", err)
 	}
@@ -111,7 +111,6 @@ func (nfd *NFDCRUtils) DeleteNFDCR() error {
 // PrintCr prints the NFD CR configuration.
 func (nfd *NFDCRUtils) PrintCr() error {
 	nfdBuilder, err := nodefeature.Pull(nfd.APIClient, nfd.CrName, nfd.Namespace)
-
 	if err != nil {
 		klog.V(nfd.LogLevel).Infof("Failed to pull NFD CR: %v", err)
 
@@ -178,7 +177,6 @@ func ForPodsRunning(apiClient *clients.Settings, timeout time.Duration, nsname s
 
 			return true, nil
 		})
-
 	if err != nil {
 		return false, err
 	}
@@ -248,7 +246,6 @@ func (nfd *NFDCRUtils) createNFDBuilder(config NFDCRConfig) (*nodefeature.Builde
 	}
 
 	almExamples, err = nfd.editAlmExample(almExamples)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to filter ALM examples: %w", err)
 	}
@@ -271,8 +268,8 @@ func (nfd *NFDCRUtils) createNFDBuilder(config NFDCRConfig) (*nodefeature.Builde
 // editAlmExample filters ALM examples to include only NodeFeatureDiscovery.
 func (nfd *NFDCRUtils) editAlmExample(almExample string) (string, error) {
 	var items []map[string]interface{}
-	err := json.Unmarshal([]byte(almExample), &items)
 
+	err := json.Unmarshal([]byte(almExample), &items)
 	if err != nil {
 		return "", fmt.Errorf("failed to unmarshal ALM examples JSON: %w", err)
 	}
@@ -290,7 +287,6 @@ func (nfd *NFDCRUtils) editAlmExample(almExample string) (string, error) {
 	}
 
 	output, err := json.MarshalIndent(filtered, "", "  ")
-
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal filtered JSON: %w", err)
 	}

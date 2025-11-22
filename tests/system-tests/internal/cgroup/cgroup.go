@@ -20,7 +20,6 @@ var nodesConfigResourceName = "cluster"
 // GetNodeLinuxCGroupVersion returns node Linux cgroup version value.
 func GetNodeLinuxCGroupVersion(apiClient *clients.Settings, nodeName string) (configv1.CgroupMode, error) {
 	node, err := nodes.Pull(apiClient, nodeName)
-
 	if err != nil {
 		klog.V(100).Infof("Failed to get node %s resource due to %v",
 			nodeName, err.Error())
@@ -31,7 +30,6 @@ func GetNodeLinuxCGroupVersion(apiClient *clients.Settings, nodeName string) (co
 	cmdToExecute := []string{"/bin/sh", "-c", "stat -c %T -f /sys/fs/cgroup"}
 
 	output, err := remote.ExecuteOnNodeWithDebugPod(cmdToExecute, node.Object.Name)
-
 	if err != nil {
 		klog.V(100).Infof("Failed to execute command %s on the node %s due to %v",
 			cmdToExecute, nodeName, err.Error())
@@ -67,7 +65,6 @@ func GetNodeLinuxCGroupVersion(apiClient *clients.Settings, nodeName string) (co
 //nolint:funlen
 func SetLinuxCGroupVersion(apiClient *clients.Settings, expectedCGroupMode configv1.CgroupMode) error {
 	nodesConfigObj, err := nodesconfig.Pull(apiClient, nodesConfigResourceName)
-
 	if err != nil {
 		klog.V(100).Infof("Failed to get nodes.config %s resource due to %v",
 			nodesConfigResourceName, err.Error())
@@ -79,7 +76,6 @@ func SetLinuxCGroupVersion(apiClient *clients.Settings, expectedCGroupMode confi
 		expectedCGroupMode, nodesConfigObj.Definition.Name)
 
 	currentCGroupMode, err := nodesConfigObj.GetCGroupMode()
-
 	if err != nil {
 		klog.V(100).Infof("Failed to get current cgroup configuration from the nodes.config %s due to %v",
 			nodesConfigObj.Definition.Name, err.Error())
@@ -89,7 +85,6 @@ func SetLinuxCGroupVersion(apiClient *clients.Settings, expectedCGroupMode confi
 
 	if currentCGroupMode == configv1.CgroupModeEmpty {
 		nodesList, err := nodes.List(apiClient)
-
 		if err != nil {
 			return err
 		}
@@ -98,7 +93,6 @@ func SetLinuxCGroupVersion(apiClient *clients.Settings, expectedCGroupMode confi
 			nodesList[0].Definition.Name)
 
 		currentCGroupMode, err = GetNodeLinuxCGroupVersion(apiClient, nodesList[0].Definition.Name)
-
 		if err != nil {
 			return err
 		}
@@ -109,7 +103,6 @@ func SetLinuxCGroupVersion(apiClient *clients.Settings, expectedCGroupMode confi
 			currentCGroupMode, expectedCGroupMode)
 
 		nodesConfigObj, err := nodesConfigObj.WithCGroupMode(expectedCGroupMode).Update()
-
 		if err != nil {
 			klog.V(100).Infof("Failed to make change to the nodesConfig cgroup due to %v",
 				err)
@@ -118,7 +111,6 @@ func SetLinuxCGroupVersion(apiClient *clients.Settings, expectedCGroupMode confi
 		}
 
 		newCGroupMode, err := nodesConfigObj.GetCGroupMode()
-
 		if err != nil {
 			klog.V(100).Infof("Failed to get current cgroup configuration from the nodes.config %s due to %v",
 				nodesConfigObj.Definition.Name, err.Error())
@@ -132,7 +124,6 @@ func SetLinuxCGroupVersion(apiClient *clients.Settings, expectedCGroupMode confi
 		}
 
 		_, err = nodes.WaitForAllNodesToReboot(apiClient, 30*time.Minute)
-
 		if err != nil {
 			klog.V(100).Infof("Nodes failed to reboot after setting new cgroup mode %v config; %v",
 				expectedCGroupMode, err)
@@ -142,13 +133,11 @@ func SetLinuxCGroupVersion(apiClient *clients.Settings, expectedCGroupMode confi
 		}
 
 		_, err = clusteroperator.WaitForAllClusteroperatorsAvailable(apiClient, 5*time.Minute)
-
 		if err != nil {
 			return fmt.Errorf("not all clusteroperators are available; %w", err)
 		}
 
 		allNodesList, err := nodes.List(apiClient)
-
 		if err != nil {
 			klog.V(100).Infof("Failed to get cluster nodes list due to: %v", err)
 
@@ -157,7 +146,6 @@ func SetLinuxCGroupVersion(apiClient *clients.Settings, expectedCGroupMode confi
 
 		for _, node := range allNodesList {
 			currentNodeCGroup, err := GetNodeLinuxCGroupVersion(apiClient, node.Definition.Name)
-
 			if err != nil {
 				klog.V(100).Infof("Failed to get cGroup version from the node %s due to: %v",
 					node.Definition.Name, err)

@@ -65,8 +65,8 @@ func NewFromFile(path string) (*SuiteTree, error) {
 	}
 
 	reports := []types.Report{}
-	err = json.Unmarshal(reportsBytes, &reports)
 
+	err = json.Unmarshal(reportsBytes, &reports)
 	if err != nil {
 		return nil, err
 	}

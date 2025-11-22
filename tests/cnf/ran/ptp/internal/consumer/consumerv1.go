@@ -330,6 +330,7 @@ func deleteV1ConsumerDeploymentOnNode(client *clients.Settings, nodeName string)
 // https://github.com/redhat-cne/cloud-event-proxy/blob/release-4.18/examples/manifests/service.yaml.
 func createV1ConsumerServiceOnNode(client *clients.Settings, nodeName string) error {
 	selectorLabels := getConsumerSelectorLabels(nodeName)
+
 	_, err := service.NewBuilder(
 		client,
 		getConsumerEventsSubscriptionServiceName(nodeName),
@@ -340,7 +341,6 @@ func createV1ConsumerServiceOnNode(client *clients.Settings, nodeName string) er
 		WithLabels(selectorLabels).
 		WithAnnotation(getConsumerServicesAnnotations(nodeName)).
 		Create()
-
 	if err != nil {
 		return fmt.Errorf("failed to create consumer service: %w", err)
 	}
@@ -352,8 +352,8 @@ func createV1ConsumerServiceOnNode(client *clients.Settings, nodeName string) er
 // inverse of [createV1ConsumerServiceOnNode].
 func deleteV1ConsumerServiceOnNode(client *clients.Settings, nodeName string) error {
 	serviceName := getConsumerEventsSubscriptionServiceName(nodeName)
-	consumerService, err := service.Pull(client, serviceName, tsparams.CloudEventsNamespace)
 
+	consumerService, err := service.Pull(client, serviceName, tsparams.CloudEventsNamespace)
 	if err != nil {
 		return nil
 	}
@@ -370,6 +370,7 @@ func deleteV1ConsumerServiceOnNode(client *clients.Settings, nodeName string) er
 // https://github.com/redhat-cne/cloud-event-proxy/blob/release-4.18/examples/manifests/service.yaml.
 func createV1SidecarServiceOnNode(client *clients.Settings, nodeName string) error {
 	selectorLabels := getConsumerSelectorLabels(nodeName)
+
 	_, err := service.NewBuilder(
 		client,
 		getConsumerSidecarServiceName(nodeName),
@@ -384,7 +385,6 @@ func createV1SidecarServiceOnNode(client *clients.Settings, nodeName string) err
 		WithLabels(selectorLabels).
 		WithAnnotation(getConsumerServicesAnnotations(nodeName)).
 		Create()
-
 	if err != nil {
 		return fmt.Errorf("failed to create metrics service: %w", err)
 	}
@@ -396,8 +396,8 @@ func createV1SidecarServiceOnNode(client *clients.Settings, nodeName string) err
 // of [createV1SidecarServiceOnNode].
 func deleteV1SidecarServiceOnNode(client *clients.Settings, nodeName string) error {
 	serviceName := getConsumerSidecarServiceName(nodeName)
-	metricsService, err := service.Pull(client, serviceName, tsparams.CloudEventsNamespace)
 
+	metricsService, err := service.Pull(client, serviceName, tsparams.CloudEventsNamespace)
 	if err != nil {
 		return nil
 	}
@@ -415,6 +415,7 @@ func deleteV1SidecarServiceOnNode(client *clients.Settings, nodeName string) err
 // https://github.com/redhat-cne/cloud-event-proxy/blob/release-4.18/examples/manifests/service.yaml.
 func createV1ServiceMonitorOnNode(client *clients.Settings, nodeName string) error {
 	serverName := fmt.Sprintf("%s.%s.svc", getConsumerSidecarServiceName(nodeName), tsparams.CloudEventsNamespace)
+
 	_, err := monitoring.NewBuilder(client, getSidecarServiceMonitorName(nodeName), tsparams.CloudEventsNamespace).
 		WithLabels(map[string]string{"k8s-app": getSidecarServiceMonitorName(nodeName)}).
 		WithSelector(getConsumerSelectorLabels(nodeName)).
@@ -432,7 +433,6 @@ func createV1ServiceMonitorOnNode(client *clients.Settings, nodeName string) err
 			},
 		}}).
 		Create()
-
 	if err != nil {
 		return fmt.Errorf("failed to create service monitor: %w", err)
 	}
@@ -637,6 +637,7 @@ func deleteV1PrometheusRoleBinding(client *clients.Settings) error {
 // https://github.com/redhat-cne/cloud-event-proxy/blob/release-4.18/examples/manifests/consumer.yaml.
 func defineConsumerContainer(nodeName string) (*corev1.Container, error) {
 	v1ConsumerImage := RANConfig.PtpEventConsumerImage + RANConfig.PtpEventConsumerV1Tag
+
 	container, err := pod.NewContainerBuilder(
 		"cloud-event-consumer", v1ConsumerImage, []string{"./cloud-event-consumer"}).
 		WithImagePullPolicy(corev1.PullAlways).
@@ -644,7 +645,6 @@ func defineConsumerContainer(nodeName string) (*corev1.Container, error) {
 		WithEnvVar("CONSUMER_TYPE", "PTP").
 		WithEnvVar("ENABLE_STATUS_CHECK", "true").
 		GetContainerCfg()
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to define the consumer container: %w", err)
 	}
@@ -676,7 +676,6 @@ func defineSidecarContainer(nodeName string, cloudEventProxyImage string) (*core
 			MountPath: "/store",
 		}).
 		GetContainerCfg()
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to define the sidecar container: %w", err)
 	}
@@ -713,7 +712,6 @@ func defineRBACProxyContainer(kubeRBACProxyImage string) (*corev1.Container, err
 			MountPath: "/etc/metrics",
 		}).
 		GetContainerCfg()
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to create rbac-proxy container: %w", err)
 	}

@@ -622,7 +622,6 @@ func verifyIPRouteBGP(host, user, pass, containerName, lbIP string) error {
 	klog.V(100).Infof("IP: %s", parsedIP)
 
 	myIP, err := netip.ParseAddr(parsedIP)
-
 	if err != nil {
 		klog.V(100).Infof("Failed to parse provided loadbalancer ip address %q; %v", parsedIP, err)
 
@@ -647,7 +646,6 @@ func verifyIPRouteBGP(host, user, pass, containerName, lbIP string) error {
 		true,
 		func(ctx context.Context) (bool, error) {
 			result, err = remote.ExecCmdOnHost(host, user, pass, showIPRouteBGPOnFRRContainerCmd)
-
 			if err != nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to run command due to: %v", err)
 
@@ -659,7 +657,6 @@ func verifyIPRouteBGP(host, user, pass, containerName, lbIP string) error {
 
 			return true, nil
 		})
-
 	if err != nil {
 		klog.V(100).Infof("Failed to verify BGP routes in the FRR container %s: %v", containerName, err)
 
@@ -693,7 +690,6 @@ func verifyAppIsReachableFromFRRContainer(host, user, pass, containerName, appUR
 		true,
 		func(ctx context.Context) (bool, error) {
 			netNs, err = remote.ExecCmdOnHost(host, user, pass, getContainerNetNsCmd)
-
 			if err != nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to run command due to: %v", err)
 
@@ -708,7 +704,6 @@ func verifyAppIsReachableFromFRRContainer(host, user, pass, containerName, appUR
 
 			return true, nil
 		})
-
 	if err != nil {
 		klog.V(100).Infof("Failed to retrieve netns for the FRR container %s: %v", containerName, err)
 
@@ -734,7 +729,6 @@ func verifyAppIsReachableFromFRRContainer(host, user, pass, containerName, appUR
 		true,
 		func(ctx context.Context) (bool, error) {
 			output, err = remote.ExecCmdOnHost(host, user, pass, verifyAppIsReachableCmd)
-
 			if err != nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to run command due to: %v", err)
 
@@ -745,7 +739,6 @@ func verifyAppIsReachableFromFRRContainer(host, user, pass, containerName, appUR
 
 			return true, nil
 		})
-
 	if err != nil {
 		klog.V(100).Infof("URL %s is not reachable from the netns %s of the container %s; %v",
 			appURL, netNs, containerName, err)
@@ -818,7 +811,6 @@ func getNodesNamesList(apiClient *clients.Settings, options metav1.ListOptions) 
 	var nodeNamesList []string
 
 	nodesList, err := nodes.List(apiClient, options)
-
 	if err != nil {
 		klog.V(100).Infof("Failed to retrieve %q nodes list; %v", options.String(), err)
 
@@ -849,7 +841,6 @@ func scanTroughPodsList(podsList []*pod.Builder, searchString string, timeStart 
 			stDeploymentLabel,
 			searchString,
 			timeStart)
-
 		if err != nil {
 			errorMsg = err
 		}

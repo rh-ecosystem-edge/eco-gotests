@@ -80,9 +80,9 @@ func PodsFromNodeByPrefixWithTimeout(ctx context.Context, waitGroup *sync.WaitGr
 			var podsWithPrefix []*pod.Builder
 
 			klog.V(amdparams.AMDGPULogLevel).Infof("Listing Pods on node %s", node.Object.Name)
+
 			podBuilders, podsListErr := pod.List(apiClient, amdparams.AMDGPUNamespace,
 				metav1.ListOptions{FieldSelector: podListFieldSelector})
-
 			if podsListErr != nil {
 				errCh <- fmt.Errorf("failed to list Pods on node '%s'.\n%w", node.Object.Name, podsListErr)
 
@@ -104,7 +104,9 @@ func PodsFromNodeByPrefixWithTimeout(ctx context.Context, waitGroup *sync.WaitGr
 
 			if len(podsWithPrefix) == cnt {
 				lock.Lock()
+
 				*podsResults = append(*podsResults, podsWithPrefix...)
+
 				lock.Unlock()
 
 				return
@@ -135,8 +137,8 @@ func WaitUntilNoMorePodsInNamespaceByNameWithTimeout(ctx context.Context, apiCli
 			return fmt.Errorf("timeout period has been exceeded while waiting until no more Pods with prefix '%s'", prefix)
 		case <-time.After(chkInterval):
 			podsWithPrefix = nil
-			listedPods, listPodsErr := pod.List(apiClient, namespace)
 
+			listedPods, listPodsErr := pod.List(apiClient, namespace)
 			if listPodsErr != nil {
 				return fmt.Errorf("failed to list Pods. %w", listPodsErr)
 			}

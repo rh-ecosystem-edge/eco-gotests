@@ -93,6 +93,7 @@ func CleanupV2ConsumersOnNodes(client *clients.Settings) error {
 // https://github.com/redhat-cne/cloud-event-proxy/blob/main/examples/manifests/consumer.yaml.
 func createV2ConsumerDeploymentOnNode(client *clients.Settings, nodeName string) error {
 	v2ConsumerImage := RANConfig.PtpEventConsumerImage + RANConfig.PtpEventConsumerV2Tag
+
 	consumerContainer, err := pod.NewContainerBuilder(
 		"cloud-event-consumer", v2ConsumerImage, []string{"./cloud-event-consumer"}).
 		WithPorts([]corev1.ContainerPort{{
@@ -104,7 +105,6 @@ func createV2ConsumerDeploymentOnNode(client *clients.Settings, nodeName string)
 		WithEnvVar("ENABLE_STATUS_CHECK", "true").
 		WithEnvVar("NODE_NAME", nodeName).
 		GetContainerCfg()
-
 	if err != nil {
 		return fmt.Errorf("failed to create consumer container: %w", err)
 	}

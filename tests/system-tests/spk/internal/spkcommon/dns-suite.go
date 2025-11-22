@@ -58,7 +58,6 @@ func VerifyDNSResolutionFromNewDeploy(ctx SpecContext) {
 	Eventually(func() bool {
 		oldPods, err := pod.List(APIClient, SPKConfig.Namespace,
 			metav1.ListOptions{LabelSelector: wlkdDeployLabel})
-
 		if err != nil {
 			klog.V(spkparams.SPKLogLevel).Infof("Error listing pods: %v", err)
 
@@ -116,7 +115,6 @@ func VerifyDNSResolutionFromNewDeploy(ctx SpecContext) {
 	Eventually(func() bool {
 		appPods, err = pod.List(APIClient, SPKConfig.Namespace,
 			metav1.ListOptions{LabelSelector: wlkdDeployLabel})
-
 		if err != nil {
 			klog.V(spkparams.SPKLogLevel).Infof("Failed to list pods: %v", err)
 
@@ -217,7 +215,6 @@ func verifyDNSResolution(deployName, deployNS, deployLabel, containerName, waitD
 	Eventually(func() bool {
 		appPods, err = pod.List(APIClient, deployNS,
 			metav1.ListOptions{LabelSelector: deployLabel})
-
 		if err != nil {
 			klog.V(spkparams.SPKLogLevel).Infof("Failed to list pods: %v", err)
 
@@ -242,7 +239,6 @@ func verifyDNSResolution(deployName, deployNS, deployLabel, containerName, waitD
 
 		Eventually(func() bool {
 			output, err := _pod.ExecCommand([]string{"/bin/sh", "-c", cmdDig}, containerName)
-
 			if err != nil {
 				klog.V(spkparams.SPKLogLevel).Infof("Failed to run command: %v", err)
 
@@ -276,12 +272,12 @@ func verifyDNSResolution(deployName, deployNS, deployLabel, containerName, waitD
 
 		Eventually(func() bool {
 			output, err = _pod.ExecCommand([]string{"/bin/sh", "-c", cmd}, containerName)
-
 			if err != nil {
 				klog.V(spkparams.SPKLogLevel).Infof("Failed to run command: %v", err)
 
 				return false
 			}
+
 			klog.V(spkparams.SPKLogLevel).Infof("Command's Output:\n%v\n", output.String())
 
 			codesPattern := "200 404"
@@ -340,7 +336,6 @@ func scaleDownDeployment(deployName, deployNS, deployLabel string) {
 	Eventually(func() bool {
 		appPods, err = pod.List(APIClient, deployNS,
 			metav1.ListOptions{LabelSelector: deployLabel})
-
 		if err != nil {
 			klog.V(spkparams.SPKLogLevel).Infof("Failed to list pods: %v", err)
 
@@ -410,7 +405,6 @@ func scaleUpDeployment(deployName, deployNS, deployLabel string, replicas int32)
 	Eventually(func() bool {
 		appPods, err = pod.List(APIClient, deployNS,
 			metav1.ListOptions{LabelSelector: deployLabel})
-
 		if err != nil {
 			klog.V(spkparams.SPKLogLevel).Infof("Failed to list pods: %v", err)
 
@@ -451,7 +445,6 @@ func deletePodMatchingLabel(nsName, labelSelector, waitDuration string) {
 	Eventually(func() bool {
 		oldPods, err = pod.List(APIClient, nsName,
 			metav1.ListOptions{LabelSelector: labelSelector})
-
 		if err != nil {
 			klog.V(spkparams.SPKLogLevel).Infof("Error listing pods in %q namespace: %v", nsName, err)
 

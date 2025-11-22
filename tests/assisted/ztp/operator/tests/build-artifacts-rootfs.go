@@ -142,8 +142,8 @@ func getISOVolumeID(path string) (string, error) {
 	// is offset 40 bytes into the primary volume descriptor
 	// Ref: https://github.com/openshift/assisted-image-service/blob/main/pkg/isoeditor/isoutil.go#L208
 	volID := make([]byte, 32)
-	_, err = iso.ReadAt(volID, 32808)
 
+	_, err = iso.ReadAt(volID, 32808)
 	if err != nil {
 		return "", err
 	}
@@ -162,6 +162,7 @@ func getCoreOSRootfsValue(path string) (string, error) {
 	}
 
 	defer img.Close()
+
 	reader := cpio.NewReader(img)
 
 	for hdr, err := reader.Next(); !errors.Is(err, io.EOF); hdr, err = reader.Next() {

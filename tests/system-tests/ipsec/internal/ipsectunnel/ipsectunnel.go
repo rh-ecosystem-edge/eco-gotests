@@ -91,8 +91,8 @@ func TunnelPackets(nodeName string) *IpsecTunnelPackets {
 	}
 
 	tunnelPackets := &IpsecTunnelPackets{}
-	tunnelPackets.InBytes, err = strconv.Atoi(ipsecOutput[startIndex+len(inBytesStr) : startIndex+endIndex])
 
+	tunnelPackets.InBytes, err = strconv.Atoi(ipsecOutput[startIndex+len(inBytesStr) : startIndex+endIndex])
 	if err != nil {
 		klog.V(ipsecparams.IpsecLogLevel).Infof("Error Cannot parse IPSec traffic status inBytes value: %v", ipsecOutput)
 

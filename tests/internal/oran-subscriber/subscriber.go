@@ -254,10 +254,10 @@ func WaitForNotification(client *clients.Settings, namespace string, options ...
 	return wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, appliedOptions.timeout, true, func(ctx context.Context) (bool, error) {
 			newStart := time.Now()
+
 			notificationsRaw, err := pod.GetLogsWithOptions(&corev1.PodLogOptions{
 				SinceTime: &metav1.Time{Time: appliedOptions.start},
 			})
-
 			if err != nil {
 				return false, fmt.Errorf("failed to get subscriber pod logs: %w", err)
 			}

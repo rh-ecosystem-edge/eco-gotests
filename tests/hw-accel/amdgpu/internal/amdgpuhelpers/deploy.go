@@ -28,8 +28,8 @@ func DeployAllOperators(apiClient *clients.Settings) error {
 		}
 
 		installer := deploy.NewOperatorInstaller(config)
-		err := installer.Install()
 
+		err := installer.Install()
 		if err != nil {
 			return fmt.Errorf("failed to install %s operator: %w", operator, err)
 		}

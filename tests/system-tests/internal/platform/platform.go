@@ -138,8 +138,8 @@ func getMirrorRegistryMap(apiClient *clients.Settings) (map[string]interface{}, 
 	}
 
 	dataMap := make(map[string]interface{})
-	err = json.Unmarshal(data, &dataMap)
 
+	err = json.Unmarshal(data, &dataMap)
 	if err != nil {
 		return nil, err
 	}

@@ -72,7 +72,6 @@ func CheckLabel(apiClient *clients.Settings,
 
 			return false, nil
 		})
-
 	if err != nil {
 		klog.V(nfdparams.LogLevel).Infof("Feature label wait failed: %v", err)
 
@@ -106,7 +105,6 @@ func ForNodeReadiness(apiClient *clients.Settings,
 
 			return checkReadiness, nil
 		})
-
 	if err != nil {
 		return false, err
 	}
@@ -135,7 +133,6 @@ func ForPodsRunning(apiClient *clients.Settings, timeout time.Duration, nsname s
 
 			return true, nil
 		})
-
 	if err != nil {
 		return false, err
 	}

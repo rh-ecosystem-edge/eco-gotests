@@ -347,7 +347,6 @@ func runBbdevTests(bbdevPod *pod.Builder, isSecureEnabled bool, resName string) 
 // getVFIOToken returns the vfio-token.
 func getVFIOToken(bbdevPod *pod.Builder, pci string) (string, error) {
 	vfioTokenJSONBuff, err := bbdevPod.ExecCommand([]string{"bash", "-c", "printenv INFO"})
-
 	if err != nil {
 		return "", err
 	}
@@ -356,7 +355,6 @@ func getVFIOToken(bbdevPod *pod.Builder, pci string) (string, error) {
 	result := map[string]tsparams.VFIOToken{}
 
 	err = json.Unmarshal([]byte(vfioTokenJSONString), &result)
-
 	if err != nil {
 		return "", err
 	}

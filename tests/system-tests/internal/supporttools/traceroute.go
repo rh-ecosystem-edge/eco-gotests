@@ -57,7 +57,6 @@ func CreateTraceRouteDeployment(
 		stDeploymentLabel,
 		scheduleOnNodes,
 	)
-
 	if err != nil {
 		klog.V(100).Infof("Failed to create traceroute deployment %s in namespace %s due to %v",
 			tracerouteDeploymentName, stNamespace, err)
@@ -93,7 +92,6 @@ func ensureNamespaceExists(apiClient *clients.Settings, nsName string) error {
 
 	if createNs.Exists() {
 		err := createNs.Delete()
-
 		if err != nil {
 			klog.V(100).Infof("Failed to delete namespace %q: %v", nsName, err)
 
@@ -116,7 +114,6 @@ func ensureNamespaceExists(apiClient *clients.Settings, nsName string) error {
 
 				return true, nil
 			})
-
 		if err != nil {
 			klog.V(100).Infof("Failed to delete namespace %s due to %v", nsName, err)
 
@@ -125,7 +122,6 @@ func ensureNamespaceExists(apiClient *clients.Settings, nsName string) error {
 	}
 
 	_, err := createNs.Create()
-
 	if err != nil {
 		klog.V(100).Infof("Error creating namespace %q: %v", nsName, err)
 
@@ -148,7 +144,6 @@ func ensureNamespaceExists(apiClient *clients.Settings, nsName string) error {
 
 			return true, nil
 		})
-
 	if err != nil {
 		klog.V(100).Infof("support-tools namespace %q not found created: %v", nsName, err)
 
@@ -176,7 +171,6 @@ func createTraceRouteDeployment(
 		stDeploymentName, stNamespace)
 
 	err = apiobjectshelper.DeleteDeployment(apiClient, stDeploymentName, stNamespace)
-
 	if err != nil {
 		klog.V(100).Infof("failed to delete deployment %s from namespace %s due to %v",
 			stDeploymentName, stNamespace, err)
@@ -191,7 +185,6 @@ func createTraceRouteDeployment(
 	klog.V(100).Infof("Removing ServiceAccount %s from namespace %s", stDeploymentName, stNamespace)
 
 	err = apiobjectshelper.DeleteServiceAccount(apiClient, supportToolsDeploySAName, stNamespace)
-
 	if err != nil {
 		klog.V(100).Infof("failed to remove serviceAccount %q from namespace %q due to %v",
 			supportToolsDeploySAName, stNamespace, err)
@@ -203,7 +196,6 @@ func createTraceRouteDeployment(
 	klog.V(100).Infof("Creating ServiceAccount %s in namespace %s", stDeploymentName, stNamespace)
 
 	err = apiobjectshelper.CreateServiceAccount(apiClient, supportToolsDeploySAName, stNamespace)
-
 	if err != nil {
 		klog.V(100).Infof("failed to create serviceAccount %q in namespace %q due to %v",
 			supportToolsDeploySAName, stNamespace, err)
@@ -215,7 +207,6 @@ func createTraceRouteDeployment(
 	klog.V(100).Infof("Removing Cluster RBAC %s", supportToolsDeployRBACName)
 
 	err = apiobjectshelper.DeleteClusterRBAC(apiClient, supportToolsDeployRBACName)
-
 	if err != nil {
 		klog.V(100).Infof("failed to delete supporttools RBAC %q due to %v",
 			supportToolsDeployRBACName, err)
@@ -228,7 +219,6 @@ func createTraceRouteDeployment(
 
 	err = apiobjectshelper.CreateClusterRBAC(apiClient, supportToolsDeployRBACName, supportToolsRBACRole,
 		supportToolsDeploySAName, stNamespace)
-
 	if err != nil {
 		klog.V(100).Infof("failed to create supporttools RBAC %q in namespace %s due to %v",
 			supportToolsDeployRBACName, stNamespace, err)
@@ -300,6 +290,7 @@ func sendProbesAndCheckOutput(
 	var err error
 
 	timeout := time.Minute
+
 	err = wait.PollUntilContextTimeout(
 		context.TODO(),
 		time.Second*15,
@@ -307,7 +298,6 @@ func sendProbesAndCheckOutput(
 		true,
 		func(ctx context.Context) (bool, error) {
 			output, err = trPod.ExecCommand(cmdToRun, trPod.Object.Spec.Containers[0].Name)
-
 			if err != nil {
 				klog.V(100).Infof("query failed. Request: %s, Output: %q, Error: %v",
 					targetIP, output, err)
@@ -335,7 +325,6 @@ func sendProbesAndCheckOutput(
 
 			return true, nil
 		})
-
 	if err != nil {
 		klog.V(100).Infof("expected string %s not found in traceroute output: %q; %v",
 			searchString, output.String(), err)
@@ -355,6 +344,7 @@ func SendTrafficFindExpectedString(
 	targetPort,
 	searchString string) error {
 	timeout := 3 * time.Minute
+
 	err := wait.PollUntilContextTimeout(
 		context.TODO(),
 		3*time.Second,
@@ -373,7 +363,6 @@ func SendTrafficFindExpectedString(
 
 			return false, nil
 		})
-
 	if err != nil {
 		klog.V(100).Infof("expected string was not found in the traceroute output; %v", err)
 
