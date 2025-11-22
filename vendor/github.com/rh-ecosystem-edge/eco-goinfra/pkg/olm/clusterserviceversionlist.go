@@ -1,7 +1,6 @@
 package olm
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -9,6 +8,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"k8s.io/klog/v2"
 )
 
@@ -54,7 +54,7 @@ func ListClusterServiceVersion(
 
 	csvList := new(oplmV1alpha1.ClusterServiceVersionList)
 
-	err = apiClient.List(context.TODO(), csvList, &passedOptions)
+	err = apiClient.List(logging.DiscardContext(), csvList, &passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list clusterserviceversion in the nsname %s due to %s", nsname, err.Error())
 
@@ -155,7 +155,7 @@ func ListClusterServiceVersionInAllNamespaces(
 
 	csvList := new(oplmV1alpha1.ClusterServiceVersionList)
 
-	err = apiClient.List(context.TODO(), csvList, &passedOptions)
+	err = apiClient.List(logging.DiscardContext(), csvList, &passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list CSVs in all namespaces due to %s", err.Error())
 

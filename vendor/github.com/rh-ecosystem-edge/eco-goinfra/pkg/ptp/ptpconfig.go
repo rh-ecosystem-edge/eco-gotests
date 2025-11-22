@@ -1,13 +1,13 @@
 package ptp
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	ptpv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -211,7 +211,7 @@ func (builder *PtpConfigBuilder) Get() (*ptpv1.PtpConfig, error) {
 
 	ptpConfig := &ptpv1.PtpConfig{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, ptpConfig)
@@ -257,7 +257,7 @@ func (builder *PtpConfigBuilder) Create() (*PtpConfigBuilder, error) {
 		return builder, nil
 	}
 
-	err := builder.apiClient.Create(context.TODO(), builder.Definition)
+	err := builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return nil, err
 	}
@@ -285,7 +285,7 @@ func (builder *PtpConfigBuilder) Update() (*PtpConfigBuilder, error) {
 
 	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return nil, err
 	}
@@ -314,7 +314,7 @@ func (builder *PtpConfigBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Object)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Object)
 	if err != nil {
 		return err
 	}

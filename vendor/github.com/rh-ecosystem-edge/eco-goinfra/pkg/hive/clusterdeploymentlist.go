@@ -1,10 +1,10 @@
 package hive
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	hiveV1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/hive/api/v1"
 	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -45,7 +45,7 @@ func ListClusterDeploymentsInAllNamespaces(
 
 	clusterDeployments := new(hiveV1.ClusterDeploymentList)
 
-	err = apiClient.List(context.TODO(), clusterDeployments, &passedOptions)
+	err = apiClient.List(logging.DiscardContext(), clusterDeployments, &passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list all clusterDeployments due to %s", err.Error())
 

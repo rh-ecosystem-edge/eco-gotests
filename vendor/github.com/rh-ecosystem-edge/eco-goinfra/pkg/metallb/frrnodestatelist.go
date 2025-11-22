@@ -1,10 +1,10 @@
 package metallb
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/frrtypes"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -44,7 +44,7 @@ func ListFrrNodeState(
 
 	frrNodeStateList := new(frrtypes.FRRNodeStateList)
 
-	err = apiClient.List(context.TODO(), frrNodeStateList, &passedOptions)
+	err = apiClient.List(logging.DiscardContext(), frrNodeStateList, &passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list FrrNodeStates due to %s", err.Error())
 

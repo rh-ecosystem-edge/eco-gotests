@@ -1,10 +1,10 @@
 package deployment
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
@@ -33,7 +33,7 @@ func List(apiClient *clients.Settings, nsname string, options ...metav1.ListOpti
 
 	klog.V(100).Infof("%v", logMessage)
 
-	deploymentList, err := apiClient.Deployments(nsname).List(context.TODO(), passedOptions)
+	deploymentList, err := apiClient.Deployments(nsname).List(logging.DiscardContext(), passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list deployments in the namespace %s due to %s", nsname, err.Error())
 
@@ -74,7 +74,7 @@ func ListInAllNamespaces(apiClient *clients.Settings, options ...metav1.ListOpti
 
 	klog.V(100).Infof("%v", logMessage)
 
-	deploymentList, err := apiClient.Deployments("").List(context.TODO(), passedOptions)
+	deploymentList, err := apiClient.Deployments("").List(logging.DiscardContext(), passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list deployments in all namespaces due to %s", err.Error())
 

@@ -14,6 +14,7 @@ import (
 
 	lcav1 "github.com/openshift-kni/lifecycle-agent/api/imagebasedupgrade/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 )
 
@@ -119,7 +120,7 @@ func (builder *ImageBasedUpgradeBuilder) Update() (*ImageBasedUpgradeBuilder, er
 		return nil, fmt.Errorf("unable to update non-existing imagebasedupgrade")
 	}
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err == nil {
 		// Wait for the IBU to reconcile after it is updated.
 		err = wait.PollUntilContextTimeout(
@@ -168,7 +169,7 @@ func (builder *ImageBasedUpgradeBuilder) Delete() (*ImageBasedUpgradeBuilder, er
 		return builder, nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return builder, fmt.Errorf("can not delete imagebasedupgrade: %w", err)
 	}
@@ -189,7 +190,7 @@ func (builder *ImageBasedUpgradeBuilder) Get() (*lcav1.ImageBasedUpgrade, error)
 
 	imagebasedupgrade := &lcav1.ImageBasedUpgrade{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, imagebasedupgrade)
 	if err != nil {

@@ -1,10 +1,10 @@
 package olm
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	oplmV1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/operators/v1alpha1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -88,7 +88,7 @@ func (builder *ClusterServiceVersionBuilder) Get() (*oplmV1alpha1.ClusterService
 
 	clusterServiceVersion := &oplmV1alpha1.ClusterServiceVersion{}
 
-	err := builder.apiClient.Get(context.TODO(),
+	err := builder.apiClient.Get(logging.DiscardContext(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		clusterServiceVersion)
 	if err != nil {
@@ -137,7 +137,7 @@ func (builder *ClusterServiceVersionBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return err
 	}
@@ -163,7 +163,7 @@ func (builder *ClusterServiceVersionBuilder) Update() (*ClusterServiceVersionBui
 
 	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return nil, err
 	}

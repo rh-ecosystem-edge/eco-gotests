@@ -10,9 +10,10 @@ import (
 	"k8s.io/klog/v2"
 	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"context"
 	"encoding/json"
 	"fmt"
+
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 )
 
 // Builder provides struct for NAD object which contains connection to cluster and the NAD object itself.
@@ -140,7 +141,7 @@ func (builder *Builder) Get() (*nadV1.NetworkAttachmentDefinition, error) {
 
 	network := &nadV1.NetworkAttachmentDefinition{}
 
-	err := builder.apiClient.Get(context.TODO(),
+	err := builder.apiClient.Get(logging.DiscardContext(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		network)
 	if err != nil {
@@ -175,7 +176,7 @@ func (builder *Builder) Create() (*Builder, error) {
 	}
 
 	if !builder.Exists() {
-		err := builder.apiClient.Create(context.TODO(), builder.Definition)
+		err := builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err != nil {
 			klog.V(100).Info("Failed to create NAD object")
 
@@ -207,7 +208,7 @@ func (builder *Builder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return fmt.Errorf("fail to delete NAD object due to: %w", err)
 	}
@@ -233,7 +234,7 @@ func (builder *Builder) Update() (*Builder, error) {
 	builder.Definition.CreationTimestamp = metav1.Time{}
 	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err == nil {
 		builder.Object = builder.Definition
 	}

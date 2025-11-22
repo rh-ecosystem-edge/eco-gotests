@@ -13,6 +13,7 @@ import (
 
 	lsov1alpha1 "github.com/openshift/local-storage-operator/api/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
@@ -140,7 +141,7 @@ func (builder *LocalVolumeDiscoveryBuilder) Get() (*lsov1alpha1.LocalVolumeDisco
 
 	lvd := &lsov1alpha1.LocalVolumeDiscovery{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, lvd)
@@ -162,7 +163,7 @@ func (builder *LocalVolumeDiscoveryBuilder) Create() (*LocalVolumeDiscoveryBuild
 
 	var err error
 	if !builder.Exists() {
-		err = builder.apiClient.Create(context.TODO(), builder.Definition)
+		err = builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -187,7 +188,7 @@ func (builder *LocalVolumeDiscoveryBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return fmt.Errorf("can not delete localVolumeDiscovery %s from namespace %s: %w",
 			builder.Definition.Name, builder.Definition.Namespace, err)

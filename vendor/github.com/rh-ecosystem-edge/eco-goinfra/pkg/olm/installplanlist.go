@@ -1,13 +1,13 @@
 package olm
 
 import (
-	"context"
 	"fmt"
 
 	oplmV1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/operators/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"k8s.io/klog/v2"
 )
 
@@ -51,7 +51,7 @@ func ListInstallPlan(
 
 	installPlanList := new(oplmV1alpha1.InstallPlanList)
 
-	err = apiClient.List(context.TODO(), installPlanList, &passedOptions)
+	err = apiClient.List(logging.DiscardContext(), installPlanList, &passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list all installplan in namespace %s due to %s",
 			nsname, err.Error())

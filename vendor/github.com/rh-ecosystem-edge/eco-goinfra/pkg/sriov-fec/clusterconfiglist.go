@@ -1,10 +1,10 @@
 package sriovfec
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	sriovfectypes "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/fec/fectypes"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -54,7 +54,7 @@ func ListClusterConfig(
 
 	sfncList := new(sriovfectypes.SriovFecClusterConfigList)
 
-	err = apiClient.List(context.TODO(), sfncList, &passedOptions)
+	err = apiClient.List(logging.DiscardContext(), sfncList, &passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list SriovFecClusterConfigs in the namespace %s due to %s", nsname, err.Error())
 

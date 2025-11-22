@@ -7,6 +7,7 @@ import (
 
 	operatorv1 "github.com/openshift/api/operator/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -86,7 +87,7 @@ func (builder *OperatorBuilder) Get() (*operatorv1.Network, error) {
 
 	clusterNetwork := &operatorv1.Network{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{Name: builder.Definition.Name}, clusterNetwork)
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{Name: builder.Definition.Name}, clusterNetwork)
 	if err != nil {
 		klog.V(100).Infof("Failed to get network.operator object %s: %v", builder.Definition.Name, err)
 
@@ -110,7 +111,7 @@ func (builder *OperatorBuilder) Update() (*OperatorBuilder, error) {
 		return nil, fmt.Errorf("network.operator object %s does not exist", builder.Definition.Name)
 	}
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		klog.V(100).Infof("Failed to update network.operator object %s: %v", builder.Definition.Name, err)
 

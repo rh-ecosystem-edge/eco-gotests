@@ -1,13 +1,13 @@
 package olm
 
 import (
-	"context"
 	"fmt"
 
 	operatorv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/package-server/operators/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"k8s.io/klog/v2"
 )
 
@@ -53,7 +53,7 @@ func ListPackageManifest(
 
 	pkgManifestList := new(operatorv1.PackageManifestList)
 
-	err = apiClient.List(context.TODO(), pkgManifestList, &passedOptions)
+	err = apiClient.List(logging.DiscardContext(), pkgManifestList, &passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list PackageManifests in the namespace %s due to %s",
 			nsname, err.Error())

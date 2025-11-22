@@ -1,10 +1,10 @@
 package events
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
@@ -34,7 +34,7 @@ func List(
 
 	klog.V(100).Infof("%v", logMessage)
 
-	eventList, err := apiClient.Events(nsname).List(context.TODO(), passedOptions)
+	eventList, err := apiClient.Events(nsname).List(logging.DiscardContext(), passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list Events in the namespace %s due to %s", nsname, err.Error())
 

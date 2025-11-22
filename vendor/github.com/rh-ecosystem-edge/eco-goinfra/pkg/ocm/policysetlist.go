@@ -1,10 +1,10 @@
 package ocm
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"k8s.io/klog/v2"
 	policiesv1beta1 "open-cluster-management.io/governance-policy-propagator/api/v1beta1"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -45,7 +45,7 @@ func ListPolicieSetsInAllNamespaces(apiClient *clients.Settings,
 
 	policySetList := new(policiesv1beta1.PolicySetList)
 
-	err = apiClient.List(context.TODO(), policySetList, &passedOptions)
+	err = apiClient.List(logging.DiscardContext(), policySetList, &passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list all policySets in all namespaces due to %s", err.Error())
 

@@ -1,12 +1,12 @@
 package nto //nolint:misspell
 import (
-	"context"
 	"fmt"
 
 	"k8s.io/utils/strings/slices"
 
 	performanceprofilev2 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/performanceprofile/v2"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -405,7 +405,7 @@ func (builder *Builder) Create() (*Builder, error) {
 	klog.V(100).Infof("Creating PerformanceProfile %s ", builder.Definition.Name)
 
 	if !builder.Exists() {
-		err := builder.apiClient.Create(context.TODO(), builder.Definition)
+		err := builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err != nil {
 			return nil, err
 		}
@@ -444,7 +444,7 @@ func (builder *Builder) Get() (*performanceprofilev2.PerformanceProfile, error) 
 
 	module := &performanceprofilev2.PerformanceProfile{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, module)
 	if err != nil {
@@ -471,7 +471,7 @@ func (builder *Builder) Delete() (*Builder, error) {
 		return builder, nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return builder, err
 	}
@@ -489,7 +489,7 @@ func (builder *Builder) Update(force bool) (*Builder, error) {
 
 	klog.V(100).Infof("Updating the PerformanceProfile object: %s", builder.Definition.Name)
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		if force {
 			klog.V(100).Infof(

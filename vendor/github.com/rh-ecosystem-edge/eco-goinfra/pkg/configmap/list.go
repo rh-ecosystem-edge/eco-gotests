@@ -1,10 +1,10 @@
 package configmap
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"k8s.io/klog/v2"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,7 +40,7 @@ func List(apiClient *clients.Settings, nsname string, options ...metav1.ListOpti
 
 	klog.V(100).Infof("%v", logMessage)
 
-	configmapList, err := apiClient.ConfigMaps(nsname).List(context.TODO(), passedOptions)
+	configmapList, err := apiClient.ConfigMaps(nsname).List(logging.DiscardContext(), passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list configmaps in the namespace %s due to %s", nsname, err.Error())
 
@@ -87,7 +87,7 @@ func ListInAllNamespaces(apiClient *clients.Settings, options ...metav1.ListOpti
 
 	klog.V(100).Infof("%v", logMessage)
 
-	configmapList, err := apiClient.ConfigMaps("").List(context.TODO(), passedOptions)
+	configmapList, err := apiClient.ConfigMaps("").List(logging.DiscardContext(), passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list configmaps in all namespaces due to %s", err.Error())
 

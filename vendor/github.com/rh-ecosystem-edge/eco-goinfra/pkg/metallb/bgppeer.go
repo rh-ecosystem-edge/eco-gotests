@@ -1,12 +1,12 @@
 package metallb
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/mlbtypesv1beta2"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -148,7 +148,7 @@ func (builder *BGPPeerBuilder) Get() (*mlbtypesv1beta2.BGPPeer, error) {
 
 	bgpPeer := &mlbtypesv1beta2.BGPPeer{}
 
-	err := builder.apiClient.Get(context.TODO(),
+	err := builder.apiClient.Get(logging.DiscardContext(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		bgpPeer)
 	if err != nil {
@@ -238,7 +238,7 @@ func (builder *BGPPeerBuilder) Create() (*BGPPeerBuilder, error) {
 	)
 
 	if !builder.Exists() {
-		err := builder.apiClient.Create(context.TODO(), builder.Definition)
+		err := builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -266,7 +266,7 @@ func (builder *BGPPeerBuilder) Delete() (*BGPPeerBuilder, error) {
 		return builder, nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return builder, fmt.Errorf("can not delete BGPPeer: %w", err)
 	}
@@ -286,7 +286,7 @@ func (builder *BGPPeerBuilder) Update(force bool) (*BGPPeerBuilder, error) {
 		builder.Definition.Name, builder.Definition.Namespace,
 	)
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		if force {
 			klog.V(100).Infof("%v", msg.FailToUpdateNotification("BGPPeer", builder.Definition.Name, builder.Definition.Namespace))

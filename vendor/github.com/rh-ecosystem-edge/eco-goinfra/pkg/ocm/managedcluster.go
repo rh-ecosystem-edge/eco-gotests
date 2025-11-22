@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ocm/clusterv1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -162,7 +163,7 @@ func (builder *ManagedClusterBuilder) Update() (*ManagedClusterBuilder, error) {
 
 	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +187,7 @@ func (builder *ManagedClusterBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return fmt.Errorf("cannot delete managedCluster: %w", err)
 	}
@@ -227,7 +228,7 @@ func (builder *ManagedClusterBuilder) Get() (*clusterv1.ManagedCluster, error) {
 
 	managedCluster := &clusterv1.ManagedCluster{}
 
-	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), runtimeclient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, managedCluster)
 	if err != nil {
@@ -267,7 +268,7 @@ func (builder *ManagedClusterBuilder) Create() (*ManagedClusterBuilder, error) {
 		return builder, nil
 	}
 
-	err := builder.apiClient.Create(context.TODO(), builder.Definition)
+	err := builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return builder, err
 	}

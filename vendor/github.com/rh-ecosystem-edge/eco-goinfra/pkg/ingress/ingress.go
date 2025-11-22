@@ -1,10 +1,10 @@
 package ingress
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -140,7 +140,7 @@ func (builder *IngressBuilder) Get() (*networkingv1.Ingress, error) {
 
 	ingress := &networkingv1.Ingress{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, ingress)
@@ -193,7 +193,7 @@ func (builder *IngressBuilder) Create() (*IngressBuilder, error) {
 		return builder, nil
 	}
 
-	err := builder.apiClient.Create(context.TODO(), builder.Definition)
+	err := builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		klog.V(100).Infof("Failed to create Ingress %s in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
@@ -224,7 +224,7 @@ func (builder *IngressBuilder) Update() (*IngressBuilder, error) {
 	// conflicts.
 	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		klog.V(100).Infof("Failed to update Ingress %s in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
@@ -255,7 +255,7 @@ func (builder *IngressBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		klog.V(100).Infof("Failed to delete Ingress %s in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)

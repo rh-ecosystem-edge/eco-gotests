@@ -26,6 +26,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 )
 
@@ -180,7 +181,7 @@ func (builder *Builder) Create() (*Builder, error) {
 	var err error
 	if !builder.Exists() {
 		builder.Object, err = builder.apiClient.Pods(builder.Definition.Namespace).Create(
-			context.TODO(), builder.Definition, metav1.CreateOptions{})
+			logging.DiscardContext(), builder.Definition, metav1.CreateOptions{})
 	}
 
 	return builder, err
@@ -206,7 +207,7 @@ func (builder *Builder) Delete() (*Builder, error) {
 	}
 
 	err := builder.apiClient.Pods(builder.Definition.Namespace).Delete(
-		context.TODO(), builder.Object.Name, metav1.DeleteOptions{})
+		logging.DiscardContext(), builder.Object.Name, metav1.DeleteOptions{})
 	if err != nil {
 		return builder, fmt.Errorf("can not delete pod: %w", err)
 	}
@@ -258,7 +259,7 @@ func (builder *Builder) DeleteImmediate() (*Builder, error) {
 	}
 
 	err := builder.apiClient.Pods(builder.Definition.Namespace).Delete(
-		context.TODO(), builder.Object.Name, metav1.DeleteOptions{GracePeriodSeconds: ptr.To(int64(0))})
+		logging.DiscardContext(), builder.Object.Name, metav1.DeleteOptions{GracePeriodSeconds: ptr.To(int64(0))})
 	if err != nil {
 		return builder, fmt.Errorf("can not immediately delete pod: %w", err)
 	}
@@ -334,7 +335,7 @@ func (builder *Builder) WaitUntilInStatus(status corev1.PodPhase, timeout time.D
 	return wait.PollUntilContextTimeout(context.TODO(),
 		time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			updatePod, err := builder.apiClient.Pods(builder.Definition.Namespace).
-				Get(context.TODO(), builder.Definition.Name, metav1.GetOptions{})
+				Get(logging.DiscardContext(), builder.Definition.Name, metav1.GetOptions{})
 			if err != nil {
 				klog.V(100).Infof("Failed to get pod %s in namespace %s: %v",
 					builder.Definition.Name, builder.Definition.Namespace, err)
@@ -358,7 +359,7 @@ func (builder *Builder) WaitUntilDeleted(timeout time.Duration) error {
 	err := wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, false, func(ctx context.Context) (bool, error) {
 			_, err := builder.apiClient.Pods(builder.Definition.Namespace).Get(
-				context.TODO(), builder.Definition.Name, metav1.GetOptions{})
+				logging.DiscardContext(), builder.Definition.Name, metav1.GetOptions{})
 			if err == nil {
 				klog.V(100).Infof("pod %s/%s still present", builder.Definition.Namespace, builder.Definition.Name)
 
@@ -403,7 +404,7 @@ func (builder *Builder) WaitUntilCondition(condition corev1.PodConditionType, ti
 	return wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			updatePod, err := builder.apiClient.Pods(builder.Definition.Namespace).Get(
-				context.TODO(), builder.Definition.Name, metav1.GetOptions{})
+				logging.DiscardContext(), builder.Definition.Name, metav1.GetOptions{})
 			if err != nil {
 				return false, nil
 			}
@@ -468,7 +469,7 @@ func (builder *Builder) ExecCommand(command []string, containerName ...string) (
 		return buffer, err
 	}
 
-	err = exec.StreamWithContext(context.TODO(), remotecommand.StreamOptions{
+	err = exec.StreamWithContext(logging.DiscardContext(), remotecommand.StreamOptions{
 		Stdout: &buffer,
 		Stderr: os.Stderr,
 		Tty:    true,
@@ -547,7 +548,7 @@ func (builder *Builder) ExecCommandWithTimeout(
 		return buffer, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
 	defer cancel()
 
 	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
@@ -637,7 +638,7 @@ func (builder *Builder) Exists() bool {
 	var err error
 
 	builder.Object, err = builder.apiClient.Pods(builder.Definition.Namespace).Get(
-		context.TODO(), builder.Definition.Name, metav1.GetOptions{})
+		logging.DiscardContext(), builder.Definition.Name, metav1.GetOptions{})
 
 	return err == nil || !k8serrors.IsNotFound(err)
 }
@@ -1242,7 +1243,7 @@ func (builder *Builder) GetLogsWithOptions(options *corev1.PodLogOptions) ([]byt
 
 	logReader, err := builder.apiClient.Pods(builder.Definition.Namespace).
 		GetLogs(builder.Definition.Name, options).
-		Stream(context.TODO())
+		Stream(logging.DiscardContext())
 	if err != nil {
 		return nil, err
 	}
@@ -1266,7 +1267,7 @@ func GetGVR() schema.GroupVersionResource {
 // the websocket executor then falls back to using the SPDY executor with pings disabled. This should maximize
 // reliability by avoiding issues like kubernetes/kubernetes#60140 and kubernetes/kubernetes#124571.
 //
-//nolint:ireturn // remotecommand only returns interfaces, so we must too.
+//nolint:ireturn,nolintlint // remotecommand only returns interfaces, so we must too.
 func (builder *Builder) getExecutorFromRequest(req *rest.Request) (remotecommand.Executor, error) {
 	tlsConfig, err := rest.TLSConfigFor(builder.apiClient.Config)
 	if err != nil {

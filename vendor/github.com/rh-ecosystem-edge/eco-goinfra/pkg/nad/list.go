@@ -1,11 +1,11 @@
 package nad
 
 import (
-	"context"
 	"fmt"
 
 	nadV1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -37,7 +37,7 @@ func List(apiClient *clients.Settings, nsname string) ([]*Builder, error) {
 
 	nadList := &nadV1.NetworkAttachmentDefinitionList{}
 
-	err = apiClient.List(context.TODO(), nadList, &goclient.ListOptions{Namespace: nsname})
+	err = apiClient.List(logging.DiscardContext(), nadList, &goclient.ListOptions{Namespace: nsname})
 	if err != nil {
 		klog.V(100).Infof("Failed to list NADs in namespace: %s due to %s",
 			nsname, err.Error())

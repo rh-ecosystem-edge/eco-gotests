@@ -1,10 +1,10 @@
 package nfd
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	nfdv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/nfd/v1alpha1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -162,7 +162,7 @@ func (builder *NodeFeatureRuleBuilder) Create() (*NodeFeatureRuleBuilder, error)
 
 	var err error
 	if !builder.Exists() {
-		err = builder.apiClient.Create(context.TODO(), builder.Definition)
+		err = builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -202,7 +202,7 @@ func (builder *NodeFeatureRuleBuilder) Get() (*nfdv1.NodeFeatureRule, error) {
 
 	NodeFeatureRule := &nfdv1.NodeFeatureRule{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, NodeFeatureRule)

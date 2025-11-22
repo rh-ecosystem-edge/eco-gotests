@@ -1,7 +1,6 @@
 package console
 
 import (
-	"context"
 	"fmt"
 
 	"k8s.io/utils/strings/slices"
@@ -12,6 +11,7 @@ import (
 
 	operatorv1 "github.com/openshift/api/operator/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
@@ -73,7 +73,7 @@ func (builder *ConsoleOperatorBuilder) Get() (*operatorv1.Console, error) {
 
 	consoleOperator := &operatorv1.Console{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, consoleOperator)
 	if err != nil {
@@ -109,7 +109,7 @@ func (builder *ConsoleOperatorBuilder) Update() (*ConsoleOperatorBuilder, error)
 
 	klog.V(100).Infof("Updating cluster consoleOperator %s", builder.Definition.Name)
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err == nil {
 		builder.Object = builder.Definition
 	}

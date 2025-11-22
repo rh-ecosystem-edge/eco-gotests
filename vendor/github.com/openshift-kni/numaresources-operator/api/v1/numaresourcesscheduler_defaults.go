@@ -28,7 +28,6 @@ const (
 	defaultSchedulerInformer    = SchedulerInformerDedicated
 	defaultCacheResyncDetection = CacheResyncDetectionRelaxed
 	defaultScoringStrategy      = LeastAllocated
-	defaultReplicas             = int32(1)
 )
 
 func SetDefaults_NUMAResourcesSchedulerSpec(spec *NUMAResourcesSchedulerSpec) {
@@ -54,8 +53,6 @@ func SetDefaults_NUMAResourcesSchedulerSpec(spec *NUMAResourcesSchedulerSpec) {
 			Type: defaultScoringStrategy,
 		}
 	}
-	if spec.Replicas == nil {
-		replicas := defaultReplicas
-		spec.Replicas = &replicas
-	}
+	// do not set replicas default value
+	// it will be computed later
 }

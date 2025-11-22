@@ -49,7 +49,14 @@ type SeedReconfiguration struct {
 	InfraID string `json:"infra_id,omitempty"`
 
 	// The desired IP address of the SNO node.
+	// Deprecated: Use NodeIPs instead.
 	NodeIP string `json:"node_ip,omitempty"`
+
+	// The desired IP addresses of the SNO node. One for single stack
+	// clusters, and two for dual-stack clusters.
+	// Use this field instead of NodeIP.
+	// +optional
+	NodeIPs []string `json:"node_ips,omitempty"`
 
 	// The container registry used to host the release image of the seed cluster.
 	ReleaseRegistry string `json:"release_registry,omitempty"`
@@ -102,7 +109,18 @@ type SeedReconfiguration struct {
 	// MachineNetwork is the subnet provided by user for the ocp cluster.
 	// This will be used to create the node network and choose ip address for the node.
 	// Equivalent to install-config.yaml's machineNetwork.
+	// Deprecated: Use MachineNetworks instead.
 	MachineNetwork string `json:"machine_network,omitempty"`
+
+	// MachineNetworks is the list of subnets provided by user.
+	// For single stack ocp clusters, this will be a single subnet.
+	// For dual-stack ocp clusters, this will be a list of two subnets.
+	// This will be used to create the node network and choose ip addresses for the node.
+	// Equivalent to install-config.yaml's machineNetworks.
+	// Use this field instead of MachineNetwork.
+	// If both MachineNetwork and MachineNetworks are specified, MachineNetworks takes precedence.
+	// +optional
+	MachineNetworks []string `json:"machine_networks,omitempty"`
 
 	// Proxy is the proxy settings for the cluster. Equivalent to
 	// install-config.yaml's proxy. This will replace the proxy settings of the

@@ -1,11 +1,11 @@
 package sriov
 
 import (
-	"context"
 	"fmt"
 
 	srIovV1 "github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -49,7 +49,7 @@ func List(apiClient *clients.Settings, nsname string, options ...client.ListOpti
 
 	networkList := new(srIovV1.SriovNetworkList)
 
-	err = apiClient.List(context.TODO(), networkList, &passedOptions)
+	err = apiClient.List(logging.DiscardContext(), networkList, &passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list sriov networks in the namespace %s due to %s", nsname, err.Error())
 

@@ -1,10 +1,10 @@
 package oadp
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	oadpv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/oadp/api/v1alpha1"
 	"k8s.io/klog/v2"
 	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -50,7 +50,7 @@ func ListDataProtectionApplication(
 
 	dataprotectionapplications := new(oadpv1alpha1.DataProtectionApplicationList)
 
-	err := apiClient.List(context.TODO(), dataprotectionapplications, &passedOptions)
+	err := apiClient.List(logging.DiscardContext(), dataprotectionapplications, &passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list all dataprotectionapplications due to %s", err.Error())
 

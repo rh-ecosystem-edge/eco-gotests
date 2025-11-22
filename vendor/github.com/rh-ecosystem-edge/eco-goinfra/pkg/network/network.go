@@ -1,11 +1,11 @@
 package network
 
 import (
-	"context"
 	"fmt"
 
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -74,7 +74,7 @@ func (builder *ConfigBuilder) Get() (*configv1.Network, error) {
 
 	network := &configv1.Network{}
 
-	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, network)
+	err := builder.apiClient.Get(logging.DiscardContext(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, network)
 	if err != nil {
 		klog.V(100).Infof("Failed to get network.config object %s: %v", builder.Definition.Name, err)
 

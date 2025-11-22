@@ -1,7 +1,6 @@
 package olm
 
 import (
-	"context"
 	"fmt"
 
 	operatorsv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/operators/v1"
@@ -11,6 +10,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -91,7 +91,7 @@ func (builder *OperatorGroupBuilder) Get() (*operatorsv1.OperatorGroup, error) {
 
 	operatorGroup := &operatorsv1.OperatorGroup{}
 
-	err := builder.apiClient.Get(context.TODO(),
+	err := builder.apiClient.Get(logging.DiscardContext(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		operatorGroup)
 	if err != nil {
@@ -117,7 +117,7 @@ func (builder *OperatorGroupBuilder) Create() (*OperatorGroupBuilder, error) {
 		return builder, nil
 	}
 
-	err := builder.apiClient.Create(context.TODO(), builder.Definition)
+	err := builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return builder, err
 	}
@@ -161,7 +161,7 @@ func (builder *OperatorGroupBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return err
 	}
@@ -184,7 +184,7 @@ func (builder *OperatorGroupBuilder) Update() (*OperatorGroupBuilder, error) {
 		return nil, fmt.Errorf("cannot update non-existent operatorgroup")
 	}
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err == nil {
 		builder.Object = builder.Definition
 	}

@@ -1,10 +1,10 @@
 package amdgpu
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	amdgpuv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/amd/gpu-operator/api/v1alpha1"
 	"k8s.io/klog/v2"
@@ -137,7 +137,7 @@ func (builder *Builder) Get() (*amdgpuv1.DeviceConfig, error) {
 
 	deviceConfig := &amdgpuv1.DeviceConfig{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, deviceConfig)
@@ -189,7 +189,7 @@ func (builder *Builder) Delete() (*Builder, error) {
 		return builder, nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return builder, fmt.Errorf("cannot delete DeviceConfig: %w", err)
 	}
@@ -210,7 +210,7 @@ func (builder *Builder) Create() (*Builder, error) {
 
 	var err error
 	if !builder.Exists() {
-		err = builder.apiClient.Create(context.TODO(), builder.Definition)
+		err = builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -228,7 +228,7 @@ func (builder *Builder) Update(force bool) (*Builder, error) {
 	klog.V(100).Infof("Updating the DeviceConfig object named: %s in namespace: %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		if force {
 			klog.V(100).Infof("%v", msg.FailToUpdateNotification("DeviceConfig", builder.Definition.Name, builder.Definition.Namespace))

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
@@ -47,7 +48,7 @@ func ListPoliciesInAllNamespaces(apiClient *clients.Settings,
 
 	policyList := new(policiesv1.PolicyList)
 
-	err = apiClient.List(context.TODO(), policyList, &passedOptions)
+	err = apiClient.List(logging.DiscardContext(), policyList, &passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list all policies in all namespaces due to %s", err.Error())
 

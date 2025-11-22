@@ -13,6 +13,7 @@ import (
 
 	bmhv1alpha1 "github.com/metal3-io/baremetal-operator/apis/metal3.io/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	"golang.org/x/exp/slices"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -424,7 +425,7 @@ func (builder *BmhBuilder) Create() (*BmhBuilder, error) {
 
 	var err error
 	if !builder.Exists() {
-		err = builder.apiClient.Create(context.TODO(), builder.Definition)
+		err = builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -451,7 +452,7 @@ func (builder *BmhBuilder) Delete() (*BmhBuilder, error) {
 		return builder, nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return builder, fmt.Errorf("can not delete bmh: %w", err)
 	}
@@ -472,7 +473,7 @@ func (builder *BmhBuilder) Get() (*bmhv1alpha1.BareMetalHost, error) {
 
 	bmh := &bmhv1alpha1.BareMetalHost{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, bmh)
@@ -537,7 +538,7 @@ func (builder *BmhBuilder) CreateAndWaitUntilProvisioned(timeout time.Duration) 
 		return builder, err
 	}
 
-	klog.V(100).Infof(`Creating the baremetalhost %s in namespace %s and 
+	klog.V(100).Infof(`Creating the baremetalhost %s in namespace %s and
 	waiting for the defined period until it is created`,
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -600,7 +601,7 @@ func (builder *BmhBuilder) DeleteAndWaitUntilDeleted(timeout time.Duration) (*Bm
 		return builder, err
 	}
 
-	klog.V(100).Infof(`Deleting baremetalhost %s in namespace %s and 
+	klog.V(100).Infof(`Deleting baremetalhost %s in namespace %s and
 	waiting for the defined period until it is removed`,
 		builder.Definition.Name, builder.Definition.Namespace)
 

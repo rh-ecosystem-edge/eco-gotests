@@ -1,10 +1,10 @@
 package service
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
@@ -33,7 +33,7 @@ func List(apiClient *clients.Settings, nsname string, options ...metav1.ListOpti
 
 	klog.V(100).Infof("%v", logMessage)
 
-	serviceList, err := apiClient.Services(nsname).List(context.TODO(), passedOptions)
+	serviceList, err := apiClient.Services(nsname).List(logging.DiscardContext(), passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list services in the namespace %s due to %s", nsname, err.Error())
 

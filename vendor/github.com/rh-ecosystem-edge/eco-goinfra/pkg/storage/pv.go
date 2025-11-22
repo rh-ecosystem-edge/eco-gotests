@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -73,7 +74,7 @@ func (builder *PVBuilder) Exists() bool {
 	var err error
 
 	builder.Object, err = builder.apiClient.PersistentVolumes().Get(
-		context.TODO(), builder.Definition.Name, metav1.GetOptions{})
+		logging.DiscardContext(), builder.Definition.Name, metav1.GetOptions{})
 
 	return err == nil || !k8serrors.IsNotFound(err)
 }
@@ -94,7 +95,7 @@ func (builder *PVBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.PersistentVolumes().Delete(context.TODO(), builder.Definition.Name, metav1.DeleteOptions{})
+	err := builder.apiClient.PersistentVolumes().Delete(logging.DiscardContext(), builder.Definition.Name, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
@@ -131,7 +132,7 @@ func (builder *PVBuilder) WaitUntilDeleted(timeout time.Duration) error {
 
 	return wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			_, err := builder.apiClient.PersistentVolumes().Get(context.TODO(), builder.Definition.Name, metav1.GetOptions{})
+			_, err := builder.apiClient.PersistentVolumes().Get(logging.DiscardContext(), builder.Definition.Name, metav1.GetOptions{})
 			if err == nil {
 				klog.V(100).Infof("PersistentVolume %s still present", builder.Definition.Name)
 

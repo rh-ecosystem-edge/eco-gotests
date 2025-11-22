@@ -1,10 +1,10 @@
 package ocm
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"k8s.io/klog/v2"
 	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -45,7 +45,7 @@ func ListPlacementBindingsInAllNamespaces(apiClient *clients.Settings,
 
 	placementBindingList := new(policiesv1.PlacementBindingList)
 
-	err = apiClient.List(context.TODO(), placementBindingList, &passedOptions)
+	err = apiClient.List(logging.DiscardContext(), placementBindingList, &passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list all placementBindings in all namespaces due to %s", err.Error())
 

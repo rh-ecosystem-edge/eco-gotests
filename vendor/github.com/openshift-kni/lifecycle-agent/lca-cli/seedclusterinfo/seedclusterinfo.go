@@ -33,10 +33,13 @@ type SeedClusterInfo struct {
 	// See BaseDomain documentation above.
 	ClusterName string `json:"cluster_name,omitempty"`
 
-	// The IP of the seed cluster's SNO node. This is used when we sed the IP
-	// address of the seed to replace it with the desired IP address of the
-	// cluster.
+	// The IP address of the seed cluster's SNO node.
+	// Deprecated: Use NodeIPs instead.
 	NodeIP string `json:"node_ip,omitempty"`
+
+	// The IP addresses of the seed cluster's SNO node. One for single stack
+	// clusters, and two for dual-stack clusters.
+	NodeIPs []string `json:"node_ips,omitempty"`
 
 	// The container registry used to host the release image of the seed cluster.
 	// TODO: Document what this is for
@@ -94,6 +97,11 @@ type SeedClusterInfo struct {
 	// the correct ingress private key, because it looks for strict equality in
 	// the certificate's Subject.CN.
 	IngressCertificateCN string `json:"ingress_certificate_cn,omitempty"`
+
+	// The list of subnets of the seed cluster.
+	// For single stack ocp clusters, this will be a single subnet.
+	// For dual-stack ocp clusters, this will be a list of two subnets.
+	MachineNetworks []string `json:"machine_networks,omitempty"`
 }
 
 type AdditionalTrustBundle struct {
@@ -117,7 +125,7 @@ func NewFromClusterInfo(clusterInfo *utils.ClusterInfo,
 		SeedClusterOCPVersion:    clusterInfo.OCPVersion,
 		BaseDomain:               clusterInfo.BaseDomain,
 		ClusterName:              clusterInfo.ClusterName,
-		NodeIP:                   clusterInfo.NodeIP,
+		NodeIPs:                  clusterInfo.NodeIPs,
 		ReleaseRegistry:          clusterInfo.ReleaseRegistry,
 		SNOHostname:              clusterInfo.Hostname,
 		MirrorRegistryConfigured: clusterInfo.MirrorRegistryConfigured,
@@ -125,6 +133,7 @@ func NewFromClusterInfo(clusterInfo *utils.ClusterInfo,
 		HasProxy:                 hasProxy,
 		HasFIPS:                  hasFIPS,
 		AdditionalTrustBundle:    additionalTrustBundle,
+		MachineNetworks:          clusterInfo.MachineNetworks,
 
 		ContainerStorageMountpointTarget: containerStorageMountpointTarget,
 

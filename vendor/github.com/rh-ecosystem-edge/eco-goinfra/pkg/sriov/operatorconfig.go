@@ -1,11 +1,11 @@
 package sriov
 
 import (
-	"context"
 	"fmt"
 
 	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	"k8s.io/klog/v2"
 
@@ -85,7 +85,7 @@ func (builder *OperatorConfigBuilder) Create() (*OperatorConfigBuilder, error) {
 	klog.V(100).Infof("Creating the SriovOperatorConfig in namespace %s", builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		err := builder.apiClient.Create(context.TODO(), builder.Definition)
+		err := builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err != nil {
 			klog.V(100).Info("Failed to create the SriovOperatorConfig")
 
@@ -152,7 +152,7 @@ func (builder *OperatorConfigBuilder) Get() (*srIovV1.SriovOperatorConfig, error
 
 	operatorConfig := &srIovV1.SriovOperatorConfig{}
 
-	err := builder.apiClient.Get(context.TODO(),
+	err := builder.apiClient.Get(logging.DiscardContext(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		operatorConfig)
 	if err != nil {
@@ -296,7 +296,7 @@ func (builder *OperatorConfigBuilder) Update() (*OperatorConfigBuilder, error) {
 		builder.Definition.Name,
 	)
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err == nil {
 		builder.Object = builder.Definition
 	}
@@ -323,7 +323,7 @@ func (builder *OperatorConfigBuilder) Delete() (*OperatorConfigBuilder, error) {
 		return builder, nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return builder, fmt.Errorf("can not delete SriovOperatorConfig: %w", err)
 	}

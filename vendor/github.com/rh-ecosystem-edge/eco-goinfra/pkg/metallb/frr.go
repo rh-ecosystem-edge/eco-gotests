@@ -1,7 +1,6 @@
 package metallb
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"time"
@@ -10,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	frrtypes "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/frrtypes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -87,7 +87,7 @@ func (builder *FrrConfigurationBuilder) Create() (*FrrConfigurationBuilder, erro
 
 	var err error
 	if !builder.Exists() {
-		err = builder.apiClient.Create(context.TODO(), builder.Definition)
+		err = builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err != nil {
 			klog.V(100).Info("Failed to create MetalLb")
 
@@ -112,7 +112,7 @@ func (builder *FrrConfigurationBuilder) Get() (*frrtypes.FRRConfiguration, error
 
 	frrConfig := &frrtypes.FRRConfiguration{}
 
-	err := builder.apiClient.Get(context.TODO(),
+	err := builder.apiClient.Get(logging.DiscardContext(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace}, frrConfig)
 	if err != nil {
 		klog.V(100).Infof(
@@ -145,7 +145,7 @@ func (builder *FrrConfigurationBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return fmt.Errorf("can not delete frrConfiguration: %w", err)
 	}

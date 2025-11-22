@@ -1,10 +1,10 @@
 package hive
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	hiveextV1Beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/api/hiveextension/v1beta1"
 	hiveV1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/hive/api/v1"
@@ -208,7 +208,7 @@ func (builder *ClusterDeploymentBuilder) Get() (*hiveV1.ClusterDeployment, error
 
 	clusterDeployment := &hiveV1.ClusterDeployment{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, clusterDeployment)
@@ -278,7 +278,7 @@ func (builder *ClusterDeploymentBuilder) Create() (*ClusterDeploymentBuilder, er
 
 	var err error
 	if !builder.Exists() {
-		err = builder.apiClient.Create(context.TODO(), builder.Definition)
+		err = builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -321,7 +321,7 @@ func (builder *ClusterDeploymentBuilder) Update(force bool) (*ClusterDeploymentB
 	klog.V(100).Infof("Updating clusterdeployment %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		if force {
 			klog.V(100).Infof("%v", msg.FailToUpdateNotification("clusterdeployment", builder.Definition.Name, builder.Definition.Namespace))
@@ -362,7 +362,7 @@ func (builder *ClusterDeploymentBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return fmt.Errorf("cannot delete clusterdeployment: %w", err)
 	}

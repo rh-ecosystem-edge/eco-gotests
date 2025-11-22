@@ -14,6 +14,7 @@ import (
 	nmstateV1 "github.com/nmstate/kubernetes-nmstate/api/v1"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 
 	corev1 "k8s.io/api/core/v1"
@@ -108,7 +109,7 @@ func (builder *PolicyBuilder) Get() (*nmstateV1.NodeNetworkConfigurationPolicy, 
 
 	nmstatePolicy := &nmstateV1.NodeNetworkConfigurationPolicy{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, nmstatePolicy)
@@ -150,7 +151,7 @@ func (builder *PolicyBuilder) Create() (*PolicyBuilder, error) {
 		return builder, nil
 	}
 
-	err := builder.apiClient.Create(context.TODO(), builder.Definition)
+	err := builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return builder, err
 	}
@@ -177,7 +178,7 @@ func (builder *PolicyBuilder) Delete() (*PolicyBuilder, error) {
 		return builder, nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return builder, fmt.Errorf("can not delete NodeNetworkConfigurationPolicy: %w", err)
 	}
@@ -198,7 +199,7 @@ func (builder *PolicyBuilder) Update(force bool) (*PolicyBuilder, error) {
 		builder.Definition.Name,
 	)
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err == nil {
 		builder.Object = builder.Definition
 	} else if force {
@@ -392,8 +393,9 @@ func (builder *PolicyBuilder) WithVlanInterfaceIP(baseInterface, ipv4Addresses, 
 			}},
 		},
 		Ipv6: InterfaceIpv6{
-			Enabled: true,
-			Dhcp:    false,
+			Enabled:  true,
+			Dhcp:     false,
+			Autoconf: false,
 			Address: []InterfaceIPAddress{{
 				PrefixLen: 64,
 				IP:        net.ParseIP(ipv6Addresses),

@@ -16,6 +16,9 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -679,6 +682,7 @@ type NIC struct {
 	VLANs []VLAN `json:"vlans,omitempty"`
 
 	// The untagged VLAN ID
+	//nolint:tagliatelle
 	VLANID VLANID `json:"vlanId,omitempty"`
 
 	// Whether the NIC is PXE Bootable
@@ -866,6 +870,7 @@ type ProvisionStatus struct {
 
 	// The hosts's ID from the underlying provisioning tool (e.g. the
 	// Ironic node UUID).
+	//nolint:tagliatelle
 	ID string `json:"ID"`
 
 	// Image holds the details of the last image successfully
@@ -911,8 +916,6 @@ type BareMetalHost struct {
 }
 
 // BootMode returns the boot method to use for the host.
-//
-//nolint:stylecheck
 func (host *BareMetalHost) BootMode() BootMode {
 	mode := host.Spec.BootMode
 	if mode == "" {
@@ -1113,25 +1116,28 @@ func (host *BareMetalHost) OperationMetricForState(operation ProvisioningState) 
 		metric = &history.Provision
 	case StateDeprovisioning:
 		metric = &history.Deprovision
+	default:
 	}
 	return
 }
 
+var supportedChecksums = strings.Join([]string{string(AutoChecksum), string(MD5), string(SHA256), string(SHA512)}, ", ")
+
 // GetChecksum method returns the checksum of an image.
-func (image *Image) GetChecksum() (checksum, checksumType string, ok bool) {
+func (image *Image) GetChecksum() (checksum, checksumType string, err error) {
 	if image == nil {
-		return "", "", false
+		return "", "", errors.New("image is not provided")
 	}
 
 	if image.DiskFormat != nil && *image.DiskFormat == "live-iso" {
 		// Checksum is not required for live-iso
-		ok = true
-		return "", "", ok
+		return "", "", nil
 	}
 
+	// FIXME(dtantsur): Ironic supports oci:// images with an embedded checksum
 	if image.Checksum == "" {
 		// Return empty if checksum is not provided
-		return "", "", false
+		return "", "", errors.New("checksum is required for normal images")
 	}
 
 	switch image.ChecksumType {
@@ -1140,12 +1146,11 @@ func (image *Image) GetChecksum() (checksum, checksumType string, ok bool) {
 	case "", AutoChecksum:
 		// No type, let Ironic detect
 	default:
-		return "", "", false
+		return "", "", fmt.Errorf("unknown checksumType %s, supported are %s", image.ChecksumType, supportedChecksums)
 	}
 
 	checksum = image.Checksum
-	ok = true
-	return checksum, checksumType, ok
+	return checksum, checksumType, nil
 }
 
 // +kubebuilder:object:root=true

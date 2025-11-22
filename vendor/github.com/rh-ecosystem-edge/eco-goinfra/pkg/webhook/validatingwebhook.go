@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
-	"golang.org/x/net/context"
 	"k8s.io/klog/v2"
 
 	admregv1 "k8s.io/api/admissionregistration/v1"
@@ -90,7 +90,7 @@ func (builder *ValidatingConfigurationBuilder) Get() (*admregv1.ValidatingWebhoo
 
 	validatingWebhookConfiguration := &admregv1.ValidatingWebhookConfiguration{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, validatingWebhookConfiguration)
 	if err != nil {
@@ -119,7 +119,7 @@ func (builder *ValidatingConfigurationBuilder) Delete() (*ValidatingConfiguratio
 		return builder, nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return builder, err
 	}
@@ -146,7 +146,7 @@ func (builder *ValidatingConfigurationBuilder) Update() (*ValidatingConfiguratio
 
 	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return builder, err
 	}

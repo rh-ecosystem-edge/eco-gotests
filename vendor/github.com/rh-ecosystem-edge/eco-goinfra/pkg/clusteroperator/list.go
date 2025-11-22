@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
@@ -29,7 +30,7 @@ func List(apiClient *clients.Settings, options ...metav1.ListOptions) ([]*Builde
 
 	klog.V(100).Infof("%v", logMessage)
 
-	coList, err := apiClient.ClusterOperators().List(context.TODO(), passedOptions)
+	coList, err := apiClient.ClusterOperators().List(logging.DiscardContext(), passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list clusterOperators due to %s", err.Error())
 

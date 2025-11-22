@@ -1,10 +1,10 @@
 package storage
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
@@ -33,7 +33,7 @@ func ListPV(apiClient *clients.Settings, options ...metav1.ListOptions) ([]*PVBu
 
 	klog.V(100).Infof("%v", logMessage)
 
-	pvList, err := apiClient.PersistentVolumes().List(context.TODO(), passedOptions)
+	pvList, err := apiClient.PersistentVolumes().List(logging.DiscardContext(), passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list PV objects due to %s", err.Error())
 
@@ -86,7 +86,7 @@ func ListPVC(apiClient *clients.Settings, nsname string, options ...metav1.ListO
 
 	klog.V(100).Infof("%v", logMessage)
 
-	pvcList, err := apiClient.PersistentVolumeClaims(nsname).List(context.TODO(), passedOptions)
+	pvcList, err := apiClient.PersistentVolumeClaims(nsname).List(logging.DiscardContext(), passedOptions)
 	if err != nil {
 		klog.V(100).Infof("Failed to list PVC objects due to %s", err.Error())
 

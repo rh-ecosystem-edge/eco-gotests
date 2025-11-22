@@ -9,6 +9,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -77,7 +78,7 @@ func (builder *Builder) Get() (*configv1.ClusterVersion, error) {
 
 	clusterVersion := &configv1.ClusterVersion{}
 
-	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, clusterVersion)
+	err := builder.apiClient.Get(logging.DiscardContext(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, clusterVersion)
 	if err != nil {
 		klog.V(100).Infof("Failed to get ClusterVersion %s: %s", builder.Definition.Name, err)
 
@@ -161,7 +162,7 @@ func (builder *Builder) Update() (*Builder, error) {
 	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
 	builder.Definition.CreationTimestamp = metav1.Time{}
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		klog.V(100).Infof("Failed to update ClusterVersion %s: %s", builder.Definition.Name, err)
 

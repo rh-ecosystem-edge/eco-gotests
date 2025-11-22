@@ -1,10 +1,10 @@
 package hive
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	hiveV1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/hive/api/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -126,7 +126,7 @@ func (builder *ClusterImageSetBuilder) Get() (*hiveV1.ClusterImageSet, error) {
 
 	clusterimageset := &hiveV1.ClusterImageSet{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, clusterimageset)
 	if err != nil {
@@ -146,7 +146,7 @@ func (builder *ClusterImageSetBuilder) Create() (*ClusterImageSetBuilder, error)
 
 	var err error
 	if !builder.Exists() {
-		err = builder.apiClient.Create(context.TODO(), builder.Definition)
+		err = builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -163,7 +163,7 @@ func (builder *ClusterImageSetBuilder) Update(force bool) (*ClusterImageSetBuild
 
 	klog.V(100).Infof("Updating clusterimageset %s", builder.Definition.Name)
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		if force {
 			klog.V(100).Infof("%v", msg.FailToUpdateNotification("clusterimageset", builder.Definition.Name, builder.Definition.Namespace))
@@ -202,7 +202,7 @@ func (builder *ClusterImageSetBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return fmt.Errorf("cannot delete clusterimageset: %w", err)
 	}

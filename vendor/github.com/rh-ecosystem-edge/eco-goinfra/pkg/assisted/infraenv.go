@@ -8,6 +8,7 @@ import (
 	"math/rand"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	hiveextV1Beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/api/hiveextension/v1beta1"
 	agentInstallV1Beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/api/v1beta1"
@@ -429,7 +430,7 @@ func (builder *InfraEnvBuilder) GetAgentsByLabel(key, value string) ([]*agentBui
 
 	var agents agentInstallV1Beta1.AgentList
 
-	err := builder.apiClient.List(context.TODO(), &agents, goclient.MatchingLabels(matchLabel))
+	err := builder.apiClient.List(logging.DiscardContext(), &agents, goclient.MatchingLabels(matchLabel))
 	if err != nil {
 		return nil, err
 	}
@@ -655,7 +656,7 @@ func (builder *InfraEnvBuilder) GetAgentClusterInstallFromInfraEnv() (*hiveextV1
 	klog.V(100).Infof("Getting clusterdeployment %s in namespace %s",
 		builder.Object.Spec.ClusterRef.Name, builder.Object.Spec.ClusterRef.Namespace)
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name:      builder.Object.Spec.ClusterRef.Name,
 		Namespace: builder.Object.Spec.ClusterRef.Namespace,
 	}, &clusterdeployment)
@@ -671,7 +672,7 @@ func (builder *InfraEnvBuilder) GetAgentClusterInstallFromInfraEnv() (*hiveextV1
 
 	var agentclusterinstall hiveextV1Beta1.AgentClusterInstall
 
-	err = builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err = builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name:      clusterdeployment.Spec.ClusterInstallRef.Name,
 		Namespace: clusterdeployment.Namespace,
 	}, &agentclusterinstall)
@@ -696,7 +697,7 @@ func (builder *InfraEnvBuilder) Get() (*agentInstallV1Beta1.InfraEnv, error) {
 
 	infraEnv := &agentInstallV1Beta1.InfraEnv{}
 
-	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
 		Name:      builder.Definition.Name,
 		Namespace: builder.Definition.Namespace,
 	}, infraEnv)
@@ -759,7 +760,7 @@ func (builder *InfraEnvBuilder) Create() (*InfraEnvBuilder, error) {
 
 	var err error
 	if !builder.Exists() {
-		err = builder.apiClient.Create(context.TODO(), builder.Definition)
+		err = builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
 		if err == nil {
 			builder.Object = builder.Definition
 		}
@@ -784,7 +785,7 @@ func (builder *InfraEnvBuilder) Update(force bool) (*InfraEnvBuilder, error) {
 		return nil, fmt.Errorf("cannot update non-existent infraenv")
 	}
 
-	err := builder.apiClient.Update(context.TODO(), builder.Definition)
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		if force {
 			klog.V(100).Infof("%v", msg.FailToUpdateNotification("infraenv", builder.Definition.Name, builder.Definition.Namespace))
@@ -831,7 +832,7 @@ func (builder *InfraEnvBuilder) Delete() error {
 		return nil
 	}
 
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
 	if err != nil {
 		return fmt.Errorf("cannot delete infraenv: %w", err)
 	}
@@ -847,7 +848,7 @@ func (builder *InfraEnvBuilder) DeleteAndWait(timeout time.Duration) error {
 		return err
 	}
 
-	klog.V(100).Infof(`Deleting InfraEnv %s and 
+	klog.V(100).Infof(`Deleting InfraEnv %s and
 	waiting for the defined period until it is removed`,
 		builder.Definition.Name)
 

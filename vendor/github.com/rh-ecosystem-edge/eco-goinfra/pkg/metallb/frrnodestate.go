@@ -1,10 +1,10 @@
 package metallb
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/frrtypes"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -87,7 +87,7 @@ func (builder *FrrNodeStateBuilder) Get() (*frrtypes.FRRNodeState, error) {
 
 	frrNodeState := &frrtypes.FRRNodeState{}
 
-	err := builder.apiClient.Get(context.TODO(), runtimeClient.ObjectKey{
+	err := builder.apiClient.Get(logging.DiscardContext(), runtimeClient.ObjectKey{
 		Name: builder.Definition.Name,
 	}, frrNodeState)
 	if err != nil {
