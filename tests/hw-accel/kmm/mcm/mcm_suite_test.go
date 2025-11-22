@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
@@ -17,6 +16,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/klog/v2"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -76,7 +76,7 @@ var _ = BeforeSuite(func() {
 		Skip(fmt.Sprintf("Error listing worker nodes. Got error: '%v'", err))
 	}
 	for _, node := range nodeList {
-		glog.V(kmmparams.KmmLogLevel).Infof("Creating privileged deployment on node '%v'", node.Object.Name)
+		klog.V(kmmparams.KmmLogLevel).Infof("Creating privileged deployment on node '%v'", node.Object.Name)
 
 		deploymentName := fmt.Sprintf("%s-%s", kmmparams.KmmTestHelperLabelName, node.Object.Name)
 		containerCfg, _ := pod.NewContainerBuilder("test", kmmparams.DTKImage,
@@ -100,7 +100,7 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	By("Cleanup environment after KMM tests execution")
-	glog.V(kmmparams.KmmLogLevel).Infof("Deleting test deployments")
+	klog.V(kmmparams.KmmLogLevel).Infof("Deleting test deployments")
 
 	By("Delete helper deployments")
 	testDeployments, err := deployment.List(ModulesConfig.SpokeAPIClient,
@@ -111,9 +111,9 @@ var _ = AfterSuite(func() {
 	}
 
 	for _, deploymentObj := range testDeployments {
-		glog.V(kmmparams.KmmLogLevel).Infof("Deployment: '%s'\n", deploymentObj.Object.Name)
+		klog.V(kmmparams.KmmLogLevel).Infof("Deployment: '%s'\n", deploymentObj.Object.Name)
 		if strings.Contains(deploymentObj.Object.Name, kmmparams.KmmTestHelperLabelName) {
-			glog.V(kmmparams.KmmLogLevel).Infof("Deleting deployment: '%s'\n", deploymentObj.Object.Name)
+			klog.V(kmmparams.KmmLogLevel).Infof("Deleting deployment: '%s'\n", deploymentObj.Object.Name)
 			err = deploymentObj.DeleteAndWait(time.Minute)
 
 			Expect(err).ToNot(HaveOccurred(), "error deleting helper deployment")

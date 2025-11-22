@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	operatorv1 "github.com/openshift/api/operator/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -28,17 +28,17 @@ type OperatorBuilder struct {
 
 // PullOperator loads an existing network.operator into OperatorBuilder struct.
 func PullOperator(apiClient *clients.Settings) (*OperatorBuilder, error) {
-	glog.V(100).Infof("Pulling existing network.operator name: %s", clusterNetworkName)
+	klog.V(100).Infof("Pulling existing network.operator name: %s", clusterNetworkName)
 
 	if apiClient == nil {
-		glog.V(100).Info("The apiClient is nil")
+		klog.V(100).Info("The apiClient is nil")
 
 		return nil, fmt.Errorf("network.operator 'apiClient' cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(operatorv1.Install)
 	if err != nil {
-		glog.V(100).Info("Failed to add operator v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add operator v1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -53,7 +53,7 @@ func PullOperator(apiClient *clients.Settings) (*OperatorBuilder, error) {
 	}
 
 	if !builder.Exists() {
-		glog.V(100).Infof("network.operator object %s does not exist", clusterNetworkName)
+		klog.V(100).Infof("network.operator object %s does not exist", clusterNetworkName)
 
 		return nil, fmt.Errorf("network.operator object %s does not exist", clusterNetworkName)
 	}
@@ -69,7 +69,7 @@ func (builder *OperatorBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if network.operator %s exists", builder.Definition.Name)
+	klog.V(100).Infof("Checking if network.operator %s exists", builder.Definition.Name)
 
 	var err error
 
@@ -88,7 +88,7 @@ func (builder *OperatorBuilder) Get() (*operatorv1.Network, error) {
 
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{Name: builder.Definition.Name}, clusterNetwork)
 	if err != nil {
-		glog.V(100).Infof("Failed to get network.operator object %s: %v", builder.Definition.Name, err)
+		klog.V(100).Infof("Failed to get network.operator object %s: %v", builder.Definition.Name, err)
 
 		return nil, err
 	}
@@ -102,17 +102,17 @@ func (builder *OperatorBuilder) Update() (*OperatorBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating the network.operator object %s", builder.Definition.Name)
+	klog.V(100).Infof("Updating the network.operator object %s", builder.Definition.Name)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("network.operator object %s does not exist", builder.Definition.Name)
+		klog.V(100).Infof("network.operator object %s does not exist", builder.Definition.Name)
 
 		return nil, fmt.Errorf("network.operator object %s does not exist", builder.Definition.Name)
 	}
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
-		glog.V(100).Infof("Failed to update network.operator object %s: %v", builder.Definition.Name, err)
+		klog.V(100).Infof("Failed to update network.operator object %s: %v", builder.Definition.Name, err)
 
 		return nil, err
 	}
@@ -161,7 +161,7 @@ func (builder *OperatorBuilder) SetMultiNetworkPolicy(state bool, timeout time.D
 		return builder, err
 	}
 
-	glog.V(100).Infof("Applying MultiNetworkPolicy flag %t to network.operator %s", state, builder.Definition.Name)
+	klog.V(100).Infof("Applying MultiNetworkPolicy flag %t to network.operator %s", state, builder.Definition.Name)
 
 	var err error
 
@@ -200,7 +200,7 @@ func (builder *OperatorBuilder) WaitUntilInCondition(
 		return err
 	}
 
-	glog.V(100).Infof("Wait until network.operator object %s is in condition %v",
+	klog.V(100).Infof("Wait until network.operator object %s is in condition %v",
 		builder.Definition.Name, condition)
 
 	err := wait.PollUntilContextTimeout(
@@ -227,25 +227,25 @@ func (builder *OperatorBuilder) validate() (bool, error) {
 	resourceCRD := "network.operator"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

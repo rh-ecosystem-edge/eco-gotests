@@ -3,7 +3,6 @@ package tests
 import (
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/cgu"
@@ -17,6 +16,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/talm/internal/mount"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/talm/internal/setup"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/talm/internal/tsparams"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 )
 
@@ -192,19 +192,19 @@ func assertBackupStatus(spokeName, expected string) {
 			"Failed to pull cgu %s in namespace %s", tsparams.CguName, tsparams.TestNamespace)
 
 		if cguBuilder.Object.Status.Backup == nil {
-			glog.V(tsparams.LogLevel).Info("backup struct not ready yet")
+			klog.V(tsparams.LogLevel).Info("backup struct not ready yet")
 
 			return ""
 		}
 
 		_, ok := cguBuilder.Object.Status.Backup.Status[spokeName]
 		if !ok {
-			glog.V(tsparams.LogLevel).Info("cluster name as key did not appear yet")
+			klog.V(tsparams.LogLevel).Info("cluster name as key did not appear yet")
 
 			return ""
 		}
 
-		glog.V(tsparams.LogLevel).Infof("[%s] %s backup status: %s\n", cguBuilder.Object.Name, spokeName,
+		klog.V(tsparams.LogLevel).Infof("[%s] %s backup status: %s\n", cguBuilder.Object.Name, spokeName,
 			cguBuilder.Object.Status.Backup.Status[spokeName])
 
 		return cguBuilder.Object.Status.Backup.Status[spokeName]

@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
@@ -13,6 +12,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreparams"
 	multus "gopkg.in/k8snetworkplumbingwg/multus-cni.v4/pkg/types"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -129,7 +129,7 @@ func VerifyIPVlanOnDifferentNodes() {
 		By("Adding TaintToleration")
 
 		for _, toleration := range RDSCoreConfig.WlkdTolerationList {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Adding toleration: %v", toleration)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Adding toleration: %v", toleration)
 
 			deployOne = deployOne.WithToleration(toleration)
 			deployTwo = deployTwo.WithToleration(toleration)
@@ -142,14 +142,14 @@ func VerifyIPVlanOnDifferentNodes() {
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to create deployment %s: %v", ipvlanDeploy10Name, err))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deployment %q created and is Ready in %q namespace",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deployment %q created and is Ready in %q namespace",
 		deployOne.Definition.Name, deployOne.Definition.Namespace)
 
 	deployTwo, err = deployTwo.CreateAndWaitUntilReady(5 * time.Minute)
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to create deployment %s: %v", ipvlanDeploy11Name, err))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deployment %q created and is Ready in %q namespace",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deployment %q created and is Ready in %q namespace",
 		deployTwo.Definition.Name, deployTwo.Definition.Namespace)
 
 	VerifyIPVLANConnectivityBetweenDifferentNodes()
@@ -263,7 +263,7 @@ func VerifyIPVlanOnSameNode() {
 		By("Adding TaintToleration")
 
 		for _, toleration := range RDSCoreConfig.WlkdTolerationList {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Adding toleration: %v", toleration)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Adding toleration: %v", toleration)
 
 			deployOne = deployOne.WithToleration(toleration)
 			deployTwo = deployTwo.WithToleration(toleration)
@@ -276,14 +276,14 @@ func VerifyIPVlanOnSameNode() {
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to create deployment %s: %v", ipvlanDeploy20Name, err))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deployment %q created and is Ready in %q namespace",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deployment %q created and is Ready in %q namespace",
 		deployOne.Definition.Name, deployOne.Definition.Namespace)
 
 	deployTwo, err = deployTwo.CreateAndWaitUntilReady(5 * time.Minute)
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to create deployment %s: %v", ipvlanDeploy21Name, err))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deployment %q created and is Ready in %q namespace",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deployment %q created and is Ready in %q namespace",
 		deployTwo.Definition.Name, deployTwo.Definition.Namespace)
 
 	VerifyIPVLANConnectivityOnSameNode()
@@ -340,7 +340,7 @@ func defineIPVlanDeployment(dName, nsName, dLabels, netDefName, volName string,
 			Name:      netDefName,
 			Namespace: nsName})
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("IPVlan networks:\n\t%#v", networks)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("IPVlan networks:\n\t%#v", networks)
 
 	deploy = deploy.WithSecondaryNetwork(networks)
 

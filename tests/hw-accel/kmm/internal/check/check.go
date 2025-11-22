@@ -16,13 +16,13 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/kmm"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 // IsKMMHub returns true if the test is running against KMM-HUB operator instead of KMM operator.
@@ -35,7 +35,7 @@ func NodeLabel(apiClient *clients.Settings, moduleName, nsname string, nodeSelec
 	nodeBuilder, err := nodes.List(apiClient, metav1.ListOptions{LabelSelector: labels.Set(nodeSelector).String()})
 
 	if err != nil {
-		glog.V(kmmparams.KmmLogLevel).Infof("could not discover %v nodes", nodeSelector)
+		klog.V(kmmparams.KmmLogLevel).Infof("could not discover %v nodes", nodeSelector)
 	}
 
 	foundLabels := 0
@@ -44,7 +44,7 @@ func NodeLabel(apiClient *clients.Settings, moduleName, nsname string, nodeSelec
 	for _, node := range nodeBuilder {
 		_, ok := node.Object.Labels[label]
 		if ok {
-			glog.V(kmmparams.KmmLogLevel).Infof("Found label %v that contains %v on node %v",
+			klog.V(kmmparams.KmmLogLevel).Infof("Found label %v that contains %v on node %v",
 				label, moduleName, node.Object.Name)
 
 			foundLabels++
@@ -86,12 +86,12 @@ func ModuleSigned(apiClient *clients.Settings, modName, message, nsname, image s
 	_, err = testPod.CreateAndWaitUntilRunning(2 * time.Minute)
 
 	if err != nil {
-		glog.V(kmmparams.KmmLogLevel).Infof("Could not create signing verification pod. Got error : %v", err)
+		klog.V(kmmparams.KmmLogLevel).Infof("Could not create signing verification pod. Got error : %v", err)
 
 		return err
 	}
 
-	glog.V(kmmparams.KmmLogLevel).Infof("\n\nPodName: %v\n\n", testPod.Object.Name)
+	klog.V(kmmparams.KmmLogLevel).Infof("\n\nPodName: %v\n\n", testPod.Object.Name)
 
 	buff, err := testPod.ExecCommand(command, "test")
 
@@ -102,10 +102,10 @@ func ModuleSigned(apiClient *clients.Settings, modName, message, nsname, image s
 	_, _ = testPod.Delete()
 
 	contents := buff.String()
-	glog.V(kmmparams.KmmLogLevel).Infof("%s contents: \n \t%v\n", command, contents)
+	klog.V(kmmparams.KmmLogLevel).Infof("%s contents: \n \t%v\n", command, contents)
 
 	if strings.Contains(contents, message) {
-		glog.V(kmmparams.KmmLogLevel).Infof("command '%s' output contains '%s'\n", command, message)
+		klog.V(kmmparams.KmmLogLevel).Infof("command '%s' output contains '%s'\n", command, message)
 
 		return nil
 	}
@@ -130,7 +130,7 @@ func runCommandOnTestPods(apiClient *clients.Settings,
 			})
 
 			if err != nil {
-				glog.V(kmmparams.KmmLogLevel).Infof("deployment list error: %s\n", err)
+				klog.V(kmmparams.KmmLogLevel).Infof("deployment list error: %s\n", err)
 
 				return false, err
 			}
@@ -139,7 +139,7 @@ func runCommandOnTestPods(apiClient *clients.Settings,
 			iter := 0
 
 			for _, iterPod := range pods {
-				glog.V(kmmparams.KmmLogLevel).Infof("\n\nPodName: %v\nCommand: %v\nExpect: %v\n\n",
+				klog.V(kmmparams.KmmLogLevel).Infof("\n\nPodName: %v\nCommand: %v\nExpect: %v\n\n",
 					iterPod.Object.Name, command, message)
 
 				buff, err := iterPod.ExecCommand(command, "test")
@@ -149,10 +149,10 @@ func runCommandOnTestPods(apiClient *clients.Settings,
 				}
 
 				contents := buff.String()
-				glog.V(kmmparams.KmmLogLevel).Infof("%s contents: \n \t%v\n", command, contents)
+				klog.V(kmmparams.KmmLogLevel).Infof("%s contents: \n \t%v\n", command, contents)
 
 				if strings.Contains(contents, message) {
-					glog.V(kmmparams.KmmLogLevel).Infof(
+					klog.V(kmmparams.KmmLogLevel).Infof(
 						"command '%s' contains '%s' in pod %s\n", command, message, iterPod.Object.Name)
 
 					iter++
@@ -174,7 +174,7 @@ func ImageStreamExistsForModule(apiClient *clients.Settings, namespace, moduleNa
 	module, err := kmm.Pull(apiClient, moduleName, namespace)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			glog.V(kmmparams.KmmLogLevel).Infof("Module %s not found in namespace %s, skipping imagestream check",
+			klog.V(kmmparams.KmmLogLevel).Infof("Module %s not found in namespace %s, skipping imagestream check",
 				moduleName, namespace)
 
 			return nil
@@ -200,7 +200,7 @@ func ImageStreamExistsForModule(apiClient *clients.Settings, namespace, moduleNa
 
 	// Skip validation if not using internal registry
 	if !usesInternalRegistry {
-		glog.V(kmmparams.KmmLogLevel).Infof("Module %s not using internal registry, skipping imagestream check",
+		klog.V(kmmparams.KmmLogLevel).Infof("Module %s not using internal registry, skipping imagestream check",
 			moduleName)
 
 		return nil
@@ -208,7 +208,7 @@ func ImageStreamExistsForModule(apiClient *clients.Settings, namespace, moduleNa
 
 	// ImageStream name is the same as kmod name
 	imagestreamName := kmodName
-	glog.V(kmmparams.KmmLogLevel).Infof("Checking ImageStream %s/%s for kernel tag %s",
+	klog.V(kmmparams.KmmLogLevel).Infof("Checking ImageStream %s/%s for kernel tag %s",
 		namespace, imagestreamName, tag)
 
 	// Pull the specific ImageStream
@@ -225,7 +225,7 @@ func ImageStreamExistsForModule(apiClient *clients.Settings, namespace, moduleNa
 	// Check if kernel version exists in status tags
 	for _, statusTag := range statusTags {
 		if statusTag == tag {
-			glog.V(kmmparams.KmmLogLevel).Infof("ImageStream %s/%s has kernel tag %s in status",
+			klog.V(kmmparams.KmmLogLevel).Infof("ImageStream %s/%s has kernel tag %s in status",
 				namespace, imagestreamName, tag)
 
 			return nil

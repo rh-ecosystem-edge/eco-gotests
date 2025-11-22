@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -30,17 +30,17 @@ type Builder struct {
 
 // Pull loads an existing DNS into Builder struct.
 func Pull(apiClient *clients.Settings) (*Builder, error) {
-	glog.V(100).Infof("Pulling existing DNS name: %s", clusterDNSName)
+	klog.V(100).Infof("Pulling existing DNS name: %s", clusterDNSName)
 
 	if apiClient == nil {
-		glog.V(100).Info("The apiClient of the DNS is nil")
+		klog.V(100).Info("The apiClient of the DNS is nil")
 
 		return nil, fmt.Errorf("dns 'apiClient' cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(configv1.Install)
 	if err != nil {
-		glog.V(100).Info("Failed to add config v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add config v1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -69,13 +69,13 @@ func (builder *Builder) Get() (*configv1.DNS, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting DNS object %s", builder.Definition.Name)
+	klog.V(100).Infof("Getting DNS object %s", builder.Definition.Name)
 
 	dnsObject := &configv1.DNS{}
 
 	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, dnsObject)
 	if err != nil {
-		glog.V(100).Infof("Failed to get DNS %s: %s", builder.Definition.Name, err)
+		klog.V(100).Infof("Failed to get DNS %s: %s", builder.Definition.Name, err)
 
 		return nil, err
 	}
@@ -89,7 +89,7 @@ func (builder *Builder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if DNS %s exists", builder.Definition.Name)
+	klog.V(100).Infof("Checking if DNS %s exists", builder.Definition.Name)
 
 	var err error
 
@@ -104,7 +104,7 @@ func (builder *Builder) Update() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating DNS %s", builder.Definition.Name)
+	klog.V(100).Infof("Updating DNS %s", builder.Definition.Name)
 
 	if !builder.Exists() {
 		return nil, fmt.Errorf("dns object %s does not exist", builder.Definition.Name)
@@ -115,7 +115,7 @@ func (builder *Builder) Update() (*Builder, error) {
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
-		glog.V(100).Infof("Failed to update DNS %s: %s", builder.Definition.Name, err)
+		klog.V(100).Infof("Failed to update DNS %s: %s", builder.Definition.Name, err)
 
 		return nil, err
 	}
@@ -131,25 +131,25 @@ func (builder *Builder) validate() (bool, error) {
 	resourceCRD := "dnses.config.openshift.io"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

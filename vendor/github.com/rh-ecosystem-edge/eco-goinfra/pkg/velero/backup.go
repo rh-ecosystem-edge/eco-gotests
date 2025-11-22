@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -27,19 +27,19 @@ type BackupBuilder struct {
 
 // NewBackupBuilder creates a new instance of BackupBuilder.
 func NewBackupBuilder(apiClient *clients.Settings, name, nsname string) *BackupBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new backup structure with the following params: "+
 			"name: %s, namespace: %s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(velerov1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add velero v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add velero v1 scheme to client schemes")
 
 		return nil
 	}
@@ -55,7 +55,7 @@ func NewBackupBuilder(apiClient *clients.Settings, name, nsname string) *BackupB
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the backup is empty")
+		klog.V(100).Info("The name of the backup is empty")
 
 		builder.errorMsg = "backup name cannot be an empty string"
 
@@ -63,7 +63,7 @@ func NewBackupBuilder(apiClient *clients.Settings, name, nsname string) *BackupB
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the backup is empty")
+		klog.V(100).Info("The namespace of the backup is empty")
 
 		builder.errorMsg = "backup namespace cannot be an empty string"
 
@@ -75,17 +75,17 @@ func NewBackupBuilder(apiClient *clients.Settings, name, nsname string) *BackupB
 
 // PullBackup loads an existing backup into BackupBuilder struct.
 func PullBackup(apiClient *clients.Settings, name, nsname string) (*BackupBuilder, error) {
-	glog.V(100).Infof("Pulling existing backup name: %s under namespace: %s", name, nsname)
+	klog.V(100).Infof("Pulling existing backup name: %s under namespace: %s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil, fmt.Errorf("the apiClient cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(velerov1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add velero v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add velero v1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -101,13 +101,13 @@ func PullBackup(apiClient *clients.Settings, name, nsname string) (*BackupBuilde
 	}
 
 	if name == "" {
-		glog.V(100).Info("The Backup name cannot be empty")
+		klog.V(100).Info("The Backup name cannot be empty")
 
 		return nil, fmt.Errorf("backup name cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Info("The Backup namespace cannot be empty")
+		klog.V(100).Info("The Backup namespace cannot be empty")
 
 		return nil, fmt.Errorf("backup namespace cannot be empty")
 	}
@@ -127,12 +127,12 @@ func (builder *BackupBuilder) WithStorageLocation(location string) *BackupBuilde
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Adding storage location %s to backup %s in namespace %s",
 		location, builder.Definition.Name, builder.Definition.Namespace)
 
 	if location == "" {
-		glog.V(100).Infof("Backup storage location is empty")
+		klog.V(100).Info("Backup storage location is empty")
 
 		builder.errorMsg = "backup storage location cannot be an empty string"
 
@@ -154,12 +154,12 @@ func (builder *BackupBuilder) WithIncludedNamespace(namespace string) *BackupBui
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Adding namespace %s to backup %s in namespace %s includedNamespaces field",
 		namespace, builder.Definition.Name, builder.Definition.Namespace)
 
 	if namespace == "" {
-		glog.V(100).Infof("Backup includedNamespace is empty")
+		klog.V(100).Info("Backup includedNamespace is empty")
 
 		builder.errorMsg = "backup includedNamespace cannot be an empty string"
 
@@ -177,12 +177,12 @@ func (builder *BackupBuilder) WithIncludedClusterScopedResource(crd string) *Bac
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Adding custom resource %s to backup %s in namespace %s includedClusterScopedResources field",
 		crd, builder.Definition.Name, builder.Definition.Namespace)
 
 	if crd == "" {
-		glog.V(100).Infof("Backup includedClusterScopedResource is empty")
+		klog.V(100).Info("Backup includedClusterScopedResource is empty")
 
 		builder.errorMsg = "backup includedClusterScopedResource cannot be an empty string"
 
@@ -201,12 +201,12 @@ func (builder *BackupBuilder) WithIncludedNamespaceScopedResource(crd string) *B
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Adding custom resource %s to backup %s in namespace %s includedNamespaceScopedResources field",
 		crd, builder.Definition.Name, builder.Definition.Namespace)
 
 	if crd == "" {
-		glog.V(100).Infof("Backup includedNamespaceScopedResource is empty")
+		klog.V(100).Info("Backup includedNamespaceScopedResource is empty")
 
 		builder.errorMsg = "backup includedNamespaceScopedResource cannot be an empty string"
 
@@ -225,12 +225,12 @@ func (builder *BackupBuilder) WithExcludedClusterScopedResource(crd string) *Bac
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Adding custom resource %s to backup %s in namespace %s excludedClusterScopedResources field",
 		crd, builder.Definition.Name, builder.Definition.Namespace)
 
 	if crd == "" {
-		glog.V(100).Infof("Backup excludedClusterScopedResource is empty")
+		klog.V(100).Info("Backup excludedClusterScopedResource is empty")
 
 		builder.errorMsg = "backup excludedClusterScopedResource cannot be an empty string"
 
@@ -249,12 +249,12 @@ func (builder *BackupBuilder) WithExcludedNamespaceScopedResources(crd string) *
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Adding custom resource %s to backup %s in namespace %s excludedNamespaceScopedResources field",
 		crd, builder.Definition.Name, builder.Definition.Namespace)
 
 	if crd == "" {
-		glog.V(100).Infof("Backup excludedNamespaceScopedResource is empty")
+		klog.V(100).Info("Backup excludedNamespaceScopedResource is empty")
 
 		builder.errorMsg = "backup excludedNamespaceScopedResource cannot be an empty string"
 
@@ -273,7 +273,7 @@ func (builder *BackupBuilder) Get() (*velerov1.Backup, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Collecting Backup object %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
+	klog.V(100).Infof("Collecting Backup object %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	backup := &velerov1.Backup{}
 
@@ -281,7 +281,7 @@ func (builder *BackupBuilder) Get() (*velerov1.Backup, error) {
 		context.TODO(),
 		goclient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace}, backup)
 	if err != nil {
-		glog.V(100).Infof("Backup object %s does not exist in namespace %s: %v",
+		klog.V(100).Infof("Backup object %s does not exist in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
 
 		return nil, err
@@ -296,7 +296,7 @@ func (builder *BackupBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if backup %s exists in namespace %s",
+	klog.V(100).Infof("Checking if backup %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -312,7 +312,7 @@ func (builder *BackupBuilder) Create() (*BackupBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating backup %s in namespace %s",
+	klog.V(100).Infof("Creating backup %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -332,10 +332,10 @@ func (builder *BackupBuilder) Update() (*BackupBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating backup %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
+	klog.V(100).Infof("Updating backup %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("Backup %s in namespace %s cannot be updated because it does not exist",
+		klog.V(100).Infof("Backup %s in namespace %s cannot be updated because it does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		return builder, fmt.Errorf("cannot update non-existent backup")
@@ -357,11 +357,11 @@ func (builder *BackupBuilder) Delete() (*BackupBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting backup %s in namespace %s",
+	klog.V(100).Infof("Deleting backup %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("Backup %s in namespace %s cannot be deleted because it does not exist",
+		klog.V(100).Infof("Backup %s in namespace %s cannot be deleted because it does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -385,25 +385,25 @@ func (builder *BackupBuilder) validate() (bool, error) {
 	resourceCRD := "backup"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		builder.errorMsg = msg.UndefinedCrdObjectErrString(resourceCRD)
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		builder.errorMsg = fmt.Sprintf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

@@ -6,8 +6,8 @@ import (
 
 	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
+	"k8s.io/klog/v2"
 
 	srIovV1 "github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
@@ -39,18 +39,18 @@ type OperatorConfigBuilder struct {
 
 // NewOperatorConfigBuilder creates new instance of OperatorConfigBuilder.
 func NewOperatorConfigBuilder(apiClient *clients.Settings, nsname string) *OperatorConfigBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new OperatorConfigBuilder structure with the following params: namespace: %s", nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(srIovV1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add sriovv1 scheme to client schemes")
+		klog.V(100).Info("Failed to add sriovv1 scheme to client schemes")
 
 		return nil
 	}
@@ -66,7 +66,7 @@ func NewOperatorConfigBuilder(apiClient *clients.Settings, nsname string) *Opera
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the SriovOperatorConfig is empty")
+		klog.V(100).Info("The namespace of the SriovOperatorConfig is empty")
 
 		builder.errorMsg = "SriovOperatorConfig 'nsname' is empty"
 
@@ -82,12 +82,12 @@ func (builder *OperatorConfigBuilder) Create() (*OperatorConfigBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the SriovOperatorConfig in namespace %s", builder.Definition.Namespace)
+	klog.V(100).Infof("Creating the SriovOperatorConfig in namespace %s", builder.Definition.Namespace)
 
 	if !builder.Exists() {
 		err := builder.apiClient.Create(context.TODO(), builder.Definition)
 		if err != nil {
-			glog.V(100).Infof("Failed to create the SriovOperatorConfig")
+			klog.V(100).Info("Failed to create the SriovOperatorConfig")
 
 			return nil, err
 		}
@@ -100,17 +100,17 @@ func (builder *OperatorConfigBuilder) Create() (*OperatorConfigBuilder, error) {
 
 // PullOperatorConfig loads an existing SriovOperatorConfig into OperatorConfigBuilder struct.
 func PullOperatorConfig(apiClient *clients.Settings, nsname string) (*OperatorConfigBuilder, error) {
-	glog.V(100).Infof("Pulling existing default SriovOperatorConfig: %s", sriovOperatorConfigName)
+	klog.V(100).Infof("Pulling existing default SriovOperatorConfig: %s", sriovOperatorConfigName)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("SriovOperatorConfig 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(srIovV1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add sriovv1 scheme to client schemes")
+		klog.V(100).Info("Failed to add sriovv1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -126,7 +126,7 @@ func PullOperatorConfig(apiClient *clients.Settings, nsname string) (*OperatorCo
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the SriovOperatorConfig is empty")
+		klog.V(100).Info("The namespace of the SriovOperatorConfig is empty")
 
 		return nil, fmt.Errorf("SriovOperatorConfig 'nsname' cannot be empty")
 	}
@@ -147,7 +147,7 @@ func (builder *OperatorConfigBuilder) Get() (*srIovV1.SriovOperatorConfig, error
 		return nil, err
 	}
 
-	glog.V(100).Infof("Collecting SriovOperatorConfig object %s in namespace %s",
+	klog.V(100).Infof("Collecting SriovOperatorConfig object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	operatorConfig := &srIovV1.SriovOperatorConfig{}
@@ -156,7 +156,7 @@ func (builder *OperatorConfigBuilder) Get() (*srIovV1.SriovOperatorConfig, error
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		operatorConfig)
 	if err != nil {
-		glog.V(100).Infof("SriovOperatorConfig object %s does not exist in namespace %s",
+		klog.V(100).Infof("SriovOperatorConfig object %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		return nil, err
@@ -171,7 +171,7 @@ func (builder *OperatorConfigBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Checking if SriovOperatorConfig %s exists", builder.Definition.Name)
 
 	var err error
@@ -187,7 +187,7 @@ func (builder *OperatorConfigBuilder) WithInjector(enable bool) *OperatorConfigB
 		return builder
 	}
 
-	glog.V(100).Infof("Configuring enableInjector %t to SriovOperatorConfig object %s",
+	klog.V(100).Infof("Configuring enableInjector %t to SriovOperatorConfig object %s",
 		enable, builder.Definition.Name,
 	)
 
@@ -202,7 +202,7 @@ func (builder *OperatorConfigBuilder) WithOperatorWebhook(enable bool) *Operator
 		return builder
 	}
 
-	glog.V(100).Infof("Configuring WithOperatorWebhook %t to SriovOperatorConfig object %s",
+	klog.V(100).Infof("Configuring WithOperatorWebhook %t to SriovOperatorConfig object %s",
 		enable, builder.Definition.Name,
 	)
 
@@ -218,12 +218,12 @@ func (builder *OperatorConfigBuilder) WithConfigDaemonNodeSelector(
 		return builder
 	}
 
-	glog.V(100).Infof("Configuring configDaemonNodeSelector %s in SriovOperatorConfig object %s in namespace %s",
+	klog.V(100).Infof("Configuring configDaemonNodeSelector %s in SriovOperatorConfig object %s in namespace %s",
 		configDaemonNodeSelector, builder.Definition.Name, builder.Definition.Namespace,
 	)
 
 	if len(configDaemonNodeSelector) == 0 {
-		glog.V(100).Infof("The 'configDaemonNodeSelector' of the SriovOperatorConfig is empty")
+		klog.V(100).Info("The 'configDaemonNodeSelector' of the SriovOperatorConfig is empty")
 
 		builder.errorMsg = "can not apply empty configDaemonNodeSelector"
 
@@ -232,7 +232,7 @@ func (builder *OperatorConfigBuilder) WithConfigDaemonNodeSelector(
 
 	for selectorKey := range configDaemonNodeSelector {
 		if selectorKey == "" {
-			glog.V(100).Infof("The 'configDaemonNodeSelector' selectorKey cannot be empty")
+			klog.V(100).Info("The 'configDaemonNodeSelector' selectorKey cannot be empty")
 
 			builder.errorMsg = "can not apply configDaemonNodeSelector with an empty selectorKey value"
 
@@ -251,7 +251,7 @@ func (builder *OperatorConfigBuilder) WithDisablePlugins(plugins []string) *Oper
 		return builder
 	}
 
-	glog.V(100).Infof("Configuring disablePlugins %v in SriovOperatorConfig object %s",
+	klog.V(100).Infof("Configuring disablePlugins %v in SriovOperatorConfig object %s",
 		plugins, builder.Definition.Name,
 	)
 
@@ -259,7 +259,7 @@ func (builder *OperatorConfigBuilder) WithDisablePlugins(plugins []string) *Oper
 
 	for _, plugin := range plugins {
 		if !slices.Contains(allowedDisablePlugins, plugin) {
-			glog.V(100).Infof("error to add plugin %s, allowed modes are %v", plugin, allowedDisablePlugins)
+			klog.V(100).Infof("error to add plugin %s, allowed modes are %v", plugin, allowedDisablePlugins)
 
 			builder.errorMsg = "invalid plugin parameter"
 
@@ -280,7 +280,7 @@ func (builder *OperatorConfigBuilder) RemoveDisablePlugins() *OperatorConfigBuil
 		return builder
 	}
 
-	glog.V(100).Infof("Removing disablePlugins in SriovOperatorConfig object %s", builder.Definition.Name)
+	klog.V(100).Infof("Removing disablePlugins in SriovOperatorConfig object %s", builder.Definition.Name)
 	builder.Definition.Spec.DisablePlugins = nil
 
 	return builder
@@ -292,7 +292,7 @@ func (builder *OperatorConfigBuilder) Update() (*OperatorConfigBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating the SriovOperatorConfig object %s",
+	klog.V(100).Infof("Updating the SriovOperatorConfig object %s",
 		builder.Definition.Name,
 	)
 
@@ -310,12 +310,12 @@ func (builder *OperatorConfigBuilder) Delete() (*OperatorConfigBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting the SriovOperatorConfig object %s in namespace %s",
+	klog.V(100).Infof("Deleting the SriovOperatorConfig object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace,
 	)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("SriovOperatorConfig %s namespace %s cannot be deleted because it does not exist",
+		klog.V(100).Infof("SriovOperatorConfig %s namespace %s cannot be deleted because it does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -339,25 +339,25 @@ func (builder *OperatorConfigBuilder) validate() (bool, error) {
 	resourceCRD := "SriovOperatorConfig"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

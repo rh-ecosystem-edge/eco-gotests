@@ -57,6 +57,7 @@ linters:
             - k8s.io/kubelet
             - k8s.io/utils
             - k8s.io/client-go
+            - k8s.io/klog/v2
             - github.com/kelseyhightower
             - github.com/Juniper/go-netconf
             - github.com/openshift
@@ -72,7 +73,6 @@ linters:
             - github.com/operator-framework/api
             - github.com/vmware-tanzu/velero/pkg/apis/velero/v1
             - github.com/vmware-tanzu/velero/pkg/generated/clientset/versioned/scheme
-            - github.com/golang/glog
             - github.com/povsister/scp
             - maistra.io/api
             - open-cluster-management.io/governance-policy-propagator/api

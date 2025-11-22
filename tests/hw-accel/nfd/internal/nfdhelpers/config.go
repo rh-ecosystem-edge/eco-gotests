@@ -3,11 +3,11 @@ package nfdhelpers
 import (
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/internal/deploy"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/internal/nfddelete"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/nfdparams"
+	"k8s.io/klog/v2"
 )
 
 // NFDInstallConfigOptions holds optional overrides for NFD installation configuration.
@@ -17,7 +17,7 @@ type NFDInstallConfigOptions struct {
 	CatalogSource          *string
 	CatalogSourceNamespace *string
 	Channel                *string
-	LogLevel               *glog.Level
+	LogLevel               *klog.Level
 }
 
 // GetDefaultNFDInstallConfig returns the standard NFD installation configuration with optional overrides.
@@ -34,7 +34,7 @@ func GetDefaultNFDInstallConfig(
 		CatalogSourceNamespace: "openshift-marketplace",
 		Channel:                "stable",
 		TargetNamespaces:       []string{nfdparams.NFDNamespace},
-		LogLevel:               glog.Level(nfdparams.LogLevel),
+		LogLevel:               klog.Level(nfdparams.LogLevel),
 	}
 
 	if options != nil {
@@ -70,7 +70,7 @@ func GetDefaultNFDInstallConfig(
 func GetDefaultNFDUninstallConfig(apiClient *clients.Settings,
 	operatorGroupName,
 	subscriptionName string) deploy.OperatorUninstallConfig {
-	nfdCleaner := nfddelete.NewNFDCustomResourceCleaner(apiClient, nfdparams.NFDNamespace, glog.Level(nfdparams.LogLevel))
+	nfdCleaner := nfddelete.NewNFDCustomResourceCleaner(apiClient, nfdparams.NFDNamespace, klog.Level(nfdparams.LogLevel))
 
 	return deploy.OperatorUninstallConfig{
 		APIClient:             apiClient,
@@ -78,7 +78,7 @@ func GetDefaultNFDUninstallConfig(apiClient *clients.Settings,
 		OperatorGroupName:     operatorGroupName,
 		SubscriptionName:      subscriptionName,
 		CustomResourceCleaner: nfdCleaner,
-		LogLevel:              glog.Level(nfdparams.LogLevel),
+		LogLevel:              klog.Level(nfdparams.LogLevel),
 	}
 }
 
@@ -93,7 +93,7 @@ func GetGenericOperatorUninstallConfig(apiClient *clients.Settings,
 		OperatorGroupName:     operatorGroupName,
 		SubscriptionName:      subscriptionName,
 		CustomResourceCleaner: nil,
-		LogLevel:              glog.Level(nfdparams.LogLevel),
+		LogLevel:              klog.Level(nfdparams.LogLevel),
 	}
 }
 
@@ -115,7 +115,7 @@ func GetOperatorUninstallConfigWithCleaner(
 		OperatorGroupName:     operatorGroupName,
 		SubscriptionName:      subscriptionName,
 		CustomResourceCleaner: cleaner,
-		LogLevel:              glog.Level(nfdparams.LogLevel),
+		LogLevel:              klog.Level(nfdparams.LogLevel),
 	}
 }
 
@@ -124,8 +124,8 @@ func StringPtr(s string) *string {
 	return &s
 }
 
-// LogLevelPtr returns a pointer to the given glog.Level (helper for options).
-func LogLevelPtr(level glog.Level) *glog.Level {
+// LogLevelPtr returns a pointer to the given klog.Level (helper for options).
+func LogLevelPtr(level klog.Level) *klog.Level {
 	return &level
 }
 
@@ -147,7 +147,7 @@ func GetUpgradeTestNFDConfig(apiClient *clients.Settings, catalogSource string) 
 
 // GetNFDCSVUtils returns a CSV utility instance for NFD operations.
 func GetNFDCSVUtils(apiClient *clients.Settings) *deploy.CSVUtils {
-	return deploy.NewCSVUtils(apiClient, nfdparams.NFDNamespace, glog.Level(nfdparams.LogLevel))
+	return deploy.NewCSVUtils(apiClient, nfdparams.NFDNamespace, klog.Level(nfdparams.LogLevel))
 }
 
 // WaitForNFDOperatorReady waits for NFD operator CSV to be ready - convenience function.

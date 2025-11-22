@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/klog/v2"
 
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreparams"
@@ -19,14 +19,14 @@ func ReachURLviaFRRroute(ctx SpecContext) {
 	By("Asserting if test URL is provided")
 
 	if RDSCoreConfig.MetalLBFRRTestURLIPv4 == "" && RDSCoreConfig.MetalLBFRRTestURLIPv6 == "" {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 			"Test URLs for MetalLB FRR testing not specified or are empty. Skipping...")
 		Skip("Test URL for MetalLB FRR testing not specified or are empty")
 	}
 
 	By("Finding MetalLB-FRR pods")
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Searching for pods in %q namespace with %q label",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Searching for pods in %q namespace with %q label",
 		RDSCoreConfig.MetalLBFRRNamespace, rdscoreparams.MetalLBFRRPodSelector)
 
 	frrPodList := findPodWithSelector(RDSCoreConfig.MetalLBFRRNamespace,
@@ -34,22 +34,22 @@ func ReachURLviaFRRroute(ctx SpecContext) {
 
 	Expect(len(frrPodList)).ToNot(Equal(0), "No MetalLB FRR pods found")
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d 'frr' pods", len(frrPodList))
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d 'frr' pods", len(frrPodList))
 
 	for _, _pod := range frrPodList {
 		for _, testURL := range []string{RDSCoreConfig.MetalLBFRRTestURLIPv4, RDSCoreConfig.MetalLBFRRTestURLIPv6} {
 			if testURL == "" {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Empty URL continue")
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Empty URL continue")
 
 				continue
 			}
 
 			if len(RDSCoreConfig.FRRExpectedNodes) != 0 {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("User specified list of FRR nodes present: %q",
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("User specified list of FRR nodes present: %q",
 					RDSCoreConfig.FRRExpectedNodes)
 
 				if !slices.Contains(RDSCoreConfig.FRRExpectedNodes, _pod.Definition.Spec.NodeName) {
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q(%q) runs on not user expected node %q. Skipping",
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q(%q) runs on not user expected node %q. Skipping",
 						_pod.Definition.Name, _pod.Definition.Namespace, _pod.Definition.Spec.NodeName)
 
 					continue
@@ -58,7 +58,7 @@ func ReachURLviaFRRroute(ctx SpecContext) {
 
 			cmd := fmt.Sprintf("curl -Ls --max-time 5 -o /dev/null -w '%%{http_code}' %s", testURL)
 
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Running command %q from within pod %s",
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Running command %q from within pod %s",
 				cmd, _pod.Definition.Name)
 
 			Eventually(func() bool {
@@ -66,12 +66,12 @@ func ReachURLviaFRRroute(ctx SpecContext) {
 					rdscoreparams.MetalLBFRRContainerName)
 
 				if err != nil {
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to run command due to: %v", err)
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to run command due to: %v", err)
 
 					return false
 				}
 
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Command's Output:\n%v\n", output.String())
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Command's Output:\n%v\n", output.String())
 
 				codesPattern := "200 404"
 

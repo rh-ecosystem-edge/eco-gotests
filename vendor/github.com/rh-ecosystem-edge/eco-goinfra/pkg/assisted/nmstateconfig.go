@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	assistedv1beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/api/v1beta1"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -29,10 +29,10 @@ type NmStateConfigBuilder struct {
 
 // NewNmStateConfigBuilder creates a new instance of NMStateConfig Builder.
 func NewNmStateConfigBuilder(apiClient *clients.Settings, name, namespace string) *NmStateConfigBuilder {
-	glog.V(100).Infof("Initializing new nmstateconfig structure with the name: %s in namespace: %s", name, namespace)
+	klog.V(100).Infof("Initializing new nmstateconfig structure with the name: %s in namespace: %s", name, namespace)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil
 	}
@@ -48,7 +48,7 @@ func NewNmStateConfigBuilder(apiClient *clients.Settings, name, namespace string
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the nmstateconfig is empty")
+		klog.V(100).Info("The name of the nmstateconfig is empty")
 
 		builder.errorMsg = "nmstateconfig 'name' cannot be empty"
 
@@ -56,7 +56,7 @@ func NewNmStateConfigBuilder(apiClient *clients.Settings, name, namespace string
 	}
 
 	if namespace == "" {
-		glog.V(100).Infof("The namespace of the nmstateconfig is empty")
+		klog.V(100).Info("The namespace of the nmstateconfig is empty")
 
 		builder.errorMsg = "nmstateconfig namespace's name is empty"
 
@@ -72,7 +72,7 @@ func (builder *NmStateConfigBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if nmstateconfig %s exists in namespace: %s",
+	klog.V(100).Infof("Checking if nmstateconfig %s exists in namespace: %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -88,7 +88,7 @@ func (builder *NmStateConfigBuilder) Get() (*assistedv1beta1.NMStateConfig, erro
 		return nil, err
 	}
 
-	glog.V(100).Infof("Collecting nmstateconfig object %s in namespace: %s",
+	klog.V(100).Infof("Collecting nmstateconfig object %s in namespace: %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	nmStateConfig := &assistedv1beta1.NMStateConfig{}
@@ -98,7 +98,7 @@ func (builder *NmStateConfigBuilder) Get() (*assistedv1beta1.NMStateConfig, erro
 		Namespace: builder.Definition.Namespace,
 	}, nmStateConfig)
 	if err != nil {
-		glog.V(100).Infof("nmstateconfig object %s does not exist", builder.Definition.Name)
+		klog.V(100).Infof("nmstateconfig object %s does not exist", builder.Definition.Name)
 
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func (builder *NmStateConfigBuilder) Create() (*NmStateConfigBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the nmstateconfig %s in namespace: %s",
+	klog.V(100).Infof("Creating the nmstateconfig %s in namespace: %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -132,7 +132,7 @@ func (builder *NmStateConfigBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting the nmstateconfig object %s in namespace: %s",
+	klog.V(100).Infof("Deleting the nmstateconfig object %s in namespace: %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
@@ -150,14 +150,14 @@ func ListNmStateConfigsInAllNamespaces(apiClient *clients.Settings) ([]*NmStateC
 	nmStateConfigList := &assistedv1beta1.NMStateConfigList{}
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil, fmt.Errorf("the apiClient is nil")
 	}
 
 	err := apiClient.List(context.TODO(), nmStateConfigList, &goclient.ListOptions{})
 	if err != nil {
-		glog.V(100).Infof("Failed to list nmStateConfigs across all namespaces due to %s", err.Error())
+		klog.V(100).Infof("Failed to list nmStateConfigs across all namespaces due to %s", err.Error())
 
 		return nil, err
 	}
@@ -181,7 +181,7 @@ func ListNmStateConfigsInAllNamespaces(apiClient *clients.Settings) ([]*NmStateC
 // ListNmStateConfigs returns a NMStateConfig list in a given namespace.
 func ListNmStateConfigs(apiClient *clients.Settings, namespace string) ([]*NmStateConfigBuilder, error) {
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil, fmt.Errorf("the apiClient is nil")
 	}
@@ -194,7 +194,7 @@ func ListNmStateConfigs(apiClient *clients.Settings, namespace string) ([]*NmSta
 
 	err := apiClient.List(context.TODO(), nmStateConfigList, &goclient.ListOptions{Namespace: namespace})
 	if err != nil {
-		glog.V(100).Infof("Failed to list nmStateConfigs in namespace: %s due to %s",
+		klog.V(100).Infof("Failed to list nmStateConfigs in namespace: %s due to %s",
 			namespace, err.Error())
 
 		return nil, err
@@ -222,25 +222,25 @@ func (builder *NmStateConfigBuilder) validate() (bool, error) {
 	resourceCRD := "NMStateConfig"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	securityV1 "github.com/openshift/api/security/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -34,19 +34,19 @@ type SecurityContextConstraintsAdditionalOptions func(builder *Builder) (*Builde
 
 // NewBuilder creates new instance of Builder.
 func NewBuilder(apiClient *clients.Settings, name, runAsUser, selinuxContext string) *Builder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new SecurityContextConstraints structure with the following params: "+
 			"name: %s, runAsUser type: %s, selinuxContext type: %s", name, runAsUser, selinuxContext)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(securityV1.Install)
 	if err != nil {
-		glog.V(100).Infof("Failed to add security v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add security v1 scheme to client schemes")
 
 		return nil
 	}
@@ -67,7 +67,7 @@ func NewBuilder(apiClient *clients.Settings, name, runAsUser, selinuxContext str
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the SecurityContextConstraints is empty")
+		klog.V(100).Info("The name of the SecurityContextConstraints is empty")
 
 		builder.errorMsg = "securityContextConstraints 'name' cannot be empty"
 
@@ -75,7 +75,7 @@ func NewBuilder(apiClient *clients.Settings, name, runAsUser, selinuxContext str
 	}
 
 	if runAsUser == "" {
-		glog.V(100).Infof("The runAsUser of the SecurityContextConstraints is empty")
+		klog.V(100).Info("The runAsUser of the SecurityContextConstraints is empty")
 
 		builder.errorMsg = "securityContextConstraints 'runAsUser' cannot be empty"
 
@@ -83,7 +83,7 @@ func NewBuilder(apiClient *clients.Settings, name, runAsUser, selinuxContext str
 	}
 
 	if selinuxContext == "" {
-		glog.V(100).Infof("The selinuxContext of the SecurityContextConstraints is empty")
+		klog.V(100).Info("The selinuxContext of the SecurityContextConstraints is empty")
 
 		builder.errorMsg = "securityContextConstraints 'selinuxContext' cannot be empty"
 
@@ -95,17 +95,17 @@ func NewBuilder(apiClient *clients.Settings, name, runAsUser, selinuxContext str
 
 // Pull pulls existing SecurityContextConstraints from cluster.
 func Pull(apiClient *clients.Settings, name string) (*Builder, error) {
-	glog.V(100).Infof("Pulling existing SecurityContextConstraints object name %s from cluster", name)
+	klog.V(100).Infof("Pulling existing SecurityContextConstraints object name %s from cluster", name)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil, fmt.Errorf("the apiClient cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(securityV1.Install)
 	if err != nil {
-		glog.V(100).Infof("Failed to add security v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add security v1 scheme to client schemes")
 
 		return nil, fmt.Errorf("failed to add security v1 scheme to client schemes")
 	}
@@ -120,7 +120,7 @@ func Pull(apiClient *clients.Settings, name string) (*Builder, error) {
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the SecurityContextConstraints is empty")
+		klog.V(100).Info("The name of the SecurityContextConstraints is empty")
 
 		return nil, fmt.Errorf("securityContextConstraints 'name' cannot be empty")
 	}
@@ -140,7 +140,7 @@ func (builder *Builder) WithPrivilegedContainer(allowPrivileged bool) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("%s %s with AllowPrivilegedContainer: %t flag",
+	klog.V(100).Infof("%s %s with AllowPrivilegedContainer: %t flag",
 		redefiningMsg, builder.Definition.Name, allowPrivileged)
 
 	builder.Definition.AllowPrivilegedContainer = allowPrivileged
@@ -154,7 +154,7 @@ func (builder *Builder) WithPrivilegedEscalation(allowPrivilegedEscalation bool)
 		return builder
 	}
 
-	glog.V(100).Infof("%s %s with allowPrivilegedEscalation: %t flag",
+	klog.V(100).Infof("%s %s with allowPrivilegedEscalation: %t flag",
 		redefiningMsg, builder.Definition.Name, allowPrivilegedEscalation)
 
 	builder.Definition.DefaultAllowPrivilegeEscalation = &allowPrivilegedEscalation
@@ -168,7 +168,7 @@ func (builder *Builder) WithHostDirVolumePlugin(allowPlugin bool) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("%s %s with allowHostDirVolumePlugin: %t flag",
+	klog.V(100).Infof("%s %s with allowHostDirVolumePlugin: %t flag",
 		redefiningMsg, builder.Definition.Name, allowPlugin)
 
 	builder.Definition.AllowHostDirVolumePlugin = allowPlugin
@@ -182,7 +182,7 @@ func (builder *Builder) WithHostIPC(allowHostIPC bool) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("%s %s with allowHostIPC: %t flag",
+	klog.V(100).Infof("%s %s with allowHostIPC: %t flag",
 		redefiningMsg, builder.Definition.Name, allowHostIPC)
 
 	builder.Definition.AllowHostIPC = allowHostIPC
@@ -196,7 +196,7 @@ func (builder *Builder) WithHostNetwork(allowHostNetwork bool) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("%s %s with allowHostNetwork: %t flag",
+	klog.V(100).Infof("%s %s with allowHostNetwork: %t flag",
 		redefiningMsg, builder.Definition.Name, allowHostNetwork)
 
 	builder.Definition.AllowHostNetwork = allowHostNetwork
@@ -210,7 +210,7 @@ func (builder *Builder) WithHostPID(allowHostPID bool) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("%s %s with allowHostPID: %t flag", redefiningMsg, builder.Definition.Name, allowHostPID)
+	klog.V(100).Infof("%s %s with allowHostPID: %t flag", redefiningMsg, builder.Definition.Name, allowHostPID)
 
 	builder.Definition.AllowHostPID = allowHostPID
 
@@ -223,7 +223,7 @@ func (builder *Builder) WithHostPorts(allowHostPorts bool) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("%s %s with allowHostPorts: %t flag",
+	klog.V(100).Infof("%s %s with allowHostPorts: %t flag",
 		redefiningMsg, builder.Definition.Name, allowHostPorts)
 
 	builder.Definition.AllowHostPorts = allowHostPorts
@@ -237,7 +237,7 @@ func (builder *Builder) WithReadOnlyRootFilesystem(readOnlyRootFilesystem bool) 
 		return builder
 	}
 
-	glog.V(100).Infof("%s %s with readOnlyRootFilesystem: %t flag",
+	klog.V(100).Infof("%s %s with readOnlyRootFilesystem: %t flag",
 		redefiningMsg, builder.Definition.Name, readOnlyRootFilesystem)
 
 	builder.Definition.ReadOnlyRootFilesystem = readOnlyRootFilesystem
@@ -251,11 +251,11 @@ func (builder *Builder) WithDropCapabilities(requiredDropCapabilities []corev1.C
 		return builder
 	}
 
-	glog.V(100).Infof("%s %s with requiredDropCapabilities: %v",
+	klog.V(100).Infof("%s %s with requiredDropCapabilities: %v",
 		redefiningMsg, builder.Definition.Name, requiredDropCapabilities)
 
 	if len(requiredDropCapabilities) == 0 {
-		glog.V(100).Infof("SecurityContextConstraints 'requiredDropCapabilities' argument cannot be empty")
+		klog.V(100).Info("SecurityContextConstraints 'requiredDropCapabilities' argument cannot be empty")
 
 		builder.errorMsg = "securityContextConstraints 'requiredDropCapabilities' cannot be empty list"
 
@@ -280,11 +280,11 @@ func (builder *Builder) WithAllowCapabilities(allowCapabilities []corev1.Capabil
 		return builder
 	}
 
-	glog.V(100).Infof("%s %s with allowCapabilities: %v",
+	klog.V(100).Infof("%s %s with allowCapabilities: %v",
 		redefiningMsg, builder.Definition.Name, allowCapabilities)
 
 	if len(allowCapabilities) == 0 {
-		glog.V(100).Infof("SecurityContextConstraints 'allowCapabilities' argument cannot be empty")
+		klog.V(100).Info("SecurityContextConstraints 'allowCapabilities' argument cannot be empty")
 
 		builder.errorMsg = "securityContextConstraints 'allowCapabilities' cannot be empty list"
 
@@ -308,11 +308,11 @@ func (builder *Builder) WithDefaultAddCapabilities(defaultAddCapabilities []core
 		return builder
 	}
 
-	glog.V(100).Infof("%s %s with defaultAddCapabilities: %v",
+	klog.V(100).Infof("%s %s with defaultAddCapabilities: %v",
 		redefiningMsg, builder.Definition.Name, defaultAddCapabilities)
 
 	if len(defaultAddCapabilities) == 0 {
-		glog.V(100).Infof("SecurityContextConstraints 'defaultAddCapabilities' argument cannot be empty")
+		klog.V(100).Info("SecurityContextConstraints 'defaultAddCapabilities' argument cannot be empty")
 
 		builder.errorMsg = "securityContextConstraints 'defaultAddCapabilities' cannot be empty list"
 
@@ -337,7 +337,7 @@ func (builder *Builder) WithPriority(priority *int32) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("%s %s with priority: %v", redefiningMsg, builder.Definition.Name, priority)
+	klog.V(100).Infof("%s %s with priority: %v", redefiningMsg, builder.Definition.Name, priority)
 
 	builder.Definition.Priority = priority
 
@@ -350,10 +350,10 @@ func (builder *Builder) WithFSGroup(fsGroup string) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("%s %s with fsGroup: %s", redefiningMsg, builder.Definition.Name, fsGroup)
+	klog.V(100).Infof("%s %s with fsGroup: %s", redefiningMsg, builder.Definition.Name, fsGroup)
 
 	if fsGroup == "" {
-		glog.V(100).Infof("SecurityContextConstraints 'fsGroup' argument cannot be empty")
+		klog.V(100).Info("SecurityContextConstraints 'fsGroup' argument cannot be empty")
 
 		builder.errorMsg = "securityContextConstraints 'fsGroup' cannot be empty string"
 
@@ -371,11 +371,11 @@ func (builder *Builder) WithFSGroupRange(fsGroupMin, fsGroupMax int64) *Builder 
 		return builder
 	}
 
-	glog.V(100).Infof("%s %s with fsGroupRange: fsGroupMin: %d, fsGroupMax: %d",
+	klog.V(100).Infof("%s %s with fsGroupRange: fsGroupMin: %d, fsGroupMax: %d",
 		redefiningMsg, builder.Definition.Name, fsGroupMin, fsGroupMax)
 
 	if fsGroupMin > fsGroupMax {
-		glog.V(100).Infof("SecurityContextConstraints 'fsGroupMin' argument can not be greater than fsGroupMax")
+		klog.V(100).Info("SecurityContextConstraints 'fsGroupMin' argument can not be greater than fsGroupMax")
 
 		builder.errorMsg = "securityContextConstraints 'fsGroupMin' argument can not be greater than fsGroupMax"
 
@@ -400,10 +400,10 @@ func (builder *Builder) WithGroups(groups []string) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("%s %s with groups: %v", redefiningMsg, builder.Definition.Name, groups)
+	klog.V(100).Infof("%s %s with groups: %v", redefiningMsg, builder.Definition.Name, groups)
 
 	if len(groups) == 0 {
-		glog.V(100).Infof("SecurityContextConstraints 'groups' argument cannot be empty")
+		klog.V(100).Info("SecurityContextConstraints 'groups' argument cannot be empty")
 
 		builder.errorMsg = "securityContextConstraints 'fsGroupType' cannot be empty string"
 
@@ -427,11 +427,11 @@ func (builder *Builder) WithSeccompProfiles(seccompProfiles []string) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("%s %s with SeccompProfiles: %v",
+	klog.V(100).Infof("%s %s with SeccompProfiles: %v",
 		redefiningMsg, builder.Definition.Name, seccompProfiles)
 
 	if len(seccompProfiles) == 0 {
-		glog.V(100).Infof("SecurityContextConstraints 'seccompProfiles' argument cannot be empty")
+		klog.V(100).Info("SecurityContextConstraints 'seccompProfiles' argument cannot be empty")
 
 		builder.errorMsg = "securityContextConstraints 'seccompProfiles' cannot be empty list"
 
@@ -455,11 +455,11 @@ func (builder *Builder) WithSupplementalGroups(supplementalGroupsType string) *B
 		return builder
 	}
 
-	glog.V(100).Infof("%s %s with supplementalGroupsType: %s",
+	klog.V(100).Infof("%s %s with supplementalGroupsType: %s",
 		redefiningMsg, builder.Definition.Name, supplementalGroupsType)
 
 	if supplementalGroupsType == "" {
-		glog.V(100).Infof("SecurityContextConstraints 'SupplementalGroups' argument cannot be empty")
+		klog.V(100).Info("SecurityContextConstraints 'SupplementalGroups' argument cannot be empty")
 
 		builder.errorMsg = "securityContextConstraints 'SupplementalGroups' cannot be empty string"
 
@@ -477,10 +477,10 @@ func (builder *Builder) WithUsers(users []string) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("%s %s with users: %v", redefiningMsg, builder.Definition.Name, users)
+	klog.V(100).Infof("%s %s with users: %v", redefiningMsg, builder.Definition.Name, users)
 
 	if len(users) == 0 {
-		glog.V(100).Infof("SecurityContextConstraints 'users' argument cannot be empty")
+		klog.V(100).Info("SecurityContextConstraints 'users' argument cannot be empty")
 
 		builder.errorMsg = "securityContextConstraints 'users' cannot be empty list"
 
@@ -504,10 +504,10 @@ func (builder *Builder) WithVolumes(volumes []securityV1.FSType) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("%s %s with volumes: %v", redefiningMsg, builder.Definition.Name, volumes)
+	klog.V(100).Infof("%s %s with volumes: %v", redefiningMsg, builder.Definition.Name, volumes)
 
 	if len(volumes) == 0 {
-		glog.V(100).Infof("SecurityContextConstraints 'volumes' argument cannot be empty")
+		klog.V(100).Info("SecurityContextConstraints 'volumes' argument cannot be empty")
 
 		builder.errorMsg = "securityContextConstraints 'volumes' cannot be empty list"
 
@@ -531,13 +531,13 @@ func (builder *Builder) Create() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating SecurityContextConstraints %s", builder.Definition.Name)
+	klog.V(100).Infof("Creating SecurityContextConstraints %s", builder.Definition.Name)
 
 	var err error
 	if !builder.Exists() {
 		err = builder.apiClient.Create(context.TODO(), builder.Definition)
 		if err != nil {
-			glog.V(100).Infof("Failed to create SecurityContextConstraints")
+			klog.V(100).Info("Failed to create SecurityContextConstraints")
 
 			return nil, err
 		}
@@ -554,10 +554,10 @@ func (builder *Builder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Removing SecurityContextConstraints %s", builder.Definition.Name)
+	klog.V(100).Infof("Removing SecurityContextConstraints %s", builder.Definition.Name)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("SecurityContextConstraints %s does not exist", builder.Definition.Name)
+		klog.V(100).Infof("SecurityContextConstraints %s does not exist", builder.Definition.Name)
 
 		builder.Object = nil
 
@@ -580,7 +580,7 @@ func (builder *Builder) Update() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating SecurityContextConstraints %s ", builder.Definition.Name)
+	klog.V(100).Infof("Updating SecurityContextConstraints %s ", builder.Definition.Name)
 
 	if !builder.Exists() {
 		return nil, fmt.Errorf("failed to update SecurityContextConstraints, object does not exist on cluster")
@@ -597,13 +597,13 @@ func (builder *Builder) Get() (*securityV1.SecurityContextConstraints, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Collecting SecurityContextConstraints object %s", builder.Definition.Name)
+	klog.V(100).Infof("Collecting SecurityContextConstraints object %s", builder.Definition.Name)
 
 	scc := &securityV1.SecurityContextConstraints{}
 
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{Name: builder.Definition.Name}, scc)
 	if err != nil {
-		glog.V(100).Infof("SecurityContextConstraints object %s does not exist", builder.Definition.Name)
+		klog.V(100).Infof("SecurityContextConstraints object %s does not exist", builder.Definition.Name)
 
 		return nil, err
 	}
@@ -617,13 +617,13 @@ func (builder *Builder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if SecurityContextConstraints %s exists", builder.Definition.Name)
+	klog.V(100).Infof("Checking if SecurityContextConstraints %s exists", builder.Definition.Name)
 
 	var err error
 
 	builder.Object, err = builder.Get()
 	if err != nil {
-		glog.V(100).Infof("Failed to collect SecurityContextConstraints object due to %s", err.Error())
+		klog.V(100).Infof("Failed to collect SecurityContextConstraints object due to %s", err.Error())
 	}
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -635,25 +635,25 @@ func (builder *Builder) validate() (bool, error) {
 	resourceCRD := "SecurityContextConstraints"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

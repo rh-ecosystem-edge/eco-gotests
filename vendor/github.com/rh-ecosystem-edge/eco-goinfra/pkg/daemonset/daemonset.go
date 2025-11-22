@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	appsv1 "k8s.io/api/apps/v1"
@@ -15,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	appsv1Typed "k8s.io/client-go/kubernetes/typed/apps/v1"
+	"k8s.io/klog/v2"
 )
 
 // Builder provides struct for daemonset object containing connection to the cluster and the daemonset definitions.
@@ -37,13 +37,13 @@ var retryInterval = time.Second * 3
 // NewBuilder creates a new instance of Builder.
 func NewBuilder(
 	apiClient *clients.Settings, name, nsname string, labels map[string]string, containerSpec corev1.Container) *Builder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new daemonset structure with the following params: "+
 			"name: %s, namespace: %s, labels: %s, containerSpec %v",
 		name, nsname, labels, containerSpec)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is nil")
+		klog.V(100).Info("The apiClient is nil")
 
 		return nil
 	}
@@ -71,7 +71,7 @@ func NewBuilder(
 	builder.WithAdditionalContainerSpecs([]corev1.Container{containerSpec})
 
 	if name == "" {
-		glog.V(100).Infof("The name of the daemonset is empty")
+		klog.V(100).Info("The name of the daemonset is empty")
 
 		builder.errorMsg = "daemonset 'name' cannot be empty"
 
@@ -79,7 +79,7 @@ func NewBuilder(
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the daemonset is empty")
+		klog.V(100).Info("The namespace of the daemonset is empty")
 
 		builder.errorMsg = "daemonset 'namespace' cannot be empty"
 
@@ -87,7 +87,7 @@ func NewBuilder(
 	}
 
 	if len(labels) == 0 {
-		glog.V(100).Infof("There are no labels for the daemonset")
+		klog.V(100).Info("There are no labels for the daemonset")
 
 		builder.errorMsg = "daemonset 'labels' cannot be empty"
 
@@ -99,10 +99,10 @@ func NewBuilder(
 
 // Pull loads an existing daemonSet into the Builder struct.
 func Pull(apiClient *clients.Settings, name, nsname string) (*Builder, error) {
-	glog.V(100).Infof("Pulling existing daemonset name:%s under namespace:%s", name, nsname)
+	klog.V(100).Infof("Pulling existing daemonset name:%s under namespace:%s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is nil")
+		klog.V(100).Info("The apiClient is nil")
 
 		return nil, fmt.Errorf("apiClient cannot be nil")
 	}
@@ -118,13 +118,13 @@ func Pull(apiClient *clients.Settings, name, nsname string) (*Builder, error) {
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the daemonset is empty")
+		klog.V(100).Info("The name of the daemonset is empty")
 
 		return nil, fmt.Errorf("daemonset name cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the daemonset is empty")
+		klog.V(100).Info("The namespace of the daemonset is empty")
 
 		return nil, fmt.Errorf("daemonset namespace cannot be empty")
 	}
@@ -144,11 +144,11 @@ func (builder *Builder) WithNodeSelector(selector map[string]string) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Applying nodeSelector %s to daemonset %s in namespace %s",
+	klog.V(100).Infof("Applying nodeSelector %s to daemonset %s in namespace %s",
 		selector, builder.Definition.Name, builder.Definition.Namespace)
 
 	if len(selector) == 0 {
-		glog.V(100).Infof("The nodeselector is empty")
+		klog.V(100).Info("The nodeselector is empty")
 
 		builder.errorMsg = "cannot accept empty map as nodeselector"
 
@@ -166,7 +166,7 @@ func (builder *Builder) WithHostNetwork() *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Enabling hostnetwork flag to daemonset %s in namespace %s",
+	klog.V(100).Infof("Enabling hostnetwork flag to daemonset %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	builder.Definition.Spec.Template.Spec.HostNetwork = true
@@ -181,14 +181,14 @@ func (builder *Builder) WithPodAffinity(podAffinity *corev1.Affinity) *Builder {
 	}
 
 	if podAffinity == nil {
-		glog.V(100).Infof("The Affinity parameter is empty")
+		klog.V(100).Info("The Affinity parameter is empty")
 
 		builder.errorMsg = "affinity parameter is empty"
 
 		return builder
 	}
 
-	glog.V(100).Infof("Adding pod affinity to daemonset %s in namespace %s",
+	klog.V(100).Infof("Adding pod affinity to daemonset %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	builder.Definition.Spec.Template.Spec.Affinity = podAffinity
@@ -203,14 +203,14 @@ func (builder *Builder) WithVolume(dsVolume corev1.Volume) *Builder {
 	}
 
 	if dsVolume.Name == "" {
-		glog.V(100).Infof("The Volume name parameter is empty")
+		klog.V(100).Info("The Volume name parameter is empty")
 
 		builder.errorMsg = "Volume name parameter is empty"
 
 		return builder
 	}
 
-	glog.V(100).Infof("Adding volume %s for daemonset %s pod template in namespace %s",
+	klog.V(100).Infof("Adding volume %s for daemonset %s pod template in namespace %s",
 		dsVolume.Name, builder.Definition.Name, builder.Definition.Namespace)
 
 	builder.Definition.Spec.Template.Spec.Volumes = append(
@@ -226,11 +226,11 @@ func (builder *Builder) WithAdditionalContainerSpecs(specs []corev1.Container) *
 		return builder
 	}
 
-	glog.V(100).Infof("Appending a list of container specs %v to daemonset %s in namespace %s",
+	klog.V(100).Infof("Appending a list of container specs %v to daemonset %s in namespace %s",
 		specs, builder.Definition.Name, builder.Definition.Namespace)
 
 	if len(specs) == 0 {
-		glog.V(100).Infof("The container specs are empty")
+		klog.V(100).Info("The container specs are empty")
 
 		builder.errorMsg = "cannot accept empty list as container specs"
 
@@ -252,13 +252,13 @@ func (builder *Builder) WithOptions(options ...AdditionalOptions) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Setting daemonset additional options")
+	klog.V(100).Info("Setting daemonset additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -276,7 +276,7 @@ func (builder *Builder) Create() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating daemonset %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
+	klog.V(100).Infof("Creating daemonset %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
 	if !builder.Exists() {
@@ -293,7 +293,7 @@ func (builder *Builder) Update() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating daemonset %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
+	klog.V(100).Infof("Updating daemonset %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
 
@@ -309,7 +309,7 @@ func (builder *Builder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting daemonset %s in namespace %s",
+	klog.V(100).Infof("Deleting daemonset %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
@@ -336,12 +336,12 @@ func (builder *Builder) CreateAndWaitUntilReady(timeout time.Duration) (*Builder
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating daemonset %s in namespace %s and waiting for the defined period until it is ready",
+	klog.V(100).Infof("Creating daemonset %s in namespace %s and waiting for the defined period until it is ready",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	_, err := builder.Create()
 	if err != nil {
-		glog.V(100).Infof("Failed to create daemonset. Error is: '%s'", err.Error())
+		klog.V(100).Infof("Failed to create daemonset. Error is: '%s'", err.Error())
 
 		return nil, err
 	}
@@ -387,7 +387,7 @@ func (builder *Builder) DeleteAndWait(timeout time.Duration) error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting daemonset %s in namespace %s and waiting for the defined period until it is removed",
+	klog.V(100).Infof("Deleting daemonset %s in namespace %s and waiting for the defined period until it is removed",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if err := builder.Delete(); err != nil {
@@ -413,7 +413,7 @@ func (builder *Builder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if daemonset %s exists in namespace %s",
+	klog.V(100).Infof("Checking if daemonset %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -430,7 +430,7 @@ func (builder *Builder) IsReady(timeout time.Duration) bool {
 		return false
 	}
 
-	glog.V(100).Infof("Running periodic check until daemonset %s in namespace %s is ready or "+
+	klog.V(100).Infof("Running periodic check until daemonset %s in namespace %s is ready or "+
 		"timeout %s exceeded", builder.Definition.Name, builder.Definition.Namespace, timeout.String())
 
 	// Polls every retryInterval to determine if daemonset is available.
@@ -441,7 +441,7 @@ func (builder *Builder) IsReady(timeout time.Duration) bool {
 			builder.Object, err = builder.apiClient.Get(
 				context.TODO(), builder.Definition.Name, metav1.GetOptions{})
 			if err != nil {
-				glog.V(100).Infof("Failed to get daemonset from cluster. Error is: '%s'", err.Error())
+				klog.V(100).Infof("Failed to get daemonset from cluster. Error is: '%s'", err.Error())
 
 				return false, nil
 			}
@@ -476,25 +476,25 @@ func (builder *Builder) validate() (bool, error) {
 	resourceCRD := "DaemonSet"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

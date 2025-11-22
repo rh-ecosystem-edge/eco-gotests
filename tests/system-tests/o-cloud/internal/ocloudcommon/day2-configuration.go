@@ -12,10 +12,9 @@ import (
 
 	"sync"
 
-	"github.com/golang/glog"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/klog/v2"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/olm"
@@ -67,13 +66,13 @@ func VerifySuccessfulOperatorUpgrade(ctx SpecContext) {
 	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("Failed to retrieve PR %s", provisioningRequest1.Object.Name))
 
 	VerifyProvisioningRequestIsFulfilled(provisioningRequest1)
-	glog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s is fulfilled", provisioningRequest1.Object.Name)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s is fulfilled", provisioningRequest1.Object.Name)
 
 	provisioningRequest2, err = oran.PullPR(HubAPIClient, provisioningRequest2.Object.Name)
 	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("Failed to retrieve PR %s", provisioningRequest2.Object.Name))
 
 	VerifyProvisioningRequestIsFulfilled(provisioningRequest2)
-	glog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s is fulfilled", provisioningRequest2.Object.Name)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s is fulfilled", provisioningRequest2.Object.Name)
 
 	sno1ApiClient := CreateSnoAPIClient(OCloudConfig.ClusterName1)
 	sno2ApiClient := CreateSnoAPIClient(OCloudConfig.ClusterName2)
@@ -101,13 +100,13 @@ func VerifySuccessfulOperatorUpgrade(ctx SpecContext) {
 	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("Failed to retrieve PR %s", provisioningRequest1.Object.Name))
 
 	VerifyProvisioningRequestIsFulfilled(provisioningRequest1)
-	glog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s is fulfilled", provisioningRequest1.Object.Name)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s is fulfilled", provisioningRequest1.Object.Name)
 
 	provisioningRequest2, err = oran.PullPR(HubAPIClient, provisioningRequest2.Object.Name)
 	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("Failed to retrieve PR %s", provisioningRequest2.Object.Name))
 
 	VerifyProvisioningRequestIsFulfilled(provisioningRequest2)
-	glog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s is fulfilled", provisioningRequest2.Object.Name)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s is fulfilled", provisioningRequest2.Object.Name)
 
 	newPTPVersionSno1 := getPtpOperatorVersionInSno(sno1ApiClient)
 	newPTPVersionSno2 := getPtpOperatorVersionInSno(sno2ApiClient)
@@ -182,13 +181,13 @@ func VerifyFailedOperatorUpgradeAllSnos(ctx SpecContext) {
 	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("Failed to retrieve PR %s", provisioningRequest1.Object.Name))
 
 	VerifyProvisioningRequestIsFulfilled(provisioningRequest1)
-	glog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s is fulfilled", provisioningRequest1.Object.Name)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s is fulfilled", provisioningRequest1.Object.Name)
 
 	provisioningRequest2, err = oran.PullPR(HubAPIClient, provisioningRequest2.Object.Name)
 	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("Failed to retrieve PR %s", provisioningRequest2.Object.Name))
 
 	VerifyProvisioningRequestIsFulfilled(provisioningRequest2)
-	glog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s is fulfilled", provisioningRequest2.Object.Name)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s is fulfilled", provisioningRequest2.Object.Name)
 
 	sno1ApiClient := CreateSnoAPIClient(OCloudConfig.ClusterName1)
 	sno2ApiClient := CreateSnoAPIClient(OCloudConfig.ClusterName2)
@@ -230,13 +229,13 @@ func VerifyFailedOperatorUpgradeAllSnos(ctx SpecContext) {
 	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("Failed to retrieve PR %s", provisioningRequest1.Object.Name))
 
 	VerifyProvisioningRequestTimeout(provisioningRequest1)
-	glog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s is timeout", provisioningRequest1.Object.Name)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s is timeout", provisioningRequest1.Object.Name)
 
 	provisioningRequest2, err = oran.PullPR(HubAPIClient, provisioningRequest2.Object.Name)
 	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("Failed to retrieve PR %s", provisioningRequest2.Object.Name))
 
 	VerifyProvisioningRequestTimeout(provisioningRequest2)
-	glog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s is timeout", provisioningRequest2.Object.Name)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s is timeout", provisioningRequest2.Object.Name)
 
 	newPTPVersionSno1 := getPtpOperatorVersionInSno(sno1ApiClient)
 	newPTPVersionSno2 := getPtpOperatorVersionInSno(sno2ApiClient)
@@ -311,13 +310,13 @@ func VerifyFailedOperatorUpgradeSubsetSnos(ctx SpecContext) {
 	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("Failed to retrieve PR %s", provisioningRequest1.Object.Name))
 
 	VerifyProvisioningRequestIsFulfilled(provisioningRequest1)
-	glog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s is fulfilled", provisioningRequest1.Object.Name)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s is fulfilled", provisioningRequest1.Object.Name)
 
 	provisioningRequest2, err = oran.PullPR(HubAPIClient, provisioningRequest2.Object.Name)
 	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("Failed to retrieve PR %s", provisioningRequest2.Object.Name))
 
 	VerifyProvisioningRequestIsFulfilled(provisioningRequest2)
-	glog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s is fulfilled", provisioningRequest2.Object.Name)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s is fulfilled", provisioningRequest2.Object.Name)
 
 	sno1ApiClient := CreateSnoAPIClient(OCloudConfig.ClusterName1)
 	sno2ApiClient := CreateSnoAPIClient(OCloudConfig.ClusterName2)
@@ -354,13 +353,13 @@ func VerifyFailedOperatorUpgradeSubsetSnos(ctx SpecContext) {
 	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("Failed to retrieve PR %s", provisioningRequest1.Object.Name))
 
 	VerifyProvisioningRequestTimeout(provisioningRequest1)
-	glog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s timedout", provisioningRequest1.Object.Name)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s timedout", provisioningRequest1.Object.Name)
 
 	provisioningRequest2, err = oran.PullPR(HubAPIClient, provisioningRequest2.Object.Name)
 	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("Failed to retrieve PR %s", provisioningRequest2.Object.Name))
 
 	VerifyProvisioningRequestIsFulfilled(provisioningRequest2)
-	glog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s is fulfilled", provisioningRequest2.Object.Name)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s is fulfilled", provisioningRequest2.Object.Name)
 
 	newPTPVersionSno1 := getPtpOperatorVersionInSno(sno1ApiClient)
 	newPTPVersionSno2 := getPtpOperatorVersionInSno(sno2ApiClient)

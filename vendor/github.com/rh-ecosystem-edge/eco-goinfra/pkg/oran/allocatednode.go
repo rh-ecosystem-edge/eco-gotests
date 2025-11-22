@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	pluginsv1alpha1 "github.com/openshift-kni/oran-o2ims/api/hardwaremanagement/plugins/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -26,17 +26,17 @@ type AllocatedNodeBuilder struct {
 
 // PullAllocatedNode pulls an existing AllocatedNode into a AllocatedNodeBuilder struct.
 func PullAllocatedNode(apiClient *clients.Settings, name, nsname string) (*AllocatedNodeBuilder, error) {
-	glog.V(100).Infof("Pulling existing AllocatedNode %s in namespace %s from cluster", name, nsname)
+	klog.V(100).Infof("Pulling existing AllocatedNode %s in namespace %s from cluster", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient of the AllocatedNode is nil")
+		klog.V(100).Info("The apiClient of the AllocatedNode is nil")
 
 		return nil, fmt.Errorf("allocatedNode 'apiClient' cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(pluginsv1alpha1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add plugins v1alpha1 scheme to client schemes: %v", err)
+		klog.V(100).Infof("Failed to add plugins v1alpha1 scheme to client schemes: %v", err)
 
 		return nil, err
 	}
@@ -52,19 +52,19 @@ func PullAllocatedNode(apiClient *clients.Settings, name, nsname string) (*Alloc
 	}
 
 	if name == "" {
-		glog.V(100).Info("The name of the AllocatedNode is empty")
+		klog.V(100).Info("The name of the AllocatedNode is empty")
 
 		return nil, fmt.Errorf("allocatedNode 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Info("The nsname of the AllocatedNode is empty")
+		klog.V(100).Info("The nsname of the AllocatedNode is empty")
 
 		return nil, fmt.Errorf("allocatedNode 'nsname' cannot be empty")
 	}
 
 	if !builder.Exists() {
-		glog.V(100).Info("The AllocatedNode %s does not exist in namespace %s", name, nsname)
+		klog.V(100).Infof("The AllocatedNode %s does not exist in namespace %s", name, nsname)
 
 		return nil, fmt.Errorf("allocatedNode object %s does not exist in namespace %s", name, nsname)
 	}
@@ -80,7 +80,7 @@ func (builder *AllocatedNodeBuilder) Get() (*pluginsv1alpha1.AllocatedNode, erro
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting AllocatedNode object %s in namespace %s",
+	klog.V(100).Infof("Getting AllocatedNode object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	node := &pluginsv1alpha1.AllocatedNode{}
@@ -102,12 +102,12 @@ func (builder *AllocatedNodeBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if AllocatedNode %s exists in namespace %s",
+	klog.V(100).Infof("Checking if AllocatedNode %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	object, err := builder.Get()
 	if err != nil {
-		glog.V(100).Infof("Failed to get AllocatedNode object %s in namespace %s: %v",
+		klog.V(100).Infof("Failed to get AllocatedNode object %s in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
 
 		return false
@@ -123,25 +123,25 @@ func (builder *AllocatedNodeBuilder) validate() (bool, error) {
 	resourceCRD := "allocatedNode"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiClient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiClient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

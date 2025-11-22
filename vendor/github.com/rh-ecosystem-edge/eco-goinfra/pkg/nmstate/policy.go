@@ -8,7 +8,7 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/golang/glog"
+	"k8s.io/klog/v2"
 
 	nmstateShared "github.com/nmstate/kubernetes-nmstate/api/shared"
 	nmstateV1 "github.com/nmstate/kubernetes-nmstate/api/v1"
@@ -51,18 +51,18 @@ type PolicyBuilder struct {
 
 // NewPolicyBuilder creates a new instance of PolicyBuilder.
 func NewPolicyBuilder(apiClient *clients.Settings, name string, nodeSelector map[string]string) *PolicyBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new NodeNetworkConfigurationPolicy structure with the following params: %s", name)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(nmstateV1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add nmstate v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add nmstate v1 scheme to client schemes")
 
 		return nil
 	}
@@ -79,7 +79,7 @@ func NewPolicyBuilder(apiClient *clients.Settings, name string, nodeSelector map
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the NodeNetworkConfigurationPolicy is empty")
+		klog.V(100).Info("The name of the NodeNetworkConfigurationPolicy is empty")
 
 		builder.errorMsg = "nodeNetworkConfigurationPolicy 'name' cannot be empty"
 
@@ -87,7 +87,7 @@ func NewPolicyBuilder(apiClient *clients.Settings, name string, nodeSelector map
 	}
 
 	if len(nodeSelector) == 0 {
-		glog.V(100).Infof("The nodeSelector of the NodeNetworkConfigurationPolicy is empty")
+		klog.V(100).Info("The nodeSelector of the NodeNetworkConfigurationPolicy is empty")
 
 		builder.errorMsg = "nodeNetworkConfigurationPolicy 'nodeSelector' cannot be empty map"
 
@@ -103,7 +103,7 @@ func (builder *PolicyBuilder) Get() (*nmstateV1.NodeNetworkConfigurationPolicy, 
 		return nil, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Collecting NodeNetworkConfigurationPolicy object %s", builder.Definition.Name)
 
 	nmstatePolicy := &nmstateV1.NodeNetworkConfigurationPolicy{}
@@ -113,7 +113,7 @@ func (builder *PolicyBuilder) Get() (*nmstateV1.NodeNetworkConfigurationPolicy, 
 		Namespace: builder.Definition.Namespace,
 	}, nmstatePolicy)
 	if err != nil {
-		glog.V(100).Infof("NodeNetworkConfigurationPolicy object %s does not exist", builder.Definition.Name)
+		klog.V(100).Infof("NodeNetworkConfigurationPolicy object %s does not exist", builder.Definition.Name)
 
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func (builder *PolicyBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Checking if NodeNetworkConfigurationPolicy %s exists",
 		builder.Definition.Name)
 
@@ -144,7 +144,7 @@ func (builder *PolicyBuilder) Create() (*PolicyBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the NodeNetworkConfigurationPolicy %s", builder.Definition.Name)
+	klog.V(100).Infof("Creating the NodeNetworkConfigurationPolicy %s", builder.Definition.Name)
 
 	if builder.Exists() {
 		return builder, nil
@@ -166,10 +166,10 @@ func (builder *PolicyBuilder) Delete() (*PolicyBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting the NodeNetworkConfigurationPolicy object %s", builder.Definition.Name)
+	klog.V(100).Infof("Deleting the NodeNetworkConfigurationPolicy object %s", builder.Definition.Name)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("NodeNetworkConfigurationPolicy %s cannot be deleted because it does not exist",
+		klog.V(100).Infof("NodeNetworkConfigurationPolicy %s cannot be deleted because it does not exist",
 			builder.Definition.Name)
 
 		builder.Object = nil
@@ -194,7 +194,7 @@ func (builder *PolicyBuilder) Update(force bool) (*PolicyBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating the NodeNetworkConfigurationPolicy object %s",
+	klog.V(100).Infof("Updating the NodeNetworkConfigurationPolicy object %s",
 		builder.Definition.Name,
 	)
 
@@ -203,13 +203,11 @@ func (builder *PolicyBuilder) Update(force bool) (*PolicyBuilder, error) {
 		builder.Object = builder.Definition
 	} else if force {
 		if force {
-			glog.V(100).Infof(
-				msg.FailToUpdateNotification("NodeNetworkConfigurationPolicy", builder.Definition.Name))
+			klog.V(100).Infof("%v", msg.FailToUpdateNotification("NodeNetworkConfigurationPolicy", builder.Definition.Name))
 
 			builder, err := builder.Delete()
 			if err != nil {
-				glog.V(100).Infof(
-					msg.FailToUpdateError("NodeNetworkConfigurationPolicy", builder.Definition.Name))
+				klog.V(100).Infof("%v", msg.FailToUpdateError("NodeNetworkConfigurationPolicy", builder.Definition.Name))
 
 				return nil, err
 			}
@@ -229,12 +227,12 @@ func (builder *PolicyBuilder) WithInterfaceAndVFs(sriovInterface string, numberO
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating NodeNetworkConfigurationPolicy %s with SR-IOV VF configuration: %d",
 		builder.Definition.Name, numberOfVF)
 
 	if sriovInterface == "" {
-		glog.V(100).Infof("The sriovInterface  can not be empty string")
+		klog.V(100).Info("The sriovInterface  can not be empty string")
 
 		builder.errorMsg = "The sriovInterface is empty string"
 
@@ -263,11 +261,11 @@ func (builder *PolicyBuilder) WithBondInterface(slavePorts []string, bondName, m
 		return builder
 	}
 
-	glog.V(100).Infof("Creating NodeNetworkConfigurationPolicy %s with Bond interface configuration:"+
+	klog.V(100).Infof("Creating NodeNetworkConfigurationPolicy %s with Bond interface configuration:"+
 		" BondName %s, Mode %s, SlavePorts %v", builder.Definition.Name, bondName, mode, slavePorts)
 
 	if !slices.Contains(allowedBondModes, mode) {
-		glog.V(100).Infof("error to add Bond mode %s, allowed modes are %v", mode, allowedBondModes)
+		klog.V(100).Infof("error to add Bond mode %s, allowed modes are %v", mode, allowedBondModes)
 
 		builder.errorMsg = "invalid Bond mode parameter"
 
@@ -275,7 +273,7 @@ func (builder *PolicyBuilder) WithBondInterface(slavePorts []string, bondName, m
 	}
 
 	if bondName == "" {
-		glog.V(100).Infof("The bondName can not be empty string")
+		klog.V(100).Info("The bondName can not be empty string")
 
 		builder.errorMsg = "The bondName is empty sting"
 
@@ -305,11 +303,11 @@ func (builder *PolicyBuilder) WithVlanInterface(baseInterface string, vlanID uin
 		return builder
 	}
 
-	glog.V(100).Infof("Creating NodeNetworkConfigurationPolicy %s with VLAN interface %s and vlanID %d",
+	klog.V(100).Infof("Creating NodeNetworkConfigurationPolicy %s with VLAN interface %s and vlanID %d",
 		builder.Definition.Name, baseInterface, vlanID)
 
 	if baseInterface == "" {
-		glog.V(100).Infof("The baseInterface can not be empty string")
+		klog.V(100).Info("The baseInterface can not be empty string")
 
 		builder.errorMsg = "nodenetworkconfigurationpolicy 'baseInterface' cannot be empty"
 
@@ -342,11 +340,11 @@ func (builder *PolicyBuilder) WithVlanInterfaceIP(baseInterface, ipv4Addresses, 
 		return builder
 	}
 
-	glog.V(100).Infof("Creating NodeNetworkConfigurationPolicy %s with VLAN interface %s and vlanID %d",
+	klog.V(100).Infof("Creating NodeNetworkConfigurationPolicy %s with VLAN interface %s and vlanID %d",
 		builder.Definition.Name, baseInterface, vlanID)
 
 	if baseInterface == "" {
-		glog.V(100).Infof("The baseInterface can not be empty string")
+		klog.V(100).Info("The baseInterface can not be empty string")
 
 		builder.errorMsg = "nodenetworkconfigurationpolicy 'baseInterface' cannot be empty"
 
@@ -354,7 +352,7 @@ func (builder *PolicyBuilder) WithVlanInterfaceIP(baseInterface, ipv4Addresses, 
 	}
 
 	if vlanID > 4094 {
-		glog.V(100).Infof("the vlanID is out of range, allowed vlanID values are between 0-4094")
+		klog.V(100).Info("the vlanID is out of range, allowed vlanID values are between 0-4094")
 
 		builder.errorMsg = "invalid vlanID, allowed vlanID values are between 0-4094"
 
@@ -362,7 +360,7 @@ func (builder *PolicyBuilder) WithVlanInterfaceIP(baseInterface, ipv4Addresses, 
 	}
 
 	if net.ParseIP(ipv4Addresses) == nil {
-		glog.V(100).Infof("the vlanInterface contains an invalid ipv4 address")
+		klog.V(100).Info("the vlanInterface contains an invalid ipv4 address")
 
 		builder.errorMsg = "vlanInterfaceIP 'ipv4Addresses' is an invalid ipv4 address"
 
@@ -370,7 +368,7 @@ func (builder *PolicyBuilder) WithVlanInterfaceIP(baseInterface, ipv4Addresses, 
 	}
 
 	if net.ParseIP(ipv6Addresses) == nil {
-		glog.V(100).Infof("the vlanInterface contains an invalid ipv6 address")
+		klog.V(100).Info("the vlanInterface contains an invalid ipv6 address")
 
 		builder.errorMsg = "vlanInterfaceIP 'ipv6Addresses' is an invalid ipv6 address"
 
@@ -412,11 +410,11 @@ func (builder *PolicyBuilder) WithEthernetInterface(interfaceName, ipv4Address, 
 		return builder
 	}
 
-	glog.V(100).Infof("Creating NodeNetworkConfigurationPolicy %s with an ethernet interface %s",
+	klog.V(100).Infof("Creating NodeNetworkConfigurationPolicy %s with an ethernet interface %s",
 		builder.Definition.Name, interfaceName)
 
 	if interfaceName == "" {
-		glog.V(100).Infof("The interfaceName can not be empty string")
+		klog.V(100).Info("The interfaceName can not be empty string")
 
 		builder.errorMsg = nodeNetConfPolIntError
 
@@ -424,7 +422,7 @@ func (builder *PolicyBuilder) WithEthernetInterface(interfaceName, ipv4Address, 
 	}
 
 	if net.ParseIP(ipv4Address) == nil {
-		glog.V(100).Infof("the ethernet interface contains an invalid ipv4 address")
+		klog.V(100).Info("the ethernet interface contains an invalid ipv4 address")
 
 		builder.errorMsg = "ethernet interface 'ipv4Addresses' is an invalid ipv4 address"
 
@@ -432,7 +430,7 @@ func (builder *PolicyBuilder) WithEthernetInterface(interfaceName, ipv4Address, 
 	}
 
 	if net.ParseIP(ipv6Address) == nil {
-		glog.V(100).Infof("the ethernet interface contains an invalid ipv6 address")
+		klog.V(100).Info("the ethernet interface contains an invalid ipv6 address")
 
 		builder.errorMsg = "ethernet interface 'ipv6Addresses' is an invalid ipv6 address"
 
@@ -472,11 +470,11 @@ func (builder *PolicyBuilder) WithEthernetIPv6LinkLocalInterface(interfaceName s
 		return builder
 	}
 
-	glog.V(100).Infof("Creating NodeNetworkConfigurationPolicy %s with an ethernet interface %s",
+	klog.V(100).Infof("Creating NodeNetworkConfigurationPolicy %s with an ethernet interface %s",
 		builder.Definition.Name, interfaceName)
 
 	if interfaceName == "" {
-		glog.V(100).Infof("The interfaceName can not be empty string")
+		klog.V(100).Info("The interfaceName can not be empty string")
 
 		builder.errorMsg = nodeNetConfPolIntError
 
@@ -504,11 +502,11 @@ func (builder *PolicyBuilder) WithAbsentInterface(interfaceName string) *PolicyB
 		return builder
 	}
 
-	glog.V(100).Infof("Creating NodeNetworkConfigurationPolicy %s with absent interface configuration:"+
+	klog.V(100).Infof("Creating NodeNetworkConfigurationPolicy %s with absent interface configuration:"+
 		" interface %s", builder.Definition.Name, interfaceName)
 
 	if interfaceName == "" {
-		glog.V(100).Infof("The interfaceName can not be empty string")
+		klog.V(100).Info("The interfaceName can not be empty string")
 
 		builder.errorMsg = nodeNetConfPolIntError
 
@@ -529,13 +527,13 @@ func (builder *PolicyBuilder) WithOptions(options ...AdditionalOptions) *PolicyB
 		return builder
 	}
 
-	glog.V(100).Infof("Setting pod additional options")
+	klog.V(100).Info("Setting pod additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -554,7 +552,7 @@ func (builder *PolicyBuilder) WaitUntilCondition(condition nmstateShared.Conditi
 		return err
 	}
 
-	glog.V(100).Infof("Waiting for the defined period until NodeNetworkConfigurationPolicy %s has condition %v",
+	klog.V(100).Infof("Waiting for the defined period until NodeNetworkConfigurationPolicy %s has condition %v",
 		builder.Definition.Name, condition)
 
 	if !builder.Exists() {
@@ -587,25 +585,25 @@ func (builder *PolicyBuilder) validate() (bool, error) {
 	resourceCRD := "NodeNetworkConfigurationPolicy"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}
@@ -621,14 +619,14 @@ func (builder *PolicyBuilder) withInterface(networkInterface NetworkInterface) *
 		return builder
 	}
 
-	glog.V(100).Infof("Creating NodeNetworkConfigurationPolicy %s with network interface %s",
+	klog.V(100).Infof("Creating NodeNetworkConfigurationPolicy %s with network interface %s",
 		builder.Definition.Name, networkInterface.Name)
 
 	var CurrentState DesiredState
 
 	err := yaml.Unmarshal(builder.Definition.Spec.DesiredState.Raw, &CurrentState)
 	if err != nil {
-		glog.V(100).Infof("Failed Unmarshal DesiredState")
+		klog.V(100).Info("Failed Unmarshal DesiredState")
 
 		builder.errorMsg = "Failed Unmarshal DesiredState"
 
@@ -639,7 +637,7 @@ func (builder *PolicyBuilder) withInterface(networkInterface NetworkInterface) *
 
 	desiredStateYaml, err := yaml.Marshal(CurrentState)
 	if err != nil {
-		glog.V(100).Infof("Failed Marshal DesiredState")
+		klog.V(100).Info("Failed Marshal DesiredState")
 
 		builder.errorMsg = "failed to Marshal a new Desired state"
 

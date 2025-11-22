@@ -7,11 +7,11 @@ import (
 	"io"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/stmcginnis/gofish"
 	"github.com/stmcginnis/gofish/redfish"
 	"golang.org/x/crypto/ssh"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -73,7 +73,7 @@ type BMC struct {
 // be called before connecting to Redfish or over SSH, respectively. The SSH port and timeouts are set to DefaultSSHPort
 // and DefaultTimeOuts, with indices defaulting to 0.
 func New(host string) *BMC {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating new BMC structure with the following params: host: %s", host)
 
 	bmc := &BMC{
@@ -85,7 +85,7 @@ func New(host string) *BMC {
 	}
 
 	if host == "" {
-		glog.V(100).Info("The host of the BMC is empty")
+		klog.V(100).Info("The host of the BMC is empty")
 
 		bmc.errorMsg = "bmc 'host' cannot be empty"
 	}
@@ -100,10 +100,10 @@ func (bmc *BMC) WithRedfishUser(username, password string) *BMC {
 		return bmc
 	}
 
-	glog.V(100).Infof("Setting BMC Redfish username to %s", username)
+	klog.V(100).Infof("Setting BMC Redfish username to %s", username)
 
 	if username == "" {
-		glog.V(100).Info("The Redfish username is empty")
+		klog.V(100).Info("The Redfish username is empty")
 
 		bmc.errorMsg = "redfish 'username' cannot be empty"
 
@@ -111,7 +111,7 @@ func (bmc *BMC) WithRedfishUser(username, password string) *BMC {
 	}
 
 	if password == "" {
-		glog.V(100).Info("The Redfish password is empty")
+		klog.V(100).Info("The Redfish password is empty")
 
 		bmc.errorMsg = "redfish 'password' cannot be empty"
 
@@ -133,7 +133,7 @@ func (bmc *BMC) WithRedfishTimeout(timeout time.Duration) *BMC {
 	}
 
 	if timeout <= 0 {
-		glog.V(100).Infof("The Redfish timeout %s is less than or equal to zero", timeout)
+		klog.V(100).Infof("The Redfish timeout %s is less than or equal to zero", timeout)
 
 		bmc.errorMsg = "redfish 'timeout' cannot be less than or equal to zero"
 
@@ -153,7 +153,7 @@ func (bmc *BMC) WithRedfishSystemIndex(index int) *BMC {
 	}
 
 	if index < 0 {
-		glog.V(100).Infof("The Redfish System index is negative: %d", index)
+		klog.V(100).Infof("The Redfish System index is negative: %d", index)
 
 		bmc.errorMsg = "redfish 'systemIndex' cannot be negative"
 
@@ -173,7 +173,7 @@ func (bmc *BMC) WithRedfishPowerControlIndex(index int) *BMC {
 	}
 
 	if index < 0 {
-		glog.V(100).Infof("The Redfish PowerControl index is negative: %d", index)
+		klog.V(100).Infof("The Redfish PowerControl index is negative: %d", index)
 
 		bmc.errorMsg = "redfish 'powerControlIndex' cannot be negative"
 
@@ -192,10 +192,10 @@ func (bmc *BMC) WithSSHUser(username, password string) *BMC {
 		return bmc
 	}
 
-	glog.V(100).Infof("Setting BMC SSH username to %s", username)
+	klog.V(100).Infof("Setting BMC SSH username to %s", username)
 
 	if username == "" {
-		glog.V(100).Info("The SSH username is empty")
+		klog.V(100).Info("The SSH username is empty")
 
 		bmc.errorMsg = "ssh 'username' cannot be empty"
 
@@ -203,7 +203,7 @@ func (bmc *BMC) WithSSHUser(username, password string) *BMC {
 	}
 
 	if password == "" {
-		glog.V(100).Info("The SSH password is empty")
+		klog.V(100).Info("The SSH password is empty")
 
 		bmc.errorMsg = "ssh 'password' cannot be empty"
 
@@ -224,10 +224,10 @@ func (bmc *BMC) WithSSHPort(port uint16) *BMC {
 		return bmc
 	}
 
-	glog.V(100).Infof("Setting SSH port to %d", port)
+	klog.V(100).Infof("Setting SSH port to %d", port)
 
 	if port == 0 {
-		glog.V(100).Infof("The SSH port is zero")
+		klog.V(100).Info("The SSH port is zero")
 
 		bmc.errorMsg = "ssh 'port' cannot be zero"
 
@@ -246,7 +246,7 @@ func (bmc *BMC) WithSSHTimeout(timeout time.Duration) *BMC {
 	}
 
 	if timeout <= 0 {
-		glog.V(100).Infof("The SSH timeout %s is less than or equal to zero", timeout)
+		klog.V(100).Infof("The SSH timeout %s is less than or equal to zero", timeout)
 
 		bmc.errorMsg = "ssh 'timeout' cannot be less than or equal to zero"
 
@@ -264,7 +264,7 @@ func (bmc *BMC) SystemManufacturer() (string, error) {
 		return "", err
 	}
 
-	glog.V(100).Infof("Getting SystemManufacturer param from bmc's redfish endpoint")
+	klog.V(100).Info("Getting SystemManufacturer param from bmc's redfish endpoint")
 
 	redfishClient, cancel, err := redfishConnect(
 		bmc.host,
@@ -272,7 +272,7 @@ func (bmc *BMC) SystemManufacturer() (string, error) {
 		bmc.redfishUser.Password,
 		bmc.timeOuts.Redfish)
 	if err != nil {
-		glog.V(100).Infof("Redfish connection error: %v", err)
+		klog.V(100).Infof("Redfish connection error: %v", err)
 
 		return "", fmt.Errorf("redfish connection error: %w", err)
 	}
@@ -284,7 +284,7 @@ func (bmc *BMC) SystemManufacturer() (string, error) {
 
 	system, err := redfishGetSystem(redfishClient, bmc.systemIndex)
 	if err != nil {
-		glog.V(100).Infof("Failed to get redfish system: %v", err)
+		klog.V(100).Infof("Failed to get redfish system: %v", err)
 
 		return "", fmt.Errorf("failed to get redfish system: %w", err)
 	}
@@ -298,7 +298,7 @@ func (bmc *BMC) IsSecureBootEnabled() (bool, error) {
 		return false, err
 	}
 
-	glog.V(100).Infof("Getting secure boot status from bmc's redfish endpoint")
+	klog.V(100).Info("Getting secure boot status from bmc's redfish endpoint")
 
 	redfishClient, cancel, err := redfishConnect(
 		bmc.host,
@@ -306,7 +306,7 @@ func (bmc *BMC) IsSecureBootEnabled() (bool, error) {
 		bmc.redfishUser.Password,
 		bmc.timeOuts.Redfish)
 	if err != nil {
-		glog.V(100).Infof("Redfish connection error: %v", err)
+		klog.V(100).Infof("Redfish connection error: %v", err)
 
 		return false, fmt.Errorf("redfish connection error: %w", err)
 	}
@@ -318,7 +318,7 @@ func (bmc *BMC) IsSecureBootEnabled() (bool, error) {
 
 	sboot, err := redfishGetSystemSecureBoot(redfishClient, bmc.systemIndex)
 	if err != nil {
-		glog.V(100).Infof("Failed to get redfish system's secure boot: %v", err)
+		klog.V(100).Infof("Failed to get redfish system's secure boot: %v", err)
 
 		return false, fmt.Errorf("failed to get secure boot: %w", err)
 	}
@@ -332,7 +332,7 @@ func (bmc *BMC) SecureBootEnable() error {
 		return err
 	}
 
-	glog.V(100).Infof("Enabling secure boot from bmc's redfish endpoint")
+	klog.V(100).Info("Enabling secure boot from bmc's redfish endpoint")
 
 	redfishClient, cancel, err := redfishConnect(
 		bmc.host,
@@ -340,7 +340,7 @@ func (bmc *BMC) SecureBootEnable() error {
 		bmc.redfishUser.Password,
 		bmc.timeOuts.Redfish)
 	if err != nil {
-		glog.V(100).Infof("Redfish connection error: %v", err)
+		klog.V(100).Infof("Redfish connection error: %v", err)
 
 		return fmt.Errorf("redfish connection error: %w", err)
 	}
@@ -352,13 +352,13 @@ func (bmc *BMC) SecureBootEnable() error {
 
 	sboot, err := redfishGetSystemSecureBoot(redfishClient, bmc.systemIndex)
 	if err != nil {
-		glog.V(100).Infof("Failed to get redfish system's secure boot: %v", err)
+		klog.V(100).Infof("Failed to get redfish system's secure boot: %v", err)
 
 		return fmt.Errorf("failed to get secure boot: %w", err)
 	}
 
 	if sboot.SecureBootEnable {
-		glog.V(100).Infof("Failed to enable secure boot: it is already enabled")
+		klog.V(100).Info("Failed to enable secure boot: it is already enabled")
 
 		return fmt.Errorf("secure boot is already enabled")
 	}
@@ -367,7 +367,7 @@ func (bmc *BMC) SecureBootEnable() error {
 
 	err = sboot.Update()
 	if err != nil {
-		glog.V(100).Infof("Failed to enable secure boot: %v", err)
+		klog.V(100).Infof("Failed to enable secure boot: %v", err)
 
 		return fmt.Errorf("failed to enable secure boot: %w", err)
 	}
@@ -381,7 +381,7 @@ func (bmc *BMC) SecureBootDisable() error {
 		return err
 	}
 
-	glog.V(100).Infof("Disabling secure boot from bmc's redfish endpoint")
+	klog.V(100).Info("Disabling secure boot from bmc's redfish endpoint")
 
 	redfishClient, cancel, err := redfishConnect(
 		bmc.host,
@@ -389,7 +389,7 @@ func (bmc *BMC) SecureBootDisable() error {
 		bmc.redfishUser.Password,
 		bmc.timeOuts.Redfish)
 	if err != nil {
-		glog.V(100).Infof("Redfish connection error: %v", err)
+		klog.V(100).Infof("Redfish connection error: %v", err)
 
 		return fmt.Errorf("redfish connection error: %w", err)
 	}
@@ -401,13 +401,13 @@ func (bmc *BMC) SecureBootDisable() error {
 
 	sboot, err := redfishGetSystemSecureBoot(redfishClient, bmc.systemIndex)
 	if err != nil {
-		glog.V(100).Infof("Failed to get redfish system's secure boot: %v", err)
+		klog.V(100).Infof("Failed to get redfish system's secure boot: %v", err)
 
 		return fmt.Errorf("failed to get secure boot: %w", err)
 	}
 
 	if !sboot.SecureBootEnable {
-		glog.V(100).Infof("Failed to disable secure boot: it is already disabled")
+		klog.V(100).Info("Failed to disable secure boot: it is already disabled")
 
 		return fmt.Errorf("secure boot is already disabled")
 	}
@@ -416,7 +416,7 @@ func (bmc *BMC) SecureBootDisable() error {
 
 	err = sboot.Update()
 	if err != nil {
-		glog.V(100).Infof("Failed to disable secure boot: %v", err)
+		klog.V(100).Infof("Failed to disable secure boot: %v", err)
 
 		return fmt.Errorf("failed to disable secure boot: %w", err)
 	}
@@ -430,7 +430,7 @@ func (bmc *BMC) SystemResetAction(action redfish.ResetType) error {
 		return err
 	}
 
-	glog.V(100).Infof("Performing reset action %v from the bmc's redfish endpoint", action)
+	klog.V(100).Infof("Performing reset action %v from the bmc's redfish endpoint", action)
 
 	redfishClient, cancel, err := redfishConnect(
 		bmc.host,
@@ -438,7 +438,7 @@ func (bmc *BMC) SystemResetAction(action redfish.ResetType) error {
 		bmc.redfishUser.Password,
 		bmc.timeOuts.Redfish)
 	if err != nil {
-		glog.V(100).Infof("Redfish connection error: %v", err)
+		klog.V(100).Infof("Redfish connection error: %v", err)
 
 		return fmt.Errorf("redfish connection error: %w", err)
 	}
@@ -450,7 +450,7 @@ func (bmc *BMC) SystemResetAction(action redfish.ResetType) error {
 
 	system, err := redfishGetSystem(redfishClient, bmc.systemIndex)
 	if err != nil {
-		glog.V(100).Infof("Failed to get redfish system: %v", err)
+		klog.V(100).Infof("Failed to get redfish system: %v", err)
 
 		return fmt.Errorf("failed to get redfish system: %w", err)
 	}
@@ -486,11 +486,11 @@ func (bmc *BMC) SystemPowerCycle() error {
 		return err
 	}
 
-	glog.V(100).Infof("Checking whether PowerCycle reset type can be performed from the bmc's redfish endpoint")
+	klog.V(100).Info("Checking whether PowerCycle reset type can be performed from the bmc's redfish endpoint")
 
 	suppportedResetTypes, err := bmc.getSupportedResetTypes()
 	if err != nil {
-		glog.V(100).Infof("Failed to get system's supported reset types: %v", err)
+		klog.V(100).Infof("Failed to get system's supported reset types: %v", err)
 
 		return fmt.Errorf("failed to get system's supported reset types: %w", err)
 	}
@@ -500,24 +500,24 @@ func (bmc *BMC) SystemPowerCycle() error {
 		return bmc.SystemResetAction(redfish.PowerCycleResetType)
 	}
 
-	glog.V(100).Infof("PowerCycle reset type not supported. Trying with PowerOff and On reset actions")
+	klog.V(100).Info("PowerCycle reset type not supported. Trying with PowerOff and On reset actions")
 
 	// Workaround for PowerCycle type not supported: ForceOff + On.
 	if !isResetTypeSupported(redfish.ForceOffResetType, suppportedResetTypes) ||
 		!isResetTypeSupported(redfish.OnResetType, suppportedResetTypes) {
-		glog.V(100).Infof("Unable to perform power cycle (supported reset types: %v)", suppportedResetTypes)
+		klog.V(100).Infof("Unable to perform power cycle (supported reset types: %v)", suppportedResetTypes)
 
 		return fmt.Errorf("unable to perform power cycle (supported reset types: %v)", suppportedResetTypes)
 	}
 
 	err = bmc.SystemPowerOff()
 	if err != nil {
-		glog.V(100).Infof("Failed to perform ForceOff system reset: %v", err)
+		klog.V(100).Infof("Failed to perform ForceOff system reset: %v", err)
 
 		return fmt.Errorf("failed to perform ForceOff system reset: %w", err)
 	}
 
-	glog.V(100).Infof("Waiting for system to be in power state %v", redfish.OffPowerState)
+	klog.V(100).Infof("Waiting for system to be in power state %v", redfish.OffPowerState)
 
 	// First, make sure the system is off.
 	err = wait.PollUntilContextTimeout(context.TODO(),
@@ -527,12 +527,12 @@ func (bmc *BMC) SystemPowerCycle() error {
 		func(ctx context.Context) (bool, error) {
 			powerState, err := bmc.SystemPowerState()
 			if err != nil {
-				glog.V(100).Infof("Failed to get system's power state: %v", err)
+				klog.V(100).Infof("Failed to get system's power state: %v", err)
 
 				return false, fmt.Errorf("failed to get system's power state: %w", err)
 			}
 
-			glog.V(100).Infof("System's current power state: %v", powerState)
+			klog.V(100).Infof("System's current power state: %v", powerState)
 
 			if powerState == string(redfish.OffPowerState) {
 				return true, nil
@@ -542,7 +542,7 @@ func (bmc *BMC) SystemPowerCycle() error {
 			return false, nil
 		})
 	if err != nil {
-		glog.V(100).Infof("Failure waiting for system's power state to be %v: %v", redfish.OffPowerState, err)
+		klog.V(100).Infof("Failure waiting for system's power state to be %v: %v", redfish.OffPowerState, err)
 
 		return fmt.Errorf("failure waiting for system's power state to be %v: %w", redfish.OffPowerState, err)
 	}
@@ -557,7 +557,7 @@ func (bmc *BMC) SystemPowerState() (string, error) {
 		return "", err
 	}
 
-	glog.V(100).Info("Collecting current power state from bmc's redfish endpoint")
+	klog.V(100).Info("Collecting current power state from bmc's redfish endpoint")
 
 	redfishClient, cancel, err := redfishConnect(
 		bmc.host,
@@ -565,7 +565,7 @@ func (bmc *BMC) SystemPowerState() (string, error) {
 		bmc.redfishUser.Password,
 		bmc.timeOuts.Redfish)
 	if err != nil {
-		glog.V(100).Infof("Redfish connection error: %v", err)
+		klog.V(100).Infof("Redfish connection error: %v", err)
 
 		return "", fmt.Errorf("redfish connection error: %w", err)
 	}
@@ -577,7 +577,7 @@ func (bmc *BMC) SystemPowerState() (string, error) {
 
 	system, err := redfishGetSystem(redfishClient, bmc.systemIndex)
 	if err != nil {
-		glog.V(100).Infof("Failed to get redfish system: %v", err)
+		klog.V(100).Infof("Failed to get redfish system: %v", err)
 
 		return "", fmt.Errorf("failed to get redfish system: %w", err)
 	}
@@ -591,13 +591,13 @@ func (bmc *BMC) WaitForSystemPowerState(powerState redfish.PowerState, timeout t
 		return err
 	}
 
-	glog.V(100).Infof("Waiting up to %s until BMC returns power state %s", timeout, powerState)
+	klog.V(100).Infof("Waiting up to %s until BMC returns power state %s", timeout, powerState)
 
 	return wait.PollUntilContextTimeout(
 		context.TODO(), 10*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			systemPowerState, err := bmc.SystemPowerState()
 			if err != nil {
-				glog.V(100).Infof("Failed to get system power state from BMC: %v", err)
+				klog.V(100).Infof("Failed to get system power state from BMC: %v", err)
 
 				return false, nil
 			}
@@ -613,7 +613,7 @@ func (bmc *BMC) PowerUsage() (float32, error) {
 		return 0.0, err
 	}
 
-	glog.V(100).Info("Collecting current power usage from bmc's redfish endpoint")
+	klog.V(100).Info("Collecting current power usage from bmc's redfish endpoint")
 
 	redfishClient, cancel, err := redfishConnect(
 		bmc.host,
@@ -621,7 +621,7 @@ func (bmc *BMC) PowerUsage() (float32, error) {
 		bmc.redfishUser.Password,
 		bmc.timeOuts.Redfish)
 	if err != nil {
-		glog.V(100).Infof("Redfish connection error: %v", err)
+		klog.V(100).Infof("Redfish connection error: %v", err)
 
 		return 0.0, fmt.Errorf("redfish connection error: %w", err)
 	}
@@ -633,7 +633,7 @@ func (bmc *BMC) PowerUsage() (float32, error) {
 
 	powerControl, err := redfishGetPowerControl(redfishClient, bmc.powerControlIndex)
 	if err != nil {
-		glog.V(100).Infof("Failed to get redfish power control: %v", err)
+		klog.V(100).Infof("Failed to get redfish power control: %v", err)
 
 		return 0.0, fmt.Errorf("failed to get redfish power control: %w", err)
 	}
@@ -646,7 +646,7 @@ func (bmc *BMC) PowerUsage() (float32, error) {
 //   - "Boot0000":"PXE Device 1: Embedded NIC 1 Port 1 Partition 1"
 //   - "Boot0003":"RAID Controller in SL 3: Red Hat Enterprise Linux]"
 func (bmc *BMC) SystemBootOptions() (map[string]string, error) {
-	glog.V(100).Infof("Getting available boot options from redfish endpoint")
+	klog.V(100).Info("Getting available boot options from redfish endpoint")
 
 	redfishClient, cancel, err := redfishConnect(
 		bmc.host,
@@ -654,7 +654,7 @@ func (bmc *BMC) SystemBootOptions() (map[string]string, error) {
 		bmc.redfishUser.Password,
 		bmc.timeOuts.Redfish)
 	if err != nil {
-		glog.V(100).Infof("Redfish connection error: %v", err)
+		klog.V(100).Infof("Redfish connection error: %v", err)
 
 		return nil, fmt.Errorf("redfish connection error: %w", err)
 	}
@@ -666,14 +666,14 @@ func (bmc *BMC) SystemBootOptions() (map[string]string, error) {
 
 	system, err := redfishGetSystem(redfishClient, bmc.systemIndex)
 	if err != nil {
-		glog.V(100).Infof("Failed to get redfish system: %v", err)
+		klog.V(100).Infof("Failed to get redfish system: %v", err)
 
 		return nil, fmt.Errorf("failed to get redfish system: %w", err)
 	}
 
 	bootOptions, err := system.BootOptions()
 	if err != nil {
-		glog.V(100).Infof("Failed to get redfish system's boot options: %v", err)
+		klog.V(100).Infof("Failed to get redfish system's boot options: %v", err)
 
 		return nil, fmt.Errorf("failed to get redfish system's boot options: %w", err)
 	}
@@ -694,7 +694,7 @@ func (bmc *BMC) SystemBootOptions() (map[string]string, error) {
 // SystemBootOrderReferences returns the current system's boot order (references) in an ordered slice
 // using redfish API.
 func (bmc *BMC) SystemBootOrderReferences() ([]string, error) {
-	glog.V(100).Infof("Getting BootOrder references from redfish endpoint")
+	klog.V(100).Info("Getting BootOrder references from redfish endpoint")
 
 	redfishClient, cancel, err := redfishConnect(
 		bmc.host,
@@ -702,7 +702,7 @@ func (bmc *BMC) SystemBootOrderReferences() ([]string, error) {
 		bmc.redfishUser.Password,
 		bmc.timeOuts.Redfish)
 	if err != nil {
-		glog.V(100).Infof("Redfish connection error: %v", err)
+		klog.V(100).Infof("Redfish connection error: %v", err)
 
 		return nil, fmt.Errorf("redfish connection error: %w", err)
 	}
@@ -714,7 +714,7 @@ func (bmc *BMC) SystemBootOrderReferences() ([]string, error) {
 
 	system, err := redfishGetSystem(redfishClient, bmc.systemIndex)
 	if err != nil {
-		glog.V(100).Infof("Failed to get redfish system: %v", err)
+		klog.V(100).Infof("Failed to get redfish system: %v", err)
 
 		return nil, fmt.Errorf("failed to get redfish system: %w", err)
 	}
@@ -727,10 +727,10 @@ func (bmc *BMC) SystemBootOrderReferences() ([]string, error) {
 // that a following call to SystemBootOrderReferences() won't reflect the change until the system has
 // been actually resetted.
 func (bmc *BMC) SetSystemBootOrderReferences(bootOrderReferences []string) error {
-	glog.V(100).Infof("Setting BootOrder references (%+v) from redfish endpoint", bootOrderReferences)
+	klog.V(100).Infof("Setting BootOrder references (%+v) from redfish endpoint", bootOrderReferences)
 
 	if len(bootOrderReferences) == 0 {
-		glog.V(100).Infof("bootOrderReferences param cannot be empty")
+		klog.V(100).Info("bootOrderReferences param cannot be empty")
 
 		return fmt.Errorf("bootOrderReferences param cannot be empty")
 	}
@@ -741,7 +741,7 @@ func (bmc *BMC) SetSystemBootOrderReferences(bootOrderReferences []string) error
 		bmc.redfishUser.Password,
 		bmc.timeOuts.Redfish)
 	if err != nil {
-		glog.V(100).Infof("Redfish connection error: %v", err)
+		klog.V(100).Infof("Redfish connection error: %v", err)
 
 		return fmt.Errorf("redfish connection error: %w", err)
 	}
@@ -753,7 +753,7 @@ func (bmc *BMC) SetSystemBootOrderReferences(bootOrderReferences []string) error
 
 	system, err := redfishGetSystem(redfishClient, bmc.systemIndex)
 	if err != nil {
-		glog.V(100).Infof("Failed to get redfish system: %v", err)
+		klog.V(100).Infof("Failed to get redfish system: %v", err)
 
 		return fmt.Errorf("failed to get redfish system: %w", err)
 	}
@@ -762,7 +762,7 @@ func (bmc *BMC) SetSystemBootOrderReferences(bootOrderReferences []string) error
 		BootOrder: bootOrderReferences,
 	}
 
-	glog.V(100).Infof("Setting new Boot value: %+v", newBoot)
+	klog.V(100).Infof("Setting new Boot value: %+v", newBoot)
 
 	return system.SetBoot(newBoot)
 }
@@ -770,16 +770,16 @@ func (bmc *BMC) SetSystemBootOrderReferences(bootOrderReferences []string) error
 // BootFromCD inserts the image available in isoUrl in the virtual media with virtualMediaID
 // and boots from it only once.
 func (bmc *BMC) BootFromCD(isoURL, virtualMediaID string) error {
-	glog.V(100).Infof("Setting to boot from CD (ISO: %s)", isoURL)
+	klog.V(100).Infof("Setting to boot from CD (ISO: %s)", isoURL)
 
 	if len(isoURL) == 0 {
-		glog.V(100).Infof("isoUrl param cannot be empty")
+		klog.V(100).Info("isoUrl param cannot be empty")
 
 		return fmt.Errorf("isoUrl param cannot be empty")
 	}
 
 	if len(virtualMediaID) == 0 {
-		glog.V(100).Infof("virtualMediaID param cannot be empty")
+		klog.V(100).Info("virtualMediaID param cannot be empty")
 
 		return fmt.Errorf("virtualMediaID param cannot be empty")
 	}
@@ -790,7 +790,7 @@ func (bmc *BMC) BootFromCD(isoURL, virtualMediaID string) error {
 		bmc.redfishUser.Password,
 		bmc.timeOuts.Redfish)
 	if err != nil {
-		glog.V(100).Infof("Redfish connection error: %v", err)
+		klog.V(100).Infof("Redfish connection error: %v", err)
 
 		return fmt.Errorf("redfish connection error: %w", err)
 	}
@@ -802,16 +802,16 @@ func (bmc *BMC) BootFromCD(isoURL, virtualMediaID string) error {
 
 	system, err := redfishGetSystem(redfishClient, bmc.systemIndex)
 	if err != nil {
-		glog.V(100).Infof("Failed to get redfish system: %v", err)
+		klog.V(100).Infof("Failed to get redfish system: %v", err)
 
 		return fmt.Errorf("failed to get redfish system: %w", err)
 	}
 
-	glog.V(100).Infof("Setting virtual media: %+v", isoURL)
+	klog.V(100).Infof("Setting virtual media: %+v", isoURL)
 
 	virtualMedia, err := system.VirtualMedia()
 	if err != nil {
-		glog.V(100).Infof("Failed to retrieve virtual media: %v", err)
+		klog.V(100).Infof("Failed to retrieve virtual media: %v", err)
 	}
 
 	var cdrom *redfish.VirtualMedia
@@ -827,14 +827,14 @@ func (bmc *BMC) BootFromCD(isoURL, virtualMediaID string) error {
 	}
 
 	if cdrom == nil {
-		glog.V(100).Infof("No CD virtual media slot found")
+		klog.V(100).Info("No CD virtual media slot found")
 
 		return fmt.Errorf("no cd virtual media slot found")
 	}
 
 	err = cdrom.InsertMedia(isoURL, true, true)
 	if err != nil {
-		glog.V(100).Infof("Failed to insert virtual media: %v", err)
+		klog.V(100).Infof("Failed to insert virtual media: %v", err)
 
 		return err
 	}
@@ -844,7 +844,7 @@ func (bmc *BMC) BootFromCD(isoURL, virtualMediaID string) error {
 		BootSourceOverrideTarget:  redfish.CdBootSourceOverrideTarget,
 	}
 
-	glog.V(100).Infof("Setting new Boot value: %+v", newBoot)
+	klog.V(100).Infof("Setting new Boot value: %+v", newBoot)
 
 	err = system.SetBoot(newBoot)
 
@@ -861,18 +861,18 @@ func (bmc *BMC) RunCLICommand(
 		return "", "", err
 	}
 
-	glog.V(100).Infof("Running CLI command in BMC's CLI: %s", cmd)
+	klog.V(100).Infof("Running CLI command in BMC's CLI: %s", cmd)
 
 	client, err := bmc.createCLISSHClient()
 	if err != nil {
-		glog.V(100).Infof("Failed to connect to CLI: %v", err)
+		klog.V(100).Infof("Failed to connect to CLI: %v", err)
 
 		return "", "", fmt.Errorf("failed to connect to CLI: %w", err)
 	}
 	// Create a session
 	sshSession, err := client.NewSession()
 	if err != nil {
-		glog.V(100).Infof("Failed to create a new SSH session: %v", err)
+		klog.V(100).Infof("Failed to create a new SSH session: %v", err)
 
 		return "", "", fmt.Errorf("failed to create a new ssh session: %w", err)
 	}
@@ -904,12 +904,12 @@ func (bmc *BMC) RunCLICommand(
 
 	select {
 	case <-timeoutCh:
-		glog.V(100).Info("CLI command timeout")
+		klog.V(100).Info("CLI command timeout")
 
 		return stdoutBuffer.String(), stderrBuffer.String(), fmt.Errorf("timeout running command")
 	case err := <-errCh:
 		if err != nil {
-			glog.V(100).Infof("Command run error: %v", err)
+			klog.V(100).Infof("Command run error: %v", err)
 
 			return stdoutBuffer.String(), stderrBuffer.String(), fmt.Errorf("command run error: %w", err)
 		}
@@ -938,10 +938,10 @@ func (bmc *BMC) OpenSerialConsole(openConsoleCliCmd string) (io.Reader, io.Write
 		return nil, nil, err
 	}
 
-	glog.V(100).Infof("Opening serial console on %v.", bmc.host)
+	klog.V(100).Infof("Opening serial console on %v.", bmc.host)
 
 	if bmc.sshClientForSerialConsole != nil {
-		glog.V(100).Infof("There is already a serial console opened for %v's BMC. Use OpenSerialConsole() first.",
+		klog.V(100).Infof("There is already a serial console opened for %v's BMC. Use OpenSerialConsole() first.",
 			bmc.host)
 
 		return nil, nil, fmt.Errorf("there is already a serial console opened for %v's BMC", bmc.host)
@@ -952,14 +952,14 @@ func (bmc *BMC) OpenSerialConsole(openConsoleCliCmd string) (io.Reader, io.Write
 		// manufacturer.
 		manufacturer, err := bmc.SystemManufacturer()
 		if err != nil {
-			glog.V(100).Infof("Failed to get redifsh system manufacturer for %v: %v", bmc.host, err)
+			klog.V(100).Infof("Failed to get redifsh system manufacturer for %v: %v", bmc.host, err)
 
 			return nil, nil, fmt.Errorf("failed to get redfish system manufacturer for %v: %w", bmc.host, err)
 		}
 
 		var found bool
 		if openConsoleCliCmd, found = cliCmdSerialConsole[manufacturer]; !found {
-			glog.V(100).Infof("CLI command to get serial console not found for manufacturer for %v: %v",
+			klog.V(100).Infof("CLI command to get serial console not found for manufacturer for %v: %v",
 				bmc.host, manufacturer)
 
 			return nil, nil, fmt.Errorf("cli command to get serial console not found for manufacturer for %v: %v",
@@ -969,7 +969,7 @@ func (bmc *BMC) OpenSerialConsole(openConsoleCliCmd string) (io.Reader, io.Write
 
 	client, err := bmc.createCLISSHClient()
 	if err != nil {
-		glog.V(100).Infof("Failed to create underlying ssh session for %v: %v", bmc.host, err)
+		klog.V(100).Infof("Failed to create underlying ssh session for %v: %v", bmc.host, err)
 
 		return nil, nil, fmt.Errorf("failed to create underlying ssh session for %v: %w", bmc.host, err)
 	}
@@ -977,7 +977,7 @@ func (bmc *BMC) OpenSerialConsole(openConsoleCliCmd string) (io.Reader, io.Write
 	// Create a session
 	sshSession, err := client.NewSession()
 	if err != nil {
-		glog.V(100).Infof("Failed to create a new SSH session: %v", err)
+		klog.V(100).Infof("Failed to create a new SSH session: %v", err)
 
 		return nil, nil, fmt.Errorf("failed to create a new ssh session: %w", err)
 	}
@@ -985,7 +985,7 @@ func (bmc *BMC) OpenSerialConsole(openConsoleCliCmd string) (io.Reader, io.Write
 	// Pipes need to be retrieved before session.Start()
 	reader, err := sshSession.StdoutPipe()
 	if err != nil {
-		glog.V(100).Infof("Failed to get stdout pipe from %v's ssh session: %v", bmc.host, err)
+		klog.V(100).Infof("Failed to get stdout pipe from %v's ssh session: %v", bmc.host, err)
 
 		_ = client.Close()
 
@@ -994,7 +994,7 @@ func (bmc *BMC) OpenSerialConsole(openConsoleCliCmd string) (io.Reader, io.Write
 
 	writer, err := sshSession.StdinPipe()
 	if err != nil {
-		glog.V(100).Infof("Failed to get stdin pipe from from %v's ssh session: %w", bmc.host, err)
+		klog.V(100).Infof("Failed to get stdin pipe from from %v's ssh session: %v", bmc.host, err)
 
 		_ = client.Close()
 
@@ -1003,7 +1003,7 @@ func (bmc *BMC) OpenSerialConsole(openConsoleCliCmd string) (io.Reader, io.Write
 
 	err = sshSession.Start(openConsoleCliCmd)
 	if err != nil {
-		glog.V(100).Infof("Failed to start CLI command %q on %v: %v", openConsoleCliCmd, bmc.host, err)
+		klog.V(100).Infof("Failed to start CLI command %q on %v: %v", openConsoleCliCmd, bmc.host, err)
 
 		_ = client.Close()
 
@@ -1022,17 +1022,17 @@ func (bmc *BMC) CloseSerialConsole() error {
 		return err
 	}
 
-	glog.V(100).Infof("Closing serial console for %v.", bmc.host)
+	klog.V(100).Infof("Closing serial console for %v.", bmc.host)
 
 	if bmc.sshClientForSerialConsole == nil {
-		glog.V(100).Infof("No underlying ssh session found for %v. Please use OpenSerialConsole() first.", bmc.host)
+		klog.V(100).Infof("No underlying ssh session found for %v. Please use OpenSerialConsole() first.", bmc.host)
 
 		return fmt.Errorf("no underlying ssh session found for %v", bmc.host)
 	}
 
 	err := bmc.sshClientForSerialConsole.Close()
 	if err != nil {
-		glog.V(100).Infof("Failed to close underlying ssh session for %v: %v", bmc.host, err)
+		klog.V(100).Infof("Failed to close underlying ssh session for %v: %v", bmc.host, err)
 
 		return fmt.Errorf("failed to close underlying ssh session for %v: %w", bmc.host, err)
 	}
@@ -1131,7 +1131,7 @@ func (bmc *BMC) validateRedfish() (bool, error) {
 	}
 
 	if bmc.redfishUser == nil {
-		glog.V(100).Info("The BMC's Redfish user is nil")
+		klog.V(100).Info("The BMC's Redfish user is nil")
 
 		return false, fmt.Errorf("cannot access redfish with nil user")
 	}
@@ -1145,7 +1145,7 @@ func (bmc *BMC) validateSSH() (bool, error) {
 	}
 
 	if bmc.sshUser == nil {
-		glog.V(100).Info("The BMC's SSH user is nil")
+		klog.V(100).Info("The BMC's SSH user is nil")
 
 		return false, fmt.Errorf("cannot access ssh with nil user")
 	}
@@ -1156,13 +1156,13 @@ func (bmc *BMC) validateSSH() (bool, error) {
 // validate checks that the BMC is in a valid state with no error message.
 func (bmc *BMC) validate() (bool, error) {
 	if bmc == nil {
-		glog.V(100).Info("The BMC is nil")
+		klog.V(100).Info("The BMC is nil")
 
 		return false, fmt.Errorf("error: received nil bmc")
 	}
 
 	if bmc.errorMsg != "" {
-		glog.V(100).Infof("The BMC has an error message: %s", bmc.errorMsg)
+		klog.V(100).Infof("The BMC has an error message: %s", bmc.errorMsg)
 
 		return false, fmt.Errorf("%s", bmc.errorMsg)
 	}
@@ -1187,7 +1187,7 @@ func (bmc *BMC) getSupportedResetTypes() ([]redfish.ResetType, error) {
 		bmc.redfishUser.Password,
 		bmc.timeOuts.Redfish)
 	if err != nil {
-		glog.V(100).Infof("Redfish connection error: %v", err)
+		klog.V(100).Infof("Redfish connection error: %v", err)
 
 		return nil, fmt.Errorf("redfish connection error: %w", err)
 	}
@@ -1199,7 +1199,7 @@ func (bmc *BMC) getSupportedResetTypes() ([]redfish.ResetType, error) {
 
 	system, err := redfishGetSystem(redfishClient, bmc.systemIndex)
 	if err != nil {
-		glog.V(100).Infof("Failed to get redfish system: %v", err)
+		klog.V(100).Infof("Failed to get redfish system: %v", err)
 
 		return nil, fmt.Errorf("failed to get redfish system: %w", err)
 	}
@@ -1213,7 +1213,7 @@ func (bmc *BMC) createCLISSHClient() (*ssh.Client, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Creating SSH session to run commands in the BMC's CLI.")
+	klog.V(100).Info("Creating SSH session to run commands in the BMC's CLI.")
 
 	config := &ssh.ClientConfig{
 		User: bmc.sshUser.Name,
@@ -1237,7 +1237,7 @@ func (bmc *BMC) createCLISSHClient() (*ssh.Client, error) {
 	// Establish SSH connection
 	client, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", bmc.host, bmc.sshPort), config)
 	if err != nil {
-		glog.V(100).Infof("Failed to connect to BMC's SSH server: %v", err)
+		klog.V(100).Infof("Failed to connect to BMC's SSH server: %v", err)
 
 		return nil, fmt.Errorf("failed to connect to BMC's SSH server: %w", err)
 	}

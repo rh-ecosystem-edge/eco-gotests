@@ -6,7 +6,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	provisioningv1alpha1 "github.com/openshift-kni/oran-o2ims/api/provisioning/v1alpha1"
@@ -19,6 +18,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/auth"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/helper"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/tsparams"
+	"k8s.io/klog/v2"
 	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -136,7 +136,7 @@ func verifySpokeProvisioning() error {
 
 	_, err := secret.Pull(HubAPIClient, "pull-secret", RANConfig.Spoke1Name)
 	if err != nil {
-		glog.V(tsparams.LogLevel).Infof("Failed to verify the pull-secret was created: %v", err)
+		klog.V(tsparams.LogLevel).Infof("Failed to verify the pull-secret was created: %v", err)
 
 		accumulatedErrors = append(accumulatedErrors, fmt.Errorf("failed to verify the pull-secret was created: %w", err))
 	}
@@ -145,7 +145,7 @@ func verifySpokeProvisioning() error {
 
 	_, err = configmap.Pull(HubAPIClient, tsparams.ExtraManifestsName, RANConfig.Spoke1Name)
 	if err != nil {
-		glog.V(tsparams.LogLevel).Infof("Failed to verify the extra-manifests ConfigMap was created: %v", err)
+		klog.V(tsparams.LogLevel).Infof("Failed to verify the extra-manifests ConfigMap was created: %v", err)
 
 		accumulatedErrors = append(accumulatedErrors,
 			fmt.Errorf("failed to verify the extra-manifests ConfigMap was created: %w", err))
@@ -157,7 +157,7 @@ func verifySpokeProvisioning() error {
 	_, err = configmap.Pull(HubAPIClient, RANConfig.Spoke1Name+"-pg", ztpNamespace)
 
 	if err != nil {
-		glog.V(tsparams.LogLevel).Infof("Failed to verify spoke 1 policy ConfigMap was created: %v", err)
+		klog.V(tsparams.LogLevel).Infof("Failed to verify spoke 1 policy ConfigMap was created: %v", err)
 
 		accumulatedErrors = append(accumulatedErrors,
 			fmt.Errorf("failed to verify spoke 1 policy ConfigMap was created: %w", err))
@@ -168,7 +168,7 @@ func verifySpokeProvisioning() error {
 	err = ocm.WaitForAllPoliciesComplianceState(
 		HubAPIClient, policiesv1.Compliant, time.Minute, runtimeclient.ListOptions{Namespace: RANConfig.Spoke1Name})
 	if err != nil {
-		glog.V(tsparams.LogLevel).Infof("Failed to verify all policies are compliant: %v", err)
+		klog.V(tsparams.LogLevel).Infof("Failed to verify all policies are compliant: %v", err)
 
 		accumulatedErrors = append(accumulatedErrors, fmt.Errorf("failed to verify all policies are compliant: %w", err))
 	}

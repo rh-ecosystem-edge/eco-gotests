@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	hiveV1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/hive/api/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -27,18 +27,18 @@ type ConfigAdditionalOptions func(builder *ConfigBuilder) (*ConfigBuilder, error
 
 // NewConfigBuilder creates a new instance of ConfigBuilder.
 func NewConfigBuilder(apiClient *clients.Settings, name string) *ConfigBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		`Initializing new HiveConfig structure with the following params: name: %s`, name)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(hiveV1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add hive v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add hive v1 scheme to client schemes")
 
 		return nil
 	}
@@ -54,7 +54,7 @@ func NewConfigBuilder(apiClient *clients.Settings, name string) *ConfigBuilder {
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the HiveConfig is empty")
+		klog.V(100).Info("The name of the HiveConfig is empty")
 
 		builder.errorMsg = "hiveconfig 'name' cannot be empty"
 
@@ -66,17 +66,17 @@ func NewConfigBuilder(apiClient *clients.Settings, name string) *ConfigBuilder {
 
 // PullConfig loads an existing HiveConfig into ConfigBuilder struct.
 func PullConfig(apiClient *clients.Settings, name string) (*ConfigBuilder, error) {
-	glog.V(100).Infof("Pulling existing HiveConfig name: %s", name)
+	klog.V(100).Infof("Pulling existing HiveConfig name: %s", name)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("hiveconfig 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(hiveV1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add hive v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add hive v1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func PullConfig(apiClient *clients.Settings, name string) (*ConfigBuilder, error
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the hiveconfig is empty")
+		klog.V(100).Info("The name of the hiveconfig is empty")
 
 		return nil, fmt.Errorf("hiveconfig 'name' cannot be empty")
 	}
@@ -111,7 +111,7 @@ func (builder *ConfigBuilder) Get() (*hiveV1.HiveConfig, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting HiveConfig %s", builder.Definition.Name)
+	klog.V(100).Infof("Getting HiveConfig %s", builder.Definition.Name)
 
 	HiveConfig := &hiveV1.HiveConfig{}
 
@@ -131,7 +131,7 @@ func (builder *ConfigBuilder) Update() (*ConfigBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating HiveConfig %s", builder.Definition.Name)
+	klog.V(100).Infof("Updating HiveConfig %s", builder.Definition.Name)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	builder.Object = builder.Definition
@@ -145,10 +145,10 @@ func (builder *ConfigBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting the HiveConfig %s", builder.Definition.Name)
+	klog.V(100).Infof("Deleting the HiveConfig %s", builder.Definition.Name)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("hiveconfig cannot be deleted because it does not exist")
+		klog.V(100).Info("hiveconfig cannot be deleted because it does not exist")
 
 		builder.Object = nil
 
@@ -173,7 +173,7 @@ func (builder *ConfigBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if hiveconfig %s exists", builder.Definition.Name)
+	klog.V(100).Infof("Checking if hiveconfig %s exists", builder.Definition.Name)
 
 	var err error
 
@@ -188,13 +188,13 @@ func (builder *ConfigBuilder) WithOptions(options ...ConfigAdditionalOptions) *C
 		return builder
 	}
 
-	glog.V(100).Infof("Setting HiveConfig additional options")
+	klog.V(100).Info("Setting HiveConfig additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -212,25 +212,25 @@ func (builder *ConfigBuilder) validate() (bool, error) {
 	resourceCRD := "HiveConfig"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

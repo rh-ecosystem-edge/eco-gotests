@@ -8,7 +8,6 @@ import (
 
 	multus "gopkg.in/k8snetworkplumbingwg/multus-cni.v4/pkg/types"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	appsv1 "k8s.io/api/apps/v1"
@@ -18,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	appsv1Typed "k8s.io/client-go/kubernetes/typed/apps/v1"
+	"k8s.io/klog/v2"
 )
 
 // Builder provides struct for deployment object containing connection to the cluster and the deployment definitions.
@@ -38,7 +38,7 @@ type AdditionalOptions func(builder *Builder) (*Builder, error)
 // NewBuilder creates a new instance of Builder.
 func NewBuilder(
 	apiClient *clients.Settings, name, nsname string, labels map[string]string, containerSpec corev1.Container) *Builder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new deployment structure with the following params: "+
 			"name: %s, namespace: %s, labels: %s, containerSpec %v",
 		name, nsname, labels, containerSpec)
@@ -66,7 +66,7 @@ func NewBuilder(
 	builder.WithAdditionalContainerSpecs([]corev1.Container{containerSpec})
 
 	if name == "" {
-		glog.V(100).Infof("The name of the deployment is empty")
+		klog.V(100).Info("The name of the deployment is empty")
 
 		builder.errorMsg = "deployment 'name' cannot be empty"
 
@@ -74,7 +74,7 @@ func NewBuilder(
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the deployment is empty")
+		klog.V(100).Info("The namespace of the deployment is empty")
 
 		builder.errorMsg = "deployment 'namespace' cannot be empty"
 
@@ -82,7 +82,7 @@ func NewBuilder(
 	}
 
 	if len(labels) == 0 {
-		glog.V(100).Infof("There are no labels for the deployment")
+		klog.V(100).Info("There are no labels for the deployment")
 
 		builder.errorMsg = "deployment 'labels' cannot be empty"
 
@@ -96,12 +96,12 @@ func NewBuilder(
 func Pull(apiClient *clients.Settings, name, nsname string) (*Builder, error) {
 	// Safeguard against nil apiClient interfaces.
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is nil")
+		klog.V(100).Info("The apiClient is nil")
 
 		return nil, fmt.Errorf("apiClient cannot be nil")
 	}
 
-	glog.V(100).Infof("Pulling existing deployment name: %s under namespace: %s", name, nsname)
+	klog.V(100).Infof("Pulling existing deployment name: %s under namespace: %s", name, nsname)
 
 	builder := &Builder{
 		apiClient: apiClient.AppsV1Interface,
@@ -114,13 +114,13 @@ func Pull(apiClient *clients.Settings, name, nsname string) (*Builder, error) {
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the deployment is empty")
+		klog.V(100).Info("The name of the deployment is empty")
 
 		return nil, fmt.Errorf("deployment 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the deployment is empty")
+		klog.V(100).Info("The namespace of the deployment is empty")
 
 		return nil, fmt.Errorf("deployment 'namespace' cannot be empty")
 	}
@@ -140,7 +140,7 @@ func (builder *Builder) WithNodeSelector(selector map[string]string) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Applying nodeSelector %s to deployment %s in namespace %s",
+	klog.V(100).Infof("Applying nodeSelector %s to deployment %s in namespace %s",
 		selector, builder.Definition.Name, builder.Definition.Namespace)
 
 	builder.Definition.Spec.Template.Spec.NodeSelector = selector
@@ -154,7 +154,7 @@ func (builder *Builder) WithReplicas(replicas int32) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Setting %d replicas in deployment %s in namespace %s",
+	klog.V(100).Infof("Setting %d replicas in deployment %s in namespace %s",
 		replicas, builder.Definition.Name, builder.Definition.Namespace)
 
 	builder.Definition.Spec.Replicas = &replicas
@@ -168,11 +168,11 @@ func (builder *Builder) WithAdditionalContainerSpecs(specs []corev1.Container) *
 		return builder
 	}
 
-	glog.V(100).Infof("Appending a list of container specs %v to deployment %s in namespace %s",
+	klog.V(100).Infof("Appending a list of container specs %v to deployment %s in namespace %s",
 		specs, builder.Definition.Name, builder.Definition.Namespace)
 
 	if len(specs) == 0 {
-		glog.V(100).Infof("The container specs are empty")
+		klog.V(100).Info("The container specs are empty")
 
 		builder.errorMsg = "cannot accept empty list as container specs"
 
@@ -190,7 +190,7 @@ func (builder *Builder) WithSecondaryNetwork(networks []*multus.NetworkSelection
 		return builder
 	}
 
-	glog.V(100).Infof("Applying secondary networks %v to deployment %s", networks, builder.Definition.Name)
+	klog.V(100).Infof("Applying secondary networks %v to deployment %s", networks, builder.Definition.Name)
 
 	if len(networks) == 0 {
 		builder.errorMsg = "can not apply empty networks list"
@@ -217,7 +217,7 @@ func (builder *Builder) WithHugePages() *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Applying hugePages configuration to all containers in deployment: %s",
+	klog.V(100).Infof("Applying hugePages configuration to all containers in deployment: %s",
 		builder.Definition.Name)
 
 	// If volumes are not defined, create an empty list of volumes.
@@ -251,11 +251,11 @@ func (builder *Builder) WithSecurityContext(securityContext *corev1.PodSecurityC
 		return builder
 	}
 
-	glog.V(100).Infof("Applying SecurityContext configuration on deployment %s in namespace %s",
+	klog.V(100).Infof("Applying SecurityContext configuration on deployment %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if securityContext == nil {
-		glog.V(100).Infof("The 'securityContext' of the deployment is empty")
+		klog.V(100).Info("The 'securityContext' of the deployment is empty")
 
 		builder.errorMsg = "'securityContext' parameter is empty"
 
@@ -273,10 +273,10 @@ func (builder *Builder) WithLabel(labelKey, labelValue string) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof(fmt.Sprintf("Defining deployment's label to %s:%s", labelKey, labelValue))
+	klog.V(100).Infof("%v", fmt.Sprintf("Defining deployment's label to %s:%s", labelKey, labelValue))
 
 	if labelKey == "" {
-		glog.V(100).Infof("The 'labelKey' of the deployment is empty")
+		klog.V(100).Info("The 'labelKey' of the deployment is empty")
 
 		builder.errorMsg = "can not apply empty labelKey"
 
@@ -298,11 +298,11 @@ func (builder *Builder) WithServiceAccountName(serviceAccountName string) *Build
 		return builder
 	}
 
-	glog.V(100).Infof("Setting ServiceAccount %s on deployment %s in namespace %s",
+	klog.V(100).Infof("Setting ServiceAccount %s on deployment %s in namespace %s",
 		serviceAccountName, builder.Definition.Name, builder.Definition.Namespace)
 
 	if serviceAccountName == "" {
-		glog.V(100).Infof("The 'serviceAccount' of the deployment is empty")
+		klog.V(100).Info("The 'serviceAccount' of the deployment is empty")
 
 		builder.errorMsg = "can not apply empty serviceAccount"
 
@@ -321,14 +321,14 @@ func (builder *Builder) WithVolume(deployVolume corev1.Volume) *Builder {
 	}
 
 	if deployVolume.Name == "" {
-		glog.V(100).Infof("The volume's name cannot be empty")
+		klog.V(100).Info("The volume's name cannot be empty")
 
 		builder.errorMsg = "The volume's name cannot be empty"
 
 		return builder
 	}
 
-	glog.V(100).Infof("Adding volume %s to deployment %s in namespace %s",
+	klog.V(100).Infof("Adding volume %s to deployment %s in namespace %s",
 		deployVolume.Name, builder.Definition.Name, builder.Definition.Namespace)
 
 	builder.Definition.Spec.Template.Spec.Volumes = append(
@@ -345,14 +345,14 @@ func (builder *Builder) WithSchedulerName(schedulerName string) *Builder {
 	}
 
 	if schedulerName == "" {
-		glog.V(100).Infof("Scheduler's name cannot be empty")
+		klog.V(100).Info("Scheduler's name cannot be empty")
 
 		builder.errorMsg = "Scheduler's name cannot be empty"
 
 		return builder
 	}
 
-	glog.V(100).Infof("Setting scheduler %s for deployment %s in namespace %s",
+	klog.V(100).Infof("Setting scheduler %s for deployment %s in namespace %s",
 		schedulerName, builder.Definition.Name, builder.Definition.Namespace)
 
 	builder.Definition.Spec.Template.Spec.SchedulerName = schedulerName
@@ -367,14 +367,14 @@ func (builder *Builder) WithAffinity(affinity *corev1.Affinity) *Builder {
 	}
 
 	if affinity == nil {
-		glog.V(100).Infof("The Affinity parameter is empty")
+		klog.V(100).Info("The Affinity parameter is empty")
 
 		builder.errorMsg = "affinity parameter is empty"
 
 		return builder
 	}
 
-	glog.V(100).Infof("Adding affinity to deployment %s in namespace %s",
+	klog.V(100).Infof("Adding affinity to deployment %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	builder.Definition.Spec.Template.Spec.Affinity = affinity
@@ -388,7 +388,7 @@ func (builder *Builder) WithHostNetwork(enableHostnetwork bool) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Setting hostnetwork %v to deployment %s in namespace %s",
+	klog.V(100).Infof("Setting hostnetwork %v to deployment %s in namespace %s",
 		enableHostnetwork, builder.Definition.Name, builder.Definition.Namespace)
 
 	builder.Definition.Spec.Template.Spec.HostNetwork = enableHostnetwork
@@ -402,13 +402,13 @@ func (builder *Builder) WithOptions(options ...AdditionalOptions) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Setting deployment additional options")
+	klog.V(100).Info("Setting deployment additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -426,7 +426,7 @@ func (builder *Builder) Create() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating deployment %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
+	klog.V(100).Infof("Creating deployment %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
 	if !builder.Exists() {
@@ -443,7 +443,7 @@ func (builder *Builder) Update() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating deployment %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
+	klog.V(100).Infof("Updating deployment %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
 
@@ -459,11 +459,11 @@ func (builder *Builder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting deployment %s in namespace %s",
+	klog.V(100).Infof("Deleting deployment %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("Deployment %s in namespace %s does not exist",
+		klog.V(100).Infof("Deployment %s in namespace %s does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -491,20 +491,20 @@ func (builder *Builder) DeleteGraceful(gracePeriod *int64) error {
 
 	switch {
 	case gracePeriod == nil:
-		glog.V(100).Infof("gracePeriod cannot be nil")
+		klog.V(100).Info("gracePeriod cannot be nil")
 
 		return fmt.Errorf("gracePeriod cannot be nil")
 	case *gracePeriod < int64(0):
-		glog.V(100).Infof("gracePeriod(%v) must be non-negative integer", gracePeriod)
+		klog.V(100).Infof("gracePeriod(%v) must be non-negative integer", gracePeriod)
 
 		return fmt.Errorf("gracePeriod must be non-negative integer")
 	}
 
-	glog.V(100).Infof("Deleting deployment %s in namespace %s with %v seconds grace period",
+	klog.V(100).Infof("Deleting deployment %s in namespace %s with %v seconds grace period",
 		builder.Definition.Name, builder.Definition.Namespace, *gracePeriod)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("Deployment %s in namespace %s does not exist",
+		klog.V(100).Infof("Deployment %s in namespace %s does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -529,11 +529,11 @@ func (builder *Builder) CreateAndWaitUntilReady(timeout time.Duration) (*Builder
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating deployment %s in namespace %s and waiting for the defined period until it is ready",
+	klog.V(100).Infof("Creating deployment %s in namespace %s and waiting for the defined period until it is ready",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if _, err := builder.Create(); err != nil {
-		glog.V(100).Infof("Failed to create deployment. Error is: '%s'", err.Error())
+		klog.V(100).Infof("Failed to create deployment. Error is: '%s'", err.Error())
 
 		return nil, err
 	}
@@ -553,7 +553,7 @@ func (builder *Builder) IsReady(timeout time.Duration) bool {
 		return false
 	}
 
-	glog.V(100).Infof("Running periodic check until deployment %s in namespace %s is ready",
+	klog.V(100).Infof("Running periodic check until deployment %s in namespace %s is ready",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
@@ -567,7 +567,7 @@ func (builder *Builder) IsReady(timeout time.Duration) bool {
 			builder.Object, err = builder.apiClient.Deployments(builder.Definition.Namespace).Get(
 				context.TODO(), builder.Definition.Name, metav1.GetOptions{})
 			if err != nil {
-				glog.V(100).Infof("Failed to get deployment from cluster. Error is: '%s'", err.Error())
+				klog.V(100).Infof("Failed to get deployment from cluster. Error is: '%s'", err.Error())
 
 				return false, err
 			}
@@ -588,7 +588,7 @@ func (builder *Builder) DeleteAndWait(timeout time.Duration) error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting deployment %s in namespace %s and waiting for the defined period until it is removed",
+	klog.V(100).Infof("Deleting deployment %s in namespace %s and waiting for the defined period until it is removed",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if err := builder.Delete(); err != nil {
@@ -614,7 +614,7 @@ func (builder *Builder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if deployment %s exists in namespace %s",
+	klog.V(100).Infof("Checking if deployment %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -632,7 +632,7 @@ func (builder *Builder) WaitUntilCondition(condition appsv1.DeploymentConditionT
 		return err
 	}
 
-	glog.V(100).Infof("Waiting for the defined period until deployment %s in namespace %s has condition %v",
+	klog.V(100).Infof("Waiting for the defined period until deployment %s in namespace %s has condition %v",
 		builder.Definition.Name, builder.Definition.Namespace, condition)
 
 	if !builder.Exists() {
@@ -663,7 +663,7 @@ func (builder *Builder) WaitUntilDeleted(timeout time.Duration) error {
 		return err
 	}
 
-	glog.V(100).Infof("Waiting for the defined period until deployment %s in namespace %s is deleted",
+	klog.V(100).Infof("Waiting for the defined period until deployment %s in namespace %s is deleted",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	return wait.PollUntilContextTimeout(
@@ -690,25 +690,25 @@ func (builder *Builder) validate() (bool, error) {
 	resourceCRD := "ClusterDeployment"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}
@@ -723,14 +723,14 @@ func (builder *Builder) WithToleration(toleration corev1.Toleration) *Builder {
 	}
 
 	if toleration == (corev1.Toleration{}) {
-		glog.V(100).Infof("The toleration cannot be empty")
+		klog.V(100).Info("The toleration cannot be empty")
 
 		builder.errorMsg = "The toleration cannot be empty"
 
 		return builder
 	}
 
-	glog.V(100).Infof("Adding TaintToleration %v to deployment %s in namespace %s",
+	klog.V(100).Infof("Adding TaintToleration %v to deployment %s in namespace %s",
 		toleration, builder.Definition.Name, builder.Definition.Namespace)
 
 	builder.Definition.Spec.Template.Spec.Tolerations = append(
@@ -746,7 +746,7 @@ func (builder *Builder) WithTerminationGracePeriodSeconds(terminationGracePeriod
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Applying terminationGracePeriodSeconds flag to the configuration of pod template of deployment: %s in namespace: %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 

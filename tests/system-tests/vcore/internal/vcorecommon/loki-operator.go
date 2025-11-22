@@ -5,6 +5,7 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 
 	lokiv1 "github.com/grafana/loki/operator/apis/loki/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clusterlogging"
@@ -20,7 +21,6 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/apiobjectshelper"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/vcore/internal/vcoreinittools"
@@ -96,7 +96,7 @@ func VerifyCLODeployment(ctx SpecContext) {
 
 // CreateObjectBucketClaim asserts the ObjectBucketClaim created.
 func CreateObjectBucketClaim(ctx SpecContext) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Create an objectBucketClaim for openshift-storage.noobaa.io")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Create an objectBucketClaim for openshift-storage.noobaa.io")
 
 	var err error
 
@@ -118,7 +118,7 @@ func CreateObjectBucketClaim(ctx SpecContext) {
 		fmt.Sprintf("failed to create objectBucketClaim %s in namespace %s due to %v",
 			vcoreparams.ObjectBucketClaimName, vcoreparams.CLONamespace, err))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Wait for the PVCs are created")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Wait for the PVCs are created")
 
 	err = await.WaitUntilPersistentVolumeClaimCreated(APIClient,
 		vcoreparams.ODFNamespace,
@@ -129,13 +129,13 @@ func CreateObjectBucketClaim(ctx SpecContext) {
 		"failed to create persistentVolumeClaims in namespace %s due to %v",
 		vcoreparams.ODFNamespace, err))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Verify storageClass %s created", vcoreparams.StorageClassName)
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify storageClass %s created", vcoreparams.StorageClassName)
 
 	_, err = storage.PullClass(APIClient, vcoreparams.StorageClassName)
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("storageClass %s not found; %v",
 		vcoreparams.StorageClassName, err))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Wait until configmap %s created", vcoreparams.ObjectBucketClaimName)
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Wait until configmap %s created", vcoreparams.ObjectBucketClaimName)
 
 	err = await.WaitUntilConfigMapCreated(APIClient,
 		vcoreparams.ObjectBucketClaimName,
@@ -149,7 +149,7 @@ func CreateObjectBucketClaim(ctx SpecContext) {
 //
 //nolint:funlen
 func CreateLokiStackInstance(ctx SpecContext) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Create a LokiStack instance")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Create a LokiStack instance")
 
 	time.Sleep(2 * time.Minute)
 
@@ -167,7 +167,7 @@ func CreateLokiStackInstance(ctx SpecContext) {
 				vcoreparams.LokiSecretName, vcoreparams.CLONamespace, err))
 	}
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Create loki secret %s in namespace %s",
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Create loki secret %s in namespace %s",
 		vcoreparams.LokiSecretName, vcoreparams.CLONamespace)
 
 	err = await.WaitUntilConfigMapCreated(APIClient,
@@ -215,7 +215,7 @@ func CreateLokiStackInstance(ctx SpecContext) {
 		fmt.Sprintf("Failed to create secret %s in namespace %s due to: %v",
 			vcoreparams.LokiSecretName, vcoreparams.CLONamespace, err))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Create a LokiStack instance %s in namespace %s",
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Create a LokiStack instance %s in namespace %s",
 		vcoreparams.LokiStackName, vcoreparams.CLONamespace)
 
 	lokiStackObj := clusterlogging.NewLokiStackBuilder(APIClient,
@@ -285,7 +285,7 @@ func CreateLokiStackInstance(ctx SpecContext) {
 
 // CreateClusterLogForwarderInstance asserts ClusterLogging instance can be created and running.
 func CreateClusterLogForwarderInstance(ctx SpecContext) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Verify clusterLogging instance %s is running in namespace %s",
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify clusterLogging instance %s is running in namespace %s",
 		vcoreparams.CLOInstanceName, vcoreparams.CLONamespace)
 
 	var err error
@@ -297,7 +297,7 @@ func CreateClusterLogForwarderInstance(ctx SpecContext) {
 		_ = clusterLoggingObj.Delete()
 	}
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Create new Cluster Logging instance %s in namespace %s",
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Create new Cluster Logging instance %s in namespace %s",
 		vcoreparams.CLOInstanceName, vcoreparams.CLONamespace)
 
 	//nolint:godox
@@ -331,9 +331,9 @@ func CreateClusterLogForwarderInstance(ctx SpecContext) {
 	// Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to create clusterLogging instance %s in namespace %s; %v",
 	//	vcoreparams.CLOInstanceName, vcoreparams.CLONamespace, err))
 
-	glog.V(90).Infof("Check clusterLogging instance deployment")
+	klog.V(90).Infof("Check clusterLogging instance deployment")
 
-	glog.V(90).Infof("Check %s deployment", vcoreparams.CLODeploymentName)
+	klog.V(90).Infof("Check %s deployment", vcoreparams.CLODeploymentName)
 
 	err = await.WaitUntilDeploymentReady(APIClient, vcoreparams.CLODeploymentName,
 		vcoreparams.CLONamespace, time.Minute)
@@ -356,7 +356,7 @@ func CreateClusterLogForwarderInstance(ctx SpecContext) {
 			"logging-loki-querier", "logging-loki-query-frontend"}
 
 		for _, deploymentName := range deploymentsList {
-			glog.V(90).Infof("Check %s deployment", deploymentName)
+			klog.V(90).Infof("Check %s deployment", deploymentName)
 
 			err = await.WaitUntilDeploymentReady(APIClient, deploymentName, vcoreparams.CLONamespace, time.Minute)
 			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Deployment %s in namespace %s failed due to %v",
@@ -373,7 +373,7 @@ func CreateClusterLogForwarderInstance(ctx SpecContext) {
 		}
 	}
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Enable logging-view-plugin")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Enable logging-view-plugin")
 
 	consoleoperatorObj, err := console.PullConsoleOperator(APIClient, "cluster")
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("consoleoperator is unavailable: %v", err))

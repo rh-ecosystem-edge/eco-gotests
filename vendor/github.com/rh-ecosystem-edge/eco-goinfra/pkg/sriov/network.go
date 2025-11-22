@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	srIovV1 "github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1"
@@ -40,14 +40,14 @@ type NetworkAdditionalOptions func(builder *NetworkBuilder) (*NetworkBuilder, er
 func NewNetworkBuilder(
 	apiClient *clients.Settings, name, nsname, targetNsname, resName string) *NetworkBuilder {
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(srIovV1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add sriovv1 scheme to client schemes")
+		klog.V(100).Info("Failed to add sriovv1 scheme to client schemes")
 
 		return nil
 	}
@@ -93,11 +93,11 @@ func (builder *NetworkBuilder) WithTargetNamespace(targetNsname string) *Network
 		return builder
 	}
 
-	glog.V(100).Infof("Adding targetNsname %s to SriovNetwork %s in namespace %s",
+	klog.V(100).Infof("Adding targetNsname %s to SriovNetwork %s in namespace %s",
 		targetNsname, builder.Definition.Name, builder.Definition.Namespace)
 
 	if targetNsname == "" {
-		glog.V(100).Infof("SrIovNetwork 'targetNsname' cannot be empty")
+		klog.V(100).Infof("SrIovNetwork 'targetNsname' cannot be empty")
 
 		builder.errorMsg = "SrIovNetwork 'targetNsname' cannot be empty"
 
@@ -132,7 +132,7 @@ func (builder *NetworkBuilder) WithVlanProto(vlanProtocol string) *NetworkBuilde
 		return builder
 	}
 
-	glog.V(100).Infof("Setting SriovNetwork vlanProtocol support for qinq")
+	klog.V(100).Info("Setting SriovNetwork vlanProtocol support for qinq")
 
 	allowedVlanProto := []string{"802.1q", "802.1Q", "802.1ad", "802.1AD"}
 	if !slices.Contains(allowedVlanProto, vlanProtocol) {
@@ -300,13 +300,13 @@ func (builder *NetworkBuilder) WithOptions(options ...NetworkAdditionalOptions) 
 		return builder
 	}
 
-	glog.V(100).Infof("Setting SriovNetwork additional options")
+	klog.V(100).Info("Setting SriovNetwork additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -320,17 +320,17 @@ func (builder *NetworkBuilder) WithOptions(options ...NetworkAdditionalOptions) 
 
 // PullNetwork pulls existing sriovnetwork from cluster.
 func PullNetwork(apiClient *clients.Settings, name, nsname string) (*NetworkBuilder, error) {
-	glog.V(100).Infof("Pulling existing sriovnetwork name %s under namespace %s from cluster", name, nsname)
+	klog.V(100).Infof("Pulling existing sriovnetwork name %s under namespace %s from cluster", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("sriovnetwork 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(srIovV1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add sriovv1 scheme to client schemes")
+		klog.V(100).Info("Failed to add sriovv1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -346,13 +346,13 @@ func PullNetwork(apiClient *clients.Settings, name, nsname string) (*NetworkBuil
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the sriovnetwork is empty")
+		klog.V(100).Info("The name of the sriovnetwork is empty")
 
 		return nil, fmt.Errorf("sriovnetwork 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the sriovnetwork is empty")
+		klog.V(100).Info("The namespace of the sriovnetwork is empty")
 
 		return nil, fmt.Errorf("sriovnetwork 'namespace' cannot be empty")
 	}
@@ -372,7 +372,7 @@ func (builder *NetworkBuilder) Get() (*srIovV1.SriovNetwork, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Collecting SriovNetwork object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -382,7 +382,7 @@ func (builder *NetworkBuilder) Get() (*srIovV1.SriovNetwork, error) {
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		network)
 	if err != nil {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"SriovNetwork object %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
@@ -401,7 +401,7 @@ func (builder *NetworkBuilder) Create() (*NetworkBuilder, error) {
 	if !builder.Exists() {
 		err := builder.apiClient.Create(context.TODO(), builder.Definition)
 		if err != nil {
-			glog.V(100).Infof("Failed to create SriovNetwork")
+			klog.V(100).Info("Failed to create SriovNetwork")
 
 			return nil, err
 		}
@@ -419,7 +419,7 @@ func (builder *NetworkBuilder) Delete() error {
 	}
 
 	if !builder.Exists() {
-		glog.V(100).Infof("SriovNetwork cannot be deleted because it does not exist")
+		klog.V(100).Info("SriovNetwork cannot be deleted because it does not exist")
 
 		builder.Object = nil
 
@@ -442,7 +442,7 @@ func (builder *NetworkBuilder) DeleteAndWait(timeout time.Duration) error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting SrIovNetwork %s in namespace %s and waiting for the defined period until it is removed",
+	klog.V(100).Infof("Deleting SrIovNetwork %s in namespace %s and waiting for the defined period until it is removed",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.Delete()
@@ -459,7 +459,7 @@ func (builder *NetworkBuilder) WaitUntilDeleted(timeout time.Duration) error {
 		return err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Waiting for the defined period until SrIovNetwork %s in namespace %s is deleted",
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -467,18 +467,18 @@ func (builder *NetworkBuilder) WaitUntilDeleted(timeout time.Duration) error {
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			_, err := builder.Get()
 			if err == nil {
-				glog.V(100).Infof("SrIovNetwork %s/%s still present", builder.Definition.Name, builder.Definition.Namespace)
+				klog.V(100).Infof("SrIovNetwork %s/%s still present", builder.Definition.Name, builder.Definition.Namespace)
 
 				return false, nil
 			}
 
 			if k8serrors.IsNotFound(err) {
-				glog.V(100).Infof("SrIovNetwork %s/%s is gone", builder.Definition.Name, builder.Definition.Namespace)
+				klog.V(100).Infof("SrIovNetwork %s/%s is gone", builder.Definition.Name, builder.Definition.Namespace)
 
 				return true, nil
 			}
 
-			glog.V(100).Infof("Failed to get SrIovNetwork %s/%s: %w", builder.Definition.Name, builder.Definition.Namespace, err)
+			klog.V(100).Infof("Failed to get SrIovNetwork %s/%s: %v", builder.Definition.Name, builder.Definition.Namespace, err)
 
 			return false, err
 		})
@@ -490,7 +490,7 @@ func (builder *NetworkBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Checking if SriovNetwork %s exists",
 		builder.Definition.Name)
 
@@ -507,7 +507,7 @@ func (builder *NetworkBuilder) Update(force bool) (*NetworkBuilder, error) {
 		return builder, nil
 	}
 
-	glog.V(100).Infof("Updating the SrIovNetwork object %s in namespace %s",
+	klog.V(100).Infof("Updating the SrIovNetwork object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace,
 	)
 
@@ -519,13 +519,11 @@ func (builder *NetworkBuilder) Update(force bool) (*NetworkBuilder, error) {
 	if err == nil {
 		builder.Object = builder.Definition
 	} else if force {
-		glog.V(100).Infof(
-			msg.FailToUpdateNotification("SrIovNetwork", builder.Definition.Name, builder.Definition.Namespace))
+		klog.V(100).Infof("%v", msg.FailToUpdateNotification("SrIovNetwork", builder.Definition.Name, builder.Definition.Namespace))
 
 		err = builder.Delete()
 		if err != nil {
-			glog.V(100).Infof(
-				msg.FailToUpdateError("SrIovNetwork", builder.Definition.Name, builder.Definition.Namespace))
+			klog.V(100).Infof("%v", msg.FailToUpdateError("SrIovNetwork", builder.Definition.Name, builder.Definition.Namespace))
 
 			return nil, err
 		}
@@ -565,7 +563,7 @@ func (builder *NetworkBuilder) withIpam(ipamType string) *NetworkBuilder {
 	}
 
 	if ipamType == "" {
-		glog.V(100).Infof("sriov network 'ipamType' parameter can not be empty")
+		klog.V(100).Info("sriov network 'ipamType' parameter can not be empty")
 
 		builder.errorMsg = "failed to configure IPAM, 'ipamType' parameter is empty"
 
@@ -583,25 +581,25 @@ func (builder *NetworkBuilder) validate() (bool, error) {
 	resourceCRD := "SriovNetwork"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

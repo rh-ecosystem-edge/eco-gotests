@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/hashicorp/go-version"
+	"k8s.io/klog/v2"
 
-	"github.com/golang/glog"
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/infrastructure"
@@ -18,7 +18,7 @@ import (
 
 // GetOCPVersion retrieves the OCP clusterversion object from an arbitrary cluster and get current ocp version value.
 func GetOCPVersion(apiClient *clients.Settings) (string, error) {
-	glog.V(90).Infof("Gathering OCP version from cluster at %s", apiClient.KubeconfigPath)
+	klog.V(90).Infof("Gathering OCP version from cluster at %s", apiClient.KubeconfigPath)
 
 	clusterVersionObj, err := cluster.GetOCPClusterVersion(apiClient)
 	if err != nil {
@@ -32,7 +32,7 @@ func GetOCPVersion(apiClient *clients.Settings) (string, error) {
 
 // GetOCPNetworkType retrieves the OCP cluster network from an arbitrary cluster and get ocp network type.
 func GetOCPNetworkType(apiClient *clients.Settings) (string, error) {
-	glog.V(90).Infof("Gathering OCP network type from cluster at %s", apiClient.KubeconfigPath)
+	klog.V(90).Infof("Gathering OCP network type from cluster at %s", apiClient.KubeconfigPath)
 
 	clusterNetworkConfigObj, err := cluster.GetOCPNetworkConfig(apiClient)
 	if err != nil {
@@ -46,7 +46,7 @@ func GetOCPNetworkType(apiClient *clients.Settings) (string, error) {
 
 // GetOCPClusterName retrieves the OCP cluster name from an arbitrary cluster.
 func GetOCPClusterName(apiClient *clients.Settings) (string, error) {
-	glog.V(100).Info("Gathering OCP cluster name from cluster at %s", apiClient.KubeconfigPath)
+	klog.V(100).Infof("Gathering OCP cluster name from cluster at %s", apiClient.KubeconfigPath)
 
 	infraConfig, err := infrastructure.Pull(apiClient)
 	if err != nil {
@@ -61,7 +61,7 @@ func GetOCPClusterName(apiClient *clients.Settings) (string, error) {
 
 // GetOCPPlatformType retrieves the OCP cluster platform type from an arbitrary cluster.
 func GetOCPPlatformType(apiClient *clients.Settings) (configv1.PlatformType, error) {
-	glog.V(100).Info("Gathering OCP cluster platform type from cluster at %s", apiClient.KubeconfigPath)
+	klog.V(100).Infof("Gathering OCP cluster platform type from cluster at %s", apiClient.KubeconfigPath)
 
 	infraConfig, err := infrastructure.Pull(apiClient)
 	if err != nil {
@@ -73,7 +73,7 @@ func GetOCPPlatformType(apiClient *clients.Settings) (configv1.PlatformType, err
 
 // GetOCPIngressDomain retrieves the OCP cluster ingress domain from an arbitrary cluster.
 func GetOCPIngressDomain(apiClient *clients.Settings) (string, error) {
-	glog.V(100).Info("Gathering OCP cluster ingress domain from cluster at %s", apiClient.KubeconfigPath)
+	klog.V(100).Infof("Gathering OCP cluster ingress domain from cluster at %s", apiClient.KubeconfigPath)
 
 	ingressController, err := ingress.Pull(apiClient, "default", "openshift-ingress-operator")
 	if err != nil {
@@ -95,7 +95,7 @@ func GetLocalMirrorRegistryURL(apiClient *clients.Settings) (string, error) {
 	}
 
 	for registryURL, auth := range mirrorRegistryMap {
-		glog.V(90).Infof("registry URL: %s, auth: %s", registryURL, auth)
+		klog.V(90).Infof("registry URL: %s, auth: %s", registryURL, auth)
 
 		return registryURL, nil
 	}
@@ -105,7 +105,7 @@ func GetLocalMirrorRegistryURL(apiClient *clients.Settings) (string, error) {
 
 // IsDisconnectedDeployment retrieve the OCP mirror registry url and verify if the deployment type is disconnected.
 func IsDisconnectedDeployment(apiClient *clients.Settings) (bool, error) {
-	glog.V(100).Info("Check if cluster deployment type is disconnected")
+	klog.V(100).Info("Check if cluster deployment type is disconnected")
 
 	connectedDeploymentPattern := "cloud.openshift.com"
 
@@ -115,7 +115,7 @@ func IsDisconnectedDeployment(apiClient *clients.Settings) (bool, error) {
 	}
 
 	for registryURL, auth := range mirrorRegistryMap {
-		glog.V(90).Infof("registry URL: %s, auth: %s", registryURL, auth)
+		klog.V(90).Infof("registry URL: %s, auth: %s", registryURL, auth)
 
 		if strings.Contains(registryURL, connectedDeploymentPattern) {
 			return false, nil
@@ -185,7 +185,7 @@ func CompareOCPVersionWithCurrent(apiClient *clients.Settings,
 		return false, err
 	}
 
-	glog.V(100).Infof("The apiClient is empty")
+	klog.V(100).Infof("The apiClient is empty")
 
 	currentVersion, err := version.NewVersion(currentOCPVersion)
 	if err != nil {

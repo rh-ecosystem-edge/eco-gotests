@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/klog/v2"
 )
 
 // GetPtpDaemonPodOnNode retrieves the PTP daemon pod running on the specified node. It returns an error if it cannot
@@ -101,7 +101,7 @@ func ExecuteCommandInPtpDaemonPod(
 		// the daemon pod lookup or not.
 		daemonPod, err := GetPtpDaemonPodOnNode(client, nodeName)
 		if err != nil {
-			glog.V(tsparams.LogLevel).Infof("Failed to get PTP daemon pod on node %s: %v", nodeName, err)
+			klog.V(tsparams.LogLevel).Infof("Failed to get PTP daemon pod on node %s: %v", nodeName, err)
 
 			continue
 		}
@@ -110,7 +110,7 @@ func ExecuteCommandInPtpDaemonPod(
 		// Otherwise, we return the error immediately since we do not retry on it.
 		output, err := daemonPod.ExecCommand([]string{"sh", "-c", command}, ranparam.PtpContainerName)
 		if execOptions.retryOnError && err != nil {
-			glog.V(tsparams.LogLevel).Infof("Failed to execute command %q in PTP daemon pod on node %s: %v",
+			klog.V(tsparams.LogLevel).Infof("Failed to execute command %q in PTP daemon pod on node %s: %v",
 				command, nodeName, err)
 
 			continue
@@ -121,7 +121,7 @@ func ExecuteCommandInPtpDaemonPod(
 		// Empty output is only considered an error if retrying on empty output, so there is no else if for this
 		// check.
 		if execOptions.retryOnEmptyOutput && output.Len() == 0 {
-			glog.V(tsparams.LogLevel).Infof("Failed to execute command %q in PTP daemon pod on node %s: no output returned",
+			klog.V(tsparams.LogLevel).Infof("Failed to execute command %q in PTP daemon pod on node %s: no output returned",
 				command, nodeName)
 
 			continue

@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	nfdv1 "github.com/openshift/cluster-nfd-operator/api/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/json"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -30,18 +30,18 @@ type Builder struct {
 
 // NewBuilderFromObjectString creates a Builder object from CSV alm-examples.
 func NewBuilderFromObjectString(apiClient *clients.Settings, almExample string) *Builder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new Builder structure from almExample string")
 
 	if apiClient == nil {
-		glog.V(100).Info("The apiClient of the Policy is nil")
+		klog.V(100).Info("The apiClient of the Policy is nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(nfdv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Info("Failed to add nfd v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add nfd v1 scheme to client schemes")
 
 		return nil
 	}
@@ -52,7 +52,7 @@ func NewBuilderFromObjectString(apiClient *clients.Settings, almExample string) 
 
 	nodeFeatureDiscovery, err := getNodeFeatureDiscoveryFromAlmExample(almExample)
 	if err != nil {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"Error initializing NodeFeatureDiscovery from alm-examples: %s", err.Error())
 
 		builder.errorMsg = fmt.Sprintf("error initializing NodeFeatureDiscovery from alm-examples: %s",
@@ -63,11 +63,11 @@ func NewBuilderFromObjectString(apiClient *clients.Settings, almExample string) 
 
 	builder.Definition = nodeFeatureDiscovery
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing Builder definition to NodeFeatureDiscovery object")
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The NodeFeatureDiscovery object definition is nil")
+		klog.V(100).Info("The NodeFeatureDiscovery object definition is nil")
 
 		builder.errorMsg = "nodeFeatureDiscovery definition is nil"
 
@@ -79,17 +79,17 @@ func NewBuilderFromObjectString(apiClient *clients.Settings, almExample string) 
 
 // Pull loads an existing NodeFeatureDiscovery into Builder struct.
 func Pull(apiClient *clients.Settings, name, namespace string) (*Builder, error) {
-	glog.V(100).Infof("Pulling existing nodeFeatureDiscovery name: %s in namespace: %s", name, namespace)
+	klog.V(100).Infof("Pulling existing nodeFeatureDiscovery name: %s in namespace: %s", name, namespace)
 
 	if apiClient == nil {
-		glog.V(100).Info("The apiClient of the Policy is nil")
+		klog.V(100).Info("The apiClient of the Policy is nil")
 
 		return nil, fmt.Errorf("the apiClient of the Policy is nil")
 	}
 
 	err := apiClient.AttachScheme(nfdv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Info("Failed to add nfd v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add nfd v1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -105,13 +105,13 @@ func Pull(apiClient *clients.Settings, name, namespace string) (*Builder, error)
 	}
 
 	if name == "" {
-		glog.V(100).Infof("NodeFeatureDiscovery name is empty")
+		klog.V(100).Info("NodeFeatureDiscovery name is empty")
 
 		return nil, fmt.Errorf("nodeFeatureDiscovery 'name' cannot be empty")
 	}
 
 	if namespace == "" {
-		glog.V(100).Infof("NodeFeatureDiscovery namespace is empty")
+		klog.V(100).Info("NodeFeatureDiscovery namespace is empty")
 
 		return nil, fmt.Errorf("nodeFeatureDiscovery 'namespace' cannot be empty")
 	}
@@ -131,7 +131,7 @@ func (builder *Builder) Get() (*nfdv1.NodeFeatureDiscovery, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Collecting NodeFeatureDiscovery object %s in namespace %s",
+	klog.V(100).Infof("Collecting NodeFeatureDiscovery object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	nodeFeatureDiscovery := &nfdv1.NodeFeatureDiscovery{}
@@ -141,7 +141,7 @@ func (builder *Builder) Get() (*nfdv1.NodeFeatureDiscovery, error) {
 		Namespace: builder.Definition.Namespace,
 	}, nodeFeatureDiscovery)
 	if err != nil {
-		glog.V(100).Infof("NodeFeatureDiscovery object %s does not exist in namespace %s",
+		klog.V(100).Infof("NodeFeatureDiscovery object %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		return nil, err
@@ -156,7 +156,7 @@ func (builder *Builder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Checking if NodeFeatureDiscovery %s exists in namespace %s", builder.Definition.Name,
 		builder.Definition.Namespace)
 
@@ -164,7 +164,7 @@ func (builder *Builder) Exists() bool {
 
 	builder.Object, err = builder.Get()
 	if err != nil {
-		glog.V(100).Infof("Failed to collect NodeFeatureDiscovery object due to %s", err.Error())
+		klog.V(100).Infof("Failed to collect NodeFeatureDiscovery object due to %s", err.Error())
 	}
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -176,11 +176,11 @@ func (builder *Builder) Delete() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting NodeFeatureDiscovery %s in namespace %s", builder.Definition.Name,
+	klog.V(100).Infof("Deleting NodeFeatureDiscovery %s in namespace %s", builder.Definition.Name,
 		builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("nodeFeatureDiscovery %s namespace %s cannot be deleted because it does not exist",
+		klog.V(100).Infof("nodeFeatureDiscovery %s namespace %s cannot be deleted because it does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -204,7 +204,7 @@ func (builder *Builder) Create() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the NodeFeatureDiscovery %s in namespace %s", builder.Definition.Name,
+	klog.V(100).Infof("Creating the NodeFeatureDiscovery %s in namespace %s", builder.Definition.Name,
 		builder.Definition.Namespace)
 
 	var err error
@@ -224,19 +224,17 @@ func (builder *Builder) Update(force bool) (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating the NodeFeatureDiscovery object named: %s in namespace: %s",
+	klog.V(100).Infof("Updating the NodeFeatureDiscovery object named: %s in namespace: %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		if force {
-			glog.V(100).Infof(
-				msg.FailToUpdateNotification("NodeFeatureDiscovery", builder.Definition.Name, builder.Definition.Namespace))
+			klog.V(100).Infof("%v", msg.FailToUpdateNotification("NodeFeatureDiscovery", builder.Definition.Name, builder.Definition.Namespace))
 
 			builder, err := builder.Delete()
 			if err != nil {
-				glog.V(100).Infof(
-					msg.FailToUpdateError("NodeFeatureDiscovery", builder.Definition.Name, builder.Definition.Namespace))
+				klog.V(100).Infof("%v", msg.FailToUpdateError("NodeFeatureDiscovery", builder.Definition.Name, builder.Definition.Namespace))
 
 				return nil, err
 			}
@@ -274,19 +272,19 @@ func (builder *Builder) validate() (bool, error) {
 	resourceCRD := "NodeFeatureDiscovery"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}

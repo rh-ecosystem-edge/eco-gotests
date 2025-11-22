@@ -10,9 +10,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/klog/v2"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	corev1 "k8s.io/api/core/v1"
@@ -42,7 +42,7 @@ func (builder *Builder) SetDrainHelper(
 	skipWaitForDeleteTimeoutSeconds int,
 	timeout time.Duration,
 ) {
-	glog.V(100).Infof("Creating new DrainOptions config")
+	klog.V(100).Info("Creating new DrainOptions config")
 
 	msg := fmt.Sprintf("Node draining configuration: 'force': %v,", force)
 	msg += fmt.Sprintf(" 'gracePeriod': %d seconds,", gracePeriod)
@@ -51,7 +51,7 @@ func (builder *Builder) SetDrainHelper(
 	msg += fmt.Sprintf(" 'timeout': %v,", timeout)
 	msg += fmt.Sprintf(" 'deleteEmptyDir': %v", deleteLocalData)
 
-	glog.V(100).Infof(msg)
+	klog.V(100).Infof("%v", msg)
 
 	builder.drainHelper = &drain.Helper{
 		Ctx:    context.TODO(),
@@ -81,7 +81,7 @@ func (builder *Builder) Drain() error {
 	}
 
 	builder.ensureDrainHelperIsSet()
-	glog.V(100).Infof("Draining node %s", builder.Definition.Name)
+	klog.V(100).Infof("Draining node %s", builder.Definition.Name)
 
 	return drain.RunNodeDrain(builder.drainHelper, builder.Definition.Name)
 }
@@ -93,7 +93,7 @@ func (builder *Builder) Cordon() error {
 	}
 
 	builder.ensureDrainHelperIsSet()
-	glog.V(100).Infof("Cordoning node %s", builder.Definition.Name)
+	klog.V(100).Infof("Cordoning node %s", builder.Definition.Name)
 
 	return drain.RunCordonOrUncordon(builder.drainHelper, builder.Definition, true)
 }
@@ -105,7 +105,7 @@ func (builder *Builder) Uncordon() error {
 	}
 
 	builder.ensureDrainHelperIsSet()
-	glog.V(100).Infof("Uncordoning node %s", builder.Definition.Name)
+	klog.V(100).Infof("Uncordoning node %s", builder.Definition.Name)
 
 	return drain.RunCordonOrUncordon(builder.drainHelper, builder.Definition, false)
 }
@@ -115,10 +115,10 @@ type AdditionalOptions func(builder *Builder) (*Builder, error)
 
 // Pull gathers existing node from cluster.
 func Pull(apiClient *clients.Settings, nodeName string) (*Builder, error) {
-	glog.V(100).Infof("Pulling existing node object: %s", nodeName)
+	klog.V(100).Infof("Pulling existing node object: %s", nodeName)
 
 	if apiClient == nil {
-		glog.V(100).Info("The node apiClient is nil")
+		klog.V(100).Info("The node apiClient is nil")
 
 		return nil, fmt.Errorf("node 'apiClient' cannot be nil")
 	}
@@ -133,7 +133,7 @@ func Pull(apiClient *clients.Settings, nodeName string) (*Builder, error) {
 	}
 
 	if nodeName == "" {
-		glog.V(100).Info("The name of the node is empty")
+		klog.V(100).Info("The name of the node is empty")
 
 		return nil, fmt.Errorf("node 'name' cannot be empty")
 	}
@@ -153,7 +153,7 @@ func (builder *Builder) Update() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating configuration of node %s", builder.Definition.Name)
+	klog.V(100).Infof("Updating configuration of node %s", builder.Definition.Name)
 
 	if !builder.Exists() {
 		return nil, fmt.Errorf("node %s object does not exist", builder.Definition.Name)
@@ -176,7 +176,7 @@ func (builder *Builder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if node %s exists", builder.Definition.Name)
+	klog.V(100).Infof("Checking if node %s exists", builder.Definition.Name)
 
 	var err error
 
@@ -192,10 +192,10 @@ func (builder *Builder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting the node %s", builder.Definition.Name)
+	klog.V(100).Infof("Deleting the node %s", builder.Definition.Name)
 
 	if !builder.Exists() {
-		glog.V(100).Info("Cannot delete node %s if it does not exist", builder.Definition.Name)
+		klog.V(100).Infof("Cannot delete node %s if it does not exist", builder.Definition.Name)
 
 		builder.Object = nil
 
@@ -221,10 +221,10 @@ func (builder *Builder) WithNewLabel(key, value string) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Adding label %s=%s to node %s ", key, value, builder.Definition.Name)
+	klog.V(100).Infof("Adding label %s=%s to node %s ", key, value, builder.Definition.Name)
 
 	if key == "" {
-		glog.V(100).Infof("Failed to apply label with an empty key to node %s", builder.Definition.Name)
+		klog.V(100).Infof("Failed to apply label with an empty key to node %s", builder.Definition.Name)
 		builder.errorMsg = "error to set empty key to node"
 
 		return builder
@@ -252,13 +252,13 @@ func (builder *Builder) WithOptions(options ...AdditionalOptions) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Setting node additional options")
+	klog.V(100).Info("Setting node additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -276,10 +276,10 @@ func (builder *Builder) RemoveLabel(key, value string) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Removing label %s=%s from node %s", key, value, builder.Definition.Name)
+	klog.V(100).Infof("Removing label %s=%s from node %s", key, value, builder.Definition.Name)
 
 	if key == "" {
-		glog.V(100).Infof("Failed to remove empty label's key from node %s", builder.Definition.Name)
+		klog.V(100).Infof("Failed to remove empty label's key from node %s", builder.Definition.Name)
 		builder.errorMsg = "error to remove empty key from node"
 
 		return builder
@@ -296,7 +296,7 @@ func (builder *Builder) ExternalIPv4Network() (string, error) {
 		return "", err
 	}
 
-	glog.V(100).Infof("Collecting node's external ipv4 addresses")
+	klog.V(100).Info("Collecting node's external ipv4 addresses")
 
 	if builder.Object == nil {
 		return "", fmt.Errorf("cannot collect external networks when node object is nil")
@@ -323,7 +323,7 @@ func (builder *Builder) ExternalIPv6Network() (string, error) {
 		return "", err
 	}
 
-	glog.V(100).Infof("Collecting node's external ipv6 addresses")
+	klog.V(100).Info("Collecting node's external ipv6 addresses")
 
 	if builder.Object == nil {
 		return "", fmt.Errorf("cannot collect external networks when node object is nil")
@@ -354,7 +354,7 @@ func (builder *Builder) IsReady() (bool, error) {
 		return false, err
 	}
 
-	glog.V(100).Infof("Verify %s node availability", builder.Definition.Name)
+	klog.V(100).Infof("Verify %s node availability", builder.Definition.Name)
 
 	if !builder.Exists() {
 		return false, fmt.Errorf("node object %s does not exist", builder.Definition.Name)
@@ -434,25 +434,25 @@ func (builder *Builder) validate() (bool, error) {
 	resourceCRD := "node"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}
@@ -463,7 +463,7 @@ func (builder *Builder) validate() (bool, error) {
 // ensureDrainHelperIsSet ensures that drainHelper is always set.
 func (builder *Builder) ensureDrainHelperIsSet() {
 	if builder.drainHelper == nil {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"DrainHelper is not initialized for node %s. Init DrainHelper with defaul parameters",
 			builder.Definition.Name)
 		builder.SetDrainHelper(true, true, true, 300, 180, 10*time.Minute)

@@ -3,15 +3,15 @@ package lca
 import (
 	"context"
 	"fmt"
+	"slices"
 	"time"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/utils/strings/slices"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/golang/glog"
 	lcav1 "github.com/openshift-kni/lifecycle-agent/api/imagebasedupgrade/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
@@ -49,13 +49,13 @@ func (builder *ImageBasedUpgradeBuilder) WithOptions(options ...AdditionalOption
 		return builder
 	}
 
-	glog.V(100).Infof("Setting imagebasedupgrade additional options")
+	klog.V(100).Info("Setting imagebasedupgrade additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -69,17 +69,17 @@ func (builder *ImageBasedUpgradeBuilder) WithOptions(options ...AdditionalOption
 
 // PullImageBasedUpgrade pulls existing imagebasedupgrade from cluster.
 func PullImageBasedUpgrade(apiClient *clients.Settings) (*ImageBasedUpgradeBuilder, error) {
-	glog.V(100).Infof("Pulling existing imagebasedupgrade name %s from cluster", ibuName)
+	klog.V(100).Infof("Pulling existing imagebasedupgrade name %s from cluster", ibuName)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil, fmt.Errorf("the apiClient is nil")
 	}
 
 	err := apiClient.AttachScheme(lcav1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add lsa v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add lsa v1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -109,11 +109,11 @@ func (builder *ImageBasedUpgradeBuilder) Update() (*ImageBasedUpgradeBuilder, er
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating imagebasedupgrade %s",
+	klog.V(100).Infof("Updating imagebasedupgrade %s",
 		builder.Definition.Name)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("imagebasedupgrade %s does not exist",
+		klog.V(100).Infof("imagebasedupgrade %s does not exist",
 			builder.Definition.Name)
 
 		return nil, fmt.Errorf("unable to update non-existing imagebasedupgrade")
@@ -124,7 +124,7 @@ func (builder *ImageBasedUpgradeBuilder) Update() (*ImageBasedUpgradeBuilder, er
 		// Wait for the IBU to reconcile after it is updated.
 		err = wait.PollUntilContextTimeout(
 			context.TODO(), time.Second*2, time.Second*10, true, func(ctx context.Context) (bool, error) {
-				glog.V(100).Infof("Waiting for imagebasedupgrade %s to finish reconciling",
+				klog.V(100).Infof("Waiting for imagebasedupgrade %s to finish reconciling",
 					builder.Definition.Name)
 
 				ibu, err := builder.Get()
@@ -156,11 +156,11 @@ func (builder *ImageBasedUpgradeBuilder) Delete() (*ImageBasedUpgradeBuilder, er
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting the imagebasedupgrade %s",
+	klog.V(100).Infof("Deleting the imagebasedupgrade %s",
 		builder.Definition.Name)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("imagebasedupgrade %s cannot be deleted because it does not exist",
+		klog.V(100).Infof("imagebasedupgrade %s cannot be deleted because it does not exist",
 			builder.Definition.Name)
 
 		builder.Object = nil
@@ -184,7 +184,7 @@ func (builder *ImageBasedUpgradeBuilder) Get() (*lcav1.ImageBasedUpgrade, error)
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting imagebasedupgrade %s",
+	klog.V(100).Infof("Getting imagebasedupgrade %s",
 		builder.Definition.Name)
 
 	imagebasedupgrade := &lcav1.ImageBasedUpgrade{}
@@ -205,7 +205,7 @@ func (builder *ImageBasedUpgradeBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if imagebasedupgrade %s",
+	klog.V(100).Infof("Checking if imagebasedupgrade %s",
 		builder.Definition.Name)
 
 	var err error
@@ -222,7 +222,7 @@ func (builder *ImageBasedUpgradeBuilder) WithSeedImage(
 		return builder
 	}
 
-	glog.V(100).Infof("Setting image %s in imagebasedupgrade", seedImage)
+	klog.V(100).Infof("Setting image %s in imagebasedupgrade", seedImage)
 
 	builder.Definition.Spec.SeedImageRef.Image = seedImage
 
@@ -237,7 +237,7 @@ func (builder *ImageBasedUpgradeBuilder) WithExtraManifests(
 		return builder
 	}
 
-	glog.V(100).Infof("Appending extraManifests's configmap name %s in namespace %s to the imagebasedupgrade",
+	klog.V(100).Infof("Appending extraManifests's configmap name %s in namespace %s to the imagebasedupgrade",
 		extraManifestsConfigMapName, extraManifestsConfigMapNamespace)
 
 	builder.Definition.Spec.ExtraManifests = append(builder.Definition.Spec.ExtraManifests,
@@ -254,7 +254,7 @@ func (builder *ImageBasedUpgradeBuilder) WithOadpContent(
 		return builder
 	}
 
-	glog.V(100).Infof("Appending oadpContent's configmap name %s in namespace %s to the imagebasedupgrade",
+	klog.V(100).Infof("Appending oadpContent's configmap name %s in namespace %s to the imagebasedupgrade",
 		oadpContentConfigMapName, oadpContentConfigMapNamespace)
 
 	builder.Definition.Spec.OADPContent = append(builder.Definition.Spec.OADPContent,
@@ -272,7 +272,7 @@ func (builder *ImageBasedUpgradeBuilder) AutoRollbackOnFailureInitMonitorTimeout
 		return builder
 	}
 
-	glog.V(100).Infof("Setting timeout for InitMonitor to %d seconds in imagebasedupgrade", seconds)
+	klog.V(100).Infof("Setting timeout for InitMonitor to %d seconds in imagebasedupgrade", seconds)
 
 	builder.Definition.Spec.AutoRollbackOnFailure.InitMonitorTimeoutSeconds = int(seconds)
 
@@ -286,7 +286,7 @@ func (builder *ImageBasedUpgradeBuilder) AutoRollbackOnFailureDisabledInitMonito
 		return builder
 	}
 
-	glog.V(100).Infof("Setting the Init Monitor for Auto Rollback on failure to Disabled in imagebasedupgrade")
+	klog.V(100).Info("Setting the Init Monitor for Auto Rollback on failure to Disabled in imagebasedupgrade")
 
 	if builder.Definition.Annotations == nil {
 		builder.Definition.Annotations = make(map[string]string)
@@ -304,7 +304,7 @@ func (builder *ImageBasedUpgradeBuilder) AutoRollbackOnFailureDisableForPostRebo
 		return builder
 	}
 
-	glog.V(100).Infof("Setting Auto Rollback on failure for post reboot to Disabled in imagebasedupgrade")
+	klog.V(100).Info("Setting Auto Rollback on failure for post reboot to Disabled in imagebasedupgrade")
 
 	if builder.Definition.Annotations == nil {
 		builder.Definition.Annotations = make(map[string]string)
@@ -322,7 +322,7 @@ func (builder *ImageBasedUpgradeBuilder) AutoRollbackOnFailureDisableForUpgradeC
 		return builder
 	}
 
-	glog.V(100).Infof("Setting Auto Rollback on failure for upgrade completion to Disabled in imagebasedupgrade")
+	klog.V(100).Info("Setting Auto Rollback on failure for upgrade completion to Disabled in imagebasedupgrade")
 
 	if builder.Definition.Annotations == nil {
 		builder.Definition.Annotations = make(map[string]string)
@@ -340,7 +340,7 @@ func (builder *ImageBasedUpgradeBuilder) WithSeedImageVersion(
 		return builder
 	}
 
-	glog.V(100).Infof("Setting seed image version %s in imagebasedupgrade", seedImageVersion)
+	klog.V(100).Infof("Setting seed image version %s in imagebasedupgrade", seedImageVersion)
 
 	builder.Definition.Spec.SeedImageRef.Version = seedImageVersion
 
@@ -355,7 +355,7 @@ func (builder *ImageBasedUpgradeBuilder) WithSeedImagePullSecretRef(
 		return builder
 	}
 
-	glog.V(100).Infof("Setting pull-secret %s in imagebasedupgrade for pulling the seed image", pullSecretName)
+	klog.V(100).Infof("Setting pull-secret %s in imagebasedupgrade for pulling the seed image", pullSecretName)
 
 	builder.Definition.Spec.SeedImageRef.PullSecretRef = &lcav1.PullSecretRef{Name: pullSecretName}
 
@@ -371,12 +371,12 @@ func (builder *ImageBasedUpgradeBuilder) WaitUntilStageComplete(stage string) (*
 		return builder, err
 	}
 
-	glog.V(100).Infof("Waiting for imagebasedupgrade %s to set stage %s",
+	klog.V(100).Infof("Waiting for imagebasedupgrade %s to set stage %s",
 		builder.Definition.Name,
 		stage)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("The imagebasedupgrade does not exist on the cluster")
+		klog.V(100).Info("The imagebasedupgrade does not exist on the cluster")
 
 		return builder, fmt.Errorf("%s", builder.errorMsg)
 	}
@@ -442,7 +442,7 @@ func (builder *ImageBasedUpgradeBuilder) WithStage(
 		return builder
 	}
 
-	glog.V(100).Infof("Setting stage %s in imagebasedupgrade", stage)
+	klog.V(100).Infof("Setting stage %s in imagebasedupgrade", stage)
 	builder.Definition.Spec.Stage = lcav1.ImageBasedUpgradeStage(stage)
 
 	return builder
@@ -454,25 +454,25 @@ func (builder *ImageBasedUpgradeBuilder) validate() (bool, error) {
 	resourceCRD := "ImageBasedUpgrade"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

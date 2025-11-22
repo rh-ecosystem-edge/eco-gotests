@@ -3,9 +3,9 @@ package sriov
 import (
 	"encoding/json"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -27,7 +27,7 @@ func ListNetworksByDeviceType(
 	sriovPolicies, err := sriov.ListPolicy(apiClient, operatornsname, options)
 
 	if err != nil {
-		glog.V(100).Infof("Failed to list sriov policies in namespace: %s", operatornsname)
+		klog.V(100).Infof("Failed to list sriov policies in namespace: %s", operatornsname)
 
 		return nil, err
 	}
@@ -35,7 +35,7 @@ func ListNetworksByDeviceType(
 	sriovNetworks, err := sriov.List(apiClient, operatornsname, options)
 
 	if err != nil {
-		glog.V(100).Infof("Failed to list sriov networks in namespace: %s", operatornsname)
+		klog.V(100).Infof("Failed to list sriov networks in namespace: %s", operatornsname)
 
 		return nil, err
 	}

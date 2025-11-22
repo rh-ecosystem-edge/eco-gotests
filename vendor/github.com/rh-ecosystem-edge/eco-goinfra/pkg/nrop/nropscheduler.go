@@ -6,11 +6,11 @@ import (
 
 	nropv1 "github.com/openshift-kni/numaresources-operator/api/v1"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -30,19 +30,19 @@ type SchedulerBuilder struct {
 // NewSchedulerBuilder creates a new instance of NUMAResourcesScheduler.
 func NewSchedulerBuilder(
 	apiClient *clients.Settings, name, nsname string) *SchedulerBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new NUMAResourcesScheduler structure with the following name: %s in namespace %s",
 		name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("NUMAResourcesScheduler 'apiClient' cannot be empty")
+		klog.V(100).Info("NUMAResourcesScheduler 'apiClient' cannot be empty")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(nropv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add nrop v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add nrop v1 scheme to client schemes")
 
 		return nil
 	}
@@ -58,7 +58,7 @@ func NewSchedulerBuilder(
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the NUMAResourcesScheduler is empty")
+		klog.V(100).Info("The name of the NUMAResourcesScheduler is empty")
 
 		builder.errorMsg = "NUMAResourcesScheduler 'name' cannot be empty"
 
@@ -66,7 +66,7 @@ func NewSchedulerBuilder(
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The nsname of the NUMAResourcesScheduler is empty")
+		klog.V(100).Info("The nsname of the NUMAResourcesScheduler is empty")
 
 		builder.errorMsg = "NUMAResourcesScheduler 'nsname' cannot be empty"
 
@@ -78,18 +78,18 @@ func NewSchedulerBuilder(
 
 // PullScheduler pulls existing NUMAResourcesScheduler from cluster.
 func PullScheduler(apiClient *clients.Settings, name, nsname string) (*SchedulerBuilder, error) {
-	glog.V(100).Infof("Pulling existing NUMAResourcesScheduler %s in namespace %s from the cluster",
+	klog.V(100).Infof("Pulling existing NUMAResourcesScheduler %s in namespace %s from the cluster",
 		name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("NUMAResourcesScheduler 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(nropv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add nrop v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add nrop v1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -105,13 +105,13 @@ func PullScheduler(apiClient *clients.Settings, name, nsname string) (*Scheduler
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the NUMAResourcesScheduler is empty")
+		klog.V(100).Info("The name of the NUMAResourcesScheduler is empty")
 
 		return nil, fmt.Errorf("NUMAResourcesScheduler 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The nsname of the NUMAResourcesScheduler is empty")
+		klog.V(100).Info("The nsname of the NUMAResourcesScheduler is empty")
 
 		return nil, fmt.Errorf("NUMAResourcesScheduler 'nsname' cannot be empty")
 	}
@@ -131,7 +131,7 @@ func (builder *SchedulerBuilder) Get() (*nropv1.NUMAResourcesScheduler, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting NUMAResourcesScheduler %s in namespace %s",
+	klog.V(100).Infof("Getting NUMAResourcesScheduler %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	nrosObj := &nropv1.NUMAResourcesScheduler{}
@@ -141,7 +141,7 @@ func (builder *SchedulerBuilder) Get() (*nropv1.NUMAResourcesScheduler, error) {
 		Namespace: builder.Definition.Namespace,
 	}, nrosObj)
 	if err != nil {
-		glog.V(100).Infof("NUMAResourcesScheduler object %s not found in namespace %s: %v",
+		klog.V(100).Infof("NUMAResourcesScheduler object %s not found in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
 
 		return nil, err
@@ -156,7 +156,7 @@ func (builder *SchedulerBuilder) Create() (*SchedulerBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the NUMAResourcesScheduler %s in namespace %s",
+	klog.V(100).Infof("Creating the NUMAResourcesScheduler %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -176,11 +176,11 @@ func (builder *SchedulerBuilder) Delete() (*SchedulerBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting the NUMAResourcesScheduler %s from namespace %s",
+	klog.V(100).Infof("Deleting the NUMAResourcesScheduler %s from namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("NUMAResourcesScheduler %s cannot be deleted because "+
+		klog.V(100).Infof("NUMAResourcesScheduler %s cannot be deleted because "+
 			"it does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
@@ -206,7 +206,7 @@ func (builder *SchedulerBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if NUMAResourcesScheduler %s exists in namespace %s",
+	klog.V(100).Infof("Checking if NUMAResourcesScheduler %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -222,13 +222,12 @@ func (builder *SchedulerBuilder) Update() (*SchedulerBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating NUMAResourcesScheduler %s in namespace %s",
+	klog.V(100).Infof("Updating NUMAResourcesScheduler %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
-		glog.V(100).Infof(
-			msg.FailToUpdateError("NUMAResourcesScheduler", builder.Definition.Name))
+		klog.V(100).Infof("%v", msg.FailToUpdateError("NUMAResourcesScheduler", builder.Definition.Name))
 
 		return nil, err
 	}
@@ -240,7 +239,7 @@ func (builder *SchedulerBuilder) Update() (*SchedulerBuilder, error) {
 
 // WithImageSpec sets the NUMAResourcesScheduler operator's imageSpec.
 func (builder *SchedulerBuilder) WithImageSpec(imageSpec string) *SchedulerBuilder {
-	glog.V(100).Infof("Adding imageSpec to the NUMAResourcesScheduler %s in namespace %s; imageSpec: %s",
+	klog.V(100).Infof("Adding imageSpec to the NUMAResourcesScheduler %s in namespace %s; imageSpec: %s",
 		builder.Definition.Name, builder.Definition.Namespace, imageSpec)
 
 	if valid, _ := builder.validate(); !valid {
@@ -248,7 +247,7 @@ func (builder *SchedulerBuilder) WithImageSpec(imageSpec string) *SchedulerBuild
 	}
 
 	if imageSpec == "" {
-		glog.V(100).Infof("The 'NUMAResourcesScheduler' imageSpec cannot be empty")
+		klog.V(100).Info("The 'NUMAResourcesScheduler' imageSpec cannot be empty")
 
 		builder.errorMsg = "can not apply a NUMAResourcesScheduler with an empty imageSpec"
 
@@ -262,7 +261,7 @@ func (builder *SchedulerBuilder) WithImageSpec(imageSpec string) *SchedulerBuild
 
 // WithSchedulerName sets the NUMAResourcesScheduler operator's schedulerName.
 func (builder *SchedulerBuilder) WithSchedulerName(schedulerName string) *SchedulerBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Adding schedulerName to the NUMAResourcesScheduler %s in namespace %s; schedulerName: %s",
 		builder.Definition.Name, builder.Definition.Namespace, schedulerName)
 
@@ -271,7 +270,7 @@ func (builder *SchedulerBuilder) WithSchedulerName(schedulerName string) *Schedu
 	}
 
 	if schedulerName == "" {
-		glog.V(100).Infof("The 'NUMAResourcesScheduler' schedulerName cannot be empty")
+		klog.V(100).Info("The 'NUMAResourcesScheduler' schedulerName cannot be empty")
 
 		builder.errorMsg = "can not apply a NUMAResourcesScheduler with an empty schedulerName"
 
@@ -289,25 +288,25 @@ func (builder *SchedulerBuilder) validate() (bool, error) {
 	resourceCRD := "NUMAResourcesScheduler"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

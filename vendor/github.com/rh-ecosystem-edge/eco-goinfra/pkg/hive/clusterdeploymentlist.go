@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	hiveV1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/hive/api/v1"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -18,20 +18,20 @@ func ListClusterDeploymentsInAllNamespaces(
 	logMessage := "Listing all clusterdeployments"
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil, fmt.Errorf("the apiClient cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(hiveV1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add hive v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add hive v1 scheme to client schemes")
 
 		return nil, err
 	}
 
 	if len(options) > 1 {
-		glog.V(100).Infof("'options' parameter must be empty or single-valued")
+		klog.V(100).Info("'options' parameter must be empty or single-valued")
 
 		return nil, fmt.Errorf("error: more than one ListOptions was passed")
 	}
@@ -41,13 +41,13 @@ func ListClusterDeploymentsInAllNamespaces(
 		logMessage += fmt.Sprintf(" with the options %v", passedOptions)
 	}
 
-	glog.V(100).Infof(logMessage)
+	klog.V(100).Infof("%v", logMessage)
 
 	clusterDeployments := new(hiveV1.ClusterDeploymentList)
 
 	err = apiClient.List(context.TODO(), clusterDeployments, &passedOptions)
 	if err != nil {
-		glog.V(100).Infof("Failed to list all clusterDeployments due to %s", err.Error())
+		klog.V(100).Infof("Failed to list all clusterDeployments due to %s", err.Error())
 
 		return nil, err
 	}

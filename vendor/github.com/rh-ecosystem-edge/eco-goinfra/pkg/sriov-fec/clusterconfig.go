@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	sriovfectypes "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/fec/fectypes"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/klog/v2"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -35,19 +35,19 @@ type ClusterAdditionalOptions func(builder *ClusterConfigBuilder) (*ClusterConfi
 func NewClusterConfigBuilder(
 	apiClient *clients.Settings,
 	name, nsname string) *ClusterConfigBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new SriovFecClusterConfig structure with the following params: %s, %s",
 		name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("SriovFecClusterConfig 'apiClient' cannot be nil")
+		klog.V(100).Info("SriovFecClusterConfig 'apiClient' cannot be nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(sriovfectypes.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add sriov-fec scheme to client schemes")
+		klog.V(100).Info("Failed to add sriov-fec scheme to client schemes")
 
 		return nil
 	}
@@ -63,7 +63,7 @@ func NewClusterConfigBuilder(
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the SriovFecClusterConfig is empty")
+		klog.V(100).Info("The name of the SriovFecClusterConfig is empty")
 
 		builder.errorMsg = "SriovFecClusterConfig 'name' cannot be empty"
 
@@ -71,7 +71,7 @@ func NewClusterConfigBuilder(
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the SriovFecClusterConfig is empty")
+		klog.V(100).Info("The namespace of the SriovFecClusterConfig is empty")
 
 		builder.errorMsg = "SriovFecClusterConfig 'nsname' cannot be empty"
 
@@ -83,18 +83,18 @@ func NewClusterConfigBuilder(
 
 // PullClusterConfig retrieves an existing SriovFecClusterConfig.io object from the cluster.
 func PullClusterConfig(apiClient *clients.Settings, name, nsname string) (*ClusterConfigBuilder, error) {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Pulling SriovFecClusterConfig.io object name: %s in namespace: %s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("SriovFecClusterConfig 'apiClient' cannot be nil")
+		klog.V(100).Info("SriovFecClusterConfig 'apiClient' cannot be nil")
 
 		return nil, fmt.Errorf("SriovFecClusterConfig 'apiClient' cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(sriovfectypes.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add sriov-fec scheme to client schemes")
+		klog.V(100).Info("Failed to add sriov-fec scheme to client schemes")
 
 		return nil, err
 	}
@@ -110,19 +110,19 @@ func PullClusterConfig(apiClient *clients.Settings, name, nsname string) (*Clust
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the SriovFecClusterConfig is empty")
+		klog.V(100).Info("The name of the SriovFecClusterConfig is empty")
 
 		return nil, fmt.Errorf("SriovFecClusterConfig 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the SriovFecClusterConfig is empty")
+		klog.V(100).Info("The namespace of the SriovFecClusterConfig is empty")
 
 		return nil, fmt.Errorf("SriovFecClusterConfig 'nsname' cannot be empty")
 	}
 
 	if !builder.Exists() {
-		glog.V(100).Infof("Cannot pull non-existent SriovFecClusterConfig object %s in namespace %s", name, nsname)
+		klog.V(100).Infof("Cannot pull non-existent SriovFecClusterConfig object %s in namespace %s", name, nsname)
 
 		return nil, fmt.Errorf("SriovFecClusterConfig object %s does not exist in namespace %s", name, nsname)
 	}
@@ -138,7 +138,7 @@ func (builder *ClusterConfigBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Checking if SriovFecClusterConfig %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -146,7 +146,7 @@ func (builder *ClusterConfigBuilder) Exists() bool {
 
 	builder.Object, err = builder.Get()
 	if err != nil {
-		glog.V(100).Infof("Failed to collect SriovFecClusterConfig object due to %s", err.Error())
+		klog.V(100).Infof("Failed to collect SriovFecClusterConfig object due to %s", err.Error())
 	}
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -158,7 +158,7 @@ func (builder *ClusterConfigBuilder) Create() (*ClusterConfigBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the SriovFecClusterConfig %s in namespace %s",
+	klog.V(100).Infof("Creating the SriovFecClusterConfig %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace,
 	)
 
@@ -179,7 +179,7 @@ func (builder *ClusterConfigBuilder) Get() (*sriovfectypes.SriovFecClusterConfig
 		return nil, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Collecting SriovFecClusterConfig object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -190,7 +190,7 @@ func (builder *ClusterConfigBuilder) Get() (*sriovfectypes.SriovFecClusterConfig
 		Namespace: builder.Definition.Namespace,
 	}, clusterConfig)
 	if err != nil {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"SriovFecClusterConfig object %s does not exist in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
 
@@ -206,12 +206,12 @@ func (builder *ClusterConfigBuilder) Delete() (*ClusterConfigBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting the SriovFecClusterConfig object %s in namespace %s",
+	klog.V(100).Infof("Deleting the SriovFecClusterConfig object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace,
 	)
 
 	if !builder.Exists() {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"SriovFecClusterConfig %s in namespace %s cannot be deleted because it does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
@@ -236,11 +236,11 @@ func (builder *ClusterConfigBuilder) Update(force bool) (*ClusterConfigBuilder, 
 		return builder, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Updating the SriovFecClusterConfig object %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"SriovFecClusterConfig %s in namespace %s does not exist", builder.Definition.Name, builder.Definition.Namespace)
 
 		return nil, fmt.Errorf("cannot update non-existent SriovFecClusterConfig")
@@ -251,15 +251,13 @@ func (builder *ClusterConfigBuilder) Update(force bool) (*ClusterConfigBuilder, 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		if force {
-			glog.V(100).Infof(
-				msg.FailToUpdateNotification("SriovFecClusterConfig", builder.Definition.Name, builder.Definition.Namespace))
+			klog.V(100).Infof("%v", msg.FailToUpdateNotification("SriovFecClusterConfig", builder.Definition.Name, builder.Definition.Namespace))
 
 			builder, err := builder.Delete()
 			builder.Definition.ResourceVersion = ""
 
 			if err != nil {
-				glog.V(100).Infof(
-					msg.FailToUpdateError("SriovFecClusterConfig", builder.Definition.Name, builder.Definition.Namespace))
+				klog.V(100).Infof("%v", msg.FailToUpdateError("SriovFecClusterConfig", builder.Definition.Name, builder.Definition.Namespace))
 
 				return nil, err
 			}
@@ -279,13 +277,13 @@ func (builder *ClusterConfigBuilder) WithOptions(options ...ClusterAdditionalOpt
 		return builder
 	}
 
-	glog.V(100).Infof("Setting SriovFecClusterConfig additional options")
+	klog.V(100).Info("Setting SriovFecClusterConfig additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -310,25 +308,25 @@ func (builder *ClusterConfigBuilder) validate() (bool, error) {
 	resourceCRD := "SriovFecClusterConfig"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

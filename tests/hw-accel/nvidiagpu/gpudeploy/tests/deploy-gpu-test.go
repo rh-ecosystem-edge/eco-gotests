@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/configmap"
@@ -32,6 +31,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nvidiagpu/internal/wait"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 )
@@ -90,28 +90,28 @@ var _ = Describe("GPU", Ordered, Label(tsparams.LabelSuite), func() {
 
 		BeforeAll(func() {
 			if nvidiaGPUConfig.GPUBurnImage == "" {
-				glog.V(gpuparams.GpuLogLevel).Infof("env variable ECO_HWACCEL_NVIDIAGPU_GPUBURN_IMAGE" +
+				klog.V(gpuparams.GpuLogLevel).Infof("env variable ECO_HWACCEL_NVIDIAGPU_GPUBURN_IMAGE" +
 					" is not set, skipping test")
 				Skip("No GPU Burn image found in environment variables, Skipping test")
 			} else {
 				gpuBurnImageName = nvidiaGPUConfig.GPUBurnImage
-				glog.V(gpuparams.GpuLogLevel).Infof("GPU burn image is now set to env variable "+
+				klog.V(gpuparams.GpuLogLevel).Infof("GPU burn image is now set to env variable "+
 					"ECO_HWACCEL_NVIDIAGPU_GPUBURN_IMAGE value '%s'", gpuBurnImageName)
 			}
 
 			if nvidiaGPUConfig.InstanceType == "" {
-				glog.V(gpuparams.GpuLogLevel).Infof("env variable ECO_HWACCEL_NVIDIAGPU_INSTANCE_TYPE" +
+				klog.V(gpuparams.GpuLogLevel).Infof("env variable ECO_HWACCEL_NVIDIAGPU_INSTANCE_TYPE" +
 					" is not set, skipping test")
 				Skip("No instanceType found in environment variables, Skipping test")
 			}
 
 			if nvidiaGPUConfig.CatalogSource == "" {
-				glog.V(gpuparams.GpuLogLevel).Infof("env variable ECO_HWACCEL_NVIDIAGPU_CATALOGSOURCE"+
+				klog.V(gpuparams.GpuLogLevel).Infof("env variable ECO_HWACCEL_NVIDIAGPU_CATALOGSOURCE"+
 					" is not set, using default GPU catalogsource '%s'", gpuCatalogSourceDefault)
 				gpuCatalogSource = gpuCatalogSourceDefault
 			} else {
 				gpuCatalogSource = nvidiaGPUConfig.CatalogSource
-				glog.V(gpuparams.GpuLogLevel).Infof("GPU catalogsource now set to env variable "+
+				klog.V(gpuparams.GpuLogLevel).Infof("GPU catalogsource now set to env variable "+
 					"ECO_HWACCEL_NVIDIAGPU_CATALOGSOURCE value '%s'", gpuCatalogSource)
 			}
 
@@ -119,12 +119,12 @@ var _ = Describe("GPU", Ordered, Label(tsparams.LabelSuite), func() {
 			nfdInstalled, err := check.NFDDeploymentsReady(APIClient)
 
 			if nfdInstalled && err == nil {
-				glog.V(gpuparams.GpuLogLevel).Infof("The check for ready NFD deployments is: %v", nfdInstalled)
-				glog.V(gpuparams.GpuLogLevel).Infof("NFD operators and operands are already installed on " +
+				klog.V(gpuparams.GpuLogLevel).Infof("The check for ready NFD deployments is: %v", nfdInstalled)
+				klog.V(gpuparams.GpuLogLevel).Infof("NFD operators and operands are already installed on " +
 					"this cluster")
 			} else {
-				glog.V(gpuparams.GpuLogLevel).Infof("NFD is not currently installed on this cluster")
-				glog.V(gpuparams.GpuLogLevel).Infof("Deploying NFD Operator and CR instance on this cluster")
+				klog.V(gpuparams.GpuLogLevel).Infof("NFD is not currently installed on this cluster")
+				klog.V(gpuparams.GpuLogLevel).Infof("Deploying NFD Operator and CR instance on this cluster")
 
 				nfdCleanupAfterInstall = true
 
@@ -138,11 +138,11 @@ var _ = Describe("GPU", Ordered, Label(tsparams.LabelSuite), func() {
 					Skip("NFD packagemanifest not found in catalogsource")
 				}
 
-				glog.V(gpuparams.GpuLogLevel).Infof("The nfd packagemanifest name returned: %s",
+				klog.V(gpuparams.GpuLogLevel).Infof("The nfd packagemanifest name returned: %s",
 					nfdPkgManifestBuilderByCatalog.Object.Name)
 
 				nfdChannel := nfdPkgManifestBuilderByCatalog.Object.Status.DefaultChannel
-				glog.V(gpuparams.GpuLogLevel).Infof("The NFD channel retrieved from packagemanifest is:  %v",
+				klog.V(gpuparams.GpuLogLevel).Infof("The NFD channel retrieved from packagemanifest is:  %v",
 					nfdChannel)
 
 				By("Deploy NFD Operator in NFD namespace")
@@ -158,7 +158,7 @@ var _ = Describe("GPU", Ordered, Label(tsparams.LabelSuite), func() {
 				Expect(err).ToNot(HaveOccurred(), "error creating NFD Subscription:  %v", err)
 
 				By("Sleep for 2 minutes to allow the NFD Operator deployment to be created")
-				glog.V(gpuparams.GpuLogLevel).Infof("Sleep for 2 minutes to allow the NFD Operator deployment" +
+				klog.V(gpuparams.GpuLogLevel).Infof("Sleep for 2 minutes to allow the NFD Operator deployment" +
 					" to be created")
 				time.Sleep(2 * time.Minute)
 
@@ -222,18 +222,18 @@ var _ = Describe("GPU", Ordered, Label(tsparams.LabelSuite), func() {
 				Expect(err).ToNot(HaveOccurred(), "error calling check.NodeLabel:  %v ", err)
 				Expect(nfdLabelDetected).NotTo(BeFalse(), "NFD node label check failed to match "+
 					"label %s and label value %s on all nodes", nfdRhcosLabel, nfdRhcosLabelValue)
-				glog.V(gpuparams.GpuLogLevel).Infof("The check for NFD label returned: %v", nfdLabelDetected)
+				klog.V(gpuparams.GpuLogLevel).Infof("The check for NFD label returned: %v", nfdLabelDetected)
 
 				isNfdInstalled, err := check.NFDDeploymentsReady(APIClient)
 				Expect(err).ToNot(HaveOccurred(), "error checking if NFD deployments are ready:  "+
 					"%v ", err)
-				glog.V(gpuparams.GpuLogLevel).Infof("The check for NFD deployments ready returned: %v",
+				klog.V(gpuparams.GpuLogLevel).Infof("The check for NFD deployments ready returned: %v",
 					isNfdInstalled)
 
 				By("Check if at least one worker node is GPU enabled")
 				gpuNodeFound, _ := check.NodeWithLabel(APIClient, nvidiaGPULabel, GeneralConfig.WorkerLabelMap)
 
-				glog.V(gpuparams.GpuLogLevel).Infof("The check for Nvidia GPU label returned: %v", gpuNodeFound)
+				klog.V(gpuparams.GpuLogLevel).Infof("The check for Nvidia GPU label returned: %v", gpuNodeFound)
 
 				if !gpuNodeFound {
 					By("Expand the cluster using instanceType from the env variable " +
@@ -241,7 +241,7 @@ var _ = Describe("GPU", Ordered, Label(tsparams.LabelSuite), func() {
 
 					var instanceType = nvidiaGPUConfig.InstanceType
 
-					glog.V(gpuparams.GpuLogLevel).Infof(
+					klog.V(gpuparams.GpuLogLevel).Infof(
 						"Initializing new MachineSetBuilder structure with the following params: %s, %s, %v",
 						machineSetNamespace, instanceType, replicas)
 
@@ -250,11 +250,11 @@ var _ = Describe("GPU", Ordered, Label(tsparams.LabelSuite), func() {
 					Expect(gpuMsBuilder).NotTo(BeNil(), "Failed to Initialize MachineSetBuilder"+
 						" from copy")
 
-					glog.V(gpuparams.GpuLogLevel).Infof(
+					klog.V(gpuparams.GpuLogLevel).Infof(
 						"Successfully Initialized new MachineSetBuilder from copy with name: %s",
 						gpuMsBuilder.Definition.Name)
 
-					glog.V(gpuparams.GpuLogLevel).Infof(
+					klog.V(gpuparams.GpuLogLevel).Infof(
 						"Creating MachineSet named: %s", gpuMsBuilder.Definition.Name)
 
 					By("Create the new GPU enabled MachineSet")
@@ -270,11 +270,11 @@ var _ = Describe("GPU", Ordered, Label(tsparams.LabelSuite), func() {
 					Expect(err).ToNot(HaveOccurred(), "error pulling GPU enabled machineset:"+
 						"  %v", err)
 
-					glog.V(gpuparams.GpuLogLevel).Infof("Successfully pulled GPU enabled machineset %s",
+					klog.V(gpuparams.GpuLogLevel).Infof("Successfully pulled GPU enabled machineset %s",
 						pulledMachineSetBuilder.Object.Name)
 
 					By("Wait on machineset to be ready")
-					glog.V(gpuparams.GpuLogLevel).Infof("Just before waiting for GPU enabled machineset %s "+
+					klog.V(gpuparams.GpuLogLevel).Infof("Just before waiting for GPU enabled machineset %s "+
 						"to be in Ready state", createdMsBuilder.Definition.ObjectMeta.Name)
 
 					err = machine.WaitForMachineSetReady(APIClient, createdMsBuilder.Definition.ObjectMeta.Name,
@@ -293,48 +293,48 @@ var _ = Describe("GPU", Ordered, Label(tsparams.LabelSuite), func() {
 				}
 
 				By("Sleep for 2 minutes to allow GPU worker node to be labeled by NFD")
-				glog.V(gpuparams.GpuLogLevel).Infof("Sleep for 2 minutes to allow the GPU worker nodes" +
+				klog.V(gpuparams.GpuLogLevel).Infof("Sleep for 2 minutes to allow the GPU worker nodes" +
 					" to be labeled by NFD")
 				time.Sleep(2 * time.Minute)
 
 				By("Get Cluster Architecture from first GPU enabled worker node")
-				glog.V(gpuparams.GpuLogLevel).Infof("Getting cluster architecture from nodes with "+
+				klog.V(gpuparams.GpuLogLevel).Infof("Getting cluster architecture from nodes with "+
 					"gpuWorkerNodeSelector: %v", gpuWorkerNodeSelector)
 				clusterArch, err := get.GetClusterArchitecture(APIClient, gpuWorkerNodeSelector)
 				Expect(err).ToNot(HaveOccurred(), "error getting cluster architecture:  %v ", err)
-				glog.V(gpuparams.GpuLogLevel).Infof("cluster architecture for GPU enabled worker node is: %s",
+				klog.V(gpuparams.GpuLogLevel).Infof("cluster architecture for GPU enabled worker node is: %s",
 					clusterArch)
 
 				By("Check if 'gpu-operator-certified' packagemanifest exists in GPU catalog")
-				glog.V(gpuparams.GpuLogLevel).Infof("Using GPU catalogsource '%s'", gpuCatalogSource)
+				klog.V(gpuparams.GpuLogLevel).Infof("Using GPU catalogsource '%s'", gpuCatalogSource)
 
 				gpuPkgManifestBuilderByCatalog, err := olm.PullPackageManifestByCatalog(APIClient,
 					gpuPackage, gpuCatalogSourceNamespace, gpuCatalogSource)
 				Expect(err).ToNot(HaveOccurred(), "error getting GPU packagemanifest %s from catalog %s:"+
 					"  %v", gpuPackage, gpuCatalogSource, err)
 
-				glog.V(gpuparams.GpuLogLevel).Infof("The gpu packagemanifest name returned: %s",
+				klog.V(gpuparams.GpuLogLevel).Infof("The gpu packagemanifest name returned: %s",
 					gpuPkgManifestBuilderByCatalog.Object.Name)
 
 				gpuChannel := gpuPkgManifestBuilderByCatalog.Object.Status.DefaultChannel
-				glog.V(gpuparams.GpuLogLevel).Infof("The gpu channel retrieved from packagemanifest is:  %v",
+				klog.V(gpuparams.GpuLogLevel).Infof("The gpu channel retrieved from packagemanifest is:  %v",
 					gpuChannel)
 
 				By("Check if NVIDIA GPU Operator namespace exists, otherwise created it and label it")
 				nsBuilder := namespace.NewBuilder(APIClient, nvidiaGPUNamespace)
 				if nsBuilder.Exists() {
-					glog.V(gpuparams.GpuLogLevel).Infof("The namespace '%s' already exists",
+					klog.V(gpuparams.GpuLogLevel).Infof("The namespace '%s' already exists",
 						nsBuilder.Object.Name)
 				} else {
-					glog.V(gpuparams.GpuLogLevel).Infof("Creating the namespace:  %v", nvidiaGPUNamespace)
+					klog.V(gpuparams.GpuLogLevel).Infof("Creating the namespace:  %v", nvidiaGPUNamespace)
 					createdNsBuilder, err := nsBuilder.Create()
 					Expect(err).ToNot(HaveOccurred(), "error creating namespace '%s' :  %v ",
 						nsBuilder.Definition.Name, err)
 
-					glog.V(gpuparams.GpuLogLevel).Infof("Successfully created namespace '%s'",
+					klog.V(gpuparams.GpuLogLevel).Infof("Successfully created namespace '%s'",
 						createdNsBuilder.Object.Name)
 
-					glog.V(gpuparams.GpuLogLevel).Infof("Labeling the newly created namespace '%s'",
+					klog.V(gpuparams.GpuLogLevel).Infof("Labeling the newly created namespace '%s'",
 						nsBuilder.Object.Name)
 
 					labeledNsBuilder := createdNsBuilder.WithMultipleLabels(map[string]string{
@@ -346,7 +346,7 @@ var _ = Describe("GPU", Ordered, Label(tsparams.LabelSuite), func() {
 					Expect(err).ToNot(HaveOccurred(), "error labeling namespace %v :  %v ",
 						newLabeledNsBuilder.Definition.Name, err)
 
-					glog.V(gpuparams.GpuLogLevel).Infof("The nvidia-gpu-operator labeled namespace has "+
+					klog.V(gpuparams.GpuLogLevel).Infof("The nvidia-gpu-operator labeled namespace has "+
 						"labels:  %v", newLabeledNsBuilder.Object.Labels)
 				}
 
@@ -358,10 +358,10 @@ var _ = Describe("GPU", Ordered, Label(tsparams.LabelSuite), func() {
 				By("Create OperatorGroup in NVIDIA GPU Operator Namespace")
 				ogBuilder := olm.NewOperatorGroupBuilder(APIClient, gpuOperatorGroupName, nvidiaGPUNamespace)
 				if ogBuilder.Exists() {
-					glog.V(gpuparams.GpuLogLevel).Infof("The ogBuilder that exists has name:  %v",
+					klog.V(gpuparams.GpuLogLevel).Infof("The ogBuilder that exists has name:  %v",
 						ogBuilder.Object.Name)
 				} else {
-					glog.V(gpuparams.GpuLogLevel).Infof("Create a new operatorgroup with name:  %v",
+					klog.V(gpuparams.GpuLogLevel).Infof("Create a new operatorgroup with name:  %v",
 						ogBuilder.Object.Name)
 
 					ogBuilderCreated, err := ogBuilder.Create()
@@ -382,17 +382,17 @@ var _ = Describe("GPU", Ordered, Label(tsparams.LabelSuite), func() {
 				subBuilder.WithChannel(gpuChannel)
 				subBuilder.WithInstallPlanApproval(gpuInstallPlanApproval)
 
-				glog.V(gpuparams.GpuLogLevel).Infof("Creating the subscription, i.e Deploy the GPU operator")
+				klog.V(gpuparams.GpuLogLevel).Infof("Creating the subscription, i.e Deploy the GPU operator")
 				createdSub, err := subBuilder.Create()
 
 				Expect(err).ToNot(HaveOccurred(), "error creating subscription %v :  %v ",
 					createdSub.Definition.Name, err)
 
-				glog.V(gpuparams.GpuLogLevel).Infof("Newly created subscription: %s was successfully created",
+				klog.V(gpuparams.GpuLogLevel).Infof("Newly created subscription: %s was successfully created",
 					createdSub.Object.Name)
 
 				if createdSub.Exists() {
-					glog.V(gpuparams.GpuLogLevel).Infof("The newly created subscription: %s in namespace: %v "+
+					klog.V(gpuparams.GpuLogLevel).Infof("The newly created subscription: %s in namespace: %v "+
 						"has current CSV:  %v", createdSub.Object.Name, createdSub.Object.Namespace,
 						createdSub.Definition.Status.CurrentCSV)
 				}
@@ -403,7 +403,7 @@ var _ = Describe("GPU", Ordered, Label(tsparams.LabelSuite), func() {
 				}()
 
 				By("Sleep for 2 minutes to allow the GPU Operator deployment to be created")
-				glog.V(gpuparams.GpuLogLevel).Infof("Sleep for 2 minutes to allow the GPU Operator deployment" +
+				klog.V(gpuparams.GpuLogLevel).Infof("Sleep for 2 minutes to allow the GPU Operator deployment" +
 					" to be created")
 				time.Sleep(2 * time.Minute)
 
@@ -419,11 +419,11 @@ var _ = Describe("GPU", Ordered, Label(tsparams.LabelSuite), func() {
 				Expect(err).ToNot(HaveOccurred(), "Error trying to pull GPU operator "+
 					"deployment is: %v", err)
 
-				glog.V(gpuparams.GpuLogLevel).Infof("Pulled GPU operator deployment is:  %v ",
+				klog.V(gpuparams.GpuLogLevel).Infof("Pulled GPU operator deployment is:  %v ",
 					gpuOperatorDeployment.Definition.Name)
 
 				if gpuOperatorDeployment.IsReady(4 * time.Minute) {
-					glog.V(gpuparams.GpuLogLevel).Infof("Pulled GPU operator deployment '%s' is Ready",
+					klog.V(gpuparams.GpuLogLevel).Infof("Pulled GPU operator deployment '%s' is Ready",
 						gpuOperatorDeployment.Definition.Name)
 				}
 
@@ -432,14 +432,14 @@ var _ = Describe("GPU", Ordered, Label(tsparams.LabelSuite), func() {
 					gpuSubscriptionNamespace)
 				Expect(err).ToNot(HaveOccurred(), "error pulling currentCSV from cluster:  %v", err)
 				Expect(gpuCurrentCSVFromSub).ToNot(BeEmpty())
-				glog.V(gpuparams.GpuLogLevel).Infof("currentCSV %s extracted from Subscripion %s",
+				klog.V(gpuparams.GpuLogLevel).Infof("currentCSV %s extracted from Subscripion %s",
 					gpuCurrentCSVFromSub, gpuSubscriptionName)
 
 				By("Wait for ClusterServiceVersion to be in Succeeded phase")
-				glog.V(gpuparams.GpuLogLevel).Infof("Waiting for ClusterServiceVersion to be Succeeded phase")
+				klog.V(gpuparams.GpuLogLevel).Infof("Waiting for ClusterServiceVersion to be Succeeded phase")
 				err = wait.CSVSucceeded(APIClient, gpuCurrentCSVFromSub, nvidiaGPUNamespace, 60*time.Second,
 					5*time.Minute)
-				glog.V(gpuparams.GpuLogLevel).Infof("error waiting for ClusterServiceVersion to be "+
+				klog.V(gpuparams.GpuLogLevel).Infof("error waiting for ClusterServiceVersion to be "+
 					"in Succeeded phase:  %v ", err)
 				Expect(err).ToNot(HaveOccurred(), "error waiting for ClusterServiceVersion to be "+
 					"in Succeeded phase:  %v ", err)
@@ -449,10 +449,10 @@ var _ = Describe("GPU", Ordered, Label(tsparams.LabelSuite), func() {
 				Expect(err).ToNot(HaveOccurred(), "error pulling CSV %v from cluster:  %v",
 					gpuCurrentCSVFromSub, err)
 
-				glog.V(gpuparams.GpuLogLevel).Infof("clusterCSV from cluster lastUpdatedTime is : %v ",
+				klog.V(gpuparams.GpuLogLevel).Infof("clusterCSV from cluster lastUpdatedTime is : %v ",
 					clusterCSV.Definition.Status.LastUpdateTime)
 
-				glog.V(gpuparams.GpuLogLevel).Infof("clusterCSV from cluster Phase is : \"%v\"",
+				klog.V(gpuparams.GpuLogLevel).Infof("clusterCSV from cluster Phase is : \"%v\"",
 					clusterCSV.Definition.Status.Phase)
 
 				succeeded := v1alpha1.ClusterServiceVersionPhase("Succeeded")
@@ -468,15 +468,15 @@ var _ = Describe("GPU", Ordered, Label(tsparams.LabelSuite), func() {
 				almExamples, err := clusterCSV.GetAlmExamples()
 				Expect(err).ToNot(HaveOccurred(), "Error from pulling almExamples from csv "+
 					"from cluster:  %v ", err)
-				glog.V(gpuparams.GpuLogLevel).Infof("almExamples block from clusterCSV  is : %v ", almExamples)
+				klog.V(gpuparams.GpuLogLevel).Infof("almExamples block from clusterCSV  is : %v ", almExamples)
 
 				By("Deploy ClusterPolicy")
-				glog.V(gpuparams.GpuLogLevel).Infof("Creating ClusterPolicy from CSV almExamples")
+				klog.V(gpuparams.GpuLogLevel).Infof("Creating ClusterPolicy from CSV almExamples")
 				clusterPolicyBuilder := nvidiagpu.NewBuilderFromObjectString(APIClient, almExamples)
 				createdClusterPolicyBuilder, err := clusterPolicyBuilder.Create()
 				Expect(err).ToNot(HaveOccurred(), "Error Creating ClusterPolicy from csv "+
 					"almExamples  %v ", err)
-				glog.V(gpuparams.GpuLogLevel).Infof("ClusterPolicy '%' successfully created",
+				klog.V(gpuparams.GpuLogLevel).Infof("ClusterPolicy '%s' successfully created",
 					createdClusterPolicyBuilder.Definition.Name)
 
 				defer func() {
@@ -492,20 +492,20 @@ var _ = Describe("GPU", Ordered, Label(tsparams.LabelSuite), func() {
 				cpJSON, err := json.MarshalIndent(pulledClusterPolicy, "", " ")
 
 				if err == nil {
-					glog.V(gpuparams.GpuLogLevel).Infof("The ClusterPolicy just created has name:  %v",
+					klog.V(gpuparams.GpuLogLevel).Infof("The ClusterPolicy just created has name:  %v",
 						pulledClusterPolicy.Definition.Name)
-					glog.V(gpuparams.GpuLogLevel).Infof("The ClusterPolicy just created marshalled "+
+					klog.V(gpuparams.GpuLogLevel).Infof("The ClusterPolicy just created marshalled "+
 						"in json: %v", string(cpJSON))
 				} else {
-					glog.V(gpuparams.GpuLogLevel).Infof("Error Marshalling ClusterPolicy into json:  %v",
+					klog.V(gpuparams.GpuLogLevel).Infof("Error Marshalling ClusterPolicy into json:  %v",
 						err)
 				}
 
 				By("Wait up to 12 minutes for ClusterPolicy to be ready")
-				glog.V(gpuparams.GpuLogLevel).Infof("Waiting for ClusterPolicy to be ready")
+				klog.V(gpuparams.GpuLogLevel).Infof("Waiting for ClusterPolicy to be ready")
 				err = wait.ClusterPolicyReady(APIClient, gpuClusterPolicyName, 60*time.Second, 12*time.Minute)
 
-				glog.V(gpuparams.GpuLogLevel).Infof("error waiting for ClusterPolicy to be Ready:  %v ", err)
+				klog.V(gpuparams.GpuLogLevel).Infof("error waiting for ClusterPolicy to be Ready:  %v ", err)
 				Expect(err).ToNot(HaveOccurred(), "error waiting for ClusterPolicy to be Ready:  %v ",
 					err)
 
@@ -517,31 +517,31 @@ var _ = Describe("GPU", Ordered, Label(tsparams.LabelSuite), func() {
 				cpReadyJSON, err := json.MarshalIndent(pulledReadyClusterPolicy, "", " ")
 
 				if err == nil {
-					glog.V(gpuparams.GpuLogLevel).Infof("The ready ClusterPolicy just has name:  %v",
+					klog.V(gpuparams.GpuLogLevel).Infof("The ready ClusterPolicy just has name:  %v",
 						pulledReadyClusterPolicy.Definition.Name)
-					glog.V(gpuparams.GpuLogLevel).Infof("The ready ClusterPolicy just marshalled "+
+					klog.V(gpuparams.GpuLogLevel).Infof("The ready ClusterPolicy just marshalled "+
 						"in json: %v", string(cpReadyJSON))
 				} else {
-					glog.V(gpuparams.GpuLogLevel).Infof("Error Marshalling the ready ClusterPolicy into json:  %v",
+					klog.V(gpuparams.GpuLogLevel).Infof("Error Marshalling the ready ClusterPolicy into json:  %v",
 						err)
 				}
 
 				By("Create GPU Burn namespace 'test-gpu-burn'")
 				gpuBurnNsBuilder := namespace.NewBuilder(APIClient, gpuBurnNamespace)
 				if gpuBurnNsBuilder.Exists() {
-					glog.V(gpuparams.GpuLogLevel).Infof("The namespace '%s' already exists",
+					klog.V(gpuparams.GpuLogLevel).Infof("The namespace '%s' already exists",
 						gpuBurnNsBuilder.Object.Name)
 				} else {
-					glog.V(gpuparams.GpuLogLevel).Infof("Creating the gpu burn namespace '%s'",
+					klog.V(gpuparams.GpuLogLevel).Infof("Creating the gpu burn namespace '%s'",
 						gpuBurnNamespace)
 					createdGPUBurnNsBuilder, err := gpuBurnNsBuilder.Create()
 					Expect(err).ToNot(HaveOccurred(), "error creating gpu burn "+
 						"namespace '%s' :  %v ", gpuBurnNamespace, err)
 
-					glog.V(gpuparams.GpuLogLevel).Infof("Successfully created namespace '%s'",
+					klog.V(gpuparams.GpuLogLevel).Infof("Successfully created namespace '%s'",
 						createdGPUBurnNsBuilder.Object.Name)
 
-					glog.V(gpuparams.GpuLogLevel).Infof("Labeling the newly created namespace '%s'",
+					klog.V(gpuparams.GpuLogLevel).Infof("Labeling the newly created namespace '%s'",
 						createdGPUBurnNsBuilder.Object.Name)
 
 					labeledGPUBurnNsBuilder := createdGPUBurnNsBuilder.WithMultipleLabels(map[string]string{
@@ -553,7 +553,7 @@ var _ = Describe("GPU", Ordered, Label(tsparams.LabelSuite), func() {
 					Expect(err).ToNot(HaveOccurred(), "error labeling namespace %v :  %v ",
 						newGPUBurnLabeledNsBuilder.Definition.Name, err)
 
-					glog.V(gpuparams.GpuLogLevel).Infof("The nvidia-gpu-operator labeled namespace has "+
+					klog.V(gpuparams.GpuLogLevel).Infof("The nvidia-gpu-operator labeled namespace has "+
 						"labels:  %v", newGPUBurnLabeledNsBuilder.Object.Labels)
 				}
 
@@ -567,14 +567,14 @@ var _ = Describe("GPU", Ordered, Label(tsparams.LabelSuite), func() {
 					gpuBurnNamespace)
 				Expect(err).ToNot(HaveOccurred(), "Error Creating gpu burn configmap: %v", err)
 
-				glog.V(gpuparams.GpuLogLevel).Infof("The created gpuBurnConfigMap has name: %s",
+				klog.V(gpuparams.GpuLogLevel).Infof("The created gpuBurnConfigMap has name: %s",
 					gpuBurnConfigMap.Name)
 
 				configmapBuilder, err := configmap.Pull(APIClient, gpuBurnConfigmapName, gpuBurnNamespace)
 				Expect(err).ToNot(HaveOccurred(), "Error pulling gpu-burn configmap '%s' from "+
 					"namespace '%s': %v", gpuBurnConfigmapName, gpuBurnNamespace, err)
 
-				glog.V(gpuparams.GpuLogLevel).Infof("The pulled gpuBurnConfigMap has name: %s",
+				klog.V(gpuparams.GpuLogLevel).Infof("The pulled gpuBurnConfigMap has name: %s",
 					configmapBuilder.Definition.Name)
 
 				defer func() {
@@ -583,28 +583,28 @@ var _ = Describe("GPU", Ordered, Label(tsparams.LabelSuite), func() {
 				}()
 
 				By("Deploy gpu-burn pod in test-gpu-burn namespace")
-				glog.V(gpuparams.GpuLogLevel).Infof("gpu-burn pod image name is: '%s', in namespace '%s'",
-					gpuBurnImageName)
+				klog.V(gpuparams.GpuLogLevel).Infof("gpu-burn pod image name is: '%s', in namespace '%s'",
+					gpuBurnImageName, gpuBurnNamespace)
 
 				gpuBurnPod, err := gpuburn.CreateGPUBurnPod(APIClient, gpuBurnPodName, gpuBurnNamespace,
 					gpuBurnImageName, 5*time.Minute)
 				Expect(err).ToNot(HaveOccurred(), "Error creating gpu burn pod: %v", err)
 
-				glog.V(gpuparams.GpuLogLevel).Infof("Creating gpu-burn pod '%s' in namespace '%s'",
+				klog.V(gpuparams.GpuLogLevel).Infof("Creating gpu-burn pod '%s' in namespace '%s'",
 					gpuBurnPodName, gpuBurnNamespace)
 
 				_, err = APIClient.Pods(gpuBurnPod.Namespace).Create(context.TODO(), gpuBurnPod, metav1.CreateOptions{})
 				Expect(err).ToNot(HaveOccurred(), "Error creating gpu-burn '%s' in "+
 					"namespace '%s': %v", gpuBurnPodName, gpuBurnNamespace, err)
 
-				glog.V(gpuparams.GpuLogLevel).Infof("The created gpuBurnPod has name: %s has status: %v ",
+				klog.V(gpuparams.GpuLogLevel).Infof("The created gpuBurnPod has name: %s has status: %v ",
 					gpuBurnPod.Name, gpuBurnPod.Status)
 
 				By("Get the gpu-burn pod with label \"app=gpu-burn-app\"")
 				gpuPodName, err := get.GetFirstPodNameWithLabel(APIClient, gpuBurnNamespace, gpuBurnPodLabel)
 				Expect(err).ToNot(HaveOccurred(), "error getting gpu-burn pod with label "+
 					"'app=gpu-burn-app' from namespace '%s' :  %v ", gpuBurnNamespace, err)
-				glog.V(gpuparams.GpuLogLevel).Infof("gpuPodName is %s ", gpuPodName)
+				klog.V(gpuparams.GpuLogLevel).Infof("gpuPodName is %s ", gpuPodName)
 
 				By("Pull the gpu-burn pod object from the cluster")
 				gpuPodPulled, err := pod.Pull(APIClient, gpuPodName, gpuBurnNamespace)
@@ -620,22 +620,22 @@ var _ = Describe("GPU", Ordered, Label(tsparams.LabelSuite), func() {
 				err = gpuPodPulled.WaitUntilInStatus(corev1.PodRunning, 3*time.Minute)
 				Expect(err).ToNot(HaveOccurred(), "timeout waiting for gpu-burn pod in "+
 					"namespace '%s' to go to Running phase:  %v ", gpuBurnNamespace, err)
-				glog.V(gpuparams.GpuLogLevel).Infof("gpu-burn pod now in Running phase")
+				klog.V(gpuparams.GpuLogLevel).Infof("gpu-burn pod now in Running phase")
 
 				By("Wait for gpu-burn pod to run to completion and be in Succeeded phase/Completed status")
 				err = gpuPodPulled.WaitUntilInStatus(corev1.PodSucceeded, 8*time.Minute)
 				Expect(err).ToNot(HaveOccurred(), "timeout waiting for gpu-burn pod '%s' in "+
 					"namespace '%s'to go Succeeded phase/Completed status:  %v ", gpuBurnPodName, gpuBurnNamespace, err)
-				glog.V(gpuparams.GpuLogLevel).Infof("gpu-burn pod now in Succeeded Phase/Completed status")
+				klog.V(gpuparams.GpuLogLevel).Infof("gpu-burn pod now in Succeeded Phase/Completed status")
 
 				By("Get the gpu-burn pod logs")
-				glog.V(gpuparams.GpuLogLevel).Infof("Get the gpu-burn pod logs")
+				klog.V(gpuparams.GpuLogLevel).Infof("Get the gpu-burn pod logs")
 
 				gpuBurnLogs, err := gpuPodPulled.GetLog(500*time.Second, "gpu-burn-ctr")
 
 				Expect(err).ToNot(HaveOccurred(), "error getting gpu-burn pod '%s' logs "+
 					"from gpu burn namespace '%s' :  %v ", gpuBurnNamespace, err)
-				glog.V(gpuparams.GpuLogLevel).Infof("Gpu-burn pod '%s' logs:\n%s",
+				klog.V(gpuparams.GpuLogLevel).Infof("Gpu-burn pod '%s' logs:\n%s",
 					gpuPodPulled.Definition.Name, gpuBurnLogs)
 
 				By("Parse the gpu-burn pod logs and check for successful execution")
@@ -643,7 +643,7 @@ var _ = Describe("GPU", Ordered, Label(tsparams.LabelSuite), func() {
 				match2 := strings.Contains(gpuBurnLogs, "100.0%  proc'd:")
 
 				Expect(match1 && match2).ToNot(BeFalse(), "gpu-burn pod execution was FAILED")
-				glog.V(gpuparams.GpuLogLevel).Infof("Gpu-burn pod execution was successful")
+				klog.V(gpuparams.GpuLogLevel).Infof("Gpu-burn pod execution was successful")
 			})
 	})
 })

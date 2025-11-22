@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	prometheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
@@ -18,6 +17,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/metrics"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/profiles"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
+	"k8s.io/klog/v2"
 )
 
 var _ = Describe("PTP Events and Metrics", Label(tsparams.LabelEventsAndMetrics), func() {
@@ -73,7 +73,7 @@ var _ = Describe("PTP Events and Metrics", Label(tsparams.LabelEventsAndMetrics)
 			By("checking client interfaces on node " + nodeInfo.Name)
 			clientInterfaces := nodeInfo.GetInterfacesByClockType(profiles.ClockTypeClient)
 			if len(clientInterfaces) == 0 {
-				glog.V(tsparams.LogLevel).Infof("No client interfaces found for node %s", nodeInfo.Name)
+				klog.V(tsparams.LogLevel).Infof("No client interfaces found for node %s", nodeInfo.Name)
 
 				continue
 			}

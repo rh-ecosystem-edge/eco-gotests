@@ -9,8 +9,8 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nvidiagpu/internal/gpuparams"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/klog/v2"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 )
 
@@ -20,14 +20,14 @@ func InstalledCSVFromSubscription(apiClient *clients.Settings, gpuSubscriptionNa
 	subPulled, err := olm.PullSubscription(apiClient, gpuSubscriptionName, gpuSubscriptionNamespace)
 
 	if err != nil {
-		glog.V(gpuparams.GpuLogLevel).Infof(
+		klog.V(gpuparams.GpuLogLevel).Infof(
 			"error pulling Subscription %s from cluster in namespace %s", gpuSubscriptionName,
 			gpuSubscriptionNamespace)
 
 		return "", err
 	}
 
-	glog.V(gpuparams.GpuLogLevel).Infof(
+	klog.V(gpuparams.GpuLogLevel).Infof(
 		"InstalledCSV %s extracted from Subscription %s from cluster in namespace %s",
 		subPulled.Object.Status.InstalledCSV, gpuSubscriptionName, gpuSubscriptionNamespace)
 
@@ -40,14 +40,14 @@ func CurrentCSVFromSubscription(apiClient *clients.Settings, gpuSubscriptionName
 	subPulled, err := olm.PullSubscription(apiClient, gpuSubscriptionName, gpuSubscriptionNamespace)
 
 	if err != nil {
-		glog.V(gpuparams.GpuLogLevel).Infof(
+		klog.V(gpuparams.GpuLogLevel).Infof(
 			"error pulling Subscription %s from cluster in namespace %s", gpuSubscriptionName,
 			gpuSubscriptionNamespace)
 
 		return "", err
 	}
 
-	glog.V(gpuparams.GpuLogLevel).Infof(
+	klog.V(gpuparams.GpuLogLevel).Infof(
 		"CurrentCSV %s extracted from Subscription %s from cluster in namespace %s",
 		subPulled.Object.Status.CurrentCSV, gpuSubscriptionName, gpuSubscriptionNamespace)
 
@@ -58,8 +58,8 @@ func CurrentCSVFromSubscription(apiClient *clients.Settings, gpuSubscriptionName
 func GetFirstPodNameWithLabel(apiClient *clients.Settings, podNamespace, podLabelSelector string) (string, error) {
 	podList, err := pod.List(apiClient, podNamespace, metav1.ListOptions{LabelSelector: podLabelSelector})
 
-	glog.V(gpuparams.GpuLogLevel).Infof("Length of podList matching podLabelSelector is '%v'", len(podList))
-	glog.V(gpuparams.GpuLogLevel).Infof("podList[0] matching podLabelSelector is '%v'",
+	klog.V(gpuparams.GpuLogLevel).Infof("Length of podList matching podLabelSelector is '%v'", len(podList))
+	klog.V(gpuparams.GpuLogLevel).Infof("podList[0] matching podLabelSelector is '%v'",
 		podList[0].Definition.Name)
 
 	return podList[0].Definition.Name, err
@@ -72,7 +72,7 @@ func GetClusterArchitecture(apiClient *clients.Settings, nodeSelector map[string
 	// Check if at least one node matching the nodeSelector has the specific nodeLabel label set to true
 	// For example, look in all the worker nodes for specific label
 	if err != nil {
-		glog.V(gpuparams.GpuLogLevel).Infof("could not discover %v nodes", nodeSelector)
+		klog.V(gpuparams.GpuLogLevel).Infof("could not discover %v nodes", nodeSelector)
 
 		return "", err
 	}
@@ -83,7 +83,7 @@ func GetClusterArchitecture(apiClient *clients.Settings, nodeSelector map[string
 		labelValue, ok := node.Object.Labels[nodeLabel]
 
 		if ok {
-			glog.V(gpuparams.GpuLogLevel).Infof("Found label '%v' with label value '%v' on node '%v'",
+			klog.V(gpuparams.GpuLogLevel).Infof("Found label '%v' with label value '%v' on node '%v'",
 				nodeLabel, labelValue, node.Object.Name)
 
 			return labelValue, nil

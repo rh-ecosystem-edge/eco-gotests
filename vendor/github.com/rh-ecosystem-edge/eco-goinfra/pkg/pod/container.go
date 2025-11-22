@@ -5,8 +5,8 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	"github.com/golang/glog"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/strings/slices"
 )
 
@@ -41,7 +41,7 @@ type ContainerBuilder struct {
 
 // NewContainerBuilder creates a new instance of ContainerBuilder.
 func NewContainerBuilder(name, image string, cmd []string) *ContainerBuilder {
-	glog.V(100).Infof("Initializing new container structure with the following params: "+
+	klog.V(100).Infof("Initializing new container structure with the following params: "+
 		"name: %s, image: %s, cmd: %v", name, image, cmd)
 
 	builder := &ContainerBuilder{
@@ -54,7 +54,7 @@ func NewContainerBuilder(name, image string, cmd []string) *ContainerBuilder {
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the container is empty")
+		klog.V(100).Info("The name of the container is empty")
 
 		builder.errorMsg = "container's name is empty"
 
@@ -62,7 +62,7 @@ func NewContainerBuilder(name, image string, cmd []string) *ContainerBuilder {
 	}
 
 	if image == "" {
-		glog.V(100).Infof("Container's image is empty")
+		klog.V(100).Info("Container's image is empty")
 
 		builder.errorMsg = "container's image is empty"
 
@@ -70,7 +70,7 @@ func NewContainerBuilder(name, image string, cmd []string) *ContainerBuilder {
 	}
 
 	if len(cmd) < 1 {
-		glog.V(100).Infof("Container's cmd is empty")
+		klog.V(100).Info("Container's cmd is empty")
 
 		builder.errorMsg = "container's cmd is empty"
 
@@ -82,12 +82,12 @@ func NewContainerBuilder(name, image string, cmd []string) *ContainerBuilder {
 
 // WithSecurityCapabilities applies SecurityCapabilities to the container definition.
 func (builder *ContainerBuilder) WithSecurityCapabilities(sCapabilities []string, redefine bool) *ContainerBuilder {
-	glog.V(100).Infof("Applying a list of SecurityCapabilities %v to container %s",
+	klog.V(100).Infof("Applying a list of SecurityCapabilities %v to container %s",
 		sCapabilities, builder.definition.Name)
 
 	if builder.definition.SecurityContext != nil {
 		if !redefine {
-			glog.V(100).Infof("Cannot modify pre-existing SecurityContext")
+			klog.V(100).Info("Cannot modify pre-existing SecurityContext")
 
 			builder.errorMsg = "can not modify pre-existing security context"
 
@@ -98,7 +98,7 @@ func (builder *ContainerBuilder) WithSecurityCapabilities(sCapabilities []string
 	}
 
 	if !areCapabilitiesValid(sCapabilities) {
-		glog.V(100).Infof("Given SecurityCapabilities %v are not valid. Valid list %s",
+		klog.V(100).Infof("Given SecurityCapabilities %v are not valid. Valid list %s",
 			sCapabilities, AllowedSCList)
 
 		builder.errorMsg = "one of the give securityCapabilities is invalid. Please extend allowed list or fix parameter"
@@ -122,11 +122,11 @@ func (builder *ContainerBuilder) WithSecurityCapabilities(sCapabilities []string
 
 // WithDropSecurityCapabilities drops SecurityCapabilities from the container definition.
 func (builder *ContainerBuilder) WithDropSecurityCapabilities(sCapabilities []string, redefine bool) *ContainerBuilder {
-	glog.V(100).Infof("Dropping a list of SecurityCapabilities %v from container %s",
+	klog.V(100).Infof("Dropping a list of SecurityCapabilities %v from container %s",
 		sCapabilities, builder.definition.Name)
 
 	if !areCapabilitiesValid(sCapabilities) {
-		glog.V(100).Infof("Given SecurityCapabilities %v are not valid. Valid list %s",
+		klog.V(100).Infof("Given SecurityCapabilities %v are not valid. Valid list %s",
 			sCapabilities, AllowedSCList)
 
 		builder.errorMsg = "one of the provided securityCapabilities is invalid. " +
@@ -142,23 +142,23 @@ func (builder *ContainerBuilder) WithDropSecurityCapabilities(sCapabilities []st
 
 	// filter possible duplicated capabilities from user's input
 	sCapabilitiesList = uniqueCapabilities(sCapabilitiesList)
-	glog.V(100).Infof("Filtered user input: %v", sCapabilitiesList)
+	klog.V(100).Infof("Filtered user input: %v", sCapabilitiesList)
 
 	// filter conflicting capabilities between ADD and DROP
 	if builder.definition.SecurityContext != nil &&
 		builder.definition.SecurityContext.Capabilities != nil &&
 		builder.definition.SecurityContext.Capabilities.Add != nil {
-		glog.V(100).Infof("Filtering conflicting options between ADD and DROP capabilities")
+		klog.V(100).Info("Filtering conflicting options between ADD and DROP capabilities")
 
 		confCapabilitiesList := capabilitiesIntersection(
 			builder.definition.SecurityContext.Capabilities.Add,
 			sCapabilitiesList)
 
 		if len(confCapabilitiesList) > 0 {
-			glog.V(100).Infof("Conflicting ADD and DROP capabilities")
+			klog.V(100).Info("Conflicting ADD and DROP capabilities")
 
 			for _, mcap := range confCapabilitiesList {
-				glog.V(100).Infof("SecurityCapability %q already present in the Capabilities.Add list", mcap)
+				klog.V(100).Infof("SecurityCapability %q already present in the Capabilities.Add list", mcap)
 			}
 
 			builder.errorMsg = "Conflicting ADD and DROP SecurityCapabilities"
@@ -168,28 +168,28 @@ func (builder *ContainerBuilder) WithDropSecurityCapabilities(sCapabilities []st
 	}
 
 	if builder.definition.SecurityContext == nil {
-		glog.V(100).Infof("SecurityContext is nil. Initializing one")
+		klog.V(100).Info("SecurityContext is nil. Initializing one")
 
 		builder.definition.SecurityContext = new(corev1.SecurityContext)
 	}
 
 	if builder.definition.SecurityContext.Capabilities == nil {
-		glog.V(100).Infof("Capabilities are nil. Initializing one")
+		klog.V(100).Info("Capabilities are nil. Initializing one")
 
 		builder.definition.SecurityContext.Capabilities = new(corev1.Capabilities)
 	}
 
 	if !redefine {
-		glog.V(100).Infof("SecurityContext.Capabilities will not be redefined")
-		glog.V(100).Infof("Filtering duplicated DROP capabilities - %v", sCapabilitiesList)
+		klog.V(100).Info("SecurityContext.Capabilities will not be redefined")
+		klog.V(100).Infof("Filtering duplicated DROP capabilities - %v", sCapabilitiesList)
 		sCapabilitiesList = capabilitiesDifference(builder.definition.SecurityContext.Capabilities.Drop,
 			sCapabilitiesList)
 
-		glog.V(100).Infof("Updating existing SecurityContext.Capabilities.Drop list with %v", sCapabilitiesList)
+		klog.V(100).Infof("Updating existing SecurityContext.Capabilities.Drop list with %v", sCapabilitiesList)
 		builder.definition.SecurityContext.Capabilities.Drop = append(builder.definition.SecurityContext.Capabilities.Drop,
 			sCapabilitiesList...)
 	} else {
-		glog.V(100).Infof("Redefining existing SecurityContext.Capabilities.Drop list with %v", sCapabilitiesList)
+		klog.V(100).Infof("Redefining existing SecurityContext.Capabilities.Drop list with %v", sCapabilitiesList)
 		builder.definition.SecurityContext.Capabilities.Drop = sCapabilitiesList
 	}
 
@@ -198,10 +198,10 @@ func (builder *ContainerBuilder) WithDropSecurityCapabilities(sCapabilities []st
 
 // WithSecurityContext applies security Context on container.
 func (builder *ContainerBuilder) WithSecurityContext(securityContext *corev1.SecurityContext) *ContainerBuilder {
-	glog.V(100).Infof("Applying custom securityContext %v", securityContext)
+	klog.V(100).Infof("Applying custom securityContext %v", securityContext)
 
 	if securityContext == nil {
-		glog.V(100).Infof("Cannot add empty securityContext to container structure")
+		klog.V(100).Info("Cannot add empty securityContext to container structure")
 
 		builder.errorMsg = "can not modify container config with empty securityContext"
 
@@ -215,11 +215,11 @@ func (builder *ContainerBuilder) WithSecurityContext(securityContext *corev1.Sec
 
 // WithResourceLimit applies resource limit on container.
 func (builder *ContainerBuilder) WithResourceLimit(hugePages, memory string, cpu int64) *ContainerBuilder {
-	glog.V(100).Infof("Applying custom resource limit to container: hugePages: %s memory: %s cpu: %d",
+	klog.V(100).Infof("Applying custom resource limit to container: hugePages: %s memory: %s cpu: %d",
 		hugePages, memory, cpu)
 
 	if hugePages == "" {
-		glog.V(100).Infof("Container's resource limit hugePages is empty")
+		klog.V(100).Info("Container's resource limit hugePages is empty")
 
 		builder.errorMsg = "container's resource limit 'hugePages' is empty"
 
@@ -227,7 +227,7 @@ func (builder *ContainerBuilder) WithResourceLimit(hugePages, memory string, cpu
 	}
 
 	if memory == "" {
-		glog.V(100).Infof("Container's resource limit memory is empty")
+		klog.V(100).Info("Container's resource limit memory is empty")
 
 		builder.errorMsg = "container's resource limit 'memory' is empty"
 
@@ -235,7 +235,7 @@ func (builder *ContainerBuilder) WithResourceLimit(hugePages, memory string, cpu
 	}
 
 	if cpu <= 0 {
-		glog.V(100).Infof("Container's resource limit cpu can not be zero or negative number.")
+		klog.V(100).Info("Container's resource limit cpu can not be zero or negative number.")
 
 		builder.errorMsg = "container's resource limit 'cpu' is invalid"
 
@@ -253,11 +253,11 @@ func (builder *ContainerBuilder) WithResourceLimit(hugePages, memory string, cpu
 
 // WithResourceRequest applies resource request on container.
 func (builder *ContainerBuilder) WithResourceRequest(hugePages, memory string, cpu int64) *ContainerBuilder {
-	glog.V(100).Infof("Applying custom resource request to container: hugePages: %s memory: %s cpu: %d",
+	klog.V(100).Infof("Applying custom resource request to container: hugePages: %s memory: %s cpu: %d",
 		hugePages, memory, cpu)
 
 	if hugePages == "" {
-		glog.V(100).Infof("Container's resource request hugePages is empty")
+		klog.V(100).Info("Container's resource request hugePages is empty")
 
 		builder.errorMsg = "container's resource request 'hugePages' is empty"
 
@@ -265,7 +265,7 @@ func (builder *ContainerBuilder) WithResourceRequest(hugePages, memory string, c
 	}
 
 	if memory == "" {
-		glog.V(100).Infof("Container's resource request memory is empty")
+		klog.V(100).Info("Container's resource request memory is empty")
 
 		builder.errorMsg = "container's resource request 'memory' is empty"
 
@@ -273,7 +273,7 @@ func (builder *ContainerBuilder) WithResourceRequest(hugePages, memory string, c
 	}
 
 	if cpu <= 0 {
-		glog.V(100).Infof("Container's resource request cpu can not be zero or negative number.")
+		klog.V(100).Info("Container's resource request cpu can not be zero or negative number.")
 
 		builder.errorMsg = "container's resource request 'cpu' is invalid"
 
@@ -291,10 +291,10 @@ func (builder *ContainerBuilder) WithResourceRequest(hugePages, memory string, c
 
 // WithCustomResourcesRequests applies custom resource requests struct on container.
 func (builder *ContainerBuilder) WithCustomResourcesRequests(resourceList corev1.ResourceList) *ContainerBuilder {
-	glog.V(100).Infof("Applying custom resource requests to container: %v", resourceList)
+	klog.V(100).Infof("Applying custom resource requests to container: %v", resourceList)
 
 	if len(resourceList) == 0 {
-		glog.V(100).Infof("Container's resource limit var 'resourceList' is empty")
+		klog.V(100).Info("Container's resource limit var 'resourceList' is empty")
 
 		builder.errorMsg = "container's resource requests var 'resourceList' is empty"
 
@@ -308,10 +308,10 @@ func (builder *ContainerBuilder) WithCustomResourcesRequests(resourceList corev1
 
 // WithCustomResourcesLimits applies custom resource limit struct on container.
 func (builder *ContainerBuilder) WithCustomResourcesLimits(resourceList corev1.ResourceList) *ContainerBuilder {
-	glog.V(100).Infof("Applying custom resource limit to container: %v", resourceList)
+	klog.V(100).Infof("Applying custom resource limit to container: %v", resourceList)
 
 	if len(resourceList) == 0 {
-		glog.V(100).Infof("Container's resource limit var 'resourceList' is empty")
+		klog.V(100).Info("Container's resource limit var 'resourceList' is empty")
 
 		builder.errorMsg = "container's resource limit var 'resourceList' is empty"
 
@@ -325,10 +325,10 @@ func (builder *ContainerBuilder) WithCustomResourcesLimits(resourceList corev1.R
 
 // WithImagePullPolicy applies specific image pull policy on container.
 func (builder *ContainerBuilder) WithImagePullPolicy(pullPolicy corev1.PullPolicy) *ContainerBuilder {
-	glog.V(100).Infof("Applying image pull policy to container: %s", pullPolicy)
+	klog.V(100).Infof("Applying image pull policy to container: %s", pullPolicy)
 
 	if len(pullPolicy) == 0 {
-		glog.V(100).Infof("Container's image pull policy 'pullPolicy' is empty")
+		klog.V(100).Info("Container's image pull policy 'pullPolicy' is empty")
 
 		builder.errorMsg = "container's pull policy var 'pullPolicy' is empty"
 
@@ -342,10 +342,10 @@ func (builder *ContainerBuilder) WithImagePullPolicy(pullPolicy corev1.PullPolic
 
 // WithEnvVar adds environment variables to container.
 func (builder *ContainerBuilder) WithEnvVar(name, value string) *ContainerBuilder {
-	glog.V(100).Infof("Applying custom environment variables to container: name %s, value: %s", name, value)
+	klog.V(100).Infof("Applying custom environment variables to container: name %s, value: %s", name, value)
 
 	if name == "" {
-		glog.V(100).Infof("Container's environment var 'name' is empty")
+		klog.V(100).Info("Container's environment var 'name' is empty")
 
 		builder.errorMsg = "container's environment var 'name' is empty"
 
@@ -353,7 +353,7 @@ func (builder *ContainerBuilder) WithEnvVar(name, value string) *ContainerBuilde
 	}
 
 	if value == "" {
-		glog.V(100).Infof("Container's environment var 'value' is empty")
+		klog.V(100).Info("Container's environment var 'value' is empty")
 
 		builder.errorMsg = "container's environment var 'value' is empty"
 
@@ -373,10 +373,10 @@ func (builder *ContainerBuilder) WithEnvVar(name, value string) *ContainerBuilde
 
 // WithVolumeMount adds a pod volume mount inside the container.
 func (builder *ContainerBuilder) WithVolumeMount(volMount corev1.VolumeMount) *ContainerBuilder {
-	glog.V(100).Infof("Adding VolumeMount to the %s container's definition", builder.definition.Name)
+	klog.V(100).Infof("Adding VolumeMount to the %s container's definition", builder.definition.Name)
 
 	if volMount.Name == "" {
-		glog.V(100).Infof("Container's VolumeMount name cannot be empty")
+		klog.V(100).Info("Container's VolumeMount name cannot be empty")
 
 		builder.errorMsg = "container's volume mount name is empty"
 
@@ -384,14 +384,14 @@ func (builder *ContainerBuilder) WithVolumeMount(volMount corev1.VolumeMount) *C
 	}
 
 	if volMount.MountPath == "" {
-		glog.V(100).Infof("Container's VolumeMount mount path cannot be empty")
+		klog.V(100).Info("Container's VolumeMount mount path cannot be empty")
 
 		builder.errorMsg = "container's volume mount path is empty"
 
 		return builder
 	}
 
-	glog.V(100).Infof("VolumeMount %s will be mounted at %s", volMount.Name, volMount.MountPath)
+	klog.V(100).Infof("VolumeMount %s will be mounted at %s", volMount.Name, volMount.MountPath)
 	builder.definition.VolumeMounts = append(builder.definition.VolumeMounts, volMount)
 
 	return builder
@@ -399,10 +399,10 @@ func (builder *ContainerBuilder) WithVolumeMount(volMount corev1.VolumeMount) *C
 
 // WithPorts adds a list of ports to expose from the container.
 func (builder *ContainerBuilder) WithPorts(ports []corev1.ContainerPort) *ContainerBuilder {
-	glog.V(100).Infof("Configuring continer port %v", ports)
+	klog.V(100).Infof("Configuring continer port %v", ports)
 
 	if len(ports) == 0 {
-		glog.V(100).Infof("Ports can not be empty")
+		klog.V(100).Info("Ports can not be empty")
 
 		builder.errorMsg = "can not modify container config without any port"
 
@@ -416,10 +416,10 @@ func (builder *ContainerBuilder) WithPorts(ports []corev1.ContainerPort) *Contai
 
 // WithReadinessProbe adds a readinessProbe to the container.
 func (builder *ContainerBuilder) WithReadinessProbe(readinessProbe *corev1.Probe) *ContainerBuilder {
-	glog.V(100).Infof("Adding readinessProbe to the %s container's definition", builder.definition.Name)
+	klog.V(100).Infof("Adding readinessProbe to the %s container's definition", builder.definition.Name)
 
 	if readinessProbe == nil {
-		glog.V(100).Infof("Container's readinessProbe name cannot be empty")
+		klog.V(100).Info("Container's readinessProbe name cannot be empty")
 
 		builder.errorMsg = "container's readinessProbe is empty"
 
@@ -433,7 +433,7 @@ func (builder *ContainerBuilder) WithReadinessProbe(readinessProbe *corev1.Probe
 
 // WithTTY applies TTY value on container.
 func (builder *ContainerBuilder) WithTTY(enableTTY bool) *ContainerBuilder {
-	glog.V(100).Infof("Applying TTY value to container: %v", enableTTY)
+	klog.V(100).Infof("Applying TTY value to container: %v", enableTTY)
 
 	builder.definition.TTY = enableTTY
 
@@ -442,7 +442,7 @@ func (builder *ContainerBuilder) WithTTY(enableTTY bool) *ContainerBuilder {
 
 // WithStdin applies Stdin value on container.
 func (builder *ContainerBuilder) WithStdin(enableStdin bool) *ContainerBuilder {
-	glog.V(100).Infof("Applying TTY value to container: %v", enableStdin)
+	klog.V(100).Infof("Applying TTY value to container: %v", enableStdin)
 
 	builder.definition.Stdin = enableStdin
 
@@ -451,10 +451,10 @@ func (builder *ContainerBuilder) WithStdin(enableStdin bool) *ContainerBuilder {
 
 // GetContainerCfg returns Container struct.
 func (builder *ContainerBuilder) GetContainerCfg() (*corev1.Container, error) {
-	glog.V(100).Infof("Returning configuration for container %s", builder.definition.Name)
+	klog.V(100).Infof("Returning configuration for container %s", builder.definition.Name)
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("Failed to build container configuration due to %s", builder.errorMsg)
+		klog.V(100).Infof("Failed to build container configuration due to %s", builder.errorMsg)
 
 		return nil, fmt.Errorf("%s", builder.errorMsg)
 	}

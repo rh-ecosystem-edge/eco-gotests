@@ -6,13 +6,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpucommon"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 // PodCommand represents a command to be executed in a Kubernetes pod.
@@ -147,7 +147,7 @@ func (p *PodCommand) Run() error {
 
 	container, err := p.getContainerConfig()
 	if err != nil {
-		glog.Errorf("Failed to get container configuration: %v", err)
+		klog.Errorf("Failed to get container configuration: %v", err)
 
 		return err
 	}
@@ -213,7 +213,7 @@ func (p *PodCommand) Run() error {
 	p.ActualPod, err = podWorker.Create()
 
 	if err != nil {
-		glog.Errorf("Error creating pod: %s", err.Error())
+		klog.Errorf("Error creating pod: %s", err.Error())
 
 		return err
 	}
@@ -394,14 +394,14 @@ func (p *PodCommand) ExecuteAndCleanup(timeout time.Duration) (string, error) {
 	// Ensure cleanup happens even if execution fails
 	defer func() {
 		if cleanupErr := p.Cleanup(timeout); cleanupErr != nil {
-			glog.Errorf("Failed to cleanup pod %s: %v", p.name, cleanupErr)
+			klog.Errorf("Failed to cleanup pod %s: %v", p.name, cleanupErr)
 		}
 	}()
 
 	// Wait for pod completion (for one-shot pods) - wait until it's no longer running
 	err = p.ActualPod.WaitUntilCondition(corev1.PodReady, timeout)
 	if err != nil {
-		glog.V(90).Infof("Pod %s may have failed, retrieving logs", p.name)
+		klog.V(90).Infof("Pod %s may have failed, retrieving logs", p.name)
 	}
 
 	// Alternative approach: poll for completion status

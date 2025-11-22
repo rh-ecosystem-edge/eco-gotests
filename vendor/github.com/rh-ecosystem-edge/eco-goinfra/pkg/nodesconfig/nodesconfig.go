@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	configV1 "github.com/openshift/api/config/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -29,16 +29,16 @@ type Builder struct {
 
 // Pull retrieves an existing nodesConfig object from the cluster.
 func Pull(apiClient *clients.Settings, nodesConfigObjName string) (*Builder, error) {
-	glog.V(100).Infof("Pulling nodesConfig object name: %s", nodesConfigObjName)
+	klog.V(100).Infof("Pulling nodesConfig object name: %s", nodesConfigObjName)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("nodesConfig Config 'apiClient' cannot be empty")
 	}
 
 	if nodesConfigObjName == "" {
-		glog.V(100).Infof("The name of the nodesConfig is empty")
+		klog.V(100).Info("The name of the nodesConfig is empty")
 
 		return nil, fmt.Errorf("nodesConfig 'nodesConfigObjName' cannot be empty")
 	}
@@ -67,7 +67,7 @@ func (builder *Builder) Get() (*configV1.Node, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting existing nodesConfig with name %s from cluster", builder.Definition.Name)
+	klog.V(100).Infof("Getting existing nodesConfig with name %s from cluster", builder.Definition.Name)
 
 	nodesConfig := &configV1.Node{}
 
@@ -75,7 +75,7 @@ func (builder *Builder) Get() (*configV1.Node, error) {
 		Name: builder.Definition.Name,
 	}, nodesConfig)
 	if err != nil {
-		glog.V(100).Infof("Failed to get nodesConfig object %s from cluster due to: %w",
+		klog.V(100).Infof("Failed to get nodesConfig object %s from cluster due to: %v",
 			builder.Definition.Name, err)
 
 		return nil, err
@@ -90,7 +90,7 @@ func (builder *Builder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if nodesConfig %s exists", builder.Definition.Name)
+	klog.V(100).Infof("Checking if nodesConfig %s exists", builder.Definition.Name)
 
 	var err error
 
@@ -105,7 +105,7 @@ func (builder *Builder) Update() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating the nodesConfig %s", builder.Definition.Name)
+	klog.V(100).Infof("Updating the nodesConfig %s", builder.Definition.Name)
 
 	if !builder.Exists() {
 		return nil, fmt.Errorf("nodesConfig object %s does not exist", builder.Definition.Name)
@@ -125,7 +125,7 @@ func (builder *Builder) GetCGroupMode() (configV1.CgroupMode, error) {
 		return "", err
 	}
 
-	glog.V(100).Infof("Getting nodesConfig cGroupMode configuration")
+	klog.V(100).Info("Getting nodesConfig cGroupMode configuration")
 
 	if !builder.Exists() {
 		return "", fmt.Errorf("nodesConfig object does not exist")
@@ -140,11 +140,11 @@ func (builder *Builder) WithCGroupMode(expectedCGroupMode configV1.CgroupMode) *
 		return builder
 	}
 
-	glog.V(100).Infof("Setting nodesConfig %s with cGroupMode: %v",
+	klog.V(100).Infof("Setting nodesConfig %s with cGroupMode: %v",
 		builder.Definition.Name, expectedCGroupMode)
 
 	if expectedCGroupMode == configV1.CgroupModeEmpty {
-		glog.V(100).Infof("the cGroupMode value can not be empty")
+		klog.V(100).Info("the cGroupMode value can not be empty")
 
 		builder.errorMsg = "the cGroupMode value can not be empty"
 
@@ -169,25 +169,25 @@ func (builder *Builder) validate() (bool, error) {
 	resourceCRD := "Nodes.Config"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

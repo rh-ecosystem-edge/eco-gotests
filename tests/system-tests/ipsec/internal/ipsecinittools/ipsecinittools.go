@@ -1,12 +1,12 @@
 package ipsecinittools
 
 import (
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ipsec/internal/ipsecconfig"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 var (
@@ -31,7 +31,7 @@ func GetNodeNames() ([]string, error) {
 		metav1.ListOptions{},
 	)
 	if err != nil {
-		glog.V(100).Infof("Error listing nodes.")
+		klog.V(100).Infof("Error listing nodes.")
 
 		return nil, err
 	}

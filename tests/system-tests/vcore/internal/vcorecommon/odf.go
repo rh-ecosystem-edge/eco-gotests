@@ -18,11 +18,11 @@ import (
 	ocsoperatorv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ocs/operatorv1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/strings/slices"
 
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/apiobjectshelper"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/vcore/internal/vcoreinittools"
@@ -74,7 +74,7 @@ func VerifyODFNamespaceExists(ctx SpecContext) {
 // VerifyODFOperatorDeployment asserts ODF successfully installed.
 func VerifyODFOperatorDeployment(ctx SpecContext) {
 	for _, operatorPod := range odfOperatorDeployments {
-		glog.V(vcoreparams.VCoreLogLevel).Infof("Confirm that odf %s pod was deployed and running in %s namespace",
+		klog.V(vcoreparams.VCoreLogLevel).Infof("Confirm that odf %s pod was deployed and running in %s namespace",
 			operatorPod, vcoreparams.ODFNamespace)
 
 		odfPods, err := pod.ListByNamePattern(APIClient, operatorPod, vcoreparams.ODFNamespace)
@@ -89,13 +89,13 @@ func VerifyODFOperatorDeployment(ctx SpecContext) {
 		err = odfPod.WaitUntilReady(30 * time.Second)
 		if err != nil {
 			odfPodLog, _ := odfPod.GetLog(600*time.Second, operatorPod)
-			glog.Fatalf("%s pod in %s namespace in a bad state: %s",
+			klog.Fatalf("%s pod in %s namespace in a bad state: %s",
 				odfPodName, vcoreparams.ODFNamespace, odfPodLog)
 		}
 	}
 
 	for _, operatorDeployment := range odfOperatorDeployments {
-		glog.V(vcoreparams.VCoreLogLevel).Infof("Confirm that %s deployment is running in %s namespace",
+		klog.V(vcoreparams.VCoreLogLevel).Infof("Confirm that %s deployment is running in %s namespace",
 			operatorDeployment, vcoreparams.ODFNamespace)
 
 		odfDeployment, err := deployment.Pull(APIClient, operatorDeployment, vcoreparams.ODFNamespace)
@@ -109,7 +109,7 @@ func VerifyODFOperatorDeployment(ctx SpecContext) {
 
 // VerifyODFConsoleConfig asserts ODF console enabled.
 func VerifyODFConsoleConfig(ctx SpecContext) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Enable odf-console")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Enable odf-console")
 
 	consoleOperatorObj, err := console.PullConsoleOperator(APIClient, "cluster")
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("consoleOperator 'cluster' not found; %v", err))
@@ -125,20 +125,20 @@ func VerifyODFConsoleConfig(ctx SpecContext) {
 		fmt.Sprintf("Failed to add new plugin %s to the consoleOperator plugins list: %v",
 			odfConsolePlugin, newPluginsList))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Wait for the console enablement")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Wait for the console enablement")
 	time.Sleep(7 * time.Minute)
 } // func VerifyODFConsoleConfig (ctx SpecContext)
 
 // VerifyODFTaints asserts ODF nodes taints configuration.
 func VerifyODFTaints(ctx SpecContext) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Apply taints to the ODF nodes")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Apply taints to the ODF nodes")
 
 	for _, odfNodeName := range odfNodesList {
 		odfNode, err := nodes.Pull(APIClient, odfNodeName)
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to retrieve node %s object due to %v",
 			odfNodeName, err))
 
-		glog.V(vcoreparams.VCoreLogLevel).Infof("Ensure taints applyed to the %s node", odfNode.Definition.Name)
+		klog.V(vcoreparams.VCoreLogLevel).Infof("Ensure taints applyed to the %s node", odfNode.Definition.Name)
 		applyTaintsCmd := fmt.Sprintf(
 			"oc adm taint node %s node.ocs.openshift.io/storage=true:NoSchedule --overwrite=true --kubeconfig=%s",
 			odfNode.Definition.Name, VCoreConfig.KubeconfigPath)
@@ -152,7 +152,7 @@ func VerifyODFTaints(ctx SpecContext) {
 
 // VerifyODFStorageSystemConfig asserts ODF storage cluster system successfully configured.
 func VerifyODFStorageSystemConfig(ctx SpecContext) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Cleanup StorageSystem and StorageCluster config")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Cleanup StorageSystem and StorageCluster config")
 
 	storageSystemObj := storage.NewSystemODFBuilder(APIClient,
 		vcoreparams.ODFStorageSystemName, vcoreparams.ODFNamespace)
@@ -174,14 +174,14 @@ func VerifyODFStorageSystemConfig(ctx SpecContext) {
 				vcoreparams.StorageClusterName, vcoreparams.ODFNamespace, err))
 	}
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Start to configure ODF StorageSystem")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Start to configure ODF StorageSystem")
 
 	_, err := storageSystemObj.WithSpec("storagecluster.ocs.openshift.io/v1",
 		vcoreparams.StorageClusterName, vcoreparams.ODFNamespace).Create()
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to create storageSystem %s instance in %s namespace; "+
 		"%v", vcoreparams.ODFStorageSystemName, vcoreparams.ODFNamespace, err))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Start to configure ODF StorageCluster")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Start to configure ODF StorageCluster")
 
 	annotations := map[string]string{
 		"cluster.ocs.openshift.io/local-devices":    "true",
@@ -240,9 +240,9 @@ func VerifyODFStorageSystemConfig(ctx SpecContext) {
 
 // VerifyOperatorsConfigForODFNodes asserts operators configuration for ODF nodes.
 func VerifyOperatorsConfigForODFNodes(ctx SpecContext) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Configuring operators for ODF nodes")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Configuring operators for ODF nodes")
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("DNS operator")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("DNS operator")
 
 	patchStr :=
 		"spec:\n" +
@@ -257,7 +257,7 @@ func VerifyOperatorsConfigForODFNodes(ctx SpecContext) {
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to patch dns.operator default in namespace openshift-dns"+
 		" due to %v", err))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Configuring selectors and tolerations for ODF components")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Configuring selectors and tolerations for ODF components")
 
 	rookCephConfigMap, err := configmap.Pull(APIClient, vcoreparams.RookCephConfigMapName, vcoreparams.ODFNamespace)
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to retrieve configmap %s from "+
@@ -306,7 +306,7 @@ func VerifyOperatorsConfigForODFNodes(ctx SpecContext) {
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to update configMap %s in namespace %s due to %v",
 		vcoreparams.RookCephConfigMapName, vcoreparams.ODFNamespace, err))
 
-	glog.V(vcoreparams.VCoreLogLevel).Info("Restarting storage pods")
+	klog.V(vcoreparams.VCoreLogLevel).Info("Restarting storage pods")
 
 	restartStoragePodsCmd := fmt.Sprintf("oc delete pods -n %s --all --kubeconfig=%s",
 		vcoreparams.ODFNamespace, VCoreConfig.KubeconfigPath)

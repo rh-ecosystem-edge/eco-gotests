@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	lcav1 "github.com/openshift-kni/lifecycle-agent/api/imagebasedupgrade/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
@@ -14,6 +13,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -37,18 +37,18 @@ func NewIbguBuilder(
 	apiClient *clients.Settings,
 	name string,
 	nsname string) *IbguBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new ibgu structure with the following params: name: %s, nsname: %s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Info("The apiClient for the ibgu is nil")
+		klog.V(100).Info("The apiClient for the ibgu is nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(v1alpha1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add ibgu v1alpha1 scheme to client schemes")
+		klog.V(100).Info("Failed to add ibgu v1alpha1 scheme to client schemes")
 
 		return nil
 	}
@@ -68,7 +68,7 @@ func NewIbguBuilder(
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the ibgu is empty")
+		klog.V(100).Info("The name of the ibgu is empty")
 
 		builder.errorMsg = "ibgu 'name' cannot be empty"
 
@@ -76,7 +76,7 @@ func NewIbguBuilder(
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the ibgu is empty")
+		klog.V(100).Info("The namespace of the ibgu is empty")
 
 		builder.errorMsg = "ibgu 'nsname' cannot be empty"
 
@@ -92,10 +92,10 @@ func (builder *IbguBuilder) WithClusterLabelSelectors(labels map[string]string) 
 		return builder
 	}
 
-	glog.V(100).Infof("Creating IBGU with %v cluster label selector", labels)
+	klog.V(100).Infof("Creating IBGU with %v cluster label selector", labels)
 
 	if len(labels) == 0 {
-		glog.V(100).Infof("The 'labels' of the IBGU is empty")
+		klog.V(100).Info("The 'labels' of the IBGU is empty")
 
 		builder.errorMsg = "can not apply empty cluster label selectors to the IBGU"
 
@@ -119,11 +119,11 @@ func (builder *IbguBuilder) WithAutoRollbackOnFailure(initMonitorTimeout int) *I
 		return builder
 	}
 
-	glog.V(100).Infof("Creating IBGU with AutoRollbackOnFailure and InitMonitorTimeout set to %d seconds",
+	klog.V(100).Infof("Creating IBGU with AutoRollbackOnFailure and InitMonitorTimeout set to %d seconds",
 		initMonitorTimeout)
 
 	if initMonitorTimeout < 0 {
-		glog.V(100).Info("The 'initMonitorTimeout' parameter is undefined")
+		klog.V(100).Info("The 'initMonitorTimeout' parameter is undefined")
 
 		builder.errorMsg = "initMonitorTimeout cannot be undefined"
 
@@ -145,10 +145,10 @@ func (builder *IbguBuilder) WithSeedImageRef(seedImage string, seedVersion strin
 		return builder
 	}
 
-	glog.V(100).Infof("Creating IBGU with %s seed image and %s seed version", seedImage, seedVersion)
+	klog.V(100).Infof("Creating IBGU with %s seed image and %s seed version", seedImage, seedVersion)
 
 	if seedImage == "" {
-		glog.V(100).Info("The 'seedImage' parameter is empty")
+		klog.V(100).Info("The 'seedImage' parameter is empty")
 
 		builder.errorMsg = "seedImage cannot be empty"
 
@@ -156,7 +156,7 @@ func (builder *IbguBuilder) WithSeedImageRef(seedImage string, seedVersion strin
 	}
 
 	if seedVersion == "" {
-		glog.V(100).Info("The 'seedVersion' parameter is empty")
+		klog.V(100).Info("The 'seedVersion' parameter is empty")
 
 		builder.errorMsg = "seedVersion cannot be empty"
 
@@ -181,10 +181,10 @@ func (builder *IbguBuilder) WithOadpContent(name string, namespace string) *Ibgu
 		return builder
 	}
 
-	glog.V(100).Infof("Creating IBGU with OADP configmap %s in namespace %s", name, namespace)
+	klog.V(100).Infof("Creating IBGU with OADP configmap %s in namespace %s", name, namespace)
 
 	if name == "" {
-		glog.V(100).Info("The 'name' parameter for OADP content is empty")
+		klog.V(100).Info("The 'name' parameter for OADP content is empty")
 
 		builder.errorMsg = "oadp content name cannot be empty"
 
@@ -192,7 +192,7 @@ func (builder *IbguBuilder) WithOadpContent(name string, namespace string) *Ibgu
 	}
 
 	if namespace == "" {
-		glog.V(100).Info("The 'namespace' parameter for OADP content is empty")
+		klog.V(100).Info("The 'namespace' parameter for OADP content is empty")
 
 		builder.errorMsg = "oadp content namespace cannot be empty"
 
@@ -215,7 +215,7 @@ func (builder *IbguBuilder) WithPlan(actions []string, maxConcurrency int, timeo
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating IBGU with plan actions %v, maxConcurrency %d and timeout %d",
 		actions,
 		maxConcurrency,
@@ -223,7 +223,7 @@ func (builder *IbguBuilder) WithPlan(actions []string, maxConcurrency int, timeo
 	)
 
 	if len(actions) == 0 {
-		glog.V(100).Info("The 'actions' slice is empty")
+		klog.V(100).Info("The 'actions' slice is empty")
 
 		builder.errorMsg = "plan actions cannot be empty"
 
@@ -231,7 +231,7 @@ func (builder *IbguBuilder) WithPlan(actions []string, maxConcurrency int, timeo
 	}
 
 	if maxConcurrency <= 0 {
-		glog.V(100).Infof("Invalid maxConcurrency value: %d", maxConcurrency)
+		klog.V(100).Infof("Invalid maxConcurrency value: %d", maxConcurrency)
 
 		builder.errorMsg = "maxConcurrency must be greater than 0"
 
@@ -239,7 +239,7 @@ func (builder *IbguBuilder) WithPlan(actions []string, maxConcurrency int, timeo
 	}
 
 	if timeout <= 0 {
-		glog.V(100).Infof("Invalid timeout value: %d", timeout)
+		klog.V(100).Infof("Invalid timeout value: %d", timeout)
 
 		builder.errorMsg = "timeout must be greater than 0"
 
@@ -265,7 +265,7 @@ func (builder *IbguBuilder) Get() (*v1alpha1.ImageBasedGroupUpgrade, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting imagebasedgroupupgrade %s in namespace %s",
+	klog.V(100).Infof("Getting imagebasedgroupupgrade %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	imagebasedgroupupgrade := &v1alpha1.ImageBasedGroupUpgrade{}
@@ -275,7 +275,7 @@ func (builder *IbguBuilder) Get() (*v1alpha1.ImageBasedGroupUpgrade, error) {
 		Namespace: builder.Definition.Namespace,
 	}, imagebasedgroupupgrade)
 	if err != nil {
-		glog.V(100).Infof("Failed to get imagebasedgroupupgrade %s in namespace %s: %v",
+		klog.V(100).Infof("Failed to get imagebasedgroupupgrade %s in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
 
 		return nil, err
@@ -290,7 +290,7 @@ func (builder *IbguBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if imagebasedgroupupgrade %s in namespace %s exists",
+	klog.V(100).Infof("Checking if imagebasedgroupupgrade %s in namespace %s exists",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -306,7 +306,7 @@ func (builder *IbguBuilder) Create() (*IbguBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the imageasedgroupupgrade %s in namespace %s",
+	klog.V(100).Infof("Creating the imageasedgroupupgrade %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -326,7 +326,7 @@ func (builder *IbguBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting the ImageBasedGroupUpgrade %s in namespace %s",
+	klog.V(100).Infof("Deleting the ImageBasedGroupUpgrade %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
@@ -347,17 +347,17 @@ func (builder *IbguBuilder) Delete() error {
 
 // PullIbgu pulls existing ibgu into IbguBuilder struct.
 func PullIbgu(apiClient *clients.Settings, name, nsname string) (*IbguBuilder, error) {
-	glog.V(100).Infof("Pulling existing ibgu name %s under namespace %s from cluster", name, nsname)
+	klog.V(100).Infof("Pulling existing ibgu name %s under namespace %s from cluster", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("ibgu 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(v1alpha1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add ibgu v1alpha1 scheme to client schemes")
+		klog.V(100).Info("Failed to add ibgu v1alpha1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -373,13 +373,13 @@ func PullIbgu(apiClient *clients.Settings, name, nsname string) (*IbguBuilder, e
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the ibgu is empty")
+		klog.V(100).Info("The name of the ibgu is empty")
 
 		return nil, fmt.Errorf("ibgu 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the ibgu is empty")
+		klog.V(100).Info("The namespace of the ibgu is empty")
 
 		return nil, fmt.Errorf("ibgu 'nsname' cannot be empty")
 	}
@@ -399,7 +399,7 @@ func (builder *IbguBuilder) DeleteAndWait(timeout time.Duration) (*IbguBuilder, 
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting ibgu %s in namespace %s and waiting for the defined period until it is removed",
+	klog.V(100).Infof("Deleting ibgu %s in namespace %s and waiting for the defined period until it is removed",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.Delete()
@@ -418,7 +418,7 @@ func (builder *IbguBuilder) WaitUntilDeleted(timeout time.Duration) error {
 		return err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Waiting for the defined period until ibgu %s in namespace %s is deleted",
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -426,18 +426,18 @@ func (builder *IbguBuilder) WaitUntilDeleted(timeout time.Duration) error {
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			_, err := builder.Get()
 			if err == nil {
-				glog.V(100).Infof("ibgu %s/%s still present", builder.Definition.Namespace, builder.Definition.Name)
+				klog.V(100).Infof("ibgu %s/%s still present", builder.Definition.Namespace, builder.Definition.Name)
 
 				return false, nil
 			}
 
 			if k8serrors.IsNotFound(err) {
-				glog.V(100).Infof("ibgu %s/%s is gone", builder.Definition.Namespace, builder.Definition.Name)
+				klog.V(100).Infof("ibgu %s/%s is gone", builder.Definition.Namespace, builder.Definition.Name)
 
 				return true, nil
 			}
 
-			glog.V(100).Infof("failed to get ibgu %s/%s: %w", builder.Definition.Namespace, builder.Definition.Name, err)
+			klog.V(100).Infof("failed to get ibgu %s/%s: %v", builder.Definition.Namespace, builder.Definition.Name, err)
 
 			return false, err
 		})
@@ -452,7 +452,7 @@ func (builder *IbguBuilder) WaitForCondition(expected metav1.Condition, timeout 
 	}
 
 	if !builder.Exists() {
-		glog.V(100).Infof("The IBGU does not exist on the cluster")
+		klog.V(100).Info("The IBGU does not exist on the cluster")
 
 		return builder, fmt.Errorf(
 			"ibgu object %s does not exist in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
@@ -464,7 +464,7 @@ func (builder *IbguBuilder) WaitForCondition(expected metav1.Condition, timeout 
 
 			builder.Object, err = builder.Get()
 			if err != nil {
-				glog.V(100).Info("failed to get ibgu %s/%s: %w", builder.Definition.Namespace, builder.Definition.Name, err)
+				klog.V(100).Infof("failed to get ibgu %s/%s: %v", builder.Definition.Namespace, builder.Definition.Name, err)
 
 				return false, nil
 			}
@@ -508,25 +508,25 @@ func (builder *IbguBuilder) validate() (bool, error) {
 	resourceCRD := "ibgu"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

@@ -9,7 +9,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
@@ -17,6 +16,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/internal/installconfig"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/internal/ztpinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/internal/ztpparams"
+	"k8s.io/klog/v2"
 
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/operator/internal/tsparams"
 )
@@ -117,7 +117,7 @@ func removeTmpDir(dirPath string) error {
 func testBinaryCgoEnabled(path string) (bool, error) {
 	file, err := elf.Open(path)
 	if err != nil {
-		glog.V(ztpparams.ZTPLogLevel).Infof("Got error: %s", err)
+		klog.V(ztpparams.ZTPLogLevel).Infof("Got error: %s", err)
 
 		return false, err
 	}
@@ -134,7 +134,7 @@ func testBinaryCgoEnabled(path string) (bool, error) {
 	}
 
 	if strings.Contains(string(content), "CGO_ENABLED=1") {
-		glog.V(ztpparams.ZTPLogLevel).Infof(string(content))
+		klog.V(ztpparams.ZTPLogLevel).Info(string(content))
 
 		return true, nil
 	}
@@ -149,7 +149,7 @@ func extractBinaryFromPod(
 	tar bool,
 	destination string) error {
 	if !podbuilder.Exists() {
-		glog.V(ztpparams.ZTPLogLevel).Infof("Pod doesn't exist")
+		klog.V(ztpparams.ZTPLogLevel).Infof("Pod doesn't exist")
 
 		return fmt.Errorf("%s pod does not exist", podbuilder.Definition.Name)
 	}
@@ -158,14 +158,14 @@ func extractBinaryFromPod(
 	buf, err = podbuilder.Copy(binary, containerName, tar)
 
 	if err != nil {
-		glog.V(ztpparams.ZTPLogLevel).Infof("Got error reading file to buffer. The error is : %s", err)
+		klog.V(ztpparams.ZTPLogLevel).Infof("Got error reading file to buffer. The error is : %s", err)
 
 		return err
 	}
 
 	err = os.WriteFile(destination+"/"+binary, buf.Bytes(), 0666)
 	if err != nil {
-		glog.V(ztpparams.ZTPLogLevel).
+		klog.V(ztpparams.ZTPLogLevel).
 			Infof("Got error writing to %s/%s from buffer. The error is: %s", destination, binary, err)
 
 		return err

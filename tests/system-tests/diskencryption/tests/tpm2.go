@@ -5,7 +5,6 @@ import (
 
 	"regexp"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
@@ -15,6 +14,7 @@ import (
 	stdinmatcher "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/diskencryption/internal/stdin-matcher"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/diskencryption/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/file"
+	"k8s.io/klog/v2"
 )
 
 var _ = Describe("TPM2", func() {
@@ -428,7 +428,7 @@ var _ = Describe("TPM2", func() {
 			WithPolling(tsparams.PollingIntervalBMC).
 			ShouldNot(HaveOccurred(), "getting boot order should not return an error")
 
-		glog.V(tsparams.LogLevel).Infof("listing original boot Order: %s", originalBootOrder)
+		klog.V(tsparams.LogLevel).Infof("listing original boot Order: %s", originalBootOrder)
 
 		By("changing the server boot order")
 		swapFirstSecondBootItems()

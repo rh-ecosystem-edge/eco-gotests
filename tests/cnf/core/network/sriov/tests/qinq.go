@@ -19,8 +19,8 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 	multus "gopkg.in/k8snetworkplumbingwg/multus-cni.v4/pkg/types"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/klog/v2"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
@@ -1122,7 +1122,7 @@ func cleanTestEnvSRIOVConfiguration() {
 }
 
 func createSriovPolicyWithExManaged(sriovAndResName, sriovInterfaceName string) error {
-	glog.V(90).Infof("Creating SR-IOV policy with flag ExternallyManaged true")
+	klog.V(90).Infof("Creating SR-IOV policy with flag ExternallyManaged true")
 
 	sriovPolicy := sriov.NewPolicyBuilder(APIClient, sriovAndResName, NetConfig.SriovOperatorNamespace, sriovAndResName,
 		5, []string{sriovInterfaceName}, NetConfig.WorkerLabelMap).WithExternallyManaged(true)

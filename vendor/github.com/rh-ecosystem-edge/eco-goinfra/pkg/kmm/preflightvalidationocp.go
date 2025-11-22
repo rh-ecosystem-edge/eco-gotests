@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	kmmv1beta2 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/kmm/v1beta2"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -33,18 +33,18 @@ type PreflightValidationOCPAdditionalOptions func(
 // NewPreflightValidationOCPBuilder creates a new instance of PreflightValidationOCPBuilder.
 func NewPreflightValidationOCPBuilder(
 	apiClient *clients.Settings, name, nsname string) *PreflightValidationOCPBuilder {
-	glog.V(100).Infof("Initializing new PreflightValidationOCP structure with following params: %s, %s",
+	klog.V(100).Infof("Initializing new PreflightValidationOCP structure with following params: %s, %s",
 		name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(kmmv1beta2.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add module v1beta2 scheme to client schemes")
+		klog.V(100).Info("Failed to add module v1beta2 scheme to client schemes")
 
 		return nil
 	}
@@ -60,7 +60,7 @@ func NewPreflightValidationOCPBuilder(
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the PreflightValidationOCP is empty")
+		klog.V(100).Info("The name of the PreflightValidationOCP is empty")
 
 		builder.errorMsg = "PreflightValidationOCP 'name' cannot be empty"
 
@@ -68,7 +68,7 @@ func NewPreflightValidationOCPBuilder(
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the PreflightValidationOCP is empty")
+		klog.V(100).Info("The namespace of the PreflightValidationOCP is empty")
 
 		builder.errorMsg = "PreflightValidationOCP 'nsname' cannot be empty"
 
@@ -90,7 +90,7 @@ func (builder *PreflightValidationOCPBuilder) WithKernelVersion(kernelVersion st
 		return builder
 	}
 
-	glog.V(100).Infof("Creating new PreflightValidationOCP with kernelVersion: %s",
+	klog.V(100).Infof("Creating new PreflightValidationOCP with kernelVersion: %s",
 		kernelVersion)
 
 	builder.Definition.Spec.KernelVersion = kernelVersion
@@ -110,7 +110,7 @@ func (builder *PreflightValidationOCPBuilder) WithDtkImage(dtkImage string) *Pre
 		return builder
 	}
 
-	glog.V(100).Infof("Creating new PreflightValidationOCP with dtkImage set to: %s", dtkImage)
+	klog.V(100).Infof("Creating new PreflightValidationOCP with dtkImage set to: %s", dtkImage)
 
 	builder.Definition.Spec.DTKImage = dtkImage
 
@@ -123,7 +123,7 @@ func (builder *PreflightValidationOCPBuilder) WithPushBuiltImage(push bool) *Pre
 		return builder
 	}
 
-	glog.V(100).Infof("Creating new PreflightValidationOCP with PushBuiltImage set to: %s", push)
+	klog.V(100).Infof("Creating new PreflightValidationOCP with PushBuiltImage set to: %v", push)
 
 	builder.Definition.Spec.PushBuiltImage = push
 
@@ -137,13 +137,13 @@ func (builder *PreflightValidationOCPBuilder) WithOptions(
 		return builder
 	}
 
-	glog.V(100).Infof("Setting Module additional options")
+	klog.V(100).Info("Setting Module additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -158,18 +158,18 @@ func (builder *PreflightValidationOCPBuilder) WithOptions(
 // PullPreflightValidationOCP fetches existing PreflightValidationOCP from the cluster.
 func PullPreflightValidationOCP(apiClient *clients.Settings,
 	name, nsname string) (*PreflightValidationOCPBuilder, error) {
-	glog.V(100).Infof("Pulling existing preflightvalidationocp name % under namespace %s",
+	klog.V(100).Infof("Pulling existing preflightvalidationocp name %s under namespace %s",
 		name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("preflightvalidationocp 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(kmmv1beta2.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add module v1beta2 scheme to client schemes")
+		klog.V(100).Info("Failed to add module v1beta2 scheme to client schemes")
 
 		return nil, err
 	}
@@ -185,13 +185,13 @@ func PullPreflightValidationOCP(apiClient *clients.Settings,
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the preflightvalidationocp is empty")
+		klog.V(100).Info("The name of the preflightvalidationocp is empty")
 
 		return builder, fmt.Errorf("%s", "preflightvalidationocp 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the preflightvalidationocp is empty")
+		klog.V(100).Info("The namespace of the preflightvalidationocp is empty")
 
 		return builder, fmt.Errorf("%s", "preflightvalidationocp 'nsname' cannot be empty")
 	}
@@ -212,7 +212,7 @@ func (builder *PreflightValidationOCPBuilder) Create() (*PreflightValidationOCPB
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating preflightvalidationocp %s in namespace %s",
+	klog.V(100).Infof("Creating preflightvalidationocp %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -232,7 +232,7 @@ func (builder *PreflightValidationOCPBuilder) Update() (*PreflightValidationOCPB
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating preflightvalidationocp %s in namespace %s",
+	klog.V(100).Infof("Updating preflightvalidationocp %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
@@ -249,7 +249,7 @@ func (builder *PreflightValidationOCPBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if preflightvalidationocp %s exists in namespace %s",
+	klog.V(100).Infof("Checking if preflightvalidationocp %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -265,11 +265,11 @@ func (builder *PreflightValidationOCPBuilder) Delete() (*PreflightValidationOCPB
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting preflightvalidationocp %s in namespace %s",
+	klog.V(100).Infof("Deleting preflightvalidationocp %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("preflightvalidationocp %s namespace %s cannot be deleted because it does not exist",
+		klog.V(100).Infof("preflightvalidationocp %s namespace %s cannot be deleted because it does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -294,7 +294,7 @@ func (builder *PreflightValidationOCPBuilder) Get() (*kmmv1beta2.PreflightValida
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting preflightvalidationocp %s from namespace %s",
+	klog.V(100).Infof("Getting preflightvalidationocp %s from namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	preflightvalidationocp := &kmmv1beta2.PreflightValidationOCP{}
@@ -304,7 +304,7 @@ func (builder *PreflightValidationOCPBuilder) Get() (*kmmv1beta2.PreflightValida
 		Namespace: builder.Definition.Namespace,
 	}, preflightvalidationocp)
 	if err != nil {
-		glog.V(100).Infof("Preflightvalidationocp object %s does not exist in namespace %s",
+		klog.V(100).Infof("Preflightvalidationocp object %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		return nil, err
@@ -319,25 +319,25 @@ func (builder *PreflightValidationOCPBuilder) validate() (bool, error) {
 	resourceCRD := "PreflightValidationOCP"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiClient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiClient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

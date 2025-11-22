@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	bmhv1alpha1 "github.com/metal3-io/baremetal-operator/apis/metal3.io/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -24,17 +24,17 @@ type DataImageBuilder struct {
 
 // PullDataImage retrieves an existing DataImage resource from the cluster.
 func PullDataImage(apiClient *clients.Settings, name, nsname string) (*DataImageBuilder, error) {
-	glog.V(100).Infof("Pulling existing dataimage name %s under namespace %s from cluster", name, nsname)
+	klog.V(100).Infof("Pulling existing dataimage name %s under namespace %s from cluster", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("dataimage 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(bmhv1alpha1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add bmhv1alpha1 scheme to client schemes")
+		klog.V(100).Info("Failed to add bmhv1alpha1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -50,13 +50,13 @@ func PullDataImage(apiClient *clients.Settings, name, nsname string) (*DataImage
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the dataimage is empty")
+		klog.V(100).Info("The name of the dataimage is empty")
 
 		return nil, fmt.Errorf("dataimage 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the dataimage is empty")
+		klog.V(100).Info("The namespace of the dataimage is empty")
 
 		return nil, fmt.Errorf("dataimage 'namespace' cannot be empty")
 	}
@@ -76,11 +76,11 @@ func (builder *DataImageBuilder) Delete() (*DataImageBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting the dataimage %s in namespace %s",
+	klog.V(100).Infof("Deleting the dataimage %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("dataimage %s namespace: %s cannot be deleted because it does not exist",
+		klog.V(100).Infof("dataimage %s namespace: %s cannot be deleted because it does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -104,7 +104,7 @@ func (builder *DataImageBuilder) Get() (*bmhv1alpha1.DataImage, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting dataimage %s in namespace %s",
+	klog.V(100).Infof("Getting dataimage %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	dataimage := &bmhv1alpha1.DataImage{}
@@ -126,7 +126,7 @@ func (builder *DataImageBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if dataimage %s exists in namespace %s",
+	klog.V(100).Infof("Checking if dataimage %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -142,25 +142,25 @@ func (builder *DataImageBuilder) validate() (bool, error) {
 	resourceCRD := "dataimage"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

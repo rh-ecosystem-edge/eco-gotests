@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	oranapi "github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/secret"
@@ -17,6 +16,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/tsparams"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
+	"k8s.io/klog/v2"
 )
 
 // oAuthScopes are the OAuth scopes required for the O2IMS API. These are specific to the Keycloak configuration; what
@@ -32,7 +32,7 @@ func NewClientBuilderForConfig(config *ranconfig.RANConfig) (*oranapi.ClientBuil
 
 	if config.O2IMSOAuthClientID == "" || config.O2IMSOAuthClientSecret == "" {
 		if config.O2IMSToken == "" {
-			glog.V(tsparams.LogLevel).Info("No OAuth credentials or token found for O2IMS API")
+			klog.V(tsparams.LogLevel).Info("No OAuth credentials or token found for O2IMS API")
 
 			return nil, fmt.Errorf("no OAuth credentials or token found for O2IMS API")
 		}
@@ -86,7 +86,7 @@ func getTLSConfigFromCertificateSecret(
 	tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12, Certificates: []tls.Certificate{cert}}
 
 	if len(certSecret.Definition.Data["ca.crt"]) > 0 {
-		glog.V(tsparams.LogLevel).Infof("Adding CA certificate to certificate pool from secret %q", certSecretName)
+		klog.V(tsparams.LogLevel).Infof("Adding CA certificate to certificate pool from secret %q", certSecretName)
 
 		caCertPool := x509.NewCertPool()
 		if !caCertPool.AppendCertsFromPEM(certSecret.Definition.Data["ca.crt"]) {

@@ -1,11 +1,11 @@
 package mgmtconfig
 
 import (
-	"github.com/golang/glog"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/internal/ibuconfig"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/mgmt/internal/mgmtparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/internal/seedimage"
+	"k8s.io/klog/v2"
 )
 
 // MGMTConfig type contains mgmt configuration.
@@ -25,7 +25,7 @@ type MGMTConfig struct {
 
 // NewMGMTConfig returns instance of MGMTConfig type.
 func NewMGMTConfig() *MGMTConfig {
-	glog.V(mgmtparams.MGMTLogLevel).Info("Creating new MGMTConfig struct")
+	klog.V(mgmtparams.MGMTLogLevel).Info("Creating new MGMTConfig struct")
 
 	var mgmtConfig MGMTConfig
 	mgmtConfig.IBUConfig = ibuconfig.NewIBUConfig()

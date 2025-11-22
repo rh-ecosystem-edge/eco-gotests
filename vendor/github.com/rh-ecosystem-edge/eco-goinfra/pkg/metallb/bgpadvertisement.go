@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/mlbtypes"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/klog/v2"
 	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -28,13 +28,13 @@ type BGPAdvertisementAdditionalOptions func(builder *BGPAdvertisementBuilder) (*
 
 // NewBGPAdvertisementBuilder creates a new instance of BGPAdvertisementBuilder.
 func NewBGPAdvertisementBuilder(apiClient *clients.Settings, name, nsname string) *BGPAdvertisementBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new BGPAdvertisement structure with the following params: %s, %s",
 		name, nsname)
 
 	err := apiClient.AttachScheme(mlbtypes.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add metallb scheme to client schemes")
+		klog.V(100).Info("Failed to add metallb scheme to client schemes")
 
 		return nil
 	}
@@ -50,7 +50,7 @@ func NewBGPAdvertisementBuilder(apiClient *clients.Settings, name, nsname string
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the BGPAdvertisement is empty")
+		klog.V(100).Info("The name of the BGPAdvertisement is empty")
 
 		builder.errorMsg = "BGPAdvertisement 'name' cannot be empty"
 
@@ -58,7 +58,7 @@ func NewBGPAdvertisementBuilder(apiClient *clients.Settings, name, nsname string
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the BGPAdvertisement is empty")
+		klog.V(100).Info("The namespace of the BGPAdvertisement is empty")
 
 		builder.errorMsg = "BGPAdvertisement 'nsname' cannot be empty"
 
@@ -74,7 +74,7 @@ func (builder *BGPAdvertisementBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Checking if BGPAdvertisement %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -91,7 +91,7 @@ func (builder *BGPAdvertisementBuilder) Get() (*mlbtypes.BGPAdvertisement, error
 		return nil, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Collecting BGPAdvertisement object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -101,7 +101,7 @@ func (builder *BGPAdvertisementBuilder) Get() (*mlbtypes.BGPAdvertisement, error
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		bgpAdvertisement)
 	if err != nil {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"BGPAdvertisement object %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
@@ -113,17 +113,17 @@ func (builder *BGPAdvertisementBuilder) Get() (*mlbtypes.BGPAdvertisement, error
 
 // PullBGPAdvertisement pulls existing bgpadvertisement from cluster.
 func PullBGPAdvertisement(apiClient *clients.Settings, name, nsname string) (*BGPAdvertisementBuilder, error) {
-	glog.V(100).Infof("Pulling existing bgpadvertisement name %s under namespace %s from cluster", name, nsname)
+	klog.V(100).Infof("Pulling existing bgpadvertisement name %s under namespace %s from cluster", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("bgpadvertisement 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(mlbtypes.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add metallb scheme to client schemes")
+		klog.V(100).Info("Failed to add metallb scheme to client schemes")
 
 		return nil, err
 	}
@@ -139,13 +139,13 @@ func PullBGPAdvertisement(apiClient *clients.Settings, name, nsname string) (*BG
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the bgpadvertisement is empty")
+		klog.V(100).Info("The name of the bgpadvertisement is empty")
 
 		return nil, fmt.Errorf("bgpadvertisement 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the bgpadvertisement is empty")
+		klog.V(100).Info("The namespace of the bgpadvertisement is empty")
 
 		return nil, fmt.Errorf("bgpadvertisement 'namespace' cannot be empty")
 	}
@@ -165,14 +165,14 @@ func (builder *BGPAdvertisementBuilder) Create() (*BGPAdvertisementBuilder, erro
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the BGPAdvertisement %s in namespace %s",
+	klog.V(100).Infof("Creating the BGPAdvertisement %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace,
 	)
 
 	if !builder.Exists() {
 		err := builder.apiClient.Create(context.TODO(), builder.Definition)
 		if err != nil {
-			glog.V(100).Infof("Failed to create BGPAdvertisement")
+			klog.V(100).Info("Failed to create BGPAdvertisement")
 
 			return nil, err
 		}
@@ -189,12 +189,12 @@ func (builder *BGPAdvertisementBuilder) Delete() (*BGPAdvertisementBuilder, erro
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting the BGPAdvertisement object %s in namespace %s",
+	klog.V(100).Infof("Deleting the BGPAdvertisement object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace,
 	)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("BGPAdvertisement object %s does not exist in namespace %s",
+		klog.V(100).Infof("BGPAdvertisement object %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -218,12 +218,12 @@ func (builder *BGPAdvertisementBuilder) Update(force bool) (*BGPAdvertisementBui
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating the BGPAdvertisement object %s in namespace %s",
+	klog.V(100).Infof("Updating the BGPAdvertisement object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace,
 	)
 
 	if !builder.Exists() {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"Failed to update the BGPAdvertisement object %s in namespace %s. "+
 				"Resource does not exist",
 			builder.Definition.Name, builder.Definition.Namespace,
@@ -237,13 +237,11 @@ func (builder *BGPAdvertisementBuilder) Update(force bool) (*BGPAdvertisementBui
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		if force {
-			glog.V(100).Infof(
-				msg.FailToUpdateNotification("BGPAdvertisement", builder.Definition.Name, builder.Definition.Namespace))
+			klog.V(100).Infof("%v", msg.FailToUpdateNotification("BGPAdvertisement", builder.Definition.Name, builder.Definition.Namespace))
 
 			builder, err := builder.Delete()
 			if err != nil {
-				glog.V(100).Infof(
-					msg.FailToUpdateError("BGPAdvertisement", builder.Definition.Name, builder.Definition.Namespace))
+				klog.V(100).Infof("%v", msg.FailToUpdateError("BGPAdvertisement", builder.Definition.Name, builder.Definition.Namespace))
 
 				return nil, err
 			}
@@ -261,7 +259,7 @@ func (builder *BGPAdvertisementBuilder) WithAggregationLength4(aggregationLength
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating BGPAdvertisement %s in namespace %s with aggregationLength: %d",
 		builder.Definition.Name, builder.Definition.Namespace, aggregationLength)
 
@@ -283,7 +281,7 @@ func (builder *BGPAdvertisementBuilder) WithAggregationLength6(aggregationLength
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating BGPAdvertisement %s in namespace %s with aggregationLength6: %d",
 		builder.Definition.Name, builder.Definition.Namespace, aggregationLength)
 
@@ -306,7 +304,7 @@ func (builder *BGPAdvertisementBuilder) WithLocalPref(localPreference uint32) *B
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating BGPAdvertisement %s in namespace %s with LocalPref: %d",
 		builder.Definition.Name, builder.Definition.Namespace, localPreference)
 
@@ -321,7 +319,7 @@ func (builder *BGPAdvertisementBuilder) WithCommunities(communities []string) *B
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating BGPAdvertisement %s in namespace %s with Communities: %s",
 		builder.Definition.Name, builder.Definition.Namespace, communities)
 
@@ -342,7 +340,7 @@ func (builder *BGPAdvertisementBuilder) WithIPAddressPools(ipAddressPools []stri
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating BGPAdvertisement %s in namespace %s with IPAddressPools: %s",
 		builder.Definition.Name, builder.Definition.Namespace, ipAddressPools)
 
@@ -364,7 +362,7 @@ func (builder *BGPAdvertisementBuilder) WithIPAddressPoolsSelectors(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating BGPAdvertisement %s in namespace %s with IPAddressPoolSelectors: %s",
 		builder.Definition.Name, builder.Definition.Namespace, poolSelector)
 
@@ -386,7 +384,7 @@ func (builder *BGPAdvertisementBuilder) WithNodeSelector(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating BGPAdvertisement %s in namespace %s with WithIPAddressPools: %v",
 		builder.Definition.Name, builder.Definition.Namespace, nodeSelectors)
 
@@ -407,7 +405,7 @@ func (builder *BGPAdvertisementBuilder) WithPeers(peers []string) *BGPAdvertisem
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating BGPAdvertisement %s in namespace %s with Peers: %v",
 		builder.Definition.Name, builder.Definition.Namespace, peers)
 
@@ -429,13 +427,13 @@ func (builder *BGPAdvertisementBuilder) WithOptions(
 		return builder
 	}
 
-	glog.V(100).Infof("Setting BGPAdvertisement additional options")
+	klog.V(100).Info("Setting BGPAdvertisement additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -460,25 +458,25 @@ func (builder *BGPAdvertisementBuilder) validate() (bool, error) {
 	resourceCRD := "BGPAdvertisement"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

@@ -8,8 +8,8 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clusterlogging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/dns"
+	"k8s.io/klog/v2"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -120,13 +120,13 @@ func VerifyLogForwardingToKafka() {
 
 	var ctx SpecContext
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Verify CLO namespace %s defined", rdscoreparams.CLONamespace)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Verify CLO namespace %s defined", rdscoreparams.CLONamespace)
 
 	err := apiobjectshelper.VerifyNamespaceExists(APIClient, rdscoreparams.CLONamespace, time.Second)
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to pull namespace %q; %v",
 		rdscoreparams.CLONamespace, err))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Verify CLO deployment %s defined in namespace %s",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Verify CLO deployment %s defined in namespace %s",
 		rdscoreparams.CLODeploymentName, rdscoreparams.CLONamespace)
 
 	err = apiobjectshelper.VerifyOperatorDeployment(APIClient,
@@ -139,7 +139,7 @@ func VerifyLogForwardingToKafka() {
 			rdscoreparams.CLOName, rdscoreparams.CLONamespace, err))
 
 	By("Retrieve kafka server URL")
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Retrieve Kafka server URL from the ClusterLogForwarder")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Retrieve Kafka server URL from the ClusterLogForwarder")
 
 	clusterLogForwarder, err := clusterlogging.PullClusterLogForwarder(
 		APIClient, rdscoreparams.CLOInstanceName, rdscoreparams.CLONamespace)
@@ -158,7 +158,7 @@ func VerifyLogForwardingToKafka() {
 		if collector.Type == "kafka" {
 			clfKafkaURL := collector.Kafka.URL
 
-			glog.V(100).Infof("collector.URL: %s", clfKafkaURL)
+			klog.V(100).Infof("collector.URL: %s", clfKafkaURL)
 
 			kafkaURL = strings.Split(clfKafkaURL, "/")[2]
 			kafkaUser = strings.Split(clfKafkaURL, "/")[3]
@@ -179,7 +179,7 @@ func VerifyLogForwardingToKafka() {
 		clusterDomain := clusterDNS.Object.Spec.BaseDomain
 		Expect(clusterDomain).ToNot(Equal(""), "cluster domain is empty")
 
-		glog.V(100).Infof("DEBUG: clusterDomain: %s", clusterDomain)
+		klog.V(100).Infof("DEBUG: clusterDomain: %s", clusterDomain)
 
 		kafkaLogsLabel = clusterDomain
 	}
@@ -198,7 +198,7 @@ func VerifyLogForwardingToKafka() {
 
 	By("Retrieve logs forwarded to the kafka")
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Execute command: %q", cmdToRun)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Execute command: %q", cmdToRun)
 
 	var logMessages []kafkaRecord
 
@@ -206,28 +206,28 @@ func VerifyLogForwardingToKafka() {
 		output, err := kcatPodObj.ExecCommand(cmdToRun, kcatPodObj.Object.Spec.Containers[0].Name)
 
 		if err != nil {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 				"Error running command from within a pod %q in namespace %q: %v",
 				kcatPodObj.Definition.Name, kcatPodObj.Definition.Namespace, err)
 
 			return false
 		}
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 			"Successfully executed command from within a pod %q in namespace %q",
 			kcatPodObj.Definition.Name, kcatPodObj.Definition.Namespace)
 
 		result := output.String()
 
 		if result == "" {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 				"Empty result received from within a pod %q in namespace %q",
 				kcatPodObj.Definition.Name, kcatPodObj.Definition.Namespace)
 
 			return false
 		}
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Analyse received logs:\n\t%v", result)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Analyse received logs:\n\t%v", result)
 
 		result = strings.TrimSpace(result)
 
@@ -237,7 +237,7 @@ func VerifyLogForwardingToKafka() {
 			err = json.Unmarshal([]byte(line), &logMessage)
 
 			if err != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error unmarshalling kafka record %q: %v", line, err)
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error unmarshalling kafka record %q: %v", line, err)
 
 				break
 			}
@@ -246,20 +246,20 @@ func VerifyLogForwardingToKafka() {
 		}
 
 		if len(logMessages) == 0 {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("No log messages forwarded to the kafka %s found", kafkaURL)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("No log messages forwarded to the kafka %s found", kafkaURL)
 
 			return false
 		}
 
 		for _, logType := range logTypes {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 				"Verify %s type log messages were forwarded to the kafka server %s", logType, kafkaURL)
 
 			messageCnt := 0
 
 			for _, logMessage := range logMessages {
 				if logMessage.LogType == logType {
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found record of the %s type: %s",
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found record of the %s type: %v",
 						logType, logMessage)
 
 					messageCnt++
@@ -267,13 +267,13 @@ func VerifyLogForwardingToKafka() {
 			}
 
 			if messageCnt == 0 {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 					"No log messages of %s type forwarded to the kafka %s were found", kafkaURL, logType)
 
 				return false
 			}
 
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d %s log messages forwarded to the kafka server",
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d %s log messages forwarded to the kafka server",
 				messageCnt, logType)
 		}
 

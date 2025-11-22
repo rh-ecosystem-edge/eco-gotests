@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	prometheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
 	"golang.org/x/exp/constraints"
+	"k8s.io/klog/v2"
 )
 
 // ExecuteQuery executes a Prometheus query and returns the result as a model.Vector. If the query has a non-zero end
@@ -36,7 +36,7 @@ func ExecuteQuery[V constraints.Integer](
 
 	queryString := metricQuery.String()
 
-	glog.V(tsparams.LogLevel).Infof("Executing query: %s", queryString)
+	klog.V(tsparams.LogLevel).Infof("Executing query: %s", queryString)
 
 	result, warnings, err := client.Query(ctx, queryString, queryTime)
 	if err != nil {
@@ -44,7 +44,7 @@ func ExecuteQuery[V constraints.Integer](
 	}
 
 	for _, warning := range warnings {
-		glog.V(tsparams.LogLevel).Infof("Query returned warning: %s", warning)
+		klog.V(tsparams.LogLevel).Infof("Query returned warning: %s", warning)
 	}
 
 	if result.Type() != model.ValVector {
@@ -76,7 +76,7 @@ func ExecuteQueryRange[V constraints.Integer](
 	metricQuery := query.ToMetricQuery()
 	queryString := metricQuery.String()
 
-	glog.V(tsparams.LogLevel).Infof("Executing query range: %s", queryString)
+	klog.V(tsparams.LogLevel).Infof("Executing query range: %s", queryString)
 
 	result, warnings, err := client.QueryRange(ctx, queryString, metricQuery.Range())
 
@@ -85,7 +85,7 @@ func ExecuteQueryRange[V constraints.Integer](
 	}
 
 	for _, warning := range warnings {
-		glog.V(tsparams.LogLevel).Infof("Query returned warning: %s", warning)
+		klog.V(tsparams.LogLevel).Infof("Query returned warning: %s", warning)
 	}
 
 	if result.Type() != model.ValMatrix {

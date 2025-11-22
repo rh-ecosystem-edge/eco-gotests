@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	goVersion "github.com/hashicorp/go-version"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -31,6 +30,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -89,9 +89,9 @@ var _ = Describe(
 				if err == nil {
 					err = originalClusterImagesetBuilder.Delete()
 					Expect(err).ToNot(HaveOccurred(), "error deleting clusterimageset %s", testClusterImageSetName)
-					glog.V(ztpparams.ZTPLogLevel).Infof("The ClusterImageSet %s was deleted", testClusterImageSetName)
+					klog.V(ztpparams.ZTPLogLevel).Infof("The ClusterImageSet %s was deleted", testClusterImageSetName)
 				} else {
-					glog.V(ztpparams.ZTPLogLevel).Infof("The ClusterImageSet %s doesn't exist. No attempt to delete it",
+					klog.V(ztpparams.ZTPLogLevel).Infof("The ClusterImageSet %s doesn't exist. No attempt to delete it",
 						testClusterImageSetName)
 				}
 
@@ -171,7 +171,7 @@ var _ = Describe(
 				By("Delete ClusterImageSet after a test")
 				err = tempClusterImagesetBuilder.Delete()
 				Expect(err).ToNot(HaveOccurred(), "error deleting clusterimageset %s", testClusterImageSetName)
-				glog.V(ztpparams.ZTPLogLevel).Infof("The ClusterImageSet %s was deleted", testClusterImageSetName)
+				klog.V(ztpparams.ZTPLogLevel).Infof("The ClusterImageSet %s was deleted", testClusterImageSetName)
 
 			})
 			AfterAll(func() {
@@ -180,9 +180,9 @@ var _ = Describe(
 					_, err := originalClusterImagesetBuilder.Create()
 					Expect(err).ToNot(HaveOccurred(), "error re-creating clusterimageset %s",
 						testClusterImageSetName)
-					glog.V(ztpparams.ZTPLogLevel).Infof("The ClusterImageSet %s was re-created", testClusterImageSetName)
+					klog.V(ztpparams.ZTPLogLevel).Infof("The ClusterImageSet %s was re-created", testClusterImageSetName)
 				} else {
-					glog.V(ztpparams.ZTPLogLevel).Infof("Skip on re-creating the ClusterImageSet after all tests - didn't exist.")
+					klog.V(ztpparams.ZTPLogLevel).Infof("Skip on re-creating the ClusterImageSet after all tests - didn't exist.")
 				}
 				By("Delete AgentServiceConfig after test")
 				err = multiarchAgentServiceConfigBuilder.DeleteAndWait(time.Second * 10)
@@ -210,7 +210,7 @@ var _ = Describe(
 					payloadVersion, payloadImage, err := getLatestReleasePayload(payloadURL)
 					Expect(err).ToNot(HaveOccurred(), "error getting latest release payload image")
 
-					glog.V(ztpparams.ZTPLogLevel).Infof("ClusterImageSet %s will use version %s with image %s",
+					klog.V(ztpparams.ZTPLogLevel).Infof("ClusterImageSet %s will use version %s with image %s",
 						testClusterImageSetName, payloadVersion, payloadImage)
 					tempClusterImagesetBuilder, err = hive.NewClusterImageSetBuilder(
 						HubAPIClient, testClusterImageSetName, payloadImage).Create()
@@ -290,7 +290,7 @@ func getArchURL(archURLReleased string, archURLPrereleased string) string {
 	Expect(statusCode).To(Equal(200), "bad HTTP status from url %s", archURL)
 	Expect(err).ToNot(HaveOccurred(), "error reaching %s", archURL)
 
-	glog.V(ztpparams.ZTPLogLevel).Infof("Verified ISO from URL %s exists", archURL)
+	klog.V(ztpparams.ZTPLogLevel).Infof("Verified ISO from URL %s exists", archURL)
 
 	return archURL
 }
@@ -301,10 +301,10 @@ func createSpokeClusterNamespace() {
 	By("Create namespace for the test")
 
 	if nsBuilder.Exists() {
-		glog.V(ztpparams.ZTPLogLevel).Infof("The namespace '%s' already exists",
+		klog.V(ztpparams.ZTPLogLevel).Infof("The namespace '%s' already exists",
 			nsBuilder.Object.Name)
 	} else {
-		glog.V(ztpparams.ZTPLogLevel).Infof("Creating the namespace:  %v", infraenvTestSpoke)
+		klog.V(ztpparams.ZTPLogLevel).Infof("Creating the namespace:  %v", infraenvTestSpoke)
 
 		_, err := nsBuilder.Create()
 		Expect(err).ToNot(HaveOccurred(), "error creating namespace '%s' :  %v ",

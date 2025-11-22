@@ -7,6 +7,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/remote"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 
@@ -27,7 +28,6 @@ import (
 	v2 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/performanceprofile/v2"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/vcore/internal/vcoreinittools"
@@ -87,7 +87,7 @@ func VerifyNTODeployment(ctx SpecContext) {
 		fmt.Sprintf("operator deployment %s failure in the namespace %s; %v",
 			vcoreparams.NTODeploymentName, vcoreparams.NTONamespace, err))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof(
+	klog.V(vcoreparams.VCoreLogLevel).Infof(
 		"Confirm that NTO %s pod was deployed and running in %s namespace",
 		vcoreparams.NTODeploymentName, vcoreparams.NTONamespace)
 
@@ -103,11 +103,11 @@ func VerifyNTODeployment(ctx SpecContext) {
 	err = ntoPod.WaitUntilReady(time.Second)
 	if err != nil {
 		ntoPodLog, _ := ntoPod.GetLog(3*time.Second, vcoreparams.NTODeploymentName)
-		glog.Fatalf("%s pod in %s namespace in a bad state: %s",
+		klog.Fatalf("%s pod in %s namespace in a bad state: %s",
 			ntoPodName, vcoreparams.NTONamespace, ntoPodLog)
 	}
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Verify NTO service %s created in the namespace %s",
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify NTO service %s created in the namespace %s",
 		ntoServiceName, vcoreparams.NTONamespace)
 
 	ntoService, err := service.Pull(APIClient, ntoServiceName, vcoreparams.NTONamespace)
@@ -116,7 +116,7 @@ func VerifyNTODeployment(ctx SpecContext) {
 	Expect(ntoService.Exists()).To(Equal(true), fmt.Sprintf("no service %s was found in the namespace %s",
 		ntoServiceName, vcoreparams.NTONamespace))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Verify NTO service %s created in the namespace %s",
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify NTO service %s created in the namespace %s",
 		ntoServiceName, vcoreparams.NTONamespace)
 
 	paoService, err := service.Pull(APIClient, paoServiceName, vcoreparams.NTONamespace)
@@ -129,7 +129,7 @@ func VerifyNTODeployment(ctx SpecContext) {
 // CreatePerformanceProfile asserts performanceprofile can be created and successfully applied.
 func CreatePerformanceProfile(ctx SpecContext) {
 	for _, workerLabel := range workerLabelList {
-		glog.V(vcoreparams.VCoreLogLevel).Infof("Verify performanceprofile %s exists", workerLabel)
+		klog.V(vcoreparams.VCoreLogLevel).Infof("Verify performanceprofile %s exists", workerLabel)
 
 		hugePagesNodeOne := int32(0)
 		hugePagesNodeTwo := int32(1)
@@ -177,13 +177,13 @@ func CreatePerformanceProfile(ctx SpecContext) {
 			WithWorkloadHints(false, true, false)
 
 		if !ppObj.Exists() {
-			glog.V(vcoreparams.VCoreLogLevel).Infof("Create new performanceprofile %s", workerLabel)
+			klog.V(vcoreparams.VCoreLogLevel).Infof("Create new performanceprofile %s", workerLabel)
 
 			_, err = ppObj.Create()
 			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to create performanceprofile %s; %v",
 				workerLabel, err))
 
-			glog.V(vcoreparams.VCoreLogLevel).Infof("Wait for all nodes rebooting after applying performanceprofile %s",
+			klog.V(vcoreparams.VCoreLogLevel).Infof("Wait for all nodes rebooting after applying performanceprofile %s",
 				workerLabel)
 
 			_, err = nodes.WaitForAllNodesToReboot(
@@ -194,14 +194,14 @@ func CreatePerformanceProfile(ctx SpecContext) {
 				fmt.Sprintf("Nodes failed to reboot after applying performanceprofile %s config; %v",
 					workerLabel, err))
 
-			glog.V(vcoreparams.VCoreLogLevel).Info("Wait for all clusteroperators availability after nodes reboot")
+			klog.V(vcoreparams.VCoreLogLevel).Info("Wait for all clusteroperators availability after nodes reboot")
 
 			_, err = clusteroperator.WaitForAllClusteroperatorsAvailable(APIClient, 60*time.Second)
 			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Error waiting for all available clusteroperators: %v",
 				err))
 		}
 
-		glog.V(vcoreparams.VCoreLogLevel).Info("Verify NUMA Topology Manager")
+		klog.V(vcoreparams.VCoreLogLevel).Info("Verify NUMA Topology Manager")
 
 		performanceKubeletConfigObj, err := mco.PullKubeletConfig(APIClient, performanceKubeletConfigName)
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to get kubeletconfigs %s due to %v",
@@ -245,7 +245,7 @@ func CreateNodesTuning(ctx SpecContext) {
 			}},
 		}
 
-		glog.V(vcoreparams.VCoreLogLevel).Infof("Verify nodes tuning %s already exists in namespace %s",
+		klog.V(vcoreparams.VCoreLogLevel).Infof("Verify nodes tuning %s already exists in namespace %s",
 			workerLabel, vcoreparams.NTONamespace)
 
 		var err error
@@ -260,7 +260,7 @@ func CreateNodesTuning(ctx SpecContext) {
 			WithRecommend(tunedRecommend)
 
 		if !ntoObj.Exists() {
-			glog.V(vcoreparams.VCoreLogLevel).Infof("Create new node tuning profile %s in namespace %s",
+			klog.V(vcoreparams.VCoreLogLevel).Infof("Create new node tuning profile %s in namespace %s",
 				tunedInstanceName, vcoreparams.NTONamespace)
 
 			ntoObj, err = ntoObj.Create()
@@ -269,7 +269,7 @@ func CreateNodesTuning(ctx SpecContext) {
 			Expect(ntoObj.Exists()).To(Equal(true),
 				fmt.Sprintf("tuned %s not found in namespace %s", tunedInstanceName, vcoreparams.NTONamespace))
 
-			glog.V(vcoreparams.VCoreLogLevel).Info("The short sleep to update new values before the following change")
+			klog.V(vcoreparams.VCoreLogLevel).Info("The short sleep to update new values before the following change")
 
 			time.Sleep(10 * time.Second)
 		}
@@ -279,7 +279,7 @@ func CreateNodesTuning(ctx SpecContext) {
 			nodeLabel, err))
 
 		for _, node := range nodesList {
-			glog.V(vcoreparams.VCoreLogLevel).Infof("Check nohz_full configured on the node %s",
+			klog.V(vcoreparams.VCoreLogLevel).Infof("Check nohz_full configured on the node %s",
 				node.Definition.Name)
 
 			var output string
@@ -305,13 +305,13 @@ func VerifyCPUManagerConfig(ctx SpecContext) {
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to get nodes list with the label %v; %v",
 			nodeLabel, err))
 
-		glog.V(vcoreparams.VCoreLogLevel).Info("Verify CPU Manager configuration")
+		klog.V(vcoreparams.VCoreLogLevel).Info("Verify CPU Manager configuration")
 
 		cpuManagerCmd := []string{"chroot", "/rootfs", "/bin/sh", "-c",
 			"sudo grep cpuManager /etc/kubernetes/kubelet.conf"}
 
 		for _, node := range nodesList {
-			glog.V(vcoreparams.VCoreLogLevel).Infof("Check CPU Manager activated on the node %s",
+			klog.V(vcoreparams.VCoreLogLevel).Infof("Check CPU Manager activated on the node %s",
 				node.Definition.Name)
 
 			output, err := remote.ExecuteOnNodeWithDebugPod(cpuManagerCmd, node.Object.Name)
@@ -333,10 +333,10 @@ func VerifyHugePagesConfig(ctx SpecContext) {
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to get nodes list with the label %v; %v",
 			nodeLabel, err))
 
-		glog.V(vcoreparams.VCoreLogLevel).Info("Verify Node Tuning instance hugepages configuration")
+		klog.V(vcoreparams.VCoreLogLevel).Info("Verify Node Tuning instance hugepages configuration")
 
 		for _, node := range nodesList {
-			glog.V(vcoreparams.VCoreLogLevel).Infof("Check hugepages config for the node %s",
+			klog.V(vcoreparams.VCoreLogLevel).Infof("Check hugepages config for the node %s",
 				node.Definition.Name)
 
 			allocatableHPResources := node.Object.Status.Allocatable
@@ -367,7 +367,7 @@ func SetSystemReservedMemoryForWorkers(ctx SpecContext) {
 		nodeLabel := fmt.Sprintf("node-role.kubernetes.io/%s", workerLabel)
 		nodeLabelListOption := metav1.ListOptions{LabelSelector: nodeLabel}
 
-		glog.V(vcoreparams.VCoreLogLevel).Infof("Verify system reserved memory config for %s nodes succeeded",
+		klog.V(vcoreparams.VCoreLogLevel).Infof("Verify system reserved memory config for %s nodes succeeded",
 			nodeLabel)
 
 		kubeletConfigName := fmt.Sprintf("performance-%s", workerLabel)
@@ -376,7 +376,7 @@ func SetSystemReservedMemoryForWorkers(ctx SpecContext) {
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to get kubeletconfigs %s due to %v",
 			kubeletConfigName, err))
 
-		glog.V(vcoreparams.VCoreLogLevel).Infof("Verify system reserved data updated for all %s nodes",
+		klog.V(vcoreparams.VCoreLogLevel).Infof("Verify system reserved data updated for all %s nodes",
 			workerLabel)
 
 		nodesList, err := nodes.List(APIClient, nodeLabelListOption)

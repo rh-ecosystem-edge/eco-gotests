@@ -6,12 +6,12 @@ import (
 
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/golang/glog"
 	odfoperatorv1alpha1 "github.com/red-hat-storage/odf-operator/api/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 // SystemODFBuilder provides struct for SystemODF object containing connection
@@ -30,18 +30,18 @@ type SystemODFBuilder struct {
 
 // NewSystemODFBuilder creates a new instance of Builder.
 func NewSystemODFBuilder(apiClient *clients.Settings, name, nsname string) *SystemODFBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new SystemODF structure with the following params: %s, %s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("SystemODF 'apiClient' cannot be empty")
+		klog.V(100).Info("SystemODF 'apiClient' cannot be empty")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(odfoperatorv1alpha1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add odf v1alpha1 scheme to client schemes")
+		klog.V(100).Info("Failed to add odf v1alpha1 scheme to client schemes")
 
 		return nil
 	}
@@ -57,7 +57,7 @@ func NewSystemODFBuilder(apiClient *clients.Settings, name, nsname string) *Syst
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the SystemODF is empty")
+		klog.V(100).Info("The name of the SystemODF is empty")
 
 		builder.errorMsg = "SystemODF 'name' cannot be empty"
 
@@ -65,7 +65,7 @@ func NewSystemODFBuilder(apiClient *clients.Settings, name, nsname string) *Syst
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the SystemODF is empty")
+		klog.V(100).Info("The namespace of the SystemODF is empty")
 
 		builder.errorMsg = "SystemODF 'nsname' cannot be empty"
 
@@ -77,18 +77,18 @@ func NewSystemODFBuilder(apiClient *clients.Settings, name, nsname string) *Syst
 
 // PullSystemODF gets an existing SystemODF object from the cluster.
 func PullSystemODF(apiClient *clients.Settings, name, namespace string) (*SystemODFBuilder, error) {
-	glog.V(100).Infof("Pulling existing SystemODF object %s from namespace %s",
+	klog.V(100).Infof("Pulling existing SystemODF object %s from namespace %s",
 		name, namespace)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The SystemODF's apiClient is empty")
+		klog.V(100).Info("The SystemODF's apiClient is empty")
 
 		return nil, fmt.Errorf("SystemODF 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(odfoperatorv1alpha1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add odf v1alpha1 scheme to client schemes")
+		klog.V(100).Info("Failed to add odf v1alpha1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -104,13 +104,13 @@ func PullSystemODF(apiClient *clients.Settings, name, namespace string) (*System
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the SystemODF is empty")
+		klog.V(100).Info("The name of the SystemODF is empty")
 
 		return nil, fmt.Errorf("SystemODF 'name' cannot be empty")
 	}
 
 	if namespace == "" {
-		glog.V(100).Infof("The namespace of the SystemODF is empty")
+		klog.V(100).Info("The namespace of the SystemODF is empty")
 
 		return nil, fmt.Errorf("SystemODF 'namespace' cannot be empty")
 	}
@@ -131,7 +131,7 @@ func (builder *SystemODFBuilder) Get() (*odfoperatorv1alpha1.StorageSystem, erro
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting existing SystemODF with name %s from the namespace %s",
+	klog.V(100).Infof("Getting existing SystemODF with name %s from the namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	storageSystemObj := &odfoperatorv1alpha1.StorageSystem{}
@@ -141,7 +141,7 @@ func (builder *SystemODFBuilder) Get() (*odfoperatorv1alpha1.StorageSystem, erro
 		Namespace: builder.Definition.Namespace,
 	}, storageSystemObj)
 	if err != nil {
-		glog.V(100).Infof("failed to find SystemODF object %s in namespace %s",
+		klog.V(100).Infof("failed to find SystemODF object %s in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		return nil, err
@@ -156,7 +156,7 @@ func (builder *SystemODFBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if SystemODF %s exists in namespace %s",
+	klog.V(100).Infof("Checking if SystemODF %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -172,7 +172,7 @@ func (builder *SystemODFBuilder) Create() (*SystemODFBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the SystemODF %s in namespace %s",
+	klog.V(100).Infof("Creating the SystemODF %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace,
 	)
 
@@ -193,11 +193,11 @@ func (builder *SystemODFBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting the SystemODF object %s in namespace %s",
+	klog.V(100).Infof("Deleting the SystemODF object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof(" SystemODF %s in namespace %s cannot be deleted"+
+		klog.V(100).Infof(" SystemODF %s in namespace %s cannot be deleted"+
 			" because it does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
@@ -223,13 +223,13 @@ func (builder *SystemODFBuilder) WithSpec(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Setting SystemODF %s in namespace %s with storageCluster spec; \n"+
 			"kind: %v, name: %s, namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace, kind, name, nsname)
 
 	if kind == "" {
-		glog.V(100).Infof("The kind of the SystemODF spec is empty")
+		klog.V(100).Info("The kind of the SystemODF spec is empty")
 
 		builder.errorMsg = "SystemODF spec 'kind' cannot be empty"
 
@@ -237,7 +237,7 @@ func (builder *SystemODFBuilder) WithSpec(
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the storageCluster spec is empty")
+		klog.V(100).Info("The name of the storageCluster spec is empty")
 
 		builder.errorMsg = "SystemODF spec 'name' cannot be empty"
 
@@ -245,7 +245,7 @@ func (builder *SystemODFBuilder) WithSpec(
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the SystemODF spec is empty")
+		klog.V(100).Info("The namespace of the SystemODF spec is empty")
 
 		builder.errorMsg = "SystemODF spec 'nsname' cannot be empty"
 
@@ -265,25 +265,25 @@ func (builder *SystemODFBuilder) validate() (bool, error) {
 	resourceCRD := "StorageSystem"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

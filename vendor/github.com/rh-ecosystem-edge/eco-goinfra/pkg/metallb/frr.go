@@ -9,11 +9,11 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	frrtypes "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/frrtypes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -29,19 +29,19 @@ type FrrConfigurationBuilder struct {
 // NewFrrConfigurationBuilder creates a new instance of FRRConfiguration.
 func NewFrrConfigurationBuilder(
 	apiClient *clients.Settings, name, nsname string) *FrrConfigurationBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new Frrconfiguration structure with the following params: %s, %s",
 		name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("failed to initialize the apiclient is empty")
+		klog.V(100).Info("failed to initialize the apiclient is empty")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(frrtypes.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add metallb scheme to client schemes")
+		klog.V(100).Info("Failed to add metallb scheme to client schemes")
 
 		return nil
 	}
@@ -57,7 +57,7 @@ func NewFrrConfigurationBuilder(
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the frrConfiguration is empty")
+		klog.V(100).Info("The name of the frrConfiguration is empty")
 
 		builder.errorMsg = "frrConfiguration 'name' cannot be empty"
 
@@ -65,7 +65,7 @@ func NewFrrConfigurationBuilder(
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the frrConfiguration is empty")
+		klog.V(100).Info("The namespace of the frrConfiguration is empty")
 
 		builder.errorMsg = "frrConfiguration 'nsname' cannot be empty"
 
@@ -81,7 +81,7 @@ func (builder *FrrConfigurationBuilder) Create() (*FrrConfigurationBuilder, erro
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the frrconfiguration %s in namespace %s",
+	klog.V(100).Infof("Creating the frrconfiguration %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace,
 	)
 
@@ -89,7 +89,7 @@ func (builder *FrrConfigurationBuilder) Create() (*FrrConfigurationBuilder, erro
 	if !builder.Exists() {
 		err = builder.apiClient.Create(context.TODO(), builder.Definition)
 		if err != nil {
-			glog.V(100).Infof("Failed to create MetalLb")
+			klog.V(100).Info("Failed to create MetalLb")
 
 			return nil, err
 		}
@@ -106,7 +106,7 @@ func (builder *FrrConfigurationBuilder) Get() (*frrtypes.FRRConfiguration, error
 		return nil, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Collecting FRRConfiguration object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -115,7 +115,7 @@ func (builder *FrrConfigurationBuilder) Get() (*frrtypes.FRRConfiguration, error
 	err := builder.apiClient.Get(context.TODO(),
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace}, frrConfig)
 	if err != nil {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"metallb object %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
@@ -131,12 +131,12 @@ func (builder *FrrConfigurationBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting the FrrConfiguration object %s in namespace %s",
+	klog.V(100).Infof("Deleting the FrrConfiguration object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace,
 	)
 
 	if !builder.Exists() {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"frrConfiguration %s in namespace %s does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
@@ -168,7 +168,7 @@ func (builder *FrrConfigurationBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Checking if FrrConfiguration %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -185,7 +185,7 @@ func (builder *FrrConfigurationBuilder) WithBGPRouter(localASN uint32) *FrrConfi
 		return builder
 	}
 
-	glog.V(100).Infof("Define BGP router with an ASN: %v", localASN)
+	klog.V(100).Infof("Define BGP router with an ASN: %v", localASN)
 
 	// If there are routers, append a new one
 	builder.Definition.Spec.BGP.Routers = append(builder.Definition.Spec.BGP.Routers, frrtypes.Router{
@@ -201,13 +201,13 @@ func (builder *FrrConfigurationBuilder) WithToReceiveModeAll(routerIndex, neighb
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Allows the FRR nodes to receive all routes in namespace %s with mode type: all",
 		builder.Definition.Namespace)
 
 	// Check if the routerIndex is within bounds
 	if routerIndex >= uint(len(builder.Definition.Spec.BGP.Routers)) {
-		glog.V(100).Infof("Invalid routerIndex: %d", routerIndex)
+		klog.V(100).Infof("Invalid routerIndex: %d", routerIndex)
 
 		builder.errorMsg = fmt.Sprintf("invalid routerIndex: %d", routerIndex)
 
@@ -216,7 +216,7 @@ func (builder *FrrConfigurationBuilder) WithToReceiveModeAll(routerIndex, neighb
 
 	// Check if the neighborIndex is within bounds
 	if neighborIndex >= uint(len(builder.Definition.Spec.BGP.Routers[routerIndex].Neighbors)) {
-		glog.V(100).Infof("Invalid neighborIndex: %d", neighborIndex)
+		klog.V(100).Infof("Invalid neighborIndex: %d", neighborIndex)
 
 		builder.errorMsg = fmt.Sprintf("invalid neighborIndex: %d", neighborIndex)
 
@@ -236,13 +236,13 @@ func (builder *FrrConfigurationBuilder) WithToReceiveModeFiltered(prefixes []str
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Allows the FRR nodes to receive specific routes in namespace %s in mode type: filtered",
 		builder.Definition.Namespace)
 
 	// Check if the routerIndex is within bounds
 	if routerIndex >= uint(len(builder.Definition.Spec.BGP.Routers)) {
-		glog.V(100).Infof("Invalid routerIndex: %d", routerIndex)
+		klog.V(100).Infof("Invalid routerIndex: %d", routerIndex)
 
 		builder.errorMsg = fmt.Sprintf("invalid routerIndex: %d", routerIndex)
 
@@ -251,7 +251,7 @@ func (builder *FrrConfigurationBuilder) WithToReceiveModeFiltered(prefixes []str
 
 	// Check if the neighborIndex is within bounds
 	if neighborIndex >= uint(len(builder.Definition.Spec.BGP.Routers[routerIndex].Neighbors)) {
-		glog.V(100).Infof("Invalid neighborIndex: %d", neighborIndex)
+		klog.V(100).Infof("Invalid neighborIndex: %d", neighborIndex)
 
 		builder.errorMsg = fmt.Sprintf("invalid neighborIndex: %d", neighborIndex)
 
@@ -261,7 +261,7 @@ func (builder *FrrConfigurationBuilder) WithToReceiveModeFiltered(prefixes []str
 	// Validate CIDR prefixes
 	for _, prefix := range prefixes {
 		if _, _, err := net.ParseCIDR(prefix); err != nil {
-			glog.V(100).Infof("the frrConfiguration prefix %s is not a valid CIDR", prefix)
+			klog.V(100).Infof("the frrConfiguration prefix %s is not a valid CIDR", prefix)
 			builder.errorMsg = fmt.Sprintf("the prefix %s is not a valid CIDR", prefix)
 
 			return builder
@@ -272,7 +272,7 @@ func (builder *FrrConfigurationBuilder) WithToReceiveModeFiltered(prefixes []str
 	allowedPrefixes := []frrtypes.PrefixSelector{}
 
 	for _, prefix := range prefixes {
-		glog.V(100).Infof("AllowMode 'filtered' receives only routes within the prefix %v", prefix)
+		klog.V(100).Infof("AllowMode 'filtered' receives only routes within the prefix %v", prefix)
 		allowedPrefixes = append(allowedPrefixes, frrtypes.PrefixSelector{Prefix: prefix})
 	}
 
@@ -289,12 +289,12 @@ func (builder *FrrConfigurationBuilder) WithBGPNeighbor(bgpPeerIP string,
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Define BGP Neighbor %s with peer IP %s and ASN %v",
 		builder.Definition.Name, bgpPeerIP, remoteAS)
 
 	if net.ParseIP(bgpPeerIP) == nil {
-		glog.V(100).Infof("The peerIP for the frrConfiguration bgp peer contains invalid ip address %s",
+		klog.V(100).Infof("The peerIP for the frrConfiguration bgp peer contains invalid ip address %s",
 			bgpPeerIP)
 
 		builder.errorMsg = "frrConfiguration 'peerIP' of the BGPPeer contains invalid ip address"
@@ -304,7 +304,7 @@ func (builder *FrrConfigurationBuilder) WithBGPNeighbor(bgpPeerIP string,
 
 	// Check if the routerIndex is within bounds
 	if routerIndex >= uint(len(builder.Definition.Spec.BGP.Routers)) {
-		glog.V(100).Infof("Invalid routerIndex: %d", routerIndex)
+		klog.V(100).Infof("Invalid routerIndex: %d", routerIndex)
 
 		builder.errorMsg = fmt.Sprintf("invalid routerIndex: %d", routerIndex)
 
@@ -329,12 +329,12 @@ func (builder *FrrConfigurationBuilder) WithBGPPassword(bgpPassword string,
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Define FRRConfiguration %s in namespace %s with the password: %s",
 		builder.Definition.Name, builder.Definition.Namespace, bgpPassword)
 
 	if bgpPassword == "" {
-		glog.V(100).Infof("The bgpPassword should not be blank")
+		klog.V(100).Info("The bgpPassword should not be blank")
 
 		builder.errorMsg = fmt.Sprintf("the bgpPassword %s is an empty string", bgpPassword)
 
@@ -343,7 +343,7 @@ func (builder *FrrConfigurationBuilder) WithBGPPassword(bgpPassword string,
 
 	// Check if the routerIndex is within bounds
 	if routerIndex >= uint(len(builder.Definition.Spec.BGP.Routers)) {
-		glog.V(100).Infof("Invalid routerIndex: %d", routerIndex)
+		klog.V(100).Infof("Invalid routerIndex: %d", routerIndex)
 
 		builder.errorMsg = fmt.Sprintf("invalid routerIndex: %d", routerIndex)
 
@@ -352,7 +352,7 @@ func (builder *FrrConfigurationBuilder) WithBGPPassword(bgpPassword string,
 
 	// Check if the neighborIndex is within bounds
 	if neighborIndex >= uint(len(builder.Definition.Spec.BGP.Routers[routerIndex].Neighbors)) {
-		glog.V(100).Infof("Invalid neighborIndex: %d", neighborIndex)
+		klog.V(100).Infof("Invalid neighborIndex: %d", neighborIndex)
 
 		builder.errorMsg = fmt.Sprintf("invalid neighborIndex: %d", neighborIndex)
 
@@ -371,12 +371,12 @@ func (builder *FrrConfigurationBuilder) WithEBGPMultiHop(routerIndex, neighborIn
 		return builder
 	}
 
-	glog.V(100).Infof("Sets the EBGP multihop setting to true in the FrrConfiguration %s",
+	klog.V(100).Infof("Sets the EBGP multihop setting to true in the FrrConfiguration %s",
 		builder.Definition.Name)
 
 	// Check if the routerIndex is within bounds
 	if routerIndex >= uint(len(builder.Definition.Spec.BGP.Routers)) {
-		glog.V(100).Infof("Invalid routerIndex: %d", routerIndex)
+		klog.V(100).Infof("Invalid routerIndex: %d", routerIndex)
 
 		builder.errorMsg = fmt.Sprintf("invalid routerIndex: %d", routerIndex)
 
@@ -385,7 +385,7 @@ func (builder *FrrConfigurationBuilder) WithEBGPMultiHop(routerIndex, neighborIn
 
 	// Check if the neighborIndex is within bounds
 	if neighborIndex >= uint(len(builder.Definition.Spec.BGP.Routers[routerIndex].Neighbors)) {
-		glog.V(100).Infof("Invalid neighborIndex: %d", neighborIndex)
+		klog.V(100).Infof("Invalid neighborIndex: %d", neighborIndex)
 
 		builder.errorMsg = fmt.Sprintf("invalid neighborIndex: %d", neighborIndex)
 
@@ -404,13 +404,13 @@ func (builder *FrrConfigurationBuilder) WithBGPNeighborDisableMP(disableMP bool,
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Setting FRRConfiguration %s neighbor disableMP to %t",
 		builder.Definition.Name, disableMP)
 
 	// Check if the routerIndex is within bounds
 	if routerIndex >= uint(len(builder.Definition.Spec.BGP.Routers)) {
-		glog.V(100).Infof("Invalid routerIndex: %d", routerIndex)
+		klog.V(100).Infof("Invalid routerIndex: %d", routerIndex)
 
 		builder.errorMsg = fmt.Sprintf("invalid routerIndex: %d", routerIndex)
 
@@ -419,7 +419,7 @@ func (builder *FrrConfigurationBuilder) WithBGPNeighborDisableMP(disableMP bool,
 
 	// Check if the neighborIndex is within bounds
 	if neighborIndex >= uint(len(builder.Definition.Spec.BGP.Routers[routerIndex].Neighbors)) {
-		glog.V(100).Infof("Invalid neighborIndex: %d", neighborIndex)
+		klog.V(100).Infof("Invalid neighborIndex: %d", neighborIndex)
 
 		builder.errorMsg = fmt.Sprintf("invalid neighborIndex: %d", neighborIndex)
 
@@ -441,13 +441,13 @@ func (builder *FrrConfigurationBuilder) WithBGPNeighborDualStackAddressFamily(du
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Setting FRRConfiguration %s neighbor dualStackAddressFamily to %t",
 		builder.Definition.Name, dualStackAddressFamily)
 
 	// Check if the routerIndex is within bounds
 	if routerIndex >= uint(len(builder.Definition.Spec.BGP.Routers)) {
-		glog.V(100).Infof("Invalid routerIndex: %d", routerIndex)
+		klog.V(100).Infof("Invalid routerIndex: %d", routerIndex)
 
 		builder.errorMsg = fmt.Sprintf("invalid routerIndex: %d", routerIndex)
 
@@ -456,7 +456,7 @@ func (builder *FrrConfigurationBuilder) WithBGPNeighborDualStackAddressFamily(du
 
 	// Check if the neighborIndex is within bounds
 	if neighborIndex >= uint(len(builder.Definition.Spec.BGP.Routers[routerIndex].Neighbors)) {
-		glog.V(100).Infof("Invalid neighborIndex: %d", neighborIndex)
+		klog.V(100).Infof("Invalid neighborIndex: %d", neighborIndex)
 
 		builder.errorMsg = fmt.Sprintf("invalid neighborIndex: %d", neighborIndex)
 
@@ -477,14 +477,14 @@ func (builder *FrrConfigurationBuilder) WithHoldTime(holdTime metav1.Duration, r
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Adding a neighbor specific holdTime in the FrrConfiguration %s with holdTime: %v",
 		builder.Definition.Name, holdTime)
 
 	duration := holdTime.Duration
 
 	if duration < time.Second || duration > 65535*time.Second {
-		glog.V(100).Infof("A valid holdtime is between 1-65535")
+		klog.V(100).Info("A valid holdtime is between 1-65535")
 
 		builder.errorMsg = "frrConfiguration 'holdtime' value is not valid"
 
@@ -493,7 +493,7 @@ func (builder *FrrConfigurationBuilder) WithHoldTime(holdTime metav1.Duration, r
 
 	// Check if the routerIndex is within bounds
 	if routerIndex >= uint(len(builder.Definition.Spec.BGP.Routers)) {
-		glog.V(100).Infof("Invalid routerIndex: %d", routerIndex)
+		klog.V(100).Infof("Invalid routerIndex: %d", routerIndex)
 
 		builder.errorMsg = fmt.Sprintf("invalid routerIndex: %d", routerIndex)
 
@@ -502,7 +502,7 @@ func (builder *FrrConfigurationBuilder) WithHoldTime(holdTime metav1.Duration, r
 
 	// Check if the neighborIndex is within bounds
 	if neighborIndex >= uint(len(builder.Definition.Spec.BGP.Routers[routerIndex].Neighbors)) {
-		glog.V(100).Infof("Invalid neighborIndex: %d", neighborIndex)
+		klog.V(100).Infof("Invalid neighborIndex: %d", neighborIndex)
 
 		builder.errorMsg = fmt.Sprintf("invalid neighborIndex: %d", neighborIndex)
 
@@ -521,14 +521,14 @@ func (builder *FrrConfigurationBuilder) WithKeepalive(keepAlive metav1.Duration,
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Add a keepAlive timer to a specific neighbor in FrrConfiguration %s with keepalive: %v",
 		builder.Definition.Name, keepAlive)
 
 	duration := keepAlive.Duration
 
 	if duration < time.Second || duration > 65535*time.Second {
-		glog.V(100).Infof("A valid keepAlive time is between 1-65535")
+		klog.V(100).Info("A valid keepAlive time is between 1-65535")
 
 		builder.errorMsg = "frrConfiguration 'keepAlive' value is not valid"
 
@@ -537,7 +537,7 @@ func (builder *FrrConfigurationBuilder) WithKeepalive(keepAlive metav1.Duration,
 
 	// Check if the routerIndex is within bounds
 	if routerIndex >= uint(len(builder.Definition.Spec.BGP.Routers)) {
-		glog.V(100).Infof("Invalid routerIndex: %d", routerIndex)
+		klog.V(100).Infof("Invalid routerIndex: %d", routerIndex)
 
 		builder.errorMsg = fmt.Sprintf("invalid routerIndex: %d", routerIndex)
 
@@ -546,7 +546,7 @@ func (builder *FrrConfigurationBuilder) WithKeepalive(keepAlive metav1.Duration,
 
 	// Check if the neighborIndex is within bounds
 	if neighborIndex >= uint(len(builder.Definition.Spec.BGP.Routers[routerIndex].Neighbors)) {
-		glog.V(100).Infof("Invalid neighborIndex: %d", neighborIndex)
+		klog.V(100).Infof("Invalid neighborIndex: %d", neighborIndex)
 
 		builder.errorMsg = fmt.Sprintf("invalid neighborIndex: %d", neighborIndex)
 
@@ -565,14 +565,14 @@ func (builder *FrrConfigurationBuilder) WithConnectTime(connectTime metav1.Durat
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Defines a connect retry hold time for a specific neighbor in FrrConfiguration %s with holdTime %s ",
 		builder.Definition.Name, connectTime)
 
 	duration := connectTime.Duration
 
 	if duration < time.Second || duration > 65535*time.Second {
-		glog.V(100).Infof("A valid connect time is between 1-65535")
+		klog.V(100).Info("A valid connect time is between 1-65535")
 
 		builder.errorMsg = "frrConfiguration 'connectTime' value is not valid"
 
@@ -581,7 +581,7 @@ func (builder *FrrConfigurationBuilder) WithConnectTime(connectTime metav1.Durat
 
 	// Check if the routerIndex is within bounds
 	if routerIndex >= uint(len(builder.Definition.Spec.BGP.Routers)) {
-		glog.V(100).Infof("Invalid routerIndex: %d", routerIndex)
+		klog.V(100).Infof("Invalid routerIndex: %d", routerIndex)
 
 		builder.errorMsg = fmt.Sprintf("invalid routerIndex: %d", routerIndex)
 
@@ -590,7 +590,7 @@ func (builder *FrrConfigurationBuilder) WithConnectTime(connectTime metav1.Durat
 
 	// Check if the neighborIndex is within bounds
 	if neighborIndex >= uint(len(builder.Definition.Spec.BGP.Routers[routerIndex].Neighbors)) {
-		glog.V(100).Infof("Invalid neighborIndex: %d", neighborIndex)
+		klog.V(100).Infof("Invalid neighborIndex: %d", neighborIndex)
 
 		builder.errorMsg = fmt.Sprintf("invalid neighborIndex: %d", neighborIndex)
 
@@ -609,12 +609,12 @@ func (builder *FrrConfigurationBuilder) WithPort(port uint16, routerIndex,
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Defines the tcp port to establish adjaceny to a neighbor in FrrConfiguration %s port number %d",
 		builder.Definition.Name, port)
 
 	if port > 16384 {
-		glog.V(100).Infof("Invalid port number can not be greater then 16384: %d", port)
+		klog.V(100).Infof("Invalid port number can not be greater then 16384: %d", port)
 
 		builder.errorMsg = fmt.Sprintf("invalid port number: %d", port)
 
@@ -623,7 +623,7 @@ func (builder *FrrConfigurationBuilder) WithPort(port uint16, routerIndex,
 
 	// Check if the routerIndex is within bounds
 	if routerIndex >= uint(len(builder.Definition.Spec.BGP.Routers)) {
-		glog.V(100).Infof("Invalid routerIndex: %d", routerIndex)
+		klog.V(100).Infof("Invalid routerIndex: %d", routerIndex)
 
 		builder.errorMsg = fmt.Sprintf("invalid routerIndex: %d", routerIndex)
 
@@ -632,7 +632,7 @@ func (builder *FrrConfigurationBuilder) WithPort(port uint16, routerIndex,
 
 	// Check if the neighborIndex is within bounds
 	if neighborIndex >= uint(len(builder.Definition.Spec.BGP.Routers[routerIndex].Neighbors)) {
-		glog.V(100).Infof("Invalid neighborIndex: %d", neighborIndex)
+		klog.V(100).Infof("Invalid neighborIndex: %d", neighborIndex)
 
 		builder.errorMsg = fmt.Sprintf("invalid neighborIndex: %d", neighborIndex)
 
@@ -650,25 +650,25 @@ func (builder *FrrConfigurationBuilder) validate() (bool, error) {
 	resourceCRD := "FRRConfiguration"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("the %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("the %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
@@ -20,6 +19,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/tsparams"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -541,7 +541,7 @@ func assertMulticastTrafficIsNotReceived(clientPod *pod.Builder, testCmd []strin
 	execCommand := func() string {
 		output, err := clientPod.ExecCommand(testCmd)
 		if err != nil {
-			glog.V(100).Infof("Error executing command: %s", err)
+			klog.V(100).Infof("Error executing command: %s", err)
 		}
 
 		return output.String()
@@ -555,7 +555,7 @@ func assertMulticastTrafficIsReceived(clientPod *pod.Builder, testCmd []string, 
 	execCommand := func() string {
 		output, err := clientPod.ExecCommand(testCmd)
 		if err != nil {
-			glog.V(100).Infof("Error executing command: %s", err)
+			klog.V(100).Infof("Error executing command: %s", err)
 		}
 
 		return output.String()

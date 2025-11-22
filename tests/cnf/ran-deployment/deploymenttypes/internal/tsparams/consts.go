@@ -3,7 +3,7 @@ package tsparams
 import (
 	"time"
 
-	"github.com/golang/glog"
+	"k8s.io/klog/v2"
 )
 
 type (
@@ -65,5 +65,5 @@ const (
 	// TestNamespace is the namespace used for deployment types tests.
 	TestNamespace = "deployment-test"
 	// LogLevel is the verbosity of glog statements in this test suite.
-	LogLevel glog.Level = 90
+	LogLevel klog.Level = 90
 )

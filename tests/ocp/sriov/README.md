@@ -57,10 +57,10 @@ tests/ocp/sriov/
 
 ```go
 var _ = Describe(
-    "TestFeatureName", 
-    Ordered, 
-    Label(tsparams.LabelFeatureName), 
-    ContinueOnFailure, 
+    "TestFeatureName",
+    Ordered,
+    Label(tsparams.LabelFeatureName),
+    ContinueOnFailure,
     func() {
         var (
             // Shared test variables
@@ -97,7 +97,7 @@ var _ = Describe(
 
 1. **Ordered Tests**: Use `Ordered` when tests must run in sequence
 2. **Labels**: Always use labels for test filtering (`Label(tsparams.LabelFeatureName)`)
-3. **ContinueOnFailure**: 
+3. **ContinueOnFailure**:
    - **Important**: `ContinueOnFailure` is typically used in conjunction with `Ordered` containers
    - In an `Ordered` container, if a test fails, the remaining tests will not execute by default. Use `ContinueOnFailure` to allow remaining tests to run even after a failure
    - If `Ordered` is not used, continuing on failure is the default behavior for the rest of the test cases, so `ContinueOnFailure` is not necessary
@@ -142,10 +142,10 @@ const (
     // Labels
     LabelSuite = "sriov"
     LabelFeatureName = "feature-name"
-    
+
     // Namespaces
     TestNamespaceName = "sriov-tests"
-    
+
     // Timeouts
     WaitTimeout = 3 * time.Minute
     DefaultTimeout = 300 * time.Second
@@ -154,7 +154,7 @@ const (
 var (
     // Labels list for test selection
     Labels = []string{LabelSuite, LabelFeatureName}
-    
+
     // Reporter configuration
     ReporterCRDsToDump = []k8sreporter.CRData{...}
     ReporterNamespacesToDump = map[string]string{...}
@@ -296,7 +296,7 @@ Expect(pod.IsReady()).To(BeTrue(), func() string {
     // This callback is only executed when the assertion fails
     podLogs, _ := pod.GetLogs()
     podStatus, _ := pod.GetStatus()
-    return fmt.Sprintf("Pod %q is not ready. Status: %s\nPod logs:\n%s", 
+    return fmt.Sprintf("Pod %q is not ready. Status: %s\nPod logs:\n%s",
         pod.Definition.Name, podStatus, podLogs)
 })
 ```
@@ -316,7 +316,7 @@ var existingCRs []*sriov.PolicyBuilder
 BeforeAll(func() {
     // Capture existing CRs before test modifications
     existingCRs = captureExistingPolicies(APIClient)
-    
+
     testNS := namespace.NewBuilder(APIClient, tsparams.TestNamespaceName)
     _, err := testNS.Create()
     Expect(err).ToNot(HaveOccurred(), "Failed to create test namespace %q", testNS.Definition.Name)
@@ -325,7 +325,7 @@ BeforeAll(func() {
 AfterAll(func() {
     // Restore captured CRs
     restoreExistingPolicies(APIClient, existingCRs)
-    
+
     err := testNS.DeleteAndWait(tsparams.DefaultTimeout)
     Expect(err).ToNot(HaveOccurred(), "Failed to delete test namespace")
 })
@@ -335,11 +335,11 @@ AfterAll(func() {
 
 1. **Use appropriate timeouts**: Don't use hardcoded timeouts; use constants from `tsparams`
 2. **Consistent polling intervals**: Use `tsparams.RetryInterval` for consistency
-3. **Eventually vs Consistently**: 
+3. **Eventually vs Consistently**:
    - Use `Eventually` for waiting for a condition to become true
    - Use `Consistently` for verifying a condition remains true
 4. **Stable duration**: Use `StableFor` or similar when verifying stability
-5. **Eventually for tests, WaitForX for helpers**: 
+5. **Eventually for tests, WaitForX for helpers**:
    - **In test files**: Use `Eventually` from Gomega for polling and waiting
    - **In helper functions** (in `internal/` folders): Use either:
      - **eco-goinfra WaitFor methods**: Use built-in `WaitForX` methods from eco-goinfra builders (e.g., `pod.WaitForReady()`, `deployment.WaitForReady()`, `builder.WaitForCondition()`)
@@ -362,7 +362,7 @@ func WaitForPodReady(apiClient *clients.Settings, name, namespace string, timeou
     if err != nil {
         return fmt.Errorf("failed to pull pod: %w", err)
     }
-    
+
     _, err = podBuilder.WaitForReady(timeout)
     return err
 }
@@ -379,9 +379,9 @@ import (
 
 func WaitForResourceExists(apiClient *clients.Settings, name, namespace string, timeout time.Duration) error {
     err := wait.PollUntilContextTimeout(
-        context.TODO(), 
-        3*time.Second, 
-        timeout, 
+        context.TODO(),
+        3*time.Second,
+        timeout,
         true,
         func(ctx context.Context) (bool, error) {
             resource, err := builder.Pull(apiClient, name, namespace)
@@ -390,7 +390,7 @@ func WaitForResourceExists(apiClient *clients.Settings, name, namespace string, 
             }
             return resource.Exists(), nil
         })
-    
+
     if err != nil {
         return fmt.Errorf("resource %q in namespace %q not found within %v: %w", name, namespace, timeout, err)
     }
@@ -401,14 +401,14 @@ func WaitForResourceExists(apiClient *clients.Settings, name, namespace string, 
 ### Logging and Debugging
 
 1. **Use By() statements**: Document test steps with `By("Description")`
-2. **Glog for verbose logging**: Use `glog.V(level).Infof()` for detailed logging
+2. **Glog for verbose logging**: Use `klog.V(level).Infof()` for detailed logging
 3. **Environment variable control**: Respect `ECO_VERBOSE_LEVEL` for logging verbosity
 4. **Meaningful messages**: Include context in log messages
 
 Example:
 ```go
 By("Creating SR-IOV network policy")
-glog.V(90).Infof("Creating policy with name: %s", policyName)
+klog.V(90).Infof("Creating policy with name: %s", policyName)
 ```
 
 ### Test Isolation
@@ -429,9 +429,9 @@ Example:
 ```go
 var _ = JustAfterEach(func() {
     reporter.ReportIfFailed(
-        CurrentSpecReport(), 
-        currentFile, 
-        tsparams.ReporterNamespacesToDump, 
+        CurrentSpecReport(),
+        currentFile,
+        tsparams.ReporterNamespacesToDump,
         tsparams.ReporterCRDsToDump)
 })
 
@@ -664,4 +664,3 @@ Before submitting a test case for review, ensure:
 - Review existing test implementations in `tests/cnf/core/network/sriov/tests/`
 - Follow patterns from other test suites in the project
 - Consult team documentation for domain-specific guidelines
-

@@ -6,11 +6,11 @@ import (
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 
-	"github.com/golang/glog"
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -28,17 +28,17 @@ type Builder struct {
 
 // NewBuilder creates a new instance of Builder.
 func NewBuilder(apiClient *clients.Settings, name string) *Builder {
-	glog.V(100).Info("Initializing new console %s structure", name)
+	klog.V(100).Infof("Initializing new console %s structure", name)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient of the Console is nil")
+		klog.V(100).Info("The apiClient of the Console is nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(configv1.Install)
 	if err != nil {
-		glog.V(100).Infof("Failed to add config v1 scheme to client schemes: %v", err)
+		klog.V(100).Infof("Failed to add config v1 scheme to client schemes: %v", err)
 
 		return nil
 	}
@@ -53,7 +53,7 @@ func NewBuilder(apiClient *clients.Settings, name string) *Builder {
 	}
 
 	if name == "" {
-		glog.V(100).Info("The name of the Console is empty")
+		klog.V(100).Info("The name of the Console is empty")
 
 		builder.errorMsg = "console 'name' cannot be empty"
 
@@ -65,17 +65,17 @@ func NewBuilder(apiClient *clients.Settings, name string) *Builder {
 
 // Pull loads an existing console into the Builder struct.
 func Pull(apiClient *clients.Settings, name string) (*Builder, error) {
-	glog.V(100).Infof("Pulling existing Console %s from cluster", name)
+	klog.V(100).Infof("Pulling existing Console %s from cluster", name)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient of the Console is nil")
+		klog.V(100).Info("The apiClient of the Console is nil")
 
 		return nil, fmt.Errorf("console 'apiClient' cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(configv1.Install)
 	if err != nil {
-		glog.V(100).Infof("Failed to add config v1 scheme to client schemes: %v", err)
+		klog.V(100).Infof("Failed to add config v1 scheme to client schemes: %v", err)
 
 		return nil, err
 	}
@@ -90,15 +90,15 @@ func Pull(apiClient *clients.Settings, name string) (*Builder, error) {
 	}
 
 	if name == "" {
-		glog.V(100).Info("The name of the Console is empty")
+		klog.V(100).Info("The name of the Console is empty")
 
 		return builder, fmt.Errorf("console 'name' cannot be empty")
 	}
 
-	glog.V(100).Infof("Pulling cluster console %s", name)
+	klog.V(100).Infof("Pulling cluster console %s", name)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("The Console %s does not exist", name)
+		klog.V(100).Infof("The Console %s does not exist", name)
 
 		return nil, fmt.Errorf("console object %s does not exist", name)
 	}
@@ -114,7 +114,7 @@ func (builder *Builder) Get() (*configv1.Console, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting Console object %s", builder.Definition.Name)
+	klog.V(100).Infof("Getting Console object %s", builder.Definition.Name)
 
 	console := &configv1.Console{}
 
@@ -122,7 +122,7 @@ func (builder *Builder) Get() (*configv1.Console, error) {
 		Name: builder.Definition.Name,
 	}, console)
 	if err != nil {
-		glog.V(100).Infof("Failed to get Console object %s: %v", builder.Definition.Name, err)
+		klog.V(100).Infof("Failed to get Console object %s: %v", builder.Definition.Name, err)
 
 		return nil, err
 	}
@@ -136,7 +136,7 @@ func (builder *Builder) Create() (*Builder, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Creating Console %s", builder.Definition.Name)
+	klog.V(100).Infof("Creating Console %s", builder.Definition.Name)
 
 	if builder.Exists() {
 		return builder, nil
@@ -158,7 +158,7 @@ func (builder *Builder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if console %s exists", builder.Definition.Name)
+	klog.V(100).Infof("Checking if console %s exists", builder.Definition.Name)
 
 	var err error
 
@@ -173,10 +173,10 @@ func (builder *Builder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting the console object %s", builder.Definition.Name)
+	klog.V(100).Infof("Deleting the console object %s", builder.Definition.Name)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("Console %s does not exist", builder.Definition.Name)
+		klog.V(100).Infof("Console %s does not exist", builder.Definition.Name)
 
 		builder.Object = nil
 
@@ -199,10 +199,10 @@ func (builder *Builder) Update() (*Builder, error) {
 		return nil, err
 	}
 
-	glog.V(100).Info("Updating cluster console %s", builder.Definition.Name)
+	klog.V(100).Infof("Updating cluster console %s", builder.Definition.Name)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("Console %s does not exist", builder.Definition.Name)
+		klog.V(100).Infof("Console %s does not exist", builder.Definition.Name)
 
 		return nil, fmt.Errorf("cannot update non-existent console")
 	}
@@ -225,25 +225,25 @@ func (builder *Builder) validate() (bool, error) {
 	resourceCRD := "console"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

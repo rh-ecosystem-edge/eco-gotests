@@ -9,11 +9,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/golang/glog"
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -36,10 +36,10 @@ type Builder struct {
 
 // Pull loads an existing clusterOperator into Builder struct.
 func Pull(apiClient *clients.Settings, clusterOperatorName string) (*Builder, error) {
-	glog.V(100).Infof("Pulling existing clusterOperator: %s", clusterOperatorName)
+	klog.V(100).Infof("Pulling existing clusterOperator: %s", clusterOperatorName)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("clusterOperator 'apiClient' cannot be empty")
 	}
@@ -54,7 +54,7 @@ func Pull(apiClient *clients.Settings, clusterOperatorName string) (*Builder, er
 	}
 
 	if clusterOperatorName == "" {
-		glog.V(100).Infof("The name of the clusterOperator is empty")
+		klog.V(100).Info("The name of the clusterOperator is empty")
 
 		return nil, fmt.Errorf("clusterOperator 'clusterOperatorName' cannot be empty")
 	}
@@ -74,7 +74,7 @@ func (builder *Builder) Get() (*configv1.ClusterOperator, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting existing clusterOperator with name %s from cluster", builder.Definition.Name)
+	klog.V(100).Infof("Getting existing clusterOperator with name %s from cluster", builder.Definition.Name)
 
 	clusterOperatorObj := &configv1.ClusterOperator{}
 
@@ -82,7 +82,7 @@ func (builder *Builder) Get() (*configv1.ClusterOperator, error) {
 		Name: builder.Definition.Name,
 	}, clusterOperatorObj)
 	if err != nil {
-		glog.V(100).Infof("Failed to get clusterOperator object %s from cluster due to: %w",
+		klog.V(100).Infof("Failed to get clusterOperator object %s from cluster due to: %v",
 			builder.Definition.Name, err)
 
 		return nil, err
@@ -97,7 +97,7 @@ func (builder *Builder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if clusterOperator %s exists", builder.Definition.Name)
+	klog.V(100).Infof("Checking if clusterOperator %s exists", builder.Definition.Name)
 
 	var err error
 
@@ -112,7 +112,7 @@ func (builder *Builder) IsAvailable() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Verify the availability of %s clusterOperator", builder.Definition.Name)
+	klog.V(100).Infof("Verify the availability of %s clusterOperator", builder.Definition.Name)
 
 	for _, condition := range builder.Object.Status.Conditions {
 		if condition.Type == "Available" {
@@ -129,7 +129,7 @@ func (builder *Builder) IsDegraded() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Check if %s clusterOperator is degraded", builder.Definition.Name)
+	klog.V(100).Infof("Check if %s clusterOperator is degraded", builder.Definition.Name)
 
 	for _, condition := range builder.Object.Status.Conditions {
 		if condition.Type == "Degraded" {
@@ -146,7 +146,7 @@ func (builder *Builder) IsProgressing() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Check if %s clusterOperator is progressing", builder.Definition.Name)
+	klog.V(100).Infof("Check if %s clusterOperator is progressing", builder.Definition.Name)
 
 	for _, condition := range builder.Object.Status.Conditions {
 		if condition.Type == "Progressing" {
@@ -163,7 +163,7 @@ func (builder *Builder) GetConditionReason(conditionType configv1.ClusterStatusC
 		return ""
 	}
 
-	glog.V(100).Infof("Get %s clusterOperator %v condition reason if exists",
+	klog.V(100).Infof("Get %s clusterOperator %v condition reason if exists",
 		builder.Definition.Name, conditionType)
 
 	err := builder.WaitUntilConditionTrue(conditionType, time.Second)
@@ -235,21 +235,21 @@ func (builder *Builder) HasDesiredVersion(desiredVersion string) (bool, error) {
 	}
 
 	for _, operatorVersion := range builder.Object.Status.Versions {
-		glog.V(100).Infof("Testing %s and %s", operatorVersion.Version, desiredVersion)
+		klog.V(100).Infof("Testing %s and %s", operatorVersion.Version, desiredVersion)
 
 		if operatorVersion.Version == desiredVersion {
-			glog.V(100).Infof("The clusterOperator %s version matches the desired version %s",
+			klog.V(100).Infof("The clusterOperator %s version matches the desired version %s",
 				builder.Definition.Name, desiredVersion)
 
 			return true, nil
 		}
 
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"The clusterOperator %s doesn't have the desired version %s, but has version %s. Continue lookup",
 			builder.Definition.Name, desiredVersion, operatorVersion.Version)
 	}
 
-	glog.V(100).Infof("lookup failed.The clusterOperator %s doesn't have the desired version %s",
+	klog.V(100).Infof("lookup failed.The clusterOperator %s doesn't have the desired version %s",
 		builder.Definition.Name, desiredVersion)
 
 	return false, nil
@@ -261,25 +261,25 @@ func (builder *Builder) validate() (bool, error) {
 	resourceCRD := "ClusterOperator"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
@@ -17,6 +16,7 @@ import (
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/version"
+	"k8s.io/klog/v2"
 	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
 )
 
@@ -53,7 +53,7 @@ var _ = Describe("ZTP Argo CD ACM CR Tests", Label(tsparams.LabelArgoCdAcmCrsTes
 			multiClusterDeployment, tsparams.MultiClusterHubOperator, "OPERAND_IMAGE_MULTICLUSTER_OPERATORS_SUBSCRIPTION")
 		Expect(acmPolicyGeneratorImage).ToNot(BeEmpty(), "Failed to find ACM policy generator container image")
 
-		glog.V(tsparams.LogLevel).Infof("Found ACM policy generator container image: '%s'", acmPolicyGeneratorImage)
+		klog.V(tsparams.LogLevel).Infof("Found ACM policy generator container image: '%s'", acmPolicyGeneratorImage)
 	})
 
 	AfterEach(func() {

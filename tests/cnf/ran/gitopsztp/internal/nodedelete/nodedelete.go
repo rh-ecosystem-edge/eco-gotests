@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/assisted"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/bmh"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/gitopsztp/internal/tsparams"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 // GetBmhNamespace returns the namespace for the specified BareMetalHost, if it exists.
@@ -34,7 +34,7 @@ func GetBmhNamespace(client *clients.Settings, bmhName string) (string, error) {
 func WaitForBMHDeprovisioning(client *clients.Settings, name, namespace string, timeout time.Duration) error {
 	return wait.PollUntilContextTimeout(
 		context.TODO(), tsparams.ArgoCdChangeInterval, timeout, true, func(ctx context.Context) (bool, error) {
-			glog.V(tsparams.LogLevel).Infof("Checking if BareMetalHost %s in namespace %s is deprovisioned", name, namespace)
+			klog.V(tsparams.LogLevel).Infof("Checking if BareMetalHost %s in namespace %s is deprovisioned", name, namespace)
 
 			_, err := bmh.Pull(client, name, namespace)
 			if err == nil {

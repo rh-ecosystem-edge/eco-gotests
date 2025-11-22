@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 // List returns namespace inventory.
@@ -15,7 +15,7 @@ func List(apiClient *clients.Settings, options ...metav1.ListOptions) ([]*Builde
 	passedOptions := metav1.ListOptions{}
 
 	if len(options) > 1 {
-		glog.V(100).Infof("'options' parameter must be empty or single-valued")
+		klog.V(100).Info("'options' parameter must be empty or single-valued")
 
 		return nil, fmt.Errorf("error: more than one ListOptions was passed")
 	}
@@ -25,11 +25,11 @@ func List(apiClient *clients.Settings, options ...metav1.ListOptions) ([]*Builde
 		logMessage += fmt.Sprintf(" with the options %v", passedOptions)
 	}
 
-	glog.V(100).Infof(logMessage)
+	klog.V(100).Infof("%v", logMessage)
 
 	namespacesList, err := apiClient.CoreV1Interface.Namespaces().List(context.TODO(), passedOptions)
 	if err != nil {
-		glog.V(100).Infof("Failed to list namespaces due to %s", err.Error())
+		klog.V(100).Infof("Failed to list namespaces due to %s", err.Error())
 
 		return nil, err
 	}

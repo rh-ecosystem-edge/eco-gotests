@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/frrtypes"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -14,14 +14,14 @@ import (
 func ListFrrNodeState(
 	apiClient *clients.Settings, options ...client.ListOptions) ([]*FrrNodeStateBuilder, error) {
 	if apiClient == nil {
-		glog.V(100).Infof("FrrNodeStates 'apiClient' parameter can not be empty")
+		klog.V(100).Info("FrrNodeStates 'apiClient' parameter can not be empty")
 
 		return nil, fmt.Errorf("failed to list FrrNodeStates, 'apiClient' parameter is empty")
 	}
 
 	err := apiClient.AttachScheme(frrtypes.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add frrk8 scheme to client schemes")
+		klog.V(100).Info("Failed to add frrk8 scheme to client schemes")
 
 		return nil, err
 	}
@@ -30,7 +30,7 @@ func ListFrrNodeState(
 	passedOptions := client.ListOptions{}
 
 	if len(options) > 1 {
-		glog.V(100).Infof("'options' parameter must be empty or single-valued")
+		klog.V(100).Info("'options' parameter must be empty or single-valued")
 
 		return nil, fmt.Errorf("error: more than one ListOptions was passed")
 	}
@@ -40,13 +40,13 @@ func ListFrrNodeState(
 		logMessage += fmt.Sprintf(" with the options %v", passedOptions)
 	}
 
-	glog.V(100).Infof(logMessage)
+	klog.V(100).Infof("%v", logMessage)
 
 	frrNodeStateList := new(frrtypes.FRRNodeStateList)
 
 	err = apiClient.List(context.TODO(), frrNodeStateList, &passedOptions)
 	if err != nil {
-		glog.V(100).Infof("Failed to list FrrNodeStates due to %s", err.Error())
+		klog.V(100).Infof("Failed to list FrrNodeStates due to %s", err.Error())
 
 		return nil, err
 	}

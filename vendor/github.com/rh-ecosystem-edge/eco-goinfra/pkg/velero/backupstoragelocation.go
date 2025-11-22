@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -35,19 +35,19 @@ func NewBackupStorageLocationBuilder(
 	namespace string,
 	provider string,
 	objectStorage velerov1.ObjectStorageLocation) *BackupStorageLocationBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new backupstoragelocation structure with the following params: "+
 			"name: %s, namespace: %s, provider: %s, objectStorage: %v", name, namespace, provider, objectStorage)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(velerov1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add velero v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add velero v1 scheme to client schemes")
 
 		return nil
 	}
@@ -69,25 +69,25 @@ func NewBackupStorageLocationBuilder(
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the backupstoragelocation is empty")
+		klog.V(100).Info("The name of the backupstoragelocation is empty")
 
 		builder.errorMsg = "backupstoragelocation name cannot be empty"
 	}
 
 	if namespace == "" {
-		glog.V(100).Infof("The namespace of the backupstoragelocation is empty")
+		klog.V(100).Info("The namespace of the backupstoragelocation is empty")
 
 		builder.errorMsg = "backupstoragelocation namespace cannot be empty"
 	}
 
 	if provider == "" {
-		glog.V(100).Infof("The provider of the backupstoragelocation is empty")
+		klog.V(100).Info("The provider of the backupstoragelocation is empty")
 
 		builder.errorMsg = "backupstoragelocation provider cannot be empty"
 	}
 
 	if objectStorage.Bucket == "" {
-		glog.V(100).Infof("The objectstorage bucket of the backupstoragelocation is empty")
+		klog.V(100).Info("The objectstorage bucket of the backupstoragelocation is empty")
 
 		builder.errorMsg = "backupstoragelocation objectstorage bucket cannot be empty"
 	}
@@ -98,17 +98,17 @@ func NewBackupStorageLocationBuilder(
 // PullBackupStorageLocationBuilder pulls existing backupstoragelocation from cluster.
 func PullBackupStorageLocationBuilder(
 	apiClient *clients.Settings, name, namespace string) (*BackupStorageLocationBuilder, error) {
-	glog.V(100).Infof("Pulling existing backupstoragelocation name: %s under namespace: %s", name, namespace)
+	klog.V(100).Infof("Pulling existing backupstoragelocation name: %s under namespace: %s", name, namespace)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil, fmt.Errorf("the apiClient is nil")
 	}
 
 	err := apiClient.AttachScheme(velerov1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add velero v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add velero v1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -124,13 +124,13 @@ func PullBackupStorageLocationBuilder(
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the backupstoragelocation is empty")
+		klog.V(100).Info("The name of the backupstoragelocation is empty")
 
 		return nil, fmt.Errorf("backupstoragelocation name cannot be empty")
 	}
 
 	if namespace == "" {
-		glog.V(100).Infof("The namespace of the backupstoragelocation is empty")
+		klog.V(100).Info("The namespace of the backupstoragelocation is empty")
 
 		return nil, fmt.Errorf("backupstoragelocation namespace cannot be empty")
 	}
@@ -151,7 +151,7 @@ func (builder *BackupStorageLocationBuilder) WithConfig(config map[string]string
 	}
 
 	if len(config) == 0 {
-		glog.V(100).Infof("The config of the backupstoragelocation is empty")
+		klog.V(100).Info("The config of the backupstoragelocation is empty")
 
 		builder.errorMsg = "backupstoragelocation cannot have empty config"
 
@@ -178,7 +178,7 @@ func (builder *BackupStorageLocationBuilder) WaitUntilAvailable(
 
 	err = wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			glog.V(100).Infof("Waiting for the backupstoragelocation %s in %s to become available",
+			klog.V(100).Infof("Waiting for the backupstoragelocation %s in %s to become available",
 				builder.Definition.Name, builder.Definition.Namespace)
 
 			builder.Object, err = builder.Get()
@@ -210,7 +210,7 @@ func (builder *BackupStorageLocationBuilder) WaitUntilUnavailable(
 
 	err = wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			glog.V(100).Infof("Waiting for the backupstoragelocation %s in %s to become unavailable",
+			klog.V(100).Infof("Waiting for the backupstoragelocation %s in %s to become unavailable",
 				builder.Definition.Name, builder.Definition.Namespace)
 
 			builder.Object, err = builder.Get()
@@ -233,7 +233,7 @@ func (builder *BackupStorageLocationBuilder) Get() (*velerov1.BackupStorageLocat
 		return nil, err
 	}
 
-	glog.V(100).Infof("Collecting BackupStorageLocation object %s", builder.Definition.Name)
+	klog.V(100).Infof("Collecting BackupStorageLocation object %s", builder.Definition.Name)
 
 	backupStorageLocation := &velerov1.BackupStorageLocation{}
 
@@ -241,7 +241,7 @@ func (builder *BackupStorageLocationBuilder) Get() (*velerov1.BackupStorageLocat
 		context.TODO(),
 		goclient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace}, backupStorageLocation)
 	if err != nil {
-		glog.V(100).Infof("BackupStorageLocation object %s does not exist", builder.Definition.Name)
+		klog.V(100).Infof("BackupStorageLocation object %s does not exist", builder.Definition.Name)
 
 		return nil, err
 	}
@@ -255,7 +255,7 @@ func (builder *BackupStorageLocationBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if backupstoragelocation %s exists in namespace %s",
+	klog.V(100).Infof("Checking if backupstoragelocation %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -272,7 +272,7 @@ func (builder *BackupStorageLocationBuilder) Create() (*BackupStorageLocationBui
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating backupstoragelocation %s in namespace %s",
+	klog.V(100).Infof("Creating backupstoragelocation %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -292,7 +292,7 @@ func (builder *BackupStorageLocationBuilder) Update() (*BackupStorageLocationBui
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating backupstoragelocation %s in namespace %s",
+	klog.V(100).Infof("Updating backupstoragelocation %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
@@ -313,11 +313,11 @@ func (builder *BackupStorageLocationBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting backupstoragelocation %s in namespace %s",
+	klog.V(100).Infof("Deleting backupstoragelocation %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("BackupStorageLocation %s in namespace %s cannot be deleted"+
+		klog.V(100).Infof("BackupStorageLocation %s in namespace %s cannot be deleted"+
 			" because it does not exist", builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -341,25 +341,25 @@ func (builder *BackupStorageLocationBuilder) validate() (bool, error) {
 	resourceCRD := "BackupStorageLocation"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		builder.errorMsg = msg.UndefinedCrdObjectErrString(resourceCRD)
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		builder.errorMsg = fmt.Sprintf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

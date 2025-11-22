@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/golang/glog"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 
 	clientConfigV1 "github.com/openshift/client-go/config/clientset/versioned/typed/config/v1"
 	v1security "github.com/openshift/client-go/security/clientset/versioned/typed/security/v1"
@@ -81,17 +81,17 @@ func New(kubeconfig string) *Settings {
 	}
 
 	if kubeconfig != "" {
-		glog.V(100).Infof("Loading kube client config from path %s", kubeconfig)
+		klog.V(100).Infof("Loading kube client config from path %s", kubeconfig)
 
 		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
 	} else {
-		glog.V(100).Info("Using in-cluster kube client config")
+		klog.V(100).Info("Using in-cluster kube client config")
 
 		config, err = rest.InClusterConfig()
 	}
 
 	if err != nil {
-		glog.V(100).Infof("Failed to load kubeconfig: %v", err)
+		klog.V(100).Infof("Failed to load kubeconfig: %v", err)
 
 		return nil
 	}
@@ -115,7 +115,7 @@ func New(kubeconfig string) *Settings {
 
 	err = SetScheme(clientSet.scheme)
 	if err != nil {
-		glog.V(100).Info("Error to load apiClient scheme")
+		klog.V(100).Info("Error to load apiClient scheme")
 
 		return nil
 	}
@@ -124,7 +124,7 @@ func New(kubeconfig string) *Settings {
 		Scheme: clientSet.scheme,
 	})
 	if err != nil {
-		glog.V(100).Info("Error to create apiClient")
+		klog.V(100).Info("Error to create apiClient")
 
 		return nil
 	}
@@ -174,7 +174,7 @@ func SetScheme(crScheme *runtime.Scheme) error {
 // GetAPIClient implements the cluster.APIClientGetter interface.
 func (settings *Settings) GetAPIClient() (*Settings, error) {
 	if settings == nil {
-		glog.V(100).Infof("APIClient is nil")
+		klog.V(100).Info("APIClient is nil")
 
 		return nil, fmt.Errorf("APIClient cannot be nil")
 	}
@@ -185,7 +185,7 @@ func (settings *Settings) GetAPIClient() (*Settings, error) {
 // AttachScheme attaches a scheme to the client's current scheme.
 func (settings *Settings) AttachScheme(attacher SchemeAttacher) error {
 	if settings == nil {
-		glog.V(100).Infof("APIClient is nil")
+		klog.V(100).Info("APIClient is nil")
 
 		return fmt.Errorf("cannot add scheme to nil client")
 	}

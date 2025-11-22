@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ocm/kacv1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -30,18 +30,18 @@ type KACBuilder struct {
 
 // NewKACBuilder creates a new instance of a KlusterletAddonConfig builder.
 func NewKACBuilder(apiClient *clients.Settings, name, nsname string) *KACBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new KlusterletAddonConfig structure with the following params: name: %s, nsname: %s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Info("The apiClient of the KlusterletAddonConfig is nil")
+		klog.V(100).Info("The apiClient of the KlusterletAddonConfig is nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(kacv1.SchemeBuilder.AddToScheme)
 	if err != nil {
-		glog.V(100).Info("Failed to add KlusterletAddonConfig scheme to client schemes")
+		klog.V(100).Info("Failed to add KlusterletAddonConfig scheme to client schemes")
 
 		return nil
 	}
@@ -57,7 +57,7 @@ func NewKACBuilder(apiClient *clients.Settings, name, nsname string) *KACBuilder
 	}
 
 	if name == "" {
-		glog.V(100).Info("The name of the KlusterletAddonConfig is empty")
+		klog.V(100).Info("The name of the KlusterletAddonConfig is empty")
 
 		builder.errorMsg = "klusterletAddonConfig 'name' cannot be empty"
 
@@ -65,7 +65,7 @@ func NewKACBuilder(apiClient *clients.Settings, name, nsname string) *KACBuilder
 	}
 
 	if nsname == "" {
-		glog.V(100).Info("The namespace of the KlusterletAddonConfig is empty")
+		klog.V(100).Info("The namespace of the KlusterletAddonConfig is empty")
 
 		builder.errorMsg = "klusterletAddonConfig 'nsname' cannot be empty"
 
@@ -77,17 +77,17 @@ func NewKACBuilder(apiClient *clients.Settings, name, nsname string) *KACBuilder
 
 // PullKAC pulls an existing KlusterletAddonConfig into a Builder struct.
 func PullKAC(apiClient *clients.Settings, name, nsname string) (*KACBuilder, error) {
-	glog.V(100).Infof("Pulling existing KlusterletAddonConfig %s under namespace %s from cluster", name, nsname)
+	klog.V(100).Infof("Pulling existing KlusterletAddonConfig %s under namespace %s from cluster", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Info("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("klusterletAddonConfig 'apiClient' cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(kacv1.SchemeBuilder.AddToScheme)
 	if err != nil {
-		glog.V(100).Info("Failed to add KlusterletAddonConfig scheme to client schemes")
+		klog.V(100).Info("Failed to add KlusterletAddonConfig scheme to client schemes")
 
 		return nil, err
 	}
@@ -103,19 +103,19 @@ func PullKAC(apiClient *clients.Settings, name, nsname string) (*KACBuilder, err
 	}
 
 	if name == "" {
-		glog.V(100).Info("The name of the KlusterletAddonConfig is empty")
+		klog.V(100).Info("The name of the KlusterletAddonConfig is empty")
 
 		return nil, fmt.Errorf("klusterletAddonConfig 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Info("The namespace of the KlusterletAddonConfig is empty")
+		klog.V(100).Info("The namespace of the KlusterletAddonConfig is empty")
 
 		return nil, fmt.Errorf("klusterletAddonConfig 'nsname' cannot be empty")
 	}
 
 	if !builder.Exists() {
-		glog.V(100).Info("The KlusterletAddonConfig %s does not exist in namespace %s", name, nsname)
+		klog.V(100).Infof("The KlusterletAddonConfig %s does not exist in namespace %s", name, nsname)
 
 		return nil, fmt.Errorf("klusterletAddonConfig object %s does not exist in namespace %s", name, nsname)
 	}
@@ -131,7 +131,7 @@ func (builder *KACBuilder) Get() (*kacv1.KlusterletAddonConfig, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Getting KlusterletAddonConfig object %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	klusterletAddonConfig := &kacv1.KlusterletAddonConfig{}
@@ -141,7 +141,7 @@ func (builder *KACBuilder) Get() (*kacv1.KlusterletAddonConfig, error) {
 		Namespace: builder.Definition.Namespace,
 	}, klusterletAddonConfig)
 	if err != nil {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"KlusterletAddonConfig object %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
@@ -157,7 +157,7 @@ func (builder *KACBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Checking if KlusterletAddonConfig %s exists in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -173,7 +173,7 @@ func (builder *KACBuilder) Create() (*KACBuilder, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating KlusterletAddonConfig %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	if builder.Exists() {
@@ -197,11 +197,11 @@ func (builder *KACBuilder) Update(force bool) (*KACBuilder, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Updating KlusterletAddonConfig %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"KlusterletAddonConfig %s does not exist in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 		return nil, fmt.Errorf("cannot update non-existent klusterletAddonConfig")
@@ -212,13 +212,13 @@ func (builder *KACBuilder) Update(force bool) (*KACBuilder, error) {
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		if force {
-			glog.V(100).Infof(msg.FailToUpdateNotification("klusterletAddonConfig", builder.Definition.Name))
+			klog.V(100).Infof("%v", msg.FailToUpdateNotification("klusterletAddonConfig", builder.Definition.Name))
 
 			err := builder.Delete()
 			builder.Definition.ResourceVersion = ""
 
 			if err != nil {
-				glog.V(100).Infof(msg.FailToUpdateError("klusterletAddonConfig", builder.Definition.Name))
+				klog.V(100).Infof("%v", msg.FailToUpdateError("klusterletAddonConfig", builder.Definition.Name))
 
 				return nil, err
 			}
@@ -240,11 +240,11 @@ func (builder *KACBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Deleting KlusterletAddonConfig %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"KlusterletAddonConfig %s in namespace %s does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
@@ -269,7 +269,7 @@ func (builder *KACBuilder) WaitUntilSearchCollectorEnabled(timeout time.Duration
 		return nil, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Waiting until KlusterletAddonConfig %s in namespace %s has search collector enabled",
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -302,25 +302,25 @@ func (builder *KACBuilder) validate() (bool, error) {
 	resourceCRD := "klusterletAddonConfig"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiClient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiClient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

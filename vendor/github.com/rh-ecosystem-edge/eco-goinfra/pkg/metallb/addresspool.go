@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/mlbtypes"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/klog/v2"
 	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -29,13 +29,13 @@ type IPAddressPoolAdditionalOptions func(builder *IPAddressPoolBuilder) (*IPAddr
 // NewIPAddressPoolBuilder creates a new instance of IPAddressPoolBuilder.
 func NewIPAddressPoolBuilder(
 	apiClient *clients.Settings, name, nsname string, addrPool []string) *IPAddressPoolBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new IPAddressPool structure with the following params: %s, %s %s",
 		name, nsname, addrPool)
 
 	err := apiClient.AttachScheme(mlbtypes.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add metallb scheme to client schemes")
+		klog.V(100).Info("Failed to add metallb scheme to client schemes")
 
 		return nil
 	}
@@ -53,7 +53,7 @@ func NewIPAddressPoolBuilder(
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the IPAddressPool is empty")
+		klog.V(100).Info("The name of the IPAddressPool is empty")
 
 		builder.errorMsg = "IPAddressPool 'name' cannot be empty"
 
@@ -61,7 +61,7 @@ func NewIPAddressPoolBuilder(
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the IPAddressPool is empty")
+		klog.V(100).Info("The namespace of the IPAddressPool is empty")
 
 		builder.errorMsg = "IPAddressPool 'nsname' cannot be empty"
 
@@ -69,7 +69,7 @@ func NewIPAddressPoolBuilder(
 	}
 
 	if len(addrPool) < 1 {
-		glog.V(100).Infof("The addrPool of the IPAddressPool is empty list")
+		klog.V(100).Info("The addrPool of the IPAddressPool is empty list")
 
 		builder.errorMsg = "IPAddressPool 'addrPool' cannot be empty list"
 
@@ -85,7 +85,7 @@ func (builder *IPAddressPoolBuilder) Get() (*mlbtypes.IPAddressPool, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Collecting IPAddressPool object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -95,7 +95,7 @@ func (builder *IPAddressPoolBuilder) Get() (*mlbtypes.IPAddressPool, error) {
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		ipAddressPool)
 	if err != nil {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"IPAddressPool object %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
@@ -111,7 +111,7 @@ func (builder *IPAddressPoolBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Checking if IPAddressPool %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -124,17 +124,17 @@ func (builder *IPAddressPoolBuilder) Exists() bool {
 
 // PullAddressPool pulls existing addresspool from cluster.
 func PullAddressPool(apiClient *clients.Settings, name, nsname string) (*IPAddressPoolBuilder, error) {
-	glog.V(100).Infof("Pulling existing addresspool name %s under namespace %s from cluster", name, nsname)
+	klog.V(100).Infof("Pulling existing addresspool name %s under namespace %s from cluster", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("addresspool 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(mlbtypes.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add metallb scheme to client schemes")
+		klog.V(100).Info("Failed to add metallb scheme to client schemes")
 
 		return nil, err
 	}
@@ -150,13 +150,13 @@ func PullAddressPool(apiClient *clients.Settings, name, nsname string) (*IPAddre
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the addresspool is empty")
+		klog.V(100).Info("The name of the addresspool is empty")
 
 		return nil, fmt.Errorf("addresspool 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the addresspool is empty")
+		klog.V(100).Info("The namespace of the addresspool is empty")
 
 		return nil, fmt.Errorf("addresspool 'namespace' cannot be empty")
 	}
@@ -176,14 +176,14 @@ func (builder *IPAddressPoolBuilder) Create() (*IPAddressPoolBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the IPAddressPool %s in namespace %s",
+	klog.V(100).Infof("Creating the IPAddressPool %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace,
 	)
 
 	if !builder.Exists() {
 		err := builder.apiClient.Create(context.TODO(), builder.Definition)
 		if err != nil {
-			glog.V(100).Infof("Failed to create IPAddressPool")
+			klog.V(100).Info("Failed to create IPAddressPool")
 
 			return nil, err
 		}
@@ -200,12 +200,12 @@ func (builder *IPAddressPoolBuilder) Delete() (*IPAddressPoolBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting the IPAddressPool object %s in namespace %s",
+	klog.V(100).Infof("Deleting the IPAddressPool object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace,
 	)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("IPAddressPool %s does not exist in namespace %s",
+		klog.V(100).Infof("IPAddressPool %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -229,7 +229,7 @@ func (builder *IPAddressPoolBuilder) Update(force bool) (*IPAddressPoolBuilder, 
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating the IPAddressPool object %s in namespace %s",
+	klog.V(100).Infof("Updating the IPAddressPool object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace,
 	)
 
@@ -240,13 +240,11 @@ func (builder *IPAddressPoolBuilder) Update(force bool) (*IPAddressPoolBuilder, 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		if force {
-			glog.V(100).Infof(
-				msg.FailToUpdateNotification("IPAddressPool", builder.Definition.Name, builder.Definition.Namespace))
+			klog.V(100).Infof("%v", msg.FailToUpdateNotification("IPAddressPool", builder.Definition.Name, builder.Definition.Namespace))
 
 			builder, err := builder.Delete()
 			if err != nil {
-				glog.V(100).Infof(
-					msg.FailToUpdateError("IPAddressPool", builder.Definition.Name, builder.Definition.Namespace))
+				klog.V(100).Infof("%v", msg.FailToUpdateError("IPAddressPool", builder.Definition.Name, builder.Definition.Namespace))
 
 				return nil, err
 			}
@@ -264,7 +262,7 @@ func (builder *IPAddressPoolBuilder) WithAutoAssign(auto bool) *IPAddressPoolBui
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating IPAddressPool %s in namespace %s with this autoAssign flag: %t",
 		builder.Definition.Name, builder.Definition.Namespace, auto)
 
@@ -279,7 +277,7 @@ func (builder *IPAddressPoolBuilder) WithAvoidBuggyIPs(avoid bool) *IPAddressPoo
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating IPAddressPool %s in namespace %s with this avoidBuggyIPs flag: %t",
 		builder.Definition.Name, builder.Definition.Namespace, avoid)
 
@@ -294,10 +292,10 @@ func (builder *IPAddressPoolBuilder) WithOptions(options ...IPAddressPoolAdditio
 		return builder
 	}
 
-	glog.V(100).Infof("Setting IPAddressPool additional options")
+	klog.V(100).Info("Setting IPAddressPool additional options")
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The IPAddressPool is undefined")
+		klog.V(100).Info("The IPAddressPool is undefined")
 
 		builder.errorMsg = msg.UndefinedCrdObjectErrString("IPAddressPool")
 
@@ -308,7 +306,7 @@ func (builder *IPAddressPoolBuilder) WithOptions(options ...IPAddressPoolAdditio
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -333,25 +331,25 @@ func (builder *IPAddressPoolBuilder) validate() (bool, error) {
 	resourceCRD := "IPAddressPool"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

@@ -3,7 +3,6 @@ package tests
 import (
 	"fmt"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/bmh"
@@ -15,6 +14,7 @@ import (
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/version"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
+	"k8s.io/klog/v2"
 )
 
 var _ = Describe("ZTP BIOS Configuration Tests", Label(tsparams.LabelBiosDayZeroTests), func() {
@@ -34,11 +34,11 @@ var _ = Describe("ZTP BIOS Configuration Tests", Label(tsparams.LabelBiosDayZero
 
 		spokeClusterName, err = GetSpokeClusterName(HubAPIClient, Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to get SNO cluster name")
-		glog.V(tsparams.LogLevel).Infof("cluster name: %s", spokeClusterName)
+		klog.V(tsparams.LogLevel).Infof("cluster name: %s", spokeClusterName)
 
 		nodeNames, err = GetNodeNames(Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to get node names")
-		glog.V(tsparams.LogLevel).Infof("Node names: %v", nodeNames)
+		klog.V(tsparams.LogLevel).Infof("Node names: %v", nodeNames)
 
 		By("getting HFS for spoke")
 		hfs, err := bmh.PullHFS(HubAPIClient, nodeNames[0], spokeClusterName)
@@ -74,16 +74,16 @@ var _ = Describe("ZTP BIOS Configuration Tests", Label(tsparams.LabelBiosDayZero
 		for param, value := range hfsRequestedSettings {
 			setting, ok := hfsCurrentSettings[param]
 			if !ok {
-				glog.V(tsparams.LogLevel).Infof("Current settings does not have param %s", param)
+				klog.V(tsparams.LogLevel).Infof("Current settings does not have param %s", param)
 
 				continue
 			}
 
 			requestedSetting := value.String()
 			if requestedSetting == setting {
-				glog.V(tsparams.LogLevel).Infof("Requested setting matches current: %s=%s", param, setting)
+				klog.V(tsparams.LogLevel).Infof("Requested setting matches current: %s=%s", param, setting)
 			} else {
-				glog.V(tsparams.LogLevel).Infof(
+				klog.V(tsparams.LogLevel).Infof(
 					"Requested setting %s value %s does not match current value %s",
 					param,
 					requestedSetting,

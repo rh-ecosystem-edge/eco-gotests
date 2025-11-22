@@ -8,11 +8,11 @@ import (
 
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	ptpv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -34,18 +34,18 @@ type PtpOperatorConfigBuilder struct {
 
 // PullPtpOperatorConfig pulls the existing PtpOperatorConfig singleton resource.
 func PullPtpOperatorConfig(apiClient *clients.Settings) (*PtpOperatorConfigBuilder, error) {
-	glog.V(100).Infof("Pulling existing PtpOperatorConfig %s from namespace %s",
+	klog.V(100).Infof("Pulling existing PtpOperatorConfig %s from namespace %s",
 		PtpOperatorConfigName, PtpOperatorConfigNamespace)
 
 	if apiClient == nil {
-		glog.V(100).Info("The apiClient is nil")
+		klog.V(100).Info("The apiClient is nil")
 
 		return nil, fmt.Errorf("ptpOperatorConfig 'apiClient' cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(ptpv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Info("Failed to add PtpOperatorConfig scheme to client schemes")
+		klog.V(100).Info("Failed to add PtpOperatorConfig scheme to client schemes")
 
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func PullPtpOperatorConfig(apiClient *clients.Settings) (*PtpOperatorConfigBuild
 	}
 
 	if !builder.Exists() {
-		glog.V(100).Infof("PtpOperatorConfig %s does not exist in namespace %s",
+		klog.V(100).Infof("PtpOperatorConfig %s does not exist in namespace %s",
 			PtpOperatorConfigName, PtpOperatorConfigNamespace)
 
 		return nil, fmt.Errorf("ptpOperatorConfig object %s does not exist in namespace %s",
@@ -79,7 +79,7 @@ func (builder *PtpOperatorConfigBuilder) Get() (*ptpv1.PtpOperatorConfig, error)
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting PtpOperatorConfig object %s in namespace %s",
+	klog.V(100).Infof("Getting PtpOperatorConfig object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	ptpOpConfig := &ptpv1.PtpOperatorConfig{}
@@ -101,14 +101,14 @@ func (builder *PtpOperatorConfigBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if PtpOperatorConfig %s exists in namespace %s",
+	klog.V(100).Infof("Checking if PtpOperatorConfig %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
 
 	builder.Object, err = builder.Get()
 	if err != nil {
-		glog.V(100).Infof("Failed to get PtpOperatorConfig %s in namespace %s: %v",
+		klog.V(100).Infof("Failed to get PtpOperatorConfig %s in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
 
 		return false
@@ -123,11 +123,11 @@ func (builder *PtpOperatorConfigBuilder) Update() (*PtpOperatorConfigBuilder, er
 		return nil, err
 	}
 
-	glog.V(100).Infof("Updating PtpOperatorConfig %s in namespace %s",
+	klog.V(100).Infof("Updating PtpOperatorConfig %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("PtpOperatorConfig %s does not exist in namespace %s",
+		klog.V(100).Infof("PtpOperatorConfig %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		return nil, fmt.Errorf("cannot update non-existent ptpOperatorConfig")
@@ -153,7 +153,7 @@ func (builder *PtpOperatorConfigBuilder) WithEventConfig(eventConfig ptpv1.PtpEv
 		return builder
 	}
 
-	glog.V(100).Infof("Setting PtpEventConfig for PtpOperatorConfig %s in namespace %s",
+	klog.V(100).Infof("Setting PtpEventConfig for PtpOperatorConfig %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if eventConfig.TransportHost != "" {
@@ -182,25 +182,25 @@ func (builder *PtpOperatorConfigBuilder) validate() (bool, error) {
 	resourceCRD := "ptpOperatorConfig"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s definition is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s definition is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiClient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiClient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

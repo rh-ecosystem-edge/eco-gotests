@@ -3,16 +3,16 @@ package amdgpunfd
 import (
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nfd"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpucommon"
 	amdgpuparams "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/params"
+	"k8s.io/klog/v2"
 )
 
 // CreateAMDGPUFeatureRule creates an NFD FeatureRule for advanced AMD GPU detection and labeling.
 func CreateAMDGPUFeatureRule(apiClient *clients.Settings) error {
-	glog.V(amdgpuparams.AMDGPULogLevel).Infof("Creating NFD FeatureRule for enhanced AMD GPU detection")
+	klog.V(amdgpuparams.AMDGPULogLevel).Infof("Creating NFD FeatureRule for enhanced AMD GPU detection")
 
 	featureRuleBuilder := nfd.NewNodeFeatureRuleBuilderFromObjectString(apiClient, getAMDGPUFeatureRuleYAML())
 	if featureRuleBuilder == nil {
@@ -20,7 +20,7 @@ func CreateAMDGPUFeatureRule(apiClient *clients.Settings) error {
 	}
 
 	if featureRuleBuilder.Exists() {
-		glog.V(amdgpuparams.AMDGPULogLevel).Info("AMD GPU FeatureRule already exists")
+		klog.V(amdgpuparams.AMDGPULogLevel).Info("AMD GPU FeatureRule already exists")
 
 		return nil
 	}
@@ -30,8 +30,8 @@ func CreateAMDGPUFeatureRule(apiClient *clients.Settings) error {
 		return handleFeatureRuleCreationError(err)
 	}
 
-	glog.V(amdgpuparams.AMDGPULogLevel).Info("Successfully created AMD GPU FeatureRule")
-	glog.V(amdgpuparams.AMDGPULogLevel).Info("This will enhance AMD GPU node detection and labeling via NFD")
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("Successfully created AMD GPU FeatureRule")
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("This will enhance AMD GPU node detection and labeling via NFD")
 
 	return nil
 }
@@ -95,13 +95,13 @@ func getAMDGPUFeatureRuleYAML() string {
 
 // handleFeatureRuleCreationError handles errors during FeatureRule creation.
 func handleFeatureRuleCreationError(err error) error {
-	glog.V(amdgpuparams.AMDGPULogLevel).Infof("Error creating AMD GPU FeatureRule: %v", err)
+	klog.V(amdgpuparams.AMDGPULogLevel).Infof("Error creating AMD GPU FeatureRule: %v", err)
 
 	if amdgpucommon.IsCRDNotAvailable(err) {
 		featureRuleYAML := getAMDGPUFeatureRuleYAML()
 
-		glog.V(amdgpuparams.AMDGPULogLevel).Info("NFD FeatureRule CRD not available - manual creation required")
-		glog.V(amdgpuparams.AMDGPULogLevel).Infof("AMD GPU FeatureRule YAML:\n%s", featureRuleYAML)
+		klog.V(amdgpuparams.AMDGPULogLevel).Info("NFD FeatureRule CRD not available - manual creation required")
+		klog.V(amdgpuparams.AMDGPULogLevel).Infof("AMD GPU FeatureRule YAML:\n%s", featureRuleYAML)
 
 		return fmt.Errorf("NFD FeatureRule CRD not available, manual creation required")
 	}

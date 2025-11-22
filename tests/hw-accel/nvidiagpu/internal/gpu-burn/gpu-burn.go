@@ -3,13 +3,13 @@ package gpuburn
 import (
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/configmap"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nvidiagpu/internal/gpuparams"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 var (
@@ -41,14 +41,14 @@ func CreateGPUBurnConfigMap(apiClient *clients.Settings,
 	createdConfigMapBuilderWithData, err := configMapBuilderWithData.Create()
 
 	if err != nil {
-		glog.V(gpuparams.GpuLogLevel).Infof(
+		klog.V(gpuparams.GpuLogLevel).Infof(
 			"error creating ConfigMap with Data named %s and for namespace %s",
 			createdConfigMapBuilderWithData.Object.Name, createdConfigMapBuilderWithData.Object.Namespace)
 
 		return nil, err
 	}
 
-	glog.V(gpuparams.GpuLogLevel).Infof(
+	klog.V(gpuparams.GpuLogLevel).Infof(
 		"Created ConfigMap with Data named %s and for namespace %s",
 		createdConfigMapBuilderWithData.Object.Name, createdConfigMapBuilderWithData.Object.Namespace)
 

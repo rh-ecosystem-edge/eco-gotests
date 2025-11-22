@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	nfdv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/nfd/v1alpha1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/json"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -30,25 +30,25 @@ type NodeFeatureRuleBuilder struct {
 
 // NewNodeFeatureRuleBuilderFromObjectString creates a Builder object from CSV alm-examples.
 func NewNodeFeatureRuleBuilderFromObjectString(apiClient *clients.Settings, almExample string) *NodeFeatureRuleBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new Builder structure from almExample string")
 
 	if apiClient == nil {
-		glog.V(100).Info("The apiClient of the NodeFeatureRule is nil")
+		klog.V(100).Info("The apiClient of the NodeFeatureRule is nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(nfdv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Info("Failed to add nfd v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add nfd v1 scheme to client schemes")
 
 		return nil
 	}
 
 	nodeFeatureRule, err := getNodeFeatureRuleFromAlmExample(almExample)
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing Builder definition to NodeFeatureRule object")
 
 	nodeFeatureRuleBuilder := NodeFeatureRuleBuilder{
@@ -57,7 +57,7 @@ func NewNodeFeatureRuleBuilderFromObjectString(apiClient *clients.Settings, almE
 	}
 
 	if err != nil {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"Error initializing NodeFeatureRule from alm-examples: %s", err.Error())
 
 		nodeFeatureRuleBuilder.errorMsg = fmt.Sprintf("error initializing NodeFeatureRule from alm-examples: %s",
@@ -67,7 +67,7 @@ func NewNodeFeatureRuleBuilderFromObjectString(apiClient *clients.Settings, almE
 	}
 
 	if nodeFeatureRuleBuilder.Definition == nil {
-		glog.V(100).Infof("The NodeFeatureRule object definition is nil")
+		klog.V(100).Info("The NodeFeatureRule object definition is nil")
 
 		nodeFeatureRuleBuilder.errorMsg = "nodeFeatureRule definition is nil"
 
@@ -79,17 +79,17 @@ func NewNodeFeatureRuleBuilderFromObjectString(apiClient *clients.Settings, almE
 
 // PullFeatureRule loads an existing NodeFeatureRuleBuilder into Builder struct.
 func PullFeatureRule(apiClient *clients.Settings, name, namespace string) (*NodeFeatureRuleBuilder, error) {
-	glog.V(100).Infof("Pulling existing NodeFeatureRule name: %s in namespace: %s", name, namespace)
+	klog.V(100).Infof("Pulling existing NodeFeatureRule name: %s in namespace: %s", name, namespace)
 
 	if apiClient == nil {
-		glog.V(100).Info("The apiClient of the NodeFeatureRule is nil")
+		klog.V(100).Info("The apiClient of the NodeFeatureRule is nil")
 
 		return nil, fmt.Errorf("the apiClient of the NodeFeatureRule is nil")
 	}
 
 	err := apiClient.AttachScheme(nfdv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Info("Failed to add nfd v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add nfd v1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -105,13 +105,13 @@ func PullFeatureRule(apiClient *clients.Settings, name, namespace string) (*Node
 	}
 
 	if name == "" {
-		glog.V(100).Infof("NodeFeatureRule name is empty")
+		klog.V(100).Info("NodeFeatureRule name is empty")
 
 		return nil, fmt.Errorf("nodeFeatureRule 'name' cannot be empty")
 	}
 
 	if namespace == "" {
-		glog.V(100).Infof("NodeFeatureRule namespace is empty")
+		klog.V(100).Info("NodeFeatureRule namespace is empty")
 
 		return nil, fmt.Errorf("nodeFeatureRule 'namespace' cannot be empty")
 	}
@@ -157,7 +157,7 @@ func (builder *NodeFeatureRuleBuilder) Create() (*NodeFeatureRuleBuilder, error)
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the NodeFeatureRule %s in namespace %s", builder.Definition.Name,
+	klog.V(100).Infof("Creating the NodeFeatureRule %s in namespace %s", builder.Definition.Name,
 		builder.Definition.Namespace)
 
 	var err error
@@ -177,7 +177,7 @@ func (builder *NodeFeatureRuleBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Checking if NodeFeatureRule %s exists in namespace %s", builder.Definition.Name,
 		builder.Definition.Namespace)
 
@@ -185,7 +185,7 @@ func (builder *NodeFeatureRuleBuilder) Exists() bool {
 
 	builder.Object, err = builder.Get()
 	if err != nil {
-		glog.V(100).Infof("Failed to collect NodeFeatureRule object due to %s", err.Error())
+		klog.V(100).Infof("Failed to collect NodeFeatureRule object due to %s", err.Error())
 	}
 
 	return err == nil || !k8serrors.IsNotFound(err)
@@ -197,7 +197,7 @@ func (builder *NodeFeatureRuleBuilder) Get() (*nfdv1.NodeFeatureRule, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Collecting NodeFeatureRule object %s in namespace %s",
+	klog.V(100).Infof("Collecting NodeFeatureRule object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	NodeFeatureRule := &nfdv1.NodeFeatureRule{}
@@ -207,7 +207,7 @@ func (builder *NodeFeatureRuleBuilder) Get() (*nfdv1.NodeFeatureRule, error) {
 		Namespace: builder.Definition.Namespace,
 	}, NodeFeatureRule)
 	if err != nil {
-		glog.V(100).Infof("NodeFeatureRule object %s does not exist in namespace %s",
+		klog.V(100).Infof("NodeFeatureRule object %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		return nil, err
@@ -222,25 +222,25 @@ func (builder *NodeFeatureRuleBuilder) validate() (bool, error) {
 	resourceCRD := "nodeFeatureRule"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

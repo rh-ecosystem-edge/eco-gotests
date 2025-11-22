@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	nodefeature "github.com/rh-ecosystem-edge/eco-goinfra/pkg/nfd"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/olm"
@@ -17,6 +16,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 // NFDCRConfig holds configuration for NFD custom resource.
@@ -30,7 +30,7 @@ type NFDCRConfig struct {
 type NFDCRUtils struct {
 	APIClient *clients.Settings
 	Namespace string
-	LogLevel  glog.Level
+	LogLevel  klog.Level
 	CrName    string
 }
 
@@ -39,14 +39,14 @@ func NewNFDCRUtils(apiClient *clients.Settings, namespace string, name string) *
 	return &NFDCRUtils{
 		APIClient: apiClient,
 		Namespace: namespace,
-		LogLevel:  glog.Level(nfdparams.LogLevel),
+		LogLevel:  klog.Level(nfdparams.LogLevel),
 		CrName:    name,
 	}
 }
 
 // DeployNFDCR deploys a NodeFeatureDiscovery custom resource.
 func (nfd *NFDCRUtils) DeployNFDCR(config NFDCRConfig) error {
-	glog.V(nfd.LogLevel).Infof("Deploying NFD CR '%s' in namespace '%s'", nfd.CrName, nfd.Namespace)
+	klog.V(nfd.LogLevel).Infof("Deploying NFD CR '%s' in namespace '%s'", nfd.CrName, nfd.Namespace)
 
 	nfdBuilder, err := nfd.createNFDBuilder(config)
 	if err != nil {
@@ -57,27 +57,27 @@ func (nfd *NFDCRUtils) DeployNFDCR(config NFDCRConfig) error {
 		nfdBuilder.Definition.Name = nfd.CrName
 	}
 
-	glog.V(nfd.LogLevel).Infof("Creating NFD CR: %v", nfdBuilder.Definition)
+	klog.V(nfd.LogLevel).Infof("Creating NFD CR: %v", nfdBuilder.Definition)
 	_, err = nfdBuilder.Create()
 
 	if err != nil {
 		return fmt.Errorf("failed to create NFD CR: %w", err)
 	}
 
-	glog.V(nfd.LogLevel).Infof("SUCCESS: NFD CR '%s' deployed", nfdBuilder.Definition.Name)
+	klog.V(nfd.LogLevel).Infof("SUCCESS: NFD CR '%s' deployed", nfdBuilder.Definition.Name)
 
 	return nil
 }
 
 // DeleteNFDCR deletes a NodeFeatureDiscovery custom resource.
 func (nfd *NFDCRUtils) DeleteNFDCR() error {
-	glog.V(nfd.LogLevel).Infof("Deleting NFD CR '%s' from namespace '%s'", nfd.CrName, nfd.Namespace)
+	klog.V(nfd.LogLevel).Infof("Deleting NFD CR '%s' from namespace '%s'", nfd.CrName, nfd.Namespace)
 
 	nfdBuilder, err := nodefeature.Pull(nfd.APIClient, nfd.CrName, nfd.Namespace)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "not found") ||
 			strings.Contains(strings.ToLower(err.Error()), "does not exist") {
-			glog.V(nfd.LogLevel).Infof("NFD CR '%s' not found - already deleted or never existed", nfd.CrName)
+			klog.V(nfd.LogLevel).Infof("NFD CR '%s' not found - already deleted or never existed", nfd.CrName)
 
 			return nil
 		}
@@ -86,7 +86,7 @@ func (nfd *NFDCRUtils) DeleteNFDCR() error {
 	}
 
 	if nfdBuilder == nil {
-		glog.V(nfd.LogLevel).Infof("NFD CR '%s' not found", nfd.CrName)
+		klog.V(nfd.LogLevel).Infof("NFD CR '%s' not found", nfd.CrName)
 
 		return nil
 	}
@@ -95,7 +95,7 @@ func (nfd *NFDCRUtils) DeleteNFDCR() error {
 
 	_, err = nfdBuilder.Update(true)
 	if err != nil {
-		glog.V(nfd.LogLevel).Infof("Warning: failed to update NFD CR finalizers: %v", err)
+		klog.V(nfd.LogLevel).Infof("Warning: failed to update NFD CR finalizers: %v", err)
 	}
 
 	_, err = nfdBuilder.Delete()
@@ -103,7 +103,7 @@ func (nfd *NFDCRUtils) DeleteNFDCR() error {
 		return fmt.Errorf("failed to delete NFD CR: %w", err)
 	}
 
-	glog.V(nfd.LogLevel).Infof("SUCCESS: NFD CR '%s' deleted", nfd.CrName)
+	klog.V(nfd.LogLevel).Infof("SUCCESS: NFD CR '%s' deleted", nfd.CrName)
 
 	return nil
 }
@@ -113,7 +113,7 @@ func (nfd *NFDCRUtils) PrintCr() error {
 	nfdBuilder, err := nodefeature.Pull(nfd.APIClient, nfd.CrName, nfd.Namespace)
 
 	if err != nil {
-		glog.V(nfd.LogLevel).Infof("Failed to pull NFD CR: %v", err)
+		klog.V(nfd.LogLevel).Infof("Failed to pull NFD CR: %v", err)
 
 		return fmt.Errorf("failed to pull NFD CR: %w", err)
 	}
@@ -124,7 +124,7 @@ func (nfd *NFDCRUtils) PrintCr() error {
 			return fmt.Errorf("failed to marshal NFD CR: %w", err)
 		}
 
-		glog.Infof("NFD CR '%s' ", string(yml))
+		klog.Infof("NFD CR '%s' ", string(yml))
 
 		return nil
 	}
@@ -134,13 +134,13 @@ func (nfd *NFDCRUtils) PrintCr() error {
 
 // IsNFDCRReady checks if a NodeFeatureDiscovery custom resource is ready.
 func (nfd *NFDCRUtils) IsNFDCRReady(timeout time.Duration) (bool, error) {
-	glog.V(nfd.LogLevel).Infof("Checking NFD CR readiness: %s", nfd.CrName)
+	klog.V(nfd.LogLevel).Infof("Checking NFD CR readiness: %s", nfd.CrName)
 
 	nfdBuilder, err := nodefeature.Pull(nfd.APIClient, nfd.CrName, nfd.Namespace)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "not found") ||
 			strings.Contains(strings.ToLower(err.Error()), "does not exist") {
-			glog.V(nfd.LogLevel).Infof("NFD CR '%s' not found yet - not ready", nfd.CrName)
+			klog.V(nfd.LogLevel).Infof("NFD CR '%s' not found yet - not ready", nfd.CrName)
 
 			return false, nil
 		}
@@ -149,7 +149,7 @@ func (nfd *NFDCRUtils) IsNFDCRReady(timeout time.Duration) (bool, error) {
 	}
 
 	if nfdBuilder != nil {
-		glog.V(nfd.LogLevel).Infof("NFD CR '%s' found - checking pods", nfdBuilder.Definition.Name)
+		klog.V(nfd.LogLevel).Infof("NFD CR '%s' found - checking pods", nfdBuilder.Definition.Name)
 
 		return ForPodsRunning(nfd.APIClient, timeout, nfd.Namespace)
 	}
@@ -168,13 +168,13 @@ func ForPodsRunning(apiClient *clients.Settings, timeout time.Duration, nsname s
 
 			for _, podObj := range pods {
 				if podObj.Object.Status.Phase != corev1.PodRunning {
-					glog.V(nfdparams.LogLevel).Infof("Pod %s is in %s state", podObj.Object.Name, podObj.Object.Status.Phase)
+					klog.V(nfdparams.LogLevel).Infof("Pod %s is in %s state", podObj.Object.Name, podObj.Object.Status.Phase)
 
 					return false, nil
 				}
 			}
 
-			glog.V(nfdparams.LogLevel).Info("All pods are in running status")
+			klog.V(nfdparams.LogLevel).Info("All pods are in running status")
 
 			return true, nil
 		})
@@ -188,7 +188,7 @@ func ForPodsRunning(apiClient *clients.Settings, timeout time.Duration, nsname s
 
 // DeployNFDCRWithWorkerConfig deploys NFD CR with custom worker configuration.
 func (nfd *NFDCRUtils) DeployNFDCRWithWorkerConfig(config NFDCRConfig, workerConfig string) error {
-	glog.V(nfd.LogLevel).Infof("Deploying NFD CR '%s' with custom worker config", nfd.CrName)
+	klog.V(nfd.LogLevel).Infof("Deploying NFD CR '%s' with custom worker config", nfd.CrName)
 
 	nfdBuilder, err := nfd.createNFDBuilder(config)
 	if err != nil {
@@ -202,7 +202,7 @@ func (nfd *NFDCRUtils) DeployNFDCRWithWorkerConfig(config NFDCRConfig, workerCon
 	if workerConfig != "" {
 		nfdBuilder.Definition.Spec.WorkerConfig.ConfigData = workerConfig
 
-		glog.V(nfd.LogLevel).Infof("Applied custom worker config to NFD CR")
+		klog.V(nfd.LogLevel).Infof("Applied custom worker config to NFD CR")
 	}
 
 	_, err = nfdBuilder.Create()
@@ -210,7 +210,7 @@ func (nfd *NFDCRUtils) DeployNFDCRWithWorkerConfig(config NFDCRConfig, workerCon
 		return fmt.Errorf("failed to create NFD CR with worker config: %w", err)
 	}
 
-	glog.V(nfd.LogLevel).Infof("SUCCESS: NFD CR '%v' with worker config deployed", nfdBuilder.Definition)
+	klog.V(nfd.LogLevel).Infof("SUCCESS: NFD CR '%v' with worker config deployed", nfdBuilder.Definition)
 
 	return nil
 }
@@ -240,7 +240,7 @@ func (nfd *NFDCRUtils) createNFDBuilder(config NFDCRConfig) (*nodefeature.Builde
 		return nil, fmt.Errorf("NFD CSV not found in namespace %s", nfd.Namespace)
 	}
 
-	glog.V(nfd.LogLevel).Infof("Using NFD CSV: %s", nfdCSV.Object.Name)
+	klog.V(nfd.LogLevel).Infof("Using NFD CSV: %s", nfdCSV.Object.Name)
 
 	almExamples, err := nfdCSV.GetAlmExamples()
 	if err != nil {
@@ -262,7 +262,7 @@ func (nfd *NFDCRUtils) createNFDBuilder(config NFDCRConfig) (*nodefeature.Builde
 
 	if config.Image != "" {
 		nfdBuilder.Definition.Spec.Operand.Image = config.Image
-		glog.V(nfd.LogLevel).Infof("Using custom NFD image: %s", config.Image)
+		klog.V(nfd.LogLevel).Infof("Using custom NFD image: %s", config.Image)
 	}
 
 	return nfdBuilder, nil
@@ -295,7 +295,7 @@ func (nfd *NFDCRUtils) editAlmExample(almExample string) (string, error) {
 		return "", fmt.Errorf("failed to marshal filtered JSON: %w", err)
 	}
 
-	glog.V(nfd.LogLevel).Infof("Filtered ALM examples to %d NodeFeatureDiscovery objects", len(filtered))
+	klog.V(nfd.LogLevel).Infof("Filtered ALM examples to %d NodeFeatureDiscovery objects", len(filtered))
 
 	return string(output), nil
 }

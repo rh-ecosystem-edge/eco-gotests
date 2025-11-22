@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
+	"k8s.io/klog/v2"
 
 	egressipv1 "github.com/ovn-org/ovn-kubernetes/go-controller/pkg/crd/egressip/v1"
 
@@ -29,18 +29,18 @@ type EgressIPBuilder struct {
 
 // NewEgressIPBuilder creates a new instance of EgressIP builder.
 func NewEgressIPBuilder(apiClient *clients.Settings, name string) *EgressIPBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new EgressIP structure with the following params: name: %s", name)
 
 	if apiClient == nil {
-		glog.V(100).Infof("EgressIP 'apiClient' cannot be empty")
+		klog.V(100).Info("EgressIP 'apiClient' cannot be empty")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(egressipv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add 'egressip' scheme to client schemes")
+		klog.V(100).Info("Failed to add 'egressip' scheme to client schemes")
 
 		return nil
 	}
@@ -55,7 +55,7 @@ func NewEgressIPBuilder(apiClient *clients.Settings, name string) *EgressIPBuild
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name parameter of the EgressIP is empty")
+		klog.V(100).Info("The name parameter of the EgressIP is empty")
 
 		builder.errorMsg = "the name parameter of the EgressIP is empty"
 
@@ -71,10 +71,10 @@ func (builder *EgressIPBuilder) WithEgressIPs(egressIPs []string) *EgressIPBuild
 		return builder
 	}
 
-	glog.V(100).Infof("Applying egressIPs %s to EgressIP %q", egressIPs, builder.Definition.Name)
+	klog.V(100).Infof("Applying egressIPs %s to EgressIP %q", egressIPs, builder.Definition.Name)
 
 	if len(egressIPs) == 0 {
-		glog.V(100).Infof("The egressIP is empty")
+		klog.V(100).Info("The egressIP is empty")
 
 		builder.errorMsg = "cannot accept empty list as egressIPs value"
 
@@ -92,11 +92,11 @@ func (builder *EgressIPBuilder) WithNamespaceSelector(namespaceSelector metav1.L
 		return builder
 	}
 
-	glog.V(100).Infof("Applying namespaceSelector %s to EgressIP %q",
+	klog.V(100).Infof("Applying namespaceSelector %s to EgressIP %q",
 		namespaceSelector, builder.Definition.Name)
 
 	if len(namespaceSelector.MatchLabels) == 0 && len(namespaceSelector.MatchExpressions) == 0 {
-		glog.V(100).Infof("There are no labels for the namespaceSelector")
+		klog.V(100).Info("There are no labels for the namespaceSelector")
 
 		builder.errorMsg = "EgressIP 'namespaceSelector' cannot be empty"
 
@@ -114,10 +114,10 @@ func (builder *EgressIPBuilder) WithPodSelector(podSelector metav1.LabelSelector
 		return builder
 	}
 
-	glog.V(100).Infof("Applying podSelector %s to EgressIP %q", podSelector, builder.Definition.Name)
+	klog.V(100).Infof("Applying podSelector %s to EgressIP %q", podSelector, builder.Definition.Name)
 
 	if len(podSelector.MatchLabels) == 0 && len(podSelector.MatchExpressions) == 0 {
-		glog.V(100).Infof("There are no labels for the podSelector")
+		klog.V(100).Info("There are no labels for the podSelector")
 
 		builder.errorMsg = "EgressIP 'podSelector' cannot be empty"
 
@@ -131,23 +131,23 @@ func (builder *EgressIPBuilder) WithPodSelector(podSelector metav1.LabelSelector
 
 // Pull fetches existing egressIP from the cluster.
 func Pull(apiClient *clients.Settings, name string) (*EgressIPBuilder, error) {
-	glog.V(100).Infof("Pulling existing egressIP %q from cluster", name)
+	klog.V(100).Infof("Pulling existing egressIP %q from cluster", name)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("egressIP's 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(egressipv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add egressIP scheme to client schemes")
+		klog.V(100).Info("Failed to add egressIP scheme to client schemes")
 
 		return nil, err
 	}
 
 	if name == "" {
-		glog.V(100).Infof("EgressIP's name cannot be empty")
+		klog.V(100).Info("EgressIP's name cannot be empty")
 
 		return nil, fmt.Errorf("egressIP's name cannot be empty")
 	}
@@ -176,7 +176,7 @@ func (builder *EgressIPBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if egressIP %q exists", builder.Definition.Name)
+	klog.V(100).Infof("Checking if egressIP %q exists", builder.Definition.Name)
 
 	var err error
 
@@ -191,7 +191,7 @@ func (builder *EgressIPBuilder) Get() (*egressipv1.EgressIP, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting egressIP %q", builder.Definition.Name)
+	klog.V(100).Infof("Getting egressIP %q", builder.Definition.Name)
 
 	egrIP := &egressipv1.EgressIP{}
 
@@ -199,7 +199,7 @@ func (builder *EgressIPBuilder) Get() (*egressipv1.EgressIP, error) {
 		Name: builder.Definition.Name,
 	}, egrIP)
 	if err != nil {
-		glog.V(100).Infof("Error retrieving egressIP: %v", err)
+		klog.V(100).Infof("Error retrieving egressIP: %v", err)
 
 		return nil, err
 	}
@@ -213,14 +213,14 @@ func (builder *EgressIPBuilder) Create() (*EgressIPBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the egressIP %q", builder.Definition.Name)
+	klog.V(100).Infof("Creating the egressIP %q", builder.Definition.Name)
 
 	var err error
 
 	if !builder.Exists() {
 		err = builder.apiClient.Create(context.TODO(), builder.Definition)
 		if err == nil {
-			glog.V(100).Infof("Created egressIP %q", builder.Definition.Name)
+			klog.V(100).Infof("Created egressIP %q", builder.Definition.Name)
 
 			builder.Object = builder.Definition
 
@@ -237,10 +237,10 @@ func (builder *EgressIPBuilder) Delete() (*EgressIPBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting egressIP %q", builder.Definition.Name)
+	klog.V(100).Infof("Deleting egressIP %q", builder.Definition.Name)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("egressIP %q does not exist", builder.Definition.Name)
+		klog.V(100).Infof("egressIP %q does not exist", builder.Definition.Name)
 
 		builder.Object = nil
 
@@ -249,12 +249,12 @@ func (builder *EgressIPBuilder) Delete() (*EgressIPBuilder, error) {
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
 	if err != nil {
-		glog.V(100).Infof("Error deleting egressIP: %v", err)
+		klog.V(100).Infof("Error deleting egressIP: %v", err)
 
 		return builder, fmt.Errorf("failed to delete egressIP due to %w", err)
 	}
 
-	glog.V(100).Infof("Deleted egressIP %q", builder.Definition.Name)
+	klog.V(100).Infof("Deleted egressIP %q", builder.Definition.Name)
 
 	builder.Object = nil
 
@@ -267,11 +267,11 @@ func (builder *EgressIPBuilder) Update() (*EgressIPBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating egressIP %s", builder.Definition.Name)
+	klog.V(100).Infof("Updating egressIP %s", builder.Definition.Name)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
-		glog.V(100).Infof("Error updating egressIP: %v", err)
+		klog.V(100).Infof("Error updating egressIP: %v", err)
 
 		return nil, err
 	}
@@ -287,7 +287,7 @@ func (builder *EgressIPBuilder) GetAssignedEgressIPMap() (map[string]string, err
 		return nil, err
 	}
 
-	glog.V(100).Infof("Pull assigned egressIPs map for egressIP %q", builder.Definition.Name)
+	klog.V(100).Infof("Pull assigned egressIPs map for egressIP %q", builder.Definition.Name)
 
 	if !builder.Exists() {
 		return nil, fmt.Errorf("egressIP %q object does not exist", builder.Definition.Name)
@@ -311,25 +311,25 @@ func (builder *EgressIPBuilder) validate() (bool, error) {
 	resourceCRD := "egressIP"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		builder.errorMsg = msg.UndefinedCrdObjectErrString(resourceCRD)
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		builder.errorMsg = fmt.Sprintf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

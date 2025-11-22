@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
@@ -25,6 +24,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/version"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/klog/v2"
 	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
 )
 
@@ -172,7 +172,7 @@ func setupHubTemplateTest(app *argocd.ApplicationBuilder, ztpTestPath string) {
 
 // assertTalmPodLog asserts that the TALM pod log contains the expected substring.
 func assertTalmPodLog(client *clients.Settings, expectedSubstring string) {
-	glog.V(tsparams.LogLevel).Infof("Waiting for TALM log to report: '%s'", expectedSubstring)
+	klog.V(tsparams.LogLevel).Infof("Waiting for TALM log to report: '%s'", expectedSubstring)
 
 	Eventually(func() string {
 		podList, err := pod.List(client, ranparam.OpenshiftOperatorNamespace)
@@ -183,7 +183,7 @@ func assertTalmPodLog(client *clients.Settings, expectedSubstring string) {
 
 		for _, podBuilder := range podList {
 			if strings.HasPrefix(podBuilder.Object.Name, tsparams.TalmHubPodName) {
-				glog.V(tsparams.LogLevel).Infof("Checking logs for pod %s", podBuilder.Object.Name)
+				klog.V(tsparams.LogLevel).Infof("Checking logs for pod %s", podBuilder.Object.Name)
 
 				podLog, err = podBuilder.GetLog(1*time.Minute, ranparam.TalmContainerName)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get TALM pod log")

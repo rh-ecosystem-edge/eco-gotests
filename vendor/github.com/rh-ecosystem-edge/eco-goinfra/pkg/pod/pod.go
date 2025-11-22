@@ -12,7 +12,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/golang/glog"
 	multus "gopkg.in/k8snetworkplumbingwg/multus-cni.v4/pkg/types"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -23,6 +22,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
@@ -46,13 +46,13 @@ type AdditionalOptions func(builder *Builder) (*Builder, error)
 
 // NewBuilder creates a new instance of Builder.
 func NewBuilder(apiClient *clients.Settings, name, nsname, image string) *Builder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new pod structure with the following params: "+
 			"name: %s, namespace: %s, image: %s",
 		name, nsname, image)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty, pod 'apiClient' cannot be empty")
+		klog.V(100).Info("The apiClient is empty, pod 'apiClient' cannot be empty")
 
 		return nil
 	}
@@ -63,7 +63,7 @@ func NewBuilder(apiClient *clients.Settings, name, nsname, image string) *Builde
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the pod is empty")
+		klog.V(100).Info("The name of the pod is empty")
 
 		builder.errorMsg = "pod 'name' cannot be empty"
 
@@ -71,7 +71,7 @@ func NewBuilder(apiClient *clients.Settings, name, nsname, image string) *Builde
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the pod is empty")
+		klog.V(100).Info("The namespace of the pod is empty")
 
 		builder.errorMsg = "pod 'namespace' cannot be empty"
 
@@ -79,7 +79,7 @@ func NewBuilder(apiClient *clients.Settings, name, nsname, image string) *Builde
 	}
 
 	if image == "" {
-		glog.V(100).Infof("The image of the pod is empty")
+		klog.V(100).Info("The image of the pod is empty")
 
 		builder.errorMsg = "pod 'image' cannot be empty"
 
@@ -88,7 +88,7 @@ func NewBuilder(apiClient *clients.Settings, name, nsname, image string) *Builde
 
 	defaultContainer, err := NewContainerBuilder("test", image, []string{"/bin/bash", "-c", "sleep INF"}).GetContainerCfg()
 	if err != nil {
-		glog.V(100).Infof("Failed to define the default container settings")
+		klog.V(100).Info("Failed to define the default container settings")
 
 		builder.errorMsg = err.Error()
 
@@ -102,10 +102,10 @@ func NewBuilder(apiClient *clients.Settings, name, nsname, image string) *Builde
 
 // Pull loads an existing pod into the Builder struct.
 func Pull(apiClient *clients.Settings, name, nsname string) (*Builder, error) {
-	glog.V(100).Infof("Pulling existing pod name: %s namespace:%s", name, nsname)
+	klog.V(100).Infof("Pulling existing pod name: %s namespace:%s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("pod 'apiClient' cannot be empty")
 	}
@@ -121,19 +121,19 @@ func Pull(apiClient *clients.Settings, name, nsname string) (*Builder, error) {
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the pod is empty")
+		klog.V(100).Info("The name of the pod is empty")
 
 		return nil, fmt.Errorf("pod 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the pod is empty")
+		klog.V(100).Info("The namespace of the pod is empty")
 
 		return nil, fmt.Errorf("pod 'namespace' cannot be empty")
 	}
 
 	if !builder.Exists() {
-		glog.V(100).Infof("Failed to pull pod object %s from namespace %s. Object does not exist",
+		klog.V(100).Infof("Failed to pull pod object %s from namespace %s. Object does not exist",
 			name, nsname)
 
 		return nil, fmt.Errorf("pod object %s does not exist in namespace %s", name, nsname)
@@ -150,13 +150,13 @@ func (builder *Builder) DefineOnNode(nodeName string) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Adding nodeName %s to the definition of pod %s in namespace %s",
+	klog.V(100).Infof("Adding nodeName %s to the definition of pod %s in namespace %s",
 		nodeName, builder.Definition.Name, builder.Definition.Namespace)
 
 	builder.isMutationAllowed("nodeName")
 
 	if nodeName == "" {
-		glog.V(100).Infof("The node name is empty")
+		klog.V(100).Info("The node name is empty")
 
 		builder.errorMsg = "can not define pod on empty node"
 
@@ -174,7 +174,7 @@ func (builder *Builder) Create() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating pod %s in namespace %s",
+	klog.V(100).Infof("Creating pod %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -192,11 +192,11 @@ func (builder *Builder) Delete() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting pod %s in namespace %s",
+	klog.V(100).Infof("Deleting pod %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"Pod %s in namespace %s cannot be deleted because it does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
@@ -222,7 +222,7 @@ func (builder *Builder) DeleteAndWait(timeout time.Duration) (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting pod %s in namespace %s and waiting for the defined period until it is removed",
+	klog.V(100).Infof("Deleting pod %s in namespace %s and waiting for the defined period until it is removed",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	builder, err := builder.Delete()
@@ -244,11 +244,11 @@ func (builder *Builder) DeleteImmediate() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Immediately deleting pod %s in namespace %s",
+	klog.V(100).Infof("Immediately deleting pod %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"Pod %s in namespace %s cannot be deleted because it does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
@@ -274,7 +274,7 @@ func (builder *Builder) CreateAndWaitUntilRunning(timeout time.Duration) (*Build
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating pod %s in namespace %s and waiting for the defined period until it is ready",
+	klog.V(100).Infof("Creating pod %s in namespace %s and waiting for the defined period until it is ready",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	builder, err := builder.Create()
@@ -296,7 +296,7 @@ func (builder *Builder) WaitUntilRunning(timeout time.Duration) error {
 		return err
 	}
 
-	glog.V(100).Infof("Waiting for the defined period until pod %s in namespace %s is running",
+	klog.V(100).Infof("Waiting for the defined period until pod %s in namespace %s is running",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	return builder.WaitUntilInStatus(corev1.PodRunning, timeout)
@@ -309,11 +309,11 @@ func (builder *Builder) IsHealthy() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if pod %s in namespace %s is healthy",
+	klog.V(100).Infof("Checking if pod %s in namespace %s is healthy",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("Cannot check if pod %s in namespace %s is healthy because it does not exist",
+		klog.V(100).Infof("Cannot check if pod %s in namespace %s is healthy because it does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		return false
@@ -328,7 +328,7 @@ func (builder *Builder) WaitUntilInStatus(status corev1.PodPhase, timeout time.D
 		return err
 	}
 
-	glog.V(100).Infof("Waiting for the defined period until pod %s in namespace %s has status %v",
+	klog.V(100).Infof("Waiting for the defined period until pod %s in namespace %s has status %v",
 		builder.Definition.Name, builder.Definition.Namespace, status)
 
 	return wait.PollUntilContextTimeout(context.TODO(),
@@ -336,7 +336,7 @@ func (builder *Builder) WaitUntilInStatus(status corev1.PodPhase, timeout time.D
 			updatePod, err := builder.apiClient.Pods(builder.Definition.Namespace).
 				Get(context.TODO(), builder.Definition.Name, metav1.GetOptions{})
 			if err != nil {
-				glog.V(100).Infof("Failed to get pod %s in namespace %s: %v",
+				klog.V(100).Infof("Failed to get pod %s in namespace %s: %v",
 					builder.Definition.Name, builder.Definition.Namespace, err)
 
 				return false, nil
@@ -352,7 +352,7 @@ func (builder *Builder) WaitUntilDeleted(timeout time.Duration) error {
 		return err
 	}
 
-	glog.V(100).Infof("Waiting for the defined period until pod %s in namespace %s is deleted",
+	klog.V(100).Infof("Waiting for the defined period until pod %s in namespace %s is deleted",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := wait.PollUntilContextTimeout(
@@ -360,18 +360,18 @@ func (builder *Builder) WaitUntilDeleted(timeout time.Duration) error {
 			_, err := builder.apiClient.Pods(builder.Definition.Namespace).Get(
 				context.TODO(), builder.Definition.Name, metav1.GetOptions{})
 			if err == nil {
-				glog.V(100).Infof("pod %s/%s still present", builder.Definition.Namespace, builder.Definition.Name)
+				klog.V(100).Infof("pod %s/%s still present", builder.Definition.Namespace, builder.Definition.Name)
 
 				return false, nil
 			}
 
 			if k8serrors.IsNotFound(err) {
-				glog.V(100).Infof("pod %s/%s is gone", builder.Definition.Namespace, builder.Definition.Name)
+				klog.V(100).Infof("pod %s/%s is gone", builder.Definition.Namespace, builder.Definition.Name)
 
 				return true, nil
 			}
 
-			glog.V(100).Infof("failed to get pod %s/%s: %v", builder.Definition.Namespace, builder.Definition.Name, err)
+			klog.V(100).Infof("failed to get pod %s/%s: %v", builder.Definition.Namespace, builder.Definition.Name, err)
 
 			return false, err
 		})
@@ -385,7 +385,7 @@ func (builder *Builder) WaitUntilReady(timeout time.Duration) error {
 		return err
 	}
 
-	glog.V(100).Infof("Waiting for the defined period until pod %s in namespace %s is Ready",
+	klog.V(100).Infof("Waiting for the defined period until pod %s in namespace %s is Ready",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	return builder.WaitUntilCondition(corev1.PodReady, timeout)
@@ -397,7 +397,7 @@ func (builder *Builder) WaitUntilCondition(condition corev1.PodConditionType, ti
 		return err
 	}
 
-	glog.V(100).Infof("Waiting for the defined period until pod %s in namespace %s has condition %v",
+	klog.V(100).Infof("Waiting for the defined period until pod %s in namespace %s has condition %v",
 		builder.Definition.Name, builder.Definition.Namespace, condition)
 
 	return wait.PollUntilContextTimeout(
@@ -425,7 +425,7 @@ func (builder *Builder) ExecCommand(command []string, containerName ...string) (
 	}
 
 	if !builder.Exists() {
-		glog.V(100).Infof("Cannot execute command on pod %s in namespace %s because it does not exist",
+		klog.V(100).Infof("Cannot execute command on pod %s in namespace %s because it does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		return bytes.Buffer{}, fmt.Errorf("pod object %s does not exist in namespace %s",
@@ -443,7 +443,7 @@ func (builder *Builder) ExecCommand(command []string, containerName ...string) (
 		cName = builder.Definition.Spec.Containers[0].Name
 	}
 
-	glog.V(100).Infof("Execute command %v in the pod %s container %s in namespace %s",
+	klog.V(100).Infof("Execute command %v in the pod %s container %s in namespace %s",
 		command, builder.Object.Name, cName, builder.Object.Namespace)
 
 	req := builder.apiClient.CoreV1Interface.RESTClient().
@@ -462,7 +462,7 @@ func (builder *Builder) ExecCommand(command []string, containerName ...string) (
 
 	exec, err := builder.getExecutorFromRequest(req)
 	if err != nil {
-		glog.V(100).Infof("Could not create command executor for pod %s in namespace %s: %v",
+		klog.V(100).Infof("Could not create command executor for pod %s in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
 
 		return buffer, err
@@ -495,19 +495,19 @@ func (builder *Builder) ExecCommandWithTimeout(
 	}
 
 	if timeout <= 0 {
-		glog.V(100).Infof("Timeout must be greater than 0")
+		klog.V(100).Info("Timeout must be greater than 0")
 
 		return bytes.Buffer{}, fmt.Errorf("timeout must be greater than 0")
 	}
 
 	if len(command) == 0 {
-		glog.V(100).Infof("Command must be provided")
+		klog.V(100).Info("Command must be provided")
 
 		return bytes.Buffer{}, fmt.Errorf("command must be provided")
 	}
 
 	if !builder.Exists() {
-		glog.V(100).Infof("Cannot execute command on pod %s in namespace %s because it does not exist",
+		klog.V(100).Infof("Cannot execute command on pod %s in namespace %s because it does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		return bytes.Buffer{}, fmt.Errorf("pod object %s does not exist in namespace %s",
@@ -525,7 +525,7 @@ func (builder *Builder) ExecCommandWithTimeout(
 		cName = builder.Definition.Spec.Containers[0].Name
 	}
 
-	glog.V(100).Infof("Execute command %v in the pod %s container %s in namespace %s with %s timeout",
+	klog.V(100).Infof("Execute command %v in the pod %s container %s in namespace %s with %s timeout",
 		command, builder.Object.Name, cName, builder.Object.Namespace, timeout.String())
 
 	req := builder.apiClient.CoreV1Interface.RESTClient().
@@ -569,7 +569,7 @@ func (builder *Builder) Copy(path, containerName string, tar bool) (bytes.Buffer
 		return bytes.Buffer{}, err
 	}
 
-	glog.V(100).Infof("Copying %s from %s in the pod",
+	klog.V(100).Infof("Copying %s from %s in the pod",
 		path, containerName)
 
 	var command []string
@@ -606,7 +606,7 @@ func (builder *Builder) Copy(path, containerName string, tar bool) (bytes.Buffer
 
 	exec, err := builder.getExecutorFromRequest(req)
 	if err != nil {
-		glog.V(100).Infof("Could not create executor to copy from pod %s in namespace %s: %v",
+		klog.V(100).Infof("Could not create executor to copy from pod %s in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
 
 		return buffer, err
@@ -631,7 +631,7 @@ func (builder *Builder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if pod %s exists in namespace %s",
+	klog.V(100).Infof("Checking if pod %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -648,7 +648,7 @@ func (builder *Builder) RedefineDefaultCMD(command []string) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Redefining default pod's container cmd with the new %v", command)
+	klog.V(100).Infof("Redefining default pod's container cmd with the new %v", command)
 
 	builder.isMutationAllowed("cmd")
 
@@ -667,12 +667,12 @@ func (builder *Builder) WithRestartPolicy(restartPolicy corev1.RestartPolicy) *B
 		return builder
 	}
 
-	glog.V(100).Infof("Redefining pod's RestartPolicy to %v", restartPolicy)
+	klog.V(100).Infof("Redefining pod's RestartPolicy to %v", restartPolicy)
 
 	builder.isMutationAllowed("RestartPolicy")
 
 	if restartPolicy == "" {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"Failed to set RestartPolicy on pod %s in namespace %s. RestartPolicy can not be empty",
 			builder.Definition.Name, builder.Definition.Namespace)
 
@@ -692,7 +692,7 @@ func (builder *Builder) WithTolerationToMaster() *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Appending pod's %s with toleration to master node", builder.Definition.Name)
+	klog.V(100).Infof("Appending pod's %s with toleration to master node", builder.Definition.Name)
 
 	builder.isMutationAllowed("toleration to master node")
 
@@ -716,7 +716,7 @@ func (builder *Builder) WithTolerationToControlPlane() *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Appending pod's %s with toleration to control plane node", builder.Definition.Name)
+	klog.V(100).Infof("Appending pod's %s with toleration to control plane node", builder.Definition.Name)
 
 	builder.isMutationAllowed("toleration to control plane node")
 
@@ -740,7 +740,7 @@ func (builder *Builder) WithToleration(toleration corev1.Toleration) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Updating pod %s with toleration %v", builder.Definition.Name, toleration)
+	klog.V(100).Infof("Updating pod %s with toleration %v", builder.Definition.Name, toleration)
 
 	builder.isMutationAllowed("custom toleration")
 
@@ -759,13 +759,13 @@ func (builder *Builder) WithNodeSelector(nodeSelector map[string]string) *Builde
 		return builder
 	}
 
-	glog.V(100).Infof("Redefining pod %s in namespace %s with nodeSelector %v",
+	klog.V(100).Infof("Redefining pod %s in namespace %s with nodeSelector %v",
 		builder.Definition.Name, builder.Definition.Namespace, nodeSelector)
 
 	builder.isMutationAllowed("nodeSelector")
 
 	if len(nodeSelector) == 0 {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"Failed to set nodeSelector on pod %s in namespace %s. nodeSelector can not be empty",
 			builder.Definition.Name, builder.Definition.Namespace)
 
@@ -785,7 +785,7 @@ func (builder *Builder) WithPrivilegedFlag() *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Applying privileged flag to all pod's: %s containers", builder.Definition.Name)
+	klog.V(100).Infof("Applying privileged flag to all pod's: %s containers", builder.Definition.Name)
 
 	builder.isMutationAllowed("privileged container flag")
 
@@ -809,14 +809,14 @@ func (builder *Builder) WithVolume(volume corev1.Volume) *Builder {
 	}
 
 	if volume.Name == "" {
-		glog.V(100).Infof("The volume's Name cannot be empty")
+		klog.V(100).Info("The volume's Name cannot be empty")
 
 		builder.errorMsg = "the volume's name cannot be empty"
 
 		return builder
 	}
 
-	glog.V(100).Infof("Adding volume %s to pod %s in namespace %s",
+	klog.V(100).Infof("Adding volume %s to pod %s in namespace %s",
 		volume.Name, builder.Definition.Name, builder.Definition.Namespace)
 
 	builder.Definition.Spec.Volumes = append(builder.Definition.Spec.Volumes, volume)
@@ -830,13 +830,13 @@ func (builder *Builder) WithLocalVolume(volumeName, mountPath string) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Configuring volume %s for all pod's: %s containers. MountPath %s",
+	klog.V(100).Infof("Configuring volume %s for all pod's: %s containers. MountPath %s",
 		volumeName, builder.Definition.Name, mountPath)
 
 	builder.isMutationAllowed("LocalVolume")
 
 	if volumeName == "" {
-		glog.V(100).Infof("The 'volumeName' of the pod is empty")
+		klog.V(100).Info("The 'volumeName' of the pod is empty")
 
 		builder.errorMsg = "'volumeName' parameter is empty"
 
@@ -844,7 +844,7 @@ func (builder *Builder) WithLocalVolume(volumeName, mountPath string) *Builder {
 	}
 
 	if mountPath == "" {
-		glog.V(100).Infof("The 'mountPath' of the pod is empty")
+		klog.V(100).Info("The 'mountPath' of the pod is empty")
 
 		builder.errorMsg = "'mountPath' parameter is empty"
 
@@ -889,7 +889,7 @@ func (builder *Builder) WithAdditionalContainer(container *corev1.Container) *Bu
 		return builder
 	}
 
-	glog.V(100).Infof("Adding new container %v to pod %s", container, builder.Definition.Name)
+	klog.V(100).Infof("Adding new container %v to pod %s", container, builder.Definition.Name)
 	builder.isMutationAllowed("additional container")
 
 	if container == nil {
@@ -909,12 +909,12 @@ func (builder *Builder) WithAdditionalInitContainer(container *corev1.Container)
 		return builder
 	}
 
-	glog.V(100).Infof("Adding new container %v to pod %s in namespace %s",
+	klog.V(100).Infof("Adding new container %v to pod %s in namespace %s",
 		container, builder.Definition.Name, builder.Definition.Namespace)
 	builder.isMutationAllowed("additional container")
 
 	if container == nil {
-		glog.V(100).Infof("The 'container' parameter of the pod is empty")
+		klog.V(100).Info("The 'container' parameter of the pod is empty")
 
 		builder.errorMsg = "'container' parameter cannot be empty"
 
@@ -932,7 +932,7 @@ func (builder *Builder) WithSecondaryNetwork(network []*multus.NetworkSelectionE
 		return builder
 	}
 
-	glog.V(100).Infof("Applying secondary network %v to pod %s", network, builder.Definition.Name)
+	klog.V(100).Infof("Applying secondary network %v to pod %s", network, builder.Definition.Name)
 
 	builder.isMutationAllowed("secondary network")
 
@@ -958,7 +958,7 @@ func (builder *Builder) WithHostNetwork() *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Applying HostNetwork flag to pod's %s configuration", builder.Definition.Name)
+	klog.V(100).Infof("Applying HostNetwork flag to pod's %s configuration", builder.Definition.Name)
 
 	builder.isMutationAllowed("HostNetwork")
 
@@ -977,7 +977,7 @@ func (builder *Builder) WithHostPid(hostPid bool) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Applying HostPID flag to the configuration of pod: %s in namespace: %s",
+	klog.V(100).Infof("Applying HostPID flag to the configuration of pod: %s in namespace: %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	builder.isMutationAllowed("HostPID")
@@ -997,7 +997,7 @@ func (builder *Builder) RedefineDefaultContainer(container corev1.Container) *Bu
 		return builder
 	}
 
-	glog.V(100).Infof("Redefining default pod %s container in namespace %s using new container %v",
+	klog.V(100).Infof("Redefining default pod %s container in namespace %s using new container %v",
 		builder.Definition.Name, builder.Definition.Namespace, container)
 
 	builder.isMutationAllowed("default container")
@@ -1013,7 +1013,7 @@ func (builder *Builder) WithHugePages() *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Applying hugePages configuration to all containers in pod: %s", builder.Definition.Name)
+	klog.V(100).Infof("Applying hugePages configuration to all containers in pod: %s", builder.Definition.Name)
 
 	builder.isMutationAllowed("hugepages")
 
@@ -1052,11 +1052,11 @@ func (builder *Builder) WithSecurityContext(securityContext *corev1.PodSecurityC
 		return builder
 	}
 
-	glog.V(100).Infof("Applying SecurityContext configuration on pod %s in namespace %s",
+	klog.V(100).Infof("Applying SecurityContext configuration on pod %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if securityContext == nil {
-		glog.V(100).Infof("The 'securityContext' of the pod is empty")
+		klog.V(100).Info("The 'securityContext' of the pod is empty")
 
 		builder.errorMsg = "'securityContext' parameter is empty"
 
@@ -1076,7 +1076,7 @@ func (builder *Builder) PullImage(timeout time.Duration, testCmd []string) error
 		return err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Pulling container image %s to node: %s", builder.Definition.Spec.Containers[0].Image,
 		builder.Definition.Spec.NodeName)
 
@@ -1085,7 +1085,7 @@ func (builder *Builder) PullImage(timeout time.Duration, testCmd []string) error
 
 	_, err := builder.Create()
 	if err != nil {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"Failed to create pod %s in namespace %s and pull image %s to node: %s",
 			builder.Definition.Name, builder.Definition.Namespace, builder.Definition.Spec.Containers[0].Image,
 			builder.Definition.Spec.NodeName)
@@ -1095,7 +1095,7 @@ func (builder *Builder) PullImage(timeout time.Duration, testCmd []string) error
 
 	statusErr := builder.WaitUntilInStatus(corev1.PodSucceeded, timeout)
 	if statusErr != nil {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"Pod status timeout %s. Pod is not in status Succeeded in namespace %s. "+
 				"Fail to confirm that image %s was pulled to node: %s",
 			builder.Definition.Name, builder.Definition.Namespace, builder.Definition.Spec.Containers[0].Image,
@@ -1103,7 +1103,7 @@ func (builder *Builder) PullImage(timeout time.Duration, testCmd []string) error
 
 		_, err = builder.Delete()
 		if err != nil {
-			glog.V(100).Infof(
+			klog.V(100).Infof(
 				"Failed to remove pod %s in namespace %s from node: %s",
 				builder.Definition.Name, builder.Definition.Namespace, builder.Definition.Spec.NodeName)
 
@@ -1124,7 +1124,7 @@ func (builder *Builder) WithLabel(labelKey, labelValue string) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof(fmt.Sprintf("Defining pod's label to %s:%s", labelKey, labelValue))
+	klog.V(100).Infof("%v", fmt.Sprintf("Defining pod's label to %s:%s", labelKey, labelValue))
 
 	builder.isMutationAllowed("Labels")
 
@@ -1157,7 +1157,7 @@ func (builder *Builder) WithLabels(labels map[string]string) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof(fmt.Sprintf("Defining pod labels: %q", labels))
+	klog.V(100).Infof("%v", fmt.Sprintf("Defining pod labels: %q", labels))
 
 	builder.Definition.Labels = labels
 
@@ -1170,13 +1170,13 @@ func (builder *Builder) WithOptions(options ...AdditionalOptions) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Setting pod additional options")
+	klog.V(100).Info("Setting pod additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -1194,7 +1194,7 @@ func (builder *Builder) WithTerminationGracePeriodSeconds(terminationGracePeriod
 		return builder
 	}
 
-	glog.V(100).Infof("Applying terminationGracePeriodSeconds flag to the configuration of pod: %s in namespace: %s",
+	klog.V(100).Infof("Applying terminationGracePeriodSeconds flag to the configuration of pod: %s in namespace: %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	builder.isMutationAllowed("terminationGracePeriodSeconds")
@@ -1327,7 +1327,7 @@ func (builder *Builder) isMutationAllowed(configToMutate string) {
 	_, _ = builder.validate()
 
 	if builder.Object != nil {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"Failed to redefine %s for running pod %s in namespace %s",
 			builder.Definition.Name, configToMutate, builder.Definition.Namespace)
 
@@ -1391,25 +1391,25 @@ func (builder *Builder) validate() (bool, error) {
 	resourceCRD := "Pod"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

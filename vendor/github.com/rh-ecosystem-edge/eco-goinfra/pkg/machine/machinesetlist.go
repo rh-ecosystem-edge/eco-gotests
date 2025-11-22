@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 // ListWorkerMachineSets returns a slice of SetBuilder objects in a namespace on a cluster.
@@ -16,13 +16,13 @@ func ListWorkerMachineSets(
 	workerLabel string,
 	options ...metav1.ListOptions) ([]*SetBuilder, error) {
 	if namespace == "" {
-		glog.V(100).Infof("machineSet 'namespace' parameter can not be empty")
+		klog.V(100).Info("machineSet 'namespace' parameter can not be empty")
 
 		return nil, fmt.Errorf("failed to list MachineSets, 'namespace' parameter is empty")
 	}
 
 	if workerLabel == "" {
-		glog.V(100).Infof("machineSet 'workerLabel' parameter can not be empty")
+		klog.V(100).Info("machineSet 'workerLabel' parameter can not be empty")
 
 		return nil, fmt.Errorf("failed to list MachineSets, 'workerLabel' parameter is empty")
 	}
@@ -31,7 +31,7 @@ func ListWorkerMachineSets(
 	passedOptions := metav1.ListOptions{}
 
 	if len(options) > 1 {
-		glog.V(100).Infof("'options' parameter must be empty or single-valued")
+		klog.V(100).Info("'options' parameter must be empty or single-valued")
 
 		return nil, fmt.Errorf("error: more than one ListOptions was passed")
 	}
@@ -41,11 +41,11 @@ func ListWorkerMachineSets(
 		logMessage += fmt.Sprintf(" with the options %v", passedOptions)
 	}
 
-	glog.V(100).Infof(logMessage)
+	klog.V(100).Infof("%v", logMessage)
 
 	machineSetList, err := apiClient.MachineSets(namespace).List(context.TODO(), passedOptions)
 	if err != nil {
-		glog.V(100).Infof("Failed to list MachineSets in the namespace %s due to %s",
+		klog.V(100).Infof("Failed to list MachineSets in the namespace %s due to %s",
 			namespace, err.Error())
 
 		return nil, err

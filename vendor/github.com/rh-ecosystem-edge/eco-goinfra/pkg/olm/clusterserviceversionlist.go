@@ -8,8 +8,8 @@ import (
 	oplmV1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/operators/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"k8s.io/klog/v2"
 )
 
 // ListClusterServiceVersion returns clusterserviceversion inventory in the given namespace.
@@ -18,20 +18,20 @@ func ListClusterServiceVersion(
 	nsname string,
 	options ...client.ListOptions) ([]*ClusterServiceVersionBuilder, error) {
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil, fmt.Errorf("clusterserviceversion 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(oplmV1alpha1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add oplmV1alpha1 scheme to client schemes")
+		klog.V(100).Info("Failed to add oplmV1alpha1 scheme to client schemes")
 
 		return nil, err
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("clusterserviceversion 'nsname' parameter can not be empty")
+		klog.V(100).Info("clusterserviceversion 'nsname' parameter can not be empty")
 
 		return nil, fmt.Errorf("failed to list clusterserviceversion, 'nsname' parameter is empty")
 	}
@@ -40,7 +40,7 @@ func ListClusterServiceVersion(
 	logMessage := fmt.Sprintf("Listing clusterserviceversion in the namespace %s", nsname)
 
 	if len(options) > 1 {
-		glog.V(100).Infof("'options' parameter must be empty or single-valued")
+		klog.V(100).Info("'options' parameter must be empty or single-valued")
 
 		return nil, fmt.Errorf("error: more than one ListOptions was passed")
 	}
@@ -50,13 +50,13 @@ func ListClusterServiceVersion(
 		logMessage += fmt.Sprintf(" with the options %v", passedOptions)
 	}
 
-	glog.V(100).Infof(logMessage)
+	klog.V(100).Infof("%v", logMessage)
 
 	csvList := new(oplmV1alpha1.ClusterServiceVersionList)
 
 	err = apiClient.List(context.TODO(), csvList, &passedOptions)
 	if err != nil {
-		glog.V(100).Infof("Failed to list clusterserviceversion in the nsname %s due to %s", nsname, err.Error())
+		klog.V(100).Infof("Failed to list clusterserviceversion in the nsname %s due to %s", nsname, err.Error())
 
 		return nil, err
 	}
@@ -85,25 +85,25 @@ func ListClusterServiceVersionWithNamePattern(
 	nsname string,
 	options ...client.ListOptions) ([]*ClusterServiceVersionBuilder, error) {
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil, fmt.Errorf("clusterserviceversion 'apiClient' cannot be empty")
 	}
 
 	if namePattern == "" {
-		glog.V(100).Info(
+		klog.V(100).Info(
 			"The namePattern field to filter out all relevant clusterserviceversion cannot be empty")
 
 		return nil, fmt.Errorf(
 			"the namePattern field to filter out all relevant clusterserviceversion cannot be empty")
 	}
 
-	glog.V(100).Infof("Listing clusterserviceversion filtered by the name pattern %s in %s namespace",
+	klog.V(100).Infof("Listing clusterserviceversion filtered by the name pattern %s in %s namespace",
 		namePattern, nsname)
 
 	notFilteredCsvList, err := ListClusterServiceVersion(apiClient, nsname, options...)
 	if err != nil {
-		glog.V(100).Infof("Failed to list all clusterserviceversions in namespace %s due to %s",
+		klog.V(100).Infof("Failed to list all clusterserviceversions in namespace %s due to %s",
 			nsname, err.Error())
 
 		return nil, err
@@ -125,14 +125,14 @@ func ListClusterServiceVersionInAllNamespaces(
 	apiClient *clients.Settings,
 	options ...client.ListOptions) ([]*ClusterServiceVersionBuilder, error) {
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil, fmt.Errorf("clusterserviceversion 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(oplmV1alpha1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add oplmV1alpha1 scheme to client schemes")
+		klog.V(100).Info("Failed to add oplmV1alpha1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -141,7 +141,7 @@ func ListClusterServiceVersionInAllNamespaces(
 	logMessage := "Listing CSVs in all namespaces"
 
 	if len(options) > 1 {
-		glog.V(100).Infof("'options' parameter must be empty or single-valued")
+		klog.V(100).Info("'options' parameter must be empty or single-valued")
 
 		return nil, fmt.Errorf("error: more than one ListOptions was passed")
 	}
@@ -151,13 +151,13 @@ func ListClusterServiceVersionInAllNamespaces(
 		logMessage += fmt.Sprintf(" with the options %v", passedOptions)
 	}
 
-	glog.V(100).Infof(logMessage)
+	klog.V(100).Infof("%v", logMessage)
 
 	csvList := new(oplmV1alpha1.ClusterServiceVersionList)
 
 	err = apiClient.List(context.TODO(), csvList, &passedOptions)
 	if err != nil {
-		glog.V(100).Infof("Failed to list CSVs in all namespaces due to %s", err.Error())
+		klog.V(100).Infof("Failed to list CSVs in all namespaces due to %s", err.Error())
 
 		return nil, err
 	}

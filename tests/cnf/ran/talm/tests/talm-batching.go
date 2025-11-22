@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/cgu"
@@ -21,6 +20,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/talm/internal/tsparams"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 )
 
@@ -141,7 +141,7 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 			}
 
 			elapsed := endTime.Sub(startTime)
-			glog.V(tsparams.LogLevel).Infof("start time: %v, end time: %v, elapsed: %v", startTime, endTime, elapsed)
+			klog.V(tsparams.LogLevel).Infof("start time: %v, end time: %v, elapsed: %v", startTime, endTime, elapsed)
 
 			// We expect that the total runtime should be about equal to the expected timeout. In
 			// particular, we expect it to be just about one reconcile loop for this test.
@@ -288,7 +288,7 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 				}
 
 				elapsed := endTime.Sub(startTime)
-				glog.V(tsparams.LogLevel).Infof("start time: %v, end time: %v, elapsed: %v", startTime, endTime, elapsed)
+				klog.V(tsparams.LogLevel).Infof("start time: %v, end time: %v, elapsed: %v", startTime, endTime, elapsed)
 				// We expect that the total runtime should be about equal to the expected timeout. In
 				// particular, we expect it to be +/- one reconcile loop time (5 minutes). The first
 				// batch will complete successfully, so the second should use the entire remaining
@@ -334,7 +334,7 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 			}
 
 			elapsed := endTime.Sub(startTime)
-			glog.V(tsparams.LogLevel).Infof("start time: %v, end time: %v, elapsed: %v", startTime, endTime, elapsed)
+			klog.V(tsparams.LogLevel).Infof("start time: %v, end time: %v, elapsed: %v", startTime, endTime, elapsed)
 			// We expect that the total runtime should be about equal to the expected timeout. In
 			// particular, we expect it to be just about one reconcile loop for this test
 			Expect(elapsed).To(BeNumerically("~", expectedTimeout*int(time.Minute), tsparams.TalmDefaultReconcileTime))

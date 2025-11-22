@@ -10,13 +10,13 @@ import (
 
 	"slices"
 
-	"github.com/golang/glog"
 	"github.com/redhat-cne/sdk-go/pkg/event"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 var (
@@ -85,16 +85,16 @@ func WaitForEvent(
 			})
 
 			if err != nil {
-				glog.V(tsparams.LogLevel).Infof("Failed to get logs starting at %s for pod: %v", previousStartTime, err)
+				klog.V(tsparams.LogLevel).Infof("Failed to get logs starting at %s for pod: %v", previousStartTime, err)
 
 				return false, nil
 			}
 
-			glog.V(tsparams.LogLevel).Infof("Logs: %s", string(logs))
+			klog.V(tsparams.LogLevel).Infof("Logs: %s", string(logs))
 
 			extractedEvents := extractEventsFromLogs(logs, combinedOptions.ignoreCurrentState)
 
-			glog.V(tsparams.LogLevel).Infof("Extracted events: %#v\nFilter: %#v", extractedEvents, filter)
+			klog.V(tsparams.LogLevel).Infof("Extracted events: %#v\nFilter: %#v", extractedEvents, filter)
 
 			return slices.ContainsFunc(extractedEvents, filter.Filter), nil
 		})
@@ -125,7 +125,7 @@ func extractEventsFromLogs(logs []byte, ignoreCurrentState bool) []event.Event {
 		// double quotes. They must be added before calling Unquote.
 		unquotedEventJSON, err := strconv.Unquote(`"` + string(eventJSON) + `"`)
 		if err != nil {
-			glog.V(tsparams.LogLevel).Infof("Failed to unquote event JSON: %v", err)
+			klog.V(tsparams.LogLevel).Infof("Failed to unquote event JSON: %v", err)
 
 			continue
 		}
@@ -136,7 +136,7 @@ func extractEventsFromLogs(logs []byte, ignoreCurrentState bool) []event.Event {
 		err = json.Unmarshal([]byte(unquotedEventJSON), &extractedEvent)
 
 		if err != nil {
-			glog.V(tsparams.LogLevel).Infof("Failed to unmarshal event: %v", err)
+			klog.V(tsparams.LogLevel).Infof("Failed to unmarshal event: %v", err)
 
 			continue
 		}

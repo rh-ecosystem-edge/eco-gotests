@@ -7,8 +7,8 @@ import (
 	operatorsv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/operators/v1"
 	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/golang/glog"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/klog/v2"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
@@ -30,18 +30,18 @@ type OperatorGroupBuilder struct {
 
 // NewOperatorGroupBuilder returns an OperatorGroupBuilder struct.
 func NewOperatorGroupBuilder(apiClient *clients.Settings, groupName, nsName string) *OperatorGroupBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new OperatorGroupBuilder structure with the following params: %s, %s", groupName, nsName)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(operatorsv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add operatorsv1 scheme to client schemes")
+		klog.V(100).Info("Failed to add operatorsv1 scheme to client schemes")
 
 		return nil
 	}
@@ -61,7 +61,7 @@ func NewOperatorGroupBuilder(apiClient *clients.Settings, groupName, nsName stri
 	}
 
 	if groupName == "" {
-		glog.V(100).Infof("The Name of the OperatorGroup is empty")
+		klog.V(100).Info("The Name of the OperatorGroup is empty")
 
 		builder.errorMsg = "operatorGroup 'groupName' cannot be empty"
 
@@ -69,7 +69,7 @@ func NewOperatorGroupBuilder(apiClient *clients.Settings, groupName, nsName stri
 	}
 
 	if nsName == "" {
-		glog.V(100).Infof("The Namespace of the OperatorGroup is empty")
+		klog.V(100).Info("The Namespace of the OperatorGroup is empty")
 
 		builder.errorMsg = "operatorGroup 'Namespace' cannot be empty"
 
@@ -85,7 +85,7 @@ func (builder *OperatorGroupBuilder) Get() (*operatorsv1.OperatorGroup, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Collecting operatorGroup object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -95,7 +95,7 @@ func (builder *OperatorGroupBuilder) Get() (*operatorsv1.OperatorGroup, error) {
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		operatorGroup)
 	if err != nil {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"OperatorGroup object %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
@@ -111,7 +111,7 @@ func (builder *OperatorGroupBuilder) Create() (*OperatorGroupBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the OperatorGroup %s", builder.Definition.Name)
+	klog.V(100).Infof("Creating the OperatorGroup %s", builder.Definition.Name)
 
 	if builder.Exists() {
 		return builder, nil
@@ -133,7 +133,7 @@ func (builder *OperatorGroupBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if OperatorGroup %s exists in namespace %s",
+	klog.V(100).Infof("Checking if OperatorGroup %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -149,11 +149,11 @@ func (builder *OperatorGroupBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting OperatorGroup %s in namespace %s", builder.Definition.Name,
+	klog.V(100).Infof("Deleting OperatorGroup %s in namespace %s", builder.Definition.Name,
 		builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("OperatorGroup %s namespace %s cannot be deleted because it does not exist",
+		klog.V(100).Infof("OperatorGroup %s namespace %s cannot be deleted because it does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -177,7 +177,7 @@ func (builder *OperatorGroupBuilder) Update() (*OperatorGroupBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating OperatorGroup %s in namespace %s",
+	klog.V(100).Infof("Updating OperatorGroup %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
@@ -194,18 +194,18 @@ func (builder *OperatorGroupBuilder) Update() (*OperatorGroupBuilder, error) {
 
 // PullOperatorGroup loads existing OperatorGroup from cluster into the OperatorGroupBuilder struct.
 func PullOperatorGroup(apiClient *clients.Settings, groupName, nsName string) (*OperatorGroupBuilder, error) {
-	glog.V(100).Infof("Pulling existing OperatorGroup %s from cluster in namespace %s",
+	klog.V(100).Infof("Pulling existing OperatorGroup %s from cluster in namespace %s",
 		groupName, nsName)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil, fmt.Errorf("operatorGroup 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(operatorsv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add operatorsv1 scheme to client schemes")
+		klog.V(100).Info("Failed to add operatorsv1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -222,13 +222,13 @@ func PullOperatorGroup(apiClient *clients.Settings, groupName, nsName string) (*
 	}
 
 	if groupName == "" {
-		glog.V(100).Infof("The name of the OperatorGroup is empty")
+		klog.V(100).Info("The name of the OperatorGroup is empty")
 
 		return nil, fmt.Errorf("operatorGroup 'Name' cannot be empty")
 	}
 
 	if nsName == "" {
-		glog.V(100).Infof("The namespace of the OperatorGroup is empty")
+		klog.V(100).Info("The namespace of the OperatorGroup is empty")
 
 		return nil, fmt.Errorf("operatorGroup 'Namespace' cannot be empty")
 	}
@@ -248,25 +248,25 @@ func (builder *OperatorGroupBuilder) validate() (bool, error) {
 	resourceCRD := "OperatorGroup"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

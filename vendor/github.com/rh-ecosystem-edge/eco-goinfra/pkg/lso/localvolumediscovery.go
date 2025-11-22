@@ -11,11 +11,11 @@ import (
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 
-	"github.com/golang/glog"
 	lsov1alpha1 "github.com/openshift/local-storage-operator/api/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -35,18 +35,18 @@ type LocalVolumeDiscoveryBuilder struct {
 
 // NewLocalVolumeDiscoveryBuilder creates new instance of LocalVolumeDiscoveryBuilder.
 func NewLocalVolumeDiscoveryBuilder(apiClient *clients.Settings, name, nsname string) *LocalVolumeDiscoveryBuilder {
-	glog.V(100).Infof("Initializing new localVolumeDiscovery structure with the following params: name: "+
+	klog.V(100).Infof("Initializing new localVolumeDiscovery structure with the following params: name: "+
 		"%s, namespace: %s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("localVolumeDiscovery 'apiClient' cannot be empty")
+		klog.V(100).Info("localVolumeDiscovery 'apiClient' cannot be empty")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(lsov1alpha1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add lsov1alpha1 scheme to client schemes")
+		klog.V(100).Info("Failed to add lsov1alpha1 scheme to client schemes")
 
 		return nil
 	}
@@ -62,7 +62,7 @@ func NewLocalVolumeDiscoveryBuilder(apiClient *clients.Settings, name, nsname st
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the localVolumeDiscovery is empty")
+		klog.V(100).Info("The name of the localVolumeDiscovery is empty")
 
 		builder.errorMsg = "localVolumeDiscovery 'name' cannot be empty"
 
@@ -70,7 +70,7 @@ func NewLocalVolumeDiscoveryBuilder(apiClient *clients.Settings, name, nsname st
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The nsname of the localVolumeDiscovery is empty")
+		klog.V(100).Info("The nsname of the localVolumeDiscovery is empty")
 
 		builder.errorMsg = "localVolumeDiscovery 'nsname' cannot be empty"
 
@@ -82,18 +82,18 @@ func NewLocalVolumeDiscoveryBuilder(apiClient *clients.Settings, name, nsname st
 
 // PullLocalVolumeDiscovery retrieves an existing localVolumeDiscovery object from the cluster.
 func PullLocalVolumeDiscovery(apiClient *clients.Settings, name, nsname string) (*LocalVolumeDiscoveryBuilder, error) {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Pulling localVolumeDiscovery object name: %s in namespace: %s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("localVolumeDiscovery 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(lsov1alpha1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add lsov1alpha1 scheme to client schemes")
+		klog.V(100).Info("Failed to add lsov1alpha1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -109,13 +109,13 @@ func PullLocalVolumeDiscovery(apiClient *clients.Settings, name, nsname string) 
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the localVolumeDiscovery is empty")
+		klog.V(100).Info("The name of the localVolumeDiscovery is empty")
 
 		return nil, fmt.Errorf("localVolumeDiscovery 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the localVolumeDiscovery is empty")
+		klog.V(100).Info("The namespace of the localVolumeDiscovery is empty")
 
 		return nil, fmt.Errorf("localVolumeDiscovery 'nsname' cannot be empty")
 	}
@@ -135,7 +135,7 @@ func (builder *LocalVolumeDiscoveryBuilder) Get() (*lsov1alpha1.LocalVolumeDisco
 		return nil, err
 	}
 
-	glog.V(100).Infof("Pulling existing localVolumeDiscovery with name %s under namespace %s from cluster",
+	klog.V(100).Infof("Pulling existing localVolumeDiscovery with name %s under namespace %s from cluster",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	lvd := &lsov1alpha1.LocalVolumeDiscovery{}
@@ -157,7 +157,7 @@ func (builder *LocalVolumeDiscoveryBuilder) Create() (*LocalVolumeDiscoveryBuild
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the localVolumeDiscovery %s in namespace %s",
+	klog.V(100).Infof("Creating the localVolumeDiscovery %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -177,11 +177,11 @@ func (builder *LocalVolumeDiscoveryBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting the localVolumeDiscovery %s from namespace %s",
+	klog.V(100).Infof("Deleting the localVolumeDiscovery %s from namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("localVolumeDiscovery %s not found in the namespace %s",
+		klog.V(100).Infof("localVolumeDiscovery %s not found in the namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		return nil
@@ -204,7 +204,7 @@ func (builder *LocalVolumeDiscoveryBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if localVolumeDiscovery %s exists in namespace %s",
+	klog.V(100).Infof("Checking if localVolumeDiscovery %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -220,7 +220,7 @@ func (builder *LocalVolumeDiscoveryBuilder) IsDiscovering(timeout time.Duration)
 		return false
 	}
 
-	glog.V(100).Infof("Verify localVolumeDiscovery %s in namespace %s is in Discovering phase",
+	klog.V(100).Infof("Verify localVolumeDiscovery %s in namespace %s is in Discovering phase",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := wait.PollUntilContextTimeout(
@@ -229,7 +229,7 @@ func (builder *LocalVolumeDiscoveryBuilder) IsDiscovering(timeout time.Duration)
 
 			phase, err := builder.GetPhase()
 			if err != nil {
-				glog.V(100).Infof("failed to get phase value for localVolumeDiscovery %s in namespace %s due to %w",
+				klog.V(100).Infof("failed to get phase value for localVolumeDiscovery %s in namespace %s due to %v",
 					builder.Definition.Name, builder.Definition.Namespace, err)
 
 				return false, nil
@@ -238,7 +238,7 @@ func (builder *LocalVolumeDiscoveryBuilder) IsDiscovering(timeout time.Duration)
 			return phase == "Discovering", nil
 		})
 	if err != nil {
-		glog.V(100).Infof("localVolumeDiscovery %s in namespace %s is found not in the discovering state; %w",
+		klog.V(100).Infof("localVolumeDiscovery %s in namespace %s is found not in the discovering state; %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
 
 		return false
@@ -253,7 +253,7 @@ func (builder *LocalVolumeDiscoveryBuilder) GetPhase() (lsov1alpha1.DiscoveryPha
 		return "", err
 	}
 
-	glog.V(100).Infof("Get %s localVolumeDiscovery in %s namespace phase",
+	klog.V(100).Infof("Get %s localVolumeDiscovery in %s namespace phase",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
@@ -267,9 +267,9 @@ func (builder *LocalVolumeDiscoveryBuilder) GetPhase() (lsov1alpha1.DiscoveryPha
 // WithNodeSelector sets the localVolumeDiscovery's nodeSelector.
 func (builder *LocalVolumeDiscoveryBuilder) WithNodeSelector(
 	nodeSelector corev1.NodeSelector) *LocalVolumeDiscoveryBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Adding nodeSelector %v to localVolumeDiscovery %s in namespace %s",
-		builder.Definition.Name, builder.Definition.Namespace, nodeSelector)
+		nodeSelector, builder.Definition.Name, builder.Definition.Namespace)
 
 	if valid, _ := builder.validate(); !valid {
 		return builder
@@ -283,16 +283,16 @@ func (builder *LocalVolumeDiscoveryBuilder) WithNodeSelector(
 // WithTolerations sets the localVolumeDiscovery's generation.
 func (builder *LocalVolumeDiscoveryBuilder) WithTolerations(
 	tolerations []corev1.Toleration) *LocalVolumeDiscoveryBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Adding tolerations %v to localVolumeDiscovery %s in namespace %s",
-		builder.Definition.Name, builder.Definition.Namespace, tolerations)
+		tolerations, builder.Definition.Name, builder.Definition.Namespace)
 
 	if valid, _ := builder.validate(); !valid {
 		return builder
 	}
 
 	if len(tolerations) == 0 {
-		glog.V(100).Infof("The tolerations list is empty")
+		klog.V(100).Info("The tolerations list is empty")
 
 		builder.errorMsg = "'tolerations' argument cannot be empty"
 
@@ -310,25 +310,25 @@ func (builder *LocalVolumeDiscoveryBuilder) validate() (bool, error) {
 	resourceCRD := "LocalVolumeDiscovery"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

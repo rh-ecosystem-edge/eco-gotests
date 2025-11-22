@@ -1,21 +1,21 @@
 package define
 
 import (
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/internal/coreparams"
+	"k8s.io/klog/v2"
 )
 
 // MasterNadPlugin sets NetworkAttachmentDefinition master plugin based on given input.
 func MasterNadPlugin(nadName, mode string, ipam *nad.IPAM, masterInterface ...string) (*nad.MasterPlugin, error) {
-	glog.V(90).Infof("Defining master nad plugin with the following parameters name %s, mode %s, ipam %v",
+	klog.V(90).Infof("Defining master nad plugin with the following parameters name %s, mode %s, ipam %v",
 		nadName, mode, ipam)
 
 	macVlan := nad.NewMasterMacVlanPlugin(nadName)
 
 	if len(masterInterface) > 0 {
-		glog.V(90).Infof("Attaching master nad plugin to interface %s", masterInterface[0])
+		klog.V(90).Infof("Attaching master nad plugin to interface %s", masterInterface[0])
 		macVlan.WithMasterInterface(masterInterface[0])
 	}
 
@@ -108,12 +108,12 @@ func HostDeviceNad(
 
 // CreateExternalNad creates an external network-attachment-definition using the br-ex interface.
 func CreateExternalNad(apiClient *clients.Settings, name, testNameSpace string) error {
-	glog.V(90).Info("Creating external BR-EX NetworkAttachmentDefinition")
+	klog.V(90).Info("Creating external BR-EX NetworkAttachmentDefinition")
 
 	// Define the master NAD plugin
 	macVlanPlugin, err := MasterNadPlugin(coreparams.OvnExternalBridge, "bridge", nad.IPAMStatic())
 	if err != nil {
-		glog.V(90).Infof("Failed to define master NAD plugin: %v", err)
+		klog.V(90).Infof("Failed to define master NAD plugin: %v", err)
 
 		return err
 	}
@@ -121,12 +121,12 @@ func CreateExternalNad(apiClient *clients.Settings, name, testNameSpace string) 
 	// Create the NetworkAttachmentDefinition
 	_, err = createNadWithMasterPlugin(apiClient, name, testNameSpace, macVlanPlugin)
 	if err != nil {
-		glog.V(90).Infof("Failed to create external NetworkAttachmentDefinition: %v", err)
+		klog.V(90).Infof("Failed to create external NetworkAttachmentDefinition: %v", err)
 
 		return err
 	}
 
-	glog.V(90).Infof("Successfully created external NetworkAttachmentDefinition: %s", name)
+	klog.V(90).Infof("Successfully created external NetworkAttachmentDefinition: %s", name)
 
 	return nil
 }

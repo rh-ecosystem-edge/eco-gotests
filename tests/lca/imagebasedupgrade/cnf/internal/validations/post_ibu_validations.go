@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
@@ -18,6 +17,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/internal/seedimage"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/cnf/internal/cnfclusterinfo"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/cnf/internal/cnfinittools"
@@ -98,7 +98,7 @@ func ValidateClusterVersionCSVs() {
 				for _, preUpgradeOperator := range cnfclusterinfo.PreUpgradeClusterInfo.Operators {
 					// Skip cluster-logging operator as it is not OCP-aligned and not always upgraded
 					if strings.Contains(preUpgradeOperator, "cluster-logging") {
-						glog.V(100).Infof("Skipping cluster-logging operator validation: %s", preUpgradeOperator)
+						klog.V(100).Infof("Skipping cluster-logging operator validation: %s", preUpgradeOperator)
 
 						continue
 					}
@@ -203,7 +203,7 @@ func ValidateNetworkConfig() {
 					for _, rec := range strings.Split(dnsRec, "\n") {
 						if rec != "" {
 							if strings.Contains(ipOut, rec) {
-								glog.V(100).Infof("Found DNS record %s in network configuration", rec)
+								klog.V(100).Infof("Found DNS record %s in network configuration", rec)
 
 								recFound = true
 							}
@@ -246,7 +246,7 @@ func ValidateDUConfig() {
 			By("Validate pre-upgrade DU configs are present after upgrade", func() {
 				By("Validate SR-IOV networks", func() {
 					for _, preUpgradeNet := range cnfclusterinfo.PreUpgradeClusterInfo.SriovNetworks {
-						glog.V(100).Infof("Checking for SR-IOV network %s", preUpgradeNet)
+						klog.V(100).Infof("Checking for SR-IOV network %s", preUpgradeNet)
 						Expect(cnfclusterinfo.PostUpgradeClusterInfo.SriovNetworks).
 							To(ContainElement(preUpgradeNet), "SR-IOV network %s was not found after upgrade", preUpgradeNet)
 					}
@@ -254,7 +254,7 @@ func ValidateDUConfig() {
 
 				By("Validate SR-IOV policies", func() {
 					for _, preUpgradePolicy := range cnfclusterinfo.PreUpgradeClusterInfo.SriovNetworkNodePolicies {
-						glog.V(100).Infof("Checking for SR-IOV policy %s", preUpgradePolicy)
+						klog.V(100).Infof("Checking for SR-IOV policy %s", preUpgradePolicy)
 						Expect(cnfclusterinfo.PostUpgradeClusterInfo.SriovNetworkNodePolicies).
 							To(ContainElement(preUpgradePolicy), "SR-IOV policy %s was not found after upgrade", preUpgradePolicy)
 					}

@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/strings/slices"
 )
 
@@ -19,7 +19,7 @@ const (
 // List returns node inventory.
 func List(apiClient *clients.Settings, options ...metav1.ListOptions) ([]*Builder, error) {
 	if apiClient == nil {
-		glog.V(100).Infof("Nodes 'apiClient' parameter can not be empty")
+		klog.V(100).Info("Nodes 'apiClient' parameter can not be empty")
 
 		return nil, fmt.Errorf("failed to list node objects, 'apiClient' parameter is empty")
 	}
@@ -28,7 +28,7 @@ func List(apiClient *clients.Settings, options ...metav1.ListOptions) ([]*Builde
 	logMessage := "Listing all node resources"
 
 	if len(options) > 1 {
-		glog.V(100).Infof("'options' parameter must be empty or single-valued")
+		klog.V(100).Info("'options' parameter must be empty or single-valued")
 
 		return nil, fmt.Errorf("error: more than one ListOptions was passed")
 	}
@@ -38,11 +38,11 @@ func List(apiClient *clients.Settings, options ...metav1.ListOptions) ([]*Builde
 		logMessage += fmt.Sprintf(" with the options %v", passedOptions)
 	}
 
-	glog.V(100).Infof(logMessage)
+	klog.V(100).Infof("%v", logMessage)
 
 	nodeList, err := apiClient.CoreV1Interface.Nodes().List(context.TODO(), passedOptions)
 	if err != nil {
-		glog.V(100).Infof("Failed to list nodes due to %s", err.Error())
+		klog.V(100).Infof("Failed to list nodes due to %s", err.Error())
 
 		return nil, err
 	}
@@ -65,7 +65,7 @@ func List(apiClient *clients.Settings, options ...metav1.ListOptions) ([]*Builde
 
 // ListExternalIPv4Networks returns a list of node's external ipv4 addresses.
 func ListExternalIPv4Networks(apiClient *clients.Settings, options ...metav1.ListOptions) ([]string, error) {
-	glog.V(100).Infof("Collecting node's external ipv4 addresses")
+	klog.V(100).Info("Collecting node's external ipv4 addresses")
 
 	var ipV4ExternalAddresses []string
 
@@ -77,7 +77,7 @@ func ListExternalIPv4Networks(apiClient *clients.Settings, options ...metav1.Lis
 	for _, node := range nodeBuilders {
 		extNodeNetwork, err := node.ExternalIPv4Network()
 		if err != nil {
-			glog.V(100).Infof("Failed to collect external ip address from node %s", node.Object.Name)
+			klog.V(100).Infof("Failed to collect external ip address from node %s", node.Object.Name)
 
 			return nil, fmt.Errorf(
 				"error getting external IPv4 address from node %s due to %w", node.Definition.Name, err)
@@ -91,7 +91,7 @@ func ListExternalIPv4Networks(apiClient *clients.Settings, options ...metav1.Lis
 
 // ListExternalIPv6Networks returns a list of node's external ipv6 addresses.
 func ListExternalIPv6Networks(apiClient *clients.Settings, options ...metav1.ListOptions) ([]string, error) {
-	glog.V(100).Infof("Collecting node's external ipv6 addresses")
+	klog.V(100).Info("Collecting node's external ipv6 addresses")
 
 	var ipV6ExternalAddresses []string
 
@@ -103,7 +103,7 @@ func ListExternalIPv6Networks(apiClient *clients.Settings, options ...metav1.Lis
 	for _, node := range nodeBuilders {
 		extNodeNetwork, err := node.ExternalIPv6Network()
 		if err != nil {
-			glog.V(100).Infof("Failed to collect external ip address from node %s", node.Object.Name)
+			klog.V(100).Infof("Failed to collect external ip address from node %s", node.Object.Name)
 
 			return nil, fmt.Errorf(
 				"error getting external IPv6 address from node %s due to %w", node.Definition.Name, err)
@@ -119,12 +119,12 @@ func ListExternalIPv6Networks(apiClient *clients.Settings, options ...metav1.Lis
 func WaitForAllNodesAreReady(apiClient *clients.Settings,
 	timeout time.Duration,
 	options ...metav1.ListOptions) (bool, error) {
-	glog.V(100).Infof("Waiting for all nodes to be in the Ready state for up to a duration of %v",
+	klog.V(100).Infof("Waiting for all nodes to be in the Ready state for up to a duration of %v",
 		timeout)
 
 	nodesList, err := List(apiClient, options...)
 	if err != nil {
-		glog.V(100).Infof("Failed to list all nodes due to %s", err.Error())
+		klog.V(100).Infof("Failed to list all nodes due to %s", err.Error())
 
 		return false, err
 	}
@@ -134,13 +134,13 @@ func WaitForAllNodesAreReady(apiClient *clients.Settings,
 			for _, node := range nodesList {
 				ready, err := node.IsReady()
 				if err != nil {
-					glog.V(100).Infof("Node %v has error %w", node.Object.Name, err)
+					klog.V(100).Infof("Node %v has error %v", node.Object.Name, err)
 
 					return false, err
 				}
 
 				if !ready {
-					glog.V(100).Infof("Node %s not Ready", node.Object.Name)
+					klog.V(100).Infof("Node %s not Ready", node.Object.Name)
 
 					return false, nil
 				}
@@ -149,14 +149,14 @@ func WaitForAllNodesAreReady(apiClient *clients.Settings,
 			return true, nil
 		})
 	if err == nil {
-		glog.V(100).Infof("All nodes were found in the Ready State during availableDuration: %v",
+		klog.V(100).Infof("All nodes were found in the Ready State during availableDuration: %v",
 			timeout)
 
 		return true, nil
 	}
 
 	// Here err is "timed out waiting for the condition"
-	glog.V(100).Infof("Not all nodes were found in the Ready State during availableDuration: %v",
+	klog.V(100).Infof("Not all nodes were found in the Ready State during availableDuration: %v",
 		err)
 
 	return false, err
@@ -166,11 +166,11 @@ func WaitForAllNodesAreReady(apiClient *clients.Settings,
 func WaitForAllNodesToReboot(apiClient *clients.Settings,
 	globalRebootTimeout time.Duration,
 	options ...metav1.ListOptions) (bool, error) {
-	glog.V(100).Infof("Waiting for all nodes in the list to reboot and return to the Ready condition")
+	klog.V(100).Info("Waiting for all nodes in the list to reboot and return to the Ready condition")
 
 	nodesList, err := List(apiClient, options...)
 	if err != nil {
-		glog.V(100).Infof("Failed to list all nodes due to %s", err.Error())
+		klog.V(100).Infof("Failed to list all nodes due to %s", err.Error())
 
 		return false, err
 	}
@@ -190,14 +190,14 @@ func WaitForAllNodesToReboot(apiClient *clients.Settings,
 
 					if slices.Contains(rebootedNodes, node.Object.Name) {
 						if ready && !slices.Contains(readyNodes, node.Object.Name) {
-							glog.V(100).Infof("Node %s was successfully rebooted after: %v",
+							klog.V(100).Infof("Node %s was successfully rebooted after: %v",
 								node.Object.Name, time.Now().Unix()-globalStartTime)
 
 							readyNodes = append(readyNodes, node.Object.Name)
 						}
 					} else {
 						if !ready {
-							glog.V(100).Infof("Node %s was rebooted and is starting to recover", node.Object.Name)
+							klog.V(100).Infof("Node %s was rebooted and is starting to recover", node.Object.Name)
 
 							rebootedNodes = append(rebootedNodes, node.Object.Name)
 						}
@@ -209,12 +209,12 @@ func WaitForAllNodesToReboot(apiClient *clients.Settings,
 		})
 	if err == nil {
 		globalRebootDuration := time.Now().Unix() - globalStartTime
-		glog.V(100).Infof("All nodes were successfully rebooted during: %v", globalRebootDuration)
+		klog.V(100).Infof("All nodes were successfully rebooted during: %v", globalRebootDuration)
 
 		return true, nil
 	}
 
-	glog.V(100).Infof("Not all nodes were rebooted, timeout %v reached: %v", globalRebootTimeout, err)
+	klog.V(100).Infof("Not all nodes were rebooted, timeout %v reached: %v", globalRebootTimeout, err)
 
 	return false, err
 }

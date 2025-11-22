@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/klog/v2"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clusteroperator"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clusterversion"
@@ -34,20 +34,20 @@ var _ = Describe("OCP_UPGRADE", Ordered, Label("minor"), func() {
 			By("Get the clusterversion struct")
 			version, err := clusterversion.Pull(HubAPIClient)
 			Expect(err).ToNot(HaveOccurred(), "error retrieving clusterversion")
-			glog.V(90).Infof("got the clusterversion struct %+v", version)
+			klog.V(90).Infof("got the clusterversion struct %+v", version)
 
 			By("Deploy a workload in the cluster, expose a service and create a route")
 			workloadRoute := startTestWorkloadAndGetRoute()
 
 			By("Patch the clusterversion with the desired upgrade channel")
-			glog.V(90).Infof("this is the desired upgrade channel: %+v", desiredUpgradeChannel)
+			klog.V(90).Infof("this is the desired upgrade channel: %+v", desiredUpgradeChannel)
 			if desiredUpgradeChannel == "stable-4." {
 				desiredUpgradeChannel = version.Object.Spec.Channel
-				glog.V(90).Infof("clusterversion channel %s", desiredUpgradeChannel)
+				klog.V(90).Infof("clusterversion channel %s", desiredUpgradeChannel)
 			}
 			version, err = version.WithDesiredUpdateChannel(desiredUpgradeChannel).Update()
 			Expect(err).ToNot(HaveOccurred(), "error patching the desired upgrade channel")
-			glog.V(90).Infof("patched the clusterversion channel %s", desiredUpgradeChannel)
+			klog.V(90).Infof("patched the clusterversion channel %s", desiredUpgradeChannel)
 
 			By("Get the desired update image")
 			desiredImage := AccelConfig.UpgradeTargetVersion
@@ -55,27 +55,27 @@ var _ = Describe("OCP_UPGRADE", Ordered, Label("minor"), func() {
 				desiredImage, err = version.GetNextUpdateVersionImage(upgradeparams.Z, false)
 				Expect(err).ToNot(HaveOccurred(), "error getting the next update image")
 			}
-			glog.V(90).Infof("got the desired update image in %s stream %s", upgradeparams.Z, desiredImage)
+			klog.V(90).Infof("got the desired update image in %s stream %s", upgradeparams.Z, desiredImage)
 
 			By("Patch the clusterversion with the desired upgrade image")
 			version, err = version.WithDesiredUpdateImage(desiredImage, true).Update()
 			Expect(err).ToNot(HaveOccurred(), "error patching the desired image")
 			Expect(version.Object.Spec.DesiredUpdate.Image).To(Equal(desiredImage))
-			glog.V(90).Infof("patched the clusterversion with desired image %s", desiredImage)
+			klog.V(90).Infof("patched the clusterversion with desired image %s", desiredImage)
 
 			By("Wait until upgrade starts")
 			err = version.WaitUntilUpdateIsStarted(waitToUpgradeStart)
 			Expect(err).ToNot(HaveOccurred(), "the upgrade didn't start after %s", waitToUpgradeStart)
-			glog.V(90).Infof("upgrade has started")
+			klog.V(90).Infof("upgrade has started")
 
 			By("Wait until upgrade completes")
 			err = version.WaitUntilUpdateIsCompleted(waitToUpgradeCompleted)
 			Expect(err).ToNot(HaveOccurred(), "the upgrade didn't complete after %s", waitToUpgradeCompleted)
-			glog.V(90).Infof("upgrade has completed")
+			klog.V(90).Infof("upgrade has completed")
 
 			By("Check that the clusterversion is updated to the desired version")
 			Expect(version.Object.Status.Desired.Image).To(Equal(desiredImage))
-			glog.V(90).Infof("upgrade to image %s has completed successfully", desiredImage)
+			klog.V(90).Infof("upgrade to image %s has completed successfully", desiredImage)
 
 			By("Check that all the operators version is the desired version")
 			clusteroperatorList, err := clusteroperator.List(HubAPIClient)
@@ -113,7 +113,7 @@ var _ = Describe("OCP_UPGRADE", Ordered, Label("minor"), func() {
 
 		AfterAll(func() {
 			By("Delete workload test namespace")
-			glog.V(90).Infof("Deleting test deployments")
+			klog.V(90).Infof("Deleting test deployments")
 			deleteWorkloadNamespace()
 		})
 	})
@@ -163,7 +163,7 @@ func verifyWorkloadReachable(workloadRoute *route.Builder) {
 
 	Eventually(func() bool {
 		_, rc, err := url.Fetch(fmt.Sprintf("http://%s", workloadRoute.Object.Spec.Host), "get", true)
-		glog.V(90).Infof("trying to reach the workload with error %v", err)
+		klog.V(90).Infof("trying to reach the workload with error %v", err)
 
 		return rc == 200
 	}, time.Second*10, time.Second*2).Should(BeTrue(), "error reaching the workload")

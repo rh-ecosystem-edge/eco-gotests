@@ -7,7 +7,6 @@ import (
 
 	"math/rand"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	hiveextV1Beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/api/hiveextension/v1beta1"
@@ -17,6 +16,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -40,13 +40,13 @@ type InfraEnvAdditionalOptions func(builder *InfraEnvBuilder) (*InfraEnvBuilder,
 
 // NewInfraEnvBuilder creates a new instance of InfraEnvBuilder.
 func NewInfraEnvBuilder(apiClient *clients.Settings, name, nsname, psName string) *InfraEnvBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new infraenv structure with the following params: "+
 			"name: %s, namespace: %s, pull-secret: %s",
 		name, nsname, psName)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil
 	}
@@ -67,7 +67,7 @@ func NewInfraEnvBuilder(apiClient *clients.Settings, name, nsname, psName string
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the infraenv is empty")
+		klog.V(100).Info("The name of the infraenv is empty")
 
 		builder.errorMsg = "infraenv 'name' cannot be empty"
 
@@ -75,7 +75,7 @@ func NewInfraEnvBuilder(apiClient *clients.Settings, name, nsname, psName string
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the infraenv is empty")
+		klog.V(100).Info("The namespace of the infraenv is empty")
 
 		builder.errorMsg = "infraenv 'namespace' cannot be empty"
 
@@ -83,7 +83,7 @@ func NewInfraEnvBuilder(apiClient *clients.Settings, name, nsname, psName string
 	}
 
 	if psName == "" {
-		glog.V(100).Infof("The pull-secret ref of the infraenv is empty")
+		klog.V(100).Info("The pull-secret ref of the infraenv is empty")
 
 		builder.errorMsg = "infraenv 'pull-secret' cannot be empty"
 
@@ -99,10 +99,10 @@ func (builder *InfraEnvBuilder) WithClusterRef(name, nsname string) *InfraEnvBui
 		return builder
 	}
 
-	glog.V(100).Infof("Adding clusterRef %s in namespace %s to InfraEnv %s", name, nsname, builder.Definition.Name)
+	klog.V(100).Infof("Adding clusterRef %s in namespace %s to InfraEnv %s", name, nsname, builder.Definition.Name)
 
 	if name == "" {
-		glog.V(100).Infof("The name of the infraenv clusterRef is empty")
+		klog.V(100).Info("The name of the infraenv clusterRef is empty")
 
 		builder.errorMsg = "infraenv clusterRef 'name' cannot be empty"
 
@@ -110,7 +110,7 @@ func (builder *InfraEnvBuilder) WithClusterRef(name, nsname string) *InfraEnvBui
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the infraenv clusterRef is empty")
+		klog.V(100).Info("The namespace of the infraenv clusterRef is empty")
 
 		builder.errorMsg = "infraenv clusterRef 'namespace' cannot be empty"
 
@@ -131,7 +131,7 @@ func (builder *InfraEnvBuilder) WithAdditionalNTPSource(ntpSource string) *Infra
 		return builder
 	}
 
-	glog.V(100).Infof("Adding ntpSource %s to InfraEnv %s", ntpSource, builder.Definition.Name)
+	klog.V(100).Infof("Adding ntpSource %s to InfraEnv %s", ntpSource, builder.Definition.Name)
 
 	builder.Definition.Spec.AdditionalNTPSources = append(builder.Definition.Spec.AdditionalNTPSources, ntpSource)
 
@@ -144,7 +144,7 @@ func (builder *InfraEnvBuilder) WithSSHAuthorizedKey(sshAuthKey string) *InfraEn
 		return builder
 	}
 
-	glog.V(100).Infof("Adding sshAuthorizedKey %s to InfraEnv %s", sshAuthKey, builder.Definition.Name)
+	klog.V(100).Infof("Adding sshAuthorizedKey %s to InfraEnv %s", sshAuthKey, builder.Definition.Name)
 
 	builder.Definition.Spec.SSHAuthorizedKey = sshAuthKey
 
@@ -157,7 +157,7 @@ func (builder *InfraEnvBuilder) WithAgentLabel(key, value string) *InfraEnvBuild
 		return builder
 	}
 
-	glog.V(100).Infof("Adding agentLabel %s:%s to InfraEnv %s", key, value, builder.Definition.Name)
+	klog.V(100).Infof("Adding agentLabel %s:%s to InfraEnv %s", key, value, builder.Definition.Name)
 
 	if builder.Definition.Spec.AgentLabels == nil {
 		builder.Definition.Spec.AgentLabels = make(map[string]string)
@@ -174,7 +174,7 @@ func (builder *InfraEnvBuilder) WithProxy(proxy agentInstallV1Beta1.Proxy) *Infr
 		return builder
 	}
 
-	glog.V(100).Infof("Adding proxy %s to InfraEnv %s", proxy, builder.Definition.Name)
+	klog.V(100).Infof("Adding proxy %s to InfraEnv %s", proxy, builder.Definition.Name)
 
 	builder.Definition.Spec.Proxy = &proxy
 
@@ -188,7 +188,7 @@ func (builder *InfraEnvBuilder) WithNmstateConfigLabelSelector(selector metav1.L
 		return builder
 	}
 
-	glog.V(100).Infof("Adding nmstateconfig selector %s to InfraEnv %s", &selector, builder.Definition.Name)
+	klog.V(100).Infof("Adding nmstateconfig selector %s to InfraEnv %s", &selector, builder.Definition.Name)
 
 	builder.Definition.Spec.NMStateConfigLabelSelector = selector
 
@@ -201,7 +201,7 @@ func (builder *InfraEnvBuilder) WithCPUType(arch string) *InfraEnvBuilder {
 		return builder
 	}
 
-	glog.V(100).Infof("Adding cpuArchitecture %s to InfraEnv %s", arch, builder.Definition.Name)
+	klog.V(100).Infof("Adding cpuArchitecture %s to InfraEnv %s", arch, builder.Definition.Name)
 
 	builder.Definition.Spec.CpuArchitecture = arch
 
@@ -214,7 +214,7 @@ func (builder *InfraEnvBuilder) WithIgnitionConfigOverride(override string) *Inf
 		return builder
 	}
 
-	glog.V(100).Infof("Adding ignitionConfigOverride %s to InfraEnv %s", override, builder.Definition.Name)
+	klog.V(100).Infof("Adding ignitionConfigOverride %s to InfraEnv %s", override, builder.Definition.Name)
 
 	builder.Definition.Spec.IgnitionConfigOverride = override
 
@@ -227,7 +227,7 @@ func (builder *InfraEnvBuilder) WithIPXEScriptType(scriptType agentInstallV1Beta
 		return builder
 	}
 
-	glog.V(100).Infof("Adding ipxeScriptType %s to InfraEnv %s", scriptType, builder.Definition.Name)
+	klog.V(100).Infof("Adding ipxeScriptType %s to InfraEnv %s", scriptType, builder.Definition.Name)
 
 	builder.Definition.Spec.IPXEScriptType = scriptType
 
@@ -240,7 +240,7 @@ func (builder *InfraEnvBuilder) WithKernelArgument(kernelArg agentInstallV1Beta1
 		return builder
 	}
 
-	glog.V(100).Infof("Adding kernelArgument %s to InfraEnv %s", kernelArg, builder.Definition.Name)
+	klog.V(100).Infof("Adding kernelArgument %s to InfraEnv %s", kernelArg, builder.Definition.Name)
 
 	builder.Definition.Spec.KernelArguments = append(builder.Definition.Spec.KernelArguments, kernelArg)
 
@@ -254,13 +254,13 @@ func (builder *InfraEnvBuilder) WithOptions(
 		return builder
 	}
 
-	glog.V(100).Infof("Setting InfraEnv additional options")
+	klog.V(100).Info("Setting InfraEnv additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -303,7 +303,7 @@ func (builder *InfraEnvBuilder) GetAllAgents() ([]*agentBuilder, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting all agents from infraenv %s",
+	klog.V(100).Infof("Getting all agents from infraenv %s",
 		builder.Definition.Name)
 
 	if !builder.Exists() {
@@ -324,11 +324,11 @@ func (builder *InfraEnvBuilder) GetAgentsByRole(role string) ([]*agentBuilder, e
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting agents from infraenv %s matching role %s",
+	klog.V(100).Infof("Getting agents from infraenv %s matching role %s",
 		builder.Definition.Name, role)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("Cannot get agents from non-existent infraenv: %s",
+		klog.V(100).Infof("Cannot get agents from non-existent infraenv: %s",
 			role)
 
 		return nil, fmt.Errorf("cannot get agents from non-existent infraenv")
@@ -356,7 +356,7 @@ func (builder *InfraEnvBuilder) GetAgentByBMH(bmhName string) (*agentBuilder, er
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting agent from infraenv %s matching bmh %s",
+	klog.V(100).Infof("Getting agent from infraenv %s matching bmh %s",
 		builder.Definition.Name, bmhName)
 
 	if !builder.Exists() {
@@ -372,11 +372,11 @@ func (builder *InfraEnvBuilder) GetAgentByBMH(bmhName string) (*agentBuilder, er
 	case 1:
 		return agents[0], nil
 	case 0:
-		glog.V(100).Infof("Found no agents referencing bmh %s", bmhName)
+		klog.V(100).Infof("Found no agents referencing bmh %s", bmhName)
 
 		return nil, fmt.Errorf("found no agents referencing bmh %s", bmhName)
 	default:
-		glog.V(100).Infof("Found multiple agent referencing bmh %s", bmhName)
+		klog.V(100).Infof("Found multiple agent referencing bmh %s", bmhName)
 
 		return nil, fmt.Errorf("found multiple agents referencing bmh %s", bmhName)
 	}
@@ -388,7 +388,7 @@ func (builder *InfraEnvBuilder) GetAgentByName(name string) (*agentBuilder, erro
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting agent from infraenv %s with name %s",
+	klog.V(100).Infof("Getting agent from infraenv %s with name %s",
 		builder.Definition.Name, name)
 
 	if !builder.Exists() {
@@ -418,7 +418,7 @@ func (builder *InfraEnvBuilder) GetAgentsByLabel(key, value string) ([]*agentBui
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting agent matching label %s:%s",
+	klog.V(100).Infof("Getting agent matching label %s:%s",
 		key, value)
 
 	if !builder.Exists() {
@@ -645,14 +645,14 @@ func (builder *InfraEnvBuilder) GetAgentClusterInstallFromInfraEnv() (*hiveextV1
 	}
 
 	if !builder.Exists() {
-		glog.V(100).Infof("Getting infraenv %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
+		klog.V(100).Infof("Getting infraenv %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 		return nil, fmt.Errorf("cannot wait from agents to register with non-existent infraenv")
 	}
 
 	var clusterdeployment hiveV1.ClusterDeployment
 
-	glog.V(100).Infof("Getting clusterdeployment %s in namespace %s",
+	klog.V(100).Infof("Getting clusterdeployment %s in namespace %s",
 		builder.Object.Spec.ClusterRef.Name, builder.Object.Spec.ClusterRef.Namespace)
 
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{
@@ -660,13 +660,13 @@ func (builder *InfraEnvBuilder) GetAgentClusterInstallFromInfraEnv() (*hiveextV1
 		Namespace: builder.Object.Spec.ClusterRef.Namespace,
 	}, &clusterdeployment)
 	if err != nil {
-		glog.V(100).Infof("Unable to get clusterdeployment %s referenced by infraenv %s",
+		klog.V(100).Infof("Unable to get clusterdeployment %s referenced by infraenv %s",
 			builder.Object.Spec.ClusterRef.Name, builder.Definition.Name)
 
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting agentclusterinstall %s",
+	klog.V(100).Infof("Getting agentclusterinstall %s",
 		clusterdeployment.Spec.ClusterInstallRef.Name)
 
 	var agentclusterinstall hiveextV1Beta1.AgentClusterInstall
@@ -676,7 +676,7 @@ func (builder *InfraEnvBuilder) GetAgentClusterInstallFromInfraEnv() (*hiveextV1
 		Namespace: clusterdeployment.Namespace,
 	}, &agentclusterinstall)
 	if err != nil {
-		glog.V(100).Infof("Unable to get agentclusterinstall %s referenced by clusterdeployment %s",
+		klog.V(100).Infof("Unable to get agentclusterinstall %s referenced by clusterdeployment %s",
 			clusterdeployment.Spec.ClusterInstallRef.Name, clusterdeployment.Name)
 
 		return nil, err
@@ -691,7 +691,7 @@ func (builder *InfraEnvBuilder) Get() (*agentInstallV1Beta1.InfraEnv, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting infraenv %s in namespace %s",
+	klog.V(100).Infof("Getting infraenv %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	infraEnv := &agentInstallV1Beta1.InfraEnv{}
@@ -709,10 +709,10 @@ func (builder *InfraEnvBuilder) Get() (*agentInstallV1Beta1.InfraEnv, error) {
 
 // PullInfraEnvInstall pulls existing infraenv from cluster.
 func PullInfraEnvInstall(apiClient *clients.Settings, name, nsname string) (*InfraEnvBuilder, error) {
-	glog.V(100).Infof("Pulling existing infraenv name %s under namespace %s from cluster", name, nsname)
+	klog.V(100).Infof("Pulling existing infraenv name %s under namespace %s from cluster", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil, fmt.Errorf("the apiClient is nil")
 	}
@@ -728,13 +728,13 @@ func PullInfraEnvInstall(apiClient *clients.Settings, name, nsname string) (*Inf
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the infraenv is empty")
+		klog.V(100).Info("The name of the infraenv is empty")
 
 		return nil, fmt.Errorf("infraenv 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the infraenv is empty")
+		klog.V(100).Info("The namespace of the infraenv is empty")
 
 		return nil, fmt.Errorf("infraenv 'namespace' cannot be empty")
 	}
@@ -754,7 +754,7 @@ func (builder *InfraEnvBuilder) Create() (*InfraEnvBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the infraenv %s in namespace %s",
+	klog.V(100).Infof("Creating the infraenv %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -774,11 +774,11 @@ func (builder *InfraEnvBuilder) Update(force bool) (*InfraEnvBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating infraenv %s in namespace %s",
+	klog.V(100).Infof("Updating infraenv %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("infraenv %s in namespace %s does not exist",
+		klog.V(100).Infof("infraenv %s in namespace %s does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		return nil, fmt.Errorf("cannot update non-existent infraenv")
@@ -787,14 +787,13 @@ func (builder *InfraEnvBuilder) Update(force bool) (*InfraEnvBuilder, error) {
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		if force {
-			glog.V(100).Infof(
-				msg.FailToUpdateNotification("infraenv", builder.Definition.Name, builder.Definition.Namespace))
+			klog.V(100).Infof("%v", msg.FailToUpdateNotification("infraenv", builder.Definition.Name, builder.Definition.Namespace))
 
 			err = builder.DeleteAndWait(time.Second * 5)
 			builder.Definition.ResourceVersion = ""
 
 			if err != nil {
-				glog.V(100).Infof(
+				klog.V(100).Infof(
 					"Failed to update the infraenv object %s in namespace %s, "+
 						"due to error in delete function",
 					builder.Definition.Name, builder.Definition.Namespace,
@@ -820,11 +819,11 @@ func (builder *InfraEnvBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting the infraenv %s in namespace %s",
+	klog.V(100).Infof("Deleting the infraenv %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("infraenv %s in namespace %s cannot be deleted because it does not exist",
+		klog.V(100).Infof("infraenv %s in namespace %s cannot be deleted because it does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -848,7 +847,7 @@ func (builder *InfraEnvBuilder) DeleteAndWait(timeout time.Duration) error {
 		return err
 	}
 
-	glog.V(100).Infof(`Deleting InfraEnv %s and 
+	klog.V(100).Infof(`Deleting InfraEnv %s and 
 	waiting for the defined period until it is removed`,
 		builder.Definition.Name)
 
@@ -874,7 +873,7 @@ func (builder *InfraEnvBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if infraenv %s exists in namespace %s",
+	klog.V(100).Infof("Checking if infraenv %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -890,25 +889,25 @@ func (builder *InfraEnvBuilder) validate() (bool, error) {
 	resourceCRD := "InfraEnv"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

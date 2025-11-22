@@ -3,7 +3,6 @@ package tests
 import (
 	"strings"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
@@ -12,6 +11,7 @@ import (
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
+	"k8s.io/klog/v2"
 )
 
 var _ = Describe("ZTP Spoke Checker Tests", Label(tsparams.LabelSpokeCheckerTests), func() {
@@ -28,7 +28,7 @@ var _ = Describe("ZTP Spoke Checker Tests", Label(tsparams.LabelSpokeCheckerTest
 			Expect(statuses).ToNot(BeEmpty(), "Failed to find statuses for chronyd service")
 
 			for nodeName, status := range statuses {
-				glog.V(tsparams.LogLevel).Infof("%s active status: %s", nodeName, status)
+				klog.V(tsparams.LogLevel).Infof("%s active status: %s", nodeName, status)
 
 				status = strings.TrimSpace(status)
 				Expect(status).To(Equal("inactive"), "chronyd service was not inactive")
@@ -44,7 +44,7 @@ var _ = Describe("ZTP Spoke Checker Tests", Label(tsparams.LabelSpokeCheckerTest
 			Expect(statuses).ToNot(BeEmpty(), "Failed to find statuses for chronyd service")
 
 			for nodeName, status := range statuses {
-				glog.V(tsparams.LogLevel).Infof("%s enabled status: %s", nodeName, status)
+				klog.V(tsparams.LogLevel).Infof("%s enabled status: %s", nodeName, status)
 
 				status = strings.TrimSpace(status)
 				Expect(status).To(Equal("disabled"), "chronyd service was not disabled")

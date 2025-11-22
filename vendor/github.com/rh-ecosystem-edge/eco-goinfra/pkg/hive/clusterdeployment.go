@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	hiveextV1Beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/api/hiveextension/v1beta1"
@@ -13,6 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -38,7 +38,7 @@ func NewABMClusterDeploymentBuilder(
 	baseDomain string,
 	clusterInstallRef string,
 	agentSelector metav1.LabelSelector) *ClusterDeploymentBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		`Initializing new agentbaremetal clusterdeployment structure with the following params: name: %s, namespace: %s,
 		  clusterName: %s, baseDomain: %s, clusterInstallRef: %s, agentSelector: %s`,
 		name, nsname, clusterName, baseDomain, clusterInstallRef, agentSelector)
@@ -66,20 +66,20 @@ func NewClusterDeploymentByInstallRefBuilder(
 	baseDomain string,
 	clusterInstallRef hiveV1.ClusterInstallLocalReference,
 	platform hiveV1.Platform) *ClusterDeploymentBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		`Initializing new agentbaremetal clusterdeployment structure with the following params: name: %s, namespace: %s,
 		  clusterName: %s, baseDomain: %s, clusterInstallRef: %v, platform: %v`,
 		name, nsname, clusterName, baseDomain, clusterInstallRef, platform)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(hiveV1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add hive v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add hive v1 scheme to client schemes")
 
 		return nil
 	}
@@ -101,7 +101,7 @@ func NewClusterDeploymentByInstallRefBuilder(
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the clusterdeployment is empty")
+		klog.V(100).Info("The name of the clusterdeployment is empty")
 
 		builder.errorMsg = "clusterdeployment 'name' cannot be empty"
 
@@ -109,7 +109,7 @@ func NewClusterDeploymentByInstallRefBuilder(
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the clusterdeployment is empty")
+		klog.V(100).Info("The namespace of the clusterdeployment is empty")
 
 		builder.errorMsg = "clusterdeployment 'namespace' cannot be empty"
 
@@ -117,7 +117,7 @@ func NewClusterDeploymentByInstallRefBuilder(
 	}
 
 	if clusterName == "" {
-		glog.V(100).Infof("The clusterName of the clusterdeployment is empty")
+		klog.V(100).Info("The clusterName of the clusterdeployment is empty")
 
 		builder.errorMsg = "clusterdeployment 'clusterName' cannot be empty"
 
@@ -125,7 +125,7 @@ func NewClusterDeploymentByInstallRefBuilder(
 	}
 
 	if baseDomain == "" {
-		glog.V(100).Infof("The baseDomain of the clusterdeployment is empty")
+		klog.V(100).Info("The baseDomain of the clusterdeployment is empty")
 
 		builder.errorMsg = "clusterdeployment 'baseDomain' cannot be empty"
 
@@ -133,7 +133,7 @@ func NewClusterDeploymentByInstallRefBuilder(
 	}
 
 	if clusterInstallRef.Name == "" {
-		glog.V(100).Infof("The clusterInstallRef name of the clusterdeployment is empty")
+		klog.V(100).Info("The clusterInstallRef name of the clusterdeployment is empty")
 
 		builder.errorMsg = "clusterdeployment 'clusterInstallRef.name' cannot be empty"
 
@@ -151,12 +151,12 @@ func (builder *ClusterDeploymentBuilder) WithAdditionalAgentSelectorLabels(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Adding agentSelectors %s to clusterdeployment %s in namespace %s",
 		agentSelector, builder.Definition.Name, builder.Definition.Namespace)
 
 	if builder.Definition.Spec.Platform.AgentBareMetal == nil {
-		glog.V(100).Infof("The clusterdeployment platform is not agentBareMetal")
+		klog.V(100).Info("The clusterdeployment platform is not agentBareMetal")
 
 		builder.errorMsg = "clusterdeployment type must be AgentBareMetal to use agentSelector"
 
@@ -164,7 +164,7 @@ func (builder *ClusterDeploymentBuilder) WithAdditionalAgentSelectorLabels(
 	}
 
 	if len(agentSelector) == 0 {
-		glog.V(100).Infof("The clusterdeployment agentSelector is empty")
+		klog.V(100).Info("The clusterdeployment agentSelector is empty")
 
 		builder.errorMsg = "agentSelector cannot be empty"
 
@@ -188,7 +188,7 @@ func (builder *ClusterDeploymentBuilder) WithPullSecret(psName string) *ClusterD
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Adding pull-secret ref %s to clusterdeployment %s in namespace %s",
 		psName, builder.Definition.Name, builder.Definition.Namespace)
 
@@ -203,7 +203,7 @@ func (builder *ClusterDeploymentBuilder) Get() (*hiveV1.ClusterDeployment, error
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting clusterdeployment %s in namespace %s",
+	klog.V(100).Infof("Getting clusterdeployment %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	clusterDeployment := &hiveV1.ClusterDeployment{}
@@ -221,17 +221,17 @@ func (builder *ClusterDeploymentBuilder) Get() (*hiveV1.ClusterDeployment, error
 
 // PullClusterDeployment pulls existing clusterdeployment from cluster.
 func PullClusterDeployment(apiClient *clients.Settings, name, nsname string) (*ClusterDeploymentBuilder, error) {
-	glog.V(100).Infof("Pulling existing clusterdeployment name %s under namespace %s from cluster", name, nsname)
+	klog.V(100).Infof("Pulling existing clusterdeployment name %s under namespace %s from cluster", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil, fmt.Errorf("the apiClient cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(hiveV1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add hive v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add hive v1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -247,13 +247,13 @@ func PullClusterDeployment(apiClient *clients.Settings, name, nsname string) (*C
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the clusterdeployment is empty")
+		klog.V(100).Info("The name of the clusterdeployment is empty")
 
 		return nil, fmt.Errorf("clusterdeployment 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the clusterdeployment is empty")
+		klog.V(100).Info("The namespace of the clusterdeployment is empty")
 
 		return nil, fmt.Errorf("clusterdeployment 'namespace' cannot be empty")
 	}
@@ -273,7 +273,7 @@ func (builder *ClusterDeploymentBuilder) Create() (*ClusterDeploymentBuilder, er
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the clusterdeployment %s in namespace %s",
+	klog.V(100).Infof("Creating the clusterdeployment %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -294,13 +294,13 @@ func (builder *ClusterDeploymentBuilder) WithOptions(
 		return builder
 	}
 
-	glog.V(100).Infof("Setting ClusterDeployment additional options")
+	klog.V(100).Info("Setting ClusterDeployment additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -318,19 +318,17 @@ func (builder *ClusterDeploymentBuilder) Update(force bool) (*ClusterDeploymentB
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating clusterdeployment %s in namespace %s",
+	klog.V(100).Infof("Updating clusterdeployment %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		if force {
-			glog.V(100).Infof(
-				msg.FailToUpdateNotification("clusterdeployment", builder.Definition.Name, builder.Definition.Namespace))
+			klog.V(100).Infof("%v", msg.FailToUpdateNotification("clusterdeployment", builder.Definition.Name, builder.Definition.Namespace))
 
 			err := builder.Delete()
 			if err != nil {
-				glog.V(100).Infof(
-					msg.FailToUpdateError("clusterdeployment", builder.Definition.Name, builder.Definition.Namespace))
+				klog.V(100).Infof("%v", msg.FailToUpdateError("clusterdeployment", builder.Definition.Name, builder.Definition.Namespace))
 
 				return nil, err
 			}
@@ -352,11 +350,11 @@ func (builder *ClusterDeploymentBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting the clusterdeployment %s in namespace %s",
+	klog.V(100).Infof("Deleting the clusterdeployment %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("clusterdeployment %s in namespace %s does not exist",
+		klog.V(100).Infof("clusterdeployment %s in namespace %s does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -380,7 +378,7 @@ func (builder *ClusterDeploymentBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if clusterdeployment %s exists in namespace %s",
+	klog.V(100).Infof("Checking if clusterdeployment %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -396,25 +394,25 @@ func (builder *ClusterDeploymentBuilder) validate() (bool, error) {
 	resourceCRD := "ClusterDeployment"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

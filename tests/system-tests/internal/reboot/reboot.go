@@ -8,7 +8,6 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/remote"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
@@ -20,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 // HardRebootNode executes ipmitool chassis power cycle on a node.
@@ -65,7 +65,7 @@ func setupHardRebootDeployment(nodeName, nsName string) error {
 	}
 
 	rmiCmdToExec := []string{"chroot", "/rootfs", "/bin/sh", "-c", "podman rmi -f " + SystemTestsTestConfig.IpmiToolImage}
-	glog.V(90).Infof("Cleaning up any of the existing ipmitool images. Exec cmd %v", rmiCmdToExec)
+	klog.V(90).Infof("Cleaning up any of the existing ipmitool images. Exec cmd %v", rmiCmdToExec)
 	_, err = remote.ExecuteOnNodeWithDebugPod(rmiCmdToExec, nodeName)
 
 	return err
@@ -111,7 +111,7 @@ func prepareRebootResources(nodeName, nsName string) ([]*pod.Builder, error) {
 func executeRebootCommand(ipmiPods []*pod.Builder) error {
 	cmdToExec := []string{"ipmitool", "chassis", "power", "cycle"}
 
-	glog.V(90).Infof("Exec cmd %v on pod %s", cmdToExec, ipmiPods[0].Definition.Name)
+	klog.V(90).Infof("Exec cmd %v on pod %s", cmdToExec, ipmiPods[0].Definition.Name)
 	_, err := ipmiPods[0].ExecCommand(cmdToExec)
 
 	return err
@@ -126,17 +126,17 @@ func waitForNodeRebootCycle(nodeName string) error {
 	}
 
 	isSingleNodeCluster := len(allNodes) == 1
-	glog.V(90).Infof("Cluster has %d nodes, single node cluster: %v", len(allNodes), isSingleNodeCluster)
+	klog.V(90).Infof("Cluster has %d nodes, single node cluster: %v", len(allNodes), isSingleNodeCluster)
 
 	if !isSingleNodeCluster {
 		err = waitForNodeNotReady(nodeName)
 		if err != nil {
-			glog.V(90).Infof("Warning: Node %s did not become NotReady within timeout, continuing...", nodeName)
+			klog.V(90).Infof("Warning: Node %s did not become NotReady within timeout, continuing...", nodeName)
 		} else {
-			glog.V(90).Infof("Node %s successfully went NotReady", nodeName)
+			klog.V(90).Infof("Node %s successfully went NotReady", nodeName)
 		}
 	} else {
-		glog.V(90).Infof("Single node cluster detected - skipping NotReady check")
+		klog.V(90).Infof("Single node cluster detected - skipping NotReady check")
 		// wait for one minute for the node to reboot
 		time.Sleep(1 * time.Minute)
 	}
@@ -146,7 +146,7 @@ func waitForNodeRebootCycle(nodeName string) error {
 
 // waitForNodeNotReady waits for the node to become NotReady.
 func waitForNodeNotReady(nodeName string) error {
-	glog.V(90).Infof("Waiting for node %s to become NotReady after power cycle", nodeName)
+	klog.V(90).Infof("Waiting for node %s to become NotReady after power cycle", nodeName)
 
 	return wait.PollUntilContextTimeout(
 		context.TODO(),
@@ -156,7 +156,7 @@ func waitForNodeNotReady(nodeName string) error {
 		func(ctx context.Context) (bool, error) {
 			node, nodeErr := nodes.Pull(APIClient, nodeName)
 			if nodeErr != nil {
-				glog.V(90).Infof("Error pulling node %s: %v", nodeName, nodeErr)
+				klog.V(90).Infof("Error pulling node %s: %v", nodeName, nodeErr)
 
 				return false, nil // Node might be unreachable, which is expected
 			}
@@ -164,7 +164,7 @@ func waitForNodeNotReady(nodeName string) error {
 			for _, condition := range node.Object.Status.Conditions {
 				if condition.Type == corev1.NodeReady {
 					if condition.Status != corev1.ConditionTrue {
-						glog.V(90).Infof("Node %s is NotReady: %s", nodeName, condition.Reason)
+						klog.V(90).Infof("Node %s is NotReady: %s", nodeName, condition.Reason)
 
 						return true, nil
 					}
@@ -177,7 +177,7 @@ func waitForNodeNotReady(nodeName string) error {
 
 // waitForNodeReady waits for the node to become Ready.
 func waitForNodeReady(nodeName string) error {
-	glog.V(90).Infof("Waiting for node %s to become Ready again", nodeName)
+	klog.V(90).Infof("Waiting for node %s to become Ready again", nodeName)
 
 	// Wait for node to become Ready (indicating it's back up)
 	err := wait.PollUntilContextTimeout(
@@ -188,7 +188,7 @@ func waitForNodeReady(nodeName string) error {
 		func(ctx context.Context) (bool, error) {
 			node, nodeErr := nodes.Pull(APIClient, nodeName)
 			if nodeErr != nil {
-				glog.V(90).Infof("Error pulling node %s (expected during reboot): %v", nodeName, nodeErr)
+				klog.V(90).Infof("Error pulling node %s (expected during reboot): %v", nodeName, nodeErr)
 
 				return false, nil // Continue polling, API might be unavailable during reboot
 			}
@@ -196,14 +196,14 @@ func waitForNodeReady(nodeName string) error {
 			for _, condition := range node.Object.Status.Conditions {
 				if condition.Type == corev1.NodeReady {
 					if condition.Status == corev1.ConditionTrue {
-						glog.V(90).Infof("Node %s is Ready: %s", nodeName, condition.Reason)
+						klog.V(90).Infof("Node %s is Ready: %s", nodeName, condition.Reason)
 
 						return true, nil
 					}
 				}
 			}
 
-			glog.V(90).Infof("Node %s is still not Ready", nodeName)
+			klog.V(90).Infof("Node %s is still not Ready", nodeName)
 
 			return false, nil
 		})
@@ -212,14 +212,14 @@ func waitForNodeReady(nodeName string) error {
 		return fmt.Errorf("node %s did not become Ready within timeout: %w", nodeName, err)
 	}
 
-	glog.V(90).Infof("Node %s successfully came back online", nodeName)
+	klog.V(90).Infof("Node %s successfully came back online", nodeName)
 
 	return nil
 }
 
 // waitForAPIServerReady waits for the OpenShift API server to be available.
 func waitForAPIServerReady() error {
-	glog.V(90).Infof("Waiting for OpenShift API server to be available")
+	klog.V(90).Infof("Waiting for OpenShift API server to be available")
 
 	openshiftAPIDeploy, err := deployment.Pull(APIClient, "apiserver", "openshift-apiserver")
 	if err != nil {
@@ -250,7 +250,7 @@ func cleanupRebootDeployment(nsName string) error {
 func KernelCrashKdump(nodeName string) error {
 	cmdToExec := []string{"chroot", "/rootfs", "/bin/sh", "-c", "rm -rf /var/crash/*"}
 
-	glog.V(90).Infof("Remove any existing crash dumps. Exec cmd %v", cmdToExec)
+	klog.V(90).Infof("Remove any existing crash dumps. Exec cmd %v", cmdToExec)
 	_, err := remote.ExecuteOnNodeWithDebugPod(cmdToExec, nodeName)
 
 	if err != nil {
@@ -260,17 +260,17 @@ func KernelCrashKdump(nodeName string) error {
 	cmdToExec = []string{"chroot", "/rootfs", "/bin/sh", "-c",
 		"echo 1 > /proc/sys/kernel/sysrq && echo c | tee /proc/sysrq-trigger"}
 
-	glog.V(90).Infof("Trigerring kernel crash. Exec cmd %v", cmdToExec)
+	klog.V(90).Infof("Trigerring kernel crash. Exec cmd %v", cmdToExec)
 	_, err = remote.ExecuteOnNodeWithDebugPodWithTimeout(cmdToExec, nodeName, 15*time.Second)
 
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			glog.V(90).Infof("Context timeout exceeded while triggering kernel crash, assuming it was triggered")
+			klog.V(90).Infof("Context timeout exceeded while triggering kernel crash, assuming it was triggered")
 
 			return nil // context timeout exceeded, so we can assume the kernel crash was triggered
 		}
 
-		glog.V(90).Infof("Failed to trigger kernel crash: %v", err)
+		klog.V(90).Infof("Failed to trigger kernel crash: %v", err)
 
 		return err
 	}

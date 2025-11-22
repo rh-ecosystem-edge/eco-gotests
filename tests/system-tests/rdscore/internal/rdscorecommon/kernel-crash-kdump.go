@@ -5,11 +5,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
@@ -28,14 +28,14 @@ func crashNodeKDump(nodeLabel string) {
 	)
 
 	if nodeLabel == "" {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node Label is empty. Skipping...")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node Label is empty. Skipping...")
 
 		Skip("Empty node selector label")
 	}
 
 	By("Retrieve nodes list")
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Find nodes matching label %q", nodeLabel)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Find nodes matching label %q", nodeLabel)
 
 	Eventually(func() bool {
 		nodeList, err = nodes.List(
@@ -44,7 +44,7 @@ func crashNodeKDump(nodeLabel string) {
 		)
 
 		if err != nil {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list nodes: %w", err)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list nodes: %v", err)
 
 			return false
 		}
@@ -55,7 +55,7 @@ func crashNodeKDump(nodeLabel string) {
 
 	for _, node := range nodeList {
 		By("Trigger kernel crash")
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Trigerring kernel crash on %q",
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Trigerring kernel crash on %q",
 			node.Definition.Name)
 
 		err = reboot.KernelCrashKdump(node.Definition.Name)
@@ -67,7 +67,7 @@ func crashNodeKDump(nodeLabel string) {
 
 		By("Waiting for node to go into Ready state")
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Checking node %q got into Ready state",
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Checking node %q got into Ready state",
 			node.Definition.Name)
 
 		err = node.WaitUntilReady(5 * time.Minute)
@@ -75,22 +75,22 @@ func crashNodeKDump(nodeLabel string) {
 
 		By("Assert vmcore dump was generated")
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Checking if vmcore dump was generated")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Checking if vmcore dump was generated")
 
 		cmdToExec := []string{"chroot", "/rootfs", "ls", "/var/crash"}
 
 		Eventually(func() bool {
 			coreDumps, err := remote.ExecuteOnNodeWithDebugPod(cmdToExec, node.Definition.Name)
 
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Executing command: %q", strings.Join(cmdToExec, " "))
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Executing command: %q", strings.Join(cmdToExec, " "))
 
 			if err != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to execute command: %v", err)
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to execute command: %v", err)
 
 				return false
 			}
 
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\tGenerated VMCore dumps: %v", coreDumps)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\tGenerated VMCore dumps: %v", coreDumps)
 
 			return len(strings.Fields(coreDumps)) >= 1
 		}).WithContext(ctx).WithTimeout(5*time.Minute).WithPolling(15*time.Second).Should(BeTrue(),
@@ -148,16 +148,16 @@ func cleanupUnexpectedPods(nodeLabel string) {
 	Eventually(func() bool {
 		podsList, err = pod.ListInAllNamespaces(APIClient, listOptions)
 		if err != nil {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods: %v", err)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods: %v", err)
 
 			return false
 		}
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d pods matching search criteria",
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d pods matching search criteria",
 			len(podsList))
 
 		for _, failedPod := range podsList {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q in %q ns matches search criteria",
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q in %q ns matches search criteria",
 				failedPod.Definition.Name, failedPod.Definition.Namespace)
 		}
 
@@ -166,14 +166,14 @@ func cleanupUnexpectedPods(nodeLabel string) {
 		"Failed to search for pods with UnexpectedAdmissionError status")
 
 	if len(podsList) == 0 {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("No pods with UnexpectedAdmissionError status found")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("No pods with UnexpectedAdmissionError status found")
 
 		return
 	}
 
 	By("Retrieving nodes list")
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Find nodes matching label %q", nodeLabel)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Find nodes matching label %q", nodeLabel)
 
 	Eventually(func() bool {
 		nodeList, err = nodes.List(
@@ -182,7 +182,7 @@ func cleanupUnexpectedPods(nodeLabel string) {
 		)
 
 		if err != nil {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list nodes: %w", err)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list nodes: %v", err)
 
 			return false
 		}
@@ -192,7 +192,7 @@ func cleanupUnexpectedPods(nodeLabel string) {
 		fmt.Sprintf("Failed to find node(s) matching label: %q", nodeLabel))
 
 	for _, _node := range nodeList {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q macthes label %q",
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q macthes label %q",
 			_node.Definition.Name, nodeLabel)
 	}
 
@@ -202,7 +202,7 @@ func cleanupUnexpectedPods(nodeLabel string) {
 		if failedPod.Definition.Status.Reason == "UnexpectedAdmissionError" {
 			for _, _node := range nodeList {
 				if _node.Definition.Name == failedPod.Definition.Spec.NodeName {
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deleting pod %q in %q ns running on %q",
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deleting pod %q in %q ns running on %q",
 						failedPod.Definition.Name, failedPod.Definition.Namespace, _node.Definition.Name)
 
 					_, err := failedPod.DeleteAndWait(5 * time.Minute)

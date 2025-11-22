@@ -12,8 +12,8 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/bmh"
@@ -62,16 +62,16 @@ func VerifyInitialDeploymentConfig() {
 
 // VerifyHealthyClusterStatus asserts healthy cluster status.
 func VerifyHealthyClusterStatus(ctx SpecContext) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Verify healthy cluster status")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify healthy cluster status")
 
 	kubeConfigURL := os.Getenv("KUBECONFIG")
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Checking if API URL available")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Checking if API URL available")
 
 	_, err := apiUrl.Parse(kubeConfigURL)
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Error getting API URL: %v", err))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Checking if all BareMetalHosts in good OperationalState")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Checking if all BareMetalHosts in good OperationalState")
 
 	var bmhList []*bmh.BmhBuilder
 	bmhList, err = bmh.List(APIClient, vcoreparams.OpenshiftMachineAPINamespace)
@@ -84,7 +84,7 @@ func VerifyHealthyClusterStatus(ctx SpecContext) {
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Error waiting for all BareMetalHosts in good OperationalState: %v", err))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Checking available control-plane nodes count")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Checking available control-plane nodes count")
 
 	var nodesList []*nodes.Builder
 	nodesList, err = nodes.List(APIClient, VCoreConfig.ControlPlaneLabelListOption)
@@ -94,7 +94,7 @@ func VerifyHealthyClusterStatus(ctx SpecContext) {
 	Expect(masterNodesCount).To(Equal(3),
 		fmt.Sprintf("Error in master nodes count; found master nodes count is %d", masterNodesCount))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Checking all master nodes are Ready")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Checking all master nodes are Ready")
 
 	var isReady bool
 	isReady, err = nodes.WaitForAllNodesAreReady(
@@ -105,12 +105,12 @@ func VerifyHealthyClusterStatus(ctx SpecContext) {
 	Expect(isReady).To(Equal(true),
 		fmt.Sprintf("Failed master nodes status, not all Master node are Ready; %v", isReady))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Checking that the clusterversion is available")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Checking that the clusterversion is available")
 
 	_, err = clusterversion.Pull(APIClient)
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Error accessing csv: %v", err))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Asserting clusteroperators availability")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Asserting clusteroperators availability")
 
 	var coBuilder []*clusteroperator.Builder
 	coBuilder, err = clusteroperator.List(APIClient)
@@ -124,7 +124,7 @@ func VerifyHealthyClusterStatus(ctx SpecContext) {
 
 // verifyEtcChronyRun assert that time sync config was successfully applied and running.
 func verifyEtcChronyRun(nodesRole string, nodeLabelOption metav1.ListOptions) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Asserts that time sync config was successfully applied "+
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Asserts that time sync config was successfully applied "+
 		"and running on %s nodes", nodesRole)
 
 	isChronyApplied := false
@@ -145,7 +145,7 @@ func verifyEtcChronyRun(nodesRole string, nodeLabelOption metav1.ListOptions) {
 
 	Expect(isChronyApplied).To(BeTrue(), fmt.Sprintf("Error assert time sync was applied for %s nodes", nodesRole))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Verify the chronyd status for %s nodes", nodesRole)
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify the chronyd status for %s nodes", nodesRole)
 
 	chronydStatusCmd := []string{"chroot", "/rootfs", "/bin/sh", "-c", "sudo systemctl status chronyd | grep Active"}
 
@@ -174,7 +174,7 @@ func VerifyEtcChronyWorkers(ctx SpecContext) {
 
 // verifyNodesAvailability assert MCP nodes availability.
 func verifyNodesAvailability(nodesRole string, nodeLabelOption metav1.ListOptions) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Verify %s nodes availability", nodesRole)
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify %s nodes availability", nodesRole)
 
 	nodesList, err := nodes.List(APIClient, nodeLabelOption)
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to get %s nodes list; %v", nodesRole, err))
@@ -183,12 +183,12 @@ func verifyNodesAvailability(nodesRole string, nodeLabelOption metav1.ListOption
 
 // verifyNodesInMCP assert MCP was deployed.
 func verifyNodesInMCP(nodesRole string) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Verify %s MCP was deployed", nodesRole)
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify %s MCP was deployed", nodesRole)
 
 	mcp, err := mco.Pull(APIClient, nodesRole)
 	Expect(err).To(BeNil(), fmt.Sprintf("%q MCP was not found", nodesRole))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Checking %s MCP condition state", nodesRole)
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Checking %s MCP condition state", nodesRole)
 	Expect(mcp.IsInCondition("Updated")).To(BeTrue(),
 		fmt.Sprintf("%s MCP failed to update", nodesRole))
 }

@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/frrtypes"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -23,17 +23,17 @@ type FrrNodeStateBuilder struct {
 
 // PullFrrNodeState retrieves an existing FrrNodeState object from the cluster.
 func PullFrrNodeState(apiClient *clients.Settings, name string) (*FrrNodeStateBuilder, error) {
-	glog.V(100).Infof("Pulling FrrNodeState object name:%s", name)
+	klog.V(100).Infof("Pulling FrrNodeState object name:%s", name)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil, fmt.Errorf("the apiClient cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(frrtypes.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add FrrNodeState scheme to client schemes")
+		klog.V(100).Info("Failed to add FrrNodeState scheme to client schemes")
 
 		return nil, err
 	}
@@ -48,7 +48,7 @@ func PullFrrNodeState(apiClient *clients.Settings, name string) (*FrrNodeStateBu
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the FrrNodeState is empty")
+		klog.V(100).Info("The name of the FrrNodeState is empty")
 
 		return nil, fmt.Errorf("frrNodeState 'name' cannot be empty")
 	}
@@ -68,7 +68,7 @@ func (builder *FrrNodeStateBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if FrrNodeState %s exists", builder.Definition.Name)
+	klog.V(100).Infof("Checking if FrrNodeState %s exists", builder.Definition.Name)
 
 	var err error
 
@@ -83,7 +83,7 @@ func (builder *FrrNodeStateBuilder) Get() (*frrtypes.FRRNodeState, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Collecting FrrNodeState object %s", builder.Definition.Name)
+	klog.V(100).Infof("Collecting FrrNodeState object %s", builder.Definition.Name)
 
 	frrNodeState := &frrtypes.FRRNodeState{}
 
@@ -91,7 +91,7 @@ func (builder *FrrNodeStateBuilder) Get() (*frrtypes.FRRNodeState, error) {
 		Name: builder.Definition.Name,
 	}, frrNodeState)
 	if err != nil {
-		glog.V(100).Infof("FrrNodeState object %s does not exist", builder.Definition.Name)
+		klog.V(100).Infof("FrrNodeState object %s does not exist", builder.Definition.Name)
 
 		return nil, err
 	}
@@ -105,19 +105,19 @@ func (builder *FrrNodeStateBuilder) validate() (bool, error) {
 	resourceCRD := "frrnodestate"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

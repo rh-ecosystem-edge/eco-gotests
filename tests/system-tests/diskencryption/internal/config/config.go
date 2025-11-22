@@ -7,12 +7,12 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/bmc"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/diskencryption/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/systemtestsconfig"
 	"gopkg.in/yaml.v2"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -63,7 +63,7 @@ func NewDiskEncryptionConfig() *DiskEncrptionConfig {
 		diskEncryptionConf.BMCPassword != "" {
 		bmcHost := diskEncryptionConf.BMCHosts[0]
 		if len(diskEncryptionConf.BMCHosts) > 1 {
-			glog.V(tsparams.LogLevel).Infof("Found more than one BMC host, using the first one: %s", bmcHost)
+			klog.V(tsparams.LogLevel).Infof("Found more than one BMC host, using the first one: %s", bmcHost)
 		}
 
 		diskEncryptionConf.Spoke1BMC = bmc.New(bmcHost).

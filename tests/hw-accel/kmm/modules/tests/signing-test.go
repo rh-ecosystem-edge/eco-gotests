@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/configmap"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/events"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/kmm"
@@ -20,6 +19,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/modules/internal/tsparams"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/klog/v2"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -162,11 +162,11 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			reasonBuildListLength := len(kmmparams.ReasonBuildList)
 			foundEvents := 0
 			for _, item := range kmmparams.ReasonBuildList {
-				glog.V(kmmparams.KmmLogLevel).Infof("Checking %s is present in events", item)
+				klog.V(kmmparams.KmmLogLevel).Infof("Checking %s is present in events", item)
 				for _, event := range eventList {
-					glog.V(kmmparams.KmmLogLevel).Infof("Checking event: %s", event.Object.Reason)
+					klog.V(kmmparams.KmmLogLevel).Infof("Checking event: %s", event.Object.Reason)
 					if event.Object.Reason == item {
-						glog.V(kmmparams.KmmLogLevel).Infof("Found %s in events", item)
+						klog.V(kmmparams.KmmLogLevel).Infof("Found %s in events", item)
 						foundEvents++
 
 						break
@@ -184,10 +184,10 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			reasonSignListLength := len(kmmparams.ReasonSignList)
 			foundEvents := 0
 			for _, item := range kmmparams.ReasonSignList {
-				glog.V(kmmparams.KmmLogLevel).Infof("Checking %s is present in events", item)
+				klog.V(kmmparams.KmmLogLevel).Infof("Checking %s is present in events", item)
 				for _, event := range eventList {
 					if event.Object.Reason == item {
-						glog.V(kmmparams.KmmLogLevel).Infof("Found %s in events", item)
+						klog.V(kmmparams.KmmLogLevel).Infof("Found %s in events", item)
 						foundEvents++
 
 						break

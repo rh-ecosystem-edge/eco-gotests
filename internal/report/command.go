@@ -11,14 +11,14 @@ import (
 	"path"
 	"strings"
 
-	"github.com/golang/glog"
+	"k8s.io/klog/v2"
 )
 
 // CloneRepo clones the eco-gotests repo from the given repo and branch and returns the path to the cloned repo.
 func CloneRepo(ctx context.Context, localPath, repo, branch string) (string, error) {
 	clonedPath := path.Join(localPath, "eco-gotests")
 
-	glog.V(100).Infof("Cloning repo %s with branch %s to %s", repo, branch, clonedPath)
+	klog.V(100).Infof("Cloning repo %s with branch %s to %s", repo, branch, clonedPath)
 
 	err := os.RemoveAll(clonedPath)
 	if err != nil {
@@ -38,7 +38,7 @@ func CloneRepo(ctx context.Context, localPath, repo, branch string) (string, err
 
 // DryRun runs the eco-gotests tests in dry-run mode and returns the path to the JSON report file.
 func DryRun(ctx context.Context, clonedPath string) (string, error) {
-	glog.V(100).Infof("Running eco-gotests dry-run in %s", clonedPath)
+	klog.V(100).Infof("Running eco-gotests dry-run in %s", clonedPath)
 
 	cmd := exec.CommandContext(ctx, "ginkgo", "--json-report=report.json", "-dry-run", "-v", "-r", "./tests")
 	cmd.Dir = clonedPath
@@ -57,7 +57,7 @@ func DryRun(ctx context.Context, clonedPath string) (string, error) {
 
 // GetRepoRevision returns the current revision of the repo at the given path.
 func GetRepoRevision(ctx context.Context, repoPath string) (string, error) {
-	glog.V(100).Infof("Getting repo revision for %s", repoPath)
+	klog.V(100).Infof("Getting repo revision for %s", repoPath)
 
 	cmd := exec.CommandContext(ctx, "git", "rev-parse", "HEAD")
 	cmd.Dir = repoPath
@@ -72,7 +72,7 @@ func GetRepoRevision(ctx context.Context, repoPath string) (string, error) {
 
 // GetRepoBranch returns the current branch of the repo at the given path.
 func GetRepoBranch(ctx context.Context, repoPath string) (string, error) {
-	glog.V(100).Infof("Getting repo branch for %s", repoPath)
+	klog.V(100).Infof("Getting repo branch for %s", repoPath)
 
 	cmd := exec.CommandContext(ctx, "git", "branch", "--show-current")
 	cmd.Dir = repoPath
@@ -87,7 +87,7 @@ func GetRepoBranch(ctx context.Context, repoPath string) (string, error) {
 
 // HasLocalChanges returns true if the repo at the given path has uncommitted changes and false otherwise.
 func HasLocalChanges(ctx context.Context, repoPath string) (bool, error) {
-	glog.V(100).Infof("Checking for local changes in %s", repoPath)
+	klog.V(100).Infof("Checking for local changes in %s", repoPath)
 
 	cmd := exec.CommandContext(ctx, "git", "status", "--porcelain")
 	cmd.Dir = repoPath
@@ -103,14 +103,14 @@ func HasLocalChanges(ctx context.Context, repoPath string) (bool, error) {
 // GetRemoteRevisions returns a map of branches to revisions executing just one command. Provided branches will not
 // appear in the returned map if they are not found on the remote repo.
 func GetRemoteRevisions(ctx context.Context, repo string, branches iter.Seq[string]) (map[string]string, error) {
-	glog.V(100).Infof("Getting remote revisions for repo %s", repo)
+	klog.V(100).Infof("Getting remote revisions for repo %s", repo)
 
 	args := []string{"ls-remote", repo}
 	for branch := range branches {
 		args = append(args, "refs/heads/"+branch)
 	}
 
-	glog.V(100).Infof("Getting remote revisions with arguments %+v", args)
+	klog.V(100).Infof("Getting remote revisions with arguments %+v", args)
 	cmd := exec.CommandContext(ctx, "git", args...)
 
 	stdout, err := execCommandWithStdout(cmd)
@@ -148,7 +148,7 @@ func execCommand(command *exec.Cmd) error {
 
 	err := command.Run()
 	if err != nil {
-		glog.V(100).Infof("Command %s failed with error: %v\nStdout: %s\nStderr: %s",
+		klog.V(100).Infof("Command %s failed with error: %v\nStdout: %s\nStderr: %s",
 			command.String(), err, stdout.String(), stderr.String())
 
 		return err
@@ -166,7 +166,7 @@ func execCommandWithStdout(command *exec.Cmd) (string, error) {
 
 	err := command.Run()
 	if err != nil {
-		glog.V(100).Infof("Command %s failed with error: %v\nStdout: %s\nStderr: %s",
+		klog.V(100).Infof("Command %s failed with error: %v\nStdout: %s\nStderr: %s",
 			command.String(), err, stdout.String(), stderr.String())
 
 		return "", err

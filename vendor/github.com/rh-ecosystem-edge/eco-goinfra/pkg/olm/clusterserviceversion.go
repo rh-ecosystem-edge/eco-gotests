@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	oplmV1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/operators/v1alpha1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -30,17 +30,17 @@ type ClusterServiceVersionBuilder struct {
 // PullClusterServiceVersion loads an existing clusterserviceversion into Builder struct.
 func PullClusterServiceVersion(apiClient *clients.Settings, name, namespace string) (*ClusterServiceVersionBuilder,
 	error) {
-	glog.V(100).Infof("Pulling existing clusterserviceversion name %s in namespace %s", name, namespace)
+	klog.V(100).Infof("Pulling existing clusterserviceversion name %s in namespace %s", name, namespace)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil, fmt.Errorf("clusterserviceversion 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(oplmV1alpha1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add operatorsV1alpha1 scheme to client schemes")
+		klog.V(100).Info("Failed to add operatorsV1alpha1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -56,13 +56,13 @@ func PullClusterServiceVersion(apiClient *clients.Settings, name, namespace stri
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the clusterserviceversion is empty")
+		klog.V(100).Info("The name of the clusterserviceversion is empty")
 
 		return nil, fmt.Errorf("clusterserviceversion 'name' cannot be empty")
 	}
 
 	if namespace == "" {
-		glog.V(100).Infof("The namespace of the clusterserviceversion is empty")
+		klog.V(100).Info("The namespace of the clusterserviceversion is empty")
 
 		return nil, fmt.Errorf("clusterserviceversion 'namespace' cannot be empty")
 	}
@@ -82,7 +82,7 @@ func (builder *ClusterServiceVersionBuilder) Get() (*oplmV1alpha1.ClusterService
 		return nil, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Collecting ClusterServiceVersion object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -92,7 +92,7 @@ func (builder *ClusterServiceVersionBuilder) Get() (*oplmV1alpha1.ClusterService
 		runtimeClient.ObjectKey{Name: builder.Definition.Name, Namespace: builder.Definition.Namespace},
 		clusterServiceVersion)
 	if err != nil {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"ClusterServiceVersion object %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
@@ -108,7 +108,7 @@ func (builder *ClusterServiceVersionBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Checking if ClusterServiceVersion %s exists",
 		builder.Definition.Name)
 
@@ -125,11 +125,11 @@ func (builder *ClusterServiceVersionBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting clusterserviceversion %s in namespace %s", builder.Definition.Name,
+	klog.V(100).Infof("Deleting clusterserviceversion %s in namespace %s", builder.Definition.Name,
 		builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("clusterserviceversion %s namespace %s cannot be deleted because it does not exist",
+		klog.V(100).Infof("clusterserviceversion %s namespace %s cannot be deleted because it does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -153,10 +153,10 @@ func (builder *ClusterServiceVersionBuilder) Update() (*ClusterServiceVersionBui
 		return nil, err
 	}
 
-	glog.V(100).Infof("Updating ClusterServiceVersion %s", builder.Definition.Name)
+	klog.V(100).Infof("Updating ClusterServiceVersion %s", builder.Definition.Name)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("ClusterServiceVersion %s does not exist", builder.Definition.Name)
+		klog.V(100).Infof("ClusterServiceVersion %s does not exist", builder.Definition.Name)
 
 		return nil, fmt.Errorf("cannot update non-existent ClusterServiceVersion")
 	}
@@ -179,7 +179,7 @@ func (builder *ClusterServiceVersionBuilder) GetAlmExamples() (string, error) {
 		return "", err
 	}
 
-	glog.V(100).Infof("Extracting the 'alm-examples' section from clusterserviceversion %s in "+
+	klog.V(100).Infof("Extracting the 'alm-examples' section from clusterserviceversion %s in "+
 		"namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 	almExamples := "alm-examples"
@@ -202,7 +202,7 @@ func (builder *ClusterServiceVersionBuilder) IsSuccessful() (bool, error) {
 		return false, err
 	}
 
-	glog.V(100).Infof("Verify clusterserviceversion %s in namespace %s is Successful",
+	klog.V(100).Infof("Verify clusterserviceversion %s in namespace %s is Successful",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	phase, err := builder.GetPhase()
@@ -220,7 +220,7 @@ func (builder *ClusterServiceVersionBuilder) GetPhase() (oplmV1alpha1.ClusterSer
 		return "", err
 	}
 
-	glog.V(100).Infof("Get clusterserviceversion %s phase in namespace %s",
+	klog.V(100).Infof("Get clusterserviceversion %s phase in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
@@ -237,25 +237,25 @@ func (builder *ClusterServiceVersionBuilder) validate() (bool, error) {
 	resourceCRD := "ClusterServiceVersion"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

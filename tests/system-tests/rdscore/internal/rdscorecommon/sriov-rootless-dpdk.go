@@ -12,8 +12,8 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/link"
 	"gopkg.in/k8snetworkplumbingwg/multus-cni.v4/pkg/types"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/klog/v2"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
@@ -88,25 +88,25 @@ func createRootlessDPDKServerDeployment(
 	sriovNodePolicyName,
 	serverDeploymentHost,
 	txIPs string) error {
-	glog.V(100).Infof("Ensuring server deployment %q doesn't exist in %q namespace",
+	klog.V(100).Infof("Ensuring server deployment %q doesn't exist in %q namespace",
 		serverDPDKDeploymentName, deploymentNamespace)
 
 	err := cleanUpRootlessDPDKDeployment(apiClient, serverDPDKDeploymentName, deploymentNamespace, serverPodLabel)
 	if err != nil {
-		glog.V(100).Infof("Failed to cleanup deployment %s from the namespace %s: %v",
+		klog.V(100).Infof("Failed to cleanup deployment %s from the namespace %s: %v",
 			serverDPDKDeploymentName, deploymentNamespace, err)
 
 		return fmt.Errorf("failed to cleanup deployment %s from the namespace %s: %w",
 			serverDPDKDeploymentName, deploymentNamespace, err)
 	}
 
-	glog.V(100).Infof("Creating server DPDK deployment %s in namespace %s",
+	klog.V(100).Infof("Creating server DPDK deployment %s in namespace %s",
 		serverDPDKDeploymentName, deploymentNamespace)
 
 	serverPodNetConfig := pod.StaticIPAnnotationWithMacAndNamespace(
 		serverSRIOVNetworkName, deploymentNamespace, dpdkServerMac)
 	if len(serverPodNetConfig) == 0 {
-		glog.V(100).Infof("Failed to build rootless DPDK server pod network configuration for the "+
+		klog.V(100).Infof("Failed to build rootless DPDK server pod network configuration for the "+
 			"network %s from the namespace %s with the MAC address %s",
 			serverSRIOVNetworkName, deploymentNamespace, dpdkServerMac)
 
@@ -129,7 +129,7 @@ func createRootlessDPDKServerDeployment(
 		serverDeploymentLabelMap)
 
 	if err != nil {
-		glog.V(100).Infof("Failed to create server deployment %s in namespace %s: %v",
+		klog.V(100).Infof("Failed to create server deployment %s in namespace %s: %v",
 			serverDPDKDeploymentName, deploymentNamespace, err)
 
 		return fmt.Errorf("failed to create server deployment %s in namespace %s: %w",
@@ -155,13 +155,13 @@ func cleanUpRootlessDPDKDeployment(
 	nsName,
 	podLabel string) error {
 	if deploymentName == "" {
-		glog.V(100).Infof("The rootless DPDK deployment name has to be provided")
+		klog.V(100).Infof("The rootless DPDK deployment name has to be provided")
 
 		return fmt.Errorf("the rootless DPDK deployment name has to be provided")
 	}
 
 	if nsName == "" {
-		glog.V(100).Infof("The rootless DPDK deployment namespace has to be provided")
+		klog.V(100).Infof("The rootless DPDK deployment namespace has to be provided")
 
 		return fmt.Errorf("the rootless DPDK deployment namespace has to be provided")
 	}
@@ -169,12 +169,12 @@ func cleanUpRootlessDPDKDeployment(
 	_, err := deployment.Pull(apiClient, deploymentName, nsName)
 
 	if err == nil {
-		glog.V(100).Infof("Ensure %s deployment does not exist in namespace %s", deploymentName, nsName)
+		klog.V(100).Infof("Ensure %s deployment does not exist in namespace %s", deploymentName, nsName)
 
 		err = apiobjectshelper.DeleteDeployment(apiClient, deploymentName, nsName)
 
 		if err != nil {
-			glog.V(100).Infof("Failed to delete deployment %s from nsname %s due to %v",
+			klog.V(100).Infof("Failed to delete deployment %s from nsname %s due to %v",
 				deploymentName, nsName, err)
 
 			return fmt.Errorf("failed to delete deployment %s from nsname %s due to %w",
@@ -185,7 +185,7 @@ func cleanUpRootlessDPDKDeployment(
 	err = apiobjectshelper.EnsureAllPodsRemoved(apiClient, nsName, podLabel)
 
 	if err != nil {
-		glog.V(100).Infof("Failed to delete pods in namespace %s with the label %s: %v", nsName, podLabel, err)
+		klog.V(100).Infof("Failed to delete pods in namespace %s with the label %s: %v", nsName, podLabel, err)
 
 		return fmt.Errorf("failed to delete pods in namespace %s with the label %s: %w", nsName, podLabel, err)
 	}
@@ -204,14 +204,14 @@ func defineAndCreateDPDKDeployment(
 	podNetConfig []*types.NetworkSelectionElement,
 	containerCmd []string,
 	deployLabels map[string]string) error {
-	glog.V(100).Infof("Creating container %s definition", deploymentName)
+	klog.V(100).Infof("Creating container %s definition", deploymentName)
 
 	nodeSelector := map[string]string{"kubernetes.io/hostname": scheduleOnHost}
 
 	dpdkContainerCfg, err := defineDPDKContainer(deploymentName, containerCmd, securityContext)
 
 	if err != nil {
-		glog.V(100).Infof("Failed to set DPDK container %s due to %v", deploymentName, err)
+		klog.V(100).Infof("Failed to set DPDK container %s due to %v", deploymentName, err)
 
 		return fmt.Errorf("failed to set DPDK container %s due to %w", deploymentName, err)
 	}
@@ -235,20 +235,20 @@ func defineAndCreateDPDKDeployment(
 	_, err = dpdkDeployment.CreateAndWaitUntilReady(waitTimeout)
 
 	if err != nil {
-		glog.V(100).Infof("Failed to create DPDK deployment %s in namespace %s due to %v",
+		klog.V(100).Infof("Failed to create DPDK deployment %s in namespace %s due to %v",
 			deploymentName, deploymentNamespace, err)
 
 		return fmt.Errorf("failed to create DPDK deployment %s in namespace %s: %w",
 			deploymentName, deploymentNamespace, err)
 	}
 
-	glog.V(100).Infof("Wait for the Running pod status for the deployment %s in namespace %s",
+	klog.V(100).Infof("Wait for the Running pod status for the deployment %s in namespace %s",
 		deploymentName, deploymentNamespace)
 
 	_pod, err := getDPDKPod(apiClient, deploymentName, deploymentNamespace)
 
 	if err != nil || _pod == nil {
-		glog.V(100).Infof("no running pods found for the deployment %s in namespace %s: %v",
+		klog.V(100).Infof("no running pods found for the deployment %s in namespace %s: %v",
 			deploymentName, deploymentNamespace, err)
 
 		return fmt.Errorf("no running pods found for the deployment %s in namespace %s: %w",
@@ -273,7 +273,7 @@ func defineDPDKContainer(
 		GetContainerCfg()
 
 	if err != nil {
-		glog.V(100).Infof("Failed to define server container %s due to %v", cName, err)
+		klog.V(100).Infof("Failed to define server container %s due to %v", cName, err)
 
 		return nil, fmt.Errorf("failed to define server container %s due to %w", cName, err)
 	}
@@ -282,12 +282,12 @@ func defineDPDKContainer(
 }
 
 func retrieveClientDPDKPod(apiClient *clients.Settings, podNamePattern, podNamespace string) (*pod.Builder, error) {
-	glog.V(100).Infof("Retrieve client DPDK pod %s in namespace %s", podNamePattern, podNamespace)
+	klog.V(100).Infof("Retrieve client DPDK pod %s in namespace %s", podNamePattern, podNamespace)
 
 	podObj, err := getDPDKPod(apiClient, podNamePattern, podNamespace)
 
 	if err != nil {
-		glog.V(100).Infof("Failed to retrieve client pod %q in namespace %q: %v",
+		klog.V(100).Infof("Failed to retrieve client pod %q in namespace %q: %v",
 			podNamePattern, podNamespace, err)
 
 		return nil, fmt.Errorf("failed to retrieve client pod %q in namespace %q: %w",
@@ -296,7 +296,7 @@ func retrieveClientDPDKPod(apiClient *clients.Settings, podNamePattern, podNames
 
 	err = podObj.WaitUntilReady(time.Second * 30)
 	if err != nil {
-		glog.V(100).Infof("The rootless DPDK client pod %s in namespace %s is not in Ready condition: %v",
+		klog.V(100).Infof("The rootless DPDK client pod %s in namespace %s is not in Ready condition: %v",
 			podNamePattern, podNamespace, err)
 
 		return nil, fmt.Errorf("the rootless DPDK client pod %s in namespace %s is not in Ready condition: %w",
@@ -317,24 +317,24 @@ func getDPDKPod(apiClient *clients.Settings, podNamePattern, podNamespace string
 		func(ctx context.Context) (bool, error) {
 			podObjList, err := pod.ListByNamePattern(apiClient, podNamePattern, podNamespace)
 			if err != nil {
-				glog.V(100).Infof("Error getting pod object by name pattern %q in namespace %q: %v",
+				klog.V(100).Infof("Error getting pod object by name pattern %q in namespace %q: %v",
 					podNamePattern, podNamespace, err)
 
 				return false, nil
 			}
 
 			if len(podObjList) == 0 {
-				glog.V(100).Infof("No pods %s were found in namespace %q", podNamePattern, podNamespace)
+				klog.V(100).Infof("No pods %s were found in namespace %q", podNamePattern, podNamespace)
 
 				return false, nil
 			}
 
 			if len(podObjList) > 1 {
-				glog.V(100).Infof("Wrong pods %s count was found in namespace %q",
+				klog.V(100).Infof("Wrong pods %s count was found in namespace %q",
 					podNamePattern, podNamespace)
 
 				for _, _pod := range podObjList {
-					glog.V(100).Infof("Pod %q is in %q phase", _pod.Definition.Name, _pod.Object.Status.Phase)
+					klog.V(100).Infof("Pod %q is in %q phase", _pod.Definition.Name, _pod.Object.Status.Phase)
 				}
 
 				return false, nil
@@ -346,7 +346,7 @@ func getDPDKPod(apiClient *clients.Settings, podNamePattern, podNamespace string
 		})
 
 	if err != nil {
-		glog.V(100).Infof("Failed to retrieve pod %q in namespace %q: %v",
+		klog.V(100).Infof("Failed to retrieve pod %q in namespace %q: %v",
 			podNamePattern, podNamespace, err)
 
 		return nil, fmt.Errorf("failed to retrieve pod %q in namespace %q: %w",
@@ -359,7 +359,7 @@ func getDPDKPod(apiClient *clients.Settings, podNamePattern, podNamespace string
 func rxTrafficOnClientPod(clientPod *pod.Builder, clientRxCmd string) error {
 	timeoutError := "command terminated with exit code 137"
 
-	glog.V(90).Infof("Checking dpdk-pmd traffic command %s from the client pod %s",
+	klog.V(90).Infof("Checking dpdk-pmd traffic command %s from the client pod %s",
 		clientRxCmd, clientPod.Definition.Name)
 
 	var clientOut bytes.Buffer
@@ -375,10 +375,10 @@ func rxTrafficOnClientPod(clientPod *pod.Builder, clientRxCmd string) error {
 			clientOut, err = clientPod.ExecCommandWithTimeout([]string{"/bin/bash", "-c", clientRxCmd}, clientRxCmdTimeout)
 
 			if err != nil {
-				glog.V(100).Infof("Error running command: %v", err)
+				klog.V(100).Infof("Error running command: %v", err)
 
 				if err.Error() != timeoutError {
-					glog.V(100).Infof("Failed to run the dpdk-pmd command %s; %v", clientRxCmd, err)
+					klog.V(100).Infof("Failed to run the dpdk-pmd command %s; %v", clientRxCmd, err)
 
 					return false, nil
 				}
@@ -389,22 +389,22 @@ func rxTrafficOnClientPod(clientPod *pod.Builder, clientRxCmd string) error {
 
 	if err != nil {
 		if err.Error() != timeoutError {
-			glog.V(100).Infof("Failed to run the dpdk-pmd command %s on the client pod %s in namespace %s; %v",
+			klog.V(100).Infof("Failed to run the dpdk-pmd command %s on the client pod %s in namespace %s; %v",
 				clientRxCmd, clientPod.Definition.Name, clientPod.Definition.Namespace, err)
 
 			return fmt.Errorf("failed to run the dpdk-pmd command %s on the client pod %s in namespace %s; %w",
 				clientRxCmd, clientPod.Definition.Name, clientPod.Definition.Namespace, err)
 		}
 
-		glog.V(100).Infof("expected error message received: %v", err)
+		klog.V(100).Infof("expected error message received: %v", err)
 	}
 
-	glog.V(90).Infof("Processing testpmd output from client pod \n%s", clientOut.String())
+	klog.V(90).Infof("Processing testpmd output from client pod \n%s", clientOut.String())
 
 	outPutTrue := checkRxOnly(clientOut.String())
 
 	if !outPutTrue {
-		glog.V(100).Infof("Failed to parse the dpdk-pmd command execution output \n%s", clientOut.String())
+		klog.V(100).Infof("Failed to parse the dpdk-pmd command execution output \n%s", clientOut.String())
 
 		return fmt.Errorf("failed to parse the output from RxTrafficOnClientPod \n%s", clientOut.String())
 	}
@@ -430,7 +430,7 @@ func getCurrentLinkRx(runningPod *pod.Builder) (map[string]int, error) {
 			linksRawInfo, err = runningPod.ExecCommandWithTimeout(
 				[]string{"/bin/bash", "-c", "ip --json -s link show"}, getLinkRxTimeout)
 			if err != nil {
-				glog.V(100).Infof("The links info is not available for the pod %s in namespace %s with error %v",
+				klog.V(100).Infof("The links info is not available for the pod %s in namespace %s with error %v",
 					runningPod.Definition.Name, runningPod.Definition.Namespace, err)
 
 				return false, nil
@@ -439,7 +439,7 @@ func getCurrentLinkRx(runningPod *pod.Builder) (map[string]int, error) {
 			tmpLinksInfoList, err := link.NewListBuilder(linksRawInfo)
 
 			if err != nil {
-				glog.V(100).Infof("Failed to build a links object list for %q due to %v",
+				klog.V(100).Infof("Failed to build a links object list for %q due to %v",
 					linksRawInfo, err)
 
 				return false, nil
@@ -451,7 +451,7 @@ func getCurrentLinkRx(runningPod *pod.Builder) (map[string]int, error) {
 		})
 
 	if err != nil {
-		glog.V(100).Infof("Failed to get links info from pod %s in namespace %s with error %v",
+		klog.V(100).Infof("Failed to get links info from pod %s in namespace %s with error %v",
 			runningPod.Definition.Name, runningPod.Definition.Namespace, err)
 
 		return nil, fmt.Errorf("failed to get links info from pod %s in namespace %s with error %w",
@@ -459,7 +459,7 @@ func getCurrentLinkRx(runningPod *pod.Builder) (map[string]int, error) {
 	}
 
 	for _, linkInfo := range linksInfoList {
-		glog.V(100).Infof("Found RxByte for interface %s: %d",
+		klog.V(100).Infof("Found RxByte for interface %s: %d",
 			linkInfo.Ifname, linkInfo.GetRxByte())
 
 		linksInfoMap[linkInfo.Ifname] = linkInfo.GetRxByte()
@@ -473,7 +473,7 @@ func checkRxOnly(out string) bool {
 	for index, line := range lines {
 		if strings.Contains(line, "NIC statistics for port") {
 			if len(lines[index+1]) < 3 {
-				glog.V(90).Info("Fail: line list contains less than 3 elements")
+				klog.V(90).Info("Fail: line list contains less than 3 elements")
 
 				return false
 			}
@@ -488,20 +488,20 @@ func checkRxOnly(out string) bool {
 }
 
 func getNumberOfPackets(line, firstFieldSubstr string) int {
-	glog.V(100).Infof("Parsing line %s", line)
+	klog.V(100).Infof("Parsing line %s", line)
 
 	splitLine := strings.Fields(line)
 
-	glog.V(100).Infof("Parsing field %s", splitLine)
+	klog.V(100).Infof("Parsing field %s", splitLine)
 
 	if !strings.Contains(splitLine[0], firstFieldSubstr) {
-		glog.V(90).Infof("Failed to find expected substring %s", firstFieldSubstr)
+		klog.V(90).Infof("Failed to find expected substring %s", firstFieldSubstr)
 
 		return 0
 	}
 
 	if len(splitLine) != 6 {
-		glog.V(90).Info("the slice doesn't contain 6 elements")
+		klog.V(90).Info("the slice doesn't contain 6 elements")
 
 		return 0
 	}
@@ -509,7 +509,7 @@ func getNumberOfPackets(line, firstFieldSubstr string) int {
 	numberOfPackets, err := strconv.Atoi(splitLine[1])
 
 	if err != nil {
-		glog.V(90).Infof("failed to convert string to integer %s", err)
+		klog.V(90).Infof("failed to convert string to integer %s", err)
 
 		return 0
 	}
@@ -541,26 +541,26 @@ func checkRxOutputRateForInterfaces(
 	for interfaceName, TrafficRate := range interfaceTrafficRateMap {
 		originalRate := origInterfaceTrafficRateMap[interfaceName]
 
-		glog.V(100).Infof("Original Rate for the interface %s: %d", interfaceName, originalRate)
+		klog.V(100).Infof("Original Rate for the interface %s: %d", interfaceName, originalRate)
 
 		currentRate, err := getLinkRx(clientPod, interfaceName)
 		if err != nil {
-			glog.V(100).Infof("Failed to collect link %s info from pod %s in namespace %s with error %v",
+			klog.V(100).Infof("Failed to collect link %s info from pod %s in namespace %s with error %v",
 				interfaceName, clientPod.Definition.Name, clientPod.Definition.Namespace, err)
 
 			return fmt.Errorf("failed to get link %s info from pod %s in namespace %s with error %w",
 				interfaceName, clientPod.Definition.Name, clientPod.Definition.Namespace, err)
 		}
 
-		glog.V(100).Infof("Current Rate for the interface %s: %d", interfaceName, currentRate)
+		klog.V(100).Infof("Current Rate for the interface %s: %d", interfaceName, currentRate)
 
 		currentRate -= originalRate
 
-		glog.V(100).Infof("Current run Rate for the interface %s: %d", interfaceName, currentRate)
+		klog.V(100).Infof("Current run Rate for the interface %s: %d", interfaceName, currentRate)
 
 		if TrafficRate == maxMulticastNoiseRate && currentRate > TrafficRate ||
 			TrafficRate != maxMulticastNoiseRate && currentRate < TrafficRate {
-			glog.V(100).Infof("Failed traffic rate is not in expected range; "+
+			klog.V(100).Infof("Failed traffic rate is not in expected range; "+
 				"current rate is %d, TrafficRate is %d, interfaceName is %s", currentRate, TrafficRate, interfaceName)
 
 			return fmt.Errorf("failed traffic rate is not in expected range; "+
@@ -586,20 +586,20 @@ func getLinkRx(runningPod *pod.Builder, linkName string) (int, error) {
 			linkRawInfo, err = runningPod.ExecCommandWithTimeout(
 				[]string{"/bin/bash", "-c", fmt.Sprintf("ip --json -s link show dev %s", linkName)}, getLinkRxTimeout)
 			if err != nil {
-				glog.V(100).Infof("The link %s info is not available for the pod %s in namespace %s "+
+				klog.V(100).Infof("The link %s info is not available for the pod %s in namespace %s "+
 					"with error %v",
 					linkName, runningPod.Definition.Name, runningPod.Definition.Namespace, err)
 
 				return false, nil
 			}
 
-			glog.V(100).Infof("Validating output of link %s info from pod %s in namespace %s",
+			klog.V(100).Infof("Validating output of link %s info from pod %s in namespace %s",
 				linkName, runningPod.Definition.Name, runningPod.Definition.Namespace)
 
 			_, err = link.NewBuilder(linkRawInfo)
 
 			if err != nil {
-				glog.V(100).Infof("Failed to parse %q link's info from pod %s in namespace %s with error %v",
+				klog.V(100).Infof("Failed to parse %q link's info from pod %s in namespace %s with error %v",
 					linkName, runningPod.Definition.Name, runningPod.Definition.Namespace, err)
 
 				return false, nil
@@ -609,7 +609,7 @@ func getLinkRx(runningPod *pod.Builder, linkName string) (int, error) {
 		})
 
 	if err != nil {
-		glog.V(100).Infof("Failed to get link %s info from pod %s in namespace %s with error %v",
+		klog.V(100).Infof("Failed to get link %s info from pod %s in namespace %s with error %v",
 			linkName, runningPod.Definition.Name, runningPod.Definition.Namespace, err)
 
 		return 0, fmt.Errorf("failed to get link %s info from pod %s in namespace %s with error %w",
@@ -619,7 +619,7 @@ func getLinkRx(runningPod *pod.Builder, linkName string) (int, error) {
 	linkInfo, err := link.NewBuilder(linkRawInfo)
 
 	if err != nil {
-		glog.V(100).Infof("Failed to collect link %s info from pod %s in namespace %s with error %v",
+		klog.V(100).Infof("Failed to collect link %s info from pod %s in namespace %s with error %v",
 			linkName, runningPod.Definition.Name, runningPod.Definition.Namespace, err)
 
 		return 0, fmt.Errorf("failed to collect link %s info from pod %s in namespace %s with error %w",
@@ -634,7 +634,7 @@ func getPCIAddressListFromSrIovNetworkName(podNetworkStatus, networkName string)
 	err := json.Unmarshal([]byte(podNetworkStatus), &podNetworkStatusType)
 
 	if err != nil {
-		glog.V(100).Infof("Failed to unmarshal pod network status %s with error %v", podNetworkStatus, err)
+		klog.V(100).Infof("Failed to unmarshal pod network status %s with error %v", podNetworkStatus, err)
 
 		return nil, err
 	}
@@ -647,7 +647,7 @@ func getPCIAddressListFromSrIovNetworkName(podNetworkStatus, networkName string)
 		}
 	}
 
-	glog.V(100).Infof("PCI address list: %v", pciAddressList)
+	klog.V(100).Infof("PCI address list: %v", pciAddressList)
 
 	return pciAddressList, nil
 }
@@ -656,7 +656,7 @@ func isPCIAddressAvailable(clientPod *pod.Builder) bool {
 	networkStatusAnnotation := "k8s.v1.cni.cncf.io/network-status"
 
 	if !clientPod.Exists() {
-		glog.V(100).Infof("Pod %s doesn't exist in namespace %s",
+		klog.V(100).Infof("Pod %s doesn't exist in namespace %s",
 			clientPod.Definition.Name, clientPod.Definition.Namespace)
 
 		return false
@@ -664,7 +664,7 @@ func isPCIAddressAvailable(clientPod *pod.Builder) bool {
 
 	podNetAnnotation := clientPod.Object.Annotations[networkStatusAnnotation]
 	if podNetAnnotation == "" {
-		glog.V(100).Infof("Pod %s from namespace %s network annotation field %s is not available",
+		klog.V(100).Infof("Pod %s from namespace %s network annotation field %s is not available",
 			clientPod.Object.Name, clientPod.Object.Namespace, networkStatusAnnotation)
 
 		return false
@@ -675,14 +675,14 @@ func isPCIAddressAvailable(clientPod *pod.Builder) bool {
 	pciAddressList, err := getPCIAddressListFromSrIovNetworkName(podNetAnnotation, dpdkNetworkOne)
 
 	if err != nil {
-		glog.V(100).Infof("Failed to get PCI address list from pod %s in namespace %s with error %v",
+		klog.V(100).Infof("Failed to get PCI address list from pod %s in namespace %s with error %v",
 			clientPod.Definition.Name, clientPod.Definition.Namespace, err)
 
 		return false
 	}
 
 	if len(pciAddressList) < 1 {
-		glog.V(100).Infof("Pod %s from namespace %s network annotation field %s not found",
+		klog.V(100).Infof("Pod %s from namespace %s network annotation field %s not found",
 			clientPod.Definition.Name, clientPod.Definition.Namespace, networkStatusAnnotation)
 
 		return false
@@ -726,7 +726,7 @@ func VerifyRootlessDPDKOnTheSameNodeSingleVFMultipleVlans(ctx SpecContext) {
 		fmt.Sprintf("Fail to collect PCI addresses for the pod %s in namespace %s: %v",
 			clientPod.Definition.Name, clientPod.Definition.Namespace, err))
 
-	glog.V(90).Infof("Getting original link network devices rate values")
+	klog.V(90).Infof("Getting original link network devices rate values")
 
 	originalLinksRxRateMap, err := getCurrentLinkRx(clientPod)
 	Expect(err).ToNot(HaveOccurred(),
@@ -788,7 +788,7 @@ func VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleVlans(ctx SpecContext) {
 		fmt.Sprintf("Fail to collect PCI addresses for the pod %s in namespace %s: %v",
 			clientPod.Definition.Name, clientPod.Definition.Namespace, err))
 
-	glog.V(90).Infof("Getting original link network devices rate values")
+	klog.V(90).Infof("Getting original link network devices rate values")
 
 	originalLinksRxRateMap, err := getCurrentLinkRx(clientPod)
 	Expect(err).ToNot(HaveOccurred(),
@@ -849,7 +849,7 @@ func VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleMacVlans(ctx SpecContext
 	Expect(err).ToNot(HaveOccurred(), "Fail to collect PCI addresses for the pod %s in namespace %s: %w",
 		clientPod.Definition.Name, clientPod.Definition.Namespace, err)
 
-	glog.V(90).Infof("Getting original link network devices rate values")
+	klog.V(90).Infof("Getting original link network devices rate values")
 
 	originalLinksRxRateMap, err := getCurrentLinkRx(clientPod)
 	Expect(err).ToNot(HaveOccurred(),
@@ -912,7 +912,7 @@ func VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleIPVlans(ctx SpecContext)
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Fail to collect PCI addresses for the pod %s in namespace %s: %v",
 		clientPod.Definition.Name, clientPod.Definition.Namespace, err))
 
-	glog.V(90).Infof("Getting original link network devices rate values")
+	klog.V(90).Infof("Getting original link network devices rate values")
 
 	originalLinksRxRateMap, err := getCurrentLinkRx(clientPod)
 	Expect(err).ToNot(HaveOccurred(),

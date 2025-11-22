@@ -12,11 +12,11 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/get"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 var buildPod = make(map[string]string)
@@ -32,13 +32,13 @@ func BuildPodCompleted(apiClient *clients.Settings, nsname string, timeout time.
 				pods, err := pod.List(apiClient, nsname, metav1.ListOptions{})
 
 				if err != nil {
-					glog.V(kmmparams.KmmLogLevel).Infof("build list error: %s", err)
+					klog.V(kmmparams.KmmLogLevel).Infof("build list error: %s", err)
 				}
 
 				for _, podObj := range pods {
 					if strings.Contains(podObj.Object.Name, "-build") {
 						buildPod[nsname] = podObj.Object.Name
-						glog.V(kmmparams.KmmLogLevel).Infof("Build pod '%s' found\n", podObj.Object.Name)
+						klog.V(kmmparams.KmmLogLevel).Infof("Build pod '%s' found\n", podObj.Object.Name)
 					}
 				}
 			}
@@ -48,7 +48,7 @@ func BuildPodCompleted(apiClient *clients.Settings, nsname string, timeout time.
 				pods, _ := pod.List(apiClient, nsname, metav1.ListOptions{FieldSelector: fieldSelector})
 
 				if len(pods) == 0 {
-					glog.V(kmmparams.KmmLogLevel).Infof("BuildPod %s no longer in namespace", buildPod)
+					klog.V(kmmparams.KmmLogLevel).Infof("BuildPod %s no longer in namespace", buildPod)
 					buildPod[nsname] = ""
 
 					return true, nil
@@ -57,7 +57,7 @@ func BuildPodCompleted(apiClient *clients.Settings, nsname string, timeout time.
 				for _, podObj := range pods {
 					if strings.Contains(string(podObj.Object.Status.Phase), "Failed") {
 						err = fmt.Errorf("BuildPod %s has failed", podObj.Object.Name)
-						glog.V(kmmparams.KmmLogLevel).Info(err)
+						klog.V(kmmparams.KmmLogLevel).Info(err)
 
 						buildPod[nsname] = ""
 
@@ -65,7 +65,7 @@ func BuildPodCompleted(apiClient *clients.Settings, nsname string, timeout time.
 					}
 
 					if strings.Contains(string(podObj.Object.Status.Phase), "Succeeded") {
-						glog.V(kmmparams.KmmLogLevel).Infof("BuildPod %s is in phase Succeeded",
+						klog.V(kmmparams.KmmLogLevel).Infof("BuildPod %s is in phase Succeeded",
 							podObj.Object.Name)
 
 						buildPod[nsname] = ""
@@ -102,12 +102,12 @@ func ModuleUndeployed(apiClient *clients.Settings, nsName string, timeout time.D
 			pods, err := pod.List(apiClient, nsName, metav1.ListOptions{})
 
 			if err != nil {
-				glog.V(kmmparams.KmmLogLevel).Infof("pod list error: %s\n", err)
+				klog.V(kmmparams.KmmLogLevel).Infof("pod list error: %s\n", err)
 
 				return false, err
 			}
 
-			glog.V(kmmparams.KmmLogLevel).Infof("current number of pods: %v\n", len(pods))
+			klog.V(kmmparams.KmmLogLevel).Infof("current number of pods: %v\n", len(pods))
 
 			return len(pods) == 0, nil
 		})
@@ -121,7 +121,7 @@ func ModuleObjectDeleted(apiClient *clients.Settings, moduleName, nsName string,
 			_, err := kmm.Pull(apiClient, moduleName, nsName)
 
 			if err != nil {
-				glog.V(kmmparams.KmmLogLevel).Infof("error while pulling the module; most likely it is deleted")
+				klog.V(kmmparams.KmmLogLevel).Infof("error while pulling the module; most likely it is deleted")
 			}
 
 			return err != nil, nil
@@ -137,7 +137,7 @@ func PreflightStageDone(apiClient *clients.Settings, preflight, module, nsname s
 				nsname)
 
 			if err != nil {
-				glog.V(kmmparams.KmmLogLevel).Infof("error pulling preflightvalidationocp")
+				klog.V(kmmparams.KmmLogLevel).Infof("error pulling preflightvalidationocp")
 			}
 
 			preflightValidationOCP, err := pre.Get()
@@ -149,13 +149,13 @@ func PreflightStageDone(apiClient *clients.Settings, preflight, module, nsname s
 			for _, moduleStatus := range preflightValidationOCP.Status.Modules {
 				if moduleStatus.Name == module && moduleStatus.Namespace == nsname {
 					status := moduleStatus.VerificationStage
-					glog.V(kmmparams.KmmLogLevel).Infof("Stage: %s", status)
+					klog.V(kmmparams.KmmLogLevel).Infof("Stage: %s", status)
 
 					return status == "Done", nil
 				}
 			}
 
-			glog.V(kmmparams.KmmLogLevel).Infof("module %s not found in preflight validation status", module)
+			klog.V(kmmparams.KmmLogLevel).Infof("module %s not found in preflight validation status", module)
 
 			return false, nil
 		})
@@ -170,13 +170,13 @@ func deploymentPerLabel(apiClient *clients.Settings, moduleName, label string,
 			nodeBuilder, err := nodes.List(apiClient, metav1.ListOptions{LabelSelector: labels.Set(selector).String()})
 
 			if err != nil {
-				glog.V(kmmparams.KmmLogLevel).Infof("could not discover %v nodes", selector)
+				klog.V(kmmparams.KmmLogLevel).Infof("could not discover %v nodes", selector)
 			}
 
 			nodesForSelector, err := get.NumberOfNodesForSelector(apiClient, selector)
 
 			if err != nil {
-				glog.V(kmmparams.KmmLogLevel).Infof("nodes list error: %s", err)
+				klog.V(kmmparams.KmmLogLevel).Infof("nodes list error: %s", err)
 
 				return false, err
 			}
@@ -184,15 +184,15 @@ func deploymentPerLabel(apiClient *clients.Settings, moduleName, label string,
 			foundLabels := 0
 
 			for _, node := range nodeBuilder {
-				glog.V(kmmparams.KmmLogLevel).Infof("%v", node.Object.Labels)
+				klog.V(kmmparams.KmmLogLevel).Infof("%v", node.Object.Labels)
 
 				_, ok := node.Object.Labels[label]
 				if ok {
-					glog.V(kmmparams.KmmLogLevel).Infof("Found label %v that contains %v on node %v",
+					klog.V(kmmparams.KmmLogLevel).Infof("Found label %v that contains %v on node %v",
 						label, moduleName, node.Object.Name)
 
 					foundLabels++
-					glog.V(kmmparams.KmmLogLevel).Infof("Number of nodes: %v, Number of nodes with '%v' label pods: %v\n",
+					klog.V(kmmparams.KmmLogLevel).Infof("Number of nodes: %v, Number of nodes with '%v' label pods: %v\n",
 						nodesForSelector, label, foundLabels)
 
 					if foundLabels == len(nodeBuilder) {

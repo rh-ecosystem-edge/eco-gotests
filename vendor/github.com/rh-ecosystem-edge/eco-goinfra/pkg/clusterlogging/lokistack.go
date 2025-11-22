@@ -9,11 +9,11 @@ import (
 
 	lokiv1 "github.com/grafana/loki/operator/apis/loki/v1"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -32,18 +32,18 @@ type LokiStackBuilder struct {
 // NewLokiStackBuilder creates new instance of builder.
 func NewLokiStackBuilder(
 	apiClient *clients.Settings, name, nsname string) *LokiStackBuilder {
-	glog.V(100).Infof("Initializing new lokiStack structure with the following params: name: %s, namespace: %s",
+	klog.V(100).Infof("Initializing new lokiStack structure with the following params: name: %s, namespace: %s",
 		name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("lokiStack 'apiClient' cannot be empty")
+		klog.V(100).Info("lokiStack 'apiClient' cannot be empty")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(lokiv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add lokv1 scheme to client schemes")
+		klog.V(100).Info("Failed to add lokv1 scheme to client schemes")
 
 		return nil
 	}
@@ -59,7 +59,7 @@ func NewLokiStackBuilder(
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the lokiStack is empty")
+		klog.V(100).Info("The name of the lokiStack is empty")
 
 		builder.errorMsg = "lokiStack 'name' cannot be empty"
 
@@ -67,7 +67,7 @@ func NewLokiStackBuilder(
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The nsname of the lokiStack is empty")
+		klog.V(100).Info("The nsname of the lokiStack is empty")
 
 		builder.errorMsg = "lokiStack 'nsname' cannot be empty"
 
@@ -79,18 +79,18 @@ func NewLokiStackBuilder(
 
 // PullLokiStack retrieves an existing lokiStack object from the cluster.
 func PullLokiStack(apiClient *clients.Settings, name, nsname string) (*LokiStackBuilder, error) {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Pulling lokiStack object name: %s in namespace: %s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("lokiStack 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(lokiv1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add lokv1 scheme to client schemes")
+		klog.V(100).Info("Failed to add lokv1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -106,13 +106,13 @@ func PullLokiStack(apiClient *clients.Settings, name, nsname string) (*LokiStack
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the lokiStack is empty")
+		klog.V(100).Info("The name of the lokiStack is empty")
 
 		return nil, fmt.Errorf("lokiStack 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the lokiStack is empty")
+		klog.V(100).Info("The namespace of the lokiStack is empty")
 
 		return nil, fmt.Errorf("lokiStack 'nsname' cannot be empty")
 	}
@@ -132,7 +132,7 @@ func (builder *LokiStackBuilder) Get() (*lokiv1.LokiStack, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting lokiStack %s in namespace %s",
+	klog.V(100).Infof("Getting lokiStack %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	lokiStackObj := &lokiv1.LokiStack{}
@@ -154,7 +154,7 @@ func (builder *LokiStackBuilder) Create() (*LokiStackBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the lokiStack %s in namespace %s",
+	klog.V(100).Infof("Creating the lokiStack %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -174,11 +174,11 @@ func (builder *LokiStackBuilder) Delete() (*LokiStackBuilder, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Deleting the lokiStack %s in namespace %s",
+	klog.V(100).Infof("Deleting the lokiStack %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("lokiStack %s in namespace %s cannot be deleted"+
+		klog.V(100).Infof("lokiStack %s in namespace %s cannot be deleted"+
 			" because it does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
@@ -203,7 +203,7 @@ func (builder *LokiStackBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if lokiStack %s exists in namespace %s",
+	klog.V(100).Infof("Checking if lokiStack %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -219,13 +219,12 @@ func (builder *LokiStackBuilder) Update() (*LokiStackBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Info("Updating lokiStack %s in namespace %s",
+	klog.V(100).Infof("Updating lokiStack %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
-		glog.V(100).Infof(
-			msg.FailToUpdateError("lokiStack", builder.Definition.Name, builder.Definition.Namespace))
+		klog.V(100).Infof("%v", msg.FailToUpdateError("lokiStack", builder.Definition.Name, builder.Definition.Namespace))
 
 		return nil, err
 	}
@@ -244,12 +243,12 @@ func (builder *LokiStackBuilder) WithSize(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Setting lokiStack %s in namespace %s with the size: %v",
 		builder.Definition.Name, builder.Definition.Namespace, size)
 
 	if size == "" {
-		glog.V(100).Infof("'size' argument cannot be empty")
+		klog.V(100).Info("'size' argument cannot be empty")
 
 		builder.errorMsg = "'size' argument cannot be empty"
 
@@ -268,7 +267,7 @@ func (builder *LokiStackBuilder) WithStorage(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Setting lokiStack %s in namespace %s with the storage config: %v",
 		builder.Definition.Name, builder.Definition.Namespace, storage)
 
@@ -284,12 +283,12 @@ func (builder *LokiStackBuilder) WithStorageClassName(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Setting lokiStack %s in namespace %s with the storage class name config: %v",
 		builder.Definition.Name, builder.Definition.Namespace, storageClassName)
 
 	if storageClassName == "" {
-		glog.V(100).Infof("'storageClassName' argument cannot be empty")
+		klog.V(100).Info("'storageClassName' argument cannot be empty")
 
 		builder.errorMsg = "'storageClassName' argument cannot be empty"
 
@@ -308,7 +307,7 @@ func (builder *LokiStackBuilder) WithTenants(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Setting lokiStack %s in namespace %s with the tenants config: %v",
 		builder.Definition.Name, builder.Definition.Namespace, tenants)
 
@@ -324,7 +323,7 @@ func (builder *LokiStackBuilder) WithRules(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Setting lokiStack %s in namespace %s with the rules config: %v",
 		builder.Definition.Name, builder.Definition.Namespace, rules)
 
@@ -340,7 +339,7 @@ func (builder *LokiStackBuilder) WithManagementState(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Setting lokiStack %s in namespace %s with the managementState config: %v",
 		builder.Definition.Name, builder.Definition.Namespace, managementState)
 
@@ -356,7 +355,7 @@ func (builder *LokiStackBuilder) WithLimits(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Setting lokiStack %s in namespace %s with the limits config: %v",
 		builder.Definition.Name, builder.Definition.Namespace, limits)
 
@@ -372,7 +371,7 @@ func (builder *LokiStackBuilder) WithTemplate(
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Setting lokiStack %s in namespace %s with the template config: %v",
 		builder.Definition.Name, builder.Definition.Namespace, template)
 
@@ -413,25 +412,25 @@ func (builder *LokiStackBuilder) validate() (bool, error) {
 	resourceCRD := "LokiStack"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

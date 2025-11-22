@@ -11,10 +11,10 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/await"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/apiobjectshelper"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
@@ -36,24 +36,24 @@ func CreateTCPDumpDeployment(
 	packetCaptureInterface,
 	captureScript string,
 	scheduleOnHosts []string) (*deployment.Builder, error) {
-	glog.V(100).Infof("-------------------DEBUG: NODES NAMES: %q", scheduleOnHosts)
+	klog.V(100).Infof("-------------------DEBUG: NODES NAMES: %q", scheduleOnHosts)
 
 	stDeploymentName := "tcpdump"
 
-	glog.V(100).Infof("Create tcpdump namespace %s", tdNamespace)
+	klog.V(100).Infof("Create tcpdump namespace %s", tdNamespace)
 
 	err := ensureNamespaceExists(apiClient, tdNamespace)
 	if err != nil {
-		glog.V(100).Infof("Failed to create namespace %s: %v", tdNamespace, err)
+		klog.V(100).Infof("Failed to create namespace %s: %v", tdNamespace, err)
 
 		return nil, fmt.Errorf("failed to create namespace %s: %w", tdNamespace, err)
 	}
 
-	glog.V(100).Infof("Adding SCC privileged to the namespace %s", tdNamespace)
+	klog.V(100).Infof("Adding SCC privileged to the namespace %s", tdNamespace)
 
 	err = scc.AddPrivilegedSCCtoDefaultSA(tdNamespace)
 	if err != nil {
-		glog.V(100).Infof("Failed to add SCC privileged to the tcpdump namespace %s: %v",
+		klog.V(100).Infof("Failed to add SCC privileged to the tcpdump namespace %s: %v",
 			tdNamespace, err)
 
 		return nil, fmt.Errorf("failed to add SCC privileged to the tcpdump namespace %s: %w",
@@ -72,7 +72,7 @@ func CreateTCPDumpDeployment(
 	)
 
 	if err != nil {
-		glog.V(100).Infof("Failed to create tcpdump deployment %s in namespace %s due to %v",
+		klog.V(100).Infof("Failed to create tcpdump deployment %s in namespace %s due to %v",
 			stDeploymentName, tdNamespace, err)
 
 		return stDeployment, err
@@ -81,7 +81,7 @@ func CreateTCPDumpDeployment(
 	err = await.WaitUntilDeploymentReady(apiClient, stDeploymentName, tdNamespace, time.Minute)
 
 	if err != nil {
-		glog.V(100).Infof("deployment %s in namespace %s failed to reach ready state due to %v",
+		klog.V(100).Infof("deployment %s in namespace %s failed to reach ready state due to %v",
 			stDeploymentName, tdNamespace, err)
 
 		return nil, fmt.Errorf("deployment %s in namespace %s failed to reach ready state due to %w",
@@ -103,90 +103,90 @@ func createTCPDumpDeployment(
 	packetCaptureInterface,
 	captureScript string,
 	scheduleOnHosts []string) (*deployment.Builder, error) {
-	glog.V(100).Infof("Creating the tcpdump deployment with image %s", stImage)
+	klog.V(100).Infof("Creating the tcpdump deployment with image %s", stImage)
 
 	var err error
 
-	glog.V(100).Infof("Checking tcpdump deployment %q in namespace %s doesn't exist",
+	klog.V(100).Infof("Checking tcpdump deployment %q in namespace %s doesn't exist",
 		stDeploymentName, stNamespace)
 
 	err = apiobjectshelper.DeleteDeployment(apiClient, stDeploymentName, stNamespace)
 
 	if err != nil {
-		glog.V(100).Infof("Failed to delete deployment %s from namespace %s; %v",
+		klog.V(100).Infof("Failed to delete deployment %s from namespace %s; %v",
 			stDeploymentName, stNamespace, err)
 
 		return nil, fmt.Errorf("failed to delete deployment %s from namespace %s; %w",
 			stDeploymentName, stNamespace, err)
 	}
 
-	glog.V(100).Infof("Sleeping 10 seconds")
+	klog.V(100).Infof("Sleeping 10 seconds")
 	time.Sleep(10 * time.Second)
 
-	glog.V(100).Infof("Removing ServiceAccount %s from namespace %s", supportToolsDeploySAName, stNamespace)
+	klog.V(100).Infof("Removing ServiceAccount %s from namespace %s", supportToolsDeploySAName, stNamespace)
 
 	err = apiobjectshelper.DeleteServiceAccount(apiClient, supportToolsDeploySAName, stNamespace)
 
 	if err != nil {
-		glog.V(100).Infof("Failed to remove serviceAccount %q from namespace %q; %v",
+		klog.V(100).Infof("Failed to remove serviceAccount %q from namespace %q; %v",
 			supportToolsDeploySAName, stNamespace, err)
 
 		return nil, fmt.Errorf("failed to remove serviceAccount %q from namespace %q; %w",
 			supportToolsDeploySAName, stNamespace, err)
 	}
 
-	glog.V(100).Infof("Creating ServiceAccount %s in namespace %s", supportToolsDeploySAName, stNamespace)
+	klog.V(100).Infof("Creating ServiceAccount %s in namespace %s", supportToolsDeploySAName, stNamespace)
 
 	err = apiobjectshelper.CreateServiceAccount(apiClient, supportToolsDeploySAName, stNamespace)
 
 	if err != nil {
-		glog.V(100).Infof("Failed to create serviceAccount %q in namespace %q; %v",
+		klog.V(100).Infof("Failed to create serviceAccount %q in namespace %q; %v",
 			supportToolsDeploySAName, stNamespace, err)
 
 		return nil, fmt.Errorf("failed to create serviceAccount %q in namespace %q; %w",
 			supportToolsDeploySAName, stNamespace, err)
 	}
 
-	glog.V(100).Infof("Removing Cluster RBAC %q", supportToolsDeployRBACName)
+	klog.V(100).Infof("Removing Cluster RBAC %q", supportToolsDeployRBACName)
 
 	err = apiobjectshelper.DeleteClusterRBAC(apiClient, supportToolsDeployRBACName)
 
 	if err != nil {
-		glog.V(100).Infof("Failed to delete supporttools RBAC %q; %v", supportToolsDeployRBACName, err)
+		klog.V(100).Infof("Failed to delete supporttools RBAC %q; %v", supportToolsDeployRBACName, err)
 
 		return nil, fmt.Errorf("failed to delete supporttools RBAC %q; %w", supportToolsDeployRBACName, err)
 	}
 
-	glog.V(100).Infof("Creating Cluster RBAC %q", supportToolsDeployRBACName)
+	klog.V(100).Infof("Creating Cluster RBAC %q", supportToolsDeployRBACName)
 
 	err = apiobjectshelper.CreateClusterRBAC(apiClient, supportToolsDeployRBACName, supportToolsRBACRole,
 		supportToolsDeploySAName, stNamespace)
 
 	if err != nil {
-		glog.V(100).Infof("failed to create supporttools RBAC %q in namespace %s; %v",
+		klog.V(100).Infof("failed to create supporttools RBAC %q in namespace %s; %v",
 			supportToolsDeployRBACName, stNamespace, err)
 
 		return nil, fmt.Errorf("failed to create supporttools RBAC %q in namespace %s; %w",
 			supportToolsDeployRBACName, stNamespace, err)
 	}
 
-	glog.V(100).Infof("Defining container configuration")
+	klog.V(100).Infof("Defining container configuration")
 
 	deployContainer := defineTCPDumpContainer(
 		stImage,
 		packetCaptureInterface,
 		captureScript)
 
-	glog.V(100).Infof("Obtaining container definition")
+	klog.V(100).Infof("Obtaining container definition")
 
 	deployContainerCfg, err := deployContainer.GetContainerCfg()
 	if err != nil {
-		glog.V(100).Infof("Failed to obtain container definition: %v", err)
+		klog.V(100).Infof("Failed to obtain container definition: %v", err)
 
 		return nil, fmt.Errorf("failed to obtain container definition: %w", err)
 	}
 
-	glog.V(100).Infof("Defining deployment %q configuration in namespace %s",
+	klog.V(100).Infof("Defining deployment %q configuration in namespace %s",
 		stDeploymentName, stNamespace)
 
 	deployLabelsMap := map[string]string{
@@ -201,13 +201,13 @@ func createTCPDumpDeployment(
 		scheduleOnHosts,
 		deployLabelsMap)
 
-	glog.V(100).Infof("Creating deployment")
+	klog.V(100).Infof("Creating deployment")
 
-	glog.V(100).Infof("-------------------DEBUG: NODES NAMES: %q", scheduleOnHosts)
+	klog.V(100).Infof("-------------------DEBUG: NODES NAMES: %q", scheduleOnHosts)
 
 	stDeployment, err = stDeployment.CreateAndWaitUntilReady(5 * time.Minute)
 	if err != nil {
-		glog.V(100).Infof("Failed to create deployment %s in namespace %s: %v",
+		klog.V(100).Infof("Failed to create deployment %s in namespace %s: %v",
 			stDeploymentName, stNamespace, err)
 
 		return nil, fmt.Errorf("failed to create deployment %s in namespace %s: %w",
@@ -215,7 +215,7 @@ func createTCPDumpDeployment(
 	}
 
 	if stDeployment == nil {
-		glog.V(100).Infof("Failed to create deployment %s in namespace %s; %v",
+		klog.V(100).Infof("Failed to create deployment %s in namespace %s; %v",
 			stDeploymentName, stDeploymentName, err)
 
 		return nil, fmt.Errorf("failed to create deployment %s in namespace %s; %w",
@@ -237,13 +237,13 @@ func defineTCPDumpContainer(
 		fmt.Sprintf(captureScript, packetCaptureInterface),
 	}
 
-	glog.V(100).Infof("-------------------DEBUG: Packet Capture Interface Name: %q", packetCaptureInterface)
+	klog.V(100).Infof("-------------------DEBUG: Packet Capture Interface Name: %q", packetCaptureInterface)
 
-	glog.V(100).Infof("Creating container %q", cName)
+	klog.V(100).Infof("Creating container %q", cName)
 
 	deployContainer := pod.NewContainerBuilder(cName, cImage, cCmd)
 
-	glog.V(100).Infof("Defining SecurityContext")
+	klog.V(100).Infof("Defining SecurityContext")
 
 	var trueFlag = true
 
@@ -266,19 +266,19 @@ func defineTCPDumpContainer(
 		},
 	}
 
-	glog.V(100).Infof("Setting SecurityContext")
+	klog.V(100).Infof("Setting SecurityContext")
 
 	deployContainer = deployContainer.WithSecurityContext(securityContext)
 
-	glog.V(100).Infof("Dropping ALL security capability")
+	klog.V(100).Infof("Dropping ALL security capability")
 
 	deployContainer = deployContainer.WithDropSecurityCapabilities([]string{"ALL"}, true)
 
-	glog.V(100).Infof("Enable TTY and Stdin; needed for immediate log propagation")
+	klog.V(100).Infof("Enable TTY and Stdin; needed for immediate log propagation")
 
 	deployContainer = deployContainer.WithTTY(true).WithStdin(true)
 
-	glog.V(100).Infof("%q container's  definition:\n%#v", cName, deployContainer)
+	klog.V(100).Infof("%q container's  definition:\n%#v", cName, deployContainer)
 
 	return deployContainer
 }
@@ -298,7 +298,7 @@ func SendTrafficCheckTCPDumpLogs(
 		timeout,
 		true,
 		func(ctx context.Context) (bool, error) {
-			glog.V(100).Infof("Verifying that the expected outbound request can be seen in the tcpdump logs")
+			klog.V(100).Infof("Verifying that the expected outbound request can be seen in the tcpdump logs")
 
 			result, err := sendProbeAndCheckTCPDumpLogs(
 				apiClient,
@@ -316,7 +316,7 @@ func SendTrafficCheckTCPDumpLogs(
 		})
 
 	if err != nil {
-		glog.V(100).Infof("Expected request was not found in the packet sniffer logs; %v", err)
+		klog.V(100).Infof("Expected request was not found in the packet sniffer logs; %v", err)
 
 		return fmt.Errorf("expected request was not found in the packet sniffer logs; %w", err)
 	}
@@ -334,7 +334,7 @@ func sendProbeAndCheckTCPDumpLogs(
 	targetPort string) (bool, error) {
 	timeStart := time.Now()
 
-	glog.V(100).Infof("Sending request with a unique search string from "+
+	klog.V(100).Infof("Sending request with a unique search string from "+
 		"prober pod %s/%s", proberPod.Definition.Namespace, proberPod.Definition.Name)
 
 	searchString, err := sendProbeToHostPort(
@@ -342,20 +342,20 @@ func sendProbeAndCheckTCPDumpLogs(
 		targetHost,
 		targetPort)
 	if err != nil {
-		glog.V(100).Infof("Failed to send probe from the pod %s in namespace %s to the host %s:%s due to %v",
+		klog.V(100).Infof("Failed to send probe from the pod %s in namespace %s to the host %s:%s due to %v",
 			proberPod.Definition.Name, proberPod.Definition.Namespace, targetHost, targetPort, err)
 
 		return false, fmt.Errorf("failed to send probe from the pod %s in namespace %s to the host %s:%s due to %w",
 			proberPod.Definition.Name, proberPod.Definition.Namespace, targetHost, targetPort, err)
 	}
 
-	glog.V(100).Infof("request sent from the prober pod %s/%s",
+	klog.V(100).Infof("request sent from the prober pod %s/%s",
 		proberPod.Definition.Namespace, proberPod.Definition.Name)
 
 	var errMsg error
 
 	for i := 0; i < logScanMaxTries; i++ {
-		glog.V(100).Infof("Making sure that request with the search string %s were seen (try %d of %d)",
+		klog.V(100).Infof("Making sure that request with the search string %s were seen (try %d of %d)",
 			searchString, i+1, logScanMaxTries)
 
 		numberFound, _, err := ScanTCPDumpPodLogs(
@@ -369,7 +369,7 @@ func sendProbeAndCheckTCPDumpLogs(
 		if err != nil {
 			errMsg = err
 		} else if numberFound >= 1 {
-			glog.V(100).Infof("The searching string %s was found in log %d times", searchString, numberFound)
+			klog.V(100).Infof("The searching string %s was found in log %d times", searchString, numberFound)
 
 			return true, nil
 		}
@@ -391,7 +391,7 @@ func ScanTCPDumpPodLogs(
 	tcpdumpPodObjects, err := pod.List(apiClient, tcpdumpPodNamespace,
 		metav1.ListOptions{LabelSelector: tcpdumpPodSelectorLabel})
 	if err != nil {
-		glog.V(100).Infof("failed to list pod objects: %v", err)
+		klog.V(100).Infof("failed to list pod objects: %v", err)
 
 		return 0, "", fmt.Errorf("failed to list pod objects: %w", err)
 	}
@@ -402,7 +402,7 @@ func ScanTCPDumpPodLogs(
 
 	for _, podObj := range tcpdumpPodObjects {
 		if podObj.Object.Spec.NodeName == proberPod.Object.Spec.NodeName {
-			glog.V(100).Infof("tcpdump pod: %s", podObj.Definition.Name)
+			klog.V(100).Infof("tcpdump pod: %s", podObj.Definition.Name)
 			tcpdumpPodObj = podObj
 
 			break
@@ -410,7 +410,7 @@ func ScanTCPDumpPodLogs(
 	}
 
 	if tcpdumpPodObj == nil {
-		glog.V(100).Infof("failed to find a tcpdump pod on the %s node", proberPod.Object.Spec.NodeName)
+		klog.V(100).Infof("failed to find a tcpdump pod on the %s node", proberPod.Object.Spec.NodeName)
 
 		return 0, "", fmt.Errorf("tcpdump pod not found on the %s node", proberPod.Object.Spec.NodeName)
 	}
@@ -424,12 +424,12 @@ func ScanTCPDumpPodLogs(
 		true,
 		func(ctx context.Context) (bool, error) {
 			logStartTimestamp := time.Since(timeSpan)
-			glog.V(100).Infof("\tTime duration is %s", logStartTimestamp)
+			klog.V(100).Infof("\tTime duration is %s", logStartTimestamp)
 
 			if logStartTimestamp.Abs().Seconds() < 1 {
 				logStartTimestamp, err = time.ParseDuration("1s")
 				if err != nil {
-					glog.V(100).Infof("failed to parse the time duration: %v", err)
+					klog.V(100).Infof("failed to parse the time duration: %v", err)
 
 					return false, nil
 				}
@@ -438,27 +438,27 @@ func ScanTCPDumpPodLogs(
 			tcpdumpLog, err = tcpdumpPodObj.GetLog(logStartTimestamp, tcpdumpPodObj.Definition.Spec.Containers[0].Name)
 
 			if err != nil {
-				glog.V(100).Infof("Failed to get tcpdumpLog from pod %q, log %s: %v",
+				klog.V(100).Infof("Failed to get tcpdumpLog from pod %q, log %s: %v",
 					tcpdumpPodObj.Definition.Name, tcpdumpLog, err)
 
 				return false, nil
 			}
 
 			if len(tcpdumpLog) == 0 {
-				glog.V(100).Infof("tcpdumpLog from pod %q is empty, log %s: %v",
+				klog.V(100).Infof("tcpdumpLog from pod %q is empty, log %s: %v",
 					tcpdumpPodObj.Definition.Name, tcpdumpLog, err)
 
 				return false, nil
 			}
 
-			glog.V(100).Infof("debug log for %s: -%s-", tcpdumpPodObj.Definition.Name, tcpdumpLog)
-			glog.V(100).Infof("len(tcpdumpLog) = %d", len(tcpdumpLog))
+			klog.V(100).Infof("debug log for %s: -%s-", tcpdumpPodObj.Definition.Name, tcpdumpLog)
+			klog.V(100).Infof("len(tcpdumpLog) = %d", len(tcpdumpLog))
 
 			buf := new(bytes.Buffer)
 			_, err = buf.WriteString(tcpdumpLog)
 
 			if err != nil {
-				glog.V(100).Infof("error in copying info from pod tcpdumpLog to buffer: %v", err)
+				klog.V(100).Infof("error in copying info from pod tcpdumpLog to buffer: %v", err)
 
 				return false, nil
 			}
@@ -471,11 +471,11 @@ func ScanTCPDumpPodLogs(
 			for scanner.Scan() {
 				logLine := scanner.Text()
 				if strings.Contains(logLine, searchString) {
-					glog.V(100).Infof("Found match in log line: %s", logLine)
+					klog.V(100).Infof("Found match in log line: %s", logLine)
 					logLineExploded := strings.Fields(logLine)
 
 					if len(logLineExploded) != 2 {
-						glog.V(100).Infof("Unexpected logline content: %s", logLine)
+						klog.V(100).Infof("Unexpected logline content: %s", logLine)
 
 						return false, nil
 					}
@@ -485,18 +485,18 @@ func ScanTCPDumpPodLogs(
 			}
 
 			if matchesFound != 0 {
-				glog.V(100).Infof("Found %d matches for %q", matchesFound, searchString)
+				klog.V(100).Infof("Found %d matches for %q", matchesFound, searchString)
 
 				return true, nil
 			}
 
-			glog.V(100).Infof("No matches for %q found", searchString)
+			klog.V(100).Infof("No matches for %q found", searchString)
 
 			return false, nil
 		})
 
 	if err != nil {
-		glog.V(100).Infof("Error processing logs: %v", err)
+		klog.V(100).Infof("Error processing logs: %v", err)
 
 		return matchesFound, tcpdumpLog, fmt.Errorf("no matches found in tcpdump log: %w", err)
 	}
@@ -531,16 +531,16 @@ func sendProbeToHostPort(
 			output, err := proberPod.ExecCommand(cmdToRun, proberPod.Object.Spec.Containers[0].Name)
 
 			if err != nil {
-				glog.V(100).Infof("query failed. Request: %s, Output: %q, Error: %v", request, output, err)
+				klog.V(100).Infof("query failed. Request: %s, Output: %q, Error: %v", request, output, err)
 
 				errorMsg = fmt.Errorf("query failed. Request: %s, Output: %q, Error: %w", request, output, err)
 
 				return false, nil
 			}
 
-			glog.V(100).Infof("Successfully executed command from within a pod %q: %v",
+			klog.V(100).Infof("Successfully executed command from within a pod %q: %v",
 				proberPod.Object.Name, cmdToRun)
-			glog.V(100).Infof("Command's output:\n\t%v", output.String())
+			klog.V(100).Infof("Command's output:\n\t%v", output.String())
 
 			errorMsg = nil
 

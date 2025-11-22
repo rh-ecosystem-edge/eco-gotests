@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/assisted"
@@ -19,6 +18,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -80,11 +80,11 @@ func createDualstackSpokeClusterResources() *assisted.AgentClusterInstallBuilder
 	By("Create namespace for the test")
 
 	if nsBuilder.Exists() {
-		glog.V(ztpparams.ZTPLogLevel).Infof("The namespace '%s' already exists",
+		klog.V(ztpparams.ZTPLogLevel).Infof("The namespace '%s' already exists",
 			nsBuilder.Object.Name)
 	} else {
 		// create the namespace
-		glog.V(ztpparams.ZTPLogLevel).Infof("Creating the namespace:  %v", dualstackTestSpoke)
+		klog.V(ztpparams.ZTPLogLevel).Infof("Creating the namespace:  %v", dualstackTestSpoke)
 
 		_, err := nsBuilder.Create()
 		Expect(err).ToNot(HaveOccurred(), "error creating namespace '%s' :  %v ",

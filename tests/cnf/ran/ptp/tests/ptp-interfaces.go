@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	prometheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
@@ -18,6 +17,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/metrics"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/profiles"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
+	"k8s.io/klog/v2"
 )
 
 var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
@@ -59,7 +59,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				continue
 			}
 
-			glog.V(tsparams.LogLevel).Infof("Receiver interfaces for node %s: %v",
+			klog.V(tsparams.LogLevel).Infof("Receiver interfaces for node %s: %v",
 				nodeName, profiles.GetInterfacesNames(receiverInterfaces))
 
 			By("getting the egress interface for the node")
@@ -73,7 +73,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				// Especially for SNO, bringing down the egress interface will break the test, so we skip
 				// this NIC.
 				if nicName == egressInterface.GetNIC() {
-					glog.V(tsparams.LogLevel).Infof("Skipping test for egress interface %s", nicName)
+					klog.V(tsparams.LogLevel).Infof("Skipping test for egress interface %s", nicName)
 
 					continue
 				}
@@ -93,7 +93,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 					for _, ifaceName := range interfaceGroup {
 						err := iface.SetInterfaceStatus(RANConfig.Spoke1APIClient, nodeName, ifaceName, iface.InterfaceStateUp)
 						if err != nil {
-							glog.V(tsparams.LogLevel).Infof("Failed to set interface %s to up on node %s: %v", ifaceName, nodeName, err)
+							klog.V(tsparams.LogLevel).Infof("Failed to set interface %s to up on node %s: %v", ifaceName, nodeName, err)
 
 							errs = append(errs, err)
 						}

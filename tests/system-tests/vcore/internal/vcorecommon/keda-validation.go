@@ -21,8 +21,8 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/klog/v2"
 
-	"github.com/golang/glog"
 	kedav1alpha1 "github.com/kedacore/keda-olm-operator/api/keda/v1alpha1"
 	kedav2v1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
@@ -101,7 +101,7 @@ func VerifyKedaDeployment(ctx SpecContext) {
 
 // VerifyKedaControllerDeployment assert that kedaController instance created successfully.
 func VerifyKedaControllerDeployment(ctx SpecContext) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Verify kedaController instance exists")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify kedaController instance exists")
 
 	kedaControllerBuilder := keda.NewControllerBuilder(
 		APIClient,
@@ -141,7 +141,7 @@ func VerifyKedaControllerDeployment(ctx SpecContext) {
 //
 //nolint:funlen
 func VerifyScaleObjectDeployment(ctx SpecContext) {
-	glog.V(vcoreparams.VCoreLogLevel).Info("Verify monitoring status")
+	klog.V(vcoreparams.VCoreLogLevel).Info("Verify monitoring status")
 
 	var err error
 
@@ -157,7 +157,7 @@ func VerifyScaleObjectDeployment(ctx SpecContext) {
 			"no configmap %s was found in the namespace %s", configmapName, configmapNamespace))
 	}
 
-	glog.V(vcoreparams.VCoreLogLevel).Info("Deploy application that exposes Prometheus metrics")
+	klog.V(vcoreparams.VCoreLogLevel).Info("Deploy application that exposes Prometheus metrics")
 
 	Expect(ensureNamespaceNotExists(vcoreparams.KedaWatchNamespace)).
 		To(Equal(true), fmt.Sprintf("Failed to delete watch namespace %s",
@@ -166,7 +166,7 @@ func VerifyScaleObjectDeployment(ctx SpecContext) {
 	Expect(ensureNamespaceExists(vcoreparams.KedaWatchNamespace)).To(Equal(true),
 		fmt.Sprintf("failed to create namespace %s", vcoreparams.KedaWatchNamespace))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Create test application deployment %s in namespace %s",
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Create test application deployment %s in namespace %s",
 		vcoreparams.KedaWatchAppName, vcoreparams.KedaWatchNamespace)
 
 	prometheusImageURL, err := getImageURL(prometheusOriginMirrorURL, prometheusImageName, prometheusImageTag)
@@ -204,7 +204,7 @@ func VerifyScaleObjectDeployment(ctx SpecContext) {
 		fmt.Sprintf("Failed to create test application %s in namespace %s due to: %v",
 			vcoreparams.KedaWatchAppName, vcoreparams.KedaWatchNamespace, err))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Create test application Service %s in namespace %s",
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Create test application Service %s in namespace %s",
 		vcoreparams.KedaWatchAppName, vcoreparams.KedaWatchNamespace)
 
 	_, err = service.NewBuilder(APIClient,
@@ -226,7 +226,7 @@ func VerifyScaleObjectDeployment(ctx SpecContext) {
 		fmt.Sprintf("Failed to create service %s in namespace %s due to: %v",
 			vcoreparams.KedaWatchAppName, vcoreparams.KedaWatchNamespace, err))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Create ServiceMonitor %s in namespace %s",
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Create ServiceMonitor %s in namespace %s",
 		testAppServiceMonitorName, vcoreparams.KedaWatchNamespace)
 
 	endpoints := []monv1.Endpoint{{
@@ -242,7 +242,7 @@ func VerifyScaleObjectDeployment(ctx SpecContext) {
 		fmt.Sprintf("Failed to create serviceMonitor %s in namespace %s due to: %v",
 			testAppServiceMonitorName, vcoreparams.KedaWatchNamespace, err))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Create test application ServiceAccount %s in namespace %s "+
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Create test application ServiceAccount %s in namespace %s "+
 		"and locate assigned token",
 		vcoreparams.KedaWatchAppName, vcoreparams.KedaWatchNamespace)
 
@@ -261,7 +261,7 @@ func VerifyScaleObjectDeployment(ctx SpecContext) {
 		fmt.Sprintf("Failed to create token assigned to the serviceAccount %s in namespace %s due to: %v",
 			serviceAccountName, vcoreparams.KedaWatchNamespace, err))
 
-	glog.V(vcoreparams.VCoreLogLevel).
+	klog.V(vcoreparams.VCoreLogLevel).
 		Infof("Define TriggerAuthentication %s with the Service Account's token %s in namespace %s",
 			triggerAuthName, vcoreparams.KedaWatchNamespace, saSecretName)
 
@@ -283,7 +283,7 @@ func VerifyScaleObjectDeployment(ctx SpecContext) {
 			"in namespace %s due to: %v",
 			triggerAuthName, vcoreparams.KedaWatchNamespace, saSecretName, err))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Create a role %s for reading metric from Thanos in namespace %s",
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Create a role %s for reading metric from Thanos in namespace %s",
 		metricsReaderName, vcoreparams.KedaWatchNamespace)
 
 	roleRule1 := rbacv1.PolicyRule{
@@ -303,7 +303,7 @@ func VerifyScaleObjectDeployment(ctx SpecContext) {
 		fmt.Sprintf("Failed to create a role %s for reading metric from Thanos in namespace %s due to: %v",
 			metricsReaderName, vcoreparams.KedaWatchNamespace, err))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Create a roleBinding %s for serviceaccount %s in namespace %s",
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Create a roleBinding %s for serviceaccount %s in namespace %s",
 		metricsReaderName, serviceAccountName, vcoreparams.KedaWatchNamespace)
 
 	kedaRoleBindingTemplateName := "keda-rolebinding.yaml"
@@ -324,7 +324,7 @@ func VerifyScaleObjectDeployment(ctx SpecContext) {
 		varsToReplace)
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to create load job due to %v", err))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Define scaledObject instance %s in namespace %s",
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Define scaledObject instance %s in namespace %s",
 		kedaScaledObjectName, vcoreparams.KedaWatchNamespace)
 
 	scaledObjectBuilder := keda.NewScaledObjectBuilder(APIClient, kedaScaledObjectName, vcoreparams.KedaWatchNamespace)
@@ -359,7 +359,7 @@ func VerifyScaleObjectDeployment(ctx SpecContext) {
 		fmt.Sprintf("Failed to create scaledObject instance %s in namespace %s due to %v",
 			kedaScaledObjectName, vcoreparams.KedaWatchNamespace, err))
 
-	glog.V(vcoreparams.VCoreLogLevel).Info("Generate requests to test the application autoscaling")
+	klog.V(vcoreparams.VCoreLogLevel).Info("Generate requests to test the application autoscaling")
 
 	abImageURL, err := getImageURL(abOriginMirrorURL, abImageName, abImageTag)
 	Expect(err).ToNot(HaveOccurred(),
@@ -377,7 +377,7 @@ func VerifyScaleObjectDeployment(ctx SpecContext) {
 		varsToReplace)
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to create load job due to %v", err))
 
-	glog.V(vcoreparams.VCoreLogLevel).Info("Wait until pods replicas count reach 8")
+	klog.V(vcoreparams.VCoreLogLevel).Info("Wait until pods replicas count reach 8")
 
 	isCntReached, err := await.WaitForThePodReplicasCountInNamespace(APIClient,
 		vcoreparams.KedaWatchNamespace, metav1.ListOptions{

@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	aiv1beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/api/v1beta1"
@@ -15,6 +14,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 
 	"k8s.io/apimachinery/pkg/util/wait"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -35,19 +35,19 @@ type CIBuilder struct {
 
 // NewCIBuilder creates a new instance of CIBuilder.
 func NewCIBuilder(apiClient *clients.Settings, name, nsname string) *CIBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new ClusterInstance structure with the following params: name: %s, nsname: %s",
 		name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Info("The apiClient for the clusterinstance is nil")
+		klog.V(100).Info("The apiClient for the clusterinstance is nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(siteconfigv1alpha1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add siteconfig v1alpha1 scheme to client schemes")
+		klog.V(100).Info("Failed to add siteconfig v1alpha1 scheme to client schemes")
 
 		return nil
 	}
@@ -63,7 +63,7 @@ func NewCIBuilder(apiClient *clients.Settings, name, nsname string) *CIBuilder {
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the clusterinstance is empty")
+		klog.V(100).Info("The name of the clusterinstance is empty")
 
 		builder.errorMsg = "clusterinstance 'name' cannot be empty"
 
@@ -71,7 +71,7 @@ func NewCIBuilder(apiClient *clients.Settings, name, nsname string) *CIBuilder {
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the clusterinstance is empty")
+		klog.V(100).Info("The namespace of the clusterinstance is empty")
 
 		builder.errorMsg = "clusterinstance 'nsname' cannot be empty"
 
@@ -83,18 +83,18 @@ func NewCIBuilder(apiClient *clients.Settings, name, nsname string) *CIBuilder {
 
 // PullClusterInstance retrieves an existing ClusterInstance from the cluster.
 func PullClusterInstance(apiClient *clients.Settings, name, nsname string) (*CIBuilder, error) {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Pulling existing clusterinstance with name %s from namespace %s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is nil")
+		klog.V(100).Info("The apiClient is nil")
 
 		return nil, fmt.Errorf("apiClient cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(siteconfigv1alpha1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"Failed to add siteconfigv1alpha1 scheme to client schemes")
 
 		return nil, fmt.Errorf("failed to add siteconfigv1alpha1 to client schemes")
@@ -111,13 +111,13 @@ func PullClusterInstance(apiClient *clients.Settings, name, nsname string) (*CIB
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the clusterinstance is empty")
+		klog.V(100).Info("The name of the clusterinstance is empty")
 
 		return nil, fmt.Errorf("clusterinstance 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the clusterinstance is empty")
+		klog.V(100).Info("The namespace of the clusterinstance is empty")
 
 		return nil, fmt.Errorf("clusterinstance 'nsname' cannot be empty")
 	}
@@ -137,11 +137,11 @@ func (builder *CIBuilder) WithPullSecretRef(secretRef string) *CIBuilder {
 		return builder
 	}
 
-	glog.V(100).Infof("Adding pullSecretRef %s to clusterinstance %s in namespace %s",
+	klog.V(100).Infof("Adding pullSecretRef %s to clusterinstance %s in namespace %s",
 		secretRef, builder.Definition.Name, builder.Definition.Namespace)
 
 	if secretRef == "" {
-		glog.V(100).Infof("The clusterinstance secretRef is empty")
+		klog.V(100).Info("The clusterinstance secretRef is empty")
 
 		builder.errorMsg = "clusterinstance secretRef cannot be empty"
 
@@ -161,11 +161,11 @@ func (builder *CIBuilder) WithClusterTemplateRef(clusterTemplateName, clusterTem
 		return builder
 	}
 
-	glog.V(100).Infof("Adding clusterTemplateRef %s in namespace %s to clusterinstance %s in namespace %s",
+	klog.V(100).Infof("Adding clusterTemplateRef %s in namespace %s to clusterinstance %s in namespace %s",
 		clusterTemplateName, clusterTemplateNamespace, builder.Definition.Name, builder.Definition.Namespace)
 
 	if clusterTemplateName == "" {
-		glog.V(100).Infof("The clusterinstance clusterTemplateName is empty")
+		klog.V(100).Info("The clusterinstance clusterTemplateName is empty")
 
 		builder.errorMsg = "clusterinstance clusterTemplateName cannot be empty"
 
@@ -173,7 +173,7 @@ func (builder *CIBuilder) WithClusterTemplateRef(clusterTemplateName, clusterTem
 	}
 
 	if clusterTemplateNamespace == "" {
-		glog.V(100).Infof("The clusterinstance clusterTemplateNamespace is empty")
+		klog.V(100).Info("The clusterinstance clusterTemplateNamespace is empty")
 
 		builder.errorMsg = "clusterinstance clusterTemplateNamespace cannot be empty"
 
@@ -194,11 +194,11 @@ func (builder *CIBuilder) WithBaseDomain(baseDomain string) *CIBuilder {
 		return builder
 	}
 
-	glog.V(100).Infof("Adding baseDomain %s to clusterinstance %s in namespace %s",
+	klog.V(100).Infof("Adding baseDomain %s to clusterinstance %s in namespace %s",
 		baseDomain, builder.Definition.Name, builder.Definition.Namespace)
 
 	if baseDomain == "" {
-		glog.V(100).Infof("The clusterinstance baseDomain is empty")
+		klog.V(100).Info("The clusterinstance baseDomain is empty")
 
 		builder.errorMsg = "clusterinstance baseDomain cannot be empty"
 
@@ -216,11 +216,11 @@ func (builder *CIBuilder) WithClusterImageSetRef(imageSet string) *CIBuilder {
 		return builder
 	}
 
-	glog.V(100).Infof("Adding imageSet %s to clusterinstance %s in namespace %s",
+	klog.V(100).Infof("Adding imageSet %s to clusterinstance %s in namespace %s",
 		imageSet, builder.Definition.Name, builder.Definition.Namespace)
 
 	if imageSet == "" {
-		glog.V(100).Infof("The clusterinstance imageSet is empty")
+		klog.V(100).Info("The clusterinstance imageSet is empty")
 
 		builder.errorMsg = "clusterinstance imageSet cannot be empty"
 
@@ -238,11 +238,11 @@ func (builder *CIBuilder) WithClusterName(clusterName string) *CIBuilder {
 		return builder
 	}
 
-	glog.V(100).Infof("Adding clusterName %s to clusterinstance %s in namespace %s",
+	klog.V(100).Infof("Adding clusterName %s to clusterinstance %s in namespace %s",
 		clusterName, builder.Definition.Name, builder.Definition.Namespace)
 
 	if clusterName == "" {
-		glog.V(100).Infof("The clusterinstance clusterName is empty")
+		klog.V(100).Info("The clusterinstance clusterName is empty")
 
 		builder.errorMsg = "clusterinstance clusterName cannot be empty"
 
@@ -260,11 +260,11 @@ func (builder *CIBuilder) WithSSHPubKey(sshPubKey string) *CIBuilder {
 		return builder
 	}
 
-	glog.V(100).Infof("Adding sshPubKey %s to clusterinstance %s in namespace %s",
+	klog.V(100).Infof("Adding sshPubKey %s to clusterinstance %s in namespace %s",
 		sshPubKey, builder.Definition.Name, builder.Definition.Namespace)
 
 	if sshPubKey == "" {
-		glog.V(100).Infof("The clusterinstance sshPubKey is empty")
+		klog.V(100).Info("The clusterinstance sshPubKey is empty")
 
 		builder.errorMsg = "clusterinstance sshPubKey cannot be empty"
 
@@ -282,11 +282,11 @@ func (builder *CIBuilder) WithMachineNetwork(machineNetwork string) *CIBuilder {
 		return builder
 	}
 
-	glog.V(100).Infof("Adding machineNetwork %s to clusterinstance %s in namespace %s",
+	klog.V(100).Infof("Adding machineNetwork %s to clusterinstance %s in namespace %s",
 		machineNetwork, builder.Definition.Name, builder.Definition.Namespace)
 
 	if _, _, err := net.ParseCIDR(machineNetwork); err != nil {
-		glog.V(100).Infof("The clusterinstance machineNetwork cidr %s is invalid cidr", machineNetwork)
+		klog.V(100).Infof("The clusterinstance machineNetwork cidr %s is invalid cidr", machineNetwork)
 
 		builder.errorMsg = "clusterinstance contains invalid machineNetwork cidr"
 
@@ -307,11 +307,11 @@ func (builder *CIBuilder) WithProxy(proxy *aiv1beta1.Proxy) *CIBuilder {
 		return builder
 	}
 
-	glog.V(100).Infof("Adding proxy %v to clusterinstance %s in namespace %s",
+	klog.V(100).Infof("Adding proxy %v to clusterinstance %s in namespace %s",
 		proxy, builder.Definition.Name, builder.Definition.Namespace)
 
 	if proxy == nil {
-		glog.V(100).Infof("The clusterinstance proxy is nil")
+		klog.V(100).Info("The clusterinstance proxy is nil")
 
 		builder.errorMsg = "clusterinstance proxy cannot be nil"
 
@@ -330,14 +330,14 @@ func (builder *CIBuilder) WithNode(node *siteconfigv1alpha1.NodeSpec) *CIBuilder
 	}
 
 	if node == nil {
-		glog.V(100).Infof("The clusterinstance node is nil")
+		klog.V(100).Info("The clusterinstance node is nil")
 
 		builder.errorMsg = "clusterinstance node cannot be nil"
 
 		return builder
 	}
 
-	glog.V(100).Infof("Adding node %s to clusterinstance %s in namespace %s",
+	klog.V(100).Infof("Adding node %s to clusterinstance %s in namespace %s",
 		node.HostName, builder.Definition.Name, builder.Definition.Namespace)
 
 	builder.Definition.Spec.Nodes = append(builder.Definition.Spec.Nodes, *node)
@@ -351,10 +351,10 @@ func (builder *CIBuilder) WithExtraManifests(extraManifestsName string) *CIBuild
 		return builder
 	}
 
-	glog.V(100).Infof("Adding extra manifest %s to ClusterInstance definition", extraManifestsName)
+	klog.V(100).Infof("Adding extra manifest %s to ClusterInstance definition", extraManifestsName)
 
 	if extraManifestsName == "" {
-		glog.V(100).Infof("checking the clusterinstance extramanifest is empty")
+		klog.V(100).Info("checking the clusterinstance extramanifest is empty")
 
 		builder.errorMsg = "clusterinstance extramanifest cannot be empty"
 
@@ -375,10 +375,10 @@ func (builder *CIBuilder) WithCABundle(caBundleConfigMapName string) *CIBuilder 
 		return builder
 	}
 
-	glog.V(100).Infof("Adding CA bundle via configmap %s to ClusterInstance definition", caBundleConfigMapName)
+	klog.V(100).Infof("Adding CA bundle via configmap %s to ClusterInstance definition", caBundleConfigMapName)
 
 	if caBundleConfigMapName == "" {
-		glog.V(100).Infof("The clusterinstance cabundle is empty")
+		klog.V(100).Info("The clusterinstance cabundle is empty")
 
 		builder.errorMsg = "clusterinstance cabundle cannot be empty"
 
@@ -398,10 +398,10 @@ func (builder *CIBuilder) WithExtraLabels(key string, labels map[string]string) 
 		return builder
 	}
 
-	glog.V(100).Infof("Defining clusterinstance extraLabels to %s:%v", key, labels)
+	klog.V(100).Infof("Defining clusterinstance extraLabels to %s:%v", key, labels)
 
 	if key == "" {
-		glog.V(100).Infof("checking the key is empty")
+		klog.V(100).Info("checking the key is empty")
 
 		builder.errorMsg = "can not apply empty key"
 
@@ -409,7 +409,7 @@ func (builder *CIBuilder) WithExtraLabels(key string, labels map[string]string) 
 	}
 
 	if len(labels) == 0 {
-		glog.V(100).Infof("checking the labels are empty")
+		klog.V(100).Info("checking the labels are empty")
 
 		builder.errorMsg = "labels can not be empty"
 
@@ -418,7 +418,7 @@ func (builder *CIBuilder) WithExtraLabels(key string, labels map[string]string) 
 
 	for key := range labels {
 		if key == "" {
-			glog.V(100).Infof("The 'labels' key cannot be empty")
+			klog.V(100).Info("The 'labels' key cannot be empty")
 
 			builder.errorMsg = "can not apply a labels with an empty key"
 
@@ -445,7 +445,7 @@ func (builder *CIBuilder) WaitForCondition(expected metav1.Condition, timeout ti
 	}
 
 	if !builder.Exists() {
-		glog.V(100).Infof("The clusterinstance does not exist on the cluster")
+		klog.V(100).Info("The clusterinstance does not exist on the cluster")
 
 		return builder, fmt.Errorf(
 			"clusterinstance object %s does not exist in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
@@ -457,7 +457,7 @@ func (builder *CIBuilder) WaitForCondition(expected metav1.Condition, timeout ti
 
 			builder.Object, err = builder.Get()
 			if err != nil {
-				glog.V(100).Info("failed to get clusterinstance %s/%s: %w",
+				klog.V(100).Infof("failed to get clusterinstance %s/%s: %v",
 					builder.Definition.Namespace, builder.Definition.Name, err)
 
 				return false, nil
@@ -502,7 +502,7 @@ func (builder *CIBuilder) WaitForReinstallCondition(expected metav1.Condition,
 	}
 
 	if !builder.Exists() {
-		glog.V(100).Infof("The clusterinstance does not exist on the cluster")
+		klog.V(100).Info("The clusterinstance does not exist on the cluster")
 
 		return builder, fmt.Errorf(
 			"clusterinstance object %s does not exist in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
@@ -514,14 +514,14 @@ func (builder *CIBuilder) WaitForReinstallCondition(expected metav1.Condition,
 
 			builder.Object, err = builder.Get()
 			if err != nil {
-				glog.V(100).Info("failed to get clusterinstance %s/%s: %v",
+				klog.V(100).Infof("failed to get clusterinstance %s/%s: %v",
 					builder.Definition.Namespace, builder.Definition.Name, err)
 
 				return false, nil
 			}
 
 			if builder.Object.Status.Reinstall == nil || builder.Object.Status.Reinstall.Conditions == nil {
-				glog.V(100).Info("failed to get reinstall status %s/%s: %v",
+				klog.V(100).Infof("failed to get reinstall status %s/%s: %v",
 					builder.Definition.Namespace, builder.Definition.Name, err)
 
 				return false, nil
@@ -561,11 +561,11 @@ func (builder *CIBuilder) WaitForExtraLabel(kind, label string, timeout time.Dur
 		return nil, err
 	}
 
-	glog.V(100).Infof("Waiting up to %s until ClusterInstance %s in namespace %s has extra label %s on kind %s",
+	klog.V(100).Infof("Waiting up to %s until ClusterInstance %s in namespace %s has extra label %s on kind %s",
 		timeout, builder.Definition.Name, builder.Definition.Namespace, label, kind)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("ClusterInstance %s does not exist in namespace %s",
+		klog.V(100).Infof("ClusterInstance %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		return nil, fmt.Errorf(
@@ -578,7 +578,7 @@ func (builder *CIBuilder) WaitForExtraLabel(kind, label string, timeout time.Dur
 
 			builder.Object, err = builder.Get()
 			if err != nil {
-				glog.V(100).Info("Failed to get ClusterInstance %s in namespace %s: %v",
+				klog.V(100).Infof("Failed to get ClusterInstance %s in namespace %s: %v",
 					builder.Definition.Name, builder.Definition.Namespace, err)
 
 				return false, nil
@@ -612,7 +612,7 @@ func (builder *CIBuilder) Get() (*siteconfigv1alpha1.ClusterInstance, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting clusterinstance %s in namespace %s",
+	klog.V(100).Infof("Getting clusterinstance %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	ClusterInstance := &siteconfigv1alpha1.ClusterInstance{}
@@ -634,7 +634,7 @@ func (builder *CIBuilder) Create() (*CIBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the clusterinstance %s in namespace %s",
+	klog.V(100).Infof("Creating the clusterinstance %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -654,11 +654,11 @@ func (builder *CIBuilder) Update(force bool) (*CIBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating clusterinstance %s in namespace %s",
+	klog.V(100).Infof("Updating clusterinstance %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("clusterinstance %s does not exist in namespace %s",
+		klog.V(100).Infof("clusterinstance %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		return builder, fmt.Errorf("cannot update non-existent clusterinstance")
@@ -667,13 +667,11 @@ func (builder *CIBuilder) Update(force bool) (*CIBuilder, error) {
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		if force {
-			glog.V(100).Infof(
-				msg.FailToUpdateNotification("clusterinstance", builder.Definition.Name, builder.Definition.Namespace))
+			klog.V(100).Infof("%v", msg.FailToUpdateNotification("clusterinstance", builder.Definition.Name, builder.Definition.Namespace))
 
 			err := builder.Delete()
 			if err != nil {
-				glog.V(100).Infof(
-					msg.FailToUpdateError("clusterinstance", builder.Definition.Name, builder.Definition.Namespace))
+				klog.V(100).Infof("%v", msg.FailToUpdateError("clusterinstance", builder.Definition.Name, builder.Definition.Namespace))
 
 				return nil, err
 			}
@@ -695,11 +693,11 @@ func (builder *CIBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting the clusterinstance %s in namespace %s",
+	klog.V(100).Infof("Deleting the clusterinstance %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("clusterinstance %s cannot be deleted because it does not exist in namespace %s",
+		klog.V(100).Infof("clusterinstance %s cannot be deleted because it does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -723,7 +721,7 @@ func (builder *CIBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if clusterinstance %s exists in namespace %s",
+	klog.V(100).Infof("Checking if clusterinstance %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -739,25 +737,25 @@ func (builder *CIBuilder) validate() (bool, error) {
 	resourceCRD := "ClusterInstance"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

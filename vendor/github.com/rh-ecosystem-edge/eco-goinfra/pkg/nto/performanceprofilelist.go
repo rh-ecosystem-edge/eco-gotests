@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	performanceprofilev2 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/performanceprofile/v2"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -16,20 +16,20 @@ func ListProfiles(apiClient *clients.Settings, options ...goclient.ListOptions) 
 	logMessage := "Listing PerformanceProfiles on cluster"
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil, fmt.Errorf("the apiClient cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(performanceprofilev2.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add node-tuning-operator v2 scheme to client schemes")
+		klog.V(100).Info("Failed to add node-tuning-operator v2 scheme to client schemes")
 
 		return nil, err
 	}
 
 	if len(options) > 1 {
-		glog.V(100).Infof("'options' parameter must be empty or single-valued")
+		klog.V(100).Info("'options' parameter must be empty or single-valued")
 
 		return nil, fmt.Errorf("error: more than one ListOptions was passed")
 	}
@@ -39,13 +39,13 @@ func ListProfiles(apiClient *clients.Settings, options ...goclient.ListOptions) 
 		logMessage += fmt.Sprintf(" with the options %v", passedOptions)
 	}
 
-	glog.V(100).Infof(logMessage)
+	klog.V(100).Infof("%v", logMessage)
 
 	var performanceProfiles performanceprofilev2.PerformanceProfileList
 
 	err = apiClient.List(context.TODO(), &performanceProfiles, &passedOptions)
 	if err != nil {
-		glog.V(100).Infof("Failed to list PerformanceProfiles due to %s", err.Error())
+		klog.V(100).Infof("Failed to list PerformanceProfiles due to %s", err.Error())
 
 		return nil, err
 	}
@@ -68,11 +68,11 @@ func ListProfiles(apiClient *clients.Settings, options ...goclient.ListOptions) 
 
 // CleanAllPerformanceProfiles removes all PerformanceProfiles installed on a cluster.
 func CleanAllPerformanceProfiles(apiClient *clients.Settings, options ...goclient.ListOptions) error {
-	glog.V(100).Infof("Cleaning up PerformanceProfiles")
+	klog.V(100).Info("Cleaning up PerformanceProfiles")
 
 	policies, err := ListProfiles(apiClient, options...)
 	if err != nil {
-		glog.V(100).Infof("Failed to list PerformanceProfiles")
+		klog.V(100).Info("Failed to list PerformanceProfiles")
 
 		return err
 	}
@@ -80,7 +80,7 @@ func CleanAllPerformanceProfiles(apiClient *clients.Settings, options ...goclien
 	for _, policy := range policies {
 		_, err = policy.Delete()
 		if err != nil {
-			glog.V(100).Infof("Failed to delete PerformanceProfiles: %s", policy.Object.Name)
+			klog.V(100).Infof("Failed to delete PerformanceProfiles: %s", policy.Object.Name)
 
 			return err
 		}

@@ -3,9 +3,9 @@ package tests
 import (
 	"strings"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"k8s.io/klog/v2"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
@@ -41,7 +41,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			for _, ds := range deploymentList {
 				if strings.Contains(ds.Object.Name, kmmparams.DeploymentName) {
 					Expect(ds.Object.Status.ReadyReplicas).To(Equal(int32(1)))
-					glog.V(kmmparams.KmmLogLevel).Infof("Successfully found deployment '%s'"+
+					klog.V(kmmparams.KmmLogLevel).Infof("Successfully found deployment '%s'"+
 						" with ReadyReplicas %d", ds.Object.Name, ds.Object.Status.ReadyReplicas)
 				}
 			}
@@ -56,7 +56,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			for _, ds := range deploymentList {
 				if strings.Contains(ds.Object.Name, kmmparams.WebhookDeploymentName) {
 					Expect(ds.Object.Status.ReadyReplicas).To(Equal(int32(1)))
-					glog.V(kmmparams.KmmLogLevel).Infof("Successfully found deployment '%s'"+
+					klog.V(kmmparams.KmmLogLevel).Infof("Successfully found deployment '%s'"+
 						" with ReadyReplicas %d", ds.Object.Name, ds.Object.Status.ReadyReplicas)
 				}
 			}

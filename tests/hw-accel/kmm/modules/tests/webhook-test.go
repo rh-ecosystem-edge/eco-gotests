@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/kmm/v1beta1"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/modules/internal/tsparams"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -205,7 +205,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 					WithModuleLoaderContainer(moduleLoader).
 					Create()
 				Expect(err).To(HaveOccurred(), "error creating module")
-				glog.V(kmmparams.KmmLogLevel).Infof("err is: %s", err)
+				klog.V(kmmparams.KmmLogLevel).Infof("err is: %s", err)
 				Expect(err.Error()).To(ContainSubstring("rawArgs cannot be set when moduleName is set"))
 			})
 
@@ -230,7 +230,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 				By("Create Module")
 				err := APIClient.Create(context.TODO(), module)
 				Expect(err).To(HaveOccurred(), "error creating module")
-				glog.V(kmmparams.KmmLogLevel).Infof("err is: %s", err)
+				klog.V(kmmparams.KmmLogLevel).Infof("err is: %s", err)
 				Expect(err.Error()).To(ContainSubstring("load and unload rawArgs must be set when moduleName is unset"))
 			})
 
@@ -254,7 +254,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 				By("Create Module")
 				err := APIClient.Create(context.TODO(), module)
 				Expect(err).To(HaveOccurred(), "error creating module")
-				glog.V(kmmparams.KmmLogLevel).Infof("err is: %s", err)
+				klog.V(kmmparams.KmmLogLevel).Infof("err is: %s", err)
 				Expect(err.Error()).To(ContainSubstring("container image must explicitely set a tag or digest")) //nolint:misspell
 			})
 		})

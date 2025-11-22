@@ -13,10 +13,10 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/await"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/remote"
@@ -58,14 +58,14 @@ func VerifyMetallbEgressTrafficSegregation(ctx SpecContext) {
 
 	if RDSCoreConfig.MetalLBTrafficSegregationTargetOneIPv4 == "" &&
 		RDSCoreConfig.MetalLBTrafficSegregationTargetOneIPv6 == "" {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 			"Test URLs for MetalLB FRR testing not specified or are empty. Skipping...")
 		Skip("Test URL for MetalLB FRR testing not specified or are empty")
 	}
 
 	if RDSCoreConfig.MetalLBTrafficSegregationTargetTwoIPv4 == "" &&
 		RDSCoreConfig.MetalLBTrafficSegregationTargetTwoIPv6 == "" {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 			"Test URLs for the second MetalLB FRR testing not specified or are empty. Skipping...")
 		Skip("Test URL for the second MetalLB FRR testing not specified or are empty")
 	}
@@ -79,7 +79,7 @@ func VerifyMetallbEgressTrafficSegregation(ctx SpecContext) {
 
 	By("Creating the packet traceroute deployment")
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Create traceroute deployment on the node %s",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Create traceroute deployment on the node %s",
 		segregationTestNode)
 
 	_, err =
@@ -95,25 +95,25 @@ func VerifyMetallbEgressTrafficSegregation(ctx SpecContext) {
 
 	By("Finding traceroute pods")
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Searching for traceroute pods in %q namespace", stNamespace)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Searching for traceroute pods in %q namespace", stNamespace)
 
 	stPodsList := findPodWithSelector(stNamespace, stDeploymentLabel)
 	Expect(len(stPodsList)).ToNot(Equal(0), "No traceroute pods found in namespace %s",
 		stNamespace)
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d 'traceroute' pods", len(stPodsList))
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d 'traceroute' pods", len(stPodsList))
 
 	for _, _pod := range stPodsList {
 		By("Verify the correct route was used for the first BGP route")
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Verifying that the correct route was used "+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Verifying that the correct route was used "+
 			"for the first BGP route %s/%s",
 			RDSCoreConfig.MetalLBFRROneIPv4, RDSCoreConfig.MetalLBFRROneIPv6)
 
 		for _, targetHostIP := range []string{RDSCoreConfig.MetalLBTrafficSegregationTargetOneIPv4,
 			RDSCoreConfig.MetalLBTrafficSegregationTargetOneIPv6} {
 			if targetHostIP == "" {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Empty target IP continue")
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Empty target IP continue")
 
 				continue
 			}
@@ -139,14 +139,14 @@ func VerifyMetallbEgressTrafficSegregation(ctx SpecContext) {
 
 		By("Verify the correct route was used for the second BGP route")
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Verifying that the correct route was used "+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Verifying that the correct route was used "+
 			"for the second BGP route %s/%s", RDSCoreConfig.MetalLBFRRTwoIPv4,
 			RDSCoreConfig.MetalLBFRRTwoIPv6)
 
 		for _, targetHostIP := range []string{RDSCoreConfig.MetalLBTrafficSegregationTargetTwoIPv4,
 			RDSCoreConfig.MetalLBTrafficSegregationTargetTwoIPv6} {
 			if targetHostIP == "" {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Empty target IP continue")
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Empty target IP continue")
 
 				continue
 			}
@@ -182,45 +182,45 @@ func VerifyMetallbIngressTrafficSegregation(ctx SpecContext) {
 	var err error
 
 	if RDSCoreConfig.MetalLBFRROneIPv4 == "" && RDSCoreConfig.MetalLBFRROneIPv6 == "" {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 			"First MetalLB FRR IP not specified or are empty. Skipping...")
 		Skip("First MetalLB FRR IP not specified or are empty")
 	}
 
 	if RDSCoreConfig.MetalLBFRRTwoIPv4 == "" && RDSCoreConfig.MetalLBFRRTwoIPv6 == "" {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 			"Second MetalLB FRR IP not specified or are empty. Skipping...")
 		Skip("Second MetalLB FRR IP not specified or are empty")
 	}
 
 	if RDSCoreConfig.MetalLBTrafficSegregationTCPDumpIntOne == "" &&
 		RDSCoreConfig.MetalLBTrafficSegregationTCPDumpIntTwo == "" {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 			"One of the capture interfaces not specified or are empty. Skipping...")
 		Skip("One of the capture interfaces not specified or are empty")
 	}
 
 	By("Ensure LB application deployment created for the first BGP route")
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Searching for the metallb app pods in %q namespace with label %q",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Searching for the metallb app pods in %q namespace with label %q",
 		RDSCoreConfig.MetalLBLoadBalancerOneNamespace, lbDeploymentLabel)
 
 	lbOneNodeName, err := getNodeForTest(RDSCoreConfig.MetalLBLoadBalancerOneNamespace, lbDeploymentLabel)
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to retrieve testing LB one node name: %v", err))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("debug for the node selector: %s", lbOneNodeName)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("debug for the node selector: %s", lbOneNodeName)
 
 	By("Ensure LB application deployment created for the second bgp route")
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Searching for the metallb app pods in %q namespace with label %q",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Searching for the metallb app pods in %q namespace with label %q",
 		RDSCoreConfig.MetalLBLoadBalancerTwoNamespace, lbDeploymentLabel)
 
 	lbTwoNodeName, err := getNodeForTest(RDSCoreConfig.MetalLBLoadBalancerTwoNamespace, lbDeploymentLabel)
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to retrieve testing LB two node name: %v", err))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("debug for the node selector: %s", lbTwoNodeName)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("debug for the node selector: %s", lbTwoNodeName)
 
 	By("Make sure that 1st external FRR container has learnt route to the 1st deployment")
 
@@ -275,10 +275,10 @@ func VerifyMetallbIngressTrafficSegregation(ctx SpecContext) {
 	var workerNodesList []string
 
 	if len(RDSCoreConfig.FRRExpectedNodes) > 0 {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Using expected nodes list %v", RDSCoreConfig.FRRExpectedNodes)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Using expected nodes list %v", RDSCoreConfig.FRRExpectedNodes)
 		workerNodesList = RDSCoreConfig.FRRExpectedNodes
 	} else {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Trying to retrieve worker nodes names list from the label %v",
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Trying to retrieve worker nodes names list from the label %v",
 			RDSCoreConfig.WorkerLabelListOption)
 
 		workerNodesList, err = getNodesNamesList(APIClient, RDSCoreConfig.WorkerLabelListOption)
@@ -289,7 +289,7 @@ func VerifyMetallbIngressTrafficSegregation(ctx SpecContext) {
 			RDSCoreConfig.WorkerLabelListOption)
 	}
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Create tcpdump deployment for the nodes %v", workerNodesList)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Create tcpdump deployment for the nodes %v", workerNodesList)
 
 	_, err =
 		supporttools.CreateTCPDumpDeployment(
@@ -306,7 +306,7 @@ func VerifyMetallbIngressTrafficSegregation(ctx SpecContext) {
 
 	By("Finding support-tools pods")
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Searching for tcpdump pods in %q namespace", stNamespace)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Searching for tcpdump pods in %q namespace", stNamespace)
 
 	stPodsFound, err := await.WaitForThePodReplicasCountInNamespace(
 		APIClient,
@@ -322,7 +322,7 @@ func VerifyMetallbIngressTrafficSegregation(ctx SpecContext) {
 	Expect(len(stPodsList)).To(Equal(len(workerNodesList)), "Not all tcpdump pods found in namespace "+
 		"%s: %v", stNamespace, stPodsList)
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d 'tcpdump' pods", len(stPodsList))
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d 'tcpdump' pods", len(stPodsList))
 
 	By("Assert that 1st mockup app is reachable from the node with 1st FRR container")
 
@@ -330,7 +330,7 @@ func VerifyMetallbIngressTrafficSegregation(ctx SpecContext) {
 
 	time.Sleep(time.Second * 5)
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("start run traffic at %v", timeStart)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("start run traffic at %v", timeStart)
 
 	appURLList := []string{}
 
@@ -343,7 +343,7 @@ func VerifyMetallbIngressTrafficSegregation(ctx SpecContext) {
 	}
 
 	if len(appURLList) == 0 {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 			"No app URLs to check. Skipping...")
 		Skip("No app URLs to check")
 	}
@@ -373,7 +373,7 @@ func VerifyMetallbIngressTrafficSegregation(ctx SpecContext) {
 	}
 
 	for _, searchString := range searchStringList {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Making sure that the traffic flows from the first FRR "+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Making sure that the traffic flows from the first FRR "+
 			"through the %s interface", RDSCoreConfig.MetalLBTrafficSegregationTCPDumpIntOne)
 
 		err = scanTroughPodsList(stPodsList, searchString, timeStart)
@@ -383,7 +383,7 @@ func VerifyMetallbIngressTrafficSegregation(ctx SpecContext) {
 
 	By("Creating the tcpdump deployment for the second FRR packets capturing")
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Create tcpdump deployment for the nodes %v", workerNodesList)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Create tcpdump deployment for the nodes %v", workerNodesList)
 
 	_, err =
 		supporttools.CreateTCPDumpDeployment(
@@ -400,7 +400,7 @@ func VerifyMetallbIngressTrafficSegregation(ctx SpecContext) {
 
 	By("Finding support-tools pods")
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Searching for tcpdump pods in %q namespace", stNamespace)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Searching for tcpdump pods in %q namespace", stNamespace)
 
 	stPodsFound, err = await.WaitForThePodReplicasCountInNamespace(
 		APIClient,
@@ -416,13 +416,13 @@ func VerifyMetallbIngressTrafficSegregation(ctx SpecContext) {
 	Expect(len(stPodsList)).ToNot(Equal(0), "No tcpdump pods found in namespace %s",
 		stNamespace)
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d 'tcpdump' pods", len(stPodsList))
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d 'tcpdump' pods", len(stPodsList))
 
 	timeStart = time.Now()
 
 	time.Sleep(time.Second * 5)
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("start run traffic at %v", timeStart)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("start run traffic at %v", timeStart)
 
 	By("Assert that 2nd mockup app is reachable from the node with 2nd FRR container")
 
@@ -437,7 +437,7 @@ func VerifyMetallbIngressTrafficSegregation(ctx SpecContext) {
 	}
 
 	if len(appURLList) == 0 {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 			"No app URLs to check. Skipping...")
 		Skip("No app URLs to check")
 	}
@@ -467,7 +467,7 @@ func VerifyMetallbIngressTrafficSegregation(ctx SpecContext) {
 	}
 
 	for _, searchString := range searchStringList {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Making sure that the traffic flows from the second FRR "+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Making sure that the traffic flows from the second FRR "+
 			"through the %s interface", RDSCoreConfig.MetalLBTrafficSegregationTCPDumpIntTwo)
 
 		err = scanTroughPodsList(stPodsList, searchString, timeStart)
@@ -483,20 +483,20 @@ func VerifyMetallbMockupAppNotReachableFromOtherFRR(ctx SpecContext) {
 	By("Asserting if test URLs are provided")
 
 	if RDSCoreConfig.MetalLBFRROneIPv4 == "" && RDSCoreConfig.MetalLBFRROneIPv6 == "" {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 			"First MetalLB FRR IP not specified or are empty. Skipping...")
 		Skip("First MetalLB FRR IP not specified or are empty")
 	}
 
 	if RDSCoreConfig.MetalLBFRRTwoIPv4 == "" && RDSCoreConfig.MetalLBFRRTwoIPv6 == "" {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 			"Second MetalLB FRR IP not specified or are empty. Skipping...")
 		Skip("Second MetalLB FRR IP not specified or are empty")
 	}
 
 	if RDSCoreConfig.MetalLBTrafficSegregationTCPDumpIntOne == "" &&
 		RDSCoreConfig.MetalLBTrafficSegregationTCPDumpIntTwo == "" {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 			"One of the capture interfaces not specified or are empty. Skipping...")
 		Skip("One of the capture interfaces not specified or are empty")
 	}
@@ -514,7 +514,7 @@ func VerifyMetallbMockupAppNotReachableFromOtherFRR(ctx SpecContext) {
 	}
 
 	if len(ipRouteList) == 0 {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 			"No IP routes to check. Skipping...")
 		Skip("No IP routes to check")
 	}
@@ -544,7 +544,7 @@ func VerifyMetallbMockupAppNotReachableFromOtherFRR(ctx SpecContext) {
 	}
 
 	if len(ipRouteList) == 0 {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 			"No IP routes to check. Skipping...")
 		Skip("No IP routes to check")
 	}
@@ -565,7 +565,7 @@ func VerifyMetallbMockupAppNotReachableFromOtherFRR(ctx SpecContext) {
 
 	timeStart := time.Now()
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("start run traffic at %v", timeStart)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("start run traffic at %v", timeStart)
 
 	appURLList := []string{}
 
@@ -578,7 +578,7 @@ func VerifyMetallbMockupAppNotReachableFromOtherFRR(ctx SpecContext) {
 	}
 
 	if len(appURLList) == 0 {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 			"No app URLs to check. Skipping...")
 		Skip("No app URLs to check")
 	}
@@ -615,16 +615,16 @@ func verifyIPRouteBGP(host, user, pass, containerName, lbIP string) error {
 
 	var err error
 
-	glog.V(100).Infof("Verify IP version type")
+	klog.V(100).Infof("Verify IP version type")
 
 	parsedIP := strings.Split(lbIP, "/")[0]
 
-	glog.V(100).Infof("IP: %s", parsedIP)
+	klog.V(100).Infof("IP: %s", parsedIP)
 
 	myIP, err := netip.ParseAddr(parsedIP)
 
 	if err != nil {
-		glog.V(100).Infof("Failed to parse provided loadbalancer ip address %q; %v", parsedIP, err)
+		klog.V(100).Infof("Failed to parse provided loadbalancer ip address %q; %v", parsedIP, err)
 
 		return fmt.Errorf("failed to parse provided loadbalancer ip address %q; %w", parsedIP, err)
 	}
@@ -637,7 +637,7 @@ func verifyIPRouteBGP(host, user, pass, containerName, lbIP string) error {
 			"-c 'vtysh -c \"show ipv6 route bgp\"'", containerName)
 	}
 
-	glog.V(100).Infof("Running command %q from within container %s",
+	klog.V(100).Infof("Running command %q from within container %s",
 		showIPRouteBGPOnFRRContainerCmd, containerName)
 
 	err = wait.PollUntilContextTimeout(
@@ -649,25 +649,25 @@ func verifyIPRouteBGP(host, user, pass, containerName, lbIP string) error {
 			result, err = remote.ExecCmdOnHost(host, user, pass, showIPRouteBGPOnFRRContainerCmd)
 
 			if err != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to run command due to: %v", err)
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to run command due to: %v", err)
 
 				return false, nil
 			}
 
-			glog.V(100).Infof(fmt.Sprintf("BGP routes were found in the FRR container %s\\n: %s",
-				containerName, result))
+			klog.V(100).Infof("BGP routes were found in the FRR container %s\\n: %s",
+				containerName, result)
 
 			return true, nil
 		})
 
 	if err != nil {
-		glog.V(100).Infof("Failed to verify BGP routes in the FRR container %s: %v", containerName, err)
+		klog.V(100).Infof("Failed to verify BGP routes in the FRR container %s: %v", containerName, err)
 
 		return fmt.Errorf("failed to verify BGP routes in the FRR container %s: %w", containerName, err)
 	}
 
 	if !strings.Contains(result, lbIP) {
-		glog.V(100).Infof("No BGP route %s in the FRR container %s was found", lbIP, containerName)
+		klog.V(100).Infof("No BGP route %s in the FRR container %s was found", lbIP, containerName)
 
 		return fmt.Errorf("no BGP route %s in the FRR container %s was found", lbIP, containerName)
 	}
@@ -684,7 +684,7 @@ func verifyAppIsReachableFromFRRContainer(host, user, pass, containerName, appUR
 		fmt.Sprintf("sudo podman container inspect --format \"{{.NetworkSettings.SandboxKey}}\" %s | xargs basename",
 			containerName)
 
-	glog.V(100).Infof("Running command %q from within container %s", getContainerNetNsCmd, containerName)
+	klog.V(100).Infof("Running command %q from within container %s", getContainerNetNsCmd, containerName)
 
 	err = wait.PollUntilContextTimeout(
 		context.TODO(),
@@ -695,7 +695,7 @@ func verifyAppIsReachableFromFRRContainer(host, user, pass, containerName, appUR
 			netNs, err = remote.ExecCmdOnHost(host, user, pass, getContainerNetNsCmd)
 
 			if err != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to run command due to: %v", err)
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to run command due to: %v", err)
 
 				return false, nil
 			}
@@ -703,20 +703,20 @@ func verifyAppIsReachableFromFRRContainer(host, user, pass, containerName, appUR
 			netNs = strings.TrimSpace(netNs)
 			netNs = strings.Trim(netNs, "\n")
 
-			glog.V(100).Infof(fmt.Sprintf("netns for the container %s successfully retrieved: %s",
-				containerName, netNs))
+			klog.V(100).Infof("netns for the container %s successfully retrieved: %s",
+				containerName, netNs)
 
 			return true, nil
 		})
 
 	if err != nil {
-		glog.V(100).Infof("Failed to retrieve netns for the FRR container %s: %v", containerName, err)
+		klog.V(100).Infof("Failed to retrieve netns for the FRR container %s: %v", containerName, err)
 
 		return fmt.Errorf("failed to retrieve netns for the FRR container %s: %w", containerName, err)
 	}
 
 	if netNs == "" {
-		glog.V(100).Infof("netns for the FRR container %s not found", containerName)
+		klog.V(100).Infof("netns for the FRR container %s not found", containerName)
 
 		return fmt.Errorf("netns for the FRR container %s not found", containerName)
 	}
@@ -724,7 +724,7 @@ func verifyAppIsReachableFromFRRContainer(host, user, pass, containerName, appUR
 	verifyAppIsReachableCmd := fmt.Sprintf("sudo ip netns exec %s curl -Ls --max-time 5 -o /dev/null "+
 		"-w '%%{http_code}' %s", netNs, appURL)
 
-	glog.V(100).Infof("Running command %q from within netns %s of the container %s",
+	klog.V(100).Infof("Running command %q from within netns %s of the container %s",
 		verifyAppIsReachableCmd, netNs, containerName)
 
 	err = wait.PollUntilContextTimeout(
@@ -736,18 +736,18 @@ func verifyAppIsReachableFromFRRContainer(host, user, pass, containerName, appUR
 			output, err = remote.ExecCmdOnHost(host, user, pass, verifyAppIsReachableCmd)
 
 			if err != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to run command due to: %v", err)
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to run command due to: %v", err)
 
 				return false, nil
 			}
 
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Command's Output:\n%v\n", output)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Command's Output:\n%v\n", output)
 
 			return true, nil
 		})
 
 	if err != nil {
-		glog.V(100).Infof("URL %s is not reachable from the netns %s of the container %s; %v",
+		klog.V(100).Infof("URL %s is not reachable from the netns %s of the container %s; %v",
 			appURL, netNs, containerName, err)
 
 		return fmt.Errorf("the URL %s is not reachable from the netns %s of the container %s; %w",
@@ -755,27 +755,27 @@ func verifyAppIsReachableFromFRRContainer(host, user, pass, containerName, appUR
 	}
 
 	if !strings.Contains(codesPattern, strings.Trim(output, "'")) {
-		glog.V(100).Infof("received HTTP response not as expected; expected: %s, received: %s",
+		klog.V(100).Infof("received HTTP response not as expected; expected: %s, received: %s",
 			codesPattern, output)
 
 		return fmt.Errorf("received HTTP response not as expected; expected: %s, received: %s",
 			codesPattern, output)
 	}
 
-	glog.V(100).Infof(fmt.Sprintf("URL %s is reachable from the netns %s of the container %s",
-		appURL, netNs, containerName))
+	klog.V(100).Infof("URL %s is reachable from the netns %s of the container %s",
+		appURL, netNs, containerName)
 
 	return nil
 }
 
 func getNodeForTest(namespace, deploymentLabel string) (string, error) {
-	glog.V(100).Infof("Searching for pods in %q namespace with label %q",
+	klog.V(100).Infof("Searching for pods in %q namespace with label %q",
 		namespace, deploymentLabel)
 
 	podsList := findPodWithSelector(namespace, deploymentLabel)
 
 	if len(podsList) == 0 {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"no pods with the label %s found deployed in namespace %s", deploymentLabel, namespace)
 
 		return "", fmt.Errorf("no pods with the label %s found deployed in namespace %s",
@@ -783,23 +783,23 @@ func getNodeForTest(namespace, deploymentLabel string) (string, error) {
 	}
 
 	if len(podsList) > 1 && deploymentLabel != rdscoreparams.MetalLBFRRPodSelector {
-		glog.V(100).Infof("More than one app pod with label %s was found deployed: %d",
+		klog.V(100).Infof("More than one app pod with label %s was found deployed: %d",
 			deploymentLabel, len(podsList))
 
 		return "", fmt.Errorf("more than one app pod with label %s was found deployed: %d",
 			deploymentLabel, len(podsList))
 	}
 
-	glog.V(100).Infof("Getting node name for the app pod with label %s in namespace %s",
+	klog.V(100).Infof("Getting node name for the app pod with label %s in namespace %s",
 		deploymentLabel, namespace)
 
 	for _, _pod := range podsList {
 		if len(RDSCoreConfig.FRRExpectedNodes) != 0 {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("User specified list of FRR nodes present: %q",
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("User specified list of FRR nodes present: %q",
 				RDSCoreConfig.FRRExpectedNodes)
 
 			if !slices.Contains(RDSCoreConfig.FRRExpectedNodes, _pod.Definition.Spec.NodeName) {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q(%q) runs on not user expected node %q. Skipping",
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q(%q) runs on not user expected node %q. Skipping",
 					_pod.Definition.Name, _pod.Definition.Namespace, _pod.Definition.Spec.NodeName)
 
 				continue
@@ -813,20 +813,20 @@ func getNodeForTest(namespace, deploymentLabel string) (string, error) {
 }
 
 func getNodesNamesList(apiClient *clients.Settings, options metav1.ListOptions) ([]string, error) {
-	glog.V(100).Infof("Building node names list for the nodes with the label %q", options.String())
+	klog.V(100).Infof("Building node names list for the nodes with the label %q", options.String())
 
 	var nodeNamesList []string
 
 	nodesList, err := nodes.List(apiClient, options)
 
 	if err != nil {
-		glog.V(100).Infof("Failed to retrieve %q nodes list; %v", options.String(), err)
+		klog.V(100).Infof("Failed to retrieve %q nodes list; %v", options.String(), err)
 
 		return nil, fmt.Errorf("failed to retrieve %q nodes list; %w", options.String(), err)
 	}
 
 	if len(nodesList) == 0 {
-		glog.V(100).Infof("The %q nodes list is empty", options.String())
+		klog.V(100).Infof("The %q nodes list is empty", options.String())
 
 		return nil, fmt.Errorf("%q nodes list is empty", options.String())
 	}
@@ -855,14 +855,14 @@ func scanTroughPodsList(podsList []*pod.Builder, searchString string, timeStart 
 		}
 
 		if numberFound != 0 {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("The searching string %s was found in log: %s",
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("The searching string %s was found in log: %s",
 				searchString, logs)
 
 			return nil
 		}
 	}
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to find string %s in tcpdump log results for the pods in "+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to find string %s in tcpdump log results for the pods in "+
 		"namespace %s: %v", searchString, stNamespace, errorMsg)
 
 	return fmt.Errorf("failed to find string %s in tcpdump log results for the pods in namespace %s: %w",

@@ -16,8 +16,8 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/servicemesh"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/await"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -87,7 +87,7 @@ func VerifyServiceMeshNamespaceExists(ctx SpecContext) {
 
 // VerifyDTPODeployment assert Distributed Tracing Platform Operator deployment succeeded.
 func VerifyDTPODeployment(ctx SpecContext) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Verify Distributed Tracing Platform Operator deployment")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify Distributed Tracing Platform Operator deployment")
 
 	err := apiobjectshelper.VerifyOperatorDeployment(APIClient,
 		vcoreparams.DTPOperatorSubscriptionName,
@@ -101,7 +101,7 @@ func VerifyDTPODeployment(ctx SpecContext) {
 
 // VerifyKialiDeployment assert Kiali Operator deployment succeeded.
 func VerifyKialiDeployment(ctx SpecContext) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Verify Kiali Operator deployment")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify Kiali Operator deployment")
 
 	err := apiobjectshelper.VerifyOperatorDeployment(APIClient,
 		vcoreparams.KialiOperatorSubscriptionName,
@@ -115,7 +115,7 @@ func VerifyKialiDeployment(ctx SpecContext) {
 
 // VerifyServiceMeshDeployment assert Service Mesh Operator deployment succeeded.
 func VerifyServiceMeshDeployment(ctx SpecContext) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Verify Service Mesh Operator deployment")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify Service Mesh Operator deployment")
 
 	err := apiobjectshelper.VerifyOperatorDeployment(APIClient,
 		vcoreparams.SMOSubscriptionName,
@@ -131,7 +131,7 @@ func VerifyServiceMeshDeployment(ctx SpecContext) {
 //
 //nolint:funlen
 func VerifyServiceMeshConfig(ctx SpecContext) {
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Verify Service Mesh Operator configuration procedure")
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify Service Mesh Operator configuration procedure")
 
 	istioBasicPodLabel := "app=istiod"
 	istioIgwPodLabel := "app=istio-ingressgateway"
@@ -141,7 +141,7 @@ func VerifyServiceMeshConfig(ctx SpecContext) {
 	membersList := []string{"amfmme1", "csdb1", "nrf1", "nssf1", "smf1", "upf1"}
 	servicemeshControlplaneDeployments := []string{"istio-ingressgateway", "istiod-basic", "jaeger"}
 
-	glog.V(vcoreparams.VCoreLogLevel).Info("Create namespaces according to the members list")
+	klog.V(vcoreparams.VCoreLogLevel).Info("Create namespaces according to the members list")
 
 	for _, member := range membersList {
 		nsBuilder, err := namespace.NewBuilder(APIClient, member).Create()
@@ -150,9 +150,9 @@ func VerifyServiceMeshConfig(ctx SpecContext) {
 		Expect(nsBuilder.Exists()).To(Equal(true), fmt.Sprintf("namespace %s not found", member))
 	}
 
-	glog.V(vcoreparams.VCoreLogLevel).Info("Start to configure Service-Mesh Operator")
+	klog.V(vcoreparams.VCoreLogLevel).Info("Start to configure Service-Mesh Operator")
 
-	glog.V(vcoreparams.VCoreLogLevel).Info("Create service-mesh memberRoll")
+	klog.V(vcoreparams.VCoreLogLevel).Info("Create service-mesh memberRoll")
 
 	memberRollObj := servicemesh.NewMemberRollBuilder(APIClient, memberRollName, vcoreparams.IstioNamespace)
 
@@ -164,7 +164,7 @@ func VerifyServiceMeshConfig(ctx SpecContext) {
 			fmt.Sprintf("memberRoll %s not found in namespace %s", memberRollName, vcoreparams.IstioNamespace))
 	}
 
-	glog.V(vcoreparams.VCoreLogLevel).Info("Create service-mesh control plane")
+	klog.V(vcoreparams.VCoreLogLevel).Info("Create service-mesh control plane")
 
 	controlPlaneBuilder := servicemesh.NewControlPlaneBuilder(APIClient, "basic", vcoreparams.IstioNamespace)
 
@@ -193,7 +193,7 @@ func VerifyServiceMeshConfig(ctx SpecContext) {
 	Expect(memeberRollReady).To(Equal(true),
 		fmt.Sprintf("memberroll %s not found in namespace %s", memberRollName, vcoreparams.IstioNamespace))
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Confirm that all servicemesh controlplane deployments %v "+
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Confirm that all servicemesh controlplane deployments %v "+
 		"are running in %s namespace",
 		servicemeshControlplaneDeployments, vcoreparams.IstioNamespace)
 
@@ -206,9 +206,9 @@ func VerifyServiceMeshConfig(ctx SpecContext) {
 			smodeployment, vcoreparams.IstioNamespace, err))
 	}
 
-	glog.V(vcoreparams.VCoreLogLevel).Info("Check the service-mesh control plane pods are creating on the " +
+	klog.V(vcoreparams.VCoreLogLevel).Info("Check the service-mesh control plane pods are creating on the " +
 		"istio-system project")
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Confirm that %s pod was deployed and running in %s namespace",
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Confirm that %s pod was deployed and running in %s namespace",
 		istioBasicPodLabel, vcoreparams.IstioNamespace)
 
 	_, err = await.WaitForThePodReplicasCountInNamespace(
@@ -228,7 +228,7 @@ func VerifyServiceMeshConfig(ctx SpecContext) {
 	Expect(err).ToNot(HaveOccurred(), "No %s labeled pods were found in %s namespace; %w",
 		istioBasicPodLabel, vcoreparams.IstioNamespace, err)
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Confirm that %s pod was deployed and running in %s namespace",
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Confirm that %s pod was deployed and running in %s namespace",
 		istioIgwPodLabel, vcoreparams.IstioNamespace)
 
 	_, err = pod.WaitForAllPodsInNamespaceRunning(
@@ -239,7 +239,7 @@ func VerifyServiceMeshConfig(ctx SpecContext) {
 	Expect(err).ToNot(HaveOccurred(), "No %s labeled pods were found in %s namespace; %w",
 		istioIgwPodLabel, vcoreparams.IstioNamespace, err)
 
-	glog.V(vcoreparams.VCoreLogLevel).Infof("Confirm that %s pod was deployed and running in %s namespace",
+	klog.V(vcoreparams.VCoreLogLevel).Infof("Confirm that %s pod was deployed and running in %s namespace",
 		wasmBasicPodLabel, vcoreparams.IstioNamespace)
 
 	_, err = pod.WaitForAllPodsInNamespaceRunning(

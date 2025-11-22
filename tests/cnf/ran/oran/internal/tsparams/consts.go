@@ -1,6 +1,6 @@
 package tsparams
 
-import "github.com/golang/glog"
+import "k8s.io/klog/v2"
 
 const (
 	// LabelSuite is the label applied to all cases in the oran suite.
@@ -93,4 +93,4 @@ const (
 )
 
 // LogLevel is the glog verbosity level to use for logs in this suite or its helpers.
-const LogLevel glog.Level = 80
+const LogLevel klog.Level = 80

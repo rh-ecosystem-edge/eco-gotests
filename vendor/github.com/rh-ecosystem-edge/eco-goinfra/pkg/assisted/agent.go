@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	agentInstallV1Beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/api/v1beta1"
@@ -13,6 +12,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -39,7 +39,7 @@ func newAgentBuilder(apiClient goclient.Client, definition *agentInstallV1Beta1.
 		return nil
 	}
 
-	glog.V(100).Infof("Initializing new agent structure for the following agent %s",
+	klog.V(100).Infof("Initializing new agent structure for the following agent %s",
 		definition.Name)
 
 	builder := agentBuilder{
@@ -53,10 +53,10 @@ func newAgentBuilder(apiClient goclient.Client, definition *agentInstallV1Beta1.
 
 // PullAgent pulls existing agent from cluster.
 func PullAgent(apiClient *clients.Settings, name, nsname string) (*agentBuilder, error) {
-	glog.V(100).Infof("Pulling existing agent name %s under namespace %s from cluster", name, nsname)
+	klog.V(100).Infof("Pulling existing agent name %s under namespace %s from cluster", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil, fmt.Errorf("the apiClient is nil")
 	}
@@ -72,13 +72,13 @@ func PullAgent(apiClient *clients.Settings, name, nsname string) (*agentBuilder,
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the agent is empty")
+		klog.V(100).Info("The name of the agent is empty")
 
 		return nil, fmt.Errorf("agent 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the agent is empty")
+		klog.V(100).Info("The namespace of the agent is empty")
 
 		return nil, fmt.Errorf("agent 'namespace' cannot be empty")
 	}
@@ -98,11 +98,11 @@ func (builder *agentBuilder) WithHostName(hostname string) *agentBuilder {
 		return builder
 	}
 
-	glog.V(100).Infof("Setting agent %s in namespace %s hostname to %s",
+	klog.V(100).Infof("Setting agent %s in namespace %s hostname to %s",
 		builder.Definition.Name, builder.Definition.Namespace, hostname)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("agent %s in namespace %s does not exist",
+		klog.V(100).Infof("agent %s in namespace %s does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.errorMsg = nonExistentMsg
@@ -121,11 +121,11 @@ func (builder *agentBuilder) WithRole(role string) *agentBuilder {
 		return builder
 	}
 
-	glog.V(100).Infof("Setting agent %s in namespace %s to role %s",
+	klog.V(100).Infof("Setting agent %s in namespace %s to role %s",
 		builder.Definition.Name, builder.Definition.Namespace, role)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("agent %s in namespace %s does not exist",
+		klog.V(100).Infof("agent %s in namespace %s does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.errorMsg = nonExistentMsg
@@ -144,7 +144,7 @@ func (builder *agentBuilder) WithInstallationDisk(diskID string) *agentBuilder {
 		return builder
 	}
 
-	glog.V(100).Infof("Setting agent %s in namespace %s installation disk id to %s",
+	klog.V(100).Infof("Setting agent %s in namespace %s installation disk id to %s",
 		builder.Definition.Name, builder.Definition.Namespace, diskID)
 
 	builder.Definition.Spec.InstallationDiskID = diskID
@@ -158,7 +158,7 @@ func (builder *agentBuilder) WithIgnitionConfigOverride(override string) *agentB
 		return builder
 	}
 
-	glog.V(100).Infof("Setting agent %s in namespace %s ignitionConfigOverride to %s",
+	klog.V(100).Infof("Setting agent %s in namespace %s ignitionConfigOverride to %s",
 		builder.Definition.Name, builder.Definition.Namespace, override)
 
 	builder.Definition.Spec.IgnitionConfigOverrides = override
@@ -172,7 +172,7 @@ func (builder *agentBuilder) WithApproval(approved bool) *agentBuilder {
 		return builder
 	}
 
-	glog.V(100).Infof("Setting agent %s in namespace %s approval to %v",
+	klog.V(100).Infof("Setting agent %s in namespace %s approval to %v",
 		builder.Definition.Name, builder.Definition.Namespace, approved)
 
 	builder.Definition.Spec.Approved = approved
@@ -186,7 +186,7 @@ func (builder *agentBuilder) WaitForState(state string, timeout time.Duration) (
 		return builder, err
 	}
 
-	glog.V(100).Infof("Waiting for agent %s in namespace %s to report state %s",
+	klog.V(100).Infof("Waiting for agent %s in namespace %s to report state %s",
 		builder.Definition.Name, builder.Definition.Namespace, state)
 
 	// Polls every retryInterval to determine if agent is in desired state.
@@ -214,7 +214,7 @@ func (builder *agentBuilder) WaitForStateInfo(stateInfo string, timeout time.Dur
 		return builder, err
 	}
 
-	glog.V(100).Infof("Waiting for agent %s in namespace %s to report stateInfo %s",
+	klog.V(100).Infof("Waiting for agent %s in namespace %s to report stateInfo %s",
 		builder.Definition.Name, builder.Definition.Namespace, stateInfo)
 
 	// Polls every retryInterval to determine if agent is in desired state.
@@ -242,13 +242,13 @@ func (builder *agentBuilder) WithOptions(options ...AgentAdditionalOptions) *age
 		return builder
 	}
 
-	glog.V(100).Infof("Setting agent additional options")
+	klog.V(100).Info("Setting agent additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -266,7 +266,7 @@ func (builder *agentBuilder) Get() (*agentInstallV1Beta1.Agent, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting agent %s in namespace %s",
+	klog.V(100).Infof("Getting agent %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	agent := &agentInstallV1Beta1.Agent{}
@@ -289,11 +289,11 @@ func (builder *agentBuilder) Update() (*agentBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating agent %s in namespace %s",
+	klog.V(100).Infof("Updating agent %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("agent %s in namespace %s does not exist",
+		klog.V(100).Infof("agent %s in namespace %s does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		return nil, fmt.Errorf("%s", nonExistentMsg)
@@ -313,7 +313,7 @@ func (builder *agentBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if agent %s exists in namespace %s",
+	klog.V(100).Infof("Checking if agent %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -329,11 +329,11 @@ func (builder *agentBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting the agent %s in namespace %s",
+	klog.V(100).Infof("Deleting the agent %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("agent %s in namespace %s does not exist",
+		klog.V(100).Infof("agent %s in namespace %s does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -357,25 +357,25 @@ func (builder *agentBuilder) validate() (bool, error) {
 	resourceCRD := "Agent"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

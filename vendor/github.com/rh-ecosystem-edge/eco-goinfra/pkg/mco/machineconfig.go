@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	mcv1 "github.com/openshift/api/machineconfiguration/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -32,17 +32,17 @@ type MCAdditionalOptions func(builder *MCBuilder) (*MCBuilder, error)
 // NewMCBuilder provides struct for MachineConfig object which contains connection to cluster
 // and MachineConfig definition.
 func NewMCBuilder(apiClient *clients.Settings, name string) *MCBuilder {
-	glog.V(100).Infof("Initializing new MCBuilder structure with following params: %s", name)
+	klog.V(100).Infof("Initializing new MCBuilder structure with following params: %s", name)
 
 	if apiClient == nil {
-		glog.V(100).Info("The apiClient of the MachineConfig is nil")
+		klog.V(100).Info("The apiClient of the MachineConfig is nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(mcv1.Install)
 	if err != nil {
-		glog.V(100).Info("Failed to add machineconfig v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add machineconfig v1 scheme to client schemes")
 
 		return nil
 	}
@@ -57,7 +57,7 @@ func NewMCBuilder(apiClient *clients.Settings, name string) *MCBuilder {
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the MachineConfig is empty")
+		klog.V(100).Info("The name of the MachineConfig is empty")
 
 		builder.errorMsg = "machineconfig 'name' cannot be empty"
 
@@ -69,17 +69,17 @@ func NewMCBuilder(apiClient *clients.Settings, name string) *MCBuilder {
 
 // PullMachineConfig fetches existing machineconfig from cluster.
 func PullMachineConfig(apiClient *clients.Settings, name string) (*MCBuilder, error) {
-	glog.V(100).Infof("Pulling existing machineconfig name %s from cluster", name)
+	klog.V(100).Infof("Pulling existing machineconfig name %s from cluster", name)
 
 	if apiClient == nil {
-		glog.V(100).Info("The apiClient of the MachineConfig is nil")
+		klog.V(100).Info("The apiClient of the MachineConfig is nil")
 
 		return nil, fmt.Errorf("machineconfig 'apiClient' cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(mcv1.Install)
 	if err != nil {
-		glog.V(100).Info("Failed to add machineconfig v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add machineconfig v1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -94,7 +94,7 @@ func PullMachineConfig(apiClient *clients.Settings, name string) (*MCBuilder, er
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the machineconfig is empty")
+		klog.V(100).Info("The name of the machineconfig is empty")
 
 		return nil, fmt.Errorf("machineconfig 'name' cannot be empty")
 	}
@@ -114,13 +114,13 @@ func (builder *MCBuilder) Get() (*mcv1.MachineConfig, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting MachineConfig object %s", builder.Definition.Name)
+	klog.V(100).Infof("Getting MachineConfig object %s", builder.Definition.Name)
 
 	machineConfig := &mcv1.MachineConfig{}
 
 	err := builder.apiClient.Get(context.TODO(), runtimeclient.ObjectKey{Name: builder.Definition.Name}, machineConfig)
 	if err != nil {
-		glog.V(100).Infof("MachineConfig object %s does not exist", builder.Definition.Name)
+		klog.V(100).Infof("MachineConfig object %s does not exist", builder.Definition.Name)
 
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func (builder *MCBuilder) Create() (*MCBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating MachineConfig %s", builder.Definition.Name)
+	klog.V(100).Infof("Creating MachineConfig %s", builder.Definition.Name)
 
 	var err error
 	if !builder.Exists() {
@@ -153,10 +153,10 @@ func (builder *MCBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting the MachineConfig object %s", builder.Definition.Name)
+	klog.V(100).Infof("Deleting the MachineConfig object %s", builder.Definition.Name)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("MachineConfig %s cannot be deleted because it does not exist", builder.Definition.Name)
+		klog.V(100).Infof("MachineConfig %s cannot be deleted because it does not exist", builder.Definition.Name)
 
 		builder.Object = nil
 
@@ -179,7 +179,7 @@ func (builder *MCBuilder) Update() (*MCBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating machineconfig %s", builder.Definition.Name)
+	klog.V(100).Infof("Updating machineconfig %s", builder.Definition.Name)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err == nil {
@@ -195,7 +195,7 @@ func (builder *MCBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if the MachineConfig object %s exists", builder.Definition.Name)
+	klog.V(100).Infof("Checking if the MachineConfig object %s exists", builder.Definition.Name)
 
 	var err error
 
@@ -210,10 +210,10 @@ func (builder *MCBuilder) WithLabel(key, value string) *MCBuilder {
 		return builder
 	}
 
-	glog.V(100).Infof("Labeling the machineconfig %s with %s=%s", builder.Definition.Name, key, value)
+	klog.V(100).Infof("Labeling the machineconfig %s with %s=%s", builder.Definition.Name, key, value)
 
 	if key == "" {
-		glog.V(100).Infof("The key cannot be empty")
+		klog.V(100).Info("The key cannot be empty")
 
 		builder.errorMsg = "'key' cannot be empty"
 
@@ -235,13 +235,13 @@ func (builder *MCBuilder) WithOptions(options ...MCAdditionalOptions) *MCBuilder
 		return builder
 	}
 
-	glog.V(100).Infof("Setting machineconfig additional options")
+	klog.V(100).Info("Setting machineconfig additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -260,14 +260,14 @@ func (builder *MCBuilder) WithKernelArguments(kernelArgs []string) *MCBuilder {
 	}
 
 	if len(kernelArgs) == 0 {
-		glog.V(100).Infof("The kernelArgs cannot be empty")
+		klog.V(100).Info("The kernelArgs cannot be empty")
 
 		builder.errorMsg = "'kernelArgs' cannot be empty"
 
 		return builder
 	}
 
-	glog.V(100).Infof("Setting KernelArguments: %v", kernelArgs)
+	klog.V(100).Infof("Setting KernelArguments: %v", kernelArgs)
 
 	builder.Definition.Spec.KernelArguments = kernelArgs
 
@@ -281,14 +281,14 @@ func (builder *MCBuilder) WithExtensions(extensions []string) *MCBuilder {
 	}
 
 	if len(extensions) == 0 {
-		glog.V(100).Infof("The extensions cannot be empty")
+		klog.V(100).Info("The extensions cannot be empty")
 
 		builder.errorMsg = "'extensions' cannot be empty"
 
 		return builder
 	}
 
-	glog.V(100).Infof("Setting Extensions: %v", extensions)
+	klog.V(100).Infof("Setting Extensions: %v", extensions)
 
 	builder.Definition.Spec.Extensions = extensions
 
@@ -301,7 +301,7 @@ func (builder *MCBuilder) WithFIPS(fips bool) *MCBuilder {
 		return builder
 	}
 
-	glog.V(100).Infof("Setting FIPS: %v", fips)
+	klog.V(100).Infof("Setting FIPS: %v", fips)
 
 	builder.Definition.Spec.FIPS = fips
 
@@ -315,14 +315,14 @@ func (builder *MCBuilder) WithKernelType(kernelType string) *MCBuilder {
 	}
 
 	if kernelType == "" {
-		glog.V(100).Infof("The kernelType cannot be empty")
+		klog.V(100).Info("The kernelType cannot be empty")
 
 		builder.errorMsg = "'kernelType' cannot be empty"
 
 		return builder
 	}
 
-	glog.V(100).Infof("Setting KernelType: %v", kernelType)
+	klog.V(100).Infof("Setting KernelType: %v", kernelType)
 
 	builder.Definition.Spec.KernelType = kernelType
 
@@ -336,14 +336,14 @@ func (builder *MCBuilder) WithRawConfig(config []byte) *MCBuilder {
 	}
 
 	if len(config) == 0 {
-		glog.V(100).Infof("The Config.Raw cannot be empty")
+		klog.V(100).Info("The Config.Raw cannot be empty")
 
 		builder.errorMsg = "'Config.Raw' cannot be empty"
 
 		return builder
 	}
 
-	glog.V(100).Infof("Setting Config.Raw: %s", string(config))
+	klog.V(100).Infof("Setting Config.Raw: %s", string(config))
 
 	builder.Definition.Spec.Config.Raw = config
 
@@ -354,25 +354,25 @@ func (builder *MCBuilder) validate() (bool, error) {
 	resourceCRD := "MachineConfig"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

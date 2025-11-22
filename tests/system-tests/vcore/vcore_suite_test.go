@@ -6,8 +6,8 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/remote"
+	"k8s.io/klog/v2"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -32,7 +32,7 @@ var _ = BeforeSuite(func() {
 	By(fmt.Sprintf("Create the folder %s for eco-gotests container", vcoreparams.ConfigurationFolderPath))
 
 	if err := os.Mkdir(vcoreparams.ConfigurationFolderPath, 0755); os.IsExist(err) {
-		glog.V(vcoreparams.VCoreLogLevel).Infof("%s folder already exists", vcoreparams.ConfigurationFolderPath)
+		klog.V(vcoreparams.VCoreLogLevel).Infof("%s folder already exists", vcoreparams.ConfigurationFolderPath)
 	}
 
 	By(fmt.Sprintf("Asserting the folder %s exists on host %s",
@@ -42,7 +42,7 @@ var _ = BeforeSuite(func() {
 	_, err := remote.ExecCmdOnHost(VCoreConfig.Host, VCoreConfig.User, VCoreConfig.Pass, execCmd)
 
 	if err != nil {
-		glog.V(vcoreparams.VCoreLogLevel).Infof("folder %s already exists",
+		klog.V(vcoreparams.VCoreLogLevel).Infof("folder %s already exists",
 			vcoreparams.ConfigurationFolderPath)
 	}
 
@@ -50,7 +50,7 @@ var _ = BeforeSuite(func() {
 	_, err = remote.ExecCmdOnHost(VCoreConfig.Host, VCoreConfig.User, VCoreConfig.Pass, execCmd)
 
 	if err != nil {
-		glog.V(vcoreparams.VCoreLogLevel).Infof("failed to change permitions for the folder %s",
+		klog.V(vcoreparams.VCoreLogLevel).Infof("failed to change permitions for the folder %s",
 			vcoreparams.ConfigurationFolderPath)
 	}
 })
@@ -62,7 +62,7 @@ var _ = AfterSuite(func() {
 	_, err := remote.ExecCmdOnHost(VCoreConfig.Host, VCoreConfig.User, VCoreConfig.Pass, execCmd)
 
 	if err != nil {
-		glog.V(vcoreparams.VCoreLogLevel).Infof("folder %s already removed",
+		klog.V(vcoreparams.VCoreLogLevel).Infof("folder %s already removed",
 			vcoreparams.ConfigurationFolderPath)
 	}
 })

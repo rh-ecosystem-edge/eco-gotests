@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	deploymentbuilder "github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	ns "github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
@@ -16,6 +15,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/nfdparams"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -103,12 +103,12 @@ func NewNfdAPIResource(
 
 // DeployNfd deploy NodeFeatureDiscovery operator and cr return error if it failed.
 func (n *NfdAPIResource) DeployNfd(waitTime int, addTopology bool, nfdInstanceImage string) error {
-	glog.V(logLevel).Infof(
+	klog.V(logLevel).Infof(
 		"Deploying node feature discovery")
 
 	err := n.deploy()
 	if err != nil {
-		glog.V(logLevel).Infof(
+		klog.V(logLevel).Infof(
 			"Error in Deploying NodeFeatureDiscovery : %s", err.Error())
 
 		return err
@@ -117,7 +117,7 @@ func (n *NfdAPIResource) DeployNfd(waitTime int, addTopology bool, nfdInstanceIm
 	deploymentReady, err := n.IsDeploymentReady(time.Minute*time.Duration(waitTime), NfdController)
 
 	if err != nil {
-		glog.V(logLevel).Infof(
+		klog.V(logLevel).Infof(
 			"Error %s not found\n cause: %s", NfdController, err.Error())
 
 		return err
@@ -129,7 +129,7 @@ func (n *NfdAPIResource) DeployNfd(waitTime int, addTopology bool, nfdInstanceIm
 
 	err = deployNfdCR(n.Namespace, addTopology, nfdInstanceImage)
 	if err != nil {
-		glog.V(logLevel).Infof(
+		klog.V(logLevel).Infof(
 			"Error in deploying NodeFeatureDiscovery CR cause: %s", err.Error())
 
 		return err
@@ -142,14 +142,14 @@ func (n *NfdAPIResource) DeployNfd(waitTime int, addTopology bool, nfdInstanceIm
 func (n *NfdAPIResource) UndeployNfd(nodeFeatureName string) error {
 	csvName, err := findCSV(n.Namespace)
 	if err != nil {
-		glog.V(logLevel).Infof("Error in find CSV cause: %s", err.Error())
+		klog.V(logLevel).Infof("Error in find CSV cause: %s", err.Error())
 
 		return err
 	}
 
 	err = n.removeResource(nodeFeatureName, NodeFeatureDiscovery)
 	if err != nil {
-		glog.V(logLevel).Infof("Error removing resource %s cause: %s",
+		klog.V(logLevel).Infof("Error removing resource %s cause: %s",
 			nodeFeatureName, err.Error())
 
 		return err
@@ -157,7 +157,7 @@ func (n *NfdAPIResource) UndeployNfd(nodeFeatureName string) error {
 
 	err = n.removeResource(csvName, ClusterVersion)
 	if err != nil {
-		glog.V(logLevel).Infof("Error removing resource %s cause: %s",
+		klog.V(logLevel).Infof("Error removing resource %s cause: %s",
 			csvName, err.Error())
 
 		return err
@@ -165,7 +165,7 @@ func (n *NfdAPIResource) UndeployNfd(nodeFeatureName string) error {
 
 	err = n.removeResource(n.SubName, Subscription)
 	if err != nil {
-		glog.V(logLevel).Infof("Error removing resource %s cause: %s",
+		klog.V(logLevel).Infof("Error removing resource %s cause: %s",
 			n.SubName, err.Error())
 
 		return err
@@ -173,7 +173,7 @@ func (n *NfdAPIResource) UndeployNfd(nodeFeatureName string) error {
 
 	err = n.removeResource(n.OperatorGroupName, OperatorGroup)
 	if err != nil {
-		glog.V(logLevel).Infof("Error removing resource %s cause: %s",
+		klog.V(logLevel).Infof("Error removing resource %s cause: %s",
 			n.OperatorGroupName, err.Error())
 
 		return err
@@ -181,7 +181,7 @@ func (n *NfdAPIResource) UndeployNfd(nodeFeatureName string) error {
 
 	err = n.removeResource("", NameSpace)
 	if err != nil {
-		glog.V(logLevel).Infof("Error removing resource %s cause: %s",
+		klog.V(logLevel).Infof("Error removing resource %s cause: %s",
 			n.Namespace, err.Error())
 
 		return err
@@ -278,13 +278,13 @@ func newNfdBuilder(namespace string, enableTopology bool, image string) (*nodefe
 	}
 
 	if !csvFound {
-		glog.V(logLevel).Info("nfd csv not found")
+		klog.V(logLevel).Info("nfd csv not found")
 
 		return nil, fmt.Errorf("nfd csv not found")
 	}
 
-	glog.V(logLevel).Infof("all clustes %v", csvNames)
-	glog.V(logLevel).Infof("pulling nfd csv %s", csvNames[nfdCsvIndex])
+	klog.V(logLevel).Infof("all clustes %v", csvNames)
+	klog.V(logLevel).Infof("pulling nfd csv %s", csvNames[nfdCsvIndex])
 
 	nfdcsv, err := olm.PullClusterServiceVersion(APIClient, csvNames[nfdCsvIndex], namespace)
 	if err != nil {
@@ -317,7 +317,7 @@ func deployNfdCR(namespace string, enableTopology bool, image string) error {
 		return err
 	}
 
-	glog.V(logLevel).Infof("Deploying NFD CR %v", nfdBuilder.Definition)
+	klog.V(logLevel).Infof("Deploying NFD CR %v", nfdBuilder.Definition)
 
 	_, err = nfdBuilder.Create()
 	if err != nil {
@@ -331,7 +331,7 @@ func deployNfdCR(namespace string, enableTopology bool, image string) error {
 func (n *NfdAPIResource) DeleteNFDCR(nodeFeatureName string) error {
 	err := n.removeResource(nodeFeatureName, NodeFeatureDiscovery)
 	if err != nil {
-		glog.V(logLevel).Infof("Error removing resource %s cause: %s",
+		klog.V(logLevel).Infof("Error removing resource %s cause: %s",
 			nodeFeatureName, err.Error())
 
 		return err
@@ -361,7 +361,7 @@ func (n *NfdAPIResource) createNameSpaceIfNotExist() {
 	nsbuilder := ns.NewBuilder(n.APIClients, n.Namespace)
 
 	if _, err := nsbuilder.Create(); err != nil {
-		glog.V(logLevel).Infof("Error in creating namespace cause: %s", err.Error())
+		klog.V(logLevel).Infof("Error in creating namespace cause: %s", err.Error())
 	}
 }
 
@@ -442,7 +442,7 @@ func editAlmExample(almExample string) (string, error) {
 	err := json.Unmarshal([]byte(almExample), &items)
 
 	if err != nil {
-		glog.Errorf("Failed to unmarshal JSON: %v", err)
+		klog.Errorf("Failed to unmarshal JSON: %v", err)
 
 		return "", err
 	}
@@ -457,7 +457,7 @@ func editAlmExample(almExample string) (string, error) {
 
 	output, err := json.MarshalIndent(filtered, "", "  ")
 	if err != nil {
-		glog.Errorf("Failed to marshal filtered JSON: %v", err)
+		klog.Errorf("Failed to marshal filtered JSON: %v", err)
 
 		return "", err
 	}

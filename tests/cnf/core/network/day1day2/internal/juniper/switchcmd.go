@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/Juniper/go-netconf/netconf"
-	"github.com/golang/glog"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -79,7 +79,7 @@ type (
 // NewSession establishes a new connection to a Junos device that we will use
 // to run our commands against.
 func NewSession(host, user, password string) (*JunosSession, error) {
-	glog.V(90).Infof("Creating a new session for host: %s", host)
+	klog.V(90).Infof("Creating a new session for host: %s", host)
 
 	var session *netconf.Session
 
@@ -87,7 +87,7 @@ func NewSession(host, user, password string) (*JunosSession, error) {
 		context.TODO(), 30*time.Second, 120*time.Second, true, func(ctx context.Context) (done bool, err error) {
 			session, err = netconf.DialSSH(host, netconf.SSHConfigPassword(user, password))
 			if err != nil {
-				glog.V(90).Infof("Failed to open SSH: %s", err)
+				klog.V(90).Infof("Failed to open SSH: %s", err)
 
 				return false, nil
 			}
@@ -107,17 +107,17 @@ func NewSession(host, user, password string) (*JunosSession, error) {
 
 // Close disconnects the session to the device.
 func (j *JunosSession) Close() {
-	glog.V(90).Info("Closing session with switch")
+	klog.V(90).Info("Closing session with switch")
 	j.Session.Transport.Close()
 }
 
 // Config sends commands to a Juniper switch.
 func (j *JunosSession) Config(commands []string) error {
-	glog.V(90).Info("Sending configuration commands to a switch")
+	klog.V(90).Info("Sending configuration commands to a switch")
 
 	err := j.openSessionIfNotExists()
 	if err != nil {
-		glog.V(90).Infof("Failed to open a session")
+		klog.V(90).Infof("Failed to open a session")
 
 		return err
 	}
@@ -145,11 +145,11 @@ func (j *JunosSession) Config(commands []string) error {
 
 // ApplyConfigInterface applies given interface configuration to a switch.
 func (j *JunosSession) ApplyConfigInterface(config string) error {
-	glog.V(90).Info("Applying switch interface configuration")
+	klog.V(90).Info("Applying switch interface configuration")
 
 	err := j.openSessionIfNotExists()
 	if err != nil {
-		glog.V(90).Infof("Failed to open a session")
+		klog.V(90).Infof("Failed to open a session")
 
 		return err
 	}
@@ -177,11 +177,11 @@ func (j *JunosSession) ApplyConfigInterface(config string) error {
 
 // RunOperationalCMD executes any operational mode command, such as "show" or "request".
 func (j *JunosSession) RunOperationalCMD(cmd string) (string, error) {
-	glog.V(90).Infof("Running command on a switch: %s", cmd)
+	klog.V(90).Infof("Running command on a switch: %s", cmd)
 
 	err := j.openSessionIfNotExists()
 	if err != nil {
-		glog.V(90).Infof("Failed to open a session")
+		klog.V(90).Infof("Failed to open a session")
 
 		return "", err
 	}
@@ -193,11 +193,11 @@ func (j *JunosSession) RunOperationalCMD(cmd string) (string, error) {
 
 // GetInterfaceConfig returns configuration for given interface.
 func (j *JunosSession) GetInterfaceConfig(switchInterface string) (string, error) {
-	glog.V(90).Infof("Getting configuration for switch interface: %s", switchInterface)
+	klog.V(90).Infof("Getting configuration for switch interface: %s", switchInterface)
 
 	err := j.openSessionIfNotExists()
 	if err != nil {
-		glog.V(90).Infof("Failed to open a session")
+		klog.V(90).Infof("Failed to open a session")
 
 		return "", err
 	}
@@ -209,14 +209,14 @@ func (j *JunosSession) GetInterfaceConfig(switchInterface string) (string, error
 
 // getChassisInventory returns chassis inventory information.
 func (j *JunosSession) getChassisInventory() (string, error) {
-	glog.V(90).Infof("Getting Chassis inventory")
+	klog.V(90).Infof("Getting Chassis inventory")
 
 	return j.runCommand(rpcGetChassisInventory)
 }
 
 // commit commits the configuration.
 func (j *JunosSession) commit() error {
-	glog.V(90).Info("Committing switch configuration")
+	klog.V(90).Info("Committing switch configuration")
 
 	var errs commitResults
 
@@ -250,10 +250,10 @@ func (j *JunosSession) commit() error {
 
 // openSessionIfNotExists opens a new junosSession if current session doesn't exist.
 func (j *JunosSession) openSessionIfNotExists() error {
-	glog.V(90).Infof("Opening a new session if current session doesn't exist")
+	klog.V(90).Infof("Opening a new session if current session doesn't exist")
 
 	if j == nil || !j.doesSessionExist() {
-		glog.V(90).Infof("Current session doesn't exist, opening a new one")
+		klog.V(90).Infof("Current session doesn't exist, opening a new one")
 
 		jnpr, err := NewSession(
 			j.SwitchCredentials.SwitchIP,
@@ -268,7 +268,7 @@ func (j *JunosSession) openSessionIfNotExists() error {
 		return nil
 	}
 
-	glog.V(90).Infof("Current session exists")
+	klog.V(90).Infof("Current session exists")
 
 	return nil
 }
@@ -293,7 +293,7 @@ func (j *JunosSession) runCommand(command string) (string, error) {
 }
 
 func (j *JunosSession) doesSessionExist() bool {
-	glog.V(90).Infof("Checking that the SSH session %d exists", j.Session.SessionID)
+	klog.V(90).Infof("Checking that the SSH session %d exists", j.Session.SessionID)
 	reply, err := j.getChassisInventory()
 
 	if err != nil || reply == "" {

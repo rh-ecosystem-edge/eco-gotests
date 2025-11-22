@@ -7,7 +7,6 @@ import (
 
 	ssh "github.com/povsister/scp"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/systemtestsinittools"
@@ -15,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 // ExecuteOnNodeWithDebugPod executes a command on a node.
@@ -29,7 +29,7 @@ func ExecuteOnNodeWithDebugPod(cmdToExec []string, nodeName string) (string, err
 		return "", err
 	}
 
-	glog.V(90).Infof("Exec cmd %v on pod %s", cmdToExec, mcPodList[0].Definition.Name)
+	klog.V(90).Infof("Exec cmd %v on pod %s", cmdToExec, mcPodList[0].Definition.Name)
 	buf, err := mcPodList[0].ExecCommand(cmdToExec)
 
 	if err != nil {
@@ -51,17 +51,17 @@ func ExecuteOnNodeWithDebugPodWithTimeout(cmdToExec []string, nodeName string, t
 		return "", err
 	}
 
-	glog.V(90).Infof("Exec cmd %v on pod %s", cmdToExec, mcPodList[0].Definition.Name)
+	klog.V(90).Infof("Exec cmd %v on pod %s", cmdToExec, mcPodList[0].Definition.Name)
 	buf, err := mcPodList[0].ExecCommandWithTimeout(cmdToExec, timeout)
 
 	if err != nil {
-		glog.V(90).Infof("Failed to execute command on node %s: %v",
+		klog.V(90).Infof("Failed to execute command on node %s: %v",
 			nodeName, err)
 
 		return "", err
 	}
 
-	glog.V(90).Infof("Command executed successfully on node %s", nodeName)
+	klog.V(90).Infof("Command executed successfully on node %s", nodeName)
 
 	return buf.String(), nil
 }
@@ -80,7 +80,7 @@ func ExecuteOnNodeWithPrivilegedDebugPod(apiClient *clients.Settings,
 		SystemTestsTestConfig.MCONamespace,
 		imageName)
 
-	glog.V(90).Infof("Check if %q pod exists", debugPodName)
+	klog.V(90).Infof("Check if %q pod exists", debugPodName)
 
 	podSelector := fmt.Sprintf("%s=%s", debugPodLabel, nodeName)
 
@@ -90,19 +90,19 @@ func ExecuteOnNodeWithPrivilegedDebugPod(apiClient *clients.Settings,
 				metav1.ListOptions{LabelSelector: podSelector})
 
 			if err != nil {
-				glog.V(90).Infof("Error listing pods: %v", err)
+				klog.V(90).Infof("Error listing pods: %v", err)
 
 				return false, nil
 			}
 
 			for _, _pod := range oldPods {
-				glog.V(90).Infof("Deleting pod %q in %q namespace",
+				klog.V(90).Infof("Deleting pod %q in %q namespace",
 					_pod.Definition.Name, _pod.Definition.Namespace)
 
 				_, delErr := _pod.DeleteAndWait(15 * time.Second)
 
 				if delErr != nil {
-					glog.V(90).Infof("Failed to delete pod %q in %q namespace: %v",
+					klog.V(90).Infof("Failed to delete pod %q in %q namespace: %v",
 						_pod.Definition.Name, _pod.Definition.Namespace, delErr)
 
 					return false, nil
@@ -113,7 +113,7 @@ func ExecuteOnNodeWithPrivilegedDebugPod(apiClient *clients.Settings,
 		})
 
 	if err != nil {
-		glog.V(90).Infof("Failed to assert if previous %q pod exists", debugPodName)
+		klog.V(90).Infof("Failed to assert if previous %q pod exists", debugPodName)
 
 		return "", fmt.Errorf("failed to assert if previous %q pod exists", debugPodName)
 	}
@@ -140,33 +140,33 @@ func ExecuteOnNodeWithPrivilegedDebugPod(apiClient *clients.Settings,
 // ExecCmdOnHost executes specific cmd on remote host.
 func ExecCmdOnHost(remoteHostname, remoteHostUsername, remoteHostPass, cmd string) (string, error) {
 	if remoteHostname == "" {
-		glog.V(100).Info("The remoteHostname is empty")
+		klog.V(100).Info("The remoteHostname is empty")
 
 		return "", fmt.Errorf("the remoteHostname could not be empty")
 	}
 
 	if remoteHostUsername == "" {
-		glog.V(100).Info("The remoteHostUsername is empty")
+		klog.V(100).Info("The remoteHostUsername is empty")
 
 		return "", fmt.Errorf("the remoteHostUsername could not be empty")
 	}
 
 	if remoteHostPass == "" {
-		glog.V(100).Info("The remoteHostPass is empty")
+		klog.V(100).Info("The remoteHostPass is empty")
 
 		return "", fmt.Errorf("the remoteHostPass could not be empty")
 	}
 
-	glog.V(100).Info("Build a SSH config from username/password")
+	klog.V(100).Info("Build a SSH config from username/password")
 
 	sshConf := ssh.NewSSHConfigFromPassword(remoteHostUsername, remoteHostPass)
 
-	glog.V(100).Infof("Dial SSH to the host %s", remoteHostname)
+	klog.V(100).Infof("Dial SSH to the host %s", remoteHostname)
 
 	scpClient, err := ssh.NewClient(remoteHostname, sshConf, &ssh.ClientOption{})
 
 	if err != nil {
-		glog.V(100).Infof("Failed to build new ssh client due to: %v", err)
+		klog.V(100).Infof("Failed to build new ssh client due to: %v", err)
 
 		return "", fmt.Errorf("failed to build new ssh client due to: %w", err)
 	}
@@ -177,7 +177,7 @@ func ExecCmdOnHost(remoteHostname, remoteHostUsername, remoteHostPass, cmd strin
 	out, err := ss.CombinedOutput(cmd)
 
 	if err != nil {
-		glog.V(100).Infof("Failed to run cmd %s on the host %s due to: %v",
+		klog.V(100).Infof("Failed to run cmd %s on the host %s due to: %v",
 			cmd, remoteHostname, err)
 
 		return "", fmt.Errorf("failed to run cmd %s on the host %s due to: %w", cmd, remoteHostname, err)

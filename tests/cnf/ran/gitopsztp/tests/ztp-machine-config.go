@@ -3,13 +3,13 @@ package tests
 import (
 	"strings"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/mco"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/gitopsztp/internal/tsparams"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
+	"k8s.io/klog/v2"
 )
 
 var _ = Describe("ZTP Machine Config Tests", Label(tsparams.LabelMachineConfigTestCases), func() {
@@ -32,7 +32,7 @@ var _ = Describe("ZTP Machine Config Tests", Label(tsparams.LabelMachineConfigTe
 					continue
 				}
 
-				glog.V(tsparams.LogLevel).Infof(
+				klog.V(tsparams.LogLevel).Infof(
 					"Checking mc '%s' for annotation '%s'", machineConfig.Object.Name, tsparams.ZtpGeneratedAnnotation)
 
 				annotation, ok := machineConfig.Object.Annotations[tsparams.ZtpGeneratedAnnotation]

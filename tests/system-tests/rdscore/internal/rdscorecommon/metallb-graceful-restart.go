@@ -9,12 +9,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/service"
@@ -51,30 +51,30 @@ func mTCPConnect(addr *net.TCPAddr, timeOut int) (*net.TCPConn, error) {
 	result := make(chan myData)
 
 	go func(network string, laddr, raddr *net.TCPAddr, result chan myData) {
-		glog.V(110).Infof("Trying to connect to %q at %v", raddr.String(),
+		klog.V(110).Infof("Trying to connect to %q at %v", raddr.String(),
 			time.Now().UnixMilli())
 
 		tConn, err := net.DialTCP(network, laddr, addr)
 
 		if err != nil {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to connect to %q due to: %v",
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to connect to %q due to: %v",
 				raddr.String(), err)
 
 			result <- myData{TCPConn: nil, TCPErr: err}
 		}
 
-		glog.V(110).Infof("Connected to %q", raddr.String())
+		klog.V(110).Infof("Connected to %q", raddr.String())
 
 		result <- myData{TCPConn: tConn, TCPErr: nil}
 	}("tcp", nil, addr, result)
 
 	select {
 	case data := <-result:
-		glog.V(110).Infof("Read from connection: %v\n", data)
+		klog.V(110).Infof("Read from connection: %v\n", data)
 
 		return data.TCPConn, data.TCPErr
 	case <-time.After(time.Duration(timeOut) * time.Millisecond):
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("timeout waiting for connection to be establised")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("timeout waiting for connection to be establised")
 
 		return nil, fmt.Errorf("timeout waiting for connection to be establised")
 	}
@@ -113,23 +113,23 @@ func verifySingleTCPConnection(loadBalancerIP string, servicePort int32,
 
 	err = wait.PollUntilContextTimeout(context.TODO(), time.Second, time.Minute, true,
 		func(context.Context) (bool, error) {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Resolving TCP endpoint %q", endPoint)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Resolving TCP endpoint %q", endPoint)
 
 			addr, err = net.ResolveTCPAddr("tcp", endPoint)
 
 			if err != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed resolve TCP address %q : %v", endPoint, err)
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed resolve TCP address %q : %v", endPoint, err)
 
 				return false, nil
 			}
 
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Successfully resolved TCP address %q", endPoint)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Successfully resolved TCP address %q", endPoint)
 
 			return true, nil
 		})
 
 	if err != nil {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed resolve TCP address %q : %v", endPoint, err)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed resolve TCP address %q : %v", endPoint, err)
 
 		stats.CounterLock.Lock()
 		stats.Count++
@@ -144,7 +144,7 @@ func verifySingleTCPConnection(loadBalancerIP string, servicePort int32,
 		return
 	}
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Dialing to the TCP endpoint %q", endPoint)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Dialing to the TCP endpoint %q", endPoint)
 
 	var lbConnection *net.TCPConn
 
@@ -153,18 +153,18 @@ func verifySingleTCPConnection(loadBalancerIP string, servicePort int32,
 			lbConnection, err = mTCPConnect(addr, int(1000))
 
 			if err != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed dailing to %q : %v", endPoint, err)
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed dailing to %q : %v", endPoint, err)
 
 				return false, nil
 			}
 
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Successfully dailed to %q", endPoint)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Successfully dailed to %q", endPoint)
 
 			return true, nil
 		})
 
 	if err != nil {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed dailing to %q : %v", endPoint, err)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed dailing to %q : %v", endPoint, err)
 
 		stats.CounterLock.Lock()
 		stats.Count++
@@ -181,21 +181,21 @@ func verifySingleTCPConnection(loadBalancerIP string, servicePort int32,
 
 	defer lbConnection.Close()
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Enabling KeepAlive for TCP connection")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Enabling KeepAlive for TCP connection")
 
 	err = lbConnection.SetKeepAlive(true)
 
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("failed to enable KeepAlive for the connection: %v", err))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Setting KeepAlivePeriod to 1s")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Setting KeepAlivePeriod to 1s")
 
 	err = lbConnection.SetKeepAlivePeriod(time.Duration(1))
 
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("failed to enable KeepAlivePeriod for the connection: %v", err))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Restarting FRR pod")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Restarting FRR pod")
 
 	restartFRR <- true
 
@@ -204,16 +204,16 @@ func verifySingleTCPConnection(loadBalancerIP string, servicePort int32,
 	for !stop {
 		select {
 		case <-finished:
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Received data on 'finishd' channel")
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Received data on 'finishd' channel")
 
 			stop = true
 		default:
-			glog.V(110).Infof("Writing to the TCP connection at %v", time.Now().UnixMilli())
+			klog.V(110).Infof("Writing to the TCP connection at %v", time.Now().UnixMilli())
 
 			nSent, err := lbConnection.Write(getHTTPMsg)
 
 			if err != nil || nSent == 0 {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to write to connection: %v", err)
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to write to connection: %v", err)
 
 				stats.CounterLock.Lock()
 				stats.Count++
@@ -231,7 +231,7 @@ func verifySingleTCPConnection(loadBalancerIP string, servicePort int32,
 			err = lbConnection.SetReadDeadline(time.Now().Add(300 * time.Millisecond))
 
 			if err != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed set ReadDeadline: %v", err)
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed set ReadDeadline: %v", err)
 
 				stats.CounterLock.Lock()
 				stats.Count++
@@ -249,7 +249,7 @@ func verifySingleTCPConnection(loadBalancerIP string, servicePort int32,
 			bRead, err := lbConnection.Read(msgReply)
 
 			if err != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to read reply(%v): %v",
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to read reply(%v): %v",
 					time.Now().UnixMilli(), err)
 				stats.CounterLock.Lock()
 				stats.Count++
@@ -263,7 +263,7 @@ func verifySingleTCPConnection(loadBalancerIP string, servicePort int32,
 
 				continue
 			} else {
-				glog.V(110).Infof("Read %d bytes", bRead)
+				klog.V(110).Infof("Read %d bytes", bRead)
 
 				stats.CounterLock.Lock()
 				stats.Count++
@@ -274,7 +274,7 @@ func verifySingleTCPConnection(loadBalancerIP string, servicePort int32,
 		}
 	}
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("go routine 'verifySingleTCPConnection' finished")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("go routine 'verifySingleTCPConnection' finished")
 
 	ready <- true
 }
@@ -313,23 +313,23 @@ func verifyMultipleTCPConnections(loadBalancerIP string, servicePort int32,
 
 	err = wait.PollUntilContextTimeout(context.TODO(), time.Second, time.Minute, true,
 		func(context.Context) (bool, error) {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Resolving TCP endpoint %q", endPoint)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Resolving TCP endpoint %q", endPoint)
 
 			addr, err = net.ResolveTCPAddr("tcp", endPoint)
 
 			if err != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed resolve TCP address %q : %v", endPoint, err)
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed resolve TCP address %q : %v", endPoint, err)
 
 				return false, nil
 			}
 
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Successfully resolved TCP address %q", endPoint)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Successfully resolved TCP address %q", endPoint)
 
 			return true, nil
 		})
 
 	if err != nil {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed resolve TCP address %q : %v", endPoint, err)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed resolve TCP address %q : %v", endPoint, err)
 
 		stats.CounterLock.Lock()
 		stats.Count++
@@ -346,23 +346,23 @@ func verifyMultipleTCPConnections(loadBalancerIP string, servicePort int32,
 
 	var stop bool
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Restarting FRR pod")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Restarting FRR pod")
 
 	restartFRR <- true
 
 	for !stop {
 		select {
 		case <-finished:
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Received data on 'finished' channel")
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Received data on 'finished' channel")
 
 			stop = true
 		default:
-			glog.V(110).Infof("Dialing to the TCP endpoint %q", endPoint)
+			klog.V(110).Infof("Dialing to the TCP endpoint %q", endPoint)
 
 			lbConnection, err := mTCPConnect(addr, int(300))
 
 			if err != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed dailing to %q : %v", endPoint, err)
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed dailing to %q : %v", endPoint, err)
 
 				stats.CounterLock.Lock()
 				stats.Count++
@@ -378,14 +378,14 @@ func verifyMultipleTCPConnections(loadBalancerIP string, servicePort int32,
 			addrMsg := fmt.Sprintf("-> Successfully connected to %s from %q",
 				lbConnection.RemoteAddr(), lbConnection.LocalAddr())
 
-			glog.V(110).Infof("\t%s", addrMsg)
+			klog.V(110).Infof("\t%s", addrMsg)
 
-			glog.V(110).Infof("Writing to the TCP connection at %v", time.Now().UnixMilli())
+			klog.V(110).Infof("Writing to the TCP connection at %v", time.Now().UnixMilli())
 
 			nSent, err := lbConnection.Write(getHTTPMsg)
 
 			if err != nil || nSent == 0 {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to write to connection: %v", err)
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to write to connection: %v", err)
 
 				stats.CounterLock.Lock()
 				stats.Count++
@@ -403,7 +403,7 @@ func verifyMultipleTCPConnections(loadBalancerIP string, servicePort int32,
 			err = lbConnection.SetReadDeadline(time.Now().Add(300 * time.Millisecond))
 
 			if err != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed set ReadDeadline: %v", err)
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed set ReadDeadline: %v", err)
 
 				stats.CounterLock.Lock()
 				stats.Count++
@@ -421,7 +421,7 @@ func verifyMultipleTCPConnections(loadBalancerIP string, servicePort int32,
 			bRead, err := lbConnection.Read(msgReply)
 
 			if err != nil {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to read reply(%v): %v",
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to read reply(%v): %v",
 					time.Now().UnixMilli(), err)
 				stats.CounterLock.Lock()
 				stats.Count++
@@ -435,7 +435,7 @@ func verifyMultipleTCPConnections(loadBalancerIP string, servicePort int32,
 
 				continue
 			} else {
-				glog.V(110).Infof("Read %d bytes from TCP connection", bRead)
+				klog.V(110).Infof("Read %d bytes from TCP connection", bRead)
 
 				stats.CounterLock.Lock()
 				stats.Count++
@@ -448,7 +448,7 @@ func verifyMultipleTCPConnections(loadBalancerIP string, servicePort int32,
 		}
 	}
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("go routine 'verifyMultipleTCPConnections' finished")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("go routine 'verifyMultipleTCPConnections' finished")
 
 	stats.CounterLock.Lock()
 	stats.End = time.Now()
@@ -462,18 +462,18 @@ func verifyMultipleTCPConnections(loadBalancerIP string, servicePort int32,
 //
 //nolint:funlen,gocognit
 func restartMetallbFRRPod(node string, metallbFRRRestartFailed *bool, start, finished chan bool) {
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Looking for a metallb-frr pod on %q node", node)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Looking for a metallb-frr pod on %q node", node)
 
 	var (
 		mPodList []*pod.Builder
 		err      error
 	)
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Wait for signal to restart FRR pod")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Wait for signal to restart FRR pod")
 
 	select {
 	case <-start:
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Received start signal. Restarting FRR pod now")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Received start signal. Restarting FRR pod now")
 
 		err = wait.PollUntilContextTimeout(context.TODO(), time.Second, time.Minute, true,
 			func(context.Context) (bool, error) {
@@ -481,7 +481,7 @@ func restartMetallbFRRPod(node string, metallbFRRRestartFailed *bool, start, fin
 					metav1.ListOptions{LabelSelector: rdscoreparams.MetalLBFRRPodSelector})
 
 				if err != nil {
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods due to: %v", err)
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods due to: %v", err)
 
 					return false, nil
 				}
@@ -490,7 +490,7 @@ func restartMetallbFRRPod(node string, metallbFRRRestartFailed *bool, start, fin
 			})
 
 		if len(mPodList) == 0 {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("0 pods found. Error: %v", err)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("0 pods found. Error: %v", err)
 
 			*metallbFRRRestartFailed = true
 
@@ -499,13 +499,13 @@ func restartMetallbFRRPod(node string, metallbFRRRestartFailed *bool, start, fin
 			return
 		}
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Filter pod running on %q", node)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Filter pod running on %q", node)
 
 		var prevPod *pod.Builder
 
 		for _, _pod := range mPodList {
 			if _pod.Definition.Spec.NodeName == node {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found pod %q running on %q",
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found pod %q running on %q",
 					_pod.Definition.Name, node)
 
 				prevPod = _pod
@@ -515,7 +515,7 @@ func restartMetallbFRRPod(node string, metallbFRRRestartFailed *bool, start, fin
 		}
 
 		if prevPod == nil {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to found frr-k8s pod running on %q", node)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to found frr-k8s pod running on %q", node)
 
 			*metallbFRRRestartFailed = true
 
@@ -524,12 +524,12 @@ func restartMetallbFRRPod(node string, metallbFRRRestartFailed *bool, start, fin
 			return
 		}
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deleting pod %q", prevPod.Definition.Name)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deleting pod %q", prevPod.Definition.Name)
 
 		prevPod, err = prevPod.DeleteAndWait(15 * time.Second)
 
 		if err != nil {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to delete pod %q: %v",
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to delete pod %q: %v",
 				prevPod.Definition.Name, err)
 
 			*metallbFRRRestartFailed = true
@@ -539,7 +539,7 @@ func restartMetallbFRRPod(node string, metallbFRRRestartFailed *bool, start, fin
 			return
 		}
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Looking for a new metallb-frr pod")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Looking for a new metallb-frr pod")
 
 		var newPod *pod.Builder
 
@@ -549,20 +549,20 @@ func restartMetallbFRRPod(node string, metallbFRRRestartFailed *bool, start, fin
 					metav1.ListOptions{LabelSelector: "app=frr-k8s"})
 
 				if err != nil {
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods due to %v", err)
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods due to %v", err)
 
 					return false, nil
 				}
 
 				if len(mPodList) == 0 {
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found 0 pods")
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found 0 pods")
 
 					return false, nil
 				}
 
 				for _, _pod := range mPodList {
 					if _pod.Definition.Spec.NodeName == node {
-						glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found pod running on %q", node)
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found pod running on %q", node)
 
 						newPod = _pod
 
@@ -571,7 +571,7 @@ func restartMetallbFRRPod(node string, metallbFRRRestartFailed *bool, start, fin
 				}
 
 				if newPod == nil {
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("No pod found running on %q", node)
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("No pod found running on %q", node)
 
 					newPod = nil
 
@@ -579,21 +579,21 @@ func restartMetallbFRRPod(node string, metallbFRRRestartFailed *bool, start, fin
 				}
 
 				if newPod.Definition.Name == prevPod.Definition.Name {
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("No new frr-k8s pod found")
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("No new frr-k8s pod found")
 
 					newPod = nil
 
 					return false, nil
 				}
 
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t---> New frr-k8s pod found: %q",
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t---> New frr-k8s pod found: %q",
 					newPod.Definition.Name)
 
 				return true, nil
 			})
 
 		if err != nil || newPod == nil {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("No new frr-k8s pod found on %q node", node)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("No new frr-k8s pod found on %q node", node)
 
 			*metallbFRRRestartFailed = true
 
@@ -602,24 +602,24 @@ func restartMetallbFRRPod(node string, metallbFRRRestartFailed *bool, start, fin
 			return
 		}
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Waiting for pod %q to be Ready",
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Waiting for pod %q to be Ready",
 			newPod.Definition.Name)
 
 		err = newPod.WaitUntilReady(3 * time.Minute)
 
 		if err != nil {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q hasn't reached Ready state",
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q hasn't reached Ready state",
 				newPod.Definition.Name)
 
 			*metallbFRRRestartFailed = true
 		}
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Goroutine restartMetallbFRRPod finished")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Goroutine restartMetallbFRRPod finished")
 
 		finished <- true
 	case <-time.After(10 * time.Minute):
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Hasn't received start signal for 10 minutes. Aborting")
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Goroutine restartMetallbFRRPod aborted")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Hasn't received start signal for 10 minutes. Aborting")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Goroutine restartMetallbFRRPod aborted")
 
 		*metallbFRRRestartFailed = true
 
@@ -640,19 +640,19 @@ func verifyGracefulRestartFlow(svcName string, checkIPv6 bool, checkMultipleConn
 	)
 
 	Eventually(func() bool {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pulling %q service from %q namespace",
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pulling %q service from %q namespace",
 			svcName, RDSCoreConfig.GracefulRestartServiceNS)
 
 		svcBuilder, err = service.Pull(APIClient, svcName, RDSCoreConfig.GracefulRestartServiceNS)
 
 		if err != nil {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error pulling %q service from %q namespace: %v",
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error pulling %q service from %q namespace: %v",
 				svcName, RDSCoreConfig.GracefulRestartServiceNS, err)
 
 			return false
 		}
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Successfully pulled %q service from %q namespace",
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Successfully pulled %q service from %q namespace",
 			svcBuilder.Definition.Name, svcBuilder.Definition.Namespace)
 
 		return true
@@ -662,18 +662,18 @@ func verifyGracefulRestartFlow(svcName string, checkIPv6 bool, checkMultipleConn
 	By(fmt.Sprintf("Asserting service %q has LoadBalancer IP address", svcBuilder.Definition.Name))
 
 	Eventually(func() bool {
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Check service %q in %q namespace has LoadBalancer IP",
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Check service %q in %q namespace has LoadBalancer IP",
 			svcBuilder.Definition.Name, svcBuilder.Definition.Namespace)
 
 		refreshSVC := svcBuilder.Exists()
 
 		if !refreshSVC {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to refresh service status")
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to refresh service status")
 
 			return false
 		}
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Service has %d IP addresses",
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Service has %d IP addresses",
 			len(svcBuilder.Object.Status.LoadBalancer.Ingress))
 
 		return len(svcBuilder.Object.Status.LoadBalancer.Ingress) != 0
@@ -690,7 +690,7 @@ func verifyGracefulRestartFlow(svcName string, checkIPv6 bool, checkMultipleConn
 
 	nodeName := mPodList[0].Object.Spec.NodeName
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Will crash metallb-frr pod on %q node during a test", nodeName)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Will crash metallb-frr pod on %q node during a test", nodeName)
 
 	finished := make(chan bool)
 	start := make(chan bool)
@@ -701,20 +701,20 @@ func verifyGracefulRestartFlow(svcName string, checkIPv6 bool, checkMultipleConn
 	for _, vip := range svcBuilder.Object.Status.LoadBalancer.Ingress {
 		loadBalancerIP := vip.IP
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Accessing  workload via LoadBalancer's IP %s", loadBalancerIP)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Accessing  workload via LoadBalancer's IP %s", loadBalancerIP)
 
 		myIP, err := netip.ParseAddr(loadBalancerIP)
 
 		Expect(err).ToNot(HaveOccurred(), "Failed to parse IP address")
 
 		if myIP.Is6() && !checkIPv6 {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping IPv6 addrress")
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping IPv6 addrress")
 
 			continue
 		}
 
 		if myIP.Is4() && checkIPv6 {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping IPv4 address")
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping IPv4 address")
 
 			continue
 		}
@@ -740,76 +740,76 @@ func verifyGracefulRestartFlow(svcName string, checkIPv6 bool, checkMultipleConn
 
 	// Wait for metallb-frr pod to be restarted.
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t *** Waiting for go routines to finish ***")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t *** Waiting for go routines to finish ***")
 
 	select {
 	case <-ready:
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("*** Received signal on 'ready' channel from go routines ***")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("*** Received signal on 'ready' channel from go routines ***")
 		close(ready)
 
 		if metallbFRRRestartFailed {
 			Fail("Error during metallb-frr pod restart")
 		}
 
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t>>> There were %d requests", statistics.Count)
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t>>> Failed requests: %d", len(statistics.Failures))
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t>>> Successful requests: %d", len(statistics.Success))
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t>>> There were %d requests", statistics.Count)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t>>> Failed requests: %d", len(statistics.Failures))
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t>>> Successful requests: %d", len(statistics.Success))
 
 		if len(statistics.Failures) != 0 {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Failed request 0: %s", statistics.Failures[0].Msg)
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Failed request 0: %v", statistics.Failures[0].Timestamp)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Failed request 0: %s", statistics.Failures[0].Msg)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Failed request 0: %v", statistics.Failures[0].Timestamp)
 			lIdx := len(statistics.Failures) - 1
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Failed request last: %s", statistics.Failures[lIdx].Msg)
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Failed request last: %v", statistics.Failures[lIdx].Timestamp)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Failed request last: %s", statistics.Failures[lIdx].Msg)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Failed request last: %v", statistics.Failures[lIdx].Timestamp)
 		}
 
 		if len(statistics.Success) != 0 {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Success request 0: %s", statistics.Success[0].Msg)
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Success request 0: %v", statistics.Success[0].Timestamp)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Success request 0: %s", statistics.Success[0].Msg)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Success request 0: %v", statistics.Success[0].Timestamp)
 			lIdx := len(statistics.Success) - 1
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Success request last: %s", statistics.Success[lIdx].Msg)
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Success request last: %v", statistics.Success[lIdx].Timestamp)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Success request last: %s", statistics.Success[lIdx].Msg)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Success request last: %v", statistics.Success[lIdx].Timestamp)
 		}
 
 		if len(statistics.FailedDial) != 0 {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> There were %d failed dial attempts", len(statistics.FailedDial))
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> 1st failed dial: %v", statistics.FailedDial[0].Msg)
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> 1st failed dial: %v", statistics.FailedDial[0].Timestamp)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> There were %d failed dial attempts", len(statistics.FailedDial))
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> 1st failed dial: %v", statistics.FailedDial[0].Msg)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> 1st failed dial: %v", statistics.FailedDial[0].Timestamp)
 			lIdx := len(statistics.FailedDial) - 1
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Last failed dial: %v", statistics.FailedDial[lIdx].Msg)
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Last failed dial: %v", statistics.FailedDial[lIdx].Timestamp)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Last failed dial: %v", statistics.FailedDial[lIdx].Msg)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Last failed dial: %v", statistics.FailedDial[lIdx].Timestamp)
 		} else {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> There were 0 failed dial attempts")
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> There were 0 failed dial attempts")
 		}
 
 		if len(statistics.FailedRead) != 0 {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> There were %d failed read attempts", len(statistics.FailedRead))
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> 1st failed read: %v", statistics.FailedRead[0].Msg)
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> 1st failed read: %v", statistics.FailedRead[0].Timestamp)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> There were %d failed read attempts", len(statistics.FailedRead))
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> 1st failed read: %v", statistics.FailedRead[0].Msg)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> 1st failed read: %v", statistics.FailedRead[0].Timestamp)
 			lIdx := len(statistics.FailedRead) - 1
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Last failed read: %v", statistics.FailedRead[lIdx].Msg)
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Last failed read: %v", statistics.FailedRead[lIdx].Timestamp)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Last failed read: %v", statistics.FailedRead[lIdx].Msg)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Last failed read: %v", statistics.FailedRead[lIdx].Timestamp)
 		} else {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> There were 0 failed read attempts")
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> There were 0 failed read attempts")
 		}
 
 		if len(statistics.FailedWrite) != 0 {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> There were %d failed write attempts",
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> There were %d failed write attempts",
 				len(statistics.FailedWrite))
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> 1st failed write: %v", statistics.FailedWrite[0].Msg)
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> 1st failed write: %v", statistics.FailedWrite[0].Timestamp)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> 1st failed write: %v", statistics.FailedWrite[0].Msg)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> 1st failed write: %v", statistics.FailedWrite[0].Timestamp)
 			lIdx := len(statistics.FailedWrite) - 1
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Last failed write: %v", statistics.FailedWrite[lIdx].Msg)
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Last failed write: %v", statistics.FailedWrite[lIdx].Timestamp)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Last failed write: %v", statistics.FailedWrite[lIdx].Msg)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> Last failed write: %v", statistics.FailedWrite[lIdx].Timestamp)
 		} else {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> There were 0 failed write attempts")
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t\t>>> There were 0 failed write attempts")
 		}
 
 		if !checkMultipleConnections {
 			if len(statistics.Failures) != 0 {
 				Fail(fmt.Sprintf("Failure: there was %d connection failures with single connection", len(statistics.Failures)))
 			} else {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Success: there was %d connection failures with single connection",
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Success: there was %d connection failures with single connection",
 					len(statistics.Failures))
 			}
 		} else {
@@ -819,18 +819,18 @@ func verifyGracefulRestartFlow(svcName string, checkIPv6 bool, checkMultipleConn
 				Fail(fmt.Sprintf("Failure: there were %d(%f%%) failures with multiple connections",
 					len(statistics.Failures), failPercentage))
 			} else {
-				glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Success: there were %d(%f%%) failures with multiple connections",
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Success: there were %d(%f%%) failures with multiple connections",
 					len(statistics.Failures), failPercentage)
 			}
 		}
 
 	case <-time.After(15 * time.Minute):
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Go routines canceled after 15 minutes")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Go routines canceled after 15 minutes")
 
 		Fail("Error checking status of MetalLB Graceful Restart due to timeout")
 	}
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Finished waiting for go routines")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Finished waiting for go routines")
 }
 
 // VerifyGRSingleConnectionIPv4ETPLocal check MetalLB graceful restart.

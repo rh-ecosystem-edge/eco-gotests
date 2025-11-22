@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	placementrulev1 "open-cluster-management.io/multicloud-operators-subscription/pkg/apis/apps/placementrule/v1"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -28,19 +28,19 @@ type PlacementRuleBuilder struct {
 
 // NewPlacementRuleBuilder creates a new instance of PlacementRuleBuilder.
 func NewPlacementRuleBuilder(apiClient *clients.Settings, name, nsname string) *PlacementRuleBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new placement rule structure with the following params: name: %s, nsname: %s",
 		name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Info("The apiClient of the PlacementRule is nil")
+		klog.V(100).Info("The apiClient of the PlacementRule is nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(placementrulev1.AddToScheme)
 	if err != nil {
-		glog.V(100).Info("Failed to add PlacementRule scheme to client schemes")
+		klog.V(100).Info("Failed to add PlacementRule scheme to client schemes")
 
 		return nil
 	}
@@ -56,7 +56,7 @@ func NewPlacementRuleBuilder(apiClient *clients.Settings, name, nsname string) *
 	}
 
 	if name == "" {
-		glog.V(100).Info("The name of the PlacementRule is empty")
+		klog.V(100).Info("The name of the PlacementRule is empty")
 
 		builder.errorMsg = "placementrule's 'name' cannot be empty"
 
@@ -64,7 +64,7 @@ func NewPlacementRuleBuilder(apiClient *clients.Settings, name, nsname string) *
 	}
 
 	if nsname == "" {
-		glog.V(100).Info("The namespace of the PlacementRule is empty")
+		klog.V(100).Info("The namespace of the PlacementRule is empty")
 
 		builder.errorMsg = "placementrule's 'nsname' cannot be empty"
 
@@ -76,17 +76,17 @@ func NewPlacementRuleBuilder(apiClient *clients.Settings, name, nsname string) *
 
 // PullPlacementRule pulls existing placementrule into Builder struct.
 func PullPlacementRule(apiClient *clients.Settings, name, nsname string) (*PlacementRuleBuilder, error) {
-	glog.V(100).Infof("Pulling existing placementrule name %s under namespace %s from cluster", name, nsname)
+	klog.V(100).Infof("Pulling existing placementrule name %s under namespace %s from cluster", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("placementrule's 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(placementrulev1.AddToScheme)
 	if err != nil {
-		glog.V(100).Info("Failed to add PlacementRule scheme to client schemes")
+		klog.V(100).Info("Failed to add PlacementRule scheme to client schemes")
 
 		return nil, err
 	}
@@ -102,13 +102,13 @@ func PullPlacementRule(apiClient *clients.Settings, name, nsname string) (*Place
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the placementrule is empty")
+		klog.V(100).Info("The name of the placementrule is empty")
 
 		return nil, fmt.Errorf("placementrule's 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the placementrule is empty")
+		klog.V(100).Info("The namespace of the placementrule is empty")
 
 		return nil, fmt.Errorf("placementrule's 'namespace' cannot be empty")
 	}
@@ -128,7 +128,7 @@ func (builder *PlacementRuleBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if placementrule %s exists in namespace %s",
+	klog.V(100).Infof("Checking if placementrule %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -144,7 +144,7 @@ func (builder *PlacementRuleBuilder) Get() (*placementrulev1.PlacementRule, erro
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting placementrule %s in namespace %s",
+	klog.V(100).Infof("Getting placementrule %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	placementRule := &placementrulev1.PlacementRule{}
@@ -154,7 +154,7 @@ func (builder *PlacementRuleBuilder) Get() (*placementrulev1.PlacementRule, erro
 		Namespace: builder.Definition.Namespace,
 	}, placementRule)
 	if err != nil {
-		glog.V(100).Infof("Failed to get placementrule %s in namespace %s: %v",
+		klog.V(100).Infof("Failed to get placementrule %s in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
 
 		return nil, err
@@ -169,7 +169,7 @@ func (builder *PlacementRuleBuilder) Create() (*PlacementRuleBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the placementrule %s in namespace %s",
+	klog.V(100).Infof("Creating the placementrule %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if builder.Exists() {
@@ -192,11 +192,11 @@ func (builder *PlacementRuleBuilder) Delete() (*PlacementRuleBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting the placementrule %s in namespace %s",
+	klog.V(100).Infof("Deleting the placementrule %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("placementrule %s cannot be deleted because it does not exist",
+		klog.V(100).Infof("placementrule %s cannot be deleted because it does not exist",
 			builder.Definition.Name)
 
 		builder.Object = nil
@@ -221,13 +221,13 @@ func (builder *PlacementRuleBuilder) Update(force bool) (*PlacementRuleBuilder, 
 	}
 
 	if !builder.Exists() {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"PlacementRule %s does not exist in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 		return nil, fmt.Errorf("cannot update non-existent placementrule")
 	}
 
-	glog.V(100).Infof("Updating the placementrule object: %s in namespace: %s",
+	klog.V(100).Infof("Updating the placementrule object: %s in namespace: %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
@@ -235,14 +235,13 @@ func (builder *PlacementRuleBuilder) Update(force bool) (*PlacementRuleBuilder, 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		if force {
-			glog.V(100).Infof(
-				msg.FailToUpdateNotification("placementrule", builder.Definition.Name, builder.Definition.Namespace))
+			klog.V(100).Infof("%v", msg.FailToUpdateNotification("placementrule", builder.Definition.Name, builder.Definition.Namespace))
 
 			builder, err := builder.Delete()
 			builder.Definition.ResourceVersion = ""
 
 			if err != nil {
-				glog.V(100).Infof(msg.FailToUpdateError("placementrule", builder.Definition.Name, builder.Definition.Namespace))
+				klog.V(100).Infof("%v", msg.FailToUpdateError("placementrule", builder.Definition.Name, builder.Definition.Namespace))
 
 				return nil, err
 			}
@@ -262,25 +261,25 @@ func (builder *PlacementRuleBuilder) validate() (bool, error) {
 	resourceCRD := "placementRule"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

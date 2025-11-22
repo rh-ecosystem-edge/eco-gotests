@@ -7,12 +7,12 @@ import (
 
 	openapiruntime "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
-	"github.com/golang/glog"
 	alertmanagerv2 "github.com/prometheus/alertmanager/api/v2/client"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/route"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/secret"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
+	"k8s.io/klog/v2"
 )
 
 // FindAlertmanagerAddress finds the address of the ACM Observability Alertmanager instance using the route on the
@@ -48,7 +48,7 @@ func GetAlertmanagerTokenAndCAPool(client *clients.Settings) (string, *x509.Cert
 
 	caPool := x509.NewCertPool()
 	if !caPool.AppendCertsFromPEM(caCrt) {
-		glog.V(ranparam.LogLevel).Infof("Failed to append CA certs to pool, returning nil CA pool")
+		klog.V(ranparam.LogLevel).Infof("Failed to append CA certs to pool, returning nil CA pool")
 
 		return string(token), nil, nil
 	}

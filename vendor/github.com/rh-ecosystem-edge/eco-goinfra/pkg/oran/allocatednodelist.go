@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	pluginsv1alpha1 "github.com/openshift-kni/oran-o2ims/api/hardwaremanagement/plugins/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"k8s.io/klog/v2"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -14,14 +14,14 @@ import (
 func ListAllocatedNodes(
 	apiClient *clients.Settings, options ...runtimeclient.ListOptions) ([]*AllocatedNodeBuilder, error) {
 	if apiClient == nil {
-		glog.V(100).Info("AllocatedNodes 'apiClient' parameter cannot be nil")
+		klog.V(100).Info("AllocatedNodes 'apiClient' parameter cannot be nil")
 
 		return nil, fmt.Errorf("failed to list allocatedNodes, 'apiClient' parameter is nil")
 	}
 
 	err := apiClient.AttachScheme(pluginsv1alpha1.AddToScheme)
 	if err != nil {
-		glog.V(100).Info("Failed to add plugins v1alpha1 scheme to client schemes")
+		klog.V(100).Info("Failed to add plugins v1alpha1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -30,7 +30,7 @@ func ListAllocatedNodes(
 	passedOptions := runtimeclient.ListOptions{}
 
 	if len(options) > 1 {
-		glog.V(100).Info("AllocatedNodes 'options' parameter must be empty or single-valued")
+		klog.V(100).Info("AllocatedNodes 'options' parameter must be empty or single-valued")
 
 		return nil, fmt.Errorf("error: more than one ListOptions was passed")
 	}
@@ -40,13 +40,13 @@ func ListAllocatedNodes(
 		logMessage += fmt.Sprintf(" with the options %v", passedOptions)
 	}
 
-	glog.V(100).Info(logMessage)
+	klog.V(100).Info(logMessage)
 
 	nodeList := new(pluginsv1alpha1.AllocatedNodeList)
 
 	err = apiClient.List(context.TODO(), nodeList, &passedOptions)
 	if err != nil {
-		glog.V(100).Infof("Failed to list AllocatedNodes in all namespaces due to %v", err)
+		klog.V(100).Infof("Failed to list AllocatedNodes in all namespaces due to %v", err)
 
 		return nil, err
 	}

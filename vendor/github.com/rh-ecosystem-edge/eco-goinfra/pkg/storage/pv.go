@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 // PVBuilder provides struct for persistentvolume object containing connection
@@ -30,10 +30,10 @@ type PVBuilder struct {
 
 // PullPersistentVolume gets an existing PersistentVolume from the cluster.
 func PullPersistentVolume(apiClient *clients.Settings, name string) (*PVBuilder, error) {
-	glog.V(100).Infof("Pulling existing PersistentVolume object: %s", name)
+	klog.V(100).Infof("Pulling existing PersistentVolume object: %s", name)
 
 	if apiClient == nil {
-		glog.V(100).Info("The PersistentVolume apiClient is nil")
+		klog.V(100).Info("The PersistentVolume apiClient is nil")
 
 		return nil, fmt.Errorf("persistentVolume 'apiClient' cannot be empty")
 	}
@@ -48,7 +48,7 @@ func PullPersistentVolume(apiClient *clients.Settings, name string) (*PVBuilder,
 	}
 
 	if name == "" {
-		glog.V(100).Info("The name of the PersistentVolume is empty")
+		klog.V(100).Info("The name of the PersistentVolume is empty")
 
 		return nil, fmt.Errorf("persistentVolume 'name' cannot be empty")
 	}
@@ -68,7 +68,7 @@ func (builder *PVBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if PersistentVolume %s exists", builder.Definition.Name)
+	klog.V(100).Infof("Checking if PersistentVolume %s exists", builder.Definition.Name)
 
 	var err error
 
@@ -84,10 +84,10 @@ func (builder *PVBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting the PersistentVolume %s", builder.Definition.Name)
+	klog.V(100).Infof("Deleting the PersistentVolume %s", builder.Definition.Name)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("PersistentVolume %s cannot be deleted because it does not exist", builder.Definition.Name)
+		klog.V(100).Infof("PersistentVolume %s cannot be deleted because it does not exist", builder.Definition.Name)
 
 		builder.Object = nil
 
@@ -110,7 +110,7 @@ func (builder *PVBuilder) DeleteAndWait(timeout time.Duration) error {
 		return err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Deleting PersistentVolume %s and waiting up to %s until it is removed", timeout, builder.Definition.Name)
 
 	err := builder.Delete()
@@ -127,24 +127,24 @@ func (builder *PVBuilder) WaitUntilDeleted(timeout time.Duration) error {
 		return err
 	}
 
-	glog.V(100).Infof("Waiting up to %s until PersistentVolume %s is deleted", timeout, builder.Definition.Name)
+	klog.V(100).Infof("Waiting up to %s until PersistentVolume %s is deleted", timeout, builder.Definition.Name)
 
 	return wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			_, err := builder.apiClient.PersistentVolumes().Get(context.TODO(), builder.Definition.Name, metav1.GetOptions{})
 			if err == nil {
-				glog.V(100).Infof("PersistentVolume %s still present", builder.Definition.Name)
+				klog.V(100).Infof("PersistentVolume %s still present", builder.Definition.Name)
 
 				return false, nil
 			}
 
 			if k8serrors.IsNotFound(err) {
-				glog.V(100).Infof("PersistentVolume %s is gone", builder.Definition.Name)
+				klog.V(100).Infof("PersistentVolume %s is gone", builder.Definition.Name)
 
 				return true, nil
 			}
 
-			glog.V(100).Infof("failed to get PersistentVolume %s", builder.Definition.Name)
+			klog.V(100).Infof("failed to get PersistentVolume %s", builder.Definition.Name)
 
 			return false, err
 		})
@@ -156,25 +156,25 @@ func (builder *PVBuilder) validate() (bool, error) {
 	resourceCRD := "PersistentVolume"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	hiveV1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/hive/api/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -27,19 +27,19 @@ type ClusterImageSetAdditionalOptions func(builder *ClusterImageSetBuilder) (*Cl
 
 // NewClusterImageSetBuilder creates a new instance of ClusterImageSetBuilder.
 func NewClusterImageSetBuilder(apiClient *clients.Settings, name, releaseImage string) *ClusterImageSetBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		`Initializing new clusterimageset structure with the following params: name: %s, releaseImage: %s`,
 		name, releaseImage)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient cannot be nil")
+		klog.V(100).Info("The apiClient cannot be nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(hiveV1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add hive v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add hive v1 scheme to client schemes")
 
 		return nil
 	}
@@ -57,7 +57,7 @@ func NewClusterImageSetBuilder(apiClient *clients.Settings, name, releaseImage s
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the clusterimageset is empty")
+		klog.V(100).Info("The name of the clusterimageset is empty")
 
 		builder.errorMsg = "clusterimageset 'name' cannot be empty"
 
@@ -65,7 +65,7 @@ func NewClusterImageSetBuilder(apiClient *clients.Settings, name, releaseImage s
 	}
 
 	if releaseImage == "" {
-		glog.V(100).Infof("The releaseImage of the clusterimageset is empty")
+		klog.V(100).Info("The releaseImage of the clusterimageset is empty")
 
 		builder.errorMsg = "clusterimageset 'releaseImage' cannot be empty"
 
@@ -77,17 +77,17 @@ func NewClusterImageSetBuilder(apiClient *clients.Settings, name, releaseImage s
 
 // PullClusterImageSet loads an existing clusterimageset into ClusterImageSetBuilder struct.
 func PullClusterImageSet(apiClient *clients.Settings, name string) (*ClusterImageSetBuilder, error) {
-	glog.V(100).Infof("Pulling existing clusterimageset name: %s", name)
+	klog.V(100).Infof("Pulling existing clusterimageset name: %s", name)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("clusterImageSet 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(hiveV1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add hive v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add hive v1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -102,7 +102,7 @@ func PullClusterImageSet(apiClient *clients.Settings, name string) (*ClusterImag
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the clusterimageset is empty")
+		klog.V(100).Info("The name of the clusterimageset is empty")
 
 		return nil, fmt.Errorf("clusterimageset 'name' cannot be empty")
 	}
@@ -122,7 +122,7 @@ func (builder *ClusterImageSetBuilder) Get() (*hiveV1.ClusterImageSet, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting clusterimageset %s", builder.Definition.Name)
+	klog.V(100).Infof("Getting clusterimageset %s", builder.Definition.Name)
 
 	clusterimageset := &hiveV1.ClusterImageSet{}
 
@@ -142,7 +142,7 @@ func (builder *ClusterImageSetBuilder) Create() (*ClusterImageSetBuilder, error)
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the clusterimageset %s", builder.Definition.Name)
+	klog.V(100).Infof("Creating the clusterimageset %s", builder.Definition.Name)
 
 	var err error
 	if !builder.Exists() {
@@ -161,18 +161,16 @@ func (builder *ClusterImageSetBuilder) Update(force bool) (*ClusterImageSetBuild
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating clusterimageset %s", builder.Definition.Name)
+	klog.V(100).Infof("Updating clusterimageset %s", builder.Definition.Name)
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		if force {
-			glog.V(100).Infof(
-				msg.FailToUpdateNotification("clusterimageset", builder.Definition.Name, builder.Definition.Namespace))
+			klog.V(100).Infof("%v", msg.FailToUpdateNotification("clusterimageset", builder.Definition.Name, builder.Definition.Namespace))
 
 			err := builder.Delete()
 			if err != nil {
-				glog.V(100).Infof(
-					msg.FailToUpdateError("clusterimageset", builder.Definition.Name, builder.Definition.Namespace))
+				klog.V(100).Infof("%v", msg.FailToUpdateError("clusterimageset", builder.Definition.Name, builder.Definition.Namespace))
 
 				return nil, err
 			}
@@ -194,10 +192,10 @@ func (builder *ClusterImageSetBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting the clusterimageset %s", builder.Definition.Name)
+	klog.V(100).Infof("Deleting the clusterimageset %s", builder.Definition.Name)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("clusterimageset cannot be deleted because it does not exist")
+		klog.V(100).Info("clusterimageset cannot be deleted because it does not exist")
 
 		builder.Object = nil
 
@@ -222,7 +220,7 @@ func (builder *ClusterImageSetBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if clusterimageset %s exists", builder.Definition.Name)
+	klog.V(100).Infof("Checking if clusterimageset %s exists", builder.Definition.Name)
 
 	var err error
 
@@ -237,11 +235,11 @@ func (builder *ClusterImageSetBuilder) WithReleaseImage(image string) *ClusterIm
 		return builder
 	}
 
-	glog.V(100).Infof("Setting clusterimageset %s releaseImage to %s",
+	klog.V(100).Infof("Setting clusterimageset %s releaseImage to %s",
 		builder.Definition.Name, image)
 
 	if image == "" {
-		glog.V(100).Infof("The clusterimageset releaseImage is empty")
+		klog.V(100).Info("The clusterimageset releaseImage is empty")
 
 		builder.errorMsg = "cannot set releaseImage to empty string"
 
@@ -260,13 +258,13 @@ func (builder *ClusterImageSetBuilder) WithOptions(
 		return builder
 	}
 
-	glog.V(100).Infof("Setting ClusterImageSet additional options")
+	klog.V(100).Info("Setting ClusterImageSet additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -284,25 +282,25 @@ func (builder *ClusterImageSetBuilder) validate() (bool, error) {
 	resourceCRD := "ClusterImageSet"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

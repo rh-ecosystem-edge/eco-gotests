@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -22,6 +21,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/helper"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/tsparams"
 	subscriber "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/oran-subscriber"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 )
 
@@ -323,10 +323,10 @@ func concurrentlySendAlerts(
 					return
 				}
 
-				glog.V(tsparams.LogLevel).Infof("Failed to send alert (attempt %d/3): %v", attempt+1, err)
+				klog.V(tsparams.LogLevel).Infof("Failed to send alert (attempt %d/3): %v", attempt+1, err)
 			}
 
-			glog.V(tsparams.LogLevel).Infof("Failed to send alert after 3 attempts")
+			klog.V(tsparams.LogLevel).Infof("Failed to send alert after 3 attempts")
 		})
 	}
 

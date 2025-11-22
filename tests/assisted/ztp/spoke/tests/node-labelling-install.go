@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/bmh"
@@ -13,6 +12,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/internal/ztpinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/spoke/internal/tsparams"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -112,7 +112,7 @@ func checkNodeHasAllLabels(
 	nodeLabels map[string]string) (bool, error) {
 	myNode, err := nodes.Pull(apiClient, nodeName)
 	if err != nil {
-		glog.V(100).Infof("could not discover nodes, error encountered: '%v'", err)
+		klog.V(100).Infof("could not discover nodes, error encountered: '%v'", err)
 
 		return false, err
 	}

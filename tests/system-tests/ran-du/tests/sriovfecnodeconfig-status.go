@@ -3,12 +3,12 @@ package ran_du_system_test
 import (
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	sriovfec "github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov-fec"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ran-du/internal/randuinittools"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ran-du/internal/randuparams"
@@ -21,7 +21,7 @@ var _ = Describe(
 	ContinueOnFailure,
 	func() {
 		It("Asserts SriovFecNodeConfig resource is configured successfully", func() {
-			glog.V(randuparams.RanDuLogLevel).Infof("Check SriovFecNodeConfig resource")
+			klog.V(randuparams.RanDuLogLevel).Infof("Check SriovFecNodeConfig resource")
 
 			nodeList, err := nodes.List(
 				APIClient,

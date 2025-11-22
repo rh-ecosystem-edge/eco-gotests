@@ -5,11 +5,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	amdgpuparams "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/params"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/internal/deploy"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/nfdparams"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -18,7 +18,7 @@ const (
 
 // DeployAllOperators deploys NFD, KMM, and AMD GPU operators using the generic installer.
 func DeployAllOperators(apiClient *clients.Settings) error {
-	glog.V(amdgpuparams.AMDGPULogLevel).Info("Deploying all operators")
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("Deploying all operators")
 
 	operators := []string{"nfd", "kmm", "amdgpu"}
 	for _, operator := range operators {
@@ -40,7 +40,7 @@ func DeployAllOperators(apiClient *clients.Settings) error {
 		}
 	}
 
-	glog.V(amdgpuparams.AMDGPULogLevel).Info("All operators deployed successfully")
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("All operators deployed successfully")
 
 	return nil
 }
@@ -58,7 +58,7 @@ func getConfigByName(operatorName string, apiClient *clients.Settings) deploy.Op
 			CatalogSourceNamespace: "openshift-marketplace",
 			Channel:                "stable",
 			TargetNamespaces:       []string{nfdparams.NFDNamespace},
-			LogLevel:               glog.Level(amdgpuparams.AMDGPULogLevel),
+			LogLevel:               klog.Level(amdgpuparams.AMDGPULogLevel),
 		}
 	case "kmm":
 		return GetDefaultKMMInstallConfig(apiClient, nil)

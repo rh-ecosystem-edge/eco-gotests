@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
@@ -30,6 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -1421,7 +1421,7 @@ func setLACPBlockFilterOnInterface(credentials *sriovenv.SwitchCredentials, enab
 
 	lacpInterfaces, err := NetConfig.GetSwitchLagNames()
 	if err != nil {
-		glog.Errorf("Failed to get switch LAG names: %v", err)
+		klog.Errorf("Failed to get switch LAG names: %v", err)
 
 		return
 	}

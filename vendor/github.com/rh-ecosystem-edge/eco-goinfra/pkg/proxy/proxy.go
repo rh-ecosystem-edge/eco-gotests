@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -29,17 +29,17 @@ type Builder struct {
 
 // Pull loads an existing proxy into Builder struct.
 func Pull(apiClient *clients.Settings) (*Builder, error) {
-	glog.V(100).Infof("Pulling existing proxy name: %s", clusterProxyName)
+	klog.V(100).Infof("Pulling existing proxy name: %s", clusterProxyName)
 
 	if apiClient == nil {
-		glog.V(100).Info("The apiClient of the Proxy is nil")
+		klog.V(100).Info("The apiClient of the Proxy is nil")
 
 		return nil, fmt.Errorf("proxy 'apiClient' cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(configv1.Install)
 	if err != nil {
-		glog.V(100).Info("Failed to add config v1 scheme to client schemes")
+		klog.V(100).Info("Failed to add config v1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func Pull(apiClient *clients.Settings) (*Builder, error) {
 	}
 
 	if !builder.Exists() {
-		glog.V(100).Infof("The Proxy %s does not exist", clusterProxyName)
+		klog.V(100).Infof("The Proxy %s does not exist", clusterProxyName)
 
 		return nil, fmt.Errorf("proxy object %s does not exist", clusterProxyName)
 	}
@@ -70,13 +70,13 @@ func (builder *Builder) Get() (*configv1.Proxy, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting proxy object %s", builder.Definition.Name)
+	klog.V(100).Infof("Getting proxy object %s", builder.Definition.Name)
 
 	proxy := &configv1.Proxy{}
 
 	err := builder.apiClient.Get(context.TODO(), goclient.ObjectKey{Name: builder.Definition.Name}, proxy)
 	if err != nil {
-		glog.V(100).Infof("Proxy object %s does not exist: %v", builder.Definition.Name, err)
+		klog.V(100).Infof("Proxy object %s does not exist: %v", builder.Definition.Name, err)
 
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func (builder *Builder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if proxy %s exists", builder.Definition.Name)
+	klog.V(100).Infof("Checking if proxy %s exists", builder.Definition.Name)
 
 	var err error
 
@@ -105,19 +105,19 @@ func (builder *Builder) validate() (bool, error) {
 	resourceCRD := "proxy"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}

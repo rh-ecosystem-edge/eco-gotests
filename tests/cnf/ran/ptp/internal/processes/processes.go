@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/ptpdaemon"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 // PtpProcess represents one of the linuxptp processes used by the PTP daemon.
@@ -163,7 +163,7 @@ func KillPtpProcessMultipleTimes(client *clients.Settings, nodeName string, proc
 	for i := 0; i < times; i++ {
 		err := KillPtpProcess(client, nodeName, process)
 		if err != nil {
-			glog.V(tsparams.LogLevel).Infof("Failed to kill process %s: %v", process, err)
+			klog.V(tsparams.LogLevel).Infof("Failed to kill process %s: %v", process, err)
 
 			time.Sleep(1 * time.Second)
 		}

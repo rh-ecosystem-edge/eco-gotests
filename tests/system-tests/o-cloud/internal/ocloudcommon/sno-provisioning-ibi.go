@@ -14,10 +14,9 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/golang/glog"
-
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ibi"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/klog/v2"
 
 	"github.com/Masterminds/sprig/v3"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/bmc"
@@ -83,10 +82,10 @@ func VerifySuccessfulIbiSnoProvisioning(ctx SpecContext) {
 	nsname := provisioningRequest.Object.Status.Extensions.ClusterDetails.Name
 
 	VerifyAllPoliciesInNamespaceAreCompliant(nsname, ctx, nil, nil)
-	glog.V(ocloudparams.OCloudLogLevel).Infof("All the policies in namespace %s are Complete", nsname)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("All the policies in namespace %s are Complete", nsname)
 
 	VerifyProvisioningRequestIsFulfilled(provisioningRequest)
-	glog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s is fulfilled", provisioningRequest.Object.Name)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s is fulfilled", provisioningRequest.Object.Name)
 
 	DeprovisionIbiSnoCluster(provisioningRequest, imageClusterInstall, ctx)
 }
@@ -125,7 +124,7 @@ func VerifyFailedIbiSnoProvisioning(ctx SpecContext) {
 		OCloudConfig.ClusterName2, OCloudConfig.ClusterName2, ctx)
 
 	VerifyProvisioningRequestTimeout(provisioningRequest)
-	glog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s has timed out", provisioningRequest.Object.Name)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s has timed out", provisioningRequest.Object.Name)
 
 	DeprovisionIbiSnoCluster(provisioningRequest, imageClusterInstall, ctx)
 }
@@ -185,10 +184,10 @@ func generateBaseImage(ctx SpecContext) {
 	clusterInstance := VerifyClusterInstanceCompleted(provisioningRequest, ctx)
 
 	VerifyAllPoliciesInNamespaceAreCompliant(nsname, ctx, nil, nil)
-	glog.V(ocloudparams.OCloudLogLevel).Infof("All the policies are compliant")
+	klog.V(ocloudparams.OCloudLogLevel).Infof("All the policies are compliant")
 
 	VerifyProvisioningRequestIsFulfilled(provisioningRequest)
-	glog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s is fulfilled", provisioningRequest.Object.Name)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s is fulfilled", provisioningRequest.Object.Name)
 
 	snoAPIClient := CreateSnoAPIClient(OCloudConfig.ClusterName1)
 
@@ -326,7 +325,7 @@ func DeprovisionIbiSnoCluster(
 
 	tearDownWg.Wait()
 
-	glog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s has been removed", provisioningRequest.Object.Name)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("Provisioning request %s has been removed", provisioningRequest.Object.Name)
 
 	// Verify the BMHs are available after the SNO cluster is deprovisioned.
 	for _, bmh := range bmhs {
@@ -352,7 +351,7 @@ func VerifyImageClusterInstallCompleted(
 	}).WithTimeout(60*time.Minute).WithPolling(20*time.Second).WithContext(ctx).Should(BeTrue(),
 		fmt.Sprintf("Image Cluster Install %s is not Completed", nodeID))
 
-	glog.V(ocloudparams.OCloudLogLevel).Infof("Cluster installation %s has succeeded ", nodeID)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("Cluster installation %s has succeeded ", nodeID)
 
 	return imageClusterInstall
 }
@@ -363,7 +362,7 @@ func baseImageExists() bool {
 
 	_, err := os.Stat(OCloudConfig.IbiBaseImagePath)
 	if err != nil {
-		glog.V(ocloudparams.OCloudLogLevel).Infof("file %s (base image) does not exist", OCloudConfig.IbiBaseImagePath)
+		klog.V(ocloudparams.OCloudLogLevel).Infof("file %s (base image) does not exist", OCloudConfig.IbiBaseImagePath)
 	}
 
 	return !os.IsNotExist(err)

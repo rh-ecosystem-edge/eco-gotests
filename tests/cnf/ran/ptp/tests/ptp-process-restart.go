@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	prometheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
@@ -19,6 +18,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/processes"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/profiles"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
+	"k8s.io/klog/v2"
 )
 
 var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), func() {
@@ -106,7 +106,7 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 		for _, nodeInfo := range nodeInfoMap {
 			By("checking if there are at least 2 profiles on node " + nodeInfo.Name)
 			if len(nodeInfo.Profiles) < 2 {
-				glog.V(tsparams.LogLevel).Infof("Skipping node %s because it has less than 2 profiles", nodeInfo.Name)
+				klog.V(tsparams.LogLevel).Infof("Skipping node %s because it has less than 2 profiles", nodeInfo.Name)
 
 				continue
 			}

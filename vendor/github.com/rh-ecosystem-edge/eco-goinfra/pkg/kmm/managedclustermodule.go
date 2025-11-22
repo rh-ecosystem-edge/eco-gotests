@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	mcmV1Beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/kmm-hub/v1beta1"
 	moduleV1Beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/kmm/v1beta1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -29,18 +29,18 @@ type ManagedClusterModuleAdditionalOptions func(builder *ManagedClusterModuleBui
 
 // NewManagedClusterModuleBuilder creates a new instance of ManagedClusterModuleBuilder.
 func NewManagedClusterModuleBuilder(apiClient *clients.Settings, name, nsname string) *ManagedClusterModuleBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new ManagedClusterModule structure with following params: %s, %s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(mcmV1Beta1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add module v1beta1 scheme to client schemes")
+		klog.V(100).Info("Failed to add module v1beta1 scheme to client schemes")
 
 		return nil
 	}
@@ -56,7 +56,7 @@ func NewManagedClusterModuleBuilder(apiClient *clients.Settings, name, nsname st
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the ManagedClusterModule is empty")
+		klog.V(100).Info("The name of the ManagedClusterModule is empty")
 
 		builder.errorMsg = "managedClusterModule 'name' cannot be empty"
 
@@ -64,7 +64,7 @@ func NewManagedClusterModuleBuilder(apiClient *clients.Settings, name, nsname st
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the ManagedClusterModule is empty")
+		klog.V(100).Info("The namespace of the ManagedClusterModule is empty")
 
 		builder.errorMsg = "managedClusterModule 'nsname' cannot be empty"
 
@@ -129,13 +129,13 @@ func (builder *ManagedClusterModuleBuilder) WithOptions(
 		return builder
 	}
 
-	glog.V(100).Infof("Setting ManagedClusterModule additional options")
+	klog.V(100).Info("Setting ManagedClusterModule additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -149,17 +149,17 @@ func (builder *ManagedClusterModuleBuilder) WithOptions(
 
 // PullManagedClusterModule pulls existing module from cluster.
 func PullManagedClusterModule(apiClient *clients.Settings, name, nsname string) (*ManagedClusterModuleBuilder, error) {
-	glog.V(100).Infof("Pulling existing module name %s under namespace %s from cluster", name, nsname)
+	klog.V(100).Infof("Pulling existing module name %s under namespace %s from cluster", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("managedclustermodule 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(mcmV1Beta1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add module v1beta1 scheme to client schemes")
+		klog.V(100).Info("Failed to add module v1beta1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -175,13 +175,13 @@ func PullManagedClusterModule(apiClient *clients.Settings, name, nsname string) 
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the managedclustermodule is empty")
+		klog.V(100).Info("The name of the managedclustermodule is empty")
 
 		return nil, fmt.Errorf("managedclustermodule 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the managedclustermodule is empty")
+		klog.V(100).Info("The namespace of the managedclustermodule is empty")
 
 		return nil, fmt.Errorf("managedclustermodule 'namespace' cannot be empty")
 	}
@@ -201,7 +201,7 @@ func (builder *ManagedClusterModuleBuilder) Create() (*ManagedClusterModuleBuild
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating managedclustermodule %s in namespace %s",
+	klog.V(100).Infof("Creating managedclustermodule %s in namespace %s",
 		builder.Definition.Name,
 		builder.Definition.Namespace)
 
@@ -222,7 +222,7 @@ func (builder *ManagedClusterModuleBuilder) Update() (*ManagedClusterModuleBuild
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating managedclustermodule %s in namespace %s",
+	klog.V(100).Infof("Updating managedclustermodule %s in namespace %s",
 		builder.Definition.Name,
 		builder.Definition.Namespace)
 
@@ -240,7 +240,7 @@ func (builder *ManagedClusterModuleBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if managedclustermodule %s exists in namespace %s",
+	klog.V(100).Infof("Checking if managedclustermodule %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -256,11 +256,11 @@ func (builder *ManagedClusterModuleBuilder) Delete() (*ManagedClusterModuleBuild
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting managedclustermodule %s in namespace %s",
+	klog.V(100).Infof("Deleting managedclustermodule %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("managedclustermodule cannot be deleted because it does not exist")
+		klog.V(100).Info("managedclustermodule cannot be deleted because it does not exist")
 
 		builder.Object = nil
 
@@ -283,7 +283,7 @@ func (builder *ManagedClusterModuleBuilder) Get() (*mcmV1Beta1.ManagedClusterMod
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting managedclustermodule %s in namespace %s",
+	klog.V(100).Infof("Getting managedclustermodule %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	mcm := &mcmV1Beta1.ManagedClusterModule{}
@@ -305,25 +305,25 @@ func (builder *ManagedClusterModuleBuilder) validate() (bool, error) {
 	resourceCRD := "ManagedClusterModule"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

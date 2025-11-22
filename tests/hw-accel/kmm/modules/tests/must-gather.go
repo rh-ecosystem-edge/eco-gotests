@@ -7,12 +7,12 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func() {
@@ -31,7 +31,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 
 						if strings.Contains(env.Name, kmmparams.RelImgMustGather) {
 							mustGatherImage = env.Value
-							glog.V(kmmparams.KmmLogLevel).Infof("%s: %s\n", kmmparams.RelImgMustGather, mustGatherImage)
+							klog.V(kmmparams.KmmLogLevel).Infof("%s: %s\n", kmmparams.RelImgMustGather, mustGatherImage)
 						}
 
 					}
@@ -44,12 +44,12 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			Expect(err).ToNot(HaveOccurred(), "error creating must-gather pod")
 			cmdToExec := []string{"ls", "-l", "/usr/bin/gather"}
 
-			glog.V(90).Infof("Exec cmd %v on pod %s", cmdToExec, mgPod.Definition.Name)
+			klog.V(90).Infof("Exec cmd %v on pod %s", cmdToExec, mgPod.Definition.Name)
 
 			buf, err := mgPod.ExecCommand(cmdToExec)
 			Expect(err).ToNot(HaveOccurred(), "gather binary not found")
 
-			glog.V(90).Infof("gather binary found: %s", buf.String())
+			klog.V(90).Infof("gather binary found: %s", buf.String())
 
 			By("Deleting must-gather pod")
 			_, err2 := pod.NewBuilder(APIClient, "must-gather-pod", kmmparams.KmmOperatorNamespace, mustGatherImage).

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 
@@ -13,12 +12,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // VerifyAndConfigureInternalRegistry checks and configures the internal image registry for the AMD GPU operator.
 func VerifyAndConfigureInternalRegistry(apiClient *clients.Settings) error {
-	glog.V(amdgpuparams.AMDGPULogLevel).Info("Verifying internal image registry configuration for AMD GPU operator")
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("Verifying internal image registry configuration for AMD GPU operator")
 
 	imageRegistryConfig, err := getImageRegistryConfig(apiClient)
 	if err != nil {
@@ -30,7 +30,7 @@ func VerifyAndConfigureInternalRegistry(apiClient *clients.Settings) error {
 		return err
 	}
 
-	glog.V(amdgpuparams.AMDGPULogLevel).Infof("Current image registry management state: %s", managementState)
+	klog.V(amdgpuparams.AMDGPULogLevel).Infof("Current image registry management state: %s", managementState)
 
 	if !found || managementState != "Managed" {
 		return configureRegistryAsManaged(apiClient, imageRegistryConfig)
@@ -72,7 +72,7 @@ func getRegistryManagementState(config *unstructured.Unstructured) (string, bool
 
 // configureRegistryAsManaged configures the registry to be managed and sets up storage.
 func configureRegistryAsManaged(apiClient *clients.Settings, config *unstructured.Unstructured) error {
-	glog.V(amdgpuparams.AMDGPULogLevel).Info("Internal registry is not managed - configuring it for AMD GPU operator")
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("Internal registry is not managed - configuring it for AMD GPU operator")
 
 	err := setRegistryManagementState(config)
 	if err != nil {
@@ -89,7 +89,7 @@ func configureRegistryAsManaged(apiClient *clients.Settings, config *unstructure
 		return err
 	}
 
-	glog.V(amdgpuparams.AMDGPULogLevel).Info("Updated image registry to Managed state")
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("Updated image registry to Managed state")
 
 	return waitForImageRegistryAvailable(apiClient, 10*time.Minute)
 }
@@ -120,7 +120,7 @@ func ensureRegistryStorage(config *unstructured.Unstructured) error {
 
 // setEmptyDirStorage sets emptyDir storage for the registry.
 func setEmptyDirStorage(config *unstructured.Unstructured) error {
-	glog.V(amdgpuparams.AMDGPULogLevel).Info(
+	klog.V(amdgpuparams.AMDGPULogLevel).Info(
 		"No storage configured for image registry - adding emptyDir storage for testing")
 
 	newStorageConfig := map[string]interface{}{
@@ -150,21 +150,21 @@ func updateRegistryConfig(apiClient *clients.Settings, config *unstructured.Unst
 
 // verifyRegistryAvailability verifies that the registry is available.
 func verifyRegistryAvailability(apiClient *clients.Settings) error {
-	glog.V(amdgpuparams.AMDGPULogLevel).Info("Internal registry is already managed - verifying availability")
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("Internal registry is already managed - verifying availability")
 
 	err := waitForImageRegistryAvailable(apiClient, 5*time.Minute)
 	if err != nil {
 		return fmt.Errorf("image registry is not available: %w", err)
 	}
 
-	glog.V(amdgpuparams.AMDGPULogLevel).Info("Internal image registry is properly configured and available")
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("Internal image registry is properly configured and available")
 
 	return nil
 }
 
 // verifyRegistryService verifies image registry service.
 func verifyRegistryService(apiClient *clients.Settings) error {
-	glog.V(amdgpuparams.AMDGPULogLevel).Info("Verifying image registry service")
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("Verifying image registry service")
 
 	ctx := context.Background()
 
@@ -174,7 +174,7 @@ func verifyRegistryService(apiClient *clients.Settings) error {
 		return fmt.Errorf("image registry service not found: %w", err)
 	}
 
-	glog.V(amdgpuparams.AMDGPULogLevel).Infof("Image registry service found: %s (ClusterIP: %s)",
+	klog.V(amdgpuparams.AMDGPULogLevel).Infof("Image registry service found: %s (ClusterIP: %s)",
 		service.Name, service.Spec.ClusterIP)
 
 	routes := &unstructured.UnstructuredList{}
@@ -186,12 +186,12 @@ func verifyRegistryService(apiClient *clients.Settings) error {
 
 	err = apiClient.Client.List(ctx, routes, client.InNamespace("openshift-image-registry"))
 	if err != nil {
-		glog.V(amdgpuparams.AMDGPULogLevel).Infof("Could not check registry routes: %v", err)
+		klog.V(amdgpuparams.AMDGPULogLevel).Infof("Could not check registry routes: %v", err)
 	} else if len(routes.Items) > 0 {
 		for _, route := range routes.Items {
 			if routeName := route.GetName(); routeName == "default-route" {
 				if host, found, _ := unstructured.NestedString(route.Object, "spec", "host"); found {
-					glog.V(amdgpuparams.AMDGPULogLevel).Infof("Image registry route available: %s", host)
+					klog.V(amdgpuparams.AMDGPULogLevel).Infof("Image registry route available: %s", host)
 				}
 			}
 		}
@@ -202,7 +202,7 @@ func verifyRegistryService(apiClient *clients.Settings) error {
 
 // waitForImageRegistryAvailable waits for internal image registry to become available.
 func waitForImageRegistryAvailable(apiClient *clients.Settings, timeout time.Duration) error {
-	glog.V(amdgpuparams.AMDGPULogLevel).Info("Waiting for internal image registry to become available")
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("Waiting for internal image registry to become available")
 
 	podIsRunning, err := pod.WaitForAllPodsInNamespaceRunning(
 		apiClient,
@@ -217,11 +217,11 @@ func waitForImageRegistryAvailable(apiClient *clients.Settings, timeout time.Dur
 
 	err = verifyRegistryService(apiClient)
 	if err != nil {
-		glog.V(amdgpuparams.AMDGPULogLevel).Infof("Registry service verification warning: %v", err)
+		klog.V(amdgpuparams.AMDGPULogLevel).Infof("Registry service verification warning: %v", err)
 	}
 
 	if !podIsRunning {
-		glog.V(amdgpuparams.AMDGPULogLevel).Infof("Image registry pods are not running")
+		klog.V(amdgpuparams.AMDGPULogLevel).Infof("Image registry pods are not running")
 
 		return fmt.Errorf("image registry pods are not running")
 	}

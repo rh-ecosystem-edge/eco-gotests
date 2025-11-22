@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	authenticationv1 "k8s.io/api/authentication/v1"
@@ -14,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	corev1Typed "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 )
 
@@ -35,7 +35,7 @@ type AdditionalOptions func(builder *Builder) (*Builder, error)
 
 // NewBuilder creates a new instance of Builder.
 func NewBuilder(apiClient *clients.Settings, name, nsname string) *Builder {
-	glog.V(100).Infof("Initializing new serviceaccount structure with the following params: %s, %s", name, nsname)
+	klog.V(100).Infof("Initializing new serviceaccount structure with the following params: %s, %s", name, nsname)
 
 	builder := &Builder{
 		apiClient: apiClient.ServiceAccounts(nsname),
@@ -48,7 +48,7 @@ func NewBuilder(apiClient *clients.Settings, name, nsname string) *Builder {
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the serviceaccount is empty")
+		klog.V(100).Info("The name of the serviceaccount is empty")
 
 		builder.errorMsg = "serviceaccount 'name' cannot be empty"
 
@@ -56,7 +56,7 @@ func NewBuilder(apiClient *clients.Settings, name, nsname string) *Builder {
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the serviceaccount is empty")
+		klog.V(100).Info("The namespace of the serviceaccount is empty")
 
 		builder.errorMsg = "serviceaccount 'nsname' cannot be empty"
 
@@ -68,7 +68,7 @@ func NewBuilder(apiClient *clients.Settings, name, nsname string) *Builder {
 
 // Pull loads an existing serviceaccount into Builder struct.
 func Pull(apiClient *clients.Settings, name, nsname string) (*Builder, error) {
-	glog.V(100).Infof("Pulling existing serviceaccount name: %s under namespace: %s", name, nsname)
+	klog.V(100).Infof("Pulling existing serviceaccount name: %s under namespace: %s", name, nsname)
 
 	builder := &Builder{
 		apiClient: apiClient.ServiceAccounts(nsname),
@@ -107,7 +107,7 @@ func (builder *Builder) Create() (*Builder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Creating serviceaccount %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -128,11 +128,11 @@ func (builder *Builder) CreateToken(duration time.Duration, audiences ...string)
 		return "", err
 	}
 
-	glog.V(100).Infof("Creating token for serviceaccount %s in namespace %s with duration %s",
+	klog.V(100).Infof("Creating token for serviceaccount %s in namespace %s with duration %s",
 		builder.Definition.Name, builder.Definition.Namespace, duration)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("Cannot create a token for serviceaccount %s in namespace %s because it does not exist",
+		klog.V(100).Infof("Cannot create a token for serviceaccount %s in namespace %s because it does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		return "", fmt.Errorf("serviceaccount %s does not exist in namespace %s",
@@ -157,7 +157,7 @@ func (builder *Builder) CreateToken(duration time.Duration, audiences ...string)
 		return "", err
 	}
 
-	glog.V(100).Infof("Successfully created token for serviceaccount %s in namespace %s with expiration %s",
+	klog.V(100).Infof("Successfully created token for serviceaccount %s in namespace %s with expiration %s",
 		builder.Definition.Name, builder.Definition.Namespace, tokenRequest.Status.ExpirationTimestamp.Format(time.RFC3339))
 
 	return tokenRequest.Status.Token, nil
@@ -169,12 +169,12 @@ func (builder *Builder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Deleting serviceaccount %s from namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("ServiceAccount %s namespace %s does not exist and cannot be deleted",
+		klog.V(100).Infof("ServiceAccount %s namespace %s does not exist and cannot be deleted",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -199,7 +199,7 @@ func (builder *Builder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Checking if serviceaccount %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
@@ -217,13 +217,13 @@ func (builder *Builder) WithOptions(options ...AdditionalOptions) *Builder {
 		return builder
 	}
 
-	glog.V(100).Infof("Setting serviceAccount additional options")
+	klog.V(100).Info("Setting serviceAccount additional options")
 
 	for _, option := range options {
 		if option != nil {
 			builder, err := option(builder)
 			if err != nil {
-				glog.V(100).Infof("Error occurred in mutation function")
+				klog.V(100).Info("Error occurred in mutation function")
 
 				builder.errorMsg = err.Error()
 
@@ -246,25 +246,25 @@ func (builder *Builder) validate() (bool, error) {
 	resourceCRD := "ServiceAccount"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -26,6 +25,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 var _ = Describe("MetalLb New CRDs", Ordered, Label("newcrds"), ContinueOnFailure, func() {
@@ -175,7 +175,7 @@ func addOrDeleteNodeSecIPAddViaFRRK8S(action string,
 		ipaddress, "dev", secInterface}, "frr")
 
 	if err != nil && strings.Contains(buffer.String(), "already assigned") {
-		glog.V(90).Infof("Warning: Address %s is already assigned to %s", ipaddress, secInterface)
+		klog.V(90).Infof("Warning: Address %s is already assigned to %s", ipaddress, secInterface)
 
 		return
 	}

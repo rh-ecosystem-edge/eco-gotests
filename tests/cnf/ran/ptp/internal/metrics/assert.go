@@ -6,12 +6,12 @@ import (
 	"math"
 	"time"
 
-	"github.com/golang/glog"
 	prometheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
 	ptpv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v1"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
 	"golang.org/x/exp/constraints"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -175,7 +175,7 @@ func AssertQuery[V constraints.Integer](
 				continue
 			}
 
-			glog.V(tsparams.LogLevel).Infof("Query assert failed at time %s: %v", queryTime, err)
+			klog.V(tsparams.LogLevel).Infof("Query assert failed at time %s: %v", queryTime, err)
 
 			// After a failure, update the queryTime to the next queryTime by adding the poll interval.
 			queryTime = queryTime.Add(opts.pollInterval)
@@ -250,7 +250,7 @@ func AssertThresholds(
 		case ThresholdMinOffset:
 			existing.MinOffsetThreshold = convertSampleValueToInt64(sample.Value)
 		default:
-			glog.V(tsparams.LogLevel).Infof("Ignoring unknown threshold type %s", threshold)
+			klog.V(tsparams.LogLevel).Infof("Ignoring unknown threshold type %s", threshold)
 
 			continue
 		}
@@ -319,7 +319,7 @@ func assertQueryAtTime[V constraints.Integer](
 		}
 	}
 
-	glog.V(tsparams.LogLevel).Infof("Query assert passed at time %s: expected %d, got %#v\nquery: %s",
+	klog.V(tsparams.LogLevel).Infof("Query assert passed at time %s: expected %d, got %#v\nquery: %s",
 		assertTime, int64(expected), result, metricQuery.String())
 
 	return nil

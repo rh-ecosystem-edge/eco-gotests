@@ -4,29 +4,29 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	srIovV1 "github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // List returns sriov networks in the given namespace.
 func List(apiClient *clients.Settings, nsname string, options ...client.ListOptions) ([]*NetworkBuilder, error) {
 	if apiClient == nil {
-		glog.V(100).Infof("sriov network 'apiClient' parameter can not be empty")
+		klog.V(100).Info("sriov network 'apiClient' parameter can not be empty")
 
 		return nil, fmt.Errorf("failed to list sriov networks, 'apiClient' parameter is empty")
 	}
 
 	err := apiClient.AttachScheme(srIovV1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add oplmV1alpha1 scheme to client schemes")
+		klog.V(100).Info("Failed to add oplmV1alpha1 scheme to client schemes")
 
 		return nil, err
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("sriov network 'nsname' parameter can not be empty")
+		klog.V(100).Info("sriov network 'nsname' parameter can not be empty")
 
 		return nil, fmt.Errorf("failed to list sriov networks, 'nsname' parameter is empty")
 	}
@@ -35,7 +35,7 @@ func List(apiClient *clients.Settings, nsname string, options ...client.ListOpti
 	logMessage := fmt.Sprintf("Listing sriov networks in the namespace %s", nsname)
 
 	if len(options) > 1 {
-		glog.V(100).Infof("'options' parameter must be empty or single-valued")
+		klog.V(100).Info("'options' parameter must be empty or single-valued")
 
 		return nil, fmt.Errorf("error: more than one ListOptions was passed")
 	}
@@ -45,13 +45,13 @@ func List(apiClient *clients.Settings, nsname string, options ...client.ListOpti
 		logMessage += fmt.Sprintf(" with the options %v", passedOptions)
 	}
 
-	glog.V(100).Infof(logMessage)
+	klog.V(100).Infof("%v", logMessage)
 
 	networkList := new(srIovV1.SriovNetworkList)
 
 	err = apiClient.List(context.TODO(), networkList, &passedOptions)
 	if err != nil {
-		glog.V(100).Infof("Failed to list sriov networks in the namespace %s due to %s", nsname, err.Error())
+		klog.V(100).Infof("Failed to list sriov networks in the namespace %s due to %s", nsname, err.Error())
 
 		return nil, err
 	}
@@ -78,24 +78,24 @@ func CleanAllNetworksByTargetNamespace(
 	operatornsname string,
 	targetnsname string,
 	options ...client.ListOptions) error {
-	glog.V(100).Infof("Cleaning up sriov networks in the %s namespace with %s NetworkNamespace spec",
+	klog.V(100).Infof("Cleaning up sriov networks in the %s namespace with %s NetworkNamespace spec",
 		operatornsname, targetnsname)
 
 	if operatornsname == "" {
-		glog.V(100).Infof("'operatornsname' parameter can not be empty")
+		klog.V(100).Info("'operatornsname' parameter can not be empty")
 
 		return fmt.Errorf("failed to clean up sriov networks, 'operatornsname' parameter is empty")
 	}
 
 	if targetnsname == "" {
-		glog.V(100).Infof("'targetnsname' parameter can not be empty")
+		klog.V(100).Info("'targetnsname' parameter can not be empty")
 
 		return fmt.Errorf("failed to clean up sriov networks, 'targetnsname' parameter is empty")
 	}
 
 	networks, err := List(apiClient, operatornsname, options...)
 	if err != nil {
-		glog.V(100).Infof("Failed to list sriov networks in namespace: %s", operatornsname)
+		klog.V(100).Infof("Failed to list sriov networks in namespace: %s", operatornsname)
 
 		return err
 	}
@@ -104,7 +104,7 @@ func CleanAllNetworksByTargetNamespace(
 		if network.Object.Spec.NetworkNamespace == targetnsname {
 			err = network.Delete()
 			if err != nil {
-				glog.V(100).Infof("Failed to delete sriov networks: %s", network.Object.Name)
+				klog.V(100).Infof("Failed to delete sriov networks: %s", network.Object.Name)
 
 				return err
 			}

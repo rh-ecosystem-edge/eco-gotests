@@ -7,12 +7,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	amdparams "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/params"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 // NodeLabellerPodsFromNodes - Get all Node Labeller Pods from the given nodes.
@@ -79,7 +79,7 @@ func PodsFromNodeByPrefixWithTimeout(ctx context.Context, waitGroup *sync.WaitGr
 		case <-time.After(interval):
 			var podsWithPrefix []*pod.Builder
 
-			glog.V(amdparams.AMDGPULogLevel).Infof("Listing Pods on node %s", node.Object.Name)
+			klog.V(amdparams.AMDGPULogLevel).Infof("Listing Pods on node %s", node.Object.Name)
 			podBuilders, podsListErr := pod.List(apiClient, amdparams.AMDGPUNamespace,
 				metav1.ListOptions{FieldSelector: podListFieldSelector})
 
@@ -142,11 +142,11 @@ func WaitUntilNoMorePodsInNamespaceByNameWithTimeout(ctx context.Context, apiCli
 			}
 
 			for _, podBuilder := range listedPods {
-				glog.V(amdparams.AMDGPULogLevel).Infof("Check if the '%s' Pod's name contains the prefix '%s'",
+				klog.V(amdparams.AMDGPULogLevel).Infof("Check if the '%s' Pod's name contains the prefix '%s'",
 					podBuilder.Object.Name, prefix)
 
 				if strings.HasPrefix(podBuilder.Object.Name, prefix) {
-					glog.V(amdparams.AMDGPULogLevel).Infof("The Pod '%s' contains the prefix '%s'",
+					klog.V(amdparams.AMDGPULogLevel).Infof("The Pod '%s' contains the prefix '%s'",
 						podBuilder.Object.Name, prefix)
 					podsWithPrefix = append(podsWithPrefix, podBuilder)
 				}

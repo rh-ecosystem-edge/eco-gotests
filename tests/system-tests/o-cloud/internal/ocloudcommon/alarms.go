@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -14,6 +13,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran"
 	oranapi "github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/siteconfig"
+	"k8s.io/klog/v2"
 
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/shell"
@@ -218,10 +218,10 @@ func VerifySuccessfulAlarmRetrieval(ctx SpecContext) {
 	nsname := provisioningRequest.Object.Status.Extensions.ClusterDetails.Name
 
 	VerifyAllPoliciesInNamespaceAreCompliant(nsname, ctx, nil, nil)
-	glog.V(ocloudparams.OCloudLogLevel).Infof("all the policies in namespace %s are compliant", nsname)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("all the policies in namespace %s are compliant", nsname)
 
 	VerifyProvisioningRequestIsFulfilled(provisioningRequest)
-	glog.V(ocloudparams.OCloudLogLevel).Infof("provisioning request %s is fulfilled", provisioningRequest.Object.Name)
+	klog.V(ocloudparams.OCloudLogLevel).Infof("provisioning request %s is fulfilled", provisioningRequest.Object.Name)
 
 	alarmsClient := createO2IMSClient()
 	subscription := createAlarmSubscription(alarmsClient)

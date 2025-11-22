@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	policiesv1beta1 "open-cluster-management.io/governance-policy-propagator/api/v1beta1"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -29,19 +29,19 @@ type PolicySetBuilder struct {
 // NewPolicySetBuilder creates a new instance of PolicySetBuilder.
 func NewPolicySetBuilder(
 	apiClient *clients.Settings, name, nsname string, policy policiesv1beta1.NonEmptyString) *PolicySetBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new policy set structure with the following params: name: %s, nsname: %s, policy: %v",
 		name, nsname, policy)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is nil")
+		klog.V(100).Info("The apiClient is nil")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(policiesv1beta1.AddToScheme)
 	if err != nil {
-		glog.V(100).Info("Failed to add PolicySet scheme to client schemes")
+		klog.V(100).Info("Failed to add PolicySet scheme to client schemes")
 
 		return nil
 	}
@@ -60,7 +60,7 @@ func NewPolicySetBuilder(
 	}
 
 	if name == "" {
-		glog.V(100).Info("The name of the PolicySet is empty")
+		klog.V(100).Info("The name of the PolicySet is empty")
 
 		builder.errorMsg = "policyset's 'name' cannot be empty"
 
@@ -68,7 +68,7 @@ func NewPolicySetBuilder(
 	}
 
 	if nsname == "" {
-		glog.V(100).Info("The namespace of the PolicySet is empty")
+		klog.V(100).Info("The namespace of the PolicySet is empty")
 
 		builder.errorMsg = "policyset's 'nsname' cannot be empty"
 
@@ -76,7 +76,7 @@ func NewPolicySetBuilder(
 	}
 
 	if policy == "" {
-		glog.V(100).Info("The policy of the PolicySet is empty")
+		klog.V(100).Info("The policy of the PolicySet is empty")
 
 		builder.errorMsg = "policyset's 'policy' cannot be empty"
 
@@ -88,17 +88,17 @@ func NewPolicySetBuilder(
 
 // PullPolicySet pulls existing policySet into Builder struct.
 func PullPolicySet(apiClient *clients.Settings, name, nsname string) (*PolicySetBuilder, error) {
-	glog.V(100).Infof("Pulling existing policySet name %s under namespace %s from cluster", name, nsname)
+	klog.V(100).Infof("Pulling existing policySet name %s under namespace %s from cluster", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is nil")
+		klog.V(100).Info("The apiClient is nil")
 
 		return nil, fmt.Errorf("policyset's 'apiClient' cannot be nil")
 	}
 
 	err := apiClient.AttachScheme(policiesv1beta1.AddToScheme)
 	if err != nil {
-		glog.V(100).Info("Failed to add PolicySet scheme to client schemes")
+		klog.V(100).Info("Failed to add PolicySet scheme to client schemes")
 
 		return nil, err
 	}
@@ -114,13 +114,13 @@ func PullPolicySet(apiClient *clients.Settings, name, nsname string) (*PolicySet
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the policyset is empty")
+		klog.V(100).Info("The name of the policyset is empty")
 
 		return nil, fmt.Errorf("policyset's 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the policyset is empty")
+		klog.V(100).Info("The namespace of the policyset is empty")
 
 		return nil, fmt.Errorf("policyset's 'namespace' cannot be empty")
 	}
@@ -140,7 +140,7 @@ func (builder *PolicySetBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if policySet %s exists in namespace %s",
+	klog.V(100).Infof("Checking if policySet %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -156,7 +156,7 @@ func (builder *PolicySetBuilder) Get() (*policiesv1beta1.PolicySet, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Getting policySet %s in namespace %s",
+	klog.V(100).Infof("Getting policySet %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	policySet := &policiesv1beta1.PolicySet{}
@@ -166,7 +166,7 @@ func (builder *PolicySetBuilder) Get() (*policiesv1beta1.PolicySet, error) {
 		Namespace: builder.Definition.Namespace,
 	}, policySet)
 	if err != nil {
-		glog.V(100).Infof("Failed to get policySet %s in namespace %s: %v",
+		klog.V(100).Infof("Failed to get policySet %s in namespace %s: %v",
 			builder.Definition.Name, builder.Definition.Namespace, err)
 
 		return nil, err
@@ -181,7 +181,7 @@ func (builder *PolicySetBuilder) Create() (*PolicySetBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the policySet %s in namespace %s",
+	klog.V(100).Infof("Creating the policySet %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if builder.Exists() {
@@ -204,11 +204,11 @@ func (builder *PolicySetBuilder) Delete() (*PolicySetBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Deleting the policySet %s in namespace %s",
+	klog.V(100).Infof("Deleting the policySet %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("PolicySet %s does not exist in namespace %s",
+		klog.V(100).Infof("PolicySet %s does not exist in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		builder.Object = nil
@@ -233,13 +233,13 @@ func (builder *PolicySetBuilder) Update(force bool) (*PolicySetBuilder, error) {
 	}
 
 	if !builder.Exists() {
-		glog.V(100).Infof(
+		klog.V(100).Infof(
 			"PolicySet %s does not exist in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
 
 		return nil, fmt.Errorf("cannot update non-existent policySet")
 	}
 
-	glog.V(100).Infof("Updating the policySet object: %s in namespace: %s",
+	klog.V(100).Infof("Updating the policySet object: %s in namespace: %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
@@ -247,15 +247,13 @@ func (builder *PolicySetBuilder) Update(force bool) (*PolicySetBuilder, error) {
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		if force {
-			glog.V(100).Infof(
-				msg.FailToUpdateNotification("policySet", builder.Definition.Name, builder.Definition.Namespace))
+			klog.V(100).Infof("%v", msg.FailToUpdateNotification("policySet", builder.Definition.Name, builder.Definition.Namespace))
 
 			builder, err := builder.Delete()
 			builder.Definition.ResourceVersion = ""
 
 			if err != nil {
-				glog.V(100).Infof(
-					msg.FailToUpdateError("policySet", builder.Definition.Name, builder.Definition.Namespace))
+				klog.V(100).Infof("%v", msg.FailToUpdateError("policySet", builder.Definition.Name, builder.Definition.Namespace))
 
 				return nil, err
 			}
@@ -275,11 +273,11 @@ func (builder *PolicySetBuilder) WithAdditionalPolicy(policy policiesv1beta1.Non
 		return builder
 	}
 
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Adding Policy %v to PolicySet %s in namespace %s", policy, builder.Definition.Name, builder.Definition.Namespace)
 
 	if policy == "" {
-		glog.V(100).Info("The policy to be added to the PolicySet's Policies is empty")
+		klog.V(100).Info("The policy to be added to the PolicySet's Policies is empty")
 
 		builder.errorMsg = "policy in PolicySet Policies spec cannot be empty"
 
@@ -297,25 +295,25 @@ func (builder *PolicySetBuilder) validate() (bool, error) {
 	resourceCRD := "policySet"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

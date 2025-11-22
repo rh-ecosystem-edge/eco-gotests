@@ -8,12 +8,12 @@ import (
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 
-	"github.com/golang/glog"
 	lsov1 "github.com/openshift/local-storage-operator/api/v1"
 	lsov1alpha1 "github.com/openshift/local-storage-operator/api/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -32,18 +32,18 @@ type LocalVolumeSetBuilder struct {
 
 // NewLocalVolumeSetBuilder creates new instance of LocalVolumeSetBuilder.
 func NewLocalVolumeSetBuilder(apiClient *clients.Settings, name, nsname string) *LocalVolumeSetBuilder {
-	glog.V(100).Infof("Initializing new localVolumeSet %s structure in namespace %s",
+	klog.V(100).Infof("Initializing new localVolumeSet %s structure in namespace %s",
 		name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("localVolumeSet 'apiClient' cannot be empty")
+		klog.V(100).Info("localVolumeSet 'apiClient' cannot be empty")
 
 		return nil
 	}
 
 	err := apiClient.AttachScheme(lsov1alpha1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add lsov1alpha1 scheme to client schemes")
+		klog.V(100).Info("Failed to add lsov1alpha1 scheme to client schemes")
 
 		return nil
 	}
@@ -59,7 +59,7 @@ func NewLocalVolumeSetBuilder(apiClient *clients.Settings, name, nsname string) 
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the localVolumeSet is empty")
+		klog.V(100).Info("The name of the localVolumeSet is empty")
 
 		builder.errorMsg = "localVolumeSet 'name' cannot be empty"
 
@@ -67,7 +67,7 @@ func NewLocalVolumeSetBuilder(apiClient *clients.Settings, name, nsname string) 
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The nsname of the localVolumeSet is empty")
+		klog.V(100).Info("The nsname of the localVolumeSet is empty")
 
 		builder.errorMsg = "localVolumeSet 'nsname' cannot be empty"
 
@@ -79,18 +79,18 @@ func NewLocalVolumeSetBuilder(apiClient *clients.Settings, name, nsname string) 
 
 // PullLocalVolumeSet retrieves an existing localVolumeSet object from the cluster.
 func PullLocalVolumeSet(apiClient *clients.Settings, name, nsname string) (*LocalVolumeSetBuilder, error) {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Pulling localVolumeSet object name: %s in namespace: %s", name, nsname)
 
 	if apiClient == nil {
-		glog.V(100).Infof("The apiClient is empty")
+		klog.V(100).Info("The apiClient is empty")
 
 		return nil, fmt.Errorf("localVolumeSet 'apiClient' cannot be empty")
 	}
 
 	err := apiClient.AttachScheme(lsov1alpha1.AddToScheme)
 	if err != nil {
-		glog.V(100).Infof("Failed to add lsov1alpha1 scheme to client schemes")
+		klog.V(100).Info("Failed to add lsov1alpha1 scheme to client schemes")
 
 		return nil, err
 	}
@@ -106,13 +106,13 @@ func PullLocalVolumeSet(apiClient *clients.Settings, name, nsname string) (*Loca
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The name of the localVolumeSet is empty")
+		klog.V(100).Info("The name of the localVolumeSet is empty")
 
 		return nil, fmt.Errorf("localVolumeSet 'name' cannot be empty")
 	}
 
 	if nsname == "" {
-		glog.V(100).Infof("The namespace of the localVolumeSet is empty")
+		klog.V(100).Info("The namespace of the localVolumeSet is empty")
 
 		return nil, fmt.Errorf("localVolumeSet 'nsname' cannot be empty")
 	}
@@ -132,7 +132,7 @@ func (builder *LocalVolumeSetBuilder) Get() (*lsov1alpha1.LocalVolumeSet, error)
 		return nil, err
 	}
 
-	glog.V(100).Infof("Pulling existing localVolumeSet with name %s under namespace %s from cluster",
+	klog.V(100).Infof("Pulling existing localVolumeSet with name %s under namespace %s from cluster",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	lvs := &lsov1alpha1.LocalVolumeSet{}
@@ -154,7 +154,7 @@ func (builder *LocalVolumeSetBuilder) Create() (*LocalVolumeSetBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Creating the LocalVolumeSetBuilder %s in namespace %s",
+	klog.V(100).Infof("Creating the LocalVolumeSetBuilder %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -174,11 +174,11 @@ func (builder *LocalVolumeSetBuilder) Delete() error {
 		return err
 	}
 
-	glog.V(100).Infof("Deleting the localVolumeSet %s in namespace %s",
+	klog.V(100).Infof("Deleting the localVolumeSet %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("localVolumeSet cannot be deleted because it does not exist")
+		klog.V(100).Info("localVolumeSet cannot be deleted because it does not exist")
 
 		builder.Object = nil
 
@@ -201,7 +201,7 @@ func (builder *LocalVolumeSetBuilder) Exists() bool {
 		return false
 	}
 
-	glog.V(100).Infof("Checking if localVolumeSet %s exists in namespace %s",
+	klog.V(100).Infof("Checking if localVolumeSet %s exists in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	var err error
@@ -217,7 +217,7 @@ func (builder *LocalVolumeSetBuilder) Update() (*LocalVolumeSetBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating the localVolumeSet %s in namespace %s",
+	klog.V(100).Infof("Updating the localVolumeSet %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
@@ -230,8 +230,7 @@ func (builder *LocalVolumeSetBuilder) Update() (*LocalVolumeSetBuilder, error) {
 
 	err := builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
-		glog.V(100).Infof(
-			msg.FailToUpdateError("localVolumeSet", builder.Definition.Name, builder.Definition.Namespace))
+		klog.V(100).Infof("%v", msg.FailToUpdateError("localVolumeSet", builder.Definition.Name, builder.Definition.Namespace))
 
 		return nil, err
 	}
@@ -244,16 +243,16 @@ func (builder *LocalVolumeSetBuilder) Update() (*LocalVolumeSetBuilder, error) {
 // WithTolerations sets the localVolumeSet's tolerations.
 func (builder *LocalVolumeSetBuilder) WithTolerations(
 	tolerations []corev1.Toleration) *LocalVolumeSetBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Adding tolerations %v to localVolumeSet %s in namespace %s",
-		builder.Definition.Name, builder.Definition.Namespace, tolerations)
+		tolerations, builder.Definition.Name, builder.Definition.Namespace)
 
 	if valid, _ := builder.validate(); !valid {
 		return builder
 	}
 
 	if len(tolerations) == 0 {
-		glog.V(100).Infof("The tolerations list is empty")
+		klog.V(100).Info("The tolerations list is empty")
 
 		builder.errorMsg = "'tolerations' argument cannot be empty"
 
@@ -268,9 +267,9 @@ func (builder *LocalVolumeSetBuilder) WithTolerations(
 // WithNodeSelector sets the localVolumeSet's nodeSelector.
 func (builder *LocalVolumeSetBuilder) WithNodeSelector(
 	nodeSelector corev1.NodeSelector) *LocalVolumeSetBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Adding nodeSelector %v to localVolumeSet %s in namespace %s",
-		builder.Definition.Name, builder.Definition.Namespace, nodeSelector)
+		nodeSelector, builder.Definition.Name, builder.Definition.Namespace)
 
 	if valid, _ := builder.validate(); !valid {
 		return builder
@@ -284,7 +283,7 @@ func (builder *LocalVolumeSetBuilder) WithNodeSelector(
 // WithStorageClassName sets the localVolumeSet's storageClassName.
 func (builder *LocalVolumeSetBuilder) WithStorageClassName(
 	storageClassName string) *LocalVolumeSetBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Adding storageClassName %s to localVolumeSet %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace, storageClassName)
 
@@ -293,7 +292,7 @@ func (builder *LocalVolumeSetBuilder) WithStorageClassName(
 	}
 
 	if storageClassName == "" {
-		glog.V(100).Infof("The storageClassName is empty")
+		klog.V(100).Info("The storageClassName is empty")
 
 		builder.errorMsg = "'storageClassName' argument cannot be empty"
 
@@ -308,7 +307,7 @@ func (builder *LocalVolumeSetBuilder) WithStorageClassName(
 // WithVolumeMode sets the localVolumeSet's volumeMode.
 func (builder *LocalVolumeSetBuilder) WithVolumeMode(
 	volumeMode lsov1.PersistentVolumeMode) *LocalVolumeSetBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Adding volumeMode %v to localVolumeSet %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace, volumeMode)
 
@@ -317,7 +316,7 @@ func (builder *LocalVolumeSetBuilder) WithVolumeMode(
 	}
 
 	if volumeMode == "" {
-		glog.V(100).Infof("The volumeMode is empty")
+		klog.V(100).Info("The volumeMode is empty")
 
 		builder.errorMsg = "'volumeMode' argument cannot be empty"
 
@@ -332,7 +331,7 @@ func (builder *LocalVolumeSetBuilder) WithVolumeMode(
 // WithFSType sets the localVolumeSet's fstype.
 func (builder *LocalVolumeSetBuilder) WithFSType(
 	fstype string) *LocalVolumeSetBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Adding fstype %s to localVolumeSet %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace, fstype)
 
@@ -341,7 +340,7 @@ func (builder *LocalVolumeSetBuilder) WithFSType(
 	}
 
 	if fstype == "" {
-		glog.V(100).Infof("The fstype is empty")
+		klog.V(100).Info("The fstype is empty")
 
 		builder.errorMsg = "'fstype' argument cannot be empty"
 
@@ -356,16 +355,16 @@ func (builder *LocalVolumeSetBuilder) WithFSType(
 // WithMaxDeviceCount sets the localVolumeSet's maxDeviceCount.
 func (builder *LocalVolumeSetBuilder) WithMaxDeviceCount(
 	maxDeviceCount int32) *LocalVolumeSetBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Adding maxDeviceCount %v to localVolumeSet %s in namespace %s",
-		builder.Definition.Name, builder.Definition.Namespace, maxDeviceCount)
+		maxDeviceCount, builder.Definition.Name, builder.Definition.Namespace)
 
 	if valid, _ := builder.validate(); !valid {
 		return builder
 	}
 
 	if maxDeviceCount == int32(0) {
-		glog.V(100).Infof("The maxDeviceCount is zero")
+		klog.V(100).Info("The maxDeviceCount is zero")
 
 		builder.errorMsg = "'maxDeviceCount' argument cannot be equal zero"
 
@@ -380,7 +379,7 @@ func (builder *LocalVolumeSetBuilder) WithMaxDeviceCount(
 // WithDeviceInclusionSpec sets the localVolumeSet's deviceInclusionSpec.
 func (builder *LocalVolumeSetBuilder) WithDeviceInclusionSpec(
 	deviceInclusionSpec lsov1alpha1.DeviceInclusionSpec) *LocalVolumeSetBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Adding deviceInclusionSpec %v to localVolumeSet %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace, deviceInclusionSpec)
 
@@ -399,25 +398,25 @@ func (builder *LocalVolumeSetBuilder) validate() (bool, error) {
 	resourceCRD := "LocalVolumeSet"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.Definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.apiClient == nil {
-		glog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
+		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
 
 		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

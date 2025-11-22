@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/golang/glog"
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/argocd"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
@@ -16,6 +15,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog/v2"
 )
 
 var inputStringRegex = regexp.MustCompile(`(\d+)\.(\d+)`)
@@ -88,7 +88,7 @@ func GetOCPVersion(client *clients.Settings) (string, error) {
 		}
 	}
 
-	glog.V(ranparam.LogLevel).Info("No completed cluster version found in history, returning desired version")
+	klog.V(ranparam.LogLevel).Info("No completed cluster version found in history, returning desired version")
 
 	return clusterVersion.Object.Status.Desired.Version, nil
 }
@@ -107,7 +107,7 @@ func GetClusterName(kubeconfigPath string) (string, error) {
 		splits := strings.Split(cluster.Server, ".")
 		clusterName := splits[1]
 
-		glog.V(ranparam.LogLevel).Infof("cluster name %s found for kubeconfig at %s", clusterName, kubeconfigPath)
+		klog.V(ranparam.LogLevel).Infof("cluster name %s found for kubeconfig at %s", clusterName, kubeconfigPath)
 
 		return clusterName, nil
 	}
@@ -143,7 +143,7 @@ func GetZTPVersionFromArgoCd(client *clients.Settings, name, namespace string) (
 	ztpVersion := colonSplit[len(colonSplit)-1]
 
 	if ztpVersion == "latest" {
-		glog.V(ranparam.LogLevel).Info("ztp-site-generate version tag was 'latest', returning empty version")
+		klog.V(ranparam.LogLevel).Info("ztp-site-generate version tag was 'latest', returning empty version")
 
 		return "", nil
 	}

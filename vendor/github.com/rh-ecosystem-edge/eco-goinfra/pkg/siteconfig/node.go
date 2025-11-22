@@ -3,12 +3,12 @@ package siteconfig
 import (
 	"fmt"
 
-	"github.com/golang/glog"
 	bmhv1alpha1 "github.com/metal3-io/baremetal-operator/apis/metal3.io/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/api/v1beta1"
 	siteconfigv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/siteconfig/v1alpha1"
 	"golang.org/x/exp/slices"
+	"k8s.io/klog/v2"
 )
 
 // NodeBuilder provides struct for the siteconfig NodeSpec object.
@@ -28,7 +28,7 @@ func NewNodeBuilder(
 	bmcCredentialsName,
 	templateName,
 	templateNamespace string) *NodeBuilder {
-	glog.V(100).Infof(
+	klog.V(100).Infof(
 		"Initializing new siteconfig Node structure with the following params: "+
 			"name: %s, bmcAddress: %s, bootMACAddress: %s, bmcCredentialsName: %s, templateName: %s, templateNamespace: %s",
 		name, bmcAddress, bootMACAddress, bmcCredentialsName, templateName, templateNamespace)
@@ -51,7 +51,7 @@ func NewNodeBuilder(
 	}
 
 	if name == "" {
-		glog.V(100).Infof("The siteconfig node name is empty")
+		klog.V(100).Info("The siteconfig node name is empty")
 
 		builder.errorMsg = "siteconfig node 'name' cannot be empty"
 
@@ -59,7 +59,7 @@ func NewNodeBuilder(
 	}
 
 	if bmcAddress == "" {
-		glog.V(100).Infof("The siteconfig node bmcAddress is empty")
+		klog.V(100).Info("The siteconfig node bmcAddress is empty")
 
 		builder.errorMsg = "siteconfig node 'bmcAddress' cannot be empty"
 
@@ -67,7 +67,7 @@ func NewNodeBuilder(
 	}
 
 	if bootMACAddress == "" {
-		glog.V(100).Infof("The siteconfig node bootMACAddress is empty")
+		klog.V(100).Info("The siteconfig node bootMACAddress is empty")
 
 		builder.errorMsg = "siteconfig node 'bootMACAddress' cannot be empty"
 
@@ -75,7 +75,7 @@ func NewNodeBuilder(
 	}
 
 	if bmcCredentialsName == "" {
-		glog.V(100).Infof("The siteconfig node bmcCredentialsName is empty")
+		klog.V(100).Info("The siteconfig node bmcCredentialsName is empty")
 
 		builder.errorMsg = "siteconfig node 'bmcCredentialsName' cannot be empty"
 
@@ -83,7 +83,7 @@ func NewNodeBuilder(
 	}
 
 	if templateName == "" {
-		glog.V(100).Infof("The siteconfig node templateName is empty")
+		klog.V(100).Info("The siteconfig node templateName is empty")
 
 		builder.errorMsg = "siteconfig node 'templateName' cannot be empty"
 
@@ -91,7 +91,7 @@ func NewNodeBuilder(
 	}
 
 	if templateNamespace == "" {
-		glog.V(100).Infof("The siteconfig node templateNamespace is empty")
+		klog.V(100).Info("The siteconfig node templateNamespace is empty")
 
 		builder.errorMsg = "siteconfig node 'templateNamespace' cannot be empty"
 
@@ -107,7 +107,7 @@ func (builder *NodeBuilder) WithAutomatedCleaningMode(mode string) *NodeBuilder 
 		return builder
 	}
 
-	glog.V(100).Infof("Setting automatedCleaningMode to %s on siteconfig node", mode)
+	klog.V(100).Infof("Setting automatedCleaningMode to %s on siteconfig node", mode)
 
 	if !slices.Contains([]string{"disabled", "metadata"}, mode) {
 		builder.errorMsg = "siteconfig node automatedCleaningMode must be one of: disabled, metadata"
@@ -126,10 +126,10 @@ func (builder *NodeBuilder) WithNodeNetwork(networkConfig *v1beta1.NMStateConfig
 		return builder
 	}
 
-	glog.V(100).Infof("Adding networking config to siteconfig node")
+	klog.V(100).Info("Adding networking config to siteconfig node")
 
 	if networkConfig == nil {
-		glog.V(100).Infof("The siteconfig node networkConfig is nil")
+		klog.V(100).Info("The siteconfig node networkConfig is nil")
 
 		builder.errorMsg = "siteconfig node networkConfig cannot be nil"
 
@@ -147,7 +147,7 @@ func (builder *NodeBuilder) Generate() (*siteconfigv1alpha1.NodeSpec, error) {
 		return nil, err
 	}
 
-	glog.V(100).Infof("Generating siteconfig nodeSpec from node builder")
+	klog.V(100).Info("Generating siteconfig nodeSpec from node builder")
 
 	return builder.definition, nil
 }
@@ -158,19 +158,19 @@ func (builder *NodeBuilder) validate() (bool, error) {
 	resourceCRD := "siteconfig node"
 
 	if builder == nil {
-		glog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
+		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
 
 		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
 	}
 
 	if builder.definition == nil {
-		glog.V(100).Infof("The %s is undefined", resourceCRD)
+		klog.V(100).Infof("The %s is undefined", resourceCRD)
 
 		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
 	}
 
 	if builder.errorMsg != "" {
-		glog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
+		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
 
 		return false, fmt.Errorf("%s", builder.errorMsg)
 	}

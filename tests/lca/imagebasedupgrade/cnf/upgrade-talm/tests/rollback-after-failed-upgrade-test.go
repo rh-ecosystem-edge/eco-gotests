@@ -4,7 +4,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ibgu"
@@ -16,6 +15,7 @@ import (
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/cnf/internal/cnfinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/cnf/upgrade-talm/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/internal/nodestate"
+	"k8s.io/klog/v2"
 )
 
 var (
@@ -166,7 +166,7 @@ var _ = Describe(
 						bootedStaterootNameRes := strings.ReplaceAll(stdout, "_", "-")
 						if bootedStaterootNameRes != "" {
 							if strings.Contains(bootedStaterootNameRes, seedImageVersion) {
-								glog.V(100).Infof("Found "+seedImageVersion+" in %s", bootedStaterootNameRes)
+								klog.V(100).Infof("Found "+seedImageVersion+" in %s", bootedStaterootNameRes)
 								seedVersionFound = true
 
 								break
