@@ -637,7 +637,7 @@ github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1b
 github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io
 github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1
 github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/utils
-# github.com/k8snetworkplumbingwg/sriov-network-operator v1.6.0 => github.com/openshift/sriov-network-operator v0.0.0-20250625093820-3b2381406672
+# github.com/k8snetworkplumbingwg/sriov-network-operator v1.6.0 => github.com/openshift/sriov-network-operator v0.0.0-20251006174000-8767df23a420
 ## explicit; go 1.23.0
 github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1
 github.com/k8snetworkplumbingwg/sriov-network-operator/pkg/consts
@@ -834,8 +834,8 @@ github.com/openshift-kni/oran-o2ims/api/common
 ## explicit; go 1.24.0
 github.com/openshift-kni/oran-o2ims/api/hardwaremanagement/plugins/v1alpha1
 github.com/openshift-kni/oran-o2ims/api/hardwaremanagement/v1alpha1
-# github.com/openshift-kni/oran-o2ims/api/inventory v0.0.0-20250728203300-9ac32da76e0e
-## explicit; go 1.22.0
+# github.com/openshift-kni/oran-o2ims/api/inventory v0.0.0-20250826145425-f200f7e70e0a
+## explicit; go 1.24.0
 github.com/openshift-kni/oran-o2ims/api/inventory/v1alpha1
 # github.com/openshift-kni/oran-o2ims/api/provisioning v0.0.0-20250826145425-f200f7e70e0a
 ## explicit; go 1.24.0
@@ -2447,12 +2447,12 @@ sigs.k8s.io/structured-merge-diff/v4/value
 sigs.k8s.io/yaml
 sigs.k8s.io/yaml/goyaml.v2
 # github.com/imdario/mergo => github.com/imdario/mergo v0.3.16
-# github.com/k8snetworkplumbingwg/sriov-network-operator => github.com/openshift/sriov-network-operator v0.0.0-20250625093820-3b2381406672
+# github.com/k8snetworkplumbingwg/sriov-network-operator => github.com/openshift/sriov-network-operator v0.0.0-20251006174000-8767df23a420
 # github.com/kubernetes-incubator/external-storage => github.com/libopenstorage/external-storage v5.2.1-0.20190425001840-d5e6a33a1729+incompatible
 # github.com/metal3-io/baremetal-operator/pkg/hardwareutils => github.com/metal3-io/baremetal-operator/pkg/hardwareutils v0.9.0
 # github.com/openshift/api => github.com/openshift/api v0.0.0-20251114171455-1886180ef430
-# github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20250630191919-ed2ed7381926
-# github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20250630191919-ed2ed7381926
+# github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20251027125749-4b116f46ca39
+# github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20251027125749-4b116f46ca39
 # github.com/openshift/installer => github.com/openshift/installer v0.0.0-20251118021431-5b017f5fa073
 # github.com/portworx/sched-ops => github.com/portworx/sched-ops v1.20.4-rc1
 # k8s.io/client-go => k8s.io/client-go v0.33.6

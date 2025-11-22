@@ -29,17 +29,17 @@ require (
 	github.com/onsi/ginkgo/v2 v2.27.2
 	github.com/onsi/gomega v1.38.2
 	github.com/openshift-kni/k8sreporter v1.0.7
-	github.com/openshift-kni/lifecycle-agent v0.0.0-20251121192321-6a1e18fedd81 // release-4.19
-	github.com/openshift-kni/numaresources-operator v0.4.18-0.2024100201.0.20251122094151-eb6415170827 // release-4.19
-	github.com/openshift-kni/oran-o2ims/api/hardwaremanagement v0.0.0-20250826145425-f200f7e70e0a // 9ac32da76e0e93e1005f15a003aec72adbb5b3e6
-	github.com/openshift-kni/oran-o2ims/api/inventory v0.0.0-20250728203300-9ac32da76e0e // 9ac32da76e0e93e1005f15a003aec72adbb5b3e6
-	github.com/openshift-kni/oran-o2ims/api/provisioning v0.0.0-20250826145425-f200f7e70e0a // 9ac32da76e0e93e1005f15a003aec72adbb5b3e6
+	github.com/openshift-kni/lifecycle-agent v0.0.0-20251121192321-6a1e18fedd81 // release-4.20
+	github.com/openshift-kni/numaresources-operator v0.4.18-0.2024100201.0.20251122094151-eb6415170827 // release-4.20
+	github.com/openshift-kni/oran-o2ims/api/hardwaremanagement v0.0.0-20250826145425-f200f7e70e0a // f200f7e70e0acecea284d5b5a507393fdf3c5f70
+	github.com/openshift-kni/oran-o2ims/api/inventory v0.0.0-20250826145425-f200f7e70e0a // f200f7e70e0acecea284d5b5a507393fdf3c5f70
+	github.com/openshift-kni/oran-o2ims/api/provisioning v0.0.0-20250826145425-f200f7e70e0a // f200f7e70e0acecea284d5b5a507393fdf3c5f70
 	github.com/openshift/api v0.0.0-20251114171455-1886180ef430
-	github.com/openshift/client-go v0.0.0-20250811163556-6193816ae379 // release-4.19
-	github.com/openshift/cluster-nfd-operator v0.0.0-20250929121503-98a074e63cd0 // release-4.19
-	github.com/openshift/cluster-node-tuning-operator v0.0.0-20251108153041-2ed182ba5710 // 4f58be155c79b2c92e7e1c36f481f7163b7f2497
+	github.com/openshift/client-go v0.0.0-20250811163556-6193816ae379 // release-4.20
+	github.com/openshift/cluster-nfd-operator v0.0.0-20250929121503-98a074e63cd0 // release-4.20
+	github.com/openshift/cluster-node-tuning-operator v0.0.0-20251108153041-2ed182ba5710 // release-4.20
 	github.com/openshift/installer v0.0.0-00010101000000-000000000000
-	github.com/openshift/local-storage-operator v0.0.0-20251006201529-b394d7760c51 // release-4.19
+	github.com/openshift/local-storage-operator v0.0.0-20251006201529-b394d7760c51 // release-4.20
 	github.com/operator-framework/api v0.33.0
 	github.com/povsister/scp v0.0.0-20240802064259-28781e87b246
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.85.0
@@ -299,12 +299,12 @@ require github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20251122200951-19c06bf5b
 
 replace (
 	github.com/imdario/mergo => github.com/imdario/mergo v0.3.16
-	github.com/k8snetworkplumbingwg/sriov-network-operator => github.com/openshift/sriov-network-operator v0.0.0-20250625093820-3b2381406672 // release-4.19
+	github.com/k8snetworkplumbingwg/sriov-network-operator => github.com/openshift/sriov-network-operator v0.0.0-20251006174000-8767df23a420 // release-4.20
 	github.com/kubernetes-incubator/external-storage => github.com/libopenstorage/external-storage v5.2.1-0.20190425001840-d5e6a33a1729+incompatible
 	github.com/metal3-io/baremetal-operator/pkg/hardwareutils => github.com/metal3-io/baremetal-operator/pkg/hardwareutils v0.9.0
 	github.com/openshift/api => github.com/openshift/api v0.0.0-20251114171455-1886180ef430 // release-4.20
-	github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20250630191919-ed2ed7381926 // release-4.19
-	github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20250630191919-ed2ed7381926 // release-4.19
+	github.com/openshift/assisted-service/api => github.com/openshift/assisted-service/api v0.0.0-20251027125749-4b116f46ca39 // release-4.20
+	github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20251027125749-4b116f46ca39 // release-4.20
 	github.com/openshift/installer => github.com/openshift/installer v0.0.0-20251118021431-5b017f5fa073 // release-4.20
 	github.com/portworx/sched-ops => github.com/portworx/sched-ops v1.20.4-rc1
 	k8s.io/client-go => k8s.io/client-go v0.33.6

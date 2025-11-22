@@ -688,8 +688,8 @@ github.com/openshift-kni/oran-o2ims/api/common v0.0.0-20250728092029-9ec1477b18f
 github.com/openshift-kni/oran-o2ims/api/common v0.0.0-20250728092029-9ec1477b18f0/go.mod h1:lpsZQBKzYDIiv3l6DIGm9snagoqKQqz6cJoqSEj2LZo=
 github.com/openshift-kni/oran-o2ims/api/hardwaremanagement v0.0.0-20250826145425-f200f7e70e0a h1:CGT5+eUpcPedY1w1aUAR8y0mC5RUWPhQVEXtTnqBUCE=
 github.com/openshift-kni/oran-o2ims/api/hardwaremanagement v0.0.0-20250826145425-f200f7e70e0a/go.mod h1:+5myaHoOUtKJF02tY6w3ZX8Diyx7E5sm9ogBHKxfzI4=
-github.com/openshift-kni/oran-o2ims/api/inventory v0.0.0-20250728203300-9ac32da76e0e h1:OGHF7HacnYM+hU9u2cZBx/aJSX09L1nSGnzMdtMbiRg=
-github.com/openshift-kni/oran-o2ims/api/inventory v0.0.0-20250728203300-9ac32da76e0e/go.mod h1:yWvC4rOoYvsMY5DgboD+NnF3vsEvqWqoeb02Yr2WmKw=
+github.com/openshift-kni/oran-o2ims/api/inventory v0.0.0-20250826145425-f200f7e70e0a h1:FJvxO1vYSmMWRvlY1DXPFCaffEKzrDEqiGvMs1x9XQs=
+github.com/openshift-kni/oran-o2ims/api/inventory v0.0.0-20250826145425-f200f7e70e0a/go.mod h1:XQgRO1EJJ1QOvUKSLYaQcJayFpAjEXxr6IzZJOLIItU=
 github.com/openshift-kni/oran-o2ims/api/provisioning v0.0.0-20250826145425-f200f7e70e0a h1:gNoVHoEGmVBtPdqkPCMIoeAN5vD29NzAwMF4gBmGF4Y=
 github.com/openshift-kni/oran-o2ims/api/provisioning v0.0.0-20250826145425-f200f7e70e0a/go.mod h1:5HneUcR4nbye+XPllgxP5WkN/svE2PhuBr+Wi0TxKtE=
 github.com/openshift/api v0.0.0-20251114171455-1886180ef430 h1:4+Sj20WyEi/ltOI/oW8qT5TrPmNgJ/gUuWyRhHxewzw=
@@ -714,8 +714,8 @@ github.com/openshift/local-storage-operator v0.0.0-20251006201529-b394d7760c51 h
 github.com/openshift/local-storage-operator v0.0.0-20251006201529-b394d7760c51/go.mod h1:3paz4UZRevEVjAuDmMrMBTznI+iExl4oUGojgkoS7zM=
 github.com/openshift/machine-config-operator v0.0.1-0.20250320230514-53e78f3692ee h1:ITOXo9zrpzl68qrzh/+1uRJlbpMl88jETfWfFyIa3uU=
 github.com/openshift/machine-config-operator v0.0.1-0.20250320230514-53e78f3692ee/go.mod h1:ZA2cpM5ol3zcxRpG4gQr+XSlEQJe732noPWcMz6MQ4k=
-github.com/openshift/sriov-network-operator v0.0.0-20250625093820-3b2381406672 h1:mNurYvSz1XwRecDLHxjS6m0NFZSqoZ+4hL7TkAeWooI=
-github.com/openshift/sriov-network-operator v0.0.0-20250625093820-3b2381406672/go.mod h1:uV/dnNLa24JNpLMM9Beb8OwEOovaq0VAdisbyDhfKzk=
+github.com/openshift/sriov-network-operator v0.0.0-20251006174000-8767df23a420 h1:oduba0QH5dKsRuEDNyNzw0ePlrWm1iYj3ix1S52wZQM=
+github.com/openshift/sriov-network-operator v0.0.0-20251006174000-8767df23a420/go.mod h1:e8bwCbqswCbU6OgIgCP+LNyZywyGy8BYoLxxSqwUzJI=
 github.com/opentracing/opentracing-go v1.2.0 h1:uEJPy/1a5RIPAJ0Ov+OIO8OxWu77jEv+1B0VhjKrZUs=
 github.com/opentracing/opentracing-go v1.2.0/go.mod h1:GxEUsuufX4nBwe+T+Wl9TAgYrxe9dPLANfrWvHYVTgc=
 github.com/operator-framework/api v0.33.0 h1:Tdu9doXz6Key2riIiP3/JPahHEgFBXAqyWQN4kOITS8=
