@@ -43,7 +43,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-logr/logr"
 	"k8s.io/klog/v2"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var (
@@ -74,6 +76,7 @@ func init() {
 
 	klog.InitFlags(nil)
 	klog.EnableContextualLogging(true)
+	logf.SetLogger(logr.Discard())
 
 	_ = flag.Set("logtostderr", "true")
 

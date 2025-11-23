@@ -9,6 +9,7 @@ import (
 	multus "gopkg.in/k8snetworkplumbingwg/multus-cni.v4/pkg/types"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -431,7 +432,7 @@ func (builder *Builder) Create() (*Builder, error) {
 	var err error
 	if !builder.Exists() {
 		builder.Object, err = builder.apiClient.Deployments(builder.Definition.Namespace).Create(
-			context.TODO(), builder.Definition, metav1.CreateOptions{})
+			logging.DiscardContext(), builder.Definition, metav1.CreateOptions{})
 	}
 
 	return builder, err
@@ -448,7 +449,7 @@ func (builder *Builder) Update() (*Builder, error) {
 	var err error
 
 	builder.Object, err = builder.apiClient.Deployments(builder.Definition.Namespace).Update(
-		context.TODO(), builder.Definition, metav1.UpdateOptions{})
+		logging.DiscardContext(), builder.Definition, metav1.UpdateOptions{})
 
 	return builder, err
 }
@@ -472,7 +473,7 @@ func (builder *Builder) Delete() error {
 	}
 
 	err := builder.apiClient.Deployments(builder.Definition.Namespace).Delete(
-		context.TODO(), builder.Definition.Name, metav1.DeleteOptions{})
+		logging.DiscardContext(), builder.Definition.Name, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
@@ -513,7 +514,7 @@ func (builder *Builder) DeleteGraceful(gracePeriod *int64) error {
 	}
 
 	err := builder.apiClient.Deployments(builder.Definition.Namespace).Delete(
-		context.TODO(), builder.Definition.Name, metav1.DeleteOptions{GracePeriodSeconds: gracePeriod})
+		logging.DiscardContext(), builder.Definition.Name, metav1.DeleteOptions{GracePeriodSeconds: gracePeriod})
 	if err != nil {
 		return err
 	}
@@ -565,7 +566,7 @@ func (builder *Builder) IsReady(timeout time.Duration) bool {
 			var err error
 
 			builder.Object, err = builder.apiClient.Deployments(builder.Definition.Namespace).Get(
-				context.TODO(), builder.Definition.Name, metav1.GetOptions{})
+				logging.DiscardContext(), builder.Definition.Name, metav1.GetOptions{})
 			if err != nil {
 				klog.V(100).Infof("Failed to get deployment from cluster. Error is: '%s'", err.Error())
 
@@ -599,7 +600,7 @@ func (builder *Builder) DeleteAndWait(timeout time.Duration) error {
 	return wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			_, err := builder.apiClient.Deployments(builder.Definition.Namespace).Get(
-				context.TODO(), builder.Definition.Name, metav1.GetOptions{})
+				logging.DiscardContext(), builder.Definition.Name, metav1.GetOptions{})
 			if k8serrors.IsNotFound(err) {
 				return true, nil
 			}
@@ -620,7 +621,7 @@ func (builder *Builder) Exists() bool {
 	var err error
 
 	builder.Object, err = builder.apiClient.Deployments(builder.Definition.Namespace).Get(
-		context.TODO(), builder.Definition.Name, metav1.GetOptions{})
+		logging.DiscardContext(), builder.Definition.Name, metav1.GetOptions{})
 
 	return err == nil || !k8serrors.IsNotFound(err)
 }
@@ -642,7 +643,7 @@ func (builder *Builder) WaitUntilCondition(condition appsv1.DeploymentConditionT
 	return wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			updateDeployment, err := builder.apiClient.Deployments(builder.Definition.Namespace).Get(
-				context.TODO(), builder.Definition.Name, metav1.GetOptions{})
+				logging.DiscardContext(), builder.Definition.Name, metav1.GetOptions{})
 			if err != nil {
 				return false, nil
 			}
@@ -669,7 +670,7 @@ func (builder *Builder) WaitUntilDeleted(timeout time.Duration) error {
 	return wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			_, err := builder.apiClient.Deployments(builder.Definition.Namespace).Get(
-				context.TODO(), builder.Definition.Name, metav1.GetOptions{})
+				logging.DiscardContext(), builder.Definition.Name, metav1.GetOptions{})
 
 			if k8serrors.IsNotFound(err) {
 				return true, nil
