@@ -58,6 +58,7 @@ linters:
             - k8s.io/utils
             - k8s.io/client-go
             - k8s.io/klog/v2
+            - github.com/go-logr/logr
             - github.com/kelseyhightower
             - github.com/Juniper/go-netconf
             - github.com/openshift

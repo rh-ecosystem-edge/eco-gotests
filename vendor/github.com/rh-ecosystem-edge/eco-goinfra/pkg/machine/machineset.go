@@ -194,7 +194,7 @@ func (builder *SetBuilder) Create() (*SetBuilder, error) {
 	var err error
 	if !builder.Exists() {
 		builder.Object, err = builder.apiClient.MachineSets(builder.Definition.Namespace).Create(
-			context.TODO(), builder.Definition, metav1.CreateOptions{})
+			logging.DiscardContext(), builder.Definition, metav1.CreateOptions{})
 	}
 
 	return builder, err
@@ -218,7 +218,7 @@ func (builder *SetBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.MachineSets(builder.Definition.Namespace).Delete(
-		context.TODO(), builder.Definition.Name, metav1.DeleteOptions{})
+		logging.DiscardContext(), builder.Definition.Name, metav1.DeleteOptions{})
 	if err != nil {
 		return fmt.Errorf("cannot delete MachineSet: %w", err)
 	}
