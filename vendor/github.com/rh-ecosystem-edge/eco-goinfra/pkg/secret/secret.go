@@ -1,10 +1,10 @@
 package secret
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -130,7 +130,7 @@ func (builder *Builder) Create() (*Builder, error) {
 	var err error
 	if !builder.Exists() {
 		builder.Object, err = builder.apiClient.Secrets(builder.Definition.Namespace).Create(
-			context.TODO(), builder.Definition, metav1.CreateOptions{})
+			logging.DiscardContext(), builder.Definition, metav1.CreateOptions{})
 	}
 
 	return builder, err
@@ -154,7 +154,7 @@ func (builder *Builder) Delete() error {
 	}
 
 	err := builder.apiClient.Secrets(builder.Definition.Namespace).Delete(
-		context.TODO(), builder.Definition.Name, metav1.DeleteOptions{})
+		logging.DiscardContext(), builder.Definition.Name, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
@@ -176,7 +176,7 @@ func (builder *Builder) Exists() bool {
 	var err error
 
 	builder.Object, err = builder.apiClient.Secrets(builder.Definition.Namespace).Get(
-		context.TODO(), builder.Definition.Name, metav1.GetOptions{})
+		logging.DiscardContext(), builder.Definition.Name, metav1.GetOptions{})
 
 	return err == nil || !k8serrors.IsNotFound(err)
 }
@@ -194,7 +194,7 @@ func (builder *Builder) Update() (*Builder, error) {
 	var err error
 
 	builder.Object, err = builder.apiClient.Secrets(builder.Definition.Namespace).Update(
-		context.TODO(), builder.Definition, metav1.UpdateOptions{})
+		logging.DiscardContext(), builder.Definition, metav1.UpdateOptions{})
 
 	return builder, err
 }

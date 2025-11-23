@@ -10,13 +10,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/klog/v2"
-
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/drain"
 )
 
@@ -165,7 +165,7 @@ func (builder *Builder) Update() (*Builder, error) {
 	var err error
 
 	builder.Object, err = builder.apiClient.CoreV1().Nodes().Update(
-		context.TODO(), builder.Definition, metav1.UpdateOptions{})
+		logging.DiscardContext(), builder.Definition, metav1.UpdateOptions{})
 
 	return builder, err
 }
@@ -181,7 +181,7 @@ func (builder *Builder) Exists() bool {
 	var err error
 
 	builder.Object, err = builder.apiClient.CoreV1().Nodes().Get(
-		context.TODO(), builder.Definition.Name, metav1.GetOptions{})
+		logging.DiscardContext(), builder.Definition.Name, metav1.GetOptions{})
 
 	return err == nil || !k8serrors.IsNotFound(err)
 }
@@ -203,7 +203,7 @@ func (builder *Builder) Delete() error {
 	}
 
 	err := builder.apiClient.CoreV1().Nodes().Delete(
-		context.TODO(),
+		logging.DiscardContext(),
 		builder.Definition.Name,
 		metav1.DeleteOptions{})
 	if err != nil {

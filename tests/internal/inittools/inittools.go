@@ -4,9 +4,11 @@ import (
 	"flag"
 	"os"
 
+	"github.com/go-logr/logr"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/config"
 	"k8s.io/klog/v2"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var (
@@ -21,6 +23,7 @@ var (
 func init() {
 	klog.InitFlags(nil)
 	klog.EnableContextualLogging(true)
+	logf.SetLogger(logr.Discard())
 
 	_ = flag.Set("logtostderr", "true")
 

@@ -8,6 +8,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -196,7 +197,7 @@ func (builder *PVCBuilder) Create() (*PVCBuilder, error) {
 	var err error
 	if !builder.Exists() {
 		builder.Object, err = builder.apiClient.PersistentVolumeClaims(builder.Definition.Namespace).Create(
-			context.TODO(), builder.Definition, metav1.CreateOptions{})
+			logging.DiscardContext(), builder.Definition, metav1.CreateOptions{})
 	}
 
 	return builder, err
@@ -224,7 +225,7 @@ func (builder *PVCBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.PersistentVolumeClaims(builder.Definition.Namespace).Delete(
-		context.TODO(), builder.Definition.Name, metav1.DeleteOptions{})
+		logging.DiscardContext(), builder.Definition.Name, metav1.DeleteOptions{})
 	if err != nil {
 		klog.V(100).Infof("Failed to delete PersistentVolumeClaim %s from %s namespace",
 			builder.Definition.Name, builder.Definition.Namespace)
@@ -264,7 +265,7 @@ func (builder *PVCBuilder) DeleteAndWait(timeout time.Duration) error {
 	return wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			_, err := builder.apiClient.PersistentVolumeClaims(builder.Definition.Namespace).Get(
-				context.TODO(), builder.Definition.Name, metav1.GetOptions{})
+				logging.DiscardContext(), builder.Definition.Name, metav1.GetOptions{})
 			if k8serrors.IsNotFound(err) {
 				return true, nil
 			}
@@ -331,7 +332,7 @@ func (builder *PVCBuilder) Exists() bool {
 	var err error
 
 	builder.Object, err = builder.apiClient.PersistentVolumeClaims(builder.Definition.Namespace).Get(
-		context.TODO(), builder.Definition.Name, metav1.GetOptions{})
+		logging.DiscardContext(), builder.Definition.Name, metav1.GetOptions{})
 
 	return err == nil || !k8serrors.IsNotFound(err)
 }

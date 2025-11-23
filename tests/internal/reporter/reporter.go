@@ -2,6 +2,7 @@ package reporter
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -100,7 +101,14 @@ func ReportIfFailedOnCluster(
 		}
 
 		tcReportFolderName := strings.ReplaceAll(report.FullText(), " ", "_")
+
+		// Workaround for the fact we are unable to pass a context to specify a logger for the client used by
+		// the reporter. Otherwise, we get megabytes of verbose logging.
+		_ = flag.Set("v", "0")
+
 		reporter.Dump(report.RunTime, tcReportFolderName)
+
+		_ = flag.Set("v", generalCfg.VerboseLevel)
 
 		_, podExecLogsFName := path.Split(pathToPodExecLogs)
 

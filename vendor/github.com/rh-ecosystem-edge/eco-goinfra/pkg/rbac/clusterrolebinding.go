@@ -1,10 +1,10 @@
 package rbac
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	"golang.org/x/exp/slices"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -169,7 +169,7 @@ func (builder *ClusterRoleBindingBuilder) Create() (*ClusterRoleBindingBuilder, 
 	var err error
 	if !builder.Exists() {
 		builder.Object, err = builder.apiClient.ClusterRoleBindings().Create(
-			context.TODO(), builder.Definition, metav1.CreateOptions{})
+			logging.DiscardContext(), builder.Definition, metav1.CreateOptions{})
 	}
 
 	return builder, err
@@ -194,7 +194,7 @@ func (builder *ClusterRoleBindingBuilder) Delete() error {
 	}
 
 	err := builder.apiClient.ClusterRoleBindings().Delete(
-		context.TODO(), builder.Definition.Name, metav1.DeleteOptions{})
+		logging.DiscardContext(), builder.Definition.Name, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
@@ -216,7 +216,7 @@ func (builder *ClusterRoleBindingBuilder) Update() (*ClusterRoleBindingBuilder, 
 	var err error
 
 	builder.Object, err = builder.apiClient.ClusterRoleBindings().Update(
-		context.TODO(), builder.Definition, metav1.UpdateOptions{})
+		logging.DiscardContext(), builder.Definition, metav1.UpdateOptions{})
 
 	return builder, err
 }
@@ -233,7 +233,7 @@ func (builder *ClusterRoleBindingBuilder) Exists() bool {
 	var err error
 
 	builder.Object, err = builder.apiClient.ClusterRoleBindings().Get(
-		context.TODO(), builder.Definition.Name, metav1.GetOptions{})
+		logging.DiscardContext(), builder.Definition.Name, metav1.GetOptions{})
 
 	return err == nil || !k8serrors.IsNotFound(err)
 }
