@@ -328,8 +328,11 @@ func RemoveSriovNetwork(apiClient *clients.Settings, name, sriovOpNs string, tim
 		// First, check if NAD exists
 		_, pullErr := nad.Pull(apiClient, name, targetNamespace)
 		if pullErr != nil {
-			glog.V(90).Infof("NAD %q does not exist (already deleted or never created) in namespace %q", name, targetNamespace)
-			return nil
+			if apierrors.IsNotFound(pullErr) {
+				glog.V(90).Infof("NAD %q does not exist (already deleted or never created) in namespace %q", name, targetNamespace)
+				return nil
+			}
+			return fmt.Errorf("failed to check NAD %q in namespace %q before deletion wait: %w", name, targetNamespace, pullErr)
 		}
 
 		// Wait for NAD deletion using wait.PollUntilContextTimeout
@@ -341,9 +344,14 @@ func RemoveSriovNetwork(apiClient *clients.Settings, name, sriovOpNs string, tim
 			func(ctx context.Context) (bool, error) {
 				_, pullErr := nad.Pull(apiClient, name, targetNamespace)
 				if pullErr != nil {
-					// NAD is deleted (we got an error/not found), which is what we want
-					glog.V(90).Infof("NetworkAttachmentDefinition %q successfully deleted in namespace %q", name, targetNamespace)
-					return true, nil
+					if apierrors.IsNotFound(pullErr) {
+						// NAD is deleted (NotFound), which is what we want
+						glog.V(90).Infof("NetworkAttachmentDefinition %q successfully deleted in namespace %q", name, targetNamespace)
+						return true, nil
+					}
+					// Transient error, retry
+					glog.V(90).Infof("Temporary error pulling NAD %q in namespace %q, will retry: %v", name, targetNamespace, pullErr)
+					return false, nil
 				}
 				// NAD still exists, keep waiting
 				return false, nil
@@ -380,7 +388,9 @@ func RemoveSriovNetwork(apiClient *clients.Settings, name, sriovOpNs string, tim
 	return nil
 }
 
-// WaitForPodWithLabelReady waits for a pod with specific label to be ready
+// WaitForPodWithLabelReady waits for a pod with specific label to be ready.
+// The timeout parameter is used only for per-pod readiness checks (WaitUntilReady).
+// Pod discovery uses the fixed tsparams.PodLabelReadyTimeout constant.
 func WaitForPodWithLabelReady(apiClient *clients.Settings, namespace, labelSelector string, timeout time.Duration) error {
 	glog.V(90).Infof("Waiting for pod with label %q to be ready in namespace %q", labelSelector, namespace)
 
@@ -677,7 +687,12 @@ type SriovNetworkConfig struct {
 	LinkState        string
 }
 
-// CreateSriovNetwork creates a SRIOV network and waits for it to be ready
+// CreateSriovNetwork creates a SRIOV network and waits for it to be ready.
+// Note: The timeout parameter is informational only (logged as timeoutHint).
+// Actual waiting behavior is governed by tsparams constants:
+// - NamespaceTimeout for policy verification
+// - NADTimeout for NetworkAttachmentDefinition creation
+// - VFResourceTimeout for VF resource availability
 func CreateSriovNetwork(apiClient *clients.Settings, config *SriovNetworkConfig, timeout time.Duration) error {
 	glog.V(90).Infof("Creating SRIOV network %q in namespace %q (target_namespace: %q, resource: %q, timeoutHint: %v)",
 		config.Name, config.Namespace, config.NetworkNamespace, config.ResourceName, timeout)
@@ -850,6 +865,10 @@ func WaitForSriovPolicyReady(apiClient *clients.Settings, config *sriovconfig.Sr
 func VerifyWorkerNodesReady(apiClient *clients.Settings, workerNodes []*nodes.Builder, sriovOpNs string) error {
 	if apiClient == nil {
 		return fmt.Errorf("API client is nil, cannot verify node readiness")
+	}
+
+	if len(workerNodes) == 0 {
+		return fmt.Errorf("no worker nodes provided to VerifyWorkerNodesReady")
 	}
 
 	glog.V(90).Infof("Verifying worker node readiness for SRIOV operator namespace %q", sriovOpNs)
@@ -1137,8 +1156,7 @@ func CheckInterfaceCarrier(podObj *pod.Builder, interfaceName string) (bool, err
 			strings.Contains(err.Error(), "i/o timeout") ||
 			strings.Contains(err.Error(), "connection reset") {
 			glog.V(90).Infof("Pod not accessible when checking carrier status (may be terminating): %v", err)
-			// Return true to allow tests to skip gracefully
-			return true, nil
+			return false, fmt.Errorf("pod not accessible when checking carrier status: %w", err)
 		}
 		return false, fmt.Errorf("failed to get interface status: %w", err)
 	}
