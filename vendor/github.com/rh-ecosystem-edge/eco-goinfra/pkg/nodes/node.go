@@ -54,7 +54,7 @@ func (builder *Builder) SetDrainHelper(
 	klog.V(100).Infof("%v", msg)
 
 	builder.drainHelper = &drain.Helper{
-		Ctx:    context.TODO(),
+		Ctx:    logging.DiscardContext(),
 		Client: builder.apiClient,
 		// Delete pods that do not declare a controller.
 		Force: force,
