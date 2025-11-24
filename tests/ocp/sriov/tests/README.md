@@ -47,38 +47,28 @@ The following OpenShift cluster components must be properly configured before ru
 
 4. **MachineConfig (for DPDK tests)**
    - DPDK test (Test ID: 69582) requires hugepage configuration via MachineConfig
-   - Hugepages must be configured on worker nodes for DPDK functionality
+   - Hugepages must be configured on target nodes (e.g., SR-IOV worker nodes) for DPDK functionality
    - Example MachineConfig for hugepages:
      ```yaml
      apiVersion: machineconfiguration.openshift.io/v1
      kind: MachineConfig
      metadata:
-       name: 50-hugepages-2Mi
        labels:
-         machineconfiguration.openshift.io/role: worker
+         machineconfiguration.openshift.io/role: sriov
+       name: 1g-hugepages
      spec:
-       config:
-         ignition:
-           version: 3.2.0
-         storage:
-           files:
-           - path: /etc/sysctl.d/99-hugepages.conf
-             mode: 0644
-             contents:
-               inline: |
-                 vm.nr_hugepages=512
-         kernelArguments:
-         - default_hugepagesz=2M
-         - hugepagesz=2M
-         - hugepages=512
+       kernelArguments:
+         - default_hugepagesz=1G
+         - hugepagesz=1G
+         - hugepages=8
      ```
      **Key parameters:**
-     - `hugepages=512`: Allocates 512 huge pages (adjust based on your node memory)
-     - `hugepagesz=2M`: Sets huge page size to 2 MiB (alternative: `1G` for 1 GiB pages)
-     - `default_hugepagesz=2M`: Sets default huge page size
-     - `vm.nr_hugepages=512`: Sysctl parameter to set number of huge pages
+     - `hugepages=8`: Allocates 8 huge pages (adjust based on your node memory; 8 × 1 GiB = 8 GiB total)
+     - `hugepagesz=1G`: Sets huge page size to 1 GiB (alternative: `2M` for 2 MiB pages)
+     - `default_hugepagesz=1G`: Sets default huge page size
+     - **Note**: The `machineconfiguration.openshift.io/role: sriov` label targets nodes in a custom SR-IOV MachineConfigPool. Adjust the label to match your MCP configuration (e.g., `worker` for standard worker nodes).
    - Apply the MachineConfig: `oc apply -f <machineconfig-file.yaml>`
-   - Wait for MCP to update: `oc wait mcp/worker --for condition=updated --timeout=20m`
+   - Wait for MCP to update: `oc wait mcp/sriov --for condition=updated --timeout=20m` (adjust MCP name to match your configuration)
    - Verify hugepages on nodes: `oc describe node <node-name> | grep hugepages`
    - Verify MachineConfig: `oc get machineconfig`
 
