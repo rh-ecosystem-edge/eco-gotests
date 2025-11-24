@@ -624,9 +624,6 @@ Reports are saved to `/tmp/reports/` by default (configurable via `ECO_REPORTS_D
 ## Related Documentation
 
 - [Main SR-IOV Test Suite README](../README.md)
-- [Migration Guide](../MIGRATION_GUIDE.md)
-- [Compliance Review](../FINAL_COMPLIANCE_REVIEW.md)
-- [Test Cases Review](../TEST_CASES_REVIEW.md)
 
 ## Support
 
