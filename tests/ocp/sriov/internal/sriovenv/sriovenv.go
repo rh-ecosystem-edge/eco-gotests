@@ -628,14 +628,30 @@ func WaitForSriovAndMCPStable(
 	return nil
 }
 
+// normalizeWorkerLabel ensures the worker label is in the correct format for Kubernetes label selectors.
+// If the label doesn't contain "=", it appends "=" to make it a valid selector (e.g., "key" -> "key=").
+// This handles cases where the label is provided as just a key name without the "=" separator.
+func normalizeWorkerLabel(label string) string {
+	if label == "" {
+		return label
+	}
+	if !strings.Contains(label, "=") {
+		return label + "="
+	}
+	return label
+}
+
 // VerifyVFResourcesAvailable checks if VF resources are advertised and available on worker nodes
 func VerifyVFResourcesAvailable(apiClient *clients.Settings, config *sriovconfig.SriovOcpConfig, resourceName string) (bool, error) {
 	if apiClient == nil {
 		return false, fmt.Errorf("API client is nil, cannot verify VF resources")
 	}
 
+	// Normalize worker label to ensure it's in the correct format for label selector
+	normalizedLabel := normalizeWorkerLabel(config.OcpWorkerLabel)
+
 	// Get all worker nodes
-	workerNodes, err := nodes.List(apiClient, metav1.ListOptions{LabelSelector: config.OcpWorkerLabel})
+	workerNodes, err := nodes.List(apiClient, metav1.ListOptions{LabelSelector: normalizedLabel})
 	if err != nil {
 		return false, fmt.Errorf("failed to list worker nodes: %w", err)
 	}
