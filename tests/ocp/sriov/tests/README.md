@@ -17,10 +17,51 @@ The SR-IOV basic tests validate fundamental SR-IOV functionality on OpenShift Co
 
 ### Cluster Requirements
 
+#### Basic Requirements
+
 - OCP cluster version >= 4.13
 - SR-IOV operator installed and healthy
 - Worker nodes with SR-IOV-capable network interfaces
 - Appropriate hardware or virtualized SR-IOV interfaces available
+
+#### OpenShift Cluster Configuration
+
+The following OpenShift cluster components must be properly configured before running SR-IOV tests:
+
+1. **SR-IOV Operator**
+   - Must be installed and running in the cluster
+   - Default namespace: `openshift-sriov-network-operator` (configurable via `ECO_OCP_SRIOV_OPERATOR_NAMESPACE`)
+   - Verify operator health: `oc get pods -n openshift-sriov-network-operator`
+
+2. **Worker Node Labels**
+   - Target worker nodes must have appropriate labels configured for node selection
+   - Default label: `node-role.kubernetes.io/worker=` (configurable via `ECO_OCP_SRIOV_WORKER_LABEL`)
+   - Label format must be `key=value` or `key=` (e.g., `node-role.kubernetes.io/worker=`)
+   - Verify node labels: `oc get nodes --show-labels`
+
+3. **MachineConfigPool (MCP)**
+   - MachineConfigPool must be configured and stable for worker nodes
+   - Default MCP label: `machineconfiguration.openshift.io/role=worker`
+   - Tests wait for MCP to be stable before proceeding with SR-IOV operations
+   - Verify MCP status: `oc get machineconfigpool`
+
+4. **MachineConfig (for DPDK tests)**
+   - DPDK test (Test ID: 69582) requires hugepage configuration via MachineConfig
+   - Hugepages must be configured on worker nodes for DPDK functionality
+   - Example: Configure hugepages in MachineConfig for worker nodes
+   - Verify MachineConfig: `oc get machineconfig`
+
+5. **SriovOperatorConfig**
+   - SR-IOV operator configuration must be present in the cluster
+   - Defines global SR-IOV operator settings
+   - Verify: `oc get sriovoperatorconfig -n openshift-sriov-network-operator`
+
+6. **SriovNetworkPoolConfig (if applicable)**
+   - Network pool configuration may be required depending on cluster setup
+   - Used for managing SR-IOV network resources
+   - Verify: `oc get sriovnetworkpoolconfig -n openshift-sriov-network-operator`
+
+**Note**: The test suite validates SR-IOV operator deployment and worker node readiness during `BeforeSuite`, but it's recommended to verify all cluster components are properly configured before running tests.
 
 ### Environment Variables
 
@@ -36,6 +77,8 @@ The SR-IOV basic tests validate fundamental SR-IOV functionality on OpenShift Co
 - `SRIOV_VF_NUM` - Alternative VF number environment variable (fallback if `ECO_OCP_SRIOV_VF_NUM` is not set)
 - `SRIOV_DEVICES` - Custom device configuration (format: `name1:deviceid1:vendor1:interface1,name2:deviceid2:vendor2:interface2,...`)
 - `ECO_REPORTS_DUMP_DIR` - Directory for test reports and JUnit XML files (default: `/tmp/reports`). **Note**: If not set to an absolute path, JUnit reports may be written to the test execution directory instead of the reports directory.
+- `ECO_OCP_SRIOV_OPERATOR_NAMESPACE` - SR-IOV operator namespace (default: `openshift-sriov-network-operator`)
+- `ECO_OCP_SRIOV_WORKER_LABEL` - Worker node label selector (default: `node-role.kubernetes.io/worker=`). **Important**: Must be in format `key=value` or `key=` (e.g., `node-role.kubernetes.io/worker=`)
 
 #### Device Configuration
 
