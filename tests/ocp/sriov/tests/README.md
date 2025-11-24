@@ -150,9 +150,9 @@ ginkgo -timeout=60m --keep-going --require-suite --label-filter="$ECO_TEST_LABEL
   - `--label-filter="ocpsriov && basic"` - Also runs only the 9 basic tests (equivalent)
   - `--label-filter="ocpsriov"` - Runs ALL tests including reinstallation
 
-**Note**: The 60-minute timeout provides sufficient time for all 9 test cases (which typically complete in ~35 minutes) while allowing buffer for slower environments or network delays.
+**Important**: The 60-minute timeout provides sufficient time for all 9 test cases (which typically complete in ~35 minutes) while allowing buffer for slower environments or network delays.
 
-**Note**: Using `go test` or direct Ginkgo execution ensures only the `ocp/sriov` tests are run, avoiding conflicts with other SR-IOV test suites in the repository.
+**Remember**: Using `go test` or direct Ginkgo execution ensures only the `ocp/sriov` tests are run, avoiding conflicts with other SR-IOV test suites in the repository.
 
 ### Using the Test Runner Script
 
@@ -321,15 +321,15 @@ The basic test suite includes 9 test cases covering various SR-IOV features:
 
 ---
 
-### 5. SR-IOV VF with VLAN and Rate Limiting Configuration (Test ID: 25963)
+### 5. SR-IOV VF with VLAN and Rate-Limiting Configuration (Test ID: 25963)
 
-**Description**: Validates SR-IOV Virtual Function with VLAN tagging and rate limiting.
+**Description**: Validates SR-IOV Virtual Function with VLAN tagging and rate-limiting.
 
 **What it tests**:
 - VF initialization with VLAN configuration
-- Network attachment with VLAN and rate limiting
+- Network attachment with VLAN and rate-limiting
 - Pod network interface with VLAN support
-- Traffic rate limiting functionality
+- Traffic rate-limiting functionality
 
 **Configuration**:
 - VLAN: `100`
@@ -342,7 +342,7 @@ The basic test suite includes 9 test cases covering various SR-IOV features:
 - VF is created successfully
 - Network is attached to pod with VLAN configuration
 - Interface is ready and can pass traffic
-- Rate limiting is applied
+- Rate-limiting is applied
 
 **Note**: Some devices (e.g., `bcm57414`, `bcm57508`) may not support `minTxRate` and will be skipped.
 
