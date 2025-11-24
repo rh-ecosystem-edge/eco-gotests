@@ -153,6 +153,8 @@ func CleanupLeftoverResources(apiClient *clients.Settings, sriovOperatorNamespac
 		// Match test network names: 5-digit test case ID followed by dash (e.g., "25959-deviceName", "70821-deviceName")
 		// Also match DPDK network names: device name followed by "dpdknet" (e.g., "deviceNamedpdknet")
 		// Require word characters before "dpdknet" to avoid matching unrelated resources
+		// Note: This is a name-based heuristic. For shared clusters, consider using test labels on SR-IOV networks
+		// or a stricter prefix pattern (e.g., "e2e-" or "sriov-test-") to avoid matching non-test resources.
 		testNetworkPattern := regexp.MustCompile(`^\d{5}-|\w+dpdknet$`)
 		for _, net := range sriovNetworks {
 			networkName := net.Definition.Name
@@ -650,6 +652,11 @@ func VerifyVFResourcesAvailable(apiClient *clients.Settings, config *sriovconfig
 	// Normalize worker label to ensure it's in the correct format for label selector
 	normalizedLabel := normalizeWorkerLabel(config.OcpWorkerLabel)
 
+	// Guard against empty worker label to prevent scanning all nodes (including masters)
+	if normalizedLabel == "" {
+		return false, fmt.Errorf("OcpWorkerLabel is empty or not configured - cannot determine worker nodes for VF resource verification")
+	}
+
 	// Get all worker nodes
 	workerNodes, err := nodes.List(apiClient, metav1.ListOptions{LabelSelector: normalizedLabel})
 	if err != nil {
@@ -939,7 +946,7 @@ func VerifyWorkerNodesReady(apiClient *clients.Settings, workerNodes []*nodes.Bu
 
 		// Check node conditions
 		hasReadyCondition := false
-		hasNotSchedulableCondition := false
+		hasUnknownReadyCondition := false
 
 		for _, condition := range refreshedNode.Definition.Status.Conditions {
 			klog.V(90).Infof("Node condition - node: %q, type: %q, status: %q, reason: %q, message: %q",
@@ -963,7 +970,7 @@ func VerifyWorkerNodesReady(apiClient *clients.Settings, workerNodes []*nodes.Bu
 				allNodesReady = false
 			}
 			if condition.Type == corev1.NodeReady && condition.Status == corev1.ConditionUnknown {
-				hasNotSchedulableCondition = true
+				hasUnknownReadyCondition = true
 			}
 
 			// Check for node reboot/restart indicators
@@ -982,10 +989,10 @@ func VerifyWorkerNodesReady(apiClient *clients.Settings, workerNodes []*nodes.Bu
 			lastErr = fmt.Errorf("node %q is not in Ready state", nodeName)
 		}
 
-		if hasNotSchedulableCondition {
-			klog.V(90).Infof("Node %q is unschedulable", nodeName)
+		if hasUnknownReadyCondition {
+			klog.V(90).Infof("Node %q has NodeReady condition status Unknown", nodeName)
 			allNodesReady = false
-			lastErr = fmt.Errorf("node %q is unschedulable", nodeName)
+			lastErr = fmt.Errorf("node %q has NodeReady condition status Unknown", nodeName)
 		}
 	}
 
@@ -1030,6 +1037,11 @@ func initVFWithDevType(
 	name, deviceID, interfaceName, vendor, sriovOpNs, devType string,
 	vfNum int,
 	workerNodes []*nodes.Builder) (bool, error) {
+	// Validate vfNum before building the PF selector to fail fast on misconfiguration
+	if vfNum <= 0 {
+		return false, fmt.Errorf("vfNum must be greater than 0, got %d", vfNum)
+	}
+
 	klog.V(90).Infof("Initializing VF for device %q (deviceID: %q, vendor: %q, interface: %q, vfNum: %d, devType: %q)",
 		name, deviceID, vendor, interfaceName, vfNum, devType)
 
@@ -1290,8 +1302,11 @@ func VerifyVFSpoofCheck(nodeName, nicName, podMAC string) error {
 	return nil
 }
 
-// VerifyLinkStateConfiguration verifies that link state configuration is applied without requiring connectivity
-// This function creates a test pod and verifies that the interface is up with the expected configuration
+// VerifyLinkStateConfiguration verifies that link state configuration is applied without requiring connectivity.
+// This function creates a test pod and verifies that the interface is up with the expected configuration.
+// Note: NO-CARRIER status is acceptable for link-state-only checks (returns false, nil) as it indicates
+// the configuration is valid but there's no physical connection. This is different from traffic tests
+// (CheckVFStatusWithPassTraffic) which require carrier for connectivity testing.
 func VerifyLinkStateConfiguration(
 	apiClient *clients.Settings,
 	config *sriovconfig.SriovOcpConfig,
@@ -1409,7 +1424,10 @@ func verifyPodInterfaces(clientPod, serverPod *pod.Builder) error {
 	return nil
 }
 
-// verifyPodCarrier checks if the client pod interface has carrier and returns an error if NO-CARRIER
+// verifyPodCarrier checks if the client pod interface has carrier and returns an error if NO-CARRIER.
+// This is used by traffic tests (CheckVFStatusWithPassTraffic) where NO-CARRIER means the test should
+// be skipped rather than failed. Callers should interpret this error as a skip condition for interfaces
+// without physical connection, not as a generic failure.
 func verifyPodCarrier(clientPod *pod.Builder) error {
 	klog.V(90).Info("Checking interface link status")
 	clientCarrier, err := CheckInterfaceCarrier(clientPod, "net1")
@@ -1499,8 +1517,22 @@ func testPodConnectivity(clientPod *pod.Builder, serverIP string) error {
 	}
 
 	pingOutputStr := pingOutput.String()
-	if !strings.Contains(pingOutputStr, "3 packets transmitted") {
-		return fmt.Errorf("ping did not complete successfully (output: %q)", pingOutputStr)
+
+	// Check for ping success indicators (more robust than just checking "3 packets transmitted")
+	// Also check for failure indicators to catch edge cases
+	hasSuccessIndicator := strings.Contains(pingOutputStr, "3 packets transmitted") ||
+		strings.Contains(pingOutputStr, "3 received") ||
+		strings.Contains(pingOutputStr, "0% packet loss")
+
+	// Check for explicit failure indicators (100% packet loss indicates complete failure)
+	hasCompleteFailure := strings.Contains(pingOutputStr, "100% packet loss")
+
+	if hasCompleteFailure {
+		return fmt.Errorf("ping failed with 100%% packet loss (output: %q)", pingOutputStr)
+	}
+
+	if !hasSuccessIndicator {
+		return fmt.Errorf("ping did not complete successfully - no success indicators found (output: %q)", pingOutputStr)
 	}
 
 	return nil
@@ -1545,7 +1577,15 @@ func CheckVFStatusWithPassTraffic(
 	}
 
 	// Check for NO-CARRIER status
+	// Note: verifyPodCarrier returns an error for NO-CARRIER, which should be interpreted as
+	// a skip condition (interface without physical connection) rather than a test failure.
+	// This allows traffic tests to be skipped gracefully when there's no physical link.
 	if err := verifyPodCarrier(clientPod); err != nil {
+		// Check if this is a NO-CARRIER error (skip condition) vs other errors (failures)
+		if strings.Contains(err.Error(), "NO-CARRIER") || strings.Contains(err.Error(), "no physical connection") {
+			klog.V(90).Infof("Skipping traffic test due to NO-CARRIER status: %v", err)
+			return fmt.Errorf("skipping traffic test - interface has NO-CARRIER status (no physical connection): %w", err)
+		}
 		return err
 	}
 
