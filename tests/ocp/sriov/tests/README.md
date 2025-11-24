@@ -48,7 +48,38 @@ The following OpenShift cluster components must be properly configured before ru
 4. **MachineConfig (for DPDK tests)**
    - DPDK test (Test ID: 69582) requires hugepage configuration via MachineConfig
    - Hugepages must be configured on worker nodes for DPDK functionality
-   - Example: Configure hugepages in MachineConfig for worker nodes
+   - Example MachineConfig for hugepages:
+     ```yaml
+     apiVersion: machineconfiguration.openshift.io/v1
+     kind: MachineConfig
+     metadata:
+       name: 50-hugepages-2Mi
+       labels:
+         machineconfiguration.openshift.io/role: worker
+     spec:
+       config:
+         ignition:
+           version: 3.2.0
+         storage:
+           files:
+           - path: /etc/sysctl.d/99-hugepages.conf
+             mode: 0644
+             contents:
+               inline: |
+                 vm.nr_hugepages=512
+         kernelArguments:
+         - default_hugepagesz=2M
+         - hugepagesz=2M
+         - hugepages=512
+     ```
+     **Key parameters:**
+     - `hugepages=512`: Allocates 512 huge pages (adjust based on your node memory)
+     - `hugepagesz=2M`: Sets huge page size to 2 MiB (alternative: `1G` for 1 GiB pages)
+     - `default_hugepagesz=2M`: Sets default huge page size
+     - `vm.nr_hugepages=512`: Sysctl parameter to set number of huge pages
+   - Apply the MachineConfig: `oc apply -f <machineconfig-file.yaml>`
+   - Wait for MCP to update: `oc wait mcp/worker --for condition=updated --timeout=20m`
+   - Verify hugepages on nodes: `oc describe node <node-name> | grep hugepages`
    - Verify MachineConfig: `oc get machineconfig`
 
 5. **SriovOperatorConfig**
