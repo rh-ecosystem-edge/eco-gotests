@@ -28,6 +28,14 @@ const (
 	// Polling intervals for heavier operations (3x standard interval)
 	VFResourcePollingInterval = PollingInterval * 3 // Longer interval for VF resource checks (heavier operation)
 	PingPollingInterval       = PollingInterval * 3 // Longer interval for ping operations
+
+	// Test pod network configuration
+	// Default IP addresses for test pods (client and server)
+	TestPodClientIP = "192.168.1.10/24"
+	TestPodServerIP = "192.168.1.11/24"
+	// Default MAC addresses for test pods
+	TestPodClientMAC = "20:04:0f:f1:88:01"
+	TestPodServerMAC = "20:04:0f:f1:88:02"
 )
 
 var (

@@ -1,6 +1,7 @@
 package sriov
 
 import (
+	"context"
 	"fmt"
 
 	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -416,11 +417,11 @@ func (builder *PolicyBuilder) Update(force bool) (*PolicyBuilder, error) {
 		return builder, err
 	}
 
-	glog.V(100).Infof("Updating the SriovNetworkNodePolicy object %s in namespace %s",
+	klog.V(100).Infof("Updating the SriovNetworkNodePolicy object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
 	if !builder.Exists() {
-		glog.V(100).Infof("SriovNetworkNodePolicy %s in namespace %s does not exist",
+		klog.V(100).Infof("SriovNetworkNodePolicy %s in namespace %s does not exist",
 			builder.Definition.Name, builder.Definition.Namespace)
 
 		return nil, fmt.Errorf("cannot update non-existent SriovNetworkNodePolicy")
@@ -438,12 +439,12 @@ func (builder *PolicyBuilder) Update(force bool) (*PolicyBuilder, error) {
 	err = builder.apiClient.Update(context.TODO(), builder.Definition)
 	if err != nil {
 		if force {
-			glog.V(100).Infof(
+			klog.V(100).Infof(
 				msg.FailToUpdateNotification("SriovNetworkNodePolicy", builder.Definition.Name))
 
 			err := builder.Delete()
 			if err != nil {
-				glog.V(100).Infof(
+				klog.V(100).Infof(
 					msg.FailToUpdateError("SriovNetworkNodePolicy", builder.Definition.Name))
 
 				return nil, err

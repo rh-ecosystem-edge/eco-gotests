@@ -2,7 +2,6 @@ package tests
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -17,6 +16,7 @@ import (
 	sriovenv "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/sriovenv"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/tsparams"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 )
 
 var _ = Describe(
@@ -26,17 +26,11 @@ var _ = Describe(
 	ContinueOnFailure,
 	func() {
 		var (
-			buildPruningBaseDir  = filepath.Join("testdata", "networking", "sriov")
-			sriovNetworkTemplate = filepath.Join(buildPruningBaseDir, "sriovnetwork-whereabouts-template.yaml")
-			sriovOpNs            = SriovOcpConfig.OcpSriovOperatorNamespace
-			vfNum                = tsparams.GetVFNum()
-			workerNodes          []*nodes.Builder
-			testData             = tsparams.GetDeviceConfig()
+			sriovOpNs   = SriovOcpConfig.OcpSriovOperatorNamespace
+			vfNum       = tsparams.GetVFNum()
+			workerNodes []*nodes.Builder
+			testData    = tsparams.GetDeviceConfig()
 		)
-
-		// Suppress unused variable warnings for variables that will be used in future test cases
-		_ = buildPruningBaseDir
-		_ = sriovNetworkTemplate
 
 		BeforeAll(func() {
 			By("Checking the SR-IOV operator is running")
@@ -54,12 +48,18 @@ var _ = Describe(
 		AfterAll(func() {
 			By("Cleaning up SR-IOV policies after all tests")
 			// Clean up all policies that were created during tests
+			var cleanupErrors []string
 			for _, item := range testData {
 				err := sriovenv.RemoveSriovPolicy(APIClient, item.Name, sriovOpNs, tsparams.DefaultTimeout)
 				if err != nil {
-					// Log error but don't fail - cleanup is best effort
-					// Error is already logged in RemoveSriovPolicy function
+					// Collect errors for reporting - cleanup is best effort but we should know what failed
+					cleanupErrors = append(cleanupErrors, fmt.Sprintf("failed to remove policy %q: %v", item.Name, err))
 				}
+			}
+			// Report cleanup errors if any occurred
+			if len(cleanupErrors) > 0 {
+				klog.V(90).Infof("Some policies failed to clean up: %v", cleanupErrors)
+				// Don't fail the test suite, but log for visibility
 			}
 			By("Waiting for SR-IOV policies to be ready after cleanup")
 			err := sriovenv.WaitForSriovPolicyReady(APIClient, SriovOcpConfig, tsparams.DefaultTimeout)
