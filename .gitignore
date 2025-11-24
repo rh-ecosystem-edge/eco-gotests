@@ -24,8 +24,14 @@ reports
 # Cursor AI configuration
 .cursorrules
 
-# Ignore all markdown files except README.md files
+# Ignore all markdown files except important documentation files
 *.md
+# Whitelist important root-level documentation files
 !README.md
+!CONTRIBUTING.md
+!CODE_OF_CONDUCT.md
+!CHANGELOG.md
+!SECURITY.md
+# Whitelist README.md files in subdirectories
 !**/README.md
 
