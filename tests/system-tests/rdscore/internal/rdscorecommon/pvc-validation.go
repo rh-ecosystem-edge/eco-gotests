@@ -22,10 +22,11 @@ import (
 )
 
 const (
-	labelsWlkdOneString = "systemtest-test=rdscore-odf-pvc"
-	labelsWlkdTwoString = "systemtest-test=rdscore-odf-two"
-	regexPartOne        = `Deployment[[:space:]]+[[:alnum:]-_]+;Pod[[:space:]]+[[:alnum:]-_]+`
-	regexPartTwo        = `\([[:alnum:]-._]+\);Timestamp[[:space:]]+[[:digit:]]+`
+	labelsWlkdOneString   = "systemtest-test=rdscore-odf-pvc"
+	labelsWlkdTwoString   = "systemtest-test=rdscore-odf-two"
+	labelsWlkdBlockString = "systemtest-test=rdscore-odf-block"
+	regexPartOne          = `Deployment[[:space:]]+[[:alnum:]-_]+;Pod[[:space:]]+[[:alnum:]-_]+`
+	regexPartTwo          = `\([[:alnum:]-._]+\);Timestamp[[:space:]]+[[:digit:]]+`
 )
 
 func createPVC(fPVCName, fNamespace, fStorageClass, fVolumeMode, fCapacity string) *storage.PVCBuilder {
@@ -383,7 +384,7 @@ func rescheduleWorkloadWithPVC(fNamespace, fPodLabel string, fNodeSelector map[s
 
 	Eventually(func() bool {
 		oldPods, err := pod.List(APIClient, fNamespace,
-			metav1.ListOptions{LabelSelector: labelsWlkdOneString})
+			metav1.ListOptions{LabelSelector: fPodLabel})
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods: %v", err)
 
@@ -454,14 +455,14 @@ func rescheduleWorkloadWithPVC(fNamespace, fPodLabel string, fNodeSelector map[s
 
 		if len(podOneList) == 1 {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found 1 pod matching label %q in namespace %q",
-				labelsWlkdOneString, fNamespace)
+				fPodLabel, fNamespace)
 
 			return true
 		}
 
 		return false
 	}).WithContext(ctx).WithPolling(15*time.Second).WithTimeout(5*time.Minute).Should(BeTrue(),
-		fmt.Sprintf("Failed to find pod matching label %q in %q namespace", labelsWlkdOneString, fNamespace))
+		fmt.Sprintf("Failed to find pod matching label %q in %q namespace", fPodLabel, fNamespace))
 
 	podOne := podOneList[0]
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod one is %v on node %s",
@@ -637,6 +638,330 @@ func VerifyDataOnCephRBDPVC(ctx SpecContext) {
 	verifyDataOnPVC("rds-cephrbd-ns", labelsWlkdOneString, verificationRegex, cmdToRun)
 }
 
+//nolint:funlen
+func createWorkloadWithBlockPVC(fNamespace string, fStorageClass string, fPVCName string, fVolumeMode string) {
+	var (
+		ctx               SpecContext
+		workloadNS        *namespace.Builder
+		wlkdODFDeployName = "rds-core-wlkd"
+		wlkdODFCmd        = []string{"/bin/sh", "-c", "sleep infinity"}
+		wlkdODFImage      = RDSCoreConfig.StorageODFWorkloadImage
+	)
+
+	By(fmt.Sprintf("Asserting namespace %s already exists", fNamespace))
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Assert if namespace %q exists", fNamespace)
+
+	if workloadNS, err := namespace.Pull(APIClient, fNamespace); err == nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Namespace %q exists. Removing...", fNamespace)
+
+		delErr := workloadNS.DeleteAndWait(6 * time.Minute)
+		Expect(delErr).ToNot(HaveOccurred(), fmt.Sprintf("Failed to delete %q namespace", fNamespace))
+	}
+
+	By(fmt.Sprintf("Creating %s namespace", fNamespace))
+
+	workloadNS = namespace.NewBuilder(APIClient, fNamespace)
+	workloadNS, err := workloadNS.Create()
+
+	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to create test namespace %s", fNamespace))
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Namespace %q created", workloadNS.Object.Name)
+
+	myPVC := createPVC(fPVCName, fNamespace, fStorageClass, fVolumeMode, "1G")
+
+	By("Waiting for PVC to report phase")
+	Eventually(func(phase string) bool {
+		if ok := myPVC.Exists(); ok {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\tPVC Phase is %q", myPVC.Object.Status.Phase)
+
+			return string(myPVC.Object.Status.Phase) == phase
+		}
+
+		return false
+	}).WithContext(ctx).WithPolling(3*time.Second).WithTimeout(5*time.Minute).WithArguments("Bound").Should(BeTrue(),
+		fmt.Sprintf("Unexpeced PVC state %q", myPVC.Object.Status.Phase))
+
+	By("Checking deployment doesn't exist")
+
+	deploy, err := deployment.Pull(APIClient, wlkdODFDeployName, fNamespace)
+	if deploy != nil && err == nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deployment %q found in %q namespace. Deleting...",
+			deploy.Definition.Name, fNamespace)
+
+		err := deploy.DeleteAndWait(300 * time.Second)
+		Expect(err).ToNot(HaveOccurred(),
+			fmt.Sprintf("failed to delete deployment %q", wlkdODFDeployName))
+	}
+
+	By("Asserting pods from deployments are gone")
+
+	Eventually(func() bool {
+		oldPods, _ := pod.List(APIClient, fNamespace,
+			metav1.ListOptions{LabelSelector: labelsWlkdBlockString})
+
+		return len(oldPods) == 0
+	}).WithContext(ctx).WithPolling(3*time.Second).WithTimeout(6*time.Minute).Should(BeTrue(),
+		"pods matching label(s) still present")
+
+	By("Defining container configuration")
+
+	deployContainer := pod.NewContainerBuilder("one", wlkdODFImage, wlkdODFCmd)
+
+	By("Setting SecurityContext")
+
+	var falseFlag = false
+
+	secContext := &corev1.SecurityContext{
+		Privileged: &falseFlag,
+		SeccompProfile: &corev1.SeccompProfile{
+			Type: corev1.SeccompProfileTypeRuntimeDefault,
+		},
+		Capabilities: &corev1.Capabilities{},
+	}
+
+	deployContainer = deployContainer.WithSecurityContext(secContext)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Container One definition: %#v", deployContainer)
+
+	By("Obtaining container definition")
+
+	deployContainerCfg, err := deployContainer.GetContainerCfg()
+	Expect(err).ToNot(HaveOccurred(), "Failed to get container definition")
+
+	By("Adding VolumeDevice to container for Block volume")
+
+	volDevice := corev1.VolumeDevice{
+		Name:       "block-pvc",
+		DevicePath: "/dev/xvda",
+	}
+
+	deployContainerCfg.VolumeDevices = append(deployContainerCfg.VolumeDevices, volDevice)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Container VolumeDevices: %#v", deployContainerCfg.VolumeDevices)
+
+	By("Defining deployment configuration")
+
+	deploy = deployment.NewBuilder(APIClient,
+		wlkdODFDeployName,
+		fNamespace,
+		map[string]string{strings.Split(labelsWlkdBlockString, "=")[0]: strings.Split(labelsWlkdBlockString, "=")[1]},
+		*deployContainerCfg)
+
+	By("Adding Volume to the deployment")
+
+	volDefinition := corev1.Volume{
+		Name: "block-pvc",
+		VolumeSource: corev1.VolumeSource{
+			PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+				ClaimName: fPVCName,
+				ReadOnly:  false,
+			},
+		},
+	}
+
+	deploy = deploy.WithVolume(volDefinition)
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deployment's Volume:\n %v",
+		deploy.Definition.Spec.Template.Spec.Volumes)
+
+	By("Setting Replicas count")
+
+	deploy = deploy.WithReplicas(int32(1))
+
+	By("Adding NodeSelector to the deployment")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deployment's NodeSlector:\n\t%v",
+		RDSCoreConfig.StorageODFDeployOneSelector)
+
+	deploy = deploy.WithNodeSelector(RDSCoreConfig.StorageODFDeployOneSelector)
+
+	By("Creating a deployment")
+
+	deploy, err = deploy.CreateAndWaitUntilReady(15 * time.Minute)
+	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to create deployment %s: %v", wlkdODFDeployName, err))
+
+	By("Getting pods backed by deployment")
+
+	podOneSelector := metav1.ListOptions{
+		LabelSelector: labelsWlkdBlockString,
+	}
+
+	var (
+		podOneList   []*pod.Builder
+		podOneResult bytes.Buffer
+	)
+
+	Eventually(func() bool {
+		podOneList, err = pod.List(APIClient, fNamespace, podOneSelector)
+		if err != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods in %q namespace: %v",
+				fNamespace, err)
+
+			return false
+		}
+
+		if len(podOneList) == 1 {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found 1 pod matching label %q in namespace %q",
+				labelsWlkdBlockString, fNamespace)
+
+			return true
+		}
+
+		return false
+	}).WithContext(ctx).WithPolling(15*time.Second).WithTimeout(5*time.Minute).Should(BeTrue(),
+		fmt.Sprintf("Failed to find pod matching label %q in %q namespace", labelsWlkdBlockString, fNamespace))
+
+	podOne := podOneList[0]
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod one is %v on node %s",
+		podOne.Definition.Name, podOne.Definition.Spec.NodeName)
+
+	By("Writing data to block device")
+
+	msgOne := fmt.Sprintf("Deployment %s;Pod %s(%s);Timestamp %d",
+		deploy.Definition.Name,
+		podOne.Definition.Name,
+		podOne.Definition.Spec.NodeName,
+		time.Now().Unix())
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Writing msg %q from pod %s to block device",
+		msgOne, podOne.Definition.Name)
+
+	writeDataOneCmd := []string{"/bin/bash", "-c",
+		fmt.Sprintf("echo '%s' | dd of=/dev/xvda bs=512 count=1 conv=sync", msgOne)}
+
+	Eventually(func() bool {
+		podOneResult, err = podOne.ExecCommand(writeDataOneCmd, "one")
+		if err != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to execute command: %v", err)
+
+			return false
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Result: %v - %s", podOneResult, &podOneResult)
+
+		return true
+	}).WithContext(ctx).WithPolling(3*time.Second).WithTimeout(1*time.Minute).Should(BeTrue(),
+		"Failed to store data in the block device")
+}
+
+//nolint:unparam
+func verifyDataOnBlockPVC(fNamespace, podLabel, verificationRegex string, cmdToRun []string) {
+	By(fmt.Sprintf("Getting pod(s) matching selector %q", podLabel))
+
+	var (
+		podMatchingSelector []*pod.Builder
+		err                 error
+		ctx                 SpecContext
+		podCommandResult    bytes.Buffer
+	)
+
+	podOneSelector := metav1.ListOptions{
+		LabelSelector: podLabel,
+	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Looking for pods with label %q in %q namespace",
+		podLabel, fNamespace)
+
+	Eventually(func() bool {
+		podMatchingSelector, err = pod.List(APIClient, fNamespace, podOneSelector)
+		if err != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods in %q namespace: %v",
+				fNamespace, err)
+
+			return false
+		}
+
+		if len(podMatchingSelector) == 0 {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found 0 pods matching label %q in namespace %q",
+				podLabel, fNamespace)
+
+			return false
+		}
+
+		return true
+	}).WithContext(ctx).WithPolling(15*time.Second).WithTimeout(5*time.Minute).Should(BeTrue(),
+		fmt.Sprintf("Failed to find pod matching label %q in %q namespace", podLabel, fNamespace))
+
+	By("Waiting until pod(s) is running")
+
+	for _, podOne := range podMatchingSelector {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Waiting 5 minutes for pod %q in %q namespace to be Ready",
+			podOne.Definition.Name, podOne.Definition.Namespace)
+
+		err = podOne.WaitUntilReady(5 * time.Minute)
+		Expect(err).ToNot(HaveOccurred(),
+			fmt.Sprintf("Pod %s in %s namespace isn't running after 5 minutes",
+				podOne.Definition.Name, podOne.Definition.Namespace))
+	}
+
+	By("Reading data from block device")
+
+	for _, podOne := range podMatchingSelector {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Reading data from block device within pod %q in %q namespace",
+			podOne.Definition.Name, podOne.Definition.Namespace)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Resetting command's output buffer")
+
+		podCommandResult.Reset()
+
+		Eventually(func() bool {
+			podCommandResult, err = podOne.ExecCommand(cmdToRun, "one")
+			if err != nil {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to run command on pod %s - %v",
+					podOne.Definition.Name, err)
+
+				return false
+			}
+
+			if podCommandResult.String() == "" {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Empty string received. Retrying")
+
+				return false
+			}
+
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Command's result:\n\t%s",
+				podCommandResult.String())
+
+			return true
+		}).WithContext(ctx).WithPolling(5*time.Second).WithTimeout(1*time.Minute).Should(BeTrue(),
+			fmt.Sprintf("Failed to run command in pod %q", podOne.Definition.Name))
+
+		Expect(podCommandResult.String()).Should(MatchRegexp(verificationRegex), "Command's output doesn't match regex")
+	}
+}
+
+// DeployWorkloadCephRBDBlockPVC Verify workload with CephRBD Block PVC.
+func DeployWorkloadCephRBDBlockPVC(ctx SpecContext) {
+	createWorkloadWithBlockPVC("rds-cephrbd-block-ns", RDSCoreConfig.StorageCephRBDSCName, "rds-cephrbd-block", "Block")
+
+	verificationRegex := regexPartOne + regexPartTwo
+
+	cmdToRun := []string{"/bin/bash", "-c", "dd if=/dev/xvda bs=512 count=1 2>/dev/null"}
+
+	verifyDataOnBlockPVC("rds-cephrbd-block-ns", labelsWlkdBlockString, verificationRegex, cmdToRun)
+}
+
+// VerifyCephRBDBlockPVC Verify workload with CephRBD Block PVC.
+func VerifyCephRBDBlockPVC(ctx SpecContext) {
+	createWorkloadWithBlockPVC("rds-cephrbd-block-ns", RDSCoreConfig.StorageCephRBDSCName, "rds-cephrbd-block", "Block")
+
+	verificationRegex := regexPartOne + regexPartTwo
+
+	cmdToRun := []string{"/bin/bash", "-c", "dd if=/dev/xvda bs=512 count=1 2>/dev/null"}
+
+	verifyDataOnBlockPVC("rds-cephrbd-block-ns", labelsWlkdBlockString, verificationRegex, cmdToRun)
+
+	rescheduleWorkloadWithPVC("rds-cephrbd-block-ns", labelsWlkdBlockString, RDSCoreConfig.StorageODFDeployTwoSelector)
+
+	verifyDataOnBlockPVC("rds-cephrbd-block-ns", labelsWlkdBlockString, verificationRegex, cmdToRun)
+}
+
+// VerifyDataOnCephRBDBlockPVC verify data on CephRBD Block PVC.
+func VerifyDataOnCephRBDBlockPVC(ctx SpecContext) {
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Verify data on CephRBD Block PVC")
+
+	verificationRegex := regexPartOne + regexPartTwo
+
+	cmdToRun := []string{"/bin/bash", "-c", "dd if=/dev/xvda bs=512 count=1 2>/dev/null"}
+
+	verifyDataOnBlockPVC("rds-cephrbd-block-ns", labelsWlkdBlockString, verificationRegex, cmdToRun)
+}
+
 // VefityPersistentStorageSuite container that contains tests for persistent storage verification.
 func VefityPersistentStorageSuite() {
 	Describe(
@@ -647,5 +972,8 @@ func VefityPersistentStorageSuite() {
 
 			It("Verifies CephRBD",
 				Label("odf-cephrbd-pvc"), reportxml.ID("71989"), MustPassRepeatedly(3), VerifyCephRBDPVC)
+
+			It("Verifies CephRBD Block",
+				Label("odf-cephrbd-block-pvc"), reportxml.ID("TBD"), MustPassRepeatedly(3), VerifyCephRBDBlockPVC)
 		})
 }

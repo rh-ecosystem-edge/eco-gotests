@@ -158,6 +158,11 @@ var _ = Describe(
 				Label("persistent-storage", "odf-cephrbd-pvc"), reportxml.ID("71989"), MustPassRepeatedly(3),
 				rdscorecommon.VerifyCephRBDPVC)
 
+			// TODO: Add reportxml.ID for this test
+			It("Verifies CephRBD Block",
+				Label("persistent-storage", "odf-cephrbd-block-pvc"), reportxml.ID("TBD"), MustPassRepeatedly(3),
+				rdscorecommon.VerifyCephRBDBlockPVC)
+
 			It("Verify eIPv4 address from the list of defined used for the assigned pods in a single eIP namespace",
 				Label("egressip", "egressip-ipv4", "egressip-single-ns"), reportxml.ID("78105"),
 				rdscorecommon.VerifyEgressIPOneNamespaceThreeNodesBalancedEIPTrafficIPv4)
