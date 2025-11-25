@@ -25,7 +25,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 
 	Context("Module", Label("in-tree-replace"), func() {
 
-		moduleName := kmmparams.InTreeReplacementNamespace
+		moduleName := "replace"
 		kmodName := "replace"
 		serviceAccountName := "replace-manager"
 		image := fmt.Sprintf("%s/%s/%s:$KERNEL_FULL_VERSION",
