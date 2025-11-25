@@ -23,6 +23,7 @@ const (
 	PingTimeout              = 2 * time.Minute  // Timeout for ping connectivity tests
 	VFResourceTimeout        = 2 * time.Minute  // Timeout for VF resource availability check
 	PolicyApplicationTimeout = 20 * time.Minute // Timeout for SR-IOV policy application (includes MCP update)
+	InterfaceVerifyTimeout   = 30 * time.Second // Timeout for interface verification retries
 	PollingInterval          = 2 * time.Second  // Standard polling interval for wait operations
 	MCPStableInterval        = 30 * time.Second // Polling interval for MachineConfigPool stability checks
 	// Polling intervals for heavier operations (3x standard interval)

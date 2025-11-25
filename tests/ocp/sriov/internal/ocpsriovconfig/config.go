@@ -108,6 +108,12 @@ func (cfg *SriovOcpConfig) SetReportTimestamp(timestamp string) {
 // Format: {reportsDir}/sriov_suite_test_{timestamp}_junit.xml
 // Uses the timestamp set via SetReportTimestamp() if available, otherwise generates a new one.
 func (cfg *SriovOcpConfig) GetJunitReportPath(file string) string {
+	// Validate reports directory path
+	if cfg.ReportsDirAbsPath == "" {
+		// Fall back to current directory if reports path not configured
+		cfg.ReportsDirAbsPath = "."
+	}
+	
 	reportFileName := filepath.Base(file)
 	ext := filepath.Ext(reportFileName)
 	if ext != "" {

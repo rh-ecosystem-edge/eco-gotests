@@ -600,7 +600,7 @@ XML reports are generated automatically with timestamps to preserve each test ru
 - `report_20241125_110530_testrun.xml`
 - `report_20241125_110530_testrun_metadata.txt`
 
-The timestamp format is `YYYYMMDD_HHMMSS` (e.g., `20241125_110530` for November 25, 2024 at 11:05:30).
+The timestamp format is `YYYYMMDD_HHMMSS` (e.g., `20241125_110530` for November 25, 2024, at 11:05:30).
 
 The reports directory is automatically created if it doesn't exist.
 

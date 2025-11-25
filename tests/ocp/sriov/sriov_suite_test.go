@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 
@@ -150,7 +151,15 @@ var _ = ReportAfterSuite("", func(report Report) {
 				podMap[info.PodName] = append(podMap[info.PodName], info)
 			}
 			
-			for podName, containers := range podMap {
+			// Sort pod names for consistent output order
+			podNames := make([]string, 0, len(podMap))
+			for podName := range podMap {
+				podNames = append(podNames, podName)
+			}
+			sort.Strings(podNames)
+			
+			for _, podName := range podNames {
+				containers := podMap[podName]
 				metadataBuilder.WriteString(fmt.Sprintf("\n  Pod: %s\n", podName))
 				for _, container := range containers {
 					metadataBuilder.WriteString(fmt.Sprintf("    Container: %s\n", container.ContainerName))

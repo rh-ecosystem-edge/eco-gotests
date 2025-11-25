@@ -354,6 +354,8 @@ func RemoveSriovNetwork(apiClient *clients.Settings, name, sriovOpNs string, tim
 		_, pullErr := nad.Pull(apiClient, name, targetNamespace)
 		if pullErr != nil {
 			// Check if it's a NotFound error or if the error message indicates the object doesn't exist
+			// Note: nad.Pull may return wrapped errors; we check both standard API error (apierrors.IsNotFound)
+			// and error message string to handle cases where errors are wrapped in the error chain
 			if apierrors.IsNotFound(pullErr) || strings.Contains(pullErr.Error(), "does not exist") {
 				klog.V(90).Infof("NAD %q does not exist (already deleted or never created) in namespace %q", name, targetNamespace)
 				return nil
@@ -1459,7 +1461,7 @@ func verifyPodInterfaces(clientPod, serverPod *pod.Builder) error {
 	err := wait.PollUntilContextTimeout(
 		context.Background(),
 		tsparams.PollingInterval,
-		30*time.Second, // 30 second timeout for retries
+		tsparams.InterfaceVerifyTimeout, // Timeout for interface verification retries
 		true,
 		func(ctx context.Context) (bool, error) {
 			// Check if pod still exists before retrying
@@ -1492,7 +1494,7 @@ func verifyPodInterfaces(clientPod, serverPod *pod.Builder) error {
 	err = wait.PollUntilContextTimeout(
 		context.Background(),
 		tsparams.PollingInterval,
-		30*time.Second, // 30 second timeout for retries
+		tsparams.InterfaceVerifyTimeout, // Timeout for interface verification retries
 		true,
 		func(ctx context.Context) (bool, error) {
 			// Check if pod still exists before retrying
