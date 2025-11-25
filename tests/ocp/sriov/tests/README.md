@@ -188,7 +188,7 @@ export ECO_TEST_LABELS="basic"
 make run-tests
 ```
 
-**Alternative filter: `ocpsriov && basic`** (may still include reinstallation test)
+**Alternative filter: `ocpsriov && basic`** (equivalent to `basic`, runs only the 9 basic tests excluding reinstallation)
 
 ```bash
 export ECO_TEST_LABELS="ocpsriov && basic"

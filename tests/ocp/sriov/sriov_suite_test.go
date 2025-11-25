@@ -15,6 +15,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/reporter"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/ocpsriovinittools"
+	sriovconfig "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/ocpsriovconfig"
 	sriovenv "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/sriovenv"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/tsparams"
 	"k8s.io/klog/v2"
@@ -28,6 +29,10 @@ var (
 )
 
 func TestSriov(t *testing.T) {
+	// Generate timestamp once at suite start for consistent report naming
+	timestamp := sriovconfig.GetTimestamp()
+	SriovOcpConfig.SetReportTimestamp(timestamp)
+	
 	_, reporterConfig := GinkgoConfiguration()
 	reporterConfig.JUnitReport = SriovOcpConfig.GetJunitReportPath(currentFile)
 

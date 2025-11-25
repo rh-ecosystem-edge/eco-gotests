@@ -25,6 +25,7 @@ type SriovOcpConfig struct {
 	OcpSriovOperatorNamespace string `yaml:"sriov_operator_namespace" envconfig:"ECO_OCP_SRIOV_OPERATOR_NAMESPACE"`
 	OcpSriovTestContainer     string `yaml:"ocp_sriov_test_container" envconfig:"ECO_OCP_SRIOV_TEST_CONTAINER"`
 	SriovInterfaces           string `envconfig:"ECO_OCP_SRIOV_SRIOV_INTERFACE_LIST"`
+	reportTimestamp           string // Timestamp generated once at suite start for consistent report naming
 }
 
 // NewSriovOcpConfig returns instance of SriovConfig config type.
@@ -91,8 +92,21 @@ func readEnv(sriovOcpConfig *SriovOcpConfig) error {
 	return nil
 }
 
+// GetTimestamp returns the current timestamp for report generation.
+// This should be called once at suite start and stored for consistent naming across all reports.
+func GetTimestamp() string {
+	return time.Now().Format("20060102_150405")
+}
+
+// SetReportTimestamp sets the report timestamp to be used for all report files.
+// This ensures consistent timestamps across JUnit and test run reports.
+func (cfg *SriovOcpConfig) SetReportTimestamp(timestamp string) {
+	cfg.reportTimestamp = timestamp
+}
+
 // GetJunitReportPath returns full path to the junit report file with timestamp.
 // Format: {reportsDir}/sriov_suite_test_{timestamp}_junit.xml
+// Uses the timestamp set via SetReportTimestamp() if available, otherwise generates a new one.
 func (cfg *SriovOcpConfig) GetJunitReportPath(file string) string {
 	reportFileName := filepath.Base(file)
 	ext := filepath.Ext(reportFileName)
@@ -100,21 +114,28 @@ func (cfg *SriovOcpConfig) GetJunitReportPath(file string) string {
 		reportFileName = reportFileName[:len(reportFileName)-len(ext)]
 	}
 	
-	// Add timestamp to filename: YYYYMMDD_HHMMSS
-	timestamp := time.Now().Format("20060102_150405")
+	// Use stored timestamp if available, otherwise generate new one
+	timestamp := cfg.reportTimestamp
+	if timestamp == "" {
+		timestamp = time.Now().Format("20060102_150405")
+	}
 	
 	return fmt.Sprintf("%s_%s_junit.xml", filepath.Join(cfg.ReportsDirAbsPath, reportFileName), timestamp)
 }
 
 // GetReportPath returns full path to the reportxml file with timestamp.
 // Format: {reportsDir}/report_{timestamp}_testrun.xml
+// Uses the timestamp set via SetReportTimestamp() if available, otherwise generates a new one.
 func (cfg *SriovOcpConfig) GetReportPath() string {
 	if !cfg.EnableReport {
 		return ""
 	}
 	
-	// Add timestamp to filename: YYYYMMDD_HHMMSS
-	timestamp := time.Now().Format("20060102_150405")
+	// Use stored timestamp if available, otherwise generate new one
+	timestamp := cfg.reportTimestamp
+	if timestamp == "" {
+		timestamp = time.Now().Format("20060102_150405")
+	}
 	
 	return fmt.Sprintf("%s_%s_testrun.xml", filepath.Join(cfg.ReportsDirAbsPath, "report"), timestamp)
 }

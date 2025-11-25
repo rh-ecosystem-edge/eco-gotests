@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -1290,6 +1291,7 @@ func ExtractPodInterfaceMAC(podObj *pod.Builder, interfaceName string) (string, 
 // As a result, callers (e.g., verifySpoofCheckOnPod) effectively only verify connectivity,
 // not that spoof checking is really on/off. This is intentional for now as actual verification
 // would require node access (typically via oc debug) which may not be available in all environments.
+// TODO: Implement actual spoof checking verification when node access becomes feasible.
 // Future implementations could add a minimal verification path (e.g., via oc debug or a node-side helper)
 // in environments where that's acceptable.
 func VerifyVFSpoofCheck(nodeName, nicName, podMAC string) error {
@@ -1421,16 +1423,100 @@ func createAndWaitForTestPods(
 	return clientPod, serverPod, nil
 }
 
+// isTransientNetworkError checks if an error (including wrapped errors) is a transient network error
+// that should be retried. It traverses the error chain using errors.Unwrap() to check all levels.
+func isTransientNetworkError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	// Check current error level
+	errStr := err.Error()
+	if strings.Contains(errStr, "use of closed network connection") ||
+		strings.Contains(errStr, "connection refused") ||
+		strings.Contains(errStr, "i/o timeout") ||
+		strings.Contains(errStr, "connection reset") ||
+		strings.Contains(errStr, "error dialing backend") {
+		return true
+	}
+
+	// Unwrap and check nested errors
+	unwrapped := errors.Unwrap(err)
+	if unwrapped != nil {
+		return isTransientNetworkError(unwrapped)
+	}
+
+	return false
+}
+
 // verifyPodInterfaces verifies that both client and server pod interfaces are ready
+// It includes retry logic to handle transient network errors (e.g., kubelet connection issues)
 func verifyPodInterfaces(clientPod, serverPod *pod.Builder) error {
 	klog.V(90).Info("Verifying interface configuration on pods")
-	err := VerifyInterfaceReady(clientPod, "net1", "client")
+
+	// Retry logic for client pod interface verification
+	var clientErr error
+	err := wait.PollUntilContextTimeout(
+		context.Background(),
+		tsparams.PollingInterval,
+		30*time.Second, // 30 second timeout for retries
+		true,
+		func(ctx context.Context) (bool, error) {
+			// Check if pod still exists before retrying
+			if !clientPod.Exists() {
+				return false, fmt.Errorf("client pod no longer exists")
+			}
+
+			clientErr = VerifyInterfaceReady(clientPod, "net1", "client")
+			if clientErr != nil {
+				// Check if it's a transient network error that should be retried
+				if isTransientNetworkError(clientErr) {
+					klog.V(90).Infof("Transient network error verifying client pod interface, will retry: %v", clientErr)
+					return false, nil // Retry
+				}
+				// Non-retryable error
+				return false, clientErr
+			}
+			return true, nil // Success
+		})
+
 	if err != nil {
+		if clientErr != nil {
+			return fmt.Errorf("failed to verify client pod interface: %w", clientErr)
+		}
 		return fmt.Errorf("failed to verify client pod interface: %w", err)
 	}
 
-	err = VerifyInterfaceReady(serverPod, "net1", "server")
+	// Retry logic for server pod interface verification
+	var serverErr error
+	err = wait.PollUntilContextTimeout(
+		context.Background(),
+		tsparams.PollingInterval,
+		30*time.Second, // 30 second timeout for retries
+		true,
+		func(ctx context.Context) (bool, error) {
+			// Check if pod still exists before retrying
+			if !serverPod.Exists() {
+				return false, fmt.Errorf("server pod no longer exists")
+			}
+
+			serverErr = VerifyInterfaceReady(serverPod, "net1", "server")
+			if serverErr != nil {
+				// Check if it's a transient network error that should be retried
+				if isTransientNetworkError(serverErr) {
+					klog.V(90).Infof("Transient network error verifying server pod interface, will retry: %v", serverErr)
+					return false, nil // Retry
+				}
+				// Non-retryable error
+				return false, serverErr
+			}
+			return true, nil // Success
+		})
+
 	if err != nil {
+		if serverErr != nil {
+			return fmt.Errorf("failed to verify server pod interface: %w", serverErr)
+		}
 		return fmt.Errorf("failed to verify server pod interface: %w", err)
 	}
 
