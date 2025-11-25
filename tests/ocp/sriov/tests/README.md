@@ -590,11 +590,49 @@ make run-tests
 
 ### XML Reports
 
-XML reports are generated automatically:
-- JUnit report: `{ECO_REPORTS_DUMP_DIR}/sriov_suite_test_junit.xml` (default: `/tmp/reports/sriov_suite_test_junit.xml`)
-- Test run report: `{ECO_REPORTS_DUMP_DIR}/sriov_testrun.xml` (default: `/tmp/reports/sriov_testrun.xml`)
+XML reports are generated automatically with timestamps to preserve each test run:
+- JUnit report: `{ECO_REPORTS_DUMP_DIR}/sriov_suite_test_{YYYYMMDD_HHMMSS}_junit.xml` (default: `/tmp/reports/sriov_suite_test_{timestamp}_junit.xml`)
+- Test run report: `{ECO_REPORTS_DUMP_DIR}/report_{YYYYMMDD_HHMMSS}_testrun.xml` (default: `/tmp/reports/report_{timestamp}_testrun.xml`)
+- Version metadata: `{ECO_REPORTS_DUMP_DIR}/report_{YYYYMMDD_HHMMSS}_testrun_metadata.txt` (contains OCP and SR-IOV operator versions)
+
+**Example filenames:**
+- `sriov_suite_test_20241125_110530_junit.xml`
+- `report_20241125_110530_testrun.xml`
+- `report_20241125_110530_testrun_metadata.txt`
+
+The timestamp format is `YYYYMMDD_HHMMSS` (e.g., `20241125_110530` for November 25, 2024 at 11:05:30).
 
 The reports directory is automatically created if it doesn't exist.
+
+**Version Information:**
+Each test run generates a metadata file containing:
+- OpenShift cluster version
+- SR-IOV operator version
+- Report generation timestamp
+- SR-IOV operator pod container information (pod name, container name, and image for each container)
+
+**Example metadata file content:**
+```
+OpenShift Cluster Version: 4.16.0
+SR-IOV Operator Version: 4.16.0-20241125120000
+Report Generated: 2024-11-25 11:05:30
+
+SR-IOV Operator Pod Containers:
+
+  Pod: sriov-network-operator-abc123
+    Container: operator
+    Image: quay.io/openshift/origin-sriov-network-operator:4.16
+    Container: network-resources-injector
+    Image: quay.io/openshift/origin-sriov-network-resources-injector:4.16
+    Container: webhook
+    Image: quay.io/openshift/origin-sriov-network-webhook:4.16
+    Container: init-container-name (init)
+    Image: quay.io/openshift/origin-sriov-init:4.16
+```
+
+**Note:** The metadata file includes both regular containers and init containers. Init containers are marked with `(init)` suffix in the container name.
+
+This metadata file is saved alongside the test run report with the same timestamp.
 
 **Important**: The `ECO_REPORTS_DUMP_DIR` environment variable (maps to `ReportsDirAbsPath` in config) must be set to an **absolute path** to ensure JUnit reports are written to the correct location. If not set or set to a relative path, the JUnit report may be written to the test execution directory (e.g., `tests/ocp/sriov/sriov_suite_test_junit.xml`) instead of the reports directory.
 

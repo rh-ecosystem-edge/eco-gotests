@@ -1,6 +1,8 @@
 package sriov
 
 import (
+	"fmt"
+	"os"
 	"runtime"
 	"strings"
 	"testing"
@@ -15,6 +17,7 @@ import (
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/ocpsriovinittools"
 	sriovenv "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/sriovenv"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/tsparams"
+	"k8s.io/klog/v2"
 	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/tests"
 )
 
@@ -86,5 +89,77 @@ var _ = JustAfterEach(func() {
 })
 
 var _ = ReportAfterSuite("", func(report Report) {
-	reportxml.Create(report, SriovOcpConfig.GetReportPath(), SriovOcpConfig.TCPrefix)
+	// Get cluster and operator versions for report metadata
+	var ocpVersion, sriovVersion string
+	var versionErr error
+	
+	ocpVersion, versionErr = sriovenv.GetOCPVersion(APIClient)
+	if versionErr != nil {
+		klog.V(90).Infof("Failed to get OCP version: %v", versionErr)
+		ocpVersion = "unknown"
+	}
+	
+	sriovVersion, versionErr = sriovenv.GetSriovOperatorVersion(APIClient, SriovOcpConfig.OcpSriovOperatorNamespace)
+	if versionErr != nil {
+		klog.V(90).Infof("Failed to get SR-IOV operator version: %v", versionErr)
+		sriovVersion = "unknown"
+	}
+	
+	// Get SR-IOV operator pod container information
+	var containerInfo []sriovenv.PodContainerInfo
+	containerInfo, versionErr = sriovenv.GetSriovOperatorPodContainers(APIClient, SriovOcpConfig.OcpSriovOperatorNamespace)
+	if versionErr != nil {
+		klog.V(90).Infof("Failed to get SR-IOV operator pod containers: %v", versionErr)
+		containerInfo = []sriovenv.PodContainerInfo{}
+	}
+	
+	// Log version information
+	klog.V(90).Infof("Test Report Metadata - OCP Version: %s, SR-IOV Operator Version: %s", ocpVersion, sriovVersion)
+	
+	// Create the report
+	reportPath := SriovOcpConfig.GetReportPath()
+	reportxml.Create(report, reportPath, SriovOcpConfig.TCPrefix)
+	
+	// Write version metadata to a separate file alongside the report
+	// Metadata file format:
+	// - Plain text format for human readability
+	// - Contains: OCP version, SR-IOV operator version, report timestamp, and container information
+	// - Container information is grouped by pod name, showing both regular and init containers
+	// - Format: "Container: <name>" for regular containers, "Container: <name> (init)" for init containers
+	// - Each container entry includes its image
+	// Note: For machine parsing, consider future enhancement to YAML/JSON format
+	// Only create metadata file if report path is available (EnableReport must be true)
+	if reportPath != "" {
+		metadataPath := strings.TrimSuffix(reportPath, ".xml") + "_metadata.txt"
+		
+		var metadataBuilder strings.Builder
+		metadataBuilder.WriteString(fmt.Sprintf("OpenShift Cluster Version: %s\n", ocpVersion))
+		metadataBuilder.WriteString(fmt.Sprintf("SR-IOV Operator Version: %s\n", sriovVersion))
+		metadataBuilder.WriteString(fmt.Sprintf("Report Generated: %s\n", report.EndTime.Format("2006-01-02 15:04:05")))
+		metadataBuilder.WriteString("\nSR-IOV Operator Pod Containers:\n")
+		
+		if len(containerInfo) > 0 {
+			// Group by pod name for better readability
+			podMap := make(map[string][]sriovenv.PodContainerInfo)
+			for _, info := range containerInfo {
+				podMap[info.PodName] = append(podMap[info.PodName], info)
+			}
+			
+			for podName, containers := range podMap {
+				metadataBuilder.WriteString(fmt.Sprintf("\n  Pod: %s\n", podName))
+				for _, container := range containers {
+					metadataBuilder.WriteString(fmt.Sprintf("    Container: %s\n", container.ContainerName))
+					metadataBuilder.WriteString(fmt.Sprintf("    Image: %s\n", container.Image))
+				}
+			}
+		} else {
+			metadataBuilder.WriteString("  (No container information available)\n")
+		}
+		
+		if err := os.WriteFile(metadataPath, []byte(metadataBuilder.String()), 0644); err != nil {
+			klog.V(90).Infof("Failed to write metadata file: %v", err)
+		} else {
+			klog.V(90).Infof("Version metadata written to: %s", metadataPath)
+		}
+	}
 })

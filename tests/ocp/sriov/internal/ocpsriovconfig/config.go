@@ -1,10 +1,12 @@
 package sriovconfig
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/internal/ocpconfig"
@@ -87,4 +89,29 @@ func readEnv(sriovOcpConfig *SriovOcpConfig) error {
 	}
 
 	return nil
+}
+
+// GetJunitReportPath returns full path to the junit report file with timestamp.
+// Format: {reportsDir}/sriov_suite_test_{timestamp}_junit.xml
+func (cfg *SriovOcpConfig) GetJunitReportPath(file string) string {
+	reportFileName := filepath.Base(file)
+	reportFileName = reportFileName[:len(reportFileName)-len(filepath.Ext(reportFileName))]
+	
+	// Add timestamp to filename: YYYYMMDD_HHMMSS
+	timestamp := time.Now().Format("20060102_150405")
+	
+	return fmt.Sprintf("%s_%s_junit.xml", filepath.Join(cfg.ReportsDirAbsPath, reportFileName), timestamp)
+}
+
+// GetReportPath returns full path to the reportxml file with timestamp.
+// Format: {reportsDir}/report_{timestamp}_testrun.xml
+func (cfg *SriovOcpConfig) GetReportPath() string {
+	if !cfg.EnableReport {
+		return ""
+	}
+	
+	// Add timestamp to filename: YYYYMMDD_HHMMSS
+	timestamp := time.Now().Format("20060102_150405")
+	
+	return fmt.Sprintf("%s_%s_testrun.xml", filepath.Join(cfg.ReportsDirAbsPath, "report"), timestamp)
 }
