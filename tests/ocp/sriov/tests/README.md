@@ -133,7 +133,7 @@ export GOTOOLCHAIN=auto
 go test ./tests/ocp/sriov/... -v -ginkgo.v -ginkgo.label-filter="basic" -timeout 60m
 ```
 
-**Alternative filter: `ocpsriov && basic`** (may still include reinstallation test)
+**Alternative filter: `ocpsriov && basic`** (equivalent to `basic`, runs only the 9 basic tests excluding reinstallation)
 
 ```bash
 go test ./tests/ocp/sriov/... -v -ginkgo.v -ginkgo.label-filter="ocpsriov && basic" -timeout 60m
@@ -153,7 +153,7 @@ cd tests/ocp/sriov
 ginkgo -timeout=60m --keep-going --require-suite --label-filter="$ECO_TEST_LABELS" -v .
 ```
 
-**Alternative filter: `ocpsriov && basic`** (may still include reinstallation test)
+**Alternative filter: `ocpsriov && basic`** (equivalent to `basic`, runs only the 9 basic tests excluding reinstallation)
 
 ```bash
 export ECO_TEST_LABELS="ocpsriov && basic"
@@ -354,8 +354,9 @@ The basic test suite includes 9 test cases covering various SR-IOV features:
 
 **Configuration**:
 - VLAN: `100`
-- Min TX rate: `1000` (Mbps)
-- Max TX rate: `2000` (Mbps)
+- VLAN QoS: `2`
+- Min TX rate: `40` (Mbps)
+- Max TX rate: `100` (Mbps)
 - Spoof checking: default
 - Trust: default
 
@@ -424,14 +425,14 @@ The basic test suite includes 9 test cases covering various SR-IOV features:
 - Pod network interface with custom MTU
 
 **Configuration**:
-- MTU: `9000` (jumbo frames)
+- MTU: `1800`
 - Spoof checking: default
 - Trust: default
 - Link state: default
 
 **Expected Behavior**:
 - VF is created successfully
-- Policy MTU is updated to 9000
+- Policy MTU is updated to 1800
 - Network is attached to pod
 - Interface is ready with custom MTU
 - Traffic can pass through the interface

@@ -146,15 +146,20 @@ func CleanupLeftoverResources(apiClient *clients.Settings, sriovOperatorNamespac
 	}
 
 	// Step 2: Clean up leftover SR-IOV networks
+	// WARNING: This cleanup uses name-based heuristics that may match non-test resources in shared clusters.
+	// The cleanup matches:
+	//   - Names starting with 5 digits followed by dash (e.g., "25959-deviceName", "70821-deviceName")
+	//   - Names ending with "dpdknet" (e.g., "deviceNamedpdknet")
+	// In dedicated test clusters this is safe, but in shared or reused environments this could
+	// accidentally delete production resources whose names happen to match these patterns.
+	// For shared clusters, consider:
+	//   - Using a fixed test prefix like "e2e-" or "sriov-test-" on all test resources
+	//   - Adding specific labels to test resources and filtering by labels instead of names
+	//   - Using a more restrictive pattern that includes the test prefix
 	sriovNetworks, err := sriov.List(apiClient, sriovOperatorNamespace, client.ListOptions{})
 	if err != nil {
 		klog.V(90).Infof("Failed to list SriovNetworks for cleanup: %v", err)
 	} else {
-		// Match test network names: 5-digit test case ID followed by dash (e.g., "25959-deviceName", "70821-deviceName")
-		// Also match DPDK network names: device name followed by "dpdknet" (e.g., "deviceNamedpdknet")
-		// Require word characters before "dpdknet" to avoid matching unrelated resources
-		// Note: This is a name-based heuristic. For shared clusters, consider using test labels on SR-IOV networks
-		// or a stricter prefix pattern (e.g., "e2e-" or "sriov-test-") to avoid matching non-test resources.
 		testNetworkPattern := regexp.MustCompile(`^\d{5}-|\w+dpdknet$`)
 		for _, net := range sriovNetworks {
 			networkName := net.Definition.Name
@@ -174,6 +179,10 @@ func CleanupLeftoverResources(apiClient *clients.Settings, sriovOperatorNamespac
 	}
 
 	// Step 3: Clean up leftover SR-IOV policies that might conflict
+	// WARNING: This cleanup matches policies by device name prefixes, which could match non-test policies
+	// in shared clusters. It cleans up policies whose names exactly match or are prefixed by known test
+	// device names (plus "cx5ex" for legacy support). In shared environments, consider using labels
+	// or a stricter naming convention (e.g., "e2e-<deviceName>") to avoid matching production policies.
 	// Clean up policies that match test device names to prevent VF range conflicts
 	sriovPolicies, err := sriov.ListPolicy(apiClient, sriovOperatorNamespace, client.ListOptions{})
 	if err != nil {
@@ -1276,9 +1285,14 @@ func ExtractPodInterfaceMAC(podObj *pod.Builder, interfaceName string) (string, 
 	return "", fmt.Errorf("MAC address not found for interface %q", interfaceName)
 }
 
-// VerifyVFSpoofCheck verifies that spoof checking is active on the VF
-// Note: This function logs diagnostic commands but doesn't execute them on the node
-// Actual verification would require node access which is typically done via oc debug
+// VerifyVFSpoofCheck is a stub function that currently does not perform actual verification.
+// This function validates inputs and logs diagnostic commands but does not execute them on the node
+// or inspect node state to verify that spoof checking is actually enabled/disabled.
+// As a result, callers (e.g., verifySpoofCheckOnPod) effectively only verify connectivity,
+// not that spoof checking is really on/off. This is intentional for now as actual verification
+// would require node access (typically via oc debug) which may not be available in all environments.
+// Future implementations could add a minimal verification path (e.g., via oc debug or a node-side helper)
+// in environments where that's acceptable.
 func VerifyVFSpoofCheck(nodeName, nicName, podMAC string) error {
 	klog.V(90).Infof("Verifying spoof checking is active on node %q for MAC %q (interface: %q)", nodeName, podMAC, nicName)
 

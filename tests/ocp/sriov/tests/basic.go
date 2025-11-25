@@ -19,6 +19,70 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// isNoCarrierError checks if an error indicates a NO-CARRIER condition.
+// This helper centralizes the detection logic for interface errors without physical connection,
+// making it easier to update the condition in the future (e.g., if we introduce a sentinel error).
+func isNoCarrierError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errMsg := err.Error()
+	return strings.Contains(errMsg, "NO-CARRIER") ||
+		strings.Contains(errMsg, "no physical connection")
+}
+
+// runPerDeviceNetworkTest executes a per-device network test with common scaffolding.
+// It handles namespace creation, SR-IOV network setup, cleanup, and NO-CARRIER error handling.
+// The testFunc is called after the network is created and should perform the actual test verification.
+func runPerDeviceNetworkTest(
+	caseID string,
+	data tsparams.DeviceConfig,
+	sriovOpNs string,
+	networkConfig *sriovenv.SriovNetworkConfig,
+	testFunc func(networkName, ns1 string) error,
+) {
+	ns1 := "e2e-" + caseID + data.Name
+	networkName := caseID + data.Name
+
+	By(fmt.Sprintf("Creating test namespace %q", ns1))
+	nsBuilder := namespace.NewBuilder(APIClient, ns1)
+	for key, value := range params.PrivilegedNSLabels {
+		nsBuilder.WithLabel(key, value)
+	}
+	_, err := nsBuilder.Create()
+	Expect(err).ToNot(HaveOccurred(), "Failed to create namespace %q", ns1)
+
+	Eventually(func() bool {
+		return nsBuilder.Exists()
+	}, tsparams.NamespaceTimeout, tsparams.RetryInterval).Should(BeTrue(), "Namespace %q should exist", ns1)
+
+	DeferCleanup(func() {
+		By(fmt.Sprintf("Cleaning up namespace %q", ns1))
+		err := nsBuilder.DeleteAndWait(tsparams.CleanupTimeout)
+		Expect(err).ToNot(HaveOccurred(), "Failed to delete namespace %q", ns1)
+	})
+
+	By(fmt.Sprintf("Creating SR-IOV network %q", networkName))
+	networkConfig.Name = networkName
+	networkConfig.NetworkNamespace = ns1
+	networkConfig.Namespace = sriovOpNs
+	err = sriovenv.CreateSriovNetwork(APIClient, networkConfig, tsparams.WaitTimeout)
+	Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network %q", networkName)
+
+	DeferCleanup(func() {
+		By(fmt.Sprintf("Cleaning up SR-IOV network %q", networkName))
+		err := sriovenv.RemoveSriovNetwork(APIClient, networkName, sriovOpNs, tsparams.DefaultTimeout)
+		Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV network %q", networkName)
+	})
+
+	By("Running test verification")
+	err = testFunc(networkName, ns1)
+	if isNoCarrierError(err) {
+		Skip("Interface has NO-CARRIER status - skipping connectivity test for interface without physical connection")
+	}
+	Expect(err).ToNot(HaveOccurred(), "Test verification failed")
+}
+
 var _ = Describe(
 	"SR-IOV Basic Tests",
 	Ordered,
@@ -83,58 +147,15 @@ var _ = Describe(
 				}
 
 				executed = true
-				func() {
-					ns1 := "e2e-" + caseID + data.Name
-					// Create unique network name with test case ID to avoid conflicts between tests
-					networkName := caseID + data.Name
-
-					By(fmt.Sprintf("Creating test namespace %q", ns1))
-					// Create namespace for the test
-					nsBuilder := namespace.NewBuilder(APIClient, ns1)
-					for key, value := range params.PrivilegedNSLabels {
-						nsBuilder.WithLabel(key, value)
-					}
-					_, err := nsBuilder.Create()
-					Expect(err).ToNot(HaveOccurred(), "Failed to create namespace %q", ns1)
-
-					// Wait for namespace to be ready before proceeding
-					Eventually(func() bool {
-						return nsBuilder.Exists()
-					}, tsparams.NamespaceTimeout, tsparams.RetryInterval).Should(BeTrue(), "Namespace %q should exist", ns1)
-
-					DeferCleanup(func() {
-						By(fmt.Sprintf("Cleaning up namespace %q", ns1))
-						err := nsBuilder.DeleteAndWait(tsparams.CleanupTimeout)
-						Expect(err).ToNot(HaveOccurred(), "Failed to delete namespace %q", ns1)
-					})
-
-					By("Creating SR-IOV network to generate net-attach-def on the target namespace")
-					networkConfig := &sriovenv.SriovNetworkConfig{
-						Name:             networkName,
-						ResourceName:     data.Name,
-						NetworkNamespace: ns1,
-						Namespace:        sriovOpNs,
-						SpoofCheck:       "on",
-						Trust:            "off",
-					}
-
-					err = sriovenv.CreateSriovNetwork(APIClient, networkConfig, tsparams.WaitTimeout)
-					Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network %q", networkName)
-
-					DeferCleanup(func() {
-						By(fmt.Sprintf("Cleaning up SR-IOV network %q", networkName))
-						err := sriovenv.RemoveSriovNetwork(APIClient, networkName, sriovOpNs, tsparams.DefaultTimeout)
-						Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV network %q", networkName)
-					})
-
+				networkConfig := &sriovenv.SriovNetworkConfig{
+					ResourceName: data.Name,
+					SpoofCheck:   "on",
+					Trust:        "off",
+				}
+				runPerDeviceNetworkTest(caseID, data, sriovOpNs, networkConfig, func(networkName, ns1 string) error {
 					By("Verifying VF status with pass traffic")
-					err = sriovenv.CheckVFStatusWithPassTraffic(APIClient, SriovOcpConfig, networkName, data.InterfaceName, ns1, "spoof checking on", tsparams.PodReadyTimeout)
-					// Handle NO-CARRIER status as a skip condition
-					if err != nil && strings.Contains(err.Error(), "NO-CARRIER") {
-						Skip("Interface has NO-CARRIER status - skipping connectivity test for interface without physical connection")
-					}
-					Expect(err).ToNot(HaveOccurred(), "VF status verification failed")
-				}()
+					return sriovenv.CheckVFStatusWithPassTraffic(APIClient, SriovOcpConfig, networkName, data.InterfaceName, ns1, "spoof checking on", tsparams.PodReadyTimeout)
+				})
 			}
 
 			if !executed {
@@ -159,54 +180,15 @@ var _ = Describe(
 				}
 
 				executed = true
-				func() {
-					ns1 := "e2e-" + caseID + data.Name
-					networkName := caseID + data.Name
-
-					By(fmt.Sprintf("Creating test namespace %q", ns1))
-					nsBuilder := namespace.NewBuilder(APIClient, ns1)
-					for key, value := range params.PrivilegedNSLabels {
-						nsBuilder.WithLabel(key, value)
-					}
-					_, err := nsBuilder.Create()
-					Expect(err).ToNot(HaveOccurred(), "Failed to create namespace %q", ns1)
-
-					Eventually(func() bool {
-						return nsBuilder.Exists()
-					}, tsparams.NamespaceTimeout, tsparams.RetryInterval).Should(BeTrue(), "Namespace %q should exist", ns1)
-
-					DeferCleanup(func() {
-						By(fmt.Sprintf("Cleaning up namespace %q", ns1))
-						err := nsBuilder.DeleteAndWait(tsparams.CleanupTimeout)
-						Expect(err).ToNot(HaveOccurred(), "Failed to delete namespace %q", ns1)
-					})
-
-					By("Creating SR-IOV network with spoof checking disabled")
-					networkConfig := &sriovenv.SriovNetworkConfig{
-						Name:             networkName,
-						ResourceName:     data.Name,
-						NetworkNamespace: ns1,
-						Namespace:        sriovOpNs,
-						SpoofCheck:       "off",
-						Trust:            "on",
-					}
-
-					err = sriovenv.CreateSriovNetwork(APIClient, networkConfig, tsparams.WaitTimeout)
-					Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network %q", networkName)
-
-					DeferCleanup(func() {
-						By(fmt.Sprintf("Cleaning up SR-IOV network %q", networkName))
-						err := sriovenv.RemoveSriovNetwork(APIClient, networkName, sriovOpNs, tsparams.DefaultTimeout)
-						Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV network %q", networkName)
-					})
-
+				networkConfig := &sriovenv.SriovNetworkConfig{
+					ResourceName: data.Name,
+					SpoofCheck:   "off",
+					Trust:        "on",
+				}
+				runPerDeviceNetworkTest(caseID, data, sriovOpNs, networkConfig, func(networkName, ns1 string) error {
 					By("Verifying VF status with pass traffic")
-					err = sriovenv.CheckVFStatusWithPassTraffic(APIClient, SriovOcpConfig, networkName, data.InterfaceName, ns1, "spoof checking off", tsparams.PodReadyTimeout)
-					if err != nil && strings.Contains(err.Error(), "NO-CARRIER") {
-						Skip("Interface has NO-CARRIER status - skipping connectivity test for interface without physical connection")
-					}
-					Expect(err).ToNot(HaveOccurred(), "VF status verification failed")
-				}()
+					return sriovenv.CheckVFStatusWithPassTraffic(APIClient, SriovOcpConfig, networkName, data.InterfaceName, ns1, "spoof checking off", tsparams.PodReadyTimeout)
+				})
 			}
 
 			if !executed {
@@ -230,54 +212,15 @@ var _ = Describe(
 				}
 
 				executed = true
-				func() {
-					ns1 := "e2e-" + caseID + data.Name
-					networkName := caseID + data.Name
-
-					By(fmt.Sprintf("Creating test namespace %q", ns1))
-					nsBuilder := namespace.NewBuilder(APIClient, ns1)
-					for key, value := range params.PrivilegedNSLabels {
-						nsBuilder.WithLabel(key, value)
-					}
-					_, err := nsBuilder.Create()
-					Expect(err).ToNot(HaveOccurred(), "Failed to create namespace %q", ns1)
-
-					Eventually(func() bool {
-						return nsBuilder.Exists()
-					}, tsparams.NamespaceTimeout, tsparams.RetryInterval).Should(BeTrue(), "Namespace %q should exist", ns1)
-
-					DeferCleanup(func() {
-						By(fmt.Sprintf("Cleaning up namespace %q", ns1))
-						err := nsBuilder.DeleteAndWait(tsparams.CleanupTimeout)
-						Expect(err).ToNot(HaveOccurred(), "Failed to delete namespace %q", ns1)
-					})
-
-					By("Creating SR-IOV network with trust disabled")
-					networkConfig := &sriovenv.SriovNetworkConfig{
-						Name:             networkName,
-						ResourceName:     data.Name,
-						NetworkNamespace: ns1,
-						Namespace:        sriovOpNs,
-						SpoofCheck:       "off",
-						Trust:            "off",
-					}
-
-					err = sriovenv.CreateSriovNetwork(APIClient, networkConfig, tsparams.WaitTimeout)
-					Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network %q", networkName)
-
-					DeferCleanup(func() {
-						By(fmt.Sprintf("Cleaning up SR-IOV network %q", networkName))
-						err := sriovenv.RemoveSriovNetwork(APIClient, networkName, sriovOpNs, tsparams.DefaultTimeout)
-						Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV network %q", networkName)
-					})
-
+				networkConfig := &sriovenv.SriovNetworkConfig{
+					ResourceName: data.Name,
+					SpoofCheck:   "off",
+					Trust:        "off",
+				}
+				runPerDeviceNetworkTest(caseID, data, sriovOpNs, networkConfig, func(networkName, ns1 string) error {
 					By("Verifying VF status with pass traffic")
-					err = sriovenv.CheckVFStatusWithPassTraffic(APIClient, SriovOcpConfig, networkName, data.InterfaceName, ns1, "trust off", tsparams.PodReadyTimeout)
-					if err != nil && strings.Contains(err.Error(), "NO-CARRIER") {
-						Skip("Interface has NO-CARRIER status - skipping connectivity test for interface without physical connection")
-					}
-					Expect(err).ToNot(HaveOccurred(), "VF status verification failed")
-				}()
+					return sriovenv.CheckVFStatusWithPassTraffic(APIClient, SriovOcpConfig, networkName, data.InterfaceName, ns1, "trust off", tsparams.PodReadyTimeout)
+				})
 			}
 
 			if !executed {
@@ -301,54 +244,15 @@ var _ = Describe(
 				}
 
 				executed = true
-				func() {
-					ns1 := "e2e-" + caseID + data.Name
-					networkName := caseID + data.Name
-
-					By(fmt.Sprintf("Creating test namespace %q", ns1))
-					nsBuilder := namespace.NewBuilder(APIClient, ns1)
-					for key, value := range params.PrivilegedNSLabels {
-						nsBuilder.WithLabel(key, value)
-					}
-					_, err := nsBuilder.Create()
-					Expect(err).ToNot(HaveOccurred(), "Failed to create namespace %q", ns1)
-
-					Eventually(func() bool {
-						return nsBuilder.Exists()
-					}, tsparams.NamespaceTimeout, tsparams.RetryInterval).Should(BeTrue(), "Namespace %q should exist", ns1)
-
-					DeferCleanup(func() {
-						By(fmt.Sprintf("Cleaning up namespace %q", ns1))
-						err := nsBuilder.DeleteAndWait(tsparams.CleanupTimeout)
-						Expect(err).ToNot(HaveOccurred(), "Failed to delete namespace %q", ns1)
-					})
-
-					By("Creating SR-IOV network with trust enabled")
-					networkConfig := &sriovenv.SriovNetworkConfig{
-						Name:             networkName,
-						ResourceName:     data.Name,
-						NetworkNamespace: ns1,
-						Namespace:        sriovOpNs,
-						SpoofCheck:       "on",
-						Trust:            "on",
-					}
-
-					err = sriovenv.CreateSriovNetwork(APIClient, networkConfig, tsparams.WaitTimeout)
-					Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network %q", networkName)
-
-					DeferCleanup(func() {
-						By(fmt.Sprintf("Cleaning up SR-IOV network %q", networkName))
-						err := sriovenv.RemoveSriovNetwork(APIClient, networkName, sriovOpNs, tsparams.DefaultTimeout)
-						Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV network %q", networkName)
-					})
-
+				networkConfig := &sriovenv.SriovNetworkConfig{
+					ResourceName: data.Name,
+					SpoofCheck:   "on",
+					Trust:        "on",
+				}
+				runPerDeviceNetworkTest(caseID, data, sriovOpNs, networkConfig, func(networkName, ns1 string) error {
 					By("Verifying VF status with pass traffic")
-					err = sriovenv.CheckVFStatusWithPassTraffic(APIClient, SriovOcpConfig, networkName, data.InterfaceName, ns1, "trust on", tsparams.PodReadyTimeout)
-					if err != nil && strings.Contains(err.Error(), "NO-CARRIER") {
-						Skip("Interface has NO-CARRIER status - skipping connectivity test for interface without physical connection")
-					}
-					Expect(err).ToNot(HaveOccurred(), "VF status verification failed")
-				}()
+					return sriovenv.CheckVFStatusWithPassTraffic(APIClient, SriovOcpConfig, networkName, data.InterfaceName, ns1, "trust on", tsparams.PodReadyTimeout)
+				})
 			}
 
 			if !executed {
@@ -378,56 +282,17 @@ var _ = Describe(
 				}
 
 				executed = true
-				func() {
-					ns1 := "e2e-" + caseID + data.Name
-					networkName := caseID + data.Name
-
-					By(fmt.Sprintf("Creating test namespace %q", ns1))
-					nsBuilder := namespace.NewBuilder(APIClient, ns1)
-					for key, value := range params.PrivilegedNSLabels {
-						nsBuilder.WithLabel(key, value)
-					}
-					_, err := nsBuilder.Create()
-					Expect(err).ToNot(HaveOccurred(), "Failed to create namespace %q", ns1)
-
-					Eventually(func() bool {
-						return nsBuilder.Exists()
-					}, tsparams.NamespaceTimeout, tsparams.RetryInterval).Should(BeTrue(), "Namespace %q should exist", ns1)
-
-					DeferCleanup(func() {
-						By(fmt.Sprintf("Cleaning up namespace %q", ns1))
-						err := nsBuilder.DeleteAndWait(tsparams.CleanupTimeout)
-						Expect(err).ToNot(HaveOccurred(), "Failed to delete namespace %q", ns1)
-					})
-
-					By("Creating SR-IOV network with VLAN and rate limiting")
-					networkConfig := &sriovenv.SriovNetworkConfig{
-						Name:             networkName,
-						ResourceName:     data.Name,
-						NetworkNamespace: ns1,
-						Namespace:        sriovOpNs,
-						VlanID:           100,
-						VlanQoS:          2,
-						MinTxRate:        40,
-						MaxTxRate:        100,
-					}
-
-					err = sriovenv.CreateSriovNetwork(APIClient, networkConfig, tsparams.WaitTimeout)
-					Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network %q", networkName)
-
-					DeferCleanup(func() {
-						By(fmt.Sprintf("Cleaning up SR-IOV network %q", networkName))
-						err := sriovenv.RemoveSriovNetwork(APIClient, networkName, sriovOpNs, tsparams.DefaultTimeout)
-						Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV network %q", networkName)
-					})
-
+				networkConfig := &sriovenv.SriovNetworkConfig{
+					ResourceName: data.Name,
+					VlanID:       100,
+					VlanQoS:      2,
+					MinTxRate:    40,
+					MaxTxRate:    100,
+				}
+				runPerDeviceNetworkTest(caseID, data, sriovOpNs, networkConfig, func(networkName, ns1 string) error {
 					By("Verifying VF status with pass traffic")
-					err = sriovenv.CheckVFStatusWithPassTraffic(APIClient, SriovOcpConfig, networkName, data.InterfaceName, ns1, "vlan 100, qos 2, tx rate 100 (Mbps), max_tx_rate 100Mbps, min_tx_rate 40Mbps", tsparams.PodReadyTimeout)
-					if err != nil && strings.Contains(err.Error(), "NO-CARRIER") {
-						Skip("Interface has NO-CARRIER status - skipping connectivity test for interface without physical connection")
-					}
-					Expect(err).ToNot(HaveOccurred(), "VF status verification failed")
-				}()
+					return sriovenv.CheckVFStatusWithPassTraffic(APIClient, SriovOcpConfig, networkName, data.InterfaceName, ns1, "vlan 100, qos 2, tx rate 100 (Mbps), max_tx_rate 100Mbps, min_tx_rate 40Mbps", tsparams.PodReadyTimeout)
+				})
 			}
 
 			if !executed {
@@ -451,53 +316,14 @@ var _ = Describe(
 				}
 
 				executed = true
-				func() {
-					ns1 := "e2e-" + caseID + data.Name
-					networkName := caseID + data.Name
-
-					By(fmt.Sprintf("Creating test namespace %q", ns1))
-					nsBuilder := namespace.NewBuilder(APIClient, ns1)
-					for key, value := range params.PrivilegedNSLabels {
-						nsBuilder.WithLabel(key, value)
-					}
-					_, err := nsBuilder.Create()
-					Expect(err).ToNot(HaveOccurred(), "Failed to create namespace %q", ns1)
-
-					Eventually(func() bool {
-						return nsBuilder.Exists()
-					}, tsparams.NamespaceTimeout, tsparams.RetryInterval).Should(BeTrue(), "Namespace %q should exist", ns1)
-
-					DeferCleanup(func() {
-						By(fmt.Sprintf("Cleaning up namespace %q", ns1))
-						err := nsBuilder.DeleteAndWait(tsparams.CleanupTimeout)
-						Expect(err).ToNot(HaveOccurred(), "Failed to delete namespace %q", ns1)
-					})
-
-					By("Creating SR-IOV network with auto link state")
-					networkConfig := &sriovenv.SriovNetworkConfig{
-						Name:             networkName,
-						ResourceName:     data.Name,
-						NetworkNamespace: ns1,
-						Namespace:        sriovOpNs,
-						LinkState:        "auto",
-					}
-
-					err = sriovenv.CreateSriovNetwork(APIClient, networkConfig, tsparams.WaitTimeout)
-					Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network %q", networkName)
-
-					DeferCleanup(func() {
-						By(fmt.Sprintf("Cleaning up SR-IOV network %q", networkName))
-						err := sriovenv.RemoveSriovNetwork(APIClient, networkName, sriovOpNs, tsparams.DefaultTimeout)
-						Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV network %q", networkName)
-					})
-
+				networkConfig := &sriovenv.SriovNetworkConfig{
+					ResourceName: data.Name,
+					LinkState:    "auto",
+				}
+				runPerDeviceNetworkTest(caseID, data, sriovOpNs, networkConfig, func(networkName, ns1 string) error {
 					By("Verifying VF status with pass traffic")
-					err = sriovenv.CheckVFStatusWithPassTraffic(APIClient, SriovOcpConfig, networkName, data.InterfaceName, ns1, "link-state auto", tsparams.PodReadyTimeout)
-					if err != nil && strings.Contains(err.Error(), "NO-CARRIER") {
-						Skip("Interface has NO-CARRIER status - skipping connectivity test for interface without physical connection")
-					}
-					Expect(err).ToNot(HaveOccurred(), "VF status verification failed")
-				}()
+					return sriovenv.CheckVFStatusWithPassTraffic(APIClient, SriovOcpConfig, networkName, data.InterfaceName, ns1, "link-state auto", tsparams.PodReadyTimeout)
+				})
 			}
 
 			if !executed {
@@ -654,7 +480,7 @@ var _ = Describe(
 
 					By("Verifying VF status with pass traffic")
 					err = sriovenv.CheckVFStatusWithPassTraffic(APIClient, SriovOcpConfig, networkName, data.InterfaceName, ns1, fmt.Sprintf("mtu %d", mtuValue), tsparams.PodReadyTimeout)
-					if err != nil && strings.Contains(err.Error(), "NO-CARRIER") {
+					if isNoCarrierError(err) {
 						Skip("Interface has NO-CARRIER status - skipping connectivity test for interface without physical connection")
 					}
 					Expect(err).ToNot(HaveOccurred(), "VF status verification failed")
@@ -734,7 +560,7 @@ var _ = Describe(
 					Eventually(func() error {
 						_, err := nad.Pull(APIClient, networkName, ns1)
 						return err
-					}, tsparams.NamespaceTimeout, tsparams.RetryInterval).ShouldNot(HaveOccurred(), "NAD %q should be ready in namespace %q", networkName, ns1)
+					}, tsparams.NADTimeout, tsparams.PollingInterval).ShouldNot(HaveOccurred(), "NAD %q should be ready in namespace %q", networkName, ns1)
 
 					// Create DPDK test pod
 					By("Creating DPDK test pod")
