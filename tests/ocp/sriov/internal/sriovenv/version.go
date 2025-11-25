@@ -27,8 +27,9 @@ func GetOCPVersion(apiClient *clients.Settings) (string, error) {
 	}
 
 	// Try to get completed version from history first
+	// History is ordered by recency with newest update first (index 0 is most recent)
 	histories := clusterVersion.Object.Status.History
-	for i := len(histories) - 1; i >= 0; i-- {
+	for i := 0; i < len(histories); i++ {
 		if histories[i].State == configv1.CompletedUpdate {
 			version := histories[i].Version
 			klog.V(90).Infof("Found completed cluster version: %s", version)

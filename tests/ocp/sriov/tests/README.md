@@ -612,7 +612,7 @@ Each test run generates a metadata file containing:
 - SR-IOV operator pod container information (pod name, container name, and image for each container)
 
 **Example metadata file content:**
-```
+```text
 OpenShift Cluster Version: 4.16.0
 SR-IOV Operator Version: 4.16.0-20241125120000
 Report Generated: 2024-11-25 11:05:30

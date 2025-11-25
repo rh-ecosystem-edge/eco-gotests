@@ -739,14 +739,13 @@ type SriovNetworkConfig struct {
 }
 
 // CreateSriovNetwork creates a SRIOV network and waits for it to be ready.
-// Note: The timeout parameter is informational only (logged as timeoutHint).
 // Actual waiting behavior is governed by tsparams constants:
 // - NamespaceTimeout for policy verification
 // - NADTimeout for NetworkAttachmentDefinition creation
 // - VFResourceTimeout for VF resource availability
-func CreateSriovNetwork(apiClient *clients.Settings, config *SriovNetworkConfig, timeout time.Duration) error {
-	klog.V(90).Infof("Creating SRIOV network %q in namespace %q (target_namespace: %q, resource: %q, timeoutHint: %v)",
-		config.Name, config.Namespace, config.NetworkNamespace, config.ResourceName, timeout)
+func CreateSriovNetwork(apiClient *clients.Settings, config *SriovNetworkConfig) error {
+	klog.V(90).Infof("Creating SRIOV network %q in namespace %q (target_namespace: %q, resource: %q)",
+		config.Name, config.Namespace, config.NetworkNamespace, config.ResourceName)
 
 	networkBuilder := sriov.NewNetworkBuilder(
 		apiClient,

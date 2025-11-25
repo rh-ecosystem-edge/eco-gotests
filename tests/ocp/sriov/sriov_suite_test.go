@@ -156,10 +156,24 @@ var _ = ReportAfterSuite("", func(report Report) {
 			metadataBuilder.WriteString("  (No container information available)\n")
 		}
 		
-		if err := os.WriteFile(metadataPath, []byte(metadataBuilder.String()), 0644); err != nil {
+		if err := os.WriteFile(metadataPath, []byte(metadataBuilder.String()), 0600); err != nil {
 			klog.V(90).Infof("Failed to write metadata file: %v", err)
 		} else {
 			klog.V(90).Infof("Version metadata written to: %s", metadataPath)
 		}
 	}
+	
+	// Print report file locations for visibility in test logs
+	junitReportPath := SriovOcpConfig.GetJunitReportPath(currentFile)
+	fmt.Printf("\n=== Test Report Files ===\n")
+	fmt.Printf("JUnit Report: %s\n", junitReportPath)
+	if reportPath != "" {
+		fmt.Printf("Test Run Report: %s\n", reportPath)
+		metadataPath := strings.TrimSuffix(reportPath, ".xml") + "_metadata.txt"
+		fmt.Printf("Metadata File: %s\n", metadataPath)
+	} else {
+		fmt.Printf("Test Run Report: (disabled - set ECO_ENABLE_REPORT=true to enable)\n")
+		fmt.Printf("Metadata File: (disabled - set ECO_ENABLE_REPORT=true to enable)\n")
+	}
+	fmt.Printf("========================\n\n")
 })

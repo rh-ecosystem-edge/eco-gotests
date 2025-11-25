@@ -95,7 +95,10 @@ func readEnv(sriovOcpConfig *SriovOcpConfig) error {
 // Format: {reportsDir}/sriov_suite_test_{timestamp}_junit.xml
 func (cfg *SriovOcpConfig) GetJunitReportPath(file string) string {
 	reportFileName := filepath.Base(file)
-	reportFileName = reportFileName[:len(reportFileName)-len(filepath.Ext(reportFileName))]
+	ext := filepath.Ext(reportFileName)
+	if ext != "" {
+		reportFileName = reportFileName[:len(reportFileName)-len(ext)]
+	}
 	
 	// Add timestamp to filename: YYYYMMDD_HHMMSS
 	timestamp := time.Now().Format("20060102_150405")
