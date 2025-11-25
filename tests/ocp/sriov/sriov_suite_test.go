@@ -171,7 +171,7 @@ var _ = ReportAfterSuite("", func(report Report) {
 		}
 		
 		if err := os.WriteFile(metadataPath, []byte(metadataBuilder.String()), 0600); err != nil {
-			klog.V(90).Infof("Failed to write metadata file: %v", err)
+			klog.Errorf("Failed to write metadata file %s: %v", metadataPath, err)
 		} else {
 			klog.V(90).Infof("Version metadata written to: %s", metadataPath)
 		}

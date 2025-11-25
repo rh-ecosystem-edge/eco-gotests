@@ -173,10 +173,9 @@ func CleanupLeftoverResources(apiClient *clients.Settings, sriovOperatorNamespac
 				}
 			}
 		}
-		// Wait a short time for network deletions to propagate before cleaning up policies
-		// This prevents race conditions where policies might still reference deleted networks
-		// Use PollingInterval as it matches the propagation delay needed
-		time.Sleep(tsparams.PollingInterval)
+		// Note: Network deletions are asynchronous. If policies reference deleted networks,
+		// the policy cleanup below will handle any remaining dependencies.
+		// No explicit sleep needed - Kubernetes handles propagation.
 	}
 
 	// Step 3: Clean up leftover SR-IOV policies that might conflict
@@ -631,12 +630,11 @@ func WaitForSriovAndMCPStable(
 		return true, nil
 	})
 
-	if err != nil && err != context.DeadlineExceeded {
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return fmt.Errorf("timeout waiting for SRIOV and MCP to be stable after %v", timeout)
+		}
 		return fmt.Errorf("failed waiting for SRIOV and MCP stability: %w", err)
-	}
-
-	if err == context.DeadlineExceeded {
-		return fmt.Errorf("timeout waiting for SRIOV and MCP to be stable after %v", timeout)
 	}
 
 	return nil
@@ -1813,9 +1811,7 @@ func UpdateSriovPolicyMTU(apiClient *clients.Settings, policyName, sriovOpNs str
 		return fmt.Errorf("failed to update SR-IOV policy %q with MTU %d: %w", policyName, mtuValue, err)
 	}
 
-	// Update the builder's Object reference
-	policyBuilder.Object = updatedPolicy.Object
-
+	_ = updatedPolicy // Acknowledge successful update
 	klog.V(90).Infof("SR-IOV policy %q successfully updated with MTU %d", policyName, mtuValue)
 	return nil
 }
