@@ -791,7 +791,8 @@ func VerifyVFResourcesAvailable(
 	}
 
 	if config == nil {
-		return false, fmt.Errorf("config is nil - cannot verify VF resources")
+		// Match CreateSriovNetwork's hard-error detection on "cannot be nil"
+		return false, fmt.Errorf("SriovOcpConfig cannot be nil, cannot verify VF resources")
 	}
 
 	// Normalize worker label to ensure it's in the correct format for label selector
@@ -799,7 +800,8 @@ func VerifyVFResourcesAvailable(
 
 	// Guard against empty worker label to prevent scanning all nodes (including masters)
 	if normalizedLabel == "" {
-		return false, fmt.Errorf("OcpWorkerLabel is empty - cannot determine worker nodes")
+		// Match CreateSriovNetwork's hard-error detection on "worker label is empty"
+		return false, fmt.Errorf("worker label is empty (OcpWorkerLabel) - cannot determine worker nodes")
 	}
 
 	// Get all worker nodes

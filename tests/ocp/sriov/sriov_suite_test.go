@@ -20,6 +20,7 @@ import (
 	sriovenv "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/sriovenv"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/tsparams"
 	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/tests"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/klog/v2"
 )
 
@@ -60,8 +61,33 @@ var _ = BeforeSuite(func() {
 	for key, value := range params.PrivilegedNSLabels {
 		testNS.WithLabel(key, value)
 	}
+
 	_, err = testNS.Create()
-	Expect(err).ToNot(HaveOccurred(), "Failed to create test namespace %q", testNS.Definition.Name)
+	if err != nil {
+		// Handle pre-existing namespace from previous partial failures
+		if apierrors.IsAlreadyExists(err) {
+			klog.V(90).Infof("Test namespace %q already exists, deleting and recreating", tsparams.TestNamespaceName)
+
+			// Pull the existing namespace so we can delete it
+			existingNS, pullErr := namespace.Pull(APIClient, tsparams.TestNamespaceName)
+			Expect(pullErr).ToNot(HaveOccurred(), "Failed to pull existing test namespace %q", tsparams.TestNamespaceName)
+
+			// Delete the existing namespace
+			deleteErr := existingNS.DeleteAndWait(tsparams.DefaultTimeout)
+			Expect(deleteErr).ToNot(HaveOccurred(), "Failed to delete existing test namespace %q", tsparams.TestNamespaceName)
+
+			// Recreate the namespace with fresh state
+			testNS = namespace.NewBuilder(APIClient, tsparams.TestNamespaceName)
+			for key, value := range params.PrivilegedNSLabels {
+				testNS.WithLabel(key, value)
+			}
+
+			_, err = testNS.Create()
+			Expect(err).ToNot(HaveOccurred(), "Failed to recreate test namespace %q", tsparams.TestNamespaceName)
+		} else {
+			Fail(fmt.Sprintf("Failed to create test namespace %q: %v", tsparams.TestNamespaceName, err))
+		}
+	}
 
 	By("Verifying if sriov tests can be executed on given cluster")
 	err = sriovoperator.IsSriovDeployed(APIClient, SriovOcpConfig.OcpSriovOperatorNamespace)
