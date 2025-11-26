@@ -482,8 +482,7 @@ func rescheduleWorkloadWithPVC(fNamespace, fPodLabel string, fNodeSelector map[s
 			podOne.Definition.Name, podOne.Definition.Namespace))
 }
 
-//nolint:unparam
-func verifyDataOnPVC(fNamespace, podLabel, verificationRegex string, cmdToRun []string) {
+func verifyDataOnStorage(fNamespace, podLabel, verificationRegex string, cmdToRun []string, dataSourceDesc string) {
 	By(fmt.Sprintf("Getting pod(s) matching selector %q", podLabel))
 
 	var (
@@ -532,11 +531,11 @@ func verifyDataOnPVC(fNamespace, podLabel, verificationRegex string, cmdToRun []
 				podOne.Definition.Name, podOne.Definition.Namespace))
 	}
 
-	By("Reading data from persistent storage")
+	By(fmt.Sprintf("Reading data from %s", dataSourceDesc))
 
 	for _, podOne := range podMatchingSelector {
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Reading data from within pod %q in %q namespace",
-			podOne.Definition.Name, podOne.Definition.Namespace)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Reading data from %s within pod %q in %q namespace",
+			dataSourceDesc, podOne.Definition.Name, podOne.Definition.Namespace)
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Resetting command's output buffer")
 
 		podCommandResult.Reset()
@@ -565,6 +564,11 @@ func verifyDataOnPVC(fNamespace, podLabel, verificationRegex string, cmdToRun []
 
 		Expect(podCommandResult.String()).Should(MatchRegexp(verificationRegex), "Command's output doesn't match regex")
 	}
+}
+
+//nolint:unparam
+func verifyDataOnPVC(fNamespace, podLabel, verificationRegex string, cmdToRun []string) {
+	verifyDataOnStorage(fNamespace, podLabel, verificationRegex, cmdToRun, "persistent storage")
 }
 
 // DeployWorkflowCephFSPVC Verify workload with CephFS PVC.
@@ -845,87 +849,7 @@ func createWorkloadWithBlockPVC(fNamespace string, fStorageClass string, fPVCNam
 
 //nolint:unparam
 func verifyDataOnBlockPVC(fNamespace, podLabel, verificationRegex string, cmdToRun []string) {
-	By(fmt.Sprintf("Getting pod(s) matching selector %q", podLabel))
-
-	var (
-		podMatchingSelector []*pod.Builder
-		err                 error
-		ctx                 SpecContext
-		podCommandResult    bytes.Buffer
-	)
-
-	podOneSelector := metav1.ListOptions{
-		LabelSelector: podLabel,
-	}
-
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Looking for pods with label %q in %q namespace",
-		podLabel, fNamespace)
-
-	Eventually(func() bool {
-		podMatchingSelector, err = pod.List(APIClient, fNamespace, podOneSelector)
-		if err != nil {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods in %q namespace: %v",
-				fNamespace, err)
-
-			return false
-		}
-
-		if len(podMatchingSelector) == 0 {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found 0 pods matching label %q in namespace %q",
-				podLabel, fNamespace)
-
-			return false
-		}
-
-		return true
-	}).WithContext(ctx).WithPolling(15*time.Second).WithTimeout(5*time.Minute).Should(BeTrue(),
-		fmt.Sprintf("Failed to find pod matching label %q in %q namespace", podLabel, fNamespace))
-
-	By("Waiting until pod(s) is running")
-
-	for _, podOne := range podMatchingSelector {
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Waiting 5 minutes for pod %q in %q namespace to be Ready",
-			podOne.Definition.Name, podOne.Definition.Namespace)
-
-		err = podOne.WaitUntilReady(5 * time.Minute)
-		Expect(err).ToNot(HaveOccurred(),
-			fmt.Sprintf("Pod %s in %s namespace isn't running after 5 minutes",
-				podOne.Definition.Name, podOne.Definition.Namespace))
-	}
-
-	By("Reading data from block device")
-
-	for _, podOne := range podMatchingSelector {
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Reading data from block device within pod %q in %q namespace",
-			podOne.Definition.Name, podOne.Definition.Namespace)
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Resetting command's output buffer")
-
-		podCommandResult.Reset()
-
-		Eventually(func() bool {
-			podCommandResult, err = podOne.ExecCommand(cmdToRun, "one")
-			if err != nil {
-				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to run command on pod %s - %v",
-					podOne.Definition.Name, err)
-
-				return false
-			}
-
-			if podCommandResult.String() == "" {
-				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Empty string received. Retrying")
-
-				return false
-			}
-
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Command's result:\n\t%s",
-				podCommandResult.String())
-
-			return true
-		}).WithContext(ctx).WithPolling(5*time.Second).WithTimeout(1*time.Minute).Should(BeTrue(),
-			fmt.Sprintf("Failed to run command in pod %q", podOne.Definition.Name))
-
-		Expect(podCommandResult.String()).Should(MatchRegexp(verificationRegex), "Command's output doesn't match regex")
-	}
+	verifyDataOnStorage(fNamespace, podLabel, verificationRegex, cmdToRun, "block device")
 }
 
 // DeployWorkloadCephRBDBlockPVC Verify workload with CephRBD Block PVC.
