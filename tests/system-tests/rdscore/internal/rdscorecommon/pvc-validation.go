@@ -156,7 +156,7 @@ func createWorkloadWithPVC(fNamespace string, fStorageClass string, fPVCName str
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to create test namespace %s", fNamespace))
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Namespace %q created", workloadNS.Object.Name)
 
-	myPVC := createPVC(fPVCName, fNamespace, fStorageClass, fVolumeMode, "5G")
+	myPVC := createPVC(fPVCName, fNamespace, fStorageClass, fVolumeMode, "1G")
 
 	By("Waiting for PVC to report phase")
 	Eventually(func(phase string) bool {
