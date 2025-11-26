@@ -114,19 +114,19 @@ func (cfg *SriovOcpConfig) GetJunitReportPath(file string) string {
 		// Fall back to current directory if reports path not configured
 		reportsDir = "."
 	}
-	
+
 	reportFileName := filepath.Base(file)
 	ext := filepath.Ext(reportFileName)
 	if ext != "" {
 		reportFileName = reportFileName[:len(reportFileName)-len(ext)]
 	}
-	
+
 	// Use stored timestamp if available, otherwise generate new one
 	timestamp := cfg.reportTimestamp
 	if timestamp == "" {
 		timestamp = time.Now().Format("20060102_150405")
 	}
-	
+
 	return fmt.Sprintf("%s_%s_junit.xml", filepath.Join(reportsDir, reportFileName), timestamp)
 }
 
@@ -137,12 +137,12 @@ func (cfg *SriovOcpConfig) GetReportPath() string {
 	if !cfg.EnableReport {
 		return ""
 	}
-	
+
 	// Use stored timestamp if available, otherwise generate new one
 	timestamp := cfg.reportTimestamp
 	if timestamp == "" {
 		timestamp = time.Now().Format("20060102_150405")
 	}
-	
+
 	return fmt.Sprintf("%s_%s_testrun.xml", filepath.Join(cfg.ReportsDirAbsPath, "report"), timestamp)
 }

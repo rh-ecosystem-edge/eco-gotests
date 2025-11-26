@@ -25,18 +25,24 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// Note: IsSriovDeployed is now in tests/internal/sriovoperator package
-// This function is kept for backward compatibility but should use sriovoperator.IsSriovDeployed instead
-// Deprecated: Use sriovoperator.IsSriovDeployed instead
+// IsSriovDeployed checks if SR-IOV operator is deployed in the given namespace.
+// This function is kept for backward compatibility but should use sriovoperator.IsSriovDeployed instead.
+//
+// Deprecated: Use sriovoperator.IsSriovDeployed instead.
 func IsSriovDeployed(apiClient *clients.Settings, config interface{}) error {
 	var namespace string
+
 	switch c := config.(type) {
 	case *sriovconfig.SriovOcpConfig:
+		if c == nil {
+			return fmt.Errorf("sriov config cannot be nil")
+		}
 		namespace = c.OcpSriovOperatorNamespace
 	default:
 		return fmt.Errorf("unsupported config type")
@@ -56,14 +62,16 @@ func PullTestImageOnNodes(apiClient *clients.Settings, nodeSelector, image strin
 	if apiClient == nil {
 		klog.V(90).Info("API client is nil in PullTestImageOnNodes; continuing because image pull is deferred to kubelet")
 	}
+
 	klog.V(90).Infof(
 		"Image pulling deferred to pod creation. Image: %q, nodeSelector: %q, pullTimeoutSeconds: %d. "+
 			"Images will be pulled on first pod creation; this may take extra time on first pod launch.",
 		image, nodeSelector, pullTimeout)
+
 	return nil
 }
 
-// CleanAllNetworksByTargetNamespace cleans all networks by target namespace
+// CleanAllNetworksByTargetNamespace cleans all networks by target namespace.
 func CleanAllNetworksByTargetNamespace(apiClient *clients.Settings, sriovOpNs, targetNs string) error {
 	klog.V(90).Infof("Cleaning up SR-IOV networks for target namespace %q (operator_namespace: %q)", targetNs, sriovOpNs)
 
@@ -77,6 +85,7 @@ func CleanAllNetworksByTargetNamespace(apiClient *clients.Settings, sriovOpNs, t
 	}
 
 	networksCleaned := 0
+
 	for _, network := range sriovNetworks {
 		// Check if this network targets the given namespace
 		// SR-IOV networks have a networkNamespace field that indicates the target namespace
@@ -91,6 +100,7 @@ func CleanAllNetworksByTargetNamespace(apiClient *clients.Settings, sriovOpNs, t
 		err := network.Delete()
 		if err != nil && !apierrors.IsNotFound(err) {
 			klog.V(90).Infof("Error deleting SR-IOV network %q: %v", network.Definition.Name, err)
+
 			continue
 		}
 
@@ -98,9 +108,11 @@ func CleanAllNetworksByTargetNamespace(apiClient *clients.Settings, sriovOpNs, t
 
 		// Also delete the corresponding NetworkAttachmentDefinition in the target namespace
 		nadName := network.Definition.Name
+
 		nadBuilder := nad.NewBuilder(apiClient, nadName, targetNs)
 		if nadBuilder.Exists() {
 			klog.V(90).Infof("Deleting NetworkAttachmentDefinition %q in namespace %q", nadName, targetNs)
+
 			err := nadBuilder.Delete()
 			if err != nil && !apierrors.IsNotFound(err) {
 				klog.V(90).Infof("Error deleting NetworkAttachmentDefinition %q: %v", nadName, err)
@@ -117,120 +129,108 @@ func CleanAllNetworksByTargetNamespace(apiClient *clients.Settings, sriovOpNs, t
 	return nil
 }
 
-// CleanupLeftoverResources cleans up any leftover resources from previous failed test runs
-// This should be called at the beginning of the test suite to ensure a clean state
-func CleanupLeftoverResources(apiClient *clients.Settings, sriovOperatorNamespace string) error {
-	klog.V(90).Info("Starting cleanup of leftover resources from previous test runs")
-
-	// Step 1: Clean up leftover e2e test namespaces
+// cleanupTestNamespaces removes leftover e2e test namespaces.
+func cleanupTestNamespaces(apiClient *clients.Settings) error {
 	namespaceList, err := namespace.List(apiClient, metav1.ListOptions{})
 	if err != nil {
-		klog.V(90).Infof("Failed to list namespaces for cleanup: %v", err)
-		return fmt.Errorf("failed to list namespaces for cleanup: %w", err)
+		return fmt.Errorf("failed to list namespaces: %w", err)
 	}
 
-	for _, ns := range namespaceList {
-		// Look for test namespaces created by previous runs
-		if strings.HasPrefix(ns.Definition.Name, "e2e-") {
-			klog.V(90).Infof("Removing leftover test namespace %q", ns.Definition.Name)
+	for _, nsBuilder := range namespaceList {
+		if strings.HasPrefix(nsBuilder.Definition.Name, "e2e-") {
+			klog.V(90).Infof("Removing leftover namespace %q", nsBuilder.Definition.Name)
 
-			// Try to delete with reasonable timeout
-			deleteErr := ns.DeleteAndWait(tsparams.CleanupTimeout)
-			if deleteErr != nil {
-				klog.V(90).Infof("Failed to delete leftover namespace %q (continuing cleanup): %v", ns.Definition.Name, deleteErr)
-
-				// Try force delete as fallback
-				if forceDeleteErr := ns.Delete(); forceDeleteErr != nil {
-					klog.V(90).Infof("Failed to force delete leftover namespace %q: %v", ns.Definition.Name, forceDeleteErr)
-				}
+			if err := nsBuilder.DeleteAndWait(tsparams.CleanupTimeout); err != nil {
+				_ = nsBuilder.Delete() // Try force delete
 			}
 		}
 	}
 
-	// Step 2: Clean up leftover SR-IOV networks
-	// WARNING: This cleanup uses name-based heuristics that may match non-test resources in shared clusters.
-	// The cleanup matches:
-	//   - Names starting with 5 digits followed by dash (e.g., "25959-deviceName", "70821-deviceName")
-	//   - Names ending with "dpdknet" (e.g., "deviceNamedpdknet")
-	// In dedicated test clusters this is safe, but in shared or reused environments this could
-	// accidentally delete production resources whose names happen to match these patterns.
-	// For shared clusters, consider:
-	//   - Using a fixed test prefix like "e2e-" or "sriov-test-" on all test resources
-	//   - Adding specific labels to test resources and filtering by labels instead of names
-	//   - Using a more restrictive pattern that includes the test prefix
-	sriovNetworks, err := sriov.List(apiClient, sriovOperatorNamespace, client.ListOptions{})
-	if err != nil {
-		klog.V(90).Infof("Failed to list SriovNetworks for cleanup: %v", err)
-	} else {
-		testNetworkPattern := regexp.MustCompile(`^\d{5}-|\w+dpdknet$`)
-		for _, net := range sriovNetworks {
-			networkName := net.Definition.Name
-			if testNetworkPattern.MatchString(networkName) {
-				klog.V(90).Infof("Removing leftover SR-IOV network %q (matches test network pattern)", networkName)
-
-				err := net.Delete()
-				if err != nil {
-					klog.V(90).Infof("Failed to delete leftover SR-IOV network %q (continuing cleanup): %v", networkName, err)
-				}
-			}
-		}
-		// Note: Network deletions are asynchronous. If policies reference deleted networks,
-		// the policy cleanup below will handle any remaining dependencies.
-		// No explicit sleep needed - Kubernetes handles propagation.
-	}
-
-	// Step 3: Clean up leftover SR-IOV policies that might conflict
-	// WARNING: This cleanup matches policies by device name prefixes, which could match non-test policies
-	// in shared clusters. It cleans up policies whose names exactly match or are prefixed by known test
-	// device names (plus "cx5ex" for legacy support). In shared environments, consider using labels
-	// or a stricter naming convention (e.g., "e2e-<deviceName>") to avoid matching production policies.
-	// Clean up policies that match test device names to prevent VF range conflicts
-	sriovPolicies, err := sriov.ListPolicy(apiClient, sriovOperatorNamespace, client.ListOptions{})
-	if err != nil {
-		klog.V(90).Infof("Failed to list SriovNetworkNodePolicies for cleanup: %v", err)
-	} else {
-		// Get test device names from configuration (supports both env var and defaults)
-		deviceConfigs := tsparams.GetDeviceConfig()
-		testDeviceNames := make([]string, 0, len(deviceConfigs))
-		deviceNameMap := make(map[string]bool)
-		for _, device := range deviceConfigs {
-			testDeviceNames = append(testDeviceNames, device.Name)
-			deviceNameMap[device.Name] = true
-		}
-		// Include "cx5ex" if not already in config (legacy device name that may be used in some test environments)
-		// This ensures cleanup covers all possible test device names without requiring config changes
-		if !deviceNameMap["cx5ex"] {
-			testDeviceNames = append(testDeviceNames, "cx5ex")
-		}
-		for _, policy := range sriovPolicies {
-			policyName := policy.Definition.Name
-			// Check if policy name matches a test device name (exact match or with suffix)
-			shouldCleanup := false
-			for _, deviceName := range testDeviceNames {
-				if policyName == deviceName || strings.HasPrefix(policyName, deviceName) {
-					shouldCleanup = true
-					break
-				}
-			}
-			if shouldCleanup {
-				klog.V(90).Infof("Removing leftover SR-IOV policy %q to prevent VF range conflicts", policyName)
-				err := policy.Delete()
-				if err != nil {
-					klog.V(90).Infof("Failed to delete leftover SR-IOV policy %q (continuing cleanup): %v", policyName, err)
-				} else {
-					// Policy deletion initiated - Kubernetes will handle it asynchronously
-					// No need to sleep - the deletion will be processed by the API server
-				}
-			}
-		}
-	}
-
-	// Step 4: Log cleanup summary
-	klog.V(90).Info("Cleanup of leftover resources completed")
 	return nil
 }
 
-// RemoveSriovPolicy removes a SRIOV policy by name if it exists
+// cleanupTestNetworks removes leftover SR-IOV networks matching test patterns.
+func cleanupTestNetworks(apiClient *clients.Settings, sriovOpNs string) {
+	networks, err := sriov.List(apiClient, sriovOpNs, client.ListOptions{})
+	if err != nil {
+		klog.V(90).Infof("Failed to list networks for cleanup: %v", err)
+
+		return
+	}
+
+	pattern := regexp.MustCompile(`^\d{5}-|\w+dpdknet$`)
+
+	for _, net := range networks {
+		if pattern.MatchString(net.Definition.Name) {
+			klog.V(90).Infof("Removing leftover network %q", net.Definition.Name)
+			_ = net.Delete()
+		}
+	}
+}
+
+// getTestDeviceNames returns the list of test device names for cleanup.
+func getTestDeviceNames() []string {
+	deviceConfigs := tsparams.GetDeviceConfig()
+	names := make([]string, 0, len(deviceConfigs)+1)
+	seen := make(map[string]bool)
+
+	for _, device := range deviceConfigs {
+		names = append(names, device.Name)
+		seen[device.Name] = true
+	}
+
+	// Include legacy device name
+	if !seen["cx5ex"] {
+		names = append(names, "cx5ex")
+	}
+
+	return names
+}
+
+// cleanupTestPolicies removes leftover SR-IOV policies matching test device names.
+func cleanupTestPolicies(apiClient *clients.Settings, sriovOpNs string) {
+	policies, err := sriov.ListPolicy(apiClient, sriovOpNs, client.ListOptions{})
+	if err != nil {
+		klog.V(90).Infof("Failed to list policies for cleanup: %v", err)
+
+		return
+	}
+
+	deviceNames := getTestDeviceNames()
+
+	for _, policy := range policies {
+		policyName := policy.Definition.Name
+
+		for _, deviceName := range deviceNames {
+			if policyName == deviceName || strings.HasPrefix(policyName, deviceName) {
+				klog.V(90).Infof("Removing leftover policy %q", policyName)
+
+				_ = policy.Delete()
+
+				break
+			}
+		}
+	}
+}
+
+// CleanupLeftoverResources cleans up any leftover resources from previous failed test runs.
+// This should be called at the beginning of the test suite to ensure a clean state.
+func CleanupLeftoverResources(apiClient *clients.Settings, sriovOperatorNamespace string) error {
+	klog.V(90).Info("Starting cleanup of leftover resources")
+
+	if err := cleanupTestNamespaces(apiClient); err != nil {
+		return err
+	}
+
+	cleanupTestNetworks(apiClient, sriovOperatorNamespace)
+	cleanupTestPolicies(apiClient, sriovOperatorNamespace)
+
+	klog.V(90).Info("Cleanup completed")
+
+	return nil
+}
+
+// RemoveSriovPolicy removes a SRIOV policy by name if it exists.
 func RemoveSriovPolicy(apiClient *clients.Settings, name, sriovOpNs string, timeout time.Duration) error {
 	klog.V(90).Infof("Removing SRIOV policy %q if it exists in namespace %q", name, sriovOpNs)
 
@@ -239,6 +239,7 @@ func RemoveSriovPolicy(apiClient *clients.Settings, name, sriovOpNs string, time
 	if err != nil {
 		// Policy doesn't exist, which is fine
 		klog.V(90).Infof("SRIOV policy %q does not exist, skipping deletion: %v", name, err)
+
 		return nil
 	}
 
@@ -249,6 +250,7 @@ func RemoveSriovPolicy(apiClient *clients.Settings, name, sriovOpNs string, time
 
 	// Wait for policy to be deleted using wait.PollUntilContextTimeout
 	klog.V(90).Infof("Waiting for SRIOV policy %q to be deleted", name)
+
 	err = wait.PollUntilContextTimeout(
 		context.Background(),
 		tsparams.PollingInterval,
@@ -256,174 +258,199 @@ func RemoveSriovPolicy(apiClient *clients.Settings, name, sriovOpNs string, time
 		true,
 		func(ctx context.Context) (bool, error) {
 			_, err := sriov.PullPolicy(apiClient, name, sriovOpNs)
-			// Policy is deleted when PullPolicy returns an error (not found)
-			return err != nil, nil
+			if apierrors.IsNotFound(err) {
+				return true, nil
+			}
+			if err != nil {
+				klog.V(90).Infof("Temporary error checking SRIOV policy %q deletion, will retry: %v", name, err)
+				return false, nil
+			}
+			// Policy still exists
+			return false, nil
 		})
-
 	if err != nil {
 		return fmt.Errorf("timeout waiting for SRIOV policy %q to be deleted from namespace %q: %w", name, sriovOpNs, err)
 	}
 
 	klog.V(90).Infof("SRIOV policy %q successfully deleted", name)
+
 	return nil
 }
 
-// RemoveSriovNetwork removes a SRIOV network by name from the operator namespace
-func RemoveSriovNetwork(apiClient *clients.Settings, name, sriovOpNs string, timeout time.Duration) error {
-	klog.V(90).Infof("Removing SRIOV network %q from namespace %q", name, sriovOpNs)
-
-	// Use List to find the network by name
-	listOptions := client.ListOptions{}
-	sriovNetworks, err := sriov.List(apiClient, sriovOpNs, listOptions)
+// findSriovNetwork finds a SRIOV network by name and returns its target namespace.
+func findSriovNetwork(
+	apiClient *clients.Settings,
+	name, sriovOpNs string,
+) (*sriov.NetworkBuilder, string, error) {
+	networks, err := sriov.List(apiClient, sriovOpNs, client.ListOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to list SRIOV networks in namespace %q: %w", sriovOpNs, err)
+		return nil, "", fmt.Errorf("failed to list networks: %w", err)
 	}
 
-	// Find the network with matching name
-	var targetNetwork *sriov.NetworkBuilder
-	var targetNamespace string
-	var resourceName string
-	for _, network := range sriovNetworks {
+	for _, network := range networks {
 		if network.Object.Name == name {
-			targetNamespace = network.Object.Spec.NetworkNamespace
-			if targetNamespace == "" {
-				targetNamespace = sriovOpNs
+			targetNs := network.Object.Spec.NetworkNamespace
+			if targetNs == "" {
+				targetNs = sriovOpNs
 			}
-			resourceName = network.Object.Spec.ResourceName
-			// Rebuild the network builder with the same parameters to delete it
-			targetNetwork = sriov.NewNetworkBuilder(
-				apiClient,
-				name,
-				sriovOpNs,
-				targetNamespace,
-				resourceName,
-			)
-			break
+
+			builder := sriov.NewNetworkBuilder(
+				apiClient, name, sriovOpNs, targetNs, network.Object.Spec.ResourceName)
+
+			return builder, targetNs, nil
 		}
 	}
 
-	if targetNetwork == nil || !targetNetwork.Exists() {
-		klog.V(90).Infof("SRIOV network %q not found or already deleted in namespace %q", name, sriovOpNs)
+	return nil, "", nil
+}
+
+// isNADNotFoundError checks if the error indicates the NAD doesn't exist.
+// This handles both Kubernetes API NotFound errors and eco-goinfra custom errors.
+func isNADNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if apierrors.IsNotFound(err) {
+		return true
+	}
+
+	// eco-goinfra returns custom error messages like "does not exist"
+	errMsg := err.Error()
+
+	return strings.Contains(errMsg, "does not exist") ||
+		strings.Contains(errMsg, "not found")
+}
+
+// waitForNADDeletion waits for a NAD to be deleted.
+func waitForNADDeletion(apiClient *clients.Settings, name, namespace string) error {
+	// Check if NAD exists first
+	if _, err := nad.Pull(apiClient, name, namespace); err != nil {
+		if isNADNotFoundError(err) {
+			return nil
+		}
+
+		return err
+	}
+
+	// Wait for deletion
+	err := wait.PollUntilContextTimeout(
+		context.Background(),
+		tsparams.PollingInterval,
+		tsparams.NADTimeout,
+		true,
+		func(ctx context.Context) (bool, error) {
+			_, pullErr := nad.Pull(apiClient, name, namespace)
+
+			return isNADNotFoundError(pullErr), nil
+		})
+	if err == nil {
 		return nil
 	}
 
-	// Delete the SRIOV network
-	err = targetNetwork.Delete()
-	if err != nil {
-		return fmt.Errorf("failed to delete SRIOV network %q: %w", name, err)
+	// Try force delete
+	if nadBuilder, pullErr := nad.Pull(apiClient, name, namespace); pullErr == nil && nadBuilder != nil {
+		_ = nadBuilder.Delete()
 	}
 
-	// Wait for SRIOV network to be fully deleted using wait.PollUntilContextTimeout
-	klog.V(90).Infof("Waiting for SRIOV network %q to be deleted", name)
+	// Final check
+	if _, finalErr := nad.Pull(apiClient, name, namespace); isNADNotFoundError(finalErr) {
+		return nil
+	}
+
+	return fmt.Errorf("NAD %q not deleted in namespace %q within timeout", name, namespace)
+}
+
+// RemoveSriovNetwork removes a SRIOV network by name from the operator namespace.
+func RemoveSriovNetwork(apiClient *clients.Settings, name, sriovOpNs string, timeout time.Duration) error {
+	klog.V(90).Infof("Removing SRIOV network %q", name)
+
+	targetNetwork, targetNs, err := findSriovNetwork(apiClient, name, sriovOpNs)
+	if err != nil {
+		return err
+	}
+
+	if targetNetwork == nil || !targetNetwork.Exists() {
+		klog.V(90).Infof("Network %q not found or already deleted", name)
+
+		return nil
+	}
+
+	if err := targetNetwork.Delete(); err != nil {
+		return fmt.Errorf("failed to delete network %q: %w", name, err)
+	}
+
+	// Wait for network deletion
 	err = wait.PollUntilContextTimeout(
 		context.Background(),
 		tsparams.PollingInterval,
 		timeout,
 		true,
 		func(ctx context.Context) (bool, error) {
-			_, err := sriov.PullNetwork(apiClient, name, targetNamespace)
-			// Network is deleted when PullNetwork returns an error (not found)
-			return err != nil, nil
-		})
-
-	if err != nil {
-		return fmt.Errorf("timeout waiting for SRIOV network %q to be deleted from namespace %q: %w", name, sriovOpNs, err)
-	}
-
-	// Wait for NAD to be deleted in the target namespace
-	if targetNamespace != sriovOpNs {
-		klog.V(90).Infof("Waiting for NetworkAttachmentDefinition %q to be deleted in namespace %q", name, targetNamespace)
-
-		// First, check if NAD exists
-		_, pullErr := nad.Pull(apiClient, name, targetNamespace)
-		if pullErr != nil {
-			// apierrors.IsNotFound handles wrapped errors via error chain unwrapping
+			_, pullErr := sriov.PullNetwork(apiClient, name, targetNs)
 			if apierrors.IsNotFound(pullErr) {
-				klog.V(90).Infof("NAD %q does not exist (already deleted or never created) in namespace %q", name, targetNamespace)
-				return nil
+				return true, nil
 			}
-			return fmt.Errorf("failed to check NAD %q in namespace %q before deletion wait: %w", name, targetNamespace, pullErr)
-		}
-
-		// Wait for NAD deletion using wait.PollUntilContextTimeout
-		err = wait.PollUntilContextTimeout(
-			context.Background(),
-			tsparams.PollingInterval,
-			tsparams.NADTimeout,
-			true,
-			func(ctx context.Context) (bool, error) {
-				_, pullErr := nad.Pull(apiClient, name, targetNamespace)
-				if pullErr != nil {
-					// apierrors.IsNotFound handles wrapped errors via error chain unwrapping
-					if apierrors.IsNotFound(pullErr) {
-						// NAD is deleted (NotFound), which is what we want
-						klog.V(90).Infof("NetworkAttachmentDefinition %q successfully deleted in namespace %q", name, targetNamespace)
-						return true, nil
-					}
-					// Transient error, retry
-					klog.V(90).Infof("Temporary error pulling NAD %q in namespace %q, will retry: %v", name, targetNamespace, pullErr)
-					return false, nil
-				}
-				// NAD still exists, keep waiting
+			if pullErr != nil {
+				klog.V(90).Infof("Temporary error checking SRIOV network %q deletion, will retry: %v", name, pullErr)
 				return false, nil
-			})
-
-		if err != nil {
-			// Try to force delete if timeout occurred
-			klog.V(90).Infof("Timeout waiting for NAD deletion, attempting force delete: %v", err)
-			nadBuilder, pullErr := nad.Pull(apiClient, name, targetNamespace)
-			if pullErr == nil && nadBuilder != nil {
-				deleteErr := nadBuilder.Delete()
-				if deleteErr != nil {
-					klog.V(90).Infof("Failed to force delete NAD %q: %v", name, deleteErr)
-				} else {
-					klog.V(90).Infof("Successfully force deleted NAD %q", name)
-					// NAD deletion initiated - Kubernetes will handle it asynchronously
-					// No need to sleep - the deletion will be processed by the API server
-				}
 			}
+			// Network still exists
+			return false, nil
+		})
+	if err != nil {
+		return fmt.Errorf("timeout waiting for network %q deletion: %w", name, err)
+	}
 
-			// Final check - if NAD is gone, that's fine
-			_, finalCheckErr := nad.Pull(apiClient, name, targetNamespace)
-			if apierrors.IsNotFound(finalCheckErr) {
-				klog.V(90).Infof("NAD %q is now deleted (after timeout but before final check)", name)
-				return nil
-			}
-
-			return fmt.Errorf("NetworkAttachmentDefinition %q was not deleted from namespace %q within timeout. "+
-				"Please check SR-IOV operator status (last error: %v)", name, targetNamespace, finalCheckErr)
+	// Wait for NAD deletion if in different namespace
+	if targetNs != sriovOpNs {
+		if err := waitForNADDeletion(apiClient, name, targetNs); err != nil {
+			return err
 		}
 	}
 
-	klog.V(90).Infof("SRIOV network %q successfully deleted", name)
+	klog.V(90).Infof("Network %q deleted", name)
+
 	return nil
 }
 
 // WaitForPodWithLabelReady waits for a pod with specific label to be ready.
 // The timeout parameter is used only for per-pod readiness checks (WaitUntilReady).
 // Pod discovery uses the fixed tsparams.PodLabelReadyTimeout constant.
-func WaitForPodWithLabelReady(apiClient *clients.Settings, namespace, labelSelector string, timeout time.Duration) error {
-	klog.V(90).Infof("Waiting for pod with label %q to be ready in namespace %q", labelSelector, namespace)
+func WaitForPodWithLabelReady(
+	apiClient *clients.Settings,
+	namespace, labelSelector string,
+	timeout time.Duration,
+) error {
+	klog.V(90).Infof("Waiting for pod with label %q to be ready in namespace %q",
+		labelSelector, namespace)
 
 	// Wait for pod to appear using wait.PollUntilContextTimeout
-	var podList []*pod.Builder
-	var listErr error
+	var (
+		podList []*pod.Builder
+		listErr error
+	)
+
 	err := wait.PollUntilContextTimeout(
 		context.Background(),
 		tsparams.PollingInterval,
 		tsparams.PodLabelReadyTimeout,
 		true,
 		func(ctx context.Context) (bool, error) {
-			podList, listErr = pod.List(apiClient, namespace, metav1.ListOptions{LabelSelector: labelSelector})
+			podList, listErr = pod.List(
+				apiClient, namespace, metav1.ListOptions{LabelSelector: labelSelector})
 			if listErr != nil {
-				klog.V(90).Infof("Failed to list pods, will retry: %v (namespace: %q, labelSelector: %q)", listErr, namespace, labelSelector)
+				klog.V(90).Infof("Failed to list pods, will retry: %v (namespace: %q, label: %q)",
+					listErr, namespace, labelSelector)
+
 				return false, nil
 			}
+
 			return len(podList) > 0, nil
 		})
-
 	if err != nil {
-		return fmt.Errorf("timeout waiting for pod with label %q to appear in namespace %q: %w", labelSelector, namespace, err)
+		return fmt.Errorf("timeout waiting for pod with label %q in namespace %q: %w",
+			labelSelector, namespace, err)
 	}
 
 	if len(podList) == 0 {
@@ -431,188 +458,221 @@ func WaitForPodWithLabelReady(apiClient *clients.Settings, namespace, labelSelec
 	}
 
 	// Wait for each pod to be ready
-	for _, p := range podList {
-		klog.V(90).Infof("Waiting for pod %q to be ready in namespace %q", p.Definition.Name, namespace)
-		err := p.WaitUntilReady(timeout)
+	for _, podBuilder := range podList {
+		klog.V(90).Infof("Waiting for pod %q to be ready in namespace %q",
+			podBuilder.Definition.Name, namespace)
+
+		err := podBuilder.WaitUntilReady(timeout)
 		if err != nil {
 			// Log pod status for debugging
-			if p.Definition != nil {
+			if podBuilder.Definition != nil {
 				klog.V(90).Infof("Pod status details - name: %q, phase: %q, reason: %q, message: %q",
-					p.Definition.Name, p.Definition.Status.Phase, p.Definition.Status.Reason, p.Definition.Status.Message)
+					podBuilder.Definition.Name,
+					podBuilder.Definition.Status.Phase,
+					podBuilder.Definition.Status.Reason,
+					podBuilder.Definition.Status.Message)
 
 				// Log container statuses
-				for _, cs := range p.Definition.Status.ContainerStatuses {
+				for _, cs := range podBuilder.Definition.Status.ContainerStatuses {
 					klog.V(90).Infof("Container status - name: %q, ready: %v, state: %+v",
 						cs.Name, cs.Ready, cs.State)
 				}
 
 				// Log conditions
-				for _, cond := range p.Definition.Status.Conditions {
+				for _, cond := range podBuilder.Definition.Status.Conditions {
 					klog.V(90).Infof("Pod condition - type: %q, status: %q, reason: %q, message: %q",
 						cond.Type, cond.Status, cond.Reason, cond.Message)
 				}
 			}
-			return fmt.Errorf("pod %q not ready in namespace %q: %w", p.Definition.Name, namespace, err)
+
+			return fmt.Errorf("pod %q not ready in namespace %q: %w",
+				podBuilder.Definition.Name, namespace, err)
 		}
 	}
 
 	klog.V(90).Infof("All pods with label %q are ready in namespace %q", labelSelector, namespace)
+
 	return nil
 }
 
-// WaitForSriovAndMCPStable waits for SRIOV and MCP to be stable
+// checkSriovNodeStatesSynced checks if all SR-IOV node states are synced.
+func checkSriovNodeStatesSynced(apiClient *clients.Settings, sriovOpNs string) (bool, int) {
+	nodeStates, err := sriov.ListNetworkNodeState(apiClient, sriovOpNs, client.ListOptions{})
+	if err != nil || len(nodeStates) == 0 {
+		return false, 0
+	}
+
+	for _, nodeState := range nodeStates {
+		if nodeState.Objects != nil && nodeState.Objects.Status.SyncStatus != "Succeeded" {
+			return false, len(nodeStates)
+		}
+	}
+
+	return true, len(nodeStates)
+}
+
+// mcpMatchesLabel checks if an MCP matches the given label selector.
+func mcpMatchesLabel(mcp *mco.MCPBuilder, mcpLabel string) bool {
+	if mcpLabel == "" {
+		return true
+	}
+
+	parts := strings.SplitN(mcpLabel, "=", 2)
+	if len(parts) != 2 || mcp.Object.Labels == nil {
+		return false
+	}
+
+	val, ok := mcp.Object.Labels[parts[0]]
+
+	return ok && val == parts[1]
+}
+
+// checkMCPStable checks if all matching MCPs are stable.
+func checkMCPStable(apiClient *clients.Settings, mcpLabel string) bool {
+	mcpList, err := mco.ListMCP(apiClient)
+	if err != nil {
+		return strings.Contains(err.Error(), "no kind is registered") // Skip if unavailable
+	}
+
+	for _, mcp := range mcpList {
+		if !mcpMatchesLabel(mcp, mcpLabel) {
+			continue
+		}
+
+		isUpdated := false
+
+		for _, cond := range mcp.Object.Status.Conditions {
+			if cond.Type == machineconfigv1.MachineConfigPoolUpdated && cond.Status == corev1.ConditionTrue {
+				isUpdated = true
+			}
+
+			if cond.Type == machineconfigv1.MachineConfigPoolDegraded && cond.Status == corev1.ConditionTrue {
+				return false
+			}
+		}
+
+		if !isUpdated {
+			return false
+		}
+	}
+
+	return true
+}
+
+// checkWorkerNodesReady checks if all worker nodes are ready.
+// workerLabel should be in format "key=value" or "key=". If empty, defaults to "node-role.kubernetes.io/worker".
+func checkWorkerNodesReady(apiClient *clients.Settings, workerLabel string) (bool, int) {
+	nodeList, err := nodes.List(apiClient, metav1.ListOptions{})
+	if err != nil {
+		return false, 0
+	}
+
+	// Parse worker label to extract key
+	labelKey := "node-role.kubernetes.io/worker" // default
+	if workerLabel != "" {
+		parts := strings.SplitN(workerLabel, "=", 2)
+		if len(parts) > 0 && parts[0] != "" {
+			labelKey = parts[0]
+		}
+	}
+
+	readyCount := 0
+	workerCount := 0
+
+	for _, node := range nodeList {
+		// Check if node matches worker label
+		if workerLabel != "" {
+			// Use label selector if provided
+			labelSelector, err := labels.Parse(workerLabel)
+			if err == nil {
+				if !labelSelector.Matches(labels.Set(node.Definition.Labels)) {
+					continue
+				}
+			} else {
+				// Fallback to simple key check if label selector parsing fails
+				if _, isWorker := node.Definition.Labels[labelKey]; !isWorker {
+					continue
+				}
+			}
+		} else {
+			// Default behavior: check for standard worker label
+			if _, isWorker := node.Definition.Labels[labelKey]; !isWorker {
+				continue
+			}
+		}
+
+		workerCount++
+
+		isReady := false
+
+		for _, cond := range node.Definition.Status.Conditions {
+			if cond.Type == corev1.NodeReady && cond.Status == corev1.ConditionTrue {
+				isReady = true
+				readyCount++
+
+				break
+			}
+
+			if (cond.Type == corev1.NodeMemoryPressure || cond.Type == corev1.NodeDiskPressure) &&
+				cond.Status == corev1.ConditionTrue {
+				return false, readyCount
+			}
+		}
+
+		if !isReady {
+			return false, readyCount
+		}
+	}
+
+	// If no worker nodes matched the label, treat as error (not success)
+	if workerCount == 0 {
+		return false, 0
+	}
+
+	return true, readyCount
+}
+
+// WaitForSriovAndMCPStable waits for SRIOV and MCP to be stable.
+// workerLabel should be in format "key=value" or "key=". If empty, defaults to "node-role.kubernetes.io/worker".
 func WaitForSriovAndMCPStable(
 	apiClient *clients.Settings,
 	timeout time.Duration,
 	interval time.Duration,
-	mcpLabel, sriovOpNs string) error {
-	klog.V(90).Infof("Waiting for SR-IOV and MCP to be stable (timeout: %v, interval: %v, mcp_label: %q)", timeout, interval, mcpLabel)
+	mcpLabel, sriovOpNs, workerLabel string,
+) error {
+	klog.V(90).Infof("Waiting for SR-IOV and MCP to be stable (timeout: %v)", timeout)
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	err := wait.PollUntilContextCancel(ctx, interval, false, func(ctx context.Context) (bool, error) {
-		// Verify SR-IOV operator is running by checking for SR-IOV node states
-		nodeStates, err := sriov.ListNetworkNodeState(apiClient, sriovOpNs, client.ListOptions{})
-		if err != nil {
-			klog.V(90).Infof("Error listing SR-IOV network node states: %v", err)
-			return false, nil // Retry on error
+		// Check SR-IOV node states
+		synced, nodeCount := checkSriovNodeStatesSynced(apiClient, sriovOpNs)
+		if !synced {
+			return false, nil
 		}
 
-		// Validate SR-IOV sync status for all node states
-		if len(nodeStates) == 0 {
-			klog.V(90).Info("WAITING: No SR-IOV node states available yet - operator still initializing")
-			return false, nil // Retry - node states not yet available
+		// Check MCP stability
+		if !checkMCPStable(apiClient, mcpLabel) {
+			return false, nil
 		}
 
-		allNodesSynced := true
-		for _, nodeState := range nodeStates {
-			if nodeState.Objects != nil {
-				syncStatus := nodeState.Objects.Status.SyncStatus
-				nodeName := nodeState.Objects.Name
-
-				if syncStatus != "Succeeded" {
-					klog.V(90).Infof("WAITING: SR-IOV node %q not yet synced (status: %q)", nodeName, syncStatus)
-					allNodesSynced = false
-				} else {
-					klog.V(90).Infof("OK: Node SR-IOV sync complete for node %q", nodeName)
-				}
-			}
+		// Check worker nodes
+		ready, readyCount := checkWorkerNodesReady(apiClient, workerLabel)
+		if !ready {
+			return false, nil
 		}
 
-		if !allNodesSynced {
-			return false, nil // Retry - wait for all nodes to sync
-		}
+		klog.V(90).Infof("SUCCESS: All checks passed (sriov_nodes: %d, workers_ready: %d)",
+			nodeCount, readyCount)
 
-		// Check MachineConfigPool conditions using eco-goinfra
-		mcpList, err := mco.ListMCP(apiClient)
-		if err != nil {
-			if strings.Contains(err.Error(), "no kind is registered") {
-				klog.V(90).Info("INFO: MachineConfigPool check unavailable in scheme - using SR-IOV node state sync as stability indicator")
-			} else {
-				klog.V(90).Infof("TEMPORARY ERROR: Could not list MachineConfigPools: %v", err)
-				return false, nil
-			}
-		} else {
-			// MCP check succeeded, verify conditions
-			allPoolsUpdated := true
-			for _, mcp := range mcpList {
-				// Check if pool matches the provided MCP label selector
-				shouldCheck := false
-				if mcpLabel == "" {
-					shouldCheck = true
-				} else {
-					parts := strings.SplitN(mcpLabel, "=", 2)
-					if len(parts) == 2 {
-						labelKey := parts[0]
-						labelValue := parts[1]
-						if mcp.Object.Labels != nil {
-							if val, ok := mcp.Object.Labels[labelKey]; ok && val == labelValue {
-								shouldCheck = true
-							}
-						}
-					}
-				}
-				if !shouldCheck {
-					continue
-				}
-
-				isUpdated := false
-				for _, condition := range mcp.Object.Status.Conditions {
-					if condition.Type == machineconfigv1.MachineConfigPoolUpdated && condition.Status == corev1.ConditionTrue {
-						isUpdated = true
-						klog.V(90).Infof("OK: MachineConfigPool %q condition met (Updated=True)", mcp.Object.Name)
-					}
-					if condition.Type == machineconfigv1.MachineConfigPoolDegraded && condition.Status == corev1.ConditionTrue {
-						klog.V(90).Infof("WAITING: MachineConfigPool %q is degraded (reason: %q, message: %q)",
-							mcp.Object.Name, condition.Reason, condition.Message)
-						allPoolsUpdated = false
-					}
-				}
-
-				if !isUpdated {
-					klog.V(90).Infof("WAITING: MachineConfigPool %q not yet updated", mcp.Object.Name)
-					allPoolsUpdated = false
-				}
-			}
-
-			if !allPoolsUpdated {
-				return false, nil // Retry - wait for MCP to be updated
-			}
-
-			klog.V(90).Info("OK: All MachineConfigPools are stable")
-		}
-
-		// Check node conditions for worker nodes using eco-goinfra
-		nodeList, err := nodes.List(apiClient, metav1.ListOptions{})
-		if err != nil {
-			klog.V(90).Infof("TEMPORARY ERROR: Could not list nodes: %v", err)
-			return false, nil // Retry on error
-		}
-
-		allNodesReady := true
-		readyNodeCount := 0
-		for _, node := range nodeList {
-			if _, isWorker := node.Definition.Labels["node-role.kubernetes.io/worker"]; !isWorker {
-				continue
-			}
-
-			isReady := false
-			for _, condition := range node.Definition.Status.Conditions {
-				if condition.Type == corev1.NodeReady && condition.Status == corev1.ConditionTrue {
-					isReady = true
-					readyNodeCount++
-					klog.V(90).Infof("OK: Worker node %q is Ready", node.Definition.Name)
-					break
-				}
-				if (condition.Type == corev1.NodeMemoryPressure || condition.Type == corev1.NodeDiskPressure) &&
-					condition.Status == corev1.ConditionTrue {
-					klog.V(90).Infof("WAITING: Worker node %q has resource pressure (condition: %q)", node.Definition.Name, condition.Type)
-					allNodesReady = false
-					return false, nil // Retry
-				}
-			}
-
-			if !isReady {
-				klog.V(90).Infof("WAITING: Worker node %q is not yet Ready", node.Definition.Name)
-				allNodesReady = false
-				return false, nil // Retry
-			}
-		}
-
-		if !allNodesReady {
-			return false, nil // Retry
-		}
-
-		klog.V(90).Infof("SUCCESS: All stability checks passed (sr_iov_nodes_synced: %d, worker_nodes_ready: %d)",
-			len(nodeStates), readyNodeCount)
 		return true, nil
 	})
-
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			return fmt.Errorf("timeout waiting for SRIOV and MCP to be stable after %v", timeout)
+			return fmt.Errorf("timeout waiting for SRIOV and MCP stability after %v", timeout)
 		}
+
 		return fmt.Errorf("failed waiting for SRIOV and MCP stability: %w", err)
 	}
 
@@ -626,14 +686,20 @@ func normalizeWorkerLabel(label string) string {
 	if label == "" {
 		return label
 	}
+
 	if !strings.Contains(label, "=") {
 		return label + "="
 	}
+
 	return label
 }
 
-// VerifyVFResourcesAvailable checks if VF resources are advertised and available on worker nodes
-func VerifyVFResourcesAvailable(apiClient *clients.Settings, config *sriovconfig.SriovOcpConfig, resourceName string) (bool, error) {
+// VerifyVFResourcesAvailable checks if VF resources are advertised and available on worker nodes.
+func VerifyVFResourcesAvailable(
+	apiClient *clients.Settings,
+	config *sriovconfig.SriovOcpConfig,
+	resourceName string,
+) (bool, error) {
 	if apiClient == nil {
 		return false, fmt.Errorf("API client is nil, cannot verify VF resources")
 	}
@@ -643,7 +709,7 @@ func VerifyVFResourcesAvailable(apiClient *clients.Settings, config *sriovconfig
 
 	// Guard against empty worker label to prevent scanning all nodes (including masters)
 	if normalizedLabel == "" {
-		return false, fmt.Errorf("OcpWorkerLabel is empty or not configured - cannot determine worker nodes for VF resource verification")
+		return false, fmt.Errorf("OcpWorkerLabel is empty - cannot determine worker nodes")
 	}
 
 	// Get all worker nodes
@@ -672,6 +738,7 @@ func VerifyVFResourcesAvailable(apiClient *clients.Settings, config *sriovconfig
 
 		if !hasCapacity && !hasAllocatable {
 			klog.V(90).Infof("VF resource %q not found on node %q", resourceKey, nodeName)
+
 			continue
 		}
 
@@ -681,6 +748,7 @@ func VerifyVFResourcesAvailable(apiClient *clients.Settings, config *sriovconfig
 			if allocQty > 0 {
 				klog.V(90).Infof("VF resources available on node %q (resource: %q, capacity: %s, allocatable: %s)",
 					nodeName, resourceKey, capacityValue.String(), allocatableValue.String())
+
 				return true, nil
 			}
 		}
@@ -690,6 +758,7 @@ func VerifyVFResourcesAvailable(apiClient *clients.Settings, config *sriovconfig
 			if capQty > 0 && !hasAllocatable {
 				klog.V(90).Infof("VF resources exist but not allocatable on node %q (resource: %q, capacity: %s)",
 					nodeName, resourceKey, capacityValue.String())
+
 				continue
 			}
 		}
@@ -700,10 +769,11 @@ func VerifyVFResourcesAvailable(apiClient *clients.Settings, config *sriovconfig
 
 	// If we get here, no nodes have available resources
 	klog.V(90).Infof("VF resources %q not available on any worker node", resourceName)
+
 	return false, nil
 }
 
-// SriovNetworkConfig represents configuration for creating a SRIOV network
+// SriovNetworkConfig represents configuration for creating a SRIOV network.
 type SriovNetworkConfig struct {
 	Name             string
 	ResourceName     string
@@ -718,15 +788,11 @@ type SriovNetworkConfig struct {
 	LinkState        string
 }
 
-// CreateSriovNetwork creates a SRIOV network and waits for it to be ready.
-// Actual waiting behavior is governed by tsparams constants:
-// - NamespaceTimeout for policy verification
-// - NADTimeout for NetworkAttachmentDefinition creation
-// - VFResourceTimeout for VF resource availability
-func CreateSriovNetwork(apiClient *clients.Settings, config *SriovNetworkConfig) error {
-	klog.V(90).Infof("Creating SRIOV network %q in namespace %q (target_namespace: %q, resource: %q)",
-		config.Name, config.Namespace, config.NetworkNamespace, config.ResourceName)
-
+// buildSriovNetworkBuilder creates and configures a SRIOV network builder with the given config.
+func buildSriovNetworkBuilder(
+	apiClient *clients.Settings,
+	config *SriovNetworkConfig,
+) *sriov.NetworkBuilder {
 	networkBuilder := sriov.NewNetworkBuilder(
 		apiClient,
 		config.Name,
@@ -737,19 +803,11 @@ func CreateSriovNetwork(apiClient *clients.Settings, config *SriovNetworkConfig)
 
 	// Set optional parameters
 	if config.SpoofCheck != "" {
-		if config.SpoofCheck == "on" {
-			networkBuilder.WithSpoof(true)
-		} else {
-			networkBuilder.WithSpoof(false)
-		}
+		networkBuilder.WithSpoof(config.SpoofCheck == "on")
 	}
 
 	if config.Trust != "" {
-		if config.Trust == "on" {
-			networkBuilder.WithTrustFlag(true)
-		} else {
-			networkBuilder.WithTrustFlag(false)
-		}
+		networkBuilder.WithTrustFlag(config.Trust == "on")
 	}
 
 	if config.VlanID > 0 {
@@ -769,227 +827,227 @@ func CreateSriovNetwork(apiClient *clients.Settings, config *SriovNetworkConfig)
 	}
 
 	// Set LinkState with default to "auto" if not specified
-	// This matches the behavior of openshift-tests-private and ensures VF follows PF state
 	linkState := config.LinkState
 	if linkState == "" {
 		linkState = "auto"
-		klog.V(90).Infof("LinkState not specified, defaulting to 'auto' for SRIOV network %q", config.Name)
+
+		klog.V(90).Infof("LinkState defaulting to 'auto' for network %q", config.Name)
 	}
+
 	networkBuilder.WithLinkState(linkState)
+
+	return networkBuilder
+}
+
+// waitForSriovPolicy waits for the SRIOV policy to exist.
+func waitForSriovPolicy(
+	apiClient *clients.Settings,
+	resourceName, namespace string,
+) error {
+	klog.V(90).Infof("Verifying SRIOV policy exists for resource %q", resourceName)
+
+	return wait.PollUntilContextTimeout(
+		context.Background(),
+		tsparams.PollingInterval,
+		tsparams.NamespaceTimeout,
+		true,
+		func(ctx context.Context) (bool, error) {
+			policy, err := sriov.PullPolicy(apiClient, resourceName, namespace)
+			if err == nil && policy != nil && policy.Object != nil {
+				klog.V(90).Infof("SRIOV policy found - name: %q, numVfs: %d",
+					resourceName, policy.Object.Spec.NumVfs)
+
+				return true, nil
+			}
+
+			return false, nil
+		})
+}
+
+// waitForNAD waits for the NetworkAttachmentDefinition to be created.
+func waitForNAD(apiClient *clients.Settings, name, namespace string) error {
+	klog.V(90).Infof("Waiting for NAD %q in namespace %q", name, namespace)
+
+	return wait.PollUntilContextTimeout(
+		context.Background(),
+		tsparams.PollingInterval,
+		tsparams.NADTimeout,
+		true,
+		func(ctx context.Context) (bool, error) {
+			_, err := nad.Pull(apiClient, name, namespace)
+
+			return err == nil, nil
+		})
+}
+
+// CreateSriovNetwork creates a SRIOV network and waits for it to be ready.
+// Actual waiting behavior is governed by tsparams constants:
+// - NamespaceTimeout for policy verification
+// - NADTimeout for NetworkAttachmentDefinition creation
+// - VFResourceTimeout for VF resource availability.
+func CreateSriovNetwork(apiClient *clients.Settings, config *SriovNetworkConfig) error {
+	klog.V(90).Infof("Creating SRIOV network %q in namespace %q (resource: %q)",
+		config.Name, config.Namespace, config.ResourceName)
+
+	networkBuilder := buildSriovNetworkBuilder(apiClient, config)
 
 	sriovNetwork, err := networkBuilder.Create()
 	if err != nil {
 		return fmt.Errorf("failed to create SRIOV network %q: %w", config.Name, err)
 	}
 
-	// Verify the SRIOV network was created successfully
+	// Log creation success
 	if sriovNetwork != nil && sriovNetwork.Object != nil {
-		klog.V(90).Infof("SRIOV network created successfully - name: %q, namespace: %q, resourceName: %q, targetNamespace: %q",
-			config.Name, config.Namespace, sriovNetwork.Object.Spec.ResourceName, sriovNetwork.Object.Spec.NetworkNamespace)
-	} else {
-		// Fallback: try to pull the network to verify it exists
-		createdNetwork, pullErr := sriov.PullNetwork(apiClient, config.Name, config.Namespace)
-		if pullErr != nil {
-			return fmt.Errorf("failed to verify created SRIOV network %q: %w", config.Name, pullErr)
-		}
-		klog.V(90).Infof("SRIOV network created successfully - name: %q, namespace: %q, resourceName: %q, targetNamespace: %q",
-			config.Name, config.Namespace, createdNetwork.Object.Spec.ResourceName, createdNetwork.Object.Spec.NetworkNamespace)
+		klog.V(90).Infof("SRIOV network created - name: %q, resource: %q",
+			config.Name, sriovNetwork.Object.Spec.ResourceName)
 	}
 
-	// Verify that a SRIOV policy exists for the resourceName before waiting for NAD
-	klog.V(90).Infof("Verifying SRIOV policy exists for resource %q", config.ResourceName)
-	err = wait.PollUntilContextTimeout(
-		context.Background(),
-		tsparams.PollingInterval,
-		tsparams.NamespaceTimeout,
-		true,
-		func(ctx context.Context) (bool, error) {
-			policy, err := sriov.PullPolicy(apiClient, config.ResourceName, config.Namespace)
-			if err == nil && policy != nil && policy.Object != nil {
-				klog.V(90).Infof("SRIOV policy found - name: %q, namespace: %q, resourceName: %q, numVfs: %d",
-					config.ResourceName, config.Namespace, policy.Object.Spec.ResourceName, policy.Object.Spec.NumVfs)
-				return true, nil
-			}
-			if err != nil {
-				klog.V(90).Infof("SRIOV policy not found - name: %q, namespace: %q, error: %v", config.ResourceName, config.Namespace, err)
-			}
-			return false, nil
-		})
-
-	if err != nil {
-		return fmt.Errorf("SRIOV policy %q must exist in namespace %q before NAD can be created. Ensure initVF succeeded and the policy was created: %w",
-			config.ResourceName, config.Namespace, err)
+	// Verify policy exists before waiting for NAD
+	if err := waitForSriovPolicy(apiClient, config.ResourceName, config.Namespace); err != nil {
+		return fmt.Errorf("SRIOV policy %q must exist before NAD creation: %w",
+			config.ResourceName, err)
 	}
 
-	// Wait for NetworkAttachmentDefinition to be created by the SRIOV operator
-	klog.V(90).Infof("Waiting for NetworkAttachmentDefinition %q to be created in namespace %q", config.Name, config.NetworkNamespace)
-	err = wait.PollUntilContextTimeout(
-		context.Background(),
-		tsparams.PollingInterval,
-		tsparams.NADTimeout,
-		true,
-		func(ctx context.Context) (bool, error) {
-			_, err := nad.Pull(apiClient, config.Name, config.NetworkNamespace)
-			if err != nil {
-				klog.V(90).Infof("NetworkAttachmentDefinition not yet created - name: %q, namespace: %q, error: %v",
-					config.Name, config.NetworkNamespace, err)
-				return false, nil
-			}
-			return true, nil
-		})
-
-	if err != nil {
-		return fmt.Errorf("failed to wait for NetworkAttachmentDefinition %q in namespace %q. Ensure the SRIOV policy exists and is properly configured: %w",
-			config.Name, config.NetworkNamespace, err)
+	// Wait for NAD creation
+	if err := waitForNAD(apiClient, config.Name, config.NetworkNamespace); err != nil {
+		return fmt.Errorf("failed to wait for NAD %q: %w", config.Name, err)
 	}
 
-	// Verify that VF resources are actually available on nodes
-	// Note: This check is important but can timeout if policy is still being applied
-	// We use a shorter timeout here and let the test proceed - VF availability will be checked when pods are created
-	klog.V(90).Infof("Verifying VF resources are available for %q", config.ResourceName)
+	// Check VF resources (non-blocking)
+	klog.V(90).Infof("Verifying VF resources for %q", config.ResourceName)
+
 	err = wait.PollUntilContextTimeout(
 		context.Background(),
 		tsparams.VFResourcePollingInterval,
 		tsparams.VFResourceTimeout,
 		true,
 		func(ctx context.Context) (bool, error) {
-			// Use global SriovOcpConfig from ocpsriovinittools
-			available, err := VerifyVFResourcesAvailable(apiClient, ocpsriovinittools.SriovOcpConfig, config.ResourceName)
-			if err != nil {
-				return false, err
-			}
-			return available, nil
-		})
+			available, err := VerifyVFResourcesAvailable(
+				apiClient, ocpsriovinittools.SriovOcpConfig, config.ResourceName)
 
+			return available && err == nil, nil
+		})
 	if err != nil {
-		// Log warning but don't fail - VF resources may still be provisioning
-		// The actual availability will be checked when test pods are created
-		klog.V(90).Infof("VF resources %q not yet available (may still be provisioning): %v. Will proceed and check again when pods are created.", config.ResourceName, err)
-		// Don't return error - let the test proceed
+		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, wait.ErrWaitTimeout) {
+			klog.V(90).Infof("VF resources %q not yet available (may still be provisioning): %v. Will proceed and re-check when pods are created.", config.ResourceName, err)
+			// Proceed: VF availability will be re-checked by pod creation path
+		} else {
+			return fmt.Errorf("failed to verify VF resources %q: %w", config.ResourceName, err)
+		}
 	}
 
 	klog.V(90).Infof("SRIOV network %q created and ready", config.Name)
+
 	return nil
 }
 
 const (
-	// DefaultMcpLabel is the default MachineConfigPool label for worker nodes
+	// DefaultMcpLabel is the default MachineConfigPool label for worker nodes.
 	DefaultMcpLabel = "machineconfiguration.openshift.io/role=worker"
 )
 
-// CheckSriovOperatorStatus checks if SR-IOV operator is running and healthy
+// CheckSriovOperatorStatus checks if SR-IOV operator is running and healthy.
 func CheckSriovOperatorStatus(apiClient *clients.Settings, config *sriovconfig.SriovOcpConfig) error {
 	klog.V(90).Infof("Checking SR-IOV operator status in namespace %q", config.OcpSriovOperatorNamespace)
 	// Use the centralized function from sriovoperator package
 	return sriovoperator.IsSriovDeployed(apiClient, config.OcpSriovOperatorNamespace)
 }
 
-// WaitForSriovPolicyReady waits for SR-IOV policy to be ready and MCP to be stable
-func WaitForSriovPolicyReady(apiClient *clients.Settings, config *sriovconfig.SriovOcpConfig, timeout time.Duration) error {
+// WaitForSriovPolicyReady waits for SR-IOV policy to be ready and MCP to be stable.
+func WaitForSriovPolicyReady(
+	apiClient *clients.Settings,
+	config *sriovconfig.SriovOcpConfig,
+	timeout time.Duration,
+) error {
 	klog.V(90).Infof("Waiting for SR-IOV policy to be ready (timeout: %v)", timeout)
+
 	return WaitForSriovAndMCPStable(
-		apiClient, timeout, tsparams.MCPStableInterval, DefaultMcpLabel, config.OcpSriovOperatorNamespace)
+		apiClient, timeout, tsparams.MCPStableInterval, DefaultMcpLabel, config.OcpSriovOperatorNamespace, config.OcpWorkerLabel)
 }
 
-// VerifyWorkerNodesReady verifies that all worker nodes are stable and ready for SRIOV initialization
-func VerifyWorkerNodesReady(apiClient *clients.Settings, workerNodes []*nodes.Builder, sriovOpNs string) error {
+// checkSingleNodeReady checks if a single node is ready and returns any issues found.
+func checkSingleNodeReady(apiClient *clients.Settings, nodeName string) error {
+	refreshedNode, err := nodes.Pull(apiClient, nodeName)
+	if err != nil {
+		return fmt.Errorf("failed to pull node: %w", err)
+	}
+
+	if refreshedNode == nil || refreshedNode.Definition == nil {
+		return fmt.Errorf("node definition is nil")
+	}
+
+	hasReadyCondition := false
+
+	for _, cond := range refreshedNode.Definition.Status.Conditions {
+		// Check for reboot indicators first
+		if strings.Contains(cond.Reason, "NodeNotReady") ||
+			strings.Contains(cond.Reason, "Rebooting") ||
+			strings.Contains(cond.Reason, "KernelDeadlock") {
+			return fmt.Errorf("node appears unstable (reason: %q)", cond.Reason)
+		}
+
+		// Check specific condition types
+		if cond.Type == corev1.NodeReady {
+			switch cond.Status {
+			case corev1.ConditionTrue:
+				hasReadyCondition = true
+			case corev1.ConditionFalse:
+				return fmt.Errorf("node not ready (reason: %q)", cond.Reason)
+			case corev1.ConditionUnknown:
+				return fmt.Errorf("node ready status unknown")
+			}
+		}
+
+		if (cond.Type == corev1.NodeMemoryPressure || cond.Type == corev1.NodeDiskPressure) &&
+			cond.Status == corev1.ConditionTrue {
+			return fmt.Errorf("node has %s", cond.Type)
+		}
+	}
+
+	if !hasReadyCondition {
+		return fmt.Errorf("node not in Ready state")
+	}
+
+	return nil
+}
+
+// VerifyWorkerNodesReady verifies that all worker nodes are stable and ready for SRIOV initialization.
+func VerifyWorkerNodesReady(
+	apiClient *clients.Settings,
+	workerNodes []*nodes.Builder,
+	sriovOpNs string,
+) error {
 	if apiClient == nil {
-		return fmt.Errorf("API client is nil, cannot verify node readiness")
+		return fmt.Errorf("API client is nil")
 	}
 
 	if len(workerNodes) == 0 {
-		return fmt.Errorf("no worker nodes provided to VerifyWorkerNodesReady")
+		return fmt.Errorf("no worker nodes provided")
 	}
 
-	klog.V(90).Infof("Verifying worker node readiness for SRIOV operator namespace %q", sriovOpNs)
+	klog.V(90).Infof("Verifying %d worker nodes for namespace %q", len(workerNodes), sriovOpNs)
 
-	allNodesReady := true
 	var lastErr error
 
 	for _, node := range workerNodes {
 		nodeName := node.Definition.Name
-		klog.V(90).Infof("Checking node readiness for node %q", nodeName)
 
-		// Verify node is in Ready state
-		refreshedNode, err := nodes.Pull(apiClient, nodeName)
-		if err != nil {
-			klog.V(90).Infof("Failed to pull node %q: %v", nodeName, err)
-			allNodesReady = false
-			lastErr = err
-			continue
-		}
-
-		if refreshedNode == nil || refreshedNode.Definition == nil {
-			klog.V(90).Infof("Node definition is nil for node %q", nodeName)
-			allNodesReady = false
-			lastErr = fmt.Errorf("node definition is nil for node %q", nodeName)
-			continue
-		}
-
-		// Check node conditions
-		hasReadyCondition := false
-		hasUnknownReadyCondition := false
-
-		for _, condition := range refreshedNode.Definition.Status.Conditions {
-			klog.V(90).Infof("Node condition - node: %q, type: %q, status: %q, reason: %q, message: %q",
-				nodeName, condition.Type, condition.Status, condition.Reason, condition.Message)
-
-			if condition.Type == corev1.NodeReady && condition.Status == corev1.ConditionTrue {
-				hasReadyCondition = true
-			}
-
-			// Check for scheduling issues
-			if condition.Type == corev1.NodeMemoryPressure && condition.Status == corev1.ConditionTrue {
-				klog.V(90).Infof("Node %q has memory pressure", nodeName)
-				allNodesReady = false
-			}
-			if condition.Type == corev1.NodeDiskPressure && condition.Status == corev1.ConditionTrue {
-				klog.V(90).Infof("Node %q has disk pressure", nodeName)
-				allNodesReady = false
-			}
-			if condition.Type == corev1.NodeReady && condition.Status == corev1.ConditionFalse {
-				klog.V(90).Infof("Node %q is not ready (reason: %q)", nodeName, condition.Reason)
-				allNodesReady = false
-			}
-			if condition.Type == corev1.NodeReady && condition.Status == corev1.ConditionUnknown {
-				hasUnknownReadyCondition = true
-			}
-
-			// Check for node reboot/restart indicators
-			if strings.Contains(condition.Reason, "NodeNotReady") ||
-				strings.Contains(condition.Reason, "Rebooting") ||
-				strings.Contains(condition.Reason, "KernelDeadlock") {
-				klog.V(90).Infof("Node %q appears to be rebooting or unstable (reason: %q, message: %q)",
-					nodeName, condition.Reason, condition.Message)
-				allNodesReady = false
-			}
-		}
-
-		if !hasReadyCondition {
-			klog.V(90).Infof("Node %q is not in Ready state", nodeName)
-			allNodesReady = false
-			lastErr = fmt.Errorf("node %q is not in Ready state", nodeName)
-		}
-
-		if hasUnknownReadyCondition {
-			klog.V(90).Infof("Node %q has NodeReady condition status Unknown", nodeName)
-			allNodesReady = false
-			lastErr = fmt.Errorf("node %q has NodeReady condition status Unknown", nodeName)
+		if err := checkSingleNodeReady(apiClient, nodeName); err != nil {
+			klog.V(90).Infof("Node %q not ready: %v", nodeName, err)
+			lastErr = fmt.Errorf("node %q: %w", nodeName, err)
 		}
 	}
 
-	if !allNodesReady {
-		if lastErr != nil {
-			return fmt.Errorf("one or more worker nodes are not ready: %w", lastErr)
-		}
-		return fmt.Errorf("one or more worker nodes are not ready")
+	if lastErr != nil {
+		return fmt.Errorf("worker nodes not ready: %w", lastErr)
 	}
 
-	klog.V(90).Info("All worker nodes are ready for SRIOV initialization")
+	klog.V(90).Info("All worker nodes ready for SRIOV")
+
 	return nil
 }
 
-// discoverInterfaceName discovers the actual interface name on a node by matching Vendor and DeviceID
+// discoverInterfaceName discovers the actual interface name on a node by matching Vendor and DeviceID.
 func discoverInterfaceName(apiClient *clients.Settings, nodeName, sriovOpNs, vendor, deviceID string) (string, error) {
 	nodeState := sriov.NewNetworkNodeStateBuilder(apiClient, nodeName, sriovOpNs)
 	if err := nodeState.Discover(); err != nil {
@@ -1005,6 +1063,7 @@ func discoverInterfaceName(apiClient *clients.Settings, nodeName, sriovOpNs, ven
 		if iface.Vendor == vendor && iface.DeviceID == deviceID {
 			klog.V(90).Infof("Found interface %q on node %q matching vendor %q and deviceID %q",
 				iface.Name, nodeName, vendor, deviceID)
+
 			return iface.Name, nil
 		}
 	}
@@ -1012,127 +1071,127 @@ func discoverInterfaceName(apiClient *clients.Settings, nodeName, sriovOpNs, ven
 	return "", fmt.Errorf("no interface found on node %q matching vendor %q and deviceID %q", nodeName, vendor, deviceID)
 }
 
-// initVFWithDevType is a common helper function for initializing VF with a specific device type
-func initVFWithDevType(
+// tryCreatePolicyOnNode attempts to create and apply a SRIOV policy on a single node.
+// Returns true if successful, false with error message if failed.
+func tryCreatePolicyOnNode(
 	apiClient *clients.Settings,
-	config *sriovconfig.SriovOcpConfig,
+	node *nodes.Builder,
 	name, deviceID, interfaceName, vendor, sriovOpNs, devType string,
 	vfNum int,
-	workerNodes []*nodes.Builder) (bool, error) {
-	// Validate vfNum before building the PF selector to fail fast on misconfiguration
+) (bool, string) {
+	nodeName := node.Definition.Name
+	actualInterfaceName := interfaceName
+
+	// Discover actual interface name if vendor and deviceID are provided
+	if vendor != "" && deviceID != "" {
+		if discovered, err := discoverInterfaceName(
+			apiClient, nodeName, sriovOpNs, vendor, deviceID); err == nil {
+			actualInterfaceName = discovered
+		}
+	}
+
+	pfSelector := fmt.Sprintf("%s#0-%d", actualInterfaceName, vfNum-1)
+	klog.V(90).Infof("Creating SRIOV policy - name: %q, node: %q, pf: %q", name, nodeName, pfSelector)
+
+	// Create SRIOV policy
+	sriovPolicy := sriov.NewPolicyBuilder(
+		apiClient, name, sriovOpNs, name, vfNum,
+		[]string{pfSelector},
+		map[string]string{"kubernetes.io/hostname": nodeName},
+	).WithDevType(devType)
+
+	if vendor != "" {
+		sriovPolicy.Definition.Spec.NicSelector.Vendor = vendor
+	}
+
+	if deviceID != "" {
+		sriovPolicy.Definition.Spec.NicSelector.DeviceID = deviceID
+	}
+
+	if _, err := sriovPolicy.Create(); err != nil {
+		_ = RemoveSriovPolicy(apiClient, name, sriovOpNs, tsparams.DefaultTimeout)
+
+		return false, fmt.Sprintf("%s (create failed: %v)", nodeName, err)
+	}
+
+	// Wait for policy to be applied
+	// Use worker label from global config if available, otherwise default to empty (standard worker label)
+	workerLabel := ""
+	if ocpsriovinittools.SriovOcpConfig != nil {
+		workerLabel = ocpsriovinittools.SriovOcpConfig.OcpWorkerLabel
+	}
+	if err := WaitForSriovAndMCPStable(
+		apiClient, tsparams.PolicyApplicationTimeout,
+		tsparams.MCPStableInterval, DefaultMcpLabel, sriovOpNs, workerLabel); err != nil {
+		_ = RemoveSriovPolicy(apiClient, name, sriovOpNs, tsparams.DefaultTimeout)
+
+		return false, fmt.Sprintf("%s (apply wait failed: %v)", nodeName, err)
+	}
+
+	klog.V(90).Infof("SRIOV policy applied - name: %q, node: %q", name, nodeName)
+
+	return true, ""
+}
+
+// initVFWithDevType is a common helper function for initializing VF with a specific device type.
+func initVFWithDevType(
+	apiClient *clients.Settings,
+	_ *sriovconfig.SriovOcpConfig, // config reserved for future use
+	name, deviceID, interfaceName, vendor, sriovOpNs, devType string,
+	vfNum int,
+	workerNodes []*nodes.Builder,
+) (bool, error) {
 	if vfNum <= 0 {
 		return false, fmt.Errorf("vfNum must be greater than 0, got %d", vfNum)
 	}
 
-	klog.V(90).Infof("Initializing VF for device %q (deviceID: %q, vendor: %q, interface: %q, vfNum: %d, devType: %q)",
-		name, deviceID, vendor, interfaceName, vfNum, devType)
+	klog.V(90).Infof("Initializing VF for device %q (vfNum: %d, devType: %q)",
+		name, vfNum, devType)
 
-	// Verify all worker nodes are stable and ready before initializing SRIOV
-	err := VerifyWorkerNodesReady(apiClient, workerNodes, sriovOpNs)
-	if err != nil {
-		klog.V(90).Infof("Worker nodes are not ready for SRIOV initialization: %v", err)
-		return false, fmt.Errorf("worker nodes are not ready for SRIOV initialization: %w", err)
+	if err := VerifyWorkerNodesReady(apiClient, workerNodes, sriovOpNs); err != nil {
+		return false, fmt.Errorf("worker nodes not ready: %w", err)
 	}
 
-	// Clean up any existing policy with the same name before creating a new one
-	// This prevents VF range conflicts from previous test runs
-	klog.V(90).Infof("Checking for existing SRIOV policy %q that might conflict", name)
-	err = RemoveSriovPolicy(apiClient, name, sriovOpNs, tsparams.NamespaceTimeout)
-	if err != nil {
-		klog.V(90).Infof("Note: Could not remove existing policy %q (may not exist): %v", name, err)
-	}
+	// Clean up any existing policy
+	_ = RemoveSriovPolicy(apiClient, name, sriovOpNs, tsparams.NamespaceTimeout)
 
-	// Check if the device exists on any worker node
+	// Try each worker node
 	var failedNodes []string
+
 	for _, node := range workerNodes {
-		// Try to discover the actual interface name from node state if vendor and deviceID are provided
-		actualInterfaceName := interfaceName
-		if vendor != "" && deviceID != "" {
-			discoveredName, err := discoverInterfaceName(apiClient, node.Definition.Name, sriovOpNs, vendor, deviceID)
-			if err == nil {
-				actualInterfaceName = discoveredName
-				klog.V(90).Infof("Discovered interface name %q for node %q (requested: %q)", actualInterfaceName, node.Definition.Name, interfaceName)
-			} else {
-				klog.V(90).Infof("Could not discover interface name for node %q, using requested name %q: %v", node.Definition.Name, interfaceName, err)
-			}
+		success, errMsg := tryCreatePolicyOnNode(
+			apiClient, node, name, deviceID, interfaceName, vendor, sriovOpNs, devType, vfNum)
+		if success {
+			return true, nil
 		}
 
-		pfSelector := fmt.Sprintf("%s#0-%d", actualInterfaceName, vfNum-1)
-		klog.V(90).Infof("Creating SRIOV policy - name: %q, node: %q, pfSelector: %q, deviceID: %q, vendor: %q, interfaceName: %q, devType: %q",
-			name, node.Definition.Name, pfSelector, deviceID, vendor, actualInterfaceName, devType)
-
-		// Create SRIOV policy
-		sriovPolicy := sriov.NewPolicyBuilder(
-			apiClient,
-			name,
-			sriovOpNs,
-			name,
-			vfNum,
-			[]string{pfSelector},
-			map[string]string{"kubernetes.io/hostname": node.Definition.Name},
-		).WithDevType(devType)
-
-		// Set Vendor and DeviceID in NicSelector to help operator match hardware
-		// This is especially important when interface names might not match exactly
-		if vendor != "" {
-			sriovPolicy.Definition.Spec.NicSelector.Vendor = vendor
+		if errMsg != "" {
+			failedNodes = append(failedNodes, errMsg)
 		}
-		if deviceID != "" {
-			sriovPolicy.Definition.Spec.NicSelector.DeviceID = deviceID
-		}
-
-		_, err := sriovPolicy.Create()
-		if err != nil {
-			failedNodes = append(failedNodes, fmt.Sprintf("%s (create failed: %v)", node.Definition.Name, err))
-			klog.V(90).Infof("Failed to create SRIOV policy on node %q: %v (pfSelector: %q, deviceID: %q, vendor: %q, interfaceName: %q)",
-				node.Definition.Name, err, pfSelector, deviceID, vendor, actualInterfaceName)
-			// Clean up any partially created policy
-			_ = RemoveSriovPolicy(apiClient, name, sriovOpNs, tsparams.DefaultTimeout)
-			continue
-		}
-
-		klog.V(90).Infof("SRIOV policy created successfully, waiting for it to be applied - name: %q, node: %q", name, node.Definition.Name)
-
-		// Wait for policy to be applied
-		err = WaitForSriovAndMCPStable(
-			apiClient, tsparams.PolicyApplicationTimeout, tsparams.MCPStableInterval, DefaultMcpLabel, sriovOpNs)
-		if err != nil {
-			failedNodes = append(failedNodes, fmt.Sprintf("%s (apply wait failed: %v)", node.Definition.Name, err))
-			klog.V(90).Infof("Failed to wait for SRIOV policy to be applied on node %q: %v", node.Definition.Name, err)
-			// Clean up policy if wait fails
-			_ = RemoveSriovPolicy(apiClient, name, sriovOpNs, tsparams.DefaultTimeout)
-			continue
-		}
-
-		klog.V(90).Infof("SRIOV policy successfully applied - name: %q, node: %q", name, node.Definition.Name)
-		return true, nil
 	}
 
-	// Report which nodes failed for better diagnostics
 	if len(failedNodes) > 0 {
-		klog.V(90).Infof("Failed to create SRIOV policy on any worker node - name: %q, deviceID: %q, vendor: %q, interfaceName: %q. Failed nodes: %v",
-			name, deviceID, vendor, interfaceName, failedNodes)
-		return false, fmt.Errorf("failed to create SRIOV policy %q on any worker node (deviceID: %q, vendor: %q, interfaceName: %q). Failed nodes: %v",
-			name, deviceID, vendor, interfaceName, failedNodes)
+		return false, fmt.Errorf("failed to create SRIOV policy %q. Failed nodes: %v",
+			name, failedNodes)
 	}
 
-	klog.V(90).Infof("Failed to create SRIOV policy on any worker node - name: %q, deviceID: %q, vendor: %q, interfaceName: %q (no nodes attempted)",
-		name, deviceID, vendor, interfaceName)
-	return false, fmt.Errorf("failed to create SRIOV policy %q on any worker node (deviceID: %q, vendor: %q, interfaceName: %q)",
-		name, deviceID, vendor, interfaceName)
+	return false, fmt.Errorf("failed to create SRIOV policy %q - no nodes attempted", name)
 }
 
-// InitVF initializes VF for the given device
+// InitVF initializes VF for the given device.
 func InitVF(
 	apiClient *clients.Settings,
 	config *sriovconfig.SriovOcpConfig,
 	name, deviceID, interfaceName, vendor, sriovOpNs string,
 	vfNum int,
-	workerNodes []*nodes.Builder) (bool, error) {
-	return initVFWithDevType(apiClient, config, name, deviceID, interfaceName, vendor, sriovOpNs, "netdevice", vfNum, workerNodes)
+	workerNodes []*nodes.Builder,
+) (bool, error) {
+	return initVFWithDevType(
+		apiClient, config, name, deviceID, interfaceName, vendor,
+		sriovOpNs, "netdevice", vfNum, workerNodes)
 }
 
-// CreateTestPod creates a test pod with SRIOV network
+// CreateTestPod creates a test pod with SRIOV network.
 func CreateTestPod(
 	apiClient *clients.Settings,
 	config *sriovconfig.SriovOcpConfig,
@@ -1156,10 +1215,11 @@ func CreateTestPod(
 	}
 
 	klog.V(90).Infof("Test pod %q created successfully", name)
+
 	return createdPod, nil
 }
 
-// VerifyInterfaceReady verifies that a pod's network interface is ready
+// VerifyInterfaceReady verifies that a pod's network interface is ready.
 func VerifyInterfaceReady(podObj *pod.Builder, interfaceName, podName string) error {
 	klog.V(90).Infof("Verifying interface %q is ready on pod %q", interfaceName, podName)
 
@@ -1174,8 +1234,10 @@ func VerifyInterfaceReady(podObj *pod.Builder, interfaceName, podName string) er
 			strings.Contains(err.Error(), "i/o timeout") ||
 			strings.Contains(err.Error(), "connection reset") {
 			klog.V(90).Infof("Pod %q not accessible (may be terminating or deleted): %v", podName, err)
+
 			return fmt.Errorf("pod %q is not accessible - likely being terminated or already deleted: %w", podName, err)
 		}
+
 		return fmt.Errorf("failed to get interface status for pod %q: %w", podName, err)
 	}
 
@@ -1186,14 +1248,16 @@ func VerifyInterfaceReady(podObj *pod.Builder, interfaceName, podName string) er
 	}
 
 	klog.V(90).Infof("Interface %q is ready on pod %q", interfaceName, podName)
+
 	return nil
 }
 
-// CheckInterfaceCarrier checks if interface has carrier (physical link is active)
+// CheckInterfaceCarrier checks if interface has carrier (physical link is active).
 func CheckInterfaceCarrier(podObj *pod.Builder, interfaceName string) (bool, error) {
 	klog.V(90).Infof("Checking carrier status for interface %q", interfaceName)
 
 	cmd := []string{"ip", "link", "show", interfaceName}
+
 	output, err := podObj.ExecCommand(cmd)
 	if err != nil {
 		// Handle cases where pod is not accessible (already deleted, terminating, etc.)
@@ -1202,8 +1266,10 @@ func CheckInterfaceCarrier(podObj *pod.Builder, interfaceName string) (bool, err
 			strings.Contains(err.Error(), "i/o timeout") ||
 			strings.Contains(err.Error(), "connection reset") {
 			klog.V(90).Infof("Pod not accessible when checking carrier status (may be terminating): %v", err)
+
 			return false, fmt.Errorf("pod not accessible when checking carrier status: %w", err)
 		}
+
 		return false, fmt.Errorf("failed to get interface status: %w", err)
 	}
 
@@ -1212,18 +1278,21 @@ func CheckInterfaceCarrier(podObj *pod.Builder, interfaceName string) (bool, err
 	// Check for NO-CARRIER flag
 	if strings.Contains(outputStr, "NO-CARRIER") {
 		klog.V(90).Infof("Interface %q has NO-CARRIER status", interfaceName)
+
 		return false, nil
 	}
 
 	klog.V(90).Infof("Interface %q carrier is active", interfaceName)
+
 	return true, nil
 }
 
-// ExtractPodInterfaceMAC extracts the MAC address from a pod's interface
+// ExtractPodInterfaceMAC extracts the MAC address from a pod's interface.
 func ExtractPodInterfaceMAC(podObj *pod.Builder, interfaceName string) (string, error) {
 	klog.V(90).Infof("Extracting MAC address from interface %q", interfaceName)
 
 	cmd := []string{"ip", "link", "show", interfaceName}
+
 	output, err := podObj.ExecCommand(cmd)
 	if err != nil {
 		// Handle cases where pod is not accessible (already deleted, terminating, etc.)
@@ -1232,8 +1301,10 @@ func ExtractPodInterfaceMAC(podObj *pod.Builder, interfaceName string) (string, 
 			strings.Contains(err.Error(), "i/o timeout") ||
 			strings.Contains(err.Error(), "connection reset") {
 			klog.V(90).Infof("Pod not accessible when extracting MAC (may be terminating): %v", err)
+
 			return "", fmt.Errorf("pod not accessible: %w", err)
 		}
+
 		return "", fmt.Errorf("failed to get interface info: %w", err)
 	}
 
@@ -1249,6 +1320,7 @@ func ExtractPodInterfaceMAC(podObj *pod.Builder, interfaceName string) (string, 
 				if part == "link/ether" && i+1 < len(parts) {
 					mac := parts[i+1]
 					klog.V(90).Infof("Extracted MAC address %q from interface %q", mac, interfaceName)
+
 					return mac, nil
 				}
 			}
@@ -1289,6 +1361,7 @@ func executeCommandOnNode(
 	existingPod, err := pod.Pull(apiClient, debugPodName, debugPodNamespace)
 	if err == nil && existingPod != nil {
 		klog.V(90).Infof("Cleaning up existing debug pod %q", debugPodName)
+
 		_, _ = existingPod.DeleteAndWait(debugPodCleanupTimeout)
 	}
 
@@ -1327,9 +1400,11 @@ func executeCommandOnNode(
 			if pullErr != nil {
 				return false, nil
 			}
+
 			if pulledPod == nil || pulledPod.Object == nil {
 				return false, nil
 			}
+
 			return pulledPod.Object.Status.Phase == corev1.PodRunning, nil
 		})
 	if err != nil {
@@ -1398,18 +1473,23 @@ func PrepareVFSpoofCheckVerification(
 	if apiClient == nil {
 		return fmt.Errorf("API client cannot be nil")
 	}
+
 	if config == nil {
 		return fmt.Errorf("SR-IOV config cannot be nil")
 	}
+
 	if nodeName == "" {
 		return fmt.Errorf("node name should not be empty")
 	}
+
 	if nicName == "" {
 		return fmt.Errorf("interface name should not be empty")
 	}
+
 	if podMAC == "" {
 		return fmt.Errorf("pod MAC should not be empty")
 	}
+
 	if expectedState != "on" && expectedState != "off" {
 		return fmt.Errorf("expected state must be 'on' or 'off', got: %q", expectedState)
 	}
@@ -1425,6 +1505,7 @@ func PrepareVFSpoofCheckVerification(
 	// - Filter the output in Go to search for podMAC
 	// This eliminates the risk of command injection from untrusted nicName or podMAC values
 	cmd := []string{"ip", "link", "show", nicName}
+
 	output, err := executeCommandOnNode(apiClient, config, nodeName, namespace, cmd, tsparams.PodReadyTimeout)
 	if err != nil {
 		return fmt.Errorf("failed to execute command on node %q: %w", nodeName, err)
@@ -1435,7 +1516,9 @@ func PrepareVFSpoofCheckVerification(
 	// Filter output in Go to find lines containing the pod's MAC address
 	// This is safer than using shell grep with string interpolation
 	lines := strings.Split(output, "\n")
+
 	var matchingLines []string
+
 	for _, line := range lines {
 		if strings.Contains(line, podMAC) {
 			matchingLines = append(matchingLines, line)
@@ -1463,9 +1546,11 @@ func PrepareVFSpoofCheckVerification(
 	}
 
 	found := false
+
 	for _, pattern := range expectedPatterns {
 		if strings.Contains(output, pattern) {
 			found = true
+
 			break
 		}
 	}
@@ -1477,6 +1562,7 @@ func PrepareVFSpoofCheckVerification(
 
 	klog.V(90).Infof("Spoof checking verification successful: node %q, interface %q, MAC %q, state %q",
 		nodeName, nicName, podMAC, expectedState)
+
 	return nil
 }
 
@@ -1485,7 +1571,8 @@ func PrepareVFSpoofCheckVerification(
 // Note: This deprecated function cannot perform actual verification without apiClient and config.
 // It will return an error indicating that the new function signature should be used.
 func VerifyVFSpoofCheck(nodeName, nicName, podMAC string) error {
-	return fmt.Errorf("VerifyVFSpoofCheck is deprecated. Use PrepareVFSpoofCheckVerification(apiClient, config, nodeName, nicName, podMAC, expectedState) instead")
+	return fmt.Errorf(
+		"VerifyVFSpoofCheck is deprecated. Use PrepareVFSpoofCheckVerification instead")
 }
 
 // VerifyLinkStateConfiguration verifies that link state configuration is applied without requiring connectivity.
@@ -1497,11 +1584,15 @@ func VerifyLinkStateConfiguration(
 	apiClient *clients.Settings,
 	config *sriovconfig.SriovOcpConfig,
 	networkName, namespace, description string,
-	timeout time.Duration) (bool, error) {
-	klog.V(90).Infof("Verifying link state configuration: %q (network: %q, namespace: %q)", description, networkName, namespace)
+	timeout time.Duration,
+) (bool, error) {
+	klog.V(90).Infof("Verifying link state: %q (network: %q, ns: %q)",
+		description, networkName, namespace)
 
 	// Create a single test pod to verify link state
-	testPod, err := CreateTestPod(apiClient, config, "linkstate-test", namespace, networkName, tsparams.TestPodClientIP, tsparams.TestPodClientMAC)
+	testPod, err := CreateTestPod(
+		apiClient, config, "linkstate-test", namespace, networkName,
+		tsparams.TestPodClientIP, tsparams.TestPodClientMAC)
 	if err != nil {
 		return false, fmt.Errorf("failed to create test pod: %w", err)
 	}
@@ -1509,6 +1600,7 @@ func VerifyLinkStateConfiguration(
 	// Defer cleanup of pod
 	defer func() {
 		klog.V(90).Info("Cleaning up link state test pod")
+
 		if testPod != nil {
 			_, err := testPod.DeleteAndWait(tsparams.CleanupTimeout)
 			if err != nil {
@@ -1519,17 +1611,20 @@ func VerifyLinkStateConfiguration(
 
 	// Wait for pod to be ready
 	klog.V(90).Info("Waiting for test pod to be ready")
+
 	err = testPod.WaitUntilReady(timeout)
 	if err != nil {
 		if testPod.Definition != nil {
 			klog.V(90).Infof("Test pod status - phase: %q, reason: %q, message: %q",
 				testPod.Definition.Status.Phase, testPod.Definition.Status.Reason, testPod.Definition.Status.Message)
 		}
+
 		return false, fmt.Errorf("test pod not ready: %w", err)
 	}
 
 	// Verify interface configuration on pod
 	klog.V(90).Info("Verifying interface configuration on pod")
+
 	err = VerifyInterfaceReady(testPod, "net1", "linkstate-test")
 	if err != nil {
 		return false, fmt.Errorf("failed to verify test pod interface: %w", err)
@@ -1537,6 +1632,7 @@ func VerifyLinkStateConfiguration(
 
 	// Check carrier status to determine if connectivity tests can be run
 	klog.V(90).Info("Checking interface carrier status")
+
 	hasCarrier, err := CheckInterfaceCarrier(testPod, "net1")
 	if err != nil {
 		return false, fmt.Errorf("failed to check interface carrier status: %w", err)
@@ -1544,50 +1640,74 @@ func VerifyLinkStateConfiguration(
 
 	if !hasCarrier {
 		klog.V(90).Info("Interface has NO-CARRIER status - link state configuration is applied but no physical connection")
+
 		return false, nil // No carrier, but configuration is valid
 	}
 
 	klog.V(90).Infof("Link state configuration verified successfully with carrier: %q", description)
+
 	return true, nil // Has carrier, connectivity tests can proceed
 }
 
-// createAndWaitForTestPods creates client and server test pods and waits for them to be ready
+// createAndWaitForTestPods creates client and server test pods and waits for them to be ready.
 func createAndWaitForTestPods(
 	apiClient *clients.Settings,
 	config *sriovconfig.SriovOcpConfig,
 	networkName, namespace string,
-	timeout time.Duration) (*pod.Builder, *pod.Builder, error) {
-	clientPod, err := CreateTestPod(apiClient, config, "client", namespace, networkName, tsparams.TestPodClientIP, tsparams.TestPodClientMAC)
+	timeout time.Duration,
+) (*pod.Builder, *pod.Builder, error) {
+	clientPod, err := CreateTestPod(
+		apiClient, config, "client", namespace, networkName,
+		tsparams.TestPodClientIP, tsparams.TestPodClientMAC)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create client pod: %w", err)
 	}
 
-	serverPod, err := CreateTestPod(apiClient, config, "server", namespace, networkName, tsparams.TestPodServerIP, tsparams.TestPodServerMAC)
+	serverPod, err := CreateTestPod(
+		apiClient, config, "server", namespace, networkName,
+		tsparams.TestPodServerIP, tsparams.TestPodServerMAC)
 	if err != nil {
 		// Try to clean up client pod if server pod creation fails
 		_, _ = clientPod.DeleteAndWait(tsparams.NamespaceTimeout)
+
 		return nil, nil, fmt.Errorf("failed to create server pod: %w", err)
+	}
+
+	// Ensure cleanup on any readiness failure
+	cleanup := func() {
+		if clientPod != nil {
+			_, _ = clientPod.DeleteAndWait(tsparams.CleanupTimeout)
+		}
+		if serverPod != nil {
+			_, _ = serverPod.DeleteAndWait(tsparams.CleanupTimeout)
+		}
 	}
 
 	// Wait for client pod to be ready
 	klog.V(90).Info("Waiting for client pod to be ready")
+
 	err = clientPod.WaitUntilReady(timeout)
 	if err != nil {
 		if clientPod.Definition != nil {
 			klog.V(90).Infof("Client pod status - phase: %q, reason: %q, message: %q",
 				clientPod.Definition.Status.Phase, clientPod.Definition.Status.Reason, clientPod.Definition.Status.Message)
 		}
+
+		cleanup()
 		return nil, nil, fmt.Errorf("client pod not ready: %w", err)
 	}
 
 	// Wait for server pod to be ready
 	klog.V(90).Info("Waiting for server pod to be ready")
+
 	err = serverPod.WaitUntilReady(timeout)
 	if err != nil {
 		if serverPod.Definition != nil {
 			klog.V(90).Infof("Server pod status - phase: %q, reason: %q, message: %q",
 				serverPod.Definition.Status.Phase, serverPod.Definition.Status.Reason, serverPod.Definition.Status.Message)
 		}
+
+		cleanup()
 		return nil, nil, fmt.Errorf("server pod not ready: %w", err)
 	}
 
@@ -1621,12 +1741,13 @@ func isTransientNetworkError(err error) bool {
 }
 
 // verifyPodInterfaces verifies that both client and server pod interfaces are ready
-// It includes retry logic to handle transient network errors (e.g., kubelet connection issues)
+// It includes retry logic to handle transient network errors (e.g., kubelet connection issues).
 func verifyPodInterfaces(clientPod, serverPod *pod.Builder) error {
 	klog.V(90).Info("Verifying interface configuration on pods")
 
 	// Retry logic for client pod interface verification
 	var clientErr error
+
 	err := wait.PollUntilContextTimeout(
 		context.Background(),
 		tsparams.PollingInterval,
@@ -1643,23 +1764,26 @@ func verifyPodInterfaces(clientPod, serverPod *pod.Builder) error {
 				// Check if it's a transient network error that should be retried
 				if isTransientNetworkError(clientErr) {
 					klog.V(90).Infof("Transient network error verifying client pod interface, will retry: %v", clientErr)
+
 					return false, nil // Retry
 				}
 				// Non-retryable error
 				return false, clientErr
 			}
+
 			return true, nil // Success
 		})
-
 	if err != nil {
 		if clientErr != nil {
 			return fmt.Errorf("failed to verify client pod interface: %w", clientErr)
 		}
+
 		return fmt.Errorf("failed to verify client pod interface: %w", err)
 	}
 
 	// Retry logic for server pod interface verification
 	var serverErr error
+
 	err = wait.PollUntilContextTimeout(
 		context.Background(),
 		tsparams.PollingInterval,
@@ -1676,18 +1800,20 @@ func verifyPodInterfaces(clientPod, serverPod *pod.Builder) error {
 				// Check if it's a transient network error that should be retried
 				if isTransientNetworkError(serverErr) {
 					klog.V(90).Infof("Transient network error verifying server pod interface, will retry: %v", serverErr)
+
 					return false, nil // Retry
 				}
 				// Non-retryable error
 				return false, serverErr
 			}
+
 			return true, nil // Success
 		})
-
 	if err != nil {
 		if serverErr != nil {
 			return fmt.Errorf("failed to verify server pod interface: %w", serverErr)
 		}
+
 		return fmt.Errorf("failed to verify server pod interface: %w", err)
 	}
 
@@ -1700,14 +1826,16 @@ func verifyPodInterfaces(clientPod, serverPod *pod.Builder) error {
 // without physical connection, not as a generic failure.
 func verifyPodCarrier(clientPod *pod.Builder) error {
 	klog.V(90).Info("Checking interface link status")
+
 	clientCarrier, err := CheckInterfaceCarrier(clientPod, "net1")
 	if err != nil {
 		return fmt.Errorf("failed to check client interface carrier status: %w", err)
 	}
 
 	if !clientCarrier {
-		klog.V(90).Info("Interface has NO-CARRIER status (physical link down), skipping connectivity test")
-		return fmt.Errorf("interface has NO-CARRIER status - skipping connectivity test for interface without physical connection")
+		klog.V(90).Info("Interface has NO-CARRIER status (physical link down)")
+
+		return fmt.Errorf("interface has NO-CARRIER status - no physical connection")
 	}
 
 	return nil
@@ -1731,6 +1859,7 @@ func verifySpoofCheckOnPod(
 	if clientPodNode == "" {
 		return fmt.Errorf("client pod node name should not be empty after scheduling")
 	}
+
 	klog.V(90).Infof("Client pod is running on node %q", clientPodNode)
 
 	// Extract client pod's MAC address from net1 interface
@@ -1741,10 +1870,13 @@ func verifySpoofCheckOnPod(
 			strings.Contains(err.Error(), "connection refused") ||
 			strings.Contains(err.Error(), "pod not accessible") {
 			klog.V(90).Infof("Pod not accessible when extracting MAC (may be terminating): %v", err)
+
 			return fmt.Errorf("pod is not accessible - likely being terminated or already deleted: %w", err)
 		}
+
 		return fmt.Errorf("failed to extract client pod MAC address: %w", err)
 	}
+
 	klog.V(90).Infof("Client pod MAC address extracted: %q", clientMAC)
 
 	// Get the namespace from the client pod
@@ -1754,7 +1886,9 @@ func verifySpoofCheckOnPod(
 	}
 
 	// Verify actual spoof checking state on the node
-	err = PrepareVFSpoofCheckVerification(apiClient, config, clientPodNode, clientPodNamespace, interfaceName, clientMAC, expectedState)
+	err = PrepareVFSpoofCheckVerification(
+		apiClient, config, clientPodNode, clientPodNamespace,
+		interfaceName, clientMAC, expectedState)
 	if err != nil {
 		return fmt.Errorf("failed to verify VF spoof checking state: %w", err)
 	}
@@ -1762,15 +1896,18 @@ func verifySpoofCheckOnPod(
 	return nil
 }
 
-// testPodConnectivity tests connectivity between client and server pods using ping
+// testPodConnectivity tests connectivity between client and server pods using ping.
 func testPodConnectivity(clientPod *pod.Builder, serverIP string) error {
 	klog.V(90).Info("Testing connectivity between pods")
+
 	pingCmd := []string{"ping", "-c", "3", serverIP}
 	pingTimeout := tsparams.PingTimeout
 
 	var pingOutput bytes.Buffer
+
 	ctx, cancel := context.WithTimeout(context.Background(), pingTimeout)
 	defer cancel()
+
 	err := wait.PollUntilContextTimeout(
 		ctx,
 		tsparams.PingPollingInterval,
@@ -1778,14 +1915,16 @@ func testPodConnectivity(clientPod *pod.Builder, serverIP string) error {
 		true,
 		func(ctx context.Context) (bool, error) {
 			var execErr error
+
 			pingOutput, execErr = clientPod.ExecCommand(pingCmd)
 			if execErr != nil {
 				klog.V(90).Infof("Ping command failed, will retry: %v (output: %q)", execErr, pingOutput.String())
+
 				return false, nil // Retry on error
 			}
+
 			return true, nil // Success
 		})
-
 	if err != nil {
 		return fmt.Errorf("ping command timed out or failed after %v: %w", pingTimeout, err)
 	}
@@ -1818,13 +1957,15 @@ func testPodConnectivity(clientPod *pod.Builder, serverIP string) error {
 
 // CheckVFStatusWithPassTraffic checks VF status and passes traffic between test pods
 // This function orchestrates pod creation, interface verification, carrier checking,
-// spoof check verification, and connectivity testing using helper functions
+// spoof check verification, and connectivity testing using helper functions.
 func CheckVFStatusWithPassTraffic(
 	apiClient *clients.Settings,
 	config *sriovconfig.SriovOcpConfig,
 	networkName, interfaceName, namespace, description string,
-	timeout time.Duration) error {
-	klog.V(90).Infof("Checking VF status with traffic: %q (network: %q, interface: %q, namespace: %q)", description, networkName, interfaceName, namespace)
+	timeout time.Duration,
+) error {
+	klog.V(90).Infof("Checking VF status: %q (network: %q, iface: %q, ns: %q)",
+		description, networkName, interfaceName, namespace)
 
 	// Create and wait for test pods
 	clientPod, serverPod, err := createAndWaitForTestPods(apiClient, config, networkName, namespace, timeout)
@@ -1835,12 +1976,14 @@ func CheckVFStatusWithPassTraffic(
 	// Defer cleanup of pods
 	defer func() {
 		klog.V(90).Info("Cleaning up test pods")
+
 		if clientPod != nil {
 			_, err := clientPod.DeleteAndWait(tsparams.CleanupTimeout)
 			if err != nil {
 				klog.V(90).Infof("Failed to clean up client pod: %v", err)
 			}
 		}
+
 		if serverPod != nil {
 			_, err := serverPod.DeleteAndWait(tsparams.CleanupTimeout)
 			if err != nil {
@@ -1862,8 +2005,10 @@ func CheckVFStatusWithPassTraffic(
 		// Check if this is a NO-CARRIER error (skip condition) vs other errors (failures)
 		if strings.Contains(err.Error(), "NO-CARRIER") || strings.Contains(err.Error(), "no physical connection") {
 			klog.V(90).Infof("Skipping traffic test due to NO-CARRIER status: %v", err)
+
 			return fmt.Errorf("skipping traffic test - interface has NO-CARRIER status (no physical connection): %w", err)
 		}
+
 		return err
 	}
 
@@ -1874,6 +2019,7 @@ func CheckVFStatusWithPassTraffic(
 		if strings.Contains(description, "spoof checking off") {
 			expectedState = "off"
 		}
+
 		if err := verifySpoofCheckOnPod(apiClient, config, clientPod, interfaceName, expectedState); err != nil {
 			return err
 		}
@@ -1887,23 +2033,28 @@ func CheckVFStatusWithPassTraffic(
 	}
 
 	klog.V(90).Infof("VF status verification with traffic completed successfully: %q", description)
+
 	return nil
 }
 
-// InitDpdkVF initializes DPDK VF for the given device
+// InitDpdkVF initializes DPDK VF for the given device.
 func InitDpdkVF(
 	apiClient *clients.Settings,
 	config *sriovconfig.SriovOcpConfig,
 	name, deviceID, interfaceName, vendor, sriovOpNs string,
 	vfNum int,
-	workerNodes []*nodes.Builder) (bool, error) {
-	return initVFWithDevType(apiClient, config, name, deviceID, interfaceName, vendor, sriovOpNs, "vfio-pci", vfNum, workerNodes)
+	workerNodes []*nodes.Builder,
+) (bool, error) {
+	return initVFWithDevType(
+		apiClient, config, name, deviceID, interfaceName, vendor,
+		sriovOpNs, "vfio-pci", vfNum, workerNodes)
 }
 
-// GetPciAddress gets the PCI address for a pod from network status annotation
+// GetPciAddress gets the PCI address for a pod from network status annotation.
+// config parameter is reserved for future use and currently unused.
 func GetPciAddress(
 	apiClient *clients.Settings,
-	config *sriovconfig.SriovOcpConfig,
+	_ *sriovconfig.SriovOcpConfig, // config reserved for future use
 	namespace, podName, policyName string) (string, error) {
 	klog.V(90).Infof("Getting PCI address for pod %q in namespace %q (policy: %q)", podName, namespace, policyName)
 
@@ -1919,9 +2070,11 @@ func GetPciAddress(
 
 	// Get the network status annotation
 	networkStatusAnnotation := "k8s.v1.cni.cncf.io/network-status"
+
 	podNetAnnotation := podObj.Object.Annotations[networkStatusAnnotation]
 	if podNetAnnotation == "" {
 		klog.V(90).Infof("Pod network annotation not found for pod %q in namespace %q", podName, namespace)
+
 		return "", fmt.Errorf("pod %q does not have network status annotation", podName)
 	}
 
@@ -1939,9 +2092,11 @@ func GetPciAddress(
 	}
 
 	var annotation []PodNetworkStatusAnnotation
+
 	err = json.Unmarshal([]byte(podNetAnnotation), &annotation)
 	if err != nil {
 		klog.V(90).Infof("Failed to unmarshal pod network status for pod %q: %v", podName, err)
+
 		return "", fmt.Errorf("failed to unmarshal pod network status annotation: %w", err)
 	}
 
@@ -1949,13 +2104,16 @@ func GetPciAddress(
 	for _, networkAnnotation := range annotation {
 		if strings.Contains(networkAnnotation.Name, policyName) {
 			if networkAnnotation.DeviceInfo.Pci.PciAddress != "" {
-				klog.V(90).Infof("PCI address found for pod %q: %q (policy: %q)", podName, networkAnnotation.DeviceInfo.Pci.PciAddress, policyName)
+				klog.V(90).Infof("PCI address found for pod %q: %q (policy: %q)",
+					podName, networkAnnotation.DeviceInfo.Pci.PciAddress, policyName)
+
 				return networkAnnotation.DeviceInfo.Pci.PciAddress, nil
 			}
 		}
 	}
 
 	klog.V(90).Infof("PCI address not found for pod %q with policy %q", podName, policyName)
+
 	return "", fmt.Errorf("PCI address not found for pod %q with policy %q", podName, policyName)
 }
 
@@ -1990,11 +2148,13 @@ func UpdateSriovPolicyMTU(apiClient *clients.Settings, policyName, sriovOpNs str
 	}
 
 	_ = updatedPolicy // Acknowledge successful update
+
 	klog.V(90).Infof("SR-IOV policy %q successfully updated with MTU %d", policyName, mtuValue)
+
 	return nil
 }
 
-// CreateDpdkTestPod creates a DPDK test pod with SR-IOV network
+// CreateDpdkTestPod creates a DPDK test pod with SR-IOV network.
 func CreateDpdkTestPod(
 	apiClient *clients.Settings,
 	config *sriovconfig.SriovOcpConfig,
@@ -2002,7 +2162,8 @@ func CreateDpdkTestPod(
 	klog.V(90).Infof("Creating DPDK test pod %q in namespace %q with network %q", name, namespace, networkName)
 
 	// Create network annotation (DPDK pods use the network name directly)
-	networkAnnotation := pod.StaticIPAnnotationWithMacAddress(networkName, []string{tsparams.TestPodClientIP}, tsparams.TestPodClientMAC)
+	networkAnnotation := pod.StaticIPAnnotationWithMacAddress(
+		networkName, []string{tsparams.TestPodClientIP}, tsparams.TestPodClientMAC)
 
 	podBuilder := pod.NewBuilder(
 		apiClient,
@@ -2017,16 +2178,18 @@ func CreateDpdkTestPod(
 	}
 
 	klog.V(90).Infof("DPDK test pod %q created successfully", name)
+
 	return createdPod, nil
 }
 
-// DeleteDpdkTestPod deletes a DPDK test pod
+// DeleteDpdkTestPod deletes a DPDK test pod.
 func DeleteDpdkTestPod(apiClient *clients.Settings, name, namespace string, timeout time.Duration) error {
 	klog.V(90).Infof("Deleting DPDK test pod %q from namespace %q", name, namespace)
 
 	podBuilder := pod.NewBuilder(apiClient, name, namespace, "")
 	if !podBuilder.Exists() {
 		klog.V(90).Infof("DPDK test pod %q does not exist in namespace %q, skipping deletion", name, namespace)
+
 		return nil
 	}
 
@@ -2036,5 +2199,6 @@ func DeleteDpdkTestPod(apiClient *clients.Settings, name, namespace string, time
 	}
 
 	klog.V(90).Infof("DPDK test pod %q successfully deleted", name)
+
 	return nil
 }

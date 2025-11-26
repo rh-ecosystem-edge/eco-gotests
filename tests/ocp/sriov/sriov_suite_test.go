@@ -15,12 +15,12 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/params"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/reporter"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
-	. "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/ocpsriovinittools"
 	sriovconfig "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/ocpsriovconfig"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/ocpsriovinittools"
 	sriovenv "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/sriovenv"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/tsparams"
-	"k8s.io/klog/v2"
 	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/tests"
+	"k8s.io/klog/v2"
 )
 
 var _, currentFile, _, _ = runtime.Caller(0)
@@ -33,7 +33,7 @@ func TestSriov(t *testing.T) {
 	// Generate timestamp once at suite start for consistent report naming
 	timestamp := sriovconfig.GetTimestamp()
 	SriovOcpConfig.SetReportTimestamp(timestamp)
-	
+
 	_, reporterConfig := GinkgoConfiguration()
 	reporterConfig.JUnitReport = SriovOcpConfig.GetJunitReportPath(currentFile)
 
@@ -98,19 +98,19 @@ var _ = ReportAfterSuite("", func(report Report) {
 	// Get cluster and operator versions for report metadata
 	var ocpVersion, sriovVersion string
 	var versionErr error
-	
+
 	ocpVersion, versionErr = sriovenv.GetOCPVersion(APIClient)
 	if versionErr != nil {
 		klog.V(90).Infof("Failed to get OCP version: %v", versionErr)
 		ocpVersion = "unknown"
 	}
-	
+
 	sriovVersion, versionErr = sriovenv.GetSriovOperatorVersion(APIClient, SriovOcpConfig.OcpSriovOperatorNamespace)
 	if versionErr != nil {
 		klog.V(90).Infof("Failed to get SR-IOV operator version: %v", versionErr)
 		sriovVersion = "unknown"
 	}
-	
+
 	// Get SR-IOV operator pod container information
 	var containerInfo []sriovenv.PodContainerInfo
 	containerInfo, versionErr = sriovenv.GetSriovOperatorPodContainers(APIClient, SriovOcpConfig.OcpSriovOperatorNamespace)
@@ -118,14 +118,14 @@ var _ = ReportAfterSuite("", func(report Report) {
 		klog.V(90).Infof("Failed to get SR-IOV operator pod containers: %v", versionErr)
 		containerInfo = []sriovenv.PodContainerInfo{}
 	}
-	
+
 	// Log version information
 	klog.V(90).Infof("Test Report Metadata - OCP Version: %s, SR-IOV Operator Version: %s", ocpVersion, sriovVersion)
-	
+
 	// Create the report
 	reportPath := SriovOcpConfig.GetReportPath()
 	reportxml.Create(report, reportPath, SriovOcpConfig.TCPrefix)
-	
+
 	// Write version metadata to a separate file alongside the report
 	// Metadata file format:
 	// - Plain text format for human readability
@@ -137,27 +137,27 @@ var _ = ReportAfterSuite("", func(report Report) {
 	// Only create metadata file if report path is available (EnableReport must be true)
 	if reportPath != "" {
 		metadataPath := strings.TrimSuffix(reportPath, ".xml") + "_metadata.txt"
-		
+
 		var metadataBuilder strings.Builder
 		metadataBuilder.WriteString(fmt.Sprintf("OpenShift Cluster Version: %s\n", ocpVersion))
 		metadataBuilder.WriteString(fmt.Sprintf("SR-IOV Operator Version: %s\n", sriovVersion))
 		metadataBuilder.WriteString(fmt.Sprintf("Report Generated: %s\n", report.EndTime.Format("2006-01-02 15:04:05")))
 		metadataBuilder.WriteString("\nSR-IOV Operator Pod Containers:\n")
-		
+
 		if len(containerInfo) > 0 {
 			// Group by pod name for better readability
 			podMap := make(map[string][]sriovenv.PodContainerInfo)
 			for _, info := range containerInfo {
 				podMap[info.PodName] = append(podMap[info.PodName], info)
 			}
-			
+
 			// Sort pod names for consistent output order
 			podNames := make([]string, 0, len(podMap))
 			for podName := range podMap {
 				podNames = append(podNames, podName)
 			}
 			sort.Strings(podNames)
-			
+
 			for _, podName := range podNames {
 				containers := podMap[podName]
 				metadataBuilder.WriteString(fmt.Sprintf("\n  Pod: %s\n", podName))
@@ -169,14 +169,14 @@ var _ = ReportAfterSuite("", func(report Report) {
 		} else {
 			metadataBuilder.WriteString("  (No container information available)\n")
 		}
-		
+
 		if err := os.WriteFile(metadataPath, []byte(metadataBuilder.String()), 0600); err != nil {
 			klog.Errorf("Failed to write metadata file %s: %v", metadataPath, err)
 		} else {
 			klog.V(90).Infof("Version metadata written to: %s", metadataPath)
 		}
 	}
-	
+
 	// Print report file locations for visibility in test logs
 	junitReportPath := SriovOcpConfig.GetJunitReportPath(currentFile)
 	fmt.Printf("\n=== Test Report Files ===\n")
