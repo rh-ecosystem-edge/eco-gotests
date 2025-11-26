@@ -1285,19 +1285,145 @@ func ExtractPodInterfaceMAC(podObj *pod.Builder, interfaceName string) (string, 
 	return "", fmt.Errorf("MAC address not found for interface %q", interfaceName)
 }
 
-// VerifyVFSpoofCheck is a stub function that currently does not perform actual verification.
-// This function validates inputs and logs diagnostic commands but does not execute them on the node
-// or inspect node state to verify that spoof checking is actually enabled/disabled.
-// As a result, callers (e.g., verifySpoofCheckOnPod) effectively only verify connectivity,
-// not that spoof checking is really on/off. This is intentional for now as actual verification
-// would require node access (typically via oc debug) which may not be available in all environments.
-// TODO: Implement actual spoof checking verification when node access becomes feasible.
-// Future implementations could add a minimal verification path (e.g., via oc debug or a node-side helper)
-// in environments where that's acceptable.
-func VerifyVFSpoofCheck(nodeName, nicName, podMAC string) error {
-	klog.V(90).Infof("Verifying spoof checking is active on node %q for MAC %q (interface: %q)", nodeName, podMAC, nicName)
+// executeCommandOnNode executes a command on a specific node using a privileged debug pod.
+// This creates a temporary privileged pod with host network access to execute the command.
+func executeCommandOnNode(
+	apiClient *clients.Settings,
+	config *sriovconfig.SriovOcpConfig,
+	nodeName, namespace string,
+	cmd []string,
+	timeout time.Duration) (string, error) {
+	const (
+		debugPodNamePrefix     = "sriov-debug-"
+		debugPodCleanupTimeout = 15 * time.Second
+		maxPodNameLength       = 63 // Kubernetes pod name limit
+	)
+
+	// Use the provided namespace (typically the per-test namespace where test pods are running)
+	debugPodNamespace := namespace
+	if debugPodNamespace == "" {
+		// Fallback to suite-level namespace if not provided
+		debugPodNamespace = tsparams.TestNamespaceName
+	}
+
+	// Generate unique pod name based on node name, ensuring it doesn't exceed Kubernetes limits
+	debugPodName := debugPodNamePrefix + strings.ToLower(strings.ReplaceAll(nodeName, ".", "-"))
+	if len(debugPodName) > maxPodNameLength {
+		debugPodName = debugPodName[:maxPodNameLength]
+	}
+
+	// Clean up any existing debug pod for this node
+	existingPod, err := pod.Pull(apiClient, debugPodName, debugPodNamespace)
+	if err == nil && existingPod != nil {
+		klog.V(90).Infof("Cleaning up existing debug pod %q", debugPodName)
+		_, _ = existingPod.DeleteAndWait(debugPodCleanupTimeout)
+	}
+
+	// Create privileged debug pod on the specific node
+	debugPod := pod.NewBuilder(
+		apiClient,
+		debugPodName,
+		debugPodNamespace,
+		config.OcpSriovTestContainer,
+	).WithPrivilegedFlag().
+		WithHostNetwork().
+		WithHostPid(true).
+		WithNodeSelector(map[string]string{"kubernetes.io/hostname": nodeName}).
+		WithRestartPolicy(corev1.RestartPolicyNever)
+
+	createdPod, err := debugPod.Create()
+	if err != nil {
+		return "", fmt.Errorf("failed to create debug pod on node %q: %w", nodeName, err)
+	}
+
+	// Ensure cleanup of debug pod
+	defer func() {
+		if createdPod != nil {
+			_, _ = createdPod.DeleteAndWait(debugPodCleanupTimeout)
+		}
+	}()
+
+	// Wait for pod to be running
+	err = wait.PollUntilContextTimeout(
+		context.Background(),
+		tsparams.PollingInterval,
+		timeout,
+		true,
+		func(ctx context.Context) (bool, error) {
+			pulledPod, pullErr := pod.Pull(apiClient, debugPodName, debugPodNamespace)
+			if pullErr != nil {
+				return false, nil
+			}
+			if pulledPod == nil || pulledPod.Object == nil {
+				return false, nil
+			}
+			return pulledPod.Object.Status.Phase == corev1.PodRunning, nil
+		})
+	if err != nil {
+		return "", fmt.Errorf("debug pod %q did not reach Running state on node %q: %w", debugPodName, nodeName, err)
+	}
+
+	// Pull the pod again to get the latest state
+	runningPod, err := pod.Pull(apiClient, debugPodName, debugPodNamespace)
+	if err != nil {
+		return "", fmt.Errorf("failed to pull running debug pod: %w", err)
+	}
+
+	// Execute command using nsenter to access host namespace
+	// This is similar to "oc debug node" which uses chroot /host
+	// Join command parts with spaces for shell execution
+	cmdStr := strings.Join(cmd, " ")
+	nsenterCmd := []string{
+		"nsenter", "--target", "1",
+		"--mount", "--uts", "--ipc", "--net", "--pid",
+		"--", "sh", "-c", cmdStr,
+	}
+
+	output, err := runningPod.ExecCommand(nsenterCmd)
+	if err != nil {
+		return "", fmt.Errorf("failed to execute command on node %q: %w", nodeName, err)
+	}
+
+	return output.String(), nil
+}
+
+// PrepareVFSpoofCheckVerification verifies the actual spoof checking state on the node.
+// This function performs real verification by executing commands on the node using a privileged debug pod.
+//
+// Implementation details:
+// - Creates a temporary privileged debug pod on the target node
+// - Uses nsenter to access the host namespace (similar to "oc debug node")
+// - Executes: ip link show <nicName> | grep <macAddress> to find the VF
+// - Verifies that the output contains the expected spoof checking state
+//
+// Parameters:
+//   - apiClient: Kubernetes API client
+//   - config: SR-IOV configuration (for container image)
+//   - nodeName: Name of the node where the VF is located
+//   - namespace: Namespace where the debug pod should be created (typically the per-test namespace)
+//   - nicName: Name of the network interface (PF name)
+//   - podMAC: MAC address of the pod's VF interface
+//   - expectedState: Expected spoof checking state ("on" or "off")
+//
+// Returns error if:
+//   - Input validation fails
+//   - Debug pod creation fails
+//   - Command execution fails
+//   - Actual spoof checking state does not match expected state
+func PrepareVFSpoofCheckVerification(
+	apiClient *clients.Settings,
+	config *sriovconfig.SriovOcpConfig,
+	nodeName, namespace, nicName, podMAC, expectedState string) error {
+	klog.V(90).Infof("Verifying spoof checking state on node %q for MAC %q (interface: %q, expected: %q)",
+		nodeName, podMAC, nicName, expectedState)
 
 	// Validate inputs
+	if apiClient == nil {
+		return fmt.Errorf("API client cannot be nil")
+	}
+	if config == nil {
+		return fmt.Errorf("SR-IOV config cannot be nil")
+	}
 	if nodeName == "" {
 		return fmt.Errorf("node name should not be empty")
 	}
@@ -1307,14 +1433,61 @@ func VerifyVFSpoofCheck(nodeName, nicName, podMAC string) error {
 	if podMAC == "" {
 		return fmt.Errorf("pod MAC should not be empty")
 	}
+	if expectedState != "on" && expectedState != "off" {
+		return fmt.Errorf("expected state must be 'on' or 'off', got: %q", expectedState)
+	}
 
-	// Log the diagnostic command that would be used for verification
-	// In a real implementation, this would execute: oc debug node/<nodeName> -- chroot /host sh -c "ip link show <nicName> | grep -i spoof"
-	klog.V(90).Infof("Spoof checking verification - node: %q, interface: %q, podMAC: %q (diagnostic command: oc debug node/%s -- chroot /host sh -c 'ip link show %s | grep -i spoof')",
-		nodeName, nicName, podMAC, nodeName, nicName)
+	// Validate namespace
+	if namespace == "" {
+		return fmt.Errorf("namespace should not be empty")
+	}
 
-	klog.V(90).Infof("VF spoof checking verification setup complete - node: %q, interface: %q, mac: %q", nodeName, nicName, podMAC)
+	// Execute command on node to get VF information
+	// Command: ip link show <nicName> | grep <macAddress>
+	// This finds the VF line that contains the pod's MAC address
+	cmd := []string{fmt.Sprintf("ip link show %s | grep %s", nicName, podMAC)}
+	output, err := executeCommandOnNode(apiClient, config, nodeName, namespace, cmd, tsparams.PodReadyTimeout)
+	if err != nil {
+		return fmt.Errorf("failed to execute command on node %q: %w", nodeName, err)
+	}
+
+	klog.V(90).Infof("Command output from node %q: %q", nodeName, output)
+
+	// Check if output contains the expected spoof checking state
+	// The output format can vary:
+	// - "spoof checking on" or "spoof checking off" (with space, as seen in actual output)
+	// - "spoofchk on" or "spoofchk off" (abbreviated form)
+	// - "spoofchk=on" or "spoofchk=off" (with equals sign)
+	expectedPatterns := []string{
+		fmt.Sprintf("spoof checking %s", expectedState), // Most common format: "spoof checking on"
+		fmt.Sprintf("spoofchk %s", expectedState),       // Abbreviated: "spoofchk on"
+		fmt.Sprintf("spoofchk=%s", expectedState),       // With equals: "spoofchk=on"
+	}
+
+	found := false
+	for _, pattern := range expectedPatterns {
+		if strings.Contains(output, pattern) {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("spoof checking verification failed: expected state %q not found in output. "+
+			"Output: %q. Expected patterns: %v", expectedState, output, expectedPatterns)
+	}
+
+	klog.V(90).Infof("Spoof checking verification successful: node %q, interface %q, MAC %q, state %q",
+		nodeName, nicName, podMAC, expectedState)
 	return nil
+}
+
+// VerifyVFSpoofCheck is deprecated. Use PrepareVFSpoofCheckVerification instead.
+// This function is kept for backward compatibility but will be removed in a future version.
+// Note: This deprecated function cannot perform actual verification without apiClient and config.
+// It will return an error indicating that the new function signature should be used.
+func VerifyVFSpoofCheck(nodeName, nicName, podMAC string) error {
+	return fmt.Errorf("VerifyVFSpoofCheck is deprecated. Use PrepareVFSpoofCheckVerification(apiClient, config, nodeName, nicName, podMAC, expectedState) instead")
 }
 
 // VerifyLinkStateConfiguration verifies that link state configuration is applied without requiring connectivity.
@@ -1542,12 +1715,14 @@ func verifyPodCarrier(clientPod *pod.Builder) error {
 	return nil
 }
 
-// verifySpoofCheckOnPod verifies that spoof checking is enabled on the VF for the client pod
+// verifySpoofCheckOnPod verifies the actual spoof checking state on the node for the VF.
+// This function performs real verification by executing commands on the node.
 func verifySpoofCheckOnPod(
 	apiClient *clients.Settings,
+	config *sriovconfig.SriovOcpConfig,
 	clientPod *pod.Builder,
-	interfaceName string) error {
-	klog.V(90).Info("Verifying spoof checking is active on VF")
+	interfaceName, expectedState string) error {
+	klog.V(90).Infof("Verifying spoof checking state on VF (expected: %q)", expectedState)
 	// Refresh pod definition to get the latest node name after it was scheduled
 	refreshedPod, err := pod.Pull(apiClient, clientPod.Definition.Name, clientPod.Definition.Namespace)
 	if err != nil {
@@ -1574,10 +1749,16 @@ func verifySpoofCheckOnPod(
 	}
 	klog.V(90).Infof("Client pod MAC address extracted: %q", clientMAC)
 
-	// Verify spoof checking is enabled on node
-	err = VerifyVFSpoofCheck(clientPodNode, interfaceName, clientMAC)
+	// Get the namespace from the client pod
+	clientPodNamespace := refreshedPod.Definition.Namespace
+	if clientPodNamespace == "" {
+		return fmt.Errorf("client pod namespace should not be empty")
+	}
+
+	// Verify actual spoof checking state on the node
+	err = PrepareVFSpoofCheckVerification(apiClient, config, clientPodNode, clientPodNamespace, interfaceName, clientMAC, expectedState)
 	if err != nil {
-		return fmt.Errorf("failed to verify VF spoof checking: %w", err)
+		return fmt.Errorf("failed to verify VF spoof checking state: %w", err)
 	}
 
 	return nil
@@ -1688,9 +1869,16 @@ func CheckVFStatusWithPassTraffic(
 		return err
 	}
 
-	// Verify spoof checking on VF
-	if err := verifySpoofCheckOnPod(apiClient, clientPod, interfaceName); err != nil {
-		return err
+	// Verify spoof checking on VF (if description mentions spoof checking)
+	// Extract expected state from description (e.g., "spoof checking on" -> "on", "spoof checking off" -> "off")
+	if strings.Contains(description, "spoof checking") {
+		expectedState := "on"
+		if strings.Contains(description, "spoof checking off") {
+			expectedState = "off"
+		}
+		if err := verifySpoofCheckOnPod(apiClient, config, clientPod, interfaceName, expectedState); err != nil {
+			return err
+		}
 	}
 
 	// Test connectivity between pods

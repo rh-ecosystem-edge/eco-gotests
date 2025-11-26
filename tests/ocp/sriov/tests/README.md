@@ -274,7 +274,9 @@ The basic test suite includes 9 test cases covering various SR-IOV features:
 - VF is created successfully
 - Network is attached to pod
 - Interface is ready and can pass traffic
-- Spoof checking is active on the VF
+- Spoof checking state is verified on the node using a privileged debug pod
+
+**Note**: This test creates a temporary privileged debug pod to verify the actual spoof checking state on the node. See `PrepareVFSpoofCheckVerification` in `sriovenv.go` for implementation details.
 
 ---
 
@@ -296,7 +298,9 @@ The basic test suite includes 9 test cases covering various SR-IOV features:
 - VF is created successfully
 - Network is attached to pod
 - Interface is ready and can pass traffic
-- Spoof checking is disabled on the VF
+- Spoof checking state is verified on the node using a privileged debug pod
+
+**Note**: This test creates a temporary privileged debug pod to verify the actual spoof checking state (off) on the node. See `PrepareVFSpoofCheckVerification` in `sriovenv.go` for implementation details.
 
 ---
 
