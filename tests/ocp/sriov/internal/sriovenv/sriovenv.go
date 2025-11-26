@@ -646,19 +646,29 @@ func nodeMatchesWorkerLabel(node *nodes.Builder, workerLabel, labelKey string) b
 
 // isNodeReady checks if a node is ready and has no resource pressure.
 // Returns (isReady, hasPressure).
+// Note: Evaluates all conditions before deciding to ensure pressure conditions
+// are checked even if NodeReady appears first in the list.
 func isNodeReady(node *nodes.Builder) (bool, bool) {
+	var ready bool
+
+	var hasPressure bool
+
 	for _, cond := range node.Definition.Status.Conditions {
 		if cond.Type == corev1.NodeReady && cond.Status == corev1.ConditionTrue {
-			return true, false
+			ready = true
 		}
 
 		if (cond.Type == corev1.NodeMemoryPressure || cond.Type == corev1.NodeDiskPressure) &&
 			cond.Status == corev1.ConditionTrue {
-			return false, true
+			hasPressure = true
 		}
 	}
 
-	return false, false
+	if hasPressure {
+		return false, true
+	}
+
+	return ready, false
 }
 
 // checkWorkerNodesReady checks if all worker nodes are ready.
@@ -869,11 +879,15 @@ type SriovNetworkConfig struct {
 }
 
 // buildSriovNetworkBuilder creates and configures a SRIOV network builder with the given config.
-// Returns an error if any configuration value exceeds valid ranges.
+// Returns an error if any configuration value exceeds valid ranges or if config is nil.
 func buildSriovNetworkBuilder(
 	apiClient *clients.Settings,
 	config *SriovNetworkConfig,
 ) (*sriov.NetworkBuilder, error) {
+	if config == nil {
+		return nil, fmt.Errorf("SriovNetworkConfig cannot be nil")
+	}
+
 	networkBuilder := sriov.NewNetworkBuilder(
 		apiClient,
 		config.Name,
@@ -1017,8 +1031,10 @@ func CreateSriovNetwork(apiClient *clients.Settings, config *SriovNetworkConfig)
 		return fmt.Errorf("failed to wait for NAD %q: %w", config.Name, err)
 	}
 
-	// Check VF resources (non-blocking)
+	// Check VF resources (non-blocking for transient issues, but fail fast on config errors)
 	klog.V(90).Infof("Verifying VF resources for %q", config.ResourceName)
+
+	var lastVFErr error
 
 	err = wait.PollUntilContextTimeout(
 		context.Background(),
@@ -1026,15 +1042,35 @@ func CreateSriovNetwork(apiClient *clients.Settings, config *SriovNetworkConfig)
 		tsparams.VFResourceTimeout,
 		true,
 		func(ctx context.Context) (bool, error) {
-			available, err := VerifyVFResourcesAvailable(
+			available, verifyErr := VerifyVFResourcesAvailable(
 				apiClient, ocpsriovinittools.SriovOcpConfig, config.ResourceName)
+			if verifyErr != nil {
+				lastVFErr = verifyErr
+				// Check for hard configuration errors that should fail immediately
+				errMsg := verifyErr.Error()
+				if strings.Contains(errMsg, "cannot be nil") ||
+					strings.Contains(errMsg, "worker label is empty") {
+					// Configuration error - fail fast
+					return false, verifyErr
+				}
+				// Transient error (API issues, etc.) - keep retrying
+				klog.V(90).Infof("Transient error checking VF resources: %v", verifyErr)
 
-			return available && err == nil, nil
+				return false, nil
+			}
+
+			return available, nil
 		})
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			klog.V(90).Infof("VF resources %q not yet available (may still be provisioning): %v. "+
-				"Will proceed and re-check when pods are created.", config.ResourceName, err)
+			// Log the last error for debugging if we timed out
+			if lastVFErr != nil {
+				klog.V(4).Infof("VF resources %q not available after timeout. Last error: %v",
+					config.ResourceName, lastVFErr)
+			}
+
+			klog.V(90).Infof("VF resources %q not yet available (may still be provisioning). "+
+				"Will proceed and re-check when pods are created.", config.ResourceName)
 			// Proceed: VF availability will be re-checked by pod creation path
 		} else {
 			return fmt.Errorf("failed to verify VF resources %q: %w", config.ResourceName, err)

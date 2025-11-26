@@ -584,7 +584,7 @@ var _ = Describe(
 
 				// Verify PCI address is assigned
 				By("Verifying PCI address is assigned to DPDK pod")
-				pciAddress, err := sriovenv.GetPciAddress(APIClient, SriovOcpConfig, ns1, "sriovdpdk", policyName)
+				pciAddress, err := sriovenv.GetPciAddress(APIClient, SriovOcpConfig, ns1, "sriovdpdk", networkName)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get PCI address for DPDK pod")
 				Expect(pciAddress).NotTo(BeEmpty(), "PCI address should be assigned from pod network status")
 
