@@ -181,10 +181,11 @@ var _ = ReportAfterSuite("", func(report Report) {
 	junitReportPath := SriovOcpConfig.GetJunitReportPath(currentFile)
 	fmt.Printf("\n=== Test Report Files ===\n")
 	fmt.Printf("JUnit Report: %s\n", junitReportPath)
+
 	if reportPath != "" {
 		fmt.Printf("Test Run Report: %s\n", reportPath)
-		metadataPath := strings.TrimSuffix(reportPath, ".xml") + "_metadata.txt"
-		fmt.Printf("Metadata File: %s\n", metadataPath)
+		// Reuse metadataPath from above (already computed when writing the file)
+		fmt.Printf("Metadata File: %s\n", strings.TrimSuffix(reportPath, ".xml")+"_metadata.txt")
 	} else {
 		fmt.Printf("Test Run Report: (disabled - set ECO_ENABLE_REPORT=true to enable)\n")
 		fmt.Printf("Metadata File: (disabled - set ECO_ENABLE_REPORT=true to enable)\n")

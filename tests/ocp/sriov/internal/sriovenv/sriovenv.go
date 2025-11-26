@@ -510,7 +510,15 @@ func WaitForPodWithLabelReady(
 // checkSriovNodeStatesSynced checks if all SR-IOV node states are synced.
 func checkSriovNodeStatesSynced(apiClient *clients.Settings, sriovOpNs string) (bool, int) {
 	nodeStates, err := sriov.ListNetworkNodeState(apiClient, sriovOpNs, client.ListOptions{})
-	if err != nil || len(nodeStates) == 0 {
+	if err != nil {
+		klog.V(90).Infof("Failed to list SR-IOV node states: %v", err)
+
+		return false, 0
+	}
+
+	if len(nodeStates) == 0 {
+		klog.V(90).Info("No SR-IOV node states found")
+
 		return false, 0
 	}
 
@@ -543,7 +551,13 @@ func mcpMatchesLabel(mcp *mco.MCPBuilder, mcpLabel string) bool {
 func checkMCPStable(apiClient *clients.Settings, mcpLabel string) bool {
 	mcpList, err := mco.ListMCP(apiClient)
 	if err != nil {
-		return strings.Contains(err.Error(), "no kind is registered") // Skip if unavailable
+		if strings.Contains(err.Error(), "no kind is registered") {
+			return true // MCP not available, skip check
+		}
+
+		klog.V(90).Infof("Failed to list MachineConfigPools: %v", err)
+
+		return false
 	}
 
 	for _, mcp := range mcpList {
@@ -576,6 +590,8 @@ func checkMCPStable(apiClient *clients.Settings, mcpLabel string) bool {
 func checkWorkerNodesReady(apiClient *clients.Settings, workerLabel string) (bool, int) {
 	nodeList, err := nodes.List(apiClient, metav1.ListOptions{})
 	if err != nil {
+		klog.V(90).Infof("Failed to list nodes while checking worker readiness: %v", err)
+
 		return false, 0
 	}
 
@@ -1397,7 +1413,15 @@ func executeCommandOnNode(
 	// Ensure cleanup of debug pod
 	defer func() {
 		if createdPod != nil {
-			_, _ = createdPod.DeleteAndWait(debugPodCleanupTimeout)
+			if _, err := createdPod.DeleteAndWait(debugPodCleanupTimeout); err != nil {
+				klog.V(90).Infof("Failed to cleanup debug pod %q (may need manual cleanup): %v",
+					debugPodName, err)
+				// Try non-blocking delete as fallback
+				if _, deleteErr := createdPod.Delete(); deleteErr != nil {
+					klog.V(90).Infof("Fallback delete also failed for debug pod %q: %v",
+						debugPodName, deleteErr)
+				}
+			}
 		}
 	}()
 
@@ -1930,9 +1954,17 @@ func testPodConnectivity(clientPod *pod.Builder, serverIP string) error {
 
 			pingOutput, execErr = clientPod.ExecCommand(pingCmd)
 			if execErr != nil {
+				errMsg := execErr.Error()
+				// Check for permanent pod errors that shouldn't be retried
+				if strings.Contains(errMsg, "not found") ||
+					strings.Contains(errMsg, "does not exist") ||
+					strings.Contains(errMsg, "pod is not running") {
+					return false, fmt.Errorf("client pod unavailable: %w", execErr)
+				}
+
 				klog.V(90).Infof("Ping command failed, will retry: %v (output: %q)", execErr, pingOutput.String())
 
-				return false, nil // Retry on error
+				return false, nil // Retry on transient error
 			}
 
 			return true, nil // Success

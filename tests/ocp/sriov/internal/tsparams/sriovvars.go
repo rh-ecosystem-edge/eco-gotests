@@ -5,6 +5,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"k8s.io/klog/v2"
 )
 
 // Note: NetworkConfig has been replaced by SriovOcpConfig in ocpsriovconfig package
@@ -91,12 +93,16 @@ func GetVFNum() int {
 		if vfNum, err := strconv.Atoi(vfNumStr); err == nil && vfNum > 0 {
 			return vfNum
 		}
+
+		klog.Warningf("Invalid ECO_OCP_SRIOV_VF_NUM value %q, using default", vfNumStr)
 	}
 
 	if vfNumStr := os.Getenv("SRIOV_VF_NUM"); vfNumStr != "" {
 		if vfNum, err := strconv.Atoi(vfNumStr); err == nil && vfNum > 0 {
 			return vfNum
 		}
+
+		klog.Warningf("Invalid SRIOV_VF_NUM value %q, using default", vfNumStr)
 	}
 
 	return 2 // default

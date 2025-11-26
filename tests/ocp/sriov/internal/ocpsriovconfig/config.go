@@ -139,11 +139,16 @@ func (cfg *SriovOcpConfig) GetReportPath() string {
 		return ""
 	}
 
+	reportsDir := cfg.ReportsDirAbsPath
+	if reportsDir == "" {
+		reportsDir = "."
+	}
+
 	// Use stored timestamp if available, otherwise generate new one
 	timestamp := cfg.reportTimestamp
 	if timestamp == "" {
 		timestamp = time.Now().Format("20060102_150405")
 	}
 
-	return fmt.Sprintf("%s_%s_testrun.xml", filepath.Join(cfg.ReportsDirAbsPath, "report"), timestamp)
+	return fmt.Sprintf("%s_%s_testrun.xml", filepath.Join(reportsDir, "report"), timestamp)
 }
