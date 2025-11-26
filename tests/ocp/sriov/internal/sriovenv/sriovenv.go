@@ -230,6 +230,24 @@ func CleanupLeftoverResources(apiClient *clients.Settings, sriovOperatorNamespac
 	return nil
 }
 
+// isPolicyNotFoundError checks if the error indicates the policy doesn't exist.
+// This handles both Kubernetes API NotFound errors and eco-goinfra custom errors.
+func isPolicyNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if apierrors.IsNotFound(err) {
+		return true
+	}
+
+	// eco-goinfra returns custom error messages like "does not exist"
+	errMsg := err.Error()
+
+	return strings.Contains(errMsg, "does not exist") ||
+		strings.Contains(errMsg, "not found")
+}
+
 // RemoveSriovPolicy removes a SRIOV policy by name if it exists.
 func RemoveSriovPolicy(apiClient *clients.Settings, name, sriovOpNs string, timeout time.Duration) error {
 	klog.V(90).Infof("Removing SRIOV policy %q if it exists in namespace %q", name, sriovOpNs)
@@ -237,10 +255,13 @@ func RemoveSriovPolicy(apiClient *clients.Settings, name, sriovOpNs string, time
 	// Use PullPolicy to check if the policy exists (doesn't require resourceName)
 	policyBuilder, err := sriov.PullPolicy(apiClient, name, sriovOpNs)
 	if err != nil {
-		// Policy doesn't exist, which is fine
-		klog.V(90).Infof("SRIOV policy %q does not exist, skipping deletion: %v", name, err)
+		if isPolicyNotFoundError(err) {
+			klog.V(90).Infof("SRIOV policy %q does not exist, skipping deletion", name)
 
-		return nil
+			return nil
+		}
+
+		return fmt.Errorf("failed to check policy %q: %w", name, err)
 	}
 
 	err = policyBuilder.Delete()
@@ -257,19 +278,13 @@ func RemoveSriovPolicy(apiClient *clients.Settings, name, sriovOpNs string, time
 		timeout,
 		true,
 		func(ctx context.Context) (bool, error) {
-			_, err := sriov.PullPolicy(apiClient, name, sriovOpNs)
-			if apierrors.IsNotFound(err) {
-				return true, nil
-			}
-			if err != nil {
-				klog.V(90).Infof("Temporary error checking SRIOV policy %q deletion, will retry: %v", name, err)
-				return false, nil
-			}
-			// Policy still exists
-			return false, nil
+			_, pullErr := sriov.PullPolicy(apiClient, name, sriovOpNs)
+
+			return isPolicyNotFoundError(pullErr), nil
 		})
 	if err != nil {
-		return fmt.Errorf("timeout waiting for SRIOV policy %q to be deleted from namespace %q: %w", name, sriovOpNs, err)
+		return fmt.Errorf("timeout waiting for SRIOV policy %q to be deleted from namespace %q: %w",
+			name, sriovOpNs, err)
 	}
 
 	klog.V(90).Infof("SRIOV policy %q successfully deleted", name)
@@ -380,20 +395,17 @@ func RemoveSriovNetwork(apiClient *clients.Settings, name, sriovOpNs string, tim
 		return fmt.Errorf("failed to delete network %q: %w", name, err)
 	}
 
-	// Wait for network deletion
+	// Wait for network deletion - SriovNetwork CR is in the operator namespace
 	err = wait.PollUntilContextTimeout(
 		context.Background(),
 		tsparams.PollingInterval,
 		timeout,
 		true,
 		func(ctx context.Context) (bool, error) {
-			_, pullErr := sriov.PullNetwork(apiClient, name, targetNs)
-			if apierrors.IsNotFound(pullErr) {
-				return true, nil
-			}
+			_, pullErr := sriov.PullNetwork(apiClient, name, sriovOpNs)
 			if pullErr != nil {
-				klog.V(90).Infof("Temporary error checking SRIOV network %q deletion, will retry: %v", name, pullErr)
-				return false, nil
+				// Any error (including NotFound) means network is gone or inaccessible
+				return true, nil
 			}
 			// Network still exists
 			return false, nil

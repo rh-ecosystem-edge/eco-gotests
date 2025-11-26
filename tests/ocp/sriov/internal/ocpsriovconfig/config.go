@@ -116,6 +116,7 @@ func (cfg *SriovOcpConfig) GetJunitReportPath(file string) string {
 	}
 
 	reportFileName := filepath.Base(file)
+
 	ext := filepath.Ext(reportFileName)
 	if ext != "" {
 		reportFileName = reportFileName[:len(reportFileName)-len(ext)]

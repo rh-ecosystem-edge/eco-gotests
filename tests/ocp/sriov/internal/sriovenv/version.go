@@ -33,6 +33,7 @@ func GetOCPVersion(apiClient *clients.Settings) (string, error) {
 		if histories[i].State == configv1.CompletedUpdate {
 			version := histories[i].Version
 			klog.V(90).Infof("Found completed cluster version: %s", version)
+
 			return version, nil
 		}
 	}
@@ -40,6 +41,7 @@ func GetOCPVersion(apiClient *clients.Settings) (string, error) {
 	// Fall back to desired version
 	version := clusterVersion.Object.Status.Desired.Version
 	klog.V(90).Infof("Using desired cluster version: %s", version)
+
 	return version, nil
 }
 
@@ -56,6 +58,7 @@ func GetSriovOperatorVersion(apiClient *clients.Settings, namespace string) (str
 	// Look for SR-IOV operator CSV using more specific matching
 	// The SR-IOV operator CSV typically contains "sriov-network-operator" in the name
 	const expectedCSVNameSubstring = "sriov-network-operator"
+
 	for _, csv := range csvList {
 		csvName := strings.ToLower(csv.Object.Name)
 		csvDisplayName := strings.ToLower(csv.Object.Spec.DisplayName)
@@ -67,6 +70,7 @@ func GetSriovOperatorVersion(apiClient *clients.Settings, namespace string) (str
 			strings.Contains(csvDisplayName, "sriov") {
 			version := csv.Object.Spec.Version.String()
 			klog.V(90).Infof("Found SR-IOV operator CSV: %s, Version: %s", csv.Object.Name, version)
+
 			return version, nil
 		}
 	}

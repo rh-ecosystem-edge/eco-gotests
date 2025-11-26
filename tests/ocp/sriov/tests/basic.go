@@ -26,7 +26,9 @@ func isNoCarrierError(err error) bool {
 	if err == nil {
 		return false
 	}
+
 	errMsg := err.Error()
+
 	return strings.Contains(errMsg, "NO-CARRIER") ||
 		strings.Contains(errMsg, "no physical connection")
 }
@@ -45,10 +47,12 @@ func runPerDeviceNetworkTest(
 	networkName := caseID + data.Name
 
 	By(fmt.Sprintf("Creating test namespace %q", ns1))
+
 	nsBuilder := namespace.NewBuilder(APIClient, ns1)
 	for key, value := range params.PrivilegedNSLabels {
 		nsBuilder.WithLabel(key, value)
 	}
+
 	_, err := nsBuilder.Create()
 	Expect(err).ToNot(HaveOccurred(), "Failed to create namespace %q", ns1)
 
@@ -58,6 +62,7 @@ func runPerDeviceNetworkTest(
 
 	DeferCleanup(func() {
 		By(fmt.Sprintf("Cleaning up namespace %q", ns1))
+
 		err := nsBuilder.DeleteAndWait(tsparams.CleanupTimeout)
 		Expect(err).ToNot(HaveOccurred(), "Failed to delete namespace %q", ns1)
 	})
@@ -76,17 +81,19 @@ func runPerDeviceNetworkTest(
 	})
 
 	By("Running test verification")
+
 	err = testFunc(networkName, ns1)
 	if isNoCarrierError(err) {
 		Skip("Interface has NO-CARRIER status - skipping connectivity test for interface without physical connection")
 	}
+
 	Expect(err).ToNot(HaveOccurred(), "Test verification failed")
 }
 
 // runPerDeviceNetworkTestWithSetup sets up namespace and network, then returns them for custom verification.
 // This variant is useful for tests that need custom verification logic (e.g., two-part verification, DPDK tests).
 // The caller is responsible for cleanup via DeferCleanup.
-// If customNetworkName is empty, uses the default pattern: caseID + data.Name
+// If customNetworkName is empty, uses the default pattern: caseID + data.Name.
 func runPerDeviceNetworkTestWithSetup(
 	caseID string,
 	data tsparams.DeviceConfig,
@@ -95,6 +102,7 @@ func runPerDeviceNetworkTestWithSetup(
 	customNetworkName string,
 ) (networkName, ns1 string) {
 	ns1 = "e2e-" + caseID + data.Name
+
 	if customNetworkName != "" {
 		networkName = customNetworkName
 	} else {
@@ -102,10 +110,12 @@ func runPerDeviceNetworkTestWithSetup(
 	}
 
 	By(fmt.Sprintf("Creating test namespace %q", ns1))
+
 	nsBuilder := namespace.NewBuilder(APIClient, ns1)
 	for key, value := range params.PrivilegedNSLabels {
 		nsBuilder.WithLabel(key, value)
 	}
+
 	_, err := nsBuilder.Create()
 	Expect(err).ToNot(HaveOccurred(), "Failed to create namespace %q", ns1)
 
@@ -115,6 +125,7 @@ func runPerDeviceNetworkTestWithSetup(
 
 	DeferCleanup(func() {
 		By(fmt.Sprintf("Cleaning up namespace %q", ns1))
+
 		err := nsBuilder.DeleteAndWait(tsparams.CleanupTimeout)
 		Expect(err).ToNot(HaveOccurred(), "Failed to delete namespace %q", ns1)
 	})
@@ -191,10 +202,13 @@ var _ = Describe(
 				By(fmt.Sprintf("Testing device: %s (DeviceID: %s, Interface: %s)", data.Name, data.DeviceID, data.InterfaceName))
 
 				// Initialize VF for given device
-				result, err := sriovenv.InitVF(APIClient, SriovOcpConfig, data.Name, data.DeviceID, data.InterfaceName, data.Vendor, sriovOpNs, vfNum, workerNodes)
+				result, err := sriovenv.InitVF(
+					APIClient, SriovOcpConfig, data.Name, data.DeviceID,
+					data.InterfaceName, data.Vendor, sriovOpNs, vfNum, workerNodes)
 				Expect(err).ToNot(HaveOccurred(), "Failed to initialize VF for device %q", data.Name)
 				if !result {
-					By(fmt.Sprintf("Skipping device %q - VF initialization failed or device not found on any node", data.Name))
+					By(fmt.Sprintf("Skipping device %q - VF init failed or not found", data.Name))
+
 					continue
 				}
 
@@ -204,10 +218,14 @@ var _ = Describe(
 					SpoofCheck:   "on",
 					Trust:        "off",
 				}
-				runPerDeviceNetworkTest(caseID, data, sriovOpNs, networkConfig, func(networkName, ns1 string) error {
-					By("Verifying VF status with pass traffic")
-					return sriovenv.CheckVFStatusWithPassTraffic(APIClient, SriovOcpConfig, networkName, data.InterfaceName, ns1, "spoof checking on", tsparams.PodReadyTimeout)
-				})
+				runPerDeviceNetworkTest(caseID, data, sriovOpNs, networkConfig,
+					func(networkName, ns1 string) error {
+						By("Verifying VF status with pass traffic")
+
+						return sriovenv.CheckVFStatusWithPassTraffic(
+							APIClient, SriovOcpConfig, networkName, data.InterfaceName,
+							ns1, "spoof checking on", tsparams.PodReadyTimeout)
+					})
 			}
 
 			if !executed {
@@ -224,10 +242,13 @@ var _ = Describe(
 				By(fmt.Sprintf("Testing device: %s (DeviceID: %s, Interface: %s)", data.Name, data.DeviceID, data.InterfaceName))
 
 				// Initialize VF for given device
-				result, err := sriovenv.InitVF(APIClient, SriovOcpConfig, data.Name, data.DeviceID, data.InterfaceName, data.Vendor, sriovOpNs, vfNum, workerNodes)
+				result, err := sriovenv.InitVF(
+					APIClient, SriovOcpConfig, data.Name, data.DeviceID,
+					data.InterfaceName, data.Vendor, sriovOpNs, vfNum, workerNodes)
 				Expect(err).ToNot(HaveOccurred(), "Failed to initialize VF for device %q", data.Name)
 				if !result {
-					By(fmt.Sprintf("Skipping device %q - VF initialization failed or device not found on any node", data.Name))
+					By(fmt.Sprintf("Skipping device %q - VF init failed or not found", data.Name))
+
 					continue
 				}
 
@@ -237,10 +258,14 @@ var _ = Describe(
 					SpoofCheck:   "off",
 					Trust:        "on",
 				}
-				runPerDeviceNetworkTest(caseID, data, sriovOpNs, networkConfig, func(networkName, ns1 string) error {
-					By("Verifying VF status with pass traffic")
-					return sriovenv.CheckVFStatusWithPassTraffic(APIClient, SriovOcpConfig, networkName, data.InterfaceName, ns1, "spoof checking off", tsparams.PodReadyTimeout)
-				})
+				runPerDeviceNetworkTest(caseID, data, sriovOpNs, networkConfig,
+					func(networkName, ns1 string) error {
+						By("Verifying VF status with pass traffic")
+
+						return sriovenv.CheckVFStatusWithPassTraffic(
+							APIClient, SriovOcpConfig, networkName, data.InterfaceName,
+							ns1, "spoof checking off", tsparams.PodReadyTimeout)
+					})
 			}
 
 			if !executed {
@@ -256,10 +281,13 @@ var _ = Describe(
 				data := data
 				By(fmt.Sprintf("Testing device: %s (DeviceID: %s, Interface: %s)", data.Name, data.DeviceID, data.InterfaceName))
 
-				result, err := sriovenv.InitVF(APIClient, SriovOcpConfig, data.Name, data.DeviceID, data.InterfaceName, data.Vendor, sriovOpNs, vfNum, workerNodes)
+				result, err := sriovenv.InitVF(
+					APIClient, SriovOcpConfig, data.Name, data.DeviceID,
+					data.InterfaceName, data.Vendor, sriovOpNs, vfNum, workerNodes)
 				Expect(err).ToNot(HaveOccurred(), "Failed to initialize VF for device %q", data.Name)
 				if !result {
-					By(fmt.Sprintf("Skipping device %q - VF initialization failed or device not found on any node", data.Name))
+					By(fmt.Sprintf("Skipping device %q - VF init failed or not found", data.Name))
+
 					continue
 				}
 
@@ -269,10 +297,14 @@ var _ = Describe(
 					SpoofCheck:   "off",
 					Trust:        "off",
 				}
-				runPerDeviceNetworkTest(caseID, data, sriovOpNs, networkConfig, func(networkName, ns1 string) error {
-					By("Verifying VF status with pass traffic")
-					return sriovenv.CheckVFStatusWithPassTraffic(APIClient, SriovOcpConfig, networkName, data.InterfaceName, ns1, "trust off", tsparams.PodReadyTimeout)
-				})
+				runPerDeviceNetworkTest(caseID, data, sriovOpNs, networkConfig,
+					func(networkName, ns1 string) error {
+						By("Verifying VF status with pass traffic")
+
+						return sriovenv.CheckVFStatusWithPassTraffic(
+							APIClient, SriovOcpConfig, networkName, data.InterfaceName,
+							ns1, "trust off", tsparams.PodReadyTimeout)
+					})
 			}
 
 			if !executed {
@@ -288,10 +320,13 @@ var _ = Describe(
 				data := data
 				By(fmt.Sprintf("Testing device: %s (DeviceID: %s, Interface: %s)", data.Name, data.DeviceID, data.InterfaceName))
 
-				result, err := sriovenv.InitVF(APIClient, SriovOcpConfig, data.Name, data.DeviceID, data.InterfaceName, data.Vendor, sriovOpNs, vfNum, workerNodes)
+				result, err := sriovenv.InitVF(
+					APIClient, SriovOcpConfig, data.Name, data.DeviceID,
+					data.InterfaceName, data.Vendor, sriovOpNs, vfNum, workerNodes)
 				Expect(err).ToNot(HaveOccurred(), "Failed to initialize VF for device %q", data.Name)
 				if !result {
-					By(fmt.Sprintf("Skipping device %q - VF initialization failed or device not found on any node", data.Name))
+					By(fmt.Sprintf("Skipping device %q - VF init failed or not found", data.Name))
+
 					continue
 				}
 
@@ -301,10 +336,14 @@ var _ = Describe(
 					SpoofCheck:   "on",
 					Trust:        "on",
 				}
-				runPerDeviceNetworkTest(caseID, data, sriovOpNs, networkConfig, func(networkName, ns1 string) error {
-					By("Verifying VF status with pass traffic")
-					return sriovenv.CheckVFStatusWithPassTraffic(APIClient, SriovOcpConfig, networkName, data.InterfaceName, ns1, "trust on", tsparams.PodReadyTimeout)
-				})
+				runPerDeviceNetworkTest(caseID, data, sriovOpNs, networkConfig,
+					func(networkName, ns1 string) error {
+						By("Verifying VF status with pass traffic")
+
+						return sriovenv.CheckVFStatusWithPassTraffic(
+							APIClient, SriovOcpConfig, networkName, data.InterfaceName,
+							ns1, "trust on", tsparams.PodReadyTimeout)
+					})
 			}
 
 			if !executed {
@@ -323,13 +362,17 @@ var _ = Describe(
 				// x710, bcm57414, and bcm57508 do not support minTxRate for now
 				if data.Name == "x710" || data.Name == "bcm57414" || data.Name == "bcm57508" {
 					By(fmt.Sprintf("Skipping device %q - does not support minTxRate", data.Name))
+
 					continue
 				}
 
-				result, err := sriovenv.InitVF(APIClient, SriovOcpConfig, data.Name, data.DeviceID, data.InterfaceName, data.Vendor, sriovOpNs, vfNum, workerNodes)
+				result, err := sriovenv.InitVF(
+					APIClient, SriovOcpConfig, data.Name, data.DeviceID,
+					data.InterfaceName, data.Vendor, sriovOpNs, vfNum, workerNodes)
 				Expect(err).ToNot(HaveOccurred(), "Failed to initialize VF for device %q", data.Name)
 				if !result {
-					By(fmt.Sprintf("Skipping device %q - VF initialization failed or device not found on any node", data.Name))
+					By(fmt.Sprintf("Skipping device %q - VF init failed or not found", data.Name))
+
 					continue
 				}
 
@@ -341,10 +384,15 @@ var _ = Describe(
 					MinTxRate:    40,
 					MaxTxRate:    100,
 				}
-				runPerDeviceNetworkTest(caseID, data, sriovOpNs, networkConfig, func(networkName, ns1 string) error {
-					By("Verifying VF status with pass traffic")
-					return sriovenv.CheckVFStatusWithPassTraffic(APIClient, SriovOcpConfig, networkName, data.InterfaceName, ns1, "vlan 100, qos 2, tx rate 100 (Mbps), max_tx_rate 100Mbps, min_tx_rate 40Mbps", tsparams.PodReadyTimeout)
-				})
+				runPerDeviceNetworkTest(caseID, data, sriovOpNs, networkConfig,
+					func(networkName, ns1 string) error {
+						By("Verifying VF status with pass traffic")
+						desc := "vlan 100, qos 2, max_tx_rate 100Mbps, min_tx_rate 40Mbps"
+
+						return sriovenv.CheckVFStatusWithPassTraffic(
+							APIClient, SriovOcpConfig, networkName, data.InterfaceName,
+							ns1, desc, tsparams.PodReadyTimeout)
+					})
 			}
 
 			if !executed {
@@ -360,10 +408,13 @@ var _ = Describe(
 				data := data
 				By(fmt.Sprintf("Testing device: %s (DeviceID: %s, Interface: %s)", data.Name, data.DeviceID, data.InterfaceName))
 
-				result, err := sriovenv.InitVF(APIClient, SriovOcpConfig, data.Name, data.DeviceID, data.InterfaceName, data.Vendor, sriovOpNs, vfNum, workerNodes)
+				result, err := sriovenv.InitVF(
+					APIClient, SriovOcpConfig, data.Name, data.DeviceID,
+					data.InterfaceName, data.Vendor, sriovOpNs, vfNum, workerNodes)
 				Expect(err).ToNot(HaveOccurred(), "Failed to initialize VF for device %q", data.Name)
 				if !result {
-					By(fmt.Sprintf("Skipping device %q - VF initialization failed or device not found on any node", data.Name))
+					By(fmt.Sprintf("Skipping device %q - VF init failed or not found", data.Name))
+
 					continue
 				}
 
@@ -372,10 +423,14 @@ var _ = Describe(
 					ResourceName: data.Name,
 					LinkState:    "auto",
 				}
-				runPerDeviceNetworkTest(caseID, data, sriovOpNs, networkConfig, func(networkName, ns1 string) error {
-					By("Verifying VF status with pass traffic")
-					return sriovenv.CheckVFStatusWithPassTraffic(APIClient, SriovOcpConfig, networkName, data.InterfaceName, ns1, "link-state auto", tsparams.PodReadyTimeout)
-				})
+				runPerDeviceNetworkTest(caseID, data, sriovOpNs, networkConfig,
+					func(networkName, ns1 string) error {
+						By("Verifying VF status with pass traffic")
+
+						return sriovenv.CheckVFStatusWithPassTraffic(
+							APIClient, SriovOcpConfig, networkName, data.InterfaceName,
+							ns1, "link-state auto", tsparams.PodReadyTimeout)
+					})
 			}
 
 			if !executed {
@@ -391,10 +446,13 @@ var _ = Describe(
 				data := data
 				By(fmt.Sprintf("Testing device: %s (DeviceID: %s, Interface: %s)", data.Name, data.DeviceID, data.InterfaceName))
 
-				result, err := sriovenv.InitVF(APIClient, SriovOcpConfig, data.Name, data.DeviceID, data.InterfaceName, data.Vendor, sriovOpNs, vfNum, workerNodes)
+				result, err := sriovenv.InitVF(
+					APIClient, SriovOcpConfig, data.Name, data.DeviceID,
+					data.InterfaceName, data.Vendor, sriovOpNs, vfNum, workerNodes)
 				Expect(err).ToNot(HaveOccurred(), "Failed to initialize VF for device %q", data.Name)
 				if !result {
-					By(fmt.Sprintf("Skipping device %q - VF initialization failed or device not found on any node", data.Name))
+					By(fmt.Sprintf("Skipping device %q - VF init failed or not found", data.Name))
+
 					continue
 				}
 
@@ -404,21 +462,26 @@ var _ = Describe(
 					ResourceName: data.Name,
 					LinkState:    "enable",
 				}
-				networkName, ns1 := runPerDeviceNetworkTestWithSetup(caseID, data, sriovOpNs, networkConfig, "")
+				networkName, ns1 := runPerDeviceNetworkTestWithSetup(
+					caseID, data, sriovOpNs, networkConfig, "")
 
 				// Part 1: Verify link state configuration (works without carrier)
 				By("Verifying link state configuration is applied")
-				hasCarrier, err := sriovenv.VerifyLinkStateConfiguration(APIClient, SriovOcpConfig, networkName, ns1, "link-state enable", tsparams.PodReadyTimeout)
+				hasCarrier, err := sriovenv.VerifyLinkStateConfiguration(
+					APIClient, SriovOcpConfig, networkName, ns1,
+					"link-state enable", tsparams.PodReadyTimeout)
 				Expect(err).ToNot(HaveOccurred(), "Failed to verify link state configuration")
 
 				// Part 2: Test connectivity only if carrier is present
 				if !hasCarrier {
-					By("Link state configuration verified successfully, but NO-CARRIER detected - skipping connectivity test")
-					Skip("Interface has NO-CARRIER status - link state configuration is valid but no physical connection for connectivity test")
+					By("Link state verified, NO-CARRIER detected - skipping connectivity")
+					Skip("NO-CARRIER status - link state valid but no physical connection")
 				}
 
 				By("Carrier detected - proceeding with connectivity test")
-				err = sriovenv.CheckVFStatusWithPassTraffic(APIClient, SriovOcpConfig, networkName, data.InterfaceName, ns1, "link-state enable", tsparams.PodReadyTimeout)
+				err = sriovenv.CheckVFStatusWithPassTraffic(
+					APIClient, SriovOcpConfig, networkName, data.InterfaceName,
+					ns1, "link-state enable", tsparams.PodReadyTimeout)
 				Expect(err).ToNot(HaveOccurred(), "VF connectivity test failed")
 			}
 
@@ -436,10 +499,13 @@ var _ = Describe(
 				By(fmt.Sprintf("Testing device: %s (DeviceID: %s, Interface: %s)", data.Name, data.DeviceID, data.InterfaceName))
 
 				// Initialize VF for given device
-				result, err := sriovenv.InitVF(APIClient, SriovOcpConfig, data.Name, data.DeviceID, data.InterfaceName, data.Vendor, sriovOpNs, vfNum, workerNodes)
+				result, err := sriovenv.InitVF(
+					APIClient, SriovOcpConfig, data.Name, data.DeviceID,
+					data.InterfaceName, data.Vendor, sriovOpNs, vfNum, workerNodes)
 				Expect(err).ToNot(HaveOccurred(), "Failed to initialize VF for device %q", data.Name)
 				if !result {
-					By(fmt.Sprintf("Skipping device %q - VF initialization failed or device not found on any node", data.Name))
+					By(fmt.Sprintf("Skipping device %q - VF init failed or not found", data.Name))
+
 					continue
 				}
 
@@ -449,11 +515,12 @@ var _ = Describe(
 				mtuValue := 1800
 				By(fmt.Sprintf("Updating SR-IOV policy %q with MTU %d", data.Name, mtuValue))
 				err = sriovenv.UpdateSriovPolicyMTU(APIClient, data.Name, sriovOpNs, mtuValue)
-				Expect(err).ToNot(HaveOccurred(), "Failed to update SR-IOV policy %q with MTU", data.Name)
+				Expect(err).ToNot(HaveOccurred(), "Failed to update SR-IOV policy with MTU")
 
 				By("Waiting for SR-IOV policy to be ready after MTU update")
-				err = sriovenv.WaitForSriovPolicyReady(APIClient, SriovOcpConfig, tsparams.DefaultTimeout)
-				Expect(err).ToNot(HaveOccurred(), "Failed to wait for SR-IOV policy to be ready after MTU update")
+				err = sriovenv.WaitForSriovPolicyReady(
+					APIClient, SriovOcpConfig, tsparams.DefaultTimeout)
+				Expect(err).ToNot(HaveOccurred(), "Policy not ready after MTU update")
 
 				// Use the existing helper for the rest of the test
 				networkConfig := &sriovenv.SriovNetworkConfig{
@@ -461,10 +528,15 @@ var _ = Describe(
 					SpoofCheck:   "on",
 					Trust:        "on",
 				}
-				runPerDeviceNetworkTest(caseID, data, sriovOpNs, networkConfig, func(networkName, ns1 string) error {
-					By("Verifying VF status with pass traffic")
-					return sriovenv.CheckVFStatusWithPassTraffic(APIClient, SriovOcpConfig, networkName, data.InterfaceName, ns1, fmt.Sprintf("mtu %d", mtuValue), tsparams.PodReadyTimeout)
-				})
+				runPerDeviceNetworkTest(caseID, data, sriovOpNs, networkConfig,
+					func(networkName, ns1 string) error {
+						By("Verifying VF status with pass traffic")
+						desc := fmt.Sprintf("mtu %d", mtuValue)
+
+						return sriovenv.CheckVFStatusWithPassTraffic(
+							APIClient, SriovOcpConfig, networkName, data.InterfaceName,
+							ns1, desc, tsparams.PodReadyTimeout)
+					})
 			}
 
 			if !executed {
@@ -483,16 +555,20 @@ var _ = Describe(
 				// Skip BCM NICs: OCPBUGS-30909
 				if strings.Contains(data.Name, "bcm") {
 					By(fmt.Sprintf("Skipping device %q - BCM NICs not supported for DPDK", data.Name))
+
 					continue
 				}
 
 				// Initialize DPDK VF for given device
 				policyName := data.Name
 				customNetworkName := data.Name + "dpdk" + "net"
-				result, err := sriovenv.InitDpdkVF(APIClient, SriovOcpConfig, data.Name, data.DeviceID, data.InterfaceName, data.Vendor, sriovOpNs, vfNum, workerNodes)
-				Expect(err).ToNot(HaveOccurred(), "Failed to initialize DPDK VF for device %q", data.Name)
+				result, err := sriovenv.InitDpdkVF(
+					APIClient, SriovOcpConfig, data.Name, data.DeviceID,
+					data.InterfaceName, data.Vendor, sriovOpNs, vfNum, workerNodes)
+				Expect(err).ToNot(HaveOccurred(), "Failed to initialize DPDK VF for %q", data.Name)
 				if !result {
-					By(fmt.Sprintf("Skipping device %q - DPDK VF initialization failed or device not found on any node", data.Name))
+					By(fmt.Sprintf("Skipping device %q - DPDK VF init failed", data.Name))
+
 					continue
 				}
 
@@ -501,14 +577,17 @@ var _ = Describe(
 				networkConfig := &sriovenv.SriovNetworkConfig{
 					ResourceName: policyName,
 				}
-				networkName, ns1 := runPerDeviceNetworkTestWithSetup(caseID, data, sriovOpNs, networkConfig, customNetworkName)
+				networkName, ns1 := runPerDeviceNetworkTestWithSetup(
+					caseID, data, sriovOpNs, networkConfig, customNetworkName)
 
 				// Wait for NAD to be fully ready before creating pods
 				By("Waiting for NetworkAttachmentDefinition to be fully ready")
 				Eventually(func() error {
 					_, err := nad.Pull(APIClient, networkName, ns1)
+
 					return err
-				}, tsparams.NADTimeout, tsparams.PollingInterval).ShouldNot(HaveOccurred(), "NAD %q should be ready in namespace %q", networkName, ns1)
+				}, tsparams.NADTimeout, tsparams.PollingInterval).ShouldNot(
+					HaveOccurred(), "NAD %q should be ready in namespace %q", networkName, ns1)
 
 				// Create DPDK test pod
 				By("Creating DPDK test pod")
