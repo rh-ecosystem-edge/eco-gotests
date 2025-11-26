@@ -38,12 +38,13 @@ import (
 func IsSriovDeployed(apiClient *clients.Settings, config interface{}) error {
 	var namespace string
 
-	switch c := config.(type) {
+	switch sriovConfig := config.(type) {
 	case *sriovconfig.SriovOcpConfig:
-		if c == nil {
+		if sriovConfig == nil {
 			return fmt.Errorf("sriov config cannot be nil")
 		}
-		namespace = c.OcpSriovOperatorNamespace
+
+		namespace = sriovConfig.OcpSriovOperatorNamespace
 	default:
 		return fmt.Errorf("unsupported config type")
 	}
@@ -337,6 +338,24 @@ func isNADNotFoundError(err error) bool {
 		strings.Contains(errMsg, "not found")
 }
 
+// isNetworkNotFoundError checks if the error indicates the SriovNetwork doesn't exist.
+// This handles both Kubernetes API NotFound errors and eco-goinfra custom errors.
+func isNetworkNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if apierrors.IsNotFound(err) {
+		return true
+	}
+
+	// eco-goinfra returns custom error messages like "does not exist"
+	errMsg := err.Error()
+
+	return strings.Contains(errMsg, "does not exist") ||
+		strings.Contains(errMsg, "not found")
+}
+
 // waitForNADDeletion waits for a NAD to be deleted.
 func waitForNADDeletion(apiClient *clients.Settings, name, namespace string) error {
 	// Check if NAD exists first
@@ -403,12 +422,18 @@ func RemoveSriovNetwork(apiClient *clients.Settings, name, sriovOpNs string, tim
 		true,
 		func(ctx context.Context) (bool, error) {
 			_, pullErr := sriov.PullNetwork(apiClient, name, sriovOpNs)
-			if pullErr != nil {
-				// Any error (including NotFound) means network is gone or inaccessible
+			if pullErr == nil {
+				// Network still exists
+				return false, nil
+			}
+
+			// Check if it's a NotFound error (network deleted successfully)
+			if apierrors.IsNotFound(pullErr) || isNetworkNotFoundError(pullErr) {
 				return true, nil
 			}
-			// Network still exists
-			return false, nil
+
+			// Unexpected API failure - surface it with context
+			return false, fmt.Errorf("failed to verify network %q deletion: %w", name, pullErr)
 		})
 	if err != nil {
 		return fmt.Errorf("timeout waiting for network %q deletion: %w", name, err)
@@ -585,6 +610,42 @@ func checkMCPStable(apiClient *clients.Settings, mcpLabel string) bool {
 	return true
 }
 
+// nodeMatchesWorkerLabel checks if a node matches the worker label selector.
+func nodeMatchesWorkerLabel(node *nodes.Builder, workerLabel, labelKey string) bool {
+	if workerLabel != "" {
+		labelSelector, err := labels.Parse(workerLabel)
+		if err == nil {
+			return labelSelector.Matches(labels.Set(node.Definition.Labels))
+		}
+		// Fallback to simple key check
+		_, hasLabel := node.Definition.Labels[labelKey]
+
+		return hasLabel
+	}
+
+	// Default: check for standard worker label
+	_, hasLabel := node.Definition.Labels[labelKey]
+
+	return hasLabel
+}
+
+// isNodeReady checks if a node is ready and has no resource pressure.
+// Returns (isReady, hasPressure).
+func isNodeReady(node *nodes.Builder) (bool, bool) {
+	for _, cond := range node.Definition.Status.Conditions {
+		if cond.Type == corev1.NodeReady && cond.Status == corev1.ConditionTrue {
+			return true, false
+		}
+
+		if (cond.Type == corev1.NodeMemoryPressure || cond.Type == corev1.NodeDiskPressure) &&
+			cond.Status == corev1.ConditionTrue {
+			return false, true
+		}
+	}
+
+	return false, false
+}
+
 // checkWorkerNodesReady checks if all worker nodes are ready.
 // workerLabel should be in format "key=value" or "key=". If empty, defaults to "node-role.kubernetes.io/worker".
 func checkWorkerNodesReady(apiClient *clients.Settings, workerLabel string) (bool, int) {
@@ -596,10 +657,10 @@ func checkWorkerNodesReady(apiClient *clients.Settings, workerLabel string) (boo
 	}
 
 	// Parse worker label to extract key
-	labelKey := "node-role.kubernetes.io/worker" // default
+	labelKey := "node-role.kubernetes.io/worker"
+
 	if workerLabel != "" {
-		parts := strings.SplitN(workerLabel, "=", 2)
-		if len(parts) > 0 && parts[0] != "" {
+		if parts := strings.SplitN(workerLabel, "=", 2); len(parts) > 0 && parts[0] != "" {
 			labelKey = parts[0]
 		}
 	}
@@ -608,51 +669,20 @@ func checkWorkerNodesReady(apiClient *clients.Settings, workerLabel string) (boo
 	workerCount := 0
 
 	for _, node := range nodeList {
-		// Check if node matches worker label
-		if workerLabel != "" {
-			// Use label selector if provided
-			labelSelector, err := labels.Parse(workerLabel)
-			if err == nil {
-				if !labelSelector.Matches(labels.Set(node.Definition.Labels)) {
-					continue
-				}
-			} else {
-				// Fallback to simple key check if label selector parsing fails
-				if _, isWorker := node.Definition.Labels[labelKey]; !isWorker {
-					continue
-				}
-			}
-		} else {
-			// Default behavior: check for standard worker label
-			if _, isWorker := node.Definition.Labels[labelKey]; !isWorker {
-				continue
-			}
+		if !nodeMatchesWorkerLabel(node, workerLabel, labelKey) {
+			continue
 		}
 
 		workerCount++
 
-		isReady := false
-
-		for _, cond := range node.Definition.Status.Conditions {
-			if cond.Type == corev1.NodeReady && cond.Status == corev1.ConditionTrue {
-				isReady = true
-				readyCount++
-
-				break
-			}
-
-			if (cond.Type == corev1.NodeMemoryPressure || cond.Type == corev1.NodeDiskPressure) &&
-				cond.Status == corev1.ConditionTrue {
-				return false, readyCount
-			}
-		}
-
-		if !isReady {
+		ready, hasPressure := isNodeReady(node)
+		if hasPressure || !ready {
 			return false, readyCount
 		}
+
+		readyCount++
 	}
 
-	// If no worker nodes matched the label, treat as error (not success)
 	if workerCount == 0 {
 		return false, 0
 	}
@@ -730,6 +760,10 @@ func VerifyVFResourcesAvailable(
 ) (bool, error) {
 	if apiClient == nil {
 		return false, fmt.Errorf("API client is nil, cannot verify VF resources")
+	}
+
+	if config == nil {
+		return false, fmt.Errorf("config is nil - cannot verify VF resources")
 	}
 
 	// Normalize worker label to ensure it's in the correct format for label selector
@@ -956,8 +990,9 @@ func CreateSriovNetwork(apiClient *clients.Settings, config *SriovNetworkConfig)
 			return available && err == nil, nil
 		})
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, wait.ErrWaitTimeout) {
-			klog.V(90).Infof("VF resources %q not yet available (may still be provisioning): %v. Will proceed and re-check when pods are created.", config.ResourceName, err)
+		if errors.Is(err, context.DeadlineExceeded) {
+			klog.V(90).Infof("VF resources %q not yet available (may still be provisioning): %v. "+
+				"Will proceed and re-check when pods are created.", config.ResourceName, err)
 			// Proceed: VF availability will be re-checked by pod creation path
 		} else {
 			return fmt.Errorf("failed to verify VF resources %q: %w", config.ResourceName, err)
@@ -990,7 +1025,8 @@ func WaitForSriovPolicyReady(
 	klog.V(90).Infof("Waiting for SR-IOV policy to be ready (timeout: %v)", timeout)
 
 	return WaitForSriovAndMCPStable(
-		apiClient, timeout, tsparams.MCPStableInterval, DefaultMcpLabel, config.OcpSriovOperatorNamespace, config.OcpWorkerLabel)
+		apiClient, timeout, tsparams.MCPStableInterval, DefaultMcpLabel,
+		config.OcpSriovOperatorNamespace, config.OcpWorkerLabel)
 }
 
 // checkSingleNodeReady checks if a single node is ready and returns any issues found.
@@ -1148,6 +1184,7 @@ func tryCreatePolicyOnNode(
 	if ocpsriovinittools.SriovOcpConfig != nil {
 		workerLabel = ocpsriovinittools.SriovOcpConfig.OcpWorkerLabel
 	}
+
 	if err := WaitForSriovAndMCPStable(
 		apiClient, tsparams.PolicyApplicationTimeout,
 		tsparams.MCPStableInterval, DefaultMcpLabel, sriovOpNs, workerLabel); err != nil {
@@ -1358,6 +1395,60 @@ func ExtractPodInterfaceMAC(podObj *pod.Builder, interfaceName string) (string, 
 	return "", fmt.Errorf("MAC address not found for interface %q", interfaceName)
 }
 
+// debugPodConfig holds configuration for creating debug pods.
+type debugPodConfig struct {
+	namePrefix     string
+	cleanupTimeout time.Duration
+	maxNameLength  int
+}
+
+// defaultDebugPodConfig returns the default debug pod configuration.
+func defaultDebugPodConfig() debugPodConfig {
+	return debugPodConfig{
+		namePrefix:     "sriov-debug-",
+		cleanupTimeout: 15 * time.Second,
+		maxNameLength:  63, // Kubernetes pod name limit
+	}
+}
+
+// createDebugPod creates a privileged debug pod on the specified node.
+func createDebugPod(
+	apiClient *clients.Settings,
+	config *sriovconfig.SriovOcpConfig,
+	podName, namespace, nodeName string,
+) (*pod.Builder, error) {
+	debugPod := pod.NewBuilder(
+		apiClient, podName, namespace, config.OcpSriovTestContainer,
+	).WithPrivilegedFlag().
+		WithHostNetwork().
+		WithHostPid(true).
+		WithNodeSelector(map[string]string{"kubernetes.io/hostname": nodeName}).
+		WithRestartPolicy(corev1.RestartPolicyNever)
+
+	return debugPod.Create()
+}
+
+// waitForDebugPodRunning waits for the debug pod to reach Running state.
+func waitForDebugPodRunning(
+	apiClient *clients.Settings,
+	podName, namespace string,
+	timeout time.Duration,
+) error {
+	return wait.PollUntilContextTimeout(
+		context.Background(),
+		tsparams.PollingInterval,
+		timeout,
+		true,
+		func(ctx context.Context) (bool, error) {
+			pulledPod, pullErr := pod.Pull(apiClient, podName, namespace)
+			if pullErr != nil || pulledPod == nil || pulledPod.Object == nil {
+				return false, nil
+			}
+
+			return pulledPod.Object.Status.Phase == corev1.PodRunning, nil
+		})
+}
+
 // executeCommandOnNode executes a command on a specific node using a privileged debug pod.
 // This creates a temporary privileged pod with host network access to execute the command.
 func executeCommandOnNode(
@@ -1365,106 +1456,55 @@ func executeCommandOnNode(
 	config *sriovconfig.SriovOcpConfig,
 	nodeName, namespace string,
 	cmd []string,
-	timeout time.Duration) (string, error) {
-	const (
-		debugPodNamePrefix     = "sriov-debug-"
-		debugPodCleanupTimeout = 15 * time.Second
-		maxPodNameLength       = 63 // Kubernetes pod name limit
-	)
+	timeout time.Duration,
+) (string, error) {
+	cfg := defaultDebugPodConfig()
 
-	// Use the provided namespace (typically the per-test namespace where test pods are running)
 	debugPodNamespace := namespace
 	if debugPodNamespace == "" {
-		// Fallback to suite-level namespace if not provided
 		debugPodNamespace = tsparams.TestNamespaceName
 	}
 
-	// Generate unique pod name based on node name, ensuring it doesn't exceed Kubernetes limits
-	debugPodName := debugPodNamePrefix + strings.ToLower(strings.ReplaceAll(nodeName, ".", "-"))
-	if len(debugPodName) > maxPodNameLength {
-		debugPodName = debugPodName[:maxPodNameLength]
+	// Generate unique pod name
+	debugPodName := cfg.namePrefix + strings.ToLower(strings.ReplaceAll(nodeName, ".", "-"))
+	if len(debugPodName) > cfg.maxNameLength {
+		debugPodName = debugPodName[:cfg.maxNameLength]
 	}
 
-	// Clean up any existing debug pod for this node
-	existingPod, err := pod.Pull(apiClient, debugPodName, debugPodNamespace)
-	if err == nil && existingPod != nil {
-		klog.V(90).Infof("Cleaning up existing debug pod %q", debugPodName)
-
-		_, _ = existingPod.DeleteAndWait(debugPodCleanupTimeout)
+	// Clean up any existing debug pod
+	if existingPod, err := pod.Pull(apiClient, debugPodName, debugPodNamespace); err == nil && existingPod != nil {
+		_, _ = existingPod.DeleteAndWait(cfg.cleanupTimeout)
 	}
 
-	// Create privileged debug pod on the specific node
-	debugPod := pod.NewBuilder(
-		apiClient,
-		debugPodName,
-		debugPodNamespace,
-		config.OcpSriovTestContainer,
-	).WithPrivilegedFlag().
-		WithHostNetwork().
-		WithHostPid(true).
-		WithNodeSelector(map[string]string{"kubernetes.io/hostname": nodeName}).
-		WithRestartPolicy(corev1.RestartPolicyNever)
-
-	createdPod, err := debugPod.Create()
+	createdPod, err := createDebugPod(apiClient, config, debugPodName, debugPodNamespace, nodeName)
 	if err != nil {
 		return "", fmt.Errorf("failed to create debug pod on node %q: %w", nodeName, err)
 	}
 
-	// Ensure cleanup of debug pod
 	defer func() {
 		if createdPod != nil {
-			if _, err := createdPod.DeleteAndWait(debugPodCleanupTimeout); err != nil {
-				klog.V(90).Infof("Failed to cleanup debug pod %q (may need manual cleanup): %v",
-					debugPodName, err)
-				// Try non-blocking delete as fallback
-				if _, deleteErr := createdPod.Delete(); deleteErr != nil {
-					klog.V(90).Infof("Fallback delete also failed for debug pod %q: %v",
-						debugPodName, deleteErr)
-				}
+			if _, err := createdPod.DeleteAndWait(cfg.cleanupTimeout); err != nil {
+				klog.V(90).Infof("Failed to cleanup debug pod %q: %v", debugPodName, err)
+
+				_, _ = createdPod.Delete()
 			}
 		}
 	}()
 
-	// Wait for pod to be running
-	err = wait.PollUntilContextTimeout(
-		context.Background(),
-		tsparams.PollingInterval,
-		timeout,
-		true,
-		func(ctx context.Context) (bool, error) {
-			pulledPod, pullErr := pod.Pull(apiClient, debugPodName, debugPodNamespace)
-			if pullErr != nil {
-				return false, nil
-			}
-
-			if pulledPod == nil || pulledPod.Object == nil {
-				return false, nil
-			}
-
-			return pulledPod.Object.Status.Phase == corev1.PodRunning, nil
-		})
-	if err != nil {
-		return "", fmt.Errorf("debug pod %q did not reach Running state on node %q: %w", debugPodName, nodeName, err)
+	if err := waitForDebugPodRunning(apiClient, debugPodName, debugPodNamespace, timeout); err != nil {
+		return "", fmt.Errorf("debug pod did not reach Running state on node %q: %w", nodeName, err)
 	}
 
-	// Pull the pod again to get the latest state
 	runningPod, err := pod.Pull(apiClient, debugPodName, debugPodNamespace)
 	if err != nil {
 		return "", fmt.Errorf("failed to pull running debug pod: %w", err)
 	}
 
-	// Execute command using nsenter to access host namespace
-	// This is similar to "oc debug node" which uses chroot /host
-	// Execute command directly without shell to avoid command injection vulnerabilities
-	// The "--" separator tells nsenter to pass the following arguments directly to the command
-	nsenterCmd := []string{
+	// Build nsenter command
+	nsenterCmd := append([]string{
 		"nsenter", "--target", "1",
-		"--mount", "--uts", "--ipc", "--net", "--pid",
-		"--",
-	}
-	// Append command and its arguments as separate array elements
-	// This ensures arguments are passed safely without shell interpolation
-	nsenterCmd = append(nsenterCmd, cmd...)
+		"--mount", "--uts", "--ipc", "--net", "--pid", "--",
+	}, cmd...)
 
 	output, err := runningPod.ExecCommand(nsenterCmd)
 	if err != nil {
@@ -1714,6 +1754,7 @@ func createAndWaitForTestPods(
 		if clientPod != nil {
 			_, _ = clientPod.DeleteAndWait(tsparams.CleanupTimeout)
 		}
+
 		if serverPod != nil {
 			_, _ = serverPod.DeleteAndWait(tsparams.CleanupTimeout)
 		}
@@ -1730,6 +1771,7 @@ func createAndWaitForTestPods(
 		}
 
 		cleanup()
+
 		return nil, nil, fmt.Errorf("client pod not ready: %w", err)
 	}
 
@@ -1744,6 +1786,7 @@ func createAndWaitForTestPods(
 		}
 
 		cleanup()
+
 		return nil, nil, fmt.Errorf("server pod not ready: %w", err)
 	}
 

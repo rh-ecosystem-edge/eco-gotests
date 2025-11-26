@@ -55,7 +55,9 @@ func parseDeviceConfig() []DeviceConfig {
 
 		parts := strings.Split(entry, ":")
 		if len(parts) != 4 {
-			// Cannot use GinkgoLogr in internal package - just skip invalid entries
+			klog.Warningf("Skipping invalid SRIOV_DEVICES entry %q - expected format: name:deviceid:vendor:interface",
+				entry)
+
 			continue
 		}
 

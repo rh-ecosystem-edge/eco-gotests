@@ -188,9 +188,9 @@ var _ = Describe(
 				klog.Warningf("Some SR-IOV policies failed to clean up (this may indicate operator issues): %v", cleanupErrors)
 				// Don't fail the test suite, but log for visibility
 			}
-			By("Waiting for SR-IOV policies to be ready after cleanup")
+			By("Waiting for post-cleanup cluster stability (SR-IOV nodes, MCP, and worker nodes)")
 			err := sriovenv.WaitForSriovPolicyReady(APIClient, SriovOcpConfig, tsparams.DefaultTimeout)
-			Expect(err).ToNot(HaveOccurred(), "Failed to wait for SR-IOV policies to be ready")
+			Expect(err).ToNot(HaveOccurred(), "Cluster did not stabilize after cleanup")
 		})
 
 		It("SR-IOV VF with spoof checking enabled", reportxml.ID("25959"), func() {
