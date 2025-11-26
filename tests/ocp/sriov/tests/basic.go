@@ -33,68 +33,9 @@ func isNoCarrierError(err error) bool {
 		strings.Contains(errMsg, "no physical connection")
 }
 
-// runPerDeviceNetworkTest executes a per-device network test with common scaffolding.
-// It handles namespace creation, SR-IOV network setup, cleanup, and NO-CARRIER error handling.
-// The testFunc is called after the network is created and should perform the actual test verification.
-func runPerDeviceNetworkTest(
-	caseID string,
-	data tsparams.DeviceConfig,
-	sriovOpNs string,
-	networkConfig *sriovenv.SriovNetworkConfig,
-	testFunc func(networkName, ns1 string) error,
-) {
-	ns1 := "e2e-" + caseID + data.Name
-	networkName := caseID + data.Name
-
-	By(fmt.Sprintf("Creating test namespace %q", ns1))
-
-	nsBuilder := namespace.NewBuilder(APIClient, ns1)
-	for key, value := range params.PrivilegedNSLabels {
-		nsBuilder.WithLabel(key, value)
-	}
-
-	_, err := nsBuilder.Create()
-	Expect(err).ToNot(HaveOccurred(), "Failed to create namespace %q", ns1)
-
-	Eventually(func() bool {
-		return nsBuilder.Exists()
-	}, tsparams.NamespaceTimeout, tsparams.RetryInterval).Should(BeTrue(), "Namespace %q should exist", ns1)
-
-	DeferCleanup(func() {
-		By(fmt.Sprintf("Cleaning up namespace %q", ns1))
-
-		err := nsBuilder.DeleteAndWait(tsparams.CleanupTimeout)
-		Expect(err).ToNot(HaveOccurred(), "Failed to delete namespace %q", ns1)
-	})
-
-	By(fmt.Sprintf("Creating SR-IOV network %q", networkName))
-	networkConfig.Name = networkName
-	networkConfig.NetworkNamespace = ns1
-	networkConfig.Namespace = sriovOpNs
-	err = sriovenv.CreateSriovNetwork(APIClient, networkConfig)
-	Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network %q", networkName)
-
-	DeferCleanup(func() {
-		By(fmt.Sprintf("Cleaning up SR-IOV network %q", networkName))
-		err := sriovenv.RemoveSriovNetwork(APIClient, networkName, sriovOpNs, tsparams.DefaultTimeout)
-		Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV network %q", networkName)
-	})
-
-	By("Running test verification")
-
-	err = testFunc(networkName, ns1)
-	if isNoCarrierError(err) {
-		Skip("Interface has NO-CARRIER status - skipping connectivity test for interface without physical connection")
-	}
-
-	Expect(err).ToNot(HaveOccurred(), "Test verification failed")
-}
-
-// runPerDeviceNetworkTestWithSetup sets up namespace and network, then returns them for custom verification.
-// This variant is useful for tests that need custom verification logic (e.g., two-part verification, DPDK tests).
-// The caller is responsible for cleanup via DeferCleanup.
-// If customNetworkName is empty, uses the default pattern: caseID + data.Name.
-func runPerDeviceNetworkTestWithSetup(
+// setupNetworkTestEnvironment creates namespace and SR-IOV network, registers cleanup, and returns names.
+// This is the common setup logic shared by runPerDeviceNetworkTest and runPerDeviceNetworkTestWithSetup.
+func setupNetworkTestEnvironment(
 	caseID string,
 	data tsparams.DeviceConfig,
 	sriovOpNs string,
@@ -144,6 +85,42 @@ func runPerDeviceNetworkTestWithSetup(
 	})
 
 	return networkName, ns1
+}
+
+// runPerDeviceNetworkTest executes a per-device network test with common scaffolding.
+// It handles namespace creation, SR-IOV network setup, cleanup, and NO-CARRIER error handling.
+// The testFunc is called after the network is created and should perform the actual test verification.
+func runPerDeviceNetworkTest(
+	caseID string,
+	data tsparams.DeviceConfig,
+	sriovOpNs string,
+	networkConfig *sriovenv.SriovNetworkConfig,
+	testFunc func(networkName, ns1 string) error,
+) {
+	networkName, ns1 := setupNetworkTestEnvironment(caseID, data, sriovOpNs, networkConfig, "")
+
+	By("Running test verification")
+
+	err := testFunc(networkName, ns1)
+	if isNoCarrierError(err) {
+		Skip("Interface has NO-CARRIER status - skipping connectivity test for interface without physical connection")
+	}
+
+	Expect(err).ToNot(HaveOccurred(), "Test verification failed")
+}
+
+// runPerDeviceNetworkTestWithSetup sets up namespace and network, then returns them for custom verification.
+// This variant is useful for tests that need custom verification logic (e.g., two-part verification, DPDK tests).
+// The caller is responsible for cleanup via DeferCleanup.
+// If customNetworkName is empty, uses the default pattern: caseID + data.Name.
+func runPerDeviceNetworkTestWithSetup(
+	caseID string,
+	data tsparams.DeviceConfig,
+	sriovOpNs string,
+	networkConfig *sriovenv.SriovNetworkConfig,
+	customNetworkName string,
+) (networkName, ns1 string) {
+	return setupNetworkTestEnvironment(caseID, data, sriovOpNs, networkConfig, customNetworkName)
 }
 
 var _ = Describe(
@@ -359,8 +336,8 @@ var _ = Describe(
 				data := data
 				By(fmt.Sprintf("Testing device: %s (DeviceID: %s, Interface: %s)", data.Name, data.DeviceID, data.InterfaceName))
 
-				// x710, bcm57414, and bcm57508 do not support minTxRate for now
-				if data.Name == "x710" || data.Name == "bcm57414" || data.Name == "bcm57508" {
+				// Skip devices that don't support minTxRate
+				if !data.SupportsMinTxRate {
 					By(fmt.Sprintf("Skipping device %q - does not support minTxRate", data.Name))
 
 					continue

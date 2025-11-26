@@ -872,19 +872,38 @@ func buildSriovNetworkBuilder(
 		networkBuilder.WithTrustFlag(config.Trust == "on")
 	}
 
+	// maxUint16 is the maximum value for uint16 fields (VLAN, QoS, rates).
+	const maxUint16 = 65535
+
 	if config.VlanID > 0 {
+		if config.VlanID > maxUint16 {
+			klog.Warningf("VlanID %d exceeds uint16 max (%d), will be truncated", config.VlanID, maxUint16)
+		}
+
 		networkBuilder.WithVLAN(uint16(config.VlanID))
 	}
 
 	if config.VlanQoS > 0 {
+		if config.VlanQoS > maxUint16 {
+			klog.Warningf("VlanQoS %d exceeds uint16 max (%d), will be truncated", config.VlanQoS, maxUint16)
+		}
+
 		networkBuilder.WithVlanQoS(uint16(config.VlanQoS))
 	}
 
 	if config.MinTxRate > 0 {
+		if config.MinTxRate > maxUint16 {
+			klog.Warningf("MinTxRate %d exceeds uint16 max (%d), will be truncated", config.MinTxRate, maxUint16)
+		}
+
 		networkBuilder.WithMinTxRate(uint16(config.MinTxRate))
 	}
 
 	if config.MaxTxRate > 0 {
+		if config.MaxTxRate > maxUint16 {
+			klog.Warningf("MaxTxRate %d exceeds uint16 max (%d), will be truncated", config.MaxTxRate, maxUint16)
+		}
+
 		networkBuilder.WithMaxTxRate(uint16(config.MaxTxRate))
 	}
 
@@ -1395,6 +1414,9 @@ func ExtractPodInterfaceMAC(podObj *pod.Builder, interfaceName string) (string, 
 	return "", fmt.Errorf("MAC address not found for interface %q", interfaceName)
 }
 
+// k8sDNSNameMaxLength is the maximum length for Kubernetes resource names per RFC 1123.
+const k8sDNSNameMaxLength = 63
+
 // debugPodConfig holds configuration for creating debug pods.
 type debugPodConfig struct {
 	namePrefix     string
@@ -1407,7 +1429,7 @@ func defaultDebugPodConfig() debugPodConfig {
 	return debugPodConfig{
 		namePrefix:     "sriov-debug-",
 		cleanupTimeout: 15 * time.Second,
-		maxNameLength:  63, // Kubernetes pod name limit
+		maxNameLength:  k8sDNSNameMaxLength,
 	}
 }
 
@@ -2022,18 +2044,23 @@ func testPodConnectivity(clientPod *pod.Builder, serverIP string) error {
 
 	pingOutputStr := pingOutput.String()
 
-	// Check for ping success indicators (more robust than just checking "3 packets transmitted")
-	// Also check for failure indicators to catch edge cases
-	hasSuccessIndicator := strings.Contains(pingOutputStr, "3 packets transmitted") ||
-		strings.Contains(pingOutputStr, "3 received") ||
-		strings.Contains(pingOutputStr, "0% packet loss")
-
 	// Check for explicit failure indicators (100% packet loss indicates complete failure)
 	hasCompleteFailure := strings.Contains(pingOutputStr, "100% packet loss")
-
 	if hasCompleteFailure {
 		return fmt.Errorf("ping failed with 100%% packet loss (output: %q)", pingOutputStr)
 	}
+
+	// Check for any packet loss (not just 100%) - for SR-IOV tests, any loss may indicate a problem
+	hasPartialLoss := strings.Contains(pingOutputStr, "packet loss") &&
+		!strings.Contains(pingOutputStr, "0% packet loss")
+	if hasPartialLoss {
+		return fmt.Errorf("ping experienced partial packet loss (output: %q)", pingOutputStr)
+	}
+
+	// Check for ping success indicators (more robust than just checking "3 packets transmitted")
+	hasSuccessIndicator := strings.Contains(pingOutputStr, "3 packets transmitted") ||
+		strings.Contains(pingOutputStr, "3 received") ||
+		strings.Contains(pingOutputStr, "0% packet loss")
 
 	if !hasSuccessIndicator {
 		return fmt.Errorf("ping did not complete successfully - no success indicators found (output: %q)", pingOutputStr)
@@ -2273,14 +2300,14 @@ func CreateDpdkTestPod(
 func DeleteDpdkTestPod(apiClient *clients.Settings, name, namespace string, timeout time.Duration) error {
 	klog.V(90).Infof("Deleting DPDK test pod %q from namespace %q", name, namespace)
 
-	podBuilder := pod.NewBuilder(apiClient, name, namespace, "")
-	if !podBuilder.Exists() {
+	podBuilder, err := pod.Pull(apiClient, name, namespace)
+	if err != nil || podBuilder == nil {
 		klog.V(90).Infof("DPDK test pod %q does not exist in namespace %q, skipping deletion", name, namespace)
 
 		return nil
 	}
 
-	_, err := podBuilder.DeleteAndWait(timeout)
+	_, err = podBuilder.DeleteAndWait(timeout)
 	if err != nil {
 		return fmt.Errorf("failed to delete DPDK test pod %q: %w", name, err)
 	}

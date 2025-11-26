@@ -14,22 +14,23 @@ import (
 
 // DeviceConfig represents a SR-IOV device configuration.
 type DeviceConfig struct {
-	Name          string
-	DeviceID      string
-	Vendor        string
-	InterfaceName string
+	Name              string
+	DeviceID          string
+	Vendor            string
+	InterfaceName     string
+	SupportsMinTxRate bool // Whether device supports minTxRate configuration
 }
 
 // GetDefaultDeviceConfig returns default device configurations.
 func GetDefaultDeviceConfig() []DeviceConfig {
 	return []DeviceConfig{
-		{"e810xxv", "159b", "8086", "eno12409"},
-		{"e810c", "1593", "8086", "ens2f2"},
-		{"x710", "1572", "8086", "ens5f0"}, // NO-CARRIER
-		{"bcm57414", "16d7", "14e4", "ens4f1np1"},
-		{"bcm57508", "1750", "14e4", "ens3f0np0"}, // NO-CARRIER
-		{"e810back", "1591", "8086", "ens4f2"},
-		{"cx7anl244", "1021", "15b3", "ens2f0np0"},
+		{"e810xxv", "159b", "8086", "eno12409", true},
+		{"e810c", "1593", "8086", "ens2f2", true},
+		{"x710", "1572", "8086", "ens5f0", false},        // NO-CARRIER, no minTxRate support
+		{"bcm57414", "16d7", "14e4", "ens4f1np1", false}, // no minTxRate support
+		{"bcm57508", "1750", "14e4", "ens3f0np0", false}, // NO-CARRIER, no minTxRate support
+		{"e810back", "1591", "8086", "ens4f2", true},
+		{"cx7anl244", "1021", "15b3", "ens2f0np0", true},
 	}
 }
 
@@ -62,10 +63,11 @@ func parseDeviceConfig() []DeviceConfig {
 		}
 
 		devices = append(devices, DeviceConfig{
-			Name:          strings.TrimSpace(parts[0]),
-			DeviceID:      strings.TrimSpace(parts[1]),
-			Vendor:        strings.TrimSpace(parts[2]),
-			InterfaceName: strings.TrimSpace(parts[3]),
+			Name:              strings.TrimSpace(parts[0]),
+			DeviceID:          strings.TrimSpace(parts[1]),
+			Vendor:            strings.TrimSpace(parts[2]),
+			InterfaceName:     strings.TrimSpace(parts[3]),
+			SupportsMinTxRate: true, // Default to true for env-configured devices
 		})
 	}
 
