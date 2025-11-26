@@ -20,7 +20,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 	sriovconfig "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/ocpsriovconfig"
-	. "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/ocpsriovinittools"
+	ocpsriovinittools "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/ocpsriovinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/tsparams"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -70,9 +70,10 @@ func CleanAllNetworksByTargetNamespace(apiClient *clients.Settings, sriovOpNs, t
 	// List all SriovNetwork resources in the operator namespace
 	sriovNetworks, err := sriov.List(apiClient, sriovOpNs, client.ListOptions{})
 	if err != nil {
-		klog.V(90).Infof("Error listing SR-IOV networks: %v", err)
-		// Don't fail if we can't list networks - just log and continue
-		return nil
+		// Log at warning level with context so callers can distinguish API failures from "no networks found"
+		klog.Warningf("Failed to list SR-IOV networks in namespace %q for cleanup: %v", sriovOpNs, err)
+		// Return wrapped error so callers can handle API failures appropriately
+		return fmt.Errorf("failed to list SR-IOV networks in namespace %q: %w", sriovOpNs, err)
 	}
 
 	networksCleaned := 0
@@ -248,24 +249,15 @@ func RemoveSriovPolicy(apiClient *clients.Settings, name, sriovOpNs string, time
 
 	// Wait for policy to be deleted using wait.PollUntilContextTimeout
 	klog.V(90).Infof("Waiting for SRIOV policy %q to be deleted", name)
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
 	err = wait.PollUntilContextTimeout(
-		ctx,
+		context.Background(),
 		tsparams.PollingInterval,
 		timeout,
 		true,
 		func(ctx context.Context) (bool, error) {
-			checkPolicy := sriov.NewPolicyBuilder(
-				apiClient,
-				name,
-				sriovOpNs,
-				"",
-				0,
-				[]string{},
-				map[string]string{},
-			)
-			return !checkPolicy.Exists(), nil
+			_, err := sriov.PullPolicy(apiClient, name, sriovOpNs)
+			// Policy is deleted when PullPolicy returns an error (not found)
+			return err != nil, nil
 		})
 
 	if err != nil {
@@ -323,22 +315,15 @@ func RemoveSriovNetwork(apiClient *clients.Settings, name, sriovOpNs string, tim
 
 	// Wait for SRIOV network to be fully deleted using wait.PollUntilContextTimeout
 	klog.V(90).Infof("Waiting for SRIOV network %q to be deleted", name)
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
 	err = wait.PollUntilContextTimeout(
-		ctx,
+		context.Background(),
 		tsparams.PollingInterval,
 		timeout,
 		true,
 		func(ctx context.Context) (bool, error) {
-			checkNetwork := sriov.NewNetworkBuilder(
-				apiClient,
-				name,
-				sriovOpNs,
-				targetNamespace,
-				resourceName,
-			)
-			return !checkNetwork.Exists(), nil
+			_, err := sriov.PullNetwork(apiClient, name, targetNamespace)
+			// Network is deleted when PullNetwork returns an error (not found)
+			return err != nil, nil
 		})
 
 	if err != nil {
@@ -363,10 +348,8 @@ func RemoveSriovNetwork(apiClient *clients.Settings, name, sriovOpNs string, tim
 		}
 
 		// Wait for NAD deletion using wait.PollUntilContextTimeout
-		ctx, cancel := context.WithTimeout(context.Background(), tsparams.NADTimeout)
-		defer cancel()
 		err = wait.PollUntilContextTimeout(
-			ctx,
+			context.Background(),
 			tsparams.PollingInterval,
 			tsparams.NADTimeout,
 			true,
@@ -427,10 +410,8 @@ func WaitForPodWithLabelReady(apiClient *clients.Settings, namespace, labelSelec
 	// Wait for pod to appear using wait.PollUntilContextTimeout
 	var podList []*pod.Builder
 	var listErr error
-	ctx, cancel := context.WithTimeout(context.Background(), tsparams.PodLabelReadyTimeout)
-	defer cancel()
 	err := wait.PollUntilContextTimeout(
-		ctx,
+		context.Background(),
 		tsparams.PollingInterval,
 		tsparams.PodLabelReadyTimeout,
 		true,
@@ -819,10 +800,8 @@ func CreateSriovNetwork(apiClient *clients.Settings, config *SriovNetworkConfig)
 
 	// Verify that a SRIOV policy exists for the resourceName before waiting for NAD
 	klog.V(90).Infof("Verifying SRIOV policy exists for resource %q", config.ResourceName)
-	ctx, cancel := context.WithTimeout(context.Background(), tsparams.NamespaceTimeout)
-	defer cancel()
 	err = wait.PollUntilContextTimeout(
-		ctx,
+		context.Background(),
 		tsparams.PollingInterval,
 		tsparams.NamespaceTimeout,
 		true,
@@ -846,10 +825,8 @@ func CreateSriovNetwork(apiClient *clients.Settings, config *SriovNetworkConfig)
 
 	// Wait for NetworkAttachmentDefinition to be created by the SRIOV operator
 	klog.V(90).Infof("Waiting for NetworkAttachmentDefinition %q to be created in namespace %q", config.Name, config.NetworkNamespace)
-	ctx2, cancel2 := context.WithTimeout(context.Background(), tsparams.NADTimeout)
-	defer cancel2()
 	err = wait.PollUntilContextTimeout(
-		ctx2,
+		context.Background(),
 		tsparams.PollingInterval,
 		tsparams.NADTimeout,
 		true,
@@ -872,16 +849,14 @@ func CreateSriovNetwork(apiClient *clients.Settings, config *SriovNetworkConfig)
 	// Note: This check is important but can timeout if policy is still being applied
 	// We use a shorter timeout here and let the test proceed - VF availability will be checked when pods are created
 	klog.V(90).Infof("Verifying VF resources are available for %q", config.ResourceName)
-	ctx3, cancel3 := context.WithTimeout(context.Background(), tsparams.VFResourceTimeout)
-	defer cancel3()
 	err = wait.PollUntilContextTimeout(
-		ctx3,
+		context.Background(),
 		tsparams.VFResourcePollingInterval,
 		tsparams.VFResourceTimeout,
 		true,
 		func(ctx context.Context) (bool, error) {
 			// Use global SriovOcpConfig from ocpsriovinittools
-			available, err := VerifyVFResourcesAvailable(apiClient, SriovOcpConfig, config.ResourceName)
+			available, err := VerifyVFResourcesAvailable(apiClient, ocpsriovinittools.SriovOcpConfig, config.ResourceName)
 			if err != nil {
 				return false, err
 			}
@@ -1371,13 +1346,16 @@ func executeCommandOnNode(
 
 	// Execute command using nsenter to access host namespace
 	// This is similar to "oc debug node" which uses chroot /host
-	// Join command parts with spaces for shell execution
-	cmdStr := strings.Join(cmd, " ")
+	// Execute command directly without shell to avoid command injection vulnerabilities
+	// The "--" separator tells nsenter to pass the following arguments directly to the command
 	nsenterCmd := []string{
 		"nsenter", "--target", "1",
 		"--mount", "--uts", "--ipc", "--net", "--pid",
-		"--", "sh", "-c", cmdStr,
+		"--",
 	}
+	// Append command and its arguments as separate array elements
+	// This ensures arguments are passed safely without shell interpolation
+	nsenterCmd = append(nsenterCmd, cmd...)
 
 	output, err := runningPod.ExecCommand(nsenterCmd)
 	if err != nil {
@@ -1393,7 +1371,8 @@ func executeCommandOnNode(
 // Implementation details:
 // - Creates a temporary privileged debug pod on the target node
 // - Uses nsenter to access the host namespace (similar to "oc debug node")
-// - Executes: ip link show <nicName> | grep <macAddress> to find the VF
+// - Executes: ip link show <nicName> with safe argument passing (no shell interpolation)
+// - Filters output in Go to find lines containing <macAddress> (no shell grep)
 // - Verifies that the output contains the expected spoof checking state
 //
 // Parameters:
@@ -1443,15 +1422,36 @@ func PrepareVFSpoofCheckVerification(
 	}
 
 	// Execute command on node to get VF information
-	// Command: ip link show <nicName> | grep <macAddress>
-	// This finds the VF line that contains the pod's MAC address
-	cmd := []string{fmt.Sprintf("ip link show %s | grep %s", nicName, podMAC)}
+	// Use safe argument passing to avoid command injection:
+	// - Call "ip link show" with nicName as a separate argument (no shell interpolation)
+	// - Filter the output in Go to search for podMAC
+	// This eliminates the risk of command injection from untrusted nicName or podMAC values
+	cmd := []string{"ip", "link", "show", nicName}
 	output, err := executeCommandOnNode(apiClient, config, nodeName, namespace, cmd, tsparams.PodReadyTimeout)
 	if err != nil {
 		return fmt.Errorf("failed to execute command on node %q: %w", nodeName, err)
 	}
 
 	klog.V(90).Infof("Command output from node %q: %q", nodeName, output)
+
+	// Filter output in Go to find lines containing the pod's MAC address
+	// This is safer than using shell grep with string interpolation
+	lines := strings.Split(output, "\n")
+	var matchingLines []string
+	for _, line := range lines {
+		if strings.Contains(line, podMAC) {
+			matchingLines = append(matchingLines, line)
+		}
+	}
+
+	if len(matchingLines) == 0 {
+		return fmt.Errorf("no VF found with MAC address %q in output from node %q for interface %q. "+
+			"Full output: %q", podMAC, nodeName, nicName, output)
+	}
+
+	// Use the first matching line for verification
+	output = strings.Join(matchingLines, "\n")
+	klog.V(90).Infof("Filtered output containing MAC %q: %q", podMAC, output)
 
 	// Check if output contains the expected spoof checking state
 	// The output format can vary:
@@ -1909,18 +1909,10 @@ func GetPciAddress(
 	namespace, podName, policyName string) (string, error) {
 	klog.V(90).Infof("Getting PCI address for pod %q in namespace %q (policy: %q)", podName, namespace, policyName)
 
-	podBuilder := pod.NewBuilder(apiClient, podName, namespace, config.OcpSriovTestContainer)
-	if podBuilder == nil {
-		return "", fmt.Errorf("failed to create pod builder for pod %q in namespace %q", podName, namespace)
-	}
-	if !podBuilder.Exists() {
-		return "", fmt.Errorf("pod %q does not exist in namespace %q", podName, namespace)
-	}
-
 	// Pull the pod to get the latest annotations
 	podObj, err := pod.Pull(apiClient, podName, namespace)
 	if err != nil {
-		return "", fmt.Errorf("failed to pull pod %q: %w", podName, err)
+		return "", fmt.Errorf("pod %q does not exist or failed to pull in namespace %q: %w", podName, namespace, err)
 	}
 
 	if podObj == nil || podObj.Object == nil {
