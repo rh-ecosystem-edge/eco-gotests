@@ -851,10 +851,11 @@ type SriovNetworkConfig struct {
 }
 
 // buildSriovNetworkBuilder creates and configures a SRIOV network builder with the given config.
+// Returns an error if any configuration value exceeds valid ranges.
 func buildSriovNetworkBuilder(
 	apiClient *clients.Settings,
 	config *SriovNetworkConfig,
-) *sriov.NetworkBuilder {
+) (*sriov.NetworkBuilder, error) {
 	networkBuilder := sriov.NewNetworkBuilder(
 		apiClient,
 		config.Name,
@@ -873,11 +874,12 @@ func buildSriovNetworkBuilder(
 	}
 
 	// maxUint16 is the maximum value for uint16 fields (VLAN, QoS, rates).
+	// Fail fast if values exceed this limit to prevent silent truncation in test infrastructure.
 	const maxUint16 = 65535
 
 	if config.VlanID > 0 {
 		if config.VlanID > maxUint16 {
-			klog.Warningf("VlanID %d exceeds uint16 max (%d), will be truncated", config.VlanID, maxUint16)
+			return nil, fmt.Errorf("VlanID %d exceeds maximum allowed value %d", config.VlanID, maxUint16)
 		}
 
 		networkBuilder.WithVLAN(uint16(config.VlanID))
@@ -885,7 +887,7 @@ func buildSriovNetworkBuilder(
 
 	if config.VlanQoS > 0 {
 		if config.VlanQoS > maxUint16 {
-			klog.Warningf("VlanQoS %d exceeds uint16 max (%d), will be truncated", config.VlanQoS, maxUint16)
+			return nil, fmt.Errorf("VlanQoS %d exceeds maximum allowed value %d", config.VlanQoS, maxUint16)
 		}
 
 		networkBuilder.WithVlanQoS(uint16(config.VlanQoS))
@@ -893,7 +895,7 @@ func buildSriovNetworkBuilder(
 
 	if config.MinTxRate > 0 {
 		if config.MinTxRate > maxUint16 {
-			klog.Warningf("MinTxRate %d exceeds uint16 max (%d), will be truncated", config.MinTxRate, maxUint16)
+			return nil, fmt.Errorf("MinTxRate %d exceeds maximum allowed value %d", config.MinTxRate, maxUint16)
 		}
 
 		networkBuilder.WithMinTxRate(uint16(config.MinTxRate))
@@ -901,7 +903,7 @@ func buildSriovNetworkBuilder(
 
 	if config.MaxTxRate > 0 {
 		if config.MaxTxRate > maxUint16 {
-			klog.Warningf("MaxTxRate %d exceeds uint16 max (%d), will be truncated", config.MaxTxRate, maxUint16)
+			return nil, fmt.Errorf("MaxTxRate %d exceeds maximum allowed value %d", config.MaxTxRate, maxUint16)
 		}
 
 		networkBuilder.WithMaxTxRate(uint16(config.MaxTxRate))
@@ -917,7 +919,7 @@ func buildSriovNetworkBuilder(
 
 	networkBuilder.WithLinkState(linkState)
 
-	return networkBuilder
+	return networkBuilder, nil
 }
 
 // waitForSriovPolicy waits for the SRIOV policy to exist.
@@ -970,7 +972,10 @@ func CreateSriovNetwork(apiClient *clients.Settings, config *SriovNetworkConfig)
 	klog.V(90).Infof("Creating SRIOV network %q in namespace %q (resource: %q)",
 		config.Name, config.Namespace, config.ResourceName)
 
-	networkBuilder := buildSriovNetworkBuilder(apiClient, config)
+	networkBuilder, err := buildSriovNetworkBuilder(apiClient, config)
+	if err != nil {
+		return fmt.Errorf("invalid network configuration: %w", err)
+	}
 
 	sriovNetwork, err := networkBuilder.Create()
 	if err != nil {
