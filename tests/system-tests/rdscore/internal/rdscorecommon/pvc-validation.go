@@ -830,7 +830,7 @@ func createWorkloadWithBlockPVC(fNamespace string, fStorageClass string, fPVCNam
 		msgOne, podOne.Definition.Name)
 
 	writeDataOneCmd := []string{"/bin/bash", "-c",
-		fmt.Sprintf("echo '%s' | dd of=/dev/xvda bs=512 count=1 conv=sync", msgOne)}
+		fmt.Sprintf("echo '%s' | dd of=/dev/xvda bs=4096 count=1 conv=sync", msgOne)}
 
 	Eventually(func() bool {
 		podOneResult, err = podOne.ExecCommand(writeDataOneCmd, "one")
@@ -858,7 +858,7 @@ func DeployWorkloadCephRBDBlockPVC(ctx SpecContext) {
 
 	verificationRegex := regexPartOne + regexPartTwo
 
-	cmdToRun := []string{"/bin/bash", "-c", "dd if=/dev/xvda bs=512 count=1 2>/dev/null"}
+	cmdToRun := []string{"/bin/bash", "-c", "dd if=/dev/xvda bs=4096 count=1 2>/dev/null"}
 
 	verifyDataOnBlockPVC(cephRBDBlockNamespace, labelsWlkdBlockString, verificationRegex, cmdToRun)
 }
@@ -869,7 +869,7 @@ func VerifyCephRBDBlockPVC(ctx SpecContext) {
 
 	verificationRegex := regexPartOne + regexPartTwo
 
-	cmdToRun := []string{"/bin/bash", "-c", "dd if=/dev/xvda bs=512 count=1 2>/dev/null"}
+	cmdToRun := []string{"/bin/bash", "-c", "dd if=/dev/xvda bs=4096 count=1 2>/dev/null"}
 
 	verifyDataOnBlockPVC(cephRBDBlockNamespace, labelsWlkdBlockString, verificationRegex, cmdToRun)
 
@@ -884,7 +884,7 @@ func VerifyDataOnCephRBDBlockPVC(ctx SpecContext) {
 
 	verificationRegex := regexPartOne + regexPartTwo
 
-	cmdToRun := []string{"/bin/bash", "-c", "dd if=/dev/xvda bs=512 count=1 2>/dev/null"}
+	cmdToRun := []string{"/bin/bash", "-c", "dd if=/dev/xvda bs=4096 count=1 2>/dev/null"}
 
 	verifyDataOnBlockPVC(cephRBDBlockNamespace, labelsWlkdBlockString, verificationRegex, cmdToRun)
 }
@@ -901,6 +901,6 @@ func VefityPersistentStorageSuite() {
 				Label("odf-cephrbd-pvc"), reportxml.ID("71989"), MustPassRepeatedly(3), VerifyCephRBDPVC)
 
 			It("Verifies CephRBD Block",
-				Label("odf-cephrbd-block-pvc"), reportxml.ID("TBD"), MustPassRepeatedly(3), VerifyCephRBDBlockPVC)
+				Label("odf-cephrbd-block-pvc"), reportxml.ID("86200"), MustPassRepeatedly(3), VerifyCephRBDBlockPVC)
 		})
 }
