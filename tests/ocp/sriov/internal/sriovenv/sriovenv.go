@@ -293,7 +293,11 @@ func RemoveSriovPolicy(apiClient *clients.Settings, name, sriovOpNs string, time
 	return nil
 }
 
+// ErrNetworkNotFound is returned when a SRIOV network is not found.
+var ErrNetworkNotFound = fmt.Errorf("sriov network not found")
+
 // findSriovNetwork finds a SRIOV network by name and returns its target namespace.
+// Returns ErrNetworkNotFound if the network does not exist.
 func findSriovNetwork(
 	apiClient *clients.Settings,
 	name, sriovOpNs string,
@@ -317,7 +321,7 @@ func findSriovNetwork(
 		}
 	}
 
-	return nil, "", nil
+	return nil, "", fmt.Errorf("%w: %q in namespace %q", ErrNetworkNotFound, name, sriovOpNs)
 }
 
 // isNADNotFoundError checks if the error indicates the NAD doesn't exist.
@@ -396,11 +400,22 @@ func waitForNADDeletion(apiClient *clients.Settings, name, namespace string) err
 }
 
 // RemoveSriovNetwork removes a SRIOV network by name from the operator namespace.
+// The timeout parameter governs the SriovNetwork CR deletion phase.
+// NAD deletion in the target namespace uses a fixed tsparams.NADTimeout.
+// If a single timeout budget for the entire cleanup is needed, callers should
+// account for both phases or adjust tsparams.NADTimeout accordingly.
 func RemoveSriovNetwork(apiClient *clients.Settings, name, sriovOpNs string, timeout time.Duration) error {
 	klog.V(90).Infof("Removing SRIOV network %q", name)
 
 	targetNetwork, targetNs, err := findSriovNetwork(apiClient, name, sriovOpNs)
 	if err != nil {
+		// If network not found, it's already deleted - not an error
+		if errors.Is(err, ErrNetworkNotFound) {
+			klog.V(90).Infof("Network %q not found or already deleted", name)
+
+			return nil
+		}
+
 		return err
 	}
 
@@ -684,6 +699,9 @@ func checkWorkerNodesReady(apiClient *clients.Settings, workerLabel string) (boo
 	}
 
 	if workerCount == 0 {
+		klog.Warningf("No worker nodes found matching label %q - check if worker label is configured correctly",
+			labelKey)
+
 		return false, 0
 	}
 
@@ -1035,8 +1053,13 @@ const (
 
 // CheckSriovOperatorStatus checks if SR-IOV operator is running and healthy.
 func CheckSriovOperatorStatus(apiClient *clients.Settings, config *sriovconfig.SriovOcpConfig) error {
+	if config == nil {
+		return fmt.Errorf("SriovOcpConfig cannot be nil")
+	}
+
 	klog.V(90).Infof("Checking SR-IOV operator status in namespace %q", config.OcpSriovOperatorNamespace)
 	// Use the centralized function from sriovoperator package
+
 	return sriovoperator.IsSriovDeployed(apiClient, config.OcpSriovOperatorNamespace)
 }
 
@@ -1046,6 +1069,10 @@ func WaitForSriovPolicyReady(
 	config *sriovconfig.SriovOcpConfig,
 	timeout time.Duration,
 ) error {
+	if config == nil {
+		return fmt.Errorf("SriovOcpConfig cannot be nil")
+	}
+
 	klog.V(90).Infof("Waiting for SR-IOV policy to be ready (timeout: %v)", timeout)
 
 	return WaitForSriovAndMCPStable(
@@ -1285,6 +1312,10 @@ func CreateTestPod(
 	apiClient *clients.Settings,
 	config *sriovconfig.SriovOcpConfig,
 	name, namespace, networkName, ipAddress, macAddress string) (*pod.Builder, error) {
+	if config == nil {
+		return nil, fmt.Errorf("SriovOcpConfig cannot be nil")
+	}
+
 	klog.V(90).Infof("Creating test pod %q in namespace %q with network %q (ip: %q, mac: %q)",
 		name, namespace, networkName, ipAddress, macAddress)
 
@@ -2219,21 +2250,31 @@ func GetPciAddress(
 		return "", fmt.Errorf("failed to unmarshal pod network status annotation: %w", err)
 	}
 
-	// Find the network matching the policy name
+	// Find the network matching the policy name.
+	// Network name format is typically "namespace/network-name".
+	// We check for exact match on the network name part (after the slash) to avoid
+	// accidental matches when one policy name is a substring of another.
 	for _, networkAnnotation := range annotation {
-		if strings.Contains(networkAnnotation.Name, policyName) {
+		networkName := networkAnnotation.Name
+		// Extract just the network name if it includes namespace prefix
+		if idx := strings.LastIndex(networkName, "/"); idx >= 0 {
+			networkName = networkName[idx+1:]
+		}
+
+		// Use exact match on network name
+		if networkName == policyName {
 			if networkAnnotation.DeviceInfo.Pci.PciAddress != "" {
-				klog.V(90).Infof("PCI address found for pod %q: %q (policy: %q)",
-					podName, networkAnnotation.DeviceInfo.Pci.PciAddress, policyName)
+				klog.V(90).Infof("PCI address found for pod %q: %q (network: %q)",
+					podName, networkAnnotation.DeviceInfo.Pci.PciAddress, networkAnnotation.Name)
 
 				return networkAnnotation.DeviceInfo.Pci.PciAddress, nil
 			}
 		}
 	}
 
-	klog.V(90).Infof("PCI address not found for pod %q with policy %q", podName, policyName)
+	klog.V(90).Infof("PCI address not found for pod %q with network %q", podName, policyName)
 
-	return "", fmt.Errorf("PCI address not found for pod %q with policy %q", podName, policyName)
+	return "", fmt.Errorf("PCI address not found for pod %q with network %q", podName, policyName)
 }
 
 // UpdateSriovPolicyMTU updates the MTU value of an existing SR-IOV policy
