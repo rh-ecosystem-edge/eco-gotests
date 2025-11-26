@@ -27,6 +27,9 @@ const (
 	labelsWlkdBlockString = "systemtest-test=rdscore-odf-block"
 	regexPartOne          = `Deployment[[:space:]]+[[:alnum:]-_]+;Pod[[:space:]]+[[:alnum:]-_]+`
 	regexPartTwo          = `\([[:alnum:]-._]+\);Timestamp[[:space:]]+[[:digit:]]+`
+	cephRBDBlockNamespace = "rds-cephrbd-block-ns"
+	cephRBDNamespace      = "rds-cephrbd-ns"
+	cephFSNamespace       = "rds-cephfs-ns"
 )
 
 func createPVC(fPVCName, fNamespace, fStorageClass, fVolumeMode, fCapacity string) *storage.PVCBuilder {
@@ -566,54 +569,54 @@ func verifyDataOnPVC(fNamespace, podLabel, verificationRegex string, cmdToRun []
 
 // DeployWorkflowCephFSPVC Verify workload with CephFS PVC.
 func DeployWorkflowCephFSPVC(ctx SpecContext) {
-	createWorkloadWithPVC("rds-cephfs-ns", RDSCoreConfig.StorageCephFSSCName, "rds-cephfs-fs", "Filesystem")
+	createWorkloadWithPVC(cephFSNamespace, RDSCoreConfig.StorageCephFSSCName, "rds-cephfs-fs", "Filesystem")
 
 	verificationRegex := regexPartOne + regexPartTwo
 
 	cmdToRun := []string{"/bin/bash", "-c", "cat /opt/cephfs-pvc/demo-data-file"}
 
-	verifyDataOnPVC("rds-cephfs-ns", labelsWlkdOneString, verificationRegex, cmdToRun)
+	verifyDataOnPVC(cephFSNamespace, labelsWlkdOneString, verificationRegex, cmdToRun)
 }
 
 // VerifyCephFSPVC Verify workload with CephFS PVC.
 func VerifyCephFSPVC(ctx SpecContext) {
-	createWorkloadWithPVC("rds-cephfs-ns", RDSCoreConfig.StorageCephFSSCName, "rds-cephfs-fs", "Filesystem")
+	createWorkloadWithPVC(cephFSNamespace, RDSCoreConfig.StorageCephFSSCName, "rds-cephfs-fs", "Filesystem")
 
 	verificationRegex := regexPartOne + regexPartTwo
 
 	cmdToRun := []string{"/bin/bash", "-c", "cat /opt/cephfs-pvc/demo-data-file"}
 
-	verifyDataOnPVC("rds-cephfs-ns", labelsWlkdOneString, verificationRegex, cmdToRun)
+	verifyDataOnPVC(cephFSNamespace, labelsWlkdOneString, verificationRegex, cmdToRun)
 
-	rescheduleWorkloadWithPVC("rds-cephfs-ns", labelsWlkdOneString, RDSCoreConfig.StorageODFDeployTwoSelector)
+	rescheduleWorkloadWithPVC(cephFSNamespace, labelsWlkdOneString, RDSCoreConfig.StorageODFDeployTwoSelector)
 
-	verifyDataOnPVC("rds-cephfs-ns", labelsWlkdOneString, verificationRegex, cmdToRun)
+	verifyDataOnPVC(cephFSNamespace, labelsWlkdOneString, verificationRegex, cmdToRun)
 }
 
 // DeployWorkloadCephRBDPVC Verify workload with CephRBD PVC.
 func DeployWorkloadCephRBDPVC(ctx SpecContext) {
-	createWorkloadWithPVC("rds-cephrbd-ns", RDSCoreConfig.StorageCephRBDSCName, "rds-cephrbd-fs", "Filesystem")
+	createWorkloadWithPVC(cephRBDNamespace, RDSCoreConfig.StorageCephRBDSCName, "rds-cephrbd-fs", "Filesystem")
 
 	verificationRegex := regexPartOne + regexPartTwo
 
 	cmdToRun := []string{"/bin/bash", "-c", "cat /opt/cephfs-pvc/demo-data-file"}
 
-	verifyDataOnPVC("rds-cephrbd-ns", labelsWlkdOneString, verificationRegex, cmdToRun)
+	verifyDataOnPVC(cephRBDNamespace, labelsWlkdOneString, verificationRegex, cmdToRun)
 }
 
 // VerifyCephRBDPVC Verify workload with CephRBD PVC.
 func VerifyCephRBDPVC(ctx SpecContext) {
-	createWorkloadWithPVC("rds-cephrbd-ns", RDSCoreConfig.StorageCephRBDSCName, "rds-cephrbd-fs", "Filesystem")
+	createWorkloadWithPVC(cephRBDNamespace, RDSCoreConfig.StorageCephRBDSCName, "rds-cephrbd-fs", "Filesystem")
 
 	verificationRegex := regexPartOne + regexPartTwo
 
 	cmdToRun := []string{"/bin/bash", "-c", "cat /opt/cephfs-pvc/demo-data-file"}
 
-	verifyDataOnPVC("rds-cephrbd-ns", labelsWlkdOneString, verificationRegex, cmdToRun)
+	verifyDataOnPVC(cephRBDNamespace, labelsWlkdOneString, verificationRegex, cmdToRun)
 
-	rescheduleWorkloadWithPVC("rds-cephrbd-ns", labelsWlkdOneString, RDSCoreConfig.StorageODFDeployTwoSelector)
+	rescheduleWorkloadWithPVC(cephRBDNamespace, labelsWlkdOneString, RDSCoreConfig.StorageODFDeployTwoSelector)
 
-	verifyDataOnPVC("rds-cephrbd-ns", labelsWlkdOneString, verificationRegex, cmdToRun)
+	verifyDataOnPVC(cephRBDNamespace, labelsWlkdOneString, verificationRegex, cmdToRun)
 }
 
 // VerifyDataOnCephFSPVC verify data on CephFS PVC.
@@ -624,7 +627,7 @@ func VerifyDataOnCephFSPVC(ctx SpecContext) {
 
 	cmdToRun := []string{"/bin/bash", "-c", "cat /opt/cephfs-pvc/demo-data-file"}
 
-	verifyDataOnPVC("rds-cephfs-ns", labelsWlkdOneString, verificationRegex, cmdToRun)
+	verifyDataOnPVC(cephFSNamespace, labelsWlkdOneString, verificationRegex, cmdToRun)
 }
 
 // VerifyDataOnCephRBDPVC verify data on CephRBD PVC.
@@ -635,7 +638,7 @@ func VerifyDataOnCephRBDPVC(ctx SpecContext) {
 
 	cmdToRun := []string{"/bin/bash", "-c", "cat /opt/cephfs-pvc/demo-data-file"}
 
-	verifyDataOnPVC("rds-cephrbd-ns", labelsWlkdOneString, verificationRegex, cmdToRun)
+	verifyDataOnPVC(cephRBDNamespace, labelsWlkdOneString, verificationRegex, cmdToRun)
 }
 
 //nolint:funlen
@@ -927,28 +930,28 @@ func verifyDataOnBlockPVC(fNamespace, podLabel, verificationRegex string, cmdToR
 
 // DeployWorkloadCephRBDBlockPVC Verify workload with CephRBD Block PVC.
 func DeployWorkloadCephRBDBlockPVC(ctx SpecContext) {
-	createWorkloadWithBlockPVC("rds-cephrbd-block-ns", RDSCoreConfig.StorageCephRBDSCName, "rds-cephrbd-block", "Block")
+	createWorkloadWithBlockPVC(cephRBDBlockNamespace, RDSCoreConfig.StorageCephRBDSCName, "rds-cephrbd-block", "Block")
 
 	verificationRegex := regexPartOne + regexPartTwo
 
 	cmdToRun := []string{"/bin/bash", "-c", "dd if=/dev/xvda bs=512 count=1 2>/dev/null"}
 
-	verifyDataOnBlockPVC("rds-cephrbd-block-ns", labelsWlkdBlockString, verificationRegex, cmdToRun)
+	verifyDataOnBlockPVC(cephRBDBlockNamespace, labelsWlkdBlockString, verificationRegex, cmdToRun)
 }
 
 // VerifyCephRBDBlockPVC Verify workload with CephRBD Block PVC.
 func VerifyCephRBDBlockPVC(ctx SpecContext) {
-	createWorkloadWithBlockPVC("rds-cephrbd-block-ns", RDSCoreConfig.StorageCephRBDSCName, "rds-cephrbd-block", "Block")
+	createWorkloadWithBlockPVC(cephRBDBlockNamespace, RDSCoreConfig.StorageCephRBDSCName, "rds-cephrbd-block", "Block")
 
 	verificationRegex := regexPartOne + regexPartTwo
 
 	cmdToRun := []string{"/bin/bash", "-c", "dd if=/dev/xvda bs=512 count=1 2>/dev/null"}
 
-	verifyDataOnBlockPVC("rds-cephrbd-block-ns", labelsWlkdBlockString, verificationRegex, cmdToRun)
+	verifyDataOnBlockPVC(cephRBDBlockNamespace, labelsWlkdBlockString, verificationRegex, cmdToRun)
 
-	rescheduleWorkloadWithPVC("rds-cephrbd-block-ns", labelsWlkdBlockString, RDSCoreConfig.StorageODFDeployTwoSelector)
+	rescheduleWorkloadWithPVC(cephRBDBlockNamespace, labelsWlkdBlockString, RDSCoreConfig.StorageODFDeployTwoSelector)
 
-	verifyDataOnBlockPVC("rds-cephrbd-block-ns", labelsWlkdBlockString, verificationRegex, cmdToRun)
+	verifyDataOnBlockPVC(cephRBDBlockNamespace, labelsWlkdBlockString, verificationRegex, cmdToRun)
 }
 
 // VerifyDataOnCephRBDBlockPVC verify data on CephRBD Block PVC.
@@ -959,7 +962,7 @@ func VerifyDataOnCephRBDBlockPVC(ctx SpecContext) {
 
 	cmdToRun := []string{"/bin/bash", "-c", "dd if=/dev/xvda bs=512 count=1 2>/dev/null"}
 
-	verifyDataOnBlockPVC("rds-cephrbd-block-ns", labelsWlkdBlockString, verificationRegex, cmdToRun)
+	verifyDataOnBlockPVC(cephRBDBlockNamespace, labelsWlkdBlockString, verificationRegex, cmdToRun)
 }
 
 // VefityPersistentStorageSuite container that contains tests for persistent storage verification.
