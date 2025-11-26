@@ -246,6 +246,9 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 		})
 
 		It("should be able to run preflightvalidation and push to registry", reportxml.ID("56327"), func() {
+			By("Await previous preflight to be properly removed")
+			time.Sleep(time.Minute)
+
 			By("Detecting cluster architecture")
 			arch, err := get.ClusterArchitecture(APIClient, GeneralConfig.WorkerLabelMap)
 			if err != nil {
