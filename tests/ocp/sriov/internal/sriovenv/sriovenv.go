@@ -337,10 +337,8 @@ func RemoveSriovNetwork(apiClient *clients.Settings, name, sriovOpNs string, tim
 		// First, check if NAD exists
 		_, pullErr := nad.Pull(apiClient, name, targetNamespace)
 		if pullErr != nil {
-			// Check if it's a NotFound error or if the error message indicates the object doesn't exist
-			// Note: nad.Pull may return wrapped errors; we check both standard API error (apierrors.IsNotFound)
-			// and error message string to handle cases where errors are wrapped in the error chain
-			if apierrors.IsNotFound(pullErr) || strings.Contains(pullErr.Error(), "does not exist") {
+			// apierrors.IsNotFound handles wrapped errors via error chain unwrapping
+			if apierrors.IsNotFound(pullErr) {
 				klog.V(90).Infof("NAD %q does not exist (already deleted or never created) in namespace %q", name, targetNamespace)
 				return nil
 			}
@@ -356,8 +354,8 @@ func RemoveSriovNetwork(apiClient *clients.Settings, name, sriovOpNs string, tim
 			func(ctx context.Context) (bool, error) {
 				_, pullErr := nad.Pull(apiClient, name, targetNamespace)
 				if pullErr != nil {
-					// Check if it's a NotFound error or if the error message indicates the object doesn't exist
-					if apierrors.IsNotFound(pullErr) || strings.Contains(pullErr.Error(), "does not exist") {
+					// apierrors.IsNotFound handles wrapped errors via error chain unwrapping
+					if apierrors.IsNotFound(pullErr) {
 						// NAD is deleted (NotFound), which is what we want
 						klog.V(90).Infof("NetworkAttachmentDefinition %q successfully deleted in namespace %q", name, targetNamespace)
 						return true, nil
