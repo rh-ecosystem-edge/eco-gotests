@@ -21,11 +21,10 @@ import (
 )
 
 //nolint:funlen
-func triggerNMIRedfish(nodeLabel string) {
+func triggerNMIRedfish(ctx SpecContext, nodeLabel string) {
 	var (
 		nodeList []*nodes.Builder
 		err      error
-		ctx      SpecContext
 	)
 
 	if nodeLabel == "" {
@@ -146,15 +145,15 @@ func triggerNMIRedfish(nodeLabel string) {
 
 // VerifyNMIRedfishOnControlPlane triggers NMI via RedFish on Control Plane nodes.
 func VerifyNMIRedfishOnControlPlane(ctx SpecContext) {
-	triggerNMIRedfish(RDSCoreConfig.NMIRedfishCPNodeLabel)
+	triggerNMIRedfish(ctx, RDSCoreConfig.NMIRedfishCPNodeLabel)
 }
 
 // VerifyNMIRedfishOnWorkerMCP triggers NMI via RedFish on nodes in "Worker" MCP.
 func VerifyNMIRedfishOnWorkerMCP(ctx SpecContext) {
-	triggerNMIRedfish(RDSCoreConfig.NMIRedfishWorkerMCPNodeLabel)
+	triggerNMIRedfish(ctx, RDSCoreConfig.NMIRedfishWorkerMCPNodeLabel)
 }
 
 // VerifyNMIRedfishOnCNFMCP triggers NMI via RedFish on nodes in "CNF" MCP.
 func VerifyNMIRedfishOnCNFMCP(ctx SpecContext) {
-	triggerNMIRedfish(RDSCoreConfig.NMIRedfishCNFMCPNodeLabel)
+	triggerNMIRedfish(ctx, RDSCoreConfig.NMIRedfishCNFMCPNodeLabel)
 }
