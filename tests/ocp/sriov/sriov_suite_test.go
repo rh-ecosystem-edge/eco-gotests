@@ -43,7 +43,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred(), "Cluster doesn't support sriov test cases")
 
 	By("Pulling test images on cluster before running test cases")
-	err = cluster.PullTestImageOnNodes(APIClient, SriovOcpConfig.OcpWorkerLabel, SriovOcpConfig.OcpSriovTestContainer, 300)
+	err = cluster.PullTestImageOnNodes(APIClient, SriovOcpConfig.WorkerLabel, SriovOcpConfig.OcpSriovTestContainer, 300)
 	Expect(err).ToNot(HaveOccurred(), "Failed to pull test image on nodes")
 })
 var _ = AfterSuite(func() {

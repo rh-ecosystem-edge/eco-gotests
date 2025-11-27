@@ -23,6 +23,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/sriovenv"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 	admv1 "k8s.io/api/admissionregistration/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -50,9 +51,14 @@ var _ = Describe("webhook-resource-injector", Ordered, Label(tsparams.LabelWebho
 			Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
 
 			By("Creating SriovNetworkNodePolicy and SriovNetwork")
-
-			err = sriovenv.CreateSriovPolicyAndWaitUntilItsApplied(definePolicy(
-				"client", "netdevice", "", sriovInterfacesUnderTest[0], 0), tsparams.MCOWaitTimeout)
+			err = sriovoperator.CreateSriovPolicyAndWaitUntilItsApplied(
+				APIClient,
+				NetConfig.WorkerLabelEnvVar,
+				NetConfig.SriovOperatorNamespace,
+				definePolicy(
+					"client", "netdevice", "", sriovInterfacesUnderTest[0], 0),
+				tsparams.MCOWaitTimeout,
+				tsparams.DefaultStableDuration)
 			Expect(err).ToNot(HaveOccurred(), "Failed to create SriovNetworkNodePolicy")
 
 			err = sriovenv.CreateSriovNetworkAndWaitForNADCreation(defineNetwork("client", "netdevice"), 5*time.Second)
@@ -61,7 +67,12 @@ var _ = Describe("webhook-resource-injector", Ordered, Label(tsparams.LabelWebho
 
 		AfterAll(func() {
 			By("Removing SR-IOV configuration")
-			err := netenv.RemoveSriovConfigurationAndWaitForSriovAndMCPStable()
+			err := sriovoperator.RemoveSriovConfigurationAndWaitForSriovAndMCPStable(
+				APIClient,
+				NetConfig.WorkerLabelEnvVar,
+				NetConfig.SriovOperatorNamespace,
+				tsparams.MCOWaitTimeout,
+				tsparams.DefaultTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV configuration")
 
 			By("Cleaning test namespace")

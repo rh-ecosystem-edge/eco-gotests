@@ -20,6 +20,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/sriovenv"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 	"gopkg.in/k8snetworkplumbingwg/multus-cni.v4/pkg/types"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -79,7 +80,7 @@ var _ = Describe("rdmaMetricsAPI", Ordered, Label(tsparams.LabelRdmaMetricsAPITe
 				tNet1 = defineAndCreateSriovNetworkWithRdma("sriovnet1", tPol1.Object.Spec.ResourceName, true)
 				tNet2 = defineAndCreateSriovNetworkWithRdma("sriovnet2", tPol2.Object.Spec.ResourceName, true)
 
-				err := netenv.WaitForMcpStable(APIClient, tsparams.MCOWaitTimeout, 1*time.Minute, NetConfig.CnfMcpLabel)
+				err := cluster.WaitForMcpStable(APIClient, tsparams.MCOWaitTimeout, 1*time.Minute, NetConfig.CnfMcpLabel)
 				Expect(err).ToNot(HaveOccurred(), "Failed to wait for Sriov state to be stable")
 
 				By("Ensure RDMA is in exclusive mode")
@@ -134,7 +135,12 @@ var _ = Describe("rdmaMetricsAPI", Ordered, Label(tsparams.LabelRdmaMetricsAPITe
 				Expect(err).ToNot(HaveOccurred(), "Failed to delete SriovPoolConfig")
 
 				By("Removing SR-IOV configuration")
-				err = netenv.RemoveSriovConfigurationAndWaitForSriovAndMCPStable()
+				err = sriovoperator.RemoveSriovConfigurationAndWaitForSriovAndMCPStable(
+					APIClient,
+					NetConfig.WorkerLabelEnvVar,
+					NetConfig.SriovOperatorNamespace,
+					tsparams.MCOWaitTimeout,
+					tsparams.DefaultTimeout)
 				Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV configuration")
 			})
 		})
@@ -150,7 +156,7 @@ var _ = Describe("rdmaMetricsAPI", Ordered, Label(tsparams.LabelRdmaMetricsAPITe
 				tPol1 = defineAndCreateNodePolicy("rdmapolicy1", "sriovpf1", sriovInterfacesUnderTest[0], 1, 0)
 				tNet1 = defineAndCreateSriovNetworkWithRdma("sriovnet1", tPol1.Object.Spec.ResourceName, false)
 
-				err := netenv.WaitForMcpStable(APIClient, tsparams.MCOWaitTimeout, 1*time.Minute, NetConfig.CnfMcpLabel)
+				err := cluster.WaitForMcpStable(APIClient, tsparams.MCOWaitTimeout, 1*time.Minute, NetConfig.CnfMcpLabel)
 				Expect(err).ToNot(HaveOccurred(), "Failed to wait for Sriov state to be stable")
 
 				By("Ensure RDMA is in shared mode")
@@ -195,7 +201,12 @@ var _ = Describe("rdmaMetricsAPI", Ordered, Label(tsparams.LabelRdmaMetricsAPITe
 
 			AfterAll(func() {
 				By("Removing SR-IOV configuration")
-				err := netenv.RemoveSriovConfigurationAndWaitForSriovAndMCPStable()
+				err := sriovoperator.RemoveSriovConfigurationAndWaitForSriovAndMCPStable(
+					APIClient,
+					NetConfig.WorkerLabelEnvVar,
+					NetConfig.SriovOperatorNamespace,
+					tsparams.MCOWaitTimeout,
+					tsparams.DefaultTimeout)
 				Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV configuration")
 
 				By("Cleaning test namespace")
@@ -208,7 +219,7 @@ var _ = Describe("rdmaMetricsAPI", Ordered, Label(tsparams.LabelRdmaMetricsAPITe
 				err = sriovNetNodeState.Delete()
 				Expect(err).ToNot(HaveOccurred(), "Failed to delete SriovPoolConfig")
 
-				err = netenv.WaitForMcpStable(
+				err = cluster.WaitForMcpStable(
 					APIClient, tsparams.MCOWaitTimeout, 1*time.Minute, NetConfig.CnfMcpLabel)
 				Expect(err).ToNot(HaveOccurred(), "Failed to wait for SriovNodeState to be stable")
 			})
