@@ -102,34 +102,7 @@ func triggerNMIRedfish(nodeLabel string) {
 		Expect(err).ToNot(HaveOccurred(),
 			fmt.Sprintf("Failed to trigger NMI on node %s", node.Definition.Name))
 
-		By(fmt.Sprintf("Waiting for node %q to go into NotReady state", node.Definition.Name))
-
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Checking node %q got into NotReady state",
-			node.Definition.Name)
-
-		Eventually(func() bool {
-			currentNode, err := nodes.Pull(APIClient, node.Definition.Name)
-			if err != nil {
-				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to pull node %q due to %v",
-					node.Definition.Name, err)
-
-				return false
-			}
-
-			for _, condition := range currentNode.Object.Status.Conditions {
-				if condition.Type == rdscoreparams.ConditionTypeReadyString {
-					if condition.Status != rdscoreparams.ConstantTrueString {
-						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q is NotReady", currentNode.Definition.Name)
-						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Reason: %s", condition.Reason)
-
-						return true
-					}
-				}
-			}
-
-			return false
-		}).WithTimeout(25*time.Minute).WithPolling(15*time.Second).WithContext(ctx).Should(BeTrue(),
-			"Node hasn't reached NotReady state after NMI trigger")
+		waitForNodeToBeNotReady(ctx, node.Definition.Name, 15*time.Second, 25*time.Minute)
 
 		By(fmt.Sprintf("Waiting for node %q to return to Ready state", node.Definition.Name))
 
@@ -160,7 +133,14 @@ func triggerNMIRedfish(nodeLabel string) {
 		}).WithTimeout(25*time.Minute).WithPolling(15*time.Second).WithContext(ctx).Should(BeTrue(),
 			"Node hasn't reached Ready state after NMI trigger")
 
+		Expect(err).ToNot(HaveOccurred(),
+			fmt.Sprintf("Error waiting for node %q to go into Ready state", node.Definition.Name))
+
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q successfully recovered after NMI", node.Definition.Name)
+
+		verifyVmcoreDumpGenerated(ctx, node.Definition.Name)
+
+		cleanupVarCrashDirectory(ctx, node.Definition.Name)
 	}
 }
 
