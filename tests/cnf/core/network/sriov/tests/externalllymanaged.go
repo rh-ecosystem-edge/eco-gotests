@@ -7,6 +7,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -85,7 +86,12 @@ var _ = Describe("ExternallyManaged", Ordered, Label(tsparams.LabelExternallyMan
 
 			AfterAll(func() {
 				By("Removing SR-IOV configuration")
-				err := netenv.RemoveSriovConfigurationAndWaitForSriovAndMCPStable()
+				err := sriovoperator.RemoveSriovConfigurationAndWaitForSriovAndMCPStable(
+					APIClient,
+					NetConfig.WorkerLabelEnvVar,
+					NetConfig.SriovOperatorNamespace,
+					tsparams.MCOWaitTimeout,
+					tsparams.DefaultTimeout)
 				Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV configuration")
 
 				By("Verifying that VFs still exist")
@@ -228,7 +234,12 @@ var _ = Describe("ExternallyManaged", Ordered, Label(tsparams.LabelExternallyMan
 						"MaxTxRate and VlanId configuration have not been reverted to the initial one")
 
 				By("Removing SR-IOV configuration")
-				err = netenv.RemoveSriovConfigurationAndWaitForSriovAndMCPStable()
+				err = sriovoperator.RemoveSriovConfigurationAndWaitForSriovAndMCPStable(
+					APIClient,
+					NetConfig.WorkerLabelEnvVar,
+					NetConfig.SriovOperatorNamespace,
+					tsparams.MCOWaitTimeout,
+					tsparams.DefaultTimeout)
 				Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV configuration")
 
 				By("Checking that VF has initial configuration")
@@ -256,11 +267,15 @@ var _ = Describe("ExternallyManaged", Ordered, Label(tsparams.LabelExternallyMan
 
 				By("Removing SR-IOV operator")
 				removeSriovOperator(sriovNamespace)
-				Expect(sriovenv.IsSriovDeployed()).To(HaveOccurred(), "SR-IOV operator is not removed")
+				Expect(
+					sriovoperator.IsSriovDeployed(APIClient, NetConfig.SriovOperatorNamespace)).To(HaveOccurred(),
+					"SR-IOV operator is not removed")
 
 				By("Installing SR-IOV operator")
 				installSriovOperator(sriovNamespace, sriovOperatorgroup, sriovSubscription)
-				Eventually(sriovenv.IsSriovDeployed, time.Minute, tsparams.RetryInterval).
+				Eventually(func() error {
+					return sriovoperator.IsSriovDeployed(APIClient, NetConfig.SriovOperatorNamespace)
+				}, time.Minute, tsparams.RetryInterval).
 					ShouldNot(HaveOccurred(), "SR-IOV operator is not installed")
 
 				By("Verifying that VFs still exist after SR-IOV operator reinstallation")
@@ -326,7 +341,12 @@ var _ = Describe("ExternallyManaged", Ordered, Label(tsparams.LabelExternallyMan
 				Expect(err).ToNot(HaveOccurred(), "Failed to update NMState network policy")
 
 				By("Removing SR-IOV configuration")
-				err = netenv.RemoveSriovConfigurationAndWaitForSriovAndMCPStable()
+				err = sriovoperator.RemoveSriovConfigurationAndWaitForSriovAndMCPStable(
+					APIClient,
+					NetConfig.WorkerLabelEnvVar,
+					NetConfig.SriovOperatorNamespace,
+					tsparams.MCOWaitTimeout,
+					tsparams.DefaultTimeout)
 				Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV configuration")
 
 				By("Cleaning test namespace")
@@ -374,7 +394,13 @@ var _ = Describe("ExternallyManaged", Ordered, Label(tsparams.LabelExternallyMan
 					6, []string{fmt.Sprintf("%s#%d-%d", pfInterface, 2, 2)}, NetConfig.WorkerLabelMap).
 					WithExternallyManaged(true)
 
-				err = sriovenv.CreateSriovPolicyAndWaitUntilItsApplied(sriovPolicy, tsparams.MCOWaitTimeout)
+				err = sriovoperator.CreateSriovPolicyAndWaitUntilItsApplied(
+					APIClient,
+					NetConfig.WorkerLabelEnvVar,
+					NetConfig.SriovOperatorNamespace,
+					sriovPolicy,
+					tsparams.MCOWaitTimeout,
+					tsparams.DefaultStableDuration)
 				Expect(err).ToNot(HaveOccurred(), "Failed to configure SR-IOV policy")
 
 				By("Creating SR-IOV network")
@@ -401,7 +427,13 @@ func createSriovConfiguration(sriovAndResName, sriovInterfaceName string, extern
 	sriovPolicy := sriov.NewPolicyBuilder(APIClient, sriovAndResName, NetConfig.SriovOperatorNamespace, sriovAndResName,
 		5, []string{sriovInterfaceName + "#0-1"}, NetConfig.WorkerLabelMap).WithExternallyManaged(externallyManaged)
 
-	err := sriovenv.CreateSriovPolicyAndWaitUntilItsApplied(sriovPolicy, tsparams.MCOWaitTimeout)
+	err := sriovoperator.CreateSriovPolicyAndWaitUntilItsApplied(
+		APIClient,
+		NetConfig.WorkerLabelEnvVar,
+		NetConfig.SriovOperatorNamespace,
+		sriovPolicy,
+		tsparams.MCOWaitTimeout,
+		tsparams.DefaultStableDuration)
 	Expect(err).ToNot(HaveOccurred(), "Failed to configure SR-IOV policy")
 
 	By("Creating SR-IOV network")
@@ -458,7 +490,12 @@ func collectingInfoSriovOperator() (
 func removeSriovOperator(sriovNamespace *namespace.Builder) {
 	By("Clean all SR-IOV policies and networks")
 
-	err := netenv.RemoveSriovConfigurationAndWaitForSriovAndMCPStable()
+	err := sriovoperator.RemoveSriovConfigurationAndWaitForSriovAndMCPStable(
+		APIClient,
+		NetConfig.WorkerLabelEnvVar,
+		NetConfig.SriovOperatorNamespace,
+		tsparams.MCOWaitTimeout,
+		tsparams.DefaultTimeout)
 	Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV configuration")
 
 	By("Remove SR-IOV operator config")

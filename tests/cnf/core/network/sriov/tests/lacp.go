@@ -181,7 +181,7 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 			Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV policy for client")
 
 			By("Waiting for SR-IOV and MCP to be stable after policy creation")
-			err = netenv.WaitForSriovAndMCPStable(
+			err = sriovoperator.WaitForSriovAndMCPStable(
 				APIClient, tsparams.MCOWaitTimeout, time.Minute, NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for SR-IOV and MCP to be stable")
 
@@ -205,7 +205,12 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 			Expect(err).ToNot(HaveOccurred(), "Failed to clean all pods from test namespace")
 
 			By("Removing SR-IOV configuration")
-			err = netenv.RemoveSriovConfigurationAndWaitForSriovAndMCPStable()
+			err = sriovoperator.RemoveSriovConfigurationAndWaitForSriovAndMCPStable(
+				APIClient,
+				NetConfig.WorkerLabelEnvVar,
+				NetConfig.SriovOperatorNamespace,
+				tsparams.MCOWaitTimeout,
+				tsparams.DefaultTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV configuration")
 
 			By("Removing bonded Network Attachment Definition")
@@ -496,7 +501,7 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 				Expect(err).ToNot(HaveOccurred(), "Failed to clean existing SR-IOV policies")
 
 				By("Waiting for SR-IOV and MCP to stabilize after policy cleanup")
-				err = netenv.WaitForSriovAndMCPStable(
+				err = sriovoperator.WaitForSriovAndMCPStable(
 					APIClient, tsparams.MCOWaitTimeout, time.Minute, NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
 				Expect(err).ToNot(HaveOccurred(), "Failed to wait for SR-IOV stability")
 
@@ -518,7 +523,7 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 				Expect(err).ToNot(HaveOccurred(), "Failed to create SriovNetworkNodePolicy")
 
 				By("Waiting for SR-IOV and MCP to be stable after policy creation")
-				err = netenv.WaitForSriovAndMCPStable(
+				err = sriovoperator.WaitForSriovAndMCPStable(
 					APIClient, tsparams.MCOWaitTimeout, time.Minute, NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
 				Expect(err).ToNot(HaveOccurred(), "Failed to wait for SR-IOV and MCP stability")
 
@@ -533,7 +538,7 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 				Expect(err).ToNot(HaveOccurred(), "Failed to delete SriovNetworkNodePolicy")
 
 				By("Waiting for SR-IOV and MCP to stabilize after policy deletion")
-				err = netenv.WaitForSriovAndMCPStable(
+				err = sriovoperator.WaitForSriovAndMCPStable(
 					APIClient, tsparams.MCOWaitTimeout, time.Minute, NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
 				Expect(err).ToNot(HaveOccurred(), "Failed to wait for SR-IOV stability after policy deletion")
 
@@ -597,7 +602,7 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 			Expect(err).ToNot(HaveOccurred(), "Fail to deploy PerformanceProfile")
 
 			By("Wait for the cluster to be stable after performance profile creation")
-			err = netenv.WaitForMcpStable(APIClient, tsparams.MCOWaitTimeout, 2*time.Minute, NetConfig.CnfMcpLabel)
+			err = cluster.WaitForMcpStable(APIClient, tsparams.MCOWaitTimeout, 2*time.Minute, NetConfig.CnfMcpLabel)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for cluster stability")
 
 			By("Create two SriovNetworkNodePolicys type vfio-pci for DPDK")
@@ -610,7 +615,7 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 			Expect(err).ToNot(HaveOccurred(), "Failed to create DPDK SR-IOV policy for port1")
 
 			By("Waiting until cluster MCP and SR-IOV are stable after DPDK policy creation")
-			err = netenv.WaitForSriovAndMCPStable(
+			err = sriovoperator.WaitForSriovAndMCPStable(
 				APIClient, tsparams.MCOWaitTimeout, time.Minute, NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed cluster is not stable after DPDK policies")
 
@@ -641,7 +646,12 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 			Expect(err).ToNot(HaveOccurred(), "Failed to clean all pods from test namespace")
 
 			By("Removing DPDK SR-IOV configuration")
-			err = netenv.RemoveSriovConfigurationAndWaitForSriovAndMCPStable()
+			err = sriovoperator.RemoveSriovConfigurationAndWaitForSriovAndMCPStable(
+				APIClient,
+				NetConfig.WorkerLabelEnvVar,
+				NetConfig.SriovOperatorNamespace,
+				tsparams.MCOWaitTimeout,
+				tsparams.DefaultTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Failed to remove DPDK SR-IOV configuration")
 
 			By("Cleaning PFLACPMonitor from pf-status-relay-operator namespace")

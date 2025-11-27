@@ -17,6 +17,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netnmstate"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 	multus "gopkg.in/k8snetworkplumbingwg/multus-cni.v4/pkg/types"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
@@ -107,7 +108,6 @@ var _ = Describe(
 			workerNodeList, err = nodes.List(APIClient,
 				metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
 			Expect(err).ToNot(HaveOccurred(), "Fail to discover worker nodes")
-
 			Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 2)).ToNot(HaveOccurred(),
 				"Failed to get required SR-IOV interfaces")
 
@@ -370,7 +370,7 @@ var _ = Describe(
 					srIovPolicyNetDevice))
 
 				By("Waiting until cluster MCP and SR-IOV are stable")
-				err = netenv.WaitForSriovAndMCPStable(
+				err = sriovoperator.WaitForSriovAndMCPStable(
 					APIClient, tsparams.MCOWaitTimeout, time.Minute, NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
 				Expect(err).ToNot(HaveOccurred(), "Failed cluster is not stable")
 
@@ -684,7 +684,7 @@ var _ = Describe(
 			Expect(err).ToNot(HaveOccurred(), "Failed to clean sriov networks")
 
 			By("Waiting until cluster MCP and SR-IOV are stable")
-			err = netenv.WaitForSriovAndMCPStable(
+			err = sriovoperator.WaitForSriovAndMCPStable(
 				APIClient, tsparams.MCOWaitTimeout, time.Minute, NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed cluster is not stable")
 		})
@@ -1040,7 +1040,7 @@ func defineCreateSriovNetPolices(vfioPCIName, vfioPCIResName, sriovInterface,
 
 	By("Waiting until cluster MCP and SR-IOV are stable")
 
-	err := netenv.WaitForSriovAndMCPStable(
+	err := sriovoperator.WaitForSriovAndMCPStable(
 		APIClient, tsparams.MCOWaitTimeout, time.Minute, NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
 	Expect(err).ToNot(HaveOccurred(), "Failed cluster is not stable")
 }
@@ -1118,7 +1118,7 @@ func cleanTestEnvSRIOVConfiguration() {
 
 	By("Waiting until cluster MCP and SR-IOV are stable")
 
-	err = netenv.WaitForSriovAndMCPStable(
+	err = sriovoperator.WaitForSriovAndMCPStable(
 		APIClient, tsparams.MCOWaitTimeout, time.Minute, NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
 	Expect(err).ToNot(HaveOccurred(), "Failed cluster is not stable")
 }
@@ -1129,7 +1129,13 @@ func createSriovPolicyWithExManaged(sriovAndResName, sriovInterfaceName string) 
 	sriovPolicy := sriov.NewPolicyBuilder(APIClient, sriovAndResName, NetConfig.SriovOperatorNamespace, sriovAndResName,
 		5, []string{sriovInterfaceName}, NetConfig.WorkerLabelMap).WithExternallyManaged(true)
 
-	err := sriovenv.CreateSriovPolicyAndWaitUntilItsApplied(sriovPolicy, tsparams.MCOWaitTimeout)
+	err := sriovoperator.CreateSriovPolicyAndWaitUntilItsApplied(
+		APIClient,
+		NetConfig.WorkerLabelEnvVar,
+		NetConfig.SriovOperatorNamespace,
+		sriovPolicy,
+		tsparams.MCOWaitTimeout,
+		tsparams.DefaultStableDuration)
 	if err != nil {
 		return fmt.Errorf("failed to sriov policy, %w", err)
 	}

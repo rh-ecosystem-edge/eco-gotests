@@ -9,13 +9,10 @@ import (
 	v2 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/performanceprofile/v2"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/mco"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nto"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netconfig"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -150,66 +147,6 @@ func DeployPerformanceProfile(
 	return mcp.WaitToBeStableFor(time.Minute, netparam.MCOWaitTimeout)
 }
 
-// RemoveSriovConfigurationAndWaitForSriovAndMCPStable removes all SR-IOV networks
-// and policies in SR-IOV operator namespace.
-func RemoveSriovConfigurationAndWaitForSriovAndMCPStable() error {
-	klog.V(90).Infof("Removing all SR-IOV networks and policies")
-
-	err := RemoveAllSriovNetworks()
-	if err != nil {
-		klog.V(90).Infof("Failed to remove all SR-IOV networks")
-
-		return err
-	}
-
-	err = RemoveAllPoliciesAndWaitForSriovAndMCPStable()
-	if err != nil {
-		klog.V(90).Infof("Failed to remove all SR-IOV policies")
-
-		return err
-	}
-
-	return nil
-}
-
-// RemoveAllSriovNetworks removes all SR-IOV networks.
-func RemoveAllSriovNetworks() error {
-	klog.V(90).Infof("Removing all SR-IOV networks")
-
-	sriovNs, err := namespace.Pull(netinittools.APIClient, netinittools.NetConfig.SriovOperatorNamespace)
-	if err != nil {
-		klog.V(90).Infof("Failed to pull SR-IOV operator namespace")
-
-		return err
-	}
-
-	err = sriovNs.CleanObjects(
-		netparam.DefaultTimeout,
-		sriov.GetSriovNetworksGVR())
-	if err != nil {
-		klog.V(90).Infof("Failed to remove SR-IOV networks from SR-IOV operator namespace")
-
-		return err
-	}
-
-	return nil
-}
-
-// RemoveAllPoliciesAndWaitForSriovAndMCPStable removes all  SriovNetworkNodePolicies and waits until
-// SR-IOV and MCP become stable.
-func RemoveAllPoliciesAndWaitForSriovAndMCPStable() error {
-	klog.V(90).Infof("Deleting all SriovNetworkNodePolicies and waiting for SR-IOV and MCP become stable.")
-
-	err := sriov.CleanAllNetworkNodePolicies(netinittools.APIClient, netinittools.NetConfig.SriovOperatorNamespace)
-	if err != nil {
-		return err
-	}
-
-	return WaitForSriovAndMCPStable(
-		netinittools.APIClient, netparam.MCOWaitTimeout, time.Minute,
-		netinittools.NetConfig.CnfMcpLabel, netinittools.NetConfig.SriovOperatorNamespace)
-}
-
 // BuildRoutesMapWithSpecificRoutes creates a route map with specific routes.
 func BuildRoutesMapWithSpecificRoutes(podList []*pod.Builder, workerNodeList []*nodes.Builder,
 	nextHopList []string) (map[string]string, error) {
@@ -268,19 +205,4 @@ func SetStaticRoute(frrPod *pod.Builder, action, destIP, containerName string,
 	}
 
 	return buffer.String(), nil
-}
-
-// WaitForMcpStable waits for the stability of the MCP with the given name.
-func WaitForMcpStable(apiClient *clients.Settings, waitingTime, stableDuration time.Duration, mcpName string) error {
-	mcp, err := mco.Pull(apiClient, mcpName)
-	if err != nil {
-		return fmt.Errorf("fail to pull mcp %s from cluster due to: %s", mcpName, err.Error())
-	}
-
-	err = mcp.WaitToBeStableFor(stableDuration, waitingTime)
-	if err != nil {
-		return fmt.Errorf("cluster is not stable: %s", err.Error())
-	}
-
-	return nil
 }

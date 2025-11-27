@@ -68,7 +68,7 @@ func readFile(ocpConfig *OcpConfig, cfgFile string) error {
 
 	decoder := yaml.NewDecoder(openedCfgFile)
 
-	err = decoder.Decode(ocpConfig)
+	err = decoder.Decode(&ocpConfig)
 	if err != nil {
 		return err
 	}

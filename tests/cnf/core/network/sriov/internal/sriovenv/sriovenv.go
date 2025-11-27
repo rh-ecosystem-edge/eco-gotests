@@ -5,20 +5,17 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/daemonset"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
-
 	nadV1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	sriovV1 "github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/cmd"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/tsparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 	"gopkg.in/k8snetworkplumbingwg/multus-cni.v4/pkg/types"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -53,26 +50,6 @@ func ValidateSriovInterfaces(workerNodeList []*nodes.Builder, requestedNumber in
 
 	if len(validSriovIntefaceList) < requestedNumber {
 		return fmt.Errorf("requested interfaces %v are not present on the cluster node", requestedSriovInterfaceList)
-	}
-
-	return nil
-}
-
-// CreateSriovPolicyAndWaitUntilItsApplied creates SriovNetworkNodePolicy and waits until
-// it's successfully applied.
-func CreateSriovPolicyAndWaitUntilItsApplied(sriovPolicy *sriov.PolicyBuilder, timeout time.Duration) error {
-	klog.V(90).Infof("Creating SriovNetworkNodePolicy %s and waiting until it's successfully applied.",
-		sriovPolicy.Definition.Name)
-
-	_, err := sriovPolicy.Create()
-	if err != nil {
-		return err
-	}
-
-	err = netenv.WaitForSriovAndMCPStable(
-		APIClient, timeout, tsparams.DefaultStableDuration, NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
-	if err != nil {
-		return err
 	}
 
 	return nil
@@ -196,40 +173,6 @@ func WaitUntilVfsCreated(
 			})
 		if err != nil {
 			return err
-		}
-	}
-
-	return nil
-}
-
-// IsSriovDeployed checks SR-IOV deployment in the cluster.
-// Returns nil if SR-IOV is deployed & daemonsets are ready, else returns an error.
-func IsSriovDeployed() error {
-	klog.V(90).Infof("Validating all SR-IOV operator resources are ready")
-
-	sriovNS := namespace.NewBuilder(APIClient, NetConfig.SriovOperatorNamespace)
-	if !sriovNS.Exists() {
-		klog.V(90).Infof("SR-IOV operator namespace doesn't exist")
-
-		return fmt.Errorf("error SR-IOV namespace %s doesn't exist", sriovNS.Definition.Name)
-	}
-
-	for _, sriovDaemonsetName := range tsparams.OperatorSriovDaemonsets {
-		klog.V(90).Infof("Validating daemonset %s exists and ready", sriovDaemonsetName)
-
-		sriovDaemonset, err := daemonset.Pull(
-			APIClient, sriovDaemonsetName, NetConfig.SriovOperatorNamespace)
-		if err != nil {
-			klog.V(90).Infof("Pulling daemonset %s failed", sriovDaemonsetName)
-
-			return fmt.Errorf("error to pull SR-IOV daemonset %s from cluster: %s", sriovDaemonsetName, err.Error())
-		}
-
-		if !sriovDaemonset.IsReady(3 * time.Minute) {
-			klog.V(90).Infof("Daemonset %s is not ready", sriovDaemonsetName)
-
-			return fmt.Errorf("error SR-IOV deployment %s is not in ready/ready state",
-				sriovDaemonsetName)
 		}
 	}
 
@@ -414,7 +357,7 @@ func ConfigureSriovMlnxFirmwareOnWorkersAndWaitMCP(
 
 	time.Sleep(10 * time.Second)
 
-	err = netenv.WaitForMcpStable(APIClient, tsparams.MCOWaitTimeout, 1*time.Minute, NetConfig.CnfMcpLabel)
+	err = cluster.WaitForMcpStable(APIClient, tsparams.MCOWaitTimeout, 1*time.Minute, NetConfig.CnfMcpLabel)
 	if err != nil {
 		klog.V(90).Infof("Machineconfigpool is not stable")
 

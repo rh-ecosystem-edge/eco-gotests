@@ -6,6 +6,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
@@ -48,7 +49,12 @@ var _ = Describe("SRIOV: Expose MTU:", Ordered, Label(tsparams.LabelExposeMTUTes
 
 		AfterEach(func() {
 			By("Removing SR-IOV configuration")
-			err := netenv.RemoveSriovConfigurationAndWaitForSriovAndMCPStable()
+			err := sriovoperator.RemoveSriovConfigurationAndWaitForSriovAndMCPStable(
+				APIClient,
+				NetConfig.WorkerLabelEnvVar,
+				NetConfig.SriovOperatorNamespace,
+				tsparams.MCOWaitTimeout,
+				tsparams.DefaultTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV configuration")
 
 			By("Cleaning test namespace")
@@ -100,7 +106,7 @@ var _ = Describe("SRIOV: Expose MTU:", Ordered, Label(tsparams.LabelExposeMTUTes
 				WithDevType("netdevice").WithMTU(9000).Create()
 			Expect(err).ToNot(HaveOccurred(), "Failed to configure SR-IOV policy with mtu 9000")
 
-			err = netenv.WaitForSriovAndMCPStable(
+			err = sriovoperator.WaitForSriovAndMCPStable(
 				APIClient,
 				tsparams.MCOWaitTimeout,
 				tsparams.DefaultStableDuration,
@@ -166,7 +172,13 @@ func testExposeMTU(mtu int, interfacesUnderTest []string, devType, workerName st
 		5,
 		interfacesUnderTest, NetConfig.WorkerLabelMap).WithDevType(devType).WithMTU(mtu)
 
-	err := sriovenv.CreateSriovPolicyAndWaitUntilItsApplied(sriovPolicy, tsparams.MCOWaitTimeout)
+	err := sriovoperator.CreateSriovPolicyAndWaitUntilItsApplied(
+		APIClient,
+		NetConfig.WorkerLabelEnvVar,
+		NetConfig.SriovOperatorNamespace,
+		sriovPolicy,
+		tsparams.MCOWaitTimeout,
+		tsparams.DefaultStableDuration)
 	Expect(err).ToNot(HaveOccurred(), "Failed to configure SR-IOV policy")
 
 	By("Creating SR-IOV network")
