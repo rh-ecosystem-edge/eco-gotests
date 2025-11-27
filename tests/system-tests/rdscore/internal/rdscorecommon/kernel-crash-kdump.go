@@ -18,11 +18,10 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreparams"
 )
 
-func crashNodeKDump(nodeLabel string) {
+func crashNodeKDump(ctx SpecContext, nodeLabel string) {
 	var (
 		nodeList []*nodes.Builder
 		err      error
-		ctx      SpecContext
 	)
 
 	if nodeLabel == "" {
@@ -81,17 +80,17 @@ func crashNodeKDump(nodeLabel string) {
 
 // VerifyKDumpOnControlPlane check KDump service on Control Plane nodes.
 func VerifyKDumpOnControlPlane(ctx SpecContext) {
-	crashNodeKDump(RDSCoreConfig.KDumpCPNodeLabel)
+	crashNodeKDump(ctx, RDSCoreConfig.KDumpCPNodeLabel)
 }
 
 // VerifyKDumpOnWorkerMCP check KDump service on nodes in "Worker" MCP.
 func VerifyKDumpOnWorkerMCP(ctx SpecContext) {
-	crashNodeKDump(RDSCoreConfig.KDumpWorkerMCPNodeLabel)
+	crashNodeKDump(ctx, RDSCoreConfig.KDumpWorkerMCPNodeLabel)
 }
 
 // VerifyKDumpOnCNFMCP check KDump service on nodes in "CNF" MCP.
 func VerifyKDumpOnCNFMCP(ctx SpecContext) {
-	crashNodeKDump(RDSCoreConfig.KDumpCNFMCPNodeLabel)
+	crashNodeKDump(ctx, RDSCoreConfig.KDumpCNFMCPNodeLabel)
 }
 
 // CleanupUnexpectedAdmissionPodsCP cleans up pods with UnexpectedAdmissionError status
