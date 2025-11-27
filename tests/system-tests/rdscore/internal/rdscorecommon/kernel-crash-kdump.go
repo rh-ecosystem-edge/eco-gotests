@@ -47,7 +47,7 @@ func crashNodeKDump(ctx SpecContext, nodeLabel string) {
 
 		return len(nodeList) > 0
 	}).WithContext(ctx).WithTimeout(1*time.Minute).WithPolling(5*time.Second).Should(BeTrue(),
-		fmt.Sprintf("Failed to find pods matching label: %q", nodeLabel))
+		fmt.Sprintf("Failed to find nodes matching label: %q", nodeLabel))
 
 	for _, node := range nodeList {
 		By(fmt.Sprintf("Cleaning up /var/crash directory on node %q", node.Definition.Name))

@@ -102,4 +102,3 @@ func cleanupVarCrashDirectory(ctx SpecContext, nodeName string) {
 
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Successfully cleaned up /var/crash directory on node %q", nodeName)
 }
-

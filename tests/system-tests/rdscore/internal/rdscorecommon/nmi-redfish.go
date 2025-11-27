@@ -47,9 +47,8 @@ func triggerNMIRedfish(ctx SpecContext, nodeLabel string) {
 			APIClient,
 			metav1.ListOptions{LabelSelector: nodeLabel},
 		)
-
 		if err != nil {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list nodes: %w", err)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list nodes: %v", err)
 
 			return false
 		}
@@ -59,21 +58,24 @@ func triggerNMIRedfish(ctx SpecContext, nodeLabel string) {
 		fmt.Sprintf("Failed to find nodes matching label: %q", nodeLabel))
 
 	for _, node := range nodeList {
+		By(fmt.Sprintf("Cleaning up /var/crash directory on node %q", node.Definition.Name))
+		cleanupVarCrashDirectory(ctx, node.Definition.Name)
+
 		By(fmt.Sprintf("Trigger NMI via RedFish on node %q", node.Definition.Name))
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Triggering NMI via RedFish on %q",
 			node.Definition.Name)
 
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-			fmt.Sprintf("NodesCredentialsMap:\n\t%#v", RDSCoreConfig.NodesCredentialsMap))
+			"NodesCredentialsMap:\n\t%#v", RDSCoreConfig.NodesCredentialsMap)
 
 		var bmcClient *bmc.BMC
 
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-			fmt.Sprintf("Creating BMC client for node %s", node.Definition.Name))
+			"Creating BMC client for node %s", node.Definition.Name)
 
 		if auth, ok := RDSCoreConfig.NodesCredentialsMap[node.Definition.Name]; !ok {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-				fmt.Sprintf("BMC Details for %q not found", node.Definition.Name))
+				"BMC Details for %q not found", node.Definition.Name)
 			Fail(fmt.Sprintf("BMC Details for %q not found", node.Definition.Name))
 		} else {
 			bmcClient = bmc.New(auth.BMCAddress).
@@ -83,17 +85,17 @@ func triggerNMIRedfish(ctx SpecContext, nodeLabel string) {
 
 		By(fmt.Sprintf("Sending NMI reset action to %q", node.Definition.Name))
 
-		err = wait.PollUntilContextTimeout(ctx, 5*time.Second, 5*time.Minute, true,
+		err = wait.PollUntilContextTimeout(ctx, 15*time.Second, 6*time.Minute, true,
 			func(ctx context.Context) (bool, error) {
 				if err := bmcClient.SystemResetAction(redfish.NmiResetType); err != nil {
 					klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-						fmt.Sprintf("Failed to trigger NMI on %s -> %v", node.Definition.Name, err))
+						"Failed to trigger NMI on %s -> %v", node.Definition.Name, err)
 
-					return false, err
+					return false, nil
 				}
 
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-					fmt.Sprintf("Successfully triggered NMI on %s", node.Definition.Name))
+					"Successfully triggered NMI on %s", node.Definition.Name)
 
 				return true, nil
 			})
@@ -132,14 +134,9 @@ func triggerNMIRedfish(ctx SpecContext, nodeLabel string) {
 		}).WithTimeout(25*time.Minute).WithPolling(15*time.Second).WithContext(ctx).Should(BeTrue(),
 			"Node hasn't reached Ready state after NMI trigger")
 
-		Expect(err).ToNot(HaveOccurred(),
-			fmt.Sprintf("Error waiting for node %q to go into Ready state", node.Definition.Name))
-
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q successfully recovered after NMI", node.Definition.Name)
 
 		verifyVmcoreDumpGenerated(ctx, node.Definition.Name)
-
-		cleanupVarCrashDirectory(ctx, node.Definition.Name)
 	}
 }
 
