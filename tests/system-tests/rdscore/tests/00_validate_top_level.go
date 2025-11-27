@@ -87,6 +87,18 @@ var _ = Describe(
 				MustPassRepeatedly(3),
 				rdscorecommon.CleanupUnexpectedAdmissionPodsCNF)
 
+			It("Verifies NMI RedFish trigger on Control Plane node",
+				Label("nmi-redfish", "nmi-redfish-cp"), reportxml.ID("TODO"),
+				rdscorecommon.VerifyNMIRedfishOnControlPlane, SpecTimeout(15*time.Minute))
+
+			It("Verifies NMI RedFish trigger on Worker node",
+				Label("nmi-redfish", "nmi-redfish-worker"), reportxml.ID("TODO"),
+				rdscorecommon.VerifyNMIRedfishOnWorkerMCP, SpecTimeout(15*time.Minute))
+
+			It("Verifies NMI RedFish trigger on CNF node",
+				Label("nmi-redfish", "nmi-redfish-cnf"), reportxml.ID("TODO"),
+				rdscorecommon.VerifyNMIRedfishOnCNFMCP, SpecTimeout(15*time.Minute))
+
 			It("Verifies mount namespace service on Control Plane node",
 				Label("mount-ns", "mount-ns-cp"), reportxml.ID("75048"),
 				rdscorecommon.VerifyMountNamespaceOnControlPlane)
