@@ -266,7 +266,7 @@ func VerifyLogForwardingToKafka() {
 
 			if messageCnt == 0 {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-					"No log messages of %s type forwarded to the kafka %s were found", kafkaURL, logType)
+					"No log messages of %q type forwarded to the kafka %q were found", logType, kafkaURL)
 
 				return false
 			}
@@ -277,5 +277,5 @@ func VerifyLogForwardingToKafka() {
 
 		return true
 	}).WithContext(ctx).WithPolling(3*time.Second).WithTimeout(6*time.Minute).Should(BeTrue(),
-		"pods matching label() still present")
+		"failed to find log messages forwarded to the kafka server")
 }
