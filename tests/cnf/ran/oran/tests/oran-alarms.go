@@ -244,8 +244,8 @@ var _ = Describe("ORAN Alarms Tests", Label(tsparams.LabelPostProvision, tsparam
 		Expect(originalRetentionPeriod).To(BeNumerically(">=", 1), "Original retention period should be at least 1 day")
 
 		By("patching to increment the retention period")
-		patchConfig := oranapi.AlarmServiceConfiguration{
-			RetentionPeriod: originalRetentionPeriod + 1,
+		patchConfig := oranapi.AlarmServiceConfigurationPatch{
+			RetentionPeriod: ptr.To(originalRetentionPeriod + 1),
 		}
 
 		patchedConfig, err := alarmsClient.PatchAlarmServiceConfiguration(patchConfig)

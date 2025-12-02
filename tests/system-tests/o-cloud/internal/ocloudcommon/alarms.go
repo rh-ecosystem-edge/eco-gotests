@@ -14,6 +14,7 @@ import (
 	oranapi "github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/siteconfig"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/shell"
@@ -272,8 +273,8 @@ func VerifySuccessfulAlarmsCleanup(ctx SpecContext) {
 	snoAPIClient := CreateSnoAPIClient(OCloudConfig.ClusterName1)
 	alarmsStartTime := getHubCurrentTime()
 
-	patchConfig := oranapi.AlarmServiceConfiguration{
-		RetentionPeriod: DefaultRetentionPeriod,
+	patchConfig := oranapi.AlarmServiceConfigurationPatch{
+		RetentionPeriod: ptr.To(DefaultRetentionPeriod),
 	}
 	patchedConfig, err := alarmsClient.PatchAlarmServiceConfiguration(patchConfig)
 	Expect(err).ToNot(HaveOccurred(), "Failed to patch alarm service configuration")

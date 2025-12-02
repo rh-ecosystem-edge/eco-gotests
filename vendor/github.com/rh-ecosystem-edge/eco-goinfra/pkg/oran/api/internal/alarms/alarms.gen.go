@@ -161,11 +161,21 @@ type AlarmEventRecordModifications struct {
 // AlarmServiceConfiguration defines model for AlarmServiceConfiguration.
 type AlarmServiceConfiguration struct {
 	// Extensions List of metadata key-value pairs used to associate meaningful metadata to the related alarm service
+	Extensions map[string]string `json:"extensions"`
+
+	// RetentionPeriod Number of days for alarm history to be retained.
+	// This value cannot be set lower than 1 (day).
+	RetentionPeriod int `json:"retentionPeriod"`
+}
+
+// AlarmServiceConfigurationPatch Schema for PATCH requests allowing partial updates to AlarmServiceConfiguration
+type AlarmServiceConfigurationPatch struct {
+	// Extensions List of metadata key-value pairs used to associate meaningful metadata to the related alarm service
 	Extensions *map[string]string `json:"extensions,omitempty"`
 
 	// RetentionPeriod Number of days for alarm history to be retained.
-	// This value has cannot be set lower than 1 (day).
-	RetentionPeriod int `json:"retentionPeriod"`
+	// This value cannot be set lower than 1 (day).
+	RetentionPeriod *int `json:"retentionPeriod,omitempty"`
 }
 
 // AlarmSubscriptionInfo defines model for AlarmSubscriptionInfo.
@@ -443,7 +453,7 @@ type GetAlarmsParams struct {
 }
 
 // PatchAlarmServiceConfigurationApplicationMergePatchPlusJSONRequestBody defines body for PatchAlarmServiceConfiguration for application/merge-patch+json ContentType.
-type PatchAlarmServiceConfigurationApplicationMergePatchPlusJSONRequestBody = AlarmServiceConfiguration
+type PatchAlarmServiceConfigurationApplicationMergePatchPlusJSONRequestBody = AlarmServiceConfigurationPatch
 
 // UpdateAlarmServiceConfigurationJSONRequestBody defines body for UpdateAlarmServiceConfiguration for application/json ContentType.
 type UpdateAlarmServiceConfigurationJSONRequestBody = AlarmServiceConfiguration
