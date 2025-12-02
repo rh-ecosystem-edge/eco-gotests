@@ -11,8 +11,8 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/route"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/secret"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/rancluster"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
-	"k8s.io/klog/v2"
 )
 
 // FindAlertmanagerAddress finds the address of the ACM Observability Alertmanager instance using the route on the
@@ -30,42 +30,28 @@ func FindAlertmanagerAddress(client *clients.Settings) (string, error) {
 	return routeBuilder.Definition.Status.Ingress[0].Host, nil
 }
 
-// GetAlertmanagerTokenAndCAPool gets the token and CA pool from the ACM Observability Alertmanager secret. It fails
-// fast on a missing token and returns a nil CA pool if the ca.crt key is empty. This will have the downstream effect of
-// disabling TLS verification.
-func GetAlertmanagerTokenAndCAPool(client *clients.Settings) (string, *x509.CertPool, error) {
+// GetAlertmanagerToken gets the token from the ACM Observability Alertmanager secret. It fails fast on a missing token.
+func GetAlertmanagerToken(client *clients.Settings) (string, error) {
 	secretBuilder, err := secret.Pull(client, ranparam.ACMObservabilityAMSecretName, ranparam.ACMObservabilityNamespace)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to pull alertmanager secret: %w", err)
+		return "", fmt.Errorf("failed to pull alertmanager secret: %w", err)
 	}
 
 	token := secretBuilder.Definition.Data["token"]
-	caCrt := secretBuilder.Definition.Data["ca.crt"]
 
 	if len(token) == 0 {
-		return "", nil, fmt.Errorf("token is empty")
+		return "", fmt.Errorf("token is empty")
 	}
 
-	caPool := x509.NewCertPool()
-	if !caPool.AppendCertsFromPEM(caCrt) {
-		klog.V(ranparam.LogLevel).Infof("Failed to append CA certs to pool, returning nil CA pool")
-
-		return string(token), nil, nil
-	}
-
-	return string(token), caPool, nil
+	return string(token), nil
 }
 
 // CreateAlertmanagerClient creates a new AlertmanagerAPI client for the given address and token. The address will use
-// scheme https if it is not specified. The provided token is used as a bearer token. If the CA pool is not provided,
-// TLS verification is disabled.
+// scheme https if it is not specified. The provided token is used as a bearer token.
 func CreateAlertmanagerClient(address, token string, caPool *x509.CertPool) (*alertmanagerv2.AlertmanagerAPI, error) {
 	runtime := openapiruntime.New(address, alertmanagerv2.DefaultBasePath, []string{"https", "http"})
 
-	transport, err := openapiruntime.TLSTransport(openapiruntime.TLSClientOptions{
-		InsecureSkipVerify: caPool == nil,
-		LoadedCAPool:       caPool,
-	})
+	transport, err := openapiruntime.TLSTransport(openapiruntime.TLSClientOptions{LoadedCAPool: caPool})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create TLS client: %w", err)
 	}
@@ -89,9 +75,14 @@ func CreateAlerterClientForCluster(client *clients.Settings) (*alertmanagerv2.Al
 		return nil, fmt.Errorf("failed to find alertmanager address: %w", err)
 	}
 
-	token, caPool, err := GetAlertmanagerTokenAndCAPool(client)
+	token, err := GetAlertmanagerToken(client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get alerter token: %w", err)
+	}
+
+	caPool, err := rancluster.GetClusterDefaultRouterCAPool(client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get default router CA pool: %w", err)
 	}
 
 	return CreateAlertmanagerClient(address, token, caPool)

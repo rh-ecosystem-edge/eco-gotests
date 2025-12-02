@@ -2,6 +2,7 @@ package querier
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net/http"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/serviceaccount"
 	rbacv1 "k8s.io/api/rbac/v1"
 
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/rancluster"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 )
 
@@ -93,8 +95,9 @@ func CleanupQuerierResources(client *clients.Settings) error {
 }
 
 // CreatePrometheusAPI creates a new Prometheus API client using the given address and token. The address will use
-// scheme https if it is not specified. The provided token is used as a bearer token and TLS verification is disabled.
-func CreatePrometheusAPI(address, token string) (prometheusv1.API, error) {
+// scheme https if it is not specified. The provided token is used as a bearer token. The provided CA pool is used to
+// verify the TLS certificate of the Prometheus server.
+func CreatePrometheusAPI(address, token string, caPool *x509.CertPool) (prometheusv1.API, error) {
 	if !strings.HasPrefix(address, "http") {
 		address = "https://" + address
 	}
@@ -104,7 +107,7 @@ func CreatePrometheusAPI(address, token string) (prometheusv1.API, error) {
 		RoundTripper: config.NewAuthorizationCredentialsRoundTripper(
 			"Bearer",
 			config.NewInlineSecret(token),
-			&http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}},
+			&http.Transport{TLSClientConfig: &tls.Config{RootCAs: caPool}},
 		),
 	})
 	if err != nil {
@@ -116,8 +119,8 @@ func CreatePrometheusAPI(address, token string) (prometheusv1.API, error) {
 
 // CreatePrometheusAPIForCluster creates a new Prometheus API client for the cluster using the Thanos Querier address
 // and token. It first finds the address of the Thanos Querier route, creates a ServiceAccount and ClusterRoleBinding to
-// access the API, and then creates the Prometheus API client using the address and a token generated for the
-// ServiceAccount.
+// access the API, and then creates the Prometheus API client using the address, a token generated for the
+// ServiceAccount, and the CA pool for the default openshift ingress router.
 func CreatePrometheusAPIForCluster(client *clients.Settings) (prometheusv1.API, error) {
 	address, err := FindQuerierAddress(client)
 	if err != nil {
@@ -129,5 +132,10 @@ func CreatePrometheusAPIForCluster(client *clients.Settings) (prometheusv1.API, 
 		return nil, fmt.Errorf("failed to get querier token: %w", err)
 	}
 
-	return CreatePrometheusAPI(address, token)
+	caPool, err := rancluster.GetClusterDefaultRouterCAPool(client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get default router CA pool: %w", err)
+	}
+
+	return CreatePrometheusAPI(address, token, caPool)
 }
