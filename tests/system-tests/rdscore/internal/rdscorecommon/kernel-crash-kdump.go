@@ -2,7 +2,6 @@ package rdscorecommon
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -14,17 +13,15 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/reboot"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/remote"
 
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreparams"
 )
 
-func crashNodeKDump(nodeLabel string) {
+func crashNodeKDump(ctx SpecContext, nodeLabel string) {
 	var (
 		nodeList []*nodes.Builder
 		err      error
-		ctx      SpecContext
 	)
 
 	if nodeLabel == "" {
@@ -50,9 +47,12 @@ func crashNodeKDump(nodeLabel string) {
 
 		return len(nodeList) > 0
 	}).WithContext(ctx).WithTimeout(1*time.Minute).WithPolling(5*time.Second).Should(BeTrue(),
-		fmt.Sprintf("Failed to find pods matching label: %q", nodeLabel))
+		fmt.Sprintf("Failed to find nodes matching label: %q", nodeLabel))
 
 	for _, node := range nodeList {
+		By(fmt.Sprintf("Cleaning up /var/crash directory on node %q", node.Definition.Name))
+		cleanupVarCrashDirectory(ctx, node.Definition.Name)
+
 		By("Trigger kernel crash")
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Trigerring kernel crash on %q",
 			node.Definition.Name)
@@ -72,44 +72,25 @@ func crashNodeKDump(nodeLabel string) {
 		err = node.WaitUntilReady(5 * time.Minute)
 		Expect(err).ToNot(HaveOccurred(), "Error waiting for node to go into Ready state")
 
-		By("Assert vmcore dump was generated")
+		verifyVmcoreDumpGenerated(ctx, node.Definition.Name)
 
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Checking if vmcore dump was generated")
-
-		cmdToExec := []string{"chroot", "/rootfs", "ls", "/var/crash"}
-
-		Eventually(func() bool {
-			coreDumps, err := remote.ExecuteOnNodeWithDebugPod(cmdToExec, node.Definition.Name)
-
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Executing command: %q", strings.Join(cmdToExec, " "))
-
-			if err != nil {
-				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to execute command: %v", err)
-
-				return false
-			}
-
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\tGenerated VMCore dumps: %v", coreDumps)
-
-			return len(strings.Fields(coreDumps)) >= 1
-		}).WithContext(ctx).WithTimeout(5*time.Minute).WithPolling(15*time.Second).Should(BeTrue(),
-			"error: vmcore dump was not generated")
+		cleanupVarCrashDirectory(ctx, node.Definition.Name)
 	}
 }
 
 // VerifyKDumpOnControlPlane check KDump service on Control Plane nodes.
 func VerifyKDumpOnControlPlane(ctx SpecContext) {
-	crashNodeKDump(RDSCoreConfig.KDumpCPNodeLabel)
+	crashNodeKDump(ctx, RDSCoreConfig.KDumpCPNodeLabel)
 }
 
 // VerifyKDumpOnWorkerMCP check KDump service on nodes in "Worker" MCP.
 func VerifyKDumpOnWorkerMCP(ctx SpecContext) {
-	crashNodeKDump(RDSCoreConfig.KDumpWorkerMCPNodeLabel)
+	crashNodeKDump(ctx, RDSCoreConfig.KDumpWorkerMCPNodeLabel)
 }
 
 // VerifyKDumpOnCNFMCP check KDump service on nodes in "CNF" MCP.
 func VerifyKDumpOnCNFMCP(ctx SpecContext) {
-	crashNodeKDump(RDSCoreConfig.KDumpCNFMCPNodeLabel)
+	crashNodeKDump(ctx, RDSCoreConfig.KDumpCNFMCPNodeLabel)
 }
 
 // CleanupUnexpectedAdmissionPodsCP cleans up pods with UnexpectedAdmissionError status
