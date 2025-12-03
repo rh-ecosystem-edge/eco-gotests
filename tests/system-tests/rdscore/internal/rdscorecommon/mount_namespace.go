@@ -55,11 +55,33 @@ func mountNamespaceEncapsulation(nodeLabel string) {
 
 		systemdMountNsCmd := []string{"chroot", "/rootfs", "/bin/sh", "-c", "readlink /proc/1/ns/mnt"}
 
-		systemdMountNsOutput, err := remote.ExecuteOnNodeWithDebugPod(systemdMountNsCmd, nodeName)
-		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to execute %s cmd on the node %s due to %v",
-			systemdMountNsCmd, nodeName, err))
+		var systemdMountNs string
 
-		systemdMountNs := strings.Split(systemdMountNsOutput, ":")[1]
+		err = wait.PollUntilContextTimeout(context.TODO(), 3*time.Second, time.Minute, true,
+			func(context.Context) (bool, error) {
+				systemdMountNsOutput, err := remote.ExecuteOnNodeWithDebugPod(systemdMountNsCmd, nodeName)
+				if err != nil {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to execute %s cmd on the node %s due to %v",
+						systemdMountNsCmd, nodeName, err)
+
+					return false, nil
+				}
+
+				if len(strings.Split(systemdMountNsOutput, ":")) < 2 {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Malformed output: %q", systemdMountNsOutput)
+
+					return false, nil
+				}
+
+				systemdMountNs = strings.Split(systemdMountNsOutput, ":")[1]
+
+				return true, nil
+			})
+		if err != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to check systemd mount namespace")
+
+			Fail(fmt.Sprintf("Failed to check systemd mount namespace: %v", err))
+		}
 
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Check the kubelet mount namespace on node %s", nodeName)
 
