@@ -8,6 +8,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/daemonset"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
@@ -28,6 +29,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
 )
@@ -1577,47 +1579,40 @@ func getPFLACPMonitorPod(nodeName string) (*pod.Builder, error) {
 	By(fmt.Sprintf("Getting PF status relay daemon set pod on node %s", nodeName))
 
 	monitorNS := NetConfig.PFStatusRelayOperatorNamespace
+	daemonsetName := "pf-status-relay-ds-pflacpmonitor"
 
-	var (
-		podList []*pod.Builder
-		err     error
-	)
-
-	possiblePatterns := []string{
-		"pf-status-relay-ds-pflacpmonitor",
-		"pf-status-relay-ds",
-		"pf-status-relay",
-		"pflacpmonitor",
+	// Pull the daemonset and verify it's ready
+	pfStatusRelayDS, err := daemonset.Pull(APIClient, daemonsetName, monitorNS)
+	if err != nil {
+		return nil, fmt.Errorf("failed to pull PF status relay daemonset %s: %w", daemonsetName, err)
 	}
 
-	for _, pattern := range possiblePatterns {
-		podList, err = pod.ListByNamePattern(APIClient, pattern, monitorNS)
-		if err == nil && len(podList) > 0 {
-			break
-		}
+	if !pfStatusRelayDS.IsReady(30 * time.Second) {
+		return nil, fmt.Errorf("PF status relay daemonset %s is not ready", daemonsetName)
+	}
+
+	// Get pods using the daemonset's label selector and field selector for the node
+	labelSelector := labels.SelectorFromSet(pfStatusRelayDS.Definition.Spec.Selector.MatchLabels).String()
+	fieldSelector := fields.SelectorFromSet(fields.Set{"spec.nodeName": nodeName}).String()
+
+	podList, err := pod.List(APIClient, monitorNS, metav1.ListOptions{
+		LabelSelector: labelSelector,
+		FieldSelector: fieldSelector,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list PF status relay daemon set pods on node %s: %w", nodeName, err)
 	}
 
 	if len(podList) == 0 {
-		return nil, fmt.Errorf(
-			"no PF status relay daemon set pods found with any pattern in namespace %s. Tried patterns: %v",
-			monitorNS, possiblePatterns)
-	}
-
-	var targetPod *pod.Builder
-
-	for _, podObj := range podList {
-		if podObj.Definition.Spec.NodeName == nodeName {
-			targetPod = podObj
-
-			break
-		}
-	}
-
-	if targetPod == nil {
 		return nil, fmt.Errorf("no PF status relay daemon set pod found on node %s", nodeName)
 	}
 
-	return targetPod, nil
+	if len(podList) > 1 {
+		return nil, fmt.Errorf(
+			"expected exactly one PF status relay daemon set pod on node %s, found %d", nodeName, len(podList))
+	}
+
+	return podList[0], nil
 }
 
 func verifyPFLACPMonitorLogs(
