@@ -2,6 +2,7 @@
 package ptpdaemon
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -9,8 +10,10 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 )
 
@@ -30,6 +33,63 @@ func GetPtpDaemonPodOnNode(client *clients.Settings, nodeName string) (*pod.Buil
 	}
 
 	return daemonPods[0], nil
+}
+
+// EnsurePtpDaemonPodExistsOnNode waits until exactly one linuxptp-daemon pod exists on the given node
+// and returns it. It retries until the provided timeout elapses.
+func EnsurePtpDaemonPodExistsOnNode(
+	client *clients.Settings,
+	nodeName string,
+	timeout time.Duration) (*pod.Builder, error) {
+	var daemonPod *pod.Builder
+
+	err := wait.PollUntilContextTimeout(
+		context.TODO(), 1*time.Second, timeout, true, func(
+			ctx context.Context) (bool, error) {
+			var err error
+
+			daemonPod, err = GetPtpDaemonPodOnNode(client, nodeName)
+			if err == nil {
+				return true, nil
+			}
+
+			return false, nil
+		})
+	if err != nil {
+		return nil, fmt.Errorf("timed out ensuring PTP daemon pod exists on node %s: %w", nodeName, err)
+	}
+
+	return daemonPod, nil
+}
+
+// ValidatePtpDaemonPodRunning ensures the linuxptp-daemon pod exists on the given node and
+// validates it remains in Running state continuously for 45 seconds.
+func ValidatePtpDaemonPodRunning(client *clients.Settings, nodeName string) error {
+	daemonPod, err := EnsurePtpDaemonPodExistsOnNode(client, nodeName, 5*time.Minute)
+	if err != nil {
+		return err
+	}
+
+	// First, wait until the pod reaches Running.
+	if err := daemonPod.WaitUntilRunning(5 * time.Minute); err != nil {
+		return fmt.Errorf("PTP daemon pod on node %s did not reach Running: %w", nodeName, err)
+	}
+
+	// Then, validate it remains in Running state continuously for 45 seconds.
+	err = wait.PollUntilContextTimeout(
+		context.TODO(), 1*time.Second, 45*time.Second, true, func(ctx context.Context) (bool, error) {
+			if err := daemonPod.WaitUntilInStatus(corev1.PodRunning, 1*time.Second); err != nil {
+				return false, fmt.Errorf("PTP daemon pod on node %s was not Running continuously for 45s: %w", nodeName, err)
+			}
+
+			return false, nil
+		})
+
+	if wait.Interrupted(err) {
+		return nil
+	}
+
+	return err
 }
 
 // execCommandOptions is a struct that contains the options for the execCommand function. It should not be used directly
