@@ -10,12 +10,15 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/configmap"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/service"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreinittools"
@@ -43,16 +46,16 @@ type HTTPStats struct {
 // VerifyMonitoringConfigRemoteWrite verifies that the cluster monitoring configuration
 // contains a remoteWrite endpoint under prometheusK8s in the config.yaml data.
 // It also creates an HTTP server, adds a remoteWrite endpoint, and verifies connections.
-func VerifyMonitoringConfigRemoteWrite() {
+func VerifyMonitoringConfigRemoteWrite(ctx SpecContext) {
 	var (
-		httpServerPod  *pod.Builder
-		cmBuilder      *configmap.Builder
-		err            error
-		ctx            SpecContext
-		serviceURL     string
-		initialStats   HTTPStats
-		preUpdateStats HTTPStats
-		finalStats     HTTPStats
+		httpServerDeployment *deployment.Builder
+		httpServerPod        *pod.Builder
+		cmBuilder            *configmap.Builder
+		err                  error
+		serviceURL           string
+		initialStats         HTTPStats
+		preUpdateStats       HTTPStats
+		finalStats           HTTPStats
 	)
 
 	// Step 1: Create namespace if it doesn't exist
@@ -64,8 +67,8 @@ func VerifyMonitoringConfigRemoteWrite() {
 			fmt.Sprintf("Failed to create namespace %q", remoteWriteTestNamespace))
 	}
 
-	// Step 2: Create HTTP server pod that tracks POST requests
-	By("Creating HTTP server pod to receive remoteWrite requests")
+	// Step 2: Create HTTP server deployment that tracks POST requests
+	By("Creating HTTP server deployment to receive remoteWrite requests")
 	httpServerScript := fmt.Sprintf(`#!/usr/bin/env python3
 import http.server
 import socketserver
@@ -125,25 +128,50 @@ with socketserver.TCPServer(("", PORT), RemoteWriteHandler) as httpd:
 		Protocol:      corev1.ProtocolTCP,
 	}
 
+	// Set security context to allow OpenShift to assign UID from allowed range
+	// Setting RunAsUser and RunAsGroup to nil lets OpenShift assign from the SCC-allowed range
+	var falseFlag = false
+	securityContext := &corev1.SecurityContext{
+		RunAsUser:  nil, // Let OpenShift assign UID from allowed range
+		RunAsGroup: nil, // Let OpenShift assign GID from allowed range
+		Privileged: &falseFlag,
+		SeccompProfile: &corev1.SeccompProfile{
+			Type: corev1.SeccompProfileTypeRuntimeDefault,
+		},
+		Capabilities: &corev1.Capabilities{},
+	}
+
 	containerBuilder := pod.NewContainerBuilder(remoteWriteTestPodName, pythonHTTPServerImage,
 		[]string{"python3", "-c", httpServerScript}).
-		WithPorts([]corev1.ContainerPort{cPort})
+		WithPorts([]corev1.ContainerPort{cPort}).
+		WithSecurityContext(securityContext)
 
 	container, err := containerBuilder.GetContainerCfg()
 	Expect(err).ToNot(HaveOccurred(), "Failed to get container configuration")
 
-	httpServerPod = pod.NewBuilder(APIClient, remoteWriteTestPodName, remoteWriteTestNamespace, pythonHTTPServerImage).
-		WithLabel("app", remoteWriteTestPodName).
-		WithAdditionalContainer(container)
+	deployLabels := map[string]string{
+		"app": remoteWriteTestPodName,
+	}
+
+	httpServerDeployment = deployment.NewBuilder(APIClient, remoteWriteTestPodName, remoteWriteTestNamespace,
+		deployLabels, *container)
 
 	Eventually(func() error {
-		httpServerPod, err = httpServerPod.CreateAndWaitUntilRunning(2 * time.Minute)
+		httpServerDeployment, err = httpServerDeployment.CreateAndWaitUntilReady(2 * time.Minute)
 		return err
 	}).WithContext(ctx).WithPolling(5*time.Second).WithTimeout(3*time.Minute).Should(Succeed(),
-		"Failed to create HTTP server pod")
+		"Failed to create HTTP server deployment")
 
-	// Step 3: Create service for the HTTP server pod
-	By("Creating service for HTTP server pod")
+	// Get a pod from the deployment for stats queries
+	By("Getting pod from deployment for stats queries")
+	Eventually(func() error {
+		httpServerPod, err = getPodFromDeployment(APIClient, remoteWriteTestPodName, remoteWriteTestNamespace)
+		return err
+	}).WithContext(ctx).WithPolling(5*time.Second).WithTimeout(1*time.Minute).Should(Succeed(),
+		"Failed to get pod from deployment")
+
+	// Step 3: Create service for the HTTP server deployment
+	By("Creating service for HTTP server deployment")
 	svcPort, err := service.DefineServicePort(
 		remoteWriteTestPort,
 		remoteWriteTestContainerPort,
@@ -157,8 +185,8 @@ with socketserver.TCPServer(("", PORT), RemoteWriteHandler) as httpd:
 	// Register cleanup early so it runs even if test fails
 	DeferCleanup(func() {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cleaning up test resources")
-		if httpServerPod != nil {
-			_, _ = httpServerPod.DeleteAndWait(2 * time.Minute)
+		if httpServerDeployment != nil {
+			_ = httpServerDeployment.DeleteAndWait(2 * time.Minute)
 		}
 		svcBuilder, err := service.Pull(APIClient, remoteWriteTestServiceName, remoteWriteTestNamespace)
 		if err == nil {
@@ -455,4 +483,33 @@ func getHTTPStats(podBuilder *pod.Builder, containerName string) (HTTPStats, err
 	}
 
 	return stats, nil
+}
+
+// getPodFromDeployment gets a running pod from a deployment by label selector
+func getPodFromDeployment(apiClient *clients.Settings, deploymentName, namespace string) (*pod.Builder, error) {
+	// Get pods by the deployment's label selector
+	podList, err := pod.List(apiClient, namespace, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("app=%s", deploymentName),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list pods: %w", err)
+	}
+
+	if len(podList) == 0 {
+		return nil, fmt.Errorf("no pods found for deployment %s", deploymentName)
+	}
+
+	// Find a running pod
+	for _, p := range podList {
+		if p.Object.Status.Phase == corev1.PodRunning && p.Object.DeletionTimestamp == nil {
+			return p, nil
+		}
+	}
+
+	// If no running pod found, return the first one (it might be starting)
+	if len(podList) > 0 {
+		return podList[0], nil
+	}
+
+	return nil, fmt.Errorf("no pods found for deployment %s", deploymentName)
 }
