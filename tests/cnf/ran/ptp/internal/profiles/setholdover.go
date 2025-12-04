@@ -54,7 +54,7 @@ func SetHoldOverTimeouts(
 	for _, profile := range profiles {
 		ptpConfig, err := profile.Reference.PullPtpConfig(client)
 		if err != nil {
-			return nil, fmt.Errorf("failed to pull PTP config for profile %s: %w", profile.Reference.ProfileName, err)
+			return nil, fmt.Errorf("failed to pull PtpConfig for profile %s: %w", profile.Reference.ProfileName, err)
 		}
 
 		profileIndex := profile.Reference.ProfileIndex
@@ -75,7 +75,7 @@ func SetHoldOverTimeouts(
 
 		_, err = ptpConfig.Update()
 		if err != nil {
-			return nil, fmt.Errorf("failed to update PTP config for profile %s: %w", profile.Reference.ProfileName, err)
+			return nil, fmt.Errorf("failed to update PtpConfig for profile %s: %w", profile.Reference.ProfileName, err)
 		}
 	}
 
@@ -127,7 +127,7 @@ func ResetHoldOverTimeouts(client *clients.Settings, oldHoldovers HoldOverMap) e
 	for reference, oldHoldover := range oldHoldovers {
 		ptpConfig, err := reference.PullPtpConfig(client)
 		if err != nil {
-			return fmt.Errorf("failed to pull PTP config for profile %s: %w", reference.ProfileName, err)
+			return fmt.Errorf("failed to pull PtpConfig for profile %s: %w", reference.ProfileName, err)
 		}
 
 		profileIndex := reference.ProfileIndex
@@ -147,7 +147,7 @@ func ResetHoldOverTimeouts(client *clients.Settings, oldHoldovers HoldOverMap) e
 
 		_, err = ptpConfig.Update()
 		if err != nil {
-			return fmt.Errorf("failed to update PTP config for profile %s: %w", reference.ProfileName, err)
+			return fmt.Errorf("failed to update PtpConfig for profile %s: %w", reference.ProfileName, err)
 		}
 	}
 
