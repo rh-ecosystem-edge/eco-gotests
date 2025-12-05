@@ -132,4 +132,5 @@ const (
 	ProcessDPLL    PtpProcess = "dpll"
 	ProcessGNSS    PtpProcess = "gnss"
 	ProcessGM      PtpProcess = "GM"
+	ProcessChronyd PtpProcess = "chronyd"
 )

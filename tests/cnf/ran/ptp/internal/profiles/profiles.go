@@ -2,10 +2,12 @@ package profiles
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ptp"
+	ptpv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v1"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/ptpdaemon"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -32,6 +34,9 @@ const (
 	// ProfileTypeMultiNICGM refers to a PTP profile for multiple NICs where all interfaces are set to server only.
 	// SMA cables are used to synchronize the NICs so they can all act as grand masters.
 	ProfileTypeMultiNICGM
+	// ProfileTypeNTPFallback refers to a PTP profile that is configured to fall back to NTP when GNSS sync is lost.
+	// This is the same as a GM profile but with chronyd configured.
+	ProfileTypeNTPFallback
 )
 
 // PtpClockType enumerates the roles of each interface. It is different from the roles in metrics, which include extra
@@ -78,6 +83,23 @@ type ProfileInfo struct {
 	// ConfigIndex is the number in the config file for the ptp4l corresponding to this profile. Profiles should
 	// have a ptp4l process unless they are HA.
 	ConfigIndex *uint
+}
+
+// PullProfile pulls the PTP profile for the profile referenced by this struct. If error is nil, the profile is
+// guaranteed to not be nil.
+func (profileInfo *ProfileInfo) PullProfile(client *clients.Settings) (*ptpv1.PtpProfile, error) {
+	ptpConfig, err := profileInfo.Reference.PullPtpConfig(client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to pull PTP config for profile %s: %w", profileInfo.Reference.ProfileName, err)
+	}
+
+	profileIndex := profileInfo.Reference.ProfileIndex
+	if profileIndex < 0 || profileIndex >= len(ptpConfig.Definition.Spec.Profile) {
+		return nil, fmt.Errorf("failed to find profile %s at index %d: index out of bounds",
+			profileInfo.Reference.ProfileName, profileIndex)
+	}
+
+	return &ptpConfig.Definition.Spec.Profile[profileIndex], nil
 }
 
 // GetInterfacesByClockType returns a slice of InterfaceInfo pointers for each interface in the profile matching the
@@ -174,13 +196,13 @@ func (nodeInfo *NodeInfo) GetInterfacesByClockType(clockType PtpClockType) []*In
 	return nodeInterfaces
 }
 
-// GetProfilesByType returns a slice of ProfileInfo pointers for each profile on this node matching the provided
-// profileType. Elements are guaranteed not to be nil.
-func (nodeInfo *NodeInfo) GetProfilesByType(profileType PtpProfileType) []*ProfileInfo {
+// GetProfilesByTypes returns a slice of ProfileInfo pointers for each profile on this node matching any of the provided
+// profileTypes. Returned elements are guaranteed not to be nil.
+func (nodeInfo *NodeInfo) GetProfilesByTypes(profileTypes ...PtpProfileType) []*ProfileInfo {
 	var nodeProfiles []*ProfileInfo
 
 	for _, profileInfo := range nodeInfo.Profiles {
-		if profileInfo.ProfileType == profileType {
+		if slices.Contains(profileTypes, profileInfo.ProfileType) {
 			nodeProfiles = append(nodeProfiles, profileInfo)
 		}
 	}

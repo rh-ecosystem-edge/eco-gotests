@@ -19,10 +19,11 @@ const (
 	LabelOC2Port = "oc-two-port"
 	// LabelLeapFile is the label for all tests in the PTP leap file suite.
 	LabelLeapFile = "leap-file"
+	// LabelNTPFallback is the label for all tests in the PTP GNSS with NTP fallback suite.
+	LabelNTPFallback = "ntp-fallback"
 
 	// LeapConfigmapName is the name of the leap configmap.
 	LeapConfigmapName = "leap-configmap"
-
 	// CloudEventsNamespace is the namespace used for the cloud events consumer and associated resources.
 	CloudEventsNamespace = "cloud-events"
 )

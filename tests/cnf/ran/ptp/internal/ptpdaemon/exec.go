@@ -46,7 +46,7 @@ func WithRetryOnEmptyOutput(retryOnEmptyOutput bool) ExecCommandOption {
 	}
 }
 
-// WithRetryDelay sets the delay between retries. It defaults to 1 second.
+// WithRetryDelay sets the delay between retries. It defaults to 1 minute.
 func WithRetryDelay(retryDelay time.Duration) ExecCommandOption {
 	return func(o *execCommandOptions) {
 		o.retryDelay = retryDelay
@@ -62,7 +62,7 @@ func ExecuteCommandInPtpDaemonPod(
 		attempts:           1,
 		retryOnError:       false,
 		retryOnEmptyOutput: false,
-		retryDelay:         1 * time.Second,
+		retryDelay:         time.Minute,
 	}
 
 	for _, option := range options {
@@ -89,11 +89,14 @@ func ExecuteCommandInPtpDaemonPod(
 		// Otherwise, we return the error immediately since we do not retry on it.
 		output, err := daemonPod.ExecCommand([]string{"sh", "-c", command}, ranparam.PtpContainerName)
 		if execOptions.retryOnError && err != nil {
-			klog.V(tsparams.LogLevel).Infof("Failed to execute command %q in PTP daemon pod on node %s: %v",
-				command, nodeName, err)
+			klog.V(tsparams.LogLevel).Infof("Failed to execute command %q in PTP daemon pod on node %s\nerror: %v\noutput: %s",
+				command, nodeName, err, output.String())
 
 			continue
 		} else if err != nil {
+			klog.V(tsparams.LogLevel).Infof("Failed to execute command %q in PTP daemon pod on node %s\nerror: %v\noutput: %s",
+				command, nodeName, err, output.String())
+
 			return "", fmt.Errorf("failed to execute command %q in PTP daemon pod on node %s: %w", command, nodeName, err)
 		}
 
