@@ -21,10 +21,10 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/dpdk/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/cmd"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/define"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 	"gopkg.in/k8snetworkplumbingwg/multus-cni.v4/pkg/types"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -194,7 +194,7 @@ var _ = Describe("rootless", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 			// then stable. The issue is that if no configuration is applied, then
 			// the status will never go to not stable and the test will fail.
 			time.Sleep(5 * time.Second)
-			err = netenv.WaitForSriovAndMCPStable(
+			err = sriovoperator.WaitForSriovAndMCPStable(
 				APIClient, tsparams.MCOWaitTimeout, time.Minute, NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "fail cluster is not stable")
 
@@ -613,7 +613,7 @@ var _ = Describe("rootless", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 		// then stable. The issue is that if no configuration is applied, then
 		// the status will never go to not stable and the test will fail.
 		time.Sleep(5 * time.Second)
-		err = netenv.WaitForSriovAndMCPStable(
+		err = sriovoperator.WaitForSriovAndMCPStable(
 			APIClient, tsparams.MCOWaitTimeout, time.Minute, NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Fail to wait until cluster is stable")
 	})

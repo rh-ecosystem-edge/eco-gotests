@@ -3,6 +3,7 @@ package cluster
 import (
 	"regexp"
 
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/mco"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
@@ -308,6 +309,23 @@ func WaitForUnreachable(client *clients.Settings, timeout time.Duration) error {
 
 			return false, nil
 		})
+}
+
+// WaitForMcpStable waits for the stability of the MCP with the given name.
+func WaitForMcpStable(apiClient *clients.Settings, waitingTime, stableDuration time.Duration, mcpName string) error {
+	klog.V(90).Infof("Waiting up to %v for mcp %s stable to be ready", waitingTime, mcpName)
+
+	mcp, err := mco.Pull(apiClient, mcpName)
+	if err != nil {
+		return fmt.Errorf("fail to pull mcp %s from cluster due to: %s", mcpName, err.Error())
+	}
+
+	err = mcp.WaitToBeStableFor(stableDuration, waitingTime)
+	if err != nil {
+		return fmt.Errorf("cluster is not stable: %s", err.Error())
+	}
+
+	return nil
 }
 
 // waitForReachable waits up to timeout for the cluster to become available by attempting to list nodes in the

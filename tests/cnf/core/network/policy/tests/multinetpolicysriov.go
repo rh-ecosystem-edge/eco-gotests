@@ -16,11 +16,11 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/ipaddr"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/policy/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -89,7 +89,7 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 		Expect(err).ToNot(HaveOccurred(), "Failed to configure sr-iov network")
 
 		By("Waiting until cluster MCP and SR-IOV are stable")
-		err = netenv.WaitForSriovAndMCPStable(
+		err = sriovoperator.WaitForSriovAndMCPStable(
 			APIClient, tsparams.MCOWaitTimeout, time.Minute, NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Failed cluster is not stable")
 	})
@@ -663,7 +663,7 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 		Expect(err).ToNot(HaveOccurred(), "Fail to clean sriov networks")
 
 		By("Waiting until cluster MCP and SR-IOV are stable")
-		err = netenv.WaitForSriovAndMCPStable(
+		err = sriovoperator.WaitForSriovAndMCPStable(
 			APIClient, tsparams.MCOWaitTimeout, time.Minute, NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Fail to wait until cluster is stable")
 	})

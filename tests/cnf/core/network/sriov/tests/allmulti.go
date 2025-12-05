@@ -13,10 +13,10 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/cmd"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/tsparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
@@ -150,7 +150,7 @@ var _ = Describe(
 				nadBondDefaultConfig.Definition.Name)
 
 			By("Waiting until cluster MCP and SR-IOV are stable")
-			err = netenv.WaitForSriovAndMCPStable(
+			err = sriovoperator.WaitForSriovAndMCPStable(
 				APIClient, tsparams.MCOWaitTimeout, time.Minute, NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed cluster is not stable")
 		})
