@@ -35,6 +35,9 @@ func NewOcpConfig() *OcpConfig {
 		return nil
 	}
 
+	// Store the GeneralConfig pointer - YAML decoding can set it to nil on empty files
+	generalConfig := ocpConf.GeneralConfig
+
 	_, filename, _, _ := runtime.Caller(0)
 	baseDir := filepath.Dir(filename)
 	confFile := filepath.Join(baseDir, PathToDefaultOcpParamsFile)
@@ -44,6 +47,11 @@ func NewOcpConfig() *OcpConfig {
 		log.Printf("Error to read config file %s", confFile)
 
 		return nil
+	}
+
+	// Restore GeneralConfig if it was reset by YAML decoding
+	if ocpConf.GeneralConfig == nil {
+		ocpConf.GeneralConfig = generalConfig
 	}
 
 	err = readEnv(&ocpConf)
