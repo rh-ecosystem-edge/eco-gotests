@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"maps"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -11,6 +12,7 @@ import (
 	eventptp "github.com/redhat-cne/sdk-go/pkg/event/ptp"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ptp"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/internal/nicinfo"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/querier"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
@@ -112,6 +114,9 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 
 			protocolVersion, err := gnss.GetUbloxProtocolVersion(ntpFallbackProfile)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get u-blox protocol version for node %s", nodeName)
+
+			// Include all interfaces from the profile in the interface information report for this suite.
+			nicinfo.Node(nodeName).MarkSeqTested(iface.NamesToStringSeq(maps.Keys(ntpFallbackProfiles[0].Interfaces)))
 
 			By("setting the ts2phc holdover to 10 seconds")
 			updateTime := time.Now()
@@ -221,6 +226,9 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 			protocolVersion, err := gnss.GetUbloxProtocolVersion(ntpFallbackProfile)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get u-blox protocol version for node %s", nodeName)
 
+			// Include all interfaces from the profile in the interface information report for this suite.
+			nicinfo.Node(nodeName).MarkSeqTested(iface.NamesToStringSeq(maps.Keys(ntpFallbackProfiles[0].Interfaces)))
+
 			By("setting the ts2phc holdover to 10 seconds")
 			oldProfile, err := profiles.UpdateTS2PHCHoldover(RANConfig.Spoke1APIClient, ntpFallbackProfiles[0], 10)
 			Expect(err).ToNot(HaveOccurred(), "Failed to update ts2phc holdover for node %s", nodeName)
@@ -319,6 +327,9 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 			protocolVersion, err := gnss.GetUbloxProtocolVersion(ntpFallbackProfile)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get u-blox protocol version for node %s", nodeName)
 
+			// Include all interfaces from the profile in the interface information report for this suite.
+			nicinfo.Node(nodeName).MarkSeqTested(iface.NamesToStringSeq(maps.Keys(ntpFallbackProfiles[0].Interfaces)))
+
 			By("getting the OC profile interface and PTP clock")
 			ocProfiles := nodeInfo.GetProfilesByTypes(profiles.ProfileTypeOC)
 			Expect(ocProfiles).ToNot(BeEmpty(), "No OC profile found for node %s", nodeName)
@@ -327,6 +338,9 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 			Expect(ocInterfaces).ToNot(BeEmpty(), "No follower interface found for OC profile on node %s", nodeName)
 
 			ocInterface := ocInterfaces[0].Name
+
+			// Include the OC interface in the interface information report for this suite.
+			nicinfo.Node(nodeName).MarkTested(string(ocInterface))
 
 			ptpClockIndex, err := iface.GetPTPHardwareClock(RANConfig.Spoke1APIClient, nodeName, ocInterface)
 			Expect(err).ToNot(HaveOccurred(),
