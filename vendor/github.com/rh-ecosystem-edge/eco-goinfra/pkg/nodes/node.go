@@ -3,6 +3,7 @@ package nodes
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"time"
@@ -82,6 +83,18 @@ func (builder *Builder) Drain() error {
 
 	builder.ensureDrainHelperIsSet()
 	klog.V(100).Infof("Draining node %s", builder.Definition.Name)
+
+	// Workaround for kubernetes/kubernetes#135512. Set logging verbosity to 0 while draining to avoid logging the
+	// DaemonSet get requests at maximum verbosity.
+	if verbosity := flag.Lookup("v"); verbosity != nil {
+		old := verbosity.Value.String()
+
+		_ = verbosity.Value.Set("0")
+
+		defer func() {
+			_ = verbosity.Value.Set(old)
+		}()
+	}
 
 	return drain.RunNodeDrain(builder.drainHelper, builder.Definition.Name)
 }
