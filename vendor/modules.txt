@@ -1204,6 +1204,7 @@ github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/alarms
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/artifacts
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/common
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/provisioning
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/ovn
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/pfstatus
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/proxy
@@ -1303,6 +1304,8 @@ github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/operators/v1alpha1
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/package-server/operators
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/package-server/operators/v1
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/version
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ovn/routeadvertisement/v1
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ovn/types
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/pfstatus/pfstatustypes
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v1
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/siteconfig/v1alpha1
