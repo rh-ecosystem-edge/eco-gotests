@@ -41,7 +41,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			svcAccount               *serviceaccount.Builder
 			crb                      rbac.ClusterRoleBindingBuilder
 			moduleLoaderContainerCfg *v1beta1.ModuleLoaderContainerSpec
-			devicePluginContainerCfd *v1beta1.DevicePluginContainerSpec
+			devicePluginContainerCfg *v1beta1.DevicePluginContainerSpec
 		)
 
 		BeforeEach(func() {
@@ -98,7 +98,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			devicePluginImage := fmt.Sprintf(ModulesConfig.DevicePluginImage, arch)
 
 			devicePlugin := kmm.NewDevicePluginContainerBuilder(devicePluginImage)
-			devicePluginContainerCfd, err = devicePlugin.GetDevicePluginContainerConfig()
+			devicePluginContainerCfg, err = devicePlugin.GetDevicePluginContainerConfig()
 			Expect(err).ToNot(HaveOccurred(), "error creating deviceplugincontainer")
 		})
 
@@ -141,7 +141,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 				WithNodeSelector(GeneralConfig.WorkerLabelMap)
 			module = module.WithModuleLoaderContainer(moduleLoaderContainerCfg).
 				WithLoadServiceAccount(svcAccount.Object.Name)
-			module = module.WithDevicePluginContainer(devicePluginContainerCfd).
+			module = module.WithDevicePluginContainer(devicePluginContainerCfg).
 				WithDevicePluginServiceAccount(svcAccount.Object.Name)
 			_, err := module.Create()
 			Expect(err).ToNot(HaveOccurred(), "error creating module")
@@ -176,7 +176,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 				WithNodeSelector(GeneralConfig.WorkerLabelMap)
 			module = module.WithModuleLoaderContainer(moduleLoaderContainerCfg).
 				WithLoadServiceAccount(svcAccount.Object.Name)
-			module = module.WithDevicePluginContainer(devicePluginContainerCfd).
+			module = module.WithDevicePluginContainer(devicePluginContainerCfg).
 				WithDevicePluginServiceAccount(svcAccount.Object.Name)
 			_, err := module.Create()
 			Expect(err).ToNot(HaveOccurred(), "error creating module")
