@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -181,6 +182,90 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 
 		if !testActuallyRan {
 			Skip("Could not find any interfaces to test")
+		}
+	})
+
+	// 49734 - Validating there is no effect when Boundary Clock master interface goes down and up
+	It("should have no effect when Boundary Clock master interface goes down and up", reportxml.ID("49734"), func() {
+		testActuallyRan := false
+
+		By("getting node info map")
+		nodeInfoMap, err := profiles.GetNodeInfoMap(RANConfig.Spoke1APIClient)
+		Expect(err).ToNot(HaveOccurred(), "Failed to get node info map")
+
+		for nodeName, nodeInfo := range nodeInfoMap {
+			By("checking if node has Boundary Clock configuration")
+			if nodeInfo.Counts[profiles.ProfileTypeBC] == 0 {
+				klog.V(tsparams.LogLevel).Infof("Node %s has no BC configuration, skipping", nodeName)
+
+				continue
+			}
+
+			testActuallyRan = true
+
+			By("getting the event pod for the node")
+			eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeName)
+			Expect(err).ToNot(HaveOccurred(), "Failed to get event pod for node %s", nodeName)
+
+			By("getting the boundary clock master interfaces")
+			masterInterfaces := nodeInfo.GetInterfacesByClockType(profiles.ClockTypeServer)
+			Expect(masterInterfaces).ToNot(BeEmpty(), "Failed to get Boundary Clock master interfaces for node %s", nodeName)
+
+			masterInterfaceGroups := iface.GroupInterfacesByNIC(profiles.GetInterfacesNames(masterInterfaces))
+
+			DeferCleanup(func() {
+				if !CurrentSpecReport().Failed() {
+					return
+				}
+				By("setting the boundary clock master interfaces up")
+				for _, masterInterface := range masterInterfaces {
+					By(fmt.Sprintf("setting the Boundary Clock master interface %s up", masterInterface.Name))
+					err := iface.SetInterfaceStatus(RANConfig.Spoke1APIClient, nodeName, masterInterface.Name, iface.InterfaceStateUp)
+					Expect(err).ToNot(HaveOccurred(), "Failed to set interface %s to up on node %s", masterInterface.Name, nodeName)
+				}
+			})
+
+			startTime := time.Now()
+			By("setting the boundary clock master interfaces down")
+			for _, masterInterface := range masterInterfaces {
+				By(fmt.Sprintf("setting the Boundary Clock master interface %s down", masterInterface.Name))
+				err := iface.SetInterfaceStatus(RANConfig.Spoke1APIClient, nodeName, masterInterface.Name, iface.InterfaceStateDown)
+				Expect(err).ToNot(HaveOccurred(), "Failed to set interface %s to down on node %s", masterInterface.Name, nodeName)
+			}
+
+			By("validating that the ptp metric stays in locked state")
+			err = metrics.AssertQuery(context.TODO(), prometheusAPI, metrics.ClockStateQuery{}, metrics.ClockStateLocked,
+				metrics.AssertWithStableDuration(30*time.Second),
+				metrics.AssertWithTimeout(45*time.Second))
+			Expect(err).ToNot(HaveOccurred(), "Failed to assert that the PTP metric stays in locked state")
+
+			By("validating that no holdover event is generated")
+			for nicName := range masterInterfaceGroups {
+				By(fmt.Sprintf("validating that no holdover event is generated for interface %s", nicName))
+				holdoverFilter := events.All(
+					events.IsType(eventptp.PtpStateChange),
+					events.HasValue(events.WithSyncState(eventptp.HOLDOVER), events.OnInterface(nicName)),
+				)
+				err = events.WaitForEvent(eventPod, startTime, 1*time.Minute, holdoverFilter)
+				Expect(err).To(HaveOccurred(), "Unexpected HOLDOVER event detected for interface %s", nicName)
+			}
+
+			By("setting the boundary clock master interfaces up")
+			for _, masterInterface := range masterInterfaces {
+				By(fmt.Sprintf("setting the Boundary Clock master interface %s up", masterInterface.Name))
+				err := iface.SetInterfaceStatus(RANConfig.Spoke1APIClient, nodeName, masterInterface.Name, iface.InterfaceStateUp)
+				Expect(err).ToNot(HaveOccurred(), "Failed to set interface %s to up on node %s", masterInterface.Name, nodeName)
+			}
+
+			By("validating that the ptp metric stays in locked state")
+			err = metrics.AssertQuery(context.TODO(), prometheusAPI, metrics.ClockStateQuery{}, metrics.ClockStateLocked,
+				metrics.AssertWithStableDuration(30*time.Second),
+				metrics.AssertWithTimeout(45*time.Second))
+			Expect(err).ToNot(HaveOccurred(), "Failed to assert that the PTP metric stays in locked state")
+		}
+
+		if !testActuallyRan {
+			Skip("Could not find any boundary clock to test")
 		}
 	})
 })
