@@ -130,6 +130,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			By("Wait for namespace to be fully deleted")
 			Eventually(func() bool {
 				_, err := namespace.Pull(APIClient, kmmparams.DevicePluginTestNamespace)
+
 				return err != nil // namespace is deleted when Pull fails
 			}, 2*time.Minute, 5*time.Second).Should(BeTrue(), "namespace was not deleted in time")
 		})
