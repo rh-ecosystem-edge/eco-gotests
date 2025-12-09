@@ -144,7 +144,8 @@ var _ = Describe(
 
 			It("Verifies cluster monitoring configuration with remoteWrite",
 				Label("monitoring", "monitoring-remote-write"),
-				rdscorecommon.VerifyMonitoringConfigRemoteWrite)
+				reportxml.ID("86398"),
+				rdscorecommon.VerifyMonitoringConfigRemoteWrite, SpecTimeout(15*time.Minute))
 
 			It("Verify MACVLAN workload on different nodes", Label("macvlan",
 				"validate-new-macvlan-different-nodes"), reportxml.ID("72566"),
