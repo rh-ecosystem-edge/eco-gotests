@@ -37,7 +37,7 @@ const (
 	pythonHTTPServerImage        = "registry.access.redhat.com/ubi9/python-39:latest"
 )
 
-// HTTPStats represents the statistics from the HTTP server
+// HTTPStats represents the statistics from the HTTP server.
 type HTTPStats struct {
 	Connections int64 `json:"connections"`
 	Bytes       int64 `json:"bytes"`
@@ -58,7 +58,7 @@ func VerifyMonitoringConfigRemoteWrite(ctx SpecContext) {
 		finalStats           HTTPStats
 	)
 
-	// Step 1: Create namespace if it doesn't exist
+	// Step 1: Create namespace if it doesn't exist.
 	By(fmt.Sprintf("Ensuring namespace %q exists", remoteWriteTestNamespace))
 	nsBuilder := namespace.NewBuilder(APIClient, remoteWriteTestNamespace)
 	if !nsBuilder.Exists() {
@@ -67,7 +67,7 @@ func VerifyMonitoringConfigRemoteWrite(ctx SpecContext) {
 			fmt.Sprintf("Failed to create namespace %q", remoteWriteTestNamespace))
 	}
 
-	// Step 2: Create HTTP server deployment that tracks POST requests
+	// Step 2: Create HTTP server deployment that tracks POST requests.
 	By("Creating HTTP server deployment to receive remoteWrite requests")
 	httpServerScript := fmt.Sprintf(`#!/usr/bin/env python3
 import http.server
@@ -128,12 +128,12 @@ with socketserver.TCPServer(("", PORT), RemoteWriteHandler) as httpd:
 		Protocol:      corev1.ProtocolTCP,
 	}
 
-	// Set security context to allow OpenShift to assign UID from allowed range
-	// Setting RunAsUser and RunAsGroup to nil lets OpenShift assign from the SCC-allowed range
+	// Set security context to allow OpenShift to assign UID from allowed range.
+	// Setting RunAsUser and RunAsGroup to nil lets OpenShift assign from the SCC-allowed range.
 	var falseFlag = false
 	securityContext := &corev1.SecurityContext{
-		RunAsUser:  nil, // Let OpenShift assign UID from allowed range
-		RunAsGroup: nil, // Let OpenShift assign GID from allowed range
+		RunAsUser:  nil, // Let OpenShift assign UID from allowed range.
+		RunAsGroup: nil, // Let OpenShift assign GID from allowed range.
 		Privileged: &falseFlag,
 		SeccompProfile: &corev1.SeccompProfile{
 			Type: corev1.SeccompProfileTypeRuntimeDefault,
@@ -158,19 +158,21 @@ with socketserver.TCPServer(("", PORT), RemoteWriteHandler) as httpd:
 
 	Eventually(func() error {
 		httpServerDeployment, err = httpServerDeployment.CreateAndWaitUntilReady(2 * time.Minute)
+
 		return err
 	}).WithContext(ctx).WithPolling(5*time.Second).WithTimeout(3*time.Minute).Should(Succeed(),
 		"Failed to create HTTP server deployment")
 
-	// Get a pod from the deployment for stats queries
+	// Get a pod from the deployment for stats queries.
 	By("Getting pod from deployment for stats queries")
 	Eventually(func() error {
 		httpServerPod, err = getPodFromDeployment(APIClient, remoteWriteTestPodName, remoteWriteTestNamespace)
+
 		return err
 	}).WithContext(ctx).WithPolling(5*time.Second).WithTimeout(1*time.Minute).Should(Succeed(),
 		"Failed to get pod from deployment")
 
-	// Step 3: Create service for the HTTP server deployment
+	// Step 3: Create service for the HTTP server deployment.
 	By("Creating service for HTTP server deployment")
 	svcPort, err := service.DefineServicePort(
 		remoteWriteTestPort,
@@ -182,7 +184,7 @@ with socketserver.TCPServer(("", PORT), RemoteWriteHandler) as httpd:
 		map[string]string{"app": remoteWriteTestPodName}, *svcPort).Create()
 	Expect(err).ToNot(HaveOccurred(), "Failed to create service")
 
-	// Register cleanup early so it runs even if test fails
+	// Register cleanup early so it runs even if test fails.
 	DeferCleanup(func() {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cleaning up test resources")
 		if httpServerDeployment != nil {
@@ -194,15 +196,16 @@ with socketserver.TCPServer(("", PORT), RemoteWriteHandler) as httpd:
 		}
 	})
 
-	// Step 4: Get service URL
+	// Step 4: Get service URL.
 	serviceURL = fmt.Sprintf("http://%s.%s.svc.cluster.local:%d/api/v1/write",
 		remoteWriteTestServiceName, remoteWriteTestNamespace, remoteWriteTestPort)
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("HTTP server service URL: %s", serviceURL)
 
-	// Step 5: Get initial stats and verify rate of data is near 0 before ConfigMap update
+	// Step 5: Get initial stats and verify rate of data is near 0 before ConfigMap update.
 	By("Getting initial stats from HTTP server (before ConfigMap update)")
 	Eventually(func() error {
 		initialStats, err = getHTTPStats(httpServerPod, remoteWriteTestPodName)
+
 		return err
 	}).WithContext(ctx).WithPolling(5*time.Second).WithTimeout(1*time.Minute).Should(Succeed(),
 		"Failed to get initial stats from HTTP server")
@@ -222,7 +225,7 @@ with socketserver.TCPServer(("", PORT), RemoteWriteHandler) as httpd:
 	stableCheckCount := 0
 
 	Eventually(func() bool {
-		// Wait for the check interval
+		// Wait for the check interval.
 		time.Sleep(checkInterval)
 
 		currentStats, err := getHTTPStats(httpServerPod, remoteWriteTestPodName)
@@ -232,43 +235,47 @@ with socketserver.TCPServer(("", PORT), RemoteWriteHandler) as httpd:
 			return false
 		}
 
-		// Check if stats values have changed
+		// Check if stats values have changed.
 		connectionsChanged := currentStats.Connections != previousStats.Connections
 		bytesChanged := currentStats.Bytes != previousStats.Bytes
 
 		if connectionsChanged || bytesChanged {
-			// Stats changed, reset stable check counter
+			// Stats changed, reset stable check counter.
 			stableCheckCount = 0
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Stats changed: connections %d->%d (delta: %d), bytes %d->%d (delta: %d)",
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"Stats changed: connections %d->%d (delta: %d), bytes %d->%d (delta: %d)",
 				previousStats.Connections, currentStats.Connections, currentStats.Connections-previousStats.Connections,
 				previousStats.Bytes, currentStats.Bytes, currentStats.Bytes-previousStats.Bytes)
 		} else {
-			// Stats are stable (no change)
+			// Stats are stable (no change).
 			stableCheckCount++
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Stats stable (check %d/%d): connections=%d, bytes=%d (no change)",
 				stableCheckCount, requiredStableChecks, currentStats.Connections, currentStats.Bytes)
 
-			// If we've had enough consecutive stable checks, we've reached steady state
+			// If we've had enough consecutive stable checks, we've reached steady state.
 			if stableCheckCount >= requiredStableChecks {
-				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Steady state reached: stats have been stable for %d consecutive checks (%.1f minutes)",
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"Steady state reached: stats have been stable for %d consecutive checks (%.1f minutes)",
 					stableCheckCount, float64(stableCheckCount)*checkInterval.Minutes())
 				preUpdateStats = currentStats
 				return true
 			}
 		}
 
-		// Update for next iteration
+		// Update for next iteration.
 		previousStats = currentStats
 
 		return false
 	}).WithContext(ctx).WithPolling(checkInterval).WithTimeout(10*time.Minute).Should(BeTrue(),
 		"Rate of connections and data did not stabilize near 0 within 10 minutes")
 
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pre-update stats (after rate stabilization): connections=%d, bytes=%d",
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"Pre-update stats (after rate stabilization): connections=%d, bytes=%d",
 		preUpdateStats.Connections, preUpdateStats.Bytes)
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Confirmed: Rate stabilized at 0 (no new connections or bytes) before ConfigMap update")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"Confirmed: Rate stabilized at 0 (no new connections or bytes) before ConfigMap update")
 
-	// Step 6: Pull and update the ConfigMap
+	// Step 6: Pull and update the ConfigMap.
 	By(fmt.Sprintf("Pulling ConfigMap %q from namespace %q",
 		monitoringConfigMapName, monitoringNamespace))
 
@@ -288,7 +295,7 @@ with socketserver.TCPServer(("", PORT), RemoteWriteHandler) as httpd:
 
 	configYAML, keyExists := cmBuilder.Object.Data[monitoringConfigYAMLKey]
 	if !keyExists {
-		// If config.yaml doesn't exist, create it
+		// If config.yaml doesn't exist, create it.
 		configYAML = "prometheusK8s:\n  remoteWrite: []\n"
 		if cmBuilder.Object.Data == nil {
 			cmBuilder.Object.Data = make(map[string]string)
@@ -303,7 +310,7 @@ with socketserver.TCPServer(("", PORT), RemoteWriteHandler) as httpd:
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to parse YAML from ConfigMap %q key %q", monitoringConfigMapName, monitoringConfigYAMLKey))
 
-	// Ensure prometheusK8s section exists
+	// Ensure prometheusK8s section exists.
 	prometheusK8s, prometheusK8sExists := config["prometheusK8s"]
 	if !prometheusK8sExists {
 		config["prometheusK8s"] = make(map[interface{}]interface{})
@@ -313,31 +320,31 @@ with socketserver.TCPServer(("", PORT), RemoteWriteHandler) as httpd:
 	prometheusK8sMap, ok := prometheusK8s.(map[interface{}]interface{})
 	Expect(ok).To(BeTrue(), "prometheusK8s is not a valid map structure")
 
-	// Get or create remoteWrite array
+	// Get or create remoteWrite array.
 	remoteWrite, remoteWriteExists := prometheusK8sMap["remoteWrite"]
 	var remoteWriteSlice []interface{}
 	if remoteWriteExists {
 		remoteWriteSlice, ok = remoteWrite.([]interface{})
 		if !ok {
-			// If it's not a slice, convert it to a slice
+			// If it's not a slice, convert it to a slice.
 			remoteWriteSlice = []interface{}{remoteWrite}
 		}
 	} else {
 		remoteWriteSlice = []interface{}{}
 	}
 
-	// Add new remoteWrite endpoint
+	// Add new remoteWrite endpoint.
 	newRemoteWriteEndpoint := map[interface{}]interface{}{
 		"url": serviceURL,
 	}
 	remoteWriteSlice = append(remoteWriteSlice, newRemoteWriteEndpoint)
 	prometheusK8sMap["remoteWrite"] = remoteWriteSlice
 
-	// Marshal back to YAML
+	// Marshal back to YAML.
 	updatedConfigYAML, err := yaml.Marshal(config)
 	Expect(err).ToNot(HaveOccurred(), "Failed to marshal updated config to YAML")
 
-	// Update ConfigMap
+	// Update ConfigMap.
 	cmBuilder.Object.Data[monitoringConfigYAMLKey] = string(updatedConfigYAML)
 
 	By(fmt.Sprintf("Updating ConfigMap %q in namespace %q",
@@ -351,7 +358,7 @@ with socketserver.TCPServer(("", PORT), RemoteWriteHandler) as httpd:
 
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Successfully updated ConfigMap with new remoteWrite endpoint")
 
-	// Register cleanup for ConfigMap right after updating it
+	// Register cleanup for ConfigMap right after updating it.
 	DeferCleanup(func() {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cleaning up: Removing test remoteWrite endpoint from ConfigMap")
 		cmBuilder, err := configmap.Pull(APIClient, monitoringConfigMapName, monitoringNamespace)
@@ -391,7 +398,7 @@ with socketserver.TCPServer(("", PORT), RemoteWriteHandler) as httpd:
 			return
 		}
 
-		// Remove the test endpoint (the one with our service URL)
+		// Remove the test endpoint (the one with our service URL).
 		filteredSlice := []interface{}{}
 		for _, endpoint := range remoteWriteSlice {
 			endpointMap, ok := endpoint.(map[interface{}]interface{})
@@ -417,11 +424,11 @@ with socketserver.TCPServer(("", PORT), RemoteWriteHandler) as httpd:
 		}
 	})
 
-	// Step 7: Wait for Prometheus to pick up the config and start sending data
+	// Step 7: Wait for Prometheus to pick up the config and start sending data.
 	By("Waiting for Prometheus to start sending data to remoteWrite endpoint")
-	time.Sleep(30 * time.Second) // Give Prometheus time to reload config and send data
+	time.Sleep(30 * time.Second) // Give Prometheus time to reload config and send data.
 
-	// Step 8: Get final stats and verify connections were made
+	// Step 8: Get final stats and verify connections were made.
 	By("Getting final stats from HTTP server")
 	Eventually(func() bool {
 		finalStats, err = getHTTPStats(httpServerPod, remoteWriteTestPodName)
@@ -429,13 +436,13 @@ with socketserver.TCPServer(("", PORT), RemoteWriteHandler) as httpd:
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error getting stats: %v", err)
 			return false
 		}
-		// Check if we received significantly more connections than before the update
-		// Use preUpdateStats as baseline since that's right before the ConfigMap update
+		// Check if we received significantly more connections than before the update.
+		// Use preUpdateStats as baseline since that's right before the ConfigMap update.
 		return finalStats.Connections > preUpdateStats.Connections+50
 	}).WithContext(ctx).WithPolling(10*time.Second).WithTimeout(5*time.Minute).Should(BeTrue(),
 		"Prometheus did not send data to remoteWrite endpoint")
 
-	// Calculate increases for clear reporting
+	// Calculate increases for clear reporting.
 	connectionsIncreaseAfterUpdate := finalStats.Connections - preUpdateStats.Connections
 	bytesIncreaseAfterUpdate := finalStats.Bytes - preUpdateStats.Bytes
 
@@ -446,29 +453,31 @@ with socketserver.TCPServer(("", PORT), RemoteWriteHandler) as httpd:
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Connections received after ConfigMap update: %d",
 		connectionsIncreaseAfterUpdate)
 
-	// Verify that connections and bytes increased significantly after ConfigMap update
-	// Compare against preUpdateStats (right before update) to ensure the increase is from Prometheus
+	// Verify that connections and bytes increased significantly after ConfigMap update.
+	// Compare against preUpdateStats (right before update) to ensure the increase is from Prometheus.
 	Expect(connectionsIncreaseAfterUpdate).To(BeNumerically(">", 50),
 		"Expected connections to increase by more than 50 after ConfigMap update (pre-update: %d, final: %d, increase: %d)",
 		preUpdateStats.Connections, finalStats.Connections, connectionsIncreaseAfterUpdate)
 	Expect(bytesIncreaseAfterUpdate).To(BeNumerically(">", (1024*100)),
-		"Expected bytes to increase by more than 100KB after ConfigMap update (pre-update: %d bytes, final: %d bytes, increase: %d bytes = %.2f KB)",
-		preUpdateStats.Bytes, finalStats.Bytes, bytesIncreaseAfterUpdate, float64(bytesIncreaseAfterUpdate)/1024)
+		"Expected bytes to increase by more than 100KB after ConfigMap update (%d bytes = %.2f KB)",
+		bytesIncreaseAfterUpdate, float64(bytesIncreaseAfterUpdate)/1024)
 
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Successfully verified remoteWrite endpoint is receiving data")
 }
 
-// getHTTPStats queries the HTTP server pod for statistics
+// getHTTPStats queries the HTTP server pod for statistics.
 func getHTTPStats(podBuilder *pod.Builder, containerName string) (HTTPStats, error) {
 	var stats HTTPStats
 
-	// Execute curl command in the pod to get stats
-	// First try with curl, if not available, use python
+	// Execute curl command in the pod to get stats.
+	// First try with curl, if not available, use python.
 	statsURL := fmt.Sprintf("http://localhost:%d/stats", remoteWriteTestContainerPort)
 	output, err := podBuilder.ExecCommand([]string{"curl", "-s", statsURL}, containerName)
 	if err != nil {
-		// Fallback to python if curl is not available
-		pythonStatsCmd := fmt.Sprintf("import urllib.request; import json; print(json.dumps(json.loads(urllib.request.urlopen('%s').read().decode())))", statsURL)
+		// Fallback to python if curl is not available.
+		pythonStatsCmd := fmt.Sprintf(
+			"import urllib.request; import json; print(json.dumps(json.loads(urllib.request.urlopen('%s').read().decode())))",
+			statsURL)
 		output, err = podBuilder.ExecCommand([]string{"python3", "-c", pythonStatsCmd},
 			containerName)
 		if err != nil {
@@ -476,7 +485,7 @@ func getHTTPStats(podBuilder *pod.Builder, containerName string) (HTTPStats, err
 		}
 	}
 
-	// Parse JSON response
+	// Parse JSON response.
 	err = json.Unmarshal([]byte(output.String()), &stats)
 	if err != nil {
 		return stats, fmt.Errorf("failed to parse stats JSON: %w", err)
@@ -485,9 +494,9 @@ func getHTTPStats(podBuilder *pod.Builder, containerName string) (HTTPStats, err
 	return stats, nil
 }
 
-// getPodFromDeployment gets a running pod from a deployment by label selector
+// getPodFromDeployment gets a running pod from a deployment by label selector.
 func getPodFromDeployment(apiClient *clients.Settings, deploymentName, namespace string) (*pod.Builder, error) {
-	// Get pods by the deployment's label selector
+	// Get pods by the deployment's label selector.
 	podList, err := pod.List(apiClient, namespace, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("app=%s", deploymentName),
 	})
@@ -499,14 +508,14 @@ func getPodFromDeployment(apiClient *clients.Settings, deploymentName, namespace
 		return nil, fmt.Errorf("no pods found for deployment %s", deploymentName)
 	}
 
-	// Find a running pod
+	// Find a running pod.
 	for _, p := range podList {
 		if p.Object.Status.Phase == corev1.PodRunning && p.Object.DeletionTimestamp == nil {
 			return p, nil
 		}
 	}
 
-	// If no running pod found, return the first one (it might be starting)
+	// If no running pod found, return the first one (it might be starting).
 	if len(podList) > 0 {
 		return podList[0], nil
 	}
