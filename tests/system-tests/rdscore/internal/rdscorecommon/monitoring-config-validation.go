@@ -69,120 +69,21 @@ func VerifyMonitoringConfigRemoteWrite(ctx SpecContext) {
 
 	// Step 2: Create HTTP server deployment that tracks POST requests.
 	By("Creating HTTP server deployment to receive remoteWrite requests")
-	httpServerScript := fmt.Sprintf(`#!/usr/bin/env python3
-import http.server
-import socketserver
-import json
-import threading
-from urllib.parse import urlparse
-
-class Stats:
-    def __init__(self):
-        self.connections = 0
-        self.bytes = 0
-        self.lock = threading.Lock()
-
-    def add_connection(self, bytes_received):
-        with self.lock:
-            self.connections += 1
-            self.bytes += bytes_received
-
-    def get_stats(self):
-        with self.lock:
-            return {"connections": self.connections, "bytes": self.bytes}
-
-stats = Stats()
-
-class RemoteWriteHandler(http.server.BaseHTTPRequestHandler):
-    def do_POST(self):
-        content_length = int(self.headers.get('Content-Length', 0))
-        body = self.rfile.read(content_length)
-        stats.add_connection(len(body))
-
-        self.send_response(200)
-        self.send_header('Content-type', 'application/json')
-        self.end_headers()
-        self.wfile.write(b'{"status":"ok"}')
-
-    def do_GET(self):
-        if self.path == '/stats':
-            self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.end_headers()
-            response = json.dumps(stats.get_stats())
-            self.wfile.write(response.encode())
-        else:
-            self.send_response(404)
-            self.end_headers()
-
-    def log_message(self, format, *args):
-        pass  # Suppress default logging
-
-PORT = %d
-with socketserver.TCPServer(("", PORT), RemoteWriteHandler) as httpd:
-    httpd.serve_forever()
-`, remoteWriteTestContainerPort)
-
-	cPort := corev1.ContainerPort{
-		ContainerPort: remoteWriteTestContainerPort,
-		Protocol:      corev1.ProtocolTCP,
-	}
-
-	// Set security context to allow OpenShift to assign UID from allowed range.
-	// Setting RunAsUser and RunAsGroup to nil lets OpenShift assign from the SCC-allowed range.
-	var falseFlag = false
-	securityContext := &corev1.SecurityContext{
-		RunAsUser:  nil, // Let OpenShift assign UID from allowed range.
-		RunAsGroup: nil, // Let OpenShift assign GID from allowed range.
-		Privileged: &falseFlag,
-		SeccompProfile: &corev1.SeccompProfile{
-			Type: corev1.SeccompProfileTypeRuntimeDefault,
-		},
-		Capabilities: &corev1.Capabilities{},
-	}
-
-	containerBuilder := pod.NewContainerBuilder(remoteWriteTestPodName, pythonHTTPServerImage,
-		[]string{"python3", "-c", httpServerScript}).
-		WithPorts([]corev1.ContainerPort{cPort}).
-		WithSecurityContext(securityContext)
-
-	container, err := containerBuilder.GetContainerCfg()
-	Expect(err).ToNot(HaveOccurred(), "Failed to get container configuration")
-
-	deployLabels := map[string]string{
-		"app": remoteWriteTestPodName,
-	}
-
-	httpServerDeployment = deployment.NewBuilder(APIClient, remoteWriteTestPodName, remoteWriteTestNamespace,
-		deployLabels, *container)
-
-	Eventually(func() error {
-		httpServerDeployment, err = httpServerDeployment.CreateAndWaitUntilReady(2 * time.Minute)
-
-		return err
-	}).WithContext(ctx).WithPolling(5*time.Second).WithTimeout(3*time.Minute).Should(Succeed(),
-		"Failed to create HTTP server deployment")
+	httpServerDeployment, err = createHTTPServerDeployment(ctx)
+	Expect(err).ToNot(HaveOccurred(), "Failed to create HTTP server deployment")
 
 	// Get a pod from the deployment for stats queries.
 	By("Getting pod from deployment for stats queries")
 	Eventually(func() error {
 		httpServerPod, err = getPodFromDeployment(APIClient, remoteWriteTestPodName, remoteWriteTestNamespace)
-
 		return err
 	}).WithContext(ctx).WithPolling(5*time.Second).WithTimeout(1*time.Minute).Should(Succeed(),
 		"Failed to get pod from deployment")
 
 	// Step 3: Create service for the HTTP server deployment.
 	By("Creating service for HTTP server deployment")
-	svcPort, err := service.DefineServicePort(
-		remoteWriteTestPort,
-		remoteWriteTestContainerPort,
-		corev1.ProtocolTCP)
-	Expect(err).ToNot(HaveOccurred(), "Failed to define service port")
-
-	_, err = service.NewBuilder(APIClient, remoteWriteTestServiceName, remoteWriteTestNamespace,
-		map[string]string{"app": remoteWriteTestPodName}, *svcPort).Create()
-	Expect(err).ToNot(HaveOccurred(), "Failed to create service")
+	err = createHTTPServerService()
+	Expect(err).ToNot(HaveOccurred(), "Failed to create HTTP server service")
 
 	// Register cleanup early so it runs even if test fails.
 	DeferCleanup(func() {
@@ -225,9 +126,6 @@ with socketserver.TCPServer(("", PORT), RemoteWriteHandler) as httpd:
 	stableCheckCount := 0
 
 	Eventually(func() bool {
-		// Wait for the check interval.
-		time.Sleep(checkInterval)
-
 		currentStats, err := getHTTPStats(httpServerPod, remoteWriteTestPodName)
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error getting stats during rate check: %v", err)
@@ -294,14 +192,9 @@ with socketserver.TCPServer(("", PORT), RemoteWriteHandler) as httpd:
 		monitoringConfigMapName, monitoringConfigYAMLKey))
 
 	configYAML, keyExists := cmBuilder.Object.Data[monitoringConfigYAMLKey]
-	if !keyExists {
-		// If config.yaml doesn't exist, create it.
-		configYAML = "prometheusK8s:\n  remoteWrite: []\n"
-		if cmBuilder.Object.Data == nil {
-			cmBuilder.Object.Data = make(map[string]string)
-		}
-		cmBuilder.Object.Data[monitoringConfigYAMLKey] = configYAML
-	}
+	Expect(keyExists).To(BeTrue(),
+		fmt.Sprintf("ConfigMap %q in namespace %q does not contain key %q",
+			monitoringConfigMapName, monitoringNamespace, monitoringConfigYAMLKey))
 
 	By("Parsing and updating config.yaml to add remoteWrite endpoint")
 
@@ -494,6 +387,144 @@ func getHTTPStats(podBuilder *pod.Builder, containerName string) (HTTPStats, err
 	return stats, nil
 }
 
+// createHTTPServerScript returns the Python script for the HTTP server.
+func createHTTPServerScript() string {
+	return fmt.Sprintf(`#!/usr/bin/env python3
+import http.server
+import socketserver
+import json
+import threading
+from urllib.parse import urlparse
+
+class Stats:
+    def __init__(self):
+        self.connections = 0
+        self.bytes = 0
+        self.lock = threading.Lock()
+
+    def add_connection(self, bytes_received):
+        with self.lock:
+            self.connections += 1
+            self.bytes += bytes_received
+
+    def get_stats(self):
+        with self.lock:
+            return {"connections": self.connections, "bytes": self.bytes}
+
+stats = Stats()
+
+class RemoteWriteHandler(http.server.BaseHTTPRequestHandler):
+    def do_POST(self):
+        content_length = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(content_length)
+        stats.add_connection(len(body))
+
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.end_headers()
+        self.wfile.write(b'{"status":"ok"}')
+
+    def do_GET(self):
+        if self.path == '/stats':
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            response = json.dumps(stats.get_stats())
+            self.wfile.write(response.encode())
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def log_message(self, format, *args):
+        pass  # Suppress default logging
+
+PORT = %d
+with socketserver.TCPServer(("", PORT), RemoteWriteHandler) as httpd:
+    httpd.serve_forever()
+`, remoteWriteTestContainerPort)
+}
+
+// createSecurityContext returns a security context that allows OpenShift to assign UID from allowed range.
+func createSecurityContext() *corev1.SecurityContext {
+	var falseFlag = false
+	return &corev1.SecurityContext{
+		RunAsUser:  nil, // Let OpenShift assign UID from allowed range.
+		RunAsGroup: nil, // Let OpenShift assign GID from allowed range.
+		Privileged: &falseFlag,
+		SeccompProfile: &corev1.SeccompProfile{
+			Type: corev1.SeccompProfileTypeRuntimeDefault,
+		},
+		Capabilities: &corev1.Capabilities{},
+	}
+}
+
+// createHTTPServerContainer creates and returns the container configuration for the HTTP server.
+func createHTTPServerContainer() (*corev1.Container, error) {
+	httpServerScript := createHTTPServerScript()
+
+	cPort := corev1.ContainerPort{
+		ContainerPort: remoteWriteTestContainerPort,
+		Protocol:      corev1.ProtocolTCP,
+	}
+
+	securityContext := createSecurityContext()
+
+	containerBuilder := pod.NewContainerBuilder(remoteWriteTestPodName, pythonHTTPServerImage,
+		[]string{"python3", "-c", httpServerScript}).
+		WithPorts([]corev1.ContainerPort{cPort}).
+		WithSecurityContext(securityContext)
+
+	container, err := containerBuilder.GetContainerCfg()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get container configuration: %w", err)
+	}
+
+	return container, nil
+}
+
+// createHTTPServerDeployment creates and waits for the HTTP server deployment to be ready.
+func createHTTPServerDeployment(ctx SpecContext) (*deployment.Builder, error) {
+	container, err := createHTTPServerContainer()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create container: %w", err)
+	}
+
+	deployLabels := map[string]string{
+		"app": remoteWriteTestPodName,
+	}
+
+	httpServerDeployment := deployment.NewBuilder(APIClient, remoteWriteTestPodName, remoteWriteTestNamespace,
+		deployLabels, *container)
+
+	var deploymentErr error
+	Eventually(func() error {
+		httpServerDeployment, deploymentErr = httpServerDeployment.CreateAndWaitUntilReady(2 * time.Minute)
+		return deploymentErr
+	}).WithContext(ctx).WithPolling(5*time.Second).WithTimeout(3*time.Minute).Should(Succeed(),
+		"Failed to create HTTP server deployment")
+
+	return httpServerDeployment, nil
+}
+
+// createHTTPServerService creates the service for the HTTP server deployment.
+func createHTTPServerService() error {
+	svcPort, err := service.DefineServicePort(
+		remoteWriteTestPort,
+		remoteWriteTestContainerPort,
+		corev1.ProtocolTCP)
+	if err != nil {
+		return fmt.Errorf("failed to define service port: %w", err)
+	}
+
+	_, err = service.NewBuilder(APIClient, remoteWriteTestServiceName, remoteWriteTestNamespace,
+		map[string]string{"app": remoteWriteTestPodName}, *svcPort).Create()
+	if err != nil {
+		return fmt.Errorf("failed to create service: %w", err)
+	}
+
+	return nil
+}
+
 // getPodFromDeployment gets a running pod from a deployment by label selector.
 func getPodFromDeployment(apiClient *clients.Settings, deploymentName, namespace string) (*pod.Builder, error) {
 	// Get pods by the deployment's label selector.
@@ -513,11 +544,6 @@ func getPodFromDeployment(apiClient *clients.Settings, deploymentName, namespace
 		if p.Object.Status.Phase == corev1.PodRunning && p.Object.DeletionTimestamp == nil {
 			return p, nil
 		}
-	}
-
-	// If no running pod found, return the first one (it might be starting).
-	if len(podList) > 0 {
-		return podList[0], nil
 	}
 
 	return nil, fmt.Errorf("no pods found for deployment %s", deploymentName)
