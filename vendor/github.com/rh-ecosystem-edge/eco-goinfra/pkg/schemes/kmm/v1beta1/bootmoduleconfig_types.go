@@ -1,5 +1,5 @@
 /*
-Copyright 2022.
+
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,49 +20,42 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// BootModuleConfigSpec describes the desired state of BootModuleConfig.
 type BootModuleConfigSpec struct {
-	// +kubebuilder:validation:Required
-	// MachineConfigName is the name of the target machine config.
+	// machine config that is targeted by the BMC
 	MachineConfigName string `json:"machineConfigName"`
 
-	// +kubebuilder:validation:Required
-	// MachineConfigPoolName is the name of the machine config pool.
+	// the machine config pool that is linked to the targeted machine config
 	MachineConfigPoolName string `json:"machineConfigPoolName"`
 
-	// +kubebuilder:validation:Required
-	// KernelModuleImage is the container image with the kernel module.
+	// kernel module container image that contains the kernel module .ko file
 	KernelModuleImage string `json:"kernelModuleImage"`
 
-	// +kubebuilder:validation:Required
-	// KernelModuleName is the name of the kernel module to load.
+	// the name of the kernel module to be loaded(the name of the .ko file without the .ko)
 	KernelModuleName string `json:"kernelModuleName"`
 
-	// +optional
-	// InTreeModulesToRemove is a list of in-tree kernel modules to remove.
+	//+optional
+	// the in-tree kernel module list to remove prior to loading the OOT kernel module
 	InTreeModulesToRemove []string `json:"inTreeModulesToRemove,omitempty"`
 
-	// +optional
-	// FirmwareFilesPath is the path of firmware files in the container.
+	//+optional
+	// path of the firmware files in the kernel module container image
 	FirmwareFilesPath string `json:"firmwareFilesPath,omitempty"`
 
-	// +optional
-	// WorkerImage is the KMM worker image.
+	//+optional
+	// KMM worker image. if missing, the current worker image will be used
 	WorkerImage string `json:"workerImage,omitempty"`
 }
 
-// BootModuleConfigStatus defines the observed state of BootModuleConfig.
 type BootModuleConfigStatus struct {
-	// +optional
-	// ConfigStatus represents the configuration status.
+	//+optional
 	ConfigStatus string `json:"configStatus,omitempty"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:resource:scope=Namespaced
-//+kubebuilder:subresource:status
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 
-// BootModuleConfig describes how to configure a kernel module to be loaded at boot time.
+// BootModuleConfig describes how to load a module during kernel initialization
+// +kubebuilder:resource:path=bootmoduleconfigs,scope=Namespaced,shortName=bmc
 // +operator-sdk:csv:customresourcedefinitions:displayName="Boot Module Config"
 type BootModuleConfig struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -72,13 +65,16 @@ type BootModuleConfig struct {
 	Status BootModuleConfigStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
-// BootModuleConfigList contains a list of BootModuleConfig.
+// BootModuleConfigList is a list of BootModule objects.
 type BootModuleConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []BootModuleConfig `json:"items"`
+
+	// List of BootModuleConfig. More info:
+	// https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md
+	Items []BootModuleConfig `json:"items"`
 }
 
 func init() {

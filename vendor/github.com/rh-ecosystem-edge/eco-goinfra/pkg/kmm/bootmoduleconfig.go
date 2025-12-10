@@ -102,6 +102,121 @@ func (builder *BootModuleConfigBuilder) WithOptions(
 	return builder
 }
 
+// WithMachineConfigName sets the MachineConfig name that is targeted by the BMC.
+func (builder *BootModuleConfigBuilder) WithMachineConfigName(mcName string) *BootModuleConfigBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	if mcName == "" {
+		builder.errorMsg = "bootmoduleconfig 'machineConfigName' cannot be empty"
+
+		return builder
+	}
+
+	klog.V(100).Infof("Setting BootModuleConfig MachineConfigName to: %s", mcName)
+
+	builder.Definition.Spec.MachineConfigName = mcName
+
+	return builder
+}
+
+// WithMachineConfigPoolName sets the MachineConfigPool name linked to the targeted MachineConfig.
+func (builder *BootModuleConfigBuilder) WithMachineConfigPoolName(mcpName string) *BootModuleConfigBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	if mcpName == "" {
+		builder.errorMsg = "bootmoduleconfig 'machineConfigPoolName' cannot be empty"
+
+		return builder
+	}
+
+	klog.V(100).Infof("Setting BootModuleConfig MachineConfigPoolName to: %s", mcpName)
+
+	builder.Definition.Spec.MachineConfigPoolName = mcpName
+
+	return builder
+}
+
+// WithKernelModuleImage sets the container image that contains the kernel module .ko file.
+func (builder *BootModuleConfigBuilder) WithKernelModuleImage(image string) *BootModuleConfigBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	if image == "" {
+		builder.errorMsg = "bootmoduleconfig 'kernelModuleImage' cannot be empty"
+
+		return builder
+	}
+
+	klog.V(100).Infof("Setting BootModuleConfig KernelModuleImage to: %s", image)
+
+	builder.Definition.Spec.KernelModuleImage = image
+
+	return builder
+}
+
+// WithKernelModuleName sets the name of the kernel module to be loaded.
+func (builder *BootModuleConfigBuilder) WithKernelModuleName(moduleName string) *BootModuleConfigBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	if moduleName == "" {
+		builder.errorMsg = "bootmoduleconfig 'kernelModuleName' cannot be empty"
+
+		return builder
+	}
+
+	klog.V(100).Infof("Setting BootModuleConfig KernelModuleName to: %s", moduleName)
+
+	builder.Definition.Spec.KernelModuleName = moduleName
+
+	return builder
+}
+
+// WithInTreeModulesToRemove sets the in-tree kernel module list to remove prior to loading the OOT kernel module.
+func (builder *BootModuleConfigBuilder) WithInTreeModulesToRemove(modules []string) *BootModuleConfigBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof("Setting BootModuleConfig InTreeModulesToRemove to: %v", modules)
+
+	builder.Definition.Spec.InTreeModulesToRemove = modules
+
+	return builder
+}
+
+// WithFirmwareFilesPath sets the path of the firmware files in the kernel module container image.
+func (builder *BootModuleConfigBuilder) WithFirmwareFilesPath(path string) *BootModuleConfigBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof("Setting BootModuleConfig FirmwareFilesPath to: %s", path)
+
+	builder.Definition.Spec.FirmwareFilesPath = path
+
+	return builder
+}
+
+// WithWorkerImage sets the KMM worker image.
+func (builder *BootModuleConfigBuilder) WithWorkerImage(image string) *BootModuleConfigBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof("Setting BootModuleConfig WorkerImage to: %s", image)
+
+	builder.Definition.Spec.WorkerImage = image
+
+	return builder
+}
+
 // PullBootModuleConfig pulls existing bootmoduleconfig from cluster.
 func PullBootModuleConfig(apiClient *clients.Settings, name, nsname string) (*BootModuleConfigBuilder, error) {
 	klog.V(100).Infof("Pulling existing bootmoduleconfig name %s under namespace %s from cluster", name, nsname)
