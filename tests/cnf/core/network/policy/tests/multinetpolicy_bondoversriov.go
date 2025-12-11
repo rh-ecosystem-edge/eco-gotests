@@ -7,6 +7,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 
 	multinetpolicyapiv1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1beta1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
@@ -88,7 +89,7 @@ var _ = Describe("Multi-NetworkPolicy : Bond CNI", Ordered, Label("bondcnioversr
 		defineAndCreateSriovNetwork(ns2+nicPf1, nicPf1, tsparams.MultiNetPolNs2)
 		defineAndCreateSriovNetwork(ns2+nicPf2, nicPf2, tsparams.MultiNetPolNs2)
 
-		err = netenv.WaitForSriovAndMCPStable(APIClient, tsparams.MCOWaitTimeout, 10*time.Second,
+		err = sriovoperator.WaitForSriovAndMCPStable(APIClient, tsparams.MCOWaitTimeout, 10*time.Second,
 			NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Sriov and MCP are not stable")
 
@@ -142,7 +143,12 @@ var _ = Describe("Multi-NetworkPolicy : Bond CNI", Ordered, Label("bondcnioversr
 		Expect(err).ToNot(HaveOccurred(), "failed to clean test NADs in test namespace")
 
 		By("Removing SRIOV configuration and wait for MCP stable")
-		err = netenv.RemoveSriovConfigurationAndWaitForSriovAndMCPStable()
+		err = sriovoperator.RemoveSriovConfigurationAndWaitForSriovAndMCPStable(
+			APIClient,
+			NetConfig.WorkerLabelEnvVar,
+			NetConfig.SriovOperatorNamespace,
+			tsparams.MCOWaitTimeout,
+			tsparams.DefaultTimeout)
 		Expect(err).ToNot(HaveOccurred(), "Failed to remove SRIOV configuration and MCP stable")
 
 		By("Delete test namespace")

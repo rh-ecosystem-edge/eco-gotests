@@ -5,6 +5,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/bmc"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
@@ -85,7 +86,12 @@ var _ = Describe("Mellanox Secure Boot", Ordered, Label(tsparams.LabelMlxSecureB
 			_, err = sriovOperatorConfig.RemoveDisablePlugins().Update()
 			Expect(err).ToNot(HaveOccurred(), "Failed to delete disablePlugins")
 
-			err = netenv.RemoveSriovConfigurationAndWaitForSriovAndMCPStable()
+			err = sriovoperator.RemoveSriovConfigurationAndWaitForSriovAndMCPStable(
+				APIClient,
+				NetConfig.WorkerLabelEnvVar,
+				NetConfig.SriovOperatorNamespace,
+				tsparams.MCOWaitTimeout,
+				tsparams.DefaultTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV configuration")
 
 			By("Disabling secure boot on the worker and reboot the node")
@@ -120,7 +126,13 @@ var _ = Describe("Mellanox Secure Boot", Ordered, Label(tsparams.LabelMlxSecureB
 				sriovInterfacesUnderTest[:1],
 				map[string]string{"kubernetes.io/hostname": workerNodeList[0].Definition.Name})
 
-			err = sriovenv.CreateSriovPolicyAndWaitUntilItsApplied(sriovPolicy, tsparams.MCOWaitTimeout)
+			err = sriovoperator.CreateSriovPolicyAndWaitUntilItsApplied(
+				APIClient,
+				NetConfig.WorkerLabelEnvVar,
+				NetConfig.SriovOperatorNamespace,
+				sriovPolicy,
+				tsparams.MCOWaitTimeout,
+				tsparams.DefaultStableDuration)
 			Expect(err).ToNot(HaveOccurred(), "Failed to configure SR-IOV policy")
 
 			currentRestartCount := podRestartCount(configDaemonPods[0].Object.Name)
@@ -144,7 +156,7 @@ var _ = Describe("Mellanox Secure Boot", Ordered, Label(tsparams.LabelMlxSecureB
 			err = sriovPolicy.Delete()
 			Expect(err).ToNot(HaveOccurred(), "Failed to delete SR-IOV policy")
 
-			err = netenv.WaitForSriovAndMCPStable(
+			err = sriovoperator.WaitForSriovAndMCPStable(
 				APIClient, tsparams.MCOWaitTimeout, tsparams.DefaultStableDuration,
 				NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for MCP and SR-IOV update")

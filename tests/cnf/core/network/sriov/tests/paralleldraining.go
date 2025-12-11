@@ -7,6 +7,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -81,7 +82,12 @@ var _ = Describe("ParallelDraining", Ordered, Label(tsparams.LabelParallelDraini
 			removeLabelFromWorkersIfExists(workerNodeList, testLabel1)
 
 			By("Removing SR-IOV configuration")
-			err := netenv.RemoveSriovConfigurationAndWaitForSriovAndMCPStable()
+			err := sriovoperator.RemoveSriovConfigurationAndWaitForSriovAndMCPStable(
+				APIClient,
+				NetConfig.WorkerLabelEnvVar,
+				NetConfig.SriovOperatorNamespace,
+				tsparams.MCOWaitTimeout,
+				tsparams.DefaultTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV configuration")
 
 			err = sriov.CleanAllPoolConfigs(APIClient, NetConfig.SriovOperatorNamespace)
@@ -101,7 +107,7 @@ var _ = Describe("ParallelDraining", Ordered, Label(tsparams.LabelParallelDraini
 			Eventually(isDrainingRunningAsExpected, time.Minute, tsparams.RetryInterval).WithArguments(1).
 				Should(BeTrue(), "draining runs not as expected")
 
-			err = netenv.WaitForSriovStable(APIClient, tsparams.MCOWaitTimeout, NetConfig.SriovOperatorNamespace)
+			err = sriovoperator.WaitForSriovStable(APIClient, tsparams.MCOWaitTimeout, NetConfig.SriovOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for stable cluster.")
 		})
 
@@ -118,7 +124,7 @@ var _ = Describe("ParallelDraining", Ordered, Label(tsparams.LabelParallelDraini
 			Eventually(isDrainingRunningAsExpected, time.Minute, tsparams.RetryInterval).WithArguments(len(workerNodeList)).
 				Should(BeTrue(), "draining runs not as expected")
 
-			err = netenv.WaitForSriovStable(APIClient, tsparams.MCOWaitTimeout, NetConfig.SriovOperatorNamespace)
+			err = sriovoperator.WaitForSriovStable(APIClient, tsparams.MCOWaitTimeout, NetConfig.SriovOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for stable cluster.")
 		})
 
@@ -141,7 +147,7 @@ var _ = Describe("ParallelDraining", Ordered, Label(tsparams.LabelParallelDraini
 			Eventually(isDrainingRunningAsExpected, time.Minute, tsparams.RetryInterval).WithArguments(2).
 				Should(BeTrue(), "draining runs not as expected")
 
-			err = netenv.WaitForSriovStable(APIClient, tsparams.MCOWaitTimeout, NetConfig.SriovOperatorNamespace)
+			err = sriovoperator.WaitForSriovStable(APIClient, tsparams.MCOWaitTimeout, NetConfig.SriovOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for stable cluster.")
 		})
 
@@ -206,7 +212,7 @@ var _ = Describe("ParallelDraining", Ordered, Label(tsparams.LabelParallelDraini
 			err = poolConfig2.Delete()
 			Expect(err).ToNot(HaveOccurred(), "Failed to remove SriovNetworkPoolConfig")
 
-			err = netenv.WaitForSriovStable(APIClient, tsparams.MCOWaitTimeout, NetConfig.SriovOperatorNamespace)
+			err = sriovoperator.WaitForSriovStable(APIClient, tsparams.MCOWaitTimeout, NetConfig.SriovOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for stable cluster.")
 		})
 
@@ -231,7 +237,7 @@ var _ = Describe("ParallelDraining", Ordered, Label(tsparams.LabelParallelDraini
 			Eventually(isDrainingRunningAsExpected, time.Minute, tsparams.RetryInterval).WithArguments(len(workerNodeList)).
 				Should(BeTrue(), "draining runs not as expected")
 
-			err = netenv.WaitForSriovStable(APIClient, tsparams.MCOWaitTimeout, NetConfig.SriovOperatorNamespace)
+			err = sriovoperator.WaitForSriovStable(APIClient, tsparams.MCOWaitTimeout, NetConfig.SriovOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for stable cluster.")
 
 			By("Checking that non SR-IOV pod is still on the first worker")
@@ -252,7 +258,13 @@ func createSriovConfigurationParallelDrain(sriovInterfaceName string) {
 		5,
 		[]string{sriovInterfaceName}, NetConfig.WorkerLabelMap)
 
-	err := sriovenv.CreateSriovPolicyAndWaitUntilItsApplied(sriovPolicy, tsparams.MCOWaitTimeout)
+	err := sriovoperator.CreateSriovPolicyAndWaitUntilItsApplied(
+		APIClient,
+		NetConfig.WorkerLabelEnvVar,
+		NetConfig.SriovOperatorNamespace,
+		sriovPolicy,
+		tsparams.MCOWaitTimeout,
+		tsparams.DefaultStableDuration)
 	Expect(err).ToNot(HaveOccurred(), "Failed to configure SR-IOV policy")
 
 	By("Creating SR-IOV network")
@@ -264,7 +276,7 @@ func createSriovConfigurationParallelDrain(sriovInterfaceName string) {
 }
 
 func removeTestConfiguration() {
-	err := netenv.RemoveAllSriovNetworks()
+	err := sriovoperator.RemoveAllSriovNetworks(APIClient, NetConfig.SriovOperatorNamespace, tsparams.DefaultTimeout)
 	Expect(err).ToNot(HaveOccurred(), "Failed to clean all SR-IOV Networks")
 	err = sriov.CleanAllNetworkNodePolicies(APIClient, NetConfig.SriovOperatorNamespace)
 	Expect(err).ToNot(HaveOccurred(), "Failed to clean all SR-IOV policies")

@@ -7,6 +7,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
@@ -87,7 +88,7 @@ var _ = Describe("Application Namespace SriovNetwork:", Ordered, Label(tsparams.
 				WithDevType("netdevice").Create()
 			Expect(err).ToNot(HaveOccurred(), "Failed to configure SR-IOV policy")
 
-			err = netenv.WaitForSriovAndMCPStable(
+			err = sriovoperator.WaitForSriovAndMCPStable(
 				APIClient,
 				tsparams.MCOWaitTimeout,
 				tsparams.DefaultStableDuration,
@@ -108,7 +109,12 @@ var _ = Describe("Application Namespace SriovNetwork:", Ordered, Label(tsparams.
 
 		AfterAll(func() {
 			By("Removing SR-IOV configuration")
-			err := netenv.RemoveSriovConfigurationAndWaitForSriovAndMCPStable()
+			err := sriovoperator.RemoveSriovConfigurationAndWaitForSriovAndMCPStable(
+				APIClient,
+				NetConfig.WorkerLabelEnvVar,
+				NetConfig.SriovOperatorNamespace,
+				tsparams.MCOWaitTimeout,
+				tsparams.DefaultTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV configuration")
 
 			By("Deleting test namespace")

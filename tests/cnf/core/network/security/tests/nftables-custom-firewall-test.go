@@ -128,7 +128,7 @@ var _ = Describe("nftables", Ordered, Label(tsparams.LabelNftablesTestCases), Co
 			err := mco.NewMCBuilder(APIClient, mcNftablesName).Delete()
 			Expect(err).ToNot(HaveOccurred(), "Failed to get the machineConfig")
 
-			err = netenv.WaitForMcpStable(APIClient, 35*time.Minute, 80*time.Second, NetConfig.CnfMcpLabel)
+			err = cluster.WaitForMcpStable(APIClient, 35*time.Minute, 80*time.Second, NetConfig.CnfMcpLabel)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for MCP to be stable")
 		})
 
@@ -463,7 +463,7 @@ func createMCAndWaitforMCPStable(fileContentString, mcNftablesName string) {
 		Create()
 	Expect(err).ToNot(HaveOccurred(), "Failed to create nftables machine config")
 
-	err = netenv.WaitForMcpStable(APIClient, 35*time.Minute, 1*time.Minute, NetConfig.CnfMcpLabel)
+	err = cluster.WaitForMcpStable(APIClient, 35*time.Minute, 1*time.Minute, NetConfig.CnfMcpLabel)
 	Expect(err).ToNot(HaveOccurred(), "Failed to wait for MCP to be stable")
 }
 
@@ -600,6 +600,6 @@ func rebootNodeAndWaitForMcpStable(nodeName string) {
 	Expect(err).ToNot(HaveOccurred(),
 		"Failed to reboot worker node with label %s", nodeName)
 
-	err = netenv.WaitForMcpStable(APIClient, 35*time.Minute, 1*time.Minute, NetConfig.CnfMcpLabel)
+	err = cluster.WaitForMcpStable(APIClient, 35*time.Minute, 1*time.Minute, NetConfig.CnfMcpLabel)
 	Expect(err).ToNot(HaveOccurred(), "Failed to wait for MCP to be stable")
 }

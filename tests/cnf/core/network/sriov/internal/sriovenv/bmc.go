@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/bmc"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/tsparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 )
@@ -85,7 +85,7 @@ func ConfigureSecureBoot(bmcClient *bmc.BMC, action string) error {
 
 	klog.V(90).Infof("Waiting for the cluster becomes stable")
 
-	return netenv.WaitForMcpStable(
+	return cluster.WaitForMcpStable(
 		netinittools.APIClient, tsparams.MCOWaitTimeout, 1*time.Minute, netinittools.NetConfig.CnfMcpLabel)
 }
 

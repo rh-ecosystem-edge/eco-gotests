@@ -10,6 +10,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/daemonset"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
@@ -98,7 +99,12 @@ var _ = Describe(
 
 		AfterEach(func() {
 			By("Removing SR-IOV configuration")
-			err := netenv.RemoveSriovConfigurationAndWaitForSriovAndMCPStable()
+			err := sriovoperator.RemoveSriovConfigurationAndWaitForSriovAndMCPStable(
+				APIClient,
+				NetConfig.WorkerLabelEnvVar,
+				NetConfig.SriovOperatorNamespace,
+				tsparams.MCOWaitTimeout,
+				tsparams.DefaultTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV configuration")
 
 			By("Cleaning test namespace")
@@ -387,8 +393,9 @@ func createTestResources(cRes, sRes testResource) (*pod.Builder, *pod.Builder) {
 		Expect(err).ToNot(HaveOccurred(), "Failed to Create SriovNetwork")
 	}
 
-	err := netenv.WaitForSriovAndMCPStable(APIClient, tsparams.MCOWaitTimeout, tsparams.DefaultStableDuration,
+	err := sriovoperator.WaitForSriovAndMCPStable(APIClient, tsparams.MCOWaitTimeout, tsparams.DefaultStableDuration,
 		NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
+	Expect(err).ToNot(HaveOccurred(), "Failed cluster is not stable before creating test resources")
 
 	By("Wait for NAD Creation")
 
