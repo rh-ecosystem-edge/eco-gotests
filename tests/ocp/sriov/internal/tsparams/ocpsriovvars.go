@@ -13,8 +13,9 @@ var (
 	ClientIPv4IPAddress = "192.168.0.1/24"
 	// ServerIPv4IPAddress represents the full test server IPv4 address.
 	ServerIPv4IPAddress = "192.168.0.2/24"
-	// Labels represent the range of labels that can be used for test cases selection.
-	Labels = []string{LabelSuite, LabelBasic}
+	// Labels represent the suite-level labels applied to all tests in the suite.
+	// Feature-specific labels (LabelBasic, LabelGUI, etc.) should be applied to individual tests.
+	Labels = []string{LabelSuite}
 
 	// ReporterCRDsToDump tells to the reporter what CRDs to dump.
 	ReporterCRDsToDump = []k8sreporter.CRData{
