@@ -152,8 +152,9 @@ const (
 )
 
 var (
-    // Labels list for test selection
-    Labels = []string{LabelSuite, LabelFeatureName}
+    // Labels represent the suite-level labels applied to all tests in the suite.
+    // Feature-specific labels should be applied to individual Describe blocks.
+    Labels = []string{LabelSuite}
 
     // Reporter configuration
     ReporterCRDsToDump = []k8sreporter.CRData{...}
@@ -166,7 +167,7 @@ var (
 1. **Constants**: Use for values that don't change (labels, namespaces, default values)
 2. **Variables**: Use for values that may be configured or computed
 3. **Timeouts**: Define reasonable defaults; make them configurable when needed
-4. **Labels**: Aggregate in a `Labels` variable for suite-level filtering
+4. **Labels**: Suite-level `Labels` should only contain the suite label. Feature-specific labels (e.g., `LabelBasic`, `LabelGUI`) should be applied to individual `Describe` blocks using `Label(tsparams.LabelFeatureName)`
 
 ### Environment Validation Package (`sriovenv` or similar)
 
