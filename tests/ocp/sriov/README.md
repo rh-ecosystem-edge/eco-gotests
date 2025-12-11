@@ -401,7 +401,7 @@ func WaitForResourceExists(apiClient *clients.Settings, name, namespace string, 
 ### Logging and Debugging
 
 1. **Use By() statements**: Document test steps with `By("Description")`
-2. **Glog for verbose logging**: Use `klog.V(level).Infof()` for detailed logging
+2. **klog for verbose logging**: Use `klog.V(level).Infof()` for detailed logging
 3. **Environment variable control**: Respect `ECO_VERBOSE_LEVEL` for logging verbosity
 4. **Meaningful messages**: Include context in log messages
 
