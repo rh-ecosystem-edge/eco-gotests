@@ -103,6 +103,11 @@ func RestorePtpConfigs(client *clients.Settings, ptpConfigList []*ptp.PtpConfigB
 func listChangedProfilesInConfig(ptpConfig *ptp.PtpConfigBuilder) ([]*ProfileReference, error) {
 	latestPtpConfig, err := ptpConfig.Get()
 	if err != nil {
+		if runtimeclient.IgnoreNotFound(err) == nil {
+			// If the PtpConfig is not found, it means it was deleted, so we return an empty list of changed profiles.
+			return nil, nil
+		}
+
 		return nil, fmt.Errorf("failed to get latest version of PtpConfig: %w", err)
 	}
 
