@@ -428,14 +428,14 @@ The basic test suite includes 9 test cases covering various SR-IOV features:
 - Pod network interface with custom MTU
 
 **Configuration**:
-- MTU: `1800`
+- MTU: `9000` (defined by `DefaultTestMTU`)
 - Spoof checking: default
 - Trust: default
 - Link state: default
 
 **Expected Behavior**:
 - VF is created successfully
-- Policy MTU is updated to 1800
+- Policy MTU is updated to 9000
 - Network is attached to pod
 - Interface is ready with custom MTU
 - Traffic can pass through the interface
