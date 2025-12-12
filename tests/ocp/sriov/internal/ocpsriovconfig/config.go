@@ -18,9 +18,11 @@ import (
 
 const (
 	// PathToDefaultOcpSriovParamsFile path to config file with default ocp sriov parameters.
-	PathToDefaultOcpSriovParamsFile = "./default.yaml"
+	PathToDefaultOcpSriovParamsFile = ".default.yaml"
 	// DefaultVFNum is the default number of virtual functions to create.
 	DefaultVFNum = 2
+	// defaultSupportsMinTxRate is the default value for SupportsMinTxRate when parsing from env.
+	defaultSupportsMinTxRate = true
 )
 
 // DeviceConfig represents a SR-IOV device configuration.
@@ -40,20 +42,6 @@ type SriovOcpConfig struct {
 	SriovInterfaces           string         `envconfig:"ECO_OCP_SRIOV_INTERFACE_LIST"`
 	Devices                   []DeviceConfig `yaml:"devices"`
 	VFNum                     int            `yaml:"vf_num" envconfig:"ECO_OCP_SRIOV_VF_NUM"`
-}
-
-// GetDefaultDevices returns default device configurations.
-func GetDefaultDevices() []DeviceConfig {
-	return []DeviceConfig{
-		{Name: "e810xxv", DeviceID: "159b", Vendor: "8086", InterfaceName: "eno12409", SupportsMinTxRate: true},
-		{Name: "e810c", DeviceID: "1593", Vendor: "8086", InterfaceName: "ens2f2", SupportsMinTxRate: true},
-		{Name: "x710", DeviceID: "1572", Vendor: "8086", InterfaceName: "ens5f0", SupportsMinTxRate: false},
-		{Name: "bcm57414", DeviceID: "16d7", Vendor: "14e4", InterfaceName: "ens3f0", SupportsMinTxRate: false},
-		{Name: "bcm57508", DeviceID: "1750", Vendor: "14e4", InterfaceName: "ens4f0", SupportsMinTxRate: false},
-		{Name: "cx6", DeviceID: "101d", Vendor: "15b3", InterfaceName: "ens6f0np0", SupportsMinTxRate: true},
-		{Name: "cx6dx", DeviceID: "101d", Vendor: "15b3", InterfaceName: "ens7f0np0", SupportsMinTxRate: true},
-		{Name: "cx7", DeviceID: "1021", Vendor: "15b3", InterfaceName: "ens8f0np0", SupportsMinTxRate: true},
-	}
 }
 
 // NewSriovOcpConfig returns instance of SriovConfig config type.
@@ -94,31 +82,84 @@ func NewSriovOcpConfig() *SriovOcpConfig {
 		return nil
 	}
 
-	// Parse SRIOV_DEVICES environment variable (legacy format)
-	parseDevicesFromEnv(&sriovOcpConf)
-
 	// Parse legacy SRIOV_VF_NUM if ECO_OCP_SRIOV_VF_NUM was not set
 	parseLegacyVFNum(&sriovOcpConf)
 
 	return &sriovOcpConf
 }
 
-// GetDevices returns the configured devices.
-func (c *SriovOcpConfig) GetDevices() []DeviceConfig {
-	if len(c.Devices) == 0 {
-		return GetDefaultDevices()
+// GetSriovDevices returns configured SR-IOV devices.
+// If SRIOV_DEVICES env var is set, parses devices from it.
+// Otherwise returns devices from YAML configuration.
+func (sriovOcpConfig *SriovOcpConfig) GetSriovDevices() ([]DeviceConfig, error) {
+	// Check for SRIOV_DEVICES environment variable override
+	envDevices := os.Getenv("SRIOV_DEVICES")
+	if envDevices != "" {
+		devices, err := parseSriovDevicesEnv(envDevices)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(devices) > 0 {
+			return devices, nil
+		}
 	}
 
-	return c.Devices
+	// Return devices from YAML configuration
+	if len(sriovOcpConfig.Devices) == 0 {
+		return nil, fmt.Errorf("no SR-IOV devices configured, check SRIOV_DEVICES env var or devices in YAML")
+	}
+
+	return sriovOcpConfig.Devices, nil
+}
+
+// parseSriovDevicesEnv parses device configuration from SRIOV_DEVICES environment variable.
+// Format: "name1:deviceid1:vendor1:interface1[:minTxRate],name2:deviceid2:vendor2:interface2[:minTxRate],..."
+// Example: "e810xxv:159b:8086:ens2f0,e810c:1593:8086:ens2f2".
+func parseSriovDevicesEnv(envDevices string) ([]DeviceConfig, error) {
+	var devices []DeviceConfig
+
+	entries := strings.Split(envDevices, ",")
+	for _, entry := range entries {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+
+		parts := strings.Split(entry, ":")
+		if len(parts) != 4 && len(parts) != 5 {
+			return nil, fmt.Errorf(
+				"invalid SRIOV_DEVICES entry %q - expected format: name:deviceid:vendor:interface[:minTxRate]",
+				entry)
+		}
+
+		supportsMinTxRate := defaultSupportsMinTxRate
+
+		if len(parts) == 5 {
+			val := strings.ToLower(strings.TrimSpace(parts[4]))
+			supportsMinTxRate = val == "true" || val == "1" || val == "yes"
+		}
+
+		devices = append(devices, DeviceConfig{
+			Name:              strings.TrimSpace(parts[0]),
+			DeviceID:          strings.TrimSpace(parts[1]),
+			Vendor:            strings.TrimSpace(parts[2]),
+			InterfaceName:     strings.TrimSpace(parts[3]),
+			SupportsMinTxRate: supportsMinTxRate,
+		})
+	}
+
+	return devices, nil
 }
 
 // GetVFNum returns the configured number of virtual functions.
-func (c *SriovOcpConfig) GetVFNum() int {
-	if c.VFNum <= 0 {
-		return DefaultVFNum
+// Returns the value from YAML/env config, or DefaultVFNum as fallback if not set.
+func (sriovOcpConfig *SriovOcpConfig) GetVFNum() int {
+	if sriovOcpConfig.VFNum <= 0 {
+		return DefaultVFNum // fallback if YAML wasn't loaded properly
 	}
 
-	return c.VFNum
+	return sriovOcpConfig.VFNum
 }
 
 // GetSriovInterfaces checks the ECO_OCP_SRIOV_INTERFACE_LIST env var
@@ -161,7 +202,7 @@ func readFile(sriovOcpConfig *SriovOcpConfig, cfgFile string) error {
 
 	decoder := yaml.NewDecoder(openedCfgFile)
 
-	err = decoder.Decode(&sriovOcpConfig)
+	err = decoder.Decode(sriovOcpConfig)
 	if err != nil {
 		return err
 	}
@@ -178,63 +219,11 @@ func readEnv(sriovOcpConfig *SriovOcpConfig) error {
 	return nil
 }
 
-// parseDevicesFromEnv parses device configuration from environment variable.
-// Format: export SRIOV_DEVICES="name1:deviceid1:vendor1:interface1,name2:deviceid2:vendor2:interface2,..."
-// Example: export SRIOV_DEVICES="e810xxv:159b:8086:ens2f0,e810c:1593:8086:ens2f2"
-// Returns without modification if env var is not set or parsing fails.
-func parseDevicesFromEnv(sriovOcpConfig *SriovOcpConfig) {
-	envDevices := os.Getenv("SRIOV_DEVICES")
-	if envDevices == "" {
-		return
-	}
-
-	var devices []DeviceConfig
-
-	entries := strings.Split(envDevices, ",")
-	for _, entry := range entries {
-		entry = strings.TrimSpace(entry)
-		if entry == "" {
-			continue
-		}
-
-		parts := strings.Split(entry, ":")
-		if len(parts) != 4 && len(parts) != 5 {
-			klog.Warningf("Skipping invalid SRIOV_DEVICES entry %q - expected format: name:deviceid:vendor:interface[:minTxRate]",
-				entry)
-
-			continue
-		}
-
-		supportsMinTxRate := true // default
-
-		if len(parts) == 5 {
-			val := strings.ToLower(strings.TrimSpace(parts[4]))
-			supportsMinTxRate = val == "true" || val == "1" || val == "yes"
-		}
-
-		devices = append(devices, DeviceConfig{
-			Name:              strings.TrimSpace(parts[0]),
-			DeviceID:          strings.TrimSpace(parts[1]),
-			Vendor:            strings.TrimSpace(parts[2]),
-			InterfaceName:     strings.TrimSpace(parts[3]),
-			SupportsMinTxRate: supportsMinTxRate,
-		})
-	}
-
-	if len(devices) > 0 {
-		sriovOcpConfig.Devices = devices
-	} else {
-		// envDevices is non-empty here (we returned early if empty), but no valid entries parsed
-		klog.Warningf(
-			"SRIOV_DEVICES is set to %q but no valid entries could be parsed; "+
-				"expected format: name:deviceid:vendor:interface. Keeping defaults.", envDevices)
-	}
-}
-
 // parseLegacyVFNum parses the legacy SRIOV_VF_NUM environment variable.
+// Only applies if ECO_OCP_SRIOV_VF_NUM was not set.
 func parseLegacyVFNum(sriovOcpConfig *SriovOcpConfig) {
-	// Only check legacy var if VFNum is still at default
-	if sriovOcpConfig.VFNum != DefaultVFNum {
+	// Skip if the new env var was explicitly set
+	if _, ok := os.LookupEnv("ECO_OCP_SRIOV_VF_NUM"); ok {
 		return
 	}
 
@@ -245,7 +234,7 @@ func parseLegacyVFNum(sriovOcpConfig *SriovOcpConfig) {
 
 	vfNum, err := strconv.Atoi(vfNumStr)
 	if err != nil || vfNum <= 0 {
-		klog.Warningf("Invalid SRIOV_VF_NUM value %q, using default %d", vfNumStr, DefaultVFNum)
+		klog.Warningf("Invalid SRIOV_VF_NUM value %q, keeping YAML default", vfNumStr)
 
 		return
 	}
