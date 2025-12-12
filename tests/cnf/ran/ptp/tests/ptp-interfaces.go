@@ -11,6 +11,7 @@ import (
 	eventptp "github.com/redhat-cne/sdk-go/pkg/event/ptp"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ptp"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/internal/nicinfo"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/querier"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/consumer"
@@ -103,6 +104,9 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				}
 
 				testActuallyRan = true
+
+				// Include all interfaces in the interface group in the interface information report for this suite.
+				nicinfo.Node(nodeName).MarkTested(iface.NamesToStrings(interfaceGroup)...)
 
 				By("getting the event pod for the node")
 				eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeName)

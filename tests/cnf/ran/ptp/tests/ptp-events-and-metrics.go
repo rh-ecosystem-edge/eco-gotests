@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"maps"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -10,6 +11,7 @@ import (
 	eventptp "github.com/redhat-cne/sdk-go/pkg/event/ptp"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ptp"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/internal/nicinfo"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/querier"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/consumer"
@@ -106,6 +108,9 @@ var _ = Describe("PTP Events and Metrics", Label(tsparams.LabelEventsAndMetrics)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get event pod for node %s", nodeInfo.Name)
 
 			for nic, ifaces := range ifaceGroups {
+				// Include this interface in the interface information report for this suite.
+				nicinfo.Node(nodeInfo.Name).MarkTested(string(ifaces[0]))
+
 				startTime := time.Now()
 
 				By("adjusting the PHC by 5 ms for NIC " + string(nic))
@@ -160,6 +165,9 @@ var _ = Describe("PTP Events and Metrics", Label(tsparams.LabelEventsAndMetrics)
 			By("getting the first profile for the node " + nodeInfo.Name)
 			profile, err := nodeInfo.GetProfileByConfigPath(RANConfig.Spoke1APIClient, nodeInfo.Name, "ptp4l.0.config")
 			Expect(err).ToNot(HaveOccurred(), "Failed to get profile by config path for node %s", nodeInfo.Name)
+
+			// Include all interfaces from the profile in the interface information report for this suite.
+			nicinfo.Node(nodeInfo.Name).MarkSeqTested(iface.NamesToStringSeq(maps.Keys(profile.Interfaces)))
 
 			By("updating the holdover timeout")
 			testRanAtLeastOnce = true
