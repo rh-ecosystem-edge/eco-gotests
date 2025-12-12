@@ -19,10 +19,6 @@ import (
 const (
 	// PathToDefaultOcpSriovParamsFile path to config file with default ocp sriov parameters.
 	PathToDefaultOcpSriovParamsFile = ".default.yaml"
-	// DefaultVFNum is the default number of virtual functions to create.
-	DefaultVFNum = 2
-	// defaultSupportsMinTxRate is the default value for SupportsMinTxRate when parsing from env.
-	defaultSupportsMinTxRate = true
 )
 
 // DeviceConfig represents a SR-IOV device configuration.
@@ -133,7 +129,7 @@ func parseSriovDevicesEnv(envDevices string) ([]DeviceConfig, error) {
 				entry)
 		}
 
-		supportsMinTxRate := defaultSupportsMinTxRate
+		supportsMinTxRate := true // default
 
 		if len(parts) == 5 {
 			val := strings.ToLower(strings.TrimSpace(parts[4]))
@@ -153,10 +149,10 @@ func parseSriovDevicesEnv(envDevices string) ([]DeviceConfig, error) {
 }
 
 // GetVFNum returns the configured number of virtual functions.
-// Returns the value from YAML/env config, or DefaultVFNum as fallback if not set.
+// Returns the value from YAML/env config, or 2 as fallback if not set.
 func (sriovOcpConfig *SriovOcpConfig) GetVFNum() int {
 	if sriovOcpConfig.VFNum <= 0 {
-		return DefaultVFNum // fallback if YAML wasn't loaded properly
+		return 2 // fallback if YAML wasn't loaded properly
 	}
 
 	return sriovOcpConfig.VFNum
