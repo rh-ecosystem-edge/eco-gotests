@@ -42,37 +42,6 @@ type SriovOcpConfig struct {
 	VFNum                     int            `yaml:"vf_num" envconfig:"ECO_OCP_SRIOV_VF_NUM"`
 }
 
-// sriovYAMLConfig and sriovEnvConfig are temporary structs used to decode configuration
-// without affecting the embedded OcpConfig/GeneralConfig structs.
-//
-// Why we need these separate structs:
-// SriovOcpConfig embeds *ocpconfig.OcpConfig which itself embeds *generalconfig.GeneralConfig.
-// When yaml.v2 decodes into a struct with embedded pointer fields, it resets those pointers
-// to nil for any fields not present in the YAML file - even if they were already initialized.
-//
-// For example, if GeneralConfig.WorkerLabel was set to "node-role.kubernetes.io/worker"
-// by the parent config, decoding a YAML file that only contains "sriov_operator_namespace"
-// would reset WorkerLabel to "" because yaml.v2 zeroes out the embedded struct first.
-//
-// By decoding into a separate struct that only contains sriov-specific fields, we avoid
-// this issue and can selectively copy values to the main config without losing parent values.
-//
-// The envconfig library has similar behavior, so we use the same pattern for environment
-// variable processing.
-type sriovYAMLConfig struct {
-	OcpSriovOperatorNamespace string         `yaml:"sriov_operator_namespace"`
-	OcpSriovTestContainer     string         `yaml:"ocp_sriov_test_container"`
-	Devices                   []DeviceConfig `yaml:"devices"`
-	VFNum                     int            `yaml:"vf_num"`
-}
-
-type sriovEnvConfig struct {
-	OcpSriovOperatorNamespace string `envconfig:"ECO_OCP_SRIOV_OPERATOR_NAMESPACE"`
-	OcpSriovTestContainer     string `envconfig:"ECO_OCP_SRIOV_TEST_CONTAINER"`
-	SriovInterfaces           string `envconfig:"ECO_OCP_SRIOV_INTERFACE_LIST"`
-	VFNum                     int    `envconfig:"ECO_OCP_SRIOV_VF_NUM"`
-}
-
 // GetDefaultDevices returns default device configurations.
 func GetDefaultDevices() []DeviceConfig {
 	return []DeviceConfig{
@@ -100,10 +69,6 @@ func NewSriovOcpConfig() *SriovOcpConfig {
 
 		return nil
 	}
-
-	// Set defaults before reading config files
-	sriovOcpConf.VFNum = DefaultVFNum
-	sriovOcpConf.Devices = GetDefaultDevices()
 
 	_, filename, _, ok := runtime.Caller(0)
 	if !ok {
@@ -194,59 +159,20 @@ func readFile(sriovOcpConfig *SriovOcpConfig, cfgFile string) error {
 		_ = openedCfgFile.Close()
 	}()
 
-	// Decode into temporary struct to avoid zeroing embedded pointers
-	var yamlConf sriovYAMLConfig
 	decoder := yaml.NewDecoder(openedCfgFile)
 
-	err = decoder.Decode(&yamlConf)
+	err = decoder.Decode(&sriovOcpConfig)
 	if err != nil {
 		return err
-	}
-
-	// Copy only the fields that were set in YAML
-	if yamlConf.OcpSriovOperatorNamespace != "" {
-		sriovOcpConfig.OcpSriovOperatorNamespace = yamlConf.OcpSriovOperatorNamespace
-	}
-
-	if yamlConf.OcpSriovTestContainer != "" {
-		sriovOcpConfig.OcpSriovTestContainer = yamlConf.OcpSriovTestContainer
-	}
-
-	if len(yamlConf.Devices) > 0 {
-		sriovOcpConfig.Devices = yamlConf.Devices
-	}
-
-	if yamlConf.VFNum > 0 {
-		sriovOcpConfig.VFNum = yamlConf.VFNum
 	}
 
 	return nil
 }
 
 func readEnv(sriovOcpConfig *SriovOcpConfig) error {
-	// Decode into temporary struct to avoid zeroing embedded pointers
-	var envConf sriovEnvConfig
-
-	err := envconfig.Process("", &envConf)
+	err := envconfig.Process("", sriovOcpConfig)
 	if err != nil {
 		return err
-	}
-
-	// Copy only the fields that were set in environment
-	if envConf.OcpSriovOperatorNamespace != "" {
-		sriovOcpConfig.OcpSriovOperatorNamespace = envConf.OcpSriovOperatorNamespace
-	}
-
-	if envConf.OcpSriovTestContainer != "" {
-		sriovOcpConfig.OcpSriovTestContainer = envConf.OcpSriovTestContainer
-	}
-
-	if envConf.SriovInterfaces != "" {
-		sriovOcpConfig.SriovInterfaces = envConf.SriovInterfaces
-	}
-
-	if envConf.VFNum > 0 {
-		sriovOcpConfig.VFNum = envConf.VFNum
 	}
 
 	return nil
