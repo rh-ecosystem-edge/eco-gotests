@@ -202,7 +202,7 @@ func readFile(sriovOcpConfig *SriovOcpConfig, cfgFile string) error {
 
 	decoder := yaml.NewDecoder(openedCfgFile)
 
-	err = decoder.Decode(sriovOcpConfig)
+	err = decoder.Decode(&sriovOcpConfig)
 	if err != nil {
 		return err
 	}
@@ -223,7 +223,7 @@ func readEnv(sriovOcpConfig *SriovOcpConfig) error {
 // Only applies if ECO_OCP_SRIOV_VF_NUM was not set.
 func parseLegacyVFNum(sriovOcpConfig *SriovOcpConfig) {
 	// Skip if the new env var was explicitly set
-	if _, ok := os.LookupEnv("ECO_OCP_SRIOV_VF_NUM"); ok {
+	if os.Getenv("ECO_OCP_SRIOV_VF_NUM") != "" {
 		return
 	}
 
