@@ -32,4 +32,7 @@ const (
 	// LabelSriovHWEnabled represents sriov HW Enabled tests that can be used
 	// for test cases selection.
 	LabelSriovHWEnabled = "sriov-hw-enabled"
+
+	// SecondaryInterfaceName is the name of the secondary network interface attached to pods.
+	SecondaryInterfaceName = "net1"
 )

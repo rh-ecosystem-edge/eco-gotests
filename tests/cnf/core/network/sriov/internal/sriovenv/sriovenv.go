@@ -3,6 +3,7 @@ package sriovenv
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	nadV1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
@@ -417,4 +418,123 @@ func DiscoverInterfaceUnderTestVendorID(srIovInterfaceUnderTest, workerNodeName 
 	}
 
 	return "", fmt.Errorf("interface %s not found", srIovInterfaceUnderTest)
+}
+
+// CreateSriovNetworkWithStaticIPAM creates an SR-IOV network with static IPAM, IP address, and MAC address support.
+func CreateSriovNetworkWithStaticIPAM(name, resourceName string) error {
+	klog.V(90).Infof("Creating SR-IOV network %s with static IPAM", name)
+
+	networkBuilder := sriov.NewNetworkBuilder(
+		APIClient, name, NetConfig.SriovOperatorNamespace,
+		tsparams.TestNamespaceName, resourceName).
+		WithStaticIpam().
+		WithIPAddressSupport().
+		WithMacAddressSupport()
+
+	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.WaitTimeout)
+}
+
+// CreateSriovNetworkWithWhereaboutsIPAM creates an SR-IOV network with whereabouts IPAM for dynamic IP assignment.
+// ipRange should be in CIDR notation (e.g., "2001:100::/64" for IPv6 or "192.168.1.0/24" for IPv4).
+// gateway is the gateway address for the range.
+// Uses network name as whereabouts network_name to isolate IP allocations per network.
+func CreateSriovNetworkWithWhereaboutsIPAM(name, resourceName, ipRange, gateway string) error {
+	klog.V(90).Infof("Creating SR-IOV network %s with whereabouts IPAM, range %s, gateway %s",
+		name, ipRange, gateway)
+
+	// Build whereabouts IPAM JSON with network_name to isolate IP allocations.
+	ipamJSON := fmt.Sprintf(`{"type": "whereabouts", "range": "%s", "gateway": "%s", "network_name": "%s"}`,
+		ipRange, gateway, name)
+
+	networkBuilder := sriov.NewNetworkBuilder(
+		APIClient, name, NetConfig.SriovOperatorNamespace,
+		tsparams.TestNamespaceName, resourceName)
+
+	// Set the IPAM directly on the spec.
+	networkBuilder.Definition.Spec.IPAM = ipamJSON
+
+	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.WaitTimeout)
+}
+
+// CreateSriovNetworkWithVLANAndWhereabouts creates an SR-IOV network with Whereabouts IPAM and VLAN tagging.
+// This enables dynamic IP assignment with VLAN isolation.
+// Uses network name as whereabouts network_name to isolate IP allocations per network.
+func CreateSriovNetworkWithVLANAndWhereabouts(name, resourceName string, vlanID uint16,
+	ipRange, gateway string) error {
+	klog.V(90).Infof("Creating SR-IOV network %s with Whereabouts IPAM, VLAN %d, range %s",
+		name, vlanID, ipRange)
+
+	// Build whereabouts IPAM JSON with network_name to isolate IP allocations.
+	ipamJSON := fmt.Sprintf(`{"type": "whereabouts", "range": "%s", "gateway": "%s", "network_name": "%s"}`,
+		ipRange, gateway, name)
+
+	networkBuilder := sriov.NewNetworkBuilder(
+		APIClient, name, NetConfig.SriovOperatorNamespace,
+		tsparams.TestNamespaceName, resourceName).
+		WithVLAN(vlanID)
+
+	// Set the IPAM directly on the spec.
+	networkBuilder.Definition.Spec.IPAM = ipamJSON
+
+	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.WaitTimeout)
+}
+
+// GetPodIPFromInterface retrieves the IPv4 address of a specific interface from a pod.
+// This is useful for whereabouts IPAM where the IP is assigned dynamically.
+// Returns the IP without the prefix (e.g., "192.168.1.5" instead of "192.168.1.5/24").
+// Uses ip -4 to ensure only IPv4 addresses are returned, avoiding link-local IPv6 addresses.
+func GetPodIPFromInterface(podBuilder *pod.Builder, interfaceName string) (string, error) {
+	klog.V(90).Infof("Getting IPv4 from interface %s on pod %s", interfaceName, podBuilder.Definition.Name)
+
+	output, err := podBuilder.ExecCommand([]string{"bash", "-c",
+		fmt.Sprintf("ip -4 -o addr show %s | awk '{print $4}' | cut -d'/' -f1 | head -1", interfaceName)})
+	if err != nil {
+		return "", fmt.Errorf("failed to get IP from interface %s: %w", interfaceName, err)
+	}
+
+	ipAddress := strings.TrimSpace(output.String())
+	if ipAddress == "" {
+		return "", fmt.Errorf("no IPv4 found on interface %s", interfaceName)
+	}
+
+	klog.V(90).Infof("Found IPv4 %s on interface %s", ipAddress, interfaceName)
+
+	return ipAddress, nil
+}
+
+// EnableSCTPOnWorkers loads the SCTP kernel module on all worker nodes.
+func EnableSCTPOnWorkers(workerNodes []*nodes.Builder) error {
+	for _, node := range workerNodes {
+		klog.V(90).Infof("Loading SCTP kernel module on node %s", node.Definition.Name)
+
+		// Sanitize node name for DNS-1123 compliance: replace dots with hyphens and truncate.
+		sanitizedName := strings.ReplaceAll(node.Definition.Name, ".", "-")
+		podName := fmt.Sprintf("sctp-enable-%s", sanitizedName)
+
+		if len(podName) > 63 {
+			podName = podName[:63]
+		}
+
+		debugPod, err := pod.NewBuilder(
+			APIClient, podName,
+			tsparams.TestNamespaceName, NetConfig.CnfNetTestContainer).
+			DefineOnNode(node.Definition.Name).
+			WithPrivilegedFlag().
+			WithHostPid(true).
+			WithHostNetwork().
+			RedefineDefaultCMD([]string{"bash", "-c", "nsenter -t 1 -m -u -n -i modprobe sctp && sleep 5"}).
+			CreateAndWaitUntilRunning(netparam.DefaultTimeout)
+		if err != nil {
+			return fmt.Errorf("failed to create SCTP enabler pod on node %s: %w", node.Definition.Name, err)
+		}
+
+		time.Sleep(10 * time.Second)
+
+		_, err = debugPod.DeleteAndWait(netparam.DefaultTimeout)
+		if err != nil {
+			return fmt.Errorf("failed to delete SCTP enabler pod on node %s: %w", node.Definition.Name, err)
+		}
+	}
+
+	return nil
 }
