@@ -152,8 +152,9 @@ const (
 )
 
 var (
-    // Labels list for test selection
-    Labels = []string{LabelSuite, LabelFeatureName}
+    // Labels represent the suite-level labels applied to all tests in the suite.
+    // Feature-specific labels should be applied to individual Describe blocks.
+    Labels = []string{LabelSuite}
 
     // Reporter configuration
     ReporterCRDsToDump = []k8sreporter.CRData{...}
@@ -166,7 +167,7 @@ var (
 1. **Constants**: Use for values that don't change (labels, namespaces, default values)
 2. **Variables**: Use for values that may be configured or computed
 3. **Timeouts**: Define reasonable defaults; make them configurable when needed
-4. **Labels**: Aggregate in a `Labels` variable for suite-level filtering
+4. **Labels**: Suite-level `Labels` should only contain the suite label. Feature-specific labels (e.g., `LabelBasic`, `LabelGUI`) should be applied to individual `Describe` blocks using `Label(tsparams.LabelFeatureName)`
 
 ### Environment Validation Package (`sriovenv` or similar)
 
@@ -401,7 +402,7 @@ func WaitForResourceExists(apiClient *clients.Settings, name, namespace string, 
 ### Logging and Debugging
 
 1. **Use By() statements**: Document test steps with `By("Description")`
-2. **Glog for verbose logging**: Use `klog.V(level).Infof()` for detailed logging
+2. **klog for verbose logging**: Use `klog.V(level).Infof()` for detailed logging
 3. **Environment variable control**: Respect `ECO_VERBOSE_LEVEL` for logging verbosity
 4. **Meaningful messages**: Include context in log messages
 
