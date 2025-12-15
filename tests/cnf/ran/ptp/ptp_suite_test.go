@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/internal/nicinfo"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/querier"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/rancluster"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
@@ -45,6 +46,7 @@ var _ = AfterSuite(func() {
 	By("cleaning up Prometheus API client resources")
 	err = querier.CleanupQuerierResources(RANConfig.Spoke1APIClient)
 	Expect(err).ToNot(HaveOccurred(), "Failed to cleanup Prometheus API client resources")
+
 })
 
 var _ = JustAfterEach(func() {
@@ -54,4 +56,10 @@ var _ = JustAfterEach(func() {
 
 var _ = ReportAfterSuite("", func(report Report) {
 	reportxml.Create(report, RANConfig.GetReportPath(), RANConfig.TCPrefix)
+
+	By("generating network interface information report")
+	nicinfoReport, err := nicinfo.GenerateReport(RANConfig.Spoke1APIClient)
+	Expect(err).ToNot(HaveOccurred(), "Failed to generate network interface information report")
+
+	AddReportEntry("nicinfo", nicinfoReport)
 })
