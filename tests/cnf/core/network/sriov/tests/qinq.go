@@ -87,6 +87,7 @@ var _ = Describe("QinQ", Ordered, Label(tsparams.LabelQinQTestCases), ContinueOn
 		workerNodeList              = []*nodes.Builder{}
 		srIovInterfacesUnderTest    []string
 		sriovDeviceID               string
+		sriovVendor                 string
 		switchCredentials           *sriovenv.SwitchCredentials
 		switchConfig                *netconfig.NetworkConfig
 		switchInterfaces            []string
@@ -118,6 +119,11 @@ var _ = Describe("QinQ", Ordered, Label(tsparams.LabelQinQTestCases), ContinueOn
 			workerNodeList[0].Definition.Name)
 		Expect(sriovDeviceID).ToNot(BeEmpty(), "Expected sriovDeviceID not to be empty")
 
+		By("Fetching SR-IOV Vendor ID for interface under test")
+		sriovVendor, err = sriovenv.DiscoverInterfaceUnderTestVendorID(
+			srIovInterfacesUnderTest[0], workerNodeList[0].Definition.Name)
+		Expect(err).ToNot(HaveOccurred(), "Failed to fetch SR-IOV Vendor ID for interface under test")
+
 		By("Configure lab switch interface to support VLAN double tagging")
 		switchCredentials, err = sriovenv.NewSwitchCredentials()
 		Expect(err).ToNot(HaveOccurred(), "Failed to get switch credentials")
@@ -130,7 +136,7 @@ var _ = Describe("QinQ", Ordered, Label(tsparams.LabelQinQTestCases), ContinueOn
 		Expect(err).ToNot(HaveOccurred(), "Failed to enable 802.1AD on the switch")
 
 		By("Enable VF promiscuous support on sriov interface under test")
-		setVFPromiscMode(workerNodeList[0].Definition.Name, srIovInterfacesUnderTest[0], sriovDeviceID, "on")
+		setVFPromiscMode(workerNodeList[0].Definition.Name, srIovInterfacesUnderTest[0], sriovVendor, "on")
 	})
 
 	Context("802.1AD", func() {
@@ -142,7 +148,7 @@ var _ = Describe("QinQ", Ordered, Label(tsparams.LabelQinQTestCases), ContinueOn
 
 			By("Define and create sriovnetwork Polices")
 			defineCreateSriovNetPolices(srIovPolicyNetDevice, srIovPolicyResNameNetDevice, srIovInterfacesUnderTest[0],
-				sriovDeviceID, "netdevice")
+				sriovVendor, "netdevice")
 			By("Define and create sriovnetworks")
 			defineAndCreateSriovNetworks(srIovNetworkPromiscuous, srIovNetworkDot1AD, srIovNetworkDot1Q,
 				srIovPolicyResNameNetDevice)
@@ -492,7 +498,7 @@ var _ = Describe("QinQ", Ordered, Label(tsparams.LabelQinQTestCases), ContinueOn
 			Expect(err).ToNot(HaveOccurred(), "Fail to deploy PerformanceProfile")
 
 			defineCreateSriovNetPolices(srIovPolicyVfioPci, srIovPolicyResNameVfioPci, srIovInterfacesUnderTest[0],
-				sriovDeviceID, "vfio-pci")
+				sriovVendor, "vfio-pci")
 
 			By("Setting selinux flag container_use_devices to 1 on all compute nodes")
 			err = cluster.ExecCmd(APIClient, NetConfig.WorkerLabel, "setsebool container_use_devices 1")
@@ -600,7 +606,7 @@ var _ = Describe("QinQ", Ordered, Label(tsparams.LabelQinQTestCases), ContinueOn
 				sriovAndResourceNameExManagedTrue)
 
 			By("Enable VF promiscuous support on sriov interface under test")
-			setVFPromiscMode(workerNodeList[0].Definition.Name, srIovInterfacesUnderTest[0], sriovDeviceID, "on")
+			setVFPromiscMode(workerNodeList[0].Definition.Name, srIovInterfacesUnderTest[0], sriovVendor, "on")
 		})
 
 		It("Verify an 802.1ad QinQ tunneling between two containers with the VFs configured by NMState",
@@ -670,7 +676,7 @@ var _ = Describe("QinQ", Ordered, Label(tsparams.LabelQinQTestCases), ContinueOn
 			"Failed to remove VLAN double tagging configuration from the switch")
 
 		By(fmt.Sprintf("Disable VF promiscuous support on %s", srIovInterfacesUnderTest[0]))
-		setVFPromiscMode(workerNodeList[0].Definition.Name, srIovInterfacesUnderTest[0], sriovDeviceID, "off")
+		setVFPromiscMode(workerNodeList[0].Definition.Name, srIovInterfacesUnderTest[0], sriovVendor, "off")
 
 		By("Removing all SR-IOV Policy")
 		err = sriov.CleanAllNetworkNodePolicies(APIClient, NetConfig.SriovOperatorNamespace)
@@ -1018,8 +1024,7 @@ func defineQinQBondNAD(nadname, mode string) *nad.Builder {
 }
 
 func defineCreateSriovNetPolices(vfioPCIName, vfioPCIResName, sriovInterface,
-
-	sriovDeviceID, reqDriver string) {
+	sriovVendor, reqDriver string) {
 	By("Define and create sriov network policy using worker node label with netDevice type vfio-pci")
 
 	sriovPolicy := sriov.NewPolicyBuilder(
@@ -1033,7 +1038,7 @@ func defineCreateSriovNetPolices(vfioPCIName, vfioPCIResName, sriovInterface,
 
 	switch reqDriver {
 	case "vfio-pci":
-		if sriovDeviceID == netparam.MlxDeviceID || sriovDeviceID == netparam.MlxBFDeviceID {
+		if sriovVendor == netparam.MlxVendorID {
 			_, err := sriovPolicy.WithRDMA(true).WithDevType("netdevice").Create()
 			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to create Mellanox sriovnetwork policy %s",
 				vfioPCIName))
@@ -1095,11 +1100,10 @@ func defineAndCreateNADs(nadCVLAN100, nadCVLAN101, nadMasterBond0, intNet1 strin
 		nadCVLAN100))
 }
 
-func setVFPromiscMode(nodeName, srIovInterfacesUnderTest, sriovDeviceID, onOff string) {
+func setVFPromiscMode(nodeName, srIovInterfacesUnderTest, sriovVendor, onOff string) {
 	promiscVFCommand := fmt.Sprintf("ethtool --set-priv-flags %s vf-true-promisc-support %s",
 		srIovInterfacesUnderTest, onOff)
-	if sriovDeviceID == netparam.MlxDeviceID || sriovDeviceID == netparam.MlxBFDeviceID ||
-		sriovDeviceID == netparam.MlxConnectX6 {
+	if sriovVendor == netparam.MlxVendorID {
 		promiscVFCommand = fmt.Sprintf("ip link set %s promisc %s",
 			srIovInterfacesUnderTest, onOff)
 	}
