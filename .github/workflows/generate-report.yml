@@ -46,7 +46,7 @@ jobs:
       # and just overwrite every run.
       - name: Restore report cache
         continue-on-error: true
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: report-cache
           path: ${{ env.XDG_CACHE_HOME }}/eco-gotests
