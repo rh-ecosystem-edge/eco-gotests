@@ -179,6 +179,27 @@ func IsMellanoxDevice(intName, nodeName string) bool {
 	return driverName == "mlx5_core"
 }
 
+// DiscoverInterfaceUnderTestVendorID returns the vendor ID for a given SR-IOV interface on a worker node.
+func DiscoverInterfaceUnderTestVendorID(srIovInterfaceUnderTest, workerNodeName string) (string, error) {
+	glog.V(90).Infof("Discovering vendor ID for SR-IOV interface %s on node %s",
+		srIovInterfaceUnderTest, workerNodeName)
+
+	sriovInterfaces, err := sriov.NewNetworkNodeStateBuilder(
+		APIClient, workerNodeName, NetConfig.SriovOperatorNamespace).GetUpNICs()
+	if err != nil {
+		return "", fmt.Errorf("failed to discover vendor ID for network interface %s: %w",
+			srIovInterfaceUnderTest, err)
+	}
+
+	for _, srIovInterface := range sriovInterfaces {
+		if srIovInterface.Name == srIovInterfaceUnderTest {
+			return srIovInterface.Vendor, nil
+		}
+	}
+
+	return "", fmt.Errorf("SR-IOV interface %s not found on node %s", srIovInterfaceUnderTest, workerNodeName)
+}
+
 // ConfigureSriovMlnxFirmwareOnWorkers configures SR-IOV firmware on a given Mellanox device.
 func ConfigureSriovMlnxFirmwareOnWorkers(
 	workerNodes []*nodes.Builder, sriovInterfaceName string, enableSriov bool, numVfs int) error {
