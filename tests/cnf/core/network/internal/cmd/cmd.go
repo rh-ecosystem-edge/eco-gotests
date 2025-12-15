@@ -169,7 +169,7 @@ func ValidateTCPTraffic(clientPod *pod.Builder, destIPAddrs []string, interfaceN
 	for _, destIPAddr := range RemovePrefixFromIPList(destIPAddrs) {
 		glog.V(90).Infof("Validate tcp traffic to %d to destination server IP %s", portNum, destIPAddr)
 
-		command := fmt.Sprintf("testcmd -interface %s -protocol tcp -port %d -server %s", interfaceName,
+		command := fmt.Sprintf("testcmd -interface %s -protocol tcp -port %d -server %s -mtu 1000", interfaceName,
 			portNum, destIPAddr)
 		_, err := clientPod.ExecCommand([]string{"bash", "-c", command}, containerName)
 
