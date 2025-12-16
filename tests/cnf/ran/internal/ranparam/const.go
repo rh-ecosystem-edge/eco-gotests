@@ -46,6 +46,8 @@ const (
 	// LinuxPtpDaemonsetName is the name of the Linux PTP daemon daemonset.
 	LinuxPtpDaemonsetName = "linuxptp-daemon"
 
+	// CloudEventProxyContainerName is the sidecar in the linuxptp-daemon pod that emits events.
+	CloudEventProxyContainerName = "cloud-event-proxy"
 	// LogLevel is the verbosity for ran/internal packages.
 	LogLevel klog.Level = 80
 
