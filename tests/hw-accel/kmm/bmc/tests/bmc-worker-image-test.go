@@ -26,6 +26,10 @@ import (
 	"k8s.io/klog/v2"
 )
 
+const (
+	restartPolicyNever = "Never"
+)
+
 var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSanity, tsparams.LabelSuite), func() {
 
 	Context("BootModuleConfig", Label("bmc-worker-image"), func() {
@@ -125,12 +129,15 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 			rebootPod := pod.NewBuilder(APIClient, rebootPodName, kmmparams.KmmOperatorNamespace,
 				"registry.access.redhat.com/ubi9/ubi-minimal:latest")
 			rebootPod.Definition.Spec.NodeName = workerNode.Object.Name
-			rebootPod.Definition.Spec.RestartPolicy = "Never"
+			rebootPod.Definition.Spec.RestartPolicy = restartPolicyNever
 			rebootPod.Definition.Spec.HostPID = true
 			rebootPod.Definition.Spec.AutomountServiceAccountToken = boolPtr(false)
 
 			rebootPod.Definition.Spec.Containers[0].Command = []string{
-				"/bin/sh", "-c", "echo s > /host/proc/sysrq-trigger; sleep 1; echo u > /host/proc/sysrq-trigger; sleep 1; echo b > /host/proc/sysrq-trigger",
+				"/bin/sh", "-c",
+				"echo s > /host/proc/sysrq-trigger; sleep 1; " +
+					"echo u > /host/proc/sysrq-trigger; sleep 1; " +
+					"echo b > /host/proc/sysrq-trigger",
 			}
 			rebootPod.Definition.Spec.Containers[0].SecurityContext = kmmparams.PrivilegedSC
 			rebootPod.Definition.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
@@ -149,7 +156,7 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 			sysrqCheckPod := pod.NewBuilder(APIClient, fmt.Sprintf("sysrq-check-%s", workerNode.Object.Name),
 				kmmparams.KmmOperatorNamespace, "registry.access.redhat.com/ubi9/ubi-minimal:latest")
 			sysrqCheckPod.Definition.Spec.NodeName = workerNode.Object.Name
-			sysrqCheckPod.Definition.Spec.RestartPolicy = "Never"
+			sysrqCheckPod.Definition.Spec.RestartPolicy = restartPolicyNever
 			sysrqCheckPod.Definition.Spec.AutomountServiceAccountToken = boolPtr(false)
 			sysrqCheckPod.Definition.Spec.Containers[0].Command = []string{
 				"/bin/sh", "-c", "cat /host/proc/sys/kernel/sysrq",
@@ -170,15 +177,21 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 				Eventually(func() bool {
 					podObj, err := pod.Pull(APIClient, sysrqCheckPod.Definition.Name, kmmparams.KmmOperatorNamespace)
 
-					return err == nil && (podObj.Object.Status.Phase == corev1.PodSucceeded || podObj.Object.Status.Phase == corev1.PodFailed)
+					return err == nil && (podObj.Object.Status.Phase == corev1.PodSucceeded ||
+						podObj.Object.Status.Phase == corev1.PodFailed)
 				}, 1*time.Minute, 5*time.Second).Should(BeTrue(), "sysrq check pod did not complete")
 
-				sysrqCheckPod.DeleteAndWait(30 * time.Second)
+				_, err = sysrqCheckPod.DeleteAndWait(30 * time.Second)
+				if err != nil {
+					klog.V(kmmparams.KmmLogLevel).Infof("Warning: Could not delete sysrq check pod: %v", err)
+				}
 			}
 
 			_, err = rebootPod.CreateAndWaitUntilRunning(2 * time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "reboot pod did not start - cannot trigger reboot")
-			klog.V(kmmparams.KmmLogLevel).Infof("Reboot pod running on node %s, executing sysrq-trigger reboot (sync, unmount, reboot)", workerNode.Object.Name)
+			klog.V(kmmparams.KmmLogLevel).Infof(
+				"Reboot pod running on node %s, executing sysrq-trigger reboot (sync, unmount, reboot)",
+				workerNode.Object.Name)
 
 			By("Wait for node boot ID to change (reboot occurred)")
 			Eventually(func() bool {
@@ -191,7 +204,9 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 
 				newBootID := node.Object.Status.NodeInfo.BootID
 				if newBootID != originalBootID {
-					klog.V(kmmparams.KmmLogLevel).Infof("Node %s boot ID changed: %s -> %s (reboot confirmed)", workerNode.Object.Name, originalBootID, newBootID)
+					klog.V(kmmparams.KmmLogLevel).Infof(
+						"Node %s boot ID changed: %s -> %s (reboot confirmed)",
+						workerNode.Object.Name, originalBootID, newBootID)
 
 					return true
 				}
@@ -226,7 +241,7 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 			debugPod := pod.NewBuilder(APIClient, debugPodName, kmmparams.KmmOperatorNamespace,
 				"registry.access.redhat.com/ubi9/ubi-minimal:latest")
 			debugPod.Definition.Spec.NodeName = workerNode.Object.Name
-			debugPod.Definition.Spec.RestartPolicy = "Never"
+			debugPod.Definition.Spec.RestartPolicy = restartPolicyNever
 			debugPod.Definition.Spec.HostPID = true
 			debugPod.Definition.Spec.AutomountServiceAccountToken = boolPtr(false)
 			debugPod.Definition.Spec.Containers[0].Command = []string{
