@@ -2,6 +2,7 @@ package tsparams
 
 import (
 	"github.com/openshift-kni/k8sreporter"
+	mcv1 "github.com/openshift/api/machineconfiguration/v1"
 	bmcV1Beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/kmm/v1beta1"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 	corev1 "k8s.io/api/core/v1"
@@ -22,17 +23,8 @@ const (
 	// BMCTestNamespace represents the namespace for the BMC test.
 	BMCTestNamespace = "default"
 
-	// SimpleKmodImage represents the simple-kmod kernel module image.
-	SimpleKmodImage = "quay.io/ocp-edge-qe/simple-kmod"
-
-	// SimpleKmodModuleName represents the kernel module name.
-	SimpleKmodModuleName = "simple-kmod"
-
 	// MachineConfigName represents the name of the MachineConfig created by BMC.
 	MachineConfigName = "10-kmod"
-
-	// MachineConfigPoolName represents the target MachineConfigPool.
-	MachineConfigPoolName = "worker"
 )
 
 var (
@@ -45,6 +37,8 @@ var (
 	// ReporterCRDsToDump tells to the reporter what CRs to dump.
 	ReporterCRDsToDump = []k8sreporter.CRData{
 		{Cr: &bmcV1Beta1.BootModuleConfigList{}},
+		{Cr: &mcv1.MachineConfigList{}},
+		{Cr: &mcv1.MachineConfigPoolList{}},
 		{Cr: &corev1.EventList{}},
 	}
 )

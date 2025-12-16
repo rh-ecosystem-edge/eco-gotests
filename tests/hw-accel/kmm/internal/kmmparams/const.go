@@ -244,6 +244,12 @@ const (
 	TolerationModuleTestNamespace = "79205-tol"
 	// DefaultNodesNamespace represents namespace of the nodes events.
 	DefaultNodesNamespace = "default"
+	// SimpleKmodImage represents the pre-built simple-kmod kernel module image.
+	SimpleKmodImage = "quay.io/ocp-edge-qe/simple-kmod"
+	// SimpleKmodModuleName represents the simple-kmod kernel module name.
+	SimpleKmodModuleName = "simple-kmod"
+	// DefaultWorkerMCPName represents the default worker MachineConfigPool name.
+	DefaultWorkerMCPName = "worker"
 	// PreflightDTKImageX86 represents x86_64 DTK image for KMM 2.4 preflightvalidationocp.
 	// Compatible with OpenShift Container Platform 4.18.
 	PreflightDTKImageX86 = "quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:" +

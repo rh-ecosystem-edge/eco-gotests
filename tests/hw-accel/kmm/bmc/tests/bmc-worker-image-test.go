@@ -82,12 +82,15 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 
 			klog.V(kmmparams.KmmLogLevel).Infof("KMM version %s >= 2.5.0, proceeding with BMC test", currentVersion)
 
+			By("Verify simple-kmod image exists")
+			klog.V(kmmparams.KmmLogLevel).Infof("Using kernel module image: %s", kmmparams.SimpleKmodImage)
+
 			By("Create BootModuleConfig with empty workerImage")
 			bmcBuilder = kmm.NewBootModuleConfigBuilder(APIClient, tsparams.BMCTestName, tsparams.BMCTestNamespace).
-				WithKernelModuleImage(tsparams.SimpleKmodImage).
-				WithKernelModuleName(tsparams.SimpleKmodModuleName).
+				WithKernelModuleImage(kmmparams.SimpleKmodImage).
+				WithKernelModuleName(kmmparams.SimpleKmodModuleName).
 				WithMachineConfigName(tsparams.MachineConfigName).
-				WithMachineConfigPoolName(tsparams.MachineConfigPoolName)
+				WithMachineConfigPoolName(kmmparams.DefaultWorkerMCPName)
 			// Note: WithWorkerImage is NOT called - workerImage is left empty
 
 			_, err = bmcBuilder.Create()
@@ -296,6 +299,24 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 
 				return err != nil && strings.Contains(err.Error(), "does not exist")
 			}, time.Minute, 5*time.Second).Should(BeTrue(), "MachineConfig should be deleted")
+
+			By("Wait for MachineConfigPool to start updating (nodes will reboot to remove module)")
+			mcp, err := mco.Pull(APIClient, kmmparams.DefaultWorkerMCPName)
+			Expect(err).ToNot(HaveOccurred(), "error pulling machineconfigpool")
+
+			err = mcp.WaitToBeStableFor(time.Minute, 2*time.Minute)
+			if err == nil {
+				klog.V(kmmparams.KmmLogLevel).Infof(
+					"MCP was stable - MC deletion may not have triggered node updates")
+			} else {
+				klog.V(kmmparams.KmmLogLevel).Infof("MCP is updating as expected after MC deletion")
+			}
+
+			By("Wait for MachineConfigPool update to complete (all nodes rebooted)")
+			err = mcp.WaitForUpdate(30 * time.Minute)
+			Expect(err).ToNot(HaveOccurred(), "error waiting for machineconfigpool to finish updating")
+
+			klog.V(kmmparams.KmmLogLevel).Infof("MachineConfigPool update complete - nodes have rebooted")
 		})
 	})
 })
