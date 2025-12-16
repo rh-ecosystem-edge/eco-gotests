@@ -133,6 +133,19 @@ func ModuleObjectDeleted(apiClient *clients.Settings, moduleName, nsName string,
 		})
 }
 
+// BootModuleConfigObjectDeleted awaits BootModuleConfig object to be deleted.
+func BootModuleConfigObjectDeleted(apiClient *clients.Settings, bmcName, nsName string, timeout time.Duration) error {
+	return wait.PollUntilContextTimeout(
+		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			_, err := kmm.PullBootModuleConfig(apiClient, bmcName, nsName)
+			if err != nil {
+				klog.V(kmmparams.KmmLogLevel).Infof("error while pulling the BootModuleConfig; most likely it is deleted")
+			}
+
+			return err != nil, nil
+		})
+}
+
 // PreflightStageDone awaits preflightvalidationocp to be in stage Done.
 func PreflightStageDone(apiClient *clients.Settings, preflight, module, nsname string,
 	timeout time.Duration) error {
