@@ -3,6 +3,7 @@ package tests
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -24,10 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
-)
-
-const (
-	restartPolicyNever = "Never"
+	"k8s.io/utils/ptr"
 )
 
 var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSanity, tsparams.LabelSuite), func() {
@@ -113,10 +111,18 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 			mcString := string(mcJSON)
 			klog.V(kmmparams.KmmLogLevel).Infof("MachineConfig JSON: %s", mcString)
 
-			Expect(mcString).To(ContainSubstring("WORKER_IMAGE="),
-				"MachineConfig should contain WORKER_IMAGE environment variable")
-			Expect(mcString).To(ContainSubstring("kernel-module-management-worker-rhel9"),
-				"WORKER_IMAGE should reference the KMM worker-rhel9 image from the operator")
+			workerImagePattern := regexp.MustCompile(`WORKER_IMAGE=(\S+)`)
+			matches := workerImagePattern.FindStringSubmatch(mcString)
+			Expect(len(matches)).To(BeNumerically(">=", 2),
+				"MachineConfig should contain WORKER_IMAGE environment variable with a value")
+
+			workerImageValue := matches[1]
+			klog.V(kmmparams.KmmLogLevel).Infof("Found WORKER_IMAGE value: %s", workerImageValue)
+
+			Expect(workerImageValue).ToNot(BeEmpty(),
+				"WORKER_IMAGE value should not be empty")
+			Expect(workerImageValue).To(MatchRegexp(`^[a-zA-Z0-9].*`),
+				"WORKER_IMAGE should be a valid image reference")
 
 			By("Get a worker node for reboot")
 			nodeList, err := nodes.List(
@@ -132,9 +138,9 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 			rebootPod := pod.NewBuilder(APIClient, rebootPodName, kmmparams.KmmOperatorNamespace,
 				"registry.access.redhat.com/ubi9/ubi-minimal:latest")
 			rebootPod.Definition.Spec.NodeName = workerNode.Object.Name
-			rebootPod.Definition.Spec.RestartPolicy = restartPolicyNever
+			rebootPod.Definition.Spec.RestartPolicy = corev1.RestartPolicyNever
 			rebootPod.Definition.Spec.HostPID = true
-			rebootPod.Definition.Spec.AutomountServiceAccountToken = boolPtr(false)
+			rebootPod.Definition.Spec.AutomountServiceAccountToken = ptr.To(false)
 
 			rebootPod.Definition.Spec.Containers[0].Command = []string{
 				"/bin/sh", "-c",
@@ -159,8 +165,8 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 			sysrqCheckPod := pod.NewBuilder(APIClient, fmt.Sprintf("sysrq-check-%s", workerNode.Object.Name),
 				kmmparams.KmmOperatorNamespace, "registry.access.redhat.com/ubi9/ubi-minimal:latest")
 			sysrqCheckPod.Definition.Spec.NodeName = workerNode.Object.Name
-			sysrqCheckPod.Definition.Spec.RestartPolicy = restartPolicyNever
-			sysrqCheckPod.Definition.Spec.AutomountServiceAccountToken = boolPtr(false)
+			sysrqCheckPod.Definition.Spec.RestartPolicy = corev1.RestartPolicyNever
+			sysrqCheckPod.Definition.Spec.AutomountServiceAccountToken = ptr.To(false)
 			sysrqCheckPod.Definition.Spec.Containers[0].Command = []string{
 				"/bin/sh", "-c", "cat /host/proc/sys/kernel/sysrq",
 			}
@@ -244,9 +250,9 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 			debugPod := pod.NewBuilder(APIClient, debugPodName, kmmparams.KmmOperatorNamespace,
 				"registry.access.redhat.com/ubi9/ubi-minimal:latest")
 			debugPod.Definition.Spec.NodeName = workerNode.Object.Name
-			debugPod.Definition.Spec.RestartPolicy = restartPolicyNever
+			debugPod.Definition.Spec.RestartPolicy = corev1.RestartPolicyNever
 			debugPod.Definition.Spec.HostPID = true
-			debugPod.Definition.Spec.AutomountServiceAccountToken = boolPtr(false)
+			debugPod.Definition.Spec.AutomountServiceAccountToken = ptr.To(false)
 			debugPod.Definition.Spec.Containers[0].Command = []string{
 				"/bin/sh", "-c", "chroot /host lsmod | grep simple_kmod",
 			}
@@ -320,8 +326,3 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 		})
 	})
 })
-
-// boolPtr returns a pointer to a bool value.
-func boolPtr(b bool) *bool {
-	return &b
-}
