@@ -29,18 +29,18 @@ import (
 
 var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func() {
 
-	const simpleKmodName = "simple-kmod"
+	const (
+		moduleName         = "simple-kmod"
+		serviceAccountName = "simple-kmod-manager"
+		secretName         = "test-build-secret"
+	)
+
+	localNsName := kmmparams.SimpleKmodModuleTestNamespace
 
 	Context("Module", Ordered, Label("simple-kmod"), func() {
-
-		moduleName := simpleKmodName
-		kmodName := simpleKmodName
-		localNsName := kmmparams.SimpleKmodModuleTestNamespace
-		serviceAccountName := "simple-kmod-manager"
-		secretName := "test-build-secret"
 		image := fmt.Sprintf("%s/%s:$KERNEL_FULL_VERSION-%v",
 			ModulesConfig.Registry, moduleName, time.Now().Unix())
-		buildArgValue := fmt.Sprintf("%s.o", kmodName)
+		buildArgValue := fmt.Sprintf("%s.o", moduleName)
 
 		var module *kmm.ModuleBuilder
 		var svcAccount *serviceaccount.Builder
@@ -77,7 +77,7 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			By("Create configmap")
 			configmapContent := define.SimpleKmodConfigMapContents()
 
-			dockerfileConfigMap, err := configmap.NewBuilder(APIClient, kmodName, localNsName).
+			dockerfileConfigMap, err := configmap.NewBuilder(APIClient, moduleName, localNsName).
 				WithData(configmapContent).Create()
 
 			Expect(err).ToNot(HaveOccurred(), "error creating configmap")
@@ -129,11 +129,11 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			Expect(err).ToNot(HaveOccurred(), "error while waiting on driver deployment")
 
 			By("Check module is loaded on node")
-			err = check.ModuleLoaded(APIClient, kmodName, time.Minute)
+			err = check.ModuleLoaded(APIClient, moduleName, time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
 
 			By("Check label is set on all nodes")
-			_, err = check.NodeLabel(APIClient, kmodName, localNsName, GeneralConfig.WorkerLabelMap)
+			_, err = check.NodeLabel(APIClient, moduleName, localNsName, GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
 
 		})
@@ -144,7 +144,7 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			Expect(err).ToNot(HaveOccurred(), "error deleting the module")
 
 			By("Await module to be deleted")
-			err = await.ModuleObjectDeleted(APIClient, kmodName, localNsName, 3*time.Minute)
+			err = await.ModuleObjectDeleted(APIClient, moduleName, localNsName, 3*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error while waiting module to be deleted")
 
 			By("Await pods deletion")
@@ -152,7 +152,7 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			Expect(err).ToNot(HaveOccurred(), "error while waiting pods to be deleted")
 
 			By("Check labels are removed on all nodes")
-			_, err = check.NodeLabel(APIClient, kmodName, localNsName, GeneralConfig.WorkerLabelMap)
+			_, err = check.NodeLabel(APIClient, moduleName, localNsName, GeneralConfig.WorkerLabelMap)
 			Expect(err).To(HaveOccurred(), "error while checking the module is loaded")
 
 		})
@@ -195,17 +195,11 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 	// Separate context to isolate flaky event test (68106) in first context.
 	// If 68106 fails, these tests will still run. Reuses namespace/secrets.
 	Context("Module - Additional Tests", Ordered, Label("simple-kmod"), func() {
-
-		moduleName := simpleKmodName
-		kmodName := simpleKmodName
-		localNsName := kmmparams.SimpleKmodModuleTestNamespace
-		serviceAccountName := "simple-kmod-manager"
-		secretName := "test-build-secret"
 		image := fmt.Sprintf("%s/%s:$KERNEL_FULL_VERSION-%v",
 			ModulesConfig.Registry, moduleName, time.Now().Unix())
 		imageNotUniq := fmt.Sprintf("%s/%s:$KERNEL_FULL_VERSION",
 			ModulesConfig.Registry, moduleName)
-		buildArgValue := fmt.Sprintf("%s.o", kmodName)
+		buildArgValue := fmt.Sprintf("%s.o", moduleName)
 
 		var module *kmm.ModuleBuilder
 		var svcAccount *serviceaccount.Builder
@@ -266,11 +260,11 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			Expect(err).ToNot(HaveOccurred(), "error while waiting on driver deployment")
 
 			By("Check module is loaded on node")
-			err = check.ModuleLoaded(APIClient, kmodName, time.Minute)
+			err = check.ModuleLoaded(APIClient, moduleName, time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
 
 			By("Check label is set on all nodes")
-			_, err = check.NodeLabel(APIClient, kmodName, localNsName, GeneralConfig.WorkerLabelMap)
+			_, err = check.NodeLabel(APIClient, moduleName, localNsName, GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
 		})
 
@@ -280,7 +274,7 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			Expect(err).ToNot(HaveOccurred(), "error deleting the module")
 
 			By("Await module to be deleted")
-			err = await.ModuleObjectDeleted(APIClient, kmodName, localNsName, 3*time.Minute)
+			err = await.ModuleObjectDeleted(APIClient, moduleName, localNsName, 3*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error while waiting module to be deleted")
 
 			By("Await pods deletion")
@@ -288,7 +282,7 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			Expect(err).ToNot(HaveOccurred(), "error while waiting pods to be deleted")
 
 			By("Check labels are removed on all nodes")
-			_, err = check.NodeLabel(APIClient, kmodName, localNsName, GeneralConfig.WorkerLabelMap)
+			_, err = check.NodeLabel(APIClient, moduleName, localNsName, GeneralConfig.WorkerLabelMap)
 			Expect(err).To(HaveOccurred(), "error while checking the module is loaded")
 
 		})
@@ -340,11 +334,11 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			Expect(err).ToNot(HaveOccurred(), "error while waiting on driver deployment")
 
 			By("Check module is loaded on node")
-			err = check.ModuleLoaded(APIClient, kmodName, time.Minute)
+			err = check.ModuleLoaded(APIClient, moduleName, time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
 
 			By("Check label is set on all nodes")
-			_, err = check.NodeLabel(APIClient, kmodName, localNsName, GeneralConfig.WorkerLabelMap)
+			_, err = check.NodeLabel(APIClient, moduleName, localNsName, GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
 		})
 
@@ -353,7 +347,7 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			By("Create configmap")
 			configmapContent := define.SimpleKmodConfigMapContents()
 
-			dockerfileConfigMap, err := configmap.NewBuilder(APIClient, kmodName, localNsName).
+			dockerfileConfigMap, err := configmap.NewBuilder(APIClient, moduleName, localNsName).
 				WithData(configmapContent).Create()
 
 			Expect(err).ToNot(HaveOccurred(), "error creating configmap")
@@ -406,11 +400,11 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 
 		AfterAll(func() {
 			By("Delete Module")
-			_, err := kmm.NewModuleBuilder(APIClient, kmodName, localNsName).Delete()
+			_, err := kmm.NewModuleBuilder(APIClient, moduleName, localNsName).Delete()
 			Expect(err).ToNot(HaveOccurred(), "error deleting module")
 
 			By("Await module to be deleted")
-			err = await.ModuleObjectDeleted(APIClient, kmodName, localNsName, 3*time.Minute)
+			err = await.ModuleObjectDeleted(APIClient, moduleName, localNsName, 3*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error while waiting module to be deleted")
 
 			By("Delete ClusterRoleBinding")
