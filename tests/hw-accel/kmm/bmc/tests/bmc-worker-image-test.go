@@ -37,12 +37,11 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 		)
 
 		AfterEach(func() {
-			By("Delete any reboot or debug pods")
+			By("Delete any reboot pods")
 			podList, err := pod.List(APIClient, kmmparams.KmmOperatorNamespace, metav1.ListOptions{})
 			if err == nil {
 				for _, p := range podList {
 					if strings.HasSuffix(p.Object.Name, "-debug-reboot") ||
-						strings.HasPrefix(p.Object.Name, "bmc-test-debug-") ||
 						strings.HasPrefix(p.Object.Name, "sysrq-check-") {
 						klog.V(kmmparams.KmmLogLevel).Infof("Cleaning up pod: %s", p.Object.Name)
 						_, _ = p.DeleteAndWait(30 * time.Second)
@@ -245,46 +244,63 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 
 			klog.V(kmmparams.KmmLogLevel).Infof("Node %s is back up and Ready", workerNode.Object.Name)
 
-			By("Verify simple-kmod module is loaded on node")
-			debugPodName := fmt.Sprintf("bmc-test-debug-%s", workerNode.Object.Name)
-			debugPod := pod.NewBuilder(APIClient, debugPodName, kmmparams.KmmOperatorNamespace,
-				"registry.access.redhat.com/ubi9/ubi-minimal:latest")
-			debugPod.Definition.Spec.NodeName = workerNode.Object.Name
-			debugPod.Definition.Spec.RestartPolicy = corev1.RestartPolicyNever
-			debugPod.Definition.Spec.HostPID = true
-			debugPod.Definition.Spec.AutomountServiceAccountToken = ptr.To(false)
-			debugPod.Definition.Spec.Containers[0].Command = []string{
-				"/bin/sh", "-c", "chroot /host lsmod | grep simple_kmod",
-			}
-			debugPod.Definition.Spec.Containers[0].SecurityContext = kmmparams.PrivilegedSC
-			debugPod.Definition.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
-				{Name: "host", MountPath: "/host"},
-			}
-			debugPod.Definition.Spec.Volumes = []corev1.Volume{
-				{Name: "host", VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{Path: "/"},
-				}},
-			}
-
-			_, err = debugPod.Create()
-			Expect(err).ToNot(HaveOccurred(), "error creating debug pod")
-
-			By("Wait for debug pod to complete")
+			By("Wait for helper pod on rebooted node to be ready and check module is loaded")
+			// After node reboot, the helper pod needs time to recover
+			// Wait for the specific helper pod on the rebooted node to have container Ready
+			var helperPod *pod.Builder
 			Eventually(func() bool {
-				podObj, err := pod.Pull(APIClient, debugPodName, kmmparams.KmmOperatorNamespace)
+				helperPods, err := pod.List(APIClient, kmmparams.KmmOperatorNamespace, metav1.ListOptions{
+					LabelSelector: kmmparams.KmmTestHelperLabelName,
+				})
 				if err != nil {
+					klog.V(kmmparams.KmmLogLevel).Infof("Error listing helper pods: %v", err)
+
 					return false
 				}
 
-				return podObj.Object.Status.Phase == corev1.PodSucceeded || podObj.Object.Status.Phase == corev1.PodFailed
-			}, 2*time.Minute, 5*time.Second).Should(BeTrue(), "debug pod did not complete in time")
+				// Find the pod on the rebooted node with Ready container
+				for _, p := range helperPods {
+					if p.Object.Spec.NodeName != workerNode.Object.Name {
+						continue
+					}
 
-			podObj, err := pod.Pull(APIClient, debugPodName, kmmparams.KmmOperatorNamespace)
-			Expect(err).ToNot(HaveOccurred(), "error pulling debug pod")
-			Expect(podObj.Object.Status.Phase).To(Equal(corev1.PodSucceeded),
-				"simple-kmod module should be loaded on node after reboot (lsmod | grep simple_kmod should succeed)")
+					if p.Object.Status.Phase != corev1.PodRunning {
+						klog.V(kmmparams.KmmLogLevel).Infof(
+							"Helper pod %s on node %s is in phase %s, waiting...",
+							p.Object.Name, workerNode.Object.Name, p.Object.Status.Phase)
 
-			klog.V(kmmparams.KmmLogLevel).Infof("simple-kmod module is loaded on node %s", workerNode.Object.Name)
+						continue
+					}
+
+					for _, cs := range p.Object.Status.ContainerStatuses {
+						if cs.Name == "test" && cs.Ready {
+							klog.V(kmmparams.KmmLogLevel).Infof(
+								"Helper pod %s container ready on node %s",
+								p.Object.Name, workerNode.Object.Name)
+							helperPod = p
+
+							return true
+						}
+					}
+
+					klog.V(kmmparams.KmmLogLevel).Infof(
+						"Helper pod %s on node %s container not ready yet",
+						p.Object.Name, workerNode.Object.Name)
+				}
+
+				return false
+			}, 5*time.Minute, 10*time.Second).Should(BeTrue(),
+				fmt.Sprintf("helper pod container not ready on node %s after reboot", workerNode.Object.Name))
+
+			By("Verify simple-kmod module is loaded")
+			modName := strings.Replace(kmmparams.SimpleKmodModuleName, "-", "_", -1)
+			buff, err := helperPod.ExecCommand([]string{"lsmod"}, "test")
+			Expect(err).ToNot(HaveOccurred(), "error executing lsmod on helper pod")
+
+			lsmodOutput := buff.String()
+			klog.V(kmmparams.KmmLogLevel).Infof("lsmod output on %s: %s", workerNode.Object.Name, lsmodOutput)
+			Expect(lsmodOutput).To(ContainSubstring(modName),
+				fmt.Sprintf("module %s should be loaded on node %s after reboot", modName, workerNode.Object.Name))
 
 			By("Delete the BootModuleConfig")
 			_, err = bmcBuilder.Delete()

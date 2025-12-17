@@ -3,6 +3,7 @@ package tsparams
 import (
 	"github.com/openshift-kni/k8sreporter"
 	mcv1 "github.com/openshift/api/machineconfiguration/v1"
+	operatorv1 "github.com/openshift/api/operator/v1"
 	bmcV1Beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/kmm/v1beta1"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 	corev1 "k8s.io/api/core/v1"
@@ -39,6 +40,7 @@ var (
 		{Cr: &bmcV1Beta1.BootModuleConfigList{}},
 		{Cr: &mcv1.MachineConfigList{}},
 		{Cr: &mcv1.MachineConfigPoolList{}},
+		{Cr: &operatorv1.MachineConfigurationList{}},
 		{Cr: &corev1.EventList{}},
 	}
 )
