@@ -28,6 +28,45 @@ import (
 	"k8s.io/utils/ptr"
 )
 
+func findReadyHelperPodOnNode(namespace, nodeName, containerName string) (*pod.Builder, error) {
+	helperPods, err := pod.List(APIClient, namespace, metav1.ListOptions{
+		LabelSelector: kmmparams.KmmTestHelperLabelName,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, helperPodCandidate := range helperPods {
+		if helperPodCandidate.Object.Spec.NodeName != nodeName {
+			continue
+		}
+
+		if helperPodCandidate.Object.Status.Phase != corev1.PodRunning {
+			klog.V(kmmparams.KmmLogLevel).Infof(
+				"Helper pod %s on node %s is in phase %s, waiting...",
+				helperPodCandidate.Object.Name, nodeName, helperPodCandidate.Object.Status.Phase)
+
+			continue
+		}
+
+		for _, cs := range helperPodCandidate.Object.Status.ContainerStatuses {
+			if cs.Name == containerName && cs.Ready {
+				klog.V(kmmparams.KmmLogLevel).Infof(
+					"Helper pod %s container ready on node %s",
+					helperPodCandidate.Object.Name, nodeName)
+
+				return helperPodCandidate, nil
+			}
+		}
+
+		klog.V(kmmparams.KmmLogLevel).Infof(
+			"Helper pod %s on node %s container not ready yet",
+			helperPodCandidate.Object.Name, nodeName)
+	}
+
+	return nil, fmt.Errorf("no ready helper pod found on node %s", nodeName)
+}
+
 var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSanity, tsparams.LabelSuite), func() {
 
 	Context("BootModuleConfig", Label("bmc-worker-image"), func() {
@@ -72,7 +111,9 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 			currentVersion, err := get.KmmOperatorVersion(APIClient)
 			Expect(err).ToNot(HaveOccurred(), "failed to get KMM operator version")
 
-			minVersion, _ := version.NewVersion("2.5.0")
+			minVersion, err := version.NewVersion("2.5.0")
+			Expect(err).ToNot(HaveOccurred(), "failed to parse minimum version")
+
 			if currentVersion.LessThan(minVersion) {
 				Skip("BootModuleConfig tests require KMM version 2.5.0 or higher")
 			}
@@ -245,49 +286,16 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 			klog.V(kmmparams.KmmLogLevel).Infof("Node %s is back up and Ready", workerNode.Object.Name)
 
 			By("Wait for helper pod on rebooted node to be ready and check module is loaded")
-
 			var helperPod *pod.Builder
 			Eventually(func() bool {
-				helperPods, err := pod.List(APIClient, kmmparams.KmmOperatorNamespace, metav1.ListOptions{
-					LabelSelector: kmmparams.KmmTestHelperLabelName,
-				})
+				foundPod, err := findReadyHelperPodOnNode(
+					kmmparams.KmmOperatorNamespace, workerNode.Object.Name, "test")
 				if err != nil {
-					klog.V(kmmparams.KmmLogLevel).Infof("Error listing helper pods: %v", err)
-
 					return false
 				}
+				helperPod = foundPod
 
-				for _, helperPodCandidate := range helperPods {
-					if helperPodCandidate.Object.Spec.NodeName != workerNode.Object.Name {
-						continue
-					}
-
-					if helperPodCandidate.Object.Status.Phase != corev1.PodRunning {
-						klog.V(kmmparams.KmmLogLevel).Infof(
-							"Helper pod %s on node %s is in phase %s, waiting...",
-							helperPodCandidate.Object.Name, workerNode.Object.Name,
-							helperPodCandidate.Object.Status.Phase)
-
-						continue
-					}
-
-					for _, cs := range helperPodCandidate.Object.Status.ContainerStatuses {
-						if cs.Name == "test" && cs.Ready {
-							klog.V(kmmparams.KmmLogLevel).Infof(
-								"Helper pod %s container ready on node %s",
-								helperPodCandidate.Object.Name, workerNode.Object.Name)
-							helperPod = helperPodCandidate
-
-							return true
-						}
-					}
-
-					klog.V(kmmparams.KmmLogLevel).Infof(
-						"Helper pod %s on node %s container not ready yet",
-						helperPodCandidate.Object.Name, workerNode.Object.Name)
-				}
-
-				return false
+				return true
 			}, 5*time.Minute, 10*time.Second).Should(BeTrue(),
 				fmt.Sprintf("helper pod container not ready on node %s after reboot", workerNode.Object.Name))
 
@@ -325,6 +333,8 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 			mcp, err := mco.Pull(APIClient, kmmparams.DefaultWorkerMCPName)
 			Expect(err).ToNot(HaveOccurred(), "error pulling machineconfigpool")
 
+			// Check if MC deletion triggers MCP update. If MCP stays stable for 1 minute,
+			// the deletion may not have triggered node updates (edge case).
 			err = mcp.WaitToBeStableFor(time.Minute, 2*time.Minute)
 			if err == nil {
 				klog.V(kmmparams.KmmLogLevel).Infof(
