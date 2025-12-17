@@ -214,6 +214,8 @@ const (
 	RelImgWorker = "WORKER"
 	// ModuleNodeLabelTemplate represents template of the label set on a node for a Module.
 	ModuleNodeLabelTemplate = "kmm.node.kubernetes.io/%s.%s.ready"
+	// ModuleVersionNodeLabelTemplate represents template of the label set on a node for a Module Version.
+	ModuleVersionNodeLabelTemplate = "kmm.node.kubernetes.io/%s.%s.version.ready"
 	// DevicePluginNodeLabelTemplate represents template label set by KMM on a node for a Device Plugin.
 	DevicePluginNodeLabelTemplate = "kmm.node.kubernetes.io/%s.%s.device-plugin-ready"
 	// UseDtkModuleTestNamespace represents test case namespace name.

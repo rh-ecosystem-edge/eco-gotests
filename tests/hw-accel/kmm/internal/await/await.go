@@ -86,6 +86,14 @@ func ModuleDeployment(apiClient *clients.Settings, moduleName, nsname string,
 	return deploymentPerLabel(apiClient, moduleName, label, timeout, selector)
 }
 
+// ModuleVersionDeployment awaits module with version to be deployed.
+func ModuleVersionDeployment(apiClient *clients.Settings, moduleName, nsName string,
+	timeout time.Duration, selector map[string]string, labelValue string) error {
+	label := fmt.Sprintf(kmmparams.ModuleVersionNodeLabelTemplate, nsName, moduleName)
+
+	return deploymentPerLabel(apiClient, moduleName, label, timeout, selector, labelValue)
+}
+
 // DeviceDriverDeployment awaits device driver pods to de deployed.
 func DeviceDriverDeployment(apiClient *clients.Settings, moduleName, nsname string,
 	timeout time.Duration, selector map[string]string) error {
@@ -158,7 +166,7 @@ func PreflightStageDone(apiClient *clients.Settings, preflight, module, nsname s
 }
 
 func deploymentPerLabel(apiClient *clients.Settings, moduleName, label string,
-	timeout time.Duration, selector map[string]string) error {
+	timeout time.Duration, selector map[string]string, expectedLabelValue ...string) error {
 	return wait.PollUntilContextTimeout(
 		context.TODO(), 5*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			var err error
@@ -178,15 +186,30 @@ func deploymentPerLabel(apiClient *clients.Settings, moduleName, label string,
 			foundLabels := 0
 
 			for _, node := range nodeBuilder {
-				klog.V(kmmparams.KmmLogLevel).Infof("%v", node.Object.Labels)
+				klog.V(kmmparams.KmmLogLevel).Infof("Existing labels: %v", node.Object.Labels)
 
-				_, ok := node.Object.Labels[label]
+				value, ok := node.Object.Labels[label]
 				if ok {
 					klog.V(kmmparams.KmmLogLevel).Infof("Found label %v that contains %v on node %v",
 						label, moduleName, node.Object.Name)
 
+					if len(expectedLabelValue) > 0 {
+						klog.V(kmmparams.KmmLogLevel).Infof("Checking label value is: %s", expectedLabelValue[0])
+						klog.V(kmmparams.KmmLogLevel).Infof("Current node label value is: %s", value)
+
+						if expectedLabelValue[0] == value {
+							klog.V(kmmparams.KmmLogLevel).Infof("Label value: %s matches the expected value: %s",
+								node.Object.Labels[label],
+								expectedLabelValue[0],
+							)
+						} else {
+							return false, fmt.Errorf("label value '%s' does not match the expected value: '%s'",
+								node.Object.Labels[label], expectedLabelValue[0])
+						}
+					}
+
 					foundLabels++
-					klog.V(kmmparams.KmmLogLevel).Infof("Number of nodes: %v, Number of nodes with '%v' label pods: %v\n",
+					klog.V(kmmparams.KmmLogLevel).Infof("Number of nodes: %v, Number of nodes with '%v' label: %v\n",
 						nodesForSelector, label, foundLabels)
 
 					if foundLabels == len(nodeBuilder) {
