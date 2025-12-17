@@ -39,6 +39,14 @@ var _ = Describe("KMM", Ordered, Label(tsparams.LabelSuite), func() {
 		)
 
 		BeforeAll(func() {
+			if ModulesConfig.CatalogSourceName == "" {
+				Skip("No CatalogSourceName defined. Skipping test")
+			}
+
+			if ModulesConfig.UpgradeTargetVersion == "" {
+				Skip("No UpgradeTargetVersion defined. Skipping test")
+			}
+
 			// Skip module deployment for KMM-HUB since Module CRD is not available on hub cluster
 			// The test will still run to verify operator upgrade, just without module deployment
 			if check.IsKMMHub() {
@@ -149,15 +157,6 @@ var _ = Describe("KMM", Ordered, Label(tsparams.LabelSuite), func() {
 		})
 
 		It("should upgrade successfully with module deployed", reportxml.ID("53609"), func() {
-
-			if ModulesConfig.CatalogSourceName == "" {
-				Skip("No CatalogSourceName defined. Skipping test")
-			}
-
-			if ModulesConfig.UpgradeTargetVersion == "" {
-				Skip("No UpgradeTargetVersion defined. Skipping test ")
-			}
-
 			opNamespace := kmmparams.KmmOperatorNamespace
 			if check.IsKMMHub() {
 				opNamespace = kmmparams.KmmHubOperatorNamespace
