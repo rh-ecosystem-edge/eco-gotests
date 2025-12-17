@@ -245,8 +245,7 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 			klog.V(kmmparams.KmmLogLevel).Infof("Node %s is back up and Ready", workerNode.Object.Name)
 
 			By("Wait for helper pod on rebooted node to be ready and check module is loaded")
-			// After node reboot, the helper pod needs time to recover
-			// Wait for the specific helper pod on the rebooted node to have container Ready
+
 			var helperPod *pod.Builder
 			Eventually(func() bool {
 				helperPods, err := pod.List(APIClient, kmmparams.KmmOperatorNamespace, metav1.ListOptions{
@@ -258,26 +257,26 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 					return false
 				}
 
-				// Find the pod on the rebooted node with Ready container
-				for _, p := range helperPods {
-					if p.Object.Spec.NodeName != workerNode.Object.Name {
+				for _, helperPodCandidate := range helperPods {
+					if helperPodCandidate.Object.Spec.NodeName != workerNode.Object.Name {
 						continue
 					}
 
-					if p.Object.Status.Phase != corev1.PodRunning {
+					if helperPodCandidate.Object.Status.Phase != corev1.PodRunning {
 						klog.V(kmmparams.KmmLogLevel).Infof(
 							"Helper pod %s on node %s is in phase %s, waiting...",
-							p.Object.Name, workerNode.Object.Name, p.Object.Status.Phase)
+							helperPodCandidate.Object.Name, workerNode.Object.Name,
+							helperPodCandidate.Object.Status.Phase)
 
 						continue
 					}
 
-					for _, cs := range p.Object.Status.ContainerStatuses {
+					for _, cs := range helperPodCandidate.Object.Status.ContainerStatuses {
 						if cs.Name == "test" && cs.Ready {
 							klog.V(kmmparams.KmmLogLevel).Infof(
 								"Helper pod %s container ready on node %s",
-								p.Object.Name, workerNode.Object.Name)
-							helperPod = p
+								helperPodCandidate.Object.Name, workerNode.Object.Name)
+							helperPod = helperPodCandidate
 
 							return true
 						}
@@ -285,7 +284,7 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 
 					klog.V(kmmparams.KmmLogLevel).Infof(
 						"Helper pod %s on node %s container not ready yet",
-						p.Object.Name, workerNode.Object.Name)
+						helperPodCandidate.Object.Name, workerNode.Object.Name)
 				}
 
 				return false
@@ -293,7 +292,7 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 				fmt.Sprintf("helper pod container not ready on node %s after reboot", workerNode.Object.Name))
 
 			By("Verify simple-kmod module is loaded")
-			modName := strings.Replace(kmmparams.SimpleKmodModuleName, "-", "_", -1)
+			modName := strings.ReplaceAll(kmmparams.SimpleKmodModuleName, "-", "_")
 			buff, err := helperPod.ExecCommand([]string{"lsmod"}, "test")
 			Expect(err).ToNot(HaveOccurred(), "error executing lsmod on helper pod")
 
