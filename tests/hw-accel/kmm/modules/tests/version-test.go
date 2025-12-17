@@ -155,6 +155,11 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			err = await.ModuleDeployment(APIClient, moduleName, kmmparams.VersionModuleTestNamespace, 5*time.Minute,
 				firstNode.Object.Labels)
 			Expect(err).ToNot(HaveOccurred(), "error while checking module is deployed")
+
+			By("Check that the module version label is set on one node")
+			err = await.ModuleVersionDeployment(APIClient, moduleName, kmmparams.VersionModuleTestNamespace, 5*time.Minute,
+				firstNode.Object.Labels, "first")
+			Expect(err).ToNot(HaveOccurred(), "error while checking module label version")
 		})
 
 		It("should upgrade from a version to another", reportxml.ID("63111"), func() {
@@ -235,6 +240,11 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			By("Check label is set on all nodes")
 			_, err = check.NodeLabel(APIClient, moduleName, kmmparams.VersionModuleTestNamespace, GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
+
+			By("Check that the module version label is set on all worker nodes")
+			err = await.ModuleVersionDeployment(APIClient, moduleName, kmmparams.VersionModuleTestNamespace, 5*time.Minute,
+				GeneralConfig.WorkerLabelMap, "second")
+			Expect(err).ToNot(HaveOccurred(), "error while checking module label version")
 		})
 	})
 })
