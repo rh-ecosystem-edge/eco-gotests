@@ -29,15 +29,17 @@ import (
 
 var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func() {
 
-	const simpleKmodName = "simple-kmod"
+	const (
+		simpleKmodName     = "simple-kmod"
+		moduleName         = simpleKmodName
+		kmodName           = simpleKmodName
+		serviceAccountName = "simple-kmod-manager"
+		secretName         = "test-build-secret"
+	)
+
+	localNsName := kmmparams.SimpleKmodModuleTestNamespace
 
 	Context("Module", Ordered, Label("simple-kmod"), func() {
-
-		moduleName := simpleKmodName
-		kmodName := simpleKmodName
-		localNsName := kmmparams.SimpleKmodModuleTestNamespace
-		serviceAccountName := "simple-kmod-manager"
-		secretName := "test-build-secret"
 		image := fmt.Sprintf("%s/%s:$KERNEL_FULL_VERSION-%v",
 			ModulesConfig.Registry, moduleName, time.Now().Unix())
 		buildArgValue := fmt.Sprintf("%s.o", kmodName)
@@ -195,12 +197,6 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 	// Separate context to isolate flaky event test (68106) in first context.
 	// If 68106 fails, these tests will still run. Reuses namespace/secrets.
 	Context("Module - Additional Tests", Ordered, Label("simple-kmod"), func() {
-
-		moduleName := simpleKmodName
-		kmodName := simpleKmodName
-		localNsName := kmmparams.SimpleKmodModuleTestNamespace
-		serviceAccountName := "simple-kmod-manager"
-		secretName := "test-build-secret"
 		image := fmt.Sprintf("%s/%s:$KERNEL_FULL_VERSION-%v",
 			ModulesConfig.Registry, moduleName, time.Now().Unix())
 		imageNotUniq := fmt.Sprintf("%s/%s:$KERNEL_FULL_VERSION",
