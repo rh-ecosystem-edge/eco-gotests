@@ -353,10 +353,12 @@ func defineAndCreateSriovNetworkWithRdma(netName, resName string, withRdma bool)
 		testNetBuilder.WithMetaPluginRdma()
 	}
 
-	testNetwork, err := testNetBuilder.Create()
-	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to create Sriov Network %s", netName))
+	err := sriovenv.CreateSriovNetworkAndWaitForNADCreation(testNetBuilder, tsparams.NADWaitTimeout)
+	Expect(err).ToNot(HaveOccurred(),
+		fmt.Sprintf("failed to create and wait for NAD creation for Sriov Network %s with error %v",
+			netName, err))
 
-	return testNetwork
+	return testNetBuilder
 }
 
 func defineAndCreatePod(netName1, netName2 string) *pod.Builder {
