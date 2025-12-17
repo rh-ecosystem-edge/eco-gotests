@@ -36,6 +36,10 @@ var (
 	// ReporterCRDsToDump tells to the reporter what CRs to dump.
 	ReporterCRDsToDump = []k8sreporter.CRData{
 		{Cr: &moduleV1Beta1.ModuleList{}},
+		{Cr: &moduleV1Beta1.ModuleBuildSignConfigList{}},
+		{Cr: &moduleV1Beta1.ModuleImagesConfigList{}},
+		{Cr: &moduleV1Beta1.NodeModulesConfigList{}},
+		{Cr: &moduleV1Beta1.PreflightValidationOCPList{}},
 		{Cr: &corev1.EventList{}},
 	}
 )
