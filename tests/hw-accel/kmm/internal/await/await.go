@@ -6,13 +6,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/kmm"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/mco"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/get"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
-
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -120,7 +120,6 @@ func ModuleUndeployed(apiClient *clients.Settings, nsName string, timeout time.D
 }
 
 // ModuleObjectDeleted awaits module object to be deleted.
-// required from KMM 2.0 so that NMC has time to unload the modules.
 func ModuleObjectDeleted(apiClient *clients.Settings, moduleName, nsName string, timeout time.Duration) error {
 	return wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
@@ -232,5 +231,135 @@ func deploymentPerLabel(apiClient *clients.Settings, moduleName, label string,
 			}
 
 			return false, err
+		})
+}
+
+// MachineConfigCreated awaits MachineConfig to be created.
+func MachineConfigCreated(apiClient *clients.Settings, mcName string, timeout time.Duration) error {
+	return wait.PollUntilContextTimeout(
+		context.TODO(), 10*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			mcBuilder, err := mco.PullMachineConfig(apiClient, mcName)
+			if err != nil {
+				klog.V(kmmparams.KmmLogLevel).Infof("MachineConfig %s not found yet: %v", mcName, err)
+
+				return false, nil
+			}
+
+			if mcBuilder != nil && mcBuilder.Exists() {
+				klog.V(kmmparams.KmmLogLevel).Infof("MachineConfig %s created", mcName)
+
+				return true, nil
+			}
+
+			return false, nil
+		})
+}
+
+// NodeDesiredConfigChange waits for MCO to render a new config for the node
+// and for the node to be ready for manual reboot.
+// This function handles three scenarios:
+// 1. Node already has a pending config change (desiredConfig != currentConfig) - proceeds immediately
+// 2. MCO needs to render a new config - waits for desiredConfig to change
+// 3. Node is ready for reboot - state is "Done" with pending config
+func NodeDesiredConfigChange(
+	apiClient *clients.Settings,
+	nodeName string,
+	timeout time.Duration,
+) error {
+	node, err := nodes.Pull(apiClient, nodeName)
+	if err != nil {
+		return fmt.Errorf("failed to pull node %s: %w", nodeName, err)
+	}
+
+	initialCurrentConfig := node.Object.Annotations["machineconfiguration.openshift.io/currentConfig"]
+	initialDesiredConfig := node.Object.Annotations["machineconfiguration.openshift.io/desiredConfig"]
+	initialState := node.Object.Annotations["machineconfiguration.openshift.io/state"]
+
+	klog.V(kmmparams.KmmLogLevel).Infof(
+		"Node %s initial state - currentConfig: %s, desiredConfig: %s, state: %s",
+		nodeName, initialCurrentConfig, initialDesiredConfig, initialState)
+
+	// Check if node already has a pending config change and is ready for reboot
+	if initialDesiredConfig != initialCurrentConfig && initialState == "Done" {
+		klog.V(kmmparams.KmmLogLevel).Infof(
+			"Node %s already has pending config change and is ready for reboot", nodeName)
+
+		return nil
+	}
+
+	// Wait for node to be ready for manual reboot:
+	// - desiredConfig differs from currentConfig (new config is pending)
+	// - state is "Done" (MCO finished processing, waiting for reboot)
+	return wait.PollUntilContextTimeout(
+		context.TODO(), 10*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			updatedNode, err := nodes.Pull(apiClient, nodeName)
+			if err != nil {
+				klog.V(kmmparams.KmmLogLevel).Infof("Error pulling node %s: %v", nodeName, err)
+
+				return false, nil
+			}
+
+			currentCfg := updatedNode.Object.Annotations["machineconfiguration.openshift.io/currentConfig"]
+			desiredCfg := updatedNode.Object.Annotations["machineconfiguration.openshift.io/desiredConfig"]
+			nodeState := updatedNode.Object.Annotations["machineconfiguration.openshift.io/state"]
+
+			klog.V(kmmparams.KmmLogLevel).Infof(
+				"Node %s - currentConfig: %s, desiredConfig: %s, state: %s",
+				nodeName, currentCfg, desiredCfg, nodeState)
+
+			// Ready for manual reboot when:
+			// - desiredConfig differs from currentConfig (new config is pending)
+			// - state is "Done" (MCO finished processing, waiting for reboot)
+			if desiredCfg != currentCfg && nodeState == "Done" {
+				klog.V(kmmparams.KmmLogLevel).Infof(
+					"Node %s is ready for manual reboot (new config pending, state: Done)", nodeName)
+
+				return true, nil
+			}
+
+			// Log what we're waiting for
+			if desiredCfg == currentCfg {
+				klog.V(kmmparams.KmmLogLevel).Infof(
+					"Waiting for MCO to render new config (desiredConfig == currentConfig)")
+			} else if nodeState != "Done" {
+				klog.V(kmmparams.KmmLogLevel).Infof(
+					"Config pending but state is %s (waiting for Done)", nodeState)
+			}
+
+			return false, nil
+		})
+}
+
+// NodeConfigApplied waits for the node to have applied the new config after reboot.
+func NodeConfigApplied(
+	apiClient *clients.Settings,
+	nodeName string,
+	timeout time.Duration,
+) error {
+	return wait.PollUntilContextTimeout(
+		context.TODO(), 10*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			updatedNode, err := nodes.Pull(apiClient, nodeName)
+			if err != nil {
+				klog.V(kmmparams.KmmLogLevel).Infof("Error pulling node %s: %v", nodeName, err)
+
+				return false, nil
+			}
+
+			currentCfg := updatedNode.Object.Annotations["machineconfiguration.openshift.io/currentConfig"]
+			desiredCfg := updatedNode.Object.Annotations["machineconfiguration.openshift.io/desiredConfig"]
+			nodeState := updatedNode.Object.Annotations["machineconfiguration.openshift.io/state"]
+
+			klog.V(kmmparams.KmmLogLevel).Infof(
+				"Node %s - currentConfig: %s, desiredConfig: %s, state: %s",
+				nodeName, currentCfg, desiredCfg, nodeState)
+
+			if currentCfg == desiredCfg && nodeState == "Done" {
+				klog.V(kmmparams.KmmLogLevel).Infof(
+					"Node %s has applied new config successfully", nodeName)
+
+				return true, nil
+			}
+
+			return false, nil
 		})
 }

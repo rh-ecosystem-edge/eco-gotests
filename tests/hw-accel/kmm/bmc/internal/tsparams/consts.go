@@ -31,7 +31,7 @@ const (
 var (
 	// ReporterNamespacesToDump tells to the reporter from where to collect logs.
 	ReporterNamespacesToDump = map[string]string{
-		kmmparams.KmmOperatorNamespace: "kmm",
+		kmmparams.KmmOperatorNamespace: "openshift-kmm",
 		BMCTestNamespace:               "bmc",
 	}
 

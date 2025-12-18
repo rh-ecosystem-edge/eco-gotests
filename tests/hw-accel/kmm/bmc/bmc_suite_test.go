@@ -10,6 +10,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/rbac"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/serviceaccount"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/bmc/internal/tsparams"
@@ -17,6 +18,8 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/reporter"
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
@@ -49,10 +52,21 @@ var _ = BeforeSuite(func() {
 		NewBuilder(APIClient, prereqName, kmmparams.KmmOperatorNamespace).Create()
 	Expect(err).ToNot(HaveOccurred(), "error creating serviceaccount")
 
-	By("Create helper ClusterRoleBinding")
+	By("Create helper ClusterRoleBinding for privileged SCC")
 	crb := define.ModuleCRB(*svcAccount, prereqName)
 	_, err = crb.Create()
 	Expect(err).ToNot(HaveOccurred(), "error creating clusterrolebinding")
+
+	By("Create ClusterRoleBinding for pods/exec permission (using edit role)")
+	execCRB := rbac.NewClusterRoleBindingBuilder(APIClient, prereqName+"-exec-binding",
+		"edit",
+		rbacv1.Subject{
+			Kind:      "ServiceAccount",
+			Name:      prereqName,
+			Namespace: kmmparams.KmmOperatorNamespace,
+		})
+	_, err = execCRB.Create()
+	Expect(err).ToNot(HaveOccurred(), "error creating exec clusterrolebinding")
 
 	By("Create helper Deployments on worker nodes")
 	nodeList, err := nodes.List(
@@ -68,10 +82,18 @@ var _ = BeforeSuite(func() {
 		deploymentName := fmt.Sprintf("%s-%s", kmmparams.KmmTestHelperLabelName, node.Object.Name)
 		containerCfg, _ := pod.NewContainerBuilder("test", kmmparams.DTKImage,
 			[]string{"/bin/bash", "-c", "sleep INF"}).
-			WithSecurityContext(kmmparams.PrivilegedSC).GetContainerCfg()
+			WithSecurityContext(kmmparams.PrivilegedSC).
+			WithVolumeMount(corev1.VolumeMount{Name: "host", MountPath: "/host", ReadOnly: false}).
+			GetContainerCfg()
 
 		deploymentCfg := deployment.NewBuilder(APIClient, deploymentName, kmmparams.KmmOperatorNamespace,
 			map[string]string{kmmparams.KmmTestHelperLabelName: ""}, *containerCfg)
+		deploymentCfg.WithVolume(corev1.Volume{
+			Name: "host",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{Path: "/"},
+			},
+		})
 		deploymentCfg.WithToleration(kmmparams.TolerationNoExecuteK8sUnreachable)
 		deploymentCfg.WithToleration(kmmparams.TolerationNoScheduleK8sUnreachable)
 		deploymentCfg.WithToleration(kmmparams.TolerationNoScheduleK8sUnschedulable)
@@ -81,7 +103,7 @@ var _ = BeforeSuite(func() {
 
 		deploymentCfg.WithLabel(kmmparams.KmmTestHelperLabelName, "").
 			WithNodeSelector(map[string]string{"kubernetes.io/hostname": node.Object.Name}).
-			WithServiceAccountName("kmm-operator-module-loader")
+			WithServiceAccountName(prereqName)
 
 		_, err = deploymentCfg.CreateAndWaitUntilReady(10 * time.Minute)
 
@@ -119,6 +141,17 @@ var _ = AfterSuite(func() {
 	crb := define.ModuleCRB(*svcAccount, prereqName)
 	err = crb.Delete()
 	Expect(err).ToNot(HaveOccurred(), "error deleting helper clusterrolebinding")
+
+	By("Delete exec clusterrolebinding")
+	execCRB := rbac.NewClusterRoleBindingBuilder(APIClient, prereqName+"-exec-binding",
+		"edit",
+		rbacv1.Subject{
+			Kind:      "ServiceAccount",
+			Name:      prereqName,
+			Namespace: kmmparams.KmmOperatorNamespace,
+		})
+	err = execCRB.Delete()
+	Expect(err).ToNot(HaveOccurred(), "error deleting exec clusterrolebinding")
 
 	By("Delete helper service account")
 	err = svcAccount.Delete()

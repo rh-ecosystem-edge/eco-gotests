@@ -2,16 +2,22 @@ package get
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/hashicorp/go-version"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/imagestream"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/kmm"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/mco"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/olm"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
@@ -265,4 +271,119 @@ func operatorVersion(apiClient *clients.Settings, namePattern, namespace string)
 	}
 
 	return nil, fmt.Errorf("no matching CSV were found")
+}
+
+// KernelModuleImageExists returns the matching image tag
+func KernelModuleImageExists(
+	apiClient *clients.Settings,
+	baseImage string,
+	nodeSelector map[string]string,
+	helperNamespace string,
+) (string, error) {
+
+	kernelVersion, err := KernelFullVersion(apiClient, nodeSelector)
+	if err != nil {
+		return "", fmt.Errorf("failed to get kernel version: %w", err)
+	}
+
+	klog.V(kmmparams.KmmLogLevel).Infof("Cluster kernel version: %s", kernelVersion)
+
+	helperPod, err := findReadyHelperPod(apiClient, helperNamespace)
+	if err != nil {
+		return "", fmt.Errorf("failed to find helper pod: %w", err)
+	}
+
+	parts := strings.SplitN(baseImage, "/", 2)
+	if len(parts) != 2 {
+		return "", fmt.Errorf("invalid image format: %s", baseImage)
+	}
+
+	registry := parts[0]
+	repository := parts[1]
+
+	var apiURL string
+	if registry == "quay.io" {
+		apiURL = fmt.Sprintf("https://quay.io/api/v1/repository/%s/tag/?limit=100&filter_tag_name=like:%s",
+			repository, kernelVersion)
+	} else {
+		apiURL = fmt.Sprintf("https://%s/v2/%s/tags/list", registry, repository)
+	}
+
+	curlCmd := []string{"curl", "-s", "-f", apiURL}
+	klog.V(kmmparams.KmmLogLevel).Infof("Executing: %v", curlCmd)
+
+	output, err := helperPod.ExecCommand(curlCmd, "test")
+
+	if err != nil {
+		errOutput := output.String()
+		klog.V(kmmparams.KmmLogLevel).Infof("curl failed for %s: %v, output: %s",
+			apiURL, err, errOutput)
+
+		return "", fmt.Errorf("failed to list tags for %s: %w (output: %s)", baseImage, err, errOutput)
+	}
+
+	tagsOutput := output.String()
+	klog.V(kmmparams.KmmLogLevel).Infof("Available tags for %s: %s", baseImage, tagsOutput)
+
+	if !strings.Contains(tagsOutput, kernelVersion) {
+		return "", fmt.Errorf("no image tag found for kernel version %s in %s", kernelVersion, baseImage)
+	}
+
+	klog.V(kmmparams.KmmLogLevel).Infof("Found image tag matching kernel version %s in %s", kernelVersion, baseImage)
+
+	return fmt.Sprintf("%s (kernel: %s)", baseImage, kernelVersion), nil
+}
+
+func findReadyHelperPod(apiClient *clients.Settings, namespace string) (*pod.Builder, error) {
+	helperPods, err := pod.List(apiClient, namespace, metav1.ListOptions{
+		LabelSelector: kmmparams.KmmTestHelperLabelName,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, helperPodCandidate := range helperPods {
+		if helperPodCandidate.Object.Status.Phase != corev1.PodRunning {
+			continue
+		}
+
+		for _, cs := range helperPodCandidate.Object.Status.ContainerStatuses {
+			if cs.Name == "test" && cs.Ready {
+				klog.V(kmmparams.KmmLogLevel).Infof(
+					"Found ready helper pod: %s", helperPodCandidate.Object.Name)
+
+				return helperPodCandidate, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("no ready helper pod found in namespace %s", namespace)
+}
+
+// MachineConfigEnvVar returns the value and nil error if found, or empty string and error if not found.
+func MachineConfigEnvVar(apiClient *clients.Settings, mcName, envVarName string) (string, error) {
+	mcBuilder, err := mco.PullMachineConfig(apiClient, mcName)
+	if err != nil {
+		return "", fmt.Errorf("failed to pull MachineConfig %s: %w", mcName, err)
+	}
+
+	mcJSON, err := json.Marshal(mcBuilder.Object)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal MachineConfig to JSON: %w", err)
+	}
+
+	mcString := string(mcJSON)
+	klog.V(kmmparams.KmmLogLevel).Infof("Searching for %s in MachineConfig %s", envVarName, mcName)
+
+	pattern := regexp.MustCompile(fmt.Sprintf(`%s=(\S+)`, envVarName))
+	matches := pattern.FindStringSubmatch(mcString)
+
+	if len(matches) < 2 {
+		return "", fmt.Errorf("environment variable %s not found in MachineConfig %s", envVarName, mcName)
+	}
+
+	value := matches[1]
+	klog.V(kmmparams.KmmLogLevel).Infof("Found %s=%s in MachineConfig %s", envVarName, value, mcName)
+
+	return value, nil
 }

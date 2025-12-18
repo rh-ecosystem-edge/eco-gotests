@@ -1,9 +1,7 @@
 package tests
 
 import (
-	"encoding/json"
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 
@@ -20,12 +18,12 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/await"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/get"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/reboot"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/ptr"
 )
 
 func findReadyHelperPodOnNode(namespace, nodeName, containerName string) (*pod.Builder, error) {
@@ -69,6 +67,21 @@ func findReadyHelperPodOnNode(namespace, nodeName, containerName string) (*pod.B
 
 var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSanity, tsparams.LabelSuite), func() {
 
+	BeforeAll(func() {
+		By("Check KMM version is 2.5 or higher")
+		currentVersion, err := get.KmmOperatorVersion(APIClient)
+		Expect(err).ToNot(HaveOccurred(), "failed to get KMM operator version")
+
+		minVersion, err := version.NewVersion("2.5.0")
+		Expect(err).ToNot(HaveOccurred(), "failed to parse minimum version")
+
+		if currentVersion.LessThan(minVersion) {
+			Skip("BootModuleConfig tests require KMM version 2.5.0 or higher")
+		}
+
+		klog.V(kmmparams.KmmLogLevel).Infof("KMM version %s >= 2.5.0, proceeding with BMC tests", currentVersion)
+	})
+
 	Context("BootModuleConfig", Label("bmc-worker-image"), func() {
 
 		var (
@@ -107,21 +120,15 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 		})
 
 		It("should create BMC with empty workerImage and use operator worker image", reportxml.ID("85553"), func() {
-			By("Check KMM version is 2.5 or higher")
-			currentVersion, err := get.KmmOperatorVersion(APIClient)
-			Expect(err).ToNot(HaveOccurred(), "failed to get KMM operator version")
-
-			minVersion, err := version.NewVersion("2.5.0")
-			Expect(err).ToNot(HaveOccurred(), "failed to parse minimum version")
-
-			if currentVersion.LessThan(minVersion) {
-				Skip("BootModuleConfig tests require KMM version 2.5.0 or higher")
+			By("Verify simple-kmod image exists for kernel version")
+			_, err := get.KernelModuleImageExists(
+				APIClient,
+				kmmparams.SimpleKmodImage,
+				GeneralConfig.WorkerLabelMap,
+				kmmparams.KmmOperatorNamespace)
+			if err != nil {
+				Skip(fmt.Sprintf("Simple-kmod image not available: %v", err))
 			}
-
-			klog.V(kmmparams.KmmLogLevel).Infof("KMM version %s >= 2.5.0, proceeding with BMC test", currentVersion)
-
-			By("Verify simple-kmod image exists")
-			klog.V(kmmparams.KmmLogLevel).Infof("Using kernel module image: %s", kmmparams.SimpleKmodImage)
 
 			By("Create BootModuleConfig with empty workerImage")
 			bmcBuilder = kmm.NewBootModuleConfigBuilder(APIClient, tsparams.BMCTestName, tsparams.BMCTestNamespace).
@@ -129,38 +136,18 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 				WithKernelModuleName(kmmparams.SimpleKmodModuleName).
 				WithMachineConfigName(tsparams.MachineConfigName).
 				WithMachineConfigPoolName(kmmparams.DefaultWorkerMCPName)
-			// Note: WithWorkerImage is NOT called - workerImage is left empty
 
 			_, err = bmcBuilder.Create()
 			Expect(err).ToNot(HaveOccurred(), "error creating bootmoduleconfig")
 
 			By("Wait for MachineConfig to be created")
-			Eventually(func() bool {
-				mcBuilder, err := mco.PullMachineConfig(APIClient, tsparams.MachineConfigName)
-
-				return err == nil && mcBuilder != nil && mcBuilder.Exists()
-			}, 3*time.Minute, 10*time.Second).Should(BeTrue(), "MachineConfig was not created in time")
+			err = await.MachineConfigCreated(APIClient, tsparams.MachineConfigName, 3*time.Minute)
+			Expect(err).ToNot(HaveOccurred(), "MachineConfig was not created in time")
 
 			By("Verify MachineConfig contains WORKER_IMAGE from operator")
-			mcBuilder, err := mco.PullMachineConfig(APIClient, tsparams.MachineConfigName)
-			Expect(err).ToNot(HaveOccurred(), "error pulling machineconfig")
-
-			mcJSON, err := json.Marshal(mcBuilder.Object)
-			Expect(err).ToNot(HaveOccurred(), "error marshaling machineconfig to JSON")
-
-			mcString := string(mcJSON)
-			klog.V(kmmparams.KmmLogLevel).Infof("MachineConfig JSON: %s", mcString)
-
-			workerImagePattern := regexp.MustCompile(`WORKER_IMAGE=(\S+)`)
-			matches := workerImagePattern.FindStringSubmatch(mcString)
-			Expect(len(matches)).To(BeNumerically(">=", 2),
-				"MachineConfig should contain WORKER_IMAGE environment variable with a value")
-
-			workerImageValue := matches[1]
-			klog.V(kmmparams.KmmLogLevel).Infof("Found WORKER_IMAGE value: %s", workerImageValue)
-
-			Expect(workerImageValue).ToNot(BeEmpty(),
-				"WORKER_IMAGE value should not be empty")
+			workerImageValue, err := get.MachineConfigEnvVar(APIClient, tsparams.MachineConfigName, "WORKER_IMAGE")
+			Expect(err).ToNot(HaveOccurred(), "MachineConfig should contain WORKER_IMAGE")
+			Expect(workerImageValue).ToNot(BeEmpty(), "WORKER_IMAGE value should not be empty")
 			Expect(workerImageValue).To(MatchRegexp(`^[a-zA-Z0-9].*`),
 				"WORKER_IMAGE should be a valid image reference")
 
@@ -173,117 +160,19 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 			workerNode := nodeList[0]
 			klog.V(kmmparams.KmmLogLevel).Infof("Using worker node: %s", workerNode.Object.Name)
 
-			By("Reboot the worker node using sysrq-trigger")
-			rebootPodName := fmt.Sprintf("%s-debug-reboot", workerNode.Object.Name)
-			rebootPod := pod.NewBuilder(APIClient, rebootPodName, kmmparams.KmmOperatorNamespace,
-				"registry.access.redhat.com/ubi9/ubi-minimal:latest")
-			rebootPod.Definition.Spec.NodeName = workerNode.Object.Name
-			rebootPod.Definition.Spec.RestartPolicy = corev1.RestartPolicyNever
-			rebootPod.Definition.Spec.HostPID = true
-			rebootPod.Definition.Spec.AutomountServiceAccountToken = ptr.To(false)
+			By("Wait for MCO to render new config for the node")
+			err = await.NodeDesiredConfigChange(APIClient, workerNode.Object.Name, 10*time.Minute)
+			Expect(err).ToNot(HaveOccurred(), "MCO did not render new config for node in time")
 
-			rebootPod.Definition.Spec.Containers[0].Command = []string{
-				"/bin/sh", "-c",
-				"echo s > /host/proc/sysrq-trigger; sleep 1; " +
-					"echo u > /host/proc/sysrq-trigger; sleep 1; " +
-					"echo b > /host/proc/sysrq-trigger",
-			}
-			rebootPod.Definition.Spec.Containers[0].SecurityContext = kmmparams.PrivilegedSC
-			rebootPod.Definition.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
-				{Name: "host-proc", MountPath: "/host/proc"},
-			}
-			rebootPod.Definition.Spec.Volumes = []corev1.Volume{
-				{Name: "host-proc", VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{Path: "/proc"},
-				}},
-			}
-
-			originalBootID := workerNode.Object.Status.NodeInfo.BootID
-			klog.V(kmmparams.KmmLogLevel).Infof("Node %s current boot ID: %s", workerNode.Object.Name, originalBootID)
-
-			By("Verify sysrq-trigger is available")
-			sysrqCheckPod := pod.NewBuilder(APIClient, fmt.Sprintf("sysrq-check-%s", workerNode.Object.Name),
-				kmmparams.KmmOperatorNamespace, "registry.access.redhat.com/ubi9/ubi-minimal:latest")
-			sysrqCheckPod.Definition.Spec.NodeName = workerNode.Object.Name
-			sysrqCheckPod.Definition.Spec.RestartPolicy = corev1.RestartPolicyNever
-			sysrqCheckPod.Definition.Spec.AutomountServiceAccountToken = ptr.To(false)
-			sysrqCheckPod.Definition.Spec.Containers[0].Command = []string{
-				"/bin/sh", "-c", "cat /host/proc/sys/kernel/sysrq",
-			}
-			sysrqCheckPod.Definition.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
-				{Name: "host-proc", MountPath: "/host/proc"},
-			}
-			sysrqCheckPod.Definition.Spec.Volumes = []corev1.Volume{
-				{Name: "host-proc", VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{Path: "/proc"},
-				}},
-			}
-
-			_, err = sysrqCheckPod.CreateAndWaitUntilRunning(2 * time.Minute)
-			if err != nil {
-				klog.V(kmmparams.KmmLogLevel).Infof("Warning: Could not verify sysrq availability: %v", err)
-			} else {
-				Eventually(func() bool {
-					podObj, err := pod.Pull(APIClient, sysrqCheckPod.Definition.Name, kmmparams.KmmOperatorNamespace)
-
-					return err == nil && (podObj.Object.Status.Phase == corev1.PodSucceeded ||
-						podObj.Object.Status.Phase == corev1.PodFailed)
-				}, 1*time.Minute, 5*time.Second).Should(BeTrue(), "sysrq check pod did not complete")
-
-				_, err = sysrqCheckPod.DeleteAndWait(30 * time.Second)
-				if err != nil {
-					klog.V(kmmparams.KmmLogLevel).Infof("Warning: Could not delete sysrq check pod: %v", err)
-				}
-			}
-
-			_, err = rebootPod.CreateAndWaitUntilRunning(2 * time.Minute)
-			Expect(err).ToNot(HaveOccurred(), "reboot pod did not start - cannot trigger reboot")
-			klog.V(kmmparams.KmmLogLevel).Infof(
-				"Reboot pod running on node %s, executing sysrq-trigger reboot (sync, unmount, reboot)",
-				workerNode.Object.Name)
-
-			By("Wait for node boot ID to change (reboot occurred)")
-			Eventually(func() bool {
-				node, err := nodes.Pull(APIClient, workerNode.Object.Name)
-				if err != nil {
-					klog.V(kmmparams.KmmLogLevel).Infof("Node %s unreachable during reboot", workerNode.Object.Name)
-
-					return false
-				}
-
-				newBootID := node.Object.Status.NodeInfo.BootID
-				if newBootID != originalBootID {
-					klog.V(kmmparams.KmmLogLevel).Infof(
-						"Node %s boot ID changed: %s -> %s (reboot confirmed)",
-						workerNode.Object.Name, originalBootID, newBootID)
-
-					return true
-				}
-
-				return false
-			}, 10*time.Minute, 5*time.Second).Should(BeTrue(), "Node boot ID did not change - reboot may not have occurred")
-
-			By("Wait for node to become Ready after reboot")
-			Eventually(func() bool {
-				node, err := nodes.Pull(APIClient, workerNode.Object.Name)
-				if err != nil {
-					klog.V(kmmparams.KmmLogLevel).Infof("Node %s still unreachable", workerNode.Object.Name)
-
-					return false
-				}
-
-				for _, condition := range node.Object.Status.Conditions {
-					if condition.Type == corev1.NodeReady && condition.Status == corev1.ConditionTrue {
-						klog.V(kmmparams.KmmLogLevel).Infof("Node %s is Ready after reboot", workerNode.Object.Name)
-
-						return true
-					}
-				}
-
-				return false
-			}, 10*time.Minute, 5*time.Second).Should(BeTrue(), "Node did not become Ready after reboot")
+			By("Reboot the worker node")
+			err = reboot.PerformReboot(APIClient, workerNode.Object.Name, kmmparams.KmmOperatorNamespace)
+			Expect(err).ToNot(HaveOccurred(), "failed to reboot node")
 
 			klog.V(kmmparams.KmmLogLevel).Infof("Node %s is back up and Ready", workerNode.Object.Name)
+
+			By("Wait for node to apply new config (currentConfig == desiredConfig)")
+			err = await.NodeConfigApplied(APIClient, workerNode.Object.Name, 10*time.Minute)
+			Expect(err).ToNot(HaveOccurred(), "node did not apply new config after reboot")
 
 			By("Wait for helper pod on rebooted node to be ready and check module is loaded")
 			var helperPod *pod.Builder
@@ -314,7 +203,7 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 			Expect(err).ToNot(HaveOccurred(), "error deleting bootmoduleconfig")
 
 			By("Verify MachineConfig is still present after BMC deletion")
-			mcBuilder, err = mco.PullMachineConfig(APIClient, tsparams.MachineConfigName)
+			mcBuilder, err := mco.PullMachineConfig(APIClient, tsparams.MachineConfigName)
 			Expect(err).ToNot(HaveOccurred(), "MachineConfig should still exist after BMC deletion")
 			Expect(mcBuilder.Exists()).To(BeTrue(), "MachineConfig should still exist")
 
@@ -333,8 +222,6 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 			mcp, err := mco.Pull(APIClient, kmmparams.DefaultWorkerMCPName)
 			Expect(err).ToNot(HaveOccurred(), "error pulling machineconfigpool")
 
-			// Check if MC deletion triggers MCP update. If MCP stays stable for 1 minute,
-			// the deletion may not have triggered node updates (edge case).
 			err = mcp.WaitToBeStableFor(time.Minute, 2*time.Minute)
 			if err == nil {
 				klog.V(kmmparams.KmmLogLevel).Infof(
