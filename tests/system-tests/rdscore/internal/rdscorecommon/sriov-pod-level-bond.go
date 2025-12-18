@@ -662,8 +662,8 @@ func inspectPodLevelBondedInterfaceConfig(podObj *pod.Builder, ipv4Addr, ipv6Add
 
 	err := wait.PollUntilContextTimeout(
 		context.TODO(),
-		time.Second*5,
-		time.Minute*1,
+		time.Second*10,
+		time.Minute*3,
 		true,
 		func(ctx context.Context) (bool, error) {
 			result, err := podObj.ExecCommand(cmdToRun, podObj.Object.Spec.Containers[0].Name)
@@ -687,53 +687,54 @@ func inspectPodLevelBondedInterfaceConfig(podObj *pod.Builder, ipv4Addr, ipv6Add
 
 			klog.V(100).Infof("The command execution output:\n\t%v", output)
 
+			if ipv4Addr != "" {
+				klog.V(100).Infof("Ensure IPv4 %s address defined as expected", ipv4Addr)
+
+				ipv4Found, err := findInCmdExecOutput(output, ipv4Addr)
+				if err != nil {
+					klog.V(100).Infof("Failed to parse output due to %v, retrying...", err)
+
+					return false, nil
+				}
+
+				if !ipv4Found {
+					klog.V(100).Infof("IPv4 address %s not found configured for the bond interface "+
+						"of the pod %s in namespace %s: %s",
+						ipv4Addr, podObj.Definition.Name, podObj.Definition.Namespace, output)
+
+					return false, nil
+				}
+			}
+
+			if ipv6Addr != "" {
+				klog.V(100).Infof("Ensure IPv6 %s address defined as expected", ipv6Addr)
+
+				ipv6Found, err := findInCmdExecOutput(output, ipv6Addr)
+				if err != nil {
+					klog.V(100).Infof("Failed to parse output due to %v, retrying...", err)
+
+					return false, nil
+				}
+
+				if !ipv6Found {
+					klog.V(100).Infof("IPv6 address %s not found configured for the bond interface "+
+						"of the pod %s in namespace %s: %s",
+						ipv6Addr, podObj.Definition.Name, podObj.Definition.Namespace, output)
+
+					return false, nil
+				}
+			}
+
+			// If the IPv4 and/or IPv6 addresses are found, return true
 			return true, nil
 		})
 	if err != nil {
-		return false, fmt.Errorf("failed to run command from within pod %s: %w", podObj.Object.Name, err)
+		return false, fmt.Errorf("failed to inspect pod-level bonded interface configuration for pod %s: %w",
+			podObj.Object.Name, err)
 	}
 
-	if ipv4Addr != "" {
-		klog.V(100).Infof("Ensure IPv4 %s address defined as expected", ipv4Addr)
-
-		ipv4Found, err := findInCmdExecOutput(output, ipv4Addr)
-		if err != nil {
-			klog.V(100).Infof("Failed to parse output due to %v", err)
-
-			return false, fmt.Errorf("failed to parse output due to %w", err)
-		}
-
-		if !ipv4Found {
-			klog.V(100).Infof("IPv4 address %s not found configured for the bond interface "+
-				"of the pod %s in namespace %s: %s",
-				ipv4Addr, podObj.Definition.Name, podObj.Definition.Namespace, output)
-
-			return false, fmt.Errorf("ipv4 address %s not found configured for the bond interface "+
-				"of the pod %s in namespace %s: %s",
-				ipv4Addr, podObj.Definition.Name, podObj.Definition.Namespace, output)
-		}
-	}
-
-	if ipv6Addr != "" {
-		klog.V(100).Infof("Ensure IPv6 %s address defined as expected", ipv6Addr)
-
-		ipv6Found, err := findInCmdExecOutput(output, ipv6Addr)
-		if err != nil {
-			klog.V(100).Infof("Failed to parse output due to %v", err)
-
-			return false, fmt.Errorf("failed to parse output due to %w", err)
-		}
-
-		if !ipv6Found {
-			klog.V(100).Infof("IPv6 address %s not found configured for the bond interface "+
-				"of the pod %s in namespace %s: %s",
-				ipv6Addr, podObj.Definition.Name, podObj.Definition.Namespace, output)
-
-			return false, fmt.Errorf("ipv6 address %s not found configured for the bond interface "+
-				"of the pod %s in namespace %s: %s",
-				ipv6Addr, podObj.Definition.Name, podObj.Definition.Namespace, output)
-		}
-	}
+	klog.V(100).Infof("Pod-level bonded interface configuration for pod %s in namespace %q verified successfully",
+		podObj.Object.Name, podObj.Object.Namespace)
 
 	return true, nil
 }
