@@ -22,6 +22,71 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// isNoCarrierError checks if an error indicates a NO-CARRIER condition.
+// This typically happens when there is no physical network connection on the interface.
+func isNoCarrierError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errMsg := err.Error()
+
+	return strings.Contains(errMsg, "NO-CARRIER") ||
+		strings.Contains(errMsg, "no physical connection")
+}
+
+// isBCMDevice checks if the device is a Broadcom NIC by name or vendor ID.
+// BCM NICs require special handling for DPDK tests (OCPBUGS-30909).
+func isBCMDevice(data sriovconfig.DeviceConfig) bool {
+	return strings.Contains(strings.ToLower(data.Name), "bcm") ||
+		data.Vendor == tsparams.BCMVendorID
+}
+
+// setupTestNamespace creates a test namespace with required labels and registers cleanup.
+// The namespace name follows the pattern: e2e-{testID}{deviceName}.
+func setupTestNamespace(testID string, data sriovconfig.DeviceConfig) string {
+	testNamespace := "e2e-" + testID + data.Name
+
+	By(fmt.Sprintf("Creating test namespace %q", testNamespace))
+
+	nsBuilder := namespace.NewBuilder(APIClient, testNamespace)
+	for key, value := range params.PrivilegedNSLabels {
+		nsBuilder.WithLabel(key, value)
+	}
+
+	_, err := nsBuilder.Create()
+	Expect(err).ToNot(HaveOccurred(), "Failed to create namespace %q", testNamespace)
+
+	Eventually(func() bool {
+		return nsBuilder.Exists()
+	}, tsparams.NamespaceTimeout, tsparams.RetryInterval).Should(BeTrue(), "Namespace %q should exist", testNamespace)
+
+	DeferCleanup(func() {
+		By(fmt.Sprintf("Cleaning up namespace %q", testNamespace))
+
+		err := nsBuilder.DeleteAndWait(tsparams.CleanupTimeout)
+		Expect(err).ToNot(HaveOccurred(), "Failed to delete namespace %q", testNamespace)
+	})
+
+	return testNamespace
+}
+
+// setupSriovNetwork creates a SRIOV network and registers cleanup.
+// The network is created in the SR-IOV operator namespace and targets the specified namespace.
+func setupSriovNetwork(networkName, resourceName, targetNs string, opts ...sriovenv.NetworkOption) {
+	By(fmt.Sprintf("Creating SR-IOV network %q", networkName))
+
+	err := sriovenv.CreateSriovNetwork(networkName, resourceName, targetNs, opts...)
+	Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network %q", networkName)
+
+	DeferCleanup(func() {
+		By(fmt.Sprintf("Cleaning up SR-IOV network %q", networkName))
+
+		err := sriovenv.RemoveSriovNetwork(networkName, tsparams.DefaultTimeout)
+		Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV network %q", networkName)
+	})
+}
+
 var _ = Describe(
 	"SR-IOV Basic Tests",
 	Ordered,
@@ -75,7 +140,7 @@ var _ = Describe(
 			Expect(err).ToNot(HaveOccurred(), "Cluster did not stabilize after cleanup")
 		})
 
-		It("SR-IOV VF with spoof checking enabled", reportxml.ID("25959"), func() {
+		It("SR-IOV VF with spoof checking enabled", Label("25959"), reportxml.ID("25959"), func() {
 			caseID := "25959"
 			executed := false
 
@@ -102,9 +167,7 @@ var _ = Describe(
 				err = sriovenv.CheckVFStatusWithPassTraffic(networkName, data.InterfaceName,
 					testNamespace, "spoof checking on", tsparams.PodReadyTimeout)
 				if isNoCarrierError(err) {
-					By(fmt.Sprintf("Skipping device %q - interface has NO-CARRIER status", data.Name))
-
-					continue
+					Skip("Interface has NO-CARRIER status")
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
@@ -115,7 +178,7 @@ var _ = Describe(
 			}
 		})
 
-		It("SR-IOV VF with spoof checking disabled", reportxml.ID("70820"), func() {
+		It("SR-IOV VF with spoof checking disabled", Label("70820"), reportxml.ID("70820"), func() {
 			caseID := "70820"
 			executed := false
 
@@ -150,7 +213,7 @@ var _ = Describe(
 			}
 		})
 
-		It("SR-IOV VF with trust disabled", reportxml.ID("25960"), func() {
+		It("SR-IOV VF with trust disabled", Label("25960"), reportxml.ID("25960"), func() {
 			caseID := "25960"
 			executed := false
 
@@ -185,7 +248,7 @@ var _ = Describe(
 			}
 		})
 
-		It("SR-IOV VF with trust enabled", reportxml.ID("70821"), func() {
+		It("SR-IOV VF with trust enabled", Label("70821"), reportxml.ID("70821"), func() {
 			caseID := "70821"
 			executed := false
 
@@ -220,7 +283,7 @@ var _ = Describe(
 			}
 		})
 
-		It("SR-IOV VF with VLAN and rate limiting configuration", reportxml.ID("25963"), func() {
+		It("SR-IOV VF with VLAN and rate limiting configuration", Label("25963"), reportxml.ID("25963"), func() {
 			caseID := "25963"
 			executed := false
 
@@ -265,7 +328,7 @@ var _ = Describe(
 			}
 		})
 
-		It("SR-IOV VF with auto link state", reportxml.ID("25961"), func() {
+		It("SR-IOV VF with auto link state", Label("25961"), reportxml.ID("25961"), func() {
 			caseID := "25961"
 			executed := false
 
@@ -300,7 +363,7 @@ var _ = Describe(
 			}
 		})
 
-		It("SR-IOV VF with enabled link state", reportxml.ID("71006"), func() {
+		It("SR-IOV VF with enabled link state", Label("71006"), reportxml.ID("71006"), func() {
 			caseID := "71006"
 			executed := false
 
@@ -323,7 +386,7 @@ var _ = Describe(
 
 				// Part 1: Verify link state configuration
 				By("Verifying link state configuration is applied")
-				hasCarrier, err := sriovenv.VerifyLinkStateConfiguration(networkName, data.InterfaceName, testNamespace,
+				hasCarrier, err := sriovenv.VerifyLinkStateConfiguration(networkName, testNamespace,
 					"link-state enable", tsparams.PodReadyTimeout)
 				Expect(err).ToNot(HaveOccurred(), "Failed to verify link state configuration")
 
@@ -343,7 +406,7 @@ var _ = Describe(
 			}
 		})
 
-		It("MTU configuration for SR-IOV policy", reportxml.ID("69646"), func() {
+		It("MTU configuration for SR-IOV policy", Label("69646"), reportxml.ID("69646"), func() {
 			caseID := "69646"
 			executed := false
 
@@ -388,7 +451,7 @@ var _ = Describe(
 			}
 		})
 
-		It("DPDK SR-IOV VF functionality validation", reportxml.ID("69582"), func() {
+		It("DPDK SR-IOV VF functionality validation", Label("69582"), reportxml.ID("69582"), func() {
 			caseID := "69582"
 			executed := false
 
@@ -468,74 +531,3 @@ var _ = Describe(
 			}
 		})
 	})
-
-// isNoCarrierError checks if an error indicates a NO-CARRIER condition.
-// This typically happens when there is no physical network connection on the interface.
-func isNoCarrierError(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	errMsg := err.Error()
-
-	return strings.Contains(errMsg, "NO-CARRIER") ||
-		strings.Contains(errMsg, "no physical connection")
-}
-
-// isBCMDevice checks if the device is a Broadcom NIC by name or vendor ID.
-// BCM NICs require special handling for DPDK tests (OCPBUGS-30909).
-func isBCMDevice(data sriovconfig.DeviceConfig) bool {
-	return strings.Contains(strings.ToLower(data.Name), "bcm") ||
-		data.Vendor == tsparams.BCMVendorID
-}
-
-// setupTestNamespace creates a test namespace with required labels and registers cleanup.
-// The namespace name follows the pattern: e2e-{testID}{deviceName}.
-func setupTestNamespace(testID string, data sriovconfig.DeviceConfig) string {
-	testNamespace := "e2e-" + testID + data.Name
-
-	By(fmt.Sprintf("Creating test namespace %q", testNamespace))
-
-	nsBuilder := namespace.NewBuilder(APIClient, testNamespace).WithMultipleLabels(params.PrivilegedNSLabels)
-
-	_, err := nsBuilder.Create()
-	Expect(err).ToNot(HaveOccurred(), "Failed to create namespace %q", testNamespace)
-
-	Eventually(func() bool {
-		return nsBuilder.Exists()
-	}, tsparams.NamespaceTimeout, tsparams.RetryInterval).Should(BeTrue(), "Namespace %q should exist", testNamespace)
-
-	DeferCleanup(func() {
-		By(fmt.Sprintf("Cleaning up namespace %q", testNamespace))
-
-		err := nsBuilder.DeleteAndWait(tsparams.CleanupTimeout)
-		Expect(err).ToNot(HaveOccurred(), "Failed to delete namespace %q", testNamespace)
-	})
-
-	return testNamespace
-}
-
-// setupSriovNetwork creates a SRIOV network and registers cleanup.
-// The network is created in the SR-IOV operator namespace and targets the specified namespace.
-// It waits for the NAD to be ready before returning to avoid race conditions with pod creation.
-func setupSriovNetwork(networkName, resourceName, targetNs string, opts ...sriovenv.NetworkOption) {
-	By(fmt.Sprintf("Creating SR-IOV network %q", networkName))
-
-	err := sriovenv.CreateSriovNetwork(networkName, resourceName, targetNs, opts...)
-	Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network %q", networkName)
-
-	By(fmt.Sprintf("Waiting for NAD %q to be ready", networkName))
-	Eventually(func() error {
-		_, err := nad.Pull(APIClient, networkName, targetNs)
-
-		return err
-	}, tsparams.NADTimeout, tsparams.PollingInterval).ShouldNot(HaveOccurred(),
-		"NAD %q should be ready in namespace %q", networkName, targetNs)
-
-	DeferCleanup(func() {
-		By(fmt.Sprintf("Cleaning up SR-IOV network %q", networkName))
-
-		err := sriovenv.RemoveSriovNetwork(networkName, tsparams.DefaultTimeout)
-		Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV network %q", networkName)
-	})
-}
