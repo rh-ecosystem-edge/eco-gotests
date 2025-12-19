@@ -87,6 +87,33 @@ var _ = Describe(
 				MustPassRepeatedly(3),
 				rdscorecommon.CleanupUnexpectedAdmissionPodsCNF)
 
+			It("Verifies NMI RedFish trigger on Control Plane node",
+				Label("nmi-redfish", "nmi-redfish-cp"), reportxml.ID("86253"),
+				rdscorecommon.VerifyNMIRedfishOnControlPlane, SpecTimeout(15*time.Minute))
+
+			It("Cleanup UnexpectedAdmission pods after NMI RedFish test on Control Plane node",
+				Label("nmi-redfish", "nmi-redfish-cp", "nmi-redfish-cp-cleanup"),
+				MustPassRepeatedly(3),
+				rdscorecommon.CleanupUnexpectedAdmissionPodsCP)
+
+			It("Verifies NMI RedFish trigger on Worker node",
+				Label("nmi-redfish", "nmi-redfish-worker"), reportxml.ID("86254"),
+				rdscorecommon.VerifyNMIRedfishOnWorkerMCP, SpecTimeout(15*time.Minute))
+
+			It("Cleanup UnexpectedAdmission pods after NMI RedFish test on Worker node",
+				Label("nmi-redfish", "nmi-redfish-worker", "nmi-redfish-worker-cleanup"),
+				MustPassRepeatedly(3),
+				rdscorecommon.CleanupUnexpectedAdmissionPodsWorker)
+
+			It("Verifies NMI RedFish trigger on CNF node",
+				Label("nmi-redfish", "nmi-redfish-cnf"), reportxml.ID("86255"),
+				rdscorecommon.VerifyNMIRedfishOnCNFMCP, SpecTimeout(15*time.Minute))
+
+			It("Cleanup UnexpectedAdmission pods after NMI RedFish test on CNF node",
+				Label("nmi-redfish", "nmi-redfish-cnf", "nmi-redfish-cnf-cleanup"),
+				MustPassRepeatedly(3),
+				rdscorecommon.CleanupUnexpectedAdmissionPodsCNF)
+
 			It("Verifies mount namespace service on Control Plane node",
 				Label("mount-ns", "mount-ns-cp"), reportxml.ID("75048"),
 				rdscorecommon.VerifyMountNamespaceOnControlPlane)

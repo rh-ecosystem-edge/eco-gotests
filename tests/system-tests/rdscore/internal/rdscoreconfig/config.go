@@ -166,11 +166,16 @@ type CoreConfig struct {
 	IPVlanNADFourName    string `yaml:"rdscore_ipvlan_nad_four_name" envconfig:"ECO_SYSTEM_RDSCORE_IPVLAN_NAD_FOUR_NAME"`
 	//nolint:lll
 	GracefulRestartAppLabel string `yaml:"rdscore_graceful_restart_app_label" envconfig:"ECO_RDSCORE_GRACEFUL_RESTART_APP_LABEL"`
+	KDumpWorkerMCPNodeLabel string `yaml:"rdscore_kdump_worker_node_label" envconfig:"ECO_RDSCORE_KDUMP_WORKER_NODE_LABEL"`
 	//nolint:lll
 	PerformanceProfileHTName string `yaml:"rdscore_performance_profile_ht_name" envconfig:"ECO_RDS_CORE_PERFORMANCE_PROFILE_HT_NAME"`
 	//nolint:lll
-	KDumpWorkerMCPNodeLabel string         `yaml:"rdscore_kdump_worker_node_label" envconfig:"ECO_RDSCORE_KDUMP_WORKER_NODE_LABEL"`
-	WlkdTolerationList      TolerationList `yaml:"rdscore_tolerations_list" envconfig:"ECO_RDSCORE_TOLERATIONS_LIST"`
+	NMIRedfishCPNodeLabel string `yaml:"rdscore_nmi_redfish_cp_node_label" envconfig:"ECO_RDSCORE_NMI_REDFISH_CP_NODE_LABEL"`
+	//nolint:lll
+	NMIRedfishWorkerMCPNodeLabel string `yaml:"rdscore_nmi_redfish_worker_node_label" envconfig:"ECO_RDSCORE_NMI_REDFISH_WORKER_NODE_LABEL"`
+	//nolint:lll
+	NMIRedfishCNFMCPNodeLabel string         `yaml:"rdscore_nmi_redfish_cnf_node_label" envconfig:"ECO_RDSCORE_NMI_REDFISH_CNF_NODE_LABEL"`
+	WlkdTolerationList        TolerationList `yaml:"rdscore_tolerations_list" envconfig:"ECO_RDSCORE_TOLERATIONS_LIST"`
 	//nolint:lll
 	WlkdNROPTolerationList TolerationList `yaml:"rdscore_nrop_tolerations_list" envconfig:"ECO_RDSCORE_NROP_TOLERATIONS_LIST"`
 	//nolint:lll,nolintlint
