@@ -2,9 +2,7 @@
 package ocpsriovconfig
 
 import (
-	"errors"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -111,8 +109,6 @@ func (sriovOcpConfig *SriovOcpConfig) GetSriovDevices() ([]DeviceConfig, error) 
 // parseSriovDevicesEnv parses device configuration from ECO_OCP_SRIOV_DEVICES environment variable.
 // Format: "name1:deviceid1:vendor1:interface1[:minTxRate],name2:deviceid2:vendor2:interface2[:minTxRate],..."
 // Example: "e810xxv:159b:8086:ens2f0,e810c:1593:8086:ens2f2".
-// Note: SupportsMinTxRate defaults to true when omitted from env var.
-// For YAML-defined devices, ensure supports_min_tx_rate is explicitly set.
 func parseSriovDevicesEnv(envDevices string) ([]DeviceConfig, error) {
 	var devices []DeviceConfig
 
@@ -201,7 +197,7 @@ func readFile(sriovOcpConfig *SriovOcpConfig, cfgFile string) error {
 	decoder := yaml.NewDecoder(openedCfgFile)
 
 	err = decoder.Decode(sriovOcpConfig)
-	if err != nil && !errors.Is(err, io.EOF) {
+	if err != nil {
 		return err
 	}
 

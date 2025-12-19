@@ -6,7 +6,7 @@ sriov_operator_namespace: openshift-sriov-network-operator
 # Default VF count
 vf_num: 2
 
-# Device configurations - these are defaults, override via ECO_OCP_SRIOV_DEVICES env var
+# Device configurations - these are defaults, override via SRIOV_DEVICES env var
 devices:
   - name: e810xxv
     device_id: "159b"
