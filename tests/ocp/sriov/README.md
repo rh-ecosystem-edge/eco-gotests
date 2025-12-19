@@ -459,7 +459,7 @@ Document all required and optional environment variables:
 
 #### Optional
 - `ECO_OCP_SRIOV_INTERFACE_LIST`: Comma-separated list of SR-IOV interfaces
-- `ECO_OCP_SRIOV_TEST_IMAGE`: Container image for test workloads
+- `ECO_OCP_SRIOV_TEST_CONTAINER`: Container image for test workloads
 ```
 
 ### Environment Variable Naming
@@ -468,7 +468,7 @@ Follow the pattern: `ECO_{SUITE}_{FEATURE}_{PARAMETER}`
 
 Examples:
 - `ECO_OCP_SRIOV_INTERFACE_LIST`
-- `ECO_OCP_SRIOV_TEST_IMAGE`
+- `ECO_OCP_SRIOV_TEST_CONTAINER`
 - `ECO_OCP_SRIOV_WORKER_LABEL`
 
 ## Code Quality and Best Practices
