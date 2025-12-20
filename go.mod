@@ -232,7 +232,7 @@ require (
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/spf13/cobra v1.10.1 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
-	github.com/stmcginnis/gofish v0.20.0 // indirect
+	github.com/stmcginnis/gofish v0.20.0
 	github.com/stolostron/kubernetes-dependency-watches v0.10.0 // indirect
 	github.com/thoas/go-funk v0.9.3 // indirect
 	github.com/vincent-petithory/dataurl v1.0.0 // indirect
@@ -295,7 +295,7 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
-require github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20251218224626-f51b1b18b018
+require github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20251219115934-b026c25ee97c
 
 replace (
 	github.com/imdario/mergo => github.com/imdario/mergo v0.3.16
