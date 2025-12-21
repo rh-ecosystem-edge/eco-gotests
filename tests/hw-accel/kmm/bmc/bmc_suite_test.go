@@ -22,7 +22,6 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/klog/v2"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -77,8 +76,6 @@ var _ = BeforeSuite(func() {
 	}
 
 	for _, node := range nodeList {
-		klog.V(kmmparams.KmmLogLevel).Infof("Creating privileged deployment on node '%v'", node.Object.Name)
-
 		deploymentName := fmt.Sprintf("%s-%s", kmmparams.KmmTestHelperLabelName, node.Object.Name)
 		containerCfg, _ := pod.NewContainerBuilder("test", kmmparams.DTKImage,
 			[]string{"/bin/bash", "-c", "sleep INF"}).
@@ -115,7 +112,6 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	By("Cleanup environment after BMC tests execution")
-	klog.V(kmmparams.KmmLogLevel).Infof("Deleting test deployments")
 
 	By("Delete helper deployments")
 	testDeployments, err := deployment.List(APIClient, kmmparams.KmmOperatorNamespace, metav1.ListOptions{})
@@ -125,9 +121,7 @@ var _ = AfterSuite(func() {
 	}
 
 	for _, deploymentObj := range testDeployments {
-		klog.V(kmmparams.KmmLogLevel).Infof("Deployment: '%s'\n", deploymentObj.Object.Name)
 		if strings.Contains(deploymentObj.Object.Name, kmmparams.KmmTestHelperLabelName) {
-			klog.V(kmmparams.KmmLogLevel).Infof("Deleting deployment: '%s'\n", deploymentObj.Object.Name)
 			err = deploymentObj.DeleteAndWait(time.Minute)
 
 			Expect(err).ToNot(HaveOccurred(), "error deleting helper deployment")

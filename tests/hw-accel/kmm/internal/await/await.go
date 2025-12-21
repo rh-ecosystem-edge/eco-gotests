@@ -28,7 +28,6 @@ func BuildPodCompleted(apiClient *clients.Settings, nsname string, timeout time.
 			var err error
 
 			if buildPod[nsname] == "" {
-				// Search across all pod phases to catch build pods that may complete quickly
 				pods, err := pod.List(apiClient, nsname, metav1.ListOptions{})
 				if err != nil {
 					klog.V(kmmparams.KmmLogLevel).Infof("build list error: %s", err)
@@ -255,12 +254,7 @@ func MachineConfigCreated(apiClient *clients.Settings, mcName string, timeout ti
 		})
 }
 
-// NodeDesiredConfigChange waits for MCO to render a new config for the node
-// and for the node to be ready for manual reboot.
-// This function handles three scenarios:
-// 1. Node already has a pending config change (desiredConfig != currentConfig) - proceeds immediately
-// 2. MCO needs to render a new config - waits for desiredConfig to change
-// 3. Node is ready for reboot - state is "Done" with pending config
+// NodeDesiredConfigChange waits for MCO to render and apply a new config to disk.
 func NodeDesiredConfigChange(
 	apiClient *clients.Settings,
 	nodeName string,
@@ -279,17 +273,11 @@ func NodeDesiredConfigChange(
 		"Node %s initial state - currentConfig: %s, desiredConfig: %s, state: %s",
 		nodeName, initialCurrentConfig, initialDesiredConfig, initialState)
 
-	// Check if node already has a pending config change and is ready for reboot
-	if initialDesiredConfig != initialCurrentConfig && initialState == "Done" {
+	if initialCurrentConfig != initialDesiredConfig || initialState != "Done" {
 		klog.V(kmmparams.KmmLogLevel).Infof(
-			"Node %s already has pending config change and is ready for reboot", nodeName)
-
-		return nil
+			"Node %s already processing config change", nodeName)
 	}
 
-	// Wait for node to be ready for manual reboot:
-	// - desiredConfig differs from currentConfig (new config is pending)
-	// - state is "Done" (MCO finished processing, waiting for reboot)
 	return wait.PollUntilContextTimeout(
 		context.TODO(), 10*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			updatedNode, err := nodes.Pull(apiClient, nodeName)
@@ -307,23 +295,22 @@ func NodeDesiredConfigChange(
 				"Node %s - currentConfig: %s, desiredConfig: %s, state: %s",
 				nodeName, currentCfg, desiredCfg, nodeState)
 
-			// Ready for manual reboot when:
-			// - desiredConfig differs from currentConfig (new config is pending)
-			// - state is "Done" (MCO finished processing, waiting for reboot)
-			if desiredCfg != currentCfg && nodeState == "Done" {
+			if currentCfg != initialCurrentConfig && currentCfg == desiredCfg && nodeState == "Done" {
 				klog.V(kmmparams.KmmLogLevel).Infof(
-					"Node %s is ready for manual reboot (new config pending, state: Done)", nodeName)
+					"Node %s config updated and ready for manual reboot", nodeName)
 
 				return true, nil
 			}
 
-			// Log what we're waiting for
-			if desiredCfg == currentCfg {
+			if currentCfg == initialCurrentConfig {
 				klog.V(kmmparams.KmmLogLevel).Infof(
-					"Waiting for MCO to render new config (desiredConfig == currentConfig)")
+					"Waiting for MCO to write new config to disk (currentConfig unchanged)")
+			} else if currentCfg != desiredCfg {
+				klog.V(kmmparams.KmmLogLevel).Infof(
+					"MCO still processing (currentConfig != desiredConfig)")
 			} else if nodeState != "Done" {
 				klog.V(kmmparams.KmmLogLevel).Infof(
-					"Config pending but state is %s (waiting for Done)", nodeState)
+					"MCO state is %s (waiting for Done)", nodeState)
 			}
 
 			return false, nil

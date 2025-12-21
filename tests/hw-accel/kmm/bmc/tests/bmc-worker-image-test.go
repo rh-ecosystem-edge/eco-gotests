@@ -160,21 +160,19 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 			workerNode := nodeList[0]
 			klog.V(kmmparams.KmmLogLevel).Infof("Using worker node: %s", workerNode.Object.Name)
 
-			By("Wait for MCO to render new config for the node")
+			By("Wait for MCO to write new config to disk")
 			err = await.NodeDesiredConfigChange(APIClient, workerNode.Object.Name, 10*time.Minute)
-			Expect(err).ToNot(HaveOccurred(), "MCO did not render new config for node in time")
+			Expect(err).ToNot(HaveOccurred(), "MCO did not write new config for node in time")
 
-			By("Reboot the worker node")
+			By("Reboot the worker node to apply BMC config")
 			err = reboot.PerformReboot(APIClient, workerNode.Object.Name, kmmparams.KmmOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "failed to reboot node")
 
-			klog.V(kmmparams.KmmLogLevel).Infof("Node %s is back up and Ready", workerNode.Object.Name)
-
-			By("Wait for node to apply new config (currentConfig == desiredConfig)")
+			By("Wait for node to come back up and be Ready")
 			err = await.NodeConfigApplied(APIClient, workerNode.Object.Name, 10*time.Minute)
-			Expect(err).ToNot(HaveOccurred(), "node did not apply new config after reboot")
+			Expect(err).ToNot(HaveOccurred(), "node did not become Ready after reboot")
 
-			By("Wait for helper pod on rebooted node to be ready and check module is loaded")
+			By("Wait for helper pod on rebooted node to be ready")
 			var helperPod *pod.Builder
 			Eventually(func() bool {
 				foundPod, err := findReadyHelperPodOnNode(
@@ -188,14 +186,20 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 			}, 5*time.Minute, 10*time.Second).Should(BeTrue(),
 				fmt.Sprintf("helper pod container not ready on node %s after reboot", workerNode.Object.Name))
 
-			By("Verify simple-kmod module is loaded")
+			By("Wait for simple-kmod module to be loaded on the rebooted node")
 			modName := strings.ReplaceAll(kmmparams.SimpleKmodModuleName, "-", "_")
-			buff, err := helperPod.ExecCommand([]string{"lsmod"}, "test")
-			Expect(err).ToNot(HaveOccurred(), "error executing lsmod on helper pod")
+			Eventually(func() (string, error) {
+				buff, err := helperPod.ExecCommand([]string{"chroot", "/host", "lsmod"}, "test")
+				if err != nil {
+					klog.V(kmmparams.KmmLogLevel).Infof("lsmod check failed: %v", err)
+					return "", err
+				}
 
-			lsmodOutput := buff.String()
-			klog.V(kmmparams.KmmLogLevel).Infof("lsmod output on %s: %s", workerNode.Object.Name, lsmodOutput)
-			Expect(lsmodOutput).To(ContainSubstring(modName),
+				lsmodOutput := buff.String()
+				klog.V(kmmparams.KmmLogLevel).Infof("lsmod output on %s: %s", workerNode.Object.Name, lsmodOutput)
+
+				return lsmodOutput, nil
+			}, 5*time.Minute, 10*time.Second).Should(ContainSubstring(modName),
 				fmt.Sprintf("module %s should be loaded on node %s after reboot", modName, workerNode.Object.Name))
 
 			By("Delete the BootModuleConfig")
@@ -223,18 +227,11 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 			Expect(err).ToNot(HaveOccurred(), "error pulling machineconfigpool")
 
 			err = mcp.WaitToBeStableFor(time.Minute, 2*time.Minute)
-			if err == nil {
-				klog.V(kmmparams.KmmLogLevel).Infof(
-					"MCP was stable - MC deletion may not have triggered node updates")
-			} else {
-				klog.V(kmmparams.KmmLogLevel).Infof("MCP is updating as expected after MC deletion")
-			}
+			Expect(err).To(HaveOccurred(), "the MachineConfig deletion did not trigger a MCP update")
 
 			By("Wait for MachineConfigPool update to complete (all nodes rebooted)")
 			err = mcp.WaitForUpdate(30 * time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error waiting for machineconfigpool to finish updating")
-
-			klog.V(kmmparams.KmmLogLevel).Infof("MachineConfigPool update complete - nodes have rebooted")
 		})
 	})
 })
