@@ -278,7 +278,7 @@ func NodeDesiredConfigChange(
 		"Node %s initial state - currentConfig: %s, desiredConfig: %s, state: %s",
 		nodeName, initialCurrentConfig, initialDesiredConfig, initialState)
 
-	if initialCurrentConfig != initialDesiredConfig || initialState != "Done" {
+	if initialCurrentConfig != initialDesiredConfig || initialState != mcoStateDone {
 		klog.V(kmmparams.KmmLogLevel).Infof(
 			"Node %s already processing config change", nodeName)
 	}

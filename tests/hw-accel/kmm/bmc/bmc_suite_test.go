@@ -22,6 +22,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/klog/v2"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -77,11 +78,15 @@ var _ = BeforeSuite(func() {
 
 	for _, node := range nodeList {
 		deploymentName := fmt.Sprintf("%s-%s", kmmparams.KmmTestHelperLabelName, node.Object.Name)
-		containerCfg, _ := pod.NewContainerBuilder("test", kmmparams.DTKImage,
+		containerCfg, err := pod.NewContainerBuilder("test", kmmparams.DTKImage,
 			[]string{"/bin/bash", "-c", "sleep INF"}).
 			WithSecurityContext(kmmparams.PrivilegedSC).
 			WithVolumeMount(corev1.VolumeMount{Name: "host", MountPath: "/host", ReadOnly: false}).
 			GetContainerCfg()
+
+		if err != nil {
+			Fail(fmt.Sprintf("Failed to create container config for node %s: %v", node.Object.Name, err))
+		}
 
 		deploymentCfg := deployment.NewBuilder(APIClient, deploymentName, kmmparams.KmmOperatorNamespace,
 			map[string]string{kmmparams.KmmTestHelperLabelName: ""}, *containerCfg)
@@ -130,26 +135,30 @@ var _ = AfterSuite(func() {
 
 	By("Delete helper clusterrolebinding")
 	svcAccount := serviceaccount.NewBuilder(APIClient, prereqName, kmmparams.KmmOperatorNamespace)
-	svcAccount.Exists()
 
-	crb := define.ModuleCRB(*svcAccount, prereqName)
-	err = crb.Delete()
-	Expect(err).ToNot(HaveOccurred(), "error deleting helper clusterrolebinding")
+	if svcAccount.Exists() {
+		crb := define.ModuleCRB(*svcAccount, prereqName)
+		err = crb.Delete()
+		Expect(err).ToNot(HaveOccurred(), "error deleting helper clusterrolebinding")
 
-	By("Delete exec clusterrolebinding")
-	execCRB := rbac.NewClusterRoleBindingBuilder(APIClient, prereqName+"-exec-binding",
-		"edit",
-		rbacv1.Subject{
-			Kind:      "ServiceAccount",
-			Name:      prereqName,
-			Namespace: kmmparams.KmmOperatorNamespace,
-		})
-	err = execCRB.Delete()
-	Expect(err).ToNot(HaveOccurred(), "error deleting exec clusterrolebinding")
+		By("Delete exec clusterrolebinding")
+		execCRB := rbac.NewClusterRoleBindingBuilder(APIClient, prereqName+"-exec-binding",
+			"edit",
+			rbacv1.Subject{
+				Kind:      "ServiceAccount",
+				Name:      prereqName,
+				Namespace: kmmparams.KmmOperatorNamespace,
+			})
+		err = execCRB.Delete()
+		Expect(err).ToNot(HaveOccurred(), "error deleting exec clusterrolebinding")
 
-	By("Delete helper service account")
-	err = svcAccount.Delete()
-	Expect(err).ToNot(HaveOccurred(), "error deleting helper serviceaccount")
+		By("Delete helper service account")
+		err = svcAccount.Delete()
+		Expect(err).ToNot(HaveOccurred(), "error deleting helper serviceaccount")
+	} else {
+		klog.V(kmmparams.KmmLogLevel).Infof(
+			"Service account %s does not exist, skipping cleanup", prereqName)
+	}
 })
 
 var _ = ReportAfterSuite("", func(report Report) {
