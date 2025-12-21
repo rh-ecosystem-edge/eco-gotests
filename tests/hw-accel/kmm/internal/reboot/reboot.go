@@ -37,19 +37,20 @@ func PerformReboot(
 	klog.V(kmmparams.KmmLogLevel).Infof("Found helper pod %s on node %s", helperPod.Object.Name, nodeName)
 
 	klog.V(kmmparams.KmmLogLevel).Infof("Executing 'chroot /host reboot' on node %s", nodeName)
+
 	rebootCmd := []string{"chroot", "/host", "reboot"}
 	_, _ = helperPod.ExecCommand(rebootCmd, "test")
 
 	klog.V(kmmparams.KmmLogLevel).Infof("Waiting for node %s boot ID to change", nodeName)
-	err = waitForBootIDChange(apiClient, nodeName, originalBootID, 10*time.Minute)
 
+	err = waitForBootIDChange(apiClient, nodeName, originalBootID, 10*time.Minute)
 	if err != nil {
 		return fmt.Errorf("reboot verification failed: %w", err)
 	}
 
 	klog.V(kmmparams.KmmLogLevel).Infof("Waiting for node %s to become Ready", nodeName)
-	err = waitForNodeReady(apiClient, nodeName, 10*time.Minute)
 
+	err = waitForNodeReady(apiClient, nodeName, 10*time.Minute)
 	if err != nil {
 		return fmt.Errorf("node did not become Ready after reboot: %w", err)
 	}
@@ -68,15 +69,15 @@ func findHelperPodOnNode(apiClient *clients.Settings, namespace, nodeName string
 		return nil, err
 	}
 
-	for _, p := range pods {
-		if p.Object.Spec.NodeName != nodeName {
+	for _, helperPod := range pods {
+		if helperPod.Object.Spec.NodeName != nodeName {
 			continue
 		}
 
-		if p.Object.Status.Phase == corev1.PodRunning {
-			for _, cs := range p.Object.Status.ContainerStatuses {
+		if helperPod.Object.Status.Phase == corev1.PodRunning {
+			for _, cs := range helperPod.Object.Status.ContainerStatuses {
 				if cs.Name == "test" && cs.Ready {
-					return p, nil
+					return helperPod, nil
 				}
 			}
 		}

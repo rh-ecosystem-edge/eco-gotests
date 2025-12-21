@@ -273,14 +273,13 @@ func operatorVersion(apiClient *clients.Settings, namePattern, namespace string)
 	return nil, fmt.Errorf("no matching CSV were found")
 }
 
-// KernelModuleImageExists returns the matching image tag
+// KernelModuleImageExists returns the matching image tag.
 func KernelModuleImageExists(
 	apiClient *clients.Settings,
 	baseImage string,
 	nodeSelector map[string]string,
 	helperNamespace string,
 ) (string, error) {
-
 	kernelVersion, err := KernelFullVersion(apiClient, nodeSelector)
 	if err != nil {
 		return "", fmt.Errorf("failed to get kernel version: %w", err)
@@ -313,7 +312,6 @@ func KernelModuleImageExists(
 	klog.V(kmmparams.KmmLogLevel).Infof("Executing: %v", curlCmd)
 
 	output, err := helperPod.ExecCommand(curlCmd, "test")
-
 	if err != nil {
 		errOutput := output.String()
 		klog.V(kmmparams.KmmLogLevel).Infof("curl failed for %s: %v, output: %s",
@@ -373,6 +371,7 @@ func MachineConfigEnvVar(apiClient *clients.Settings, mcName, envVarName string)
 	}
 
 	mcString := string(mcJSON)
+
 	klog.V(kmmparams.KmmLogLevel).Infof("Searching for %s in MachineConfig %s", envVarName, mcName)
 
 	pattern := regexp.MustCompile(fmt.Sprintf(`%s=(\S+)`, envVarName))

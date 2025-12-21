@@ -19,6 +19,11 @@ import (
 	"k8s.io/klog/v2"
 )
 
+const (
+	// mcoStateDone represents the Machine Config Operator state when a node is ready.
+	mcoStateDone = "Done"
+)
+
 var buildPod = make(map[string]string)
 
 // BuildPodCompleted awaits kmm build pods to finish build.
@@ -166,7 +171,7 @@ func PreflightStageDone(apiClient *clients.Settings, preflight, module, nsname s
 					status := moduleStatus.VerificationStage
 					klog.V(kmmparams.KmmLogLevel).Infof("Stage: %s", status)
 
-					return status == "Done", nil
+					return status == mcoStateDone, nil
 				}
 			}
 
@@ -295,20 +300,21 @@ func NodeDesiredConfigChange(
 				"Node %s - currentConfig: %s, desiredConfig: %s, state: %s",
 				nodeName, currentCfg, desiredCfg, nodeState)
 
-			if currentCfg != initialCurrentConfig && currentCfg == desiredCfg && nodeState == "Done" {
+			if currentCfg != initialCurrentConfig && currentCfg == desiredCfg && nodeState == mcoStateDone {
 				klog.V(kmmparams.KmmLogLevel).Infof(
 					"Node %s config updated and ready for manual reboot", nodeName)
 
 				return true, nil
 			}
 
-			if currentCfg == initialCurrentConfig {
+			switch {
+			case currentCfg == initialCurrentConfig:
 				klog.V(kmmparams.KmmLogLevel).Infof(
 					"Waiting for MCO to write new config to disk (currentConfig unchanged)")
-			} else if currentCfg != desiredCfg {
+			case currentCfg != desiredCfg:
 				klog.V(kmmparams.KmmLogLevel).Infof(
 					"MCO still processing (currentConfig != desiredConfig)")
-			} else if nodeState != "Done" {
+			case nodeState != mcoStateDone:
 				klog.V(kmmparams.KmmLogLevel).Infof(
 					"MCO state is %s (waiting for Done)", nodeState)
 			}
@@ -340,7 +346,7 @@ func NodeConfigApplied(
 				"Node %s - currentConfig: %s, desiredConfig: %s, state: %s",
 				nodeName, currentCfg, desiredCfg, nodeState)
 
-			if currentCfg == desiredCfg && nodeState == "Done" {
+			if currentCfg == desiredCfg && nodeState == mcoStateDone {
 				klog.V(kmmparams.KmmLogLevel).Infof(
 					"Node %s has applied new config successfully", nodeName)
 

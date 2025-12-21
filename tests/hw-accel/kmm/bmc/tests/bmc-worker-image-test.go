@@ -192,6 +192,7 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 				buff, err := helperPod.ExecCommand([]string{"chroot", "/host", "lsmod"}, "test")
 				if err != nil {
 					klog.V(kmmparams.KmmLogLevel).Infof("lsmod check failed: %v", err)
+
 					return "", err
 				}
 
