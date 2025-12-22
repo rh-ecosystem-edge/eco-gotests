@@ -382,7 +382,8 @@ func CreateDpdkTestPod(name, namespace, networkName string) (*pod.Builder, error
 func DeleteDpdkTestPod(name, namespace string, timeout time.Duration) error {
 	podBuilder, err := pod.Pull(APIClient, name, namespace)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
+		// Check both API error and eco-goinfra's custom error message
+		if apierrors.IsNotFound(err) || strings.Contains(err.Error(), "does not exist") {
 			return nil // Already deleted
 		}
 
