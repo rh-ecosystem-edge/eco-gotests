@@ -7,6 +7,9 @@ const (
 	// KmmLogLevel custom loglevel of KMM related functions.
 	KmmLogLevel = 90
 
+	// McoStateDone represents the Machine Config Operator state when a node configuration is applied.
+	McoStateDone = "Done"
+
 	// MultistageContents represents the Dockerfile contents for multi stage build.
 	MultistageContents = `ARG DTK_AUTO
 FROM ${DTK_AUTO} as builder

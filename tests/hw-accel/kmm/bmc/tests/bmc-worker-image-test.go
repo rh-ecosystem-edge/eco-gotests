@@ -2,7 +2,6 @@ package tests
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/go-version"
@@ -11,59 +10,19 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/kmm"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/mco"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
-
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/bmc/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/await"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/check"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/do"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/get"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/reboot"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
-	corev1 "k8s.io/api/core/v1"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
 )
-
-func findReadyHelperPodOnNode(namespace, nodeName, containerName string) (*pod.Builder, error) {
-	helperPods, err := pod.List(APIClient, namespace, metav1.ListOptions{
-		LabelSelector: kmmparams.KmmTestHelperLabelName,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	for _, helperPodCandidate := range helperPods {
-		if helperPodCandidate.Object.Spec.NodeName != nodeName {
-			continue
-		}
-
-		if helperPodCandidate.Object.Status.Phase != corev1.PodRunning {
-			klog.V(kmmparams.KmmLogLevel).Infof(
-				"Helper pod %s on node %s is in phase %s, waiting...",
-				helperPodCandidate.Object.Name, nodeName, helperPodCandidate.Object.Status.Phase)
-
-			continue
-		}
-
-		for _, cs := range helperPodCandidate.Object.Status.ContainerStatuses {
-			if cs.Name == containerName && cs.Ready {
-				klog.V(kmmparams.KmmLogLevel).Infof(
-					"Helper pod %s container ready on node %s",
-					helperPodCandidate.Object.Name, nodeName)
-
-				return helperPodCandidate, nil
-			}
-		}
-
-		klog.V(kmmparams.KmmLogLevel).Infof(
-			"Helper pod %s on node %s container not ready yet",
-			helperPodCandidate.Object.Name, nodeName)
-	}
-
-	return nil, fmt.Errorf("no ready helper pod found on node %s", nodeName)
-}
 
 var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSanity, tsparams.LabelSuite), func() {
 
@@ -89,18 +48,6 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 		)
 
 		AfterEach(func() {
-			By("Delete any reboot pods")
-			podList, err := pod.List(APIClient, kmmparams.KmmOperatorNamespace, metav1.ListOptions{})
-			if err == nil {
-				for _, p := range podList {
-					if strings.HasSuffix(p.Object.Name, "-debug-reboot") ||
-						strings.HasPrefix(p.Object.Name, "sysrq-check-") {
-						klog.V(kmmparams.KmmLogLevel).Infof("Cleaning up pod: %s", p.Object.Name)
-						_, _ = p.DeleteAndWait(30 * time.Second)
-					}
-				}
-			}
-
 			By("Delete BootModuleConfig if exists")
 			if bmcBuilder != nil && bmcBuilder.Exists() {
 				_, err := bmcBuilder.Delete()
@@ -121,11 +68,10 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 
 		It("should create BMC with empty workerImage and use operator worker image", reportxml.ID("85553"), func() {
 			By("Verify simple-kmod image exists for kernel version")
-			_, err := get.KernelModuleImageExists(
+			_, err := check.ImageExists(
 				APIClient,
 				kmmparams.SimpleKmodImage,
-				GeneralConfig.WorkerLabelMap,
-				kmmparams.KmmOperatorNamespace)
+				GeneralConfig.WorkerLabelMap)
 			if err != nil {
 				Skip(fmt.Sprintf("Simple-kmod image not available: %v", err))
 			}
@@ -152,8 +98,8 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 				"WORKER_IMAGE should be a valid image reference")
 
 			By("Get a worker node for reboot")
-			nodeList, err := nodes.List(
-				APIClient, metav1.ListOptions{LabelSelector: labels.Set(GeneralConfig.WorkerLabelMap).String()})
+			nodeList, err := nodes.List(APIClient, metav1.ListOptions{
+				LabelSelector: labels.Set(GeneralConfig.WorkerLabelMap).String()})
 			Expect(err).ToNot(HaveOccurred(), "error listing worker nodes")
 			Expect(len(nodeList)).To(BeNumerically(">", 0), "no worker nodes found")
 
@@ -165,7 +111,7 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 			Expect(err).ToNot(HaveOccurred(), "MCO did not write new config for node in time")
 
 			By("Reboot the worker node to apply BMC config")
-			err = reboot.PerformReboot(APIClient, workerNode.Object.Name, kmmparams.KmmOperatorNamespace)
+			err = do.Reboot(APIClient, workerNode.Object.Name, kmmparams.KmmOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "failed to reboot node")
 
 			By("Wait for node to come back up and be Ready")
@@ -173,35 +119,13 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 			Expect(err).ToNot(HaveOccurred(), "node did not become Ready after reboot")
 
 			By("Wait for helper pod on rebooted node to be ready")
-			var helperPod *pod.Builder
-			Eventually(func() bool {
-				foundPod, err := findReadyHelperPodOnNode(
-					kmmparams.KmmOperatorNamespace, workerNode.Object.Name, "test")
-				if err != nil {
-					return false
-				}
-				helperPod = foundPod
+			_, err = await.ReadyHelperPod(APIClient, kmmparams.KmmOperatorNamespace,
+				workerNode.Object.Name, 5*time.Minute)
+			Expect(err).ToNot(HaveOccurred(), "helper pod not ready on node after reboot")
 
-				return true
-			}, 5*time.Minute, 10*time.Second).Should(BeTrue(),
-				fmt.Sprintf("helper pod container not ready on node %s after reboot", workerNode.Object.Name))
-
-			By("Wait for simple-kmod module to be loaded on the rebooted node")
-			modName := strings.ReplaceAll(kmmparams.SimpleKmodModuleName, "-", "_")
-			Eventually(func() (string, error) {
-				buff, err := helperPod.ExecCommand([]string{"chroot", "/host", "lsmod"}, "test")
-				if err != nil {
-					klog.V(kmmparams.KmmLogLevel).Infof("lsmod check failed: %v", err)
-
-					return "", err
-				}
-
-				lsmodOutput := buff.String()
-				klog.V(kmmparams.KmmLogLevel).Infof("lsmod output on %s: %s", workerNode.Object.Name, lsmodOutput)
-
-				return lsmodOutput, nil
-			}, 5*time.Minute, 10*time.Second).Should(ContainSubstring(modName),
-				fmt.Sprintf("module %s should be loaded on node %s after reboot", modName, workerNode.Object.Name))
+			By("Verify simple-kmod module is loaded on the node (BMC loads it during boot)")
+			err = check.ModuleLoadedOnNode(APIClient, kmmparams.SimpleKmodModuleName, time.Minute, workerNode.Object.Name)
+			Expect(err).ToNot(HaveOccurred(), "module should be loaded by BMC during boot")
 
 			By("Delete the BootModuleConfig")
 			_, err = bmcBuilder.Delete()
@@ -217,11 +141,8 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 			Expect(err).ToNot(HaveOccurred(), "error deleting machineconfig")
 
 			By("Verify MachineConfig is deleted")
-			Eventually(func() bool {
-				_, err := mco.PullMachineConfig(APIClient, tsparams.MachineConfigName)
-
-				return err != nil && strings.Contains(err.Error(), "does not exist")
-			}, time.Minute, 5*time.Second).Should(BeTrue(), "MachineConfig should be deleted")
+			err = await.MachineConfigDeleted(APIClient, tsparams.MachineConfigName, time.Minute)
+			Expect(err).ToNot(HaveOccurred(), "MachineConfig should be deleted")
 
 			By("Wait for MachineConfigPool to start updating (nodes will reboot to remove module)")
 			mcp, err := mco.Pull(APIClient, kmmparams.DefaultWorkerMCPName)

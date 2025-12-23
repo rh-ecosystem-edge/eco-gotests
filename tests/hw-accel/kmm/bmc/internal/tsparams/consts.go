@@ -33,6 +33,7 @@ var (
 	ReporterNamespacesToDump = map[string]string{
 		kmmparams.KmmOperatorNamespace: "openshift-kmm",
 		BMCTestNamespace:               "bmc",
+		"NodesNamespace":               "default",
 	}
 
 	// ReporterCRDsToDump tells to the reporter what CRs to dump.

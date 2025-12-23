@@ -13,15 +13,12 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/get"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
+
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
-)
-
-const (
-	// mcoStateDone represents the Machine Config Operator state when a node is ready.
-	mcoStateDone = "Done"
 )
 
 var buildPod = make(map[string]string)
@@ -171,7 +168,7 @@ func PreflightStageDone(apiClient *clients.Settings, preflight, module, nsname s
 					status := moduleStatus.VerificationStage
 					klog.V(kmmparams.KmmLogLevel).Infof("Stage: %s", status)
 
-					return status == mcoStateDone, nil
+					return status == kmmparams.McoStateDone, nil
 				}
 			}
 
@@ -260,11 +257,7 @@ func MachineConfigCreated(apiClient *clients.Settings, mcName string, timeout ti
 }
 
 // NodeDesiredConfigChange waits for MCO to render and apply a new config to disk.
-func NodeDesiredConfigChange(
-	apiClient *clients.Settings,
-	nodeName string,
-	timeout time.Duration,
-) error {
+func NodeDesiredConfigChange(apiClient *clients.Settings, nodeName string, timeout time.Duration) error {
 	node, err := nodes.Pull(apiClient, nodeName)
 	if err != nil {
 		return fmt.Errorf("failed to pull node %s: %w", nodeName, err)
@@ -278,7 +271,7 @@ func NodeDesiredConfigChange(
 		"Node %s initial state - currentConfig: %s, desiredConfig: %s, state: %s",
 		nodeName, initialCurrentConfig, initialDesiredConfig, initialState)
 
-	if initialCurrentConfig != initialDesiredConfig || initialState != mcoStateDone {
+	if initialCurrentConfig != initialDesiredConfig || initialState != kmmparams.McoStateDone {
 		klog.V(kmmparams.KmmLogLevel).Infof(
 			"Node %s already processing config change", nodeName)
 	}
@@ -300,7 +293,7 @@ func NodeDesiredConfigChange(
 				"Node %s - currentConfig: %s, desiredConfig: %s, state: %s",
 				nodeName, currentCfg, desiredCfg, nodeState)
 
-			if currentCfg != initialCurrentConfig && currentCfg == desiredCfg && nodeState == mcoStateDone {
+			if currentCfg != initialCurrentConfig && currentCfg == desiredCfg && nodeState == kmmparams.McoStateDone {
 				klog.V(kmmparams.KmmLogLevel).Infof(
 					"Node %s config updated and ready for manual reboot", nodeName)
 
@@ -314,7 +307,7 @@ func NodeDesiredConfigChange(
 			case currentCfg != desiredCfg:
 				klog.V(kmmparams.KmmLogLevel).Infof(
 					"MCO still processing (currentConfig != desiredConfig)")
-			case nodeState != mcoStateDone:
+			case nodeState != kmmparams.McoStateDone:
 				klog.V(kmmparams.KmmLogLevel).Infof(
 					"MCO state is %s (waiting for Done)", nodeState)
 			}
@@ -324,11 +317,7 @@ func NodeDesiredConfigChange(
 }
 
 // NodeConfigApplied waits for the node to have applied the new config after reboot.
-func NodeConfigApplied(
-	apiClient *clients.Settings,
-	nodeName string,
-	timeout time.Duration,
-) error {
+func NodeConfigApplied(apiClient *clients.Settings, nodeName string, timeout time.Duration) error {
 	return wait.PollUntilContextTimeout(
 		context.TODO(), 10*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			updatedNode, err := nodes.Pull(apiClient, nodeName)
@@ -346,9 +335,80 @@ func NodeConfigApplied(
 				"Node %s - currentConfig: %s, desiredConfig: %s, state: %s",
 				nodeName, currentCfg, desiredCfg, nodeState)
 
-			if currentCfg == desiredCfg && nodeState == mcoStateDone {
+			if currentCfg == desiredCfg && nodeState == kmmparams.McoStateDone {
 				klog.V(kmmparams.KmmLogLevel).Infof(
 					"Node %s has applied new config successfully", nodeName)
+
+				return true, nil
+			}
+
+			return false, nil
+		})
+}
+
+// ReadyHelperPod waits for a ready helper pod on the specified node.
+func ReadyHelperPod(apiClient *clients.Settings, namespace, nodeName string,
+	timeout time.Duration) (*pod.Builder, error) {
+	var foundPod *pod.Builder
+
+	err := wait.PollUntilContextTimeout(
+		context.TODO(), 10*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			helperPods, err := pod.List(apiClient, namespace, metav1.ListOptions{
+				LabelSelector: kmmparams.KmmTestHelperLabelName,
+			})
+			if err != nil {
+				klog.V(kmmparams.KmmLogLevel).Infof(
+					"Error listing helper pods on node %s: %v", nodeName, err)
+
+				return false, nil
+			}
+
+			for _, helperPodCandidate := range helperPods {
+				if helperPodCandidate.Object.Spec.NodeName != nodeName {
+					continue
+				}
+
+				if helperPodCandidate.Object.Status.Phase != corev1.PodRunning {
+					klog.V(kmmparams.KmmLogLevel).Infof(
+						"Helper pod %s on node %s is in phase %s, waiting...",
+						helperPodCandidate.Object.Name, nodeName, helperPodCandidate.Object.Status.Phase)
+
+					continue
+				}
+
+				for _, cs := range helperPodCandidate.Object.Status.ContainerStatuses {
+					if cs.Name == "test" && cs.Ready {
+						klog.V(kmmparams.KmmLogLevel).Infof(
+							"Helper pod %s container ready on node %s",
+							helperPodCandidate.Object.Name, nodeName)
+
+						foundPod = helperPodCandidate
+
+						return true, nil
+					}
+				}
+
+				klog.V(kmmparams.KmmLogLevel).Infof(
+					"Helper pod %s on node %s container not ready yet",
+					helperPodCandidate.Object.Name, nodeName)
+			}
+
+			return false, nil
+		})
+	if err != nil {
+		return nil, fmt.Errorf("timeout waiting for ready helper pod on node %s: %w", nodeName, err)
+	}
+
+	return foundPod, nil
+}
+
+// MachineConfigDeleted waits for a MachineConfig to be deleted.
+func MachineConfigDeleted(apiClient *clients.Settings, mcName string, timeout time.Duration) error {
+	return wait.PollUntilContextTimeout(
+		context.TODO(), 5*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			_, err := mco.PullMachineConfig(apiClient, mcName)
+			if err != nil && strings.Contains(err.Error(), "does not exist") {
+				klog.V(kmmparams.KmmLogLevel).Infof("MachineConfig %s successfully deleted", mcName)
 
 				return true, nil
 			}
