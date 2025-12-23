@@ -70,4 +70,9 @@ const (
 
 	// BCMVendorID is the PCI vendor ID for Broadcom NICs.
 	BCMVendorID = "14e4"
+
+	// TestResourceLabelKey is the label key used to identify test-created resources.
+	TestResourceLabelKey = "eco-gotests.openshift.io/test"
+	// TestResourceLabelValue is the label value for test-created resources.
+	TestResourceLabelValue = "ocp-sriov"
 )
