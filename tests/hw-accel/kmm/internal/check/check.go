@@ -6,18 +6,17 @@ import (
 	"strings"
 	"time"
 
-	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
-
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/imagestream"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/kmm"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/get"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmminittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/imagestream"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/kmm"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
-
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -63,6 +62,13 @@ func ModuleLoaded(apiClient *clients.Settings, modName string, timeout time.Dura
 	modName = strings.Replace(modName, "-", "_", 10)
 
 	return runCommandOnTestPods(apiClient, []string{"lsmod"}, modName, timeout)
+}
+
+// ModuleLoadedOnNode verifies the module is loaded on a specific node.
+func ModuleLoadedOnNode(apiClient *clients.Settings, modName string, timeout time.Duration, nodeName string) error {
+	modName = strings.Replace(modName, "-", "_", 10)
+
+	return runCommandOnTestPodsOnNode(apiClient, []string{"lsmod"}, modName, timeout, nodeName)
 }
 
 // Dmesg verifies that dmesg contains message.
@@ -116,51 +122,6 @@ func ModuleSigned(apiClient *clients.Settings, modName, message, nsname, image s
 // IntreeModuleLoaded makes sure the needed in-tree module is present on the nodes.
 func IntreeModuleLoaded(apiClient *clients.Settings, module string, timeout time.Duration) error {
 	return runCommandOnTestPods(apiClient, []string{"modprobe", module}, "", timeout)
-}
-
-func runCommandOnTestPods(apiClient *clients.Settings,
-	command []string, message string, timeout time.Duration) error {
-	return wait.PollUntilContextTimeout(
-		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			pods, err := pod.List(apiClient, kmmparams.KmmOperatorNamespace, metav1.ListOptions{
-				FieldSelector: "status.phase=Running",
-				LabelSelector: kmmparams.KmmTestHelperLabelName,
-			})
-			if err != nil {
-				klog.V(kmmparams.KmmLogLevel).Infof("deployment list error: %s\n", err)
-
-				return false, err
-			}
-
-			// using a map so that both ModuleLoaded and Dmesg calls don't interfere with the counter
-			iter := 0
-
-			for _, iterPod := range pods {
-				klog.V(kmmparams.KmmLogLevel).Infof("\n\nPodName: %v\nCommand: %v\nExpect: %v\n\n",
-					iterPod.Object.Name, command, message)
-
-				buff, err := iterPod.ExecCommand(command, "test")
-				if err != nil {
-					return false, err
-				}
-
-				contents := buff.String()
-				klog.V(kmmparams.KmmLogLevel).Infof("%s contents: \n \t%v\n", command, contents)
-
-				if strings.Contains(contents, message) {
-					klog.V(kmmparams.KmmLogLevel).Infof(
-						"command '%s' contains '%s' in pod %s\n", command, message, iterPod.Object.Name)
-
-					iter++
-
-					if iter == len(pods) {
-						return true, nil
-					}
-				}
-			}
-
-			return false, err
-		})
 }
 
 // ImageStreamExistsForModule validates that an imagestream exists with the correct kernel tag
@@ -229,4 +190,175 @@ func ImageStreamExistsForModule(apiClient *clients.Settings, namespace, moduleNa
 	}
 
 	return fmt.Errorf("kernel tag %s not found in ImageStream %s/%s", tag, namespace, imagestreamName)
+}
+
+// ImageExists verifies that an image exists with a tag matching the cluster's kernel version.
+func ImageExists(apiClient *clients.Settings, baseImage string,
+	nodeSelector map[string]string) (string, error) {
+	kernelVersion, err := get.KernelFullVersion(apiClient, nodeSelector)
+	if err != nil {
+		return "", fmt.Errorf("failed to get kernel version: %w", err)
+	}
+
+	klog.V(kmmparams.KmmLogLevel).Infof("Cluster kernel version: %s", kernelVersion)
+
+	// Find any ready helper pod (don't care which node)
+	helperPods, err := pod.List(apiClient, kmmparams.KmmOperatorNamespace, metav1.ListOptions{
+		LabelSelector: kmmparams.KmmTestHelperLabelName,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to list helper pods: %w", err)
+	}
+
+	var helperPod *pod.Builder
+
+	for _, helperPodCandidate := range helperPods {
+		if helperPodCandidate.Object.Status.Phase != corev1.PodRunning {
+			continue
+		}
+
+		for _, cs := range helperPodCandidate.Object.Status.ContainerStatuses {
+			if cs.Name == "test" && cs.Ready {
+				helperPod = helperPodCandidate
+
+				break
+			}
+		}
+
+		if helperPod != nil {
+			break
+		}
+	}
+
+	if helperPod == nil {
+		return "", fmt.Errorf("no ready helper pod found")
+	}
+
+	parts := strings.SplitN(baseImage, "/", 2)
+	if len(parts) != 2 {
+		return "", fmt.Errorf("invalid image format: %s", baseImage)
+	}
+
+	registry := parts[0]
+	repository := parts[1]
+
+	var apiURL string
+	if registry == "quay.io" {
+		apiURL = fmt.Sprintf("https://quay.io/api/v1/repository/%s/tag/?limit=100&filter_tag_name=like:%s",
+			repository, kernelVersion)
+	} else {
+		apiURL = fmt.Sprintf("https://%s/v2/%s/tags/list", registry, repository)
+	}
+
+	curlCmd := []string{"curl", "-s", "-f", apiURL}
+	klog.V(kmmparams.KmmLogLevel).Infof("Executing: %v", curlCmd)
+
+	output, err := helperPod.ExecCommand(curlCmd, "test")
+	if err != nil {
+		errOutput := output.String()
+		klog.V(kmmparams.KmmLogLevel).Infof("curl failed for %s: %v, output: %s",
+			apiURL, err, errOutput)
+
+		return "", fmt.Errorf("failed to list tags for %s: %w (output: %s)", baseImage, err, errOutput)
+	}
+
+	tagsOutput := output.String()
+	klog.V(kmmparams.KmmLogLevel).Infof("Available tags for %s: %s", baseImage, tagsOutput)
+
+	if !strings.Contains(tagsOutput, kernelVersion) {
+		return "", fmt.Errorf("no image tag found for kernel version %s in %s", kernelVersion, baseImage)
+	}
+
+	klog.V(kmmparams.KmmLogLevel).Infof("Found image tag matching kernel version %s in %s", kernelVersion, baseImage)
+
+	return fmt.Sprintf("%s (kernel: %s)", baseImage, kernelVersion), nil
+}
+
+func runCommandOnTestPods(apiClient *clients.Settings,
+	command []string, message string, timeout time.Duration) error {
+	return wait.PollUntilContextTimeout(
+		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			pods, err := pod.List(apiClient, kmmparams.KmmOperatorNamespace, metav1.ListOptions{
+				FieldSelector: "status.phase=Running",
+				LabelSelector: kmmparams.KmmTestHelperLabelName,
+			})
+			if err != nil {
+				klog.V(kmmparams.KmmLogLevel).Infof("deployment list error: %s\n", err)
+
+				return false, err
+			}
+
+			// using a map so that both ModuleLoaded and Dmesg calls don't interfere with the counter
+			iter := 0
+
+			for _, iterPod := range pods {
+				klog.V(kmmparams.KmmLogLevel).Infof("\n\nPodName: %v\nCommand: %v\nExpect: %v\n\n",
+					iterPod.Object.Name, command, message)
+
+				buff, err := iterPod.ExecCommand(command, "test")
+				if err != nil {
+					return false, err
+				}
+
+				contents := buff.String()
+				klog.V(kmmparams.KmmLogLevel).Infof("%s contents: \n \t%v\n", command, contents)
+
+				if strings.Contains(contents, message) {
+					klog.V(kmmparams.KmmLogLevel).Infof(
+						"command '%s' contains '%s' in pod %s\n", command, message, iterPod.Object.Name)
+
+					iter++
+
+					if iter == len(pods) {
+						return true, nil
+					}
+				}
+			}
+
+			return false, err
+		})
+}
+
+func runCommandOnTestPodsOnNode(apiClient *clients.Settings,
+	command []string, message string, timeout time.Duration, nodeName string) error {
+	return wait.PollUntilContextTimeout(
+		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			pods, err := pod.List(apiClient, kmmparams.KmmOperatorNamespace, metav1.ListOptions{
+				FieldSelector: "status.phase=Running",
+				LabelSelector: kmmparams.KmmTestHelperLabelName,
+			})
+			if err != nil {
+				klog.V(kmmparams.KmmLogLevel).Infof("deployment list error: %s\n", err)
+
+				return false, err
+			}
+
+			for _, iterPod := range pods {
+				// Skip pods not on the target node
+				if iterPod.Object.Spec.NodeName != nodeName {
+					continue
+				}
+
+				klog.V(kmmparams.KmmLogLevel).Infof("\n\nPodName: %v\nNode: %v\nCommand: %v\nExpect: %v\n\n",
+					iterPod.Object.Name, nodeName, command, message)
+
+				buff, err := iterPod.ExecCommand(command, "test")
+				if err != nil {
+					return false, err
+				}
+
+				contents := buff.String()
+				klog.V(kmmparams.KmmLogLevel).Infof("%s contents: \n \t%v\n", command, contents)
+
+				if strings.Contains(contents, message) {
+					klog.V(kmmparams.KmmLogLevel).Infof(
+						"command '%s' contains '%s' in pod %s on node %s\n",
+						command, message, iterPod.Object.Name, nodeName)
+
+					return true, nil
+				}
+			}
+
+			return false, nil
+		})
 }

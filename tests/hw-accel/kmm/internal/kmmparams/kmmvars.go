@@ -32,7 +32,7 @@ var (
 	trueVar        = true
 	capabilityAll  = []corev1.Capability{"ALL"}
 	defaultGroupID = int64(3000)
-	defaultUserID  = int64(2000)
+	defaultUserID  = int64(0)
 
 	// PrivilegedSC represents a privileged security context definition.
 	PrivilegedSC = &corev1.SecurityContext{

@@ -2,13 +2,16 @@ package get
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"regexp"
 
 	"github.com/hashicorp/go-version"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/imagestream"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/kmm"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/mco"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/olm"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
@@ -265,4 +268,33 @@ func operatorVersion(apiClient *clients.Settings, namePattern, namespace string)
 	}
 
 	return nil, fmt.Errorf("no matching CSV were found")
+}
+
+// MachineConfigEnvVar returns the value and nil error if found, or empty string and error if not found.
+func MachineConfigEnvVar(apiClient *clients.Settings, mcName, envVarName string) (string, error) {
+	mcBuilder, err := mco.PullMachineConfig(apiClient, mcName)
+	if err != nil {
+		return "", fmt.Errorf("failed to pull MachineConfig %s: %w", mcName, err)
+	}
+
+	mcJSON, err := json.Marshal(mcBuilder.Object)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal MachineConfig to JSON: %w", err)
+	}
+
+	mcString := string(mcJSON)
+
+	klog.V(kmmparams.KmmLogLevel).Infof("Searching for %s in MachineConfig %s", envVarName, mcName)
+
+	pattern := regexp.MustCompile(fmt.Sprintf(`%s=(\S+)`, envVarName))
+	matches := pattern.FindStringSubmatch(mcString)
+
+	if len(matches) < 2 {
+		return "", fmt.Errorf("environment variable %s not found in MachineConfig %s", envVarName, mcName)
+	}
+
+	value := matches[1]
+	klog.V(kmmparams.KmmLogLevel).Infof("Found %s=%s in MachineConfig %s", envVarName, value, mcName)
+
+	return value, nil
 }
