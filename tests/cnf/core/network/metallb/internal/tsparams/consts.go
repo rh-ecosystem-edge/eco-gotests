@@ -40,8 +40,8 @@ const (
 	BgpPeerDynamicASeBGP = "external"
 	// BfdProfileName bfd profile name.
 	BfdProfileName = "bfdprofile"
-	// FrrK8WebHookServer is the web hook server running in namespace metallb-system.
-	FrrK8WebHookServer = "frr-k8s-webhook-server"
+	// FrrK8WebHookServer is the FRR-K8s status cleaner deployment (renamed in OCP 4.21).
+	FrrK8WebHookServer = "frr-k8s-statuscleaner"
 	// MetallbServiceName is the name of the metallb service.
 	MetallbServiceName = "service-1"
 	// MetallbServiceName2 is the name of the second metallb service.

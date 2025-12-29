@@ -55,7 +55,7 @@ var (
 
 var (
 	metalLbTestsLabel    = map[string]string{"metallb": "metallbtests"}
-	frrK8WebHookServer   = "frr-k8s-webhook-server"
+	frrK8WebHookServer   = "frr-k8s-statuscleaner"
 	ovnExternalAddresses = "k8s.ovn.org/node-primary-ifaddr"
 	frrPodSubnet         = map[string]string{
 		netparam.IPV4Family: netparam.IPSubnet24,
