@@ -21,3 +21,6 @@
 reports
 .vscode
 
+# Test dump directories
+**/dump/
+

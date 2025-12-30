@@ -19,8 +19,11 @@ func OperatorUpgrade(apiClient *clients.Settings, versionRegex string, timeout t
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			regex := regexp.MustCompile(versionRegex)
 
-			csv, _ := olm.ListClusterServiceVersionWithNamePattern(apiClient, "nfd",
+			csv, err := olm.ListClusterServiceVersionWithNamePattern(apiClient, "nfd",
 				nfdparams.NFDNamespace)
+			if err != nil {
+				klog.V(nfdparams.LogLevel).Infof("Error listing CSV: %v", err)
+			}
 
 			for _, csvResource := range csv {
 				klog.V(nfdparams.LogLevel).Infof("CSV: %s, Version: %s, Status: %s",
