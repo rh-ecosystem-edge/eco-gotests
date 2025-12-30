@@ -1,0 +1,1 @@
+Failed to fetch *v1.NodeFeatureDiscoveryList: failed to get API group resources: unable to retrieve the complete list of server APIs: nfd.openshift.io/v1: Get "https://api.ci-ln-tm3l9mb-76ef8.aws-4.ci.openshift.org:6443/apis/nfd.openshift.io/v1": dial tcp: lookup api.ci-ln-tm3l9mb-76ef8.aws-4.ci.openshift.org: no such host

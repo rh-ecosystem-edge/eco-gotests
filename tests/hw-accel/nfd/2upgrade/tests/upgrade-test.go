@@ -98,8 +98,7 @@ var _ = Describe("NFD", Ordered, Label(nfdparams.Label), func() {
 			Expect(err).ToNot(HaveOccurred(), "failed updating subscription")
 
 			By("Await operator to be upgraded")
-			versionRegexPattern := fmt.Sprintf(`%s`, nfdConfig.UpgradeTargetVersion)
-			err = await.OperatorUpgrade(APIClient, versionRegexPattern, 10*time.Minute)
+			err = await.OperatorUpgrade(APIClient, nfdConfig.UpgradeTargetVersion, 10*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "failed awaiting subscription upgrade")
 		})
 	})
