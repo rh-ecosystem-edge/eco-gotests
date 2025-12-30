@@ -1,0 +1,107 @@
+  <testsuite name="Aggregated Report" tests="20" skipped="4" failures="0" time="2560.520961">
+      <properties></properties>
+      <testcase name="NFD Node featues Check pods state">
+          <properties>
+              <property name="testcase-id" value="OCP54548"></property>
+          </properties>
+      </testcase>
+      <testcase name="NFD Node featues Check CPU feature labels">
+          <properties>
+              <property name="testcase-id" value="OCP54222"></property>
+          </properties>
+      </testcase>
+      <testcase name="NFD Node featues Check Kernel config">
+          <properties>
+              <property name="testcase-id" value="OCP54471"></property>
+          </properties>
+      </testcase>
+      <testcase name="NFD Node featues Check topology">
+          <properties>
+              <property name="testcase-id" value="OCP54491"></property>
+          </properties>
+          <skipped message="configuration issue"></skipped>
+      </testcase>
+      <testcase name="NFD Node featues Check Logs">
+          <properties>
+              <property name="testcase-id" value="OCP54549"></property>
+          </properties>
+      </testcase>
+      <testcase name="NFD Node featues Check Restart Count">
+          <properties>
+              <property name="testcase-id" value="OCP54538"></property>
+          </properties>
+      </testcase>
+      <testcase name="NFD Node featues Check if NUMA detected ">
+          <properties>
+              <property name="testcase-id" value="OCP54408"></property>
+          </properties>
+          <skipped message="configuration issue"></skipped>
+      </testcase>
+      <testcase name="NFD Node featues Verify Feature List not contains items from Blacklist ">
+          <properties>
+              <property name="testcase-id" value="OCP68298"></property>
+          </properties>
+      </testcase>
+      <testcase name="NFD Node featues Verify Feature List contains only Whitelist">
+          <properties>
+              <property name="testcase-id" value="OCP68300"></property>
+          </properties>
+      </testcase>
+      <testcase name="NFD Node featues Add day2 workers">
+          <properties>
+              <property name="testcase-id" value="OCP54539"></property>
+          </properties>
+      </testcase>
+      <testcase name="NFD Node featues Check pods state">
+          <properties>
+              <property name="testcase-id" value="OCP54548"></property>
+          </properties>
+      </testcase>
+      <testcase name="NFD Node featues Check CPU feature labels">
+          <properties>
+              <property name="testcase-id" value="OCP54222"></property>
+          </properties>
+      </testcase>
+      <testcase name="NFD Node featues Check Kernel config">
+          <properties>
+              <property name="testcase-id" value="OCP54471"></property>
+          </properties>
+      </testcase>
+      <testcase name="NFD Node featues Check topology">
+          <properties>
+              <property name="testcase-id" value="OCP54491"></property>
+          </properties>
+          <skipped message="configuration issue"></skipped>
+      </testcase>
+      <testcase name="NFD Node featues Check Logs">
+          <properties>
+              <property name="testcase-id" value="OCP54549"></property>
+          </properties>
+      </testcase>
+      <testcase name="NFD Node featues Check Restart Count">
+          <properties>
+              <property name="testcase-id" value="OCP54538"></property>
+          </properties>
+      </testcase>
+      <testcase name="NFD Node featues Check if NUMA detected ">
+          <properties>
+              <property name="testcase-id" value="OCP54408"></property>
+          </properties>
+          <skipped message="configuration issue"></skipped>
+      </testcase>
+      <testcase name="NFD Node featues Verify Feature List not contains items from Blacklist ">
+          <properties>
+              <property name="testcase-id" value="OCP68298"></property>
+          </properties>
+      </testcase>
+      <testcase name="NFD Node featues Verify Feature List contains only Whitelist">
+          <properties>
+              <property name="testcase-id" value="OCP68300"></property>
+          </properties>
+      </testcase>
+      <testcase name="NFD Node featues Add day2 workers">
+          <properties>
+              <property name="testcase-id" value="OCP54539"></property>
+          </properties>
+      </testcase>
+  </testsuite>

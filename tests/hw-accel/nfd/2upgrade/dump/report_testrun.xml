@@ -1,0 +1,15 @@
+  <testsuite name="Aggregated Report" tests="2" skipped="2" failures="0" time="0.000369916">
+      <properties></properties>
+      <testcase name="NFD Operator should upgrade successfully">
+          <properties>
+              <property name="testcase-id" value="OCP54540"></property>
+          </properties>
+          <skipped></skipped>
+      </testcase>
+      <testcase name="NFD Operator should upgrade successfully">
+          <properties>
+              <property name="testcase-id" value="OCP54540"></property>
+          </properties>
+          <skipped></skipped>
+      </testcase>
+  </testsuite>

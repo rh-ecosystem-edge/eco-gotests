@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+  <testsuites tests="2" disabled="1" errors="0" failures="0" time="0.00017675">
+      <testsuite name="2upgrade" package="/Users/guygordani/Project/git/eco-gotests-new/tests/hw-accel/nfd/2upgrade" tests="2" disabled="0" skipped="1" errors="0" failures="0" time="0.00017675" timestamp="2025-12-30T11:00:44">
+          <properties>
+              <property name="SuiteSucceeded" value="true"></property>
+              <property name="SuiteHasProgrammaticFocus" value="false"></property>
+              <property name="SpecialSuiteFailureReason" value=""></property>
+              <property name="SuiteLabels" value="[hw-accel,nfd_upgrade]"></property>
+              <property name="SuiteSemVerConstraints" value="[]"></property>
+              <property name="RandomSeed" value="1767085234"></property>
+              <property name="RandomizeAllSpecs" value="false"></property>
+              <property name="LabelFilter" value="NFD"></property>
+              <property name="SemVerFilter" value=""></property>
+              <property name="FocusStrings" value=""></property>
+              <property name="SkipStrings" value=""></property>
+              <property name="FocusFiles" value=""></property>
+              <property name="SkipFiles" value=""></property>
+              <property name="FailOnPending" value="false"></property>
+              <property name="FailOnEmpty" value="false"></property>
+              <property name="FailFast" value="false"></property>
+              <property name="FlakeAttempts" value="0"></property>
+              <property name="DryRun" value="false"></property>
+              <property name="ParallelTotal" value="1"></property>
+              <property name="OutputInterceptorMode" value=""></property>
+          </properties>
+          <testcase name="[It] NFD Operator should upgrade successfully [nfd_upgrade, 2upgrade, 54540, test_id:54540]" classname="2upgrade" status="skipped" time="0">
+              <skipped message="skipped"></skipped>
+          </testcase>
+          <testcase name="[ReportAfterSuite] 2upgrade" classname="2upgrade" status="passed" time="0.001744792">
+              <system-err>&gt; Enter [ReportAfterSuite] TOP-LEVEL - /Users/guygordani/Project/git/eco-gotests-new/tests/hw-accel/nfd/2upgrade/upgrade_suite_test.go:27 @ 12/30/25 11:00:44.707&#xA;&lt; Exit [ReportAfterSuite] TOP-LEVEL - /Users/guygordani/Project/git/eco-gotests-new/tests/hw-accel/nfd/2upgrade/upgrade_suite_test.go:27 @ 12/30/25 11:00:44.709 (2ms)&#xA;</system-err>
+          </testcase>
+      </testsuite>
+  </testsuites>

@@ -2,7 +2,6 @@ package await
 
 import (
 	"context"
-	"fmt"
 	"regexp"
 	"time"
 
@@ -20,7 +19,7 @@ func OperatorUpgrade(apiClient *clients.Settings, versionRegex string, timeout t
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			regex := regexp.MustCompile(versionRegex)
 
-			csv, err := olm.ListClusterServiceVersionWithNamePattern(apiClient, "nfd",
+			csv, _ := olm.ListClusterServiceVersionWithNamePattern(apiClient, "nfd",
 				nfdparams.NFDNamespace)
 
 			for _, csvResource := range csv {
@@ -32,17 +31,16 @@ func OperatorUpgrade(apiClient *clients.Settings, versionRegex string, timeout t
 				csvVersion := csvResource.Object.Spec.Version.String()
 				matched := regex.MatchString(csvVersion)
 
-				klog.V(nfdparams.LogLevel).Infof("csvVersion %v is matched:%v with regex%v", csvVersion, matched, versionRegex)
+				klog.V(nfdparams.LogLevel).Infof("csvVersion %v is matched:%v with regex %v", csvVersion, matched, versionRegex)
 
 				if matched {
 					return csvResource.Object.Status.Phase == "Succeeded", nil
 				}
 			}
 
-			if err == nil {
-				err = fmt.Errorf("csv with version pattern %v not found", versionRegex)
-			}
+			// CSV not found yet - continue polling (return nil to keep waiting)
+			klog.V(nfdparams.LogLevel).Infof("CSV with version pattern %v not found yet, continuing to wait...", versionRegex)
 
-			return false, err
+			return false, nil
 		})
 }
