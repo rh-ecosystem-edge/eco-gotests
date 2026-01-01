@@ -3,6 +3,7 @@ package sriovenv
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	nadV1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
@@ -417,4 +418,487 @@ func DiscoverInterfaceUnderTestVendorID(srIovInterfaceUnderTest, workerNodeName 
 	}
 
 	return "", fmt.Errorf("interface %s not found", srIovInterfaceUnderTest)
+}
+
+// PolicyConfig defines a single SR-IOV policy configuration.
+type PolicyConfig struct {
+	Name         string
+	ResourceName string
+	PFName       string
+	MTU          int
+	NumVFs       int
+	VFStart      int
+	VFEnd        int
+}
+
+// CreateSriovPolicies creates multiple SR-IOV policies from a slice of configurations.
+// This allows creating all policies upfront with a single node reboot instead of multiple reboots.
+func CreateSriovPolicies(configs []PolicyConfig) error {
+	for _, cfg := range configs {
+		klog.V(90).Infof("Creating SR-IOV policy %s with MTU %d, VFs %d-%d",
+			cfg.Name, cfg.MTU, cfg.VFStart, cfg.VFEnd)
+
+		err := CreateSriovPolicyWithMTU(cfg.Name, cfg.ResourceName, cfg.PFName,
+			cfg.MTU, cfg.NumVFs, cfg.VFStart, cfg.VFEnd)
+		if err != nil {
+			return fmt.Errorf("failed to create SR-IOV policy %s: %w", cfg.Name, err)
+		}
+	}
+
+	return nil
+}
+
+// CreateSriovPolicyWithMTU creates an SR-IOV network node policy with MTU and VF range configuration.
+func CreateSriovPolicyWithMTU(name, resourceName, pfName string, mtu, numVfs, vfStart, vfEnd int) error {
+	klog.V(90).Infof("Creating SR-IOV policy %s with MTU %d, VFs %d-%d", name, mtu, vfStart, vfEnd)
+
+	_, err := sriov.NewPolicyBuilder(
+		APIClient,
+		name,
+		NetConfig.SriovOperatorNamespace,
+		resourceName,
+		numVfs,
+		[]string{pfName},
+		NetConfig.WorkerLabelMap).
+		WithMTU(mtu).
+		WithVFRange(vfStart, vfEnd).
+		Create()
+
+	return err
+}
+
+// CreateSriovNetworkWithStaticIPAM creates an SR-IOV network with static IPAM, IP address, and MAC address support.
+func CreateSriovNetworkWithStaticIPAM(name, resourceName string) error {
+	klog.V(90).Infof("Creating SR-IOV network %s with static IPAM", name)
+
+	networkBuilder := sriov.NewNetworkBuilder(
+		APIClient, name, NetConfig.SriovOperatorNamespace,
+		tsparams.TestNamespaceName, resourceName).
+		WithStaticIpam().
+		WithIPAddressSupport().
+		WithMacAddressSupport()
+
+	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.WaitTimeout)
+}
+
+// CreateSriovNetworkWithWhereaboutsIPAM creates an SR-IOV network with whereabouts IPAM for dynamic IP assignment.
+// ipRange should be in CIDR notation (e.g., "2001:100::/64" for IPv6 or "192.168.1.0/24" for IPv4).
+// gateway is the gateway address for the range.
+func CreateSriovNetworkWithWhereaboutsIPAM(name, resourceName, ipRange, gateway string) error {
+	klog.V(90).Infof("Creating SR-IOV network %s with whereabouts IPAM, range %s, gateway %s",
+		name, ipRange, gateway)
+
+	// Build whereabouts IPAM JSON.
+	ipamJSON := fmt.Sprintf(`{"type": "whereabouts", "range": "%s", "gateway": "%s"}`, ipRange, gateway)
+
+	networkBuilder := sriov.NewNetworkBuilder(
+		APIClient, name, NetConfig.SriovOperatorNamespace,
+		tsparams.TestNamespaceName, resourceName)
+
+	// Set the IPAM directly on the spec.
+	networkBuilder.Definition.Spec.IPAM = ipamJSON
+
+	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.WaitTimeout)
+}
+
+// CreateSriovNetworkWithVLAN creates an SR-IOV network with static IPAM and VLAN tagging.
+// vlanID is the 802.1Q VLAN ID to tag traffic with.
+func CreateSriovNetworkWithVLAN(name, resourceName string, vlanID uint16) error {
+	klog.V(90).Infof("Creating SR-IOV network %s with static IPAM and VLAN %d", name, vlanID)
+
+	networkBuilder := sriov.NewNetworkBuilder(
+		APIClient, name, NetConfig.SriovOperatorNamespace,
+		tsparams.TestNamespaceName, resourceName).
+		WithStaticIpam().
+		WithIPAddressSupport().
+		WithMacAddressSupport().
+		WithVLAN(vlanID)
+
+	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.WaitTimeout)
+}
+
+// CreateSriovNetworkWithVLANAndWhereabouts creates an SR-IOV network with Whereabouts IPAM and VLAN tagging.
+// This enables dynamic IP assignment with VLAN isolation.
+func CreateSriovNetworkWithVLANAndWhereabouts(name, resourceName string, vlanID uint16,
+	ipRange, gateway string) error {
+	klog.V(90).Infof("Creating SR-IOV network %s with Whereabouts IPAM, VLAN %d, range %s",
+		name, vlanID, ipRange)
+
+	// Build whereabouts IPAM JSON.
+	ipamJSON := fmt.Sprintf(`{"type": "whereabouts", "range": "%s", "gateway": "%s"}`, ipRange, gateway)
+
+	networkBuilder := sriov.NewNetworkBuilder(
+		APIClient, name, NetConfig.SriovOperatorNamespace,
+		tsparams.TestNamespaceName, resourceName).
+		WithVLAN(vlanID)
+
+	// Set the IPAM directly on the spec.
+	networkBuilder.Definition.Spec.IPAM = ipamJSON
+
+	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.WaitTimeout)
+}
+
+// DeleteSriovNetworks deletes the specified SR-IOV networks by name.
+func DeleteSriovNetworks(networkNames ...string) error {
+	for _, networkName := range networkNames {
+		klog.V(90).Infof("Deleting SR-IOV network %s", networkName)
+
+		network, err := sriov.PullNetwork(APIClient, networkName, NetConfig.SriovOperatorNamespace)
+		if err != nil {
+			// Network doesn't exist, skip.
+			klog.V(90).Infof("SR-IOV network %s not found, skipping", networkName)
+
+			continue
+		}
+
+		targetNamespace := TargetNamespaceOf(network)
+
+		err = network.Delete()
+		if err != nil {
+			return fmt.Errorf("failed to delete SR-IOV network %s: %w", networkName, err)
+		}
+
+		err = WaitForNADDeletion(networkName, targetNamespace, tsparams.DefaultTimeout)
+		if err != nil {
+			return fmt.Errorf("failed waiting for NAD deletion of %s: %w", networkName, err)
+		}
+	}
+
+	return nil
+}
+
+// CreateTestPod creates a test pod with SR-IOV interface.
+// isServer: if true, creates a server pod with testcmd listeners; if false, creates a client pod.
+// ipAddresses can be a single IP or multiple IPs for dual-stack (e.g., []string{"192.168.1.1/24", "2001::1/64"}).
+// Pass nil or empty ipAddresses for whereabouts/dynamic IP assignment.
+// Pass empty macAddress for dynamic MAC assignment.
+// serverBindIP is the specific IP (without prefix) that testcmd should bind to (server only).
+// Pass empty serverBindIP to auto-discover the IP from the net1 interface at runtime.
+// mtu is the MTU size for testcmd (server only, ignored for client).
+func CreateTestPod(name, nodeName, networkName string, ipAddresses []string, macAddress string,
+	isServer bool, serverBindIP string, mtu int) (*pod.Builder, error) {
+	if isServer {
+		klog.V(90).Infof("Creating server pod %s on node %s with MTU %d, bindIP %s", name, nodeName, mtu, serverBindIP)
+	} else {
+		klog.V(90).Infof("Creating client pod %s on node %s", name, nodeName)
+	}
+
+	secNetwork := []*types.NetworkSelectionElement{
+		{
+			Name: networkName,
+		},
+	}
+
+	// Only set MAC if provided (non-empty).
+	if macAddress != "" {
+		secNetwork[0].MacRequest = macAddress
+	}
+
+	// Only set IPs if provided (non-nil and non-empty).
+	if len(ipAddresses) > 0 {
+		secNetwork[0].IPRequest = ipAddresses
+	}
+
+	var podCmd []string
+
+	var containerName string
+
+	if isServer {
+		containerName = "server"
+		// Use mtu-100 for packet size to match client (accounting for headers).
+		packetSize := mtu - 100
+
+		if serverBindIP == "" {
+			// Dynamic IP: discover IP from net1 interface at runtime.
+			podCmd = []string{"bash", "-c", fmt.Sprintf(
+				"sleep 5; "+
+					"SERVER_IP=$(ip -o addr show net1 | awk '{print $4}' | cut -d'/' -f1 | head -1); "+
+					"echo \"Discovered server IP: $SERVER_IP\"; "+
+					"if [[ \"$SERVER_IP\" == *:* ]]; then TCP_IP=\"[$SERVER_IP]\"; else TCP_IP=\"$SERVER_IP\"; fi; "+
+					"testcmd -listen -protocol tcp -port 5001 -interface net1 -server $TCP_IP -mtu %d & "+
+					"testcmd -listen -protocol udp -port 5002 -interface net1 -server $SERVER_IP -mtu %d & "+
+					"testcmd -listen -protocol sctp -port 5003 -interface net1 -server $SERVER_IP -mtu %d & "+
+					"sleep infinity",
+				packetSize, packetSize, packetSize)}
+		} else {
+			// Static IP: use provided serverBindIP.
+			// TCP needs brackets around IPv6 for port binding.
+			tcpBindAddr := serverBindIP
+			if strings.Contains(serverBindIP, ":") {
+				tcpBindAddr = "[" + serverBindIP + "]"
+			}
+
+			podCmd = []string{"bash", "-c", fmt.Sprintf(
+				"sleep 5; "+
+					"testcmd -listen -protocol tcp -port 5001 -interface net1 -server %s -mtu %d & "+
+					"testcmd -listen -protocol udp -port 5002 -interface net1 -server %s -mtu %d & "+
+					"testcmd -listen -protocol sctp -port 5003 -interface net1 -server %s -mtu %d & "+
+					"sleep infinity",
+				tcpBindAddr, packetSize, serverBindIP, packetSize, serverBindIP, packetSize)}
+		}
+	} else {
+		containerName = "test"
+		podCmd = []string{"bash", "-c", "sleep infinity"}
+	}
+
+	container, err := pod.NewContainerBuilder(containerName, NetConfig.CnfNetTestContainer, podCmd).
+		GetContainerCfg()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create container config: %w", err)
+	}
+
+	return pod.NewBuilder(APIClient, name, tsparams.TestNamespaceName, NetConfig.CnfNetTestContainer).
+		DefineOnNode(nodeName).
+		WithPrivilegedFlag().
+		WithSecondaryNetwork(secNetwork).
+		RedefineDefaultContainer(*container).
+		CreateAndWaitUntilRunning(netparam.DefaultTimeout)
+}
+
+// CreateTestClientPod creates a client pod with SR-IOV interface.
+// This is a convenience wrapper around CreateTestPod.
+func CreateTestClientPod(
+	name, nodeName, networkName string, ipAddresses []string, macAddress string) (*pod.Builder, error) {
+	return CreateTestPod(name, nodeName, networkName, ipAddresses, macAddress, false, "", 0)
+}
+
+// CreateTestServerPod creates a server pod with testcmd listeners for TCP, UDP, and SCTP.
+// This is a convenience wrapper around CreateTestPod that also waits for testcmd to be ready.
+func CreateTestServerPod(name, nodeName, networkName string, ipAddresses []string, serverBindIP, macAddress string,
+	mtu int) (*pod.Builder, error) {
+	serverPod, err := CreateTestPod(name, nodeName, networkName, ipAddresses, macAddress, true, serverBindIP, mtu)
+	if err != nil {
+		return nil, err
+	}
+
+	// Wait for testcmd listeners to be ready (they start after sleep 5 in the command).
+	if err := WaitForServerReady(serverPod, tsparams.WaitTimeout); err != nil {
+		return nil, fmt.Errorf("server pod %s not ready: %w", name, err)
+	}
+
+	return serverPod, nil
+}
+
+// DeleteTestPods deletes the given test pods.
+func DeleteTestPods(pods ...*pod.Builder) error {
+	for _, podBuilder := range pods {
+		if podBuilder != nil {
+			klog.V(90).Infof("Deleting pod %s", podBuilder.Definition.Name)
+
+			_, err := podBuilder.Delete()
+			if err != nil {
+				return fmt.Errorf("failed to delete pod %s: %w", podBuilder.Definition.Name, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// CleanupTestResources deletes test pods and SR-IOV networks.
+// This is a convenience function that combines DeleteTestPods and DeleteSriovNetworks.
+func CleanupTestResources(networkNames []string, pods ...*pod.Builder) error {
+	klog.V(90).Infof("Cleaning up test resources: %d pods, %d networks", len(pods), len(networkNames))
+
+	if err := DeleteTestPods(pods...); err != nil {
+		return fmt.Errorf("failed to delete test pods: %w", err)
+	}
+
+	if err := DeleteSriovNetworks(networkNames...); err != nil {
+		return fmt.Errorf("failed to delete SR-IOV networks: %w", err)
+	}
+
+	return nil
+}
+
+// WaitForServerReady waits for the server pod's testcmd listeners to be ready.
+func WaitForServerReady(serverPod *pod.Builder, timeout time.Duration) error {
+	klog.V(90).Infof("Waiting for server pod %s to be ready", serverPod.Definition.Name)
+
+	return wait.PollUntilContextTimeout(context.TODO(),
+		2*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			_, err := serverPod.ExecCommand([]string{"bash", "-c", "pgrep -f testcmd"})
+			if err != nil {
+				return false, nil
+			}
+
+			return true, nil
+		})
+}
+
+// GetPodIPFromInterface retrieves the IP address of a specific interface from a pod.
+// This is useful for whereabouts IPAM where the IP is assigned dynamically.
+// Returns the IP without the prefix (e.g., "2001:100::5" instead of "2001:100::5/64").
+func GetPodIPFromInterface(podBuilder *pod.Builder, interfaceName string) (string, error) {
+	klog.V(90).Infof("Getting IP from interface %s on pod %s", interfaceName, podBuilder.Definition.Name)
+
+	output, err := podBuilder.ExecCommand([]string{"bash", "-c",
+		fmt.Sprintf("ip -o addr show %s | awk '{print $4}' | cut -d'/' -f1 | head -1", interfaceName)})
+	if err != nil {
+		return "", fmt.Errorf("failed to get IP from interface %s: %w", interfaceName, err)
+	}
+
+	ipAddress := strings.TrimSpace(output.String())
+	if ipAddress == "" {
+		return "", fmt.Errorf("no IP found on interface %s", interfaceName)
+	}
+
+	klog.V(90).Infof("Found IP %s on interface %s", ipAddress, interfaceName)
+
+	return ipAddress, nil
+}
+
+// CleanupAllSriovResources removes all SR-IOV networks and policies.
+func CleanupAllSriovResources(mcpLabel string, timeout time.Duration) error {
+	klog.V(90).Infof("Cleaning up all SR-IOV resources")
+
+	err := removeSriovNetworks()
+	if err != nil {
+		return err
+	}
+
+	return removeSriovPoliciesAndWaitForStability(mcpLabel, timeout)
+}
+
+// RunTrafficTest runs all traffic type tests (ICMP, TCP, UDP, SCTP) between client and server pods.
+// serverIP should be the bare IP address without prefix (e.g., "192.168.10.2" or "2001:100::2").
+func RunTrafficTest(clientPod *pod.Builder, serverIP string, mtu int) error {
+	serverIPAddress := removePrefix(serverIP)
+	packetSize := mtu - 100
+
+	klog.V(90).Infof("Running traffic tests with MTU %d (packet size %d)", mtu, packetSize)
+
+	// 1. ICMP connectivity.
+	// ICMPConnectivityCheck expects CIDR notation, so add /32 for IPv4 or /128 for IPv6.
+	serverIPWithPrefix := serverIPAddress + "/32"
+	if strings.Contains(serverIPAddress, ":") {
+		serverIPWithPrefix = serverIPAddress + "/128"
+	}
+
+	err := cmd.ICMPConnectivityCheck(clientPod, []string{serverIPWithPrefix})
+	if err != nil {
+		return fmt.Errorf("ICMP connectivity check failed: %w", err)
+	}
+
+	// 2. TCP unicast (port 5001).
+	tcpCmd := fmt.Sprintf("testcmd -protocol tcp -port 5001 -interface net1 -server %s -mtu %d",
+		serverIPAddress, packetSize)
+	klog.V(90).Infof("Running TCP test: %s", tcpCmd)
+	tcpOutput, err := clientPod.ExecCommand([]string{"bash", "-c", tcpCmd})
+	klog.V(90).Infof("TCP output: %s", tcpOutput.String())
+
+	if err != nil {
+		return fmt.Errorf("TCP connectivity check failed (output: %s): %w", tcpOutput.String(), err)
+	}
+
+	// 3. UDP unicast (port 5002).
+	udpCmd := fmt.Sprintf("testcmd -protocol udp -port 5002 -interface net1 -server %s -mtu %d",
+		serverIPAddress, packetSize)
+	klog.V(90).Infof("Running UDP test: %s", udpCmd)
+	udpOutput, err := clientPod.ExecCommand([]string{"bash", "-c", udpCmd})
+	klog.V(90).Infof("UDP output: %s", udpOutput.String())
+
+	if err != nil {
+		return fmt.Errorf("UDP connectivity check failed (output: %s): %w", udpOutput.String(), err)
+	}
+
+	// 4. SCTP unicast (port 5003).
+	sctpCmd := fmt.Sprintf("testcmd -protocol sctp -port 5003 -interface net1 -server %s -mtu %d",
+		serverIPAddress, packetSize)
+	klog.V(90).Infof("Running SCTP test: %s", sctpCmd)
+	sctpOutput, err := clientPod.ExecCommand([]string{"bash", "-c", sctpCmd})
+	klog.V(90).Infof("SCTP output: %s", sctpOutput.String())
+
+	if err != nil {
+		return fmt.Errorf("SCTP connectivity check failed (output: %s): %w", sctpOutput.String(), err)
+	}
+
+	return nil
+}
+
+// EnableSCTPOnWorkers loads the SCTP kernel module on all worker nodes.
+func EnableSCTPOnWorkers(workerNodes []*nodes.Builder) error {
+	for _, node := range workerNodes {
+		klog.V(90).Infof("Loading SCTP kernel module on node %s", node.Definition.Name)
+
+		debugPod, err := pod.NewBuilder(
+			APIClient, fmt.Sprintf("sctp-enable-%s", node.Definition.Name),
+			tsparams.TestNamespaceName, NetConfig.CnfNetTestContainer).
+			DefineOnNode(node.Definition.Name).
+			WithPrivilegedFlag().
+			WithHostPid(true).
+			WithHostNetwork().
+			RedefineDefaultCMD([]string{"bash", "-c", "nsenter -t 1 -m -u -n -i modprobe sctp && sleep 5"}).
+			CreateAndWaitUntilRunning(netparam.DefaultTimeout)
+		if err != nil {
+			return fmt.Errorf("failed to create SCTP enabler pod on node %s: %w", node.Definition.Name, err)
+		}
+
+		time.Sleep(10 * time.Second)
+
+		_, err = debugPod.DeleteAndWait(netparam.DefaultTimeout)
+		if err != nil {
+			return fmt.Errorf("failed to delete SCTP enabler pod on node %s: %w", node.Definition.Name, err)
+		}
+	}
+
+	return nil
+}
+
+// removePrefix removes the CIDR prefix from an IP address.
+func removePrefix(ipWithPrefix string) string {
+	for i, c := range ipWithPrefix {
+		if c == '/' {
+			return ipWithPrefix[:i]
+		}
+	}
+
+	return ipWithPrefix
+}
+
+func removeSriovNetworks() error {
+	klog.V(90).Infof("Removing all SR-IOV networks")
+
+	sriovNetworks, err := sriov.List(APIClient, NetConfig.SriovOperatorNamespace)
+	if err != nil {
+		return fmt.Errorf("failed to list SR-IOV networks: %w", err)
+	}
+
+	for _, network := range sriovNetworks {
+		// Get the network name and target namespace before deletion.
+		networkName := network.Definition.Name
+		targetNamespace := TargetNamespaceOf(network)
+
+		err = network.Delete()
+		if err != nil {
+			return fmt.Errorf("failed to delete SR-IOV network %s: %w", networkName, err)
+		}
+
+		err = WaitForNADDeletion(networkName, targetNamespace, tsparams.DefaultTimeout)
+		if err != nil {
+			return fmt.Errorf("failed waiting for NAD deletion: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func removeSriovPoliciesAndWaitForStability(mcpLabel string, timeout time.Duration) error {
+	klog.V(90).Infof("Removing all SR-IOV policies and waiting for MCP stability")
+
+	policies, err := sriov.ListPolicy(APIClient, NetConfig.SriovOperatorNamespace)
+	if err != nil {
+		return fmt.Errorf("failed to list SR-IOV policies: %w", err)
+	}
+
+	for _, policy := range policies {
+		if policy.Definition.Name != "default" {
+			err = policy.Delete()
+			if err != nil {
+				return fmt.Errorf("failed to delete SR-IOV policy %s: %w", policy.Definition.Name, err)
+			}
+		}
+	}
+
+	return cluster.WaitForMcpStable(APIClient, timeout, 1*time.Minute, mcpLabel)
 }
