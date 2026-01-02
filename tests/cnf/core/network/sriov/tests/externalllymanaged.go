@@ -438,9 +438,11 @@ func createSriovConfiguration(sriovAndResName, sriovInterfaceName string, extern
 
 	By("Creating SR-IOV network")
 
-	_, err = sriov.NewNetworkBuilder(APIClient, sriovAndResName, NetConfig.SriovOperatorNamespace,
+	sriovNetworkExtManaged := sriov.NewNetworkBuilder(APIClient, sriovAndResName, NetConfig.SriovOperatorNamespace,
 		tsparams.TestNamespaceName, sriovAndResName).WithStaticIpam().WithMacAddressSupport().WithIPAddressSupport().
-		WithLogLevel(netparam.LogLevelDebug).Create()
+		WithLogLevel(netparam.LogLevelDebug)
+
+	err = sriovenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetworkExtManaged, 5*time.Second)
 	Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network")
 }
 
