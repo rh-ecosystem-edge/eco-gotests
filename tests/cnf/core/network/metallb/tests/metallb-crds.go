@@ -10,8 +10,10 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/metallb"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/mlbtypes"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/define"
@@ -77,6 +79,7 @@ var _ = Describe("MetalLb New CRDs", Ordered, Label("newcrds"), ContinueOnFailur
 
 		By("Checking that BGP and BFD sessions are established and up")
 		verifyMetalLbBFDAndBGPSessionsAreUPOnFrrPod(l3ClientPod, ipv4NodeAddrList)
+		validateBGPSessionState("Established", "Up", ipv4metalLbIPList[0], workerNodeList)
 
 		By("Configuring Local GW mode")
 		setLocalGWMode(true)
@@ -91,6 +94,12 @@ var _ = Describe("MetalLb New CRDs", Ordered, Label("newcrds"), ContinueOnFailur
 		By("Creating an IPAddressPool and BGPAdvertisement")
 		ipAddressPool = setupBgpAdvertisementAndIPAddressPool(
 			tsparams.BGPAdvAndAddressPoolName, addressPool, netparam.IPSubnetInt32)
+		validateAddressPool(tsparams.BGPAdvAndAddressPoolName, mlbtypes.IPAddressPoolStatus{
+			AvailableIPv4: 240,
+			AvailableIPv6: 0,
+			AssignedIPv4:  0,
+			AssignedIPv6:  0,
+		})
 
 		By("Creating a L2Advertisement")
 		_, err = metallb.NewL2AdvertisementBuilder(
@@ -139,6 +148,13 @@ var _ = Describe("MetalLb New CRDs", Ordered, Label("newcrds"), ContinueOnFailur
 			tsparams.LabelValue1,
 			ipAddressPool,
 			corev1.ServiceExternalTrafficPolicyTypeLocal)
+
+		By("Validating the service BGP statuses")
+		validateServiceBGPStatus(
+			[]*nodes.Builder{workerNodeList[0]},
+			tsparams.MetallbServiceName,
+			tsparams.TestNamespaceName,
+			[]string{tsparams.BgpPeerName1})
 
 		By(fmt.Sprintf("Creating macvlan NAD with the secondary interface %s", sriovInterfacesUnderTest[0]))
 		createExternalNadWithMasterInterface("l2nad", sriovInterfacesUnderTest[0])

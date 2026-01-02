@@ -11,8 +11,10 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/metallb"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/mlbtypes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/service"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/define"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/frrconfig"
@@ -245,11 +247,23 @@ func runPoolSelectorTests(ipStack, trafficPolicy string, bgpASN int, twoPools bo
 	By("Creating two IPAddressPools")
 
 	ipPool1 := createIPAddressPool("pool1", tsparams.LBipRange1[ipStack])
+	validateAddressPool(ipPool1.Definition.Name, mlbtypes.IPAddressPoolStatus{
+		AvailableIPv4: 240,
+		AvailableIPv6: 0,
+		AssignedIPv4:  0,
+		AssignedIPv6:  0,
+	})
 
 	var ipPool2 *metallb.IPAddressPoolBuilder
 
 	if twoPools {
 		ipPool2 = createIPAddressPool("pool2", tsparams.LBipRange2[ipStack])
+		validateAddressPool(ipPool2.Definition.Name, mlbtypes.IPAddressPoolStatus{
+			AvailableIPv4: 239,
+			AvailableIPv6: 0,
+			AssignedIPv4:  0,
+			AssignedIPv6:  0,
+		})
 	}
 
 	By("Creating two BGPAdvertisements")
@@ -317,7 +331,9 @@ func runPoolSelectorTests(ipStack, trafficPolicy string, bgpASN int, twoPools bo
 
 	By("Checking that BGP session is established on external FRR Pod")
 	verifyMetalLbBGPSessionsAreUPOnFrrPod(extFrrPod1, nodeAddrList[ipStack])
+	validateBGPSessionState("Established", "N/A", metallbAddrList[ipStack][0], []*nodes.Builder{workerNodeList[0]})
 	verifyMetalLbBGPSessionsAreUPOnFrrPod(extFrrPod2, nodeAddrList[ipStack])
+	validateBGPSessionState("Established", "N/A", metallbAddrList[ipStack][1], []*nodes.Builder{workerNodeList[1]})
 
 	By("Checking HTTP traffic and SCTP traffic is running and Validating Prefixs on external FRR Pod")
 	// Update service builders with latest status that includes LB IP.
@@ -355,11 +371,23 @@ func runPoolSelectorTestsDualStack(ipStack, trafficPolicy string, bgpASN int, tw
 	By("Creating IPAddressPool for dual stack")
 
 	ipPool1 := createIPAddressPool("pool1", tsparams.LBipRange1[ipStack])
+	validateAddressPool(ipPool1.Definition.Name, mlbtypes.IPAddressPoolStatus{
+		AvailableIPv4: 240,
+		AvailableIPv6: 0,
+		AssignedIPv4:  0,
+		AssignedIPv6:  0,
+	})
 
 	var ipPool2 *metallb.IPAddressPoolBuilder
 
 	if twoPools {
 		ipPool2 = createIPAddressPool("pool2", tsparams.LBipRange2[ipStack])
+		validateAddressPool(ipPool2.Definition.Name, mlbtypes.IPAddressPoolStatus{
+			AvailableIPv4: 240,
+			AvailableIPv6: 0,
+			AssignedIPv4:  0,
+			AssignedIPv6:  0,
+		})
 	}
 
 	By("Creating four BGPAdvertisements")
@@ -442,7 +470,9 @@ func runPoolSelectorTestsDualStack(ipStack, trafficPolicy string, bgpASN int, tw
 
 	By("Checking that BGP session is established on external FRR Pod")
 	verifyMetalLbBGPSessionsAreUPOnFrrPod(extFrrPod1, []string{nodeAddrList[ipv4][0], nodeAddrList[ipv6][0]})
+	validateBGPSessionState("Established", "N/A", metallbAddrList[ipStack][0], []*nodes.Builder{workerNodeList[0]})
 	verifyMetalLbBGPSessionsAreUPOnFrrPod(extFrrPod2, []string{nodeAddrList[ipv4][1], nodeAddrList[ipv6][1]})
+	validateBGPSessionState("Established", "N/A", metallbAddrList[ipStack][1], []*nodes.Builder{workerNodeList[1]})
 
 	By("Checking HTTP traffic and SCTP traffic is running and Validating Prefixs on external FRR Pod")
 	// Update service builders with latest status that includes LB IP.

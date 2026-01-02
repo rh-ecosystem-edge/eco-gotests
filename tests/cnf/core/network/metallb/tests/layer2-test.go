@@ -16,6 +16,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/mlbtypes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/service"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/define"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/frrconfig"
@@ -104,6 +105,12 @@ var _ = Describe("Layer2", Ordered, Label(tsparams.LabelLayer2TestCases), Contin
 		setupNGNXPod(tsparams.MLBNginxPodName+workerNodeList[0].Definition.Name,
 			workerNodeList[0].Definition.Name,
 			tsparams.LabelValue1)
+		validateAddressPool("l2address-pool", mlbtypes.IPAddressPoolStatus{
+			AvailableIPv4: 1,
+			AvailableIPv6: 0,
+			AssignedIPv4:  1,
+			AssignedIPv6:  0,
+		})
 
 		By("Getting announcing node name")
 		announcingNodeName := getLBServiceAnnouncingNodeName()
@@ -134,6 +141,12 @@ var _ = Describe("Layer2", Ordered, Label(tsparams.LabelLayer2TestCases), Contin
 		setupNGNXPod(tsparams.MLBNginxPodName+workerNodeList[1].Definition.Name,
 			workerNodeList[1].Definition.Name,
 			tsparams.LabelValue1)
+		validateAddressPool("l2address-pool", mlbtypes.IPAddressPoolStatus{
+			AvailableIPv4: 1,
+			AvailableIPv6: 0,
+			AssignedIPv4:  1,
+			AssignedIPv6:  0,
+		})
 
 		By("Getting announcing node name")
 		announcingNodeName := getLBServiceAnnouncingNodeName()

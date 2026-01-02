@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"fmt"
 	"net"
 	"strings"
 	"time"
@@ -16,14 +15,12 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/service"
 	netcmd "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/cmd"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/define"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/frrconfig"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/metallb/internal/frr"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/metallb/internal/metallbenv"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/metallb/internal/tsparams"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -291,82 +288,6 @@ var _ = Describe("BGP", Ordered, Label(tsparams.LabelBGPTestCases), ContinueOnFa
 		})
 	})
 })
-
-// Deploys a basic test environment with a single BGPPeer and a single IPAddressPool
-// and creates a BGPAdvertisement with the given prefix length and communities.
-// ipStack is the IP family to use for the test. ipStack can be ipv4 or ipv6 only.
-func setupTestEnv(ipStack string, prefixLen int, extFrrAdv bool) (
-	[]*pod.Builder,
-	*pod.Builder,
-	*metallb.BGPAdvertisementBuilder,
-) {
-	By("Fetching frrk8s pods list running on the worker nodes selected for metallb tests")
-
-	frrk8sPods := verifyAndCreateFRRk8sPodList()
-
-	By("Creating BGPPeer with external FRR Pod")
-	createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1,
-		metallbAddrList[ipStack][0], "", tsparams.LocalBGPASN, false, 0, frrk8sPods)
-
-	By("Creating an IPAddressPool")
-
-	ipAddressPool, err := metallb.NewIPAddressPoolBuilder(
-		APIClient,
-		"address-pool",
-		NetConfig.MlbOperatorNamespace,
-		[]string{fmt.Sprintf("%s-%s", tsparams.LBipRange1[ipStack][0], tsparams.LBipRange1[ipStack][1])}).Create()
-	Expect(err).ToNot(HaveOccurred(), "Failed to create IPAddressPool")
-
-	By("Creating a BGPAdvertisement")
-
-	bgpAdvertisement := metallb.
-		NewBGPAdvertisementBuilder(APIClient, "bgpadvertisement", NetConfig.MlbOperatorNamespace).
-		WithIPAddressPools([]string{ipAddressPool.Definition.Name}).
-		WithCommunities([]string{tsparams.NoAdvertiseCommunity}).
-		WithLocalPref(100)
-
-	if ipStack == netparam.IPV6Family {
-		bgpAdvertisement = bgpAdvertisement.WithAggregationLength6(int32(prefixLen))
-	} else {
-		bgpAdvertisement = bgpAdvertisement.WithAggregationLength4(int32(prefixLen))
-	}
-
-	bgpAdvertisement, err = bgpAdvertisement.Create()
-	Expect(err).ToNot(HaveOccurred(), "Failed to create BGPAdvertisement")
-
-	By("Deploy nginx on single worker with LB service")
-	setupNGNXPod("nginxpod1", workerNodeList[0].Object.Name, tsparams.LabelValue1)
-	setupMetalLbService(tsparams.MetallbServiceName, ipStack, tsparams.LabelValue1, ipAddressPool,
-		corev1.ServiceExternalTrafficPolicyTypeCluster)
-
-	By("Creating configMap with selected worker nodes as BGP Peers for external FRR Pod")
-
-	var masterConfigMap *configmap.Builder
-
-	if extFrrAdv {
-		masterConfigMap = createConfigMapWithNetwork(
-			ipStack, tsparams.LocalBGPASN, nodeAddrList[ipStack], tsparams.ExtFrrConnectedPools[ipStack])
-	} else {
-		masterConfigMap = createConfigMap(
-			tsparams.LocalBGPASN, nodeAddrList[ipStack], false, false)
-	}
-
-	By("Creating macvlan NAD for external FRR Pod")
-
-	err = define.CreateExternalNad(APIClient, frrconfig.ExternalMacVlanNADName, tsparams.TestNamespaceName)
-	Expect(err).ToNot(HaveOccurred(), "Failed to create a macvlan NAD")
-
-	By("Creating external FRR Pod with configMap mount and external NAD")
-
-	extFrrPod := createFrrPod(masterNodeList[0].Object.Name, masterConfigMap.Object.Name, []string{},
-		pod.StaticIPAnnotation(frrconfig.ExternalMacVlanNADName,
-			[]string{fmt.Sprintf("%s/%s", metallbAddrList[ipStack][0], frrPodSubnet[ipStack])}))
-
-	By("Checking that BGP session is established on external FRR Pod")
-	verifyMetalLbBGPSessionsAreUPOnFrrPod(extFrrPod, nodeAddrList[ipStack])
-
-	return frrk8sPods, extFrrPod, bgpAdvertisement
-}
 
 func verifyBGPTimer(frrPod *pod.Builder, peerAddrList []string, hTimer, aTimer int) {
 	for _, peerAddress := range netcmd.RemovePrefixFromIPList(peerAddrList) {

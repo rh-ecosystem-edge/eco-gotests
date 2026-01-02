@@ -100,6 +100,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelBGPTestCases), ContinueOnFa
 			By("Creating BGP Peers with 10 second retry connect timer")
 			createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, ipv4metalLbIPList[0], "",
 				tsparams.LocalBGPASN, false, 10, frrk8sPods)
+			validateBGPSessionState("Established", "N/A", ipv4metalLbIPList[0], workerNodeList)
 
 			By("Validate BGP Peers with 10 second retry connect timer")
 			Eventually(func() int {

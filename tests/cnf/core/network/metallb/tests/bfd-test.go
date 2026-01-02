@@ -17,6 +17,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/mlbtypes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/service"
 	netcmd "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/cmd"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/define"
@@ -40,6 +41,7 @@ var (
 )
 
 var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFailure, func() {
+	var peerIP string
 
 	BeforeAll(func() {
 		validateEnvVarAndGetNodeList()
@@ -50,6 +52,8 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 
 		err = define.CreateExternalNad(APIClient, frrconfig.ExternalMacVlanNADName, tsparams.TestNamespaceName)
 		Expect(err).ToNot(HaveOccurred(), "Failed to create a network-attachment-definition")
+
+		peerIP = ipv4metalLbIPList[0]
 	})
 
 	Context("single hop", Label("singlehop"), func() {
@@ -79,11 +83,12 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 
 			By("Checking that BGP and BFD sessions are established and up")
 			verifyMetalLbBFDAndBGPSessionsAreUPOnFrrPod(frrPod, ipv4NodeAddrList)
+			validateBGPSessionState("Established", "Up", peerIP, workerNodeList)
 		})
 
 		It("basic functionality should provide fast link failure detection", reportxml.ID("47188"), func() {
-			testBFDFailOver()
-			testBFDFailBack()
+			testBFDFailOver(peerIP)
+			testBFDFailBack(peerIP)
 		})
 
 		It("provides Prometheus BFD metrics", reportxml.ID("47187"), func() {
@@ -113,18 +118,37 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 
 			By("Verifying initial BFD session stability before service operations")
 			verifyMetalLbBFDAndBGPSessionsRemainStable(frrPod, ipv4NodeAddrList)
+			validateBGPSessionState("Established", "Up", peerIP, workerNodeList)
 
 			By("Creating initial MetalLB service")
 			createCompleteMetalLBService(tsparams.BGPAdvAndAddressPoolName, tsparams.LBipv4Range,
 				tsparams.MetallbServiceName, tsparams.LabelValue1, tsparams.MLBNginxPodName,
 				workerNodeList[0].Definition.Name)
+			validateAddressPool(tsparams.BGPAdvAndAddressPoolName, mlbtypes.IPAddressPoolStatus{
+				AvailableIPv4: 239,
+				AvailableIPv6: 0,
+				AssignedIPv4:  1,
+				AssignedIPv6:  0,
+			})
 			verifyMetalLbBFDAndBGPSessionsRemainStable(frrPod, ipv4NodeAddrList)
+			validateBGPSessionState("Established", "Up", peerIP, workerNodeList)
+			validateServiceBGPStatus(
+				workerNodeList, tsparams.MetallbServiceName, tsparams.TestNamespaceName, []string{tsparams.BgpPeerName1})
 
 			By("Creating additional MetalLB service to test service addition")
 			createCompleteMetalLBService(secondServicePoolName, secondServiceIPPool,
 				tsparams.MetallbServiceName2, secondServiceAppLabel, secondServiceNginxPodPrefix,
 				workerNodeList[0].Definition.Name)
+			validateAddressPool(secondServicePoolName, mlbtypes.IPAddressPoolStatus{
+				AvailableIPv4: 1,
+				AvailableIPv6: 0,
+				AssignedIPv4:  1,
+				AssignedIPv6:  0,
+			})
 			verifyMetalLbBFDAndBGPSessionsRemainStable(frrPod, ipv4NodeAddrList)
+			validateBGPSessionState("Established", "Up", peerIP, workerNodeList)
+			validateServiceBGPStatus(
+				workerNodeList, tsparams.MetallbServiceName2, tsparams.TestNamespaceName, []string{tsparams.BgpPeerName1})
 
 			By("Testing endpoint modification by adding second service backend pod")
 			if len(workerNodeList) > 1 {
@@ -132,15 +156,22 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 				setupNGNXPod(tsparams.MLBNginxPodName+workerNodeList[1].Definition.Name,
 					workerNodeList[1].Definition.Name, tsparams.LabelValue1)
 				verifyMetalLbBFDAndBGPSessionsRemainStable(frrPod, ipv4NodeAddrList)
+				validateBGPSessionState("Established", "Up", peerIP, workerNodeList)
+				validateServiceBGPStatus(
+					workerNodeList, tsparams.MetallbServiceName2, tsparams.TestNamespaceName, []string{tsparams.BgpPeerName1})
 			}
 
 			By("Testing BFD stability during service deletion")
 			deleteMetalLBService(tsparams.MetallbServiceName2)
 			verifyMetalLbBFDAndBGPSessionsRemainStable(frrPod, ipv4NodeAddrList)
+			validateBGPSessionState("Established", "Up", peerIP, workerNodeList)
+			validateServiceBGPStatus(
+				workerNodeList, tsparams.MetallbServiceName, tsparams.TestNamespaceName, []string{tsparams.BgpPeerName1})
 
 			By("Deleting primary MetalLB service to complete cleanup")
 			deleteMetalLBService(tsparams.MetallbServiceName)
 			verifyMetalLbBFDAndBGPSessionsRemainStable(frrPod, ipv4NodeAddrList)
+			validateBGPSessionState("Established", "Up", peerIP, workerNodeList)
 		})
 
 		AfterEach(func() {
@@ -251,6 +282,12 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 				By("Creating an IPAddressPool and BGPAdvertisement for bfd tests")
 				ipAddressPool := setupBgpAdvertisementAndIPAddressPool(
 					tsparams.BGPAdvAndAddressPoolName, addressPool, prefixLen)
+				validateAddressPool(tsparams.BGPAdvAndAddressPoolName, mlbtypes.IPAddressPoolStatus{
+					AvailableIPv4: 240,
+					AvailableIPv6: 0,
+					AssignedIPv4:  0,
+					AssignedIPv6:  0,
+				})
 
 				By("Creating a MetalLB service")
 				setupMetalLbService(
@@ -260,6 +297,12 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 				setupNGNXPod(tsparams.MLBNginxPodName+workerNodeList[0].Definition.Name,
 					workerNodeList[0].Definition.Name,
 					tsparams.LabelValue1)
+				validateAddressPool(ipAddressPool.Definition.Name, mlbtypes.IPAddressPoolStatus{
+					AvailableIPv4: 239,
+					AvailableIPv6: 0,
+					AssignedIPv4:  1,
+					AssignedIPv6:  0,
+				})
 
 				By("Creating internal NAD")
 				masterBridgePlugin, err := nad.NewMasterBridgePlugin("internalnad", "br0").
@@ -301,14 +344,27 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 					Expect(err).ToNot(HaveOccurred(), out)
 				}
 
+				By("Validating the service BGP statuses")
+				if externalTrafficPolicy == corev1.ServiceExternalTrafficPolicyTypeCluster {
+					validateServiceBGPStatus(
+						workerNodeList, tsparams.MetallbServiceName, tsparams.TestNamespaceName, []string{tsparams.BgpPeerName1})
+				} else {
+					validateServiceBGPStatus(
+						[]*nodes.Builder{workerNodeList[0]},
+						tsparams.MetallbServiceName,
+						tsparams.TestNamespaceName,
+						[]string{tsparams.BgpPeerName1})
+				}
+
 				By("Checking that BGP and BFD sessions are established and up")
 				verifyMetalLbBFDAndBGPSessionsAreUPOnFrrPod(frrPod, netcmd.RemovePrefixFromIPList(nodeAddrList))
+				validateBGPSessionState("Established", "Up", masterClientPodIP, workerNodeList)
 
 				By("Running http check")
 				httpOutput, err := mlbcmd.Curl(frrPod, masterClientPodIP, addressPool[0], ipStack, tsparams.FRRSecondContainerName)
 				Expect(err).ToNot(HaveOccurred(), httpOutput)
 
-				testBFDFailOver()
+				testBFDFailOver(masterClientPodIP)
 
 				By("Running http check after fail-over")
 				httpOutput, err = mlbcmd.Curl(frrPod, masterClientPodIP, addressPool[0], ipStack, tsparams.FRRSecondContainerName)
@@ -319,7 +375,7 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 				case corev1.ServiceExternalTrafficPolicyTypeCluster:
 					Expect(err).ToNot(HaveOccurred(), httpOutput)
 				}
-				testBFDFailBack()
+				testBFDFailBack(masterClientPodIP)
 			},
 
 			Entry("", tsparams.IBPGPProtocol, netparam.IPV4Family, corev1.ServiceExternalTrafficPolicyTypeCluster,
@@ -383,13 +439,14 @@ func createFrrPodOnMasterNodeAndWaitUntilRunning(
 		name,
 	)
 }
-func testBFDFailOver() {
+func testBFDFailOver(peerIP string) {
 	By("Checking that BGP and BFD sessions are established and up")
 
 	frrPod, err := pod.Pull(APIClient, tsparams.FRRContainerName, tsparams.TestNamespaceName)
 	Expect(err).ToNot(HaveOccurred(), "Failed to pull frr test pod")
 
 	verifyMetalLbBFDAndBGPSessionsAreUPOnFrrPod(frrPod, ipv4NodeAddrList)
+	validateBGPSessionState("Established", "Up", peerIP, workerNodeList)
 
 	firstWorkerNode, err := nodes.Pull(APIClient, workerNodeList[0].Object.Name)
 	Expect(err).ToNot(HaveOccurred(), "Failed to pull worker node object")
@@ -406,10 +463,12 @@ func testBFDFailOver() {
 	time.Sleep(1200 * time.Millisecond)
 
 	bpgUp, err := frr.BGPNeighborshipHasState(frrPod, ipaddr.RemovePrefix(secondWorkerIP), "Established")
+
 	Expect(err).ToNot(HaveOccurred(), "Failed to collect bgp state from FRR router")
 	Expect(bpgUp).Should(BeTrue(), "BGP is not in expected established state")
 	Expect(netenv.BFDHasStatus(frrPod, ipaddr.RemovePrefix(secondWorkerIP), "up")).Should(BeNil(),
 		"BFD is not in expected up state")
+	validateBGPSessionState("Established", "Up", peerIP, []*nodes.Builder{secondWorkerNode})
 
 	By("Verifying that FRR pod lost BFD and BGP session with one of the MetalLb speakers")
 
@@ -420,9 +479,10 @@ func testBFDFailOver() {
 	Expect(bpgUp).Should(BeFalse(), "BGP is not in expected down state")
 	Expect(netenv.BFDHasStatus(frrPod, ipaddr.RemovePrefix(firstWorkerNodeIP), "up")).
 		Should(HaveOccurred(), "BFD is not expected to be in Up state")
+	validateBGPSessionState("Connect", "Down", peerIP, []*nodes.Builder{firstWorkerNode})
 }
 
-func testBFDFailBack() {
+func testBFDFailBack(peerIP string) {
 	By("Removing created nft table on a first compute node")
 	removeNFTTable(workerNodeList[0].Object.Name)
 
@@ -431,6 +491,7 @@ func testBFDFailBack() {
 	frrPod, err := pod.Pull(APIClient, tsparams.FRRContainerName, tsparams.TestNamespaceName)
 	Expect(err).ToNot(HaveOccurred(), "Failed to pull frr test pod")
 	verifyMetalLbBFDAndBGPSessionsAreUPOnFrrPod(frrPod, ipv4NodeAddrList)
+	validateBGPSessionState("Established", "Up", peerIP, workerNodeList)
 }
 
 func createBFDProfileAndVerifyIfItsReady(frrk8sPods []*pod.Builder) *metallb.BFDBuilder {

@@ -11,6 +11,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/mlbtypes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/service"
 	netcmd "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/cmd"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/frrconfig"
@@ -69,9 +70,21 @@ var _ = Describe("MetalLB BGP", Ordered, Label(tsparams.LabelBGPTestCases), Cont
 		By("Creating an IPAddressPool and BGPAdvertisement for service 1")
 		ipAddressPool1 := setupBgpAdvertisementAndIPAddressPool(
 			tsparams.BGPAdvAndAddressPoolName, AddressPoolS1, netparam.IPSubnetInt32)
+		validateAddressPool(tsparams.BGPAdvAndAddressPoolName, mlbtypes.IPAddressPoolStatus{
+			AvailableIPv4: 2,
+			AvailableIPv6: 0,
+			AssignedIPv4:  0,
+			AssignedIPv6:  0,
+		})
 
 		By("Creating an IPAddressPool and BGPAdvertisement for service 2")
 		ipAddressPool2 := setupBgpAdvertisementAndIPAddressPool("bgp-test2", AddressPoolS2, netparam.IPSubnetInt32)
+		validateAddressPool("bgp-test2", mlbtypes.IPAddressPoolStatus{
+			AvailableIPv4: 2,
+			AvailableIPv6: 0,
+			AssignedIPv4:  0,
+			AssignedIPv6:  0,
+		})
 
 		By("Creating service 1 with 2 backend pods")
 		setupMetalLbService(
@@ -109,6 +122,26 @@ var _ = Describe("MetalLB BGP", Ordered, Label(tsparams.LabelBGPTestCases), Cont
 			tsparams.LocalBGPASN, false, 0,
 			frrk8sPods)
 
+		By("Validating the service BGP statuses")
+		validateServiceBGPStatus(
+			workerNodeList, tsparams.MetallbServiceName, tsparams.TestNamespaceName,
+			[]string{tsparams.BgpPeerName1})
+		validateAddressPool(tsparams.BGPAdvAndAddressPoolName, mlbtypes.IPAddressPoolStatus{
+			AvailableIPv4: 1,
+			AvailableIPv6: 0,
+			AssignedIPv4:  1,
+			AssignedIPv6:  0,
+		})
+		validateServiceBGPStatus(
+			workerNodeList, tsparams.MetallbServiceName2, tsparams.TestNamespaceName,
+			[]string{tsparams.BgpPeerName1})
+		validateAddressPool("bgp-test2", mlbtypes.IPAddressPoolStatus{
+			AvailableIPv4: 1,
+			AvailableIPv6: 0,
+			AssignedIPv4:  1,
+			AssignedIPv6:  0,
+		})
+
 		By("Creating configMap for external FRR Pod")
 		masterConfigMap := createConfigMap(tsparams.LocalBGPASN, ipv4NodeAddrList, false, false)
 
@@ -125,6 +158,7 @@ var _ = Describe("MetalLB BGP", Ordered, Label(tsparams.LabelBGPTestCases), Cont
 
 		By("Checking that BGP session is established and up")
 		verifyMetalLbBGPSessionsAreUPOnFrrPod(frrPod, netcmd.RemovePrefixFromIPList(ipv4NodeAddrList))
+		validateBGPSessionState("Established", "N/A", ipv4metalLbIPList[0], workerNodeList)
 
 		By("Validating BGP routes to service")
 		validatePrefix(
