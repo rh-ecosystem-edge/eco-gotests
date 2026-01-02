@@ -77,6 +77,7 @@ var _ = Describe("MetalLb New CRDs", Ordered, Label("newcrds"), ContinueOnFailur
 
 		By("Checking that BGP and BFD sessions are established and up")
 		verifyMetalLbBFDAndBGPSessionsAreUPOnFrrPod(l3ClientPod, ipv4NodeAddrList)
+		validatebgpsessionstate("Established", "Up", ipv4metalLbIPList[0], workerNodeList)
 
 		By("Configuring Local GW mode")
 		setLocalGWMode(true)
@@ -91,6 +92,7 @@ var _ = Describe("MetalLb New CRDs", Ordered, Label("newcrds"), ContinueOnFailur
 		By("Creating an IPAddressPool and BGPAdvertisement")
 		ipAddressPool = setupBgpAdvertisementAndIPAddressPool(
 			tsparams.BGPAdvAndAddressPoolName, addressPool, netparam.IPSubnetInt32)
+		validateaddresspool(tsparams.BGPAdvAndAddressPoolName, 240, 0, 0, 0)
 
 		By("Creating a L2Advertisement")
 		_, err = metallb.NewL2AdvertisementBuilder(
@@ -139,6 +141,10 @@ var _ = Describe("MetalLb New CRDs", Ordered, Label("newcrds"), ContinueOnFailur
 			tsparams.LabelValue1,
 			ipAddressPool,
 			corev1.ServiceExternalTrafficPolicyTypeLocal)
+
+		By("Validating the service BGP statuses")
+		validateservicebgpstatus(
+			workerNodeList, tsparams.MetallbServiceName, tsparams.TestNamespaceName, []string{tsparams.BgpPeerName1})
 
 		By(fmt.Sprintf("Creating macvlan NAD with the secondary interface %s", sriovInterfacesUnderTest[0]))
 		createExternalNadWithMasterInterface("l2nad", sriovInterfacesUnderTest[0])

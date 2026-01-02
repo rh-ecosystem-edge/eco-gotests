@@ -56,6 +56,7 @@ var _ = Describe("BGP", Ordered, Label("pool-selector"), ContinueOnFailure, func
 		err = namespace.NewBuilder(APIClient, tsparams.TestNamespaceName).CleanObjects(
 			tsparams.DefaultTimeout,
 			pod.GetGVR(),
+			service.GetGVR(),
 		)
 		Expect(err).ToNot(HaveOccurred(), "Failed to clean test namespace")
 	})

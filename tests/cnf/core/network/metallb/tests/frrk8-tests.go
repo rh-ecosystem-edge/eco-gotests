@@ -98,6 +98,11 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 
 				By("Checking that BGP session is established and up")
 				verifyMetalLbBGPSessionsAreUPOnFrrPod(frrPod, netcmd.RemovePrefixFromIPList(ipv4NodeAddrList))
+				validatebgpsessionstate("Established", "N/A", ipv4metalLbIPList[0], workerNodeList)
+
+				By("Validating the service BGP status")
+				validateservicebgpstatus(
+					workerNodeList, tsparams.MetallbServiceName, tsparams.TestNamespaceName, []string{tsparams.BgpPeerName1})
 
 				By("Validating BGP route prefix")
 				validatePrefix(frrPod, netparam.IPV4Family, netparam.IPSubnetInt32,
@@ -138,6 +143,11 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 
 				By("Checking that BGP session is established and up")
 				verifyMetalLbBGPSessionsAreUPOnFrrPod(frrPod, netcmd.RemovePrefixFromIPList(ipv4NodeAddrList))
+				validatebgpsessionstate("Established", "N/A", ipv4metalLbIPList[0], workerNodeList)
+
+				By("Validating the service BGP status")
+				validateservicebgpstatus(
+					workerNodeList, tsparams.MetallbServiceName, tsparams.TestNamespaceName, []string{tsparams.BgpPeerName1})
 
 				By("Validating BGP route prefix")
 				validatePrefix(frrPod, netparam.IPV4Family, netparam.IPSubnetInt32,
@@ -175,6 +185,11 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 
 				By("Checking that BGP session is established and up")
 				verifyMetalLbBGPSessionsAreUPOnFrrPod(frrPod, netcmd.RemovePrefixFromIPList(ipv4NodeAddrList))
+				validatebgpsessionstate("Established", "N/A", ipv4metalLbIPList[0], workerNodeList)
+
+				By("Validating the service BGP status")
+				validateservicebgpstatus(
+					workerNodeList, tsparams.MetallbServiceName, tsparams.TestNamespaceName, []string{tsparams.BgpPeerName1})
 
 				By("Validating BGP route prefix")
 				validatePrefix(frrPod, netparam.IPV4Family, netparam.IPSubnetInt32,
@@ -312,6 +327,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 			By("Creating an IPAddressPool and BGPAdvertisement")
 			ipAddressPool := setupBgpAdvertisementAndIPAddressPool(
 				tsparams.BGPAdvAndAddressPoolName, addressPool, netparam.IPSubnetInt32)
+			validateaddresspool(tsparams.BGPAdvAndAddressPoolName, 240, 0, 0, 0)
 
 			By("Creating a MetalLB service")
 			setupMetalLbService(
@@ -325,6 +341,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 			setupNGNXPod(tsparams.MLBNginxPodName+workerNodeList[0].Definition.Name,
 				workerNodeList[0].Definition.Name,
 				tsparams.LabelValue1)
+			validateaddresspool(tsparams.BGPAdvAndAddressPoolName, 239, 0, 1, 0)
 		})
 
 		AfterAll(func() {
@@ -418,6 +435,11 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 
 				By("Checking that BGP session is established and up")
 				verifyMetalLbBGPSessionsAreUPOnFrrPod(frrPod, netcmd.RemovePrefixFromIPList(ipv4NodeAddrList))
+				validatebgpsessionstate("Established", "N/A", frrExternalMasterIPAddress, workerNodeList)
+
+				By("Validating the service BGP statuses")
+				validateservicebgpstatus(
+					workerNodeList, tsparams.MetallbServiceName, tsparams.TestNamespaceName, []string{tsparams.BgpPeerName1})
 
 				By("Validating BGP route prefix")
 				validatePrefix(frrPod, netparam.IPV4Family, netparam.IPSubnetInt32,
@@ -496,8 +518,13 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 				createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, frrExternalMasterIPAddress, "",
 					tsparams.RemoteBGPASN, true, 0, frrk8sPods)
 
+				By("Validating the service BGP statuses")
+				validateservicebgpstatus(
+					workerNodeList, tsparams.MetallbServiceName, tsparams.TestNamespaceName, []string{tsparams.BgpPeerName1})
+
 				By("Checking that BGP session is established and up")
 				verifyMetalLbBGPSessionsAreUPOnFrrPod(frrPod, netcmd.RemovePrefixFromIPList(ipv4NodeAddrList))
+				validatebgpsessionstate("Established", "N/A", frrExternalMasterIPAddress, workerNodeList)
 
 				By("Validating BGP route prefix")
 				validatePrefix(frrPod, netparam.IPV4Family, netparam.IPSubnetInt32,
@@ -599,8 +626,14 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 				createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, frrExternalMasterIPAddress, "",
 					tsparams.LocalBGPASN, false, 0, frrk8sPods)
 
+				By("Validating the service BGP statuses")
+				validateservicebgpstatus(
+					workerNodeList, tsparams.MetallbServiceName, tsparams.TestNamespaceName, []string{tsparams.BgpPeerName1})
+
 				By("Checking that BGP session is established and up")
 				verifyMetalLbBGPSessionsAreUPOnFrrPod(frrPod, frrNodeSecIntIPv4Addresses)
+				validatebgpsessionstate("Established", "N/A", frrExternalMasterIPAddress, workerNodeList)
+
 				By("Validating BGP route prefix")
 				validatePrefix(frrPod, netparam.IPV4Family, netparam.IPSubnetInt32, frrNodeSecIntIPv4Addresses,
 					addressPool)
@@ -624,6 +657,7 @@ func deployTestPods(addressPool, hubIPAddresses, externalAdvertisedIPv4Routes,
 
 	ipAddressPool := setupBgpAdvertisementAndIPAddressPool(tsparams.BGPAdvAndAddressPoolName,
 		addressPool, netparam.IPSubnetInt32)
+	validateaddresspool(tsparams.BGPAdvAndAddressPoolName, 240, 0, 0, 0)
 
 	By("Creating a MetalLB service")
 	setupMetalLbService(
@@ -637,6 +671,7 @@ func deployTestPods(addressPool, hubIPAddresses, externalAdvertisedIPv4Routes,
 	setupNGNXPod(tsparams.MLBNginxPodName+workerNodeList[0].Definition.Name,
 		workerNodeList[0].Definition.Name,
 		tsparams.LabelValue1)
+	validateaddresspool(tsparams.BGPAdvAndAddressPoolName, 239, 0, 1, 0)
 
 	By("Creating External NAD")
 
