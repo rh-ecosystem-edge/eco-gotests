@@ -27,12 +27,31 @@ const (
 	// the precision hardware clock (PHC).
 	//nolint:staticcheck // These executable names are all being treated as single words for constant names.
 	Ts2phc PtpProcess = "ts2phc"
+	// Gpsd represents the gpsd process, which is what receives time from a GNSS receiver and sends it to the system clock.
+	Gpsd PtpProcess = "gpsd"
 )
 
 // ptpProcessRegex is a regular expression that matches the name of any socket or config file in the ptp daemon pod. It
 // is setup so that the first capture group is the process name, the second is the config index, and the third is config
 // or socket.
 var ptpProcessRegex = regexp.MustCompile(`/var/run/(ptp4l|ts2phc|phc2sys)\.(\d+)\.(config|socket)`)
+
+// GetPtp4lConfigByRelatedProcess returns the ptp4l.<index>.config associated with the provided related process
+// (e.g., ts2phc).
+// When relatedProcess is Ptp4l, it returns an error.
+func GetPtp4lConfigByRelatedProcess(
+	client *clients.Settings, nodeName string, relatedProcess PtpProcess) (string, error) {
+	if relatedProcess == Ptp4l {
+		return "", fmt.Errorf("cannot get ptp4l config related to ptp4l itself")
+	}
+
+	indices, err := getRelatedIndices(client, nodeName, relatedProcess)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%s.%s.config", Ptp4l, indices[0]), nil
+}
 
 // GetPID returns the PID of a PTP process on a node by executing a pgrep command in the ptp daemon pod. This function
 // will return an error if the process is not running.
@@ -89,17 +108,9 @@ func GetPtp4lPIDsByRelatedProcess(
 		return nil, fmt.Errorf("cannot get ptp4l PIDs related or not related to itself")
 	}
 
-	getIndexCommand := fmt.Sprintf("pgrep -a %s | grep /var/run | head -n 1", relatedProcess)
-
-	output, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, getIndexCommand,
-		ptpdaemon.WithRetries(3), ptpdaemon.WithRetryOnEmptyOutput(true))
+	indices, err := getRelatedIndices(client, nodeName, relatedProcess)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get index for process %s: %w", relatedProcess, err)
-	}
-
-	matches := ptpProcessRegex.FindAllStringSubmatch(output, -1)
-	if len(matches) < 1 {
-		return nil, fmt.Errorf("failed to get index for process %s: no matches found: %v", relatedProcess, output)
+		return nil, err
 	}
 
 	grepFlag := ""
@@ -107,19 +118,11 @@ func GetPtp4lPIDsByRelatedProcess(
 		grepFlag = "-v"
 	}
 
-	var indices []string
-
-	for _, match := range matches {
-		if len(match) > 2 {
-			// Index 0 is the entire match, index 1 is the process name, and index 2 is the config index.
-			indices = append(indices, match[2])
-		}
-	}
-
-	grepPattern := fmt.Sprintf("\\/var\\/run\\/ptp4l\\.\\(%s\\).config", strings.Join(indices, "|"))
+	// Match any ptp4l.<index>.config derived from the related process indices.
+	grepPattern := fmt.Sprintf("\\/var\\/run\\/ptp4l\\.(%s)\\.config", strings.Join(indices, "|"))
 	getPIDsCommand := fmt.Sprintf("pgrep -a ptp4l | grep -E %s '%s' | cut -d' ' -f1", grepFlag, grepPattern)
 
-	output, err = ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, getPIDsCommand,
+	output, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, getPIDsCommand,
 		ptpdaemon.WithRetries(3), ptpdaemon.WithRetryOnEmptyOutput(true))
 	if err != nil {
 		return nil, err
@@ -211,4 +214,36 @@ func WaitForProcessRunning(
 	}
 
 	return nil
+}
+
+// getRelatedIndices returns the indices of the related processes for a given process.
+// error is nil if the matches are found.
+func getRelatedIndices(client *clients.Settings, nodeName string, relatedProcess PtpProcess) ([]string, error) {
+	getIndexCommand := fmt.Sprintf("pgrep -a %s | grep /var/run |  head -n 1", relatedProcess)
+
+	output, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, getIndexCommand,
+		ptpdaemon.WithRetries(3), ptpdaemon.WithRetryOnEmptyOutput(true))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get index for process %s: %w", relatedProcess, err)
+	}
+
+	matches := ptpProcessRegex.FindAllStringSubmatch(output, -1)
+	if len(matches) < 1 {
+		return nil, fmt.Errorf("failed to get index for process %s: no matches found: %q", relatedProcess, output)
+	}
+
+	var indices []string
+
+	for _, match := range matches {
+		if len(match) > 2 {
+			// Index 0 is the entire match, index 1 is the process name, and index 2 is the config index.
+			indices = append(indices, match[2])
+		}
+	}
+
+	if len(indices) == 0 {
+		return nil, fmt.Errorf("failed to derive indices for process %s from output %q", relatedProcess, output)
+	}
+
+	return indices, nil
 }
