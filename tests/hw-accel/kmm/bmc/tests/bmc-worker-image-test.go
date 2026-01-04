@@ -246,9 +246,11 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 			Expect(err).ToNot(HaveOccurred(), "MachineConfig was not created in time")
 
 			By("Verify MachineConfig contains IN_TREE_MODULES_TO_REMOVE")
-			inTreeValue, err := get.MachineConfigEnvVar(APIClient, tsparams.MachineConfigInTreeRemoveName, "IN_TREE_MODULES_TO_REMOVE")
+			inTreeValue, err := get.MachineConfigEnvVar(APIClient,
+				tsparams.MachineConfigInTreeRemoveName, "IN_TREE_MODULES_TO_REMOVE")
 			Expect(err).ToNot(HaveOccurred(), "MachineConfig should contain IN_TREE_MODULES_TO_REMOVE")
-			Expect(inTreeValue).To(ContainSubstring(tsparams.IbIpoibModuleName), "IN_TREE_MODULES_TO_REMOVE should contain ib_ipoib")
+			Expect(inTreeValue).To(ContainSubstring(tsparams.IbIpoibModuleName),
+				"IN_TREE_MODULES_TO_REMOVE should contain ib_ipoib")
 
 			By("Wait for MCO to write new config to disk")
 			err = await.NodeDesiredConfigChange(APIClient, workerNode.Object.Name, 10*time.Minute)
