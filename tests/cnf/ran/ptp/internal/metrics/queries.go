@@ -388,19 +388,20 @@ func (query PPSStatusQuery) ToMetricQuery() MetricQuery[PtpPPSStatus] {
 type ClockClassQuery struct {
 	Node    MetricLabel[string]
 	Process MetricLabel[PtpProcess]
+	Config  MetricLabel[string]
 }
 
 // This asserts at compile time that ClockClassQuery implements the Query interface.
-var _ Query[uint8] = ClockClassQuery{}
+var _ Query[PtpClockClass] = ClockClassQuery{}
 
 // ToMetricQuery converts the ClockClassQuery to a MetricQuery to fulfill the Query interface. Since the clock class is
-// between 0 and 255, it is stored as a uint8. No enum exists as the meaning is context dependent.
-func (query ClockClassQuery) ToMetricQuery() MetricQuery[uint8] {
-	return MetricQuery[uint8]{
-		Metric: MetricClockClass,
-		Labels: map[PtpMetricKey]MetricLabel[any]{
-			KeyNode:    query.Node.ToAny(),
-			KeyProcess: query.Process.ToAny(),
-		},
+// between 0 and 255, it is stored as a uint8.
+func (query ClockClassQuery) ToMetricQuery() MetricQuery[PtpClockClass] {
+	labels := map[PtpMetricKey]MetricLabel[any]{
+		KeyNode:    query.Node.ToAny(),
+		KeyProcess: query.Process.ToAny(),
+		KeyConfig:  query.Config.ToAny(),
 	}
+
+	return MetricQuery[PtpClockClass]{Metric: MetricClockClass, Labels: labels}
 }

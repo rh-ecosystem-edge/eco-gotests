@@ -42,6 +42,16 @@ const (
 	ClockStateHoldover
 )
 
+// PtpClockClass is an enum representing all possible clock classes of the PTP clock.
+type PtpClockClass uint8
+
+//nolint:revive // The clock class names are self explanatory and do not need individual comments.
+const (
+	ClockClass6   PtpClockClass = 6
+	ClockClass248 PtpClockClass = 248
+	ClockClass7   PtpClockClass = 7
+)
+
 // PtpProcessStatus is an enum representing all possible states of the PTP process.
 type PtpProcessStatus int
 
