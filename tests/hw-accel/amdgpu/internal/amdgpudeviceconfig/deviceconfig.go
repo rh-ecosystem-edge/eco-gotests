@@ -1,13 +1,17 @@
 package amdgpudeviceconfig
 
 import (
+	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/amdgpu"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	amdgpuv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/amd/gpu-operator/api/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpucommon"
 	amdgpuparams "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/params"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 )
 
@@ -37,11 +41,63 @@ var AMDVGPUDeviceIDs = []string{
 }
 
 // CreateDeviceConfig creates the DeviceConfig custom resource to trigger AMD GPU driver installation.
+// It includes retry logic to wait for the CRD to become available after operator installation.
 func CreateDeviceConfig(apiClient *clients.Settings, deviceConfigName, driverVersion string) error {
 	klog.V(amdgpuparams.AMDGPULogLevel).Infof("Creating DeviceConfig: %s", deviceConfigName)
 
-	deviceConfigBuilder, err := createDeviceConfigBuilder(apiClient, deviceConfigName, driverVersion)
+	// Wait for CRD to be available with retry logic
+	var (
+		deviceConfigBuilder *amdgpu.Builder
+		lastErr             error
+	)
+
+	crdWaitTimeout := 5 * time.Minute
+	retryInterval := 10 * time.Second
+
+	klog.V(amdgpuparams.AMDGPULogLevel).Infof(
+		"Waiting for AMD GPU CRD to be available (timeout: %s)", crdWaitTimeout)
+
+	ctx, cancel := context.WithTimeout(context.Background(), crdWaitTimeout)
+	defer cancel()
+
+	err := wait.PollUntilContextTimeout(
+		ctx,
+		retryInterval,
+		crdWaitTimeout,
+		true,
+		func(ctx context.Context) (bool, error) {
+			var builderErr error
+
+			deviceConfigBuilder, builderErr = createDeviceConfigBuilder(apiClient, deviceConfigName, driverVersion)
+			if builderErr != nil {
+				// Check if it's a transient API error (connection issues, CRD not ready)
+				if isTransientAPIError(builderErr) {
+					klog.V(amdgpuparams.AMDGPULogLevel).Infof(
+						"CRD not ready yet, retrying: %v", builderErr)
+					lastErr = builderErr
+
+					return false, nil // Continue polling
+				}
+
+				// Non-transient error, stop polling
+				return false, builderErr
+			}
+
+			if deviceConfigBuilder == nil {
+				lastErr = fmt.Errorf("deviceConfigBuilder is nil")
+
+				return false, nil // Continue polling
+			}
+
+			klog.V(amdgpuparams.AMDGPULogLevel).Info("AMD GPU CRD is available")
+
+			return true, nil
+		})
 	if err != nil {
+		if lastErr != nil {
+			return fmt.Errorf("failed to create DeviceConfig builder after retries: %w (last error: %w)", err, lastErr)
+		}
+
 		return fmt.Errorf("failed to create DeviceConfig builder: %w", err)
 	}
 
@@ -60,6 +116,32 @@ func CreateDeviceConfig(apiClient *clients.Settings, deviceConfigName, driverVer
 	klog.V(amdgpuparams.AMDGPULogLevel).Info("This will trigger AMD GPU driver installation via KMM")
 
 	return nil
+}
+
+// isTransientAPIError checks if the error is a transient API error that should be retried.
+func isTransientAPIError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errStr := err.Error()
+
+	// Connection errors
+	if strings.Contains(errStr, "connection reset by peer") ||
+		strings.Contains(errStr, "connection refused") ||
+		strings.Contains(errStr, "context deadline exceeded") ||
+		strings.Contains(errStr, "i/o timeout") {
+		return true
+	}
+
+	// CRD not ready errors
+	if strings.Contains(errStr, "unable to retrieve the complete list of server APIs") ||
+		strings.Contains(errStr, "the server could not find the requested resource") ||
+		strings.Contains(errStr, "no matches for kind") {
+		return true
+	}
+
+	return false
 }
 
 // createDeviceConfigBuilder creates a DeviceConfig builder with proper definition.
@@ -83,6 +165,10 @@ func createDeviceConfigBuilder(
 		return builder, nil
 	}
 
+	// Create DeviceConfig with:
+	// - Driver enabled with specified version
+	// - Device Plugin with Node Labeller explicitly enabled
+	// - Selector for AMD GPU nodes detected by NFD
 	almExampleJSON := fmt.Sprintf(`[{
 		"apiVersion": "amd.com/v1alpha1",
 		"kind": "DeviceConfig",
@@ -94,6 +180,9 @@ func createDeviceConfigBuilder(
 			"driver": {
 				"enable": true,
 				"version": "%s"
+			},
+			"devicePlugin": {
+				"enableNodeLabeller": true
 			},
 			"selector": {
 				"feature.node.kubernetes.io/amd-gpu": "true"
@@ -123,4 +212,36 @@ func handleDeviceConfigCreationError(err error, deviceConfigName string) error {
 	}
 
 	return err
+}
+
+// DeleteDeviceConfig deletes the DeviceConfig custom resource.
+func DeleteDeviceConfig(apiClient *clients.Settings, deviceConfigName string) error {
+	klog.V(amdgpuparams.AMDGPULogLevel).Infof("Deleting DeviceConfig: %s", deviceConfigName)
+
+	err := apiClient.AttachScheme(amdgpuv1.AddToScheme)
+	if err != nil {
+		return fmt.Errorf("failed to attach amdgpu scheme: %w", err)
+	}
+
+	deviceConfigBuilder, err := amdgpu.Pull(apiClient, deviceConfigName, amdgpuparams.AMDGPUNamespace)
+	if err != nil {
+		klog.V(amdgpuparams.AMDGPULogLevel).Infof("DeviceConfig %s not found, nothing to delete", deviceConfigName)
+
+		return nil
+	}
+
+	if deviceConfigBuilder == nil || !deviceConfigBuilder.Exists() {
+		klog.V(amdgpuparams.AMDGPULogLevel).Info("DeviceConfig does not exist")
+
+		return nil
+	}
+
+	_, err = deviceConfigBuilder.Delete()
+	if err != nil {
+		return fmt.Errorf("failed to delete DeviceConfig %s: %w", deviceConfigName, err)
+	}
+
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("DeviceConfig deleted successfully")
+
+	return nil
 }
