@@ -20,6 +20,7 @@ type AMDGPUInstallConfigOptions struct {
 	CatalogSource          *string
 	CatalogSourceNamespace *string
 	Channel                *string
+	StartingCSV            *string
 	SkipOperatorGroup      *bool
 	TargetNamespaces       []string
 	LogLevel               *klog.Level
@@ -95,7 +96,7 @@ func GetAlternativeKMMInstallConfig(
 		CatalogSourceNamespace: "openshift-marketplace",
 		Channel:                "fast",
 		SkipOperatorGroup:      false,
-		TargetNamespaces:       []string{""},
+		TargetNamespaces:       []string{}, // AllNamespaces
 		LogLevel:               klog.Level(amdgpuparams.AMDGPULogLevel),
 	}
 
@@ -151,7 +152,7 @@ func GetLegacyKMMInstallConfig(
 		CatalogSourceNamespace: "openshift-marketplace",
 		Channel:                "1.0",
 		SkipOperatorGroup:      false,
-		TargetNamespaces:       []string{"openshift-kmm"},
+		TargetNamespaces:       []string{}, // AllNamespaces - KMM requires this
 		LogLevel:               klog.Level(amdgpuparams.AMDGPULogLevel),
 	}
 
@@ -250,6 +251,10 @@ func GetDefaultAMDGPUInstallConfig(
 
 		if options.Channel != nil {
 			config.Channel = *options.Channel
+		}
+
+		if options.StartingCSV != nil {
+			config.StartingCSV = *options.StartingCSV
 		}
 
 		if options.SkipOperatorGroup != nil {

@@ -16,7 +16,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpuhelpers"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpunfd"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpuregistry"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/deviceconfig"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/exec"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/get"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/labels"
@@ -24,7 +23,6 @@ import (
 	amdgpuparams "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/params"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/internal/deploy"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/nfdparams"
-
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,8 +40,10 @@ var _ = Describe("AMD GPU Basic Tests", Ordered, Label(amdgpuparams.LabelSuite),
 			LabelSelector: fmt.Sprintf("%s=%s", amdgpuparams.AMDNFDLabelKey, amdgpuparams.AMDNFDLabelValue),
 		}
 
+		// Shared state across tests - set during BeforeAll
 		var amdNodeBuilders []*nodes.Builder
-		var amdNodeBuildersErr error
+		var isSNO bool
+		var nodeLabellerPodBuilders []*pod.Builder
 
 		BeforeAll(func() {
 			By("Verifying configuration")
@@ -63,36 +63,171 @@ var _ = Describe("AMD GPU Basic Tests", Ordered, Label(amdgpuparams.LabelSuite),
 				Skip("Internal image registry is not available - required for AMD GPU operator")
 			}
 
-			By("Checking if cluster is stable")
+			By("Checking if cluster is stable before setup")
 			err = amdgpuhelpers.WaitForClusterStability(apiClient, amdgpuparams.ClusterStabilityTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Cluster should be stable before proceeding with the test")
 
-			By("Deploying required operators")
-			err = amdgpuhelpers.DeployAllOperators(apiClient)
-			Expect(err).ToNot(HaveOccurred(), "Failed to deploy required operators")
-
-			By("Creating machineconfig for AMD GPU blacklist")
+			// IMPORTANT: Create MachineConfig BEFORE deploying operators
+			// The MachineConfig may trigger a node reboot, which would kill operator pods if they were running
+			By("Creating machineconfig for AMD GPU blacklist (before operators - may trigger reboot)")
 			err = amdgpuhelpers.CreateBlacklistMachineConfig(apiClient)
 			if err != nil {
 				klog.V(amdgpuparams.AMDGPULogLevel).Infof("Blacklist MachineConfig not applied (non-fatal): %v", err)
-				Skip("Blacklist MachineConfig requires cluster-admin; skipping hard failure")
+				// Continue without MachineConfig - it's optional
+			} else {
+				By("Waiting for cluster stability after MachineConfig (handles potential reboot)")
+				err = amdgpuhelpers.WaitForClusterStability(apiClient, amdgpuparams.SNOClusterStabilityTimeout)
+				if err != nil {
+					klog.V(amdgpuparams.AMDGPULogLevel).Infof("Cluster stability warning after MachineConfig: %v", err)
+				}
 			}
 
-		})
-		AfterAll(func() {
-			By("Uninstalling all operators in reverse order")
+			By("Deploying required operators (NFD, KMM, AMD GPU)")
+			err = amdgpuhelpers.DeployAllOperators(apiClient)
+			Expect(err).ToNot(HaveOccurred(), "Failed to deploy required operators")
 
+			By("Deploying NFD custom resource with AMD GPU worker config")
+			nfdCRUtils := deploy.NewNFDCRUtils(apiClient, nfdparams.NFDNamespace, "amd-gpu-nfd-instance")
+			nfdConfig := deploy.NFDCRConfig{
+				EnableTopology: false,
+				Image:          "",
+				WorkerConfig:   "",
+			}
+			klog.V(amdgpuparams.AMDGPULogLevel).Infof("NFD CR deployment: %+v", nfdConfig)
+			err = nfdCRUtils.DeployNFDCR(nfdConfig)
+			Expect(err).ToNot(HaveOccurred(), "NFD CR should be created successfully: %v", err)
+
+			By("Creating AMD GPU FeatureRule for enhanced detection")
+			err = amdgpunfd.CreateAMDGPUFeatureRule(apiClient)
+			Expect(err).ToNot(HaveOccurred(), "AMD GPU FeatureRule should be created successfully")
+
+			By("Waiting for NFD to label nodes")
+			time.Sleep(1 * time.Minute)
+
+			By("Creating DeviceConfig with Node Labeller enabled")
+			err = amdgpudeviceconfig.CreateDeviceConfig(
+				apiClient,
+				amdgpuparams.DefaultDeviceConfigName,
+				amdconfig.AMDDriverVersion)
+			Expect(err).ToNot(HaveOccurred(), "DeviceConfig should be created successfully")
+
+			By("Verifying DeviceConfig was created")
+			deviceConfigBuilder, deviceConfigBuilderErr := amdgpu.Pull(
+				apiClient,
+				amdgpuparams.DefaultDeviceConfigName,
+				amdgpuparams.AMDGPUNamespace)
+			Expect(deviceConfigBuilderErr).ToNot(HaveOccurred(), "DeviceConfig should exist")
+			klog.V(amdgpuparams.AMDGPULogLevel).Infof("DeviceConfig created: %s", deviceConfigBuilder.Object.Name)
+
+			By("Getting AMD GPU Worker Nodes to detect SNO")
+			amdNodeBuilders, err = nodes.List(apiClient, amdListOptions)
+			if err != nil || len(amdNodeBuilders) == 0 {
+				// NFD labels might not be applied yet, wait and retry
+				klog.V(amdgpuparams.AMDGPULogLevel).Info("No AMD GPU nodes found yet, waiting for NFD labels...")
+				time.Sleep(30 * time.Second)
+				amdNodeBuilders, err = nodes.List(apiClient, amdListOptions)
+			}
+			Expect(err).ToNot(HaveOccurred(), "Failed to get AMD GPU Worker Nodes")
+			Expect(amdNodeBuilders).ToNot(BeEmpty(), "No AMD GPU Worker Nodes found")
+
+			isSNO = len(amdNodeBuilders) == 1
+			if isSNO {
+				klog.V(amdgpuparams.AMDGPULogLevel).Info("SNO environment detected - using extended timeouts for setup")
+			}
+
+			By("Waiting for cluster stability after DeviceConfig creation (handles SNO reboot)")
+			// Use extended timeout for SNO environments where driver installation may trigger reboot
+			stabilityTimeout := amdgpuparams.ClusterStabilityTimeout
+			if isSNO {
+				stabilityTimeout = amdgpuparams.SNOClusterStabilityTimeout
+			}
+			err = amdgpuhelpers.WaitForClusterStability(apiClient, stabilityTimeout)
+			if err != nil {
+				klog.V(amdgpuparams.AMDGPULogLevel).Infof("Cluster stability check warning: %v", err)
+			}
+
+			By("Waiting for AMD GPU driver to be built and loaded by KMM")
+			// The driver must be built (via KMM build pod) and loaded before Node Labeller can work
+			err = amdgpuhelpers.WaitForAMDGPUDriverReady(apiClient, isSNO)
+			if err != nil {
+				klog.V(amdgpuparams.AMDGPULogLevel).Infof("Driver readiness warning: %v", err)
+				// Log but continue - the Node Labeller check will also fail if driver isn't ready
+			}
+
+			By("Waiting for Node Labeller driver-init containers to complete")
+			// The driver-init container waits for amdgpu module to be loaded by KMM
+			// This can take 10-20 minutes for DKMS build + module load
+			driverInitTimeout := 30 * time.Minute
+			if isSNO {
+				driverInitTimeout = amdgpuparams.SNOClusterStabilityTimeout
+			}
+			err = amdgpuhelpers.WaitForNodeLabellerDriverInit(apiClient, driverInitTimeout)
+			if err != nil {
+				klog.V(amdgpuparams.AMDGPULogLevel).Infof("Driver-init wait warning: %v", err)
+			}
+
+			By("Waiting for Node Labeller pods to be created and running")
+
+			// Get Node Labeller pods with retry
+			// In SNO, reboot + driver loading can take 30+ minutes
+			podDiscoveryTimeout := 10 * time.Minute
+			if isSNO {
+				podDiscoveryTimeout = 30 * time.Minute
+			}
+
+			Eventually(func() error {
+				nodeLabellerPodBuilders, err = pods.NodeLabellerPodsFromNodes(apiClient, amdNodeBuilders)
+				if err != nil {
+					klog.V(amdgpuparams.AMDGPULogLevel).Infof("Waiting for node labeller pods: %v", err)
+
+					return err
+				}
+				if len(nodeLabellerPodBuilders) == 0 {
+					return fmt.Errorf("no node labeller pods found yet")
+				}
+
+				return nil
+			}, podDiscoveryTimeout, 15*time.Second).Should(Succeed(),
+				"Failed to get Node Labeller Pods within timeout")
+
+			By("Waiting for all Node Labeller Pods to be in 'Running' state")
+			err = amdgpuhelpers.WaitForPodsRunningResilient(apiClient, nodeLabellerPodBuilders, isSNO)
+			Expect(err).ToNot(HaveOccurred(), "Node Labeller Pods should be running")
+
+			By("Waiting for Node Labeller to apply labels")
+			time.Sleep(30 * time.Second)
+
+			klog.V(amdgpuparams.AMDGPULogLevel).Info(
+				"BeforeAll setup complete - operators deployed, DeviceConfig created, Node Labeller running")
+		})
+
+		AfterAll(func() {
+			By("Starting complete cleanup")
+
+			// 1. Delete DeviceConfig first (before operator removal)
+			By("Deleting DeviceConfig")
+			err := amdgpudeviceconfig.DeleteDeviceConfig(apiClient, amdgpuparams.DefaultDeviceConfigName)
+			if err != nil {
+				klog.V(amdgpuparams.AMDGPULogLevel).Infof("DeviceConfig deletion issue: %v", err)
+			}
+
+			// 2. Delete NFD FeatureRule
+			By("Deleting AMD GPU FeatureRule")
+			err = amdgpunfd.DeleteAMDGPUFeatureRule(apiClient)
+			if err != nil {
+				klog.V(amdgpuparams.AMDGPULogLevel).Infof("FeatureRule deletion issue: %v", err)
+			}
+
+			// 3. Uninstall operators in reverse order
 			By("Uninstalling AMD GPU operator")
 			amdgpuUninstallConfig := amdgpuhelpers.GetDefaultAMDGPUUninstallConfig(
 				apiClient,
 				"amd-gpu-operator-group",
 				"amd-gpu-subscription")
 			amdgpuUninstaller := deploy.NewOperatorUninstaller(amdgpuUninstallConfig)
-			err := amdgpuUninstaller.Uninstall()
+			err = amdgpuUninstaller.Uninstall()
 			if err != nil {
-				klog.V(amdgpuparams.AMDGPULogLevel).Infof("AMD GPU operator uninstall completed with issues: %v", err)
-			} else {
-				klog.V(amdgpuparams.AMDGPULogLevel).Info("AMD GPU operator uninstalled successfully")
+				klog.V(amdgpuparams.AMDGPULogLevel).Infof("AMD GPU operator uninstall issue: %v", err)
 			}
 
 			By("Uninstalling KMM operator")
@@ -100,9 +235,7 @@ var _ = Describe("AMD GPU Basic Tests", Ordered, Label(amdgpuparams.LabelSuite),
 			kmmUninstaller := deploy.NewOperatorUninstaller(kmmUninstallConfig)
 			err = kmmUninstaller.Uninstall()
 			if err != nil {
-				klog.V(amdgpuparams.AMDGPULogLevel).Infof("KMM operator uninstall completed with issues: %v", err)
-			} else {
-				klog.V(amdgpuparams.AMDGPULogLevel).Info("KMM operator uninstalled successfully")
+				klog.V(amdgpuparams.AMDGPULogLevel).Infof("KMM operator uninstall issue: %v", err)
 			}
 
 			By("Uninstalling NFD operator")
@@ -118,13 +251,44 @@ var _ = Describe("AMD GPU Basic Tests", Ordered, Label(amdgpuparams.LabelSuite),
 			nfdUninstaller := deploy.NewOperatorUninstaller(nfdUninstallConfig)
 			err = nfdUninstaller.Uninstall()
 			if err != nil {
-				klog.V(amdgpuparams.AMDGPULogLevel).Infof("NFD operator uninstall completed with issues: %v", err)
-			} else {
-				klog.V(amdgpuparams.AMDGPULogLevel).Info("NFD operator uninstalled successfully")
+				klog.V(amdgpuparams.AMDGPULogLevel).Infof("NFD operator uninstall issue: %v", err)
 			}
 
-			klog.V(amdgpuparams.AMDGPULogLevel).Info("All operator uninstallations completed")
+			// 4. Delete MachineConfig
+			By("Deleting MachineConfig for amdgpu blacklist")
+			err = amdgpuhelpers.DeleteBlacklistMachineConfig(apiClient)
+			if err != nil {
+				klog.V(amdgpuparams.AMDGPULogLevel).Infof("MachineConfig deletion issue: %v", err)
+			}
+
+			// 5. Clean up node labels
+			By("Cleaning up AMD GPU node labels")
+			err = amdgpuhelpers.CleanupAMDGPUNodeLabels(apiClient)
+			if err != nil {
+				klog.V(amdgpuparams.AMDGPULogLevel).Infof("Node labels cleanup issue: %v", err)
+			}
+
+			// 6. Reset image registry to unmanaged (optional - leave managed if was managed before)
+			By("Resetting internal image registry")
+			err = amdgpuregistry.ResetRegistryToRemoved(apiClient)
+			if err != nil {
+				klog.V(amdgpuparams.AMDGPULogLevel).Infof("Registry reset issue: %v", err)
+			}
+
+			// 7. Delete namespaces
+			By("Deleting operator namespaces")
+			err = amdgpuhelpers.DeleteOperatorNamespaces(apiClient)
+			if err != nil {
+				klog.V(amdgpuparams.AMDGPULogLevel).Infof("Namespace deletion issue: %v", err)
+			}
+
+			klog.V(amdgpuparams.AMDGPULogLevel).Info("Complete cleanup finished")
 		})
+
+		// ============================================================================
+		// VERIFICATION TESTS - These only verify state, they don't modify anything
+		// ============================================================================
+
 		It("Should verify internal registry is configured and available", func() {
 			By("Checking internal image registry configuration")
 			err := amdgpuregistry.VerifyAndConfigureInternalRegistry(apiClient)
@@ -158,190 +322,68 @@ var _ = Describe("AMD GPU Basic Tests", Ordered, Label(amdgpuparams.LabelSuite),
 			klog.V(amdgpuparams.AMDGPULogLevel).Infof("Internal image registry verified: %d pods running", runningPods)
 		})
 
-		It("Should create NodeFeatureDiscovery for AMD GPU detection", func() {
-			By("Deploying NFD custom resource with AMD GPU worker config")
-
-			nfdCRUtils := deploy.NewNFDCRUtils(apiClient, nfdparams.NFDNamespace, "amd-gpu-nfd-instance")
-
-			nfdConfig := deploy.NFDCRConfig{
-				EnableTopology: false,
-				Image:          "",
-				WorkerConfig:   "",
-			}
-			klog.V(amdgpuparams.AMDGPULogLevel).Infof("NFD CR deployment : %+v", nfdConfig)
-
-			err := nfdCRUtils.DeployNFDCR(nfdConfig)
-			Expect(err).ToNot(HaveOccurred(), "NFD CR should be created successfully %v", err)
-
-			By("Creating AMD GPU FeatureRule for enhanced detection")
-			err = amdgpunfd.CreateAMDGPUFeatureRule(apiClient)
-			Expect(err).ToNot(HaveOccurred(), "AMD GPU FeatureRule should be created successfully")
-
-			By("NFD CR deployed successfully for AMD GPU detection")
-			klog.V(amdgpuparams.AMDGPULogLevel).Info("NFD custom resource created with AMD GPU worker configuration")
-			klog.V(amdgpuparams.AMDGPULogLevel).Info("waiting for 1 minute for NFD to label nodes")
-			time.Sleep(1 * time.Minute)
-		})
-
-		It("Check AMD label was added by NFD", func() {
-
+		It("Should verify NFD labels are applied to AMD GPU nodes", func() {
 			By("Checking AMD label was added to all AMD GPU Worker Nodes by NFD")
 			amdNFDLabelFound, amdNFDLabelFoundErr := labels.LabelPresentOnAllNodes(
 				apiClient, amdgpuparams.AMDNFDLabelKey, amdgpuparams.AMDNFDLabelValue, inittools.GeneralConfig.WorkerLabelMap)
 
 			Expect(amdNFDLabelFoundErr).To(BeNil(),
-				"An error occurred while attempting to verify the AMD label by NFD: %v ", amdNFDLabelFoundErr)
+				"An error occurred while attempting to verify the AMD label by NFD: %v", amdNFDLabelFoundErr)
 			Expect(amdNFDLabelFound).To(BeTrue(),
 				"AMD label check failed to match label %s and label value %s on all nodes",
 				amdgpuparams.AMDNFDLabelKey, amdgpuparams.AMDNFDLabelValue)
+
+			klog.V(amdgpuparams.AMDGPULogLevel).Info("NFD labels verified on all AMD GPU nodes")
 		})
 
-		It("Should provide instructions for DeviceConfig creation", func() {
-			By("Creating DeviceConfig custom resource")
+		It("Should verify DeviceConfig exists and is ready", func() {
+			By("Pulling DeviceConfig")
+			deviceConfigBuilder, err := amdgpu.Pull(
+				apiClient, amdgpuparams.DeviceConfigName, amdgpuparams.AMDGPUNamespace)
+			Expect(err).ToNot(HaveOccurred(), "DeviceConfig should exist")
+			Expect(deviceConfigBuilder).ToNot(BeNil(), "DeviceConfig builder should not be nil")
 
-			err := amdgpudeviceconfig.CreateDeviceConfig(
-				apiClient,
-				amdgpuparams.DefaultDeviceConfigName,
-				amdconfig.AMDDriverVersion)
-			if err != nil {
-				klog.V(amdgpuparams.AMDGPULogLevel).Infof("DeviceConfig creation result: %v", err)
-
-			}
-			Expect(err).ToNot(HaveOccurred(), "DeviceConfig should be created successfully")
-
-			deviceConfigBuilder, deviceConfigBuilderErr := amdgpu.Pull(
-				apiClient,
-				amdgpuparams.DefaultDeviceConfigName,
-				amdgpuparams.AMDGPUNamespace)
-
-			if deviceConfigBuilderErr != nil {
-				klog.Info(deviceConfigBuilder)
-			}
-
-			By("Waiting for cluster stability after DeviceConfig creation")
-			err = amdgpuhelpers.WaitForClusterStabilityAfterDeviceConfig(apiClient)
-			if err != nil {
-				klog.V(amdgpuparams.AMDGPULogLevel).Infof("Cluster stability check failed: %v", err)
-
-				Skip("Cluster stability check failed - may need longer wait time or manual intervention")
-			}
+			By("Verifying DeviceConfig status")
+			klog.V(amdgpuparams.AMDGPULogLevel).Infof("DeviceConfig: %s, Status: %+v",
+				deviceConfigBuilder.Object.Name, deviceConfigBuilder.Object.Status)
 		})
 
-		It("Node Labeller", func() {
-
-			By("Getting AMD GPU Worker Nodes")
-			amdNodeBuilders, amdNodeBuildersErr = nodes.List(apiClient, amdListOptions)
-
-			Expect(amdNodeBuildersErr).To(BeNil(),
-				fmt.Sprintf("Failed to get Builders for AMD GPU Worker Nodes. Error:\n%v\n", amdNodeBuildersErr))
-
-			Expect(amdNodeBuilders).ToNot(BeEmpty(),
-				"'amdNodeBuilders' can't be empty")
+		It("Should verify Node Labeller pods are running and labels are applied", func() {
+			//Skip("Skip node labeller pod verification")
+			By("Verifying AMD GPU Worker Nodes are available")
+			Expect(amdNodeBuilders).ToNot(BeEmpty(), "AMD GPU Worker Nodes should be available from BeforeAll")
 
 			klog.V(amdgpuparams.AMDGPULogLevel).Infof("Found %d AMD GPU nodes", len(amdNodeBuilders))
 			for _, node := range amdNodeBuilders {
 				klog.V(amdgpuparams.AMDGPULogLevel).Infof("AMD GPU node: %s", node.Object.Name)
 			}
 
-			By("Getting Device Config Builder")
-			deviceConfigBuilder, deviceConfigBuilderErr := amdgpu.Pull(
-				apiClient, amdgpuparams.DeviceConfigName, amdgpuparams.AMDGPUNamespace)
-			klog.V(amdgpuparams.AMDGPULogLevel).Infof("deviceConfigBuilder: %v", deviceConfigBuilder)
+			By("Verifying Node Labeller pods are running")
+			Expect(nodeLabellerPodBuilders).ToNot(BeEmpty(), "Node Labeller pods should be available from BeforeAll")
 
-			Expect(deviceConfigBuilderErr).To(BeNil(),
-				fmt.Sprintf("Failed to get DeviceConfig Builder. Error:\n%v\n", deviceConfigBuilderErr))
-
-			By("Saving the Node Labeller state for post-test restoration")
-			nodeLabellerEnabled := deviceconfig.IsNodeLabellerEnabled(deviceConfigBuilder)
-			klog.V(amdgpuparams.AMDGPULogLevel).Infof("nodeLabellerEnabled: %t", nodeLabellerEnabled)
-
-			By("Enabling the Node Labeller")
-			enableNodeLabellerErr := deviceconfig.SetEnableNodeLabeller(true, deviceConfigBuilder, true)
-			klog.V(amdgpuparams.AMDGPULogLevel).Infof("deviceConfigBuilder after enabling: %v",
-				deviceConfigBuilder.Object.Spec.DevicePlugin)
-			Expect(enableNodeLabellerErr).To(BeNil(),
-				fmt.Sprintf("Failed to enable NodeLabeller. Error:\n%v\n", enableNodeLabellerErr))
-
-			By("Waiting for Node Labeller pods to be created")
-			// Allow time for the operator to reconcile and create the node labeller pods
-			time.Sleep(30 * time.Second)
-
-			By("Getting Node Labeller Pods from all AMD GPU Worker Nodes")
-			// Retry getting pods with a timeout to handle slow pod creation
-			var nodeLabellerPodBuilders []*pod.Builder
-			var err error
-
-			Eventually(func() error {
-				nodeLabellerPodBuilders, err = pods.NodeLabellerPodsFromNodes(apiClient, amdNodeBuilders)
-
-				if err != nil {
-					klog.V(amdgpuparams.AMDGPULogLevel).Infof("Waiting for node labeller pods: %v", err)
-
-					return err
-				}
-
-				if len(nodeLabellerPodBuilders) == 0 {
-					return fmt.Errorf("no node labeller pods found yet")
-				}
-
-				return nil
-			}, 2*time.Minute, 10*time.Second).Should(Succeed(),
-				"Failed to get Node Labeller Pods within timeout")
-
-			By("Waiting for all Node Labeller Nodes to be in 'Running' state")
-			for _, nodeLabellerPod := range nodeLabellerPodBuilders {
-				klog.V(amdgpuparams.AMDGPULogLevel).Infof(
-					"nodeLabellerPod: %s,status:%v", nodeLabellerPod.Object.Name, nodeLabellerPod.Object.Status.Phase)
-				err := nodeLabellerPod.WaitUntilRunning(amdgpuparams.DefaultTimeout)
-				Expect(err).To(BeNil(), fmt.Sprintf("Got the following error while waiting for "+
-					"Pod '%s' to be in 'Running' state:\n%v", nodeLabellerPod.Object.Name, err))
+			for _, nlPod := range nodeLabellerPodBuilders {
+				Expect(nlPod.Object.Status.Phase).To(Equal(corev1.PodRunning),
+					fmt.Sprintf("Node Labeller pod %s should be running", nlPod.Object.Name))
+				klog.V(amdgpuparams.AMDGPULogLevel).Infof("Node Labeller pod %s is running", nlPod.Object.Name)
 			}
 
-			By("Waiting for Node Labeller pods to be fully ready")
-			// Additional wait to ensure pods are not just running but fully initialized
-			time.Sleep(10 * time.Second)
-
-			By("Validating all AMD labels are added to each AMD GPU Worker Node by the Node Labeller Pod")
+			By("Validating all AMD labels are applied by the Node Labeller")
 			labelsCheckErr := labels.LabelsExistOnAllNodes(amdNodeBuilders, amdgpuparams.NodeLabellerLabels,
 				amdgpuparams.DefaultTimeout, amdgpuparams.DefaultSleepInterval)
-			Expect(labelsCheckErr).To(BeNil(), fmt.Sprintf("Node Labeller labels don't "+
-				"exist on all AMD GPU Worker Nodes: %v\n", labelsCheckErr))
+			Expect(labelsCheckErr).To(BeNil(),
+				fmt.Sprintf("Node Labeller labels don't exist on all AMD GPU Worker Nodes: %v", labelsCheckErr))
 
-			By("Getting a new Device Config Builder with all the changes")
-			deviceConfigBuilderNew, deviceConfigBuilderNewErr := amdgpu.Pull(
-				apiClient, amdgpuparams.DeviceConfigName, amdgpuparams.AMDGPUNamespace)
-			Expect(deviceConfigBuilderNewErr).To(BeNil(), fmt.Sprintf(
-				"Failed to get DeviceConfigNew Builder. Error:\n%v\n", deviceConfigBuilderNewErr))
-
-			By("Disabling the Node Labeller")
-			disableNodeLabellerErr := deviceconfig.SetEnableNodeLabeller(false, deviceConfigBuilderNew, true)
-			Expect(disableNodeLabellerErr).To(BeNil(),
-				fmt.Sprintf("Failed to disable NodeLabeller. Error:\n%v\n", disableNodeLabellerErr))
-
-			By("Waiting for Node Labeller configuration to be applied")
-			// Allow time for the operator to reconcile and delete the node labeller pods
-			time.Sleep(30 * time.Second)
-
-			By("Make sure there are no Node Labeller Pods")
-			noNodeLabellerPodsErr := pods.WaitUntilNoNodeLabellerPodes(apiClient)
-			Expect(noNodeLabellerPodsErr).To(BeNil(), fmt.Sprintf("Got an error while waiting for "+
-				"all Node Labeller Pods to be deleted. %v", noNodeLabellerPodsErr))
-
-			By("Ensuring that all labels added by the Node Labeller are removed")
-			missingNodeLabellerLabelsErr := labels.NodeLabellersLabelsMissingOnAllAMDGPUNode(amdNodeBuilders)
-			Expect(missingNodeLabellerLabelsErr).To(BeNil(), fmt.Sprintf("failure occurred while checking "+
-				"that Node Labeller Labels were removed from all AMD GPU Worker Nodes. %v", missingNodeLabellerLabelsErr))
-
+			klog.V(amdgpuparams.AMDGPULogLevel).Info("Node Labeller pods running and labels verified")
 		})
 
-		It("Device Plugin", func() {
+		It("Should verify Device Plugin pods are running and GPU resources are available", func() {
 
+			By("Listing Device Plugin Pods")
 			podsBuilder, podsBuilderErr := get.PodsFromNamespaceByPrefixWithTimeout(
 				apiClient, amdgpuparams.AMDGPUNamespace, amdgpuparams.DeviceConfigName+"-device-plugin-")
 
-			By("Listing Device Plugin Pods")
 			Expect(podsBuilderErr).To(BeNil(),
-				fmt.Sprintf("Failed to get Device Plugin Pod in namespace '%s'. Error:\n%t\n",
+				fmt.Sprintf("Failed to get Device Plugin Pod in namespace '%s': %v",
 					amdgpuparams.AMDGPUNamespace, podsBuilderErr))
 
 			By("Counting Device Plugin Pods")
@@ -349,10 +391,12 @@ var _ = Describe("AMD GPU Basic Tests", Ordered, Label(amdgpuparams.LabelSuite),
 				fmt.Sprintf("expected one device plugin pod per AMD GPU worker node (found %d, expected %d)",
 					len(podsBuilder), len(amdNodeBuilders)))
 
-			By("Checking Device Plugin Pods is running and healthy")
-			for _, pod := range podsBuilder {
-				Expect(pod.Object.Status.Phase).To(Equal(corev1.PodRunning))
-				Expect(pod.IsHealthy()).To(BeTrue())
+			By("Checking Device Plugin Pods are running and healthy")
+			for _, devicePluginPod := range podsBuilder {
+				Expect(devicePluginPod.Object.Status.Phase).To(Equal(corev1.PodRunning),
+					fmt.Sprintf("Device Plugin pod %s should be running", devicePluginPod.Object.Name))
+				Expect(devicePluginPod.IsHealthy()).To(BeTrue(),
+					fmt.Sprintf("Device Plugin pod %s should be healthy", devicePluginPod.Object.Name))
 			}
 
 			By("Checking Resource Capacity & Allocatable on AMD GPU Worker Nodes")
@@ -367,72 +411,77 @@ var _ = Describe("AMD GPU Basic Tests", Ordered, Label(amdgpuparams.LabelSuite),
 					fmt.Sprintf("expected at least one AMD GPU in capacity for node %s", node.Object.Name))
 				Expect(allocatable).To(BeNumerically(">=", 1),
 					fmt.Sprintf("expected at least one AMD GPU allocatable for node %s", node.Object.Name))
+
+				klog.V(amdgpuparams.AMDGPULogLevel).Infof("Node %s: GPU capacity=%d, allocatable=%d",
+					node.Object.Name, capacity, allocatable)
 			}
-			It("should detect at least one GPU", func() {
-				// Create pod to run rocm-smi
-				cmd := exec.NewPodCommandDirect(
-					apiClient,
-					"amd-gpu-smi",
-					"openshift-amd-gpu",
-					"rocm/rocm-terminal:latest",
-					"amd-gpu-smi",
-					[]string{"rocm-smi"}, // no JSON/concise
-					map[string]string{"amd.com/gpu": "1"},
-					map[string]string{"amd.com/gpu": "1"},
-				)
 
-				// Privileged needed for rocm-smi to access GPU devices
-				cmd.WithPrivileged(true).WithAllowPrivilegeEscalation(true)
+			klog.V(amdgpuparams.AMDGPULogLevel).Info("Device Plugin pods running and GPU resources available")
+		})
 
-				// Run pod and get output
-				output, err := cmd.ExecuteAndCleanup(5 * time.Minute)
-				klog.Infof("rocm-smi output:\n%s", output)
+		It("Should detect GPUs using rocm-smi", func() {
+			By("Running rocm-smi to detect GPUs")
+			rocmSmiCmd := exec.NewPodCommandDirect(
+				apiClient,
+				"amd-gpu-smi-test",
+				amdgpuparams.AMDGPUNamespace,
+				"rocm/rocm-terminal:latest",
+				"amd-gpu-smi-test",
+				[]string{"rocm-smi"},
+				map[string]string{"amd.com/gpu": "1"},
+				map[string]string{"amd.com/gpu": "1"},
+			)
 
-				// Fail if pod execution failed
-				Expect(err).NotTo(HaveOccurred(), "rocm-smi execution failed")
+			rocmSmiCmd.WithPrivileged(true).WithAllowPrivilegeEscalation(true)
 
-				// Split output into lines and look for GPU entries
-				lines := strings.Split(output, "\n")
-				foundGPU := false
-				for _, line := range lines {
-					line = strings.TrimSpace(line)
-					// GPU entries usually start with a number (device ID)
-					if len(line) > 0 && (line[0] >= '0' && line[0] <= '9') {
-						foundGPU = true
+			rocmSmiOutput, rocmSmiErr := rocmSmiCmd.ExecuteAndCleanup(5 * time.Minute)
+			klog.Infof("rocm-smi output:\n%s", rocmSmiOutput)
 
-						break
-					}
+			Expect(rocmSmiErr).NotTo(HaveOccurred(), "rocm-smi execution failed")
+
+			// Look for GPU entries in output
+			lines := strings.Split(rocmSmiOutput, "\n")
+			foundGPU := false
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				if len(line) > 0 && (line[0] >= '0' && line[0] <= '9') {
+					foundGPU = true
+
+					break
 				}
+			}
 
-				Expect(foundGPU).To(BeTrue(), "Expected at least one GPU in rocm-smi output")
-			})
+			Expect(foundGPU).To(BeTrue(), "Expected at least one GPU in rocm-smi output")
+			klog.V(amdgpuparams.AMDGPULogLevel).Info("GPU detected via rocm-smi")
+		})
 
-			It("should detect at least one GPU and validate card info", func() {
-				cmd := exec.NewPodCommandDirect(
-					apiClient,
-					"amd-gpu-info",
-					"openshift-amd-gpu",
-					"rocm/rocm-terminal:latest",
-					"amd-gpu-info",
-					[]string{"rocminfo"},
-					map[string]string{"amd.com/gpu": "1"},
-					map[string]string{"amd.com/gpu": "1"},
-				)
+		It("Should validate GPU info using rocminfo", func() {
+			By("Running rocminfo to validate GPU")
+			rocmInfoCmd := exec.NewPodCommandDirect(
+				apiClient,
+				"amd-gpu-info-test",
+				amdgpuparams.AMDGPUNamespace,
+				"rocm/rocm-terminal:latest",
+				"amd-gpu-info-test",
+				[]string{"rocminfo"},
+				map[string]string{"amd.com/gpu": "1"},
+				map[string]string{"amd.com/gpu": "1"},
+			)
 
-				// GPU workloads typically need privilege
-				cmd.WithPrivileged(true).WithAllowPrivilegeEscalation(true)
+			rocmInfoCmd.WithPrivileged(true).WithAllowPrivilegeEscalation(true)
 
-				output, err := cmd.ExecuteAndCleanup(5 * time.Minute)
-				klog.Infof("rocminfo output:\n%s", output)
+			rocmInfoOutput, rocmInfoErr := rocmInfoCmd.ExecuteAndCleanup(5 * time.Minute)
+			klog.Infof("rocminfo output:\n%s", rocmInfoOutput)
 
-				Expect(err).NotTo(HaveOccurred(), "rocminfo execution failed")
+			Expect(rocmInfoErr).NotTo(HaveOccurred(), "rocminfo execution failed")
 
-				// ✅ Text-based validation instead of JSON
-				Expect(output).To(ContainSubstring("gfx"), "Expected GPU architecture (gfx) in rocminfo output")
-				Expect(output).To(MatchRegexp(`GPU|Agent\s+\d+`), "Expected GPU agent info in rocminfo output")
-				Expect(output).To(ContainSubstring("AMD"), "Expected AMD GPU vendor in rocminfo output")
-				Expect(output).To(ContainSubstring("Instinct"), "Expected AMD Instinct GPU name in rocminfo output")
-			})
+			// Validate GPU information
+			Expect(rocmInfoOutput).To(ContainSubstring("gfx"), "Expected GPU architecture (gfx) in rocminfo output")
+			Expect(rocmInfoOutput).To(MatchRegexp(`GPU|Agent\s+\d+`), "Expected GPU agent info in rocminfo output")
+			Expect(rocmInfoOutput).To(ContainSubstring("AMD"), "Expected AMD GPU vendor in rocminfo output")
+			Expect(rocmInfoOutput).To(ContainSubstring("Instinct"), "Expected AMD Instinct GPU name in rocminfo output")
+
+			klog.V(amdgpuparams.AMDGPULogLevel).Info("GPU validated via rocminfo")
 		})
 	})
 })

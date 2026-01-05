@@ -32,6 +32,7 @@ type OperatorInstallConfig struct {
 	CatalogSource          string
 	CatalogSourceNamespace string
 	Channel                string
+	StartingCSV            string
 	SkipNamespaceCreation  bool
 	SkipOperatorGroup      bool
 	TargetNamespaces       []string
@@ -255,7 +256,17 @@ func (o *OperatorInstaller) createOperatorGroup() error {
 	operatorGroupBuilder := olm.NewOperatorGroupBuilder(
 		o.config.APIClient, o.config.OperatorGroupName, o.config.Namespace)
 
-	operatorGroupBuilder.Definition.Spec.TargetNamespaces = o.config.TargetNamespaces
+	// eco-goinfra NewOperatorGroupBuilder sets TargetNamespaces to [namespace] by default.
+	// We need to explicitly override this for AllNamespaces scope.
+	// OLM interprets: nil/empty = AllNamespaces, ["ns1"] = specific namespaces.
+	if len(o.config.TargetNamespaces) > 0 {
+		operatorGroupBuilder.Definition.Spec.TargetNamespaces = o.config.TargetNamespaces
+		klog.V(o.config.LogLevel).Infof("OperatorGroup will watch namespaces: %v", o.config.TargetNamespaces)
+	} else {
+		// IMPORTANT: Override the default set by NewOperatorGroupBuilder to enable AllNamespaces
+		operatorGroupBuilder.Definition.Spec.TargetNamespaces = nil
+		klog.V(o.config.LogLevel).Infof("OperatorGroup will watch AllNamespaces (targetNamespaces set to nil)")
+	}
 
 	if operatorGroupBuilder.Exists() {
 		klog.V(o.config.LogLevel).Infof("OperatorGroup %s already exists", o.config.OperatorGroupName)
@@ -295,6 +306,11 @@ func (o *OperatorInstaller) createSubscription() error {
 
 	sub.WithChannel(o.config.Channel)
 	sub.WithInstallPlanApproval(convertToInstallPlanApproval(o.config.InstallPlanApproval))
+
+	if o.config.StartingCSV != "" {
+		klog.V(o.config.LogLevel).Infof("Setting StartingCSV to %s", o.config.StartingCSV)
+		sub.WithStartingCSV(o.config.StartingCSV)
+	}
 
 	if sub.Exists() {
 		klog.V(o.config.LogLevel).Infof("Subscription %s already exists", o.config.SubscriptionName)
