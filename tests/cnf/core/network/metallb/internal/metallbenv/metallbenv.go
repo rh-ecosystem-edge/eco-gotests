@@ -122,17 +122,18 @@ func CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(timeout time.Duration, node
 		return fmt.Errorf("MetalLB daemonSet is not ready")
 	}
 
-	klog.V(90).Infof("Verifying if the FRR webhook server is deployed and ready")
+	klog.V(90).Infof("Verifying if the FRR status cleaner is deployed and ready")
 
-	// Check FRR Webhook Server Readiness **(LAST STEP)**
-	var frrk8sWebhookDeployment *deployment.Builder
+	// Check FRR Status Cleaner Readiness **(LAST STEP)**
+	var frrk8sStatuscleanerDeployment *deployment.Builder
 
 	err = wait.PollUntilContextTimeout(
 		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			frrk8sWebhookDeployment, err = deployment.Pull(APIClient, tsparams.FrrK8WebHookServer, NetConfig.Frrk8sNamespace)
+			frrk8sStatuscleanerDeployment, err = deployment.Pull(
+				APIClient, tsparams.FrrK8StatusCleaner, NetConfig.Frrk8sNamespace)
 			if err != nil {
-				klog.V(90).Infof("Error pulling frrk8s webhook %s in namespace %s, retrying...",
-					tsparams.FrrK8WebHookServer, NetConfig.Frrk8sNamespace)
+				klog.V(90).Infof("Error pulling frrk8s status cleaner %s in namespace %s, retrying...",
+					tsparams.FrrK8StatusCleaner, NetConfig.Frrk8sNamespace)
 
 				return false, nil
 			}
@@ -140,14 +141,14 @@ func CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(timeout time.Duration, node
 			return true, nil
 		})
 	if err != nil {
-		return fmt.Errorf("failed to pull the frrk8s webhook server: %w", err)
+		return fmt.Errorf("failed to pull the frrk8s status cleaner: %w", err)
 	}
 
-	if !frrk8sWebhookDeployment.IsReady(30 * time.Second) {
-		return fmt.Errorf("the frrk8s webhook server deployment is not ready")
+	if !frrk8sStatuscleanerDeployment.IsReady(30 * time.Second) {
+		return fmt.Errorf("the frrk8s status cleaner deployment is not ready")
 	}
 
-	klog.V(90).Infof("FRR webhook server is ready, MetalLB setup complete.")
+	klog.V(90).Infof("FRR status cleaner is ready, MetalLB setup complete.")
 
 	return nil
 }

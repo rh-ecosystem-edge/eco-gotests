@@ -210,7 +210,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 				err = metallbenv.CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(tsparams.DefaultTimeout, workerLabelMap)
 				Expect(err).ToNot(HaveOccurred(), "Failed to recreate metalLb daemonset")
 
-				By("Verifying that the frrk8sWebhookDeployment deployment is in Ready state.")
+				By("Verifying that the frrk8sStatuscleanerDeployment deployment is in Ready state.")
 				verifyAndCreateFRRk8sPodList()
 
 				By("Create first frrconfiguration that receive a single route")

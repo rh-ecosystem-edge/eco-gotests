@@ -55,7 +55,6 @@ var (
 
 var (
 	metalLbTestsLabel    = map[string]string{"metallb": "metallbtests"}
-	frrK8WebHookServer   = "frr-k8s-webhook-server"
 	ovnExternalAddresses = "k8s.ovn.org/node-primary-ifaddr"
 	frrPodSubnet         = map[string]string{
 		netparam.IPV4Family: netparam.IPSubnet24,
@@ -752,11 +751,11 @@ func removePrefixFromIPList(ipAddressList []string) []string {
 }
 
 func verifyAndCreateFRRk8sPodList() []*pod.Builder {
-	frrk8sWebhookDeployment, err := deployment.Pull(
-		APIClient, frrK8WebHookServer, NetConfig.Frrk8sNamespace)
-	Expect(err).ToNot(HaveOccurred(), "Fail to pull frr-k8s-webhook-server")
-	Expect(frrk8sWebhookDeployment.IsReady(30*time.Second)).To(BeTrue(),
-		"frr-k8s-webhook-server deployment is not ready")
+	frrk8sStatuscleanerDeployment, err := deployment.Pull(
+		APIClient, tsparams.FrrK8StatusCleaner, NetConfig.Frrk8sNamespace)
+	Expect(err).ToNot(HaveOccurred(), "Fail to pull frr-k8s-statuscleaner")
+	Expect(frrk8sStatuscleanerDeployment.IsReady(30*time.Second)).To(BeTrue(),
+		"frr-k8s-statuscleaner deployment is not ready")
 
 	frrk8sPods := []*pod.Builder{}
 
