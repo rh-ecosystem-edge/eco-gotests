@@ -66,11 +66,20 @@ func BFDHasStatus(frrPod *pod.Builder, bfdPeer string, status string) error {
 		return err
 	}
 
+	if strings.TrimSpace(bfdStatusOut.String()) == "" {
+		klog.V(90).Infof("BFD status command returned empty output")
+
+		return fmt.Errorf("BFD status command returned empty output")
+	}
+
 	var peers []netparam.BFDDescription
 
 	err = json.Unmarshal(bfdStatusOut.Bytes(), &peers)
 	if err != nil {
-		return err
+		klog.V(90).Infof("Failed to Unmarshal bfdStatus string: %s into bfdStatus struct", bfdStatusOut.String())
+
+		return fmt.Errorf(
+			"failed to unmarshal BFD status output with error: %w, bfd status output: %s", err, bfdStatusOut.String())
 	}
 
 	for _, peer := range peers {

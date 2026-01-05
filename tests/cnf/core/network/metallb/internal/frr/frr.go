@@ -517,13 +517,20 @@ func getBgpStatus(frrPod *pod.Builder, cmd string, containerName ...string) (*bg
 		return nil, err
 	}
 
+	if strings.TrimSpace(bgpStateOut.String()) == "" {
+		klog.V(90).Infof("BGP status command returned empty output")
+
+		return nil, fmt.Errorf("BGP status command returned empty output")
+	}
+
 	bgpStatus := bgpStatus{}
 
 	err = json.Unmarshal(bgpStateOut.Bytes(), &bgpStatus)
 	if err != nil {
 		klog.V(90).Infof("Failed to Unmarshal bgpStatus string: %s in to bgpStatus struct", bgpStateOut.String())
 
-		return nil, err
+		return nil, fmt.Errorf(
+			"failed to unmarshal BGP status output with error: %w, bgp status output: %s", err, bgpStateOut.String())
 	}
 
 	return &bgpStatus, nil
