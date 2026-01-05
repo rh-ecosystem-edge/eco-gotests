@@ -181,6 +181,23 @@ func PreflightKernel(arch string, realtime bool) string {
 	return kmmparams.KernelForDTKX86
 }
 
+// InTreeModuleToRemove returns the in-tree kernel module name to use for removal testing based on architecture.
+func InTreeModuleToRemove(arch string) string {
+	if arch == "arm64" || arch == "aarch64" {
+		return kmmparams.InTreeRemoveModuleArm64
+	}
+
+	if arch == "s390x" {
+		return kmmparams.InTreeRemoveModuleS390x
+	}
+
+	if arch == "ppc64le" {
+		return kmmparams.InTreeRemoveModulePpc64le
+	}
+
+	return kmmparams.InTreeRemoveModuleX86
+}
+
 // ModuleLoadedMessage returns message for a module loaded event.
 func ModuleLoadedMessage(module, nsname string) string {
 	message := fmt.Sprintf("Module %s/%s loaded into the kernel", nsname, module)

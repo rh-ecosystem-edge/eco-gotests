@@ -95,7 +95,7 @@ func ModuleExistsOnNode(apiClient *clients.Settings, moduleName, nodeName string
 			// modinfo returns non-zero if module doesn't exist
 			klog.V(kmmparams.KmmLogLevel).Infof("Module %s does not exist on node %s: %v", moduleName, nodeName, err)
 
-			return false, nil
+			return false, err
 		}
 
 		contents := buff.String()

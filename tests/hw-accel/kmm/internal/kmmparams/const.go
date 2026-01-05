@@ -304,4 +304,13 @@ const (
 	ReasonModuleLoaded = "ModuleLoaded"
 	// ReasonModuleUnloaded represents event reason for a module unloaded.
 	ReasonModuleUnloaded = "ModuleUnloaded"
+
+	// InTreeRemoveModuleX86 represents an in-tree kernel module for removal testing on x86.
+	InTreeRemoveModuleX86 = "ib_ipoib"
+	// InTreeRemoveModuleArm64 represents an in-tree kernel module for removal testing on arm64.
+	InTreeRemoveModuleArm64 = "ib_ipoib"
+	// InTreeRemoveModuleS390x represents an in-tree kernel module for removal testing on s390x.
+	InTreeRemoveModuleS390x = "ib_ipoib"
+	// InTreeRemoveModulePpc64le represents an in-tree kernel module for removal testing on ppc64le.
+	InTreeRemoveModulePpc64le = "ib_ipoib"
 )

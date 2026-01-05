@@ -32,9 +32,6 @@ const (
 
 	// MachineConfigInTreeRemoveName represents the MachineConfig name for inTreeModulesToRemove test.
 	MachineConfigInTreeRemoveName = "12-kmod-remove"
-
-	// IbIpoibModuleName represents the InfiniBand IPoIB kernel module to be removed.
-	IbIpoibModuleName = "ib_ipoib"
 )
 
 var (
