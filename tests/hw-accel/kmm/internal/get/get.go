@@ -132,15 +132,15 @@ func SigningData(key string, value string) map[string][]byte {
 // PreflightImage returns preflightvalidationocp DTK image to be used based on architecture.
 func PreflightImage(arch string) string {
 	// Use specific DTK images with SHA for KMM 2.4 compatibility
-	if arch == "arm64" || arch == "aarch64" {
+	if arch == kmmparams.ArchArm64 || arch == kmmparams.ArchAarch64 {
 		return kmmparams.PreflightDTKImageARM64
 	}
 
-	if arch == "s390x" {
+	if arch == kmmparams.ArchS390x {
 		return kmmparams.PreflightDTKImageS390X
 	}
 
-	if arch == "ppc64le" {
+	if arch == kmmparams.ArchPpc64le {
 		return kmmparams.PreflightDTKImagePPC64LE
 	}
 
@@ -150,7 +150,7 @@ func PreflightImage(arch string) string {
 
 // PreflightKernel returns predefined kernel version string based on architecture and realtime flag.
 func PreflightKernel(arch string, realtime bool) string {
-	if arch == "arm64" || arch == "aarch64" {
+	if arch == kmmparams.ArchArm64 || arch == kmmparams.ArchAarch64 {
 		if realtime {
 			return kmmparams.KernelForDTKArm64Realtime
 		}
@@ -158,7 +158,7 @@ func PreflightKernel(arch string, realtime bool) string {
 		return kmmparams.KernelForDTKArm64
 	}
 
-	if arch == "s390x" {
+	if arch == kmmparams.ArchS390x {
 		if realtime {
 			return kmmparams.KernelForDTKS390xRealtime
 		}
@@ -166,7 +166,7 @@ func PreflightKernel(arch string, realtime bool) string {
 		return kmmparams.KernelForDTKS390x
 	}
 
-	if arch == "ppc64le" {
+	if arch == kmmparams.ArchPpc64le {
 		if realtime {
 			return kmmparams.KernelForDTKPpc64leRealtime
 		}
@@ -183,15 +183,15 @@ func PreflightKernel(arch string, realtime bool) string {
 
 // InTreeModuleToRemove returns the in-tree kernel module name to use for removal testing based on architecture.
 func InTreeModuleToRemove(arch string) string {
-	if arch == "arm64" || arch == "aarch64" {
+	if arch == kmmparams.ArchArm64 || arch == kmmparams.ArchAarch64 {
 		return kmmparams.InTreeRemoveModuleArm64
 	}
 
-	if arch == "s390x" {
+	if arch == kmmparams.ArchS390x {
 		return kmmparams.InTreeRemoveModuleS390x
 	}
 
-	if arch == "ppc64le" {
+	if arch == kmmparams.ArchPpc64le {
 		return kmmparams.InTreeRemoveModulePpc64le
 	}
 

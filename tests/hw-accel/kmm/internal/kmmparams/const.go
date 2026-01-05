@@ -10,6 +10,15 @@ const (
 	// McoStateDone represents the Machine Config Operator state when a node configuration is applied.
 	McoStateDone = "Done"
 
+	// ArchArm64 represents the arm64 architecture identifier.
+	ArchArm64 = "arm64"
+	// ArchAarch64 represents the aarch64 architecture identifier.
+	ArchAarch64 = "aarch64"
+	// ArchS390x represents the s390x architecture identifier.
+	ArchS390x = "s390x"
+	// ArchPpc64le represents the ppc64le architecture identifier.
+	ArchPpc64le = "ppc64le"
+
 	// MultistageContents represents the Dockerfile contents for multi stage build.
 	MultistageContents = `ARG DTK_AUTO
 FROM ${DTK_AUTO} as builder
