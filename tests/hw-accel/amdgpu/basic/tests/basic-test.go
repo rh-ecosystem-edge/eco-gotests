@@ -349,7 +349,7 @@ var _ = Describe("AMD GPU Basic Tests", Ordered, Label(amdgpuparams.LabelSuite),
 		})
 
 		It("Should verify Node Labeller pods are running and labels are applied", func() {
-			//Skip("Skip node labeller pod verification")
+			// Skip("Skip node labeller pod verification")
 			By("Verifying AMD GPU Worker Nodes are available")
 			Expect(amdNodeBuilders).ToNot(BeEmpty(), "AMD GPU Worker Nodes should be available from BeforeAll")
 

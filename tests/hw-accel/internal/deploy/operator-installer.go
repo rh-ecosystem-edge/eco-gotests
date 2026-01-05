@@ -256,15 +256,12 @@ func (o *OperatorInstaller) createOperatorGroup() error {
 	operatorGroupBuilder := olm.NewOperatorGroupBuilder(
 		o.config.APIClient, o.config.OperatorGroupName, o.config.Namespace)
 
-	// eco-goinfra NewOperatorGroupBuilder sets TargetNamespaces to [namespace] by default.
-	// We need to explicitly override this for AllNamespaces scope.
-	// OLM interprets: nil/empty = AllNamespaces, ["ns1"] = specific namespaces.
 	if len(o.config.TargetNamespaces) > 0 {
 		operatorGroupBuilder.Definition.Spec.TargetNamespaces = o.config.TargetNamespaces
 		klog.V(o.config.LogLevel).Infof("OperatorGroup will watch namespaces: %v", o.config.TargetNamespaces)
 	} else {
-		// IMPORTANT: Override the default set by NewOperatorGroupBuilder to enable AllNamespaces
 		operatorGroupBuilder.Definition.Spec.TargetNamespaces = nil
+
 		klog.V(o.config.LogLevel).Infof("OperatorGroup will watch AllNamespaces (targetNamespaces set to nil)")
 	}
 

@@ -140,4 +140,3 @@ func forceDeleteNamespace(apiClient *clients.Settings, nsName string) error {
 
 	return nil
 }
-
