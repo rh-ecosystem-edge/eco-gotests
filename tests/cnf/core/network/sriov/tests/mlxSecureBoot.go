@@ -140,11 +140,14 @@ var _ = Describe("Mellanox Secure Boot", Ordered, Label(tsparams.LabelMlxSecureB
 				"The sriov-network-config-daemon pod restarted unexpectedly after applying the SR-IOV configuration")
 
 			By("Creating SR-IOV network")
-			_, err = sriov.NewNetworkBuilder(
+			sriovNetworkMlxSecureBoot := sriov.NewNetworkBuilder(
 				APIClient, sriovAndResourceNameSecureBoot, NetConfig.SriovOperatorNamespace,
 				tsparams.TestNamespaceName, sriovAndResourceNameSecureBoot).WithStaticIpam().
-				WithIPAddressSupport().WithLogLevel(netparam.LogLevelDebug).Create()
-			Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network")
+				WithIPAddressSupport().WithLogLevel(netparam.LogLevelDebug)
+			err = sriovenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetworkMlxSecureBoot, tsparams.NADWaitTimeout)
+			Expect(err).ToNot(HaveOccurred(),
+				"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
+				sriovAndResourceNameSecureBoot, err)
 
 			By("Creating test pods and checking connectivity")
 			err = sriovenv.CreatePodsAndRunTraffic(workerNodeList[0].Definition.Name, workerNodeList[0].Definition.Name,
