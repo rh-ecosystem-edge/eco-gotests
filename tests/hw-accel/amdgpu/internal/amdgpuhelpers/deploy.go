@@ -22,7 +22,13 @@ const (
 // formatAMDGPUStartingCSV formats the version string to the proper StartingCSV format.
 // If version is "1.4.1", returns "amd-gpu-operator.v1.4.1".
 // If version already starts with "amd-gpu-operator", returns as-is.
+// Returns empty string if version is empty.
 func formatAMDGPUStartingCSV(version string) string {
+	// Handle empty version - return empty to avoid invalid CSV
+	if version == "" {
+		return ""
+	}
+
 	// If already in full CSV format, return as-is
 	if strings.HasPrefix(version, "amd-gpu-operator") {
 		return version

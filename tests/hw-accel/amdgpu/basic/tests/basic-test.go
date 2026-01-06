@@ -475,11 +475,11 @@ var _ = Describe("AMD GPU Basic Tests", Ordered, Label(amdgpuparams.LabelSuite),
 
 			Expect(rocmInfoErr).NotTo(HaveOccurred(), "rocminfo execution failed")
 
-			// Validate GPU information
+			// Validate GPU information - use generic checks that work for all AMD GPU types
+			// (Instinct, Radeon Pro, MI-series, etc.)
 			Expect(rocmInfoOutput).To(ContainSubstring("gfx"), "Expected GPU architecture (gfx) in rocminfo output")
 			Expect(rocmInfoOutput).To(MatchRegexp(`GPU|Agent\s+\d+`), "Expected GPU agent info in rocminfo output")
 			Expect(rocmInfoOutput).To(ContainSubstring("AMD"), "Expected AMD GPU vendor in rocminfo output")
-			Expect(rocmInfoOutput).To(ContainSubstring("Instinct"), "Expected AMD Instinct GPU name in rocminfo output")
 
 			klog.V(amdgpuparams.AMDGPULogLevel).Info("GPU validated via rocminfo")
 		})

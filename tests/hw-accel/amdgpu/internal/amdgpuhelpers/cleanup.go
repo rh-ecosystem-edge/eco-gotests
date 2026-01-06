@@ -64,17 +64,22 @@ func CleanupAMDGPUNodeLabels(apiClient *clients.Settings) error {
 	}
 
 	for _, nodeBuilder := range allNodes {
+		labelsRemoved := false
+
 		for _, label := range labelsToRemove {
-			if _, exists := nodeBuilder.Object.Labels[label]; exists {
-				nodeBuilder.WithNewLabel(label, "")
-				delete(nodeBuilder.Definition.Labels, label)
+			if value, exists := nodeBuilder.Object.Labels[label]; exists {
+				nodeBuilder.RemoveLabel(label, value)
+
+				labelsRemoved = true
 			}
 		}
 
-		_, err := nodeBuilder.Update()
-		if err != nil {
-			klog.V(amdgpuparams.AMDGPULogLevel).Infof(
-				"Failed to remove labels from node %s: %v", nodeBuilder.Object.Name, err)
+		if labelsRemoved {
+			_, err := nodeBuilder.Update()
+			if err != nil {
+				klog.V(amdgpuparams.AMDGPULogLevel).Infof(
+					"Failed to remove labels from node %s: %v", nodeBuilder.Object.Name, err)
+			}
 		}
 	}
 
@@ -122,12 +127,19 @@ func DeleteOperatorNamespaces(apiClient *clients.Settings) error {
 }
 
 // forceDeleteNamespace attempts to force delete a stuck namespace by removing finalizers.
+// Warning: This operation may leave orphaned resources if finalizers were protecting cleanup.
 func forceDeleteNamespace(apiClient *clients.Settings, nsName string) error {
 	ctx := context.Background()
 
 	namespaceObj, err := apiClient.CoreV1Interface.Namespaces().Get(ctx, nsName, metav1.GetOptions{})
 	if err != nil {
 		return err
+	}
+
+	// Log finalizers being removed for debugging
+	if len(namespaceObj.Spec.Finalizers) > 0 {
+		klog.V(amdgpuparams.AMDGPULogLevel).Infof(
+			"Force-removing finalizers from namespace %s: %v", nsName, namespaceObj.Spec.Finalizers)
 	}
 
 	// Remove finalizers
@@ -137,6 +149,8 @@ func forceDeleteNamespace(apiClient *clients.Settings, nsName string) error {
 	if err != nil {
 		return fmt.Errorf("failed to remove finalizers: %w", err)
 	}
+
+	klog.V(amdgpuparams.AMDGPULogLevel).Infof("Successfully force-deleted namespace %s", nsName)
 
 	return nil
 }
