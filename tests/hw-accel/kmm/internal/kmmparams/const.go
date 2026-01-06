@@ -10,6 +10,15 @@ const (
 	// McoStateDone represents the Machine Config Operator state when a node configuration is applied.
 	McoStateDone = "Done"
 
+	// ArchArm64 represents the arm64 architecture identifier.
+	ArchArm64 = "arm64"
+	// ArchAarch64 represents the aarch64 architecture identifier.
+	ArchAarch64 = "aarch64"
+	// ArchS390x represents the s390x architecture identifier.
+	ArchS390x = "s390x"
+	// ArchPpc64le represents the ppc64le architecture identifier.
+	ArchPpc64le = "ppc64le"
+
 	// MultistageContents represents the Dockerfile contents for multi stage build.
 	MultistageContents = `ARG DTK_AUTO
 FROM ${DTK_AUTO} as builder
@@ -304,4 +313,13 @@ const (
 	ReasonModuleLoaded = "ModuleLoaded"
 	// ReasonModuleUnloaded represents event reason for a module unloaded.
 	ReasonModuleUnloaded = "ModuleUnloaded"
+
+	// InTreeRemoveModuleX86 represents an in-tree kernel module for removal testing on x86.
+	InTreeRemoveModuleX86 = "ib_ipoib"
+	// InTreeRemoveModuleArm64 represents an in-tree kernel module for removal testing on arm64.
+	InTreeRemoveModuleArm64 = "ib_ipoib"
+	// InTreeRemoveModuleS390x represents an in-tree kernel module for removal testing on s390x.
+	InTreeRemoveModuleS390x = "ib_ipoib"
+	// InTreeRemoveModulePpc64le represents an in-tree kernel module for removal testing on ppc64le.
+	InTreeRemoveModulePpc64le = "ib_ipoib"
 )

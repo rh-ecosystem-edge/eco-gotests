@@ -71,6 +71,90 @@ func ModuleLoadedOnNode(apiClient *clients.Settings, modName string, timeout tim
 	return runCommandOnTestPodsOnNode(apiClient, []string{"lsmod"}, modName, timeout, nodeName)
 }
 
+// ModuleExistsOnNode checks if a kernel module exists on the specified node using modinfo.
+func ModuleExistsOnNode(apiClient *clients.Settings, moduleName, nodeName string) (bool, error) {
+	pods, err := pod.List(apiClient, kmmparams.KmmOperatorNamespace, metav1.ListOptions{
+		FieldSelector: "status.phase=Running",
+		LabelSelector: kmmparams.KmmTestHelperLabelName,
+	})
+	if err != nil {
+		return false, fmt.Errorf("failed to list helper pods: %w", err)
+	}
+
+	for _, helperPod := range pods {
+		if helperPod.Object.Spec.NodeName != nodeName {
+			continue
+		}
+
+		// Use modinfo to check if the module exists on the system
+		command := []string{"chroot", "/host", "modinfo", moduleName}
+		klog.V(kmmparams.KmmLogLevel).Infof("Checking if module %s exists on node %s", moduleName, nodeName)
+
+		buff, err := helperPod.ExecCommand(command, "test")
+		if err != nil {
+			// modinfo returns non-zero if module doesn't exist
+			klog.V(kmmparams.KmmLogLevel).Infof("Module %s does not exist on node %s: %v", moduleName, nodeName, err)
+
+			return false, err
+		}
+
+		contents := buff.String()
+		klog.V(kmmparams.KmmLogLevel).Infof("modinfo output for %s: %s", moduleName, contents)
+
+		return true, nil
+	}
+
+	return false, fmt.Errorf("no helper pod found on node %s", nodeName)
+}
+
+// ModuleNotLoadedOnNode verifies a module is not loaded on a specific node.
+func ModuleNotLoadedOnNode(apiClient *clients.Settings, modName string, timeout time.Duration, nodeName string) error {
+	modName = strings.Replace(modName, "-", "_", 10)
+
+	return wait.PollUntilContextTimeout(
+		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			pods, err := pod.List(apiClient, kmmparams.KmmOperatorNamespace, metav1.ListOptions{
+				FieldSelector: "status.phase=Running",
+				LabelSelector: kmmparams.KmmTestHelperLabelName,
+			})
+			if err != nil {
+				klog.V(kmmparams.KmmLogLevel).Infof("deployment list error: %s\n", err)
+
+				return false, err
+			}
+
+			for _, iterPod := range pods {
+				if iterPod.Object.Spec.NodeName != nodeName {
+					continue
+				}
+
+				klog.V(kmmparams.KmmLogLevel).Infof("Checking module %s is NOT loaded on node %s via pod %s",
+					modName, nodeName, iterPod.Object.Name)
+
+				buff, err := iterPod.ExecCommand([]string{"lsmod"}, "test")
+				if err != nil {
+					return false, err
+				}
+
+				contents := buff.String()
+
+				if !strings.Contains(contents, modName) {
+					klog.V(kmmparams.KmmLogLevel).Infof("Module %s is NOT loaded on node %s (as expected)",
+						modName, nodeName)
+
+					return true, nil
+				}
+
+				klog.V(kmmparams.KmmLogLevel).Infof("Module %s is still loaded on node %s, waiting...",
+					modName, nodeName)
+
+				return false, nil
+			}
+
+			return false, fmt.Errorf("no helper pod found on node %s", nodeName)
+		})
+}
+
 // Dmesg verifies that dmesg contains message.
 func Dmesg(apiClient *clients.Settings, message string, timeout time.Duration) error {
 	return runCommandOnTestPods(apiClient, []string{"dmesg"}, message, timeout)

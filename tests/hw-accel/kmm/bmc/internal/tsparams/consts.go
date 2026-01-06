@@ -26,6 +26,12 @@ const (
 
 	// MachineConfigName represents the name of the MachineConfig created by BMC.
 	MachineConfigName = "10-kmod"
+
+	// BMCInTreeRemoveName represents the name of the BMC for inTreeModulesToRemove test.
+	BMCInTreeRemoveName = "bmc-remove"
+
+	// MachineConfigInTreeRemoveName represents the MachineConfig name for inTreeModulesToRemove test.
+	MachineConfigInTreeRemoveName = "12-kmod-remove"
 )
 
 var (

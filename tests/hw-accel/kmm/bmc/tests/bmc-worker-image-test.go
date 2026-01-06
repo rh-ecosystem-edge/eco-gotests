@@ -156,4 +156,160 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 			Expect(err).ToNot(HaveOccurred(), "error waiting for machineconfigpool to finish updating")
 		})
 	})
+
+	Context("BMC with inTreeModulesToRemove", Label("bmc-intree-remove"), func() {
+
+		var (
+			bmcBuilder *kmm.BootModuleConfigBuilder
+			workerNode *nodes.Builder
+		)
+
+		AfterEach(func() {
+			By("Delete BootModuleConfig if exists")
+			if bmcBuilder != nil && bmcBuilder.Exists() {
+				_, err := bmcBuilder.Delete()
+				Expect(err).ToNot(HaveOccurred(), "error deleting bootmoduleconfig")
+
+				By("Wait for BootModuleConfig to be deleted")
+				err = await.BootModuleConfigObjectDeleted(APIClient,
+					tsparams.BMCInTreeRemoveName, tsparams.BMCTestNamespace, time.Minute)
+				Expect(err).ToNot(HaveOccurred(), "error waiting for bootmoduleconfig to be deleted")
+			}
+
+			By("Delete MachineConfig if exists")
+			mcBuilder, err := mco.PullMachineConfig(APIClient, tsparams.MachineConfigInTreeRemoveName)
+			if err == nil && mcBuilder != nil {
+				err = mcBuilder.Delete()
+				Expect(err).ToNot(HaveOccurred(), "error deleting machineconfig")
+
+				By("Verify MachineConfig is deleted")
+				err = await.MachineConfigDeleted(APIClient, tsparams.MachineConfigInTreeRemoveName, time.Minute)
+				Expect(err).ToNot(HaveOccurred(), "MachineConfig should be deleted")
+
+				By("Wait for MachineConfigPool to start updating")
+				mcp, err := mco.Pull(APIClient, kmmparams.DefaultWorkerMCPName)
+				Expect(err).ToNot(HaveOccurred(), "error pulling machineconfigpool")
+
+				err = mcp.WaitToBeStableFor(time.Minute, 2*time.Minute)
+				Expect(err).To(HaveOccurred(), "the MachineConfig deletion did not trigger a MCP update")
+
+				By("Wait for MachineConfigPool update to complete")
+				err = mcp.WaitForUpdate(30 * time.Minute)
+				Expect(err).ToNot(HaveOccurred(), "error waiting for machineconfigpool to finish updating")
+			}
+		})
+
+		It("should remove in-tree module and load OOT module", reportxml.ID("85558"), func() {
+			By("Get cluster architecture and determine in-tree module to remove")
+			arch, err := get.ClusterArchitecture(APIClient, GeneralConfig.WorkerLabelMap)
+			Expect(err).ToNot(HaveOccurred(), "error getting cluster architecture")
+
+			inTreeModule := get.InTreeModuleToRemove(arch)
+			klog.V(kmmparams.KmmLogLevel).Infof("Architecture: %s, in-tree module to remove: %s", arch, inTreeModule)
+
+			By("Get a worker node for testing")
+			nodeList, err := nodes.List(APIClient, metav1.ListOptions{
+				LabelSelector: labels.Set(GeneralConfig.WorkerLabelMap).String()})
+			Expect(err).ToNot(HaveOccurred(), "error listing worker nodes")
+			Expect(len(nodeList)).To(BeNumerically(">", 0), "no worker nodes found")
+
+			workerNode = nodeList[0]
+			klog.V(kmmparams.KmmLogLevel).Infof("Using worker node: %s", workerNode.Object.Name)
+
+			By("Check if in-tree module exists on node")
+			moduleExists, _ := check.ModuleExistsOnNode(APIClient, inTreeModule, workerNode.Object.Name)
+
+			if !moduleExists {
+				Skip(fmt.Sprintf("Module %s does not exist on node %s, skipping test",
+					inTreeModule, workerNode.Object.Name))
+			}
+
+			klog.V(kmmparams.KmmLogLevel).Infof("Module %s exists on node %s", inTreeModule, workerNode.Object.Name)
+
+			By("Verify simple-kmod image exists for kernel version")
+			_, err = check.ImageExists(
+				APIClient,
+				kmmparams.SimpleKmodImage,
+				GeneralConfig.WorkerLabelMap)
+			if err != nil {
+				Skip(fmt.Sprintf("Simple-kmod image not available: %v", err))
+			}
+
+			By("Create BMC with inTreeModulesToRemove")
+			bmcBuilder = kmm.NewBootModuleConfigBuilder(APIClient,
+				tsparams.BMCInTreeRemoveName, tsparams.BMCTestNamespace).
+				WithKernelModuleImage(kmmparams.SimpleKmodImage).
+				WithKernelModuleName(kmmparams.SimpleKmodModuleName).
+				WithMachineConfigName(tsparams.MachineConfigInTreeRemoveName).
+				WithMachineConfigPoolName(kmmparams.DefaultWorkerMCPName).
+				WithInTreeModulesToRemove([]string{inTreeModule})
+
+			_, err = bmcBuilder.Create()
+			Expect(err).ToNot(HaveOccurred(), "error creating bootmoduleconfig")
+
+			By("Wait for MachineConfig to be created")
+			err = await.MachineConfigCreated(APIClient, tsparams.MachineConfigInTreeRemoveName, 3*time.Minute)
+			Expect(err).ToNot(HaveOccurred(), "MachineConfig was not created in time")
+
+			By("Verify MachineConfig contains IN_TREE_MODULES_TO_REMOVE")
+			inTreeValue, err := get.MachineConfigEnvVar(APIClient,
+				tsparams.MachineConfigInTreeRemoveName, "IN_TREE_MODULES_TO_REMOVE")
+			Expect(err).ToNot(HaveOccurred(), "MachineConfig should contain IN_TREE_MODULES_TO_REMOVE")
+			Expect(inTreeValue).To(ContainSubstring(inTreeModule),
+				"IN_TREE_MODULES_TO_REMOVE should contain the in-tree module")
+
+			By("Wait for MCO to write new config to disk")
+			err = await.NodeDesiredConfigChange(APIClient, workerNode.Object.Name, 10*time.Minute)
+			Expect(err).ToNot(HaveOccurred(), "MCO did not write new config for node in time")
+
+			By("Reboot the worker node to apply BMC config")
+			err = do.Reboot(APIClient, workerNode.Object.Name, kmmparams.KmmOperatorNamespace)
+			Expect(err).ToNot(HaveOccurred(), "failed to reboot node")
+
+			By("Wait for node to come back up and be Ready")
+			err = await.NodeConfigApplied(APIClient, workerNode.Object.Name, 10*time.Minute)
+			Expect(err).ToNot(HaveOccurred(), "node did not become Ready after reboot")
+
+			By("Wait for helper pod on rebooted node to be ready")
+			_, err = await.ReadyHelperPod(APIClient, kmmparams.KmmOperatorNamespace,
+				workerNode.Object.Name, 5*time.Minute)
+			Expect(err).ToNot(HaveOccurred(), "helper pod not ready on node after reboot")
+
+			By("Verify previously loaded in-tree module is NOT loaded after reboot")
+			err = check.ModuleNotLoadedOnNode(APIClient, inTreeModule, time.Minute, workerNode.Object.Name)
+			Expect(err).ToNot(HaveOccurred(), "in-tree module should be removed by BMC")
+
+			By("Verify simple-kmod module IS loaded after reboot")
+			err = check.ModuleLoadedOnNode(APIClient, kmmparams.SimpleKmodModuleName, time.Minute, workerNode.Object.Name)
+			Expect(err).ToNot(HaveOccurred(), "simple-kmod module should be loaded by BMC")
+
+			By("Delete the BootModuleConfig")
+			_, err = bmcBuilder.Delete()
+			Expect(err).ToNot(HaveOccurred(), "error deleting bootmoduleconfig")
+
+			By("Verify MachineConfig is still present after BMC deletion")
+			mcBuilder, err := mco.PullMachineConfig(APIClient, tsparams.MachineConfigInTreeRemoveName)
+			Expect(err).ToNot(HaveOccurred(), "MachineConfig should still exist after BMC deletion")
+			Expect(mcBuilder.Exists()).To(BeTrue(), "MachineConfig should still exist")
+
+			By("Delete the MachineConfig")
+			err = mcBuilder.Delete()
+			Expect(err).ToNot(HaveOccurred(), "error deleting machineconfig")
+
+			By("Verify MachineConfig is deleted")
+			err = await.MachineConfigDeleted(APIClient, tsparams.MachineConfigInTreeRemoveName, time.Minute)
+			Expect(err).ToNot(HaveOccurred(), "MachineConfig should be deleted")
+
+			By("Wait for MachineConfigPool to start updating (nodes will reboot)")
+			mcp, err := mco.Pull(APIClient, kmmparams.DefaultWorkerMCPName)
+			Expect(err).ToNot(HaveOccurred(), "error pulling machineconfigpool")
+
+			err = mcp.WaitToBeStableFor(time.Minute, 2*time.Minute)
+			Expect(err).To(HaveOccurred(), "the MachineConfig deletion did not trigger a MCP update")
+
+			By("Wait for MachineConfigPool update to complete (all nodes rebooted)")
+			err = mcp.WaitForUpdate(30 * time.Minute)
+			Expect(err).ToNot(HaveOccurred(), "error waiting for machineconfigpool to finish updating")
+		})
+	})
 })
