@@ -535,7 +535,7 @@ func setupMetalLbService(
 		map[string]string{"app": labelValue}, *servicePort).
 		WithExternalTrafficPolicy(extTrafficPolicy).
 		WithIPFamily([]corev1.IPFamily{corev1.IPFamily(ipStack)}, corev1.IPFamilyPolicySingleStack).
-		WithAnnotation(map[string]string{"metallb.universe.tf/address-pool": ipAddressPool.Definition.Name}).
+		WithAnnotation(map[string]string{"metallb.io/address-pool": ipAddressPool.Definition.Name}).
 		Create()
 	Expect(err).ToNot(HaveOccurred(), "Failed to create MetalLB Service")
 }
@@ -569,7 +569,7 @@ func setupLoadBalancerService(
 		map[string]string{"app": labelValue}, *servicePort).
 		WithExternalTrafficPolicy(extTrafficPolicy).
 		WithIPFamily(ipFamily, ipFamilyPolicy).
-		WithAnnotation(map[string]string{"metallb.universe.tf/address-pool": ipAddressPool.Definition.Name}).
+		WithAnnotation(map[string]string{"metallb.io/address-pool": ipAddressPool.Definition.Name}).
 		Create()
 	Expect(err).ToNot(HaveOccurred(), "Failed to create MetalLB Service")
 }
