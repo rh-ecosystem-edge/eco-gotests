@@ -16,6 +16,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/sriovenv"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/tsparams"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -327,15 +328,10 @@ func defineAndCreateSrIovNetwork(srIovNetwork, resName string, allMulti bool) {
 		srIovNetworkObject.WithTrustFlag(true).WithMetaPluginAllMultiFlag(true)
 	}
 
-	srIovNetworkObject, err := srIovNetworkObject.Create()
-	Expect(err).ToNot(HaveOccurred(), "Failed to create sriov network")
-
-	Eventually(func() bool {
-		_, err := nad.Pull(APIClient, srIovNetworkObject.Object.Name, tsparams.TestNamespaceName)
-
-		return err == nil
-	}, tsparams.WaitTimeout, tsparams.RetryInterval).Should(BeTrue(), "Failed to pull "+
-		"NetworkAttachmentDefinition")
+	err := sriovenv.CreateSriovNetworkAndWaitForNADCreation(srIovNetworkObject, tsparams.NADWaitTimeout)
+	Expect(err).ToNot(HaveOccurred(),
+		"failed to create and wait for NAD creation for Sriov Network %s with error %v",
+		srIovNetworkObject.Definition.Name, err)
 }
 
 func createMulticastServer(
@@ -484,15 +480,10 @@ func defineAndCreateSrIovNetworkWithOutIPAM(srIovNetwork string, allMulti bool) 
 		srIovNetworkObject.WithTrustFlag(true).WithMetaPluginAllMultiFlag(true)
 	}
 
-	srIovNetworkObject, err := srIovNetworkObject.Create()
-	Expect(err).ToNot(HaveOccurred(), "Failed to create sriov network")
-
-	Eventually(func() bool {
-		_, err := nad.Pull(APIClient, srIovNetworkObject.Object.Name, tsparams.TestNamespaceName)
-
-		return err == nil
-	}, tsparams.WaitTimeout, tsparams.RetryInterval).Should(BeTrue(), "Failed to pull "+
-		"NetworkAttachmentDefinition")
+	err := sriovenv.CreateSriovNetworkAndWaitForNADCreation(srIovNetworkObject, tsparams.NADWaitTimeout)
+	Expect(err).ToNot(HaveOccurred(),
+		"failed to create and wait for NAD creation for Sriov Network %s with error %v",
+		srIovNetworkObject.Definition.Name, err)
 }
 
 func runAllMultiDualInterfaceTestCase(

@@ -257,10 +257,13 @@ func createSriovConfigurationParallelDrain(sriovInterfaceName string) {
 
 	By("Creating SR-IOV network")
 
-	_, err = sriov.NewNetworkBuilder(APIClient, sriovAndResourceNameParallelDrain, NetConfig.SriovOperatorNamespace,
-		tsparams.TestNamespaceName, sriovAndResourceNameParallelDrain).WithStaticIpam().WithMacAddressSupport().
-		WithIPAddressSupport().WithLogLevel(netparam.LogLevelDebug).Create()
-	Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network")
+	sriovNetworkBuilder := sriov.NewNetworkBuilder(APIClient, sriovAndResourceNameParallelDrain,
+		NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName, sriovAndResourceNameParallelDrain).
+		WithStaticIpam().WithMacAddressSupport().WithIPAddressSupport().WithLogLevel(netparam.LogLevelDebug)
+	err = sriovenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetworkBuilder, tsparams.NADWaitTimeout)
+	Expect(err).ToNot(HaveOccurred(),
+		"failed to create and wait for NAD creation for Sriov Network %s with error %v",
+		sriovAndResourceNameParallelDrain, err)
 }
 
 func removeTestConfiguration() {

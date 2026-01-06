@@ -2,12 +2,10 @@ package tests
 
 import (
 	"fmt"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
@@ -109,15 +107,21 @@ var _ = Describe("SRIOV: Expose MTU:", Ordered, Label(tsparams.LabelExposeMTUTes
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for the stable cluster")
 
 			By("Creating 2 SR-IOV networks")
-			_, err = sriov.NewNetworkBuilder(APIClient, sriovAndResourceName5000, NetConfig.SriovOperatorNamespace,
-				tsparams.TestNamespaceName, sriovAndResourceName5000).WithStaticIpam().WithMacAddressSupport().
-				WithIPAddressSupport().WithLogLevel(netparam.LogLevelDebug).Create()
-			Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network for the policy with 5000 MTU")
+			sriovNetwork5000 := sriov.NewNetworkBuilder(APIClient, sriovAndResourceName5000,
+				NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName, sriovAndResourceName5000).
+				WithStaticIpam().WithMacAddressSupport().WithIPAddressSupport().WithLogLevel(netparam.LogLevelDebug)
+			err = sriovenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetwork5000, tsparams.NADWaitTimeout)
+			Expect(err).ToNot(HaveOccurred(),
+				"failed to create and wait for NAD creation for Sriov Network %s with error %v",
+				sriovAndResourceName5000, err)
 
-			_, err = sriov.NewNetworkBuilder(APIClient, sriovAndResourceName9000, NetConfig.SriovOperatorNamespace,
-				tsparams.TestNamespaceName, sriovAndResourceName9000).WithStaticIpam().WithMacAddressSupport().
-				WithIPAddressSupport().WithLogLevel(netparam.LogLevelDebug).Create()
-			Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network for the policy with 9000 MTU")
+			sriovNetwork9000 := sriov.NewNetworkBuilder(APIClient, sriovAndResourceName9000,
+				NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName, sriovAndResourceName9000).
+				WithStaticIpam().WithMacAddressSupport().WithIPAddressSupport().WithLogLevel(netparam.LogLevelDebug)
+			err = sriovenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetwork9000, tsparams.NADWaitTimeout)
+			Expect(err).ToNot(HaveOccurred(),
+				"failed to create and wait for NAD creation for Sriov Network %s with error %v",
+				sriovAndResourceName9000, err)
 
 			By("Creating 2 pods with different VFs")
 			testPod1, err := sriovenv.CreateAndWaitTestPodWithSecondaryNetwork(
@@ -171,16 +175,13 @@ func testExposeMTU(mtu int, interfacesUnderTest []string, devType, workerName st
 
 	By("Creating SR-IOV network")
 
-	_, err = sriov.NewNetworkBuilder(APIClient, sriovAndResourceNameExposeMTU, NetConfig.SriovOperatorNamespace,
-		tsparams.TestNamespaceName, sriovAndResourceNameExposeMTU).WithStaticIpam().WithMacAddressSupport().
-		WithIPAddressSupport().WithLogLevel(netparam.LogLevelDebug).Create()
-	Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network")
-
-	Eventually(func() error {
-		_, err := nad.Pull(APIClient, sriovAndResourceNameExposeMTU, tsparams.TestNamespaceName)
-
-		return err
-	}, 10*time.Second, 1*time.Second).Should(BeNil(), fmt.Sprintf("Failed to pull NAD %s", sriovAndResourceNameExposeMTU))
+	sriovNetworkBuilder := sriov.NewNetworkBuilder(APIClient, sriovAndResourceNameExposeMTU,
+		NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName, sriovAndResourceNameExposeMTU).
+		WithStaticIpam().WithMacAddressSupport().WithIPAddressSupport().WithLogLevel(netparam.LogLevelDebug)
+	err = sriovenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetworkBuilder, tsparams.NADWaitTimeout)
+	Expect(err).ToNot(HaveOccurred(),
+		"failed to create and wait for NAD creation for Sriov Network %s with error %v",
+		sriovAndResourceNameExposeMTU, err)
 
 	By("Creating test pod")
 

@@ -375,10 +375,13 @@ var _ = Describe(
 				Expect(err).ToNot(HaveOccurred(), "Failed cluster is not stable")
 
 				By("Define and create sriov-network for the promiscuous client")
-				_, err = sriov.NewNetworkBuilder(APIClient,
+				sriovNetworkBuilder := sriov.NewNetworkBuilder(APIClient,
 					srIovNetworkPromiscuous, NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName,
-					srIovPolicyResNameNetDevice).WithTrustFlag(true).WithLogLevel(netparam.LogLevelDebug).Create()
-				Expect(err).ToNot(HaveOccurred(), "Failed to create sriov network srIovNetworkPromiscuous")
+					srIovPolicyResNameNetDevice).WithTrustFlag(true).WithLogLevel(netparam.LogLevelDebug)
+				err = sriovenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetworkBuilder, tsparams.NADWaitTimeout)
+				Expect(err).ToNot(HaveOccurred(),
+					"failed to create and wait for NAD creation for Sriov Network %s with error %v",
+					srIovNetworkPromiscuous, err)
 
 				By("Define and create sriov-network with 802.1q S-VLAN")
 				defineAndCreateSrIovNetworkWithQinQ(srIovNetworkDot1Q, srIovPolicyResNameNetDevice, dot1q)
@@ -694,17 +697,13 @@ func defineAndCreateSrIovNetworkWithQinQ(srIovNetwork, resName, vlanProtocol str
 	vlan, err := strconv.Atoi(NetConfig.VLAN)
 	Expect(err).ToNot(HaveOccurred(), "Failed to convert VLAN value")
 
-	srIovNetworkObject, err := sriov.NewNetworkBuilder(
+	sriovNetworkBuilder := sriov.NewNetworkBuilder(
 		APIClient, srIovNetwork, NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName, resName).
-		WithVlanProto(vlanProtocol).WithVLAN(uint16(vlan)).WithLogLevel(netparam.LogLevelDebug).Create()
-	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to create sriov network %s", err))
-
-	Eventually(func() bool {
-		_, err := nad.Pull(APIClient, srIovNetworkObject.Object.Name, tsparams.TestNamespaceName)
-
-		return err == nil
-	}, tsparams.WaitTimeout, tsparams.RetryInterval).Should(BeTrue(),
-		"Fail to pull NetworkAttachmentDefinition")
+		WithVlanProto(vlanProtocol).WithVLAN(uint16(vlan)).WithLogLevel(netparam.LogLevelDebug)
+	err = sriovenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetworkBuilder, tsparams.NADWaitTimeout)
+	Expect(err).ToNot(HaveOccurred(),
+		"failed to create and wait for NAD creation for Sriov Network %s with error %v",
+		srIovNetwork, err)
 }
 
 func createPromiscuousClient(nodeName string, tcpDumpCMD []string) *pod.Builder {
@@ -1049,11 +1048,13 @@ func defineAndCreateSriovNetworks(sriovNetworkPromiscName, sriovNetworkDot1ADNam
 	sriovResName string) {
 	By("Define and create sriov-network for the promiscuous client")
 
-	_, err := sriov.NewNetworkBuilder(APIClient,
+	sriovNetworkBuilder := sriov.NewNetworkBuilder(APIClient,
 		sriovNetworkPromiscName, NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName,
-		sriovResName).WithTrustFlag(true).WithLogLevel(netparam.LogLevelDebug).Create()
+		sriovResName).WithTrustFlag(true).WithLogLevel(netparam.LogLevelDebug)
+	err := sriovenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetworkBuilder, tsparams.NADWaitTimeout)
 	Expect(err).ToNot(HaveOccurred(),
-		fmt.Sprintf("Failed to create sriov network srIovNetworkPromiscuous %s", err))
+		"failed to create and wait for NAD creation for Sriov Network %s with error %v",
+		sriovNetworkPromiscName, err)
 
 	By("Define and create sriov-network with 802.1ad S-VLAN")
 	defineAndCreateSrIovNetworkWithQinQ(sriovNetworkDot1ADName, sriovResName, "802.1ad")

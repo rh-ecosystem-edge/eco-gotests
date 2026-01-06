@@ -378,12 +378,15 @@ var _ = Describe("ExternallyManaged", Ordered, Label(tsparams.LabelExternallyMan
 				Expect(err).ToNot(HaveOccurred(), "Failed to configure SR-IOV policy")
 
 				By("Creating SR-IOV network")
-				_, err = sriov.NewNetworkBuilder(
+				sriovNetworkBuilder := sriov.NewNetworkBuilder(
 					APIClient, sriovAndResourceNameExManagedTrue, NetConfig.SriovOperatorNamespace,
 					tsparams.TestNamespaceName, sriovAndResourceNameExManagedTrue).
 					WithStaticIpam().WithMacAddressSupport().WithIPAddressSupport().WithVLAN(uint16(testVlan)).
-					WithLogLevel(netparam.LogLevelDebug).Create()
-				Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network")
+					WithLogLevel(netparam.LogLevelDebug)
+				err = sriovenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetworkBuilder, tsparams.NADWaitTimeout)
+				Expect(err).ToNot(HaveOccurred(),
+					"failed to create and wait for NAD creation for Sriov Network %s with error %v",
+					sriovAndResourceNameExManagedTrue, err)
 
 				By("Creating test pods and checking connectivity between test pods")
 				err = sriovenv.CreatePodsAndRunTraffic(workerNodeList[0].Object.Name, workerNodeList[1].Object.Name,
@@ -406,10 +409,14 @@ func createSriovConfiguration(sriovAndResName, sriovInterfaceName string, extern
 
 	By("Creating SR-IOV network")
 
-	_, err = sriov.NewNetworkBuilder(APIClient, sriovAndResName, NetConfig.SriovOperatorNamespace,
+	sriovNetworkExtManaged := sriov.NewNetworkBuilder(APIClient, sriovAndResName, NetConfig.SriovOperatorNamespace,
 		tsparams.TestNamespaceName, sriovAndResName).WithStaticIpam().WithMacAddressSupport().WithIPAddressSupport().
-		WithLogLevel(netparam.LogLevelDebug).Create()
-	Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network")
+		WithLogLevel(netparam.LogLevelDebug)
+
+	err = sriovenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetworkExtManaged, tsparams.NADWaitTimeout)
+	Expect(err).ToNot(HaveOccurred(),
+		"failed to create and wait for NAD creation for Sriov Network %s with error %v",
+		sriovAndResName, err)
 }
 
 // defineIterationParams defines ip settings for iteration based on ipFamily parameter.
