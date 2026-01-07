@@ -12,6 +12,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/mco"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/secret"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/serviceaccount"
@@ -433,10 +434,8 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 			kerMapOne, err := kernelMapping.BuildKernelMappingConfig()
 			Expect(err).ToNot(HaveOccurred(), "error creating kernel mapping")
 
-			By("Create ModuleLoaderContainer for firmware module")
+			By("Create ModuleLoaderContainer for firmware module (build only, no deployment)")
 			moduleLoaderContainer := kmm.NewModLoaderContainerBuilder(tsparams.FirmwareModuleName)
-			moduleLoaderContainer.WithModprobeSpec("/opt", tsparams.FirmwareFilesPath,
-				[]string{}, []string{}, []string{}, []string{})
 			moduleLoaderContainer.WithKernelMapping(kerMapOne)
 			moduleLoaderContainer.WithImagePullPolicy("Always")
 			moduleLoaderContainerCfg, err := moduleLoaderContainer.BuildModuleLoaderContainerCfg()
@@ -454,12 +453,23 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 			Expect(err).ToNot(HaveOccurred(), "error creating firmware module")
 			moduleCreated = true
 
-			By("Wait for firmware image to be available (build or existing)")
-			err = await.ModuleDeployment(APIClient, tsparams.FirmwareModuleName,
-				tsparams.FirmwareBuildNamespace, 10*time.Minute, GeneralConfig.WorkerLabelMap)
-			Expect(err).ToNot(HaveOccurred(), "error waiting for firmware module deployment")
+			By("Check if build is needed (give KMM time to create build pod)")
+			time.Sleep(10 * time.Second)
 
-			klog.V(kmmparams.KmmLogLevel).Infof("Firmware image built: %s", firmwareImage)
+			buildPods, err := pod.List(APIClient, tsparams.FirmwareBuildNamespace, metav1.ListOptions{
+				LabelSelector: "kmm.node.kubernetes.io/build.pod=true",
+			})
+			Expect(err).ToNot(HaveOccurred(), "error listing build pods")
+
+			if len(buildPods) > 0 {
+				By("Wait for build pod to complete (image does not exist in registry)")
+				err = await.BuildPodCompleted(APIClient, tsparams.FirmwareBuildNamespace, 10*time.Minute)
+				Expect(err).ToNot(HaveOccurred(), "error waiting for firmware image build")
+				klog.V(kmmparams.KmmLogLevel).Infof("Firmware image built: %s", firmwareImage)
+			} else {
+				klog.V(kmmparams.KmmLogLevel).Infof("No build pod created - image already exists: %s",
+					firmwareImage)
+			}
 
 			By("Delete the Module CR (image remains in registry)")
 			_, err = module.Delete()
