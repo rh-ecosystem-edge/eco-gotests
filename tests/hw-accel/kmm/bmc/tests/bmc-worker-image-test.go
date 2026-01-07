@@ -438,6 +438,7 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 			moduleLoaderContainer := kmm.NewModLoaderContainerBuilder(tsparams.FirmwareModuleName)
 			moduleLoaderContainer.WithKernelMapping(kerMapOne)
 			moduleLoaderContainer.WithImagePullPolicy("Always")
+			moduleLoaderContainer.WithVersion("first")
 			moduleLoaderContainerCfg, err := moduleLoaderContainer.BuildModuleLoaderContainerCfg()
 			Expect(err).ToNot(HaveOccurred(), "error creating moduleloadercontainer")
 
@@ -454,7 +455,7 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 			moduleCreated = true
 
 			By("Check if build is needed (give KMM time to create build pod)")
-			time.Sleep(10 * time.Second)
+			time.Sleep(30 * time.Second)
 
 			buildPods, err := pod.List(APIClient, tsparams.FirmwareBuildNamespace, metav1.ListOptions{
 				LabelSelector: "kmm.node.kubernetes.io/build.pod=true",
