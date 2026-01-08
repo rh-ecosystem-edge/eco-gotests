@@ -140,12 +140,9 @@ var _ = Describe("KMM-BMC-Firmware", Ordered, Label(kmmparams.LabelSuite, kmmpar
 				_, err = module.Create()
 				Expect(err).ToNot(HaveOccurred(), "error creating firmware module")
 
-				By("Wait for firmware image to be available")
-				err = await.ModuleDeployment(APIClient, tsparams.FirmwareModuleName,
-					tsparams.FirmwareBuildNamespace, 10*time.Minute, GeneralConfig.WorkerLabelMap)
-				if err != nil {
-					klog.V(kmmparams.KmmLogLevel).Infof("Module deployment wait returned: %v (may be expected)", err)
-				}
+				By("Wait for build pod to complete")
+				err = await.BuildPodCompleted(APIClient, tsparams.FirmwareBuildNamespace, 10*time.Minute)
+				Expect(err).ToNot(HaveOccurred(), "error waiting for build pod to complete")
 
 				By("Delete the Module CR (image remains in registry)")
 				_, err = module.Delete()
@@ -154,6 +151,10 @@ var _ = Describe("KMM-BMC-Firmware", Ordered, Label(kmmparams.LabelSuite, kmmpar
 				err = await.ModuleObjectDeleted(APIClient,
 					tsparams.FirmwareModuleName, tsparams.FirmwareBuildNamespace, time.Minute)
 				Expect(err).ToNot(HaveOccurred(), "error waiting for module to be deleted")
+
+				By("Verify firmware image exists after build")
+				_, err = check.ImageExists(APIClient, firmwareImageURL, GeneralConfig.WorkerLabelMap)
+				Expect(err).ToNot(HaveOccurred(), "firmware image should exist after build")
 
 				klog.V(kmmparams.KmmLogLevel).Infof("Firmware image built and available: %s", firmwareImageURL)
 			})
