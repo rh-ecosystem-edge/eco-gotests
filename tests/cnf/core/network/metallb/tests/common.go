@@ -298,7 +298,7 @@ func createExternalNadWithMasterInterface(name, masterInterface string) {
 
 func createBGPPeerAndVerifyIfItsReady(
 	name, peerIP, bfdProfileName string, remoteAsn uint32, eBgpMultiHop bool, connectTime int,
-	frrk8sPods []*pod.Builder) {
+	frrk8sPods []*pod.Builder, disableMP ...bool) {
 	By("Creating BGP Peer")
 
 	bgpPeer := metallb.NewBPGPeerBuilder(APIClient, name, NetConfig.MlbOperatorNamespace,
@@ -311,6 +311,10 @@ func createBGPPeerAndVerifyIfItsReady(
 	if connectTime != 0 {
 		// Convert connectTime int to time.Duration in seconds
 		bgpPeer.WithConnectTime(metav1.Duration{Duration: time.Duration(connectTime) * time.Second})
+	}
+
+	if len(disableMP) > 0 && disableMP[0] {
+		bgpPeer.WithDisableMP(true)
 	}
 
 	_, err := bgpPeer.Create()

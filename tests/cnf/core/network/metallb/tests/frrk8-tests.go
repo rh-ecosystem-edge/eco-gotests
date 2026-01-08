@@ -2,13 +2,16 @@ package tests
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	operatorv1 "github.com/openshift/api/operator/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/configmap"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/metallb"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/network"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nmstate"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
@@ -23,9 +26,17 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/metallb/internal/frr"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/metallb/internal/metallbenv"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/metallb/internal/tsparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	gomegatypes "github.com/onsi/gomega/types"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ovn"
+	ovnv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ovn/routeadvertisement/v1"
+	ovntypes "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ovn/types"
 )
 
 var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFailure, func() {
@@ -144,13 +155,12 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 					removePrefixFromIPList(nodeAddrList), addressPool)
 
 				By("Create a frrconfiguration allow all")
-				createFrrConfiguration(frrCongigAllowAll, ipv4metalLbIPList[0], tsparams.LocalBGPASN,
-					nil, false, false)
+				createFrrConfiguration(frrCongigAllowAll, ipv4metalLbIPList[0], tsparams.LocalBGPASN, nil, false, false)
 
 				By("Verify that the node FRR pods advertises two routes")
 				verifyExternalAdvertisedRoutes(frrPod, ipv4NodeAddrList, externalAdvertisedIPv4Routes)
 
-				By("Validate both BGP routes are received")
+				By("Validate both external BGP routes are received by FRR-K8s speakers")
 				verifyReceivedRoutes(frrk8sPods, externalAdvertisedIPv4Routes[0])
 				verifyReceivedRoutes(frrk8sPods, externalAdvertisedIPv4Routes[1])
 			})
@@ -616,6 +626,81 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 			})
 	})
 
+	Context("OVN-K RouteAdvertisements", func() {
+		var (
+			nodeAddrList []string
+			addressPool  []string
+			frrk8sPods   []*pod.Builder
+			err          error
+		)
+
+		BeforeAll(func() {
+			By("Enabling OVN-K RouteAdvertisements on the cluster")
+			enableOVNKRouteAdvertisements()
+
+			By("Setting test iteration parameters")
+			_, _, _, nodeAddrList, addressPool, _, err =
+				metallbenv.DefineIterationParams(
+					ipv4metalLbIPList, ipv6metalLbIPList, ipv4NodeAddrList, ipv6NodeAddrList, netparam.IPV4Family)
+			Expect(err).ToNot(HaveOccurred(), "Fail to set iteration parameters")
+		})
+
+		AfterAll(func() {
+			By("Disabling OVN-K RouteAdvertisements on the cluster")
+			disableOVNKRouteAdvertisements()
+		})
+
+		AfterEach(func() {
+			By("Clean metallb operator and test namespaces")
+			resetOperatorAndTestNS()
+
+			By("Cleaning up RouteAdvertisement resources")
+			cleanupRouteAdvertisements()
+		})
+
+		It("Verify OVN-K RouteAdvertisement advertises pod network routes to external FRR",
+			reportxml.ID("86912"), func() {
+
+				By("Creating a new instance of MetalLB Speakers on workers")
+				err = metallbenv.CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(tsparams.DefaultTimeout, workerLabelMap)
+				Expect(err).ToNot(HaveOccurred(), "Failed to recreate metalLb daemonset")
+
+				By("Verifying that the frrk8sPod deployment is in Ready state and create a list of the pods on " +
+					"worker nodes.")
+				frrk8sPods = verifyAndCreateFRRk8sPodList()
+
+				frrPod := deployTestPods(addressPool, hubIPv4ExternalAddresses, externalAdvertisedIPv4Routes,
+					externalAdvertisedIPv6Routes)
+
+				By("Creating BGP Peers with multipath disabled for RouteAdvertisement compatibility")
+				createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, ipv4metalLbIPList[0], "",
+					tsparams.LocalBGPASN, false, 0, frrk8sPods, true)
+
+				By("Checking that BGP session is established and up")
+				verifyMetalLbBGPSessionsAreUPOnFrrPod(frrPod, netcmd.RemovePrefixFromIPList(ipv4NodeAddrList))
+
+				By("Validating BGP route prefix")
+				validatePrefix(frrPod, netparam.IPV4Family, netparam.IPSubnetInt32,
+					removePrefixFromIPList(nodeAddrList), addressPool)
+
+				By("Create a RouteAdvertisement-compatible FRR configuration")
+				createOVNKCompatibleFRRConfiguration(frrCongigAllowAll, ipv4metalLbIPList[0], tsparams.LocalBGPASN)
+
+				By("Verify that the node FRR pods advertises two routes")
+				verifyExternalAdvertisedRoutes(frrPod, ipv4NodeAddrList, externalAdvertisedIPv4Routes)
+
+				By("Creating OVN-K RouteAdvertisement for pod network")
+				createOVNKRouteAdvertisementAndWaitUntilReady("test-routeadvertisement")
+
+				By("Validate both external BGP routes are received by FRR-K8s speakers")
+				verifyReceivedRoutes(frrk8sPods, externalAdvertisedIPv4Routes[0])
+				verifyReceivedRoutes(frrk8sPods, externalAdvertisedIPv4Routes[1])
+
+				By("Verify external FRR pod receives OVN-K pod network routes via RouteAdvertisement")
+				verifyOVNKPodNetworkRoutesReceived(frrPod)
+			})
+	})
+
 })
 
 func deployTestPods(addressPool, hubIPAddresses, externalAdvertisedIPv4Routes,
@@ -824,4 +909,199 @@ func verifyBlockedRoutes(frrk8sPods []*pod.Builder, blockedPrefixes string) {
 		return routes
 	}, 60*time.Second, 5*time.Second).Should(Not(ContainSubstring(blockedPrefixes)),
 		"Failed the blocked route was  received.")
+}
+
+func createOVNKRouteAdvertisementAndWaitUntilReady(name string) {
+	By(fmt.Sprintf("Creating OVN RouteAdvertisement '%s' for PodNetwork", name))
+
+	// Define advertisement types
+	advertisements := []ovnv1.AdvertisementType{ovnv1.PodNetwork}
+
+	// Create selectors to match YAML spec
+	nodeSelector := metav1.LabelSelector{}
+	frrConfigurationSelector := metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			"routeadvertisement.k8s.ovn.org": "enabled",
+		},
+	}
+	networkSelectors := ovntypes.NetworkSelectors{
+		{NetworkSelectionType: ovntypes.DefaultNetwork},
+	}
+
+	routeAdv, err := ovn.NewRouteAdvertisementBuilder(
+		APIClient,
+		name).
+		WithAdvertisements(advertisements).
+		WithNodeSelector(nodeSelector).
+		WithFRRConfigurationSelector(frrConfigurationSelector).
+		WithNetworkSelectors(networkSelectors).
+		Create()
+	Expect(err).ToNot(HaveOccurred(), "Failed to create RouteAdvertisement")
+
+	By("Waiting for RouteAdvertisement to be accepted")
+
+	Eventually(func() string {
+		refreshed, err := routeAdv.Get()
+		if err != nil {
+			return ""
+		}
+
+		return refreshed.Status.Status
+	}, time.Minute, 5*time.Second).Should(Equal("Accepted"),
+		"RouteAdvertisement should reach Accepted status")
+}
+
+// createOVNKCompatibleFRRConfiguration creates an FRR config with multipath disabled for RouteAdvertisement.
+func createOVNKCompatibleFRRConfiguration(name, bgpPeerIP string, remoteAS uint32) {
+	By("Creating RouteAdvertisement-compatible FRR Configuration")
+
+	frrConfig := metallb.NewFrrConfigurationBuilder(APIClient, name,
+		NetConfig.Frrk8sNamespace).
+		WithBGPRouter(tsparams.LocalBGPASN).
+		WithBGPNeighbor(bgpPeerIP, remoteAS, 0).
+		WithToReceiveModeAll(0, 0).
+		WithBGPPassword("bgp-test", 0, 0).
+		WithPort(179, 0, 0).
+		WithBGPNeighborDisableMP(true, 0, 0)
+
+	// Add label for RouteAdvertisement selector matching
+	frrConfig.Definition.Labels = map[string]string{
+		"routeadvertisement.k8s.ovn.org": "enabled",
+	}
+
+	_, err := frrConfig.Create()
+	Expect(err).ToNot(HaveOccurred(), "Failed to create RouteAdvertisement-compatible FRR configuration")
+}
+
+// getClusterPodNetworkCIDR retrieves the IPv4 cluster pod network CIDR from the network operator configuration.
+func getClusterPodNetworkCIDR() (string, uint32) {
+	By("Getting cluster network configuration from network operator")
+
+	clusterNetwork, err := cluster.GetOCPNetworkOperatorConfig(APIClient)
+	Expect(err).ToNot(HaveOccurred(), "Failed to get network operator config")
+
+	networkObj, err := clusterNetwork.Get()
+	Expect(err).ToNot(HaveOccurred(), "Failed to get network object")
+	Expect(networkObj.Spec.ClusterNetwork).ToNot(BeEmpty(), "No cluster networks defined in network operator")
+
+	var (
+		clusterCIDR string
+		hostPrefix  uint32
+	)
+
+	for _, clusterNet := range networkObj.Spec.ClusterNetwork {
+		// Check if this is an IPv4 CIDR (doesn't contain ":")
+		if !strings.Contains(clusterNet.CIDR, ":") {
+			clusterCIDR = clusterNet.CIDR
+			hostPrefix = clusterNet.HostPrefix
+
+			break
+		}
+	}
+
+	Expect(clusterCIDR).ToNot(BeEmpty(), "No IPv4 cluster network found in network operator config")
+
+	klog.V(90).Infof("Cluster pod network CIDR: %s with host prefix: /%d", clusterCIDR, hostPrefix)
+
+	return clusterCIDR, hostPrefix
+}
+
+// verifyOVNKPodNetworkRoutesReceived verifies that the external FRR pod receives
+// pod network routes advertised by OVN-K RouteAdvertisement within the cluster network range.
+func verifyOVNKPodNetworkRoutesReceived(frrPod *pod.Builder) {
+	By("Verifying external FRR pod receives OVN-K pod network routes from RouteAdvertisement")
+
+	clusterCIDR, hostPrefix := getClusterPodNetworkCIDR()
+
+	By(fmt.Sprintf("Expecting pod network routes within %s (with /%d subnets per node)", clusterCIDR, hostPrefix))
+
+	// Parse the cluster CIDR to extract the base network for matching
+	// Example: "10.128.0.0/14" -> we'll look for routes starting with "10.128.", "10.129.", "10.130.", "10.131."
+	cidrParts := strings.Split(clusterCIDR, "/")
+	Expect(cidrParts).To(HaveLen(2), "invalid CIDR format: %s", clusterCIDR)
+
+	baseIP := cidrParts[0]
+
+	ipParts := strings.Split(baseIP, ".")
+	Expect(ipParts).To(HaveLen(4), "invalid IP format: %s", baseIP)
+
+	// Calculate the number of /16 ranges based on the CIDR prefix length
+	// For a /14 network like 10.128.0.0/14, valid ranges are 10.128-131.x.x (4 ranges)
+	// For a /16 network like 10.128.0.0/16, valid range is just 10.128.x.x (1 range)
+	cidrMaskBits, err := strconv.Atoi(cidrParts[1])
+	Expect(err).ToNot(HaveOccurred(), "Failed to parse CIDR mask bits")
+
+	numRanges := 1 << (16 - cidrMaskBits) // 2^(16 - maskBits) gives number of /16 ranges
+	if numRanges > 4 {
+		numRanges = 4 // Cap at 4 for practical checking
+	}
+
+	if numRanges < 1 {
+		numRanges = 1
+	}
+
+	secondOctet, err := strconv.Atoi(ipParts[1])
+	Expect(err).ToNot(HaveOccurred(), "Failed to parse second octet")
+
+	// Build matchers dynamically based on calculated range
+	matchers := make([]gomegatypes.GomegaMatcher, numRanges)
+	for i := range numRanges {
+		matchers[i] = ContainSubstring(fmt.Sprintf("%s.%d.", ipParts[0], secondOctet+i))
+	}
+
+	Eventually(func() string {
+		output, err := frrPod.ExecCommand([]string{"vtysh", "-c", "show ip bgp"})
+		if err != nil {
+			By(fmt.Sprintf("Failed to get BGP routes from external FRR pod: %v", err))
+
+			return ""
+		}
+
+		routes := output.String()
+
+		return routes
+	}, 3*time.Minute, 15*time.Second).Should(SatisfyAny(matchers...),
+		fmt.Sprintf("External FRR pod should receive pod network routes (/%d subnets) "+
+			"from cluster network %s via OVN-K RouteAdvertisement", hostPrefix, clusterCIDR))
+}
+
+// enableOVNKRouteAdvertisements enables RouteAdvertisements on the OVN-K network configuration.
+func enableOVNKRouteAdvertisements() {
+	By("Enabling RouteAdvertisements on network operator")
+
+	networkOperator, err := network.PullOperator(APIClient)
+	Expect(err).ToNot(HaveOccurred(), "Failed to pull network operator")
+
+	_, err = networkOperator.SetRouteAdvertisements(operatorv1.RouteAdvertisementsEnabled, 5*time.Minute)
+	Expect(err).ToNot(HaveOccurred(), "Failed to enable RouteAdvertisements on network operator")
+}
+
+// disableOVNKRouteAdvertisements disables RouteAdvertisements on the OVN-K network configuration.
+func disableOVNKRouteAdvertisements() {
+	By("Disabling RouteAdvertisements on network operator")
+
+	networkOperator, err := network.PullOperator(APIClient)
+	Expect(err).ToNot(HaveOccurred(), "Failed to pull network operator")
+
+	_, err = networkOperator.SetRouteAdvertisements(operatorv1.RouteAdvertisementsDisabled, 5*time.Minute)
+	Expect(err).ToNot(HaveOccurred(), "Failed to disable RouteAdvertisements on network operator")
+}
+
+// cleanupRouteAdvertisements removes test-created RouteAdvertisement resources from the cluster.
+func cleanupRouteAdvertisements() {
+	By("Cleaning up RouteAdvertisement resources")
+
+	listRA, err := ovn.ListRouteAdvertisements(APIClient)
+	Expect(err).ToNot(HaveOccurred(), "Failed to list RouteAdvertisements")
+
+	for _, routeAdv := range listRA {
+		// Only delete test-created RouteAdvertisements (prefix "test-")
+		if !strings.HasPrefix(routeAdv.Definition.Name, "test-") {
+			continue
+		}
+
+		err := routeAdv.Delete()
+		Expect(err).ToNot(HaveOccurred(),
+			fmt.Sprintf("Failed to delete RouteAdvertisement %s", routeAdv.Definition.Name))
+	}
 }
