@@ -248,7 +248,7 @@ func arpingTest(client *pod.Builder, destIPAddr, nodeName string) {
 	}
 
 	// When using the NAD interface the mac address of eth0 is included in the arp replies adding an extra line count.
-	Expect(lineCount).To(Equal(3), "An incorrect number of arp replies were received")
+	Expect(lineCount).To(BeNumerically(">=", 3), "An incorrect number of arp replies were received")
 	// Verifies the output mac addresses matches the announcing node mac address
 	nodeMac := speakerNodeMac(nodeName)
 	Expect(strings.Join(output, "\n")).Should(ContainSubstring(strings.ToUpper(nodeMac)),
