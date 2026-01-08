@@ -75,6 +75,7 @@ var _ = Describe("KMM-BMC-Firmware", Ordered, Label(kmmparams.LabelSuite, kmmpar
 
 				if err == nil {
 					klog.V(kmmparams.KmmLogLevel).Infof("Firmware image already exists: %s", firmwareImageURL)
+
 					return
 				}
 
