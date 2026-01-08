@@ -1,4 +1,18 @@
+FROM --platform=$BUILDPLATFORM registry.access.redhat.com/ubi9/ubi:latest AS fetcher
+
+ARG GO_VER=go1.23.2
+RUN dnf install -y tar
+
+ARG TARGETARCH
+RUN arch=$(echo ${TARGETARCH} | sed s/aarch64/arm64/ | sed s/x86_64/amd64/) && \
+    curl -Ls https://go.dev/dl/${GO_VER}.linux-${arch}.tar.gz | tar -C /usr/local -xzf -
+
 FROM registry.access.redhat.com/ubi9/ubi:latest
+
+# We had issues with extracting the Go tarball using emulation, so this way we
+# extract it natively and then copy to the final image with the target
+# architecture.
+COPY --from=fetcher /usr/local/go /usr/local/go
 
 ARG GO_VER=go1.23.2
 ARG GINKGO_VER=ginkgo@v2.20.2
@@ -12,8 +26,6 @@ LABEL container.user=${CONTAINERUSER}
 ENV PATH "$PATH:/usr/local/go/bin:/root/go/bin"
 RUN dnf install -y tar gcc make && \
     dnf clean metadata packages && \
-    arch=$(arch | sed s/aarch64/arm64/ | sed s/x86_64/amd64/) && \
-    curl -Ls https://go.dev/dl/${GO_VER}.linux-${arch}.tar.gz |tar -C /usr/local -xzf -  && \
     useradd -U -u 1000 -m -d /home/${CONTAINERUSER} -s /usr/bin/bash ${CONTAINERUSER}
 
 USER ${CONTAINERUSER}
