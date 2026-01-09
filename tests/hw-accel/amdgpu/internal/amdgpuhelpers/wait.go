@@ -2,7 +2,10 @@ package amdgpuhelpers
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -10,6 +13,7 @@ import (
 	configclient "github.com/openshift/client-go/config/clientset/versioned"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	amdgpuparams "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/params"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,6 +23,81 @@ import (
 	watchtools "k8s.io/client-go/tools/watch"
 	"k8s.io/klog/v2"
 )
+
+// devicePluginStatus holds the status of device-plugin/node-labeller pods.
+type devicePluginStatus struct {
+	found      bool
+	allRunning bool
+	count      int
+}
+
+// checkDevicePluginPods evaluates the status of device-plugin and node-labeller pods.
+func checkDevicePluginPods(podList *corev1.PodList) devicePluginStatus {
+	status := devicePluginStatus{allRunning: true}
+
+	for i := range podList.Items {
+		podItem := &podList.Items[i]
+
+		if !isDevicePluginOrNodeLabeller(podItem.Name) {
+			continue
+		}
+
+		status.found = true
+
+		if podItem.Status.Phase == corev1.PodRunning {
+			status.count++
+		} else {
+			klog.V(amdgpuparams.AMDGPULogLevel).Infof(
+				"Pod %s is %s", podItem.Name, podItem.Status.Phase)
+
+			status.allRunning = false
+		}
+	}
+
+	return status
+}
+
+// isDevicePluginOrNodeLabeller checks if a pod name matches device-plugin or node-labeller patterns.
+func isDevicePluginOrNodeLabeller(name string) bool {
+	return strings.Contains(name, "device-plugin") ||
+		(strings.Contains(name, "node-labeller") && !strings.Contains(name, "build"))
+}
+
+// driverInitResult represents the result of checking a driver-init container.
+type driverInitResult struct {
+	ready bool
+	err   error
+}
+
+// checkDriverInitContainer checks the status of a driver-init container.
+func checkDriverInitContainer(initStatus corev1.ContainerStatus, podName string) driverInitResult {
+	switch {
+	case initStatus.State.Terminated != nil:
+		if initStatus.State.Terminated.ExitCode == 0 {
+			klog.V(amdgpuparams.AMDGPULogLevel).Infof(
+				"✅ driver-init completed for pod %s", podName)
+
+			return driverInitResult{ready: true}
+		}
+
+		return driverInitResult{
+			err: fmt.Errorf("driver-init failed for pod %s with exit code %d",
+				podName, initStatus.State.Terminated.ExitCode),
+		}
+	case initStatus.State.Running != nil:
+		klog.V(amdgpuparams.AMDGPULogLevel).Infof(
+			"driver-init still running for pod %s (waiting for amdgpu module)...", podName)
+
+		return driverInitResult{ready: false}
+	case initStatus.State.Waiting != nil:
+		klog.V(amdgpuparams.AMDGPULogLevel).Infof(
+			"driver-init waiting for pod %s: %s", podName, initStatus.State.Waiting.Reason)
+
+		return driverInitResult{ready: false}
+	default:
+		return driverInitResult{ready: false}
+	}
+}
 
 // WaitForClusterStabilityAfterDeviceConfig waits for the cluster to stabilize after DeviceConfig creation.
 func WaitForClusterStabilityAfterDeviceConfig(apiClients *clients.Settings) error {
@@ -188,4 +267,466 @@ func waitForClientConfig(ctx context.Context, wg *sync.WaitGroup, apiClients *cl
 	if err != nil {
 		errChan <- fmt.Errorf("failed waiting for clusteroperators to become stable: %w", err)
 	}
+}
+
+// isConnectionError checks if the error is a connection-related error.
+// These errors typically occur when the API server is unavailable during node reboot.
+func isConnectionError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errStr := err.Error()
+
+	// Check for common connection error patterns
+	connectionPatterns := []string{
+		"connection refused",
+		"connection reset",
+		"no such host",
+		"i/o timeout",
+		"network is unreachable",
+		"EOF",
+		"context deadline exceeded",
+		"TLS handshake timeout",
+		"dial tcp",
+		"connect: connection timed out",
+	}
+
+	for _, pattern := range connectionPatterns {
+		if strings.Contains(strings.ToLower(errStr), strings.ToLower(pattern)) {
+			return true
+		}
+	}
+
+	// Check for net.Error interface (timeout errors)
+	var netErr net.Error
+
+	if errors.As(err, &netErr) {
+		return netErr.Timeout()
+	}
+
+	return false
+}
+
+// WaitForPodRunningResilient waits for a pod to be in Running state with resilient retry logic.
+// It handles connection errors that may occur during SNO node reboots by retrying with backoff.
+// Parameters:
+//   - podBuilder: The pod to wait for
+//   - timeout: Total timeout for the operation
+//   - isSNO: Whether this is a Single Node OpenShift environment (uses longer timeouts)
+func WaitForPodRunningResilient(podBuilder *pod.Builder, timeout time.Duration, isSNO bool) error {
+	if isSNO {
+		klog.V(amdgpuparams.AMDGPULogLevel).Info("SNO environment detected - using extended timeout for pod running check")
+
+		if timeout < amdgpuparams.SNOPodRunningTimeout {
+			timeout = amdgpuparams.SNOPodRunningTimeout
+		}
+	}
+
+	startTime := time.Now()
+	retryCount := 0
+	lastErr := fmt.Errorf("no attempts made")
+
+	for time.Since(startTime) < timeout {
+		// Try to wait for pod to be running with a shorter sub-timeout
+		subTimeout := amdgpuparams.DefaultTimeout
+		if isSNO {
+			subTimeout = 2 * time.Minute // Shorter sub-timeout for individual checks
+		}
+
+		err := podBuilder.WaitUntilRunning(subTimeout)
+		if err == nil {
+			klog.V(amdgpuparams.AMDGPULogLevel).Infof("Pod %s is now running after %d retries",
+				podBuilder.Object.Name, retryCount)
+
+			return nil
+		}
+
+		lastErr = err
+
+		// Check if this is a connection error (node might be rebooting)
+		if isConnectionError(err) {
+			retryCount++
+			klog.V(amdgpuparams.AMDGPULogLevel).Infof(
+				"Connection error while waiting for pod %s (retry %d/%d): %v. "+
+					"Node may be rebooting, will retry in %v",
+				podBuilder.Object.Name, retryCount, amdgpuparams.MaxConnectionRetries,
+				err, amdgpuparams.ConnectionRetryInterval)
+
+			if retryCount >= amdgpuparams.MaxConnectionRetries {
+				return fmt.Errorf("max retries (%d) exceeded waiting for pod %s: %w",
+					amdgpuparams.MaxConnectionRetries, podBuilder.Object.Name, err)
+			}
+
+			// Wait before retrying
+			time.Sleep(amdgpuparams.ConnectionRetryInterval)
+
+			continue
+		}
+
+		// For non-connection errors, check if pod exists and is in an error state
+		klog.V(amdgpuparams.AMDGPULogLevel).Infof(
+			"Non-connection error waiting for pod %s: %v. Will retry...",
+			podBuilder.Object.Name, err)
+
+		time.Sleep(10 * time.Second)
+	}
+
+	return fmt.Errorf("timeout (%v) waiting for pod %s to be running: %w",
+		timeout, podBuilder.Object.Name, lastErr)
+}
+
+// WaitForPodsRunningResilient waits for multiple pods to be in Running state with resilient retry logic.
+// It first waits for cluster stability (if SNO) then waits for each pod.
+func WaitForPodsRunningResilient(
+	apiClient *clients.Settings,
+	podBuilders []*pod.Builder,
+	isSNO bool,
+) error {
+	if len(podBuilders) == 0 {
+		return fmt.Errorf("no pods provided to wait for")
+	}
+
+	// For SNO, first wait for cluster stability since node may have rebooted
+	if isSNO {
+		klog.V(amdgpuparams.AMDGPULogLevel).Info(
+			"SNO environment: waiting for cluster stability before checking pods")
+
+		err := WaitForClusterStability(apiClient, amdgpuparams.SNOClusterStabilityTimeout)
+		if err != nil {
+			klog.V(amdgpuparams.AMDGPULogLevel).Infof(
+				"Cluster stability check had issues (continuing anyway): %v", err)
+		}
+	}
+
+	// Wait for each pod with resilient retry
+	for _, podBuilder := range podBuilders {
+		klog.V(amdgpuparams.AMDGPULogLevel).Infof(
+			"Waiting for pod %s to be running (SNO=%t)", podBuilder.Object.Name, isSNO)
+
+		timeout := amdgpuparams.DefaultTimeout
+		if isSNO {
+			timeout = amdgpuparams.SNOPodRunningTimeout
+		}
+
+		err := WaitForPodRunningResilient(podBuilder, timeout, isSNO)
+		if err != nil {
+			return fmt.Errorf("failed waiting for pod %s: %w", podBuilder.Object.Name, err)
+		}
+	}
+
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("All pods are now running")
+
+	return nil
+}
+
+// WaitForClusterStabilityAfterNodeLabeller waits for cluster stability after Node Labeller is enabled.
+// This is important for SNO where enabling Node Labeller may trigger driver loading and potential reboot.
+func WaitForClusterStabilityAfterNodeLabeller(apiClient *clients.Settings, isSNO bool) error {
+	timeout := amdgpuparams.ClusterStabilityTimeout
+
+	if isSNO {
+		klog.V(amdgpuparams.AMDGPULogLevel).Info(
+			"SNO environment detected - using extended timeout for cluster stability after Node Labeller")
+
+		timeout = amdgpuparams.SNOClusterStabilityTimeout
+	}
+
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("Waiting for cluster stability after enabling Node Labeller")
+
+	return WaitForClusterStability(apiClient, timeout)
+}
+
+// WaitForAMDGPUDriverReady waits for the AMD GPU driver to be built and loaded by KMM.
+// This checks for KMM build pods to complete and driver-container pods to be running.
+func WaitForAMDGPUDriverReady(apiClient *clients.Settings, isSNO bool) error {
+	timeout := amdgpuparams.ClusterStabilityTimeout
+	if isSNO {
+		timeout = amdgpuparams.SNOClusterStabilityTimeout
+	}
+
+	klog.V(amdgpuparams.AMDGPULogLevel).Infof(
+		"Waiting for AMD GPU driver to be ready (timeout: %v)...", timeout)
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	// First, wait for any KMM build pods to complete
+	err := waitForKMMBuildPodsComplete(ctx, apiClient)
+	if err != nil {
+		return fmt.Errorf("KMM build pods did not complete: %w", err)
+	}
+
+	// Then, wait for driver-container pods to be running
+	err = waitForDriverContainerPods(ctx, apiClient, isSNO)
+	if err != nil {
+		return fmt.Errorf("driver-container pods not ready: %w", err)
+	}
+
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("✅ AMD GPU driver is ready")
+
+	return nil
+}
+
+// waitForKMMBuildPodsComplete waits for KMM build pods to complete (succeed or no longer exist).
+func waitForKMMBuildPodsComplete(ctx context.Context, apiClient *clients.Settings) error {
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("Checking for KMM build pods...")
+
+	retryInterval := 30 * time.Second
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			// Look for build pods in the AMD GPU namespace
+			podList, err := apiClient.CoreV1Interface.Pods(amdgpuparams.AMDGPUNamespace).List(
+				ctx, metav1.ListOptions{})
+			if err != nil {
+				if isConnectionError(err) {
+					klog.V(amdgpuparams.AMDGPULogLevel).Infof(
+						"Connection error checking build pods (retrying): %v", err)
+					time.Sleep(retryInterval)
+
+					continue
+				}
+
+				return fmt.Errorf("failed to list pods: %w", err)
+			}
+
+			buildPodsFound := false
+			buildPodsCompleted := true
+
+			for i := range podList.Items {
+				podItem := &podList.Items[i]
+
+				// Look for build pods (typically have "build" in the name)
+				if strings.Contains(podItem.Name, "build") {
+					buildPodsFound = true
+
+					klog.V(amdgpuparams.AMDGPULogLevel).Infof(
+						"Found build pod: %s, phase: %s", podItem.Name, podItem.Status.Phase)
+
+					switch podItem.Status.Phase {
+					case corev1.PodRunning, corev1.PodPending:
+						buildPodsCompleted = false
+					case corev1.PodFailed, corev1.PodUnknown:
+						return fmt.Errorf("build pod %s failed", podItem.Name)
+					case corev1.PodSucceeded:
+						buildPodsCompleted = true
+					}
+				}
+			}
+
+			if !buildPodsFound {
+				klog.V(amdgpuparams.AMDGPULogLevel).Info(
+					"No build pods found - driver may already be built or using pre-built image")
+
+				return nil
+			}
+
+			if buildPodsCompleted {
+				klog.V(amdgpuparams.AMDGPULogLevel).Info("✅ All KMM build pods completed successfully")
+
+				return nil
+			}
+
+			klog.V(amdgpuparams.AMDGPULogLevel).Info("Build pods still running, waiting...")
+			time.Sleep(retryInterval)
+		}
+	}
+}
+
+// waitForDriverContainerPods waits for device-plugin pods to be running on AMD GPU nodes.
+// The AMD GPU operator creates device-plugin pods (not driver-container) after the driver is loaded.
+func waitForDriverContainerPods(ctx context.Context, apiClient *clients.Settings, _ bool) error {
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("Waiting for device-plugin pods to be running...")
+
+	retryInterval := 30 * time.Second
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			podList, err := apiClient.CoreV1Interface.Pods(amdgpuparams.AMDGPUNamespace).List(
+				ctx, metav1.ListOptions{})
+			if err != nil {
+				if isConnectionError(err) {
+					klog.V(amdgpuparams.AMDGPULogLevel).Infof(
+						"Connection error checking device-plugin pods (retrying): %v", err)
+					time.Sleep(retryInterval)
+
+					continue
+				}
+
+				return fmt.Errorf("failed to list pods: %w", err)
+			}
+
+			status := checkDevicePluginPods(podList)
+
+			if status.found && status.allRunning && status.count > 0 {
+				klog.V(amdgpuparams.AMDGPULogLevel).Infof(
+					"✅ Driver is ready - %d device-plugin/node-labeller pods running", status.count)
+
+				return nil
+			}
+
+			if !status.found {
+				klog.V(amdgpuparams.AMDGPULogLevel).Info(
+					"No device-plugin pods found yet, waiting for driver to be loaded...")
+			}
+
+			time.Sleep(retryInterval)
+		}
+	}
+}
+
+// VerifyGPUHardwareReady checks if the AMD GPU hardware is properly initialized.
+// This validates that the driver loaded successfully by checking node capacity.
+// Returns an error with detailed info if GPU is not usable (e.g., PCI passthrough issues).
+func VerifyGPUHardwareReady(apiClient *clients.Settings, nodeName string) error {
+	klog.V(amdgpuparams.AMDGPULogLevel).Infof("Verifying GPU hardware is ready on node %s", nodeName)
+
+	// Check if node has amd.com/gpu capacity > 0
+	node, err := apiClient.CoreV1Interface.Nodes().Get(
+		context.Background(), nodeName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get node %s: %w", nodeName, err)
+	}
+
+	gpuCapacity, exists := node.Status.Capacity["amd.com/gpu"]
+	if !exists {
+		return fmt.Errorf("node %s does not have amd.com/gpu capacity - "+
+			"driver may have failed to initialize. Check dmesg for 'amdgpu: Fatal error during GPU init' "+
+			"which indicates PCI passthrough reset issues", nodeName)
+	}
+
+	gpuCount := gpuCapacity.Value()
+	if gpuCount == 0 {
+		return fmt.Errorf("node %s has 0 AMD GPUs - device plugin reports no usable GPUs", nodeName)
+	}
+
+	klog.V(amdgpuparams.AMDGPULogLevel).Infof("✅ Node %s has %d AMD GPU(s) available", nodeName, gpuCount)
+
+	return nil
+}
+
+// WaitForNodeLabellerDriverInit waits for the Node Labeller's driver-init container to complete.
+// The driver-init container waits for the amdgpu kernel module to be loaded before the main
+// node-labeller container can start and apply labels.
+// This is critical because KMM driver build + load can take 10-20 minutes.
+func WaitForNodeLabellerDriverInit(apiClient *clients.Settings, timeout time.Duration) error {
+	klog.V(amdgpuparams.AMDGPULogLevel).Infof(
+		"Waiting for Node Labeller driver-init containers to complete (timeout: %v)...", timeout)
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	retryInterval := 30 * time.Second
+
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("timeout waiting for driver-init containers to complete")
+		default:
+			ready, err := checkNodeLabellerPods(ctx, apiClient, retryInterval)
+			if err != nil {
+				return err
+			}
+
+			if ready {
+				return nil
+			}
+
+			time.Sleep(retryInterval)
+		}
+	}
+}
+
+// checkNodeLabellerPods checks all node-labeller pods and returns true if all are ready.
+func checkNodeLabellerPods(ctx context.Context, apiClient *clients.Settings,
+	retryInterval time.Duration) (bool, error) {
+	podList, err := apiClient.CoreV1Interface.Pods(amdgpuparams.AMDGPUNamespace).List(
+		ctx, metav1.ListOptions{})
+	if err != nil {
+		if isConnectionError(err) {
+			klog.V(amdgpuparams.AMDGPULogLevel).Infof(
+				"Connection error checking pods (retrying): %v", err)
+			time.Sleep(retryInterval)
+
+			return false, nil
+		}
+
+		return false, fmt.Errorf("failed to list pods: %w", err)
+	}
+
+	allInitContainersReady := true
+	nodeLabellerFound := false
+
+	for i := range podList.Items {
+		podItem := &podList.Items[i]
+
+		if !strings.Contains(podItem.Name, "node-labeller") {
+			continue
+		}
+
+		nodeLabellerFound = true
+
+		ready, err := checkPodDriverInit(podItem)
+		if err != nil {
+			return false, err
+		}
+
+		if !ready {
+			allInitContainersReady = false
+		}
+	}
+
+	if !nodeLabellerFound {
+		klog.V(amdgpuparams.AMDGPULogLevel).Info(
+			"No node-labeller pods found yet, waiting...")
+
+		return false, nil
+	}
+
+	if allInitContainersReady {
+		klog.V(amdgpuparams.AMDGPULogLevel).Info(
+			"✅ All Node Labeller driver-init containers completed")
+		klog.V(amdgpuparams.AMDGPULogLevel).Info(
+			"Waiting 30s for Node Labeller to apply labels...")
+		time.Sleep(30 * time.Second)
+
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// checkPodDriverInit checks the driver-init container status for a pod.
+func checkPodDriverInit(podItem *corev1.Pod) (bool, error) {
+	for _, initStatus := range podItem.Status.InitContainerStatuses {
+		if initStatus.Name != "driver-init" {
+			continue
+		}
+
+		result := checkDriverInitContainer(initStatus, podItem.Name)
+		if result.err != nil {
+			return false, result.err
+		}
+
+		if !result.ready {
+			return false, nil
+		}
+	}
+
+	// Check if main container is running
+	for _, containerStatus := range podItem.Status.ContainerStatuses {
+		if containerStatus.Name == "node-labeller-container" && containerStatus.Ready {
+			klog.V(amdgpuparams.AMDGPULogLevel).Infof(
+				"✅ node-labeller-container is ready for pod %s", podItem.Name)
+		}
+	}
+
+	return true, nil
 }
