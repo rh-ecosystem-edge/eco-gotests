@@ -312,4 +312,5 @@ var _ = Describe("KMM-BMC", Ordered, Label(kmmparams.LabelSuite, kmmparams.Label
 			Expect(err).ToNot(HaveOccurred(), "error waiting for machineconfigpool to finish updating")
 		})
 	})
+
 })

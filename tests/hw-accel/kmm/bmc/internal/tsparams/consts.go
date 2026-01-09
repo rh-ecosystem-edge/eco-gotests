@@ -32,6 +32,27 @@ const (
 
 	// MachineConfigInTreeRemoveName represents the MachineConfig name for inTreeModulesToRemove test.
 	MachineConfigInTreeRemoveName = "12-kmod-remove"
+
+	// BMCFirmwareName represents the name of the BMC for firmwareFilesPath test.
+	BMCFirmwareName = "bmc-firmware"
+
+	// MachineConfigFirmwareName represents the MachineConfig name for firmware test.
+	MachineConfigFirmwareName = "20-kmod-firm"
+
+	// FirmwareFilesPath represents the path where firmware files are located.
+	FirmwareFilesPath = "/firmware"
+
+	// FirmwareModuleName represents the firmware kernel module name.
+	FirmwareModuleName = "simple-kmod-firmware"
+
+	// FirmwareBuildNamespace represents the namespace for building the firmware image.
+	FirmwareBuildNamespace = "simple-kmod-firmware"
+
+	// FirmwareSecretName represents the secret name for external registry credentials.
+	FirmwareSecretName = "firmware-registry-secret"
+
+	// FirmwareServiceAccountName represents the service account for firmware build.
+	FirmwareServiceAccountName = "firmware-manager"
 )
 
 var (

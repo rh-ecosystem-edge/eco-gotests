@@ -303,7 +303,9 @@ func MachineConfigEnvVar(apiClient *clients.Settings, mcName, envVarName string)
 
 	klog.V(kmmparams.KmmLogLevel).Infof("Searching for %s in MachineConfig %s", envVarName, mcName)
 
-	pattern := regexp.MustCompile(fmt.Sprintf(`%s=(\S+)`, envVarName))
+	// Match the value until we hit an escaped quote (\") or regular quote
+	// In JSON-serialized MC, values are like: Environment=\"VAR=/value\"
+	pattern := regexp.MustCompile(fmt.Sprintf(`%s=([^"\\]+)`, envVarName))
 	matches := pattern.FindStringSubmatch(mcString)
 
 	if len(matches) < 2 {

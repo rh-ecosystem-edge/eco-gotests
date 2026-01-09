@@ -160,6 +160,11 @@ func Dmesg(apiClient *clients.Settings, message string, timeout time.Duration) e
 	return runCommandOnTestPods(apiClient, []string{"dmesg"}, message, timeout)
 }
 
+// DmesgOnNode verifies that dmesg on a specific node contains the expected message.
+func DmesgOnNode(apiClient *clients.Settings, message string, timeout time.Duration, nodeName string) error {
+	return runCommandOnTestPodsOnNode(apiClient, []string{"chroot", "/host", "dmesg"}, message, timeout, nodeName)
+}
+
 // ModuleSigned verifies the module is signed.
 func ModuleSigned(apiClient *clients.Settings, modName, message, nsname, image string) error {
 	modulePath := fmt.Sprintf("modinfo /opt/lib/modules/*/%s.ko", modName)
