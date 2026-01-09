@@ -426,6 +426,8 @@ func setupL2Advertisement(addressPool []string) *metallb.IPAddressPoolBuilder {
 		[]string{fmt.Sprintf("%s-%s", addressPool[0], addressPool[1])}).Create()
 	Expect(err).ToNot(HaveOccurred(), "Failed to create IPAddressPool")
 
+	validateaddresspool(ipAddressPool.Definition.Name, 2, 0, 0, 0)
+
 	_, err = metallb.
 		NewL2AdvertisementBuilder(APIClient, "l2advertisement", NetConfig.MlbOperatorNamespace).
 		WithIPAddressPools([]string{ipAddressPool.Definition.Name}).Create()
@@ -788,4 +790,167 @@ func verifyAndCreateFRRk8sPodList() []*pod.Builder {
 	}
 
 	return frrk8sPods
+}
+
+// Deploys a basic test environment with a single BGPPeer and a single IPAddressPool
+// and creates a BGPAdvertisement with the given prefix length and communities.
+// ipStack is the IP family to use for the test. ipStack can be ipv4 or ipv6 only.
+func setupTestEnv(ipStack string, prefixLen int, extFrrAdv bool) (
+	[]*pod.Builder,
+	*pod.Builder,
+	*metallb.BGPAdvertisementBuilder,
+) {
+	By("Fetching frrk8s pods list running on the worker nodes selected for metallb tests")
+
+	frrk8sPods := verifyAndCreateFRRk8sPodList()
+
+	By("Creating BGPPeer with external FRR Pod")
+	createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1,
+		metallbAddrList[ipStack][0], "", tsparams.LocalBGPASN, false, 0, frrk8sPods)
+
+	By("Creating an IPAddressPool")
+
+	ipAddressPool, err := metallb.NewIPAddressPoolBuilder(
+		APIClient,
+		"address-pool",
+		NetConfig.MlbOperatorNamespace,
+		[]string{fmt.Sprintf("%s-%s", tsparams.LBipRange1[ipStack][0], tsparams.LBipRange1[ipStack][1])}).Create()
+	Expect(err).ToNot(HaveOccurred(), "Failed to create IPAddressPool")
+
+	validateaddresspool(ipAddressPool.Definition.Name, 240, 0, 0, 0)
+
+	By("Creating a BGPAdvertisement")
+
+	bgpAdvertisement := metallb.
+		NewBGPAdvertisementBuilder(APIClient, "bgpadvertisement", NetConfig.MlbOperatorNamespace).
+		WithIPAddressPools([]string{ipAddressPool.Definition.Name}).
+		WithCommunities([]string{tsparams.NoAdvertiseCommunity}).
+		WithLocalPref(100)
+
+	if ipStack == netparam.IPV6Family {
+		bgpAdvertisement = bgpAdvertisement.WithAggregationLength6(int32(prefixLen))
+	} else {
+		bgpAdvertisement = bgpAdvertisement.WithAggregationLength4(int32(prefixLen))
+	}
+
+	bgpAdvertisement, err = bgpAdvertisement.Create()
+	Expect(err).ToNot(HaveOccurred(), "Failed to create BGPAdvertisement")
+
+	By("Deploy nginx on single worker with LB service")
+	setupMetalLbService(tsparams.MetallbServiceName, ipStack, tsparams.LabelValue1, ipAddressPool,
+		corev1.ServiceExternalTrafficPolicyTypeCluster)
+	setupNGNXPod("nginxpod1", workerNodeList[0].Object.Name, tsparams.LabelValue1)
+
+	By("Validating the IPAddressPool after creating the Service and deploying the nginx pod")
+	validateaddresspool(ipAddressPool.Definition.Name, 239, 0, 1, 0)
+
+	By("Validating the service BGP statuses")
+	validateservicebgpstatus(
+		workerNodeList, tsparams.MetallbServiceName, tsparams.TestNamespaceName, []string{tsparams.BgpPeerName1})
+
+	By("Creating configMap with selected worker nodes as BGP Peers for external FRR Pod")
+
+	var masterConfigMap *configmap.Builder
+
+	if extFrrAdv {
+		masterConfigMap = createConfigMapWithNetwork(
+			ipStack, tsparams.LocalBGPASN, nodeAddrList[ipStack], tsparams.ExtFrrConnectedPools[ipStack])
+	} else {
+		masterConfigMap = createConfigMap(
+			tsparams.LocalBGPASN, nodeAddrList[ipStack], false, false)
+	}
+
+	By("Creating macvlan NAD for external FRR Pod")
+
+	err = define.CreateExternalNad(APIClient, frrconfig.ExternalMacVlanNADName, tsparams.TestNamespaceName)
+	Expect(err).ToNot(HaveOccurred(), "Failed to create a macvlan NAD")
+
+	By("Creating external FRR Pod with configMap mount and external NAD")
+
+	extFrrPod := createFrrPod(masterNodeList[0].Object.Name, masterConfigMap.Object.Name, []string{},
+		pod.StaticIPAnnotation(frrconfig.ExternalMacVlanNADName,
+			[]string{fmt.Sprintf("%s/%s", metallbAddrList[ipStack][0], frrPodSubnet[ipStack])}))
+
+	By("Checking that BGP session is established on external FRR Pod")
+	verifyMetalLbBGPSessionsAreUPOnFrrPod(extFrrPod, nodeAddrList[ipStack])
+	validatebgpsessionstate("Established", "N/A", metallbAddrList[ipStack][0], workerNodeList)
+
+	return frrk8sPods, extFrrPod, bgpAdvertisement
+}
+
+//nolint:unparam // availableIPv6 parameter is kept for future PRs
+func validateaddresspool(ipAddressPoolName string, availableIPv4, availableIPv6, assignedIPv4, assignedIPv6 int64) {
+	ipAddressPool, err := metallb.PullAddressPool(APIClient, ipAddressPoolName, NetConfig.MlbOperatorNamespace)
+	Expect(err).ToNot(HaveOccurred(), "Failed to pull IPAddressPool %s", ipAddressPoolName)
+
+	Expect(ipAddressPool.Object.Status.AvailableIPv4).To(Equal(availableIPv4),
+		"Failed to verify address pool available IPv4")
+	Expect(ipAddressPool.Object.Status.AvailableIPv6).To(Equal(availableIPv6),
+		"Failed to verify address pool available IPv6")
+	Expect(ipAddressPool.Object.Status.AssignedIPv4).To(Equal(assignedIPv4),
+		"Failed to verify address pool assigned IPv4")
+	Expect(ipAddressPool.Object.Status.AssignedIPv6).To(Equal(assignedIPv6),
+		"Failed to verify address pool assigned IPv6")
+}
+
+func validatebgpsessionstate(bgpStatus, bfdStatus, bgpPeerIP string, workerNodeList []*nodes.Builder) {
+	for _, workerNode := range workerNodeList {
+		// First, wait for the status to reach the expected state. Expected poll-interval is 2 minutes.
+		Eventually(func() bool {
+			currentBGPSessionState, err := metallb.PullBGPSessionStateByNodeAndPeer(
+				APIClient, workerNode.Definition.Name, bgpPeerIP)
+			if err != nil {
+				return false
+			}
+
+			if currentBGPSessionState.Object.Status.BGPStatus != bgpStatus ||
+				currentBGPSessionState.Object.Status.BFDStatus != bfdStatus {
+				return false
+			}
+
+			return true
+		}, 3*time.Minute, tsparams.DefaultRetryInterval).Should(BeTrue(),
+			"Failed to verify BGP session state for worker node %s and peer %s - "+
+				"Expected BGPStatus: %s, Expected BFDStatus: %s",
+			workerNode.Definition.Name, bgpPeerIP, bgpStatus, bfdStatus)
+
+		// Then, verify the status remains consistent over time
+		Consistently(func() bool {
+			currentBGPSessionState, err := metallb.PullBGPSessionStateByNodeAndPeer(
+				APIClient, workerNode.Definition.Name, bgpPeerIP)
+			if err != nil {
+				return false
+			}
+
+			if currentBGPSessionState.Object.Status.BGPStatus != bgpStatus ||
+				currentBGPSessionState.Object.Status.BFDStatus != bfdStatus {
+				return false
+			}
+
+			return true
+		}, 9*time.Second, 3*time.Second).Should(BeTrue(),
+			"BGP session state for worker node %s and peer %s did not remain consistent - "+
+				"Expected BGPStatus: %s, Expected BFDStatus: %s",
+			workerNode.Definition.Name, bgpPeerIP, bgpStatus, bfdStatus)
+	}
+}
+
+func validateservicebgpstatus(nodeList []*nodes.Builder, serviceName, serviceNamespace string, peers []string) {
+	serviceBGPStatuses, err := metallb.ListServiceBGPStatus(APIClient)
+	Expect(err).ToNot(HaveOccurred(), "Failed to list ServiceBGPStatus objects")
+
+	for _, workerNode := range nodeList {
+		for _, status := range serviceBGPStatuses {
+			if status.Object != nil &&
+				status.Object.Status.Node == workerNode.Definition.Name &&
+				status.Object.Status.ServiceName == serviceName &&
+				status.Object.Status.ServiceNamespace == serviceNamespace {
+				Expect(status.Object.Status.Peers).To(ContainElements(peers),
+					"Failed to find peers in service BGP status with node %s, service name %s, service namespace %s",
+					workerNode.Definition.Name, serviceName, serviceNamespace)
+
+				break
+			}
+		}
+	}
 }

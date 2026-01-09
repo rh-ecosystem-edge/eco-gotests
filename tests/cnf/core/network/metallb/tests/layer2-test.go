@@ -104,6 +104,7 @@ var _ = Describe("Layer2", Ordered, Label(tsparams.LabelLayer2TestCases), Contin
 		setupNGNXPod(tsparams.MLBNginxPodName+workerNodeList[0].Definition.Name,
 			workerNodeList[0].Definition.Name,
 			tsparams.LabelValue1)
+		validateaddresspool("l2address-pool", 1, 0, 1, 0)
 
 		By("Getting announcing node name")
 		announcingNodeName := getLBServiceAnnouncingNodeName()
@@ -134,6 +135,7 @@ var _ = Describe("Layer2", Ordered, Label(tsparams.LabelLayer2TestCases), Contin
 		setupNGNXPod(tsparams.MLBNginxPodName+workerNodeList[1].Definition.Name,
 			workerNodeList[1].Definition.Name,
 			tsparams.LabelValue1)
+		validateaddresspool("l2address-pool", 1, 0, 1, 0)
 
 		By("Getting announcing node name")
 		announcingNodeName := getLBServiceAnnouncingNodeName()

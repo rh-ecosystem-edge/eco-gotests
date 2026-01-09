@@ -69,9 +69,11 @@ var _ = Describe("MetalLB BGP", Ordered, Label(tsparams.LabelBGPTestCases), Cont
 		By("Creating an IPAddressPool and BGPAdvertisement for service 1")
 		ipAddressPool1 := setupBgpAdvertisementAndIPAddressPool(
 			tsparams.BGPAdvAndAddressPoolName, AddressPoolS1, netparam.IPSubnetInt32)
+		validateaddresspool(tsparams.BGPAdvAndAddressPoolName, 2, 0, 0, 0)
 
 		By("Creating an IPAddressPool and BGPAdvertisement for service 2")
 		ipAddressPool2 := setupBgpAdvertisementAndIPAddressPool("bgp-test2", AddressPoolS2, netparam.IPSubnetInt32)
+		validateaddresspool("bgp-test2", 2, 0, 0, 0)
 
 		By("Creating service 1 with 2 backend pods")
 		setupMetalLbService(
@@ -109,6 +111,16 @@ var _ = Describe("MetalLB BGP", Ordered, Label(tsparams.LabelBGPTestCases), Cont
 			tsparams.LocalBGPASN, false, 0,
 			frrk8sPods)
 
+		By("Validating the service BGP statuses")
+		validateservicebgpstatus(
+			workerNodeList, tsparams.MetallbServiceName, tsparams.TestNamespaceName,
+			[]string{tsparams.BgpPeerName1})
+		validateaddresspool(tsparams.BGPAdvAndAddressPoolName, 1, 0, 1, 0)
+		validateservicebgpstatus(
+			workerNodeList, tsparams.MetallbServiceName2, tsparams.TestNamespaceName,
+			[]string{tsparams.BgpPeerName1})
+		validateaddresspool("bgp-test2", 1, 0, 1, 0)
+
 		By("Creating configMap for external FRR Pod")
 		masterConfigMap := createConfigMap(tsparams.LocalBGPASN, ipv4NodeAddrList, false, false)
 
@@ -125,6 +137,7 @@ var _ = Describe("MetalLB BGP", Ordered, Label(tsparams.LabelBGPTestCases), Cont
 
 		By("Checking that BGP session is established and up")
 		verifyMetalLbBGPSessionsAreUPOnFrrPod(frrPod, netcmd.RemovePrefixFromIPList(ipv4NodeAddrList))
+		validatebgpsessionstate("Established", "N/A", ipv4metalLbIPList[0], workerNodeList)
 
 		By("Validating BGP routes to service")
 		validatePrefix(
