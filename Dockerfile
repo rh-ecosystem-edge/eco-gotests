@@ -1,6 +1,6 @@
 FROM --platform=$BUILDPLATFORM registry.access.redhat.com/ubi9/ubi:latest AS fetcher
 
-ARG GO_VER=go1.25.4
+ARG GO_VER=go1.25.0
 RUN dnf install -y tar
 
 ARG TARGETARCH
