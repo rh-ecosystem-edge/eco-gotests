@@ -10,13 +10,19 @@ on:
 
 jobs:
   build:
-    if: ${{ github.repository_owner }} == 'rh-ecosystem-edge'
+    if: github.repository_owner == 'rh-ecosystem-edge'
     runs-on: ubuntu-latest
     env:
       SHELL: /bin/bash
       XDG_CACHE_HOME: ${{ github.workspace }}/cache
 
     steps:
+      # We are facing some issues with disk space, so free up what we can.
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+
       # Since we only use the checked out repo for the report generation code,
       # always grab the latest from the default branch rather than the branch
       # that triggered this action.
@@ -70,10 +76,10 @@ jobs:
           name: report-cache
           overwrite: true
           path: ${{ env.XDG_CACHE_HOME }}/eco-gotests
-          
+
   deploy:
     needs: build
-    if: ${{ github.repository_owner }} == 'rh-ecosystem-edge'
+    if: github.repository_owner == 'rh-ecosystem-edge'
 
     permissions:
       pages: write
