@@ -102,6 +102,30 @@ var _ = Describe(
 				createSiteConfigResouces(dualstackPrimaryv6AddrFamily)
 			})
 
+		It("through siteconfig operator is successful in a primary IPv6 dual-stack "+
+			"environment with DHCP networking",
+			reportxml.ID("no-testcase"), func() {
+				if MGMTConfig.StaticNetworking {
+					Skip("Cluster is deployed with static networking")
+				}
+
+				if !MGMTConfig.SiteConfig {
+					Skip("Cluster is deployed without siteconfig operator")
+				}
+
+				if MGMTConfig.SeedClusterInfo.Proxy.HTTPProxy != "" || MGMTConfig.SeedClusterInfo.Proxy.HTTPSProxy != "" {
+					Skip("Cluster installed with proxy")
+				}
+
+				if MGMTConfig.Cluster.Info.PrimaryIPFamily != ipv6AddrFamily {
+					Skip("Cluster is not deployed with dual-stack primary IPv6")
+				}
+
+				tsparams.ReporterNamespacesToDump[MGMTConfig.Cluster.Info.ClusterName] = reporterNamespaceToDump
+
+				createSiteConfigResouces(dualstackPrimaryv6AddrFamily)
+			})
+
 		It("through siteconfig operator is successful in an IPv4 environment with DHCP networking",
 			reportxml.ID("no-testcase"), func() {
 				if MGMTConfig.StaticNetworking {
@@ -114,6 +138,10 @@ var _ = Describe(
 
 				if MGMTConfig.SeedClusterInfo.Proxy.HTTPProxy != "" || MGMTConfig.SeedClusterInfo.Proxy.HTTPSProxy != "" {
 					Skip("Cluster installed with proxy")
+				}
+
+				if MGMTConfig.Cluster.Info.PrimaryIPFamily == ipv6AddrFamily {
+					Skip("Cluster is deployed with dual-stack primary IPv6")
 				}
 
 				tsparams.ReporterNamespacesToDump[MGMTConfig.Cluster.Info.ClusterName] = reporterNamespaceToDump
