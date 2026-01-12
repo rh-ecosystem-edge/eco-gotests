@@ -53,6 +53,7 @@ var _ = Describe("BGP remote-dynamicAS", Ordered, Label(tsparams.LabelDynamicRem
 
 					By("Checking that BGP session is established and up")
 					verifyMetalLbBGPSessionsAreUPOnFrrPod(frrPod, netcmd.RemovePrefixFromIPList(ipv4NodeAddrList))
+					validateBGPSessionState("Established", "N/A", ipv4metalLbIPList[0], workerNodeList)
 
 					By("Validating external FRR AS number received on the FRR nodes")
 					Eventually(func() error {
@@ -69,6 +70,7 @@ var _ = Describe("BGP remote-dynamicAS", Ordered, Label(tsparams.LabelDynamicRem
 
 					By("Checking that BGP session is established and up")
 					verifyMetalLbBGPSessionsAreUPOnFrrPod(frrPod, netcmd.RemovePrefixFromIPList(ipv4NodeAddrList))
+					validateBGPSessionState("Established", "N/A", ipv4metalLbIPList[0], workerNodeList)
 
 					By("Validating external FRR AS number received on the FRR nodes")
 					Eventually(func() error {
@@ -85,6 +87,7 @@ var _ = Describe("BGP remote-dynamicAS", Ordered, Label(tsparams.LabelDynamicRem
 
 					By("Checking that BGP session is down")
 					verifyMetalLbBGPSessionsAreDownOnFrrPod(frrPod, netcmd.RemovePrefixFromIPList(ipv4NodeAddrList))
+					validateBGPSessionState("Idle", "N/A", ipv4metalLbIPList[0], workerNodeList)
 
 					By("Validating external FRR AS number received is incorrect and marked as 0 on the FRR nodes")
 					Eventually(func() error {
@@ -130,6 +133,7 @@ var _ = Describe("BGP remote-dynamicAS", Ordered, Label(tsparams.LabelDynamicRem
 
 					By("Checking that BGP session is established and up")
 					verifyMetalLbBGPSessionsAreUPOnFrrPod(frrPod, netcmd.RemovePrefixFromIPList(ipv4NodeAddrList))
+					validateBGPSessionState("Established", "N/A", frrExternalMasterIPAddress, workerNodeList)
 
 					By("Validating external FRR AS number received on the FRR nodes")
 					Eventually(func() error {
@@ -149,6 +153,7 @@ var _ = Describe("BGP remote-dynamicAS", Ordered, Label(tsparams.LabelDynamicRem
 
 					By("Checking that BGP session is established and up")
 					verifyMetalLbBGPSessionsAreUPOnFrrPod(frrPod, netcmd.RemovePrefixFromIPList(ipv4NodeAddrList))
+					validateBGPSessionState("Established", "N/A", frrExternalMasterIPAddress, workerNodeList)
 
 					By("Validating external FRR AS number received on the FRR nodes")
 					Eventually(func() error {

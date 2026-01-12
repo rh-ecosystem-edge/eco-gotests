@@ -7,8 +7,11 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/metallb"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/mlbtypes"
+	netcmd "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/cmd"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/metallb/internal/frr"
@@ -83,6 +86,12 @@ var _ = Describe("MetalLB NodeSelector", Ordered, Label(tsparams.LabelBGPTestCas
 
 			By("Create a single IPAddressPool")
 			ipAddressPool = createIPAddressPool(ipaddressPoolName1, addressPool)
+			validateAddressPool(ipAddressPool.Definition.Name, mlbtypes.IPAddressPoolStatus{
+				AvailableIPv4: 240,
+				AvailableIPv6: 0,
+				AssignedIPv4:  0,
+				AssignedIPv6:  0,
+			})
 
 			By("Setup test case with services, test pods and bgppeers")
 			frrPod0, frrPod1 = setupTestCase(ipAddressPool, ipAddressPool, frrk8sPods)
@@ -102,6 +111,20 @@ var _ = Describe("MetalLB NodeSelector", Ordered, Label(tsparams.LabelBGPTestCas
 
 				setupBgpAdvertisement(bgpAdvertisementName2, tsparams.CustomCommunity, ipaddressPoolName1,
 					100, []string{tsparams.BgpPeerName2}, worker1NodeLabel)
+
+				By("Validating the service BGP statuses")
+				validateServiceBGPStatus(
+					[]*nodes.Builder{workerNodeList[0]}, tsparams.MetallbServiceName,
+					tsparams.TestNamespaceName, []string{tsparams.BgpPeerName1})
+				validateServiceBGPStatus(
+					[]*nodes.Builder{workerNodeList[0]}, tsparams.MetallbServiceName2,
+					tsparams.TestNamespaceName, []string{tsparams.BgpPeerName1})
+				validateServiceBGPStatus(
+					[]*nodes.Builder{workerNodeList[1]}, tsparams.MetallbServiceName,
+					tsparams.TestNamespaceName, []string{tsparams.BgpPeerName2})
+				validateServiceBGPStatus(
+					[]*nodes.Builder{workerNodeList[1]}, tsparams.MetallbServiceName2,
+					tsparams.TestNamespaceName, []string{tsparams.BgpPeerName2})
 
 				verifyBGPConnectivityAndPrefixes(frrPod0, frrPod1, nodeAddrList, addressPool, addressPool)
 
@@ -130,6 +153,20 @@ var _ = Describe("MetalLB NodeSelector", Ordered, Label(tsparams.LabelBGPTestCas
 				By("Create a bgpadvertisement for BGPPeer2 and IP AddressPool1.")
 				setupBgpAdvertisement(bgpAdvertisementName2, tsparams.CustomCommunity, ipaddressPoolName1,
 					100, []string{tsparams.BgpPeerName2}, worker1NodeLabel)
+
+				By("Validating the service BGP statuses")
+				validateServiceBGPStatus(
+					[]*nodes.Builder{workerNodeList[0]}, tsparams.MetallbServiceName,
+					tsparams.TestNamespaceName, []string{tsparams.BgpPeerName1})
+				validateServiceBGPStatus(
+					[]*nodes.Builder{workerNodeList[0]}, tsparams.MetallbServiceName2,
+					tsparams.TestNamespaceName, []string{tsparams.BgpPeerName1})
+				validateServiceBGPStatus(
+					[]*nodes.Builder{workerNodeList[1]}, tsparams.MetallbServiceName,
+					tsparams.TestNamespaceName, []string{tsparams.BgpPeerName2})
+				validateServiceBGPStatus(
+					[]*nodes.Builder{workerNodeList[1]}, tsparams.MetallbServiceName2,
+					tsparams.TestNamespaceName, []string{tsparams.BgpPeerName2})
 
 				By("Verify BGP Establishement and service route advertisement.")
 				verifyBGPConnectivityAndPrefixes(frrPod0, frrPod1, nodeAddrList, addressPool, addressPool)
@@ -164,6 +201,20 @@ var _ = Describe("MetalLB NodeSelector", Ordered, Label(tsparams.LabelBGPTestCas
 				setupBgpAdvertisement(bgpAdvertisementName2, tsparams.CustomCommunity, ipaddressPoolName1,
 					100, []string{tsparams.BgpPeerName2}, testMetallbNodeLabel)
 
+				By("Validating the service BGP statuses")
+				validateServiceBGPStatus(
+					[]*nodes.Builder{workerNodeList[0]}, tsparams.MetallbServiceName,
+					tsparams.TestNamespaceName, []string{tsparams.BgpPeerName1})
+				validateServiceBGPStatus(
+					[]*nodes.Builder{workerNodeList[0]}, tsparams.MetallbServiceName2,
+					tsparams.TestNamespaceName, []string{tsparams.BgpPeerName1})
+				validateServiceBGPStatus(
+					[]*nodes.Builder{workerNodeList[1]}, tsparams.MetallbServiceName,
+					tsparams.TestNamespaceName, []string{tsparams.BgpPeerName2})
+				validateServiceBGPStatus(
+					[]*nodes.Builder{workerNodeList[1]}, tsparams.MetallbServiceName2,
+					tsparams.TestNamespaceName, []string{tsparams.BgpPeerName2})
+
 				By("Verify BGP Establishement and service route advertisement.")
 				verifyBGPConnectivityAndPrefixes(frrPod0, frrPod1, nodeAddrList, addressPool, addressPool)
 
@@ -186,6 +237,18 @@ var _ = Describe("MetalLB NodeSelector", Ordered, Label(tsparams.LabelBGPTestCas
 
 			ipAddressPool1 := createIPAddressPool(ipaddressPoolName1, addressPool)
 			ipAddressPool2 := createIPAddressPool(ipaddressPoolName2, addressPool2)
+			validateAddressPool(ipAddressPool1.Definition.Name, mlbtypes.IPAddressPoolStatus{
+				AvailableIPv4: 240,
+				AvailableIPv6: 0,
+				AssignedIPv4:  0,
+				AssignedIPv6:  0,
+			})
+			validateAddressPool(ipAddressPool2.Definition.Name, mlbtypes.IPAddressPoolStatus{
+				AvailableIPv4: 240,
+				AvailableIPv6: 0,
+				AssignedIPv4:  0,
+				AssignedIPv6:  0,
+			})
 
 			By("Setup test case with services, test pods and bgppeers")
 			frrPod0, frrPod1 = setupTestCase(ipAddressPool1, ipAddressPool2, frrk8sPods)
@@ -203,6 +266,18 @@ var _ = Describe("MetalLB NodeSelector", Ordered, Label(tsparams.LabelBGPTestCas
 					200, []string{tsparams.BgpPeerName2}, worker1NodeLabel)
 
 				verifyBGPConnectivityAndPrefixes(frrPod0, frrPod1, nodeAddrList, addressPool, addressPool2)
+
+				By("Validating the service BGP statuses")
+				validateServiceBGPStatus(
+					[]*nodes.Builder{workerNodeList[0]},
+					tsparams.MetallbServiceName,
+					tsparams.TestNamespaceName,
+					[]string{tsparams.BgpPeerName1})
+				validateServiceBGPStatus(
+					[]*nodes.Builder{workerNodeList[1]},
+					tsparams.MetallbServiceName2,
+					tsparams.TestNamespaceName,
+					[]string{tsparams.BgpPeerName2})
 
 				By("Validate Local Preference from Frr node0")
 				err = frr.ValidateLocalPref(frrPod0, 100, strings.ToLower(netparam.IPV4Family))
@@ -239,6 +314,18 @@ var _ = Describe("MetalLB NodeSelector", Ordered, Label(tsparams.LabelBGPTestCas
 					200, []string{tsparams.BgpPeerName2}, worker1NodeLabel)
 
 				verifyBGPConnectivityAndPrefixes(frrPod0, frrPod1, nodeAddrList, addressPool, addressPool2)
+
+				By("Validating the service BGP statuses")
+				validateServiceBGPStatus(
+					[]*nodes.Builder{workerNodeList[0]},
+					tsparams.MetallbServiceName,
+					tsparams.TestNamespaceName,
+					[]string{tsparams.BgpPeerName1})
+				validateServiceBGPStatus(
+					[]*nodes.Builder{workerNodeList[1]},
+					tsparams.MetallbServiceName2,
+					tsparams.TestNamespaceName,
+					[]string{tsparams.BgpPeerName2})
 
 				By("Validate Local Preference from Frr node0")
 				err = frr.ValidateLocalPref(frrPod0, 100, strings.ToLower(netparam.IPV4Family))
@@ -341,9 +428,14 @@ func setupTestCase(ipAddressPool1, ipAddressPool2 *metallb.IPAddressPoolBuilder,
 	By("Create two BGPPeers")
 	createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, ipv4metalLbIPList[0], "", tsparams.LocalBGPASN,
 		false, 0, frrk8sPods)
-
 	createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName2, ipv4metalLbIPList[1], "", tsparams.LocalBGPASN,
 		false, 0, frrk8sPods)
+
+	By("Validating the BGP session states")
+	verifyMetalLbBGPSessionsAreUPOnFrrPod(frrPod0, netcmd.RemovePrefixFromIPList(ipv4NodeAddrList))
+	validateBGPSessionState("Established", "N/A", ipv4metalLbIPList[0], workerNodeList)
+	verifyMetalLbBGPSessionsAreUPOnFrrPod(frrPod1, netcmd.RemovePrefixFromIPList(ipv4NodeAddrList))
+	validateBGPSessionState("Established", "N/A", ipv4metalLbIPList[1], workerNodeList)
 
 	return frrPod0, frrPod1
 }
