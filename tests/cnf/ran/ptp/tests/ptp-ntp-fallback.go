@@ -37,11 +37,11 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 
 	BeforeEach(func() {
 		By("skipping if the PTP version is not supported")
-		inRange, err := version.IsVersionStringInRange(RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.19", "")
+		inRange, err := version.IsVersionStringInRange(RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.18", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to check PTP version range")
 
 		if !inRange {
-			Skip("ntpfailover is only supported for PTP version 4.19 and higher")
+			Skip("ntpfailover is only supported for PTP version 4.18 and higher")
 		}
 
 		By("creating a Prometheus API client")
@@ -565,10 +565,25 @@ func cleanupGNSSSync(prometheusAPI prometheusv1.API, nodeName string, protocolVe
 func waitForLoadAndTS2PHCLocked(prometheusAPI prometheusv1.API, nodeName string, updateTime time.Time) {
 	By("waiting for profile load after updating ts2phc holdover")
 
+	profileLoadTime := time.Now()
+
 	err := ptpdaemon.WaitForProfileLoadOnNodes(RANConfig.Spoke1APIClient, []string{nodeName},
 		ptpdaemon.WithStartTime(updateTime),
 		ptpdaemon.WithTimeout(5*time.Minute))
 	Expect(err).ToNot(HaveOccurred(), "Failed to wait for profile load on node %s", nodeName)
+
+	// If we do not wait for ts2phc to start properly after the profile load, we risk ending up in a situation where
+	// holdover is not triggered properly.
+	By("waiting for ts2phc to start after profile load")
+
+	err = ptpdaemon.WaitForPodLog(
+		RANConfig.Spoke1APIClient,
+		nodeName,
+		ptpdaemon.WithStartTime(profileLoadTime),
+		ptpdaemon.WithTimeout(5*time.Minute),
+		ptpdaemon.WithMatcher(ptpdaemon.ContainsMatcher("starting ts2phc")),
+	)
+	Expect(err).ToNot(HaveOccurred(), "Failed to find ts2phc start log on node %s", nodeName)
 
 	By("ensuring ts2phc process is locked after profile load")
 	ensureTS2PHCProcessLocked(prometheusAPI, nodeName)
