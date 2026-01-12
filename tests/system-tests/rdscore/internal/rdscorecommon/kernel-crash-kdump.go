@@ -111,6 +111,24 @@ func CleanupUnexpectedAdmissionPodsCNF(ctx SpecContext) {
 	cleanupUnexpectedPods(RDSCoreConfig.KDumpCNFMCPNodeLabel)
 }
 
+// CleanupNMIRedfishUnexpectedAdmissionPodsCP cleans up pods with UnexpectedAdmissionError status
+// on the Control Plane nodes.
+func CleanupNMIRedfishUnexpectedAdmissionPodsCP(ctx SpecContext) {
+	cleanupUnexpectedPods(RDSCoreConfig.NMIRedfishCPNodeLabel)
+}
+
+// CleanupNMIRedfishUnexpectedAdmissionPodsWorker cleans up pods with UnexpectedAdmissionError status
+// on the Worker nodes.
+func CleanupNMIRedfishUnexpectedAdmissionPodsWorker(ctx SpecContext) {
+	cleanupUnexpectedPods(RDSCoreConfig.NMIRedfishWorkerMCPNodeLabel)
+}
+
+// CleanupNMIRedfishUnexpectedAdmissionPodsCNF cleans up pods with UnexpectedAdmissionError status
+// on the CNF nodes.
+func CleanupNMIRedfishUnexpectedAdmissionPodsCNF(ctx SpecContext) {
+	cleanupUnexpectedPods(RDSCoreConfig.NMIRedfishCNFMCPNodeLabel)
+}
+
 func cleanupUnexpectedPods(nodeLabel string) {
 	listOptions := metav1.ListOptions{
 		FieldSelector: "status.phase=Failed",
@@ -178,6 +196,11 @@ func cleanupUnexpectedPods(nodeLabel string) {
 	By("Filtering pods with UnexpectedAdmissionError that run on the target node(s)")
 
 	for _, failedPod := range podsList {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Processing pod %q in %q ns running on %q",
+			failedPod.Definition.Name, failedPod.Definition.Namespace, failedPod.Definition.Spec.NodeName)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod status reason: %q",
+			failedPod.Definition.Status.Reason)
+
 		if failedPod.Definition.Status.Reason == "UnexpectedAdmissionError" {
 			for _, _node := range nodeList {
 				if _node.Definition.Name == failedPod.Definition.Spec.NodeName {
@@ -186,8 +209,15 @@ func cleanupUnexpectedPods(nodeLabel string) {
 
 					_, err := failedPod.DeleteAndWait(5 * time.Minute)
 					Expect(err).ToNot(HaveOccurred(), "could not delete pod in UnexpectedAdmissionError state")
+				} else {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q in %q ns running on %q does not match node %q",
+						failedPod.Definition.Name, failedPod.Definition.Namespace,
+						failedPod.Definition.Spec.NodeName, _node.Definition.Name)
 				}
 			}
+		} else {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is not in UnexpectedAdmissionError state but %q",
+				failedPod.Definition.Name, failedPod.Definition.Status.Reason)
 		}
 	}
 }

@@ -94,7 +94,7 @@ var _ = Describe(
 			It("Cleanup UnexpectedAdmission pods after NMI RedFish test on Control Plane node",
 				Label("nmi-redfish", "nmi-redfish-cp", "nmi-redfish-cp-cleanup"),
 				MustPassRepeatedly(3),
-				rdscorecommon.CleanupUnexpectedAdmissionPodsCP)
+				rdscorecommon.CleanupNMIRedfishUnexpectedAdmissionPodsCP)
 
 			It("Verifies NMI RedFish trigger on Worker node",
 				Label("nmi-redfish", "nmi-redfish-worker"), reportxml.ID("86254"),
@@ -103,7 +103,7 @@ var _ = Describe(
 			It("Cleanup UnexpectedAdmission pods after NMI RedFish test on Worker node",
 				Label("nmi-redfish", "nmi-redfish-worker", "nmi-redfish-worker-cleanup"),
 				MustPassRepeatedly(3),
-				rdscorecommon.CleanupUnexpectedAdmissionPodsWorker)
+				rdscorecommon.CleanupNMIRedfishUnexpectedAdmissionPodsWorker)
 
 			It("Verifies NMI RedFish trigger on CNF node",
 				Label("nmi-redfish", "nmi-redfish-cnf"), reportxml.ID("86255"),
@@ -112,7 +112,7 @@ var _ = Describe(
 			It("Cleanup UnexpectedAdmission pods after NMI RedFish test on CNF node",
 				Label("nmi-redfish", "nmi-redfish-cnf", "nmi-redfish-cnf-cleanup"),
 				MustPassRepeatedly(3),
-				rdscorecommon.CleanupUnexpectedAdmissionPodsCNF)
+				rdscorecommon.CleanupNMIRedfishUnexpectedAdmissionPodsCNF)
 
 			It("Verifies mount namespace service on Control Plane node",
 				Label("mount-ns", "mount-ns-cp"), reportxml.ID("75048"),
