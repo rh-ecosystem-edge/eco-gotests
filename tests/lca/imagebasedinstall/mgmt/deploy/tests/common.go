@@ -551,3 +551,27 @@ func getSpokeClient() *clients.Settings {
 
 	return spokeClient
 }
+
+func hasIPv4AddressFamily() bool {
+	for _, host := range MGMTConfig.Cluster.Info.Hosts {
+		if host.BMC.URLv4 != "" {
+			return true
+		}
+	}
+
+	return false
+}
+
+func hasIPv6AddressFamily() bool {
+	for _, host := range MGMTConfig.Cluster.Info.Hosts {
+		if host.BMC.URLv6 != "" {
+			return true
+		}
+	}
+
+	return false
+}
+
+func isDualStack() bool {
+	return hasIPv4AddressFamily() && hasIPv6AddressFamily()
+}

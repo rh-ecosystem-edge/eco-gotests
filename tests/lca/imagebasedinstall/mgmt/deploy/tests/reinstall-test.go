@@ -47,6 +47,10 @@ var _ = Describe(
 
 		It("through IBI operator is successful in a connected environment with static networking",
 			reportxml.ID("83059"), func() {
+				if !hasIPv4AddressFamily() || isDualStack() {
+					Skip("Cluster is not deployed with single stack IPv4")
+				}
+
 				if !MGMTConfig.StaticNetworking {
 					Skip("Cluster is deployed without static networking")
 				}
@@ -177,6 +181,10 @@ var _ = Describe(
 
 		It("through siteconfig operator is successful in an IPv4 environment with DHCP networking",
 			reportxml.ID("83060"), func() {
+				if !hasIPv4AddressFamily() || isDualStack() {
+					Skip("Cluster is not deployed with single stack IPv4")
+				}
+
 				if MGMTConfig.StaticNetworking {
 					Skip("Cluster is deployed with static networking")
 				}
@@ -197,6 +205,10 @@ var _ = Describe(
 		It("through siteconfig operator is successful in a primary IPv4 dual-stack "+
 			"proxy-enabled environment with DHCP networking",
 			reportxml.ID("83061"), func() {
+				if !isDualStack() {
+					Skip("Cluster is not deployed with dual-stack")
+				}
+
 				if MGMTConfig.StaticNetworking {
 					Skip("Cluster is deployed with static networking")
 				}
@@ -222,6 +234,10 @@ var _ = Describe(
 		It("through siteconfig operator is successful in a primary IPv6 dual-stack "+
 			"proxy-enabled environment with DHCP networking",
 			reportxml.ID("no-testcase"), func() {
+				if !isDualStack() {
+					Skip("Cluster is not deployed with dual-stack")
+				}
+
 				if MGMTConfig.StaticNetworking {
 					Skip("Cluster is deployed with static networking")
 				}
