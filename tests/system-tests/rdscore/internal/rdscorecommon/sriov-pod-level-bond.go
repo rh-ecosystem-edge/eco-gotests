@@ -474,7 +474,7 @@ func getBondActiveInterface(clientPod *pod.Builder) (string, error) {
 			klog.V(100).Infof("Successfully executed command from within a pod %q in namespace %q: %v",
 				clientPod.Definition.Name, clientPod.Definition.Namespace, err)
 
-			result = output.String()
+			result = SanitizeOutput(output.String())
 
 			klog.V(100).Infof("Command's output:\n\t%v", result)
 
@@ -1329,4 +1329,25 @@ func VerifyPodLevelBondWorkloadsAfterPodCrashing() {
 			RDSCoreConfig.PodLevelBondDeploymentTwoName, RDSCoreConfig.PodLevelBondNamespace, err))
 
 	verifyConnectivity()
+}
+
+// SanitizeOutput sanitizes the output of the pod-level bond test.
+// It strips the ANSI color codes and extracts the actual value (e.g., the last word or after the colon).
+// Periodically ANSI color codes are added to the output, so we need to strip them and extract the actual value:
+// \x1b[1;31m2026-01-09T12:04:08.312074Z: net1\r\n\x1b[0m -> net1 .
+func SanitizeOutput(input string) string {
+	// 1. Strip ANSI color codes
+	const ansi = `[\x1b\x9b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]`
+
+	re := regexp.MustCompile(ansi)
+	stripped := re.ReplaceAllString(input, "")
+
+	// 2. Extract the actual value (e.g., the last word or after the colon)
+	// In your case, looking for the word after the timestamp
+	parts := strings.Split(stripped, ": ")
+	if len(parts) > 1 {
+		return strings.TrimSpace(parts[1])
+	}
+
+	return strings.TrimSpace(stripped)
 }
