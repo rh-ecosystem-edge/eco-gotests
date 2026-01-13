@@ -386,7 +386,7 @@ var _ = Describe(
 
 				// Part 1: Verify link state configuration
 				By("Verifying link state configuration is applied")
-				hasCarrier, err := sriovenv.VerifyLinkStateConfiguration(networkName, testNamespace,
+				hasCarrier, err := sriovenv.VerifyLinkStateConfiguration(networkName, data.InterfaceName, testNamespace,
 					"link-state enable", tsparams.PodReadyTimeout)
 				Expect(err).ToNot(HaveOccurred(), "Failed to verify link state configuration")
 
