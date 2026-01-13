@@ -39,8 +39,7 @@ func isTransientConnectionError(err error) bool {
 func VerifyAndConfigureInternalRegistry(apiClient *clients.Settings) error {
 	klog.V(amdgpuparams.AMDGPULogLevel).Info("Verifying internal image registry configuration for AMD GPU operator")
 
-	// Use shorter timeout - 5 minutes for initial API check
-	apiCheckTimeout := 5 * time.Minute
+	apiCheckTimeout := 30 * time.Minute
 	retryInterval := 10 * time.Second
 
 	var (
