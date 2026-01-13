@@ -446,7 +446,13 @@ func VerifyInterfaceReady(podObj *pod.Builder, interfaceName string) error {
 		return fmt.Errorf("failed to check interface %q: %w", interfaceName, err)
 	}
 
-	if !strings.Contains(output.String(), "UP") {
+	outputStr := output.String()
+	// Check for UP in interface flags (format: <FLAG1,UP,FLAG2>) or state
+	if !strings.Contains(outputStr, ",UP,") &&
+		!strings.Contains(outputStr, ",UP>") &&
+		!strings.Contains(outputStr, "<UP,") &&
+		!strings.Contains(outputStr, "<UP>") &&
+		!strings.Contains(outputStr, "state UP") {
 		return fmt.Errorf("interface %q is not UP", interfaceName)
 	}
 
