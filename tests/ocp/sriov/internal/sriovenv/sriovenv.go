@@ -493,6 +493,8 @@ func ExtractPodInterfaceMAC(podObj *pod.Builder, interfaceName string) (string, 
 // ============================================================================
 
 // CheckVFStatusWithPassTraffic creates test pods and verifies connectivity.
+// The interfaceName parameter is the physical interface name on the node (used for spoof check verification).
+// Pod interface checks use "net1" which is the standard name for the first secondary network interface in pods.
 func CheckVFStatusWithPassTraffic(networkName, interfaceName, namespace, description string,
 	timeout time.Duration) error {
 	klog.V(90).Infof("Checking VF status: %q (network: %q, ns: %q)", description, networkName, namespace)
@@ -528,17 +530,18 @@ func CheckVFStatusWithPassTraffic(networkName, interfaceName, namespace, descrip
 		}
 	}()
 
-	// Verify interfaces
-	if err := VerifyInterfaceReady(clientPod, interfaceName); err != nil {
+	// Verify pod interfaces (always "net1" for the first secondary network interface in pods)
+	podInterfaceName := "net1"
+	if err := VerifyInterfaceReady(clientPod, podInterfaceName); err != nil {
 		return fmt.Errorf("client interface not ready: %w", err)
 	}
 
-	if err := VerifyInterfaceReady(serverPod, interfaceName); err != nil {
+	if err := VerifyInterfaceReady(serverPod, podInterfaceName); err != nil {
 		return fmt.Errorf("server interface not ready: %w", err)
 	}
 
 	// Check carrier
-	hasCarrier, err := CheckInterfaceCarrier(clientPod, interfaceName)
+	hasCarrier, err := CheckInterfaceCarrier(clientPod, podInterfaceName)
 	if err != nil {
 		return fmt.Errorf("failed to check carrier: %w", err)
 	}
@@ -547,7 +550,7 @@ func CheckVFStatusWithPassTraffic(networkName, interfaceName, namespace, descrip
 		return fmt.Errorf("NO-CARRIER: no physical connection")
 	}
 
-	// Verify spoof checking if in description
+	// Verify spoof checking if in description (uses physical interface name on node)
 	if strings.Contains(description, "spoof checking") {
 		expectedState := "on"
 		if strings.Contains(description, "off") {
