@@ -177,7 +177,16 @@ func RemoveSriovPolicy(name string, timeout time.Duration) error {
 		func(ctx context.Context) (bool, error) {
 			_, pullErr := sriov.PullPolicy(APIClient, name, sriovOpNs)
 
-			return pullErr != nil, nil // Policy is gone when pull fails
+			if pullErr != nil {
+				if apierrors.IsNotFound(pullErr) {
+					return true, nil // Policy successfully deleted
+				}
+
+				// Transient error, keep polling
+				return false, nil
+			}
+
+			return false, nil // Policy still exists
 		})
 }
 
