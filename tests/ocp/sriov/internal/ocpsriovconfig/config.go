@@ -2,6 +2,7 @@
 package ocpsriovconfig
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -200,7 +201,7 @@ func readFile(sriovOcpConfig *SriovOcpConfig, cfgFile string) error {
 	decoder := yaml.NewDecoder(openedCfgFile)
 
 	err = decoder.Decode(sriovOcpConfig)
-	if err != nil && err != io.EOF {
+	if err != nil && !errors.Is(err, io.EOF) {
 		return err
 	}
 
