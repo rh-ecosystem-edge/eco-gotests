@@ -345,11 +345,9 @@ func UpdateSriovPolicyMTU(policyName string, mtuValue int) error {
 func CreateTestPod(name, namespace, networkName, ip, mac string) (*pod.Builder, error) {
 	secNetwork := pod.StaticIPAnnotationWithMacAddress(networkName, []string{ip}, mac)
 
-	podBuilder := pod.NewBuilder(APIClient, name, namespace, SriovOcpConfig.OcpSriovTestContainer).
+	createdPod, err := pod.NewBuilder(APIClient, name, namespace, SriovOcpConfig.OcpSriovTestContainer).
 		WithPrivilegedFlag().
-		WithSecondaryNetwork(secNetwork)
-
-	createdPod, err := podBuilder.Create()
+		WithSecondaryNetwork(secNetwork).Create()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create pod %q: %w", name, err)
 	}
@@ -366,12 +364,10 @@ func CreateDpdkTestPod(name, namespace, networkName string) (*pod.Builder, error
 	secNetwork := pod.StaticIPAnnotationWithMacAddress(networkName,
 		[]string{tsparams.TestPodClientIP}, tsparams.TestPodClientMAC)
 
-	podBuilder := pod.NewBuilder(APIClient, name, namespace, SriovOcpConfig.OcpSriovTestContainer).
+	createdPod, err := pod.NewBuilder(APIClient, name, namespace, SriovOcpConfig.OcpSriovTestContainer).
 		WithPrivilegedFlag().
 		WithSecondaryNetwork(secNetwork).
-		WithLabel("name", "sriov-dpdk")
-
-	createdPod, err := podBuilder.Create()
+		WithLabel("name", "sriov-dpdk").Create()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create DPDK pod %q: %w", name, err)
 	}
