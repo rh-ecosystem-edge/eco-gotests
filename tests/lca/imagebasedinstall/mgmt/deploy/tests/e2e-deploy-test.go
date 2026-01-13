@@ -115,10 +115,10 @@ var _ = Describe(
 			})
 
 		It("through siteconfig operator is successful in a primary IPv6 dual-stack "+
-			"environment with DHCP networking",
+			"environment with static networking",
 			reportxml.ID("no-testcase"), func() {
-				if MGMTConfig.StaticNetworking {
-					Skip("Cluster is deployed with static networking")
+				if !MGMTConfig.StaticNetworking {
+					Skip("Cluster is not deployed with static networking")
 				}
 
 				if !MGMTConfig.SiteConfig {
@@ -140,6 +140,34 @@ var _ = Describe(
 				tsparams.ReporterNamespacesToDump[MGMTConfig.Cluster.Info.ClusterName] = reporterNamespaceToDump
 
 				createSiteConfigResouces(dualstackPrimaryv6AddrFamily)
+			})
+
+		It("through siteconfig operator is successful in a primary IPv4 dual-stack "+
+			"environment with static networking",
+			reportxml.ID("no-testcase"), func() {
+				if !MGMTConfig.StaticNetworking {
+					Skip("Cluster is not deployed with static networking")
+				}
+
+				if !MGMTConfig.SiteConfig {
+					Skip("Cluster is deployed without siteconfig operator")
+				}
+
+				if MGMTConfig.SeedClusterInfo.Proxy.HTTPProxy != "" || MGMTConfig.SeedClusterInfo.Proxy.HTTPSProxy != "" {
+					Skip("Cluster installed with proxy")
+				}
+
+				if !isDualStack() {
+					Skip("Cluster is not deployed with dual-stack")
+				}
+
+				if MGMTConfig.Cluster.Info.PrimaryIPFamily != ipv4AddrFamily {
+					Skip("Cluster is not deployed with primary IPv4")
+				}
+
+				tsparams.ReporterNamespacesToDump[MGMTConfig.Cluster.Info.ClusterName] = reporterNamespaceToDump
+
+				createSiteConfigResouces(dualstackPrimaryv4AddrFamily)
 			})
 
 		It("through siteconfig operator is successful in an IPv4 environment with DHCP networking",
