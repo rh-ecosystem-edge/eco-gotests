@@ -329,6 +329,11 @@ func UpdateSriovPolicyMTU(policyName string, mtuValue int) error {
 		return fmt.Errorf("failed to recreate policy %q with new MTU: %w", policyName, err)
 	}
 
+	// Wait for policy to be applied and MCP to stabilize
+	if err := WaitForSriovPolicyReady(tsparams.PolicyApplicationTimeout); err != nil {
+		return fmt.Errorf("policy %q not ready after MTU update: %w", policyName, err)
+	}
+
 	return nil
 }
 
@@ -524,16 +529,16 @@ func CheckVFStatusWithPassTraffic(networkName, interfaceName, namespace, descrip
 	}()
 
 	// Verify interfaces
-	if err := VerifyInterfaceReady(clientPod, "net1"); err != nil {
+	if err := VerifyInterfaceReady(clientPod, interfaceName); err != nil {
 		return fmt.Errorf("client interface not ready: %w", err)
 	}
 
-	if err := VerifyInterfaceReady(serverPod, "net1"); err != nil {
+	if err := VerifyInterfaceReady(serverPod, interfaceName); err != nil {
 		return fmt.Errorf("server interface not ready: %w", err)
 	}
 
 	// Check carrier
-	hasCarrier, err := CheckInterfaceCarrier(clientPod, "net1")
+	hasCarrier, err := CheckInterfaceCarrier(clientPod, interfaceName)
 	if err != nil {
 		return fmt.Errorf("failed to check carrier: %w", err)
 	}
@@ -569,7 +574,7 @@ func CheckVFStatusWithPassTraffic(networkName, interfaceName, namespace, descrip
 
 // VerifyLinkStateConfiguration verifies link state configuration without requiring connectivity.
 // It waits up to CarrierWaitTimeout for carrier status to be established before returning.
-func VerifyLinkStateConfiguration(networkName, namespace, description string,
+func VerifyLinkStateConfiguration(networkName, interfaceName, namespace, description string,
 	timeout time.Duration) (bool, error) {
 	klog.V(90).Infof("Verifying link state: %q (network: %q, ns: %q)", description, networkName, namespace)
 
@@ -588,7 +593,7 @@ func VerifyLinkStateConfiguration(networkName, namespace, description string,
 		}
 	}()
 
-	if err := VerifyInterfaceReady(testPod, "net1"); err != nil {
+	if err := VerifyInterfaceReady(testPod, interfaceName); err != nil {
 		return false, fmt.Errorf("interface not ready: %w", err)
 	}
 
@@ -597,7 +602,7 @@ func VerifyLinkStateConfiguration(networkName, namespace, description string,
 
 	err = wait.PollUntilContextTimeout(context.Background(), tsparams.PollingInterval,
 		tsparams.CarrierWaitTimeout, true, func(ctx context.Context) (bool, error) {
-			carrier, checkErr := CheckInterfaceCarrier(testPod, "net1")
+			carrier, checkErr := CheckInterfaceCarrier(testPod, interfaceName)
 			if checkErr != nil {
 				klog.V(90).Infof("Carrier check failed (will retry): %v", checkErr)
 
@@ -733,13 +738,15 @@ func GetPciAddress(namespace, podName, podInterface string) (string, error) {
 
 // CleanupLeftoverResources cleans up leftover test resources.
 // Uses existing sriovoperator functions to remove all networks and policies.
-func CleanupLeftoverResources() error {
+// The enablePrefixCleanup parameter controls whether to perform risky prefix-based
+// namespace cleanup (e2e- prefix) in shared clusters. Set to false for safety in
+// shared environments, true only when you have exclusive cluster access.
+func CleanupLeftoverResources(enablePrefixCleanup bool) error {
 	sriovOpNs := SriovOcpConfig.OcpSriovOperatorNamespace
 
 	klog.V(90).Info("Cleaning up leftover test resources")
 
 	// Cleanup test namespaces using label selector for safety in shared clusters.
-	// Falls back to name-based matching (e2e- prefix) for backwards compatibility.
 	labelSelector := fmt.Sprintf("%s=%s", tsparams.TestResourceLabelKey, tsparams.TestResourceLabelValue)
 
 	namespaces, err := namespace.List(APIClient, metav1.ListOptions{LabelSelector: labelSelector})
@@ -755,18 +762,22 @@ func CleanupLeftoverResources() error {
 		}
 	}
 
-	// Fallback: Also cleanup namespaces with e2e- prefix (for backwards compatibility)
-	allNamespaces, err := namespace.List(APIClient, metav1.ListOptions{})
-	if err != nil {
-		klog.V(90).Infof("Warning: failed to list all namespaces: %v", err)
-	}
+	// Optional fallback: cleanup namespaces with e2e- prefix (requires explicit opt-in)
+	// WARNING: This is risky in shared clusters as it may delete namespaces from other tests.
+	// Only enable when you have exclusive cluster access or in isolated test environments.
+	if enablePrefixCleanup {
+		allNamespaces, err := namespace.List(APIClient, metav1.ListOptions{})
+		if err != nil {
+			klog.V(90).Infof("Warning: failed to list all namespaces: %v", err)
+		} else {
+			for _, ns := range allNamespaces {
+				if strings.HasPrefix(ns.Definition.Name, "e2e-") {
+					klog.V(90).Infof("Removing leftover namespace %q (e2e- prefix)", ns.Definition.Name)
 
-	for _, ns := range allNamespaces {
-		if strings.HasPrefix(ns.Definition.Name, "e2e-") {
-			klog.V(90).Infof("Removing leftover namespace %q (e2e- prefix)", ns.Definition.Name)
-
-			if delErr := ns.DeleteAndWait(tsparams.CleanupTimeout); delErr != nil {
-				klog.V(90).Infof("Warning: failed to delete namespace %q: %v", ns.Definition.Name, delErr)
+					if delErr := ns.DeleteAndWait(tsparams.CleanupTimeout); delErr != nil {
+						klog.V(90).Infof("Warning: failed to delete namespace %q: %v", ns.Definition.Name, delErr)
+					}
+				}
 			}
 		}
 	}
