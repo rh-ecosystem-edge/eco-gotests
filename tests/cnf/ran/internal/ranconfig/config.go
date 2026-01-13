@@ -51,6 +51,8 @@ type RANConfig struct {
 	// ClusterTemplateAffix is the version-dependent affix used for naming ClusterTemplates and other O-RAN
 	// resources.
 	ClusterTemplateAffix string `envconfig:"ECO_CNF_RAN_CLUSTER_TEMPLATE_AFFIX"`
+	// PtpMustGatherImage is the fallback image to use for PTP must-gather when the CSV annotation is not available.
+	PtpMustGatherImage string `yaml:"ptpMustGatherImage" envconfig:"ECO_CNF_RAN_PTP_MUST_GATHER_IMAGE"`
 }
 
 // HubConfig contains the configuration for the hub cluster, if present.

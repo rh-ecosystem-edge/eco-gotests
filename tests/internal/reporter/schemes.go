@@ -32,6 +32,7 @@ import (
 	mcmv1beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/kmm-hub/v1beta1"
 	modulev1beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/kmm/v1beta1"
 	olmv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/operators/v1alpha1"
+	ptpv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v1"
 	certificatesv1 "k8s.io/api/certificates/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
@@ -74,6 +75,7 @@ var reporterSchemes = []clients.SchemeAttacher{
 	provisioningv1alpha1.AddToScheme,
 	hardwaremanagementv1alpha1.AddToScheme,
 	inventoryv1alpha1.AddToScheme,
+	ptpv1.AddToScheme,
 }
 
 func setReporterSchemes(scheme *runtime.Scheme) error {
