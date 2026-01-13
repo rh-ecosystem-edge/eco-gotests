@@ -577,6 +577,8 @@ func CheckVFStatusWithPassTraffic(networkName, interfaceName, namespace, descrip
 
 // VerifyLinkStateConfiguration verifies link state configuration without requiring connectivity.
 // It waits up to CarrierWaitTimeout for carrier status to be established before returning.
+// The interfaceName parameter is the physical interface name on the node (for reference).
+// Pod interface checks use "net1" which is the standard name for the first secondary network interface in pods.
 func VerifyLinkStateConfiguration(networkName, interfaceName, namespace, description string,
 	timeout time.Duration) (bool, error) {
 	klog.V(90).Infof("Verifying link state: %q (network: %q, ns: %q)", description, networkName, namespace)
@@ -596,7 +598,9 @@ func VerifyLinkStateConfiguration(networkName, interfaceName, namespace, descrip
 		}
 	}()
 
-	if err := VerifyInterfaceReady(testPod, interfaceName); err != nil {
+	// Pod interface is always "net1" for the first secondary network
+	podInterfaceName := "net1"
+	if err := VerifyInterfaceReady(testPod, podInterfaceName); err != nil {
 		return false, fmt.Errorf("interface not ready: %w", err)
 	}
 
@@ -605,7 +609,7 @@ func VerifyLinkStateConfiguration(networkName, interfaceName, namespace, descrip
 
 	err = wait.PollUntilContextTimeout(context.Background(), tsparams.PollingInterval,
 		tsparams.CarrierWaitTimeout, true, func(ctx context.Context) (bool, error) {
-			carrier, checkErr := CheckInterfaceCarrier(testPod, interfaceName)
+			carrier, checkErr := CheckInterfaceCarrier(testPod, podInterfaceName)
 			if checkErr != nil {
 				klog.V(90).Infof("Carrier check failed (will retry): %v", checkErr)
 
