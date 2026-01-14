@@ -8,7 +8,8 @@ import (
 
 // AMDConfig contains environment information related to amd tests.
 type AMDConfig struct {
-	AMDDriverVersion string `envconfig:"ECO_HWACCEL_AMD_DRIVER_VERSION"`
+	AMDDriverVersion   string `envconfig:"ECO_HWACCEL_AMD_DRIVER_VERSION"`
+	AMDOperatorVersion string `envconfig:"ECO_HWACCEL_AMD_OPERATOR_VERSION"`
 }
 
 // NewAMDConfig returns instance of AMDConfig type.

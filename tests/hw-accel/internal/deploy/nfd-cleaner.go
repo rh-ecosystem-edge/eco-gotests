@@ -43,9 +43,7 @@ func (n *NFDCustomResourceCleaner) CleanupCustomResources() error {
 		deletedCount++
 	}
 
-	if err := n.cleanupAMDGPUFeatureRule(); err != nil {
-		klog.V(n.LogLevel).Infof("AMD GPU FeatureRule cleanup: %v", err)
-	}
+	n.cleanupAMDGPUFeatureRule()
 
 	if deletedCount == 0 {
 		klog.V(n.LogLevel).Infof("No NodeFeatureDiscovery custom resources found to delete")
@@ -62,7 +60,8 @@ func (n *NFDCustomResourceCleaner) deleteNFDCRByName(crName string) error {
 
 	nfdCR, err := nfd.Pull(n.APIClient, crName, n.Namespace)
 	if err != nil {
-		if strings.Contains(err.Error(), "does not exist") {
+		if strings.Contains(err.Error(), "does not exist") ||
+			strings.Contains(err.Error(), "not found") {
 			klog.V(n.LogLevel).Infof("NFD CR %s does not exist", crName)
 
 			return fmt.Errorf("NFD CR %s not found", crName)
@@ -71,6 +70,13 @@ func (n *NFDCustomResourceCleaner) deleteNFDCRByName(crName string) error {
 		klog.V(n.LogLevel).Infof("Failed to pull NFD CR %s: %v", crName, err)
 
 		return fmt.Errorf("failed to pull NFD CR %s: %w", crName, err)
+	}
+
+	// Check for nil Object
+	if nfdCR == nil || nfdCR.Object == nil {
+		klog.V(n.LogLevel).Infof("NFD CR %s not found or is nil", crName)
+
+		return fmt.Errorf("NFD CR %s not found", crName)
 	}
 
 	if len(nfdCR.Object.GetFinalizers()) > 0 {
@@ -101,29 +107,40 @@ func (n *NFDCustomResourceCleaner) deleteNFDCRByName(crName string) error {
 }
 
 // cleanupAMDGPUFeatureRule cleans up the AMD GPU FeatureRule.
-func (n *NFDCustomResourceCleaner) cleanupAMDGPUFeatureRule() error {
-	nodeFeaturRuleBuilder, err := nfd.PullFeatureRule(n.APIClient, "amd-gpu-feature-rule", "openshift-amd-gpu")
+// This is a non-fatal operation - errors are logged but do not fail the cleanup.
+func (n *NFDCustomResourceCleaner) cleanupAMDGPUFeatureRule() {
+	nodeFeatureRuleBuilder, err := nfd.PullFeatureRule(n.APIClient, "amd-gpu-feature-rule", "openshift-amd-gpu")
+	if err != nil {
+		if errors.IsNotFound(err) || strings.Contains(err.Error(), "not found") {
+			klog.V(n.LogLevel).Info("AMD GPU FeatureRule does not exist, nothing to delete")
+
+			return
+		}
+
+		klog.V(n.LogLevel).Infof("Error checking AMD GPU FeatureRule: %v", err)
+
+		return
+	}
+
+	// Check for nil
+	if nodeFeatureRuleBuilder == nil || nodeFeatureRuleBuilder.Object == nil {
+		klog.V(n.LogLevel).Info("AMD GPU FeatureRule not found")
+
+		return
+	}
+
+	klog.V(n.LogLevel).Info("Deleting AMD GPU FeatureRule")
 
 	ctx := context.Background()
 
-	if err == nil {
-		klog.V(n.LogLevel).Info("Deleting AMD GPU FeatureRule")
+	err = n.APIClient.Client.Delete(ctx, nodeFeatureRuleBuilder.Object)
+	if err != nil {
+		klog.V(n.LogLevel).Infof("Error deleting AMD GPU FeatureRule: %v", err)
 
-		err = n.APIClient.Client.Delete(ctx, nodeFeaturRuleBuilder.Object)
-		if err != nil {
-			klog.V(n.LogLevel).Infof("Error deleting AMD GPU FeatureRule: %v", err)
-
-			return err
-		}
-
-		klog.V(n.LogLevel).Info("Successfully deleted AMD GPU FeatureRule")
-	} else if !errors.IsNotFound(err) {
-		klog.V(n.LogLevel).Infof("Error checking AMD GPU FeatureRule: %v", err)
-
-		return err
+		return
 	}
 
-	return nil
+	klog.V(n.LogLevel).Info("Successfully deleted AMD GPU FeatureRule")
 }
 
 // Interface verification.

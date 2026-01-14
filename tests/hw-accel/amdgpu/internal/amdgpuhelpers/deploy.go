@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/internal/amdgpuconfig"
 	amdgpuparams "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/params"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/internal/deploy"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/nfdparams"
@@ -13,8 +14,33 @@ import (
 )
 
 const (
-	timeout = 10 * time.Minute
+	// timeout for operator installation and readiness in SNO environments
+	// where MachineConfig changes can trigger node reboots taking 30-40 minutes.
+	timeout = 60 * time.Minute
 )
+
+// formatAMDGPUStartingCSV formats the version string to the proper StartingCSV format.
+// If version is "1.4.1", returns "amd-gpu-operator.v1.4.1".
+// If version already starts with "amd-gpu-operator", returns as-is.
+// Returns empty string if version is empty.
+func formatAMDGPUStartingCSV(version string) string {
+	// Handle empty version - return empty to avoid invalid CSV
+	if version == "" {
+		return ""
+	}
+
+	// If already in full CSV format, return as-is
+	if strings.HasPrefix(version, "amd-gpu-operator") {
+		return version
+	}
+
+	// Add "v" prefix if not present
+	if !strings.HasPrefix(version, "v") {
+		version = "v" + version
+	}
+
+	return fmt.Sprintf("amd-gpu-operator.%s", version)
+}
 
 // DeployAllOperators deploys NFD, KMM, and AMD GPU operators using the generic installer.
 func DeployAllOperators(apiClient *clients.Settings) error {
@@ -57,13 +83,26 @@ func getConfigByName(operatorName string, apiClient *clients.Settings) deploy.Op
 			CatalogSource:          "redhat-operators",
 			CatalogSourceNamespace: "openshift-marketplace",
 			Channel:                "stable",
-			TargetNamespaces:       []string{nfdparams.NFDNamespace},
+			TargetNamespaces:       []string{nfdparams.NFDNamespace}, // NFD only watches its own namespace
 			LogLevel:               klog.Level(amdgpuparams.AMDGPULogLevel),
 		}
 	case "kmm":
 		return GetDefaultKMMInstallConfig(apiClient, nil)
 	case "amdgpu":
-		return GetDefaultAMDGPUInstallConfig(apiClient, nil)
+		var options *AMDGPUInstallConfigOptions
+
+		amdConfig := amdgpuconfig.NewAMDConfig()
+		if amdConfig != nil && amdConfig.AMDOperatorVersion != "" {
+			// Format the StartingCSV as "amd-gpu-operator.vX.Y.Z"
+			// User provides version like "1.4.1", we need "amd-gpu-operator.v1.4.1"
+			startingCSV := formatAMDGPUStartingCSV(amdConfig.AMDOperatorVersion)
+			options = &AMDGPUInstallConfigOptions{
+				StartingCSV: &startingCSV,
+			}
+			klog.V(amdgpuparams.AMDGPULogLevel).Infof("Using AMD GPU operator StartingCSV: %s", startingCSV)
+		}
+
+		return GetDefaultAMDGPUInstallConfig(apiClient, options)
 	default:
 		return deploy.OperatorInstallConfig{}
 	}

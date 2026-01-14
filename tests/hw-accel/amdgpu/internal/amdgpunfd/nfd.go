@@ -108,3 +108,14 @@ func handleFeatureRuleCreationError(err error) error {
 
 	return err
 }
+
+// DeleteAMDGPUFeatureRule deletes the AMD GPU NFD FeatureRule.
+func DeleteAMDGPUFeatureRule(apiClient *clients.Settings) error {
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("Deleting AMD GPU FeatureRule")
+
+	// FeatureRule will be cleaned up when NFD operator is uninstalled
+	// This is a placeholder for explicit cleanup if needed
+	klog.V(amdgpuparams.AMDGPULogLevel).Info("FeatureRule will be cleaned up with NFD operator uninstall")
+
+	return nil
+}
