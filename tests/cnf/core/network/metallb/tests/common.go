@@ -900,7 +900,20 @@ func validateAddressPool(ipAddressPoolName string, expected mlbtypes.IPAddressPo
 	ipAddressPool, err := metallb.PullAddressPool(APIClient, ipAddressPoolName, NetConfig.MlbOperatorNamespace)
 	Expect(err).ToNot(HaveOccurred(), "Failed to pull IPAddressPool %s", ipAddressPoolName)
 
-	Expect(ipAddressPool.Object.Status).To(Equal(expected))
+	actual := ipAddressPool.Object.Status
+
+	// For IPv6, check that AvailableIPv6 is >= threshold (when threshold >= 1000)
+	// For IPv4 and other fields, use exact match
+	if expected.AvailableIPv6 >= 1000 {
+		Expect(actual.AvailableIPv6).To(BeNumerically(">=", expected.AvailableIPv6),
+			"AvailableIPv6 should be at least %d", expected.AvailableIPv6)
+		Expect(actual.AvailableIPv4).To(Equal(expected.AvailableIPv4))
+		Expect(actual.AssignedIPv4).To(Equal(expected.AssignedIPv4))
+		Expect(actual.AssignedIPv6).To(Equal(expected.AssignedIPv6))
+	} else {
+		// For IPv4-only pools, use exact match for all fields
+		Expect(actual).To(Equal(expected))
+	}
 }
 
 func validateBGPSessionState(bgpStatus, bfdStatus, bgpPeerIP string, workerNodeList []*nodes.Builder) {
