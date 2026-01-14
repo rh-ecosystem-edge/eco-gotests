@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"iter"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -160,8 +161,46 @@ var (
 	ptpHardwareClockRegex = regexp.MustCompile(`(?m)^PTP Hardware Clock: (\d+)$`)
 )
 
+const (
+	ethtoolRetries       = 3
+	ethtoolRetryInterval = 20 * time.Second
+)
+
+// execEthtoolWithRetryOnEmpty executes an ethtool command on a node and retries if the output is empty.
+// This is necessary because ethtool output can sometimes be inexplicably empty.
+func execEthtoolWithRetryOnEmpty(
+	client *clients.Settings, nodeName, command string, nodeSelector metav1.ListOptions) (string, error) {
+	var output string
+
+	for attempt := range ethtoolRetries {
+		if attempt > 0 {
+			klog.V(logLevel).Infof(
+				"Retrying ethtool command %q on node %s (attempt %d/%d) due to empty output",
+				command, nodeName, attempt+1, ethtoolRetries)
+			time.Sleep(ethtoolRetryInterval)
+		}
+
+		outputs, err := cluster.ExecCmdWithStdoutWithRetries(
+			client, ethtoolRetries, ethtoolRetryInterval, command, nodeSelector)
+		if err != nil {
+			return "", err
+		}
+
+		output = outputs[nodeName]
+		if strings.TrimSpace(output) != "" {
+			return output, nil
+		}
+
+		klog.V(logLevel).Infof("Ethtool command %q on node %s returned empty output", command, nodeName)
+	}
+
+	return "", fmt.Errorf("ethtool command %q on node %s returned empty output after %d attempts",
+		command, nodeName, ethtoolRetries)
+}
+
 // getInterfaceInfo gets the information for a given interface on a given node by running ethtool commands on the node
-// and parsing the output. Commands are retried up to 3 times with a 20 second delay between retries.
+// and parsing the output. Commands are retried up to 3 times with a 20 second delay between retries, and also retried
+// if the output is empty.
 func getInterfaceInfo(client *clients.Settings, nodeName string, interfaceName string) (nicInfo, error) {
 	nodeSelector := metav1.ListOptions{
 		FieldSelector: fields.SelectorFromSet(fields.Set{"metadata.name": nodeName}).String(),
@@ -169,40 +208,46 @@ func getInterfaceInfo(client *clients.Settings, nodeName string, interfaceName s
 
 	driverInfoCommand := fmt.Sprintf("ethtool -i %s", interfaceName)
 
-	driverInfoOutput, err := cluster.ExecCmdWithStdoutWithRetries(
-		client, 3, 20*time.Second, driverInfoCommand, nodeSelector)
+	driverInfoOutput, err := execEthtoolWithRetryOnEmpty(client, nodeName, driverInfoCommand, nodeSelector)
 	if err != nil {
 		return nicInfo{}, fmt.Errorf(
 			"failed to get driver info for interface %s on node %s: %w", interfaceName, nodeName, err)
 	}
 
-	driver := driverRegex.FindStringSubmatch(driverInfoOutput[nodeName])
+	driver := driverRegex.FindStringSubmatch(driverInfoOutput)
 	if len(driver) == 0 {
-		return nicInfo{}, fmt.Errorf("failed to get driver for interface %s on node %s", interfaceName, nodeName)
+		return nicInfo{}, fmt.Errorf(
+			"failed to find driver in ethtool output for interface %s on node %s: output was %q",
+			interfaceName, nodeName, driverInfoOutput)
 	}
 
-	version := versionRegex.FindStringSubmatch(driverInfoOutput[nodeName])
+	version := versionRegex.FindStringSubmatch(driverInfoOutput)
 	if len(version) == 0 {
-		return nicInfo{}, fmt.Errorf("failed to get version for interface %s on node %s", interfaceName, nodeName)
+		return nicInfo{}, fmt.Errorf(
+			"failed to find version in ethtool output for interface %s on node %s: output was %q",
+			interfaceName, nodeName, driverInfoOutput)
 	}
 
-	firmwareVersion := firmwareVersionRegex.FindStringSubmatch(driverInfoOutput[nodeName])
+	firmwareVersion := firmwareVersionRegex.FindStringSubmatch(driverInfoOutput)
 	if len(firmwareVersion) == 0 {
-		return nicInfo{}, fmt.Errorf("failed to get firmware version for interface %s on node %s", interfaceName, nodeName)
+		return nicInfo{}, fmt.Errorf(
+			"failed to find firmware-version in ethtool output for interface %s on node %s: output was %q",
+			interfaceName, nodeName, driverInfoOutput)
 	}
 
 	ptpHardwareClockCommand := fmt.Sprintf("ethtool -T %s", interfaceName)
 
-	ptpHardwareClockOutput, err := cluster.ExecCmdWithStdoutWithRetries(
-		client, 3, 20*time.Second, ptpHardwareClockCommand, nodeSelector)
+	ptpHardwareClockOutput, err := execEthtoolWithRetryOnEmpty(client, nodeName, ptpHardwareClockCommand, nodeSelector)
 	if err != nil {
 		return nicInfo{}, fmt.Errorf(
 			"failed to get PTP hardware clock for interface %s on node %s: %w", interfaceName, nodeName, err)
 	}
 
-	ptpHardwareClock := ptpHardwareClockRegex.FindStringSubmatch(ptpHardwareClockOutput[nodeName])
+	ptpHardwareClock := ptpHardwareClockRegex.FindStringSubmatch(ptpHardwareClockOutput)
 	if len(ptpHardwareClock) == 0 {
-		return nicInfo{}, fmt.Errorf("failed to get PTP hardware clock for interface %s on node %s", interfaceName, nodeName)
+		return nicInfo{}, fmt.Errorf(
+			"failed to find PTP Hardware Clock in ethtool output for interface %s on node %s: output was %q",
+			interfaceName, nodeName, ptpHardwareClockOutput)
 	}
 
 	return nicInfo{
