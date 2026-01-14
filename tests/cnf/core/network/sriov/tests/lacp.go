@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -96,6 +97,9 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 		workerNodeList, err = nodes.List(APIClient,
 			metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
 		Expect(err).ToNot(HaveOccurred(), "Fail to discover worker nodes")
+		Expect(len(workerNodeList)).To(BeNumerically(">=", 2), "Need at least 2 worker nodes")
+
+		bondedNADName = bondedNADNameActiveBackup
 
 		worker0NodeName = workerNodeList[0].Definition.Name
 		worker1NodeName = workerNodeList[1].Definition.Name
@@ -249,6 +253,9 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 
 		It("Verify bond active-backup recovery when PF LACP failure disables VF", reportxml.ID("83319"), func() {
 
+			By("Verifying bond interfaces exist on node before creating PFLACPMonitor")
+			waitForBondReady(worker0NodeName)
+
 			By("Creating bonded Network Attachment Definition")
 			err := createBondedNAD(bondedNADNameActiveBackup)
 			Expect(err).ToNot(HaveOccurred(), "Failed to create bonded NAD")
@@ -273,6 +280,9 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 
 		It("Verify that an interface can be added and removed from the PFLACPMonitor interface monitoring",
 			reportxml.ID("83323"), func() {
+
+				By("Verifying bond interfaces exist on node before creating PFLACPMonitor")
+				waitForBondReady(worker0NodeName)
 
 				By(fmt.Sprintf("Deploying PFLACPMonitor on %s with single PF interface", worker0NodeName))
 				nodeSelectorWorker0 := createNodeSelector(worker0NodeName)
@@ -348,6 +358,9 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 
 		It("Verify that an interface can be added to PfLACPMonitoring without LACP configured on the interface",
 			reportxml.ID("83325"), func() {
+
+				By("Verifying first bond interface exists on node before creating PFLACPMonitor")
+				waitForBondReady(worker0NodeName)
 
 				By(fmt.Sprintf(
 					"Deploying PFLACPMonitor on %s with two interfaces - first with LACP, second without LACP",
@@ -481,6 +494,31 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 					"Node bond interface should be functional after complete test")
 			})
 
+		It("Verify Webhook error when deploying two PFLACPMonitorCRDs with conflicting monitored interfaces",
+			reportxml.ID("83329"), func() {
+
+				By("Verifying bond interfaces exist on node before creating PFLACPMonitor")
+				waitForBondReady(worker0NodeName)
+
+				By(fmt.Sprintf(
+					"Creating first PFLACPMonitor on %s with interface %s", worker0NodeName, secondaryInterface0))
+				setupSingleInterfacePFLACPMonitor(worker0NodeName, secondaryInterface0)
+
+				By("Verifying first PFLACPMonitor is working correctly")
+				verifyPFLACPMonitorLogsEventually(worker0NodeName, logTypeInitialization, []string{secondaryInterface0})
+
+				By("Deploy second PFLACPMonitor CRD with same monitored interface (should be rejected by webhook)")
+				conflictingMonitorName := "pflacpmonitor-duplicate"
+
+				nodeSelectorWorker0 := createNodeSelector(worker0NodeName)
+				conflictErr := createPFLACPMonitor(conflictingMonitorName, []string{secondaryInterface0}, nodeSelectorWorker0)
+				Expect(conflictErr).To(HaveOccurred(),
+					"Second PFLACPMonitor CRD creation should FAIL due to webhook conflict validation")
+				Expect(conflictErr.Error()).Should(ContainSubstring(
+					"Operation cannot be fulfilled on pflacpmonitors.pfstatusrelay.openshift.io"),
+					"Webhook should reject conflicting PFLACPMonitor with specific operation error")
+			})
+
 		It("Verify that a SriovNetworkNodePolicy can be added and deleted while the PFLACPMonitor is active",
 			reportxml.ID("83328"),
 			func() {
@@ -540,30 +578,11 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 				By("Restoring SR-IOV configuration for subsequent tests")
 				err = sriov.CleanAllNetworkNodePolicies(APIClient, NetConfig.SriovOperatorNamespace)
 				Expect(err).ToNot(HaveOccurred(), "Failed to clean SR-IOV policies")
-			})
 
-		It("Verify Webhook error when deploying two PFLACPMonitorCRDs with conflicting monitored interfaces",
-			reportxml.ID("83329"), func() {
-
-				By(fmt.Sprintf(
-					"Creating first PFLACPMonitor on %s with interface %s", worker0NodeName, secondaryInterface0))
-				setupSingleInterfacePFLACPMonitor(worker0NodeName, secondaryInterface0)
-
-				By("Verifying first PFLACPMonitor is working correctly")
-				verifyPFLACPMonitorLogsEventually(worker0NodeName, logTypeInitialization, []string{secondaryInterface0})
-
-				By("Deploy second PFLACPMonitor CRD with same monitored interface (should be rejected by webhook)")
-				conflictingMonitorName := "pflacpmonitor-duplicate"
-
-				nodeSelectorWorker0 := createNodeSelector(worker0NodeName)
-				conflictErr := createPFLACPMonitor(conflictingMonitorName, []string{secondaryInterface0}, nodeSelectorWorker0)
-				Expect(conflictErr).To(HaveOccurred(),
-					"Second PFLACPMonitor CRD creation should FAIL due to webhook conflict validation")
-				Expect(conflictErr.Error()).Should(ContainSubstring(
-					"Operation cannot be fulfilled on pflacpmonitors.pfstatusrelay.openshift.io"),
-					"Webhook should reject conflicting PFLACPMonitor with specific operation error")
-
-				By("Verified webhook correctly rejected conflicting monitor with expected error")
+				By("Waiting for SR-IOV and MCP to stabilize after SR-IOV policy cleanup")
+				err = sriovoperator.WaitForSriovAndMCPStable(
+					APIClient, tsparams.MCOWaitTimeout, time.Minute, NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
+				Expect(err).ToNot(HaveOccurred(), "Failed to wait for SR-IOV stability after policy cleanup")
 			})
 	})
 
@@ -814,7 +833,7 @@ func createLACPTestClient(podName, sriovNetworkName, nodeName string) error {
 		[]string{testClientIPWithCIDR},
 		"20:04:0f:f1:88:99")
 
-	testCmd := []string{"testcmd", "-interface", "net1", "-protocol", "tcp", "-port", "4444", "-listen"}
+	testCmd := []string{"testcmd", "-interface", net1Interface, "-protocol", "tcp", "-port", "4444", "-listen"}
 
 	_, err := pod.NewBuilder(APIClient, podName, tsparams.TestNamespaceName, NetConfig.CnfNetTestContainer).
 		DefineOnNode(nodeName).
@@ -1029,34 +1048,29 @@ func verifyPFLACPMonitorLogsEventually(
 		return nil
 	}, 60*time.Second, 5*time.Second).Should(Succeed(), "Failed to get PFLACPMonitor pod after retries")
 
-	// Retry getting logs as the container might need a moment to start producing logs
-	var podLogs string
+	if logType != logTypeInitialization && logType != logTypeVFDisable && logType != logTypeVFEnable {
+		Fail(fmt.Sprintf("Invalid logType '%s'. Use '%s', '%s', or '%s'",
+			logType, logTypeInitialization, logTypeVFDisable, logTypeVFEnable))
+	}
 
+	// Retry getting logs and validating content as the container might need a moment to emit them
 	Eventually(func() error {
-		var err error
-
-		podLogs, err = pflacpPod.GetFullLog("")
+		podLogs, err := pflacpPod.GetFullLog("")
 		if err != nil {
 			return fmt.Errorf("failed to get pod logs: %w", err)
 		}
 
-		return nil
-	}, 30*time.Second, 2*time.Second).Should(Succeed(), "Failed to get PFLACPMonitor pod logs")
-
-	switch logType {
-	case logTypeInitialization:
-		err := verifyInitializationLogsEventually(podLogs, srIovInterfacesUnderTest)
-		Expect(err).ToNot(HaveOccurred(), "Failed to verify initialization logs")
-	case logTypeVFDisable:
-		err := verifyVFDisableLogsEventually(podLogs)
-		Expect(err).ToNot(HaveOccurred(), "Failed to verify VF disable logs")
-	case logTypeVFEnable:
-		err := verifyVFEnableLogsEventually(podLogs)
-		Expect(err).ToNot(HaveOccurred(), "Failed to verify VF enable logs")
-	default:
-		Fail(fmt.Sprintf("Invalid logType '%s'. Use '%s', '%s', or '%s'",
-			logType, logTypeInitialization, logTypeVFDisable, logTypeVFEnable))
-	}
+		switch logType {
+		case logTypeInitialization:
+			return verifyInitializationLogsEventually(podLogs, srIovInterfacesUnderTest)
+		case logTypeVFDisable:
+			return verifyVFDisableLogsEventually(podLogs)
+		case logTypeVFEnable:
+			return verifyVFEnableLogsEventually(podLogs)
+		default:
+			return fmt.Errorf("invalid logType '%s'", logType)
+		}
+	}, 30*time.Second, 2*time.Second).Should(Succeed(), "Failed to verify PFLACPMonitor pod logs")
 }
 
 func verifyInitializationLogsEventually(podLogs string, srIovInterfacesUnderTest []string) error {
@@ -1087,7 +1101,18 @@ func verifyInitializationLogsEventually(podLogs string, srIovInterfacesUnderTest
 	return nil
 }
 
+func waitForBondReady(nodeName string) {
+	Eventually(func() error {
+		return checkBondingStatusOnNode(nodeName)
+	}, 2*time.Minute, 5*time.Second).Should(Succeed(),
+		fmt.Sprintf("Bond interface %s should exist on node %s before PFLACPMonitor deployment",
+			nodeBond10Interface, nodeName))
+}
+
 func setupSingleInterfacePFLACPMonitor(nodeName, interfaceName string) {
+	By("Verifying bond interfaces exist on node before creating PFLACPMonitor")
+	waitForBondReady(nodeName)
+
 	nodeSelectorWorker0 := createNodeSelector(nodeName)
 	err := createPFLACPMonitor(pfLacpMonitorName, []string{interfaceName}, nodeSelectorWorker0)
 	Expect(err).ToNot(HaveOccurred(), "Failed to create PFLACPMonitor")
@@ -1589,7 +1614,25 @@ func getPFLACPMonitorPod(nodeName string) (*pod.Builder, error) {
 	By(fmt.Sprintf("Getting PF status relay daemon set pod on node %s", nodeName))
 
 	monitorNS := NetConfig.PFStatusRelayOperatorNamespace
-	daemonsetName := "pf-status-relay-ds-pflacpmonitor"
+
+	// List all daemonsets in the namespace to find the PFLACPMonitor daemonset
+	// The operator creates daemonsets with the pattern "pf-status-relay-ds-<monitorName>"
+	daemonsetList, err := APIClient.DaemonSets(monitorNS).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list daemonsets in namespace %s: %w", monitorNS, err)
+	}
+
+	var daemonsetName string
+	for _, ds := range daemonsetList.Items {
+		if strings.HasPrefix(ds.Name, "pf-status-relay-ds-") {
+			daemonsetName = ds.Name
+			break
+		}
+	}
+
+	if daemonsetName == "" {
+		return nil, fmt.Errorf("no PFLACPMonitor daemonset found in namespace %s", monitorNS)
+	}
 
 	// Pull the daemonset and verify it's ready
 	pfStatusRelayDS, err := daemonset.Pull(APIClient, daemonsetName, monitorNS)
@@ -1935,19 +1978,29 @@ func verifyLACPPortStateDown(nodeName, bondInterface string) error {
 
 	lines := strings.Split(output, "\n")
 
-	var actorPortState string
+	var (
+		actorPortState string
+		inActorSection bool
+	)
 
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 
-		if strings.Contains(line, "port state:") && strings.Contains(output, "details actor lacp pdu:") {
+		if strings.Contains(line, "details actor lacp pdu:") {
+			inActorSection = true
+		}
+
+		if inActorSection && strings.Contains(line, "port state:") {
 			parts := strings.Split(line, ":")
 			if len(parts) >= 2 {
 				actorPortState = strings.TrimSpace(parts[1])
-
 				break
 			}
 		}
+	}
+
+	if actorPortState == "" {
+		return fmt.Errorf("could not find LACP actor port state on %s", bondInterface)
 	}
 
 	if actorPortState == "63" {
