@@ -103,6 +103,11 @@ func RestorePtpConfigs(client *clients.Settings, ptpConfigList []*ptp.PtpConfigB
 func listChangedProfilesInConfig(ptpConfig *ptp.PtpConfigBuilder) ([]*ProfileReference, error) {
 	latestPtpConfig, err := ptpConfig.Get()
 	if err != nil {
+		if runtimeclient.IgnoreNotFound(err) == nil {
+			// If the PtpConfig is not found, it means it was deleted, so we return an empty list of changed profiles.
+			return nil, nil
+		}
+
 		return nil, fmt.Errorf("failed to get latest version of PtpConfig: %w", err)
 	}
 
@@ -117,7 +122,19 @@ func listChangedProfilesInConfig(ptpConfig *ptp.PtpConfigBuilder) ([]*ProfileRef
 			return p.Name != nil && *p.Name == *profile.Name
 		})
 		if index == -1 {
-			return nil, fmt.Errorf("failed to find profile %s in latest PtpConfig", *profile.Name)
+			// restoring profile that was deleted from config
+			changedProfiles = append(changedProfiles, &ProfileReference{
+				ConfigReference: runtimeclient.ObjectKeyFromObject(ptpConfig.Definition),
+				ProfileIndex:    len(latestPtpConfig.Spec.Profile), // Append at end
+				ProfileName:     *profile.Name,
+			})
+
+			ptpConfig.Definition.Spec.Profile = append(
+				ptpConfig.Definition.Spec.Profile,
+				profile,
+			)
+
+			continue
 		}
 
 		if reflect.DeepEqual(profile, latestPtpConfig.Spec.Profile[index]) {
@@ -132,4 +149,54 @@ func listChangedProfilesInConfig(ptpConfig *ptp.PtpConfigBuilder) ([]*ProfileRef
 	}
 
 	return changedProfiles, nil
+}
+
+// RemoveProfileFromConfig removes a profile from a PtpConfig by deleting it from the profile array. The
+// profile is identified by the provided ProfileReference.
+func RemoveProfileFromConfig(
+	client *clients.Settings,
+	profileReference ProfileReference,
+) error {
+	ptpConfig, err := profileReference.PullPtpConfig(client)
+	if err != nil {
+		return fmt.Errorf("failed to pull PtpConfig %s: %w",
+			profileReference.ConfigReference.Name, err)
+	}
+
+	profileIndex := profileReference.ProfileIndex
+
+	// Validate index is in bounds
+	if profileIndex < 0 || profileIndex >= len(ptpConfig.Definition.Spec.Profile) {
+		return fmt.Errorf("profile %s at index %d is out of bounds (config has %d profiles)",
+			profileReference.ProfileName, profileIndex, len(ptpConfig.Definition.Spec.Profile))
+	}
+
+	// Verify the profile name matches (safety check)
+	profileToRemove := ptpConfig.Definition.Spec.Profile[profileIndex]
+	if profileToRemove.Name == nil || *profileToRemove.Name != profileReference.ProfileName {
+		return fmt.Errorf("profile name mismatch at index %d: expected %s, got %v",
+			profileIndex, profileReference.ProfileName,
+			func() string {
+				if profileToRemove.Name == nil {
+					return "<nil>"
+				}
+
+				return *profileToRemove.Name
+			}())
+	}
+
+	// Remove the profile from the slice
+	ptpConfig.Definition.Spec.Profile = append(
+		ptpConfig.Definition.Spec.Profile[:profileIndex],
+		ptpConfig.Definition.Spec.Profile[profileIndex+1:]...,
+	)
+
+	// Update the config in the cluster
+	_, err = ptpConfig.Update()
+	if err != nil {
+		return fmt.Errorf("failed to update PtpConfig after removing profile %s: %w",
+			profileReference.ProfileName, err)
+	}
+
+	return nil
 }
