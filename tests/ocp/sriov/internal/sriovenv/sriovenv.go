@@ -176,7 +176,6 @@ func RemoveSriovPolicy(name string, timeout time.Duration) error {
 	return wait.PollUntilContextTimeout(context.Background(), tsparams.PollingInterval, timeout, true,
 		func(ctx context.Context) (bool, error) {
 			_, pullErr := sriov.PullPolicy(APIClient, name, sriovOpNs)
-
 			if pullErr != nil {
 				if apierrors.IsNotFound(pullErr) {
 					return true, nil // Policy successfully deleted
