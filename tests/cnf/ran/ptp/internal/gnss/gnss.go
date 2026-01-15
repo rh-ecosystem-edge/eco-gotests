@@ -63,7 +63,8 @@ func SimulateSyncLoss(client *clients.Settings, nodeName string, protocolVersion
 	//   - LAYERS: 1 specifies the write is to the RAM layer only, causing the change to be in place until reboot.
 	command := fmt.Sprintf("ubxtool -P %s -w 1 -v 3 -z CFG-NAVSPG-INFIL_NCNOTHRS,50,1", protocolVersion)
 
-	_, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, command)
+	_, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, command,
+		ptpdaemon.WithRetries(3), ptpdaemon.WithRetryOnError(true))
 	if err != nil {
 		return fmt.Errorf("failed to simulate GNSS loss on node %s: %w", nodeName, err)
 	}
@@ -89,7 +90,8 @@ func SimulateSyncRecovery(client *clients.Settings, nodeName string, protocolVer
 	//   - LAYERS: 1 specifies the write is to the RAM layer only, causing the change to be in place until reboot.
 	command := fmt.Sprintf("ubxtool -P %s -w 1 -v 3 -z CFG-NAVSPG-INFIL_NCNOTHRS,0,1", protocolVersion)
 
-	_, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, command)
+	_, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, command,
+		ptpdaemon.WithRetries(3), ptpdaemon.WithRetryOnError(true))
 	if err != nil {
 		return fmt.Errorf("failed to restore GNSS sync on node %s: %w", nodeName, err)
 	}
