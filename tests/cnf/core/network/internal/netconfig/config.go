@@ -151,12 +151,12 @@ func (netConfig *NetworkConfig) GetSwitchIP() (string, error) {
 }
 
 // GetSwitchInterfaces checks the environmental variable ECO_CNF_CORE_NET_SWITCH_INTERFACES
-// and returns the value in []string.
+// and returns the value in []string. Requires at least 2 interfaces.
 func (netConfig *NetworkConfig) GetSwitchInterfaces() ([]string, error) {
 	envValue := strings.Split(netConfig.SwitchInterfaces, ",")
 
-	if len(envValue) != 4 {
-		return nil, fmt.Errorf("the number of the switch interfaces is not equal to 4," +
+	if len(envValue) < 2 {
+		return nil, fmt.Errorf("the number of the switch interfaces is less than 2," +
 			" check ECO_CNF_CORE_NET_SWITCH_INTERFACES env var")
 	}
 
