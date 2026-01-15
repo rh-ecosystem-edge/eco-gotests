@@ -388,11 +388,19 @@ func CreateDpdkTestPod(name, namespace, networkName string) (*pod.Builder, error
 }
 
 // DeleteDpdkTestPod deletes a DPDK test pod.
+// If the pod doesn't exist (NotFound error or "does not exist" message), it returns nil.
 func DeleteDpdkTestPod(name, namespace string, timeout time.Duration) error {
 	podBuilder, err := pod.Pull(APIClient, name, namespace)
 	if err != nil {
+		// Check for NotFound error (handles wrapped errors)
 		if apierrors.IsNotFound(err) {
 			return nil // Already deleted
+		}
+
+		// Fallback: check error message for "does not exist" (handles custom error types from pod.Pull)
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "does not exist") {
+			return nil // Pod doesn't exist, consider cleanup successful
 		}
 
 		return fmt.Errorf("failed to pull pod %q: %w", name, err)
