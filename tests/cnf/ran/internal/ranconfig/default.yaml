@@ -18,4 +18,5 @@ talmPreCachePolicies:
 ptpEventConsumerImage: quay.io/redhat-cne/cloud-event-consumer
 ptpEventConsumerV1Tag: ":4.18"
 ptpEventConsumerV2Tag: ":latest"
+ptpMustGatherImage: "registry.redhat.io/openshift4/ptp-must-gather-rhel9:v4.20"
 ...
