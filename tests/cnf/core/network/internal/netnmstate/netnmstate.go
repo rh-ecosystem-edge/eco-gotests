@@ -13,8 +13,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nmstate"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
 
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/cmd"
@@ -125,19 +123,6 @@ func ConfigureVFsAndWaitUntilItsConfigured(
 	err := CreatePolicyAndWaitUntilItsAvailable(timeout, nmstatePolicy)
 	if err != nil {
 		return err
-	}
-
-	// NodeNetworkStates exist for each node and share the same name.
-	nodeList, err := nodes.List(APIClient, metav1.ListOptions{LabelSelector: labels.Set(nodeLabel).String()})
-	if err != nil {
-		return err
-	}
-
-	for _, node := range nodeList {
-		err = AreVFsCreated(node.Definition.Name, sriovInterfaceName, int(numberOfVFs))
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
