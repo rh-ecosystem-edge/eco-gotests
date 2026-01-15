@@ -163,7 +163,9 @@ func RemoveSriovPolicy(name string, timeout time.Duration) error {
 
 	policy, err := sriov.PullPolicy(APIClient, name, sriovOpNs)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
+		// PullPolicy returns a custom error string, not a NotFound error
+		// Check both NotFound error and error message for "does not exist"
+		if apierrors.IsNotFound(err) || strings.Contains(err.Error(), "does not exist") {
 			return nil // Already deleted
 		}
 
@@ -179,7 +181,9 @@ func RemoveSriovPolicy(name string, timeout time.Duration) error {
 		func(ctx context.Context) (bool, error) {
 			_, pullErr := sriov.PullPolicy(APIClient, name, sriovOpNs)
 			if pullErr != nil {
-				if apierrors.IsNotFound(pullErr) {
+				// PullPolicy returns a custom error string, not a NotFound error
+				// Check both NotFound error and error message for "does not exist"
+				if apierrors.IsNotFound(pullErr) || strings.Contains(pullErr.Error(), "does not exist") {
 					return true, nil // Policy successfully deleted
 				}
 
@@ -194,7 +198,9 @@ func RemoveSriovPolicy(name string, timeout time.Duration) error {
 	// (it might have been deleted just before the timeout)
 	if err != nil && errors.Is(err, context.DeadlineExceeded) {
 		_, finalCheckErr := sriov.PullPolicy(APIClient, name, sriovOpNs)
-		if finalCheckErr != nil && apierrors.IsNotFound(finalCheckErr) {
+		// PullPolicy returns a custom error string, not a NotFound error
+		// Check both NotFound error and error message for "does not exist"
+		if finalCheckErr != nil && (apierrors.IsNotFound(finalCheckErr) || strings.Contains(finalCheckErr.Error(), "does not exist")) {
 			// Policy was actually deleted, treat as success
 			return nil
 		}
