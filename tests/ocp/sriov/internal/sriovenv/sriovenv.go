@@ -5,6 +5,7 @@ package sriovenv
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -156,6 +157,7 @@ func RemoveSriovNetwork(name string, timeout time.Duration) error {
 // ============================================================================
 
 // RemoveSriovPolicy removes a SRIOV policy by name and waits for deletion.
+// If a timeout occurs, it performs a final check to see if the policy was actually deleted.
 func RemoveSriovPolicy(name string, timeout time.Duration) error {
 	sriovOpNs := SriovOcpConfig.OcpSriovOperatorNamespace
 
@@ -173,7 +175,7 @@ func RemoveSriovPolicy(name string, timeout time.Duration) error {
 	}
 
 	// Wait for policy to be deleted
-	return wait.PollUntilContextTimeout(context.Background(), tsparams.PollingInterval, timeout, true,
+	err = wait.PollUntilContextTimeout(context.Background(), tsparams.PollingInterval, timeout, true,
 		func(ctx context.Context) (bool, error) {
 			_, pullErr := sriov.PullPolicy(APIClient, name, sriovOpNs)
 			if pullErr != nil {
@@ -187,6 +189,20 @@ func RemoveSriovPolicy(name string, timeout time.Duration) error {
 
 			return false, nil // Policy still exists
 		})
+
+	// If we got a timeout error, check one more time if the policy was actually deleted
+	// (it might have been deleted just before the timeout)
+	if err != nil && errors.Is(err, context.DeadlineExceeded) {
+		_, finalCheckErr := sriov.PullPolicy(APIClient, name, sriovOpNs)
+		if finalCheckErr != nil && apierrors.IsNotFound(finalCheckErr) {
+			// Policy was actually deleted, treat as success
+			return nil
+		}
+		// Policy still exists after timeout, return the timeout error
+		return fmt.Errorf("timeout waiting for policy %q to be deleted: %w", name, err)
+	}
+
+	return err
 }
 
 // InitVF initializes VF for the given device using netdevice driver.
