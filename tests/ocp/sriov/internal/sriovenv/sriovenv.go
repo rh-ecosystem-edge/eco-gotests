@@ -200,7 +200,9 @@ func RemoveSriovPolicy(name string, timeout time.Duration) error {
 		_, finalCheckErr := sriov.PullPolicy(APIClient, name, sriovOpNs)
 		// PullPolicy returns a custom error string, not a NotFound error
 		// Check both NotFound error and error message for "does not exist"
-		if finalCheckErr != nil && (apierrors.IsNotFound(finalCheckErr) || strings.Contains(finalCheckErr.Error(), "does not exist")) {
+		if finalCheckErr != nil &&
+			(apierrors.IsNotFound(finalCheckErr) ||
+				strings.Contains(finalCheckErr.Error(), "does not exist")) {
 			// Policy was actually deleted, treat as success
 			return nil
 		}
