@@ -167,7 +167,8 @@ var _ = Describe(
 				err = sriovenv.CheckVFStatusWithPassTraffic(networkName, data.InterfaceName,
 					testNamespace, "spoof checking on", tsparams.PodReadyTimeout)
 				if isNoCarrierError(err) {
-					Skip("Interface has NO-CARRIER status")
+					By(fmt.Sprintf("Skipping device %q - interface has NO-CARRIER status", data.Name))
+					continue
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
