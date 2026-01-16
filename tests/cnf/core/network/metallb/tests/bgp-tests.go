@@ -11,6 +11,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/metallb"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/service"
@@ -63,6 +64,52 @@ var _ = Describe("BGP", Ordered, Label(tsparams.LabelBGPTestCases), ContinueOnFa
 			nad.GetGVR())
 		Expect(err).ToNot(HaveOccurred(), "Failed to clean test namespace")
 	})
+
+	It("Session State: Verify the BGP peering status between worker nodes and their two expected BGP neighbors",
+		reportxml.ID("85987"), func() {
+			if len(workerNodeList) < 2 {
+				Skip("Skipping test as there are less than 2 worker nodes")
+			}
+
+			By("Setting up test environment")
+			_, extFrrPod, _ := setupTestEnv(ipv4, 32, false)
+
+			By("Shutdown the BGP session on the external FRR pod for the second worker node")
+			workerNode1Address := workerNodeList[1].Object.Status.Addresses[0].Address
+			err := frr.ShutdownBGPNeighbor(extFrrPod, workerNode1Address, tsparams.LocalBGPASN)
+			Expect(err).ToNot(HaveOccurred(), "Failed to shutdown BGP connection")
+
+			By("Verify the BGP session is down on the second worker node")
+			verifyMetalLbBGPSessionsAreDownOnFrrPod(extFrrPod, []string{workerNodeList[1].Object.Status.Addresses[0].Address})
+			validateBGPSessionState("Active", "N/A", metallbAddrList[ipv4][0], []*nodes.Builder{workerNodeList[1]})
+
+			By("Verify the BGP session is up on the first worker node")
+			verifyMetalLbBGPSessionsAreUPOnFrrPod(extFrrPod, []string{workerNodeList[0].Object.Status.Addresses[0].Address})
+			validateBGPSessionState("Established", "N/A", metallbAddrList[ipv4][0], []*nodes.Builder{workerNodeList[0]})
+
+			By("Restart the BGP session on the second worker node")
+			err = frr.NoShutdownBGPNeighbor(
+				extFrrPod, workerNodeList[1].Object.Status.Addresses[0].Address, tsparams.LocalBGPASN)
+			Expect(err).ToNot(HaveOccurred(), "Failed to restart BGP connection")
+
+			By("Verify the BGP session is up on the second worker node")
+			verifyMetalLbBGPSessionsAreUPOnFrrPod(extFrrPod, []string{workerNodeList[1].Object.Status.Addresses[0].Address})
+			validateBGPSessionState("Established", "N/A", metallbAddrList[ipv4][0], workerNodeList)
+
+			By("Remove BGP peer and verify there are no BGP sessions")
+			bgppeer, err := metallb.PullBGPPeer(APIClient, tsparams.BgpPeerName1, NetConfig.MlbOperatorNamespace)
+			Expect(err).ToNot(HaveOccurred(), "Failed to fetch BGP peer")
+			_, err = bgppeer.Delete()
+			Expect(err).ToNot(HaveOccurred(), "Failed to remove BGP peer")
+			for _, workerNode := range workerNodeList {
+				Eventually(func() error {
+					_, err := metallb.PullBGPSessionStateByNodeAndPeer(
+						APIClient, workerNode.Definition.Name, metallbAddrList[ipv4][0])
+
+					return err
+				}, 60*time.Second, tsparams.DefaultRetryInterval).Should(HaveOccurred(), "BGP session should not exist")
+			}
+		})
 
 	Context("functionality", func() {
 		DescribeTable("Creating AddressPool with bgp-advertisement", reportxml.ID("47174"),

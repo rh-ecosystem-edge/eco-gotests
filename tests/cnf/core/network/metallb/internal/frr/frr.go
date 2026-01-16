@@ -826,3 +826,34 @@ func GetInterfaceStatus(frrPod *pod.Builder, interfaceName string, containerName
 
 	return &iface, nil
 }
+
+// ShutdownBGPNeighbor shuts down the BGP connection to the specified neighbor.
+func ShutdownBGPNeighbor(frrPod *pod.Builder, neighborIP string, asn int) error {
+	return configureRouterBGP(frrPod, neighborIP, asn, fmt.Sprintf("neighbor %s shutdown", neighborIP))
+}
+
+// NoShutdownBGPNeighbor restarts the BGP connection to the specified neighbor.
+func NoShutdownBGPNeighbor(frrPod *pod.Builder, neighborIP string, asn int) error {
+	return configureRouterBGP(frrPod, neighborIP, asn, fmt.Sprintf("no neighbor %s shutdown", neighborIP))
+}
+
+func configureRouterBGP(frrPod *pod.Builder, neighborIP string, asn int, cmd string) error {
+	klog.V(90).Infof("Configuring BGP connection to neighbor: %s with command: %s", neighborIP, cmd)
+
+	// Build vtysh command with multiple -c flags for chained commands
+	// Result: ["vtysh", "-c", "configure terminal", "-c", "router bgp <ASN>", "-c", "<cmd>"]
+	vtyshCmd := []string{
+		"configure terminal",
+		"-c",
+		fmt.Sprintf("router bgp %d", asn),
+		"-c",
+		cmd,
+	}
+
+	output, err := frrPod.ExecCommand(append(netparam.VtySh, vtyshCmd...))
+	if err != nil {
+		return fmt.Errorf("error configuring BGP connection to neighbor %s: %w %s", neighborIP, err, output.String())
+	}
+
+	return nil
+}
