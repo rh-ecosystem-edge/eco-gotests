@@ -654,12 +654,16 @@ func getNodeForReboot(isIPv6 bool) (string, string, error) {
 	egressIPMap, err := getEgressIPMap()
 
 	if err != nil {
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to retrieve egressIP map due to %w", err)
+
 		return "", "", fmt.Errorf("failed to retrieve egressIP map due to %w", err)
 	}
 
 	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("EgressIP map before reboot: %v", egressIPMap)
 
 	for egressIPNode, egressIPValue := range egressIPMap {
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("IP %q is assigned to %q", egressIPValue, egressIPNode)
+
 		myIP, err := netip.ParseAddr(egressIPValue)
 
 		if err != nil {
@@ -669,6 +673,8 @@ func getNodeForReboot(isIPv6 bool) (string, string, error) {
 		}
 
 		if !isIPv6 && myIP.Is4() || isIPv6 && myIP.Is6() {
+			glog.V(100).Infof("Selected node %q with IP %q address", egressIPNode, egressIPValue)
+
 			return egressIPValue, egressIPNode, nil
 		}
 	}
@@ -694,7 +700,7 @@ func verifyEgressIPFailOver(isIPv6 bool) {
 
 	By("Execute graceful node reboot")
 
-	egressIPUnderTest, nodeNameForReboot, err := getNodeForReboot(false)
+	egressIPUnderTest, nodeNameForReboot, err := getNodeForReboot(isIPv6)
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to find a valid node for reboot: %v", err))
 
@@ -704,7 +710,7 @@ func verifyEgressIPFailOver(isIPv6 bool) {
 
 	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("EgressIP map before reboot: %v", egressIPMap)
 
-	glog.V(100).Infof("Retrieve available for EgressIP assignment node")
+	glog.V(100).Infof("Retrieve node available for EgressIP assignment")
 
 	var nodeNameForVerification string
 
@@ -713,9 +719,14 @@ func verifyEgressIPFailOver(isIPv6 bool) {
 		RDSCoreConfig.EgressIPNodeTwo,
 		RDSCoreConfig.EgressIPNodeThree} {
 		_, nodeUsed := egressIPMap[nodeName]
+		glog.V(100).Infof("Processing node: %q", nodeName)
 
 		if !nodeUsed {
+			glog.V(100).Infof("Node %q is not used by EgressIP", nodeName)
+
 			nodeNameForVerification = nodeName
+
+			break
 		}
 	}
 
@@ -729,11 +740,14 @@ func verifyEgressIPFailOver(isIPv6 bool) {
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to reboot node %s: %v", nodeNameForReboot, err))
 
+	By("Refreshing EgressIP configuration after node reboot")
+
 	egressIPMap, err = getEgressIPMap()
+
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to retrieve new egressIP map due to: %v", err))
 
-	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("EgressIP map after reboot: %v", egressIPMap)
+	glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Refreshed EgressIP map after reboot: %v", egressIPMap)
 
 	By("Verify egressIP has been reassigned to the node for verification")
 
@@ -741,7 +755,7 @@ func verifyEgressIPFailOver(isIPv6 bool) {
 		egressIPUnderTest, nodeNameForVerification)
 
 	Expect(egressIPMap[nodeNameForVerification]).To(Equal(egressIPUnderTest),
-		fmt.Sprintf("Released egressIP %s was not assigned to the node %s",
+		fmt.Sprintf("Released EgressIP %s was not assigned to the node %s",
 			egressIPUnderTest, nodeNameForVerification))
 
 	By("Verify egressIP connectivity after egressIP fail-over")
