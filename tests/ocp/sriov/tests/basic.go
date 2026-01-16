@@ -168,6 +168,7 @@ var _ = Describe(
 					testNamespace, "spoof checking on", tsparams.PodReadyTimeout)
 				if isNoCarrierError(err) {
 					By(fmt.Sprintf("Skipping device %q - interface has NO-CARRIER status", data.Name))
+
 					continue
 				}
 
