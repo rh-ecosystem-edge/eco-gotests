@@ -247,23 +247,43 @@ func runPoolSelectorTests(ipStack, trafficPolicy string, bgpASN int, twoPools bo
 	By("Creating two IPAddressPools")
 
 	ipPool1 := createIPAddressPool("pool1", tsparams.LBipRange1[ipStack])
-	validateAddressPool(ipPool1.Definition.Name, mlbtypes.IPAddressPoolStatus{
-		AvailableIPv4: 240,
-		AvailableIPv6: 0,
-		AssignedIPv4:  0,
-		AssignedIPv6:  0,
-	})
+	switch ipStack {
+	case netparam.IPV4Family:
+		validateAddressPool(ipPool1.Definition.Name, mlbtypes.IPAddressPoolStatus{
+			AvailableIPv4: 240,
+			AvailableIPv6: 0,
+			AssignedIPv4:  0,
+			AssignedIPv6:  0,
+		})
+	case netparam.IPV6Family:
+		validateAddressPool(ipPool1.Definition.Name, mlbtypes.IPAddressPoolStatus{
+			AvailableIPv4: 0,
+			AvailableIPv6: 9223372036854775807,
+			AssignedIPv4:  0,
+			AssignedIPv6:  0,
+		})
+	}
 
 	var ipPool2 *metallb.IPAddressPoolBuilder
 
 	if twoPools {
 		ipPool2 = createIPAddressPool("pool2", tsparams.LBipRange2[ipStack])
-		validateAddressPool(ipPool2.Definition.Name, mlbtypes.IPAddressPoolStatus{
-			AvailableIPv4: 239,
-			AvailableIPv6: 0,
-			AssignedIPv4:  0,
-			AssignedIPv6:  0,
-		})
+		switch ipStack {
+		case netparam.IPV4Family:
+			validateAddressPool(ipPool2.Definition.Name, mlbtypes.IPAddressPoolStatus{
+				AvailableIPv4: 239,
+				AvailableIPv6: 0,
+				AssignedIPv4:  0,
+				AssignedIPv6:  0,
+			})
+		case netparam.IPV6Family:
+			validateAddressPool(ipPool2.Definition.Name, mlbtypes.IPAddressPoolStatus{
+				AvailableIPv4: 0,
+				AvailableIPv6: 9223372036854775807,
+				AssignedIPv4:  0,
+				AssignedIPv6:  0,
+			})
+		}
 	}
 
 	By("Creating two BGPAdvertisements")
@@ -373,7 +393,7 @@ func runPoolSelectorTestsDualStack(ipStack, trafficPolicy string, bgpASN int, tw
 	ipPool1 := createIPAddressPool("pool1", tsparams.LBipRange1[ipStack])
 	validateAddressPool(ipPool1.Definition.Name, mlbtypes.IPAddressPoolStatus{
 		AvailableIPv4: 240,
-		AvailableIPv6: 0,
+		AvailableIPv6: 9223372036854775807,
 		AssignedIPv4:  0,
 		AssignedIPv6:  0,
 	})
@@ -383,8 +403,8 @@ func runPoolSelectorTestsDualStack(ipStack, trafficPolicy string, bgpASN int, tw
 	if twoPools {
 		ipPool2 = createIPAddressPool("pool2", tsparams.LBipRange2[ipStack])
 		validateAddressPool(ipPool2.Definition.Name, mlbtypes.IPAddressPoolStatus{
-			AvailableIPv4: 240,
-			AvailableIPv6: 0,
+			AvailableIPv4: 239,
+			AvailableIPv6: 9223372036854775807,
 			AssignedIPv4:  0,
 			AssignedIPv6:  0,
 		})
@@ -470,9 +490,11 @@ func runPoolSelectorTestsDualStack(ipStack, trafficPolicy string, bgpASN int, tw
 
 	By("Checking that BGP session is established on external FRR Pod")
 	verifyMetalLbBGPSessionsAreUPOnFrrPod(extFrrPod1, []string{nodeAddrList[ipv4][0], nodeAddrList[ipv6][0]})
-	validateBGPSessionState("Established", "N/A", metallbAddrList[ipStack][0], []*nodes.Builder{workerNodeList[0]})
+	validateBGPSessionState("Established", "N/A", metallbAddrList[ipv4][0], workerNodeList)
+	validateBGPSessionState("Established", "N/A", metallbAddrList[ipv6][0], workerNodeList)
 	verifyMetalLbBGPSessionsAreUPOnFrrPod(extFrrPod2, []string{nodeAddrList[ipv4][1], nodeAddrList[ipv6][1]})
-	validateBGPSessionState("Established", "N/A", metallbAddrList[ipStack][1], []*nodes.Builder{workerNodeList[1]})
+	validateBGPSessionState("Established", "N/A", metallbAddrList[ipv4][1], workerNodeList)
+	validateBGPSessionState("Established", "N/A", metallbAddrList[ipv6][1], workerNodeList)
 
 	By("Checking HTTP traffic and SCTP traffic is running and Validating Prefixs on external FRR Pod")
 	// Update service builders with latest status that includes LB IP.
