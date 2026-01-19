@@ -756,6 +756,7 @@ func inspectPodLevelBondedInterfaceConfig(podObj *pod.Builder, ipv4Addr, ipv6Add
 	return true, nil
 }
 
+//nolint:gocognit,funlen
 func getPodObjectByNamePattern(apiClient *clients.Settings, podNamePattern, podNamespace string) (*pod.Builder, error) {
 	var podObj *pod.Builder
 
@@ -792,7 +793,54 @@ func getPodObjectByNamePattern(apiClient *clients.Settings, podNamePattern, podN
 				case _pod.Object.DeletionTimestamp != nil:
 					glog.V(100).Infof("Pod %q is marked for deletion, skipping", _pod.Definition.Name)
 				default:
-					glog.V(100).Infof("Pod %q is in %q phase, skipping", _pod.Definition.Name, _pod.Object.Status.Phase)
+					// Dump detailed status for non-running pods to help diagnose issues
+					glog.V(100).Infof("Pod %q is not running, dumping status details:",
+						_pod.Definition.Name)
+
+					// Log pod conditions
+					for _, condition := range _pod.Object.Status.Conditions {
+						glog.V(100).Infof("  Condition: Type=%s, Status=%s, Reason=%s, Message=%s",
+							condition.Type, condition.Status, condition.Reason, condition.Message)
+					}
+
+					// Log container statuses
+					for _, containerStatus := range _pod.Object.Status.ContainerStatuses {
+						glog.V(100).Infof("  ContainerStatus: Name=%s, Ready=%t, RestartCount=%d",
+							containerStatus.Name, containerStatus.Ready, containerStatus.RestartCount)
+
+						if containerStatus.State.Waiting != nil {
+							glog.V(100).Infof("    Waiting: Reason=%s, Message=%s",
+								containerStatus.State.Waiting.Reason, containerStatus.State.Waiting.Message)
+						}
+
+						if containerStatus.State.Terminated != nil {
+							glog.V(100).Infof("    Terminated: Reason=%s, Message=%s, ExitCode=%d",
+								containerStatus.State.Terminated.Reason, containerStatus.State.Terminated.Message,
+								containerStatus.State.Terminated.ExitCode)
+						}
+					}
+
+					// Log init container statuses (often the cause of Pending)
+					for _, initContainerStatus := range _pod.Object.Status.InitContainerStatuses {
+						glog.V(100).Infof("  InitContainerStatus: Name=%s, Ready=%t, RestartCount=%d",
+							initContainerStatus.Name, initContainerStatus.Ready, initContainerStatus.RestartCount)
+
+						if initContainerStatus.State.Waiting != nil {
+							glog.V(100).Infof("    Waiting: Reason=%s, Message=%s",
+								initContainerStatus.State.Waiting.Reason, initContainerStatus.State.Waiting.Message)
+						}
+					}
+
+					// Log scheduling info if available
+					if _pod.Object.Status.NominatedNodeName != "" {
+						glog.V(100).Infof("  NominatedNodeName: %s", _pod.Object.Status.NominatedNodeName)
+					}
+
+					if _pod.Object.Spec.NodeName == "" {
+						glog.V(100).Infof("  Pod has not been scheduled to a node yet")
+					} else {
+						glog.V(100).Infof("  Pod scheduled to node: %s", _pod.Object.Spec.NodeName)
+					}
 				}
 			}
 
