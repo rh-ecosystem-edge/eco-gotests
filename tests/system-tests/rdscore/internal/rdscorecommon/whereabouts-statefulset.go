@@ -400,6 +400,8 @@ func getPodWhereaboutsIPs(activePods []*pod.Builder, interfaceName string) map[s
 }
 
 // getActivePods gets the active pods with the given label and namespace.
+//
+//nolint:gocognit
 func getActivePods(podLabel, namespace string) []*pod.Builder {
 	By("Checking if pods are running")
 
@@ -417,13 +419,68 @@ func getActivePods(podLabel, namespace string) []*pod.Builder {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q in %q namespace is in phase %q",
 			_pod.Object.Name, _pod.Object.Namespace, _pod.Object.Status.Phase)
 
-		if _pod.Object.Status.Phase == corev1.PodRunning && _pod.Object.DeletionTimestamp == nil {
+		// Check if pod is marked for deletion first
+		if _pod.Object.DeletionTimestamp != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is marked for deletion, skipping", _pod.Object.Name)
+
+			continue
+		}
+
+		switch _pod.Object.Status.Phase {
+		case corev1.PodRunning:
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is active(running and not marked for deletion)",
 				_pod.Object.Name)
 
 			activePods = append(activePods, _pod)
-		} else if _pod.Object.DeletionTimestamp != nil {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is marked for deletion, skipping", _pod.Object.Name)
+		case corev1.PodPending, corev1.PodSucceeded, corev1.PodFailed, corev1.PodUnknown:
+			// Dump detailed status for non-running pods to help diagnose issues
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is not running, dumping status details:",
+				_pod.Object.Name)
+
+			// Log pod conditions
+			for _, condition := range _pod.Object.Status.Conditions {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Condition: Type=%s, Status=%s, Reason=%s, Message=%s",
+					condition.Type, condition.Status, condition.Reason, condition.Message)
+			}
+
+			// Log container statuses
+			for _, containerStatus := range _pod.Object.Status.ContainerStatuses {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  ContainerStatus: Name=%s, Ready=%t, RestartCount=%d",
+					containerStatus.Name, containerStatus.Ready, containerStatus.RestartCount)
+
+				if containerStatus.State.Waiting != nil {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("    Waiting: Reason=%s, Message=%s",
+						containerStatus.State.Waiting.Reason, containerStatus.State.Waiting.Message)
+				}
+
+				if containerStatus.State.Terminated != nil {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("    Terminated: Reason=%s, Message=%s, ExitCode=%d",
+						containerStatus.State.Terminated.Reason, containerStatus.State.Terminated.Message,
+						containerStatus.State.Terminated.ExitCode)
+				}
+			}
+
+			// Log init container statuses (often the cause of Pending)
+			for _, initContainerStatus := range _pod.Object.Status.InitContainerStatuses {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  InitContainerStatus: Name=%s, Ready=%t, RestartCount=%d",
+					initContainerStatus.Name, initContainerStatus.Ready, initContainerStatus.RestartCount)
+
+				if initContainerStatus.State.Waiting != nil {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("    Waiting: Reason=%s, Message=%s",
+						initContainerStatus.State.Waiting.Reason, initContainerStatus.State.Waiting.Message)
+				}
+			}
+
+			// Log scheduling info if available
+			if _pod.Object.Status.NominatedNodeName != "" {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  NominatedNodeName: %s", _pod.Object.Status.NominatedNodeName)
+			}
+
+			if _pod.Object.Spec.NodeName == "" {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Pod has not been scheduled to a node yet")
+			} else {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Pod scheduled to node: %s", _pod.Object.Spec.NodeName)
+			}
 		}
 	}
 
