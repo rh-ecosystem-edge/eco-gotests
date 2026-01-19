@@ -326,6 +326,12 @@ var _ = Describe(
 				rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNodeAfterNodePowerOff)
 
 			AfterEach(func(ctx SpecContext) {
+				// Check if the test failed using CurrentSpecReport
+				if CurrentSpecReport().Failed() {
+					By("Dumping node status information due to test failure")
+					rdscorecommon.DumpNodeStatus(ctx)
+				}
+
 				By("Ensure rootless DPDK server deployment was deleted")
 				rdscorecommon.CleanupRootlessDPDKServerDeployment()
 
@@ -670,6 +676,12 @@ var _ = Describe(
 				rdscorecommon.VerifyPodCommunicationOnDifferentNodesAfterClusterReboot)
 
 			AfterEach(func(ctx SpecContext) {
+				// Check if the test failed using CurrentSpecReport
+				if CurrentSpecReport().Failed() {
+					By("Dumping node status information due to test failure")
+					rdscorecommon.DumpNodeStatus(ctx)
+				}
+
 				By("Ensure rootless DPDK server deployment was deleted")
 				rdscorecommon.CleanupRootlessDPDKServerDeployment()
 			})
@@ -978,6 +990,12 @@ var _ = Describe(
 				rdscorecommon.VerifyPodCommunicationOnDifferentNodesAfterClusterReboot)
 
 			AfterEach(func(ctx SpecContext) {
+				// Check if the test failed using CurrentSpecReport
+				if CurrentSpecReport().Failed() {
+					By("Dumping node status information due to test failure")
+					rdscorecommon.DumpNodeStatus(ctx)
+				}
+
 				By("Ensure rootless DPDK server deployment was deleted")
 				rdscorecommon.CleanupRootlessDPDKServerDeployment()
 			})
