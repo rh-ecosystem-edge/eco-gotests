@@ -75,7 +75,7 @@ var _ = Describe(
 			Expect(err).ToNot(HaveOccurred(), "Cluster did not stabilize after cleanup")
 		})
 
-		It("SR-IOV VF with spoof checking enabled", Label("25959"), reportxml.ID("25959"), func() {
+		It("SR-IOV VF with spoof checking enabled", reportxml.ID("25959"), func() {
 			caseID := "25959"
 			executed := false
 
@@ -115,7 +115,7 @@ var _ = Describe(
 			}
 		})
 
-		It("SR-IOV VF with spoof checking disabled", Label("70820"), reportxml.ID("70820"), func() {
+		It("SR-IOV VF with spoof checking disabled", reportxml.ID("70820"), func() {
 			caseID := "70820"
 			executed := false
 
@@ -150,7 +150,7 @@ var _ = Describe(
 			}
 		})
 
-		It("SR-IOV VF with trust disabled", Label("25960"), reportxml.ID("25960"), func() {
+		It("SR-IOV VF with trust disabled", reportxml.ID("25960"), func() {
 			caseID := "25960"
 			executed := false
 
@@ -185,7 +185,7 @@ var _ = Describe(
 			}
 		})
 
-		It("SR-IOV VF with trust enabled", Label("70821"), reportxml.ID("70821"), func() {
+		It("SR-IOV VF with trust enabled", reportxml.ID("70821"), func() {
 			caseID := "70821"
 			executed := false
 
@@ -220,7 +220,7 @@ var _ = Describe(
 			}
 		})
 
-		It("SR-IOV VF with VLAN and rate limiting configuration", Label("25963"), reportxml.ID("25963"), func() {
+		It("SR-IOV VF with VLAN and rate limiting configuration", reportxml.ID("25963"), func() {
 			caseID := "25963"
 			executed := false
 
@@ -265,7 +265,7 @@ var _ = Describe(
 			}
 		})
 
-		It("SR-IOV VF with auto link state", Label("25961"), reportxml.ID("25961"), func() {
+		It("SR-IOV VF with auto link state", reportxml.ID("25961"), func() {
 			caseID := "25961"
 			executed := false
 
@@ -300,7 +300,7 @@ var _ = Describe(
 			}
 		})
 
-		It("SR-IOV VF with enabled link state", Label("71006"), reportxml.ID("71006"), func() {
+		It("SR-IOV VF with enabled link state", reportxml.ID("71006"), func() {
 			caseID := "71006"
 			executed := false
 
@@ -343,7 +343,7 @@ var _ = Describe(
 			}
 		})
 
-		It("MTU configuration for SR-IOV policy", Label("69646"), reportxml.ID("69646"), func() {
+		It("MTU configuration for SR-IOV policy", reportxml.ID("69646"), func() {
 			caseID := "69646"
 			executed := false
 
@@ -388,7 +388,7 @@ var _ = Describe(
 			}
 		})
 
-		It("DPDK SR-IOV VF functionality validation", Label("69582"), reportxml.ID("69582"), func() {
+		It("DPDK SR-IOV VF functionality validation", reportxml.ID("69582"), func() {
 			caseID := "69582"
 			executed := false
 
