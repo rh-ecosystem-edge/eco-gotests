@@ -22,71 +22,6 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// isNoCarrierError checks if an error indicates a NO-CARRIER condition.
-// This typically happens when there is no physical network connection on the interface.
-func isNoCarrierError(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	errMsg := err.Error()
-
-	return strings.Contains(errMsg, "NO-CARRIER") ||
-		strings.Contains(errMsg, "no physical connection")
-}
-
-// isBCMDevice checks if the device is a Broadcom NIC by name or vendor ID.
-// BCM NICs require special handling for DPDK tests (OCPBUGS-30909).
-func isBCMDevice(data sriovconfig.DeviceConfig) bool {
-	return strings.Contains(strings.ToLower(data.Name), "bcm") ||
-		data.Vendor == tsparams.BCMVendorID
-}
-
-// setupTestNamespace creates a test namespace with required labels and registers cleanup.
-// The namespace name follows the pattern: e2e-{testID}{deviceName}.
-func setupTestNamespace(testID string, data sriovconfig.DeviceConfig) string {
-	testNamespace := "e2e-" + testID + data.Name
-
-	By(fmt.Sprintf("Creating test namespace %q", testNamespace))
-
-	nsBuilder := namespace.NewBuilder(APIClient, testNamespace)
-	for key, value := range params.PrivilegedNSLabels {
-		nsBuilder.WithLabel(key, value)
-	}
-
-	_, err := nsBuilder.Create()
-	Expect(err).ToNot(HaveOccurred(), "Failed to create namespace %q", testNamespace)
-
-	Eventually(func() bool {
-		return nsBuilder.Exists()
-	}, tsparams.NamespaceTimeout, tsparams.RetryInterval).Should(BeTrue(), "Namespace %q should exist", testNamespace)
-
-	DeferCleanup(func() {
-		By(fmt.Sprintf("Cleaning up namespace %q", testNamespace))
-
-		err := nsBuilder.DeleteAndWait(tsparams.CleanupTimeout)
-		Expect(err).ToNot(HaveOccurred(), "Failed to delete namespace %q", testNamespace)
-	})
-
-	return testNamespace
-}
-
-// setupSriovNetwork creates a SRIOV network and registers cleanup.
-// The network is created in the SR-IOV operator namespace and targets the specified namespace.
-func setupSriovNetwork(networkName, resourceName, targetNs string, opts ...sriovenv.NetworkOption) {
-	By(fmt.Sprintf("Creating SR-IOV network %q", networkName))
-
-	err := sriovenv.CreateSriovNetwork(networkName, resourceName, targetNs, opts...)
-	Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network %q", networkName)
-
-	DeferCleanup(func() {
-		By(fmt.Sprintf("Cleaning up SR-IOV network %q", networkName))
-
-		err := sriovenv.RemoveSriovNetwork(networkName, tsparams.DefaultTimeout)
-		Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV network %q", networkName)
-	})
-}
-
 var _ = Describe(
 	"SR-IOV Basic Tests",
 	Ordered,
@@ -533,3 +468,68 @@ var _ = Describe(
 			}
 		})
 	})
+
+// isNoCarrierError checks if an error indicates a NO-CARRIER condition.
+// This typically happens when there is no physical network connection on the interface.
+func isNoCarrierError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errMsg := err.Error()
+
+	return strings.Contains(errMsg, "NO-CARRIER") ||
+		strings.Contains(errMsg, "no physical connection")
+}
+
+// isBCMDevice checks if the device is a Broadcom NIC by name or vendor ID.
+// BCM NICs require special handling for DPDK tests (OCPBUGS-30909).
+func isBCMDevice(data sriovconfig.DeviceConfig) bool {
+	return strings.Contains(strings.ToLower(data.Name), "bcm") ||
+		data.Vendor == tsparams.BCMVendorID
+}
+
+// setupTestNamespace creates a test namespace with required labels and registers cleanup.
+// The namespace name follows the pattern: e2e-{testID}{deviceName}.
+func setupTestNamespace(testID string, data sriovconfig.DeviceConfig) string {
+	testNamespace := "e2e-" + testID + data.Name
+
+	By(fmt.Sprintf("Creating test namespace %q", testNamespace))
+
+	nsBuilder := namespace.NewBuilder(APIClient, testNamespace)
+	for key, value := range params.PrivilegedNSLabels {
+		nsBuilder.WithLabel(key, value)
+	}
+
+	_, err := nsBuilder.Create()
+	Expect(err).ToNot(HaveOccurred(), "Failed to create namespace %q", testNamespace)
+
+	Eventually(func() bool {
+		return nsBuilder.Exists()
+	}, tsparams.NamespaceTimeout, tsparams.RetryInterval).Should(BeTrue(), "Namespace %q should exist", testNamespace)
+
+	DeferCleanup(func() {
+		By(fmt.Sprintf("Cleaning up namespace %q", testNamespace))
+
+		err := nsBuilder.DeleteAndWait(tsparams.CleanupTimeout)
+		Expect(err).ToNot(HaveOccurred(), "Failed to delete namespace %q", testNamespace)
+	})
+
+	return testNamespace
+}
+
+// setupSriovNetwork creates a SRIOV network and registers cleanup.
+// The network is created in the SR-IOV operator namespace and targets the specified namespace.
+func setupSriovNetwork(networkName, resourceName, targetNs string, opts ...sriovenv.NetworkOption) {
+	By(fmt.Sprintf("Creating SR-IOV network %q", networkName))
+
+	err := sriovenv.CreateSriovNetwork(networkName, resourceName, targetNs, opts...)
+	Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network %q", networkName)
+
+	DeferCleanup(func() {
+		By(fmt.Sprintf("Cleaning up SR-IOV network %q", networkName))
+
+		err := sriovenv.RemoveSriovNetwork(networkName, tsparams.DefaultTimeout)
+		Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV network %q", networkName)
+	})
+}
