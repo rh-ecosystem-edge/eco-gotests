@@ -31,21 +31,14 @@ Follow the established project structure pattern:
 ```text
 tests/ocp/sriov/
 ├── internal/                    # Internal packages used within test suite
-│   ├── ocpsriovconfig/         # Configuration management
-│   │   ├── config.go           # Config structs and loading logic
-│   │   └── default.yaml        # Default device configurations
-│   ├── ocpsriovinittools/      # Initialization utilities
-│   │   └── ocpsriovinittools.go
-│   ├── sriovenv/               # Environment validation and helpers
-│   │   └── sriovenv.go
-│   ├── sriovocpenv/            # OCP-specific environment helpers
-│   │   ├── pods.go
-│   │   └── sriovenv.go
-│   └── tsparams/               # Test suite constants and parameters
-│       ├── consts.go           # Constants (labels, timeouts, names)
-│       └── ocpsriovvars.go     # Variables and configuration
+│   ├── tsparams/               # Test suite constants and parameters
+│   │   ├── consts.go           # Constants (labels, timeouts, names)
+│   │   └── sriovvars.go        # Variables and configuration
+│   └── sriovenv/               # Environment validation and helpers
+│       └── sriovenv.go
 ├── tests/                      # Test case implementations
-│   └── basic.go                # Basic SR-IOV test cases
+│   ├── testcase1.go
+│   └── testcase2.go
 └── sriov_suite_test.go         # Ginkgo test suite entry point
 ```
 
@@ -466,7 +459,8 @@ Document all required and optional environment variables:
 
 #### Optional
 - `ECO_OCP_SRIOV_DEVICES`: Comma-separated list of SR-IOV device configurations
-  (format: `name:deviceID:vendor:interface`, e.g., `cx7anl244:1021:15b3:ens2f0np0,e810anl244:159b:8086:eno12399`)
+  Format: `name:deviceID:vendorID:interfaceName[:minTxRate]`
+  Example: `cx7anl244:1021:15b3:ens2f0np0,e810anl244:159b:8086:eno12399`
 - `ECO_OCP_SRIOV_VF_NUM`: Number of Virtual Functions to configure (default: 5)
 - `ECO_OCP_SRIOV_OPERATOR_NAMESPACE`: SR-IOV operator namespace (default: `openshift-sriov-network-operator`)
 - `ECO_OCP_SRIOV_INTERFACE_LIST`: Comma-separated list of SR-IOV interfaces
