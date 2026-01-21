@@ -213,8 +213,16 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			Expect(err).ToNot(HaveOccurred(), "Failed to get event pod for node %s", nodeName)
 
 			By("getting the boundary clock master interfaces")
-			masterInterfaces := nodeInfo.GetInterfacesByClockType(profiles.ClockTypeServer)
-			Expect(masterInterfaces).ToNot(BeEmpty(), "Failed to get Boundary Clock master interfaces for node %s", nodeName)
+			boundaryClockProfiles := nodeInfo.GetProfilesByTypes(profiles.ProfileTypeBC)
+			Expect(boundaryClockProfiles).ToNot(BeEmpty(),
+				"Failed to get Boundary Clock profiles for node %s", nodeName)
+
+			var masterInterfaces []*profiles.InterfaceInfo
+			for _, profile := range boundaryClockProfiles {
+				masterInterfaces = append(masterInterfaces, profile.GetInterfacesByClockType(profiles.ClockTypeServer)...)
+			}
+			Expect(masterInterfaces).ToNot(BeEmpty(),
+				"Failed to get Boundary Clock master interfaces for node %s", nodeName)
 
 			masterInterfaceGroups := iface.GroupInterfacesByNIC(profiles.GetInterfacesNames(masterInterfaces))
 
