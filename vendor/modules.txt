@@ -1187,6 +1187,7 @@ github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/network
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/networkpolicy
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/neuron
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/nfd
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/nmstate
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes
@@ -1275,6 +1276,7 @@ github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/frrtypes
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/mlboperator
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/mlbtypes
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/mlbtypesv1beta2
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/neuron/v1alpha1
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/nfd/v1alpha1
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/nvidiagpu/k8skatamanager/v1alpha1/config
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/nvidiagpu/k8skoperatorlibs/upgrade/v1alpha1
