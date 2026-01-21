@@ -37,6 +37,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/klog/v2"
 )
 
 // test cases variables that are accessible across entire package.
@@ -1015,8 +1016,21 @@ func validateBGPSessionState(bgpStatus, bfdStatus, bgpPeerIP string, workerNodeL
 func validateServiceBGPStatus(nodeList []*nodes.Builder, serviceName, serviceNamespace string, peers []string) {
 	GinkgoHelper()
 
-	serviceBGPStatuses, err := metallb.ListServiceBGPStatus(APIClient)
-	Expect(err).ToNot(HaveOccurred(), "Failed to list ServiceBGPStatus objects")
+	var (
+		serviceBGPStatuses []*metallb.ServiceBGPStatusBuilder
+		err                error
+	)
+
+	Eventually(func() bool {
+		serviceBGPStatuses, err = metallb.ListServiceBGPStatus(APIClient)
+		if err != nil {
+			return false
+		}
+
+		klog.V(100).Infof("Found %d ServiceBGPStatus objects", len(serviceBGPStatuses))
+
+		return len(serviceBGPStatuses) > 0
+	}, 30*time.Second, 2*time.Second).Should(BeTrue(), "Failed to wait for ServiceBGPStatus objects list to be available")
 
 	for _, workerNode := range nodeList {
 		found := false
