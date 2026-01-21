@@ -95,8 +95,7 @@ func GetDefaultKMMInstallConfig(apiClient *clients.Settings) deploy.OperatorInst
 }
 
 // AreAllOperatorsReady checks if NFD, KMM, and Neuron operators are already deployed and ready.
-func AreAllOperatorsReady(apiClient *clients.Settings,
-	neuronOptions *NeuronInstallConfigOptions) bool {
+func AreAllOperatorsReady(apiClient *clients.Settings, neuronOptions *NeuronInstallConfigOptions) bool {
 	klog.V(params.NeuronLogLevel).Info("Checking if all operators are already ready")
 
 	// Check NFD
@@ -242,6 +241,15 @@ func DeployAllOperators(apiClient *clients.Settings, neuronOptions *NeuronInstal
 	if err := kmmInstaller.Install(); err != nil {
 		return fmt.Errorf("failed to deploy KMM operator: %w", err)
 	}
+
+	klog.V(params.NeuronLogLevel).Info("Waiting for KMM operator to be ready")
+
+	kmmReady, err := kmmInstaller.IsReady(10 * time.Minute)
+	if err != nil || !kmmReady {
+		return fmt.Errorf("KMM operator not ready: %w", err)
+	}
+
+	klog.V(params.NeuronLogLevel).Info("KMM operator ready")
 
 	return deployNeuronOperator(apiClient, neuronOptions)
 }

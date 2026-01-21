@@ -268,11 +268,12 @@ func CreateVLLMService(config VLLMServiceConfig) *corev1.Service {
 
 // InferenceConfig holds configuration for executing an inference request.
 type InferenceConfig struct {
-	ServiceName string
-	Namespace   string
-	Port        int
-	ModelName   string
-	Timeout     time.Duration
+	ServiceName      string
+	Namespace        string
+	Port             int
+	ModelName        string
+	Timeout          time.Duration
+	PodLabelSelector string
 }
 
 // buildInferenceRequestBody creates the JSON request body for inference.
@@ -290,13 +291,11 @@ func buildInferenceRequestBody(modelName string) ([]byte, error) {
 }
 
 // findRunningVLLMPod finds a running vLLM pod in the specified namespace.
-func findRunningVLLMPod(apiClient *clients.Settings, namespace string) (string, error) {
-	podList, err := apiClient.Pods(namespace).List(
-		context.Background(),
-		metav1.ListOptions{LabelSelector: "app=neuron-vllm-test"},
-	)
+func findRunningVLLMPod(ctx context.Context, apiClient *clients.Settings,
+	namespace, labelSelector string) (string, error) {
+	podList, err := apiClient.Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil || len(podList.Items) == 0 {
-		return "", fmt.Errorf("no vLLM pods found in namespace %s", namespace)
+		return "", fmt.Errorf("no vLLM pods found in namespace %s with selector %s", namespace, labelSelector)
 	}
 
 	for _, p := range podList.Items {
@@ -305,14 +304,12 @@ func findRunningVLLMPod(apiClient *clients.Settings, namespace string) (string, 
 		}
 	}
 
-	return "", fmt.Errorf("no running vLLM pods found")
+	return "", fmt.Errorf("no running vLLM pods found with selector %s", labelSelector)
 }
 
 // executeInPod runs a command inside a pod and returns stdout.
-func executeInPod(
-	apiClient *clients.Settings,
-	podName, namespace, container, command string,
-) (string, error) {
+func executeInPod(ctx context.Context, apiClient *clients.Settings,
+	podName, namespace, container, command string) (string, error) {
 	execReq := apiClient.CoreV1Interface.RESTClient().Post().
 		Resource("pods").
 		Name(podName).
@@ -332,7 +329,7 @@ func executeInPod(
 
 	var stdout, stderr bytes.Buffer
 
-	err = exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdout: &stdout,
 		Stderr: &stderr,
 	})
@@ -369,6 +366,10 @@ func extractInferenceContent(response string) (string, error) {
 
 // ExecuteInferenceFromCluster executes an inference request from within the cluster.
 func ExecuteInferenceFromCluster(apiClient *clients.Settings, config InferenceConfig) (string, error) {
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), config.Timeout)
+	defer cancel()
+
 	jsonBody, err := buildInferenceRequestBody(config.ModelName)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal inference request: %w", err)
@@ -380,12 +381,18 @@ func ExecuteInferenceFromCluster(apiClient *clients.Settings, config InferenceCo
 		"curl -s -X POST '%s' -H 'Content-Type: application/json' -d '%s'",
 		serviceURL, string(jsonBody))
 
-	targetPod, err := findRunningVLLMPod(apiClient, config.Namespace)
+	// Use configurable label selector, default to "app=neuron-vllm-test" if empty
+	labelSelector := config.PodLabelSelector
+	if labelSelector == "" {
+		labelSelector = "app=neuron-vllm-test"
+	}
+
+	targetPod, err := findRunningVLLMPod(ctx, apiClient, config.Namespace, labelSelector)
 	if err != nil {
 		return "", err
 	}
 
-	response, err := executeInPod(apiClient, targetPod, config.Namespace, "vllm", curlCmd)
+	response, err := executeInPod(ctx, apiClient, targetPod, config.Namespace, "vllm", curlCmd)
 	if err != nil {
 		return "", fmt.Errorf("inference request failed: %w", err)
 	}

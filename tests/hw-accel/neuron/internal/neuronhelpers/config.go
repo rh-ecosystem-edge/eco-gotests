@@ -70,6 +70,8 @@ func getNFDInstanceYAML() string {
 		"      - \\\"0300\\\"\\n      - \\\"0302\\\"\\n      - \\\"0c80\\\"\\n" +
 		"    deviceLabelFields:\\n      - vendor\\n      - device\\n"
 
+	// Note: We don't specify operand.image - the NFD operator will use
+	// the correct default image that matches the installed OCP version.
 	return fmt.Sprintf(`
 [
     {
@@ -80,10 +82,6 @@ func getNFDInstanceYAML() string {
             "namespace": "%s"
         },
         "spec": {
-            "operand": {
-                "image": "registry.redhat.io/openshift4/ose-node-feature-discovery-rhel9:v4.17",
-                "imagePullPolicy": "Always"
-            },
             "workerConfig": {
                 "configData": "%s"
             }

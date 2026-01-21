@@ -3,6 +3,7 @@ package await
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
@@ -19,11 +20,7 @@ import (
 )
 
 // DevicePluginDeployment waits for the device plugin DaemonSet to be ready.
-func DevicePluginDeployment(
-	apiClient *clients.Settings,
-	namespace string,
-	timeout time.Duration,
-) error {
+func DevicePluginDeployment(apiClient *clients.Settings, namespace string, timeout time.Duration) error {
 	klog.V(params.NeuronLogLevel).Infof(
 		"Waiting for Neuron device plugin deployment in namespace %s", namespace)
 
@@ -39,6 +36,11 @@ func DevicePluginDeployment(
 			}
 
 			for _, daemonSet := range dsList.Items {
+				// Only consider DaemonSets with the Neuron device plugin prefix
+				if !strings.HasPrefix(daemonSet.Name, params.DevicePluginDaemonSetPrefix) {
+					continue
+				}
+
 				if daemonSet.Status.DesiredNumberScheduled > 0 &&
 					daemonSet.Status.NumberReady == daemonSet.Status.DesiredNumberScheduled {
 					klog.V(params.NeuronLogLevel).Infof(
@@ -56,11 +58,7 @@ func DevicePluginDeployment(
 }
 
 // MetricsDaemonSet waits for the metrics DaemonSet to be ready.
-func MetricsDaemonSet(
-	apiClient *clients.Settings,
-	namespace string,
-	timeout time.Duration,
-) error {
+func MetricsDaemonSet(apiClient *clients.Settings, namespace string, timeout time.Duration) error {
 	klog.V(params.NeuronLogLevel).Infof(
 		"Waiting for Neuron metrics DaemonSet in namespace %s", namespace)
 
@@ -93,11 +91,7 @@ func MetricsDaemonSet(
 }
 
 // SchedulerDeployment waits for the custom scheduler deployment to be ready.
-func SchedulerDeployment(
-	apiClient *clients.Settings,
-	namespace string,
-	timeout time.Duration,
-) error {
+func SchedulerDeployment(apiClient *clients.Settings, namespace string, timeout time.Duration) error {
 	klog.V(params.NeuronLogLevel).Infof(
 		"Waiting for Neuron scheduler deployment in namespace %s", namespace)
 
@@ -122,11 +116,7 @@ func SchedulerDeployment(
 }
 
 // PodRunning waits for a specific pod to be running.
-func PodRunning(
-	apiClient *clients.Settings,
-	name, namespace string,
-	timeout time.Duration,
-) error {
+func PodRunning(apiClient *clients.Settings, name, namespace string, timeout time.Duration) error {
 	klog.V(params.NeuronLogLevel).Infof(
 		"Waiting for pod %s in namespace %s to be running", name, namespace)
 
@@ -153,11 +143,7 @@ func PodRunning(
 }
 
 // PodReady waits for a specific pod to be ready (all containers pass readiness probes).
-func PodReady(
-	apiClient *clients.Settings,
-	name, namespace string,
-	timeout time.Duration,
-) error {
+func PodReady(apiClient *clients.Settings, name, namespace string, timeout time.Duration) error {
 	klog.V(params.NeuronLogLevel).Infof(
 		"Waiting for pod %s in namespace %s to be ready (readiness probe passed)", name, namespace)
 
@@ -179,9 +165,9 @@ func PodReady(
 				return false, nil
 			}
 
-		// Check if all containers are ready
-		for _, cond := range podBuilder.Object.Status.Conditions {
-			if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
+			// Check if all containers are ready
+			for _, cond := range podBuilder.Object.Status.Conditions {
+				if cond.Type == corev1.PodReady && cond.Status == corev1.ConditionTrue {
 					klog.V(params.NeuronLogLevel).Infof("Pod %s is ready", name)
 
 					return true, nil
@@ -199,11 +185,7 @@ func PodReady(
 }
 
 // PodCompleted waits for a pod to complete successfully.
-func PodCompleted(
-	apiClient *clients.Settings,
-	name, namespace string,
-	timeout time.Duration,
-) error {
+func PodCompleted(apiClient *clients.Settings, name, namespace string, timeout time.Duration) error {
 	klog.V(params.NeuronLogLevel).Infof(
 		"Waiting for pod %s in namespace %s to complete", name, namespace)
 
@@ -228,12 +210,8 @@ func PodCompleted(
 }
 
 // PodsDeleted waits for all pods with given label to be deleted from a namespace.
-func PodsDeleted(
-	apiClient *clients.Settings,
-	namespace string,
-	labelSelector map[string]string,
-	timeout time.Duration,
-) error {
+func PodsDeleted(apiClient *clients.Settings, namespace string,
+	labelSelector map[string]string, timeout time.Duration) error {
 	klog.V(params.NeuronLogLevel).Infof("Waiting for pods to be deleted from namespace %s", namespace)
 
 	return wait.PollUntilContextTimeout(
@@ -286,11 +264,7 @@ func NeuronNodesLabeled(apiClient *clients.Settings, timeout time.Duration) erro
 }
 
 // NodeResourceAvailable waits for a node to have the Neuron resource available.
-func NodeResourceAvailable(
-	apiClient *clients.Settings,
-	nodeName string,
-	timeout time.Duration,
-) error {
+func NodeResourceAvailable(apiClient *clients.Settings, nodeName string, timeout time.Duration) error {
 	klog.V(params.NeuronLogLevel).Infof("Waiting for Neuron resources on node %s", nodeName)
 
 	return wait.PollUntilContextTimeout(
@@ -352,11 +326,8 @@ func AllNeuronNodesResourceAvailable(apiClient *clients.Settings, timeout time.D
 }
 
 // DriverVersionOnNode waits for a specific driver version on a node.
-func DriverVersionOnNode(
-	apiClient *clients.Settings,
-	nodeName, expectedVersion string,
-	timeout time.Duration,
-) error {
+func DriverVersionOnNode(apiClient *clients.Settings, nodeName, expectedVersion string,
+	timeout time.Duration) error {
 	klog.V(params.NeuronLogLevel).Infof(
 		"Waiting for driver version %s on node %s", expectedVersion, nodeName)
 
