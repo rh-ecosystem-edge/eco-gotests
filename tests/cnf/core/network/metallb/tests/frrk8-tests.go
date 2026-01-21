@@ -893,7 +893,7 @@ func addSecondaryIPToInterface(policyName, nodeName, interfaceName, ipv4Address,
 		corev1.LabelHostname: nodeName,
 	}).WithEthernetInterface(interfaceName, ipv4Address, ipv6Address)
 
-	err := netnmstate.CreatePolicyAndWaitUntilItsAvailable(2*time.Minute, secondaryInterface)
+	err := netnmstate.CreatePolicyAndWaitUntilItsAvailable(netparam.DefaultTimeout, secondaryInterface)
 	Expect(err).ToNot(HaveOccurred(),
 		"fail to create NMState policy for interface: %s", interfaceName)
 }

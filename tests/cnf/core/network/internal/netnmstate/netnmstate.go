@@ -62,13 +62,6 @@ func CreatePolicyAndWaitUntilItsAvailable(timeout time.Duration, nmstatePolicy *
 		return err
 	}
 
-	klog.V(90).Infof("Waiting for the policy to reach the Progressing state.")
-
-	err = nmstatePolicy.WaitUntilCondition(nmstateShared.NodeNetworkConfigurationPolicyConditionProgressing, timeout)
-	if err != nil {
-		return err
-	}
-
 	klog.V(90).Infof("Waiting for the policy to reach the Available state.")
 
 	err = nmstatePolicy.WaitUntilCondition(nmstateShared.NodeNetworkConfigurationPolicyConditionAvailable, timeout)
