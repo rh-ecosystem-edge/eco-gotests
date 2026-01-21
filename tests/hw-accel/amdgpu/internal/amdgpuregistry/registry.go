@@ -10,6 +10,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 
 	amdgpuparams "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/amdgpu/params"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -127,28 +128,63 @@ func getRegistryManagementState(config *unstructured.Unstructured) (string, bool
 }
 
 // configureRegistryAsManaged configures the registry to be managed and sets up storage.
+// Uses retry logic to handle optimistic concurrency conflicts.
 func configureRegistryAsManaged(apiClient *clients.Settings, config *unstructured.Unstructured) error {
 	klog.V(amdgpuparams.AMDGPULogLevel).Info("Internal registry is not managed - configuring it for AMD GPU operator")
 
-	err := setRegistryManagementState(config)
-	if err != nil {
-		return err
+	maxRetries := 5
+	retryInterval := 2 * time.Second
+
+	var lastErr error
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		// Re-fetch the config on retry to get the latest resourceVersion
+		if attempt > 1 {
+			klog.V(amdgpuparams.AMDGPULogLevel).Infof(
+				"Retrying registry configuration (attempt %d/%d) after conflict", attempt, maxRetries)
+
+			time.Sleep(retryInterval)
+
+			var err error
+
+			config, err = getImageRegistryConfig(apiClient)
+			if err != nil {
+				lastErr = err
+
+				continue
+			}
+		}
+
+		err := setRegistryManagementState(config)
+		if err != nil {
+			return err
+		}
+
+		err = ensureRegistryStorage(config)
+		if err != nil {
+			return err
+		}
+
+		err = updateRegistryConfig(apiClient, config)
+		if err != nil {
+			if errors.IsConflict(err) {
+				klog.V(amdgpuparams.AMDGPULogLevel).Infof(
+					"Conflict updating registry config (attempt %d/%d): %v", attempt, maxRetries, err)
+				lastErr = err
+
+				continue
+			}
+
+			return err
+		}
+
+		klog.V(amdgpuparams.AMDGPULogLevel).Info("Updated image registry to Managed state")
+
+		// Wait max 10 minutes for registry to become available after configuration
+		return waitForImageRegistryAvailable(apiClient, 10*time.Minute)
 	}
 
-	err = ensureRegistryStorage(config)
-	if err != nil {
-		return err
-	}
-
-	err = updateRegistryConfig(apiClient, config)
-	if err != nil {
-		return err
-	}
-
-	klog.V(amdgpuparams.AMDGPULogLevel).Info("Updated image registry to Managed state")
-
-	// Wait max 10 minutes for registry to become available after configuration
-	return waitForImageRegistryAvailable(apiClient, 10*time.Minute)
+	return fmt.Errorf("failed to configure registry after %d attempts: %w", maxRetries, lastErr)
 }
 
 // setRegistryManagementState sets the registry management state to "Managed".
@@ -285,27 +321,47 @@ func waitForImageRegistryAvailable(apiClient *clients.Settings, timeout time.Dur
 }
 
 // ResetRegistryToRemoved resets the internal image registry to "Removed" state.
+// Uses retry logic to handle optimistic concurrency conflicts.
 func ResetRegistryToRemoved(apiClient *clients.Settings) error {
 	klog.V(amdgpuparams.AMDGPULogLevel).Info("Resetting internal image registry to Removed state")
 
-	imageRegistryConfig, err := getImageRegistryConfig(apiClient)
-	if err != nil {
-		klog.V(amdgpuparams.AMDGPULogLevel).Infof("Could not get image registry config: %v", err)
+	maxRetries := 5
+	retryInterval := 2 * time.Second
+
+	var lastErr error
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		imageRegistryConfig, err := getImageRegistryConfig(apiClient)
+		if err != nil {
+			klog.V(amdgpuparams.AMDGPULogLevel).Infof("Could not get image registry config: %v", err)
+
+			return nil
+		}
+
+		err = unstructured.SetNestedField(imageRegistryConfig.Object, "Removed", "spec", "managementState")
+		if err != nil {
+			return fmt.Errorf("failed to set registry management state to Removed: %w", err)
+		}
+
+		err = updateRegistryConfig(apiClient, imageRegistryConfig)
+		if err != nil {
+			if errors.IsConflict(err) {
+				klog.V(amdgpuparams.AMDGPULogLevel).Infof(
+					"Conflict updating registry config (attempt %d/%d): %v", attempt, maxRetries, err)
+				lastErr = err
+
+				time.Sleep(retryInterval)
+
+				continue
+			}
+
+			return fmt.Errorf("failed to update registry config: %w", err)
+		}
+
+		klog.V(amdgpuparams.AMDGPULogLevel).Info("Image registry set to Removed state")
 
 		return nil
 	}
 
-	err = unstructured.SetNestedField(imageRegistryConfig.Object, "Removed", "spec", "managementState")
-	if err != nil {
-		return fmt.Errorf("failed to set registry management state to Removed: %w", err)
-	}
-
-	err = updateRegistryConfig(apiClient, imageRegistryConfig)
-	if err != nil {
-		return fmt.Errorf("failed to update registry config: %w", err)
-	}
-
-	klog.V(amdgpuparams.AMDGPULogLevel).Info("Image registry set to Removed state")
-
-	return nil
+	return fmt.Errorf("failed to reset registry after %d attempts: %w", maxRetries, lastErr)
 }
