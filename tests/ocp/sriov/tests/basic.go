@@ -496,10 +496,7 @@ func setupTestNamespace(testID string, data sriovconfig.DeviceConfig) string {
 
 	By(fmt.Sprintf("Creating test namespace %q", testNamespace))
 
-	nsBuilder := namespace.NewBuilder(APIClient, testNamespace)
-	for key, value := range params.PrivilegedNSLabels {
-		nsBuilder.WithLabel(key, value)
-	}
+	nsBuilder := namespace.NewBuilder(APIClient, testNamespace).WithMultipleLabels(params.PrivilegedNSLabels)
 
 	_, err := nsBuilder.Create()
 	Expect(err).ToNot(HaveOccurred(), "Failed to create namespace %q", testNamespace)
