@@ -29,12 +29,14 @@ import (
 	"k8s.io/klog/v2"
 )
 
+var amdConfig *amdgpuconfig.AMDConfig
+
 var _ = Describe("AMD GPU Basic Tests", Ordered, Label(amdgpuparams.LabelSuite), func() {
 
 	Context("AMD GPU Basic 01", Label(amdgpuparams.LabelSuite+"-01"), func() {
 
 		apiClient := inittools.APIClient
-		amdconfig := amdgpuconfig.NewAMDConfig()
+		amdConfig = amdgpuconfig.NewAMDConfig()
 
 		amdListOptions := metav1.ListOptions{
 			LabelSelector: fmt.Sprintf("%s=%s", amdgpuparams.AMDNFDLabelKey, amdgpuparams.AMDNFDLabelValue),
@@ -48,11 +50,11 @@ var _ = Describe("AMD GPU Basic Tests", Ordered, Label(amdgpuparams.LabelSuite),
 		BeforeAll(func() {
 			By("Verifying configuration")
 
-			if amdconfig == nil {
+			if amdConfig == nil {
 				Skip("AMDConfig is not available - required for AMD GPU tests")
 			}
 
-			if amdconfig.AMDDriverVersion == "" {
+			if amdConfig.AMDDriverVersion == "" {
 				Skip("AMD Driver Version is not set in environment - required for AMD GPU tests")
 			}
 
@@ -108,7 +110,7 @@ var _ = Describe("AMD GPU Basic Tests", Ordered, Label(amdgpuparams.LabelSuite),
 			err = amdgpudeviceconfig.CreateDeviceConfig(
 				apiClient,
 				amdgpuparams.DefaultDeviceConfigName,
-				amdconfig.AMDDriverVersion)
+				amdConfig.AMDDriverVersion)
 			Expect(err).ToNot(HaveOccurred(), "DeviceConfig should be created successfully")
 
 			By("Verifying DeviceConfig was created")
@@ -202,6 +204,25 @@ var _ = Describe("AMD GPU Basic Tests", Ordered, Label(amdgpuparams.LabelSuite),
 		})
 
 		AfterAll(func() {
+
+			if amdConfig == nil {
+				klog.V(amdgpuparams.AMDGPULogLevel).Infof("'amdConfig' is nil - cleanup will be skipped")
+
+				return
+			}
+
+			if amdConfig.SkipCleanup {
+				klog.V(0).Infof("the 'skip-cleanup' flag is set - cleanup will be skipped")
+
+				return
+			}
+
+			if amdConfig.SkipCleanupOnError && CurrentSpecReport().Failed() {
+				klog.V(0).Infof("an error occurred and the 'skip-cleanup-on-error' flag is set - cleanup will be skipped")
+
+				return
+			}
+
 			By("Starting complete cleanup")
 
 			// 1. Delete DeviceConfig first (before operator removal)
