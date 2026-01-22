@@ -1,10 +1,12 @@
 package randuconfig
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/systemtestsconfig"
@@ -15,6 +17,43 @@ const (
 	// PathToDefaultRanDuParamsFile path to config file with default ran du parameters.
 	PathToDefaultRanDuParamsFile = "./default.yaml"
 )
+
+// BMCDetails structure to hold BMC details.
+type BMCDetails struct {
+	Username   string `json:"username"`
+	Password   string `json:"password"`
+	BMCAddress string `json:"bmc"`
+}
+
+// NodesBMCMap holds info about BMC connection for a specific node.
+type NodesBMCMap map[string]BMCDetails
+
+// Decode - method for envconfig package to parse JSON encoded environment variables.
+func (nad *NodesBMCMap) Decode(value string) error {
+	nodesAuthMap := make(map[string]BMCDetails)
+
+	for _, record := range strings.Split(value, ";") {
+		log.Printf("Processing: %v", record)
+
+		parsedRecord := strings.Split(record, ",")
+		if len(parsedRecord) != 4 {
+			log.Printf("Error to parse data %v", value)
+			log.Printf("Expected 4 entries, found %d", len(parsedRecord))
+
+			return fmt.Errorf("error parsing data %v", value)
+		}
+
+		nodesAuthMap[parsedRecord[0]] = BMCDetails{
+			Username:   parsedRecord[1],
+			Password:   parsedRecord[2],
+			BMCAddress: parsedRecord[3],
+		}
+	}
+
+	*nad = nodesAuthMap
+
+	return nil
+}
 
 // RanDuConfig type keeps ran du configuration.
 type RanDuConfig struct {
@@ -36,6 +75,8 @@ type RanDuConfig struct {
 	StabilityPoliciesCheck     bool   `yaml:"stability_policies_check" envconfig:"ECO_RANDU_STABILITY_POLICIES_CHECK"`
 	PtpEnabled                 bool   `yaml:"ptp_enabled" envconfig:"ECO_RANDU_PTP_ENABLED"`
 	RebootRecoveryTime         int    `yaml:"reboot_recovery_time" envconfig:"ECO_RANDU_RECOVERY_TIME"`
+	//nolint:lll
+	NodesCredentialsMap NodesBMCMap `yaml:"randu_nodes_bmc_map" envconfig:"ECO_RANDU_NODES_CREDENTIALS_MAP"`
 }
 
 // NewRanDuConfig returns instance of RanDuConfig config type.
