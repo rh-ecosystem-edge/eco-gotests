@@ -102,7 +102,9 @@ var _ = Describe(
 				err = sriovenv.CheckVFStatusWithPassTraffic(networkName, data.InterfaceName,
 					testNamespace, "spoof checking on", tsparams.PodReadyTimeout)
 				if isNoCarrierError(err) {
-					Skip("Interface has NO-CARRIER status")
+					By(fmt.Sprintf("Skipping device %q - NO-CARRIER status", data.Name))
+
+					continue
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
@@ -137,7 +139,9 @@ var _ = Describe(
 				err = sriovenv.CheckVFStatusWithPassTraffic(networkName, data.InterfaceName,
 					testNamespace, "spoof checking off", tsparams.PodReadyTimeout)
 				if isNoCarrierError(err) {
-					Skip("Interface has NO-CARRIER status")
+					By(fmt.Sprintf("Skipping device %q - NO-CARRIER status", data.Name))
+
+					continue
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
@@ -172,7 +176,9 @@ var _ = Describe(
 				err = sriovenv.CheckVFStatusWithPassTraffic(networkName, data.InterfaceName,
 					testNamespace, "trust off", tsparams.PodReadyTimeout)
 				if isNoCarrierError(err) {
-					Skip("Interface has NO-CARRIER status")
+					By(fmt.Sprintf("Skipping device %q - NO-CARRIER status", data.Name))
+
+					continue
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
@@ -207,7 +213,9 @@ var _ = Describe(
 				err = sriovenv.CheckVFStatusWithPassTraffic(networkName, data.InterfaceName,
 					testNamespace, "trust on", tsparams.PodReadyTimeout)
 				if isNoCarrierError(err) {
-					Skip("Interface has NO-CARRIER status")
+					By(fmt.Sprintf("Skipping device %q - NO-CARRIER status", data.Name))
+
+					continue
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
@@ -252,7 +260,9 @@ var _ = Describe(
 					testNamespace, fmt.Sprintf("vlan %d, qos %d", tsparams.TestVLAN, tsparams.TestVlanQoS),
 					tsparams.PodReadyTimeout)
 				if isNoCarrierError(err) {
-					Skip("Interface has NO-CARRIER status")
+					By(fmt.Sprintf("Skipping device %q - NO-CARRIER status", data.Name))
+
+					continue
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
@@ -287,7 +297,9 @@ var _ = Describe(
 				err = sriovenv.CheckVFStatusWithPassTraffic(networkName, data.InterfaceName,
 					testNamespace, "link-state auto", tsparams.PodReadyTimeout)
 				if isNoCarrierError(err) {
-					Skip("Interface has NO-CARRIER status")
+					By(fmt.Sprintf("Skipping device %q - NO-CARRIER status", data.Name))
+
+					continue
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
@@ -326,7 +338,9 @@ var _ = Describe(
 				Expect(err).ToNot(HaveOccurred(), "Failed to verify link state configuration")
 
 				if !hasCarrier {
-					Skip("NO-CARRIER status - link state valid but no physical connection")
+					By(fmt.Sprintf("Skipping device %q - NO-CARRIER status", data.Name))
+
+					continue
 				}
 
 				// Part 2: Test connectivity
@@ -375,7 +389,9 @@ var _ = Describe(
 				err = sriovenv.CheckVFStatusWithPassTraffic(networkName, data.InterfaceName,
 					testNamespace, fmt.Sprintf("mtu %d", tsparams.DefaultTestMTU), tsparams.PodReadyTimeout)
 				if isNoCarrierError(err) {
-					Skip("Interface has NO-CARRIER status")
+					By(fmt.Sprintf("Skipping device %q - NO-CARRIER status", data.Name))
+
+					continue
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
