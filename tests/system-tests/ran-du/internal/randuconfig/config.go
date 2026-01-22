@@ -32,7 +32,22 @@ type NodesBMCMap map[string]BMCDetails
 func (nad *NodesBMCMap) Decode(value string) error {
 	nodesAuthMap := make(map[string]BMCDetails)
 
-	for _, record := range strings.Split(value, ";") {
+	// Handle empty or whitespace-only values gracefully
+	trimmedValue := strings.TrimSpace(value)
+	if trimmedValue == "" {
+		log.Print("No BMC credentials provided, using empty map")
+		*nad = nodesAuthMap
+
+		return nil
+	}
+
+	for _, record := range strings.Split(trimmedValue, ";") {
+		// Skip empty records (e.g., from trailing semicolons)
+		record = strings.TrimSpace(record)
+		if record == "" {
+			continue
+		}
+
 		log.Printf("Processing: %v", record)
 
 		parsedRecord := strings.Split(record, ",")
