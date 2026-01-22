@@ -517,11 +517,20 @@ func setupTestNamespace(testID string, data sriovconfig.DeviceConfig) string {
 
 // setupSriovNetwork creates a SRIOV network and registers cleanup.
 // The network is created in the SR-IOV operator namespace and targets the specified namespace.
+// It waits for the NAD to be ready before returning to avoid race conditions with pod creation.
 func setupSriovNetwork(networkName, resourceName, targetNs string, opts ...sriovenv.NetworkOption) {
 	By(fmt.Sprintf("Creating SR-IOV network %q", networkName))
 
 	err := sriovenv.CreateSriovNetwork(networkName, resourceName, targetNs, opts...)
 	Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network %q", networkName)
+
+	By(fmt.Sprintf("Waiting for NAD %q to be ready", networkName))
+	Eventually(func() error {
+		_, err := nad.Pull(APIClient, networkName, targetNs)
+
+		return err
+	}, tsparams.NADTimeout, tsparams.PollingInterval).ShouldNot(HaveOccurred(),
+		"NAD %q should be ready in namespace %q", networkName, targetNs)
 
 	DeferCleanup(func() {
 		By(fmt.Sprintf("Cleaning up SR-IOV network %q", networkName))
