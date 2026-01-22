@@ -43,9 +43,10 @@ type DNSResolverConfig struct {
 
 // IPConfig defines the IP configuration applied to an interface.
 type IPConfig struct {
-	DHCP    bool        `yaml:"dhcp"`
-	Address []IPAddress `yaml:"address"`
-	Enabled bool        `yaml:"enabled"`
+	DHCP     bool        `yaml:"dhcp"`
+	Autoconf *bool       `yaml:"autoconf,omitempty"`
+	Address  []IPAddress `yaml:"address"`
+	Enabled  bool        `yaml:"enabled"`
 }
 
 // IPAddress provides the IP address details to an IP configuration.
