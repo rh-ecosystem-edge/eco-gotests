@@ -31,14 +31,24 @@ Follow the established project structure pattern:
 ```text
 tests/ocp/sriov/
 ├── internal/                    # Internal packages used within test suite
-│   ├── tsparams/               # Test suite constants and parameters
-│   │   ├── consts.go           # Constants (labels, timeouts, names)
-│   │   └── sriovvars.go        # Variables and configuration
-│   └── sriovenv/               # Environment validation and helpers
-│       └── sriovenv.go
+│   ├── consolebrowser/         # Browser-based console utilities
+│   ├── ocpsriovconfig/         # Configuration loading and parsing
+│   │   ├── config.go           # Config struct and env var parsing
+│   │   └── default.yaml        # Default device configurations
+│   ├── ocpsriovinittools/      # Initialization tools (APIClient, SriovOcpConfig)
+│   │   └── ocpsriovinittools.go
+│   ├── sriovenv/               # Environment validation and helpers
+│   │   └── sriovenv.go         # SR-IOV network/policy/pod helpers
+│   ├── sriovocpenv/            # OCP-specific SR-IOV environment helpers
+│   │   ├── pods.go
+│   │   └── sriovenv.go
+│   └── tsparams/               # Test suite constants and parameters
+│       ├── consts.go           # Constants (labels, timeouts, names)
+│       └── ocpsriovvars.go     # Variables and reporter configuration
 ├── tests/                      # Test case implementations
-│   ├── testcase1.go
-│   └── testcase2.go
+│   ├── basic.go                # Basic SR-IOV VF tests (spoof, trust, QoS, etc.)
+│   └── reinstallation.go       # SR-IOV operator reinstallation tests
+├── README.md                   # This documentation file
 └── sriov_suite_test.go         # Ginkgo test suite entry point
 ```
 
@@ -458,13 +468,14 @@ Document all required and optional environment variables:
 - `KUBECONFIG`: Path to kubeconfig file
 
 #### Optional
-- `ECO_OCP_SRIOV_DEVICES`: Comma-separated list of SR-IOV device configurations
+- `ECO_OCP_SRIOV_DEVICES`: **(Preferred)** Comma-separated list of SR-IOV device configurations
   Format: `name:deviceID:vendorID:interfaceName[:minTxRate]`
   Example: `cx7anl244:1021:15b3:ens2f0np0,e810anl244:159b:8086:eno12399`
 - `ECO_OCP_SRIOV_VF_NUM`: Number of Virtual Functions to configure (default: 5)
 - `ECO_OCP_SRIOV_OPERATOR_NAMESPACE`: SR-IOV operator namespace (default: `openshift-sriov-network-operator`)
-- `ECO_OCP_SRIOV_INTERFACE_LIST`: Comma-separated list of SR-IOV interfaces
-- `ECO_OCP_SRIOV_TEST_CONTAINER`: Container image for test workloads
+- `ECO_OCP_SRIOV_INTERFACE_LIST`: **(Legacy)** Comma-separated list of SR-IOV interface names only.
+  Use `ECO_OCP_SRIOV_DEVICES` instead for full device configuration including deviceID and vendorID.
+- `ECO_OCP_SRIOV_TEST_CONTAINER`: Container image for test workloads (e.g., `quay.io/openshift-kni/cnf-tests:4.16`)
 ```
 
 ### Environment Variable Naming
@@ -472,10 +483,9 @@ Document all required and optional environment variables:
 Follow the pattern: `ECO_{SUITE}_{FEATURE}_{PARAMETER}`
 
 Examples:
-- `ECO_OCP_SRIOV_DEVICES`
+- `ECO_OCP_SRIOV_DEVICES` (preferred for device configuration)
 - `ECO_OCP_SRIOV_VF_NUM`
 - `ECO_OCP_SRIOV_OPERATOR_NAMESPACE`
-- `ECO_OCP_SRIOV_INTERFACE_LIST`
 - `ECO_OCP_SRIOV_TEST_CONTAINER`
 
 ## Code Quality and Best Practices
