@@ -98,8 +98,6 @@ func RestorePtpConfigs(client *clients.Settings, ptpConfigList []*ptp.PtpConfigB
 // listChangedProfilesInConfig lists the profiles in the PtpConfig that have changed. It considers all the profiles in
 // the original PtpConfig and then uses reflect.DeepEqual to compare each to the latest version of the PtpConfig. It
 // returns a list of profile references that were changed.
-//
-// This function will return an error if a profile is not found in the latest PtpConfig.
 func listChangedProfilesInConfig(ptpConfig *ptp.PtpConfigBuilder) ([]*ProfileReference, error) {
 	latestPtpConfig, err := ptpConfig.Get()
 	if err != nil {
@@ -108,28 +106,97 @@ func listChangedProfilesInConfig(ptpConfig *ptp.PtpConfigBuilder) ([]*ProfileRef
 
 	var changedProfiles []*ProfileReference
 
-	for _, profile := range ptpConfig.Definition.Spec.Profile {
+	for profileIndex, profile := range ptpConfig.Definition.Spec.Profile {
 		if profile.Name == nil {
 			return nil, fmt.Errorf("profile name is nil")
 		}
 
-		index := slices.IndexFunc(latestPtpConfig.Spec.Profile, func(p ptpv1.PtpProfile) bool {
+		latestIndex := slices.IndexFunc(latestPtpConfig.Spec.Profile, func(p ptpv1.PtpProfile) bool {
 			return p.Name != nil && *p.Name == *profile.Name
 		})
-		if index == -1 {
-			return nil, fmt.Errorf("failed to find profile %s in latest PtpConfig", *profile.Name)
+
+		if latestIndex == -1 {
+			// restoring profile that was deleted from config
+			changedProfiles = append(changedProfiles, &ProfileReference{
+				ConfigReference: runtimeclient.ObjectKeyFromObject(ptpConfig.Definition),
+				ProfileIndex:    profileIndex,
+				ProfileName:     *profile.Name,
+			})
+
+			continue
 		}
 
-		if reflect.DeepEqual(profile, latestPtpConfig.Spec.Profile[index]) {
+		if reflect.DeepEqual(profile, latestPtpConfig.Spec.Profile[latestIndex]) {
 			continue
 		}
 
 		changedProfiles = append(changedProfiles, &ProfileReference{
 			ConfigReference: runtimeclient.ObjectKeyFromObject(ptpConfig.Definition),
-			ProfileIndex:    index,
+			ProfileIndex:    profileIndex,
 			ProfileName:     *profile.Name,
 		})
 	}
 
 	return changedProfiles, nil
+}
+
+// RemoveProfileFromConfig removes a profile from a PtpConfig by deleting it from the profile array. The
+// profile is identified by the provided ProfileReference.
+func RemoveProfileFromConfig(
+	client *clients.Settings,
+	profileReference ProfileReference,
+) error {
+	ptpConfig, err := profileReference.PullPtpConfig(client)
+	if err != nil {
+		return fmt.Errorf("failed to pull PtpConfig %s: %w",
+			profileReference.ConfigReference.Name, err)
+	}
+
+	profileIndex := profileReference.ProfileIndex
+
+	// Validate index is in bounds
+	if profileIndex < 0 || profileIndex >= len(ptpConfig.Definition.Spec.Profile) {
+		return fmt.Errorf("profile %s at index %d is out of bounds (config has %d profiles)",
+			profileReference.ProfileName, profileIndex, len(ptpConfig.Definition.Spec.Profile))
+	}
+
+	// Verify the profile name matches (safety check)
+	profileToRemove := ptpConfig.Definition.Spec.Profile[profileIndex]
+	actualName := "<nil>"
+
+	if profileToRemove.Name != nil {
+		actualName = *profileToRemove.Name
+	}
+
+	if profileToRemove.Name == nil || actualName != profileReference.ProfileName {
+		return fmt.Errorf("profile name mismatch at index %d: expected %s, got %v",
+			profileIndex, profileReference.ProfileName, actualName)
+	}
+
+	// Remove the profile from the slice
+	ptpConfig.Definition.Spec.Profile = append(
+		ptpConfig.Definition.Spec.Profile[:profileIndex],
+		ptpConfig.Definition.Spec.Profile[profileIndex+1:]...,
+	)
+
+	// Remove orphaned recommend entries
+	filteredRecommend := make([]ptpv1.PtpRecommend, 0)
+
+	for _, rec := range ptpConfig.Definition.Spec.Recommend {
+		// Keep recommendations that don't reference the deleted profile
+		if rec.Profile == nil || *rec.Profile != profileReference.ProfileName {
+			filteredRecommend = append(filteredRecommend, rec)
+		}
+	}
+
+	ptpConfig.Definition.Spec.Recommend = filteredRecommend
+
+	// Update the config in the cluster
+	_, err = ptpConfig.Update()
+	if err != nil {
+		return fmt.Errorf("failed to update PtpConfig after removing profile %s: %w",
+			profileReference.ProfileName, err)
+	}
+
+	return nil
 }

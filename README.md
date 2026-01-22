@@ -214,13 +214,11 @@ func Function(
 
 
 ### Update eco-goinfra modules - How to:
-1. List the existing branches here: https://github.com/openshift-kni/eco-gotests/branches 
-2. Delete all of the merged branches named eco-goinfra-dep-bump*
-3. In the left pane locate the "Eco-GoInfra Module Bump" action here: https://github.com/openshift-kni/eco-gotests/actions
-4. Click on "Run workflow" in the right pane and run the workflow against the main branch (should take less than a minute to complete)
-5. Click on the last executed workflow and expand the "Push changes to new branch" step
-6. Copy the link to create the pull request and paste it in your browser. Complete the pull request creation from your browser
-7. Merge the pull request after passing the automated checks on it
+1. In the left pane locate the "Eco-GoInfra Module Bump" action here: https://github.com/rh-ecosystem-edge/eco-gotests/actions
+2. Click on "Run workflow" in the right pane and run the workflow against the main branch (should take a few minutes to complete)
+3. Click on the last executed workflow, then click on the "Label created PR" job and expand the "Label PR based on CI result" step
+4. Copy the link to the created pull request and paste it in your browser.
+5. Merge the pull request after passing the automated checks on it
 
 #### Note: To start using the new package for the first time:
 1. Add it to the import section of your test

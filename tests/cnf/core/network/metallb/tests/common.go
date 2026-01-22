@@ -823,12 +823,7 @@ func setupTestEnv(ipStack string, prefixLen int, extFrrAdv bool) (
 		[]string{fmt.Sprintf("%s-%s", tsparams.LBipRange1[ipStack][0], tsparams.LBipRange1[ipStack][1])}).Create()
 	Expect(err).ToNot(HaveOccurred(), "Failed to create IPAddressPool")
 
-	validateAddressPool(ipAddressPool.Definition.Name, mlbtypes.IPAddressPoolStatus{
-		AvailableIPv4: 240,
-		AvailableIPv6: 0,
-		AssignedIPv4:  0,
-		AssignedIPv6:  0,
-	})
+	validateInitialAddressPool(ipAddressPool.Definition.Name, ipStack)
 
 	By("Creating a BGPAdvertisement")
 
@@ -853,12 +848,8 @@ func setupTestEnv(ipStack string, prefixLen int, extFrrAdv bool) (
 	setupNGNXPod("nginxpod1", workerNodeList[0].Object.Name, tsparams.LabelValue1)
 
 	By("Validating the IPAddressPool after creating the Service and deploying the nginx pod")
-	validateAddressPool(ipAddressPool.Definition.Name, mlbtypes.IPAddressPoolStatus{
-		AvailableIPv4: 239,
-		AvailableIPv6: 0,
-		AssignedIPv4:  1,
-		AssignedIPv6:  0,
-	})
+
+	validateAddressPoolAfterService(ipAddressPool.Definition.Name, ipStack)
 
 	By("Validating the service BGP statuses")
 	validateServiceBGPStatus(
@@ -889,28 +880,102 @@ func setupTestEnv(ipStack string, prefixLen int, extFrrAdv bool) (
 
 	By("Checking that BGP session is established on external FRR Pod")
 	verifyMetalLbBGPSessionsAreUPOnFrrPod(extFrrPod, nodeAddrList[ipStack])
+
 	validateBGPSessionState("Established", "N/A", metallbAddrList[ipStack][0], workerNodeList)
 
 	return frrk8sPods, extFrrPod, bgpAdvertisement
 }
 
+func validateInitialAddressPool(ipAddressPoolName, ipStack string) {
+	GinkgoHelper()
+
+	switch ipStack {
+	case netparam.IPV4Family:
+		validateAddressPool(ipAddressPoolName, mlbtypes.IPAddressPoolStatus{
+			AvailableIPv4: 240,
+			AvailableIPv6: 0,
+			AssignedIPv4:  0,
+			AssignedIPv6:  0,
+		})
+	case netparam.IPV6Family:
+		validateAddressPool(ipAddressPoolName, mlbtypes.IPAddressPoolStatus{
+			AvailableIPv4: 0,
+			AvailableIPv6: 9223372036854775807,
+			AssignedIPv4:  0,
+			AssignedIPv6:  0,
+		})
+	case netparam.DualIPFamily:
+		validateAddressPool(ipAddressPoolName, mlbtypes.IPAddressPoolStatus{
+			AvailableIPv4: 240,
+			AvailableIPv6: 9223372036854775807,
+			AssignedIPv4:  0,
+			AssignedIPv6:  0,
+		})
+	default:
+		Expect(false).To(BeTrue(), "Invalid IP stack: %s", ipStack)
+	}
+}
+
+func validateAddressPoolAfterService(ipAddressPoolName, ipStack string) {
+	GinkgoHelper()
+
+	switch ipStack {
+	case netparam.IPV4Family:
+		validateAddressPool(ipAddressPoolName, mlbtypes.IPAddressPoolStatus{
+			AvailableIPv4: 239,
+			AvailableIPv6: 0,
+			AssignedIPv4:  1,
+			AssignedIPv6:  0,
+		})
+	case netparam.IPV6Family:
+		validateAddressPool(ipAddressPoolName, mlbtypes.IPAddressPoolStatus{
+			AvailableIPv4: 0,
+			AvailableIPv6: 9223372036854775806,
+			AssignedIPv4:  0,
+			AssignedIPv6:  1,
+		})
+	case netparam.DualIPFamily:
+		validateAddressPool(ipAddressPoolName, mlbtypes.IPAddressPoolStatus{
+			AvailableIPv4: 239,
+			AvailableIPv6: 9223372036854775806,
+			AssignedIPv4:  1,
+			AssignedIPv6:  1,
+		})
+	}
+}
+
 func validateAddressPool(ipAddressPoolName string, expected mlbtypes.IPAddressPoolStatus) {
 	GinkgoHelper()
 
-	ipAddressPool, err := metallb.PullAddressPool(APIClient, ipAddressPoolName, NetConfig.MlbOperatorNamespace)
-	Expect(err).ToNot(HaveOccurred(), "Failed to pull IPAddressPool %s", ipAddressPoolName)
+	var actualStatus mlbtypes.IPAddressPoolStatus
+	Eventually(func() bool {
+		ipAddressPool, err := metallb.PullAddressPool(APIClient, ipAddressPoolName, NetConfig.MlbOperatorNamespace)
+		Expect(err).ToNot(HaveOccurred(), "Failed to pull IPAddressPool %s", ipAddressPoolName)
 
-	Expect(ipAddressPool.Object.Status).To(Equal(expected))
+		actualStatus = ipAddressPool.Object.Status
+
+		return actualStatus == expected
+	}, 9*time.Second, 3*time.Second).Should(BeTrue(),
+		"Failed to validate IPAddressPool %s: expected AvailableIPv4=%d, AvailableIPv6=%d, "+
+			"AssignedIPv4=%d, AssignedIPv6=%d, but got AvailableIPv4=%d, AvailableIPv6=%d, "+
+			"AssignedIPv4=%d, AssignedIPv6=%d",
+		ipAddressPoolName,
+		expected.AvailableIPv4, expected.AvailableIPv6, expected.AssignedIPv4, expected.AssignedIPv6,
+		actualStatus.AvailableIPv4, actualStatus.AvailableIPv6, actualStatus.AssignedIPv4, actualStatus.AssignedIPv6)
 }
 
 func validateBGPSessionState(bgpStatus, bfdStatus, bgpPeerIP string, workerNodeList []*nodes.Builder) {
 	GinkgoHelper()
 
+	// Normalize IPv6 addresses to MetalLB's long format
+	// (e.g., "2620:60:0:2e49::200" -> "2620-0060-0000-2e49-0000-0000-0000-0200")
+	normalizedPeerIP := normalizeBGPPeerIP(bgpPeerIP)
+
 	for _, workerNode := range workerNodeList {
 		// First, wait for the status to reach the expected state. Expected poll-interval is 2 minutes.
 		Eventually(func() bool {
 			currentBGPSessionState, err := metallb.PullBGPSessionStateByNodeAndPeer(
-				APIClient, workerNode.Definition.Name, bgpPeerIP)
+				APIClient, workerNode.Definition.Name, normalizedPeerIP)
 			if err != nil {
 				return false
 			}
@@ -929,7 +994,7 @@ func validateBGPSessionState(bgpStatus, bfdStatus, bgpPeerIP string, workerNodeL
 		// Then, verify the status remains consistent over time
 		Consistently(func() bool {
 			currentBGPSessionState, err := metallb.PullBGPSessionStateByNodeAndPeer(
-				APIClient, workerNode.Definition.Name, bgpPeerIP)
+				APIClient, workerNode.Definition.Name, normalizedPeerIP)
 			if err != nil {
 				return false
 			}
@@ -974,4 +1039,35 @@ func validateServiceBGPStatus(nodeList []*nodes.Builder, serviceName, serviceNam
 			"Failed to find ServiceBGPStatus for node %s, service name %s, service namespace %s",
 			workerNode.Definition.Name, serviceName, serviceNamespace)
 	}
+}
+
+// normalizeBGPPeerIP converts IPv6 addresses from short format to MetalLB's long format.
+// Short format: "2620:60:0:2e49::200"
+// Long format: "2620-0060-0000-2e49-0000-0000-0000-0200"
+// IPv4 addresses are returned unchanged.
+func normalizeBGPPeerIP(peerIP string) string {
+	parsedIP := net.ParseIP(peerIP)
+	if parsedIP == nil {
+		// If parsing fails, return original (might be a hostname or invalid format)
+		return peerIP
+	}
+
+	// IPv4 addresses don't need normalization
+	if parsedIP.To4() != nil {
+		return peerIP
+	}
+
+	// Convert IPv6 to long format: expand to 16 bytes and format as xxxx-xxxx-xxxx-xxxx-xxxx-xxxx-xxxx-xxxx
+	ipv6Bytes := parsedIP.To16()
+	if ipv6Bytes == nil {
+		return peerIP
+	}
+
+	// Format each 16-bit segment (2 bytes) as 4 hex digits with dashes
+	segments := make([]string, 8)
+	for i := 0; i < 8; i++ {
+		segments[i] = fmt.Sprintf("%04x", uint16(ipv6Bytes[i*2])<<8|uint16(ipv6Bytes[i*2+1]))
+	}
+
+	return strings.Join(segments, "-")
 }

@@ -1,6 +1,7 @@
 package rdscorecommon
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"fmt"
@@ -347,6 +348,72 @@ func verifyInterPodCommunication(
 	}
 }
 
+// checkPodIPv6Ready verifies that an IPv6 address is not in tentative or dadfailed state.
+// Returns true if the address is ready for use, false if it's still in DAD process or failed.
+func checkPodIPv6Ready(podObj *pod.Builder, interfaceName, ipv6Addr string) (bool, error) {
+	if ipv6Addr == "" {
+		return true, nil
+	}
+
+	// Use text format to get full interface details including tentative state
+	cmdGetIPAddrText := []string{"/bin/sh", "-c", fmt.Sprintf("ip addr show dev %s", interfaceName)}
+
+	output, err := podObj.ExecCommand(cmdGetIPAddrText, podObj.Definition.Spec.Containers[0].Name)
+	if err != nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to execute ip addr command in pod %q: %v",
+			podObj.Object.Name, err)
+
+		return false, err
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(output.String()))
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		// Look for lines containing the IPv6 address
+		if strings.Contains(line, ipv6Addr) && strings.Contains(line, "inet6") {
+			// Check if the address is in tentative state (DAD in progress)
+			if strings.Contains(line, "tentative") {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"IPv6 address %s is in tentative state (DAD in progress) for pod %q: %s",
+					ipv6Addr, podObj.Object.Name, strings.TrimSpace(line))
+
+				return false, nil
+			}
+
+			// Check if DAD failed
+			if strings.Contains(line, "dadfailed") {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("IPv6 address %s DAD failed for pod %q: %s",
+					ipv6Addr, podObj.Object.Name, strings.TrimSpace(line))
+
+				return false, fmt.Errorf("IPv6 DAD failed for address %s in pod %s", ipv6Addr, podObj.Object.Name)
+			}
+
+			// Address found and not tentative - ready to use
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("IPv6 address %s is ready (not tentative) for pod %q",
+				ipv6Addr, podObj.Object.Name)
+
+			return true, nil
+		}
+	}
+
+	// Check for scanning errors
+	if err := scanner.Err(); err != nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error scanning output for IPv6 address %s in pod %q: %v",
+			ipv6Addr, podObj.Object.Name, err)
+
+		return false, fmt.Errorf("error scanning output for IPv6 address %s in pod %s: %w",
+			ipv6Addr, podObj.Object.Name, err)
+	}
+
+	// If we reach here, the address was not found in the output
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("IPv6 address %s not found in output for pod %q",
+		ipv6Addr, podObj.Object.Name)
+
+	return false, nil
+}
+
 // getPodWhereaboutsIPs gets the IP addresses for the given pod.
 func getPodWhereaboutsIPs(activePods []*pod.Builder, interfaceName string) map[string][]NetworkInterface {
 	podWhereaboutsIPs := make(map[string][]NetworkInterface)
@@ -389,10 +456,39 @@ func getPodWhereaboutsIPs(activePods []*pod.Builder, interfaceName string) map[s
 
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("IP addresses: %+v", networkInterface)
 
+			// Check IPv6 addresses for tentative state (DAD must be complete)
+			for _, addr := range networkInterface[0].AddrInfo {
+				if addr.Family == "inet6" && addr.Scope == "global" {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+						"Checking IPv6 address %s readiness for pod %q", addr.Local, _pod.Object.Name)
+
+					ipv6Ready, err := checkPodIPv6Ready(_pod, interfaceName, addr.Local)
+					if err != nil {
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+							"IPv6 address %s DAD failed for pod %q in %q namespace: %v",
+							addr.Local, _pod.Object.Name, _pod.Object.Namespace, err)
+
+						return false
+					}
+
+					if !ipv6Ready {
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+							"IPv6 address %s not ready yet (tentative state) for pod %q in %q namespace, retrying...",
+							addr.Local, _pod.Object.Name, _pod.Object.Namespace)
+
+						return false
+					}
+
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+						"IPv6 address %s is ready and not in tentative state for pod %q",
+						addr.Local, _pod.Object.Name)
+				}
+			}
+
 			podWhereaboutsIPs[_pod.Object.Name] = networkInterface
 
 			return true
-		}).WithContext(ctx).WithPolling(10*time.Second).WithTimeout(1*time.Minute).Should(BeTrue(),
+		}).WithContext(ctx).WithPolling(15*time.Second).WithTimeout(3*time.Minute).Should(BeTrue(),
 			"Failed to get IP addresses for pod %q in %q namespace", _pod.Object.Name, _pod.Object.Namespace)
 	}
 
@@ -400,6 +496,8 @@ func getPodWhereaboutsIPs(activePods []*pod.Builder, interfaceName string) map[s
 }
 
 // getActivePods gets the active pods with the given label and namespace.
+//
+//nolint:gocognit
 func getActivePods(podLabel, namespace string) []*pod.Builder {
 	By("Checking if pods are running")
 
@@ -417,13 +515,68 @@ func getActivePods(podLabel, namespace string) []*pod.Builder {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q in %q namespace is in phase %q",
 			_pod.Object.Name, _pod.Object.Namespace, _pod.Object.Status.Phase)
 
-		if _pod.Object.Status.Phase == corev1.PodRunning && _pod.Object.DeletionTimestamp == nil {
+		// Check if pod is marked for deletion first
+		if _pod.Object.DeletionTimestamp != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is marked for deletion, skipping", _pod.Object.Name)
+
+			continue
+		}
+
+		switch _pod.Object.Status.Phase {
+		case corev1.PodRunning:
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is active(running and not marked for deletion)",
 				_pod.Object.Name)
 
 			activePods = append(activePods, _pod)
-		} else if _pod.Object.DeletionTimestamp != nil {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is marked for deletion, skipping", _pod.Object.Name)
+		case corev1.PodPending, corev1.PodSucceeded, corev1.PodFailed, corev1.PodUnknown:
+			// Dump detailed status for non-running pods to help diagnose issues
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is not running, dumping status details:",
+				_pod.Object.Name)
+
+			// Log pod conditions
+			for _, condition := range _pod.Object.Status.Conditions {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Condition: Type=%s, Status=%s, Reason=%s, Message=%s",
+					condition.Type, condition.Status, condition.Reason, condition.Message)
+			}
+
+			// Log container statuses
+			for _, containerStatus := range _pod.Object.Status.ContainerStatuses {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  ContainerStatus: Name=%s, Ready=%t, RestartCount=%d",
+					containerStatus.Name, containerStatus.Ready, containerStatus.RestartCount)
+
+				if containerStatus.State.Waiting != nil {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("    Waiting: Reason=%s, Message=%s",
+						containerStatus.State.Waiting.Reason, containerStatus.State.Waiting.Message)
+				}
+
+				if containerStatus.State.Terminated != nil {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("    Terminated: Reason=%s, Message=%s, ExitCode=%d",
+						containerStatus.State.Terminated.Reason, containerStatus.State.Terminated.Message,
+						containerStatus.State.Terminated.ExitCode)
+				}
+			}
+
+			// Log init container statuses (often the cause of Pending)
+			for _, initContainerStatus := range _pod.Object.Status.InitContainerStatuses {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  InitContainerStatus: Name=%s, Ready=%t, RestartCount=%d",
+					initContainerStatus.Name, initContainerStatus.Ready, initContainerStatus.RestartCount)
+
+				if initContainerStatus.State.Waiting != nil {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("    Waiting: Reason=%s, Message=%s",
+						initContainerStatus.State.Waiting.Reason, initContainerStatus.State.Waiting.Message)
+				}
+			}
+
+			// Log scheduling info if available
+			if _pod.Object.Status.NominatedNodeName != "" {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  NominatedNodeName: %s", _pod.Object.Status.NominatedNodeName)
+			}
+
+			if _pod.Object.Spec.NodeName == "" {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Pod has not been scheduled to a node yet")
+			} else {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Pod scheduled to node: %s", _pod.Object.Spec.NodeName)
+			}
 		}
 	}
 

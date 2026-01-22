@@ -4,6 +4,8 @@ import (
 	"time"
 
 	sriovv1 "github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1"
+	nmstateV1 "github.com/nmstate/kubernetes-nmstate/api/v1"
+	nmstateV1beta1 "github.com/nmstate/kubernetes-nmstate/api/v1beta1"
 	"github.com/openshift-kni/k8sreporter"
 	mcfgv1 "github.com/openshift/api/machineconfiguration/v1"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
@@ -34,6 +36,10 @@ var (
 		{Cr: &sriovv1.SriovNetworkList{}},
 		{Cr: &sriovv1.SriovNetworkNodeStateList{}},
 		{Cr: &sriovv1.SriovOperatorConfigList{}},
+		{Cr: &nmstateV1.NMStateList{}},
+		{Cr: &nmstateV1.NodeNetworkConfigurationPolicyList{}},
+		{Cr: &nmstateV1beta1.NodeNetworkStateList{}},
+		{Cr: &nmstateV1beta1.NodeNetworkConfigurationEnactmentList{}},
 	}
 
 	// ReporterNamespacesToDump tells to the reporter what namespaces to dump.

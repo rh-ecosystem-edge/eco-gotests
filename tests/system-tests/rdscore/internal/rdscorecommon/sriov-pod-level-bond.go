@@ -650,6 +650,60 @@ func changeInterfaceState(clientPod *pod.Builder, interfaceName string, toDisabl
 	return nil
 }
 
+// checkIPv6AddressState verifies that an IPv6 address is not in tentative or dadfailed state.
+// Returns true if the address is ready for use, false if it's still in DAD process or failed.
+func checkIPv6AddressState(output, ipv6Addr string) (bool, error) {
+	if ipv6Addr == "" {
+		klog.V(100).Infof("Empty IPv6 address provided")
+
+		return true, nil
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(output))
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		// Look for lines containing the IPv6 address
+		if strings.Contains(line, ipv6Addr) && strings.Contains(line, "inet6") {
+			// Check if the address is in tentative state (DAD in progress)
+			if strings.Contains(line, "tentative") {
+				klog.V(100).Infof("IPv6 address %s is in tentative state (DAD in progress): %s",
+					ipv6Addr, strings.TrimSpace(line))
+
+				return false, nil
+			}
+
+			// Check if DAD failed
+			if strings.Contains(line, "dadfailed") {
+				klog.V(100).Infof("IPv6 address %s DAD failed: %s",
+					ipv6Addr, strings.TrimSpace(line))
+
+				return false, fmt.Errorf("IPv6 DAD failed for address %s", ipv6Addr)
+			}
+
+			// Address found and not tentative - ready to use
+			klog.V(100).Infof("IPv6 address %s is ready (not tentative): %s",
+				ipv6Addr, strings.TrimSpace(line))
+
+			return true, nil
+		}
+	}
+
+	// Check for scanning errors
+	if err := scanner.Err(); err != nil {
+		klog.V(100).Infof("Error scanning output for IPv6 address %s: %v", ipv6Addr, err)
+
+		return false, fmt.Errorf("error scanning output for IPv6 address %s: %w", ipv6Addr, err)
+	}
+
+	// If we reach here, the address was not found in the output
+	klog.V(100).Infof("IPv6 address %s not found in output", ipv6Addr)
+
+	return false, nil
+}
+
+//nolint:funlen
 func inspectPodLevelBondedInterfaceConfig(podObj *pod.Builder, ipv4Addr, ipv6Addr string) (bool, error) {
 	klog.V(100).Infof("Verify pod-level bonded interface configuration for pod %q in namespace %q",
 		podObj.Definition.Name, podObj.Definition.Namespace)
@@ -723,6 +777,24 @@ func inspectPodLevelBondedInterfaceConfig(podObj *pod.Builder, ipv4Addr, ipv6Add
 
 					return false, nil
 				}
+
+				// Check that IPv6 address is not in tentative state (DAD must be complete)
+				ipv6Ready, err := checkIPv6AddressState(output, ipv6Addr)
+				if err != nil {
+					klog.V(100).Infof("IPv6 address %s DAD failed for pod %s in namespace %s: %v",
+						ipv6Addr, podObj.Definition.Name, podObj.Definition.Namespace, err)
+
+					return false, err
+				}
+
+				if !ipv6Ready {
+					klog.V(100).Infof("IPv6 address %s not ready yet (tentative state) for pod %s in namespace %s, retrying...",
+						ipv6Addr, podObj.Definition.Name, podObj.Definition.Namespace)
+
+					return false, nil
+				}
+
+				klog.V(100).Infof("IPv6 address %s is ready and not in tentative state", ipv6Addr)
 			}
 
 			// If the IPv4 and/or IPv6 addresses are found, return true
@@ -739,6 +811,7 @@ func inspectPodLevelBondedInterfaceConfig(podObj *pod.Builder, ipv4Addr, ipv6Add
 	return true, nil
 }
 
+//nolint:gocognit,funlen
 func getPodObjectByNamePattern(apiClient *clients.Settings, podNamePattern, podNamespace string) (*pod.Builder, error) {
 	var podObj *pod.Builder
 
@@ -775,7 +848,54 @@ func getPodObjectByNamePattern(apiClient *clients.Settings, podNamePattern, podN
 				case _pod.Object.DeletionTimestamp != nil:
 					klog.V(100).Infof("Pod %q is marked for deletion, skipping", _pod.Definition.Name)
 				default:
-					klog.V(100).Infof("Pod %q is in %q phase, skipping", _pod.Definition.Name, _pod.Object.Status.Phase)
+					// Dump detailed status for non-running pods to help diagnose issues
+					klog.V(100).Infof("Pod %q is not running, dumping status details:",
+						_pod.Definition.Name)
+
+					// Log pod conditions
+					for _, condition := range _pod.Object.Status.Conditions {
+						klog.V(100).Infof("  Condition: Type=%s, Status=%s, Reason=%s, Message=%s",
+							condition.Type, condition.Status, condition.Reason, condition.Message)
+					}
+
+					// Log container statuses
+					for _, containerStatus := range _pod.Object.Status.ContainerStatuses {
+						klog.V(100).Infof("  ContainerStatus: Name=%s, Ready=%t, RestartCount=%d",
+							containerStatus.Name, containerStatus.Ready, containerStatus.RestartCount)
+
+						if containerStatus.State.Waiting != nil {
+							klog.V(100).Infof("    Waiting: Reason=%s, Message=%s",
+								containerStatus.State.Waiting.Reason, containerStatus.State.Waiting.Message)
+						}
+
+						if containerStatus.State.Terminated != nil {
+							klog.V(100).Infof("    Terminated: Reason=%s, Message=%s, ExitCode=%d",
+								containerStatus.State.Terminated.Reason, containerStatus.State.Terminated.Message,
+								containerStatus.State.Terminated.ExitCode)
+						}
+					}
+
+					// Log init container statuses (often the cause of Pending)
+					for _, initContainerStatus := range _pod.Object.Status.InitContainerStatuses {
+						klog.V(100).Infof("  InitContainerStatus: Name=%s, Ready=%t, RestartCount=%d",
+							initContainerStatus.Name, initContainerStatus.Ready, initContainerStatus.RestartCount)
+
+						if initContainerStatus.State.Waiting != nil {
+							klog.V(100).Infof("    Waiting: Reason=%s, Message=%s",
+								initContainerStatus.State.Waiting.Reason, initContainerStatus.State.Waiting.Message)
+						}
+					}
+
+					// Log scheduling info if available
+					if _pod.Object.Status.NominatedNodeName != "" {
+						klog.V(100).Infof("  NominatedNodeName: %s", _pod.Object.Status.NominatedNodeName)
+					}
+
+					if _pod.Object.Spec.NodeName == "" {
+						klog.V(100).Infof("  Pod has not been scheduled to a node yet")
+					} else {
+						klog.V(100).Infof("  Pod scheduled to node: %s", _pod.Object.Spec.NodeName)
+					}
 				}
 			}
 
