@@ -1,6 +1,7 @@
 package consumer
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
@@ -8,6 +9,8 @@ import (
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/version"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
+	"k8s.io/klog/v2"
 )
 
 type ptpEventAPIVersion string
@@ -17,12 +20,18 @@ const (
 	eventAPIVersionV2 ptpEventAPIVersion = "2.0"
 )
 
+var errEventsNotEnabled = fmt.Errorf("events are not enabled in the PTP operator config")
+
 // DeployConsumersOnNodes deploys the cloud-event-consumer on all nodes with PTP daemons. It checks the event API
 // version based on the PTP version and event version in the PtpOperatorConfig then delegates to either
 // [DeployV1ConsumersOnNodes] or [DeployV2ConsumersOnNodes] to deploy the consumers.
 func DeployConsumersOnNodes(client *clients.Settings) error {
 	eventAPIVersion, err := getEventAPIVersion(client)
-	if err != nil {
+	if errors.Is(err, errEventsNotEnabled) {
+		klog.V(tsparams.LogLevel).Infof("Events are not enabled in the PTP operator config, skipping consumer deployment")
+
+		return nil
+	} else if err != nil {
 		return fmt.Errorf("failed to get event API version trying to deploy consumers: %w", err)
 	}
 
@@ -47,7 +56,11 @@ func DeployConsumersOnNodes(client *clients.Settings) error {
 // or [CleanupV2ConsumersOnNodes] to delete the consumers.
 func CleanupConsumersOnNodes(client *clients.Settings) error {
 	eventAPIVersion, err := getEventAPIVersion(client)
-	if err != nil {
+	if errors.Is(err, errEventsNotEnabled) {
+		klog.V(tsparams.LogLevel).Infof("Events are not enabled in the PTP operator config, skipping consumer cleanup")
+
+		return nil
+	} else if err != nil {
 		return fmt.Errorf("failed to get event API version trying to cleanup consumers: %w", err)
 	}
 
@@ -75,8 +88,9 @@ func getEventAPIVersion(client *clients.Settings) (ptpEventAPIVersion, error) {
 		return "", fmt.Errorf("PTP operator version not found in spoke 1 operator versions")
 	}
 
-	if atLeast419, err := version.IsVersionStringInRange(ptpVersion, "4.19", ""); err == nil && atLeast419 {
-		return eventAPIVersionV2, nil
+	atLeast419, err := version.IsVersionStringInRange(ptpVersion, "4.19", "")
+	if err != nil {
+		return "", fmt.Errorf("failed to check if PTP version is at least 4.19: %w", err)
 	}
 
 	ptpOperatorConfig, err := ptp.PullPtpOperatorConfig(client)
@@ -84,8 +98,19 @@ func getEventAPIVersion(client *clients.Settings) (ptpEventAPIVersion, error) {
 		return "", fmt.Errorf("failed to pull PTP operator config: %w", err)
 	}
 
-	if ptpOperatorConfig.Definition.Spec.EventConfig == nil {
-		return "", fmt.Errorf("PTP operator config has no event config")
+	if ptpOperatorConfig.Definition == nil {
+		return "", fmt.Errorf("PTP operator config definition is nil")
+	}
+
+	// Events are considered enabled if and only if EventConfig is non-nil and EnableEventPublisher is true.
+	if ptpOperatorConfig.Definition.Spec.EventConfig == nil ||
+		!ptpOperatorConfig.Definition.Spec.EventConfig.EnableEventPublisher {
+		return "", errEventsNotEnabled
+	}
+
+	// If the PTP version is at least 4.19, the event API version is always v2.
+	if atLeast419 {
+		return eventAPIVersionV2, nil
 	}
 
 	switch apiVersion := ptpOperatorConfig.Definition.Spec.EventConfig.ApiVersion; apiVersion {
