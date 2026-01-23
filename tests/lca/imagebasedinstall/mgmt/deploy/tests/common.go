@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/bmh"
@@ -369,6 +370,10 @@ func createSiteConfigResouces(addressFamily string) {
 			HTTPSProxy: MGMTConfig.SeedClusterInfo.Proxy.HTTPSProxy,
 			NoProxy:    MGMTConfig.SeedClusterInfo.Proxy.NOProxy,
 		})
+	}
+
+	if MGMTConfig.AdditionalNTPSources != "" {
+		clusterInstanceBuilder.WithAdditionalNTPSources(strings.Split(MGMTConfig.AdditionalNTPSources, ","))
 	}
 
 	Expect(len(MGMTConfig.Cluster.Info.Hosts)).To(Equal(1), "error: can only support SNO deployments")
