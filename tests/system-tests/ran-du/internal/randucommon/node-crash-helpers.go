@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
@@ -23,34 +24,53 @@ const (
 	ConstantTrueString = "True"
 )
 
-// WaitForNodeToBeNotReady waits for the node to be not ready.
-func WaitForNodeToBeNotReady(ctx SpecContext, nodeName string, pollingInterval, timeout time.Duration) {
-	By(fmt.Sprintf("Waiting for node %q to get into NotReady state", nodeName))
+// WaitForNodeToDissapear waits for the node to dissapear.
+func WaitForNodeToDissapear(ctx SpecContext, nodeName string, pollingInterval, timeout time.Duration) {
+	By(fmt.Sprintf("Waiting for node %q to dissapear", nodeName))
 
 	Eventually(func() bool {
-		currentNode, err := nodes.Pull(APIClient, nodeName)
+		nodeList, err := nodes.List(APIClient, metav1.ListOptions{})
 		if err != nil {
-			klog.V(randuparams.RanDuLogLevel).Infof("Failed to pull node: %v", err)
+			klog.V(randuparams.RanDuLogLevel).Infof("Failed to list nodes: %v", err)
 
+			// Check if error indicates connection lost (node/cluster unreachable)
+			if strings.Contains(err.Error(), "client connection lost") {
+				klog.V(randuparams.RanDuLogLevel).Infof("Client connection lost - node has disappeared")
+
+				return true
+			}
+
+			// For other errors, keep retrying
 			return false
 		}
 
-		for _, condition := range currentNode.Object.Status.Conditions {
-			if condition.Type == ConditionTypeReadyString {
-				if string(condition.Status) != ConstantTrueString {
-					klog.V(randuparams.RanDuLogLevel).Infof("Node %q is notReady", currentNode.Definition.Name)
-					klog.V(randuparams.RanDuLogLevel).Infof("  Reason: %s", condition.Reason)
+		// Check if node exists in the list
+		for _, node := range nodeList {
+			if node.Definition.Name == nodeName {
+				// Node found, check its Ready condition
+				for _, condition := range node.Object.Status.Conditions {
+					if condition.Type == ConditionTypeReadyString {
+						if string(condition.Status) != ConstantTrueString {
+							klog.V(randuparams.RanDuLogLevel).Infof("Node %q is NotReady", nodeName)
+							klog.V(randuparams.RanDuLogLevel).Infof("  Reason: %s", condition.Reason)
 
-					return true
+							return true
+						}
+					}
 				}
+
+				klog.V(randuparams.RanDuLogLevel).Infof("Node %q is Ready", nodeName)
+
+				return false
 			}
 		}
 
-		klog.V(randuparams.RanDuLogLevel).Infof("Node %q is Ready", currentNode.Definition.Name)
+		// Node not found in the list - it has disappeared
+		klog.V(randuparams.RanDuLogLevel).Infof("Node %q not found in nodes list (node has disappeared)", nodeName)
 
-		return false
+		return true
 	}).WithContext(ctx).WithPolling(pollingInterval).WithTimeout(timeout).Should(BeTrue(),
-		"Node %q hasn't reached NotReady state", nodeName)
+		"Node %q hasn't become unreachable", nodeName)
 }
 
 // VerifyVmcoreDumpGenerated verifies that vmcore dump was generated in /var/crash.

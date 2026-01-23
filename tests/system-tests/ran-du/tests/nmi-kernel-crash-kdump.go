@@ -28,13 +28,6 @@ var _ = Describe(
 	Label("NMIKernelCrashKdump"), func() {
 		It("Trigger NMI kernel crash via Redfish to generate kdump vmcore",
 			reportxml.ID("85975"), Label("NMIKernelCrashKdump"), func(ctx SpecContext) {
-				By("Checking if BMC credentials are configured")
-
-				if len(RanDuTestConfig.NodesCredentialsMap) == 0 {
-					klog.V(randuparams.RanDuLogLevel).Infof("BMC Details not specified")
-					Skip("BMC Details not specified. Skipping...")
-				}
-
 				By("Retrieve nodes list")
 
 				nodeList, err := nodes.List(
@@ -43,6 +36,13 @@ var _ = Describe(
 				)
 				Expect(err).ToNot(HaveOccurred(), "Error listing nodes.")
 				Expect(len(nodeList)).ToNot(Equal(0), "No nodes found in the cluster")
+
+				By("Checking if BMC credentials are configured")
+
+				if len(RanDuTestConfig.NodesCredentialsMap) == 0 {
+					klog.V(randuparams.RanDuLogLevel).Infof("BMC Details not specified")
+					Skip("BMC Details not specified. Skipping...")
+				}
 
 				for _, node := range nodeList {
 					By(fmt.Sprintf("Cleaning up /var/crash directory on node %q", node.Definition.Name))
@@ -90,7 +90,7 @@ var _ = Describe(
 					Expect(err).ToNot(HaveOccurred(),
 						fmt.Sprintf("Failed to trigger NMI on node %s", node.Definition.Name))
 
-					randucommon.WaitForNodeToBeNotReady(ctx, node.Definition.Name, 15*time.Second, 25*time.Minute)
+					randucommon.WaitForNodeToDissapear(ctx, node.Definition.Name, 15*time.Second, 25*time.Minute)
 
 					By(fmt.Sprintf("Waiting for node %q to return to Ready state", node.Definition.Name))
 
