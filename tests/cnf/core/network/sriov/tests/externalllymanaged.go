@@ -43,7 +43,7 @@ var _ = Describe("ExternallyManaged", Ordered, Label(tsparams.LabelExternallyMan
 			)
 			BeforeAll(func() {
 				By("Verifying if SR-IOV tests can be executed on given cluster")
-				err := netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 2)
+				err := netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 1)
 				if err != nil {
 					Skip(fmt.Sprintf(
 						"given cluster is not suitable for SR-IOV tests because it doesn't have enought nodes: %s", err.Error()))
@@ -58,9 +58,9 @@ var _ = Describe("ExternallyManaged", Ordered, Label(tsparams.LabelExternallyMan
 					metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
 				Expect(err).ToNot(HaveOccurred(), "Failed to discover worker nodes")
 
-				Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 2)).ToNot(HaveOccurred(),
+				Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 1)).ToNot(HaveOccurred(),
 					"Failed to get required SR-IOV interfaces")
-				sriovInterfacesUnderTest, err = NetConfig.GetSriovInterfaces(2)
+				sriovInterfacesUnderTest, err = NetConfig.GetSriovInterfaces(1)
 				Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
 
 				if sriovenv.IsMellanoxDevice(sriovInterfacesUnderTest[0], workerNodeList[0].Object.Name) {
@@ -127,6 +127,18 @@ var _ = Describe("ExternallyManaged", Ordered, Label(tsparams.LabelExternallyMan
 
 			DescribeTable("Verifying connectivity with different IP protocols", reportxml.ID("63527"),
 				func(ipStack string) {
+					By("Verifying cluster has enough workers")
+					err := netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 2)
+					if err != nil {
+						Skip(fmt.Sprintf("Skipping test - cluster doesn't have enough workers: %v", err))
+					}
+
+					By("Validating SR-IOV interfaces on 2 workers")
+					Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 2)).ToNot(HaveOccurred(),
+						"Failed to get required SR-IOV interfaces on 2 workers")
+					_, err = NetConfig.GetSriovInterfaces(2)
+					Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
+
 					By("Defining test parameters")
 					clientIPs, serverIPs, err := defineIterationParams(ipStack)
 					Expect(err).ToNot(HaveOccurred(), "Failed to define test parameters")
@@ -307,6 +319,12 @@ var _ = Describe("ExternallyManaged", Ordered, Label(tsparams.LabelExternallyMan
 			)
 
 			BeforeAll(func() {
+				By("Verifying cluster has enough workers")
+				err = netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 2)
+				if err != nil {
+					Skip(fmt.Sprintf("Skipping test - cluster doesn't have enough workers: %v", err))
+				}
+
 				By("Verifying that the cluster deployed via bond interface")
 				workerNodeList, err = nodes.List(APIClient,
 					metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})

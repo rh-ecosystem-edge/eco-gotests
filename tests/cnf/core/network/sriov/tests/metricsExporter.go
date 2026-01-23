@@ -57,19 +57,20 @@ var _ = Describe(
 
 		BeforeAll(func() {
 			By("Verifying if Sriov Metrics Exporter tests can be executed on given cluster")
-			err := netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 2)
-			Expect(err).ToNot(HaveOccurred(),
-				"Cluster doesn't support Sriov Metrics Exporter test cases as it doesn't have enough nodes")
+			err := netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 1)
+			if err != nil {
+				Skip(fmt.Sprintf("Skipping test - cluster doesn't have enough nodes: %v", err))
+			}
 
 			By("Validating SR-IOV interfaces")
 			workerNodeList, err = nodes.List(APIClient,
 				metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
 			Expect(err).ToNot(HaveOccurred(), "Failed to discover worker nodes")
 
-			Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 2)).ToNot(HaveOccurred(),
+			Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 1)).ToNot(HaveOccurred(),
 				"Failed to get required SR-IOV interfaces")
 
-			sriovInterfacesUnderTest, err = NetConfig.GetSriovInterfaces(2)
+			sriovInterfacesUnderTest, err = NetConfig.GetSriovInterfaces(1)
 			Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
 
 			By("Fetching SR-IOV Vendor ID for interface under test")
@@ -133,10 +134,24 @@ var _ = Describe(
 					workerNodeList[0].Object.Name, workerNodeList[0].Object.Name, sriovVendorID)
 			})
 			It("Different PF", reportxml.ID("75929"), func() {
-				runNettoNetTests(sriovInterfacesUnderTest[0], sriovInterfacesUnderTest[1],
+				By("Verifying we have 2 SR-IOV interfaces available")
+				Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 1)).ToNot(HaveOccurred(),
+					"Failed to get required SR-IOV interfaces")
+				interfaces, err := NetConfig.GetSriovInterfaces(2)
+				Expect(err).ToNot(HaveOccurred(), "Failed to retrieve 2 SR-IOV interfaces for testing")
+				runNettoNetTests(interfaces[0], interfaces[1],
 					workerNodeList[0].Object.Name, workerNodeList[0].Object.Name, sriovVendorID)
 			})
 			It("Different Worker", reportxml.ID("75930"), func() {
+				By("Verifying cluster has enough workers")
+				err := netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 2)
+				if err != nil {
+					Skip(fmt.Sprintf("Skipping test - cluster doesn't have enough workers: %v", err))
+				}
+
+				By("Validating SR-IOV interfaces on 2 workers")
+				Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 2)).ToNot(HaveOccurred(),
+					"Failed to get required SR-IOV interfaces on 2 workers")
 				runNettoNetTests(sriovInterfacesUnderTest[0], sriovInterfacesUnderTest[0],
 					workerNodeList[0].Object.Name, workerNodeList[1].Object.Name, sriovVendorID)
 			})
@@ -163,10 +178,24 @@ var _ = Describe(
 					workerNodeList[0].Object.Name, workerNodeList[0].Object.Name, sriovVendorID)
 			})
 			It("Different PF", reportxml.ID("75931"), func() {
-				runNettoVfioTests(sriovInterfacesUnderTest[0], sriovInterfacesUnderTest[1],
+				By("Verifying we have 2 SR-IOV interfaces available")
+				Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 1)).ToNot(HaveOccurred(),
+					"Failed to get required SR-IOV interfaces")
+				interfaces, err := NetConfig.GetSriovInterfaces(2)
+				Expect(err).ToNot(HaveOccurred(), "Failed to retrieve 2 SR-IOV interfaces for testing")
+				runNettoVfioTests(interfaces[0], interfaces[1],
 					workerNodeList[0].Object.Name, workerNodeList[0].Object.Name, sriovVendorID)
 			})
 			It("Different Worker", reportxml.ID("75932"), func() {
+				By("Verifying cluster has enough workers")
+				err := netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 2)
+				if err != nil {
+					Skip(fmt.Sprintf("Skipping test - cluster doesn't have enough workers: %v", err))
+				}
+
+				By("Validating SR-IOV interfaces on 2 workers")
+				Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 2)).ToNot(HaveOccurred(),
+					"Failed to get required SR-IOV interfaces on 2 workers")
 				runNettoVfioTests(sriovInterfacesUnderTest[0], sriovInterfacesUnderTest[0],
 					workerNodeList[0].Object.Name, workerNodeList[1].Object.Name, sriovVendorID)
 			})
@@ -194,10 +223,24 @@ var _ = Describe(
 					workerNodeList[0].Object.Name, workerNodeList[0].Object.Name, sriovVendorID)
 			})
 			It("Different PF", reportxml.ID("75933"), func() {
-				runVfiotoVfioTests(sriovInterfacesUnderTest[0], sriovInterfacesUnderTest[1],
+				By("Verifying we have 2 SR-IOV interfaces available")
+				Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 1)).ToNot(HaveOccurred(),
+					"Failed to get required SR-IOV interfaces")
+				interfaces, err := NetConfig.GetSriovInterfaces(2)
+				Expect(err).ToNot(HaveOccurred(), "Failed to retrieve 2 SR-IOV interfaces for testing")
+				runVfiotoVfioTests(interfaces[0], interfaces[1],
 					workerNodeList[0].Object.Name, workerNodeList[0].Object.Name, sriovVendorID)
 			})
 			It("Different Worker", reportxml.ID("75934"), func() {
+				By("Verifying cluster has enough workers")
+				err := netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 2)
+				if err != nil {
+					Skip(fmt.Sprintf("Skipping test - cluster doesn't have enough workers: %v", err))
+				}
+
+				By("Validating SR-IOV interfaces on 2 workers")
+				Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 2)).ToNot(HaveOccurred(),
+					"Failed to get required SR-IOV interfaces on 2 workers")
 				runVfiotoVfioTests(sriovInterfacesUnderTest[0], sriovInterfacesUnderTest[0],
 					workerNodeList[0].Object.Name, workerNodeList[1].Object.Name, sriovVendorID)
 			})

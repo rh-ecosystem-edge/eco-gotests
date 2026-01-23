@@ -1,6 +1,7 @@
 package dpdk
 
 import (
+	"fmt"
 	"runtime"
 	"testing"
 	"time"
@@ -44,7 +45,9 @@ var _ = BeforeSuite(func() {
 
 	By("Verifying if dpdk tests can be executed on given cluster")
 	err = dpdkenv.DoesClusterSupportDpdkTests(APIClient, NetConfig, 26, 100)
-	Expect(err).ToNot(HaveOccurred(), "Cluster doesn't support dpdk test cases")
+	if err != nil {
+		Skip(fmt.Sprintf("Skipping test - cluster doesn't support dpdk test cases: %v", err))
+	}
 
 	By("Deploying PerformanceProfile is it's not installed")
 	err = netenv.DeployPerformanceProfile(

@@ -83,9 +83,15 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 	)
 
 	BeforeAll(func() {
+		By("Checking if cluster is SNO")
+		isSNO, err := netenv.IsSNOCluster(APIClient)
+		Expect(err).ToNot(HaveOccurred(), "Failed to check if cluster is SNO")
+		if isSNO {
+			Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers")
+		}
 
 		By("Verifying SR-IOV operator is running")
-		err := sriovoperator.IsSriovDeployed(APIClient, NetConfig.SriovOperatorNamespace)
+		err = sriovoperator.IsSriovDeployed(APIClient, NetConfig.SriovOperatorNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Cluster doesn't support sriov test cases")
 
 		By("Verifying PF Status Relay operator is running")

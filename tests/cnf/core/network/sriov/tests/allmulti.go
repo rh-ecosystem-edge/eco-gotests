@@ -13,6 +13,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/cmd"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/sriovenv"
@@ -73,9 +74,14 @@ var _ = Describe(
 	"allmulti", Ordered, Label(tsparams.LabelSuite, tsparams.LabelSriovHWEnabled), ContinueOnFailure, func() {
 
 		BeforeAll(func() {
-			By("Discover worker nodes")
-			var err error
+			By("Checking if cluster is SNO")
+			isSNO, err := netenv.IsSNOCluster(APIClient)
+			Expect(err).ToNot(HaveOccurred(), "Failed to check if cluster is SNO")
+			if isSNO {
+				Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers")
+			}
 
+			By("Discover worker nodes")
 			workerNodes, err = nodes.List(APIClient,
 				metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
 			Expect(err).ToNot(HaveOccurred(), "Fail to discover nodes")

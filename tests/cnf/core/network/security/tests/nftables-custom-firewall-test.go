@@ -55,6 +55,14 @@ var _ = Describe("nftables", Ordered, Label(tsparams.LabelNftablesTestCases), Co
 		err                      error
 	)
 	BeforeAll(func() {
+		By("Checking if cluster is SNO")
+		var isSNO bool
+		isSNO, err = netenv.IsSNOCluster(APIClient)
+		Expect(err).ToNot(HaveOccurred(), "Failed to check if cluster is SNO")
+		if isSNO {
+			Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers")
+		}
+
 		By("List CNF worker nodes in cluster")
 		cnfWorkerNodeList, err = nodes.List(APIClient,
 			metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
@@ -71,8 +79,9 @@ var _ = Describe("nftables", Ordered, Label(tsparams.LabelNftablesTestCases), Co
 		masterNodeList, err = nodes.List(APIClient,
 			metav1.ListOptions{LabelSelector: labels.Set(NetConfig.ControlPlaneLabelMap).String()})
 		Expect(err).ToNot(HaveOccurred(), "Fail to list master nodes")
-		Expect(len(cnfWorkerNodeList)).To(BeNumerically(">", 1),
-			"Failed to detect at least two worker nodes")
+		if len(cnfWorkerNodeList) <= 1 {
+			Skip("Skipping test - cluster doesn't have enough nodes (requires 2+ workers)")
+		}
 
 		By(fmt.Sprintf("verify status of nftables on %s if inactive activate", cnfWorkerNodeList[0].Definition.Name))
 		activateNftablesIfInactive(cnfWorkerNodeList[0].Definition.Name)
