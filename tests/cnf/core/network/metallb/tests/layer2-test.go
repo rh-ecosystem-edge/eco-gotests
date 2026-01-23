@@ -35,6 +35,11 @@ var _ = Describe("Layer2", Ordered, Label(tsparams.LabelLayer2TestCases), Contin
 		err           error
 	)
 	BeforeAll(func() {
+		By("Checking if cluster is SNO")
+		if IsSNO {
+			Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers")
+		}
+
 		validateEnvVarAndGetNodeList()
 
 		By("Creating a new instance of MetalLB Speakers on workers")

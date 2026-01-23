@@ -52,6 +52,9 @@ var (
 	workerNodeList    []*nodes.Builder
 	masterNodeList    []*nodes.Builder
 	workerLabelMap    map[string]string
+	// IsSNO is a global variable that indicates if the cluster is a Single Node OpenShift (SNO) cluster.
+	// It is initialized once in BeforeSuite() to avoid repeated kube API calls.
+	IsSNO bool
 )
 
 var (

@@ -17,6 +17,11 @@ import (
 
 var _ = Describe("BGP", Ordered, Label("pool-selector"), ContinueOnFailure, func() {
 	BeforeAll(func() {
+		By("Checking if cluster is SNO")
+		if IsSNO {
+			Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers for 'different node' test case")
+		}
+
 		validateEnvVarAndGetNodeList()
 
 		By("Creating a new instance of MetalLB Speakers on workers")

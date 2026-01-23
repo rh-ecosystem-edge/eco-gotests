@@ -43,6 +43,11 @@ var _ = Describe("MetalLB NodeSelector", Ordered, Label(tsparams.LabelBGPTestCas
 	)
 
 	BeforeAll(func() {
+		By("Checking if cluster is SNO")
+		if IsSNO {
+			Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers")
+		}
+
 		validateEnvVarAndGetNodeList()
 
 		By("Collecting information before test")
