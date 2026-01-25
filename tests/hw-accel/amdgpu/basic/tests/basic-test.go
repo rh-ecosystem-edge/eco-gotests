@@ -51,18 +51,18 @@ var _ = Describe("AMD GPU Basic Tests", Ordered, Label(amdgpuparams.LabelSuite),
 			By("Verifying configuration")
 
 			if amdConfig == nil {
-				Skip("AMDConfig is not available - required for AMD GPU tests")
+				Fail("AMDConfig is not available - required for AMD GPU tests")
 			}
 
 			if amdConfig.AMDDriverVersion == "" {
-				Skip("AMD Driver Version is not set in environment - required for AMD GPU tests")
+				Fail("AMD Driver Version is not set in environment - required for AMD GPU tests")
 			}
 
 			By("Verifying and configuring internal image registry for AMD GPU operator")
 			err := amdgpuregistry.VerifyAndConfigureInternalRegistry(apiClient)
 			if err != nil {
 				klog.V(amdgpuparams.AMDGPULogLevel).Infof("Internal registry configuration warning: %v", err)
-				Skip("Internal image registry is not available - required for AMD GPU operator")
+				Fail("Internal image registry is not available - required for AMD GPU operator")
 			}
 
 			By("Checking if cluster is stable before setup")
