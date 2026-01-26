@@ -33,9 +33,7 @@ var _ = Describe("PTP Leap File", Label(tsparams.LabelLeapFile), func() {
 		Expect(err).ToNot(HaveOccurred(), "Failed to create Prometheus API client")
 
 		By("ensuring clocks are locked before testing")
-		err = metrics.AssertQuery(context.TODO(), prometheusAPI, metrics.ClockStateQuery{}, metrics.ClockStateLocked,
-			metrics.AssertWithStableDuration(10*time.Second),
-			metrics.AssertWithTimeout(5*time.Minute))
+		err = metrics.EnsureClocksAreLocked(prometheusAPI)
 		Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
 	})
 
