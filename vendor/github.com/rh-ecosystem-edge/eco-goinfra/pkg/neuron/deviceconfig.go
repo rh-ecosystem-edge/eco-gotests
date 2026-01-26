@@ -213,6 +213,29 @@ func (builder *Builder) WithDriverVersion(version string) *Builder {
 	return builder
 }
 
+// WithNodeMetricsImage sets the node metrics image for the DeviceConfig.
+func (builder *Builder) WithNodeMetricsImage(image string) *Builder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof(
+		"Setting DeviceConfig %s in namespace %s with nodeMetricsImage: %s",
+		builder.Definition.Name, builder.Definition.Namespace, image)
+
+	if image == "" {
+		klog.V(100).Infof("DeviceConfig 'nodeMetricsImage' cannot be empty")
+
+		builder.errorMsg = "DeviceConfig 'nodeMetricsImage' cannot be empty"
+
+		return builder
+	}
+
+	builder.Definition.Spec.NodeMetricsImage = image
+
+	return builder
+}
+
 // Pull retrieves an existing DeviceConfig from the cluster.
 func Pull(apiClient *clients.Settings, name, namespace string) (*Builder, error) {
 	klog.V(100).Infof("Pulling DeviceConfig %s from namespace %s", name, namespace)

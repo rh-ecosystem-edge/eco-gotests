@@ -74,15 +74,12 @@ func NewNeuronConfig() *NeuronConfig {
 	}
 
 	if config.ModelName == "" {
-		// Default to Llama-3.1-8B-Instruct as recommended in the Red Hat Developers blog
-		// Supported architectures: LlamaForCausalLM, MistralForCausalLM, DbrxForCausalLM,
-		// MixtralForCausalLM, MllamaForConditionalGeneration, Qwen2ForCausalLM
-		// NOTE: OPTForCausalLM (facebook/opt-*) is NOT supported on Neuron
+		// Default to Llama-3.1-8B-Instruct
 		config.ModelName = "meta-llama/Llama-3.1-8B-Instruct"
 	}
 
 	if config.VLLMImage == "" {
-		// Default vLLM image with Neuron support from the Red Hat Developers blog
+		// Default vLLM image with Neuron support
 		config.VLLMImage = "public.ecr.aws/neuron/pytorch-inference-vllm-neuronx:0.7.2-neuronx-py310-sdk2.24.1-ubuntu22.04"
 	}
 
@@ -98,7 +95,6 @@ func NewNeuronConfig() *NeuronConfig {
 }
 
 // IsValid checks if the minimum required configuration is present.
-// DeviceConfig requires DriversImage, DriverVersion, and DevicePluginImage.
 func (c *NeuronConfig) IsValid() bool {
 	return c.DriversImage != "" && c.DriverVersion != "" && c.DevicePluginImage != ""
 }

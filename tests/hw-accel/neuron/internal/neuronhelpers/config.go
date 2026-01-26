@@ -11,7 +11,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nfd"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/params"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 )
@@ -24,13 +23,6 @@ const (
 	// NFDInstanceWaitTimeout is the timeout for waiting for NFD workers to be ready.
 	NFDInstanceWaitTimeout = 5 * time.Minute
 )
-
-// NFDRuleGVR defines the GroupVersionResource for NodeFeatureRule.
-var NFDRuleGVR = schema.GroupVersionResource{
-	Group:    "nfd.openshift.io",
-	Version:  "v1alpha1",
-	Resource: "nodefeaturerules",
-}
 
 // CreateNFDInstance creates the NodeFeatureDiscovery instance to deploy NFD workers.
 func CreateNFDInstance(apiClient *clients.Settings) error {
@@ -160,12 +152,11 @@ func DeleteNFDInstance(apiClient *clients.Settings) error {
 }
 
 // CreateNeuronNFDRule creates the NodeFeatureRule for Neuron device detection.
+// Uses the eco-goinfra WithSimplePCIRule convenience method for clean PCI device matching.
 func CreateNeuronNFDRule(apiClient *clients.Settings, namespace string) error {
 	klog.V(params.NeuronLogLevel).Info("Creating Neuron NodeFeatureRule")
 
-	ruleYAML := getNeuronNFDRuleYAML(namespace)
-	nfdRuleBuilder := nfd.NewNodeFeatureRuleBuilderFromObjectString(apiClient, ruleYAML)
-
+	nfdRuleBuilder := nfd.NewNodeFeatureRuleBuilder(apiClient, NeuronNFDRuleName, namespace)
 	if nfdRuleBuilder == nil {
 		return fmt.Errorf("failed to create NodeFeatureRule builder")
 	}
@@ -175,6 +166,14 @@ func CreateNeuronNFDRule(apiClient *clients.Settings, namespace string) error {
 
 		return nil
 	}
+
+	// Use WithSimplePCIRule for clean PCI device detection
+	nfdRuleBuilder = nfdRuleBuilder.WithSimplePCIRule(
+		"neuron-device",
+		map[string]string{params.NeuronNFDLabelKey: params.NeuronNFDLabelValue},
+		[]string{params.PCIVendorID},
+		params.DeviceIDs,
+	)
 
 	_, err := nfdRuleBuilder.Create()
 	if err != nil {
@@ -190,10 +189,15 @@ func CreateNeuronNFDRule(apiClient *clients.Settings, namespace string) error {
 func DeleteNeuronNFDRule(apiClient *clients.Settings, namespace string) error {
 	klog.V(params.NeuronLogLevel).Info("Deleting Neuron NodeFeatureRule")
 
-	// Use dynamic client since NodeFeatureRuleBuilder doesn't have Delete method
-	err := apiClient.Resource(NFDRuleGVR).
-		Namespace(namespace).
-		Delete(context.Background(), NeuronNFDRuleName, metav1.DeleteOptions{})
+	nfdRuleBuilder, err := nfd.PullFeatureRule(apiClient, NeuronNFDRuleName, namespace)
+	if err != nil {
+		// Already deleted or doesn't exist
+		klog.V(params.NeuronLogLevel).Info("Neuron NodeFeatureRule doesn't exist, nothing to delete")
+
+		return nil
+	}
+
+	_, err = nfdRuleBuilder.Delete()
 	if err != nil {
 		return fmt.Errorf("failed to delete Neuron NFD rule: %w", err)
 	}
@@ -203,72 +207,11 @@ func DeleteNeuronNFDRule(apiClient *clients.Settings, namespace string) error {
 	return nil
 }
 
-// getNeuronNFDRuleYAML returns the YAML configuration for Neuron NodeFeatureRule.
-func getNeuronNFDRuleYAML(namespace string) string {
-	// Build device IDs JSON array
-	deviceIDsJSON := "["
-
-	for i, id := range params.DeviceIDs {
-		if i > 0 {
-			deviceIDsJSON += ", "
-		}
-
-		deviceIDsJSON += fmt.Sprintf("\"%s\"", id)
-	}
-
-	deviceIDsJSON += "]"
-
-	// Match using matchAny with pci.device vendor and device IDs
-	return fmt.Sprintf(`
-[
-    {
-        "apiVersion": "nfd.openshift.io/v1alpha1",
-        "kind": "NodeFeatureRule",
-        "metadata": {
-            "name": "%s",
-            "namespace": "%s"
-        },
-        "spec": {
-            "rules": [
-                {
-                    "name": "neuron-device",
-                    "labels": {
-                        "%s": "%s"
-                    },
-                    "matchAny": [
-                        {
-                            "matchFeatures": [
-                                {
-                                    "feature": "pci.device",
-                                    "matchExpressions": {
-                                        "vendor": {
-                                            "op": "In",
-                                            "value": ["%s"]
-                                        },
-                                        "device": {
-                                            "op": "In",
-                                            "value": %s
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
-        }
-    }
-]`, NeuronNFDRuleName, namespace, params.NeuronNFDLabelKey, params.NeuronNFDLabelValue,
-		params.PCIVendorID, deviceIDsJSON)
-}
-
 // NFDRuleExists checks if the Neuron NFD rule exists.
 func NFDRuleExists(apiClient *clients.Settings, namespace string) bool {
-	_, err := apiClient.Resource(NFDRuleGVR).
-		Namespace(namespace).
-		Get(context.Background(), NeuronNFDRuleName, metav1.GetOptions{})
+	ruleBuilder, err := nfd.PullFeatureRule(apiClient, NeuronNFDRuleName, namespace)
 
-	return err == nil
+	return err == nil && ruleBuilder != nil
 }
 
 // CreateDeviceConfigFromEnv creates a DeviceConfig from environment configuration.

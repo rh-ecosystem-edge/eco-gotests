@@ -78,8 +78,6 @@ Notes:
 
 #### vLLM Test Variables
 
-The vLLM tests follow the [Red Hat Developers blog](https://developers.redhat.com/articles/2025/12/02/cost-effective-ai-workloads-openshift-aws-neuron-operator) for running LLM inference on AWS Neuron.
-
 | Variable | Description |
 |----------|-------------|
 | `ECO_HWACCEL_NEURON_VLLM_IMAGE` | vLLM container image with Neuron support. Default: `public.ecr.aws/neuron/pytorch-inference-vllm-neuronx:0.7.2-neuronx-py310-sdk2.24.1-ubuntu22.04` |
@@ -196,9 +194,6 @@ export ECO_HWACCEL_NEURON_VLLM_IMAGE="public.ecr.aws/neuron/pytorch-inference-vl
 
 See the [Red Hat Developers blog](https://developers.redhat.com/articles/2025/12/02/cost-effective-ai-workloads-openshift-aws-neuron-operator) for more details.
 
-#### Building Your Own vLLM Image (Optional)
-
-If you need a custom image, follow the [vLLM Neuron Installation Guide](https://docs.vllm.ai/en/latest/getting_started/neuron-installation.html):
 
 ```dockerfile
 FROM public.ecr.aws/neuron/pytorch-training-neuronx:2.1.2-neuronx-py310-sdk2.18.2-ubuntu20.04
