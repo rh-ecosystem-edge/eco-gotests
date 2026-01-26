@@ -1,7 +1,6 @@
 package check
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -9,7 +8,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/daemonset"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/neuronparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/params"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -292,20 +290,4 @@ func NeuronWorkloadsOnNode(apiClient *clients.Settings, nodeName, namespace stri
 	}
 
 	return count, nil
-}
-
-// ServiceMonitorExists checks if a ServiceMonitor exists.
-func ServiceMonitorExists(apiClient *clients.Settings, name, namespace string) (bool, error) {
-	_, err := apiClient.Resource(neuronparams.ServiceMonitorGVR).
-		Namespace(namespace).
-		Get(context.Background(), name, metav1.GetOptions{})
-	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			return false, nil
-		}
-
-		return false, err
-	}
-
-	return true, nil
 }

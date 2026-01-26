@@ -13,6 +13,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/neuronparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/params"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/klog/v2"
@@ -30,7 +31,8 @@ type PrometheusQueryResult struct {
 	} `json:"data"`
 }
 
-// ServiceMonitorExists checks if the Neuron ServiceMonitor exists.
+// ServiceMonitorExists checks if a ServiceMonitor exists.
+// Returns (true, nil) if exists, (false, nil) if not found, (false, err) for other errors.
 func ServiceMonitorExists(apiClient *clients.Settings, name, namespace string) (bool, error) {
 	klog.V(params.NeuronLogLevel).Infof("Checking if ServiceMonitor %s exists in namespace %s", name, namespace)
 
@@ -38,9 +40,13 @@ func ServiceMonitorExists(apiClient *clients.Settings, name, namespace string) (
 		Namespace(namespace).
 		Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
-		klog.V(params.NeuronLogLevel).Infof("ServiceMonitor not found: %v", err)
+		if k8serrors.IsNotFound(err) {
+			klog.V(params.NeuronLogLevel).Infof("ServiceMonitor %s not found in namespace %s", name, namespace)
 
-		return false, nil
+			return false, nil
+		}
+
+		return false, fmt.Errorf("failed to get ServiceMonitor %s in namespace %s: %w", name, namespace, err)
 	}
 
 	return true, nil
