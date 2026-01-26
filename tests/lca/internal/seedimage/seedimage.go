@@ -5,21 +5,26 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/containers/image/v5/pkg/sysregistriesv2"
 	"github.com/openshift-kni/lifecycle-agent/lca-cli/seedclusterinfo"
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/lca"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/internal/lcaparams"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
 
 const (
-	seedImageLabel = "com.openshift.lifecycle-agent.seed_cluster_info"
+	seedImageLabel    = "com.openshift.lifecycle-agent.seed_cluster_info"
+	seedGeneratorName = "seedimage"
+	defaultTimeout    = 30 * time.Minute
 )
 
 // GetContent returns the structured contents of a seed image as SeedImageContent.
@@ -243,7 +248,106 @@ func pullAndMountImage(apiClient *clients.Settings, node, pullCommand, image str
 				FieldSelector: fmt.Sprintf("metadata.name=%s", node),
 			})
 		if err != nil {
-			klog.V(100).Info("Error occurred while unmounting image")
+			klog.V(lcaparams.LCALogLevel).Info("Error occurred while unmounting image")
 		}
 	}, nil
+}
+
+// GenerateSeedImage creates a SeedGenerator CR on the spoke cluster, waits for the seed image
+// to be generated, and verifies it was created successfully.
+//
+// Parameters:
+//   - apiClient: The Kubernetes API client for the spoke cluster
+//   - seedImageLocation: The full pull-spec of the seed container image to be created
+//   - recertImage: Optional recert image to use. If empty, the default will be used
+//   - timeout: Maximum time to wait for seed generation to complete. If zero, defaults to 30 minutes
+//
+// Returns:
+//   - The seed image location (full pull-spec)
+//   - An error if any step fails
+func GenerateSeedImage(
+	apiClient *clients.Settings,
+	seedImageLocation string,
+	recertImage string,
+	timeout time.Duration,
+) (string, error) {
+	if apiClient == nil {
+		return "", fmt.Errorf("nil apiclient passed to GenerateSeedImage")
+	}
+
+	if seedImageLocation == "" {
+		return "", fmt.Errorf("seedImageLocation cannot be empty")
+	}
+
+	if timeout == 0 {
+		timeout = defaultTimeout
+	}
+
+	klog.V(lcaparams.LCALogLevel).Infof("Creating SeedGenerator CR with seed image location: %s", seedImageLocation)
+
+	// Create SeedGenerator builder
+	seedGenerator := lca.NewSeedGeneratorBuilder(apiClient, seedGeneratorName)
+	if seedGenerator == nil {
+		return "", fmt.Errorf("failed to create SeedGenerator builder")
+	}
+
+	// Set seed image location
+	seedGenerator.WithSeedImage(seedImageLocation)
+
+	// Set recert image if provided
+	if recertImage != "" {
+		seedGenerator.WithRecertImage(recertImage)
+	}
+
+	// Create the SeedGenerator CR
+	seedGenerator, err := seedGenerator.Create()
+	if err != nil {
+		return "", fmt.Errorf("failed to create SeedGenerator CR: %w", err)
+	}
+
+	klog.V(lcaparams.LCALogLevel).Info("Waiting for SeedGenerator to complete seed image generation")
+
+	// Wait for seed generation to complete
+	_, err = seedGenerator.WaitUntilComplete(timeout)
+	if err != nil {
+		return "", fmt.Errorf("seed generation did not complete within timeout: %w", err)
+	}
+
+	klog.V(lcaparams.LCALogLevel).Info("SeedGenerator completed successfully, verifying seed image exists")
+
+	// Verify the seed image exists by inspecting it
+	err = verifySeedImageExists(apiClient, seedImageLocation)
+	if err != nil {
+		return "", fmt.Errorf("failed to verify seed image exists: %w", err)
+	}
+
+	klog.V(lcaparams.LCALogLevel).Info("Seed image verified successfully")
+
+	klog.V(lcaparams.LCALogLevel).Infof("Successfully generated seed image at: %s", seedImageLocation)
+
+	return seedImageLocation, nil
+}
+
+// verifySeedImageExists verifies that the seed image exists in the registry.
+// If skopeo inspect succeeds, the image exists and is accessible.
+// Uses ExecCommandOnSNOWithRetries to handle temporary cluster unavailability
+// after seed generation completes.
+func verifySeedImageExists(apiClient *clients.Settings, seedImageLocation string) error {
+	skopeoInspectCmd := fmt.Sprintf("sudo skopeo inspect docker://%s", seedImageLocation)
+
+	// Use retries to handle temporary cluster unavailability after seed generation
+	// 3 retries with 5 second intervals gives us ~15 seconds total retry time
+	_, err := cluster.ExecCommandOnSNOWithRetries(
+		apiClient,
+		3,             // retries
+		5*time.Second, // interval
+		skopeoInspectCmd,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to verify seed image exists at %s: %w", seedImageLocation, err)
+	}
+
+	klog.V(lcaparams.LCALogLevel).Info("Seed image verified successfully")
+
+	return nil
 }

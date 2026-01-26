@@ -699,9 +699,7 @@ func verifySpoofCheck(clientPod *pod.Builder, interfaceName, expectedState strin
 	}
 
 	// Execute on node via cluster helper
-	shellCmd := fmt.Sprintf("ip link show %s", interfaceName)
-
-	outputMap, err := cluster.ExecCmdWithStdout(APIClient, shellCmd,
+	outputMap, err := cluster.ExecCmdWithStdout(APIClient, fmt.Sprintf("ip link show %s", interfaceName),
 		metav1.ListOptions{LabelSelector: fmt.Sprintf("kubernetes.io/hostname=%s", nodeName)})
 	if err != nil {
 		return fmt.Errorf("failed to execute on node: %w", err)

@@ -13,6 +13,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/rancluster"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/consumer"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/mustgather"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
 	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/tests"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/reporter"
@@ -52,6 +53,7 @@ var _ = AfterSuite(func() {
 var _ = JustAfterEach(func() {
 	reporter.ReportIfFailed(
 		CurrentSpecReport(), currentFile, tsparams.ReporterSpokeNamespacesToDump, tsparams.ReporterSpokeCRsToDump)
+	mustgather.MustGatherIfFailed(CurrentSpecReport(), currentFile, RANConfig.Spoke1APIClient)
 })
 
 var _ = ReportAfterSuite("", func(report Report) {

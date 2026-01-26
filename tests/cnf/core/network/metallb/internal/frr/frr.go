@@ -1,14 +1,19 @@
 package frr
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"strings"
+	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/metallb/internal/tsparams"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 )
 
@@ -504,23 +509,44 @@ func ValidateBGPRemoteAS(frrk8sPods []*pod.Builder, bgpPeerIP string, expectedRe
 }
 
 func getBgpStatus(frrPod *pod.Builder, cmd string, containerName ...string) (*bgpStatus, error) {
-	cName := "frr"
+	var cName string
 
 	if len(containerName) > 0 {
 		cName = containerName[0]
+	} else {
+		cName = frrPod.Definition.Spec.Containers[0].Name
 	}
 
 	klog.V(90).Infof("Getting bgp status from container: %s of pod: %s", cName, frrPod.Definition.Name)
 
-	bgpStateOut, err := frrPod.ExecCommand(append(netparam.VtySh, cmd))
+	var (
+		bgpStateOut bytes.Buffer
+		err         error
+	)
+
+	err = wait.PollUntilContextTimeout(context.TODO(), 3*time.Second, 10*time.Second, true,
+		func(ctx context.Context) (bool, error) {
+			bgpStateOut, err = frrPod.ExecCommand(append(netparam.VtySh, cmd), cName)
+			if err != nil {
+				klog.V(90).Infof("Failed to execute BGP status command: %v", err)
+
+				return false, err
+			}
+
+			if strings.TrimSpace(bgpStateOut.String()) == "" {
+				klog.V(90).Infof("BGP status command returned empty output. retrying...")
+
+				return false, nil
+			}
+
+			return true, nil
+		})
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return nil, fmt.Errorf("BGP status command returned empty output")
+		}
+
 		return nil, err
-	}
-
-	if strings.TrimSpace(bgpStateOut.String()) == "" {
-		klog.V(90).Infof("BGP status command returned empty output")
-
-		return nil, fmt.Errorf("BGP status command returned empty output")
 	}
 
 	bgpStatus := bgpStatus{}
@@ -791,16 +817,18 @@ func DefineBGPConfigWithUnnumbered(localBGPASN, remoteBGPASN int, interfaceName 
 
 // GetInterfaceStatus returns BGP interface details from an FRR pod.
 func GetInterfaceStatus(frrPod *pod.Builder, interfaceName string, containerName []string) (*InterfaceDetails, error) {
-	cName := "frr"
+	var cName string
 	if len(containerName) > 0 {
 		cName = containerName[0]
+	} else {
+		cName = frrPod.Definition.Spec.Containers[0].Name
 	}
 
 	klog.V(90).Infof("Getting interface status from container: %s of pod: %s", cName, frrPod.Definition.Name)
 
 	cmd := fmt.Sprintf("show interface %s json", interfaceName)
 
-	interfaceStateOut, err := frrPod.ExecCommand(append(netparam.VtySh, cmd), tsparams.FRRContainerName)
+	interfaceStateOut, err := frrPod.ExecCommand(append(netparam.VtySh, cmd), cName)
 	if err != nil {
 		klog.V(90).Infof("Failed to execute command show interface %s json", interfaceName)
 

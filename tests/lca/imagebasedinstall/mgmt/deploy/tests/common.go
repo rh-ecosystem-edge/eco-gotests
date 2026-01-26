@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/bmh"
@@ -164,7 +165,7 @@ func createIBIOResouces(addressFamily string) {
 		hostBMH.Definition.Spec.ExternallyProvisioned = true
 
 		if MGMTConfig.StaticNetworking {
-			nodeNetworkingConfig := createNetworkConfig(*MGMTConfig.Cluster, addressFamily)
+			nodeNetworkingConfig := createNetworkConfig(*MGMTConfig.Cluster)
 
 			networkSecretContent, err := yaml.Marshal(&nodeNetworkingConfig)
 			Expect(err).NotTo(HaveOccurred(), "error marshaling network configuration")
@@ -371,6 +372,10 @@ func createSiteConfigResouces(addressFamily string) {
 		})
 	}
 
+	if MGMTConfig.AdditionalNTPSources != "" {
+		clusterInstanceBuilder.WithAdditionalNTPSources(strings.Split(MGMTConfig.AdditionalNTPSources, ","))
+	}
+
 	Expect(len(MGMTConfig.Cluster.Info.Hosts)).To(Equal(1), "error: can only support SNO deployments")
 
 	for host, info := range MGMTConfig.Cluster.Info.Hosts {
@@ -394,7 +399,7 @@ func createSiteConfigResouces(addressFamily string) {
 
 			nodeNetwork := &v1beta1.NMStateConfigSpec{}
 
-			nodeNetworkingConfig := createNetworkConfig(*MGMTConfig.Cluster, addressFamily)
+			nodeNetworkingConfig := createNetworkConfig(*MGMTConfig.Cluster)
 
 			for _, iface := range nodeNetworkingConfig.Interfaces {
 				nodeNetwork.Interfaces = append(nodeNetwork.Interfaces, &v1beta1.Interface{
@@ -439,7 +444,8 @@ func createSiteConfigResouces(addressFamily string) {
 		BeTrue(), "error waiting for clusterinstance to finish provisioning")
 }
 
-func createNetworkConfig(config mgmtconfig.Cluster, addressFamily string) networkconfig.NetworkConfig {
+//nolint:funlen
+func createNetworkConfig(config mgmtconfig.Cluster) networkconfig.NetworkConfig {
 	nodeNetworkingConfig := networkconfig.NetworkConfig{}
 
 	Expect(len(config.Info.Hosts)).To(Equal(1), "error: can only support SNO deployments")
@@ -448,80 +454,95 @@ func createNetworkConfig(config mgmtconfig.Cluster, addressFamily string) networ
 		Expect(len(info.Network.Interfaces)).To(Equal(1), "error: can only support nodes with single network interface")
 
 		for _, iface := range info.Network.Interfaces {
-			var address, gateway, dns, destination string
-			if addressFamily == ipv4AddrFamily {
-				address = info.Network.Address.IPv4
-				gateway = info.Network.Gateway.IPv4
-				dns = info.Network.DNS.IPv4
-				destination = "0.0.0.0/0"
-			} else {
-				address = info.Network.Address.IPv6
-				gateway = info.Network.Gateway.IPv6
-				dns = info.Network.DNS.IPv6
-				destination = "::/0"
+			var routes []networkconfig.RouteConfig
+
+			var dnsServers []string
+
+			// Initialize interface
+			interfaceConfig := networkconfig.Interface{
+				Name:       interfaceName,
+				Type:       "ethernet",
+				State:      "up",
+				Identifier: "mac-address",
+				MACAddress: iface.MACAddress,
 			}
 
-			nodeIPAddr, nodeIPNetwork, err := net.ParseCIDR(address)
-			Expect(err).NotTo(HaveOccurred(), "error gathering network info from provided address")
+			// Configure IPv4
+			if hasIPv4AddressFamily() {
+				nodeIPAddr, nodeIPNetwork, err := net.ParseCIDR(info.Network.Address.IPv4)
+				Expect(err).NotTo(HaveOccurred(), "error gathering IPv4 network info from provided address")
 
-			cidr, _ := nodeIPNetwork.Mask.Size()
+				cidr, _ := nodeIPNetwork.Mask.Size()
+
+				interfaceConfig.IPv4 = networkconfig.IPConfig{
+					DHCP: false,
+					Address: []networkconfig.IPAddress{
+						{
+							IP:           nodeIPAddr.String(),
+							PrefixLength: strconv.Itoa(cidr),
+						},
+					},
+					Enabled: true,
+				}
+
+				routes = append(routes, networkconfig.RouteConfig{
+					Destination:      "0.0.0.0/0",
+					NextHopAddress:   info.Network.Gateway.IPv4,
+					NextHopInterface: interfaceName,
+				})
+
+				dnsServers = append(dnsServers, info.Network.DNS.IPv4)
+			} else {
+				interfaceConfig.IPv4 = networkconfig.IPConfig{
+					Enabled: false,
+				}
+			}
+
+			// Configure IPv6
+			if hasIPv6AddressFamily() {
+				nodeIPAddr, nodeIPNetwork, err := net.ParseCIDR(info.Network.Address.IPv6)
+				Expect(err).NotTo(HaveOccurred(), "error gathering IPv6 network info from provided address")
+
+				cidr, _ := nodeIPNetwork.Mask.Size()
+
+				autoconfFalse := false
+				interfaceConfig.IPv6 = networkconfig.IPConfig{
+					DHCP:     false,
+					Autoconf: &autoconfFalse,
+					Address: []networkconfig.IPAddress{
+						{
+							IP:           nodeIPAddr.String(),
+							PrefixLength: strconv.Itoa(cidr),
+						},
+					},
+					Enabled: true,
+				}
+
+				routes = append(routes, networkconfig.RouteConfig{
+					Destination:      "::/0",
+					NextHopAddress:   info.Network.Gateway.IPv6,
+					NextHopInterface: interfaceName,
+				})
+
+				dnsServers = append(dnsServers, info.Network.DNS.IPv6)
+			} else {
+				interfaceConfig.IPv6 = networkconfig.IPConfig{
+					Enabled: false,
+				}
+			}
 
 			nodeNetworkingConfig = networkconfig.NetworkConfig{
 				Interfaces: []networkconfig.Interface{
-					{
-						Name:       interfaceName,
-						Type:       "ethernet",
-						State:      "up",
-						Identifier: "mac-address",
-						MACAddress: iface.MACAddress,
-					},
+					interfaceConfig,
 				},
 				Routes: networkconfig.Routes{
-					Config: []networkconfig.RouteConfig{
-						{
-							Destination:      destination,
-							NextHopAddress:   gateway,
-							NextHopInterface: interfaceName,
-						},
-					},
+					Config: routes,
 				},
 				DNSResolver: networkconfig.DNSResolver{
 					Config: networkconfig.DNSResolverConfig{
-						Server: []string{
-							dns,
-						},
+						Server: dnsServers,
 					},
 				},
-			}
-
-			if addressFamily == ipv4AddrFamily {
-				nodeNetworkingConfig.Interfaces[0].IPv4 = networkconfig.IPConfig{
-					DHCP: false,
-					Address: []networkconfig.IPAddress{
-						{
-							IP:           nodeIPAddr.String(),
-							PrefixLength: strconv.Itoa(cidr),
-						},
-					},
-					Enabled: true,
-				}
-				nodeNetworkingConfig.Interfaces[0].IPv6 = networkconfig.IPConfig{
-					Enabled: false,
-				}
-			} else {
-				nodeNetworkingConfig.Interfaces[0].IPv6 = networkconfig.IPConfig{
-					DHCP: false,
-					Address: []networkconfig.IPAddress{
-						{
-							IP:           nodeIPAddr.String(),
-							PrefixLength: strconv.Itoa(cidr),
-						},
-					},
-					Enabled: true,
-				}
-				nodeNetworkingConfig.Interfaces[0].IPv4 = networkconfig.IPConfig{
-					Enabled: false,
-				}
 			}
 		}
 	}

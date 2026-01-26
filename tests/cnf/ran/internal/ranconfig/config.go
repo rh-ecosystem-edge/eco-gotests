@@ -39,6 +39,7 @@ type RANConfig struct {
 	PtpOperatorNamespace   string   `yaml:"ptpOperatorNamespace" envconfig:"ECO_CNF_RAN_PTP_OPERATOR_NAMESPACE"`
 	TalmPreCachePolicies   []string `yaml:"talmPreCachePolicies" envconfig:"ECO_CNF_RAN_TALM_PRECACHE_POLICIES"`
 	ZtpSiteGenerateImage   string   `yaml:"ztpSiteGenerateImage" envconfig:"ECO_CNF_RAN_ZTP_SITE_GENERATE_IMAGE"`
+
 	// PtpEventConsumerImage is the URL of the PTP event consumer image. It should not have a tag, since the
 	// expectation is that the program uses v1 or v2 as a tag.
 	PtpEventConsumerImage string `yaml:"ptpEventConsumerImage" envconfig:"ECO_CNF_RAN_PTP_EVENT_CONSUMER_IMAGE"`
@@ -48,6 +49,12 @@ type RANConfig struct {
 	// PtpEventConsumerV2Tag is the tag of the PTP event consumer image for v2. It should include the leading colon
 	// so that digests may be specified if needed.
 	PtpEventConsumerV2Tag string `yaml:"ptpEventConsumerV2Tag" envconfig:"ECO_CNF_RAN_PTP_EVENT_CONSUMER_V2_TAG"`
+
+	// PtpMustGatherImage is the image to use for PTP must-gather. If the value is set, this will be used for the
+	// must-gather. Otherwise, it will fallback to the CSV annotation, followed by the image from registry.redhat.io
+	// corresponding to the current Spoke 1 OCP version.
+	PtpMustGatherImage string `envconfig:"ECO_CNF_RAN_PTP_MUST_GATHER_IMAGE"`
+
 	// ClusterTemplateAffix is the version-dependent affix used for naming ClusterTemplates and other O-RAN
 	// resources.
 	ClusterTemplateAffix string `envconfig:"ECO_CNF_RAN_CLUSTER_TEMPLATE_AFFIX"`
