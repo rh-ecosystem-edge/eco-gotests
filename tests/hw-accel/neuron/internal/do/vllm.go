@@ -308,8 +308,9 @@ func findRunningVLLMPod(ctx context.Context, apiClient *clients.Settings,
 }
 
 // executeInPod runs a command inside a pod and returns stdout.
+// The command is passed as a slice to avoid shell injection vulnerabilities.
 func executeInPod(ctx context.Context, apiClient *clients.Settings,
-	podName, namespace, container, command string) (string, error) {
+	podName, namespace, container string, command []string) (string, error) {
 	execReq := apiClient.CoreV1Interface.RESTClient().Post().
 		Resource("pods").
 		Name(podName).
@@ -317,7 +318,7 @@ func executeInPod(ctx context.Context, apiClient *clients.Settings,
 		SubResource("exec").
 		VersionedParams(&corev1.PodExecOptions{
 			Container: container,
-			Command:   []string{"/bin/sh", "-c", command},
+			Command:   command,
 			Stdout:    true,
 			Stderr:    true,
 		}, scheme.ParameterCodec)
@@ -375,11 +376,19 @@ func ExecuteInferenceFromCluster(apiClient *clients.Settings, config InferenceCo
 		return "", fmt.Errorf("failed to marshal inference request: %w", err)
 	}
 
-	serviceURL := fmt.Sprintf("http://%s.%s.svc.cluster.local/v1/chat/completions",
+	// Build service URL with explicit port
+	serviceURL := fmt.Sprintf("http://%s.%s.svc.cluster.local:80/v1/chat/completions",
 		config.ServiceName, config.Namespace)
-	curlCmd := fmt.Sprintf(
-		"curl -s -X POST '%s' -H 'Content-Type: application/json' -d '%s'",
-		serviceURL, string(jsonBody))
+
+	// Build curl command as arg slice to avoid shell injection
+	curlCmd := []string{
+		"curl",
+		"-s",
+		"-X", "POST",
+		serviceURL,
+		"-H", "Content-Type: application/json",
+		"-d", string(jsonBody),
+	}
 
 	// Use configurable label selector, default to "app=neuron-vllm-test" if empty
 	labelSelector := config.PodLabelSelector
