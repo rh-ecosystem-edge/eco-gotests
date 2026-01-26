@@ -228,7 +228,13 @@ func CreateDeviceConfigFromEnv(
 		driversImage,
 		driverVersion,
 		devicePluginImage,
-	).WithSelector(map[string]string{
+	)
+
+	if builder == nil {
+		return fmt.Errorf("failed to create neuron DeviceConfig builder: invalid parameters")
+	}
+
+	builder = builder.WithSelector(map[string]string{
 		params.NeuronNFDLabelKey: params.NeuronNFDLabelValue,
 	})
 

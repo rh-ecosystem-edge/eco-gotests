@@ -308,7 +308,6 @@ func findRunningVLLMPod(ctx context.Context, apiClient *clients.Settings,
 }
 
 // executeInPod runs a command inside a pod and returns stdout.
-// The command is passed as a slice to avoid shell injection vulnerabilities.
 func executeInPod(ctx context.Context, apiClient *clients.Settings,
 	podName, namespace, container string, command []string) (string, error) {
 	execReq := apiClient.CoreV1Interface.RESTClient().Post().
@@ -376,9 +375,9 @@ func ExecuteInferenceFromCluster(apiClient *clients.Settings, config InferenceCo
 		return "", fmt.Errorf("failed to marshal inference request: %w", err)
 	}
 
-	// Build service URL with explicit port
-	serviceURL := fmt.Sprintf("http://%s.%s.svc.cluster.local:80/v1/chat/completions",
-		config.ServiceName, config.Namespace)
+	// Build service URL with configured port
+	serviceURL := fmt.Sprintf("http://%s.%s.svc.cluster.local:%d/v1/chat/completions",
+		config.ServiceName, config.Namespace, config.Port)
 
 	// Build curl command as arg slice to avoid shell injection
 	curlCmd := []string{

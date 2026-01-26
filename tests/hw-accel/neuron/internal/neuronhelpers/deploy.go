@@ -247,8 +247,6 @@ func DeployAllOperators(apiClient *clients.Settings, neuronOptions *NeuronInstal
 
 	klog.V(params.NeuronLogLevel).Info("Operators not ready, proceeding with deployment")
 
-	SetOperatorsDeployedByTest(true)
-
 	if err := deployNFDOperator(apiClient); err != nil {
 		return err
 	}
@@ -269,7 +267,14 @@ func DeployAllOperators(apiClient *clients.Settings, neuronOptions *NeuronInstal
 
 	klog.V(params.NeuronLogLevel).Info("KMM operator ready")
 
-	return deployNeuronOperator(apiClient, neuronOptions)
+	if err := deployNeuronOperator(apiClient, neuronOptions); err != nil {
+		return err
+	}
+
+	// Only set flag after all operators deployed successfully
+	SetOperatorsDeployedByTest(true)
+
+	return nil
 }
 
 // UninstallAllOperators uninstalls Neuron, KMM, and NFD operators in reverse order.

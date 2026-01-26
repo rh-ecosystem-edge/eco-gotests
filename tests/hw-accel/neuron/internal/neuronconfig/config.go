@@ -100,8 +100,9 @@ func (c *NeuronConfig) IsValid() bool {
 }
 
 // IsVLLMConfigured checks if vLLM testing configuration is present.
+// HuggingFaceToken is the key indicator since it's required to download models.
 func (c *NeuronConfig) IsVLLMConfigured() bool {
-	return c.VLLMImage != ""
+	return c.HuggingFaceToken != ""
 }
 
 // IsUpgradeConfigured checks if upgrade testing configuration is present.
