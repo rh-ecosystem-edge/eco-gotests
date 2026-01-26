@@ -325,25 +325,23 @@ func AllNeuronNodesResourceAvailable(apiClient *clients.Settings, timeout time.D
 		})
 }
 
-// DriverVersionOnNode waits for a specific driver version on a node.
-func DriverVersionOnNode(apiClient *clients.Settings, nodeName, expectedVersion string,
+// DevicePluginRunningOnNode waits for the device plugin pod to be running on a specific node.
+func DevicePluginRunningOnNode(apiClient *clients.Settings, nodeName string,
 	timeout time.Duration) error {
 	klog.V(params.NeuronLogLevel).Infof(
-		"Waiting for driver version %s on node %s", expectedVersion, nodeName)
+		"Waiting for device plugin pod to be running on node %s", nodeName)
 
 	return wait.PollUntilContextTimeout(
 		context.TODO(), 10*time.Second, timeout, true,
 		func(ctx context.Context) (bool, error) {
-			// Check device plugin pods on this node
 			pods, err := pod.List(apiClient, params.NeuronNamespace, metav1.ListOptions{
 				FieldSelector: fmt.Sprintf("spec.nodeName=%s", nodeName),
 			})
 			if err != nil {
-				return false, nil
+				return false, fmt.Errorf("failed to list pods on node %s: %w", nodeName, err)
 			}
 
 			for _, currentPod := range pods {
-				// Check for device plugin pod
 				if neuronparams.HasPrefix(currentPod.Object.Name, params.DevicePluginDaemonSetPrefix) {
 					if currentPod.Object.Status.Phase == corev1.PodRunning {
 						klog.V(params.NeuronLogLevel).Infof(
