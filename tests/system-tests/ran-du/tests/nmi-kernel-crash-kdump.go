@@ -62,23 +62,43 @@ var _ = Describe(
 						Password:   auth.Password,
 					}
 
-					nmi.CleanupVarCrashDirectory(ctx, node.Definition.Name, randuparams.RanDuLogLevel)		
+					By(fmt.Sprintf("Cleaning up /var/crash directory on node %q", node.Definition.Name))
+
+					err = nmi.CleanupVarCrashDirectory(ctx, node.Definition.Name,
+						randuparams.RanDuLogLevel, 5*time.Second, 2*time.Minute)
+					Expect(err).ToNot(HaveOccurred(),
+						fmt.Sprintf("Failed to cleanup /var/crash on node %s", node.Definition.Name))
+
+					By(fmt.Sprintf("Triggering NMI via Redfish on node %q", node.Definition.Name))
 
 					err = nmi.TriggerNMIViaRedfish(ctx, node.Definition.Name, bmcCredentials,
 						randuparams.RanDuLogLevel, 15*time.Second, 6*time.Minute)
 					Expect(err).ToNot(HaveOccurred(),
 						fmt.Sprintf("Failed to trigger NMI on node %s", node.Definition.Name))
 
-					nmi.WaitForNodeToBecomeUnavailable(ctx, APIClient, node.Definition.Name, isSNO,
-						randuparams.RanDuLogLevel, 15*time.Second, 25*time.Minute)
+					By(fmt.Sprintf("Waiting for node %q to become unavailable", node.Definition.Name))
 
-					nmi.WaitForNodeToBecomeReady(ctx, APIClient, node.Definition.Name, isSNO,
+					err = nmi.WaitForNodeToBecomeUnavailable(ctx, APIClient, node.Definition.Name, isSNO,
 						randuparams.RanDuLogLevel, 15*time.Second, 25*time.Minute)
+					Expect(err).ToNot(HaveOccurred(),
+						fmt.Sprintf("Node %s didn't become unavailable", node.Definition.Name))
+
+					By(fmt.Sprintf("Waiting for node %q to return to Ready state", node.Definition.Name))
+
+					err = nmi.WaitForNodeToBecomeReady(ctx, APIClient, node.Definition.Name, isSNO,
+						randuparams.RanDuLogLevel, 15*time.Second, 25*time.Minute)
+					Expect(err).ToNot(HaveOccurred(),
+						fmt.Sprintf("Node %s didn't return to Ready state", node.Definition.Name))
 
 					klog.V(randuparams.RanDuLogLevel).Infof("Node %q successfully recovered after NMI",
 						node.Definition.Name)
 
-					nmi.VerifyVmcoreDumpGenerated(ctx, node.Definition.Name, randuparams.RanDuLogLevel)
+					By(fmt.Sprintf("Verifying vmcore dump was generated on node %q", node.Definition.Name))
+
+					err = nmi.VerifyVmcoreDumpGenerated(ctx, node.Definition.Name,
+						randuparams.RanDuLogLevel, 15*time.Second, 5*time.Minute)
+					Expect(err).ToNot(HaveOccurred(),
+						fmt.Sprintf("Vmcore dump was not generated on node %s", node.Definition.Name))
 				}
 			})
 	})
