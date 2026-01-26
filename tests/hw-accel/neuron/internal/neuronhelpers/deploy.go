@@ -2,6 +2,7 @@ package neuronhelpers
 
 import (
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
@@ -10,8 +11,25 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// OperatorsDeployedByTest tracks whether operators were deployed by the test.
-var OperatorsDeployedByTest = false
+// operatorsDeployedByTest tracks whether operators were deployed by the test.
+// Uses atomic operations for thread-safe access during concurrent test execution.
+var operatorsDeployedByTest int32
+
+// GetOperatorsDeployedByTest returns whether operators were deployed by the test.
+// Thread-safe for concurrent access.
+func GetOperatorsDeployedByTest() bool {
+	return atomic.LoadInt32(&operatorsDeployedByTest) == 1
+}
+
+// SetOperatorsDeployedByTest sets whether operators were deployed by the test.
+// Thread-safe for concurrent access.
+func SetOperatorsDeployedByTest(deployed bool) {
+	if deployed {
+		atomic.StoreInt32(&operatorsDeployedByTest, 1)
+	} else {
+		atomic.StoreInt32(&operatorsDeployedByTest, 0)
+	}
+}
 
 const (
 	// OperatorReadinessCheckTimeout is the timeout for checking if an operator is ready.
@@ -222,14 +240,14 @@ func DeployAllOperators(apiClient *clients.Settings, neuronOptions *NeuronInstal
 	if AreAllOperatorsReady(apiClient, neuronOptions) {
 		klog.V(params.NeuronLogLevel).Info("All operators already ready - skipping deployment")
 
-		OperatorsDeployedByTest = false
+		SetOperatorsDeployedByTest(false)
 
 		return nil
 	}
 
 	klog.V(params.NeuronLogLevel).Info("Operators not ready, proceeding with deployment")
 
-	OperatorsDeployedByTest = true
+	SetOperatorsDeployedByTest(true)
 
 	if err := deployNFDOperator(apiClient); err != nil {
 		return err
@@ -256,7 +274,7 @@ func DeployAllOperators(apiClient *clients.Settings, neuronOptions *NeuronInstal
 
 // UninstallAllOperators uninstalls Neuron, KMM, and NFD operators in reverse order.
 func UninstallAllOperators(apiClient *clients.Settings) error {
-	if !OperatorsDeployedByTest {
+	if !GetOperatorsDeployedByTest() {
 		klog.V(params.NeuronLogLevel).Info("Operators were pre-existing - skipping uninstall")
 
 		return nil

@@ -49,8 +49,10 @@ func CreateNFDInstance(apiClient *clients.Settings) error {
 	// Wait for NFD workers to start collecting node features
 	err = waitForNFDWorkersReady(apiClient)
 	if err != nil {
-		klog.V(params.NeuronLogLevel).Infof("Warning: NFD workers readiness check: %v", err)
+		return fmt.Errorf("NFD workers failed to become ready: %w", err)
 	}
+
+	klog.V(params.NeuronLogLevel).Info("NFD workers are ready")
 
 	return nil
 }
@@ -152,7 +154,6 @@ func DeleteNFDInstance(apiClient *clients.Settings) error {
 }
 
 // CreateNeuronNFDRule creates the NodeFeatureRule for Neuron device detection.
-// Uses the eco-goinfra WithSimplePCIRule convenience method for clean PCI device matching.
 func CreateNeuronNFDRule(apiClient *clients.Settings, namespace string) error {
 	klog.V(params.NeuronLogLevel).Info("Creating Neuron NodeFeatureRule")
 
