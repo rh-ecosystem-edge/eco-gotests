@@ -102,7 +102,7 @@ var _ = Describe(
 				err = sriovenv.CheckVFStatusWithPassTraffic(networkName, data.InterfaceName,
 					testNamespace, "spoof checking on", tsparams.PodReadyTimeout)
 				if isNoCarrierError(err) {
-					By(fmt.Sprintf("Skipping device %q - interface has NO-CARRIER status", data.Name))
+					By(fmt.Sprintf("Skipping device %q - NO-CARRIER status", data.Name))
 
 					continue
 				}
@@ -139,7 +139,9 @@ var _ = Describe(
 				err = sriovenv.CheckVFStatusWithPassTraffic(networkName, data.InterfaceName,
 					testNamespace, "spoof checking off", tsparams.PodReadyTimeout)
 				if isNoCarrierError(err) {
-					Skip("Interface has NO-CARRIER status")
+					By(fmt.Sprintf("Skipping device %q - NO-CARRIER status", data.Name))
+
+					continue
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
@@ -174,7 +176,9 @@ var _ = Describe(
 				err = sriovenv.CheckVFStatusWithPassTraffic(networkName, data.InterfaceName,
 					testNamespace, "trust off", tsparams.PodReadyTimeout)
 				if isNoCarrierError(err) {
-					Skip("Interface has NO-CARRIER status")
+					By(fmt.Sprintf("Skipping device %q - NO-CARRIER status", data.Name))
+
+					continue
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
@@ -209,7 +213,9 @@ var _ = Describe(
 				err = sriovenv.CheckVFStatusWithPassTraffic(networkName, data.InterfaceName,
 					testNamespace, "trust on", tsparams.PodReadyTimeout)
 				if isNoCarrierError(err) {
-					Skip("Interface has NO-CARRIER status")
+					By(fmt.Sprintf("Skipping device %q - NO-CARRIER status", data.Name))
+
+					continue
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
@@ -254,7 +260,9 @@ var _ = Describe(
 					testNamespace, fmt.Sprintf("vlan %d, qos %d", tsparams.TestVLAN, tsparams.TestVlanQoS),
 					tsparams.PodReadyTimeout)
 				if isNoCarrierError(err) {
-					Skip("Interface has NO-CARRIER status")
+					By(fmt.Sprintf("Skipping device %q - NO-CARRIER status", data.Name))
+
+					continue
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
@@ -289,7 +297,9 @@ var _ = Describe(
 				err = sriovenv.CheckVFStatusWithPassTraffic(networkName, data.InterfaceName,
 					testNamespace, "link-state auto", tsparams.PodReadyTimeout)
 				if isNoCarrierError(err) {
-					Skip("Interface has NO-CARRIER status")
+					By(fmt.Sprintf("Skipping device %q - NO-CARRIER status", data.Name))
+
+					continue
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
@@ -323,12 +333,14 @@ var _ = Describe(
 
 				// Part 1: Verify link state configuration
 				By("Verifying link state configuration is applied")
-				hasCarrier, err := sriovenv.VerifyLinkStateConfiguration(networkName, data.InterfaceName, testNamespace,
+				hasCarrier, err := sriovenv.VerifyLinkStateConfiguration(networkName, testNamespace,
 					"link-state enable", tsparams.PodReadyTimeout)
 				Expect(err).ToNot(HaveOccurred(), "Failed to verify link state configuration")
 
 				if !hasCarrier {
-					Skip("NO-CARRIER status - link state valid but no physical connection")
+					By(fmt.Sprintf("Skipping device %q - NO-CARRIER status", data.Name))
+
+					continue
 				}
 
 				// Part 2: Test connectivity
@@ -377,7 +389,9 @@ var _ = Describe(
 				err = sriovenv.CheckVFStatusWithPassTraffic(networkName, data.InterfaceName,
 					testNamespace, fmt.Sprintf("mtu %d", tsparams.DefaultTestMTU), tsparams.PodReadyTimeout)
 				if isNoCarrierError(err) {
-					Skip("Interface has NO-CARRIER status")
+					By(fmt.Sprintf("Skipping device %q - NO-CARRIER status", data.Name))
+
+					continue
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
@@ -517,7 +531,6 @@ func setupTestNamespace(testID string, data sriovconfig.DeviceConfig) string {
 
 // setupSriovNetwork creates a SRIOV network and registers cleanup.
 // The network is created in the SR-IOV operator namespace and targets the specified namespace.
-// It waits for the NAD to be ready before returning to avoid race conditions with pod creation.
 func setupSriovNetwork(networkName, resourceName, targetNs string, opts ...sriovenv.NetworkOption) {
 	By(fmt.Sprintf("Creating SR-IOV network %q", networkName))
 
@@ -525,6 +538,7 @@ func setupSriovNetwork(networkName, resourceName, targetNs string, opts ...sriov
 	Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network %q", networkName)
 
 	By(fmt.Sprintf("Waiting for NAD %q to be ready", networkName))
+
 	Eventually(func() error {
 		_, err := nad.Pull(APIClient, networkName, targetNs)
 
