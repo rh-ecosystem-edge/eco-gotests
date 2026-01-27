@@ -99,7 +99,7 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.LabelSuit
 				neuronConfig.DevicePluginImage,
 			).WithSelector(map[string]string{
 				params.NeuronNFDLabelKey: params.NeuronNFDLabelValue,
-			})
+			}).WithNodeMetricsImage(neuronConfig.NodeMetricsImage)
 
 			if neuronConfig.SchedulerImage != "" && neuronConfig.SchedulerExtensionImage != "" {
 				builder = builder.WithScheduler(neuronConfig.SchedulerImage, neuronConfig.SchedulerExtensionImage)

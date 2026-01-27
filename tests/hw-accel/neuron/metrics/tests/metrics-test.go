@@ -87,7 +87,7 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.LabelSuite), func
 				neuronConfig.DevicePluginImage,
 			).WithSelector(map[string]string{
 				params.NeuronNFDLabelKey: params.NeuronNFDLabelValue,
-			})
+			}).WithNodeMetricsImage(neuronConfig.NodeMetricsImage)
 
 			if neuronConfig.SchedulerImage != "" && neuronConfig.SchedulerExtensionImage != "" {
 				builder = builder.WithScheduler(neuronConfig.SchedulerImage, neuronConfig.SchedulerExtensionImage)
