@@ -203,12 +203,11 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.LabelSuit
 				if deleteErr != nil {
 					klog.V(params.NeuronLogLevel).Infof("Failed to delete DeviceConfig: %v", deleteErr)
 				} else {
-					
 					klog.V(params.NeuronLogLevel).Info("Waiting for DeviceConfig finalizer to be processed...")
 					Eventually(func() bool {
 						_, pullErr := neuron.Pull(APIClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
 
-						return pullErr != nil 
+						return pullErr != nil
 					}, 5*time.Minute, 5*time.Second).Should(BeTrue(),
 						"DeviceConfig should be fully deleted")
 				}
