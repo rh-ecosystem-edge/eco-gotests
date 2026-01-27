@@ -1,21 +1,22 @@
 package neuronmetrics
 
 import (
+	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"net/url"
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/neuronparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/params"
+	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/klog/v2"
 )
 
@@ -32,7 +33,6 @@ type PrometheusQueryResult struct {
 }
 
 // ServiceMonitorExists checks if a ServiceMonitor exists.
-// Returns (true, nil) if exists, (false, nil) if not found, (false, err) for other errors.
 func ServiceMonitorExists(apiClient *clients.Settings, name, namespace string) (bool, error) {
 	klog.V(params.NeuronLogLevel).Infof("Checking if ServiceMonitor %s exists in namespace %s", name, namespace)
 
@@ -66,83 +66,164 @@ func ListServiceMonitors(apiClient *clients.Settings, namespace string) (*unstru
 		List(context.Background(), metav1.ListOptions{})
 }
 
-// GetPrometheusToken gets a token for Prometheus API access.
-func GetPrometheusToken(apiClient *clients.Settings) (string, error) {
-	// Get the prometheus-k8s service account token
-	secrets, err := apiClient.CoreV1Interface.Secrets(neuronparams.PrometheusNamespace).List(
-		context.Background(), metav1.ListOptions{})
-	if err != nil {
-		return "", fmt.Errorf("failed to list secrets: %w", err)
-	}
+// monitoringPodInfo contains information about a pod to use for queries.
+type monitoringPodInfo struct {
+	Name      string
+	Container string
+}
 
-	for _, secret := range secrets.Items {
-		if secret.Type == "kubernetes.io/service-account-token" {
-			if token, ok := secret.Data["token"]; ok {
-				return string(token), nil
+// findMonitoringPod finds a running pod in the monitoring namespace to execute queries from.
+// Tries thanos-querier first (has oauth-proxy with curl), then prometheus pods.
+func findMonitoringPod(ctx context.Context, apiClient *clients.Settings) (*monitoringPodInfo, error) {
+	// Try thanos-querier pods first - they have oauth-proxy container with curl
+	thanosPodslist, err := apiClient.CoreV1Interface.Pods(neuronparams.PrometheusNamespace).List(ctx, metav1.ListOptions{
+		LabelSelector: "app.kubernetes.io/name=thanos-query",
+	})
+	if err == nil {
+		for _, pod := range thanosPodslist.Items {
+			if pod.Status.Phase == corev1.PodRunning {
+				return &monitoringPodInfo{Name: pod.Name, Container: "thanos-query"}, nil
 			}
 		}
 	}
 
-	return "", fmt.Errorf("prometheus token not found")
+	// Fallback to prometheus pods
+	promPodList, err := apiClient.CoreV1Interface.Pods(neuronparams.PrometheusNamespace).List(ctx, metav1.ListOptions{
+		LabelSelector: "app.kubernetes.io/name=prometheus",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list monitoring pods: %w", err)
+	}
+
+	for _, pod := range promPodList.Items {
+		if pod.Status.Phase == corev1.PodRunning {
+			return &monitoringPodInfo{Name: pod.Name, Container: "prometheus"}, nil
+		}
+	}
+
+	return nil, fmt.Errorf("no running monitoring pods found")
 }
 
-// QueryPrometheus queries Prometheus for a specific metric.
+// executeInPod runs a command inside a pod and returns stdout.
+func executeInPod(ctx context.Context, apiClient *clients.Settings,
+	podName, namespace, container string, command []string) (string, error) {
+	execReq := apiClient.CoreV1Interface.RESTClient().Post().
+		Resource("pods").
+		Name(podName).
+		Namespace(namespace).
+		SubResource("exec").
+		VersionedParams(&corev1.PodExecOptions{
+			Container: container,
+			Command:   command,
+			Stdout:    true,
+			Stderr:    true,
+		}, scheme.ParameterCodec)
+
+	exec, err := remotecommand.NewSPDYExecutor(apiClient.Config, "POST", execReq.URL())
+	if err != nil {
+		return "", fmt.Errorf("failed to create executor: %w", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
+		Stdout: &stdout,
+		Stderr: &stderr,
+	})
+	if err != nil {
+		return "", fmt.Errorf("exec failed: %w, stderr: %s", err, stderr.String())
+	}
+
+	return stdout.String(), nil
+}
+
+// QueryPrometheus queries Prometheus for a specific metric by executing a query inside a cluster pod.
 func QueryPrometheus(apiClient *clients.Settings, query string) (*PrometheusQueryResult, error) {
 	klog.V(params.NeuronLogLevel).Infof("Querying Prometheus for: %s", query)
 
-	// Get the thanos-querier route or use the internal service
-	prometheusURL := fmt.Sprintf("https://%s.%s.svc:9091/api/v1/query",
-		neuronparams.ThanosQuerierServiceName, neuronparams.PrometheusNamespace)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
 
-	token, err := GetPrometheusToken(apiClient)
+	// Find a running pod in the monitoring namespace to execute the query from
+	podInfo, err := findMonitoringPod(ctx, apiClient)
 	if err != nil {
-		klog.V(params.NeuronLogLevel).Infof("Failed to get Prometheus token: %v", err)
-		// Continue without token for in-cluster access
-
-		return queryPrometheusInternal(prometheusURL, query, "")
+		return nil, fmt.Errorf("failed to find monitoring pod: %w", err)
 	}
 
-	return queryPrometheusInternal(prometheusURL, query, token)
-}
+	klog.V(params.NeuronLogLevel).Infof("Using monitoring pod: %s (container: %s)", podInfo.Name, podInfo.Container)
 
-// queryPrometheusInternal performs the actual HTTP query to Prometheus.
-func queryPrometheusInternal(baseURL, query, token string) (*PrometheusQueryResult, error) {
-	queryURL := fmt.Sprintf("%s?query=%s", baseURL, url.QueryEscape(query))
+	encodedQuery := url.QueryEscape(query)
 
-	client := &http.Client{
-		Timeout: 30 * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec
-		},
+	// Try localhost endpoints inside the thanos-query container
+	endpoints := []struct {
+		name string
+		url  string
+	}{
+		{"localhost:9090", fmt.Sprintf("http://localhost:9090/api/v1/query?query=%s", encodedQuery)},
+		{"localhost:9095", fmt.Sprintf("http://localhost:9095/api/v1/query?query=%s", encodedQuery)},
+		{"localhost:10902", fmt.Sprintf("http://localhost:10902/api/v1/query?query=%s", encodedQuery)},
 	}
 
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, queryURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+	var response string
+	var lastErr error
+
+	for _, ep := range endpoints {
+		queryCmd := []string{"sh", "-c", fmt.Sprintf("curl -s '%s' 2>/dev/null", ep.url)}
+		resp, err := executeInPod(ctx, apiClient, podInfo.Name, neuronparams.PrometheusNamespace, podInfo.Container, queryCmd)
+
+		if err == nil && resp != "" && !isUnauthorized(resp) {
+			response = resp
+			klog.V(params.NeuronLogLevel).Infof("Endpoint %s succeeded", ep.name)
+
+			break
+		}
+
+		lastErr = fmt.Errorf("endpoint %s failed: %v", ep.name, err)
 	}
 
-	if token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
+	if response == "" {
+		// Fallback: Try with service account token for authenticated endpoint
+		tokenCmd := "cat /var/run/secrets/kubernetes.io/serviceaccount/token 2>/dev/null || echo ''"
+		token, _ := executeInPod(ctx, apiClient, podInfo.Name, neuronparams.PrometheusNamespace, podInfo.Container,
+			[]string{"sh", "-c", tokenCmd})
+		token = trimNewline(token)
+
+		if token != "" {
+			authURL := fmt.Sprintf("https://%s.%s.svc:9091/api/v1/query?query=%s",
+				neuronparams.ThanosQuerierServiceName, neuronparams.PrometheusNamespace, encodedQuery)
+			authCmd := []string{"sh", "-c", fmt.Sprintf(
+				"curl -s -k -H 'Authorization: Bearer %s' '%s' 2>/dev/null", token, authURL)}
+
+			resp, err := executeInPod(ctx, apiClient, podInfo.Name, neuronparams.PrometheusNamespace, podInfo.Container, authCmd)
+
+			if err == nil && resp != "" && !isUnauthorized(resp) {
+				response = resp
+			}
+		}
 	}
 
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query Prometheus: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-
-		return nil, fmt.Errorf("prometheus query failed with status %d: %s", resp.StatusCode, string(body))
+	if response == "" {
+		return nil, fmt.Errorf("failed to query prometheus, all endpoints failed: %v", lastErr)
 	}
 
 	var result PrometheusQueryResult
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+	if err := json.Unmarshal([]byte(response), &result); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w, raw: %s", err, response)
 	}
 
 	return &result, nil
+}
+
+func isUnauthorized(resp string) bool {
+	return resp == "Unauthorized" || resp == "Unauthorized\n"
+}
+
+func trimNewline(s string) string {
+	for len(s) > 0 && (s[len(s)-1] == '\n' || s[len(s)-1] == '\r') {
+		s = s[:len(s)-1]
+	}
+
+	return s
 }
 
 // MetricExists checks if a metric exists in Prometheus.
