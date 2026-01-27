@@ -17,6 +17,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/mlbtypes"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/define"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/frrconfig"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netnmstate"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
@@ -40,10 +41,17 @@ var _ = Describe("BGP Unnumbered", Ordered, Label(tsparams.LabelBGPUnnumbered),
 		)
 
 		BeforeAll(func() {
+			By("Checking if cluster is SNO")
+			isSNO, err := netenv.IsSNOCluster(APIClient)
+			Expect(err).ToNot(HaveOccurred(), "Failed to check if cluster is SNO")
+			if isSNO {
+				Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers")
+			}
+
 			validateEnvVarAndGetNodeList()
 
 			By("Creating a new instance of MetalLB Speakers on workers")
-			err := metallbenv.CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(tsparams.DefaultTimeout, workerLabelMap)
+			err = metallbenv.CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(tsparams.DefaultTimeout, workerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "Failed to create metalLb daemonset")
 
 			By("Collecting interface information to enable a node ethernet interface")

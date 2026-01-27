@@ -43,9 +43,10 @@ var _ = Describe("Application Namespace SriovNetwork:", Ordered, Label(tsparams.
 
 		BeforeAll(func() {
 			By("Verifying if Application Namespace SriovNetwork tests can be executed on given cluster")
-			err := netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 2)
-			Expect(err).ToNot(HaveOccurred(),
-				"Cluster doesn't support Application Namespace SriovNetwork test cases as it doesn't have enough nodes")
+			err := netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 1)
+			if err != nil {
+				Skip(fmt.Sprintf("Skipping test - cluster doesn't have enough nodes: %v", err))
+			}
 
 			By("Validating SR-IOV interfaces")
 			workerNodeList, err := nodes.List(APIClient,

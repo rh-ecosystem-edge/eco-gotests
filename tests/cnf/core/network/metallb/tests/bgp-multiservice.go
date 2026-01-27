@@ -16,6 +16,7 @@ import (
 	netcmd "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/cmd"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/frrconfig"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/ipaddr"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/metallb/internal/metallbenv"
@@ -26,12 +27,18 @@ import (
 
 var _ = Describe("MetalLB BGP", Ordered, Label(tsparams.LabelBGPTestCases), ContinueOnFailure, func() {
 	var (
-		err           error
 		AddressPoolS1 = []string{"4.4.4.100", "4.4.4.101"}
 		AddressPoolS2 = []string{"5.5.5.100", "5.5.5.101"}
 	)
 
 	BeforeAll(func() {
+		By("Checking if cluster is SNO")
+		isSNO, err := netenv.IsSNOCluster(APIClient)
+		Expect(err).ToNot(HaveOccurred(), "Failed to check if cluster is SNO")
+		if isSNO {
+			Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers")
+		}
+
 		validateEnvVarAndGetNodeList()
 
 		By("Creating a new instance of MetalLB Speakers on workers")
