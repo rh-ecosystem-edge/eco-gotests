@@ -1,7 +1,10 @@
 package netenv
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -19,6 +22,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 )
 
@@ -61,15 +65,34 @@ func DoesClusterHasEnoughNodes(
 
 // BFDHasStatus verifies that BFD session on a pod has given status.
 func BFDHasStatus(frrPod *pod.Builder, bfdPeer string, status string) error {
-	bfdStatusOut, err := frrPod.ExecCommand(append(netparam.VtySh, "sh bfd peers brief json"))
+	var (
+		bfdStatusOut bytes.Buffer
+		err          error
+	)
+
+	err = wait.PollUntilContextTimeout(context.TODO(), 3*time.Second, 10*time.Second, true,
+		func(ctx context.Context) (bool, error) {
+			bfdStatusOut, err = frrPod.ExecCommand(append(netparam.VtySh, "sh bfd peers brief json"))
+			if err != nil {
+				klog.V(90).Infof("Failed to execute BFD status command: %v", err)
+
+				return false, err
+			}
+
+			if strings.TrimSpace(bfdStatusOut.String()) == "" {
+				klog.V(90).Infof("BFD status command returned empty output. retrying...")
+
+				return false, nil
+			}
+
+			return true, nil
+		})
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return fmt.Errorf("BFD status command returned empty output")
+		}
+
 		return err
-	}
-
-	if strings.TrimSpace(bfdStatusOut.String()) == "" {
-		klog.V(90).Infof("BFD status command returned empty output")
-
-		return fmt.Errorf("BFD status command returned empty output")
 	}
 
 	var peers []netparam.BFDDescription
