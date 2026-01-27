@@ -203,12 +203,12 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.LabelSuit
 				if deleteErr != nil {
 					klog.V(params.NeuronLogLevel).Infof("Failed to delete DeviceConfig: %v", deleteErr)
 				} else {
-					// Wait for DeviceConfig to be fully deleted (finalizer processed)
+					
 					klog.V(params.NeuronLogLevel).Info("Waiting for DeviceConfig finalizer to be processed...")
 					Eventually(func() bool {
 						_, pullErr := neuron.Pull(APIClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
 
-						return pullErr != nil // DeviceConfig is gone when we can't pull it
+						return pullErr != nil 
 					}, 5*time.Minute, 5*time.Second).Should(BeTrue(),
 						"DeviceConfig should be fully deleted")
 				}
@@ -339,7 +339,6 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.LabelSuit
 					Skip("Sequential verification requires multiple device plugin pods")
 				}
 
-				// Extract timestamps into a slice and sort chronologically
 				type podCreation struct {
 					nodeName string
 					created  time.Time
@@ -354,18 +353,17 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.LabelSuit
 					return creationTimes[i].created.Before(creationTimes[j].created)
 				})
 
-				// Minimum expected gap between sequential pod creations (10 seconds)
 				const minGapThreshold = 10 * time.Second
 
-				for i := 1; i < len(creationTimes); i++ {
-					gap := creationTimes[i].created.Sub(creationTimes[i-1].created)
+				for idx := 1; idx < len(creationTimes); idx++ {
+					gap := creationTimes[idx].created.Sub(creationTimes[idx-1].created)
 					klog.V(params.NeuronLogLevel).Infof(
 						"Gap between node %s and node %s: %v",
-						creationTimes[i-1].nodeName, creationTimes[i].nodeName, gap)
+						creationTimes[idx-1].nodeName, creationTimes[idx].nodeName, gap)
 
 					Expect(gap).To(BeNumerically(">=", minGapThreshold),
 						"Expected minimum %v gap between pod creations on %s and %s, got %v",
-						minGapThreshold, creationTimes[i-1].nodeName, creationTimes[i].nodeName, gap)
+						minGapThreshold, creationTimes[idx-1].nodeName, creationTimes[idx].nodeName, gap)
 				}
 
 				klog.V(params.NeuronLogLevel).Info(
