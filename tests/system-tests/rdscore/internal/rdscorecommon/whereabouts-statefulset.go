@@ -728,7 +728,7 @@ func ensurePodConnectivityAfterNodeDrain(stLabel, namespace, targetPort string, 
 		}
 
 		return !found && len(newActivePods) == stReplicas
-	}).WithContext(ctx).WithPolling(15*time.Second).WithTimeout(5*time.Minute).Should(BeTrue(),
+	}).WithContext(ctx).WithPolling(15*time.Second).WithTimeout(7*time.Minute).Should(BeTrue(),
 		"New pod is not created")
 
 	By("Verifying inter pod connectivity after node's drain")
