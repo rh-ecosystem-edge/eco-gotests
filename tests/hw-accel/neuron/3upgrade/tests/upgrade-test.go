@@ -3,6 +3,7 @@ package tests
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -153,6 +154,9 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.LabelSuit
 			}
 
 			By("Deploying test workload on Neuron nodes")
+			var successCount int
+			var creationErrors []string
+
 			for i, nodeName := range neuronNodes {
 				workloadPod := do.CreateTestWorkloadPod(
 					fmt.Sprintf("%s-%d", tsparams.TestWorkloadPodName, i),
@@ -164,10 +168,18 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.LabelSuit
 				_, err = APIClient.CoreV1Interface.Pods(tsparams.UpgradeTestNamespace).Create(
 					context.Background(), workloadPod, metav1.CreateOptions{})
 				if err != nil {
+					errMsg := fmt.Sprintf("node %s: %v", nodeName, err)
+					creationErrors = append(creationErrors, errMsg)
 					klog.V(params.NeuronLogLevel).Infof("Failed to create workload on node %s: %v",
 						nodeName, err)
+				} else {
+					successCount++
+					klog.V(params.NeuronLogLevel).Infof("Successfully created workload on node %s", nodeName)
 				}
 			}
+
+			Expect(successCount).To(BeNumerically(">", 0),
+				"Failed to create any test workloads. Errors: %v", creationErrors)
 
 			By("Waiting for test workloads to be running")
 			time.Sleep(30 * time.Second)
@@ -302,7 +314,7 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.LabelSuit
 		It("Should verify sequential node processing during upgrade",
 			Label("neuron-upgrade-003"), reportxml.ID("neuron-upgrade-003"), func() {
 
-				By("Verifying nodes are processed sequentially")
+				By("Collecting device plugin pod creation timestamps")
 
 				pods, err := pod.List(APIClient, params.NeuronNamespace, metav1.ListOptions{})
 				Expect(err).ToNot(HaveOccurred(), "Error listing pods")
@@ -319,10 +331,45 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.LabelSuit
 				klog.V(params.NeuronLogLevel).Infof("Device plugin pods creation times: %v",
 					devicePluginPods)
 
-				if len(devicePluginPods) > 1 {
+				By("Verifying sequential processing with minimum time gap between pods")
+
+				if len(devicePluginPods) <= 1 {
 					klog.V(params.NeuronLogLevel).Info(
-						"Multiple device plugin pods found - upgrade was sequential")
+						"Only one or zero device plugin pods found - skipping sequential verification")
+					Skip("Sequential verification requires multiple device plugin pods")
 				}
+
+				// Extract timestamps into a slice and sort chronologically
+				type podCreation struct {
+					nodeName string
+					created  time.Time
+				}
+
+				var creationTimes []podCreation
+				for nodeName, created := range devicePluginPods {
+					creationTimes = append(creationTimes, podCreation{nodeName: nodeName, created: created})
+				}
+
+				sort.Slice(creationTimes, func(i, j int) bool {
+					return creationTimes[i].created.Before(creationTimes[j].created)
+				})
+
+				// Minimum expected gap between sequential pod creations (10 seconds)
+				const minGapThreshold = 10 * time.Second
+
+				for i := 1; i < len(creationTimes); i++ {
+					gap := creationTimes[i].created.Sub(creationTimes[i-1].created)
+					klog.V(params.NeuronLogLevel).Infof(
+						"Gap between node %s and node %s: %v",
+						creationTimes[i-1].nodeName, creationTimes[i].nodeName, gap)
+
+					Expect(gap).To(BeNumerically(">=", minGapThreshold),
+						"Expected minimum %v gap between pod creations on %s and %s, got %v",
+						minGapThreshold, creationTimes[i-1].nodeName, creationTimes[i].nodeName, gap)
+				}
+
+				klog.V(params.NeuronLogLevel).Info(
+					"Sequential node processing verified - all pods have minimum time gap")
 			})
 
 		It("Should verify workloads are restored after upgrade",

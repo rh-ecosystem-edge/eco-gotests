@@ -18,6 +18,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/params"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/vllm/internal/tsparams"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
@@ -181,8 +182,8 @@ var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.LabelSuite
 			pvc := do.CreateVLLMPVC(vllmConfig)
 			_, err := APIClient.CoreV1Interface.PersistentVolumeClaims(tsparams.VLLMTestNamespace).Create(
 				context.Background(), pvc, metav1.CreateOptions{})
-			if err != nil {
-				klog.V(params.NeuronLogLevel).Infof("PVC creation (may already exist): %v", err)
+			if err != nil && !apierrors.IsAlreadyExists(err) {
+				Expect(err).ToNot(HaveOccurred(), "Failed to create PVC")
 			}
 
 			By("Creating HuggingFace token secret")
@@ -193,8 +194,8 @@ var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.LabelSuite
 			)
 			_, err = APIClient.CoreV1Interface.Secrets(tsparams.VLLMTestNamespace).Create(
 				context.Background(), hfSecret, metav1.CreateOptions{})
-			if err != nil {
-				klog.V(params.NeuronLogLevel).Infof("Secret creation (may already exist): %v", err)
+			if err != nil && !apierrors.IsAlreadyExists(err) {
+				Expect(err).ToNot(HaveOccurred(), "Failed to create HuggingFace token secret")
 			}
 
 			By("Creating vLLM deployment with init container for model download")
@@ -215,8 +216,8 @@ var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.LabelSuite
 			svc := do.CreateVLLMService(svcConfig)
 			_, err = APIClient.CoreV1Interface.Services(tsparams.VLLMTestNamespace).Create(
 				context.Background(), svc, metav1.CreateOptions{})
-			if err != nil {
-				klog.V(params.NeuronLogLevel).Infof("Service creation (may already exist): %v", err)
+			if err != nil && !apierrors.IsAlreadyExists(err) {
+				Expect(err).ToNot(HaveOccurred(), "Failed to create vLLM service")
 			}
 
 			By("Waiting for vLLM deployment to be ready (model download + compilation may take 30+ minutes)")

@@ -63,7 +63,11 @@ func GetNeuronCapacity(apiClient *clients.Settings, nodeName string) (int64, int
 	nodeList, err := nodes.List(apiClient, metav1.ListOptions{
 		FieldSelector: fmt.Sprintf("metadata.name=%s", nodeName),
 	})
-	if err != nil || len(nodeList) == 0 {
+	if err != nil {
+		return 0, 0, fmt.Errorf("listing nodes: %w", err)
+	}
+
+	if len(nodeList) == 0 {
 		return 0, 0, fmt.Errorf("node %s not found", nodeName)
 	}
 

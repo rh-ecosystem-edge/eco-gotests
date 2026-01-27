@@ -250,18 +250,51 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.LabelSuite), func
 				By("Getting Neuron nodes")
 				neuronNodes, err := check.GetNeuronNodes(APIClient)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get Neuron nodes")
+				Expect(len(neuronNodes)).To(BeNumerically(">", 0), "Expected at least one Neuron node")
 
 				By("Comparing metrics with node capacity")
 				for _, node := range neuronNodes {
 					neuronDevices, neuronCores, err := check.GetNeuronCapacity(APIClient, node.Object.Name)
-					Expect(err).ToNot(HaveOccurred(), "Failed to get Neuron capacity")
+					Expect(err).ToNot(HaveOccurred(), "Failed to get Neuron capacity for node %s", node.Object.Name)
 
 					klog.V(params.NeuronLogLevel).Infof("Node %s: %d devices, %d cores (from node capacity)",
 						node.Object.Name, neuronDevices, neuronCores)
 
-					memoryUsed, err := neuronmetrics.GetNeuronMemoryUsed(APIClient)
-					if err == nil {
-						klog.V(params.NeuronLogLevel).Infof("Memory used metrics: %v", memoryUsed)
+					Expect(neuronDevices).To(BeNumerically(">", 0),
+						"Expected node %s to have at least one Neuron device", node.Object.Name)
+					Expect(neuronCores).To(BeNumerically(">", 0),
+						"Expected node %s to have at least one Neuron core", node.Object.Name)
+				}
+
+				By("Verifying memory metrics are available and valid")
+				memoryUsed, err := neuronmetrics.GetNeuronMemoryUsed(APIClient)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get Neuron memory used metrics")
+				Expect(memoryUsed).ToNot(BeNil(), "Memory used metrics should not be nil")
+				Expect(len(memoryUsed)).To(BeNumerically(">", 0),
+					"Expected at least one memory metric result")
+
+				for _, metric := range memoryUsed {
+					value, ok := metric["value"]
+					Expect(ok).To(BeTrue(), "Memory metric should contain a value")
+					Expect(value).ToNot(BeNil(), "Memory metric value should not be nil")
+					klog.V(params.NeuronLogLevel).Infof("Memory used metric: %v", metric)
+				}
+
+				By("Verifying hardware info metrics match node capacity")
+				hardwareInfo, err := neuronmetrics.GetNeuronHardwareInfo(APIClient)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get Neuron hardware info metrics")
+				Expect(len(hardwareInfo)).To(BeNumerically(">", 0),
+					"Expected at least one hardware info metric")
+
+				klog.V(params.NeuronLogLevel).Infof("Hardware info metrics count: %d", len(hardwareInfo))
+
+				By("Verifying core utilization metrics are within valid range")
+				utilization, err := neuronmetrics.GetNeuroncoreUtilization(APIClient)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get Neuron core utilization metrics")
+
+				for _, u := range utilization {
+					if valueStr, ok := u["value"].(string); ok {
+						klog.V(params.NeuronLogLevel).Infof("Core utilization: %s", valueStr)
 					}
 				}
 
