@@ -36,10 +36,3 @@ func CreateTestWorkloadPod(name, namespace, nodeName, containerName string, labe
 		},
 	}
 }
-
-// IsDevicePluginPod checks if a pod is a device plugin pod by comparing its name prefix.
-func IsDevicePluginPod(podName string) bool {
-	prefix := params.DevicePluginDaemonSetPrefix
-
-	return len(podName) >= len(prefix) && podName[:len(prefix)] == prefix
-}

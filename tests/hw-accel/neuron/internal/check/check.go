@@ -83,33 +83,6 @@ func GetNeuronCapacity(apiClient *clients.Settings, nodeName string) (int64, int
 	return neuronDevices, neuronCores, nil
 }
 
-// GetTotalNeuronCores returns the total Neuron cores available across all Neuron-labeled nodes.
-func GetTotalNeuronCores(apiClient *clients.Settings) (int64, int64, error) {
-	neuronNodes, err := GetNeuronNodes(apiClient)
-	if err != nil {
-		return 0, 0, fmt.Errorf("failed to get Neuron nodes: %w", err)
-	}
-
-	var totalDevices, totalCores int64
-
-	for _, node := range neuronNodes {
-		devices, cores, err := GetNeuronCapacity(apiClient, node.Object.Name)
-		if err != nil {
-			klog.V(params.NeuronLogLevel).Infof("Failed to get capacity for node %s: %v",
-				node.Object.Name, err)
-
-			continue
-		}
-
-		totalDevices += devices
-		totalCores += cores
-		klog.V(params.NeuronLogLevel).Infof("Node %s: %d devices, %d cores",
-			node.Object.Name, devices, cores)
-	}
-
-	return totalDevices, totalCores, nil
-}
-
 // DevicePluginPodsRunning checks if device plugin pods are running on all Neuron nodes.
 func DevicePluginPodsRunning(apiClient *clients.Settings) (bool, error) {
 	neuronNodes, err := GetNeuronNodes(apiClient)
@@ -290,4 +263,11 @@ func NeuronWorkloadsOnNode(apiClient *clients.Settings, nodeName, namespace stri
 	}
 
 	return count, nil
+}
+
+// IsDevicePluginPod checks if a pod is a device plugin pod by comparing its name prefix.
+func IsDevicePluginPod(podName string) bool {
+	prefix := params.DevicePluginDaemonSetPrefix
+
+	return len(podName) >= len(prefix) && podName[:len(prefix)] == prefix
 }
