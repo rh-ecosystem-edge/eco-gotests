@@ -73,7 +73,6 @@ type monitoringPodInfo struct {
 }
 
 // findMonitoringPod finds a running pod in the monitoring namespace to execute queries from.
-// Tries thanos-querier first (has oauth-proxy with curl), then prometheus pods.
 func findMonitoringPod(ctx context.Context, apiClient *clients.Settings) (*monitoringPodInfo, error) {
 	// Try thanos-querier pods first - they have oauth-proxy container with curl
 	thanosPodslist, err := apiClient.CoreV1Interface.Pods(neuronparams.PrometheusNamespace).List(ctx, metav1.ListOptions{
@@ -165,20 +164,22 @@ func QueryPrometheus(apiClient *clients.Settings, query string) (*PrometheusQuer
 	}
 
 	var response string
+
 	var lastErr error
 
-	for _, ep := range endpoints {
-		queryCmd := []string{"sh", "-c", fmt.Sprintf("curl -s '%s' 2>/dev/null", ep.url)}
+	for _, endpoint := range endpoints {
+		queryCmd := []string{"sh", "-c", fmt.Sprintf("curl -s '%s' 2>/dev/null", endpoint.url)}
 		resp, err := executeInPod(ctx, apiClient, podInfo.Name, neuronparams.PrometheusNamespace, podInfo.Container, queryCmd)
 
 		if err == nil && resp != "" && !isUnauthorized(resp) {
 			response = resp
-			klog.V(params.NeuronLogLevel).Infof("Endpoint %s succeeded", ep.name)
+
+			klog.V(params.NeuronLogLevel).Infof("Endpoint %s succeeded", endpoint.name)
 
 			break
 		}
 
-		lastErr = fmt.Errorf("endpoint %s failed: %v", ep.name, err)
+		lastErr = fmt.Errorf("endpoint %s failed: %w", endpoint.name, err)
 	}
 
 	if response == "" {
@@ -203,7 +204,7 @@ func QueryPrometheus(apiClient *clients.Settings, query string) (*PrometheusQuer
 	}
 
 	if response == "" {
-		return nil, fmt.Errorf("failed to query prometheus, all endpoints failed: %v", lastErr)
+		return nil, fmt.Errorf("failed to query prometheus, all endpoints failed: %w", lastErr)
 	}
 
 	var result PrometheusQueryResult
