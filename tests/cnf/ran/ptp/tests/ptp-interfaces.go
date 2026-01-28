@@ -272,4 +272,137 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			Skip("Could not find any boundary clock to test")
 		}
 	})
+
+	When("OC 2-port configuration exists", func() {
+		Context("when active port fails", func() {
+			// Test 80963
+			It("verifies failover to passive port", reportxml.ID("80963"), func() {
+				testActuallyRan := false
+
+				By("getting node info map")
+				nodeInfoMap, err := profiles.GetNodeInfoMap(RANConfig.Spoke1APIClient)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get node info map")
+
+				for nodeName, nodeInfo := range nodeInfoMap {
+					By("checking if node has OC 2-port configuration")
+					oc2PortProfiles := nodeInfo.GetProfilesByTypes(profiles.ProfileTypeTwoPortOC)
+					if len(oc2PortProfiles) == 0 {
+						klog.V(tsparams.LogLevel).Infof("Node %s has no OC 2-port configuration, skipping",
+							nodeName)
+
+						continue
+					}
+
+					testActuallyRan = true
+
+					oc2PortProfile := oc2PortProfiles[0]
+					By(fmt.Sprintf("Using OC 2-port profile %s on node %s",
+						oc2PortProfile.Reference.ProfileName, nodeName))
+
+					oc2PortInterfaces := oc2PortProfile.GetInterfacesByClockType(profiles.ClockTypeClient)
+					Expect(len(oc2PortInterfaces)).To(BeNumerically(">", 1), "Expected more than 1 OC 2-port interface for node %s", nodeName)
+
+					activeInterface, passiveInterface, err := profiles.Oc2PortDetermineActivePassiveInterfaces(
+						context.TODO(), prometheusAPI, nodeName, oc2PortInterfaces)
+					Expect(err).ToNot(HaveOccurred(), "Failed to determine active/passive interfaces")
+
+					By(fmt.Sprintf("identified active interface: %s, passive interface: %s",
+						activeInterface, passiveInterface))
+
+					DeferCleanup(func() {
+						By("Restoring OC 2-port interfaces")
+						for _, ifaceName := range []iface.Name{activeInterface, passiveInterface} {
+							err := iface.SetInterfaceStatus(RANConfig.Spoke1APIClient, nodeName,
+								ifaceName, iface.InterfaceStateUp)
+							Expect(err).ToNot(HaveOccurred(), "Failed to set interface %s to up on node %s", ifaceName, nodeName)
+						}
+
+					})
+					By("getting event consumer pod for the node")
+					eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeName)
+					Expect(err).ToNot(HaveOccurred(), "Failed to get event consumer pod for node %s", nodeName)
+
+					startTime := time.Now()
+
+					By("bringing down the active interface to cause a failover")
+					err = iface.SetInterfaceStatus(
+						RANConfig.Spoke1APIClient, nodeName, activeInterface, iface.InterfaceStateDown)
+					Expect(err).ToNot(HaveOccurred(),
+						"Failed to set interface %s to down on node %s", activeInterface, nodeName)
+
+					By("validating PTP clock class metric remains 6 after failover")
+					err = metrics.AssertQuery(context.TODO(), prometheusAPI, metrics.ClockClassQuery{}, 6,
+						metrics.AssertWithStableDuration(10*time.Second),
+						metrics.AssertWithTimeout(45*time.Second))
+					Expect(err).ToNot(HaveOccurred(), "Failed to assert that the PTP clock class metric remains 6 after failover")
+
+					By("validating PTP clock state metric remains LOCKED after failover")
+					err = metrics.AssertQuery(context.TODO(), prometheusAPI, metrics.ClockStateQuery{}, metrics.ClockStateLocked,
+						metrics.AssertWithStableDuration(10*time.Second),
+						metrics.AssertWithTimeout(45*time.Second))
+					Expect(err).ToNot(HaveOccurred(), "Failed to assert that the PTP process metric stays in LOCKED state after failover")
+
+					By("validating PTP inital active interface role metric change to FAULTY after failover")
+					err = metrics.AssertQuery(context.TODO(), prometheusAPI, metrics.InterfaceRoleQuery{}, metrics.InterfaceRoleFaulty,
+						metrics.AssertWithTimeout(45*time.Second))
+					Expect(err).ToNot(HaveOccurred(), "Failed to assert that the PTP process metric stays in LOCKED state after failover")
+
+					By("validating PTP passive interface role metric changed to SLAVE after failover")
+					err = metrics.AssertQuery(context.TODO(), prometheusAPI, metrics.InterfaceRoleQuery{}, metrics.InterfaceRoleFollower,
+						metrics.AssertWithTimeout(45*time.Second))
+					Expect(err).ToNot(HaveOccurred(), "Failed to assert that the PTP process metric stays in LOCKED state after failover")
+
+					By("validating no FREERUN event is generated after failover")
+					freerunFilter := events.All(
+						events.IsType(eventptp.PtpStateChange),
+						events.HasValue(events.WithSyncState(eventptp.FREERUN), events.OnInterface(iface.NICName(activeInterface.))),
+					)
+					err = events.WaitForEvent(eventPod, startTime, 1*time.Minute, freerunFilter)
+					Expect(err).To(HaveOccurred(), "Unexpected FREERUN event detected for interface %s", activeInterface)
+				}
+
+				if !testActuallyRan {
+					Skip("Could not find any OC 2-port configuration to test")
+				}
+			})
+
+			Context("when both ports fail", func() {
+				// Test 80964
+				It("verifies holdover then freerun transition", reportxml.ID("80964"), func() {
+					DeferCleanup(func() {
+						By("restoring OC 2-port interfaces")
+					})
+
+					By("bringing down both interfaces")
+
+					By("validating both interfaces are FAULTY")
+
+					By("validating clock states transition to FREERUN")
+
+					By("validating HOLDOVER event is generated")
+
+					By("validating FREERUN event is generated")
+				})
+			})
+
+			Context("when passive port fails", func() {
+				// Test 82012
+				It("verifies active port continues operation", reportxml.ID("82012"), func() {
+					DeferCleanup(func() {
+						By("restoring OC 2-port interfaces")
+					})
+
+					By("bringing down the passive interface")
+
+					By("validating clock states remain LOCKED")
+
+					By("validating active interface remains FOLLOWER")
+
+					By("validating passive interface is FAULTY")
+
+					By("validating no HOLDOVER event is generated")
+				})
+			})
+		})
+	})
 })
