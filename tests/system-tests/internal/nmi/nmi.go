@@ -25,6 +25,44 @@ type BMCCredentials struct {
 	Password   string
 }
 
+// CleanupVarCrashDirectory cleans up the /var/crash directory on the specified node.
+func CleanupVarCrashDirectory(
+	ctx context.Context,
+	nodeName string,
+	logLevel klog.Level,
+	pollingInterval,
+	timeout time.Duration,
+) error {
+	klog.V(logLevel).Infof("Cleaning up /var/crash directory on node %q", nodeName)
+
+	cmdToExec := []string{"chroot", "/rootfs", "sh", "-c", "rm -rf /var/crash/*"}
+
+	err := wait.PollUntilContextTimeout(ctx, pollingInterval, timeout, true,
+		func(ctx context.Context) (bool, error) {
+			output, err := remote.ExecuteOnNodeWithDebugPod(cmdToExec, nodeName)
+
+			klog.V(logLevel).Infof("Executing cleanup command: %q on node %q",
+				strings.Join(cmdToExec, " "), nodeName)
+
+			if err != nil {
+				klog.V(logLevel).Infof("Failed to execute cleanup command: %v", err)
+
+				return false, nil
+			}
+
+			klog.V(logLevel).Infof("\tCleanup output: %v", output)
+
+			return true, nil
+		})
+	if err != nil {
+		return fmt.Errorf("failed to cleanup /var/crash directory on node %q: %w", nodeName, err)
+	}
+
+	klog.V(logLevel).Infof("Successfully cleaned up /var/crash directory on node %q", nodeName)
+
+	return nil
+}
+
 // TriggerNMIViaRedfish triggers an NMI (Non-Maskable Interrupt) on a node via Redfish BMC interface.
 // This will cause a kernel crash if kdump is configured, generating a vmcore dump.
 func TriggerNMIViaRedfish(
@@ -130,62 +168,55 @@ func WaitForNodeToBecomeUnavailable(
 }
 
 // WaitForNodeToBecomeReady waits for the node to return to Ready state.
-// The behavior differs based on the deployment type:
-//   - SNO (Single Node OpenShift): Before checking node status, it first verifies that the
-//     API server is reachable again after the node restart.
-//   - Multi-node deployment: Directly checks the node status since the API remains available.
+// It first verifies that the API server is reachable, then waits for the node to become Ready.
 func WaitForNodeToBecomeReady(
 	ctx context.Context,
 	apiClient *clients.Settings,
 	nodeName string,
-	isSNO bool,
 	logLevel klog.Level,
 	pollingInterval,
 	timeout time.Duration,
 ) error {
-	klog.V(logLevel).Infof("Waiting for node %q to return to Ready state (SNO: %t)", nodeName, isSNO)
+	klog.V(logLevel).Infof("Waiting for node %q to return to Ready state", nodeName)
+
+	startTime := time.Now()
+
+	klog.V(logLevel).Infof("Waiting for API server to become reachable")
 
 	err := wait.PollUntilContextTimeout(ctx, pollingInterval, timeout, true,
 		func(ctx context.Context) (bool, error) {
-			// For SNO deployments, first check if the API server is reachable again
-			if isSNO {
-				_, apiErr := apiClient.K8sClient.Discovery().ServerVersion()
-				if apiErr != nil {
-					klog.V(logLevel).Infof("API server not yet reachable: %v", apiErr)
-
-					return false, nil
-				}
-
-				klog.V(logLevel).Infof("API server is reachable again")
-			}
-
-			currentNode, err := nodes.Pull(apiClient, nodeName)
-			if err != nil {
-				klog.V(logLevel).Infof("Failed to pull node %q: %v", nodeName, err)
+			_, apiErr := apiClient.K8sClient.Discovery().ServerVersion()
+			if apiErr != nil {
+				klog.V(logLevel).Infof("API server not yet reachable: %v", apiErr)
 
 				return false, nil
 			}
 
-			currentNode.WaitUntilReady(timeout)
+			klog.V(logLevel).Infof("API server is reachable")
 
-			for _, condition := range currentNode.Object.Status.Conditions {
-				if condition.Type == corev1.NodeReady {
-					if condition.Status == corev1.ConditionTrue {
-						klog.V(logLevel).Infof("Node %q is Ready", nodeName)
-						klog.V(logLevel).Infof("  Reason: %s", condition.Reason)
-
-						return true, nil
-					}
-				}
-			}
-
-			klog.V(logLevel).Infof("Node %q is not yet Ready", nodeName)
-
-			return false, nil
+			return true, nil
 		})
+	if err != nil {
+		return fmt.Errorf("API server didn't become reachable: %w", err)
+	}
+
+	remainingTimeout := timeout - time.Since(startTime)
+
+	if remainingTimeout <= 0 {
+		return fmt.Errorf("timeout exceeded while waiting for API server to become reachable")
+	}
+
+	currentNode, err := nodes.Pull(apiClient, nodeName)
+	if err != nil {
+		return fmt.Errorf("failed to pull node %q: %w", nodeName, err)
+	}
+
+	err = currentNode.WaitUntilReady(remainingTimeout)
 	if err != nil {
 		return fmt.Errorf("node %q hasn't reached Ready state: %w", nodeName, err)
 	}
+
+	klog.V(logLevel).Infof("Node %q is Ready", nodeName)
 
 	return nil
 }
@@ -222,45 +253,6 @@ func VerifyVmcoreDumpGenerated(
 	if err != nil {
 		return fmt.Errorf("vmcore dump was not generated on node %q: %w", nodeName, err)
 	}
-
-	return nil
-}
-
-// CleanupVarCrashDirectory cleans up the /var/crash directory on the specified node.
-func CleanupVarCrashDirectory(
-	ctx context.Context,
-	nodeName string,
-	logLevel klog.Level,
-	pollingInterval,
-	timeout time.Duration,
-) error {
-	klog.V(logLevel).Infof("Cleaning up /var/crash directory on node %q", nodeName)
-
-	// Use sh -c to enable shell glob expansion for the wildcard pattern
-	cmdToExec := []string{"chroot", "/rootfs", "sh", "-c", "rm -rf /var/crash/*"}
-
-	err := wait.PollUntilContextTimeout(ctx, pollingInterval, timeout, true,
-		func(ctx context.Context) (bool, error) {
-			output, err := remote.ExecuteOnNodeWithDebugPod(cmdToExec, nodeName)
-
-			klog.V(logLevel).Infof("Executing cleanup command: %q on node %q",
-				strings.Join(cmdToExec, " "), nodeName)
-
-			if err != nil {
-				klog.V(logLevel).Infof("Failed to execute cleanup command: %v", err)
-
-				return false, nil
-			}
-
-			klog.V(logLevel).Infof("\tCleanup output: %v", output)
-
-			return true, nil
-		})
-	if err != nil {
-		return fmt.Errorf("failed to cleanup /var/crash directory on node %q: %w", nodeName, err)
-	}
-
-	klog.V(logLevel).Infof("Successfully cleaned up /var/crash directory on node %q", nodeName)
 
 	return nil
 }

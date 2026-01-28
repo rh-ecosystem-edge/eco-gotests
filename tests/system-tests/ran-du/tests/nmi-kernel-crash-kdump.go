@@ -82,7 +82,7 @@ var _ = Describe(
 
 					By(fmt.Sprintf("Waiting for node %q to return to Ready state", node.Definition.Name))
 
-					err = nmi.WaitForNodeToBecomeReady(ctx, APIClient, node.Definition.Name, isSNO,
+					err = nmi.WaitForNodeToBecomeReady(ctx, APIClient, node.Definition.Name,
 						randuparams.RanDuLogLevel, 15*time.Second, 25*time.Minute)
 					Expect(err).ToNot(HaveOccurred(),
 						fmt.Sprintf("Node %s didn't return to Ready state", node.Definition.Name))
