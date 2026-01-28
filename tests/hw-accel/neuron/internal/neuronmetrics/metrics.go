@@ -192,8 +192,8 @@ func QueryPrometheus(apiClient *clients.Settings, query string) (*PrometheusQuer
 		if token != "" {
 			authURL := fmt.Sprintf("https://%s.%s.svc:9091/api/v1/query?query=%s",
 				neuronparams.ThanosQuerierServiceName, neuronparams.PrometheusNamespace, encodedQuery)
-		authCmd := []string{"sh", "-c", fmt.Sprintf(
-			"curl -sf -k -H 'Authorization: Bearer %s' '%s' 2>/dev/null", token, authURL)}
+			authCmd := []string{"sh", "-c", fmt.Sprintf(
+				"curl -sf -k -H 'Authorization: Bearer %s' '%s' 2>/dev/null", token, authURL)}
 
 			resp, err := executeInPod(ctx, apiClient, podInfo.Name, neuronparams.PrometheusNamespace, podInfo.Container, authCmd)
 
