@@ -141,7 +141,8 @@ func RemoveSriovNetwork(name string, timeout time.Duration) error {
 
 	network, err := sriov.PullNetwork(APIClient, name, sriovOpNs)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
+		// eco-goinfra's PullNetwork returns custom error, not k8s NotFound
+		if strings.Contains(err.Error(), "does not exist") {
 			return nil // Already deleted
 		}
 
@@ -161,7 +162,9 @@ func RemoveSriovPolicy(name string, timeout time.Duration) error {
 
 	policy, err := sriov.PullPolicy(APIClient, name, sriovOpNs)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
+		// eco-goinfra's PullPolicy returns custom error, not k8s NotFound
+		// See: https://github.com/rh-ecosystem-edge/eco-goinfra/blob/main/pkg/sriov/policy.go#L289
+		if strings.Contains(err.Error(), "does not exist") {
 			return nil // Already deleted
 		}
 
