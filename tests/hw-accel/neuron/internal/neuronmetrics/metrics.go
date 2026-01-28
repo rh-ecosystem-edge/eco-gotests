@@ -74,9 +74,9 @@ type monitoringPodInfo struct {
 
 // findMonitoringPod finds a running pod in the monitoring namespace to execute queries from.
 func findMonitoringPod(ctx context.Context, apiClient *clients.Settings) (*monitoringPodInfo, error) {
-	// Try thanos-querier pods first - they have oauth-proxy container with curl
+	// Try thanos-querier pods first - queries are executed in the thanos-query container
 	thanosPodslist, err := apiClient.CoreV1Interface.Pods(neuronparams.PrometheusNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: "app.kubernetes.io/name=thanos-query",
+		LabelSelector: "app.kubernetes.io/name=thanos-querier",
 	})
 	if err == nil {
 		for _, pod := range thanosPodslist.Items {
