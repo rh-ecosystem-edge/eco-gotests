@@ -38,7 +38,7 @@ const (
 	PCIVendorID = "1d0f"
 
 	// MetricsDaemonSetPrefix represents the prefix for the metrics DaemonSet name.
-	MetricsDaemonSetPrefix = "neuron-monitor"
+	MetricsDaemonSetPrefix = "neuron-node-metrics"
 
 	// DevicePluginDaemonSetPrefix represents the prefix for the device plugin DaemonSet name.
 	DevicePluginDaemonSetPrefix = "neuron-device-plugin"

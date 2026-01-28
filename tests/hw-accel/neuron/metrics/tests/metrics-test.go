@@ -87,7 +87,7 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.LabelSuite), func
 				neuronConfig.DevicePluginImage,
 			).WithSelector(map[string]string{
 				params.NeuronNFDLabelKey: params.NeuronNFDLabelValue,
-			})
+			}).WithNodeMetricsImage(neuronConfig.NodeMetricsImage)
 
 			if neuronConfig.SchedulerImage != "" && neuronConfig.SchedulerExtensionImage != "" {
 				builder = builder.WithScheduler(neuronConfig.SchedulerImage, neuronConfig.SchedulerExtensionImage)
@@ -266,18 +266,21 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.LabelSuite), func
 						"Expected node %s to have at least one Neuron core", node.Object.Name)
 				}
 
-				By("Verifying memory metrics are available and valid")
+				By("Verifying memory metrics (runtime metrics - may be empty if no workload is running)")
 				memoryUsed, err := neuronmetrics.GetNeuronMemoryUsed(APIClient)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get Neuron memory used metrics")
-				Expect(memoryUsed).ToNot(BeNil(), "Memory used metrics should not be nil")
-				Expect(len(memoryUsed)).To(BeNumerically(">", 0),
-					"Expected at least one memory metric result")
-
-				for _, metric := range memoryUsed {
-					value, ok := metric["value"]
-					Expect(ok).To(BeTrue(), "Memory metric should contain a value")
-					Expect(value).ToNot(BeNil(), "Memory metric value should not be nil")
-					klog.V(params.NeuronLogLevel).Infof("Memory used metric: %v", metric)
+				// Note: neuron_runtime_memory_used_bytes is a runtime metric that only has values
+				// when there's an active Neuron workload. It's expected to be empty without a workload.
+				if len(memoryUsed) == 0 {
+					klog.V(params.NeuronLogLevel).Infof(
+						"Memory metrics are empty - this is expected when no Neuron workload is running")
+				} else {
+					for _, metric := range memoryUsed {
+						value, ok := metric["value"]
+						Expect(ok).To(BeTrue(), "Memory metric should contain a value")
+						Expect(value).ToNot(BeNil(), "Memory metric value should not be nil")
+						klog.V(params.NeuronLogLevel).Infof("Memory used metric: %v", metric)
+					}
 				}
 
 				By("Verifying hardware info metrics match node capacity")
