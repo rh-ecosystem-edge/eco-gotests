@@ -50,11 +50,8 @@ var _ = Describe(
 
 				for _, node := range nodeList {
 					auth, ok := RanDuTestConfig.NodesCredentialsMap[node.Definition.Name]
-					if !ok {
-						klog.V(randuparams.RanDuLogLevel).Infof(
-							"BMC Details for %q not found", node.Definition.Name)
-						Fail(fmt.Sprintf("BMC Details for %q not found", node.Definition.Name))
-					}
+					Expect(ok).To(BeTrue(),
+						fmt.Sprintf("BMC Details for %q not found", node.Definition.Name))
 
 					bmcCredentials := nmi.BMCCredentials{
 						BMCAddress: auth.BMCAddress,

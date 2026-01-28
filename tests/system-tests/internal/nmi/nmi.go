@@ -8,6 +8,7 @@ import (
 
 	"github.com/stmcginnis/gofish/redfish"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 
@@ -15,13 +16,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/remote"
-)
-
-const (
-	// ConditionTypeReadyString constant for node Ready condition type.
-	ConditionTypeReadyString = "Ready"
-	// ConstantTrueString constant for True status.
-	ConstantTrueString = "True"
 )
 
 // BMCCredentials holds the BMC authentication details for a node.
@@ -114,8 +108,8 @@ func WaitForNodeToBecomeUnavailable(
 			}
 
 			for _, condition := range currentNode.Object.Status.Conditions {
-				if condition.Type == ConditionTypeReadyString {
-					if string(condition.Status) != ConstantTrueString {
+				if condition.Type == corev1.NodeReady {
+					if condition.Status != corev1.ConditionTrue {
 						klog.V(logLevel).Infof("Node %q is NotReady", nodeName)
 						klog.V(logLevel).Infof("  Reason: %s", condition.Reason)
 
@@ -172,9 +166,11 @@ func WaitForNodeToBecomeReady(
 				return false, nil
 			}
 
+			currentNode.WaitUntilReady(timeout)
+
 			for _, condition := range currentNode.Object.Status.Conditions {
-				if condition.Type == ConditionTypeReadyString {
-					if string(condition.Status) == ConstantTrueString {
+				if condition.Type == corev1.NodeReady {
+					if condition.Status == corev1.ConditionTrue {
 						klog.V(logLevel).Infof("Node %q is Ready", nodeName)
 						klog.V(logLevel).Infof("  Reason: %s", condition.Reason)
 

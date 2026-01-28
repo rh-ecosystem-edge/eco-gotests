@@ -49,15 +49,16 @@ func (nad *NodesBMCMap) Decode(value string) error {
 			continue
 		}
 
-		log.Printf("Processing: %v", record)
-
 		parsedRecord := strings.Split(record, ",")
 		if len(parsedRecord) != 4 {
-			log.Printf("Error to parse data %v", value)
-			log.Printf("Expected 4 entries, found %d", len(parsedRecord))
+			log.Printf("Error parsing BMC record: expected 4 entries, found %d", len(parsedRecord))
+			log.Print("Expected format: nodename,username,password,bmcaddress")
 
-			return fmt.Errorf("error parsing data %v", value)
+			return fmt.Errorf("error parsing BMC record: expected 4 entries, found %d", len(parsedRecord))
 		}
+
+		log.Printf("Processing BMC credentials for node: %s, user: %s, address: %s",
+			parsedRecord[0], parsedRecord[1], parsedRecord[3])
 
 		nodesAuthMap[parsedRecord[0]] = BMCDetails{
 			Username:   parsedRecord[1],
