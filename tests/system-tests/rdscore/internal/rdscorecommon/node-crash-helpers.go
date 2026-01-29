@@ -82,7 +82,7 @@ func cleanupVarCrashDirectory(ctx SpecContext, nodeName string) {
 
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cleaning up /var/crash directory on node %q", nodeName)
 
-	cmdToExec := []string{"chroot", "/rootfs", "rm", "-rf", "/var/crash/*"}
+	cmdToExec := []string{"chroot", "/rootfs", "sh", "-c", "rm -rf /var/crash/*"}
 
 	Eventually(func() bool {
 		output, err := remote.ExecuteOnNodeWithDebugPod(cmdToExec, nodeName)
