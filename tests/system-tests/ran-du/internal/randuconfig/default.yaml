@@ -18,3 +18,8 @@ stability_output_path: "/tmp/reports"
 stability_policies_check: true
 
 ptp_enabled: true
+
+# BMC credentials map for tests requiring BMC access (e.g., NMIKernelCrashKdump).
+# Format for env var ECO_RANDU_NODES_CREDENTIALS_MAP: "node1,user,pass,https://bmc:443;node2,user,pass,https://bmc2:443"
+# Tests requiring BMC will be skipped if this is empty.
+randu_nodes_bmc_map: {}
