@@ -66,76 +66,6 @@ func ListServiceMonitors(apiClient *clients.Settings, namespace string) (*unstru
 		List(context.Background(), metav1.ListOptions{})
 }
 
-// monitoringPodInfo contains information about a pod to use for queries.
-type monitoringPodInfo struct {
-	Name      string
-	Container string
-}
-
-// findMonitoringPod finds a running pod in the monitoring namespace to execute queries from.
-func findMonitoringPod(ctx context.Context, apiClient *clients.Settings) (*monitoringPodInfo, error) {
-	// Try thanos-querier pods first - queries are executed in the thanos-query container
-	thanosPodslist, err := apiClient.CoreV1Interface.Pods(neuronparams.PrometheusNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: "app.kubernetes.io/name=thanos-querier",
-	})
-	if err == nil {
-		for _, pod := range thanosPodslist.Items {
-			if pod.Status.Phase == corev1.PodRunning {
-				return &monitoringPodInfo{Name: pod.Name, Container: "thanos-query"}, nil
-			}
-		}
-	}
-
-	// Fallback to prometheus pods
-	promPodList, err := apiClient.CoreV1Interface.Pods(neuronparams.PrometheusNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: "app.kubernetes.io/name=prometheus",
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list monitoring pods: %w", err)
-	}
-
-	for _, pod := range promPodList.Items {
-		if pod.Status.Phase == corev1.PodRunning {
-			return &monitoringPodInfo{Name: pod.Name, Container: "prometheus"}, nil
-		}
-	}
-
-	return nil, fmt.Errorf("no running monitoring pods found")
-}
-
-// executeInPod runs a command inside a pod and returns stdout.
-func executeInPod(ctx context.Context, apiClient *clients.Settings,
-	podName, namespace, container string, command []string) (string, error) {
-	execReq := apiClient.CoreV1Interface.RESTClient().Post().
-		Resource("pods").
-		Name(podName).
-		Namespace(namespace).
-		SubResource("exec").
-		VersionedParams(&corev1.PodExecOptions{
-			Container: container,
-			Command:   command,
-			Stdout:    true,
-			Stderr:    true,
-		}, scheme.ParameterCodec)
-
-	exec, err := remotecommand.NewSPDYExecutor(apiClient.Config, "POST", execReq.URL())
-	if err != nil {
-		return "", fmt.Errorf("failed to create executor: %w", err)
-	}
-
-	var stdout, stderr bytes.Buffer
-
-	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
-		Stdout: &stdout,
-		Stderr: &stderr,
-	})
-	if err != nil {
-		return "", fmt.Errorf("exec failed: %w, stderr: %s", err, stderr.String())
-	}
-
-	return stdout.String(), nil
-}
-
 // QueryPrometheus queries Prometheus for a specific metric by executing a query inside a cluster pod.
 func QueryPrometheus(apiClient *clients.Settings, query string) (*PrometheusQueryResult, error) {
 	klog.V(params.NeuronLogLevel).Infof("Querying Prometheus for: %s", query)
@@ -184,22 +114,17 @@ func QueryPrometheus(apiClient *clients.Settings, query string) (*PrometheusQuer
 
 	if response == "" {
 		// Fallback: Try with service account token for authenticated endpoint
-		tokenCmd := "cat /var/run/secrets/kubernetes.io/serviceaccount/token 2>/dev/null || echo ''"
-		token, _ := executeInPod(ctx, apiClient, podInfo.Name, neuronparams.PrometheusNamespace, podInfo.Container,
-			[]string{"sh", "-c", tokenCmd})
-		token = trimNewline(token)
+		// Use command substitution to read token inline, avoiding shell injection risks
+		authURL := fmt.Sprintf("https://%s.%s.svc:9091/api/v1/query?query=%s",
+			neuronparams.ThanosQuerierServiceName, neuronparams.PrometheusNamespace, encodedQuery)
+		authCmd := []string{"sh", "-c", fmt.Sprintf(
+			"curl -sf -k -H 'Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)' '%s' 2>/dev/null",
+			authURL)}
 
-		if token != "" {
-			authURL := fmt.Sprintf("https://%s.%s.svc:9091/api/v1/query?query=%s",
-				neuronparams.ThanosQuerierServiceName, neuronparams.PrometheusNamespace, encodedQuery)
-			authCmd := []string{"sh", "-c", fmt.Sprintf(
-				"curl -sf -k -H 'Authorization: Bearer %s' '%s' 2>/dev/null", token, authURL)}
+		resp, err := executeInPod(ctx, apiClient, podInfo.Name, neuronparams.PrometheusNamespace, podInfo.Container, authCmd)
 
-			resp, err := executeInPod(ctx, apiClient, podInfo.Name, neuronparams.PrometheusNamespace, podInfo.Container, authCmd)
-
-			if err == nil && resp != "" && !isUnauthorized(resp) {
-				response = resp
-			}
+		if err == nil && resp != "" && !isUnauthorized(resp) {
+			response = resp
 		}
 	}
 
@@ -213,18 +138,6 @@ func QueryPrometheus(apiClient *clients.Settings, query string) (*PrometheusQuer
 	}
 
 	return &result, nil
-}
-
-func isUnauthorized(resp string) bool {
-	return resp == "Unauthorized" || resp == "Unauthorized\n"
-}
-
-func trimNewline(s string) string {
-	for len(s) > 0 && (s[len(s)-1] == '\n' || s[len(s)-1] == '\r') {
-		s = s[:len(s)-1]
-	}
-
-	return s
 }
 
 // MetricExists checks if a metric exists in Prometheus.
@@ -302,4 +215,78 @@ func GetNeuroncoreUtilization(apiClient *clients.Settings) ([]map[string]interfa
 // GetNeuronMemoryUsed retrieves the neuron runtime memory used metric.
 func GetNeuronMemoryUsed(apiClient *clients.Settings) ([]map[string]interface{}, error) {
 	return GetMetricValue(apiClient, "neuron_runtime_memory_used_bytes")
+}
+
+// monitoringPodInfo contains information about a pod to use for queries.
+type monitoringPodInfo struct {
+	Name      string
+	Container string
+}
+
+// findMonitoringPod finds a running pod in the monitoring namespace to execute queries from.
+func findMonitoringPod(ctx context.Context, apiClient *clients.Settings) (*monitoringPodInfo, error) {
+	// Try thanos-querier pods first - queries are executed in the thanos-query container
+	thanosPodslist, err := apiClient.CoreV1Interface.Pods(neuronparams.PrometheusNamespace).List(ctx, metav1.ListOptions{
+		LabelSelector: "app.kubernetes.io/name=thanos-querier",
+	})
+	if err == nil {
+		for _, pod := range thanosPodslist.Items {
+			if pod.Status.Phase == corev1.PodRunning {
+				return &monitoringPodInfo{Name: pod.Name, Container: "thanos-query"}, nil
+			}
+		}
+	}
+
+	// Fallback to prometheus pods
+	promPodList, err := apiClient.CoreV1Interface.Pods(neuronparams.PrometheusNamespace).List(ctx, metav1.ListOptions{
+		LabelSelector: "app.kubernetes.io/name=prometheus",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list monitoring pods: %w", err)
+	}
+
+	for _, pod := range promPodList.Items {
+		if pod.Status.Phase == corev1.PodRunning {
+			return &monitoringPodInfo{Name: pod.Name, Container: "prometheus"}, nil
+		}
+	}
+
+	return nil, fmt.Errorf("no running monitoring pods found")
+}
+
+// executeInPod runs a command inside a pod and returns stdout.
+func executeInPod(ctx context.Context, apiClient *clients.Settings,
+	podName, namespace, container string, command []string) (string, error) {
+	execReq := apiClient.CoreV1Interface.RESTClient().Post().
+		Resource("pods").
+		Name(podName).
+		Namespace(namespace).
+		SubResource("exec").
+		VersionedParams(&corev1.PodExecOptions{
+			Container: container,
+			Command:   command,
+			Stdout:    true,
+			Stderr:    true,
+		}, scheme.ParameterCodec)
+
+	exec, err := remotecommand.NewSPDYExecutor(apiClient.Config, "POST", execReq.URL())
+	if err != nil {
+		return "", fmt.Errorf("failed to create executor: %w", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
+		Stdout: &stdout,
+		Stderr: &stderr,
+	})
+	if err != nil {
+		return "", fmt.Errorf("exec failed: %w, stderr: %s", err, stderr.String())
+	}
+
+	return stdout.String(), nil
+}
+
+func isUnauthorized(resp string) bool {
+	return resp == "Unauthorized" || resp == "Unauthorized\n"
 }
