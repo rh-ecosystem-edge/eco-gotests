@@ -42,8 +42,9 @@ var _ = Describe("rdmaMetricsAPI", Ordered, Label(tsparams.LabelRdmaMetricsAPITe
 		BeforeAll(func() {
 			By("Verifying if Rdma Metrics API tests can be executed on given cluster")
 			err := netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 1)
-			Expect(err).ToNot(HaveOccurred(),
-				"Cluster doesn't support Rdma Metrics test cases as it doesn't have enough nodes")
+			if err != nil {
+				Skip(fmt.Sprintf("Skipping test - cluster doesn't have enough nodes: %v", err))
+			}
 
 			By("Validating SR-IOV interfaces")
 			workerNodeList, err = nodes.List(APIClient,

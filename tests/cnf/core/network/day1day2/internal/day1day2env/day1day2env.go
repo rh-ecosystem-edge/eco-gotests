@@ -16,6 +16,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/day1day2/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/cmd"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 )
@@ -26,6 +27,15 @@ func DoesClusterSupportDay1Day2Tests(requiredCPNodeNumber, requiredWorkerNodeNum
 
 	if err := isNMStateOperatorDeployed(); err != nil {
 		return err
+	}
+
+	isSNO, err := netenv.IsSNOCluster(APIClient)
+	if err != nil {
+		return fmt.Errorf("failed to check if cluster is SNO: %w", err)
+	}
+
+	if isSNO && requiredWorkerNodeNumber > 1 {
+		return fmt.Errorf("cluster is SNO (Single Node OpenShift) - requires %d workers", requiredWorkerNodeNumber)
 	}
 
 	workerNodeList, err := nodes.List(

@@ -31,6 +31,13 @@ var _ = Describe("BGP remote-dynamicAS", Ordered, Label(tsparams.LabelDynamicRem
 		)
 
 		BeforeAll(func() {
+			By("Checking if cluster is SNO")
+			isSNO, err := netenv.IsSNOCluster(APIClient)
+			Expect(err).ToNot(HaveOccurred(), "Failed to check if cluster is SNO")
+			if isSNO {
+				Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers")
+			}
+
 			validateEnvVarAndGetNodeList()
 		})
 

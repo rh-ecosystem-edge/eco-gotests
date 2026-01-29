@@ -10,6 +10,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/service"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/metallb/internal/metallbenv"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/metallb/internal/tsparams"
@@ -17,10 +18,17 @@ import (
 
 var _ = Describe("BGP", Ordered, Label("pool-selector"), ContinueOnFailure, func() {
 	BeforeAll(func() {
+		By("Checking if cluster is SNO")
+		isSNO, err := netenv.IsSNOCluster(APIClient)
+		Expect(err).ToNot(HaveOccurred(), "Failed to check if cluster is SNO")
+		if isSNO {
+			Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers for 'different node' test case")
+		}
+
 		validateEnvVarAndGetNodeList()
 
 		By("Creating a new instance of MetalLB Speakers on workers")
-		err := metallbenv.CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(tsparams.DefaultTimeout, workerLabelMap)
+		err = metallbenv.CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(tsparams.DefaultTimeout, workerLabelMap)
 		Expect(err).ToNot(HaveOccurred(), "Failed to recreate metalLb daemonset")
 
 		By("Activating SCTP module on master nodes")
