@@ -100,9 +100,28 @@ func ResetPTPHardwareClock(client *clients.Settings, nodeName string, ifName Nam
 // SetInterfaceStatus sets a given interface to a given state. It will wait up to 15 seconds for the interface to be in
 // the expected state after setting it.
 func SetInterfaceStatus(client *clients.Settings, nodeName string, iface Name, state InterfaceState) error {
+	// NM-Managed interfaces can cause issues in tests which bring down the interface.
+	var managed string
+
+	switch state {
+	case InterfaceStateUp:
+		managed = "yes"
+	case InterfaceStateDown:
+		managed = "no"
+	}
+
+	// Best effort - ignore errors if nmcli isn't available or interface isn't NM-managed
+	nmCommand := fmt.Sprintf("nmcli device set %s managed %s || true", iface, managed)
+
+	_, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, nmCommand,
+		ptpdaemon.WithRetries(1), ptpdaemon.WithRetryOnError(true))
+	if err != nil {
+		return err
+	}
+
 	command := fmt.Sprintf("ip link set %s %s", iface, state)
 
-	_, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, command,
+	_, err = ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, command,
 		ptpdaemon.WithRetries(3), ptpdaemon.WithRetryOnError(true))
 	if err != nil {
 		return err
