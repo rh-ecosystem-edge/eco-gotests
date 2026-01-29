@@ -75,7 +75,6 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.LabelSuite), func
 			Expect(err).ToNot(HaveOccurred(), "Neuron operator readiness check failed")
 			Expect(ready).To(BeTrue(), "Neuron operator is not ready")
 
-
 			By("Creating DeviceConfig")
 			builder := neuron.NewBuilder(
 				APIClient,
