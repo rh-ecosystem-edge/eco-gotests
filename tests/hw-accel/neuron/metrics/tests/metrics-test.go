@@ -133,7 +133,7 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.LabelSuite), func
 					Eventually(func() bool {
 						_, pullErr := neuron.Pull(APIClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
 
-						return pullErr != nil 
+						return pullErr != nil
 					}, 5*time.Minute, 5*time.Second).Should(BeTrue(),
 						"DeviceConfig should be fully deleted")
 				}
