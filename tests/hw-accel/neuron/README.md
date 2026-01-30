@@ -63,6 +63,7 @@ Notes:
 | `ECO_HWACCEL_NEURON_DRIVERS_IMAGE` | Neuron kernel module driver image (e.g., `public.ecr.aws/q5p6u7h8/neuron-openshift/neuron-kernel-module:2.24.7.0`) |
 | `ECO_HWACCEL_NEURON_DRIVER_VERSION` | Neuron driver version (e.g., `2.24.7.0`) - **REQUIRED** for DeviceConfig creation |
 | `ECO_HWACCEL_NEURON_DEVICE_PLUGIN_IMAGE` | Neuron device plugin image (e.g., `public.ecr.aws/neuron/neuron-device-plugin:2.24.23.0`) |
+| `ECO_HWACCEL_NEURON_NODE_METRICS_IMAGE` | Neuron node metrics exporter image (e.g., `public.ecr.aws/neuron/neuron-monitor:1.3.0`) - **REQUIRED** for DeviceConfig creation |
 
 #### Optional Configuration
 
@@ -116,6 +117,7 @@ $ export ECO_VERBOSE_LEVEL=100
 $ export ECO_HWACCEL_NEURON_DRIVERS_IMAGE="public.ecr.aws/q5p6u7h8/neuron-openshift/neuron-kernel-module:2.24.7.0"
 $ export ECO_HWACCEL_NEURON_DRIVER_VERSION="2.24.7.0"
 $ export ECO_HWACCEL_NEURON_DEVICE_PLUGIN_IMAGE="public.ecr.aws/neuron/neuron-device-plugin:2.24.23.0"
+$ export ECO_HWACCEL_NEURON_NODE_METRICS_IMAGE="public.ecr.aws/neuron/neuron-monitor:1.3.0"
 $ export ECO_HWACCEL_NEURON_SCHEDULER_IMAGE="public.ecr.aws/eks-distro/kubernetes/kube-scheduler:v1.32.9-eks-1-32-24"
 $ export ECO_HWACCEL_NEURON_SCHEDULER_EXTENSION_IMAGE="public.ecr.aws/neuron/neuron-scheduler:2.24.23.0"
 $ export ECO_HWACCEL_NEURON_VLLM_IMAGE="public.ecr.aws/neuron/pytorch-inference-vllm-neuronx:0.7.2-neuronx-py310-sdk2.24.1-ubuntu22.04"
@@ -132,6 +134,7 @@ $ export ECO_TEST_LABELS='neuron,metrics'
 $ export ECO_HWACCEL_NEURON_DRIVERS_IMAGE="public.ecr.aws/q5p6u7h8/neuron-openshift/neuron-kernel-module:2.24.7.0"
 $ export ECO_HWACCEL_NEURON_DRIVER_VERSION="2.24.7.0"
 $ export ECO_HWACCEL_NEURON_DEVICE_PLUGIN_IMAGE="public.ecr.aws/neuron/neuron-device-plugin:2.24.23.0"
+$ export ECO_HWACCEL_NEURON_NODE_METRICS_IMAGE="public.ecr.aws/neuron/neuron-monitor:1.3.0"
 $ make run-tests
 ```
 
@@ -147,6 +150,7 @@ $ export ECO_TEST_LABELS='neuron,upgrade'
 $ export ECO_HWACCEL_NEURON_DRIVERS_IMAGE="public.ecr.aws/q5p6u7h8/neuron-openshift/neuron-kernel-module:2.24.7.0"
 $ export ECO_HWACCEL_NEURON_DRIVER_VERSION="2.24.7.0"
 $ export ECO_HWACCEL_NEURON_DEVICE_PLUGIN_IMAGE="public.ecr.aws/neuron/neuron-device-plugin:2.24.23.0"
+$ export ECO_HWACCEL_NEURON_NODE_METRICS_IMAGE="public.ecr.aws/neuron/neuron-monitor:1.3.0"
 # Upgrade target configuration
 $ export ECO_HWACCEL_NEURON_UPGRADE_TARGET_VERSION="2.25.0.0"
 $ export ECO_HWACCEL_NEURON_UPGRADE_TARGET_DRIVERS_IMAGE="public.ecr.aws/q5p6u7h8/neuron-openshift/neuron-kernel-module:2.25.0.0"
@@ -168,6 +172,7 @@ spec:
   driversImage: public.ecr.aws/q5p6u7h8/neuron-openshift/neuron-kernel-module:2.24.7.0
   driverVersion: 2.24.7.0
   devicePluginImage: public.ecr.aws/neuron/neuron-device-plugin:2.24.23.0
+  nodeMetricsImage: public.ecr.aws/neuron/neuron-monitor:1.3.0
   customSchedulerImage: public.ecr.aws/eks-distro/kubernetes/kube-scheduler:v1.32.9-eks-1-32-24
   schedulerExtensionImage: public.ecr.aws/neuron/neuron-scheduler:2.24.23.0
   selector:

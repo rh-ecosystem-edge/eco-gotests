@@ -218,7 +218,7 @@ func NFDRuleExists(apiClient *clients.Settings, namespace string) bool {
 // CreateDeviceConfigFromEnv creates a DeviceConfig from environment configuration.
 func CreateDeviceConfigFromEnv(
 	apiClient *clients.Settings,
-	driversImage, driverVersion, devicePluginImage,
+	driversImage, driverVersion, devicePluginImage, nodeMetricsImage,
 	schedulerImage, schedulerExtensionImage, imageRepoSecretName string,
 ) error {
 	builder := neuron.NewBuilder(
@@ -236,7 +236,7 @@ func CreateDeviceConfigFromEnv(
 
 	builder = builder.WithSelector(map[string]string{
 		params.NeuronNFDLabelKey: params.NeuronNFDLabelValue,
-	})
+	}).WithNodeMetricsImage(nodeMetricsImage)
 
 	if schedulerImage != "" && schedulerExtensionImage != "" {
 		builder = builder.WithScheduler(schedulerImage, schedulerExtensionImage)

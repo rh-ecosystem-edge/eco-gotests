@@ -25,6 +25,8 @@ type NeuronConfig struct {
 	SchedulerImage string
 	// SchedulerExtensionImage is the Neuron scheduler extension image.
 	SchedulerExtensionImage string
+	// NodeMetricsImage is the Neuron node metrics exporter image.
+	NodeMetricsImage string
 	// CatalogSource is the catalog source for the operator.
 	CatalogSource string
 	// CatalogSourceNamespace is the namespace for the catalog source.
@@ -54,6 +56,7 @@ func NewNeuronConfig() *NeuronConfig {
 		DevicePluginImage:         os.Getenv("ECO_HWACCEL_NEURON_DEVICE_PLUGIN_IMAGE"),
 		SchedulerImage:            os.Getenv("ECO_HWACCEL_NEURON_SCHEDULER_IMAGE"),
 		SchedulerExtensionImage:   os.Getenv("ECO_HWACCEL_NEURON_SCHEDULER_EXTENSION_IMAGE"),
+		NodeMetricsImage:          os.Getenv("ECO_HWACCEL_NEURON_NODE_METRICS_IMAGE"),
 		CatalogSource:             os.Getenv("ECO_HWACCEL_NEURON_CATALOG_SOURCE"),
 		CatalogSourceNamespace:    os.Getenv("ECO_HWACCEL_NEURON_CATALOG_SOURCE_NAMESPACE"),
 		SubscriptionName:          os.Getenv("ECO_HWACCEL_NEURON_SUBSCRIPTION_NAME"),
@@ -88,19 +91,18 @@ func NewNeuronConfig() *NeuronConfig {
 		config.StorageClassName = "gp3-csi"
 	}
 
-	klog.V(params.NeuronLogLevel).Infof("NeuronConfig loaded: DriversImage=%s, DevicePluginImage=%s",
-		config.DriversImage, config.DevicePluginImage)
+	klog.V(params.NeuronLogLevel).Infof("NeuronConfig loaded: DriversImage=%s, DevicePluginImage=%s, NodeMetricsImage=%s",
+		config.DriversImage, config.DevicePluginImage, config.NodeMetricsImage)
 
 	return config
 }
 
 // IsValid checks if the minimum required configuration is present.
 func (c *NeuronConfig) IsValid() bool {
-	return c.DriversImage != "" && c.DriverVersion != "" && c.DevicePluginImage != ""
+	return c.DriversImage != "" && c.DriverVersion != "" && c.DevicePluginImage != "" && c.NodeMetricsImage != ""
 }
 
 // IsVLLMConfigured checks if vLLM testing configuration is present.
-// HuggingFaceToken is the key indicator since it's required to download models.
 func (c *NeuronConfig) IsVLLMConfigured() bool {
 	return c.HuggingFaceToken != ""
 }
