@@ -5,7 +5,6 @@ package sriovenv
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -142,7 +141,8 @@ func RemoveSriovNetwork(name string, timeout time.Duration) error {
 
 	network, err := sriov.PullNetwork(APIClient, name, sriovOpNs)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
+		// eco-goinfra's PullNetwork returns custom error, not k8s NotFound
+		if strings.Contains(err.Error(), "does not exist") {
 			return nil // Already deleted
 		}
 
@@ -157,15 +157,14 @@ func RemoveSriovNetwork(name string, timeout time.Duration) error {
 // ============================================================================
 
 // RemoveSriovPolicy removes a SRIOV policy by name and waits for deletion.
-// If a timeout occurs, it performs a final check to see if the policy was actually deleted.
 func RemoveSriovPolicy(name string, timeout time.Duration) error {
 	sriovOpNs := SriovOcpConfig.OcpSriovOperatorNamespace
 
 	policy, err := sriov.PullPolicy(APIClient, name, sriovOpNs)
 	if err != nil {
-		// PullPolicy returns a custom error string, not a NotFound error
-		// Check both NotFound error and error message for "does not exist"
-		if apierrors.IsNotFound(err) || strings.Contains(err.Error(), "does not exist") {
+		// eco-goinfra's PullPolicy returns custom error, not k8s NotFound
+		// See: https://github.com/rh-ecosystem-edge/eco-goinfra/blob/main/pkg/sriov/policy.go#L289
+		if strings.Contains(err.Error(), "does not exist") {
 			return nil // Already deleted
 		}
 
@@ -177,40 +176,12 @@ func RemoveSriovPolicy(name string, timeout time.Duration) error {
 	}
 
 	// Wait for policy to be deleted
-	err = wait.PollUntilContextTimeout(context.Background(), tsparams.PollingInterval, timeout, true,
+	return wait.PollUntilContextTimeout(context.Background(), tsparams.PollingInterval, timeout, true,
 		func(ctx context.Context) (bool, error) {
 			_, pullErr := sriov.PullPolicy(APIClient, name, sriovOpNs)
-			if pullErr != nil {
-				// PullPolicy returns a custom error string, not a NotFound error
-				// Check both NotFound error and error message for "does not exist"
-				if apierrors.IsNotFound(pullErr) || strings.Contains(pullErr.Error(), "does not exist") {
-					return true, nil // Policy successfully deleted
-				}
 
-				// Transient error, keep polling
-				return false, nil
-			}
-
-			return false, nil // Policy still exists
+			return pullErr != nil, nil // Policy is gone when pull fails
 		})
-
-	// If we got a timeout error, check one more time if the policy was actually deleted
-	// (it might have been deleted just before the timeout)
-	if err != nil && errors.Is(err, context.DeadlineExceeded) {
-		_, finalCheckErr := sriov.PullPolicy(APIClient, name, sriovOpNs)
-		// PullPolicy returns a custom error string, not a NotFound error
-		// Check both NotFound error and error message for "does not exist"
-		if finalCheckErr != nil &&
-			(apierrors.IsNotFound(finalCheckErr) ||
-				strings.Contains(finalCheckErr.Error(), "does not exist")) {
-			// Policy was actually deleted, treat as success
-			return nil
-		}
-		// Policy still exists after timeout, return the timeout error
-		return fmt.Errorf("timeout waiting for policy %q to be deleted: %w", name, err)
-	}
-
-	return err
 }
 
 // InitVF initializes VF for the given device using netdevice driver.
@@ -361,11 +332,6 @@ func UpdateSriovPolicyMTU(policyName string, mtuValue int) error {
 		return fmt.Errorf("failed to recreate policy %q with new MTU: %w", policyName, err)
 	}
 
-	// Wait for policy to be applied and MCP to stabilize
-	if err := WaitForSriovPolicyReady(tsparams.PolicyApplicationTimeout); err != nil {
-		return fmt.Errorf("policy %q not ready after MTU update: %w", policyName, err)
-	}
-
 	return nil
 }
 
@@ -377,9 +343,11 @@ func UpdateSriovPolicyMTU(policyName string, mtuValue int) error {
 func CreateTestPod(name, namespace, networkName, ip, mac string) (*pod.Builder, error) {
 	secNetwork := pod.StaticIPAnnotationWithMacAddress(networkName, []string{ip}, mac)
 
-	createdPod, err := pod.NewBuilder(APIClient, name, namespace, SriovOcpConfig.OcpSriovTestContainer).
+	podBuilder := pod.NewBuilder(APIClient, name, namespace, SriovOcpConfig.OcpSriovTestContainer).
 		WithPrivilegedFlag().
-		WithSecondaryNetwork(secNetwork).Create()
+		WithSecondaryNetwork(secNetwork)
+
+	createdPod, err := podBuilder.Create()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create pod %q: %w", name, err)
 	}
@@ -396,10 +364,12 @@ func CreateDpdkTestPod(name, namespace, networkName string) (*pod.Builder, error
 	secNetwork := pod.StaticIPAnnotationWithMacAddress(networkName,
 		[]string{tsparams.TestPodClientIP}, tsparams.TestPodClientMAC)
 
-	createdPod, err := pod.NewBuilder(APIClient, name, namespace, SriovOcpConfig.OcpSriovTestContainer).
+	podBuilder := pod.NewBuilder(APIClient, name, namespace, SriovOcpConfig.OcpSriovTestContainer).
 		WithPrivilegedFlag().
 		WithSecondaryNetwork(secNetwork).
-		WithLabel("name", "sriov-dpdk").Create()
+		WithLabel("name", "sriov-dpdk")
+
+	createdPod, err := podBuilder.Create()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create DPDK pod %q: %w", name, err)
 	}
@@ -412,19 +382,12 @@ func CreateDpdkTestPod(name, namespace, networkName string) (*pod.Builder, error
 }
 
 // DeleteDpdkTestPod deletes a DPDK test pod.
-// If the pod doesn't exist (NotFound error or "does not exist" message), it returns nil.
 func DeleteDpdkTestPod(name, namespace string, timeout time.Duration) error {
 	podBuilder, err := pod.Pull(APIClient, name, namespace)
 	if err != nil {
-		// Check for NotFound error (handles wrapped errors)
-		if apierrors.IsNotFound(err) {
+		// Check both API error and eco-goinfra's custom error message
+		if apierrors.IsNotFound(err) || strings.Contains(err.Error(), "does not exist") {
 			return nil // Already deleted
-		}
-
-		// Fallback: check error message for "does not exist" (handles custom error types from pod.Pull)
-		errMsg := err.Error()
-		if strings.Contains(errMsg, "does not exist") {
-			return nil // Pod doesn't exist, consider cleanup successful
 		}
 
 		return fmt.Errorf("failed to pull pod %q: %w", name, err)
@@ -486,13 +449,7 @@ func VerifyInterfaceReady(podObj *pod.Builder, interfaceName string) error {
 		return fmt.Errorf("failed to check interface %q: %w", interfaceName, err)
 	}
 
-	outputStr := output.String()
-	// Check for UP in interface flags (format: <FLAG1,UP,FLAG2>) or state
-	if !strings.Contains(outputStr, ",UP,") &&
-		!strings.Contains(outputStr, ",UP>") &&
-		!strings.Contains(outputStr, "<UP,") &&
-		!strings.Contains(outputStr, "<UP>") &&
-		!strings.Contains(outputStr, "state UP") {
+	if !strings.Contains(output.String(), "UP") {
 		return fmt.Errorf("interface %q is not UP", interfaceName)
 	}
 
@@ -535,8 +492,6 @@ func ExtractPodInterfaceMAC(podObj *pod.Builder, interfaceName string) (string, 
 // ============================================================================
 
 // CheckVFStatusWithPassTraffic creates test pods and verifies connectivity.
-// The interfaceName parameter is the physical interface name on the node (used for spoof check verification).
-// Pod interface checks use "net1" which is the standard name for the first secondary network interface in pods.
 func CheckVFStatusWithPassTraffic(networkName, interfaceName, namespace, description string,
 	timeout time.Duration) error {
 	klog.V(90).Infof("Checking VF status: %q (network: %q, ns: %q)", description, networkName, namespace)
@@ -572,18 +527,17 @@ func CheckVFStatusWithPassTraffic(networkName, interfaceName, namespace, descrip
 		}
 	}()
 
-	// Verify pod interfaces (always "net1" for the first secondary network interface in pods)
-	podInterfaceName := "net1"
-	if err := VerifyInterfaceReady(clientPod, podInterfaceName); err != nil {
+	// Verify interfaces
+	if err := VerifyInterfaceReady(clientPod, "net1"); err != nil {
 		return fmt.Errorf("client interface not ready: %w", err)
 	}
 
-	if err := VerifyInterfaceReady(serverPod, podInterfaceName); err != nil {
+	if err := VerifyInterfaceReady(serverPod, "net1"); err != nil {
 		return fmt.Errorf("server interface not ready: %w", err)
 	}
 
 	// Check carrier
-	hasCarrier, err := CheckInterfaceCarrier(clientPod, podInterfaceName)
+	hasCarrier, err := CheckInterfaceCarrier(clientPod, "net1")
 	if err != nil {
 		return fmt.Errorf("failed to check carrier: %w", err)
 	}
@@ -592,7 +546,7 @@ func CheckVFStatusWithPassTraffic(networkName, interfaceName, namespace, descrip
 		return fmt.Errorf("NO-CARRIER: no physical connection")
 	}
 
-	// Verify spoof checking if in description (uses physical interface name on node)
+	// Verify spoof checking if in description
 	if strings.Contains(description, "spoof checking") {
 		expectedState := "on"
 		if strings.Contains(description, "off") {
@@ -619,9 +573,7 @@ func CheckVFStatusWithPassTraffic(networkName, interfaceName, namespace, descrip
 
 // VerifyLinkStateConfiguration verifies link state configuration without requiring connectivity.
 // It waits up to CarrierWaitTimeout for carrier status to be established before returning.
-// The interfaceName parameter is the physical interface name on the node (for reference).
-// Pod interface checks use "net1" which is the standard name for the first secondary network interface in pods.
-func VerifyLinkStateConfiguration(networkName, interfaceName, namespace, description string,
+func VerifyLinkStateConfiguration(networkName, namespace, description string,
 	timeout time.Duration) (bool, error) {
 	klog.V(90).Infof("Verifying link state: %q (network: %q, ns: %q)", description, networkName, namespace)
 
@@ -640,9 +592,7 @@ func VerifyLinkStateConfiguration(networkName, interfaceName, namespace, descrip
 		}
 	}()
 
-	// Pod interface is always "net1" for the first secondary network
-	podInterfaceName := "net1"
-	if err := VerifyInterfaceReady(testPod, podInterfaceName); err != nil {
+	if err := VerifyInterfaceReady(testPod, "net1"); err != nil {
 		return false, fmt.Errorf("interface not ready: %w", err)
 	}
 
@@ -651,7 +601,7 @@ func VerifyLinkStateConfiguration(networkName, interfaceName, namespace, descrip
 
 	err = wait.PollUntilContextTimeout(context.Background(), tsparams.PollingInterval,
 		tsparams.CarrierWaitTimeout, true, func(ctx context.Context) (bool, error) {
-			carrier, checkErr := CheckInterfaceCarrier(testPod, podInterfaceName)
+			carrier, checkErr := CheckInterfaceCarrier(testPod, "net1")
 			if checkErr != nil {
 				klog.V(90).Infof("Carrier check failed (will retry): %v", checkErr)
 
@@ -785,15 +735,13 @@ func GetPciAddress(namespace, podName, podInterface string) (string, error) {
 
 // CleanupLeftoverResources cleans up leftover test resources.
 // Uses existing sriovoperator functions to remove all networks and policies.
-// The enablePrefixCleanup parameter controls whether to perform risky prefix-based
-// namespace cleanup (e2e- prefix) in shared clusters. Set to false for safety in
-// shared environments, true only when you have exclusive cluster access.
-func CleanupLeftoverResources(enablePrefixCleanup bool) error {
+func CleanupLeftoverResources() error {
 	sriovOpNs := SriovOcpConfig.OcpSriovOperatorNamespace
 
 	klog.V(90).Info("Cleaning up leftover test resources")
 
 	// Cleanup test namespaces using label selector for safety in shared clusters.
+	// Falls back to name-based matching (e2e- prefix) for backwards compatibility.
 	labelSelector := fmt.Sprintf("%s=%s", tsparams.TestResourceLabelKey, tsparams.TestResourceLabelValue)
 
 	namespaces, err := namespace.List(APIClient, metav1.ListOptions{LabelSelector: labelSelector})
@@ -809,22 +757,18 @@ func CleanupLeftoverResources(enablePrefixCleanup bool) error {
 		}
 	}
 
-	// Optional fallback: cleanup namespaces with e2e- prefix (requires explicit opt-in)
-	// WARNING: This is risky in shared clusters as it may delete namespaces from other tests.
-	// Only enable when you have exclusive cluster access or in isolated test environments.
-	if enablePrefixCleanup {
-		allNamespaces, err := namespace.List(APIClient, metav1.ListOptions{})
-		if err != nil {
-			klog.V(90).Infof("Warning: failed to list all namespaces: %v", err)
-		} else {
-			for _, ns := range allNamespaces {
-				if strings.HasPrefix(ns.Definition.Name, "e2e-") {
-					klog.V(90).Infof("Removing leftover namespace %q (e2e- prefix)", ns.Definition.Name)
+	// Fallback: Also cleanup namespaces with e2e- prefix (for backwards compatibility)
+	allNamespaces, err := namespace.List(APIClient, metav1.ListOptions{})
+	if err != nil {
+		klog.V(90).Infof("Warning: failed to list all namespaces: %v", err)
+	}
 
-					if delErr := ns.DeleteAndWait(tsparams.CleanupTimeout); delErr != nil {
-						klog.V(90).Infof("Warning: failed to delete namespace %q: %v", ns.Definition.Name, delErr)
-					}
-				}
+	for _, ns := range allNamespaces {
+		if strings.HasPrefix(ns.Definition.Name, "e2e-") {
+			klog.V(90).Infof("Removing leftover namespace %q (e2e- prefix)", ns.Definition.Name)
+
+			if delErr := ns.DeleteAndWait(tsparams.CleanupTimeout); delErr != nil {
+				klog.V(90).Infof("Warning: failed to delete namespace %q: %v", ns.Definition.Name, delErr)
 			}
 		}
 	}
