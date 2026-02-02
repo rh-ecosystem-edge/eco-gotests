@@ -54,6 +54,8 @@ const (
 	LabelSuite string = "deploymenttypes"
 	// LabelDeploymentTypeTestCases is the label for deployment type checking.
 	LabelDeploymentTypeTestCases string = "deployment-types"
+	// LabelIBISeedExtraManifests is the label for IBI seed extra-manifests inheritance test.
+	LabelIBISeedExtraManifests string = "ibi-seed-extra-manifests"
 	// ArgoCdPoliciesAppName is the name of the policies app in Argo CD.
 	ArgoCdPoliciesAppName string = "policies"
 	// ArgoCdClustersAppName is the name of the clusters app in Argo CD.
