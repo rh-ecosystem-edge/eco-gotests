@@ -46,6 +46,8 @@ type HTTPStats struct {
 // VerifyMonitoringConfigRemoteWrite verifies that the cluster monitoring configuration
 // contains a remoteWrite endpoint under prometheusK8s in the config.yaml data.
 // It also creates an HTTP server, adds a remoteWrite endpoint, and verifies connections.
+//
+//nolint:gocognit,funlen // This function is complex by design as it orchestrates multiple test steps.
 func VerifyMonitoringConfigRemoteWrite(ctx SpecContext) {
 	var (
 		httpServerDeployment *deployment.Builder
@@ -60,6 +62,7 @@ func VerifyMonitoringConfigRemoteWrite(ctx SpecContext) {
 
 	// Step 1: Create namespace if it doesn't exist.
 	By(fmt.Sprintf("Ensuring namespace %q exists", remoteWriteTestNamespace))
+
 	nsBuilder := namespace.NewBuilder(APIClient, remoteWriteTestNamespace)
 	if !nsBuilder.Exists() {
 		_, err = nsBuilder.Create()
@@ -69,6 +72,7 @@ func VerifyMonitoringConfigRemoteWrite(ctx SpecContext) {
 
 	// Step 2: Create HTTP server deployment that tracks POST requests.
 	By("Creating HTTP server deployment to receive remoteWrite requests")
+
 	httpServerDeployment, err = createHTTPServerDeployment(ctx)
 	Expect(err).ToNot(HaveOccurred(), "Failed to create HTTP server deployment")
 
@@ -76,21 +80,25 @@ func VerifyMonitoringConfigRemoteWrite(ctx SpecContext) {
 	By("Getting pod from deployment for stats queries")
 	Eventually(func() error {
 		httpServerPod, err = getPodFromDeployment(APIClient, remoteWriteTestPodName, remoteWriteTestNamespace)
+
 		return err
 	}).WithContext(ctx).WithPolling(5*time.Second).WithTimeout(1*time.Minute).Should(Succeed(),
 		"Failed to get pod from deployment")
 
 	// Step 3: Create service for the HTTP server deployment.
 	By("Creating service for HTTP server deployment")
+
 	err = createHTTPServerService()
 	Expect(err).ToNot(HaveOccurred(), "Failed to create HTTP server service")
 
 	// Register cleanup early so it runs even if test fails.
 	DeferCleanup(func() {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cleaning up test resources")
+
 		if httpServerDeployment != nil {
 			_ = httpServerDeployment.DeleteAndWait(2 * time.Minute)
 		}
+
 		svcBuilder, err := service.Pull(APIClient, remoteWriteTestServiceName, remoteWriteTestNamespace)
 		if err == nil {
 			_ = svcBuilder.Delete()
@@ -118,10 +126,12 @@ func VerifyMonitoringConfigRemoteWrite(ctx SpecContext) {
 	// stabilize the testing when run back-to-back in the same environment where it takes
 	// a bit of time for prometheus to respond to the tear down of the prior config.
 	By("Waiting for rate of connections and data to stabilize near 0 (up to 10 minutes)")
+
 	checkInterval := 10 * time.Second
 	requiredStableChecks := 3 // Number of consecutive checks with no change required
 
 	var previousStats HTTPStats
+
 	previousStats = initialStats
 	stableCheckCount := 0
 
@@ -129,7 +139,9 @@ func VerifyMonitoringConfigRemoteWrite(ctx SpecContext) {
 		currentStats, err := getHTTPStats(httpServerPod, remoteWriteTestPodName)
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error getting stats during rate check: %v", err)
+
 			stableCheckCount = 0 // Reset on error
+
 			return false
 		}
 
@@ -140,6 +152,7 @@ func VerifyMonitoringConfigRemoteWrite(ctx SpecContext) {
 		if connectionsChanged || bytesChanged {
 			// Stats changed, reset stable check counter.
 			stableCheckCount = 0
+
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 				"Stats changed: connections %d->%d (delta: %d), bytes %d->%d (delta: %d)",
 				previousStats.Connections, currentStats.Connections, currentStats.Connections-previousStats.Connections,
@@ -155,7 +168,9 @@ func VerifyMonitoringConfigRemoteWrite(ctx SpecContext) {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 					"Steady state reached: stats have been stable for %d consecutive checks (%.1f minutes)",
 					stableCheckCount, float64(stableCheckCount)*checkInterval.Minutes())
+
 				preUpdateStats = currentStats
+
 				return true
 			}
 		}
@@ -182,8 +197,10 @@ func VerifyMonitoringConfigRemoteWrite(ctx SpecContext) {
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error pulling ConfigMap %q from namespace %q: %v",
 				monitoringConfigMapName, monitoringNamespace, err)
+
 			return false
 		}
+
 		return true
 	}).WithContext(ctx).WithPolling(5*time.Second).WithTimeout(1*time.Minute).Should(BeTrue(),
 		fmt.Sprintf("Failed to pull ConfigMap %q from namespace %q", monitoringConfigMapName, monitoringNamespace))
@@ -199,6 +216,7 @@ func VerifyMonitoringConfigRemoteWrite(ctx SpecContext) {
 	By("Parsing and updating config.yaml to add remoteWrite endpoint")
 
 	var config map[string]interface{}
+
 	err = yaml.Unmarshal([]byte(configYAML), &config)
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to parse YAML from ConfigMap %q key %q", monitoringConfigMapName, monitoringConfigYAMLKey))
@@ -210,15 +228,17 @@ func VerifyMonitoringConfigRemoteWrite(ctx SpecContext) {
 		prometheusK8s = config["prometheusK8s"]
 	}
 
-	prometheusK8sMap, ok := prometheusK8s.(map[interface{}]interface{})
-	Expect(ok).To(BeTrue(), "prometheusK8s is not a valid map structure")
+	prometheusK8sMap, isValidMap := prometheusK8s.(map[interface{}]interface{})
+	Expect(isValidMap).To(BeTrue(), "prometheusK8s is not a valid map structure")
 
 	// Get or create remoteWrite array.
 	remoteWrite, remoteWriteExists := prometheusK8sMap["remoteWrite"]
+
 	var remoteWriteSlice []interface{}
+
 	if remoteWriteExists {
-		remoteWriteSlice, ok = remoteWrite.([]interface{})
-		if !ok {
+		remoteWriteSlice, isValidMap = remoteWrite.([]interface{})
+		if !isValidMap {
 			// If it's not a slice, convert it to a slice.
 			remoteWriteSlice = []interface{}{remoteWrite}
 		}
@@ -245,6 +265,7 @@ func VerifyMonitoringConfigRemoteWrite(ctx SpecContext) {
 
 	Eventually(func() error {
 		_, err = cmBuilder.Update()
+
 		return err
 	}).WithContext(ctx).WithPolling(5*time.Second).WithTimeout(1*time.Minute).Should(Succeed(),
 		fmt.Sprintf("Failed to update ConfigMap %q", monitoringConfigMapName))
@@ -254,9 +275,11 @@ func VerifyMonitoringConfigRemoteWrite(ctx SpecContext) {
 	// Register cleanup for ConfigMap right after updating it.
 	DeferCleanup(func() {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cleaning up: Removing test remoteWrite endpoint from ConfigMap")
+
 		cmBuilder, err := configmap.Pull(APIClient, monitoringConfigMapName, monitoringNamespace)
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to pull ConfigMap for cleanup: %v", err)
+
 			return
 		}
 
@@ -266,8 +289,10 @@ func VerifyMonitoringConfigRemoteWrite(ctx SpecContext) {
 		}
 
 		var config map[string]interface{}
+
 		if err := yaml.Unmarshal([]byte(configYAML), &config); err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to parse config for cleanup: %v", err)
+
 			return
 		}
 
@@ -276,8 +301,8 @@ func VerifyMonitoringConfigRemoteWrite(ctx SpecContext) {
 			return
 		}
 
-		prometheusK8sMap, ok := prometheusK8s.(map[interface{}]interface{})
-		if !ok {
+		prometheusK8sMap, isValidMap := prometheusK8s.(map[interface{}]interface{})
+		if !isValidMap {
 			return
 		}
 
@@ -293,22 +318,26 @@ func VerifyMonitoringConfigRemoteWrite(ctx SpecContext) {
 
 		// Remove the test endpoint (the one with our service URL).
 		filteredSlice := []interface{}{}
+
 		for _, endpoint := range remoteWriteSlice {
-			endpointMap, ok := endpoint.(map[interface{}]interface{})
-			if !ok {
+			endpointMap, isValidMap := endpoint.(map[interface{}]interface{})
+			if !isValidMap {
 				continue
 			}
-			url, ok := endpointMap["url"].(string)
-			if !ok || !strings.Contains(url, remoteWriteTestServiceName) {
+
+			url, isValidString := endpointMap["url"].(string)
+			if !isValidString || !strings.Contains(url, remoteWriteTestServiceName) {
 				filteredSlice = append(filteredSlice, endpoint)
 			}
 		}
 
 		if len(filteredSlice) != len(remoteWriteSlice) {
 			prometheusK8sMap["remoteWrite"] = filteredSlice
+
 			updatedConfigYAML, err := yaml.Marshal(config)
 			if err == nil {
 				cmBuilder.Object.Data[monitoringConfigYAMLKey] = string(updatedConfigYAML)
+
 				_, err = cmBuilder.Update()
 				if err != nil {
 					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to update ConfigMap during cleanup: %v", err)
@@ -327,6 +356,7 @@ func VerifyMonitoringConfigRemoteWrite(ctx SpecContext) {
 		finalStats, err = getHTTPStats(httpServerPod, remoteWriteTestPodName)
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error getting stats: %v", err)
+
 			return false
 		}
 		// Check if we received significantly more connections than before the update.
@@ -365,12 +395,14 @@ func getHTTPStats(podBuilder *pod.Builder, containerName string) (HTTPStats, err
 	// Execute curl command in the pod to get stats.
 	// First try with curl, if not available, use python.
 	statsURL := fmt.Sprintf("http://localhost:%d/stats", remoteWriteTestContainerPort)
-	output, err := podBuilder.ExecCommand([]string{"curl", "-s", statsURL}, containerName)
+
+	output, err := podBuilder.ExecCommand([]string{"curl", "-s", "--connect-timeout", "5", "--max-time", "10", statsURL}, containerName)
 	if err != nil {
 		// Fallback to python if curl is not available.
 		pythonStatsCmd := fmt.Sprintf(
 			"import urllib.request; import json; print(json.dumps(json.loads(urllib.request.urlopen('%s').read().decode())))",
 			statsURL)
+
 		output, err = podBuilder.ExecCommand([]string{"python3", "-c", pythonStatsCmd},
 			containerName)
 		if err != nil {
@@ -379,7 +411,7 @@ func getHTTPStats(podBuilder *pod.Builder, containerName string) (HTTPStats, err
 	}
 
 	// Parse JSON response.
-	err = json.Unmarshal([]byte(output.String()), &stats)
+	err = json.Unmarshal(output.Bytes(), &stats)
 	if err != nil {
 		return stats, fmt.Errorf("failed to parse stats JSON: %w", err)
 	}
@@ -447,6 +479,7 @@ with socketserver.TCPServer(("", PORT), RemoteWriteHandler) as httpd:
 // createSecurityContext returns a security context that allows OpenShift to assign UID from allowed range.
 func createSecurityContext() *corev1.SecurityContext {
 	var falseFlag = false
+
 	return &corev1.SecurityContext{
 		RunAsUser:  nil, // Let OpenShift assign UID from allowed range.
 		RunAsGroup: nil, // Let OpenShift assign GID from allowed range.
@@ -497,8 +530,10 @@ func createHTTPServerDeployment(ctx SpecContext) (*deployment.Builder, error) {
 		deployLabels, *container)
 
 	var deploymentErr error
+
 	Eventually(func() error {
 		httpServerDeployment, deploymentErr = httpServerDeployment.CreateAndWaitUntilReady(2 * time.Minute)
+
 		return deploymentErr
 	}).WithContext(ctx).WithPolling(5*time.Second).WithTimeout(3*time.Minute).Should(Succeed(),
 		"Failed to create HTTP server deployment")
