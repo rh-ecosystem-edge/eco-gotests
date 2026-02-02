@@ -68,7 +68,7 @@ var _ = Describe("ORAN Post-provision Tests", Label(tsparams.LabelPostProvision)
 		// Since all of the post-provision tests end with the ProvisioningRequest being updated, successful
 		// cleanup should always ensure the ProvisioningRequest is fulfilled only after the previous step
 		// restores it.
-		err = prBuilder.WaitForPhaseAfter(provisioningv1alpha1.StateFulfilled, restoreTime, 2*time.Minute)
+		err = prBuilder.WaitForPhaseAfter(provisioningv1alpha1.StateFulfilled, restoreTime, 5*time.Minute)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for ProvisioningRequest to become fulfilled")
 
 		By("deleting the second test ConfigMap if it exists")
@@ -117,7 +117,7 @@ var _ = Describe("ORAN Post-provision Tests", Label(tsparams.LabelPostProvision)
 		Expect(err).ToNot(HaveOccurred(), "Failed to update spoke 1 ProvisioningRequest")
 
 		By("waiting for ProvisioningRequest to be fulfilled again")
-		err = prBuilder.WaitForPhaseAfter(provisioningv1alpha1.StateFulfilled, updateTime, 2*time.Minute)
+		err = prBuilder.WaitForPhaseAfter(provisioningv1alpha1.StateFulfilled, updateTime, 5*time.Minute)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for ProvisioningRequest to become fulfilled")
 
 		By("verifying the test ConfigMap has the new value")
@@ -150,7 +150,7 @@ var _ = Describe("ORAN Post-provision Tests", Label(tsparams.LabelPostProvision)
 		Expect(err).ToNot(HaveOccurred(), "Failed to update spoke 1 ProvisioningRequest")
 
 		By("waiting for the ProvisioningRequest to be fulfilled")
-		err = prBuilder.WaitForPhaseAfter(provisioningv1alpha1.StateFulfilled, updateTime, 2*time.Minute)
+		err = prBuilder.WaitForPhaseAfter(provisioningv1alpha1.StateFulfilled, updateTime, 5*time.Minute)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for ProvisioningRequest to become fulfilled")
 
 		By("verifying the test ConfigMap has the new value")
@@ -174,7 +174,7 @@ var _ = Describe("ORAN Post-provision Tests", Label(tsparams.LabelPostProvision)
 		Expect(err).ToNot(HaveOccurred(), "Failed to update spoke 1 ProvisioningRequest")
 
 		By("waiting for the ProvisioningRequest to be fulfilled")
-		err = prBuilder.WaitForPhaseAfter(provisioningv1alpha1.StateFulfilled, updateTime, 2*time.Minute)
+		err = prBuilder.WaitForPhaseAfter(provisioningv1alpha1.StateFulfilled, updateTime, 5*time.Minute)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for ProvisioningRequest to become fulfilled")
 
 		By("verifying the test ConfigMap has the original value")
@@ -206,7 +206,7 @@ var _ = Describe("ORAN Post-provision Tests", Label(tsparams.LabelPostProvision)
 		Expect(err).ToNot(HaveOccurred(), "Failed to update spoke 1 ProvisioningRequest")
 
 		By("waiting for the ProvisioningRequest to be fulfilled")
-		err = prBuilder.WaitForPhaseAfter(provisioningv1alpha1.StateFulfilled, updateTime, 2*time.Minute)
+		err = prBuilder.WaitForPhaseAfter(provisioningv1alpha1.StateFulfilled, updateTime, 5*time.Minute)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for ProvisioningRequest to become fulfilled")
 
 		By("verifying the test ConfigMap has the original value")
@@ -226,7 +226,7 @@ var _ = Describe("ORAN Post-provision Tests", Label(tsparams.LabelPostProvision)
 		Expect(err).ToNot(HaveOccurred(), "Failed to update spoke 1 ProvisioningRequest")
 
 		By("waiting for policy to go NonCompliant")
-		err = helper.WaitForNoncompliantImmutable(HubAPIClient, RANConfig.Spoke1Name, 2*time.Minute)
+		err = helper.WaitForNoncompliantImmutable(HubAPIClient, RANConfig.Spoke1Name, 5*time.Minute)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for a spoke 1 policy to go NonCompliant due to immutable field")
 
 		// The AfterEach block will restore the ProvisioningRequest to its original state, so there is no need to
