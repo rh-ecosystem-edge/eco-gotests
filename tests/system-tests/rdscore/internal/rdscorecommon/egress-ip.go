@@ -11,6 +11,7 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/bmc"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreparams"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
@@ -649,6 +650,16 @@ func gracefulNodeReboot(nodeName string) error {
 
 	time.Sleep(15 * time.Second)
 
+	// Wait for SRIOVNetworkNodeState to reach Succeeded sync status after reboot
+	By(fmt.Sprintf("Waiting for SRIOVNetworkNodeState to reach Succeeded sync status on node %q", nodeName))
+
+	err = waitForSriovNetworkNodeStateSync(nodeName, 15*time.Minute)
+	if err != nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to wait for SRIOV sync on node %q: %v", nodeName, err)
+
+		return fmt.Errorf("failed to wait for SRIOV sync on node %q: %w", nodeName, err)
+	}
+
 	return nil
 }
 
@@ -1062,4 +1073,57 @@ func VerifyEgressIPFailOverIPv4() {
 // after current node goes down, NotReady and egressIP traffic continues to use egressIP configured.
 func VerifyEgressIPFailOverIPv6() {
 	verifyEgressIPFailOver(true)
+}
+
+// waitForSriovNetworkNodeStateSync waits for the SRIOVNetworkNodeState on the specified node
+// to reach "Succeeded" sync status after a node reboot.
+func waitForSriovNetworkNodeStateSync(nodeName string, timeout time.Duration) error {
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Waiting for SRIOVNetworkNodeState sync status on node %q", nodeName)
+
+	// Check if SRIOV operator namespace exists first
+	sriovNamespace := "openshift-sriov-network-operator"
+
+	nsObj, err := namespace.Pull(APIClient, sriovNamespace)
+	if err != nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("SRIOV operator namespace %q not found, skipping SRIOV wait: %v",
+			sriovNamespace, err)
+
+		return nil
+	}
+
+	if nsObj == nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("SRIOV operator not deployed, skipping SRIOV sync wait")
+
+		return nil
+	}
+
+	// Get the SRIOVNetworkNodeState for the specific node
+	sriovNodeState := sriov.NewNetworkNodeStateBuilder(APIClient, nodeName, sriovNamespace)
+	if sriovNodeState == nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to create SRIOVNetworkNodeState builder for node %q", nodeName)
+
+		return nil
+	}
+
+	// Check if the SRIOVNetworkNodeState exists for this node
+	err = sriovNodeState.Discover()
+	if err != nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"SRIOVNetworkNodeState not found for node %q, skipping SRIOV wait: %v", nodeName, err)
+
+		return nil
+	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"Waiting up to %v for SRIOVNetworkNodeState sync status 'Succeeded' on node %q", timeout, nodeName)
+
+	err = sriovNodeState.WaitUntilSyncStatus("Succeeded", timeout)
+	if err != nil {
+		return fmt.Errorf("timeout waiting for SRIOVNetworkNodeState sync on node %q: %w", nodeName, err)
+	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"Successfully waited for SRIOVNetworkNodeState sync on node %q", nodeName)
+
+	return nil
 }
