@@ -300,7 +300,7 @@ func createExternalNadWithMasterInterface(name, masterInterface string) {
 
 func createBGPPeerAndVerifyIfItsReady(
 	name, peerIP, bfdProfileName string, remoteAsn uint32, eBgpMultiHop bool, connectTime int,
-	frrk8sPods []*pod.Builder, disableMP ...bool) {
+	frrk8sPods []*pod.Builder, dualStackAddressFamily ...bool) {
 	By("Creating BGP Peer")
 
 	bgpPeer := metallb.NewBPGPeerBuilder(APIClient, name, NetConfig.MlbOperatorNamespace,
@@ -315,8 +315,8 @@ func createBGPPeerAndVerifyIfItsReady(
 		bgpPeer.WithConnectTime(metav1.Duration{Duration: time.Duration(connectTime) * time.Second})
 	}
 
-	if len(disableMP) > 0 && disableMP[0] {
-		bgpPeer.WithDisableMP(true)
+	if len(dualStackAddressFamily) > 0 && dualStackAddressFamily[0] {
+		bgpPeer.WithDualStackAddressFamily(true)
 	}
 
 	_, err := bgpPeer.Create()
@@ -812,8 +812,11 @@ func setupTestEnv(ipStack string, prefixLen int, extFrrAdv bool) (
 	frrk8sPods := verifyAndCreateFRRk8sPodList()
 
 	By("Creating BGPPeer with external FRR Pod")
+
+	// Enable dualStackAddressFamily for IPv6 tests to support MP-BGP
+	enableDualStack := ipStack == netparam.IPV6Family
 	createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1,
-		metallbAddrList[ipStack][0], "", tsparams.LocalBGPASN, false, 0, frrk8sPods)
+		metallbAddrList[ipStack][0], "", tsparams.LocalBGPASN, false, 0, frrk8sPods, enableDualStack)
 
 	By("Creating an IPAddressPool")
 
