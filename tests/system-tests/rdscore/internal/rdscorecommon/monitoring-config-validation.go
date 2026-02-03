@@ -5,6 +5,7 @@ package rdscorecommon
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -34,7 +35,10 @@ const (
 	remoteWriteTestNamespace     = "openshift-monitoring"
 	remoteWriteTestPort          = 8080
 	remoteWriteTestContainerPort = 8080
-	pythonHTTPServerImage        = "registry.access.redhat.com/ubi9/python-39:latest"
+	// defaultPythonHTTPServerImage is used when ECO_RDSCORE_PYTHON_HTTP_SERVER_IMAGE is not set.
+	defaultPythonHTTPServerImage = "registry.access.redhat.com/ubi9/python-39:latest"
+	// envPythonHTTPServerImage is the environment variable to override the HTTP server container image.
+	envPythonHTTPServerImage = "ECO_RDSCORE_PYTHON_HTTP_SERVER_IMAGE"
 )
 
 // HTTPStats represents the statistics from the HTTP server.
@@ -396,7 +400,9 @@ func getHTTPStats(podBuilder *pod.Builder, containerName string) (HTTPStats, err
 	// First try with curl, if not available, use python.
 	statsURL := fmt.Sprintf("http://localhost:%d/stats", remoteWriteTestContainerPort)
 
-	output, err := podBuilder.ExecCommand([]string{"curl", "-s", "--connect-timeout", "5", "--max-time", "10", statsURL}, containerName)
+	output, err := podBuilder.ExecCommand([]string{
+		"curl", "-s", "--connect-timeout", "5", "--max-time", "10", statsURL},
+		containerName)
 	if err != nil {
 		// Fallback to python if curl is not available.
 		pythonStatsCmd := fmt.Sprintf(
@@ -502,7 +508,14 @@ func createHTTPServerContainer() (*corev1.Container, error) {
 
 	securityContext := createSecurityContext()
 
-	containerBuilder := pod.NewContainerBuilder(remoteWriteTestPodName, pythonHTTPServerImage,
+	image := defaultPythonHTTPServerImage
+	if v := os.Getenv(envPythonHTTPServerImage); v != "" {
+		image = v
+	} else if RDSCoreConfig != nil && strings.TrimSpace(RDSCoreConfig.PythonHTTPServerImage) != "" {
+		image = strings.TrimSpace(RDSCoreConfig.PythonHTTPServerImage)
+	}
+
+	containerBuilder := pod.NewContainerBuilder(remoteWriteTestPodName, image,
 		[]string{"python3", "-c", httpServerScript}).
 		WithPorts([]corev1.ContainerPort{cPort}).
 		WithSecurityContext(securityContext)
