@@ -3,6 +3,7 @@ package rdscorecommon
 // This test was written in part with AI assistance.
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -20,6 +21,7 @@ import (
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreinittools"
@@ -217,6 +219,16 @@ func VerifyMonitoringConfigRemoteWrite(ctx SpecContext) {
 		fmt.Sprintf("ConfigMap %q in namespace %q does not contain key %q",
 			monitoringConfigMapName, monitoringNamespace, monitoringConfigYAMLKey))
 
+	// Save original ConfigMap data for restoration in cleanup.
+	originalConfigMapData := make(map[string]string)
+	for key, value := range cmBuilder.Object.Data {
+		originalConfigMapData[key] = value
+	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"Saved original ConfigMap data with %d keys for cleanup restoration",
+		len(originalConfigMapData))
+
 	By("Parsing and updating config.yaml to add remoteWrite endpoint")
 
 	var config map[string]interface{}
@@ -278,73 +290,75 @@ func VerifyMonitoringConfigRemoteWrite(ctx SpecContext) {
 
 	// Register cleanup for ConfigMap right after updating it.
 	DeferCleanup(func() {
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cleaning up: Removing test remoteWrite endpoint from ConfigMap")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Cleaning up: Restoring ConfigMap to original state")
 
-		cmBuilder, err := configmap.Pull(APIClient, monitoringConfigMapName, monitoringNamespace)
+		// Pull current ConfigMap state with retry logic.
+		var cmBuilder *configmap.Builder
+
+		err := wait.PollUntilContextTimeout(context.TODO(), 15*time.Second, 3*time.Minute, true,
+			func(context.Context) (bool, error) {
+				var pullErr error
+
+				cmBuilder, pullErr = configmap.Pull(
+					APIClient, monitoringConfigMapName, monitoringNamespace)
+				if pullErr != nil {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+						"Failed to pull ConfigMap for cleanup (will retry): %v", pullErr)
+
+					return false, nil
+				}
+
+				return true, nil
+			})
 		if err != nil {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to pull ConfigMap for cleanup: %v", err)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"Failed to pull ConfigMap for cleanup after retries: %v", err)
 
 			return
 		}
 
-		configYAML, exists := cmBuilder.Object.Data[monitoringConfigYAMLKey]
-		if !exists {
-			return
-		}
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Pulled ConfigMap for cleanup, current keys: %d, original keys: %d",
+			len(cmBuilder.Object.Data), len(originalConfigMapData))
 
-		var config map[string]interface{}
+		// Restore original ConfigMap data (complete replacement).
+		cmBuilder.Object.Data = originalConfigMapData
 
-		if err := yaml.Unmarshal([]byte(configYAML), &config); err != nil {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to parse config for cleanup: %v", err)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Restored original ConfigMap data, updating in cluster")
 
-			return
-		}
+		// Update ConfigMap with retry logic.
+		Eventually(func() error {
+			_, err := cmBuilder.Update()
+			if err != nil {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"Failed to update ConfigMap during cleanup (will retry): %v", err)
 
-		prometheusK8s, exists := config["prometheusK8s"]
-		if !exists {
-			return
-		}
-
-		prometheusK8sMap, isValidMap := prometheusK8s.(map[interface{}]interface{})
-		if !isValidMap {
-			return
-		}
-
-		remoteWrite, exists := prometheusK8sMap["remoteWrite"]
-		if !exists {
-			return
-		}
-
-		remoteWriteSlice, ok := remoteWrite.([]interface{})
-		if !ok {
-			return
-		}
-
-		// Remove the test endpoint (the one with our service URL).
-		filteredSlice := []interface{}{}
-
-		for _, endpoint := range remoteWriteSlice {
-			endpointMap, isValidMap := endpoint.(map[interface{}]interface{})
-			if !isValidMap {
-				continue
+				return err
 			}
 
-			url, isValidString := endpointMap["url"].(string)
-			if !isValidString || !strings.Contains(url, remoteWriteTestServiceName) {
-				filteredSlice = append(filteredSlice, endpoint)
-			}
-		}
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"Successfully restored ConfigMap to original state")
 
-		if len(filteredSlice) != len(remoteWriteSlice) {
-			prometheusK8sMap["remoteWrite"] = filteredSlice
+			return nil
+		}).WithPolling(15*time.Second).WithTimeout(3*time.Minute).Should(Succeed(),
+			"Failed to restore ConfigMap during cleanup")
 
-			updatedConfigYAML, err := yaml.Marshal(config)
-			if err == nil {
-				cmBuilder.Object.Data[monitoringConfigYAMLKey] = string(updatedConfigYAML)
-
-				_, err = cmBuilder.Update()
-				if err != nil {
-					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to update ConfigMap during cleanup: %v", err)
+		// Optional: Verify restoration by re-pulling and comparing config.yaml key.
+		verifyBuilder, verifyErr := configmap.Pull(
+			APIClient, monitoringConfigMapName, monitoringNamespace)
+		if verifyErr == nil {
+			if restoredConfig, exists := verifyBuilder.Object.Data[monitoringConfigYAMLKey]; exists {
+				originalConfig := originalConfigMapData[monitoringConfigYAMLKey]
+				if restoredConfig == originalConfig {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+						"Verification: ConfigMap %q key matches original state",
+						monitoringConfigYAMLKey)
+				} else {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+						"Verification: ConfigMap %q key differs from original (length: restored=%d, original=%d)",
+						monitoringConfigYAMLKey, len(restoredConfig), len(originalConfig))
 				}
 			}
 		}
