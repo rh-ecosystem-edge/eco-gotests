@@ -142,6 +142,11 @@ var _ = Describe(
 			It("Verifies all policies are compliant", reportxml.ID("72354"), Label("validate-policies"),
 				rdscorecommon.ValidateAllPoliciesCompliant)
 
+			It("Verifies cluster monitoring configuration with remoteWrite",
+				Label("monitoring", "monitoring-remote-write"),
+				reportxml.ID("86398"),
+				rdscorecommon.VerifyMonitoringConfigRemoteWrite, SpecTimeout(15*time.Minute))
+
 			It("Verify MACVLAN workload on different nodes", Label("macvlan",
 				"validate-new-macvlan-different-nodes"), reportxml.ID("72566"),
 				rdscorecommon.VerifyMacVlanOnDifferentNodes)

@@ -589,6 +589,9 @@ type CoreConfig struct {
 	WhereaboutsDeploy3NAD string `yaml:"rdscore_whereabouts_deploy_3_nad" envconfig:"ECO_RDSCORE_WHEREABOUTS_DEPLOY_3_NAD"`
 	//nolint:lll,nolintlint
 	WhereaboutsDeploy4NAD string `yaml:"rdscore_whereabouts_deploy_4_nad" envconfig:"ECO_RDSCORE_WHEREABOUTS_DEPLOY_4_NAD"`
+	// PythonHTTPServerImage is the container image for the monitoring remoteWrite test HTTP server.
+	//nolint:lll,nolintlint
+	PythonHTTPServerImage string `yaml:"rdscore_python_http_server_image" envconfig:"ECO_RDSCORE_PYTHON_HTTP_SERVER_IMAGE"`
 	WorkerLabelListOption metav1.ListOptions
 }
 
