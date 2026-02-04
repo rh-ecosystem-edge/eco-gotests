@@ -6,7 +6,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
-	neuronv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/neuron/v1alpha1"
+	neuronv1beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/neuron/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
@@ -17,9 +17,9 @@ import (
 // containing connection to the cluster and the DeviceConfig definition.
 type Builder struct {
 	// Definition of the DeviceConfig. Used to create the object.
-	Definition *neuronv1alpha1.DeviceConfig
+	Definition *neuronv1beta1.DeviceConfig
 	// Created DeviceConfig object.
-	Object *neuronv1alpha1.DeviceConfig
+	Object *neuronv1beta1.DeviceConfig
 	// API client to interact with the cluster.
 	apiClient *clients.Settings
 	// Error message for validation.
@@ -44,21 +44,21 @@ func NewBuilder(
 		return nil
 	}
 
-	err := apiClient.AttachScheme(neuronv1alpha1.AddToScheme)
+	err := apiClient.AttachScheme(neuronv1beta1.AddToScheme)
 	if err != nil {
-		klog.V(100).Infof("Failed to add neuron v1alpha1 scheme to client schemes")
+		klog.V(100).Infof("Failed to add neuron v1beta1 scheme to client schemes")
 
 		return nil
 	}
 
 	builder := &Builder{
 		apiClient: apiClient,
-		Definition: &neuronv1alpha1.DeviceConfig{
+		Definition: &neuronv1beta1.DeviceConfig{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      name,
 				Namespace: namespace,
 			},
-			Spec: neuronv1alpha1.DeviceConfigSpec{
+			Spec: neuronv1beta1.DeviceConfigSpec{
 				DriversImage:      driversImage,
 				DriverVersion:     driverVersion,
 				DevicePluginImage: devicePluginImage,
@@ -246,7 +246,7 @@ func Pull(apiClient *clients.Settings, name, namespace string) (*Builder, error)
 		return nil, fmt.Errorf("deviceConfig 'apiClient' cannot be nil")
 	}
 
-	err := apiClient.AttachScheme(neuronv1alpha1.AddToScheme)
+	err := apiClient.AttachScheme(neuronv1beta1.AddToScheme)
 	if err != nil {
 		klog.V(100).Infof("Failed to add neuron scheme to client schemes")
 
@@ -255,7 +255,7 @@ func Pull(apiClient *clients.Settings, name, namespace string) (*Builder, error)
 
 	builder := &Builder{
 		apiClient: apiClient,
-		Definition: &neuronv1alpha1.DeviceConfig{
+		Definition: &neuronv1beta1.DeviceConfig{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      name,
 				Namespace: namespace,
@@ -285,7 +285,7 @@ func Pull(apiClient *clients.Settings, name, namespace string) (*Builder, error)
 }
 
 // Get retrieves the DeviceConfig from the cluster.
-func (builder *Builder) Get() (*neuronv1alpha1.DeviceConfig, error) {
+func (builder *Builder) Get() (*neuronv1beta1.DeviceConfig, error) {
 	if valid, err := builder.validate(); !valid {
 		return nil, err
 	}
@@ -293,7 +293,7 @@ func (builder *Builder) Get() (*neuronv1alpha1.DeviceConfig, error) {
 	klog.V(100).Infof("Getting DeviceConfig %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
-	deviceConfig := &neuronv1alpha1.DeviceConfig{}
+	deviceConfig := &neuronv1beta1.DeviceConfig{}
 
 	err := builder.apiClient.Get(
 		logging.DiscardContext(),

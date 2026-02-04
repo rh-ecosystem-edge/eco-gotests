@@ -5,7 +5,7 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
-	neuronv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/neuron/v1alpha1"
+	neuronv1beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/neuron/v1beta1"
 	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -21,7 +21,7 @@ func ListDeviceConfigs(
 		return nil, fmt.Errorf("failed to list deviceConfigs, 'apiClient' parameter is empty")
 	}
 
-	err := apiClient.AttachScheme(neuronv1alpha1.AddToScheme)
+	err := apiClient.AttachScheme(neuronv1beta1.AddToScheme)
 	if err != nil {
 		klog.V(100).Infof("Failed to add neuron scheme to client schemes")
 
@@ -35,7 +35,7 @@ func ListDeviceConfigs(
 
 	klog.V(100).Infof("%s", logMessage)
 
-	deviceConfigList := &neuronv1alpha1.DeviceConfigList{}
+	deviceConfigList := &neuronv1beta1.DeviceConfigList{}
 	passedOptions := goclient.ListOptions{}
 
 	if len(options) > 0 {
