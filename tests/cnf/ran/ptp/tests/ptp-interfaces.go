@@ -15,6 +15,8 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/internal/nicinfo"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/querier"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/version"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/consumer"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/events"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
@@ -263,6 +265,26 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				Expect(err).To(HaveOccurred(), "Unexpected HOLDOVER event detected for interface %s", nicName)
 			}
 
+			versionStr := RANConfig.Spoke1OperatorVersions[ranparam.PTP]
+			Expect(versionStr).ToNot(BeEmpty(), "PTP operator version is missing")
+			versionInRange, verErr := version.IsVersionStringInRange(versionStr, "4.18", "")
+			Expect(verErr).ToNot(HaveOccurred(), "Failed to parse PTP operator version")
+			if versionInRange {
+				By("validating clock class is still 6 for all boundary clock master interfaces")
+				for _, masterInterface := range masterInterfaces {
+					By(fmt.Sprintf("validating clock class is 6 for interface %s", masterInterface.Name))
+					clockClassEventFilter := events.All(
+						events.IsType(eventptp.PtpClockClassChange),
+						events.HasValue(
+							events.WithMetric(6),
+							events.ContainingResource(string(masterInterface.Name.GetNIC())),
+						),
+					)
+					err = events.WaitForEvent(eventPod, startTime, 1*time.Minute, clockClassEventFilter)
+					Expect(err).ToNot(HaveOccurred(), "Failed to wait for clock class event for interface %s", masterInterface.Name)
+				}
+			}
+
 			By("setting the boundary clock master interfaces up")
 			for _, masterInterface := range masterInterfaces {
 				By(fmt.Sprintf("setting the Boundary Clock master interface %s up", masterInterface.Name))
@@ -508,6 +530,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				err = iface.SetInterfaceStatus(RANConfig.Spoke1APIClient, nodeName, haInterface, iface.InterfaceStateDown)
 				Expect(err).ToNot(HaveOccurred(), "Failed to set HA interface %s down", haInterface)
 			}
+			startTime := time.Now()
 
 			By("validating all HA Clock States are in FREERUN state")
 			haNICs := make([]iface.NICName, 0, len(haInterfaces))
@@ -534,6 +557,31 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				metrics.AssertWithTimeout(1*time.Minute),
 				metrics.AssertWithStableDuration(10*time.Second))
 			Expect(err).ToNot(HaveOccurred(), "Failed to assert CLOCK_REALTIME is in FREERUN")
+
+			// for 4.18 versions and above, the clock class is 248
+			versionStr := RANConfig.Spoke1OperatorVersions[ranparam.PTP]
+			Expect(versionStr).ToNot(BeEmpty(), "PTP operator version is missing")
+			versionInRange, verErr := version.IsVersionStringInRange(versionStr, "4.18", "")
+			Expect(verErr).ToNot(HaveOccurred(), "Failed to parse PTP operator version")
+			if versionInRange {
+				By("getting the event pod for the node")
+				eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeName)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get event pod for node %s", nodeName)
+
+				By("validating clock class is 248 for HA interfaces")
+				for _, haInterface := range haInterfaces {
+					By(fmt.Sprintf("validating clock class is 248 for interface %s", haInterface.GetNIC()))
+					clockClassEventFilter := events.All(
+						events.IsType(eventptp.PtpClockClassChange),
+						events.HasValue(
+							events.WithMetric(248),
+							events.ContainingResource(string(haInterface.GetNIC())),
+						),
+					)
+					err = events.WaitForEvent(eventPod, startTime, 1*time.Minute, clockClassEventFilter)
+					Expect(err).ToNot(HaveOccurred(), "Failed to wait for clock class event for interface %s", haInterface.GetNIC())
+				}
+			}
 
 			By("restoring HA interfaces")
 			for _, haInterface := range haInterfaces {
