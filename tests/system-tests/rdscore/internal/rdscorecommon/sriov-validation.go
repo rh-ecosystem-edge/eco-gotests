@@ -361,6 +361,14 @@ func findPodWithSelector(fNamespace, podLabel string) []*pod.Builder {
 	}).WithContext(ctx).WithPolling(15*time.Second).WithTimeout(5*time.Minute).Should(BeTrue(),
 		fmt.Sprintf("Failed to find pod matching label %q in %q namespace", podLabel, fNamespace))
 
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d pods matching label %q in namespace %q",
+		len(podMatchingSelector), podLabel, fNamespace)
+
+	for _, pod := range podMatchingSelector {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q in %q namespace is in phase %q",
+			pod.Definition.Name, pod.Definition.Namespace, pod.Object.Status.Phase)
+	}
+
 	return podMatchingSelector
 }
 
