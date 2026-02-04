@@ -1145,7 +1145,7 @@ github.com/redhat-cne/sdk-go/pkg/event/ptp
 github.com/redhat-cne/sdk-go/pkg/event/redfish
 github.com/redhat-cne/sdk-go/pkg/pubsub
 github.com/redhat-cne/sdk-go/pkg/types
-# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260130184456-9b11b7357a0b
+# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260203142200-71e84f2cf70d
 ## explicit; go 1.25
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/amdgpu
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/apiservers
@@ -1276,7 +1276,7 @@ github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/frrtypes
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/mlboperator
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/mlbtypes
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/mlbtypesv1beta2
-github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/neuron/v1alpha1
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/neuron/v1beta1
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/nfd/v1alpha1
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/nvidiagpu/k8skatamanager/v1alpha1/config
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/nvidiagpu/k8skoperatorlibs/upgrade/v1alpha1
