@@ -35,4 +35,16 @@ const (
 
 	// Net1Interface is the name of the first secondary network interface attached to pods.
 	Net1Interface = "net1"
+
+	// Pod names for SR-IOV connectivity tests.
+	ClientPodMTU500      = "client-mtu500"
+	ServerPodMTU500      = "server-mtu500"
+	ClientPodMTU9000     = "client-mtu9000"
+	ServerPodMTU9000     = "server-mtu9000"
+	ClientPodWhereabouts = "client-whereabouts"
+	ServerPodWhereabouts = "server-whereabouts"
+	ClientPodVlanMTU500  = "client-vlan-mtu500"
+	ServerPodVlanMTU500  = "server-vlan-mtu500"
+	ClientPodVlanMTU9000 = "client-vlan-mtu9000"
+	ServerPodVlanMTU9000 = "server-vlan-mtu9000"
 )

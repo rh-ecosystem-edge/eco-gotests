@@ -14,10 +14,12 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/cmd"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/ipaddr"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 	"gopkg.in/k8snetworkplumbingwg/multus-cni.v4/pkg/types"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -530,4 +532,493 @@ func getPodIPFromInterfaceOnce(podBuilder *pod.Builder, interfaceName string) (s
 	}
 
 	return "", fmt.Errorf("no IPv4 found for interface %s in network-status annotation", interfaceName)
+}
+
+// GetPodIPv6FromInterface retrieves the IPv6 address of a specific interface from a pod.
+// This is useful for whereabouts IPAM where the IP is assigned dynamically.
+func GetPodIPv6FromInterface(podBuilder *pod.Builder, interfaceName string) (string, error) {
+	klog.V(90).Infof("Getting IPv6 from interface %s on pod %s", interfaceName, podBuilder.Definition.Name)
+
+	var podIP string
+
+	err := wait.PollUntilContextTimeout(
+		context.TODO(),
+		tsparams.RetryInterval,
+		tsparams.WaitTimeout,
+		true,
+		func(ctx context.Context) (bool, error) {
+			retrievedIP, pollErr := getPodIPv6FromInterfaceOnce(podBuilder, interfaceName)
+			if pollErr != nil {
+				klog.V(90).Infof("Retrying to get IPv6 from interface %s: %v", interfaceName, pollErr)
+
+				return false, nil
+			}
+
+			podIP = retrievedIP
+
+			return true, nil
+		})
+	if err != nil {
+		return "", fmt.Errorf("failed to get IPv6 from interface %s on pod %s: %w",
+			interfaceName, podBuilder.Definition.Name, err)
+	}
+
+	return podIP, nil
+}
+
+func getPodIPv6FromInterfaceOnce(podBuilder *pod.Builder, interfaceName string) (string, error) {
+	podObj, err := pod.Pull(APIClient, podBuilder.Definition.Name, podBuilder.Definition.Namespace)
+	if err != nil {
+		return "", fmt.Errorf("failed to pull pod %s: %w", podBuilder.Definition.Name, err)
+	}
+
+	annotation := podObj.Object.Annotations["k8s.v1.cni.cncf.io/network-status"]
+	if annotation == "" {
+		return "", fmt.Errorf("no network-status annotation on pod %s", podBuilder.Definition.Name)
+	}
+
+	var statuses []struct {
+		Interface string   `json:"interface"`
+		IPs       []string `json:"ips"`
+	}
+
+	if err := json.Unmarshal([]byte(annotation), &statuses); err != nil {
+		return "", fmt.Errorf("failed to parse network-status annotation: %w", err)
+	}
+
+	for _, status := range statuses {
+		if status.Interface != interfaceName {
+			continue
+		}
+
+		for _, ipAddress := range status.IPs {
+			// Skip IPv4 addresses - we want IPv6
+			if !strings.Contains(ipAddress, ":") {
+				continue
+			}
+
+			// Skip link-local addresses (fe80::)
+			if strings.HasPrefix(strings.ToLower(ipAddress), "fe80") {
+				continue
+			}
+
+			return strings.Split(ipAddress, "/")[0], nil
+		}
+	}
+
+	return "", fmt.Errorf("no IPv6 found for interface %s in network-status annotation", interfaceName)
+}
+
+// CreatePodPair creates a client and server pod pair for traffic testing.
+func CreatePodPair(
+	clientName string,
+	serverName string,
+	clientNode string,
+	serverNode string,
+	clientNetwork string,
+	serverNetwork string,
+	clientIPs []string,
+	serverIPs []string,
+	serverBindIP string,
+	clientMAC string,
+	serverMAC string,
+	mtu int,
+) (*pod.Builder, *pod.Builder, error) {
+	klog.V(90).Infof("Creating client pod %s and server pod %s", clientName, serverName)
+
+	client, err := CreateTestClientPod(clientName, clientNode, clientNetwork, clientIPs, clientMAC)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create client pod: %w", err)
+	}
+
+	server, err := CreateTestServerPod(
+		serverName, serverNode, serverNetwork, serverIPs, serverBindIP, serverMAC, mtu)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create server pod: %w", err)
+	}
+
+	return client, server, nil
+}
+
+// CreateAllSriovPolicies creates all SR-IOV policies for testing.
+// It creates policies for PF1 and PF2 at MTU 500 and MTU 9000.
+// VF allocation: 10 total VFs per PF, VFs 0-4 for MTU 500, VFs 5-9 for MTU 9000.
+func CreateAllSriovPolicies(
+	pf1 string,
+	pf2 string,
+	resourcePF1MTU500 string,
+	resourcePF1MTU9000 string,
+	resourcePF2MTU500 string,
+	resourcePF2MTU9000 string,
+	policyPrefix string,
+	mtu500 int,
+	mtu9000 int,
+) error {
+	klog.V(90).Infof("Creating SR-IOV policies for testing")
+
+	const (
+		vfStartMTU500  = 0
+		vfEndMTU500    = 4
+		vfStartMTU9000 = 5
+		vfEndMTU9000   = 9
+	)
+
+	// Create policy for PF1 with MTU 500
+	if err := CreateSriovPolicy(
+		policyPrefix+"-policy-pf1-mtu500",
+		resourcePF1MTU500, pf1, mtu500,
+		vfStartMTU500, vfEndMTU500); err != nil {
+		return fmt.Errorf("failed to create PF1 MTU500 policy: %w", err)
+	}
+
+	// Create policy for PF1 with MTU 9000
+	if err := CreateSriovPolicy(
+		policyPrefix+"-policy-pf1-mtu9000",
+		resourcePF1MTU9000, pf1, mtu9000,
+		vfStartMTU9000, vfEndMTU9000); err != nil {
+		return fmt.Errorf("failed to create PF1 MTU9000 policy: %w", err)
+	}
+
+	// Create policy for PF2 with MTU 500
+	if err := CreateSriovPolicy(
+		policyPrefix+"-policy-pf2-mtu500",
+		resourcePF2MTU500, pf2, mtu500,
+		vfStartMTU500, vfEndMTU500); err != nil {
+		return fmt.Errorf("failed to create PF2 MTU500 policy: %w", err)
+	}
+
+	// Create policy for PF2 with MTU 9000
+	if err := CreateSriovPolicy(
+		policyPrefix+"-policy-pf2-mtu9000",
+		resourcePF2MTU9000, pf2, mtu9000,
+		vfStartMTU9000, vfEndMTU9000); err != nil {
+		return fmt.Errorf("failed to create PF2 MTU9000 policy: %w", err)
+	}
+
+	if err := sriovoperator.WaitForSriovAndMCPStable(
+		APIClient,
+		tsparams.MCOWaitTimeout,
+		tsparams.DefaultStableDuration,
+		NetConfig.WorkerLabelEnvVar,
+		NetConfig.SriovOperatorNamespace); err != nil {
+		return fmt.Errorf("failed to wait for SR-IOV and MCP stability: %w", err)
+	}
+
+	return nil
+}
+
+// CreateSriovPolicy creates a single SR-IOV policy without waiting for MCP stability.
+func CreateSriovPolicy(
+	name string,
+	resourceName string,
+	pfName string,
+	mtu int,
+	vfStart int,
+	vfEnd int,
+) error {
+	klog.V(90).Infof("Creating SR-IOV policy %s", name)
+
+	const totalVFs = 10
+
+	policy := sriov.NewPolicyBuilder(
+		APIClient,
+		name,
+		NetConfig.SriovOperatorNamespace,
+		resourceName,
+		totalVFs,
+		[]string{pfName},
+		NetConfig.WorkerLabelMap).
+		WithMTU(mtu).
+		WithVFRange(vfStart, vfEnd)
+
+	_, err := policy.Create()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// CreateTestClientPod creates a client pod with SR-IOV interface.
+func CreateTestClientPod(
+	name string,
+	nodeName string,
+	networkName string,
+	ipAddresses []string,
+	macAddress string,
+) (*pod.Builder, error) {
+	klog.V(90).Infof("Creating client pod %s on node %s", name, nodeName)
+
+	secNetwork := []*types.NetworkSelectionElement{{Name: networkName}}
+
+	if macAddress != "" {
+		secNetwork[0].MacRequest = macAddress
+	}
+
+	if len(ipAddresses) > 0 {
+		secNetwork[0].IPRequest = ipAddresses
+	}
+
+	command := []string{"bash", "-c", "sleep infinity"}
+
+	container, err := pod.NewContainerBuilder("test", NetConfig.CnfNetTestContainer, command).GetContainerCfg()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create container config: %w", err)
+	}
+
+	return pod.NewBuilder(APIClient, name, tsparams.TestNamespaceName, NetConfig.CnfNetTestContainer).
+		DefineOnNode(nodeName).
+		WithPrivilegedFlag().
+		WithSecondaryNetwork(secNetwork).
+		RedefineDefaultContainer(*container).
+		CreateAndWaitUntilRunning(netparam.DefaultTimeout)
+}
+
+// CreateTestServerPod creates a server pod with testcmd listeners for TCP, UDP, SCTP, and multicast.
+func CreateTestServerPod(
+	name string,
+	nodeName string,
+	networkName string,
+	ipAddresses []string,
+	serverBindIP string,
+	macAddress string,
+	mtu int,
+) (*pod.Builder, error) {
+	klog.V(90).Infof("Creating server pod %s on node %s", name, nodeName)
+
+	secNetwork := []*types.NetworkSelectionElement{{Name: networkName}}
+
+	if macAddress != "" {
+		secNetwork[0].MacRequest = macAddress
+	}
+
+	if len(ipAddresses) > 0 {
+		secNetwork[0].IPRequest = ipAddresses
+	}
+
+	command := BuildServerCommand(serverBindIP, tsparams.Net1Interface, mtu)
+
+	container, err := pod.NewContainerBuilder("server", NetConfig.CnfNetTestContainer, command).GetContainerCfg()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create container config: %w", err)
+	}
+
+	serverPod, err := pod.NewBuilder(APIClient, name, tsparams.TestNamespaceName, NetConfig.CnfNetTestContainer).
+		DefineOnNode(nodeName).
+		WithPrivilegedFlag().
+		WithSecondaryNetwork(secNetwork).
+		RedefineDefaultContainer(*container).
+		CreateAndWaitUntilRunning(netparam.DefaultTimeout)
+	if err != nil {
+		return nil, err
+	}
+
+	// Wait for testcmd listeners to be ready.
+	if err := WaitForServerReady(serverPod, tsparams.WaitTimeout); err != nil {
+		return nil, fmt.Errorf("server pod %s not ready: %w", name, err)
+	}
+
+	return serverPod, nil
+}
+
+// WaitForServerReady waits for the server pod's testcmd listeners to be ready.
+func WaitForServerReady(serverPod *pod.Builder, timeout time.Duration) error {
+	klog.V(90).Infof("Waiting for server pod %s to be ready", serverPod.Definition.Name)
+
+	err := wait.PollUntilContextTimeout(
+		context.TODO(),
+		tsparams.RetryInterval,
+		timeout,
+		true,
+		func(ctx context.Context) (bool, error) {
+			_, execErr := serverPod.ExecCommand([]string{"bash", "-c", "pgrep -f testcmd"})
+			if execErr != nil {
+				klog.V(90).Infof("testcmd not ready on pod %s: %v", serverPod.Definition.Name, execErr)
+
+				return false, nil
+			}
+
+			return true, nil
+		})
+	if err != nil {
+		return fmt.Errorf("testcmd listeners not ready on pod %s: %w", serverPod.Definition.Name, err)
+	}
+
+	return nil
+}
+
+// BuildServerCommand builds the command to start testcmd listeners on the server pod.
+func BuildServerCommand(serverBindIP, interfaceName string, mtu int) []string {
+	// All protocols need smaller packet size to account for protocol headers (IP + UDP/TCP/SCTP).
+	// Subtract 100 bytes to provide headroom for headers and avoid "message too long" errors.
+	packetSize := mtu - 100
+
+	// Determine multicast group based on IP version and MTU
+	ipv4MulticastGroup := "239.100.0.250"
+	if mtu > 1500 {
+		ipv4MulticastGroup = "239.100.100.250"
+	}
+
+	ipv6MulticastGroup := "ff02::1"
+
+	if serverBindIP == "" {
+		// Dynamic IP: discover IP from net1 interface at runtime.
+		// Try both IPv4 and IPv6.
+		return []string{"bash", "-c", fmt.Sprintf(
+			"for _ in $(seq 1 10); do "+
+				"SERVER_IP=$(ip -4 -o addr show %s 2>/dev/null | awk '{print $4}' | cut -d'/' -f1 | head -1); "+
+				"[ -n \"$SERVER_IP\" ] && break; "+
+				"SERVER_IP=$(ip -6 -o addr show %s 2>/dev/null | grep -v fe80 | awk '{print $4}' | cut -d'/' -f1 | head -1); "+
+				"[ -n \"$SERVER_IP\" ] && break; "+
+				"sleep 1; "+
+				"done; "+
+				"[ -n \"$SERVER_IP\" ] || { echo \"Failed to discover server IP\"; exit 1; }; "+
+				"echo \"Discovered server IP: $SERVER_IP\"; "+
+				"if echo \"$SERVER_IP\" | grep -q ':'; then MCAST_GROUP='%s'; else MCAST_GROUP='%s'; fi; "+
+				"testcmd -listen -protocol tcp -port 5001 -interface %s -mtu %d & "+
+				"testcmd -listen -protocol udp -port 5002 -interface %s -mtu %d & "+
+				"testcmd -listen -protocol sctp -port 5003 -interface %s -server $SERVER_IP -mtu %d & "+
+				"testcmd -listen -multicast -protocol udp -port 5004 -interface %s -server $MCAST_GROUP -mtu %d & "+
+				"sleep infinity",
+			interfaceName, interfaceName,
+			ipv6MulticastGroup, ipv4MulticastGroup,
+			interfaceName, packetSize,
+			interfaceName, packetSize,
+			interfaceName, packetSize,
+			interfaceName, packetSize)}
+	}
+
+	// Static IP: use provided serverBindIP.
+	multicastGroup := ipv4MulticastGroup
+	if strings.Contains(serverBindIP, ":") {
+		multicastGroup = ipv6MulticastGroup
+	}
+
+	return []string{"bash", "-c", fmt.Sprintf(
+		"sleep 5; "+
+			"testcmd -listen -protocol tcp -port 5001 -interface %s -mtu %d & "+
+			"testcmd -listen -protocol udp -port 5002 -interface %s -mtu %d & "+
+			"testcmd -listen -protocol sctp -port 5003 -interface %s -server %s -mtu %d & "+
+			"testcmd -listen -multicast -protocol udp -port 5004 -interface %s -server %s -mtu %d & "+
+			"sleep infinity",
+		interfaceName, packetSize,
+		interfaceName, packetSize,
+		interfaceName, serverBindIP, packetSize,
+		interfaceName, multicastGroup, packetSize)}
+}
+
+// RunTrafficTestsForBothMTUs runs traffic tests for both MTU 500 and MTU 9000.
+func RunTrafficTestsForBothMTUs(clientMTU500, clientMTU9000 *pod.Builder, serverIP1, serverIP2 string) error {
+	klog.V(90).Infof("Running traffic tests with MTU 500")
+
+	err := RunTrafficTest(clientMTU500, serverIP1, 500)
+	if err != nil {
+		return fmt.Errorf("traffic tests failed for MTU 500: %w", err)
+	}
+
+	klog.V(90).Infof("Running traffic tests with MTU 9000")
+
+	err = RunTrafficTest(clientMTU9000, serverIP2, 9000)
+	if err != nil {
+		return fmt.Errorf("traffic tests failed for MTU 9000: %w", err)
+	}
+
+	return nil
+}
+
+// CreateSriovNetworksForBothMTUs creates SR-IOV networks for both MTU 500 and MTU 9000.
+func CreateSriovNetworksForBothMTUs(
+	networkNameMTU500,
+	networkNameMTU9000,
+	resourceMTU500,
+	resourceMTU9000 string,
+) error {
+	klog.V(90).Infof("Creating SR-IOV networks for MTU 500 and MTU 9000")
+
+	err := CreateSriovNetworkWithStaticIPAM(networkNameMTU500, resourceMTU500)
+	if err != nil {
+		return fmt.Errorf("failed to create SR-IOV network for MTU 500: %w", err)
+	}
+
+	err = CreateSriovNetworkWithStaticIPAM(networkNameMTU9000, resourceMTU9000)
+	if err != nil {
+		return fmt.Errorf("failed to create SR-IOV network for MTU 9000: %w", err)
+	}
+
+	return nil
+}
+
+// RunTrafficTest runs all traffic type tests (ICMP, TCP, UDP, SCTP, multicast) between client and server pods.
+func RunTrafficTest(clientPod *pod.Builder, serverIP string, mtu int) error {
+	klog.V(90).Infof("Running traffic tests against %s with MTU %d", serverIP, mtu)
+	serverIPAddress := ipaddr.RemovePrefix(serverIP)
+
+	// All protocols need smaller packet size to account for protocol headers (IP + UDP/TCP/SCTP).
+	// Subtract 100 bytes to provide headroom for headers and avoid "message too long" errors.
+	packetSize := mtu - 100
+
+	var failedProtocols []string
+
+	serverIPWithPrefix := serverIPAddress + "/32"
+	if strings.Contains(serverIPAddress, ":") {
+		serverIPWithPrefix = serverIPAddress + "/128"
+	}
+
+	if err := cmd.ICMPConnectivityCheck(
+		clientPod, []string{serverIPWithPrefix}, tsparams.Net1Interface); err != nil {
+		failedProtocols = append(failedProtocols, fmt.Sprintf("ICMP: %v", err))
+	}
+
+	if err := RunProtocolTest(clientPod, "TCP",
+		fmt.Sprintf("testcmd -protocol tcp -port 5001 -interface %s -server %s -mtu %d",
+			tsparams.Net1Interface, serverIPAddress, packetSize)); err != nil {
+		failedProtocols = append(failedProtocols, fmt.Sprintf("TCP: %v", err))
+	}
+
+	if err := RunProtocolTest(clientPod, "UDP",
+		fmt.Sprintf("testcmd -protocol udp -port 5002 -interface %s -server %s -mtu %d",
+			tsparams.Net1Interface, serverIPAddress, packetSize)); err != nil {
+		failedProtocols = append(failedProtocols, fmt.Sprintf("UDP: %v", err))
+	}
+
+	if err := RunProtocolTest(clientPod, "SCTP",
+		fmt.Sprintf("testcmd -protocol sctp -port 5003 -interface %s -server %s -mtu %d",
+			tsparams.Net1Interface, serverIPAddress, packetSize)); err != nil {
+		failedProtocols = append(failedProtocols, fmt.Sprintf("SCTP: %v", err))
+	}
+
+	// Multicast group selection:
+	// - MTU 500 uses 239.100.0.250
+	// - MTU 9000 uses 239.100.100.250
+	// - IPv6 uses ff02::1 regardless of MTU
+	multicastGroup := "239.100.0.250"
+	if strings.Contains(serverIPAddress, ":") {
+		multicastGroup = "ff02::1"
+	} else if mtu == 9000 {
+		multicastGroup = "239.100.100.250"
+	}
+
+	if err := RunProtocolTest(clientPod, "multicast",
+		fmt.Sprintf("testcmd -multicast -protocol udp -port 5004 -interface %s -server %s -mtu %d",
+			tsparams.Net1Interface, multicastGroup, packetSize)); err != nil {
+		failedProtocols = append(failedProtocols, fmt.Sprintf("multicast: %v", err))
+	}
+
+	if len(failedProtocols) > 0 {
+		return fmt.Errorf("traffic tests failed: %s", strings.Join(failedProtocols, "; "))
+	}
+
+	return nil
+}
+
+// RunProtocolTest executes a protocol-specific connectivity test command.
+func RunProtocolTest(clientPod *pod.Builder, protocol, cmdStr string) error {
+	klog.V(90).Infof("Running %s connectivity test", protocol)
+
+	output, err := clientPod.ExecCommand([]string{"bash", "-c", cmdStr})
+	if err != nil {
+		return fmt.Errorf("%s connectivity check failed (output: %s): %w", protocol, output.String(), err)
+	}
+
+	return nil
 }
