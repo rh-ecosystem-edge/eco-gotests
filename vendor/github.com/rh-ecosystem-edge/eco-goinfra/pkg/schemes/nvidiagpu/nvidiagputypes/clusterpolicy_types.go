@@ -247,7 +247,7 @@ type DaemonsetsSpec struct {
 	RollingUpdate *RollingUpdateSpec `json:"rollingUpdate,omitempty"`
 }
 
-// InitContainerSpec describes configuration for initContainer image used with all components
+// Deprecated: InitContainerSpec describes configuration for initContainer image used with all components
 type InitContainerSpec struct {
 	// Repository represents image repository path
 	Repository string `json:"repository,omitempty"`
@@ -651,6 +651,11 @@ type VGPUManagerSpec struct {
 
 	// DriverManager represents configuration for NVIDIA Driver Manager initContainer
 	DriverManager DriverManagerSpec `json:"driverManager,omitempty"`
+
+	// Optional: Kernel module configuration parameters for the vGPU manager
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Kernel module configuration parameters for the vGPU manager"
+	KernelModuleConfig *KernelModuleConfigSpec `json:"kernelModuleConfig,omitempty"`
 }
 
 // ToolkitSpec defines the properties for NVIDIA Container Toolkit deployment
@@ -1429,9 +1434,8 @@ type GDRCopySpec struct {
 
 // MIGPartedConfigSpec defines custom mig-parted config for NVIDIA MIG Manager container
 type MIGPartedConfigSpec struct {
-	// ConfigMap name
+	// ConfigMap name. If not specified, MIG configuration will be dynamically generated from hardware.
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=default-mig-parted-config
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="ConfigMap Name"
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:text"
