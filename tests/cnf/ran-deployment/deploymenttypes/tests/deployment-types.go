@@ -204,34 +204,29 @@ var _ = Describe("Cluster Deployment Types Tests", Ordered, Label(tsparams.Label
 
 	// Verifies that seed cluster extra-manifests are inherited by IBI-deployed spoke clusters
 	// by checking for the 08-set-rcu-normal-master MachineConfig on the spoke.
-	Describe("IBI Seed Extra-Manifests Inheritance",
-		Label(tsparams.LabelIBISeedExtraManifests), func() {
-			It("verifies seed extra-manifests are inherited by IBI deployed spoke",
-				reportxml.ID("00000"), func() {
-					// Skip if this is not an IBI deployment
-					if deploymentMethod != tsparams.DeploymentImageBasedCI {
-						Skip(fmt.Sprintf("Skipping: deployment method is %s, not %s",
-							deploymentMethod, tsparams.DeploymentImageBasedCI))
-					}
+	It("verifies seed extra-manifests are inherited by IBI deployed spoke",
+		reportxml.ID("87508"), func() {
+			// Skip if this is not an IBI deployment
+			if deploymentMethod != tsparams.DeploymentImageBasedCI {
+				Skip(fmt.Sprintf("Skipping: deployment method is %s, not %s",
+					deploymentMethod, tsparams.DeploymentImageBasedCI))
+			}
 
-					By(fmt.Sprintf("Checking if MachineConfig %s exists on the spoke cluster",
-						ibiSeedExtraManifestMCName))
+			By(fmt.Sprintf("Checking if MachineConfig %s exists on the spoke cluster",
+				ibiSeedExtraManifestMCName))
 
-					machineConfig, err := mco.PullMachineConfig(Spoke1APIClient, ibiSeedExtraManifestMCName)
+			_, err := mco.PullMachineConfig(Spoke1APIClient, ibiSeedExtraManifestMCName)
 
-					Expect(err).ToNot(HaveOccurred(),
-						"MachineConfig %s not found on spoke cluster. "+
-							"This indicates that extra-manifests from the seed cluster "+
-							"were not properly inherited during IBI deployment.",
-						ibiSeedExtraManifestMCName)
+			Expect(err).ToNot(HaveOccurred(),
+				"MachineConfig %s not found on spoke cluster. "+
+					"This indicates that extra-manifests from the seed cluster "+
+					"were not properly inherited during IBI deployment.",
+				ibiSeedExtraManifestMCName)
 
-					Expect(machineConfig).ToNot(BeNil(), "MachineConfig %s is nil", ibiSeedExtraManifestMCName)
-
-					klog.V(tsparams.LogLevel).Infof(
-						"SUCCESS: MachineConfig %s exists on spoke cluster. "+
-							"Extra-manifests inheritance from seed cluster is working correctly.",
-						ibiSeedExtraManifestMCName)
-				})
+			klog.V(tsparams.LogLevel).Infof(
+				"SUCCESS: MachineConfig %s exists on target cluster deployed via IBI. "+
+					"Extra-manifests inheritance from seed cluster is working correctly.",
+				ibiSeedExtraManifestMCName)
 		})
 
 })
