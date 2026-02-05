@@ -1228,7 +1228,6 @@ func VerifyPodLevelBondWorkloadsOnDifferentNodesDifferentPFs() {
 // (fail-over procedure).
 func VerifyPodLevelBondWorkloadsAfterVFFailOver() {
 	prepareSecondPodLevelBondDeployment(false, true)
-
 	verifyConnectivity()
 
 	By("Retrieve client pod-level bond pod object")
@@ -1260,14 +1259,15 @@ func VerifyPodLevelBondWorkloadsAfterVFFailOver() {
 			serverPodObj.Definition.Name, serverPodObj.Definition.Namespace, err))
 
 	go func() {
+		defer GinkgoRecover()
+
 		By("Send data from the client container to the IPv4 address used by the server container")
 
 		output, err := generateTCPTraffic(
 			clientPodObj,
 			RDSCoreConfig.PodLevelBondDeploymentTwoIPv4,
 			RDSCoreConfig.PodLevelBondPort,
-			"10",
-			"5")
+			"10", "5")
 		Expect(err).ToNot(HaveOccurred(),
 			fmt.Sprintf("Failed to generate TCP traffic from the pod %s in namespace %s to the server %s: %v",
 				clientPodObj.Definition.Name, clientPodObj.Definition.Namespace,
@@ -1283,6 +1283,8 @@ func VerifyPodLevelBondWorkloadsAfterVFFailOver() {
 	}()
 
 	go func() {
+		defer GinkgoRecover()
+
 		time.Sleep(time.Second * 2)
 
 		err = disableBondActiveVFInterface(serverPodObj)
