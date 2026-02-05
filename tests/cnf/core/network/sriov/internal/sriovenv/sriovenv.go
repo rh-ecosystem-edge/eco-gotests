@@ -2,7 +2,9 @@ package sriovenv
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	nadV1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
@@ -125,7 +127,7 @@ func DefineAndCreateSriovNetwork(networkName, resourceName string, withStaticIP,
 		networkBuilder = networkBuilder.WithStaticIpam()
 	}
 
-	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.WaitTimeout)
+	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.NADWaitTimeout)
 }
 
 // DiscoverInterfaceUnderTestDeviceID discovers device ID for a given SR-IOV interface.
@@ -417,4 +419,115 @@ func DiscoverInterfaceUnderTestVendorID(srIovInterfaceUnderTest, workerNodeName 
 	}
 
 	return "", fmt.Errorf("interface %s not found", srIovInterfaceUnderTest)
+}
+
+// CreateSriovNetworkWithStaticIPAM creates an SR-IOV network with static IPAM, IP address, and MAC address support.
+func CreateSriovNetworkWithStaticIPAM(name, resourceName string) error {
+	klog.V(90).Infof("Creating SR-IOV network %s with static IPAM", name)
+
+	networkBuilder := sriov.NewNetworkBuilder(
+		APIClient, name, NetConfig.SriovOperatorNamespace,
+		tsparams.TestNamespaceName, resourceName).
+		WithStaticIpam().
+		WithIPAddressSupport().
+		WithMacAddressSupport()
+
+	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.NADWaitTimeout)
+}
+
+// CreateSriovNetworkWithWhereaboutsIPAM creates an SR-IOV network with whereabouts IPAM for dynamic IP assignment.
+// ipRange should be in CIDR notation (e.g., "2001:100::/64" for IPv6 or "192.168.1.0/24" for IPv4).
+// gateway is the gateway address for the range.
+func CreateSriovNetworkWithWhereaboutsIPAM(
+	name, resourceName, ipRange, gateway, networkName string) error {
+	klog.V(90).Infof("Creating SR-IOV network %s with whereabouts IPAM, range %s, gateway %s",
+		name, ipRange, gateway)
+
+	networkBuilder := sriov.NewNetworkBuilder(
+		APIClient, name, NetConfig.SriovOperatorNamespace,
+		tsparams.TestNamespaceName, resourceName).WithWhereaboutsIPAM(ipRange, gateway, "", networkName)
+
+	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.NADWaitTimeout)
+}
+
+// CreateSriovNetworkWithVLANAndWhereabouts creates an SR-IOV network with Whereabouts IPAM and VLAN tagging.
+func CreateSriovNetworkWithVLANAndWhereabouts(name, resourceName string, vlanID uint16,
+	ipRange, gateway string) error {
+	klog.V(90).Infof("Creating SR-IOV network %s with Whereabouts IPAM, VLAN %d, range %s",
+		name, vlanID, ipRange)
+
+	networkBuilder := sriov.NewNetworkBuilder(
+		APIClient, name, NetConfig.SriovOperatorNamespace,
+		tsparams.TestNamespaceName, resourceName).WithVLAN(vlanID).WithWhereaboutsIPAM(ipRange, gateway, "", "")
+
+	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.NADWaitTimeout)
+}
+
+// GetPodIPFromInterface retrieves the IPv4 address of a specific interface from a pod.
+// This is useful for whereabouts IPAM where the IP is assigned dynamically.
+func GetPodIPFromInterface(podBuilder *pod.Builder, interfaceName string) (string, error) {
+	klog.V(90).Infof("Getting IPv4 from interface %s on pod %s", interfaceName, podBuilder.Definition.Name)
+
+	var podIP string
+
+	err := wait.PollUntilContextTimeout(
+		context.TODO(),
+		tsparams.RetryInterval,
+		tsparams.WaitTimeout,
+		true,
+		func(ctx context.Context) (bool, error) {
+			retrievedIP, pollErr := getPodIPFromInterfaceOnce(podBuilder, interfaceName)
+			if pollErr != nil {
+				klog.V(90).Infof("Retrying to get IP from interface %s: %v", interfaceName, pollErr)
+
+				return false, nil
+			}
+
+			podIP = retrievedIP
+
+			return true, nil
+		})
+	if err != nil {
+		return "", fmt.Errorf("failed to get IP from interface %s on pod %s: %w",
+			interfaceName, podBuilder.Definition.Name, err)
+	}
+
+	return podIP, nil
+}
+
+func getPodIPFromInterfaceOnce(podBuilder *pod.Builder, interfaceName string) (string, error) {
+	podObj, err := pod.Pull(APIClient, podBuilder.Definition.Name, podBuilder.Definition.Namespace)
+	if err != nil {
+		return "", fmt.Errorf("failed to pull pod %s: %w", podBuilder.Definition.Name, err)
+	}
+
+	annotation := podObj.Object.Annotations["k8s.v1.cni.cncf.io/network-status"]
+	if annotation == "" {
+		return "", fmt.Errorf("no network-status annotation on pod %s", podBuilder.Definition.Name)
+	}
+
+	var statuses []struct {
+		Interface string   `json:"interface"`
+		IPs       []string `json:"ips"`
+	}
+
+	if err := json.Unmarshal([]byte(annotation), &statuses); err != nil {
+		return "", fmt.Errorf("failed to parse network-status annotation: %w", err)
+	}
+
+	for _, status := range statuses {
+		if status.Interface != interfaceName {
+			continue
+		}
+
+		for _, ip := range status.IPs {
+			if strings.Contains(ip, ":") {
+				continue
+			}
+
+			return strings.Split(ip, "/")[0], nil
+		}
+	}
+
+	return "", fmt.Errorf("no IPv4 found for interface %s in network-status annotation", interfaceName)
 }
