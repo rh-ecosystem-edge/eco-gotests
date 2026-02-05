@@ -16,6 +16,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/ipaddr"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/policy/internal/tsparams"
@@ -52,16 +53,23 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 	)
 
 	BeforeAll(func() {
+		By("Checking if cluster is SNO")
+		isSNO, err := netenv.IsSNOCluster(APIClient)
+		Expect(err).ToNot(HaveOccurred(), "Failed to check if cluster is SNO")
+		if isSNO {
+			Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers")
+		}
+
 		By("Enabling MultiNetworkPolicy feature")
 		enableMultiNetworkPolicy(true)
 
 		By("Listing worker nodes")
-		var err error
 		workerNodeList, err = nodes.List(
 			APIClient, metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
 		Expect(err).ToNot(HaveOccurred(), "Failed to list worker nodes")
-		Expect(len(workerNodeList)).To(BeNumerically(">", 1),
-			"Failed cluster doesn't have enough nodes")
+		if len(workerNodeList) <= 1 {
+			Skip("Skipping test - cluster doesn't have enough nodes (requires 2+ workers)")
+		}
 
 		By("Collecting SR-IOV interface for multinetwork policy tests")
 		srIovInterfacesUnderTest, err := NetConfig.GetSriovInterfaces(1)

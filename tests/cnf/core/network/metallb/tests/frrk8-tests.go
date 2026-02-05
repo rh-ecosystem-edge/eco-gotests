@@ -55,6 +55,11 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 	)
 
 	BeforeAll(func() {
+		By("Checking if cluster is SNO")
+		if IsSNO {
+			Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers")
+		}
+
 		validateEnvVarAndGetNodeList()
 	})
 

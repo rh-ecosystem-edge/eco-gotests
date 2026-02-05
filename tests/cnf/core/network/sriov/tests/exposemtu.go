@@ -41,8 +41,9 @@ var _ = Describe("SRIOV: Expose MTU:", Ordered, Label(tsparams.LabelExposeMTUTes
 
 			By("Verifying if expose MTU tests can be executed on given cluster")
 			err = netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 1)
-			Expect(err).ToNot(HaveOccurred(),
-				"Cluster doesn't support expose MTU test cases")
+			if err != nil {
+				Skip(fmt.Sprintf("Skipping test - cluster doesn't have enough nodes: %v", err))
+			}
 		})
 
 		AfterEach(func() {

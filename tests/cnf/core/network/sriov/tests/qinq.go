@@ -104,6 +104,13 @@ var _ = Describe(
 		)
 
 		BeforeAll(func() {
+			By("Checking if cluster is SNO")
+			isSNO, err := netenv.IsSNOCluster(APIClient)
+			Expect(err).ToNot(HaveOccurred(), "Failed to check if cluster is SNO")
+			if isSNO {
+				Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers")
+			}
+
 			By("Discover worker nodes")
 			workerNodeList, err = nodes.List(APIClient,
 				metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})

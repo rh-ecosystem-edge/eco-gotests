@@ -26,16 +26,20 @@ import (
 
 var _ = Describe("MetalLB BGP", Ordered, Label(tsparams.LabelBGPTestCases), ContinueOnFailure, func() {
 	var (
-		err           error
 		AddressPoolS1 = []string{"4.4.4.100", "4.4.4.101"}
 		AddressPoolS2 = []string{"5.5.5.100", "5.5.5.101"}
 	)
 
 	BeforeAll(func() {
+		By("Checking if cluster is SNO")
+		if IsSNO {
+			Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers")
+		}
+
 		validateEnvVarAndGetNodeList()
 
 		By("Creating a new instance of MetalLB Speakers on workers")
-		err = metallbenv.CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(tsparams.DefaultTimeout, workerLabelMap)
+		err := metallbenv.CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(tsparams.DefaultTimeout, workerLabelMap)
 		Expect(err).ToNot(HaveOccurred(), "Failed to recreate metalLb daemonset")
 	})
 

@@ -52,9 +52,10 @@ var _ = Describe("ParallelDraining", Ordered, Label(tsparams.LabelParallelDraini
 			Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
 
 			By("Verifying if parallel draining tests can be executed on given cluster")
-			err = netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 2)
-			Expect(err).ToNot(HaveOccurred(),
-				"Cluster doesn't support parallel draining test cases - doesn't have enough nodes")
+			err := netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 2)
+			if err != nil {
+				Skip(fmt.Sprintf("Skipping test - cluster doesn't have enough nodes: %v", err))
+			}
 		})
 		BeforeEach(func() {
 			By("Configuring SR-IOV")
