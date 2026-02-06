@@ -148,7 +148,7 @@ var _ = Describe("SR-IOV IPv4", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 			Expect(err).ToNot(HaveOccurred(), "Failed to delete SR-IOV networks")
 		})
 
-		It("Verify SR-IOV IPv4 connectivity with Static IPAM and Static MAC", reportxml.ID("31801"), func() {
+		It("Verify SR-IOV IPv4 connectivity with Static IPAM and Static MAC", reportxml.ID("87398"), func() {
 			By("Creating client and server pods for MTU 500")
 			clientMTU500, _, err = createPodPair(
 				clientPodMTU500, serverPodMTU500,
@@ -173,7 +173,7 @@ var _ = Describe("SR-IOV IPv4", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 		})
 
 		It("Verify SR-IOV IPv4 connectivity with Whereabouts IPAM, Dynamic MAC, and VLAN",
-			reportxml.ID("31808"), func() {
+			reportxml.ID("87399"), func() {
 				By("Creating VLAN pods for MTU 500")
 				vlanClientMTU500, vlanServerMTU500, err := createPodPair(
 					clientPodVlanMTU500, serverPodVlanMTU500,
@@ -261,7 +261,7 @@ var _ = Describe("SR-IOV IPv4", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 		})
 
 		It("Verify SR-IOV IPv4 connectivity between different PFs on same node with Static IPAM and Static MAC",
-			reportxml.ID("31802"), func() {
+			reportxml.ID("87400"), func() {
 				By("Creating client and server pods for MTU 500")
 				clientMTU500, _, err = createPodPair(
 					clientPodMTU500, serverPodMTU500,
@@ -287,7 +287,7 @@ var _ = Describe("SR-IOV IPv4", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 			})
 
 		It("Verify SR-IOV IPv4 connectivity with Whereabouts IPAM and Dynamic MAC",
-			reportxml.ID("31806"), func() {
+			reportxml.ID("87401"), func() {
 				By("Creating whereabouts pods with dynamic IP/MAC")
 				whereaboutsClient, whereaboutsServer, err := createPodPair(
 					clientPodWhereabouts, serverPodWhereabouts,
@@ -346,7 +346,7 @@ var _ = Describe("SR-IOV IPv4", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 		})
 
 		It("Verify SR-IOV IPv4 connectivity between different nodes with Static IPAM and Dynamic MAC",
-			reportxml.ID("31803"), func() {
+			reportxml.ID("87402"), func() {
 				By("Creating client and server pods for MTU 500")
 				clientMTU500, _, err = createPodPair(
 					clientPodMTU500, serverPodMTU500,
@@ -372,7 +372,7 @@ var _ = Describe("SR-IOV IPv4", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 			})
 
 		It("Verify SR-IOV IPv4 connectivity between different nodes with Whereabouts IPAM and Dynamic MAC",
-			reportxml.ID("31815"), func() {
+			reportxml.ID("87403"), func() {
 				By("Creating whereabouts pods with dynamic IP/MAC")
 				whereaboutsClient, whereaboutsServer, err := createPodPair(
 					clientPodWhereabouts, serverPodWhereabouts,
