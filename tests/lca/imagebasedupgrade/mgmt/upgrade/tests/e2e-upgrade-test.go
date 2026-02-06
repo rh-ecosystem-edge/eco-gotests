@@ -625,11 +625,13 @@ var _ = Describe(
 		It("includes specific NTP servers among sources", reportxml.ID("74409"), func() {
 			if MGMTConfig.AdditionalNTPSources == "" {
 				Skip("The value for additional NTP sources isn't set")
+			} else {
+				klog.V(mgmtparams.MGMTLogLevel).Infof("Additional NTP sources: %s", MGMTConfig.AdditionalNTPSources)
 			}
 
 			By("Validate the proper NTP servers are listed in the config", func() {
 				execCmd := "cat /etc/chrony.conf"
-				cmdOutput, err := cluster.ExecCmdWithStdout(APIClient, execCmd)
+				cmdOutput, err := cluster.ExecCmdWithStdoutWithRetries(APIClient, 5, 30*time.Second, execCmd)
 				Expect(err).ToNot(HaveOccurred(), "could not execute command: %s", err)
 
 				for _, stdout := range cmdOutput {
