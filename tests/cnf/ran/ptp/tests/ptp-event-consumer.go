@@ -99,7 +99,10 @@ var _ = Describe("PTP Event Consumer", Label(tsparams.LabelEventConsumer), func(
 			Expect(ready).To(BeTrue(), "Failed to wait for PTP daemon set to be ready")
 
 			By("waiting up to 10 minutes for metrics to be locked")
-			err = metrics.AssertQuery(context.TODO(), prometheusAPI, metrics.ClockStateQuery{}, metrics.ClockStateLocked,
+			query := metrics.ClockStateQuery{
+				Process: metrics.DoesNotEqual(metrics.ProcessChronyd),
+			}
+			err = metrics.AssertQuery(context.TODO(), prometheusAPI, query, metrics.ClockStateLocked,
 				metrics.AssertWithStableDuration(10*time.Second),
 				metrics.AssertWithTimeout(10*time.Minute))
 			Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked and stable after pod restart")
