@@ -23,7 +23,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.LabelSuite), func() {
+var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.Label), Label(params.LabelSuite), func() {
 
 	Context("vLLM Workload", Label(tsparams.LabelSuite), func() {
 

@@ -60,8 +60,8 @@ Notes:
 
 | Variable | Description |
 |----------|-------------|
-| `ECO_HWACCEL_NEURON_DRIVERS_IMAGE` | Neuron kernel module driver image (e.g., `public.ecr.aws/q5p6u7h8/neuron-openshift/neuron-kernel-module:2.24.7.0`) |
-| `ECO_HWACCEL_NEURON_DRIVER_VERSION` | Neuron driver version (e.g., `2.24.7.0`) - **REQUIRED** for DeviceConfig creation |
+| `ECO_HWACCEL_NEURON_DRIVERS_IMAGE` | Neuron kernel module driver image (e.g., `public.ecr.aws/q5p6u7h8/neuron-openshift/neuron-kernel-module:2.24.23.0`) |
+| `ECO_HWACCEL_NEURON_DRIVER_VERSION` | Neuron driver version (e.g., `2.24.23.0`) - **REQUIRED** for DeviceConfig creation |
 | `ECO_HWACCEL_NEURON_DEVICE_PLUGIN_IMAGE` | Neuron device plugin image (e.g., `public.ecr.aws/neuron/neuron-device-plugin:2.24.23.0`) |
 | `ECO_HWACCEL_NEURON_NODE_METRICS_IMAGE` | Neuron node metrics exporter image (e.g., `public.ecr.aws/neuron/neuron-monitor:1.3.0`) - **REQUIRED** for DeviceConfig creation |
 
@@ -114,8 +114,8 @@ $ export ECO_REPORTS_DUMP_DIR=/tmp/eco-gotests-logs-dir
 $ export ECO_TEST_FEATURES="neuron"
 $ export ECO_TEST_LABELS='neuron,vllm'
 $ export ECO_VERBOSE_LEVEL=100
-$ export ECO_HWACCEL_NEURON_DRIVERS_IMAGE="public.ecr.aws/q5p6u7h8/neuron-openshift/neuron-kernel-module:2.24.7.0"
-$ export ECO_HWACCEL_NEURON_DRIVER_VERSION="2.24.7.0"
+$ export ECO_HWACCEL_NEURON_DRIVERS_IMAGE="public.ecr.aws/q5p6u7h8/neuron-openshift/neuron-kernel-module:2.24.23.0"
+$ export ECO_HWACCEL_NEURON_DRIVER_VERSION="2.24.23.0"
 $ export ECO_HWACCEL_NEURON_DEVICE_PLUGIN_IMAGE="public.ecr.aws/neuron/neuron-device-plugin:2.24.23.0"
 $ export ECO_HWACCEL_NEURON_NODE_METRICS_IMAGE="public.ecr.aws/neuron/neuron-monitor:1.3.0"
 $ export ECO_HWACCEL_NEURON_SCHEDULER_IMAGE="public.ecr.aws/eks-distro/kubernetes/kube-scheduler:v1.32.9-eks-1-32-24"
@@ -131,8 +131,8 @@ $ make run-tests
 $ export KUBECONFIG=/path/to/kubeconfig
 $ export ECO_TEST_FEATURES="neuron"
 $ export ECO_TEST_LABELS='neuron,metrics'
-$ export ECO_HWACCEL_NEURON_DRIVERS_IMAGE="public.ecr.aws/q5p6u7h8/neuron-openshift/neuron-kernel-module:2.24.7.0"
-$ export ECO_HWACCEL_NEURON_DRIVER_VERSION="2.24.7.0"
+$ export ECO_HWACCEL_NEURON_DRIVERS_IMAGE="public.ecr.aws/q5p6u7h8/neuron-openshift/neuron-kernel-module:2.24.23.0"
+$ export ECO_HWACCEL_NEURON_DRIVER_VERSION="2.24.23.0"
 $ export ECO_HWACCEL_NEURON_DEVICE_PLUGIN_IMAGE="public.ecr.aws/neuron/neuron-device-plugin:2.24.23.0"
 $ export ECO_HWACCEL_NEURON_NODE_METRICS_IMAGE="public.ecr.aws/neuron/neuron-monitor:1.3.0"
 $ make run-tests
@@ -147,8 +147,8 @@ $ export KUBECONFIG=/path/to/kubeconfig
 $ export ECO_TEST_FEATURES="neuron"
 $ export ECO_TEST_LABELS='neuron,upgrade'
 # Initial driver configuration
-$ export ECO_HWACCEL_NEURON_DRIVERS_IMAGE="public.ecr.aws/q5p6u7h8/neuron-openshift/neuron-kernel-module:2.24.7.0"
-$ export ECO_HWACCEL_NEURON_DRIVER_VERSION="2.24.7.0"
+$ export ECO_HWACCEL_NEURON_DRIVERS_IMAGE="public.ecr.aws/q5p6u7h8/neuron-openshift/neuron-kernel-module:2.24.23.0"
+$ export ECO_HWACCEL_NEURON_DRIVER_VERSION="2.24.23.0"
 $ export ECO_HWACCEL_NEURON_DEVICE_PLUGIN_IMAGE="public.ecr.aws/neuron/neuron-device-plugin:2.24.23.0"
 $ export ECO_HWACCEL_NEURON_NODE_METRICS_IMAGE="public.ecr.aws/neuron/neuron-monitor:1.3.0"
 # Upgrade target configuration
@@ -163,14 +163,14 @@ $ make run-tests
 **Important**: The `driverVersion` field is **required** when creating a DeviceConfig. A rolling upgrade is triggered when the `driverVersion` field is updated to a different value.
 
 ```yaml
-apiVersion: k8s.aws/v1alpha1
+apiVersion: k8s.aws/v1beta1
 kind: DeviceConfig
 metadata:
   name: neuron
   namespace: ai-operator-on-aws
 spec:
-  driversImage: public.ecr.aws/q5p6u7h8/neuron-openshift/neuron-kernel-module:2.24.7.0
-  driverVersion: 2.24.7.0
+  driversImage: public.ecr.aws/q5p6u7h8/neuron-openshift/neuron-kernel-module:2.24.23.0
+  driverVersion: 2.24.23.0
   devicePluginImage: public.ecr.aws/neuron/neuron-device-plugin:2.24.23.0
   nodeMetricsImage: public.ecr.aws/neuron/neuron-monitor:1.3.0
   customSchedulerImage: public.ecr.aws/eks-distro/kubernetes/kube-scheduler:v1.32.9-eks-1-32-24
