@@ -26,7 +26,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.LabelSuite), func() {
+var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), Label(params.LabelSuite), func() {
 
 	Context("Rolling Upgrade", Label(tsparams.LabelSuite), func() {
 
