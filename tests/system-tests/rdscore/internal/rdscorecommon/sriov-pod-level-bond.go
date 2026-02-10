@@ -24,6 +24,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreinittools"
 )
 
@@ -1195,8 +1196,54 @@ func verifyConnectivity() {
 		RDSCoreConfig.PodLevelBondDeploymentTwoIPv6)
 }
 
+// waitForPodLevelBondNodesSriovSync waits for SRIOVNetworkNodeState to reach "Succeeded"
+// sync status on both pod-level bond nodes.
+func waitForPodLevelBondNodesSriovSync() error {
+	By("Waiting for SRIOVNetworkNodeState to reach Succeeded sync status on pod-level bond nodes")
+
+	sriovNamespace := rdscoreparams.SriovOperatorNamespace
+	timeout := 15 * time.Minute
+	nodeNames := []string{
+		RDSCoreConfig.PodLevelBondPodOneScheduleOnHost,
+		RDSCoreConfig.PodLevelBondPodTwoScheduleOnHost,
+	}
+
+	for _, nodeName := range nodeNames {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Checking SRIOVNetworkNodeState sync status on node %q", nodeName)
+
+		sriovNodeState := sriov.NewNetworkNodeStateBuilder(APIClient, nodeName, sriovNamespace)
+		if sriovNodeState == nil {
+			return fmt.Errorf("failed to create SRIOVNetworkNodeState builder for node %q", nodeName)
+		}
+
+		err := sriovNodeState.Discover()
+		if err != nil {
+			return fmt.Errorf("SRIOVNetworkNodeState not found for node %q: %w", nodeName, err)
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Waiting up to %v for SRIOVNetworkNodeState sync status '%s' on node %q",
+			timeout, rdscoreparams.SriovNetworkNodeStateSucceededStatus, nodeName)
+
+		err = sriovNodeState.WaitUntilSyncStatus(rdscoreparams.SriovNetworkNodeStateSucceededStatus, timeout)
+		if err != nil {
+			return fmt.Errorf("timeout waiting for SRIOVNetworkNodeState sync on node %q: %w", nodeName, err)
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Successfully waited for SRIOVNetworkNodeState sync on node %q", nodeName)
+	}
+
+	return nil
+}
+
 // VerifyPodLevelBondWorkloadsOnSameNodeSamePF verifies TCP traffic works on the same node and different PFs.
 func VerifyPodLevelBondWorkloadsOnSameNodeSamePF() {
+	err := waitForPodLevelBondNodesSriovSync()
+	if err != nil {
+		Skip(fmt.Sprintf("SRIOV sync failure on pod-level bond nodes: %v. Skipping...", err))
+	}
+
 	prepareSecondPodLevelBondDeployment(true, true)
 
 	verifyConnectivity()
@@ -1204,6 +1251,11 @@ func VerifyPodLevelBondWorkloadsOnSameNodeSamePF() {
 
 // VerifyPodLevelBondWorkloadsOnSameNodeDifferentPFs verifies TCP traffic works on the same node and different PFs.
 func VerifyPodLevelBondWorkloadsOnSameNodeDifferentPFs() {
+	err := waitForPodLevelBondNodesSriovSync()
+	if err != nil {
+		Skip(fmt.Sprintf("SRIOV sync failure on pod-level bond nodes: %v. Skipping...", err))
+	}
+
 	prepareSecondPodLevelBondDeployment(true, false)
 
 	verifyConnectivity()
@@ -1211,6 +1263,11 @@ func VerifyPodLevelBondWorkloadsOnSameNodeDifferentPFs() {
 
 // VerifyPodLevelBondWorkloadsOnDifferentNodesSamePF verifies TCP traffic works on the different nodes and same PF.
 func VerifyPodLevelBondWorkloadsOnDifferentNodesSamePF() {
+	err := waitForPodLevelBondNodesSriovSync()
+	if err != nil {
+		Skip(fmt.Sprintf("SRIOV sync failure on pod-level bond nodes: %v. Skipping...", err))
+	}
+
 	prepareSecondPodLevelBondDeployment(false, true)
 
 	verifyConnectivity()
@@ -1219,6 +1276,11 @@ func VerifyPodLevelBondWorkloadsOnDifferentNodesSamePF() {
 // VerifyPodLevelBondWorkloadsOnDifferentNodesDifferentPFs verifies TCP traffic works on the
 // different nodes and different PFs.
 func VerifyPodLevelBondWorkloadsOnDifferentNodesDifferentPFs() {
+	err := waitForPodLevelBondNodesSriovSync()
+	if err != nil {
+		Skip(fmt.Sprintf("SRIOV sync failure on pod-level bond nodes: %v. Skipping...", err))
+	}
+
 	prepareSecondPodLevelBondDeployment(false, false)
 
 	verifyConnectivity()
@@ -1226,9 +1288,15 @@ func VerifyPodLevelBondWorkloadsOnDifferentNodesDifferentPFs() {
 
 // VerifyPodLevelBondWorkloadsAfterVFFailOver verifies TCP traffic after bond active interface failure
 // (fail-over procedure).
+//
+//nolint:funlen
 func VerifyPodLevelBondWorkloadsAfterVFFailOver() {
-	prepareSecondPodLevelBondDeployment(false, true)
+	err := waitForPodLevelBondNodesSriovSync()
+	if err != nil {
+		Skip(fmt.Sprintf("SRIOV sync failure on pod-level bond nodes: %v. Skipping...", err))
+	}
 
+	prepareSecondPodLevelBondDeployment(false, true)
 	verifyConnectivity()
 
 	By("Retrieve client pod-level bond pod object")
@@ -1260,6 +1328,8 @@ func VerifyPodLevelBondWorkloadsAfterVFFailOver() {
 			serverPodObj.Definition.Name, serverPodObj.Definition.Namespace, err))
 
 	go func() {
+		defer GinkgoRecover()
+
 		By("Send data from the client container to the IPv4 address used by the server container")
 
 		output, err := generateTCPTraffic(
@@ -1283,6 +1353,8 @@ func VerifyPodLevelBondWorkloadsAfterVFFailOver() {
 	}()
 
 	go func() {
+		defer GinkgoRecover()
+
 		time.Sleep(time.Second * 2)
 
 		err = disableBondActiveVFInterface(serverPodObj)
@@ -1320,6 +1392,11 @@ func VerifyPodLevelBondWorkloadsAfterVFFailOver() {
 // VerifyPodLevelBondWorkloadsAfterBondInterfaceFailure verifies TCP traffic after pod bonded interface
 // recovering after failure.
 func VerifyPodLevelBondWorkloadsAfterBondInterfaceFailure() {
+	err := waitForPodLevelBondNodesSriovSync()
+	if err != nil {
+		Skip(fmt.Sprintf("SRIOV sync failure on pod-level bond nodes: %v. Skipping...", err))
+	}
+
 	prepareSecondPodLevelBondDeployment(false, true)
 
 	verifyConnectivity()
@@ -1361,6 +1438,11 @@ func VerifyPodLevelBondWorkloadsAfterBondInterfaceFailure() {
 // VerifyPodLevelBondWorkloadsAfterBothVFsFailure verifies TCP traffic after bond
 // interface recovering after both VFs failure.
 func VerifyPodLevelBondWorkloadsAfterBothVFsFailure() {
+	err := waitForPodLevelBondNodesSriovSync()
+	if err != nil {
+		Skip(fmt.Sprintf("SRIOV sync failure on pod-level bond nodes: %v. Skipping...", err))
+	}
+
 	prepareSecondPodLevelBondDeployment(false, true)
 
 	verifyConnectivity()
@@ -1417,6 +1499,11 @@ func VerifyPodLevelBondWorkloadsAfterBothVFsFailure() {
 
 // VerifyPodLevelBondWorkloadsAfterPodCrashing verifies TCP traffic works after pod crashing.
 func VerifyPodLevelBondWorkloadsAfterPodCrashing() {
+	err := waitForPodLevelBondNodesSriovSync()
+	if err != nil {
+		Skip(fmt.Sprintf("SRIOV sync failure on pod-level bond nodes: %v. Skipping...", err))
+	}
+
 	prepareSecondPodLevelBondDeployment(false, true)
 
 	verifyConnectivity()

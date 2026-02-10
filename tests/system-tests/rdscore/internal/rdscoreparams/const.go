@@ -54,4 +54,10 @@ const (
 
 	// PureStorageFileSCName is a pure storage file storage class name.
 	PureStorageFileSCName = "fa-file-sc"
+
+	// SriovOperatorNamespace SR-IOV operator namespace.
+	SriovOperatorNamespace = "openshift-sriov-network-operator"
+
+	// SriovNetworkNodeStateSucceededStatus SR-IOV network node state succeeded sync status.
+	SriovNetworkNodeStateSucceededStatus = "Succeeded"
 )
