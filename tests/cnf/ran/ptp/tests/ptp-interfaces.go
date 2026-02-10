@@ -18,6 +18,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/version"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/consumer"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/eventmetric"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/events"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/metrics"
@@ -111,10 +112,6 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				// Include all interfaces in the interface group in the interface information report for this suite.
 				nicinfo.Node(nodeName).MarkTested(iface.NamesToStrings(interfaceGroup)...)
 
-				By("getting the event pod for the node")
-				eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeName)
-				Expect(err).ToNot(HaveOccurred(), "Failed to get event pod for node %s", nodeName)
-
 				// DeferCleanup will create a pseudo-AfterEach to run after the test completes, even if
 				// it fails. This ensures these interfaces are set up even if the test fails.
 				DeferCleanup(func() {
@@ -141,31 +138,44 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 					Expect(err).ToNot(HaveOccurred(), "Failed to set interface %s to down on node %s", ifaceName, nodeName)
 				}
 
-				By("waiting for ptp state change HOLDOVER event")
-				holdoverFilter := events.All(
-					events.IsType(eventptp.PtpStateChange),
-					events.HasValue(events.WithSyncState(eventptp.HOLDOVER), events.OnInterface(nicName)),
-				)
-				err = events.WaitForEvent(eventPod, startTime, 3*time.Minute, holdoverFilter)
-				Expect(err).ToNot(HaveOccurred(), "Failed to wait for ptp state change HOLDOVER event")
+				By("checking if events are enabled")
+				eventsEnabled, err := consumer.AreEventsEnabled(RANConfig.Spoke1APIClient)
+				Expect(err).ToNot(HaveOccurred(), "Failed to check if events are enabled")
 
-				By("waiting for ptp state change FREERUN event")
+				if eventsEnabled {
+					By("waiting for ptp state change HOLDOVER event")
+					eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeName)
+					Expect(err).ToNot(HaveOccurred(), "Failed to get event pod for node %s", nodeName)
+
+					holdoverFilter := events.All(
+						events.IsType(eventptp.PtpStateChange),
+						events.HasValue(events.WithSyncState(eventptp.HOLDOVER), events.OnInterface(nicName)),
+					)
+
+					err = events.WaitForEvent(eventPod, startTime, 3*time.Minute, holdoverFilter)
+					Expect(err).ToNot(HaveOccurred(), "Failed to wait for ptp state change HOLDOVER event")
+				}
+
+				By("waiting for ptp state change FREERUN event and metric")
 				freerunFilter := events.All(
 					events.IsType(eventptp.PtpStateChange),
 					events.HasValue(events.WithSyncState(eventptp.FREERUN), events.OnInterface(nicName)),
 				)
-				err = events.WaitForEvent(eventPod, startTime, 5*time.Minute, freerunFilter)
-				Expect(err).ToNot(HaveOccurred(), "Failed to wait for ptp state change FREERUN event")
-
-				By("asserting that interface group on that node has FREERUN metric")
-				clockStateQuery := metrics.ClockStateQuery{
+				ptp4lClockStateQuery := metrics.ClockStateQuery{
 					Interface: metrics.Equals(nicName),
 					Node:      metrics.Equals(nodeName),
+					Process:   metrics.Equals(metrics.ProcessPTP4L),
 				}
-				err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockStateQuery, metrics.ClockStateFreerun,
-					metrics.AssertWithTimeout(5*time.Minute),
-					metrics.AssertWithStableDuration(10*time.Second))
-				Expect(err).ToNot(HaveOccurred(), "Failed to assert that interface group on that node has FREERUN metric")
+				err = eventmetric.NewAssertion(prometheusAPI, ptp4lClockStateQuery, metrics.ClockStateFreerun, freerunFilter).
+					ForNode(RANConfig.Spoke1APIClient, nodeName).
+					WithStartTime(startTime).
+					WithTimeout(5*time.Minute).
+					WithMetricOptions(
+						metrics.AssertWithStableDuration(10*time.Second),
+						metrics.AssertWithPollInterval(1*time.Second),
+					).
+					ExecuteAssertion(context.TODO())
+				Expect(err).ToNot(HaveOccurred(), "Failed to wait for ptp state change FREERUN event and metric")
 
 				By("setting all interfaces in the group up")
 				for _, ifaceName := range interfaceGroup {
@@ -173,13 +183,17 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 					Expect(err).ToNot(HaveOccurred(), "Failed to set interface %s to up on node %s", ifaceName, nodeName)
 				}
 
-				By("waiting for ptp state change LOCKED event")
+				By("waiting for ptp state change LOCKED event and metric")
 				lockedFilter := events.All(
 					events.IsType(eventptp.PtpStateChange),
 					events.HasValue(events.WithSyncState(eventptp.LOCKED), events.OnInterface(nicName)),
 				)
-				err = events.WaitForEvent(eventPod, startTime, 5*time.Minute, lockedFilter)
-				Expect(err).ToNot(HaveOccurred(), "Failed to wait for ptp state change LOCKED event")
+				err = eventmetric.NewAssertion(prometheusAPI, ptp4lClockStateQuery, metrics.ClockStateLocked, lockedFilter).
+					ForNode(RANConfig.Spoke1APIClient, nodeName).
+					WithStartTime(startTime).
+					WithTimeout(5 * time.Minute).
+					ExecuteAssertion(context.TODO())
+				Expect(err).ToNot(HaveOccurred(), "Failed to wait for ptp state change LOCKED event and metric")
 
 				By("asserting that all metrics are LOCKED")
 				err = metrics.EnsureClocksAreLocked(prometheusAPI)
@@ -280,7 +294,8 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 							events.ContainingResource(string(masterInterface.Name.GetNIC())),
 						),
 					)
-					err = events.WaitForEvent(eventPod, startTime, 1*time.Minute, clockClassEventFilter)
+					err = events.WaitForEvent(eventPod, startTime, 1*time.Minute, clockClassEventFilter,
+						events.WithCurrentState(true))
 					Expect(err).ToNot(HaveOccurred(), "Failed to wait for clock class event for interface %s", masterInterface.Name)
 				}
 			}

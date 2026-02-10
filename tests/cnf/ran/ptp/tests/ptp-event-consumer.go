@@ -17,6 +17,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/version"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/consumer"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/eventmetric"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/events"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/metrics"
@@ -107,15 +108,19 @@ var _ = Describe("PTP Event Consumer", Label(tsparams.LabelEventConsumer), func(
 				metrics.AssertWithTimeout(10*time.Minute))
 			Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked and stable after pod restart")
 
-			By("waiting up to 10 minutes since startTime for the locked event on the node")
-			eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeInfo.Name)
-			Expect(err).ToNot(HaveOccurred(), "Failed to get event pod for node %s", nodeInfo.Name)
-
-			filter := events.All(
+			By("waiting up to 10 minutes since startTime for the locked event and metric on the node")
+			lockedFilter := events.All(
 				events.IsType(eventptp.PtpStateChange),
 				events.HasValue(events.WithSyncState(eventptp.LOCKED)),
 			)
-			err = events.WaitForEvent(eventPod, startTime, 10*time.Minute, filter)
+			err = eventmetric.NewAssertion(prometheusAPI,
+				metrics.ClockStateQuery{Process: metrics.DoesNotEqual(metrics.ProcessChronyd)},
+				metrics.ClockStateLocked, lockedFilter).
+				ForNode(RANConfig.Spoke1APIClient, nodeInfo.Name).
+				WithStartTime(startTime).
+				WithTimeout(10 * time.Minute).
+				WithMetricOptions(metrics.AssertWithStableDuration(10 * time.Second)).
+				ExecuteAssertion(context.TODO())
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for locked event on node %s", nodeInfo.Name)
 		}
 
@@ -126,6 +131,14 @@ var _ = Describe("PTP Event Consumer", Label(tsparams.LabelEventConsumer), func(
 
 	// 82218 - Validates the consumer events after ptpoperatorconfig api version is modified
 	It("validates the consumer events after ptpoperatorconfig api version is modified", reportxml.ID("82218"), func() {
+		By("checking if events are enabled")
+		eventsEnabled, err := consumer.AreEventsEnabled(RANConfig.Spoke1APIClient)
+		Expect(err).ToNot(HaveOccurred(), "Failed to check if events are enabled")
+
+		if !eventsEnabled {
+			Skip("Events are not enabled, skipping event consumer API version test")
+		}
+
 		By("checking if the PTP version is within the 4.16-4.18 range")
 		inRange, err := version.IsVersionStringInRange(RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.16", "4.18")
 		Expect(err).ToNot(HaveOccurred(), "Failed to check PTP version range")
