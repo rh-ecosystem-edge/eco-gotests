@@ -23,6 +23,8 @@ const (
 	LabelNTPFallback = "ntp-fallback"
 	// LabelStability is the label for all tests in the PTP stability suite.
 	LabelStability = "stability"
+	// LabelLogReduction is the label for all tests in the PTP log reduction suite.
+	LabelLogReduction = "log-reduction"
 
 	// LeapConfigmapName is the name of the leap configmap.
 	LeapConfigmapName = "leap-configmap"
