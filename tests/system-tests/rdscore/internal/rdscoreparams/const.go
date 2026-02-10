@@ -57,4 +57,7 @@ const (
 
 	// SriovOperatorNamespace SR-IOV operator namespace.
 	SriovOperatorNamespace = "openshift-sriov-network-operator"
+
+	// SriovNetworkNodeStateSucceededStatus SR-IOV network node state succeeded sync status.
+	SriovNetworkNodeStateSucceededStatus = "Succeeded"
 )

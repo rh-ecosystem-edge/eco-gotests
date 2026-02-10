@@ -1222,9 +1222,10 @@ func waitForPodLevelBondNodesSriovSync() error {
 		}
 
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-			"Waiting up to %v for SRIOVNetworkNodeState sync status 'Succeeded' on node %q", timeout, nodeName)
+			"Waiting up to %v for SRIOVNetworkNodeState sync status '%s' on node %q",
+			timeout, rdscoreparams.SriovNetworkNodeStateSucceededStatus, nodeName)
 
-		err = sriovNodeState.WaitUntilSyncStatus("Succeeded", timeout)
+		err = sriovNodeState.WaitUntilSyncStatus(rdscoreparams.SriovNetworkNodeStateSucceededStatus, timeout)
 		if err != nil {
 			return fmt.Errorf("timeout waiting for SRIOVNetworkNodeState sync on node %q: %w", nodeName, err)
 		}
