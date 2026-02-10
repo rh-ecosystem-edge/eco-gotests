@@ -14,7 +14,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/internal/nicinfo"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/querier"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/consumer"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/eventmetric"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/events"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/metrics"
@@ -100,30 +100,47 @@ var _ = Describe("PTP Events and Metrics", Label(tsparams.LabelEventsAndMetrics)
 				continue
 			}
 
-			testRanAtLeastOnce = true
 			ifaceGroups := iface.GroupInterfacesByNIC(profiles.GetInterfacesNames(clientInterfaces))
 
-			By("getting the event pod for the node")
-			eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeInfo.Name)
-			Expect(err).ToNot(HaveOccurred(), "Failed to get event pod for node %s", nodeInfo.Name)
+			By("getting the egress interface for the node")
+			egressInterface, err := iface.GetEgressInterfaceName(RANConfig.Spoke1APIClient, nodeInfo.Name)
+			Expect(err).ToNot(HaveOccurred(), "Failed to get egress interface name for node %s", nodeInfo.Name)
 
 			for nic, ifaces := range ifaceGroups {
+				if nic == egressInterface.GetNIC() {
+					klog.V(tsparams.LogLevel).Infof("Skipping egress NIC %s", nic)
+
+					continue
+				}
+
+				testRanAtLeastOnce = true
+
 				// Include this interface in the interface information report for this suite.
 				nicinfo.Node(nodeInfo.Name).MarkTested(string(ifaces[0]))
 
 				startTime := time.Now()
 
-				By("adjusting the PHC by 5 ms for NIC " + string(nic))
-				err := iface.AdjustPTPHardwareClock(RANConfig.Spoke1APIClient, nodeInfo.Name, ifaces[0], 0.005)
+				By("adjusting the PHC by 100 ms for NIC " + string(nic))
+				err := iface.AdjustPTPHardwareClock(RANConfig.Spoke1APIClient, nodeInfo.Name, ifaces[0], 0.1)
 				Expect(err).ToNot(HaveOccurred(),
 					"Failed to adjust PTP hardware clock for interface %s on node %s", ifaces[0], nodeInfo.Name)
 
-				By("waiting to receive a FREERUN event")
-				filter := events.All(
+				By("waiting to receive a FREERUN event and metric")
+				freerunFilter := events.All(
 					events.IsType(eventptp.PtpStateChange),
-					events.HasValue(events.WithSyncState(eventptp.FREERUN)),
+					events.HasValue(events.WithSyncState(eventptp.FREERUN), events.OnInterface(nic)),
 				)
-				err = events.WaitForEvent(eventPod, startTime, 5*time.Minute, filter, events.WithoutCurrentState(true))
+				ptp4lClockStateQuery := metrics.ClockStateQuery{
+					Node:      metrics.Equals(nodeInfo.Name),
+					Interface: metrics.Equals(nic),
+					Process:   metrics.Equals(metrics.ProcessPTP4L),
+				}
+				err = eventmetric.NewAssertion(prometheusAPI, ptp4lClockStateQuery, metrics.ClockStateFreerun, freerunFilter).
+					ForNode(RANConfig.Spoke1APIClient, nodeInfo.Name).
+					WithStartTime(startTime).
+					WithTimeout(5 * time.Minute).
+					WithMetricOptions(metrics.AssertWithPollInterval(1 * time.Second)).
+					ExecuteAssertion(context.TODO())
 				Expect(err).ToNot(HaveOccurred(),
 					"Failed to wait for free run event on interface %s on node %s", ifaces[0], nodeInfo.Name)
 
@@ -137,12 +154,16 @@ var _ = Describe("PTP Events and Metrics", Label(tsparams.LabelEventsAndMetrics)
 				// The locked event should happen much sooner than in 15 minutes, except for GM
 				// profiles. This is since the RDS's ts2phc settings for the servo do not allow the PHC
 				// to be updated as quickly. The ptp4l settings allow it to be updated much faster.
-				By("waiting to receive a locked event")
-				filter = events.All(
+				By("waiting to receive a locked event and metric")
+				lockedFilter := events.All(
 					events.IsType(eventptp.PtpStateChange),
-					events.HasValue(events.WithSyncState(eventptp.LOCKED)),
+					events.HasValue(events.WithSyncState(eventptp.LOCKED), events.OnInterface(nic)),
 				)
-				err = events.WaitForEvent(eventPod, startTime, 15*time.Minute, filter, events.WithoutCurrentState(true))
+				err = eventmetric.NewAssertion(prometheusAPI, ptp4lClockStateQuery, metrics.ClockStateLocked, lockedFilter).
+					ForNode(RANConfig.Spoke1APIClient, nodeInfo.Name).
+					WithStartTime(startTime).
+					WithTimeout(15 * time.Minute).
+					ExecuteAssertion(context.TODO())
 				Expect(err).ToNot(HaveOccurred(),
 					"Failed to wait for locked event on interface %s on node %s", ifaces[0], nodeInfo.Name)
 			}

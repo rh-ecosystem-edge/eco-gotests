@@ -45,6 +45,8 @@ const (
 	PtpOperatorNamespace = "openshift-ptp"
 	// LinuxPtpDaemonsetName is the name of the Linux PTP daemon daemonset.
 	LinuxPtpDaemonsetName = "linuxptp-daemon"
+	// PtpServiceMonitorName is the name of the PTP operator's ServiceMonitor.
+	PtpServiceMonitorName = "monitor-ptp"
 
 	// CloudEventProxyContainerName is the sidecar in the linuxptp-daemon pod that emits events.
 	CloudEventProxyContainerName = "cloud-event-proxy"

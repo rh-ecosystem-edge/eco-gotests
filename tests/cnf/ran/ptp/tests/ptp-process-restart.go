@@ -16,6 +16,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/version"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/consumer"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/eventmetric"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/events"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/metrics"
@@ -89,12 +90,9 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 		for _, nodeInfo := range nodeInfoMap {
 			testRanAtLeastOnce = true
 
-			By("getting the event pod for the node " + nodeInfo.Name)
-			eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeInfo.Name)
-			Expect(err).ToNot(HaveOccurred(), "Failed to get event pod for node %s", nodeInfo.Name)
-
-			By("getting the phc2sys PID")
-			oldPhc2sysPID, err := processes.GetPID(RANConfig.Spoke1APIClient, nodeInfo.Name, processes.Phc2sys)
+			By("waiting for the phc2sys process to be running")
+			oldPhc2sysPID, err := processes.WaitForProcessPID(
+				RANConfig.Spoke1APIClient, nodeInfo.Name, processes.Phc2sys, 2*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get phc2sys PID for node %s", nodeInfo.Name)
 
 			startTime := time.Now()
@@ -103,20 +101,36 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 			err = processes.KillPtpProcessMultipleTimes(RANConfig.Spoke1APIClient, nodeInfo.Name, processes.Phc2sys, 2)
 			Expect(err).ToNot(HaveOccurred(), "Failed to kill phc2sys process for node %s", nodeInfo.Name)
 
-			By("waiting for the FREERUN event to be received for CLOCK_REALTIME")
-			filter := events.All(
-				events.IsType(eventptp.OsClockSyncStateChange),
-				events.HasValue(events.WithSyncState(eventptp.FREERUN), events.OnInterface(iface.ClockRealtime)),
-			)
-			err = events.WaitForEvent(eventPod, startTime, 5*time.Minute, filter)
-			Expect(err).ToNot(HaveOccurred(), "Failed to wait for free run event on node %s", nodeInfo.Name)
+			By("checking if events are enabled")
+			eventsEnabled, err := consumer.AreEventsEnabled(RANConfig.Spoke1APIClient)
+			Expect(err).ToNot(HaveOccurred(), "Failed to check if events are enabled")
 
-			By("waiting for the LOCKED event to be received for CLOCK_REALTIME")
-			filter = events.All(
+			if eventsEnabled {
+				By("waiting for the FREERUN event for CLOCK_REALTIME")
+				eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeInfo.Name)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get event pod for node %s", nodeInfo.Name)
+
+				freerunFilter := events.All(
+					events.IsType(eventptp.OsClockSyncStateChange),
+					events.HasValue(events.WithSyncState(eventptp.FREERUN), events.OnInterface(iface.ClockRealtime)),
+				)
+
+				err = events.WaitForEvent(eventPod, startTime, 5*time.Minute, freerunFilter)
+				Expect(err).ToNot(HaveOccurred(), "Failed to wait for FREERUN event on node %s", nodeInfo.Name)
+			}
+
+			By("waiting for the LOCKED event and metric for CLOCK_REALTIME")
+			lockedFilter := events.All(
 				events.IsType(eventptp.OsClockSyncStateChange),
 				events.HasValue(events.WithSyncState(eventptp.LOCKED), events.OnInterface(iface.ClockRealtime)),
 			)
-			err = events.WaitForEvent(eventPod, startTime, 5*time.Minute, filter)
+			err = eventmetric.NewAssertion(prometheusAPI,
+				metrics.ClockStateQuery{Interface: metrics.Equals(iface.ClockRealtime), Node: metrics.Equals(nodeInfo.Name)},
+				metrics.ClockStateLocked, lockedFilter).
+				ForNode(RANConfig.Spoke1APIClient, nodeInfo.Name).
+				WithStartTime(startTime).
+				WithTimeout(5 * time.Minute).
+				ExecuteAssertion(context.TODO())
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for locked event on node %s", nodeInfo.Name)
 
 			By("getting the new phc2sys PID")
@@ -167,10 +181,6 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 				prometheusAPI, nodeInfo.Name, nodeInfo.Profiles, 180, 5*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for holdover timeout to be set to 180 after 5 minutes")
 
-			By("getting the event pod for the node")
-			eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeInfo.Name)
-			Expect(err).ToNot(HaveOccurred(), "Failed to get event pod for node %s", nodeInfo.Name)
-
 			By("getting the original ptp4l and phc2sys PIDs")
 			oldPtp4lPIDs, err := processes.GetPtp4lPIDsByRelatedProcess(
 				RANConfig.Spoke1APIClient, nodeInfo.Name, processes.Phc2sys, false)
@@ -188,22 +198,39 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 			err = processes.KillProcessByPID(RANConfig.Spoke1APIClient, nodeInfo.Name, ptp4lPIDToKill)
 			Expect(err).ToNot(HaveOccurred(), "Failed to kill ptp4l process for node %s", nodeInfo.Name)
 
-			By("waiting for the FREERUN event to be received after killing the ptp4l process for 4.19-")
-			filter := events.All(
+			ptp4lClockStateQuery := metrics.ClockStateQuery{
+				Node:    metrics.Equals(nodeInfo.Name),
+				Process: metrics.Equals(metrics.ProcessPTP4L),
+			}
+
+			By("waiting for the FREERUN event after killing the ptp4l process")
+			freerunFilter := events.All(
 				events.IsType(eventptp.PtpStateChange),
 				events.HasValue(events.WithSyncState(eventptp.FREERUN), events.ContainingResource(string(iface.Master))),
 			)
-			err = events.WaitForEvent(
-				eventPod, startTime, 3*time.Minute, filter, events.WithoutCurrentState(true))
-			Expect(err).ToNot(HaveOccurred(), "Failed to wait for free run event on node %s", nodeInfo.Name)
 
-			By("waiting for the LOCKED event to be received after killing the ptp4l process")
-			filter = events.All(
+			eventsEnabled, err := consumer.AreEventsEnabled(RANConfig.Spoke1APIClient)
+			Expect(err).ToNot(HaveOccurred(), "Failed to check if events are enabled")
+
+			if eventsEnabled {
+				eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeInfo.Name)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get event pod for node %s", nodeInfo.Name)
+
+				err = events.WaitForEvent(eventPod, startTime, 3*time.Minute, freerunFilter)
+				Expect(err).ToNot(HaveOccurred(), "Failed to wait for FREERUN event on node %s", nodeInfo.Name)
+			}
+
+			By("waiting for the LOCKED event and metric after killing the ptp4l process")
+			lockedFilter := events.All(
 				events.IsType(eventptp.PtpStateChange),
 				events.HasValue(events.WithSyncState(eventptp.LOCKED), events.ContainingResource(string(iface.Master))),
 			)
-			err = events.WaitForEvent(
-				eventPod, startTime, 3*time.Minute, filter, events.WithoutCurrentState(true))
+			err = eventmetric.NewAssertion(prometheusAPI, ptp4lClockStateQuery, metrics.ClockStateLocked, lockedFilter).
+				ForNode(RANConfig.Spoke1APIClient, nodeInfo.Name).
+				WithStartTime(startTime).
+				WithTimeout(3 * time.Minute).
+				WithMetricOptions(metrics.AssertWithPollInterval(1 * time.Second)).
+				ExecuteAssertion(context.TODO())
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for locked event on node %s", nodeInfo.Name)
 
 			By("ensuring the phc2sys process is not affected by killing the ptp4l process")
@@ -270,9 +297,7 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 						events.IsType(eventptp.PtpStateChange),
 						events.HasValue(events.WithSyncState(eventptp.FREERUN), events.ContainingResource(string(iface.Master))),
 					)
-					err = events.WaitForEvent(
-						eventPod, startTime, 3*time.Minute, filter,
-						events.WithoutCurrentState(true))
+					err = events.WaitForEvent(eventPod, startTime, 3*time.Minute, filter)
 					Expect(err).ToNot(HaveOccurred(), "Failed to wait for consumer free run event on node %s", nodeInfo.Name)
 
 					clockClassFilter := events.All(
@@ -284,8 +309,7 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 					)
 
 					By("waiting for a event.sync.ptp-status.ptp-clock-class-change to 248")
-					err = events.WaitForEvent(
-						eventPod, startTime, 3*time.Minute, clockClassFilter, events.WithoutCurrentState(true))
+					err = events.WaitForEvent(eventPod, startTime, 3*time.Minute, clockClassFilter)
 					Expect(err).ToNot(HaveOccurred(), "Failed to wait for consumer clock class change event on node %s", nodeInfo.Name)
 
 					By("waiting for the ts2phc clock state to transition back to LOCKED")
@@ -315,8 +339,7 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 					)
 
 					By("waiting for the LOCKED event to be received")
-					err = events.WaitForEvent(
-						eventPod, startTime, 3*time.Minute, filter, events.WithoutCurrentState(true))
+					err = events.WaitForEvent(eventPod, startTime, 3*time.Minute, filter)
 					Expect(err).ToNot(HaveOccurred(), "Failed to wait for consumer LOCKED event on node %s", nodeInfo.Name)
 
 					clockClassFilter = events.All(
@@ -327,8 +350,7 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 						),
 					)
 					By("waiting for a event.sync.ptp-status.ptp-clock-class-change to 6 on the consumer pod")
-					err = events.WaitForEvent(
-						eventPod, startTime, 3*time.Minute, clockClassFilter, events.WithoutCurrentState(true))
+					err = events.WaitForEvent(eventPod, startTime, 3*time.Minute, clockClassFilter)
 					Expect(err).ToNot(HaveOccurred(), "Failed to wait for consumer clock class change event on node %s", nodeInfo.Name)
 
 					var configFile string
@@ -449,8 +471,7 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 			eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeInfo.Name)
 
 			Expect(err).ToNot(HaveOccurred(), "Failed to get event pod for node %s", nodeInfo.Name)
-			err = events.WaitForEvent(
-				eventPod, startTime, 3*time.Minute, clockClassFilter, events.WithoutCurrentState(true))
+			err = events.WaitForEvent(eventPod, startTime, 3*time.Minute, clockClassFilter)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for consumer clock class change event on node %s", nodeInfo.Name)
 
 			By("waiting for the all clocks state to transition back to LOCKED")
@@ -482,8 +503,7 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 			)
 
 			By("waiting for event.sync.ptp-status.ptp-clock-class-change to 6")
-			err = events.WaitForEvent(
-				eventPod, startTime, 3*time.Minute, clockClassFilter, events.WithoutCurrentState(true))
+			err = events.WaitForEvent(eventPod, startTime, 3*time.Minute, clockClassFilter)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for consumer clock class change event on node %s", nodeInfo.Name)
 
 			var configFile string
