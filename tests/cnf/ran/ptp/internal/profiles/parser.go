@@ -45,6 +45,10 @@ func parsePtpProfile(profile ptpv1.PtpProfile, reference ProfileReference) (*Pro
 		}
 	}
 
+	for _, interfaceInfo := range profileInfo.Interfaces {
+		interfaceInfo.Profile = profileInfo
+	}
+
 	profileInfo.ProfileType, err = determineProfileType(profileInfo.Interfaces, profile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine profile type: %w", err)
