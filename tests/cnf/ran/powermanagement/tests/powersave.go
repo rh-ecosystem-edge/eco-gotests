@@ -72,6 +72,7 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 		}
 
 		By("Restoring performance profile to original specs")
+
 		perfProfile.Definition.Spec = originalPerfProfileSpec
 
 		_, err = perfProfile.Update(true)
@@ -95,6 +96,7 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 			}
 
 			By("Checking for expected kernel parameters")
+
 			cmdline, err := cluster.ExecCommandOnSNOWithRetries(Spoke1APIClient,
 				ranparam.RetryCount, ranparam.RetryInterval, "cat /proc/cmdline")
 			Expect(err).ToNot(HaveOccurred(), "Failed to cat /proc/cmdline")
@@ -120,6 +122,7 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 	// 54572 - Enable powersave at node level and then enable performance at node level
 	It("Enables powersave at node level and then enable performance at node level", reportxml.ID("54572"), func() {
 		By("Patching the performance profile with the workload hints")
+
 		err := helper.SetPowerModeAndWaitForMcpUpdate(perfProfile, *nodeList[0], true, false, true)
 		Expect(err).ToNot(HaveOccurred(), "Failed to set power mode")
 
@@ -148,6 +151,7 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 			memLimit := resource.MustParse("100Mi")
 
 			By("Define test pod")
+
 			testpod, err := helper.DefineQoSTestPod(
 				tsparams.TestingNamespace, nodeName, cpuLimit.String(), cpuLimit.String(), memLimit.String(), memLimit.String())
 			Expect(err).ToNot(HaveOccurred(), "Failed to define test pod")
@@ -160,12 +164,14 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 				// Delete the test pod if it's still around when the function returns, like in a test case failure.
 				if testpod.Exists() {
 					By("Delete pod in case of a failure")
+
 					_, err = testpod.DeleteAndWait(tsparams.PowerSaveTimeout)
 					Expect(err).ToNot(HaveOccurred(), "Failed to delete test pod in case of failure")
 				}
 			})
 
 			By("Create test pod")
+
 			testpod, err = testpod.CreateAndWaitUntilRunning(tsparams.PowerSaveTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Failed to create pod")
 			Expect(testpod.Object.Status.QOSClass).To(Equal(corev1.PodQOSGuaranteed),
@@ -175,6 +181,7 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 			Expect(err).ToNot(HaveOccurred(), "Failed to get cpuset")
 
 			By("Verify powersetting of cpus used by the pod")
+
 			trimmedOutput := strings.TrimSpace(cpusetOutput.String())
 			cpusUsed, err := cpuset.Parse(trimmedOutput)
 			Expect(err).ToNot(HaveOccurred(), "Failed to parse cpuset output")
@@ -183,6 +190,7 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 			checkCPUGovernorsAndResumeLatency(targetCpus, "n/a", "performance")
 
 			By("Verify the rest of cpus have default power setting")
+
 			allCpus := nodeList[0].Object.Status.Capacity.Cpu()
 			cpus, err := cpuset.Parse(fmt.Sprintf("0-%d", allCpus.Value()-1))
 			Expect(err).ToNot(HaveOccurred(), "Failed to parse cpuset")
@@ -192,6 +200,7 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 			checkCPUGovernorsAndResumeLatency(otherCPUs.List(), "0", "performance")
 
 			By("Delete the pod")
+
 			_, err = testpod.DeleteAndWait(tsparams.PowerSaveTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Failed to delete test pod")
 

@@ -1,6 +1,6 @@
 version: "2"
 run:
-  go: "1.25"
+  go: "1.26"
 output:
   formats:
     text:
@@ -115,6 +115,10 @@ linters:
       rules:
         - name: indent-error-flow
         - name: var-naming
+          arguments:
+            - []
+            - []
+            - - skipPackageNameCollisionWithGoStd: true
         - name: increment-decrement
         - name: exported
           arguments:

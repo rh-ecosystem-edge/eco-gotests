@@ -49,7 +49,6 @@ var _ = Describe("ZTP Spoke Checker Tests", Label(tsparams.LabelSpokeCheckerTest
 				status = strings.TrimSpace(status)
 				Expect(status).To(Equal("disabled"), "chronyd service was not disabled")
 			}
-
 		})
 
 		// 60904 - Verifies list of pods in openshift-network-diagnostics namespace on spoke

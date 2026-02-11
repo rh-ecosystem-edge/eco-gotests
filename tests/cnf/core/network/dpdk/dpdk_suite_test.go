@@ -36,6 +36,7 @@ func TestLB(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	By("Creating privileged test namespace")
+
 	for key, value := range params.PrivilegedNSLabels {
 		testNS.WithLabel(key, value)
 	}
@@ -44,12 +45,14 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred(), "error to create test namespace")
 
 	By("Verifying if dpdk tests can be executed on given cluster")
+
 	err = dpdkenv.DoesClusterSupportDpdkTests(APIClient, NetConfig, 26, 100)
 	if err != nil {
 		Skip(fmt.Sprintf("Skipping test - cluster doesn't support dpdk test cases: %v", err))
 	}
 
 	By("Deploying PerformanceProfile is it's not installed")
+
 	err = netenv.DeployPerformanceProfile(
 		APIClient,
 		NetConfig,
@@ -62,10 +65,12 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	By("Deleting test namespace")
+
 	err := testNS.DeleteAndWait(tsparams.WaitTimeout)
 	Expect(err).ToNot(HaveOccurred(), "Fail to delete test namespace")
 
 	By("Waiting until cluster is stable")
+
 	mcp, err := mco.Pull(APIClient, NetConfig.CnfMcpLabel)
 	Expect(err).ToNot(HaveOccurred(), "Fail to pull MCP ")
 	err = mcp.WaitToBeStableFor(time.Minute, tsparams.MCOWaitTimeout)

@@ -20,6 +20,7 @@ var _ = Describe(
 
 		BeforeAll(func() {
 			By("Pull the imagebasedupgrade from the cluster")
+
 			ibu, err = lca.PullImageBasedUpgrade(APIClient)
 			Expect(err).NotTo(HaveOccurred(), "error pulling ibu resource from cluster")
 
@@ -32,27 +33,22 @@ var _ = Describe(
 		})
 
 		It("fails because from Idle it's not possible to move to Rollback stage", reportxml.ID("71738"), func() {
-
 			By("Setting the IBU stage to Rollback")
 
 			_, err := ibu.WithStage("Rollback").Update()
 			Expect(err.Error()).To(ContainSubstring("the stage transition is not permitted"),
 				"error: ibu seedimage updated with wrong next stage")
-
 		})
 
 		It("fails because from Idle it's not possible to move to Upgrade stage", reportxml.ID("71739"), func() {
-
 			By("Setting the IBU stage to Upgrade")
 
 			_, err := ibu.WithStage("Upgrade").Update()
 			Expect(err.Error()).To(ContainSubstring("the stage transition is not permitted"),
 				"error: ibu seedimage updated with wrong next stage")
-
 		})
 
 		It("fails because from Prep it's not possible to move to Rollback stage", reportxml.ID("71740"), func() {
-
 			By("Setting the IBU stage to Prep")
 
 			_, err := ibu.WithStage("Prep").Update()
@@ -68,6 +64,5 @@ var _ = Describe(
 			_, err = ibu.WithStage("Rollback").Update()
 			Expect(err.Error()).To(ContainSubstring("the stage transition is not permitted"),
 				"error: ibu seedimage updated with wrong next stage")
-
 		})
 	})

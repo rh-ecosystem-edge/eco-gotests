@@ -38,7 +38,6 @@ import (
 
 var _ = Describe(
 	"QinQ", Ordered, Label(tsparams.LabelQinQTestCases, tsparams.LabelSriovHWEnabled), ContinueOnFailure, func() {
-
 		var (
 			err                         error
 			dot1ad                      = "802.1ad"
@@ -105,13 +104,16 @@ var _ = Describe(
 
 		BeforeAll(func() {
 			By("Checking if cluster is SNO")
+
 			isSNO, err := netenv.IsSNOCluster(APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Failed to check if cluster is SNO")
+
 			if isSNO {
 				Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers")
 			}
 
 			By("Discover worker nodes")
+
 			workerNodeList, err = nodes.List(APIClient,
 				metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
 			Expect(err).ToNot(HaveOccurred(), "Fail to discover worker nodes")
@@ -119,20 +121,24 @@ var _ = Describe(
 				"Failed to get required SR-IOV interfaces")
 
 			By("Collecting SR-IOV interfaces for qinq testing")
+
 			srIovInterfacesUnderTest, err = NetConfig.GetSriovInterfaces(1)
 			Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
 
 			By("Verify SR-IOV Device IDs for interface under test")
+
 			sriovDeviceID = discoverInterfaceUnderTestDeviceID(srIovInterfacesUnderTest[0],
 				workerNodeList[0].Definition.Name)
 			Expect(sriovDeviceID).ToNot(BeEmpty(), "Expected sriovDeviceID not to be empty")
 
 			By("Fetching SR-IOV Vendor ID for interface under test")
+
 			sriovVendor, err = sriovenv.DiscoverInterfaceUnderTestVendorID(
 				srIovInterfacesUnderTest[0], workerNodeList[0].Definition.Name)
 			Expect(err).ToNot(HaveOccurred(), "Failed to fetch SR-IOV Vendor ID for interface under test")
 
 			By("Configure lab switch interface to support VLAN double tagging")
+
 			switchCredentials, err = sriovenv.NewSwitchCredentials()
 			Expect(err).ToNot(HaveOccurred(), "Failed to get switch credentials")
 
@@ -150,6 +156,7 @@ var _ = Describe(
 		Context("802.1AD", func() {
 			BeforeAll(func() {
 				By("Verify SR-IOV Device IDs for interface under test")
+
 				if sriovDeviceID != intelDeviceIDE810 {
 					Skip(fmt.Sprintf("The NIC %s does not support 802.1AD", sriovDeviceID))
 				}
@@ -167,19 +174,23 @@ var _ = Describe(
 			It("Verify network traffic over a 802.1ad QinQ tunnel between two SRIOV pods on the same PF",
 				reportxml.ID("71676"), func() {
 					By("Define and create a server container")
+
 					serverAnnotation := defineNetworkAnnotation(srIovNetworkDot1AD, nadCVLAN100, true)
 					serverPod := createServerTestPod(serverNameDot1ad, workerNodeList[0].Definition.Name, testCmdNet2,
 						serverAnnotation)
 
 					By("Define and create a 802.1AD client container")
+
 					clientAnnotation := defineNetworkAnnotation(srIovNetworkDot1AD, nadCVLAN100, false)
 					clientPod := createClientTestPod(clientNameDot1ad, workerNodeList[0].Definition.Name, clientAnnotation)
 
 					By("Define and create a container in promiscuous mode")
+
 					tcpDumpContainer := createPromiscuousClient(workerNodeList[0].Definition.Name,
 						tcpDumpNet1CMD)
 
 					By("Validate IPv4 and IPv6 connectivity between the containers over the qinq tunnel.")
+
 					err = cmd.ICMPConnectivityCheck(serverPod, clientIPAddressesNet2, intNet2)
 					Expect(err).ToNot(HaveOccurred(),
 						"Failed to ping the client container over the 802.1AD connection")
@@ -194,19 +205,23 @@ var _ = Describe(
 			It("Verify network traffic over a 802.1ad QinQ tunnel between two SRIOV containers in different nodes",
 				reportxml.ID("71678"), func() {
 					By("Define and create a container in promiscuous mode")
+
 					tcpDumpContainer := createPromiscuousClient(workerNodeList[0].Definition.Name,
 						tcpDumpNet1CMD)
 
 					By("Define and create a server container")
+
 					annotation := defineNetworkAnnotation(srIovNetworkDot1AD, nadCVLAN100, true)
 					serverPod := createServerTestPod(serverNameDot1ad, workerNodeList[1].Definition.Name, testCmdNet2,
 						annotation)
 
 					By("Define and create a 802.1AD client container")
+
 					annotation = defineNetworkAnnotation(srIovNetworkDot1AD, nadCVLAN100, false)
 					clientPod := createClientTestPod(clientNameDot1ad, workerNodeList[0].Definition.Name, annotation)
 
 					By("Validate IPv4 and IPv6 connectivity between the containers over the qinq tunnel.")
+
 					err := cmd.ICMPConnectivityCheck(serverPod, clientIPAddressesNet2, intNet2)
 					Expect(err).ToNot(HaveOccurred(),
 						"Failed to ping the client container over the 802.1ad connection")
@@ -221,24 +236,29 @@ var _ = Describe(
 			It("Verify network traffic over an 802.1ad Q-in-Q tunnel with multiple C-VLANs using the same S-VLAN",
 				reportxml.ID("71682"), func() {
 					By("Define and create a container in promiscuous mode")
+
 					tcpDumpContainer := createPromiscuousClient(workerNodeList[0].Definition.Name,
 						tcpDumpNet1CMD)
 
 					By("Define and create a server container")
+
 					annotation := defineNetworkAnnotation(srIovNetworkDot1AD, nadCVLAN100, true, nadCVLAN101)
 					serverPod := createServerTestPod(serverNameDot1ad, workerNodeList[0].Definition.Name, testCmdNet2Net3,
 						annotation)
 
 					By("Define and create a 802.1AD client container")
+
 					annotation = defineNetworkAnnotation(srIovNetworkDot1AD, nadCVLAN100, false, nadCVLAN101)
 					clientPod := createClientTestPod(clientNameDot1ad, workerNodeList[0].Definition.Name, annotation)
 
 					By("Validate IPv4 and IPv6 connectivity between the containers using CVLAN100.")
+
 					err := cmd.ICMPConnectivityCheck(serverPod, clientIPAddressesNet2, "net2")
 					Expect(err).ToNot(HaveOccurred(),
 						"Failed to ping the client container over cvlan100")
 
 					By("Validate IPv4 and IPv6 connectivity between the containers using CVLAN101.")
+
 					err = cmd.ICMPConnectivityCheck(serverPod, clientIPAddressesNet3, "net3")
 					Expect(err).ToNot(HaveOccurred(),
 						"Failed to ping the client container over CVLAN101")
@@ -261,15 +281,18 @@ var _ = Describe(
 			It("Verify a negative test with an 802.1ad to 802.1q tunnel between two SRIOV containers",
 				reportxml.ID("71680"), func() {
 					By("Define and create a server container")
+
 					annotation := defineNetworkAnnotation(srIovNetworkDot1Q, nadCVLAN100, true)
 					serverPod := createServerTestPod(serverNameDot1q, workerNodeList[0].Definition.Name, testCmdNet2,
 						annotation)
 
 					By("Define and create a 802.1AD client container")
+
 					annotation = defineNetworkAnnotation(srIovNetworkDot1AD, nadCVLAN100, false)
 					_ = createClientTestPod(clientNameDot1q, workerNodeList[0].Definition.Name, annotation)
 
 					By("Validate IPv4 and IPv6 connectivity between the containers over the qinq tunnel.")
+
 					err := cmd.ICMPConnectivityCheck(serverPod, clientIPAddressesNet2, intNet2)
 					Expect(err).To(HaveOccurred(),
 						"Ping was successful and expected to fail")
@@ -279,33 +302,40 @@ var _ = Describe(
 				"SRIOV containers",
 				reportxml.ID("73105"), func() {
 					By("Define and create a container in promiscuous mode")
+
 					tcpDumpContainer := createPromiscuousClient(workerNodeList[0].Definition.Name,
 						tcpDumpNet1CMD)
 
 					By("Define and create a 802.1AD server container")
+
 					annotation := defineNetworkAnnotation(srIovNetworkDot1AD, nadCVLAN100, true)
 					serverDotADPod := createServerTestPod(serverNameDot1ad, workerNodeList[0].Definition.Name, testCmdNet2,
 						annotation)
 
 					By("Define and create a 802.1AD  client container")
+
 					annotation = defineNetworkAnnotation(srIovNetworkDot1AD, nadCVLAN100, false)
 					clientDotADPod := createClientTestPod(clientNameDot1ad, workerNodeList[0].Definition.Name, annotation)
 
 					By("Define and create a 802.1Q server container")
+
 					annotation = defineNetworkAnnotation(srIovNetworkDot1Q, nadCVLAN101, true)
 					serverDotQPod := createServerTestPod(serverNameDot1q, workerNodeList[0].Definition.Name, testCmdNet2,
 						annotation)
 
 					By("Define and create a 802.1Q client container")
+
 					annotation = defineNetworkAnnotation(srIovNetworkDot1Q, nadCVLAN101, false)
 					clientDotQPod := createClientTestPod(clientNameDot1q, workerNodeList[0].Definition.Name, annotation)
 
 					By("Validate IPv4 and IPv6 connectivity between the 802.1AD containers using CVLAN100.")
+
 					err := cmd.ICMPConnectivityCheck(serverDotADPod, clientIPAddressesNet2, intNet2)
 					Expect(err).ToNot(HaveOccurred(),
 						"Failed to ping the client container over cvlan100")
 
 					By("Validate IPv4 and IPv6 connectivity between the 802.1Q containers using CVLAN101.")
+
 					err = cmd.ICMPConnectivityCheck(serverDotQPod, clientIPAddressesNet2, intNet2)
 					Expect(err).ToNot(HaveOccurred(),
 						"Failed to ping the client container over cvlan101")
@@ -327,10 +357,12 @@ var _ = Describe(
 				"one SRIOV containers",
 				reportxml.ID("71684"), func() {
 					By("Define and create a container in promiscuous mode")
+
 					tcpDumpContainer := createPromiscuousClient(workerNodeList[0].Definition.Name,
 						tcpDumpNet1CMD)
 
 					By("Define and create a server container")
+
 					serverAnnotation := pod.StaticIPBondAnnotationWithInterface(
 						"nadcvlan100", "bond0.100",
 						[]string{srIovNetworkDot1AD, srIovNetworkDot1AD, nadMasterBond0},
@@ -340,12 +372,14 @@ var _ = Describe(
 						serverAnnotation)
 
 					By("Define and create a 802.1AD client container")
+
 					clientAnnotation := pod.StaticIPBondAnnotationWithInterface("nadcvlan100", "bond0.100",
 						[]string{srIovNetworkDot1AD, srIovNetworkDot1AD, nadMasterBond0},
 						[]string{tsparams.ClientIPv4IPAddress, tsparams.ClientIPv6IPAddress})
 					clientPod := createClientTestPod(clientNameDot1ad, workerNodeList[0].Definition.Name, clientAnnotation)
 
 					By("Validate IPv4 and IPv6 connectivity between the containers over the qinq tunnel.")
+
 					err = cmd.ICMPConnectivityCheck(serverPod, clientIPAddressesNet2, intBond0)
 					Expect(err).ToNot(HaveOccurred(),
 						"Failed to ping the client container over the 802.1AD connection")
@@ -365,6 +399,7 @@ var _ = Describe(
 		Context("802.1Q", func() {
 			BeforeAll(func() {
 				By("Define and create sriov network policy using worker node label with netDevice type netdevice")
+
 				_, err := sriov.NewPolicyBuilder(
 					APIClient,
 					srIovPolicyNetDevice,
@@ -377,11 +412,13 @@ var _ = Describe(
 					srIovPolicyNetDevice))
 
 				By("Waiting until cluster MCP and SR-IOV are stable")
+
 				err = sriovoperator.WaitForSriovAndMCPStable(
 					APIClient, tsparams.MCOWaitTimeout, time.Minute, NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
 				Expect(err).ToNot(HaveOccurred(), "Failed cluster is not stable")
 
 				By("Define and create sriov-network for the promiscuous client")
+
 				sriovNetworkBuilder := sriov.NewNetworkBuilder(APIClient,
 					srIovNetworkPromiscuous, NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName,
 					srIovPolicyResNameNetDevice).WithTrustFlag(true).WithLogLevel(netparam.LogLevelDebug)
@@ -401,18 +438,23 @@ var _ = Describe(
 			It("Verify network traffic over a 802.1q QinQ tunnel between two SRIOV pods on the same PF",
 				reportxml.ID("71677"), func() {
 					By("Define and create a container in promiscuous mode")
+
 					tcpDumpContainer := createPromiscuousClient(workerNodeList[0].Definition.Name,
 						tcpDumpNet1CMD)
 
 					By("Define and create a server container")
+
 					serverAnnotation := defineNetworkAnnotation(srIovNetworkDot1Q, nadCVLAN100, true)
 					serverPod := createServerTestPod(serverNameDot1q, workerNodeList[0].Definition.Name, testCmdNet2,
 						serverAnnotation)
+
 					By("Define and create a 802.1Q client container")
+
 					clientAnnotation := defineNetworkAnnotation(srIovNetworkDot1Q, nadCVLAN100, false)
 					clientPod := createClientTestPod(clientNameDot1q, workerNodeList[0].Definition.Name, clientAnnotation)
 
 					By("Validate IPv4 and IPv6 connectivity between the containers over the qinq tunnel.")
+
 					err := cmd.ICMPConnectivityCheck(serverPod, clientIPAddressesNet2, intNet2)
 					Expect(err).ToNot(HaveOccurred(),
 						"Failed to ping the client container over the 802.1q connection")
@@ -427,19 +469,23 @@ var _ = Describe(
 			It("Verify network traffic over a 802.1Q QinQ tunnel between two SRIOV containers in different nodes",
 				reportxml.ID("71679"), func() {
 					By("Define and create a container in promiscuous mode")
+
 					tcpDumpContainer := createPromiscuousClient(workerNodeList[0].Definition.Name,
 						tcpDumpNet1CMD)
 
 					By("Define and create a server container")
+
 					annotation := defineNetworkAnnotation(srIovNetworkDot1Q, nadCVLAN100, true)
 					serverPod := createServerTestPod(serverNameDot1q, workerNodeList[1].Definition.Name, testCmdNet2,
 						annotation)
 
 					By("Define and create a 802.1Q client container")
+
 					annotation = defineNetworkAnnotation(srIovNetworkDot1Q, nadCVLAN100, false)
 					clientPod := createClientTestPod(clientNameDot1q, workerNodeList[0].Definition.Name, annotation)
 
 					By("Validate IPv4 and IPv6 connectivity between the containers over the qinq tunnel.")
+
 					err := cmd.ICMPConnectivityCheck(serverPod, clientIPAddressesNet2, intNet2)
 					Expect(err).ToNot(HaveOccurred(),
 						"Failed to ping the client container over the 802.1q connection.")
@@ -454,24 +500,29 @@ var _ = Describe(
 			It("Verify network traffic over a double tagged 802.1Q tunnel with multiple C-VLANs using the same S-VLAN",
 				reportxml.ID("71683"), func() {
 					By("Define and create a container in promiscuous mode")
+
 					tcpDumpContainer := createPromiscuousClient(workerNodeList[0].Definition.Name,
 						tcpDumpNet1CMD)
 
 					By("Define and create a server container")
+
 					annotation := defineNetworkAnnotation(srIovNetworkDot1Q, nadCVLAN100, true, nadCVLAN101)
 					serverPod := createServerTestPod(serverNameDot1q, workerNodeList[0].Definition.Name, testCmdNet2Net3,
 						annotation)
 
 					By("Define and create a 802.1Q client container")
+
 					annotation = defineNetworkAnnotation(srIovNetworkDot1Q, nadCVLAN100, false, nadCVLAN101)
 					clientPod := createClientTestPod(clientNameDot1q, workerNodeList[0].Definition.Name, annotation)
 
 					By("Validate IPv4 and IPv6 connectivity between the containers using CVLAN100 over the qinq tunnel.")
+
 					err := cmd.ICMPConnectivityCheck(serverPod, clientIPAddressesNet2, intNet2)
 					Expect(err).ToNot(HaveOccurred(),
 						"Failed to ping the client container over cvlan100")
 
 					By("Validate IPv4 and IPv6 connectivity between the containers using CVLAN101 over the qinq tunnel.")
+
 					err = cmd.ICMPConnectivityCheck(serverPod, clientIPAddressesNet3, intNet3)
 					Expect(err).ToNot(HaveOccurred(),
 						"Failed to ping the client container over CVLAN101")
@@ -499,6 +550,7 @@ var _ = Describe(
 		Context("DPDK", func() {
 			BeforeAll(func() {
 				By("Deploying PerformanceProfile is it's not installed")
+
 				err = netenv.DeployPerformanceProfile(
 					APIClient,
 					NetConfig,
@@ -512,6 +564,7 @@ var _ = Describe(
 					sriovVendor, "vfio-pci")
 
 				By("Setting selinux flag container_use_devices to 1 on all compute nodes")
+
 				err = cluster.ExecCmd(APIClient, NetConfig.WorkerLabel, "setsebool container_use_devices 1")
 				Expect(err).ToNot(HaveOccurred(), "Fail to enable selinux flag")
 
@@ -524,6 +577,7 @@ var _ = Describe(
 				defineAndCreateSrIovNetworkWithQinQ(srIovNetworkDPDKDot1Q, srIovPolicyResNameVfioPci, dot1q)
 
 				By("Define and create a network attachment definition for dpdk container")
+
 				tapNad, err := define.TapNad(APIClient, nadCVLANDpdk, tsparams.TestNamespaceName, 0, 0, nil)
 				Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Fail to define the Network-Attachment-Definition %s",
 					nadCVLANDpdk))
@@ -534,6 +588,7 @@ var _ = Describe(
 			It("Verify network traffic over a 802.1ad QinQ tunnel between two DPDK pods on the same PF",
 				reportxml.ID("72636"), func() {
 					By("Verify SR-IOV Device IDs for interface under test")
+
 					if sriovDeviceID != intelDeviceIDE810 {
 						Skip(fmt.Sprintf("The NIC %s does not support 802.1AD", sriovDeviceID))
 					}
@@ -550,9 +605,11 @@ var _ = Describe(
 			It("Verify network traffic over a 802.1q QinQ tunnel between two DPDK pods on the same PF",
 				reportxml.ID("72638"), func() {
 					testOutPutString := tcpDumpDot1QDPDKOutput
+
 					if sriovDeviceID == intelDeviceIDE710 {
 						vlan, err := strconv.Atoi(NetConfig.VLAN)
 						Expect(err).ToNot(HaveOccurred(), "Failed to convert VLAN value")
+
 						testOutPutString = fmt.Sprintf("(ethertype 802\\.1Q \\(0x8100\\)).*?(vlan %d)", vlan)
 					}
 
@@ -565,7 +622,6 @@ var _ = Describe(
 						testOutPutString)
 				})
 			AfterAll(func() {
-
 				By("Clean the test env of sriov and pod deployments")
 				cleanTestEnvSRIOVConfiguration()
 			})
@@ -576,11 +632,13 @@ var _ = Describe(
 
 			BeforeAll(func() {
 				By("Verify SR-IOV Device IDs for interface under test")
+
 				if sriovDeviceID != intelDeviceIDE810 {
 					Skip(fmt.Sprintf("The NIC %s does not support 802.1AD", sriovDeviceID))
 				}
 
 				By("Creating a new instance of NMstate instance")
+
 				err = netnmstate.CreateNewNMStateAndWaitUntilItsRunning(7 * time.Minute)
 				Expect(err).ToNot(HaveOccurred(), "Failed to create NMState instance")
 
@@ -590,6 +648,7 @@ var _ = Describe(
 				}
 
 				By("Creating SR-IOV VFs via NMState")
+
 				err = netnmstate.ConfigureVFsAndWaitUntilItsConfigured(
 					configureNMStatePolicyName,
 					srIovInterfacesUnderTest[0],
@@ -602,11 +661,13 @@ var _ = Describe(
 				Expect(err).ToNot(HaveOccurred(), "Expected number of VFs are not created")
 
 				By("Configure SR-IOV with flag ExternallyManaged true")
+
 				err = createSriovPolicyWithExManaged(sriovAndResourceNameExManagedTrue, srIovInterfacesUnderTest[0])
 				Expect(err).ToNot(HaveOccurred(),
 					"Failed to create sriov configuration with flag ExternallyManaged true")
 
 				By("Define and create a network attachment definition with a C-VLAN 100")
+
 				_, err := define.VlanNad(APIClient, nadCVLAN100, tsparams.TestNamespaceName, "net1", 100,
 					nad.IPAMStatic())
 				Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Fail to create Network-Attachment-Definition %s",
@@ -623,19 +684,23 @@ var _ = Describe(
 			It("Verify an 802.1ad QinQ tunneling between two containers with the VFs configured by NMState",
 				reportxml.ID("71681"), func() {
 					By("Define and create a container in promiscuous mode")
+
 					tcpDumpContainer := createPromiscuousClient(workerNodeList[0].Definition.Name,
 						tcpDumpNet1CMD)
 
 					By("Define and create a 802.1AD server container")
+
 					serverAnnotation := defineNetworkAnnotation(srIovNetworkDot1AD, nadCVLAN100, true)
 					serverPod := createServerTestPod(serverNameDot1ad, workerNodeList[0].Definition.Name, testCmdNet2,
 						serverAnnotation)
 
 					By("Define and create a 802.1AD client container")
+
 					clientAnnotation := defineNetworkAnnotation(srIovNetworkDot1AD, nadCVLAN100, false)
 					clientPod := createClientTestPod(clientNameDot1ad, workerNodeList[0].Definition.Name, clientAnnotation)
 
 					By("Validate IPv4 and IPv6 connectivity between the containers over the qinq tunnel.")
+
 					err = cmd.ICMPConnectivityCheck(serverPod, clientIPAddressesNet2, intNet2)
 					Expect(err).ToNot(HaveOccurred(),
 						"Failed to ping the client container over the 802.1AD connection")
@@ -649,6 +714,7 @@ var _ = Describe(
 
 			AfterAll(func() {
 				By("Removing SR-IOV VFs via NMState")
+
 				nmstatePolicy := nmstate.NewPolicyBuilder(
 					APIClient, configureNMStatePolicyName, NetConfig.WorkerLabelMap).
 					WithInterfaceAndVFs(srIovInterfacesUnderTest[0], 0)
@@ -656,10 +722,12 @@ var _ = Describe(
 				Expect(err).ToNot(HaveOccurred(), "Failed to update NMState network policy")
 
 				By("Verifying that VFs removed")
+
 				err = sriovenv.WaitUntilVfsCreated(workerNodeList, srIovInterfacesUnderTest[0], 0, netparam.DefaultTimeout)
 				Expect(err).ToNot(HaveOccurred(), "Unexpected amount of VF")
 
 				By("Removing NMState policies")
+
 				err = nmstate.CleanAllNMStatePolicies(APIClient)
 				Expect(err).ToNot(HaveOccurred(), "Failed to remove all NMState policies")
 			})
@@ -667,6 +735,7 @@ var _ = Describe(
 
 		AfterEach(func() {
 			By("Removing all containers from test namespace")
+
 			runningNamespace, err := namespace.Pull(APIClient, tsparams.TestNamespaceName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull namespace")
 
@@ -685,15 +754,18 @@ var _ = Describe(
 			setVFPromiscMode(workerNodeList[0].Definition.Name, srIovInterfacesUnderTest[0], sriovVendor, "off")
 
 			By("Removing all SR-IOV Policy")
+
 			err = sriov.CleanAllNetworkNodePolicies(APIClient, NetConfig.SriovOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to clean srIovPolicy")
 
 			By("Removing all srIovNetworks")
+
 			err = sriov.CleanAllNetworksByTargetNamespace(
 				APIClient, NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to clean sriov networks")
 
 			By("Waiting until cluster MCP and SR-IOV are stable")
+
 			err = sriovoperator.WaitForSriovAndMCPStable(
 				APIClient, tsparams.MCOWaitTimeout, time.Minute, NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed cluster is not stable")

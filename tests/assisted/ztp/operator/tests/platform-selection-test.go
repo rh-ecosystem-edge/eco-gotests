@@ -40,6 +40,7 @@ var _ = Describe(
 		When("on MCE 2.1", func() {
 			BeforeAll(func() {
 				By("Check clusterimageset ocp version meets requirement")
+
 				reqMet, msg := meets.SpokeClusterImageSetVersionRequirement("4.8")
 				if !reqMet {
 					Skip(msg)
@@ -48,10 +49,12 @@ var _ = Describe(
 				tsparams.ReporterNamespacesToDump[platformtypeSpoke] = "platform-selection namespace"
 
 				By("Create platform-test namespace")
+
 				testNS, err = namespace.NewBuilder(HubAPIClient, platformtypeSpoke).Create()
 				Expect(err).ToNot(HaveOccurred(), "error occurred when creating namespace")
 
 				By("Create platform-test pull-secret")
+
 				testSecret, err = secret.NewBuilder(
 					HubAPIClient,
 					fmt.Sprintf("%s-pull-secret", platformtypeSpoke),
@@ -60,6 +63,7 @@ var _ = Describe(
 				Expect(err).ToNot(HaveOccurred(), "error occurred when creating pull-secret")
 
 				By("Create platform-test clusterdeployment")
+
 				testClusterDeployment, err = hive.NewABMClusterDeploymentBuilder(
 					HubAPIClient,
 					platformtypeSpoke,
@@ -82,8 +86,8 @@ var _ = Describe(
 					masterCount int,
 					workerCount int,
 					message string) {
-
 					By("Create agentclusterinstall")
+
 					testAgentClusterInstall, err = assisted.NewAgentClusterInstallBuilder(
 						HubAPIClient,
 						platformtypeSpoke,
@@ -142,6 +146,7 @@ var _ = Describe(
 			AfterEach(func() {
 				if testAgentClusterInstall.Exists() {
 					By("Delete agentclusterinstall")
+
 					err := testAgentClusterInstall.DeleteAndWait(time.Second * 10)
 					Expect(err).ToNot(HaveOccurred(), "error deleting agentclusterinstall")
 				}
@@ -149,6 +154,7 @@ var _ = Describe(
 
 			AfterAll(func() {
 				By("Delete platform-test clusterdeployment")
+
 				err := testClusterDeployment.Delete()
 				Expect(err).ToNot(HaveOccurred(), "error occurred when deleting clusterdeployment")
 

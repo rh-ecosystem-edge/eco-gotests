@@ -31,6 +31,7 @@ var _ = Describe(
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull in Openshift API deployment")
 
 			By("Retrieve nodes list")
+
 			nodeList, err := nodes.List(
 				APIClient,
 				metav1.ListOptions{},
@@ -39,10 +40,12 @@ var _ = Describe(
 
 			for _, node := range nodeList {
 				By("Trigger kernel crash")
+
 				err = reboot.KernelCrashKdump(node.Definition.Name)
 				Expect(err).ToNot(HaveOccurred(), "Error triggering a kernel crash on the node.")
 
 				By("Waiting for the openshift apiserver deployment to be available")
+
 				err = openshiftAPIDeploy.WaitUntilCondition("Available", 5*time.Minute)
 
 				Expect(err).ToNot(HaveOccurred(), "OpenShift API server deployment not Availalble")
@@ -52,6 +55,7 @@ var _ = Describe(
 				time.Sleep(time.Duration(RanDuTestConfig.RebootRecoveryTime) * time.Minute)
 
 				By("Assert vmcore dump was generated")
+
 				cmdToExec := []string{"chroot", "/rootfs", "ls", "/var/crash"}
 
 				coreDumps, err := remote.ExecuteOnNodeWithDebugPod(cmdToExec, node.Definition.Name)
@@ -59,6 +63,5 @@ var _ = Describe(
 
 				Expect(len(strings.Fields(coreDumps))).To(BeNumerically(">=", 1), "error: vmcore dump was not generated")
 			}
-
 		})
 	})

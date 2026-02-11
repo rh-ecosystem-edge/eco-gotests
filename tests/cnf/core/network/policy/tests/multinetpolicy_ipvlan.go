@@ -25,7 +25,6 @@ import (
 )
 
 var _ = Describe("Multi-NetworkPolicy : IPVLAN CNI", Ordered, Label("ipvlancni"), ContinueOnFailure, func() {
-
 	var (
 		sriovInterfacesUnderTest                         []string
 		tNs1, tNs2                                       *namespace.Builder
@@ -35,17 +34,20 @@ var _ = Describe("Multi-NetworkPolicy : IPVLAN CNI", Ordered, Label("ipvlancni")
 
 	BeforeAll(func() {
 		By("Verifying if Multi-NetPolicy tests can be executed on given cluster")
+
 		err := netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 1)
 		if err != nil {
 			Skip(fmt.Sprintf("Skipping test - cluster doesn't have enough nodes: %v", err))
 		}
 
 		By("Listing Worker nodes")
+
 		workerNodeList, err := nodes.List(
 			APIClient, metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
 		Expect(err).ToNot(HaveOccurred(), "Failed to list worker nodes")
 
 		By("Fetching SR-IOV interfaces from ENV VAR to use them as master interfaces for ipvlan")
+
 		sriovInterfacesUnderTest, err = NetConfig.GetSriovInterfaces(2)
 		Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
 
@@ -53,6 +55,7 @@ var _ = Describe("Multi-NetworkPolicy : IPVLAN CNI", Ordered, Label("ipvlancni")
 		enableMultiNetworkPolicy(true)
 
 		By("Deploy Test Resources: Two Namespaces")
+
 		tNs1, err = namespace.NewBuilder(APIClient, tsparams.MultiNetPolNs1).WithMultipleLabels(params.PrivilegedNSLabels).
 			WithLabel("ns", "ns1").Create()
 		Expect(err).ToNot(HaveOccurred(), "Failed to create test namespace")
@@ -61,10 +64,12 @@ var _ = Describe("Multi-NetworkPolicy : IPVLAN CNI", Ordered, Label("ipvlancni")
 		Expect(err).ToNot(HaveOccurred(), "Failed to create test namespace")
 
 		By("Deploy Test Resources: Two NADs for IPVLAN CNI")
+
 		testNAD1 = defineAndCreateIpvlanNAD(tsparams.MultiNetPolNs1, sriovInterfacesUnderTest[0])
 		testNAD2 = defineAndCreateIpvlanNAD(tsparams.MultiNetPolNs2, sriovInterfacesUnderTest[1])
 
 		By("Deploy Test Resources: Five Pods")
+
 		testPod1 = defineAndCreatePodWithIpvlanIf(
 			"pod1", tsparams.MultiNetPolNs1, workerNodeList[0].Object.Name, tsparams.TestData)
 		testPod2 = defineAndCreatePodWithIpvlanIf(
@@ -98,18 +103,21 @@ var _ = Describe("Multi-NetworkPolicy : IPVLAN CNI", Ordered, Label("ipvlancni")
 
 	AfterAll(func() {
 		By("Cleaning up test pods")
+
 		err := tNs1.CleanObjects(2*time.Minute, pod.GetGVR())
 		Expect(err).ToNot(HaveOccurred(), "failed to clean test pods in test namespace")
 		err = tNs2.CleanObjects(2*time.Minute, pod.GetGVR())
 		Expect(err).ToNot(HaveOccurred(), "failed to clean test pods in test namespace")
 
 		By("Cleaning up test NADs")
+
 		err = testNAD1.Delete()
 		Expect(err).ToNot(HaveOccurred(), "failed to clean test NADs in test namespace")
 		err = testNAD2.Delete()
 		Expect(err).ToNot(HaveOccurred(), "failed to clean test NADs in test namespace")
 
 		By("Delete test namespace")
+
 		err = tNs1.DeleteAndWait(1 * time.Minute)
 		Expect(err).ToNot(HaveOccurred(), "Failed to delete test namespace")
 		err = tNs2.DeleteAndWait(1 * time.Minute)
@@ -117,8 +125,8 @@ var _ = Describe("Multi-NetworkPolicy : IPVLAN CNI", Ordered, Label("ipvlancni")
 	})
 
 	It("Egress - block all", reportxml.ID("77467"), func() {
-
 		By("Create Multi Network Policy")
+
 		_, err := networkpolicy.NewMultiNetworkPolicyBuilder(APIClient, "egress-deny", tsparams.MultiNetPolNs1).
 			WithNetwork(fmt.Sprintf("%s/ipvlan,%s/ipvlan", tsparams.MultiNetPolNs1, tsparams.MultiNetPolNs2)).
 			WithPodSelector(metav1.LabelSelector{MatchLabels: map[string]string{"app": "pod1"}}).
@@ -145,8 +153,8 @@ var _ = Describe("Multi-NetworkPolicy : IPVLAN CNI", Ordered, Label("ipvlancni")
 	})
 
 	It("Egress - allow all", reportxml.ID("77474"), func() {
-
 		By("Create Multi Network Policy")
+
 		testEgressRule, err := networkpolicy.NewEgressRuleBuilder().GetEgressRuleCfg()
 		Expect(err).ToNot(HaveOccurred(), "egress rule configuration not generated")
 
@@ -177,8 +185,8 @@ var _ = Describe("Multi-NetworkPolicy : IPVLAN CNI", Ordered, Label("ipvlancni")
 	})
 
 	It("Egress - podSelector - NonExistent Label", reportxml.ID("77473"), func() {
-
 		By("Create Multi Network Policy")
+
 		testEgressRule, err := networkpolicy.NewEgressRuleBuilder().
 			WithPeerPodSelector(metav1.LabelSelector{MatchLabels: map[string]string{"app": "none"}}).
 			GetEgressRuleCfg()
@@ -211,8 +219,8 @@ var _ = Describe("Multi-NetworkPolicy : IPVLAN CNI", Ordered, Label("ipvlancni")
 	})
 
 	It("Egress - namespaceSelector - NonExistent Label", reportxml.ID("77472"), func() {
-
 		By("Create Multi Network Policy")
+
 		testEgressRule, err := networkpolicy.NewEgressRuleBuilder().
 			WithPeerNamespaceSelector(metav1.LabelSelector{MatchLabels: map[string]string{"ns": "none"}}).
 			GetEgressRuleCfg()
@@ -245,8 +253,8 @@ var _ = Describe("Multi-NetworkPolicy : IPVLAN CNI", Ordered, Label("ipvlancni")
 	})
 
 	It("Egress - Pod and/or Namespace Selector", reportxml.ID("77477"), func() {
-
 		By("Create Multi Network Policy")
+
 		testEgressRule, err := networkpolicy.NewEgressRuleBuilder().
 			WithPeerPodAndNamespaceSelector(metav1.LabelSelector{MatchLabels: map[string]string{"app": "pod4"}},
 				metav1.LabelSelector{MatchLabels: map[string]string{"ns": "ns2"}}).
@@ -281,8 +289,8 @@ var _ = Describe("Multi-NetworkPolicy : IPVLAN CNI", Ordered, Label("ipvlancni")
 	})
 
 	It("Egress - IPBlock IPv4 and IPv6 and Ports", reportxml.ID("77475"), func() {
-
 		By("Create Multi Network Policy")
+
 		testEgressRule, err := networkpolicy.NewEgressRuleBuilder().
 			WithPortAndProtocol(5001, "TCP").
 			WithCIDR("192.168.10.0/24", []string{"192.168.10.12/32"}).
@@ -319,8 +327,8 @@ var _ = Describe("Multi-NetworkPolicy : IPVLAN CNI", Ordered, Label("ipvlancni")
 	})
 
 	It("Ingress - block all", reportxml.ID("77486"), func() {
-
 		By("Create Multi Network Policy")
+
 		_, err := networkpolicy.NewMultiNetworkPolicyBuilder(APIClient, "ingress-deny", tsparams.MultiNetPolNs1).
 			WithNetwork(fmt.Sprintf("%s/ipvlan,%s/ipvlan", tsparams.MultiNetPolNs1, tsparams.MultiNetPolNs2)).
 			WithPodSelector(metav1.LabelSelector{MatchLabels: map[string]string{"app": "pod1"}}).
@@ -347,8 +355,8 @@ var _ = Describe("Multi-NetworkPolicy : IPVLAN CNI", Ordered, Label("ipvlancni")
 	})
 
 	It("Ingress - allow all", reportxml.ID("77485"), func() {
-
 		By("Create Multi Network Policy")
+
 		testIngressRule, err := networkpolicy.NewIngressRuleBuilder().GetIngressRuleCfg()
 		Expect(err).ToNot(HaveOccurred(), "ingress rule configuration not generated")
 
@@ -379,8 +387,8 @@ var _ = Describe("Multi-NetworkPolicy : IPVLAN CNI", Ordered, Label("ipvlancni")
 	})
 
 	It("Ingress - podSelector - NonExistent Label", reportxml.ID("77484"), func() {
-
 		By("Create Multi Network Policy")
+
 		testIngressRule, err := networkpolicy.NewIngressRuleBuilder().
 			WithPeerPodSelector(metav1.LabelSelector{MatchLabels: map[string]string{"app": "none"}}).
 			GetIngressRuleCfg()
@@ -413,8 +421,8 @@ var _ = Describe("Multi-NetworkPolicy : IPVLAN CNI", Ordered, Label("ipvlancni")
 	})
 
 	It("Ingress - namespaceSelector - NonExistent Label", reportxml.ID("77483"), func() {
-
 		By("Create Multi Network Policy")
+
 		testIngressRule, err := networkpolicy.NewIngressRuleBuilder().
 			WithPeerNamespaceSelector(metav1.LabelSelector{MatchLabels: map[string]string{"ns": "none"}}).
 			GetIngressRuleCfg()
@@ -447,8 +455,8 @@ var _ = Describe("Multi-NetworkPolicy : IPVLAN CNI", Ordered, Label("ipvlancni")
 	})
 
 	It("Ingress - Pod and/or Namespace Selector", reportxml.ID("77481"), func() {
-
 		By("Create Multi Network Policy")
+
 		testIngressRule, err := networkpolicy.NewIngressRuleBuilder().
 			WithPeerPodAndNamespaceSelector(metav1.LabelSelector{MatchLabels: map[string]string{"app": "pod4"}},
 				metav1.LabelSelector{MatchLabels: map[string]string{"ns": "ns2"}}).
@@ -483,8 +491,8 @@ var _ = Describe("Multi-NetworkPolicy : IPVLAN CNI", Ordered, Label("ipvlancni")
 	})
 
 	It("Ingress - IPBlock IPv4 and IPv6 and Ports", reportxml.ID("77479"), func() {
-
 		By("Create Multi Network Policy")
+
 		testIngressRule, err := networkpolicy.NewIngressRuleBuilder().
 			WithPortAndProtocol(5001, "TCP").
 			WithCIDR("192.168.10.0/24", []string{"192.168.10.12/32"}).
@@ -521,8 +529,8 @@ var _ = Describe("Multi-NetworkPolicy : IPVLAN CNI", Ordered, Label("ipvlancni")
 	})
 
 	It("Ingress & Egress - Peer and Ports", reportxml.ID("77487"), func() {
-
 		By("Create Multi Network Policy")
+
 		testEgressRule, err := networkpolicy.NewEgressRuleBuilder().
 			WithPeerPodSelector(metav1.LabelSelector{MatchLabels: map[string]string{"app": "pod2"}}).
 			WithCIDR("2001:0:0:2::/64", []string{"2001:0:0:2::11/128"}).

@@ -112,6 +112,7 @@ var _ = Describe(
 					iperf3ServerCmd := append(slices.Clone(ipsecparams.Iperf3ServerBaseCmd),
 						ipsecparams.Iperf3OptionPort,
 						nodePortStr)
+
 					containerLabel := ipsecparams.CreateContainerLabelsStr(index, serviceDeploymentIngressPrefixName)
 					channel <- iperf3workload.LaunchIperf3Command(APIClient,
 						srvDeplName,
@@ -153,6 +154,7 @@ var _ = Describe(
 				clientOutput := <-sshChannel
 				Expect(clientOutput.Err == nil).To(BeTrue(), "Error in iperf3 client execution: %v, %v",
 					clientOutput.Err, clientOutput.SSHOutput)
+
 				packetsAfter := ipsectunnel.TunnelPackets(nodeName)
 
 				// Get the server results via the channel

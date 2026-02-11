@@ -50,18 +50,17 @@ var _ = Describe("NFD", Ordered, func() {
 		nfdInstaller = deploy.NewOperatorInstaller(installConfig)
 
 		nfdCRUtils = deploy.NewNFDCRUtils(APIClient, installConfig.Namespace, nfdparams.NfdInstance)
-
 	})
 
 	Context("Node featues", Label("discovery-of-labels"), func() {
 		var cpuFlags map[string][]string
 
 		AfterAll(func() {
-
 			err := nfdCRUtils.DeleteNFDCR()
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Undeploy NFD instance")
+
 			uninstallConfig := nfdhelpers.GetDefaultNFDUninstallConfig(
 				APIClient,
 				"nfd-operator-group",
@@ -73,6 +72,7 @@ var _ = Describe("NFD", Ordered, func() {
 
 		BeforeAll(func() {
 			By("Clear labels")
+
 			err := nfddelete.NfdLabelsByKeys(APIClient, "nfd.node.kubernetes.io", "feature.node.kubernetes.io")
 			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("error in cleaning labels\n %s", err))
 
@@ -88,7 +88,6 @@ var _ = Describe("NFD", Ordered, func() {
 		It("Check pods state", reportxml.ID("54548"), func() {
 			err := helpers.CheckPodStatus(APIClient)
 			Expect(err).NotTo(HaveOccurred())
-
 		})
 		It("Check CPU feature labels", reportxml.ID("54222"), func() {
 			skipIfConfigNotSet(nfdConfig)
@@ -96,6 +95,7 @@ var _ = Describe("NFD", Ordered, func() {
 			if nfdConfig.CPUFlagsHelperImage == "" {
 				Skip("CPUFlagsHelperImage is not set.")
 			}
+
 			cpuFlags = get.CPUFlags(APIClient, hwaccelparams.NFDNamespace, nfdConfig.CPUFlagsHelperImage)
 			nodelabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
 
@@ -107,93 +107,100 @@ var _ = Describe("NFD", Ordered, func() {
 				err = helpers.CheckLabelsExist(nodelabels, cpuFlags[nodeName], nil, nodeName)
 				Expect(err).NotTo(HaveOccurred())
 			}
-
 		})
 
 		It("Check Kernel config", reportxml.ID("54471"), func() {
 			skipIfConfigNotSet(nfdConfig)
+
 			nodelabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Check if custom label topology is exist")
+
 			for nodeName := range nodelabels {
 				err = helpers.CheckLabelsExist(nodelabels, ts.KernelConfig, nil, nodeName)
 				Expect(err).NotTo(HaveOccurred())
 			}
-
 		})
 
 		It("Check topology", reportxml.ID("54491"), func() {
 			Skip("configuration issue")
 			skipIfConfigNotSet(nfdConfig)
+
 			nodelabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Check if NFD labeling of the kernel config flags")
+
 			for nodeName := range nodelabels {
 				err = helpers.CheckLabelsExist(nodelabels, ts.Topology, nil, nodeName)
 				Expect(err).NotTo(HaveOccurred())
 			}
-
 		})
 		It("Check Logs", reportxml.ID("54549"), func() {
 			errorKeywords := []string{"error", "exception", "failed"}
+
 			skipIfConfigNotSet(nfdConfig)
+
 			listOptions := metav1.ListOptions{
 				AllowWatchBookmarks: false,
 			}
+
 			By("Check if NFD pod's log not contains in error messages")
+
 			pods, err := pod.List(APIClient, hwaccelparams.NFDNamespace, listOptions)
 			Expect(err).NotTo(HaveOccurred())
+
 			for _, p := range pods {
 				klog.V(ts.LogLevel).Infof("retrieve logs from %v", p.Object.Name)
 				log, err := get.PodLogs(APIClient, hwaccelparams.NFDNamespace, p.Object.Name)
 				Expect(err).NotTo(HaveOccurred(), "Error retrieving pod logs.")
 				Expect(len(log)).NotTo(Equal(0))
-				for _, errorKeyword := range errorKeywords {
 
+				for _, errorKeyword := range errorKeywords {
 					logLines := strings.Split(log, "\n")
 					for _, line := range logLines {
 						if strings.Contains(errorKeyword, line) {
 							klog.Errorf("error found in log: %v", line)
 						}
 					}
-
 				}
-
 			}
-
 		})
 
 		It("Check Restart Count", reportxml.ID("54538"), func() {
 			skipIfConfigNotSet(nfdConfig)
+
 			listOptions := metav1.ListOptions{
 				AllowWatchBookmarks: false,
 			}
+
 			By("Check if NFD pods reset count equal to zero")
+
 			pods, err := pod.List(APIClient, hwaccelparams.NFDNamespace, listOptions)
 			Expect(err).NotTo(HaveOccurred())
+
 			for _, p := range pods {
 				klog.V(ts.LogLevel).Infof("retrieve reset count from %v.", p.Object.Name)
 				resetCount, err := get.PodRestartCount(APIClient, hwaccelparams.NFDNamespace, p.Object.Name)
 				Expect(err).NotTo(HaveOccurred(), "Error retrieving reset count.")
 				klog.V(ts.LogLevel).Infof("Total resets %d.", resetCount)
 				Expect(resetCount).To(Equal(int32(0)))
-
 			}
 		})
 
 		It("Check if NUMA detected ", reportxml.ID("54408"), func() {
 			Skip("configuration issue")
 			skipIfConfigNotSet(nfdConfig)
+
 			nodelabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
 			Expect(err).NotTo(HaveOccurred())
 			By("Check if NFD labeling nodes with custom NUMA labels")
+
 			for nodeName := range nodelabels {
 				err = helpers.CheckLabelsExist(nodelabels, ts.NUMA, nil, nodeName)
 				Expect(err).NotTo(HaveOccurred())
 			}
-
 		})
 
 		It("Verify Feature List not contains items from Blacklist ", reportxml.ID("68298"), func() {
@@ -228,11 +235,11 @@ var _ = Describe("NFD", Ordered, func() {
 			klog.V(ts.LogLevel).Infof("Received nodelabel: %v", nodelabels)
 			Expect(err).NotTo(HaveOccurred())
 			By("Check if features exists")
+
 			for nodeName := range nodelabels {
 				err = helpers.CheckLabelsExist(nodelabels, []string{"BMI2"}, nil, nodeName)
 				Expect(err).NotTo(HaveOccurred())
 			}
-
 		})
 
 		It("Verify Feature List contains only Whitelist", reportxml.ID("68300"), func() {
@@ -241,6 +248,7 @@ var _ = Describe("NFD", Ordered, func() {
 			if nfdConfig.CPUFlagsHelperImage == "" {
 				Skip("CPUFlagsHelperImage is not set.")
 			}
+
 			By("delete old instance")
 
 			err := nfdCRUtils.DeleteNFDCR()
@@ -271,15 +279,16 @@ var _ = Describe("NFD", Ordered, func() {
 			nodelabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
 			Expect(err).NotTo(HaveOccurred())
 			By("Check if features exists")
+
 			for nodeName := range nodelabels {
 				err = helpers.CheckLabelsExist(nodelabels, []string{"BMI2"}, cpuFlags[nodeName], nodeName)
 				Expect(err).NotTo(HaveOccurred())
 			}
-
 		})
 
 		It("Add day2 workers", reportxml.ID("54539"), func() {
 			skipIfConfigNotSet(nfdConfig)
+
 			if !nfdConfig.AwsTest {
 				Skip("This test works only on AWS cluster." +
 					"Set ECO_HWACCEL_NFD_AWS_TESTS=true when running NFD tests against AWS cluster. ")
@@ -288,12 +297,15 @@ var _ = Describe("NFD", Ordered, func() {
 			if nfdConfig.CPUFlagsHelperImage == "" {
 				Skip("CPUFlagsHelperImage is not set.")
 			}
+
 			By("Creating machine set")
+
 			msBuilder := machine.NewSetBuilderFromCopy(APIClient, ts.MachineSetNamespace, ts.InstanceType,
 				ts.WorkerMachineSetLabel, ts.Replicas)
 			Expect(msBuilder).NotTo(BeNil(), "Failed to Initialize MachineSetBuilder from copy")
 
 			By("Create the new MachineSet")
+
 			createdMsBuilder, err := msBuilder.Create()
 
 			Expect(err).ToNot(HaveOccurred(), "error creating a machineset: %v", err)
@@ -325,19 +337,20 @@ var _ = Describe("NFD", Ordered, func() {
 			Expect(isNodeReady).To(BeTrue(), "the new node is not ready for use")
 
 			By("Check if features exists")
+
 			cpuFlags = get.CPUFlags(APIClient, hwaccelparams.NFDNamespace, nfdConfig.CPUFlagsHelperImage)
+
 			for nodeName := range nodelabels {
 				klog.V(ts.LogLevel).Infof("checking labels in %v", nodeName)
 				err = helpers.CheckLabelsExist(nodelabels, cpuFlags[nodeName], nil, nodeName)
 				Expect(err).NotTo(HaveOccurred())
 			}
+
 			defer func() {
 				err := pulledMachineSetBuilder.Delete()
 				Expect(err).ToNot(HaveOccurred())
 			}()
-
 		})
-
 	})
 })
 

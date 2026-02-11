@@ -28,6 +28,7 @@ var _ = Describe("TALM backup tests", Label(tsparams.LabelBackupTestCases), func
 
 	BeforeEach(func() {
 		By("checking that the talm version is at least 4.11")
+
 		versionInRange, err := version.IsVersionStringInRange(RANConfig.HubOperatorVersions[ranparam.TALM], "4.11", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to compared talm version string")
 
@@ -36,6 +37,7 @@ var _ = Describe("TALM backup tests", Label(tsparams.LabelBackupTestCases), func
 		}
 
 		By("checking that the talm version is at most 4.15")
+
 		versionInRange, err = version.IsVersionStringInRange(RANConfig.HubOperatorVersions[ranparam.TALM], "", "4.15")
 		Expect(err).ToNot(HaveOccurred(), "Failed to compare talm version string")
 
@@ -53,10 +55,12 @@ var _ = Describe("TALM backup tests", Label(tsparams.LabelBackupTestCases), func
 
 		AfterEach(func() {
 			By("cleaning up resources on hub")
+
 			errorList := setup.CleanupTestResourcesOnHub(HubAPIClient, tsparams.TestNamespace, "")
 			Expect(errorList).To(BeEmpty(), "Failed to clean up test resources on hub")
 
 			By("cleaning up resources on spoke 1")
+
 			errorList = setup.CleanupTestResourcesOnSpokes([]*clients.Settings{Spoke1APIClient}, "")
 			Expect(errorList).To(BeEmpty(), "Failed to clean up test resources on spoke 1")
 		})
@@ -64,12 +68,14 @@ var _ = Describe("TALM backup tests", Label(tsparams.LabelBackupTestCases), func
 		Context("with full disk for spoke1", func() {
 			BeforeEach(func() {
 				By("setting up filesystem to simulate low space")
+
 				loopbackDevicePath, err = mount.PrepareEnvWithSmallMountPoint(Spoke1APIClient)
 				Expect(err).ToNot(HaveOccurred(), "Failed to prepare mount point")
 			})
 
 			AfterEach(func() {
 				By("starting disk-full env clean up")
+
 				err = mount.DiskFullEnvCleanup(Spoke1APIClient, loopbackDevicePath)
 				Expect(err).ToNot(HaveOccurred(), "Failed to clean up mount point")
 			})
@@ -77,6 +83,7 @@ var _ = Describe("TALM backup tests", Label(tsparams.LabelBackupTestCases), func
 			// 50835 - Insufficient Backup Partition Size
 			It("should have a failed cgu for single spoke", reportxml.ID("50835"), func() {
 				By("applying all the required CRs for backup")
+
 				cguBuilder := cgu.NewCguBuilder(HubAPIClient, tsparams.CguName, tsparams.TestNamespace, 1).
 					WithCluster(RANConfig.Spoke1Name).
 					WithManagedPolicy(tsparams.PolicyName)
@@ -93,6 +100,7 @@ var _ = Describe("TALM backup tests", Label(tsparams.LabelBackupTestCases), func
 		Context("with CGU disabled", func() {
 			BeforeEach(func() {
 				By("checking that the talm version is at least 4.12")
+
 				versionInRange, err := version.IsVersionStringInRange(RANConfig.HubOperatorVersions[ranparam.TALM], "4.12", "")
 				Expect(err).ToNot(HaveOccurred(), "Failed to compare talm version string")
 
@@ -104,6 +112,7 @@ var _ = Describe("TALM backup tests", Label(tsparams.LabelBackupTestCases), func
 			// 54294 - Cluster Backup and Precaching in a Disabled CGU
 			It("verifies backup begins and succeeds after CGU is enabled", reportxml.ID("54294"), func() {
 				By("creating a disabled cgu with backup enabled")
+
 				cguBuilder := cgu.NewCguBuilder(HubAPIClient, tsparams.CguName, tsparams.TestNamespace, 1).
 					WithCluster(RANConfig.Spoke1Name).
 					WithManagedPolicy(tsparams.PolicyName)
@@ -120,18 +129,19 @@ var _ = Describe("TALM backup tests", Label(tsparams.LabelBackupTestCases), func
 				Expect(err).To(HaveOccurred(), "Backup started when CGU is disabled")
 
 				By("enabling CGU")
+
 				cguBuilder.Definition.Spec.Enable = ptr.To(true)
 				cguBuilder, err = cguBuilder.Update(true)
 				Expect(err).ToNot(HaveOccurred(), "Failed to enable CGU")
 
 				By("waiting for backup to begin")
+
 				_, err = cguBuilder.WaitUntilBackupStarts(1 * time.Minute)
 				Expect(err).ToNot(HaveOccurred(), "Failed to start backup")
 
 				By("waiting for cgu to indicate backup succeeded for spoke")
 				assertBackupStatus(RANConfig.Spoke1Name, "Succeeded")
 			})
-
 		})
 	})
 
@@ -142,20 +152,24 @@ var _ = Describe("TALM backup tests", Label(tsparams.LabelBackupTestCases), func
 				To(BeTrue(), "Failed due to missing API client")
 
 			By("setting up filesystem to simulate low space")
+
 			loopbackDevicePath, err = mount.PrepareEnvWithSmallMountPoint(Spoke1APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Failed to prepare mount point")
 		})
 
 		AfterEach(func() {
 			By("cleaning up resources on hub")
+
 			errorList := setup.CleanupTestResourcesOnHub(HubAPIClient, tsparams.TestNamespace, "")
 			Expect(errorList).To(BeEmpty(), "Failed to clean up test resources on hub")
 
 			By("starting disk-full env clean up")
+
 			err = mount.DiskFullEnvCleanup(Spoke1APIClient, loopbackDevicePath)
 			Expect(err).ToNot(HaveOccurred(), "Failed to clean up mount point")
 
 			By("cleaning up resources on spokes")
+
 			errorList = setup.CleanupTestResourcesOnSpokes(
 				[]*clients.Settings{Spoke1APIClient, Spoke2APIClient}, "")
 			Expect(errorList).To(BeEmpty(), "Failed to clean up test resources on spokes")
@@ -180,7 +194,6 @@ var _ = Describe("TALM backup tests", Label(tsparams.LabelBackupTestCases), func
 			By("waiting for cgu to indicate it succeeded for spoke2")
 			assertBackupStatus(RANConfig.Spoke2Name, "Succeeded")
 		})
-
 	})
 })
 

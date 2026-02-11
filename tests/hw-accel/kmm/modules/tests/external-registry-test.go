@@ -28,7 +28,6 @@ import (
 )
 
 var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func() {
-
 	const (
 		moduleName         = "simple-kmod"
 		serviceAccountName = "simple-kmod-manager"
@@ -42,10 +41,12 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			ModulesConfig.Registry, moduleName, time.Now().Unix())
 		buildArgValue := fmt.Sprintf("%s.o", moduleName)
 
-		var module *kmm.ModuleBuilder
-		var svcAccount *serviceaccount.Builder
-		var originalSecretMap map[string]map[string]interface{}
-		var secretMap map[string]map[string]interface{}
+		var (
+			module            *kmm.ModuleBuilder
+			svcAccount        *serviceaccount.Builder
+			originalSecretMap map[string]map[string]interface{}
+			secretMap         map[string]map[string]interface{}
+		)
 
 		BeforeAll(func() {
 			if ModulesConfig.PullSecret == "" || ModulesConfig.Registry == "" {
@@ -53,16 +54,19 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			}
 
 			By("Create Namespace")
+
 			_, err := namespace.NewBuilder(APIClient, localNsName).Create()
 			Expect(err).NotTo(HaveOccurred(), "error creating test namespace")
 
 			By("Creating registry secret")
+
 			secretContent := define.SecretContent(ModulesConfig.Registry, ModulesConfig.PullSecret)
 			_, err = secret.NewBuilder(APIClient, secretName,
 				localNsName, corev1.SecretTypeDockerConfigJson).WithData(secretContent).Create()
 			Expect(err).ToNot(HaveOccurred(), "failed creating secret")
 
 			By("Get cluster's global pull-secret")
+
 			globalSecret, err := cluster.GetOCPPullSecret(APIClient)
 			Expect(err).ToNot(HaveOccurred(), "error fetching cluster's pull-secret")
 
@@ -70,11 +74,10 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			Expect(err).ToNot(HaveOccurred(), "error unmarshal pull-secret")
 			err = json.Unmarshal(globalSecret.Object.Data[".dockerconfigjson"], &originalSecretMap)
 			Expect(err).ToNot(HaveOccurred(), "error unmarshal pull-secret")
-
 		})
 		It("should build and push image to quay", reportxml.ID("53584"), func() {
-
 			By("Create configmap")
+
 			configmapContent := define.SimpleKmodConfigMapContents()
 
 			dockerfileConfigMap, err := configmap.NewBuilder(APIClient, moduleName, localNsName).
@@ -83,17 +86,20 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			Expect(err).ToNot(HaveOccurred(), "error creating configmap")
 
 			By("Create service account")
+
 			svcAccount, err = serviceaccount.NewBuilder(APIClient, serviceAccountName, localNsName).Create()
 
 			Expect(err).ToNot(HaveOccurred(), "error creating serviceaccount")
 
 			By("Create clusterrolebinding")
+
 			crb := define.ModuleCRB(*svcAccount, moduleName)
 
 			_, err = crb.Create()
 			Expect(err).ToNot(HaveOccurred(), "error creating clusterrolebinding")
 
 			By("Create kernel mapping")
+
 			kernelMapping := kmm.NewRegExKernelMappingBuilder("^.+$")
 
 			kernelMapping.WithContainerImage(image).
@@ -103,6 +109,7 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			Expect(err).ToNot(HaveOccurred(), "error creating kernel mapping")
 
 			By("Create Module LoaderContainer")
+
 			moduleLoaderContainer := kmm.NewModLoaderContainerBuilder(moduleName)
 			moduleLoaderContainer.WithKernelMapping(kerMapOne)
 			moduleLoaderContainer.WithImagePullPolicy("Always")
@@ -110,6 +117,7 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			Expect(err).ToNot(HaveOccurred(), "error creating moduleloadercontainer")
 
 			By("Create module")
+
 			module = kmm.NewModuleBuilder(APIClient, moduleName, localNsName).
 				WithNodeSelector(GeneralConfig.WorkerLabelMap)
 
@@ -121,40 +129,46 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			Expect(err).ToNot(HaveOccurred(), "error creating module")
 
 			By("Await build pod to complete build")
+
 			err = await.BuildPodCompleted(APIClient, localNsName, 5*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error while building module")
 
 			By("Await driver container deployment")
+
 			err = await.ModuleDeployment(APIClient, moduleName, localNsName, 5*time.Minute, GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while waiting on driver deployment")
 
 			By("Check module is loaded on node")
+
 			err = check.ModuleLoaded(APIClient, moduleName, time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
 
 			By("Check label is set on all nodes")
+
 			_, err = check.NodeLabel(APIClient, moduleName, localNsName, GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
-
 		})
 
 		It("should delete simple-kmod module", reportxml.ID("53413"), func() {
 			By("Deleting the module")
+
 			_, err := module.Delete()
 			Expect(err).ToNot(HaveOccurred(), "error deleting the module")
 
 			By("Await module to be deleted")
+
 			err = await.ModuleObjectDeleted(APIClient, moduleName, localNsName, 3*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error while waiting module to be deleted")
 
 			By("Await pods deletion")
+
 			err = await.ModuleUndeployed(APIClient, localNsName, time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error while waiting pods to be deleted")
 
 			By("Check labels are removed on all nodes")
+
 			_, err = check.NodeLabel(APIClient, moduleName, localNsName, GeneralConfig.WorkerLabelMap)
 			Expect(err).To(HaveOccurred(), "error while checking the module is loaded")
-
 		})
 
 		It("should generate events on nodes when module is loaded", reportxml.ID("68106"), func() {
@@ -162,6 +176,7 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			time.Sleep(30 * time.Second)
 
 			By("Getting events from 'default' namespace")
+
 			eventList, err := events.List(APIClient, "default")
 			Expect(err).ToNot(HaveOccurred(), "Fail to collect events")
 
@@ -175,21 +190,23 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 
 			for _, event := range eventList {
 				klog.V(kmmparams.KmmLogLevel).Infof("Reason: %s, Message: %s", event.Object.Reason, event.Object.Message)
+
 				if event.Object.Reason == kmmparams.ReasonModuleLoaded &&
 					event.Object.Message == messageModuleLoaded {
 					foundModuleLoadedEvents++
 					klog.V(kmmparams.KmmLogLevel).Infof("ModuleLoaded events: %d", foundModuleLoadedEvents)
 				}
+
 				if event.Object.Reason == kmmparams.ReasonModuleUnloaded &&
 					event.Object.Message == messageModuleUnloaded {
 					foundModuleUnloadedEvents++
 					klog.V(kmmparams.KmmLogLevel).Infof("ModuleUnloaded events: %d", foundModuleUnloadedEvents)
 				}
 			}
+
 			Expect(foundModuleLoadedEvents).To(Equal(totalNodes), "ModuleLoaded events do not match")
 			Expect(foundModuleUnloadedEvents).To(Equal(totalNodes), "ModuleUnloaded events do not match")
 		})
-
 	})
 
 	// Separate context to isolate flaky event test (68106) in first context.
@@ -201,10 +218,12 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			ModulesConfig.Registry, moduleName)
 		buildArgValue := fmt.Sprintf("%s.o", moduleName)
 
-		var module *kmm.ModuleBuilder
-		var svcAccount *serviceaccount.Builder
-		var originalSecretMap map[string]map[string]interface{}
-		var secretMap map[string]map[string]interface{}
+		var (
+			module            *kmm.ModuleBuilder
+			svcAccount        *serviceaccount.Builder
+			originalSecretMap map[string]map[string]interface{}
+			secretMap         map[string]map[string]interface{}
+		)
 
 		BeforeAll(func() {
 			if ModulesConfig.PullSecret == "" || ModulesConfig.Registry == "" {
@@ -212,11 +231,14 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			}
 
 			By("Get existing service account from Context 1")
+
 			var err error
+
 			svcAccount, err = serviceaccount.Pull(APIClient, serviceAccountName, localNsName)
 			Expect(err).ToNot(HaveOccurred(), "service account should exist from Context 1")
 
 			By("Get cluster's global pull-secret")
+
 			globalSecret, err := cluster.GetOCPPullSecret(APIClient)
 			Expect(err).ToNot(HaveOccurred(), "error fetching cluster's pull-secret")
 
@@ -224,12 +246,11 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			Expect(err).ToNot(HaveOccurred(), "error unmarshal pull-secret")
 			err = json.Unmarshal(globalSecret.Object.Data[".dockerconfigjson"], &originalSecretMap)
 			Expect(err).ToNot(HaveOccurred(), "error unmarshal pull-secret")
-
 		})
 
 		It("should deploy prebuild image", reportxml.ID("53395"), func() {
-
 			By("Create kernel mapping")
+
 			kernelMapping := kmm.NewRegExKernelMappingBuilder("^.+$")
 
 			kernelMapping.WithContainerImage(image)
@@ -238,6 +259,7 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			Expect(err).ToNot(HaveOccurred(), "error creating kernel mapping")
 
 			By("Create Module LoaderContainer")
+
 			moduleLoaderContainer := kmm.NewModLoaderContainerBuilder(moduleName)
 			moduleLoaderContainer.WithKernelMapping(kerMapOne)
 			moduleLoaderContainer.WithImagePullPolicy("Always")
@@ -245,6 +267,7 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			Expect(err).ToNot(HaveOccurred(), "error creating moduleloadercontainer")
 
 			By("Create module")
+
 			module = kmm.NewModuleBuilder(APIClient, moduleName, localNsName).
 				WithNodeSelector(GeneralConfig.WorkerLabelMap)
 
@@ -256,40 +279,46 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			Expect(err).ToNot(HaveOccurred(), "error creating module")
 
 			By("Await driver container deployment")
+
 			err = await.ModuleDeployment(APIClient, moduleName, localNsName, 3*time.Minute, GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while waiting on driver deployment")
 
 			By("Check module is loaded on node")
+
 			err = check.ModuleLoaded(APIClient, moduleName, time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
 
 			By("Check label is set on all nodes")
+
 			_, err = check.NodeLabel(APIClient, moduleName, localNsName, GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
 		})
 
 		It("should delete simple-kmod module", reportxml.ID("53413"), func() {
 			By("Deleting the module")
+
 			_, err := module.Delete()
 			Expect(err).ToNot(HaveOccurred(), "error deleting the module")
 
 			By("Await module to be deleted")
+
 			err = await.ModuleObjectDeleted(APIClient, moduleName, localNsName, 3*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error while waiting module to be deleted")
 
 			By("Await pods deletion")
+
 			err = await.ModuleUndeployed(APIClient, localNsName, time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error while waiting pods to be deleted")
 
 			By("Check labels are removed on all nodes")
+
 			_, err = check.NodeLabel(APIClient, moduleName, localNsName, GeneralConfig.WorkerLabelMap)
 			Expect(err).To(HaveOccurred(), "error while checking the module is loaded")
-
 		})
 
 		It("should deploy prebuild image with global secret", reportxml.ID("71694"), func() {
-
 			By("Update global pull-secret")
+
 			if secretMap["auths"][ModulesConfig.Registry] == nil {
 				secretMap["auths"][ModulesConfig.Registry] = map[string]string{
 					"auth":  ModulesConfig.PullSecret,
@@ -298,6 +327,7 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 
 				ps, err := json.Marshal(secretMap)
 				Expect(err).ToNot(HaveOccurred(), "error encoding pull secret")
+
 				secretContents := map[string][]byte{".dockerconfigjson": ps}
 
 				pullSecret, _ := secret.Pull(APIClient, "pull-secret", "openshift-config")
@@ -306,6 +336,7 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			}
 
 			By("Create kernel mapping")
+
 			kernelMapping := kmm.NewRegExKernelMappingBuilder("^.+$")
 
 			kernelMapping.WithContainerImage(image)
@@ -314,6 +345,7 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			Expect(err).ToNot(HaveOccurred(), "error creating kernel mapping")
 
 			By("Create Module LoaderContainer")
+
 			moduleLoaderContainer := kmm.NewModLoaderContainerBuilder(moduleName)
 			moduleLoaderContainer.WithKernelMapping(kerMapOne)
 			moduleLoaderContainer.WithImagePullPolicy("Always")
@@ -321,6 +353,7 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			Expect(err).ToNot(HaveOccurred(), "error creating moduleloadercontainer")
 
 			By("Create module")
+
 			module = kmm.NewModuleBuilder(APIClient, moduleName, localNsName).
 				WithNodeSelector(GeneralConfig.WorkerLabelMap)
 
@@ -330,21 +363,24 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			Expect(err).ToNot(HaveOccurred(), "error creating module")
 
 			By("Await driver container deployment")
+
 			err = await.ModuleDeployment(APIClient, moduleName, localNsName, 3*time.Minute, GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while waiting on driver deployment")
 
 			By("Check module is loaded on node")
+
 			err = check.ModuleLoaded(APIClient, moduleName, time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
 
 			By("Check label is set on all nodes")
+
 			_, err = check.NodeLabel(APIClient, moduleName, localNsName, GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
 		})
 
 		It("should build image without loading it", func() {
-
 			By("Create configmap")
+
 			configmapContent := define.SimpleKmodConfigMapContents()
 
 			dockerfileConfigMap, err := configmap.NewBuilder(APIClient, moduleName, localNsName).
@@ -353,17 +389,20 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			Expect(err).ToNot(HaveOccurred(), "error creating configmap")
 
 			By("Create service account")
+
 			svcAccount, err = serviceaccount.NewBuilder(APIClient, serviceAccountName, localNsName).Create()
 
 			Expect(err).ToNot(HaveOccurred(), "error creating serviceaccount")
 
 			By("Create clusterrolebinding")
+
 			crb := define.ModuleCRB(*svcAccount, moduleName)
 
 			_, err = crb.Create()
 			Expect(err).ToNot(HaveOccurred(), "error creating clusterrolebinding")
 
 			By("Create kernel mapping")
+
 			kernelMapping := kmm.NewRegExKernelMappingBuilder("^.+$")
 
 			kernelMapping.WithContainerImage(imageNotUniq).
@@ -373,6 +412,7 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			Expect(err).ToNot(HaveOccurred(), "error creating kernel mapping")
 
 			By("Create Module LoaderContainer")
+
 			moduleLoaderContainer := kmm.NewModLoaderContainerBuilder(moduleName)
 			moduleLoaderContainer.WithKernelMapping(kerMapOne)
 			moduleLoaderContainer.WithImagePullPolicy("Always")
@@ -381,6 +421,7 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			Expect(err).ToNot(HaveOccurred(), "error creating moduleloadercontainer")
 
 			By("Create module")
+
 			module = kmm.NewModuleBuilder(APIClient, "build", localNsName).
 				WithNodeSelector(GeneralConfig.WorkerLabelMap)
 
@@ -392,6 +433,7 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			Expect(err).ToNot(HaveOccurred(), "error creating module")
 
 			By("Await build pod to complete build")
+
 			_ = await.BuildPodCompleted(APIClient, localNsName, 5*time.Minute)
 
 			_, err = module.Delete()
@@ -400,23 +442,28 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 
 		AfterAll(func() {
 			By("Delete Module")
+
 			_, err := kmm.NewModuleBuilder(APIClient, moduleName, localNsName).Delete()
 			Expect(err).ToNot(HaveOccurred(), "error deleting module")
 
 			By("Await module to be deleted")
+
 			err = await.ModuleObjectDeleted(APIClient, moduleName, localNsName, 3*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error while waiting module to be deleted")
 
 			By("Delete ClusterRoleBinding")
+
 			crb := define.ModuleCRB(*svcAccount, moduleName)
 			err = crb.Delete()
 			Expect(err).ToNot(HaveOccurred(), "error deleting clusterrolebinding")
 
 			By("Delete Namespace")
+
 			err = namespace.NewBuilder(APIClient, moduleName).Delete()
 			Expect(err).ToNot(HaveOccurred(), "error deleting namespace")
 
 			By("Restore original global pull-secret")
+
 			if originalSecretMap["auths"][ModulesConfig.Registry] == nil {
 				pullSecret, err := secret.Pull(APIClient, "pull-secret", "openshift-config")
 				Expect(err).ToNot(HaveOccurred(), "error pulling global pull secret")
@@ -428,6 +475,5 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 				Expect(err).ToNot(HaveOccurred(), "error restoring global pull secret")
 			}
 		})
-
 	})
 })

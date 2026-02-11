@@ -31,16 +31,19 @@ var _ = Describe(
 
 		BeforeAll(func() {
 			By("Pull the imagebasedupgrade from the cluster")
+
 			ibu, err = lca.PullImageBasedUpgrade(APIClient)
 			Expect(err).NotTo(HaveOccurred(), "error pulling ibu resource from cluster")
 
 			By("Ensure that imagebasedupgrade values are empty")
+
 			ibu.Definition.Spec.ExtraManifests = []lcav1.ConfigMapRef{}
 			ibu.Definition.Spec.OADPContent = []lcav1.ConfigMapRef{}
 			_, err = ibu.Update()
 			Expect(err).NotTo(HaveOccurred(), "error updating ibu resource with empty values")
 
 			By("Get configured dataprotection application")
+
 			dpaBuilders, err := oadp.ListDataProtectionApplication(APIClient, mgmtparams.LCAOADPNamespace)
 			Expect(err).NotTo(HaveOccurred(), "error listing dataprotectionapplications")
 			Expect(len(dpaBuilders)).To(Equal(1), "error: receieved multiple dataprotectionapplication resources")
@@ -51,10 +54,12 @@ var _ = Describe(
 			Expect(err).NotTo(HaveOccurred(), "error deleting original dataprotectionapplication")
 
 			By("Get klusterlet backup string")
+
 			klusterletBackup, err := mgmtparams.KlusterletBackup.String()
 			Expect(err).NotTo(HaveOccurred(), "error creating configmap data for klusterlet backup")
 
 			By("Get klusterlet restore string")
+
 			klusterletRestore, err := mgmtparams.KlusterletRestore.String()
 			Expect(err).NotTo(HaveOccurred(), "error creating configmap data for klusterlet restore")
 
@@ -67,9 +72,9 @@ var _ = Describe(
 		})
 
 		AfterAll(func() {
-
 			if originalDPA != nil && !originalDPA.Exists() {
 				By("Restoring data protection application")
+
 				originalDPA.Definition.ResourceVersion = ""
 				_, err := originalDPA.Create()
 				Expect(err).NotTo(HaveOccurred(), "error restoring original dataprotection application")
@@ -90,7 +95,6 @@ var _ = Describe(
 				return false, nil
 			}).WithTimeout(time.Second*60).WithPolling(time.Second*2).Should(
 				BeTrue(), "error waiting for backupstoragelocation to be created")
-
 		})
 
 		It("fails oadp operator availability check", reportxml.ID("71478"), func() {
@@ -101,6 +105,7 @@ var _ = Describe(
 			Expect(err).NotTo(HaveOccurred(), "error updating ibu with image and version")
 
 			By("Setting the IBU stage to Prep")
+
 			_, err = ibu.WithStage("Prep").Update()
 			Expect(err).NotTo(HaveOccurred(), "error setting ibu to prep stage")
 

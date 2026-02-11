@@ -29,6 +29,7 @@ var _ = Describe("ORAN Template Inventory", Label(tsparams.LabelPreProvision, ts
 		var err error
 
 		By("creating the O2IMS API client")
+
 		clientBuilder, err := auth.NewClientBuilderForConfig(RANConfig)
 		Expect(err).ToNot(HaveOccurred(), "Failed to create the O2IMS API client builder")
 
@@ -39,10 +40,12 @@ var _ = Describe("ORAN Template Inventory", Label(tsparams.LabelPreProvision, ts
 	// 82940 - Successfully list ManagedInfrastructureTemplates
 	It("successfully lists ManagedInfrastructureTemplates", reportxml.ID("82940"), func() {
 		By("listing all ClusterTemplate resources")
+
 		clusterTemplates, err := oran.ListClusterTemplates(HubAPIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to list ClusterTemplate resources")
 
 		By("listing all ManagedInfrastructureTemplates")
+
 		managedInfrastructureTemplates, err := artifactsClient.ListManagedInfrastructureTemplates()
 		Expect(err).ToNot(HaveOccurred(), "Failed to list ManagedInfrastructureTemplates")
 
@@ -63,6 +66,7 @@ var _ = Describe("ORAN Template Inventory", Label(tsparams.LabelPreProvision, ts
 	// 82941 - Successfully filter ManagedInfrastructureTemplates
 	It("successfully filters ManagedInfrastructureTemplates", reportxml.ID("82941"), func() {
 		By("getting the specific ClusterTemplate resource for the valid template")
+
 		clusterTemplateNamespace := tsparams.ClusterTemplateName + "-" + RANConfig.ClusterTemplateAffix
 		clusterTemplateName := fmt.Sprintf("%s.%s-%s",
 			tsparams.ClusterTemplateName, RANConfig.ClusterTemplateAffix, tsparams.TemplateValid)
@@ -75,10 +79,12 @@ var _ = Describe("ORAN Template Inventory", Label(tsparams.LabelPreProvision, ts
 		chosenClusterTemplateVersion := chosenClusterTemplate.Definition.Spec.Version
 
 		By("verifying the ManagedInfrastructureTemplate exists from the API")
+
 		_, err = artifactsClient.GetManagedInfrastructureTemplate(clusterTemplateName)
 		Expect(err).ToNot(HaveOccurred(), "Failed to get ManagedInfrastructureTemplate %s", clusterTemplateName)
 
 		By("filtering ManagedInfrastructureTemplates by name and version")
+
 		nameFilter := filter.Equals("name", chosenClusterTemplateName)
 		versionFilter := filter.Equals("version", chosenClusterTemplateVersion)
 		combinedFilter := filter.And(nameFilter, versionFilter)
@@ -88,6 +94,7 @@ var _ = Describe("ORAN Template Inventory", Label(tsparams.LabelPreProvision, ts
 		Expect(filteredTemplates).To(HaveLen(1), "Expected exactly one filtered ManagedInfrastructureTemplate")
 
 		By("verifying the chosen ClusterTemplate matches the filtered ManagedInfrastructureTemplate")
+
 		filteredTemplate := filteredTemplates[0]
 		Expect(managedInfrastructureTemplateMatchesClusterTemplate(filteredTemplate, chosenClusterTemplate)).
 			To(BeTrue(), "Filtered ManagedInfrastructureTemplate does not match the chosen ClusterTemplate")
@@ -96,6 +103,7 @@ var _ = Describe("ORAN Template Inventory", Label(tsparams.LabelPreProvision, ts
 	// 82942 - Successfully retrieve ManagedInfrastructureTemplate defaults
 	It("successfully retrieves ManagedInfrastructureTemplate defaults", reportxml.ID("82942"), func() {
 		By("getting the specific ClusterTemplate resource for the valid template")
+
 		clusterTemplateNamespace := tsparams.ClusterTemplateName + "-" + RANConfig.ClusterTemplateAffix
 		clusterTemplateName := fmt.Sprintf("%s.%s-%s",
 			tsparams.ClusterTemplateName, RANConfig.ClusterTemplateAffix, tsparams.TemplateValid)
@@ -105,6 +113,7 @@ var _ = Describe("ORAN Template Inventory", Label(tsparams.LabelPreProvision, ts
 			"Failed to pull ClusterTemplate %s from namespace %s", clusterTemplateName, clusterTemplateNamespace)
 
 		By("retrieving ManagedInfrastructureTemplate defaults")
+
 		managedTemplateDefaults, err := artifactsClient.GetManagedInfrastructureTemplateDefaults(clusterTemplateName)
 		Expect(err).ToNot(HaveOccurred(), "Failed to retrieve ManagedInfrastructureTemplate defaults")
 		Expect(managedTemplateDefaults).ToNot(BeNil(),
@@ -121,6 +130,7 @@ var _ = Describe("ORAN Template Inventory", Label(tsparams.LabelPreProvision, ts
 			"PolicyTemplateDefaults should have key 'editable'")
 
 		By("retrieving the clusterInstanceDefaults and policyTemplateDefaults ConfigMaps from the ClusterTemplate spec")
+
 		clusterInstanceDefaultsCMName := chosenClusterTemplate.Definition.Spec.Templates.ClusterInstanceDefaults
 		policyTemplateDefaultsCMName := chosenClusterTemplate.Definition.Spec.Templates.PolicyTemplateDefaults
 
@@ -136,6 +146,7 @@ var _ = Describe("ORAN Template Inventory", Label(tsparams.LabelPreProvision, ts
 		clusterInstanceDefaultsYAML := ciDefaultsCM.Definition.Data[tsparams.ClusterInstanceDefaultsKey]
 
 		var expectedClusterInstanceDefaults map[string]any
+
 		err = yaml.Unmarshal([]byte(clusterInstanceDefaultsYAML), &expectedClusterInstanceDefaults)
 		Expect(err).ToNot(HaveOccurred(), "Failed to parse ClusterInstance defaults YAML")
 
@@ -153,6 +164,7 @@ var _ = Describe("ORAN Template Inventory", Label(tsparams.LabelPreProvision, ts
 		policyTemplateDefaultsYAML := policyTemplateDefaultsCM.Definition.Data[tsparams.PolicyTemplateDefaultsKey]
 
 		var expectedPolicyTemplateDefaults map[string]any
+
 		err = yaml.Unmarshal([]byte(policyTemplateDefaultsYAML), &expectedPolicyTemplateDefaults)
 		Expect(err).ToNot(HaveOccurred(), "Failed to parse PolicyTemplate defaults YAML")
 

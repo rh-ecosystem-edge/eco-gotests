@@ -24,25 +24,23 @@ var _ = Describe(
 	ContinueOnFailure,
 	Label(tsparams.LabelConvergedFlowEnabled), func() {
 		BeforeAll(func() {
-
 			command := []string{"printenv", "ALLOW_CONVERGED_FLOW"}
 			convergedFlowVariable, err := ZTPConfig.HubAssistedServicePod().ExecCommand(command, assistedContainer)
 			Expect(err.Error()).To(Or(BeEmpty(), Equal("command terminated with exit code 1")),
 				"error msg is not as expected")
+
 			if convergedFlowVariable.Len() != 0 {
 				Skip("environment variable set not by default")
 			}
 
 			By("Registering converged flow status")
+
 			convergedFlowLog, err = ZTPConfig.HubAssistedServicePod().GetFullLog(assistedContainer)
 			Expect(err).ToNot(HaveOccurred(), "error occurred when getting log")
 		})
 
 		It("Validates that converged flow is enabled by default", reportxml.ID("62628"), func() {
-
 			enabledInLog := strings.Contains(convergedFlowLog, "Converged flow enabled: true")
 			Expect(enabledInLog).To(BeTrue(), "environment variable not defined or not in log.")
-
 		})
-
 	})

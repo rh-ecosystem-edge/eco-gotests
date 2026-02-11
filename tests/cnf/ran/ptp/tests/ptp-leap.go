@@ -21,18 +21,22 @@ import (
 )
 
 var _ = Describe("PTP Leap File", Label(tsparams.LabelLeapFile), func() {
-	var prometheusAPI prometheusv1.API
-	var leapConfigMap *configmap.Builder
-	var err error
-	var nodeName string
-	var testRanAtLeastOnce = false
+	var (
+		prometheusAPI      prometheusv1.API
+		leapConfigMap      *configmap.Builder
+		err                error
+		nodeName           string
+		testRanAtLeastOnce = false
+	)
 
 	BeforeEach(func() {
 		By("creating a Prometheus API client")
+
 		prometheusAPI, err = querier.CreatePrometheusAPIForCluster(RANConfig.Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to create Prometheus API client")
 
 		By("ensuring clocks are locked before testing")
+
 		err = metrics.EnsureClocksAreLocked(prometheusAPI)
 		Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
 	})
@@ -43,6 +47,7 @@ var _ = Describe("PTP Leap File", Label(tsparams.LabelLeapFile), func() {
 		}
 
 		By("restoring the original leap configmap")
+
 		leapConfigMap, err = configmap.Pull(
 			RANConfig.Spoke1APIClient, tsparams.LeapConfigmapName, ranparam.PtpOperatorNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Failed to pull original leap configmap")
@@ -57,6 +62,7 @@ var _ = Describe("PTP Leap File", Label(tsparams.LabelLeapFile), func() {
 		Expect(err).ToNot(HaveOccurred(), "Failed to delete PTP daemon set pod")
 
 		By("ensuring clocks are locked after testing")
+
 		err = metrics.AssertQuery(context.TODO(), prometheusAPI, metrics.ClockStateQuery{}, metrics.ClockStateLocked,
 			metrics.AssertWithStableDuration(10*time.Second),
 			metrics.AssertWithTimeout(5*time.Minute))
@@ -65,8 +71,8 @@ var _ = Describe("PTP Leap File", Label(tsparams.LabelLeapFile), func() {
 
 	It("should add leap event announcement in leap configmap when removing the last announcement",
 		reportxml.ID("75325"), func() {
-
 			By("pulling leap configmap")
+
 			leapConfigMap, err = configmap.Pull(
 				RANConfig.Spoke1APIClient, tsparams.LeapConfigmapName, ranparam.PtpOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull leap configmap")
@@ -101,10 +107,12 @@ var _ = Describe("PTP Leap File", Label(tsparams.LabelLeapFile), func() {
 				Expect(err).ToNot(HaveOccurred(), "Failed to validate PTP daemon pod running on node %s", nodeName)
 
 				By("waiting for configmap to be updated with today's date leap announcement")
+
 				err = ptpleap.WaitForConfigmapToBeUpdated(5*time.Second, 10*time.Minute)
 				Expect(err).ToNot(HaveOccurred(), "Failed to wait for configmap to be updated")
 
 				By("ensuring new last announcement is different from the original last announcement")
+
 				originalLastAnnouncement, err := ptpleap.GetLastAnnouncement(originalLeapConfigMapData)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get last announcement")
 				newLeapConfigMap, err := configmap.Pull(
@@ -114,7 +122,6 @@ var _ = Describe("PTP Leap File", Label(tsparams.LabelLeapFile), func() {
 				newLastAnnouncement, err := ptpleap.GetLastAnnouncement(newLeapConfigMap.Object.Data[nodeName])
 				Expect(err).ToNot(HaveOccurred(), "Failed to get last announcement")
 				Expect(newLastAnnouncement).NotTo(Equal(originalLastAnnouncement), "Last announcement should be different")
-
 			}
 
 			if !testRanAtLeastOnce {

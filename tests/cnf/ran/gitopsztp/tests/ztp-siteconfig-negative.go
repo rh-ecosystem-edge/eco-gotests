@@ -28,6 +28,7 @@ var _ = Describe("ZTP Siteconfig Operator's Negative Tests",
 		// These tests use the hub and spoke architecture.
 		BeforeEach(func() {
 			By("verifying that ZTP meets the minimum version")
+
 			versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.17", "")
 			Expect(err).ToNot(HaveOccurred(), "Failed to compare ZTP version string")
 
@@ -36,13 +37,13 @@ var _ = Describe("ZTP Siteconfig Operator's Negative Tests",
 			}
 
 			By("saving the original clusters app source")
+
 			clustersApp, err = argocd.PullApplication(
 				HubAPIClient, tsparams.ArgoCdClustersAppName, ranparam.OpenshiftGitOpsNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get the original clusters app")
 
 			originalClustersGitPath, err = gitdetails.GetGitPath(clustersApp)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get the original clusters app git path")
-
 		})
 
 		AfterEach(func() {
@@ -51,11 +52,13 @@ var _ = Describe("ZTP Siteconfig Operator's Negative Tests",
 			}
 
 			By("resetting the clusters app back to the original settings")
+
 			clustersApp.Definition.Spec.Source.Path = originalClustersGitPath
 			clustersApp, err := clustersApp.Update(true)
 			Expect(err).ToNot(HaveOccurred(), "Failed to update the clusters app with the original git path")
 
 			By("waiting for the clusters app to sync")
+
 			err = clustersApp.WaitForSourceUpdate(true, tsparams.ArgoCdChangeTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for the clusters app to sync")
 		})
@@ -63,22 +66,24 @@ var _ = Describe("ZTP Siteconfig Operator's Negative Tests",
 		// 75378 - Validate erroneous/invalid ClusterInstance CR does not block other ClusterInstance CR handling.
 		It("Verify erroneous/invalid ClusterInstance CR does not block other ClusterInstance CR handling",
 			reportxml.ID("75378"), func() {
-
 				// Deploy a first ClusterInstance CR with invalid template reference(i.e.invalid ClusterInstance CR).
 				// Test step-1: Update the ztp-test git path to reference invalid node template configmap.
 				// in kind:ClusterInstance to make ClusterInstance CR invalid.
 				By("checking if the ztp test path exists")
+
 				if !clustersApp.DoesGitPathExist(tsparams.ZtpTestPathInvalidTemplateRef) {
 					Skip(fmt.Sprintf("git path '%s' could not be found", tsparams.ZtpTestPathInvalidTemplateRef))
 				}
 
 				By("updating the Argo CD clusters app with invalid template reference git path")
+
 				err := gitdetails.UpdateAndWaitForSync(clustersApp, true, tsparams.ZtpTestPathInvalidTemplateRef)
 				Expect(err).ToNot(HaveOccurred(), "Failed to update Argo CD clusters app with new git path")
 
 				// Make sure that first ClusterInstance CR should show ClusterInstanceValidated false.
 				// Test step 1.a expected result validation.
 				By("checking cluster instance1 CR reporting validation failed with correct error message")
+
 				clusterInstance1, err := siteconfig.PullClusterInstance(HubAPIClient, RANConfig.Spoke1Name, RANConfig.Spoke1Name)
 				Expect(err).ToNot(HaveOccurred(), "Failed to find cluster instance1 custom resource on hub")
 
@@ -93,17 +98,20 @@ var _ = Describe("ZTP Siteconfig Operator's Negative Tests",
 				// Test step-2: Update the ztp-test git path to reference valid cluster & node.
 				// template configmap in kind:ClusterInstance to make ClusterInstance CR valid.
 				By("checking if the ztp test path exists")
+
 				if !clustersApp.DoesGitPathExist(tsparams.ZtpTestPathValidTemplateRef) {
 					Skip(fmt.Sprintf("git path '%s' could not be found", tsparams.ZtpTestPathValidTemplateRef))
 				}
 
 				By("updating the Argo CD clusters app with valid template reference git path")
+
 				err = gitdetails.UpdateAndWaitForSync(clustersApp, true, tsparams.ZtpTestPathValidTemplateRef)
 				Expect(err).ToNot(HaveOccurred(), "Failed to update Argo CD clusters app with new git path")
 
 				// Make sure that second ClusterInstance CR should proceed to provisioning the spoke cluster.
 				// Test step 2.a expected result validation.
 				By("checking cluster instance2 CR reporting correct message and reason")
+
 				clusterInstance2, err := siteconfig.PullClusterInstance(HubAPIClient, RANConfig.Spoke2Name, RANConfig.Spoke2Name)
 				Expect(err).ToNot(HaveOccurred(), "Failed to find cluster instance2 custom resource on hub")
 
@@ -118,23 +126,25 @@ var _ = Describe("ZTP Siteconfig Operator's Negative Tests",
 		// 75379 - Validate two ClusterInstance CR with duplicate cluster name.
 		It("Verify two ClusterInstance CR with duplicate cluster name",
 			reportxml.ID("75379"), func() {
-
 				// Deploy a first ClusterInstance CR named "site-plan-A" with valid template reference.
 				// and field clusterName: "clusterA".
 				// Test step-1: Update the ztp-test git path to reference valid template.
 				// in kind:ClusterInstance with field clusterName: "clusterA".
 				By("checking if the ztp test path exists")
+
 				if !clustersApp.DoesGitPathExist(tsparams.ZtpTestPathUniqueClusterName) {
 					Skip(fmt.Sprintf("git path '%s' could not be found", tsparams.ZtpTestPathUniqueClusterName))
 				}
 
 				By("updating the Argo CD clusters app with unique cluster name git path")
+
 				err := gitdetails.UpdateAndWaitForSync(clustersApp, true, tsparams.ZtpTestPathUniqueClusterName)
 				Expect(err).ToNot(HaveOccurred(), "Failed to update Argo CD clusters app with new git path")
 
 				// Make sure that first ClusterInstance CR should proceed to provisioning the spoke cluster.
 				// Test step 1.a expected result validation.
 				By("checking cluster instance1 CR reporting correct message and reason")
+
 				clusterInstance1, err := siteconfig.PullClusterInstance(HubAPIClient, RANConfig.Spoke1Name, RANConfig.Spoke1Name)
 				Expect(err).ToNot(HaveOccurred(), "Failed to find cluster instance1 custom resource on hub")
 
@@ -150,11 +160,13 @@ var _ = Describe("ZTP Siteconfig Operator's Negative Tests",
 				// Test step-2: Update the ztp-test git path to reference valid template.
 				// in kind:ClusterInstance with field clusterName: "clusterA" (duplicate).
 				By("checking if the ztp test path exists")
+
 				if !clustersApp.DoesGitPathExist(tsparams.ZtpTestPathDuplicateClusterName) {
 					Skip(fmt.Sprintf("git path '%s' could not be found", tsparams.ZtpTestPathDuplicateClusterName))
 				}
 
 				By("updating the Argo CD clusters app with duplicate cluster name git path")
+
 				err = gitdetails.UpdateAndWaitForSync(clustersApp, true, tsparams.ZtpTestPathDuplicateClusterName)
 				Expect(err).ToNot(HaveOccurred(), "Failed to update Argo CD clusters app with new git path")
 
@@ -162,6 +174,7 @@ var _ = Describe("ZTP Siteconfig Operator's Negative Tests",
 				// and reports a message: Rendered manifests failed dry-run validation.
 				// Test step 2.a expected result validation.
 				By("checking cluster instance2 CR reporting correct error message")
+
 				clusterInstance2, err := siteconfig.PullClusterInstance(HubAPIClient, RANConfig.Spoke2Name, RANConfig.Spoke2Name)
 				Expect(err).ToNot(HaveOccurred(), "Failed to find cluster instance2 custom resource on hub")
 

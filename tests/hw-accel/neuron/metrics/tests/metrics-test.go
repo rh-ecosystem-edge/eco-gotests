@@ -20,9 +20,7 @@ import (
 )
 
 var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.Label), Label(params.LabelSuite), func() {
-
 	Context("Metrics Provisioning", Label(tsparams.LabelSuite), func() {
-
 		neuronConfig := neuronconfig.NewNeuronConfig()
 
 		BeforeAll(func() {
@@ -33,6 +31,7 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.Label), Label(par
 			}
 
 			By("Deploying required operators")
+
 			var options *neuronhelpers.NeuronInstallConfigOptions
 			if neuronConfig.CatalogSource != "" {
 				options = &neuronhelpers.NeuronInstallConfigOptions{
@@ -44,6 +43,7 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.Label), Label(par
 			Expect(err).ToNot(HaveOccurred(), "Failed to deploy required operators")
 
 			By("Waiting for NFD operator to be ready")
+
 			nfdInstallConfig := deploy.OperatorInstallConfig{
 				APIClient:              APIClient,
 				Namespace:              params.NFDNamespace,
@@ -62,6 +62,7 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.Label), Label(par
 			Expect(ready).To(BeTrue(), "NFD operator is not ready")
 
 			By("Waiting for KMM operator to be ready")
+
 			kmmInstallConfig := neuronhelpers.GetDefaultKMMInstallConfig(APIClient)
 			kmmInstaller := deploy.NewOperatorInstaller(kmmInstallConfig)
 			ready, err = kmmInstaller.IsReady(tsparams.OperatorDeployTimeout)
@@ -69,6 +70,7 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.Label), Label(par
 			Expect(ready).To(BeTrue(), "KMM operator is not ready")
 
 			By("Waiting for Neuron operator to be ready")
+
 			neuronInstallConfig := neuronhelpers.GetDefaultNeuronInstallConfig(APIClient, options)
 			neuronInstaller := deploy.NewOperatorInstaller(neuronInstallConfig)
 			ready, err = neuronInstaller.IsReady(tsparams.OperatorDeployTimeout)
@@ -76,6 +78,7 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.Label), Label(par
 			Expect(ready).To(BeTrue(), "Neuron operator is not ready")
 
 			By("Creating DeviceConfig")
+
 			builder := neuron.NewBuilder(
 				APIClient,
 				params.DefaultDeviceConfigName,
@@ -101,18 +104,22 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.Label), Label(par
 			}
 
 			By("Waiting for cluster stability after DeviceConfig")
+
 			err = neuronhelpers.WaitForClusterStabilityAfterDeviceConfig(APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Cluster not stable after DeviceConfig")
 
 			By("Waiting for Neuron nodes to be labeled")
+
 			err = await.NeuronNodesLabeled(APIClient, tsparams.DevicePluginReadyTimeout)
 			Expect(err).ToNot(HaveOccurred(), "No Neuron-labeled nodes found")
 
 			By("Waiting for device plugin deployment")
+
 			err = await.DevicePluginDeployment(APIClient, params.NeuronNamespace, tsparams.DevicePluginReadyTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Device plugin deployment failed")
 
 			By("Waiting for metrics DaemonSet deployment")
+
 			err = await.MetricsDaemonSet(APIClient, params.NeuronNamespace, tsparams.ServiceMonitorReadyTimeout)
 			if err != nil {
 				klog.V(params.NeuronLogLevel).Infof("Metrics DaemonSet not found (may not be enabled): %v", err)
@@ -121,6 +128,7 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.Label), Label(par
 
 		AfterAll(func() {
 			By("Cleaning up DeviceConfig and waiting for deletion")
+
 			deviceConfigBuilder, err := neuron.Pull(
 				APIClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
 			if err == nil {
@@ -128,7 +136,6 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.Label), Label(par
 				if deleteErr != nil {
 					klog.V(params.NeuronLogLevel).Infof("Failed to delete DeviceConfig: %v", deleteErr)
 				} else {
-
 					klog.V(params.NeuronLogLevel).Info("Waiting for DeviceConfig finalizer to be processed...")
 					Eventually(func() bool {
 						_, pullErr := neuron.Pull(APIClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
@@ -140,6 +147,7 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.Label), Label(par
 			}
 
 			By("Uninstalling operators")
+
 			uninstallErr := neuronhelpers.UninstallAllOperators(APIClient)
 			if uninstallErr != nil {
 				klog.V(params.NeuronLogLevel).Infof("Operator uninstall completed with issues: %v", uninstallErr)
@@ -149,6 +157,7 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.Label), Label(par
 		It("Should verify metrics DaemonSet is created",
 			Label("neuron-metrics-001"), reportxml.ID("neuron-metrics-001"), func() {
 				By("Checking metrics pods are running")
+
 				running, err := check.MetricsPodsRunning(APIClient)
 
 				if err != nil || !running {
@@ -191,8 +200,8 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.Label), Label(par
 				time.Sleep(2 * time.Minute)
 
 				By("Checking if Neuron metrics are available in Prometheus")
-				available, missing, err := neuronmetrics.VerifyNeuronMetricsAvailable(APIClient)
 
+				available, missing, err := neuronmetrics.VerifyNeuronMetricsAvailable(APIClient)
 				if err != nil {
 					klog.V(params.NeuronLogLevel).Infof("Error checking metrics: %v", err)
 					Skip("Unable to query Prometheus - skipping metrics verification")
@@ -212,8 +221,8 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.Label), Label(par
 		It("Should verify neuron_hardware_info metric",
 			Label("neuron-metrics-004"), reportxml.ID("neuron-metrics-004"), func() {
 				By("Querying neuron_hardware_info metric")
-				hardwareInfo, err := neuronmetrics.GetNeuronHardwareInfo(APIClient)
 
+				hardwareInfo, err := neuronmetrics.GetNeuronHardwareInfo(APIClient)
 				if err != nil {
 					klog.V(params.NeuronLogLevel).Infof("Failed to get hardware info: %v", err)
 					Skip("neuron_hardware_info metric not available")
@@ -227,8 +236,8 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.Label), Label(par
 		It("Should verify neuroncore utilization metric",
 			Label("neuron-metrics-005"), reportxml.ID("neuron-metrics-005"), func() {
 				By("Querying neuroncore_utilization_ratio metric")
-				utilization, err := neuronmetrics.GetNeuroncoreUtilization(APIClient)
 
+				utilization, err := neuronmetrics.GetNeuroncoreUtilization(APIClient)
 				if err != nil {
 					klog.V(params.NeuronLogLevel).Infof("Failed to get utilization: %v", err)
 					Skip("neuroncore_utilization_ratio metric not available")
@@ -246,11 +255,13 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.Label), Label(par
 		It("Should verify metrics accuracy by comparing with device info",
 			Label("neuron-metrics-006"), reportxml.ID("neuron-metrics-006"), func() {
 				By("Getting Neuron nodes")
+
 				neuronNodes, err := check.GetNeuronNodes(APIClient)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get Neuron nodes")
 				Expect(len(neuronNodes)).To(BeNumerically(">", 0), "Expected at least one Neuron node")
 
 				By("Comparing metrics with node capacity")
+
 				for _, node := range neuronNodes {
 					neuronDevices, neuronCores, err := check.GetNeuronCapacity(APIClient, node.Object.Name)
 					Expect(err).ToNot(HaveOccurred(), "Failed to get Neuron capacity for node %s", node.Object.Name)
@@ -265,6 +276,7 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.Label), Label(par
 				}
 
 				By("Verifying memory metrics are available")
+
 				memoryUsed, err := neuronmetrics.GetNeuronMemoryUsed(APIClient)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get Neuron memory used metrics")
 				Expect(len(memoryUsed)).To(BeNumerically(">", 0),
@@ -278,6 +290,7 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.Label), Label(par
 				}
 
 				By("Verifying hardware info metrics match node capacity")
+
 				hardwareInfo, err := neuronmetrics.GetNeuronHardwareInfo(APIClient)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get Neuron hardware info metrics")
 				Expect(len(hardwareInfo)).To(BeNumerically(">", 0),
@@ -286,6 +299,7 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.Label), Label(par
 				klog.V(params.NeuronLogLevel).Infof("Hardware info metrics count: %d", len(hardwareInfo))
 
 				By("Verifying core utilization metrics are within valid range")
+
 				utilization, err := neuronmetrics.GetNeuroncoreUtilization(APIClient)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get Neuron core utilization metrics")
 
@@ -301,10 +315,12 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.Label), Label(par
 		It("Should verify metrics are exposed for all Neuron nodes",
 			Label("neuron-metrics-007"), reportxml.ID("neuron-metrics-007"), func() {
 				By("Getting Neuron nodes")
+
 				neuronNodes, err := check.GetNeuronNodes(APIClient)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get Neuron nodes")
 
 				By("Checking metrics pods exist on all nodes")
+
 				running, err := check.MetricsPodsRunning(APIClient)
 				if err != nil || !running {
 					Skip("Metrics pods not running on all nodes")

@@ -37,23 +37,26 @@ var _ = Describe(
 
 			if RanDuTestConfig.TestWorkload.CreateMethod == "shell" {
 				By("Launching workload using shell method")
+
 				_, err := shell.ExecuteCmd(RanDuTestConfig.TestWorkload.CreateShellCmd)
 				Expect(err).ToNot(HaveOccurred(), "Failed to launch workload")
 			}
 
 			By("Waiting for deployment replicas to become ready")
+
 			_, err := await.WaitUntilAllDeploymentsReady(APIClient, RanDuTestConfig.TestWorkload.Namespace,
 				randuparams.DefaultTimeout)
 			Expect(err).ToNot(HaveOccurred(), "error while waiting for deployment to become ready")
 
 			By("Waiting for statefulset replicas to become ready")
+
 			_, err = await.WaitUntilAllStatefulSetsReady(APIClient, RanDuTestConfig.TestWorkload.Namespace,
 				randuparams.DefaultTimeout)
 			Expect(err).ToNot(HaveOccurred(), "error while waiting for statefulsets to become ready")
-
 		})
 		It("Soft reboot nodes", reportxml.ID("42738"), Label("SoftReboot"), func() {
 			By("Retrieve nodes list")
+
 			nodeList, err := nodes.List(
 				APIClient,
 				metav1.ListOptions{},
@@ -61,12 +64,14 @@ var _ = Describe(
 			Expect(err).ToNot(HaveOccurred(), "Error listing nodes.")
 
 			By("Pull openshift-apiserver deployment spec")
+
 			deploy, err := deployment.Pull(APIClient, "apiserver", "openshift-apiserver")
 			Expect(err).ToNot(HaveOccurred(), "error while pulling openshift apiserver deployment")
 
 			for r := 0; r < RanDuTestConfig.SoftRebootIterations; r++ {
 				By("Soft rebooting cluster")
 				fmt.Printf("Soft reboot iteration no. %d\n", r)
+
 				for _, node := range nodeList {
 					By("Reboot node")
 					fmt.Printf("Reboot node %s", node.Definition.Name)
@@ -79,6 +84,7 @@ var _ = Describe(
 					Expect(err).ToNot(HaveOccurred(), "Node is still reachable: %s", err)
 
 					By("Wait for the openshift apiserver deployment to be available")
+
 					err = deploy.WaitUntilCondition("Available", 8*time.Minute)
 					Expect(err).ToNot(HaveOccurred(), "openshift apiserver deployment has not recovered in time after reboot")
 
@@ -87,6 +93,7 @@ var _ = Describe(
 					time.Sleep(time.Duration(RanDuTestConfig.RebootRecoveryTime) * time.Minute)
 
 					By("Remove any pods in UnexpectedAdmissionError state")
+
 					listOptions := metav1.ListOptions{
 						FieldSelector: "status.phase=Failed",
 					}
@@ -101,24 +108,29 @@ var _ = Describe(
 					}
 
 					By("Waiting for deployment replicas to become ready")
+
 					_, err = await.WaitUntilAllDeploymentsReady(APIClient, RanDuTestConfig.TestWorkload.Namespace,
 						randuparams.DefaultTimeout)
 					Expect(err).ToNot(HaveOccurred(), "error while waiting for deployment to become ready")
 
 					By("Waiting for statefulset replicas to become ready")
+
 					_, err = await.WaitUntilAllStatefulSetsReady(APIClient, RanDuTestConfig.TestWorkload.Namespace,
 						randuparams.DefaultTimeout)
 					Expect(err).ToNot(HaveOccurred(), "error while waiting for statefulsets to become ready")
 
 					By("Retrieve pod list")
+
 					podsList, err = pod.List(APIClient, RanDuTestConfig.TestWorkload.Namespace, metav1.ListOptions{})
 					Expect(err).ToNot(HaveOccurred(), "could not retrieve pod list")
 
 					By("Retrieve sriov networks with vfio-pci driver")
+
 					vfioNetworks, err := sriov.ListNetworksByDeviceType(APIClient, "vfio-pci")
 					Expect(err).ToNot(HaveOccurred(), "error when retrieving sriov network using vfio-pci driver")
 
 					By("Assert devices under /dev/vfio on pod are equal or more to the pods vfio-pci network attachments\n")
+
 					for _, pod := range podsList {
 						networkNames, err := sriov.ExtractNetworkNames(pod.Object.Annotations["k8s.v1.cni.cncf.io/network-status"])
 						Expect(err).ToNot(HaveOccurred(), "error when retrieving pod network attachments")
@@ -135,6 +147,7 @@ var _ = Describe(
 
 						if podvfioDevices > 0 {
 							fmt.Printf("Check /dev/vfio on pod %s\n", pod.Definition.Name)
+
 							lscmd := []string{"ls", "--color=never", "/dev/vfio"}
 							cmd, err := pod.ExecCommand(lscmd)
 							Expect(err).ToNot(HaveOccurred(), "error when executing command on pod")
@@ -156,6 +169,7 @@ var _ = Describe(
 						time.Sleep(timeInterval)
 
 						By("Check PTP status for the last 3 minutes")
+
 						ptpOnSync, err := ptp.ValidatePTPStatus(APIClient, timeInterval)
 						Expect(err).ToNot(HaveOccurred(), "PTP Error: %s", err)
 						Expect(ptpOnSync).To(Equal(true))
@@ -165,6 +179,7 @@ var _ = Describe(
 		})
 		AfterAll(func() {
 			By("Cleaning up test workload resources")
+
 			_, err := shell.ExecuteCmd(RanDuTestConfig.TestWorkload.DeleteShellCmd)
 			Expect(err).ToNot(HaveOccurred(), "Failed to delete workload")
 		})

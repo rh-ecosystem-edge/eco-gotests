@@ -300,7 +300,7 @@ func sendProbesAndCheckOutput(
 			output, err = trPod.ExecCommand(cmdToRun, trPod.Object.Spec.Containers[0].Name)
 			if err != nil {
 				klog.V(100).Infof("query failed. Request: %s, Output: %q, Error: %v",
-					targetIP, output, err)
+					targetIP, output.String(), err)
 
 				return false, nil
 			}

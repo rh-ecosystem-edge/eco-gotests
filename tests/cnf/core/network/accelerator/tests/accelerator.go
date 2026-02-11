@@ -29,26 +29,30 @@ import (
 )
 
 var _ = Describe("Intel Accelerator", Ordered, Label(tsparams.LabelSuite), ContinueOnFailure, func() {
-
 	var secureBoot bool
 
 	BeforeAll(func() {
 		By("Checking if operator is installed and has required resources")
+
 		fecDeploy, err := deployment.Pull(APIClient, "sriov-fec-controller-manager", tsparams.OperatorNamespace)
 		if err != nil && err.Error() == "no matches for kind \"SriovFecNodeConfig\" in version \"sriovfec.intel.com/v1\"" {
 			Skip("Cluster does not have operator installed")
 		}
+
 		Expect(err).ToNot(HaveOccurred(), "Failed to pull SriovFecOperator")
 		Expect(fecDeploy.IsReady(2*time.Minute)).To(BeTrue(), "SriovFecOperator is not ready")
 
 		By("Checking if node config exists")
+
 		sfncList, err := sriovfec.List(APIClient, tsparams.OperatorNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Failed to list SriovFecNodeConfig")
+
 		if len(sfncList) == 0 {
 			Skip("No SriovFecNodeConfig found")
 		}
 
 		By("Checking if all daemonsets are present and ready")
+
 		for _, dsName := range tsparams.DaemonsetNames {
 			ds, err := daemonset.Pull(APIClient, dsName, tsparams.OperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull %s", dsName)
@@ -58,6 +62,7 @@ var _ = Describe("Intel Accelerator", Ordered, Label(tsparams.LabelSuite), Conti
 		secureBoot = isSecureBootEnabled()
 
 		By("Deploying PerformanceProfile if it's not installed")
+
 		err = netenv.DeployPerformanceProfile(
 			APIClient,
 			NetConfig,
@@ -77,14 +82,17 @@ var _ = Describe("Intel Accelerator", Ordered, Label(tsparams.LabelSuite), Conti
 
 		BeforeAll(func() {
 			By("Checking if the cluster has ACC100 cards")
+
 			sfnc, accelerator, err = getFecNodeConfigWithAccCard(tsparams.Acc100DeviceID)
 			if err != nil {
 				Skip(fmt.Sprintf("Cluster does not have ACC100 cards: %s", err.Error()))
 			}
 
 			By("Deleting SriovFecClusterConfig if any present in the cluster")
+
 			sfccList, err := sriovfec.ListClusterConfig(APIClient, tsparams.OperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to list SriovFecClusterConfig")
+
 			if len(sfccList) != 0 {
 				for _, sfcc := range sfccList {
 					_, err := sfcc.Delete()
@@ -93,6 +101,7 @@ var _ = Describe("Intel Accelerator", Ordered, Label(tsparams.LabelSuite), Conti
 			}
 
 			By("Creating SriovFecClusterConfig")
+
 			_, err = defineFecClusterConfig(accelerator.PCIAddress, sfnc.Object.Name, secureBoot).Create()
 			Expect(err).ToNot(HaveOccurred(), "Failed to create SriovFecClusterConfig")
 
@@ -102,8 +111,10 @@ var _ = Describe("Intel Accelerator", Ordered, Label(tsparams.LabelSuite), Conti
 
 		AfterAll(func() {
 			By("Deleting SriovFecClusterConfig in the cluster")
+
 			sfccList, err := sriovfec.ListClusterConfig(APIClient, tsparams.OperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to list SriovFecClusterConfig")
+
 			if len(sfccList) != 0 {
 				for _, sfcc := range sfccList {
 					_, err := sfcc.Delete()
@@ -122,6 +133,7 @@ var _ = Describe("Intel Accelerator", Ordered, Label(tsparams.LabelSuite), Conti
 				WithArguments(sfnc.Object.Name, tsparams.Acc100ResourceName).To(BeNumerically(">", 0))
 
 			By("Creating bbdev test pod")
+
 			bbdevContainer, err := pod.NewContainerBuilder(
 				"bbdev", NetConfig.CnfNetTestContainer, []string{"bash", "-c", "sleep infinity"}).
 				WithSecurityContext(&corev1.SecurityContext{
@@ -152,6 +164,7 @@ var _ = Describe("Intel Accelerator", Ordered, Label(tsparams.LabelSuite), Conti
 			Expect(err).ToNot(HaveOccurred(), "Failed to create bbdev test pod")
 
 			By("Running bbdev tests")
+
 			bbdevTestsOutput := runBbdevTests(bbdevPod, secureBoot, tsparams.Acc100EnvVar)
 			fmt.Println(bbdevTestsOutput)
 			Expect(bbdevTestsOutput).ToNot(BeEmpty(), "Failed to run bbdev tests")
