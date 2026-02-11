@@ -29,6 +29,7 @@ var _ = Describe("ZTP Argo CD ACM CR Tests", Label(tsparams.LabelArgoCdAcmCrsTes
 
 	BeforeEach(func() {
 		By("verifying that ZTP meets the minimum version")
+
 		versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.12", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to compare ZTP version string")
 
@@ -37,6 +38,7 @@ var _ = Describe("ZTP Argo CD ACM CR Tests", Label(tsparams.LabelArgoCdAcmCrsTes
 		}
 
 		By("saving the original policies app source")
+
 		policiesApp, err = argocd.PullApplication(
 			HubAPIClient, tsparams.ArgoCdPoliciesAppName, ranparam.OpenshiftGitOpsNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Failed to get the original policies app")
@@ -45,6 +47,7 @@ var _ = Describe("ZTP Argo CD ACM CR Tests", Label(tsparams.LabelArgoCdAcmCrsTes
 		Expect(err).ToNot(HaveOccurred(), "Failed to get the original policies app git path")
 
 		By("determining the container image for ACM CR integration")
+
 		multiClusterDeployment, err := deployment.Pull(
 			HubAPIClient, tsparams.MultiClusterHubOperator, ranparam.AcmOperatorNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Failed to get multi cluster operator deployment")
@@ -62,11 +65,13 @@ var _ = Describe("ZTP Argo CD ACM CR Tests", Label(tsparams.LabelArgoCdAcmCrsTes
 		}
 
 		By("resetting the policies app back to the original settings")
+
 		policiesApp.Definition.Spec.Source.Path = originalPoliciesGitPath
 		policiesApp, err := policiesApp.Update(true)
 		Expect(err).ToNot(HaveOccurred(), "Failed to update the policies app back to the original settings")
 
 		By("waiting for the policies app to sync")
+
 		err = policiesApp.WaitForSourceUpdate(true, tsparams.ArgoCdChangeTimeout)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for the policies app to sync")
 	})
@@ -75,20 +80,24 @@ var _ = Describe("ZTP Argo CD ACM CR Tests", Label(tsparams.LabelArgoCdAcmCrsTes
 	// content that does not depend on our ZTP container but works "seamlessly" with it.
 	It("should use ACM CRs to template a policy, deploy it, and validate it succeeded", reportxml.ID("54236"), func() {
 		By("checking if the ztp test path exists")
+
 		if !policiesApp.DoesGitPathExist(tsparams.ZtpTestPathAcmCrs) {
 			Skip(fmt.Sprintf("git path '%s' could not be found", tsparams.ZtpTestPathAcmCrs))
 		}
 
 		By("updating the policies app git path")
+
 		err := gitdetails.UpdateAndWaitForSync(policiesApp, true, tsparams.ZtpTestPathAcmCrs)
 		Expect(err).ToNot(HaveOccurred(), "Failed to update the policies app git path")
 
 		By("waiting for policies to be created")
+
 		policy, err := helper.WaitForPolicyToExist(
 			HubAPIClient, tsparams.AcmCrsPolicyName, tsparams.TestNamespace, tsparams.ArgoCdChangeTimeout)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for the ACM CRs policy to be created")
 
 		By("validating the policy was created and wait for it to finish")
+
 		err = policy.WaitUntilComplianceState(policiesv1.NonCompliant, 1*time.Minute)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for ACM CRs policy to be non-compliant")
 	})

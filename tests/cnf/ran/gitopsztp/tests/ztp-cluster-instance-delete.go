@@ -37,6 +37,7 @@ var _ = Describe("ZTP Siteconfig Operator's Cluster Instance Delete Tests",
 
 		BeforeEach(func() {
 			By("verifying that ZTP meets the minimum version")
+
 			versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.17", "")
 			Expect(err).ToNot(HaveOccurred(), "Failed to compare ZTP version string")
 
@@ -45,6 +46,7 @@ var _ = Describe("ZTP Siteconfig Operator's Cluster Instance Delete Tests",
 			}
 
 			By("saving the original clusters app source")
+
 			clustersApp, err = argocd.PullApplication(
 				HubAPIClient, tsparams.ArgoCdClustersAppName, ranparam.OpenshiftGitOpsNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get the original clusters app")
@@ -59,36 +61,44 @@ var _ = Describe("ZTP Siteconfig Operator's Cluster Instance Delete Tests",
 			}
 
 			By("resetting the clusters app back to the original settings")
+
 			clustersApp.Definition.Spec.Source.Path = originalClustersGitPath
 			updatedApp, err := clustersApp.Update(true)
 			Expect(err).ToNot(HaveOccurred(), "Failed to update clusters app back to the original settings")
 
 			By("waiting for the clusters app to sync")
+
 			err = updatedApp.WaitForSourceUpdate(true, tsparams.ArgoCdChangeTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for clusters app to sync")
 
 			By("checking the infra env manifests exists on hub")
+
 			_, err = assisted.PullInfraEnvInstall(HubAPIClient, RANConfig.Spoke1Name, RANConfig.Spoke1Name)
 			Expect(err).ToNot(HaveOccurred(), "Failed to find spoke infra env manifests")
 
 			By("checking the bare metal host manifests exists on hub")
+
 			_, err = bmh.Pull(HubAPIClient, RANConfig.Spoke1Name, RANConfig.Spoke1Name)
 			Expect(err).ToNot(HaveOccurred(), "Failed to find spoke bmh manifests")
 
 			By("checking the cluster deployment manifests exists on hub")
+
 			_, err = hive.PullClusterDeployment(HubAPIClient, RANConfig.Spoke1Name, RANConfig.Spoke1Name)
 			Expect(err).ToNot(HaveOccurred(), "Failed to find spoke cluster deployment manifests")
 
 			By("checking the NM state config manifests exists on hub")
+
 			nmStateConfigList, err := assisted.ListNmStateConfigs(HubAPIClient, RANConfig.Spoke1Name)
 			Expect(err).ToNot(HaveOccurred(), "Failed to list NM state config manifests")
 			Expect(nmStateConfigList).ToNot(BeEmpty(), "Failed to find NM state config manifests")
 
 			By("checking the klusterlet addon config manifests exists on hub")
+
 			_, err = ocm.PullKAC(HubAPIClient, RANConfig.Spoke1Name, RANConfig.Spoke1Name)
 			Expect(err).ToNot(HaveOccurred(), "Failed to find spoke kac manifests")
 
 			By("checking the agent cluster install manifests exists on hub")
+
 			_, err = assisted.PullAgentClusterInstall(HubAPIClient, RANConfig.Spoke1Name, RANConfig.Spoke1Name)
 			Expect(err).ToNot(HaveOccurred(), "Failed to find spoke agent cluster install manifests")
 		})
@@ -96,6 +106,7 @@ var _ = Describe("ZTP Siteconfig Operator's Cluster Instance Delete Tests",
 		// 75374 - Detaching the AI multi-node openshift (MNO) spoke cluster.
 		It("Validate detaching the AI multi-node openshift spoke cluster", reportxml.ID("75374"), func() {
 			By("checking spoke cluster type")
+
 			spokeClusterType, err := rancluster.CheckSpokeClusterType(RANConfig.Spoke1APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Failed to fetch spoke cluster type")
 
@@ -106,6 +117,7 @@ var _ = Describe("ZTP Siteconfig Operator's Cluster Instance Delete Tests",
 			// The clusters app is updated later on, but skip early if the git path does not exist to avoid
 			// extra cleanup.
 			By("checking if the ztp test path exists")
+
 			if !clustersApp.DoesGitPathExist(tsparams.ZtpTestPathDetachAIMNO) {
 				Skip(fmt.Sprintf("git path '%s' could not be found", tsparams.ZtpTestPathDetachAIMNO))
 			}
@@ -113,6 +125,7 @@ var _ = Describe("ZTP Siteconfig Operator's Cluster Instance Delete Tests",
 			By("deleting default assisted installer template reference ConfigMap custom resources")
 
 			By("deleting default assisted installer cluster level templates ConfigMap CR")
+
 			clusterTemplateConfigMap, err := configmap.Pull(HubAPIClient, tsparams.DefaultAIClusterTemplatesConfigMapName,
 				ranparam.AcmOperatorNamespace)
 			if err == nil {
@@ -121,6 +134,7 @@ var _ = Describe("ZTP Siteconfig Operator's Cluster Instance Delete Tests",
 			}
 
 			By("deleting default assisted installer node level templates ConfigMap CR")
+
 			nodeTemplateConfigMap, err := configmap.Pull(HubAPIClient, tsparams.DefaultAINodeTemplatesConfigMapName,
 				ranparam.AcmOperatorNamespace)
 			if err == nil {
@@ -129,10 +143,12 @@ var _ = Describe("ZTP Siteconfig Operator's Cluster Instance Delete Tests",
 			}
 
 			By("verifying installed spoke cluster should still be functional")
+
 			_, err = version.GetOCPVersion(Spoke1APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get OCP version from spoke and verify spoke cluster access")
 
 			By("updating the clusters app git path")
+
 			err = gitdetails.UpdateAndWaitForSync(clustersApp, true, tsparams.ZtpTestPathDetachAIMNO)
 			Expect(err).ToNot(HaveOccurred(), "Failed to update the clusters app git path")
 
@@ -147,6 +163,7 @@ var _ = Describe("ZTP Siteconfig Operator's Cluster Instance Delete Tests",
 				tsparams.SiteconfigOperatorPodLabel+" from "+ranparam.AcmOperatorNamespace+" namespace")
 
 			By("deleting the siteconfig operator pod name from namespace " + ranparam.AcmOperatorNamespace)
+
 			siteconfigOperatorPodName, err := pod.Pull(HubAPIClient, desiredPodName, ranparam.AcmOperatorNamespace)
 			if err == nil {
 				_, err = siteconfigOperatorPodName.DeleteAndWait(3 * time.Minute)
@@ -161,24 +178,29 @@ var _ = Describe("ZTP Siteconfig Operator's Cluster Instance Delete Tests",
 			time.Sleep(10 * time.Second)
 
 			By("checking default assisted installer cluster level templates ConfigMap CR exists")
+
 			_, err = configmap.Pull(HubAPIClient, tsparams.DefaultAIClusterTemplatesConfigMapName,
 				ranparam.AcmOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to find default AI cluster level templates config map")
 
 			By("checking default assisted installer node level templates ConfigMap CR exists")
+
 			_, err = configmap.Pull(HubAPIClient, tsparams.DefaultAINodeTemplatesConfigMapName,
 				ranparam.AcmOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to find default AI node level templates config map")
 
 			By("verifying installed spoke cluster should still be functional")
+
 			_, err = version.GetOCPVersion(Spoke1APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get OCP version from spoke and verify spoke cluster access")
 
 			By("verifying spoke cluster namespace CR exists on hub after siteconfig operator's pod restart")
+
 			_, err = namespace.Pull(HubAPIClient, RANConfig.Spoke1Name)
 			Expect(err).ToNot(HaveOccurred(), "Failed to find spoke cluster namespace CR")
 
 			By("verifying cluster instance CR exists on hub after siteconfig operator's pod restart")
+
 			_, err = siteconfig.PullClusterInstance(HubAPIClient, RANConfig.Spoke1Name, RANConfig.Spoke1Name)
 			Expect(err).ToNot(HaveOccurred(), "Failed to find cluster instance custom resource")
 		})
@@ -186,6 +208,7 @@ var _ = Describe("ZTP Siteconfig Operator's Cluster Instance Delete Tests",
 		// 75376 - Detaching the AI single-node openshift (SNO) spoke cluster.
 		It("Validate detaching the AI single-node openshift spoke cluster", reportxml.ID("75376"), func() {
 			By("checking spoke cluster type")
+
 			spokeClusterType, err := rancluster.CheckSpokeClusterType(RANConfig.Spoke1APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Failed to fetch spoke cluster type")
 
@@ -194,11 +217,13 @@ var _ = Describe("ZTP Siteconfig Operator's Cluster Instance Delete Tests",
 			}
 
 			By("checking if the ztp test path exists")
+
 			if !clustersApp.DoesGitPathExist(tsparams.ZtpTestPathDetachAISNO) {
 				Skip(fmt.Sprintf("git path '%s' could not be found", tsparams.ZtpTestPathDetachAISNO))
 			}
 
 			By("updating the clusters app git path")
+
 			err = gitdetails.UpdateAndWaitForSync(clustersApp, true, tsparams.ZtpTestPathDetachAISNO)
 			Expect(err).ToNot(HaveOccurred(), "Failed to update the clusters app git path")
 

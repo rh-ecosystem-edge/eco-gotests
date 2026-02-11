@@ -30,6 +30,7 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 
 	BeforeEach(func() {
 		By("ensuring TALM is at least version 4.12")
+
 		versionInRange, err := version.IsVersionStringInRange(RANConfig.HubOperatorVersions[ranparam.TALM], "4.11", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to compare TALM version string")
 
@@ -40,6 +41,7 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 
 	AfterEach(func() {
 		By("Cleaning up test resources on hub")
+
 		errList := setup.CleanupTestResourcesOnHub(HubAPIClient, tsparams.TestNamespace, blockingA)
 		Expect(errList).To(BeEmpty(), "Failed to cleanup resources for blocking A on hub")
 
@@ -47,6 +49,7 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 		Expect(errList).To(BeEmpty(), "Failed to cleanup resources for blocking B on hub")
 
 		By("Deleting test namespaces on spoke 1")
+
 		err := namespace.NewBuilder(Spoke1APIClient, tsparams.TemporaryNamespace+blockingA).
 			DeleteAndWait(5 * time.Minute)
 		Expect(err).ToNot(HaveOccurred(), "Failed to delete namespace for blocking A on spoke 1")
@@ -60,6 +63,7 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 		// 47948 - Tests multiple CGUs can be enabled in parallel with blocking CR.
 		It("verifies CGU succeeded with blocking CR", reportxml.ID("47948"), func() {
 			By("creating two sets of CRs where B will be blocked until A is done")
+
 			cguA := getBlockingCGU(blockingA, 10)
 			cguB := getBlockingCGU(blockingB, 15)
 			cguB.Definition.Spec.BlockingCRs = []v1alpha1.BlockingCR{{
@@ -76,15 +80,18 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 			cguA, cguB = waitToEnableCgus(cguA, cguB)
 
 			By("Waiting to verify if CGU B is blocked by A")
+
 			blockedMessage := fmt.Sprintf(tsparams.TalmBlockedMessage, tsparams.CguName+blockingA)
 			err = helper.WaitForCguBlocked(cguB, blockedMessage)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU B to be blocked")
 
 			By("Waiting for CGU A to succeed")
+
 			_, err = cguA.WaitForCondition(tsparams.CguSuccessfulFinishCondition, 12*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU A to succeed")
 
 			By("Waiting for CGU B to succeed")
+
 			_, err = cguB.WaitForCondition(tsparams.CguSuccessfulFinishCondition, 17*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU B to succeed")
 		})
@@ -94,6 +101,7 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 		// 74768 - Tests multiple CGUs can be enabled in parallel with blocking CR.
 		It("verifies CGU fails with blocking CR", reportxml.ID("74768"), func() {
 			By("creating two sets of CRs where B will be blocked until A is done")
+
 			cguA := getBlockingCGU(blockingA, 2)
 			cguB := getBlockingCGU(blockingB, 1)
 			cguB.Definition.Spec.BlockingCRs = []v1alpha1.BlockingCR{{
@@ -102,6 +110,7 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 			}}
 
 			By("Setting up CGU A with a faulty namespace")
+
 			tempNs := namespace.NewBuilder(HubAPIClient, tsparams.TemporaryNamespace+blockingA)
 			tempNs.Definition.Kind = "faulty namespace"
 
@@ -116,6 +125,7 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 			Expect(err).ToNot(HaveOccurred(), "Failed to create CGU")
 
 			By("Setting up CGU B correctly")
+
 			cguB, err = helper.SetupCguWithNamespace(cguB, blockingB)
 			Expect(err).ToNot(HaveOccurred(), "Failed to setup CGU B")
 
@@ -124,14 +134,17 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 			blockedMessage := fmt.Sprintf(tsparams.TalmBlockedMessage, tsparams.CguName+blockingA)
 
 			By("Waiting to verify if CGU B is blocked by A")
+
 			err = helper.WaitForCguBlocked(cguB, blockedMessage)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU B to be blocked")
 
 			By("Waiting for CGU A to fail because of timeout")
+
 			_, err = cguA.WaitForCondition(tsparams.CguTimeoutMessageCondition, 7*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU A to fail")
 
 			By("Verifiying that CGU B is still blocked")
+
 			err = helper.WaitForCguBlocked(cguB, blockedMessage)
 			Expect(err).ToNot(HaveOccurred(), "Failed to verify that CGU B is still blocked")
 		})
@@ -141,6 +154,7 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 		// 47956 - Tests multiple CGUs can be enabled in parallel with missing blocking CR.
 		It("verifies CGU is blocked until blocking CR created and succeeded", reportxml.ID("47956"), func() {
 			By("creating two sets of CRs where B will be blocked until A is done")
+
 			cguA := getBlockingCGU(blockingA, 10)
 			cguB := getBlockingCGU(blockingB, 15)
 			cguB.Definition.Spec.BlockingCRs = []v1alpha1.BlockingCR{{
@@ -149,6 +163,7 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 			}}
 
 			By("Setting up CGU B")
+
 			cguB, err = helper.SetupCguWithNamespace(cguB, blockingB)
 			Expect(err).ToNot(HaveOccurred(), "Failed to setup CGU B")
 
@@ -156,29 +171,35 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 			time.Sleep(tsparams.TalmSystemStablizationTime)
 
 			By("Enabling CGU B")
+
 			cguB.Definition.Spec.Enable = ptr.To(true)
 			cguB, err = cguB.Update(true)
 			Expect(err).ToNot(HaveOccurred(), "Failed to enable CGU B")
 
 			By("Waiting to verify if CGU B is blocked by A because it's missing")
+
 			blockedMessage := fmt.Sprintf(tsparams.TalmMissingCRMessage, tsparams.CguName+blockingA)
 			err = helper.WaitForCguBlocked(cguB, blockedMessage)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU B to be blocked")
 
 			By("Setting up CGU A")
+
 			cguA, err = helper.SetupCguWithNamespace(cguA, blockingA)
 			Expect(err).ToNot(HaveOccurred(), "Failed to setup CGU A")
 
 			By("Enabling CGU A")
+
 			cguA.Definition.Spec.Enable = ptr.To(true)
 			cguA, err = cguA.Update(true)
 			Expect(err).ToNot(HaveOccurred(), "Failed to enable CGU A")
 
 			By("Waiting for CGU A to succeed")
+
 			_, err = cguA.WaitForCondition(tsparams.CguSucceededCondition, 12*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU A to succeed")
 
 			By("Waiting for CGU B to succeed")
+
 			_, err = cguB.WaitForCondition(tsparams.CguSucceededCondition, 17*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU B to succeed")
 		})

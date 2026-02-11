@@ -87,9 +87,9 @@ var _ = Describe("Cluster Deployment Types Tests", Ordered, Label(tsparams.Label
 			Expect(err).ToNot(HaveOccurred(), "Failed to verify all policies are compliant for spoke %s", RANConfig.Spoke2Name)
 
 			isMultiCluster = tsparams.MultiCluster
-
 		} else {
 			klog.V(tsparams.LogLevel).Infof("Second cluster is not available")
+
 			isMultiCluster = tsparams.SingleCluster
 		}
 
@@ -126,13 +126,11 @@ var _ = Describe("Cluster Deployment Types Tests", Ordered, Label(tsparams.Label
 	})
 
 	AfterAll(func() {
-
 		// Clean up git clone directories
 		rmGitCloneDirs()
 	})
 
 	It(fmt.Sprintf("checks if deployment is %s", tsparams.MultiCluster), reportxml.ID("80498"), func() {
-
 		Expect(isMultiCluster == tsparams.SingleCluster || isMultiCluster == tsparams.MultiCluster).To(BeTrueBecause(
 			"Deployment must either be single cluster or multi cluster"))
 
@@ -145,7 +143,6 @@ var _ = Describe("Cluster Deployment Types Tests", Ordered, Label(tsparams.Label
 
 	DescribeTable("checks deployment method",
 		func(methodValue *tsparams.DeploymentType, kindValue tsparams.DeploymentType) {
-
 			Expect(*methodValue).ToNot(BeEmpty(), "deployMethod should not be empty")
 
 			if *methodValue != kindValue {
@@ -164,7 +161,6 @@ var _ = Describe("Cluster Deployment Types Tests", Ordered, Label(tsparams.Label
 
 	DescribeTable("checks policy kind",
 		func(policyValue *tsparams.PolicyType, kindValue tsparams.PolicyType) {
-
 			Expect(*policyValue).ToNot(BeEmpty(), "policyTemplate should not be empty")
 
 			if *policyValue != kindValue {
@@ -184,7 +180,6 @@ var _ = Describe("Cluster Deployment Types Tests", Ordered, Label(tsparams.Label
 
 	DescribeTable("checks cluster type",
 		func(clusterValue *tsparams.ClusterType, kindValue tsparams.ClusterType) {
-
 			Expect(*clusterValue).ToNot(BeEmpty(), "clusterKind should not be empty")
 
 			if *clusterValue != kindValue {
@@ -228,7 +223,6 @@ var _ = Describe("Cluster Deployment Types Tests", Ordered, Label(tsparams.Label
 					"Extra-manifests inheritance from seed cluster is working correctly.",
 				ibiSeedExtraManifestMCName)
 		})
-
 })
 
 // Clean up git clone dirs if they exist and create empty dirctories for git clone targets.

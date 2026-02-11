@@ -23,7 +23,6 @@ var _ = Describe(
 	Ordered,
 	ContinueOnFailure,
 	Label(tsparams.LabelEndToEndUpgrade), func() {
-
 		var (
 			clusterList       []*clients.Settings
 			upgradeSuccessful = true
@@ -56,7 +55,6 @@ var _ = Describe(
 					tsparams.IbguName, tsparams.IbguNamespace).DeleteAndWait(1 * time.Minute)
 
 				Expect(err).ToNot(HaveOccurred(), "Failed to delete ibgu on target hub cluster")
-
 			})
 
 			// Sleep for 10 seconds to allow talm to reconcile state.
@@ -81,7 +79,6 @@ var _ = Describe(
 
 				_, err = newIbguBuilder.WaitUntilComplete(30 * time.Minute)
 				Expect(err).NotTo(HaveOccurred(), "Prep and Upgrade IBGU did not complete in time.")
-
 			})
 
 			By("Saving target sno cluster info after upgrade", func() {
@@ -90,7 +87,6 @@ var _ = Describe(
 			})
 
 			upgradeSuccessful = true
-
 		})
 
 		if upgradeSuccessful {
@@ -119,9 +115,6 @@ var _ = Describe(
 
 				_, err = rollbackIbguBuilder.WaitUntilComplete(30 * time.Minute)
 				Expect(err).NotTo(HaveOccurred(), "Rollback IBGU did not complete in time.")
-
 			})
-
 		})
-
 	})

@@ -32,6 +32,7 @@ func TestSeedGeneration(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	By("Checking if target sno cluster has valid apiClient")
+
 	if TargetSNOAPIClient == nil {
 		Skip("Cannot run test suite when target sno cluster has nil api client")
 	}
@@ -41,6 +42,7 @@ var _ = ReportAfterSuite("", func(report Report) {
 	if SeedGenerationConfig == nil {
 		return
 	}
+
 	reportxml.Create(
 		report, SeedGenerationConfig.GetReportPath(), SeedGenerationConfig.TCPrefix)
 })

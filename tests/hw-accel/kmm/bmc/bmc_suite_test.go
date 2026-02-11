@@ -48,6 +48,7 @@ var _ = BeforeSuite(func() {
 	By("Prepare environment for BMC tests execution")
 
 	By("Create helper ServiceAccount and ClusterRoleBindings")
+
 	svcAccount, err := serviceaccount.
 		NewBuilder(APIClient, prereqName, kmmparams.KmmOperatorNamespace).Create()
 	Expect(err).ToNot(HaveOccurred(), "error creating serviceaccount")
@@ -69,21 +70,21 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred(), "error creating edit clusterrolebinding")
 
 	By("Create helper Deployments on worker nodes")
+
 	nodeList, err := nodes.List(
 		APIClient, metav1.ListOptions{LabelSelector: labels.Set(GeneralConfig.WorkerLabelMap).String()})
-
 	if err != nil {
 		Skip(fmt.Sprintf("Error listing worker nodes. Got error: '%v'", err))
 	}
 
 	for _, node := range nodeList {
 		deploymentName := fmt.Sprintf("%s-%s", kmmparams.KmmTestHelperLabelName, node.Object.Name)
+
 		containerCfg, err := pod.NewContainerBuilder("test", kmmparams.DTKImage,
 			[]string{"/bin/bash", "-c", "sleep INF"}).
 			WithSecurityContext(kmmparams.PrivilegedSC).
 			WithVolumeMount(corev1.VolumeMount{Name: "host", MountPath: "/host", ReadOnly: false}).
 			GetContainerCfg()
-
 		if err != nil {
 			Fail(fmt.Sprintf("Failed to create container config for node %s: %v", node.Object.Name, err))
 		}
@@ -108,7 +109,6 @@ var _ = BeforeSuite(func() {
 			WithServiceAccountName(prereqName)
 
 		_, err = deploymentCfg.CreateAndWaitUntilReady(10 * time.Minute)
-
 		if err != nil {
 			Skip(fmt.Sprintf("Could not create deploymentCfg on %s. Got error : %v", node.Object.Name, err))
 		}
@@ -119,8 +119,8 @@ var _ = AfterSuite(func() {
 	By("Cleanup environment after BMC tests execution")
 
 	By("Delete helper deployments")
-	testDeployments, err := deployment.List(APIClient, kmmparams.KmmOperatorNamespace, metav1.ListOptions{})
 
+	testDeployments, err := deployment.List(APIClient, kmmparams.KmmOperatorNamespace, metav1.ListOptions{})
 	if err != nil {
 		Fail(fmt.Sprintf("Error cleaning up environment. Got error: %v", err))
 	}
@@ -134,6 +134,7 @@ var _ = AfterSuite(func() {
 	}
 
 	By("Delete helper ServiceAccount and ClusterRoleBindings")
+
 	svcAccount := serviceaccount.NewBuilder(APIClient, prereqName, kmmparams.KmmOperatorNamespace)
 
 	if svcAccount.Exists() {

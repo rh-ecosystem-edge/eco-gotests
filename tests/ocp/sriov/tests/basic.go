@@ -36,19 +36,23 @@ var _ = Describe(
 
 		BeforeAll(func() {
 			By("Checking the SR-IOV operator is running")
+
 			err := sriovenv.CheckSriovOperatorStatus()
 			Expect(err).ToNot(HaveOccurred(), "SR-IOV operator is not running")
 
 			By("Loading VF configuration")
+
 			vfNum, err = SriovOcpConfig.GetVFNum()
 			Expect(err).ToNot(HaveOccurred(), "Failed to get VF number")
 
 			By("Loading SR-IOV device configuration")
+
 			testData, err = SriovOcpConfig.GetSriovDevices()
 			Expect(err).ToNot(HaveOccurred(), "Failed to get SR-IOV devices")
 			Expect(len(testData)).To(BeNumerically(">", 0), "No SR-IOV devices configured")
 
 			By("Discovering worker nodes")
+
 			workerNodes, err = nodes.List(APIClient,
 				metav1.ListOptions{LabelSelector: SriovOcpConfig.WorkerLabel})
 			Expect(err).ToNot(HaveOccurred(), "Failed to discover nodes")
@@ -59,6 +63,7 @@ var _ = Describe(
 			By("Cleaning up SR-IOV policies after all tests")
 
 			var cleanupErrors []string
+
 			for _, item := range testData {
 				err := sriovenv.RemoveSriovPolicy(item.Name, tsparams.DefaultTimeout)
 				if err != nil {
@@ -71,6 +76,7 @@ var _ = Describe(
 			}
 
 			By("Waiting for post-cleanup cluster stability")
+
 			err := sriovenv.WaitForSriovPolicyReady(tsparams.DefaultTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Cluster did not stabilize after cleanup")
 		})
@@ -99,6 +105,7 @@ var _ = Describe(
 					sriovenv.WithSpoof(true), sriovenv.WithTrust(false))
 
 				By("Verifying VF status with pass traffic")
+
 				err = sriovenv.CheckVFStatusWithPassTraffic(networkName, data.InterfaceName,
 					testNamespace, "spoof checking on", tsparams.PodReadyTimeout)
 				if isNoCarrierError(err) {
@@ -333,6 +340,7 @@ var _ = Describe(
 
 				// Part 1: Verify link state configuration
 				By("Verifying link state configuration is applied")
+
 				hasCarrier, err := sriovenv.VerifyLinkStateConfiguration(networkName, testNamespace,
 					"link-state enable", tsparams.PodReadyTimeout)
 				Expect(err).ToNot(HaveOccurred(), "Failed to verify link state configuration")
@@ -345,6 +353,7 @@ var _ = Describe(
 
 				// Part 2: Test connectivity
 				By("Testing connectivity")
+
 				err = sriovenv.CheckVFStatusWithPassTraffic(networkName, data.InterfaceName,
 					testNamespace, "link-state enable", tsparams.PodReadyTimeout)
 				Expect(err).ToNot(HaveOccurred(), "VF connectivity test failed")
@@ -378,6 +387,7 @@ var _ = Describe(
 				Expect(err).ToNot(HaveOccurred(), "Failed to update SR-IOV policy with MTU")
 
 				By("Waiting for SR-IOV policy to be ready after MTU update")
+
 				err = sriovenv.WaitForSriovPolicyReady(tsparams.DefaultTimeout)
 				Expect(err).ToNot(HaveOccurred(), "Policy not ready after MTU update")
 
@@ -441,28 +451,33 @@ var _ = Describe(
 
 				// Create DPDK test pod
 				By("Creating DPDK test pod")
+
 				_, err = sriovenv.CreateDpdkTestPod("sriovdpdk", testNamespace, networkName)
 				Expect(err).ToNot(HaveOccurred(), "Failed to create DPDK test pod")
 
 				DeferCleanup(func() {
 					By("Cleaning up DPDK test pod")
+
 					err := sriovenv.DeleteDpdkTestPod("sriovdpdk", testNamespace, tsparams.NamespaceTimeout)
 					Expect(err).ToNot(HaveOccurred(), "Failed to delete DPDK test pod")
 				})
 
 				// Wait for pod to be ready
 				By("Waiting for DPDK test pod to be ready")
+
 				err = sriovenv.WaitForPodWithLabelReady(testNamespace, "name=sriov-dpdk", tsparams.PodReadyTimeout)
 				Expect(err).ToNot(HaveOccurred(), "DPDK test pod not ready")
 
 				// Verify PCI address is assigned
 				By("Verifying PCI address is assigned to DPDK pod")
+
 				pciAddress, err := sriovenv.GetPciAddress(testNamespace, "sriovdpdk", "net1")
 				Expect(err).ToNot(HaveOccurred(), "Failed to get PCI address for DPDK pod")
 				Expect(pciAddress).NotTo(BeEmpty(), "PCI address should be assigned")
 
 				// Verify DPDK VF is available in pod
 				By("Verifying DPDK VF is available in pod")
+
 				podBuilder, err := pod.Pull(APIClient, "sriovdpdk", testNamespace)
 				Expect(err).ToNot(HaveOccurred(), "Failed to pull DPDK pod")
 				Expect(podBuilder).NotTo(BeNil(), "Pod builder should not be nil")

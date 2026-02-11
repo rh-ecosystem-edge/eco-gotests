@@ -72,21 +72,24 @@ var (
 
 var _ = Describe(
 	"allmulti", Ordered, Label(tsparams.LabelSuite, tsparams.LabelSriovHWEnabled), ContinueOnFailure, func() {
-
 		BeforeAll(func() {
 			By("Checking if cluster is SNO")
+
 			isSNO, err := netenv.IsSNOCluster(APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Failed to check if cluster is SNO")
+
 			if isSNO {
 				Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers")
 			}
 
 			By("Discover worker nodes")
+
 			workerNodes, err = nodes.List(APIClient,
 				metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
 			Expect(err).ToNot(HaveOccurred(), "Fail to discover nodes")
 
 			By("Collecting SR-IOV interfaces for allmulti testing")
+
 			srIovInterfacesUnderTest, err := NetConfig.GetSriovInterfaces(1)
 			Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
 
@@ -144,6 +147,7 @@ var _ = Describe(
 			defineAndCreateSrIovNetworkWithOutIPAM(srIovNetworkAllMultiBondNet2, true)
 
 			By("Define and create Bonded network attachment for allmulti client")
+
 			nadBondAllmultiConfig := defineBondNAD(bondNadNameAllMulti, "active-backup")
 
 			_, err = nadBondAllmultiConfig.Create()
@@ -151,12 +155,14 @@ var _ = Describe(
 				nadBondAllmultiConfig.Definition.Name)
 
 			By("Define and create Bonded network attachment for default client")
+
 			nadBondDefaultConfig := defineBondNAD(bondNadNameDefault, "active-backup")
 			_, err = nadBondDefaultConfig.Create()
 			Expect(err).ToNot(HaveOccurred(), "Failed to create Bond Nad %s",
 				nadBondDefaultConfig.Definition.Name)
 
 			By("Waiting until cluster MCP and SR-IOV are stable")
+
 			err = sriovoperator.WaitForSriovAndMCPStable(
 				APIClient, tsparams.MCOWaitTimeout, time.Minute, NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed cluster is not stable")
@@ -230,7 +236,6 @@ var _ = Describe(
 				By("Run Dual Stack IPv6 tests")
 				runAllMultiTestCases(multicastServer, defaultClient, allMultiEnabledClient, clientAllmultiEnabledIPv6,
 					clientAllmultiDisabledIPv6, multicastIPv6GroupIP, addIPv6MCGroupMacCMD)
-
 			})
 
 		It("Validate a pod can receive non-member multicast IPv4 traffic over a secondary bonded SRIOV interface when "+
@@ -239,11 +244,13 @@ var _ = Describe(
 				[]string{multicastServerIPv4}, multicastPingIPv4CMD, workerNodes[0].Definition.Name)
 
 			By("Define and run a client pod with allmulti disabled with bonded interfaces")
+
 			defaultClient := createBondedTestClient(clientDefaultName, srIovNetworkDefaultBondNet1,
 				srIovNetworkDefaultBondNet2, bondNadNameDefault, workerNodes[0].Definition.Name,
 				[]string{clientAllmultiDisabledIPv4})
 
 			By("Define and run a client pod with allmulti enabled")
+
 			allMultiEnabledClient := createBondedTestClient(clientAllmultiEnabledName, srIovNetworkAllMultiBondNet1,
 				srIovNetworkAllMultiBondNet2, bondNadNameAllMulti, workerNodes[0].Definition.Name,
 				[]string{clientAllmultiEnabledIPv4})
@@ -258,11 +265,13 @@ var _ = Describe(
 				[]string{multicastServerIPv6}, multicastPingIPv6CMD, workerNodes[0].Definition.Name)
 
 			By("Define and run a client pod with allmulti disabled with bonded interfaces")
+
 			defaultClient := createBondedTestClient(clientDefaultName, srIovNetworkDefaultBondNet1,
 				srIovNetworkDefaultBondNet2, bondNadNameDefault, workerNodes[0].Definition.Name,
 				[]string{clientAllmultiDisabledIPv6})
 
 			By("Define and run a client pod with allmulti enabled")
+
 			allMultiEnabledClient := createBondedTestClient(clientAllmultiEnabledName, srIovNetworkAllMultiBondNet1,
 				srIovNetworkAllMultiBondNet2, bondNadNameAllMulti, workerNodes[0].Definition.Name,
 				[]string{clientAllmultiEnabledIPv6})
@@ -287,6 +296,7 @@ var _ = Describe(
 					[]string{clientAllmultiEnabledIPv4, clientAllmultiEnabledIPv6, "192.168.101.1/24", "2001:101::1/64"})
 
 				By("Verify IPv4 and IPv6 on net1 connectivity between the clients and multicast source")
+
 				err := cmd.ICMPConnectivityCheck(multicastServer, []string{clientAllmultiEnabledIPv4,
 					clientAllmultiEnabledIPv6, clientAllmultiDisabledIPv4,
 					clientAllmultiDisabledIPv6})
@@ -294,6 +304,7 @@ var _ = Describe(
 					"Failed to ping between the multicast source and the clients")
 
 				By("Verify IPv4 and IPv6 on net2 connectivity between the clients and multicast source")
+
 				err = cmd.ICMPConnectivityCheck(multicastServer, []string{"192.168.101.1/24", "2001:101::1/64",
 					"192.168.101.2/24", "2001:101::2/64"})
 				Expect(err).ToNot(HaveOccurred(),
@@ -306,19 +317,21 @@ var _ = Describe(
 
 		AfterEach(func() {
 			By("Removing all pods from test namespace")
+
 			runningNamespace, err := namespace.Pull(APIClient, tsparams.TestNamespaceName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull namespace")
 			Expect(runningNamespace.CleanObjects(
 				tsparams.WaitTimeout, pod.GetGVR())).ToNot(HaveOccurred())
-
 		})
 
 		AfterAll(func() {
 			By("Removing all SR-IOV Policy")
+
 			err := sriov.CleanAllNetworkNodePolicies(APIClient, NetConfig.SriovOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to clean srIovPolicy")
 
 			By("Removing all srIovNetworks")
+
 			err = sriov.CleanAllNetworksByTargetNamespace(
 				APIClient, NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to clean sriov networks")

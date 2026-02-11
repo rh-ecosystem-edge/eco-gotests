@@ -37,33 +37,39 @@ var _ = Describe("CPU frequency tuning tests change the core frequencies of isol
 			Expect(err).ToNot(HaveOccurred(), "Failed to get performance profile")
 
 			By("getting isolated core ID")
+
 			isolatedCPUSet, err := cpuset.Parse(string(*perfProfile.Object.Spec.CPU.Isolated))
 			Expect(err).ToNot(HaveOccurred(), "Failed to get isolated cpu set")
+
 			isolatedCPUsList := isolatedCPUSet.List()
 			isolatedCPUNumber := isolatedCPUsList[0]
 
 			By("getting reserved core ID")
+
 			reservedCPUSet, err := cpuset.Parse(string(*perfProfile.Object.Spec.CPU.Reserved))
 			Expect(err).ToNot(HaveOccurred(), "Failed to get reserved cpu set")
+
 			reservedCPUsList := reservedCPUSet.List()
 			reservedCPUNumber := reservedCPUsList[0]
 
 			By("getting original isolated core frequency")
+
 			originalIsolatedCPUFreq = getCPUFreq(isolatedCPUNumber)
 
 			By("getting original reserved core frequency")
+
 			originalReservedCPUFreq = getCPUFreq(reservedCPUNumber)
 		})
 
 		AfterEach(func() {
 			By("reverting the CPU frequencies to the original setting")
+
 			err := helper.SetCPUFreq(perfProfile, &originalIsolatedCPUFreq, &originalReservedCPUFreq)
 			Expect(err).ToNot(HaveOccurred(), "Failed to set CPU Freq")
 		})
 
 		When("reserved and isolated core frequency is configured via PerformanceProfile", func() {
 			It("sets the reserved and isolated core frequency correctly on the DUT", func() {
-
 				versionInRange, err := version.IsVersionStringInRange(RANConfig.Spoke1OCPVersion, "4.16", "")
 				Expect(err).ToNot(HaveOccurred(), "Failed to compare OCP version string")
 
@@ -73,7 +79,6 @@ var _ = Describe("CPU frequency tuning tests change the core frequencies of isol
 
 				err = helper.SetCPUFreq(perfProfile, &desiredIsolatedCoreFreq, &desiredReservedCoreFreq)
 				Expect(err).ToNot(HaveOccurred(), "Failed to set CPU Freq")
-
 			})
 		})
 	})

@@ -32,6 +32,7 @@ var _ = Describe("MetalLB BGP", Ordered, Label(tsparams.LabelBGPTestCases), Cont
 
 	BeforeAll(func() {
 		By("Checking if cluster is SNO")
+
 		if IsSNO {
 			Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers")
 		}
@@ -39,6 +40,7 @@ var _ = Describe("MetalLB BGP", Ordered, Label(tsparams.LabelBGPTestCases), Cont
 		validateEnvVarAndGetNodeList()
 
 		By("Creating a new instance of MetalLB Speakers on workers")
+
 		err := metallbenv.CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(tsparams.DefaultTimeout, workerLabelMap)
 		Expect(err).ToNot(HaveOccurred(), "Failed to recreate metalLb daemonset")
 	})
@@ -49,6 +51,7 @@ var _ = Describe("MetalLB BGP", Ordered, Label(tsparams.LabelBGPTestCases), Cont
 		}
 
 		By("Cleaning MetalLb operator namespace")
+
 		metalLbNs, err := namespace.Pull(APIClient, NetConfig.MlbOperatorNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Failed to pull metalLb operator namespace")
 		err = metalLbNs.CleanObjects(
@@ -61,6 +64,7 @@ var _ = Describe("MetalLB BGP", Ordered, Label(tsparams.LabelBGPTestCases), Cont
 		Expect(err).ToNot(HaveOccurred(), "Failed to remove object's from operator namespace")
 
 		By("Cleaning test namespace")
+
 		err = namespace.NewBuilder(APIClient, tsparams.TestNamespaceName).CleanObjects(
 			tsparams.DefaultTimeout,
 			pod.GetGVR(),
@@ -72,6 +76,7 @@ var _ = Describe("MetalLB BGP", Ordered, Label(tsparams.LabelBGPTestCases), Cont
 
 	It("Multi-Service Validation", reportxml.ID("47182"), func() {
 		By("Creating an IPAddressPool and BGPAdvertisement for service 1")
+
 		ipAddressPool1 := setupBgpAdvertisementAndIPAddressPool(
 			tsparams.BGPAdvAndAddressPoolName, AddressPoolS1, netparam.IPSubnetInt32)
 		validateAddressPool(tsparams.BGPAdvAndAddressPoolName, mlbtypes.IPAddressPoolStatus{
@@ -82,7 +87,9 @@ var _ = Describe("MetalLB BGP", Ordered, Label(tsparams.LabelBGPTestCases), Cont
 		})
 
 		By("Creating an IPAddressPool and BGPAdvertisement for service 2")
+
 		ipAddressPool2 := setupBgpAdvertisementAndIPAddressPool("bgp-test2", AddressPoolS2, netparam.IPSubnetInt32)
+
 		validateAddressPool("bgp-test2", mlbtypes.IPAddressPoolStatus{
 			AvailableIPv4: 2,
 			AvailableIPv6: 0,
@@ -121,6 +128,7 @@ var _ = Describe("MetalLB BGP", Ordered, Label(tsparams.LabelBGPTestCases), Cont
 			tsparams.LabelValue2)
 
 		By("Creating an IBGP BGP Peer")
+
 		frrk8sPods := verifyAndCreateFRRk8sPodList()
 		createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, ipv4metalLbIPList[0], "",
 			tsparams.LocalBGPASN, false, 0,
@@ -147,16 +155,19 @@ var _ = Describe("MetalLB BGP", Ordered, Label(tsparams.LabelBGPTestCases), Cont
 		})
 
 		By("Creating configMap for external FRR Pod")
+
 		masterConfigMap := createConfigMap(tsparams.LocalBGPASN, ipv4NodeAddrList, false, false)
 
 		By("Creating External NAD for external FRR pod")
 		createExternalNad(frrconfig.ExternalMacVlanNADName)
 
 		By("Creating static ip annotation for external FRR pod")
+
 		staticIPAnnotation := pod.StaticIPAnnotation(
 			frrconfig.ExternalMacVlanNADName, []string{fmt.Sprintf("%s/%s", ipv4metalLbIPList[0], netparam.IPSubnet24)})
 
 		By("Creating external FRR Pod")
+
 		frrPod := createFrrPod(
 			masterNodeList[0].Object.Name, masterConfigMap.Definition.Name, []string{}, staticIPAnnotation)
 

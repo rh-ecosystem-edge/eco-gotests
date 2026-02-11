@@ -22,7 +22,6 @@ import (
 
 var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.LabelOcpSriovReinstallation),
 	ContinueOnFailure, func() {
-
 		var (
 			sriovInterfacesUnderTest []string
 			workerNodeList           []*nodes.Builder
@@ -34,6 +33,7 @@ var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.Label
 
 		BeforeAll(func() {
 			By("Verifying if SR-IOV tests can be executed on given cluster")
+
 			err := sriovocpenv.DoesClusterHaveEnoughNodes(1, 1)
 			if err != nil {
 				Skip(fmt.Sprintf(
@@ -41,21 +41,25 @@ var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.Label
 			}
 
 			By("Validating SR-IOV interfaces")
+
 			workerNodeList, err = nodes.List(APIClient,
 				metav1.ListOptions{LabelSelector: labels.Set(SriovOcpConfig.WorkerLabelMap).String()})
 			Expect(err).ToNot(HaveOccurred(), "Failed to discover worker nodes")
 
 			Expect(sriovocpenv.ValidateSriovInterfaces(workerNodeList, 2)).ToNot(HaveOccurred(),
 				"Failed to get required SR-IOV interfaces")
+
 			sriovInterfacesUnderTest, err = SriovOcpConfig.GetSriovInterfaces(2)
 			Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
 
 			By("Collecting info about installed SR-IOV operator")
+
 			sriovNamespace, sriovOperatorgroup, sriovSubscription = collectingInfoSriovOperator()
 		})
 
 		AfterAll(func() {
 			By("Removing SR-IOV configuration")
+
 			err := sriovoperator.RemoveSriovConfigurationAndWaitForSriovAndMCPStable(
 				APIClient,
 				SriovOcpConfig.WorkerLabelEnvVar,
@@ -67,6 +71,7 @@ var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.Label
 
 		It("Verify SR-IOV operator control plane is operational before removal", reportxml.ID("46528"), func() {
 			By("Applying SR-IOV NetworkNodePolicy")
+
 			sriovPolicy := sriov.NewPolicyBuilder(
 				APIClient,
 				sriovTestResourceName,
@@ -84,6 +89,7 @@ var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.Label
 			Expect(err).ToNot(HaveOccurred(), "Failed to configure SR-IOV policy")
 
 			By("Creating SR-IOV network")
+
 			_, err = sriov.NewNetworkBuilder(APIClient, sriovTestResourceName, SriovOcpConfig.SriovOperatorNamespace,
 				tsparams.TestNamespaceName, sriovTestResourceName).WithStaticIpam().WithMacAddressSupport().WithIPAddressSupport().
 				WithLogLevel("debug").Create()
@@ -93,6 +99,7 @@ var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.Label
 		It("Operator re-installation. Verify SR-IOV operator data plane is operational before removal",
 			reportxml.ID("46529"), func() {
 				By("Creating test pods and checking connectivity")
+
 				err := sriovocpenv.CreatePodsAndRunTraffic(workerNodeList[0].Object.Name, workerNodeList[0].Object.Name,
 					sriovTestResourceName, sriovTestResourceName, "", "",
 					[]string{tsparams.ClientIPv4IPAddress}, []string{tsparams.ServerIPv4IPAddress})
@@ -110,10 +117,12 @@ var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.Label
 			reportxml.ID("46531"),
 			func() {
 				By("Validate that SR-IOV operator namespace was removed")
+
 				_, err := namespace.Pull(APIClient, SriovOcpConfig.OcpSriovOperatorNamespace)
 				Expect(err).To(HaveOccurred(), "Failed to remove SR-IOV operator namespace")
 
 				By("Validate that SR-IOV api doesn't work")
+
 				_, err = sriov.NewPolicyBuilder(
 					APIClient,
 					sriovTestResourceName,
@@ -141,6 +150,7 @@ var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.Label
 					ShouldNot(HaveOccurred(), "SR-IOV operator is not installed")
 
 				By("Applying SR-IOV NetworkNodePolicy")
+
 				sriovPolicy := sriov.NewPolicyBuilder(
 					APIClient,
 					sriovTestResourceName,
@@ -158,6 +168,7 @@ var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.Label
 				Expect(err).ToNot(HaveOccurred(), "Failed to configure SR-IOV policy")
 
 				By("Creating SR-IOV network")
+
 				_, err = sriov.NewNetworkBuilder(APIClient, sriovTestResourceName, SriovOcpConfig.SriovOperatorNamespace,
 					tsparams.TestNamespaceName, sriovTestResourceName).WithStaticIpam().WithMacAddressSupport().WithIPAddressSupport().
 					WithLogLevel("debug").Create()
@@ -168,6 +179,7 @@ var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.Label
 			reportxml.ID("46533"),
 			func() {
 				By("Creating test pods and checking connectivity")
+
 				err := sriovocpenv.CreatePodsAndRunTraffic(workerNodeList[0].Object.Name, workerNodeList[0].Object.Name,
 					sriovTestResourceName, sriovTestResourceName, "", "",
 					[]string{tsparams.ClientIPv4IPAddress}, []string{tsparams.ServerIPv4IPAddress})

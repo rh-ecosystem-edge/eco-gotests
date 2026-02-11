@@ -38,7 +38,6 @@ var _ = Describe(
 	Label(tsparams.LabelTangDiskEncryptionInstallTestCases), func() {
 		When("on MCE 2.0 and above", func() {
 			BeforeAll(func() {
-
 				if ZTPConfig.SpokeAgentClusterInstall.Object.Spec.DiskEncryption == nil {
 					Skip("Spoke cluster was not installed with disk encryption")
 				}
@@ -50,6 +49,7 @@ var _ = Describe(
 				tangEncryptionEnabledOn = *ZTPConfig.SpokeAgentClusterInstall.Object.Spec.DiskEncryption.EnableOn
 
 				var err error
+
 				tangServers, err = createTangServersFromAgentClusterInstall(ZTPConfig.SpokeAgentClusterInstall)
 				Expect(err).NotTo(HaveOccurred(), "error getting tang servers from spoke agentclusterinstall")
 			})
@@ -96,6 +96,7 @@ var _ = Describe(
 						strings.Contains(tangEncryptionEnabledOn, string(agent.Object.Status.Role)) {
 						hwValidations, ok := agent.Object.Status.ValidationsInfo["hardware"]
 						Expect(ok).To(BeTrue(), "error attempting to retrieve agent hardware validationsInfo")
+
 						for _, result := range hwValidations {
 							if result.ID == "disk-encryption-requirements-satisfied" {
 								Expect(result.Message).To(Equal("Installation disk can be encrypted using tang"),
@@ -105,7 +106,6 @@ var _ = Describe(
 						}
 					}
 				}
-
 			})
 
 			It("propagates with multiple tang servers defined", reportxml.ID("48329"), func() {
@@ -114,11 +114,13 @@ var _ = Describe(
 				}
 
 				var ignitionConfigs []*diskencryption.IgnitionConfig
+
 				if tangEncryptionEnabledOn == models.DiskEncryptionEnableOnAll ||
 					tangEncryptionEnabledOn == models.DiskEncryptionEnableOnMasters {
 					masterTangIgnition, err := diskencryption.GetIgnitionConfigFromMachineConfig(
 						SpokeAPIClient, tangMasterMachineConfig)
 					Expect(err).NotTo(HaveOccurred(), errorGettingIgnitionConfigMsg())
+
 					ignitionConfigs = append(ignitionConfigs, masterTangIgnition)
 				}
 
@@ -127,6 +129,7 @@ var _ = Describe(
 					workerTangIgnition, err := diskencryption.GetIgnitionConfigFromMachineConfig(
 						SpokeAPIClient, tangWorkerMachineConfig)
 					Expect(err).NotTo(HaveOccurred(), errorGettingIgnitionConfigMsg())
+
 					ignitionConfigs = append(ignitionConfigs, workerTangIgnition)
 				}
 

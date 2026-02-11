@@ -15,17 +15,21 @@ var _ = Describe(
 	ContinueOnFailure,
 	Label(tsparams.LabelFipsVerificationTestCases), func() {
 		var fipsEnabledOnSpoke bool
+
 		When("on MCE 2.0 and above", func() {
 			BeforeAll(func() {
 				installConfigData, err := installconfig.NewInstallConfigFromString(
 					ZTPConfig.HubInstallConfig.Object.Data["install-config"])
 				Expect(err).NotTo(HaveOccurred(), "error reading in install-config as yaml")
+
 				if !installConfigData.FIPS {
 					Skip("Hub cluster is not FIPS enabled")
 				}
 
 				By("Checking agentclusterinstall has fips:true annotation")
+
 				fipsEnabledOnSpoke = false
+
 				if override,
 					ok := ZTPConfig.SpokeAgentClusterInstall.
 					Object.Annotations["agent-install.openshift.io/install-config-overrides"]; ok {
@@ -36,6 +40,7 @@ var _ = Describe(
 						fipsEnabledOnSpoke = true
 					}
 				}
+
 				if !fipsEnabledOnSpoke {
 					Skip("spoke should be installed with fips enabled")
 				}

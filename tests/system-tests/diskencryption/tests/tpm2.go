@@ -37,6 +37,7 @@ var _ = Describe("TPM2", func() {
 		}
 
 		By("checking if Secure Boot is enabled")
+
 		var isSecureBootEnabled bool
 
 		Eventually(func() error {
@@ -48,7 +49,6 @@ var _ = Describe("TPM2", func() {
 			" IsSecureBootEnabled should not return an error")
 
 		if !isSecureBootEnabled {
-
 			By("enabling SecureBoot")
 			Eventually(BMCClient.SecureBootEnable).WithTimeout(tsparams.TimeoutWaitingOnBMC).
 				WithPolling(tsparams.PollingIntervalBMC).
@@ -63,11 +63,10 @@ var _ = Describe("TPM2", func() {
 		}
 
 		By("waiting until all spoke 1 pods are ready")
+
 		err = cluster.WaitForRecover(APIClient, []string{
 			DiskEncryptionTestConfig.GeneralConfig.MCONamespace}, tsparams.TimeoutClusterRecovery)
-
 		if err != nil {
-
 			By("swapping back boot order, the server did not come up, maybe the boot order was swapped before")
 			swapFirstSecondBootItems()
 
@@ -87,6 +86,7 @@ var _ = Describe("TPM2", func() {
 
 		// After this point the cluster should be back up.
 		var nodeList []*nodes.Builder
+
 		Eventually(func() int {
 			nodeList, err = nodes.List(APIClient)
 			Expect(err).ToNot(HaveOccurred(), "error listing nodes")
@@ -97,6 +97,7 @@ var _ = Describe("TPM2", func() {
 			Should(BeNumerically("==", 1), "Currently only SNO clusters are supported")
 
 		var isTTYConsole bool
+
 		Eventually(func() error {
 			isTTYConsole, err = helper.IsTTYConsole()
 			Expect(err).ToNot(HaveOccurred(), "error checking kernel command line for tty console")
@@ -138,7 +139,9 @@ var _ = Describe("TPM2", func() {
 			"error resetting TPM lockout counter to zero")
 
 		By("verifying max retries in test environment")
+
 		var maxRetriesCheck int64
+
 		Eventually(func() error {
 			maxRetriesCheck, err = helper.GetTPMMaxRetries()
 
@@ -150,7 +153,9 @@ var _ = Describe("TPM2", func() {
 		By(fmt.Sprintf("verifying TPM Max Failed Retries: %d", maxRetriesCheck))
 
 		By("verifying lockout counter in test environment")
+
 		var lockoutCounterCheck int64
+
 		Eventually(func() error {
 			lockoutCounterCheck, err = helper.GetTPMLockoutCounter()
 
@@ -160,11 +165,11 @@ var _ = Describe("TPM2", func() {
 			"error getting lockout counter")
 
 		By(fmt.Sprintf("verifying Test lockout counter: %d", lockoutCounterCheck))
-
 	})
 
 	AfterEach(func() {
 		By("waiting for the cluster to become unreachable")
+
 		err = cluster.WaitForUnreachable(APIClient, tsparams.TimeoutClusterUnreachable)
 		Expect(err).ToNot(HaveOccurred(), "error waiting for cluster to be unreachable")
 
@@ -186,8 +191,8 @@ var _ = Describe("TPM2", func() {
 
 	It("Verifies that disabling Secure Boot prevents"+
 		" Disk decryption (TPM PCR 7)", func() {
-
 		By("checking that Root disk is encrypted with tpm2 with PCR 1 and 7")
+
 		var luksListOutput string
 
 		Eventually(func() error {
@@ -199,6 +204,7 @@ var _ = Describe("TPM2", func() {
 			"error getting of clevis luks list command")
 
 		isRootDiskTPM2PCR1AND7 := helper.LuksListContainsPCR1And7(luksListOutput)
+
 		Expect(err).ToNot(HaveOccurred(), "error when checking if the root disk is configured with TPM 1 and 7")
 
 		if !isRootDiskTPM2PCR1AND7 {
@@ -206,6 +212,7 @@ var _ = Describe("TPM2", func() {
 		}
 
 		By("checking if Secure Boot is enabled")
+
 		var isSecureBootEnabled bool
 
 		Eventually(func() error {
@@ -244,6 +251,7 @@ var _ = Describe("TPM2", func() {
 			"error rebooting node")
 
 		By("waiting for Disk decryption Failure log to appear")
+
 		matches := []stdinmatcher.Matcher{
 			{
 				Regex: regexp.MustCompile("TPM failed"),
@@ -270,13 +278,13 @@ var _ = Describe("TPM2", func() {
 		Eventually(BMCClient.SystemPowerCycle).WithTimeout(tsparams.TimeoutWaitingOnBMC).
 			WithPolling(tsparams.PollingIntervalBMC).ShouldNot(HaveOccurred(),
 			"power cycling the node should succeed")
-
 	})
 
 	It("Verifies update indication with file (/etc/host-hw-Updating.flag)", func() {
-
 		By("checking that Root disk is encrypted with tpm2 with PCR 1 and 7")
+
 		var luksListOutput string
+
 		Eventually(func() error {
 			luksListOutput, err = helper.GetClevisLuksListOutput()
 
@@ -291,6 +299,7 @@ var _ = Describe("TPM2", func() {
 		}
 
 		By("checking if Secure Boot is enabled")
+
 		var isSecureBootEnabled bool
 
 		Eventually(func() error {
@@ -353,6 +362,7 @@ var _ = Describe("TPM2", func() {
 		Expect(matchIndex).To(Equal(1), "WaitForRegex should match pcr-rebind-boot (1)")
 
 		By("waiting for cluster to recover")
+
 		err = cluster.WaitForRecover(APIClient, []string{DiskEncryptionTestConfig.GeneralConfig.MCONamespace,
 			DiskEncryptionTestConfig.GeneralConfig.MCONamespace}, tsparams.TimeoutClusterRecovery)
 		Expect(err).ToNot(HaveOccurred(), "cluster should recover without error")
@@ -371,9 +381,10 @@ var _ = Describe("TPM2", func() {
 	})
 
 	It("Verifies that changing Host boot order prevents Disk decryption (TPM PCR 1)", func() {
-
 		By("checking that Root disk is encrypted with tpm2 with PCR 1 and 7")
+
 		var luksListOutput string
+
 		Eventually(func() error {
 			luksListOutput, err = helper.GetClevisLuksListOutput()
 
@@ -388,6 +399,7 @@ var _ = Describe("TPM2", func() {
 		}
 
 		By("checking if Secure Boot is enabled")
+
 		var isSecureBootEnabled bool
 
 		Eventually(func() error {
@@ -415,7 +427,9 @@ var _ = Describe("TPM2", func() {
 		Expect(isRootDiskReservedSlotPresent).To(BeFalse(), "there should be no reserved slot present at this point")
 
 		By("saving the original server boot order")
+
 		var originalBootOrder []string
+
 		Eventually(func() error {
 			originalBootOrder, err = BMCClient.SystemBootOrderReferences()
 
@@ -440,6 +454,7 @@ var _ = Describe("TPM2", func() {
 			"error rebooting node")
 
 		By("waiting for TPM Failed log to appear (disk decryption failed)")
+
 		matches := []stdinmatcher.Matcher{
 			{
 				Regex: regexp.MustCompile("TPM failed"),
@@ -465,7 +480,6 @@ var _ = Describe("TPM2", func() {
 		Eventually(BMCClient.SystemPowerCycle).WithTimeout(tsparams.TimeoutWaitingOnBMC).
 			WithPolling(tsparams.PollingIntervalBMC).ShouldNot(HaveOccurred(),
 			"power cycling the node should not return an error")
-
 	})
 })
 

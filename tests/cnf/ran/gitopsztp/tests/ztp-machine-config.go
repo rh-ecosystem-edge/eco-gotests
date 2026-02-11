@@ -21,6 +21,7 @@ var _ = Describe("ZTP Machine Config Tests", Label(tsparams.LabelMachineConfigTe
 		}
 
 		By("checking all machine configs for ones deployed by ztp")
+
 		machineConfigs, err := mco.ListMC(Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to list machine configs")
 

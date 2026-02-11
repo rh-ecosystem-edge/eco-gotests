@@ -41,12 +41,14 @@ var _ = Describe("rdmaMetricsAPI", Ordered, Label(tsparams.LabelRdmaMetricsAPITe
 
 		BeforeAll(func() {
 			By("Verifying if Rdma Metrics API tests can be executed on given cluster")
+
 			err := netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 1)
 			if err != nil {
 				Skip(fmt.Sprintf("Skipping test - cluster doesn't have enough nodes: %v", err))
 			}
 
 			By("Validating SR-IOV interfaces")
+
 			workerNodeList, err = nodes.List(APIClient,
 				metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
 			Expect(err).ToNot(HaveOccurred(), "Failed to discover worker nodes")
@@ -58,11 +60,13 @@ var _ = Describe("rdmaMetricsAPI", Ordered, Label(tsparams.LabelRdmaMetricsAPITe
 			Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
 
 			By("Fetching SR-IOV Vendor ID for interface under test")
+
 			sriovVendor, err := sriovenv.DiscoverInterfaceUnderTestVendorID(
 				sriovInterfacesUnderTest[0], workerNodeList[0].Definition.Name)
 			Expect(err).ToNot(HaveOccurred(), "Failed to fetch SR-IOV Vendor ID for interface under test")
 
 			By("Skipping test cases if the Sriov device is not of Mellanox")
+
 			if sriovVendor != netparam.MlxVendorID {
 				Skip("Rdma metrics is supported only on Mellanox devices")
 			}
@@ -87,10 +91,10 @@ var _ = Describe("rdmaMetricsAPI", Ordered, Label(tsparams.LabelRdmaMetricsAPITe
 				By("Ensure RDMA is in exclusive mode")
 
 				verifyRdmaModeStatus("exclusive", workerNodeList)
-
 			})
 			It("1 Pod with 1 VF", reportxml.ID("77651"), func() {
 				By("Define and Create Test Pod")
+
 				testPod := defineAndCreatePod(tNet1.Object.Name, "")
 
 				By("Verify allocatable devices doesn't change after sriov-device-plugin pod restart")
@@ -101,6 +105,7 @@ var _ = Describe("rdmaMetricsAPI", Ordered, Label(tsparams.LabelRdmaMetricsAPITe
 			})
 			It("1 Pod with 2 VF of same PF", reportxml.ID("77650"), func() {
 				By("Define and Create Test Pod")
+
 				testPod := defineAndCreatePod(tNet1.Object.Name, tNet1.Object.Name)
 
 				By("Verify allocatable devices doesn't change after sriov-device-plugin pod restart")
@@ -112,6 +117,7 @@ var _ = Describe("rdmaMetricsAPI", Ordered, Label(tsparams.LabelRdmaMetricsAPITe
 			})
 			It("1 Pod with 2 VF of different PF", reportxml.ID("77649"), func() {
 				By("Define and Create Test Pod")
+
 				testPod := defineAndCreatePod(tNet1.Object.Name, tNet2.Object.Name)
 
 				By("Verify allocatable devices doesn't change after sriov-device-plugin pod restart")
@@ -125,6 +131,7 @@ var _ = Describe("rdmaMetricsAPI", Ordered, Label(tsparams.LabelRdmaMetricsAPITe
 
 			AfterEach(func() {
 				By("Cleaning test namespace")
+
 				err := namespace.NewBuilder(APIClient, tsparams.TestNamespaceName).CleanObjects(
 					netparam.DefaultTimeout, pod.GetGVR())
 				Expect(err).ToNot(HaveOccurred(), "Failed to clean test namespace")
@@ -132,10 +139,12 @@ var _ = Describe("rdmaMetricsAPI", Ordered, Label(tsparams.LabelRdmaMetricsAPITe
 
 			AfterAll(func() {
 				By("Delete SriovPoolConfig")
+
 				err := sriovNetNodeState.Delete()
 				Expect(err).ToNot(HaveOccurred(), "Failed to delete SriovPoolConfig")
 
 				By("Removing SR-IOV configuration")
+
 				err = sriovoperator.RemoveSriovConfigurationAndWaitForSriovAndMCPStable(
 					APIClient,
 					NetConfig.WorkerLabelEnvVar,
@@ -163,7 +172,6 @@ var _ = Describe("rdmaMetricsAPI", Ordered, Label(tsparams.LabelRdmaMetricsAPITe
 				By("Ensure RDMA is in shared mode")
 
 				verifyRdmaModeStatus("shared", workerNodeList)
-
 			})
 			It("1 Pod with 1 VF", reportxml.ID("77653"), func() {
 				By("Define and Create Test Pod")
@@ -174,6 +182,7 @@ var _ = Describe("rdmaMetricsAPI", Ordered, Label(tsparams.LabelRdmaMetricsAPITe
 				verifyAllocatableResouces(testPod, tPol1.Object.Spec.ResourceName)
 
 				By("Fetch PCI Address and Rdma device from Pod Annotations")
+
 				pciAddress, rdmaDevice, err := getInterfacePci(testPod, "net1")
 				Expect(err).ToNot(HaveOccurred(),
 					"Could not get PCI Address and/or Rdma device from Pod Annotations")
@@ -181,6 +190,7 @@ var _ = Describe("rdmaMetricsAPI", Ordered, Label(tsparams.LabelRdmaMetricsAPITe
 				Expect(rdmaDevice).To(Not(BeEmpty()), "rdma-device field is empty")
 
 				By("Verify Rdma Metrics should not be present inside Pod")
+
 				podOutput, err := testPod.ExecCommand(
 					[]string{"bash", "-c", fmt.Sprintf("ls /sys/bus/pci/devices/%s/infiniband/%s/ports/1/hw_counters",
 						pciAddress, rdmaDevice)})
@@ -189,6 +199,7 @@ var _ = Describe("rdmaMetricsAPI", Ordered, Label(tsparams.LabelRdmaMetricsAPITe
 					fmt.Sprintf("Expected error 'No such file or directory' in the output %s", podOutput.String()))
 
 				By("Verify Rdma Metrics should be present on Host")
+
 				nodeOutput, err := cluster.ExecCmdWithStdout(APIClient,
 					fmt.Sprintf("ls /sys/bus/pci/devices/%s/infiniband/%s/ports/1/hw_counters", pciAddress, rdmaDevice),
 					metav1.ListOptions{LabelSelector: fmt.Sprintf("kubernetes.io/hostname=%s", testPod.Object.Spec.NodeName)})
@@ -202,6 +213,7 @@ var _ = Describe("rdmaMetricsAPI", Ordered, Label(tsparams.LabelRdmaMetricsAPITe
 
 			AfterAll(func() {
 				By("Removing SR-IOV configuration")
+
 				err := sriovoperator.RemoveSriovConfigurationAndWaitForSriovAndMCPStable(
 					APIClient,
 					NetConfig.WorkerLabelEnvVar,
@@ -211,6 +223,7 @@ var _ = Describe("rdmaMetricsAPI", Ordered, Label(tsparams.LabelRdmaMetricsAPITe
 				Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV configuration")
 
 				By("Cleaning test namespace")
+
 				err = namespace.NewBuilder(APIClient, tsparams.TestNamespaceName).CleanObjects(
 					netparam.DefaultTimeout, pod.GetGVR())
 				Expect(err).ToNot(HaveOccurred(), "Failed to clean test namespace")

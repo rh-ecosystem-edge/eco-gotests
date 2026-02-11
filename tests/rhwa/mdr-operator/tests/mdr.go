@@ -20,6 +20,7 @@ var _ = Describe(
 	Label(mdrparams.Label), func() {
 		BeforeAll(func() {
 			By("Get MDR deployment object")
+
 			mdrDeployment, err := deployment.Pull(
 				APIClient, mdrparams.OperatorDeploymentName, rhwaparams.RhwaOperatorNs)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get MDR deployment")

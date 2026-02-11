@@ -32,13 +32,16 @@ var _ = Describe(
 	Label(tsparams.LabelNodeLabellingAtInstallTestCases), func() {
 		BeforeAll(func() {
 			By("Get the spoke cluster name")
+
 			spokeClusterNameSpace = ZTPConfig.SpokeClusterName
 
 			By("Get list of agents by using infraenv")
+
 			agentsBuilderList, err := ZTPConfig.SpokeInfraEnv.GetAllAgents()
 			Expect(err).ToNot(HaveOccurred(), "error getting list of agents")
 
 			By("Populating agents, bmh lists")
+
 			agentLabelsList = make(map[string]map[string]string)
 			bmhLabelsList = make(map[string]map[string]string)
 
@@ -48,12 +51,16 @@ var _ = Describe(
 					if hostName == "" {
 						hostName = agent.Object.Status.Inventory.Hostname
 					}
+
 					agentLabelsList[hostName] = make(map[string]string)
+
 					agentLabelsList[hostName] = agent.Object.Spec.NodeLabels
 					if bmhName, ok := agent.Object.Labels["agent-install.openshift.io/bmh"]; ok {
 						bmhObject, err := bmh.Pull(HubAPIClient, bmhName, spokeClusterNameSpace)
 						Expect(err).ToNot(HaveOccurred(), "error getting bmh")
+
 						bmhLabelsList[hostName] = make(map[string]string)
+
 						for annotation := range bmhObject.Object.Annotations {
 							if strings.Contains(annotation, bmhString) {
 								bmhLabelsList[hostName][strings.TrimPrefix(annotation, "bmac.agent-install.openshift.io.node-label.")] = ""
@@ -62,6 +69,7 @@ var _ = Describe(
 					}
 				}
 			}
+
 			if len(agentLabelsList) == 0 && len(bmhLabelsList) == 0 {
 				Skip("skipping tests as no labels were set for the nodes")
 			}
@@ -71,36 +79,44 @@ var _ = Describe(
 			if len(bmhLabelsList) == 0 {
 				Skip("no BMHs were used")
 			}
+
 			if len(bmhLabelsList) > 0 {
 				numNodes := 0
+
 				for agent := range agentLabelsList {
 					if labelList, exist := bmhLabelsList[agent]; exist {
 						passedCheck, err := checkNodeHasAllLabels(ZTPConfig.SpokeAPIClient, agent, labelList)
 						Expect(err).ToNot(HaveOccurred(), "error in retrieving nodes and node labels")
+
 						if passedCheck {
 							numNodes++
 						}
 					}
 				}
+
 				Expect(numNodes).To(Equal(len(bmhLabelsList)), "not all nodes have all the labels")
 			}
 		})
 
 		It("Node label appears on agents and spoke nodes with boot-it-yourself flow", reportxml.ID("60498"), func() {
 			numNodes := 0
+
 			expectedNumNodes := len(agentLabelsList) - len(bmhLabelsList)
 			if expectedNumNodes == 0 {
 				Skip("no agents were booted with boot-it-yourself")
 			}
+
 			for agent, labelList := range agentLabelsList {
 				if _, exist := bmhLabelsList[agent]; !exist {
 					passedCheck, err := checkNodeHasAllLabels(ZTPConfig.SpokeAPIClient, agent, labelList)
 					Expect(err).ToNot(HaveOccurred(), "error in retrieving nodes and node labels")
+
 					if passedCheck {
 						numNodes++
 					}
 				}
 			}
+
 			Expect(numNodes).To(Equal(expectedNumNodes), "not all nodes have all of the labels")
 		})
 	})

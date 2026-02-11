@@ -18,6 +18,7 @@ import (
 var _ = Describe("BGP", Ordered, Label("pool-selector"), ContinueOnFailure, func() {
 	BeforeAll(func() {
 		By("Checking if cluster is SNO")
+
 		if IsSNO {
 			Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers for 'different node' test case")
 		}
@@ -25,6 +26,7 @@ var _ = Describe("BGP", Ordered, Label("pool-selector"), ContinueOnFailure, func
 		validateEnvVarAndGetNodeList()
 
 		By("Creating a new instance of MetalLB Speakers on workers")
+
 		err := metallbenv.CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(tsparams.DefaultTimeout, workerLabelMap)
 		Expect(err).ToNot(HaveOccurred(), "Failed to recreate metalLb daemonset")
 
@@ -47,6 +49,7 @@ var _ = Describe("BGP", Ordered, Label("pool-selector"), ContinueOnFailure, func
 
 	AfterEach(func() {
 		By("Cleaning MetalLb operator namespace")
+
 		metalLbNs, err := namespace.Pull(APIClient, NetConfig.MlbOperatorNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Failed to pull metalLb operator namespace")
 		err = metalLbNs.CleanObjects(
@@ -58,6 +61,7 @@ var _ = Describe("BGP", Ordered, Label("pool-selector"), ContinueOnFailure, func
 		Expect(err).ToNot(HaveOccurred(), "Failed to remove object's from operator namespace")
 
 		By("Cleaning test namespace")
+
 		err = namespace.NewBuilder(APIClient, tsparams.TestNamespaceName).CleanObjects(
 			tsparams.DefaultTimeout,
 			pod.GetGVR(),
@@ -69,17 +73,20 @@ var _ = Describe("BGP", Ordered, Label("pool-selector"), ContinueOnFailure, func
 	DescribeTable("MetalLB Load balance external IP accessible to internal cluster IPs",
 		func(diffNode bool) {
 			By("Fetching LB IP assigned to service")
+
 			lbSvc, err := service.Pull(APIClient, tsparams.MetallbServiceName, tsparams.TestNamespaceName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull service %s", tsparams.MetallbServiceName)
 			Expect(lbSvc.Object.Status.LoadBalancer.Ingress).NotTo(BeEmpty(),
 				"Load Balancer IP is not assigned to the tcp service")
 
 			By("Fetching Nginx server pod IP address")
+
 			nginxPod, err := pod.Pull(APIClient, "nginxpod1", tsparams.TestNamespaceName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull nginx server pod")
 			Expect(nginxPod.Object.Status.PodIP).NotTo(BeEmpty(), "Pod IP is empty")
 
 			By("Creating client pod")
+
 			var clientPod *pod.Builder
 			if !diffNode {
 				clientPod, err = pod.NewBuilder(APIClient, "clientpod", tsparams.TestNamespaceName, NetConfig.CnfNetTestContainer).
@@ -103,6 +110,7 @@ var _ = Describe("BGP", Ordered, Label("pool-selector"), ContinueOnFailure, func
 			Expect(output.String()).To(ContainSubstring(nginxPod.Object.Status.PodIP))
 
 			By("Checking client IP seen by nginx server is same as client pod IP address")
+
 			output, err = clientPod.ExecCommand([]string{"/bin/bash", "-c",
 				fmt.Sprintf("curl %s/clientip", lbSvc.Object.Status.LoadBalancer.Ingress[0].IP)})
 			Expect(err).ToNot(HaveOccurred(), "Failed to curl to Nginx pod")

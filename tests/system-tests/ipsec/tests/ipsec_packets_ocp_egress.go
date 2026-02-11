@@ -137,6 +137,7 @@ var _ = Describe(
 						nodePortStr,
 						ipsecparams.Iperf3OptionBytes,
 						IpsecTestConfig.Iperf3ClientTxBytes)
+
 					containerLabel := ipsecparams.CreateContainerLabelsStr(index, serviceDeploymentIngressPrefixName)
 					channel <- iperf3workload.LaunchIperf3Command(APIClient,
 						srvDeplName,
@@ -147,6 +148,7 @@ var _ = Describe(
 				// Get the client via the channel
 				clientOutput := <-iperf3ClientChannel
 				Expect(clientOutput).To(BeTrue(), "Error in iperf3 client execution.")
+
 				packetsAfter := ipsectunnel.TunnelPackets(nodeName)
 
 				// Get the server results via the channel

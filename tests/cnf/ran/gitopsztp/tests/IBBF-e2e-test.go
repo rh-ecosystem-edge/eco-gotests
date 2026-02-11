@@ -23,13 +23,11 @@ import (
 var _ = Describe(
 	"Performing Image-Based Break/Fix Flow",
 	Label(tsparams.LabelIBBFe2e), func() {
-
 		var (
 			spokeNamespace = RANConfig.Spoke1Name
 		)
 
 		AfterEach(func() {
-
 			By("Cleanup test configmap")
 
 			err := configmap.NewBuilder(HubAPIClient, tsparams.TestCMName, spokeNamespace).
@@ -39,11 +37,13 @@ var _ = Describe(
 
 		It("tests HW replacement via IBBF", reportxml.ID("78333"), func() {
 			By("getting the clusters app")
+
 			clustersApp, err := argocd.PullApplication(
 				HubAPIClient, tsparams.ArgoCdClustersAppName, ranparam.OpenshiftGitOpsNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get the clusters app")
 
 			By("checking if the git path exists")
+
 			if !clustersApp.DoesGitPathExist(tsparams.ZtpTestPathIBBFe2e) {
 				Skip(fmt.Sprintf("git path '%s' could not be found", tsparams.ZtpTestPathIBBFe2e))
 			}
@@ -59,6 +59,7 @@ var _ = Describe(
 			Expect(err).ToNot(HaveOccurred(), "error updating siteconfig-operator-configuration configmap to allow reinstalls")
 
 			By("Creating test configmap to be preserved")
+
 			configMap := configmap.NewBuilder(
 				HubAPIClient, tsparams.TestCMName, spokeNamespace).
 				WithData(map[string]string{"testValue": "true"})
@@ -71,6 +72,7 @@ var _ = Describe(
 			Expect(err).ToNot(HaveOccurred(), "error creating configmap")
 
 			By("Getting cluster identity pre-IBBF")
+
 			clusterDeployment, err := hive.PullClusterDeployment(HubAPIClient,
 				RANConfig.Spoke1Name,
 				spokeNamespace)
@@ -120,6 +122,7 @@ var _ = Describe(
 			Expect(err).ToNot(HaveOccurred(), "Preserved configmap is missing after IBBF")
 
 			By("Comparing cluster identity post-IBBF")
+
 			clusterDeploymentPostIBBF, err := hive.PullClusterDeployment(HubAPIClient,
 				RANConfig.Spoke1Name,
 				spokeNamespace)
@@ -141,6 +144,5 @@ var _ = Describe(
 				Status: metav1.ConditionTrue,
 			}, 5*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error waiting for managedcluster to become available")
-
 		})
 	})

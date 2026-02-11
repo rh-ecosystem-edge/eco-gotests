@@ -428,7 +428,7 @@ func getCurrentLinkRx(runningPod *pod.Builder) (map[string]int, error) {
 			tmpLinksInfoList, err := link.NewListBuilder(linksRawInfo)
 			if err != nil {
 				klog.V(100).Infof("Failed to build a links object list for %q due to %v",
-					linksRawInfo, err)
+					linksRawInfo.String(), err)
 
 				return false, nil
 			}

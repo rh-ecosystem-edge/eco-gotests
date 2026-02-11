@@ -44,6 +44,7 @@ var _ = Describe("MetalLB NodeSelector", Ordered, Label(tsparams.LabelBGPTestCas
 
 	BeforeAll(func() {
 		By("Checking if cluster is SNO")
+
 		if IsSNO {
 			Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers")
 		}
@@ -51,12 +52,14 @@ var _ = Describe("MetalLB NodeSelector", Ordered, Label(tsparams.LabelBGPTestCas
 		validateEnvVarAndGetNodeList()
 
 		By("Collecting information before test")
+
 		frrk8sPods, err = pod.List(APIClient, NetConfig.MlbOperatorNamespace, metav1.ListOptions{
 			LabelSelector: tsparams.LabelFRRNode,
 		})
 		Expect(err).ToNot(HaveOccurred(), "Failed to list frrk8s pods")
 
 		By("Setting test iteration parameters")
+
 		_, _, _, nodeAddrList, addressPool, _, err =
 			metallbenv.DefineIterationParams(
 				ipv4metalLbIPList, ipv6metalLbIPList, ipv4NodeAddrList, ipv6NodeAddrList, netparam.IPV4Family)
@@ -86,10 +89,12 @@ var _ = Describe("MetalLB NodeSelector", Ordered, Label(tsparams.LabelBGPTestCas
 	Context("Single IPAddressPool", func() {
 		BeforeEach(func() {
 			By("Creating a new instance of MetalLB Speakers on workers")
+
 			err = metallbenv.CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(tsparams.DefaultTimeout, workerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "Failed to recreate metalLb daemonset")
 
 			By("Create a single IPAddressPool")
+
 			ipAddressPool = createIPAddressPool(ipaddressPoolName1, addressPool)
 			validateAddressPool(ipAddressPool.Definition.Name, mlbtypes.IPAddressPoolStatus{
 				AvailableIPv4: 240,
@@ -99,12 +104,12 @@ var _ = Describe("MetalLB NodeSelector", Ordered, Label(tsparams.LabelBGPTestCas
 			})
 
 			By("Setup test case with services, test pods and bgppeers")
+
 			frrPod0, frrPod1 = setupTestCase(ipAddressPool, ipAddressPool, frrk8sPods)
 		})
 
 		It("Advertise a single IPAddressPool with different attributes using the node selector option",
 			reportxml.ID("53987"), func() {
-
 				By(fmt.Sprintf("Creating a BGPAdvertisement with nodeSelector for bgpPeer1 and LocalPref set to "+
 					"200 and community %s", tsparams.NoAdvertiseCommunity))
 
@@ -135,6 +140,7 @@ var _ = Describe("MetalLB NodeSelector", Ordered, Label(tsparams.LabelBGPTestCas
 
 				By(fmt.Sprintf("Validate BGP Custom Community %s exists with the node selector",
 					tsparams.CustomCommunity))
+
 				bgpStatus, err := frr.GetBGPCommunityStatus(frrPod0, tsparams.NoAdvertiseCommunity,
 					strings.ToLower(netparam.IPV4Family))
 				Expect(err).ToNot(HaveOccurred(), "Failed to collect bgp community status")
@@ -150,7 +156,6 @@ var _ = Describe("MetalLB NodeSelector", Ordered, Label(tsparams.LabelBGPTestCas
 
 		It("Update the node selector option with a label that does not exist",
 			reportxml.ID("61336"), func() {
-
 				By("Create a bgpadvertisement for BGPPeer1 and IP AddressPool1.")
 				setupBgpAdvertisement(bgpAdvertisementName1, tsparams.NoAdvertiseCommunity, ipaddressPoolName1, 100,
 					[]string{tsparams.BgpPeerName1}, worker0NodeLabel)
@@ -177,6 +182,7 @@ var _ = Describe("MetalLB NodeSelector", Ordered, Label(tsparams.LabelBGPTestCas
 				verifyBGPConnectivityAndPrefixes(frrPod0, frrPod1, nodeAddrList, addressPool, addressPool)
 
 				By("Create a non existing label to use in test case.")
+
 				nonExistingLabel := []metav1.LabelSelector{
 					{MatchLabels: map[string]string{corev1.LabelHostname: "non-existing-label"}},
 				}
@@ -190,7 +196,6 @@ var _ = Describe("MetalLB NodeSelector", Ordered, Label(tsparams.LabelBGPTestCas
 
 		It("Remove from node label used in the node selector option",
 			reportxml.ID("53991"), func() {
-
 				By("Adding test label to compute nodes")
 				addNodeLabel(workerNodeList, metalLbTestsLabel2)
 
@@ -233,8 +238,10 @@ var _ = Describe("MetalLB NodeSelector", Ordered, Label(tsparams.LabelBGPTestCas
 
 	Context("Dual IPAddressPools", func() {
 		var addressPool2 = []string{"4.4.4.1", "4.4.4.240"}
+
 		BeforeEach(func() {
 			By("Creating a new instance of MetalLB Speakers on workers")
+
 			err = metallbenv.CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(tsparams.DefaultTimeout, workerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "Failed to recreate metalLb daemonset")
 
@@ -242,6 +249,7 @@ var _ = Describe("MetalLB NodeSelector", Ordered, Label(tsparams.LabelBGPTestCas
 
 			ipAddressPool1 := createIPAddressPool(ipaddressPoolName1, addressPool)
 			ipAddressPool2 := createIPAddressPool(ipaddressPoolName2, addressPool2)
+
 			validateAddressPool(ipAddressPool1.Definition.Name, mlbtypes.IPAddressPoolStatus{
 				AvailableIPv4: 240,
 				AvailableIPv6: 0,
@@ -256,12 +264,12 @@ var _ = Describe("MetalLB NodeSelector", Ordered, Label(tsparams.LabelBGPTestCas
 			})
 
 			By("Setup test case with services, test pods and bgppeers")
+
 			frrPod0, frrPod1 = setupTestCase(ipAddressPool1, ipAddressPool2, frrk8sPods)
 		})
 
 		It("Advertise separate IPAddressPools using the node selector",
 			reportxml.ID("53986"), func() {
-
 				By("Creating a BGPAdvertisement with the nodeSelector to bgppeer1")
 				setupBgpAdvertisement(bgpAdvertisementName1, tsparams.NoAdvertiseCommunity, ipaddressPoolName1,
 					100, []string{tsparams.BgpPeerName1}, worker0NodeLabel)
@@ -285,10 +293,12 @@ var _ = Describe("MetalLB NodeSelector", Ordered, Label(tsparams.LabelBGPTestCas
 					[]string{tsparams.BgpPeerName2})
 
 				By("Validate Local Preference from Frr node0")
+
 				err = frr.ValidateLocalPref(frrPod0, 100, strings.ToLower(netparam.IPV4Family))
 				Expect(err).ToNot(HaveOccurred(), "Fail to validate local preference")
 
 				By("Validate Local Preference from Frr node1")
+
 				err = frr.ValidateLocalPref(frrPod1, 200, strings.ToLower(netparam.IPV4Family))
 				Expect(err).ToNot(HaveOccurred(), "Fail to validate local preference")
 
@@ -309,7 +319,6 @@ var _ = Describe("MetalLB NodeSelector", Ordered, Label(tsparams.LabelBGPTestCas
 
 		It("Update the node selector option with a label that does not exist",
 			reportxml.ID("53989"), func() {
-
 				By("Creating a BGPAdvertisement with the nodeSelector to bgppeer1")
 				setupBgpAdvertisement(bgpAdvertisementName1, tsparams.NoAdvertiseCommunity, ipaddressPoolName1,
 					100, []string{tsparams.BgpPeerName1}, worker0NodeLabel)
@@ -333,14 +342,17 @@ var _ = Describe("MetalLB NodeSelector", Ordered, Label(tsparams.LabelBGPTestCas
 					[]string{tsparams.BgpPeerName2})
 
 				By("Validate Local Preference from Frr node0")
+
 				err = frr.ValidateLocalPref(frrPod0, 100, strings.ToLower(netparam.IPV4Family))
 				Expect(err).ToNot(HaveOccurred(), "Fail to validate local preference")
 
 				By("Validate Local Preference from Frr node1")
+
 				err = frr.ValidateLocalPref(frrPod1, 200, strings.ToLower(netparam.IPV4Family))
 				Expect(err).ToNot(HaveOccurred(), "Fail to validate local preference")
 
 				By("Create a non existing label to use in test case.")
+
 				nonExistingLabel := []metav1.LabelSelector{
 					{MatchLabels: map[string]string{corev1.LabelHostname: "non-existing-label"}},
 				}
