@@ -62,6 +62,25 @@ func ListConsumerPods(client *clients.Settings) ([]*pod.Builder, error) {
 	return podList, nil
 }
 
+// AreEventsEnabled checks if events are enabled in the PTP operator config. Events are considered enabled if and only
+// if PtpOperatorConfig.Spec.EventConfig is non-nil and PtpOperatorConfig.Spec.EventConfig.EnableEventPublisher is true.
+func AreEventsEnabled(client *clients.Settings) (bool, error) {
+	ptpOperatorConfig, err := ptp.PullPtpOperatorConfig(client)
+	if err != nil {
+		return false, fmt.Errorf("failed to pull PTP operator config: %w", err)
+	}
+
+	if ptpOperatorConfig.Definition == nil {
+		return false, fmt.Errorf("PTP operator config definition is nil")
+	}
+
+	if ptpOperatorConfig.Definition.Spec.EventConfig == nil {
+		return false, nil
+	}
+
+	return ptpOperatorConfig.Definition.Spec.EventConfig.EnableEventPublisher, nil
+}
+
 // createConsumerNamespace creates the cloud-events namespace with the necessary labels and annotations. It uses the
 // definition from https://github.com/redhat-cne/cloud-event-proxy/blob/main/examples/manifests/namespace.yaml.
 func createConsumerNamespace(client *clients.Settings) error {
