@@ -1,4 +1,4 @@
-package ptpdaemon
+package daemonlogs
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/ptpdaemon"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -129,13 +130,13 @@ func WaitForPodLog(client *clients.Settings, nodeName string, options ...WaitFor
 		return fmt.Errorf("matcher function must be provided using WithMatcher option")
 	}
 
-	// Track the last time we successfully fetched logs to avoid missing log entries between polls
+	// Track the last time we successfully fetched logs to avoid missing log entries between polls.
 	lastFetchTime := logOptions.startTime
 
 	return wait.PollUntilContextTimeout(
 		context.TODO(), logOptions.pollingInterval, logOptions.timeout, true, func(ctx context.Context) (bool, error) {
 			// Get the PTP daemon pod on each poll to handle pod restarts.
-			daemonPod, err := GetPtpDaemonPodOnNode(client, nodeName)
+			daemonPod, err := ptpdaemon.GetPtpDaemonPodOnNode(client, nodeName)
 			if err != nil {
 				klog.V(tsparams.LogLevel).Infof("Failed to get PTP daemon pod on node %s: %v", nodeName, err)
 
@@ -200,28 +201,28 @@ func WaitForProfileLoadOnNodes(
 
 	var waitGroup sync.WaitGroup
 
-	errCh := make(chan error, len(nodeNames))
+	errChannel := make(chan error, len(nodeNames))
 
 	for _, nodeName := range nodeNames {
 		waitGroup.Go(func() {
 			err := WaitForProfileLoad(client, nodeName, options...)
 			if err != nil {
-				errCh <- fmt.Errorf("failed to wait for profile load on node %s: %w", nodeName, err)
+				errChannel <- fmt.Errorf("failed to wait for profile load on node %s: %w", nodeName, err)
 			}
 		})
 	}
 
 	waitGroup.Wait()
-	close(errCh)
+	close(errChannel)
 
-	var errs []error
+	var allErrors []error
 
-	for err := range errCh {
-		errs = append(errs, err)
+	for err := range errChannel {
+		allErrors = append(allErrors, err)
 	}
 
-	if len(errs) > 0 {
-		return fmt.Errorf("failed to wait for profile load on nodes %v: %w", nodeNames, errors.Join(errs...))
+	if len(allErrors) > 0 {
+		return fmt.Errorf("failed to wait for profile load on nodes %v: %w", nodeNames, errors.Join(allErrors...))
 	}
 
 	return nil
@@ -231,14 +232,14 @@ func WaitForProfileLoadOnNodes(
 // daemon nodes. It will check each node concurrently and return all errors that occur. Similar to [WaitForProfileLoad],
 // it uses the provided options for the WaitForPodLog function.
 func WaitForProfileLoadOnPTPNodes(client *clients.Settings, options ...WaitForPodLogOption) error {
-	nodes, err := ListPtpDaemonNodes(client)
+	nodes, err := ptpdaemon.ListPtpDaemonNodes(client)
 	if err != nil {
 		return fmt.Errorf("failed to list PTP daemon nodes: %w", err)
 	}
 
 	nodeNames := make([]string, len(nodes))
-	for i, node := range nodes {
-		nodeNames[i] = node.Definition.Name
+	for index, node := range nodes {
+		nodeNames[index] = node.Definition.Name
 	}
 
 	err = WaitForProfileLoadOnNodes(client, nodeNames, options...)
