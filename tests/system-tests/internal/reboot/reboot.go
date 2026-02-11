@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
+	"strings"
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/remote"
@@ -267,6 +269,27 @@ func KernelCrashKdump(nodeName string) error {
 			klog.V(90).Infof("Context timeout exceeded while triggering kernel crash, assuming it was triggered")
 
 			return nil // context timeout exceeded, so we can assume the kernel crash was triggered
+		}
+
+		// Check if it's a network operation error (expected during kernel crash)
+		var opErr *net.OpError
+		if errors.As(err, &opErr) {
+			klog.V(90).Infof("Network operation error during kernel crash (expected): %v", err)
+
+			return nil
+		}
+
+		// Also check for common wrapped errors that indicate successful kernel crash
+		// When triggering a kernel crash, connection errors are expected as the node
+		// crashes immediately. These errors actually indicate successful crash initiation.
+		errStr := err.Error()
+		if strings.Contains(errStr, "connection reset") ||
+			strings.Contains(errStr, "broken pipe") ||
+			strings.Contains(errStr, "EOF") ||
+			strings.Contains(errStr, "use of closed network connection") {
+			klog.V(90).Infof("Connection error during kernel crash (expected): %v", err)
+
+			return nil
 		}
 
 		klog.V(90).Infof("Failed to trigger kernel crash: %v", err)
