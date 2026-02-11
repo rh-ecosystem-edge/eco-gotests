@@ -32,7 +32,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/klog/v2"
 )
 
 const (
@@ -237,6 +236,8 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 			err := namespace.NewBuilder(APIClient, NetConfig.PFStatusRelayOperatorNamespace).CleanObjects(
 				netparam.DefaultTimeout, pfstatus.GetPfStatusConfigurationGVR())
 			Expect(err).ToNot(HaveOccurred(), "Failed to clean PFLACPMonitor")
+
+			waitForAllPFStatusRelayDaemonsetsDeleted()
 
 			By("Deleting client-bond pod")
 			bondedClientPod, err := pod.Pull(APIClient, bondedClientPodName, tsparams.TestNamespaceName)
@@ -462,6 +463,8 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 				err := deletePFLACPMonitor(pfLacpMonitorName)
 				Expect(err).ToNot(HaveOccurred(), "Failed to delete PFLACPMonitor CRD")
 
+				waitForAllPFStatusRelayDaemonsetsDeleted()
+
 				By("Verify that the VFs interfaces remain in disabled state after CRD deletion")
 				Eventually(func() error {
 					return verifyVFsStateOnInterface(worker0NodeName, secondaryInterface0, "disable")
@@ -644,6 +647,8 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 			err = namespace.NewBuilder(APIClient, NetConfig.PFStatusRelayOperatorNamespace).CleanObjects(
 				netparam.DefaultTimeout, pfstatus.GetPfStatusConfigurationGVR())
 			Expect(err).ToNot(HaveOccurred(), "Failed to clean PFLACPMonitor")
+
+			waitForAllPFStatusRelayDaemonsetsDeleted()
 		})
 
 		It("Verify bond active-backup recovery when PF LACP failure disables VF", reportxml.ID("83320"),
@@ -1202,6 +1207,29 @@ func deletePFLACPMonitor(monitorName string) error {
 	return nil
 }
 
+func waitForAllPFStatusRelayDaemonsetsDeleted() {
+	By("Waiting for all PF status relay daemonsets to be deleted")
+
+	Eventually(func() bool {
+		daemonsetList, err := APIClient.DaemonSets(NetConfig.PFStatusRelayOperatorNamespace).List(
+			context.TODO(), metav1.ListOptions{})
+		if err != nil {
+			By(fmt.Sprintf("Error listing daemonsets: %v", err))
+
+			return false
+		}
+
+		if len(daemonsetList.Items) > 0 {
+			By(fmt.Sprintf("Daemonsets still exist: %d remaining", len(daemonsetList.Items)))
+
+			return false
+		}
+
+		return true
+	}, 1*time.Minute, 5*time.Second).Should(BeTrue(),
+		"PF status relay daemonsets should be deleted")
+}
+
 func verifyPFHasNoVFsLogs(nodeName, targetInterface string) error {
 	By(fmt.Sprintf("Verifying PFLACPMonitor logs show 'pf has no VFs' for interface %s", targetInterface))
 
@@ -1521,7 +1549,7 @@ func setLACPBlockFilterOnInterface(credentials *sriovenv.SwitchCredentials, enab
 
 	lacpInterfaces, err := NetConfig.GetSwitchLagNames()
 	if err != nil {
-		klog.V(90).Infof("Failed to get switch LAG names: %v", err)
+		By(fmt.Sprintf("Failed to get switch LAG names: %v", err))
 	}
 
 	Expect(err).ToNot(HaveOccurred(), "Failed to get switch LAG names")
@@ -1587,17 +1615,17 @@ func validateBondedTCPTraffic(clientPod *pod.Builder) {
 	output, err := clientPod.ExecCommand(command, clientPod.Definition.Spec.Containers[0].Name)
 
 	// Log the output for debugging regardless of command success/failure
-	By(fmt.Sprintf("testcmd output: %s", output.String()))
+	By(fmt.Sprintf("TCP traffic test output from pod %s:\n%s", clientPod.Definition.Name, output.String()))
 
 	// Focus on network connectivity rather than testcmd exit code
 	// testcmd can be strict and fail even when network is working
 	if err != nil {
-		By(fmt.Sprintf("testcmd exited with error (expected for strict validation), output: %s", output.String()))
+		By(fmt.Sprintf("testcmd exited with error: %v, output: %s", err, output.String()))
 	}
 
-	By("Verify bonded interface connectivity has no packet loss")
+	By("Verifying bonded interface connectivity has no packet loss")
 	Expect(output.String()).Should(ContainSubstring("0 packet loss"),
-		fmt.Sprintf("Bonded interface %s should have 0 packet loss", bondTestInterface))
+		fmt.Sprintf("Bonded interface %s should have 0 packet loss. Full output:\n%s", bondTestInterface, output.String()))
 }
 
 func getPFLACPMonitorPod(nodeName string) (*pod.Builder, error) {
