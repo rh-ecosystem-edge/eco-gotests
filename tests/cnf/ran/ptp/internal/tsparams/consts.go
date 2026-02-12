@@ -21,6 +21,8 @@ const (
 	LabelLeapFile = "leap-file"
 	// LabelNTPFallback is the label for all tests in the PTP GNSS with NTP fallback suite.
 	LabelNTPFallback = "ntp-fallback"
+	// LabelLogReduction is the label for all tests in the PTP log reduction suite.
+	LabelLogReduction = "log-reduction"
 
 	// LeapConfigmapName is the name of the leap configmap.
 	LeapConfigmapName = "leap-configmap"
