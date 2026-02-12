@@ -30,15 +30,19 @@ type RANConfig struct {
 	*Spoke1Config
 	*Spoke2Config
 
-	MetricSamplingInterval string   `yaml:"metricSamplingInterval" envconfig:"ECO_CNF_RAN_METRIC_SAMPLING_INTERVAL"`
-	NoWorkloadDuration     string   `yaml:"noWorkloadDuration" envconfig:"ECO_CNF_RAN_NO_WORKLOAD_DURATION"`
-	WorkloadDuration       string   `yaml:"workloadDuration" envconfig:"ECO_CNF_RAN_WORKLOAD_DURATION"`
-	StressngTestImage      string   `yaml:"stressngTestImage" envconfig:"ECO_CNF_RAN_STRESSNG_TEST_IMAGE"`
-	CnfTestImage           string   `yaml:"cnfTestImage" envconfig:"ECO_CNF_RAN_TEST_IMAGE"`
-	OcpUpgradeUpstreamURL  string   `yaml:"ocpUpgradeUpstreamUrl" envconfig:"ECO_CNF_RAN_OCP_UPGRADE_UPSTREAM_URL"`
-	PtpOperatorNamespace   string   `yaml:"ptpOperatorNamespace" envconfig:"ECO_CNF_RAN_PTP_OPERATOR_NAMESPACE"`
-	TalmPreCachePolicies   []string `yaml:"talmPreCachePolicies" envconfig:"ECO_CNF_RAN_TALM_PRECACHE_POLICIES"`
-	ZtpSiteGenerateImage   string   `yaml:"ztpSiteGenerateImage" envconfig:"ECO_CNF_RAN_ZTP_SITE_GENERATE_IMAGE"`
+	MetricSamplingInterval string        `yaml:"metricSamplingInterval" envconfig:"ECO_CNF_RAN_METRIC_SAMPLING_INTERVAL"`
+	NoWorkloadDuration     time.Duration `yaml:"noWorkloadDuration" envconfig:"ECO_CNF_RAN_NO_WORKLOAD_DURATION"`
+	WorkloadDuration       time.Duration `yaml:"workloadDuration" envconfig:"ECO_CNF_RAN_WORKLOAD_DURATION"`
+	PtpStabilityDuration   time.Duration `yaml:"ptpStabilityDuration" envconfig:"ECO_CNF_RAN_PTP_STABILITY_DURATION"`
+	// PtpStabilityThreshold is the absolute offset threshold for PTP stability analysis. It is measured in
+	// nanoseconds.
+	PtpStabilityThreshold int64    `yaml:"ptpStabilityThreshold" envconfig:"ECO_CNF_RAN_PTP_STABILITY_THRESHOLD"`
+	StressngTestImage     string   `yaml:"stressngTestImage" envconfig:"ECO_CNF_RAN_STRESSNG_TEST_IMAGE"`
+	CnfTestImage          string   `yaml:"cnfTestImage" envconfig:"ECO_CNF_RAN_TEST_IMAGE"`
+	OcpUpgradeUpstreamURL string   `yaml:"ocpUpgradeUpstreamUrl" envconfig:"ECO_CNF_RAN_OCP_UPGRADE_UPSTREAM_URL"`
+	PtpOperatorNamespace  string   `yaml:"ptpOperatorNamespace" envconfig:"ECO_CNF_RAN_PTP_OPERATOR_NAMESPACE"`
+	TalmPreCachePolicies  []string `yaml:"talmPreCachePolicies" envconfig:"ECO_CNF_RAN_TALM_PRECACHE_POLICIES"`
+	ZtpSiteGenerateImage  string   `yaml:"ztpSiteGenerateImage" envconfig:"ECO_CNF_RAN_ZTP_SITE_GENERATE_IMAGE"`
 
 	// PtpEventConsumerImage is the URL of the PTP event consumer image. It should not have a tag, since the
 	// expectation is that the program uses v1 or v2 as a tag.

@@ -219,8 +219,8 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 		})
 
 		It("Checks power usage for 'noworkload' scenario", func() {
-			duration, err := time.ParseDuration(RANConfig.NoWorkloadDuration)
-			Expect(err).ToNot(HaveOccurred(), "Failed to parse no workload duration")
+			duration := RANConfig.NoWorkloadDuration
+			Expect(duration).To(BeNumerically(">", 0), "No workload duration must be positive")
 
 			compMap, err := collect.CollectPowerMetricsWithNoWorkload(duration, samplingInterval, powerState)
 			Expect(err).ToNot(HaveOccurred(), "Failed to collect power metrics with no workload")
@@ -232,8 +232,8 @@ var _ = Describe("Per-core runtime power states tuning", Label(tsparams.LabelPow
 		})
 
 		It("Checks power usage for 'steadyworkload' scenario", func() {
-			duration, err := time.ParseDuration(RANConfig.WorkloadDuration)
-			Expect(err).ToNot(HaveOccurred(), "Failed to parse steady workload duration")
+			duration := RANConfig.WorkloadDuration
+			Expect(duration).To(BeNumerically(">", 0), "Workload duration must be positive")
 
 			compMap, err := collect.CollectPowerMetricsWithSteadyWorkload(
 				duration, samplingInterval, powerState, perfProfile, nodeName)
