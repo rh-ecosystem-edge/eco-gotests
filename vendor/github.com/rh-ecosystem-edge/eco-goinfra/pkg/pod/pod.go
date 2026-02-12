@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"time"
@@ -28,6 +29,17 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
+)
+
+const (
+	// defaultDialTimeout is the maximum time to wait for a TCP connection to be established.
+	defaultDialTimeout = 30 * time.Second
+	// defaultTLSHandshakeTimeout is the maximum time to wait for TLS handshake completion.
+	defaultTLSHandshakeTimeout = 10 * time.Second
+	// defaultResponseHeaderTimeout is the maximum time to wait for server response headers.
+	defaultResponseHeaderTimeout = 30 * time.Second
+	// defaultIdleConnTimeout is the maximum time an idle connection can remain in the pool.
+	defaultIdleConnTimeout = 90 * time.Second
 )
 
 // Builder provides a struct for pod object from the cluster and a pod definition.
@@ -543,7 +555,12 @@ func (builder *Builder) ExecCommandWithTimeout(
 			TTY:       true,
 		}, scheme.ParameterCodec)
 
-	exec, err := builder.getExecutorFromRequest(req)
+	exec, err := builder.getExecutorFromRequestConfigurable(
+		req,
+		defaultDialTimeout,
+		defaultTLSHandshakeTimeout,
+		defaultResponseHeaderTimeout,
+	)
 	if err != nil {
 		return buffer, err
 	}
@@ -1286,6 +1303,88 @@ func (builder *Builder) getExecutorFromRequest(req *rest.Request) (remotecommand
 		TLS:        tlsConfig,
 		Proxier:    proxy,
 		PingPeriod: 0,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	wrapper, err := rest.HTTPWrappersForConfig(builder.apiClient.Config, upgradeRoundTripper)
+	if err != nil {
+		return nil, err
+	}
+
+	spdyExec, err := remotecommand.NewSPDYExecutorForTransports(wrapper, upgradeRoundTripper, "POST", req.URL())
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new SPDY executor: %w", err)
+	}
+
+	webSocketExec, err := remotecommand.NewWebSocketExecutor(builder.apiClient.Config, "GET", req.URL().String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new WebSocket executor: %w", err)
+	}
+
+	exec, err := remotecommand.NewFallbackExecutor(webSocketExec, spdyExec, func(err error) bool {
+		return httpstream.IsUpgradeFailure(err) || httpstream.IsHTTPSProxyError(err)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new fallback executor: %w", err)
+	}
+
+	return exec, nil
+}
+
+// getExecutorFromRequestConfigurable returns a new Executor using the builder's apiClient and the request,
+// with configurable timeout parameters for connection establishment, TLS handshake, and response headers.
+// It attempts to first use the websocket executor then falls back to using the SPDY executor with pings disabled.
+// This should maximize reliability by avoiding issues like kubernetes/kubernetes#60140 and kubernetes/kubernetes#124571.
+//
+// Parameters:
+//   - req: the REST request to execute
+//   - dialTimeout: maximum time to wait for TCP connection establishment
+//   - tlsTimeout: maximum time to wait for TLS handshake completion
+//   - responseTimeout: maximum time to wait for server response headers
+//
+//nolint:ireturn,nolintlint // remotecommand only returns interfaces, so we must too.
+func (builder *Builder) getExecutorFromRequestConfigurable(
+	req *rest.Request,
+	dialTimeout time.Duration,
+	tlsTimeout time.Duration,
+	responseTimeout time.Duration,
+) (remotecommand.Executor, error) {
+	tlsConfig, err := rest.TLSConfigFor(builder.apiClient.Config)
+	if err != nil {
+		return nil, err
+	}
+
+	proxy := http.ProxyFromEnvironment
+	if builder.apiClient.Config.Proxy != nil {
+		proxy = builder.apiClient.Config.Proxy
+	}
+
+	// Create HTTP transport with timeout configurations
+	// This ensures connection, TLS handshake, and response header timeouts are enforced
+	httpTransport := &http.Transport{
+		Proxy:                 proxy,
+		TLSClientConfig:       tlsConfig,
+		TLSHandshakeTimeout:   tlsTimeout,
+		ResponseHeaderTimeout: responseTimeout,
+		IdleConnTimeout:       defaultIdleConnTimeout,
+		ExpectContinueTimeout: 1 * time.Second,
+		DialContext: (&net.Dialer{
+			Timeout:   dialTimeout,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+	}
+
+	// More verbose setup of remotecommand executor required in order to tweak PingPeriod and configure timeouts.
+	// By default many large files are not copied in their entirety without disabling PingPeriod during the copy.
+	// https://github.com/kubernetes/kubernetes/issues/60140#issuecomment-1411477275
+	// The UpgradeTransport field allows us to inject our custom transport with timeout configurations.
+	// Note: UpgradeTransport is mutually exclusive with TLS and Proxier fields - the transport
+	// already contains TLS config and proxy settings, so we must not set them here.
+	upgradeRoundTripper, err := spdy.NewRoundTripperWithConfig(spdy.RoundTripperConfig{
+		PingPeriod:       0,
+		UpgradeTransport: httpTransport, // Custom transport with TLS, proxy, and timeout configs
 	})
 	if err != nil {
 		return nil, err
