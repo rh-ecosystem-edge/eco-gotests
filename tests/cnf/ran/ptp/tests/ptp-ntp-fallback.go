@@ -148,8 +148,7 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 				events.IsType(eventptp.OsClockSyncStateChange),
 				events.HasValue(events.WithSyncState(eventptp.LOCKED)),
 			)
-			err = events.WaitForEvent(
-				eventPod, gnssLossTime, 5*time.Minute, osClockLockedFilter, events.WithoutCurrentState(true))
+			err = events.WaitForEvent(eventPod, gnssLossTime, 5*time.Minute, osClockLockedFilter)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for os-clock-sync-state LOCKED event on node %s", nodeName)
 
 			By("verifying phc2sys process is not running")
@@ -170,8 +169,7 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 			Expect(err).ToNot(HaveOccurred(), "Failed to simulate GNSS sync recovery for node %s", nodeName)
 
 			By("waiting for os-clock-sync-state LOCKED event")
-			err = events.WaitForEvent(
-				eventPod, gnssRecoveryTime, 5*time.Minute, osClockLockedFilter, events.WithoutCurrentState(true))
+			err = events.WaitForEvent(eventPod, gnssRecoveryTime, 5*time.Minute, osClockLockedFilter)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for os-clock-sync-state LOCKED event on node %s", nodeName)
 
 			By("verifying phc2sys process is running")
@@ -271,8 +269,7 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 				events.IsType(eventptp.OsClockSyncStateChange),
 				events.HasValue(events.WithSyncState(eventptp.LOCKED)),
 			)
-			err = events.WaitForEvent(
-				eventPod, offsetSpikeTime, 5*time.Minute, osClockLockedFilter, events.WithoutCurrentState(true))
+			err = events.WaitForEvent(eventPod, offsetSpikeTime, 5*time.Minute, osClockLockedFilter)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for os-clock-sync-state LOCKED event on node %s", nodeName)
 
 			By("verifying phc2sys process is not running")
@@ -291,8 +288,7 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 			// ts2phc will automatically work on correcting the offset spike. Once corrected, the system
 			// will transition back to PTP sync and emit another os-clock-sync-state LOCKED event.
 			recoveryTime := time.Now()
-			err = events.WaitForEvent(
-				eventPod, recoveryTime, 5*time.Minute, osClockLockedFilter, events.WithoutCurrentState(true))
+			err = events.WaitForEvent(eventPod, recoveryTime, 5*time.Minute, osClockLockedFilter)
 			Expect(err).ToNot(HaveOccurred(),
 				"Failed to wait for os-clock-sync-state LOCKED event after recovery on node %s", nodeName)
 
@@ -379,8 +375,7 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 				events.IsType(eventptp.OsClockSyncStateChange),
 				events.HasValue(events.WithSyncState(eventptp.FREERUN)),
 			)
-			err = events.WaitForEvent(
-				eventPod, gnssLossTime, 5*time.Minute, osClockFreerunFilter, events.WithoutCurrentState(true))
+			err = events.WaitForEvent(eventPod, gnssLossTime, 5*time.Minute, osClockFreerunFilter)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for os-clock-sync-state FREERUN event on node %s", nodeName)
 
 			By("ensuring no os-clock-sync-state LOCKED event is received")
@@ -404,8 +399,7 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 			Expect(err).ToNot(HaveOccurred(), "Failed to simulate GNSS sync recovery for node %s", nodeName)
 
 			By("waiting for os-clock-sync-state LOCKED event")
-			err = events.WaitForEvent(
-				eventPod, gnssRecoveryTime, 5*time.Minute, osClockLockedFilter, events.WithoutCurrentState(true))
+			err = events.WaitForEvent(eventPod, gnssRecoveryTime, 5*time.Minute, osClockLockedFilter)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for os-clock-sync-state LOCKED event on node %s", nodeName)
 
 			By("restoring the original profile configuration")
@@ -500,8 +494,7 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 				events.IsType(eventptp.PtpStateChange),
 				events.HasValue(events.WithSyncState(eventptp.HOLDOVER)),
 			)
-			err = events.WaitForEvent(
-				eventPod, gnssLossTime, 5*time.Minute, holdoverFilter, events.WithoutCurrentState(true))
+			err = events.WaitForEvent(eventPod, gnssLossTime, 5*time.Minute, holdoverFilter)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for sync-state HOLDOVER event on node %s", nodeName)
 
 			By("ensuring system clock is within 1.5 ms for entire holdover period")
@@ -519,8 +512,7 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 				events.IsType(eventptp.OsClockSyncStateChange),
 				events.HasValue(events.WithSyncState(eventptp.LOCKED)),
 			)
-			err = events.WaitForEvent(
-				eventPod, gnssRecoveryTime, 5*time.Minute, osClockLockedFilter, events.WithoutCurrentState(true))
+			err = events.WaitForEvent(eventPod, gnssRecoveryTime, 5*time.Minute, osClockLockedFilter)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for os-clock-sync-state LOCKED event on node %s", nodeName)
 
 			By("restoring the ts2phc holdover")

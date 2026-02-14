@@ -139,6 +139,17 @@ func AssertQuery[V constraints.Integer](
 		option(opts)
 	}
 
+	metricQuery := query.ToMetricQuery()
+	klog.V(tsparams.LogLevel).Infof(
+		"Starting query assertion: query=%s expected=%d startTime=%s timeout=%s pollInterval=%s stableDuration=%s",
+		metricQuery.String(),
+		int64(expected),
+		opts.startTime,
+		opts.timeout,
+		opts.pollInterval,
+		opts.stableDuration,
+	)
+
 	// queryTime is the time at which each query is executed. It begins as the start time and will be incremented by
 	// the poll interval until the timeout is reached.
 	queryTime := opts.startTime
@@ -188,6 +199,16 @@ func AssertQuery[V constraints.Integer](
 			return fmt.Errorf("failed to assert query eventually: context finished: %w", ctx.Err())
 		}
 	}
+
+	klog.V(tsparams.LogLevel).Infof(
+		"Query assertion timed out: query=%s expected=%d startTime=%s timeout=%s pollInterval=%s stableDuration=%s",
+		metricQuery.String(),
+		int64(expected),
+		opts.startTime,
+		opts.timeout,
+		opts.pollInterval,
+		opts.stableDuration,
+	)
 
 	return fmt.Errorf("failed to assert query eventually: timeout of %s exceeded", opts.timeout)
 }
