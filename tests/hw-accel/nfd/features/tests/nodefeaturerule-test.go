@@ -418,7 +418,7 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 			Eventually(func() bool {
 				_, err := get.NodeFeatureRule(APIClient, "test-crud-lifecycle", nfdparams.NFDNamespace)
 				return err != nil
-			}).WithTimeout(1 * time.Minute).Should(BeTrue(), "Rule should be deleted")
+			}).WithTimeout(1*time.Minute).Should(BeTrue(), "Rule should be deleted")
 
 			By("Verifying labels are eventually removed")
 			Eventually(func() bool {
@@ -435,7 +435,7 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 					}
 				}
 				return true
-			}).WithTimeout(5 * time.Minute).Should(BeTrue(), "Labels should be removed after rule deletion")
+			}).WithTimeout(5*time.Minute).Should(BeTrue(), "Labels should be removed after rule deletion")
 
 			// Mark as nil so AfterEach doesn't try to delete again
 			testRule = nil

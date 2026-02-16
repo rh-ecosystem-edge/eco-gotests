@@ -71,7 +71,7 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 					}
 				}
 				return false
-			}).WithTimeout(5 * time.Minute).Should(BeTrue(), "Worker pod should be recreated and running")
+			}).WithTimeout(5*time.Minute).Should(BeTrue(), "Worker pod should be recreated and running")
 
 			By("Verifying labels still exist after pod restart")
 			Eventually(func() bool {
@@ -88,7 +88,7 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 
 				// Check that we still have a significant number of labels
 				return len(nodeLabels) >= len(sampleLabels)/2
-			}).WithTimeout(5 * time.Minute).Should(BeTrue(), "Labels should persist after worker pod restart")
+			}).WithTimeout(5*time.Minute).Should(BeTrue(), "Labels should persist after worker pod restart")
 
 			By("Verifying specific labels are unchanged")
 			finalLabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
@@ -191,7 +191,7 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 					}
 				}
 				return false
-			}).WithTimeout(5 * time.Minute).Should(BeTrue(), "Master pod should be recreated and running")
+			}).WithTimeout(5*time.Minute).Should(BeTrue(), "Master pod should be recreated and running")
 
 			By("Verifying rule processing continues after master restart")
 			Eventually(func() bool {
@@ -208,7 +208,7 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 					}
 				}
 				return false
-			}).WithTimeout(5 * time.Minute).Should(BeTrue(), "Labels should still be present after master restart")
+			}).WithTimeout(5*time.Minute).Should(BeTrue(), "Labels should still be present after master restart")
 		})
 
 		It("GC cleanup - stale NodeFeature objects removed", reportxml.ID("70022"), func() {
@@ -220,7 +220,6 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 
 			ctx := context.Background()
 			_ = ctx // Prevent unused variable error
-
 
 			By("Creating a test rule that will be deleted")
 			ruleYAML := `[
@@ -283,7 +282,7 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 					}
 				}
 				return true
-			}).WithTimeout(5 * time.Minute).Should(BeTrue(), "Labels should be garbage collected")
+			}).WithTimeout(5*time.Minute).Should(BeTrue(), "Labels should be garbage collected")
 
 			klog.V(nfdparams.LogLevel).Info("GC cleanup verified successfully")
 		})
