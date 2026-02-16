@@ -27,7 +27,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 			// This rule creates both labels and extended resources
 			ruleYAML := `[
 {
-    "apiVersion": "nfd.k8s-sigs.io/v1alpha1",
+    "apiVersion": "nfd.openshift.io/v1alpha1",
     "kind": "NodeFeatureRule",
     "metadata": {
         "name": "test-extended-resources",
@@ -134,7 +134,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 			// This rule adds taints to nodes based on features
 			ruleYAML := `[
 {
-    "apiVersion": "nfd.k8s-sigs.io/v1alpha1",
+    "apiVersion": "nfd.openshift.io/v1alpha1",
     "kind": "NodeFeatureRule",
     "metadata": {
         "name": "test-node-taints",

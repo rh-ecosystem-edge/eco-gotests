@@ -36,7 +36,7 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 			// This rule tests various operators: In, Exists, Gt, Lt, IsTrue
 			ruleYAML := `[
 {
-    "apiVersion": "nfd.k8s-sigs.io/v1alpha1",
+    "apiVersion": "nfd.openshift.io/v1alpha1",
     "kind": "NodeFeatureRule",
     "metadata": {
         "name": "test-match-expressions",
@@ -119,7 +119,7 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 			// Using CPU model which is more universally available than kernel version attributes
 			ruleYAML := `[
 {
-    "apiVersion": "nfd.k8s-sigs.io/v1alpha1",
+    "apiVersion": "nfd.openshift.io/v1alpha1",
     "kind": "NodeFeatureRule",
     "metadata": {
         "name": "test-labels-template",
@@ -188,7 +188,7 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 			// This rule uses matchAny to match if ANY condition is true (OR logic)
 			ruleYAML := `[
 {
-    "apiVersion": "nfd.k8s-sigs.io/v1alpha1",
+    "apiVersion": "nfd.openshift.io/v1alpha1",
     "kind": "NodeFeatureRule",
     "metadata": {
         "name": "test-match-any",
@@ -267,7 +267,7 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 			// This rule uses backreferences to refer to matches from previous rules
 			ruleYAML := `[
 {
-    "apiVersion": "nfd.k8s-sigs.io/v1alpha1",
+    "apiVersion": "nfd.openshift.io/v1alpha1",
     "kind": "NodeFeatureRule",
     "metadata": {
         "name": "test-backreferences",
@@ -354,7 +354,7 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 
 			ruleYAML := `[
 {
-    "apiVersion": "nfd.k8s-sigs.io/v1alpha1",
+    "apiVersion": "nfd.openshift.io/v1alpha1",
     "kind": "NodeFeatureRule",
     "metadata": {
         "name": "test-crud-lifecycle",

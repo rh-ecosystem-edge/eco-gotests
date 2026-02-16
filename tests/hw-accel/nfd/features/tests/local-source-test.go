@@ -45,7 +45,7 @@ var _ = Describe("NFD Local Source", Label("local-source"), func() {
 			// This rule reads from the local source and creates labels
 			ruleYAML := `[
 {
-    "apiVersion": "nfd.k8s-sigs.io/v1alpha1",
+    "apiVersion": "nfd.openshift.io/v1alpha1",
     "kind": "NodeFeatureRule",
     "metadata": {
         "name": "test-local-source",
@@ -130,7 +130,7 @@ var _ = Describe("NFD Local Source", Label("local-source"), func() {
 
 			ruleYAML := `[
 {
-    "apiVersion": "nfd.k8s-sigs.io/v1alpha1",
+    "apiVersion": "nfd.openshift.io/v1alpha1",
     "kind": "NodeFeatureRule",
     "metadata": {
         "name": "test-hostpath-source",

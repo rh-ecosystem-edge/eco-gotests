@@ -24,8 +24,8 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 
 			// PCI device discovery rule - detects all PCI devices
 			pciRuleYAML := `
-{
-    "apiVersion": "nfd.k8s-sigs.io/v1alpha1",
+[{
+    "apiVersion": "nfd.openshift.io/v1alpha1",
     "kind": "NodeFeatureRule",
     "metadata": {
         "name": "test-pci-discovery",
@@ -99,8 +99,8 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 			By("Creating NodeFeatureRule for USB device discovery")
 
 			usbRuleYAML := `
-{
-    "apiVersion": "nfd.k8s-sigs.io/v1alpha1",
+[{
+    "apiVersion": "nfd.openshift.io/v1alpha1",
     "kind": "NodeFeatureRule",
     "metadata": {
         "name": "test-usb-discovery",
@@ -158,8 +158,8 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 			By("Creating NodeFeatureRule for SR-IOV detection")
 
 			sriovRuleYAML := `
-{
-    "apiVersion": "nfd.k8s-sigs.io/v1alpha1",
+[{
+    "apiVersion": "nfd.openshift.io/v1alpha1",
     "kind": "NodeFeatureRule",
     "metadata": {
         "name": "test-sriov-discovery",
@@ -222,8 +222,8 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 			By("Creating NodeFeatureRule for storage device detection")
 
 			storageRuleYAML := `
-{
-    "apiVersion": "nfd.k8s-sigs.io/v1alpha1",
+[{
+    "apiVersion": "nfd.openshift.io/v1alpha1",
     "kind": "NodeFeatureRule",
     "metadata": {
         "name": "test-storage-discovery",
@@ -286,8 +286,8 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 			By("Creating NodeFeatureRule for network device detection")
 
 			networkRuleYAML := `
-{
-    "apiVersion": "nfd.k8s-sigs.io/v1alpha1",
+[{
+    "apiVersion": "nfd.openshift.io/v1alpha1",
     "kind": "NodeFeatureRule",
     "metadata": {
         "name": "test-network-discovery",
@@ -337,8 +337,8 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 			By("Creating NodeFeatureRule for NVDIMM detection")
 
 			nvdimmRuleYAML := `
-{
-    "apiVersion": "nfd.k8s-sigs.io/v1alpha1",
+[{
+    "apiVersion": "nfd.openshift.io/v1alpha1",
     "kind": "NodeFeatureRule",
     "metadata": {
         "name": "test-nvdimm-discovery",
@@ -405,8 +405,8 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 			By("Creating NodeFeatureRule for system feature detection")
 
 			systemRuleYAML := `
-{
-    "apiVersion": "nfd.k8s-sigs.io/v1alpha1",
+[{
+    "apiVersion": "nfd.openshift.io/v1alpha1",
     "kind": "NodeFeatureRule",
     "metadata": {
         "name": "test-system-discovery",
