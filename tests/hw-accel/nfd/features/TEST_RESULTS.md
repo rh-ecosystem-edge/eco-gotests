@@ -162,6 +162,31 @@ ruleYAML := `[{
 
 **Impact:** Tests now run independently; one failure doesn't cascade to others
 
+### Bug #3: Wrong API Version (FIXED)
+**Issue:** Used `nfd.k8s-sigs.io/v1alpha1` instead of `nfd.openshift.io/v1alpha1` for NodeFeatureRule apiVersion
+
+**Root Cause:** eco-goinfra vendor code (pkg/schemes/nfd/v1alpha1/groupversion_info.go) defines the API group as `nfd.openshift.io` not `nfd.k8s-sigs.io`
+
+**Fix:** Updated all 18 instances across 5 test files to use correct apiVersion
+```go
+// Before (INCORRECT)
+"apiVersion": "nfd.k8s-sigs.io/v1alpha1"
+
+// After (CORRECT)
+"apiVersion": "nfd.openshift.io/v1alpha1"
+```
+
+**Files Modified:**
+- `nodefeaturerule-test.go` (5 instances)
+- `device-discovery-test.go` (7 instances)
+- `resilience-test.go` (2 instances)
+- `local-source-test.go` (2 instances)
+- `extended-resources-test.go` (2 instances)
+
+**Verification:** Matches existing AMD GPU implementation pattern in `tests/hw-accel/amdgpu/internal/amdgpunfd/nfd.go`
+
+**Impact:** Critical fix - tests will now create valid NodeFeatureRule CRDs that NFD can process
+
 ---
 
 ## Commits
@@ -199,6 +224,27 @@ Fix: Remove Ordered constraint and improve labelsTemplate test
 - Improve test 70002 to use simpler CPU model features
 - Add graceful skip logic if labelsTemplate doesn't work
 - Reduce labelsTemplate timeout from 5 to 3 minutes
+```
+
+### Commit 4: Test Results Documentation
+```
+Add comprehensive test results and implementation report
+
+Created TEST_RESULTS.md documenting:
+- Implementation status (20 new tests complete)
+- Test execution results (1 passed, 1 improved)
+- Critical bug fixes
+- Next steps and recommendations
+```
+
+### Commit 5: API Version Fix ⭐ CRITICAL
+```
+Fix: Use correct apiVersion nfd.openshift.io/v1alpha1
+
+Changed all NodeFeatureRule apiVersion from nfd.k8s-sigs.io/v1alpha1
+to nfd.openshift.io/v1alpha1 (18 instances across 5 files)
+
+Matches eco-goinfra vendor code expectations and AMD GPU pattern.
 ```
 
 ---
