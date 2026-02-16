@@ -18,7 +18,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-var _ = Describe("NFD Extended Resources and Taints", Ordered, Label("extended-resources"), func() {
+var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"), func() {
 	Context("Advanced NFD Features", func() {
 
 		It("Extended resources from NodeFeatureRule", reportxml.ID("70040"), func() {

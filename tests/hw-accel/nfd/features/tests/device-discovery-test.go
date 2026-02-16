@@ -16,7 +16,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-var _ = Describe("NFD Device Discovery", Ordered, Label("device-discovery"), func() {
+var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 	Context("Hardware Device Detection", func() {
 
 		It("Discovers PCI devices", reportxml.ID("70010"), func() {

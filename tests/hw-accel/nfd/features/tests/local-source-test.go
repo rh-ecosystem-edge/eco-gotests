@@ -16,7 +16,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-var _ = Describe("NFD Local Source", Ordered, Label("local-source"), func() {
+var _ = Describe("NFD Local Source", Label("local-source"), func() {
 	Context("User-Defined Features", func() {
 
 		AfterEach(func() {

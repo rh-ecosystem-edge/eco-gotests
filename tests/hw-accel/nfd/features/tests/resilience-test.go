@@ -20,7 +20,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-var _ = Describe("NFD Resilience", Ordered, Label("resilience"), func() {
+var _ = Describe("NFD Resilience", Label("resilience"), func() {
 	Context("Pod Failure Recovery", func() {
 
 		It("Worker pod restart - labels persist", reportxml.ID("70020"), func() {
