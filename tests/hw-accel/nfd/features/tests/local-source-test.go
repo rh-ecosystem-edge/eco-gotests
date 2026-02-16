@@ -43,7 +43,7 @@ var _ = Describe("NFD Local Source", Ordered, Label("local-source"), func() {
 			By("Creating NodeFeatureRule to expose local features")
 
 			// This rule reads from the local source and creates labels
-			ruleYAML := `
+			ruleYAML := `[
 {
     "apiVersion": "nfd.k8s-sigs.io/v1alpha1",
     "kind": "NodeFeatureRule",
@@ -73,7 +73,7 @@ var _ = Describe("NFD Local Source", Ordered, Label("local-source"), func() {
             }
         ]
     }
-}
+}]
 `
 
 			testRule, err := nfdset.CreateNodeFeatureRuleFromJSON(APIClient, ruleYAML)
@@ -128,7 +128,7 @@ var _ = Describe("NFD Local Source", Ordered, Label("local-source"), func() {
 			// This test verifies that NFD can read features from hostPath
 			// In practice, this requires mounting a hostPath volume with feature files
 
-			ruleYAML := `
+			ruleYAML := `[
 {
     "apiVersion": "nfd.k8s-sigs.io/v1alpha1",
     "kind": "NodeFeatureRule",
@@ -156,7 +156,7 @@ var _ = Describe("NFD Local Source", Ordered, Label("local-source"), func() {
             }
         ]
     }
-}
+}]
 `
 
 			testRule, err := nfdset.CreateNodeFeatureRuleFromJSON(APIClient, ruleYAML)

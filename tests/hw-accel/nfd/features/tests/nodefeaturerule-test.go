@@ -34,7 +34,7 @@ var _ = Describe("NFD NodeFeatureRule", Ordered, Label("custom-rules"), func() {
 			By("Creating NodeFeatureRule with various matchExpression operators")
 
 			// This rule tests various operators: In, Exists, Gt, Lt, IsTrue
-			ruleYAML := `
+			ruleYAML := `[
 {
     "apiVersion": "nfd.k8s-sigs.io/v1alpha1",
     "kind": "NodeFeatureRule",
@@ -79,7 +79,7 @@ var _ = Describe("NFD NodeFeatureRule", Ordered, Label("custom-rules"), func() {
             }
         ]
     }
-}
+}]
 `
 
 			var err error
@@ -116,7 +116,7 @@ var _ = Describe("NFD NodeFeatureRule", Ordered, Label("custom-rules"), func() {
 			By("Creating NodeFeatureRule with labelsTemplate")
 
 			// This rule uses template to create dynamic labels from feature values
-			ruleYAML := `
+			ruleYAML := `[
 {
     "apiVersion": "nfd.k8s-sigs.io/v1alpha1",
     "kind": "NodeFeatureRule",
@@ -142,7 +142,7 @@ var _ = Describe("NFD NodeFeatureRule", Ordered, Label("custom-rules"), func() {
             }
         ]
     }
-}
+}]
 `
 
 			var err error
@@ -180,7 +180,7 @@ var _ = Describe("NFD NodeFeatureRule", Ordered, Label("custom-rules"), func() {
 			By("Creating NodeFeatureRule with matchAny for OR logic")
 
 			// This rule uses matchAny to match if ANY condition is true (OR logic)
-			ruleYAML := `
+			ruleYAML := `[
 {
     "apiVersion": "nfd.k8s-sigs.io/v1alpha1",
     "kind": "NodeFeatureRule",
@@ -224,7 +224,7 @@ var _ = Describe("NFD NodeFeatureRule", Ordered, Label("custom-rules"), func() {
             }
         ]
     }
-}
+}]
 `
 
 			var err error
@@ -259,7 +259,7 @@ var _ = Describe("NFD NodeFeatureRule", Ordered, Label("custom-rules"), func() {
 			By("Creating NodeFeatureRule with backreferences")
 
 			// This rule uses backreferences to refer to matches from previous rules
-			ruleYAML := `
+			ruleYAML := `[
 {
     "apiVersion": "nfd.k8s-sigs.io/v1alpha1",
     "kind": "NodeFeatureRule",
@@ -303,7 +303,7 @@ var _ = Describe("NFD NodeFeatureRule", Ordered, Label("custom-rules"), func() {
             }
         ]
     }
-}
+}]
 `
 
 			var err error
@@ -346,7 +346,7 @@ var _ = Describe("NFD NodeFeatureRule", Ordered, Label("custom-rules"), func() {
 		It("Validates CRUD lifecycle", reportxml.ID("70005"), func() {
 			By("Creating a NodeFeatureRule")
 
-			ruleYAML := `
+			ruleYAML := `[
 {
     "apiVersion": "nfd.k8s-sigs.io/v1alpha1",
     "kind": "NodeFeatureRule",
@@ -374,7 +374,7 @@ var _ = Describe("NFD NodeFeatureRule", Ordered, Label("custom-rules"), func() {
             }
         ]
     }
-}
+}]
 `
 
 			var err error

@@ -51,7 +51,7 @@ var _ = Describe("NFD Device Discovery", Ordered, Label("device-discovery"), fun
             }
         ]
     }
-}
+}]
 `
 
 			testRule, err := nfdset.CreateNodeFeatureRuleFromJSON(APIClient, pciRuleYAML)
@@ -126,7 +126,7 @@ var _ = Describe("NFD Device Discovery", Ordered, Label("device-discovery"), fun
             }
         ]
     }
-}
+}]
 `
 
 			testRule, err := nfdset.CreateNodeFeatureRuleFromJSON(APIClient, usbRuleYAML)
@@ -185,7 +185,7 @@ var _ = Describe("NFD Device Discovery", Ordered, Label("device-discovery"), fun
             }
         ]
     }
-}
+}]
 `
 
 			testRule, err := nfdset.CreateNodeFeatureRuleFromJSON(APIClient, sriovRuleYAML)
@@ -250,7 +250,7 @@ var _ = Describe("NFD Device Discovery", Ordered, Label("device-discovery"), fun
             }
         ]
     }
-}
+}]
 `
 
 			testRule, err := nfdset.CreateNodeFeatureRuleFromJSON(APIClient, storageRuleYAML)
@@ -313,7 +313,7 @@ var _ = Describe("NFD Device Discovery", Ordered, Label("device-discovery"), fun
             }
         ]
     }
-}
+}]
 `
 
 			testRule, err := nfdset.CreateNodeFeatureRuleFromJSON(APIClient, networkRuleYAML)
@@ -364,7 +364,7 @@ var _ = Describe("NFD Device Discovery", Ordered, Label("device-discovery"), fun
             }
         ]
     }
-}
+}]
 `
 
 			testRule, err := nfdset.CreateNodeFeatureRuleFromJSON(APIClient, nvdimmRuleYAML)
@@ -448,7 +448,7 @@ var _ = Describe("NFD Device Discovery", Ordered, Label("device-discovery"), fun
             }
         ]
     }
-}
+}]
 `
 
 			testRule, err := nfdset.CreateNodeFeatureRuleFromJSON(APIClient, systemRuleYAML)

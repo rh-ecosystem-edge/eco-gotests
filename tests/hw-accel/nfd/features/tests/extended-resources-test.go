@@ -25,7 +25,7 @@ var _ = Describe("NFD Extended Resources and Taints", Ordered, Label("extended-r
 			By("Creating NodeFeatureRule with extended resources")
 
 			// This rule creates both labels and extended resources
-			ruleYAML := `
+			ruleYAML := `[
 {
     "apiVersion": "nfd.k8s-sigs.io/v1alpha1",
     "kind": "NodeFeatureRule",
@@ -56,7 +56,7 @@ var _ = Describe("NFD Extended Resources and Taints", Ordered, Label("extended-r
             }
         ]
     }
-}
+}]
 `
 
 			testRule, err := nfdset.CreateNodeFeatureRuleFromJSON(APIClient, ruleYAML)
@@ -132,7 +132,7 @@ var _ = Describe("NFD Extended Resources and Taints", Ordered, Label("extended-r
 			By("Creating NodeFeatureRule with taints")
 
 			// This rule adds taints to nodes based on features
-			ruleYAML := `
+			ruleYAML := `[
 {
     "apiVersion": "nfd.k8s-sigs.io/v1alpha1",
     "kind": "NodeFeatureRule",
@@ -167,7 +167,7 @@ var _ = Describe("NFD Extended Resources and Taints", Ordered, Label("extended-r
             }
         ]
     }
-}
+}]
 `
 
 			testRule, err := nfdset.CreateNodeFeatureRuleFromJSON(APIClient, ruleYAML)

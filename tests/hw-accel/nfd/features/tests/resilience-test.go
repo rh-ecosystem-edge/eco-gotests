@@ -115,7 +115,7 @@ var _ = Describe("NFD Resilience", Ordered, Label("resilience"), func() {
 
 		It("Master pod restart - rule processing continues", reportxml.ID("70021"), func() {
 			By("Creating a test NodeFeatureRule")
-			ruleYAML := `
+			ruleYAML := `[
 {
     "apiVersion": "nfd.k8s-sigs.io/v1alpha1",
     "kind": "NodeFeatureRule",
@@ -143,7 +143,7 @@ var _ = Describe("NFD Resilience", Ordered, Label("resilience"), func() {
             }
         ]
     }
-}
+}]
 `
 
 			testRule, err := nfdset.CreateNodeFeatureRuleFromJSON(APIClient, ruleYAML)
@@ -223,7 +223,7 @@ var _ = Describe("NFD Resilience", Ordered, Label("resilience"), func() {
 
 
 			By("Creating a test rule that will be deleted")
-			ruleYAML := `
+			ruleYAML := `[
 {
     "apiVersion": "nfd.k8s-sigs.io/v1alpha1",
     "kind": "NodeFeatureRule",
@@ -251,7 +251,7 @@ var _ = Describe("NFD Resilience", Ordered, Label("resilience"), func() {
             }
         ]
     }
-}
+}]
 `
 
 			testRule, err := nfdset.CreateNodeFeatureRuleFromJSON(APIClient, ruleYAML)
