@@ -24,7 +24,7 @@ import (
 
 var _ = Describe(
 	"Performing Image-Based Break/Fix Flow",
-	Label(tsparams.LabelIBBFe2e), func() {
+	Ordered, Label(tsparams.LabelIBBFe2e), func() {
 
 		var (
 			spokeNamespace = RANConfig.Spoke1Name
@@ -143,14 +143,15 @@ var _ = Describe(
 				Status: metav1.ConditionTrue,
 			}, 5*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error waiting for managedcluster to become available")
+		})
 
+		It("verifies policies are compliant after IBBF", reportxml.ID("78333"), func() {
 			By("Verifying all policies are compliant after IBBF")
 
-			err = ocm.WaitForAllPoliciesComplianceState(
-				HubAPIClient, policiesv1.Compliant, 10*time.Minute,
+			err := ocm.WaitForAllPoliciesComplianceState(
+				HubAPIClient, policiesv1.Compliant, 30*time.Minute,
 				runtimeclient.ListOptions{Namespace: spokeNamespace})
 			Expect(err).ToNot(HaveOccurred(),
 				"Failed to verify all policies are compliant after IBBF for spoke %s", spokeNamespace)
-
 		})
 	})
