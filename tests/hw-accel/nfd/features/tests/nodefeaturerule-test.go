@@ -317,12 +317,30 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 			Expect(err).NotTo(HaveOccurred(), "Failed to create NodeFeatureRule")
 			Expect(testRule).NotTo(BeNil())
 
-			By("Waiting for backreference labels to be applied")
+			By("Waiting for first rule labels to be applied")
 			err = nfdwait.WaitForLabelsFromRule(APIClient,
-				[]string{"test.feature.node.kubernetes.io/first-rule",
-					"test.feature.node.kubernetes.io/second-rule"},
-				5*time.Minute)
-			Expect(err).NotTo(HaveOccurred(), "Backreference labels were not applied within timeout")
+				[]string{"test.feature.node.kubernetes.io/first-rule"},
+				3*time.Minute)
+			Expect(err).NotTo(HaveOccurred(), "First rule labels were not applied within timeout")
+
+			By("Waiting for second rule (backreference) labels to be applied")
+			// Backreferences need extra time as they depend on first rule being processed
+			Eventually(func() bool {
+				nodelabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
+				if err != nil {
+					return false
+				}
+				for nodeName := range nodelabels {
+					if helpers.CheckLabelsExist(nodelabels,
+						[]string{"test.feature.node.kubernetes.io/second-rule"},
+						nil, nodeName) == nil {
+						klog.V(nfdparams.LogLevel).Infof("Backreference label found on node %s", nodeName)
+						return true
+					}
+				}
+				return false
+			}).WithTimeout(5*time.Minute).WithPolling(10*time.Second).Should(BeTrue(),
+				"Second rule (with backreference) labels not found - backreferences may not be supported in this NFD version")
 
 			By("Verifying both rules were processed")
 			nodelabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)

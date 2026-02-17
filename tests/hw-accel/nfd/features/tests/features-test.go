@@ -36,15 +36,19 @@ var _ = Describe("NFD", Ordered, func() {
 		BeforeAll(func() {
 			By("Verifying NFD is ready (installed by suite)")
 			By("Check that pods are in running state")
-			res, err := wait.ForPodsRunning(APIClient, 5*time.Minute, hwaccelparams.NFDNamespace)
+			res, err := wait.ForPodsRunning(APIClient, 3*time.Minute, hwaccelparams.NFDNamespace)
 			Expect(err).ShouldNot(HaveOccurred(), "NFD pods should be running")
 			Expect(res).To(BeTrue(), "NFD pods should be running")
 
 			By("Waiting for feature labels to appear")
-			labelExist, labelsError := wait.CheckLabel(APIClient, 5*time.Minute, "feature")
-			if !labelExist || labelsError != nil {
-				klog.Warningf("feature labels not found yet, error=%v", labelsError)
-			}
+			Eventually(func() bool {
+				labelExist, labelsError := wait.CheckLabel(APIClient, 1*time.Minute, "feature")
+				if labelsError != nil {
+					klog.V(ts.LogLevel).Infof("Checking for labels, error: %v", labelsError)
+				}
+				return labelExist
+			}).WithTimeout(5*time.Minute).WithPolling(10*time.Second).Should(BeTrue(),
+				"Feature labels should be present after NFD is running")
 		})
 
 		It("Check pods state", reportxml.ID("54548"), func() {
