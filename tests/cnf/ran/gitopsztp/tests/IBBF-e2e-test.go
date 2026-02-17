@@ -145,7 +145,7 @@ var _ = Describe(
 			Expect(err).ToNot(HaveOccurred(), "error waiting for managedcluster to become available")
 		})
 
-		It("verifies policies are compliant after IBBF", reportxml.ID("78333"), func() {
+		It("verifies policies are compliant after IBBF", reportxml.ID("87996"), func() {
 			By("Verifying all policies are compliant after IBBF")
 
 			err := ocm.WaitForAllPoliciesComplianceState(
