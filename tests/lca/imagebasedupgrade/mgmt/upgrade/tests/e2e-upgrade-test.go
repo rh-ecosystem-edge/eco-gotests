@@ -631,18 +631,16 @@ var _ = Describe(
 
 			By("Validate the proper NTP servers are listed in the config", func() {
 				execCmd := "cat /etc/chrony.conf"
-				cmdOutput, err := cluster.ExecCmdWithStdoutWithRetries(APIClient, 5, 30*time.Second, execCmd)
+				cmdOutput, err := cluster.ExecCommandOnSNOWithRetries(APIClient, 6, 50*time.Second, execCmd)
 				Expect(err).ToNot(HaveOccurred(), "could not execute command: %s", err)
 
-				for _, stdout := range cmdOutput {
-					for _, ntpSource := range strings.Split(MGMTConfig.AdditionalNTPSources, ",") {
+				for _, ntpSource := range strings.Split(MGMTConfig.AdditionalNTPSources, ",") {
 
-						Expect(strings.ReplaceAll(stdout, "\n", "")).To(ContainSubstring("server %s",
-							ntpSource),
-							"error: the expected NTP source %s wasn't found", ntpSource)
-					}
-
+					Expect(strings.ReplaceAll(cmdOutput, "\n", "")).To(ContainSubstring("server %s",
+						ntpSource),
+						"error: the expected NTP source %s wasn't found", ntpSource)
 				}
+
 			})
 		})
 
