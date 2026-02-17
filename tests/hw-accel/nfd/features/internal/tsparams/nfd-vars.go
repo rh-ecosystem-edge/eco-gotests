@@ -1,6 +1,7 @@
 package tsparams
 
 import (
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/internal/deploy"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/internal/hwaccelparams"
 
 	"github.com/openshift-kni/k8sreporter"
@@ -82,4 +83,8 @@ var (
 
 	// InstanceType AWS machine type.
 	InstanceType = "m6a.large"
+
+	// SharedNFDCRUtils is the suite-level NFD CR utils instance
+	// Set by suite BeforeSuite, used by tests that need CR management
+	SharedNFDCRUtils *deploy.NFDCRUtils
 )

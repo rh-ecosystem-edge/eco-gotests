@@ -21,10 +21,8 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/internal/get"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/internal/nfdconfig"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/internal/nfddelete"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/internal/nfdhelpers"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/internal/set"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/internal/wait"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/nfdparams"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 	"k8s.io/client-go/util/retry"
 )
@@ -32,56 +30,20 @@ import (
 var _ = Describe("NFD", Ordered, func() {
 	nfdConfig := nfdconfig.NewNfdConfig()
 
-	var nfdInstaller *deploy.OperatorInstaller
-
-	var nfdCRUtils *deploy.NFDCRUtils
-
-	BeforeAll(func() {
-		var options *nfdhelpers.NFDInstallConfigOptions
-
-		if nfdConfig.CatalogSource != "" {
-			options = &nfdhelpers.NFDInstallConfigOptions{
-				CatalogSource: nfdhelpers.StringPtr(nfdConfig.CatalogSource),
-			}
-		}
-
-		installConfig := nfdhelpers.GetDefaultNFDInstallConfig(APIClient, options)
-
-		nfdInstaller = deploy.NewOperatorInstaller(installConfig)
-
-		nfdCRUtils = deploy.NewNFDCRUtils(APIClient, installConfig.Namespace, nfdparams.NfdInstance)
-
-	})
-
 	Context("Node featues", Label("discovery-of-labels"), func() {
 		var cpuFlags map[string][]string
 
-		AfterAll(func() {
-
-			err := nfdCRUtils.DeleteNFDCR()
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Undeploy NFD instance")
-			uninstallConfig := nfdhelpers.GetDefaultNFDUninstallConfig(
-				APIClient,
-				"nfd-operator-group",
-				"nfd-subscription")
-			nfdUninstaller := deploy.NewOperatorUninstaller(uninstallConfig)
-			err = nfdUninstaller.Uninstall()
-			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("error in Undeploy NFD %s", err))
-		})
-
 		BeforeAll(func() {
-			By("Clear labels")
-			err := nfddelete.NfdLabelsByKeys(APIClient, "nfd.node.kubernetes.io", "feature.node.kubernetes.io")
-			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("error in cleaning labels\n %s", err))
+			By("Verifying NFD is ready (installed by suite)")
+			By("Check that pods are in running state")
+			res, err := wait.ForPodsRunning(APIClient, 5*time.Minute, hwaccelparams.NFDNamespace)
+			Expect(err).ShouldNot(HaveOccurred(), "NFD pods should be running")
+			Expect(res).To(BeTrue(), "NFD pods should be running")
 
-			By("Creating nfd")
-			runNodeDiscoveryAndTestLabelExistence(nfdInstaller, nfdCRUtils, nfdConfig, true)
-
-			labelExist, labelsError := wait.CheckLabel(APIClient, 15*time.Minute, "feature")
+			By("Waiting for feature labels to appear")
+			labelExist, labelsError := wait.CheckLabel(APIClient, 5*time.Minute, "feature")
 			if !labelExist || labelsError != nil {
-				klog.Errorf("feature labels was not found in the given time error=%v", labelsError)
+				klog.Warningf("feature labels not found yet, error=%v", labelsError)
 			}
 		})
 
@@ -200,7 +162,7 @@ var _ = Describe("NFD", Ordered, func() {
 			skipIfConfigNotSet(nfdConfig)
 			By("delete old instance")
 
-			err := nfdCRUtils.DeleteNFDCR()
+			err := ts.SharedNFDCRUtils.DeleteNFDCR()
 			Expect(err).NotTo(HaveOccurred())
 
 			err = nfddelete.NfdLabelsByKeys(APIClient, "nfd.node.kubernetes.io", "feature.node.kubernetes.io")
@@ -219,7 +181,7 @@ var _ = Describe("NFD", Ordered, func() {
 				klog.Errorf("feature labels was not found in the given time error=%v", labelsError)
 			}
 
-			err = nfdCRUtils.PrintCr()
+			err = ts.SharedNFDCRUtils.PrintCr()
 			if err != nil {
 				klog.Errorf("error in printing NFD CR: %v", err)
 			}
@@ -243,7 +205,7 @@ var _ = Describe("NFD", Ordered, func() {
 			}
 			By("delete old instance")
 
-			err := nfdCRUtils.DeleteNFDCR()
+			err := ts.SharedNFDCRUtils.DeleteNFDCR()
 			Expect(err).NotTo(HaveOccurred())
 
 			err = nfddelete.NfdLabelsByKeys(APIClient, "nfd.node.kubernetes.io", "feature.node.kubernetes.io")
@@ -262,7 +224,7 @@ var _ = Describe("NFD", Ordered, func() {
 				klog.Errorf("feature labels was not found in the given time error=%v", labelsError)
 			}
 
-			err = nfdCRUtils.PrintCr()
+			err = ts.SharedNFDCRUtils.PrintCr()
 			if err != nil {
 				klog.Errorf("error in printing NFD CR: %v", err)
 			}
