@@ -262,6 +262,14 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 		})
 
 		It("Validates backreferences from previous rules", reportxml.ID("54493"), func() {
+			By("Checking NFD configuration for backreference support")
+			supported, skipReason, err := helpers.CheckNFDFeatureSupport(APIClient, nfdparams.NFDNamespace, "backreferences")
+			Expect(err).NotTo(HaveOccurred())
+
+			if !supported {
+				Skip(skipReason)
+			}
+
 			By("Creating NodeFeatureRule with backreferences")
 
 			// This rule uses backreferences to refer to matches from previous rules

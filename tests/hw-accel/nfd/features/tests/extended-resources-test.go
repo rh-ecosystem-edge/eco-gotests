@@ -128,6 +128,14 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 		})
 
 		It("Node tainting based on features", func() {
+			By("Checking NFD configuration for tainting support")
+			supported, skipReason, err := helpers.CheckNFDFeatureSupport(APIClient, nfdparams.NFDNamespace, "taints")
+			Expect(err).NotTo(HaveOccurred())
+
+			if !supported {
+				Skip(skipReason)
+			}
+
 			By("Creating NodeFeatureRule with taints")
 
 			// This rule adds taints to nodes based on features
