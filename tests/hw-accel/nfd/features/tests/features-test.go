@@ -198,6 +198,26 @@ var _ = Describe("NFD", Ordered, func() {
 				Expect(err).NotTo(HaveOccurred())
 			}
 
+			By("Restoring original NFD CR configuration")
+			err = ts.SharedNFDCRUtils.DeleteNFDCR()
+			Expect(err).NotTo(HaveOccurred())
+
+			err = nfddelete.NfdLabelsByKeys(APIClient, "nfd.node.kubernetes.io", "feature.node.kubernetes.io")
+			Expect(err).NotTo(HaveOccurred())
+
+			// Recreate original CR without blacklist
+			crConfig := deploy.NFDCRConfig{
+				Image:          nfdConfig.Image,
+				EnableTopology: true,
+			}
+			err = ts.SharedNFDCRUtils.DeployNFDCR(crConfig)
+			Expect(err).NotTo(HaveOccurred())
+
+			// Wait for CR to be ready again
+			crReady, err := ts.SharedNFDCRUtils.IsNFDCRReady(5 * time.Minute)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(crReady).To(BeTrue(), "NFD CR should be restored to original state")
+
 		})
 
 		It("Verify Feature List contains only Whitelist", reportxml.ID("68300"), func() {
@@ -240,6 +260,26 @@ var _ = Describe("NFD", Ordered, func() {
 				err = helpers.CheckLabelsExist(nodelabels, []string{"BMI2"}, cpuFlags[nodeName], nodeName)
 				Expect(err).NotTo(HaveOccurred())
 			}
+
+			By("Restoring original NFD CR configuration")
+			err = ts.SharedNFDCRUtils.DeleteNFDCR()
+			Expect(err).NotTo(HaveOccurred())
+
+			err = nfddelete.NfdLabelsByKeys(APIClient, "nfd.node.kubernetes.io", "feature.node.kubernetes.io")
+			Expect(err).NotTo(HaveOccurred())
+
+			// Recreate original CR without whitelist
+			crConfig := deploy.NFDCRConfig{
+				Image:          nfdConfig.Image,
+				EnableTopology: true,
+			}
+			err = ts.SharedNFDCRUtils.DeployNFDCR(crConfig)
+			Expect(err).NotTo(HaveOccurred())
+
+			// Wait for CR to be ready again
+			crReady, err := ts.SharedNFDCRUtils.IsNFDCRReady(5 * time.Minute)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(crReady).To(BeTrue(), "NFD CR should be restored to original state")
 
 		})
 
