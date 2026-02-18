@@ -58,7 +58,7 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 
 			defer func() {
 				if testRule != nil && testRule.Exists() {
-					testRule.Delete()
+					_, _ = testRule.Delete()
 				}
 			}()
 
@@ -125,7 +125,7 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 
 			defer func() {
 				if testRule != nil && testRule.Exists() {
-					testRule.Delete()
+					_, _ = testRule.Delete()
 				}
 			}()
 
@@ -192,7 +192,7 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 
 			defer func() {
 				if testRule != nil && testRule.Exists() {
-					testRule.Delete()
+					_, _ = testRule.Delete()
 				}
 			}()
 

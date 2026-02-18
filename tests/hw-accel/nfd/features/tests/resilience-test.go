@@ -151,7 +151,7 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 
 			defer func() {
 				if testRule != nil && testRule.Exists() {
-					testRule.Delete()
+					_, _ = testRule.Delete()
 				}
 			}()
 
@@ -314,7 +314,8 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 			By("Checking for NodeResourceTopology objects")
 			// NodeResourceTopology CRD is created by topology-aware-scheduling
 			// This is an advanced feature that may not be available in all deployments
-			klog.V(nfdparams.LogLevel).Info("Topology updater is running - NRT objects creation depends on cluster configuration")
+			klog.V(nfdparams.LogLevel).Info(
+				"Topology updater is running - NRT objects creation depends on cluster configuration")
 			klog.V(nfdparams.LogLevel).Info("If topology-aware-scheduling is installed, NRT objects should be created")
 
 			// Just verify the topology updater pods are running and healthy

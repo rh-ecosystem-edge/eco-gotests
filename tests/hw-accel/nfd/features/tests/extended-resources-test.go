@@ -18,6 +18,8 @@ import (
 	"k8s.io/klog/v2"
 )
 
+const testTaintKey = "testTaintKey"
+
 var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"), func() {
 	Context("Advanced NFD Features", func() {
 
@@ -65,7 +67,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 
 			defer func() {
 				if testRule != nil && testRule.Exists() {
-					testRule.Delete()
+					_, _ = testRule.Delete()
 				}
 			}()
 
@@ -184,7 +186,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 
 			defer func() {
 				if testRule != nil && testRule.Exists() {
-					testRule.Delete()
+					_, _ = testRule.Delete()
 
 					By("Waiting for taints to be removed after rule deletion")
 					Eventually(func() bool {
@@ -197,7 +199,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 
 						for _, node := range nodesList {
 							for _, taint := range node.Object.Spec.Taints {
-								if taint.Key == "test.example.com/special-hardware" {
+								if taint.Key == testTaintKey {
 									return false
 								}
 							}
@@ -250,7 +252,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 
 					// If node has the label, it should also have the taint
 					for _, taint := range node.Object.Spec.Taints {
-						if taint.Key == "test.example.com/special-hardware" &&
+						if taint.Key == testTaintKey &&
 							taint.Value == "true" &&
 							taint.Effect == corev1.TaintEffectNoSchedule {
 							klog.V(nfdparams.LogLevel).Infof("Node %s has correct taint", node.Object.Name)
@@ -271,7 +273,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 			if err == nil {
 				for _, node := range nodesList2 {
 					for _, taint := range node.Object.Spec.Taints {
-						if taint.Key == "test.example.com/special-hardware" {
+						if taint.Key == testTaintKey {
 							taintFound = true
 							break
 						}
@@ -294,7 +296,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 			taintFound = false
 			for _, node := range nodesList.Items {
 				for _, taint := range node.Spec.Taints {
-					if taint.Key == "test.example.com/special-hardware" {
+					if taint.Key == testTaintKey {
 						klog.V(nfdparams.LogLevel).Infof("Found taint on node %s: key=%s, value=%s, effect=%s",
 							node.Name, taint.Key, taint.Value, taint.Effect)
 
