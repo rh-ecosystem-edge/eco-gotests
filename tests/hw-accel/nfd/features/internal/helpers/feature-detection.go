@@ -20,17 +20,20 @@ func IsNFDTaintsEnabled(apiClient *clients.Settings, nfdNamespace string) (bool,
 	})
 	if err != nil {
 		klog.V(2).Infof("Error listing NFD master pods: %v", err)
+
 		return false, err
 	}
 
 	if len(masterPods) == 0 {
 		klog.V(2).Info("No NFD master pods found")
+
 		return false, nil
 	}
 
 	// Check the first master pod's containers for --enable-taints flag
 	for _, masterPod := range masterPods {
 		ctx := context.Background()
+
 		podDetails, err := apiClient.CoreV1Interface.Pods(nfdNamespace).Get(
 			ctx, masterPod.Object.Name, metav1.GetOptions{})
 		if err != nil {
@@ -42,6 +45,7 @@ func IsNFDTaintsEnabled(apiClient *clients.Settings, nfdNamespace string) (bool,
 			for _, arg := range container.Args {
 				if strings.Contains(arg, "--enable-taints") || strings.Contains(arg, "-enable-taints=true") {
 					klog.V(2).Infof("Found --enable-taints flag in NFD master pod %s", masterPod.Object.Name)
+
 					return true, nil
 				}
 			}
@@ -50,6 +54,7 @@ func IsNFDTaintsEnabled(apiClient *clients.Settings, nfdNamespace string) (bool,
 			for _, cmd := range container.Command {
 				if strings.Contains(cmd, "--enable-taints") || strings.Contains(cmd, "-enable-taints=true") {
 					klog.V(2).Infof("Found --enable-taints in command of NFD master pod %s", masterPod.Object.Name)
+
 					return true, nil
 				}
 			}
@@ -57,6 +62,7 @@ func IsNFDTaintsEnabled(apiClient *clients.Settings, nfdNamespace string) (bool,
 	}
 
 	klog.V(2).Info("--enable-taints flag not found in NFD master configuration")
+
 	return false, nil
 }
 
@@ -79,6 +85,7 @@ func GetNFDVersion(apiClient *clients.Settings, nfdNamespace string) string {
 			if parts := strings.Split(image, ":"); len(parts) > 1 {
 				version := parts[1]
 				klog.V(2).Infof("Detected NFD version: %s", version)
+
 				return version
 			}
 		}
@@ -96,12 +103,14 @@ func CheckNFDFeatureSupport(apiClient *clients.Settings, nfdNamespace string, fe
 		if err != nil {
 			return false, "", err
 		}
+
 		if !enabled {
 			return false, "Node tainting requires --enable-taints flag on nfd-master. " +
 				"Configure NodeFeatureDiscovery CR operand with: " +
 				"spec.operand.servicePort with extraArgs: [\"--enable-taints\"] " +
 				"or update nfd-master deployment directly.", nil
 		}
+
 		return true, "", nil
 
 	case "backreferences":
@@ -132,7 +141,9 @@ func WaitForFeatureDetection(checkFunc func() bool, timeout time.Duration, pollI
 		if checkFunc() {
 			return true
 		}
+
 		time.Sleep(pollInterval)
 	}
+
 	return false
 }

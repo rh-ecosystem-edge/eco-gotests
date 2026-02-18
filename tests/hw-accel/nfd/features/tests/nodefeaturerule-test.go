@@ -349,7 +349,7 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 					}
 				}
 				return false
-			}).WithTimeout(2*time.Minute).WithPolling(5*time.Second).Should(Or(BeTrue(), BeFalse()))
+			}).WithTimeout(2 * time.Minute).WithPolling(5 * time.Second).Should(Or(BeTrue(), BeFalse()))
 
 			if !backrefSupported {
 				Skip("Backreferences not supported in this NFD version - feature requires NFD v0.12+")

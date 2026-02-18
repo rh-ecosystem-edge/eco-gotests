@@ -261,7 +261,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 
 				klog.V(nfdparams.LogLevel).Info("Taints not found yet on matching nodes")
 				return false
-			}).WithTimeout(1*time.Minute).WithPolling(5*time.Second).Should(Or(BeTrue(), BeFalse()))
+			}).WithTimeout(1 * time.Minute).WithPolling(5 * time.Second).Should(Or(BeTrue(), BeFalse()))
 
 			// Check if taints are supported by verifying if any taint was found
 			taintFound := false

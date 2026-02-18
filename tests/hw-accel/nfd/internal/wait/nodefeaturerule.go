@@ -22,11 +22,13 @@ func WaitForLabelsFromRule(apiClient *clients.Settings, labelPrefixes []string, 
 			nodelabels, err := get.NodeFeatureLabels(apiClient, map[string]string{})
 			if err != nil {
 				klog.V(nfdparams.LogLevel).Infof("Error getting node labels: %v", err)
+
 				return false, nil
 			}
 
 			if len(nodelabels) == 0 {
 				klog.V(nfdparams.LogLevel).Info("No nodes found yet")
+
 				return false, nil
 			}
 
@@ -44,24 +46,27 @@ func WaitForLabelsFromRule(apiClient *clients.Settings, labelPrefixes []string, 
 				if foundCount > 0 {
 					klog.V(nfdparams.LogLevel).Infof("Node %s has %d/%d expected label prefixes",
 						nodeName, foundCount, len(labelPrefixes))
+
 					return true, nil
 				}
 			}
 
 			klog.V(nfdparams.LogLevel).Info("Labels not found yet, continuing to wait...")
+
 			return false, nil
 		})
-
 	if err != nil {
 		return fmt.Errorf("timeout waiting for labels with prefixes %v: %w", labelPrefixes, err)
 	}
 
 	klog.V(nfdparams.LogLevel).Info("Successfully found expected labels")
+
 	return nil
 }
 
 // WaitForRuleProcessed waits for a NodeFeatureRule to be processed and labels to appear.
-func WaitForRuleProcessed(apiClient *clients.Settings, ruleName string, expectedLabels []string, timeout time.Duration) error {
+func WaitForRuleProcessed(
+	apiClient *clients.Settings, ruleName string, expectedLabels []string, timeout time.Duration) error {
 	klog.V(nfdparams.LogLevel).Infof("Waiting for NodeFeatureRule %s to be processed (timeout: %v)", ruleName, timeout)
 
 	err := WaitForLabelsFromRule(apiClient, expectedLabels, timeout)
@@ -70,5 +75,6 @@ func WaitForRuleProcessed(apiClient *clients.Settings, ruleName string, expected
 	}
 
 	klog.V(nfdparams.LogLevel).Infof("NodeFeatureRule %s processed successfully", ruleName)
+
 	return nil
 }
