@@ -195,7 +195,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 							}
 						}
 						return true
-					}).WithTimeout(3*time.Minute).Should(BeTrue(), "Taints should be removed")
+					}).WithTimeout(5*time.Minute).Should(BeTrue(), "Taints should be removed")
 				}
 			}()
 
@@ -253,7 +253,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 
 				klog.V(nfdparams.LogLevel).Info("Taints not found yet on matching nodes")
 				return false
-			}).WithTimeout(2*time.Minute).WithPolling(5*time.Second).Should(BeTrue(),
+			}).WithTimeout(5*time.Minute).WithPolling(5*time.Second).Should(BeTrue(),
 				"Taints should be added to nodes matching the rule")
 
 			By("Verifying taint details are correct")

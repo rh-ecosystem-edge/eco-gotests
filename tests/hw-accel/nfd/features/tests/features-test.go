@@ -57,8 +57,7 @@ var _ = Describe("NFD", Ordered, func() {
 
 		})
 		It("Check CPU feature labels", reportxml.ID("54222"), func() {
-			skipIfConfigNotSet(nfdConfig)
-
+			// Skip check removed - NFD is already running from BeforeSuite
 			if nfdConfig.CPUFlagsHelperImage == "" {
 				Skip("CPUFlagsHelperImage is not set.")
 			}
@@ -77,7 +76,7 @@ var _ = Describe("NFD", Ordered, func() {
 		})
 
 		It("Check Kernel config", reportxml.ID("54471"), func() {
-			skipIfConfigNotSet(nfdConfig)
+			// Skip check removed - NFD is already running from BeforeSuite
 			nodelabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -104,7 +103,7 @@ var _ = Describe("NFD", Ordered, func() {
 		})
 		It("Check Logs", reportxml.ID("54549"), func() {
 			errorKeywords := []string{"error", "exception", "failed"}
-			skipIfConfigNotSet(nfdConfig)
+			// Skip check removed - NFD is already running from BeforeSuite
 			listOptions := metav1.ListOptions{
 				AllowWatchBookmarks: false,
 			}
@@ -132,7 +131,7 @@ var _ = Describe("NFD", Ordered, func() {
 		})
 
 		It("Check Restart Count", reportxml.ID("54538"), func() {
-			skipIfConfigNotSet(nfdConfig)
+			// Skip check removed - NFD is already running from BeforeSuite
 			listOptions := metav1.ListOptions{
 				AllowWatchBookmarks: false,
 			}

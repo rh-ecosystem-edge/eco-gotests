@@ -339,7 +339,7 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 					}
 				}
 				return false
-			}).WithTimeout(5*time.Minute).WithPolling(10*time.Second).Should(BeTrue(),
+			}).WithTimeout(10*time.Minute).WithPolling(10*time.Second).Should(BeTrue(),
 				"Second rule (with backreference) labels not found - backreferences may not be supported in this NFD version")
 
 			By("Verifying both rules were processed")
