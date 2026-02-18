@@ -1,9 +1,7 @@
 package tests
 
 import (
-	"fmt"
 	"strings"
-
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,7 +22,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/internal/set"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/internal/wait"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
-	"k8s.io/client-go/util/retry"
 )
 
 var _ = Describe("NFD", Ordered, func() {
@@ -46,6 +43,7 @@ var _ = Describe("NFD", Ordered, func() {
 				if labelsError != nil {
 					klog.V(ts.LogLevel).Infof("Checking for labels, error: %v", labelsError)
 				}
+
 				return labelExist
 			}).WithTimeout(5*time.Minute).WithPolling(10*time.Second).Should(BeTrue(),
 				"Feature labels should be present after NFD is running")
@@ -110,9 +108,9 @@ var _ = Describe("NFD", Ordered, func() {
 			By("Check if NFD pod's log not contains in error messages")
 			pods, err := pod.List(APIClient, hwaccelparams.NFDNamespace, listOptions)
 			Expect(err).NotTo(HaveOccurred())
-			for _, p := range pods {
-				klog.V(ts.LogLevel).Infof("retrieve logs from %v", p.Object.Name)
-				log, err := get.PodLogs(APIClient, hwaccelparams.NFDNamespace, p.Object.Name)
+			for _, nfdPod := range pods {
+				klog.V(ts.LogLevel).Infof("retrieve logs from %v", nfdPod.Object.Name)
+				log, err := get.PodLogs(APIClient, hwaccelparams.NFDNamespace, nfdPod.Object.Name)
 				Expect(err).NotTo(HaveOccurred(), "Error retrieving pod logs.")
 				Expect(len(log)).NotTo(Equal(0))
 				for _, errorKeyword := range errorKeywords {
@@ -143,11 +141,11 @@ var _ = Describe("NFD", Ordered, func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			initialRestartCounts := make(map[string]int32)
-			for _, p := range pods {
-				resetCount, err := get.PodRestartCount(APIClient, hwaccelparams.NFDNamespace, p.Object.Name)
+			for _, nfdPod := range pods {
+				resetCount, err := get.PodRestartCount(APIClient, hwaccelparams.NFDNamespace, nfdPod.Object.Name)
 				Expect(err).NotTo(HaveOccurred(), "Error retrieving reset count.")
-				initialRestartCounts[p.Object.Name] = resetCount
-				klog.V(ts.LogLevel).Infof("Pod %v initial restart count: %d", p.Object.Name, resetCount)
+				initialRestartCounts[nfdPod.Object.Name] = resetCount
+				klog.V(ts.LogLevel).Infof("Pod %v initial restart count: %d", nfdPod.Object.Name, resetCount)
 			}
 
 			By("Waiting 30 seconds to verify pod stability")
@@ -157,16 +155,16 @@ var _ = Describe("NFD", Ordered, func() {
 			pods, err = pod.List(APIClient, hwaccelparams.NFDNamespace, listOptions)
 			Expect(err).NotTo(HaveOccurred())
 
-			for _, p := range pods {
-				currentCount, err := get.PodRestartCount(APIClient, hwaccelparams.NFDNamespace, p.Object.Name)
+			for _, nfdPod := range pods {
+				currentCount, err := get.PodRestartCount(APIClient, hwaccelparams.NFDNamespace, nfdPod.Object.Name)
 				Expect(err).NotTo(HaveOccurred(), "Error retrieving reset count.")
 
-				initialCount := initialRestartCounts[p.Object.Name]
-				klog.V(ts.LogLevel).Infof("Pod %v: initial=%d, current=%d", p.Object.Name, initialCount, currentCount)
+				initialCount := initialRestartCounts[nfdPod.Object.Name]
+				klog.V(ts.LogLevel).Infof("Pod %v: initial=%d, current=%d", nfdPod.Object.Name, initialCount, currentCount)
 
 				Expect(currentCount).To(Equal(initialCount),
 					"Pod %s restart count increased unexpectedly from %d to %d",
-					p.Object.Name, initialCount, currentCount)
+					nfdPod.Object.Name, initialCount, currentCount)
 			}
 		})
 
@@ -367,60 +365,6 @@ var _ = Describe("NFD", Ordered, func() {
 
 	})
 })
-
-func runNodeDiscoveryAndTestLabelExistence(
-	nfdInstaller *deploy.OperatorInstaller,
-
-	nfdCRUtils *deploy.NFDCRUtils,
-
-	nfdConfig *nfdconfig.NfdConfig,
-	enableTopology bool) {
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		_, err := get.PodStatus(APIClient, hwaccelparams.NFDNamespace)
-		klog.Error(err)
-
-		return err
-	})
-
-	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("error in deploying %s", err))
-
-	err = nfdInstaller.Install()
-	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("error in deploying NFD operator: %s", err))
-
-	ready, err := nfdInstaller.IsReady(15 * time.Minute)
-	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("error checking NFD operator readiness: %s", err))
-	Expect(ready).To(BeTrue(), "NFD operator is not ready")
-
-	nfdCRConfig := deploy.NFDCRConfig{
-
-		EnableTopology: enableTopology,
-		Image:          nfdConfig.Image,
-	}
-	err = nfdCRUtils.DeployNFDCR(nfdCRConfig)
-	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("error deploying NFD CR: %s", err))
-
-	crReady, err := nfdCRUtils.IsNFDCRReady(10 * time.Minute)
-	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("error checking NFD CR readiness: %s", err))
-	Expect(crReady).To(BeTrue(), "NFD CR is not ready")
-
-	By("Check that pods are in running state")
-
-	res, err := wait.ForPodsRunning(APIClient, 15*time.Minute, hwaccelparams.NFDNamespace)
-	Expect(err).ShouldNot(HaveOccurred())
-	Expect(res).To(BeTrue())
-	By("Check feature labels exists")
-	Eventually(func() []string {
-		nodesWithLabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
-		Expect(err).ShouldNot(HaveOccurred())
-
-		allNodeLabels := []string{}
-		for _, labels := range nodesWithLabels {
-			allNodeLabels = append(allNodeLabels, labels...)
-		}
-
-		return allNodeLabels
-	}).WithTimeout(5 * time.Minute).ShouldNot(HaveLen(0))
-}
 
 func skipIfConfigNotSet(nfdConfig *nfdconfig.NfdConfig) {
 	if nfdConfig.CatalogSource == "" {

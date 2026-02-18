@@ -84,7 +84,7 @@ var (
 	// InstanceType AWS machine type.
 	InstanceType = "m6a.large"
 
-	// SharedNFDCRUtils is the suite-level NFD CR utils instance
-	// Set by suite BeforeSuite, used by tests that need CR management
+	// SharedNFDCRUtils is the suite-level NFD CR utils instance.
+	// Set by suite BeforeSuite, used by tests that need CR management.
 	SharedNFDCRUtils *deploy.NFDCRUtils
 )
