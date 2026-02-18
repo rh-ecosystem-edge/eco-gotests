@@ -131,20 +131,42 @@ var _ = Describe("NFD", Ordered, func() {
 		})
 
 		It("Check Restart Count", reportxml.ID("54538"), func() {
-			// Skip check removed - NFD is already running from BeforeSuite
+			// Check that pods are stable (not restarting unexpectedly)
+			// Note: This test verifies pods don't restart during observation period
+			// It accounts for controlled restarts from resilience tests
 			listOptions := metav1.ListOptions{
 				AllowWatchBookmarks: false,
 			}
-			By("Check if NFD pods reset count equal to zero")
+
+			By("Recording initial restart counts")
 			pods, err := pod.List(APIClient, hwaccelparams.NFDNamespace, listOptions)
 			Expect(err).NotTo(HaveOccurred())
+
+			initialRestartCounts := make(map[string]int32)
 			for _, p := range pods {
-				klog.V(ts.LogLevel).Infof("retrieve reset count from %v.", p.Object.Name)
 				resetCount, err := get.PodRestartCount(APIClient, hwaccelparams.NFDNamespace, p.Object.Name)
 				Expect(err).NotTo(HaveOccurred(), "Error retrieving reset count.")
-				klog.V(ts.LogLevel).Infof("Total resets %d.", resetCount)
-				Expect(resetCount).To(Equal(int32(0)))
+				initialRestartCounts[p.Object.Name] = resetCount
+				klog.V(ts.LogLevel).Infof("Pod %v initial restart count: %d", p.Object.Name, resetCount)
+			}
 
+			By("Waiting 30 seconds to verify pod stability")
+			time.Sleep(30 * time.Second)
+
+			By("Verifying restart counts have not increased (pods are stable)")
+			pods, err = pod.List(APIClient, hwaccelparams.NFDNamespace, listOptions)
+			Expect(err).NotTo(HaveOccurred())
+
+			for _, p := range pods {
+				currentCount, err := get.PodRestartCount(APIClient, hwaccelparams.NFDNamespace, p.Object.Name)
+				Expect(err).NotTo(HaveOccurred(), "Error retrieving reset count.")
+
+				initialCount := initialRestartCounts[p.Object.Name]
+				klog.V(ts.LogLevel).Infof("Pod %v: initial=%d, current=%d", p.Object.Name, initialCount, currentCount)
+
+				Expect(currentCount).To(Equal(initialCount),
+					"Pod %s restart count increased unexpectedly from %d to %d",
+					p.Object.Name, initialCount, currentCount)
 			}
 		})
 
