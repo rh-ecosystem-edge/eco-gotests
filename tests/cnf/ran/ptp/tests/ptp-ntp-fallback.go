@@ -211,11 +211,11 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 		const offsetSpikeAmount = 0.001
 
 		By("skipping if the PTP version is not supported")
-		inRange, err := version.IsVersionStringInRange(RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.21", "")
+		inRange, err := version.IsVersionStringInRange(RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.20", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to check PTP version range")
 
 		if !inRange {
-			Skip("ntpfailover offset spike is only supported for PTP version 4.21 and higher")
+			Skip("ntpfailover offset spike is only supported for PTP version 4.20 and higher")
 		}
 
 		testActuallyRan := false
@@ -391,12 +391,21 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 			err = events.WaitForEvent(eventPod, time.Now(), time.Minute, osClockLockedFilter)
 			Expect(err).To(HaveOccurred(), "Received unexpected os-clock-sync-state LOCKED event on node %s", nodeName)
 
-			By("using chronyc activity to verify 0 sources online")
-			chronycActivity, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(
-				RANConfig.Spoke1APIClient, nodeName, "chronyc activity",
+			By("verifying chrony tracking consistently shows unsynchronized state")
+			Consistently(ptpdaemon.ExecuteCommandInPtpDaemonPod).
+				WithArguments(RANConfig.Spoke1APIClient, nodeName, "chronyc tracking",
+					ptpdaemon.WithRetries(3), ptpdaemon.WithRetryOnError(true), ptpdaemon.WithRetryOnEmptyOutput(true)).
+				WithTimeout(30*time.Second).WithPolling(5*time.Second).
+				Should(ContainSubstring("Not synchronised"),
+					"Chrony should not be synchronized with unreachable NTP source on node %s", nodeName)
+
+			By("verifying chronyc sources shows no selected source")
+			sources, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(
+				RANConfig.Spoke1APIClient, nodeName, "chronyc sources -n",
 				ptpdaemon.WithRetries(3), ptpdaemon.WithRetryOnError(true), ptpdaemon.WithRetryOnEmptyOutput(true))
-			Expect(err).ToNot(HaveOccurred(), "Failed to get chronyc activity for node %s", nodeName)
-			Expect(chronycActivity).To(ContainSubstring("0 sources online"), "Chronyd has sources online on node %s", nodeName)
+			Expect(err).ToNot(HaveOccurred(), "Failed to get chronyc sources for node %s", nodeName)
+			Expect(sources).ToNot(ContainSubstring("^*"),
+				"Chrony has a selected source despite unreachable NTP on node %s", nodeName)
 
 			By("restoring GNSS sync")
 			gnssRecoveryTime := time.Now()
