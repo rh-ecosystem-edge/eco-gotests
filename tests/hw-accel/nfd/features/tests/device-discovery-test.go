@@ -18,7 +18,7 @@ import (
 var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 	Context("Hardware Device Detection", func() {
 
-		It("Discovers PCI devices", reportxml.ID("70010"), func() {
+		It("Discovers PCI devices", func() {
 			By("Creating NodeFeatureRule for PCI device discovery")
 
 			// PCI device discovery rule - detects all PCI devices
@@ -86,7 +86,7 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 			Expect(labelFound).To(BeTrue(), "PCI devices should be detected on at least one node")
 		})
 
-		It("Discovers network device features", reportxml.ID("70014"), func() {
+		It("Discovers network device features", func() {
 			By("Creating NodeFeatureRule for network device detection")
 
 			networkRuleYAML := `
@@ -137,7 +137,7 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 			Expect(err).NotTo(HaveOccurred(), "Network device labels should be present")
 		})
 
-		It("Discovers system features (OS, kernel)", reportxml.ID("70016"), func() {
+		It("Discovers system features (OS, kernel)", func() {
 			By("Creating NodeFeatureRule for system feature detection")
 
 			systemRuleYAML := `

@@ -30,7 +30,7 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 			}
 		})
 
-		It("Validates matchExpressions operators", reportxml.ID("70001"), func() {
+		It("Validates matchExpressions operators", func() {
 			By("Creating NodeFeatureRule with various matchExpression operators")
 
 			// This rule tests various operators: In, Exists, Gt, Lt, IsTrue
@@ -112,7 +112,7 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 			Expect(labelFound).To(BeTrue(), "Expected labels not found on any node")
 		})
 
-		It("Validates labelsTemplate dynamic label generation", reportxml.ID("70002"), func() {
+		It("Validates labelsTemplate dynamic label generation", func() {
 			By("Creating NodeFeatureRule with labelsTemplate")
 
 			// This rule uses template to create dynamic labels from feature values
@@ -182,7 +182,7 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 			Expect(labelFound).To(BeTrue(), "Templated labels not found on any node")
 		})
 
-		It("Validates matchAny OR logic", reportxml.ID("70003"), func() {
+		It("Validates matchAny OR logic", func() {
 			By("Creating NodeFeatureRule with matchAny for OR logic")
 
 			// This rule uses matchAny to match if ANY condition is true (OR logic)
@@ -261,7 +261,7 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 			Expect(labelFound).To(BeTrue(), "matchAny labels not found on any node")
 		})
 
-		It("Validates backreferences from previous rules", reportxml.ID("70004"), func() {
+		It("Validates backreferences from previous rules", reportxml.ID("54493"), func() {
 			By("Creating NodeFeatureRule with backreferences")
 
 			// This rule uses backreferences to refer to matches from previous rules
@@ -367,7 +367,7 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 			Expect(secondRuleFound).To(BeTrue(), "Second rule (with backreference) labels not found")
 		})
 
-		It("Validates CRUD lifecycle", reportxml.ID("70005"), func() {
+		It("Validates CRUD lifecycle", func() {
 			By("Creating a NodeFeatureRule")
 
 			ruleYAML := `[

@@ -21,7 +21,7 @@ import (
 var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"), func() {
 	Context("Advanced NFD Features", func() {
 
-		It("Extended resources from NodeFeatureRule", reportxml.ID("70040"), func() {
+		It("Extended resources from NodeFeatureRule", func() {
 			By("Creating NodeFeatureRule with extended resources")
 
 			// This rule creates both labels and extended resources
@@ -128,7 +128,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 			Expect(resourceFound).To(BeTrue(), "At least one node should have the extended resource")
 		})
 
-		It("Node tainting based on features", reportxml.ID("70041"), func() {
+		It("Node tainting based on features", func() {
 			By("Creating NodeFeatureRule with taints")
 
 			// This rule adds taints to nodes based on features

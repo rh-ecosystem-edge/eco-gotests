@@ -23,7 +23,7 @@ import (
 var _ = Describe("NFD Resilience", Label("resilience"), func() {
 	Context("Pod Failure Recovery", func() {
 
-		It("Worker pod restart - labels persist", reportxml.ID("70020"), func() {
+		It("Worker pod restart - labels persist", func() {
 			By("Getting initial node labels")
 			initialLabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
 			Expect(err).NotTo(HaveOccurred())
@@ -113,7 +113,7 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 			}
 		})
 
-		It("Master pod restart - rule processing continues", reportxml.ID("70021"), func() {
+		It("Master pod restart - rule processing continues", func() {
 			By("Creating a test NodeFeatureRule")
 			ruleYAML := `[
 {
@@ -211,7 +211,7 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 			}).WithTimeout(5*time.Minute).Should(BeTrue(), "Labels should still be present after master restart")
 		})
 
-		It("GC cleanup - stale NodeFeature objects removed", reportxml.ID("70022"), func() {
+		It("GC cleanup - stale NodeFeature objects removed", func() {
 			By("Checking current NodeFeature objects")
 
 			// Note: NodeFeature objects are internal to NFD and may not be directly accessible
@@ -287,7 +287,7 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 			klog.V(nfdparams.LogLevel).Info("GC cleanup verified successfully")
 		})
 
-		It("Topology updater functionality", reportxml.ID("70023"), func() {
+		It("Topology updater functionality", func() {
 			By("Checking if topology updater is enabled")
 
 			listOptions := metav1.ListOptions{
