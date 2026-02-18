@@ -320,7 +320,6 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 }]
 `
 
-			var err error
 			testRule, err = nfdset.CreateNodeFeatureRuleFromJSON(APIClient, ruleYAML)
 			Expect(err).NotTo(HaveOccurred(), "Failed to create NodeFeatureRule")
 			Expect(testRule).NotTo(BeNil())

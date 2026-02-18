@@ -1,0 +1,303 @@
+[38;5;9m[1mGinkgo detected a version mismatch between the Ginkgo CLI and the version of Ginkgo imported by your packages:[0m
+  Ginkgo CLI Version:
+    [1m2.28.1[0m
+  Mismatched package versions found:
+    [1m2.27.2[0m used by features
+
+  [38;5;243mGinkgo will continue to attempt to run but you may see errors (including flag
+  parsing errors) and should either update your go.mod or your version of the
+  Ginkgo CLI to match.
+
+  To install the matching version of the CLI run
+    [1mgo install github.com/onsi/ginkgo/v2/ginkgo[0m[38;5;243m
+  from a path that contains a go.mod file.  Alternatively you can use
+    [1mgo run github.com/onsi/ginkgo/v2/ginkgo[0m[38;5;243m
+  from a path that contains a go.mod file to invoke the matching version of the
+  Ginkgo CLI.
+
+  If you are attempting to test multiple packages that each have a different
+  version of the Ginkgo library with a single Ginkgo CLI that is currently
+  unsupported.
+  [0m
+2026/02/18 10:00:16 Creating new GeneralConfig struct
+2026/02/18 10:00:16 Creating new GeneralConfig struct
+2026/02/18 10:00:16 Creating new NfdConfig
+Running Suite: NFD - /Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features
+[38;5;204m[hw-accel, nfd, feature][0m 
+=========================================================================================
+Random Seed: [1m1771401606[0m
+
+Will run [1m24[0m of [1m24[0m specs
+[38;5;243m------------------------------[0m
+[0m[1m[BeforeSuite] [0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/nfd_suite_test.go:38[0m
+2026/02/18 10:00:16 Creating new NfdConfig
+  [1mSTEP:[0m Installing NFD operator for all feature tests [38;5;243m@ 02/18/26 10:00:16.437[0m
+  [1mSTEP:[0m Waiting for NFD operator to be ready [38;5;243m@ 02/18/26 10:00:19.225[0m
+  [1mSTEP:[0m Creating NFD CR [38;5;243m@ 02/18/26 10:00:39.835[0m
+  [1mSTEP:[0m Waiting for NFD CR to be ready [38;5;243m@ 02/18/26 10:00:40.872[0m
+[38;5;10m[BeforeSuite] PASSED [30.252 seconds][0m
+[38;5;243m------------------------------[0m
+[0mNFD [38;5;243mNode featues [0m[1mCheck pods state[0m [38;5;204m[discovery-of-labels, 54548, test_id:54548][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:54[0m
+  [1mSTEP:[0m Verifying NFD is ready (installed by suite) [38;5;243m@ 02/18/26 10:00:46.69[0m
+  [1mSTEP:[0m Check that pods are in running state [38;5;243m@ 02/18/26 10:00:46.69[0m
+  [1mSTEP:[0m Waiting for feature labels to appear [38;5;243m@ 02/18/26 10:00:47.099[0m
+[38;5;10m• [1.037 seconds][0m
+[38;5;243m------------------------------[0m
+[0mNFD [38;5;243mNode featues [0m[1mCheck CPU feature labels[0m [38;5;204m[discovery-of-labels, 54222, test_id:54222][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:59[0m
+  [38;5;14m[SKIPPED][0m in [It] - /Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:62 [38;5;243m@ 02/18/26 10:00:47.727[0m
+[38;5;14mS [SKIPPED] [0.001 seconds][0m
+[0mNFD [38;5;243mNode featues [38;5;14m[1m[It] Check CPU feature labels[0m [38;5;204m[discovery-of-labels, 54222, test_id:54222][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:59[0m
+
+  [38;5;14m[SKIPPED] CPUFlagsHelperImage is not set.[0m
+  [38;5;14mIn [1m[It][0m[38;5;14m at: [1m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:62[0m [38;5;243m@ 02/18/26 10:00:47.727[0m
+[38;5;243m------------------------------[0m
+[0mNFD [38;5;243mNode featues [0m[1mCheck Kernel config[0m [38;5;204m[discovery-of-labels, 54471, test_id:54471][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:78[0m
+  [1mSTEP:[0m Check if custom label topology is exist [38;5;243m@ 02/18/26 10:00:47.933[0m
+[38;5;10m• [0.205 seconds][0m
+[38;5;243m------------------------------[0m
+[0mNFD [38;5;243mNode featues [0m[1mCheck topology[0m [38;5;204m[discovery-of-labels, 54491, test_id:54491][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:91[0m
+  [38;5;14m[SKIPPED][0m in [It] - /Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:92 [38;5;243m@ 02/18/26 10:00:47.933[0m
+[38;5;14mS [SKIPPED] [0.004 seconds][0m
+[0mNFD [38;5;243mNode featues [38;5;14m[1m[It] Check topology[0m [38;5;204m[discovery-of-labels, 54491, test_id:54491][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:91[0m
+
+  [38;5;14m[SKIPPED] configuration issue[0m
+  [38;5;14mIn [1m[It][0m[38;5;14m at: [1m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:92[0m [38;5;243m@ 02/18/26 10:00:47.933[0m
+[38;5;243m------------------------------[0m
+[0mNFD [38;5;243mNode featues [0m[1mCheck Logs[0m [38;5;204m[discovery-of-labels, 54549, test_id:54549][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:104[0m
+  [1mSTEP:[0m Check if NFD pod's log not contains in error messages [38;5;243m@ 02/18/26 10:00:47.938[0m
+E0218 10:00:48.562926   20724 features-test.go:123] error found in log: 
+E0218 10:00:48.562982   20724 features-test.go:123] error found in log: 
+E0218 10:00:48.563003   20724 features-test.go:123] error found in log: 
+E0218 10:00:48.980760   20724 features-test.go:123] error found in log: 
+E0218 10:00:48.980781   20724 features-test.go:123] error found in log: 
+E0218 10:00:48.980785   20724 features-test.go:123] error found in log: 
+E0218 10:00:49.422773   20724 features-test.go:123] error found in log: 
+E0218 10:00:49.422793   20724 features-test.go:123] error found in log: 
+E0218 10:00:49.422797   20724 features-test.go:123] error found in log: 
+E0218 10:00:49.836968   20724 features-test.go:123] error found in log: 
+E0218 10:00:49.837003   20724 features-test.go:123] error found in log: 
+E0218 10:00:49.837009   20724 features-test.go:123] error found in log: 
+E0218 10:00:50.247126   20724 features-test.go:123] error found in log: 
+E0218 10:00:50.247161   20724 features-test.go:123] error found in log: 
+E0218 10:00:50.247168   20724 features-test.go:123] error found in log: 
+E0218 10:00:50.657834   20724 features-test.go:123] error found in log: 
+E0218 10:00:50.657863   20724 features-test.go:123] error found in log: 
+E0218 10:00:50.657868   20724 features-test.go:123] error found in log: 
+[38;5;10m• [2.720 seconds][0m
+[38;5;243m------------------------------[0m
+[0mNFD [38;5;243mNode featues [0m[1mCheck Restart Count[0m [38;5;204m[discovery-of-labels, 54538, test_id:54538][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:133[0m
+  [1mSTEP:[0m Check if NFD pods reset count equal to zero [38;5;243m@ 02/18/26 10:00:50.658[0m
+[38;5;10m• [1.430 seconds][0m
+[38;5;243m------------------------------[0m
+[0mNFD [38;5;243mNode featues [0m[1mCheck if NUMA detected [0m [38;5;204m[discovery-of-labels, 54408, test_id:54408][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:151[0m
+  [38;5;14m[SKIPPED][0m in [It] - /Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:152 [38;5;243m@ 02/18/26 10:00:52.088[0m
+[38;5;14mS [SKIPPED] [0.000 seconds][0m
+[0mNFD [38;5;243mNode featues [38;5;14m[1m[It] Check if NUMA detected [0m [38;5;204m[discovery-of-labels, 54408, test_id:54408][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:151[0m
+
+  [38;5;14m[SKIPPED] configuration issue[0m
+  [38;5;14mIn [1m[It][0m[38;5;14m at: [1m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:152[0m [38;5;243m@ 02/18/26 10:00:52.088[0m
+[38;5;243m------------------------------[0m
+[0mNFD [38;5;243mNode featues [0m[1mVerify Feature List not contains items from Blacklist [0m [38;5;204m[discovery-of-labels, 68298, test_id:68298][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:164[0m
+  [38;5;14m[SKIPPED][0m in [It] - /Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:365 [38;5;243m@ 02/18/26 10:00:52.088[0m
+[38;5;14mS [SKIPPED] [0.000 seconds][0m
+[0mNFD [38;5;243mNode featues [38;5;14m[1m[It] Verify Feature List not contains items from Blacklist [0m [38;5;204m[discovery-of-labels, 68298, test_id:68298][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:164[0m
+
+  [38;5;14m[SKIPPED] The catalog source is not set.[0m
+  [38;5;14mIn [1m[It][0m[38;5;14m at: [1m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:365[0m [38;5;243m@ 02/18/26 10:00:52.088[0m
+[38;5;243m------------------------------[0m
+[0mNFD [38;5;243mNode featues [0m[1mVerify Feature List contains only Whitelist[0m [38;5;204m[discovery-of-labels, 68300, test_id:68300][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:203[0m
+  [38;5;14m[SKIPPED][0m in [It] - /Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:365 [38;5;243m@ 02/18/26 10:00:52.088[0m
+[38;5;14mS [SKIPPED] [0.000 seconds][0m
+[0mNFD [38;5;243mNode featues [38;5;14m[1m[It] Verify Feature List contains only Whitelist[0m [38;5;204m[discovery-of-labels, 68300, test_id:68300][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:203[0m
+
+  [38;5;14m[SKIPPED] The catalog source is not set.[0m
+  [38;5;14mIn [1m[It][0m[38;5;14m at: [1m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:365[0m [38;5;243m@ 02/18/26 10:00:52.088[0m
+[38;5;243m------------------------------[0m
+[0mNFD [38;5;243mNode featues [0m[1mAdd day2 workers[0m [38;5;204m[discovery-of-labels, 54539, test_id:54539][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:246[0m
+  [38;5;14m[SKIPPED][0m in [It] - /Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:365 [38;5;243m@ 02/18/26 10:00:52.088[0m
+[38;5;14mS [SKIPPED] [0.000 seconds][0m
+[0mNFD [38;5;243mNode featues [38;5;14m[1m[It] Add day2 workers[0m [38;5;204m[discovery-of-labels, 54539, test_id:54539][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:246[0m
+
+  [38;5;14m[SKIPPED] The catalog source is not set.[0m
+  [38;5;14mIn [1m[It][0m[38;5;14m at: [1m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/features-test.go:365[0m [38;5;243m@ 02/18/26 10:00:52.088[0m
+[38;5;243m------------------------------[0m
+[0mNFD Extended Resources and Taints [38;5;243mAdvanced NFD Features [0m[1mExtended resources from NodeFeatureRule[0m [38;5;204m[extended-resources, 70040, test_id:70040][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/extended-resources-test.go:24[0m
+  [1mSTEP:[0m Creating NodeFeatureRule with extended resources [38;5;243m@ 02/18/26 10:00:52.089[0m
+  [1mSTEP:[0m Waiting for labels to appear [38;5;243m@ 02/18/26 10:00:52.902[0m
+  [1mSTEP:[0m Verifying extended resources are added to node capacity [38;5;243m@ 02/18/26 10:00:58.707[0m
+  [1mSTEP:[0m Verifying resource quantity is correct [38;5;243m@ 02/18/26 10:00:58.917[0m
+[38;5;10m• [7.644 seconds][0m
+[38;5;243m------------------------------[0m
+[0mNFD Extended Resources and Taints [38;5;243mAdvanced NFD Features [0m[1mNode tainting based on features[0m [38;5;204m[extended-resources, 70041, test_id:70041][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/extended-resources-test.go:131[0m
+  [1mSTEP:[0m Creating NodeFeatureRule with taints [38;5;243m@ 02/18/26 10:00:59.733[0m
+  [1mSTEP:[0m Waiting for labels to appear [38;5;243m@ 02/18/26 10:01:00.351[0m
+  [1mSTEP:[0m Verifying taints are added to nodes [38;5;243m@ 02/18/26 10:01:06.159[0m
+  [1mSTEP:[0m Waiting for taints to be removed after rule deletion [38;5;243m@ 02/18/26 10:29:36.547[0m
+  [38;5;9m[FAILED][0m in [It] - /Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/extended-resources-test.go:256 [38;5;243m@ 02/18/26 10:29:37.266[0m
+[38;5;9m• [FAILED] [308.047 seconds][0m
+[0mNFD Extended Resources and Taints [38;5;243mAdvanced NFD Features [38;5;9m[1m[It] Node tainting based on features[0m [38;5;204m[extended-resources, 70041, test_id:70041][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/extended-resources-test.go:131[0m
+
+  [38;5;9m[FAILED] Timed out after 300.001s.
+  Taints should be added to nodes matching the rule
+  Expected
+      <bool>: false
+  to be true[0m
+  [38;5;9mIn [1m[It][0m[38;5;9m at: [1m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/extended-resources-test.go:256[0m [38;5;243m@ 02/18/26 10:29:37.266[0m
+[38;5;243m------------------------------[0m
+[0mNFD Resilience [38;5;243mPod Failure Recovery [0m[1mWorker pod restart - labels persist[0m [38;5;204m[resilience, 70020, test_id:70020][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/resilience-test.go:26[0m
+  [1mSTEP:[0m Getting initial node labels [38;5;243m@ 02/18/26 10:29:37.266[0m
+  [1mSTEP:[0m Finding NFD worker pods [38;5;243m@ 02/18/26 10:29:37.495[0m
+  [1mSTEP:[0m Deleting one worker pod to trigger restart [38;5;243m@ 02/18/26 10:29:37.722[0m
+  [1mSTEP:[0m Waiting for worker pod to be recreated and running [38;5;243m@ 02/18/26 10:29:39.62[0m
+  [1mSTEP:[0m Verifying labels still exist after pod restart [38;5;243m@ 02/18/26 10:29:39.93[0m
+  [1mSTEP:[0m Verifying specific labels are unchanged [38;5;243m@ 02/18/26 10:29:40.472[0m
+[38;5;10m• [3.433 seconds][0m
+[38;5;243m------------------------------[0m
+[0mNFD Resilience [38;5;243mPod Failure Recovery [0m[1mMaster pod restart - rule processing continues[0m [38;5;204m[resilience, 70021, test_id:70021][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/resilience-test.go:116[0m
+  [1mSTEP:[0m Creating a test NodeFeatureRule [38;5;243m@ 02/18/26 10:29:40.699[0m
+  [1mSTEP:[0m Waiting for initial labels [38;5;243m@ 02/18/26 10:29:41.381[0m
+  [1mSTEP:[0m Finding NFD master pod [38;5;243m@ 02/18/26 10:29:47.507[0m
+  [1mSTEP:[0m Deleting master pod to trigger restart [38;5;243m@ 02/18/26 10:29:47.733[0m
+  [1mSTEP:[0m Waiting for master pod to be recreated and running [38;5;243m@ 02/18/26 10:29:49.549[0m
+  [1mSTEP:[0m Verifying rule processing continues after master restart [38;5;243m@ 02/18/26 10:29:50.167[0m
+[38;5;10m• [10.800 seconds][0m
+[38;5;243m------------------------------[0m
+[0mNFD Resilience [38;5;243mPod Failure Recovery [0m[1mGC cleanup - stale NodeFeature objects removed[0m [38;5;204m[resilience, 70022, test_id:70022][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/resilience-test.go:214[0m
+  [1mSTEP:[0m Checking current NodeFeature objects [38;5;243m@ 02/18/26 10:29:51.5[0m
+  [1mSTEP:[0m Creating a test rule that will be deleted [38;5;243m@ 02/18/26 10:29:51.5[0m
+  [1mSTEP:[0m Waiting for labels to appear [38;5;243m@ 02/18/26 10:29:52.214[0m
+  [1mSTEP:[0m Deleting the rule [38;5;243m@ 02/18/26 10:29:52.751[0m
+  [1mSTEP:[0m Verifying labels are eventually cleaned up [38;5;243m@ 02/18/26 10:29:53.203[0m
+[38;5;10m• [1.934 seconds][0m
+[38;5;243m------------------------------[0m
+[0mNFD Resilience [38;5;243mPod Failure Recovery [0m[1mTopology updater functionality[0m [38;5;204m[resilience, 70023, test_id:70023][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/resilience-test.go:290[0m
+  [1mSTEP:[0m Checking if topology updater is enabled [38;5;243m@ 02/18/26 10:29:53.434[0m
+  [38;5;14m[SKIPPED][0m in [It] - /Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/resilience-test.go:299 [38;5;243m@ 02/18/26 10:29:53.659[0m
+[38;5;14mS [SKIPPED] [0.225 seconds][0m
+[0mNFD Resilience [38;5;243mPod Failure Recovery [38;5;14m[1m[It] Topology updater functionality[0m [38;5;204m[resilience, 70023, test_id:70023][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/resilience-test.go:290[0m
+
+  [38;5;14m[SKIPPED] Topology updater not enabled - skipping topology test[0m
+  [38;5;14mIn [1m[It][0m[38;5;14m at: [1m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/resilience-test.go:299[0m [38;5;243m@ 02/18/26 10:29:53.659[0m
+[38;5;243m------------------------------[0m
+[0mNFD NodeFeatureRule [38;5;243mCustom Rule Processing [0m[1mValidates matchExpressions operators[0m [38;5;204m[custom-rules, 70001, test_id:70001][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/nodefeaturerule-test.go:33[0m
+  [1mSTEP:[0m Creating NodeFeatureRule with various matchExpression operators [38;5;243m@ 02/18/26 10:29:53.659[0m
+  [1mSTEP:[0m Waiting for labels to be applied [38;5;243m@ 02/18/26 10:29:54.469[0m
+  [1mSTEP:[0m Verifying labels exist on nodes [38;5;243m@ 02/18/26 10:30:00.521[0m
+[38;5;10m• [7.874 seconds][0m
+[38;5;243m------------------------------[0m
+[0mNFD NodeFeatureRule [38;5;243mCustom Rule Processing [0m[1mValidates labelsTemplate dynamic label generation[0m [38;5;204m[custom-rules, 70002, test_id:70002][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/nodefeaturerule-test.go:115[0m
+  [1mSTEP:[0m Creating NodeFeatureRule with labelsTemplate [38;5;243m@ 02/18/26 10:30:01.534[0m
+  [1mSTEP:[0m Waiting for templated labels to be applied [38;5;243m@ 02/18/26 10:30:02.249[0m
+  [1mSTEP:[0m Verifying dynamic labels exist on nodes [38;5;243m@ 02/18/26 10:30:02.563[0m
+[38;5;10m• [1.937 seconds][0m
+[38;5;243m------------------------------[0m
+[0mNFD NodeFeatureRule [38;5;243mCustom Rule Processing [0m[1mValidates matchAny OR logic[0m [38;5;204m[custom-rules, 70003, test_id:70003][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/nodefeaturerule-test.go:185[0m
+  [1mSTEP:[0m Creating NodeFeatureRule with matchAny for OR logic [38;5;243m@ 02/18/26 10:30:03.471[0m
+  [1mSTEP:[0m Waiting for matchAny labels to be applied [38;5;243m@ 02/18/26 10:30:04.195[0m
+  [1mSTEP:[0m Verifying OR logic labels exist [38;5;243m@ 02/18/26 10:30:04.506[0m
+[38;5;10m• [2.099 seconds][0m
+[38;5;243m------------------------------[0m
+[0mNFD NodeFeatureRule [38;5;243mCustom Rule Processing [0m[1mValidates backreferences from previous rules[0m [38;5;204m[custom-rules, 70004, test_id:70004][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/nodefeaturerule-test.go:264[0m
+  [1mSTEP:[0m Creating NodeFeatureRule with backreferences [38;5;243m@ 02/18/26 10:30:05.57[0m
+  [1mSTEP:[0m Waiting for first rule labels to be applied [38;5;243m@ 02/18/26 10:30:06.45[0m
+  [1mSTEP:[0m Waiting for second rule (backreference) labels to be applied [38;5;243m@ 02/18/26 10:30:12.492[0m
+  [38;5;9m[FAILED][0m in [It] - /Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/nodefeaturerule-test.go:342 [38;5;243m@ 02/18/26 10:40:12.499[0m
+[38;5;9m• [FAILED] [607.610 seconds][0m
+[0mNFD NodeFeatureRule [38;5;243mCustom Rule Processing [38;5;9m[1m[It] Validates backreferences from previous rules[0m [38;5;204m[custom-rules, 70004, test_id:70004][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/nodefeaturerule-test.go:264[0m
+
+  [38;5;9m[FAILED] Timed out after 600.002s.
+  Second rule (with backreference) labels not found - backreferences may not be supported in this NFD version
+  Expected
+      <bool>: false
+  to be true[0m
+  [38;5;9mIn [1m[It][0m[38;5;9m at: [1m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/nodefeaturerule-test.go:342[0m [38;5;243m@ 02/18/26 10:40:12.499[0m
+[38;5;243m------------------------------[0m
+[0mNFD NodeFeatureRule [38;5;243mCustom Rule Processing [0m[1mValidates CRUD lifecycle[0m [38;5;204m[custom-rules, 70005, test_id:70005][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/nodefeaturerule-test.go:370[0m
+  [1mSTEP:[0m Creating a NodeFeatureRule [38;5;243m@ 02/18/26 10:40:13.184[0m
+  [1mSTEP:[0m Waiting for labels to appear [38;5;243m@ 02/18/26 10:40:14.198[0m
+  [1mSTEP:[0m Verifying labels exist [38;5;243m@ 02/18/26 10:40:20.363[0m
+  [1mSTEP:[0m Deleting the NodeFeatureRule [38;5;243m@ 02/18/26 10:40:20.591[0m
+  [1mSTEP:[0m Verifying rule no longer exists [38;5;243m@ 02/18/26 10:40:21.571[0m
+  [1mSTEP:[0m Verifying labels are eventually removed [38;5;243m@ 02/18/26 10:40:21.796[0m
+[38;5;10m• [8.841 seconds][0m
+[38;5;243m------------------------------[0m
+[0mNFD Device Discovery [38;5;243mHardware Device Detection [0m[1mDiscovers PCI devices[0m [38;5;204m[device-discovery, 70010, test_id:70010][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/device-discovery-test.go:21[0m
+  [1mSTEP:[0m Creating NodeFeatureRule for PCI device discovery [38;5;243m@ 02/18/26 10:40:22.026[0m
+  [1mSTEP:[0m Waiting for PCI device labels to appear [38;5;243m@ 02/18/26 10:40:22.766[0m
+  [1mSTEP:[0m Verifying PCI device labels exist [38;5;243m@ 02/18/26 10:40:22.997[0m
+[38;5;10m• [1.901 seconds][0m
+[38;5;243m------------------------------[0m
+[0mNFD Device Discovery [38;5;243mHardware Device Detection [0m[1mDiscovers network device features[0m [38;5;204m[device-discovery, 70014, test_id:70014][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/device-discovery-test.go:89[0m
+  [1mSTEP:[0m Creating NodeFeatureRule for network device detection [38;5;243m@ 02/18/26 10:40:23.926[0m
+  [1mSTEP:[0m Waiting for network device labels [38;5;243m@ 02/18/26 10:40:24.766[0m
+[38;5;10m• [1.783 seconds][0m
+[38;5;243m------------------------------[0m
+[0mNFD Device Discovery [38;5;243mHardware Device Detection [0m[1mDiscovers system features (OS, kernel)[0m [38;5;204m[device-discovery, 70016, test_id:70016][0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/device-discovery-test.go:140[0m
+  [1mSTEP:[0m Creating NodeFeatureRule for system feature detection [38;5;243m@ 02/18/26 10:40:25.71[0m
+  [1mSTEP:[0m Waiting for system feature labels [38;5;243m@ 02/18/26 10:40:26.486[0m
+  [1mSTEP:[0m Verifying system labels exist on all nodes [38;5;243m@ 02/18/26 10:40:32.532[0m
+[38;5;10m• [7.783 seconds][0m
+[38;5;243m------------------------------[0m
+[0m[1m[AfterSuite] [0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/nfd_suite_test.go:81[0m
+  [1mSTEP:[0m Deleting NFD CR [38;5;243m@ 02/18/26 10:40:33.493[0m
+  [1mSTEP:[0m Uninstalling NFD operator [38;5;243m@ 02/18/26 10:40:34.579[0m
+[38;5;10m[AfterSuite] PASSED [74.590 seconds][0m
+[38;5;243m------------------------------[0m
+[0m[1m[ReportAfterSuite] [0m
+[38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/nfd_suite_test.go:106[0m
+[38;5;10m[ReportAfterSuite] PASSED [0.012 seconds][0m
+[38;5;243m------------------------------[0m
+[0m[1m[ReportAfterSuite] Autogenerated ReportAfterSuite for --junit-report[0m
+[38;5;243mautogenerated by Ginkgo[0m
+[38;5;10m[ReportAfterSuite] PASSED [0.004 seconds][0m
+[38;5;243m------------------------------[0m
+
+[38;5;9m[1mSummarizing 2 Failures:[0m
+  [38;5;9m[FAIL][0m [0mNFD Extended Resources and Taints [38;5;243mAdvanced NFD Features [38;5;9m[1m[It] Node tainting based on features[0m [38;5;204m[extended-resources, 70041, test_id:70041][0m
+  [38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/extended-resources-test.go:256[0m
+  [38;5;9m[FAIL][0m [0mNFD NodeFeatureRule [38;5;243mCustom Rule Processing [38;5;9m[1m[It] Validates backreferences from previous rules[0m [38;5;204m[custom-rules, 70004, test_id:70004][0m
+  [38;5;243m/Users/guygordani/nfdchecker/eco-gotests/tests/hw-accel/nfd/features/tests/nodefeaturerule-test.go:342[0m
+
+[38;5;9m[1mRan 17 of 24 Specs in 1082.155 seconds[0m
+[38;5;9m[1mFAIL![0m -- [38;5;10m[1m15 Passed[0m | [38;5;9m[1m2 Failed[0m | [38;5;11m[1m0 Pending[0m | [38;5;14m[1m7 Skipped[0m
+--- FAIL: TestFeatures (1082.17s)
+FAIL
+
+Ginkgo ran 1 suite in 18m12.134905208s
+
+Test Suite Failed
