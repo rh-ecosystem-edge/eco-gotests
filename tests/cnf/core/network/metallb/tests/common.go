@@ -1019,43 +1019,61 @@ func validateBGPSessionState(bgpStatus, bfdStatus, bgpPeerIP string, workerNodeL
 func validateServiceBGPStatus(nodeList []*nodes.Builder, serviceName, serviceNamespace string, peers []string) {
 	GinkgoHelper()
 
-	var (
-		serviceBGPStatuses []*metallb.ServiceBGPStatusBuilder
-		err                error
-	)
+	for _, workerNode := range nodeList {
+		Eventually(func() bool {
+			return findServiceBGPStatusForNode(workerNode.Definition.Name, serviceName, serviceNamespace, peers)
+		}, 30*time.Second, 2*time.Second).Should(BeTrue(),
+			"Failed to find ServiceBGPStatus for node %s, service name %s, service namespace %s",
+			workerNode.Definition.Name, serviceName, serviceNamespace)
+	}
+}
 
-	Eventually(func() bool {
-		serviceBGPStatuses, err = metallb.ListServiceBGPStatus(APIClient)
-		if err != nil {
-			return false
+// findServiceBGPStatusForNode checks if a ServiceBGPStatus exists for the given node, service, and peers.
+func findServiceBGPStatusForNode(nodeName, serviceName, serviceNamespace string, peers []string) bool {
+	serviceBGPStatuses, err := metallb.ListServiceBGPStatus(APIClient)
+	if err != nil {
+		klog.V(100).Infof("Error listing ServiceBGPStatus: %v", err)
+
+		return false
+	}
+
+	klog.V(100).Infof("Found %d ServiceBGPStatus objects, looking for node %s, service %s/%s",
+		len(serviceBGPStatuses), nodeName, serviceNamespace, serviceName)
+
+	for _, status := range serviceBGPStatuses {
+		if status.Object.Status.Node != nodeName ||
+			status.Object.Status.ServiceName != serviceName ||
+			status.Object.Status.ServiceNamespace != serviceNamespace {
+			continue
 		}
 
-		klog.V(100).Infof("Found %d ServiceBGPStatus objects", len(serviceBGPStatuses))
+		return containsAllPeers(status.Object.Status.Peers, peers, nodeName)
+	}
 
-		return len(serviceBGPStatuses) > 0
-	}, 30*time.Second, 2*time.Second).Should(BeTrue(), "Failed to wait for ServiceBGPStatus objects list to be available")
+	return false
+}
 
-	for _, workerNode := range nodeList {
+// containsAllPeers checks if all expected peers are present in the status peers list.
+func containsAllPeers(statusPeers, expectedPeers []string, nodeName string) bool {
+	for _, peer := range expectedPeers {
 		found := false
 
-		for _, status := range serviceBGPStatuses {
-			if status.Object.Status.Node == workerNode.Definition.Name &&
-				status.Object.Status.ServiceName == serviceName &&
-				status.Object.Status.ServiceNamespace == serviceNamespace {
-				Expect(status.Object.Status.Peers).To(ContainElements(peers),
-					"Failed to find peers in service BGP status with node %s, service name %s, service namespace %s",
-					workerNode.Definition.Name, serviceName, serviceNamespace)
-
+		for _, p := range statusPeers {
+			if p == peer {
 				found = true
 
 				break
 			}
 		}
 
-		Expect(found).To(BeTrue(),
-			"Failed to find ServiceBGPStatus for node %s, service name %s, service namespace %s",
-			workerNode.Definition.Name, serviceName, serviceNamespace)
+		if !found {
+			klog.V(100).Infof("Peer %s not yet present in ServiceBGPStatus for node %s", peer, nodeName)
+
+			return false
+		}
 	}
+
+	return true
 }
 
 // normalizeBGPPeerIP converts IPv6 addresses from short format to MetalLB's long format.

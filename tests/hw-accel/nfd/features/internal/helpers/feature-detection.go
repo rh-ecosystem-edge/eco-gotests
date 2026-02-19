@@ -44,16 +44,7 @@ func IsNFDTaintsEnabled(apiClient *clients.Settings, nfdNamespace string) (bool,
 		// Check all containers in the pod
 		for _, container := range podDetails.Spec.Containers {
 			for _, arg := range container.Args {
-				if strings.Contains(arg, "--enable-taints") || strings.Contains(arg, "-enable-taints=true") {
-					klog.V(nfdparams.LogLevel).Infof("Found --enable-taints flag in NFD master pod %s", masterPod.Object.Name)
-
-					return true, nil
-				}
-			}
-
-			// Also check command
-			for _, cmd := range container.Command {
-				if strings.Contains(cmd, "--enable-taints") || strings.Contains(cmd, "-enable-taints=true") {
+				if cmd == "--enable-taints" || cmd == "--enable-taints=true" {
 					klog.V(nfdparams.LogLevel).Infof("Found --enable-taints in command of NFD master pod %s", masterPod.Object.Name)
 
 					return true, nil
@@ -84,7 +75,8 @@ func GetNFDVersion(apiClient *clients.Settings, nfdNamespace string) string {
 			image := container.Image
 			// Extract version from image tag (e.g., registry.io/nfd:v0.12.0)
 			if parts := strings.Split(image, ":"); len(parts) > 1 {
-				version := parts[1]
+				version := parts[len(parts)-1]
+        
 				klog.V(nfdparams.LogLevel).Infof("Detected NFD version: %s", version)
 
 				return version
