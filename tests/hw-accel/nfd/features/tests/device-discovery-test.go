@@ -56,11 +56,11 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 			Expect(err).NotTo(HaveOccurred(), "Failed to create PCI discovery rule")
 			Expect(testRule).NotTo(BeNil())
 
-			defer func() {
+			DeferCleanup(func() {
 				if testRule != nil && testRule.Exists() {
 					_, _ = testRule.Delete()
 				}
-			}()
+			})
 
 			By("Waiting for PCI device labels to appear")
 			err = nfdwait.WaitForLabelsFromRule(APIClient,
@@ -124,11 +124,11 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 			Expect(err).NotTo(HaveOccurred(), "Failed to create network discovery rule")
 			Expect(testRule).NotTo(BeNil())
 
-			defer func() {
+			DeferCleanup(func() {
 				if testRule != nil && testRule.Exists() {
 					_, _ = testRule.Delete()
 				}
-			}()
+			})
 
 			By("Waiting for network device labels")
 			err = nfdwait.WaitForLabelsFromRule(APIClient,
@@ -191,11 +191,11 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 			Expect(err).NotTo(HaveOccurred(), "Failed to create system discovery rule")
 			Expect(testRule).NotTo(BeNil())
 
-			defer func() {
+			DeferCleanup(func() {
 				if testRule != nil && testRule.Exists() {
 					_, _ = testRule.Delete()
 				}
-			}()
+			})
 
 			By("Waiting for system feature labels")
 			err = nfdwait.WaitForLabelsFromRule(APIClient,

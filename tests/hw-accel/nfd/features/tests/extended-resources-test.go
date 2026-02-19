@@ -18,7 +18,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-const testTaintKey = "testTaintKey"
+const testTaintKey = "test.example.com/special-hardware"
 
 var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"), func() {
 	Context("Advanced NFD Features", func() {
@@ -226,7 +226,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 			}
 
 			By("Verifying taints are added to nodes")
-			Eventually(func() bool {
+			taintFound := helpers.WaitForFeatureDetection(func() bool {
 				nodesList, err := nodes.List(APIClient, metav1.ListOptions{
 					LabelSelector: "node-role.kubernetes.io/worker=",
 				})
@@ -236,15 +236,14 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 					return false
 				}
 
-				for _, node := range nodesList {
-					// Check if node has the label (meaning it matched the rule)
-					nodelabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
-					if err != nil {
-						continue
-					}
+				currentLabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
+				if err != nil {
+					return false
+				}
 
+				for _, node := range nodesList {
 					hasLabel := false
-					if labels, ok := nodelabels[node.Object.Name]; ok {
+					if labels, ok := currentLabels[node.Object.Name]; ok {
 						for _, label := range labels {
 							if label == "test.feature.node.kubernetes.io/tainted=true" {
 								hasLabel = true
@@ -258,7 +257,6 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 						continue
 					}
 
-					// If node has the label, it should also have the taint
 					for _, taint := range node.Object.Spec.Taints {
 						if taint.Key == testTaintKey &&
 							taint.Value == "true" &&
@@ -273,28 +271,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 				klog.V(nfdparams.LogLevel).Info("Taints not found yet on matching nodes")
 
 				return false
-			}).WithTimeout(1 * time.Minute).WithPolling(5 * time.Second).Should(Or(BeTrue(), BeFalse()))
-
-			// Check if taints are supported by verifying if any taint was found
-			taintFound := false
-			nodesList2, err := nodes.List(APIClient, metav1.ListOptions{
-				LabelSelector: "node-role.kubernetes.io/worker=",
-			})
-			if err == nil {
-				for _, node := range nodesList2 {
-					for _, taint := range node.Object.Spec.Taints {
-						if taint.Key == testTaintKey {
-							taintFound = true
-
-							break
-						}
-					}
-					if taintFound {
-
-						break
-					}
-				}
-			}
+			}, 1*time.Minute, 5*time.Second)
 
 			if !taintFound {
 				Skip("Node tainting not supported - NFD may lack RBAC permissions or feature is disabled")
