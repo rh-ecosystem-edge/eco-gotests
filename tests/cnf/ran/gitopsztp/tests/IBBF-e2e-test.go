@@ -139,7 +139,7 @@ var _ = Describe(
 			_, err = managedCluster.WaitForCondition(metav1.Condition{
 				Type:   "ManagedClusterConditionAvailable",
 				Status: metav1.ConditionTrue,
-			}, 5*time.Minute)
+			}, 12*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error waiting for managedcluster to become available")
 
 		})
