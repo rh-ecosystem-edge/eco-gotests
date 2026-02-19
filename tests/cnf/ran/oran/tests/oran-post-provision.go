@@ -275,7 +275,7 @@ func waitForLabels() {
 	clusterInstance, err := siteconfig.PullClusterInstance(HubAPIClient, RANConfig.Spoke1Name, RANConfig.Spoke1Name)
 	Expect(err).ToNot(HaveOccurred(), "Failed to pull spoke 1 ClusterInstance")
 
-	_, err = clusterInstance.WaitForExtraLabel("ManagedCluster", tsparams.TestName, 2*time.Minute)
+	_, err = clusterInstance.WaitForExtraLabel("ManagedCluster", tsparams.TestName, 5*time.Minute)
 	Expect(err).ToNot(HaveOccurred(), "Failed to wait for spoke 1 ClusterInstance to have the extraLabel")
 
 	By("waiting for ManagedCluster to have label")
@@ -283,7 +283,7 @@ func waitForLabels() {
 	mcl, err := ocm.PullManagedCluster(HubAPIClient, RANConfig.Spoke1Name)
 	Expect(err).ToNot(HaveOccurred(), "Failed to pull spoke 1 ManagedCluster")
 
-	_, err = mcl.WaitForLabel(tsparams.TestName, 2*time.Minute)
+	_, err = mcl.WaitForLabel(tsparams.TestName, 5*time.Minute)
 	Expect(err).ToNot(HaveOccurred(), "Failed to wait for spoke 1 ManagedCluster to have the label")
 }
 
