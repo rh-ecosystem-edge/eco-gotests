@@ -35,6 +35,7 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 				if len(labels) > 0 {
 					sampleNode = nodeName
 					sampleLabels = labels
+
 					break
 				}
 			}
@@ -66,9 +67,11 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 				for _, p := range pods {
 					if p.Object.Status.Phase == corev1.PodRunning {
 						klog.V(nfdparams.LogLevel).Infof("Worker pod %s is running", p.Object.Name)
+
 						return true
 					}
 				}
+
 				return false
 			}).WithTimeout(5*time.Minute).Should(BeTrue(), "Worker pod should be recreated and running")
 
@@ -77,6 +80,7 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 				currentLabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
 				if err != nil {
 					klog.V(nfdparams.LogLevel).Infof("Error getting labels: %v", err)
+
 					return false
 				}
 
@@ -101,6 +105,7 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 				for idx := 0; idx < len(labelParts); idx++ {
 					if labelParts[idx] == '=' {
 						checkLabels = append(checkLabels, labelParts[:idx])
+
 						break
 					}
 				}
@@ -180,15 +185,18 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 			Eventually(func() bool {
 				pods, err := pod.List(APIClient, hwaccelparams.NFDNamespace, listOptions)
 				if err != nil {
+
 					return false
 				}
 
 				for _, p := range pods {
 					if p.Object.Status.Phase == corev1.PodRunning {
 						klog.V(nfdparams.LogLevel).Infof("Master pod %s is running", p.Object.Name)
+
 						return true
 					}
 				}
+
 				return false
 			}).WithTimeout(5*time.Minute).Should(BeTrue(), "Master pod should be recreated and running")
 
@@ -196,6 +204,7 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 			Eventually(func() bool {
 				nodelabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
 				if err != nil {
+
 					return false
 				}
 
@@ -203,9 +212,11 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 					if helpers.CheckLabelsExist(nodelabels,
 						[]string{"test.feature.node.kubernetes.io/master-test"},
 						nil, nodeName) == nil {
+
 						return true
 					}
 				}
+
 				return false
 			}).WithTimeout(5*time.Minute).Should(BeTrue(), "Labels should still be present after master restart")
 		})
@@ -270,6 +281,7 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 			Eventually(func() bool {
 				nodelabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
 				if err != nil {
+
 					return false
 				}
 
@@ -277,9 +289,11 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 					if helpers.CheckLabelsExist(nodelabels,
 						[]string{"test.feature.node.kubernetes.io/gc-test"},
 						nil, nodeName) == nil {
+
 						return false
 					}
 				}
+
 				return true
 			}).WithTimeout(5*time.Minute).Should(BeTrue(), "Labels should be garbage collected")
 
