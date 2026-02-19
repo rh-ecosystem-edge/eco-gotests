@@ -147,7 +147,7 @@ func (nfd *NFDCRUtils) IsNFDCRReady(timeout time.Duration) (bool, error) {
 		return false, fmt.Errorf("failed to pull NFD CR: %w", err)
 	}
 
-	if nfdBuilder != nil {
+	if nfdBuilder != nil && nfdBuilder.Definition != nil {
 		klog.V(nfd.LogLevel).Infof("NFD CR '%s' found - checking pods", nfdBuilder.Definition.Name)
 
 		return ForPodsRunning(nfd.APIClient, timeout, nfd.Namespace)
