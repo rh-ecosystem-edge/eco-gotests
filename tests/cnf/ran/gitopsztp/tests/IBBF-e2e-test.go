@@ -1,6 +1,9 @@
 package tests
 
 import (
+	"fmt"
+	"time"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/argocd"
@@ -15,14 +18,13 @@ import (
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"fmt"
-	"time"
+	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
+	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe(
 	"Performing Image-Based Break/Fix Flow",
-	Label(tsparams.LabelIBBFe2e), func() {
+	Ordered, Label(tsparams.LabelIBBFe2e), func() {
 
 		var (
 			spokeNamespace = RANConfig.Spoke1Name
@@ -141,6 +143,15 @@ var _ = Describe(
 				Status: metav1.ConditionTrue,
 			}, 5*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error waiting for managedcluster to become available")
+		})
 
+		It("verifies policies are compliant after IBBF", reportxml.ID("87996"), func() {
+			By("Verifying all policies are compliant after IBBF")
+
+			err := ocm.WaitForAllPoliciesComplianceState(
+				HubAPIClient, policiesv1.Compliant, 30*time.Minute,
+				runtimeclient.ListOptions{Namespace: spokeNamespace})
+			Expect(err).ToNot(HaveOccurred(),
+				"Failed to verify all policies are compliant after IBBF for spoke %s", spokeNamespace)
 		})
 	})
