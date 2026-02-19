@@ -83,6 +83,15 @@ var (
 	// WhereaboutsIPv4Gateway2 is the gateway for whereabouts IPAM range 2.
 	WhereaboutsIPv4Gateway2 = "192.168.101.1"
 
+	// WhereaboutsIPv6Range is the IPv6 range for whereabouts IPAM.
+	WhereaboutsIPv6Range = "2001:100:100::/64"
+	// WhereaboutsIPv6Gateway is the IPv6 gateway for whereabouts IPAM.
+	WhereaboutsIPv6Gateway = "2001:100:100::1"
+	// WhereaboutsIPv6Range2 is an additional IPv6 range for whereabouts IPAM (separate range to avoid conflicts).
+	WhereaboutsIPv6Range2 = "2001:100:101::/64"
+	// WhereaboutsIPv6Gateway2 is the IPv6 gateway for whereabouts IPAM range 2.
+	WhereaboutsIPv6Gateway2 = "2001:100:101::1"
+
 	// OperatorConfigDaemon defaults SR-IOV config daemon daemonset.
 	OperatorConfigDaemon = "sriov-network-config-daemon"
 	// OperatorWebhook defaults SR-IOV webhook daemonset.
