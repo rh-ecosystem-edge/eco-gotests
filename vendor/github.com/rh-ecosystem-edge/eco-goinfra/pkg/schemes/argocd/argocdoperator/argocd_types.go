@@ -437,20 +437,26 @@ type ArgoCDNotifications struct {
 // ArgoCDPrometheusSpec defines the desired state for the Prometheus component.
 type ArgoCDPrometheusSpec struct {
 	// Enabled will toggle Prometheus support globally for ArgoCD.
+	// When set to true, ServiceMonitors and PrometheusRules will be created for Argo CD metrics.
+	// The Prometheus CR, Route, and Ingress are deprecated and will no longer be created.
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Enabled",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:fieldGroup:Prometheus","urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	Enabled bool `json:"enabled"`
 
 	// Host is the hostname to use for Ingress/Route resources.
+	// Deprecated: This field is no longer used and will be ignored.
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Host",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:fieldGroup:Prometheus","urn:alm:descriptor:com.tectonic.ui:text"}
 	Host string `json:"host,omitempty"`
 
 	// Ingress defines the desired state for an Ingress for the Prometheus component.
+	// Deprecated: This field is no longer used and will be ignored.
 	Ingress ArgoCDIngressSpec `json:"ingress,omitempty"`
 
 	// Route defines the desired state for an OpenShift Route for the Prometheus component.
+	// Deprecated: This field is no longer used and will be ignored.
 	Route ArgoCDRouteSpec `json:"route,omitempty"`
 
 	// Size is the replica count for the Prometheus StatefulSet.
+	// Deprecated: This field is no longer used and will be ignored.
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Size",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:fieldGroup:Prometheus","urn:alm:descriptor:com.tectonic.ui:podCount"}
 	Size *int32 `json:"size,omitempty"`
 }
@@ -856,6 +862,19 @@ type ArgoCDNodePlacementSpec struct {
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 }
 
+// ArgoCDNetworkPolicySpec defines whether the operator should create NetworkPolicies for an Argo CD instance.
+type ArgoCDNetworkPolicySpec struct {
+	// Enabled defines whether NetworkPolicy resources are created for this Argo CD instance.
+	// When enabled, the operator will reconcile NetworkPolicies for Argo CD components.
+	// When disabled, the operator will remove any previously-created NetworkPolicies.
+	// +kubebuilder:default=true
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+func (a *ArgoCDNetworkPolicySpec) IsEnabled() bool {
+	return a == nil || a.Enabled == nil || *a.Enabled
+}
+
 // ArgoCDSpec defines the desired state of ArgoCD
 // +k8s:openapi-gen=true
 // +kubebuilder:validation:XValidation:rule="!(has(self.sso) && has(self.oidcConfig))",message="spec.sso and spec.oidcConfig cannot both be set"
@@ -951,6 +970,9 @@ type ArgoCDSpec struct {
 
 	// Monitoring defines whether workload status monitoring configuration for this instance.
 	Monitoring ArgoCDMonitoringSpec `json:"monitoring,omitempty"`
+
+	// NetworkPolicy controls whether the operator should create NetworkPolicy resources for this Argo CD instance.
+	NetworkPolicy ArgoCDNetworkPolicySpec `json:"networkPolicy,omitempty"`
 
 	// NodePlacement defines NodeSelectors and Taints for Argo CD workloads
 	NodePlacement *ArgoCDNodePlacementSpec `json:"nodePlacement,omitempty"`
