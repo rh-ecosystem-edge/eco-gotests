@@ -160,6 +160,32 @@ func (builder *IPConfigBuilder) Exists() bool {
 	return err == nil || !k8serrors.IsNotFound(err)
 }
 
+// Update changes the existing ipconfig resource on the cluster, failing if it does not exist or cannot be updated.
+func (builder *IPConfigBuilder) Update() (*IPConfigBuilder, error) {
+	if valid, err := builder.validate(); !valid {
+		return nil, err
+	}
+
+	klog.V(100).Infof("Updating ipconfig %s", builder.Definition.Name)
+
+	if !builder.Exists() {
+		klog.V(100).Infof("ipconfig %s does not exist", builder.Definition.Name)
+
+		return nil, fmt.Errorf("cannot update non-existing ipconfig")
+	}
+
+	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
+
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
+	if err != nil {
+		return nil, err
+	}
+
+	builder.Object = builder.Definition
+
+	return builder, nil
+}
+
 // WaitUntilComplete waits the specified timeout for the ipconfig to complete
 // actions.
 func (builder *IPConfigBuilder) WaitUntilComplete(timeout time.Duration) (*IPConfigBuilder, error) {
@@ -353,6 +379,19 @@ func (builder *IPConfigBuilder) WithStage(
 
 	klog.V(100).Infof("Setting stage %s in ipconfig", stage)
 	builder.Definition.Spec.Stage = lcaipcv1.IPConfigStage(stage)
+
+	return builder
+}
+
+// WithVlanID sets the VLAN ID used by the ipconfig.
+func (builder *IPConfigBuilder) WithVlanID(
+	vlanID int) *IPConfigBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof("Setting VLAN ID %d in ipconfig", vlanID)
+	builder.Definition.Spec.VLANID = vlanID
 
 	return builder
 }
