@@ -6,6 +6,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	monv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/internal/nicinfo"
@@ -13,13 +14,19 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/rancluster"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/consumer"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/metrics"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/mustgather"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
 	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/tests"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/reporter"
 )
 
-var _, currentFile, _, _ = runtime.Caller(0)
+var (
+	_, currentFile, _, _ = runtime.Caller(0)
+
+	// savedPtpServiceMonitor holds the original PTP ServiceMonitor state so it can be restored in AfterSuite.
+	savedPtpServiceMonitor *monv1.ServiceMonitor
+)
 
 func TestPTP(t *testing.T) {
 	_, reporterConfig := GinkgoConfiguration()
@@ -34,20 +41,28 @@ var _ = BeforeSuite(func() {
 	isSpoke1Present := rancluster.AreClustersPresent([]*clients.Settings{Spoke1APIClient})
 	Expect(isSpoke1Present).To(BeTrue(), "Spoke 1 cluster must be present for PTP tests")
 
+	By("updating the PTP ServiceMonitor scrape interval to 1s")
+	var err error
+	savedPtpServiceMonitor, err = metrics.UpdatePtpServiceMonitorInterval(RANConfig.Spoke1APIClient, "1s")
+	Expect(err).ToNot(HaveOccurred(), "Failed to update PTP ServiceMonitor scrape interval")
+
 	By("deploying consumers")
-	err := consumer.DeployConsumersOnNodes(RANConfig.Spoke1APIClient)
+	err = consumer.DeployConsumersOnNodes(RANConfig.Spoke1APIClient)
 	Expect(err).ToNot(HaveOccurred(), "Failed to deploy consumers on nodes with PTP daemons")
 })
 
 var _ = AfterSuite(func() {
+	By("restoring the PTP ServiceMonitor")
+	err := metrics.RestorePtpServiceMonitor(RANConfig.Spoke1APIClient, savedPtpServiceMonitor)
+	Expect(err).ToNot(HaveOccurred(), "Failed to restore PTP ServiceMonitor")
+
 	By("removing consumers")
-	err := consumer.CleanupConsumersOnNodes(RANConfig.Spoke1APIClient)
+	err = consumer.CleanupConsumersOnNodes(RANConfig.Spoke1APIClient)
 	Expect(err).ToNot(HaveOccurred(), "Failed to cleanup consumers on nodes with PTP daemons")
 
 	By("cleaning up Prometheus API client resources")
 	err = querier.CleanupQuerierResources(RANConfig.Spoke1APIClient)
 	Expect(err).ToNot(HaveOccurred(), "Failed to cleanup Prometheus API client resources")
-
 })
 
 var _ = JustAfterEach(func() {

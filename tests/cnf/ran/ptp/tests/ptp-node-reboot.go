@@ -14,7 +14,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/rancluster"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/consumer"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/eventmetric"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/events"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/metrics"
@@ -100,16 +100,22 @@ var _ = Describe("PTP Node Reboot", Ordered, ContinueOnFailure, Label(tsparams.L
 
 	// 59995 - Validates PTP consumer events after ptp node reboot
 	It("validates PTP consumer events after ptp node reboot", reportxml.ID("59995"), func() {
-		By("getting the event pod for the node " + nodeName)
-		eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeName)
-		Expect(err).ToNot(HaveOccurred(), "Failed to get event pod for node %s", nodeName)
+		By("creating a Prometheus API client")
+		prometheusAPI, err := querier.CreatePrometheusAPIForCluster(RANConfig.Spoke1APIClient)
+		Expect(err).ToNot(HaveOccurred(), "Failed to create Prometheus API client")
 
-		By("waiting for the LOCKED event to be reported")
-		filter := events.All(
+		By("waiting for the LOCKED event and metric to be reported")
+		lockedFilter := events.All(
 			events.IsType(eventptp.PtpStateChange),
 			events.HasValue(events.WithSyncState(eventptp.LOCKED), events.ContainingResource(string(iface.Master))),
 		)
-		err = events.WaitForEvent(eventPod, rebootTime, 5*time.Minute, filter)
+		err = eventmetric.NewAssertion(prometheusAPI,
+			metrics.ClockStateQuery{Node: metrics.Equals(nodeName), Process: metrics.DoesNotEqual(metrics.ProcessChronyd)},
+			metrics.ClockStateLocked, lockedFilter).
+			ForNode(RANConfig.Spoke1APIClient, nodeName).
+			WithStartTime(rebootTime).
+			WithTimeout(5 * time.Minute).
+			ExecuteAssertion(context.TODO())
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for locked event on node %s", nodeName)
 	})
 })

@@ -33,9 +33,9 @@ The `WaitForEvent` function accepts several optional parameters:
 
 Specifies the container name within the pod from which to retrieve logs. If not specified, logs are retrieved from the default container. This is particularly useful when monitoring PTP events from specific containers like `"cloud-event-proxy"`.
 
-#### `WithoutCurrentState(ignoreCurrentState bool)`
+#### `WithCurrentState(includeCurrentState bool)`
 
-Controls whether to ignore messages about the current state of events. When set to `true`, only events received as subscriptions are considered, filtering out initial state reports. This is useful when you want to wait for new events rather than existing state information.
+Controls whether to include messages about the current state of events. By default, current state messages are not included.
 
 ### Event Filtering
 
@@ -112,14 +112,13 @@ func main() {
 
     fmt.Printf("Waiting for PTP Sync State Locked event on interface %s...\n", targetInterface)
 
-    // Use both WithContainer and WithoutCurrentState options
+    // Use the container option.
     err := events.WaitForEvent(
         myPtpPod,
         startTime,
         timeout,
         eventFilter,
         events.WithContainer("cloud-event-proxy"),
-        events.WithoutCurrentState(true), // Only wait for new events, not current state
     )
     if err != nil {
         fmt.Printf("Error waiting for event: %v\n", err)
