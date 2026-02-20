@@ -18,6 +18,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/version"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/consumer"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/daemonlogs"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/events"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/gnss"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
@@ -69,9 +70,9 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 
 		if len(changedProfiles) > 0 {
 			By("waiting for profile load on nodes")
-			err := ptpdaemon.WaitForProfileLoadOnPTPNodes(RANConfig.Spoke1APIClient,
-				ptpdaemon.WithStartTime(startTime),
-				ptpdaemon.WithTimeout(5*time.Minute))
+			err := daemonlogs.WaitForProfileLoadOnPTPNodes(RANConfig.Spoke1APIClient,
+				daemonlogs.WithStartTime(startTime),
+				daemonlogs.WithTimeout(5*time.Minute))
 			if err != nil {
 				// Timeouts may occur if the profiles changed do not apply to all PTP nodes, so we make
 				// this non-fatal. This only happens in certain scenarios in MNO clusters.
@@ -567,21 +568,21 @@ func waitForLoadAndTS2PHCLocked(prometheusAPI prometheusv1.API, nodeName string,
 
 	profileLoadTime := time.Now()
 
-	err := ptpdaemon.WaitForProfileLoadOnNodes(RANConfig.Spoke1APIClient, []string{nodeName},
-		ptpdaemon.WithStartTime(updateTime),
-		ptpdaemon.WithTimeout(5*time.Minute))
+	err := daemonlogs.WaitForProfileLoadOnNodes(RANConfig.Spoke1APIClient, []string{nodeName},
+		daemonlogs.WithStartTime(updateTime),
+		daemonlogs.WithTimeout(5*time.Minute))
 	Expect(err).ToNot(HaveOccurred(), "Failed to wait for profile load on node %s", nodeName)
 
 	// If we do not wait for ts2phc to start properly after the profile load, we risk ending up in a situation where
 	// holdover is not triggered properly.
 	By("waiting for ts2phc to start after profile load")
 
-	err = ptpdaemon.WaitForPodLog(
+	err = daemonlogs.WaitForPodLog(
 		RANConfig.Spoke1APIClient,
 		nodeName,
-		ptpdaemon.WithStartTime(profileLoadTime),
-		ptpdaemon.WithTimeout(5*time.Minute),
-		ptpdaemon.WithMatcher(ptpdaemon.ContainsMatcher("starting ts2phc")),
+		daemonlogs.WithStartTime(profileLoadTime),
+		daemonlogs.WithTimeout(5*time.Minute),
+		daemonlogs.WithMatcher(daemonlogs.ContainsMatcher("starting ts2phc")),
 	)
 	Expect(err).ToNot(HaveOccurred(), "Failed to find ts2phc start log on node %s", nodeName)
 
