@@ -721,9 +721,9 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 				frrPod := deployTestPods(addressPool, hubIPv4ExternalAddresses, externalAdvertisedIPv4Routes,
 					externalAdvertisedIPv6Routes)
 
-				By("Creating BGP Peers with multipath disabled for RouteAdvertisement compatibility")
+				By("Creating BGP Peers without dualStackAddressFamily for RouteAdvertisement compatibility")
 				createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, ipv4metalLbIPList[0], "",
-					tsparams.LocalBGPASN, false, 0, frrk8sPods, true)
+					tsparams.LocalBGPASN, false, 0, frrk8sPods)
 
 				By("Checking that BGP session is established and up")
 				verifyMetalLbBGPSessionsAreUPOnFrrPod(frrPod, netcmd.RemovePrefixFromIPList(ipv4NodeAddrList))

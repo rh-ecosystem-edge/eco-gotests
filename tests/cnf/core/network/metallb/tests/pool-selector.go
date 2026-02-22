@@ -383,10 +383,12 @@ func runPoolSelectorTests(ipStack, trafficPolicy string, bgpASN int, twoPools bo
 			400, []string{tsparams.BgpPeerName2}, nil)
 	}
 
+	// Enable dualStackAddressFamily for IPv6 tests to support MP-BGP
+	enableDualStack := ipStack == netparam.IPV6Family
 	createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, metallbAddrList[ipStack][0], "", uint32(bgpASN),
-		false, 0, frrk8sPods)
+		false, 0, frrk8sPods, enableDualStack)
 	createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName2, metallbAddrList[ipStack][1], "", uint32(bgpASN),
-		false, 0, frrk8sPods)
+		false, 0, frrk8sPods, enableDualStack)
 
 	By("Deploy test pods that runs Nginx server and SCTP server on worker0 & worker-1")
 
@@ -514,14 +516,15 @@ func runPoolSelectorTestsDualStack(ipStack, trafficPolicy string, bgpASN int, tw
 	}
 
 	By("Creating BGP Peers")
+	// IPv4 peers don't need dualStackAddressFamily, IPv6 peers need it enabled for MP-BGP support
 	createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, metallbAddrList[ipv4][0], "", uint32(bgpASN),
 		false, 0, frrk8sPods)
 	createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName2, metallbAddrList[ipv6][0], "", uint32(bgpASN),
-		false, 0, frrk8sPods)
+		false, 0, frrk8sPods, true)
 	createBGPPeerAndVerifyIfItsReady("bgppeer3", metallbAddrList[ipv4][1], "", uint32(bgpASN),
 		false, 0, frrk8sPods)
 	createBGPPeerAndVerifyIfItsReady("bgppeer4", metallbAddrList[ipv6][1], "", uint32(bgpASN),
-		false, 0, frrk8sPods)
+		false, 0, frrk8sPods, true)
 
 	By("Deploy test pods that runs Nginx server and SCTP server on worker0 & worker1")
 
