@@ -30,6 +30,17 @@ var _ = Describe(
 			spokeNamespace = RANConfig.Spoke1Name
 		)
 
+		BeforeEach(func() {
+			By("checking if the git path exists")
+			clustersApp, err := argocd.PullApplication(
+				HubAPIClient, tsparams.ArgoCdClustersAppName, ranparam.OpenshiftGitOpsNamespace)
+			Expect(err).ToNot(HaveOccurred(), "Failed to get the clusters app")
+
+			if !clustersApp.DoesGitPathExist(tsparams.ZtpTestPathIBBFe2e) {
+				Skip(fmt.Sprintf("git path '%s' could not be found", tsparams.ZtpTestPathIBBFe2e))
+			}
+		})
+
 		AfterEach(func() {
 
 			By("Cleanup test configmap")
@@ -44,11 +55,6 @@ var _ = Describe(
 			clustersApp, err := argocd.PullApplication(
 				HubAPIClient, tsparams.ArgoCdClustersAppName, ranparam.OpenshiftGitOpsNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get the clusters app")
-
-			By("checking if the git path exists")
-			if !clustersApp.DoesGitPathExist(tsparams.ZtpTestPathIBBFe2e) {
-				Skip(fmt.Sprintf("git path '%s' could not be found", tsparams.ZtpTestPathIBBFe2e))
-			}
 
 			By("Enabling cluster reinstallation in SiteconfigOperator")
 
