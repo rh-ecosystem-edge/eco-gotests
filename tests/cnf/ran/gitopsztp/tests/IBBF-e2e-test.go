@@ -41,7 +41,7 @@ var _ = Describe(
 			}
 		})
 
-		AfterEach(func() {
+		AfterAll(func() {
 			By("Cleanup test configmap")
 
 			err := configmap.NewBuilder(HubAPIClient, tsparams.TestCMName, spokeNamespace).
