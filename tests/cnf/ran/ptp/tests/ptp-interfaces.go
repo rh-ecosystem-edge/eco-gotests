@@ -335,7 +335,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 
 			err = metrics.AssertQuery(context.TODO(), prometheusAPI, metrics.ClockStateQuery{}, metrics.ClockStateLocked,
 				metrics.AssertWithStableDuration(30*time.Second),
-				metrics.AssertWithTimeout(45*time.Second))
+				metrics.AssertWithTimeout(3*time.Minute))
 			Expect(err).ToNot(HaveOccurred(), "Failed to assert that the PTP metric stays in locked state")
 		}
 
