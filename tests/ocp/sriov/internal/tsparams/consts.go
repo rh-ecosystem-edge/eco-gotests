@@ -13,6 +13,8 @@ const (
 	LabelOcpSriovReinstallation = "sriovreinstall"
 	// LabelBasic represents basic test label for filtering.
 	LabelBasic = "basic"
+	// LabelExposeMTUTestCases represents Expose MTU label that can be used for test cases selection.
+	LabelExposeMTUTestCases = "exposemtu"
 
 	// MCOWaitTimeout represent timeout for mco operations.
 	MCOWaitTimeout = 35 * time.Minute
