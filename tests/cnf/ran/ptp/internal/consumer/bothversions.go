@@ -118,6 +118,8 @@ func getEventAPIVersion(client *clients.Settings) (ptpEventAPIVersion, error) {
 		return eventAPIVersionV1, nil
 	case string(eventAPIVersionV2):
 		return eventAPIVersionV2, nil
+	case "":
+		return eventAPIVersionV2, nil
 	default:
 		return "", fmt.Errorf("unknown event API version %s in PTP operator config", apiVersion)
 	}

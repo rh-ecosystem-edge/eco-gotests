@@ -37,7 +37,9 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/consumer"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/events"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/metrics"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
 	"golang.org/x/exp/constraints"
+	"k8s.io/klog/v2"
 )
 
 // AssertConfig is a struct that contains the configuration for the assertion. It combines the possible inputs to
@@ -155,6 +157,17 @@ func (assertConfig *AssertConfig[V]) ExecuteAssertion(ctx context.Context) error
 		return fmt.Errorf("failed to check if events are enabled: %w", err)
 	}
 
+	klog.V(tsparams.LogLevel).Infof(
+		"Starting combined event/metric assertion: node=%s eventsEnabled=%t startTime=%s timeout=%s query=%s "+
+			"expectedMetricValue=%d",
+		assertConfig.NodeName,
+		eventsEnabled,
+		startTime,
+		assertConfig.Timeout,
+		assertConfig.MetricQuery.ToMetricQuery().String(),
+		int64(assertConfig.ExpectedMetricValue),
+	)
+
 	errChan := make(chan error, 2)
 	waitGroup := sync.WaitGroup{}
 
@@ -168,8 +181,14 @@ func (assertConfig *AssertConfig[V]) ExecuteAssertion(ctx context.Context) error
 			err := events.WaitForEvent(
 				eventPod, startTime, assertConfig.Timeout, assertConfig.EventFilter, assertConfig.EventOptions...)
 			if err != nil {
+				klog.V(tsparams.LogLevel).Infof("Event assertion failed for node %s: %v", assertConfig.NodeName, err)
+
 				errChan <- fmt.Errorf("event assertion failed: %w", err)
+
+				return
 			}
+
+			klog.V(tsparams.LogLevel).Infof("Event assertion passed for node %s", assertConfig.NodeName)
 		})
 	}
 
@@ -187,8 +206,19 @@ func (assertConfig *AssertConfig[V]) ExecuteAssertion(ctx context.Context) error
 			metricOptions...,
 		)
 		if err != nil {
+			klog.V(tsparams.LogLevel).Infof("Metric assertion failed for node %s: %v", assertConfig.NodeName, err)
+
 			errChan <- fmt.Errorf("metric assertion failed: %w", err)
+
+			return
 		}
+
+		klog.V(tsparams.LogLevel).Infof(
+			"Metric assertion passed for node %s with query %s and expected value %d",
+			assertConfig.NodeName,
+			assertConfig.MetricQuery.ToMetricQuery().String(),
+			int64(assertConfig.ExpectedMetricValue),
+		)
 	})
 
 	waitGroup.Wait()

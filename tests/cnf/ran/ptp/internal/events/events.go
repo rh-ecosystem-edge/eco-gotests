@@ -31,8 +31,8 @@ var (
 // waitForEventOptions is a struct that holds options for the WaitForEvent function. Options will update this struct and
 // the final result is used to configure the WaitForEvent function.
 type waitForEventOptions struct {
-	container          string
-	ignoreCurrentState bool
+	container           string
+	includeCurrentState bool
 }
 
 // WaitForEventOption is a function that modifies the waitForEventOptions struct. It is used to set options for the
@@ -47,11 +47,11 @@ func WithContainer(container string) WaitForEventOption {
 	}
 }
 
-// WithoutCurrentState is an option for the WaitForEvent function that specifies whether to ignore messages about the
-// current state of events. This allows for checking only events that are received as a subscription.
-func WithoutCurrentState(ignoreCurrentState bool) WaitForEventOption {
+// WithCurrentState is an option for the WaitForEvent function that specifies whether to include current state messages
+// while extracting events from logs.
+func WithCurrentState(includeCurrentState bool) WaitForEventOption {
 	return func(options *waitForEventOptions) {
-		options.ignoreCurrentState = ignoreCurrentState
+		options.includeCurrentState = includeCurrentState
 	}
 }
 
@@ -70,6 +70,15 @@ func WaitForEvent(
 	for _, option := range options {
 		option(&combinedOptions)
 	}
+
+	klog.V(tsparams.LogLevel).Infof(
+		"Waiting for event: startTime=%s timeout=%s container=%q includeCurrentState=%t filter=%#v",
+		startTime,
+		timeout,
+		combinedOptions.container,
+		combinedOptions.includeCurrentState,
+		filter,
+	)
 
 	return wait.PollUntilContextTimeout(
 		context.TODO(), 5*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
@@ -91,24 +100,42 @@ func WaitForEvent(
 
 			klog.V(tsparams.LogLevel).Infof("Logs: %s", string(logs))
 
-			extractedEvents := extractEventsFromLogs(logs, combinedOptions.ignoreCurrentState)
+			totalEventLikeLines := len(containsEventRegexp.FindAll(logs, -1))
+
+			nonCurrentStateEventLines := len(containsEventNotStateRegexp.FindAll(logs, -1))
+			if !combinedOptions.includeCurrentState && totalEventLikeLines > nonCurrentStateEventLines {
+				klog.V(tsparams.LogLevel).Infof(
+					"Ignored %d CurrentState event log lines (includeCurrentState=%t)",
+					totalEventLikeLines-nonCurrentStateEventLines,
+					combinedOptions.includeCurrentState,
+				)
+			}
+
+			extractedEvents := extractEventsFromLogs(logs, combinedOptions.includeCurrentState)
 
 			klog.V(tsparams.LogLevel).Infof("Extracted events: %#v\nFilter: %#v", extractedEvents, filter)
 
-			return slices.ContainsFunc(extractedEvents, filter.Filter), nil
+			matchingEventIndex := slices.IndexFunc(extractedEvents, filter.Filter)
+			if matchingEventIndex != -1 {
+				klog.V(tsparams.LogLevel).Infof("Matched event: %#v", extractedEvents[matchingEventIndex])
+
+				return true, nil
+			}
+
+			return false, nil
 		})
 }
 
 // extractEventsFromLogs extracts events from the logs of either the cloud event consumer or the cloud event proxy
 // containers. Rather than return errors, this function logs them and ignores the line. All lines that were able to be
 // parsed into events are returned.
-func extractEventsFromLogs(logs []byte, ignoreCurrentState bool) []event.Event {
+func extractEventsFromLogs(logs []byte, includeCurrentState bool) []event.Event {
 	var extractedEvents []event.Event
 
 	for line := range bytes.Lines(logs) {
-		matcher := containsEventRegexp
-		if ignoreCurrentState {
-			matcher = containsEventNotStateRegexp
+		matcher := containsEventNotStateRegexp
+		if includeCurrentState {
+			matcher = containsEventRegexp
 		}
 
 		if !matcher.Match(line) {
