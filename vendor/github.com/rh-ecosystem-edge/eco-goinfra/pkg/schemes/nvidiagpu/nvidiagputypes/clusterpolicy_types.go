@@ -94,6 +94,8 @@ type ClusterPolicySpec struct {
 	CCManager CCManagerSpec `json:"ccManager,omitempty"`
 	// HostPaths defines various paths on the host needed by GPU Operator components
 	HostPaths HostPathsSpec `json:"hostPaths,omitempty"`
+	// KataSandboxDevicePlugin component spec
+	KataSandboxDevicePlugin KataDevicePluginSpec `json:"kataSandboxDevicePlugin,omitempty"`
 }
 
 // Runtime defines container runtime type
@@ -124,8 +126,19 @@ func (r Runtime) String() string {
 	}
 }
 
+// SandboxWorkloadsMode defines the mode for sandbox workloads
+type SandboxWorkloadsMode string
+
+const (
+	// KubeVirt is the SandboxWorkloadsMode value for enabling KubeVirt based workloads
+	KubeVirt SandboxWorkloadsMode = "kubevirt"
+	// Kata is the SandboxWorkloadsMode value for enabling Kata Container based workloads
+	Kata SandboxWorkloadsMode = "kata"
+)
+
 // OperatorSpec describes configuration options for the operator
 type OperatorSpec struct {
+	// Deprecated: DefaultRuntime is no longer used by the gpu-operator. This is instead, detected at runtime.
 	// +kubebuilder:validation:Enum=docker;crio;containerd
 	// +kubebuilder:default=docker
 	DefaultRuntime Runtime `json:"defaultRuntime"`
@@ -197,6 +210,11 @@ type SandboxWorkloadsSpec struct {
 	// +kubebuilder:validation:Enum=container;vm-passthrough;vm-vgpu
 	// +kubebuilder:default=container
 	DefaultWorkload string `json:"defaultWorkload,omitempty"`
+	// Mode indicates the sandbox mode. Accepted values are "kubevirt"
+	// and "kata". The default value is "kubevirt".
+	// +kubebuilder:validation:Enum=kubevirt;kata
+	// +kubebuilder:default=kubevirt
+	Mode string `json:"mode,omitempty"`
 }
 
 // PSPSpec describes configuration for PodSecurityPolicies to apply for all Pods
@@ -1463,6 +1481,69 @@ type MIGGPUClientsConfigSpec struct {
 	Name string `json:"name,omitempty"`
 }
 
+// ImageSpec defines shared fields for component images
+type ImageSpec struct {
+	// NVIDIA component image repository
+	// +kubebuilder:validation:Optional
+	Repository string `json:"repository,omitempty"`
+
+	// NVIDIA component image name
+	// +kubebuilder:validation:Pattern=[a-zA-Z0-9\-]+
+	Image string `json:"image,omitempty"`
+
+	// NVIDIA component image tag
+	// +kubebuilder:validation:Optional
+	Version string `json:"version,omitempty"`
+
+	// Image pull policy
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Image Pull Policy"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:imagePullPolicy"
+	ImagePullPolicy string `json:"imagePullPolicy,omitempty"`
+}
+
+// ComponentCommonSpec defines shared fields for components
+type ComponentCommonSpec struct {
+	// Enabled indicates if deployment of NVIDIA component through operator is enabled
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Enable NVIDIA component deployment through GPU Operator"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Image pull secrets
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Image pull secrets"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:io.kubernetes:Secret"
+	ImagePullSecrets []string `json:"imagePullSecrets,omitempty"`
+
+	// Optional: Define resources requests and limits for each pod
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Resource Requirements"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:advanced,urn:alm:descriptor:com.tectonic.ui:resourceRequirements"
+	Resources *ResourceRequirements `json:"resources,omitempty"`
+
+	// Optional: List of arguments
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Arguments"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:advanced,urn:alm:descriptor:com.tectonic.ui:text"
+	Args []string `json:"args,omitempty"`
+
+	// Optional: List of environment variables
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Environment Variables"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:advanced,urn:alm:descriptor:com.tectonic.ui:text"
+	Env []EnvVar `json:"env,omitempty"`
+}
+
+// KataDevicePluginSpec defines attributes for the kata device plugin.
+// The Kata device plugin is deployed when SandboxWorkloads is enabled, SandboxWorkloads.Mode is "kata", and Enabled is true.
+type KataDevicePluginSpec struct {
+	ImageSpec           `json:",inline"`
+	ComponentCommonSpec `json:",inline"`
+}
+
 // KataManagerSpec defines the configuration for the kata-manager which prepares NVIDIA-specific kata runtimes
 type KataManagerSpec struct {
 	// Enabled indicates if deployment of Kata Manager is enabled
@@ -1904,6 +1985,9 @@ func ImagePath(spec interface{}) (string, error) {
 	case *CCManagerSpec:
 		config := spec.(*CCManagerSpec)
 		return imagePath(config.Repository, config.Image, config.Version, "CC_MANAGER_IMAGE")
+	case *KataDevicePluginSpec:
+		config := spec.(*KataDevicePluginSpec)
+		return imagePath(config.Repository, config.Image, config.Version, "KATA_SANDBOX_DEVICE_PLUGIN_IMAGE")
 	default:
 		return "", fmt.Errorf("invalid type to construct image path: %v", v)
 	}
@@ -2080,6 +2164,15 @@ func (s *SandboxDevicePluginSpec) IsEnabled() bool {
 		return false
 	}
 	return *s.Enabled
+}
+
+// IsEnabled returns true if the kata sandbox device plugin is enabled through gpu-operator
+func (k *KataDevicePluginSpec) IsEnabled() bool {
+	if k.Enabled == nil {
+		// default is false if not specified by user
+		return false
+	}
+	return *k.Enabled
 }
 
 // IsEnabled returns true if PodSecurityAdmission configuration is enabled for all gpu-operator pods

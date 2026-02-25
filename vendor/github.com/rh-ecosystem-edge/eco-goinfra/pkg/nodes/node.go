@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -382,63 +383,83 @@ func (builder *Builder) IsReady() (bool, error) {
 	return false, fmt.Errorf("the Ready condition could not be found for node %s", builder.Definition.Name)
 }
 
+// WaitForCondition waits until the node has a condition that matches the expected, checking only the Type, Status,
+// Reason, and Message fields. For the message field, it matches if the message contains the expected. Zero fields in
+// the expected condition are ignored.
+func (builder *Builder) WaitForCondition(expected corev1.NodeCondition, timeout time.Duration) (*Builder, error) {
+	if valid, err := builder.validate(); !valid {
+		return builder, err
+	}
+
+	err := wait.PollUntilContextTimeout(
+		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			var err error
+
+			builder.Object, err = builder.apiClient.CoreV1().Nodes().Get(
+				logging.DiscardContext(), builder.Definition.Name, metav1.GetOptions{})
+			if err != nil {
+				klog.V(100).Infof("failed to get node %q, retrying: %v", builder.Definition.Name, err)
+
+				return false, nil
+			}
+
+			for _, condition := range builder.Object.Status.Conditions {
+				if (expected.Type == "" || condition.Type == expected.Type) &&
+					(expected.Status == "" || condition.Status == expected.Status) &&
+					(expected.Reason == "" || condition.Reason == expected.Reason) &&
+					(expected.Message == "" || strings.Contains(condition.Message, expected.Message)) {
+					return true, nil
+				}
+			}
+
+			return false, nil
+		})
+
+	return builder, err
+}
+
 // WaitUntilConditionTrue waits for timeout duration or until node gets to a specific status.
-func (builder *Builder) WaitUntilConditionTrue(
-	conditionType corev1.NodeConditionType, timeout time.Duration) error {
-	if valid, err := builder.validate(); !valid {
-		return err
-	}
+func (builder *Builder) WaitUntilConditionTrue(conditionType corev1.NodeConditionType, timeout time.Duration) error {
+	_, err := builder.WaitForCondition(corev1.NodeCondition{Type: conditionType, Status: corev1.ConditionTrue}, timeout)
 
-	return wait.PollUntilContextTimeout(
-		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			if !builder.Exists() {
-				return false, fmt.Errorf("node %s object does not exist", builder.Definition.Name)
-			}
-
-			for _, condition := range builder.Object.Status.Conditions {
-				if condition.Type == conditionType {
-					return condition.Status == isTrue, nil
-				}
-			}
-
-			return false, fmt.Errorf("the %s condition could not be found for node %s",
-				conditionType, builder.Definition.Name)
-		})
+	return err
 }
 
-// WaitUntilConditionUnknown waits for timeout duration or until the provided condition type does not have status
-// Unknown.
-func (builder *Builder) WaitUntilConditionUnknown(
-	conditionType corev1.NodeConditionType, timeout time.Duration) error {
-	if valid, err := builder.validate(); !valid {
-		return err
-	}
-
-	return wait.PollUntilContextTimeout(
-		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			if !builder.Exists() {
-				return false, fmt.Errorf("node %s object does not exist", builder.Definition.Name)
-			}
-
-			for _, condition := range builder.Object.Status.Conditions {
-				if condition.Type == conditionType {
-					return condition.Status != "Unknown", nil
-				}
-			}
-
-			return false, fmt.Errorf("the %s condition could not be found for node %s",
-				conditionType, builder.Definition.Name)
-		})
-}
-
-// WaitUntilReady waits for timeout duration or until node is Ready.
+// WaitUntilReady waits for up to timeout until the node's Ready condition is True.
 func (builder *Builder) WaitUntilReady(timeout time.Duration) error {
-	return builder.WaitUntilConditionTrue(corev1.NodeReady, timeout)
+	_, err := builder.WaitForCondition(corev1.NodeCondition{Type: corev1.NodeReady, Status: corev1.ConditionTrue}, timeout)
+
+	return err
 }
 
-// WaitUntilNotReady waits for timeout duration or until node is NotReady.
+// WaitUntilNotReady waits for up to timeout until the node's Ready condition is not True (i.e., False or Unknown).
 func (builder *Builder) WaitUntilNotReady(timeout time.Duration) error {
-	return builder.WaitUntilConditionUnknown(corev1.NodeReady, timeout)
+	if valid, err := builder.validate(); !valid {
+		return err
+	}
+
+	return wait.PollUntilContextTimeout(
+		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			var err error
+
+			builder.Object, err = builder.apiClient.CoreV1().Nodes().Get(
+				logging.DiscardContext(), builder.Definition.Name, metav1.GetOptions{})
+			if err != nil {
+				klog.V(100).Infof("failed to get node %q, retrying: %v", builder.Definition.Name, err)
+
+				return false, nil
+			}
+
+			builder.Definition = builder.Object
+
+			for _, condition := range builder.Object.Status.Conditions {
+				if condition.Type == corev1.NodeReady {
+					return condition.Status != corev1.ConditionTrue, nil
+				}
+			}
+
+			return false, nil
+		})
 }
 
 // validate will check that the builder and builder definition are properly initialized before

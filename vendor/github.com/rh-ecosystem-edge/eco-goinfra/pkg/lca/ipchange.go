@@ -396,6 +396,21 @@ func (builder *IPConfigBuilder) WithVlanID(
 	return builder
 }
 
+// WithAutoRollbackOnFailure sets the AutoRollbackOnFailure used by the ipconfig.
+func (builder *IPConfigBuilder) WithAutoRollbackOnFailure(
+	seconds int) *IPConfigBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof("Setting AutoRollbackOnFailure to %d seconds in ipconfig", seconds)
+	builder.Definition.Spec.AutoRollbackOnFailure = &lcaipcv1.AutoRollbackOnFailure{
+		InitMonitorTimeoutSeconds: seconds,
+	}
+
+	return builder
+}
+
 // WithDNS sets the list of DNS servers used by the ipconfig.
 func (builder *IPConfigBuilder) WithDNS(
 	dnsServers []string) *IPConfigBuilder {
