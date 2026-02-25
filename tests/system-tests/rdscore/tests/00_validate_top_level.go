@@ -332,9 +332,6 @@ var _ = Describe(
 					rdscorecommon.DumpNodeStatus(ctx)
 				}
 
-				By("Ensure rootless DPDK server deployment was deleted")
-				rdscorecommon.CleanupRootlessDPDKServerDeployment()
-
 				By("Ensure all nodes are Ready and scheduling enabled")
 				rdscorecommon.EnsureInNodeReadiness(ctx)
 			})
@@ -681,9 +678,6 @@ var _ = Describe(
 					By("Dumping node status information due to test failure")
 					rdscorecommon.DumpNodeStatus(ctx)
 				}
-
-				By("Ensure rootless DPDK server deployment was deleted")
-				rdscorecommon.CleanupRootlessDPDKServerDeployment()
 			})
 		})
 
@@ -995,9 +989,6 @@ var _ = Describe(
 					By("Dumping node status information due to test failure")
 					rdscorecommon.DumpNodeStatus(ctx)
 				}
-
-				By("Ensure rootless DPDK server deployment was deleted")
-				rdscorecommon.CleanupRootlessDPDKServerDeployment()
 			})
 		})
 	})
