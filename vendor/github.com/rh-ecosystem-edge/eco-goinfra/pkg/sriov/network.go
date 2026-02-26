@@ -2,6 +2,7 @@ package sriov
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -293,6 +294,52 @@ func (builder *NetworkBuilder) WithMacAddressSupport() *NetworkBuilder {
 // WithStaticIpam sets static IPAM in the SrIovNetwork definition spec.
 func (builder *NetworkBuilder) WithStaticIpam() *NetworkBuilder {
 	return builder.withIpam("static")
+}
+
+// WithWhereaboutsIPAM sets whereabouts IPAM with range/gateway and optional exclude/network name.
+func (builder *NetworkBuilder) WithWhereaboutsIPAM(ipRange, gateway, exclude, networkName string) *NetworkBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof("Setting SriovNetwork whereabouts IPAM with range %s and gateway %s", ipRange, gateway)
+
+	if ipRange == "" {
+		builder.errorMsg = "failed to configure IPAM, 'ipRange' parameter is empty"
+
+		return builder
+	}
+
+	if gateway == "" {
+		builder.errorMsg = "failed to configure IPAM, 'gateway' parameter is empty"
+
+		return builder
+	}
+
+	ipamConfig := map[string]any{
+		"type":    "whereabouts",
+		"range":   ipRange,
+		"gateway": gateway,
+	}
+
+	if exclude != "" {
+		ipamConfig["exclude"] = []string{exclude}
+	}
+
+	if networkName != "" {
+		ipamConfig["network_name"] = networkName
+	}
+
+	ipamJSON, err := json.Marshal(ipamConfig)
+	if err != nil {
+		builder.errorMsg = fmt.Sprintf("failed to marshal IPAM config: %v", err)
+
+		return builder
+	}
+
+	builder.Definition.Spec.IPAM = string(ipamJSON)
+
+	return builder
 }
 
 // WithOptions creates SriovNetwork with generic mutation options.
