@@ -696,6 +696,8 @@ func isPCIAddressAvailable(clientPod *pod.Builder) bool {
 func VerifyRootlessDPDKOnTheSameNodeSingleVFMultipleVlans(ctx SpecContext) {
 	By("Create Rootless DPDK server deployment on the same node")
 
+	DeferCleanup(CleanupRootlessDPDKServerDeployment)
+
 	err := createRootlessDPDKServerDeployment(
 		APIClient,
 		dpdkNetworkTwo,
@@ -757,6 +759,8 @@ func VerifyRootlessDPDKOnTheSameNodeSingleVFMultipleVlans(ctx SpecContext) {
 // on the different nodes with multiple VLANs.
 func VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleVlans(ctx SpecContext) {
 	By("Create Rootless DPDK server deployment on different node with multiple VLANs")
+
+	DeferCleanup(CleanupRootlessDPDKServerDeployment)
 
 	err := createRootlessDPDKServerDeployment(
 		APIClient,
@@ -820,6 +824,8 @@ func VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleVlans(ctx SpecContext) {
 func VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleMacVlans(ctx SpecContext) {
 	By("Create Rootless DPDK server deployment on different node with multiple MAC-VLANs")
 
+	DeferCleanup(CleanupRootlessDPDKServerDeployment)
+
 	err := createRootlessDPDKServerDeployment(
 		APIClient,
 		dpdkNetworkTwo,
@@ -882,6 +888,8 @@ func VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleMacVlans(ctx SpecContext
 // on the different nodes with multiple IP-VLANs.
 func VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleIPVlans(ctx SpecContext) {
 	By("Create Rootless DPDK server deployment on different node with multiple IP-VLANs")
+
+	DeferCleanup(CleanupRootlessDPDKServerDeployment)
 
 	err := createRootlessDPDKServerDeployment(
 		APIClient,
