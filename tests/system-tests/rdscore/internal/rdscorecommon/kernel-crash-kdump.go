@@ -80,16 +80,22 @@ func crashNodeKDump(ctx SpecContext, nodeLabel string) {
 
 // VerifyKDumpOnControlPlane check KDump service on Control Plane nodes.
 func VerifyKDumpOnControlPlane(ctx SpecContext) {
+	DeferCleanup(EnsureInNodeReadiness)
+
 	crashNodeKDump(ctx, RDSCoreConfig.KDumpCPNodeLabel)
 }
 
 // VerifyKDumpOnWorkerMCP check KDump service on nodes in "Worker" MCP.
 func VerifyKDumpOnWorkerMCP(ctx SpecContext) {
+	DeferCleanup(EnsureInNodeReadiness)
+
 	crashNodeKDump(ctx, RDSCoreConfig.KDumpWorkerMCPNodeLabel)
 }
 
 // VerifyKDumpOnCNFMCP check KDump service on nodes in "CNF" MCP.
 func VerifyKDumpOnCNFMCP(ctx SpecContext) {
+	DeferCleanup(EnsureInNodeReadiness)
+
 	crashNodeKDump(ctx, RDSCoreConfig.KDumpCNFMCPNodeLabel)
 }
 

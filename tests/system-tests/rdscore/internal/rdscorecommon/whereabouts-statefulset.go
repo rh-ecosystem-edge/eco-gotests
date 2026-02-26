@@ -1268,6 +1268,8 @@ func EnsurePodConnectivityOnSameNodeAfterPodTermination(ctx SpecContext) {
 // EnsurePodConnectivityBetweenDifferentNodesAfterNodeDrain ensures inter pod connectivity
 // between different nodes after one of the nodes is drained.
 func EnsurePodConnectivityBetweenDifferentNodesAfterNodeDrain(ctx SpecContext) {
+	DeferCleanup(EnsureInNodeReadiness)
+
 	CreateStatefulsetOnDifferentNode(ctx)
 
 	ensurePodConnectivityAfterNodeDrain(myStatefulsetTwoLabel, RDSCoreConfig.WhereaboutNS,
@@ -1277,6 +1279,8 @@ func EnsurePodConnectivityBetweenDifferentNodesAfterNodeDrain(ctx SpecContext) {
 // EnsurePodConnectivityOnSameNodeAfterNodeDrain ensures inter pod connectivity
 // on the same node after one of the nodes is drained.
 func EnsurePodConnectivityOnSameNodeAfterNodeDrain(ctx SpecContext) {
+	DeferCleanup(EnsureInNodeReadiness)
+
 	CreateStatefulsetOnSameNode(ctx)
 
 	ensurePodConnectivityAfterNodeDrain(myStatefulsetOneLabel, RDSCoreConfig.WhereaboutNS,
@@ -1286,6 +1290,8 @@ func EnsurePodConnectivityOnSameNodeAfterNodeDrain(ctx SpecContext) {
 // EnsurePodConnectivityOnSameNodeAfterNodePowerOff ensures inter pod connectivity
 // on the same node after one of the nodes is powered off.
 func EnsurePodConnectivityOnSameNodeAfterNodePowerOff(ctx SpecContext) {
+	DeferCleanup(EnsureInNodeReadiness)
+
 	CreateStatefulsetOnSameNode(ctx)
 
 	ensurePodConnectivityAfterNodePowerOff(myStatefulsetOneLabel, RDSCoreConfig.WhereaboutNS,
@@ -1295,6 +1301,8 @@ func EnsurePodConnectivityOnSameNodeAfterNodePowerOff(ctx SpecContext) {
 // EnsurePodConnectivityBetweenDifferentNodesAfterNodePowerOff ensures inter pod connectivity
 // between different nodes after one of the nodes is powered off.
 func EnsurePodConnectivityBetweenDifferentNodesAfterNodePowerOff(ctx SpecContext) {
+	DeferCleanup(EnsureInNodeReadiness)
+
 	CreateStatefulsetOnDifferentNode(ctx)
 
 	ensurePodConnectivityAfterNodePowerOff(myStatefulsetTwoLabel, RDSCoreConfig.WhereaboutNS,
