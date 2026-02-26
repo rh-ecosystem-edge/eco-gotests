@@ -46,7 +46,7 @@ var _ = Describe("ZTP Argo CD ACM CR Tests", Label(tsparams.LabelArgoCdAcmCrsTes
 
 		By("determining the container image for ACM CR integration")
 		multiClusterDeployment, err := deployment.Pull(
-			HubAPIClient, tsparams.MultiClusterHubOperator, ranparam.AcmOperatorNamespace)
+			HubAPIClient, tsparams.MultiClusterHubOperator, RANConfig.AcmOperatorNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Failed to get multi cluster operator deployment")
 
 		acmPolicyGeneratorImage = getContainerImageFromDeploymentEnvironment(

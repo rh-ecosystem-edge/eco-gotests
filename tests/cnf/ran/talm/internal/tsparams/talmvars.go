@@ -6,6 +6,7 @@ import (
 	cguv1alpha1 "github.com/openshift-kni/cluster-group-upgrades-operator/pkg/api/clustergroupupgrades/v1alpha1"
 	"github.com/openshift-kni/k8sreporter"
 	olmv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/operators/v1alpha1"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,7 +24,7 @@ var (
 	ReporterHubNamespacesToDump = map[string]string{
 		TestNamespace:                       "",
 		ranparam.OpenshiftOperatorNamespace: "",
-		ranparam.AcmOperatorNamespace:       "",
+		RANConfig.AcmOperatorNamespace:      "",
 	}
 
 	// ReporterSpokeNamespacesToDump tells the reporter which namespaces on the spokes to collect pod logs from.

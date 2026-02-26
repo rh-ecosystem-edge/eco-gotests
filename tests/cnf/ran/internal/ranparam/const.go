@@ -16,9 +16,6 @@ const (
 	// LabelNoContainer is the label for RAN test cases that should not be executed in a container.
 	LabelNoContainer = "no-container"
 
-	// AcmOperatorNamespace ACM's namespace.
-	AcmOperatorNamespace = "rhacm"
-
 	// MceOperatorNamespace is the namespace for the MCE operator.
 	MceOperatorNamespace = "multicluster-engine"
 

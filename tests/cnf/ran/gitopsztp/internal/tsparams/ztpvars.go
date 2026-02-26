@@ -28,7 +28,7 @@ var (
 	ReporterHubNamespacesToDump = map[string]string{
 		TestNamespace:                       "",
 		ranparam.OpenshiftOperatorNamespace: "",
-		ranparam.AcmOperatorNamespace:       "",
+		RANConfig.AcmOperatorNamespace:      "",
 	}
 
 	// ReporterSpokeNamespacesToDump tells the reporter which namespaces on the spokes to collect pod logs from.
