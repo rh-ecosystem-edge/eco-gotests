@@ -44,12 +44,13 @@ const (
 
 // The following constants define the different reasons that conditions will be set for
 const (
-	Initialized ClusterInstanceConditionReason = "Initialized"
-	Completed   ClusterInstanceConditionReason = "Completed"
-	Failed      ClusterInstanceConditionReason = "Failed"
-	TimedOut    ClusterInstanceConditionReason = "TimedOut"
-	InProgress  ClusterInstanceConditionReason = "InProgress"
-	Unknown     ClusterInstanceConditionReason = "Unknown"
+	Initialized     ClusterInstanceConditionReason = "Initialized"
+	Completed       ClusterInstanceConditionReason = "Completed"
+	Failed          ClusterInstanceConditionReason = "Failed"
+	TimedOut        ClusterInstanceConditionReason = "TimedOut"
+	InProgress      ClusterInstanceConditionReason = "InProgress"
+	Unknown         ClusterInstanceConditionReason = "Unknown"
+	StaleConditions ClusterInstanceConditionReason = "StaleConditions"
 )
 
 // The following constants define the different reinstall condition types
@@ -60,7 +61,6 @@ const (
 	ReinstallPreservationDataRestored    ClusterInstanceConditionType = "ReinstallPreservationDataRestored"
 	ReinstallClusterIdentityDataDetected ClusterInstanceConditionType = "ReinstallClusterIdentityDataDetected"
 	ReinstallRenderedManifestsDeleted    ClusterInstanceConditionType = "ReinstallRenderedManifestsDeleted"
-	ReinstallClusterReimported           ClusterInstanceConditionType = "ReinstallClusterReimported"
 )
 
 // The following constants define additional reinstall condition reasons
@@ -68,5 +68,4 @@ const (
 	PreservationNotRequired ClusterInstanceConditionReason = "PreservationNotRequired"
 	DataUnavailable         ClusterInstanceConditionReason = "DataUnavailable"
 	DataAvailable           ClusterInstanceConditionReason = "DataAvailable"
-	ReimportInitiated       ClusterInstanceConditionReason = "ReimportInitiated"
 )
