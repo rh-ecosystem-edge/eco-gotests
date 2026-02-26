@@ -145,8 +145,6 @@ const (
 // ManagedClusterStatus represents the current status of joined managed cluster.
 type ManagedClusterStatus struct {
 	// conditions contains the different condition statuses for this managed cluster.
-	// +listType=map
-	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions"`
 
 	// capacity represents the total resource capacity from all nodeStatuses
@@ -216,8 +214,6 @@ type ClusterSetManagedNamespaceConfig struct {
 	ClusterSet string `json:"clusterSet"`
 
 	// conditions are the status conditions of the managed namespace
-	// +listType=map
-	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 

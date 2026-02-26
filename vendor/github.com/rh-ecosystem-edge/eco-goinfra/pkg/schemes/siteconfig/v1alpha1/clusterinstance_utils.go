@@ -108,7 +108,7 @@ func IndexOfManifestByIdentity(target *ManifestReference, manifestRefs []Manifes
 
 // IsPaused checks if the ClusterInstance has the paused annotation.
 func (ci *ClusterInstance) IsPaused() bool {
-	annotations := ci.Annotations
+	annotations := ci.ObjectMeta.Annotations
 	if annotations == nil {
 		return false
 	}

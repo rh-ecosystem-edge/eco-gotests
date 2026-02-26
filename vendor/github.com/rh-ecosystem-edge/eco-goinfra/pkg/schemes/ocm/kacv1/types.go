@@ -10,7 +10,6 @@ package kacv1
 
 import (
 	corev1 "k8s.io/api/core/v1"
-
 	clusterv1 "open-cluster-management.io/api/cluster/v1"
 )
 
