@@ -1,4 +1,4 @@
-# Synced with oran-o2ims commit 514ca0f1af381020fecc978ba8917504d0c20744
+# Synced with oran-o2ims commit ef24be52fab9677c8ae22615b51097f3572f4eee
 openapi: 3.0.3
 info:
   title: O2IMS Infrastructure Monitoring Alarms API
@@ -407,7 +407,7 @@ paths:
         content:
           application/merge-patch+json:
             schema:
-              $ref: '#/components/schemas/AlarmServiceConfiguration'
+              $ref: '#/components/schemas/AlarmServiceConfigurationPatch'
       responses:
         '200':
           description: Successful response.
@@ -782,7 +782,7 @@ components:
           type: integer
           description: |
             Number of days for alarm history to be retained.
-            This value has cannot be set lower than 1 (day).
+            This value cannot be set lower than 1 (day).
           example: 30
         extensions:
           type: object
@@ -791,6 +791,23 @@ components:
           description: List of metadata key-value pairs used to associate meaningful metadata to the related alarm service
       required:
       - retentionPeriod
+      - extensions
+
+    AlarmServiceConfigurationPatch:
+      type: object
+      description: Schema for PATCH requests allowing partial updates to AlarmServiceConfiguration
+      properties:
+        retentionPeriod:
+          type: integer
+          description: |
+            Number of days for alarm history to be retained.
+            This value cannot be set lower than 1 (day).
+          example: 30
+        extensions:
+          type: object
+          additionalProperties:
+            type: string
+          description: List of metadata key-value pairs used to associate meaningful metadata to the related alarm service
 
     AlarmSubscriptionInfo:
       type: object

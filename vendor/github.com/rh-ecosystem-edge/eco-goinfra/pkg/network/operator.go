@@ -193,6 +193,46 @@ func (builder *OperatorBuilder) SetMultiNetworkPolicy(state bool, timeout time.D
 	return builder, err
 }
 
+// SetRouteAdvertisements enables or disables RouteAdvertisements on the OVN-Kubernetes network configuration.
+func (builder *OperatorBuilder) SetRouteAdvertisements(
+	state operatorv1.RouteAdvertisementsEnablement, timeout time.Duration) (*OperatorBuilder, error) {
+	if valid, err := builder.validate(); !valid {
+		return builder, err
+	}
+
+	klog.V(100).Infof("Setting RouteAdvertisements to %s on network.operator %s", state, builder.Definition.Name)
+
+	if builder.Definition.Spec.DefaultNetwork.OVNKubernetesConfig == nil {
+		builder.Definition.Spec.DefaultNetwork.OVNKubernetesConfig = &operatorv1.OVNKubernetesConfig{}
+	}
+
+	if builder.Definition.Spec.DefaultNetwork.OVNKubernetesConfig.RouteAdvertisements != state {
+		builder.Definition.Spec.DefaultNetwork.OVNKubernetesConfig.RouteAdvertisements = state
+
+		builder, err := builder.Update()
+		if err != nil {
+			return nil, err
+		}
+
+		err = builder.WaitUntilInCondition(
+			operatorv1.OperatorStatusTypeProgressing, 60*time.Second, operatorv1.ConditionTrue)
+		if err != nil {
+			return nil, err
+		}
+
+		err = builder.WaitUntilInCondition(
+			operatorv1.OperatorStatusTypeProgressing, timeout, operatorv1.ConditionFalse)
+		if err != nil {
+			return nil, err
+		}
+
+		return builder, builder.WaitUntilInCondition(
+			operatorv1.OperatorStatusTypeAvailable, 60*time.Second, operatorv1.ConditionTrue)
+	}
+
+	return builder, nil
+}
+
 // WaitUntilInCondition waits for a specific time duration until the network.operator will have a
 // specified condition type with the expected status.
 func (builder *OperatorBuilder) WaitUntilInCondition(

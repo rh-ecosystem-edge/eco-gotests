@@ -277,6 +277,27 @@ func (builder *KernelMappingBuilder) WithInTreeModuleToRemove(existingModule str
 	return builder
 }
 
+// WithInTreeModulesToRemove adds to KernelMapper the list of modules to be removed.
+func (builder *KernelMappingBuilder) WithInTreeModulesToRemove(existingModulesList []string) *KernelMappingBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof("Creating new Module KernelMapping with inTreeModuleToRemove: %v", existingModulesList)
+
+	if len(existingModulesList) == 0 {
+		klog.V(100).Infof("The 'existingModuleList' is empty")
+
+		builder.errorMsg = "'existingModuleList' parameter can not be empty for KernelMapping inTreeModulesToRemove"
+
+		return builder
+	}
+
+	builder.definition.InTreeModulesToRemove = existingModulesList
+
+	return builder
+}
+
 // WithOptions creates KernelMapping with generic mutation options.
 func (builder *KernelMappingBuilder) WithOptions(options ...KernelMappingAdditionalOptions) *KernelMappingBuilder {
 	if valid, _ := builder.validate(); !valid {

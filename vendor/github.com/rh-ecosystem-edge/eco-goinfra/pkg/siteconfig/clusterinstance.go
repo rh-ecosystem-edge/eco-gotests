@@ -302,6 +302,41 @@ func (builder *CIBuilder) WithMachineNetwork(machineNetwork string) *CIBuilder {
 	return builder
 }
 
+// WithAdditionalNTPSources appends additional NTP sources to the clusterinstance.
+func (builder *CIBuilder) WithAdditionalNTPSources(ntpSources []string) *CIBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof("Adding NTP sources %v to clusterinstance %s in namespace %s",
+		ntpSources, builder.Definition.Name, builder.Definition.Namespace)
+
+	if len(ntpSources) == 0 {
+		klog.V(100).Infof("The clusterinstance additional NTP sources list is empty")
+
+		builder.errorMsg = "clusterinstance additional NTP sources cannot be empty"
+
+		return builder
+	}
+
+	for _, ntpSource := range ntpSources {
+		ntpSourceTrimmed := strings.TrimSpace(ntpSource)
+
+		if ntpSourceTrimmed == "" {
+			klog.V(100).Infof("An additional NTP source is empty")
+
+			builder.errorMsg = "clusterinstance additional NTP source cannot be empty"
+
+			return builder
+		}
+
+		builder.Definition.Spec.AdditionalNTPSources =
+			append(builder.Definition.Spec.AdditionalNTPSources, ntpSourceTrimmed)
+	}
+
+	return builder
+}
+
 // WithProxy adds the specified proxy to the clusterinstance.
 func (builder *CIBuilder) WithProxy(proxy *aiv1beta1.Proxy) *CIBuilder {
 	if valid, _ := builder.validate(); !valid {

@@ -21,6 +21,9 @@ type AlarmEventRecordModifications = alarms.AlarmEventRecordModifications
 // AlarmServiceConfiguration is the type of the AlarmServiceConfiguration resource returned by the API.
 type AlarmServiceConfiguration = alarms.AlarmServiceConfiguration
 
+// AlarmServiceConfigurationPatch is the type of the AlarmServiceConfigurationPatch resource sent to the API.
+type AlarmServiceConfigurationPatch = alarms.AlarmServiceConfigurationPatch
+
 // AlarmSubscriptionInfo is the type of the AlarmSubscriptionInfo resource returned by the API.
 type AlarmSubscriptionInfo = alarms.AlarmSubscriptionInfo
 
@@ -149,6 +152,11 @@ func (client *AlarmsClient) UpdateAlarmServiceConfiguration(
 	config AlarmServiceConfiguration) (AlarmServiceConfiguration, error) {
 	klog.V(100).Infof("Updating service configuration with config %#v", config)
 
+	// The API will reject a null value, so ensure that it is a non-nil map.
+	if config.Extensions == nil {
+		config.Extensions = make(map[string]string)
+	}
+
 	resp, err := client.UpdateAlarmServiceConfigurationWithResponse(context.TODO(), config)
 	if err != nil {
 		return AlarmServiceConfiguration{},
@@ -165,7 +173,7 @@ func (client *AlarmsClient) UpdateAlarmServiceConfiguration(
 
 // PatchAlarmServiceConfiguration modifies individual fields of the Alarm Service Configuration.
 func (client *AlarmsClient) PatchAlarmServiceConfiguration(
-	config AlarmServiceConfiguration) (AlarmServiceConfiguration, error) {
+	config AlarmServiceConfigurationPatch) (AlarmServiceConfiguration, error) {
 	klog.V(100).Infof("Patching service configuration with config %#v", config)
 
 	// Using generated method names has its downsides.
