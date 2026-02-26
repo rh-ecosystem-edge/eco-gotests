@@ -1,6 +1,11 @@
 name: 'Eco-GoInfra Module Bump'
 on:
   workflow_dispatch:
+    inputs:
+      target_branch:
+        description: 'Branch to run the bump on (checkout and PR base). Empty = default branch.'
+        required: false
+        type: string
   schedule:
     - cron: "0 0 * * *"
 permissions:
@@ -23,6 +28,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.target_branch || github.event.repository.default_branch }}
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -30,7 +37,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Run sync script
-        run: make sync-eco-goinfra
+        run: make sync-eco-goinfra ECO_GOINFRA_BRANCH=${{ inputs.target_branch || github.event.repository.default_branch }}
 
       - name: Create PR
         id: create-pr
@@ -41,7 +48,8 @@ jobs:
           commit-message: "deps: bump github.com/rh-ecosystem-edge/eco-goinfra"
           author: ${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>
           title: Bump eco-goinfra dependency
-          branch: eco-goinfra-bump
+          branch: eco-goinfra-bump-${{ inputs.target_branch || github.event.repository.default_branch }}
+          base: ${{ inputs.target_branch || github.event.repository.default_branch }}
           delete-branch: true
           reviewers: achuzhoy,cdvultur,klaskosk,kononovn,trewest
 
