@@ -139,9 +139,8 @@ const (
 // OperatorSpec describes configuration options for the operator
 type OperatorSpec struct {
 	// Deprecated: DefaultRuntime is no longer used by the gpu-operator. This is instead, detected at runtime.
-	// +kubebuilder:validation:Enum=docker;crio;containerd
-	// +kubebuilder:default=docker
-	DefaultRuntime Runtime `json:"defaultRuntime"`
+	// +optional
+	DefaultRuntime Runtime `json:"defaultRuntime,omitempty"`
 	// +kubebuilder:default=nvidia
 	RuntimeClass  string            `json:"runtimeClass,omitempty"`
 	InitContainer InitContainerSpec `json:"initContainer,omitempty"`
