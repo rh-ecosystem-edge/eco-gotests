@@ -971,6 +971,226 @@ func RunTrafficTest(clientPod *pod.Builder, serverIP string, mtu int) error {
 	return nil
 }
 
+// BuildDualStackServerCommand builds the server command for dual-stack pods that have both IPv4 and IPv6 addresses.
+// It starts listeners for both families: TCP/UDP are shared, SCTP and multicast use separate ports per family.
+func BuildDualStackServerCommand(ipv4BindIP, ipv6BindIP, interfaceName string, mtu int) []string {
+	klog.V(90).Infof("Building dual-stack server command for interface %s with MTU %d, ipv4=%q, ipv6=%q",
+		interfaceName, mtu, ipv4BindIP, ipv6BindIP)
+
+	packetSize := mtu - 100
+
+	ipv4McastSetup, ipv4McastGroup := buildMulticastSetup(false, interfaceName, mtu)
+	ipv6McastSetup, ipv6McastGroup := buildMulticastSetup(true, interfaceName, mtu)
+
+	listeners := fmt.Sprintf(
+		"testcmd -listen -protocol tcp -port 5001 -interface %s -mtu %d & "+
+			"testcmd -listen -protocol udp -port 5002 -interface %s -mtu %d & "+
+			"testcmd -listen -protocol sctp -port 5003 -interface %s -server %s -mtu %d & "+
+			"testcmd -listen -multicast -protocol udp -port 5004 -interface %s -server %s -mtu %d & "+
+			"testcmd -listen -protocol sctp -port %d -interface %s -server %s -mtu %d & "+
+			"testcmd -listen -multicast -protocol udp -port %d -interface %s -server %s -mtu %d & "+
+			"sleep infinity",
+		interfaceName, packetSize,
+		interfaceName, packetSize,
+		interfaceName, ipv4BindIP, packetSize,
+		interfaceName, ipv4McastGroup, packetSize,
+		tsparams.DualStackSCTPv6Port, interfaceName, ipv6BindIP, packetSize,
+		tsparams.DualStackMulticastV6Port, interfaceName, ipv6McastGroup, packetSize)
+
+	return []string{"bash", "-c", ipv4McastSetup + ipv6McastSetup + "sleep 5; " + listeners}
+}
+
+// RunDualStackTrafficTest runs all traffic tests for both IPv4 and IPv6 against a dual-stack server pod.
+// IPv4 uses default ports (5001-5004), IPv6 uses 5001-5002 shared and 5005-5006 for SCTP/multicast.
+func RunDualStackTrafficTest(clientPod *pod.Builder, serverIPv4, serverIPv6 string, mtu int) error {
+	klog.V(90).Infof("Running dual-stack traffic tests against IPv4=%s, IPv6=%s with MTU %d",
+		serverIPv4, serverIPv6, mtu)
+
+	ipv4Addr := ipaddr.RemovePrefix(serverIPv4)
+	ipv6Addr := ipaddr.RemovePrefix(serverIPv6)
+	packetSize := mtu - 100
+
+	var failedProtocols []string
+
+	// IPv4 traffic tests (ICMP, TCP, UDP, SCTP on 5003, multicast on 5004).
+	if err := cmd.ICMPConnectivityCheck(
+		clientPod, []string{ipv4Addr + "/32"}, tsparams.Net1Interface); err != nil {
+		failedProtocols = append(failedProtocols, fmt.Sprintf("IPv4 ICMP: %v", err))
+	}
+
+	if err := RunProtocolTest(clientPod, "IPv4 TCP",
+		fmt.Sprintf("testcmd -protocol tcp -port 5001 -interface %s -server %s -mtu %d",
+			tsparams.Net1Interface, ipv4Addr, packetSize)); err != nil {
+		failedProtocols = append(failedProtocols, fmt.Sprintf("IPv4 TCP: %v", err))
+	}
+
+	if err := RunProtocolTest(clientPod, "IPv4 UDP",
+		fmt.Sprintf("testcmd -protocol udp -port 5002 -interface %s -server %s -mtu %d",
+			tsparams.Net1Interface, ipv4Addr, packetSize)); err != nil {
+		failedProtocols = append(failedProtocols, fmt.Sprintf("IPv4 UDP: %v", err))
+	}
+
+	if err := RunProtocolTest(clientPod, "IPv4 SCTP",
+		fmt.Sprintf("testcmd -protocol sctp -port 5003 -interface %s -server %s -mtu %d",
+			tsparams.Net1Interface, ipv4Addr, packetSize)); err != nil {
+		failedProtocols = append(failedProtocols, fmt.Sprintf("IPv4 SCTP: %v", err))
+	}
+
+	ipv4McastGroup := tsparams.MulticastIPv4Group
+
+	if mtu == 9000 {
+		ipv4McastGroup = tsparams.MulticastIPv4GroupLargeMTU
+	}
+
+	if err := RunProtocolTest(clientPod, "IPv4 multicast",
+		fmt.Sprintf("testcmd -multicast -protocol udp -port 5004 -interface %s -server %s -mtu %d",
+			tsparams.Net1Interface, ipv4McastGroup, packetSize)); err != nil {
+		failedProtocols = append(failedProtocols, fmt.Sprintf("IPv4 multicast: %v", err))
+	}
+
+	// IPv6 traffic tests (ICMP, TCP, UDP, SCTP on 5005, multicast on 5006).
+	if err := cmd.ICMPConnectivityCheck(
+		clientPod, []string{ipv6Addr + "/128"}, tsparams.Net1Interface); err != nil {
+		failedProtocols = append(failedProtocols, fmt.Sprintf("IPv6 ICMP: %v", err))
+	}
+
+	if err := RunProtocolTest(clientPod, "IPv6 TCP",
+		fmt.Sprintf("testcmd -protocol tcp -port 5001 -interface %s -server %s -mtu %d",
+			tsparams.Net1Interface, ipv6Addr, packetSize)); err != nil {
+		failedProtocols = append(failedProtocols, fmt.Sprintf("IPv6 TCP: %v", err))
+	}
+
+	if err := RunProtocolTest(clientPod, "IPv6 UDP",
+		fmt.Sprintf("testcmd -protocol udp -port 5002 -interface %s -server %s -mtu %d",
+			tsparams.Net1Interface, ipv6Addr, packetSize)); err != nil {
+		failedProtocols = append(failedProtocols, fmt.Sprintf("IPv6 UDP: %v", err))
+	}
+
+	if err := RunProtocolTest(clientPod, "IPv6 SCTP",
+		fmt.Sprintf("testcmd -protocol sctp -port %d -interface %s -server %s -mtu %d",
+			tsparams.DualStackSCTPv6Port, tsparams.Net1Interface, ipv6Addr, packetSize)); err != nil {
+		failedProtocols = append(failedProtocols, fmt.Sprintf("IPv6 SCTP: %v", err))
+	}
+
+	if err := RunProtocolTest(clientPod, "IPv6 multicast",
+		fmt.Sprintf("testcmd -multicast -protocol udp -port %d -interface %s -server %s -mtu %d",
+			tsparams.DualStackMulticastV6Port, tsparams.Net1Interface, tsparams.MulticastIPv6Group, packetSize)); err != nil {
+		failedProtocols = append(failedProtocols, fmt.Sprintf("IPv6 multicast: %v", err))
+	}
+
+	if len(failedProtocols) > 0 {
+		return fmt.Errorf("dual-stack traffic tests failed: %s", strings.Join(failedProtocols, "; "))
+	}
+
+	return nil
+}
+
+// RunDualStackTrafficTestsForBothMTUs runs dual-stack traffic tests for two MTU configurations.
+func RunDualStackTrafficTestsForBothMTUs(
+	clientSmallMTU,
+	clientLargeMTU *pod.Builder,
+	serverIPv4Small,
+	serverIPv6Small,
+	serverIPv4Large,
+	serverIPv6Large string,
+	mtuSmall,
+	mtuLarge int,
+) error {
+	klog.V(90).Infof("Running dual-stack traffic tests with MTU %d", mtuSmall)
+
+	if err := RunDualStackTrafficTest(clientSmallMTU, serverIPv4Small, serverIPv6Small, mtuSmall); err != nil {
+		return fmt.Errorf("dual-stack traffic tests failed for MTU %d: %w", mtuSmall, err)
+	}
+
+	klog.V(90).Infof("Running dual-stack traffic tests with MTU %d", mtuLarge)
+
+	if err := RunDualStackTrafficTest(clientLargeMTU, serverIPv4Large, serverIPv6Large, mtuLarge); err != nil {
+		return fmt.Errorf("dual-stack traffic tests failed for MTU %d: %w", mtuLarge, err)
+	}
+
+	return nil
+}
+
+// CreateDualStackPodPair creates a client and server pod pair for dual-stack traffic testing.
+func CreateDualStackPodPair(
+	clientName,
+	serverName,
+	clientNode,
+	serverNode,
+	clientNetwork,
+	serverNetwork,
+	ipv4ServerBindIP,
+	ipv6ServerBindIP,
+	clientMAC,
+	serverMAC string,
+	clientIPs,
+	serverIPs []string,
+	mtu int,
+) (*pod.Builder, *pod.Builder, error) {
+	klog.V(90).Infof("Creating dual-stack client pod %s and server pod %s", clientName, serverName)
+
+	client, err := CreateTestClientPod(clientName, clientNode, clientNetwork, clientMAC, clientIPs)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create client pod: %w", err)
+	}
+
+	server, err := createDualStackServerPod(
+		serverName, serverNode, serverNetwork, serverMAC,
+		ipv4ServerBindIP, ipv6ServerBindIP, serverIPs, mtu)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create server pod: %w", err)
+	}
+
+	return client, server, nil
+}
+
+// createDualStackServerPod creates a server pod with dual-stack testcmd listeners.
+func createDualStackServerPod(
+	name,
+	nodeName,
+	networkName,
+	macAddress,
+	ipv4BindIP,
+	ipv6BindIP string,
+	ipAddresses []string,
+	mtu int,
+) (*pod.Builder, error) {
+	klog.V(90).Infof("Creating dual-stack server pod %s on node %s", name, nodeName)
+
+	secNetwork := []*types.NetworkSelectionElement{{Name: networkName}}
+
+	if macAddress != "" {
+		secNetwork[0].MacRequest = macAddress
+	}
+
+	if len(ipAddresses) > 0 {
+		secNetwork[0].IPRequest = ipAddresses
+	}
+
+	command := BuildDualStackServerCommand(ipv4BindIP, ipv6BindIP, tsparams.Net1Interface, mtu)
+
+	container, err := pod.NewContainerBuilder("server", NetConfig.CnfNetTestContainer, command).GetContainerCfg()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create container config: %w", err)
+	}
+
+	serverPod, err := pod.NewBuilder(APIClient, name, tsparams.TestNamespaceName, NetConfig.CnfNetTestContainer).
+		DefineOnNode(nodeName).
+		RedefineDefaultContainer(*container).
+		WithPrivilegedFlag().
+		WithSecondaryNetwork(secNetwork).
+		CreateAndWaitUntilRunning(netparam.DefaultTimeout)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := WaitForServerReady(serverPod, tsparams.WaitTimeout); err != nil {
+		return nil, fmt.Errorf("server pod %s not ready: %w", name, err)
+	}
+
+	return serverPod, nil
+}
+
 // RunProtocolTest executes a protocol-specific connectivity test command.
 func RunProtocolTest(clientPod *pod.Builder, protocol, cmdStr string) error {
 	klog.V(90).Infof("Running %s connectivity test", protocol)
