@@ -32,10 +32,8 @@ const (
 	// LabelSriovHWEnabled represents sriov HW Enabled tests that can be used
 	// for test cases selection.
 	LabelSriovHWEnabled = "sriov-hw-enabled"
-
 	// Net1Interface is the name of the first secondary network interface attached to pods.
 	Net1Interface = "net1"
-
 	// ClientPodMTU500 is the name of the client pod for MTU 500 tests.
 	ClientPodMTU500 = "client-mtu500"
 	// ServerPodMTU500 is the name of the server pod for MTU 500 tests.
@@ -64,9 +62,6 @@ const (
 	ClientPodVlanMTU9000 = "client-vlan-mtu9000"
 	// ServerPodVlanMTU9000 is the name of the server pod for VLAN MTU 9000 tests.
 	ServerPodVlanMTU9000 = "server-vlan-mtu9000"
-
-	// IPv4 multicast groups and MACs.
-
 	// MulticastIPv4Group is the default IPv4 multicast group address.
 	MulticastIPv4Group = "239.100.0.250"
 	// MulticastIPv4MAC is the Ethernet multicast MAC for 239.100.0.250.
@@ -75,11 +70,12 @@ const (
 	MulticastIPv4GroupLargeMTU = "239.100.100.250"
 	// MulticastIPv4MACLargeMTU is the Ethernet multicast MAC for 239.100.100.250.
 	MulticastIPv4MACLargeMTU = "01:00:5e:64:64:fa"
-
-	// IPv6 multicast group and MAC.
-
 	// MulticastIPv6Group is the IPv6 site-local multicast group address.
 	MulticastIPv6Group = "ff05:5::5"
 	// MulticastIPv6MAC is the Ethernet multicast MAC for ff05:5::5.
 	MulticastIPv6MAC = "33:33:00:00:00:05"
+	// DualStackSCTPv6Port is the SCTP listener port for IPv6 in dual-stack tests (IPv4 uses 5003).
+	DualStackSCTPv6Port = 5005
+	// DualStackMulticastV6Port is the multicast listener port for IPv6 in dual-stack tests.
+	DualStackMulticastV6Port = 5006
 )

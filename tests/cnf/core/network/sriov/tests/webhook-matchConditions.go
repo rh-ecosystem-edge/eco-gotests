@@ -101,7 +101,7 @@ var _ = Describe("webhook-resource-injector", Ordered, Label(tsparams.LabelWebho
 
 		AfterEach(func() {
 			By("Delete network-resources-injector daemonset")
-			deleteDaemonSetAndWaitForNewDaemonSet(netparam.OperatorResourceInjector, NetConfig.SriovOperatorNamespace)
+			deleteDaemonSetAndWaitForNewDaemonSet(tsparams.OperatorResourceInjector, NetConfig.SriovOperatorNamespace)
 		})
 
 		It("resourceInjectorMatchCondition set to True", reportxml.ID("80110"), func() {

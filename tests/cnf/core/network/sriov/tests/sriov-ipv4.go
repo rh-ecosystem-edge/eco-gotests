@@ -11,6 +11,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/ipaddr"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/sriovenv"
@@ -44,6 +45,15 @@ var _ = Describe("SR-IOV IPv4", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 	)
 
 	BeforeAll(func() {
+		By("Checking cluster IP family")
+
+		clusterIPFamily, err := netenv.GetClusterIPFamily(APIClient)
+		Expect(err).ToNot(HaveOccurred(), "Failed to detect cluster IP family")
+
+		if !netenv.ClusterSupportsIPv4(clusterIPFamily) {
+			Skip("Cluster does not support IPv4 - skipping IPv4 SR-IOV tests")
+		}
+
 		By("Discover and list worker nodes")
 
 		workerNodeList, err = nodes.List(
@@ -63,6 +73,8 @@ var _ = Describe("SR-IOV IPv4", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 
 		sriovInterfacePF1 = sriovInterfaces[0]
 		sriovInterfacePF2 = sriovInterfaces[1]
+
+		sriovenv.ActivateSCTPModuleOnWorkerNodes()
 
 		By("Verifying SCTP kernel module is loaded on worker nodes")
 
@@ -117,12 +129,14 @@ var _ = Describe("SR-IOV IPv4", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 
 			err = sriovenv.CreateSriovNetworkWithVLANAndWhereabouts(
 				sriovNetworkVlanSamePFMTU500, sriovResourcePF1MTU500, vlanID,
-				tsparams.WhereaboutsIPv4Range, tsparams.WhereaboutsIPv4Gateway)
+				tsparams.WhereaboutsIPv4Range, tsparams.WhereaboutsIPv4Gateway,
+				"")
 			Expect(err).ToNot(HaveOccurred(), "Failed to create VLAN network for Same PF MTU 500")
 
 			err = sriovenv.CreateSriovNetworkWithVLANAndWhereabouts(
 				sriovNetworkVlanSamePFMTU9000, sriovResourcePF1MTU9000, vlanID,
-				tsparams.WhereaboutsIPv4Range2, tsparams.WhereaboutsIPv4Gateway2)
+				tsparams.WhereaboutsIPv4Range2, tsparams.WhereaboutsIPv4Gateway2,
+				"")
 			Expect(err).ToNot(HaveOccurred(), "Failed to create VLAN network for Same PF MTU 9000")
 		})
 
@@ -244,13 +258,15 @@ var _ = Describe("SR-IOV IPv4", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 			err = sriovenv.CreateSriovNetworkWithWhereaboutsIPAM(
 				sriovNetworkWhereaboutsDiffPFClientMTU500, sriovResourcePF1MTU500,
 				tsparams.WhereaboutsIPv4Range, tsparams.WhereaboutsIPv4Gateway,
-				sriovNetworkWhereaboutsDiffPFClientMTU500)
+				sriovNetworkWhereaboutsDiffPFClientMTU500,
+				"")
 			Expect(err).ToNot(HaveOccurred(), "Failed to create whereabouts client network")
 
 			err = sriovenv.CreateSriovNetworkWithWhereaboutsIPAM(
 				sriovNetworkWhereaboutsDiffPFServerMTU500, sriovResourcePF2MTU500,
 				tsparams.WhereaboutsIPv4Range, tsparams.WhereaboutsIPv4Gateway,
-				sriovNetworkWhereaboutsDiffPFClientMTU500)
+				sriovNetworkWhereaboutsDiffPFClientMTU500,
+				"")
 			Expect(err).ToNot(HaveOccurred(), "Failed to create whereabouts server network")
 		})
 
@@ -347,7 +363,8 @@ var _ = Describe("SR-IOV IPv4", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 			err = sriovenv.CreateSriovNetworkWithWhereaboutsIPAM(
 				sriovNetworkWhereaboutsDiffNodeMTU500, sriovResourcePF1MTU500,
 				tsparams.WhereaboutsIPv4Range, tsparams.WhereaboutsIPv4Gateway,
-				sriovNetworkWhereaboutsDiffNodeMTU500)
+				sriovNetworkWhereaboutsDiffNodeMTU500,
+				"")
 			Expect(err).ToNot(HaveOccurred(), "Failed to create whereabouts network for Different Node")
 		})
 
