@@ -8,7 +8,6 @@ import (
 	"time"
 
 	nadV1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
-	sriovV1 "github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
@@ -24,36 +23,54 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// ValidateSriovInterfaces checks that provided interfaces by env var exist on the nodes.
+// ActivateSCTPModuleOnWorkerNodes loads the SCTP kernel module on worker nodes when possible.
+// Used by SR-IOV suites (ipv4, ipv6, dual-stack) so tests can run without pre-configuring SCTP.
+// If modprobe fails (e.g. restricted environment), the existing lsmod check in the suites will still skip.
+func ActivateSCTPModuleOnWorkerNodes() {
+	klog.V(90).Infof("Activating SCTP module on worker nodes")
+
+	_, _ = cluster.ExecCmdWithStdout(APIClient, "modprobe sctp",
+		metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
+}
+
+// ValidateSriovInterfaces checks that the requested interfaces (from env) exist on every worker
+// in workerNodeList. This ensures "Different Node" and other multi-worker tests do not fail
+// later when scheduling on a worker that does not expose the requested PF names.
 func ValidateSriovInterfaces(workerNodeList []*nodes.Builder, requestedNumber int) error {
-	var validSriovIntefaceList []sriovV1.InterfaceExt
-
-	availableUpSriovInterfaces, err := sriov.NewNetworkNodeStateBuilder(APIClient,
-		workerNodeList[0].Definition.Name, NetConfig.SriovOperatorNamespace).GetUpNICs()
-	if err != nil {
-		return fmt.Errorf("failed get SR-IOV devices from the node %s", workerNodeList[0].Definition.Name)
-	}
-
 	requestedSriovInterfaceList, err := NetConfig.GetSriovInterfaces(requestedNumber)
 	if err != nil {
 		return err
 	}
 
-	for _, availableUpSriovInterface := range availableUpSriovInterfaces {
-		for _, requestedSriovInterface := range requestedSriovInterfaceList {
-			if availableUpSriovInterface.Name == requestedSriovInterface {
-				validSriovIntefaceList = append(validSriovIntefaceList, availableUpSriovInterface)
+	for _, worker := range workerNodeList {
+		availableUpSriovInterfaces, err := sriov.NewNetworkNodeStateBuilder(APIClient,
+			worker.Definition.Name, NetConfig.SriovOperatorNamespace).GetUpNICs()
+		if err != nil {
+			return fmt.Errorf("failed to get SR-IOV devices from node %s: %w", worker.Definition.Name, err)
+		}
+
+		var validCount int
+
+		for _, availableUpSriovInterface := range availableUpSriovInterfaces {
+			for _, requestedSriovInterface := range requestedSriovInterfaceList {
+				if availableUpSriovInterface.Name == requestedSriovInterface {
+					validCount++
+
+					break
+				}
 			}
 		}
-	}
 
-	if len(validSriovIntefaceList) < requestedNumber {
-		return fmt.Errorf("requested interfaces %v are not present on the cluster node", requestedSriovInterfaceList)
+		if validCount < requestedNumber {
+			return fmt.Errorf("requested interfaces %v are not all present on node %s (found %d of %d)",
+				requestedSriovInterfaceList, worker.Definition.Name, validCount, requestedNumber)
+		}
 	}
 
 	return nil
@@ -421,30 +438,89 @@ func CreateSriovNetworkWithStaticIPAM(name, resourceName string) error {
 	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.NADWaitTimeout)
 }
 
+// whereaboutsDualStackIPAMJSON builds Whereabouts IPAM using ipRanges (per upstream Whereabouts README):
+// two RangeConfiguration entries with "range" (CIDR) plus optional range_start/range_end.
+// Do not use "ranges"/"subnet" — they are not unmarshaled into types.IPAMConfig, so allocation returns
+// no IPs and Multus/SR-IOV reports "IPAM plugin returned missing IP config".
+// IPv4/IPv6 gateways are not passed here: a bare IPv6 gateway string is parsed as CIDR elsewhere and fails.
+func whereaboutsDualStackIPAMJSON(ipRange, ipv6Range, networkName string) string {
+	v4Start, v4End := tsparams.WhereaboutsIPv4AllocStart, tsparams.WhereaboutsIPv4AllocEnd
+	v6Start, v6End := tsparams.WhereaboutsIPv6AllocStart, tsparams.WhereaboutsIPv6AllocEnd
+
+	if ipRange == tsparams.WhereaboutsIPv4Range2 {
+		v4Start, v4End = tsparams.WhereaboutsIPv4AllocStart2, tsparams.WhereaboutsIPv4AllocEnd2
+		v6Start, v6End = tsparams.WhereaboutsIPv6AllocStart2, tsparams.WhereaboutsIPv6AllocEnd2
+	}
+
+	if networkName != "" {
+		return fmt.Sprintf(`{
+			"type": "whereabouts",
+			"ipRanges": [
+				{"range": "%s", "range_start": "%s", "range_end": "%s"},
+				{"range": "%s", "range_start": "%s", "range_end": "%s"}
+			],
+			"network_name": "%s"
+		}`, ipRange, v4Start, v4End, ipv6Range, v6Start, v6End, networkName)
+	}
+
+	return fmt.Sprintf(`{
+		"type": "whereabouts",
+		"ipRanges": [
+			{"range": "%s", "range_start": "%s", "range_end": "%s"},
+			{"range": "%s", "range_start": "%s", "range_end": "%s"}
+		]
+	}`, ipRange, v4Start, v4End, ipv6Range, v6Start, v6End)
+}
+
 // CreateSriovNetworkWithWhereaboutsIPAM creates an SR-IOV network with whereabouts IPAM for dynamic IP assignment.
 // ipRange should be in CIDR notation (e.g., "2001:100::/64" for IPv6 or "192.168.1.0/24" for IPv4).
-// gateway is the gateway address for the range.
+// gateway is used for single-stack only. Dual-stack uses ranges without gateway (ipv6Gateway is ignored).
 func CreateSriovNetworkWithWhereaboutsIPAM(
-	name, resourceName, ipRange, gateway, networkName string) error {
+	name,
+	resourceName,
+	ipRange,
+	gateway,
+	networkName,
+	ipv6Range string,
+) error {
 	klog.V(90).Infof("Creating SR-IOV network %s with whereabouts IPAM, range %s, gateway %s",
 		name, ipRange, gateway)
 
 	networkBuilder := sriov.NewNetworkBuilder(
 		APIClient, name, NetConfig.SriovOperatorNamespace,
-		tsparams.TestNamespaceName, resourceName).WithWhereaboutsIPAM(ipRange, gateway, "", networkName)
+		tsparams.TestNamespaceName, resourceName)
+
+	if ipv6Range != "" {
+		networkBuilder.Definition.Spec.IPAM = whereaboutsDualStackIPAMJSON(ipRange, ipv6Range, networkName)
+	} else {
+		networkBuilder = networkBuilder.WithWhereaboutsIPAM(ipRange, gateway, "", networkName)
+	}
 
 	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.NADWaitTimeout)
 }
 
 // CreateSriovNetworkWithVLANAndWhereabouts creates an SR-IOV network with Whereabouts IPAM and VLAN tagging.
-func CreateSriovNetworkWithVLANAndWhereabouts(name, resourceName string, vlanID uint16,
-	ipRange, gateway string) error {
+// Dual-stack uses ipRanges without gateway (ipv6Gateway is ignored, same as CreateSriovNetworkWithWhereaboutsIPAM).
+func CreateSriovNetworkWithVLANAndWhereabouts(
+	name,
+	resourceName string,
+	vlanID uint16,
+	ipRange,
+	gateway,
+	ipv6Range string,
+) error {
 	klog.V(90).Infof("Creating SR-IOV network %s with Whereabouts IPAM, VLAN %d, range %s",
 		name, vlanID, ipRange)
 
 	networkBuilder := sriov.NewNetworkBuilder(
 		APIClient, name, NetConfig.SriovOperatorNamespace,
-		tsparams.TestNamespaceName, resourceName).WithVLAN(vlanID).WithWhereaboutsIPAM(ipRange, gateway, "", "")
+		tsparams.TestNamespaceName, resourceName).WithVLAN(vlanID)
+
+	if ipv6Range != "" {
+		networkBuilder.Definition.Spec.IPAM = whereaboutsDualStackIPAMJSON(ipRange, ipv6Range, "")
+	} else {
+		networkBuilder = networkBuilder.WithWhereaboutsIPAM(ipRange, gateway, "", "")
+	}
 
 	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.NADWaitTimeout)
 }
@@ -660,12 +736,17 @@ func CreateTestClientPod(
 		return nil, fmt.Errorf("failed to create container config: %w", err)
 	}
 
-	return pod.NewBuilder(APIClient, name, tsparams.TestNamespaceName, NetConfig.CnfNetTestContainer).
+	podBuilder, err := pod.NewBuilder(APIClient, name, tsparams.TestNamespaceName, NetConfig.CnfNetTestContainer).
 		DefineOnNode(nodeName).
 		RedefineDefaultContainer(*container).
 		WithPrivilegedFlag().
 		WithSecondaryNetwork(secNetwork).
 		CreateAndWaitUntilRunning(netparam.DefaultTimeout)
+	if err != nil {
+		return nil, err
+	}
+
+	return podBuilder, nil
 }
 
 // CreateTestServerPod creates a server pod with testcmd listeners for TCP, UDP, SCTP, and multicast.
@@ -800,6 +881,11 @@ func buildMulticastSetup(isIPv6 bool, interfaceName string, mtu int) (setupCmd, 
 
 	return fmt.Sprintf("ip maddr add %s dev %s 2>/dev/null || true; ",
 		ipv4MAC, interfaceName), ipv4Group
+}
+
+// BuildMulticastSetup returns shell fragments to configure multicast for testcmd listeners (IPv4 or IPv6).
+func BuildMulticastSetup(isIPv6 bool, interfaceName string, mtu int) (setupCmd, multicastGroup string) {
+	return buildMulticastSetup(isIPv6, interfaceName, mtu)
 }
 
 // buildDynamicIPServerCommand builds the server command for Whereabouts IPAM
