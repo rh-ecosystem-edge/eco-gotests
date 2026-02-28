@@ -84,4 +84,9 @@ const (
 	MulticastIPv6Group = "ff05:5::5"
 	// MulticastIPv6MAC is the Ethernet multicast MAC for ff05:5::5.
 	MulticastIPv6MAC = "33:33:00:00:00:05"
+
+	// DualStackSCTPv6Port is the SCTP listener port for IPv6 in dual-stack tests (IPv4 uses 5003).
+	DualStackSCTPv6Port = 5005
+	// DualStackMulticastV6Port is the multicast listener port for IPv6 in dual-stack tests.
+	DualStackMulticastV6Port = 5006
 )
