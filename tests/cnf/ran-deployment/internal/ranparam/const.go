@@ -6,8 +6,6 @@ const (
 	// Label represents the label for the ran test cases.
 	Label string = "ran-deployment"
 
-	// AcmOperatorNamespace ACM's namespace.
-	AcmOperatorNamespace string = "rhacm"
 	// MceOperatorNamespace is the namespace for the MCE operator.
 	MceOperatorNamespace string = "multicluster-engine"
 	// TalmOperatorHubNamespace TALM namespace.

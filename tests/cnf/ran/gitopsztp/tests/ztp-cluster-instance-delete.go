@@ -114,7 +114,7 @@ var _ = Describe("ZTP Siteconfig Operator's Cluster Instance Delete Tests",
 
 			By("deleting default assisted installer cluster level templates ConfigMap CR")
 			clusterTemplateConfigMap, err := configmap.Pull(HubAPIClient, tsparams.DefaultAIClusterTemplatesConfigMapName,
-				ranparam.AcmOperatorNamespace)
+				RANConfig.AcmOperatorNamespace)
 			if err == nil {
 				err = clusterTemplateConfigMap.Delete()
 				Expect(err).ToNot(HaveOccurred(), "Failed to delete AI cluster level templates config map")
@@ -122,7 +122,7 @@ var _ = Describe("ZTP Siteconfig Operator's Cluster Instance Delete Tests",
 
 			By("deleting default assisted installer node level templates ConfigMap CR")
 			nodeTemplateConfigMap, err := configmap.Pull(HubAPIClient, tsparams.DefaultAINodeTemplatesConfigMapName,
-				ranparam.AcmOperatorNamespace)
+				RANConfig.AcmOperatorNamespace)
 			if err == nil {
 				err = nodeTemplateConfigMap.Delete()
 				Expect(err).ToNot(HaveOccurred(), "Failed to delete AI node level templates config map")
@@ -141,13 +141,13 @@ var _ = Describe("ZTP Siteconfig Operator's Cluster Instance Delete Tests",
 			By("deleting siteconfig operator pod running under rhacm namespace on hub cluster")
 
 			By("Get the siteconfig operator pod name with label " + tsparams.SiteconfigOperatorPodLabel)
-			desiredPodName, err := ranhelper.GetPodNameWithLabel(HubAPIClient, ranparam.AcmOperatorNamespace,
+			desiredPodName, err := ranhelper.GetPodNameWithLabel(HubAPIClient, RANConfig.AcmOperatorNamespace,
 				tsparams.SiteconfigOperatorPodLabel)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get siteconfig operator pod name with label "+
-				tsparams.SiteconfigOperatorPodLabel+" from "+ranparam.AcmOperatorNamespace+" namespace")
+				tsparams.SiteconfigOperatorPodLabel+" from "+RANConfig.AcmOperatorNamespace+" namespace")
 
-			By("deleting the siteconfig operator pod name from namespace " + ranparam.AcmOperatorNamespace)
-			siteconfigOperatorPodName, err := pod.Pull(HubAPIClient, desiredPodName, ranparam.AcmOperatorNamespace)
+			By("deleting the siteconfig operator pod name from namespace " + RANConfig.AcmOperatorNamespace)
+			siteconfigOperatorPodName, err := pod.Pull(HubAPIClient, desiredPodName, RANConfig.AcmOperatorNamespace)
 			if err == nil {
 				_, err = siteconfigOperatorPodName.DeleteAndWait(3 * time.Minute)
 				Expect(err).ToNot(HaveOccurred(), "Failed to delete siteconfig operator pod")
@@ -162,12 +162,12 @@ var _ = Describe("ZTP Siteconfig Operator's Cluster Instance Delete Tests",
 
 			By("checking default assisted installer cluster level templates ConfigMap CR exists")
 			_, err = configmap.Pull(HubAPIClient, tsparams.DefaultAIClusterTemplatesConfigMapName,
-				ranparam.AcmOperatorNamespace)
+				RANConfig.AcmOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to find default AI cluster level templates config map")
 
 			By("checking default assisted installer node level templates ConfigMap CR exists")
 			_, err = configmap.Pull(HubAPIClient, tsparams.DefaultAINodeTemplatesConfigMapName,
-				ranparam.AcmOperatorNamespace)
+				RANConfig.AcmOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to find default AI node level templates config map")
 
 			By("verifying installed spoke cluster should still be functional")

@@ -51,7 +51,7 @@ var _ = Describe(
 			By("Enabling cluster reinstallation in SiteconfigOperator")
 
 			scoConfig, err := configmap.Pull(HubAPIClient, "siteconfig-operator-configuration",
-				ranparam.AcmOperatorNamespace)
+				RANConfig.AcmOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "error pulling siteconfig-operator-configuration configmap")
 
 			scoConfig.Definition.Data["allowReinstalls"] = "true"

@@ -40,6 +40,7 @@ type RANConfig struct {
 	StressngTestImage     string   `yaml:"stressngTestImage" envconfig:"ECO_CNF_RAN_STRESSNG_TEST_IMAGE"`
 	CnfTestImage          string   `yaml:"cnfTestImage" envconfig:"ECO_CNF_RAN_TEST_IMAGE"`
 	OcpUpgradeUpstreamURL string   `yaml:"ocpUpgradeUpstreamUrl" envconfig:"ECO_CNF_RAN_OCP_UPGRADE_UPSTREAM_URL"`
+	AcmOperatorNamespace  string   `yaml:"acmOperatorNamespace" envconfig:"ECO_CNF_RAN_ACM_OPERATOR_NAMESPACE"`
 	PtpOperatorNamespace  string   `yaml:"ptpOperatorNamespace" envconfig:"ECO_CNF_RAN_PTP_OPERATOR_NAMESPACE"`
 	TalmPreCachePolicies  []string `yaml:"talmPreCachePolicies" envconfig:"ECO_CNF_RAN_TALM_PRECACHE_POLICIES"`
 	ZtpSiteGenerateImage  string   `yaml:"ztpSiteGenerateImage" envconfig:"ECO_CNF_RAN_ZTP_SITE_GENERATE_IMAGE"`
@@ -191,7 +192,7 @@ func (ranconfig *RANConfig) newHubConfig(configFile string) {
 	ranconfig.HubConfig.HubOperatorVersions = make(map[ranparam.HubOperatorName]string)
 
 	ranconfig.HubConfig.HubOperatorVersions[ranparam.ACM], err = version.GetOperatorVersionFromCsv(
-		ranconfig.HubConfig.HubAPIClient, string(ranparam.ACM), ranparam.AcmOperatorNamespace)
+		ranconfig.HubConfig.HubAPIClient, string(ranparam.ACM), ranconfig.AcmOperatorNamespace)
 	if err != nil {
 		klog.V(ranparam.LogLevel).Infof("Failed to get ACM version from hub: %v", err)
 	}
