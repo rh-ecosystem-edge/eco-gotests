@@ -2,6 +2,7 @@ package vcorecommon
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
@@ -19,7 +20,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/strings/slices"
 
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/apiobjectshelper"
 

@@ -104,7 +104,7 @@ func Includes[T any](values ...T) MetricLabel[T] {
 			stringBuilder.WriteString("|")
 		}
 
-		stringBuilder.WriteString(fmt.Sprintf("%v", value))
+		fmt.Fprintf(&stringBuilder, "%v", value)
 	}
 
 	stringBuilder.WriteString(")")
@@ -134,7 +134,7 @@ func Excludes[T any](values ...T) MetricLabel[T] {
 			stringBuilder.WriteString("|")
 		}
 
-		stringBuilder.WriteString(fmt.Sprintf("%v", value))
+		fmt.Fprintf(&stringBuilder, "%v", value)
 	}
 
 	stringBuilder.WriteString(")")

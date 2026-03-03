@@ -56,6 +56,12 @@ type NodeAllocationRequestRef struct {
 	HardwareProvisioningCheckStart *metav1.Time `json:"hardwareProvisioningCheckStart,omitempty"`
 	// Represents the timestamp of the first status check for hardware configuring
 	HardwareConfiguringCheckStart *metav1.Time `json:"hardwareConfiguringCheckStart,omitempty"`
+	// ObservedConfigTransactionId tracks the ConfigTransactionId that has been observed
+	// by the hardware plugin. This helps with debugging by showing which configuration
+	// transaction the plugin has processed.
+	// A value of 0 indicates the transaction has not been observed yet. Since Kubernetes
+	// Generation starts at 1, 0 serves as a natural sentinel value for "not observed".
+	ObservedConfigTransactionId int64 `json:"observedConfigTransactionId,omitempty"`
 }
 
 type ClusterDetails struct {

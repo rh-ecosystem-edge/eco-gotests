@@ -643,14 +643,14 @@ func VerifyBGPReceivedRoutesOnFrrNodes(frrk8sPods []*pod.Builder) (string, error
 		}
 
 		// Write the pod name to the result
-		result.WriteString(fmt.Sprintf("Pod: %s\n", frrk8sPod.Definition.Name))
+		fmt.Fprintf(&result, "Pod: %s\n", frrk8sPod.Definition.Name)
 
 		// Extract and write the prefixes (keys of the Routes map) and corresponding route info
 		for prefix, routeInfos := range bgpRoutes.Routes {
-			result.WriteString(fmt.Sprintf("  Prefix: %s\n", prefix))
+			fmt.Fprintf(&result, "  Prefix: %s\n", prefix)
 
 			for _, routeInfo := range routeInfos {
-				result.WriteString(fmt.Sprintf("    Route Info: Prefix: %s", routeInfo.Prefix))
+				fmt.Fprintf(&result, "    Route Info: Prefix: %s", routeInfo.Prefix)
 			}
 		}
 
@@ -692,7 +692,7 @@ func parseBGPAdvertisedRoutes(jsonData string) (string, error) {
 	// Format only the network values as a string
 	var result strings.Builder
 	for _, route := range bgpRoutes.AdvertisedRoutes {
-		result.WriteString(fmt.Sprintf("%s\n", route.Network))
+		fmt.Fprintf(&result, "%s\n", route.Network)
 	}
 
 	return result.String(), nil

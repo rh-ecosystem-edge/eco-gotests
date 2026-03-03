@@ -27,7 +27,7 @@ func buildOutputLine(data map[string]string) string {
 
 	var sb strings.Builder
 	for _, key := range keys {
-		sb.WriteString(fmt.Sprintf("%s,%s,", key, data[key]))
+		fmt.Fprintf(&sb, "%s,%s,", key, data[key])
 	}
 
 	line := strings.TrimSuffix(sb.String(), ",")

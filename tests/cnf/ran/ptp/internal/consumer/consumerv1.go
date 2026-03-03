@@ -20,6 +20,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 )
 
 // DeployV1ConsumersOnNodes deploys the cloud-event-consumer deployment and service on all nodes with PTP daemons in the
@@ -424,11 +425,17 @@ func createV1ServiceMonitorOnNode(client *clients.Settings, nodeName string) err
 			Interval:        "30s",
 			Port:            "metrics",
 			BearerTokenFile: "/var/run/secrets/kubernetes.io/serviceaccount/token",
-			Scheme:          "https",
-			TLSConfig: &monitoringv1.TLSConfig{
-				CAFile: "/etc/prometheus/configmaps/serving-certs-ca-bundle/service-ca.crt",
-				SafeTLSConfig: monitoringv1.SafeTLSConfig{
-					ServerName: &serverName,
+			Scheme:          ptr.To(monitoringv1.SchemeHTTPS),
+			HTTPConfigWithProxyAndTLSFiles: monitoringv1.HTTPConfigWithProxyAndTLSFiles{
+				HTTPConfigWithTLSFiles: monitoringv1.HTTPConfigWithTLSFiles{
+					TLSConfig: &monitoringv1.TLSConfig{
+						TLSFilesConfig: monitoringv1.TLSFilesConfig{
+							CAFile: "/etc/prometheus/configmaps/serving-certs-ca-bundle/service-ca.crt",
+						},
+						SafeTLSConfig: monitoringv1.SafeTLSConfig{
+							ServerName: &serverName,
+						},
+					},
 				},
 			},
 		}}).

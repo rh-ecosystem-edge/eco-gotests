@@ -38,6 +38,7 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 	k8sFakeClient "k8s.io/client-go/kubernetes/fake"
 	fakeRuntimeClient "sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	operatorv1 "github.com/openshift/api/operator/v1"
 	machinev1beta1client "github.com/openshift/client-go/machine/clientset/versioned/typed/machine/v1beta1"
@@ -200,11 +201,10 @@ func (settings *Settings) AttachScheme(attacher SchemeAttacher) error {
 
 // TestClientParams provides the struct to store the parameters for the test client.
 type TestClientParams struct {
-	K8sMockObjects  []runtime.Object
-	GVK             []schema.GroupVersionKind
-	SchemeAttachers []SchemeAttacher
-
-	// Note: Add more fields below if/when needed.
+	K8sMockObjects   []runtime.Object
+	GVK              []schema.GroupVersionKind
+	SchemeAttachers  []SchemeAttacher
+	InterceptorFuncs interceptor.Funcs
 }
 
 // GetTestClients returns a fake clientset for testing.
@@ -333,7 +333,7 @@ func GetModifiableTestClients(tcp TestClientParams) (*Settings, *fakeRuntimeClie
 	}
 	// Add fake runtime client to clientSet runtime client
 	clientBuilder := fakeRuntimeClient.NewClientBuilder().WithScheme(clientSet.scheme).
-		WithRuntimeObjects(genericClientObjects...)
+		WithRuntimeObjects(genericClientObjects...).WithInterceptorFuncs(tcp.InterceptorFuncs)
 
 	return clientSet, clientBuilder
 }

@@ -26,12 +26,12 @@ func (h HoldOverMap) String() string {
 
 	for reference, holdover := range h {
 		if holdover == nil {
-			stringBuilder.WriteString(fmt.Sprintf("  %s: nil\n", reference.ProfileName))
+			fmt.Fprintf(&stringBuilder, "  %s: nil\n", reference.ProfileName)
 
 			continue
 		}
 
-		stringBuilder.WriteString(fmt.Sprintf("  %s: %d\n", reference.ProfileName, *holdover))
+		fmt.Fprintf(&stringBuilder, "  %s: %d\n", reference.ProfileName, *holdover)
 	}
 
 	stringBuilder.WriteString("}")

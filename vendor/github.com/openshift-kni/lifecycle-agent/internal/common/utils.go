@@ -19,7 +19,11 @@ package common
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"regexp"
+	"time"
 
 	"io"
 	"os"
@@ -125,8 +129,8 @@ func GetStaterootCertsDir(ibu *ibuv1.ImageBasedUpgrade) string {
 	return PathOutsideChroot(filepath.Join(GetStaterootOptOpenshift(GetStaterootPath(GetDesiredStaterootName(ibu))), KubeconfigCryptoDir))
 }
 
-func GetStaterootName(seedImageVersion string) string {
-	return fmt.Sprintf("rhcos_%s", strings.ReplaceAll(seedImageVersion, "-", "_"))
+func GetStaterootName(identifier string) string {
+	return fmt.Sprintf("rhcos_%s", strings.ReplaceAll(identifier, "-", "_"))
 }
 
 func RemoveDuplicates[T comparable](list []T) []T {
@@ -208,4 +212,97 @@ func GenerateDeleteOptions() *client.DeleteOptions {
 		PropagationPolicy: &propagationPolicy,
 	}
 	return &delOpt
+}
+
+func SanitizeForOsname(s string) string {
+	s = strings.Split(s, "/")[0]
+	re := regexp.MustCompile(`[^A-Za-z0-9]+`)
+	return re.ReplaceAllString(s, "-")
+}
+
+// IPConfigStaterootParams represents the parameters used to build a new stateroot name for IP configuration
+// Each of the spec values the user can change such that unique stateroot name is generated are represented here.
+type IPConfigStaterootParams struct {
+	IPv4Address        string
+	IPv6Address        string
+	VLANID             string
+	DNSFilterOutFamily string
+}
+
+func BuildNewStaterootNameForIPConfig(params IPConfigStaterootParams) string {
+	parts := []string{"rhcos"}
+	if params.IPv4Address != "" {
+		parts = append(parts, SanitizeForOsname(params.IPv4Address))
+	}
+
+	if params.IPv6Address != "" {
+		parts = append(parts, SanitizeForOsname(params.IPv6Address))
+	}
+
+	if params.VLANID != "" {
+		parts = append(parts, "vlan-"+SanitizeForOsname(params.VLANID))
+	}
+
+	if params.DNSFilterOutFamily != "" {
+		parts = append(parts, "dns-filter-out-"+SanitizeForOsname(params.DNSFilterOutFamily))
+	}
+
+	return strings.Join(parts, "_")
+}
+
+// GetRollbackAvailabilityExpiration calculates the point at which rolling back to the unbooted stateroot
+// may require manual recovery due to expired control plane certificates. It calculates the earliest expiry time
+// of the kubelet client and server certificates.
+func GetRollbackAvailabilityExpiration(staterootName string, logger logr.Logger) (time.Time, error) {
+	expiry := time.Time{}
+
+	staterootPath := PathOutsideChroot(GetStaterootPath(staterootName))
+
+	certfiles := []string{
+		"/var/lib/kubelet/pki/kubelet-client-current.pem",
+		"/var/lib/kubelet/pki/kubelet-server-current.pem",
+	}
+
+	for _, certfile := range certfiles {
+		fname := filepath.Join(staterootPath, certfile)
+
+		// Evaluate symlinks, if needed
+		if _, err := os.Stat(fname); err != nil {
+			if _, err = os.Lstat(fname); err != nil {
+				logger.Error(err, "unable to read file", "filepath", fname)
+				continue
+			} else if target, err := os.Readlink(fname); err != nil {
+				logger.Error(err, "unable to read link", "filepath", fname)
+				continue
+			} else {
+				fname = filepath.Join(staterootPath, target)
+			}
+		}
+
+		certs, err := tls.LoadX509KeyPair(fname, fname)
+		if err != nil {
+			logger.Error(err, "failed to parse cert file", "certfile", certfile)
+			continue
+		}
+
+		for _, cert := range certs.Certificate {
+			// Check certificate expiry
+			parsed, err := x509.ParseCertificate(cert)
+			if err != nil {
+				logger.Error(err, "failed to parse cert from file", "certfile", certfile)
+				continue
+			}
+
+			if expiry.Equal(time.Time{}) || expiry.After(parsed.NotAfter) {
+				expiry = parsed.NotAfter
+			}
+		}
+	}
+
+	if expiry.Equal(time.Time{}) {
+		return expiry, fmt.Errorf("unable to determine control plane expiry for staterootPath=%s", staterootPath)
+	}
+
+	// Subtract 30 minutes from the expiry time
+	return expiry.Add(time.Minute * -30), nil
 }
