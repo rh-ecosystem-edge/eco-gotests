@@ -27,7 +27,6 @@ var (
 var _ = Describe(
 	"Validating rollback stage after a failed upgrade",
 	Label(tsparams.LabelRollbackFlow), func() {
-
 		BeforeEach(func() {
 			By("Saving target sno cluster info before the test", func() {
 				err := cnfclusterinfo.PreUpgradeClusterInfo.SaveClusterInfo()
@@ -80,10 +79,8 @@ var _ = Describe(
 			})
 
 			By("Creating, enabling ibu finalize", func() {
-
 				_, err = ibu.WaitUntilStageComplete("Idle")
 				Expect(err).NotTo(HaveOccurred(), "error waiting for idle stage to complete")
-
 			})
 
 			// Sleep for 10 seconds to allow talm to reconcile state.
@@ -93,9 +90,7 @@ var _ = Describe(
 		})
 
 		It("Rollback after a failed upgrade", reportxml.ID("69054"), func() {
-
 			By("Creating Prep->Upgrade->FinalizeUpgrae IBGU and waiting for node rebooted into stateroot B", func() {
-
 				newIbguBuilder := ibgu.NewIbguBuilder(TargetHubAPIClient,
 					tsparams.IbguName, tsparams.IbguNamespace).
 					WithClusterLabelSelectors(tsparams.ClusterLabelSelector).
@@ -115,6 +110,7 @@ var _ = Describe(
 				Expect(err).NotTo(HaveOccurred(), "error listing node")
 
 				By("Wait until Prep stage is completed")
+
 				_, err = ibu.WaitUntilStageComplete("Prep")
 				Expect(err).NotTo(HaveOccurred(), "error waiting for prep stage to complete")
 
@@ -154,6 +150,7 @@ var _ = Describe(
 				seedImageVersion = ibu.Definition.Spec.SeedImageRef.Version
 
 				var seedVersionFound bool
+
 				retries := 3
 
 				// retry 3 times to get the stateroot name
@@ -167,6 +164,7 @@ var _ = Describe(
 						if bootedStaterootNameRes != "" {
 							if strings.Contains(bootedStaterootNameRes, seedImageVersion) {
 								klog.V(100).Infof("Found "+seedImageVersion+" in %s", bootedStaterootNameRes)
+
 								seedVersionFound = true
 
 								break
@@ -193,9 +191,7 @@ var _ = Describe(
 			})
 
 			By("Verifying auto rollback triggered upon upgrade failure", func() {
-
 				By("Waiting for node rebooted into stateroot A and cluster become available", func() {
-
 					By("Get list of node to be upgraded")
 
 					ibuNode, err := nodes.List(TargetSNOAPIClient)

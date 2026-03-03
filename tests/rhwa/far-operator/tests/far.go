@@ -29,7 +29,9 @@ var _ = Describe(
 
 		BeforeAll(func() {
 			By("Get FAR deployment object")
+
 			var err error
+
 			farDeployment, err = deployment.Pull(
 				APIClient, farparams.OperatorDeploymentName, rhwaparams.RhwaOperatorNs)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get FAR deployment")
@@ -38,7 +40,6 @@ var _ = Describe(
 			Expect(farDeployment.IsReady(rhwaparams.DefaultTimeout)).To(BeTrue(), "FAR deployment is not Ready")
 		})
 		It("Verify Fence Agents Remediation Operator pod is running", reportxml.ID("66026"), func() {
-
 			listOptions := metav1.ListOptions{
 				LabelSelector: fmt.Sprintf("app.kubernetes.io/name=%s", farparams.OperatorControllerPodLabel),
 			}
@@ -53,12 +54,14 @@ var _ = Describe(
 
 		It("Verify FAR CSV has required annotations", reportxml.ID("70637"), func() {
 			By("Getting FAR ClusterServiceVersion")
+
 			farCSVs, err := olm.ListClusterServiceVersionWithNamePattern(
 				APIClient, "fence-agents-remediation", rhwaparams.RhwaOperatorNs)
 			Expect(err).ToNot(HaveOccurred(), "Failed to list FAR ClusterServiceVersions")
 			Expect(len(farCSVs)).To(BeNumerically(">", 0), "At least one FAR ClusterServiceVersion should be found")
 
 			By("Checking annotation values on FAR CSV")
+
 			farCSV := farCSVs[0]
 			Expect(farCSV.Object.Annotations).ToNot(BeNil(), "CSV annotations should not be nil")
 
@@ -72,6 +75,7 @@ var _ = Describe(
 
 		It("Verify FAR controller manager has correct number of replicas", reportxml.ID("61222"), func() {
 			By("Checking cluster topology")
+
 			infraConfig, err := infrastructure.Pull(APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull infrastructure configuration")
 
@@ -91,6 +95,7 @@ var _ = Describe(
 
 		It("Verify FAR container runs as non-root user", reportxml.ID("61208"), func() {
 			By("Getting FAR controller pod names")
+
 			listOptions := metav1.ListOptions{
 				LabelSelector: fmt.Sprintf("app.kubernetes.io/name=%s", farparams.OperatorControllerPodLabel),
 			}
@@ -105,6 +110,7 @@ var _ = Describe(
 
 				// Check 1: Verify runAsNonRoot security context
 				By("Checking pod-level runAsNonRoot security context")
+
 				if farPod.Object.Spec.SecurityContext == nil {
 					errorMessages = append(errorMessages,
 						fmt.Sprintf("Pod %s has nil SecurityContext", farPod.Object.Name))
@@ -119,6 +125,7 @@ var _ = Describe(
 
 				// Check 2: Verify all containers' runAsUser
 				By("Checking all containers' runAsUser")
+
 				if len(farPod.Object.Spec.Containers) < 1 {
 					errorMessages = append(errorMessages,
 						fmt.Sprintf("Pod %s has no containers", farPod.Object.Name))
@@ -141,6 +148,7 @@ var _ = Describe(
 				for _, msg := range errorMessages {
 					errMsg += fmt.Sprintf("- %s\n", msg)
 				}
+
 				Fail(errMsg)
 			}
 		})

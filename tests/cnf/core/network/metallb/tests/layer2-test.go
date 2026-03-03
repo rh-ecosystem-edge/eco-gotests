@@ -34,8 +34,10 @@ var _ = Describe("Layer2", Ordered, Label(tsparams.LabelLayer2TestCases), Contin
 		clientTestPod *pod.Builder
 		err           error
 	)
+
 	BeforeAll(func() {
 		By("Checking if cluster is SNO")
+
 		if IsSNO {
 			Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers")
 		}
@@ -43,6 +45,7 @@ var _ = Describe("Layer2", Ordered, Label(tsparams.LabelLayer2TestCases), Contin
 		validateEnvVarAndGetNodeList()
 
 		By("Creating a new instance of MetalLB Speakers on workers")
+
 		err = metallbenv.CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(tsparams.DefaultTimeout, workerLabelMap)
 		Expect(err).ToNot(HaveOccurred(), "Failed to recreate metalLb daemonset")
 	})
@@ -56,6 +59,7 @@ var _ = Describe("Layer2", Ordered, Label(tsparams.LabelLayer2TestCases), Contin
 
 	BeforeEach(func() {
 		By("Creating an IPAddressPool and L2Advertisement")
+
 		ipAddressPool := setupL2Advertisement(ipv4metalLbIPList)
 
 		By("Creating a MetalLB service")
@@ -67,10 +71,12 @@ var _ = Describe("Layer2", Ordered, Label(tsparams.LabelLayer2TestCases), Contin
 			corev1.ServiceExternalTrafficPolicyTypeCluster)
 
 		By("Creating external Network Attachment Definition")
+
 		err = define.CreateExternalNad(APIClient, frrconfig.ExternalMacVlanNADName, tsparams.TestNamespaceName)
 		Expect(err).ToNot(HaveOccurred(), "Failed to create a network-attachment-definition")
 
 		By("Creating client test pod")
+
 		clientTestPod, err = pod.NewBuilder(
 			APIClient, "l2clientpod", tsparams.TestNamespaceName, NetConfig.CnfNetTestContainer).
 			DefineOnNode(masterNodeList[0].Object.Name).
@@ -88,6 +94,7 @@ var _ = Describe("Layer2", Ordered, Label(tsparams.LabelLayer2TestCases), Contin
 		}
 
 		By("Cleaning MetalLb operator namespace")
+
 		metalLbNs, err := namespace.Pull(APIClient, NetConfig.MlbOperatorNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Failed to pull metalLb operator namespace")
 		err = metalLbNs.CleanObjects(
@@ -97,6 +104,7 @@ var _ = Describe("Layer2", Ordered, Label(tsparams.LabelLayer2TestCases), Contin
 		Expect(err).ToNot(HaveOccurred(), "Failed to remove object's from operator namespace")
 
 		By("Cleaning test namespace")
+
 		err = namespace.NewBuilder(APIClient, tsparams.TestNamespaceName).CleanObjects(
 			tsparams.DefaultTimeout,
 			pod.GetGVR(),
@@ -118,6 +126,7 @@ var _ = Describe("Layer2", Ordered, Label(tsparams.LabelLayer2TestCases), Contin
 		})
 
 		By("Getting announcing node name")
+
 		announcingNodeName := getLBServiceAnnouncingNodeName()
 
 		By("Running traffic test")
@@ -126,6 +135,7 @@ var _ = Describe("Layer2", Ordered, Label(tsparams.LabelLayer2TestCases), Contin
 
 	It("Failure of MetalLB announcing speaker node", reportxml.ID("42751"), func() {
 		By("Changing the label selector for Metallb and adding a label for Workers")
+
 		metalLbIo, err := metallb.Pull(APIClient, tsparams.MetalLbIo, NetConfig.MlbOperatorNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Failed to pull metallb.io object")
 		_, err = metalLbIo.WithSpeakerNodeSelector(tsparams.TestLabel).Update(false)
@@ -154,6 +164,7 @@ var _ = Describe("Layer2", Ordered, Label(tsparams.LabelLayer2TestCases), Contin
 		})
 
 		By("Getting announcing node name")
+
 		announcingNodeName := getLBServiceAnnouncingNodeName()
 
 		By("Removing test label from announcing node")
@@ -163,6 +174,7 @@ var _ = Describe("Layer2", Ordered, Label(tsparams.LabelLayer2TestCases), Contin
 			BeEquivalentTo(len(workerNodeList)-1), "Failed to run metalLb speakers on top of nodes with test label")
 
 		By("Should have a new MetalLB announcing node during failure of announcing speaker")
+
 		var announcingNodeNameDuringFailure string
 
 		Eventually(func() string {

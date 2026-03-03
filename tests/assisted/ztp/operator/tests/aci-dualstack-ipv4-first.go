@@ -32,8 +32,8 @@ var _ = Describe(
 	Label(tsparams.LabelDualstackIPv4FirstACI), func() {
 		When("on MCE 2.0 and above", func() {
 			BeforeAll(func() {
-
 				By("Check that the ClusterImageSet exists")
+
 				_, err := hive.PullClusterImageSet(HubAPIClient, ZTPConfig.HubOCPXYVersion)
 				if err != nil {
 					Skip("The ClusterImageSet must exist")
@@ -45,6 +45,7 @@ var _ = Describe(
 			})
 			AfterEach(func() {
 				By("Delete the temporary namespace after test")
+
 				if nsBuilder.Exists() {
 					err := nsBuilder.DeleteAndWait(time.Second * 300)
 					Expect(err).ToNot(HaveOccurred(), "error deleting the temporary namespace after test")
@@ -70,7 +71,6 @@ var _ = Describe(
 					return "", nil
 				}).WithTimeout(time.Minute * 2).Should(ContainSubstring("All networks must have the same IP family first"))
 			})
-
 		})
 	})
 

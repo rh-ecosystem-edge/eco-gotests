@@ -34,6 +34,7 @@ var _ = Describe("PTP Node Reboot", Ordered, ContinueOnFailure, Label(tsparams.L
 
 	BeforeAll(func() {
 		By("checking if the cluster is SNO")
+
 		isSNO, err := rancluster.IsSNO(RANConfig.Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to check if the cluster is SNO")
 
@@ -59,6 +60,7 @@ var _ = Describe("PTP Node Reboot", Ordered, ContinueOnFailure, Label(tsparams.L
 
 		if isSNO {
 			By("waiting for the SNO node to recover")
+
 			err = cluster.WaitForRecover(RANConfig.Spoke1APIClient, []string{}, 45*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for the node to recover")
 		} else {
@@ -75,6 +77,7 @@ var _ = Describe("PTP Node Reboot", Ordered, ContinueOnFailure, Label(tsparams.L
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for the node to become ready")
 
 			By("waiting for all pods on rebooted node to be healthy")
+
 			err = pod.WaitForPodsInNamespacesHealthy(RANConfig.Spoke1APIClient, nil, 10*time.Minute, metav1.ListOptions{
 				FieldSelector: fields.OneTermEqualSelector("spec.nodeName", nodeName).String(),
 			})
@@ -85,6 +88,7 @@ var _ = Describe("PTP Node Reboot", Ordered, ContinueOnFailure, Label(tsparams.L
 	// 59858 - verify the system returns to stability after reboot node
 	It("should return to same stable status after ptp node soft reboot", reportxml.ID("59858"), func() {
 		By("waiting for all clocks to be locked")
+
 		prometheusAPI, err := querier.CreatePrometheusAPIForCluster(RANConfig.Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to create Prometheus API client")
 
@@ -105,6 +109,7 @@ var _ = Describe("PTP Node Reboot", Ordered, ContinueOnFailure, Label(tsparams.L
 		Expect(err).ToNot(HaveOccurred(), "Failed to get event pod for node %s", nodeName)
 
 		By("waiting for the LOCKED event to be reported")
+
 		filter := events.All(
 			events.IsType(eventptp.PtpStateChange),
 			events.HasValue(events.WithSyncState(eventptp.LOCKED), events.ContainingResource(string(iface.Master))),

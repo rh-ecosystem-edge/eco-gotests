@@ -84,8 +84,8 @@ var _ = Describe(
 		)
 
 		BeforeAll(func() {
-
 			By("Check if seed image and target cluster are equal prior the upgrade")
+
 			clusterVersion, err := clusterversion.Pull(APIClient)
 			Expect(err).NotTo(HaveOccurred(), "error pulling clusterversion")
 
@@ -94,20 +94,24 @@ var _ = Describe(
 			}
 
 			By("Get target cluster proxy configuration")
+
 			originalTargetProxy, err = proxy.Pull(APIClient)
 			Expect(err).NotTo(HaveOccurred(), "error pulling target cluster proxy")
 
 			By("Pull the imagebasedupgrade from the cluster")
+
 			ibu, err = lca.PullImageBasedUpgrade(APIClient)
 			Expect(err).NotTo(HaveOccurred(), "error pulling ibu resource from cluster")
 
 			By("Ensure that imagebasedupgrade values are empty")
+
 			ibu.Definition.Spec.ExtraManifests = []lcav1.ConfigMapRef{}
 			ibu.Definition.Spec.OADPContent = []lcav1.ConfigMapRef{}
 			ibu, err := ibu.Update()
 			Expect(err).NotTo(HaveOccurred(), "error updating ibu resource with empty values")
 
 			By("Get the target cluster's X.Y portion of the OCP version before the upgrade")
+
 			originalClusterVersionXY, err = ClusterVersionXY(clusterVersion.Object.Status.Desired.Version)
 			Expect(err).NotTo(HaveOccurred(), "error retrieveing the X.Y version of the cluster before upgrade")
 
@@ -115,17 +119,20 @@ var _ = Describe(
 				klog.V(mgmtparams.MGMTLogLevel).Infof("KMM was installed")
 
 				By("Create namespace definition for KMM module")
+
 				kmmNamespace := namespace.NewBuilder(APIClient, kmmModuleNamespaceName)
 				kmmNamespace.Definition.Annotations = map[string]string{
 					"lca.openshift.io/apply-wave": "4",
 				}
 
 				By("Create string from the KMM module namespace definition")
+
 				kmmNamespaceString, err := brutil.NewBackupRestoreObject(
 					kmmNamespace.Definition, k8sScheme.Scheme, corev1.SchemeGroupVersion).String()
 				Expect(err).NotTo(HaveOccurred(), "error creating configmap data for KMM namespace")
 
 				By("Create serviceaccount definition for KMM module")
+
 				kmmServiceAccount := serviceaccount.NewBuilder(APIClient, kmmModuleServiceAccoutName,
 					kmmModuleNamespaceName)
 				kmmServiceAccount.Definition.Annotations = map[string]string{
@@ -133,11 +140,13 @@ var _ = Describe(
 				}
 
 				By("Create string from the KMM module serviceaccount definition")
+
 				kmmServiceAccountString, err := brutil.NewBackupRestoreObject(
 					kmmServiceAccount.Definition, k8sScheme.Scheme, corev1.SchemeGroupVersion).String()
 				Expect(err).NotTo(HaveOccurred(), "error creating configmap data for KMM serviceaccount")
 
 				By("Create clusterrolebinding definition for KMM module")
+
 				kmmClusterRoleBinding := rbac.NewClusterRoleBindingBuilder(APIClient, kmmClusterRoleBindingName,
 					kmmClusterRoleName,
 					rbacv1.Subject{
@@ -151,20 +160,26 @@ var _ = Describe(
 				}
 
 				By("Create string from the KMM module clusterrolebinding definition")
+
 				kmmClusterRoleBindingString, err := brutil.NewBackupRestoreObject(
 					kmmClusterRoleBinding.Definition, k8sScheme.Scheme, rbacv1.SchemeGroupVersion).String()
 				Expect(err).NotTo(HaveOccurred(), "error creating configmap data for KMM clusterrolebinding")
 
 				By("Create module definition for KMM")
+
 				kmmKernelMappings := kmmv1beta1.KernelMapping{Regexp: "^.+$",
 					ContainerImage: "quay.io/ocp-edge-qe/simple-kmod:$KERNEL_FULL_VERSION"}
+
 				var kmmKernelMappingsList []kmmv1beta1.KernelMapping
+
 				kmmMappings := append(kmmKernelMappingsList, kmmKernelMappings)
 
 				By("Initialize kmmModule")
+
 				kmmModule := kmm.NewModuleBuilder(APIClient, kmmModuleName, kmmModuleNamespaceName)
 
 				By("Initialize kmmModule.Definition.Spec.ModuleLoader if it is nil")
+
 				if kmmModule.Definition.Spec.ModuleLoader == nil {
 					kmmModule.Definition.Spec.ModuleLoader = &kmmv1beta1.ModuleLoaderSpec{}
 				}
@@ -176,11 +191,13 @@ var _ = Describe(
 				kmmModule.Definition.Spec.Selector = map[string]string{"node-role.kubernetes.io/worker": ""}
 
 				By("Create string from the KMM module namespace definition")
+
 				kmmModuleString, err := brutil.NewBackupRestoreObject(
 					kmmModule.Definition, APIClient.Scheme(), kmmv1beta1.GroupVersion).String()
 				Expect(err).NotTo(HaveOccurred(), "error creating configmap data for KMM module")
 
 				By("Create configmap with the KMM module manifests")
+
 				kmmManifestsConfigmap, err := configmap.NewBuilder(
 					APIClient, kmmManifestsConfigmapName, mgmtparams.LCANamespace).WithData(map[string]string{
 					"namespace.yaml":          kmmNamespaceString,
@@ -191,6 +208,7 @@ var _ = Describe(
 				Expect(err).NotTo(HaveOccurred(), "error creating configmap with KMM module manifests")
 
 				By("Update IBU with KMM module manifests")
+
 				_, err = ibu.WithExtraManifests(
 					kmmManifestsConfigmap.Object.Name, kmmManifestsConfigmap.Object.Namespace).Update()
 				Expect(err).NotTo(HaveOccurred(), "error updating image based upgrade with kmm module manifests")
@@ -201,11 +219,13 @@ var _ = Describe(
 				updateIBUWithCustomCatalogSources(ibu)
 
 				By("Create namespace for extramanifests")
+
 				extraNamespace := namespace.NewBuilder(APIClient, extraManifestNamespace)
 				extraNamespace.Definition.Annotations = make(map[string]string)
 				extraNamespace.Definition.Annotations["lca.openshift.io/apply-wave"] = "1"
 
 				By("Create configmap for extra manifests namespace")
+
 				extraNamespaceString, err := brutil.NewBackupRestoreObject(
 					extraNamespace.Definition, k8sScheme.Scheme, corev1.SchemeGroupVersion).String()
 				Expect(err).NotTo(HaveOccurred(), "error creating configmap data for extramanifest namespace")
@@ -216,6 +236,7 @@ var _ = Describe(
 				Expect(err).NotTo(HaveOccurred(), "error creating configmap for extra manifests namespace")
 
 				By("Create configmap for extramanifests")
+
 				extraConfigmap := configmap.NewBuilder(
 					APIClient, extraManifestConfigmap, extraManifestNamespace).WithData(map[string]string{
 					"hello": "world",
@@ -224,6 +245,7 @@ var _ = Describe(
 				extraConfigmap.Definition.Annotations["lca.openshift.io/apply-wave"] = "2"
 
 				By("Create configmap for extramanifests configmap")
+
 				extraConfigmapString, err := brutil.NewBackupRestoreObject(
 					extraConfigmap.Definition, k8sScheme.Scheme, corev1.SchemeGroupVersion).String()
 				Expect(err).NotTo(HaveOccurred(), "error creating configmap data for extramanifest configmap")
@@ -234,6 +256,7 @@ var _ = Describe(
 				Expect(err).NotTo(HaveOccurred(), "error creating configmap for extra manifests configmap")
 
 				By("Update IBU with extra manifests")
+
 				_, err = ibu.WithExtraManifests(
 					extraManifestsNamespaceConfigmap.Object.Name, extraManifestsNamespaceConfigmap.Object.Namespace).
 					WithExtraManifests(
@@ -245,33 +268,44 @@ var _ = Describe(
 			startTestWorkload()
 
 			By("Create configmap for oadp")
+
 			oadpConfigmap := configmap.NewBuilder(APIClient, oadpContentConfigmap, mgmtparams.LCAOADPNamespace)
+
 			var oadpConfigmapData = make(map[string]string)
 
 			By("Add workload app backup oadp configmap")
+
 			workloadBackup, err := mgmtparams.WorkloadBackup.String()
 			Expect(err).NotTo(HaveOccurred(), "error creating configmap data for workload app backup")
+
 			oadpConfigmapData["workload_app_backup.yaml"] = workloadBackup
 
 			By("Add workload app restore to oadp configmap")
+
 			workloadRestore, err := mgmtparams.WorkloadRestore.String()
 			Expect(err).NotTo(HaveOccurred(), "error creating configmap data for workload app restore")
+
 			oadpConfigmapData["workload_app_restore.yaml"] = workloadRestore
 
 			_, err = namespace.Pull(APIClient, mgmtparams.LCAKlusterletNamespace)
 			if err == nil {
 				By("Add klusterlet backup oadp configmap")
+
 				klusterletBackup, err := mgmtparams.KlusterletBackup.String()
 				Expect(err).NotTo(HaveOccurred(), "error creating configmap data for klusterlet backup content")
+
 				oadpConfigmapData["klusterlet_backup.yaml"] = klusterletBackup
 
 				By("Add klusterlet restore oadp configmap")
+
 				klusterletRestore, err := mgmtparams.KlusterletRestore.String()
 				Expect(err).NotTo(HaveOccurred(), "error creating configmap data for klusterlet restire content")
+
 				oadpConfigmapData["klusterlet_restore.yaml"] = klusterletRestore
 			}
 
 			By("Create oadpContent configmap")
+
 			_, err = oadpConfigmap.WithData(oadpConfigmapData).Create()
 			Expect(err).NotTo(HaveOccurred(), "error creating oadp configmap")
 		})
@@ -286,29 +320,35 @@ var _ = Describe(
 
 			if !MGMTConfig.IdlePostUpgrade && MGMTConfig.RollbackAfterUpgrade {
 				By("Revert IBU resource back to Idle stage")
+
 				ibu, err = lca.PullImageBasedUpgrade(APIClient)
 				Expect(err).NotTo(HaveOccurred(), "error pulling imagebasedupgrade resource")
 
 				if ibu.Object.Spec.Stage == "Upgrade" {
 					By("Set IBU stage to Rollback")
+
 					_, err = ibu.WithStage("Rollback").Update()
 					Expect(err).NotTo(HaveOccurred(), "error setting ibu to rollback stage")
 
 					By("Wait for IBU resource to be available")
+
 					err = nodestate.WaitForIBUToBeAvailable(APIClient, ibu, time.Minute*10)
 					Expect(err).NotTo(HaveOccurred(), "error waiting for ibu resource to become available")
 
 					By("Wait until Rollback stage has completed")
+
 					_, err = ibu.WaitUntilStageComplete("Rollback")
 					Expect(err).NotTo(HaveOccurred(), "error waiting for rollback stage to complete")
 				}
 
 				if slices.Contains([]string{"Prep", "Rollback"}, string(ibu.Object.Spec.Stage)) {
 					By("Set IBU stage to Idle")
+
 					_, err = ibu.WithStage("Idle").Update()
 					Expect(err).NotTo(HaveOccurred(), "error setting ibu to idle stage")
 
 					By("Wait until IBU has become Idle")
+
 					_, err = ibu.WaitUntilStageComplete("Idle")
 					Expect(err).NotTo(HaveOccurred(), "error waiting for idle stage to complete")
 				}
@@ -319,28 +359,34 @@ var _ = Describe(
 
 				if MGMTConfig.ExtraManifests {
 					By("Pull namespace extra manifests namespace")
+
 					extraNamespace, err := namespace.Pull(APIClient, extraManifestNamespace)
 					Expect(err).NotTo(HaveOccurred(), "error pulling namespace created by extra manifests")
 
 					By("Delete extra manifest namespace")
+
 					err = extraNamespace.DeleteAndWait(time.Minute * 1)
 					Expect(err).NotTo(HaveOccurred(), "error deleting extra manifest namespace")
 
 					By("Pull extra manifests namespace configmap")
+
 					extraManifestsNamespaceConfigmap, err := configmap.Pull(
 						APIClient, extraManifestNamespaceConfigmapName, mgmtparams.LCANamespace)
 					Expect(err).NotTo(HaveOccurred(), "error pulling extra manifest namespace configmap")
 
 					By("Delete extra manifests namespace configmap")
+
 					err = extraManifestsNamespaceConfigmap.Delete()
 					Expect(err).NotTo(HaveOccurred(), "error deleting extra manifest namespace configmap")
 
 					By("Pull extra manifests configmap configmap")
+
 					extraManifestsConfigmapConfigmap, err := configmap.Pull(
 						APIClient, extraManifesConfigmapConfigmapName, mgmtparams.LCANamespace)
 					Expect(err).NotTo(HaveOccurred(), "error pulling extra manifest configmap configmap")
 
 					By("Delete extra manifests configmap configmap")
+
 					err = extraManifestsConfigmapConfigmap.Delete()
 					Expect(err).NotTo(HaveOccurred(), "error deleting extra manifest configmap configmap")
 				}
@@ -349,6 +395,7 @@ var _ = Describe(
 
 		It("upgrades the connected cluster to a newer z-stream", reportxml.ID("79176"), func() {
 			By("Check if the target cluster is connected")
+
 			connected, err := cluster.Connected(APIClient)
 
 			if !connected {
@@ -360,6 +407,7 @@ var _ = Describe(
 			}
 
 			By("Check if seed and target have the same minor version")
+
 			seedImageClusterVersionXY, err := ClusterVersionXY(MGMTConfig.SeedClusterInfo.SeedClusterOCPVersion)
 			Expect(err).NotTo(HaveOccurred(), "error retrieving the XY portion of the seed cluster version")
 
@@ -376,6 +424,7 @@ var _ = Describe(
 			}
 
 			By("Check if seed and target have the same minor version")
+
 			seedImageClusterVersionXY, err := ClusterVersionXY(MGMTConfig.SeedClusterInfo.SeedClusterOCPVersion)
 			Expect(err).NotTo(HaveOccurred(), "error retrieving the XY portion of the seed cluster version")
 
@@ -384,13 +433,16 @@ var _ = Describe(
 			}
 
 			By("Check if seed and target have 2 y-stream versions apart")
+
 			seedYInt, _ := strconv.Atoi(strings.Split(seedImageClusterVersionXY, ".")[1])
+
 			originalYInt, _ := strconv.Atoi(strings.Split(originalClusterVersionXY, ".")[1])
 			if seedYInt-originalYInt == 2 {
 				Skip("The y-stream version of the seed is 2 releases apart from the target")
 			}
 
 			By("Pull the imagebasedupgrade from the cluster")
+
 			ibuLocal, err := lca.PullImageBasedUpgrade(APIClient)
 			Expect(err).NotTo(HaveOccurred(), "error pulling imagebasedupgrade resource from cluster")
 
@@ -398,23 +450,28 @@ var _ = Describe(
 			Expect(string(ibuLocal.Object.Spec.Stage)).To(Equal("Idle"), "error: ibu is not in Idle state")
 
 			By("Set seed image to the proper value - to pass the prep stage")
+
 			_, err = ibuLocal.WithSeedImage(MGMTConfig.SeedImage).
 				WithSeedImageVersion(MGMTConfig.SeedClusterInfo.SeedClusterOCPVersion).Update()
 			Expect(err).NotTo(HaveOccurred(), "error updating ibu with image and version")
 
 			By("First transition: Idle to Prep")
+
 			_, err = ibuLocal.WithStage("Prep").Update()
 			Expect(err).NotTo(HaveOccurred(), "error setting ibu to prep stage")
 
 			By("Wait until the first transition Idle to Prep has completed")
+
 			_, err = ibuLocal.WaitUntilStageComplete("Prep")
 			Expect(err).NotTo(HaveOccurred(), "error waiting for first prep stage to complete")
 
 			By("Second transition: Prep to Idle")
+
 			_, err = ibuLocal.WithStage("Idle").Update()
 			Expect(err).NotTo(HaveOccurred(), "error setting ibu back to idle stage")
 
 			By("Wait until IBU returns to Idle state")
+
 			_, err = ibuLocal.WaitUntilStageComplete("Idle")
 			Expect(err).NotTo(HaveOccurred(), "error waiting for idle stage to complete after prep")
 
@@ -422,6 +479,7 @@ var _ = Describe(
 			temporarySeedVersion := "wrong-version"
 
 			By("Update the seed image and version with different values")
+
 			_, err = ibuLocal.WithSeedImage(temporarySeedImage).
 				WithSeedImageVersion(temporarySeedVersion).Update()
 			Expect(err).NotTo(HaveOccurred(), "error updating ibu with new seed image")
@@ -434,11 +492,13 @@ var _ = Describe(
 			upgrade()
 
 			By("Udate the originalClusterVersionXY variable to skip on the following upgrade tests")
+
 			originalClusterVersionXY = seedImageClusterVersionXY
 		})
 
 		It("upgrades the connected cluster to a newer minor version", reportxml.ID("71362"), func() {
 			By("Check if the target cluster is connected")
+
 			connected, err := cluster.Connected(APIClient)
 
 			if !connected {
@@ -450,6 +510,7 @@ var _ = Describe(
 			}
 
 			By("Check if seed and target have the same minor version")
+
 			seedImageClusterVersionXY, err := ClusterVersionXY(MGMTConfig.SeedClusterInfo.SeedClusterOCPVersion)
 			Expect(err).NotTo(HaveOccurred(), "error retrieving the XY portion of the seed cluster version")
 
@@ -458,7 +519,9 @@ var _ = Describe(
 			}
 
 			By("Check if seed and target have 2 y-stream versions apart")
+
 			seedYInt, _ := strconv.Atoi(strings.Split(seedImageClusterVersionXY, ".")[1])
+
 			originalYInt, _ := strconv.Atoi(strings.Split(originalClusterVersionXY, ".")[1])
 			if seedYInt-originalYInt == 2 {
 				Skip("The y-stream version of the seed is 2 releases apart from the target")
@@ -469,6 +532,7 @@ var _ = Describe(
 
 		It("upgrades the connected cluster to a y-stream +2 version", reportxml.ID("82294"), func() {
 			By("Check if the target cluster is connected")
+
 			connected, err := cluster.Connected(APIClient)
 
 			if !connected {
@@ -480,10 +544,12 @@ var _ = Describe(
 			}
 
 			By("Check if seed and target are 2 y-stream releases apart")
+
 			seedImageClusterVersionXY, err := ClusterVersionXY(MGMTConfig.SeedClusterInfo.SeedClusterOCPVersion)
 			Expect(err).NotTo(HaveOccurred(), "error retrieving the XY portion of the seed cluster version")
 
 			seedYInt, _ := strconv.Atoi(strings.Split(seedImageClusterVersionXY, ".")[1])
+
 			originalYInt, _ := strconv.Atoi(strings.Split(originalClusterVersionXY, ".")[1])
 			if seedYInt-originalYInt != 2 {
 				Skip("The y-stream version of the seed is not 2 releases apart from the target")
@@ -494,6 +560,7 @@ var _ = Describe(
 
 		It("upgrades the disconnected cluster", reportxml.ID("71736"), func() {
 			By("Check if the target cluster is disconnected")
+
 			disconnected, err := cluster.Disconnected(APIClient)
 
 			if !disconnected {
@@ -513,10 +580,12 @@ var _ = Describe(
 			}
 
 			By("Pull namespace created by extra manifests")
+
 			extraNamespace, err := namespace.Pull(APIClient, extraManifestNamespace)
 			Expect(err).NotTo(HaveOccurred(), "error pulling namespace created by extra manifests")
 
 			By("Pull configmap created by extra manifests")
+
 			extraConfigmap, err := configmap.Pull(APIClient, extraManifestConfigmap, extraNamespace.Object.Name)
 			Expect(err).NotTo(HaveOccurred(), "error pulling configmap created by extra manifests")
 			Expect(len(extraConfigmap.Object.Data)).To(Equal(1), "error: got unexpected data in configmap")
@@ -570,6 +639,7 @@ var _ = Describe(
 
 		It("fails because from Upgrade it's not possible to move to Prep stage", reportxml.ID("71741"), func() {
 			By("Pull the imagebasedupgrade from the cluster")
+
 			ibu, err = lca.PullImageBasedUpgrade(APIClient)
 			Expect(err).NotTo(HaveOccurred(), "error pulling imagebasedupgrade resource")
 
@@ -583,7 +653,6 @@ var _ = Describe(
 		})
 
 		It("detects dual-stack service network with primary IPv4", reportxml.ID("84293"), func() {
-
 			By("Validate Service Network is in a dual stack deployment with primary IPv4")
 
 			if validateDualStackDeploymentPrimaryIPv4() {
@@ -594,7 +663,6 @@ var _ = Describe(
 		})
 
 		It("detects dual-stack service network with primary IPv6", reportxml.ID("85484"), func() {
-
 			By("Validate Service Network is in a dual stack deployment with primary IPv6")
 
 			if validateDualStackDeploymentPrimaryIPv6() {
@@ -617,7 +685,6 @@ var _ = Describe(
 				for _, stdout := range cmdOutput {
 					Expect(strings.ReplaceAll(stdout, "\n", "")).To(ContainSubstring("simple_kmod"),
 						"error: simple_kmod wasn't loaded")
-
 				}
 			})
 		})
@@ -636,12 +703,10 @@ var _ = Describe(
 
 				for _, stdout := range cmdOutput {
 					for _, ntpSource := range strings.Split(MGMTConfig.AdditionalNTPSources, ",") {
-
 						Expect(strings.ReplaceAll(stdout, "\n", "")).To(ContainSubstring("server %s",
 							ntpSource),
 							"error: the expected NTP source %s wasn't found", ntpSource)
 					}
-
 				}
 			})
 		})
@@ -652,6 +717,7 @@ var _ = Describe(
 			}
 
 			By("Get cluster-config configmap")
+
 			clusterConifgMap, err := configmap.Pull(APIClient, "cluster-config-v1", "kube-system")
 			Expect(err).NotTo(HaveOccurred(), "error pulling cluster-config configmap from cluster")
 

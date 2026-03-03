@@ -41,6 +41,7 @@ var _ = Describe("BGP Unnumbered", Ordered, Label(tsparams.LabelBGPUnnumbered),
 
 		BeforeAll(func() {
 			By("Checking if cluster is SNO")
+
 			if IsSNO {
 				Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers")
 			}
@@ -48,10 +49,12 @@ var _ = Describe("BGP Unnumbered", Ordered, Label(tsparams.LabelBGPUnnumbered),
 			validateEnvVarAndGetNodeList()
 
 			By("Creating a new instance of MetalLB Speakers on workers")
+
 			err := metallbenv.CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(tsparams.DefaultTimeout, workerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "Failed to create metalLb daemonset")
 
 			By("Collecting interface information to enable a node ethernet interface")
+
 			interfacesUnderTest, err = NetConfig.GetSriovInterfaces(1)
 			Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
 
@@ -61,6 +64,7 @@ var _ = Describe("BGP Unnumbered", Ordered, Label(tsparams.LabelBGPUnnumbered),
 				interfacesUnderTest[0])
 
 			By("Collecting the frrk8sPod Pod list for worker nodes in list cnfWorkerNodeList")
+
 			frrk8sPods = verifyAndCreateFRRk8sPodList()
 
 			By(fmt.Sprintf("Verify the frrk8s pod's link local IP address from interface %s on worker node %s",
@@ -71,12 +75,15 @@ var _ = Describe("BGP Unnumbered", Ordered, Label(tsparams.LabelBGPUnnumbered),
 			createBFDProfileUnnumberedAndVerifyIfItsReady(frrk8sPods[0])
 
 			By("Creating host-device NAD for external FRR pod")
+
 			_, err = define.HostDeviceNad(APIClient, frrconfig.ExternalMacVlanNADName, interfacesUnderTest[0],
 				tsparams.TestNamespaceName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to create a network-attachment-definition")
 
 			By("Create a single IPAddressPool")
+
 			ipAddressPool := createIPAddressPool("ipaddresspool", ipAddressPoolRange)
+
 			validateAddressPool("ipaddresspool", mlbtypes.IPAddressPoolStatus{
 				AvailableIPv4: 240,
 				AvailableIPv6: 0,
@@ -110,6 +117,7 @@ var _ = Describe("BGP Unnumbered", Ordered, Label(tsparams.LabelBGPUnnumbered),
 			Expect(err).ToNot(HaveOccurred(), "Failed to update NMState network policy")
 
 			By("Removing NMState policies")
+
 			err = nmstate.CleanAllNMStatePolicies(APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Failed to remove all NMState policies")
 
@@ -125,11 +133,13 @@ var _ = Describe("BGP Unnumbered", Ordered, Label(tsparams.LabelBGPUnnumbered),
 		It("Verify IBGP peering established with BGP Unnumbered and BFD",
 			reportxml.ID("80393"), func() {
 				By("Create a frr config-map")
+
 				frrConfigMap := createConfigMapWithUnnumbered(tsparams.LocalBGPASN, tsparams.LocalBGPASN,
 					interfacesUnderTest[0], externalAdvertisedIPv4Routes, externalAdvertisedIPv6Routes,
 					false, true)
 
 				By("Creating static ip annotation for the external FRR pod")
+
 				frrStaticAnnotation := pod.StaticIPAnnotationWithInterfaceAndNamespace(
 					tsparams.ExternalMacVlanNADName, tsparams.TestNamespaceName, interfacesUnderTest[0],
 					[]string{})
@@ -161,11 +171,13 @@ var _ = Describe("BGP Unnumbered", Ordered, Label(tsparams.LabelBGPUnnumbered),
 				})
 
 				By("Creating static ip annotation for the external FRR pod")
+
 				frrStaticAnnotation := pod.StaticIPAnnotationWithInterfaceAndNamespace(
 					tsparams.ExternalMacVlanNADName, tsparams.TestNamespaceName, interfacesUnderTest[0],
 					[]string{})
 
 				By("Create a frr config-map")
+
 				frrConfigMap := createConfigMapWithUnnumbered(tsparams.RemoteBGPASN, tsparams.LocalBGPASN,
 					interfacesUnderTest[0], externalAdvertisedIPv4Routes, externalAdvertisedIPv6Routes,
 					false, true)
@@ -208,11 +220,13 @@ var _ = Describe("BGP Unnumbered", Ordered, Label(tsparams.LabelBGPUnnumbered),
 				})
 
 				By("Creating static ip annotation for the external FRR pod")
+
 				frrStaticAnnotation := pod.StaticIPAnnotationWithInterfaceAndNamespace(
 					tsparams.ExternalMacVlanNADName, tsparams.TestNamespaceName, interfacesUnderTest[0],
 					[]string{})
 
 				By("Create a frr config-map")
+
 				frrConfigMap := createConfigMapWithUnnumbered(tsparams.RemoteBGPASN, tsparams.LocalBGPASN,
 					interfacesUnderTest[0], externalAdvertisedIPv4Routes, externalAdvertisedIPv6Routes,
 					false, false)
@@ -253,11 +267,13 @@ var _ = Describe("BGP Unnumbered", Ordered, Label(tsparams.LabelBGPUnnumbered),
 				})
 
 				By("Creating static ip annotation for the external FRR pod")
+
 				frrStaticAnnotation := pod.StaticIPAnnotationWithInterfaceAndNamespace(
 					tsparams.ExternalMacVlanNADName, tsparams.TestNamespaceName, interfacesUnderTest[0],
 					[]string{})
 
 				By("Create a frr config-map")
+
 				frrConfigMap := createConfigMapWithUnnumbered(tsparams.LocalBGPASN, tsparams.LocalBGPASN,
 					interfacesUnderTest[0], externalAdvertisedIPv4Routes, externalAdvertisedIPv6Routes,
 					false, true)

@@ -26,6 +26,7 @@ var _ = Describe("ZTP Siteconfig Operator's Failover Tests",
 		// These tests use the hub and spoke architecture.
 		BeforeEach(func() {
 			By("verifying that ZTP meets the minimum version")
+
 			versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.17", "")
 			Expect(err).ToNot(HaveOccurred(), "Failed to compare ZTP version string")
 
@@ -34,6 +35,7 @@ var _ = Describe("ZTP Siteconfig Operator's Failover Tests",
 			}
 
 			By("getting the clusters app")
+
 			clustersApp, err = argocd.PullApplication(
 				HubAPIClient, tsparams.ArgoCdClustersAppName, ranparam.OpenshiftGitOpsNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get the clusters app")
@@ -48,6 +50,7 @@ var _ = Describe("ZTP Siteconfig Operator's Failover Tests",
 			}
 
 			By("resetting the clusters app back to the original settings")
+
 			clustersApp.Definition.Spec.Source.Path = originalClustersGitPath
 			clustersApp, err := clustersApp.Update(true)
 			Expect(err).ToNot(HaveOccurred(), "Failed to reset clusters app git details")
@@ -59,20 +62,22 @@ var _ = Describe("ZTP Siteconfig Operator's Failover Tests",
 		// 75382 - Validate recovery mechanism by referencing non-existent cluster template configmap custom resource.
 		It("Verify siteconfig operator's recovery mechanism by referencing non-existent cluster template configmap CR",
 			reportxml.ID("75382"), func() {
-
 				// Test step 1-Update the ztp-test git path to reference non-existent cluster template configmap.
 				// in clusterinstance.yaml.
 				By("checking if the non-existent cluster template configmap reference git path exists")
+
 				if !clustersApp.DoesGitPathExist(tsparams.ZtpTestPathNoClusterTemplateCm) {
 					Skip(fmt.Sprintf("git path '%s' could not be found", tsparams.ZtpTestPathNoClusterTemplateCm))
 				}
 
 				By("updating the Argo CD clusters app with the non-existent cluster template configmap reference git path")
+
 				err := gitdetails.UpdateAndWaitForSync(clustersApp, true, tsparams.ZtpTestPathNoClusterTemplateCm)
 				Expect(err).ToNot(HaveOccurred(), "Failed to update Argo CD clusters app with new git path")
 
 				// Test step 1 expected result validation.
 				By("checking cluster instance CR reporting validation failed with correct error message")
+
 				clusterInstance, err := siteconfig.PullClusterInstance(HubAPIClient, RANConfig.Spoke1Name, RANConfig.Spoke1Name)
 				Expect(err).ToNot(HaveOccurred(), "Failed to find cluster instance custom resource on hub")
 
@@ -87,20 +92,22 @@ var _ = Describe("ZTP Siteconfig Operator's Failover Tests",
 		// 75383 - Validate recovery mechanism by referencing non-existent extra manifests configmap custom resource.
 		It("Verify siteconfig operator's recovery mechanism by referencing non-existent extra manifests configmap CR",
 			reportxml.ID("75383"), func() {
-
 				// Test step 1-Update the ztp-test git path to reference non-existent extra manifests configmap.
 				// in clusterinstance.yaml.
 				By("checking if the non-existent extra manifests configmap reference git path exists")
+
 				if !clustersApp.DoesGitPathExist(tsparams.ZtpTestPathNoExtraManifestsCm) {
 					Skip(fmt.Sprintf("git path '%s' could not be found", tsparams.ZtpTestPathNoExtraManifestsCm))
 				}
 
 				By("updating the Argo CD clusters app with the non-existent extra manifests configmap reference git path")
+
 				err := gitdetails.UpdateAndWaitForSync(clustersApp, true, tsparams.ZtpTestPathNoExtraManifestsCm)
 				Expect(err).ToNot(HaveOccurred(), "Failed to update Argo CD clusters app with new git path")
 
 				// Test step 1 expected result validation.
 				By("checking cluster instance CR reporting validation failed with correct error message")
+
 				clusterInstance, err := siteconfig.PullClusterInstance(HubAPIClient, RANConfig.Spoke1Name, RANConfig.Spoke1Name)
 				Expect(err).ToNot(HaveOccurred(), "Failed to find cluster instance custom resource on hub")
 

@@ -24,9 +24,7 @@ import (
 )
 
 var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.Label), Label(params.LabelSuite), func() {
-
 	Context("vLLM Workload", Label(tsparams.LabelSuite), func() {
-
 		neuronConfig := neuronconfig.NewNeuronConfig()
 
 		BeforeAll(func() {
@@ -41,6 +39,7 @@ var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.Label), La
 			}
 
 			By("Deploying required operators")
+
 			var options *neuronhelpers.NeuronInstallConfigOptions
 			if neuronConfig.CatalogSource != "" {
 				options = &neuronhelpers.NeuronInstallConfigOptions{
@@ -52,6 +51,7 @@ var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.Label), La
 			Expect(err).ToNot(HaveOccurred(), "Failed to deploy required operators")
 
 			By("Waiting for NFD operator to be ready")
+
 			nfdInstallConfig := deploy.OperatorInstallConfig{
 				APIClient:              APIClient,
 				Namespace:              params.NFDNamespace,
@@ -70,6 +70,7 @@ var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.Label), La
 			Expect(ready).To(BeTrue(), "NFD operator is not ready")
 
 			By("Waiting for KMM operator to be ready")
+
 			kmmInstallConfig := neuronhelpers.GetDefaultKMMInstallConfig(APIClient)
 			kmmInstaller := deploy.NewOperatorInstaller(kmmInstallConfig)
 			ready, err = kmmInstaller.IsReady(tsparams.OperatorDeployTimeout)
@@ -77,6 +78,7 @@ var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.Label), La
 			Expect(ready).To(BeTrue(), "KMM operator is not ready")
 
 			By("Waiting for Neuron operator to be ready")
+
 			neuronInstallConfig := neuronhelpers.GetDefaultNeuronInstallConfig(APIClient, options)
 			neuronInstaller := deploy.NewOperatorInstaller(neuronInstallConfig)
 			ready, err = neuronInstaller.IsReady(tsparams.OperatorDeployTimeout)
@@ -84,6 +86,7 @@ var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.Label), La
 			Expect(ready).To(BeTrue(), "Neuron operator is not ready")
 
 			By("Creating DeviceConfig")
+
 			builder := neuron.NewBuilder(
 				APIClient,
 				params.DefaultDeviceConfigName,
@@ -109,18 +112,22 @@ var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.Label), La
 			}
 
 			By("Waiting for cluster stability after DeviceConfig")
+
 			err = neuronhelpers.WaitForClusterStabilityAfterDeviceConfig(APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Cluster not stable after DeviceConfig")
 
 			By("Waiting for Neuron nodes to be labeled")
+
 			err = await.NeuronNodesLabeled(APIClient, tsparams.DevicePluginReadyTimeout)
 			Expect(err).ToNot(HaveOccurred(), "No Neuron-labeled nodes found")
 
 			By("Waiting for device plugin deployment")
+
 			err = await.DevicePluginDeployment(APIClient, params.NeuronNamespace, tsparams.DevicePluginReadyTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Device plugin deployment failed")
 
 			By("Waiting for Neuron resources to be available")
+
 			err = await.AllNeuronNodesResourceAvailable(APIClient, tsparams.DevicePluginReadyTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Neuron resources not available on nodes")
 		})
@@ -137,6 +144,7 @@ var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.Label), La
 			}
 
 			By("Cleaning up DeviceConfig and waiting for deletion")
+
 			deviceConfigBuilder, err := neuron.Pull(
 				APIClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
 			if err == nil {
@@ -155,6 +163,7 @@ var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.Label), La
 			}
 
 			By("Uninstalling operators")
+
 			uninstallErr := neuronhelpers.UninstallAllOperators(APIClient)
 			if uninstallErr != nil {
 				klog.V(params.NeuronLogLevel).Infof("Operator uninstall completed with issues: %v", uninstallErr)
@@ -163,6 +172,7 @@ var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.Label), La
 
 		It("Should deploy vLLM and execute inference", Label("neuron-vllm"), reportxml.ID("neuron-vllm"), func() {
 			By("Creating vLLM test namespace")
+
 			nsBuilder := namespace.NewBuilder(APIClient, tsparams.VLLMTestNamespace)
 			if !nsBuilder.Exists() {
 				_, err := nsBuilder.WithMultipleLabels(map[string]string{
@@ -172,6 +182,7 @@ var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.Label), La
 			}
 
 			By("Configuring vLLM deployment")
+
 			vllmConfig := do.DefaultVLLMConfig(tsparams.VLLMTestNamespace)
 			vllmConfig.ModelName = neuronConfig.ModelName
 			vllmConfig.ServedModelName = neuronConfig.ModelName
@@ -179,7 +190,9 @@ var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.Label), La
 			vllmConfig.StorageClassName = neuronConfig.StorageClassName
 
 			By("Creating PersistentVolumeClaim for model storage")
+
 			pvc := do.CreateVLLMPVC(vllmConfig)
+
 			_, err := APIClient.CoreV1Interface.PersistentVolumeClaims(tsparams.VLLMTestNamespace).Create(
 				context.Background(), pvc, metav1.CreateOptions{})
 			if err != nil && !apierrors.IsAlreadyExists(err) {
@@ -187,11 +200,13 @@ var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.Label), La
 			}
 
 			By("Creating HuggingFace token secret")
+
 			hfSecret := do.CreateHFTokenSecret(
 				tsparams.VLLMTestNamespace,
 				vllmConfig.HFSecretName,
 				neuronConfig.HuggingFaceToken,
 			)
+
 			_, err = APIClient.CoreV1Interface.Secrets(tsparams.VLLMTestNamespace).Create(
 				context.Background(), hfSecret, metav1.CreateOptions{})
 			if err != nil && !apierrors.IsAlreadyExists(err) {
@@ -199,6 +214,7 @@ var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.Label), La
 			}
 
 			By("Creating vLLM deployment with init container for model download")
+
 			vllmDeployment := do.CreateVLLMDeployment(vllmConfig)
 			_, err = APIClient.AppsV1Interface.Deployments(tsparams.VLLMTestNamespace).Create(
 				context.Background(), vllmDeployment, metav1.CreateOptions{})
@@ -207,6 +223,7 @@ var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.Label), La
 				vllmConfig.Name, vllmConfig.ModelName)
 
 			By("Creating vLLM service")
+
 			svcConfig := do.VLLMServiceConfig{
 				Name:      vllmConfig.Name,
 				Namespace: tsparams.VLLMTestNamespace,
@@ -214,6 +231,7 @@ var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.Label), La
 				Labels:    vllmConfig.Labels,
 			}
 			svc := do.CreateVLLMService(svcConfig)
+
 			_, err = APIClient.CoreV1Interface.Services(tsparams.VLLMTestNamespace).Create(
 				context.Background(), svc, metav1.CreateOptions{})
 			if err != nil && !apierrors.IsAlreadyExists(err) {
@@ -221,6 +239,7 @@ var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.Label), La
 			}
 
 			By("Waiting for vLLM deployment to be ready (model download + compilation may take 30+ minutes)")
+
 			deploymentReady := false
 			timeout := 45 * time.Minute
 			pollInterval := 30 * time.Second
@@ -250,6 +269,7 @@ var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.Label), La
 			Expect(deploymentReady).To(BeTrue(), "vLLM deployment should be ready")
 
 			By("Sending inference request")
+
 			inferenceConfig := do.InferenceConfig{
 				ServiceName: vllmConfig.Name,
 				Namespace:   tsparams.VLLMTestNamespace,
@@ -257,8 +277,8 @@ var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.Label), La
 				ModelName:   vllmConfig.ServedModelName,
 				Timeout:     tsparams.VLLMInferenceTimeout,
 			}
-			inferenceResult, err := do.ExecuteInferenceFromCluster(APIClient, inferenceConfig)
 
+			inferenceResult, err := do.ExecuteInferenceFromCluster(APIClient, inferenceConfig)
 			if err != nil {
 				klog.V(params.NeuronLogLevel).Infof("Inference request failed: %v", err)
 				Skip("Inference test skipped - service not accessible from test environment")

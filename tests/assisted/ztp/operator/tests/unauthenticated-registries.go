@@ -35,20 +35,23 @@ var _ = Describe(
 		When("on MCE 2.0 and above", func() {
 			BeforeAll(func() {
 				By("Initialize osImage variable for the test from the original AgentServiceConfig")
+
 				osImageUR = ZTPConfig.HubAgentServiceConfig.Object.Spec.OSImages
 
 				By("Delete the pre-existing AgentServiceConfig")
+
 				err = ZTPConfig.HubAgentServiceConfig.DeleteAndWait(time.Second * 10)
 				Expect(err).ToNot(HaveOccurred(), "error deleting pre-existing agentserviceconfig")
-
 			})
 			AfterEach(func() {
 				By("Delete AgentServiceConfig after test")
+
 				err = tempAgentServiceConfigBuilderUR.DeleteAndWait(time.Second * 10)
 				Expect(err).ToNot(HaveOccurred(), "error deleting agentserviceconfig after test")
 			})
 			AfterAll(func() {
 				By("Re-create the original AgentServiceConfig after all tests")
+
 				_, err = ZTPConfig.HubAgentServiceConfig.Create()
 				Expect(err).ToNot(HaveOccurred(), "error re-creating the original agentserviceconfig after all tests")
 
@@ -62,6 +65,7 @@ var _ = Describe(
 			It("Assert AgentServiceConfig can be created without unauthenticatedRegistries in spec",
 				reportxml.ID("56552"), func() {
 					By("Create AgentServiceConfig with default specs")
+
 					tempAgentServiceConfigBuilderUR = assisted.NewDefaultAgentServiceConfigBuilder(HubAPIClient)
 
 					// An attempt to restrict the osImage spec for the new agentserviceconfig
@@ -71,15 +75,18 @@ var _ = Describe(
 					} else {
 						_, err = tempAgentServiceConfigBuilderUR.Create()
 					}
+
 					Expect(err).ToNot(HaveOccurred(),
 						"error creating agentserviceconfig with default specs")
 
 					By("Assure the AgentServiceConfig with default specs was successfully created")
+
 					_, err = tempAgentServiceConfigBuilderUR.WaitUntilDeployed(time.Minute * 10)
 					Expect(err).ToNot(HaveOccurred(),
 						"error waiting until agentserviceconfig with default storage specs is deployed")
 
 					By(retrieveAssistedConfigMapMsg)
+
 					configMapBuilder, err := configmap.Pull(HubAPIClient, assistedConfigMapName, tsparams.MCENameSpace)
 					Expect(err).ShouldNot(HaveOccurred(), fmt.Sprintf(
 						"failed to get configmap %s in namespace %s", assistedConfigMapName, tsparams.MCENameSpace))
@@ -90,6 +97,7 @@ var _ = Describe(
 			It("Assert AgentServiceConfig can be created with unauthenticatedRegistries containing a default entry",
 				reportxml.ID("56553"), func() {
 					By("Create AgentServiceConfig with unauthenticatedRegistries containing a default entry")
+
 					tempAgentServiceConfigBuilderUR = assisted.NewDefaultAgentServiceConfigBuilder(HubAPIClient).
 						WithUnauthenticatedRegistry(unAuthenticatedDefaultRegistriesList()[1])
 
@@ -100,15 +108,18 @@ var _ = Describe(
 					} else {
 						_, err = tempAgentServiceConfigBuilderUR.Create()
 					}
+
 					Expect(err).ToNot(HaveOccurred(),
 						"error creating agentserviceconfig with unauthenticatedRegistries containing a default entry")
 
 					By("Assure the AgentServiceConfig with unauthenticatedRegistries containing a default entry was created")
+
 					_, err = tempAgentServiceConfigBuilderUR.WaitUntilDeployed(time.Minute * 10)
 					Expect(err).ToNot(HaveOccurred(),
 						"error waiting until agentserviceconfig with unauthenticatedRegistries containing a default entry is deployed")
 
 					By(retrieveAssistedConfigMapMsg)
+
 					configMapBuilder, err := configmap.Pull(HubAPIClient, assistedConfigMapName, tsparams.MCENameSpace)
 					Expect(err).ShouldNot(HaveOccurred(), fmt.Sprintf(
 						"failed to get configmap %s in namespace %s", assistedConfigMapName, tsparams.MCENameSpace))
@@ -119,6 +130,7 @@ var _ = Describe(
 			It("Assert AgentServiceConfig can be created with unauthenticatedRegistries containing a specific entry",
 				reportxml.ID("56554"), func() {
 					By("Create AgentServiceConfig with unauthenticatedRegistries containing a specific entry")
+
 					tempAgentServiceConfigBuilderUR = assisted.NewDefaultAgentServiceConfigBuilder(HubAPIClient).
 						WithUnauthenticatedRegistry(unAuthenticatedNonDefaultRegistriesList()[0])
 
@@ -129,15 +141,18 @@ var _ = Describe(
 					} else {
 						_, err = tempAgentServiceConfigBuilderUR.Create()
 					}
+
 					Expect(err).ToNot(HaveOccurred(),
 						"error creating agentserviceconfig with unauthenticatedRegistries containing a specific entry")
 
 					By("Assure the AgentServiceConfig with unauthenticatedRegistries containing a specific entry was created")
+
 					_, err = tempAgentServiceConfigBuilderUR.WaitUntilDeployed(time.Minute * 10)
 					Expect(err).ToNot(HaveOccurred(),
 						"error waiting until agentserviceconfig with unauthenticatedRegistries containing a specific entry is deployed")
 
 					By(retrieveAssistedConfigMapMsg)
+
 					configMapBuilder, err := configmap.Pull(HubAPIClient, assistedConfigMapName, tsparams.MCENameSpace)
 					Expect(err).ShouldNot(HaveOccurred(), fmt.Sprintf(
 						"failed to get configmap %s in namespace %s", assistedConfigMapName, tsparams.MCENameSpace))
@@ -157,6 +172,7 @@ var _ = Describe(
 			It("Assert AgentServiceConfig can be created with unauthenticatedRegistries containing multiple entries",
 				reportxml.ID("56555"), func() {
 					By("Create AgentServiceConfig with unauthenticatedRegistries containing multiples entries")
+
 					tempAgentServiceConfigBuilderUR = assisted.NewDefaultAgentServiceConfigBuilder(HubAPIClient)
 					for _, registry := range unAuthenticatedNonDefaultRegistriesList() {
 						tempAgentServiceConfigBuilderUR.WithUnauthenticatedRegistry(registry)
@@ -169,15 +185,18 @@ var _ = Describe(
 					} else {
 						_, err = tempAgentServiceConfigBuilderUR.Create()
 					}
+
 					Expect(err).ToNot(HaveOccurred(),
 						"error creating agentserviceconfig with unauthenticatedRegistries containing a specific entry")
 
 					By("Assure the AgentServiceConfig with unauthenticatedRegistries containing multiple entries was created")
+
 					_, err = tempAgentServiceConfigBuilderUR.WaitUntilDeployed(time.Minute * 10)
 					Expect(err).ToNot(HaveOccurred(),
 						"error waiting until agentserviceconfig with unauthenticatedRegistries containing multiple entries is deployed")
 
 					By(retrieveAssistedConfigMapMsg)
+
 					configMapBuilder, err := configmap.Pull(HubAPIClient, assistedConfigMapName, tsparams.MCENameSpace)
 					Expect(err).ShouldNot(HaveOccurred(), fmt.Sprintf(
 						"failed to get configmap %s in namespace %s", assistedConfigMapName, tsparams.MCENameSpace))
@@ -193,11 +212,13 @@ var _ = Describe(
 							errorVerifyingMsg+registry+
 								"\" is listed among unauthenticated registries")
 					}
+
 					unAuthenticatedRegistriesDefaultEntries(configMapBuilder)
 				})
 			It("Assert AgentServiceConfig can be created with unauthenticatedRegistries containing an incorrect entry",
 				reportxml.ID("56556"), func() {
 					By("Create AgentServiceConfig with unauthenticatedRegistries containing an incorrect entry")
+
 					incorrectRegistry := "register.redhat.io"
 					tempAgentServiceConfigBuilderUR = assisted.NewDefaultAgentServiceConfigBuilder(HubAPIClient).
 						WithUnauthenticatedRegistry(incorrectRegistry)
@@ -209,15 +230,18 @@ var _ = Describe(
 					} else {
 						_, err = tempAgentServiceConfigBuilderUR.Create()
 					}
+
 					Expect(err).ToNot(HaveOccurred(),
 						"error creating agentserviceconfig with unauthenticatedRegistries containing an incorrect entry")
 
 					By("Assure the AgentServiceConfig with unauthenticatedRegistries containing an incorrect entry was created")
+
 					_, err = tempAgentServiceConfigBuilderUR.WaitUntilDeployed(time.Minute * 10)
 					Expect(err).ToNot(HaveOccurred(),
 						"error waiting until agentserviceconfig with unauthenticatedRegistries containing an incorrect entry is deployed")
 
 					By(retrieveAssistedConfigMapMsg)
+
 					configMapBuilder, err := configmap.Pull(HubAPIClient, assistedConfigMapName, tsparams.MCENameSpace)
 					Expect(err).ShouldNot(HaveOccurred(), fmt.Sprintf(
 						"failed to get configmap %s in namespace %s", assistedConfigMapName, tsparams.MCENameSpace))

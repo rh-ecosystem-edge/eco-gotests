@@ -34,7 +34,6 @@ import (
 )
 
 var _ = Describe("nftables", Ordered, Label(tsparams.LabelNftablesTestCases), ContinueOnFailure, func() {
-
 	var (
 		hubIPv4ExternalAddresses = []string{"172.16.0.10", "172.16.0.11"}
 		hubIPv4Network           = "172.16.0.0/24"
@@ -54,21 +53,27 @@ var _ = Describe("nftables", Ordered, Label(tsparams.LabelNftablesTestCases), Co
 		interfaceNameBrEx        = "br-ex"
 		err                      error
 	)
+
 	BeforeAll(func() {
 		By("Checking if cluster is SNO")
+
 		var isSNO bool
+
 		isSNO, err = netenv.IsSNOCluster(APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to check if cluster is SNO")
+
 		if isSNO {
 			Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers")
 		}
 
 		By("List CNF worker nodes in cluster")
+
 		cnfWorkerNodeList, err = nodes.List(APIClient,
 			metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
 		Expect(err).ToNot(HaveOccurred(), "Failed to discover worker nodes")
 
 		By("Selecting worker node for Security tests")
+
 		ipv4NodeAddrList, err = nodes.ListExternalIPv4Networks(
 			APIClient, metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
 		Expect(err).ToNot(HaveOccurred(), "Failed to collect external nodes ip addresses")
@@ -76,9 +81,11 @@ var _ = Describe("nftables", Ordered, Label(tsparams.LabelNftablesTestCases), Co
 		ip4Worker0NodeAddr = []string{ipv4NodeAddrList[0]}
 
 		By("Listing master nodes")
+
 		masterNodeList, err = nodes.List(APIClient,
 			metav1.ListOptions{LabelSelector: labels.Set(NetConfig.ControlPlaneLabelMap).String()})
 		Expect(err).ToNot(HaveOccurred(), "Fail to list master nodes")
+
 		if len(cnfWorkerNodeList) <= 1 {
 			Skip("Skipping test - cluster doesn't have enough nodes (requires 2+ workers)")
 		}
@@ -108,6 +115,7 @@ var _ = Describe("nftables", Ordered, Label(tsparams.LabelNftablesTestCases), Co
 		addDeleteStaticRouteOnWorkerNodes(testPodList, routeMap, "add", hubIPv4Network)
 
 		By("Setup test environment")
+
 		masterPod = setupRemoteMultiHopTest(ipv4SecurityIPList, hubIPv4ExternalAddresses,
 			ipv4NodeAddrList, cnfWorkerNodeList, masterNodeList)
 	})
@@ -125,7 +133,6 @@ var _ = Describe("nftables", Ordered, Label(tsparams.LabelNftablesTestCases), Co
 
 		By(fmt.Sprintf("Disables nftables on %s if active", cnfWorkerNodeList[0].Definition.Name))
 		disableNftablesIfActiveAndReboot(cnfWorkerNodeList[0].Definition.Name)
-
 	})
 
 	Context("custom firewall", func() {
@@ -144,6 +151,7 @@ var _ = Describe("nftables", Ordered, Label(tsparams.LabelNftablesTestCases), Co
 		It("Verify the creation of a new custom node firewall NFTables table with an ingress rule",
 			reportxml.ID("77142"), func() {
 				By("Verify ICMP connectivity between the external Pod and the test pods on the workers")
+
 				err := cmd.ICMPConnectivityCheck(masterPod, ip4Worker0NodeAddr, interfaceNameNet1)
 				Expect(err).ToNot(HaveOccurred(), "Failed to ping the worker nodes")
 
@@ -163,6 +171,7 @@ var _ = Describe("nftables", Ordered, Label(tsparams.LabelNftablesTestCases), Co
 		It("Verify the creation of a custom node firewall nftables table with egress rule added to a ingress rule",
 			reportxml.ID("77143"), func() {
 				By("Verify ICMP connectivity between the external Pod and the test pods on the workers")
+
 				err := cmd.ICMPConnectivityCheck(masterPod, ip4Worker0NodeAddr, interfaceNameNet1)
 				Expect(err).ToNot(HaveOccurred(), "Failed to ping the worker nodes")
 
@@ -182,6 +191,7 @@ var _ = Describe("nftables", Ordered, Label(tsparams.LabelNftablesTestCases), Co
 				createMCAndWaitforMCPStable(tsparams.CustomFirewallIngress8888EgressPort8088, mcNftablesName)
 
 				By("Verify ICMP connectivity between the external Pod and the test pods on the workers")
+
 				err = cmd.ICMPConnectivityCheck(masterPod, ip4Worker0NodeAddr, interfaceNameNet1)
 				Expect(err).ToNot(HaveOccurred(), "Failed to ping the worker nodes")
 
@@ -190,12 +200,14 @@ var _ = Describe("nftables", Ordered, Label(tsparams.LabelNftablesTestCases), Co
 					interfaceNameNet1, portNum8888)
 
 				By("Verify that egress TCP port 8088 is blocked from testpod to external pod")
+
 				err = cmd.ValidateTCPTraffic(testPodWorker0, []string{tsparams.MasterPodIPv4Address},
 					interfaceNameBrEx, "", portNum8088)
 				Expect(err).To(HaveOccurred(),
 					"Failed to block egress TCP traffic over port 8088 from the pod on the master node")
 
 				By("Verify that ingress TCP port 8088 is not blocked")
+
 				err = cmd.ValidateTCPTraffic(masterPod, ipv4NodeAddrList, interfaceNameNet1, frrconfig.ContainerName,
 					portNum8088)
 				Expect(err).ToNot(HaveOccurred(),
@@ -205,6 +217,7 @@ var _ = Describe("nftables", Ordered, Label(tsparams.LabelNftablesTestCases), Co
 		It("Verify a custom firewall nftables is reloaded after host reboot with all existing rules",
 			reportxml.ID("77144"), func() {
 				By("Verify ICMP connectivity between the master Pod and the test pods on the workers")
+
 				err := cmd.ICMPConnectivityCheck(masterPod, ip4Worker0NodeAddr, interfaceNameNet1)
 				Expect(err).ToNot(HaveOccurred(), "Failed to ping the worker nodes")
 
@@ -217,6 +230,7 @@ var _ = Describe("nftables", Ordered, Label(tsparams.LabelNftablesTestCases), Co
 				createMCAndWaitforMCPStable(tsparams.CustomFirewallIngressPort8888, mcNftablesName)
 
 				By("Verify ICMP connectivity between the external Pod and the test pods on the workers")
+
 				err = cmd.ICMPConnectivityCheck(masterPod, ip4Worker0NodeAddr, interfaceNameNet1)
 				Expect(err).ToNot(HaveOccurred(), "Failed to ping the worker nodes")
 
@@ -228,12 +242,14 @@ var _ = Describe("nftables", Ordered, Label(tsparams.LabelNftablesTestCases), Co
 				rebootNodeAndWaitForMcpStable(cnfWorkerNodeList[0].Definition.Name)
 
 				By("Recreate a static route to the external Pod network on worker node after reboot")
+
 				routeMap, err = netenv.BuildRoutesMapWithSpecificRoutes(testPodList, cnfWorkerNodeList, ipv4SecurityIPList)
 				Expect(err).ToNot(HaveOccurred(), "Failed to create route map with specific routes")
 
 				addDeleteStaticRouteOnWorkerNodes(testPodList, routeMap, "add", hubIPv4Network)
 
 				By("Verify ICMP connectivity between the external Pod and the test pods on the workers")
+
 				err = cmd.ICMPConnectivityCheck(masterPod, ip4Worker0NodeAddr, interfaceNameNet1)
 				Expect(err).ToNot(HaveOccurred(), "Failed to ping the worker nodes")
 

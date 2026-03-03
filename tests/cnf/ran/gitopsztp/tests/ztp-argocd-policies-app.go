@@ -34,6 +34,7 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 
 	BeforeEach(func() {
 		By("checking the ZTP version")
+
 		versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.10", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to check if ZTP version is in range")
 
@@ -42,6 +43,7 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 		}
 
 		By("saving the original policies app source")
+
 		policiesApp, err = argocd.PullApplication(
 			HubAPIClient, tsparams.ArgoCdPoliciesAppName, ranparam.OpenshiftGitOpsNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Failed to get the original policies app")
@@ -56,11 +58,13 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 		}
 
 		By("resetting the policies app back to the original settings")
+
 		policiesApp.Definition.Spec.Source.Path = originalPoliciesGitPath
 		policiesApp, err := policiesApp.Update(true)
 		Expect(err).ToNot(HaveOccurred(), "Failed to update the policies app back to the original settings")
 
 		By("waiting for the policies app to sync")
+
 		err = policiesApp.WaitForSourceUpdate(true, tsparams.ArgoCdChangeTimeout)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for the policies app to sync")
 	})
@@ -69,15 +73,18 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 		// 54241 - User override of policy intervals
 		It("should specify new intervals and verify they were applied", reportxml.ID("54241"), func() {
 			By("checking if the ztp test path exists")
+
 			if !policiesApp.DoesGitPathExist(tsparams.ZtpTestPathCustomInterval) {
 				Skip(fmt.Sprintf("git path '%s' could not be found", tsparams.ZtpTestPathCustomInterval))
 			}
 
 			By("updating Argo CD policies app")
+
 			err := gitdetails.UpdateAndWaitForSync(policiesApp, true, tsparams.ZtpTestPathCustomInterval)
 			Expect(err).ToNot(HaveOccurred(), "Failed to update the policies app git path")
 
 			By("waiting for policies to be created")
+
 			defaultPolicy, err := helper.WaitForPolicyToExist(
 				HubAPIClient,
 				tsparams.CustomIntervalDefaultPolicyName,
@@ -93,6 +100,7 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for override policy to exist")
 
 			By("validating the interval on the default policy")
+
 			defaultComplianceInterval, defaultNonComplianceInterval, err := helper.GetPolicyEvaluationIntervals(defaultPolicy)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get default policy evaluation intervals")
 
@@ -100,6 +108,7 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 			Expect(defaultNonComplianceInterval).To(Equal("1m"))
 
 			By("validating the interval on the overridden policy")
+
 			overrideComplianceInterval, overrideNonComplianceInterval, err := helper.GetPolicyEvaluationIntervals(overridePolicy)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get override policy evaluation intervals")
 
@@ -110,15 +119,18 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 		// 54242 - Invalid time duration string for user override of policy intervals
 		It("should specify an invalid interval format and verify the app error", reportxml.ID("54242"), func() {
 			By("checking if the ztp test path exists")
+
 			if !policiesApp.DoesGitPathExist(tsparams.ZtpTestPathInvalidInterval) {
 				Skip(fmt.Sprintf("git path '%s' could not be found", tsparams.ZtpTestPathInvalidInterval))
 			}
 
 			By("updating Argo CD policies app")
+
 			err := gitdetails.UpdateAndWaitForSync(policiesApp, false, tsparams.ZtpTestPathInvalidInterval)
 			Expect(err).ToNot(HaveOccurred(), "Failed to update the policies app git path")
 
 			By("checking the Argo CD conditions for the expected error")
+
 			app, err := argocd.PullApplication(HubAPIClient, tsparams.ArgoCdPoliciesAppName, ranparam.OpenshiftGitOpsNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull Argo CD policies app")
 
@@ -135,11 +147,13 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 		AfterEach(func() {
 			// Reset the policies app before doing later restore actions so that they're not affected.
 			By("resetting the policies app to the original settings")
+
 			policiesApp.Definition.Spec.Source.Path = originalPoliciesGitPath
 			policiesApp, err := policiesApp.Update(true)
 			Expect(err).ToNot(HaveOccurred(), "Failed to update the policies app back to the original settings")
 
 			By("waiting for the policies app to sync")
+
 			err = policiesApp.WaitForSourceUpdate(true, tsparams.ArgoCdChangeTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for the policies app to sync")
 
@@ -148,10 +162,12 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 			}
 
 			By("restoring the image registry configs")
+
 			err = helper.RestoreImageRegistry(Spoke1APIClient, tsparams.ImageRegistryName, imageRegistryConfig)
 			Expect(err).ToNot(HaveOccurred(), "Failed to restore image registry config")
 
 			By("removing the image registry leftovers if they exist")
+
 			err = helper.CleanupImageRegistryConfig(Spoke1APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Failed to clean up image registry leftovers")
 		})
@@ -159,15 +175,19 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 		// 54354 - Ability to configure local registry via du profile
 		It("verifies the image registry exists", reportxml.ID("54354"), func() {
 			By("saving image registry config before modification")
+
 			imageRegistryConfig, _ = imageregistry.Pull(Spoke1APIClient, tsparams.ImageRegistryName)
 
 			By("checking if the ztp test path exists")
+
 			if !policiesApp.DoesGitPathExist(tsparams.ZtpTestPathImageRegistry) {
 				imageRegistryConfig = nil
+
 				Skip(fmt.Sprintf("git path '%s' could not be found", tsparams.ZtpTestPathImageRegistry))
 			}
 
 			By("updating Argo CD policies app")
+
 			err := gitdetails.UpdateAndWaitForSync(policiesApp, true, tsparams.ZtpTestPathImageRegistry)
 			Expect(err).ToNot(HaveOccurred(), "Failed to update the policies app git path")
 
@@ -175,11 +195,13 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 			// the ClusterVersion as a precondition. If the ZTP test path exists but the capability is not
 			// enabled, this test will fail.
 			By("checking if the image registry directory is present on spoke 1")
+
 			_, err = cluster.ExecCommandOnSNOWithRetries(Spoke1APIClient, ranparam.RetryCount, ranparam.RetryInterval,
 				fmt.Sprintf("ls %s", tsparams.ImageRegistryPath))
 			Expect(err).ToNot(HaveOccurred(), "Image registry directory '%s' does not exist", tsparams.ImageRegistryPath)
 
 			By("waiting for the policies to exist and be compliant")
+
 			for _, policyName := range tsparams.ImageRegistryPolicies {
 				policy, err := helper.WaitForPolicyToExist(
 					HubAPIClient, policyName, tsparams.TestNamespace, tsparams.ArgoCdChangeTimeout)
@@ -190,6 +212,7 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 			}
 
 			By("waiting for the image registry config to be Available")
+
 			imageRegistryBuilder, err := imageregistry.Pull(Spoke1APIClient, tsparams.ImageRegistryName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull image registry config")
 
@@ -205,6 +228,7 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 	When("applying and validating custom source CRs on the DU policies", func() {
 		AfterEach(func() {
 			By("deleting the policy from spoke if it exists")
+
 			policy, err := ocm.PullPolicy(Spoke1APIClient, tsparams.CustomSourceCrPolicyName, tsparams.TestNamespace)
 
 			// Pulling the policy regularly fails here but in a way such that err is nil but the definition
@@ -220,6 +244,7 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 			}
 
 			By("deleting the service account from spoke if it exists")
+
 			serviceAccount, err := serviceaccount.Pull(
 				Spoke1APIClient, tsparams.CustomSourceCrName, tsparams.TestNamespace)
 			if err == nil {
@@ -228,6 +253,7 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 			}
 
 			By("deleting custom namespace from spoke if it exists")
+
 			customNamespace, err := namespace.Pull(Spoke1APIClient, tsparams.CustomSourceCrName)
 			if err == nil {
 				err = customNamespace.DeleteAndWait(3 * time.Minute)
@@ -235,6 +261,7 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 			}
 
 			By("deleting storage class from spoke if it exists")
+
 			storageClass, err := storage.PullClass(Spoke1APIClient, tsparams.CustomSourceStorageClass)
 			if err == nil {
 				err = storageClass.DeleteAndWait(3 * time.Minute)
@@ -246,29 +273,35 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 		It("verifies new CR kind that does not exist in ztp container image can be created "+
 			"via custom source-cr", reportxml.ID("61978"), func() {
 			By("checking service account does not exist on spoke")
+
 			_, err := serviceaccount.Pull(
 				Spoke1APIClient, tsparams.CustomSourceCrName, tsparams.TestNamespace)
 			Expect(err).To(HaveOccurred(), "Service account already exists before test")
 
 			By("checking if the ztp test path exists")
+
 			if !policiesApp.DoesGitPathExist(tsparams.ZtpTestPathCustomSourceNewCr) {
 				Skip(fmt.Sprintf("git path '%s' could not be found", tsparams.ZtpTestPathCustomSourceNewCr))
 			}
 
 			By("updating Argo CD policies app")
+
 			err = gitdetails.UpdateAndWaitForSync(policiesApp, true, tsparams.ZtpTestPathCustomSourceNewCr)
 			Expect(err).ToNot(HaveOccurred(), "Failed to update the policies app git path")
 
 			By("waiting for policy to exist")
+
 			policy, err := helper.WaitForPolicyToExist(
 				HubAPIClient, tsparams.CustomSourceCrPolicyName, tsparams.TestNamespace, tsparams.ArgoCdChangeTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for policy to exist")
 
 			By("waiting for the policy to be Compliant")
+
 			err = policy.WaitUntilComplianceState(policiesv1.Compliant, tsparams.ArgoCdChangeTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for policy to be Compliant")
 
 			By("waiting for service account to exist")
+
 			_, err = helper.WaitForServiceAccountToExist(
 				Spoke1APIClient,
 				tsparams.CustomSourceCrName,
@@ -281,6 +314,7 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 		It("verifies the custom source CR takes precedence over the default source CR with "+
 			"the same file name", reportxml.ID("62260"), func() {
 			By("checking the ZTP version")
+
 			versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.14", "")
 			Expect(err).ToNot(HaveOccurred(), "Failed to check if ZTP version is in range")
 
@@ -289,24 +323,29 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 			}
 
 			By("checking if the ztp test path exists")
+
 			if !policiesApp.DoesGitPathExist(tsparams.ZtpTestPathCustomSourceReplaceExisting) {
 				Skip(fmt.Sprintf("git path '%s' could not be found", tsparams.ZtpTestPathCustomSourceReplaceExisting))
 			}
 
 			By("updating Argo CD policies app")
+
 			err = gitdetails.UpdateAndWaitForSync(policiesApp, true, tsparams.ZtpTestPathCustomSourceReplaceExisting)
 			Expect(err).ToNot(HaveOccurred(), "Failed to update the policies app git path")
 
 			By("waiting for policy to exist")
+
 			policy, err := helper.WaitForPolicyToExist(
 				HubAPIClient, tsparams.CustomSourceCrPolicyName, tsparams.TestNamespace, tsparams.ArgoCdChangeTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for policy to exist")
 
 			By("waiting for the policy to be Compliant")
+
 			err = policy.WaitUntilComplianceState(policiesv1.Compliant, tsparams.ArgoCdChangeTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for policy to be Compliant")
 
 			By("checking the custom namespace exists")
+
 			_, err = namespace.Pull(Spoke1APIClient, tsparams.CustomSourceCrName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull namespace that should exist")
 		})
@@ -315,6 +354,7 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 		It("verifies a proper error is returned in ArgoCD app when a non-existent "+
 			"source-cr is used in PGT", reportxml.ID("63516"), func() {
 			By("checking the ZTP version")
+
 			versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.14", "")
 			Expect(err).ToNot(HaveOccurred(), "Failed to check if ZTP version is in range")
 
@@ -323,15 +363,18 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 			}
 
 			By("checking if the ztp test path exists")
+
 			if !policiesApp.DoesGitPathExist(tsparams.ZtpTestPathCustomSourceNoCrFile) {
 				Skip(fmt.Sprintf("git path '%s' could not be found", tsparams.ZtpTestPathCustomSourceNoCrFile))
 			}
 
 			By("updating Argo CD policies app")
+
 			err = gitdetails.UpdateAndWaitForSync(policiesApp, false, tsparams.ZtpTestPathCustomSourceNoCrFile)
 			Expect(err).ToNot(HaveOccurred(), "Failed to update the policies app git path")
 
 			By("checking the Argo CD conditions for the expected error")
+
 			app, err := argocd.PullApplication(HubAPIClient, tsparams.ArgoCdPoliciesAppName, ranparam.OpenshiftGitOpsNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull Argo CD policies app")
 
@@ -344,6 +387,7 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 		// 64407 - Verify source CR search path implementation
 		It("verifies custom and default source CRs can be included in the same policy", reportxml.ID("64407"), func() {
 			By("checking the ZTP version")
+
 			versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.14", "")
 			Expect(err).ToNot(HaveOccurred(), "Failed to check if ZTP version is in range")
 
@@ -352,36 +396,44 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 			}
 
 			By("checking service account does not exist on spoke")
+
 			_, err = serviceaccount.Pull(Spoke1APIClient, tsparams.CustomSourceCrName, tsparams.TestNamespace)
 			Expect(err).To(HaveOccurred(), "Service account already exists before test")
 
 			By("checking storage class does not exist on spoke")
+
 			_, err = storage.PullClass(Spoke1APIClient, tsparams.CustomSourceStorageClass)
 			Expect(err).To(HaveOccurred(), "Storage class already exists before test")
 
 			By("checking if the ztp test path exists")
+
 			if !policiesApp.DoesGitPathExist(tsparams.ZtpTestPathCustomSourceSearchPath) {
 				Skip(fmt.Sprintf("git path '%s' could not be found", tsparams.ZtpTestPathCustomSourceSearchPath))
 			}
 
 			By("updating Argo CD policies app")
+
 			err = gitdetails.UpdateAndWaitForSync(policiesApp, true, tsparams.ZtpTestPathCustomSourceSearchPath)
 			Expect(err).ToNot(HaveOccurred(), "Failed to update the policies app git path")
 
 			By("waiting for policy to exist")
+
 			policy, err := helper.WaitForPolicyToExist(
 				HubAPIClient, tsparams.CustomSourceCrPolicyName, tsparams.TestNamespace, tsparams.ArgoCdChangeTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for policy to exist")
 
 			By("waiting for the policy to be Compliant")
+
 			err = policy.WaitUntilComplianceState(policiesv1.Compliant, tsparams.ArgoCdChangeTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for policy to be Compliant")
 
 			By("checking service account exists")
+
 			_, err = serviceaccount.Pull(Spoke1APIClient, tsparams.CustomSourceCrName, tsparams.TestNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to check that service account exists")
 
 			By("checking storage class exists")
+
 			_, err = storage.PullClass(Spoke1APIClient, tsparams.CustomSourceStorageClass)
 			Expect(err).ToNot(HaveOccurred(), "Failed to check that storage class exists")
 		})

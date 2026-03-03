@@ -36,6 +36,7 @@ var _ = Describe("ZTP Argo CD Hub Templating Tests", Label(tsparams.LabelArgoCdH
 
 	BeforeEach(func() {
 		By("checking the ZTP version")
+
 		versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.12", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to check if ZTP version is in range")
 
@@ -44,6 +45,7 @@ var _ = Describe("ZTP Argo CD Hub Templating Tests", Label(tsparams.LabelArgoCdH
 		}
 
 		By("saving the original policies app source")
+
 		policiesApp, err = argocd.PullApplication(
 			HubAPIClient, tsparams.ArgoCdPoliciesAppName, ranparam.OpenshiftGitOpsNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Failed to get the original policies app")
@@ -52,6 +54,7 @@ var _ = Describe("ZTP Argo CD Hub Templating Tests", Label(tsparams.LabelArgoCdH
 		Expect(err).ToNot(HaveOccurred(), "Failed to get the original policies app git path")
 
 		By("ensuring the test namespace exists")
+
 		_, err = namespace.NewBuilder(HubAPIClient, tsparams.TestNamespace).Create()
 		Expect(err).ToNot(HaveOccurred(), "Failed to create the test namespace")
 	})
@@ -62,15 +65,18 @@ var _ = Describe("ZTP Argo CD Hub Templating Tests", Label(tsparams.LabelArgoCdH
 		}
 
 		By("resetting the policies app back to the original settings")
+
 		policiesApp.Definition.Spec.Source.Path = originalPoliciesGitPath
 		policiesApp, err := policiesApp.Update(true)
 		Expect(err).ToNot(HaveOccurred(), "Failed to update the policies app back to the original settings")
 
 		By("waiting for the policies app to sync")
+
 		err = policiesApp.WaitForSourceUpdate(true, tsparams.ArgoCdChangeTimeout)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for the policies app to sync")
 
 		By("removing the hub templating leftovers if any exist")
+
 		network, err := sriov.PullNetwork(Spoke1APIClient, tsparams.TestNamespace, RANConfig.SriovOperatorNamespace)
 		if err == nil {
 			err = network.DeleteAndWait(tsparams.ArgoCdChangeTimeout)
@@ -78,6 +84,7 @@ var _ = Describe("ZTP Argo CD Hub Templating Tests", Label(tsparams.LabelArgoCdH
 		}
 
 		By("removing the CGU if it exists")
+
 		cguBuilder, err := cgu.Pull(
 			HubAPIClient, tsparams.HubTemplatingCguName, tsparams.HubTemplatingCguNamespace)
 		if err == nil {
@@ -94,6 +101,7 @@ var _ = Describe("ZTP Argo CD Hub Templating Tests", Label(tsparams.LabelArgoCdH
 		assertTalmPodLog(HubAPIClient, "policy has hub template error")
 
 		By("validating the specific error using the policy message")
+
 		policy, err := ocm.PullPolicy(
 			HubAPIClient, tsparams.TestNamespace+"."+tsparams.HubTemplatingPolicyName, RANConfig.Spoke1Name)
 		Expect(err).ToNot(HaveOccurred(), "Failed to pull hub side templating policy")
@@ -107,6 +115,7 @@ var _ = Describe("ZTP Argo CD Hub Templating Tests", Label(tsparams.LabelArgoCdH
 		// 54240 - Hub-side ACM templating with TALM
 		It("should create the policy successfully with a valid template", reportxml.ID("54240"), func() {
 			By("checking the ZTP version")
+
 			versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.16", "")
 			Expect(err).ToNot(HaveOccurred(), "Failed to check if ZTP version is in range")
 
@@ -130,6 +139,7 @@ var _ = Describe("ZTP Argo CD Hub Templating Tests", Label(tsparams.LabelArgoCdH
 			setupHubTemplateTest(policiesApp, validTestPath)
 
 			By("validating the policy reaches compliant status")
+
 			policy, err := ocm.PullPolicy(HubAPIClient, tsparams.HubTemplatingPolicyName, tsparams.TestNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get policy from hub cluster")
 

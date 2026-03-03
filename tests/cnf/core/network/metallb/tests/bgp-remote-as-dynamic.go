@@ -32,6 +32,7 @@ var _ = Describe("BGP remote-dynamicAS", Ordered, Label(tsparams.LabelDynamicRem
 
 		BeforeAll(func() {
 			By("Checking if cluster is SNO")
+
 			if IsSNO {
 				Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers")
 			}
@@ -53,6 +54,7 @@ var _ = Describe("BGP remote-dynamicAS", Ordered, Label(tsparams.LabelDynamicRem
 			It("Verify the establishment of an eBGP adjacency using neighbor peer remote-as external",
 				reportxml.ID("76821"), func() {
 					By("Setup test cases with Frr Node AS 64500 and external Frr AS 64501")
+
 					frrk8sPods, frrPod := setupBGPRemoteASTestCase(hubIPv4ExternalAddresses, externalAdvertisedIPv4Routes,
 						externalAdvertisedIPv6Routes, tsparams.BgpPeerDynamicASeBGP, tsparams.RemoteBGPASN)
 
@@ -70,6 +72,7 @@ var _ = Describe("BGP remote-dynamicAS", Ordered, Label(tsparams.LabelDynamicRem
 			It("Verify the establishment of an iBGP adjacency using neighbor peer remote-as internal",
 				reportxml.ID("76822"), func() {
 					By("Setup test cases with Frr Node AS 64500 and external Frr AS 64500")
+
 					frrk8sPods, frrPod := setupBGPRemoteASTestCase(hubIPv4ExternalAddresses, externalAdvertisedIPv4Routes,
 						externalAdvertisedIPv6Routes, tsparams.BgpPeerDynamicASiBGP, tsparams.LocalBGPASN)
 
@@ -87,6 +90,7 @@ var _ = Describe("BGP remote-dynamicAS", Ordered, Label(tsparams.LabelDynamicRem
 			It("Verify the failure to establish a iBGP adjacency with a misconfigured external FRR pod",
 				reportxml.ID("76825"), func() {
 					By("Setup test cases with Frr Node AS 64500 and misconfigured iBGP external Frr AS 64501")
+
 					frrk8sPods, frrPod := setupBGPRemoteASTestCase(hubIPv4ExternalAddresses, externalAdvertisedIPv4Routes,
 						externalAdvertisedIPv6Routes, tsparams.BgpPeerDynamicASiBGP, tsparams.RemoteBGPASN)
 
@@ -110,6 +114,7 @@ var _ = Describe("BGP remote-dynamicAS", Ordered, Label(tsparams.LabelDynamicRem
 
 			AfterEach(func() {
 				By("Removing static routes from the speakers")
+
 				frrk8sPods := verifyAndCreateFRRk8sPodList()
 
 				speakerRoutesMap, err := netenv.BuildRoutesMapWithSpecificRoutes(frrk8sPods, workerNodeList,

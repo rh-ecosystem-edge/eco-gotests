@@ -31,6 +31,7 @@ func TestNegative(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	var err error
+
 	seedClusterInfo, err := seedimage.GetContent(APIClient, MGMTConfig.SeedImage)
 	Expect(err).NotTo(HaveOccurred(), "error getting seed image info")
 
@@ -39,6 +40,7 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterEach(func() {
 	By("Pull the imagebasedupgrade from the cluster")
+
 	ibu, err := lca.PullImageBasedUpgrade(APIClient)
 	Expect(err).NotTo(HaveOccurred(), "error pulling imagebasedupgrade resource")
 
@@ -60,6 +62,7 @@ var _ = AfterEach(func() {
 		Expect(err).NotTo(HaveOccurred(), "error setting ibu to idle stage")
 
 		By("Wait until IBU has become Idle")
+
 		_, err = ibu.WaitUntilStageComplete("Idle")
 		Expect(err).NotTo(HaveOccurred(), "error waiting for idle stage to complete")
 	}

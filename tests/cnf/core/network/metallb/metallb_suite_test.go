@@ -41,6 +41,7 @@ func TestLB(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	By("Creating privileged test namespace")
+
 	for key, value := range params.PrivilegedNSLabels {
 		testNS.WithLabel(key, value)
 	}
@@ -49,24 +50,27 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred(), "error to create test namespace")
 
 	By("Checking if cluster is SNO (Single Node OpenShift)")
+
 	tests.IsSNO, err = netenv.IsSNOCluster(APIClient)
 	Expect(err).ToNot(HaveOccurred(), "Failed to check if cluster is SNO")
 
 	By("Verifying if metalLb tests can be executed on given cluster")
-	err = metallbenv.DoesClusterSupportMetalLbTests(requiredCPNodeNumber, requiredWorkerNodeNumber)
 
+	err = metallbenv.DoesClusterSupportMetalLbTests(requiredCPNodeNumber, requiredWorkerNodeNumber)
 	if err != nil {
 		Skip(
 			fmt.Sprintf("given cluster is not suitable for MetalLb tests due to the following error %s", err.Error()))
 	}
 
 	By("Pulling test images on cluster before running test cases")
+
 	err = cluster.PullTestImageOnNodes(APIClient, NetConfig.WorkerLabel, NetConfig.CnfNetTestContainer, 300)
 	Expect(err).ToNot(HaveOccurred(), "Failed to pull test image on nodes")
 })
 
 var _ = AfterSuite(func() {
 	By("Deleting test namespace")
+
 	err := testNS.DeleteAndWait(netparam.DefaultTimeout)
 	Expect(err).ToNot(HaveOccurred(), "error to delete test namespace")
 })

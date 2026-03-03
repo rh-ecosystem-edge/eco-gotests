@@ -27,10 +27,9 @@ import (
 )
 
 var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), Label(params.LabelSuite), func() {
-
 	Context("Rolling Upgrade", Label(tsparams.LabelSuite), func() {
-
 		neuronConfig := neuronconfig.NewNeuronConfig()
+
 		var neuronNodes []string
 
 		BeforeAll(func() {
@@ -47,6 +46,7 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 			}
 
 			By("Deploying required operators")
+
 			var options *neuronhelpers.NeuronInstallConfigOptions
 			if neuronConfig.CatalogSource != "" {
 				options = &neuronhelpers.NeuronInstallConfigOptions{
@@ -58,6 +58,7 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 			Expect(err).ToNot(HaveOccurred(), "Failed to deploy required operators")
 
 			By("Waiting for NFD operator to be ready")
+
 			nfdInstallConfig := deploy.OperatorInstallConfig{
 				APIClient:              APIClient,
 				Namespace:              params.NFDNamespace,
@@ -76,6 +77,7 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 			Expect(ready).To(BeTrue(), "NFD operator is not ready")
 
 			By("Waiting for KMM operator to be ready")
+
 			kmmInstallConfig := neuronhelpers.GetDefaultKMMInstallConfig(APIClient)
 			kmmInstaller := deploy.NewOperatorInstaller(kmmInstallConfig)
 			ready, err = kmmInstaller.IsReady(tsparams.OperatorDeployTimeout)
@@ -83,6 +85,7 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 			Expect(ready).To(BeTrue(), "KMM operator is not ready")
 
 			By("Waiting for Neuron operator to be ready")
+
 			neuronInstallConfig := neuronhelpers.GetDefaultNeuronInstallConfig(APIClient, options)
 			neuronInstaller := deploy.NewOperatorInstaller(neuronInstallConfig)
 			ready, err = neuronInstaller.IsReady(tsparams.OperatorDeployTimeout)
@@ -90,6 +93,7 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 			Expect(ready).To(BeTrue(), "Neuron operator is not ready")
 
 			By("Creating initial DeviceConfig with driver version")
+
 			builder := neuron.NewBuilder(
 				APIClient,
 				params.DefaultDeviceConfigName,
@@ -115,23 +119,28 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 			}
 
 			By("Waiting for cluster stability after DeviceConfig")
+
 			err = neuronhelpers.WaitForClusterStabilityAfterDeviceConfig(APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Cluster not stable after DeviceConfig")
 
 			By("Waiting for Neuron nodes to be labeled")
+
 			err = commonawait.NeuronNodesLabeled(APIClient, tsparams.DevicePluginReadyTimeout)
 			Expect(err).ToNot(HaveOccurred(), "No Neuron-labeled nodes found")
 
 			By("Waiting for device plugin deployment")
+
 			err = commonawait.DevicePluginDeployment(
 				APIClient, params.NeuronNamespace, tsparams.DevicePluginReadyTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Device plugin deployment failed")
 
 			By("Waiting for Neuron resources to be available")
+
 			err = commonawait.AllNeuronNodesResourceAvailable(APIClient, tsparams.DevicePluginReadyTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Neuron resources not available on nodes")
 
 			By("Recording initial state")
+
 			nodeBuilders, err := check.GetNeuronNodes(APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get Neuron nodes")
 
@@ -145,6 +154,7 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 			klog.V(params.NeuronLogLevel).Infof("Upgrade target: %s", neuronConfig.UpgradeTargetVersion)
 
 			By("Creating upgrade test namespace")
+
 			nsBuilder := namespace.NewBuilder(APIClient, tsparams.UpgradeTestNamespace)
 			if !nsBuilder.Exists() {
 				_, err = nsBuilder.WithMultipleLabels(map[string]string{
@@ -154,8 +164,11 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 			}
 
 			By("Deploying test workload on Neuron nodes")
-			var successCount int
-			var creationErrors []string
+
+			var (
+				successCount   int
+				creationErrors []string
+			)
 
 			for i, nodeName := range neuronNodes {
 				workloadPod := do.CreateTestWorkloadPod(
@@ -165,15 +178,18 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 					tsparams.TestWorkloadContainerName,
 					tsparams.TestWorkloadLabels,
 				)
+
 				_, err = APIClient.CoreV1Interface.Pods(tsparams.UpgradeTestNamespace).Create(
 					context.Background(), workloadPod, metav1.CreateOptions{})
 				if err != nil {
 					errMsg := fmt.Sprintf("node %s: %v", nodeName, err)
 					creationErrors = append(creationErrors, errMsg)
+
 					klog.V(params.NeuronLogLevel).Infof("Failed to create workload on node %s: %v",
 						nodeName, err)
 				} else {
 					successCount++
+
 					klog.V(params.NeuronLogLevel).Infof("Successfully created workload on node %s", nodeName)
 				}
 			}
@@ -187,6 +203,7 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 
 		AfterAll(func() {
 			By("Cleaning up upgrade test resources")
+
 			nsBuilder := namespace.NewBuilder(APIClient, tsparams.UpgradeTestNamespace)
 			if nsBuilder.Exists() {
 				err := nsBuilder.Delete()
@@ -196,6 +213,7 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 			}
 
 			By("Cleaning up DeviceConfig and waiting for deletion")
+
 			deviceConfigBuilder, err := neuron.Pull(
 				APIClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
 			if err == nil {
@@ -214,6 +232,7 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 			}
 
 			By("Uninstalling operators")
+
 			uninstallErr := neuronhelpers.UninstallAllOperators(APIClient)
 			if uninstallErr != nil {
 				klog.V(params.NeuronLogLevel).Infof("Operator uninstall completed with issues: %v",
@@ -224,16 +243,19 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 		It("Should verify initial state before upgrade",
 			Label("neuron-upgrade-001"), reportxml.ID("neuron-upgrade-001"), func() {
 				By("Verifying Neuron nodes are ready")
+
 				nodesExist, err := check.NeuronNodesExist(APIClient)
 				Expect(err).ToNot(HaveOccurred(), "Error checking Neuron nodes")
 				Expect(nodesExist).To(BeTrue(), "Neuron nodes should exist")
 
 				By("Verifying device plugin pods are running")
+
 				running, err := check.DevicePluginPodsRunning(APIClient)
 				Expect(err).ToNot(HaveOccurred(), "Error checking device plugin pods")
 				Expect(running).To(BeTrue(), "Device plugin pods should be running")
 
 				By("Verifying test workloads are deployed")
+
 				pods, err := pod.List(APIClient, tsparams.UpgradeTestNamespace, metav1.ListOptions{
 					LabelSelector: "app=neuron-test-workload",
 				})
@@ -269,6 +291,7 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 					neuronConfig.UpgradeTargetVersion)
 
 				By("Monitoring rolling upgrade process")
+
 				startTime := time.Now()
 
 				updatedNodes := make(map[string]bool)
@@ -280,6 +303,7 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 						}
 
 						fieldSelector := fmt.Sprintf("spec.nodeName=%s,status.phase=Running", nodeName)
+
 						pods, listErr := pod.List(APIClient, params.NeuronNamespace, metav1.ListOptions{
 							FieldSelector: fieldSelector,
 						})
@@ -312,7 +336,6 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 
 		It("Should verify sequential node processing during upgrade",
 			Label("neuron-upgrade-003"), reportxml.ID("neuron-upgrade-003"), func() {
-
 				By("Collecting device plugin pod creation timestamps")
 
 				pods, err := pod.List(APIClient, params.NeuronNamespace, metav1.ListOptions{})
@@ -372,15 +395,18 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 		It("Should verify workloads are restored after upgrade",
 			Label("neuron-upgrade-004"), reportxml.ID("neuron-upgrade-004"), func() {
 				By("Waiting for cluster stability after upgrade")
+
 				err := neuronhelpers.WaitForClusterStability(APIClient, params.ClusterStabilityTimeout)
 				Expect(err).ToNot(HaveOccurred(), "Cluster not stable after upgrade")
 
 				By("Verifying device plugin pods are running on all nodes")
+
 				running, err := check.DevicePluginPodsRunning(APIClient)
 				Expect(err).ToNot(HaveOccurred(), "Error checking device plugin pods")
 				Expect(running).To(BeTrue(), "Device plugin pods should be running after upgrade")
 
 				By("Verifying Neuron resources are available on all nodes")
+
 				for _, nodeName := range neuronNodes {
 					hasResources, err := check.NodeHasNeuronResources(APIClient, nodeName)
 					Expect(err).ToNot(HaveOccurred(),
@@ -404,6 +430,7 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 					"DeviceConfig should have the new drivers image")
 
 				By("Verifying new device plugin pods are running")
+
 				pods, err := pod.List(APIClient, params.NeuronNamespace, metav1.ListOptions{})
 				Expect(err).ToNot(HaveOccurred(), "Error listing pods")
 
@@ -419,6 +446,7 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 		It("Should verify upgrade did not cause data loss or extended downtime",
 			Label("neuron-upgrade-006"), reportxml.ID("neuron-upgrade-006"), func() {
 				By("Checking all Neuron nodes are healthy")
+
 				nodeBuilders, err := check.GetNeuronNodes(APIClient)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get Neuron nodes")
 

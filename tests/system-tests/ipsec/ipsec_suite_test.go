@@ -44,6 +44,7 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	By("Deleting test namespace")
+
 	err := testNS.Delete()
 	Expect(err).ToNot(HaveOccurred(), "error deleting the test namespace")
 })

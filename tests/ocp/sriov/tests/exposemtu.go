@@ -28,15 +28,18 @@ var _ = Describe("SRIOV: Expose MTU:", Ordered, Label(tsparams.LabelExposeMTUTes
 
 	BeforeAll(func() {
 		By("Validating SR-IOV interfaces")
+
 		workerNodeList, err = nodes.List(APIClient,
 			metav1.ListOptions{LabelSelector: labels.Set(SriovOcpConfig.WorkerLabelMap).String()})
 		Expect(err).ToNot(HaveOccurred(), "Failed to discover worker nodes")
 		Expect(sriovocpenv.ValidateSriovInterfaces(workerNodeList, 1)).ToNot(HaveOccurred(),
 			"Failed to get required SR-IOV interfaces")
+
 		sriovInterfacesUnderTest, err = SriovOcpConfig.GetSriovInterfaces(1)
 		Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
 
 		By("Verifying if expose MTU tests can be executed on given cluster")
+
 		err = sriovocpenv.DoesClusterHaveEnoughNodes(1, 1)
 		if err != nil {
 			Skip(fmt.Sprintf("Skipping test - cluster doesn't have enough nodes: %v", err))
@@ -45,6 +48,7 @@ var _ = Describe("SRIOV: Expose MTU:", Ordered, Label(tsparams.LabelExposeMTUTes
 
 	AfterEach(func() {
 		By("Removing SR-IOV configuration")
+
 		err := sriovoperator.RemoveSriovConfigurationAndWaitForSriovAndMCPStable(
 			APIClient,
 			SriovOcpConfig.WorkerLabelEnvVar,
@@ -54,6 +58,7 @@ var _ = Describe("SRIOV: Expose MTU:", Ordered, Label(tsparams.LabelExposeMTUTes
 		Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV configuration")
 
 		By("Cleaning test namespace")
+
 		err = namespace.NewBuilder(APIClient, tsparams.TestNamespaceName).CleanObjects(
 			tsparams.DefaultTimeout, pod.GetGVR())
 		Expect(err).ToNot(HaveOccurred(), "Failed to clean test namespace")
@@ -77,6 +82,7 @@ var _ = Describe("SRIOV: Expose MTU:", Ordered, Label(tsparams.LabelExposeMTUTes
 
 	It("netdev 2 Policies with different MTU", reportxml.ID("73788"), func() {
 		By("Creating 2 SR-IOV policies with 5000 and 9000 MTU for the same interface")
+
 		const (
 			sriovAndResourceName5000 = "5000mtu"
 			sriovAndResourceName9000 = "9000mtu"
@@ -106,6 +112,7 @@ var _ = Describe("SRIOV: Expose MTU:", Ordered, Label(tsparams.LabelExposeMTUTes
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for the stable cluster")
 
 		By("Creating 2 SR-IOV networks")
+
 		sriovNetworkBuilder5000 := sriov.NewNetworkBuilder(APIClient, sriovAndResourceName5000,
 			SriovOcpConfig.SriovOperatorNamespace, tsparams.TestNamespaceName, sriovAndResourceName5000).
 			WithStaticIpam().WithMacAddressSupport().
@@ -125,6 +132,7 @@ var _ = Describe("SRIOV: Expose MTU:", Ordered, Label(tsparams.LabelExposeMTUTes
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait NAD for Sriov Network %s", sriovAndResourceName9000)
 
 		By("Creating 2 pods with different VFs")
+
 		testPod1, err := sriovenv.CreateTestPod(
 			"testpod1",
 			tsparams.TestNamespaceName,

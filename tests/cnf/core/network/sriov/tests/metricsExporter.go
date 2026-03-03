@@ -47,7 +47,6 @@ var serverPodTXPromQL = []string{"bash", "-c", "promtool query instant -o json "
 var _ = Describe(
 	"SriovMetricsExporter", Ordered, Label(tsparams.LabelSriovMetricsTestCases, tsparams.LabelSriovHWEnabled),
 	ContinueOnFailure, func() {
-
 		var (
 			workerNodeList           []*nodes.Builder
 			sriovmetricsdaemonset    *daemonset.Builder
@@ -57,12 +56,14 @@ var _ = Describe(
 
 		BeforeAll(func() {
 			By("Verifying if Sriov Metrics Exporter tests can be executed on given cluster")
+
 			err := netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 1)
 			if err != nil {
 				Skip(fmt.Sprintf("Skipping test - cluster doesn't have enough nodes: %v", err))
 			}
 
 			By("Validating SR-IOV interfaces")
+
 			workerNodeList, err = nodes.List(APIClient,
 				metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
 			Expect(err).ToNot(HaveOccurred(), "Failed to discover worker nodes")
@@ -74,6 +75,7 @@ var _ = Describe(
 			Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
 
 			By("Fetching SR-IOV Vendor ID for interface under test")
+
 			sriovVendorID, err = sriovenv.DiscoverInterfaceUnderTestVendorID(
 				sriovInterfacesUnderTest[0], workerNodeList[0].Definition.Name)
 			Expect(err).ToNot(HaveOccurred(), "Failed to fetch SR-IOV Vendor ID for interface under test")
@@ -92,6 +94,7 @@ var _ = Describe(
 				"Daemonset sriov-network-metrics-exporter is not ready")
 
 			By("Enable Prometheus scraping for the new Sriov Metrics Exporter by labeling operator namespace")
+
 			sriovNs, err := namespace.Pull(APIClient, NetConfig.SriovOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to fetch Sriov Namespace")
 			_, err = sriovNs.WithMultipleLabels(netparam.ClusterMonitoringNSLabel).Update()
@@ -100,6 +103,7 @@ var _ = Describe(
 
 		AfterEach(func() {
 			By("Removing SR-IOV configuration")
+
 			err := sriovoperator.RemoveSriovConfigurationAndWaitForSriovAndMCPStable(
 				APIClient,
 				NetConfig.WorkerLabelEnvVar,
@@ -109,6 +113,7 @@ var _ = Describe(
 			Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV configuration")
 
 			By("Cleaning test namespace")
+
 			err = namespace.NewBuilder(APIClient, tsparams.TestNamespaceName).CleanObjects(
 				netparam.DefaultTimeout, pod.GetGVR())
 			Expect(err).ToNot(HaveOccurred(), "Failed to clean test namespace")
@@ -121,6 +126,7 @@ var _ = Describe(
 				"sriov-metrics-exporter is not deleted yet")
 
 			By("Remove cluster monitoring label for operator namespace to disable Prometheus scraping")
+
 			sriovNs, err := namespace.Pull(APIClient, NetConfig.SriovOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to fetch Sriov Namespace")
 
@@ -137,6 +143,7 @@ var _ = Describe(
 				By("Verifying we have 2 SR-IOV interfaces available")
 				Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 1)).ToNot(HaveOccurred(),
 					"Failed to get required SR-IOV interfaces")
+
 				interfaces, err := NetConfig.GetSriovInterfaces(2)
 				Expect(err).ToNot(HaveOccurred(), "Failed to retrieve 2 SR-IOV interfaces for testing")
 				runNettoNetTests(interfaces[0], interfaces[1],
@@ -144,6 +151,7 @@ var _ = Describe(
 			})
 			It("Different Worker", reportxml.ID("75930"), func() {
 				By("Verifying cluster has enough workers")
+
 				err := netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 2)
 				if err != nil {
 					Skip(fmt.Sprintf("Skipping test - cluster doesn't have enough workers: %v", err))
@@ -160,6 +168,7 @@ var _ = Describe(
 		Context("Netdevice to Vfiopci", func() {
 			BeforeAll(func() {
 				By("Deploying PerformanceProfile if it's not installed")
+
 				err := netenv.DeployPerformanceProfile(
 					APIClient,
 					NetConfig,
@@ -181,6 +190,7 @@ var _ = Describe(
 				By("Verifying we have 2 SR-IOV interfaces available")
 				Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 1)).ToNot(HaveOccurred(),
 					"Failed to get required SR-IOV interfaces")
+
 				interfaces, err := NetConfig.GetSriovInterfaces(2)
 				Expect(err).ToNot(HaveOccurred(), "Failed to retrieve 2 SR-IOV interfaces for testing")
 				runNettoVfioTests(interfaces[0], interfaces[1],
@@ -188,6 +198,7 @@ var _ = Describe(
 			})
 			It("Different Worker", reportxml.ID("75932"), func() {
 				By("Verifying cluster has enough workers")
+
 				err := netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 2)
 				if err != nil {
 					Skip(fmt.Sprintf("Skipping test - cluster doesn't have enough workers: %v", err))
@@ -204,6 +215,7 @@ var _ = Describe(
 		Context("Vfiopci to Vfiopci", func() {
 			BeforeAll(func() {
 				By("Deploying PerformanceProfile if it's not installed")
+
 				err := netenv.DeployPerformanceProfile(
 					APIClient,
 					NetConfig,
@@ -216,7 +228,6 @@ var _ = Describe(
 			BeforeEach(func() {
 				By("Clear MAC Table entries of test mac addresses from Switch")
 				clearClientServerMacTableFromSwitch()
-
 			})
 			It("Same PF", reportxml.ID("74800"), func() {
 				runVfiotoVfioTests(sriovInterfacesUnderTest[0], sriovInterfacesUnderTest[0],
@@ -226,6 +237,7 @@ var _ = Describe(
 				By("Verifying we have 2 SR-IOV interfaces available")
 				Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 1)).ToNot(HaveOccurred(),
 					"Failed to get required SR-IOV interfaces")
+
 				interfaces, err := NetConfig.GetSriovInterfaces(2)
 				Expect(err).ToNot(HaveOccurred(), "Failed to retrieve 2 SR-IOV interfaces for testing")
 				runVfiotoVfioTests(interfaces[0], interfaces[1],
@@ -233,6 +245,7 @@ var _ = Describe(
 			})
 			It("Different Worker", reportxml.ID("75934"), func() {
 				By("Verifying cluster has enough workers")
+
 				err := netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 2)
 				if err != nil {
 					Skip(fmt.Sprintf("Skipping test - cluster doesn't have enough workers: %v", err))
@@ -245,7 +258,6 @@ var _ = Describe(
 					workerNodeList[0].Object.Name, workerNodeList[1].Object.Name, sriovVendorID)
 			})
 		})
-
 	})
 
 func runNettoNetTests(clientPf, serverPf, clientWorker, serverWorker, devID string) {

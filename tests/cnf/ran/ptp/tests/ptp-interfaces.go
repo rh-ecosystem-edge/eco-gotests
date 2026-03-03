@@ -38,26 +38,31 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 		var err error
 
 		By("creating a Prometheus API client")
+
 		prometheusAPI, err = querier.CreatePrometheusAPIForCluster(RANConfig.Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to create Prometheus API client")
 
 		By("ensuring clocks are locked before testing")
+
 		err = metrics.EnsureClocksAreLocked(prometheusAPI)
 		Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
 
 		By("saving PtpConfigs before testing")
+
 		savedPtpConfigs, err = profiles.SavePtpConfigs(RANConfig.Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to save PtpConfigs")
 	})
 
 	AfterEach(func() {
 		By("restoring PtpConfigs after testing")
+
 		startTime := time.Now()
 		changedProfiles, err := profiles.RestorePtpConfigs(RANConfig.Spoke1APIClient, savedPtpConfigs)
 		Expect(err).ToNot(HaveOccurred(), "Failed to restore PtpConfigs")
 
 		if len(changedProfiles) > 0 {
 			By("waiting for profile load on nodes")
+
 			err := daemonlogs.WaitForProfileLoadOnPTPNodes(RANConfig.Spoke1APIClient,
 				daemonlogs.WithStartTime(startTime),
 				daemonlogs.WithTimeout(5*time.Minute))
@@ -69,6 +74,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 		}
 
 		By("ensuring clocks are locked after testing")
+
 		err = metrics.EnsureClocksAreLocked(prometheusAPI)
 		Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
 	})
@@ -78,11 +84,13 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 		testActuallyRan := false
 
 		By("getting node info map")
+
 		nodeInfoMap, err := profiles.GetNodeInfoMap(RANConfig.Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to get node info map")
 
 		for nodeName, nodeInfo := range nodeInfoMap {
 			By("getting receiver interfaces for node " + nodeName)
+
 			receiverInterfaces := nodeInfo.GetInterfacesByClockType(profiles.ClockTypeClient)
 			if len(receiverInterfaces) == 0 {
 				continue
@@ -92,10 +100,12 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				nodeName, profiles.GetInterfacesNames(receiverInterfaces))
 
 			By("getting the egress interface for the node")
+
 			egressInterface, err := iface.GetEgressInterfaceName(RANConfig.Spoke1APIClient, nodeName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get egress interface name for node %s", nodeName)
 
 			By("grouping the receiver interfaces")
+
 			interfaceGroups := iface.GroupInterfacesByNIC(profiles.GetInterfacesNames(receiverInterfaces))
 
 			for nicName, interfaceGroup := range interfaceGroups {
@@ -113,6 +123,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				nicinfo.Node(nodeName).MarkTested(iface.NamesToStrings(interfaceGroup)...)
 
 				By("getting the event pod for the node")
+
 				eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeName)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get event pod for node %s", nodeName)
 
@@ -120,6 +131,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				// it fails. This ensures these interfaces are set up even if the test fails.
 				DeferCleanup(func() {
 					By("ensuring all interfaces are set up even if the test fails")
+
 					var errs []error
 
 					for _, ifaceName := range interfaceGroup {
@@ -137,12 +149,14 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				startTime := time.Now()
 
 				By("setting all interfaces in the group to be down")
+
 				for _, ifaceName := range interfaceGroup {
 					err := iface.SetInterfaceStatus(RANConfig.Spoke1APIClient, nodeName, ifaceName, iface.InterfaceStateDown)
 					Expect(err).ToNot(HaveOccurred(), "Failed to set interface %s to down on node %s", ifaceName, nodeName)
 				}
 
 				By("waiting for ptp state change HOLDOVER event")
+
 				holdoverFilter := events.All(
 					events.IsType(eventptp.PtpStateChange),
 					events.HasValue(events.WithSyncState(eventptp.HOLDOVER), events.OnInterface(nicName)),
@@ -151,6 +165,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				Expect(err).ToNot(HaveOccurred(), "Failed to wait for ptp state change HOLDOVER event")
 
 				By("waiting for ptp state change FREERUN event")
+
 				freerunFilter := events.All(
 					events.IsType(eventptp.PtpStateChange),
 					events.HasValue(events.WithSyncState(eventptp.FREERUN), events.OnInterface(nicName)),
@@ -159,6 +174,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				Expect(err).ToNot(HaveOccurred(), "Failed to wait for ptp state change FREERUN event")
 
 				By("asserting that interface group on that node has FREERUN metric")
+
 				clockStateQuery := metrics.ClockStateQuery{
 					Interface: metrics.Equals(nicName),
 					Node:      metrics.Equals(nodeName),
@@ -169,12 +185,14 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				Expect(err).ToNot(HaveOccurred(), "Failed to assert that interface group on that node has FREERUN metric")
 
 				By("setting all interfaces in the group up")
+
 				for _, ifaceName := range interfaceGroup {
 					err := iface.SetInterfaceStatus(RANConfig.Spoke1APIClient, nodeName, ifaceName, iface.InterfaceStateUp)
 					Expect(err).ToNot(HaveOccurred(), "Failed to set interface %s to up on node %s", ifaceName, nodeName)
 				}
 
 				By("waiting for ptp state change LOCKED event")
+
 				lockedFilter := events.All(
 					events.IsType(eventptp.PtpStateChange),
 					events.HasValue(events.WithSyncState(eventptp.LOCKED), events.OnInterface(nicName)),
@@ -183,6 +201,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				Expect(err).ToNot(HaveOccurred(), "Failed to wait for ptp state change LOCKED event")
 
 				By("asserting that all metrics are LOCKED")
+
 				err = metrics.EnsureClocksAreLocked(prometheusAPI)
 				Expect(err).ToNot(HaveOccurred(), "Failed to assert that all metrics are LOCKED")
 			}
@@ -198,11 +217,13 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 		testActuallyRan := false
 
 		By("getting node info map")
+
 		nodeInfoMap, err := profiles.GetNodeInfoMap(RANConfig.Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to get node info map")
 
 		for nodeName, nodeInfo := range nodeInfoMap {
 			By("checking if node has Boundary Clock configuration")
+
 			if nodeInfo.Counts[profiles.ProfileTypeBC] == 0 {
 				klog.V(tsparams.LogLevel).Infof("Node %s has no BC configuration, skipping", nodeName)
 
@@ -212,10 +233,12 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			testActuallyRan = true
 
 			By("getting the event pod for the node")
+
 			eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get event pod for node %s", nodeName)
 
 			By("getting the boundary clock master interfaces")
+
 			boundaryClockProfiles := nodeInfo.GetProfilesByTypes(profiles.ProfileTypeBC)
 			Expect(boundaryClockProfiles).ToNot(BeEmpty(),
 				"Failed to get Boundary Clock profiles for node %s", nodeName)
@@ -224,6 +247,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			for _, profile := range boundaryClockProfiles {
 				masterInterfaces = append(masterInterfaces, profile.GetInterfacesByClockType(profiles.ClockTypeServer)...)
 			}
+
 			Expect(masterInterfaces).ToNot(BeEmpty(),
 				"Failed to get Boundary Clock master interfaces for node %s", nodeName)
 
@@ -233,7 +257,9 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				if !CurrentSpecReport().Failed() {
 					return
 				}
+
 				By("setting the boundary clock master interfaces up")
+
 				for _, masterInterface := range masterInterfaces {
 					By(fmt.Sprintf("setting the Boundary Clock master interface %s up", masterInterface.Name))
 					err := iface.SetInterfaceStatus(RANConfig.Spoke1APIClient, nodeName, masterInterface.Name, iface.InterfaceStateUp)
@@ -242,7 +268,9 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			})
 
 			startTime := time.Now()
+
 			By("setting the boundary clock master interfaces down")
+
 			for _, masterInterface := range masterInterfaces {
 				By(fmt.Sprintf("setting the Boundary Clock master interface %s down", masterInterface.Name))
 				err := iface.SetInterfaceStatus(RANConfig.Spoke1APIClient, nodeName, masterInterface.Name, iface.InterfaceStateDown)
@@ -250,6 +278,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			}
 
 			By("validating that the ptp metric stays in locked state")
+
 			masterNICs := slices.Collect(maps.Keys(masterInterfaceGroups))
 			clockStateQuery := metrics.ClockStateQuery{
 				Node:      metrics.Equals(nodeName),
@@ -261,6 +290,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			Expect(err).ToNot(HaveOccurred(), "Failed to assert that the PTP metric stays in locked state")
 
 			By("validating that no holdover event is generated")
+
 			for nicName := range masterInterfaceGroups {
 				By(fmt.Sprintf("validating that no holdover event is generated for interface %s", nicName))
 				holdoverFilter := events.All(
@@ -275,8 +305,10 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			Expect(versionStr).ToNot(BeEmpty(), "PTP operator version is missing")
 			versionInRange, verErr := version.IsVersionStringInRange(versionStr, "4.18", "")
 			Expect(verErr).ToNot(HaveOccurred(), "Failed to parse PTP operator version")
+
 			if versionInRange {
 				By("validating clock class is still 6 for all boundary clock master interfaces")
+
 				for _, masterInterface := range masterInterfaces {
 					By(fmt.Sprintf("validating clock class is 6 for interface %s", masterInterface.Name))
 					clockClassEventFilter := events.All(
@@ -292,6 +324,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			}
 
 			By("setting the boundary clock master interfaces up")
+
 			for _, masterInterface := range masterInterfaces {
 				By(fmt.Sprintf("setting the Boundary Clock master interface %s up", masterInterface.Name))
 				err := iface.SetInterfaceStatus(RANConfig.Spoke1APIClient, nodeName, masterInterface.Name, iface.InterfaceStateUp)
@@ -299,6 +332,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			}
 
 			By("validating that the ptp metric stays in locked state")
+
 			err = metrics.AssertQuery(context.TODO(), prometheusAPI, metrics.ClockStateQuery{}, metrics.ClockStateLocked,
 				metrics.AssertWithStableDuration(30*time.Second),
 				metrics.AssertWithTimeout(45*time.Second))
@@ -315,11 +349,13 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 		testActuallyRan := false
 
 		By("getting node info map")
+
 		nodeInfoMap, err := profiles.GetNodeInfoMap(RANConfig.Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to get node info map")
 
 		for nodeName, nodeInfo := range nodeInfoMap {
 			By("checking if node has HA configuration")
+
 			if nodeInfo.Counts[profiles.ProfileTypeHA] == 0 {
 				klog.V(tsparams.LogLevel).Infof("Node %s has no HA configuration, skipping", nodeName)
 
@@ -327,6 +363,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			}
 
 			By("getting the active and inactive HA profiles")
+
 			activeProfiles, err := profiles.GetHAProfiles(context.TODO(), prometheusAPI, nodeName,
 				metrics.HAProfileStatusActive)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get active HA profiles")
@@ -341,15 +378,18 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 
 			// Client interfaces are the interfaces that are used to synchronize the clock.
 			By("getting active profile client interface")
+
 			activeProfileClientInterface := getHAProfileClientInterface(nodeInfo, activeProfile)
 
 			inactiveProfileClientInterfaces := make([]iface.Name, 0, 1)
+
 			for _, inactiveProfile := range inactiveProfiles {
 				inactiveProfileClientInterface := getHAProfileClientInterface(nodeInfo, inactiveProfile)
 				inactiveProfileClientInterfaces = append(inactiveProfileClientInterfaces, inactiveProfileClientInterface)
 			}
 
 			By("checking if active profile client interface is the egress interface")
+
 			egressInterface, err := iface.GetEgressInterfaceName(RANConfig.Spoke1APIClient, nodeName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get egress interface")
 
@@ -366,6 +406,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 
 			DeferCleanup(func() {
 				By("restoring original active HA's interface")
+
 				err := iface.SetInterfaceStatus(RANConfig.Spoke1APIClient,
 					nodeName, activeProfileClientInterface, iface.InterfaceStateUp)
 				Expect(err).ToNot(HaveOccurred(), "Failed to restore original active HA's interface")
@@ -376,10 +417,12 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			Expect(err).ToNot(HaveOccurred(), "Failed to set the active HA's interface down")
 
 			By("validating the active HA profile changed")
+
 			newActiveProfile := waitForActiveHAProfileChange(prometheusAPI, nodeName, activeProfile, 2*time.Minute)
 			Expect(newActiveProfile).NotTo(Equal(activeProfile), "Active profile should have changed: %s", newActiveProfile)
 
 			By("validating the original active interface is in FREERUN state")
+
 			activeNIC := activeProfileClientInterface.GetNIC()
 			clockStateQuery := metrics.ClockStateQuery{
 				Interface: metrics.Equals(activeNIC),
@@ -391,6 +434,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			Expect(err).ToNot(HaveOccurred(), "Failed to assert original active interface is in FREERUN")
 
 			By("validating that all inactive HA profile client interfaces are in LOCKED state")
+
 			inactiveProfileClientNICs := make([]iface.NICName, 0, len(inactiveProfileClientInterfaces))
 			for _, inactiveProfileClientInterface := range inactiveProfileClientInterfaces {
 				inactiveProfileClientNICs = append(inactiveProfileClientNICs, inactiveProfileClientInterface.GetNIC())
@@ -406,6 +450,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			Expect(err).ToNot(HaveOccurred(), "Failed to assert all inactive interfaces are in LOCKED state")
 
 			By("validating no HOLDOVER event for original inactive interfaces")
+
 			eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get event pod")
 
@@ -421,6 +466,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			}
 
 			By("validating CLOCK_REALTIME is in LOCKED state")
+
 			clockRealtimeQuery := metrics.ClockStateQuery{
 				Interface: metrics.Equals(iface.ClockRealtime),
 				Node:      metrics.Equals(nodeName),
@@ -431,11 +477,13 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			Expect(err).ToNot(HaveOccurred(), "Failed to assert CLOCK_REALTIME is LOCKED")
 
 			By("restoring original active HA's interface")
+
 			err = iface.SetInterfaceStatus(RANConfig.Spoke1APIClient,
 				nodeName, activeProfileClientInterface, iface.InterfaceStateUp)
 			Expect(err).ToNot(HaveOccurred(), "Failed to restore original active HA's interface")
 
 			By("validating restored active profile client interface returns to LOCKED state")
+
 			activeNIC = activeProfileClientInterface.GetNIC()
 			clockStateQuery = metrics.ClockStateQuery{
 				Interface: metrics.Equals(activeNIC),
@@ -447,10 +495,12 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			Expect(err).ToNot(HaveOccurred(), "Failed to assert restored active profile client interface is LOCKED")
 
 			initialTotalProfiles := len(activeProfiles) + len(inactiveProfiles)
+
 			By("validating HA system returns to healthy state")
 			waitForHAHealthy(prometheusAPI, nodeName, initialTotalProfiles, 2*time.Minute)
 
 			By("validating CLOCK_REALTIME remains LOCKED")
+
 			clockRealtimeQuery = metrics.ClockStateQuery{
 				Interface: metrics.Equals(iface.ClockRealtime),
 				Node:      metrics.Equals(nodeName),
@@ -473,11 +523,13 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 		testActuallyRan := false
 
 		By("getting node info map")
+
 		nodeInfoMap, err := profiles.GetNodeInfoMap(RANConfig.Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to get node info map")
 
 		for nodeName, nodeInfo := range nodeInfoMap {
 			By("checking if node has HA configuration")
+
 			if nodeInfo.Counts[profiles.ProfileTypeHA] == 0 {
 				klog.V(tsparams.LogLevel).Infof("Node %s has no HA configuration, skipping", nodeName)
 
@@ -485,6 +537,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			}
 
 			By("getting the active and inactive HA profiles")
+
 			activeProfiles, err := profiles.GetHAProfiles(context.TODO(), prometheusAPI, nodeName, metrics.HAProfileStatusActive)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get active HA profiles")
 			Expect(len(activeProfiles)).To(Equal(1), "Expected exactly one active HA profile")
@@ -502,6 +555,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 
 			haInterfaces := make([]iface.Name, 0, len(activeProfiles)+len(inactiveProfiles))
 			haInterfaces = append(haInterfaces, activeClientInterfaces[0].Name)
+
 			for _, inactiveProfile := range inactiveProfiles {
 				inactiveProfileInfo := nodeInfo.GetProfileByName(inactiveProfile)
 				Expect(inactiveProfileInfo).ToNot(BeNil(), "Failed to find inactive profile in node info")
@@ -512,6 +566,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			}
 
 			By("checking if any interface is the egress interface")
+
 			egressInterface, err := iface.GetEgressInterfaceName(RANConfig.Spoke1APIClient, nodeName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get egress interface")
 
@@ -526,6 +581,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			By("bringing down all HA interfaces")
 			DeferCleanup(func() {
 				By("restoring all HA interfaces")
+
 				for _, haInterface := range haInterfaces {
 					err := iface.SetInterfaceStatus(RANConfig.Spoke1APIClient, nodeName, haInterface, iface.InterfaceStateUp)
 					Expect(err).ToNot(HaveOccurred(), "Failed to restore HA interface %s", haInterface)
@@ -536,9 +592,11 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				err = iface.SetInterfaceStatus(RANConfig.Spoke1APIClient, nodeName, haInterface, iface.InterfaceStateDown)
 				Expect(err).ToNot(HaveOccurred(), "Failed to set HA interface %s down", haInterface)
 			}
+
 			startTime := time.Now()
 
 			By("validating all HA Clock States are in FREERUN state")
+
 			haNICs := make([]iface.NICName, 0, len(haInterfaces))
 			for _, haInterface := range haInterfaces {
 				haNICs = append(haNICs, haInterface.GetNIC())
@@ -555,6 +613,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			Expect(err).ToNot(HaveOccurred(), "Failed to assert all HA interfaces are in FREERUN state")
 
 			By("validating CLOCK_REALTIME is in FREERUN state")
+
 			clockRealtimeQuery := metrics.ClockStateQuery{
 				Interface: metrics.Equals(iface.ClockRealtime),
 				Node:      metrics.Equals(nodeName),
@@ -569,12 +628,15 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			Expect(versionStr).ToNot(BeEmpty(), "PTP operator version is missing")
 			versionInRange, verErr := version.IsVersionStringInRange(versionStr, "4.18", "")
 			Expect(verErr).ToNot(HaveOccurred(), "Failed to parse PTP operator version")
+
 			if versionInRange {
 				By("getting the event pod for the node")
+
 				eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeName)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get event pod for node %s", nodeName)
 
 				By("validating clock class is 248 for HA interfaces")
+
 				for _, haInterface := range haInterfaces {
 					By(fmt.Sprintf("validating clock class is 248 for interface %s", haInterface.GetNIC()))
 					clockClassEventFilter := events.All(
@@ -590,12 +652,14 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			}
 
 			By("restoring HA interfaces")
+
 			for _, haInterface := range haInterfaces {
 				err = iface.SetInterfaceStatus(RANConfig.Spoke1APIClient, nodeName, haInterface, iface.InterfaceStateUp)
 				Expect(err).ToNot(HaveOccurred(), "Failed to restore HA interface %s", haInterface)
 			}
 
 			By("validating all Clock State metrics return to LOCKED state")
+
 			haNICs = make([]iface.NICName, 0, len(haInterfaces))
 			for _, haInterface := range haInterfaces {
 				haNICs = append(haNICs, haInterface.GetNIC())
@@ -615,6 +679,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			waitForHAHealthy(prometheusAPI, nodeName, len(haInterfaces), 2*time.Minute)
 
 			By("validating CLOCK_REALTIME returns to LOCKED state")
+
 			clockRealtimeQuery = metrics.ClockStateQuery{
 				Interface: metrics.Equals(iface.ClockRealtime),
 				Node:      metrics.Equals(nodeName),
@@ -639,11 +704,13 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				testActuallyRan := false
 
 				By("getting node info map")
+
 				nodeInfoMap, err := profiles.GetNodeInfoMap(RANConfig.Spoke1APIClient)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get node info map")
 
 				for nodeName, nodeInfo := range nodeInfoMap {
 					By("checking if node has HA configuration")
+
 					if nodeInfo.Counts[profiles.ProfileTypeHA] == 0 {
 						klog.V(tsparams.LogLevel).Infof("Node %s has no HA configuration, skipping", nodeName)
 
@@ -655,6 +722,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 					totalHAProfiles := 0
 
 					By("getting the active HA profile & total number of HA profiles")
+
 					activeProfiles, err := profiles.GetHAProfiles(context.TODO(),
 						prometheusAPI, nodeName, metrics.HAProfileStatusActive)
 					Expect(err).ToNot(HaveOccurred(), "Failed to get active HA profiles")
@@ -682,21 +750,25 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 						waitForHAHealthy(prometheusAPI, nodeName, totalHAProfiles, 5*time.Minute)
 
 						By("validating all clocks are locked after restoration")
+
 						err = metrics.EnsureClocksAreLocked(prometheusAPI)
 						Expect(err).ToNot(HaveOccurred(), "Failed to assert all clocks are locked after restoration")
 					})
 
 					By(fmt.Sprintf("deleting PtpProfile %s from PtpConfig %s",
 						activeProfileName, activeProfilePtpConfig.Definition.Name))
+
 					err = profiles.RemoveProfileFromConfig(RANConfig.Spoke1APIClient, activeProfileInfo.Reference)
 					Expect(err).ToNot(HaveOccurred(),
 						"Failed to delete PtpProfile %s from PtpConfig %s",
 						activeProfileName, activeProfilePtpConfig.Definition.Name)
 
 					By("validating active profile has changed")
+
 					newActiveProfile := waitForActiveHAProfileChange(prometheusAPI, nodeName, activeProfileName, 2*time.Minute)
 
 					By("validating new active interface is in LOCKED state")
+
 					newActiveInterface := getHAProfileClientInterface(nodeInfo, newActiveProfile)
 					nicName := newActiveInterface.GetNIC()
 					clockStateQuery := metrics.ClockStateQuery{

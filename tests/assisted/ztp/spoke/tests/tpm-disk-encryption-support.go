@@ -29,7 +29,6 @@ var _ = Describe(
 	Label(tsparams.LabelTPMDiskEncryptionInstallTestCases), func() {
 		When("on MCE 2.0 and above", func() {
 			BeforeAll(func() {
-
 				if ZTPConfig.SpokeAgentClusterInstall.Object.Spec.DiskEncryption == nil {
 					Skip("Spoke cluster was not installed with disk encryption")
 				}
@@ -83,6 +82,7 @@ var _ = Describe(
 						strings.Contains(tpmEncryptionEnabledOn, string(agent.Object.Status.Role)) {
 						hwValidations, ok := agent.Object.Status.ValidationsInfo["hardware"]
 						Expect(ok).To(BeTrue(), "error attempting to retrieve agent hardware validationsInfo")
+
 						for _, result := range hwValidations {
 							if result.ID == "disk-encryption-requirements-satisfied" {
 								Expect(result.Message).To(Equal("Installation disk can be encrypted using tpmv2"),
@@ -92,9 +92,7 @@ var _ = Describe(
 						}
 					}
 				}
-
 			})
-
 		})
 	})
 

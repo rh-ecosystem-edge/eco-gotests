@@ -15,7 +15,6 @@ var _ = Describe(
 	Ordered,
 	ContinueOnFailure,
 	Label(tsparams.LabelDebugInfoVerificationTestCases), func() {
-
 		DescribeTable("aci debug info url checks", func(urlToCheck func() string) {
 			Expect(urlToCheck()).Should(ContainSubstring("https://"),
 				"error verifying that the debug info url in agent cluster install is set")
@@ -31,7 +30,6 @@ var _ = Describe(
 
 		It("Assert agent cluster install state and stateInfo params are valid",
 			reportxml.ID("42813"), func() {
-
 				By("Check that the DebugInfo state in AgentClusterInstall shows cluster is installed")
 				Expect(ZTPConfig.SpokeAgentClusterInstall.Object.Status.DebugInfo.State).
 					Should(Equal(models.ClusterStatusAddingHosts),

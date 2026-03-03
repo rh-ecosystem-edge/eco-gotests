@@ -30,6 +30,7 @@ var _ = Describe("ZTP Argo CD Node Deletion Tests", Label(tsparams.LabelArgoCdNo
 
 	BeforeEach(func() {
 		By("checking the ZTP version")
+
 		versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.14", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to check if ZTP version is in range")
 
@@ -38,6 +39,7 @@ var _ = Describe("ZTP Argo CD Node Deletion Tests", Label(tsparams.LabelArgoCdNo
 		}
 
 		By("checking that the cluster contains a control-plane and worker node")
+
 		snoPlusOne, err := rancluster.IsSnoPlusOne(Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to check if cluster is SNO+1")
 
@@ -46,6 +48,7 @@ var _ = Describe("ZTP Argo CD Node Deletion Tests", Label(tsparams.LabelArgoCdNo
 		}
 
 		By("checking that the 'worker' mcp is ready")
+
 		mcp, err := mco.Pull(Spoke1APIClient, "worker")
 		Expect(err).ToNot(HaveOccurred(), "Failed to pull 'worker' MCP")
 		Expect(mcp.Definition.Status.ReadyMachineCount).To(BeNumerically(">", 0), "Node deletion requires ready 'worker' MCP")
@@ -58,6 +61,7 @@ var _ = Describe("ZTP Argo CD Node Deletion Tests", Label(tsparams.LabelArgoCdNo
 		Expect(bmhNamespace).ToNot(BeEmpty(), "BMH namespace cannot be empty")
 
 		By("saving the original clusters app source")
+
 		clustersApp, err = argocd.PullApplication(
 			HubAPIClient, tsparams.ArgoCdClustersAppName, ranparam.OpenshiftGitOpsNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Failed to get the original clusters app")
@@ -72,15 +76,18 @@ var _ = Describe("ZTP Argo CD Node Deletion Tests", Label(tsparams.LabelArgoCdNo
 		}
 
 		By("resetting the clusters app back to the original settings")
+
 		clustersApp.Definition.Spec.Source.Path = originalClustersGitPath
 		updatedClustersApp, err := clustersApp.Update(true)
 		Expect(err).ToNot(HaveOccurred(), "Failed to update the clusters app back to the original settings")
 
 		By("waiting for the clusters app to sync")
+
 		err = updatedClustersApp.WaitForSourceUpdate(true, tsparams.ArgoCdChangeTimeout)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for the clusters app to sync")
 
 		By("checking that the cluster is back to SNO+1")
+
 		err = rancluster.WaitForNumberOfNodes(Spoke1APIClient, 2, 45*time.Minute)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for cluster to return to 2 nodes")
 
@@ -97,6 +104,7 @@ var _ = Describe("ZTP Argo CD Node Deletion Tests", Label(tsparams.LabelArgoCdNo
 	// 72463 - Delete and re-add a worker node from cluster
 	It("should delete a worker node from the cluster", reportxml.ID("72463"), func() {
 		By("updating the Argo CD git path to apply crAnnotation")
+
 		if !clustersApp.DoesGitPathExist(tsparams.ZtpTestPathNodeDeleteAddAnnotation) {
 			Skip(fmt.Sprintf("git path '%s' could not be found", tsparams.ZtpTestPathNodeDeleteAddAnnotation))
 		}
@@ -105,6 +113,7 @@ var _ = Describe("ZTP Argo CD Node Deletion Tests", Label(tsparams.LabelArgoCdNo
 		Expect(err).ToNot(HaveOccurred(), "Failed to update Argo CD git path")
 
 		By("waiting for the crAnnotation to be added to the worker node")
+
 		bareMetalHost, err := bmh.Pull(HubAPIClient, plusOneNodeName, bmhNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Failed to pull BMH")
 
@@ -124,10 +133,12 @@ var _ = Describe("ZTP Argo CD Node Deletion Tests", Label(tsparams.LabelArgoCdNo
 		Expect(err).ToNot(HaveOccurred(), "Failed to update Argo CD git path")
 
 		By("waiting for the worker node to be removed")
+
 		err = nodedelete.WaitForBMHDeprovisioning(HubAPIClient, plusOneNodeName, bmhNamespace, 60*time.Minute)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for worker BMH to be deprovisioned")
 
 		By("checking that the cluster is healthy")
+
 		healthy, err := rancluster.IsClusterStable(Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to check if spoke cluster is healthy")
 		Expect(healthy).To(BeTrue(), "Spoke cluster was not healthy")

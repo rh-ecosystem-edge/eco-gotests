@@ -24,10 +24,12 @@ var _ = Describe(
 
 		BeforeAll(func() {
 			By("Pull the imagebasedupgrade from the cluster")
+
 			ibu, err = lca.PullImageBasedUpgrade(APIClient)
 			Expect(err).NotTo(HaveOccurred(), "error pulling ibu resource from cluster")
 
 			By("Ensure that imagebasedupgrade values are empty")
+
 			ibu.Definition.Spec.ExtraManifests = []lcav1.ConfigMapRef{}
 			ibu.Definition.Spec.OADPContent = []lcav1.ConfigMapRef{}
 			_, err = ibu.Update()
@@ -48,11 +50,13 @@ var _ = Describe(
 			Expect(err).To(BeNil(), "error: getting updated ibu")
 
 			By("Updating IBU with different seedimage")
+
 			_, err = ibu.WithSeedImage(negativeSeedImage).Update()
 			Expect(err.Error()).To(ContainSubstring("can not change spec.seedImageRef while ibu is in progress"),
 				"error: ibu seedimage updated while in prep phase")
 
 			By("Updating IBU with different seedimage version")
+
 			_, err = ibu.WithSeedImageVersion(negativeSeedImageVersion).Update()
 			Expect(err.Error()).To(ContainSubstring("can not change spec.seedImageRef while ibu is in progress"),
 				"error: ibu seedimage version updated while in prep phase")

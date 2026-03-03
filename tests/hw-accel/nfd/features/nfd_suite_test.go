@@ -39,6 +39,7 @@ var _ = BeforeSuite(func() {
 	nfdConfig := nfdconfig.NewNfdConfig()
 
 	By("Installing NFD operator for all feature tests")
+
 	var options *nfdhelpers.NFDInstallConfigOptions
 	if nfdConfig.CatalogSource != "" {
 		options = &nfdhelpers.NFDInstallConfigOptions{
@@ -51,15 +52,18 @@ var _ = BeforeSuite(func() {
 	NFDCRUtils = deploy.NewNFDCRUtils(APIClient, installConfig.Namespace, nfdparams.NfdInstance)
 
 	klog.V(nfdparams.LogLevel).Info("Installing NFD operator")
+
 	err := NFDInstaller.Install()
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("error installing NFD operator: %s", err))
 
 	By("Waiting for NFD operator to be ready")
+
 	ready, err := NFDInstaller.IsReady(5 * time.Minute)
 	Expect(err).ToNot(HaveOccurred(), "error waiting for NFD operator readiness")
 	Expect(ready).To(BeTrue(), "NFD operator not ready")
 
 	By("Creating NFD CR")
+
 	crConfig := deploy.NFDCRConfig{
 		Image:          nfdConfig.Image,
 		EnableTopology: true,
@@ -68,6 +72,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("error creating NFD CR: %s", err))
 
 	By("Waiting for NFD CR to be ready")
+
 	crReady, err := NFDCRUtils.IsNFDCRReady(5 * time.Minute)
 	Expect(err).ToNot(HaveOccurred(), "error waiting for NFD CR")
 	Expect(crReady).To(BeTrue(), "NFD CR not ready")
@@ -81,6 +86,7 @@ var _ = BeforeSuite(func() {
 var _ = AfterSuite(func() {
 	if NFDCRUtils != nil {
 		By("Deleting NFD CR")
+
 		err := NFDCRUtils.DeleteNFDCR()
 		if err != nil {
 			klog.Errorf("Failed to delete NFD CR: %v", err)
@@ -89,11 +95,13 @@ var _ = AfterSuite(func() {
 
 	if NFDInstaller != nil {
 		By("Uninstalling NFD operator")
+
 		uninstallConfig := nfdhelpers.GetDefaultNFDUninstallConfig(
 			APIClient,
 			"nfd-operator-group",
 			"nfd-subscription")
 		nfdUninstaller := deploy.NewOperatorUninstaller(uninstallConfig)
+
 		err := nfdUninstaller.Uninstall()
 		if err != nil {
 			klog.Errorf("Failed to uninstall NFD operator: %v", err)

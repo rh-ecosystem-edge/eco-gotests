@@ -31,5 +31,4 @@ var _ = ReportAfterSuite("", func(report Report) {
 var _ = JustAfterEach(func() {
 	reporter.ReportIfFailed(
 		CurrentSpecReport(), currentFile, amdparams.ReporterNamespacesToDump, amdparams.ReporterCRDsToDump)
-
 })

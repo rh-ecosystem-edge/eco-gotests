@@ -27,11 +27,13 @@ func TestUpgrade(t *testing.T) {
 var _ = BeforeSuite(func() {
 	// should have top level check to skip all tests in case test env vars unavailable.
 	By("Checking if target hub cluster has valid apiClient")
+
 	if TargetHubAPIClient == nil {
 		Skip("Cannot run test suite when target hub cluster has nil api client")
 	}
 
 	By("Checking if target sno cluster has valid apiClient")
+
 	if TargetSNOAPIClient == nil {
 		Skip("Cannot run test suite when target sno cluster has nil api client")
 	}
