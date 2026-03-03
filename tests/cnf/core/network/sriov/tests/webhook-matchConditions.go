@@ -35,12 +35,14 @@ var _ = Describe("webhook-resource-injector", Ordered, Label(tsparams.LabelWebho
 
 		BeforeAll(func() {
 			By("Verifying if tests can be executed on given cluster")
+
 			err := netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 1)
 			if err != nil {
 				Skip(fmt.Sprintf("Skipping test - cluster doesn't have enough nodes: %v", err))
 			}
 
 			By("Validating SR-IOV interfaces")
+
 			workerNodeList, err = nodes.List(APIClient,
 				metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
 			Expect(err).ToNot(HaveOccurred(), "Failed to discover worker nodes")
@@ -52,6 +54,7 @@ var _ = Describe("webhook-resource-injector", Ordered, Label(tsparams.LabelWebho
 			Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
 
 			By("Creating SriovNetworkNodePolicy and SriovNetwork")
+
 			err = sriovoperator.CreateSriovPolicyAndWaitUntilItsApplied(
 				APIClient,
 				NetConfig.WorkerLabelEnvVar,
@@ -71,6 +74,7 @@ var _ = Describe("webhook-resource-injector", Ordered, Label(tsparams.LabelWebho
 
 		AfterAll(func() {
 			By("Removing SR-IOV configuration")
+
 			err := sriovoperator.RemoveSriovConfigurationAndWaitForSriovAndMCPStable(
 				APIClient,
 				NetConfig.WorkerLabelEnvVar,
@@ -80,6 +84,7 @@ var _ = Describe("webhook-resource-injector", Ordered, Label(tsparams.LabelWebho
 			Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV configuration")
 
 			By("Cleaning test namespace")
+
 			err = namespace.NewBuilder(APIClient, tsparams.TestNamespaceName).CleanObjects(
 				netparam.DefaultTimeout, pod.GetGVR())
 			Expect(err).ToNot(HaveOccurred(), "Failed to clean test namespace")

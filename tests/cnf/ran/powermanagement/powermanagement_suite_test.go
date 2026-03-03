@@ -32,10 +32,12 @@ var _ = BeforeSuite(func() {
 		WithLabel("pod-security.kubernetes.io/enforce", "baseline")
 
 	klog.V(ranparam.LogLevel).Infof("Deleting test namespace %s", tsparams.TestingNamespace)
+
 	err := testNamespace.DeleteAndWait(tsparams.PowerSaveTimeout)
 	Expect(err).ToNot(HaveOccurred(), "Failed to delete namespace ", tsparams.TestingNamespace)
 
 	klog.V(ranparam.LogLevel).Infof("Creating test namespace %s", tsparams.TestingNamespace)
+
 	_, err = testNamespace.Create()
 	Expect(err).ToNot(HaveOccurred(), "Failed to create namespace ", tsparams.TestingNamespace)
 })
@@ -44,9 +46,9 @@ var _ = AfterSuite(func() {
 	testNamespace := namespace.NewBuilder(Spoke1APIClient, tsparams.TestingNamespace)
 
 	klog.V(ranparam.LogLevel).Infof("Deleting test namespace %s", tsparams.TestingNamespace)
+
 	err := testNamespace.DeleteAndWait(tsparams.PowerSaveTimeout)
 	Expect(err).ToNot(HaveOccurred(), "Failed to delete namespace ", tsparams.TestingNamespace)
-
 })
 
 var _ = JustAfterEach(func() {

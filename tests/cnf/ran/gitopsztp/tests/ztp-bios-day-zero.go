@@ -41,6 +41,7 @@ var _ = Describe("ZTP BIOS Configuration Tests", Label(tsparams.LabelBiosDayZero
 		klog.V(tsparams.LogLevel).Infof("Node names: %v", nodeNames)
 
 		By("getting HFS for spoke")
+
 		hfs, err := bmh.PullHFS(HubAPIClient, nodeNames[0], spokeClusterName)
 		Expect(err).ToNot(
 			HaveOccurred(),
@@ -58,6 +59,7 @@ var _ = Describe("ZTP BIOS Configuration Tests", Label(tsparams.LabelBiosDayZero
 		)
 
 		By("comparing requsted BIOS settings to actual BIOS settings")
+
 		hfsRequestedSettings := hfsObject.Spec.Settings
 		hfsCurrentSettings := hfsObject.Status.Settings
 
@@ -71,6 +73,7 @@ var _ = Describe("ZTP BIOS Configuration Tests", Label(tsparams.LabelBiosDayZero
 		)
 
 		allSettingsMatch := true
+
 		for param, value := range hfsRequestedSettings {
 			setting, ok := hfsCurrentSettings[param]
 			if !ok {
@@ -88,14 +91,13 @@ var _ = Describe("ZTP BIOS Configuration Tests", Label(tsparams.LabelBiosDayZero
 					param,
 					requestedSetting,
 					setting)
+
 				allSettingsMatch = false
 			}
-
 		}
 
 		Expect(allSettingsMatch).To(BeTrueBecause("One or more requested settings does not match current settings"))
 	})
-
 })
 
 // GetSpokeClusterName gets the spoke cluster name as string.

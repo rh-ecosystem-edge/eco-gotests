@@ -43,6 +43,7 @@ var _ = Describe("SR-IOV IPv6", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 
 	BeforeAll(func() {
 		By("Discover and list worker nodes")
+
 		workerNodeList, err = nodes.List(
 			APIClient, metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
 		Expect(err).ToNot(HaveOccurred(), "Failed to list worker nodes")
@@ -57,10 +58,12 @@ var _ = Describe("SR-IOV IPv6", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 
 		sriovInterfaces, err = NetConfig.GetSriovInterfaces(2)
 		Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
+
 		sriovInterfacePF1 = sriovInterfaces[0]
 		sriovInterfacePF2 = sriovInterfaces[1]
 
 		By("Verifying SCTP kernel module is loaded on worker nodes")
+
 		sctpOutput, err := cluster.ExecCmdWithStdout(APIClient, "lsmod | grep -q sctp && echo loaded",
 			metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
 		if err != nil || len(sctpOutput) == 0 {
@@ -68,6 +71,7 @@ var _ = Describe("SR-IOV IPv6", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 		}
 
 		By("Create all test case SR-IOV policies and waiting for them to be applied")
+
 		err = sriovenv.CreateAllSriovPolicies(
 			sriovInterfacePF1, sriovInterfacePF2,
 			sriovResourcePF1MTU1280, sriovResourcePF1MTU9000,
@@ -78,6 +82,7 @@ var _ = Describe("SR-IOV IPv6", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 
 	AfterAll(func() {
 		By("Removing SR-IOV configuration")
+
 		err = sriovoperator.RemoveSriovConfigurationAndWaitForSriovAndMCPStable(
 			APIClient,
 			NetConfig.WorkerLabelEnvVar,
@@ -98,6 +103,7 @@ var _ = Describe("SR-IOV IPv6", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 
 		BeforeAll(func() {
 			By("Creating SR-IOV Networks")
+
 			err = sriovenv.CreateSriovNetworksForBothMTUs(
 				sriovNetworkSamePFMTU1280, sriovNetworkSamePFMTU9000,
 				sriovResourcePF1MTU1280, sriovResourcePF1MTU9000)
@@ -120,6 +126,7 @@ var _ = Describe("SR-IOV IPv6", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 
 		AfterEach(func() {
 			By("Deleting test pods")
+
 			err = namespace.NewBuilder(APIClient, tsparams.TestNamespaceName).CleanObjects(
 				netparam.DefaultTimeout, pod.GetGVR())
 			Expect(err).ToNot(HaveOccurred(), "Failed to delete test pods")
@@ -127,6 +134,7 @@ var _ = Describe("SR-IOV IPv6", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 
 		AfterAll(func() {
 			By("Deleting SR-IOV networks")
+
 			err = sriov.CleanAllNetworksByTargetNamespace(
 				APIClient, NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to delete SR-IOV networks")
@@ -134,6 +142,7 @@ var _ = Describe("SR-IOV IPv6", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 
 		It("Verify SR-IOV IPv6 connectivity with Static IPAM and Static MAC", reportxml.ID("87522"), func() {
 			By("Creating client and server pods for MTU 1280")
+
 			clientMTU1280, _, err := sriovenv.CreatePodPair(
 				tsparams.ClientPodMTU1280, tsparams.ServerPodMTU1280,
 				workerNodeList[0].Definition.Name, workerNodeList[0].Definition.Name,
@@ -145,6 +154,7 @@ var _ = Describe("SR-IOV IPv6", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 			Expect(err).ToNot(HaveOccurred(), "Failed to create pods for MTU 1280")
 
 			By("Creating client and server pods for MTU 9000")
+
 			clientMTU9000, _, err := sriovenv.CreatePodPair(
 				tsparams.ClientPodMTU9000, tsparams.ServerPodMTU9000,
 				workerNodeList[0].Definition.Name, workerNodeList[0].Definition.Name,
@@ -164,6 +174,7 @@ var _ = Describe("SR-IOV IPv6", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 		It("Verify SR-IOV IPv6 connectivity with Whereabouts IPAM, Dynamic MAC, and VLAN",
 			reportxml.ID("87558"), func() {
 				By("Creating VLAN pods for MTU 1280")
+
 				vlanClientMTU1280, vlanServerMTU1280, err := sriovenv.CreatePodPair(
 					tsparams.ClientPodVlanMTU1280, tsparams.ServerPodVlanMTU1280,
 					workerNodeList[0].Definition.Name, workerNodeList[0].Definition.Name,
@@ -173,6 +184,7 @@ var _ = Describe("SR-IOV IPv6", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 				Expect(err).ToNot(HaveOccurred(), "Failed to create VLAN pods for MTU 1280")
 
 				By("Creating VLAN pods for MTU 9000")
+
 				vlanClientMTU9000, vlanServerMTU9000, err := sriovenv.CreatePodPair(
 					tsparams.ClientPodVlanMTU9000, tsparams.ServerPodVlanMTU9000,
 					workerNodeList[0].Definition.Name, workerNodeList[0].Definition.Name,
@@ -182,6 +194,7 @@ var _ = Describe("SR-IOV IPv6", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 				Expect(err).ToNot(HaveOccurred(), "Failed to create VLAN pods for MTU 9000")
 
 				By("Getting server IPs from pod interfaces")
+
 				serverIPMTU1280, err := sriovenv.GetPodIPFromInterface(vlanServerMTU1280, tsparams.Net1Interface, "ipv6")
 				Expect(err).ToNot(HaveOccurred(), "Failed to get server IP from VLAN pod for MTU 1280")
 
@@ -189,10 +202,12 @@ var _ = Describe("SR-IOV IPv6", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 				Expect(err).ToNot(HaveOccurred(), "Failed to get server IP from VLAN pod for MTU 9000")
 
 				By("Running traffic tests over VLAN with dynamic IP for MTU 1280")
+
 				err = sriovenv.RunTrafficTest(vlanClientMTU1280, serverIPMTU1280, mtu1280)
 				Expect(err).ToNot(HaveOccurred(), "Traffic tests failed for VLAN MTU 1280")
 
 				By("Running traffic tests over VLAN with dynamic IP for MTU 9000")
+
 				err = sriovenv.RunTrafficTest(vlanClientMTU9000, serverIPMTU9000, mtu9000)
 				Expect(err).ToNot(HaveOccurred(), "Traffic tests failed for VLAN MTU 9000")
 			})
@@ -239,6 +254,7 @@ var _ = Describe("SR-IOV IPv6", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 
 		AfterEach(func() {
 			By("Deleting test pods")
+
 			err = namespace.NewBuilder(APIClient, tsparams.TestNamespaceName).CleanObjects(
 				netparam.DefaultTimeout, pod.GetGVR())
 			Expect(err).ToNot(HaveOccurred(), "Failed to delete test pods")
@@ -246,6 +262,7 @@ var _ = Describe("SR-IOV IPv6", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 
 		AfterAll(func() {
 			By("Deleting SR-IOV networks")
+
 			err = sriov.CleanAllNetworksByTargetNamespace(
 				APIClient, NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to delete SR-IOV networks")
@@ -254,6 +271,7 @@ var _ = Describe("SR-IOV IPv6", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 		It("Verify SR-IOV IPv6 connectivity between different PFs on same node with Static IPAM and Static MAC",
 			reportxml.ID("87559"), func() {
 				By("Creating client and server pods for MTU 1280")
+
 				clientMTU1280, _, err := sriovenv.CreatePodPair(
 					tsparams.ClientPodMTU1280, tsparams.ServerPodMTU1280,
 					workerNodeList[0].Definition.Name, workerNodeList[0].Definition.Name,
@@ -264,6 +282,7 @@ var _ = Describe("SR-IOV IPv6", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 				Expect(err).ToNot(HaveOccurred(), "Failed to create pods for MTU 1280")
 
 				By("Creating client and server pods for MTU 9000")
+
 				clientMTU9000, _, err := sriovenv.CreatePodPair(
 					tsparams.ClientPodMTU9000, tsparams.ServerPodMTU9000,
 					workerNodeList[0].Definition.Name, workerNodeList[0].Definition.Name,
@@ -283,6 +302,7 @@ var _ = Describe("SR-IOV IPv6", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 		It("Verify SR-IOV IPv6 connectivity with Whereabouts IPAM and Dynamic MAC",
 			reportxml.ID("87560"), func() {
 				By("Creating whereabouts pods with dynamic IP/MAC")
+
 				whereaboutsClient, whereaboutsServer, err := sriovenv.CreatePodPair(
 					tsparams.ClientPodWhereabouts, tsparams.ServerPodWhereabouts,
 					workerNodeList[0].Definition.Name, workerNodeList[0].Definition.Name,
@@ -292,10 +312,12 @@ var _ = Describe("SR-IOV IPv6", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 				Expect(err).ToNot(HaveOccurred(), "Failed to create whereabouts pods")
 
 				By("Getting server IP from pod interface")
+
 				serverIP, err := sriovenv.GetPodIPFromInterface(whereaboutsServer, tsparams.Net1Interface, "ipv6")
 				Expect(err).ToNot(HaveOccurred(), "Failed to get server IP from whereabouts pod")
 
 				By("Running traffic tests with whereabouts IPAM")
+
 				err = sriovenv.RunTrafficTest(whereaboutsClient, serverIP, mtu1280)
 				Expect(err).ToNot(HaveOccurred(), "Traffic tests failed for whereabouts IPAM")
 			})
@@ -314,6 +336,7 @@ var _ = Describe("SR-IOV IPv6", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 				workerNodeList[0].Definition.Name, workerNodeList[1].Definition.Name))
 
 			By("Creating SR-IOV Networks for Different Node")
+
 			err = sriovenv.CreateSriovNetworksForBothMTUs(
 				sriovNetworkDiffNodeMTU1280, sriovNetworkDiffNodeMTU9000,
 				sriovResourcePF1MTU1280, sriovResourcePF1MTU9000)
@@ -328,6 +351,7 @@ var _ = Describe("SR-IOV IPv6", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 
 		AfterEach(func() {
 			By("Deleting test pods")
+
 			err = namespace.NewBuilder(APIClient, tsparams.TestNamespaceName).CleanObjects(
 				netparam.DefaultTimeout, pod.GetGVR())
 			Expect(err).ToNot(HaveOccurred(), "Failed to delete test pods")
@@ -335,6 +359,7 @@ var _ = Describe("SR-IOV IPv6", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 
 		AfterAll(func() {
 			By("Deleting SR-IOV networks")
+
 			err = sriov.CleanAllNetworksByTargetNamespace(
 				APIClient, NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to delete SR-IOV networks")
@@ -343,6 +368,7 @@ var _ = Describe("SR-IOV IPv6", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 		It("Verify SR-IOV IPv6 connectivity between different nodes with Static IPAM and Dynamic MAC",
 			reportxml.ID("87565"), func() {
 				By("Creating client and server pods for MTU 1280")
+
 				clientMTU1280, _, err := sriovenv.CreatePodPair(
 					tsparams.ClientPodMTU1280, tsparams.ServerPodMTU1280,
 					workerNodeList[0].Definition.Name, workerNodeList[1].Definition.Name,
@@ -354,6 +380,7 @@ var _ = Describe("SR-IOV IPv6", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 				Expect(err).ToNot(HaveOccurred(), "Failed to create pods for MTU 1280")
 
 				By("Creating client and server pods for MTU 9000")
+
 				clientMTU9000, _, err := sriovenv.CreatePodPair(
 					tsparams.ClientPodMTU9000, tsparams.ServerPodMTU9000,
 					workerNodeList[0].Definition.Name, workerNodeList[1].Definition.Name,
@@ -374,6 +401,7 @@ var _ = Describe("SR-IOV IPv6", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 		It("Verify SR-IOV IPv6 connectivity between different nodes with Whereabouts IPAM and Dynamic MAC",
 			reportxml.ID("87566"), func() {
 				By("Creating whereabouts pods with dynamic IP/MAC")
+
 				whereaboutsClient, whereaboutsServer, err := sriovenv.CreatePodPair(
 					tsparams.ClientPodWhereabouts, tsparams.ServerPodWhereabouts,
 					workerNodeList[0].Definition.Name, workerNodeList[1].Definition.Name,
@@ -383,10 +411,12 @@ var _ = Describe("SR-IOV IPv6", Ordered, Label(tsparams.LabelSuite), ContinueOnF
 				Expect(err).ToNot(HaveOccurred(), "Failed to create whereabouts pods")
 
 				By("Getting server IP from pod interface")
+
 				serverIP, err := sriovenv.GetPodIPFromInterface(whereaboutsServer, tsparams.Net1Interface, "ipv6")
 				Expect(err).ToNot(HaveOccurred(), "Failed to get server IP from whereabouts pod")
 
 				By("Running traffic tests with whereabouts IPAM")
+
 				err = sriovenv.RunTrafficTest(whereaboutsClient, serverIP, mtu1280)
 				Expect(err).ToNot(HaveOccurred(), "Traffic tests failed for whereabouts IPAM")
 			})

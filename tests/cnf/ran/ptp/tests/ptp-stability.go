@@ -27,17 +27,21 @@ var _ = Describe("PTP Stability", Label(tsparams.LabelStability), func() {
 
 	BeforeEach(func() {
 		By("creating a Prometheus API client")
+
 		var err error
+
 		prometheusAPI, err = querier.CreatePrometheusAPIForCluster(RANConfig.Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to create Prometheus API client")
 
 		By("ensuring clocks are locked before testing")
+
 		err = metrics.EnsureClocksAreLocked(prometheusAPI)
 		Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
 	})
 
 	AfterEach(func() {
 		By("ensuring clocks are locked after testing")
+
 		err := metrics.EnsureClocksAreLocked(prometheusAPI)
 		Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
 	})
@@ -53,6 +57,7 @@ var _ = Describe("PTP Stability", Label(tsparams.LabelStability), func() {
 		// are expected to be small, so the test is kept sequential to avoid complexity of parallelization.
 		for _, nodeInfo := range nodeInfoMap {
 			By("marking interfaces for nicinfo reporting on node " + nodeInfo.Name)
+
 			for _, profile := range nodeInfo.Profiles {
 				nicinfo.Node(nodeInfo.Name).MarkSeqTested(iface.NamesToStringSeq(maps.Keys(profile.Interfaces)))
 			}
@@ -91,6 +96,7 @@ var _ = Describe("PTP Stability", Label(tsparams.LabelStability), func() {
 				collectionResult.CollectedLineCount, len(collectionResult.Errors))
 
 			By("analyzing collected daemon logs for node " + nodeInfo.Name)
+
 			analysisResult, err := stability.AnalyzeFromFile(
 				collectionResult.TempFilePath, RANConfig.PtpStabilityThreshold)
 			Expect(err).ToNot(HaveOccurred(), "Failed to analyze daemon logs for node %s", nodeInfo.Name)

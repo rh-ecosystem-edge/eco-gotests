@@ -16,7 +16,6 @@ import (
 
 var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 	Context("Hardware Device Detection", func() {
-
 		It("Discovers PCI devices", func() {
 			By("Creating NodeFeatureRule for PCI device discovery")
 
@@ -63,26 +62,31 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 			})
 
 			By("Waiting for PCI device labels to appear")
+
 			err = nfdwait.WaitForLabelsFromRule(APIClient,
 				[]string{"test.feature.node.kubernetes.io/pci-present"},
 				5*time.Minute)
 			Expect(err).NotTo(HaveOccurred(), "PCI device labels not found")
 
 			By("Verifying PCI device labels exist")
+
 			nodelabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
 			Expect(err).NotTo(HaveOccurred())
 
 			labelFound := false
+
 			for nodeName := range nodelabels {
 				if helpers.CheckLabelsExist(nodelabels,
 					[]string{"test.feature.node.kubernetes.io/pci-present"},
 					nil, nodeName) == nil {
 					klog.V(nfdparams.LogLevel).Infof("Node %s has PCI device labels", nodeName)
+
 					labelFound = true
 
 					break
 				}
 			}
+
 			Expect(labelFound).To(BeTrue(), "PCI devices should be detected on at least one node")
 		})
 
@@ -131,6 +135,7 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 			})
 
 			By("Waiting for network device labels")
+
 			err = nfdwait.WaitForLabelsFromRule(APIClient,
 				[]string{"test.feature.node.kubernetes.io/network-present"},
 				3*time.Minute)
@@ -198,6 +203,7 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 			})
 
 			By("Waiting for system feature labels")
+
 			err = nfdwait.WaitForLabelsFromRule(APIClient,
 				[]string{"test.feature.node.kubernetes.io/os-linux",
 					"test.feature.node.kubernetes.io/kernel-detected"},
@@ -205,6 +211,7 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 			Expect(err).NotTo(HaveOccurred(), "System feature labels should always be present")
 
 			By("Verifying system labels exist on all nodes")
+
 			nodelabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
 			Expect(err).NotTo(HaveOccurred())
 

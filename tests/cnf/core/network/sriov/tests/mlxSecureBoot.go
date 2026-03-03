@@ -30,14 +30,17 @@ var _ = Describe("Mellanox Secure Boot", Ordered, Label(tsparams.LabelMlxSecureB
 			workerNodeList           []*nodes.Builder
 			bmcClient                *bmc.BMC
 		)
+
 		BeforeAll(func() {
 			By("Verifying if tests can be executed on given cluster")
+
 			err := netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 1)
 			if err != nil {
 				Skip(fmt.Sprintf("Skipping test - cluster doesn't have enough nodes: %v", err))
 			}
 
 			By("Validating SR-IOV interfaces")
+
 			workerNodeList, err = nodes.List(APIClient,
 				metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
 			Expect(err).ToNot(HaveOccurred(), "Failed to discover worker nodes")
@@ -51,26 +54,31 @@ var _ = Describe("Mellanox Secure Boot", Ordered, Label(tsparams.LabelMlxSecureB
 			Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interface for testing")
 
 			By("Skipping test cases if the SR-IOV device is not Mellanox")
+
 			if !sriovenv.IsMellanoxDevice(sriovInterfacesUnderTest[0], workerNodeList[0].Object.Name) {
 				Skip("Mellanox Secure Boot test cases are supported only on Mellanox devices")
 			}
 
 			By("Collecting information to create a BMC client")
+
 			bmcClient, err = sriovenv.CreateBMCClient()
 			Expect(err).ToNot(HaveOccurred(), "Failed to create BMC client")
 
 			By("Enabling Mellanox firmware and wait for the cluster becomes stable")
+
 			err = sriovenv.ConfigureSriovMlnxFirmwareOnWorkersAndWaitMCP(
 				workerNodeList, sriovInterfacesUnderTest[0], true, totalVFs)
 			Expect(err).ToNot(HaveOccurred(), "Failed to configure Mellanox firmware")
 
 			By("Disabling Mellanox plugin in SriovOperatorConfig")
+
 			sriovOperatorConfig, err := sriov.PullOperatorConfig(APIClient, NetConfig.SriovOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull SR-IOV operator config")
 			_, err = sriovOperatorConfig.WithDisablePlugins([]string{"mellanox"}).Update()
 			Expect(err).ToNot(HaveOccurred(), "Failed to configure disablePlugins to include mellanox")
 
 			By("Enabling secure boot on the worker and reboot the node")
+
 			isSecureBootEnabled, err := bmcClient.IsSecureBootEnabled()
 			Expect(err).ToNot(HaveOccurred(), "Failed to validate if SecureBoot is enabled")
 
@@ -82,6 +90,7 @@ var _ = Describe("Mellanox Secure Boot", Ordered, Label(tsparams.LabelMlxSecureB
 
 		AfterAll(func() {
 			By("Removing SR-IOV configuration")
+
 			sriovOperatorConfig, err := sriov.PullOperatorConfig(APIClient, NetConfig.SriovOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull SR-IOV operator config")
 			_, err = sriovOperatorConfig.RemoveDisablePlugins().Update()
@@ -96,6 +105,7 @@ var _ = Describe("Mellanox Secure Boot", Ordered, Label(tsparams.LabelMlxSecureB
 			Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV configuration")
 
 			By("Disabling secure boot on the worker and reboot the node")
+
 			isSecureBootEnabled, err := bmcClient.IsSecureBootEnabled()
 			Expect(err).ToNot(HaveOccurred(), "Failed to validate if SecureBoot is enabled")
 
@@ -107,6 +117,7 @@ var _ = Describe("Mellanox Secure Boot", Ordered, Label(tsparams.LabelMlxSecureB
 
 		It("End-to-End SR-IOV Configuration and Validation", reportxml.ID("77014"), func() {
 			By("Creating SR-IOV policy")
+
 			const sriovAndResourceNameSecureBoot = "securebootpolicy"
 
 			configDaemonPods, err := pod.List(APIClient, NetConfig.SriovOperatorNamespace, metav1.ListOptions{
@@ -141,6 +152,7 @@ var _ = Describe("Mellanox Secure Boot", Ordered, Label(tsparams.LabelMlxSecureB
 				"The sriov-network-config-daemon pod restarted unexpectedly after applying the SR-IOV configuration")
 
 			By("Creating SR-IOV network")
+
 			sriovNetworkMlxSecureBoot := sriov.NewNetworkBuilder(
 				APIClient, sriovAndResourceNameSecureBoot, NetConfig.SriovOperatorNamespace,
 				tsparams.TestNamespaceName, sriovAndResourceNameSecureBoot).WithStaticIpam().
@@ -151,12 +163,14 @@ var _ = Describe("Mellanox Secure Boot", Ordered, Label(tsparams.LabelMlxSecureB
 				sriovAndResourceNameSecureBoot, err)
 
 			By("Creating test pods and checking connectivity")
+
 			err = sriovenv.CreatePodsAndRunTraffic(workerNodeList[0].Definition.Name, workerNodeList[0].Definition.Name,
 				sriovAndResourceNameSecureBoot, sriovAndResourceNameSecureBoot, "", "",
 				[]string{tsparams.ClientIPv4IPAddress}, []string{tsparams.ServerIPv4IPAddress})
 			Expect(err).ToNot(HaveOccurred(), "Failed to test connectivity between test pods")
 
 			By("Removing SR-IOV node policy")
+
 			err = sriovPolicy.Delete()
 			Expect(err).ToNot(HaveOccurred(), "Failed to delete SR-IOV policy")
 
@@ -166,6 +180,7 @@ var _ = Describe("Mellanox Secure Boot", Ordered, Label(tsparams.LabelMlxSecureB
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for MCP and SR-IOV update")
 
 			By("Validation that totalvfs is still the same after the policy removal")
+
 			sriovNodeState := sriov.NewNetworkNodeStateBuilder(
 				APIClient, workerNodeList[0].Object.Name, NetConfig.SriovOperatorNamespace)
 			err = sriovNodeState.Discover()

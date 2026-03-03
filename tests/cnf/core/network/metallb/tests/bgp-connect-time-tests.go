@@ -33,16 +33,19 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelBGPTestCases), ContinueOnFa
 
 	BeforeEach(func() {
 		By("Creating a new instance of MetalLB Speakers on workers")
+
 		err := metallbenv.CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(tsparams.DefaultTimeout, workerLabelMap)
 		Expect(err).ToNot(HaveOccurred(), "Failed to recreate metalLb daemonset")
 
 		By("Verifying that the frrk8sPod deployment is in Ready state and create a list of the pods on " +
 			"worker nodes.")
+
 		frrk8sPods = verifyAndCreateFRRk8sPodList()
 	})
 
 	AfterEach(func() {
 		By("Cleaning MetalLb operator namespace")
+
 		metalLbNs, err := namespace.Pull(APIClient, NetConfig.MlbOperatorNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Failed to pull metalLb operator namespace")
 		err = metalLbNs.CleanObjects(
@@ -56,6 +59,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelBGPTestCases), ContinueOnFa
 		Expect(err).ToNot(HaveOccurred(), "Failed to remove object's from operator namespace")
 
 		By("Cleaning test namespace")
+
 		err = namespace.NewBuilder(APIClient, tsparams.TestNamespaceName).CleanObjects(
 			tsparams.DefaultTimeout,
 			pod.GetGVR(),
@@ -67,6 +71,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelBGPTestCases), ContinueOnFa
 
 	AfterAll(func() {
 		By("Removing test label from worker nodes")
+
 		if len(cnfWorkerNodeList) > 2 {
 			removeNodeLabel(workerNodeList, metalLbTestsLabel)
 		}
@@ -74,7 +79,6 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelBGPTestCases), ContinueOnFa
 
 	It("Verify configuration of a FRR node router peer with the connectTime less than the default of 120 seconds",
 		reportxml.ID("74414"), func() {
-
 			By("Creating BGP Peers with 10 second retry connect timer")
 			createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, ipv4metalLbIPList[0], "",
 				tsparams.LocalBGPASN, false, 10, frrk8sPods)
@@ -93,8 +97,8 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelBGPTestCases), ContinueOnFa
 
 	It("Verify the retry timers reconnects to a neighbor with a timer connect less then 10s after a BGP tcp reset",
 		reportxml.ID("74416"), func() {
-
 			By("Create an external FRR Pod")
+
 			frrPod := createAndDeployFRRPod()
 
 			By("Creating BGP Peers with 10 second retry connect timer")
@@ -114,6 +118,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelBGPTestCases), ContinueOnFa
 				"Failed to fetch BGP connect time")
 
 			By("Reset the BGP session ")
+
 			err := frr.ResetBGPConnection(frrPod)
 			Expect(err).ToNot(HaveOccurred(), "Failed to reset BGP connection")
 
@@ -123,7 +128,6 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelBGPTestCases), ContinueOnFa
 
 	It("Update the timer to less then the default on an existing BGP connection",
 		reportxml.ID("74417"), func() {
-
 			By("Creating BGP Peers")
 			createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, ipv4metalLbIPList[0], "",
 				tsparams.LocalBGPASN, false, 0, frrk8sPods)
@@ -140,6 +144,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelBGPTestCases), ContinueOnFa
 				"Failed to fetch BGP connect time")
 
 			By("Update the BGP Peers connect timer to 10 seconds")
+
 			bgpPeer, err := metallb.PullBGPPeer(APIClient, tsparams.BgpPeerName1, NetConfig.MlbOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to find bgp peer")
 

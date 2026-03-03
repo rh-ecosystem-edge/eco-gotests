@@ -45,22 +45,25 @@ var _ = BeforeSuite(func() {
 	By("Prepare environment for KMM tests execution")
 
 	By("Create helper ServiceAccount")
+
 	svcAccount, err := serviceaccount.
 		NewBuilder(APIClient, prereqName, kmmparams.KmmOperatorNamespace).Create()
 	Expect(err).ToNot(HaveOccurred(), "error creating serviceaccount")
 
 	By("Create helper ClusterRoleBinding")
+
 	crb := define.ModuleCRB(*svcAccount, prereqName)
 	_, err = crb.Create()
 	Expect(err).ToNot(HaveOccurred(), "error creating clusterrolebinding")
 
 	By("Create helper Deployments")
+
 	nodeList, err := nodes.List(
 		APIClient, metav1.ListOptions{LabelSelector: labels.Set(GeneralConfig.WorkerLabelMap).String()})
-
 	if err != nil {
 		Skip(fmt.Sprintf("Error listing worker nodes. Got error: '%v'", err))
 	}
+
 	for _, node := range nodeList {
 		klog.V(kmmparams.KmmLogLevel).Infof("Creating privileged deployment on node '%v'", node.Object.Name)
 
@@ -83,11 +86,9 @@ var _ = BeforeSuite(func() {
 			WithServiceAccountName("kmm-operator-module-loader")
 
 		_, err = deploymentCfg.CreateAndWaitUntilReady(10 * time.Minute)
-
 		if err != nil {
 			Skip(fmt.Sprintf("Could not create deploymentCfg on %s. Got error : %v", node.Object.Name, err))
 		}
-
 	}
 })
 
@@ -96,14 +97,15 @@ var _ = AfterSuite(func() {
 	klog.V(kmmparams.KmmLogLevel).Infof("Deleting test deployments")
 
 	By("Delete helper deployments")
-	testDeployments, err := deployment.List(APIClient, kmmparams.KmmOperatorNamespace, metav1.ListOptions{})
 
+	testDeployments, err := deployment.List(APIClient, kmmparams.KmmOperatorNamespace, metav1.ListOptions{})
 	if err != nil {
 		Fail(fmt.Sprintf("Error cleaning up environment. Got error: %v", err))
 	}
 
 	for _, deploymentObj := range testDeployments {
 		klog.V(kmmparams.KmmLogLevel).Infof("Deployment: '%s'\n", deploymentObj.Object.Name)
+
 		if strings.Contains(deploymentObj.Object.Name, kmmparams.KmmTestHelperLabelName) {
 			klog.V(kmmparams.KmmLogLevel).Infof("Deleting deployment: '%s'\n", deploymentObj.Object.Name)
 			err = deploymentObj.DeleteAndWait(time.Minute)
@@ -113,6 +115,7 @@ var _ = AfterSuite(func() {
 	}
 
 	By("Delete helper clusterrolebinding")
+
 	svcAccount := serviceaccount.NewBuilder(APIClient, prereqName, kmmparams.KmmOperatorNamespace)
 	svcAccount.Exists()
 
@@ -121,6 +124,7 @@ var _ = AfterSuite(func() {
 	Expect(err).ToNot(HaveOccurred(), "error deleting helper clusterrolebinding")
 
 	By("Delete helper service account")
+
 	err = svcAccount.Delete()
 	Expect(err).ToNot(HaveOccurred(), "error deleting helper serviceaccount")
 })

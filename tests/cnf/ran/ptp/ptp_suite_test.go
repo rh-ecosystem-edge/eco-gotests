@@ -31,23 +31,26 @@ func TestPTP(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	By("checking that the spoke 1 cluster is present")
+
 	isSpoke1Present := rancluster.AreClustersPresent([]*clients.Settings{Spoke1APIClient})
 	Expect(isSpoke1Present).To(BeTrue(), "Spoke 1 cluster must be present for PTP tests")
 
 	By("deploying consumers")
+
 	err := consumer.DeployConsumersOnNodes(RANConfig.Spoke1APIClient)
 	Expect(err).ToNot(HaveOccurred(), "Failed to deploy consumers on nodes with PTP daemons")
 })
 
 var _ = AfterSuite(func() {
 	By("removing consumers")
+
 	err := consumer.CleanupConsumersOnNodes(RANConfig.Spoke1APIClient)
 	Expect(err).ToNot(HaveOccurred(), "Failed to cleanup consumers on nodes with PTP daemons")
 
 	By("cleaning up Prometheus API client resources")
+
 	err = querier.CleanupQuerierResources(RANConfig.Spoke1APIClient)
 	Expect(err).ToNot(HaveOccurred(), "Failed to cleanup Prometheus API client resources")
-
 })
 
 var _ = JustAfterEach(func() {
@@ -60,6 +63,7 @@ var _ = ReportAfterSuite("", func(report Report) {
 	reportxml.Create(report, RANConfig.GetReportPath(), RANConfig.TCPrefix)
 
 	By("generating network interface information report")
+
 	nicinfoReport, err := nicinfo.GenerateReport(RANConfig.Spoke1APIClient)
 	Expect(err).ToNot(HaveOccurred(), "Failed to generate network interface information report")
 

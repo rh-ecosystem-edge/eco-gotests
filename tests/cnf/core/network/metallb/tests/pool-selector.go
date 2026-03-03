@@ -33,6 +33,7 @@ import (
 var _ = Describe("BGP", Ordered, Label("pool-selector"), ContinueOnFailure, func() {
 	BeforeAll(func() {
 		By("Checking if cluster is SNO")
+
 		if IsSNO {
 			Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers")
 		}
@@ -40,6 +41,7 @@ var _ = Describe("BGP", Ordered, Label("pool-selector"), ContinueOnFailure, func
 		validateEnvVarAndGetNodeList()
 
 		By("Creating a new instance of MetalLB Speakers on workers")
+
 		err := metallbenv.CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(tsparams.DefaultTimeout, workerLabelMap)
 		Expect(err).ToNot(HaveOccurred(), "Failed to recreate metalLb daemonset")
 
@@ -58,6 +60,7 @@ var _ = Describe("BGP", Ordered, Label("pool-selector"), ContinueOnFailure, func
 
 	AfterEach(func() {
 		By("Cleaning MetalLb operator namespace")
+
 		metalLbNs, err := namespace.Pull(APIClient, NetConfig.MlbOperatorNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Failed to pull metalLb operator namespace")
 		err = metalLbNs.CleanObjects(
@@ -69,6 +72,7 @@ var _ = Describe("BGP", Ordered, Label("pool-selector"), ContinueOnFailure, func
 		Expect(err).ToNot(HaveOccurred(), "Failed to remove object's from operator namespace")
 
 		By("Cleaning test namespace")
+
 		err = namespace.NewBuilder(APIClient, tsparams.TestNamespaceName).CleanObjects(
 			tsparams.DefaultTimeout,
 			pod.GetGVR(),
@@ -80,7 +84,6 @@ var _ = Describe("BGP", Ordered, Label("pool-selector"), ContinueOnFailure, func
 
 	DescribeTable("Allow single pool to BGP Peers", reportxml.ID("49838"),
 		func(ipStack string, bgpASN int, trafficPolicy string) {
-
 			validateIPFamilySupport(ipStack)
 
 			if ipStack == netparam.DualIPFamily {
@@ -203,11 +206,14 @@ var _ = Describe("BGP", Ordered, Label("pool-selector"), ContinueOnFailure, func
 		validateIPFamilySupport(netparam.DualIPFamily)
 
 		By("Setting up test environment")
+
 		_, extFrrPod, _ := setupTestEnv(netparam.IPV4Family, 32, false)
 
 		By("Pulling IPAddressPool and adding IPv6 address range")
+
 		ipAddressPool, err := metallb.PullAddressPool(APIClient, "address-pool", NetConfig.MlbOperatorNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Failed to pull IPAddressPool")
+
 		ipv6Address := tsparams.LBipRange1[netparam.IPV6Family][0] + "/64"
 		ipAddressPool.Definition.Spec.Addresses = append(ipAddressPool.Definition.Spec.Addresses, ipv6Address)
 		ipAddressPool, err = ipAddressPool.Update(true)
@@ -220,16 +226,19 @@ var _ = Describe("BGP", Ordered, Label("pool-selector"), ContinueOnFailure, func
 		})
 
 		By("Creating 10 IPv4 and 10 IPv6 services using the same IPAddressPool")
+
 		for serviceIndex := 0; serviceIndex < 10; serviceIndex++ {
 			ipv4ServiceName := fmt.Sprintf("%s-%d", tsparams.MetallbServiceName, serviceIndex)
 			setupMetalLbService(ipv4ServiceName, netparam.IPV4Family, tsparams.LabelValue1, ipAddressPool,
 				corev1.ServiceExternalTrafficPolicyTypeCluster)
+
 			ipv6ServiceName := fmt.Sprintf("%s-%d", tsparams.MetallbServiceName2, serviceIndex)
 			setupMetalLbService(ipv6ServiceName, netparam.IPV6Family, tsparams.LabelValue1, ipAddressPool,
 				corev1.ServiceExternalTrafficPolicyTypeCluster)
 		}
 
 		By("Validating the service BGP statuses")
+
 		for serviceIndex := 0; serviceIndex < 10; serviceIndex++ {
 			ipv4ServiceName := fmt.Sprintf("%s-%d", tsparams.MetallbServiceName, serviceIndex)
 			validateServiceBGPStatus(
@@ -237,6 +246,7 @@ var _ = Describe("BGP", Ordered, Label("pool-selector"), ContinueOnFailure, func
 				ipv4ServiceName,
 				tsparams.TestNamespaceName,
 				[]string{tsparams.BgpPeerName1})
+
 			ipv6ServiceName := fmt.Sprintf("%s-%d", tsparams.MetallbServiceName2, serviceIndex)
 			validateServiceBGPStatus(
 				workerNodeList,
@@ -254,6 +264,7 @@ var _ = Describe("BGP", Ordered, Label("pool-selector"), ContinueOnFailure, func
 		})
 
 		By("Curl the nginx pod from the external FRR pod")
+
 		httpOutput, err := mlbcmd.Curl(extFrrPod, ipv4metalLbIPList[0],
 			tsparams.LBipRange1[netparam.IPV4Family][0],
 			netparam.IPV4Family,
@@ -261,6 +272,7 @@ var _ = Describe("BGP", Ordered, Label("pool-selector"), ContinueOnFailure, func
 		Expect(err).ToNot(HaveOccurred(), httpOutput)
 
 		By("Deleting 5 IPv4 services")
+
 		for i := 0; i < 5; i++ {
 			svc, err := service.Pull(APIClient, fmt.Sprintf("%s-%d", tsparams.MetallbServiceName, i), tsparams.TestNamespaceName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull service")

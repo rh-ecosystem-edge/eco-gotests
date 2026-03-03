@@ -28,7 +28,6 @@ import (
 )
 
 var _ = Describe("Multi-NetworkPolicy : Bond CNI", Ordered, Label("bondcnioversriov"), ContinueOnFailure, func() {
-
 	var (
 		sriovInterfacesUnderTest                         []string
 		tNs1, tNs2                                       *namespace.Builder
@@ -44,17 +43,20 @@ var _ = Describe("Multi-NetworkPolicy : Bond CNI", Ordered, Label("bondcnioversr
 
 	BeforeAll(func() {
 		By("Verifying if Multi-NetPolicy tests can be executed on given cluster")
+
 		err := netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 1)
 		if err != nil {
 			Skip(fmt.Sprintf("Skipping test - cluster doesn't have enough nodes: %v", err))
 		}
 
 		By("Listing Worker nodes")
+
 		workerNodeList, err := nodes.List(
 			APIClient, metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
 		Expect(err).ToNot(HaveOccurred(), "Failed to list worker nodes")
 
 		By("Fetching SR-IOV interfaces from ENV VAR")
+
 		sriovInterfacesUnderTest, err = NetConfig.GetSriovInterfaces(2)
 		Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
 
@@ -62,6 +64,7 @@ var _ = Describe("Multi-NetworkPolicy : Bond CNI", Ordered, Label("bondcnioversr
 		enableMultiNetworkPolicy(true)
 
 		By("Deploy Test Resources: 2 Namespaces")
+
 		tNs1, err = namespace.NewBuilder(APIClient, tsparams.MultiNetPolNs1).WithMultipleLabels(params.PrivilegedNSLabels).
 			WithLabel("ns", "ns1").Create()
 		Expect(err).ToNot(HaveOccurred(), "Failed to create test namespace")
@@ -70,6 +73,7 @@ var _ = Describe("Multi-NetworkPolicy : Bond CNI", Ordered, Label("bondcnioversr
 		Expect(err).ToNot(HaveOccurred(), "Failed to create test namespace")
 
 		By("Deploy Test Resources: 2 Sriov Policies")
+
 		_, err = sriov.NewPolicyBuilder(APIClient,
 			"nicpf1", NetConfig.SriovOperatorNamespace, nicPf1, 5,
 			[]string{sriovInterfacesUnderTest[0]}, NetConfig.WorkerLabelMap).
@@ -95,10 +99,12 @@ var _ = Describe("Multi-NetworkPolicy : Bond CNI", Ordered, Label("bondcnioversr
 		Expect(err).ToNot(HaveOccurred(), "Sriov and MCP are not stable")
 
 		By("Deploy Test Resources: 2 NADs for bond CNI")
+
 		testNAD1 = defineAndCreateBondNAD(tsparams.MultiNetPolNs1)
 		testNAD2 = defineAndCreateBondNAD(tsparams.MultiNetPolNs2)
 
 		By("Deploy Test Resources: 5 Pods")
+
 		testPod1 = defineAndCreatePodWithBondIf(pod1, tsparams.MultiNetPolNs1, ns1+nicPf1, ns1+nicPf2,
 			workerNodeList[0].Object.Name, tsparams.TestData)
 		testPod2 = defineAndCreatePodWithBondIf(pod2, tsparams.MultiNetPolNs1, ns1+nicPf1, ns1+nicPf2,
@@ -132,18 +138,21 @@ var _ = Describe("Multi-NetworkPolicy : Bond CNI", Ordered, Label("bondcnioversr
 
 	AfterAll(func() {
 		By("Cleaning up test pods")
+
 		err := tNs1.CleanObjects(2*time.Minute, pod.GetGVR())
 		Expect(err).ToNot(HaveOccurred(), "failed to clean test pods in test namespace")
 		err = tNs2.CleanObjects(2*time.Minute, pod.GetGVR())
 		Expect(err).ToNot(HaveOccurred(), "failed to clean test pods in test namespace")
 
 		By("Cleaning up test NADs")
+
 		err = testNAD1.Delete()
 		Expect(err).ToNot(HaveOccurred(), "failed to clean test NADs in test namespace")
 		err = testNAD2.Delete()
 		Expect(err).ToNot(HaveOccurred(), "failed to clean test NADs in test namespace")
 
 		By("Removing SRIOV configuration and wait for MCP stable")
+
 		err = sriovoperator.RemoveSriovConfigurationAndWaitForSriovAndMCPStable(
 			APIClient,
 			NetConfig.WorkerLabelEnvVar,
@@ -153,6 +162,7 @@ var _ = Describe("Multi-NetworkPolicy : Bond CNI", Ordered, Label("bondcnioversr
 		Expect(err).ToNot(HaveOccurred(), "Failed to remove SRIOV configuration and MCP stable")
 
 		By("Delete test namespace")
+
 		err = tNs1.DeleteAndWait(1 * time.Minute)
 		Expect(err).ToNot(HaveOccurred(), "Failed to delete test namespace")
 		err = tNs2.DeleteAndWait(1 * time.Minute)
@@ -160,8 +170,8 @@ var _ = Describe("Multi-NetworkPolicy : Bond CNI", Ordered, Label("bondcnioversr
 	})
 
 	It("Egress - block all", reportxml.ID("77169"), func() {
-
 		By("Create Multi Network Policy")
+
 		_, err := networkpolicy.NewMultiNetworkPolicyBuilder(APIClient, "egress-deny", tsparams.MultiNetPolNs1).
 			WithNetwork(fmt.Sprintf("%s/bond,%s/bond", tsparams.MultiNetPolNs1, tsparams.MultiNetPolNs2)).
 			WithPodSelector(metav1.LabelSelector{MatchLabels: map[string]string{"app": "pod1"}}).
@@ -188,8 +198,8 @@ var _ = Describe("Multi-NetworkPolicy : Bond CNI", Ordered, Label("bondcnioversr
 	})
 
 	It("Egress - allow all", reportxml.ID("77201"), func() {
-
 		By("Create Multi Network Policy")
+
 		testEgressRule, err := networkpolicy.NewEgressRuleBuilder().GetEgressRuleCfg()
 		Expect(err).ToNot(HaveOccurred(), "egress rule configuration not generated")
 
@@ -220,8 +230,8 @@ var _ = Describe("Multi-NetworkPolicy : Bond CNI", Ordered, Label("bondcnioversr
 	})
 
 	It("Egress - podSelector - NonExistent Label", reportxml.ID("77199"), func() {
-
 		By("Create Multi Network Policy")
+
 		testEgressRule, err := networkpolicy.NewEgressRuleBuilder().
 			WithPeerPodSelector(metav1.LabelSelector{MatchLabels: map[string]string{"app": "none"}}).
 			GetEgressRuleCfg()
@@ -254,8 +264,8 @@ var _ = Describe("Multi-NetworkPolicy : Bond CNI", Ordered, Label("bondcnioversr
 	})
 
 	It("Egress - namespaceSelector - NonExistent Label", reportxml.ID("77197"), func() {
-
 		By("Create Multi Network Policy")
+
 		testEgressRule, err := networkpolicy.NewEgressRuleBuilder().
 			WithPeerNamespaceSelector(metav1.LabelSelector{MatchLabels: map[string]string{"ns": "none"}}).
 			GetEgressRuleCfg()
@@ -288,8 +298,8 @@ var _ = Describe("Multi-NetworkPolicy : Bond CNI", Ordered, Label("bondcnioversr
 	})
 
 	It("Egress - Pod and/or Namespace Selector", reportxml.ID("77204"), func() {
-
 		By("Create Multi Network Policy")
+
 		testEgressRule, err := networkpolicy.NewEgressRuleBuilder().
 			WithPeerPodAndNamespaceSelector(metav1.LabelSelector{MatchLabels: map[string]string{"app": "pod4"}},
 				metav1.LabelSelector{MatchLabels: map[string]string{"ns": "ns2"}}).
@@ -324,8 +334,8 @@ var _ = Describe("Multi-NetworkPolicy : Bond CNI", Ordered, Label("bondcnioversr
 	})
 
 	It("Egress - IPBlock IPv4 and IPv6 and Ports", reportxml.ID("77202"), func() {
-
 		By("Create Multi Network Policy")
+
 		testEgressRule, err := networkpolicy.NewEgressRuleBuilder().
 			WithPortAndProtocol(5001, "TCP").
 			WithCIDR("192.168.10.0/24", []string{"192.168.10.12/32"}).
@@ -362,8 +372,8 @@ var _ = Describe("Multi-NetworkPolicy : Bond CNI", Ordered, Label("bondcnioversr
 	})
 
 	It("Ingress - block all", reportxml.ID("77237"), func() {
-
 		By("Create Multi Network Policy")
+
 		_, err := networkpolicy.NewMultiNetworkPolicyBuilder(APIClient, "ingress-deny", tsparams.MultiNetPolNs1).
 			WithNetwork(fmt.Sprintf("%s/bond,%s/bond", tsparams.MultiNetPolNs1, tsparams.MultiNetPolNs2)).
 			WithPodSelector(metav1.LabelSelector{MatchLabels: map[string]string{"app": "pod1"}}).
@@ -390,8 +400,8 @@ var _ = Describe("Multi-NetworkPolicy : Bond CNI", Ordered, Label("bondcnioversr
 	})
 
 	It("Ingress - allow all", reportxml.ID("77236"), func() {
-
 		By("Create Multi Network Policy")
+
 		testIngressRule, err := networkpolicy.NewIngressRuleBuilder().GetIngressRuleCfg()
 		Expect(err).ToNot(HaveOccurred(), "ingress rule configuration not generated")
 
@@ -422,8 +432,8 @@ var _ = Describe("Multi-NetworkPolicy : Bond CNI", Ordered, Label("bondcnioversr
 	})
 
 	It("Ingress - podSelector - NonExistent Label", reportxml.ID("77233"), func() {
-
 		By("Create Multi Network Policy")
+
 		testIngressRule, err := networkpolicy.NewIngressRuleBuilder().
 			WithPeerPodSelector(metav1.LabelSelector{MatchLabels: map[string]string{"app": "none"}}).
 			GetIngressRuleCfg()
@@ -456,8 +466,8 @@ var _ = Describe("Multi-NetworkPolicy : Bond CNI", Ordered, Label("bondcnioversr
 	})
 
 	It("Ingress - namespaceSelector - NonExistent Label", reportxml.ID("77235"), func() {
-
 		By("Create Multi Network Policy")
+
 		testIngressRule, err := networkpolicy.NewIngressRuleBuilder().
 			WithPeerNamespaceSelector(metav1.LabelSelector{MatchLabels: map[string]string{"ns": "none"}}).
 			GetIngressRuleCfg()
@@ -490,8 +500,8 @@ var _ = Describe("Multi-NetworkPolicy : Bond CNI", Ordered, Label("bondcnioversr
 	})
 
 	It("Ingress - Pod and/or Namespace Selector", reportxml.ID("77242"), func() {
-
 		By("Create Multi Network Policy")
+
 		testIngressRule, err := networkpolicy.NewIngressRuleBuilder().
 			WithPeerPodAndNamespaceSelector(metav1.LabelSelector{MatchLabels: map[string]string{"app": "pod4"}},
 				metav1.LabelSelector{MatchLabels: map[string]string{"ns": "ns2"}}).
@@ -526,8 +536,8 @@ var _ = Describe("Multi-NetworkPolicy : Bond CNI", Ordered, Label("bondcnioversr
 	})
 
 	It("Ingress - IPBlock IPv4 and IPv6 and Ports", reportxml.ID("77238"), func() {
-
 		By("Create Multi Network Policy")
+
 		testIngressRule, err := networkpolicy.NewIngressRuleBuilder().
 			WithPortAndProtocol(5001, "TCP").
 			WithCIDR("192.168.10.0/24", []string{"192.168.10.12/32"}).
@@ -564,8 +574,8 @@ var _ = Describe("Multi-NetworkPolicy : Bond CNI", Ordered, Label("bondcnioversr
 	})
 
 	It("Ingress & Egress - Peer and Ports", reportxml.ID("77469"), func() {
-
 		By("Create Multi Network Policy")
+
 		testEgressRule, err := networkpolicy.NewEgressRuleBuilder().
 			WithPeerPodSelector(metav1.LabelSelector{MatchLabels: map[string]string{"app": "pod2"}}).
 			WithCIDR("2001:0:0:2::/64", []string{"2001:0:0:2::11/128"}).

@@ -31,6 +31,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred(), "Failed to verify that TALM is installed")
 
 	By("deleting and recreating TALM test namespace to ensure a blank slate")
+
 	err = setup.DeleteTalmTestNamespace()
 	Expect(err).ToNot(HaveOccurred(), "Failed to delete TALM test namespace")
 	err = setup.CreateTalmTestNamespace()
