@@ -1,0 +1,65 @@
+interfaces:
+- name: {{ .InterfaceName }}
+  {{- if gt .VLANID 0 }}
+  type: vlan
+  vlan:
+    id: {{ .VLANID }}
+  {{- else }}
+  type: ethernet
+  {{- end }}
+  state: up
+  ipv4:
+    enabled: {{ .IPv4.Enabled }}
+    dhcp: false
+    {{- if .IPv4.Enabled }}
+    address:
+    - ip: {{ .IPv4.Address }}
+      prefix-length: {{ .IPv4.PrefixLen }}
+    {{- end }}
+  ipv6:
+    enabled: {{ .IPv6.Enabled }}
+    dhcp: false
+    autoconf: false
+    {{- if .IPv6.Enabled }}
+    address:
+    - ip: {{ .IPv6.Address }}
+      prefix-length: {{ .IPv6.PrefixLen }}
+    {{- end }}
+{{- if or .IPv4.DesiredGateway .IPv6.DesiredGateway .IPv4.CurrentGateway .IPv6.CurrentGateway }}
+routes:
+  config:
+  {{- if .IPv4.CurrentGateway }}
+  - destination: 0.0.0.0/0
+    next-hop-interface: {{ .InterfaceName }}
+    next-hop-address: {{ .IPv4.CurrentGateway }}
+    state: absent
+  {{- end }}
+  {{- if .IPv6.CurrentGateway }}
+  - destination: ::/0
+    next-hop-interface: {{ .InterfaceName }}
+    next-hop-address: {{ .IPv6.CurrentGateway }}
+    state: absent
+  {{- end }}
+  {{- if .IPv4.DesiredGateway }}
+  - destination: 0.0.0.0/0
+    next-hop-interface: {{ .InterfaceName }}
+    next-hop-address: {{ .IPv4.DesiredGateway }}
+    metric: 48
+    table-id: 254
+  {{- end }}
+  {{- if .IPv6.DesiredGateway }}
+  - destination: ::/0
+    next-hop-interface: {{ .InterfaceName }}
+    next-hop-address: {{ .IPv6.DesiredGateway }}
+    metric: 48
+    table-id: 254
+  {{- end }}
+{{- end }}
+{{- if gt (len .DNSServers) 0 }}
+dns-resolver:
+  config:
+    server:
+    {{- range .DNSServers }}
+    - {{ . }}
+    {{- end }}
+{{- end }}

@@ -3,7 +3,7 @@ package console
 import (
 	"fmt"
 
-	"k8s.io/utils/strings/slices"
+	"slices"
 
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 

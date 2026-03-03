@@ -17,6 +17,10 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/vcore/internal/vcoreparams"
 )
 
+// CgroupModeV1 is the same as the old constant from configv1, which was removed in 4.21. This is added for backward
+// compatibility.
+const CgroupModeV1 = "v1"
+
 // VerifyCGroupDefault container that contains tests for cgroup verification.
 func VerifyCGroupDefault() {
 	Describe(
@@ -41,7 +45,7 @@ func VerifyCGroupV2IsADefault(ctx SpecContext) {
 
 	cgroupMode, err := nodesConfigObj.GetCGroupMode()
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to get cluster cgroup mode due to %v", err))
-	Expect(cgroupMode).ToNot(Equal(configv1.CgroupModeV1), "wrong cgroup mode default found, v1 instead of v2")
+	Expect(cgroupMode).ToNot(Equal(CgroupModeV1), "wrong cgroup mode default found, v1 instead of v2")
 
 	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify actual cgroup version configured for the nodes")
 
@@ -66,9 +70,9 @@ func VerifyCGroupV2IsADefault(ctx SpecContext) {
 func VerifySwitchBetweenCGroupVersions(ctx SpecContext) {
 	klog.V(vcoreparams.VCoreLogLevel).Infof("Verify that the cluster can be moved to the cgroupv1 and back")
 
-	err := cgroup.SetLinuxCGroupVersion(APIClient, configv1.CgroupModeV1)
+	err := cgroup.SetLinuxCGroupVersion(APIClient, CgroupModeV1)
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("failed to change cluster cgroup mode to the %v due to %v",
-		configv1.CgroupModeV1, err))
+		CgroupModeV1, err))
 
 	klog.V(vcoreparams.VCoreLogLevel).Infof("For the vCore test run cgroup version will stay to be configured " +
 		"to the v1 because cpu load balancing not supported on cgroupv2")

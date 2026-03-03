@@ -5,9 +5,10 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
+	"slices"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/strings/slices"
 )
 
 var (

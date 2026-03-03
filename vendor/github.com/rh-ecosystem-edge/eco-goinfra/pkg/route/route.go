@@ -3,6 +3,8 @@ package route
 import (
 	"fmt"
 
+	"slices"
+
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
@@ -11,7 +13,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/strings/slices"
 
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )

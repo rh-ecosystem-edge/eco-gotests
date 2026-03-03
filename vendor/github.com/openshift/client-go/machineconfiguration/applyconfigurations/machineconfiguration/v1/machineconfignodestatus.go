@@ -12,8 +12,10 @@ type MachineConfigNodeStatusApplyConfiguration struct {
 	Conditions            []metav1.ConditionApplyConfiguration                           `json:"conditions,omitempty"`
 	ObservedGeneration    *int64                                                         `json:"observedGeneration,omitempty"`
 	ConfigVersion         *MachineConfigNodeStatusMachineConfigVersionApplyConfiguration `json:"configVersion,omitempty"`
+	ConfigImage           *MachineConfigNodeStatusConfigImageApplyConfiguration          `json:"configImage,omitempty"`
 	PinnedImageSets       []MachineConfigNodeStatusPinnedImageSetApplyConfiguration      `json:"pinnedImageSets,omitempty"`
 	IrreconcilableChanges []IrreconcilableChangeDiffApplyConfiguration                   `json:"irreconcilableChanges,omitempty"`
+	InternalReleaseImage  *MachineConfigNodeStatusInternalReleaseImageApplyConfiguration `json:"internalReleaseImage,omitempty"`
 }
 
 // MachineConfigNodeStatusApplyConfiguration constructs a declarative configuration of the MachineConfigNodeStatus type for use with
@@ -51,6 +53,14 @@ func (b *MachineConfigNodeStatusApplyConfiguration) WithConfigVersion(value *Mac
 	return b
 }
 
+// WithConfigImage sets the ConfigImage field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the ConfigImage field is set to the value of the last call.
+func (b *MachineConfigNodeStatusApplyConfiguration) WithConfigImage(value *MachineConfigNodeStatusConfigImageApplyConfiguration) *MachineConfigNodeStatusApplyConfiguration {
+	b.ConfigImage = value
+	return b
+}
+
 // WithPinnedImageSets adds the given value to the PinnedImageSets field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, values provided by each call will be appended to the PinnedImageSets field.
@@ -74,5 +84,13 @@ func (b *MachineConfigNodeStatusApplyConfiguration) WithIrreconcilableChanges(va
 		}
 		b.IrreconcilableChanges = append(b.IrreconcilableChanges, *values[i])
 	}
+	return b
+}
+
+// WithInternalReleaseImage sets the InternalReleaseImage field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the InternalReleaseImage field is set to the value of the last call.
+func (b *MachineConfigNodeStatusApplyConfiguration) WithInternalReleaseImage(value *MachineConfigNodeStatusInternalReleaseImageApplyConfiguration) *MachineConfigNodeStatusApplyConfiguration {
+	b.InternalReleaseImage = value
 	return b
 }

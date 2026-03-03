@@ -15,6 +15,9 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodesconfig"
 )
 
+// CgroupModeV1 is retained for release-4.21 backward compatibility.
+const CgroupModeV1 = "v1"
+
 var nodesConfigResourceName = "cluster"
 
 // GetNodeLinuxCGroupVersion returns node Linux cgroup version value.
@@ -52,7 +55,7 @@ func GetNodeLinuxCGroupVersion(apiClient *clients.Settings, nodeName string) (co
 	case "cgroup2fs":
 		result = configv1.CgroupModeV2
 	case "tmpfs":
-		result = configv1.CgroupModeV1
+		result = CgroupModeV1
 	default:
 		return "", fmt.Errorf("failed to parse response received from the node %s: '%v'", nodeName, output)
 	}

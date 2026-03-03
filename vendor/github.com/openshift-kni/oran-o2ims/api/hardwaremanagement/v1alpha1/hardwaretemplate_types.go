@@ -10,14 +10,25 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// Node role constants
+// The kubebuilder validation enum values for NodeGroupData.Role must match these values.
+const (
+	NodeRoleMaster = "master"
+	NodeRoleWorker = "worker"
+)
+
 // NodeGroupData provides the necessary information for populating a node allocation request
 type NodeGroupData struct {
 	// +kubebuilder:validation:MinLength=1
 	Name string `json:"name"`
 	// +kubebuilder:validation:Enum=master;worker
 	Role string `json:"role"`
-	// +kubebuilder:validation:MinLength=1
-	HwProfile string `json:"hwProfile"`
+	// HwProfile is the name of the HardwareProfile to use for this node group.
+	// The HardwareProfile must be set here or in the ProvisioningRequest templateParameters
+	// as hwTemplateParameters.nodeGroupData.<name>.hwProfile, which overrides the value set
+	// in the template.
+	// +optional
+	HwProfile string `json:"hwProfile,omitempty"`
 	// ResourcePoolId is the identifier for the Resource Pool in the hardware manager instance.
 	// +optional
 	ResourcePoolId string `json:"resourcePoolId,omitempty"`
@@ -34,9 +45,11 @@ type HardwareTemplateSpec struct {
 	HardwarePluginRef string `json:"hardwarePluginRef"`
 
 	// BootInterfaceLabel is the label of the boot interface.
-	// +kubebuilder:validation:MinLength=1
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Boot Interface Label",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
-	BootInterfaceLabel string `json:"bootInterfaceLabel"`
+	// Deprecated: This field is deprecated and will be ignored. The boot interface label is now fixed as "boot-interface".
+	// +optional
+	// +kubebuilder:validation:Optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Boot Interface Label (Deprecated)",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	BootInterfaceLabel string `json:"bootInterfaceLabel,omitempty"`
 
 	// HardwareProvisioningTimeout defines the timeout duration string for the hardware provisioning.
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Hardware Provisioning Timeout",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}

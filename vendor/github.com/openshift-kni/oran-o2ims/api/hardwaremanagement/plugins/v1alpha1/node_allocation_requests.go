@@ -12,10 +12,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	BootInterfaceLabelAnnotation = "clcm.openshift.io/boot-interface-label"
-)
-
 // LocationSpec is the geographical location of the requested node.
 type LocationSpec struct {
 	// Location
@@ -80,15 +76,23 @@ type NodeAllocationRequestSpec struct {
 	ConfigTransactionId int64 `json:"configTransactionId"`
 
 	// BootInterfaceLabel is the label of the boot interface.
-	// +kubebuilder:validation:MinLength=1
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Boot Interface Label",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
-	BootInterfaceLabel string `json:"bootInterfaceLabel"`
+	// Deprecated: This field is deprecated and will be ignored. The boot interface label is now fixed as "boot-interface".
+	// +optional
+	// +kubebuilder:validation:Optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Boot Interface Label (Deprecated)",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	BootInterfaceLabel string `json:"bootInterfaceLabel,omitempty"`
 
 	// Callback defines the configuration for receiving notifications when the NodeAllocationRequest
 	// operation is completed or fails. If not specified, no callback will be made.
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Callback Configuration"
 	Callback *Callback `json:"callback,omitempty"`
+
+	// HardwareProvisioningTimeout defines the timeout duration string for the hardware provisioning.
+	// If not specified, the default timeout value will be applied.
+	// +optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Hardware Provisioning Timeout",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	HardwareProvisioningTimeout string `json:"hardwareProvisioningTimeout,omitempty"`
 }
 
 type NodeGroup struct {
@@ -127,6 +131,11 @@ type NodeAllocationRequestStatus struct {
 
 	//+operator-sdk:csv:customresourcedefinitions:type=status
 	SelectedGroups map[string]string `json:"selectedGroups,omitempty"`
+
+	// HardwareOperationStartTime tracks when the current hardware operation (provisioning or configuration) actually started.
+	// This timestamp is used for timeout calculations. The active operation is determined from the conditions.
+	//+operator-sdk:csv:customresourcedefinitions:type=status
+	HardwareOperationStartTime *metav1.Time `json:"hardwareOperationStartTime,omitempty"`
 }
 
 // NodeAllocationRequest is the schema for an allocation request of nodes

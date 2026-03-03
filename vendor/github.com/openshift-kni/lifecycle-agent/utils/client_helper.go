@@ -8,12 +8,15 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"time"
 
 	"github.com/samber/lo"
+	"github.com/sirupsen/logrus"
 
 	"github.com/openshift-kni/lifecycle-agent/api/seedreconfig"
 	"github.com/openshift-kni/lifecycle-agent/internal/common"
 	ocp_config_v1 "github.com/openshift/api/config/v1"
+	v1 "github.com/openshift/api/config/v1"
 	mcv1 "github.com/openshift/api/machineconfiguration/v1"
 	operatorv1alpha1 "github.com/openshift/api/operator/v1alpha1"
 
@@ -22,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -460,4 +464,108 @@ func getClusterNetworks(ctx context.Context, client runtimeclient.Client) ([]str
 	}
 
 	return clusterNetworks, network.Status.ServiceNetwork, nil
+}
+
+func GetInstallConfig(ctx context.Context, client runtimeclient.Reader) (string, error) {
+	if client == nil {
+		return "", fmt.Errorf("runtime client not available")
+	}
+
+	configMap := &corev1.ConfigMap{}
+	err := client.Get(ctx, runtimeclient.ObjectKey{Name: "cluster-config-v1", Namespace: "kube-system"}, configMap)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch cluster-config-v1 ConfigMap: %w", err)
+	}
+
+	installConfig, exists := configMap.Data["install-config"]
+	if !exists {
+		return "", fmt.Errorf("install-config not found in cluster-config-v1 ConfigMap")
+	}
+
+	return installConfig, nil
+}
+
+// getLocalNodeName returns the current node's name from the hostname.
+func GetLocalNodeName(ctx context.Context, client client.Reader) (string, error) {
+	nodeList := &corev1.NodeList{}
+	if err := client.List(ctx, nodeList); err != nil {
+		return "", fmt.Errorf("failed to list nodes: %w", err)
+	}
+
+	if len(nodeList.Items) != 1 {
+		return "", fmt.Errorf("expected exactly one node, got %d", len(nodeList.Items))
+	}
+
+	return nodeList.Items[0].Name, nil
+}
+
+func GetNodeInternalIPs(ctx context.Context, client client.Reader) ([]string, error) {
+	nodeName, err := GetLocalNodeName(ctx, client)
+	if err != nil {
+		return nil, err
+	}
+
+	node := &corev1.Node{}
+	if err := client.Get(ctx, types.NamespacedName{Name: nodeName}, node); err != nil {
+		return nil, fmt.Errorf("failed to get node %s: %w", nodeName, err)
+	}
+
+	var ips []string
+	for _, addr := range node.Status.Addresses {
+		if addr.Type == corev1.NodeInternalIP {
+			ips = append(ips, addr.Address)
+		}
+	}
+
+	if len(ips) == 0 {
+		return nil, fmt.Errorf("failed to find node internal ip addresses")
+	}
+
+	return ips, nil
+}
+
+// installConfigSubset captures only the fields we need from install-config
+type installConfigSubset struct {
+	Networking struct {
+		MachineNetwork []struct {
+			CIDR string `yaml:"cidr"`
+		} `yaml:"machineNetwork"`
+	} `yaml:"networking"`
+}
+
+func GetMachineNetworks(ctx context.Context, client runtimeclient.Reader) ([]string, error) {
+	installConfig, err := GetInstallConfig(ctx, client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get install config: %w", err)
+	}
+
+	var ic installConfigSubset
+	if err := yaml.Unmarshal([]byte(installConfig), &ic); err != nil {
+		return nil, fmt.Errorf("failed to parse install-config yaml: %w", err)
+	}
+
+	var machineNetworks []string
+	for _, mn := range ic.Networking.MachineNetwork {
+		if mn.CIDR != "" {
+			machineNetworks = append(machineNetworks, mn.CIDR)
+		}
+	}
+
+	if len(machineNetworks) == 0 {
+		return nil, fmt.Errorf("no machine networks found in install config")
+	}
+
+	return machineNetworks, nil
+}
+
+func WaitForApi(ctx context.Context, client runtimeclient.Client, log *logrus.Logger) {
+	log.Info("Start waiting for api")
+	_ = wait.PollUntilContextCancel(ctx, time.Second, true, func(ctx context.Context) (done bool, err error) {
+		log.Info("waiting for api")
+		nodes := &v1.NodeList{}
+		if err = client.List(ctx, nodes); err == nil {
+			return true, nil
+		}
+		return false, nil
+	})
 }

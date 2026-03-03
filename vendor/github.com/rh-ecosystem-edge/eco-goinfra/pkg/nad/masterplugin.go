@@ -3,9 +3,10 @@ package nad
 import (
 	"fmt"
 
+	"slices"
+
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/strings/slices"
 )
 
 var (
