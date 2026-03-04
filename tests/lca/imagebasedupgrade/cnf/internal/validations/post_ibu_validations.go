@@ -123,7 +123,8 @@ func ValidateClusterID() {
 
 // ValidatePodsSeedName check if no pods are using seed's name after upgrade.
 func ValidatePodsSeedName() {
-	It("Validate no pods using seed name", reportxml.ID("71389"), Label("ValidatePodsSeedName"), func() {
+	It("Validate no pods using seed name", reportxml.ID("71389"), Label("ValidatePodsSeedName",
+		"ValidateSeedReferences"), func() {
 		By("Validate no pods are using seed's name", func() {
 			podList, err := pod.ListInAllNamespaces(TargetSNOAPIClient, metav1.ListOptions{})
 			Expect(err).ToNot(HaveOccurred(), "Failed to list pods")
@@ -170,7 +171,8 @@ func ValidateOperatorRollouts() {
 
 // ValidateClusterHostname check if cluster hostname is updated after upgrade.
 func ValidateClusterHostname() {
-	It("Validate upgraded cluster hostname", reportxml.ID("71390"), Label("ValidateHostName"), func() {
+	It("Validate upgraded cluster hostname", reportxml.ID("71390"), Label("ValidateHostName",
+		"ValidateSeedReferences"), func() {
 		By("Validate upgraded cluster hostname", func() {
 			hostnameCmd := "cat /etc/hostname"
 			hostnameRes, err := cluster.ExecCmdWithStdout(TargetSNOAPIClient, hostnameCmd)
@@ -219,7 +221,8 @@ func ValidateNetworkConfig() {
 
 // ValidateSeedHostnameRefLogs check if no seed hostname references are present in pod logs.
 func ValidateSeedHostnameRefLogs() {
-	It("Validate no seed hostname references in pod logs", reportxml.ID("71392"), Label("ValidateSeedRefPodLogs"), func() {
+	It("Validate no seed hostname references in pod logs", reportxml.ID("71392"), Label("ValidateSeedRefPodLogs",
+		"ValidateSeedReferences"), func() {
 		By("Validate no seed hostname references in pod logs", func() {
 			// Seed refs from garbage-collector-controller are expected during IBU; exclude them from this check.
 			logCmd := fmt.Sprintf(
@@ -335,7 +338,8 @@ func ValidateNoImagesPulled() {
 
 // ValidateSeedRefMetrics check if no seed references are present in the exported metrics.
 func ValidateSeedRefMetrics() {
-	It("Validate no seed references in the exported metrics", reportxml.ID("71397"), Label("ValidateMetrics"), func() {
+	It("Validate no seed references in the exported metrics", reportxml.ID("71397"), Label("ValidateMetrics",
+		"ValidateSeedReferences"), func() {
 		By("Validate no seed references in the exported metrics", func() {
 			promPod, err := pod.ListByNamePattern(TargetSNOAPIClient, "prometheus-k8s", "openshift-monitoring")
 			Expect(err).ToNot(HaveOccurred(), "Failed to get prometheus pod")
@@ -354,7 +358,8 @@ func ValidateSeedRefMetrics() {
 
 // ValidateSeedRefLogs check if no seed references are present in the exported logs.
 func ValidateSeedRefLogs() {
-	It("Validate no seed references in the exported logs", reportxml.ID("71398"), Label("ValidateLogs"), func() {
+	It("Validate no seed references in the exported logs", reportxml.ID("71398"), Label("ValidateLogs",
+		"ValidateSeedReferences"), func() {
 		By("Validate no seed references in the exported logs", func() {
 			deployContainer := pod.NewContainerBuilder("kcat",
 				CNFConfig.IbuKcatImage, []string{"sleep", "86400"})
