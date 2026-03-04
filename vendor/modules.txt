@@ -2255,7 +2255,6 @@ k8s.io/utils/internal/third_party/forked/golang/net
 k8s.io/utils/lru
 k8s.io/utils/net
 k8s.io/utils/ptr
-k8s.io/utils/strings/slices
 k8s.io/utils/trace
 # knative.dev/pkg v0.0.0-20260104220430-51874fe86fcb
 ## explicit; go 1.24.0
