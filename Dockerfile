@@ -15,7 +15,7 @@ FROM registry.access.redhat.com/ubi9/ubi:latest
 COPY --from=fetcher /usr/local/go /usr/local/go
 
 ARG GO_VER=go1.26.0
-ARG GINKGO_VER=ginkgo@v2.27.2
+ARG GINKGO_VER=ginkgo@v2.28.1
 ARG CONTAINERUSER=testuser
 
 LABEL description="eco-gotests development image"
