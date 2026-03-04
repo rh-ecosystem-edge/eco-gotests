@@ -7,6 +7,7 @@ import (
 	imageregistryv1 "github.com/openshift/api/imageregistry/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/argocd/argocdoperator"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/argocd/argocdtypes/v1alpha1"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ocm/clusterv1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ocm/kacv1"
 	siteconfigv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/siteconfig/v1alpha1"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
@@ -42,6 +43,7 @@ var (
 	ReporterHubCRsToDump = []k8sreporter.CRData{
 		{Cr: &corev1.NamespaceList{}},
 		{Cr: &corev1.PodList{}},
+		{Cr: &clusterv1.ManagedClusterList{}},
 		{Cr: &policiesv1.PolicyList{}},
 		{Cr: &placementrulev1.PlacementRuleList{}, Namespace: ptr.To(TestNamespace)},
 		{Cr: &cguv1alpha1.ClusterGroupUpgradeList{}},
