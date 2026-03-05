@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -18,10 +19,12 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/consumer"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/daemonlogs"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/events"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/gnss"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/metrics"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/processes"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/profiles"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/ptpdaemon"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
 	"k8s.io/klog/v2"
 )
@@ -398,6 +401,97 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 				}
 			})
 	})
+
+	Context("sidecar container recovery", func() {
+		// 84297 - should verify events are logged during sidecar recovery
+		FIt("should verify events are logged during sidecar recovery", reportxml.ID("84297"), func() {
+			testRanAtLeastOnce := false
+
+			nodeInfoMap, err := profiles.GetNodeInfoMap(RANConfig.Spoke1APIClient)
+			Expect(err).ToNot(HaveOccurred(), "Failed to get node info map")
+
+			for _, nodeInfo := range nodeInfoMap {
+				if nodeInfo.Counts[profiles.ProfileTypeMultiNICGM] == 0 &&
+					nodeInfo.Counts[profiles.ProfileTypeGM] == 0 {
+					klog.V(tsparams.LogLevel).Infof("Skipping test for node %s. Test does not support GM profiles", nodeInfo.Name)
+
+					continue
+				}
+
+				testRanAtLeastOnce = true
+
+				gmProfiles := nodeInfo.GetProfilesByTypes(profiles.ProfileTypeGM, profiles.ProfileTypeMultiNICGM)
+				Expect(gmProfiles).ToNot(BeEmpty(), "No GM profile found for node %s", nodeInfo.Name)
+
+				gmProfile, err := gmProfiles[0].PullProfile(RANConfig.Spoke1APIClient)
+				Expect(err).ToNot(HaveOccurred(), "Failed to pull GM profile for node %s", nodeInfo.Name)
+
+				protocolVersion, err := gnss.GetUbloxProtocolVersion(gmProfile)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get u-blox protocol version for node %s", nodeInfo.Name)
+
+				By("restarting sidecar container in linuxptp-daemon")
+
+				sidecarRestartTime := time.Now()
+
+				killCommand := fmt.Sprintf("pkill %s", processes.CloudEventProxy)
+
+				_, err = ptpdaemon.ExecuteCommandInPtpDaemonPod(RANConfig.Spoke1APIClient,
+					nodeInfo.Name,
+					killCommand,
+					ptpdaemon.WithContainerName(ranparam.CloudEventProxyContainerName), ptpdaemon.WithRetries(3))
+				Expect(err).ToNot(HaveOccurred(), "Failed to kill cloud-event-proxy process on node %s", nodeInfo.Name)
+
+				protocolVer := protocolVersion
+				nodeName := nodeInfo.Name
+
+				By("simulating GNSS lost to generate events while sidecar is recovering")
+				DeferCleanup(func() {
+					_ = gnss.SimulateSyncRecovery(RANConfig.Spoke1APIClient, nodeName, protocolVer)
+				})
+
+				gpsRebootTime := time.Now()
+				err = gnss.SimulateSyncLoss(RANConfig.Spoke1APIClient, nodeInfo.Name, protocolVersion)
+				Expect(err).ToNot(HaveOccurred(), "Failed to simulate GNSS sync loss for node %s", nodeInfo.Name)
+
+				By("restore GNSS via node " + nodeInfo.Name)
+				err = gnss.SimulateSyncRecovery(RANConfig.Spoke1APIClient, nodeInfo.Name, protocolVersion)
+				Expect(err).ToNot(HaveOccurred(), "Failed to restore GNSS sync for node %s", nodeInfo.Name)
+
+				eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeInfo.Name)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get event pod for node %s", nodeInfo.Name)
+
+				timeout := 3 * time.Minute
+
+				By("waiting for GNSS sync event to confirm recovery")
+
+				gnssSyncFilter := events.All(
+					events.IsType(eventptp.GnssStateChange),
+					events.HasValue(events.WithSyncState(eventptp.SYNCHRONIZED)),
+				)
+				err = events.WaitForEvent(
+					eventPod, gpsRebootTime, timeout, gnssSyncFilter, events.WithoutCurrentState(true))
+				Expect(err).ToNot(HaveOccurred(), "Failed to wait for GNSS sync event on node %s", nodeInfo.Name)
+
+				By("waiting for clock class change to 6 event after sidecar restart")
+
+				clockClass6Filter := events.All(
+					events.IsType(eventptp.PtpClockClassChange),
+					events.HasValue(
+						events.WithMetric(6),
+						events.ContainingResource(string(iface.Master)),
+					),
+				)
+				err = events.WaitForEvent(
+					eventPod, sidecarRestartTime, timeout, clockClass6Filter, events.WithoutCurrentState(true))
+				Expect(err).ToNot(HaveOccurred(), "Failed to wait for clock class 6 event on node %s", nodeInfo.Name)
+			}
+
+			if !testRanAtLeastOnce {
+				Skip("Test requires Grandmaster configuration")
+			}
+		})
+	})
+
 	It("Validates T-GM config ptp4l process recover after restart that process", reportxml.ID("59864"), func() {
 		testRanAtLeastOnce := false
 		nodeInfoMap, err := profiles.GetNodeInfoMap(RANConfig.Spoke1APIClient)
