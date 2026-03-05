@@ -18,6 +18,7 @@ type execCommandOptions struct {
 	retryOnError       bool
 	retryOnEmptyOutput bool
 	retryDelay         time.Duration
+	containerName      string
 }
 
 // ExecCommandOption is a function type that can be used to set the options for the execCommand function. It should not
@@ -53,6 +54,19 @@ func WithRetryDelay(retryDelay time.Duration) ExecCommandOption {
 	}
 }
 
+// WithContainerName sets the container name to execute the command in. It defaults to linuxptp-daemon-container.
+func WithContainerName(containerName string) ExecCommandOption {
+	if containerName == "" {
+		return func(o *execCommandOptions) {
+			o.containerName = ranparam.PtpContainerName
+		}
+	}
+
+	return func(o *execCommandOptions) {
+		o.containerName = containerName
+	}
+}
+
 // ExecuteCommandInPtpDaemonPod executes a command in the PTP daemon pod running on the specified node, optionally with
 // the provided options. Note that retries will lookup the PTP daemon pod on each retry to account for the pod being
 // deleted and recreated.
@@ -63,6 +77,7 @@ func ExecuteCommandInPtpDaemonPod(
 		retryOnError:       false,
 		retryOnEmptyOutput: false,
 		retryDelay:         time.Minute,
+		containerName:      ranparam.PtpContainerName,
 	}
 
 	for _, option := range options {
@@ -87,7 +102,7 @@ func ExecuteCommandInPtpDaemonPod(
 
 		// If there is the option to retry on error, we only log the error before continuing to retry.
 		// Otherwise, we return the error immediately since we do not retry on it.
-		output, err := daemonPod.ExecCommand([]string{"sh", "-c", command}, ranparam.PtpContainerName)
+		output, err := daemonPod.ExecCommand([]string{"sh", "-c", command}, execOptions.containerName)
 		if execOptions.retryOnError && err != nil {
 			klog.V(tsparams.LogLevel).Infof("Failed to execute command %q in PTP daemon pod on node %s\nerror: %v\noutput: %s",
 				command, nodeName, err, output.String())

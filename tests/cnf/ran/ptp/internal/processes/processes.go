@@ -29,6 +29,8 @@ const (
 	Ts2phc PtpProcess = "ts2phc"
 	// Gpsd represents the gpsd process, which is what receives time from a GNSS receiver and sends it to the system clock.
 	Gpsd PtpProcess = "gpsd"
+	// CloudEventProxy represents the cloud-event-proxy process.
+	CloudEventProxy PtpProcess = "cloud-event-pro"
 )
 
 // ptpProcessRegex is a regular expression that matches the name of any socket or config file in the ptp daemon pod. It
