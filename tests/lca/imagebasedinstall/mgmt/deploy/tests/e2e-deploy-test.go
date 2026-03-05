@@ -85,6 +85,33 @@ var _ = Describe(
 				createSiteConfigResouces(dualstackPrimaryv4AddrFamily)
 			})
 
+		It("through IBI operator is successful in a primary IPv6 dual-stack with static networking",
+			reportxml.ID("no-testcase"), func() {
+				if !isDualStack() {
+					Skip("Cluster is not deployed with dual-stack")
+				}
+
+				if !MGMTConfig.StaticNetworking {
+					Skip("Cluster is deployed without static networking")
+				}
+
+				if MGMTConfig.SiteConfig {
+					Skip("Cluster is deployed with siteconfig operator")
+				}
+
+				if MGMTConfig.SeedClusterInfo.Proxy.HTTPProxy != "" || MGMTConfig.SeedClusterInfo.Proxy.HTTPSProxy != "" {
+					Skip("Cluster installed with proxy")
+				}
+
+				if MGMTConfig.Cluster.Info.PrimaryIPFamily != ipv6AddrFamily {
+					Skip("Cluster is not deployed with dual-stack primary IPv6")
+				}
+
+				tsparams.ReporterNamespacesToDump[MGMTConfig.Cluster.Info.ClusterName] = reporterNamespaceToDump
+
+				createSiteConfigResouces(dualstackPrimaryv6AddrFamily)
+			})
+
 		It("through siteconfig operator is successful in a primary IPv4 dual-stack "+
 			"proxy-enabled environment with DHCP networking",
 			reportxml.ID("76642"), func() {
