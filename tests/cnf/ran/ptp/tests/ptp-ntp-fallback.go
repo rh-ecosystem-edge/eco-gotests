@@ -232,11 +232,11 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 
 		By("skipping if the PTP version is not supported")
 
-		inRange, err := version.IsVersionStringInRange(RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.20", "")
+		inRange, err := version.IsVersionStringInRange(RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.19", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to check PTP version range")
 
 		if !inRange {
-			Skip("ntpfailover offset spike is only supported for PTP version 4.20 and higher")
+			Skip("ntpfailover offset spike is only supported for PTP version 4.19 and higher")
 		}
 
 		testActuallyRan := false
