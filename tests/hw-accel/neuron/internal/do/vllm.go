@@ -431,9 +431,10 @@ func ExecuteInferenceFromCluster(apiClient *clients.Settings, config InferenceCo
 		} else {
 			lastErr = execErr
 		}
+
 		klog.V(params.NeuronLogLevel).Infof(
 			"Inference attempt failed (model may still be compiling), retrying in %v: %v",
-			retryInterval, execErr)
+			retryInterval, lastErr)
 
 		select {
 		case <-ctx.Done():
