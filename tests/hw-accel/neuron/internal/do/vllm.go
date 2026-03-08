@@ -346,10 +346,16 @@ func executeInPod(ctx context.Context, apiClient *clients.Settings,
 }
 
 // extractInferenceContent parses the chat completions response and extracts content.
+// Returns an error if the response is not valid JSON, contains a top-level error field,
+// or is missing the expected choices[0].message.content path.
 func extractInferenceContent(response string) (string, error) {
 	var result map[string]interface{}
 	if err := json.Unmarshal([]byte(response), &result); err != nil {
 		return "", fmt.Errorf("failed to decode response: %w, raw: %s", err, response)
+	}
+
+	if errMsg, ok := result["error"]; ok {
+		return "", fmt.Errorf("inference returned error: %v", errMsg)
 	}
 
 	if choices, ok := result["choices"].([]interface{}); ok && len(choices) > 0 {
@@ -362,7 +368,7 @@ func extractInferenceContent(response string) (string, error) {
 		}
 	}
 
-	return fmt.Sprintf("%v", result), nil
+	return "", fmt.Errorf("response missing choices[0].message.content: %s", response)
 }
 
 // ExecuteInferenceFromCluster executes an inference request from within the cluster.
@@ -416,10 +422,15 @@ func ExecuteInferenceFromCluster(apiClient *clients.Settings, config InferenceCo
 		execCancel()
 
 		if execErr == nil {
-			return extractInferenceContent(response)
-		}
+			content, extractErr := extractInferenceContent(response)
+			if extractErr == nil {
+				return content, nil
+			}
 
-		lastErr = execErr
+			lastErr = extractErr
+		} else {
+			lastErr = execErr
+		}
 		klog.V(params.NeuronLogLevel).Infof(
 			"Inference attempt failed (model may still be compiling), retrying in %v: %v",
 			retryInterval, execErr)
