@@ -375,12 +375,12 @@ func ExecuteInferenceFromCluster(apiClient *clients.Settings, config InferenceCo
 		return "", fmt.Errorf("failed to marshal inference request: %w", err)
 	}
 
-	// The service exposes port 80 (mapped to the container's config.Port via targetPort),
-	// so we must use port 80 when accessing via the service DNS.
+	// Build service URL
 	serviceURL := fmt.Sprintf("http://%s.%s.svc.cluster.local/v1/chat/completions",
 		config.ServiceName, config.Namespace)
 
 	const perRequestTimeout = 60
+
 	curlCmd := []string{
 		"curl",
 		"-s",
@@ -402,6 +402,7 @@ func ExecuteInferenceFromCluster(apiClient *clients.Settings, config InferenceCo
 	}
 
 	retryInterval := 30 * time.Second
+
 	var lastErr error
 
 	for {
@@ -411,6 +412,7 @@ func ExecuteInferenceFromCluster(apiClient *clients.Settings, config InferenceCo
 
 		execCtx, execCancel := context.WithTimeout(ctx, 90*time.Second)
 		response, execErr := executeInPod(execCtx, apiClient, targetPod, config.Namespace, "vllm", curlCmd)
+
 		execCancel()
 
 		if execErr == nil {
