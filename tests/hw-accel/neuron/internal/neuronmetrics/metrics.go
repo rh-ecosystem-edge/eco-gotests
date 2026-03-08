@@ -324,4 +324,3 @@ func executeInPod(ctx context.Context, apiClient *clients.Settings,
 func isUnauthorized(resp string) bool {
 	return resp == "Unauthorized" || resp == "Unauthorized\n"
 }
-
