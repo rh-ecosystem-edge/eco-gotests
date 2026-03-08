@@ -44,7 +44,7 @@ jobs:
       id: set_image_tag
 
     - name: Build and push eco-gotests
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@v7
       with:
         context: .
         file: ./Dockerfile
@@ -53,7 +53,7 @@ jobs:
         tags: quay.io/ocp-edge-qe/eco-gotests:${{ steps.set_image_tag.outputs.IMAGE_TAG }}
 
     - name: Build and push eco-gotests-ran-du
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@v7
       with:
         context: .
         file: ./images/system-tests/ran-du/Dockerfile
