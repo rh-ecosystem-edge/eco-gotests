@@ -170,7 +170,7 @@ var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.Label), La
 			}
 		})
 
-		It("Should deploy vLLM and execute inference", Label("neuron-vllm"), reportxml.ID("neuron-vllm"), func() {
+		It("Should deploy vLLM and execute inference", Label("neuron-vllm"), reportxml.ID("88102"), func() {
 			By("Creating vLLM test namespace")
 
 			nsBuilder := namespace.NewBuilder(APIClient, tsparams.VLLMTestNamespace)
