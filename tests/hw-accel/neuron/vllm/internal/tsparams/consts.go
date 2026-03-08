@@ -12,7 +12,8 @@ const (
 	// VLLMStartupTimeout represents the timeout for vLLM pod startup.
 	VLLMStartupTimeout = 20 * time.Minute
 	// VLLMInferenceTimeout represents the timeout for inference requests.
-	VLLMInferenceTimeout = 2 * time.Minute
+	// First inference may take longer due to Neuron model compilation.
+	VLLMInferenceTimeout = 30 * time.Minute
 	// OperatorDeployTimeout represents the timeout for operator deployment.
 	OperatorDeployTimeout = 10 * time.Minute
 	// DevicePluginReadyTimeout represents the timeout for device plugin readiness.

@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
+	"k8s.io/klog/v2"
 )
 
 // VLLMDeploymentConfig holds configuration for creating a vLLM deployment.
@@ -366,7 +367,6 @@ func extractInferenceContent(response string) (string, error) {
 
 // ExecuteInferenceFromCluster executes an inference request from within the cluster.
 func ExecuteInferenceFromCluster(apiClient *clients.Settings, config InferenceConfig) (string, error) {
-	// Create context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), config.Timeout)
 	defer cancel()
 
@@ -375,21 +375,22 @@ func ExecuteInferenceFromCluster(apiClient *clients.Settings, config InferenceCo
 		return "", fmt.Errorf("failed to marshal inference request: %w", err)
 	}
 
-	// Build service URL with configured port
-	serviceURL := fmt.Sprintf("http://%s.%s.svc.cluster.local:%d/v1/chat/completions",
-		config.ServiceName, config.Namespace, config.Port)
+	// The service exposes port 80 (mapped to the container's config.Port via targetPort),
+	// so we must use port 80 when accessing via the service DNS.
+	serviceURL := fmt.Sprintf("http://%s.%s.svc.cluster.local/v1/chat/completions",
+		config.ServiceName, config.Namespace)
 
-	// Build curl command as arg slice to avoid shell injection
+	const perRequestTimeout = 60
 	curlCmd := []string{
 		"curl",
 		"-s",
+		"-m", fmt.Sprintf("%d", perRequestTimeout),
 		"-X", "POST",
 		serviceURL,
 		"-H", "Content-Type: application/json",
 		"-d", string(jsonBody),
 	}
 
-	// Use configurable label selector, default to "app=neuron-vllm-test" if empty
 	labelSelector := config.PodLabelSelector
 	if labelSelector == "" {
 		labelSelector = "app=neuron-vllm-test"
@@ -400,10 +401,31 @@ func ExecuteInferenceFromCluster(apiClient *clients.Settings, config InferenceCo
 		return "", err
 	}
 
-	response, err := executeInPod(ctx, apiClient, targetPod, config.Namespace, "vllm", curlCmd)
-	if err != nil {
-		return "", fmt.Errorf("inference request failed: %w", err)
-	}
+	retryInterval := 30 * time.Second
+	var lastErr error
 
-	return extractInferenceContent(response)
+	for {
+		if ctx.Err() != nil {
+			return "", fmt.Errorf("inference timed out after %v, last error: %w", config.Timeout, lastErr)
+		}
+
+		execCtx, execCancel := context.WithTimeout(ctx, 90*time.Second)
+		response, execErr := executeInPod(execCtx, apiClient, targetPod, config.Namespace, "vllm", curlCmd)
+		execCancel()
+
+		if execErr == nil {
+			return extractInferenceContent(response)
+		}
+
+		lastErr = execErr
+		klog.V(params.NeuronLogLevel).Infof(
+			"Inference attempt failed (model may still be compiling), retrying in %v: %v",
+			retryInterval, execErr)
+
+		select {
+		case <-ctx.Done():
+			return "", fmt.Errorf("inference timed out after %v, last error: %w", config.Timeout, lastErr)
+		case <-time.After(retryInterval):
+		}
+	}
 }
