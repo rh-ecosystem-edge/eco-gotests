@@ -89,6 +89,12 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 			By("Patching KMM subscription with Neuron upgrade toleration")
 
 			kmmSub, err := olm.PullSubscription(APIClient, "kmm-subscription", "openshift-kmm")
+			if err != nil {
+				klog.V(params.NeuronLogLevel).Infof(
+					"Subscription 'kmm-subscription' not found, trying 'kernel-module-management'")
+				kmmSub, err = olm.PullSubscription(APIClient, "kernel-module-management", "openshift-kmm")
+			}
+
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull KMM subscription")
 
 			if kmmSub.Definition.Spec.Config == nil {
