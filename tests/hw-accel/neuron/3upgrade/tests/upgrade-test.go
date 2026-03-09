@@ -10,8 +10,10 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/neuron"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/olm"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	operatorsV1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/operators/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/internal/deploy"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/3upgrade/internal/tsparams"
 	commonawait "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/await"
@@ -83,6 +85,26 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 			ready, err = kmmInstaller.IsReady(tsparams.OperatorDeployTimeout)
 			Expect(err).ToNot(HaveOccurred(), "KMM operator readiness check failed")
 			Expect(ready).To(BeTrue(), "KMM operator is not ready")
+
+			By("Patching KMM subscription with Neuron upgrade toleration")
+
+			kmmSub, err := olm.PullSubscription(APIClient, "kmm-subscription", "openshift-kmm")
+			Expect(err).ToNot(HaveOccurred(), "Failed to pull KMM subscription")
+
+			if kmmSub.Definition.Spec.Config == nil {
+				kmmSub.Definition.Spec.Config = &operatorsV1alpha1.SubscriptionConfig{}
+			}
+
+			kmmSub.Definition.Spec.Config.Tolerations = []corev1.Toleration{
+				{
+					Key:      "aws-neuron-driver-upgrade",
+					Operator: corev1.TolerationOpExists,
+					Effect:   corev1.TaintEffectNoExecute,
+				},
+			}
+
+			_, err = kmmSub.Update()
+			Expect(err).ToNot(HaveOccurred(), "Failed to patch KMM subscription with upgrade toleration")
 
 			By("Waiting for Neuron operator to be ready")
 
@@ -286,7 +308,7 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 			})
 
 		It("Should perform rolling upgrade of Neuron drivers",
-			Label("neuron-upgrade-002"), reportxml.ID("neuron-upgrade-002"), func() {
+			Label("neuron-upgrade-002"), reportxml.ID("OCP-88117"), func() {
 				By("Updating DeviceConfig with new driver version")
 
 				deviceConfigBuilder, err := neuron.Pull(
