@@ -403,11 +403,6 @@ func ExecuteInferenceFromCluster(apiClient *clients.Settings, config InferenceCo
 		labelSelector = "app=neuron-vllm-test"
 	}
 
-	targetPod, err := findRunningVLLMPod(ctx, apiClient, config.Namespace, labelSelector)
-	if err != nil {
-		return "", err
-	}
-
 	const retryInterval = 30 * time.Second
 
 	const perAttemptTimeout = 90 * time.Second
@@ -417,6 +412,14 @@ func ExecuteInferenceFromCluster(apiClient *clients.Settings, config InferenceCo
 	pollErr := wait.PollUntilContextTimeout(
 		ctx, retryInterval, config.Timeout, true,
 		func(pollCtx context.Context) (bool, error) {
+			targetPod, findErr := findRunningVLLMPod(pollCtx, apiClient, config.Namespace, labelSelector)
+			if findErr != nil {
+				klog.V(params.NeuronLogLevel).Infof(
+					"No running vLLM pod found (pod may be restarting): %v", findErr)
+
+				return false, nil
+			}
+
 			execCtx, execCancel := context.WithTimeout(pollCtx, perAttemptTimeout)
 			defer execCancel()
 
