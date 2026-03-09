@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/klog/v2"
@@ -407,39 +408,41 @@ func ExecuteInferenceFromCluster(apiClient *clients.Settings, config InferenceCo
 		return "", err
 	}
 
-	retryInterval := 30 * time.Second
+	const retryInterval = 30 * time.Second
+	const perAttemptTimeout = 90 * time.Second
 
-	var lastErr error
+	var inferenceResult string
 
-	for {
-		if ctx.Err() != nil {
-			return "", fmt.Errorf("inference timed out after %v, last error: %w", config.Timeout, lastErr)
-		}
+	pollErr := wait.PollUntilContextTimeout(
+		ctx, retryInterval, config.Timeout, true,
+		func(pollCtx context.Context) (bool, error) {
+			execCtx, execCancel := context.WithTimeout(pollCtx, perAttemptTimeout)
+			defer execCancel()
 
-		execCtx, execCancel := context.WithTimeout(ctx, 90*time.Second)
-		response, execErr := executeInPod(execCtx, apiClient, targetPod, config.Namespace, "vllm", curlCmd)
+			response, execErr := executeInPod(execCtx, apiClient, targetPod, config.Namespace, "vllm", curlCmd)
+			if execErr != nil {
+				klog.V(params.NeuronLogLevel).Infof(
+					"Inference attempt failed (model may still be compiling): %v", execErr)
 
-		execCancel()
-
-		if execErr == nil {
-			content, extractErr := extractInferenceContent(response)
-			if extractErr == nil {
-				return content, nil
+				return false, nil
 			}
 
-			lastErr = extractErr
-		} else {
-			lastErr = execErr
-		}
+			content, extractErr := extractInferenceContent(response)
+			if extractErr != nil {
+				klog.V(params.NeuronLogLevel).Infof(
+					"Inference response not ready (model may still be compiling): %v", extractErr)
 
-		klog.V(params.NeuronLogLevel).Infof(
-			"Inference attempt failed (model may still be compiling), retrying in %v: %v",
-			retryInterval, lastErr)
+				return false, nil
+			}
 
-		select {
-		case <-ctx.Done():
-			return "", fmt.Errorf("inference timed out after %v, last error: %w", config.Timeout, lastErr)
-		case <-time.After(retryInterval):
-		}
+			inferenceResult = content
+
+			return true, nil
+		})
+
+	if pollErr != nil {
+		return "", fmt.Errorf("inference failed after %v: %w", config.Timeout, pollErr)
 	}
+
+	return inferenceResult, nil
 }
