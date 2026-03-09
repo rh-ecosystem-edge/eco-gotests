@@ -409,6 +409,7 @@ func ExecuteInferenceFromCluster(apiClient *clients.Settings, config InferenceCo
 	}
 
 	const retryInterval = 30 * time.Second
+
 	const perAttemptTimeout = 90 * time.Second
 
 	var inferenceResult string
@@ -439,7 +440,6 @@ func ExecuteInferenceFromCluster(apiClient *clients.Settings, config InferenceCo
 
 			return true, nil
 		})
-
 	if pollErr != nil {
 		return "", fmt.Errorf("inference failed after %v: %w", config.Timeout, pollErr)
 	}
