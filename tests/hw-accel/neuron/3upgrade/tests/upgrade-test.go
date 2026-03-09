@@ -113,7 +113,29 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 				builder = builder.WithImageRepoSecret(neuronConfig.ImageRepoSecretName)
 			}
 
-			if !builder.Exists() {
+			if builder.Exists() {
+				existingDC, pullErr := neuron.Pull(
+					APIClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
+				if pullErr == nil && existingDC.Definition.Spec.DriversImage != neuronConfig.DriversImage {
+					klog.V(params.NeuronLogLevel).Infof(
+						"DeviceConfig has stale image %s, recreating with initial version %s",
+						existingDC.Definition.Spec.DriversImage, neuronConfig.DriversImage)
+
+					_, deleteErr := existingDC.Delete()
+					Expect(deleteErr).ToNot(HaveOccurred(), "Failed to delete stale DeviceConfig")
+
+					Eventually(func() bool {
+						_, checkErr := neuron.Pull(
+							APIClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
+
+						return checkErr != nil
+					}, 5*time.Minute, 5*time.Second).Should(BeTrue(),
+						"DeviceConfig should be fully deleted")
+
+					_, err = builder.Create()
+					Expect(err).ToNot(HaveOccurred(), "Failed to create DeviceConfig with initial version")
+				}
+			} else {
 				_, err = builder.Create()
 				Expect(err).ToNot(HaveOccurred(), "Failed to create DeviceConfig")
 			}
