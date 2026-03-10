@@ -109,6 +109,7 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 			}
 
 			hasToleration := false
+
 			for _, t := range kmmSub.Definition.Spec.Config.Tolerations {
 				if t.Key == upgradeToleration.Key && t.Effect == upgradeToleration.Effect {
 					hasToleration = true
