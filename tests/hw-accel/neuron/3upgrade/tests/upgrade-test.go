@@ -92,6 +92,7 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 			if err != nil {
 				klog.V(params.NeuronLogLevel).Infof(
 					"Subscription 'kmm-subscription' not found, trying 'kernel-module-management'")
+
 				kmmSub, err = olm.PullSubscription(APIClient, "kernel-module-management", "openshift-kmm")
 			}
 
