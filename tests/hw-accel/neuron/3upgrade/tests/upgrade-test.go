@@ -102,12 +102,24 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 				kmmSub.Definition.Spec.Config = &operatorsV1alpha1.SubscriptionConfig{}
 			}
 
-			kmmSub.Definition.Spec.Config.Tolerations = []corev1.Toleration{
-				{
-					Key:      "aws-neuron-driver-upgrade",
-					Operator: corev1.TolerationOpExists,
-					Effect:   corev1.TaintEffectNoExecute,
-				},
+			upgradeToleration := corev1.Toleration{
+				Key:      "aws-neuron-driver-upgrade",
+				Operator: corev1.TolerationOpExists,
+				Effect:   corev1.TaintEffectNoExecute,
+			}
+
+			hasToleration := false
+			for _, t := range kmmSub.Definition.Spec.Config.Tolerations {
+				if t.Key == upgradeToleration.Key && t.Effect == upgradeToleration.Effect {
+					hasToleration = true
+
+					break
+				}
+			}
+
+			if !hasToleration {
+				kmmSub.Definition.Spec.Config.Tolerations = append(
+					kmmSub.Definition.Spec.Config.Tolerations, upgradeToleration)
 			}
 
 			_, err = kmmSub.Update()
