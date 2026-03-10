@@ -73,7 +73,6 @@ func QueryPrometheus(apiClient *clients.Settings, query string) (*PrometheusQuer
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	// Find a running pod in the monitoring namespace to execute the query from
 	podInfo, err := findMonitoringPod(ctx, apiClient)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find monitoring pod: %w", err)
@@ -83,48 +82,44 @@ func QueryPrometheus(apiClient *clients.Settings, query string) (*PrometheusQuer
 
 	encodedQuery := url.QueryEscape(query)
 
-	// Try localhost endpoints inside the thanos-query container
-	endpoints := []struct {
-		name string
-		url  string
-	}{
-		{"localhost:9090", fmt.Sprintf("http://localhost:9090/api/v1/query?query=%s", encodedQuery)},
-		{"localhost:9095", fmt.Sprintf("http://localhost:9095/api/v1/query?query=%s", encodedQuery)},
-		{"localhost:10902", fmt.Sprintf("http://localhost:10902/api/v1/query?query=%s", encodedQuery)},
-	}
-
 	var response string
 
 	var lastErr error
 
-	for _, endpoint := range endpoints {
-		queryCmd := []string{"sh", "-c", fmt.Sprintf("curl -sf '%s' 2>/dev/null", endpoint.url)}
-		resp, err := executeInPod(ctx, apiClient, podInfo.Name, neuronparams.PrometheusNamespace, podInfo.Container, queryCmd)
-
-		if err == nil && resp != "" && !isUnauthorized(resp) {
-			response = resp
-
-			klog.V(params.NeuronLogLevel).Infof("Endpoint %s succeeded", endpoint.name)
-
-			break
-		}
-
-		lastErr = fmt.Errorf("endpoint %s failed: %w", endpoint.name, err)
+	// When using the thanos-query container, query the authenticated thanos-querier endpoint
+	if podInfo.Container == "thanos-query" {
+		response, lastErr = queryThanosQuerier(ctx, apiClient, podInfo, encodedQuery)
 	}
 
 	if response == "" {
-		// Fallback: Try with service account token for authenticated endpoint
-		// Use command substitution to read token inline, avoiding shell injection risks
-		authURL := fmt.Sprintf("https://%s.%s.svc:9091/api/v1/query?query=%s",
-			neuronparams.ThanosQuerierServiceName, neuronparams.PrometheusNamespace, encodedQuery)
-		authCmd := []string{"sh", "-c", fmt.Sprintf(
-			"curl -sf -k -H 'Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)' '%s' 2>/dev/null",
-			authURL)}
+		// Try localhost endpoints (works when exec'd into a prometheus or thanos pod)
+		endpoints := []struct {
+			name string
+			url  string
+		}{
+			{"localhost:9090", fmt.Sprintf("http://localhost:9090/api/v1/query?query=%s", encodedQuery)},
+			{"localhost:9095", fmt.Sprintf("http://localhost:9095/api/v1/query?query=%s", encodedQuery)},
+			{"localhost:10902", fmt.Sprintf("http://localhost:10902/api/v1/query?query=%s", encodedQuery)},
+		}
 
-		resp, err := executeInPod(ctx, apiClient, podInfo.Name, neuronparams.PrometheusNamespace, podInfo.Container, authCmd)
+		for _, endpoint := range endpoints {
+			queryCmd := []string{"sh", "-c", fmt.Sprintf("curl -sf '%s' 2>/dev/null", endpoint.url)}
 
-		if err == nil && resp != "" && !isUnauthorized(resp) {
-			response = resp
+			resp, execErr := executeInPod(
+				ctx, apiClient, podInfo.Name, neuronparams.PrometheusNamespace, podInfo.Container, queryCmd)
+			if execErr == nil && resp != "" && !isUnauthorized(resp) {
+				response = resp
+
+				klog.V(params.NeuronLogLevel).Infof("Endpoint %s succeeded", endpoint.name)
+
+				break
+			}
+
+			if execErr != nil {
+				klog.V(params.NeuronLogLevel).Infof("Endpoint %s failed: %v", endpoint.name, execErr)
+			}
+
+			lastErr = fmt.Errorf("endpoint %s: %w", endpoint.name, execErr)
 		}
 	}
 
@@ -138,6 +133,33 @@ func QueryPrometheus(apiClient *clients.Settings, query string) (*PrometheusQuer
 	}
 
 	return &result, nil
+}
+
+// queryThanosQuerier queries the thanos-querier authenticated service endpoint.
+func queryThanosQuerier(ctx context.Context, apiClient *clients.Settings,
+	podInfo *monitoringPodInfo, encodedQuery string) (string, error) {
+	authURL := fmt.Sprintf("https://%s.%s.svc:9091/api/v1/query?query=%s",
+		neuronparams.ThanosQuerierServiceName, neuronparams.PrometheusNamespace, encodedQuery)
+	authCmd := []string{"sh", "-c", fmt.Sprintf(
+		`curl -sf -k -H "Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" '%s' 2>/dev/null`,
+		authURL)}
+
+	resp, err := executeInPod(ctx, apiClient, podInfo.Name, neuronparams.PrometheusNamespace, podInfo.Container, authCmd)
+	if err != nil {
+		klog.V(params.NeuronLogLevel).Infof("Thanos authenticated endpoint failed: %v", err)
+
+		return "", fmt.Errorf("thanos-querier auth endpoint failed: %w", err)
+	}
+
+	if resp == "" || isUnauthorized(resp) {
+		klog.V(params.NeuronLogLevel).Info("Thanos authenticated endpoint returned empty or unauthorized")
+
+		return "", fmt.Errorf("thanos-querier returned empty or unauthorized response")
+	}
+
+	klog.V(params.NeuronLogLevel).Info("Thanos authenticated endpoint succeeded")
+
+	return resp, nil
 }
 
 // MetricExists checks if a metric exists in Prometheus.
@@ -224,14 +246,26 @@ type monitoringPodInfo struct {
 }
 
 // findMonitoringPod finds a running pod in the monitoring namespace to execute queries from.
+// It tries multiple label selectors for thanos-querier since the label varies across OpenShift versions.
 func findMonitoringPod(ctx context.Context, apiClient *clients.Settings) (*monitoringPodInfo, error) {
-	// Try thanos-querier pods first - queries are executed in the thanos-query container
-	thanosPodslist, err := apiClient.CoreV1Interface.Pods(neuronparams.PrometheusNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: "app.kubernetes.io/name=thanos-querier",
-	})
-	if err == nil {
+	thanosSelectors := []string{
+		"app.kubernetes.io/name=thanos-query",
+		"app.kubernetes.io/name=thanos-querier",
+		"app=thanos-querier",
+	}
+
+	for _, selector := range thanosSelectors {
+		thanosPodslist, err := apiClient.CoreV1Interface.Pods(neuronparams.PrometheusNamespace).List(ctx, metav1.ListOptions{
+			LabelSelector: selector,
+		})
+		if err != nil {
+			continue
+		}
+
 		for _, pod := range thanosPodslist.Items {
 			if pod.Status.Phase == corev1.PodRunning {
+				klog.V(params.NeuronLogLevel).Infof("Found thanos-querier pod %s via selector %s", pod.Name, selector)
+
 				return &monitoringPodInfo{Name: pod.Name, Container: "thanos-query"}, nil
 			}
 		}
