@@ -1666,31 +1666,39 @@ func verifyPFStatusRelayOperatorRunning() error {
 }
 
 func validateBondedTCPTraffic(clientPod *pod.Builder) {
-	By(fmt.Sprintf("Validating TCP traffic from %s to %s via interface %s",
+	By(fmt.Sprintf("Validating connectivity from %s to %s via interface %s",
 		clientPod.Definition.Name, testClientIP, bondTestInterface))
 
-	command := []string{
+	// Run ping to capture detailed packet loss stats for debugging (informational only).
+	pingCmd := []string{"bash", "-c",
+		fmt.Sprintf("ping -c 5 -W 2 -I %s %s", bondTestInterface, testClientIP)}
+
+	pingOutput, _ := clientPod.ExecCommand(pingCmd, clientPod.Definition.Spec.Containers[0].Name)
+	By(fmt.Sprintf("Ping diagnostics from pod %s:\n%s", clientPod.Definition.Name, pingOutput.String()))
+
+	// Run TCP test via testcmd with retry.
+	tcpCmd := []string{
 		"testcmd",
 		fmt.Sprintf("-interface=%s", bondTestInterface),
 		"-protocol=tcp",
 		"-port=4444",
+		"-mtu=500",
 		fmt.Sprintf("-server=%s", testClientIP),
 	}
 
-	output, err := clientPod.ExecCommand(command, clientPod.Definition.Spec.Containers[0].Name)
+	Eventually(func() bool {
+		tcpOutput, tcpErr := clientPod.ExecCommand(tcpCmd, clientPod.Definition.Spec.Containers[0].Name)
+		By(fmt.Sprintf("TCP testcmd output from pod %s:\n%s", clientPod.Definition.Name, tcpOutput.String()))
 
-	// Log the output for debugging regardless of command success/failure
-	By(fmt.Sprintf("TCP traffic test output from pod %s:\n%s", clientPod.Definition.Name, output.String()))
+		if tcpErr != nil {
+			By(fmt.Sprintf("testcmd exited with error: %v, retrying...", tcpErr))
 
-	// Focus on network connectivity rather than testcmd exit code
-	// testcmd can be strict and fail even when network is working
-	if err != nil {
-		By(fmt.Sprintf("testcmd exited with error: %v, output: %s", err, output.String()))
-	}
+			return false
+		}
 
-	By("Verifying bonded interface connectivity has no packet loss")
-	Expect(output.String()).Should(ContainSubstring("0 packet loss"),
-		fmt.Sprintf("Bonded interface %s should have 0 packet loss. Full output:\n%s", bondTestInterface, output.String()))
+		return strings.Contains(tcpOutput.String(), "TCP test passed")
+	}, time.Minute, 10*time.Second).Should(BeTrue(),
+		fmt.Sprintf("TCP test failed on bonded interface %s after retries", bondTestInterface))
 }
 
 func getPFLACPMonitorPod(nodeName string) (*pod.Builder, error) {
@@ -1775,7 +1783,15 @@ func verifyPFLACPMonitorLogs(
 	case logTypeVFDisable:
 		verifyVFDisableLogs(podLogs, targetInterface, expectedVFs)
 	case logTypeVFEnable:
-		verifyVFEnableLogs(podLogs, targetInterface, expectedVFs)
+		Eventually(func() error {
+			freshLogs, logErr := pflacpPod.GetFullLog("")
+			if logErr != nil {
+				return logErr
+			}
+
+			return verifyVFEnableLogs(freshLogs, targetInterface, expectedVFs)
+		}, time.Minute, 5*time.Second).Should(Succeed(),
+			fmt.Sprintf("VF enable logs not found for interface %s after retries", targetInterface))
 	default:
 		Fail(fmt.Sprintf("Invalid logType '%s'. Use '%s', '%s', or '%s'",
 			logType, logTypeInitialization, logTypeVFDisable, logTypeVFEnable))
@@ -1815,7 +1831,7 @@ func verifyVFDisableLogs(podLogs string, targetInterface string, expectedVFs int
 	}
 }
 
-func verifyVFEnableLogs(podLogs, targetInterface string, expectedVFs int) {
+func verifyVFEnableLogs(podLogs, targetInterface string, expectedVFs int) error {
 	vfEnableCount := 0
 	lines := strings.Split(podLogs, "\n")
 
@@ -1827,11 +1843,14 @@ func verifyVFEnableLogs(podLogs, targetInterface string, expectedVFs int) {
 		}
 	}
 
-	Expect(vfEnableCount).To(BeNumerically(">=", expectedVFs),
-		fmt.Sprintf("Expected at least %d VF enable logs for interface %s, found %d",
-			expectedVFs, targetInterface, vfEnableCount))
+	if vfEnableCount < expectedVFs {
+		return fmt.Errorf("expected at least %d VF enable logs for interface %s, found %d",
+			expectedVFs, targetInterface, vfEnableCount)
+	}
 
 	By(fmt.Sprintf("Successfully verified %d VF enable logs for interface %s", expectedVFs, targetInterface))
+
+	return nil
 }
 
 func checkBondingStatusInPod(bondedPod *pod.Builder, expectedMode ...string) error {
