@@ -263,6 +263,23 @@ func (builder *ModuleBuilder) WithDevicePluginContainer(
 	return builder
 }
 
+// WithImageRebuildTriggerGeneration adds the specified image rebuild trigger generation to the Module.
+// Setting this to a different value than the current status will trigger re-verification of the module image.
+// If the image is missing, a rebuild is triggered. If the image exists, no rebuild occurs.
+func (builder *ModuleBuilder) WithImageRebuildTriggerGeneration(generation int) *ModuleBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof(
+		"Creating Module %s in namespace %s with ImageRebuildTriggerGeneration: %d",
+		builder.Definition.Name, builder.Definition.Namespace, generation)
+
+	builder.Definition.Spec.ImageRebuildTriggerGeneration = &generation
+
+	return builder
+}
+
 // BuildModuleSpec returns module spec.
 func (builder *ModuleBuilder) BuildModuleSpec() (moduleV1Beta1.ModuleSpec, error) {
 	if valid, err := builder.validate(); !valid {
