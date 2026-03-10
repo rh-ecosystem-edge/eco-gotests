@@ -122,6 +122,24 @@ func (builder *ManagedClusterModuleBuilder) WithSelector(
 	return builder
 }
 
+// WithImageRebuildTriggerGeneration adds the specified image rebuild trigger generation to the ManagedClusterModule.
+// Setting this to a different value than the current status will trigger re-verification of the module image
+// on spoke clusters. If the image is missing on spoke, a rebuild is triggered. If the image exists, no rebuild occurs.
+func (builder *ManagedClusterModuleBuilder) WithImageRebuildTriggerGeneration(
+	generation int) *ManagedClusterModuleBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof(
+		"Creating ManagedClusterModule %s in namespace %s with ImageRebuildTriggerGeneration: %d",
+		builder.Definition.Name, builder.Definition.Namespace, generation)
+
+	builder.Definition.Spec.ModuleSpec.ImageRebuildTriggerGeneration = &generation
+
+	return builder
+}
+
 // WithOptions creates ManagedClusterModule with generic mutation options.
 func (builder *ManagedClusterModuleBuilder) WithOptions(
 	options ...ManagedClusterModuleAdditionalOptions) *ManagedClusterModuleBuilder {
