@@ -158,7 +158,9 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 			if builder.Exists() {
 				existingDC, pullErr := neuron.Pull(
 					APIClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
-				if pullErr == nil && existingDC.Definition.Spec.DriversImage != neuronConfig.DriversImage {
+				Expect(pullErr).ToNot(HaveOccurred(), "Failed to pull existing DeviceConfig")
+
+				if existingDC.Definition.Spec.DriversImage != neuronConfig.DriversImage {
 					klog.V(params.NeuronLogLevel).Infof(
 						"DeviceConfig has stale image %s, recreating with initial version %s",
 						existingDC.Definition.Spec.DriversImage, neuronConfig.DriversImage)
