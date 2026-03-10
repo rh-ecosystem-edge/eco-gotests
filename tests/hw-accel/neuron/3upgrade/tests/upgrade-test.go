@@ -10,8 +10,10 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/neuron"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/olm"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	operatorsV1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/operators/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/internal/deploy"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/3upgrade/internal/tsparams"
 	commonawait "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/await"
@@ -84,6 +86,46 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 			Expect(err).ToNot(HaveOccurred(), "KMM operator readiness check failed")
 			Expect(ready).To(BeTrue(), "KMM operator is not ready")
 
+			By("Patching KMM subscription with Neuron upgrade toleration")
+
+			kmmSub, err := olm.PullSubscription(APIClient, "kmm-subscription", "openshift-kmm")
+			if err != nil {
+				klog.V(params.NeuronLogLevel).Infof(
+					"Subscription 'kmm-subscription' not found, trying 'kernel-module-management'")
+
+				kmmSub, err = olm.PullSubscription(APIClient, "kernel-module-management", "openshift-kmm")
+			}
+
+			Expect(err).ToNot(HaveOccurred(), "Failed to pull KMM subscription")
+
+			if kmmSub.Definition.Spec.Config == nil {
+				kmmSub.Definition.Spec.Config = &operatorsV1alpha1.SubscriptionConfig{}
+			}
+
+			upgradeToleration := corev1.Toleration{
+				Key:      "aws-neuron-driver-upgrade",
+				Operator: corev1.TolerationOpExists,
+				Effect:   corev1.TaintEffectNoExecute,
+			}
+
+			hasToleration := false
+
+			for _, t := range kmmSub.Definition.Spec.Config.Tolerations {
+				if t.Key == upgradeToleration.Key && t.Effect == upgradeToleration.Effect {
+					hasToleration = true
+
+					break
+				}
+			}
+
+			if !hasToleration {
+				kmmSub.Definition.Spec.Config.Tolerations = append(
+					kmmSub.Definition.Spec.Config.Tolerations, upgradeToleration)
+			}
+
+			_, err = kmmSub.Update()
+			Expect(err).ToNot(HaveOccurred(), "Failed to patch KMM subscription with upgrade toleration")
+
 			By("Waiting for Neuron operator to be ready")
 
 			neuronInstallConfig := neuronhelpers.GetDefaultNeuronInstallConfig(APIClient, options)
@@ -113,7 +155,31 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 				builder = builder.WithImageRepoSecret(neuronConfig.ImageRepoSecretName)
 			}
 
-			if !builder.Exists() {
+			if builder.Exists() {
+				existingDC, pullErr := neuron.Pull(
+					APIClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
+				Expect(pullErr).ToNot(HaveOccurred(), "Failed to pull existing DeviceConfig")
+
+				if existingDC.Definition.Spec.DriversImage != neuronConfig.DriversImage {
+					klog.V(params.NeuronLogLevel).Infof(
+						"DeviceConfig has stale image %s, recreating with initial version %s",
+						existingDC.Definition.Spec.DriversImage, neuronConfig.DriversImage)
+
+					_, deleteErr := existingDC.Delete()
+					Expect(deleteErr).ToNot(HaveOccurred(), "Failed to delete stale DeviceConfig")
+
+					Eventually(func() bool {
+						_, checkErr := neuron.Pull(
+							APIClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
+
+						return checkErr != nil
+					}, 5*time.Minute, 5*time.Second).Should(BeTrue(),
+						"DeviceConfig should be fully deleted")
+
+					_, err = builder.Create()
+					Expect(err).ToNot(HaveOccurred(), "Failed to create DeviceConfig with initial version")
+				}
+			} else {
 				_, err = builder.Create()
 				Expect(err).ToNot(HaveOccurred(), "Failed to create DeviceConfig")
 			}
@@ -264,7 +330,7 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 			})
 
 		It("Should perform rolling upgrade of Neuron drivers",
-			Label("neuron-upgrade-002"), reportxml.ID("neuron-upgrade-002"), func() {
+			Label("neuron-upgrade-002"), reportxml.ID("OCP-88117"), func() {
 				By("Updating DeviceConfig with new driver version")
 
 				deviceConfigBuilder, err := neuron.Pull(

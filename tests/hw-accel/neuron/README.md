@@ -16,6 +16,25 @@ The AWS Neuron Operator manages AWS AI accelerators on OpenShift clusters runnin
 * NFD Operator installed
 * KMM Operator installed
 
+### KMM Tolerations for Upgrade Tests
+
+During a Neuron driver rolling upgrade, nodes are tainted with `aws-neuron-driver-upgrade:NoExecute`. If the KMM operator pod runs on a tainted node, it gets evicted and cannot manage the module loader pods needed to complete the upgrade — causing a deadlock.
+
+The upgrade test suite (`3upgrade`) automatically patches the KMM subscription with the required toleration after KMM is confirmed ready. No manual intervention is needed when running the automated tests.
+
+For manual testing, you can apply the toleration via:
+
+```bash
+oc patch subscription kmm-subscription -n openshift-kmm --type='merge' -p '
+spec:
+  config:
+    tolerations:
+    - key: "aws-neuron-driver-upgrade"
+      operator: "Exists"
+      effect: "NoExecute"
+'
+```
+
 ### Test Suites
 
 | Name                                          | Description                                                          |
