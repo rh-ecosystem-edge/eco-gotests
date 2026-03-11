@@ -10,12 +10,9 @@ import (
 	"time"
 
 	configv1 "github.com/openshift/api/config/v1"
-	v2 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/performanceprofile/v2"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/infrastructure"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/mco"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nto"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netconfig"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
@@ -138,59 +135,6 @@ func MapFirstKeyValue(inputMap map[string]string) (string, string) {
 	}
 
 	return "", ""
-}
-
-// DeployPerformanceProfile installs performanceProfile on cluster.
-func DeployPerformanceProfile(
-	apiClient *clients.Settings,
-	netConfig *netconfig.NetworkConfig,
-	profileName string,
-	isolatedCPU string,
-	reservedCPU string,
-	hugePages1GCount int32) error {
-	klog.V(90).Infof("Ensuring cluster has correct PerformanceProfile deployed")
-
-	mcp, err := mco.Pull(apiClient, netConfig.CnfMcpLabel)
-	if err != nil {
-		return fmt.Errorf("fail to pull MCP due to : %w", err)
-	}
-
-	performanceProfiles, err := nto.ListProfiles(apiClient)
-	if err != nil {
-		return fmt.Errorf("fail to list PerformanceProfile objects on cluster due to: %w", err)
-	}
-
-	if len(performanceProfiles) > 0 {
-		for _, perfProfile := range performanceProfiles {
-			if perfProfile.Object.Name == profileName {
-				klog.V(90).Infof("PerformanceProfile %s exists", profileName)
-
-				return nil
-			}
-		}
-
-		klog.V(90).Infof("PerformanceProfile doesn't exist on cluster. Removing all pre-existing profiles")
-
-		err := nto.CleanAllPerformanceProfiles(apiClient)
-		if err != nil {
-			return fmt.Errorf("fail to clean pre-existing performance profiles due to %w", err)
-		}
-
-		err = mcp.WaitToBeStableFor(time.Minute, netparam.MCOWaitTimeout)
-		if err != nil {
-			return err
-		}
-	}
-
-	klog.V(90).Infof("Required PerformanceProfile doesn't exist. Installing new profile PerformanceProfile")
-
-	_, err = nto.NewBuilder(apiClient, profileName, isolatedCPU, reservedCPU, netConfig.WorkerLabelMap).
-		WithHugePages("1G", []v2.HugePage{{Size: "1G", Count: hugePages1GCount}}).Create()
-	if err != nil {
-		return fmt.Errorf("fail to deploy PerformanceProfile due to: %w", err)
-	}
-
-	return mcp.WaitToBeStableFor(time.Minute, netparam.MCOWaitTimeout)
 }
 
 // BuildRoutesMapWithSpecificRoutes creates a route map with specific routes.

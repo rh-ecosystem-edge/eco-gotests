@@ -14,9 +14,9 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/dpdk/internal/dpdkenv"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/dpdk/internal/tsparams"
 	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/dpdk/tests"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/params"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/perfprofile"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/reporter"
 )
 
@@ -53,13 +53,15 @@ var _ = BeforeSuite(func() {
 
 	By("Deploying PerformanceProfile is it's not installed")
 
-	err = netenv.DeployPerformanceProfile(
+	err = perfprofile.DeployPerformanceProfile(
 		APIClient,
-		NetConfig,
+		NetConfig.WorkerLabelMap,
+		NetConfig.CnfMcpLabel,
 		perfProfileName,
 		"1,3,5,7,9,11,13,15,17,19,21,23,25",
 		"0,2,4,6,8,10,12,14,16,18,20",
-		24)
+		24,
+		tsparams.MCOWaitTimeout)
 	Expect(err).ToNot(HaveOccurred(), "Fail to deploy PerformanceProfile")
 })
 

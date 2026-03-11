@@ -406,23 +406,6 @@ func DefinePod(name, role, ifName, worker string, secondaryInterface bool) *pod.
 	return podbuild
 }
 
-// DiscoverInterfaceUnderTestVendorID discovers vendor ID for a given SR-IOV interface.
-func DiscoverInterfaceUnderTestVendorID(srIovInterfaceUnderTest, workerNodeName string) (string, error) {
-	sriovInterfaces, err := sriov.NewNetworkNodeStateBuilder(
-		APIClient, workerNodeName, NetConfig.SriovOperatorNamespace).GetUpNICs()
-	if err != nil {
-		return "", err
-	}
-
-	for _, srIovInterface := range sriovInterfaces {
-		if srIovInterface.Name == srIovInterfaceUnderTest {
-			return srIovInterface.Vendor, nil
-		}
-	}
-
-	return "", fmt.Errorf("interface %s not found", srIovInterfaceUnderTest)
-}
-
 // CreateSriovNetworkWithStaticIPAM creates an SR-IOV network with static IPAM, IP address, and MAC address support.
 func CreateSriovNetworkWithStaticIPAM(name, resourceName string) error {
 	klog.V(90).Infof("Creating SR-IOV network %s with static IPAM", name)

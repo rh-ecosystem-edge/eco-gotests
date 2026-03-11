@@ -27,6 +27,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/sriovenv"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/perfprofile"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -641,13 +642,15 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 
 			By("Deploying PerformanceProfile is it's not installed")
 
-			err := netenv.DeployPerformanceProfile(
+			err := perfprofile.DeployPerformanceProfile(
 				APIClient,
-				NetConfig,
+				NetConfig.WorkerLabelMap,
+				NetConfig.CnfMcpLabel,
 				perfProfileName,
 				"1,3,5,7,9,11,13,15,17,19,21,23,25",
 				"0,2,4,6,8,10,12,14,16,18,20",
-				24)
+				24,
+				tsparams.MCOWaitTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Fail to deploy PerformanceProfile")
 
 			By("Wait for the cluster to be stable after performance profile creation")
@@ -1348,7 +1351,8 @@ func deleteSingleSriovPolicy() error {
 func createDPDKSriovPolicyFixed(policyName, resourceName, interfaceSpec, workerNodeName string) error {
 	By(fmt.Sprintf("Discovering Vendor ID for DPDK interface %s to configure device type", interfaceSpec))
 
-	sriovVendor, err := sriovenv.DiscoverInterfaceUnderTestVendorID(interfaceSpec, workerNodeName)
+	sriovVendor, err := sriovoperator.DiscoverInterfaceUnderTestVendorID(
+		APIClient, NetConfig.SriovOperatorNamespace, interfaceSpec, workerNodeName)
 	if err != nil {
 		return fmt.Errorf("failed to discover Vendor ID for DPDK interface %s: %w", interfaceSpec, err)
 	}

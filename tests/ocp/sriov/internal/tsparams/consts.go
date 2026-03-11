@@ -15,6 +15,10 @@ const (
 	LabelBasic = "basic"
 	// LabelExposeMTUTestCases represents Expose MTU label that can be used for test cases selection.
 	LabelExposeMTUTestCases = "exposemtu"
+	// LabelSriovMetricsTestCases represents Sriov Metrics Exporter label that can be used for test cases selection.
+	LabelSriovMetricsTestCases = "sriovmetrics"
+	// LabelSriovHWEnabled represents sriov HW Enabled tests that can be used for test cases selection.
+	LabelSriovHWEnabled = "sriov-hw-enabled"
 
 	// MCOWaitTimeout represent timeout for mco operations.
 	MCOWaitTimeout = 35 * time.Minute
@@ -72,6 +76,8 @@ const (
 
 	// BCMVendorID is the PCI vendor ID for Broadcom NICs.
 	BCMVendorID = "14e4"
+	// MlxVendorID is the Mellanox SR-IOV Vendor ID.
+	MlxVendorID = "15b3"
 
 	// TestResourceLabelKey is the label key used to identify test-created resources.
 	TestResourceLabelKey = "eco-gotests.openshift.io/test"

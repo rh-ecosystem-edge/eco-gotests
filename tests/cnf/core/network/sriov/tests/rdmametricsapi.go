@@ -61,7 +61,8 @@ var _ = Describe("rdmaMetricsAPI", Ordered, Label(tsparams.LabelRdmaMetricsAPITe
 
 			By("Fetching SR-IOV Vendor ID for interface under test")
 
-			sriovVendor, err := sriovenv.DiscoverInterfaceUnderTestVendorID(
+			sriovVendor, err := sriovoperator.DiscoverInterfaceUnderTestVendorID(
+				APIClient, NetConfig.SriovOperatorNamespace,
 				sriovInterfacesUnderTest[0], workerNodeList[0].Definition.Name)
 			Expect(err).ToNot(HaveOccurred(), "Failed to fetch SR-IOV Vendor ID for interface under test")
 
