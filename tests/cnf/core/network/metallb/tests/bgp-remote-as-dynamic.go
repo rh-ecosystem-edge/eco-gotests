@@ -266,14 +266,14 @@ func setupBGPRemoteASMultiHopTest(ipv4metalLbIPList, hubIPv4ExternalAddresses, e
 	hub0BRstaticIPAnnotation := frrconfig.CreateStaticIPAnnotations(frrconfig.ExternalMacVlanNADName,
 		tsparams.HubMacVlanNADName,
 		[]string{fmt.Sprintf("%s/%s", ipv4metalLbIPList[0], netparam.IPSubnet24)},
-		[]string{fmt.Sprintf("%s/%s", hubIPv4ExternalAddresses[0], netparam.IPSubnet24)})
+		[]string{fmt.Sprintf("%s/%s", hubIPv4ExternalAddresses[1], netparam.IPSubnet24)})
 
 	By("Creating static ip annotation for hub1")
 
 	hub1BRstaticIPAnnotation := frrconfig.CreateStaticIPAnnotations(frrconfig.ExternalMacVlanNADName,
 		tsparams.HubMacVlanNADName,
 		[]string{fmt.Sprintf("%s/%s", ipv4metalLbIPList[1], netparam.IPSubnet24)},
-		[]string{fmt.Sprintf("%s/%s", hubIPv4ExternalAddresses[1], netparam.IPSubnet24)})
+		[]string{fmt.Sprintf("%s/%s", hubIPv4ExternalAddresses[0], netparam.IPSubnet24)})
 
 	By("Creating MetalLb Hub pod configMap")
 
