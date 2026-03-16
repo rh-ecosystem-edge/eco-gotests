@@ -35,12 +35,18 @@ type DeviceConfig struct {
 // SriovOcpConfig type keeps sriov configuration.
 type SriovOcpConfig struct {
 	*ocpconfig.OcpConfig
-	OcpSriovOperatorNamespace string         `yaml:"sriov_operator_namespace" envconfig:"ECO_OCP_SRIOV_OPERATOR_NAMESPACE"`
-	OcpSriovTestContainer     string         `yaml:"ocp_sriov_test_container" envconfig:"ECO_OCP_SRIOV_TEST_CONTAINER"`
-	SriovInterfaces           string         `envconfig:"ECO_OCP_SRIOV_INTERFACE_LIST"`
-	Devices                   []DeviceConfig `yaml:"devices"`
-	DevicesEnv                string         `envconfig:"ECO_OCP_SRIOV_DEVICES"`
-	VFNum                     int            `yaml:"vf_num" envconfig:"ECO_OCP_SRIOV_VF_NUM"`
+	OcpSriovOperatorNamespace   string         `yaml:"sriov_operator_namespace" envconfig:"ECO_OCP_SRIOV_OPERATOR_NAMESPACE"` //nolint:lll
+	OcpSriovTestContainer       string         `yaml:"ocp_sriov_test_container" envconfig:"ECO_OCP_SRIOV_TEST_CONTAINER"`
+	DpdkTestContainer           string         `yaml:"dpdk_test_container" envconfig:"ECO_OCP_SRIOV_DPDK_TEST_CONTAINER"`
+	PrometheusOperatorNamespace string         `yaml:"prometheus_operator_namespace" envconfig:"ECO_OCP_SRIOV_PROMETHEUS_OPERATOR_NAMESPACE"` //nolint:lll
+	MCPLabel                    string         `yaml:"mcp_label" envconfig:"ECO_OCP_SRIOV_MCP_LABEL"`
+	SriovInterfaces             string         `envconfig:"ECO_OCP_SRIOV_INTERFACE_LIST"`
+	Devices                     []DeviceConfig `yaml:"devices"`
+	DevicesEnv                  string         `envconfig:"ECO_OCP_SRIOV_DEVICES"`
+	VFNum                       int            `yaml:"vf_num" envconfig:"ECO_OCP_SRIOV_VF_NUM"`
+	SwitchUser                  string         `envconfig:"ECO_OCP_SRIOV_SWITCH_USER"`
+	SwitchPass                  string         `envconfig:"ECO_OCP_SRIOV_SWITCH_PASS"`
+	SwitchIP                    string         `envconfig:"ECO_OCP_SRIOV_SWITCH_IP"`
 }
 
 // NewSriovOcpConfig returns instance of SriovConfig config type.
@@ -186,6 +192,23 @@ func (sriovOcpConfig *SriovOcpConfig) GetSriovInterfaces(requestedNumber int) ([
 	}
 
 	return requestedInterfaceList, nil
+}
+
+// GetSwitchCredentials returns switch connection credentials from environment variables.
+func (sriovOcpConfig *SriovOcpConfig) GetSwitchCredentials() (user, password, ip string, err error) {
+	if sriovOcpConfig.SwitchUser == "" {
+		return "", "", "", fmt.Errorf("switch user is empty, check ECO_OCP_SRIOV_SWITCH_USER env var")
+	}
+
+	if sriovOcpConfig.SwitchPass == "" {
+		return "", "", "", fmt.Errorf("switch password is empty, check ECO_OCP_SRIOV_SWITCH_PASS env var")
+	}
+
+	if sriovOcpConfig.SwitchIP == "" {
+		return "", "", "", fmt.Errorf("switch IP is empty, check ECO_OCP_SRIOV_SWITCH_IP env var")
+	}
+
+	return sriovOcpConfig.SwitchUser, sriovOcpConfig.SwitchPass, sriovOcpConfig.SwitchIP, nil
 }
 
 func readFile(sriovOcpConfig *SriovOcpConfig, cfgFile string) error {

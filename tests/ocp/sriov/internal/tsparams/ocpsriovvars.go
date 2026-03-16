@@ -13,6 +13,8 @@ var (
 	ClientIPv4IPAddress = "192.168.0.1/24"
 	// ServerIPv4IPAddress represents the full test server IPv4 address.
 	ServerIPv4IPAddress = "192.168.0.2/24"
+	// ClusterMonitoringNSLabel represents Cluster Monitoring label for a NS to enable Prometheus Scraping.
+	ClusterMonitoringNSLabel = map[string]string{"openshift.io/cluster-monitoring": "true"}
 	// Labels represent the suite-level labels applied to all tests in the suite.
 	// Feature-specific labels (LabelBasic, LabelGUI, etc.) should be applied to individual tests.
 	Labels = []string{LabelSuite}

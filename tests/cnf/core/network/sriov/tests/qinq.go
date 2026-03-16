@@ -17,6 +17,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netnmstate"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/perfprofile"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 	multus "gopkg.in/k8snetworkplumbingwg/multus-cni.v4/pkg/types"
 	corev1 "k8s.io/api/core/v1"
@@ -133,7 +134,8 @@ var _ = Describe(
 
 			By("Fetching SR-IOV Vendor ID for interface under test")
 
-			sriovVendor, err = sriovenv.DiscoverInterfaceUnderTestVendorID(
+			sriovVendor, err = sriovoperator.DiscoverInterfaceUnderTestVendorID(
+				APIClient, NetConfig.SriovOperatorNamespace,
 				srIovInterfacesUnderTest[0], workerNodeList[0].Definition.Name)
 			Expect(err).ToNot(HaveOccurred(), "Failed to fetch SR-IOV Vendor ID for interface under test")
 
@@ -551,13 +553,15 @@ var _ = Describe(
 			BeforeAll(func() {
 				By("Deploying PerformanceProfile is it's not installed")
 
-				err = netenv.DeployPerformanceProfile(
+				err = perfprofile.DeployPerformanceProfile(
 					APIClient,
-					NetConfig,
+					NetConfig.WorkerLabelMap,
+					NetConfig.CnfMcpLabel,
 					perfProfileName,
 					"1,3,5,7,9,11,13,15,17,19,21,23,25",
 					"0,2,4,6,8,10,12,14,16,18,20",
-					24)
+					24,
+					tsparams.MCOWaitTimeout)
 				Expect(err).ToNot(HaveOccurred(), "Fail to deploy PerformanceProfile")
 
 				defineCreateSriovNetPolices(srIovPolicyVfioPci, srIovPolicyResNameVfioPci, srIovInterfacesUnderTest[0],

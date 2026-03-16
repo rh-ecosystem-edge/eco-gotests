@@ -9,8 +9,9 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/perfprofile"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/ocpsriovinittools"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/daemonset"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
@@ -19,19 +20,17 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/cmd"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/sriovenv"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/tsparams"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/perfprofile"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/sriovenv"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/sriovocpenv"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/tsparams"
+
 	"gopkg.in/k8snetworkplumbingwg/multus-cni.v4/pkg/types"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
-type testResource struct {
+type metricsTestResource struct {
 	policy  *sriov.PolicyBuilder
 	network *sriov.NetworkBuilder
 	pod     *pod.Builder
@@ -57,7 +56,7 @@ var _ = Describe(
 		BeforeAll(func() {
 			By("Verifying if Sriov Metrics Exporter tests can be executed on given cluster")
 
-			err := netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 1)
+			err := sriovocpenv.DoesClusterHaveEnoughNodes(1, 1)
 			if err != nil {
 				Skip(fmt.Sprintf("Skipping test - cluster doesn't have enough nodes: %v", err))
 			}
@@ -65,29 +64,29 @@ var _ = Describe(
 			By("Validating SR-IOV interfaces")
 
 			workerNodeList, err = nodes.List(APIClient,
-				metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
+				metav1.ListOptions{LabelSelector: labels.Set(SriovOcpConfig.WorkerLabelMap).String()})
 			Expect(err).ToNot(HaveOccurred(), "Failed to discover worker nodes")
 
-			Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 1)).ToNot(HaveOccurred(),
+			Expect(sriovocpenv.ValidateSriovInterfaces(workerNodeList, 1)).ToNot(HaveOccurred(),
 				"Failed to get required SR-IOV interfaces")
 
-			sriovInterfacesUnderTest, err = NetConfig.GetSriovInterfaces(1)
+			sriovInterfacesUnderTest, err = SriovOcpConfig.GetSriovInterfaces(1)
 			Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
 
 			By("Fetching SR-IOV Vendor ID for interface under test")
 
 			sriovVendorID, err = sriovoperator.DiscoverInterfaceUnderTestVendorID(
-				APIClient, NetConfig.SriovOperatorNamespace,
+				APIClient, SriovOcpConfig.OcpSriovOperatorNamespace,
 				sriovInterfacesUnderTest[0], workerNodeList[0].Definition.Name)
 			Expect(err).ToNot(HaveOccurred(), "Failed to fetch SR-IOV Vendor ID for interface under test")
 
 			By("Enable Sriov Metrics Exporter feature in default SriovOperatorConfig CR")
-			setMetricsExporter(true)
+			setMetricsExporterFlag(true)
 
 			By("Verify new daemonset sriov-network-metrics-exporter is created and ready")
 			Eventually(func() bool {
 				sriovmetricsdaemonset, err = daemonset.Pull(
-					APIClient, "sriov-network-metrics-exporter", NetConfig.SriovOperatorNamespace)
+					APIClient, "sriov-network-metrics-exporter", SriovOcpConfig.OcpSriovOperatorNamespace)
 
 				return err == nil
 			}, 2*time.Minute, 2*time.Second).Should(BeTrue(), "Daemonset sriov-network-metrics-exporter is not created")
@@ -96,9 +95,9 @@ var _ = Describe(
 
 			By("Enable Prometheus scraping for the new Sriov Metrics Exporter by labeling operator namespace")
 
-			sriovNs, err := namespace.Pull(APIClient, NetConfig.SriovOperatorNamespace)
+			sriovNs, err := namespace.Pull(APIClient, SriovOcpConfig.OcpSriovOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to fetch Sriov Namespace")
-			_, err = sriovNs.WithMultipleLabels(netparam.ClusterMonitoringNSLabel).Update()
+			_, err = sriovNs.WithMultipleLabels(tsparams.ClusterMonitoringNSLabel).Update()
 			Expect(err).ToNot(HaveOccurred(), "Failed to update Sriov Namespace")
 		})
 
@@ -107,8 +106,8 @@ var _ = Describe(
 
 			err := sriovoperator.RemoveSriovConfigurationAndWaitForSriovAndMCPStable(
 				APIClient,
-				NetConfig.WorkerLabelEnvVar,
-				NetConfig.SriovOperatorNamespace,
+				SriovOcpConfig.WorkerLabelEnvVar,
+				SriovOcpConfig.OcpSriovOperatorNamespace,
 				tsparams.MCOWaitTimeout,
 				tsparams.DefaultTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV configuration")
@@ -116,52 +115,52 @@ var _ = Describe(
 			By("Cleaning test namespace")
 
 			err = namespace.NewBuilder(APIClient, tsparams.TestNamespaceName).CleanObjects(
-				netparam.DefaultTimeout, pod.GetGVR())
+				tsparams.DefaultTimeout, pod.GetGVR())
 			Expect(err).ToNot(HaveOccurred(), "Failed to clean test namespace")
 		})
 
 		AfterAll(func() {
 			By("Disable Sriov Metrics Exporter feature in default SriovOperatorConfig CR")
-			setMetricsExporter(false)
+			setMetricsExporterFlag(false)
 			Eventually(func() bool { return sriovmetricsdaemonset.Exists() }, 1*time.Minute, 1*time.Second).Should(BeFalse(),
 				"sriov-metrics-exporter is not deleted yet")
 
 			By("Remove cluster monitoring label for operator namespace to disable Prometheus scraping")
 
-			sriovNs, err := namespace.Pull(APIClient, NetConfig.SriovOperatorNamespace)
+			sriovNs, err := namespace.Pull(APIClient, SriovOcpConfig.OcpSriovOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to fetch Sriov Namespace")
 
-			_, err = sriovNs.RemoveLabels(netparam.ClusterMonitoringNSLabel).Update()
+			_, err = sriovNs.RemoveLabels(tsparams.ClusterMonitoringNSLabel).Update()
 			Expect(err).ToNot(HaveOccurred(), "Failed to remove cluster-monitoring label from Sriov Namespace")
 		})
 
 		Context("Netdevice to Netdevice", func() {
 			It("Same PF", reportxml.ID("74762"), func() {
-				runNettoNetTests(sriovInterfacesUnderTest[0], sriovInterfacesUnderTest[0],
+				runMetricsNettoNetTests(sriovInterfacesUnderTest[0], sriovInterfacesUnderTest[0],
 					workerNodeList[0].Object.Name, workerNodeList[0].Object.Name, sriovVendorID)
 			})
 			It("Different PF", reportxml.ID("75929"), func() {
 				By("Verifying we have 2 SR-IOV interfaces available")
-				Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 1)).ToNot(HaveOccurred(),
+				Expect(sriovocpenv.ValidateSriovInterfaces(workerNodeList, 2)).ToNot(HaveOccurred(),
 					"Failed to get required SR-IOV interfaces")
 
-				interfaces, err := NetConfig.GetSriovInterfaces(2)
+				interfaces, err := SriovOcpConfig.GetSriovInterfaces(2)
 				Expect(err).ToNot(HaveOccurred(), "Failed to retrieve 2 SR-IOV interfaces for testing")
-				runNettoNetTests(interfaces[0], interfaces[1],
+				runMetricsNettoNetTests(interfaces[0], interfaces[1],
 					workerNodeList[0].Object.Name, workerNodeList[0].Object.Name, sriovVendorID)
 			})
 			It("Different Worker", reportxml.ID("75930"), func() {
 				By("Verifying cluster has enough workers")
 
-				err := netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 2)
+				err := sriovocpenv.DoesClusterHaveEnoughNodes(1, 2)
 				if err != nil {
 					Skip(fmt.Sprintf("Skipping test - cluster doesn't have enough workers: %v", err))
 				}
 
 				By("Validating SR-IOV interfaces on 2 workers")
-				Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 2)).ToNot(HaveOccurred(),
+				Expect(sriovocpenv.ValidateSriovInterfaces(workerNodeList, 2)).ToNot(HaveOccurred(),
 					"Failed to get required SR-IOV interfaces on 2 workers")
-				runNettoNetTests(sriovInterfacesUnderTest[0], sriovInterfacesUnderTest[0],
+				runMetricsNettoNetTests(sriovInterfacesUnderTest[0], sriovInterfacesUnderTest[0],
 					workerNodeList[0].Object.Name, workerNodeList[1].Object.Name, sriovVendorID)
 			})
 		})
@@ -172,8 +171,8 @@ var _ = Describe(
 
 				err := perfprofile.DeployPerformanceProfile(
 					APIClient,
-					NetConfig.WorkerLabelMap,
-					NetConfig.CnfMcpLabel,
+					SriovOcpConfig.WorkerLabelMap,
+					SriovOcpConfig.MCPLabel,
 					"performance-profile-dpdk",
 					"1,3,5,7,9,11,13,15,17,19,21,23,25",
 					"0,2,4,6,8,10,12,14,16,18,20",
@@ -186,31 +185,31 @@ var _ = Describe(
 				clearClientServerMacTableFromSwitch()
 			})
 			It("Same PF", reportxml.ID("74797"), func() {
-				runNettoVfioTests(sriovInterfacesUnderTest[0], sriovInterfacesUnderTest[0],
+				runMetricsNettoVfioTests(sriovInterfacesUnderTest[0], sriovInterfacesUnderTest[0],
 					workerNodeList[0].Object.Name, workerNodeList[0].Object.Name, sriovVendorID)
 			})
 			It("Different PF", reportxml.ID("75931"), func() {
 				By("Verifying we have 2 SR-IOV interfaces available")
-				Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 1)).ToNot(HaveOccurred(),
+				Expect(sriovocpenv.ValidateSriovInterfaces(workerNodeList, 2)).ToNot(HaveOccurred(),
 					"Failed to get required SR-IOV interfaces")
 
-				interfaces, err := NetConfig.GetSriovInterfaces(2)
+				interfaces, err := SriovOcpConfig.GetSriovInterfaces(2)
 				Expect(err).ToNot(HaveOccurred(), "Failed to retrieve 2 SR-IOV interfaces for testing")
-				runNettoVfioTests(interfaces[0], interfaces[1],
+				runMetricsNettoVfioTests(interfaces[0], interfaces[1],
 					workerNodeList[0].Object.Name, workerNodeList[0].Object.Name, sriovVendorID)
 			})
 			It("Different Worker", reportxml.ID("75932"), func() {
 				By("Verifying cluster has enough workers")
 
-				err := netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 2)
+				err := sriovocpenv.DoesClusterHaveEnoughNodes(1, 2)
 				if err != nil {
 					Skip(fmt.Sprintf("Skipping test - cluster doesn't have enough workers: %v", err))
 				}
 
 				By("Validating SR-IOV interfaces on 2 workers")
-				Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 2)).ToNot(HaveOccurred(),
+				Expect(sriovocpenv.ValidateSriovInterfaces(workerNodeList, 2)).ToNot(HaveOccurred(),
 					"Failed to get required SR-IOV interfaces on 2 workers")
-				runNettoVfioTests(sriovInterfacesUnderTest[0], sriovInterfacesUnderTest[0],
+				runMetricsNettoVfioTests(sriovInterfacesUnderTest[0], sriovInterfacesUnderTest[0],
 					workerNodeList[0].Object.Name, workerNodeList[1].Object.Name, sriovVendorID)
 			})
 		})
@@ -221,8 +220,8 @@ var _ = Describe(
 
 				err := perfprofile.DeployPerformanceProfile(
 					APIClient,
-					NetConfig.WorkerLabelMap,
-					NetConfig.CnfMcpLabel,
+					SriovOcpConfig.WorkerLabelMap,
+					SriovOcpConfig.MCPLabel,
 					"performance-profile-dpdk",
 					"1,3,5,7,9,11,13,15,17,19,21,23,25",
 					"0,2,4,6,8,10,12,14,16,18,20",
@@ -235,154 +234,187 @@ var _ = Describe(
 				clearClientServerMacTableFromSwitch()
 			})
 			It("Same PF", reportxml.ID("74800"), func() {
-				runVfiotoVfioTests(sriovInterfacesUnderTest[0], sriovInterfacesUnderTest[0],
+				runMetricsVfiotoVfioTests(sriovInterfacesUnderTest[0], sriovInterfacesUnderTest[0],
 					workerNodeList[0].Object.Name, workerNodeList[0].Object.Name, sriovVendorID)
 			})
 			It("Different PF", reportxml.ID("75933"), func() {
 				By("Verifying we have 2 SR-IOV interfaces available")
-				Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 1)).ToNot(HaveOccurred(),
+				Expect(sriovocpenv.ValidateSriovInterfaces(workerNodeList, 2)).ToNot(HaveOccurred(),
 					"Failed to get required SR-IOV interfaces")
 
-				interfaces, err := NetConfig.GetSriovInterfaces(2)
+				interfaces, err := SriovOcpConfig.GetSriovInterfaces(2)
 				Expect(err).ToNot(HaveOccurred(), "Failed to retrieve 2 SR-IOV interfaces for testing")
-				runVfiotoVfioTests(interfaces[0], interfaces[1],
+				runMetricsVfiotoVfioTests(interfaces[0], interfaces[1],
 					workerNodeList[0].Object.Name, workerNodeList[0].Object.Name, sriovVendorID)
 			})
 			It("Different Worker", reportxml.ID("75934"), func() {
 				By("Verifying cluster has enough workers")
 
-				err := netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 2)
+				err := sriovocpenv.DoesClusterHaveEnoughNodes(1, 2)
 				if err != nil {
 					Skip(fmt.Sprintf("Skipping test - cluster doesn't have enough workers: %v", err))
 				}
 
 				By("Validating SR-IOV interfaces on 2 workers")
-				Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 2)).ToNot(HaveOccurred(),
+				Expect(sriovocpenv.ValidateSriovInterfaces(workerNodeList, 2)).ToNot(HaveOccurred(),
 					"Failed to get required SR-IOV interfaces on 2 workers")
-				runVfiotoVfioTests(sriovInterfacesUnderTest[0], sriovInterfacesUnderTest[0],
+				runMetricsVfiotoVfioTests(sriovInterfacesUnderTest[0], sriovInterfacesUnderTest[0],
 					workerNodeList[0].Object.Name, workerNodeList[1].Object.Name, sriovVendorID)
 			})
 		})
 	})
 
-func runNettoNetTests(clientPf, serverPf, clientWorker, serverWorker, devID string) {
+func runMetricsNettoNetTests(clientPf, serverPf, clientWorker, serverWorker, devID string) {
 	By("Define and Create SriovNodePolicy, SriovNetwork and Pod Resources")
 
-	clientResources := defineTestResources("client",
+	clientResources := defineMetricsTestResources("client",
 		clientPf, devID, "netdevice",
 		clientWorker, 0, false)
-	serverResources := defineTestResources("server",
+	serverResources := defineMetricsTestResources("server",
 		serverPf, devID, "netdevice",
 		serverWorker, 1, false)
 
-	cPod, _ := createTestResources(clientResources, serverResources)
+	cPod := createMetricsTestResources(clientResources, serverResources)
 
 	By("ICMP check between client and server pods")
 	Eventually(func() error {
-		return cmd.ICMPConnectivityCheck(cPod, []string{tsparams.ServerIPv4IPAddress}, "net1")
+		return sriovocpenv.ICMPConnectivityCheck(cPod, []string{tsparams.ServerIPv4IPAddress}, "net1")
 	}, 1*time.Minute, 2*time.Second).Should(Not(HaveOccurred()), "ICMP Failed")
 
 	checkMetricsWithPromQL()
 }
 
-func runNettoVfioTests(clientPf, serverPf, clientWorker, serverWorker, devID string) {
+func runMetricsNettoVfioTests(clientPf, serverPf, clientWorker, serverWorker, devID string) {
 	By("Define and Create SriovNodePolicy, SriovNetwork and Pod Resources")
 
-	clientResources := defineTestResources("client",
+	clientResources := defineMetricsTestResources("client",
 		clientPf, devID, "netdevice",
 		clientWorker, 0, false)
-	serverResources := defineTestResources("server",
+	serverResources := defineMetricsTestResources("server",
 		serverPf, devID, "vfiopci",
 		serverWorker, 1, true)
 
-	cPod, _ := createTestResources(clientResources, serverResources)
+	cPod := createMetricsTestResources(clientResources, serverResources)
 
 	By("update ARP table to add server mac address in client pod")
 
 	outputbuf, err := cPod.ExecCommand([]string{"bash", "-c", fmt.Sprintf("arp -s %s %s",
-		strings.Split(tsparams.ServerIPv4IPAddress, "/")[0], tsparams.ServerMacAddress)})
+		strings.Split(tsparams.ServerIPv4IPAddress, "/")[0], tsparams.TestPodServerMAC)})
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf(
 		"Failed to add server mac address in client pod mac table. Output: %s", outputbuf.String()))
 
 	By("ICMP check between client and server pods")
 	Eventually(func() error {
-		return cmd.ICMPConnectivityCheck(cPod, []string{tsparams.ServerIPv4IPAddress}, "net1")
+		return sriovocpenv.ICMPConnectivityCheck(cPod, []string{tsparams.ServerIPv4IPAddress}, "net1")
 	}, 1*time.Minute, 2*time.Second).Should(HaveOccurred(), "ICMP fail scenario could not be executed")
 
 	checkMetricsWithPromQL()
 }
 
-func runVfiotoVfioTests(clientPf, serverPf, clientWorker, serverWorker, devID string) {
+func runMetricsVfiotoVfioTests(clientPf, serverPf, clientWorker, serverWorker, devID string) {
 	By("Define and Create SriovNodePolicy, SriovNetwork and Pod Resources")
 
-	clientResources := defineTestResources("client",
+	clientResources := defineMetricsTestResources("client",
 		clientPf, devID, "vfiopci",
 		clientWorker, 0, true)
-	serverResources := defineTestResources("server",
+	serverResources := defineMetricsTestResources("server",
 		serverPf, devID, "vfiopci",
 		serverWorker, 1, true)
 
-	_, _ = createTestResources(clientResources, serverResources)
+	createMetricsTestResources(clientResources, serverResources)
 
 	checkMetricsWithPromQL()
 }
 
-func defineTestResources(role, pfName, nicVendor, deviceType, workerNode string, vfRange int, dpdk bool) testResource {
+func defineMetricsTestResources(
+	role, pfName, nicVendor, deviceType, workerNode string, vfRange int, dpdk bool) metricsTestResource {
 	var podBuilder *pod.Builder
 
-	sriovPolicy := definePolicy(role, deviceType, nicVendor, pfName, vfRange)
+	sriovPolicy := defineMetricsPolicy(role, deviceType, nicVendor, pfName, vfRange)
 
-	sriovNetwork := defineNetwork(role, deviceType)
+	sriovNetwork := defineMetricsNetwork(role, deviceType)
 
 	if dpdk {
-		podBuilder = defineDPDKPod(role, deviceType, workerNode)
+		podBuilder = defineMetricsDPDKPod(role, deviceType, workerNode)
 	} else {
-		podBuilder = sriovenv.DefinePod(role+"pod", role, role+deviceType, workerNode, true)
+		podBuilder = defineMetricsPod(role, deviceType, workerNode)
 	}
 
-	return testResource{sriovPolicy, sriovNetwork, podBuilder}
+	return metricsTestResource{sriovPolicy, sriovNetwork, podBuilder}
 }
 
-func definePolicy(role, devType, nicVendor, pfName string, vfRange int) *sriov.PolicyBuilder {
+func defineMetricsPolicy(role, devType, nicVendor, pfName string, vfRange int) *sriov.PolicyBuilder {
 	var policy *sriov.PolicyBuilder
 
 	switch devType {
 	case "netdevice":
 		policy = sriov.NewPolicyBuilder(APIClient,
-			role+devType, NetConfig.SriovOperatorNamespace, role+devType, 6, []string{pfName}, NetConfig.WorkerLabelMap).
+			role+devType, SriovOcpConfig.OcpSriovOperatorNamespace, role+devType, 6, []string{pfName},
+			SriovOcpConfig.WorkerLabelMap).
 			WithDevType("netdevice").
 			WithVFRange(vfRange, vfRange)
 	case "vfiopci":
-		if nicVendor != netparam.MlxVendorID {
+		if nicVendor != tsparams.MlxVendorID {
 			policy = sriov.NewPolicyBuilder(APIClient,
-				role+devType, NetConfig.SriovOperatorNamespace, role+devType, 6, []string{pfName}, NetConfig.WorkerLabelMap).
+				role+devType, SriovOcpConfig.OcpSriovOperatorNamespace, role+devType, 6, []string{pfName},
+				SriovOcpConfig.WorkerLabelMap).
 				WithDevType("vfio-pci").
 				WithVFRange(vfRange, vfRange).
 				WithRDMA(false)
 		} else {
 			policy = sriov.NewPolicyBuilder(APIClient,
-				role+devType, NetConfig.SriovOperatorNamespace, role+devType, 6, []string{pfName}, NetConfig.WorkerLabelMap).
+				role+devType, SriovOcpConfig.OcpSriovOperatorNamespace, role+devType, 6, []string{pfName},
+				SriovOcpConfig.WorkerLabelMap).
 				WithDevType("netdevice").
 				WithVFRange(vfRange, vfRange).
 				WithRDMA(true)
 		}
+	default:
+		Fail(fmt.Sprintf("Invalid device type: %s", devType))
 	}
 
 	return policy
 }
 
-func defineNetwork(role, devType string) *sriov.NetworkBuilder {
+func defineMetricsNetwork(role, devType string) *sriov.NetworkBuilder {
 	network := sriov.NewNetworkBuilder(
-		APIClient, role+devType, NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName, role+devType).
+		APIClient, role+devType, SriovOcpConfig.OcpSriovOperatorNamespace, tsparams.TestNamespaceName, role+devType).
 		WithMacAddressSupport().
 		WithIPAddressSupport().
 		WithStaticIpam().
-		WithLogLevel(netparam.LogLevelDebug)
+		WithLogLevel("debug")
 
 	return network
 }
 
-func defineDPDKPod(role, devType, worker string) *pod.Builder {
+func defineMetricsPod(role, devType, worker string) *pod.Builder {
+	var netAnnotation []*types.NetworkSelectionElement
+
+	if role == "server" {
+		netAnnotation = []*types.NetworkSelectionElement{
+			{
+				Name:       role + devType,
+				MacRequest: tsparams.TestPodServerMAC,
+				IPRequest:  []string{tsparams.ServerIPv4IPAddress},
+			},
+		}
+	} else {
+		netAnnotation = []*types.NetworkSelectionElement{
+			{
+				Name:       role + devType,
+				MacRequest: tsparams.TestPodClientMAC,
+				IPRequest:  []string{tsparams.ClientIPv4IPAddress},
+			},
+		}
+	}
+
+	return pod.NewBuilder(APIClient, role+"pod", tsparams.TestNamespaceName, SriovOcpConfig.OcpSriovTestContainer).
+		WithNodeSelector(map[string]string{corev1.LabelHostname: worker}).
+		WithPrivilegedFlag().
+		WithSecondaryNetwork(netAnnotation)
+}
+
+func defineMetricsDPDKPod(role, devType, worker string) *pod.Builder {
 	var (
 		rootUser      int64
 		testpmdCmd    []string
@@ -401,18 +433,18 @@ func defineDPDKPod(role, devType, worker string) *pod.Builder {
 		netAnnotation = []*types.NetworkSelectionElement{
 			{
 				Name:       role + devType,
-				MacRequest: tsparams.ClientMacAddress,
+				MacRequest: tsparams.TestPodClientMAC,
 				IPRequest:  []string{tsparams.ClientIPv4IPAddress},
 			},
 		}
 		testpmdCmd = []string{"bash", "-c", fmt.Sprintf("testpmd -a ${PCIDEVICE_OPENSHIFT_IO_%s} --iova-mode=va -- "+
 			"--portmask=0x1 --nb-cores=2 --forward-mode=txonly --port-topology=loop --no-mlockall "+
-			"--stats-period 5 --eth-peer=0,%s", strings.ToUpper(role+devType), tsparams.ServerMacAddress)}
+			"--stats-period 5 --eth-peer=0,%s", strings.ToUpper(role+devType), tsparams.TestPodServerMAC)}
 	case "server":
 		netAnnotation = []*types.NetworkSelectionElement{
 			{
 				Name:       role + devType,
-				MacRequest: tsparams.ServerMacAddress,
+				MacRequest: tsparams.TestPodServerMAC,
 				IPRequest:  []string{tsparams.ServerIPv4IPAddress},
 			},
 		}
@@ -421,7 +453,7 @@ func defineDPDKPod(role, devType, worker string) *pod.Builder {
 			"--stats-period 5", strings.ToUpper(role+devType))}
 	}
 
-	dpdkContainer, err := pod.NewContainerBuilder("testpmd", NetConfig.DpdkTestContainer, testpmdCmd).
+	dpdkContainer, err := pod.NewContainerBuilder("testpmd", SriovOcpConfig.DpdkTestContainer, testpmdCmd).
 		WithSecurityContext(&securityContext).
 		WithResourceLimit("1Gi", "1Gi", 4).
 		WithResourceRequest("1Gi", "1Gi", 4).
@@ -429,7 +461,7 @@ func defineDPDKPod(role, devType, worker string) *pod.Builder {
 		GetContainerCfg()
 	Expect(err).ToNot(HaveOccurred(), "Failed to Get Container Builder Configuration")
 
-	dpdkPod := pod.NewBuilder(APIClient, role+"pod", tsparams.TestNamespaceName, NetConfig.DpdkTestContainer).
+	dpdkPod := pod.NewBuilder(APIClient, role+"pod", tsparams.TestNamespaceName, SriovOcpConfig.DpdkTestContainer).
 		RedefineDefaultContainer(*dpdkContainer).
 		WithHugePages().
 		WithPrivilegedFlag().
@@ -439,8 +471,8 @@ func defineDPDKPod(role, devType, worker string) *pod.Builder {
 	return dpdkPod
 }
 
-func createTestResources(cRes, sRes testResource) (*pod.Builder, *pod.Builder) {
-	for _, res := range []testResource{cRes, sRes} {
+func createMetricsTestResources(cRes, sRes metricsTestResource) *pod.Builder {
+	for _, res := range []metricsTestResource{cRes, sRes} {
 		By("Create SriovNetworkNodePolicy")
 
 		_, err := res.policy.Create()
@@ -449,19 +481,23 @@ func createTestResources(cRes, sRes testResource) (*pod.Builder, *pod.Builder) {
 
 		By("Create SriovNetwork")
 
-		err = sriovenv.CreateSriovNetworkAndWaitForNADCreation(res.network, tsparams.NADWaitTimeout)
+		_, err = res.network.Create()
 		Expect(err).ToNot(HaveOccurred(),
-			"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
+			fmt.Sprintf("Failed to create SriovNetwork %s", res.network.Definition.Name))
+
+		err = sriovenv.WaitForNADCreation(res.network.Definition.Name, tsparams.TestNamespaceName, tsparams.NADTimeout)
+		Expect(err).ToNot(HaveOccurred(),
+			"Failed to wait for NAD creation for Sriov Network %s with error %v",
 			res.network.Definition.Name, err)
 	}
 
 	err := sriovoperator.WaitForSriovAndMCPStable(APIClient, tsparams.MCOWaitTimeout, tsparams.DefaultStableDuration,
-		NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
+		SriovOcpConfig.MCPLabel, SriovOcpConfig.OcpSriovOperatorNamespace)
 	Expect(err).ToNot(HaveOccurred(), "Failed cluster is not stable before creating test resources")
 
 	By("Wait for NAD Creation")
 
-	for _, res := range []testResource{cRes, sRes} {
+	for _, res := range []metricsTestResource{cRes, sRes} {
 		Eventually(func() error {
 			_, err = nad.Pull(APIClient, res.network.Object.Name, tsparams.TestNamespaceName)
 
@@ -476,10 +512,10 @@ func createTestResources(cRes, sRes testResource) (*pod.Builder, *pod.Builder) {
 
 	By(fmt.Sprintf("Creating %s Pod", sRes.pod.Definition.Name))
 
-	sPod, err := sRes.pod.CreateAndWaitUntilRunning(2 * time.Minute)
+	_, err = sRes.pod.CreateAndWaitUntilRunning(2 * time.Minute)
 	Expect(err).ToNot(HaveOccurred(), "Failed to create Pod")
 
-	return cPod, sPod
+	return cPod
 }
 
 func checkMetricsWithPromQL() {
@@ -500,8 +536,9 @@ func execPromQLandReturnString(query []string) string {
 	By("Running PromQL to fetch metrics of serverpod")
 
 	promPods, err := pod.List(APIClient,
-		NetConfig.PrometheusOperatorNamespace, metav1.ListOptions{LabelSelector: "prometheus=k8s"})
+		SriovOcpConfig.PrometheusOperatorNamespace, metav1.ListOptions{LabelSelector: "prometheus=k8s"})
 	Expect(err).ToNot(HaveOccurred(), "Failed to get prometheus pods")
+	Expect(len(promPods)).To(BeNumerically(">", 0), "No prometheus pods found with label prometheus=k8s")
 
 	By(fmt.Sprintf("Running PromQL query: %s", query))
 	output, err := promPods[0].ExecCommand(query, "prometheus")
@@ -528,15 +565,20 @@ func fetchScalarFromPromQLoutput(res string) int {
 	err := json.Unmarshal([]byte(res), &outValue)
 	Expect(err).ToNot(HaveOccurred(), "Failed to Unmarshal promQL output from prometheus pod")
 
-	//nolint:forcetypeassert
-	finalVal, err := strconv.Atoi(outValue[0].Value[1].(string))
+	Expect(len(outValue)).To(BeNumerically(">", 0), "PromQL output contains no metrics")
+	Expect(len(outValue[0].Value)).To(BeNumerically(">", 1), "PromQL metric value array is incomplete")
+
+	valueStr, ok := outValue[0].Value[1].(string)
+	Expect(ok).To(BeTrue(), "PromQL metric value is not a string")
+
+	finalVal, err := strconv.Atoi(valueStr)
 	Expect(err).To(Not(HaveOccurred()), "Failed to convert counter value to int")
 
 	return finalVal
 }
 
-func setMetricsExporter(flag bool) {
-	defaultOperatorConfig, err := sriov.PullOperatorConfig(APIClient, NetConfig.SriovOperatorNamespace)
+func setMetricsExporterFlag(flag bool) {
+	defaultOperatorConfig, err := sriov.PullOperatorConfig(APIClient, SriovOcpConfig.OcpSriovOperatorNamespace)
 	Expect(err).ToNot(HaveOccurred(), "Failed to fetch default Sriov Operator Config")
 
 	if defaultOperatorConfig.Definition.Spec.FeatureGates == nil {
@@ -550,17 +592,18 @@ func setMetricsExporter(flag bool) {
 }
 
 func clearClientServerMacTableFromSwitch() {
-	switchCredentials, err := sriovenv.NewSwitchCredentials()
+	switchCredentials, err := sriovocpenv.NewSwitchCredentials()
 	Expect(err).ToNot(HaveOccurred(), "Failed to get switch credentials")
 
-	jnpr, err := cmd.NewSession(switchCredentials.SwitchIP, switchCredentials.User, switchCredentials.Password)
-	Expect(err).ToNot(HaveOccurred(), "Failed to fetch Switch Credentials")
+	jnpr, err := sriovocpenv.NewJunosSession(
+		switchCredentials.SwitchIP, switchCredentials.User, switchCredentials.Password)
+	Expect(err).ToNot(HaveOccurred(), "Failed to create new Junos Session")
 
 	defer jnpr.Close()
 
-	_, err = jnpr.RunCommand(fmt.Sprintf("clear ethernet-switching table %s", tsparams.ServerMacAddress))
-	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to clear mac table for %s", tsparams.ServerMacAddress))
+	_, err = jnpr.RunCommand(fmt.Sprintf("clear ethernet-switching table %s", tsparams.TestPodServerMAC))
+	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to clear mac table for %s", tsparams.TestPodServerMAC))
 
-	_, err = jnpr.RunCommand(fmt.Sprintf("clear ethernet-switching table %s", tsparams.ClientMacAddress))
-	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("Failed to clear mac table for %s", tsparams.ClientMacAddress))
+	_, err = jnpr.RunCommand(fmt.Sprintf("clear ethernet-switching table %s", tsparams.TestPodClientMAC))
+	Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("Failed to clear mac table for %s", tsparams.TestPodClientMAC))
 }
