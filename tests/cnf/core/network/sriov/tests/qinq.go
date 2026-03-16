@@ -1031,7 +1031,8 @@ func defineCreateSriovNetPolices(vfioPCIName, vfioPCIResName, sriovInterface,
 
 	switch reqDriver {
 	case "vfio-pci":
-		if sriovDeviceID == netparam.MlxDeviceID || sriovDeviceID == netparam.MlxBFDeviceID {
+		if sriovDeviceID == netparam.MlxDeviceID || sriovDeviceID == netparam.MlxBFDeviceID ||
+			sriovDeviceID == netparam.MlxConnectX6 || sriovDeviceID == netparam.MlxConnectX6Dx {
 			_, err := sriovPolicy.WithRDMA(true).WithDevType("netdevice").Create()
 			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to create Mellanox sriovnetwork policy %s",
 				vfioPCIName))
@@ -1097,13 +1098,23 @@ func setVFPromiscMode(nodeName, srIovInterfacesUnderTest, sriovDeviceID, onOff s
 	promiscVFCommand := fmt.Sprintf("ethtool --set-priv-flags %s vf-true-promisc-support %s",
 		srIovInterfacesUnderTest, onOff)
 	if sriovDeviceID == netparam.MlxDeviceID || sriovDeviceID == netparam.MlxBFDeviceID ||
-		sriovDeviceID == netparam.MlxConnectX6 {
+		sriovDeviceID == netparam.MlxConnectX6 || sriovDeviceID == netparam.MlxConnectX6Dx {
 		promiscVFCommand = fmt.Sprintf("ip link set %s promisc %s",
 			srIovInterfacesUnderTest, onOff)
 	}
 
 	output, err := cmd.RunCommandOnHostNetworkPod(nodeName, NetConfig.SriovOperatorNamespace, promiscVFCommand)
-	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to run command on node %s", output))
+	if err != nil {
+		// Cleanup (off): do not fail AfterAll if driver doesn't support the flag or it's already off
+		if onOff == "off" {
+			glog.Warningf("Could not disable VF promisc on %s (node %s): %v - %s",
+				srIovInterfacesUnderTest, nodeName, err, output)
+
+			return
+		}
+
+		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to run command on node %s", output))
+	}
 }
 
 func cleanTestEnvSRIOVConfiguration() {
