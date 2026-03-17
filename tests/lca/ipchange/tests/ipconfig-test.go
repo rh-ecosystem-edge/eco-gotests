@@ -105,5 +105,17 @@ var _ = Describe(
 
 					return err
 				}),
+			Entry("Validates input for dnsServers list entry in the IPConfig spec", reportxml.ID("88106"),
+				"spec.dnsServers[0]: Invalid value: \"string\": must be a valid IP address",
+				func(builder *lca.IPConfigBuilder) error {
+					if builder.Definition.Spec.IPv4 == nil {
+						builder.Definition.Spec.IPv4 = &lcaipcv1.IPv4Config{}
+					}
+
+					builder.Definition.Spec.DNSServers[0] = tsparams.BadIPv4Address
+					_, err := builder.Update()
+
+					return err
+				}),
 		)
 	})
