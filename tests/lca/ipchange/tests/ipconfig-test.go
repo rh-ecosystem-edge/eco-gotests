@@ -79,6 +79,19 @@ var _ = Describe(
 
 					return err
 				}),
+			Entry("Validates input for the ipv4.gateway field in the IPConfig spec", reportxml.ID("88107"),
+				fmt.Sprintf("spec.ipv4.gateway: Invalid value: \"%s\": spec.ipv4.gateway "+
+					"in body must be of type ipv4: \"%s\"", tsparams.BadIPv4Address, tsparams.BadIPv4Address),
+				func(builder *lca.IPConfigBuilder) error {
+					if builder.Definition.Spec.IPv4 == nil {
+						builder.Definition.Spec.IPv4 = &lcaipcv1.IPv4Config{}
+					}
+
+					builder.Definition.Spec.IPv4.Gateway = tsparams.BadIPv4Address
+					_, err := builder.Update()
+
+					return err
+				}),
 			Entry("Validates input for the ipv4.machineNetwork field in the IPConfig spec", reportxml.ID("88089"),
 				fmt.Sprintf("spec.ipv4.machineNetwork: Invalid value: \"%s\": spec.ipv4.machineNetwork "+
 					"in body must be of type cidr: \"%s\"", tsparams.BadIPv4Address, tsparams.BadIPv4Address),
