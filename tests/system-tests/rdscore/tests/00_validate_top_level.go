@@ -331,14 +331,13 @@ var _ = Describe(
 					By("Dumping node status information due to test failure")
 					rdscorecommon.DumpNodeStatus(ctx)
 				}
-
-				By("Ensure all nodes are Ready and scheduling enabled")
-				rdscorecommon.EnsureInNodeReadiness(ctx)
 			})
 		})
 
 		Context("Ungraceful Cluster Reboot", Label("ungraceful-cluster-reboot"), func() {
 			BeforeAll(func(ctx SpecContext) {
+				DeferCleanup(rdscorecommon.EnsureInNodeReadiness)
+
 				By("Creating EgressIP workload config")
 				rdscorecommon.CreateEgressIPTestDeployment()
 
@@ -683,6 +682,8 @@ var _ = Describe(
 
 		Context("Graceful Cluster Reboot", Label("graceful-cluster-reboot"), func() {
 			BeforeAll(func(ctx SpecContext) {
+				DeferCleanup(rdscorecommon.EnsureInNodeReadiness)
+
 				By("Creating EgressIP workload config")
 				rdscorecommon.CreateEgressIPTestDeployment()
 
