@@ -109,7 +109,18 @@ func QueryPrometheus(apiClient *clients.Settings, query string) (*PrometheusQuer
 			break
 		}
 
-		lastErr = fmt.Errorf("endpoint %s failed: %w", endpoint.name, err)
+		var errReason error
+
+		switch {
+		case err != nil:
+			errReason = err
+		case resp == "":
+			errReason = fmt.Errorf("empty response")
+		default:
+			errReason = fmt.Errorf("unauthorized response")
+		}
+
+		lastErr = fmt.Errorf("endpoint %s failed: %w", endpoint.name, errReason)
 	}
 
 	if response == "" {
