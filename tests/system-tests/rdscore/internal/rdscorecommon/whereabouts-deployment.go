@@ -1289,6 +1289,8 @@ func VerifyWhereaboutsInterDeploymentPodCommunicationOnDifferentNodesAfterPodTer
 // with pods scheduled on the same node, drains a node and verifies
 // inter pod communication between them.
 func VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNodeAfterNodeDrain(ctx SpecContext) {
+	DeferCleanup(EnsureInNodeReadiness)
+
 	configOne, configTwo, err := configureSameNodeDeployments()
 
 	Expect(err).ToNot(HaveOccurred(),
@@ -1308,6 +1310,8 @@ func VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNodeAfterNodeDrain
 // with pods scheduled on different nodes, drains a node and verifies
 // inter pod communication between them.
 func VerifyWhereaboutsInterDeploymentPodCommunicationOnDifferentNodesAfterNodeDrain(ctx SpecContext) {
+	DeferCleanup(EnsureInNodeReadiness)
+
 	configOne, configTwo, err := configureDifferentNodeDeployments()
 
 	Expect(err).ToNot(HaveOccurred(),
@@ -1327,6 +1331,8 @@ func VerifyWhereaboutsInterDeploymentPodCommunicationOnDifferentNodesAfterNodeDr
 // with pods scheduled on the same node, powers off a node and verifies
 // inter pod communication between them.
 func VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNodeAfterNodePowerOff(ctx SpecContext) {
+	DeferCleanup(EnsureInNodeReadiness)
+
 	configOne, configTwo, err := configureSameNodeDeployments()
 
 	Expect(err).ToNot(HaveOccurred(),
@@ -1346,6 +1352,8 @@ func VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNodeAfterNodePower
 // with pods scheduled on the different nodes, powers off a node and verifies
 // inter pod communication between them.
 func VerifyWhereaboutsInterDeploymentPodCommunicationOnDifferentNodesAfterNodePowerOff(ctx SpecContext) {
+	DeferCleanup(EnsureInNodeReadiness)
+
 	configOne, configTwo, err := configureDifferentNodeDeployments()
 
 	Expect(err).ToNot(HaveOccurred(),
