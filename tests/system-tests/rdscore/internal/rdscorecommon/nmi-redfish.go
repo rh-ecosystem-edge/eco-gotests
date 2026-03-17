@@ -142,15 +142,21 @@ func triggerNMIRedfish(ctx SpecContext, nodeLabel string) {
 
 // VerifyNMIRedfishOnControlPlane triggers NMI via RedFish on Control Plane nodes.
 func VerifyNMIRedfishOnControlPlane(ctx SpecContext) {
+	DeferCleanup(EnsureInNodeReadiness)
+
 	triggerNMIRedfish(ctx, RDSCoreConfig.NMIRedfishCPNodeLabel)
 }
 
 // VerifyNMIRedfishOnWorkerMCP triggers NMI via RedFish on nodes in "Worker" MCP.
 func VerifyNMIRedfishOnWorkerMCP(ctx SpecContext) {
+	DeferCleanup(EnsureInNodeReadiness)
+
 	triggerNMIRedfish(ctx, RDSCoreConfig.NMIRedfishWorkerMCPNodeLabel)
 }
 
 // VerifyNMIRedfishOnCNFMCP triggers NMI via RedFish on nodes in "CNF" MCP.
 func VerifyNMIRedfishOnCNFMCP(ctx SpecContext) {
+	DeferCleanup(EnsureInNodeReadiness)
+
 	triggerNMIRedfish(ctx, RDSCoreConfig.NMIRedfishCNFMCPNodeLabel)
 }
