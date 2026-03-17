@@ -15,4 +15,8 @@ const (
 	OperatorDeployTimeout = 10 * time.Minute
 	// DevicePluginReadyTimeout represents the timeout for device plugin readiness.
 	DevicePluginReadyTimeout = 10 * time.Minute
+	// MetricScrapeTimeout is how long to poll for a metric to appear in Prometheus after ServiceMonitor creation.
+	MetricScrapeTimeout = 5 * time.Minute
+	// MetricScrapeInterval is how often to retry when polling for metric availability.
+	MetricScrapeInterval = 30 * time.Second
 )
