@@ -58,19 +58,37 @@ var _ = Describe(
 				_, err = newIbguBuilder.DeleteAndWait(1 * time.Minute)
 				Expect(err).ToNot(HaveOccurred(), "Failed to delete prep-upgrade ibgu on target hub cluster")
 
-				abortIbguBuilder := ibgu.NewIbguBuilder(TargetHubAPIClient, "abortibgu", tsparams.IbguNamespace).
-					WithClusterLabelSelectors(tsparams.ClusterLabelSelector).
-					WithSeedImageRef(CNFConfig.IbguSeedImage, CNFConfig.IbguSeedImageVersion).
-					WithPlan([]string{"Abort"}, 5, 10)
+				// Check if IBU is already Idle after auto-rollback
+				ibu, err = lca.PullImageBasedUpgrade(TargetSNOAPIClient)
+				Expect(err).ToNot(HaveOccurred(), "Failed to pull IBU resource")
 
-				abortIbguBuilder, err = abortIbguBuilder.Create()
-				Expect(err).ToNot(HaveOccurred(), "Failed to create abort Ibgu.")
+				// Check the Idle condition status
+				isIdle := false
+				for _, condition := range ibu.Object.Status.Conditions {
+					if condition.Type == "Idle" && condition.Status == "True" {
+						isIdle = true
+						break
+					}
+				}
 
-				_, err = abortIbguBuilder.WaitUntilComplete(5 * time.Minute)
-				Expect(err).NotTo(HaveOccurred(), "abort IBGU did not complete in time.")
+				// Only create abort IBGU if not already Idle
+				if !isIdle {
+					abortIbguBuilder := ibgu.NewIbguBuilder(TargetHubAPIClient, "abortibgu", tsparams.IbguNamespace).
+						WithClusterLabelSelectors(tsparams.ClusterLabelSelector).
+						WithSeedImageRef(CNFConfig.IbguSeedImage, CNFConfig.IbguSeedImageVersion).
+						WithPlan([]string{"Abort"}, 5, 10)
 
-				_, err = abortIbguBuilder.DeleteAndWait(1 * time.Minute)
-				Expect(err).ToNot(HaveOccurred(), "Failed to delete abort ibgu on target hub cluster")
+					abortIbguBuilder, err = abortIbguBuilder.Create()
+					Expect(err).ToNot(HaveOccurred(), "Failed to create abort Ibgu.")
+
+					_, err = abortIbguBuilder.WaitUntilComplete(5 * time.Minute)
+					Expect(err).NotTo(HaveOccurred(), "abort IBGU did not complete in time.")
+
+					_, err = abortIbguBuilder.DeleteAndWait(1 * time.Minute)
+					Expect(err).ToNot(HaveOccurred(), "Failed to delete abort ibgu on target hub cluster")
+				} else {
+					klog.V(100).Infof("IBU already in Idle stage after auto-rollback, skipping abort IBGU")
+				}
 
 				// Sleep for 10 seconds to allow talm to reconcile state.
 				// Sometimes if the next test re-creates the IBGUs too quickly,
