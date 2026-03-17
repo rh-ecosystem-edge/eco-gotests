@@ -20,7 +20,11 @@ and configuration.
 It has been run successfully on these OCP versions:
 - 4.19
 
+<<<<<<< HEAD
 It has been tested on bare-metal nodes. For virtualised infrastructure, a virtual BMC must be used, 
+=======
+It has been tested on bare metal nodes. For virtualised infrastructure, a virtual BMC must be used, 
+>>>>>>> 3cc48744 (rhwa nhc: add NHC & SNR sudden-loss system test)
 such as:
 
   - sushy-emulator (from the sushy project) — exposes a Redfish API that maps to libvirt VM power
@@ -35,7 +39,11 @@ fallback.
 
 #### Cluster topology
 
+<<<<<<< HEAD
 * A Multi-Node OpenShift (MNO) cluster with **bare-metal** or **virtualised** worker nodes
+=======
+* A Multi-Node OpenShift (MNO) cluster with **bare metal** or **virtualised** worker nodes
+>>>>>>> 3cc48744 (rhwa nhc: add NHC & SNR sudden-loss system test)
 * At least **2 worker nodes** that will be used by the test (a target node and one or more
   failover nodes). The test labels the target node with `node-role.kubernetes.io/appworker`
   first to guarantee initial pod placement, then labels the failover nodes after the app is
@@ -131,7 +139,11 @@ the Go test harness will kill the process before ginkgo can complete the test an
 (AfterAll), which includes powering the node back on.
 
 **Expected duration:** A full sudden-node-loss run typically takes **11–15 minutes** end-to-end,
+<<<<<<< HEAD
 broken down as follows (observed on a 4-worker bare-metal cluster with `unhealthyConditions.duration=60s`
+=======
+broken down as follows (observed on a 4-worker bare metal cluster with `unhealthyConditions.duration=60s`
+>>>>>>> 3cc48744 (rhwa nhc: add NHC & SNR sudden-loss system test)
 and `safeTimeToAssumeNodeRebootedSeconds=180`):
 
 | Phase | Typical duration | Notes |
