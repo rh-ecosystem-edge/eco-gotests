@@ -101,7 +101,7 @@ Notes:
 | Variable | Description |
 |----------|-------------|
 | `ECO_HWACCEL_NEURON_VLLM_IMAGE` | vLLM container image with Neuron support. Default: `public.ecr.aws/neuron/pytorch-inference-vllm-neuronx:0.7.2-neuronx-py310-sdk2.24.1-ubuntu22.04` |
-| `ECO_HWACCEL_NEURON_MODEL_NAME` | Model to load for inference (default: `meta-llama/Llama-3.1-8B-Instruct`). Must use a Neuron-supported architecture: LlamaForCausalLM, MistralForCausalLM, Qwen2ForCausalLM, etc. |
+| `ECO_HWACCEL_NEURON_MODEL_NAME` | Model to load for inference (default: `TinyLlama/TinyLlama-1.1B-Chat-v1.0`). Must use a Neuron-supported architecture: LlamaForCausalLM, MistralForCausalLM, Qwen2ForCausalLM, etc. |
 | `ECO_HWACCEL_NEURON_HF_TOKEN` | **REQUIRED for vLLM tests** - HuggingFace token for downloading gated models (e.g., Llama). Get your token from https://huggingface.co/settings/tokens |
 | `ECO_HWACCEL_NEURON_STORAGE_CLASS` | Storage class for model PVC (default: `gp3-csi`). The PVC caches downloaded models to avoid re-downloading on pod restart. |
 

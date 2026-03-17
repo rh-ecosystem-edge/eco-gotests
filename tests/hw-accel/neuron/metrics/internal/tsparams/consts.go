@@ -15,6 +15,4 @@ const (
 	OperatorDeployTimeout = 10 * time.Minute
 	// DevicePluginReadyTimeout represents the timeout for device plugin readiness.
 	DevicePluginReadyTimeout = 10 * time.Minute
-	// MetricAvailabilityTimeout is how long to wait for a metric to appear in Prometheus.
-	MetricAvailabilityTimeout = 5 * time.Minute
 )
