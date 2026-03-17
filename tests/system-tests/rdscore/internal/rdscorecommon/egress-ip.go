@@ -1054,12 +1054,16 @@ func VerifyEgressIPWrongNsLabel() {
 
 // VerifyEgressIPFailOverIPv4 verifies egressIP ipv4 address moving to the first available for assignment node
 // after current node goes down, NotReady and egressIP traffic continues to use egressIP configured.
-func VerifyEgressIPFailOverIPv4() {
+func VerifyEgressIPFailOverIPv4(ctx SpecContext) {
+	DeferCleanup(EnsureInNodeReadiness)
+
 	verifyEgressIPFailOver(false)
 }
 
 // VerifyEgressIPFailOverIPv6 verifies egressIP ipv4 address moving to the first available for assignment node
 // after current node goes down, NotReady and egressIP traffic continues to use egressIP configured.
-func VerifyEgressIPFailOverIPv6() {
+func VerifyEgressIPFailOverIPv6(ctx SpecContext) {
+	DeferCleanup(EnsureInNodeReadiness)
+
 	verifyEgressIPFailOver(true)
 }
