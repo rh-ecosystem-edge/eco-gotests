@@ -77,8 +77,7 @@ func NewNeuronConfig() *NeuronConfig {
 	}
 
 	if config.ModelName == "" {
-		// Default to Llama-3.1-8B-Instruct
-		config.ModelName = "meta-llama/Llama-3.1-8B-Instruct"
+		config.ModelName = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
 	}
 
 	if config.VLLMImage == "" {
