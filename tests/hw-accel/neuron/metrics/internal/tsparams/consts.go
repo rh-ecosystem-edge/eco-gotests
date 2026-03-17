@@ -19,4 +19,11 @@ const (
 	MetricScrapeTimeout = 5 * time.Minute
 	// MetricScrapeInterval is how often to retry when polling for metric availability.
 	MetricScrapeInterval = 30 * time.Second
+
+	// MetricsWorkloadPodName represents the name of the helper workload pod.
+	MetricsWorkloadPodName = "neuron-metrics-workload"
+	// MetricsWorkloadContainerName represents the container name for the helper workload.
+	MetricsWorkloadContainerName = "metrics-helper"
+	// WorkloadStartupTimeout is how long to wait for the helper workload pod to become Running.
+	WorkloadStartupTimeout = 5 * time.Minute
 )

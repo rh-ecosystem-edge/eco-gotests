@@ -93,8 +93,6 @@ func QueryPrometheus(apiClient *clients.Settings, query string) (*PrometheusQuer
 		{"localhost:10902", fmt.Sprintf("http://localhost:10902/api/v1/query?query=%s", encodedQuery)},
 	}
 
-	var response string
-
 	var lastErr error
 
 	for _, endpoint := range endpoints {
@@ -102,11 +100,14 @@ func QueryPrometheus(apiClient *clients.Settings, query string) (*PrometheusQuer
 		resp, err := executeInPod(ctx, apiClient, podInfo.Name, neuronparams.PrometheusNamespace, podInfo.Container, queryCmd)
 
 		if err == nil && resp != "" && !isUnauthorized(resp) {
-			response = resp
+			result, parseErr := parsePrometheusResponse(resp)
+			if parseErr == nil && len(result.Data.Result) > 0 {
+				klog.V(params.NeuronLogLevel).Infof("Endpoint %s returned %d results", endpoint.name, len(result.Data.Result))
 
-			klog.V(params.NeuronLogLevel).Infof("Endpoint %s succeeded", endpoint.name)
+				return result, nil
+			}
 
-			break
+			klog.V(params.NeuronLogLevel).Infof("Endpoint %s returned 0 results, trying next", endpoint.name)
 		}
 
 		var errReason error
@@ -116,39 +117,34 @@ func QueryPrometheus(apiClient *clients.Settings, query string) (*PrometheusQuer
 			errReason = err
 		case resp == "":
 			errReason = fmt.Errorf("empty response")
-		default:
+		case isUnauthorized(resp):
 			errReason = fmt.Errorf("unauthorized response")
+		default:
+			errReason = fmt.Errorf("no results")
 		}
 
 		lastErr = fmt.Errorf("endpoint %s failed: %w", endpoint.name, errReason)
 	}
 
-	if response == "" {
-		// Fallback: Try with service account token for authenticated endpoint
-		// Use command substitution to read token inline, avoiding shell injection risks
-		authURL := fmt.Sprintf("https://%s.%s.svc:9091/api/v1/query?query=%s",
-			neuronparams.ThanosQuerierServiceName, neuronparams.PrometheusNamespace, encodedQuery)
-		authCmd := []string{"sh", "-c", fmt.Sprintf(
-			`curl -sf -k -H "Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" '%s' 2>/dev/null`,
-			authURL)}
+	authURL := fmt.Sprintf("https://%s.%s.svc:9091/api/v1/query?query=%s",
+		neuronparams.ThanosQuerierServiceName, neuronparams.PrometheusNamespace, encodedQuery)
+	authCmd := []string{"sh", "-c", fmt.Sprintf(
+		`curl -sf -k -H "Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" '%s' 2>/dev/null`,
+		authURL)}
 
-		resp, err := executeInPod(ctx, apiClient, podInfo.Name, neuronparams.PrometheusNamespace, podInfo.Container, authCmd)
+	resp, err := executeInPod(ctx, apiClient, podInfo.Name, neuronparams.PrometheusNamespace, podInfo.Container, authCmd)
+	if err == nil && resp != "" && !isUnauthorized(resp) {
+		result, parseErr := parsePrometheusResponse(resp)
+		if parseErr == nil {
+			klog.V(params.NeuronLogLevel).Infof("Thanos auth endpoint returned %d results", len(result.Data.Result))
 
-		if err == nil && resp != "" && !isUnauthorized(resp) {
-			response = resp
+			return result, nil
 		}
+
+		lastErr = fmt.Errorf("thanos auth endpoint parse error: %w", parseErr)
 	}
 
-	if response == "" {
-		return nil, fmt.Errorf("failed to query prometheus, all endpoints failed: %w", lastErr)
-	}
-
-	var result PrometheusQueryResult
-	if err := json.Unmarshal([]byte(response), &result); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w, raw: %s", err, response)
-	}
-
-	return &result, nil
+	return nil, fmt.Errorf("failed to query prometheus, all endpoints failed: %w", lastErr)
 }
 
 // MetricExists checks if a metric exists in Prometheus.
@@ -236,19 +232,28 @@ type monitoringPodInfo struct {
 
 // findMonitoringPod finds a running pod in the monitoring namespace to execute queries from.
 func findMonitoringPod(ctx context.Context, apiClient *clients.Settings) (*monitoringPodInfo, error) {
-	// Try thanos-querier pods first - queries are executed in the thanos-query container
-	thanosPodslist, err := apiClient.CoreV1Interface.Pods(neuronparams.PrometheusNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: "app.kubernetes.io/name=thanos-querier",
-	})
-	if err == nil {
-		for _, pod := range thanosPodslist.Items {
-			if pod.Status.Phase == corev1.PodRunning {
-				return &monitoringPodInfo{Name: pod.Name, Container: "thanos-query"}, nil
+	thanosLabels := []string{
+		"app.kubernetes.io/name=thanos-query",
+		"app.kubernetes.io/name=thanos-querier",
+	}
+
+	for _, label := range thanosLabels {
+		podList, err := apiClient.CoreV1Interface.Pods(neuronparams.PrometheusNamespace).List(ctx, metav1.ListOptions{
+			LabelSelector: label,
+		})
+		if err != nil {
+			continue
+		}
+
+		for _, p := range podList.Items {
+			if p.Status.Phase == corev1.PodRunning {
+				klog.V(params.NeuronLogLevel).Infof("Found thanos-querier pod %s via label %s", p.Name, label)
+
+				return &monitoringPodInfo{Name: p.Name, Container: "thanos-query"}, nil
 			}
 		}
 	}
 
-	// Fallback to prometheus pods
 	promPodList, err := apiClient.CoreV1Interface.Pods(neuronparams.PrometheusNamespace).List(ctx, metav1.ListOptions{
 		LabelSelector: "app.kubernetes.io/name=prometheus",
 	})
@@ -256,9 +261,9 @@ func findMonitoringPod(ctx context.Context, apiClient *clients.Settings) (*monit
 		return nil, fmt.Errorf("failed to list monitoring pods: %w", err)
 	}
 
-	for _, pod := range promPodList.Items {
-		if pod.Status.Phase == corev1.PodRunning {
-			return &monitoringPodInfo{Name: pod.Name, Container: "prometheus"}, nil
+	for _, p := range promPodList.Items {
+		if p.Status.Phase == corev1.PodRunning {
+			return &monitoringPodInfo{Name: p.Name, Container: "prometheus"}, nil
 		}
 	}
 
@@ -296,6 +301,15 @@ func executeInPod(ctx context.Context, apiClient *clients.Settings,
 	}
 
 	return stdout.String(), nil
+}
+
+func parsePrometheusResponse(raw string) (*PrometheusQueryResult, error) {
+	var result PrometheusQueryResult
+	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return &result, nil
 }
 
 func isUnauthorized(resp string) bool {
