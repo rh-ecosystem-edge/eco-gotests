@@ -10,7 +10,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/neuron"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/internal/deploy"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/await"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/do"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/neuronconfig"
@@ -38,7 +37,7 @@ var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.Label), La
 				Skip("vLLM configuration is not set - ECO_HWACCEL_NEURON_HF_TOKEN is required for model download")
 			}
 
-			By("Deploying required operators")
+			By("Verifying all required operators are ready")
 
 			var options *neuronhelpers.NeuronInstallConfigOptions
 			if neuronConfig.CatalogSource != "" {
@@ -47,43 +46,10 @@ var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.Label), La
 				}
 			}
 
-			err := neuronhelpers.DeployAllOperators(APIClient, options)
-			Expect(err).ToNot(HaveOccurred(), "Failed to deploy required operators")
+			Expect(neuronhelpers.AreAllOperatorsReady(APIClient, options)).To(BeTrue(),
+				"All operators (NFD, KMM, Neuron) must be pre-installed and ready")
 
-			By("Waiting for NFD operator to be ready")
-
-			nfdInstallConfig := deploy.OperatorInstallConfig{
-				APIClient:              APIClient,
-				Namespace:              params.NFDNamespace,
-				OperatorGroupName:      "nfd-operator-group",
-				SubscriptionName:       "nfd-subscription",
-				PackageName:            "nfd",
-				CatalogSource:          "redhat-operators",
-				CatalogSourceNamespace: "openshift-marketplace",
-				Channel:                "stable",
-				TargetNamespaces:       []string{params.NFDNamespace},
-				LogLevel:               params.NeuronLogLevel,
-			}
-			nfdInstaller := deploy.NewOperatorInstaller(nfdInstallConfig)
-			ready, err := nfdInstaller.IsReady(tsparams.OperatorDeployTimeout)
-			Expect(err).ToNot(HaveOccurred(), "NFD operator readiness check failed")
-			Expect(ready).To(BeTrue(), "NFD operator is not ready")
-
-			By("Waiting for KMM operator to be ready")
-
-			kmmInstallConfig := neuronhelpers.GetDefaultKMMInstallConfig(APIClient)
-			kmmInstaller := deploy.NewOperatorInstaller(kmmInstallConfig)
-			ready, err = kmmInstaller.IsReady(tsparams.OperatorDeployTimeout)
-			Expect(err).ToNot(HaveOccurred(), "KMM operator readiness check failed")
-			Expect(ready).To(BeTrue(), "KMM operator is not ready")
-
-			By("Waiting for Neuron operator to be ready")
-
-			neuronInstallConfig := neuronhelpers.GetDefaultNeuronInstallConfig(APIClient, options)
-			neuronInstaller := deploy.NewOperatorInstaller(neuronInstallConfig)
-			ready, err = neuronInstaller.IsReady(tsparams.OperatorDeployTimeout)
-			Expect(err).ToNot(HaveOccurred(), "Neuron operator readiness check failed")
-			Expect(ready).To(BeTrue(), "Neuron operator is not ready")
+			var err error
 
 			By("Creating DeviceConfig")
 
@@ -142,35 +108,9 @@ var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.Label), La
 					klog.V(params.NeuronLogLevel).Infof("Failed to delete vLLM namespace: %v", err)
 				}
 			}
-
-			By("Cleaning up DeviceConfig and waiting for deletion")
-
-			deviceConfigBuilder, err := neuron.Pull(
-				APIClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
-			if err == nil {
-				_, deleteErr := deviceConfigBuilder.Delete()
-				if deleteErr != nil {
-					klog.V(params.NeuronLogLevel).Infof("Failed to delete DeviceConfig: %v", deleteErr)
-				} else {
-					klog.V(params.NeuronLogLevel).Info("Waiting for DeviceConfig finalizer to be processed...")
-					Eventually(func() bool {
-						_, pullErr := neuron.Pull(APIClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
-
-						return pullErr != nil
-					}, 5*time.Minute, 5*time.Second).Should(BeTrue(),
-						"DeviceConfig should be fully deleted")
-				}
-			}
-
-			By("Uninstalling operators")
-
-			uninstallErr := neuronhelpers.UninstallAllOperators(APIClient)
-			if uninstallErr != nil {
-				klog.V(params.NeuronLogLevel).Infof("Operator uninstall completed with issues: %v", uninstallErr)
-			}
 		})
 
-		It("Should deploy vLLM and execute inference", Label("neuron-vllm"), reportxml.ID("88102"), func() {
+		It("Should deploy vLLM and execute inference", Label("neuron-vllm"), reportxml.ID("neuron-vllm"), func() {
 			By("Creating vLLM test namespace")
 
 			nsBuilder := namespace.NewBuilder(APIClient, tsparams.VLLMTestNamespace)

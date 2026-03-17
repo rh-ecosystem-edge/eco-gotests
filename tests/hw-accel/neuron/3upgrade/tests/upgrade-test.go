@@ -14,7 +14,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	operatorsV1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/operators/v1alpha1"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/internal/deploy"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/3upgrade/internal/tsparams"
 	commonawait "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/await"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/check"
@@ -47,7 +46,7 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 					"ECO_HWACCEL_NEURON_UPGRADE_TARGET_DRIVERS_IMAGE are required")
 			}
 
-			By("Deploying required operators")
+			By("Verifying all required operators are ready")
 
 			var options *neuronhelpers.NeuronInstallConfigOptions
 			if neuronConfig.CatalogSource != "" {
@@ -56,35 +55,8 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 				}
 			}
 
-			err := neuronhelpers.DeployAllOperators(APIClient, options)
-			Expect(err).ToNot(HaveOccurred(), "Failed to deploy required operators")
-
-			By("Waiting for NFD operator to be ready")
-
-			nfdInstallConfig := deploy.OperatorInstallConfig{
-				APIClient:              APIClient,
-				Namespace:              params.NFDNamespace,
-				OperatorGroupName:      "nfd-operator-group",
-				SubscriptionName:       "nfd-subscription",
-				PackageName:            "nfd",
-				CatalogSource:          "redhat-operators",
-				CatalogSourceNamespace: "openshift-marketplace",
-				Channel:                "stable",
-				TargetNamespaces:       []string{params.NFDNamespace},
-				LogLevel:               params.NeuronLogLevel,
-			}
-			nfdInstaller := deploy.NewOperatorInstaller(nfdInstallConfig)
-			ready, err := nfdInstaller.IsReady(tsparams.OperatorDeployTimeout)
-			Expect(err).ToNot(HaveOccurred(), "NFD operator readiness check failed")
-			Expect(ready).To(BeTrue(), "NFD operator is not ready")
-
-			By("Waiting for KMM operator to be ready")
-
-			kmmInstallConfig := neuronhelpers.GetDefaultKMMInstallConfig(APIClient)
-			kmmInstaller := deploy.NewOperatorInstaller(kmmInstallConfig)
-			ready, err = kmmInstaller.IsReady(tsparams.OperatorDeployTimeout)
-			Expect(err).ToNot(HaveOccurred(), "KMM operator readiness check failed")
-			Expect(ready).To(BeTrue(), "KMM operator is not ready")
+			Expect(neuronhelpers.AreAllOperatorsReady(APIClient, options)).To(BeTrue(),
+				"All operators (NFD, KMM, Neuron) must be pre-installed and ready")
 
 			By("Patching KMM subscription with Neuron upgrade toleration")
 
@@ -125,14 +97,6 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 
 			_, err = kmmSub.Update()
 			Expect(err).ToNot(HaveOccurred(), "Failed to patch KMM subscription with upgrade toleration")
-
-			By("Waiting for Neuron operator to be ready")
-
-			neuronInstallConfig := neuronhelpers.GetDefaultNeuronInstallConfig(APIClient, options)
-			neuronInstaller := deploy.NewOperatorInstaller(neuronInstallConfig)
-			ready, err = neuronInstaller.IsReady(tsparams.OperatorDeployTimeout)
-			Expect(err).ToNot(HaveOccurred(), "Neuron operator readiness check failed")
-			Expect(ready).To(BeTrue(), "Neuron operator is not ready")
 
 			By("Creating initial DeviceConfig with driver version")
 
@@ -276,33 +240,6 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 				if err != nil {
 					klog.V(params.NeuronLogLevel).Infof("Failed to delete upgrade test namespace: %v", err)
 				}
-			}
-
-			By("Cleaning up DeviceConfig and waiting for deletion")
-
-			deviceConfigBuilder, err := neuron.Pull(
-				APIClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
-			if err == nil {
-				_, deleteErr := deviceConfigBuilder.Delete()
-				if deleteErr != nil {
-					klog.V(params.NeuronLogLevel).Infof("Failed to delete DeviceConfig: %v", deleteErr)
-				} else {
-					klog.V(params.NeuronLogLevel).Info("Waiting for DeviceConfig finalizer to be processed...")
-					Eventually(func() bool {
-						_, pullErr := neuron.Pull(APIClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
-
-						return pullErr != nil
-					}, 5*time.Minute, 5*time.Second).Should(BeTrue(),
-						"DeviceConfig should be fully deleted")
-				}
-			}
-
-			By("Uninstalling operators")
-
-			uninstallErr := neuronhelpers.UninstallAllOperators(APIClient)
-			if uninstallErr != nil {
-				klog.V(params.NeuronLogLevel).Infof("Operator uninstall completed with issues: %v",
-					uninstallErr)
 			}
 		})
 
