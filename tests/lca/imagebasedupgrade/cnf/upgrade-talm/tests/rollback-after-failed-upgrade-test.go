@@ -64,11 +64,9 @@ var _ = Describe(
 
 				// Check the Idle condition status
 				isIdle := false
-
 				for _, condition := range ibu.Object.Status.Conditions {
 					if condition.Type == "Idle" && condition.Status == "True" {
 						isIdle = true
-
 						break
 					}
 				}
