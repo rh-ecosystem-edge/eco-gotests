@@ -93,8 +93,6 @@ func QueryPrometheus(apiClient *clients.Settings, query string) (*PrometheusQuer
 		{"localhost:10902", fmt.Sprintf("http://localhost:10902/api/v1/query?query=%s", encodedQuery)},
 	}
 
-	var lastErr error
-
 	for _, endpoint := range endpoints {
 		queryCmd := []string{"sh", "-c", fmt.Sprintf("curl -sf '%s' 2>/dev/null", endpoint.url)}
 		resp, err := executeInPod(ctx, apiClient, podInfo.Name, neuronparams.PrometheusNamespace, podInfo.Container, queryCmd)
@@ -108,24 +106,23 @@ func QueryPrometheus(apiClient *clients.Settings, query string) (*PrometheusQuer
 			}
 
 			klog.V(params.NeuronLogLevel).Infof("Endpoint %s returned 0 results, trying next", endpoint.name)
+
+			continue
 		}
 
-		var errReason error
-
-		switch {
-		case err != nil:
-			errReason = err
-		case resp == "":
-			errReason = fmt.Errorf("empty response")
-		case isUnauthorized(resp):
-			errReason = fmt.Errorf("unauthorized response")
-		default:
-			errReason = fmt.Errorf("no results")
-		}
-
-		lastErr = fmt.Errorf("endpoint %s failed: %w", endpoint.name, errReason)
+		klog.V(params.NeuronLogLevel).Infof("Endpoint %s failed: err=%v, empty=%t", endpoint.name, err, resp == "")
 	}
 
+	result, authErr := queryThanosAuth(ctx, apiClient, podInfo, encodedQuery)
+	if authErr == nil {
+		return result, nil
+	}
+
+	return nil, fmt.Errorf("all prometheus endpoints failed, thanos auth: %w", authErr)
+}
+
+func queryThanosAuth(ctx context.Context, apiClient *clients.Settings,
+	podInfo *monitoringPodInfo, encodedQuery string) (*PrometheusQueryResult, error) {
 	authURL := fmt.Sprintf("https://%s.%s.svc:9091/api/v1/query?query=%s",
 		neuronparams.ThanosQuerierServiceName, neuronparams.PrometheusNamespace, encodedQuery)
 	authCmd := []string{"sh", "-c", fmt.Sprintf(
@@ -133,18 +130,22 @@ func QueryPrometheus(apiClient *clients.Settings, query string) (*PrometheusQuer
 		authURL)}
 
 	resp, err := executeInPod(ctx, apiClient, podInfo.Name, neuronparams.PrometheusNamespace, podInfo.Container, authCmd)
-	if err == nil && resp != "" && !isUnauthorized(resp) {
-		result, parseErr := parsePrometheusResponse(resp)
-		if parseErr == nil {
-			klog.V(params.NeuronLogLevel).Infof("Thanos auth endpoint returned %d results", len(result.Data.Result))
-
-			return result, nil
-		}
-
-		lastErr = fmt.Errorf("thanos auth endpoint parse error: %w", parseErr)
+	if err != nil || resp == "" || isUnauthorized(resp) {
+		return nil, fmt.Errorf("thanos auth endpoint failed")
 	}
 
-	return nil, fmt.Errorf("failed to query prometheus, all endpoints failed: %w", lastErr)
+	result, parseErr := parsePrometheusResponse(resp)
+	if parseErr != nil {
+		return nil, fmt.Errorf("thanos auth endpoint parse error: %w", parseErr)
+	}
+
+	if len(result.Data.Result) == 0 {
+		return nil, fmt.Errorf("thanos auth endpoint: no results")
+	}
+
+	klog.V(params.NeuronLogLevel).Infof("Thanos auth endpoint returned %d results", len(result.Data.Result))
+
+	return result, nil
 }
 
 // MetricExists checks if a metric exists in Prometheus.
