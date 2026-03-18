@@ -1,22 +1,49 @@
 package tests
 
 import (
+	"context"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/neuron"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/await"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/check"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/do"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/neuronconfig"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/neuronhelpers"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/neuronmetrics"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/metrics/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/params"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
+
+type metricFetchFunc func() ([]map[string]interface{}, error)
+
+func pollForMetric(fetchFn metricFetchFunc, description string) []map[string]interface{} {
+	var results []map[string]interface{}
+
+	Eventually(func() int {
+		data, err := fetchFn()
+		if err != nil {
+			klog.V(params.NeuronLogLevel).Infof("Failed to get %s: %v", description, err)
+
+			return 0
+		}
+
+		results = data
+
+		return len(data)
+	}, tsparams.MetricScrapeTimeout, tsparams.MetricScrapeInterval).Should(BeNumerically(">", 0),
+		"Expected %s to have values after polling", description)
+
+	return results
+}
 
 var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.Label), Label(params.LabelSuite), func() {
 	Context("Metrics Provisioning", Label(tsparams.LabelSuite), func() {
@@ -90,9 +117,54 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.Label), Label(par
 			if err != nil {
 				klog.V(params.NeuronLogLevel).Infof("Metrics DaemonSet not found (may not be enabled): %v", err)
 			}
+
+			By("Creating metrics test namespace")
+
+			nsBuilder := namespace.NewBuilder(APIClient, tsparams.MetricsTestNamespace)
+			if !nsBuilder.Exists() {
+				_, err = nsBuilder.Create()
+				Expect(err).ToNot(HaveOccurred(), "Failed to create metrics test namespace")
+			}
+
+			By("Deploying helper workload to activate Neuron runtime")
+
+			neuronNodes, err := check.GetNeuronNodes(APIClient)
+			Expect(err).ToNot(HaveOccurred(), "Failed to get Neuron nodes")
+			Expect(len(neuronNodes)).To(BeNumerically(">", 0), "No Neuron nodes found")
+
+			workloadPod := do.CreateTestWorkloadPod(
+				tsparams.MetricsWorkloadPodName,
+				tsparams.MetricsTestNamespace,
+				neuronNodes[0].Object.Name,
+				tsparams.MetricsWorkloadContainerName,
+				tsparams.MetricsWorkloadLabels,
+			)
+
+			_, err = APIClient.CoreV1Interface.Pods(tsparams.MetricsTestNamespace).Create(
+				context.Background(), workloadPod, metav1.CreateOptions{})
+			if !apierrors.IsAlreadyExists(err) {
+				Expect(err).ToNot(HaveOccurred(), "Failed to create helper workload pod")
+			}
+
+			By("Waiting for helper workload to be running")
+
+			Eventually(func() bool {
+				healthy, checkErr := check.PodHealthy(
+					APIClient, tsparams.MetricsWorkloadPodName, tsparams.MetricsTestNamespace)
+
+				return checkErr == nil && healthy
+			}, tsparams.WorkloadStartupTimeout, 10*time.Second).Should(BeTrue(),
+				"Helper workload pod should be running")
 		})
 
 		AfterAll(func() {
+			nsBuilder := namespace.NewBuilder(APIClient, tsparams.MetricsTestNamespace)
+			if nsBuilder.Exists() {
+				err := nsBuilder.DeleteAndWait(5 * time.Minute)
+				if err != nil {
+					klog.V(params.NeuronLogLevel).Infof("Failed to delete metrics test namespace: %v", err)
+				}
+			}
 		})
 
 		It("Should verify metrics DaemonSet is created",
@@ -137,54 +209,55 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.Label), Label(par
 
 		It("Should verify Prometheus is scraping Neuron targets",
 			Label("neuron-metrics-003"), reportxml.ID("neuron-metrics-003"), func() {
-				By("Waiting for metrics to be scraped")
-				time.Sleep(2 * time.Minute)
+				By("Polling Prometheus until Neuron metrics are available")
 
-				By("Checking if Neuron metrics are available in Prometheus")
+				var available, missing []string
 
-				available, missing, err := neuronmetrics.VerifyNeuronMetricsAvailable(APIClient)
-				if err != nil {
-					klog.V(params.NeuronLogLevel).Infof("Error checking metrics: %v", err)
-					Skip("Unable to query Prometheus - skipping metrics verification")
-				}
+				Eventually(func() int {
+					avail, miss, err := neuronmetrics.VerifyNeuronMetricsAvailable(APIClient)
+					if err != nil {
+						klog.V(params.NeuronLogLevel).Infof("Error checking metrics: %v", err)
+
+						return 0
+					}
+
+					available = avail
+					missing = miss
+
+					klog.V(params.NeuronLogLevel).Infof("Available: %d, Missing: %d", len(avail), len(miss))
+
+					return len(avail)
+				}, tsparams.MetricScrapeTimeout, tsparams.MetricScrapeInterval).Should(BeNumerically(">", 0),
+					"Expected at least one Neuron metric to be available after polling")
 
 				klog.V(params.NeuronLogLevel).Infof("Available metrics: %v", available)
 				klog.V(params.NeuronLogLevel).Infof("Missing metrics: %v", missing)
-
-				if len(available) == 0 {
-					Skip("No metrics available yet - Prometheus may need more time to scrape")
-				}
-
-				Expect(len(available)).To(BeNumerically(">", 0),
-					"Expected at least one Neuron metric to be available")
 			})
 
 		It("Should verify neuron_hardware_info metric",
 			Label("neuron-metrics-004"), reportxml.ID("neuron-metrics-004"), func() {
-				By("Querying neuron_hardware_info metric")
+				By("Polling for neuron_hardware_info metric")
 
-				hardwareInfo, err := neuronmetrics.GetNeuronHardwareInfo(APIClient)
-				if err != nil {
-					klog.V(params.NeuronLogLevel).Infof("Failed to get hardware info: %v", err)
-					Skip("neuron_hardware_info metric not available")
-				}
+				hardwareInfo := pollForMetric(
+					func() ([]map[string]interface{}, error) {
+						return neuronmetrics.GetNeuronHardwareInfo(APIClient)
+					},
+					"neuron_hardware_info",
+				)
 
 				klog.V(params.NeuronLogLevel).Infof("Hardware info: %v", hardwareInfo)
-				Expect(len(hardwareInfo)).To(BeNumerically(">", 0),
-					"Expected neuron_hardware_info to have values")
 			})
 
 		It("Should verify neuroncore utilization metric",
 			Label("neuron-metrics-005"), reportxml.ID("neuron-metrics-005"), func() {
-				By("Querying neuroncore_utilization_ratio metric")
+				By("Polling for neuroncore_utilization_ratio metric")
 
-				utilization, err := neuronmetrics.GetNeuroncoreUtilization(APIClient)
-				if err != nil {
-					klog.V(params.NeuronLogLevel).Infof("Failed to get utilization: %v", err)
-					Skip("neuroncore_utilization_ratio metric not available")
-				}
-
-				klog.V(params.NeuronLogLevel).Infof("Utilization: %v", utilization)
+				utilization := pollForMetric(
+					func() ([]map[string]interface{}, error) {
+						return neuronmetrics.GetNeuroncoreUtilization(APIClient)
+					},
+					"neuroncore_utilization_ratio",
+				)
 
 				for _, u := range utilization {
 					if value, ok := u["value"].(string); ok {
@@ -216,16 +289,14 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.Label), Label(par
 						"Expected node %s to have at least one Neuron core", node.Object.Name)
 				}
 
-				By("Verifying memory metrics are available")
+				By("Polling for memory metrics")
 
-				memoryUsed, err := neuronmetrics.GetNeuronMemoryUsed(APIClient)
-				if err != nil {
-					klog.V(params.NeuronLogLevel).Infof("Failed to get memory used metrics: %v", err)
-					Skip("neuron_runtime_memory_used_bytes metric not available")
-				}
-
-				Expect(len(memoryUsed)).To(BeNumerically(">", 0),
-					"Expected at least one memory metric result")
+				memoryUsed := pollForMetric(
+					func() ([]map[string]interface{}, error) {
+						return neuronmetrics.GetNeuronMemoryUsed(APIClient)
+					},
+					"neuron_runtime_memory_used_bytes",
+				)
 
 				for _, metric := range memoryUsed {
 					value, ok := metric["value"]
@@ -234,26 +305,25 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.Label), Label(par
 					klog.V(params.NeuronLogLevel).Infof("Memory used metric: %v", metric)
 				}
 
-				By("Verifying hardware info metrics match node capacity")
+				By("Polling for hardware info metrics")
 
-				hardwareInfo, err := neuronmetrics.GetNeuronHardwareInfo(APIClient)
-				if err != nil {
-					klog.V(params.NeuronLogLevel).Infof("Failed to get hardware info: %v", err)
-					Skip("neuron_hardware_info metric not available")
-				}
-
-				Expect(len(hardwareInfo)).To(BeNumerically(">", 0),
-					"Expected at least one hardware info metric")
+				hardwareInfo := pollForMetric(
+					func() ([]map[string]interface{}, error) {
+						return neuronmetrics.GetNeuronHardwareInfo(APIClient)
+					},
+					"neuron_hardware_info",
+				)
 
 				klog.V(params.NeuronLogLevel).Infof("Hardware info metrics count: %d", len(hardwareInfo))
 
-				By("Verifying core utilization metrics are within valid range")
+				By("Polling for core utilization metrics")
 
-				utilization, err := neuronmetrics.GetNeuroncoreUtilization(APIClient)
-				if err != nil {
-					klog.V(params.NeuronLogLevel).Infof("Failed to get utilization: %v", err)
-					Skip("neuroncore_utilization_ratio metric not available")
-				}
+				utilization := pollForMetric(
+					func() ([]map[string]interface{}, error) {
+						return neuronmetrics.GetNeuroncoreUtilization(APIClient)
+					},
+					"neuroncore_utilization_ratio",
+				)
 
 				for _, u := range utilization {
 					if valueStr, ok := u["value"].(string); ok {
