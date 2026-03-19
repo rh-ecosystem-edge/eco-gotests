@@ -29,7 +29,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/sriovenv"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/tsparams"
@@ -106,7 +105,7 @@ var _ = Describe(
 		BeforeAll(func() {
 			By("Checking if cluster is SNO")
 
-			isSNO, err := netenv.IsSNOCluster(APIClient)
+			isSNO, err := cluster.IsSNOCluster(APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Failed to check if cluster is SNO")
 
 			if isSNO {

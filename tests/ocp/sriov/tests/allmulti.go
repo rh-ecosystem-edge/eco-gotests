@@ -12,13 +12,11 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/cmd"
-	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/sriovenv"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/ocpsriovinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/sriovenv"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/sriovocpenv"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/tsparams"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
@@ -85,12 +83,12 @@ var _ = Describe(
 			By("Discover worker nodes")
 
 			workerNodes, err = nodes.List(APIClient,
-				metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
+				metav1.ListOptions{LabelSelector: labels.Set(SriovOcpConfig.WorkerLabelMap).String()})
 			Expect(err).ToNot(HaveOccurred(), "Fail to discover nodes")
 
 			By("Collecting SR-IOV interfaces for allmulti testing")
 
-			srIovInterfacesUnderTest, err := NetConfig.GetSriovInterfaces(1)
+			srIovInterfacesUnderTest, err := SriovOcpConfig.GetSriovInterfaces(1)
 			Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
 
 			By(fmt.Sprintf("Define and create sriov network policy on %s", workerNodes[0].Definition.Name))
@@ -101,7 +99,7 @@ var _ = Describe(
 			_, err = sriov.NewPolicyBuilder(
 				APIClient,
 				srIovPolicyNode1Name,
-				NetConfig.SriovOperatorNamespace,
+				SriovOcpConfig.OcpSriovOperatorNamespace,
 				srIovPolicyNode0ResName,
 				6,
 				[]string{fmt.Sprintf("%s#0-5", srIovInterfacesUnderTest[0])},
@@ -117,7 +115,7 @@ var _ = Describe(
 			_, err = sriov.NewPolicyBuilder(
 				APIClient,
 				srIovPolicyNode2Name,
-				NetConfig.SriovOperatorNamespace,
+				SriovOcpConfig.OcpSriovOperatorNamespace,
 				srIovPolicyNode1ResName,
 				6,
 				[]string{fmt.Sprintf("%s#0-5", srIovInterfacesUnderTest[0])},
@@ -148,24 +146,20 @@ var _ = Describe(
 
 			By("Define and create Bonded network attachment for allmulti client")
 
-			nadBondAllmultiConfig := defineBondNAD(bondNadNameAllMulti, "active-backup")
-
-			_, err = nadBondAllmultiConfig.Create()
+			nadBondAllmultiConfig, err := defineBondNAD(bondNadNameAllMulti, "active-backup").Create()
 			Expect(err).ToNot(HaveOccurred(), "Failed to create Bond Nad %s",
 				nadBondAllmultiConfig.Definition.Name)
 
 			By("Define and create Bonded network attachment for default client")
 
-			nadBondDefaultConfig := defineBondNAD(bondNadNameDefault, "active-backup")
-			_, err = nadBondDefaultConfig.Create()
+			nadBondDefaultConfig, err := defineBondNAD(bondNadNameDefault, "active-backup").Create()
 			Expect(err).ToNot(HaveOccurred(), "Failed to create Bond Nad %s",
 				nadBondDefaultConfig.Definition.Name)
 
 			By("Waiting until cluster MCP and SR-IOV are stable")
 
-			err = sriovoperator.WaitForSriovAndMCPStable(
-				APIClient, tsparams.MCOWaitTimeout, time.Minute, NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
-			Expect(err).ToNot(HaveOccurred(), "Failed cluster is not stable")
+			err = sriovenv.WaitForSriovPolicyReady(tsparams.MCOWaitTimeout)
+			Expect(err).ToNot(HaveOccurred(), "Cluster is not stable")
 		})
 
 		It("Validate a pod can receive non-member multicast IPv6 traffic over a secondary SRIOV interface"+
@@ -297,7 +291,7 @@ var _ = Describe(
 
 				By("Verify IPv4 and IPv6 on net1 connectivity between the clients and multicast source")
 
-				err := cmd.ICMPConnectivityCheck(multicastServer, []string{clientAllmultiEnabledIPv4,
+				err := sriovocpenv.ICMPConnectivityCheck(multicastServer, []string{clientAllmultiEnabledIPv4,
 					clientAllmultiEnabledIPv6, clientAllmultiDisabledIPv4,
 					clientAllmultiDisabledIPv6})
 				Expect(err).ToNot(HaveOccurred(),
@@ -305,7 +299,7 @@ var _ = Describe(
 
 				By("Verify IPv4 and IPv6 on net2 connectivity between the clients and multicast source")
 
-				err = cmd.ICMPConnectivityCheck(multicastServer, []string{"192.168.101.1/24", "2001:101::1/64",
+				err = sriovocpenv.ICMPConnectivityCheck(multicastServer, []string{"192.168.101.1/24", "2001:101::1/64",
 					"192.168.101.2/24", "2001:101::2/64"})
 				Expect(err).ToNot(HaveOccurred(),
 					"Failed to ping between the multicast source and the clients")
@@ -321,36 +315,39 @@ var _ = Describe(
 			runningNamespace, err := namespace.Pull(APIClient, tsparams.TestNamespaceName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull namespace")
 			Expect(runningNamespace.CleanObjects(
-				tsparams.WaitTimeout, pod.GetGVR())).ToNot(HaveOccurred())
+				tsparams.WaitTimeout, pod.GetGVR())).ToNot(HaveOccurred(), "Failed to clean pods from test namespace")
 		})
 
 		AfterAll(func() {
 			By("Removing all SR-IOV Policy")
 
-			err := sriov.CleanAllNetworkNodePolicies(APIClient, NetConfig.SriovOperatorNamespace)
+			err := sriov.CleanAllNetworkNodePolicies(APIClient, SriovOcpConfig.OcpSriovOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to clean srIovPolicy")
 
 			By("Removing all srIovNetworks")
 
 			err = sriov.CleanAllNetworksByTargetNamespace(
-				APIClient, NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName)
+				APIClient, SriovOcpConfig.OcpSriovOperatorNamespace, tsparams.TestNamespaceName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to clean sriov networks")
 		})
 	})
 
 func defineAndCreateSrIovNetwork(srIovNetwork, resName string, allMulti bool) {
 	srIovNetworkObject := sriov.NewNetworkBuilder(
-		APIClient, srIovNetwork, NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName, resName).
-		WithStaticIpam().WithIPAddressSupport().WithMacAddressSupport().WithLogLevel(netparam.LogLevelDebug)
+		APIClient, srIovNetwork, SriovOcpConfig.OcpSriovOperatorNamespace, tsparams.TestNamespaceName, resName).
+		WithStaticIpam().WithIPAddressSupport().WithMacAddressSupport().WithLogLevel("debug")
 
 	if allMulti {
 		srIovNetworkObject.WithTrustFlag(true).WithMetaPluginAllMultiFlag(true)
 	}
 
-	err := sriovenv.CreateSriovNetworkAndWaitForNADCreation(srIovNetworkObject, tsparams.NADWaitTimeout)
+	_, err := srIovNetworkObject.Create()
 	Expect(err).ToNot(HaveOccurred(),
-		"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
-		srIovNetworkObject.Definition.Name, err)
+		"Failed to create Sriov Network %s", srIovNetworkObject.Definition.Name)
+
+	err = sriovenv.WaitForNADCreation(srIovNetwork, tsparams.TestNamespaceName, tsparams.NADTimeout)
+	Expect(err).ToNot(HaveOccurred(),
+		"Failed to wait for NAD creation for Sriov Network %s", srIovNetwork)
 }
 
 func createMulticastServer(
@@ -363,8 +360,8 @@ func createMulticastServer(
 
 	sriovNetworkMC := pod.StaticIPAnnotationWithMacAddress(sriovNetwork, ipAddress, macAddress)
 	multicastSourceClient, err := pod.NewBuilder(APIClient, "mc-source-server", tsparams.TestNamespaceName,
-		NetConfig.CnfNetTestContainer).DefineOnNode(nodeName).WithPrivilegedFlag().RedefineDefaultCMD(multicastCmd).
-		WithSecondaryNetwork(sriovNetworkMC).CreateAndWaitUntilRunning(netparam.DefaultTimeout)
+		SriovOcpConfig.OcpSriovTestContainer).DefineOnNode(nodeName).WithPrivilegedFlag().RedefineDefaultCMD(multicastCmd).
+		WithSecondaryNetwork(sriovNetworkMC).CreateAndWaitUntilRunning(tsparams.DefaultTimeout)
 	Expect(err).ToNot(HaveOccurred(), "Failed to define and run multicast source server")
 
 	return multicastSourceClient
@@ -381,8 +378,8 @@ func createTestClient(
 	sriovNetworkDefault := pod.StaticIPAnnotationWithMacAddress(sriovNetwork, ipAddress, macAddress)
 
 	clientDefault, err := pod.NewBuilder(APIClient, name, tsparams.TestNamespaceName,
-		NetConfig.CnfNetTestContainer).DefineOnNode(nodeName).WithPrivilegedFlag().
-		WithSecondaryNetwork(sriovNetworkDefault).CreateAndWaitUntilRunning(netparam.DefaultTimeout)
+		SriovOcpConfig.OcpSriovTestContainer).DefineOnNode(nodeName).WithPrivilegedFlag().
+		WithSecondaryNetwork(sriovNetworkDefault).CreateAndWaitUntilRunning(tsparams.DefaultTimeout)
 	Expect(err).ToNot(HaveOccurred(), "Failed to define and run default client")
 
 	return clientDefault
@@ -400,8 +397,8 @@ func createTestClientWithMultiInterfaces(
 	Expect(err).ToNot(HaveOccurred(), "Failed to define a 2 net dual stack nad annotation")
 
 	clientDefault, err := pod.NewBuilder(APIClient, name, tsparams.TestNamespaceName,
-		NetConfig.CnfNetTestContainer).DefineOnNode(nodeName).WithPrivilegedFlag().
-		WithSecondaryNetwork(annotation).CreateAndWaitUntilRunning(netparam.DefaultTimeout)
+		SriovOcpConfig.OcpSriovTestContainer).DefineOnNode(nodeName).WithPrivilegedFlag().
+		WithSecondaryNetwork(annotation).CreateAndWaitUntilRunning(tsparams.DefaultTimeout)
 	Expect(err).ToNot(HaveOccurred(), "Failed to define and run default client")
 
 	return clientDefault
@@ -420,8 +417,8 @@ func createBondedTestClient(
 		sriovNetworkNet2}, ipAddress)
 
 	bondedTestContainer, err := pod.NewBuilder(APIClient, name, tsparams.TestNamespaceName,
-		NetConfig.CnfNetTestContainer).DefineOnNode(nodeName).WithPrivilegedFlag().
-		WithSecondaryNetwork(annotation).CreateAndWaitUntilRunning(netparam.DefaultTimeout)
+		SriovOcpConfig.OcpSriovTestContainer).DefineOnNode(nodeName).WithPrivilegedFlag().
+		WithSecondaryNetwork(annotation).CreateAndWaitUntilRunning(tsparams.DefaultTimeout)
 	Expect(err).ToNot(HaveOccurred(), "Failed to define and run bonded container")
 
 	return bondedTestContainer
@@ -439,8 +436,8 @@ func createMulticastServerWithMultiNets(
 	Expect(err).ToNot(HaveOccurred(), "Failed to define a 2 net dual stack nad annotation")
 
 	multicastSourceClient, err := pod.NewBuilder(APIClient, "mc-source-server", tsparams.TestNamespaceName,
-		NetConfig.CnfNetTestContainer).DefineOnNode(nodeName).WithPrivilegedFlag().RedefineDefaultCMD(multicastCmd).
-		WithSecondaryNetwork(annotation).CreateAndWaitUntilRunning(netparam.DefaultTimeout)
+		SriovOcpConfig.OcpSriovTestContainer).DefineOnNode(nodeName).WithPrivilegedFlag().RedefineDefaultCMD(multicastCmd).
+		WithSecondaryNetwork(annotation).CreateAndWaitUntilRunning(tsparams.DefaultTimeout)
 	Expect(err).ToNot(HaveOccurred(), "Failed to define and run multicast source server")
 
 	return multicastSourceClient
@@ -457,7 +454,7 @@ func runAllMultiTestCases(
 	By("Verify connectivity between the clients and multicast source")
 
 	clientIPAddresses := []string{allMulticastEnabledIP, defaultClientIP}
-	err := cmd.ICMPConnectivityCheck(multicastSourcePod, clientIPAddresses)
+	err := sriovocpenv.ICMPConnectivityCheck(multicastSourcePod, clientIPAddresses)
 	Expect(err).ToNot(HaveOccurred(), "Failed to ping between the multicast source and the clients")
 
 	By("Verify multicast group is not accessible from container without allmulti enabled")
@@ -489,20 +486,23 @@ func defineBondNAD(nadname, mode string) *nad.Builder {
 	return createdNad
 }
 
-// defineAndCreateSrIovNetworkWithOutIPAM is used to create sriovnetworks with IPAM for a bonded interface.
+// defineAndCreateSrIovNetworkWithOutIPAM is used to create sriovnetworks without IPAM for a bonded interface.
 func defineAndCreateSrIovNetworkWithOutIPAM(srIovNetwork string, allMulti bool) {
 	srIovNetworkObject := sriov.NewNetworkBuilder(
-		APIClient, srIovNetwork, NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName,
-		srIovPolicyNode0ResName).WithMacAddressSupport().WithLogLevel(netparam.LogLevelDebug)
+		APIClient, srIovNetwork, SriovOcpConfig.OcpSriovOperatorNamespace, tsparams.TestNamespaceName,
+		srIovPolicyNode0ResName).WithMacAddressSupport().WithLogLevel("debug")
 
 	if allMulti {
 		srIovNetworkObject.WithTrustFlag(true).WithMetaPluginAllMultiFlag(true)
 	}
 
-	err := sriovenv.CreateSriovNetworkAndWaitForNADCreation(srIovNetworkObject, tsparams.NADWaitTimeout)
+	_, err := srIovNetworkObject.Create()
 	Expect(err).ToNot(HaveOccurred(),
-		"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
-		srIovNetworkObject.Definition.Name, err)
+		"Failed to create Sriov Network %s", srIovNetworkObject.Definition.Name)
+
+	err = sriovenv.WaitForNADCreation(srIovNetwork, tsparams.TestNamespaceName, tsparams.NADTimeout)
+	Expect(err).ToNot(HaveOccurred(),
+		"Failed to wait for NAD creation for Sriov Network %s", srIovNetwork)
 }
 
 func runAllMultiDualInterfaceTestCase(
@@ -516,16 +516,16 @@ func runAllMultiDualInterfaceTestCase(
 	By("Verify IPv6 multicast group is not accessible from default container without allmulti enabled")
 	assertMulticastTrafficIsNotReceived(defaultClientPod, tcpDumpCMD, multicastGroupIPv6)
 
-	By("Verify IPv4 multicast group is accessible from allmulti enabled container net1 with allmulti enabled")
+	By("Verify IPv4 multicast group is accessible from allmulti enabled container net2 with allmulti enabled")
 	assertMulticastTrafficIsReceived(allMultiEnabledPod, tcpDumpCMDNet2, multicastGroupIPv4)
 
-	By("Verify IPv6 multicast group is accessible from allmulti enabled container net1 with allmulti enabled")
+	By("Verify IPv6 multicast group is accessible from allmulti enabled container net2 with allmulti enabled")
 	assertMulticastTrafficIsReceived(allMultiEnabledPod, tcpDumpCMDNet2, multicastGroupIPv6)
 
-	By("Verify IPv4 multicast group is not accessible from allmulti enabled container net2 without allmulti enabled")
+	By("Verify IPv4 multicast group is not accessible from allmulti enabled container net1 without allmulti enabled")
 	assertMulticastTrafficIsNotReceived(allMultiEnabledPod, tcpDumpCMD, multicastGroupIPv4)
 
-	By("Verify IPv6 multicast group is not accessible from allmulti enabled container net2 without allmulti enabled")
+	By("Verify IPv6 multicast group is not accessible from allmulti enabled container net1 without allmulti enabled")
 	assertMulticastTrafficIsNotReceived(allMultiEnabledPod, tcpDumpCMD, multicastGroupIPv6)
 
 	By("Add client without allmulti enabled to the IPv4 multicast group")
