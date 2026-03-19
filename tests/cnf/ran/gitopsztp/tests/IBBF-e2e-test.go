@@ -25,13 +25,13 @@ import (
 var _ = Describe(
 	"Performing Image-Based Break/Fix Flow",
 	Ordered, Label(tsparams.LabelIBBFe2e), func() {
-
 		var (
 			spokeNamespace = RANConfig.Spoke1Name
 		)
 
 		BeforeEach(func() {
 			By("checking if the git path exists")
+
 			clustersApp, err := argocd.PullApplication(
 				HubAPIClient, tsparams.ArgoCdClustersAppName, ranparam.OpenshiftGitOpsNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get the clusters app")
