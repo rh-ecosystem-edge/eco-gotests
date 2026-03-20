@@ -32,7 +32,14 @@ func (b *BMCDetails) Decode(value string) error {
 		return nil
 	}
 
-	return json.Unmarshal([]byte(value), b)
+	var tmp BMCDetails
+	if err := json.Unmarshal([]byte(value), &tmp); err != nil {
+		return err
+	}
+
+	*b = tmp
+
+	return nil
 }
 
 // RHWAConfig type keeps rhwa configuration.
@@ -45,6 +52,10 @@ type RHWAConfig struct {
 	StorageClass    string     `yaml:"nhc_storage_class" envconfig:"ECO_RHWA_NHC_STORAGE_CLASS"`
 	AppImage        string     `yaml:"nhc_app_image" envconfig:"ECO_RHWA_NHC_APP_IMAGE"`
 	TargetWorkerBMC BMCDetails `yaml:"nhc_target_worker_bmc" envconfig:"ECO_RHWA_NHC_TARGET_WORKER_BMC"`
+
+	// NHC planned-reboot (upgrade) test configuration.
+	UpgradeImage   string `yaml:"nhc_upgrade_image" envconfig:"ECO_RHWA_NHC_UPGRADE_IMAGE"`
+	UpgradeChannel string `yaml:"nhc_upgrade_channel" envconfig:"ECO_RHWA_NHC_UPGRADE_CHANNEL"`
 }
 
 // NewRHWAConfig returns instance of RHWA config type.

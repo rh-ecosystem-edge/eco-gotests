@@ -788,6 +788,18 @@ func isPodReady(podBuilder *pod.Builder) bool {
 	return false
 }
 
+func filterRunningPods(pods []*pod.Builder) []*pod.Builder {
+	var running []*pod.Builder
+
+	for _, p := range pods {
+		if p.Object.Status.Phase == corev1.PodRunning {
+			running = append(running, p)
+		}
+	}
+
+	return running
+}
+
 func toFloat64(val any) (float64, error) {
 	switch value := val.(type) {
 	case float64:

@@ -11,8 +11,4 @@ var (
 		Version:  "v1alpha1",
 		Resource: "selfnoderemediations",
 	}
-<<<<<<< HEAD
 )
-=======
-)
->>>>>>> 3cc48744 (rhwa nhc: add NHC & SNR sudden-loss system test)
