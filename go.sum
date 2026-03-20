@@ -739,8 +739,8 @@ github.com/red-hat-storage/odf-operator v0.0.0-20260226164309-08c71191d483 h1:I8
 github.com/red-hat-storage/odf-operator v0.0.0-20260226164309-08c71191d483/go.mod h1:ezzeJZeZyinngGE5Ox4wAZg6w+Bdu7/9PtdQeV3fXUk=
 github.com/redhat-cne/sdk-go v1.23.6 h1:L+Rs12UihwDBJc/tj1eEMc4Otf7Lxf0bkFjdsg7FPGA=
 github.com/redhat-cne/sdk-go v1.23.6/go.mod h1:5hK1sILdB33pdMsNYTyBKV/v5GjjibmQZcyRtVrVfvs=
-github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260318121032-16f469e37ec2 h1:Ny0b3w39jIPOCPWpiOwtNBUaFrFqwWGCRBjXgJdgzpg=
-github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260318121032-16f469e37ec2/go.mod h1:rxPzQh+1NKE5Kj5ez2xSmZ6jWRNJSGkYtFvJJDySc8s=
+github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260319134420-50b6871aac6f h1:aHEUonFJsZi1a74Q8gaTh/ldXQc0KObSmplU/AzUMCs=
+github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260319134420-50b6871aac6f/go.mod h1:rxPzQh+1NKE5Kj5ez2xSmZ6jWRNJSGkYtFvJJDySc8s=
 github.com/robfig/cron v1.2.0 h1:ZjScXvvxeQ63Dbyxy76Fj3AT3Ut0aKsyd2/tl3DTMuQ=
 github.com/robfig/cron v1.2.0/go.mod h1:JGuDeoQd7Z6yL4zQhZ3OPEVHB7fL6Ka6skscFHfmt2k=
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
