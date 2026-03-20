@@ -145,12 +145,11 @@ var _ = Describe(
 			klog.V(randuparams.RanDuLogLevel).Infof("PTP 3 WPC validation will run on nodes: %v", ptpNodes)
 		})
 
-		// Case 01: GNSS Lock & NMEA Integrity
-		// Objective: Verify the primary card has a 3D satellite fix and a stable offset.
-		// Success Criteria: gnss_status 5 and s2. The offset should be a small integer (e.g., offset 2).
-		It("Case 01: verifies GNSS lock and NMEA integrity", reportxml.ID("99991"), func() {
+		// Case 01: To check GNSS Lock and NMEA Integrity
+		// Test_Description: Verify the primary WPC card ens3f0 achieves a stable 1pps lock using PPS data.
+		It("Case 01: To check GNSS Lock and NMEA Integrity", reportxml.ID("99991"), func() {
 			for _, nodeName := range ptpNodes {
-				By(fmt.Sprintf("Checking GNSS status on node %s", nodeName))
+				By("Verify the primary WPC card ens3f0 achieves a stable 1pps lock using PPS data")
 
 				daemonPod, err := getPtpDaemonPodOnNode(nodeName)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get PTP daemon pod on node %s", nodeName)
@@ -172,6 +171,10 @@ var _ = Describe(
 				// Look for s2 (synchronized state)
 				Expect(logStr).To(ContainSubstring(" s2"),
 					"Node %s: expected sync state s2 in logs", nodeName)
+
+				// Look for primary WPC card ens3f0 with s2 (stable 1pps lock)
+				Expect(logStr).To(ContainSubstring("ens3f0"),
+					"Node %s: expected primary WPC card ens3f0 in logs", nodeName)
 
 				// Look for small offset (e.g., offset 2) - offset should be a small integer
 				offsetRe := regexp.MustCompile(`offset\s+(-?\d+)`)
@@ -196,14 +199,13 @@ var _ = Describe(
 			}
 		})
 
-		// Case 02: Multi-Card Hardware PPS Sync
-		// Objective: Confirm inter-card synchronization across the 3-card setup.
-		// Success Criteria: Each interface (ens1f0, ens2f0, ens3f0) must report s2.
-		It("Case 02: verifies multi-card hardware PPS sync", reportxml.ID("99992"), func() {
+		// Case 02: To verify hardware sync between inter-card pps alignment
+		// Test_Description: Verify the physical 1pps signal is distributed from the master card to secondary cards via sma cables.
+		It("Case 02: To verify hardware sync between inter-card pps alignment", reportxml.ID("99992"), func() {
 			interfaceRe := regexp.MustCompile(`(ens1f0|ens2f0|ens3f0).*s2`)
 
 			for _, nodeName := range ptpNodes {
-				By(fmt.Sprintf("Checking multi-card sync on node %s", nodeName))
+				By("Verify the physical 1pps signal is distributed from the master card to secondary cards via sma cables")
 
 				daemonPod, err := getPtpDaemonPodOnNode(nodeName)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get PTP daemon pod on node %s", nodeName)
@@ -254,12 +256,11 @@ var _ = Describe(
 			}
 		})
 
-		// Case 03: Hardware DPLL Lock Status
-		// Objective: Validate that the hardware DPLL is stabilized.
-		// Success Criteria: phase_status 3 and frequency_status 3 (high-precision hardware lock).
-		It("Case 03: verifies hardware DPLL lock status", reportxml.ID("99993"), func() {
+		// Case 03: To verify dpll stability hardware dpll phase and freq lock
+		// Test_Description: Verify the E810 dpll hardware state for long-term frequency stability.
+		It("Case 03: To verify dpll stability hardware dpll phase and freq lock", reportxml.ID("99993"), func() {
 			for _, nodeName := range ptpNodes {
-				By(fmt.Sprintf("Checking DPLL status on node %s", nodeName))
+				By("Verify the E810 dpll hardware state for long-term frequency stability")
 
 				daemonPod, err := getPtpDaemonPodOnNode(nodeName)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get PTP daemon pod on node %s", nodeName)
@@ -283,12 +284,11 @@ var _ = Describe(
 			}
 		})
 
-		// Case 04: PTP Announce & ClockClass
-		// Objective: Verify the Grandmaster is advertising the correct quality (Class 6).
-		// Success Criteria: gm.ClockClass 6. If 7 or higher, node is not a synchronized Grandmaster.
-		It("Case 04: verifies PTP announce and ClockClass", reportxml.ID("99994"), func() {
+		// Case 04: To verify t-gm ptp announce messages validation from linuxptp pod
+		// Test_Description: Verify the pod is reporting the correct ptp class and announce a message for the same as a grandmaster.
+		It("Case 04: To verify t-gm ptp announce messages validation from linuxptp pod", reportxml.ID("99994"), func() {
 			for _, nodeName := range ptpNodes {
-				By(fmt.Sprintf("Checking ClockClass on node %s", nodeName))
+				By("Verify the pod is reporting the correct ptp class and announce a message for the same as a grandmaster")
 
 				daemonPod, err := getPtpDaemonPodOnNode(nodeName)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get PTP daemon pod on node %s", nodeName)
@@ -306,32 +306,31 @@ var _ = Describe(
 			}
 		})
 
-		// Case 05: Holdover Performance (Simulated)
-		// Objective: Ensure the system enters holdover when GNSS is lost.
-		// Success Criteria: Upon simulated signal loss via ubxtool, logs indicate transition to holdover/freerun.
-		It("Case 05: verifies holdover performance", reportxml.ID("99995"), func() {
+		// Case 05: To verify t-gm ptp sync locked back after GNSS signal loss and retrieved
+		// Test_Description: Verify the clock status after GNSS signal loss, then verify it again once the signal is restored.
+		It("Case 05: To verify t-gm ptp sync locked back after GNSS signal loss and retrieved", reportxml.ID("99995"), func() {
 			protocolVersion, err := getUbloxProtocolVersion()
 			if err != nil {
 				Skip("GNSS simulation requires PtpConfig with e810/e825/e830 plugin: " + err.Error())
 			}
 
 			for _, nodeName := range ptpNodes {
-				By(fmt.Sprintf("Simulating GNSS loss on node %s", nodeName))
+				By("Verify the clock status after GNSS signal loss, then verify it again once the signal is restored")
 
 				DeferCleanup(func() {
-					By(fmt.Sprintf("Restoring GNSS sync on node %s", nodeName))
+					By("Restoring GNSS sync")
 					if restoreErr := simulateGNSSRecovery(nodeName, protocolVersion); restoreErr != nil {
 						klog.Errorf("Failed to restore GNSS on node %s: %v", nodeName, restoreErr)
 					}
 				})
 
+				By("Simulating GNSS signal loss")
 				err = simulateGNSSLoss(nodeName, protocolVersion)
 				Expect(err).ToNot(HaveOccurred(), "Failed to simulate GNSS loss on node %s", nodeName)
 
 				gnssLossTime := time.Now()
 
-				By(fmt.Sprintf("Waiting for holdover/freerun in logs on node %s (up to 5 min)", nodeName))
-
+				By("Verifying clock status after GNSS signal loss (holdover/freerun)")
 				var foundHoldoverOrFreerun bool
 				err = wait.PollUntilContextTimeout(
 					context.TODO(), 10*time.Second, 5*time.Minute, true,
@@ -354,6 +353,23 @@ var _ = Describe(
 				Expect(err).ToNot(HaveOccurred(), "Timeout waiting for holdover/freerun in logs on node %s", nodeName)
 				Expect(foundHoldoverOrFreerun).To(BeTrue(),
 					"Node %s: expected 'holdover' or 'freerun' in logs after GNSS loss simulation", nodeName)
+
+				By("Restoring GNSS signal")
+				err = simulateGNSSRecovery(nodeName, protocolVersion)
+				Expect(err).ToNot(HaveOccurred(), "Failed to restore GNSS on node %s", nodeName)
+
+				By("Verifying clock status after GNSS signal is restored (sync locked)")
+				time.Sleep(30 * time.Second) // Allow time for sync to stabilize
+				daemonPod, err := getPtpDaemonPodOnNode(nodeName)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get PTP daemon pod on node %s", nodeName)
+				logs, err := daemonPod.GetLogsWithOptions(&corev1.PodLogOptions{
+					Container: ptpContainerName,
+					TailLines: ptr(int64(200)),
+				})
+				Expect(err).ToNot(HaveOccurred(), "Failed to get PTP daemon logs on node %s", nodeName)
+				logStr := string(logs)
+				Expect(logStr).To(ContainSubstring(" s2"),
+					"Node %s: expected sync state s2 after GNSS restore, clock should be locked", nodeName)
 			}
 		})
 	})
