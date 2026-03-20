@@ -44,7 +44,9 @@ var (
 	NHCObserveTimeout = 3 * time.Minute
 
 	// SNRFenceTimeout is how long to wait for SNR to fence the node.
-	SNRFenceTimeout = 5 * time.Minute
+	// Typical: 3-5 min (180s safeTimeToAssumeNodeRebootedSeconds + pod termination).
+	// Worst case: 5-8 min when system pods on the dead node are slow to terminate.
+	SNRFenceTimeout = 10 * time.Minute
 
 	// RescheduleTimeout is how long to wait for the pod to reschedule.
 	RescheduleTimeout = 5 * time.Minute
@@ -63,4 +65,13 @@ var (
 
 	// BMCTimeout is the Redfish operation timeout.
 	BMCTimeout = 6 * time.Minute
+
+	// UpgradeStartTimeout is how long to wait for a cluster upgrade to start.
+	UpgradeStartTimeout = 5 * time.Minute
+
+	// UpgradeCompleteTimeout is how long to wait for a cluster upgrade to complete.
+	UpgradeCompleteTimeout = 150 * time.Minute
+
+	// UpgradePollingInterval is the polling interval for upgrade observation.
+	UpgradePollingInterval = 30 * time.Second
 )

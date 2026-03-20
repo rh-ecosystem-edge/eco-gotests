@@ -7,6 +7,9 @@ const (
 	// LabelSuddenLoss is the label for the sudden-loss test scenario.
 	LabelSuddenLoss = "sudden-loss"
 
+	// LabelPlannedReboot is the label for the planned-reboot test scenario.
+	LabelPlannedReboot = "planned-reboot"
+
 	// NHCResourceName is the name of the NodeHealthCheck CR.
 	NHCResourceName = "nhc-worker-self"
 
@@ -24,6 +27,9 @@ const (
 
 	// AppWorkerLabel is the node label used to select worker nodes for the test app.
 	AppWorkerLabel = "node-role.kubernetes.io/appworker"
+
+	// OutOfServiceTaintKey is the taint key applied by SNR during out-of-service remediation.
+	OutOfServiceTaintKey = "node.kubernetes.io/out-of-service"
 
 	// PVCName is the name of the PersistentVolumeClaim for the test app.
 	PVCName = "app-data"
