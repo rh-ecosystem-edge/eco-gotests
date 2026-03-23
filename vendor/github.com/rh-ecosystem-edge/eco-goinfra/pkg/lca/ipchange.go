@@ -213,8 +213,90 @@ func (builder *IPConfigBuilder) WaitUntilComplete(timeout time.Duration) (*IPCon
 			}
 
 			for _, condition := range builder.Object.Status.Conditions {
-				if condition.Status == "True" && condition.Type == "ConfigCompleted" &&
+				if condition.Type == "ConfigCompleted" && condition.Status == isTrue &&
 					condition.Reason == "Completed" {
+					return true, nil
+				}
+			}
+
+			return false, nil
+		})
+	if err == nil {
+		return builder, nil
+	}
+
+	return nil, err
+}
+
+// WaitUntilFailed waits the specified timeout for the ipconfig to fail.
+func (builder *IPConfigBuilder) WaitUntilFailed(timeout time.Duration) (*IPConfigBuilder, error) {
+	if valid, err := builder.validate(); !valid {
+		return builder, err
+	}
+
+	klog.V(100).Infof("Waiting for ipconfig %s to fail",
+		builder.Definition.Name)
+
+	if !builder.Exists() {
+		klog.V(100).Info("The ipconfig does not exist on the cluster")
+
+		return builder, fmt.Errorf("%s", builder.errorMsg)
+	}
+
+	// Polls periodically to determine if ipconfig is in desired state.
+	var err error
+
+	err = wait.PollUntilContextTimeout(
+		context.TODO(), time.Second*3, timeout, true, func(ctx context.Context) (bool, error) {
+			builder.Object, err = builder.Get()
+			if err != nil {
+				return false, nil
+			}
+
+			for _, condition := range builder.Object.Status.Conditions {
+				if condition.Type == "ConfigCompleted" && condition.Status == isFalse &&
+					condition.Reason == "Failed" {
+					return true, nil
+				}
+			}
+
+			return false, nil
+		})
+	if err == nil {
+		return builder, nil
+	}
+
+	return nil, err
+}
+
+// WaitUntilIdle waits the specified timeout for the ipconfig to become Idle.
+func (builder *IPConfigBuilder) WaitUntilIdle(timeout time.Duration) (*IPConfigBuilder, error) {
+	if valid, err := builder.validate(); !valid {
+		return builder, err
+	}
+
+	klog.V(100).Infof("Waiting for ipconfig %s to become Idle",
+		builder.Definition.Name)
+
+	if !builder.Exists() {
+		klog.V(100).Info("The ipconfig does not exist on the cluster")
+
+		return builder, fmt.Errorf("%s", builder.errorMsg)
+	}
+
+	// Polls periodically to determine if ipconfig is in desired state.
+	var err error
+
+	err = wait.PollUntilContextTimeout(
+		context.TODO(), time.Second*3, timeout, true, func(ctx context.Context) (bool, error) {
+			builder.Object, err = builder.Get()
+			if err != nil {
+				return false, nil
+			}
+
+			for _, condition := range builder.Object.Status.Conditions {
+				if condition.Type == "Idle" && condition.Status == isTrue &&
+					condition.Reason == "Idle" {
 					return true, nil
 				}
 			}
