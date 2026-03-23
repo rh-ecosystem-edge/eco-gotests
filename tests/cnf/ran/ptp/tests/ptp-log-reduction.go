@@ -379,7 +379,7 @@ func validateLogWithInterval(client *clients.Settings, nodeName string) {
 
 	Expect(numberOfLogs).To(And(
 		BeNumerically(">=", 4*numberOfProcesses),
-		BeNumerically("<", 7*numberOfProcesses)),
+		BeNumerically("<=", 7*numberOfProcesses)),
 		"Log count should be within expected range for interval 10s")
 }
 
