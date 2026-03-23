@@ -20,6 +20,9 @@ import (
 )
 
 // waitForNodeToBeNotReady waits for the node to be not ready.
+//
+// Deprecated: In cloud environments with fast reboot cycles, this function may miss
+// the NotReady state entirely. Use waitForBootIDChange instead for reliable reboot detection.
 func waitForNodeToBeNotReady(ctx SpecContext, nodeName string, pollingInterval, timeout time.Duration) {
 	By(fmt.Sprintf("Waiting for node %q to get into NotReady state", nodeName))
 
@@ -49,9 +52,42 @@ func waitForNodeToBeNotReady(ctx SpecContext, nodeName string, pollingInterval, 
 		"Node %q hasn't reached NotReady state", nodeName)
 }
 
+// waitForBootIDChange waits for the node's boot ID to change from the original value.
+// This reliably detects node reboots even in cloud environments where reboot cycles
+// are very fast (<1 minute) and may not trigger NotReady state detection.
+func waitForBootIDChange(ctx SpecContext, nodeName, originalBootID string, timeout time.Duration) {
+	By(fmt.Sprintf("Waiting for node %q boot ID to change (current: %s)", nodeName, originalBootID))
+
+	Eventually(func() bool {
+		currentNode, err := nodes.Pull(APIClient, nodeName)
+		if err != nil {
+			glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"Node %q unreachable during reboot (expected): %v", nodeName, err)
+
+			return false
+		}
+
+		newBootID := currentNode.Object.Status.NodeInfo.BootID
+		if newBootID != originalBootID {
+			glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"Node %q boot ID changed: %s -> %s (reboot confirmed)",
+				nodeName, originalBootID, newBootID)
+
+			return true
+		}
+
+		glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Node %q boot ID unchanged: %s (waiting for reboot)", nodeName, newBootID)
+
+		return false
+	}).WithContext(ctx).WithPolling(15*time.Second).WithTimeout(timeout).Should(BeTrue(),
+		"Node %q boot ID did not change within timeout", nodeName)
+
+	glog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"Node %q successfully rebooted (boot ID changed)", nodeName)
+}
+
 // verifyVmcoreDumpGenerated verifies that vmcore dump was generated in /var/crash.
-//
-//nolint:unused
 func verifyVmcoreDumpGenerated(ctx SpecContext, nodeName string) {
 	By("Assert vmcore dump was generated")
 
@@ -79,8 +115,6 @@ func verifyVmcoreDumpGenerated(ctx SpecContext, nodeName string) {
 }
 
 // cleanupVarCrashDirectory cleans up the /var/crash directory on the specified node.
-//
-//nolint:unused
 func cleanupVarCrashDirectory(ctx SpecContext, nodeName string) {
 	By(fmt.Sprintf("Cleaning up /var/crash directory on node %q", nodeName))
 
