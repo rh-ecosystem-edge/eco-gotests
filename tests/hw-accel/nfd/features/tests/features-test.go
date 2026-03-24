@@ -49,6 +49,12 @@ var _ = Describe("NFD", Ordered, func() {
 				return labelExist
 			}).WithTimeout(5*time.Minute).WithPolling(10*time.Second).Should(BeTrue(),
 				"Feature labels should be present after NFD is running")
+
+			if nfdConfig.CPUFlagsHelperImage != "" {
+				By("Collecting CPU flags from nodes (cached for all tests)")
+				cpuFlags = get.CPUFlags(APIClient, hwaccelparams.NFDNamespace, nfdConfig.CPUFlagsHelperImage)
+				klog.V(ts.LogLevel).Infof("Collected CPU flags for %d nodes", len(cpuFlags))
+			}
 		})
 
 		It("Check pods state", reportxml.ID("54548"), func() {
@@ -61,7 +67,6 @@ var _ = Describe("NFD", Ordered, func() {
 			if nfdConfig.CPUFlagsHelperImage == "" {
 				Skip("CPUFlagsHelperImage is not set.")
 			}
-			cpuFlags = get.CPUFlags(APIClient, hwaccelparams.NFDNamespace, nfdConfig.CPUFlagsHelperImage)
 			nodelabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
 
 			Expect(err).NotTo(HaveOccurred())
@@ -183,8 +188,30 @@ var _ = Describe("NFD", Ordered, func() {
 
 		})
 
-		It("Verify Feature List not contains items from Blacklist ", reportxml.ID("68298"), func() {
+		It("Verify Feature List not contains items from Blacklist ", Label("Blacklist"), reportxml.ID("68298"), func() {
 			skipIfConfigNotSet(nfdConfig)
+
+			// Always restore NFD CR to original state, even if test fails
+			DeferCleanup(func() {
+				By("Restoring original NFD CR configuration")
+				_ = ts.SharedNFDCRUtils.DeleteNFDCR()
+				_ = nfddelete.NfdLabelsByKeys(APIClient, "nfd.node.kubernetes.io", "feature.node.kubernetes.io")
+				restoreConfig := deploy.NFDCRConfig{
+					Image:          nfdConfig.Image,
+					EnableTopology: true,
+				}
+				if restoreErr := ts.SharedNFDCRUtils.DeployNFDCR(restoreConfig); restoreErr != nil {
+					klog.Errorf("Failed to restore NFD CR: %v", restoreErr)
+					return
+				}
+				crReady, restoreErr := ts.SharedNFDCRUtils.IsNFDCRReady(15 * time.Minute)
+				if restoreErr != nil {
+					klog.Errorf("Error waiting for NFD CR restore: %v", restoreErr)
+				} else if !crReady {
+					klog.Errorf("NFD CR not ready after restore")
+				}
+			})
+
 			By("delete old instance")
 
 			err := ts.SharedNFDCRUtils.DeleteNFDCR()
@@ -201,6 +228,24 @@ var _ = Describe("NFD", Ordered, func() {
 				hwaccelparams.NFDNamespace,
 				nfdConfig.Image)
 
+			By("Waiting for NFD CR with blacklist config to be ready")
+			crReady, crErr := ts.SharedNFDCRUtils.IsNFDCRReady(20 * time.Minute)
+			if crErr != nil || !crReady {
+				By("Dumping NFD pod logs after readiness failure")
+				if dumpPods, listErr := pod.List(APIClient, hwaccelparams.NFDNamespace, metav1.ListOptions{}); listErr == nil {
+					for _, p := range dumpPods {
+						klog.V(ts.LogLevel).Infof("=== Pod %s phase=%s ===", p.Object.Name, p.Object.Status.Phase)
+						if logs, logsErr := get.PodLogs(APIClient, hwaccelparams.NFDNamespace, p.Object.Name); logsErr == nil {
+							klog.V(ts.LogLevel).Infof("Logs:\n%s", logs)
+						} else {
+							klog.V(ts.LogLevel).Infof("Failed to get logs: %v", logsErr)
+						}
+					}
+				}
+			}
+			Expect(crErr).NotTo(HaveOccurred(), "NFD CR with blacklist config should become ready")
+			Expect(crReady).To(BeTrue(), "NFD CR with blacklist config should be ready")
+
 			labelExist, labelsError := wait.CheckLabel(APIClient, 15*time.Minute, "feature")
 			if !labelExist || labelsError != nil {
 				klog.Errorf("feature labels was not found in the given time error=%v", labelsError)
@@ -212,34 +257,15 @@ var _ = Describe("NFD", Ordered, func() {
 			}
 
 			nodelabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
-			klog.V(ts.LogLevel).Infof("Received nodelabel: %v", nodelabels)
 			Expect(err).NotTo(HaveOccurred())
+			for nodeName, labels := range nodelabels {
+				klog.V(ts.LogLevel).Infof("Node %s has %d NFD labels: %v", nodeName, len(labels), labels)
+			}
 			By("Check if features exists")
 			for nodeName := range nodelabels {
 				err = helpers.CheckLabelsExist(nodelabels, []string{"BMI2"}, nil, nodeName)
 				Expect(err).NotTo(HaveOccurred())
 			}
-
-			By("Restoring original NFD CR configuration")
-			err = ts.SharedNFDCRUtils.DeleteNFDCR()
-			Expect(err).NotTo(HaveOccurred())
-
-			err = nfddelete.NfdLabelsByKeys(APIClient, "nfd.node.kubernetes.io", "feature.node.kubernetes.io")
-			Expect(err).NotTo(HaveOccurred())
-
-			// Recreate original CR without blacklist
-			crConfig := deploy.NFDCRConfig{
-				Image:          nfdConfig.Image,
-				EnableTopology: true,
-			}
-			err = ts.SharedNFDCRUtils.DeployNFDCR(crConfig)
-			Expect(err).NotTo(HaveOccurred())
-
-			// Wait for CR to be ready again
-			crReady, err := ts.SharedNFDCRUtils.IsNFDCRReady(5 * time.Minute)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(crReady).To(BeTrue(), "NFD CR should be restored to original state")
-
 		})
 
 		It("Verify Feature List contains only Whitelist", reportxml.ID("68300"), func() {
@@ -248,6 +274,28 @@ var _ = Describe("NFD", Ordered, func() {
 			if nfdConfig.CPUFlagsHelperImage == "" {
 				Skip("CPUFlagsHelperImage is not set.")
 			}
+
+			// Always restore NFD CR to original state, even if test fails
+			DeferCleanup(func() {
+				By("Restoring original NFD CR configuration")
+				_ = ts.SharedNFDCRUtils.DeleteNFDCR()
+				_ = nfddelete.NfdLabelsByKeys(APIClient, "nfd.node.kubernetes.io", "feature.node.kubernetes.io")
+				restoreConfig := deploy.NFDCRConfig{
+					Image:          nfdConfig.Image,
+					EnableTopology: true,
+				}
+				if restoreErr := ts.SharedNFDCRUtils.DeployNFDCR(restoreConfig); restoreErr != nil {
+					klog.Errorf("Failed to restore NFD CR: %v", restoreErr)
+					return
+				}
+				crReady, restoreErr := ts.SharedNFDCRUtils.IsNFDCRReady(15 * time.Minute)
+				if restoreErr != nil {
+					klog.Errorf("Error waiting for NFD CR restore: %v", restoreErr)
+				} else if !crReady {
+					klog.Errorf("NFD CR not ready after restore")
+				}
+			})
+
 			By("delete old instance")
 
 			err := ts.SharedNFDCRUtils.DeleteNFDCR()
@@ -274,7 +322,6 @@ var _ = Describe("NFD", Ordered, func() {
 				klog.Errorf("error in printing NFD CR: %v", err)
 			}
 
-			cpuFlags = get.CPUFlags(APIClient, hwaccelparams.NFDNamespace, nfdConfig.CPUFlagsHelperImage)
 			nodelabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
 			Expect(err).NotTo(HaveOccurred())
 			By("Check if features exists")
@@ -282,30 +329,9 @@ var _ = Describe("NFD", Ordered, func() {
 				err = helpers.CheckLabelsExist(nodelabels, []string{"BMI2"}, cpuFlags[nodeName], nodeName)
 				Expect(err).NotTo(HaveOccurred())
 			}
-
-			By("Restoring original NFD CR configuration")
-			err = ts.SharedNFDCRUtils.DeleteNFDCR()
-			Expect(err).NotTo(HaveOccurred())
-
-			err = nfddelete.NfdLabelsByKeys(APIClient, "nfd.node.kubernetes.io", "feature.node.kubernetes.io")
-			Expect(err).NotTo(HaveOccurred())
-
-			// Recreate original CR without whitelist
-			crConfig := deploy.NFDCRConfig{
-				Image:          nfdConfig.Image,
-				EnableTopology: true,
-			}
-			err = ts.SharedNFDCRUtils.DeployNFDCR(crConfig)
-			Expect(err).NotTo(HaveOccurred())
-
-			// Wait for CR to be ready again
-			crReady, err := ts.SharedNFDCRUtils.IsNFDCRReady(5 * time.Minute)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(crReady).To(BeTrue(), "NFD CR should be restored to original state")
-
 		})
 
-		It("Add day2 workers", reportxml.ID("54539"), func() {
+		It("Add day2 workers", Label("day2"), reportxml.ID("54539"), func() {
 			skipIfConfigNotSet(nfdConfig)
 			if !nfdConfig.AwsTest {
 				Skip("This test works only on AWS cluster." +
