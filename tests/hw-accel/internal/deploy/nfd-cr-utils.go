@@ -121,7 +121,7 @@ func (nfd *NFDCRUtils) DeleteNFDCR() error {
 			}
 
 			if builder == nil {
-				klog.V(nfd.LogLevel).Infof("NFD CR '%s' confirmed fully deleted (nil builder)", nfd.CrName)
+				klog.V(nfd.LogLevel).Infof("NFD CR '%s' returned nil builder without error - treating as deleted", nfd.CrName)
 
 				return true, nil
 			}
@@ -131,7 +131,7 @@ func (nfd *NFDCRUtils) DeleteNFDCR() error {
 			return false, nil
 		})
 	if waitErr != nil {
-		klog.V(nfd.LogLevel).Infof("Warning: NFD CR '%s' may not be fully deleted yet: %v", nfd.CrName, waitErr)
+		return fmt.Errorf("NFD CR '%s' not fully removed within timeout: %w", nfd.CrName, waitErr)
 	}
 
 	klog.V(nfd.LogLevel).Infof("SUCCESS: NFD CR '%s' deleted", nfd.CrName)
@@ -199,6 +199,10 @@ func (nfd *NFDCRUtils) IsNFDCRReady(timeout time.Duration) (bool, error) {
 	}
 
 	remaining := timeout - time.Since(start)
+	if remaining <= 0 {
+		return false, fmt.Errorf("timeout budget exhausted before pod readiness check for NFD CR '%s'", nfd.CrName)
+	}
+
 	if remaining < 5*time.Second {
 		remaining = 5 * time.Second
 	}
@@ -222,7 +226,9 @@ func isPodImagePullError(podObj *pod.Builder) bool {
 
 // checkPodsReady returns (ready, stop, nil) where ready=true means all relevant pods are Running.
 func checkPodsReady(apiClient *clients.Settings, nsname string) (bool, error) {
-	pods, err := pod.List(apiClient, nsname, metav1.ListOptions{})
+	pods, err := pod.List(apiClient, nsname, metav1.ListOptions{
+		LabelSelector: "app in (nfd-master,nfd-worker,nfd-gc,nfd-topology-updater)",
+	})
 	if err != nil {
 		klog.V(nfdparams.LogLevel).Infof("Warning: error listing pods, retrying: %v", err)
 

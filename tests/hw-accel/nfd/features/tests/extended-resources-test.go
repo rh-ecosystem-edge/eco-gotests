@@ -169,7 +169,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
                 },
                 "taints": [
                     {
-                        "key": specialHardwareTaintKey,
+                        "key": "` + specialHardwareTaintKey + `",
                         "value": "true",
                         "effect": "NoSchedule"
                     }
@@ -242,22 +242,26 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 				nodesList, listErr := nodes.List(APIClient, metav1.ListOptions{
 					LabelSelector: "node-role.kubernetes.io/worker=",
 				})
-				if listErr == nil {
-					for _, node := range nodesList {
-						for _, taint := range node.Object.Spec.Taints {
-							if taint.Key == specialHardwareTaintKey {
-								klog.V(nfdparams.LogLevel).Infof("Node %s has taint %s",
-									node.Object.Name, specialHardwareTaintKey)
+				if listErr != nil {
+					Expect(listErr).NotTo(HaveOccurred(), "Failed to list nodes while checking for taints")
 
-								taintFound = true
+					break
+				}
 
-								break
-							}
-						}
+				for _, node := range nodesList {
+					for _, taint := range node.Object.Spec.Taints {
+						if taint.Key == specialHardwareTaintKey {
+							klog.V(nfdparams.LogLevel).Infof("Node %s has taint %s",
+								node.Object.Name, specialHardwareTaintKey)
 
-						if taintFound {
+							taintFound = true
+
 							break
 						}
+					}
+
+					if taintFound {
+						break
 					}
 				}
 
