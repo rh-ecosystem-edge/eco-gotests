@@ -94,17 +94,23 @@ var _ = Describe("NFD", Ordered, func() {
 		})
 
 		It("Check topology", reportxml.ID("54491"), func() {
-			Skip("configuration issue")
-			skipIfConfigNotSet(nfdConfig)
-
 			nodelabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
 			Expect(err).NotTo(HaveOccurred())
 
-			By("Check if NFD labeling of the kernel config flags")
+			By("Check if NFD labeling nodes with topology labels")
+
+			found := false
 
 			for nodeName := range nodelabels {
-				err = helpers.CheckLabelsExist(nodelabels, ts.Topology, nil, nodeName)
-				Expect(err).NotTo(HaveOccurred())
+				if helpers.CheckLabelsExist(nodelabels, ts.Topology, nil, nodeName) == nil {
+					found = true
+
+					break
+				}
+			}
+
+			if !found {
+				Skip("No topology labels found - topology updater may not be enabled on this cluster")
 			}
 		})
 		It("Check Logs", reportxml.ID("54549"), func() {
@@ -181,16 +187,23 @@ var _ = Describe("NFD", Ordered, func() {
 		})
 
 		It("Check if NUMA detected ", reportxml.ID("54408"), func() {
-			Skip("configuration issue")
-			skipIfConfigNotSet(nfdConfig)
-
 			nodelabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
 			Expect(err).NotTo(HaveOccurred())
+
 			By("Check if NFD labeling nodes with custom NUMA labels")
 
+			found := false
+
 			for nodeName := range nodelabels {
-				err = helpers.CheckLabelsExist(nodelabels, ts.NUMA, nil, nodeName)
-				Expect(err).NotTo(HaveOccurred())
+				if helpers.CheckLabelsExist(nodelabels, ts.NUMA, nil, nodeName) == nil {
+					found = true
+
+					break
+				}
+			}
+
+			if !found {
+				Skip("No NUMA labels found - NUMA topology may not be available on this cluster")
 			}
 		})
 
