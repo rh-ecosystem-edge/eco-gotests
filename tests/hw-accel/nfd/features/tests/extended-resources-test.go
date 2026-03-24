@@ -22,7 +22,6 @@ const specialHardwareTaintKey = "test.example.com/special-hardware"
 
 var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"), func() {
 	Context("Advanced NFD Features", func() {
-
 		It("Extended resources from NodeFeatureRule", func() {
 			By("Creating NodeFeatureRule with extended resources")
 
@@ -72,6 +71,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 			}()
 
 			By("Waiting for labels to appear")
+
 			err = nfdwait.WaitForLabelsFromRule(APIClient,
 				[]string{"test.feature.node.kubernetes.io/has-extended-resource"},
 				5*time.Minute)
@@ -115,27 +115,32 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 				"Extended resources should be added to node capacity and allocatable")
 
 			By("Verifying resource quantity is correct")
+
 			nodesList, err := nodes.List(APIClient, metav1.ListOptions{
 				LabelSelector: "node-role.kubernetes.io/worker=",
 			})
 			Expect(err).NotTo(HaveOccurred())
 
 			resourceFound := false
+
 			for _, node := range nodesList {
 				resourceName := corev1.ResourceName("test.example.com/custom-resource")
 				if qty, ok := node.Object.Status.Capacity[resourceName]; ok {
 					klog.V(nfdparams.LogLevel).Infof("Extended resource quantity: %s", qty.String())
 					Expect(qty.String()).To(Equal("1"), "Resource quantity should match rule definition")
+
 					resourceFound = true
 
 					break
 				}
 			}
+
 			Expect(resourceFound).To(BeTrue(), "At least one node should have the extended resource")
 		})
 
 		It("Node tainting based on features", func() {
 			By("Checking NFD configuration for tainting support")
+
 			supported, skipReason, err := helpers.CheckNFDFeatureSupport(APIClient, nfdparams.NFDNamespace, "taints")
 			Expect(err).NotTo(HaveOccurred())
 
@@ -215,10 +220,10 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 			}()
 
 			By("Waiting for labels to appear")
+
 			err = nfdwait.WaitForLabelsFromRule(APIClient,
 				[]string{"test.feature.node.kubernetes.io/tainted"},
 				3*time.Minute)
-
 			if err != nil {
 				klog.Warningf("Labels not found - nodes may not have AVX CPU feature")
 				Skip("Nodes do not have AVX CPU feature required for taint test")
@@ -243,6 +248,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 					}
 
 					hasLabel := false
+
 					if labels, ok := nodelabels[node.Object.Name]; ok {
 						for _, label := range labels {
 							if label == "test.feature.node.kubernetes.io/tainted=true" {
@@ -276,6 +282,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 
 			// Check if taints are supported by verifying if any taint was found
 			taintFound := false
+
 			nodesList2, err := nodes.List(APIClient, metav1.ListOptions{
 				LabelSelector: "node-role.kubernetes.io/worker=",
 			})
@@ -288,6 +295,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 							break
 						}
 					}
+
 					if taintFound {
 						break
 					}
@@ -299,11 +307,13 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 			}
 
 			By("Node tainting is supported - verifying taint details")
+
 			ctx := context.Background()
 			nodesList, err := APIClient.CoreV1Interface.Nodes().List(ctx, metav1.ListOptions{})
 			Expect(err).NotTo(HaveOccurred())
 
 			taintFound = false
+
 			for _, node := range nodesList.Items {
 				for _, taint := range node.Spec.Taints {
 					if taint.Key == specialHardwareTaintKey {
@@ -312,11 +322,13 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 
 						Expect(taint.Value).To(Equal("true"), "Taint value should match")
 						Expect(taint.Effect).To(Equal(corev1.TaintEffectNoSchedule), "Taint effect should match")
+
 						taintFound = true
 
 						break
 					}
 				}
+
 				if taintFound {
 					break
 				}

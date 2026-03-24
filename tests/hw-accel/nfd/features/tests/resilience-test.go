@@ -21,21 +21,25 @@ import (
 
 var _ = Describe("NFD Resilience", Label("resilience"), func() {
 	Context("Pod Failure Recovery", func() {
-
 		It("Worker pod restart - labels persist", func() {
 			By("Getting initial node labels (waiting for labels to propagate)")
+
 			var initialLabels map[string][]string
+
 			Eventually(func() bool {
 				var err error
+
 				initialLabels, err = get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
 				if err != nil {
 					klog.V(nfdparams.LogLevel).Infof("Error getting node labels: %v", err)
 
 					return false
 				}
+
 				for nodeName, labels := range initialLabels {
 					klog.V(nfdparams.LogLevel).Infof("Node %s has %d feature labels", nodeName, len(labels))
 				}
+
 				for _, labels := range initialLabels {
 					if len(labels) > 0 {
 						return true
@@ -47,8 +51,11 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 				"Feature labels should appear on nodes within timeout")
 
 			// Store a sample of labels to verify later
-			var sampleNode string
-			var sampleLabels []string
+			var (
+				sampleNode   string
+				sampleLabels []string
+			)
+
 			for nodeName, labels := range initialLabels {
 				if len(labels) > 0 {
 					sampleNode = nodeName
@@ -57,10 +64,12 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 					break
 				}
 			}
+
 			Expect(sampleNode).NotTo(BeEmpty(), "Should have at least one node with labels")
 			Expect(len(sampleLabels)).To(BeNumerically(">", 0), "Should have labels on sample node")
 
 			By("Finding NFD worker pods")
+
 			listOptions := metav1.ListOptions{
 				LabelSelector: "app=nfd-worker",
 			}
@@ -69,6 +78,7 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 			Expect(len(pods)).To(BeNumerically(">", 0), "Should have NFD worker pods")
 
 			By("Deleting one worker pod to trigger restart")
+
 			workerPod := pods[0]
 			klog.V(nfdparams.LogLevel).Infof("Deleting worker pod: %s", workerPod.Object.Name)
 
@@ -112,11 +122,13 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 			}).WithTimeout(10*time.Minute).Should(BeTrue(), "Labels should persist after worker pod restart")
 
 			By("Verifying specific labels are unchanged")
+
 			finalLabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
 			Expect(err).NotTo(HaveOccurred())
 
 			// Check a few sample labels still exist
 			checkLabels := []string{}
+
 			for i := 0; i < 3 && i < len(sampleLabels); i++ {
 				// Extract just the label key (before '=')
 				labelParts := sampleLabels[i]
@@ -137,6 +149,7 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 
 		It("Master pod restart - rule processing continues", func() {
 			By("Creating a test NodeFeatureRule")
+
 			ruleYAML := `[
 {
     "apiVersion": "nfd.openshift.io/v1alpha1",
@@ -179,12 +192,14 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 			}()
 
 			By("Waiting for initial labels")
+
 			err = nfdwait.WaitForLabelsFromRule(APIClient,
 				[]string{"test.feature.node.kubernetes.io/master-test"},
 				5*time.Minute)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Finding NFD master pod")
+
 			listOptions := metav1.ListOptions{
 				LabelSelector: "app=nfd-master",
 			}
@@ -193,6 +208,7 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 			Expect(len(pods)).To(BeNumerically(">", 0), "Should have NFD master pod")
 
 			By("Deleting master pod to trigger restart")
+
 			masterPod := pods[0]
 			klog.V(nfdparams.LogLevel).Infof("Deleting master pod: %s", masterPod.Object.Name)
 
@@ -247,6 +263,7 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 			_ = ctx // Prevent unused variable error
 
 			By("Creating a test rule that will be deleted")
+
 			ruleYAML := `[
 {
     "apiVersion": "nfd.openshift.io/v1alpha1",
@@ -283,12 +300,14 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 			Expect(testRule).NotTo(BeNil())
 
 			By("Waiting for labels to appear")
+
 			err = nfdwait.WaitForLabelsFromRule(APIClient,
 				[]string{"test.feature.node.kubernetes.io/gc-test"},
 				3*time.Minute)
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Deleting the rule")
+
 			_, err = testRule.Delete()
 			Expect(err).NotTo(HaveOccurred())
 
@@ -329,13 +348,16 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 			Expect(len(pods)).To(BeNumerically(">", 0), "Should have topology updater pods")
 
 			allRunning := true
+
 			for _, p := range pods {
 				if p.Object.Status.Phase != corev1.PodRunning {
 					allRunning = false
+
 					klog.V(nfdparams.LogLevel).Infof("Topology updater pod %s is not running: %s",
 						p.Object.Name, p.Object.Status.Phase)
 				}
 			}
+
 			Expect(allRunning).To(BeTrue(), "All topology updater pods should be running")
 
 			By("Checking for NodeResourceTopology objects")

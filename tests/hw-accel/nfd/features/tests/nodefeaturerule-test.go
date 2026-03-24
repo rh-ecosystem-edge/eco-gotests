@@ -26,6 +26,7 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 				if err != nil {
 					klog.Errorf("Failed to delete test rule: %v", err)
 				}
+
 				testRule = nil
 			}
 		})
@@ -83,11 +84,13 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 `
 
 			var err error
+
 			testRule, err = nfdset.CreateNodeFeatureRuleFromJSON(APIClient, ruleYAML)
 			Expect(err).NotTo(HaveOccurred(), "Failed to create NodeFeatureRule")
 			Expect(testRule).NotTo(BeNil())
 
 			By("Waiting for labels to be applied")
+
 			err = nfdwait.WaitForLabelsFromRule(APIClient,
 				[]string{"test.feature.node.kubernetes.io/cpu-present",
 					"test.feature.node.kubernetes.io/kernel-present"},
@@ -95,11 +98,13 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 			Expect(err).NotTo(HaveOccurred(), "Labels were not applied within timeout")
 
 			By("Verifying labels exist on nodes")
+
 			nodelabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(nodelabels)).To(BeNumerically(">", 0))
 
 			labelFound := false
+
 			for nodeName := range nodelabels {
 				err = helpers.CheckLabelsExist(nodelabels,
 					[]string{"test.feature.node.kubernetes.io/cpu-present"},
@@ -110,6 +115,7 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 					break
 				}
 			}
+
 			Expect(labelFound).To(BeTrue(), "Expected labels not found on any node")
 		})
 
@@ -148,39 +154,45 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 `
 
 			var err error
+
 			testRule, err = nfdset.CreateNodeFeatureRuleFromJSON(APIClient, ruleYAML)
 			Expect(err).NotTo(HaveOccurred(), "Failed to create NodeFeatureRule")
 			Expect(testRule).NotTo(BeNil())
 
 			By("Waiting for templated labels to be applied")
+
 			err = nfdwait.WaitForLabelsFromRule(APIClient,
 				[]string{"test.feature.node.kubernetes.io/cpu-model"},
 				3*time.Minute)
-
 			if err != nil {
 				klog.V(nfdparams.LogLevel).Infof("labelsTemplate test timed out - this may indicate NFD version incompatibility")
 				Skip("labelsTemplate feature not working as expected - may require different NFD configuration")
 			}
 
 			By("Verifying dynamic labels exist on nodes")
+
 			nodelabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
 			Expect(err).NotTo(HaveOccurred())
 
 			labelFound := false
+
 			for _, labels := range nodelabels {
 				for _, label := range labels {
 					if len(label) >= len("test.feature.node.kubernetes.io/cpu-model") &&
 						label[0:len("test.feature.node.kubernetes.io/cpu-model")] == "test.feature.node.kubernetes.io/cpu-model" {
 						klog.V(nfdparams.LogLevel).Infof("Found templated label: %s", label)
+
 						labelFound = true
 
 						break
 					}
 				}
+
 				if labelFound {
 					break
 				}
 			}
+
 			Expect(labelFound).To(BeTrue(), "Templated labels not found on any node")
 		})
 
@@ -236,21 +248,25 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 `
 
 			var err error
+
 			testRule, err = nfdset.CreateNodeFeatureRuleFromJSON(APIClient, ruleYAML)
 			Expect(err).NotTo(HaveOccurred(), "Failed to create NodeFeatureRule")
 			Expect(testRule).NotTo(BeNil())
 
 			By("Waiting for matchAny labels to be applied")
+
 			err = nfdwait.WaitForLabelsFromRule(APIClient,
 				[]string{"test.feature.node.kubernetes.io/advanced-cpu"},
 				5*time.Minute)
 			Expect(err).NotTo(HaveOccurred(), "matchAny labels were not applied within timeout")
 
 			By("Verifying OR logic labels exist")
+
 			nodelabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
 			Expect(err).NotTo(HaveOccurred())
 
 			labelFound := false
+
 			for nodeName := range nodelabels {
 				err = helpers.CheckLabelsExist(nodelabels,
 					[]string{"test.feature.node.kubernetes.io/advanced-cpu"},
@@ -261,11 +277,13 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 					break
 				}
 			}
+
 			Expect(labelFound).To(BeTrue(), "matchAny labels not found on any node")
 		})
 
 		It("Validates backreferences from previous rules", reportxml.ID("54493"), func() {
 			By("Checking NFD configuration for backreference support")
+
 			supported, skipReason, err := helpers.CheckNFDFeatureSupport(APIClient, nfdparams.NFDNamespace, "backreferences")
 			Expect(err).NotTo(HaveOccurred())
 
@@ -328,6 +346,7 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 			Expect(testRule).NotTo(BeNil())
 
 			By("Waiting for first rule labels to be applied")
+
 			err = nfdwait.WaitForLabelsFromRule(APIClient,
 				[]string{"test.feature.node.kubernetes.io/first-rule"},
 				3*time.Minute)
@@ -337,16 +356,19 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 			// Try to detect backreference support with a reasonable timeout (2 minutes)
 			// If not supported, skip the test instead of failing
 			backrefSupported := false
+
 			Eventually(func() bool {
 				nodelabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
 				if err != nil {
 					return false
 				}
+
 				for nodeName := range nodelabels {
 					if helpers.CheckLabelsExist(nodelabels,
 						[]string{"test.feature.node.kubernetes.io/second-rule"},
 						nil, nodeName) == nil {
 						klog.V(nfdparams.LogLevel).Infof("Backreference label found on node %s", nodeName)
+
 						backrefSupported = true
 
 						return true
@@ -364,26 +386,31 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 			// Feature is supported, do final verification
 
 			By("Verifying both rules were processed")
+
 			nodelabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
 			Expect(err).NotTo(HaveOccurred())
 
 			firstRuleFound := false
 			secondRuleFound := false
+
 			for nodeName := range nodelabels {
 				if helpers.CheckLabelsExist(nodelabels,
 					[]string{"test.feature.node.kubernetes.io/first-rule"},
 					nil, nodeName) == nil {
 					firstRuleFound = true
 				}
+
 				if helpers.CheckLabelsExist(nodelabels,
 					[]string{"test.feature.node.kubernetes.io/second-rule"},
 					nil, nodeName) == nil {
 					secondRuleFound = true
 				}
+
 				if firstRuleFound && secondRuleFound {
 					break
 				}
 			}
+
 			Expect(firstRuleFound).To(BeTrue(), "First rule labels not found")
 			Expect(secondRuleFound).To(BeTrue(), "Second rule (with backreference) labels not found")
 		})
@@ -423,22 +450,26 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 `
 
 			var err error
+
 			testRule, err = nfdset.CreateNodeFeatureRuleFromJSON(APIClient, ruleYAML)
 			Expect(err).NotTo(HaveOccurred(), "Failed to create NodeFeatureRule")
 			Expect(testRule).NotTo(BeNil())
 			Expect(testRule.Exists()).To(BeTrue(), "Rule should exist after creation")
 
 			By("Waiting for labels to appear")
+
 			err = nfdwait.WaitForLabelsFromRule(APIClient,
 				[]string{"test.feature.node.kubernetes.io/crud-test"},
 				5*time.Minute)
 			Expect(err).NotTo(HaveOccurred(), "Labels were not applied")
 
 			By("Verifying labels exist")
+
 			nodelabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
 			Expect(err).NotTo(HaveOccurred())
 
 			labelFound := false
+
 			for nodeName := range nodelabels {
 				if helpers.CheckLabelsExist(nodelabels,
 					[]string{"test.feature.node.kubernetes.io/crud-test"},
@@ -448,9 +479,11 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 					break
 				}
 			}
+
 			Expect(labelFound).To(BeTrue(), "Labels not found after creation")
 
 			By("Deleting the NodeFeatureRule")
+
 			err = nfdset.DeleteNodeFeatureRule(APIClient, "test-crud-lifecycle", nfdparams.NFDNamespace)
 			Expect(err).NotTo(HaveOccurred(), "Failed to delete NodeFeatureRule")
 
