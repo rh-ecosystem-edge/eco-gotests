@@ -20,6 +20,7 @@ func CreateNodeFeatureRuleFromJSON(apiClient *clients.Settings, ruleJSON string)
 	// Check if rule already exists
 	if ruleBuilder.Exists() {
 		klog.V(100).Infof("NodeFeatureRule %s already exists", ruleBuilder.Definition.Name)
+
 		return ruleBuilder, nil
 	}
 
@@ -45,6 +46,7 @@ func DeleteNodeFeatureRule(apiClient *clients.Settings, name, namespace string) 
 
 	if !ruleBuilder.Exists() {
 		klog.V(100).Infof("NodeFeatureRule %s does not exist, skipping deletion", name)
+
 		return nil
 	}
 

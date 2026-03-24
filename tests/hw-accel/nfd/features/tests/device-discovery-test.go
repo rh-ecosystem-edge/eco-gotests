@@ -58,7 +58,7 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 
 			defer func() {
 				if testRule != nil && testRule.Exists() {
-					testRule.Delete()
+					_, _ = testRule.Delete()
 				}
 			}()
 
@@ -79,6 +79,7 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 					nil, nodeName) == nil {
 					klog.V(nfdparams.LogLevel).Infof("Node %s has PCI device labels", nodeName)
 					labelFound = true
+
 					break
 				}
 			}
@@ -125,7 +126,7 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 
 			defer func() {
 				if testRule != nil && testRule.Exists() {
-					testRule.Delete()
+					_, _ = testRule.Delete()
 				}
 			}()
 
@@ -192,7 +193,7 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 
 			defer func() {
 				if testRule != nil && testRule.Exists() {
-					testRule.Delete()
+					_, _ = testRule.Delete()
 				}
 			}()
 

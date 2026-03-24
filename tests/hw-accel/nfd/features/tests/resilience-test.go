@@ -30,6 +30,7 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 				initialLabels, err = get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
 				if err != nil {
 					klog.V(nfdparams.LogLevel).Infof("Error getting node labels: %v", err)
+
 					return false
 				}
 				for nodeName, labels := range initialLabels {
@@ -40,6 +41,7 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 						return true
 					}
 				}
+
 				return false
 			}).WithTimeout(5*time.Minute).WithPolling(10*time.Second).Should(BeTrue(),
 				"Feature labels should appear on nodes within timeout")
@@ -51,6 +53,7 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 				if len(labels) > 0 {
 					sampleNode = nodeName
 					sampleLabels = labels
+
 					break
 				}
 			}
@@ -82,9 +85,11 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 				for _, p := range pods {
 					if p.Object.Status.Phase == corev1.PodRunning {
 						klog.V(nfdparams.LogLevel).Infof("Worker pod %s is running", p.Object.Name)
+
 						return true
 					}
 				}
+
 				return false
 			}).WithTimeout(5*time.Minute).Should(BeTrue(), "Worker pod should be recreated and running")
 
@@ -93,6 +98,7 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 				currentLabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
 				if err != nil {
 					klog.V(nfdparams.LogLevel).Infof("Error getting labels: %v", err)
+
 					return false
 				}
 
@@ -117,6 +123,7 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 				for idx := 0; idx < len(labelParts); idx++ {
 					if labelParts[idx] == '=' {
 						checkLabels = append(checkLabels, labelParts[:idx])
+
 						break
 					}
 				}
@@ -167,7 +174,7 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 
 			defer func() {
 				if testRule != nil && testRule.Exists() {
-					testRule.Delete()
+					_, _ = testRule.Delete()
 				}
 			}()
 
@@ -202,9 +209,11 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 				for _, p := range pods {
 					if p.Object.Status.Phase == corev1.PodRunning {
 						klog.V(nfdparams.LogLevel).Infof("Master pod %s is running", p.Object.Name)
+
 						return true
 					}
 				}
+
 				return false
 			}).WithTimeout(5*time.Minute).Should(BeTrue(), "Master pod should be recreated and running")
 
@@ -222,6 +231,7 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 						return true
 					}
 				}
+
 				return false
 			}).WithTimeout(5*time.Minute).Should(BeTrue(), "Labels should still be present after master restart")
 		})
@@ -296,6 +306,7 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 						return false
 					}
 				}
+
 				return true
 			}).WithTimeout(5*time.Minute).Should(BeTrue(), "Labels should be garbage collected")
 
@@ -330,8 +341,10 @@ var _ = Describe("NFD Resilience", Label("resilience"), func() {
 			By("Checking for NodeResourceTopology objects")
 			// NodeResourceTopology CRD is created by topology-aware-scheduling
 			// This is an advanced feature that may not be available in all deployments
-			klog.V(nfdparams.LogLevel).Info("Topology updater is running - NRT objects creation depends on cluster configuration")
-			klog.V(nfdparams.LogLevel).Info("If topology-aware-scheduling is installed, NRT objects should be created")
+			klog.V(nfdparams.LogLevel).Info("Topology updater is running - " +
+				"NRT objects creation depends on cluster configuration")
+			klog.V(nfdparams.LogLevel).Info("If topology-aware-scheduling is installed, " +
+				"NRT objects should be created")
 
 			// Just verify the topology updater pods are running and healthy
 			// Actual NRT object verification would require topology client which may not be available

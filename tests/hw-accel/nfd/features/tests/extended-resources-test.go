@@ -18,6 +18,8 @@ import (
 	"k8s.io/klog/v2"
 )
 
+const specialHardwareTaintKey = "test.example.com/special-hardware"
+
 var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"), func() {
 	Context("Advanced NFD Features", func() {
 
@@ -65,7 +67,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 
 			defer func() {
 				if testRule != nil && testRule.Exists() {
-					testRule.Delete()
+					_, _ = testRule.Delete()
 				}
 			}()
 
@@ -82,6 +84,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 				})
 				if err != nil {
 					klog.V(nfdparams.LogLevel).Infof("Error listing nodes: %v", err)
+
 					return false
 				}
 
@@ -99,12 +102,14 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 						if _, ok := allocatable[resourceName]; ok {
 							klog.V(nfdparams.LogLevel).Infof("Node %s has extended resource in allocatable",
 								node.Object.Name)
+
 							return true
 						}
 					}
 				}
 
 				klog.V(nfdparams.LogLevel).Info("Extended resource not found yet on any node")
+
 				return false
 			}).WithTimeout(5*time.Minute).Should(BeTrue(),
 				"Extended resources should be added to node capacity and allocatable")
@@ -122,6 +127,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 					klog.V(nfdparams.LogLevel).Infof("Extended resource quantity: %s", qty.String())
 					Expect(qty.String()).To(Equal("1"), "Resource quantity should match rule definition")
 					resourceFound = true
+
 					break
 				}
 			}
@@ -157,7 +163,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
                 },
                 "taints": [
                     {
-                        "key": "test.example.com/special-hardware",
+                        "key": specialHardwareTaintKey,
                         "value": "true",
                         "effect": "NoSchedule"
                     }
@@ -184,7 +190,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 
 			defer func() {
 				if testRule != nil && testRule.Exists() {
-					testRule.Delete()
+					_, _ = testRule.Delete()
 
 					By("Waiting for taints to be removed after rule deletion")
 					Eventually(func() bool {
@@ -197,11 +203,12 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 
 						for _, node := range nodesList {
 							for _, taint := range node.Object.Spec.Taints {
-								if taint.Key == "test.example.com/special-hardware" {
+								if taint.Key == specialHardwareTaintKey {
 									return false
 								}
 							}
 						}
+
 						return true
 					}).WithTimeout(5*time.Minute).Should(BeTrue(), "Taints should be removed")
 				}
@@ -224,6 +231,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 				})
 				if err != nil {
 					klog.V(nfdparams.LogLevel).Infof("Error listing nodes: %v", err)
+
 					return false
 				}
 
@@ -239,6 +247,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 						for _, label := range labels {
 							if label == "test.feature.node.kubernetes.io/tainted=true" {
 								hasLabel = true
+
 								break
 							}
 						}
@@ -250,18 +259,20 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 
 					// If node has the label, it should also have the taint
 					for _, taint := range node.Object.Spec.Taints {
-						if taint.Key == "test.example.com/special-hardware" &&
+						if taint.Key == specialHardwareTaintKey &&
 							taint.Value == "true" &&
 							taint.Effect == corev1.TaintEffectNoSchedule {
 							klog.V(nfdparams.LogLevel).Infof("Node %s has correct taint", node.Object.Name)
+
 							return true
 						}
 					}
 				}
 
 				klog.V(nfdparams.LogLevel).Info("Taints not found yet on matching nodes")
+
 				return false
-			}).WithTimeout(1*time.Minute).WithPolling(5*time.Second).Should(Or(BeTrue(), BeFalse()))
+			}).WithTimeout(1 * time.Minute).WithPolling(5 * time.Second).Should(Or(BeTrue(), BeFalse()))
 
 			// Check if taints are supported by verifying if any taint was found
 			taintFound := false
@@ -271,8 +282,9 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 			if err == nil {
 				for _, node := range nodesList2 {
 					for _, taint := range node.Object.Spec.Taints {
-						if taint.Key == "test.example.com/special-hardware" {
+						if taint.Key == specialHardwareTaintKey {
 							taintFound = true
+
 							break
 						}
 					}
@@ -294,13 +306,14 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 			taintFound = false
 			for _, node := range nodesList.Items {
 				for _, taint := range node.Spec.Taints {
-					if taint.Key == "test.example.com/special-hardware" {
+					if taint.Key == specialHardwareTaintKey {
 						klog.V(nfdparams.LogLevel).Infof("Found taint on node %s: key=%s, value=%s, effect=%s",
 							node.Name, taint.Key, taint.Value, taint.Effect)
 
 						Expect(taint.Value).To(Equal("true"), "Taint value should match")
 						Expect(taint.Effect).To(Equal(corev1.TaintEffectNoSchedule), "Taint effect should match")
 						taintFound = true
+
 						break
 					}
 				}

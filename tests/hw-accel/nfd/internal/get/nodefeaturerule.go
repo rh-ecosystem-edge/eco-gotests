@@ -35,10 +35,12 @@ func NodesWithLabel(apiClient *clients.Settings, labelPattern string) ([]string,
 	}
 
 	matchingNodes := []string{}
+
 	for nodeName, labels := range nodelabels {
 		for _, label := range labels {
 			if strings.Contains(label, labelPattern) {
 				matchingNodes = append(matchingNodes, nodeName)
+
 				break
 			}
 		}

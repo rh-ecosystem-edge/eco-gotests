@@ -124,7 +124,6 @@ func (nfd *NFDCRUtils) DeleteNFDCR() error {
 
 			return false, nil
 		})
-
 	if waitErr != nil {
 		klog.V(nfd.LogLevel).Infof("Warning: NFD CR '%s' may not be fully deleted yet: %v", nfd.CrName, waitErr)
 	}
@@ -160,10 +159,13 @@ func (nfd *NFDCRUtils) PrintCr() error {
 // IsNFDCRReady checks if a NodeFeatureDiscovery custom resource is ready.
 func (nfd *NFDCRUtils) IsNFDCRReady(timeout time.Duration) (bool, error) {
 	klog.V(nfd.LogLevel).Infof("Checking NFD CR readiness: %s", nfd.CrName)
+
 	nfdBuilder := &nodefeature.Builder{}
+
 	err := wait.PollUntilContextTimeout(
 		context.TODO(), 5*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			var err error
+
 			nfdBuilder, err = nodefeature.Pull(nfd.APIClient, nfd.CrName, nfd.Namespace)
 			if err != nil {
 				if strings.Contains(strings.ToLower(err.Error()), "not found") ||
@@ -175,79 +177,91 @@ func (nfd *NFDCRUtils) IsNFDCRReady(timeout time.Duration) (bool, error) {
 
 				return false, fmt.Errorf("failed to pull NFD CR: %w", err)
 			}
+
 			if nfdBuilder == nil || nfdBuilder.Definition == nil {
 				klog.V(nfd.LogLevel).Infof("NFD CR '%s' not found yet - not ready", nfd.CrName)
 
 				return false, nil
 			}
-			return true, nil
 
+			return true, nil
 		})
 	if err != nil {
 		return false, fmt.Errorf("timeout waiting for NFD CR to be found: %w", err)
 	}
 
 	return ForPodsRunning(nfd.APIClient, timeout, nfd.Namespace)
+}
 
+// isPodImagePullError returns true if the pod is stuck waiting due to an image pull error.
+func isPodImagePullError(podObj *pod.Builder) bool {
+	for _, cs := range podObj.Object.Status.ContainerStatuses {
+		if cs.State.Waiting != nil {
+			r := cs.State.Waiting.Reason
+			if r == "ImagePullBackOff" || r == "ErrImagePull" || r == "InvalidImageName" {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// checkPodsReady returns (ready, stop, nil) where ready=true means all relevant pods are Running.
+func checkPodsReady(apiClient *clients.Settings, nsname string) (bool, error) {
+	pods, err := pod.List(apiClient, nsname, metav1.ListOptions{})
+	if err != nil {
+		klog.V(nfdparams.LogLevel).Infof("Warning: error listing pods, retrying: %v", err)
+
+		return false, nil
+	}
+
+	if len(pods) == 0 {
+		klog.V(nfdparams.LogLevel).Info("No pods found yet, waiting...")
+
+		return false, nil
+	}
+
+	nfdRunning := false
+
+	for _, podObj := range pods {
+		phase := podObj.Object.Status.Phase
+
+		if phase == corev1.PodSucceeded || phase == corev1.PodFailed {
+			continue
+		}
+
+		if phase == corev1.PodPending && isPodImagePullError(podObj) {
+			klog.V(nfdparams.LogLevel).Infof("Pod %s stuck in image pull error, skipping", podObj.Object.Name)
+
+			continue
+		}
+
+		if phase != corev1.PodRunning {
+			klog.V(nfdparams.LogLevel).Infof("Pod %s is in %s state", podObj.Object.Name, phase)
+
+			return false, nil
+		}
+
+		nfdRunning = true
+	}
+
+	if !nfdRunning {
+		klog.V(nfdparams.LogLevel).Info("No NFD pods running yet, waiting...")
+
+		return false, nil
+	}
+
+	klog.V(nfdparams.LogLevel).Info("All pods are in running status")
+
+	return true, nil
 }
 
 // ForPodsRunning checks that all pods in namespace are in running state.
 func ForPodsRunning(apiClient *clients.Settings, timeout time.Duration, nsname string) (bool, error) {
 	err := wait.PollUntilContextTimeout(
 		context.TODO(), 5*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			pods, err := pod.List(apiClient, nsname, metav1.ListOptions{})
-			if err != nil {
-				klog.V(nfdparams.LogLevel).Infof("Warning: error listing pods, retrying: %v", err)
-
-				return false, nil
-			}
-
-			if len(pods) == 0 {
-				klog.V(nfdparams.LogLevel).Info("No pods found yet, waiting...")
-
-				return false, nil
-			}
-
-			nfdRunning := false
-			for _, podObj := range pods {
-				phase := podObj.Object.Status.Phase
-				// Skip completed jobs
-				if phase == corev1.PodSucceeded || phase == corev1.PodFailed {
-					continue
-				}
-				// Skip pods stuck Pending due to image pull errors (test helper jobs, not NFD pods)
-				if phase == corev1.PodPending {
-					pullError := false
-					for _, cs := range podObj.Object.Status.ContainerStatuses {
-						if cs.State.Waiting != nil {
-							r := cs.State.Waiting.Reason
-							if r == "ImagePullBackOff" || r == "ErrImagePull" || r == "InvalidImageName" {
-								pullError = true
-								break
-							}
-						}
-					}
-					if pullError {
-						klog.V(nfdparams.LogLevel).Infof("Pod %s stuck in image pull error, skipping", podObj.Object.Name)
-						continue
-					}
-				}
-				if phase != corev1.PodRunning {
-					klog.V(nfdparams.LogLevel).Infof("Pod %s is in %s state", podObj.Object.Name, phase)
-
-					return false, nil
-				}
-				nfdRunning = true
-			}
-			if !nfdRunning {
-				klog.V(nfdparams.LogLevel).Info("No NFD pods running yet, waiting...")
-
-				return false, nil
-			}
-
-			klog.V(nfdparams.LogLevel).Info("All pods are in running status")
-
-			return true, nil
+			return checkPodsReady(apiClient, nsname)
 		})
 	if err != nil {
 		return false, err

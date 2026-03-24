@@ -106,6 +106,7 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 					nil, nodeName)
 				if err == nil {
 					labelFound = true
+
 					break
 				}
 			}
@@ -172,6 +173,7 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 						label[0:len("test.feature.node.kubernetes.io/cpu-model")] == "test.feature.node.kubernetes.io/cpu-model" {
 						klog.V(nfdparams.LogLevel).Infof("Found templated label: %s", label)
 						labelFound = true
+
 						break
 					}
 				}
@@ -255,6 +257,7 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 					nil, nodeName)
 				if err == nil {
 					labelFound = true
+
 					break
 				}
 			}
@@ -345,11 +348,13 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 						nil, nodeName) == nil {
 						klog.V(nfdparams.LogLevel).Infof("Backreference label found on node %s", nodeName)
 						backrefSupported = true
+
 						return true
 					}
 				}
+
 				return false
-			}).WithTimeout(2*time.Minute).WithPolling(5*time.Second).Should(Or(BeTrue(), BeFalse()))
+			}).WithTimeout(2 * time.Minute).WithPolling(5 * time.Second).Should(Or(BeTrue(), BeFalse()))
 
 			if !backrefSupported {
 				Skip("Backreferences not supported in this NFD version - feature requires NFD v0.12+")
@@ -439,6 +444,7 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 					[]string{"test.feature.node.kubernetes.io/crud-test"},
 					nil, nodeName) == nil {
 					labelFound = true
+
 					break
 				}
 			}
@@ -451,6 +457,7 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 			By("Verifying rule no longer exists")
 			Eventually(func() bool {
 				_, err := get.NodeFeatureRule(APIClient, "test-crud-lifecycle", nfdparams.NFDNamespace)
+
 				return err != nil
 			}).WithTimeout(1*time.Minute).Should(BeTrue(), "Rule should be deleted")
 
@@ -468,6 +475,7 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 						return false
 					}
 				}
+
 				return true
 			}).WithTimeout(5*time.Minute).Should(BeTrue(), "Labels should be removed after rule deletion")
 
