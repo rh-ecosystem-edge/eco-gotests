@@ -25,3 +25,5 @@ reports
 **/dump/
 
 .claude/
+tests/hw-accel/nfd/**/*.md
+tests/hw-accel/nfd/*.md
