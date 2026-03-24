@@ -5,13 +5,12 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nfd"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/nfdparams"
 	"k8s.io/klog/v2"
 )
 
 // CreateNodeFeatureRuleFromJSON creates a NodeFeatureRule from a JSON/YAML string.
 func CreateNodeFeatureRuleFromJSON(apiClient *clients.Settings, ruleJSON string) (*nfd.NodeFeatureRuleBuilder, error) {
-	klog.V(nfdparams.LogLevel).Infof("Creating NodeFeatureRule from JSON/YAML")
+	klog.V(100).Infof("Creating NodeFeatureRule from JSON/YAML")
 
 	ruleBuilder := nfd.NewNodeFeatureRuleBuilderFromObjectString(apiClient, ruleJSON)
 	if ruleBuilder == nil {
@@ -20,7 +19,7 @@ func CreateNodeFeatureRuleFromJSON(apiClient *clients.Settings, ruleJSON string)
 
 	// Check if rule already exists
 	if ruleBuilder.Exists() {
-		klog.V(nfdparams.LogLevel).Infof("NodeFeatureRule %s already exists", ruleBuilder.Definition.Name)
+		klog.V(100).Infof("NodeFeatureRule %s already exists", ruleBuilder.Definition.Name)
 
 		return ruleBuilder, nil
 	}
@@ -31,14 +30,14 @@ func CreateNodeFeatureRuleFromJSON(apiClient *clients.Settings, ruleJSON string)
 		return nil, fmt.Errorf("failed to create NodeFeatureRule: %w", err)
 	}
 
-	klog.V(nfdparams.LogLevel).Infof("Successfully created NodeFeatureRule %s", createdRule.Definition.Name)
+	klog.V(100).Infof("Successfully created NodeFeatureRule %s", createdRule.Definition.Name)
 
 	return createdRule, nil
 }
 
 // DeleteNodeFeatureRule deletes a NodeFeatureRule by name and namespace.
 func DeleteNodeFeatureRule(apiClient *clients.Settings, name, namespace string) error {
-	klog.V(nfdparams.LogLevel).Infof("Deleting NodeFeatureRule %s in namespace %s", name, namespace)
+	klog.V(100).Infof("Deleting NodeFeatureRule %s in namespace %s", name, namespace)
 
 	ruleBuilder, err := nfd.PullFeatureRule(apiClient, name, namespace)
 	if err != nil {
@@ -46,7 +45,7 @@ func DeleteNodeFeatureRule(apiClient *clients.Settings, name, namespace string) 
 	}
 
 	if !ruleBuilder.Exists() {
-		klog.V(nfdparams.LogLevel).Infof("NodeFeatureRule %s does not exist, skipping deletion", name)
+		klog.V(100).Infof("NodeFeatureRule %s does not exist, skipping deletion", name)
 
 		return nil
 	}
@@ -56,7 +55,7 @@ func DeleteNodeFeatureRule(apiClient *clients.Settings, name, namespace string) 
 		return fmt.Errorf("failed to delete NodeFeatureRule %s: %w", name, err)
 	}
 
-	klog.V(nfdparams.LogLevel).Infof("Successfully deleted NodeFeatureRule %s", name)
+	klog.V(100).Infof("Successfully deleted NodeFeatureRule %s", name)
 
 	return nil
 }
