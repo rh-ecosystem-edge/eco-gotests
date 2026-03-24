@@ -329,6 +329,10 @@ func (builder *IPConfigBuilder) WithIPv4Address(
 
 	klog.V(100).Infof("Setting IPv4 %s in ipconfig", ipv4Address)
 
+	if builder.Definition.Spec.IPv4 == nil {
+		builder.Definition.Spec.IPv4 = &lcaipcv1.IPv4Config{}
+	}
+
 	builder.Definition.Spec.IPv4.Address = ipv4Address
 
 	return builder
@@ -352,6 +356,10 @@ func (builder *IPConfigBuilder) WithIPv6Address(
 	}
 
 	klog.V(100).Infof("Setting IPv6 %s in ipconfig", ipv6Address)
+
+	if builder.Definition.Spec.IPv6 == nil {
+		builder.Definition.Spec.IPv6 = &lcaipcv1.IPv6Config{}
+	}
 
 	builder.Definition.Spec.IPv6.Address = ipv6Address
 
@@ -377,6 +385,10 @@ func (builder *IPConfigBuilder) WithIPv6Gateway(
 
 	klog.V(100).Infof("Setting IPv6 gateway %s in ipconfig", ipv6Address)
 
+	if builder.Definition.Spec.IPv6 == nil {
+		builder.Definition.Spec.IPv6 = &lcaipcv1.IPv6Config{}
+	}
+
 	builder.Definition.Spec.IPv6.Gateway = ipv6Address
 
 	return builder
@@ -401,6 +413,10 @@ func (builder *IPConfigBuilder) WithIPv4Gateway(
 
 	klog.V(100).Infof("Setting IPv4 gateway %s in ipconfig", ipv4Address)
 
+	if builder.Definition.Spec.IPv4 == nil {
+		builder.Definition.Spec.IPv4 = &lcaipcv1.IPv4Config{}
+	}
+
 	builder.Definition.Spec.IPv4.Gateway = ipv4Address
 
 	return builder
@@ -424,6 +440,10 @@ func (builder *IPConfigBuilder) WithIPv4MachineNetwork(
 
 	klog.V(100).Infof("Setting IPv4 machine network %s in ipconfig", ipv4MachineNetwork)
 
+	if builder.Definition.Spec.IPv4 == nil {
+		builder.Definition.Spec.IPv4 = &lcaipcv1.IPv4Config{}
+	}
+
 	builder.Definition.Spec.IPv4.MachineNetwork = ipv4MachineNetwork
 
 	return builder
@@ -446,6 +466,10 @@ func (builder *IPConfigBuilder) WithIPv6MachineNetwork(
 	}
 
 	klog.V(100).Infof("Setting IPv6 machine network %s in ipconfig", ipv6MachineNetwork)
+
+	if builder.Definition.Spec.IPv6 == nil {
+		builder.Definition.Spec.IPv6 = &lcaipcv1.IPv6Config{}
+	}
 
 	builder.Definition.Spec.IPv6.MachineNetwork = ipv6MachineNetwork
 
