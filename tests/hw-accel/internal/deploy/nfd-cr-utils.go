@@ -110,7 +110,7 @@ func (nfd *NFDCRUtils) DeleteNFDCR() error {
 	// name fails or silently no-ops because the old CR is still terminating.
 	waitErr := wait.PollUntilContextTimeout(
 		context.TODO(), 5*time.Second, 2*time.Minute, true, func(ctx context.Context) (bool, error) {
-			_, e := nodefeature.Pull(nfd.APIClient, nfd.CrName, nfd.Namespace)
+			builder, e := nodefeature.Pull(nfd.APIClient, nfd.CrName, nfd.Namespace)
 			if e != nil {
 				if strings.Contains(strings.ToLower(e.Error()), "not found") ||
 					strings.Contains(strings.ToLower(e.Error()), "does not exist") {
@@ -118,6 +118,12 @@ func (nfd *NFDCRUtils) DeleteNFDCR() error {
 
 					return true, nil
 				}
+			}
+
+			if builder == nil {
+				klog.V(nfd.LogLevel).Infof("NFD CR '%s' confirmed fully deleted (nil builder)", nfd.CrName)
+
+				return true, nil
 			}
 
 			klog.V(nfd.LogLevel).Infof("NFD CR '%s' still terminating...", nfd.CrName)
@@ -158,6 +164,8 @@ func (nfd *NFDCRUtils) PrintCr() error {
 
 // IsNFDCRReady checks if a NodeFeatureDiscovery custom resource is ready.
 func (nfd *NFDCRUtils) IsNFDCRReady(timeout time.Duration) (bool, error) {
+	start := time.Now()
+
 	klog.V(nfd.LogLevel).Infof("Checking NFD CR readiness: %s", nfd.CrName)
 
 	nfdBuilder := &nodefeature.Builder{}
@@ -190,7 +198,12 @@ func (nfd *NFDCRUtils) IsNFDCRReady(timeout time.Duration) (bool, error) {
 		return false, fmt.Errorf("timeout waiting for NFD CR to be found: %w", err)
 	}
 
-	return ForPodsRunning(nfd.APIClient, timeout, nfd.Namespace)
+	remaining := timeout - time.Since(start)
+	if remaining < 5*time.Second {
+		remaining = 5 * time.Second
+	}
+
+	return ForPodsRunning(nfd.APIClient, remaining, nfd.Namespace)
 }
 
 // isPodImagePullError returns true if the pod is stuck waiting due to an image pull error.
@@ -241,6 +254,14 @@ func checkPodsReady(apiClient *clients.Settings, nsname string) (bool, error) {
 			klog.V(nfdparams.LogLevel).Infof("Pod %s is in %s state", podObj.Object.Name, phase)
 
 			return false, nil
+		}
+
+		for _, cs := range podObj.Object.Status.ContainerStatuses {
+			if !cs.Ready {
+				klog.V(nfdparams.LogLevel).Infof("Pod %s container %s not ready yet", podObj.Object.Name, cs.Name)
+
+				return false, nil
+			}
 		}
 
 		nfdRunning = true

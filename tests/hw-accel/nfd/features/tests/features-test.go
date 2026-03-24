@@ -277,11 +277,12 @@ var _ = Describe("NFD", Ordered, func() {
 				klog.V(ts.LogLevel).Infof("Node %s has %d NFD labels: %v", nodeName, len(labels), labels)
 			}
 
-			By("Check if features exists")
+			By("Check BMI2 is excluded by blacklist config")
 
-			for nodeName := range nodelabels {
-				err = helpers.CheckLabelsExist(nodelabels, []string{"BMI2"}, nil, nodeName)
-				Expect(err).NotTo(HaveOccurred())
+			for nodeName, nodeLabels := range nodelabels {
+				allFeatures := strings.Join(nodeLabels, ",")
+				Expect(allFeatures).NotTo(ContainSubstring("BMI2="),
+					"BMI2 should not appear in node %s labels when blacklisted", nodeName)
 			}
 		})
 

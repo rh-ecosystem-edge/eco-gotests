@@ -6,12 +6,13 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nfd"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/nfdparams"
 	"k8s.io/klog/v2"
 )
 
 // NodeFeatureRule retrieves a NodeFeatureRule by name and namespace.
 func NodeFeatureRule(apiClient *clients.Settings, name, namespace string) (*nfd.NodeFeatureRuleBuilder, error) {
-	klog.V(100).Infof("Getting NodeFeatureRule %s in namespace %s", name, namespace)
+	klog.V(nfdparams.LogLevel).Infof("Getting NodeFeatureRule %s in namespace %s", name, namespace)
 
 	ruleBuilder, err := nfd.PullFeatureRule(apiClient, name, namespace)
 	if err != nil {
@@ -27,7 +28,7 @@ func NodeFeatureRule(apiClient *clients.Settings, name, namespace string) (*nfd.
 
 // NodesWithLabel returns a list of node names that have labels matching the given pattern.
 func NodesWithLabel(apiClient *clients.Settings, labelPattern string) ([]string, error) {
-	klog.V(100).Infof("Getting nodes with label pattern: %s", labelPattern)
+	klog.V(nfdparams.LogLevel).Infof("Getting nodes with label pattern: %s", labelPattern)
 
 	nodelabels, err := NodeFeatureLabels(apiClient, map[string]string{})
 	if err != nil {
@@ -46,7 +47,7 @@ func NodesWithLabel(apiClient *clients.Settings, labelPattern string) ([]string,
 		}
 	}
 
-	klog.V(100).Infof("Found %d nodes with label pattern %s", len(matchingNodes), labelPattern)
+	klog.V(nfdparams.LogLevel).Infof("Found %d nodes with label pattern %s", len(matchingNodes), labelPattern)
 
 	return matchingNodes, nil
 }

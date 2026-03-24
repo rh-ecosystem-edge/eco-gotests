@@ -57,7 +57,9 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 
 			defer func() {
 				if testRule != nil && testRule.Exists() {
-					_, _ = testRule.Delete()
+					if _, err := testRule.Delete(); err != nil {
+						klog.Errorf("Failed to delete test rule: %v", err)
+					}
 				}
 			}()
 
@@ -130,7 +132,9 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 
 			defer func() {
 				if testRule != nil && testRule.Exists() {
-					_, _ = testRule.Delete()
+					if _, err := testRule.Delete(); err != nil {
+						klog.Errorf("Failed to delete test rule: %v", err)
+					}
 				}
 			}()
 
@@ -198,7 +202,9 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 
 			defer func() {
 				if testRule != nil && testRule.Exists() {
-					_, _ = testRule.Delete()
+					if _, err := testRule.Delete(); err != nil {
+						klog.Errorf("Failed to delete test rule: %v", err)
+					}
 				}
 			}()
 

@@ -353,30 +353,33 @@ var _ = Describe("NFD NodeFeatureRule", Label("custom-rules"), func() {
 			Expect(err).NotTo(HaveOccurred(), "First rule labels were not applied within timeout")
 
 			By("Checking if backreferences are supported in this NFD version")
-			// Try to detect backreference support with a reasonable timeout (2 minutes)
-			// If not supported, skip the test instead of failing
+
+			// Poll up to 2 minutes to detect backreference label propagation.
+			// If not found, the feature is unsupported in this NFD version.
 			backrefSupported := false
 
-			Eventually(func() bool {
+			pollDeadline := time.Now().Add(2 * time.Minute)
+
+			for time.Now().Before(pollDeadline) && !backrefSupported {
 				nodelabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
-				if err != nil {
-					return false
-				}
+				if err == nil {
+					for nodeName := range nodelabels {
+						if helpers.CheckLabelsExist(nodelabels,
+							[]string{"test.feature.node.kubernetes.io/second-rule"},
+							nil, nodeName) == nil {
+							klog.V(nfdparams.LogLevel).Infof("Backreference label found on node %s", nodeName)
 
-				for nodeName := range nodelabels {
-					if helpers.CheckLabelsExist(nodelabels,
-						[]string{"test.feature.node.kubernetes.io/second-rule"},
-						nil, nodeName) == nil {
-						klog.V(nfdparams.LogLevel).Infof("Backreference label found on node %s", nodeName)
+							backrefSupported = true
 
-						backrefSupported = true
-
-						return true
+							break
+						}
 					}
 				}
 
-				return false
-			}).WithTimeout(2 * time.Minute).WithPolling(5 * time.Second).Should(Or(BeTrue(), BeFalse()))
+				if !backrefSupported {
+					time.Sleep(5 * time.Second)
+				}
+			}
 
 			if !backrefSupported {
 				Skip("Backreferences not supported in this NFD version - feature requires NFD v0.12+")

@@ -8,7 +8,6 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/features/internal/helpers"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/internal/get"
 	nfdset "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/internal/set"
 	nfdwait "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/internal/wait"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/nfdparams"
@@ -66,7 +65,9 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 
 			defer func() {
 				if testRule != nil && testRule.Exists() {
-					_, _ = testRule.Delete()
+					if _, err := testRule.Delete(); err != nil {
+						klog.Errorf("Failed to delete test rule: %v", err)
+					}
 				}
 			}()
 
@@ -195,7 +196,9 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 
 			defer func() {
 				if testRule != nil && testRule.Exists() {
-					_, _ = testRule.Delete()
+					if _, err := testRule.Delete(); err != nil {
+						klog.Errorf("Failed to delete test rule: %v", err)
+					}
 
 					By("Waiting for taints to be removed after rule deletion")
 					Eventually(func() bool {
@@ -230,75 +233,38 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 			}
 
 			By("Verifying taints are added to nodes")
-			Eventually(func() bool {
-				nodesList, err := nodes.List(APIClient, metav1.ListOptions{
+
+			taintFound := false
+
+			pollDeadline := time.Now().Add(1 * time.Minute)
+
+			for time.Now().Before(pollDeadline) && !taintFound {
+				nodesList, listErr := nodes.List(APIClient, metav1.ListOptions{
 					LabelSelector: "node-role.kubernetes.io/worker=",
 				})
-				if err != nil {
-					klog.V(nfdparams.LogLevel).Infof("Error listing nodes: %v", err)
+				if listErr == nil {
+					for _, node := range nodesList {
+						for _, taint := range node.Object.Spec.Taints {
+							if taint.Key == specialHardwareTaintKey {
+								klog.V(nfdparams.LogLevel).Infof("Node %s has taint %s",
+									node.Object.Name, specialHardwareTaintKey)
 
-					return false
-				}
-
-				for _, node := range nodesList {
-					// Check if node has the label (meaning it matched the rule)
-					nodelabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
-					if err != nil {
-						continue
-					}
-
-					hasLabel := false
-
-					if labels, ok := nodelabels[node.Object.Name]; ok {
-						for _, label := range labels {
-							if label == "test.feature.node.kubernetes.io/tainted=true" {
-								hasLabel = true
+								taintFound = true
 
 								break
 							}
 						}
-					}
 
-					if !hasLabel {
-						continue
-					}
-
-					// If node has the label, it should also have the taint
-					for _, taint := range node.Object.Spec.Taints {
-						if taint.Key == specialHardwareTaintKey &&
-							taint.Value == "true" &&
-							taint.Effect == corev1.TaintEffectNoSchedule {
-							klog.V(nfdparams.LogLevel).Infof("Node %s has correct taint", node.Object.Name)
-
-							return true
+						if taintFound {
+							break
 						}
 					}
 				}
 
-				klog.V(nfdparams.LogLevel).Info("Taints not found yet on matching nodes")
+				if !taintFound {
+					klog.V(nfdparams.LogLevel).Info("Taints not found yet, retrying...")
 
-				return false
-			}).WithTimeout(1 * time.Minute).WithPolling(5 * time.Second).Should(Or(BeTrue(), BeFalse()))
-
-			// Check if taints are supported by verifying if any taint was found
-			taintFound := false
-
-			nodesList2, err := nodes.List(APIClient, metav1.ListOptions{
-				LabelSelector: "node-role.kubernetes.io/worker=",
-			})
-			if err == nil {
-				for _, node := range nodesList2 {
-					for _, taint := range node.Object.Spec.Taints {
-						if taint.Key == specialHardwareTaintKey {
-							taintFound = true
-
-							break
-						}
-					}
-
-					if taintFound {
-						break
-					}
+					time.Sleep(5 * time.Second)
 				}
 			}
 
