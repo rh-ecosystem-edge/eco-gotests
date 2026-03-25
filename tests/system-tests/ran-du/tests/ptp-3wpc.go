@@ -10,12 +10,15 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ptp"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	ptpv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v1"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ran-du/internal/randuinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ran-du/internal/randuparams"
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -34,6 +37,11 @@ func shellQuoteForNsenter(shellCmd string) string {
 	return strings.ReplaceAll(shellCmd, `'`, `'\''`)
 }
 
+// shellQuoteArg wraps s in single quotes for safe embedding in POSIX shell words (handles ' as '\'').
+func shellQuoteArg(s string) string {
+	return `'` + strings.ReplaceAll(s, `'`, `'\''`) + `'`
+}
+
 // execOnNodeHost runs a shell command in the host mount namespace via the machine-config-daemon pod.
 func execOnNodeHost(nodeName, shellCmd string) (string, error) {
 	return execOnNodeHostWithTimeout(nodeName, shellCmd, 0)
@@ -41,16 +49,18 @@ func execOnNodeHost(nodeName, shellCmd string) (string, error) {
 
 // execOnNodeHostWithTimeout runs a shell command on the node host with an optional exec timeout (0 = default).
 func execOnNodeHostWithTimeout(nodeName, shellCmd string, timeout time.Duration) (string, error) {
-	if inittools.GeneralConfig.MCOConfigDaemonName == "" || inittools.GeneralConfig.MCONamespace == "" {
+	mcoName := inittools.GeneralConfig.MCOConfigDaemonName
+	mcoNS := inittools.GeneralConfig.MCONamespace
+	if mcoName == "" || mcoNS == "" {
 		return "", fmt.Errorf("MCO namespace/daemon name not configured in general config")
 	}
 
 	listOptions := metav1.ListOptions{
 		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": nodeName}).String(),
-		LabelSelector: labels.SelectorFromSet(labels.Set{"k8s-app": inittools.GeneralConfig.MCOConfigDaemonName}).String(),
+		LabelSelector: labels.SelectorFromSet(labels.Set{"k8s-app": mcoName}).String(),
 	}
 
-	mcPodList, err := pod.List(APIClient, inittools.GeneralConfig.MCONamespace, listOptions)
+	mcPodList, err := pod.List(APIClient, mcoNS, listOptions)
 	if err != nil {
 		return "", err
 	}
@@ -65,15 +75,20 @@ func execOnNodeHostWithTimeout(nodeName, shellCmd string, timeout time.Duration)
 	}
 
 	escaped := shellQuoteForNsenter(shellCmd)
-	inner := fmt.Sprintf("nsenter --mount=/proc/1/ns/mnt -- sh -c '%s'", escaped)
+	inner := fmt.Sprintf(
+		"nsenter --mount=/proc/1/ns/mnt -- sh -c '%s'",
+		escaped,
+	)
 	cmdToExec := []string{"sh", "-c", inner}
 
 	if timeout > 0 {
 		buf, err := mcPod.ExecCommandWithTimeout(cmdToExec, timeout)
+
 		return buf.String(), err
 	}
 
 	buf, err := mcPod.ExecCommand(cmdToExec)
+
 	return buf.String(), err
 }
 
@@ -83,6 +98,7 @@ var offsetLogLine = regexp.MustCompile(`offset\s+(-?\d+)`)
 func ptpOffsetsWithin100ns(logStr string) (ok bool, detail string) {
 	matches := offsetLogLine.FindAllStringSubmatch(logStr, -1)
 	if len(matches) == 0 {
+
 		return false, "no offset values found in PTP daemon logs"
 	}
 
@@ -97,6 +113,7 @@ func ptpOffsetsWithin100ns(logStr string) (ok bool, detail string) {
 		}
 
 		if offset < -100 || offset > 100 {
+
 			return false, fmt.Sprintf("offset %d is outside ±100ns threshold", offset)
 		}
 	}
@@ -104,30 +121,146 @@ func ptpOffsetsWithin100ns(logStr string) (ok bool, detail string) {
 	return true, ""
 }
 
-// getUbloxProtocolVersion returns the u-blox protocol version for ubxtool based on PtpConfig profiles.
-// E825/E830 use 29.25, E810 uses 29.20. Returns empty string if no GNSS-capable profile is found.
-func getUbloxProtocolVersion() (string, error) {
+func ubloxFromProfileName(pc *ptpv1.PtpConfig, profileName string) (string, bool) {
+	for i := range pc.Spec.Profile {
+		p := &pc.Spec.Profile[i]
+		if p.Name == nil || *p.Name != profileName {
+			continue
+		}
+
+		ver, ok := ubloxProtocolFromPluginMap(p.Plugins)
+
+		return ver, ok
+	}
+
+	return "", false
+}
+
+// ubloxProtocolFromPluginMap returns the ubxtool -P version for Intel GNSS plugins.
+func ubloxProtocolFromPluginMap(plugins map[string]*apiextensions.JSON) (string, bool) {
+	if plugins == nil {
+		return "", false
+	}
+
+	if _, ok := plugins["e825"]; ok {
+
+		return "29.25", true
+	}
+
+	if _, ok := plugins["e830"]; ok {
+
+		return "29.25", true
+	}
+
+	if _, ok := plugins["e810"]; ok {
+
+		return "29.20", true
+	}
+
+	return "", false
+}
+
+func nodeLabelMatches(rule string, nodeLabels map[string]string) bool {
+	rule = strings.TrimSpace(rule)
+	if rule == "" {
+		return false
+	}
+
+	if idx := strings.Index(rule, "="); idx >= 0 {
+		k := strings.TrimSpace(rule[:idx])
+		v := strings.TrimSpace(rule[idx+1:])
+
+		return nodeLabels[k] == v
+	}
+
+	_, ok := nodeLabels[rule]
+
+	return ok
+}
+
+func pickUbloxFromPtpConfig(pc *ptpv1.PtpConfig, nodeName string, nodeLabels map[string]string) (string, bool) {
+	for _, m := range pc.Status.MatchList {
+		if m.NodeName == nil || m.Profile == nil {
+			continue
+		}
+
+		if *m.NodeName != nodeName {
+			continue
+		}
+
+		if v, ok := ubloxFromProfileName(pc, *m.Profile); ok {
+			return v, true
+		}
+	}
+
+	for _, rec := range pc.Spec.Recommend {
+		if rec.Profile == nil {
+			continue
+		}
+
+		for _, rule := range rec.Match {
+			if rule.NodeName != nil && *rule.NodeName == nodeName {
+				if v, ok := ubloxFromProfileName(pc, *rec.Profile); ok {
+					return v, true
+				}
+			}
+		}
+	}
+
+	for _, rec := range pc.Spec.Recommend {
+		if rec.Profile == nil {
+			continue
+		}
+
+		for _, rule := range rec.Match {
+			if rule.NodeLabel == nil {
+				continue
+			}
+
+			if !nodeLabelMatches(*rule.NodeLabel, nodeLabels) {
+				continue
+			}
+
+			if v, ok := ubloxFromProfileName(pc, *rec.Profile); ok {
+				return v, true
+			}
+		}
+	}
+
+	return "", false
+}
+
+// getUbloxProtocolVersion returns the u-blox protocol for ubxtool based on the PtpConfig profile
+// applied to nodeName (Status.matchList, then recommend match rules).
+func getUbloxProtocolVersion(nodeName string) (string, error) {
 	ptpConfigs, err := ptp.ListPtpConfigs(APIClient)
 	if err != nil {
 		return "", fmt.Errorf("failed to list PtpConfigs: %w", err)
 	}
+
+	nodeBuilder, err := nodes.Pull(APIClient, nodeName)
+	if err != nil {
+		return "", fmt.Errorf("failed to pull node %s: %w", nodeName, err)
+	}
+
+	nodeLabels := nodeBuilder.Object.Labels
+
 	for _, cfg := range ptpConfigs {
-		for _, profile := range cfg.Definition.Spec.Profile {
-			if profile.Plugins == nil {
-				continue
-			}
-			if _, has := profile.Plugins["e825"]; has {
-				return "29.25", nil
-			}
-			if _, has := profile.Plugins["e830"]; has {
-				return "29.25", nil
-			}
-			if _, has := profile.Plugins["e810"]; has {
-				return "29.20", nil
-			}
+		pc := cfg.Object
+		if pc == nil {
+			pc = cfg.Definition
+		}
+
+		if v, ok := pickUbloxFromPtpConfig(pc, nodeName, nodeLabels); ok {
+
+			return v, nil
 		}
 	}
-	return "", fmt.Errorf("no PtpConfig profile with e810, e825, or e830 plugin found")
+
+	return "", fmt.Errorf(
+		"no PtpConfig profile with e810, e825, or e830 plugin applies to node %s",
+		nodeName,
+	)
 }
 
 // simulateGNSSLoss simulates GNSS sync loss via ubxtool (sets required satellites to 50).
@@ -148,8 +281,10 @@ func simulateGNSSLoss(nodeName, protocolVersion string) error {
 			time.Sleep(5 * time.Second)
 			continue
 		}
+
 		return nil
 	}
+
 	return lastErr
 }
 
@@ -160,10 +295,12 @@ func simulateGNSSRecovery(nodeName, protocolVersion string) error {
 	if err != nil {
 		return err
 	}
+
 	buf, err := daemonPod.ExecCommand([]string{"sh", "-c", cmd}, ptpContainerName)
 	if err != nil {
 		return fmt.Errorf("ubxtool recovery failed: %w, output: %s", err, buf.String())
 	}
+
 	return nil
 }
 
@@ -179,6 +316,7 @@ func getPtpDaemonPodOnNode(nodeName string) (*pod.Builder, error) {
 	if len(daemonPods) != 1 {
 		return nil, fmt.Errorf("expected exactly one PTP daemon pod on node %s, found %d", nodeName, len(daemonPods))
 	}
+
 	return daemonPods[0], nil
 }
 
@@ -369,8 +507,11 @@ var _ = Describe(
 				daemonPod, err := getPtpDaemonPodOnNode(nodeName)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get PTP daemon pod on node %s", nodeName)
 
-				buf, err := daemonPod.ExecCommand([]string{"sh", "-c",
-					"pmc -u -b 0 'GET PARENT_DATASET' 2>/dev/null | grep 'gm.ClockClass'"}, ptpContainerName)
+				pmcParent := "pmc -u -b 0 'GET PARENT_DATASET' 2>/dev/null | grep 'gm.ClockClass'"
+				buf, err := daemonPod.ExecCommand(
+					[]string{"sh", "-c", pmcParent},
+					ptpContainerName,
+				)
 				Expect(err).ToNot(HaveOccurred(), "Failed to execute pmc on node %s", nodeName)
 				output := buf.String()
 
@@ -385,12 +526,12 @@ var _ = Describe(
 		// Case 05: To verify t-gm ptp sync locked back after GNSS signal loss and retrieved
 		// Test_Description: Verify the clock status after GNSS signal loss, then verify it again once the signal is restored.
 		It("Case 05: To verify t-gm ptp sync locked back after GNSS signal loss and retrieved", reportxml.ID("99995"), func() {
-			protocolVersion, err := getUbloxProtocolVersion()
-			if err != nil {
-				Skip("GNSS simulation requires PtpConfig with e810/e825/e830 plugin: " + err.Error())
-			}
-
 			for _, nodeName := range ptpNodes {
+				protocolVersion, err := getUbloxProtocolVersion(nodeName)
+				if err != nil {
+					Skip("GNSS simulation requires PtpConfig with e810/e825/e830 for node " + nodeName + ": " + err.Error())
+				}
+
 				By("Verify the clock status after GNSS signal loss, then verify it again once the signal is restored")
 
 				DeferCleanup(func() {
@@ -424,6 +565,7 @@ var _ = Describe(
 						}
 						logStr := strings.ToLower(string(logs))
 						foundHoldoverOrFreerun = strings.Contains(logStr, "holdover") || strings.Contains(logStr, "freerun")
+
 						return foundHoldoverOrFreerun, nil
 					})
 				Expect(err).ToNot(HaveOccurred(), "Timeout waiting for holdover/freerun in logs on node %s", nodeName)
@@ -435,12 +577,13 @@ var _ = Describe(
 				Expect(err).ToNot(HaveOccurred(), "Failed to restore GNSS on node %s", nodeName)
 
 				By("Verifying clock status after GNSS signal is restored (sync locked)")
+				restoreSince := time.Now()
 				time.Sleep(30 * time.Second) // Allow time for sync to stabilize
 				daemonPod, err := getPtpDaemonPodOnNode(nodeName)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get PTP daemon pod on node %s", nodeName)
 				logs, err := daemonPod.GetLogsWithOptions(&corev1.PodLogOptions{
 					Container: ptpContainerName,
-					TailLines: ptr(int64(200)),
+					SinceTime: &metav1.Time{Time: restoreSince},
 				})
 				Expect(err).ToNot(HaveOccurred(), "Failed to get PTP daemon logs on node %s", nodeName)
 				logStr := string(logs)
@@ -473,12 +616,17 @@ var _ = Describe(
 
 				By(fmt.Sprintf("Verify PTP offset stays within ±100ns under iperf3 load on node %s", nodeName))
 
-				iperfCmd := fmt.Sprintf("iperf3 -c %s -t %d", strings.TrimSpace(RanDuTestConfig.PtpIperf3Server), dur)
+				srv := strings.TrimSpace(RanDuTestConfig.PtpIperf3Server)
+				iperfParts := []string{
+					"setsid", "iperf3", "-c", shellQuoteArg(srv), "-t", strconv.Itoa(dur),
+				}
 				if b := strings.TrimSpace(RanDuTestConfig.PtpIperf3ClientBind); b != "" {
-					iperfCmd += fmt.Sprintf(" -B %s", b)
+					iperfParts = append(iperfParts, "-B", shellQuoteArg(b))
 				}
 
-				startCmd := fmt.Sprintf("setsid %s </dev/null >/tmp/eco-ptp-iperf.log 2>&1 & echo $!", iperfCmd)
+				startCmd := strings.Join(iperfParts, " ") +
+					" </dev/null >/tmp/eco-ptp-iperf.log 2>&1 & echo $!"
+
 				out, err := execOnNodeHost(nodeName, startCmd)
 				Expect(err).ToNot(HaveOccurred(), "failed to start iperf3 on node %s: %s", nodeName, out)
 
@@ -489,8 +637,35 @@ var _ = Describe(
 
 				pidCopy := pid
 				DeferCleanup(func() {
-					_, _ = execOnNodeHost(nodeName, fmt.Sprintf("kill %s 2>/dev/null || true", pidCopy))
+					killCmd := fmt.Sprintf("kill %s 2>/dev/null || true", shellQuoteArg(pidCopy))
+					_, _ = execOnNodeHost(nodeName, killCmd)
 				})
+
+				time.Sleep(3 * time.Second)
+
+				iperfLog, err := execOnNodeHost(nodeName, "cat /tmp/eco-ptp-iperf.log 2>/dev/null || true")
+				Expect(err).ToNot(HaveOccurred(), "read iperf3 log on node %s", nodeName)
+
+				psOut, err := execOnNodeHost(nodeName,
+					fmt.Sprintf("ps -p %s -o pid= 2>/dev/null || true", shellQuoteArg(pidCopy)))
+				Expect(err).ToNot(HaveOccurred(), "check iperf3 pid on node %s", nodeName)
+
+				Expect(strings.TrimSpace(psOut)).NotTo(BeEmpty(),
+					"iperf3 process not running on node %s (pid=%s); iperf log: %q",
+					nodeName, pidCopy, iperfLog)
+				Expect(strings.TrimSpace(iperfLog)).NotTo(BeEmpty(),
+					"iperf3 log empty on node %s after start (pid=%s); check %s and connectivity",
+					nodeName, pidCopy, srv)
+
+				Expect(iperfLog).To(Or(
+					ContainSubstring("Connecting to host"),
+					ContainSubstring("connected"),
+					ContainSubstring("iperf3"),
+					ContainSubstring("Server listening"),
+				), "iperf3 client did not produce expected output on node %s (pid=%s); log=%q",
+					nodeName, pidCopy, iperfLog)
+
+				sinceOffsets := time.Now()
 
 				deadline := time.Now().Add(time.Duration(dur) * time.Second)
 				for time.Now().Before(deadline) {
@@ -504,7 +679,7 @@ var _ = Describe(
 
 					logs, logErr := daemonPod.GetLogsWithOptions(&corev1.PodLogOptions{
 						Container: ptpContainerName,
-						TailLines: ptr(int64(800)),
+						SinceTime: &metav1.Time{Time: sinceOffsets},
 					})
 					Expect(logErr).ToNot(HaveOccurred())
 
@@ -512,7 +687,8 @@ var _ = Describe(
 					Expect(ok).To(BeTrue(), "node %s: %s", nodeName, detail)
 				}
 
-				_, _ = execOnNodeHost(nodeName, fmt.Sprintf("kill %s 2>/dev/null || true", pidCopy))
+				killEnd := fmt.Sprintf("kill %s 2>/dev/null || true", shellQuoteArg(pidCopy))
+				_, _ = execOnNodeHost(nodeName, killEnd)
 			}
 		})
 
@@ -521,7 +697,7 @@ var _ = Describe(
 		It("Case 07: Robustness against PTP packet loss", reportxml.ID("99997"), func() {
 			iface := strings.TrimSpace(RanDuTestConfig.PtpNetemInterface)
 			if iface == "" {
-				iface = "ens1f0"
+				Skip("Case 07 requires ptp_netem_interface (ECO_RANDU_PTP_NETEM_INTERFACE)")
 			}
 
 			waitSec := RanDuTestConfig.PtpLockedStateWaitSec
@@ -535,11 +711,16 @@ var _ = Describe(
 
 				By(fmt.Sprintf("Verify clock stays locked with 5%% loss on %s (node %s)", iface, nodeName))
 
+				ifaceQ := shellQuoteArg(iface)
+
 				DeferCleanup(func() {
-					_, _ = execOnNodeHost(nodeName, fmt.Sprintf("tc qdisc del dev %s root 2>/dev/null || true", iface))
+					delCmd := fmt.Sprintf("tc qdisc del dev %s root 2>/dev/null || true", ifaceQ)
+					_, _ = execOnNodeHost(nodeName, delCmd)
 				})
 
-				_, err := execOnNodeHost(nodeName, fmt.Sprintf("tc qdisc add dev %s root netem loss 5%%", iface))
+				netemSince := time.Now()
+				tcAdd := fmt.Sprintf("tc qdisc add dev %s root netem loss 5%%", ifaceQ)
+				_, err := execOnNodeHost(nodeName, tcAdd)
 				Expect(err).ToNot(HaveOccurred(), "failed to add netem loss on node %s", nodeName)
 
 				time.Sleep(10 * time.Second)
@@ -547,8 +728,11 @@ var _ = Describe(
 				daemonPod, err := getPtpDaemonPodOnNode(nodeName)
 				Expect(err).ToNot(HaveOccurred())
 
-				buf, err := daemonPod.ExecCommand([]string{"sh", "-c",
-					"pmc -u -b 0 'GET TIME_STATUS_NP' 2>/dev/null"}, ptpContainerName)
+				pmcTimeStatus := "pmc -u -b 0 'GET TIME_STATUS_NP' 2>/dev/null"
+				buf, err := daemonPod.ExecCommand(
+					[]string{"sh", "-c", pmcTimeStatus},
+					ptpContainerName,
+				)
 				Expect(err).ToNot(HaveOccurred(), "pmc GET TIME_STATUS_NP on node %s", nodeName)
 				pmcOut := strings.ToLower(buf.String())
 				Expect(pmcOut).ToNot(ContainSubstring("freerun"),
@@ -556,7 +740,7 @@ var _ = Describe(
 
 				logs, err := daemonPod.GetLogsWithOptions(&corev1.PodLogOptions{
 					Container: ptpContainerName,
-					TailLines: ptr(int64(400)),
+					SinceTime: &metav1.Time{Time: netemSince},
 				})
 				Expect(err).ToNot(HaveOccurred())
 				logStr := strings.ToLower(string(logs))
@@ -565,7 +749,8 @@ var _ = Describe(
 				Expect(string(logs)).To(ContainSubstring(" s2"),
 					"node %s: expected sync state s2 (locked) while loss is applied", nodeName)
 
-				_, err = execOnNodeHost(nodeName, fmt.Sprintf("tc qdisc del dev %s root", iface))
+				tcDel := fmt.Sprintf("tc qdisc del dev %s root", ifaceQ)
+				_, err = execOnNodeHost(nodeName, tcDel)
 				Expect(err).ToNot(HaveOccurred(), "failed to remove netem qdisc on node %s", nodeName)
 			}
 		})
