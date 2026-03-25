@@ -1,5 +1,6 @@
 ---
 # General configurations
+acm_operator_namespace: "rhacm"
 ibu_workload_image: "registry.redhat.io/openshift4/ose-hello-openshift-rhel8@sha256:10dca31348f07e1bfb56ee93c324525cceefe27cb7076b23e42ac181e4d1863e"
 ibu_workload_validation_ns: "test"
 ibu_workload_validation_pv_ns: "test"
