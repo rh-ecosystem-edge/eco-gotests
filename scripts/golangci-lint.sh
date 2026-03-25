@@ -58,6 +58,9 @@ function RunGolangCiLint() {
 
 	echo "Running golangci-lint"
 
+	# go.mod may require a newer toolchain than the system `go`; fetch it automatically.
+	export GOTOOLCHAIN="${GOTOOLCHAIN:-auto}"
+
 	if golangci-lint run -v; then
 		return 0;
 	fi
