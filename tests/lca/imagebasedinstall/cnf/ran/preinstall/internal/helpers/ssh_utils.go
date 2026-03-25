@@ -1,4 +1,4 @@
-package preinstall
+package helpers
 
 import (
 	"fmt"
@@ -11,7 +11,6 @@ import (
 func SCPToProvisioningHost(srcPath, destPath, host, user, sshKeyPath string) error {
 	klog.Infof("Copying %s to %s@%s:%s", srcPath, user, host, destPath)
 
-	// scp -i <sshKeyPath> -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null <srcPath> <user>@<host>:<destPath>
 	args := []string{
 		"-o", "StrictHostKeyChecking=no",
 		"-o", "UserKnownHostsFile=/dev/null",
@@ -39,7 +38,6 @@ func SCPToProvisioningHost(srcPath, destPath, host, user, sshKeyPath string) err
 func SSHExecOnProvisioningHost(host, user, sshKeyPath, command string) (string, error) {
 	klog.Infof("Executing command on %s@%s: %s", user, host, command)
 
-	// ssh -i <sshKeyPath> -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null <user>@<host> '<command>'
 	args := []string{
 		"-o", "StrictHostKeyChecking=no",
 		"-o", "UserKnownHostsFile=/dev/null",

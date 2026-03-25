@@ -614,6 +614,12 @@ github.com/imdario/mergo
 # github.com/inconshreveable/mousetrap v1.1.0
 ## explicit; go 1.18
 github.com/inconshreveable/mousetrap
+# github.com/itchyny/gojq v0.12.17
+## explicit; go 1.21
+github.com/itchyny/gojq
+# github.com/itchyny/timefmt-go v0.1.6
+## explicit; go 1.20
+github.com/itchyny/timefmt-go
 # github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99
 ## explicit
 github.com/jbenet/go-context/io
@@ -918,6 +924,15 @@ github.com/openshift/api/template
 github.com/openshift/api/template/v1
 github.com/openshift/api/user
 github.com/openshift/api/user/v1
+# github.com/openshift/assisted-service/api v0.0.0 => github.com/openshift/assisted-service/api v0.0.0-20260204223219-1574e1fa7ee0
+## explicit; go 1.21
+github.com/openshift/assisted-service/api/common
+github.com/openshift/assisted-service/api/hiveextension/v1beta1
+github.com/openshift/assisted-service/api/v1beta1
+# github.com/openshift/assisted-service/models v0.0.0 => github.com/openshift/assisted-service/models v0.0.0-20260204223219-1574e1fa7ee0
+## explicit; go 1.21
+github.com/openshift/assisted-service/models
+github.com/openshift/assisted-service/models/validations
 # github.com/openshift/client-go v0.0.0-20251205093018-96a6cbc1420c
 ## explicit; go 1.24.0
 github.com/openshift/client-go/build/applyconfigurations/build/v1
@@ -1018,6 +1033,22 @@ github.com/openshift/custom-resource-status/conditions/v1
 # github.com/openshift/elasticsearch-operator v0.0.0-20241202223819-cc1a232913d6
 ## explicit; go 1.22.0
 github.com/openshift/elasticsearch-operator/apis/logging/v1
+# github.com/openshift/hive/apis v0.0.0-20250725035156-a29a23859060
+## explicit; go 1.23.0
+github.com/openshift/hive/apis/hive/v1
+github.com/openshift/hive/apis/hive/v1/agent
+github.com/openshift/hive/apis/hive/v1/aws
+github.com/openshift/hive/apis/hive/v1/azure
+github.com/openshift/hive/apis/hive/v1/baremetal
+github.com/openshift/hive/apis/hive/v1/gcp
+github.com/openshift/hive/apis/hive/v1/ibmcloud
+github.com/openshift/hive/apis/hive/v1/metricsconfig
+github.com/openshift/hive/apis/hive/v1/none
+github.com/openshift/hive/apis/hive/v1/nutanix
+github.com/openshift/hive/apis/hive/v1/openstack
+github.com/openshift/hive/apis/hive/v1/ovirt
+github.com/openshift/hive/apis/hive/v1/vsphere
+github.com/openshift/hive/apis/scheme
 # github.com/openshift/installer v0.0.0-00010101000000-000000000000 => github.com/openshift/installer v0.0.0-20260211082425-e973ac44d688
 ## explicit; go 1.24.0
 github.com/openshift/installer/pkg/ipnet
@@ -1030,6 +1061,7 @@ github.com/openshift/installer/pkg/types/external
 github.com/openshift/installer/pkg/types/featuregates
 github.com/openshift/installer/pkg/types/gcp
 github.com/openshift/installer/pkg/types/ibmcloud
+github.com/openshift/installer/pkg/types/imagebased
 github.com/openshift/installer/pkg/types/none
 github.com/openshift/installer/pkg/types/nutanix
 github.com/openshift/installer/pkg/types/openstack

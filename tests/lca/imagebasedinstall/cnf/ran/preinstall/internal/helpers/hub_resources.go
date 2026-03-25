@@ -1,4 +1,4 @@
-package preinstall
+package helpers
 
 import (
 	"encoding/json"
@@ -30,7 +30,6 @@ func GetPullSecretFromHub(apiClient *clients.Settings) (string, error) {
 		return "", fmt.Errorf(".dockerconfigjson key not found in pull-secret")
 	}
 
-	// The data is already decoded by the Kubernetes client, so we just need to compact the JSON
 	var pullSecretJSON interface{}
 
 	err = json.Unmarshal(dockerConfigJSON, &pullSecretJSON)
@@ -53,13 +52,11 @@ func GetPullSecretFromHub(apiClient *clients.Settings) (string, error) {
 func GetSSHKeyFromHub(apiClient *clients.Settings) (string, error) {
 	klog.Infof("Fetching SSH key from hub cluster")
 
-	// Pull the MachineConfig using eco-goinfra
 	mcBuilder, err := mco.PullMachineConfig(apiClient, "99-master-ssh")
 	if err != nil {
 		return "", fmt.Errorf("failed to pull MachineConfig 99-master-ssh: %w", err)
 	}
 
-	// The Config field is a RawExtension, we need to unmarshal it
 	var configData map[string]interface{}
 
 	err = json.Unmarshal(mcBuilder.Object.Spec.Config.Raw, &configData)
@@ -67,7 +64,6 @@ func GetSSHKeyFromHub(apiClient *clients.Settings) (string, error) {
 		return "", fmt.Errorf("failed to unmarshal MachineConfig config: %w", err)
 	}
 
-	// Extract the SSH key from the config structure
 	passwd, okPasswd := configData["passwd"].(map[string]interface{})
 	if !okPasswd {
 		return "", fmt.Errorf("failed to extract passwd from MachineConfig config")

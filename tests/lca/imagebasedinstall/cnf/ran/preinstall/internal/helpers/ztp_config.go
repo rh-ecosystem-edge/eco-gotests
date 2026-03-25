@@ -1,18 +1,19 @@
-package preinstall
+package helpers
 
 import (
 	"fmt"
 	"os"
 	"os/exec"
 
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"k8s.io/klog/v2"
 )
 
-// CloneZTPSiteConfigRepo clones the ZTP site config repository.
-func CloneZTPSiteConfigRepo(repoURL, branch, destDir string) error {
+// CloneZTPSiteConfigRepo clones the ZTP site config repository with go-git (depth 1, single branch).
+func CloneZTPSiteConfigRepo(repoURL, branch, destDir string, insecureSkipTLS bool) error {
 	klog.Infof("Cloning ZTP site config repo %s (branch %s) to %s", repoURL, branch, destDir)
 
-	// Clean up destination directory if it exists
 	if _, err := os.Stat(destDir); err == nil {
 		err = os.RemoveAll(destDir)
 		if err != nil {
@@ -22,16 +23,16 @@ func CloneZTPSiteConfigRepo(repoURL, branch, destDir string) error {
 		return fmt.Errorf("failed to check if directory %s exists: %w", destDir, err)
 	}
 
-	// We use git command line directly as go-git might have issues with some internal auth setups
-	// and to closely match the ansible git module behavior
-	cmd := exec.Command("git", "clone", "--depth", "1", "--branch", branch, "--single-branch", repoURL, destDir)
-
-	// If we need to skip TLS verify (like in deploymenttypes)
-	cmd.Env = append(os.Environ(), "GIT_SSL_NO_VERIFY=true")
-
-	output, err := cmd.CombinedOutput()
+	_, err := git.PlainClone(destDir, false, &git.CloneOptions{
+		URL:             repoURL,
+		Tags:            git.NoTags,
+		ReferenceName:   plumbing.NewBranchReferenceName(branch),
+		Depth:           1,
+		SingleBranch:    true,
+		InsecureSkipTLS: insecureSkipTLS,
+	})
 	if err != nil {
-		return fmt.Errorf("failed to clone repo: %w, output: %s", err, string(output))
+		return fmt.Errorf("git clone: %w", err)
 	}
 
 	klog.Infof("Successfully cloned ZTP site config repo")
