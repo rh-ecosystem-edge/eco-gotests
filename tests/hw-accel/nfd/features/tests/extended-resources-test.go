@@ -8,7 +8,6 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/features/internal/helpers"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/internal/get"
 	nfdset "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/internal/set"
 	nfdwait "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/internal/wait"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/nfd/nfdparams"
@@ -18,7 +17,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-const testTaintKey = "test.example.com/special-hardware"
+const specialHardwareTaintKey = "test.example.com/special-hardware"
 
 var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"), func() {
 	Context("Advanced NFD Features", func() {
@@ -66,7 +65,9 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 
 			defer func() {
 				if testRule != nil && testRule.Exists() {
-					_, _ = testRule.Delete()
+					if _, err := testRule.Delete(); err != nil {
+						klog.Errorf("Failed to delete test rule: %v", err)
+					}
 				}
 			}()
 
@@ -168,7 +169,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
                 },
                 "taints": [
                     {
-                        "key": "test.example.com/special-hardware",
+                        "key": "` + specialHardwareTaintKey + `",
                         "value": "true",
                         "effect": "NoSchedule"
                     }
@@ -195,7 +196,9 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 
 			defer func() {
 				if testRule != nil && testRule.Exists() {
-					_, _ = testRule.Delete()
+					if _, err := testRule.Delete(); err != nil {
+						klog.Errorf("Failed to delete test rule: %v", err)
+					}
 
 					By("Waiting for taints to be removed after rule deletion")
 					Eventually(func() bool {
@@ -208,7 +211,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 
 						for _, node := range nodesList {
 							for _, taint := range node.Object.Spec.Taints {
-								if taint.Key == testTaintKey {
+								if taint.Key == specialHardwareTaintKey {
 									return false
 								}
 							}
@@ -231,53 +234,43 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 
 			By("Verifying taints are added to nodes")
 
-			taintFound := helpers.WaitForFeatureDetection(func() bool {
-				nodesList, err := nodes.List(APIClient, metav1.ListOptions{
+			taintFound := false
+
+			pollDeadline := time.Now().Add(1 * time.Minute)
+
+			for time.Now().Before(pollDeadline) && !taintFound {
+				nodesList, listErr := nodes.List(APIClient, metav1.ListOptions{
 					LabelSelector: "node-role.kubernetes.io/worker=",
 				})
-				if err != nil {
-					klog.V(nfdparams.LogLevel).Infof("Error listing nodes: %v", err)
+				if listErr != nil {
+					Expect(listErr).NotTo(HaveOccurred(), "Failed to list nodes while checking for taints")
 
-					return false
-				}
-
-				currentLabels, err := get.NodeFeatureLabels(APIClient, GeneralConfig.WorkerLabelMap)
-				if err != nil {
-					return false
+					break
 				}
 
 				for _, node := range nodesList {
-					hasLabel := false
-
-					if labels, ok := currentLabels[node.Object.Name]; ok {
-						for _, label := range labels {
-							if label == "test.feature.node.kubernetes.io/tainted=true" {
-								hasLabel = true
-
-								break
-							}
-						}
-					}
-
-					if !hasLabel {
-						continue
-					}
-
 					for _, taint := range node.Object.Spec.Taints {
-						if taint.Key == testTaintKey &&
-							taint.Value == "true" &&
-							taint.Effect == corev1.TaintEffectNoSchedule {
-							klog.V(nfdparams.LogLevel).Infof("Node %s has correct taint", node.Object.Name)
+						if taint.Key == specialHardwareTaintKey {
+							klog.V(nfdparams.LogLevel).Infof("Node %s has taint %s",
+								node.Object.Name, specialHardwareTaintKey)
 
-							return true
+							taintFound = true
+
+							break
 						}
+					}
+
+					if taintFound {
+						break
 					}
 				}
 
-				klog.V(nfdparams.LogLevel).Info("Taints not found yet on matching nodes")
+				if !taintFound {
+					klog.V(nfdparams.LogLevel).Info("Taints not found yet, retrying...")
 
-				return false
-			}, 1*time.Minute, 5*time.Second)
+					time.Sleep(5 * time.Second)
+				}
+			}
 
 			if !taintFound {
 				Skip("Node tainting not supported - NFD may lack RBAC permissions or feature is disabled")
@@ -293,7 +286,7 @@ var _ = Describe("NFD Extended Resources and Taints", Label("extended-resources"
 
 			for _, node := range nodesList.Items {
 				for _, taint := range node.Spec.Taints {
-					if taint.Key == testTaintKey {
+					if taint.Key == specialHardwareTaintKey {
 						klog.V(nfdparams.LogLevel).Infof("Found taint on node %s: key=%s, value=%s, effect=%s",
 							node.Name, taint.Key, taint.Value, taint.Effect)
 

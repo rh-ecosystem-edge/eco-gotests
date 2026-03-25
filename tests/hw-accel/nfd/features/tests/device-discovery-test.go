@@ -55,11 +55,13 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 			Expect(err).NotTo(HaveOccurred(), "Failed to create PCI discovery rule")
 			Expect(testRule).NotTo(BeNil())
 
-			DeferCleanup(func() {
+			defer func() {
 				if testRule != nil && testRule.Exists() {
-					_, _ = testRule.Delete()
+					if _, err := testRule.Delete(); err != nil {
+						klog.Errorf("Failed to delete test rule: %v", err)
+					}
 				}
-			})
+			}()
 
 			By("Waiting for PCI device labels to appear")
 
@@ -128,11 +130,13 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 			Expect(err).NotTo(HaveOccurred(), "Failed to create network discovery rule")
 			Expect(testRule).NotTo(BeNil())
 
-			DeferCleanup(func() {
+			defer func() {
 				if testRule != nil && testRule.Exists() {
-					_, _ = testRule.Delete()
+					if _, err := testRule.Delete(); err != nil {
+						klog.Errorf("Failed to delete test rule: %v", err)
+					}
 				}
-			})
+			}()
 
 			By("Waiting for network device labels")
 
@@ -196,11 +200,13 @@ var _ = Describe("NFD Device Discovery", Label("device-discovery"), func() {
 			Expect(err).NotTo(HaveOccurred(), "Failed to create system discovery rule")
 			Expect(testRule).NotTo(BeNil())
 
-			DeferCleanup(func() {
+			defer func() {
 				if testRule != nil && testRule.Exists() {
-					_, _ = testRule.Delete()
+					if _, err := testRule.Delete(); err != nil {
+						klog.Errorf("Failed to delete test rule: %v", err)
+					}
 				}
-			})
+			}()
 
 			By("Waiting for system feature labels")
 
