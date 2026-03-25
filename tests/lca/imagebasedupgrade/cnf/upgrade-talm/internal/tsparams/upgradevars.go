@@ -3,6 +3,7 @@ package tsparams
 import (
 	lcav1 "github.com/openshift-kni/lifecycle-agent/api/imagebasedupgrade/v1"
 	configv1 "github.com/openshift/api/config/v1"
+	ibguv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/imagebasedgroupupgrades/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -45,6 +46,7 @@ var (
 		{Cr: &corev1.NamespaceList{}},
 		{Cr: &corev1.PodList{}},
 		{Cr: &policiesv1.PolicyList{}},
+		{Cr: &ibguv1alpha1.ImageBasedGroupUpgradeList{}},
 	}
 
 	// ReporterSpokeNamespacesToDump tells the reporter which namespaces on the spokes to collect pod logs from.
