@@ -44,7 +44,7 @@ const (
 	secondInterfaceBasedOnTapThree = "ext2.2"
 
 	dpdkTestpmdTimeout = 20 * time.Second
-	clientRxCmdTimeout = dpdkTestpmdTimeout + 2*time.Second
+	clientRxCmdTimeout = dpdkTestpmdTimeout + 10*time.Second
 	getLinkRxTimeout   = 3 * time.Second
 )
 
@@ -309,11 +309,20 @@ func retrieveClientDPDKPod(apiClient *clients.Settings, podNamePattern, podNames
 func getDPDKPod(apiClient *clients.Settings, podNamePattern, podNamespace string) (*pod.Builder, error) {
 	var podObj *pod.Builder
 
-	err := wait.PollUntilContextTimeout(
-		context.TODO(),
-		time.Second*5,
-		time.Minute*1,
-		true,
+	// Use exponential backoff for better resilience when retrieving pods
+	backoff := wait.Backoff{
+		Duration: 5 * time.Second,
+		Factor:   1.5,
+		Steps:    10,
+		Cap:      20 * time.Second,
+	}
+
+	ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Minute)
+	defer cancel()
+
+	err := wait.ExponentialBackoffWithContext(
+		ctx,
+		backoff,
 		func(ctx context.Context) (bool, error) {
 			podObjList, err := pod.ListByNamePattern(apiClient, podNamePattern, podNamespace)
 			if err != nil {
@@ -366,11 +375,21 @@ func rxTrafficOnClientPod(clientPod *pod.Builder, clientRxCmd string) error {
 
 	var err error
 
-	err = wait.PollUntilContextTimeout(
-		context.TODO(),
-		time.Second*5,
-		time.Minute*2,
-		false,
+	// Use exponential backoff for better resilience against transient network issues
+	// Starting at 5s, increasing by factor of 1.5, capped at 60s, for up to 10 attempts
+	backoff := wait.Backoff{
+		Duration: 5 * time.Second,
+		Factor:   1.5,
+		Steps:    10,
+		Cap:      60 * time.Second,
+	}
+
+	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Minute)
+	defer cancel()
+
+	err = wait.ExponentialBackoffWithContext(
+		ctx,
+		backoff,
 		func(ctx context.Context) (bool, error) {
 			clientOut, err = clientPod.ExecCommandWithTimeout([]string{"/bin/bash", "-c", clientRxCmd}, clientRxCmdTimeout)
 
@@ -378,7 +397,7 @@ func rxTrafficOnClientPod(clientPod *pod.Builder, clientRxCmd string) error {
 				glog.V(100).Infof("Error running command: %v", err)
 
 				if err.Error() != timeoutError {
-					glog.V(100).Infof("Failed to run the dpdk-pmd command %s; %v", clientRxCmd, err)
+					glog.V(100).Infof("Failed to run the dpdk-pmd command %s; retrying with backoff", clientRxCmd)
 
 					return false, nil
 				}
@@ -421,11 +440,20 @@ func getCurrentLinkRx(runningPod *pod.Builder) (map[string]int, error) {
 
 	linksInfoMap := make(map[string]int)
 
-	err = wait.PollUntilContextTimeout(
-		context.TODO(),
-		time.Second*5,
-		time.Minute*2,
-		true,
+	// Use exponential backoff for better resilience against transient network issues
+	backoff := wait.Backoff{
+		Duration: 5 * time.Second,
+		Factor:   1.5,
+		Steps:    8,
+		Cap:      30 * time.Second,
+	}
+
+	ctx, cancel := context.WithTimeout(context.TODO(), 3*time.Minute)
+	defer cancel()
+
+	err = wait.ExponentialBackoffWithContext(
+		ctx,
+		backoff,
 		func(ctx context.Context) (bool, error) {
 			linksRawInfo, err = runningPod.ExecCommandWithTimeout(
 				[]string{"/bin/bash", "-c", "ip --json -s link show"}, getLinkRxTimeout)
@@ -577,17 +605,38 @@ func getLinkRx(runningPod *pod.Builder, linkName string) (int, error) {
 		err         error
 	)
 
-	err = wait.PollUntilContextTimeout(
-		context.TODO(),
-		5*time.Second,
-		time.Minute,
-		false,
+	// Use exponential backoff for better resilience against transient network issues
+	backoff := wait.Backoff{
+		Duration: 5 * time.Second,
+		Factor:   1.5,
+		Steps:    6,
+		Cap:      30 * time.Second,
+	}
+
+	ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Minute)
+	defer cancel()
+
+	err = wait.ExponentialBackoffWithContext(
+		ctx,
+		backoff,
 		func(ctx context.Context) (bool, error) {
 			linkRawInfo, err = runningPod.ExecCommandWithTimeout(
 				[]string{"/bin/bash", "-c", fmt.Sprintf("ip --json -s link show dev %s", linkName)}, getLinkRxTimeout)
 			if err != nil {
 				glog.V(100).Infof("The link %s info is not available for the pod %s in namespace %s "+
 					"with error %v",
+					linkName, runningPod.Definition.Name, runningPod.Definition.Namespace, err)
+
+				return false, nil
+			}
+
+			glog.V(100).Infof("Validating output of link %s info from pod %s in namespace %s",
+				linkName, runningPod.Definition.Name, runningPod.Definition.Namespace)
+
+			_, err = link.NewBuilder(linkRawInfo)
+
+			if err != nil {
+				glog.V(100).Infof("Failed to parse %q link's info from pod %s in namespace %s with error %v",
 					linkName, runningPod.Definition.Name, runningPod.Definition.Namespace, err)
 
 				return false, nil
@@ -605,6 +654,7 @@ func getLinkRx(runningPod *pod.Builder, linkName string) (int, error) {
 	}
 
 	linkInfo, err := link.NewBuilder(linkRawInfo)
+
 	if err != nil {
 		glog.V(100).Infof("Failed to collect link %s info from pod %s in namespace %s with error %v",
 			linkName, runningPod.Definition.Name, runningPod.Definition.Namespace, err)
@@ -683,6 +733,8 @@ func isPCIAddressAvailable(clientPod *pod.Builder) bool {
 func VerifyRootlessDPDKOnTheSameNodeSingleVFMultipleVlans(ctx SpecContext) {
 	By("Create Rootless DPDK server deployment on the same node")
 
+	DeferCleanup(CleanupRootlessDPDKServerDeployment)
+
 	err := createRootlessDPDKServerDeployment(
 		APIClient,
 		dpdkNetworkTwo,
@@ -744,6 +796,8 @@ func VerifyRootlessDPDKOnTheSameNodeSingleVFMultipleVlans(ctx SpecContext) {
 // on the different nodes with multiple VLANs.
 func VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleVlans(ctx SpecContext) {
 	By("Create Rootless DPDK server deployment on different node with multiple VLANs")
+
+	DeferCleanup(CleanupRootlessDPDKServerDeployment)
 
 	err := createRootlessDPDKServerDeployment(
 		APIClient,
@@ -807,6 +861,8 @@ func VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleVlans(ctx SpecContext) {
 func VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleMacVlans(ctx SpecContext) {
 	By("Create Rootless DPDK server deployment on different node with multiple MAC-VLANs")
 
+	DeferCleanup(CleanupRootlessDPDKServerDeployment)
+
 	err := createRootlessDPDKServerDeployment(
 		APIClient,
 		dpdkNetworkTwo,
@@ -869,6 +925,8 @@ func VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleMacVlans(ctx SpecContext
 // on the different nodes with multiple IP-VLANs.
 func VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleIPVlans(ctx SpecContext) {
 	By("Create Rootless DPDK server deployment on different node with multiple IP-VLANs")
+
+	DeferCleanup(CleanupRootlessDPDKServerDeployment)
 
 	err := createRootlessDPDKServerDeployment(
 		APIClient,
