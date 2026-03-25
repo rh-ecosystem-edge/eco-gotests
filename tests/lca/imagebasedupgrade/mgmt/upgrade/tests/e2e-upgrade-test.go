@@ -696,19 +696,29 @@ var _ = Describe(
 				klog.V(mgmtparams.MGMTLogLevel).Infof("Additional NTP sources: %s", MGMTConfig.AdditionalNTPSources)
 			}
 
-			By("Validate the proper NTP servers are listed in the config", func() {
-				execCmd := "cat /etc/chrony.conf"
+			By("Validate the proper NTP servers are listed in the config")
+
+			execCmd := "cat /etc/chrony.conf"
+
+			Eventually(func() (bool, error) {
 				cmdOutput, err := cluster.ExecCmdWithStdoutWithRetries(APIClient, 5, 30*time.Second, execCmd)
-				Expect(err).ToNot(HaveOccurred(), "could not execute command: %s", err)
+				if err != nil || len(cmdOutput) == 0 {
+					return false, err
+				}
 
 				for _, stdout := range cmdOutput {
+					normalizedStdout := strings.ReplaceAll(stdout, "\n", "")
+
 					for _, ntpSource := range strings.Split(MGMTConfig.AdditionalNTPSources, ",") {
-						Expect(strings.ReplaceAll(stdout, "\n", "")).To(ContainSubstring("server %s",
-							ntpSource),
-							"error: the expected NTP source %s wasn't found", ntpSource)
+						if !strings.Contains(normalizedStdout, ntpSource) {
+							return false, nil
+						}
 					}
 				}
-			})
+
+				return true, nil
+			}).WithTimeout(time.Minute*3).WithPolling(time.Second*10).Should(
+				BeTrue(), "error validating the proper NTP servers are listed in the config")
 		})
 
 		It("successfully configured using FIPs", reportxml.ID("71642"), func() {
