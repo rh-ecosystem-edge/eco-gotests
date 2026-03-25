@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,8 +13,9 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ptp"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ran-du/internal/randuparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ran-du/internal/randuinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ran-du/internal/randuparams"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -23,10 +25,84 @@ import (
 )
 
 const (
-	ptpNamespace           = "openshift-ptp"
-	ptpDaemonLabelSelector = "app=linuxptp-daemon"
-	ptpContainerName       = "linuxptp-daemon-container"
+	ptpNamespace     = "openshift-ptp"
+	ptpContainerName = "linuxptp-daemon-container"
 )
+
+// shellQuoteForNsenter escapes single quotes for use inside sh -c '...' on the node.
+func shellQuoteForNsenter(shellCmd string) string {
+	return strings.ReplaceAll(shellCmd, `'`, `'\''`)
+}
+
+// execOnNodeHost runs a shell command in the host mount namespace via the machine-config-daemon pod.
+func execOnNodeHost(nodeName, shellCmd string) (string, error) {
+	return execOnNodeHostWithTimeout(nodeName, shellCmd, 0)
+}
+
+// execOnNodeHostWithTimeout runs a shell command on the node host with an optional exec timeout (0 = default).
+func execOnNodeHostWithTimeout(nodeName, shellCmd string, timeout time.Duration) (string, error) {
+	if inittools.GeneralConfig.MCOConfigDaemonName == "" || inittools.GeneralConfig.MCONamespace == "" {
+		return "", fmt.Errorf("MCO namespace/daemon name not configured in general config")
+	}
+
+	listOptions := metav1.ListOptions{
+		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": nodeName}).String(),
+		LabelSelector: labels.SelectorFromSet(labels.Set{"k8s-app": inittools.GeneralConfig.MCOConfigDaemonName}).String(),
+	}
+
+	mcPodList, err := pod.List(APIClient, inittools.GeneralConfig.MCONamespace, listOptions)
+	if err != nil {
+		return "", err
+	}
+
+	if len(mcPodList) == 0 {
+		return "", fmt.Errorf("no machine-config-daemon pod on node %s", nodeName)
+	}
+
+	mcPod := mcPodList[0]
+	if err := mcPod.WaitUntilRunning(300 * time.Second); err != nil {
+		return "", err
+	}
+
+	escaped := shellQuoteForNsenter(shellCmd)
+	inner := fmt.Sprintf("nsenter --mount=/proc/1/ns/mnt -- sh -c '%s'", escaped)
+	cmdToExec := []string{"sh", "-c", inner}
+
+	if timeout > 0 {
+		buf, err := mcPod.ExecCommandWithTimeout(cmdToExec, timeout)
+		return buf.String(), err
+	}
+
+	buf, err := mcPod.ExecCommand(cmdToExec)
+	return buf.String(), err
+}
+
+var offsetLogLine = regexp.MustCompile(`offset\s+(-?\d+)`)
+
+// ptpOffsetsWithin100ns reports whether every "offset <n>" value in the log sample is within ±100 (nanoseconds).
+func ptpOffsetsWithin100ns(logStr string) (ok bool, detail string) {
+	matches := offsetLogLine.FindAllStringSubmatch(logStr, -1)
+	if len(matches) == 0 {
+		return false, "no offset values found in PTP daemon logs"
+	}
+
+	for _, m := range matches {
+		if len(m) < 2 {
+			continue
+		}
+
+		offset, err := strconv.Atoi(m[1])
+		if err != nil {
+			continue
+		}
+
+		if offset < -100 || offset > 100 {
+			return false, fmt.Sprintf("offset %d is outside ±100ns threshold", offset)
+		}
+	}
+
+	return true, ""
+}
 
 // getUbloxProtocolVersion returns the u-blox protocol version for ubxtool based on PtpConfig profiles.
 // E825/E830 use 29.25, E810 uses 29.20. Returns empty string if no GNSS-capable profile is found.
@@ -370,6 +446,127 @@ var _ = Describe(
 				logStr := string(logs)
 				Expect(logStr).To(ContainSubstring(" s2"),
 					"Node %s: expected sync state s2 after GNSS restore, clock should be locked", nodeName)
+			}
+		})
+
+		// Case 06: PTP Accuracy under high network throughput
+		// Test_Description: Verify the clock accuracy when network throughput increases.
+		// Test_Setup: System in a locked state for >30 minutes (optional ptp_locked_state_wait_sec).
+		It("Case 06: PTP Accuracy under high network throughput", reportxml.ID("99996"), func() {
+			if strings.TrimSpace(RanDuTestConfig.PtpIperf3Server) == "" {
+				Skip("Case 06 requires ptp_iperf3_server (ECO_RANDU_PTP_IPERF3_SERVER) pointing at an iperf3 server")
+			}
+
+			dur := RanDuTestConfig.PtpIperf3DurationSec
+			if dur <= 0 {
+				dur = 300
+			}
+
+			waitSec := RanDuTestConfig.PtpLockedStateWaitSec
+			if waitSec > 0 {
+				By(fmt.Sprintf("Waiting %d seconds for stable locked state before stress (test setup)", waitSec))
+				time.Sleep(time.Duration(waitSec) * time.Second)
+			}
+
+			for _, nodeName := range ptpNodes {
+				nodeName := nodeName
+
+				By(fmt.Sprintf("Verify PTP offset stays within ±100ns under iperf3 load on node %s", nodeName))
+
+				iperfCmd := fmt.Sprintf("iperf3 -c %s -t %d", strings.TrimSpace(RanDuTestConfig.PtpIperf3Server), dur)
+				if b := strings.TrimSpace(RanDuTestConfig.PtpIperf3ClientBind); b != "" {
+					iperfCmd += fmt.Sprintf(" -B %s", b)
+				}
+
+				startCmd := fmt.Sprintf("setsid %s </dev/null >/tmp/eco-ptp-iperf.log 2>&1 & echo $!", iperfCmd)
+				out, err := execOnNodeHost(nodeName, startCmd)
+				Expect(err).ToNot(HaveOccurred(), "failed to start iperf3 on node %s: %s", nodeName, out)
+
+				pid := strings.TrimSpace(out)
+				if idx := strings.LastIndex(pid, "\n"); idx >= 0 {
+					pid = strings.TrimSpace(pid[idx+1:])
+				}
+
+				pidCopy := pid
+				DeferCleanup(func() {
+					_, _ = execOnNodeHost(nodeName, fmt.Sprintf("kill %s 2>/dev/null || true", pidCopy))
+				})
+
+				deadline := time.Now().Add(time.Duration(dur) * time.Second)
+				for time.Now().Before(deadline) {
+					time.Sleep(15 * time.Second)
+					if time.Now().After(deadline) {
+						break
+					}
+
+					daemonPod, podErr := getPtpDaemonPodOnNode(nodeName)
+					Expect(podErr).ToNot(HaveOccurred())
+
+					logs, logErr := daemonPod.GetLogsWithOptions(&corev1.PodLogOptions{
+						Container: ptpContainerName,
+						TailLines: ptr(int64(800)),
+					})
+					Expect(logErr).ToNot(HaveOccurred())
+
+					ok, detail := ptpOffsetsWithin100ns(string(logs))
+					Expect(ok).To(BeTrue(), "node %s: %s", nodeName, detail)
+				}
+
+				_, _ = execOnNodeHost(nodeName, fmt.Sprintf("kill %s 2>/dev/null || true", pidCopy))
+			}
+		})
+
+		// Case 07: Robustness against PTP packet loss
+		// Test_Description: Verify the clock accuracy when 5% packet loss induced on PTP traffic.
+		It("Case 07: Robustness against PTP packet loss", reportxml.ID("99997"), func() {
+			iface := strings.TrimSpace(RanDuTestConfig.PtpNetemInterface)
+			if iface == "" {
+				iface = "ens1f0"
+			}
+
+			waitSec := RanDuTestConfig.PtpLockedStateWaitSec
+			if waitSec > 0 {
+				By(fmt.Sprintf("Waiting %d seconds for stable locked state before netem (test setup)", waitSec))
+				time.Sleep(time.Duration(waitSec) * time.Second)
+			}
+
+			for _, nodeName := range ptpNodes {
+				nodeName := nodeName
+
+				By(fmt.Sprintf("Verify clock stays locked with 5%% loss on %s (node %s)", iface, nodeName))
+
+				DeferCleanup(func() {
+					_, _ = execOnNodeHost(nodeName, fmt.Sprintf("tc qdisc del dev %s root 2>/dev/null || true", iface))
+				})
+
+				_, err := execOnNodeHost(nodeName, fmt.Sprintf("tc qdisc add dev %s root netem loss 5%%", iface))
+				Expect(err).ToNot(HaveOccurred(), "failed to add netem loss on node %s", nodeName)
+
+				time.Sleep(10 * time.Second)
+
+				daemonPod, err := getPtpDaemonPodOnNode(nodeName)
+				Expect(err).ToNot(HaveOccurred())
+
+				buf, err := daemonPod.ExecCommand([]string{"sh", "-c",
+					"pmc -u -b 0 'GET TIME_STATUS_NP' 2>/dev/null"}, ptpContainerName)
+				Expect(err).ToNot(HaveOccurred(), "pmc GET TIME_STATUS_NP on node %s", nodeName)
+				pmcOut := strings.ToLower(buf.String())
+				Expect(pmcOut).ToNot(ContainSubstring("freerun"),
+					"node %s: TIME_STATUS_NP should not indicate freerun under 5%% loss", nodeName)
+
+				logs, err := daemonPod.GetLogsWithOptions(&corev1.PodLogOptions{
+					Container: ptpContainerName,
+					TailLines: ptr(int64(400)),
+				})
+				Expect(err).ToNot(HaveOccurred())
+				logStr := strings.ToLower(string(logs))
+				Expect(logStr).ToNot(ContainSubstring("freerun"),
+					"node %s: logs should not show freerun immediately after induced loss", nodeName)
+				Expect(string(logs)).To(ContainSubstring(" s2"),
+					"node %s: expected sync state s2 (locked) while loss is applied", nodeName)
+
+				_, err = execOnNodeHost(nodeName, fmt.Sprintf("tc qdisc del dev %s root", iface))
+				Expect(err).ToNot(HaveOccurred(), "failed to remove netem qdisc on node %s", nodeName)
 			}
 		})
 	})

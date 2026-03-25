@@ -19,6 +19,15 @@ stability_policies_check: true
 
 ptp_enabled: true
 
+# PTP 3 WPC Case 06 (iperf throughput): set ptp_iperf3_server to enable; optional ptp_iperf3_client_bind for -B.
+ptp_iperf3_server: ""
+ptp_iperf3_client_bind: ""
+ptp_iperf3_duration_sec: 300
+# Optional wait (seconds) before Case 06/07 for stable lock; production often uses 1800+.
+ptp_locked_state_wait_sec: 0
+# Case 07 tc netem device (test spec uses ens1f0).
+ptp_netem_interface: "ens1f0"
+
 # BMC credentials map for tests requiring BMC access (e.g., NMIKernelCrashKdump).
 # Format for env var ECO_RANDU_NODES_CREDENTIALS_MAP: "node1,user,pass,https://bmc:443;node2,user,pass,https://bmc2:443"
 # Tests requiring BMC will be skipped if this is empty.
