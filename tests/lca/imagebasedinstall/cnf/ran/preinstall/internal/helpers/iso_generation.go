@@ -1,6 +1,7 @@
-package preinstall
+package helpers
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,11 +11,11 @@ import (
 )
 
 // CreateIBIISO runs openshift-install to create the image-based installation ISO.
-func CreateIBIISO(openshiftInstallPath string, workDir string) (string, error) {
+// ctx should include a deadline (e.g. via context.WithTimeout) so the subprocess is killed if it hangs.
+func CreateIBIISO(ctx context.Context, openshiftInstallPath string, workDir string) (string, error) {
 	klog.Infof("Creating IBI ISO using %s in %s", openshiftInstallPath, workDir)
 
-	// openshift-install image-based create image --dir <workDir>
-	cmd := exec.Command(openshiftInstallPath, "image-based", "create", "image", "--dir", workDir)
+	cmd := exec.CommandContext(ctx, openshiftInstallPath, "image-based", "create", "image", "--dir", workDir)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -23,9 +24,8 @@ func CreateIBIISO(openshiftInstallPath string, workDir string) (string, error) {
 
 	isoPath := filepath.Join(workDir, "rhcos-ibi.iso")
 
-	// Verify the ISO was actually created
-	if _, err := os.Stat(isoPath); os.IsNotExist(err) {
-		return "", fmt.Errorf("ISO file was not found at expected path %s after successful command execution", isoPath)
+	if _, statErr := os.Stat(isoPath); statErr != nil {
+		return "", fmt.Errorf("ISO output path %s: %w", isoPath, statErr)
 	}
 
 	klog.Infof("Successfully created IBI ISO at %s", isoPath)
