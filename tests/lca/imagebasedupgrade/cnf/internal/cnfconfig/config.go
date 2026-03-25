@@ -34,7 +34,8 @@ type CNFConfig struct {
 	IbguSeedImageVersion  string `yaml:"ibgu_seed_image_version" envconfig:"ECO_LCA_IBGU_SEED_IMAGE_VERSION"`
 	IbguOadpCmName        string `yaml:"ibgu_oadp_cm_name" envconfig:"ECO_LCA_IBGU_ODAP_CM_NAME"`
 	IbguOadpCmNamespace   string `yaml:"ibgu_oadp_cm_namespace" envconfig:"ECO_LCA_IBGU_ODAP_CM_NAMESPACE"`
-	AcmOperatorNamespace  string `yaml:"acm_operator_namespace" envconfig:"ECO_LCA_IBU_CNF_ACM_OPERATOR_NAMESPACE" default:"rhacm"`
+	//nolint:lll
+	AcmOperatorNamespace string `yaml:"acm_operator_namespace" envconfig:"ECO_LCA_IBU_CNF_ACM_OPERATOR_NAMESPACE" default:"rhacm"`
 }
 
 // NewCNFConfig returns instance of CNFConfig type.
