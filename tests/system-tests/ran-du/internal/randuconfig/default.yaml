@@ -10,8 +10,8 @@ soft_reboot_iterations: 5
 hard_reboot_iterations: 5
 reboot_recovery_time: 2
 
-stability_no_workload_duration_mins: 30
-stability_no_workload_interval_mins: 5
+stab_nw_dur_mins: 30
+stab_nw_int_mins: 5
 stability_workload_duration_mins: 30
 stability_workload_interval_mins: 5
 stability_output_path: "/tmp/reports"

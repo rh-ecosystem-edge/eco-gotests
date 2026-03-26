@@ -81,30 +81,25 @@ type RanDuConfig struct {
 		CreateShellCmd string `yaml:"create_shell_cmd" envconfig:"ECO_RANDU_TESTWORKLOAD_CREATE_SHELLCMD"`
 		DeleteShellCmd string `yaml:"delete_shell_cmd" envconfig:"ECO_RANDU_TESTWORKLOAD_DELETE_SHELLCMD"`
 	} `yaml:"randu_test_workload"`
-	//nolint:lll // struct tags + envconfig keys
-	LaunchWorkloadIterations int `yaml:"launch_workload_iterations" envconfig:"ECO_RANDU_LAUNCH_WORKLOAD_ITERATIONS"`
-	SoftRebootIterations     int `yaml:"soft_reboot_iterations" envconfig:"ECO_RANDU_SOFT_REBOOT_ITERATIONS"`
-	HardRebootIterations     int `yaml:"hard_reboot_iterations" envconfig:"ECO_RANDU_HARD_REBOOT_ITERATIONS"`
-	StabilityWorkloadDurMins int `yaml:"stability_workload_duration_mins" envconfig:"ECO_RANDU_STAB_W_DUR_MINS"`
-	StabilityWorkloadIntMins int `yaml:"stability_workload_interval_mins" envconfig:"ECO_RANDU_STAB_W_INT_MINS"`
-	//nolint:lll // struct tags + envconfig keys
-	StabilityNoWorkloadDurMins int `yaml:"stability_no_workload_duration_mins" envconfig:"ECO_RANDU_STAB_NW_DUR_MINS"`
-	//nolint:lll // struct tags + envconfig keys
-	StabilityNoWorkloadIntMins int    `yaml:"stability_no_workload_interval_mins" envconfig:"ECO_RANDU_STAB_NW_INT_MINS"`
-	StabilityOutputPath        string `yaml:"stability_output_path" envconfig:"ECO_RANDU_STABILITY_OUTPUT_PATH"`
-	StabilityPoliciesCheck     bool   `yaml:"stability_policies_check" envconfig:"ECO_RANDU_STABILITY_POLICIES_CHECK"`
-	PtpEnabled                 bool   `yaml:"ptp_enabled" envconfig:"ECO_RANDU_PTP_ENABLED"`
-	PtpIperf3Server            string `yaml:"ptp_iperf3_server" envconfig:"ECO_RANDU_PTP_IPERF3_SERVER"`
-	PtpIperf3ClientBind        string `yaml:"ptp_iperf3_client_bind" envconfig:"ECO_RANDU_PTP_IPERF3_CLIENT_BIND"`
-	PtpIperf3DurationSec       int    `yaml:"ptp_iperf3_duration_sec" envconfig:"ECO_RANDU_PTP_IPERF3_DURATION_SEC"`
-	//nolint:lll // struct tags + envconfig keys
-	PtpLockedStateWaitSec int    `yaml:"ptp_locked_state_wait_sec" envconfig:"ECO_RANDU_PTP_LOCKED_STATE_WAIT_SEC"`
-	PtpNetemInterface     string `yaml:"ptp_netem_interface" envconfig:"ECO_RANDU_PTP_NETEM_INTERFACE"`
-	PtpWpcSyncInterfaces  string `yaml:"ptp_wpc_sync_interfaces" envconfig:"ECO_RANDU_PTP_WPC_SYNC_INTERFACES"`
-	//nolint:lll // struct tags + envconfig keys
-	PtpWpcPrimaryInterface string      `yaml:"ptp_wpc_primary_interface" envconfig:"ECO_RANDU_PTP_WPC_PRIMARY_INTERFACE"`
-	RebootRecoveryTime     int         `yaml:"reboot_recovery_time" envconfig:"ECO_RANDU_RECOVERY_TIME"`
-	NodesCredentialsMap    NodesBMCMap `yaml:"randu_nodes_bmc_map" envconfig:"ECO_RANDU_NODES_CREDENTIALS_MAP"`
+	LaunchWorkloadIterations   int         `yaml:"launch_workload_iterations" envconfig:"ECO_RANDU_LAUNCH_WL_ITER"`
+	SoftRebootIterations       int         `yaml:"soft_reboot_iterations" envconfig:"ECO_RANDU_SOFT_REBOOT_ITERATIONS"`
+	HardRebootIterations       int         `yaml:"hard_reboot_iterations" envconfig:"ECO_RANDU_HARD_REBOOT_ITERATIONS"`
+	StabilityWorkloadDurMins   int         `yaml:"stability_workload_duration_mins" envconfig:"ECO_RANDU_STAB_W_DUR_MINS"`
+	StabilityWorkloadIntMins   int         `yaml:"stability_workload_interval_mins" envconfig:"ECO_RANDU_STAB_W_INT_MINS"`
+	StabilityNoWorkloadDurMins int         `yaml:"stab_nw_dur_mins" envconfig:"ECO_RANDU_STAB_NW_DUR_MINS"`
+	StabilityNoWorkloadIntMins int         `yaml:"stab_nw_int_mins" envconfig:"ECO_RANDU_STAB_NW_INT_MINS"`
+	StabilityOutputPath        string      `yaml:"stability_output_path" envconfig:"ECO_RANDU_STABILITY_OUTPUT_PATH"`
+	StabilityPoliciesCheck     bool        `yaml:"stability_policies_check" envconfig:"ECO_RANDU_STABILITY_POLICIES_CHECK"`
+	PtpEnabled                 bool        `yaml:"ptp_enabled" envconfig:"ECO_RANDU_PTP_ENABLED"`
+	PtpIperf3Server            string      `yaml:"ptp_iperf3_server" envconfig:"ECO_RANDU_PTP_IPERF3_SERVER"`
+	PtpIperf3ClientBind        string      `yaml:"ptp_iperf3_client_bind" envconfig:"ECO_RANDU_PTP_IPERF3_CLIENT_BIND"`
+	PtpIperf3DurationSec       int         `yaml:"ptp_iperf3_duration_sec" envconfig:"ECO_RANDU_PTP_IPERF3_DURATION_SEC"`
+	PtpLockedStateWaitSec      int         `yaml:"ptp_locked_state_wait_sec" envconfig:"ECO_RANDU_PTP_LOCKED_WAIT_SEC"`
+	PtpNetemInterface          string      `yaml:"ptp_netem_interface" envconfig:"ECO_RANDU_PTP_NETEM_INTERFACE"`
+	PtpWpcSyncInterfaces       string      `yaml:"ptp_wpc_sync_interfaces" envconfig:"ECO_RANDU_PTP_WPC_SYNC_INTERFACES"`
+	PtpWpcPrimaryInterface     string      `yaml:"ptp_wpc_primary_interface" envconfig:"ECO_RANDU_PTP_WPC_PRIMARY_IFACE"`
+	RebootRecoveryTime         int         `yaml:"reboot_recovery_time" envconfig:"ECO_RANDU_RECOVERY_TIME"`
+	NodesCredentialsMap        NodesBMCMap `yaml:"randu_nodes_bmc_map" envconfig:"ECO_RANDU_NODES_CREDENTIALS_MAP"`
 }
 
 // NewRanDuConfig returns instance of RanDuConfig config type.
