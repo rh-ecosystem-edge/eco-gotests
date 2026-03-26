@@ -12,6 +12,7 @@ var ensIfacePattern = regexp.MustCompile(`\b(ens[a-z0-9]+)\b`)
 // InferSyncInterfacesFromLogs finds sorted unique ens* names on lines that also mention s2 (sync subscribed).
 func InferSyncInterfacesFromLogs(logText string) []string {
 	seen := make(map[string]struct{})
+
 	for _, line := range strings.Split(logText, "\n") {
 		if !strings.Contains(line, "s2") {
 			continue
@@ -36,6 +37,7 @@ func InferSyncInterfacesFromLogs(logText string) []string {
 func ParseCommaSeparatedStrings(csv string) []string {
 	parts := strings.Split(csv, ",")
 	out := make([]string, 0, len(parts))
+
 	for _, p := range parts {
 		p = strings.TrimSpace(p)
 		if p != "" {

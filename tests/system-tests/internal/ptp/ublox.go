@@ -2,6 +2,8 @@ package ptp
 
 import (
 	"fmt"
+	"math"
+	"sort"
 	"strings"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
@@ -59,8 +61,9 @@ func nodeLabelMatches(rule string, nodeLabels map[string]string) bool {
 	if idx := strings.Index(rule, "="); idx >= 0 {
 		k := strings.TrimSpace(rule[:idx])
 		v := strings.TrimSpace(rule[idx+1:])
+		actual, ok := nodeLabels[k]
 
-		return nodeLabels[k] == v
+		return ok && actual == v
 	}
 
 	_, ok := nodeLabels[rule]
@@ -68,22 +71,44 @@ func nodeLabelMatches(rule string, nodeLabels map[string]string) bool {
 	return ok
 }
 
-func pickUbloxFromPtpConfig(pc *ptpv1.PtpConfig, nodeName string, nodeLabels map[string]string) (string, bool) {
-	for _, m := range pc.Status.MatchList {
-		if m.NodeName == nil || m.Profile == nil {
+func recommendPriority(rec ptpv1.PtpRecommend) int64 {
+	if rec.Priority == nil {
+		return math.MaxInt64
+	}
+
+	return *rec.Priority
+}
+
+func sortedRecommendations(pc *ptpv1.PtpConfig) []ptpv1.PtpRecommend {
+	recs := make([]ptpv1.PtpRecommend, len(pc.Spec.Recommend))
+	copy(recs, pc.Spec.Recommend)
+	sort.Slice(recs, func(i, j int) bool {
+		return recommendPriority(recs[i]) < recommendPriority(recs[j])
+	})
+
+	return recs
+}
+
+func pickFromStatusMatchList(pc *ptpv1.PtpConfig, nodeName string) (string, bool) {
+	for _, match := range pc.Status.MatchList {
+		if match.NodeName == nil || match.Profile == nil {
 			continue
 		}
 
-		if *m.NodeName != nodeName {
+		if *match.NodeName != nodeName {
 			continue
 		}
 
-		if v, ok := ubloxFromProfileName(pc, *m.Profile); ok {
+		if v, ok := ubloxFromProfileName(pc, *match.Profile); ok {
 			return v, true
 		}
 	}
 
-	for _, rec := range pc.Spec.Recommend {
+	return "", false
+}
+
+func pickFromRecommendByNodeName(pc *ptpv1.PtpConfig, nodeName string, recs []ptpv1.PtpRecommend) (string, bool) {
+	for _, rec := range recs {
 		if rec.Profile == nil {
 			continue
 		}
@@ -97,7 +122,15 @@ func pickUbloxFromPtpConfig(pc *ptpv1.PtpConfig, nodeName string, nodeLabels map
 		}
 	}
 
-	for _, rec := range pc.Spec.Recommend {
+	return "", false
+}
+
+func pickFromRecommendByNodeLabel(
+	pc *ptpv1.PtpConfig,
+	nodeLabels map[string]string,
+	recs []ptpv1.PtpRecommend,
+) (string, bool) {
+	for _, rec := range recs {
 		if rec.Profile == nil {
 			continue
 		}
@@ -120,6 +153,19 @@ func pickUbloxFromPtpConfig(pc *ptpv1.PtpConfig, nodeName string, nodeLabels map
 	return "", false
 }
 
+func pickUbloxFromPtpConfig(pc *ptpv1.PtpConfig, nodeName string, nodeLabels map[string]string) (string, bool) {
+	if v, ok := pickFromStatusMatchList(pc, nodeName); ok {
+		return v, true
+	}
+
+	recs := sortedRecommendations(pc)
+	if v, ok := pickFromRecommendByNodeName(pc, nodeName, recs); ok {
+		return v, true
+	}
+
+	return pickFromRecommendByNodeLabel(pc, nodeLabels, recs)
+}
+
 // GetUbloxProtocolVersion returns ubxtool -P based on the PtpConfig profile applied to nodeName.
 func GetUbloxProtocolVersion(apiClient *clients.Settings, nodeName string) (string, error) {
 	ptpConfigs, err := infraptp.ListPtpConfigs(apiClient)
@@ -138,6 +184,10 @@ func GetUbloxProtocolVersion(apiClient *clients.Settings, nodeName string) (stri
 		pc := cfg.Object
 		if pc == nil {
 			pc = cfg.Definition
+		}
+
+		if pc == nil {
+			continue
 		}
 
 		if v, ok := pickUbloxFromPtpConfig(pc, nodeName, nodeLabels); ok {

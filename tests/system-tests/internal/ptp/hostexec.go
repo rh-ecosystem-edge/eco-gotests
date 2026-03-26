@@ -2,6 +2,7 @@ package ptp
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
@@ -36,8 +37,18 @@ func ExecCmdOnNodeHost(apiClient *clients.Settings, nodeName, hostShellCmd strin
 		return "", err
 	}
 
-	if len(outMap) == 0 {
-		return "", fmt.Errorf("ExecCmdOnNodeHost: empty stdout map for node %s", nodeName)
+	if len(outMap) != 1 {
+		keys := make([]string, 0, len(outMap))
+		for k := range outMap {
+			keys = append(keys, k)
+		}
+
+		sort.Strings(keys)
+
+		return "", fmt.Errorf(
+			"ExecCmdOnNodeHost: expected exactly 1 stdout entry for node %s, got %d hostnames: %v",
+			nodeName, len(outMap), keys,
+		)
 	}
 
 	var combined string

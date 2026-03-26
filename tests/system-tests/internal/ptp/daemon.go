@@ -12,6 +12,10 @@ import (
 
 // GetLinuxptpDaemonPodOnNode returns the openshift-ptp linuxptp-daemon pod scheduled on nodeName.
 func GetLinuxptpDaemonPodOnNode(apiClient *clients.Settings, nodeName string) (*pod.Builder, error) {
+	if nodeName == "" {
+		return nil, fmt.Errorf("nodeName cannot be empty")
+	}
+
 	daemonPods, err := pod.List(apiClient, Namespace, metav1.ListOptions{
 		LabelSelector: labels.SelectorFromSet(labels.Set{
 			DaemonPodLabelKey: DaemonPodLabelValueLinuxpt,
