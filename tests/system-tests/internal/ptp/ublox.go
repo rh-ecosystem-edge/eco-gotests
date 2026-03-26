@@ -104,7 +104,11 @@ func pickFromStatusMatchList(ptpConfig *ptpv1.PtpConfig, nodeName string) (strin
 	return "", false
 }
 
-func pickFromRecommendByNodeName(ptpConfig *ptpv1.PtpConfig, nodeName string, recs []ptpv1.PtpRecommend) (string, bool) {
+func pickFromRecommendByNodeName(
+	ptpConfig *ptpv1.PtpConfig,
+	nodeName string,
+	recs []ptpv1.PtpRecommend,
+) (string, bool) {
 	for _, rec := range recs {
 		if rec.Profile == nil {
 			continue

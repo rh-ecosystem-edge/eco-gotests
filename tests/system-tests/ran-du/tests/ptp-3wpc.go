@@ -267,6 +267,7 @@ var _ = Describe(
 					gnssLossTime := time.Now()
 
 					By("Verifying clock status after GNSS signal loss (holdover/freerun)")
+
 					var foundHoldoverOrFreerun bool
 
 					err = wait.PollUntilContextTimeout(
