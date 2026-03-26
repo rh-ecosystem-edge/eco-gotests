@@ -62,6 +62,20 @@ const (
 	TemplateMissingSchema = "v12"
 	// TemplateNoHWTemplate is the ClusterTemplate version for the successful no HardwareTemplate test.
 	TemplateNoHWTemplate = "v13"
+	// TemplateBMCFirmwareUpdate is the ClusterTemplate version for BMC firmware upgrade test.
+	TemplateBMCFirmwareUpdate = "v14"
+	// TemplateBIOSFirmwareUpdate is the ClusterTemplate version for BIOS firmware upgrade test.
+	TemplateBIOSFirmwareUpdate = "v15"
+	// TemplateBIOSSettingsUpdate is the ClusterTemplate version for BIOS settings update test.
+	TemplateBIOSSettingsUpdate = "v16"
+	// TemplateNoHardwareMatch is the ClusterTemplate version for no hardware matching test.
+	TemplateNoHardwareMatch = "v17"
+	// TemplateMissingBootInterface is the ClusterTemplate version for missing boot interface test.
+	TemplateMissingBootInterface = "v18"
+	// TemplateNonexistentHWProfile is the ClusterTemplate version for nonexistent hardware profile test.
+	TemplateNonexistentHWProfile = "v19"
+	// TemplateHardwareAllocated is the ClusterTemplate version for allocated hardware test.
+	TemplateHardwareAllocated = "v20"
 )
 
 const (
@@ -79,6 +93,9 @@ const (
 	// TestPRName is the UUID used for naming ProvisioningRequests. Since metadata.name must be a UUID, just use a
 	// constant one for consistency.
 	TestPRName = "9c5372f3-ea1d-4a96-8157-b3b874a55cf9"
+	// TestPRName2 is the second UUID used for naming ProvisioningRequests. Metal3 tests require a second PR applied
+	// to verify the case of all hardware already allocated.
+	TestPRName2 = "a1b2c3d4-e5f6-7890-1234-567890abcdef"
 	// TestBase64Credential is a base64 encoded version of the string "wrongpassword" for when an obviously invalid
 	// credential is needed.
 	TestBase64Credential = "d3JvbmdwYXNzd29yZA=="
