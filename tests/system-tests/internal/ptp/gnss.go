@@ -59,6 +59,7 @@ func SimulateGNSSRecovery(apiClient *clients.Settings, nodeName, protocolVersion
 		}
 
 		buf, err := daemonPod.ExecCommand([]string{"sh", "-c", cmd}, DaemonContainerName)
+
 		lastOut = buf.String()
 		if err != nil {
 			lastErr = fmt.Errorf("ubxtool recovery failed: %w, output: %s", err, lastOut)

@@ -86,7 +86,6 @@ func ResolveWPCInterfaces(configSyncCSV, configPrimary, logText string) (WPCInte
 // IfaceSyncLineRegexp matches "interfacename ... s2" for any of the given interface names (order-independent).
 func IfaceSyncLineRegexp(ifaces []string) (*regexp.Regexp, error) {
 	if len(ifaces) == 0 {
-
 		return nil, fmt.Errorf("IfaceSyncLineRegexp: empty interface list")
 	}
 

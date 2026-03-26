@@ -49,11 +49,13 @@ var _ = Describe(
 			Expect(ptpPods).ToNot(BeEmpty(), "No PTP daemon pods found")
 
 			nodeSet := make(map[string]struct{})
+
 			for _, p := range ptpPods {
 				if p.Object.Spec.NodeName != "" {
 					nodeSet[p.Object.Spec.NodeName] = struct{}{}
 				}
 			}
+
 			ptpNodes = make([]string, 0, len(nodeSet))
 			for n := range nodeSet {
 				ptpNodes = append(ptpNodes, n)
@@ -101,9 +103,11 @@ var _ = Describe(
 					"Node %s: no offset values found in logs", nodeName)
 
 				foundSmallOffset := false
+
 				for _, m := range matches {
 					if len(m) >= 2 {
 						var offset int
+
 						_, _ = fmt.Sscanf(m[1], "%d", &offset)
 						if offset >= -sysptp.DefaultMaxAbsOffsetNS && offset <= sysptp.DefaultMaxAbsOffsetNS {
 							foundSmallOffset = true
@@ -112,6 +116,7 @@ var _ = Describe(
 						}
 					}
 				}
+
 				Expect(foundSmallOffset).To(BeTrue(),
 					"Node %s: expected at least one small offset within ±%d ns, check PTP sync",
 					nodeName, sysptp.DefaultMaxAbsOffsetNS)
@@ -147,6 +152,7 @@ var _ = Describe(
 
 				lines := strings.Split(logStr, "\n")
 				foundInterfaces := make(map[string]bool)
+
 				for _, line := range lines {
 					if !strings.Contains(line, "s2") {
 						continue
@@ -161,6 +167,7 @@ var _ = Describe(
 
 				for _, iface := range plan.SyncAll {
 					hasSync := false
+
 					for _, line := range lines {
 						if strings.Contains(line, iface) && strings.Contains(line, "s2") {
 							hasSync = true
@@ -168,6 +175,7 @@ var _ = Describe(
 							break
 						}
 					}
+
 					if hasSync {
 						foundInterfaces[iface] = true
 					}
@@ -222,6 +230,7 @@ var _ = Describe(
 					sysptp.DaemonContainerName,
 				)
 				Expect(err).ToNot(HaveOccurred(), "Failed to execute pmc on node %s", nodeName)
+
 				output := buf.String()
 
 				Expect(output).To(ContainSubstring("gm.ClockClass"),
@@ -244,12 +253,14 @@ var _ = Describe(
 
 					DeferCleanup(func() {
 						By("Restoring GNSS sync")
+
 						if restoreErr := sysptp.SimulateGNSSRecovery(APIClient, nodeName, protocolVersion); restoreErr != nil {
 							klog.Errorf("Failed to restore GNSS on node %s: %v", nodeName, restoreErr)
 						}
 					})
 
 					By("Simulating GNSS signal loss")
+
 					err = sysptp.SimulateGNSSLoss(APIClient, nodeName, protocolVersion)
 					Expect(err).ToNot(HaveOccurred(), "Failed to simulate GNSS loss on node %s", nodeName)
 
@@ -257,6 +268,7 @@ var _ = Describe(
 
 					By("Verifying clock status after GNSS signal loss (holdover/freerun)")
 					var foundHoldoverOrFreerun bool
+
 					err = wait.PollUntilContextTimeout(
 						context.TODO(), 10*time.Second, 5*time.Minute, true,
 						func(ctx context.Context) (bool, error) {
@@ -264,6 +276,7 @@ var _ = Describe(
 							if podErr != nil {
 								return false, nil
 							}
+
 							logs, logErr := daemonPod.GetLogsWithOptions(&corev1.PodLogOptions{
 								Container: sysptp.DaemonContainerName,
 								SinceTime: &metav1.Time{Time: gnssLossTime},
@@ -271,6 +284,7 @@ var _ = Describe(
 							if logErr != nil {
 								return false, nil
 							}
+
 							logStr := strings.ToLower(string(logs))
 							foundHoldoverOrFreerun = strings.Contains(logStr, sysptp.LogKeywordHoldover) ||
 								strings.Contains(logStr, sysptp.LogKeywordFreerun)
@@ -282,11 +296,14 @@ var _ = Describe(
 						"Node %s: expected 'holdover' or 'freerun' in logs after GNSS loss simulation", nodeName)
 
 					By("Restoring GNSS signal")
+
 					err = sysptp.SimulateGNSSRecovery(APIClient, nodeName, protocolVersion)
 					Expect(err).ToNot(HaveOccurred(), "Failed to restore GNSS on node %s", nodeName)
 
 					By("Verifying clock status after GNSS signal is restored (sync locked)")
+
 					restoreSince := time.Now()
+
 					err = wait.PollUntilContextTimeout(
 						context.TODO(), 5*time.Second, 5*time.Minute, true,
 						func(ctx context.Context) (bool, error) {
@@ -294,6 +311,7 @@ var _ = Describe(
 							if podErr != nil {
 								return false, nil
 							}
+
 							logs, logErr := daemonPod.GetLogsWithOptions(&corev1.PodLogOptions{
 								Container: sysptp.DaemonContainerName,
 								SinceTime: &metav1.Time{Time: restoreSince},
@@ -332,6 +350,7 @@ var _ = Describe(
 					sysptp.DefaultMaxAbsOffsetNS, nodeName))
 
 				srv := strings.TrimSpace(RanDuTestConfig.PtpIperf3Server)
+
 				iperfParts := []string{
 					"setsid", "iperf3", "-c", sysptp.ShellQuoteArg(srv), "-t", strconv.Itoa(dur),
 				}
@@ -351,6 +370,7 @@ var _ = Describe(
 				}
 
 				pidCopy := pid
+
 				DeferCleanup(func() {
 					killCmd := fmt.Sprintf("kill %s 2>/dev/null || true", sysptp.ShellQuoteArg(pidCopy))
 					_, _ = sysptp.ExecCmdOnNodeHost(APIClient, nodeName, killCmd)
@@ -386,8 +406,8 @@ var _ = Describe(
 				deadline := time.Now().Add(time.Duration(dur) * time.Second)
 				for time.Now().Before(deadline) {
 					time.Sleep(15 * time.Second)
-					if time.Now().After(deadline) {
 
+					if time.Now().After(deadline) {
 						break
 					}
 
@@ -449,6 +469,7 @@ var _ = Describe(
 					sysptp.DaemonContainerName,
 				)
 				Expect(err).ToNot(HaveOccurred(), "pmc GET TIME_STATUS_NP on node %s", nodeName)
+
 				pmcOut := strings.ToLower(buf.String())
 				Expect(pmcOut).ToNot(ContainSubstring(sysptp.LogKeywordFreerun),
 					"node %s: TIME_STATUS_NP should not indicate freerun under 5%% loss", nodeName)
@@ -458,6 +479,7 @@ var _ = Describe(
 					SinceTime: &metav1.Time{Time: netemSince},
 				})
 				Expect(err).ToNot(HaveOccurred())
+
 				logStr := strings.ToLower(string(logs))
 				Expect(logStr).ToNot(ContainSubstring(sysptp.LogKeywordFreerun),
 					"node %s: logs should not show freerun immediately after induced loss", nodeName)
