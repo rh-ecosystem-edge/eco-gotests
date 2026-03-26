@@ -192,6 +192,23 @@ func AssertQuery[V constraints.Integer](
 	return fmt.Errorf("failed to assert query eventually: timeout of %s exceeded", opts.timeout)
 }
 
+// AssertThresholdsOption configures optional behavior for [AssertThresholds].
+type AssertThresholdsOption func(*assertThresholdsConfig)
+
+// assertThresholdsConfig holds configuration for [AssertThresholds].
+type assertThresholdsConfig struct {
+	keyNormalizer func(string) string
+}
+
+// WithKeyNormalizer sets a function that transforms the Prometheus profile label before it is used as a key in the
+// actual thresholds map. This is useful when the label format differs from the expected map's keys, for example when
+// the daemon uses qualified profile names (4.22+) but the expected map is keyed by unqualified spec-level names.
+func WithKeyNormalizer(normalizer func(string) string) AssertThresholdsOption {
+	return func(c *assertThresholdsConfig) {
+		c.keyNormalizer = normalizer
+	}
+}
+
 // AssertThresholds asserts that the expected thresholds, a map between profile names and their expected thresholds, are
 // met at the current time. It uses the query to get the thresholds, ignoring the profile and threshold type labels
 // (only using the node label if included). Profile names are expected to be unique.
@@ -207,7 +224,16 @@ func AssertThresholds(
 	ctx context.Context,
 	client prometheusv1.API,
 	query ThresholdQuery,
-	expected map[string]ptpv1.PtpClockThreshold) error {
+	expected map[string]ptpv1.PtpClockThreshold,
+	opts ...AssertThresholdsOption) error {
+	cfg := &assertThresholdsConfig{
+		keyNormalizer: func(s string) string { return s },
+	}
+
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
 	if client == nil {
 		return fmt.Errorf("cannot assert thresholds with nil client")
 	}
@@ -222,41 +248,9 @@ func AssertThresholds(
 		return fmt.Errorf("failed to execute query to assert thresholds: %w", err)
 	}
 
-	actual := make(map[string]ptpv1.PtpClockThreshold)
-
-	for _, sample := range result {
-		if sample == nil {
-			continue
-		}
-
-		profile, exists := sample.Metric[model.LabelName(KeyProfile)]
-		if !exists {
-			return fmt.Errorf("failed to find profile label in sample: %s", sample)
-		}
-
-		threshold, exists := sample.Metric[model.LabelName(KeyThreshold)]
-		if !exists {
-			return fmt.Errorf("failed to find threshold label in sample: %s", sample)
-		}
-
-		// Take the existing threshold if it exists. If it does not exist, existing defaults to a zero value.
-		existing := actual[string(profile)]
-
-		switch PtpThresholdType(threshold) {
-		case ThresholdHoldoverTimeout:
-			existing.HoldOverTimeout = convertSampleValueToInt64(sample.Value)
-		case ThresholdMaxOffset:
-			existing.MaxOffsetThreshold = convertSampleValueToInt64(sample.Value)
-		case ThresholdMinOffset:
-			existing.MinOffsetThreshold = convertSampleValueToInt64(sample.Value)
-		default:
-			klog.V(tsparams.LogLevel).Infof("Ignoring unknown threshold type %s", threshold)
-
-			continue
-		}
-
-		// Update the actual map with modified thresholds. If the profile did not already exist, this adds it.
-		actual[string(profile)] = existing
+	actual, err := buildActualThresholds(result, cfg.keyNormalizer)
+	if err != nil {
+		return err
 	}
 
 	for profile, expectedThreshold := range expected {
@@ -284,6 +278,49 @@ func AssertThresholds(
 	}
 
 	return nil
+}
+
+// buildActualThresholds converts Prometheus samples into a map of profile names to their observed thresholds. The
+// keyNormalizer transforms the raw profile label before it is used as a map key.
+func buildActualThresholds(
+	result model.Vector, keyNormalizer func(string) string) (map[string]ptpv1.PtpClockThreshold, error) {
+	actual := make(map[string]ptpv1.PtpClockThreshold)
+
+	for _, sample := range result {
+		if sample == nil {
+			continue
+		}
+
+		profile, exists := sample.Metric[model.LabelName(KeyProfile)]
+		if !exists {
+			return nil, fmt.Errorf("failed to find profile label in sample: %s", sample)
+		}
+
+		threshold, exists := sample.Metric[model.LabelName(KeyThreshold)]
+		if !exists {
+			return nil, fmt.Errorf("failed to find threshold label in sample: %s", sample)
+		}
+
+		normalizedProfile := keyNormalizer(string(profile))
+		existing := actual[normalizedProfile]
+
+		switch PtpThresholdType(threshold) {
+		case ThresholdHoldoverTimeout:
+			existing.HoldOverTimeout = convertSampleValueToInt64(sample.Value)
+		case ThresholdMaxOffset:
+			existing.MaxOffsetThreshold = convertSampleValueToInt64(sample.Value)
+		case ThresholdMinOffset:
+			existing.MinOffsetThreshold = convertSampleValueToInt64(sample.Value)
+		default:
+			klog.V(tsparams.LogLevel).Infof("Ignoring unknown threshold type %s", threshold)
+
+			continue
+		}
+
+		actual[normalizedProfile] = existing
+	}
+
+	return actual, nil
 }
 
 // assertQueryAtTime executes the provided MetricQuery and compares all values in the result vector to the expected
