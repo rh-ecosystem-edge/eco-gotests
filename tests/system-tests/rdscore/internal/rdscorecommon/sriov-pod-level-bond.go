@@ -667,20 +667,20 @@ func checkIPv6AddressState(output, ipv6Addr string) (bool, error) {
 
 		// Look for lines containing the IPv6 address
 		if strings.Contains(line, ipv6Addr) && strings.Contains(line, "inet6") {
+			// Check if DAD failed (permanent failure - must check first)
+			if strings.Contains(line, "dadfailed") {
+				klog.V(100).Infof("IPv6 address %s DAD failed: %s",
+					ipv6Addr, strings.TrimSpace(line))
+
+				return false, fmt.Errorf("IPv6 DAD failed for address %s", ipv6Addr)
+			}
+
 			// Check if the address is in tentative state (DAD in progress)
 			if strings.Contains(line, "tentative") {
 				klog.V(100).Infof("IPv6 address %s is in tentative state (DAD in progress): %s",
 					ipv6Addr, strings.TrimSpace(line))
 
 				return false, nil
-			}
-
-			// Check if DAD failed
-			if strings.Contains(line, "dadfailed") {
-				klog.V(100).Infof("IPv6 address %s DAD failed: %s",
-					ipv6Addr, strings.TrimSpace(line))
-
-				return false, fmt.Errorf("IPv6 DAD failed for address %s", ipv6Addr)
 			}
 
 			// Address found and not tentative - ready to use
@@ -704,7 +704,7 @@ func checkIPv6AddressState(output, ipv6Addr string) (bool, error) {
 	return false, nil
 }
 
-//nolint:funlen
+//nolint:funlen,gocognit
 func inspectPodLevelBondedInterfaceConfig(podObj *pod.Builder, ipv4Addr, ipv6Addr string) (bool, error) {
 	klog.V(100).Infof("Verify pod-level bonded interface configuration for pod %q in namespace %q",
 		podObj.Definition.Name, podObj.Definition.Namespace)
@@ -782,10 +782,19 @@ func inspectPodLevelBondedInterfaceConfig(podObj *pod.Builder, ipv4Addr, ipv6Add
 				// Check that IPv6 address is not in tentative state (DAD must be complete)
 				ipv6Ready, err := checkIPv6AddressState(output, ipv6Addr)
 				if err != nil {
-					klog.V(100).Infof("IPv6 address %s DAD failed for pod %s in namespace %s: %v",
+					// Check if this is a permanent DAD failure
+					if strings.Contains(err.Error(), "IPv6 DAD failed") {
+						klog.V(100).Infof("IPv6 address %s DAD failed for pod %s in namespace %s: %v",
+							ipv6Addr, podObj.Definition.Name, podObj.Definition.Namespace, err)
+
+						return false, err
+					}
+
+					// For other errors (scanner errors), continue retrying
+					klog.V(100).Infof("Temporary error checking IPv6 address %s for pod %s in namespace %s: %v, will retry",
 						ipv6Addr, podObj.Definition.Name, podObj.Definition.Namespace, err)
 
-					return false, err
+					return false, nil
 				}
 
 				if !ipv6Ready {

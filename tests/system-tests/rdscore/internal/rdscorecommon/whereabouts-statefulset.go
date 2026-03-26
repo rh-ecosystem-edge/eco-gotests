@@ -373,6 +373,14 @@ func checkPodIPv6Ready(podObj *pod.Builder, interfaceName, ipv6Addr string) (boo
 
 		// Look for lines containing the IPv6 address
 		if strings.Contains(line, ipv6Addr) && strings.Contains(line, "inet6") {
+			// Check if DAD failed (permanent failure - must check first)
+			if strings.Contains(line, "dadfailed") {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("IPv6 address %s DAD failed for pod %q: %s",
+					ipv6Addr, podObj.Object.Name, strings.TrimSpace(line))
+
+				return false, fmt.Errorf("IPv6 DAD failed for address %s in pod %s", ipv6Addr, podObj.Object.Name)
+			}
+
 			// Check if the address is in tentative state (DAD in progress)
 			if strings.Contains(line, "tentative") {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
@@ -380,14 +388,6 @@ func checkPodIPv6Ready(podObj *pod.Builder, interfaceName, ipv6Addr string) (boo
 					ipv6Addr, podObj.Object.Name, strings.TrimSpace(line))
 
 				return false, nil
-			}
-
-			// Check if DAD failed
-			if strings.Contains(line, "dadfailed") {
-				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("IPv6 address %s DAD failed for pod %q: %s",
-					ipv6Addr, podObj.Object.Name, strings.TrimSpace(line))
-
-				return false, fmt.Errorf("IPv6 DAD failed for address %s in pod %s", ipv6Addr, podObj.Object.Name)
 			}
 
 			// Address found and not tentative - ready to use
@@ -415,6 +415,8 @@ func checkPodIPv6Ready(podObj *pod.Builder, interfaceName, ipv6Addr string) (boo
 }
 
 // getPodWhereaboutsIPs gets the IP addresses for the given pod.
+//
+//nolint:gocognit
 func getPodWhereaboutsIPs(activePods []*pod.Builder, interfaceName string) map[string][]NetworkInterface {
 	podWhereaboutsIPs := make(map[string][]NetworkInterface)
 
@@ -425,7 +427,7 @@ func getPodWhereaboutsIPs(activePods []*pod.Builder, interfaceName string) map[s
 	for _, _pod := range activePods {
 		var networkInterface []NetworkInterface
 
-		Eventually(func() bool {
+		Eventually(func() error {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Executing command %q within pod %q in %q namespace",
 				cmdGetIPAddr, _pod.Object.Name, _pod.Object.Namespace)
 
@@ -434,14 +436,14 @@ func getPodWhereaboutsIPs(activePods []*pod.Builder, interfaceName string) map[s
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to execute command within pod %q in %q namespace: %s",
 					_pod.Object.Name, _pod.Object.Namespace, err)
 
-				return false
+				return fmt.Errorf("failed to execute command in pod: %w", err)
 			}
 
 			if addrBuffInfo.Len() == 0 {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Empty output from command within pod %q in %q namespace",
 					_pod.Object.Name, _pod.Object.Namespace)
 
-				return false
+				return fmt.Errorf("empty output from command")
 			}
 
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Unmarshalling IP addresses")
@@ -451,7 +453,7 @@ func getPodWhereaboutsIPs(activePods []*pod.Builder, interfaceName string) map[s
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to unmarshal IP addresses for pod %q in %q namespace: %s",
 					_pod.Object.Name, _pod.Object.Namespace, err)
 
-				return false
+				return fmt.Errorf("failed to unmarshal IP addresses: %w", err)
 			}
 
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("IP addresses: %+v", networkInterface)
@@ -464,11 +466,23 @@ func getPodWhereaboutsIPs(activePods []*pod.Builder, interfaceName string) map[s
 
 					ipv6Ready, err := checkPodIPv6Ready(_pod, interfaceName, addr.Local)
 					if err != nil {
+						// Check if this is a permanent DAD failure
+						if strings.Contains(err.Error(), "IPv6 DAD failed") {
+							klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+								"IPv6 address %s DAD failed for pod %q in %q namespace: %v",
+								addr.Local, _pod.Object.Name, _pod.Object.Namespace, err)
+
+							return StopTrying(fmt.Sprintf(
+								"IPv6 DAD failed for address %s in pod %s/%s",
+								addr.Local, _pod.Object.Namespace, _pod.Object.Name)).Wrap(err)
+						}
+
+						// For other errors (exec failures, scanner errors), continue retrying
 						klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-							"IPv6 address %s DAD failed for pod %q in %q namespace: %v",
+							"Temporary error checking IPv6 address %s for pod %q in %q namespace: %v, will retry",
 							addr.Local, _pod.Object.Name, _pod.Object.Namespace, err)
 
-						return false
+						return fmt.Errorf("failed to check IPv6 address: %w", err)
 					}
 
 					if !ipv6Ready {
@@ -476,7 +490,7 @@ func getPodWhereaboutsIPs(activePods []*pod.Builder, interfaceName string) map[s
 							"IPv6 address %s not ready yet (tentative state) for pod %q in %q namespace, retrying...",
 							addr.Local, _pod.Object.Name, _pod.Object.Namespace)
 
-						return false
+						return fmt.Errorf("IPv6 address not ready (tentative state)")
 					}
 
 					klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
@@ -487,8 +501,8 @@ func getPodWhereaboutsIPs(activePods []*pod.Builder, interfaceName string) map[s
 
 			podWhereaboutsIPs[_pod.Object.Name] = networkInterface
 
-			return true
-		}).WithContext(ctx).WithPolling(15*time.Second).WithTimeout(3*time.Minute).Should(BeTrue(),
+			return nil
+		}).WithContext(ctx).WithPolling(15*time.Second).WithTimeout(3*time.Minute).Should(Succeed(),
 			"Failed to get IP addresses for pod %q in %q namespace", _pod.Object.Name, _pod.Object.Namespace)
 	}
 
