@@ -27,6 +27,10 @@ ptp_iperf3_duration_sec: 300
 ptp_locked_state_wait_sec: 0
 # Case 07 tc netem device; leave empty to skip Case 07 unless set (e.g. ens1f0).
 ptp_netem_interface: ""
+# Case 01/02: comma-separated PHC ifaces with s2 (e.g. ens1f0,ens2f0,ens3f0); empty = infer from linuxptp logs.
+ptp_wpc_sync_interfaces: ""
+# Optional; when empty defaults to last name in ptp_wpc_sync_interfaces (or inferred list).
+ptp_wpc_primary_interface: ""
 
 # BMC credentials map for tests requiring BMC access (e.g., NMIKernelCrashKdump).
 # Format for env var ECO_RANDU_NODES_CREDENTIALS_MAP: "node1,user,pass,https://bmc:443;node2,user,pass,https://bmc2:443"
