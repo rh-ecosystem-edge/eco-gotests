@@ -105,10 +105,12 @@ func WaitForHoldOverTimeouts(
 	}
 
 	thresholdQuery := metrics.ThresholdQuery{Node: metrics.Equals(nodeName)}
+	normalizer := daemonNameNormalizer(profiles)
 
 	return wait.PollUntilContextTimeout(
 		context.TODO(), 5*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			err := metrics.AssertThresholds(ctx, prometheusAPI, thresholdQuery, expected)
+			err := metrics.AssertThresholds(ctx, prometheusAPI, thresholdQuery, expected,
+				metrics.WithKeyNormalizer(normalizer))
 			if err != nil {
 				klog.V(tsparams.LogLevel).Infof("Holdover timeout assertion failed: %v", err)
 
@@ -178,10 +180,12 @@ func WaitForOldHoldOverTimeouts(
 	}
 
 	thresholdQuery := metrics.ThresholdQuery{Node: metrics.Equals(nodeName)}
+	normalizer := holdoverMapNormalizer(oldHoldovers)
 
 	return wait.PollUntilContextTimeout(
 		context.TODO(), 5*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			err := metrics.AssertThresholds(ctx, prometheusAPI, thresholdQuery, expected)
+			err := metrics.AssertThresholds(ctx, prometheusAPI, thresholdQuery, expected,
+				metrics.WithKeyNormalizer(normalizer))
 			if err != nil {
 				klog.V(tsparams.LogLevel).Infof("Holdover timeout assertion failed: %v", err)
 
@@ -190,4 +194,32 @@ func WaitForOldHoldOverTimeouts(
 
 			return true, nil
 		})
+}
+
+// daemonNameNormalizer returns a function that maps daemon-level profile names to spec-level ProfileName values. This
+// bridges the gap between Prometheus labels (which may be qualified on 4.22+) and expected maps keyed by ProfileName.
+func daemonNameNormalizer(profiles []*ProfileInfo) func(string) string {
+	return func(daemonName string) string {
+		for _, p := range profiles {
+			if p.Reference.MatchesDaemonName(daemonName) {
+				return p.Reference.ProfileName
+			}
+		}
+
+		return daemonName
+	}
+}
+
+// holdoverMapNormalizer returns a normalizer derived from a HoldOverMap's keys. It serves the same purpose as
+// [daemonNameNormalizer] but works with the ProfileReference keys available in [WaitForOldHoldOverTimeouts].
+func holdoverMapNormalizer(holdovers HoldOverMap) func(string) string {
+	return func(daemonName string) string {
+		for reference := range holdovers {
+			if reference.MatchesDaemonName(daemonName) {
+				return reference.ProfileName
+			}
+		}
+
+		return daemonName
+	}
 }
