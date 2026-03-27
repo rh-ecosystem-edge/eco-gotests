@@ -144,10 +144,10 @@ var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.Label
 				By("Deploy SR-IOV operator")
 				installSriovOperator(sriovNamespace, sriovOperatorgroup, sriovSubscription)
 
-				Eventually(sriovoperator.IsSriovDeployed,
-					time.Minute, tsparams.RetryInterval).
-					WithArguments(APIClient, SriovOcpConfig.OcpSriovOperatorNamespace).
-					ShouldNot(HaveOccurred(), "SR-IOV operator is not installed")
+			Eventually(sriovoperator.IsSriovDeployed,
+				5*time.Minute, tsparams.RetryInterval).
+				WithArguments(APIClient, SriovOcpConfig.OcpSriovOperatorNamespace).
+				ShouldNot(HaveOccurred(), "SR-IOV operator is not installed")
 
 				By("Applying SR-IOV NetworkNodePolicy")
 
@@ -241,6 +241,14 @@ func removeSriovOperator(sriovNamespace *namespace.Builder) {
 	}, time.Minute, tsparams.RetryInterval).Should(HaveOccurred(),
 		"ValidatingWebhook sriov-operator-webhook-config was not removed")
 
+	By("Removing SR-IOV network pool configs")
+
+	// SriovNetworkPoolConfigs carry a finalizer set by the operator controller.
+	// They must be deleted while the operator is still running; otherwise the
+	// finalizer can never be removed and the namespace gets stuck in Terminating.
+	err = sriov.CleanAllPoolConfigs(APIClient, SriovOcpConfig.SriovOperatorNamespace)
+	Expect(err).ToNot(HaveOccurred(), "Failed to clean SR-IOV network pool configs")
+
 	By("Removing SR-IOV namespace")
 
 	err = sriovNamespace.DeleteAndWait(tsparams.DefaultTimeout)
@@ -275,6 +283,22 @@ func installSriovOperator(sriovNamespace *namespace.Builder,
 		sriovSubscription.Definition.Spec.Package).Create()
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to create SR-IOV Subscription %s", sriovSubscription.Definition.Name))
+
+	By("Waiting for SR-IOV operator CSV to succeed")
+
+	// Mirror deploy_cluster.sh's create_default_soc: wait for CSV Succeeded before
+	// creating SriovOperatorConfig so the operator controller is up and can handle it.
+	Eventually(func() bool {
+		csvList, err := olm.ListClusterServiceVersion(APIClient, sriovNamespace.Definition.Name)
+		if err != nil || len(csvList) == 0 {
+			return false
+		}
+
+		succeeded, err := csvList[0].IsSuccessful()
+
+		return err == nil && succeeded
+	}, 5*time.Minute, tsparams.RetryInterval).Should(BeTrue(),
+		"SR-IOV operator CSV did not reach Succeeded phase within timeout")
 
 	By("Creating SR-IOV operator default configuration")
 
