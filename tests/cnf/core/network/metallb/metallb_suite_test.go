@@ -10,7 +10,6 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/metallb/internal/metallbenv"
@@ -51,7 +50,7 @@ var _ = BeforeSuite(func() {
 
 	By("Checking if cluster is SNO (Single Node OpenShift)")
 
-	tests.IsSNO, err = netenv.IsSNOCluster(APIClient)
+	tests.IsSNO, err = cluster.IsSNOCluster(APIClient)
 	Expect(err).ToNot(HaveOccurred(), "Failed to check if cluster is SNO")
 
 	By("Verifying if metalLb tests can be executed on given cluster")

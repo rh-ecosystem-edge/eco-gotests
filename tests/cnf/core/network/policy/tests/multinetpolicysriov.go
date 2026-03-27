@@ -16,7 +16,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/ipaddr"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/policy/internal/tsparams"
@@ -54,7 +53,7 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 	BeforeAll(func() {
 		By("Checking if cluster is SNO")
 
-		isSNO, err := netenv.IsSNOCluster(APIClient)
+		isSNO, err := cluster.IsSNOCluster(APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to check if cluster is SNO")
 
 		if isSNO {

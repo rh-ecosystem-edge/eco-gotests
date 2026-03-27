@@ -59,7 +59,7 @@ var _ = Describe("nftables", Ordered, Label(tsparams.LabelNftablesTestCases), Co
 
 		var isSNO bool
 
-		isSNO, err = netenv.IsSNOCluster(APIClient)
+		isSNO, err = cluster.IsSNOCluster(APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to check if cluster is SNO")
 
 		if isSNO {
