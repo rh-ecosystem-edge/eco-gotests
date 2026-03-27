@@ -144,10 +144,10 @@ var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.Label
 				By("Deploy SR-IOV operator")
 				installSriovOperator(sriovNamespace, sriovOperatorgroup, sriovSubscription)
 
-			Eventually(sriovoperator.IsSriovDeployed,
-				5*time.Minute, tsparams.RetryInterval).
-				WithArguments(APIClient, SriovOcpConfig.OcpSriovOperatorNamespace).
-				ShouldNot(HaveOccurred(), "SR-IOV operator is not installed")
+				Eventually(sriovoperator.IsSriovDeployed,
+					5*time.Minute, tsparams.RetryInterval).
+					WithArguments(APIClient, SriovOcpConfig.OcpSriovOperatorNamespace).
+					ShouldNot(HaveOccurred(), "SR-IOV operator is not installed")
 
 				By("Applying SR-IOV NetworkNodePolicy")
 
