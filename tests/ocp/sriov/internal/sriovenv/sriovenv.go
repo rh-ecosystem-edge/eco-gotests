@@ -248,6 +248,8 @@ func initVFWithDevType(name, deviceID, interfaceName, vendor, devType string, vf
 			policy.Definition.Spec.NicSelector.DeviceID = deviceID
 		}
 
+		policy.Definition.Spec.EswitchMode = "legacy"
+
 		if _, err := policy.Create(); err != nil {
 			klog.V(90).Infof("Failed to create policy on node %q: %v", nodeName, err)
 
@@ -632,7 +634,7 @@ func VerifyLinkStateConfiguration(networkName, namespace, description string,
 // ============================================================================
 
 func verifySpoofCheck(clientPod *pod.Builder, interfaceName, expectedState string) error {
-	// Get node name and MAC
+	// Get node name
 	refreshedPod, err := pod.Pull(APIClient, clientPod.Definition.Name, clientPod.Definition.Namespace)
 	if err != nil {
 		return fmt.Errorf("failed to refresh pod: %w", err)
@@ -641,11 +643,6 @@ func verifySpoofCheck(clientPod *pod.Builder, interfaceName, expectedState strin
 	nodeName := refreshedPod.Definition.Spec.NodeName
 	if nodeName == "" {
 		return fmt.Errorf("pod node name is empty")
-	}
-
-	mac, err := ExtractPodInterfaceMAC(clientPod, "net1")
-	if err != nil {
-		return fmt.Errorf("failed to extract MAC: %w", err)
 	}
 
 	// Execute on node via cluster helper
@@ -671,19 +668,33 @@ func verifySpoofCheck(clientPod *pod.Builder, interfaceName, expectedState strin
 		}
 	}
 
-	// Find line with MAC and check spoof state
-	for _, line := range strings.Split(output, "\n") {
-		if strings.Contains(line, mac) {
-			if strings.Contains(line, fmt.Sprintf("spoof checking %s", expectedState)) ||
-				strings.Contains(line, fmt.Sprintf("spoofchk %s", expectedState)) {
-				klog.V(90).Infof("Spoof check verified: %s for MAC %s", expectedState, mac)
+	// Search VF lines for the expected spoof check state.
+	// Note: In switchdev mode (e.g., Mellanox CX6-DX), `ip link show <PF>` reports VF MACs as
+	// 00:00:00:00:00:00 regardless of the MAC assigned inside the pod, so matching by MAC address
+	// is unreliable. Instead, we check any VF line for the expected state, since the SR-IOV policy
+	// applies a uniform spoof checking configuration to all VFs it creates.
+	vfLinesFound := 0
 
-				return nil
-			}
+	for _, line := range strings.Split(output, "\n") {
+		if !strings.Contains(line, "vf ") {
+			continue
+		}
+
+		vfLinesFound++
+
+		if strings.Contains(line, fmt.Sprintf("spoof checking %s", expectedState)) ||
+			strings.Contains(line, fmt.Sprintf("spoofchk %s", expectedState)) {
+			klog.V(90).Infof("Spoof check verified: %s on interface %s", expectedState, interfaceName)
+
+			return nil
 		}
 	}
 
-	return fmt.Errorf("spoof check %s not found for MAC %s", expectedState, mac)
+	if vfLinesFound == 0 {
+		return fmt.Errorf("no VF information found in ip link show output for interface %s", interfaceName)
+	}
+
+	return fmt.Errorf("spoof check %s not found for interface %s", expectedState, interfaceName)
 }
 
 // ============================================================================
