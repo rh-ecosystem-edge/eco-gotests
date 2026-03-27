@@ -16,7 +16,7 @@ func ShellQuoteForNsenter(shellCmd string) string {
 	return strings.ReplaceAll(shellCmd, `'`, `'\''`)
 }
 
-// ShellQuoteArg wraps s in single quotes for safe embedding in POSIX shell words (handles ' as '\”).
+// ShellQuoteArg wraps s in single quotes for safe embedding in POSIX shell words (escapes ' as '\'').
 func ShellQuoteArg(s string) string {
 	return `'` + strings.ReplaceAll(s, `'`, `'\''`) + `'`
 }
