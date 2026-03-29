@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"os"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -99,6 +100,14 @@ var _ = Describe("Neuron vLLM Inference Tests", Ordered, Label(params.Label), La
 		})
 
 		AfterAll(func() {
+			if os.Getenv("ECO_SKIP_VLLM_CLEANUP") == "true" {
+				klog.V(params.NeuronLogLevel).Info(
+					"Skipping vLLM cleanup (ECO_SKIP_VLLM_CLEANUP=true), " +
+						"workload stays running for subsequent metric tests")
+
+				return
+			}
+
 			By("Cleaning up vLLM test resources")
 
 			nsBuilder := namespace.NewBuilder(APIClient, tsparams.VLLMTestNamespace)
