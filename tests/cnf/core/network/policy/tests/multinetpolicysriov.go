@@ -8,8 +8,10 @@ import (
 	multinetpolicyapiv1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	operatorv1 "github.com/openshift/api/operator/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/daemonset"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/network"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/networkpolicy"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
@@ -24,6 +26,19 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+)
+
+const (
+	// multiNetworkPolicyDisableStabilizationDelay is waited before toggling MultiNetworkPolicy off so the
+	// network operator can finish reconciling after policy enforcement before the client updates the flag.
+	multiNetworkPolicyDisableStabilizationDelay = 30 * time.Second
+	// multiNetworkPolicyDisableRolloutTimeout is the max wait for CNO to finish after disabling
+	// MultiNetworkPolicy (Progressing=False + Available=True).
+	multiNetworkPolicyDisableRolloutTimeout = 20 * time.Minute
+	// multiNetworkPolicyPostDisableTrafficWait is used after the feature is off: network.operator can report
+	// ready before node-level Multus policy enforcement stops, so traffic checks need a longer Eventually.
+	multiNetworkPolicyPostDisableTrafficWait = 5 * time.Minute
+	multiNetworkPolicyPostDisableTrafficPoll = 10 * time.Second
 )
 
 var (
@@ -347,16 +362,16 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 			enableMultiNetworkPolicy(false)
 
 			By("Traffic verification with MultiNetworkPolicy disabled")
-			// All traffic is accepted and there is no any policy because feature is off
+			// All traffic is accepted; allow extra time because enforcement on nodes can lag behind network.operator.
 			Eventually(func() error {
 				return runTraffic(firstClientPod, ipaddr.RemovePrefix(serverPodIP), tcpProtocol, port5001)
-			}, tsparams.WaitTrafficTimeout, tsparams.RetryTrafficInterval).ShouldNot(HaveOccurred(),
+			}, multiNetworkPolicyPostDisableTrafficWait, multiNetworkPolicyPostDisableTrafficPoll).ShouldNot(HaveOccurred(),
 				fmt.Sprintf("pod %s can NOT reach %s with port %d",
 					firstClientPod.Definition.Name, serverPod.Definition.Name, port5001))
 
 			Eventually(func() error {
 				return runTraffic(secondClientPod, ipaddr.RemovePrefix(serverPodIP), tcpProtocol, port5003)
-			}, tsparams.WaitTrafficTimeout, tsparams.RetryTrafficInterval).ShouldNot(HaveOccurred(),
+			}, multiNetworkPolicyPostDisableTrafficWait, multiNetworkPolicyPostDisableTrafficPoll).ShouldNot(HaveOccurred(),
 				fmt.Sprintf("pod %s can NOT reach %s with port %d",
 					secondClientPod.Definition.Name, serverPod.Definition.Name, port5003))
 
@@ -712,14 +727,88 @@ func runTraffic(clientPod *pod.Builder, serverIP, protocol string, port int) err
 	return nil
 }
 
+const multiNetworkPolicyConditionPollInterval = 5 * time.Second
+
+// waitForNetworkOperatorDisableRolloutComplete waits until CNO has applied the disable: spec is false,
+// Progressing=False, Available=True. If status.observedGeneration is populated (>0), it must catch up to
+// metadata.generation; some clusters leave observedGeneration at 0, so we skip that check then.
+// CNO does not always set Progressing=True when disabling MultiNetworkPolicy, so we do not wait for that.
+func waitForNetworkOperatorDisableRolloutComplete(builder *network.OperatorBuilder) {
+	Eventually(func() error {
+		n, err := builder.Get()
+		if err != nil {
+			return err
+		}
+
+		if n.Spec.UseMultiNetworkPolicy == nil || *n.Spec.UseMultiNetworkPolicy {
+			return fmt.Errorf("spec useMultiNetworkPolicy is not false yet")
+		}
+
+		if n.Status.ObservedGeneration > 0 && n.Status.ObservedGeneration < n.Generation {
+			return fmt.Errorf("observedGeneration %d < generation %d", n.Status.ObservedGeneration, n.Generation)
+		}
+
+		var progressingFalse, availableTrue bool
+
+		for _, c := range n.Status.Conditions {
+			switch c.Type {
+			case operatorv1.OperatorStatusTypeProgressing:
+				progressingFalse = c.Status == operatorv1.ConditionFalse
+			case operatorv1.OperatorStatusTypeAvailable:
+				availableTrue = c.Status == operatorv1.ConditionTrue
+			}
+		}
+
+		if !progressingFalse {
+			return fmt.Errorf("Progressing is not False yet")
+		}
+
+		if !availableTrue {
+			return fmt.Errorf("Available is not True yet")
+		}
+
+		return nil
+	}, multiNetworkPolicyDisableRolloutTimeout, multiNetworkPolicyConditionPollInterval).Should(Succeed())
+}
+
+// disableMultiNetworkPolicyWithLongWait turns off UseMultiNetworkPolicy and waits for CNO rollout using
+// Eventually (not eco-goinfra SetMultiNetworkPolicy), which assumes Progressing=True and can fail when
+// disabling this feature.
+func disableMultiNetworkPolicyWithLongWait(clusterNetwork *network.OperatorBuilder) *network.OperatorBuilder {
+	netObj, err := clusterNetwork.Get()
+	Expect(err).ToNot(HaveOccurred(), "Failed to get network.operator object")
+
+	if netObj.Spec.UseMultiNetworkPolicy != nil && !*netObj.Spec.UseMultiNetworkPolicy {
+		return clusterNetwork
+	}
+
+	clusterNetwork.Definition = netObj
+	f := false
+	clusterNetwork.Definition.Spec.UseMultiNetworkPolicy = &f
+
+	updated, err := clusterNetwork.Update()
+	Expect(err).ToNot(HaveOccurred(), "Failed to update network.operator to disable MultiNetworkPolicy")
+
+	By("Waiting for network.operator to finish applying MultiNetworkPolicy disable")
+	waitForNetworkOperatorDisableRolloutComplete(updated)
+
+	return updated
+}
+
 func enableMultiNetworkPolicy(status bool) {
 	By(fmt.Sprintf("Configuring MultiNetworkPolicy mode %v", status))
 
 	clusterNetwork, err := cluster.GetOCPNetworkOperatorConfig(APIClient)
 	Expect(err).ToNot(HaveOccurred(), "Failed to collect network.operator object")
 
-	clusterNetwork, err = clusterNetwork.SetMultiNetworkPolicy(status, 20*time.Minute)
-	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to set MultiNetworkPolicy mode %v", status))
+	if !status {
+		By("Waiting before disabling MultiNetworkPolicy to allow the cluster network operator to stabilize")
+		time.Sleep(multiNetworkPolicyDisableStabilizationDelay)
+		clusterNetwork = disableMultiNetworkPolicyWithLongWait(clusterNetwork)
+	} else {
+		clusterNetwork, err = clusterNetwork.SetMultiNetworkPolicy(status, 20*time.Minute)
+		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to set MultiNetworkPolicy mode %v", status))
+	}
 
 	network, err := clusterNetwork.Get()
 	Expect(err).ToNot(HaveOccurred(), "Failed to collect network.operator object")
