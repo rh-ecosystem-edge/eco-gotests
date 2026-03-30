@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -8,8 +9,10 @@ import (
 	multinetpolicyapiv1 "github.com/k8snetworkplumbingwg/multi-networkpolicy/pkg/apis/k8s.cni.cncf.io/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	operatorv1 "github.com/openshift/api/operator/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/daemonset"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/network"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/networkpolicy"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
@@ -347,16 +350,17 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 			enableMultiNetworkPolicy(false)
 
 			By("Traffic verification with MultiNetworkPolicy disabled")
-			// All traffic is accepted and there is no any policy because feature is off
+			// All traffic is accepted; use DefaultTimeout (5m) not WaitTrafficTimeout so node enforcement can
+			// catch up after network.operator reports disabled.
 			Eventually(func() error {
 				return runTraffic(firstClientPod, ipaddr.RemovePrefix(serverPodIP), tcpProtocol, port5001)
-			}, tsparams.WaitTrafficTimeout, tsparams.RetryTrafficInterval).ShouldNot(HaveOccurred(),
+			}, tsparams.DefaultTimeout, tsparams.RetryTrafficInterval).ShouldNot(HaveOccurred(),
 				fmt.Sprintf("pod %s can NOT reach %s with port %d",
 					firstClientPod.Definition.Name, serverPod.Definition.Name, port5001))
 
 			Eventually(func() error {
 				return runTraffic(secondClientPod, ipaddr.RemovePrefix(serverPodIP), tcpProtocol, port5003)
-			}, tsparams.WaitTrafficTimeout, tsparams.RetryTrafficInterval).ShouldNot(HaveOccurred(),
+			}, tsparams.DefaultTimeout, tsparams.RetryTrafficInterval).ShouldNot(HaveOccurred(),
 				fmt.Sprintf("pod %s can NOT reach %s with port %d",
 					secondClientPod.Definition.Name, serverPod.Definition.Name, port5003))
 
@@ -712,14 +716,117 @@ func runTraffic(clientPod *pod.Builder, serverIP, protocol string, port int) err
 	return nil
 }
 
+// waitForNetworkOperatorDisableRolloutComplete waits until CNO has applied the disable in spec
+// (useMultiNetworkPolicy false). If status.observedGeneration is populated (>0), it must catch up to
+// metadata.generation; some clusters leave observedGeneration at 0, so we skip that check then.
+// We then wait for the multus-networkpolicy daemonset rollout. After that we confirm spec
+// useMultiNetworkPolicy is false and Progressing is not True (False, Unknown, or absent are acceptable).
+func waitForNetworkOperatorDisableRolloutComplete(builder *network.OperatorBuilder) {
+	Eventually(func() error {
+		networkOperator, err := builder.Get()
+		if err != nil {
+			return err
+		}
+
+		if networkOperator.Spec.UseMultiNetworkPolicy == nil || *networkOperator.Spec.UseMultiNetworkPolicy {
+			return fmt.Errorf("spec useMultiNetworkPolicy is not false yet")
+		}
+
+		if networkOperator.Status.ObservedGeneration > 0 &&
+			networkOperator.Status.ObservedGeneration < networkOperator.Generation {
+			return fmt.Errorf("observedGeneration %d < generation %d",
+				networkOperator.Status.ObservedGeneration, networkOperator.Generation)
+		}
+
+		return nil
+	}, tsparams.DefaultTimeout, tsparams.RetryInterval).Should(Succeed())
+
+	By("Waiting for multus-networkpolicy daemonset rollout after MultiNetworkPolicy disable")
+	waitMultusNetworkPolicyDaemonSetReady("after MultiNetworkPolicy disable")
+
+	By("Confirming network.operator: Progressing not True and spec useMultiNetworkPolicy false")
+	Eventually(func() error {
+		networkOperator, err := builder.Get()
+		if err != nil {
+			return err
+		}
+
+		if networkOperator.Spec.UseMultiNetworkPolicy == nil || *networkOperator.Spec.UseMultiNetworkPolicy {
+			return fmt.Errorf("spec useMultiNetworkPolicy is not false yet")
+		}
+
+		for i := range networkOperator.Status.Conditions {
+			if networkOperator.Status.Conditions[i].Type == operatorv1.OperatorStatusTypeProgressing {
+				if networkOperator.Status.Conditions[i].Status == operatorv1.ConditionTrue {
+					return fmt.Errorf("operator progressing is still true")
+				}
+
+				break
+			}
+		}
+
+		return nil
+	}, tsparams.DefaultTimeout, tsparams.RetryInterval).Should(Succeed(),
+		"network.operator did not settle after MultiNetworkPolicy disable (Progressing not True, spec false)")
+}
+
+// disableMultiNetworkPolicyAndWaitForReconcile sets UseMultiNetworkPolicy to false on network.operator,
+// then waits for spec + observedGeneration and the multus-networkpolicy DaemonSet (not SetMultiNetworkPolicy,
+// which waits on Progressing first and is unreliable when turning this feature off).
+func disableMultiNetworkPolicyAndWaitForReconcile(clusterNetwork *network.OperatorBuilder) *network.OperatorBuilder {
+	netObj, err := clusterNetwork.Get()
+	Expect(err).ToNot(HaveOccurred(), "Failed to get network.operator object")
+
+	if netObj.Spec.UseMultiNetworkPolicy != nil && !*netObj.Spec.UseMultiNetworkPolicy {
+		return clusterNetwork
+	}
+
+	clusterNetwork.Definition = netObj
+	f := false
+	clusterNetwork.Definition.Spec.UseMultiNetworkPolicy = &f
+
+	updated, err := clusterNetwork.Update()
+	Expect(err).ToNot(HaveOccurred(), "Failed to update network.operator to disable MultiNetworkPolicy")
+
+	By("Waiting for network.operator to finish applying MultiNetworkPolicy disable")
+	waitForNetworkOperatorDisableRolloutComplete(updated)
+
+	return updated
+}
+
 func enableMultiNetworkPolicy(status bool) {
 	By(fmt.Sprintf("Configuring MultiNetworkPolicy mode %v", status))
 
 	clusterNetwork, err := cluster.GetOCPNetworkOperatorConfig(APIClient)
 	Expect(err).ToNot(HaveOccurred(), "Failed to collect network.operator object")
 
-	clusterNetwork, err = clusterNetwork.SetMultiNetworkPolicy(status, 20*time.Minute)
-	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to set MultiNetworkPolicy mode %v", status))
+	if !status {
+		By("Waiting for network.operator to reconcile current generation before disabling MultiNetworkPolicy")
+		Eventually(func() error {
+			networkOperator, err := clusterNetwork.Get()
+			if err != nil {
+				return err
+			}
+
+			if networkOperator.Spec.UseMultiNetworkPolicy == nil || !*networkOperator.Spec.UseMultiNetworkPolicy {
+				return nil
+			}
+
+			if networkOperator.Status.ObservedGeneration > 0 &&
+				networkOperator.Status.ObservedGeneration < networkOperator.Generation {
+				return fmt.Errorf("observedGeneration %d < generation %d",
+					networkOperator.Status.ObservedGeneration, networkOperator.Generation)
+			}
+
+			return nil
+		}, tsparams.DefaultTimeout, tsparams.RetryInterval).Should(Succeed(),
+			"network.operator did not reconcile before MultiNetworkPolicy disable")
+
+		clusterNetwork = disableMultiNetworkPolicyAndWaitForReconcile(clusterNetwork)
+	} else {
+		clusterNetwork, err = clusterNetwork.SetMultiNetworkPolicy(status, tsparams.DefaultTimeout)
+		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to set MultiNetworkPolicy mode %v", status))
+	}
 
 	network, err := clusterNetwork.Get()
 	Expect(err).ToNot(HaveOccurred(), "Failed to collect network.operator object")
@@ -727,20 +834,32 @@ func enableMultiNetworkPolicy(status bool) {
 		"Failed network.operator UseMultiNetworkPolicy flag is not in expected state")
 
 	if status {
-		Eventually(func() error {
-			multusDs, err := daemonset.Pull(APIClient, tsparams.MultiNetworkPolicyDSName, NetConfig.MultusNamesapce)
-			if err != nil {
-				return err
-			}
-
-			if multusDs.IsReady(10 * time.Second) {
-				return nil
-			}
-
-			return fmt.Errorf("DS is not ready")
-		}, tsparams.WaitTimeout, tsparams.RetryInterval).ShouldNot(HaveOccurred(),
-			"Failed MultiNetworkPolicy daemonSet is not ready")
+		By("Waiting for multus-networkpolicy daemonset with MultiNetworkPolicy enabled")
+		waitMultusNetworkPolicyDaemonSetReady("with MultiNetworkPolicy enabled")
 	}
+}
+
+// waitMultusNetworkPolicyDaemonSetReady waits until the multus-networkpolicy daemonset is ready (rollout/reload).
+// Same pattern as deleteDaemonSetAndWaitForNewDaemonSet in
+// tests/cnf/core/network/sriov/tests/webhook-matchConditions.go (Eventually + Pull + IsReady).
+func waitMultusNetworkPolicyDaemonSetReady(contextMsg string) {
+	dsName := tsparams.MultiNetworkPolicyDSName
+	ns := NetConfig.MultusNamesapce
+
+	Eventually(func() error {
+		pulledDs, err := daemonset.Pull(APIClient, dsName, ns)
+		if err != nil {
+			return err
+		}
+
+		ready := pulledDs.IsReady(5 * time.Second)
+		if !ready {
+			return errors.New("multus-networkpolicy daemonset not yet ready")
+		}
+
+		return nil
+	}, tsparams.WaitTimeout, tsparams.RetryInterval).Should(BeNil(),
+		fmt.Sprintf("DaemonSet %s is not yet ready %s", dsName, contextMsg))
 }
 
 func defineClientCMD(protocol, serverIP string) []string {
