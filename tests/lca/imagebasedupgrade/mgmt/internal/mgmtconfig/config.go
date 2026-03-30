@@ -21,6 +21,7 @@ type MGMTConfig struct {
 	ExtraManifests       bool   `envconfig:"ECO_LCA_IBU_MGMT_EXTRA_MANIFESTS" default:"true"`
 	AdditionalNTPSources string `envconfig:"ECO_LCA_IBU_MGMT_ADDITIONAL_NTP_SOURCES" default:""`
 	StateTransitions     bool   `envconfig:"ECO_LCA_IBU_MGMT_STATE_TRANSITIONS" default:"false"`
+	SecondUpgrade        bool   `envconfig:"ECO_LCA_IBU_MGMT_SECOND_UPGRADE" default:"false"`
 }
 
 // NewMGMTConfig returns instance of MGMTConfig type.
