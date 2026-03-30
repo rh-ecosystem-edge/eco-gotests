@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"os"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -126,35 +127,40 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.Label), Label(par
 				Expect(err).ToNot(HaveOccurred(), "Failed to create metrics test namespace")
 			}
 
-			By("Deploying helper workload to activate Neuron runtime")
+			if os.Getenv("ECO_SKIP_VLLM_CLEANUP") == "true" {
+				klog.V(params.NeuronLogLevel).Info(
+					"vLLM workload kept alive (ECO_SKIP_VLLM_CLEANUP=true), skipping helper deployment")
+			} else {
+				By("Deploying helper workload to activate Neuron runtime")
 
-			neuronNodes, err := check.GetNeuronNodes(APIClient)
-			Expect(err).ToNot(HaveOccurred(), "Failed to get Neuron nodes")
-			Expect(len(neuronNodes)).To(BeNumerically(">", 0), "No Neuron nodes found")
+				neuronNodes, err := check.GetNeuronNodes(APIClient)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get Neuron nodes")
+				Expect(len(neuronNodes)).To(BeNumerically(">", 0), "No Neuron nodes found")
 
-			workloadPod := do.CreateTestWorkloadPod(
-				tsparams.MetricsWorkloadPodName,
-				tsparams.MetricsTestNamespace,
-				neuronNodes[0].Object.Name,
-				tsparams.MetricsWorkloadContainerName,
-				tsparams.MetricsWorkloadLabels,
-			)
+				workloadPod := do.CreateTestWorkloadPod(
+					tsparams.MetricsWorkloadPodName,
+					tsparams.MetricsTestNamespace,
+					neuronNodes[0].Object.Name,
+					tsparams.MetricsWorkloadContainerName,
+					tsparams.MetricsWorkloadLabels,
+				)
 
-			_, err = APIClient.CoreV1Interface.Pods(tsparams.MetricsTestNamespace).Create(
-				context.Background(), workloadPod, metav1.CreateOptions{})
-			if !apierrors.IsAlreadyExists(err) {
-				Expect(err).ToNot(HaveOccurred(), "Failed to create helper workload pod")
+				_, err = APIClient.CoreV1Interface.Pods(tsparams.MetricsTestNamespace).Create(
+					context.Background(), workloadPod, metav1.CreateOptions{})
+				if !apierrors.IsAlreadyExists(err) {
+					Expect(err).ToNot(HaveOccurred(), "Failed to create helper workload pod")
+				}
+
+				By("Waiting for helper workload to be running")
+
+				Eventually(func() bool {
+					healthy, checkErr := check.PodHealthy(
+						APIClient, tsparams.MetricsWorkloadPodName, tsparams.MetricsTestNamespace)
+
+					return checkErr == nil && healthy
+				}, tsparams.WorkloadStartupTimeout, 10*time.Second).Should(BeTrue(),
+					"Helper workload pod should be running")
 			}
-
-			By("Waiting for helper workload to be running")
-
-			Eventually(func() bool {
-				healthy, checkErr := check.PodHealthy(
-					APIClient, tsparams.MetricsWorkloadPodName, tsparams.MetricsTestNamespace)
-
-				return checkErr == nil && healthy
-			}, tsparams.WorkloadStartupTimeout, 10*time.Second).Should(BeTrue(),
-				"Helper workload pod should be running")
 		})
 
 		AfterAll(func() {
