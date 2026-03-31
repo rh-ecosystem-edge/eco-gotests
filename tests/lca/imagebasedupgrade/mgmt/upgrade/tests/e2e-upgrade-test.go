@@ -527,6 +527,12 @@ var _ = Describe(
 				Skip("The y-stream version of the seed is 2 releases apart from the target")
 			}
 
+			By("Check if second upgrade test is enabled")
+
+			if MGMTConfig.SecondUpgrade {
+				Skip("Second upgrade test is enabled")
+			}
+
 			upgrade()
 		})
 
@@ -553,6 +559,28 @@ var _ = Describe(
 			originalYInt, _ := strconv.Atoi(strings.Split(originalClusterVersionXY, ".")[1])
 			if seedYInt-originalYInt != 2 {
 				Skip("The y-stream version of the seed is not 2 releases apart from the target")
+			}
+
+			upgrade()
+		})
+
+		It("upgrades the connected cluster for the second time", reportxml.ID("73104"), func() {
+			By("Check if second upgrade test is enabled")
+
+			if !MGMTConfig.SecondUpgrade {
+				Skip("Second upgrade test is not enabled")
+			}
+
+			By("Check if the target cluster is connected")
+
+			connected, err := cluster.Connected(APIClient)
+
+			if !connected {
+				Skip("Target cluster is disconnected")
+			}
+
+			if err != nil {
+				Skip(fmt.Sprintf("Encountered an error while getting cluster connection info: %s", err.Error()))
 			}
 
 			upgrade()
