@@ -315,8 +315,12 @@ func enableEthernetInterfaceWithIP(policyName, nodeName, interfaceName string) {
 //nolint:unparam
 func createConfigMapWithUnnumbered(localAS, remoteAS int, interfaceName string,
 	externalAdvertisedIPv4Routes, externalAdvertisedIPv6Routes []string, multiHop, bfd bool) *configmap.Builder {
-	frrBFDConfig := frr.DefineBGPConfigWithUnnumbered(localAS, remoteAS, interfaceName,
-		externalAdvertisedIPv4Routes, externalAdvertisedIPv6Routes, multiHop, bfd)
+	frrBFDConfig, err := frrconfig.RenderFRRConfigWith(
+		frrconfig.BGPParamsForUnnumbered(
+			localAS, interfaceName, remoteAS, tsparams.BGPPassword, bfd, multiHop,
+			externalAdvertisedIPv4Routes, externalAdvertisedIPv6Routes))
+	Expect(err).ToNot(HaveOccurred(), "Failed to render FRR config")
+
 	configMapData := frrconfig.DefineBaseConfig(frrconfig.DaemonsFile, frrBFDConfig, "")
 	frrConfigMap, err := configmap.NewBuilder(APIClient, "frr-external-configmap", tsparams.TestNamespaceName).
 		WithData(configMapData).Create()

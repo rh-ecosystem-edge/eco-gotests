@@ -439,14 +439,14 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 				hub0BRstaticIPAnnotation := frrconfig.CreateStaticIPAnnotations(frrconfig.ExternalMacVlanNADName,
 					tsparams.HubMacVlanNADName,
 					[]string{fmt.Sprintf("%s/%s", ipv4metalLbIPList[0], netparam.IPSubnet24)},
-					[]string{fmt.Sprintf("%s/%s", hubIPv4ExternalAddresses[0], netparam.IPSubnet24)})
+					[]string{fmt.Sprintf("%s/%s", hubIPv4ExternalAddresses[1], netparam.IPSubnet24)})
 
 				By("Creating static ip annotation for hub1")
 
 				hub1BRstaticIPAnnotation := frrconfig.CreateStaticIPAnnotations(frrconfig.ExternalMacVlanNADName,
 					tsparams.HubMacVlanNADName,
 					[]string{fmt.Sprintf("%s/%s", ipv4metalLbIPList[1], netparam.IPSubnet24)},
-					[]string{fmt.Sprintf("%s/%s", hubIPv4ExternalAddresses[1], netparam.IPSubnet24)})
+					[]string{fmt.Sprintf("%s/%s", hubIPv4ExternalAddresses[0], netparam.IPSubnet24)})
 
 				By("Creating MetalLb Hub pod configMap")
 
@@ -532,14 +532,14 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 				hub0BRstaticIPAnnotation := frrconfig.CreateStaticIPAnnotations(frrconfig.ExternalMacVlanNADName,
 					tsparams.HubMacVlanNADName,
 					[]string{fmt.Sprintf("%s/%s", ipv4metalLbIPList[0], netparam.IPSubnet24)},
-					[]string{fmt.Sprintf("%s/%s", hubIPv4ExternalAddresses[0], netparam.IPSubnet24)})
+					[]string{fmt.Sprintf("%s/%s", hubIPv4ExternalAddresses[1], netparam.IPSubnet24)})
 
 				By("Creating static ip annotation for hub1")
 
 				hub1BRstaticIPAnnotation := frrconfig.CreateStaticIPAnnotations(frrconfig.ExternalMacVlanNADName,
 					tsparams.HubMacVlanNADName,
 					[]string{fmt.Sprintf("%s/%s", ipv4metalLbIPList[1], netparam.IPSubnet24)},
-					[]string{fmt.Sprintf("%s/%s", hubIPv4ExternalAddresses[1], netparam.IPSubnet24)})
+					[]string{fmt.Sprintf("%s/%s", hubIPv4ExternalAddresses[0], netparam.IPSubnet24)})
 
 				By("Creating MetalLb Hub pod configMap")
 
@@ -658,14 +658,14 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 				hub0BRStaticSecIntIPAnnotation := frrconfig.CreateStaticIPAnnotations(tsparams.HubMacVlanNADSecIntName,
 					tsparams.HubMacVlanNADName,
 					[]string{fmt.Sprintf("%s/%s", hubSecIntIPv4Addresses[0], netparam.IPSubnet24)},
-					[]string{fmt.Sprintf("%s/%s", hubIPv4ExternalAddresses[0], netparam.IPSubnet24)})
+					[]string{fmt.Sprintf("%s/%s", hubIPv4ExternalAddresses[1], netparam.IPSubnet24)})
 
 				By("Creating static ip annotation for hub1")
 
 				hub1SecIntIPAnnotation := frrconfig.CreateStaticIPAnnotations(tsparams.HubMacVlanNADSecIntName,
 					tsparams.HubMacVlanNADName,
 					[]string{fmt.Sprintf("%s/%s", hubSecIntIPv4Addresses[1], netparam.IPSubnet24)},
-					[]string{fmt.Sprintf("%s/%s", hubIPv4ExternalAddresses[1], netparam.IPSubnet24)})
+					[]string{fmt.Sprintf("%s/%s", hubIPv4ExternalAddresses[0], netparam.IPSubnet24)})
 
 				By("Creating FRR Hub pod on worker node 0")
 
@@ -900,9 +900,14 @@ func createMasterFrrPod(localAS int, frrExternalMasterIPAddress string, ipv4Node
 func createConfigMapWithStaticRoutes(
 	bgpAsn int, nodeAddrList, hubIPAddresses, externalAdvertisedIPv4Routes, externalAdvertisedIPv6Routes []string,
 	enableMultiHop, enableBFD bool) *configmap.Builder {
-	frrBFDConfig := frr.DefineBGPConfigWithStaticRouteAndNetwork(
-		bgpAsn, tsparams.LocalBGPASN, hubIPAddresses, externalAdvertisedIPv4Routes,
-		externalAdvertisedIPv6Routes, netcmd.RemovePrefixFromIPList(nodeAddrList), enableMultiHop, enableBFD)
+	frrBFDConfig, err := frrconfig.RenderFRRConfigWith(
+		frrconfig.BGPParamsDualStackFamilyWithNetworksAndStaticRoutes(
+			bgpAsn, netcmd.RemovePrefixFromIPList(nodeAddrList), tsparams.LocalBGPASN, tsparams.BGPPassword,
+			enableBFD, enableMultiHop,
+			externalAdvertisedIPv4Routes, externalAdvertisedIPv6Routes,
+			frrconfig.BuildStaticRoutes(netcmd.RemovePrefixFromIPList(nodeAddrList), hubIPAddresses)))
+	Expect(err).ToNot(HaveOccurred(), "Failed to render FRR config")
+
 	configMapData := frrconfig.DefineBaseConfig(frrconfig.DaemonsFile, frrBFDConfig, "")
 	masterConfigMap, err := configmap.NewBuilder(APIClient, "frr-master-node-config", tsparams.TestNamespaceName).
 		WithData(configMapData).Create()

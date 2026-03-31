@@ -377,26 +377,25 @@ func createConfigMapWithNetwork(
 	ipStack string,
 	bgpAsn int,
 	nodeAddrList, externalAdvertisedRoutes []string) *configmap.Builder {
-	var frrBFDConfig string
+	var (
+		frrBFDConfig string
+		err          error
+	)
 
 	if ipStack == ipv6 {
-		frrBFDConfig = frr.DefineBGPConfigWithIPv6Network(
-			bgpAsn,
-			tsparams.LocalBGPASN,
-			externalAdvertisedRoutes,
-			netcmd.RemovePrefixFromIPList(nodeAddrList),
-			false,
-			false,
-		)
+		frrBFDConfig, err = frrconfig.RenderFRRConfigWith(
+			frrconfig.BGPParamsIPv6FamilyWithNetworks(
+				bgpAsn, netcmd.RemovePrefixFromIPList(nodeAddrList),
+				tsparams.LocalBGPASN, tsparams.BGPPassword, false, false,
+				externalAdvertisedRoutes))
+		Expect(err).ToNot(HaveOccurred(), "Failed to render FRR config")
 	} else {
-		frrBFDConfig = frr.DefineBGPConfigWithIPv4Network(
-			bgpAsn,
-			tsparams.LocalBGPASN,
-			externalAdvertisedRoutes,
-			netcmd.RemovePrefixFromIPList(nodeAddrList),
-			false,
-			false,
-		)
+		frrBFDConfig, err = frrconfig.RenderFRRConfigWith(
+			frrconfig.BGPParamsIPv4FamilyWithNetworks(
+				bgpAsn, netcmd.RemovePrefixFromIPList(nodeAddrList),
+				tsparams.LocalBGPASN, tsparams.BGPPassword, false, false,
+				externalAdvertisedRoutes))
+		Expect(err).ToNot(HaveOccurred(), "Failed to render FRR config")
 	}
 
 	configMapData := frrconfig.DefineBaseConfig(frrconfig.DaemonsFile, frrBFDConfig, "")
