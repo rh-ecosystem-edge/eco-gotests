@@ -1,8 +1,11 @@
 package rdscorecommon
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -64,6 +67,142 @@ func VerifyNMStateInstanceExists(ctx SpecContext) {
 		fmt.Sprintf("Failed to pull in NMState instance %q", rdscoreparams.NMStateInstanceName))
 }
 
+// dumpNNCPDetails dumps comprehensive diagnostic information for a failed NNCP.
+// It returns a formatted string containing policy status, generation, conditions, and desired state configuration.
+func dumpNNCPDetails(nncp *nmstate.PolicyBuilder) string {
+	var details strings.Builder
+
+	fmt.Fprintf(&details, "\n=== NNCP: %s ===\n", nncp.Definition.Name)
+	fmt.Fprintf(&details, "  Namespace: %s\n", nncp.Definition.Namespace)
+	fmt.Fprintf(&details, "  Generation: %d\n", nncp.Object.Generation)
+	fmt.Fprintf(&details, "  Created: %s\n", nncp.Object.CreationTimestamp.Format(time.RFC3339))
+
+	// Node selector
+	if len(nncp.Definition.Spec.NodeSelector) > 0 {
+		fmt.Fprintf(&details, "  NodeSelector: %v\n", nncp.Definition.Spec.NodeSelector)
+	}
+
+	// Max unavailable
+	if nncp.Definition.Spec.MaxUnavailable != nil {
+		fmt.Fprintf(&details, "  MaxUnavailable: %v\n", nncp.Definition.Spec.MaxUnavailable)
+	}
+
+	// Conditions with full details
+	details.WriteString("  Conditions:\n")
+
+	if len(nncp.Object.Status.Conditions) == 0 {
+		details.WriteString("    (No conditions reported)\n")
+	} else {
+		for _, condition := range nncp.Object.Status.Conditions {
+			fmt.Fprintf(&details, "    - Type: %s\n", condition.Type)
+			fmt.Fprintf(&details, "      Status: %s\n", condition.Status)
+
+			if condition.Reason != "" {
+				fmt.Fprintf(&details, "      Reason: %s\n", condition.Reason)
+			}
+
+			if condition.Message != "" {
+				fmt.Fprintf(&details, "      Message: %s\n", condition.Message)
+			}
+
+			if !condition.LastTransitionTime.IsZero() {
+				fmt.Fprintf(&details, "      LastTransitionTime: %s\n",
+					condition.LastTransitionTime.Format(time.RFC3339))
+			}
+
+			if !condition.LastHeartbeatTime.IsZero() {
+				fmt.Fprintf(&details, "      LastHeartbeatTime: %s\n",
+					condition.LastHeartbeatTime.Format(time.RFC3339))
+			}
+		}
+	}
+
+	// Dump desired state configuration (helpful for understanding what was being applied)
+	if len(nncp.Definition.Spec.DesiredState.Raw) > 0 {
+		details.WriteString("  DesiredState:\n")
+
+		var prettyJSON bytes.Buffer
+		if err := json.Indent(&prettyJSON, nncp.Definition.Spec.DesiredState.Raw, "    ", "  "); err == nil {
+			fmt.Fprintf(&details, "%s\n", prettyJSON.String())
+		} else {
+			// Fallback to raw if JSON formatting fails
+			fmt.Fprintf(&details, "    (Raw) %s\n", string(nncp.Definition.Spec.DesiredState.Raw))
+		}
+	}
+
+	return details.String()
+}
+
+// buildFailureReport builds a comprehensive failure report for NNCP validation failures.
+// It aggregates diagnostics for all non-available, degraded, and progressing NNCPs.
+func buildFailureReport(
+	nncps []*nmstate.PolicyBuilder,
+	nonAvailableNNCP map[string]string,
+	degradedNNCP map[string]string,
+	progressingNNCP map[string]string) string {
+	var report strings.Builder
+
+	if len(nonAvailableNNCP) > 0 {
+		report.WriteString("\n\n========================================\n")
+		fmt.Fprintf(&report, "NON-AVAILABLE NNCPs: %d\n", len(nonAvailableNNCP))
+		report.WriteString("========================================\n")
+
+		for policyName, message := range nonAvailableNNCP {
+			fmt.Fprintf(&report, "\nPolicy: %s\n", policyName)
+			fmt.Fprintf(&report, "Condition Message: %s\n", message)
+
+			// Find and dump the policy details
+			for _, nncp := range nncps {
+				if nncp.Definition.Name == policyName {
+					report.WriteString(dumpNNCPDetails(nncp))
+
+					break
+				}
+			}
+		}
+	}
+
+	if len(degradedNNCP) > 0 {
+		report.WriteString("\n\n========================================\n")
+		fmt.Fprintf(&report, "DEGRADED NNCPs: %d\n", len(degradedNNCP))
+		report.WriteString("========================================\n")
+
+		for policyName, message := range degradedNNCP {
+			fmt.Fprintf(&report, "\nPolicy: %s\n", policyName)
+			fmt.Fprintf(&report, "Condition Message: %s\n", message)
+
+			for _, nncp := range nncps {
+				if nncp.Definition.Name == policyName {
+					report.WriteString(dumpNNCPDetails(nncp))
+
+					break
+				}
+			}
+		}
+	}
+
+	if len(progressingNNCP) > 0 {
+		report.WriteString("\n\n========================================\n")
+		fmt.Fprintf(&report, "PROGRESSING NNCPs: %d\n", len(progressingNNCP))
+		report.WriteString("========================================\n")
+
+		for policyName, message := range progressingNNCP {
+			fmt.Fprintf(&report, "\nPolicy: %s\n", policyName)
+			fmt.Fprintf(&report, "Condition Message: %s\n", message)
+
+			for _, nncp := range nncps {
+				if nncp.Definition.Name == policyName {
+					report.WriteString(dumpNNCPDetails(nncp))
+
+					break
+				}
+			}
+		}
+	}
+
+	return report.String()
+}
+
 // VerifyAllNNCPsAreOK assert all available NNCPs are Available, not progressing and not degraded.
 func VerifyAllNNCPsAreOK(ctx SpecContext) {
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Verify NodeNetworkConfigurationPolicies are Available")
@@ -117,9 +256,34 @@ func VerifyAllNNCPsAreOK(ctx SpecContext) {
 		}
 	}
 
-	Expect(len(nonAvailableNNCP)).To(Equal(0), "There are NonAvailable NodeNetworkConfigurationPolicies")
-	Expect(len(degradedNNCP)).To(Equal(0), "There are Degraded NodeNetworkConfigurationPolicies")
-	Expect(len(nonAvailableNNCP)).To(Equal(0), "There are Progressing NodeNetworkConfigurationPolicies")
+	// Build comprehensive failure report if there are any issues
+	var failureReport string
+
+	hasFailures := len(nonAvailableNNCP) > 0 || len(degradedNNCP) > 0 || len(progressingNNCP) > 0
+
+	if hasFailures {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Info(
+			"NNCP validation failures detected - generating detailed report")
+
+		failureReport = buildFailureReport(nncps, nonAvailableNNCP, degradedNNCP, progressingNNCP)
+
+		// Log the full report
+		klog.Errorf("NNCP Validation Failed:\n%s", failureReport)
+	}
+
+	// Enhanced assertions with detailed reporting
+	Expect(len(nonAvailableNNCP)).To(Equal(0),
+		fmt.Sprintf("There are %d NonAvailable NodeNetworkConfigurationPolicies. "+
+			"See detailed report above in logs.", len(nonAvailableNNCP)))
+
+	Expect(len(degradedNNCP)).To(Equal(0),
+		fmt.Sprintf("There are %d Degraded NodeNetworkConfigurationPolicies. "+
+			"See detailed report above in logs.", len(degradedNNCP)))
+
+	// Validate progressing policies (previously this incorrectly checked nonAvailableNNCP)
+	Expect(len(progressingNNCP)).To(Equal(0),
+		fmt.Sprintf("There are %d Progressing NodeNetworkConfigurationPolicies. "+
+			"See detailed report above in logs.", len(progressingNNCP)))
 } // func VerifyNNCP (ctx SpecContext)
 
 // VerifyNMStateSuite container that contains tests for NMState verification.
