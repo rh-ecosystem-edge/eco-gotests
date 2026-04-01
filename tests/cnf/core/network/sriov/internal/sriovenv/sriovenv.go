@@ -8,7 +8,6 @@ import (
 	"time"
 
 	nadV1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
-	sriovV1 "github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
@@ -24,36 +23,54 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// ValidateSriovInterfaces checks that provided interfaces by env var exist on the nodes.
+// ActivateSCTPModuleOnWorkerNodes loads the SCTP kernel module on worker nodes when possible.
+// Used by SR-IOV suites (ipv4, ipv6, dual-stack) so tests can run without pre-configuring SCTP.
+// If modprobe fails (e.g. restricted environment), the existing lsmod check in the suites will still skip.
+func ActivateSCTPModuleOnWorkerNodes() {
+	klog.V(90).Infof("Activating SCTP module on worker nodes")
+
+	_, _ = cluster.ExecCmdWithStdout(APIClient, "modprobe sctp",
+		metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
+}
+
+// ValidateSriovInterfaces checks that the requested interfaces (from env) exist on every worker
+// in workerNodeList. This ensures "Different Node" and other multi-worker tests do not fail
+// later when scheduling on a worker that does not expose the requested PF names.
 func ValidateSriovInterfaces(workerNodeList []*nodes.Builder, requestedNumber int) error {
-	var validSriovIntefaceList []sriovV1.InterfaceExt
-
-	availableUpSriovInterfaces, err := sriov.NewNetworkNodeStateBuilder(APIClient,
-		workerNodeList[0].Definition.Name, NetConfig.SriovOperatorNamespace).GetUpNICs()
-	if err != nil {
-		return fmt.Errorf("failed get SR-IOV devices from the node %s", workerNodeList[0].Definition.Name)
-	}
-
 	requestedSriovInterfaceList, err := NetConfig.GetSriovInterfaces(requestedNumber)
 	if err != nil {
 		return err
 	}
 
-	for _, availableUpSriovInterface := range availableUpSriovInterfaces {
-		for _, requestedSriovInterface := range requestedSriovInterfaceList {
-			if availableUpSriovInterface.Name == requestedSriovInterface {
-				validSriovIntefaceList = append(validSriovIntefaceList, availableUpSriovInterface)
+	for _, worker := range workerNodeList {
+		availableUpSriovInterfaces, err := sriov.NewNetworkNodeStateBuilder(APIClient,
+			worker.Definition.Name, NetConfig.SriovOperatorNamespace).GetUpNICs()
+		if err != nil {
+			return fmt.Errorf("failed to get SR-IOV devices from node %s: %w", worker.Definition.Name, err)
+		}
+
+		var validCount int
+
+		for _, availableUpSriovInterface := range availableUpSriovInterfaces {
+			for _, requestedSriovInterface := range requestedSriovInterfaceList {
+				if availableUpSriovInterface.Name == requestedSriovInterface {
+					validCount++
+
+					break
+				}
 			}
 		}
-	}
 
-	if len(validSriovIntefaceList) < requestedNumber {
-		return fmt.Errorf("requested interfaces %v are not present on the cluster node", requestedSriovInterfaceList)
+		if validCount < requestedNumber {
+			return fmt.Errorf("requested interfaces %v are not all present on node %s (found %d of %d)",
+				requestedSriovInterfaceList, worker.Definition.Name, validCount, requestedNumber)
+		}
 	}
 
 	return nil
@@ -421,30 +438,89 @@ func CreateSriovNetworkWithStaticIPAM(name, resourceName string) error {
 	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.NADWaitTimeout)
 }
 
+// whereaboutsDualStackIPAMJSON builds Whereabouts IPAM using ipRanges (per upstream Whereabouts README):
+// two RangeConfiguration entries with "range" (CIDR) plus optional range_start/range_end.
+// Do not use "ranges"/"subnet" — they are not unmarshaled into types.IPAMConfig, so allocation returns
+// no IPs and Multus/SR-IOV reports "IPAM plugin returned missing IP config".
+// IPv4/IPv6 gateways are not passed here: a bare IPv6 gateway string is parsed as CIDR elsewhere and fails.
+func whereaboutsDualStackIPAMJSON(ipRange, ipv6Range, networkName string) string {
+	v4Start, v4End := tsparams.WhereaboutsIPv4AllocStart, tsparams.WhereaboutsIPv4AllocEnd
+	v6Start, v6End := tsparams.WhereaboutsIPv6AllocStart, tsparams.WhereaboutsIPv6AllocEnd
+
+	if ipRange == tsparams.WhereaboutsIPv4Range2 {
+		v4Start, v4End = tsparams.WhereaboutsIPv4AllocStart2, tsparams.WhereaboutsIPv4AllocEnd2
+		v6Start, v6End = tsparams.WhereaboutsIPv6AllocStart2, tsparams.WhereaboutsIPv6AllocEnd2
+	}
+
+	if networkName != "" {
+		return fmt.Sprintf(`{
+			"type": "whereabouts",
+			"ipRanges": [
+				{"range": "%s", "range_start": "%s", "range_end": "%s"},
+				{"range": "%s", "range_start": "%s", "range_end": "%s"}
+			],
+			"network_name": "%s"
+		}`, ipRange, v4Start, v4End, ipv6Range, v6Start, v6End, networkName)
+	}
+
+	return fmt.Sprintf(`{
+		"type": "whereabouts",
+		"ipRanges": [
+			{"range": "%s", "range_start": "%s", "range_end": "%s"},
+			{"range": "%s", "range_start": "%s", "range_end": "%s"}
+		]
+	}`, ipRange, v4Start, v4End, ipv6Range, v6Start, v6End)
+}
+
 // CreateSriovNetworkWithWhereaboutsIPAM creates an SR-IOV network with whereabouts IPAM for dynamic IP assignment.
 // ipRange should be in CIDR notation (e.g., "2001:100::/64" for IPv6 or "192.168.1.0/24" for IPv4).
-// gateway is the gateway address for the range.
+// gateway is used for single-stack only. Dual-stack uses ranges without gateway (ipv6Gateway is ignored).
 func CreateSriovNetworkWithWhereaboutsIPAM(
-	name, resourceName, ipRange, gateway, networkName string) error {
+	name,
+	resourceName,
+	ipRange,
+	gateway,
+	networkName,
+	ipv6Range string,
+) error {
 	klog.V(90).Infof("Creating SR-IOV network %s with whereabouts IPAM, range %s, gateway %s",
 		name, ipRange, gateway)
 
 	networkBuilder := sriov.NewNetworkBuilder(
 		APIClient, name, NetConfig.SriovOperatorNamespace,
-		tsparams.TestNamespaceName, resourceName).WithWhereaboutsIPAM(ipRange, gateway, "", networkName)
+		tsparams.TestNamespaceName, resourceName)
+
+	if ipv6Range != "" {
+		networkBuilder.Definition.Spec.IPAM = whereaboutsDualStackIPAMJSON(ipRange, ipv6Range, networkName)
+	} else {
+		networkBuilder = networkBuilder.WithWhereaboutsIPAM(ipRange, gateway, "", networkName)
+	}
 
 	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.NADWaitTimeout)
 }
 
 // CreateSriovNetworkWithVLANAndWhereabouts creates an SR-IOV network with Whereabouts IPAM and VLAN tagging.
-func CreateSriovNetworkWithVLANAndWhereabouts(name, resourceName string, vlanID uint16,
-	ipRange, gateway string) error {
+// Dual-stack uses ipRanges without gateway (ipv6Gateway is ignored, same as CreateSriovNetworkWithWhereaboutsIPAM).
+func CreateSriovNetworkWithVLANAndWhereabouts(
+	name,
+	resourceName string,
+	vlanID uint16,
+	ipRange,
+	gateway,
+	ipv6Range string,
+) error {
 	klog.V(90).Infof("Creating SR-IOV network %s with Whereabouts IPAM, VLAN %d, range %s",
 		name, vlanID, ipRange)
 
 	networkBuilder := sriov.NewNetworkBuilder(
 		APIClient, name, NetConfig.SriovOperatorNamespace,
-		tsparams.TestNamespaceName, resourceName).WithVLAN(vlanID).WithWhereaboutsIPAM(ipRange, gateway, "", "")
+		tsparams.TestNamespaceName, resourceName).WithVLAN(vlanID)
+
+	if ipv6Range != "" {
+		networkBuilder.Definition.Spec.IPAM = whereaboutsDualStackIPAMJSON(ipRange, ipv6Range, "")
+	} else {
+		networkBuilder = networkBuilder.WithWhereaboutsIPAM(ipRange, gateway, "", "")
+	}
 
 	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.NADWaitTimeout)
 }
@@ -633,6 +709,49 @@ func CreateSriovPolicy(
 	return err
 }
 
+// logPodStatusAndEventsOnCreateFailure logs pod status and namespace events when client pod creation fails.
+// This helps diagnose timeouts (e.g. Whereabouts IPAM or SR-IOV CNI not attaching in time).
+func logPodStatusAndEventsOnCreateFailure(podName, namespace string) {
+	var podObj corev1.Pod
+
+	err := APIClient.Client.Get(context.TODO(), k8sclient.ObjectKey{Namespace: namespace, Name: podName}, &podObj)
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			klog.Infof("[SR-IOV pod creation timeout] Pod %s/%s was not found (may have been deleted)", namespace, podName)
+		} else {
+			klog.Infof("[SR-IOV pod creation timeout] Failed to get pod %s/%s: %v", namespace, podName, err)
+		}
+
+		return
+	}
+
+	klog.Infof("[SR-IOV pod creation timeout] Pod %s/%s phase=%s node=%s",
+		namespace, podName, podObj.Status.Phase, podObj.Spec.NodeName)
+
+	for _, c := range podObj.Status.Conditions {
+		klog.Infof("[SR-IOV pod creation timeout]   condition: %s=%s reason=%s message=%s",
+			c.Type, c.Status, c.Reason, c.Message)
+	}
+
+	for _, cs := range podObj.Status.ContainerStatuses {
+		klog.Infof("[SR-IOV pod creation timeout]   container %s: ready=%v state=%+v",
+			cs.Name, cs.Ready, cs.State)
+	}
+
+	eventList, listErr := APIClient.Events(namespace).List(context.TODO(), metav1.ListOptions{
+		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.namespace=%s", podName, namespace),
+	})
+	if listErr != nil {
+		klog.Infof("[SR-IOV pod creation timeout] Failed to list events for %s/%s: %v", namespace, podName, listErr)
+
+		return
+	}
+
+	for _, e := range eventList.Items {
+		klog.Infof("[SR-IOV pod creation timeout]   event: %s %s %s", e.Reason, e.Type, e.Message)
+	}
+}
+
 // CreateTestClientPod creates a client pod with SR-IOV interface.
 func CreateTestClientPod(
 	name,
@@ -660,12 +779,19 @@ func CreateTestClientPod(
 		return nil, fmt.Errorf("failed to create container config: %w", err)
 	}
 
-	return pod.NewBuilder(APIClient, name, tsparams.TestNamespaceName, NetConfig.CnfNetTestContainer).
+	podBuilder, err := pod.NewBuilder(APIClient, name, tsparams.TestNamespaceName, NetConfig.CnfNetTestContainer).
 		DefineOnNode(nodeName).
 		RedefineDefaultContainer(*container).
 		WithPrivilegedFlag().
 		WithSecondaryNetwork(secNetwork).
 		CreateAndWaitUntilRunning(netparam.DefaultTimeout)
+	if err != nil {
+		logPodStatusAndEventsOnCreateFailure(name, tsparams.TestNamespaceName)
+
+		return nil, err
+	}
+
+	return podBuilder, nil
 }
 
 // CreateTestServerPod creates a server pod with testcmd listeners for TCP, UDP, SCTP, and multicast.
@@ -736,6 +862,55 @@ func WaitForServerReady(serverPod *pod.Builder, timeout time.Duration) error {
 		})
 	if err != nil {
 		return fmt.Errorf("testcmd listeners not ready on pod %s: %w", serverPod.Definition.Name, err)
+	}
+
+	return nil
+}
+
+// WaitForDualStackServerReady waits for all 6 dual-stack testcmd listeners to be ready.
+// It requires at least 6 listeners; more are accepted (e.g. an extra process from the container image).
+func WaitForDualStackServerReady(serverPod *pod.Builder, timeout time.Duration) error {
+	klog.V(90).Infof("Waiting for dual-stack server pod %s to be ready", serverPod.Definition.Name)
+
+	const minListeners = 6
+
+	err := wait.PollUntilContextTimeout(
+		context.TODO(),
+		tsparams.RetryInterval,
+		timeout,
+		true,
+		func(ctx context.Context) (bool, error) {
+			// pgrep -c returns the count of matching processes as a string (e.g. "0", "6").
+			// We expect at least minListeners once dual-stack testcmd listeners are running.
+			output, execErr := serverPod.ExecCommand([]string{"bash", "-c",
+				"pgrep -c -f 'testcmd -listen'"})
+			if execErr != nil {
+				klog.V(90).Infof("Listeners not ready on pod %s: %v", serverPod.Definition.Name, execErr)
+
+				return false, nil
+			}
+
+			countStr := strings.TrimSpace(output.String())
+
+			var count int
+
+			if _, parseErr := fmt.Sscanf(countStr, "%d", &count); parseErr != nil {
+				klog.V(90).Infof("Invalid listener count %q on pod %s", countStr, serverPod.Definition.Name)
+
+				return false, nil
+			}
+
+			if count < minListeners {
+				klog.V(90).Infof("Only %d/%d testcmd listeners ready on pod %s",
+					count, minListeners, serverPod.Definition.Name)
+
+				return false, nil
+			}
+
+			return true, nil
+		})
+	if err != nil {
+		return fmt.Errorf("dual-stack listeners not ready on pod %s: %w", serverPod.Definition.Name, err)
 	}
 
 	return nil
@@ -952,6 +1127,269 @@ func RunTrafficTest(clientPod *pod.Builder, serverIP string, mtu int) error {
 	}
 
 	return nil
+}
+
+// BuildDualStackServerCommand builds the server command for dual-stack pods that have both IPv4 and IPv6 addresses.
+// It starts listeners for both families: TCP/UDP are shared, SCTP and multicast use separate ports per family.
+func BuildDualStackServerCommand(ipv4BindIP, ipv6BindIP, interfaceName string, mtu int) []string {
+	klog.V(90).Infof("Building dual-stack server command for interface %s with MTU %d, ipv4=%q, ipv6=%q",
+		interfaceName, mtu, ipv4BindIP, ipv6BindIP)
+
+	packetSize := mtu - 100
+
+	// If both IPs are empty, discover them at runtime.
+	if ipv4BindIP == "" && ipv6BindIP == "" {
+		return buildDynamicDualStackServerCommand(interfaceName, mtu, packetSize)
+	}
+
+	ipv4McastSetup, ipv4McastGroup := buildMulticastSetup(false, interfaceName, mtu)
+	ipv6McastSetup, ipv6McastGroup := buildMulticastSetup(true, interfaceName, mtu)
+
+	listeners := fmt.Sprintf(
+		"testcmd -listen -protocol tcp -port 5001 -interface %s -mtu %d & "+
+			"testcmd -listen -protocol udp -port 5002 -interface %s -mtu %d & "+
+			"testcmd -listen -protocol sctp -port 5003 -interface %s -server %s -mtu %d & "+
+			"testcmd -listen -multicast -protocol udp -port 5004 -interface %s -server %s -mtu %d & "+
+			"testcmd -listen -protocol sctp -port %d -interface %s -server %s -mtu %d & "+
+			"testcmd -listen -multicast -protocol udp -port %d -interface %s -server %s -mtu %d & "+
+			"sleep infinity",
+		interfaceName, packetSize,
+		interfaceName, packetSize,
+		interfaceName, ipv4BindIP, packetSize,
+		interfaceName, ipv4McastGroup, packetSize,
+		tsparams.DualStackSCTPv6Port, interfaceName, ipv6BindIP, packetSize,
+		tsparams.DualStackMulticastV6Port, interfaceName, ipv6McastGroup, packetSize)
+
+	return []string{"bash", "-c", ipv4McastSetup + ipv6McastSetup + "sleep 5; " + listeners}
+}
+
+// buildDynamicDualStackServerCommand discovers both IPv4 and IPv6 addresses at runtime
+// and starts listeners for both families.
+func buildDynamicDualStackServerCommand(interfaceName string, mtu, packetSize int) []string {
+	ipv4McastSetup, ipv4McastGroup := buildMulticastSetup(false, interfaceName, mtu)
+	ipv6McastSetup, ipv6McastGroup := buildMulticastSetup(true, interfaceName, mtu)
+
+	discoverIPs := fmt.Sprintf(
+		"for _ in $(seq 1 10); do "+
+			"IPV4=$(ip -4 -o addr show %s 2>/dev/null | awk '{print $4}' | cut -d'/' -f1 | head -1); "+
+			"IPV6=$(ip -6 -o addr show %s 2>/dev/null | grep -v fe80 | awk '{print $4}' | cut -d'/' -f1 | head -1); "+
+			"[ -n \"$IPV4\" ] && [ -n \"$IPV6\" ] && break; "+
+			"sleep 1; done; "+
+			"[ -n \"$IPV4\" ] || { echo 'Failed to discover IPv4'; exit 1; }; "+
+			"[ -n \"$IPV6\" ] || { echo 'Failed to discover IPv6'; exit 1; }; "+
+			"echo \"Discovered IPv4: $IPV4, IPv6: $IPV6\"; ",
+		interfaceName, interfaceName)
+
+	listeners := fmt.Sprintf(
+		"testcmd -listen -protocol tcp -port 5001 -interface %s -mtu %d & "+
+			"testcmd -listen -protocol udp -port 5002 -interface %s -mtu %d & "+
+			"testcmd -listen -protocol sctp -port 5003 -interface %s -server $IPV4 -mtu %d & "+
+			"testcmd -listen -multicast -protocol udp -port 5004 -interface %s -server %s -mtu %d & "+
+			"testcmd -listen -protocol sctp -port %d -interface %s -server $IPV6 -mtu %d & "+
+			"testcmd -listen -multicast -protocol udp -port %d -interface %s -server %s -mtu %d & "+
+			"sleep infinity",
+		interfaceName, packetSize,
+		interfaceName, packetSize,
+		interfaceName, packetSize,
+		interfaceName, ipv4McastGroup, packetSize,
+		tsparams.DualStackSCTPv6Port, interfaceName, packetSize,
+		tsparams.DualStackMulticastV6Port, interfaceName, ipv6McastGroup, packetSize)
+
+	// Wait for IPv6 DAD (Duplicate Address Detection) to complete before binding listeners.
+	waitForDAD := "sleep 3; "
+
+	return []string{"bash", "-c", discoverIPs + ipv4McastSetup + ipv6McastSetup + waitForDAD + listeners}
+}
+
+// RunDualStackTrafficTest runs all traffic tests for both IPv4 and IPv6 against a dual-stack server pod.
+// IPv4 uses default ports (5001-5004), IPv6 uses 5001-5002 shared and 5005-5006 for SCTP/multicast.
+func RunDualStackTrafficTest(clientPod *pod.Builder, serverIPv4, serverIPv6 string, mtu int) error {
+	klog.V(90).Infof("Running dual-stack traffic tests against IPv4=%s, IPv6=%s with MTU %d",
+		serverIPv4, serverIPv6, mtu)
+
+	ipv4Addr := ipaddr.RemovePrefix(serverIPv4)
+	ipv6Addr := ipaddr.RemovePrefix(serverIPv6)
+	packetSize := mtu - 100
+
+	var failedProtocols []string
+
+	// IPv4 traffic tests (ICMP, TCP, UDP, SCTP on 5003, multicast on 5004).
+	if err := cmd.ICMPConnectivityCheck(
+		clientPod, []string{ipv4Addr + "/32"}, tsparams.Net1Interface); err != nil {
+		failedProtocols = append(failedProtocols, fmt.Sprintf("IPv4 ICMP: %v", err))
+	}
+
+	if err := RunProtocolTest(clientPod, "IPv4 TCP",
+		fmt.Sprintf("testcmd -protocol tcp -port 5001 -interface %s -server %s -mtu %d",
+			tsparams.Net1Interface, ipv4Addr, packetSize)); err != nil {
+		failedProtocols = append(failedProtocols, fmt.Sprintf("IPv4 TCP: %v", err))
+	}
+
+	if err := RunProtocolTest(clientPod, "IPv4 UDP",
+		fmt.Sprintf("testcmd -protocol udp -port 5002 -interface %s -server %s -mtu %d",
+			tsparams.Net1Interface, ipv4Addr, packetSize)); err != nil {
+		failedProtocols = append(failedProtocols, fmt.Sprintf("IPv4 UDP: %v", err))
+	}
+
+	if err := RunProtocolTest(clientPod, "IPv4 SCTP",
+		fmt.Sprintf("testcmd -protocol sctp -port 5003 -interface %s -server %s -mtu %d",
+			tsparams.Net1Interface, ipv4Addr, packetSize)); err != nil {
+		failedProtocols = append(failedProtocols, fmt.Sprintf("IPv4 SCTP: %v", err))
+	}
+
+	ipv4McastGroup := tsparams.MulticastIPv4Group
+
+	if mtu == 9000 {
+		ipv4McastGroup = tsparams.MulticastIPv4GroupLargeMTU
+	}
+
+	if err := RunProtocolTest(clientPod, "IPv4 multicast",
+		fmt.Sprintf("testcmd -multicast -protocol udp -port 5004 -interface %s -server %s -mtu %d",
+			tsparams.Net1Interface, ipv4McastGroup, packetSize)); err != nil {
+		failedProtocols = append(failedProtocols, fmt.Sprintf("IPv4 multicast: %v", err))
+	}
+
+	// IPv6 traffic tests (ICMP, TCP, UDP, SCTP on 5005, multicast on 5006).
+	if err := cmd.ICMPConnectivityCheck(
+		clientPod, []string{ipv6Addr + "/128"}, tsparams.Net1Interface); err != nil {
+		failedProtocols = append(failedProtocols, fmt.Sprintf("IPv6 ICMP: %v", err))
+	}
+
+	if err := RunProtocolTest(clientPod, "IPv6 TCP",
+		fmt.Sprintf("testcmd -protocol tcp -port 5001 -interface %s -server %s -mtu %d",
+			tsparams.Net1Interface, ipv6Addr, packetSize)); err != nil {
+		failedProtocols = append(failedProtocols, fmt.Sprintf("IPv6 TCP: %v", err))
+	}
+
+	if err := RunProtocolTest(clientPod, "IPv6 UDP",
+		fmt.Sprintf("testcmd -protocol udp -port 5002 -interface %s -server %s -mtu %d",
+			tsparams.Net1Interface, ipv6Addr, packetSize)); err != nil {
+		failedProtocols = append(failedProtocols, fmt.Sprintf("IPv6 UDP: %v", err))
+	}
+
+	if err := RunProtocolTest(clientPod, "IPv6 SCTP",
+		fmt.Sprintf("testcmd -protocol sctp -port %d -interface %s -server %s -mtu %d",
+			tsparams.DualStackSCTPv6Port, tsparams.Net1Interface, ipv6Addr, packetSize)); err != nil {
+		failedProtocols = append(failedProtocols, fmt.Sprintf("IPv6 SCTP: %v", err))
+	}
+
+	if err := RunProtocolTest(clientPod, "IPv6 multicast",
+		fmt.Sprintf("testcmd -multicast -protocol udp -port %d -interface %s -server %s -mtu %d",
+			tsparams.DualStackMulticastV6Port, tsparams.Net1Interface, tsparams.MulticastIPv6Group, packetSize)); err != nil {
+		failedProtocols = append(failedProtocols, fmt.Sprintf("IPv6 multicast: %v", err))
+	}
+
+	if len(failedProtocols) > 0 {
+		return fmt.Errorf("dual-stack traffic tests failed: %s", strings.Join(failedProtocols, "; "))
+	}
+
+	return nil
+}
+
+// RunDualStackTrafficTestsForBothMTUs runs dual-stack traffic tests for two MTU configurations.
+func RunDualStackTrafficTestsForBothMTUs(
+	clientSmallMTU,
+	clientLargeMTU *pod.Builder,
+	serverIPv4Small,
+	serverIPv6Small,
+	serverIPv4Large,
+	serverIPv6Large string,
+	mtuSmall,
+	mtuLarge int,
+) error {
+	klog.V(90).Infof("Running dual-stack traffic tests with MTU %d", mtuSmall)
+
+	if err := RunDualStackTrafficTest(clientSmallMTU, serverIPv4Small, serverIPv6Small, mtuSmall); err != nil {
+		return fmt.Errorf("dual-stack traffic tests failed for MTU %d: %w", mtuSmall, err)
+	}
+
+	klog.V(90).Infof("Running dual-stack traffic tests with MTU %d", mtuLarge)
+
+	if err := RunDualStackTrafficTest(clientLargeMTU, serverIPv4Large, serverIPv6Large, mtuLarge); err != nil {
+		return fmt.Errorf("dual-stack traffic tests failed for MTU %d: %w", mtuLarge, err)
+	}
+
+	return nil
+}
+
+// CreateDualStackPodPair creates a client and server pod pair for dual-stack traffic testing.
+func CreateDualStackPodPair(
+	clientName,
+	serverName,
+	clientNode,
+	serverNode,
+	clientNetwork,
+	serverNetwork,
+	ipv4ServerBindIP,
+	ipv6ServerBindIP,
+	clientMAC,
+	serverMAC string,
+	clientIPs,
+	serverIPs []string,
+	mtu int,
+) (*pod.Builder, *pod.Builder, error) {
+	klog.V(90).Infof("Creating dual-stack client pod %s and server pod %s", clientName, serverName)
+
+	client, err := CreateTestClientPod(clientName, clientNode, clientNetwork, clientMAC, clientIPs)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create client pod: %w", err)
+	}
+
+	server, err := createDualStackServerPod(
+		serverName, serverNode, serverNetwork, serverMAC,
+		ipv4ServerBindIP, ipv6ServerBindIP, serverIPs, mtu)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create server pod: %w", err)
+	}
+
+	return client, server, nil
+}
+
+// createDualStackServerPod creates a server pod with dual-stack testcmd listeners.
+func createDualStackServerPod(
+	name,
+	nodeName,
+	networkName,
+	macAddress,
+	ipv4BindIP,
+	ipv6BindIP string,
+	ipAddresses []string,
+	mtu int,
+) (*pod.Builder, error) {
+	klog.V(90).Infof("Creating dual-stack server pod %s on node %s", name, nodeName)
+
+	secNetwork := []*types.NetworkSelectionElement{{Name: networkName}}
+
+	if macAddress != "" {
+		secNetwork[0].MacRequest = macAddress
+	}
+
+	if len(ipAddresses) > 0 {
+		secNetwork[0].IPRequest = ipAddresses
+	}
+
+	command := BuildDualStackServerCommand(ipv4BindIP, ipv6BindIP, tsparams.Net1Interface, mtu)
+
+	container, err := pod.NewContainerBuilder("server", NetConfig.CnfNetTestContainer, command).GetContainerCfg()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create container config: %w", err)
+	}
+
+	serverPod, err := pod.NewBuilder(APIClient, name, tsparams.TestNamespaceName, NetConfig.CnfNetTestContainer).
+		DefineOnNode(nodeName).
+		RedefineDefaultContainer(*container).
+		WithPrivilegedFlag().
+		WithSecondaryNetwork(secNetwork).
+		CreateAndWaitUntilRunning(netparam.DefaultTimeout)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := WaitForDualStackServerReady(serverPod, tsparams.WaitTimeout); err != nil {
+		return nil, fmt.Errorf("server pod %s not ready: %w", name, err)
+	}
+
+	return serverPod, nil
 }
 
 // RunProtocolTest executes a protocol-specific connectivity test command.

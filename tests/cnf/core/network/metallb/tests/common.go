@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 	"strings"
@@ -59,9 +58,8 @@ var (
 )
 
 var (
-	metalLbTestsLabel    = map[string]string{"metallb": "metallbtests"}
-	ovnExternalAddresses = "k8s.ovn.org/node-primary-ifaddr"
-	frrPodSubnet         = map[string]string{
+	metalLbTestsLabel = map[string]string{"metallb": "metallbtests"}
+	frrPodSubnet      = map[string]string{
 		netparam.IPV4Family: netparam.IPSubnet24,
 		netparam.IPV6Family: netparam.IPSubnet64,
 	}
@@ -84,67 +82,6 @@ func clusterSupportsIPv4() bool {
 	return clusterIPVersion == netparam.IPV4Family || clusterIPVersion == netparam.DualIPFamily
 }
 
-func getClusterIPVersion() (string, error) {
-	nodesList, err := nodes.List(APIClient)
-	if err != nil {
-		return "", err
-	}
-
-	if len(nodesList) == 0 {
-		return "", fmt.Errorf("no nodes found")
-	}
-
-	var ipVersion string
-
-	for nodeIndex, node := range nodesList {
-		ipVersion, _, err = getNodeExternalIP(node)
-		if err != nil {
-			return "", err
-		}
-
-		if nodeIndex == 0 {
-			clusterIPVersion = ipVersion
-
-			continue
-		}
-
-		if ipVersion != clusterIPVersion {
-			return "", fmt.Errorf("mixed IP families detected: %s and %s", clusterIPVersion, ipVersion)
-		}
-	}
-
-	return clusterIPVersion, nil
-}
-
-func getNodeExternalIP(nodeBuilder *nodes.Builder) (string, nodes.ExternalNetworks, error) {
-	var extNetwork nodes.ExternalNetworks
-
-	raw := nodeBuilder.Object.Annotations[ovnExternalAddresses]
-	if raw == "" {
-		return "", nodes.ExternalNetworks{}, fmt.Errorf(
-			"node %q missing %q annotation",
-			nodeBuilder.Object.Name,
-			ovnExternalAddresses,
-		)
-	}
-
-	err := json.Unmarshal([]byte(raw), &extNetwork)
-	if err != nil {
-		return "", nodes.ExternalNetworks{}, err
-	}
-
-	switch {
-	case extNetwork.IPv4 != "" && extNetwork.IPv6 == "":
-		return netparam.IPV4Family, extNetwork, nil
-	case extNetwork.IPv4 == "" && extNetwork.IPv6 != "":
-		return netparam.IPV6Family, extNetwork, nil
-	case extNetwork.IPv4 != "" && extNetwork.IPv6 != "":
-		return netparam.DualIPFamily, extNetwork, nil
-	default:
-		return "", nodes.ExternalNetworks{}, fmt.Errorf("no IPv4 or IPv6 nodes found")
-	}
-}
-
 // Initializes and validates Vars:
 // ipv4metalLbIPList, ipv6metalLbIPList,
 // ipv4NodeAddrList, ipv6NodeAddrList,
@@ -159,7 +96,7 @@ func validateEnvVarAndGetNodeList() {
 
 	By("Getting cluster IP version")
 
-	clusterIPVersion, err = getClusterIPVersion()
+	clusterIPVersion, err = netenv.GetClusterIPFamily(APIClient)
 	Expect(err).ToNot(HaveOccurred(), "Failed to get cluster IP version")
 
 	By("Fetching IPv4 and IPv6 IPs from ENV VAR to be used for External FRR Pod")

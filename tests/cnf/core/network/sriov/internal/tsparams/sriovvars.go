@@ -29,6 +29,9 @@ var (
 	PollingIntervalBMC = 30 * time.Second
 	// NADWaitTimeout represents timeout for the most ginkgo Eventually functions for NAD creation.
 	NADWaitTimeout = 5 * time.Second
+	// WhereaboutsPodCreationTimeout is used when creating client/server pods with Whereabouts IPAM.
+	// Whereabouts + SR-IOV CNI can take longer than DefaultTimeout to attach and get an IP.
+	WhereaboutsPodCreationTimeout = 10 * time.Minute
 	// ReporterCRDsToDump tells to the reporter what CRs to dump.
 	ReporterCRDsToDump = []k8sreporter.CRData{
 		{Cr: &mcfgv1.MachineConfigPoolList{}},
@@ -64,7 +67,6 @@ var (
 	ClientIPv6IPAddress2 = "2001:100::1/64"
 	// ServerIPv6IPAddress2 represents the full test IPv6 address.
 	ServerIPv6IPAddress2 = "2001:100::2/64"
-
 	// ClientMacAddress represents the test client MAC address.
 	ClientMacAddress = "20:04:0f:f1:88:01"
 	// ServerMacAddress represents the test server MAC address.
@@ -73,7 +75,6 @@ var (
 	ClientMacAddress2 = "20:04:0f:f1:88:03"
 	// ServerMacAddress2 represents the second test server MAC address.
 	ServerMacAddress2 = "20:04:0f:f1:88:04"
-
 	// WhereaboutsIPv4Range is the IP range for whereabouts IPAM.
 	WhereaboutsIPv4Range = "192.168.100.0/24"
 	// WhereaboutsIPv4Gateway is the gateway for whereabouts IPAM.
@@ -82,7 +83,6 @@ var (
 	WhereaboutsIPv4Range2 = "192.168.101.0/24"
 	// WhereaboutsIPv4Gateway2 is the gateway for whereabouts IPAM range 2.
 	WhereaboutsIPv4Gateway2 = "192.168.101.1"
-
 	// WhereaboutsIPv6Range is the IPv6 range for whereabouts IPAM.
 	WhereaboutsIPv6Range = "2001:100:100::/64"
 	// WhereaboutsIPv6Gateway is the IPv6 gateway for whereabouts IPAM.
@@ -91,7 +91,22 @@ var (
 	WhereaboutsIPv6Range2 = "2001:100:101::/64"
 	// WhereaboutsIPv6Gateway2 is the IPv6 gateway for whereabouts IPAM range 2.
 	WhereaboutsIPv6Gateway2 = "2001:100:101::1"
-
+	// WhereaboutsIPv4AllocStart is the first IPv4 in the dynamic pool for dual-stack Whereabouts NADs (ipRanges).
+	WhereaboutsIPv4AllocStart = "192.168.100.10"
+	// WhereaboutsIPv4AllocEnd is the last IPv4 in the dynamic pool for dual-stack Whereabouts NADs (ipRanges).
+	WhereaboutsIPv4AllocEnd = "192.168.100.250"
+	// WhereaboutsIPv6AllocStart is the first IPv6 in the dynamic pool for dual-stack Whereabouts NADs (ipRanges).
+	WhereaboutsIPv6AllocStart = "2001:100:100::10"
+	// WhereaboutsIPv6AllocEnd is the last IPv6 in the dynamic pool for dual-stack Whereabouts NADs (ipRanges).
+	WhereaboutsIPv6AllocEnd = "2001:100:100::ff00"
+	// WhereaboutsIPv4AllocStart2 is the first IPv4 in the second pool (WhereaboutsIPv4Range2 / IPv6 range 2).
+	WhereaboutsIPv4AllocStart2 = "192.168.101.10"
+	// WhereaboutsIPv4AllocEnd2 is the last IPv4 in the second pool.
+	WhereaboutsIPv4AllocEnd2 = "192.168.101.250"
+	// WhereaboutsIPv6AllocStart2 is the first IPv6 in the second pool.
+	WhereaboutsIPv6AllocStart2 = "2001:100:101::10"
+	// WhereaboutsIPv6AllocEnd2 is the last IPv6 in the second pool.
+	WhereaboutsIPv6AllocEnd2 = "2001:100:101::ff00"
 	// OperatorConfigDaemon defaults SR-IOV config daemon daemonset.
 	OperatorConfigDaemon = "sriov-network-config-daemon"
 	// OperatorWebhook defaults SR-IOV webhook daemonset.
