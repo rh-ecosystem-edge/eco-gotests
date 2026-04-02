@@ -46,7 +46,8 @@ func GetEgressInterfaceName(client *clients.Settings, nodeName string) (Name, er
 // GetPTPHardwareClock uses ethtool to retrieve the PTP hardware clock for a given network interface on a specified
 // node.
 func GetPTPHardwareClock(client *clients.Settings, nodeName string, ifName Name) (int, error) {
-	command := fmt.Sprintf("ethtool -T %s | grep 'PTP Hardware Clock' | cut -d' ' -f4", ifName)
+	command := fmt.Sprintf(
+		"ethtool -T %s | grep -E 'PTP Hardware Clock|Hardware timestamp provider index' | awk '{print $NF}'", ifName)
 
 	output, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, command)
 	if err != nil {
