@@ -304,9 +304,21 @@ func runMetricsNettoVfioTests(clientPf, serverPf, clientWorker, serverWorker, de
 		"Failed to add server mac address in client pod mac table. Output: %s", outputbuf.String()))
 
 	By("ICMP check between client and server pods")
-	Eventually(func() error {
-		return sriovocpenv.ICMPConnectivityCheck(cPod, []string{tsparams.ServerIPv4IPAddress}, "net1")
-	}, 1*time.Minute, 2*time.Second).Should(HaveOccurred(), "ICMP fail scenario could not be executed")
+
+	// For Mellanox NICs, "vfiopci" mode uses netdevice+RDMA instead of vfio-pci (see defineMetricsPolicy).
+	// With netdevice+RDMA, the kernel network stack remains active on the VF alongside the DPDK mlx5 PMD,
+	// so the kernel still responds to ICMP. With true vfio-pci (Intel), the VF is exclusively owned by
+	// DPDK, the kernel has no access, and ICMP fails because testpmd does not respond to it.
+	if devID == tsparams.MlxVendorID {
+		Eventually(func() error {
+			return sriovocpenv.ICMPConnectivityCheck(cPod, []string{tsparams.ServerIPv4IPAddress}, "net1")
+		}, 1*time.Minute, 2*time.Second).ShouldNot(HaveOccurred(),
+			"ICMP connectivity check failed for Mellanox netdevice+RDMA server")
+	} else {
+		Eventually(func() error {
+			return sriovocpenv.ICMPConnectivityCheck(cPod, []string{tsparams.ServerIPv4IPAddress}, "net1")
+		}, 1*time.Minute, 2*time.Second).Should(HaveOccurred(), "ICMP fail scenario could not be executed")
+	}
 
 	checkMetricsWithPromQL()
 }
