@@ -254,6 +254,10 @@ const (
 	VersionModuleTestNamespace = "modver"
 	// TolerationModuleTestNamespace represents test case namespace name.
 	TolerationModuleTestNamespace = "79205-tol"
+	// RebuildTriggerBasicNamespace represents test case namespace name.
+	RebuildTriggerBasicNamespace = "rt-basic"
+	// RebuildTriggerNoopNamespace represents test case namespace name.
+	RebuildTriggerNoopNamespace = "rt-noop"
 	// DefaultNodesNamespace represents namespace of the nodes events.
 	DefaultNodesNamespace = "default"
 	// SimpleKmodImage represents the pre-built simple-kmod kernel module image.

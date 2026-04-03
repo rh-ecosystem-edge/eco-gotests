@@ -7,8 +7,10 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/configmap"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/events"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/imagestream"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/kmm"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/secret"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/serviceaccount"
@@ -19,6 +21,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/modules/internal/tsparams"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -326,6 +329,67 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			err = check.ImageStreamExistsForModule(APIClient, kmmparams.ModuleBuildAndSignNamespace,
 				moduleName, kmodName, kernelVersion)
 			Expect(err).ToNot(HaveOccurred(), "imagestream validation failed")
+		})
+
+		It("should rebuild and re-sign after trigger when image deleted", reportxml.ID("87952"), func() {
+			By("Verify module is signed before deletion")
+
+			err := check.ModuleSigned(APIClient, kmodName, "cdvtest signing key",
+				kmmparams.ModuleBuildAndSignNamespace, image)
+			Expect(err).ToNot(HaveOccurred(), "error while checking module is signed before trigger")
+
+			By("Record existing build pod names before trigger")
+
+			existingPods, err := pod.List(APIClient, kmmparams.ModuleBuildAndSignNamespace, metav1.ListOptions{})
+			Expect(err).ToNot(HaveOccurred(), "error listing pods")
+
+			oldBuildPods := []string{}
+
+			for _, existingPod := range existingPods {
+				if strings.Contains(existingPod.Object.Name, "-build") {
+					oldBuildPods = append(oldBuildPods, existingPod.Object.Name)
+				}
+			}
+
+			By("Delete imagestream to simulate lost image")
+
+			imgStream, err := imagestream.Pull(APIClient, kmodName, kmmparams.ModuleBuildAndSignNamespace)
+			Expect(err).ToNot(HaveOccurred(), "error pulling imagestream")
+
+			err = imgStream.Delete()
+			Expect(err).ToNot(HaveOccurred(), "error deleting imagestream")
+
+			By("Set imageRebuildTriggerGeneration to trigger rebuild")
+
+			moduleBuilder, err := kmm.Pull(APIClient, moduleName, kmmparams.ModuleBuildAndSignNamespace)
+			Expect(err).ToNot(HaveOccurred(), "error pulling module")
+
+			moduleBuilder.WithImageRebuildTriggerGeneration(1)
+			_, err = moduleBuilder.Update()
+			Expect(err).ToNot(HaveOccurred(), "error updating module with trigger")
+
+			By("Await new build pod to complete (excluding old build pods)")
+
+			err = await.NewBuildPodCompleted(APIClient, kmmparams.ModuleBuildAndSignNamespace,
+				oldBuildPods, 5*time.Minute)
+			Expect(err).ToNot(HaveOccurred(), "error while waiting for rebuild after trigger")
+
+			By("Await driver container deployment")
+
+			err = await.ModuleDeployment(APIClient, moduleName, kmmparams.ModuleBuildAndSignNamespace,
+				5*time.Minute, GeneralConfig.WorkerLabelMap)
+			Expect(err).ToNot(HaveOccurred(), "error while waiting on driver deployment after rebuild")
+
+			By("Check module is signed after rebuild")
+
+			err = check.ModuleSigned(APIClient, kmodName, "cdvtest signing key",
+				kmmparams.ModuleBuildAndSignNamespace, image)
+			Expect(err).ToNot(HaveOccurred(), "error while checking module is signed after rebuild")
+
+			By("Check module is loaded on node after rebuild")
+
+			err = check.ModuleLoaded(APIClient, kmodName, time.Minute)
+			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded after rebuild")
 		})
 	})
 })
