@@ -32,6 +32,8 @@ const (
 	// LabelSriovHWEnabled represents sriov HW Enabled tests that can be used
 	// for test cases selection.
 	LabelSriovHWEnabled = "sriov-hw-enabled"
+	// LabelLACPTestCases represents LACP tests that can be used for test cases selection.
+	LabelLACPTestCases = "lacp"
 
 	// Net1Interface is the name of the first secondary network interface attached to pods.
 	Net1Interface = "net1"

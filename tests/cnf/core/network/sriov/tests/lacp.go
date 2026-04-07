@@ -66,7 +66,7 @@ const (
 	perfProfileName           = "performance-profile-dpdk"
 )
 
-var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), ContinueOnFailure, func() {
+var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelLACPTestCases), ContinueOnFailure, func() {
 	var (
 		workerNodeList               []*nodes.Builder
 		switchInterfaces             []string
