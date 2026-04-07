@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -11,6 +12,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	multus "gopkg.in/k8snetworkplumbingwg/multus-cni.v4/pkg/types"
@@ -415,9 +417,29 @@ func (builder *Builder) WaitUntilCondition(condition corev1.PodConditionType, ti
 
 	return wait.PollUntilContextTimeout(
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			// Add Discard logger to suppress verbose Kubernetes client logging.
+			// This preserves the behavior from logging.DiscardContext() while allowing
+			// us to add timeout and respect parent cancellation.
+			ctx = logr.NewContext(ctx, logr.Discard())
+
+			// Use context with 120s timeout for individual GET requests.
+			// This prevents failures when API server is slow (e.g., post-reboot)
+			// while still respecting the overall timeout from PollUntilContextTimeout.
+			getCtx, cancel := context.WithTimeout(ctx, 120*time.Second)
+			defer cancel()
+
 			updatePod, err := builder.apiClient.Pods(builder.Definition.Namespace).Get(
-				logging.DiscardContext(), builder.Definition.Name, metav1.GetOptions{})
+				getCtx, builder.Definition.Name, metav1.GetOptions{})
 			if err != nil {
+				klog.V(100).Infof("Failed to get pod from cluster. Error is: '%s'", err.Error())
+
+				// Retry on timeout errors instead of failing immediately.
+				// This handles transient API server performance degradation and context timeouts.
+				if k8serrors.IsTimeout(err) || k8serrors.IsServerTimeout(err) || errors.Is(err, context.DeadlineExceeded) {
+					klog.V(100).Infof("API server timeout when getting pod %s in namespace %s, will retry",
+						builder.Definition.Name, builder.Definition.Namespace)
+				}
+
 				return false, nil
 			}
 
