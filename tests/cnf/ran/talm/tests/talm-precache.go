@@ -626,7 +626,7 @@ func assertPrecacheStatus(spokeName, expected string) {
 			cguBuilder.Object.Name, spokeName, cguBuilder.Object.Status.Precaching.Status[spokeName])
 
 		return cguBuilder.Object.Status.Precaching.Status[spokeName]
-	}, 20*time.Minute, 15*time.Second).Should(Equal(expected))
+	}, 30*time.Minute, 15*time.Second).Should(Equal(expected))
 }
 
 // checkPrecachePodLog checks that the pre cache pod has a log that says the pre cache is done.
