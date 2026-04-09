@@ -88,7 +88,7 @@ func getEventAPIVersion(client *clients.Settings) (ptpEventAPIVersion, error) {
 		return "", fmt.Errorf("PTP operator version not found in spoke 1 operator versions")
 	}
 
-	atLeast419, err := version.IsVersionStringInRange(ptpVersion, "4.19", "")
+	atLeast419, err := version.IsVersionStringInRange(ptpVersion, "4.19.0-0", "")
 	if err != nil {
 		return "", fmt.Errorf("failed to check if PTP version is at least 4.19: %w", err)
 	}

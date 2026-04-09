@@ -139,7 +139,7 @@ var _ = Describe("PTP Event Consumer", Label(tsparams.LabelEventConsumer), func(
 	It("validates the consumer events after ptpoperatorconfig api version is modified", reportxml.ID("82218"), func() {
 		By("checking if the PTP version is within the 4.16-4.18 range")
 
-		inRange, err := version.IsVersionStringInRange(RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.16", "4.18")
+		inRange, err := version.IsVersionStringInRange(RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.16.0-0", "4.18")
 		Expect(err).ToNot(HaveOccurred(), "Failed to check PTP version range")
 
 		if !inRange {

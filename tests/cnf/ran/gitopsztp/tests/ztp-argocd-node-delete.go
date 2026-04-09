@@ -31,7 +31,7 @@ var _ = Describe("ZTP Argo CD Node Deletion Tests", Label(tsparams.LabelArgoCdNo
 	BeforeEach(func() {
 		By("checking the ZTP version")
 
-		versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.14", "")
+		versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.14.0-0", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to check if ZTP version is in range")
 
 		if !versionInRange {

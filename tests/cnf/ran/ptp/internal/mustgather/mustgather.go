@@ -152,7 +152,7 @@ func getPtpMustGatherImageForVersion(ocpVersion string) (string, error) {
 
 	major, minor := matches[1], matches[2]
 
-	atLeast416, err := version.IsVersionStringInRange(matches[0], "4.16", "")
+	atLeast416, err := version.IsVersionStringInRange(matches[0], "4.16.0-0", "")
 	if err != nil {
 		return "", fmt.Errorf("failed to check if version is at least 4.16: %w", err)
 	}
