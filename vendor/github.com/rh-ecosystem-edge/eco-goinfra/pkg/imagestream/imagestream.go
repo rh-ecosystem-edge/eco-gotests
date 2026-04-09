@@ -102,6 +102,32 @@ func (builder *Builder) Get() (*imagev1.ImageStream, error) {
 	return imageStreamObj, nil
 }
 
+// Delete removes the imageStream from the cluster.
+func (builder *Builder) Delete() error {
+	if valid, err := builder.validate(); !valid {
+		return err
+	}
+
+	klog.V(100).Infof("Deleting imageStream %s in namespace %s",
+		builder.Definition.Name, builder.Definition.Namespace)
+
+	if !builder.Exists() {
+		klog.V(100).Infof("imageStream %s does not exist in namespace %s",
+			builder.Definition.Name, builder.Definition.Namespace)
+
+		return nil
+	}
+
+	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
+	if err != nil {
+		return err
+	}
+
+	builder.Object = nil
+
+	return nil
+}
+
 // Exists checks whether the given imageStream exists.
 func (builder *Builder) Exists() bool {
 	if valid, _ := builder.validate(); !valid {
