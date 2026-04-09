@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/hashicorp/go-version"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/mco"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/olm"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -285,6 +287,28 @@ func operatorVersion(apiClient *clients.Settings, namePattern, namespace string)
 	}
 
 	return nil, fmt.Errorf("no matching CSV were found")
+}
+
+// DevicePluginPods returns the device plugin pods for a given module in a namespace.
+func DevicePluginPods(apiClient *clients.Settings, moduleName, nsName string) ([]*pod.Builder, error) {
+	labelSelector := fmt.Sprintf("kmm.node.kubernetes.io/module.name=%s", moduleName)
+
+	pods, err := pod.List(apiClient, nsName, metav1.ListOptions{
+		LabelSelector: labelSelector,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error listing pods with label %s in namespace %s: %w", labelSelector, nsName, err)
+	}
+
+	var devicePluginPods []*pod.Builder
+
+	for _, p := range pods {
+		if strings.Contains(p.Object.Name, "device-plugin") {
+			devicePluginPods = append(devicePluginPods, p)
+		}
+	}
+
+	return devicePluginPods, nil
 }
 
 // MachineConfigEnvVar returns the value and nil error if found, or empty string and error if not found.
