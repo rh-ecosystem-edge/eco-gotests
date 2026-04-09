@@ -216,6 +216,28 @@ func removeSriovOperator(sriovNamespace *namespace.Builder) {
 		tsparams.DefaultTimeout)
 	Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV configuration")
 
+	By("Removing SR-IOV network pool configs")
+
+	// SriovNetworkPoolConfigs carry a finalizer set by the operator controller.
+	// They must be deleted while the operator is still running; otherwise the
+	// finalizer can never be removed and the namespace gets stuck in Terminating.
+	// This must happen before deleting SriovOperatorConfig so the controller is
+	// still active and can process the finalizer removal.
+	err = sriov.CleanAllPoolConfigs(APIClient, SriovOcpConfig.SriovOperatorNamespace)
+	Expect(err).ToNot(HaveOccurred(), "Failed to clean SR-IOV network pool configs")
+
+	By("Waiting for SR-IOV network pool configs to be fully removed")
+
+	Eventually(func() int {
+		poolConfigs, err := sriov.ListPoolConfigs(APIClient, SriovOcpConfig.SriovOperatorNamespace)
+		if err != nil {
+			return -1
+		}
+
+		return len(poolConfigs)
+	}, tsparams.DefaultTimeout, tsparams.RetryInterval).Should(Equal(0),
+		"SR-IOV network pool configs were not fully removed")
+
 	By("Remove SR-IOV operator config")
 
 	sriovOperatorConfig, err := sriov.PullOperatorConfig(APIClient, SriovOcpConfig.SriovOperatorNamespace)
@@ -241,14 +263,6 @@ func removeSriovOperator(sriovNamespace *namespace.Builder) {
 		return err
 	}, time.Minute, tsparams.RetryInterval).Should(HaveOccurred(),
 		"ValidatingWebhook sriov-operator-webhook-config was not removed")
-
-	By("Removing SR-IOV network pool configs")
-
-	// SriovNetworkPoolConfigs carry a finalizer set by the operator controller.
-	// They must be deleted while the operator is still running; otherwise the
-	// finalizer can never be removed and the namespace gets stuck in Terminating.
-	err = sriov.CleanAllPoolConfigs(APIClient, SriovOcpConfig.SriovOperatorNamespace)
-	Expect(err).ToNot(HaveOccurred(), "Failed to clean SR-IOV network pool configs")
 
 	By("Removing SR-IOV namespace")
 
