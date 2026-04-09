@@ -26,10 +26,4 @@ reports
 
 tests/hw-accel/nfd/**/*.md
 tests/hw-accel/nfd/*.md
-
-# Claude
-.claude/settings.local.json
 CLAUDE.local.md
-
-# Local configuration
-.env
