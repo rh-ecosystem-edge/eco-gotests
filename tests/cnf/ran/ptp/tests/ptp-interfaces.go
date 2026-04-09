@@ -542,7 +542,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			Expect(err).ToNot(HaveOccurred(), "Failed to get active HA profiles")
 			Expect(len(activeProfiles)).To(Equal(1), "Expected exactly one active HA profile")
 
-			activeProfileInfo := nodeInfo.GetProfileByName(activeProfiles[0])
+			activeProfileInfo := nodeInfo.GetProfileByDaemonName(activeProfiles[0])
 			Expect(activeProfileInfo).ToNot(BeNil(), "Failed to find active profile in node info")
 
 			activeClientInterfaces := activeProfileInfo.GetInterfacesByClockType(profiles.ClockTypeClient)
@@ -557,7 +557,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			haInterfaces = append(haInterfaces, activeClientInterfaces[0].Name)
 
 			for _, inactiveProfile := range inactiveProfiles {
-				inactiveProfileInfo := nodeInfo.GetProfileByName(inactiveProfile)
+				inactiveProfileInfo := nodeInfo.GetProfileByDaemonName(inactiveProfile)
 				Expect(inactiveProfileInfo).ToNot(BeNil(), "Failed to find inactive profile in node info")
 
 				inactiveClientInterfaces := inactiveProfileInfo.GetInterfacesByClockType(profiles.ClockTypeClient)
@@ -732,7 +732,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 					totalHAProfiles++
 
 					By(fmt.Sprintf("getting the PtpConfig for active profile %s", activeProfileName))
-					activeProfileInfo := nodeInfo.GetProfileByName(activeProfileName)
+					activeProfileInfo := nodeInfo.GetProfileByDaemonName(activeProfileName)
 					Expect(activeProfileInfo).ToNot(BeNil(), "Failed to find profile info for active profile %s", activeProfileName)
 
 					By(fmt.Sprintf("pulling PtpConfig %s", activeProfileInfo.Reference.ConfigReference.Name))
@@ -838,7 +838,7 @@ func waitForActiveHAProfileChange(
 func getHAProfileClientInterface(nodeInfo *profiles.NodeInfo, profileName string) iface.Name {
 	GinkgoHelper()
 
-	profileInfo := nodeInfo.GetProfileByName(profileName)
+	profileInfo := nodeInfo.GetProfileByDaemonName(profileName)
 	Expect(profileInfo).ToNot(BeNil(), "Failed to find profile %s in node info", profileName)
 
 	clientInterfaces := profileInfo.GetInterfacesByClockType(profiles.ClockTypeClient)
