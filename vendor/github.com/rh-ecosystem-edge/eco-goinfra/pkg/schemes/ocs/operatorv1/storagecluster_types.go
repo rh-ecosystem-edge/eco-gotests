@@ -299,6 +299,8 @@ type ManageCephObjectStores struct {
 	HostNetwork       *bool `json:"hostNetwork,omitempty"`
 	GatewayPort       int   `json:"gatewayPort,omitempty"`
 	GatewaySecurePort int   `json:"gatewaySecurePort,omitempty"`
+	// Enables STS authentication for RGW
+	EnableSTS bool `json:"enableSTS,omitempty"`
 	// StorageClassName specifies the name of the storage class created for ceph obc's
 	// +kubebuilder:validation:MaxLength=253
 	// +kubebuilder:validation:Pattern=^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
@@ -506,6 +508,21 @@ type MonitoringSpec struct {
 	// DisableBlackboxExporter disables deployment of Blackbox Exporter for network health checks
 	// +optional
 	DisableBlackboxExporter bool `json:"disableBlackboxExporter,omitempty"`
+	// ExcludedAlerts lists alerts to exclude from ODF health score calculation.
+	// Alerts still fire in Prometheus but are excluded from health score.
+	// +optional
+	ExcludedAlerts []ExcludedAlert `json:"excludedAlerts,omitempty"`
+}
+
+// ExcludedAlert represents an alert that has been excluded
+type ExcludedAlert struct {
+	// AlertName is the name of the alert to exclude
+	AlertName string `json:"alertName"`
+	// ExcludedAt is the timestamp when the alert was excluded
+	ExcludedAt metav1.Time `json:"excludedAt"`
+	// Severity is the severity of the alert to exclude. Valid
+	// values are "critical", "warning", and "info".
+	Severity string `json:"severity,omitempty"`
 }
 
 // EncryptionSpec defines if encryption should be enabled for the Storage Cluster
