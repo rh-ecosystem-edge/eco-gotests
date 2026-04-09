@@ -9,9 +9,7 @@ import (
 	"strings"
 	"time"
 
-	configv1 "github.com/openshift/api/config/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/infrastructure"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netconfig"
@@ -21,18 +19,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 )
-
-// IsSNOCluster checks if the cluster is a Single Node OpenShift (SNO) cluster.
-func IsSNOCluster(apiClient *clients.Settings) (bool, error) {
-	klog.V(90).Infof("Checking if cluster is SNO (Single Node OpenShift)")
-
-	infraConfig, err := infrastructure.Pull(apiClient)
-	if err != nil {
-		return false, fmt.Errorf("failed to pull infrastructure configuration: %w", err)
-	}
-
-	return infraConfig.Object.Status.ControlPlaneTopology == configv1.SingleReplicaTopologyMode, nil
-}
 
 // DoesClusterHasEnoughNodes verifies if given cluster has enough nodes to run tests.
 func DoesClusterHasEnoughNodes(

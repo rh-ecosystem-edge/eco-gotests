@@ -1,6 +1,8 @@
 package upgrade_test
 
 import (
+	"fmt"
+	"path"
 	"runtime"
 	"testing"
 
@@ -45,9 +47,28 @@ var _ = ReportAfterSuite("", func(report Report) {
 })
 
 var _ = JustAfterEach(func() {
-	reporter.ReportIfFailed(
-		CurrentSpecReport(),
-		currentFile,
-		tsparams.ReporterNamespacesToDump,
-		tsparams.ReporterCRDsToDump)
+	var (
+		currentDir, currentFilename = path.Split(currentFile)
+		hubReportPath               = fmt.Sprintf("%shub_%s", currentDir, currentFilename)
+		spokeReportPath             = fmt.Sprintf("%sspoke_%s", currentDir, currentFilename)
+		report                      = CurrentSpecReport()
+	)
+
+	if TargetSNOAPIClient != nil {
+		reporter.ReportIfFailedOnCluster(
+			CNFConfig.TargetSNOKubeConfig,
+			report,
+			spokeReportPath,
+			tsparams.ReporterSpokeNamespacesToDump,
+			tsparams.ReporterSpokeCRsToDump)
+	}
+
+	if TargetHubAPIClient != nil {
+		reporter.ReportIfFailedOnCluster(
+			CNFConfig.TargetHubKubeConfig,
+			report,
+			hubReportPath,
+			tsparams.ReporterHubNamespacesToDump,
+			tsparams.ReporterHubCRsToDump)
+	}
 })

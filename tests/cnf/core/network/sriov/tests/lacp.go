@@ -20,7 +20,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/cmd"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netnmstate"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
@@ -67,7 +66,7 @@ const (
 	perfProfileName           = "performance-profile-dpdk"
 )
 
-var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), ContinueOnFailure, func() {
+var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelLACPTestCases), ContinueOnFailure, func() {
 	var (
 		workerNodeList               []*nodes.Builder
 		switchInterfaces             []string
@@ -88,7 +87,7 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelSuite), Conti
 	BeforeAll(func() {
 		By("Checking if cluster is SNO")
 
-		isSNO, err := netenv.IsSNOCluster(APIClient)
+		isSNO, err := cluster.IsSNOCluster(APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to check if cluster is SNO")
 
 		if isSNO {

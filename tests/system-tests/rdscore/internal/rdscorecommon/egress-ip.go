@@ -311,6 +311,103 @@ func defineDeployContainer(cImage string, cCmd []string) *pod.ContainerBuilder {
 	return deployContainer
 }
 
+// waitForIPv6NetworkReady validates that IPv6 networking is fully configured in the pod.
+// After ungraceful reboot, pods may pass readiness checks before IPv6 DAD completes and
+// default routes are configured. This function polls until:
+// - No IPv6 addresses are in tentative state (DAD complete)
+// - No IPv6 addresses are in dadfailed state (fails immediately)
+// - IPv6 default route exists
+//
+// Returns error if validation fails or times out after 2 minutes.
+func waitForIPv6NetworkReady(clientPod *pod.Builder) error {
+	klog.V(100).Infof("Validating IPv6 network readiness for pod %s on node %s",
+		clientPod.Object.Name, clientPod.Object.Spec.NodeName)
+
+	err := wait.PollUntilContextTimeout(
+		context.TODO(),
+		time.Second*2,
+		time.Minute*2,
+		true,
+		func(ctx context.Context) (bool, error) {
+			// Check IPv6 address state
+			cmdCheckAddr := []string{"/bin/sh", "-c", "ip -6 addr show scope global"}
+
+			output, err := clientPod.ExecCommand(cmdCheckAddr, clientPod.Object.Spec.Containers[0].Name)
+			if err != nil {
+				klog.V(100).Infof("Failed to execute ip addr command in pod %s: %v",
+					clientPod.Object.Name, err)
+
+				return false, nil
+			}
+
+			addrOutput := output.String()
+
+			// Log the IPv6 address output for diagnostics
+			klog.V(100).Infof("IPv6 addresses for pod %s:\n%s",
+				clientPod.Object.Name, strings.TrimSpace(addrOutput))
+
+			// Fail immediately if DAD failed (permanent error)
+			if strings.Contains(addrOutput, "dadfailed") {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"IPv6 DAD failed for pod %s on node %s. Output:\n%s",
+					clientPod.Object.Name, clientPod.Object.Spec.NodeName, strings.TrimSpace(addrOutput))
+
+				return false, fmt.Errorf("IPv6 DAD failed for pod %s on node %s",
+					clientPod.Object.Name, clientPod.Object.Spec.NodeName)
+			}
+
+			// Retry if addresses are still in tentative state
+			if strings.Contains(addrOutput, "tentative") {
+				klog.V(100).Infof("IPv6 addresses in tentative state (DAD in progress) for pod %s. Output:\n%s",
+					clientPod.Object.Name, strings.TrimSpace(addrOutput))
+
+				return false, nil
+			}
+
+			// Verify at least one global IPv6 address exists
+			if !strings.Contains(addrOutput, "inet6") || !strings.Contains(addrOutput, "scope global") {
+				klog.V(100).Infof("No global IPv6 address found for pod %s on node %s. Output:\n%s",
+					clientPod.Object.Name, clientPod.Object.Spec.NodeName, strings.TrimSpace(addrOutput))
+
+				return false, nil
+			}
+
+			// Check for IPv6 default route
+			cmdCheckRoute := []string{"/bin/sh", "-c", "ip -6 route show default"}
+
+			output, err = clientPod.ExecCommand(cmdCheckRoute, clientPod.Object.Spec.Containers[0].Name)
+			if err != nil {
+				klog.V(100).Infof("Failed to execute ip route command in pod %s: %v",
+					clientPod.Object.Name, err)
+
+				return false, nil
+			}
+
+			routeOutput := output.String()
+
+			if output.Len() == 0 {
+				klog.V(100).Infof("No IPv6 default route for pod %s on node %s",
+					clientPod.Object.Name, clientPod.Object.Spec.NodeName)
+
+				return false, nil
+			}
+
+			// Log the route information
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"IPv6 network fully configured for pod %s on node %s. Default route: %s",
+				clientPod.Object.Name, clientPod.Object.Spec.NodeName, strings.TrimSpace(routeOutput))
+
+			return true, nil
+		})
+	if err != nil {
+		return fmt.Errorf("IPv6 network not ready after 2 minutes for pod %s on node %s: %w",
+			clientPod.Object.Name, clientPod.Object.Spec.NodeName, err)
+	}
+
+	return nil
+}
+
+//nolint:gocognit
 func sendTrafficCheckIP(clientPods []*pod.Builder, isIPv6 bool, expectedIPs []string) error {
 	By("Validating pods source address")
 
@@ -335,6 +432,13 @@ func sendTrafficCheckIP(clientPods []*pod.Builder, isIPv6 bool, expectedIPs []st
 
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Pod %q in %q namespace is not Ready",
 			clientPod.Definition.Name, clientPod.Definition.Namespace))
+
+		// IPv6-specific network validation
+		if isIPv6 {
+			if err = waitForIPv6NetworkReady(clientPod); err != nil {
+				return fmt.Errorf("IPv6 network validation failed: %w", err)
+			}
+		}
 
 		err = wait.PollUntilContextTimeout(
 			context.TODO(),

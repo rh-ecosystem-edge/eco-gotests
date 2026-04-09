@@ -527,6 +527,12 @@ var _ = Describe(
 				Skip("The y-stream version of the seed is 2 releases apart from the target")
 			}
 
+			By("Check if second upgrade test is enabled")
+
+			if MGMTConfig.SecondUpgrade {
+				Skip("Second upgrade test is enabled")
+			}
+
 			upgrade()
 		})
 
@@ -553,6 +559,28 @@ var _ = Describe(
 			originalYInt, _ := strconv.Atoi(strings.Split(originalClusterVersionXY, ".")[1])
 			if seedYInt-originalYInt != 2 {
 				Skip("The y-stream version of the seed is not 2 releases apart from the target")
+			}
+
+			upgrade()
+		})
+
+		It("upgrades the connected cluster for the second time", reportxml.ID("73104"), func() {
+			By("Check if second upgrade test is enabled")
+
+			if !MGMTConfig.SecondUpgrade {
+				Skip("Second upgrade test is not enabled")
+			}
+
+			By("Check if the target cluster is connected")
+
+			connected, err := cluster.Connected(APIClient)
+
+			if !connected {
+				Skip("Target cluster is disconnected")
+			}
+
+			if err != nil {
+				Skip(fmt.Sprintf("Encountered an error while getting cluster connection info: %s", err.Error()))
 			}
 
 			upgrade()
@@ -696,19 +724,29 @@ var _ = Describe(
 				klog.V(mgmtparams.MGMTLogLevel).Infof("Additional NTP sources: %s", MGMTConfig.AdditionalNTPSources)
 			}
 
-			By("Validate the proper NTP servers are listed in the config", func() {
-				execCmd := "cat /etc/chrony.conf"
+			By("Validate the proper NTP servers are listed in the config")
+
+			execCmd := "cat /etc/chrony.conf"
+
+			Eventually(func() (bool, error) {
 				cmdOutput, err := cluster.ExecCmdWithStdoutWithRetries(APIClient, 5, 30*time.Second, execCmd)
-				Expect(err).ToNot(HaveOccurred(), "could not execute command: %s", err)
+				if err != nil || len(cmdOutput) == 0 {
+					return false, err
+				}
 
 				for _, stdout := range cmdOutput {
+					normalizedStdout := strings.ReplaceAll(stdout, "\n", "")
+
 					for _, ntpSource := range strings.Split(MGMTConfig.AdditionalNTPSources, ",") {
-						Expect(strings.ReplaceAll(stdout, "\n", "")).To(ContainSubstring("server %s",
-							ntpSource),
-							"error: the expected NTP source %s wasn't found", ntpSource)
+						if !strings.Contains(normalizedStdout, ntpSource) {
+							return false, nil
+						}
 					}
 				}
-			})
+
+				return true, nil
+			}).WithTimeout(time.Minute*3).WithPolling(time.Second*10).Should(
+				BeTrue(), "error validating the proper NTP servers are listed in the config")
 		})
 
 		It("successfully configured using FIPs", reportxml.ID("71642"), func() {

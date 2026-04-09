@@ -66,7 +66,8 @@ func WaitForLabelsFromRule(apiClient *clients.Settings, labelPrefixes []string, 
 
 // WaitForRuleProcessed waits for a NodeFeatureRule to be processed and labels to appear.
 func WaitForRuleProcessed(
-	apiClient *clients.Settings, ruleName string, expectedLabels []string, timeout time.Duration) error {
+	apiClient *clients.Settings, ruleName string,
+	expectedLabels []string, timeout time.Duration) error {
 	klog.V(nfdparams.LogLevel).Infof("Waiting for NodeFeatureRule %s to be processed (timeout: %v)", ruleName, timeout)
 
 	err := WaitForLabelsFromRule(apiClient, expectedLabels, timeout)

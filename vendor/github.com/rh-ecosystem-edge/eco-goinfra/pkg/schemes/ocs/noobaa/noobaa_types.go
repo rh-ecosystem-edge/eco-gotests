@@ -34,6 +34,7 @@ type AnnotationsSpec map[string]Annotations
 // +kubebuilder:printcolumn:name="S3-Endpoints",type="string",JSONPath=".status.services.serviceS3.nodePorts",description="S3 Endpoints"
 // +kubebuilder:printcolumn:name="Sts-Endpoints",type="string",JSONPath=".status.services.serviceSts.nodePorts",description="STS Endpoints"
 // +kubebuilder:printcolumn:name="Iam-Endpoints",type="string",JSONPath=".status.services.serviceIam.nodePorts",description="IAM Endpoints"
+// +kubebuilder:printcolumn:name="Vectors-Endpoints",type="string",JSONPath=".status.services.serviceVectors.nodePorts",description="Vectors Endpoints"
 // +kubebuilder:printcolumn:name="Syslog-Endpoints",type="string",JSONPath=".status.services.serviceSyslog.nodePorts",description="Syslog Endpoints"
 // +kubebuilder:printcolumn:name="Image",type="string",JSONPath=".status.actualImage",description="Actual Image"
 // +kubebuilder:printcolumn:name="Phase",type="string",JSONPath=".status.phase",description="Phase"
@@ -100,6 +101,10 @@ type NooBaaSpec struct {
 	// +optional
 	CoreResources *corev1.ResourceRequirements `json:"coreResources,omitempty"`
 
+	// CorePriorityClassName (optional) overrides the priority class for the core pod
+	// +optional
+	CorePriorityClassName string `json:"corePriorityClassName,omitempty"`
+
 	// LogResources (optional) overrides the default resource requirements for the noobaa-log-processor container
 	// +optional
 	LogResources *corev1.ResourceRequirements `json:"logResources,omitempty"`
@@ -107,6 +112,10 @@ type NooBaaSpec struct {
 	// DBResources (optional) overrides the default resource requirements for the db container
 	// +optional
 	DBResources *corev1.ResourceRequirements `json:"dbResources,omitempty"`
+
+	// DBPriorityClassName (optional) overrides the priority class for the db pod
+	// +optional
+	DBPriorityClassName string `json:"dbPriorityClassName,omitempty"`
 
 	// DBVolumeResources (optional) overrides the default PVC resource requirements for the database volume.
 	// For the time being this field is immutable and can only be set on system creation.
@@ -168,6 +177,10 @@ type NooBaaSpec struct {
 	// of the endpoints in the endpoint deployment
 	// +optional
 	Region *string `json:"region,omitempty"`
+
+	// EndpointPriorityClassName (optional) overrides the priority class for the endpoint pods
+	// +optional
+	EndpointPriorityClassName string `json:"endpointPriorityClassName,omitempty"`
 
 	// Endpoints (optional) sets configuration info for the noobaa endpoint
 	// deployment.
@@ -319,11 +332,65 @@ type LoadBalancerSourceSubnetSpec struct {
 	// IAM is a list of subnets that will be allowed to access the Noobaa IAM service
 	// +optional
 	IAM []string `json:"iam,omitempty"`
+
+	// Vectors is a list of subnets that will be allowed to access the Noobaa Vectors service
+	// +optional
+	Vectors []string `json:"vectors,omitempty"`
+}
+
+// TLSProtocolVersion is the minimum TLS version for endpoint HTTPS servers.
+// Follows the OpenShift API TLSProtocolVersion definition.
+// +kubebuilder:validation:Enum=VersionTLS12;VersionTLS13
+type TLSProtocolVersion string
+
+const (
+	// TLSVersionTLS12 is version 1.2 of the TLS security protocol.
+	TLSVersionTLS12 TLSProtocolVersion = "VersionTLS12"
+	// TLSVersionTLS13 is version 1.3 of the TLS security protocol.
+	TLSVersionTLS13 TLSProtocolVersion = "VersionTLS13"
+)
+
+// TLSGroup represents a supported TLS key exchange group.
+// Follows the OpenShift API TLSCurvePreferences definition (openshift/api#2583).
+// TODO: When openshift/api#2583 merges, replace with imported OpenShift types.
+// +kubebuilder:validation:Enum=X25519;secp256r1;secp384r1;secp521r1;X25519MLKEM768
+type TLSGroup string
+
+const (
+	TLSGroupX25519         TLSGroup = "X25519"
+	TLSGroupSecp256r1      TLSGroup = "secp256r1"
+	TLSGroupSecp384r1      TLSGroup = "secp384r1"
+	TLSGroupSecp521r1      TLSGroup = "secp521r1"
+	TLSGroupX25519MLKEM768 TLSGroup = "X25519MLKEM768"
+)
+
+// TLSSecuritySpec defines TLS configuration for HTTPS servers.
+type TLSSecuritySpec struct {
+	// TLSMinVersion is used to specify the minimal version of the TLS protocol
+	// that is negotiated during the TLS handshake.
+	// +optional
+	// +nullable
+	TLSMinVersion *TLSProtocolVersion `json:"tlsMinVersion,omitempty"`
+
+	// TLSCiphers is used to specify the cipher algorithms that are negotiated
+	// during the TLS handshake.
+	// +optional
+	TLSCiphers []string `json:"tlsCiphers,omitempty"`
+
+	// TLSGroups is used to specify the key exchange groups for the TLS
+	// handshake.
+	// +optional
+	TLSGroups []TLSGroup `json:"tlsGroups,omitempty"`
 }
 
 // SecuritySpec is security spec to include various security items such as kms
 type SecuritySpec struct {
 	KeyManagementService KeyManagementServiceSpec `json:"kms,omitempty"`
+	// APIServerSecurity specifies the TLS configuration derived from the
+	// OpenShift API Server TLS profile. The StorageCluster propagates the
+	// platform TLS profile here and NooBaa applies it to endpoint HTTPS servers.
+	// +optional
+	APIServerSecurity TLSSecuritySpec `json:"apiServerSecurity,omitempty"`
 }
 
 // KeyManagementServiceSpec represent various details of the KMS server
@@ -660,12 +727,13 @@ type AccountsStatus struct {
 
 // ServicesStatus is the status info of the system's services
 type ServicesStatus struct {
-	ServiceMgmt ServiceStatus `json:"serviceMgmt"`
-	ServiceS3   ServiceStatus `json:"serviceS3"`
+	ServiceMgmt    ServiceStatus `json:"serviceMgmt"`
+	ServiceS3      ServiceStatus `json:"serviceS3"`
 	// +optional
-	ServiceSts    ServiceStatus `json:"serviceSts,omitempty"`
-	ServiceIam    ServiceStatus `json:"serviceIam,omitempty"`
-	ServiceSyslog ServiceStatus `json:"serviceSyslog,omitempty"`
+	ServiceSts     ServiceStatus `json:"serviceSts,omitempty"`
+	ServiceIam     ServiceStatus `json:"serviceIam,omitempty"`
+	ServiceVectors ServiceStatus `json:"serviceVectors,omitempty"`
+	ServiceSyslog  ServiceStatus `json:"serviceSyslog,omitempty"`
 }
 
 // UserStatus is the status info of a user secret
