@@ -29,7 +29,7 @@ var _ = Describe("TALM backup tests", Label(tsparams.LabelBackupTestCases), func
 	BeforeEach(func() {
 		By("checking that the talm version is at least 4.11")
 
-		versionInRange, err := version.IsVersionStringInRange(RANConfig.HubOperatorVersions[ranparam.TALM], "4.11", "")
+		versionInRange, err := version.IsVersionStringInRange(RANConfig.HubOperatorVersions[ranparam.TALM], "4.11.0-0", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to compared talm version string")
 
 		if !versionInRange {
@@ -101,7 +101,7 @@ var _ = Describe("TALM backup tests", Label(tsparams.LabelBackupTestCases), func
 			BeforeEach(func() {
 				By("checking that the talm version is at least 4.12")
 
-				versionInRange, err := version.IsVersionStringInRange(RANConfig.HubOperatorVersions[ranparam.TALM], "4.12", "")
+				versionInRange, err := version.IsVersionStringInRange(RANConfig.HubOperatorVersions[ranparam.TALM], "4.12.0-0", "")
 				Expect(err).ToNot(HaveOccurred(), "Failed to compare talm version string")
 
 				if !versionInRange {

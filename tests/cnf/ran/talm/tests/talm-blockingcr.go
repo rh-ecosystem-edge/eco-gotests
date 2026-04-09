@@ -29,13 +29,13 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 	var err error
 
 	BeforeEach(func() {
-		By("ensuring TALM is at least version 4.12")
+		By("ensuring TALM is at least version 4.11")
 
-		versionInRange, err := version.IsVersionStringInRange(RANConfig.HubOperatorVersions[ranparam.TALM], "4.11", "")
+		versionInRange, err := version.IsVersionStringInRange(RANConfig.HubOperatorVersions[ranparam.TALM], "4.11.0-0", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to compare TALM version string")
 
 		if !versionInRange {
-			Skip("TALM blocking CR tests require version 4.12 or higher")
+			Skip("TALM blocking CR tests require version 4.11 or higher")
 		}
 	})
 

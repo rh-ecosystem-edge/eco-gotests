@@ -29,7 +29,7 @@ var _ = Describe("ZTP Siteconfig Operator's Negative Tests",
 		BeforeEach(func() {
 			By("verifying that ZTP meets the minimum version")
 
-			versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.17", "")
+			versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.17.0-0", "")
 			Expect(err).ToNot(HaveOccurred(), "Failed to compare ZTP version string")
 
 			if !versionInRange {

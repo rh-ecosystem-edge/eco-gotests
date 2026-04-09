@@ -37,7 +37,7 @@ var _ = Describe("ZTP Argo CD Hub Templating Tests", Label(tsparams.LabelArgoCdH
 	BeforeEach(func() {
 		By("checking the ZTP version")
 
-		versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.12", "")
+		versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.12.0-0", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to check if ZTP version is in range")
 
 		if !versionInRange {
@@ -116,7 +116,7 @@ var _ = Describe("ZTP Argo CD Hub Templating Tests", Label(tsparams.LabelArgoCdH
 		It("should create the policy successfully with a valid template", reportxml.ID("54240"), func() {
 			By("checking the ZTP version")
 
-			versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.16", "")
+			versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.16.0-0", "")
 			Expect(err).ToNot(HaveOccurred(), "Failed to check if ZTP version is in range")
 
 			validTestPath := tsparams.ZtpTestPathTemplatingValid

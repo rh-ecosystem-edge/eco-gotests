@@ -35,7 +35,7 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 	BeforeEach(func() {
 		By("checking the ZTP version")
 
-		versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.10", "")
+		versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.10.0-0", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to check if ZTP version is in range")
 
 		if !versionInRange {
@@ -315,7 +315,7 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 			"the same file name", reportxml.ID("62260"), func() {
 			By("checking the ZTP version")
 
-			versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.14", "")
+			versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.14.0-0", "")
 			Expect(err).ToNot(HaveOccurred(), "Failed to check if ZTP version is in range")
 
 			if !versionInRange {
@@ -355,7 +355,7 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 			"source-cr is used in PGT", reportxml.ID("63516"), func() {
 			By("checking the ZTP version")
 
-			versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.14", "")
+			versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.14.0-0", "")
 			Expect(err).ToNot(HaveOccurred(), "Failed to check if ZTP version is in range")
 
 			if !versionInRange {
@@ -388,7 +388,7 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 		It("verifies custom and default source CRs can be included in the same policy", reportxml.ID("64407"), func() {
 			By("checking the ZTP version")
 
-			versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.14", "")
+			versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.14.0-0", "")
 			Expect(err).ToNot(HaveOccurred(), "Failed to check if ZTP version is in range")
 
 			if !versionInRange {
