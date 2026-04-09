@@ -15,7 +15,13 @@ import (
 // 4.20.0-20251212...), pass X.Y.0-0 — the lowest pre-release of X.Y.0. Plain X.Y.0 excludes pre-releases of X.Y.0.
 //
 // maximum: empty means no upper bound. A two-segment bound "X.Y" means the whole minor line: any version strictly
-// less than X.(Y+1).0 (e.g. "4.15" allows 4.15.z and their pre-releases, but not 4.16.0).
+// less than X.(Y+1).0 (e.g. "4.15" allows 4.15.z and their pre-releases, but not 4.16.0). If the numeric core has
+// three or more segments (e.g. "4.18.0" or "4.18.2-rc.1"), the exclusive upper bound is the next patch after that
+// exact version (IncPatch): valid v satisfy v < nextPatch, not "any 4.18.z".
+//
+// If version is not a valid semver string and maximum is empty, the function returns (true, nil) for compatibility
+// with legacy call sites (e.g. empty or non-semver operator tags with no upper bound). Callers that require a parsed
+// version should validate the string separately or pass a non-empty maximum so the result is (false, nil).
 func IsVersionStringInRange(version, minimum, maximum string) (bool, error) {
 	minV, err := parseMinimumBound(minimum)
 	if err != nil {

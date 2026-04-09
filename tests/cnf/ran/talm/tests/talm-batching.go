@@ -32,13 +32,13 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 		Expect([]*clients.Settings{HubAPIClient, Spoke1APIClient, Spoke2APIClient}).
 			ToNot(ContainElement(BeNil()), "Failed due to missing API client")
 
-		By("ensuring TALM is at least version 4.12")
+		By("ensuring TALM is at least version 4.11")
 
 		versionInRange, err := version.IsVersionStringInRange(RANConfig.HubOperatorVersions[ranparam.TALM], "4.11.0-0", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to compare TALM version string")
 
 		if !versionInRange {
-			Skip("TALM batching tests require version 4.12 or higher")
+			Skip("TALM batching tests require version 4.11 or higher")
 		}
 	})
 
