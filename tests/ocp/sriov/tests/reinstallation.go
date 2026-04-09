@@ -2,6 +2,7 @@ package tests
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -294,9 +295,17 @@ func installSriovOperator(sriovNamespace *namespace.Builder,
 			return false
 		}
 
-		succeeded, err := csvList[0].IsSuccessful()
+		for _, csv := range csvList {
+			if !strings.Contains(csv.Definition.Name, "sriov") {
+				continue
+			}
 
-		return err == nil && succeeded
+			succeeded, err := csv.IsSuccessful()
+
+			return err == nil && succeeded
+		}
+
+		return false
 	}, 5*time.Minute, tsparams.RetryInterval).Should(BeTrue(),
 		"SR-IOV operator CSV did not reach Succeeded phase within timeout")
 
