@@ -305,19 +305,20 @@ func runMetricsNettoVfioTests(clientPf, serverPf, clientWorker, serverWorker, de
 
 	By("ICMP check between client and server pods")
 
-	// For Mellanox NICs, "vfiopci" mode uses netdevice+RDMA instead of vfio-pci (see defineMetricsPolicy).
-	// With netdevice+RDMA, the kernel network stack remains active on the VF alongside the DPDK mlx5 PMD,
-	// so the kernel still responds to ICMP. With true vfio-pci (Intel), the VF is exclusively owned by
-	// DPDK, the kernel has no access, and ICMP fails because testpmd does not respond to it.
-	if devID == tsparams.MlxVendorID {
-		Eventually(func() error {
-			return sriovocpenv.ICMPConnectivityCheck(cPod, []string{tsparams.ServerIPv4IPAddress}, "net1")
-		}, 1*time.Minute, 2*time.Second).ShouldNot(HaveOccurred(),
-			"ICMP connectivity check failed for Mellanox netdevice+RDMA server")
-	} else {
+	// Derive the expected ICMP outcome from the device type that defineMetricsPolicy() actually
+	// configured on the server policy, rather than re-checking the vendor ID here.
+	// With true vfio-pci (Intel), the VF is exclusively owned by DPDK and ICMP fails.
+	// With netdevice+RDMA (Mellanox "vfiopci" mode), the kernel network stack remains active
+	// on the VF and ICMP succeeds.
+	if serverResources.sriovPolicy.Definition.Spec.DeviceType == "vfio-pci" {
 		Eventually(func() error {
 			return sriovocpenv.ICMPConnectivityCheck(cPod, []string{tsparams.ServerIPv4IPAddress}, "net1")
 		}, 1*time.Minute, 2*time.Second).Should(HaveOccurred(), "ICMP fail scenario could not be executed")
+	} else {
+		Eventually(func() error {
+			return sriovocpenv.ICMPConnectivityCheck(cPod, []string{tsparams.ServerIPv4IPAddress}, "net1")
+		}, 1*time.Minute, 2*time.Second).ShouldNot(HaveOccurred(),
+			"ICMP connectivity check failed for netdevice+RDMA server")
 	}
 
 	checkMetricsWithPromQL()
