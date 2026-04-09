@@ -25,7 +25,7 @@ var _ = Describe("ZTP BIOS Configuration Tests", Label(tsparams.LabelBiosDayZero
 
 	// 75196 - Check if spoke has required BIOS setting values applied
 	It("Verifies SNO spoke has required BIOS setting values applied", reportxml.ID("75196"), func() {
-		versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.17", "")
+		versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.17.0-0", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to check if ZTP version is in range")
 
 		if !versionInRange {

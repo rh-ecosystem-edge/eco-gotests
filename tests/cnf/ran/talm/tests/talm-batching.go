@@ -34,7 +34,7 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 
 		By("ensuring TALM is at least version 4.12")
 
-		versionInRange, err := version.IsVersionStringInRange(RANConfig.HubOperatorVersions[ranparam.TALM], "4.11", "")
+		versionInRange, err := version.IsVersionStringInRange(RANConfig.HubOperatorVersions[ranparam.TALM], "4.11.0-0", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to compare TALM version string")
 
 		if !versionInRange {

@@ -3,9 +3,6 @@ package version
 import (
 	"errors"
 	"fmt"
-	"math"
-	"regexp"
-	"strconv"
 	"strings"
 
 	configv1 "github.com/openshift/api/config/v1"
@@ -17,56 +14,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 )
-
-var inputStringRegex = regexp.MustCompile(`(\d+)\.(\d+)`)
-
-// IsVersionStringInRange checks if a version string is between a specified min and max value, inclusive. All the string
-// inputs to this function should contain dot separated positive intergers, e.g. "1.0.0" or "4.10". Each string input
-// must contain at least two dot separarted integers but may also contain more, though only the first two are compared.
-// Digits are compared per position, so 4.Y is not less than 5.0 if Y > 0.
-func IsVersionStringInRange(version, minimum, maximum string) (bool, error) {
-	versionDigits := getInputIntegers(version)
-	minimumDigits := getInputIntegers(minimum)
-	maximumDigits := getInputIntegers(maximum)
-
-	minInvalid := minimumDigits == nil
-	if minInvalid {
-		// Only accept invalid empty strings
-		if minimum != "" {
-			return false, fmt.Errorf("invalid minimum provided: '%s'", minimum)
-		}
-
-		// Assume the minimum digits are [0,0] for later comparison
-		minimumDigits = []int{0, 0}
-	}
-
-	maxInvalid := maximumDigits == nil
-	if maxInvalid {
-		// Only accept invalid empty strings
-		if maximum != "" {
-			return false, fmt.Errorf("invalid maximum provided: '%s'", maximum)
-		}
-
-		// Assume the maximum digits are [math.MaxInt, math.MaxInt] for later comparison
-		maximumDigits = []int{math.MaxInt, math.MaxInt}
-	}
-
-	// If the version was not valid then we return whether the maximum is empty.
-	if versionDigits == nil {
-		return maximum == "", nil
-	}
-
-	// Otherwise the versions were valid so compare the digits
-	for i := 0; i < 2; i++ {
-		// The version digit should be between the minimum and maximum, inclusive.
-		if versionDigits[i] < minimumDigits[i] || versionDigits[i] > maximumDigits[i] {
-			return false, nil
-		}
-	}
-
-	// At the end if we never returned then all the digits were in valid range
-	return true, nil
-}
 
 // GetOCPVersion uses the cluster version on a given cluster to find the latest OCP version, returning the desired
 // version if the latest version could not be found.
@@ -169,27 +116,4 @@ func GetZTPSiteGenerateImage(client *clients.Settings) (string, error) {
 	}
 
 	return "", errors.New("unable to identify ZTP site generate image")
-}
-
-// getInputIntegers returns the first two dot-separated integers in the input string. A nil return value indicates a
-// malformed input string.
-func getInputIntegers(input string) []int {
-	digits := inputStringRegex.FindStringSubmatch(input)
-	if digits == nil {
-		return nil
-	}
-
-	var integers []int
-
-	for _, digit := range digits[1:] {
-		integer, err := strconv.Atoi(digit)
-		if err != nil {
-			// Since we have already validated these are digits
-			return nil
-		}
-
-		integers = append(integers, integer)
-	}
-
-	return integers
 }
