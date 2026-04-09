@@ -259,8 +259,12 @@ func updateNodeLabel(workerNodeList []*nodes.Builder, nodeLabel map[string]strin
 
 func createConfigMap(
 	bgpAsn int, nodeAddrList []string, enableMultiHop, enableBFD bool) *configmap.Builder {
-	frrBFDConfig := frr.DefineBGPConfigWithIPv4AndIPv6(
-		bgpAsn, tsparams.LocalBGPASN, netcmd.RemovePrefixFromIPList(nodeAddrList), enableMultiHop, enableBFD)
+	frrBFDConfig, err := frrconfig.RenderFRRConfigWith(
+		frrconfig.BGPParamsByAddressFamily(
+			bgpAsn, netcmd.RemovePrefixFromIPList(nodeAddrList),
+			tsparams.LocalBGPASN, tsparams.BGPPassword, enableBFD, enableMultiHop))
+	Expect(err).ToNot(HaveOccurred(), "Failed to render FRR config")
+
 	configMapData := frrconfig.DefineBaseConfig(frrconfig.DaemonsFile, frrBFDConfig, "")
 	masterConfigMap, err := configmap.NewBuilder(APIClient, "frr-master-node-config", tsparams.TestNamespaceName).
 		WithData(configMapData).Create()
@@ -270,8 +274,11 @@ func createConfigMap(
 }
 
 func createHubConfigMap(name string) *configmap.Builder {
-	frrBFDConfig := frr.DefineBGPConfig(
-		tsparams.LocalBGPASN, tsparams.LocalBGPASN, []string{"10.10.0.10"}, false, false)
+	frrBFDConfig, err := frrconfig.RenderFRRConfigWith(
+		frrconfig.BGPParamsIPv4Family(
+			tsparams.LocalBGPASN, []string{"10.10.0.10"}, tsparams.LocalBGPASN, tsparams.BGPPassword, false, false))
+	Expect(err).ToNot(HaveOccurred(), "Failed to render FRR config")
+
 	configMapData := frrconfig.DefineBaseConfig(frrconfig.DaemonsFile, frrBFDConfig, "")
 	hubConfigMap, err := configmap.NewBuilder(APIClient, name, tsparams.TestNamespaceName).WithData(configMapData).Create()
 	Expect(err).ToNot(HaveOccurred(), "Failed to create hub config map")
