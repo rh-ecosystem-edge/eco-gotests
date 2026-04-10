@@ -336,8 +336,9 @@ func installSriovOperator(sriovNamespace *namespace.Builder,
 			}
 
 			succeeded, err := csv.IsSuccessful()
-
-			return err == nil && succeeded
+			if err == nil && succeeded {
+				return true
+			}
 		}
 
 		return false
