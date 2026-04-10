@@ -7,6 +7,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/olm"
@@ -95,6 +96,13 @@ var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.Label
 				tsparams.TestNamespaceName, sriovTestResourceName).WithStaticIpam().WithMacAddressSupport().WithIPAddressSupport().
 				WithLogLevel("debug").Create()
 			Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network")
+
+			By("Waiting for SR-IOV NetworkAttachmentDefinition to be created in test namespace")
+
+			Eventually(func() bool {
+				return nad.NewBuilder(APIClient, sriovTestResourceName, tsparams.TestNamespaceName).Exists()
+			}, tsparams.DefaultTimeout, tsparams.RetryInterval).Should(BeTrue(),
+				"SR-IOV NetworkAttachmentDefinition was not created in test namespace")
 		})
 
 		It("Operator re-installation. Verify SR-IOV operator data plane is operational before removal",
@@ -174,6 +182,13 @@ var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.Label
 					tsparams.TestNamespaceName, sriovTestResourceName).WithStaticIpam().WithMacAddressSupport().WithIPAddressSupport().
 					WithLogLevel("debug").Create()
 				Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network")
+
+				By("Waiting for SR-IOV NetworkAttachmentDefinition to be created in test namespace")
+
+				Eventually(func() bool {
+					return nad.NewBuilder(APIClient, sriovTestResourceName, tsparams.TestNamespaceName).Exists()
+				}, tsparams.DefaultTimeout, tsparams.RetryInterval).Should(BeTrue(),
+					"SR-IOV NetworkAttachmentDefinition was not created in test namespace")
 			})
 
 		It("Operator re-installation. Validate that re-installed SR-IOV operator’s data plane is up and running",
@@ -290,12 +305,18 @@ func installSriovOperator(sriovNamespace *namespace.Builder,
 
 	By("Creating SR-IOV operator Subscription")
 
-	_, err = olm.NewSubscriptionBuilder(
+	subBuilder := olm.NewSubscriptionBuilder(
 		APIClient, sriovSubscription.Definition.Name,
 		sriovSubscription.Definition.Namespace,
 		sriovSubscription.Definition.Spec.CatalogSource,
 		sriovSubscription.Definition.Spec.CatalogSourceNamespace,
-		sriovSubscription.Definition.Spec.Package).Create()
+		sriovSubscription.Definition.Spec.Package)
+
+	if sriovSubscription.Definition.Spec.StartingCSV != "" {
+		subBuilder = subBuilder.WithStartingCSV(sriovSubscription.Definition.Spec.StartingCSV)
+	}
+
+	_, err = subBuilder.Create()
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to create SR-IOV Subscription %s", sriovSubscription.Definition.Name))
 
