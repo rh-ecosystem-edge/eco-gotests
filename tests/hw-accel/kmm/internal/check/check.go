@@ -208,6 +208,95 @@ func ModuleSigned(apiClient *clients.Settings, modName, message, nsname, image s
 	return err
 }
 
+// MultiModuleSigned verifies multiple modules in a single image are signed.
+// It creates one pod and checks each module, avoiding repeated pod creation.
+func MultiModuleSigned(apiClient *clients.Settings, modNames []string,
+	message, nsname, image, dirName string) error {
+	kernelVersion, err := get.KernelFullVersion(apiClient, GeneralConfig.WorkerLabelMap)
+	if err != nil {
+		return err
+	}
+
+	processedImage := strings.ReplaceAll(image, "$KERNEL_FULL_VERSION", kernelVersion)
+	testPod := pod.NewBuilder(apiClient, "multi-sign-checker", nsname, processedImage)
+
+	_, err = testPod.CreateAndWaitUntilRunning(2 * time.Minute)
+	if err != nil {
+		klog.V(kmmparams.KmmLogLevel).Infof("Could not create multi-sign verification pod. Got error: %v", err)
+
+		return err
+	}
+
+	defer func() {
+		_, _ = testPod.Delete()
+	}()
+
+	var errs []string
+
+	for _, modName := range modNames {
+		modulePath := fmt.Sprintf("modinfo %s/lib/modules/*/%s.ko", dirName, modName)
+		command := []string{"bash", "-c", modulePath}
+
+		buff, execErr := testPod.ExecCommand(command, "test")
+		if execErr != nil {
+			errs = append(errs, fmt.Sprintf("modinfo failed for %s: %v", modName, execErr))
+
+			continue
+		}
+
+		contents := buff.String()
+		klog.V(kmmparams.KmmLogLevel).Infof("modinfo %s: %s", modName, contents)
+
+		if !strings.Contains(contents, message) {
+			errs = append(errs, fmt.Sprintf("module %s is not signed with '%s'", modName, message))
+		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("signing verification failed: %s", strings.Join(errs, "; "))
+	}
+
+	return nil
+}
+
+// ModuleNotSigned verifies that a module in an image is NOT signed with the given signer.
+func ModuleNotSigned(apiClient *clients.Settings, modName, signerCN, nsname, image string) error {
+	modulePath := fmt.Sprintf("modinfo /opt/lib/modules/*/%s.ko", modName)
+	command := []string{"bash", "-c", modulePath}
+
+	kernelVersion, err := get.KernelFullVersion(apiClient, GeneralConfig.WorkerLabelMap)
+	if err != nil {
+		return err
+	}
+
+	processedImage := strings.ReplaceAll(image, "$KERNEL_FULL_VERSION", kernelVersion)
+	testPod := pod.NewBuilder(apiClient, "unsigned-checker", nsname, processedImage)
+
+	_, err = testPod.CreateAndWaitUntilRunning(2 * time.Minute)
+	if err != nil {
+		klog.V(kmmparams.KmmLogLevel).Infof("Could not create unsigned verification pod. Got error: %v", err)
+
+		return err
+	}
+
+	buff, err := testPod.ExecCommand(command, "test")
+
+	_, _ = testPod.Delete()
+
+	if err != nil {
+		return err
+	}
+
+	contents := buff.String()
+	klog.V(kmmparams.KmmLogLevel).Infof("modinfo %s: %s", modName, contents)
+
+	if strings.Contains(contents, signerCN) {
+		return fmt.Errorf("module %s is unexpectedly signed with '%s'", modName, signerCN)
+	}
+
+	return nil
+}
+
 // IntreeModuleLoaded makes sure the needed in-tree module is present on the nodes.
 func IntreeModuleLoaded(apiClient *clients.Settings, module string, timeout time.Duration) error {
 	return runCommandOnTestPods(apiClient, []string{"modprobe", module}, "", timeout)
