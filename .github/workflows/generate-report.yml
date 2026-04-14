@@ -66,7 +66,7 @@ jobs:
 
       - name: Upload generated report as artifact
         id: upload-pages
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: ./report
 
