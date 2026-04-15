@@ -223,22 +223,12 @@ func (builder *Builder) WithHugePages() *Builder {
 	klog.V(100).Infof("Applying hugePages configuration to all containers in deployment: %s",
 		builder.Definition.Name)
 
-	// If volumes are not defined, create an empty list of volumes.
-	if builder.Definition.Spec.Template.Spec.Volumes == nil {
-		builder.Definition.Spec.Template.Spec.Volumes = []corev1.Volume{}
-	}
-
 	// Append hugepages volume to the deployment.
 	builder.Definition.Spec.Template.Spec.Volumes = append(builder.Definition.Spec.Template.Spec.Volumes, corev1.Volume{
 		Name: "hugepages", VolumeSource: corev1.VolumeSource{
 			EmptyDir: &corev1.EmptyDirVolumeSource{Medium: "HugePages"}}})
 
 	for idx := range builder.Definition.Spec.Template.Spec.Containers {
-		// If volumeMounts are not defined, create an empty list of volumeMounts.
-		if builder.Definition.Spec.Template.Spec.Containers[idx].VolumeMounts == nil {
-			builder.Definition.Spec.Template.Spec.Containers[idx].VolumeMounts = []corev1.VolumeMount{}
-		}
-
 		// Append hugepages volume mount to the deployment.
 		builder.Definition.Spec.Template.Spec.Containers[idx].VolumeMounts = append(
 			builder.Definition.Spec.Template.Spec.Containers[idx].VolumeMounts,

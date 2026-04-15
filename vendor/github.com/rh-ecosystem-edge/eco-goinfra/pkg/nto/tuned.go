@@ -256,10 +256,6 @@ func (builder *TunedBuilder) WithRecommend(
 		"Setting tuned %s in namespace %s with the Recommend: %v",
 		builder.Definition.Name, builder.Definition.Namespace, recommend)
 
-	if builder.Definition.Spec.Recommend == nil {
-		builder.Definition.Spec.Recommend = []tunedv1.TunedRecommend{}
-	}
-
 	builder.Definition.Spec.Recommend = append(builder.Definition.Spec.Recommend, recommend)
 
 	return builder

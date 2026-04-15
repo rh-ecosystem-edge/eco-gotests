@@ -262,12 +262,6 @@ func (builder *Builder) WithDropCapabilities(requiredDropCapabilities []corev1.C
 		return builder
 	}
 
-	if builder.Definition.RequiredDropCapabilities == nil {
-		builder.Definition.RequiredDropCapabilities = requiredDropCapabilities
-
-		return builder
-	}
-
 	builder.Definition.RequiredDropCapabilities = append(
 		builder.Definition.RequiredDropCapabilities, requiredDropCapabilities...)
 
@@ -291,12 +285,6 @@ func (builder *Builder) WithAllowCapabilities(allowCapabilities []corev1.Capabil
 		return builder
 	}
 
-	if builder.Definition.AllowedCapabilities == nil {
-		builder.Definition.AllowedCapabilities = allowCapabilities
-
-		return builder
-	}
-
 	builder.Definition.AllowedCapabilities = append(builder.Definition.AllowedCapabilities, allowCapabilities...)
 
 	return builder
@@ -315,12 +303,6 @@ func (builder *Builder) WithDefaultAddCapabilities(defaultAddCapabilities []core
 		klog.V(100).Info("SecurityContextConstraints 'defaultAddCapabilities' argument cannot be empty")
 
 		builder.errorMsg = "securityContextConstraints 'defaultAddCapabilities' cannot be empty list"
-
-		return builder
-	}
-
-	if builder.Definition.DefaultAddCapabilities == nil {
-		builder.Definition.DefaultAddCapabilities = defaultAddCapabilities
 
 		return builder
 	}
@@ -382,14 +364,8 @@ func (builder *Builder) WithFSGroupRange(fsGroupMin, fsGroupMax int64) *Builder 
 		return builder
 	}
 
-	if builder.Definition.FSGroup.Ranges == nil {
-		builder.Definition.FSGroup.Ranges = []securityV1.IDRange{{Min: fsGroupMin, Max: fsGroupMax}}
-
-		return builder
-	}
-
 	builder.Definition.FSGroup.Ranges = append(
-		builder.Definition.FSGroup.Ranges, securityV1.IDRange{Max: fsGroupMax, Min: fsGroupMin})
+		builder.Definition.FSGroup.Ranges, securityV1.IDRange{Min: fsGroupMin, Max: fsGroupMax})
 
 	return builder
 }
@@ -406,12 +382,6 @@ func (builder *Builder) WithGroups(groups []string) *Builder {
 		klog.V(100).Info("SecurityContextConstraints 'groups' argument cannot be empty")
 
 		builder.errorMsg = "securityContextConstraints 'fsGroupType' cannot be empty string"
-
-		return builder
-	}
-
-	if builder.Definition.Groups == nil {
-		builder.Definition.Groups = groups
 
 		return builder
 	}
@@ -434,12 +404,6 @@ func (builder *Builder) WithSeccompProfiles(seccompProfiles []string) *Builder {
 		klog.V(100).Info("SecurityContextConstraints 'seccompProfiles' argument cannot be empty")
 
 		builder.errorMsg = "securityContextConstraints 'seccompProfiles' cannot be empty list"
-
-		return builder
-	}
-
-	if builder.Definition.SeccompProfiles == nil {
-		builder.Definition.SeccompProfiles = seccompProfiles
 
 		return builder
 	}
@@ -487,12 +451,6 @@ func (builder *Builder) WithUsers(users []string) *Builder {
 		return builder
 	}
 
-	if builder.Definition.Users == nil {
-		builder.Definition.Users = users
-
-		return builder
-	}
-
 	builder.Definition.Users = append(builder.Definition.Users, users...)
 
 	return builder
@@ -510,12 +468,6 @@ func (builder *Builder) WithVolumes(volumes []securityV1.FSType) *Builder {
 		klog.V(100).Info("SecurityContextConstraints 'volumes' argument cannot be empty")
 
 		builder.errorMsg = "securityContextConstraints 'volumes' cannot be empty list"
-
-		return builder
-	}
-
-	if builder.Definition.Volumes == nil {
-		builder.Definition.Volumes = volumes
 
 		return builder
 	}

@@ -524,6 +524,65 @@ func (builder *PolicyBuilder) WithAbsentInterface(interfaceName string) *PolicyB
 	return builder.withInterface(newInterface)
 }
 
+// WithStaticRoute adds a static route to the NodeNetworkConfigurationPolicy desired state.
+func (builder *PolicyBuilder) WithStaticRoute(
+	destination, nextHopAddress, nextHopInterface string, metric, tableID int) *PolicyBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof("Adding static route %s via %s dev %s to NodeNetworkConfigurationPolicy %s",
+		destination, nextHopAddress, nextHopInterface, builder.Definition.Name)
+
+	if destination == "" {
+		builder.errorMsg = "route 'destination' cannot be empty"
+
+		return builder
+	}
+
+	if nextHopAddress == "" && nextHopInterface == "" {
+		builder.errorMsg = "route must have either 'nextHopAddress' or 'nextHopInterface'"
+
+		return builder
+	}
+
+	var currentState DesiredState
+
+	err := yaml.Unmarshal(builder.Definition.Spec.DesiredState.Raw, &currentState)
+	if err != nil {
+		klog.V(100).Info("Failed Unmarshal DesiredState")
+
+		builder.errorMsg = "Failed Unmarshal DesiredState"
+
+		return builder
+	}
+
+	if currentState.Routes == nil {
+		currentState.Routes = &DesiredRoutes{}
+	}
+
+	currentState.Routes.Config = append(currentState.Routes.Config, RouteConfig{
+		Destination:      destination,
+		NextHopAddress:   nextHopAddress,
+		NextHopInterface: nextHopInterface,
+		Metric:           metric,
+		TableID:          tableID,
+	})
+
+	desiredStateYaml, err := yaml.Marshal(currentState)
+	if err != nil {
+		klog.V(100).Info("Failed Marshal DesiredState")
+
+		builder.errorMsg = "failed to Marshal a new Desired state"
+
+		return builder
+	}
+
+	builder.Definition.Spec.DesiredState = nmstateShared.NewState(string(desiredStateYaml))
+
+	return builder
+}
+
 // WithOptions creates pod with generic mutation options.
 func (builder *PolicyBuilder) WithOptions(options ...AdditionalOptions) *PolicyBuilder {
 	if valid, _ := builder.validate(); !valid {

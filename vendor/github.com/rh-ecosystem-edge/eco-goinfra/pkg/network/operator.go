@@ -156,6 +156,53 @@ func (builder *OperatorBuilder) SetLocalGWMode(state bool, timeout time.Duration
 	return builder, err
 }
 
+// SetIPForwarding sets the IPForwarding mode on the OVN-Kubernetes gateway configuration
+// and waits for the network operator to stabilize.
+func (builder *OperatorBuilder) SetIPForwarding(
+	mode operatorv1.IPForwardingMode, timeout time.Duration) (*OperatorBuilder, error) {
+	if valid, err := builder.validate(); !valid {
+		return builder, err
+	}
+
+	klog.V(100).Infof("Setting IPForwarding mode %q on network.operator %s", mode, builder.Definition.Name)
+
+	if builder.Definition.Spec.DefaultNetwork.OVNKubernetesConfig == nil {
+		builder.Definition.Spec.DefaultNetwork.OVNKubernetesConfig = &operatorv1.OVNKubernetesConfig{}
+	}
+
+	if builder.Definition.Spec.DefaultNetwork.OVNKubernetesConfig.GatewayConfig == nil {
+		builder.Definition.Spec.DefaultNetwork.OVNKubernetesConfig.GatewayConfig = &operatorv1.GatewayConfig{}
+	}
+
+	var err error
+
+	if builder.Definition.Spec.DefaultNetwork.OVNKubernetesConfig.GatewayConfig.IPForwarding != mode {
+		builder.Definition.Spec.DefaultNetwork.OVNKubernetesConfig.GatewayConfig.IPForwarding = mode
+
+		builder, err := builder.Update()
+		if err != nil {
+			return nil, err
+		}
+
+		err = builder.WaitUntilInCondition(
+			operatorv1.OperatorStatusTypeProgressing, 300*time.Second, operatorv1.ConditionTrue)
+		if err != nil {
+			return nil, err
+		}
+
+		err = builder.WaitUntilInCondition(
+			operatorv1.OperatorStatusTypeProgressing, timeout, operatorv1.ConditionFalse)
+		if err != nil {
+			return nil, err
+		}
+
+		return builder, builder.WaitUntilInCondition(
+			operatorv1.OperatorStatusTypeAvailable, 60*time.Second, operatorv1.ConditionTrue)
+	}
+
+	return builder, err
+}
+
 // SetMultiNetworkPolicy enables network.operator multinetworkpolicy feature.
 func (builder *OperatorBuilder) SetMultiNetworkPolicy(state bool, timeout time.Duration) (*OperatorBuilder, error) {
 	if valid, err := builder.validate(); !valid {

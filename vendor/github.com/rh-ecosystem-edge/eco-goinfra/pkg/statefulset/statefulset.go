@@ -110,12 +110,6 @@ func (builder *Builder) WithAdditionalContainerSpecs(specs []corev1.Container) *
 		return builder
 	}
 
-	if builder.Definition.Spec.Template.Spec.Containers == nil {
-		builder.Definition.Spec.Template.Spec.Containers = specs
-
-		return builder
-	}
-
 	builder.Definition.Spec.Template.Spec.Containers = append(builder.Definition.Spec.Template.Spec.Containers, specs...)
 
 	return builder
