@@ -93,12 +93,6 @@ func (builder *ClusterRoleBuilder) WithRules(rules []rbacv1.PolicyRule) *Cluster
 		}
 	}
 
-	if builder.Definition.Rules == nil {
-		builder.Definition.Rules = rules
-
-		return builder
-	}
-
 	builder.Definition.Rules = append(builder.Definition.Rules, rules...)
 
 	return builder

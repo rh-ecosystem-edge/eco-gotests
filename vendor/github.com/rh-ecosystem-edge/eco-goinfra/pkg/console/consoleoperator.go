@@ -149,12 +149,6 @@ func (builder *ConsoleOperatorBuilder) WithPlugins(newPluginsList []string, rede
 		return builder
 	}
 
-	if builder.Definition.Spec.Plugins == nil {
-		klog.V(100).Info("Plugins are nil. Initializing one")
-
-		builder.Definition.Spec.Plugins = []string{}
-	}
-
 	if redefine {
 		klog.V(100).Infof("Redefining existing plugins list with %v", newPluginsList)
 

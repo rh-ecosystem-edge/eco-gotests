@@ -144,11 +144,7 @@ func (builder *ClusterLogForwarderBuilder) WithOutput(
 		return builder
 	}
 
-	if builder.Definition.Spec.Outputs == nil {
-		builder.Definition.Spec.Outputs = []observabilityv1.OutputSpec{*outputSpec}
-	} else {
-		builder.Definition.Spec.Outputs = append(builder.Definition.Spec.Outputs, *outputSpec)
-	}
+	builder.Definition.Spec.Outputs = append(builder.Definition.Spec.Outputs, *outputSpec)
 
 	return builder
 }
@@ -171,11 +167,7 @@ func (builder *ClusterLogForwarderBuilder) WithPipeline(
 		return builder
 	}
 
-	if builder.Definition.Spec.Pipelines == nil {
-		builder.Definition.Spec.Pipelines = []observabilityv1.PipelineSpec{*pipelineSpec}
-	} else {
-		builder.Definition.Spec.Pipelines = append(builder.Definition.Spec.Pipelines, *pipelineSpec)
-	}
+	builder.Definition.Spec.Pipelines = append(builder.Definition.Spec.Pipelines, *pipelineSpec)
 
 	return builder
 }
