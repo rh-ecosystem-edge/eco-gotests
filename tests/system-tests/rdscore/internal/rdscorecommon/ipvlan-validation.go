@@ -158,33 +158,45 @@ func VerifyIPVlanOnDifferentNodes() {
 // VerifyIPVLANConnectivityBetweenDifferentNodes verifies connectivity between workloads,
 // using IPVLAN interfaces and running on different nodes.
 func VerifyIPVLANConnectivityBetweenDifferentNodes() {
-	verifySRIOVConnectivity(
-		RDSCoreConfig.IPVlanNSOne,
-		RDSCoreConfig.IPVlanNSOne,
-		ipvlanDeploy10Label,
-		ipvlanDeploy11Label,
-		RDSCoreConfig.IPVlanDeploy1TargetAddress)
+	addressesList := []string{RDSCoreConfig.IPVlanDeploy1TargetAddress,
+		RDSCoreConfig.IPVlanDeploy1TargetAddressIPv6}
 
-	verifySRIOVConnectivity(
-		RDSCoreConfig.IPVlanNSOne,
-		RDSCoreConfig.IPVlanNSOne,
-		ipvlanDeploy11Label,
-		ipvlanDeploy10Label,
-		RDSCoreConfig.IPVlanDeploy2TargetAddress)
+	for _, targetAddress := range addressesList {
+		if targetAddress == "" {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping empty address %q", targetAddress)
 
-	verifySRIOVConnectivity(
-		RDSCoreConfig.IPVlanNSOne,
-		RDSCoreConfig.IPVlanNSOne,
-		ipvlanDeploy10Label,
-		ipvlanDeploy11Label,
-		RDSCoreConfig.IPVlanDeploy1TargetAddressIPv6)
+			continue
+		}
 
-	verifySRIOVConnectivity(
-		RDSCoreConfig.IPVlanNSOne,
-		RDSCoreConfig.IPVlanNSOne,
-		ipvlanDeploy11Label,
-		ipvlanDeploy10Label,
-		RDSCoreConfig.IPVlanDeploy2TargetAddressIPv6)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Access workload via %q", targetAddress)
+
+		verifySRIOVConnectivity(
+			RDSCoreConfig.IPVlanNSOne,
+			RDSCoreConfig.IPVlanNSOne,
+			ipvlanDeploy10Label,
+			ipvlanDeploy11Label,
+			targetAddress)
+	}
+
+	addressesList = []string{RDSCoreConfig.IPVlanDeploy2TargetAddress,
+		RDSCoreConfig.IPVlanDeploy2TargetAddressIPv6}
+
+	for _, targetAddress := range addressesList {
+		if targetAddress == "" {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping empty address %q", targetAddress)
+
+			continue
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Access workload via %q", targetAddress)
+
+		verifySRIOVConnectivity(
+			RDSCoreConfig.IPVlanNSOne,
+			RDSCoreConfig.IPVlanNSOne,
+			ipvlanDeploy11Label,
+			ipvlanDeploy10Label,
+			targetAddress)
+	}
 }
 
 // VerifyIPVlanOnSameNode verifies connectivity between freshly deployed workloads that use
@@ -291,33 +303,45 @@ func VerifyIPVlanOnSameNode() {
 
 // VerifyIPVLANConnectivityOnSameNode verifies connectivity between workloads that use IPVLAN net.
 func VerifyIPVLANConnectivityOnSameNode() {
-	verifySRIOVConnectivity(
-		RDSCoreConfig.IPVlanNSOne,
-		RDSCoreConfig.IPVlanNSOne,
-		ipvlanDeploy20Label,
-		ipvlanDeploy21Label,
-		RDSCoreConfig.IPVlanDeploy3TargetAddress)
+	addressesList := []string{RDSCoreConfig.IPVlanDeploy3TargetAddress,
+		RDSCoreConfig.IPVlanDeploy3TargetAddressIPv6}
 
-	verifySRIOVConnectivity(
-		RDSCoreConfig.IPVlanNSOne,
-		RDSCoreConfig.IPVlanNSOne,
-		ipvlanDeploy21Label,
-		ipvlanDeploy20Label,
-		RDSCoreConfig.IPVlanDeploy4TargetAddress)
+	for _, targetAddress := range addressesList {
+		if targetAddress == "" {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping empty address %q", targetAddress)
 
-	verifySRIOVConnectivity(
-		RDSCoreConfig.IPVlanNSOne,
-		RDSCoreConfig.IPVlanNSOne,
-		ipvlanDeploy20Label,
-		ipvlanDeploy21Label,
-		RDSCoreConfig.IPVlanDeploy3TargetAddressIPv6)
+			continue
+		}
 
-	verifySRIOVConnectivity(
-		RDSCoreConfig.IPVlanNSOne,
-		RDSCoreConfig.IPVlanNSOne,
-		ipvlanDeploy21Label,
-		ipvlanDeploy20Label,
-		RDSCoreConfig.IPVlanDeploy4TargetAddressIPv6)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Access workload via %q", targetAddress)
+
+		verifySRIOVConnectivity(
+			RDSCoreConfig.IPVlanNSOne,
+			RDSCoreConfig.IPVlanNSOne,
+			ipvlanDeploy20Label,
+			ipvlanDeploy21Label,
+			targetAddress)
+	}
+
+	addressesList = []string{RDSCoreConfig.IPVlanDeploy4TargetAddress,
+		RDSCoreConfig.IPVlanDeploy4TargetAddressIPv6}
+
+	for _, targetAddress := range addressesList {
+		if targetAddress == "" {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping empty address %q", targetAddress)
+
+			continue
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Access workload via %q", targetAddress)
+
+		verifySRIOVConnectivity(
+			RDSCoreConfig.IPVlanNSOne,
+			RDSCoreConfig.IPVlanNSOne,
+			ipvlanDeploy21Label,
+			ipvlanDeploy20Label,
+			targetAddress)
+	}
 }
 
 func defineIPVlanDeployment(dName, nsName, dLabels, netDefName, volName string,

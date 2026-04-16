@@ -490,8 +490,13 @@ class RemoteWriteHandler(http.server.BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         pass  # Suppress default logging
 
+import socket
+
+class DualStackTCPServer(socketserver.TCPServer):
+    address_family = socket.AF_INET6
+
 PORT = %d
-with socketserver.TCPServer(("", PORT), RemoteWriteHandler) as httpd:
+with DualStackTCPServer(("::", PORT), RemoteWriteHandler) as httpd:
     httpd.serve_forever()
 `, remoteWriteTestContainerPort)
 }

@@ -255,31 +255,53 @@ func definePodLevelBondTestPodDeployment(
 	deployLabels map[string]string) (*deployment.Builder, error) {
 	klog.V(100).Infof("Defining deployment %q in %q ns", deploymentName, nsName)
 
-	if bondInfIPv4 == "" {
-		klog.V(100).Infof("Bond interface IPv4 address is missing")
+	// Validate that at least one IP family is configured
+	if bondInfIPv4 == "" && bondInfIPv6 == "" {
+		klog.V(100).Infof("Both IPv4 and IPv6 bond interface addresses are missing")
 
-		return nil, fmt.Errorf("bond interface IPv4 address is missing")
+		return nil, fmt.Errorf("at least one bond interface IP address (IPv4 or IPv6) must be configured")
+	}
+
+	// Validate IPv4 configuration if provided
+	if bondInfIPv4 != "" && bondInfSubMaskIPv4 == "" {
+		klog.V(100).Infof("Bond interface IPv4 address subnet mask is missing")
+
+		return nil, fmt.Errorf("bond interface IPv4 address subnet mask is required when IPv4 address is provided")
+	}
+
+	// Validate IPv6 configuration if provided
+	if bondInfIPv6 != "" && bondInfSubMaskIPv6 == "" {
+		klog.V(100).Infof("Bond interface IPv6 address subnet mask is missing")
+
+		return nil, fmt.Errorf("bond interface IPv6 address subnet mask is required when IPv6 address is provided")
+	}
+
+	// Log configuration status
+	if bondInfIPv4 == "" {
+		klog.V(100).Infof("IPv4 bond interface address not configured - pure IPv6 mode")
+	} else {
+		klog.V(100).Infof("IPv4 bond interface address configured: %s/%s", bondInfIPv4, bondInfSubMaskIPv4)
 	}
 
 	if bondInfIPv6 == "" {
-		klog.V(100).Infof("Bond interface IPv6 address is missing")
-
-		return nil, fmt.Errorf("bond interface IPv6 address is missing")
-	}
-
-	if bondInfSubMaskIPv4 == "" {
-		klog.V(100).Infof("Bond interface IPv4 address subnet mask is missing")
-
-		return nil, fmt.Errorf("bond interface IPv4 address subnet mask is missing")
-	}
-
-	if bondInfSubMaskIPv6 == "" {
-		klog.V(100).Infof("Bond interface IPv6 address subnet mask is missing")
-
-		return nil, fmt.Errorf("bond interface IPv6 address subnet mask is missing")
+		klog.V(100).Infof("IPv6 bond interface address not configured - pure IPv4 mode")
+	} else {
+		klog.V(100).Infof("IPv6 bond interface address configured: %s/%s", bondInfIPv6, bondInfSubMaskIPv6)
 	}
 
 	nodeSelector := map[string]string{"kubernetes.io/hostname": scheduleOnHost}
+
+	// Build IP requests only for configured addresses
+	var ipRequests []string
+	if bondInfIPv4 != "" && bondInfSubMaskIPv4 != "" {
+		ipRequests = append(ipRequests, fmt.Sprintf("%s/%s", bondInfIPv4, bondInfSubMaskIPv4))
+		klog.V(100).Infof("Added IPv4 request: %s/%s", bondInfIPv4, bondInfSubMaskIPv4)
+	}
+
+	if bondInfIPv6 != "" && bondInfSubMaskIPv6 != "" {
+		ipRequests = append(ipRequests, fmt.Sprintf("%s/%s", bondInfIPv6, bondInfSubMaskIPv6))
+		klog.V(100).Infof("Added IPv6 request: %s/%s", bondInfIPv6, bondInfSubMaskIPv6)
+	}
 
 	netAnnotations := []*types.NetworkSelectionElement{
 		{
@@ -291,10 +313,9 @@ func definePodLevelBondTestPodDeployment(
 			Namespace: nsName,
 		},
 		{
-			Name:      bondNetName,
-			Namespace: nsName,
-			IPRequest: []string{fmt.Sprintf("%s/%s", bondInfIPv4, bondInfSubMaskIPv4),
-				fmt.Sprintf("%s/%s", bondInfIPv6, bondInfSubMaskIPv6)},
+			Name:       bondNetName,
+			Namespace:  nsName,
+			IPRequest:  ipRequests,
 			MacRequest: bondInfMacAddr,
 		},
 	}
@@ -1339,18 +1360,34 @@ func VerifyPodLevelBondWorkloadsAfterVFFailOver() {
 	go func() {
 		defer GinkgoRecover()
 
-		By("Send data from the client container to the IPv4 address used by the server container")
+		// Determine target IP based on configuration priority: IPv4 first, then IPv6
+		var targetIP string
+
+		switch {
+		case RDSCoreConfig.PodLevelBondDeploymentTwoIPv4 != "":
+			targetIP = RDSCoreConfig.PodLevelBondDeploymentTwoIPv4
+		case RDSCoreConfig.PodLevelBondDeploymentTwoIPv6 != "":
+			targetIP = RDSCoreConfig.PodLevelBondDeploymentTwoIPv6
+		default:
+			Fail("Neither IPv4 nor IPv6 server address is configured for the server deployment")
+
+			return
+		}
+
+		By(fmt.Sprintf("Send data from the client container to the server address %s", targetIP))
+
+		klog.V(100).Infof("Using server address %s for TCP traffic generation", targetIP)
 
 		output, err := generateTCPTraffic(
 			clientPodObj,
-			RDSCoreConfig.PodLevelBondDeploymentTwoIPv4,
+			targetIP,
 			RDSCoreConfig.PodLevelBondPort,
 			"10",
 			"5")
 		Expect(err).ToNot(HaveOccurred(),
 			fmt.Sprintf("Failed to generate TCP traffic from the pod %s in namespace %s to the server %s: %v",
 				clientPodObj.Definition.Name, clientPodObj.Definition.Namespace,
-				RDSCoreConfig.PodLevelBondDeploymentTwoIPv4, err))
+				targetIP, err))
 
 		testPassed, err := scanClientPodTrafficOutput(output)
 		Expect(err).ToNot(HaveOccurred(),

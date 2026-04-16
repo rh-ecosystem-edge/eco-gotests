@@ -203,33 +203,53 @@ func VerifyMacVlanOnDifferentNodes() {
 // VerifyMACVLANConnectivityBetweenDifferentNodes verifies connectivity between workloads,
 // using MACVLAN interfaces and running on different nodes.
 func VerifyMACVLANConnectivityBetweenDifferentNodes() {
-	verifySRIOVConnectivity(
-		RDSCoreConfig.MCVlanNSOne,
-		RDSCoreConfig.MCVlanNSOne,
-		macvlanDeploy10Label,
-		macvlanDeploy11Label,
-		RDSCoreConfig.MCVlanDeploy1TargetAddress)
+	Expect(RDSCoreConfig.MCVlanDeploy1TargetAddress != "" ||
+		RDSCoreConfig.MCVlanDeploy1TargetAddressIPv6 != "").To(BeTrue(),
+		"At least one target address (IPv4 or IPv6) must be configured for MCVlan Deploy1")
 
-	verifySRIOVConnectivity(
-		RDSCoreConfig.MCVlanNSOne,
-		RDSCoreConfig.MCVlanNSOne,
-		macvlanDeploy11Label,
-		macvlanDeploy10Label,
-		RDSCoreConfig.MCVlanDeploy2TargetAddress)
+	addressesList := []string{RDSCoreConfig.MCVlanDeploy1TargetAddress,
+		RDSCoreConfig.MCVlanDeploy1TargetAddressIPv6}
 
-	verifySRIOVConnectivity(
-		RDSCoreConfig.MCVlanNSOne,
-		RDSCoreConfig.MCVlanNSOne,
-		macvlanDeploy10Label,
-		macvlanDeploy11Label,
-		RDSCoreConfig.MCVlanDeploy1TargetAddressIPv6)
+	for _, targetAddress := range addressesList {
+		if targetAddress == "" {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping empty address %q", targetAddress)
 
-	verifySRIOVConnectivity(
-		RDSCoreConfig.MCVlanNSOne,
-		RDSCoreConfig.MCVlanNSOne,
-		macvlanDeploy11Label,
-		macvlanDeploy10Label,
-		RDSCoreConfig.MCVlanDeploy2TargetAddressIPv6)
+			continue
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Access workload via %q", targetAddress)
+
+		verifySRIOVConnectivity(
+			RDSCoreConfig.MCVlanNSOne,
+			RDSCoreConfig.MCVlanNSOne,
+			macvlanDeploy10Label,
+			macvlanDeploy11Label,
+			targetAddress)
+	}
+
+	Expect(RDSCoreConfig.MCVlanDeploy2TargetAddress != "" ||
+		RDSCoreConfig.MCVlanDeploy2TargetAddressIPv6 != "").To(BeTrue(),
+		"At least one target address (IPv4 or IPv6) must be configured for MCVlan Deploy2")
+
+	addressesList = []string{RDSCoreConfig.MCVlanDeploy2TargetAddress,
+		RDSCoreConfig.MCVlanDeploy2TargetAddressIPv6}
+
+	for _, targetAddress := range addressesList {
+		if targetAddress == "" {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping empty address %q", targetAddress)
+
+			continue
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Access workload via %q", targetAddress)
+
+		verifySRIOVConnectivity(
+			RDSCoreConfig.MCVlanNSOne,
+			RDSCoreConfig.MCVlanNSOne,
+			macvlanDeploy11Label,
+			macvlanDeploy10Label,
+			targetAddress)
+	}
 }
 
 // VerifyMacVlanOnSameNode verifies connectivity between freshly deployed workloads that use
@@ -336,33 +356,53 @@ func VerifyMacVlanOnSameNode() {
 
 // VerifyMACVLANConnectivityOnSameNode verifies connectivity between workloads that use MACVLAN net.
 func VerifyMACVLANConnectivityOnSameNode() {
-	verifySRIOVConnectivity(
-		RDSCoreConfig.MCVlanNSOne,
-		RDSCoreConfig.MCVlanNSOne,
-		macvlanDeploy20Label,
-		macvlanDeploy21Label,
-		RDSCoreConfig.MCVlanDeploy3TargetAddress)
+	Expect(RDSCoreConfig.MCVlanDeploy3TargetAddress != "" ||
+		RDSCoreConfig.MCVlanDeploy3TargetAddressIPv6 != "").To(BeTrue(),
+		"At least one target address (IPv4 or IPv6) must be configured for MCVlan Deploy3")
 
-	verifySRIOVConnectivity(
-		RDSCoreConfig.MCVlanNSOne,
-		RDSCoreConfig.MCVlanNSOne,
-		macvlanDeploy21Label,
-		macvlanDeploy20Label,
-		RDSCoreConfig.MCVlanDeploy4TargetAddress)
+	addressesList := []string{RDSCoreConfig.MCVlanDeploy3TargetAddress,
+		RDSCoreConfig.MCVlanDeploy3TargetAddressIPv6}
 
-	verifySRIOVConnectivity(
-		RDSCoreConfig.MCVlanNSOne,
-		RDSCoreConfig.MCVlanNSOne,
-		macvlanDeploy20Label,
-		macvlanDeploy21Label,
-		RDSCoreConfig.MCVlanDeploy3TargetAddressIPv6)
+	for _, targetAddress := range addressesList {
+		if targetAddress == "" {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping empty address %q", targetAddress)
 
-	verifySRIOVConnectivity(
-		RDSCoreConfig.MCVlanNSOne,
-		RDSCoreConfig.MCVlanNSOne,
-		macvlanDeploy21Label,
-		macvlanDeploy20Label,
-		RDSCoreConfig.MCVlanDeploy4TargetAddressIPv6)
+			continue
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Access workload via %q", targetAddress)
+
+		verifySRIOVConnectivity(
+			RDSCoreConfig.MCVlanNSOne,
+			RDSCoreConfig.MCVlanNSOne,
+			macvlanDeploy20Label,
+			macvlanDeploy21Label,
+			targetAddress)
+	}
+
+	Expect(RDSCoreConfig.MCVlanDeploy4TargetAddress != "" ||
+		RDSCoreConfig.MCVlanDeploy4TargetAddressIPv6 != "").To(BeTrue(),
+		"At least one target address (IPv4 or IPv6) must be configured for MCVlan Deploy4")
+
+	addressesList = []string{RDSCoreConfig.MCVlanDeploy4TargetAddress,
+		RDSCoreConfig.MCVlanDeploy4TargetAddressIPv6}
+
+	for _, targetAddress := range addressesList {
+		if targetAddress == "" {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping empty address %q", targetAddress)
+
+			continue
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Access workload via %q", targetAddress)
+
+		verifySRIOVConnectivity(
+			RDSCoreConfig.MCVlanNSOne,
+			RDSCoreConfig.MCVlanNSOne,
+			macvlanDeploy21Label,
+			macvlanDeploy20Label,
+			targetAddress)
+	}
 }
 
 func defineMacVlanDeployment(dName, nsName, dLabels, netDefName, volName string,

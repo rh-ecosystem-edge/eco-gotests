@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -26,6 +27,8 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/statefulset"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 )
@@ -218,7 +221,42 @@ func createStatefulsetAndWaitReplicasReady(stName, namespace string, stBuilder *
 		"Statefulset %q in %q namespace is not ready", stName, namespace)
 }
 
-func setupHeadlessService(svcName, namespace, svcLabel, svcPort string) {
+// determineIPFamilyPolicy fetches the NAD and inspects its ipRanges to determine
+// whether to use RequireDualStack, or SingleStack with IPv4 or IPv6.
+func determineIPFamilyPolicy(nadName, namespace string) ([]corev1.IPFamily, corev1.IPFamilyPolicy) {
+	nadObj, err := APIClient.Resource(
+		schema.GroupVersionResource{
+			Group:    "k8s.cni.cncf.io",
+			Version:  "v1",
+			Resource: "network-attachment-definitions",
+		}).Namespace(namespace).Get(context.TODO(), nadName, metav1.GetOptions{})
+
+	Expect(err).ToNot(HaveOccurred(),
+		fmt.Sprintf("Failed to get NAD %q in %q namespace", nadName, namespace))
+
+	config, found, err := unstructured.NestedString(nadObj.Object, "spec", "config")
+	Expect(err).ToNot(HaveOccurred(),
+		fmt.Sprintf("Failed to read config from NAD %q", nadName))
+	Expect(found).To(BeTrue(),
+		fmt.Sprintf("NAD %q has no spec.config field", nadName))
+
+	hasIPv4 := regexp.MustCompile(`\d+\.\d+\.\d+\.\d+/\d+`).MatchString(config)
+	hasIPv6 := regexp.MustCompile(`[0-9a-fA-F]{1,4}(:[0-9a-fA-F]{0,4}){2,}/\d+`).MatchString(config)
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("NAD %q IP family detection: hasIPv4=%v, hasIPv6=%v",
+		nadName, hasIPv4, hasIPv6)
+
+	switch {
+	case hasIPv4 && hasIPv6:
+		return []corev1.IPFamily{corev1.IPv4Protocol, corev1.IPv6Protocol}, corev1.IPFamilyPolicyRequireDualStack
+	case hasIPv6:
+		return []corev1.IPFamily{corev1.IPv6Protocol}, corev1.IPFamilyPolicySingleStack
+	default:
+		return []corev1.IPFamily{corev1.IPv4Protocol}, corev1.IPFamilyPolicySingleStack
+	}
+}
+
+func setupHeadlessService(svcName, namespace, svcLabel, svcPort, nadName string) {
 	By(fmt.Sprintf("Checking that service %q doesn't exist in %q namespace",
 		svcName, namespace))
 
@@ -260,12 +298,14 @@ func setupHeadlessService(svcName, namespace, svcLabel, svcPort string) {
 
 	svcOne = defineHeadlessService(svcName, namespace, svcLabelsMap, svcPortCr)
 
-	By("Setting ipFamilyPolicy to 'RequireDualStack'")
+	ipFamilies, ipFamilyPolicy := determineIPFamilyPolicy(nadName, namespace)
 
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Setting ipFamilyPolicy to 'RequireDualStack'")
+	By(fmt.Sprintf("Setting ipFamilyPolicy to %q for NAD %q", ipFamilyPolicy, nadName))
 
-	svcOne = svcOne.WithIPFamily([]corev1.IPFamily{"IPv4", "IPv6"},
-		corev1.IPFamilyPolicyRequireDualStack)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("NAD %q: ipFamilies=%v, ipFamilyPolicy=%s",
+		nadName, ipFamilies, ipFamilyPolicy)
+
+	svcOne = svcOne.WithIPFamily(ipFamilies, ipFamilyPolicy)
 
 	By(fmt.Sprintf("Creating headless service %q in %q namespace",
 		svcName, namespace))
@@ -1128,7 +1168,7 @@ func CreateWhereaboutsStatefulset(ctx SpecContext, config StatefulsetConfig) {
 	configureWhereaboutsIPReconciler()
 
 	// Setup headless service
-	setupHeadlessService(config.ServiceName, RDSCoreConfig.WhereaboutNS, config.Label, config.Port)
+	setupHeadlessService(config.ServiceName, RDSCoreConfig.WhereaboutNS, config.Label, config.Port, config.NAD)
 
 	// Cleanup existing statefulset
 	cleanupStatefulset(config.Name, RDSCoreConfig.WhereaboutNS, config.Label)
