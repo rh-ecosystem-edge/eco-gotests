@@ -276,6 +276,7 @@ func VerifySoftReboot(ctx SpecContext) {
 					if condition.Status != rdscoreparams.ConstantTrueString {
 						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q is notReady", currentNode.Definition.Name)
 						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Reason: %s", condition.Reason)
+
 						nodeWentNotReady = true
 
 						return true
