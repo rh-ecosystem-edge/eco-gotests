@@ -485,16 +485,22 @@ func defineMetricsDPDKPod(role, devType, worker string) *pod.Builder {
 }
 
 func createMetricsTestResources(cRes, sRes metricsTestResource) *pod.Builder {
+	// Create all policies first so the SR-IOV daemon sees them in the same reconcile generation.
+	// Creating policies sequentially with network/NAD waits in between introduces a gap that
+	// causes the daemon to process them in separate generations, leading to premature
+	// WaitForSriovStable returns before all device plugin resources are registered.
 	for _, res := range []metricsTestResource{cRes, sRes} {
-		By("Create SriovNetworkNodePolicy")
+		By(fmt.Sprintf("Create SriovNetworkNodePolicy %s", res.policy.Definition.Name))
 
 		_, err := res.policy.Create()
 		Expect(err).ToNot(HaveOccurred(),
 			fmt.Sprintf("Failed to Create SriovNetworkNodePolicy %s", res.policy.Definition.Name))
+	}
 
-		By("Create SriovNetwork")
+	for _, res := range []metricsTestResource{cRes, sRes} {
+		By(fmt.Sprintf("Create SriovNetwork %s", res.network.Definition.Name))
 
-		_, err = res.network.Create()
+		_, err := res.network.Create()
 		Expect(err).ToNot(HaveOccurred(),
 			fmt.Sprintf("Failed to create SriovNetwork %s", res.network.Definition.Name))
 
