@@ -141,6 +141,47 @@ COPY --from=builder /build/kmm-kmod/*.ko /opt/lib/modules/${KERNEL_FULL_VERSION}
 RUN depmod -b /opt ${KERNEL_FULL_VERSION}
 `
 
+	// MultiKoContents represents the Dockerfile for building 3 kernel modules for glob signing tests.
+	MultiKoContents = `ARG DTK_AUTO
+FROM ${DTK_AUTO} as builder
+ARG KERNEL_VERSION
+WORKDIR /build
+RUN git clone https://github.com/cdvultur/kmm-kmod.git
+WORKDIR /build/kmm-kmod
+RUN cp kmm_ci_a.c test_mod.c
+RUN echo "obj-m += test_mod.o" >> Makefile
+RUN make KVER=${KERNEL_VERSION}
+
+FROM registry.redhat.io/ubi9/ubi-minimal
+ARG KERNEL_VERSION
+RUN microdnf -y install kmod
+
+COPY --from=builder /etc/driver-toolkit-release.json /etc/
+COPY --from=builder /build/kmm-kmod/*.ko /opt/lib/modules/${KERNEL_VERSION}/
+RUN depmod -b /opt ${KERNEL_VERSION}
+`
+
+	// MultiKoCustomDirContents represents the Dockerfile for building 3 kernel modules under /custom dir.
+	MultiKoCustomDirContents = `ARG DTK_AUTO
+FROM ${DTK_AUTO} as builder
+ARG KERNEL_VERSION
+WORKDIR /build
+RUN git clone https://github.com/cdvultur/kmm-kmod.git
+WORKDIR /build/kmm-kmod
+RUN cp kmm_ci_a.c test_mod.c
+RUN echo "obj-m += test_mod.o" >> Makefile
+RUN make KVER=${KERNEL_VERSION}
+
+FROM registry.redhat.io/ubi9/ubi-minimal
+ARG KERNEL_VERSION
+RUN microdnf -y install kmod
+
+COPY --from=builder /etc/driver-toolkit-release.json /etc/
+RUN mkdir -p /custom/lib/modules/${KERNEL_VERSION}
+COPY --from=builder /build/kmm-kmod/*.ko /custom/lib/modules/${KERNEL_VERSION}/
+RUN depmod -b /custom ${KERNEL_VERSION}
+`
+
 	//nolint:lll
 	// SigningCertBase64 represents cert used for module signing.
 	SigningCertBase64 = `MIIFkTCCA3mgAwIBAgIUQM6ZTI8oUcyIYOwweq0rcs+f/8YwDQYJKoZIhvcNAQELBQAwUjEQMA4GA1UECgwHY2R2dGVzdDEcMBoGA1UEAwwTY2R2dGVzdCBzaWduaW5nIGtleTEgMB4GCSqGSIb3DQEJARYRY2hyaXNwQHJlZGhhdC5jb20wIBcNMjIxMTI1MTM1NzMzWhgPMjEyMjExMDExMzU3MzNaMFIxEDAOBgNVBAoMB2NkdnRlc3QxHDAaBgNVBAMME2NkdnRlc3Qgc2lnbmluZyBrZXkxIDAeBgkqhkiG9w0BCQEWEWNocmlzcEByZWRoYXQuY29tMIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAuZ2SAeiQkixbP+rb648eKKnwA+sO2f4w7hPouy/wtpjaq63wDYUXEM5NIqDEkx4DAzlqXrWhvClQ7dzF04zeRFFWAbafcBupFPofKUhF+Qx/4bMAN7DRFwQQHWHfidwnzDM31mLEIN4kGdKp1gf6glBbBsvZwDPm7rGRo+ZyxaUnuzCgyl3+lYxiJ9Zl5h223/smgniZKX9oI/Jxf7af0N0E9Jtjbs8f+N15oO24uEd4/NHm4of6VRqaxDiTR6u+FP+pldEhAvTPd5qAjrI+9nm8ha+Myob2x3ufbpfPpKp4lwbBJLBzAmsJwi/6183mrP4kBwnrXbFPBwATg5JFWzLlbYC9pp88Q3Kzff8ml88jo4Qzj0F8WWNii7eVHZkefuoMhhu7RNUnx/C0hNuGsj9HXK2r+ufySr6BMgX5EF3HgwBZNyxYVWVToN9mYAluDRWAy6iJaW+IWFkw8ZdP1d5Emh+qlCJOGYdeFl7rVRTR5yc7pG2aTxaRGhsi5eWKtDge1Nwalg2MPMdprIamfOn+eDJEWdErA4MIlkz2NgCm5d7nnTP9GWiCJ5RTF+VXjhvsOkSSiyQaY05vCoN9vwOAyLIV1geJfDqooJuLPY1qQjjZu5vALt/t4855MPa2dxWULkvrpNaor3vSxk12yu4Ir88DG1Ahc5sgCmdk5FcCAwEAAaNdMFswDAYDVR0TAQH/BAIwADALBgNVHQ8EBAMCB4AwHQYDVR0OBBYEFJ+Uyk+hqFQCf7AIP8nOg0O77iwaMB8GA1UdIwQYMBaAFJ+Uyk+hqFQCf7AIP8nOg0O77iwaMA0GCSqGSIb3DQEBCwUAA4ICAQCRX+ywa0tpMWLqidtKvTEg38kk5qGe6c66ySEX8jYiHOLk1IsmlxY9tWoUxqmPUTHzBL6a+LLWo529JuZNj1cIjm6RxTa+N82W0E91IjXtU62bNutN5bf+LcJL1YyK50/KtYxYUXVnITQ+9AC15snTQgppQwj5nlc4F72bSoNB8++K1rvI6jmFrZo9xJg8z3sRu5v/3UCfcogRAuF6HXeUlD1dcY3sB6rf19w8xoPkPz0iTG+qUy1lZbjLyn2+cq86ZUgPjvdvJB5l3f0b6a/yMWuCZAg0fHTC6ak/v5sq/HOPQGoF+MCAPt8XsgGIR+AErzcQQpx+agnUXdGKY1FZMJS3xlEPDe9Ud93HpWv33ZFv/dGZYHqK+UeO2CfBRj4md75euS8eEhvp5FZZQTMm7XBYrNqS2LSCuRiIVyDG/UtIv6qwy9FaxaFVNX9slS44XPeOMZ5JNki5A7kSHOldVVbTHFoQ/yFkLQZLEYhuqh9tD19wR1McwBcOx0rWZKC/6nYQq1swvoR10I5fQaOtcf0YMvRrglLEAfQTWGC/G2wf8VIkCk9A+xvkk1JUemlimNKdCFbIiWp675pBje99DuO+zsCuGPla0ORoOIWRwDBRxBeFN2ObAIpAEojG3P9wOYuUz1byxkfVXZMRYaxFCq7HAmwbznyRtTsYskT7jw==`
@@ -256,6 +297,8 @@ const (
 	TolerationModuleTestNamespace = "79205-tol"
 	// AutomountSATokenTestNamespace represents test case namespace name for automount SA token tests.
 	AutomountSATokenTestNamespace = "automount-satoken"
+	// FilesToSignGlobTestNamespace represents test case namespace name for filesToSign glob tests.
+	FilesToSignGlobTestNamespace = "filestosign-glob"
 	// DefaultNodesNamespace represents namespace of the nodes events.
 	DefaultNodesNamespace = "default"
 	// SimpleKmodImage represents the pre-built simple-kmod kernel module image.

@@ -31,6 +31,7 @@ var (
 		kmmparams.ScannerTestNamespace:            "module",
 		kmmparams.TolerationModuleTestNamespace:   "module",
 		kmmparams.AutomountSATokenTestNamespace:   "module",
+		kmmparams.FilesToSignGlobTestNamespace:    "module",
 		kmmparams.DefaultNodesNamespace:           "nodes",
 	}
 
