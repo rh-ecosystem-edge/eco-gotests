@@ -144,6 +144,7 @@ var (
 	}
 )
 
+// cleanupStatefulset removes a statefulset and waits for its pods to be deleted.
 func cleanupStatefulset(stName, namespace, stLabel string) {
 	By(fmt.Sprintf("Checking that statefulset %q doesn't exist in %q namespace",
 		stName, namespace))
@@ -184,6 +185,7 @@ func cleanupStatefulset(stName, namespace, stLabel string) {
 	}
 }
 
+// createStatefulsetAndWaitReplicasReady creates a statefulset and waits for all replicas to become ready.
 func createStatefulsetAndWaitReplicasReady(stName, namespace string, stBuilder *statefulset.Builder) {
 	By(fmt.Sprintf("Creating statefulset %q in %q namespace", stName, namespace))
 
@@ -241,7 +243,7 @@ func determineIPFamilyPolicy(nadName, namespace string) ([]corev1.IPFamily, core
 		fmt.Sprintf("NAD %q has no spec.config field", nadName))
 
 	hasIPv4 := regexp.MustCompile(`\d+\.\d+\.\d+\.\d+/\d+`).MatchString(config)
-	hasIPv6 := regexp.MustCompile(`[0-9a-fA-F]{1,4}(:[0-9a-fA-F]{0,4}){2,}/\d+`).MatchString(config)
+	hasIPv6 := regexp.MustCompile(`([0-9a-fA-F]{0,4}:){2,}[0-9a-fA-F]{0,4}/\d+`).MatchString(config)
 
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("NAD %q IP family detection: hasIPv4=%v, hasIPv6=%v",
 		nadName, hasIPv4, hasIPv6)
@@ -256,6 +258,7 @@ func determineIPFamilyPolicy(nadName, namespace string) ([]corev1.IPFamily, core
 	}
 }
 
+// setupHeadlessService creates a headless service with ipFamilyPolicy determined from the NAD configuration.
 func setupHeadlessService(svcName, namespace, svcLabel, svcPort, nadName string) {
 	By(fmt.Sprintf("Checking that service %q doesn't exist in %q namespace",
 		svcName, namespace))
@@ -325,6 +328,7 @@ func setupHeadlessService(svcName, namespace, svcLabel, svcPort, nadName string)
 		"Failed to create headless service %q in %q namespace", svcName, namespace)
 }
 
+// verifyInterPodCommunication validates network connectivity between all active pods via their whereabouts IPs.
 func verifyInterPodCommunication(
 	activePods []*pod.Builder,
 	podWhereaboutsIPs map[string][]NetworkInterface,
@@ -637,6 +641,7 @@ func getActivePods(podLabel, namespace string) []*pod.Builder {
 	return activePods
 }
 
+// ensurePodConnectivityAfterPodTermination verifies inter-pod connectivity is restored after terminating a pod.
 func ensurePodConnectivityAfterPodTermination(stLabel, namespace, targetPort string, stReplicas int) {
 	By("Getting list of active pods")
 
@@ -696,6 +701,8 @@ func ensurePodConnectivityAfterPodTermination(stLabel, namespace, targetPort str
 	VerifyPodConnectivity(stLabel, namespace, interfaceName, parsedPort)
 }
 
+// ensurePodConnectivityAfterNodeDrain verifies inter-pod connectivity is restored after draining a node.
+//
 //nolint:funlen
 func ensurePodConnectivityAfterNodeDrain(stLabel, namespace, targetPort string, stReplicas int, sameNode bool) {
 	By("Getting list of active pods")
@@ -795,6 +802,7 @@ func ensurePodConnectivityAfterNodeDrain(stLabel, namespace, targetPort string, 
 	VerifyPodConnectivity(stLabel, namespace, interfaceName, parsedPort)
 }
 
+// powerOnNodeWaitReady powers on a node via BMC and waits for it to reach Ready state.
 func powerOnNodeWaitReady(bmcClient *bmc.BMC, nodeToPowerOff string, stopCh chan bool) {
 	By("Stopping keepNodePoweredOff goroutine")
 
@@ -863,6 +871,7 @@ func powerOnNodeWaitReady(bmcClient *bmc.BMC, nodeToPowerOff string, stopCh chan
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Successfully powered on %q", nodeToPowerOff)
 }
 
+// keepNodePoweredOff continuously monitors and powers off a node via BMC until signaled to stop.
 func keepNodePoweredOff(bmcClient *bmc.BMC, nodeToPowerOff string, timeout time.Duration, stopCh chan bool) {
 	By(fmt.Sprintf("Keeping node %q powered off", nodeToPowerOff))
 
@@ -916,6 +925,8 @@ func keepNodePoweredOff(bmcClient *bmc.BMC, nodeToPowerOff string, timeout time.
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("keepNodePoweredOff finished")
 }
 
+// ensurePodConnectivityAfterNodePowerOff verifies inter-pod connectivity is restored after powering off a node.
+//
 //nolint:gocognit,funlen
 func ensurePodConnectivityAfterNodePowerOff(stLabel, namespace, targetPort string, stReplicas int, sameNode bool) {
 	By("Getting list of active pods")

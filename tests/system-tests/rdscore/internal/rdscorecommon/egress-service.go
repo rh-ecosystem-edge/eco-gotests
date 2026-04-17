@@ -385,6 +385,9 @@ func VerifyEgressServiceETPClusterWrapper(
 	hasIPv4 := remoteTargetIP != ""
 	hasIPv6 := remoteTargetIPv6 != ""
 
+	Expect(hasIPv4 || hasIPv6).To(BeTrue(),
+		"At least one remote target IP (IPv4 or IPv6) must be configured")
+
 	switch {
 	case hasIPv4 && hasIPv6:
 		By("Setting ipFamilyPolicy to 'RequireDualStack'")

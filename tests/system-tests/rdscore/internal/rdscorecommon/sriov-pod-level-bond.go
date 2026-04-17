@@ -238,6 +238,7 @@ func definePodLevelBondDeploymentContainer() *pod.ContainerBuilder {
 	return deploymentContainer
 }
 
+//nolint:funlen
 func definePodLevelBondTestPodDeployment(
 	apiClient *clients.Settings,
 	containerConfig *corev1.Container,
@@ -262,18 +263,30 @@ func definePodLevelBondTestPodDeployment(
 		return nil, fmt.Errorf("at least one bond interface IP address (IPv4 or IPv6) must be configured")
 	}
 
-	// Validate IPv4 configuration if provided
+	// Validate IPv4 configuration: IP and subnet mask must both be present or both be absent
 	if bondInfIPv4 != "" && bondInfSubMaskIPv4 == "" {
 		klog.V(100).Infof("Bond interface IPv4 address subnet mask is missing")
 
 		return nil, fmt.Errorf("bond interface IPv4 address subnet mask is required when IPv4 address is provided")
 	}
 
-	// Validate IPv6 configuration if provided
+	if bondInfIPv4 == "" && bondInfSubMaskIPv4 != "" {
+		klog.V(100).Infof("Bond interface IPv4 subnet mask is set without an IPv4 address")
+
+		return nil, fmt.Errorf("bond interface IPv4 subnet mask %q is set but IPv4 address is empty", bondInfSubMaskIPv4)
+	}
+
+	// Validate IPv6 configuration: IP and subnet mask must both be present or both be absent
 	if bondInfIPv6 != "" && bondInfSubMaskIPv6 == "" {
 		klog.V(100).Infof("Bond interface IPv6 address subnet mask is missing")
 
 		return nil, fmt.Errorf("bond interface IPv6 address subnet mask is required when IPv6 address is provided")
+	}
+
+	if bondInfIPv6 == "" && bondInfSubMaskIPv6 != "" {
+		klog.V(100).Infof("Bond interface IPv6 subnet mask is set without an IPv6 address")
+
+		return nil, fmt.Errorf("bond interface IPv6 subnet mask %q is set but IPv6 address is empty", bondInfSubMaskIPv6)
 	}
 
 	// Log configuration status

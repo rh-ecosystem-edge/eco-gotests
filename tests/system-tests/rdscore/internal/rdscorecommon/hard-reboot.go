@@ -326,6 +326,12 @@ func VerifySoftReboot(ctx SpecContext) {
 				return false
 			}).WithTimeout(25*time.Minute).WithPolling(15*time.Second).WithContext(ctx).Should(BeTrue(),
 				"Node hasn't reached Ready state")
+		} else {
+			// Boot ID changed without NotReady observation - node rebooted fast
+			// Brief delay to ensure stability before uncordoning
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"Node %q rebooted fast (boot ID changed), allowing brief stabilization", _node.Definition.Name)
+			time.Sleep(15 * time.Second)
 		}
 
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Uncordoning node %q", _node.Definition.Name)
