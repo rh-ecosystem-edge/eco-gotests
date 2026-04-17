@@ -2,10 +2,12 @@ package tests
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/olm"
@@ -94,6 +96,13 @@ var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.Label
 				tsparams.TestNamespaceName, sriovTestResourceName).WithStaticIpam().WithMacAddressSupport().WithIPAddressSupport().
 				WithLogLevel("debug").Create()
 			Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network")
+
+			By("Waiting for SR-IOV NetworkAttachmentDefinition to be created in test namespace")
+
+			Eventually(func() bool {
+				return nad.NewBuilder(APIClient, sriovTestResourceName, tsparams.TestNamespaceName).Exists()
+			}, tsparams.DefaultTimeout, tsparams.RetryInterval).Should(BeTrue(),
+				"SR-IOV NetworkAttachmentDefinition was not created in test namespace")
 		})
 
 		It("Operator re-installation. Verify SR-IOV operator data plane is operational before removal",
@@ -145,7 +154,7 @@ var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.Label
 				installSriovOperator(sriovNamespace, sriovOperatorgroup, sriovSubscription)
 
 				Eventually(sriovoperator.IsSriovDeployed,
-					time.Minute, tsparams.RetryInterval).
+					5*time.Minute, tsparams.RetryInterval).
 					WithArguments(APIClient, SriovOcpConfig.OcpSriovOperatorNamespace).
 					ShouldNot(HaveOccurred(), "SR-IOV operator is not installed")
 
@@ -173,6 +182,13 @@ var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.Label
 					tsparams.TestNamespaceName, sriovTestResourceName).WithStaticIpam().WithMacAddressSupport().WithIPAddressSupport().
 					WithLogLevel("debug").Create()
 				Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network")
+
+				By("Waiting for SR-IOV NetworkAttachmentDefinition to be created in test namespace")
+
+				Eventually(func() bool {
+					return nad.NewBuilder(APIClient, sriovTestResourceName, tsparams.TestNamespaceName).Exists()
+				}, tsparams.DefaultTimeout, tsparams.RetryInterval).Should(BeTrue(),
+					"SR-IOV NetworkAttachmentDefinition was not created in test namespace")
 			})
 
 		It("Operator re-installation. Validate that re-installed SR-IOV operator’s data plane is up and running",
@@ -214,6 +230,28 @@ func removeSriovOperator(sriovNamespace *namespace.Builder) {
 		tsparams.MCOWaitTimeout,
 		tsparams.DefaultTimeout)
 	Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV configuration")
+
+	By("Removing SR-IOV network pool configs")
+
+	// SriovNetworkPoolConfigs carry a finalizer set by the operator controller.
+	// They must be deleted while the operator is still running; otherwise the
+	// finalizer can never be removed and the namespace gets stuck in Terminating.
+	// This must happen before deleting SriovOperatorConfig so the controller is
+	// still active and can process the finalizer removal.
+	err = sriov.CleanAllPoolConfigs(APIClient, SriovOcpConfig.SriovOperatorNamespace)
+	Expect(err).ToNot(HaveOccurred(), "Failed to clean SR-IOV network pool configs")
+
+	By("Waiting for SR-IOV network pool configs to be fully removed")
+
+	Eventually(func() int {
+		poolConfigs, err := sriov.ListPoolConfigs(APIClient, SriovOcpConfig.SriovOperatorNamespace)
+		if err != nil {
+			return -1
+		}
+
+		return len(poolConfigs)
+	}, tsparams.DefaultTimeout, tsparams.RetryInterval).Should(Equal(0),
+		"SR-IOV network pool configs were not fully removed")
 
 	By("Remove SR-IOV operator config")
 
@@ -267,14 +305,45 @@ func installSriovOperator(sriovNamespace *namespace.Builder,
 
 	By("Creating SR-IOV operator Subscription")
 
-	_, err = olm.NewSubscriptionBuilder(
+	subBuilder := olm.NewSubscriptionBuilder(
 		APIClient, sriovSubscription.Definition.Name,
 		sriovSubscription.Definition.Namespace,
 		sriovSubscription.Definition.Spec.CatalogSource,
 		sriovSubscription.Definition.Spec.CatalogSourceNamespace,
-		sriovSubscription.Definition.Spec.Package).Create()
+		sriovSubscription.Definition.Spec.Package)
+
+	if sriovSubscription.Definition.Spec.StartingCSV != "" {
+		subBuilder = subBuilder.WithStartingCSV(sriovSubscription.Definition.Spec.StartingCSV)
+	}
+
+	_, err = subBuilder.Create()
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to create SR-IOV Subscription %s", sriovSubscription.Definition.Name))
+
+	By("Waiting for SR-IOV operator CSV to succeed")
+
+	// Mirror deploy_cluster.sh's create_default_soc: wait for CSV Succeeded before
+	// creating SriovOperatorConfig so the operator controller is up and can handle it.
+	Eventually(func() bool {
+		csvList, err := olm.ListClusterServiceVersion(APIClient, sriovNamespace.Definition.Name)
+		if err != nil || len(csvList) == 0 {
+			return false
+		}
+
+		for _, csv := range csvList {
+			if !strings.Contains(csv.Definition.Name, "sriov") {
+				continue
+			}
+
+			succeeded, err := csv.IsSuccessful()
+			if err == nil && succeeded {
+				return true
+			}
+		}
+
+		return false
+	}, 5*time.Minute, tsparams.RetryInterval).Should(BeTrue(),
+		"SR-IOV operator CSV did not reach Succeeded phase within timeout")
 
 	By("Creating SR-IOV operator default configuration")
 
