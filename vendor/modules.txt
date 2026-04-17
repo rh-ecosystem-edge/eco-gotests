@@ -1146,7 +1146,7 @@ github.com/redhat-cne/sdk-go/pkg/event/ptp
 github.com/redhat-cne/sdk-go/pkg/event/redfish
 github.com/redhat-cne/sdk-go/pkg/pubsub
 github.com/redhat-cne/sdk-go/pkg/types
-# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260414203002-e8968ddfde1a
+# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260416141308-7e811b92eb69
 ## explicit; go 1.26
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/amdgpu
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/apiservers
@@ -1174,6 +1174,9 @@ github.com/rh-ecosystem-edge/eco-goinfra/pkg/imageregistry
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/imagestream
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/infrastructure
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/ingress
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/common
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/common/errors
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/common/key
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/keda
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/kmm
