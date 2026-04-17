@@ -310,7 +310,7 @@ func runMetricsNettoVfioTests(clientPf, serverPf, clientWorker, serverWorker, de
 	// With true vfio-pci (Intel), the VF is exclusively owned by DPDK and ICMP fails.
 	// With netdevice+RDMA (Mellanox "vfiopci" mode), the kernel network stack remains active
 	// on the VF and ICMP succeeds.
-	if serverResources.sriovPolicy.Definition.Spec.DeviceType == "vfio-pci" {
+	if serverResources.policy.Definition.Spec.DeviceType == "vfio-pci" {
 		Eventually(func() error {
 			return sriovocpenv.ICMPConnectivityCheck(cPod, []string{tsparams.ServerIPv4IPAddress}, "net1")
 		}, 1*time.Minute, 2*time.Second).Should(HaveOccurred(), "ICMP fail scenario could not be executed")
