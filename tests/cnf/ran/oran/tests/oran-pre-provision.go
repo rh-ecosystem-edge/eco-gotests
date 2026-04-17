@@ -6,6 +6,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	provisioningv1alpha1 "github.com/openshift-kni/oran-o2ims/api/provisioning/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
@@ -77,6 +78,82 @@ var _ = Describe("ORAN Pre-provision Tests", Label(tsparams.LabelPreProvision), 
 
 			err = helper.WaitForValidPRClusterInstance(HubAPIClient, 3*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for ClusterInstance to be created and have its templates applied")
+		})
+	})
+
+	// Metal3 Hardware Plugin Test Cases
+	//
+	// Temporary: these failure assertions stay phase-only until a live run captures the exact ProvisioningRequest
+	// conditions and details to assert on.
+	Context("Metal3 Hardware Plugin Tests", func() {
+		When("provisioning fails due to hardware issues", func() {
+			AfterEach(func() {
+				By("deleting the ProvisioningRequest if it exists")
+
+				prBuilder, err := oran.PullPR(o2imsAPIClient, tsparams.TestPRName)
+				if err == nil {
+					err := prBuilder.DeleteAndWait(10 * time.Minute)
+					Expect(err).ToNot(HaveOccurred(), "Failed to delete the ProvisioningRequest")
+				}
+			})
+
+			// 83880 - Failed provisioning due to no hardware matching resource selector
+			It("fails when no hardware matches resource selector", reportxml.ID("83880"), func() {
+				By("creating a ProvisioningRequest with non-matching resource selector")
+
+				prBuilder := helper.NewProvisioningRequest(o2imsAPIClient, tsparams.TemplateNoHardwareMatch)
+				_, err := prBuilder.Create()
+				Expect(err).ToNot(HaveOccurred(), "Failed to create ProvisioningRequest with non-matching resource selector")
+
+				By("waiting for ProvisioningRequest to fail due to no matching hardware")
+
+				err = prBuilder.WaitForPhaseAfter(provisioningv1alpha1.StateFailed, time.Time{}, 5*time.Minute)
+				Expect(err).ToNot(HaveOccurred(), "Failed to wait for ProvisioningRequest to fail due to no matching hardware")
+
+				By("verifying failure reason indicates no suitable hardware found")
+
+				currentPR, err := oran.PullPR(o2imsAPIClient, tsparams.TestPRName)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get ProvisioningRequest status")
+				By("logging failure details for follow-up assertion tightening")
+
+				logProvisioningRequestFailureDetails(currentPR)
+				Expect(currentPR.Definition.Status.ProvisioningStatus.ProvisioningPhase).To(Equal(provisioningv1alpha1.StateFailed))
+			})
+
+			// 83881 - Failed provisioning due to missing boot interface label
+			It("fails when boot interface label is missing", reportxml.ID("83881"), func() {
+				By("creating a ProvisioningRequest with missing boot interface label")
+
+				prBuilder := helper.NewProvisioningRequest(o2imsAPIClient, tsparams.TemplateMissingBootInterface)
+				_, err := prBuilder.Create()
+				Expect(err).ToNot(HaveOccurred(), "Failed to create ProvisioningRequest with missing boot interface label")
+
+				By("waiting for ProvisioningRequest to fail due to missing boot interface")
+
+				err = prBuilder.WaitForPhaseAfter(provisioningv1alpha1.StateFailed, time.Time{}, 5*time.Minute)
+				Expect(err).ToNot(HaveOccurred(), "Failed to wait for ProvisioningRequest to fail due to missing boot interface")
+
+				By("verifying failure reason indicates missing boot interface label")
+
+				currentPR, err := oran.PullPR(o2imsAPIClient, tsparams.TestPRName)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get ProvisioningRequest status")
+				By("logging failure details for follow-up assertion tightening")
+
+				logProvisioningRequestFailureDetails(currentPR)
+				Expect(currentPR.Definition.Status.ProvisioningStatus.ProvisioningPhase).To(Equal(provisioningv1alpha1.StateFailed))
+			})
+
+			// 83882 - Failed provisioning due to nonexistent hardware profile
+			It("fails when hardware profile does not exist", reportxml.ID("83882"), func() {
+				By("attempting to create a ProvisioningRequest with nonexistent hardware profile")
+
+				prBuilder := helper.NewProvisioningRequest(o2imsAPIClient, tsparams.TemplateNonexistentHWProfile)
+				_, err := prBuilder.Create()
+				Expect(err).To(HaveOccurred(),
+					"Creating a ProvisioningRequest with a nonexistent hardware profile should be rejected by the admission webhook")
+				Expect(err.Error()).To(ContainSubstring("does not exist"),
+					"Admission webhook error should indicate the hardware profile does not exist")
+			})
 		})
 	})
 })
