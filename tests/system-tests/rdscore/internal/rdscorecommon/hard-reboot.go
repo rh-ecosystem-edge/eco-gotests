@@ -203,6 +203,11 @@ func VerifySoftReboot(ctx SpecContext) {
 	for _, _node := range allNodes {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Processing node %q", _node.Definition.Name)
 
+		bootIDBefore := _node.Object.Status.NodeInfo.BootID
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q boot ID before reboot: %s",
+			_node.Definition.Name, bootIDBefore)
+
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cordoning node %q", _node.Definition.Name)
 		err := _node.Cordon()
 		Expect(err).ToNot(HaveOccurred(),
@@ -253,7 +258,8 @@ func VerifySoftReboot(ctx SpecContext) {
 		Expect(err).ToNot(HaveOccurred(),
 			fmt.Sprintf("Failed to reboot node %s", _node.Definition.Name))
 
-		By(fmt.Sprintf("Checking node %q got into NotReady", _node.Definition.Name))
+		By(fmt.Sprintf("Checking node %q got into NotReady or rebooted (boot ID change)",
+			_node.Definition.Name))
 
 		Eventually(func(ctx SpecContext) bool {
 			currentNode, err := nodes.Pull(APIClient, _node.Definition.Name)
@@ -274,9 +280,22 @@ func VerifySoftReboot(ctx SpecContext) {
 				}
 			}
 
+			currentBootID := currentNode.Object.Status.NodeInfo.BootID
+			if currentBootID != bootIDBefore {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"Node %q boot ID changed from %s to %s — node rebooted fast without being caught as NotReady",
+					_node.Definition.Name, bootIDBefore, currentBootID)
+
+				return true
+			}
+
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"Node %q is still Ready with unchanged boot ID %s — waiting for reboot",
+				_node.Definition.Name, currentBootID)
+
 			return false
 		}).WithTimeout(25*time.Minute).WithPolling(15*time.Second).WithContext(ctx).Should(BeTrue(),
-			"Node hasn't reached notReady state")
+			fmt.Sprintf("Node %q hasn't reached notReady state and boot ID hasn't changed", _node.Definition.Name))
 
 		By(fmt.Sprintf("Checking node %q got into Ready", _node.Definition.Name))
 
