@@ -223,7 +223,7 @@ func createStatefulsetAndWaitReplicasReady(stName, namespace string, stBuilder *
 		"Statefulset %q in %q namespace is not ready", stName, namespace)
 }
 
-// determineIPFamilyPolicy fetches the NAD and inspects its ipRanges to determine
+// determineIPFamilyPolicy fetches the NAD and inspects the IPAM range fields to determine
 // whether to use RequireDualStack, or SingleStack with IPv4 or IPv6.
 func determineIPFamilyPolicy(nadName, namespace string) ([]corev1.IPFamily, corev1.IPFamilyPolicy) {
 	nadObj, err := APIClient.Resource(
@@ -242,20 +242,98 @@ func determineIPFamilyPolicy(nadName, namespace string) ([]corev1.IPFamily, core
 	Expect(found).To(BeTrue(),
 		fmt.Sprintf("NAD %q has no spec.config field", nadName))
 
-	hasIPv4 := regexp.MustCompile(`\d+\.\d+\.\d+\.\d+/\d+`).MatchString(config)
-	hasIPv6 := regexp.MustCompile(`([0-9a-fA-F]{0,4}:){2,}[0-9a-fA-F]{0,4}/\d+`).MatchString(config)
+	ranges := extractIPAMRanges(config)
+	Expect(len(ranges)).ToNot(Equal(0),
+		fmt.Sprintf("NAD %q has no IPAM range entries in spec.config", nadName))
 
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("NAD %q IP family detection: hasIPv4=%v, hasIPv6=%v",
-		nadName, hasIPv4, hasIPv6)
+	hasIPv4, hasIPv6 := detectIPFamiliesFromRanges(ranges)
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("NAD %q IP family detection: hasIPv4=%v, hasIPv6=%v (ranges: %v)",
+		nadName, hasIPv4, hasIPv6, ranges)
 
 	switch {
 	case hasIPv4 && hasIPv6:
 		return []corev1.IPFamily{corev1.IPv4Protocol, corev1.IPv6Protocol}, corev1.IPFamilyPolicyRequireDualStack
 	case hasIPv6:
 		return []corev1.IPFamily{corev1.IPv6Protocol}, corev1.IPFamilyPolicySingleStack
-	default:
+	case hasIPv4:
 		return []corev1.IPFamily{corev1.IPv4Protocol}, corev1.IPFamilyPolicySingleStack
+	default:
+		Fail(fmt.Sprintf("NAD %q IPAM ranges contain no detectable IPv4 or IPv6 CIDR: %v", nadName, ranges))
+
+		return nil, ""
 	}
+}
+
+// extractIPAMRanges parses the NAD spec.config JSON and returns all IPAM range strings.
+// It supports both top-level ipam config and plugins[*].ipam config layouts,
+// with both ipam.range (single) and ipam.ipRanges[*].range (multiple) forms.
+func extractIPAMRanges(config string) []string {
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(config), &parsed); err != nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to parse NAD config JSON: %v", err)
+
+		return nil
+	}
+
+	var ranges []string
+
+	ranges = append(ranges, extractRangesFromIPAM(parsed)...)
+
+	if plugins, ok := parsed["plugins"].([]interface{}); ok {
+		for _, p := range plugins {
+			if plugin, ok := p.(map[string]interface{}); ok {
+				ranges = append(ranges, extractRangesFromIPAM(plugin)...)
+			}
+		}
+	}
+
+	return ranges
+}
+
+// extractRangesFromIPAM extracts range strings from an object's ipam field.
+func extractRangesFromIPAM(obj map[string]interface{}) []string {
+	ipam, ok := obj["ipam"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+
+	var ranges []string
+
+	if r, ok := ipam["range"].(string); ok {
+		ranges = append(ranges, r)
+	}
+
+	if ipRanges, ok := ipam["ipRanges"].([]interface{}); ok {
+		for _, entry := range ipRanges {
+			if rangeMap, ok := entry.(map[string]interface{}); ok {
+				if r, ok := rangeMap["range"].(string); ok {
+					ranges = append(ranges, r)
+				}
+			}
+		}
+	}
+
+	return ranges
+}
+
+// detectIPFamiliesFromRanges inspects a list of CIDR range strings and returns
+// whether IPv4 and/or IPv6 ranges are present.
+func detectIPFamiliesFromRanges(ranges []string) (hasIPv4, hasIPv6 bool) {
+	ipv4Re := regexp.MustCompile(`\d+\.\d+\.\d+\.\d+/\d+`)
+	ipv6Re := regexp.MustCompile(`([0-9a-fA-F]{0,4}:){2,}[0-9a-fA-F]{0,4}/\d+`)
+
+	for _, r := range ranges {
+		if ipv4Re.MatchString(r) {
+			hasIPv4 = true
+		}
+
+		if ipv6Re.MatchString(r) {
+			hasIPv6 = true
+		}
+	}
+
+	return hasIPv4, hasIPv6
 }
 
 // setupHeadlessService creates a headless service with ipFamilyPolicy determined from the NAD configuration.

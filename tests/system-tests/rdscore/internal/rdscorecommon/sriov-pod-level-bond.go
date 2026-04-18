@@ -1370,22 +1370,22 @@ func VerifyPodLevelBondWorkloadsAfterVFFailOver() {
 		fmt.Sprintf("Failed to retrieve bond active interface for the pod deployment %s in namespace %s: %v",
 			serverPodObj.Definition.Name, serverPodObj.Definition.Namespace, err))
 
+	// Determine target IP based on configuration priority: IPv4 first, then IPv6
+	var targetIP string
+
+	switch {
+	case RDSCoreConfig.PodLevelBondDeploymentTwoIPv4 != "":
+		targetIP = RDSCoreConfig.PodLevelBondDeploymentTwoIPv4
+	case RDSCoreConfig.PodLevelBondDeploymentTwoIPv6 != "":
+		targetIP = RDSCoreConfig.PodLevelBondDeploymentTwoIPv6
+	default:
+		Fail("Neither IPv4 nor IPv6 server address is configured for the server deployment")
+
+		return
+	}
+
 	go func() {
 		defer GinkgoRecover()
-
-		// Determine target IP based on configuration priority: IPv4 first, then IPv6
-		var targetIP string
-
-		switch {
-		case RDSCoreConfig.PodLevelBondDeploymentTwoIPv4 != "":
-			targetIP = RDSCoreConfig.PodLevelBondDeploymentTwoIPv4
-		case RDSCoreConfig.PodLevelBondDeploymentTwoIPv6 != "":
-			targetIP = RDSCoreConfig.PodLevelBondDeploymentTwoIPv6
-		default:
-			Fail("Neither IPv4 nor IPv6 server address is configured for the server deployment")
-
-			return
-		}
 
 		By(fmt.Sprintf("Send data from the client container to the server address %s", targetIP))
 
