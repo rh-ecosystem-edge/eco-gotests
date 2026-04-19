@@ -248,10 +248,14 @@ func MultiModuleSigned(apiClient *clients.Settings, modNames []string,
 		}
 	}
 
-	_, _ = testPod.Delete()
+	_, deleteErr := testPod.Delete()
 
 	if len(errs) > 0 {
 		return fmt.Errorf("signing verification failed: %s", strings.Join(errs, "; "))
+	}
+
+	if deleteErr != nil {
+		return fmt.Errorf("failed to delete multi-sign-checker pod: %w", deleteErr)
 	}
 
 	return nil
@@ -279,7 +283,7 @@ func ModuleNotSigned(apiClient *clients.Settings, modName, signerCN, nsname, ima
 
 	buff, err := testPod.ExecCommand(command, "test")
 
-	_, _ = testPod.Delete()
+	_, deleteErr := testPod.Delete()
 
 	if err != nil {
 		return err
@@ -290,6 +294,10 @@ func ModuleNotSigned(apiClient *clients.Settings, modName, signerCN, nsname, ima
 
 	if strings.Contains(contents, signerCN) {
 		return fmt.Errorf("module %s is unexpectedly signed with '%s'", modName, signerCN)
+	}
+
+	if deleteErr != nil {
+		return fmt.Errorf("failed to delete unsigned-checker pod: %w", deleteErr)
 	}
 
 	return nil

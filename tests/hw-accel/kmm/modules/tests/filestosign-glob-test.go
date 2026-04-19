@@ -431,7 +431,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 				By("Check all modules are signed under custom dirName")
 
 				err = check.MultiModuleSigned(APIClient,
-					[]string{"kmm_ci_a", "kmm_ci_b"},
+					[]string{"kmm_ci_a", "kmm_ci_b", "test_mod"},
 					signerCN, nsName, image, "/custom")
 				Expect(err).ToNot(HaveOccurred(), "error while checking modules are signed under custom dir")
 			})
