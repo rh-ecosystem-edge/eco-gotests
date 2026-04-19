@@ -380,7 +380,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 		})
 
 		Context("FilesToSign", Label("webhook", "filestosign-glob-webhook"), func() {
-			It("should reject Module when sign is set but filesToSign is empty", reportxml.ID("70005"), func() {
+			It("should reject Module when sign is set but filesToSign is empty", reportxml.ID("88318"), func() {
 				By("Preparing Module with Sign but no filesToSign")
 
 				image := fmt.Sprintf("%s/%s/%s:$KERNEL_FULL_VERSION",
@@ -418,7 +418,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 				Expect(err.Error()).To(ContainSubstring("filesToSign"))
 			})
 
-			It("should reject Module when filesToSign path is outside dirName", reportxml.ID("70006"), func() {
+			It("should reject Module when filesToSign path is outside dirName", reportxml.ID("88319"), func() {
 				By("Create KernelMapping with filesToSign outside default dirName /opt")
 
 				image := fmt.Sprintf("%s/%s/%s:$KERNEL_FULL_VERSION",
