@@ -183,7 +183,7 @@ func WaitAllDeploymentsAreAvailable(ctx SpecContext) {
 
 // VerifySoftReboot performs graceful reboot of a cluster with cordoning and draining of individual nodes.
 //
-//nolint:gocognit,funlen
+//nolint:funlen
 func VerifySoftReboot(ctx SpecContext) {
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t*** Starting Soft Reboot Test Suite ***")
 
@@ -258,44 +258,7 @@ func VerifySoftReboot(ctx SpecContext) {
 		Expect(err).ToNot(HaveOccurred(),
 			fmt.Sprintf("Failed to reboot node %s", _node.Definition.Name))
 
-		By(fmt.Sprintf("Checking node %q got into NotReady or rebooted (boot ID change)",
-			_node.Definition.Name))
-
-		Eventually(func(ctx SpecContext) bool {
-			currentNode, err := nodes.Pull(APIClient, _node.Definition.Name)
-			if err != nil {
-				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to pull node: %v", err)
-
-				return false
-			}
-
-			for _, condition := range currentNode.Object.Status.Conditions {
-				if condition.Type == rdscoreparams.ConditionTypeReadyString {
-					if condition.Status != rdscoreparams.ConstantTrueString {
-						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q is notReady", currentNode.Definition.Name)
-						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Reason: %s", condition.Reason)
-
-						return true
-					}
-				}
-			}
-
-			currentBootID := currentNode.Object.Status.NodeInfo.BootID
-			if currentBootID != bootIDBefore {
-				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-					"Node %q boot ID changed from %s to %s — node rebooted fast without being caught as NotReady",
-					_node.Definition.Name, bootIDBefore, currentBootID)
-
-				return true
-			}
-
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-				"Node %q is still Ready with unchanged boot ID %s — waiting for reboot",
-				_node.Definition.Name, currentBootID)
-
-			return false
-		}).WithTimeout(25*time.Minute).WithPolling(15*time.Second).WithContext(ctx).Should(BeTrue(),
-			fmt.Sprintf("Node %q hasn't reached notReady state and boot ID hasn't changed", _node.Definition.Name))
+		waitForBootIDChange(ctx, _node.Definition.Name, bootIDBefore, 25*time.Minute)
 
 		By(fmt.Sprintf("Checking node %q got into Ready", _node.Definition.Name))
 

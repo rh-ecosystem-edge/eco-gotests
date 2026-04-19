@@ -61,6 +61,13 @@ func triggerNMIRedfish(ctx SpecContext, nodeLabel string) {
 		By(fmt.Sprintf("Cleaning up /var/crash directory on node %q", node.Definition.Name))
 		cleanupVarCrashDirectory(ctx, node.Definition.Name)
 
+		By(fmt.Sprintf("Recording boot ID for node %q before NMI", node.Definition.Name))
+
+		bootIDBefore := node.Object.Status.NodeInfo.BootID
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q boot ID before NMI: %s",
+			node.Definition.Name, bootIDBefore)
+
 		By(fmt.Sprintf("Trigger NMI via RedFish on node %q", node.Definition.Name))
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Triggering NMI via RedFish on %q",
 			node.Definition.Name)
@@ -103,7 +110,7 @@ func triggerNMIRedfish(ctx SpecContext, nodeLabel string) {
 		Expect(err).ToNot(HaveOccurred(),
 			fmt.Sprintf("Failed to trigger NMI on node %s", node.Definition.Name))
 
-		waitForNodeToBeNotReady(ctx, node.Definition.Name, 15*time.Second, 25*time.Minute)
+		waitForBootIDChange(ctx, node.Definition.Name, bootIDBefore, 25*time.Minute)
 
 		By(fmt.Sprintf("Waiting for node %q to return to Ready state", node.Definition.Name))
 
