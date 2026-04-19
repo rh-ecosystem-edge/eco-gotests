@@ -227,10 +227,6 @@ func MultiModuleSigned(apiClient *clients.Settings, modNames []string,
 		return err
 	}
 
-	defer func() {
-		_, _ = testPod.Delete()
-	}()
-
 	var errs []string
 
 	for _, modName := range modNames {
@@ -251,6 +247,8 @@ func MultiModuleSigned(apiClient *clients.Settings, modNames []string,
 			errs = append(errs, fmt.Sprintf("module %s is not signed with '%s'", modName, message))
 		}
 	}
+
+	_, _ = testPod.Delete()
 
 	if len(errs) > 0 {
 		return fmt.Errorf("signing verification failed: %s", strings.Join(errs, "; "))

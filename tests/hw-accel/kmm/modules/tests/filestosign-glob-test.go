@@ -115,7 +115,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 				Expect(err).ToNot(HaveOccurred(), "error while waiting module to be deleted")
 			})
 
-			It("should sign module with explicit path", reportxml.ID("70001"), func() {
+			It("should sign module with explicit path", reportxml.ID("88314"), func() {
 				imageTag := "explicit"
 				image := fmt.Sprintf("%s/%s/%s:$KERNEL_FULL_VERSION-%s",
 					tsparams.LocalImageRegistry, nsName, moduleName, imageTag)
@@ -171,7 +171,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 				Expect(err).ToNot(HaveOccurred(), "error while checking the module is signed")
 			})
 
-			It("should sign all .ko files with *.ko glob", reportxml.ID("70002"), func() {
+			It("should sign all .ko files with *.ko glob", reportxml.ID("88315"), func() {
 				imageTag := "wildcard"
 				image := fmt.Sprintf("%s/%s/%s:$KERNEL_FULL_VERSION-%s",
 					tsparams.LocalImageRegistry, nsName, moduleName, imageTag)
@@ -229,7 +229,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 				Expect(err).ToNot(HaveOccurred(), "error while checking all modules are signed")
 			})
 
-			It("should sign only matching files with ? glob", reportxml.ID("70003"), func() {
+			It("should sign only matching files with ? glob", reportxml.ID("88316"), func() {
 				imageTag := "qmark"
 				image := fmt.Sprintf("%s/%s/%s:$KERNEL_FULL_VERSION-%s",
 					tsparams.LocalImageRegistry, nsName, moduleName, imageTag)
@@ -292,7 +292,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 				Expect(err).ToNot(HaveOccurred(), "test_mod should not be signed by ? glob")
 			})
 
-			It("should sign only matching files with [ab] character class", reportxml.ID("70004"), func() {
+			It("should sign only matching files with [ab] character class", reportxml.ID("88317"), func() {
 				imageTag := "charrange"
 				image := fmt.Sprintf("%s/%s/%s:$KERNEL_FULL_VERSION-%s",
 					tsparams.LocalImageRegistry, nsName, moduleName, imageTag)
@@ -369,7 +369,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 				Expect(err).ToNot(HaveOccurred(), "error while waiting module to be deleted")
 			})
 
-			It("should sign all .ko with glob under custom dirName", reportxml.ID("70007"), func() {
+			It("should sign all .ko with glob under custom dirName", reportxml.ID("88320"), func() {
 				imageTag := "customdir"
 				image := fmt.Sprintf("%s/%s/%s:$KERNEL_FULL_VERSION-%s",
 					tsparams.LocalImageRegistry, nsName, moduleName, imageTag)
