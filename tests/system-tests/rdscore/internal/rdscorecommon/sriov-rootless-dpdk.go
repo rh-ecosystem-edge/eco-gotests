@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -181,7 +180,7 @@ func cleanUpRootlessDPDKDeployment(
 	deploymentObj, err := deployment.Pull(apiClient, deploymentName, nsName)
 
 	// If Pull failed with error other than NotFound, return error for retry
-	// Check both with errors.Is (unwraps) and string matching (eco-goinfra wraps errors)
+	// isNotFoundError checks k8s NotFound errors (with unwrapping) and eco-goinfra's "does not exist"
 	if err != nil && !isNotFoundError(err) {
 		klog.V(100).Infof("Error pulling deployment %s from namespace %s: %v",
 			deploymentName, nsName, err)
@@ -232,12 +231,6 @@ func isNotFoundError(err error) bool {
 
 	// Check if it's a Kubernetes NotFound error (handles unwrapping)
 	if k8serrors.IsNotFound(err) {
-		return true
-	}
-
-	// Unwrap and check recursively
-	var notFoundErr *k8serrors.StatusError
-	if errors.As(err, &notFoundErr) && k8serrors.IsNotFound(notFoundErr) {
 		return true
 	}
 

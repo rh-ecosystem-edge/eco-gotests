@@ -200,30 +200,69 @@ func deleteServiceAccount(saName, nsName string) {
 func deleteClusterRBAC(rbacName string) {
 	By("Deleting Cluster RBAC")
 
-	var ctx SpecContext
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Attempting to delete ClusterRoleBinding %q", rbacName)
 
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Assert ClusterRoleBinding %q exists", rbacName)
+	// Use Eventually to handle transient infrastructure issues
+	// Pull fresh builder on each iteration to avoid state corruption
+	Eventually(func() error {
+		// Pull fresh builder each iteration
+		crbObj, err := rbac.PullClusterRoleBinding(APIClient, rbacName)
 
-	if crbSa, err := rbac.PullClusterRoleBinding(
-		APIClient,
-		rbacName); err == nil {
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("ClusterRoleBinding %q found. Deleting...", rbacName)
+		// If Pull failed, check if it's NotFound (already deleted)
+		if err != nil {
+			// Reuse existing isNotFoundError helper from sriov-rootless-dpdk.go
+			if isNotFoundError(err) {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"ClusterRoleBinding %q not found, already deleted", rbacName)
 
-		Eventually(func() bool {
-			err := crbSa.Delete()
-			if err != nil {
-				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Error deleting ClusterRoleBinding %q : %v",
-					rbacName, err)
-
-				return false
+				return nil // Success - already deleted
 			}
 
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deleted ClusterRoleBinding %q", rbacName)
+			// Other Pull errors - retry (transient errors like etcd timeout)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"Failed to pull ClusterRoleBinding %q: %v (will retry)", rbacName, err)
 
-			return true
-		}).WithContext(ctx).WithPolling(5*time.Second).WithTimeout(1*time.Minute).Should(BeTrue(),
-			"Failed to delete Cluster RBAC")
+			return fmt.Errorf("failed to pull ClusterRoleBinding %q: %w", rbacName, err)
+		}
+
+		// Builder exists, attempt deletion
+		err = crbObj.Delete()
+		if err != nil {
+			// Check for permanent errors that should not be retried
+			if isPermanentClusterRBACError(err) {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"Permanent error deleting ClusterRoleBinding %q: %v", rbacName, err)
+
+				return StopTrying(fmt.Sprintf("permanent error deleting ClusterRoleBinding %q: %v", rbacName, err))
+			}
+
+			// Transient error - retry
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"Failed to delete ClusterRoleBinding %q: %v (will retry)", rbacName, err)
+
+			return fmt.Errorf("failed to delete ClusterRoleBinding %q: %w", rbacName, err)
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Successfully deleted ClusterRoleBinding %q", rbacName)
+
+		return nil
+	}).WithPolling(5*time.Second).WithTimeout(2*time.Minute).Should(Succeed(),
+		"Failed to delete ClusterRoleBinding %q after retries", rbacName)
+}
+
+// isPermanentClusterRBACError checks if an error is permanent and should not be retried.
+// Only true structural errors are classified as permanent - authentication and authorization
+// errors can be transient due to RBAC reconciliation or API server state.
+func isPermanentClusterRBACError(err error) bool {
+	if err == nil {
+		return false
 	}
+
+	errMsg := strings.ToLower(err.Error())
+
+	// Only truly permanent structural errors (NOT auth errors which can be transient)
+	return strings.Contains(errMsg, "resource name may not be empty") ||
+		strings.Contains(errMsg, "invalid resource name")
 }
 
 func createClusterRBAC(rbacName, clusterRole, saName, nsName string) {
