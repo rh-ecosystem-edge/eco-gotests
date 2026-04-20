@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -20,6 +21,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/apiobjectshelper"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreinittools"
@@ -138,14 +140,25 @@ func createRootlessDPDKServerDeployment(
 	return nil
 }
 
-// CleanupRootlessDPDKServerDeployment cleaning up the rootless DPDK server deployment.
-func CleanupRootlessDPDKServerDeployment() {
+// CleanupRootlessDPDKServerDeployment cleans up the rootless DPDK server deployment
+// with retry logic to handle transient infrastructure issues during cleanup.
+func CleanupRootlessDPDKServerDeployment(ctx SpecContext) {
 	By("Ensuring rootless DPDK server deployment was deleted")
 
-	err := cleanUpRootlessDPDKDeployment(APIClient, serverDPDKDeploymentName, deploymentNamespace, serverPodLabel)
-	Expect(err).ToNot(HaveOccurred(),
-		fmt.Sprintf("Failed to cleanup deployment %s from the namespace %s: %v",
-			serverDPDKDeploymentName, deploymentNamespace, err))
+	// Use Eventually to handle transient errors during cleanup (etcd timeouts, connection issues)
+	// Retries every 5 seconds for up to 5 minutes with fresh timeout starting from cleanup phase
+	Eventually(func() error {
+		return cleanUpRootlessDPDKDeployment(
+			APIClient,
+			serverDPDKDeploymentName,
+			deploymentNamespace,
+			serverPodLabel)
+	}).WithContext(ctx).
+		WithTimeout(5*time.Minute).
+		WithPolling(5*time.Second).
+		Should(Succeed(),
+			"Failed to cleanup deployment %s from namespace %s after retries",
+			serverDPDKDeploymentName, deploymentNamespace)
 }
 
 func cleanUpRootlessDPDKDeployment(
@@ -165,18 +178,39 @@ func cleanUpRootlessDPDKDeployment(
 		return fmt.Errorf("the rootless DPDK deployment namespace has to be provided")
 	}
 
-	_, err := deployment.Pull(apiClient, deploymentName, nsName)
-	if err == nil {
-		klog.V(100).Infof("Ensure %s deployment does not exist in namespace %s", deploymentName, nsName)
+	deploymentObj, err := deployment.Pull(apiClient, deploymentName, nsName)
 
-		err = apiobjectshelper.DeleteDeployment(apiClient, deploymentName, nsName)
+	// If Pull failed with error other than NotFound, return error for retry
+	// Check both with errors.Is (unwraps) and string matching (eco-goinfra wraps errors)
+	if err != nil && !isNotFoundError(err) {
+		klog.V(100).Infof("Error pulling deployment %s from namespace %s: %v",
+			deploymentName, nsName, err)
+
+		return fmt.Errorf("failed to pull deployment %s from namespace %s: %w",
+			deploymentName, nsName, err)
+	}
+
+	// At this point: either deployment exists (err == nil) or NotFound (already cleaned up)
+	if err == nil {
+		klog.V(100).Infof("Deleting deployment %s from namespace %s", deploymentName, nsName)
+
+		// Use shorter timeout (30s) since Eventually() provides outer retry layer
+		// This allows faster retry on transient errors (etcd timeouts, connection issues)
+		err = deploymentObj.DeleteAndWait(30 * time.Second)
 		if err != nil {
-			klog.V(100).Infof("Failed to delete deployment %s from nsname %s due to %v",
+			klog.V(100).Infof("Failed to delete deployment %s from namespace %s: %v",
 				deploymentName, nsName, err)
 
-			return fmt.Errorf("failed to delete deployment %s from nsname %s due to %w",
+			return fmt.Errorf("failed to delete deployment %s from namespace %s: %w",
 				deploymentName, nsName, err)
 		}
+
+		klog.V(100).Infof("Successfully deleted deployment %s from namespace %s",
+			deploymentName, nsName)
+	} else {
+		// err is NotFound - deployment doesn't exist, already cleaned up
+		klog.V(100).Infof("Deployment %s not found in namespace %s, already cleaned up",
+			deploymentName, nsName)
 	}
 
 	err = apiobjectshelper.EnsureAllPodsRemoved(apiClient, nsName, podLabel)
@@ -187,6 +221,30 @@ func cleanUpRootlessDPDKDeployment(
 	}
 
 	return nil
+}
+
+// isNotFoundError checks if an error indicates a resource was not found.
+// This handles both Kubernetes NotFound errors and eco-goinfra's wrapped "does not exist" errors.
+func isNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	// Check if it's a Kubernetes NotFound error (handles unwrapping)
+	if k8serrors.IsNotFound(err) {
+		return true
+	}
+
+	// Unwrap and check recursively
+	var notFoundErr *k8serrors.StatusError
+	if errors.As(err, &notFoundErr) && k8serrors.IsNotFound(notFoundErr) {
+		return true
+	}
+
+	// Fallback: check error message for eco-goinfra's "does not exist" pattern
+	errMsg := strings.ToLower(err.Error())
+
+	return strings.Contains(errMsg, "does not exist")
 }
 
 func defineAndCreateDPDKDeployment(
