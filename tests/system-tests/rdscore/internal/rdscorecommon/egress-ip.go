@@ -1020,23 +1020,48 @@ func VerifyEgressIPForPodWithWrongLabel() {
 		fmt.Sprintf("Failed to retrieve configured EgressIP addresses list from the egressIP %s: %v",
 			RDSCoreConfig.EgressIPName, err))
 
-	podObjectsPodObjects, err := pod.List(APIClient, RDSCoreConfig.EgressIPNamespaceOne, egressIPPodSelector)
-	Expect(err).ToNot(HaveOccurred(),
-		fmt.Sprintf("Failed to retrieve pods list from namespace %s with label %s: %v",
-			RDSCoreConfig.EgressIPNamespaceOne, RDSCoreConfig.EgressIPPodLabel, err))
+	type ipFamilyEntry struct {
+		name   string
+		isIPv6 bool
+	}
 
-	err = sendTrafficCheckIP(podObjectsPodObjects, false, expectedIPs)
-	Expect(err).ToNot(HaveOccurred(),
-		fmt.Sprintf("Server response was note received: %v", err))
+	var ipFamilies []ipFamilyEntry
 
-	podObjectsPodObjects, err = pod.List(APIClient, RDSCoreConfig.EgressIPNamespaceOne, nonEgressIPPodSelector)
-	Expect(err).ToNot(HaveOccurred(),
-		fmt.Sprintf("Failed to retrieve pods list from namespace %s with label %v: %v",
-			RDSCoreConfig.EgressIPNamespaceOne, nonEgressIPPodSelector, err))
+	if RDSCoreConfig.EgressIPRemoteIPv4 != "" {
+		ipFamilies = append(ipFamilies, ipFamilyEntry{name: "IPv4", isIPv6: false})
+	}
 
-	err = sendTrafficCheckIP(podObjectsPodObjects, false, expectedIPs)
-	Expect(err).To(HaveOccurred(),
-		fmt.Sprintf("Server response was received with the not correct egressIP address: %v", err))
+	if RDSCoreConfig.EgressIPRemoteIPv6 != "" {
+		ipFamilies = append(ipFamilies, ipFamilyEntry{name: "IPv6", isIPv6: true})
+	}
+
+	Expect(len(ipFamilies)).ToNot(Equal(0),
+		"Neither EgressIPRemoteIPv4 nor EgressIPRemoteIPv6 is configured")
+
+	for _, family := range ipFamilies {
+		By(fmt.Sprintf("Positive check: verifying EgressIP is used for correctly-labeled pods (%s)", family.name))
+
+		correctLabelPods, err := pod.List(APIClient, RDSCoreConfig.EgressIPNamespaceOne, egressIPPodSelector)
+		Expect(err).ToNot(HaveOccurred(),
+			fmt.Sprintf("Failed to retrieve pods list from namespace %s with label %s: %v",
+				RDSCoreConfig.EgressIPNamespaceOne, RDSCoreConfig.EgressIPPodLabel, err))
+
+		err = sendTrafficCheckIP(correctLabelPods, family.isIPv6, expectedIPs)
+		Expect(err).ToNot(HaveOccurred(),
+			fmt.Sprintf("%s: server response was not received from correctly-labeled pods: %v", family.name, err))
+
+		By(fmt.Sprintf("Negative check: verifying EgressIP is NOT used for wrong-labeled pods (%s)", family.name))
+
+		wrongLabelPods, err := pod.List(APIClient, RDSCoreConfig.EgressIPNamespaceOne, nonEgressIPPodSelector)
+		Expect(err).ToNot(HaveOccurred(),
+			fmt.Sprintf("Failed to retrieve pods list from namespace %s with label %v: %v",
+				RDSCoreConfig.EgressIPNamespaceOne, nonEgressIPPodSelector, err))
+
+		err = sendTrafficCheckIP(wrongLabelPods, family.isIPv6, expectedIPs)
+		Expect(err).To(HaveOccurred(),
+			fmt.Sprintf("%s: server response was received with egressIP from wrong-labeled pods: %v",
+				family.name, err))
+	}
 }
 
 // VerifyEgressIPForNamespaceWithWrongLabel verifies egress traffic applies only for the pods
@@ -1074,9 +1099,32 @@ func VerifyEgressIPForNamespaceWithWrongLabel() {
 		fmt.Sprintf("Failed to retrieve pods list from namespace %s with label %s: %v",
 			nonEgressIPNamespace, RDSCoreConfig.EgressIPPodLabel, err))
 
-	err = sendTrafficCheckIP(podObjects, false, expectedIPs)
-	Expect(err).To(HaveOccurred(),
-		fmt.Sprintf("Server response was received with the not correct egressIP address: %v", err))
+	type ipFamilyEntry struct {
+		name   string
+		isIPv6 bool
+	}
+
+	var ipFamilies []ipFamilyEntry
+
+	if RDSCoreConfig.EgressIPRemoteIPv4 != "" {
+		ipFamilies = append(ipFamilies, ipFamilyEntry{name: "IPv4", isIPv6: false})
+	}
+
+	if RDSCoreConfig.EgressIPRemoteIPv6 != "" {
+		ipFamilies = append(ipFamilies, ipFamilyEntry{name: "IPv6", isIPv6: true})
+	}
+
+	Expect(len(ipFamilies)).ToNot(Equal(0),
+		"Neither EgressIPRemoteIPv4 nor EgressIPRemoteIPv6 is configured")
+
+	for _, family := range ipFamilies {
+		By(fmt.Sprintf("Verifying EgressIP is NOT used for pods in wrong namespace (%s)", family.name))
+
+		err = sendTrafficCheckIP(podObjects, family.isIPv6, expectedIPs)
+		Expect(err).To(HaveOccurred(),
+			fmt.Sprintf("%s: server response was received with egressIP from wrong namespace: %v",
+				family.name, err))
+	}
 }
 
 // VerifyEgressIPOneNamespaceThreeNodesBalancedEIPTrafficIPv4 verifies egress traffic works with egressIP
