@@ -84,6 +84,39 @@ func defineService(svcName, svcNSName string,
 	return service.NewBuilder(APIClient, svcName, svcNSName, svcSelector, svcPort)
 }
 
+// applyIPFamilyPolicy sets Service ipFamilies and ipFamilyPolicy from configured remote target IPs.
+func applyIPFamilyPolicy(svcBuilder *service.Builder, remoteTargetIP, remoteTargetIPv6 string) *service.Builder {
+	hasIPv4 := remoteTargetIP != ""
+	hasIPv6 := remoteTargetIPv6 != ""
+
+	Expect(hasIPv4 || hasIPv6).To(BeTrue(),
+		"At least one remote target IP (IPv4 or IPv6) must be configured")
+
+	switch {
+	case hasIPv4 && hasIPv6:
+		By("Setting ipFamilyPolicy to 'RequireDualStack'")
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Dual-stack: setting ipFamilyPolicy to RequireDualStack")
+
+		return svcBuilder.WithIPFamily([]corev1.IPFamily{corev1.IPv4Protocol, corev1.IPv6Protocol},
+			corev1.IPFamilyPolicyRequireDualStack)
+	case hasIPv6:
+		By("Setting ipFamilyPolicy to 'SingleStack' (IPv6)")
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("IPv6 only: setting ipFamilyPolicy to SingleStack")
+
+		return svcBuilder.WithIPFamily([]corev1.IPFamily{corev1.IPv6Protocol},
+			corev1.IPFamilyPolicySingleStack)
+	default:
+		By("Setting ipFamilyPolicy to 'SingleStack' (IPv4)")
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("IPv4 only: setting ipFamilyPolicy to SingleStack")
+
+		return svcBuilder.WithIPFamily([]corev1.IPFamily{corev1.IPv4Protocol},
+			corev1.IPFamilyPolicySingleStack)
+	}
+}
+
 func deleteService(svcName, svcNSName string) {
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deleting service %q in %q ns", svcName, svcNSName)
 
@@ -382,35 +415,7 @@ func VerifyEgressServiceETPClusterWrapper(
 	svcBuilder = svcBuilder.WithAnnotation(map[string]string{
 		"metallb.universe.tf/address-pool": ipAddrPoolName})
 
-	hasIPv4 := remoteTargetIP != ""
-	hasIPv6 := remoteTargetIPv6 != ""
-
-	Expect(hasIPv4 || hasIPv6).To(BeTrue(),
-		"At least one remote target IP (IPv4 or IPv6) must be configured")
-
-	switch {
-	case hasIPv4 && hasIPv6:
-		By("Setting ipFamilyPolicy to 'RequireDualStack'")
-
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Dual-stack: setting ipFamilyPolicy to RequireDualStack")
-
-		svcBuilder = svcBuilder.WithIPFamily([]corev1.IPFamily{corev1.IPv4Protocol, corev1.IPv6Protocol},
-			corev1.IPFamilyPolicyRequireDualStack)
-	case hasIPv6:
-		By("Setting ipFamilyPolicy to 'SingleStack' (IPv6)")
-
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("IPv6 only: setting ipFamilyPolicy to SingleStack")
-
-		svcBuilder = svcBuilder.WithIPFamily([]corev1.IPFamily{corev1.IPv6Protocol},
-			corev1.IPFamilyPolicySingleStack)
-	default:
-		By("Setting ipFamilyPolicy to 'SingleStack' (IPv4)")
-
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("IPv4 only: setting ipFamilyPolicy to SingleStack")
-
-		svcBuilder = svcBuilder.WithIPFamily([]corev1.IPFamily{corev1.IPv4Protocol},
-			corev1.IPFamilyPolicySingleStack)
-	}
+	svcBuilder = applyIPFamilyPolicy(svcBuilder, remoteTargetIP, remoteTargetIPv6)
 
 	By("Creating a service")
 
@@ -698,35 +703,7 @@ func VerifyEgressServiceWithLocalETPWrapper(
 	svcBuilder = svcBuilder.WithAnnotation(map[string]string{
 		"metallb.universe.tf/address-pool": ipAddrPoolName})
 
-	hasIPv4 := remoteTargetIP != ""
-	hasIPv6 := remoteTargetIPv6 != ""
-
-	Expect(hasIPv4 || hasIPv6).To(BeTrue(),
-		"At least one remote target IP (IPv4 or IPv6) must be configured")
-
-	switch {
-	case hasIPv4 && hasIPv6:
-		By("Setting ipFamilyPolicy to 'RequireDualStack'")
-
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Dual-stack: setting ipFamilyPolicy to RequireDualStack")
-
-		svcBuilder = svcBuilder.WithIPFamily([]corev1.IPFamily{corev1.IPv4Protocol, corev1.IPv6Protocol},
-			corev1.IPFamilyPolicyRequireDualStack)
-	case hasIPv6:
-		By("Setting ipFamilyPolicy to 'SingleStack' (IPv6)")
-
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("IPv6 only: setting ipFamilyPolicy to SingleStack")
-
-		svcBuilder = svcBuilder.WithIPFamily([]corev1.IPFamily{corev1.IPv6Protocol},
-			corev1.IPFamilyPolicySingleStack)
-	default:
-		By("Setting ipFamilyPolicy to 'SingleStack' (IPv4)")
-
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("IPv4 only: setting ipFamilyPolicy to SingleStack")
-
-		svcBuilder = svcBuilder.WithIPFamily([]corev1.IPFamily{corev1.IPv4Protocol},
-			corev1.IPFamilyPolicySingleStack)
-	}
+	svcBuilder = applyIPFamilyPolicy(svcBuilder, remoteTargetIP, remoteTargetIPv6)
 
 	By("Creating a service")
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Creating Service object")
@@ -998,120 +975,60 @@ func verifySourceIP(svcName, svcNS, podLabels string, cmdToRun []string, useIPv6
 	}
 }
 
-// VerifyEgressServiceConnectivityETPCluster verifies source IP address when external traffic policy
-// is set to Cluster.
-func VerifyEgressServiceConnectivityETPCluster() {
+// verifyEgressServiceConnectivity is the shared egress connectivity check; byPrefix labels Ginkgo By steps.
+func verifyEgressServiceConnectivity(svcName, svcNS, svcLabels, byPrefix string) {
 	Expect(RDSCoreConfig.EgressServiceRemoteIP != "" || RDSCoreConfig.EgressServiceRemoteIPv6 != "").To(BeTrue(),
 		"Neither EgressServiceRemoteIP nor EgressServiceRemoteIPv6 is configured")
 
 	if RDSCoreConfig.EgressServiceRemoteIP != "" {
-		By("Verifying EgressService ETP=Cluster connectivity (IPv4)")
+		By(fmt.Sprintf("Verifying EgressService %s connectivity (IPv4)", byPrefix))
 
 		cmdToRun := []string{"/bin/bash", "-c",
 			fmt.Sprintf("curl --connect-timeout 3 -Ls http://%s:%s/clientip",
 				RDSCoreConfig.EgressServiceRemoteIP, RDSCoreConfig.EgressServiceRemotePort)}
 
-		verifySourceIP(egressSVC1Name, RDSCoreConfig.EgressServiceNS, egressSVC1Labels, cmdToRun, false,
+		verifySourceIP(svcName, svcNS, svcLabels, cmdToRun, false,
 			RDSCoreConfig.EgressServiceNetworkExpectedIPs)
 	}
 
 	if RDSCoreConfig.EgressServiceRemoteIPv6 != "" {
-		By("Verifying EgressService ETP=Cluster connectivity (IPv6)")
+		By(fmt.Sprintf("Verifying EgressService %s connectivity (IPv6)", byPrefix))
 
 		cmdToRun := []string{"/bin/bash", "-c",
 			fmt.Sprintf("curl --connect-timeout 3 -Ls http://[%s]:%s/clientip",
 				RDSCoreConfig.EgressServiceRemoteIPv6, RDSCoreConfig.EgressServiceRemotePort)}
 
-		verifySourceIP(egressSVC1Name, RDSCoreConfig.EgressServiceNS, egressSVC1Labels, cmdToRun, true,
+		verifySourceIP(svcName, svcNS, svcLabels, cmdToRun, true,
 			RDSCoreConfig.EgressServiceNetworkExpectedIPs)
 	}
+}
+
+// VerifyEgressServiceConnectivityETPCluster verifies source IP address when external traffic policy
+// is set to Cluster.
+func VerifyEgressServiceConnectivityETPCluster() {
+	verifyEgressServiceConnectivity(egressSVC1Name, RDSCoreConfig.EgressServiceNS, egressSVC1Labels,
+		"ETP=Cluster")
 }
 
 // VerifyEgressServiceConnectivityETPClusterSourceIPByNetwork verifies source IP address when external traffic policy
 // is set to Cluster.
 func VerifyEgressServiceConnectivityETPClusterSourceIPByNetwork() {
-	Expect(RDSCoreConfig.EgressServiceRemoteIP != "" || RDSCoreConfig.EgressServiceRemoteIPv6 != "").To(BeTrue(),
-		"Neither EgressServiceRemoteIP nor EgressServiceRemoteIPv6 is configured")
-
-	if RDSCoreConfig.EgressServiceRemoteIP != "" {
-		By("Verifying EgressService ETP=Cluster sourceIPBy=Network connectivity (IPv4)")
-
-		cmdToRun := []string{"/bin/bash", "-c",
-			fmt.Sprintf("curl --connect-timeout 3 -Ls http://%s:%s/clientip",
-				RDSCoreConfig.EgressServiceRemoteIP, RDSCoreConfig.EgressServiceRemotePort)}
-
-		verifySourceIP(egressSVC3Name, RDSCoreConfig.EgressServiceNS, egressSVC3Labels, cmdToRun, false,
-			RDSCoreConfig.EgressServiceNetworkExpectedIPs)
-	}
-
-	if RDSCoreConfig.EgressServiceRemoteIPv6 != "" {
-		By("Verifying EgressService ETP=Cluster sourceIPBy=Network connectivity (IPv6)")
-
-		cmdToRun := []string{"/bin/bash", "-c",
-			fmt.Sprintf("curl --connect-timeout 3 -Ls http://[%s]:%s/clientip",
-				RDSCoreConfig.EgressServiceRemoteIPv6, RDSCoreConfig.EgressServiceRemotePort)}
-
-		verifySourceIP(egressSVC3Name, RDSCoreConfig.EgressServiceNS, egressSVC3Labels, cmdToRun, true,
-			RDSCoreConfig.EgressServiceNetworkExpectedIPs)
-	}
+	verifyEgressServiceConnectivity(egressSVC3Name, RDSCoreConfig.EgressServiceNS, egressSVC3Labels,
+		"ETP=Cluster sourceIPBy=Network")
 }
 
 // VerifyEgressServiceConnectivityETPLocal verifies source IP address when external traffic policy
 // is set to Local.
 func VerifyEgressServiceConnectivityETPLocal() {
-	Expect(RDSCoreConfig.EgressServiceRemoteIP != "" || RDSCoreConfig.EgressServiceRemoteIPv6 != "").To(BeTrue(),
-		"Neither EgressServiceRemoteIP nor EgressServiceRemoteIPv6 is configured")
-
-	if RDSCoreConfig.EgressServiceRemoteIP != "" {
-		By("Verifying EgressService ETP=Local connectivity (IPv4)")
-
-		cmdToRun := []string{"/bin/bash", "-c",
-			fmt.Sprintf("curl --connect-timeout 3 -Ls http://%s:%s/clientip",
-				RDSCoreConfig.EgressServiceRemoteIP, RDSCoreConfig.EgressServiceRemotePort)}
-
-		verifySourceIP(egressSVC2Name, RDSCoreConfig.EgressServiceNS, egressSVC2Labels, cmdToRun, false,
-			RDSCoreConfig.EgressServiceNetworkExpectedIPs)
-	}
-
-	if RDSCoreConfig.EgressServiceRemoteIPv6 != "" {
-		By("Verifying EgressService ETP=Local connectivity (IPv6)")
-
-		cmdToRun := []string{"/bin/bash", "-c",
-			fmt.Sprintf("curl --connect-timeout 3 -Ls http://[%s]:%s/clientip",
-				RDSCoreConfig.EgressServiceRemoteIPv6, RDSCoreConfig.EgressServiceRemotePort)}
-
-		verifySourceIP(egressSVC2Name, RDSCoreConfig.EgressServiceNS, egressSVC2Labels, cmdToRun, true,
-			RDSCoreConfig.EgressServiceNetworkExpectedIPs)
-	}
+	verifyEgressServiceConnectivity(egressSVC2Name, RDSCoreConfig.EgressServiceNS, egressSVC2Labels,
+		"ETP=Local")
 }
 
 // VerifyEgressServiceConnectivityETPLocalSourceIPByNetwork verifies source IP address when external traffic policy
 // is set to Local and sourceIPBy=Network.
 func VerifyEgressServiceConnectivityETPLocalSourceIPByNetwork() {
-	Expect(RDSCoreConfig.EgressServiceRemoteIP != "" || RDSCoreConfig.EgressServiceRemoteIPv6 != "").To(BeTrue(),
-		"Neither EgressServiceRemoteIP nor EgressServiceRemoteIPv6 is configured")
-
-	if RDSCoreConfig.EgressServiceRemoteIP != "" {
-		By("Verifying EgressService ETP=Local sourceIPBy=Network connectivity (IPv4)")
-
-		cmdToRun := []string{"/bin/bash", "-c",
-			fmt.Sprintf("curl --connect-timeout 3 -Ls http://%s:%s/clientip",
-				RDSCoreConfig.EgressServiceRemoteIP, RDSCoreConfig.EgressServiceRemotePort)}
-
-		verifySourceIP(egressSVC4Name, RDSCoreConfig.EgressServiceNS, egressSVC4Labels, cmdToRun, false,
-			RDSCoreConfig.EgressServiceNetworkExpectedIPs)
-	}
-
-	if RDSCoreConfig.EgressServiceRemoteIPv6 != "" {
-		By("Verifying EgressService ETP=Local sourceIPBy=Network connectivity (IPv6)")
-
-		cmdToRun := []string{"/bin/bash", "-c",
-			fmt.Sprintf("curl --connect-timeout 3 -Ls http://[%s]:%s/clientip",
-				RDSCoreConfig.EgressServiceRemoteIPv6, RDSCoreConfig.EgressServiceRemotePort)}
-
-		verifySourceIP(egressSVC4Name, RDSCoreConfig.EgressServiceNS, egressSVC4Labels, cmdToRun, true,
-			RDSCoreConfig.EgressServiceNetworkExpectedIPs)
-	}
+	verifyEgressServiceConnectivity(egressSVC4Name, RDSCoreConfig.EgressServiceNS, egressSVC4Labels,
+		"ETP=Local sourceIPBy=Network")
 }
 
 // VerifyEgressServiceETPLocalIngressConnectivity verifies ingress IP address while accessing backend pods
