@@ -203,11 +203,6 @@ func VerifySoftReboot(ctx SpecContext) {
 	for _, _node := range allNodes {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Processing node %q", _node.Definition.Name)
 
-		bootIDBefore := _node.Object.Status.NodeInfo.BootID
-
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q boot ID before reboot: %s",
-			_node.Definition.Name, bootIDBefore)
-
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cordoning node %q", _node.Definition.Name)
 		err := _node.Cordon()
 		Expect(err).ToNot(HaveOccurred(),
@@ -221,6 +216,11 @@ func VerifySoftReboot(ctx SpecContext) {
 		err = _node.Drain()
 		Expect(err).ToNot(HaveOccurred(),
 			fmt.Sprintf("Failed to drain %q due to %v", _node.Definition.Name, err))
+
+		bootIDBefore := fetchNodeBootIDWithRetry(ctx, _node.Definition.Name)
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q boot ID before reboot: %s",
+			_node.Definition.Name, bootIDBefore)
 
 		klog.V(rdscoreparams.RDSCoreLogLevel).Info(
 			fmt.Sprintf("NodesCredentialsMap:\n\t%#v", RDSCoreConfig.NodesCredentialsMap))
