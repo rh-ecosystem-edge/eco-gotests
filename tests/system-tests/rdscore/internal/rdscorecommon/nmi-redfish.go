@@ -61,8 +61,6 @@ func triggerNMIRedfish(ctx SpecContext, nodeLabel string) {
 		By(fmt.Sprintf("Cleaning up /var/crash directory on node %q", node.Definition.Name))
 		cleanupVarCrashDirectory(ctx, node.Definition.Name)
 
-		By(fmt.Sprintf("Recording boot ID for node %q before NMI", node.Definition.Name))
-
 		bootIDBefore := node.Object.Status.NodeInfo.BootID
 
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q boot ID before NMI: %s",
