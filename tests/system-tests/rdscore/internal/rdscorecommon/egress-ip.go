@@ -1027,11 +1027,11 @@ func VerifyEgressIPForPodWithWrongLabel() {
 
 	var ipFamilies []ipFamilyEntry
 
-	if RDSCoreConfig.EgressIPRemoteIPv4 != "" {
+	if RDSCoreConfig.EgressIPv4 != "" && RDSCoreConfig.EgressIPRemoteIPv4 != "" {
 		ipFamilies = append(ipFamilies, ipFamilyEntry{name: "IPv4", isIPv6: false})
 	}
 
-	if RDSCoreConfig.EgressIPRemoteIPv6 != "" {
+	if RDSCoreConfig.EgressIPv6 != "" && RDSCoreConfig.EgressIPRemoteIPv6 != "" {
 		ipFamilies = append(ipFamilies, ipFamilyEntry{name: "IPv6", isIPv6: true})
 	}
 
@@ -1106,11 +1106,11 @@ func VerifyEgressIPForNamespaceWithWrongLabel() {
 
 	var ipFamilies []ipFamilyEntry
 
-	if RDSCoreConfig.EgressIPRemoteIPv4 != "" {
+	if RDSCoreConfig.EgressIPv4 != "" && RDSCoreConfig.EgressIPRemoteIPv4 != "" {
 		ipFamilies = append(ipFamilies, ipFamilyEntry{name: "IPv4", isIPv6: false})
 	}
 
-	if RDSCoreConfig.EgressIPRemoteIPv6 != "" {
+	if RDSCoreConfig.EgressIPv6 != "" && RDSCoreConfig.EgressIPRemoteIPv6 != "" {
 		ipFamilies = append(ipFamilies, ipFamilyEntry{name: "IPv6", isIPv6: true})
 	}
 
