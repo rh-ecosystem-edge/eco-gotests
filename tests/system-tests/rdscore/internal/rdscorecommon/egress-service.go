@@ -117,6 +117,19 @@ func applyIPFamilyPolicy(svcBuilder *service.Builder, remoteTargetIP, remoteTarg
 	}
 }
 
+// buildEgressClientIPCurlCmd returns a curl command that hits the remote /clientip endpoint.
+// hostIsIPv6 selects URL form (IPv6 literals must appear in brackets).
+func buildEgressClientIPCurlCmd(host, port string, hostIsIPv6 bool) []string {
+	var url string
+	if hostIsIPv6 {
+		url = fmt.Sprintf("http://[%s]:%s/clientip", host, port)
+	} else {
+		url = fmt.Sprintf("http://%s:%s/clientip", host, port)
+	}
+
+	return []string{"/bin/bash", "-c", fmt.Sprintf("curl --connect-timeout 3 -Ls %s", url)}
+}
+
 func deleteService(svcName, svcNSName string) {
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deleting service %q in %q ns", svcName, svcNSName)
 
@@ -534,15 +547,11 @@ func VerifyEgressServiceETPClusterWrapper(
 		if myIP.Is4() {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Processing IPv4 address")
 
-			cmdToRun = []string{"/bin/bash", "-c",
-				fmt.Sprintf("curl --connect-timeout 3 -Ls http://%s:%s/clientip",
-					remoteTargetIP, remoteTargetPort)}
+			cmdToRun = buildEgressClientIPCurlCmd(remoteTargetIP, remoteTargetPort, false)
 		} else {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Processing IPv6 address")
 
-			cmdToRun = []string{"/bin/bash", "-c",
-				fmt.Sprintf("curl --connect-timeout 3 -Ls http://[%s]:%s/clientip",
-					remoteTargetIPv6, remoteTargetPort)}
+			cmdToRun = buildEgressClientIPCurlCmd(remoteTargetIPv6, remoteTargetPort, true)
 		}
 
 		if strings.EqualFold(strings.TrimSpace(string(egrSVCBuilder.Object.Spec.SourceIPBy)), "Network") {
@@ -820,17 +829,13 @@ func VerifyEgressServiceWithLocalETPWrapper(
 		if myIP.Is4() {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Processing IPv4 address")
 
-			cmdToRun = []string{"/bin/bash", "-c",
-				fmt.Sprintf("curl --connect-timeout 3 -Ls http://%s:%s/clientip",
-					remoteTargetIP, remoteTargetPort)}
+			cmdToRun = buildEgressClientIPCurlCmd(remoteTargetIP, remoteTargetPort, false)
 
 			expectedIP = remoteTargetIP
 		} else {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Processing IPv6 address")
 
-			cmdToRun = []string{"/bin/bash", "-c",
-				fmt.Sprintf("curl --connect-timeout 3 -Ls http://[%s]:%s/clientip",
-					remoteTargetIPv6, remoteTargetPort)}
+			cmdToRun = buildEgressClientIPCurlCmd(remoteTargetIPv6, remoteTargetPort, true)
 
 			expectedIP = remoteTargetIPv6
 		}
@@ -983,9 +988,8 @@ func verifyEgressServiceConnectivity(svcName, svcNS, svcLabels, byPrefix string)
 	if RDSCoreConfig.EgressServiceRemoteIP != "" {
 		By(fmt.Sprintf("Verifying EgressService %s connectivity (IPv4)", byPrefix))
 
-		cmdToRun := []string{"/bin/bash", "-c",
-			fmt.Sprintf("curl --connect-timeout 3 -Ls http://%s:%s/clientip",
-				RDSCoreConfig.EgressServiceRemoteIP, RDSCoreConfig.EgressServiceRemotePort)}
+		cmdToRun := buildEgressClientIPCurlCmd(RDSCoreConfig.EgressServiceRemoteIP,
+			RDSCoreConfig.EgressServiceRemotePort, false)
 
 		verifySourceIP(svcName, svcNS, svcLabels, cmdToRun, false,
 			RDSCoreConfig.EgressServiceNetworkExpectedIPs)
@@ -994,9 +998,8 @@ func verifyEgressServiceConnectivity(svcName, svcNS, svcLabels, byPrefix string)
 	if RDSCoreConfig.EgressServiceRemoteIPv6 != "" {
 		By(fmt.Sprintf("Verifying EgressService %s connectivity (IPv6)", byPrefix))
 
-		cmdToRun := []string{"/bin/bash", "-c",
-			fmt.Sprintf("curl --connect-timeout 3 -Ls http://[%s]:%s/clientip",
-				RDSCoreConfig.EgressServiceRemoteIPv6, RDSCoreConfig.EgressServiceRemotePort)}
+		cmdToRun := buildEgressClientIPCurlCmd(RDSCoreConfig.EgressServiceRemoteIPv6,
+			RDSCoreConfig.EgressServiceRemotePort, true)
 
 		verifySourceIP(svcName, svcNS, svcLabels, cmdToRun, true,
 			RDSCoreConfig.EgressServiceNetworkExpectedIPs)
