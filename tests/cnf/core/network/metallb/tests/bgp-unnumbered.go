@@ -150,7 +150,7 @@ var _ = Describe("BGP Unnumbered", Ordered, Label(tsparams.LabelBGPUnnumbered),
 				By("Creating BGP Peers")
 				createBGPPeerUnnumberedAndVerifyIfItsReady(tsparams.BgpPeerName1, tsparams.BgpPeerDynamicASiBGP,
 					interfacesUnderTest[0], tsparams.BfdProfileName, tsparams.LocalBGPASN, 0, false,
-					0, frrk8sPods[0], map[string]string{netparam.LabelHostName: cnfWorkerNodeList[0].Definition.Name})
+					0, frrk8sPods[0], map[string]string{corev1.LabelHostname: cnfWorkerNodeList[0].Definition.Name})
 
 				By("Checking that BGP session is established and up")
 				verifyMetalLbBGPSessionsAreUPOnFrrPod(frrPod, []string{interfacesUnderTest[0]})
@@ -186,7 +186,7 @@ var _ = Describe("BGP Unnumbered", Ordered, Label(tsparams.LabelBGPUnnumbered),
 				createBGPPeerUnnumberedAndVerifyIfItsReady(tsparams.BgpPeerName1, tsparams.BgpPeerDynamicASeBGP,
 					interfacesUnderTest[0], tsparams.BfdProfileName, tsparams.LocalBGPASN, 0, false,
 					0, frrk8sPods[0],
-					map[string]string{netparam.LabelHostName: cnfWorkerNodeList[0].Definition.Name})
+					map[string]string{corev1.LabelHostname: cnfWorkerNodeList[0].Definition.Name})
 
 				frrPod := createFrrPod(
 					workerNodeList[1].Object.Name, frrConfigMap.Definition.Name, []string{}, frrStaticAnnotation)
@@ -235,7 +235,7 @@ var _ = Describe("BGP Unnumbered", Ordered, Label(tsparams.LabelBGPUnnumbered),
 				createBGPPeerUnnumberedAndVerifyIfItsReady(tsparams.BgpPeerName1, tsparams.BgpPeerDynamicASeBGP,
 					interfacesUnderTest[0], "", tsparams.LocalBGPASN, 0, false,
 					0, frrk8sPods[0],
-					map[string]string{netparam.LabelHostName: cnfWorkerNodeList[0].Definition.Name})
+					map[string]string{corev1.LabelHostname: cnfWorkerNodeList[0].Definition.Name})
 
 				frrPod := createFrrPod(
 					workerNodeList[1].Object.Name, frrConfigMap.Definition.Name, []string{}, frrStaticAnnotation)
@@ -281,7 +281,7 @@ var _ = Describe("BGP Unnumbered", Ordered, Label(tsparams.LabelBGPUnnumbered),
 				By("Creating BGP Peers")
 				createBGPPeerUnnumberedAndVerifyIfItsReady(tsparams.BgpPeerName1, "",
 					interfacesUnderTest[0], tsparams.BfdProfileName, tsparams.LocalBGPASN, tsparams.LocalBGPASN,
-					false, 0, frrk8sPods[0], map[string]string{netparam.LabelHostName: cnfWorkerNodeList[0].Definition.Name})
+					false, 0, frrk8sPods[0], map[string]string{corev1.LabelHostname: cnfWorkerNodeList[0].Definition.Name})
 
 				frrPod := createFrrPod(
 					workerNodeList[1].Object.Name, frrConfigMap.Definition.Name, []string{}, frrStaticAnnotation)
