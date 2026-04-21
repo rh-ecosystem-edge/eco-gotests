@@ -183,7 +183,7 @@ func WaitAllDeploymentsAreAvailable(ctx SpecContext) {
 
 // VerifySoftReboot performs graceful reboot of a cluster with cordoning and draining of individual nodes.
 //
-//nolint:gocognit,funlen
+//nolint:funlen
 func VerifySoftReboot(ctx SpecContext) {
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("\t*** Starting Soft Reboot Test Suite ***")
 
@@ -202,6 +202,11 @@ func VerifySoftReboot(ctx SpecContext) {
 
 	for _, _node := range allNodes {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Processing node %q", _node.Definition.Name)
+
+		bootIDBefore := _node.Object.Status.NodeInfo.BootID
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q boot ID before reboot: %s",
+			_node.Definition.Name, bootIDBefore)
 
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cordoning node %q", _node.Definition.Name)
 		err := _node.Cordon()
@@ -253,30 +258,7 @@ func VerifySoftReboot(ctx SpecContext) {
 		Expect(err).ToNot(HaveOccurred(),
 			fmt.Sprintf("Failed to reboot node %s", _node.Definition.Name))
 
-		By(fmt.Sprintf("Checking node %q got into NotReady", _node.Definition.Name))
-
-		Eventually(func(ctx SpecContext) bool {
-			currentNode, err := nodes.Pull(APIClient, _node.Definition.Name)
-			if err != nil {
-				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to pull node: %v", err)
-
-				return false
-			}
-
-			for _, condition := range currentNode.Object.Status.Conditions {
-				if condition.Type == rdscoreparams.ConditionTypeReadyString {
-					if condition.Status != rdscoreparams.ConstantTrueString {
-						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q is notReady", currentNode.Definition.Name)
-						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Reason: %s", condition.Reason)
-
-						return true
-					}
-				}
-			}
-
-			return false
-		}).WithTimeout(25*time.Minute).WithPolling(15*time.Second).WithContext(ctx).Should(BeTrue(),
-			"Node hasn't reached notReady state")
+		waitForBootIDChange(ctx, _node.Definition.Name, bootIDBefore, 25*time.Minute)
 
 		By(fmt.Sprintf("Checking node %q got into Ready", _node.Definition.Name))
 
