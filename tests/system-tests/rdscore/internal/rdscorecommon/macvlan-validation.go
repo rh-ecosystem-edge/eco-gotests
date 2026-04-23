@@ -200,9 +200,10 @@ func VerifyMacVlanOnDifferentNodes() {
 	VerifyMACVLANConnectivityBetweenDifferentNodes()
 }
 
-// verifyMACVLANTargets runs verifySRIOVConnectivity between srcPodLabel and dstPodLabel in namespace
-// for each non-empty address.
-func verifyMACVLANTargets(namespace, srcPodLabel, dstPodLabel, ipv4Target, ipv6Target, expectMsg string) {
+// verifyMACVLANTargets runs verifySRIOVConnectivity between srcPodLabel and dstPodLabel for
+// each non-empty target address.
+func verifyMACVLANTargets(srcNamespace, dstNamespace, srcPodLabel, dstPodLabel,
+	ipv4Target, ipv6Target, expectMsg string) {
 	Expect(ipv4Target != "" || ipv6Target != "").To(BeTrue(), expectMsg)
 
 	for _, targetAddress := range []string{ipv4Target, ipv6Target} {
@@ -212,7 +213,7 @@ func verifyMACVLANTargets(namespace, srcPodLabel, dstPodLabel, ipv4Target, ipv6T
 
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Access workload via %q", targetAddress)
 
-		verifySRIOVConnectivity(namespace, namespace, srcPodLabel, dstPodLabel, targetAddress)
+		verifySRIOVConnectivity(srcNamespace, dstNamespace, srcPodLabel, dstPodLabel, targetAddress)
 	}
 }
 
@@ -221,6 +222,7 @@ func verifyMACVLANTargets(namespace, srcPodLabel, dstPodLabel, ipv4Target, ipv6T
 func VerifyMACVLANConnectivityBetweenDifferentNodes() {
 	verifyMACVLANTargets(
 		RDSCoreConfig.MCVlanNSOne,
+		RDSCoreConfig.MCVlanNSOne,
 		macvlanDeploy10Label,
 		macvlanDeploy11Label,
 		RDSCoreConfig.MCVlanDeploy1TargetAddress,
@@ -228,6 +230,7 @@ func VerifyMACVLANConnectivityBetweenDifferentNodes() {
 		"At least one target address (IPv4 or IPv6) must be configured for MCVlan Deploy1")
 
 	verifyMACVLANTargets(
+		RDSCoreConfig.MCVlanNSOne,
 		RDSCoreConfig.MCVlanNSOne,
 		macvlanDeploy11Label,
 		macvlanDeploy10Label,
@@ -342,6 +345,7 @@ func VerifyMacVlanOnSameNode() {
 func VerifyMACVLANConnectivityOnSameNode() {
 	verifyMACVLANTargets(
 		RDSCoreConfig.MCVlanNSOne,
+		RDSCoreConfig.MCVlanNSOne,
 		macvlanDeploy20Label,
 		macvlanDeploy21Label,
 		RDSCoreConfig.MCVlanDeploy3TargetAddress,
@@ -349,6 +353,7 @@ func VerifyMACVLANConnectivityOnSameNode() {
 		"At least one target address (IPv4 or IPv6) must be configured for MCVlan Deploy3")
 
 	verifyMACVLANTargets(
+		RDSCoreConfig.MCVlanNSOne,
 		RDSCoreConfig.MCVlanNSOne,
 		macvlanDeploy21Label,
 		macvlanDeploy20Label,
