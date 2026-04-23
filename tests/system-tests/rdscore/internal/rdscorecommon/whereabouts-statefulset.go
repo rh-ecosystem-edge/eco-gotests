@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
-	"regexp"
+	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -322,15 +322,24 @@ func extractRangesFromIPAM(obj map[string]interface{}) []string {
 // detectIPFamiliesFromRanges inspects a list of CIDR range strings and returns
 // whether IPv4 and/or IPv6 ranges are present.
 func detectIPFamiliesFromRanges(ranges []string) (hasIPv4, hasIPv6 bool) {
-	ipv4Re := regexp.MustCompile(`\d+\.\d+\.\d+\.\d+/\d+`)
-	ipv6Re := regexp.MustCompile(`([0-9a-fA-F]{0,4}:){2,}[0-9a-fA-F]{0,4}/\d+`)
-
 	for _, r := range ranges {
-		if ipv4Re.MatchString(r) {
+		cidr := strings.TrimSpace(r)
+		if dashIndex := strings.LastIndex(cidr, "-"); dashIndex >= 0 {
+			cidr = strings.TrimSpace(cidr[dashIndex+1:])
+		}
+
+		ip, _, err := net.ParseCIDR(cidr)
+		if err != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping invalid IPAM range %q: %v", r, err)
+
+			continue
+		}
+
+		if ip.To4() != nil {
 			hasIPv4 = true
 		}
 
-		if ipv6Re.MatchString(r) {
+		if ip.To4() == nil && ip.To16() != nil {
 			hasIPv6 = true
 		}
 	}
