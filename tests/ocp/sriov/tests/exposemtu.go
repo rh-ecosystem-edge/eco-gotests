@@ -24,6 +24,7 @@ var _ = Describe("SRIOV: Expose MTU:", Ordered, Label(tsparams.LabelExposeMTUTes
 		workerNodeList           []*nodes.Builder
 		err                      error
 		sriovInterfacesUnderTest []string
+		vfNum                    int
 	)
 
 	BeforeAll(func() {
@@ -37,6 +38,11 @@ var _ = Describe("SRIOV: Expose MTU:", Ordered, Label(tsparams.LabelExposeMTUTes
 
 		sriovInterfacesUnderTest, err = SriovOcpConfig.GetSriovInterfaces(1)
 		Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
+
+		By("Loading VF configuration")
+
+		vfNum, err = SriovOcpConfig.GetVFNum()
+		Expect(err).ToNot(HaveOccurred(), "Failed to get VF number")
 
 		By("Verifying if expose MTU tests can be executed on given cluster")
 
@@ -65,19 +71,19 @@ var _ = Describe("SRIOV: Expose MTU:", Ordered, Label(tsparams.LabelExposeMTUTes
 	})
 
 	It("netdev 1500", reportxml.ID("73786"), func() {
-		testExposeMTU(1500, sriovInterfacesUnderTest, "netdevice")
+		testExposeMTU(1500, sriovInterfacesUnderTest, "netdevice", vfNum)
 	})
 
 	It("netdev 9000", reportxml.ID("73787"), func() {
-		testExposeMTU(9000, sriovInterfacesUnderTest, "netdevice")
+		testExposeMTU(9000, sriovInterfacesUnderTest, "netdevice", vfNum)
 	})
 
 	It("vfio 1500", reportxml.ID("73789"), func() {
-		testExposeMTU(1500, sriovInterfacesUnderTest, "vfio-pci")
+		testExposeMTU(1500, sriovInterfacesUnderTest, "vfio-pci", vfNum)
 	})
 
 	It("vfio 9000", reportxml.ID("73790"), func() {
-		testExposeMTU(9000, sriovInterfacesUnderTest, "vfio-pci")
+		testExposeMTU(9000, sriovInterfacesUnderTest, "vfio-pci", vfNum)
 	})
 
 	It("netdev 2 Policies with different MTU", reportxml.ID("73788"), func() {
@@ -93,7 +99,7 @@ var _ = Describe("SRIOV: Expose MTU:", Ordered, Label(tsparams.LabelExposeMTUTes
 			sriovAndResourceName5000,
 			SriovOcpConfig.SriovOperatorNamespace,
 			sriovAndResourceName5000,
-			5,
+			vfNum,
 			[]string{fmt.Sprintf("%s#0-1", sriovInterfacesUnderTest[0])}, SriovOcpConfig.WorkerLabelMap).
 			WithDevType("netdevice").WithMTU(5000).Create()
 		Expect(err).ToNot(HaveOccurred(), "Failed to configure SR-IOV policy with mtu 5000")
@@ -103,7 +109,7 @@ var _ = Describe("SRIOV: Expose MTU:", Ordered, Label(tsparams.LabelExposeMTUTes
 			sriovAndResourceName9000,
 			SriovOcpConfig.SriovOperatorNamespace,
 			sriovAndResourceName9000,
-			5,
+			vfNum,
 			[]string{fmt.Sprintf("%s#2-3", sriovInterfacesUnderTest[0])}, SriovOcpConfig.WorkerLabelMap).
 			WithDevType("netdevice").WithMTU(9000).Create()
 		Expect(err).ToNot(HaveOccurred(), "Failed to configure SR-IOV policy with mtu 9000")
@@ -166,7 +172,7 @@ var _ = Describe("SRIOV: Expose MTU:", Ordered, Label(tsparams.LabelExposeMTUTes
 	})
 })
 
-func testExposeMTU(mtu int, interfacesUnderTest []string, devType string) {
+func testExposeMTU(mtu int, interfacesUnderTest []string, devType string, vfsNumber int) {
 	By("Creating SR-IOV policy")
 
 	const sriovAndResourceNameExposeMTU = "exposemtu"
@@ -176,7 +182,7 @@ func testExposeMTU(mtu int, interfacesUnderTest []string, devType string) {
 		sriovAndResourceNameExposeMTU,
 		SriovOcpConfig.SriovOperatorNamespace,
 		sriovAndResourceNameExposeMTU,
-		5,
+		vfsNumber,
 		interfacesUnderTest, SriovOcpConfig.WorkerLabelMap).WithDevType(devType).WithMTU(mtu)
 
 	err := sriovoperator.CreateSriovPolicyAndWaitUntilItsApplied(
