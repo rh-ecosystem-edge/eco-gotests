@@ -1,6 +1,10 @@
 version: "2"
 run:
   go: "1.26"
+  # Vendor deps (e.g. klauspost/compress) use assembly that requires a complete GOROOT pkg/include;
+  # -tags=noasm matches upstream guidance and keeps typecheck stable across environments.
+  build-tags:
+    - noasm
 output:
   formats:
     text:
@@ -80,6 +84,8 @@ linters:
             - open-cluster-management.io/config-policy-controller/api
             - open-cluster-management.io/multicloud-operators-subscription/pkg/apis
             - sigs.k8s.io/controller-runtime
+            - sigs.k8s.io/yaml
+            - github.com/go-git/go-git/v5
             - $gostd
             - github.com/stretchr/testify
             - github.com/stmcginnis/gofish
