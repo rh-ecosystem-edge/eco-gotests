@@ -4,30 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"os/exec"
-	"slices"
 	"strings"
 	"time"
 
 	"k8s.io/klog/v2"
+
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedinstall/cnf/ran/preinstall/internal/tsparams"
 )
 
 const releaseCLISubprocessTimeout = 2 * time.Minute
-
-// withExtractKubeconfig returns env with a single KUBECONFIG entry pointing at hubKubeconfig when non-empty;
-// otherwise returns env unchanged (e.g. container default spoke kubeconfig).
-func withExtractKubeconfig(env []string, hubKubeconfig string) []string {
-	if hubKubeconfig == "" {
-		return env
-	}
-
-	out := slices.DeleteFunc(slices.Clone(env), func(s string) bool {
-		return strings.HasPrefix(s, "KUBECONFIG=")
-	})
-
-	return append(out, "KUBECONFIG="+hubKubeconfig)
-}
 
 // ExtractOpenshiftInstall extracts openshift-install and oc from the release image into destDir using bootstrapOC.
 // parentCtx bounds how long the oc adm release extract subprocess may run (2m internal timeout).
@@ -45,13 +31,18 @@ func ExtractOpenshiftInstall(
 		return fmt.Errorf("bootstrap oc path is empty")
 	}
 
-	klog.Infof("Extracting openshift-install and oc from %s to %s using bootstrap %s", releaseImage, destDir, bootstrapOC)
+	klog.V(tsparams.LogLevel).Infof(
+		"Extracting openshift-install and oc from %s to %s using bootstrap %s", releaseImage, destDir, bootstrapOC)
 
 	args := []string{
 		"adm", "release", "extract",
 		"--command=openshift-install",
 		"--command=oc",
 		fmt.Sprintf("--to=%s", destDir),
+	}
+
+	if hubKubeconfig != "" {
+		args = append(args, "--kubeconfig="+hubKubeconfig)
 	}
 
 	if registryConfigPath != "" {
@@ -64,7 +55,6 @@ func ExtractOpenshiftInstall(
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, bootstrapOC, args...)
-	cmd.Env = withExtractKubeconfig(os.Environ(), hubKubeconfig)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -77,7 +67,7 @@ func ExtractOpenshiftInstall(
 		return fmt.Errorf("failed to extract release CLI tools: %w, output: %s", err, string(output))
 	}
 
-	klog.Infof("Successfully extracted openshift-install and oc")
+	klog.V(tsparams.LogLevel).Infof("Successfully extracted openshift-install and oc")
 
 	return nil
 }

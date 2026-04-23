@@ -8,15 +8,15 @@ import (
 var (
 	// HubAPIClient is the API client to the hub cluster (used for pull-secret, BMH, etc.).
 	HubAPIClient *clients.Settings
-	// RanConfig provides access to ran (CNF IBI) configuration parameters.
-	RanConfig *ranconfig.RanConfig
+	// RANConfig provides access to ran (CNF IBI) configuration parameters.
+	RANConfig *ranconfig.RANConfig
 )
 
 //nolint:gochecknoinits // Package initialization pattern used throughout eco-gotests
 func init() {
-	RanConfig = ranconfig.NewRanConfig()
+	RANConfig = ranconfig.NewRANConfig()
 
-	if RanConfig != nil && RanConfig.HubKubeConfig != "" {
-		HubAPIClient = clients.New(RanConfig.HubKubeConfig)
+	if RANConfig != nil && RANConfig.HubKubeConfig != "" {
+		HubAPIClient = clients.New(RANConfig.HubKubeConfig)
 	}
 }

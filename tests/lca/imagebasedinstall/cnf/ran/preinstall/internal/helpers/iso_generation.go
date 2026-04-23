@@ -8,12 +8,14 @@ import (
 	"path/filepath"
 
 	"k8s.io/klog/v2"
+
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedinstall/cnf/ran/preinstall/internal/tsparams"
 )
 
 // CreateIBIISO runs openshift-install to create the image-based installation ISO.
 // ctx should include a deadline (e.g. via context.WithTimeout) so the subprocess is killed if it hangs.
 func CreateIBIISO(ctx context.Context, openshiftInstallPath string, workDir string) (string, error) {
-	klog.Infof("Creating IBI ISO using %s in %s", openshiftInstallPath, workDir)
+	klog.V(tsparams.LogLevel).Infof("Creating IBI ISO using %s in %s", openshiftInstallPath, workDir)
 
 	cmd := exec.CommandContext(ctx, openshiftInstallPath, "image-based", "create", "image", "--dir", workDir)
 
@@ -28,7 +30,7 @@ func CreateIBIISO(ctx context.Context, openshiftInstallPath string, workDir stri
 		return "", fmt.Errorf("ISO output path %s: %w", isoPath, statErr)
 	}
 
-	klog.Infof("Successfully created IBI ISO at %s", isoPath)
+	klog.V(tsparams.LogLevel).Infof("Successfully created IBI ISO at %s", isoPath)
 
 	return isoPath, nil
 }

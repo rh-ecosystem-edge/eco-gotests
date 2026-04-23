@@ -8,13 +8,16 @@ import (
 	"path/filepath"
 	"strings"
 
-	assistedv1 "github.com/openshift/assisted-service/api/v1beta1"
+	assistedv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/api/v1beta1"
+	installerassistedv1 "github.com/openshift/assisted-service/api/v1beta1"
 	"github.com/openshift/installer/pkg/types"
 	"github.com/openshift/installer/pkg/types/imagebased"
 	siteconfigv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/siteconfig/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/yaml"
+
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedinstall/cnf/ran/preinstall/internal/tsparams"
 )
 
 // IBIConfigData holds values used to build imagebased.InstallationConfig.
@@ -50,9 +53,17 @@ func NormalizeIgnitionConfigOverrideForIBI(raw string) (string, error) {
 	return buf.String(), nil
 }
 
+func netConfigForInstaller(netCfg *assistedv1.NetConfig) *installerassistedv1.NetConfig {
+	if netCfg == nil {
+		return nil
+	}
+
+	return &installerassistedv1.NetConfig{Raw: append([]byte(nil), netCfg.Raw...)}
+}
+
 // GenerateIBIConfig writes image-based-installation-config.yaml using openshift/installer API types.
 func GenerateIBIConfig(data IBIConfigData, destDir string) error {
-	klog.Infof("Generating image-based-installation-config.yaml in %s", destDir)
+	klog.V(tsparams.LogLevel).Infof("Generating image-based-installation-config.yaml in %s", destDir)
 
 	ignition := strings.TrimSpace(data.IgnitionConfigOverride)
 	if ignition != "" {
@@ -78,7 +89,7 @@ func GenerateIBIConfig(data IBIConfigData, destDir string) error {
 		SSHKey:                data.SSHKey,
 		SeedImage:             data.SeedImage,
 		SeedVersion:           data.SeedVersion,
-		NetworkConfig:         data.NetworkConfig,
+		NetworkConfig:         netConfigForInstaller(data.NetworkConfig),
 		ImageDigestSources:    data.ImageDigestSources,
 	}
 
@@ -106,7 +117,7 @@ func GenerateIBIConfig(data IBIConfigData, destDir string) error {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
-	klog.Infof("Successfully generated %s", destPath)
+	klog.V(tsparams.LogLevel).Infof("Successfully generated %s", destPath)
 
 	return nil
 }

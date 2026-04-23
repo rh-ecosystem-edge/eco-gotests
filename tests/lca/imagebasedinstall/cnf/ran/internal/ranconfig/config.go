@@ -21,12 +21,14 @@ const (
 	PathToDefaultRanParamsFile = "./default.yaml"
 )
 
-// RanConfig holds configuration for IBI CNF (ran) workflows such as preinstall.
-type RanConfig struct {
+// RANConfig holds configuration for IBI CNF (ran) workflows such as preinstall.
+type RANConfig struct {
 	*ibiconfig.IBIConfig
 
 	HubKubeConfig    string `yaml:"hub_kubeconfig" envconfig:"ECO_LCA_IBI_CNF_RAN_HUB_KUBECONFIG"`
 	SeedImage        string `yaml:"seed_image" envconfig:"ECO_LCA_IBI_SEED_IMAGE"`
+	// SeedVersion overrides the tag parsed from SeedImage (e.g. when the seed ref is digest-pinned).
+	SeedVersion string `yaml:"seed_version" envconfig:"ECO_LCA_IBI_SEED_VERSION"`
 	SiteConfigRepo   string `yaml:"siteconfig_repo" envconfig:"ECO_LCA_IBI_SITECONFIG_REPO"`
 	SiteConfigBranch string `yaml:"siteconfig_branch" envconfig:"ECO_LCA_IBI_SITECONFIG_BRANCH"`
 	ReleaseImage     string `yaml:"release_image" envconfig:"ECO_LCA_IBI_RELEASE_IMAGE"`
@@ -63,11 +65,11 @@ type RanConfig struct {
 	BootstrapOC string `yaml:"bootstrap_oc" envconfig:"ECO_LCA_IBI_BOOTSTRAP_OC"`
 }
 
-// NewRanConfig returns a RanConfig loaded from default.yaml and the environment.
-func NewRanConfig() *RanConfig {
-	klog.V(ranparams.RANLogLevel).Info("Creating new RanConfig struct")
+// NewRANConfig returns a RANConfig loaded from default.yaml and the environment.
+func NewRANConfig() *RANConfig {
+	klog.V(ranparams.RANLogLevel).Info("Creating new RANConfig struct")
 
-	var ranConfig RanConfig
+	var ranConfig RANConfig
 
 	ranConfig.IBIConfig = ibiconfig.NewIBIConfig()
 
@@ -90,7 +92,7 @@ func NewRanConfig() *RanConfig {
 	return &ranConfig
 }
 
-func readFile(ranConfig *RanConfig, configFile string) error {
+func readFile(ranConfig *RANConfig, configFile string) error {
 	openedConfigFile, err := os.Open(configFile)
 	if err != nil {
 		return err
@@ -106,7 +108,7 @@ func readFile(ranConfig *RanConfig, configFile string) error {
 }
 
 // ValidateMandatory returns an error listing any mandatory preinstall settings that are unset.
-func (c *RanConfig) ValidateMandatory() error {
+func (c *RANConfig) ValidateMandatory() error {
 	if c == nil {
 		return fmt.Errorf("ran config is nil")
 	}
@@ -184,13 +186,14 @@ func (c *RanConfig) ValidateMandatory() error {
 // ResolveBootstrapOCPath returns the oc binary for `oc adm release extract`.
 // Order: BootstrapOC from config (yaml + env) if that path exists and is a file, then oc on PATH.
 // A configured path that does not exist is logged and ignored so PATH fallback can run.
-func (c *RanConfig) ResolveBootstrapOCPath() (string, error) {
+func (c *RANConfig) ResolveBootstrapOCPath() (string, error) {
 	if c != nil {
 		if bootstrapPath := strings.TrimSpace(c.BootstrapOC); bootstrapPath != "" {
 			bootstrapFileInfo, err := os.Stat(bootstrapPath)
 			if err != nil {
 				if os.IsNotExist(err) {
-					klog.Warningf("bootstrap oc %q does not exist, falling back to oc on PATH", bootstrapPath)
+					klog.V(ranparams.RANLogLevel).Infof(
+						"bootstrap oc %q does not exist, falling back to oc on PATH", bootstrapPath)
 				} else {
 					return "", fmt.Errorf("bootstrap oc %q: %w", bootstrapPath, err)
 				}
@@ -215,7 +218,7 @@ func (c *RanConfig) ResolveBootstrapOCPath() (string, error) {
 }
 
 // EffectiveProvisioningSSHKey returns the SSH private key path for the provisioning host.
-func (c *RanConfig) EffectiveProvisioningSSHKey() string {
+func (c *RANConfig) EffectiveProvisioningSSHKey() string {
 	if c == nil {
 		return ""
 	}
@@ -239,7 +242,7 @@ func (c *RanConfig) EffectiveProvisioningSSHKey() string {
 }
 
 // EffectivePreinstallWait returns the max wait duration loaded from configuration (no hard-coded default).
-func (c *RanConfig) EffectivePreinstallWait() time.Duration {
+func (c *RANConfig) EffectivePreinstallWait() time.Duration {
 	if c == nil {
 		return 0
 	}
@@ -248,7 +251,7 @@ func (c *RanConfig) EffectivePreinstallWait() time.Duration {
 }
 
 // ISOArtifactURL builds the full URL for a file under ISOHTTPBaseURL (e.g. rhcos-ibi.iso).
-func (c *RanConfig) ISOArtifactURL(filename string) string {
+func (c *RANConfig) ISOArtifactURL(filename string) string {
 	base := strings.TrimSuffix(c.ISOHTTPBaseURL, "/")
 
 	return fmt.Sprintf("%s/%s", base, strings.TrimPrefix(filename, "/"))

@@ -11,15 +11,22 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/secret"
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
-	goclient "sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedinstall/cnf/ran/preinstall/internal/tsparams"
+)
+
+const (
+	deleteResourcePollInterval = 5 * time.Second
+	deleteResourceWaitTimeout  = 5 * time.Minute
 )
 
 // CreateBMCSecret creates a secret containing the BMC credentials.
+// Values are stored as plain text in Secret data (Kubernetes API base64-encodes on persist);
+// provide ECO_LCA_IBI_BMC_USERNAME and ECO_LCA_IBI_BMC_PASSWORD as plain text, not pre-encoded.
 func CreateBMCSecret(apiClient *clients.Settings, name, namespace, username, password string) (*secret.Builder, error) {
-	klog.Infof("Creating BMC secret %s in namespace %s", name, namespace)
+	klog.V(tsparams.LogLevel).Infof("Creating BMC secret %s in namespace %s", name, namespace)
 
 	secretBuilder := secret.NewBuilder(
 		apiClient, name, namespace, corev1.SecretTypeOpaque).WithData(map[string][]byte{
@@ -39,7 +46,7 @@ func CreateBMCSecret(apiClient *clients.Settings, name, namespace, username, pas
 func CreateBareMetalHost(
 	apiClient *clients.Settings,
 	name, namespace, bmcAddress, macAddress, bmcSecretName, isoURL string) (*bmh.BmhBuilder, error) {
-	klog.Infof("Creating BareMetalHost %s in namespace %s", name, namespace)
+	klog.V(tsparams.LogLevel).Infof("Creating BareMetalHost %s in namespace %s", name, namespace)
 
 	bmhBuilder := bmh.NewBuilder(
 		apiClient, name, namespace, bmcAddress, bmcSecretName, macAddress, "UEFI")
@@ -75,7 +82,7 @@ func WaitForPreinstallCompletion(
 	host, user, sshKeyPath string,
 	timeout, pollInterval time.Duration,
 ) error {
-	klog.Infof("Waiting for preinstall to complete on %s", host)
+	klog.V(tsparams.LogLevel).Infof("Waiting for preinstall to complete on %s", host)
 
 	startTime := time.Now()
 
@@ -84,27 +91,35 @@ func WaitForPreinstallCompletion(
 		lastOutput string
 	)
 
-	for time.Since(startTime) < timeout {
+	err := wait.PollUntilContextTimeout(parentCtx, pollInterval, timeout, false, func(ctx context.Context) (bool, error) {
 		cmd := "journalctl -l -u install-rhcos-and-restore-seed.service | tail -2"
 
-		output, err := SSHExecOnProvisioningHost(parentCtx, host, user, sshKeyPath, cmd)
+		output, err := SSHExecOnProvisioningHost(ctx, host, user, sshKeyPath, cmd)
 		lastOutput = output
 
 		if err != nil {
 			lastErr = err
-		} else {
-			lastErr = nil
 
-			if strings.Contains(output, "Finished SNO Image-based Installation") ||
-				strings.Contains(output, "Finished SNO Image Based Installation") {
-				klog.Infof("Preinstall completed successfully on %s", host)
+			klog.V(tsparams.LogLevel).Infof("Preinstall not yet complete, waiting %v...", pollInterval)
 
-				return nil
-			}
+			return false, nil
 		}
 
-		klog.V(5).Infof("Preinstall not yet complete, waiting %v...", pollInterval)
-		time.Sleep(pollInterval)
+		lastErr = nil
+
+		if strings.Contains(output, "Finished SNO Image-based Installation") ||
+			strings.Contains(output, "Finished SNO Image Based Installation") {
+			klog.V(tsparams.LogLevel).Infof("Preinstall completed successfully on %s", host)
+
+			return true, nil
+		}
+
+		klog.V(tsparams.LogLevel).Infof("Preinstall not yet complete, waiting %v...", pollInterval)
+
+		return false, nil
+	})
+	if err == nil {
+		return nil
 	}
 
 	if lastErr != nil {
@@ -118,107 +133,52 @@ func WaitForPreinstallCompletion(
 		timeout, startTime, lastOutput)
 }
 
-const (
-	deleteResourcePollInterval = 5 * time.Second
-	deleteResourceWaitTimeout  = 5 * time.Minute
-)
-
-// DeletePreinstallBMHResources deletes the BareMetalHost and BMC secret if they exist (Ansible cleanup).
+// DeletePreinstallBMHResources deletes the BareMetalHost and BMC secret if they exist.
 func DeletePreinstallBMHResources(apiClient *clients.Settings, bmhName, bmhNamespace, bmcSecretName string) error {
 	if apiClient == nil {
 		return fmt.Errorf("api client is nil")
 	}
 
-	ctx := context.Background()
-
-	err := apiClient.AttachScheme(bmhv1alpha1.AddToScheme)
-	if err != nil {
-		return fmt.Errorf("attach bmh scheme: %w", err)
-	}
-
-	bmhObj := &bmhv1alpha1.BareMetalHost{}
-
-	err = apiClient.Get(ctx, goclient.ObjectKey{Namespace: bmhNamespace, Name: bmhName}, bmhObj)
+	bmhBuilder, err := bmh.Pull(apiClient, bmhName, bmhNamespace)
 	if err == nil {
-		err = apiClient.Delete(ctx, bmhObj)
-		if err != nil && !k8serrors.IsNotFound(err) {
+		_, err = bmhBuilder.DeleteAndWaitUntilDeleted(deleteResourceWaitTimeout)
+		if err != nil {
 			return fmt.Errorf("delete bmh: %w", err)
 		}
+	} else if !strings.Contains(err.Error(), "does not exist") {
+		return fmt.Errorf("pull bmh: %w", err)
+	}
 
-		if err := waitBareMetalHostDeleted(
-			ctx, apiClient, bmhNamespace, bmhName, deleteResourceWaitTimeout, deleteResourcePollInterval); err != nil {
+	secretBuilder := secret.NewBuilder(apiClient, bmcSecretName, bmhNamespace, corev1.SecretTypeOpaque)
+	if secretBuilder.Exists() {
+		if err := secretBuilder.Delete(); err != nil {
+			return fmt.Errorf("delete bmc secret: %w", err)
+		}
+
+		if err := waitSecretDeleted(apiClient, bmhNamespace, bmcSecretName, deleteResourceWaitTimeout); err != nil {
 			return err
 		}
-	} else if !k8serrors.IsNotFound(err) {
-		return fmt.Errorf("get bmh: %w", err)
-	}
-
-	err = apiClient.Secrets(bmhNamespace).Delete(ctx, bmcSecretName, metav1.DeleteOptions{})
-	if err != nil && !k8serrors.IsNotFound(err) {
-		return fmt.Errorf("delete bmc secret: %w", err)
-	}
-
-	if err := waitSecretDeleted(
-		ctx, apiClient, bmhNamespace, bmcSecretName, deleteResourceWaitTimeout, deleteResourcePollInterval); err != nil {
-		return err
 	}
 
 	return nil
 }
 
-func waitBareMetalHostDeleted(
-	ctx context.Context,
-	apiClient *clients.Settings,
-	namespace, name string,
-	timeout, pollInterval time.Duration,
-) error {
-	key := goclient.ObjectKey{Namespace: namespace, Name: name}
-	obj := &bmhv1alpha1.BareMetalHost{}
+func waitSecretDeleted(apiClient *clients.Settings, namespace, name string, timeout time.Duration) error {
+	builder := secret.NewBuilder(apiClient, name, namespace, corev1.SecretTypeOpaque)
 
-	start := time.Now()
-	for time.Since(start) < timeout {
-		err := apiClient.Get(ctx, key, obj)
-		if k8serrors.IsNotFound(err) {
-			return nil
-		}
+	err := wait.PollUntilContextTimeout(
+		context.TODO(), deleteResourcePollInterval, timeout, false, func(_ context.Context) (bool, error) {
+			if !builder.Exists() {
+				return true, nil
+			}
 
-		if err != nil {
-			return fmt.Errorf(
-				"BareMetalHost %s/%s: Get while waiting for deletion after Delete: %w",
-				namespace, name, err)
-		}
-
-		time.Sleep(pollInterval)
+			return false, nil
+		})
+	if err != nil {
+		return fmt.Errorf(
+			"timed out after %v waiting for Secret %s/%s to be removed (still present; finalizers may be pending): %w",
+			timeout, namespace, name, err)
 	}
 
-	return fmt.Errorf(
-		"timed out after %v waiting for BareMetalHost %s/%s to be removed (still present; finalizers may be pending)",
-		timeout, namespace, name)
-}
-
-func waitSecretDeleted(
-	ctx context.Context,
-	apiClient *clients.Settings,
-	namespace, name string,
-	timeout, pollInterval time.Duration,
-) error {
-	start := time.Now()
-	for time.Since(start) < timeout {
-		_, err := apiClient.Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
-		if k8serrors.IsNotFound(err) {
-			return nil
-		}
-
-		if err != nil {
-			return fmt.Errorf(
-				"secret %s/%s: get while waiting for deletion after delete: %w",
-				namespace, name, err)
-		}
-
-		time.Sleep(pollInterval)
-	}
-
-	return fmt.Errorf(
-		"timed out after %v waiting for Secret %s/%s to be removed (still present; finalizers may be pending)",
-		timeout, namespace, name)
+	return nil
 }

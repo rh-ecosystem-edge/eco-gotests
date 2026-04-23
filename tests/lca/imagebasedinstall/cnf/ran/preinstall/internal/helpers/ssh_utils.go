@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"k8s.io/klog/v2"
+
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedinstall/cnf/ran/preinstall/internal/tsparams"
 )
 
 const (
@@ -17,10 +19,14 @@ const (
 	sshSubprocessTimeout = 3 * time.Minute
 )
 
+// Remote access intentionally uses the container's ssh and scp binaries (exec.CommandContext)
+// rather than golang.org/x/crypto/ssh; the test image ships openssh-clients and subprocess
+// invocation is simpler for occasional ISO copy and journalctl polling.
+
 // SCPToProvisioningHost copies a file to the provisioning host using scp.
 // parentCtx is used with an internal deadline (see scpSubprocessTimeout) so the transfer cannot hang indefinitely.
 func SCPToProvisioningHost(parentCtx context.Context, srcPath, destPath, host, user, sshKeyPath string) error {
-	klog.Infof("Copying %s to %s@%s:%s", srcPath, user, host, destPath)
+	klog.V(tsparams.LogLevel).Infof("Copying %s to %s@%s:%s", srcPath, user, host, destPath)
 
 	args := []string{
 		"-o", "StrictHostKeyChecking=no",
@@ -47,7 +53,7 @@ func SCPToProvisioningHost(parentCtx context.Context, srcPath, destPath, host, u
 		return fmt.Errorf("failed to scp file: %w, output: %s", err, string(output))
 	}
 
-	klog.Infof("Successfully copied file to provisioning host")
+	klog.V(tsparams.LogLevel).Infof("Successfully copied file to provisioning host")
 
 	return nil
 }
@@ -55,7 +61,7 @@ func SCPToProvisioningHost(parentCtx context.Context, srcPath, destPath, host, u
 // SSHExecOnProvisioningHost executes a command on the provisioning host via SSH.
 // parentCtx is used with an internal deadline (see sshSubprocessTimeout) so the session cannot hang.
 func SSHExecOnProvisioningHost(parentCtx context.Context, host, user, sshKeyPath, command string) (string, error) {
-	klog.Infof("Executing command on %s@%s: %s", user, host, command)
+	klog.V(tsparams.LogLevel).Infof("Executing command on %s@%s: %s", user, host, command)
 
 	args := []string{
 		"-o", "StrictHostKeyChecking=no",

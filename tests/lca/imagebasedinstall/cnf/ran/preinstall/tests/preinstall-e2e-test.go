@@ -17,6 +17,13 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedinstall/cnf/ran/preinstall/internal/tsparams"
 )
 
+const (
+	// releaseExtractTimeout bounds oc adm release extract in BeforeAll (helper subprocess cap is 2m).
+	releaseExtractTimeout = 5 * time.Minute
+	// isoOperationTimeout bounds ISO generation and SCP of the resulting artifact.
+	isoOperationTimeout = 30 * time.Minute
+)
+
 var _ = Describe(
 	"IBI preinstall",
 	Ordered,
@@ -29,18 +36,6 @@ var _ = Describe(
 		)
 
 		BeforeAll(func() {
-			if raninittools.RanConfig == nil {
-				Skip("Ran configuration failed to load")
-			}
-
-			if raninittools.HubAPIClient == nil {
-				Skip("Hub API client is nil (set ECO_LCA_IBI_CNF_RAN_HUB_KUBECONFIG)")
-			}
-
-			if err := raninittools.RanConfig.ValidateMandatory(); err != nil {
-				Skip(fmt.Sprintf("IBI preinstall mandatory configuration incomplete: %v", err))
-			}
-
 			var err error
 
 			workDir, err = os.MkdirTemp("", "ibi-preinstall-*")
@@ -55,14 +50,17 @@ var _ = Describe(
 			registryConfigPath := filepath.Join(binDir, "release-extract-registry-config.json")
 			Expect(os.WriteFile(registryConfigPath, []byte(pullSecretJSON), 0o600)).To(Succeed())
 
-			bootstrapOC, err := raninittools.RanConfig.ResolveBootstrapOCPath()
+			bootstrapOC, err := raninittools.RANConfig.ResolveBootstrapOCPath()
 			Expect(err).NotTo(HaveOccurred(), "resolve bootstrap oc for release extract")
 
+			extractCtx, cancelExtract := context.WithTimeout(context.TODO(), releaseExtractTimeout)
+			defer cancelExtract()
+
 			err = helpers.ExtractOpenshiftInstall(
-				context.Background(),
-				raninittools.RanConfig.ReleaseImage,
+				extractCtx,
+				raninittools.RANConfig.ReleaseImage,
 				binDir,
-				raninittools.RanConfig.HubKubeConfig,
+				raninittools.RANConfig.HubKubeConfig,
 				registryConfigPath,
 				bootstrapOC,
 			)
@@ -73,14 +71,14 @@ var _ = Describe(
 
 			siteCloneDir := filepath.Join(workDir, "ztp-site-config")
 			err = helpers.CloneZTPSiteConfigRepo(
-				raninittools.RanConfig.SiteConfigRepo,
-				raninittools.RanConfig.SiteConfigBranch,
+				raninittools.RANConfig.SiteConfigRepo,
+				raninittools.RANConfig.SiteConfigBranch,
 				siteCloneDir,
-				raninittools.RanConfig.SiteConfigGitSkipTLS,
+				raninittools.RANConfig.SiteConfigGitSkipTLS,
 			)
 			Expect(err).NotTo(HaveOccurred(), "clone siteconfig repository")
 
-			kustomizeDir := filepath.Join(siteCloneDir, raninittools.RanConfig.SiteConfigKustomizePath)
+			kustomizeDir := filepath.Join(siteCloneDir, raninittools.RANConfig.SiteConfigKustomizePath)
 			kustomizeOut, err := helpers.RunKustomize(kustomizeDir)
 			Expect(err).NotTo(HaveOccurred(), "kustomize build siteconfig")
 
@@ -94,9 +92,7 @@ var _ = Describe(
 			}
 		})
 
-		It("performs disconnected IBI cluster node preinstall end to end", reportxml.ID("1111111111"), func() {
-			ctx := context.Background()
-
+		It("performs disconnected IBI cluster node preinstall end to end", reportxml.ID("no-testcase"), func() {
 			DeferCleanup(func() {
 				_ = helpers.DeletePreinstallBMHResources(
 					raninittools.HubAPIClient,
@@ -118,29 +114,11 @@ var _ = Describe(
 
 			By("Reading ClusterInstance node and cluster fields")
 
-			hostName, err := helpers.NodeHostNameFromClusterInstance(clusterInstance)
-			Expect(err).NotTo(HaveOccurred(), "hostName")
+			nodeInput, err := helpers.ClusterInstanceInstallInputFrom(clusterInstance)
+			Expect(err).NotTo(HaveOccurred(), "cluster instance install input")
 
-			bmcAddr, err := helpers.BMCAddressFromClusterInstance(clusterInstance)
-			Expect(err).NotTo(HaveOccurred(), "bmcAddress")
-
-			bootMAC, err := helpers.BootMACAddressFromClusterInstance(clusterInstance)
-			Expect(err).NotTo(HaveOccurred(), "bootMAC")
-
-			netCfg, err := helpers.NetworkConfigForInstallation(clusterInstance)
-			Expect(err).NotTo(HaveOccurred(), "node network config")
-
-			installDisk, err := helpers.InstallationDiskFromClusterInstance(clusterInstance)
-			Expect(err).NotTo(HaveOccurred(), "installation disk")
-
-			arch, err := helpers.IBICPUArchitectureFromClusterInstance(clusterInstance)
-			Expect(err).NotTo(HaveOccurred(), "cpu architecture")
-
-			ignition, err := helpers.IgnitionConfigOverrideFromClusterInstance(clusterInstance)
-			Expect(err).NotTo(HaveOccurred(), "ignition override")
-
-			bmcUser := raninittools.RanConfig.BMCUsername
-			bmcPass := raninittools.RanConfig.BMCPassword
+			bmcUser := raninittools.RANConfig.BMCUsername
+			bmcPass := raninittools.RANConfig.BMCPassword
 
 			By("Gathering hub pull secret, SSH key, CA bundle, and image digest mirrors")
 
@@ -153,29 +131,32 @@ var _ = Describe(
 			caBundle, err := helpers.GetCACertFromHub(raninittools.HubAPIClient)
 			Expect(err).NotTo(HaveOccurred(), "CA bundle")
 
-			idSources, err := helpers.BuildImageDigestSourcesFromHub(ctx, raninittools.HubAPIClient)
+			idSources, err := helpers.BuildImageDigestSourcesFromHub(context.TODO(), raninittools.HubAPIClient)
 			Expect(err).NotTo(HaveOccurred(), "image digest sources")
 
-			seedVersion := helpers.SeedVersionFromSeedImage(raninittools.RanConfig.SeedImage)
+			seedVersion := raninittools.RANConfig.SeedVersion
+			if seedVersion == "" {
+				seedVersion = helpers.SeedVersionFromSeedImage(raninittools.RANConfig.SeedImage)
+			}
 
 			ibiData := helpers.IBIConfigData{
-				SeedImage:             raninittools.RanConfig.SeedImage,
+				SeedImage:             raninittools.RANConfig.SeedImage,
 				SeedVersion:           seedVersion,
 				AdditionalTrustBundle: caBundle,
 				ImageDigestSources:    idSources,
 				PullSecret:            pullSecret,
-				InstallationDisk:      installDisk,
+				InstallationDisk:      nodeInput.InstallationDisk,
 				SSHKey:                sshKey,
-				NetworkConfig:         netCfg,
-				ExtraPartitionLabel:   raninittools.RanConfig.ExtraPartitionLabel,
+				NetworkConfig:         nodeInput.NetworkConfig,
+				ExtraPartitionLabel:   raninittools.RANConfig.ExtraPartitionLabel,
 			}
 
-			if arch != "" {
-				ibiData.Architecture = arch
+			if nodeInput.CPUArchitecture != "" {
+				ibiData.Architecture = nodeInput.CPUArchitecture
 			}
 
-			if ignition != "" {
-				ibiData.IgnitionConfigOverride = ignition
+			if nodeInput.IgnitionConfigOverride != "" {
+				ibiData.IgnitionConfigOverride = nodeInput.IgnitionConfigOverride
 			}
 
 			err = helpers.GenerateIBIConfig(ibiData, workDir)
@@ -183,27 +164,30 @@ var _ = Describe(
 
 			By("Running openshift-install image-based create image")
 
-			isoCtx, cancelISO := context.WithTimeout(ctx, 30*time.Minute)
+			isoCtx, cancelISO := context.WithTimeout(context.TODO(), isoOperationTimeout)
 			defer cancelISO()
 
 			isoPath, err := helpers.CreateIBIISO(isoCtx, openshiftInstallPath, workDir)
 			Expect(err).NotTo(HaveOccurred())
 
-			remoteISO := raninittools.RanConfig.RemoteISOPath
-			By(fmt.Sprintf("Copying ISO to provisioning host %s:%s", raninittools.RanConfig.ProvisioningHost, remoteISO))
+			remoteISO := raninittools.RANConfig.RemoteISOPath
+			By(fmt.Sprintf("Copying ISO to provisioning host %s:%s", raninittools.RANConfig.ProvisioningHost, remoteISO))
+
+			scpCtx, cancelSCP := context.WithTimeout(context.TODO(), isoOperationTimeout)
+			defer cancelSCP()
 
 			err = helpers.SCPToProvisioningHost(
-				ctx,
+				scpCtx,
 				isoPath,
 				remoteISO,
-				raninittools.RanConfig.ProvisioningHost,
-				raninittools.RanConfig.ProvisioningUser,
-				raninittools.RanConfig.EffectiveProvisioningSSHKey(),
+				raninittools.RANConfig.ProvisioningHost,
+				raninittools.RANConfig.ProvisioningUser,
+				raninittools.RANConfig.EffectiveProvisioningSSHKey(),
 			)
 			Expect(err).NotTo(HaveOccurred())
 
 			remoteISOFile := filepath.Base(remoteISO)
-			isoURL := raninittools.RanConfig.ISOArtifactURL(remoteISOFile)
+			isoURL := raninittools.RANConfig.ISOArtifactURL(remoteISOFile)
 
 			By("Creating BMC secret and BareMetalHost on the hub")
 
@@ -220,21 +204,24 @@ var _ = Describe(
 				raninittools.HubAPIClient,
 				tsparams.PreinstallBMHName,
 				tsparams.PreinstallBMHNamespace,
-				bmcAddr,
-				bootMAC,
+				nodeInput.BMCAddress,
+				nodeInput.BootMACAddress,
 				tsparams.PreinstallBMCSecretName,
 				isoURL,
 			)
 			Expect(err).NotTo(HaveOccurred())
 
-			By("Waiting for install-rhcos-and-restore-seed on " + hostName)
+			By("Waiting for install-rhcos-and-restore-seed on " + nodeInput.HostName)
 
-			waitTotal := raninittools.RanConfig.EffectivePreinstallWait()
+			waitTotal := raninittools.RANConfig.EffectivePreinstallWait()
+			waitCtx, cancelWait := context.WithTimeout(context.TODO(), waitTotal)
+			defer cancelWait()
+
 			err = helpers.WaitForPreinstallCompletion(
-				ctx,
-				hostName,
-				raninittools.RanConfig.PreinstallNodeSSHUser,
-				raninittools.RanConfig.EffectiveProvisioningSSHKey(),
+				waitCtx,
+				nodeInput.HostName,
+				raninittools.RANConfig.PreinstallNodeSSHUser,
+				raninittools.RANConfig.EffectiveProvisioningSSHKey(),
 				waitTotal,
 				time.Minute,
 			)

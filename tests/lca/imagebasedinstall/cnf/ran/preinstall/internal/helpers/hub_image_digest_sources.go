@@ -11,6 +11,8 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
+
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedinstall/cnf/ran/preinstall/internal/tsparams"
 )
 
 const (
@@ -72,7 +74,7 @@ func primaryMirrorHostFromHub(ctx context.Context, apiClient *clients.Settings) 
 			host := strings.Split(full, "/")[0]
 
 			if host != "" {
-				klog.Infof("Using mirror host from ImageDigestMirrorSet %q: %s", idmsName, host)
+				klog.V(tsparams.LogLevel).Infof("Using mirror host from ImageDigestMirrorSet %q: %s", idmsName, host)
 
 				return host, nil
 			}
@@ -104,7 +106,7 @@ func primaryMirrorHostFromHub(ctx context.Context, apiClient *clients.Settings) 
 
 	full := icsp.Spec.RepositoryDigestMirrors[0].Mirrors[0]
 	host := strings.Split(full, "/")[0]
-	klog.Infof("Using mirror host from ImageContentSourcePolicy %q: %s", icspName, host)
+	klog.V(tsparams.LogLevel).Infof("Using mirror host from ImageContentSourcePolicy %q: %s", icspName, host)
 
 	return host, nil
 }
@@ -117,7 +119,7 @@ func mceAndACMMirrorsFromConfigMap(
 	registryCAConfigMap, err := apiClient.ConfigMaps(mirrorRegistryCANamespace).Get(
 		ctx, mirrorRegistryCAName, metav1.GetOptions{})
 	if err != nil || registryCAConfigMap == nil {
-		klog.V(1).Infof("mirror-registry-ca configmap unavailable: %v", err)
+		klog.V(tsparams.LogLevel).Infof("mirror-registry-ca configmap unavailable: %v", err)
 
 		return defaultMCEACMMirrors(mirrorHostFallback)
 	}
