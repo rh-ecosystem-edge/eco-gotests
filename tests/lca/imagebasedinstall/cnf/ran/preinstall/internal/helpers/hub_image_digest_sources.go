@@ -6,11 +6,13 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/openshift/installer/pkg/types"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/lca"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
+
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedinstall/cnf/ran/preinstall/internal/tsparams"
 )
 
 const (
@@ -27,7 +29,7 @@ const (
 // and returns imageDigestSources for image-based-installation-config.yaml, aligned with
 // ocp-edge ibi_clusterinstance_preinstall.yaml.
 func BuildImageDigestSourcesFromHub(ctx context.Context, apiClient *clients.Settings) (
-	[]types.ImageDigestSource, error) {
+	[]lca.ImageDigestSource, error) {
 	if apiClient == nil {
 		return nil, fmt.Errorf("hub api client is nil")
 	}
@@ -72,7 +74,7 @@ func primaryMirrorHostFromHub(ctx context.Context, apiClient *clients.Settings) 
 			host := strings.Split(full, "/")[0]
 
 			if host != "" {
-				klog.Infof("Using mirror host from ImageDigestMirrorSet %q: %s", idmsName, host)
+				klog.V(tsparams.LogLevel).Infof("Using mirror host from ImageDigestMirrorSet %q: %s", idmsName, host)
 
 				return host, nil
 			}
@@ -104,7 +106,7 @@ func primaryMirrorHostFromHub(ctx context.Context, apiClient *clients.Settings) 
 
 	full := icsp.Spec.RepositoryDigestMirrors[0].Mirrors[0]
 	host := strings.Split(full, "/")[0]
-	klog.Infof("Using mirror host from ImageContentSourcePolicy %q: %s", icspName, host)
+	klog.V(tsparams.LogLevel).Infof("Using mirror host from ImageContentSourcePolicy %q: %s", icspName, host)
 
 	return host, nil
 }
@@ -117,7 +119,7 @@ func mceAndACMMirrorsFromConfigMap(
 	registryCAConfigMap, err := apiClient.ConfigMaps(mirrorRegistryCANamespace).Get(
 		ctx, mirrorRegistryCAName, metav1.GetOptions{})
 	if err != nil || registryCAConfigMap == nil {
-		klog.V(1).Infof("mirror-registry-ca configmap unavailable: %v", err)
+		klog.V(tsparams.LogLevel).Infof("mirror-registry-ca configmap unavailable: %v", err)
 
 		return defaultMCEACMMirrors(mirrorHostFallback)
 	}
@@ -230,7 +232,7 @@ func registryConfBlockWindow(fromPrefix string) string {
 // ibiDisconnectedImageDigestSources mirrors the Jinja template in ibi_clusterinstance_preinstall.yaml.
 // release-images covers nightly multi + x86 nightlies and ec/rc/prod; ocp-v4.0-art-dev still uses
 // openshift-release-dev/ocp-release fallback.
-func ibiDisconnectedImageDigestSources(mirrorHost, mceMirror, acmMirror string) []types.ImageDigestSource {
+func ibiDisconnectedImageDigestSources(mirrorHost, mceMirror, acmMirror string) []lca.ImageDigestSource {
 	openshiftRelease := mirrorHost + "/openshift/release"
 	openshiftReleaseImages := mirrorHost + "/openshift/release-images"
 	ocpReleasePath := mirrorHost + "/openshift-release-dev/ocp-release"
@@ -238,7 +240,7 @@ func ibiDisconnectedImageDigestSources(mirrorHost, mceMirror, acmMirror string) 
 	nightlyMirrors := []string{openshiftReleaseImages, openshiftRelease}
 	ocpReleaseMirrors := []string{openshiftRelease, openshiftReleaseImages}
 
-	return []types.ImageDigestSource{
+	return []lca.ImageDigestSource{
 		{Mirrors: []string{mirrorHost}, Source: "brew.registry.redhat.io"},
 		{Mirrors: nightlyMirrors, Source: "quay.io/openshift-release-dev/ocp-release-nightly"},
 		{Mirrors: ocpReleaseMirrors, Source: "quay.io/openshift-release-dev/ocp-release"},
