@@ -38,7 +38,7 @@ var _ = Describe("TALM backup tests", Label(tsparams.LabelBackupTestCases), func
 
 		By("checking that the talm version is at most 4.15")
 
-		versionInRange, err = version.IsVersionStringInRange(RANConfig.HubOperatorVersions[ranparam.TALM], "", "4.15")
+		versionInRange, err = version.IsVersionStringInRange(RANConfig.HubOperatorVersions[ranparam.TALM], "", "4.16.0-0")
 		Expect(err).ToNot(HaveOccurred(), "Failed to compare talm version string")
 
 		if !versionInRange {
