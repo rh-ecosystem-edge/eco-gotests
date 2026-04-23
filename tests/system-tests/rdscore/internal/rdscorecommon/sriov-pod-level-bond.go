@@ -574,11 +574,11 @@ func disableBondActiveVFInterface(clientPod *pod.Builder) error {
 	}
 
 	if newInterfaceName == interfaceName {
-		klog.V(100).Infof("The bond active interface for the pod %s in namespace %s did not change;"+
+		klog.V(100).Infof("The bond active interface for the pod %s in namespace %s did not change; "+
 			"current bond active interface is %s, the original bond active interface is %s",
 			clientPod.Definition.Name, clientPod.Definition.Namespace, newInterfaceName, interfaceName)
 
-		return fmt.Errorf("the bond active interface for the pod %s in namespace %s did not change;"+
+		return fmt.Errorf("the bond active interface for the pod %s in namespace %s did not change; "+
 			"current bond active interface is %s, the original bond active interface is %s",
 			clientPod.Definition.Name, clientPod.Definition.Namespace, newInterfaceName, interfaceName)
 	}
