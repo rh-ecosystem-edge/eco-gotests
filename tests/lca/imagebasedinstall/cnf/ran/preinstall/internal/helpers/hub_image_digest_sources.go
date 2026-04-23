@@ -154,6 +154,8 @@ func defaultMCEACMMirrors(mirrorHost string) (string, string) {
 }
 
 // registryLocationFromConf approximates Ansible grep/sed on registries.conf for a registry prefix block.
+// Some blocks list the upstream registry first and the mirror second; this returns the first location value
+// that is not registryPrefix (the mirror). If every location equals registryPrefix, it falls back to the first match.
 func registryLocationFromConf(registriesConf, registryPrefix string) string {
 	idx := strings.Index(registriesConf, registryPrefix)
 	if idx < 0 {
@@ -164,12 +166,31 @@ func registryLocationFromConf(registriesConf, registryPrefix string) string {
 
 	re := regexp.MustCompile(`location\s*=\s*"([^"]+)"`)
 
-	m := re.FindStringSubmatch(window)
-	if len(m) < 2 {
+	all := re.FindAllStringSubmatch(window, -1)
+	if len(all) == 0 {
 		return ""
 	}
 
-	return m[1]
+	prefix := strings.TrimSpace(registryPrefix)
+
+	var first string
+
+	for _, m := range all {
+		if len(m) < 2 {
+			continue
+		}
+
+		loc := strings.TrimSpace(m[1])
+		if first == "" {
+			first = loc
+		}
+
+		if loc != prefix {
+			return loc
+		}
+	}
+
+	return first
 }
 
 // registryConfBlockWindow limits the slice to the same [[registry]] block as the match: from the
