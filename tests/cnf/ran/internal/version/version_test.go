@@ -81,6 +81,13 @@ func TestIsVersionStringInRange(t *testing.T) {
 			wantErrSubstring: "invalid maximum provided: 'invalid maximum'",
 		},
 		{
+			version:          "4.16.0",
+			minimum:          "",
+			maximum:          "4.15-rc.1",
+			expectedResult: false,
+			wantErrSubstring: "invalid maximum provided: '4.15-rc.1'",
+		},
+		{
 			version:        "",
 			minimum:        "3.0.0-0",
 			maximum:        "4.0",
@@ -110,17 +117,23 @@ func TestIsVersionStringInRange(t *testing.T) {
 			maximum:        "",
 			expectedResult: true,
 		},
-		// Three-segment maximum: exclusive upper is next patch (not whole minor line).
+		// Explicit exclusive maximum: v < 4.18.0-0 (4.18.0 release is out).
+		{
+			version:        "4.17.5",
+			minimum:        "",
+			maximum:        "4.18.0-0",
+			expectedResult: true,
+		},
 		{
 			version:        "4.18.0",
 			minimum:        "",
-			maximum:        "4.18.0",
-			expectedResult: true,
+			maximum:        "4.18.0-0",
+			expectedResult: false,
 		},
 		{
 			version:        "4.18.5",
 			minimum:        "",
-			maximum:        "4.18.0",
+			maximum:        "4.18.0-0",
 			expectedResult: false,
 		},
 	}
