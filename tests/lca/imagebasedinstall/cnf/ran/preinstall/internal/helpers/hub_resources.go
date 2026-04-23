@@ -9,12 +9,14 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/mco"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/secret"
 	"k8s.io/klog/v2"
+
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedinstall/cnf/ran/preinstall/internal/tsparams"
 )
 
 // GetPullSecretFromHub retrieves the pull secret from the hub cluster.
 // It fetches the secret from openshift-config/pull-secret and decodes the .dockerconfigjson data.
 func GetPullSecretFromHub(apiClient *clients.Settings) (string, error) {
-	klog.Infof("Fetching pull secret from hub cluster")
+	klog.V(tsparams.LogLevel).Infof("Fetching pull secret from hub cluster")
 
 	secretBuilder, err := secret.Pull(apiClient, "pull-secret", "openshift-config")
 	if err != nil {
@@ -30,7 +32,7 @@ func GetPullSecretFromHub(apiClient *clients.Settings) (string, error) {
 		return "", fmt.Errorf(".dockerconfigjson key not found in pull-secret")
 	}
 
-	var pullSecretJSON interface{}
+	var pullSecretJSON any
 
 	err = json.Unmarshal(dockerConfigJSON, &pullSecretJSON)
 	if err != nil {
@@ -42,7 +44,7 @@ func GetPullSecretFromHub(apiClient *clients.Settings) (string, error) {
 		return "", fmt.Errorf("failed to marshal pull secret: %w", err)
 	}
 
-	klog.Infof("Successfully retrieved pull secret from hub cluster")
+	klog.V(tsparams.LogLevel).Infof("Successfully retrieved pull secret from hub cluster")
 
 	return string(compactJSON), nil
 }
@@ -50,7 +52,7 @@ func GetPullSecretFromHub(apiClient *clients.Settings) (string, error) {
 // GetSSHKeyFromHub retrieves the SSH public key from the hub cluster.
 // It fetches the MachineConfig 99-master-ssh and extracts the first SSH authorized key.
 func GetSSHKeyFromHub(apiClient *clients.Settings) (string, error) {
-	klog.Infof("Fetching SSH key from hub cluster")
+	klog.V(tsparams.LogLevel).Infof("Fetching SSH key from hub cluster")
 
 	mcBuilder, err := mco.PullMachineConfig(apiClient, "99-master-ssh")
 	if err != nil {
@@ -66,29 +68,29 @@ func GetSSHKeyFromHub(apiClient *clients.Settings) (string, error) {
 		return "", fmt.Errorf("MachineConfig 99-master-ssh has missing Spec.Config.Raw")
 	}
 
-	var configData map[string]interface{}
+	var configData map[string]any
 
 	err = json.Unmarshal(raw, &configData)
 	if err != nil {
 		return "", fmt.Errorf("failed to unmarshal MachineConfig config: %w", err)
 	}
 
-	passwd, okPasswd := configData["passwd"].(map[string]interface{})
+	passwd, okPasswd := configData["passwd"].(map[string]any)
 	if !okPasswd {
 		return "", fmt.Errorf("failed to extract passwd from MachineConfig config")
 	}
 
-	users, okUsers := passwd["users"].([]interface{})
+	users, okUsers := passwd["users"].([]any)
 	if !okUsers || len(users) == 0 {
 		return "", fmt.Errorf("failed to extract users from MachineConfig passwd")
 	}
 
-	firstUser, okUser := users[0].(map[string]interface{})
+	firstUser, okUser := users[0].(map[string]any)
 	if !okUser {
 		return "", fmt.Errorf("failed to extract first user from MachineConfig users")
 	}
 
-	sshKeys, okKeys := firstUser["sshAuthorizedKeys"].([]interface{})
+	sshKeys, okKeys := firstUser["sshAuthorizedKeys"].([]any)
 	if !okKeys || len(sshKeys) == 0 {
 		return "", fmt.Errorf("failed to extract sshAuthorizedKeys from MachineConfig user")
 	}
@@ -98,7 +100,7 @@ func GetSSHKeyFromHub(apiClient *clients.Settings) (string, error) {
 		return "", fmt.Errorf("failed to extract SSH key string")
 	}
 
-	klog.Infof("Successfully retrieved SSH key from hub cluster")
+	klog.V(tsparams.LogLevel).Infof("Successfully retrieved SSH key from hub cluster")
 
 	return sshKey, nil
 }
@@ -106,7 +108,7 @@ func GetSSHKeyFromHub(apiClient *clients.Settings) (string, error) {
 // GetCACertFromHub retrieves the CA certificate bundle from the hub cluster.
 // It fetches the configmap from openshift-config/user-ca-bundle.
 func GetCACertFromHub(apiClient *clients.Settings) (string, error) {
-	klog.Infof("Fetching CA certificate from hub cluster")
+	klog.V(tsparams.LogLevel).Infof("Fetching CA certificate from hub cluster")
 
 	cmBuilder, err := configmap.Pull(apiClient, "user-ca-bundle", "openshift-config")
 	if err != nil {
@@ -122,7 +124,7 @@ func GetCACertFromHub(apiClient *clients.Settings) (string, error) {
 		return "", fmt.Errorf("ca-bundle.crt key not found in user-ca-bundle configmap")
 	}
 
-	klog.Infof("Successfully retrieved CA certificate from hub cluster")
+	klog.V(tsparams.LogLevel).Infof("Successfully retrieved CA certificate from hub cluster")
 
 	return caCert, nil
 }
