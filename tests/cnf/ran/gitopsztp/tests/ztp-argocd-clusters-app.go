@@ -26,7 +26,7 @@ var _ = Describe("ZTP Argo CD Clusters Tests", Label(tsparams.LabelArgoCdCluster
 	BeforeEach(func() {
 		By("verifying that ZTP meets the minimum version")
 
-		versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.11", "")
+		versionInRange, err := version.IsVersionStringInRange(RANConfig.ZTPVersion, "4.11.0-0", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to compare ZTP version string")
 
 		if !versionInRange {

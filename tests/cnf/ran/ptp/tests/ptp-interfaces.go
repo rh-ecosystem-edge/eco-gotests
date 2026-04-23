@@ -303,7 +303,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 
 			versionStr := RANConfig.Spoke1OperatorVersions[ranparam.PTP]
 			Expect(versionStr).ToNot(BeEmpty(), "PTP operator version is missing")
-			versionInRange, verErr := version.IsVersionStringInRange(versionStr, "4.18", "")
+			versionInRange, verErr := version.IsVersionStringInRange(versionStr, "4.18.0-0", "")
 			Expect(verErr).ToNot(HaveOccurred(), "Failed to parse PTP operator version")
 
 			if versionInRange {
@@ -335,7 +335,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 
 			err = metrics.AssertQuery(context.TODO(), prometheusAPI, metrics.ClockStateQuery{}, metrics.ClockStateLocked,
 				metrics.AssertWithStableDuration(30*time.Second),
-				metrics.AssertWithTimeout(3*time.Minute))
+				metrics.AssertWithTimeout(45*time.Second))
 			Expect(err).ToNot(HaveOccurred(), "Failed to assert that the PTP metric stays in locked state")
 		}
 
@@ -542,7 +542,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			Expect(err).ToNot(HaveOccurred(), "Failed to get active HA profiles")
 			Expect(len(activeProfiles)).To(Equal(1), "Expected exactly one active HA profile")
 
-			activeProfileInfo := nodeInfo.GetProfileByDaemonName(activeProfiles[0])
+			activeProfileInfo := nodeInfo.GetProfileByName(activeProfiles[0])
 			Expect(activeProfileInfo).ToNot(BeNil(), "Failed to find active profile in node info")
 
 			activeClientInterfaces := activeProfileInfo.GetInterfacesByClockType(profiles.ClockTypeClient)
@@ -557,7 +557,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			haInterfaces = append(haInterfaces, activeClientInterfaces[0].Name)
 
 			for _, inactiveProfile := range inactiveProfiles {
-				inactiveProfileInfo := nodeInfo.GetProfileByDaemonName(inactiveProfile)
+				inactiveProfileInfo := nodeInfo.GetProfileByName(inactiveProfile)
 				Expect(inactiveProfileInfo).ToNot(BeNil(), "Failed to find inactive profile in node info")
 
 				inactiveClientInterfaces := inactiveProfileInfo.GetInterfacesByClockType(profiles.ClockTypeClient)
@@ -626,7 +626,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			// for 4.18 versions and above, the clock class is 248
 			versionStr := RANConfig.Spoke1OperatorVersions[ranparam.PTP]
 			Expect(versionStr).ToNot(BeEmpty(), "PTP operator version is missing")
-			versionInRange, verErr := version.IsVersionStringInRange(versionStr, "4.18", "")
+			versionInRange, verErr := version.IsVersionStringInRange(versionStr, "4.18.0-0", "")
 			Expect(verErr).ToNot(HaveOccurred(), "Failed to parse PTP operator version")
 
 			if versionInRange {
@@ -732,7 +732,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 					totalHAProfiles++
 
 					By(fmt.Sprintf("getting the PtpConfig for active profile %s", activeProfileName))
-					activeProfileInfo := nodeInfo.GetProfileByDaemonName(activeProfileName)
+					activeProfileInfo := nodeInfo.GetProfileByName(activeProfileName)
 					Expect(activeProfileInfo).ToNot(BeNil(), "Failed to find profile info for active profile %s", activeProfileName)
 
 					By(fmt.Sprintf("pulling PtpConfig %s", activeProfileInfo.Reference.ConfigReference.Name))
@@ -838,7 +838,7 @@ func waitForActiveHAProfileChange(
 func getHAProfileClientInterface(nodeInfo *profiles.NodeInfo, profileName string) iface.Name {
 	GinkgoHelper()
 
-	profileInfo := nodeInfo.GetProfileByDaemonName(profileName)
+	profileInfo := nodeInfo.GetProfileByName(profileName)
 	Expect(profileInfo).ToNot(BeNil(), "Failed to find profile %s in node info", profileName)
 
 	clientInterfaces := profileInfo.GetInterfacesByClockType(profiles.ClockTypeClient)

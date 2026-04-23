@@ -56,10 +56,10 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 		Expect(err).ToNot(HaveOccurred(), "Failed to save PtpConfigs")
 
 		configSupported, err = version.IsVersionStringInRange(
-			RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.21", "")
+			RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.21.0-0", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to check PTP version range")
 		clockClass7Supported, err = version.IsVersionStringInRange(
-			RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.18", "")
+			RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.18.0-0", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to check clock class 7 supported")
 	})
 
