@@ -59,6 +59,9 @@ type podNetworkAnnotation struct {
 	} `json:"device-info,omitempty"`
 }
 
+// createPrivilegedPodLevelBondDeployment cleans up any prior deployment, creates RBAC and a privileged
+// pod-level bond deployment.
+//
 //nolint:funlen
 func createPrivilegedPodLevelBondDeployment(
 	apiClient *clients.Settings,
@@ -159,6 +162,7 @@ func createPrivilegedPodLevelBondDeployment(
 	return nil
 }
 
+// cleanUpPodLevelBondDeployment removes the pod-level bond deployment and waits until matching pods are gone.
 func cleanUpPodLevelBondDeployment(apiClient *clients.Settings, deploymentName, nsName, podLabel string) error {
 	_, err := deployment.Pull(apiClient, deploymentName, nsName)
 	if err != nil {
@@ -186,6 +190,7 @@ func cleanUpPodLevelBondDeployment(apiClient *clients.Settings, deploymentName, 
 	return nil
 }
 
+// definePodLevelBondDeploymentContainer builds the privileged container spec used by pod-level bond test pods.
 func definePodLevelBondDeploymentContainer() *pod.ContainerBuilder {
 	cName := "test-pod"
 
@@ -238,6 +243,8 @@ func definePodLevelBondDeploymentContainer() *pod.ContainerBuilder {
 	return deploymentContainer
 }
 
+// definePodLevelBondTestPodDeployment constructs a deployment builder with Multus secondary networks and bond IPs.
+//
 //nolint:funlen
 func definePodLevelBondTestPodDeployment(
 	apiClient *clients.Settings,
@@ -347,6 +354,7 @@ func definePodLevelBondTestPodDeployment(
 	return podDeployment, nil
 }
 
+// generateTCPTraffic runs testcmd TCP traffic from clientPod toward serverIPAddr on the bonded interface (net3).
 func generateTCPTraffic(
 	clientPod *pod.Builder,
 	serverIPAddr,
@@ -404,6 +412,7 @@ func generateTCPTraffic(
 	return output, nil
 }
 
+// findInCmdExecOutput scans cmdExecOutput line-by-line and reports whether stringToFind appears.
 func findInCmdExecOutput(cmdExecOutput, stringToFind string) (bool, error) {
 	var err error
 
@@ -451,6 +460,7 @@ func findInCmdExecOutput(cmdExecOutput, stringToFind string) (bool, error) {
 	return true, nil
 }
 
+// scanClientPodTrafficOutput checks whether pod command output indicates the TCP test passed.
 func scanClientPodTrafficOutput(clientPodOutput string) (bool, error) {
 	klog.V(100).Infof("client pod output: %s", clientPodOutput)
 
@@ -470,6 +480,7 @@ func scanClientPodTrafficOutput(clientPodOutput string) (bool, error) {
 	return true, nil
 }
 
+// getBondActiveInterface returns the Linux netdev name of the active bond slave under net3 for the pod.
 func getBondActiveInterface(clientPod *pod.Builder) (string, error) {
 	klog.V(90).Infof("Getting bond active VF interface for the pod %s in namespace %s",
 		clientPod.Definition.Name, clientPod.Definition.Namespace)
@@ -525,6 +536,7 @@ func getBondActiveInterface(clientPod *pod.Builder) (string, error) {
 	return strings.TrimRight(result, "\r\n"), nil
 }
 
+// disableBondActiveVFInterface disables the current bond active slave and waits until bond fails over to another VF.
 func disableBondActiveVFInterface(clientPod *pod.Builder) error {
 	var err error
 
@@ -578,6 +590,8 @@ func disableBondActiveVFInterface(clientPod *pod.Builder) error {
 	return nil
 }
 
+// changeInterfaceState brings the named pod interface up or down.
+//
 //nolint:funlen
 func changeInterfaceState(clientPod *pod.Builder, interfaceName string, toDisable bool) error {
 	var (
@@ -737,6 +751,8 @@ func checkIPv6AddressState(output, ipv6Addr string) (bool, error) {
 	return false, nil
 }
 
+// inspectPodLevelBondedInterfaceConfig validates bond net3 addresses inside the pod.
+//
 //nolint:funlen,gocognit
 func inspectPodLevelBondedInterfaceConfig(podObj *pod.Builder, ipv4Addr, ipv6Addr string) (bool, error) {
 	klog.V(100).Infof("Verify pod-level bonded interface configuration for pod %q in namespace %q",
@@ -854,6 +870,8 @@ func inspectPodLevelBondedInterfaceConfig(podObj *pod.Builder, ipv4Addr, ipv6Add
 	return true, nil
 }
 
+// getPodObjectByNamePattern returns the first running pod in podNamespace whose name contains podNamePattern.
+//
 //nolint:gocognit,funlen
 func getPodObjectByNamePattern(apiClient *clients.Settings, podNamePattern, podNamespace string) (*pod.Builder, error) {
 	var podObj *pod.Builder
@@ -988,6 +1006,7 @@ func getPodObjectByNamePattern(apiClient *clients.Settings, podNamePattern, podN
 	return podObj, nil
 }
 
+// getBondActiveInterfaceSrIovNetworkName maps the active bond slave interface to its SR-IOV network name.
 func getBondActiveInterfaceSrIovNetworkName(podObj *pod.Builder) (string, error) {
 	podNetAnnotation := podObj.Object.Annotations["k8s.v1.cni.cncf.io/network-status"]
 
@@ -1051,6 +1070,7 @@ func expectTCPPass(srcPod *pod.Builder, dstIP, byStep, parseRole string) {
 			srcPod.Definition.Name, srcPod.Definition.Namespace, output))
 }
 
+// verifyPodLevelBondWorkloads checks bonded interface config on client and server pods and runs TCP tests both ways.
 func verifyPodLevelBondWorkloads(
 	clientDeploymentName,
 	clientDeploymentNamespace,
@@ -1117,11 +1137,12 @@ func verifyPodLevelBondWorkloads(
 
 	if clientIPv6 != "" {
 		expectTCPPass(serverPodObj, clientIPv6,
-			"Send data from the client container to the IPv6 address used by the server container",
+			"Send data from the server container to the IPv6 address used by the client container",
 			"server")
 	}
 }
 
+// prepareSecondPodLevelBondDeployment creates the second (server) pod-level bond deployment for the given topology.
 func prepareSecondPodLevelBondDeployment(sameNode, samePF bool) {
 	By("Create privileged pod-level bond deployment")
 
@@ -1199,6 +1220,7 @@ func prepareSecondPodLevelBondDeployment(sameNode, samePF bool) {
 		fmt.Sprintf("Failed to create privileged pod-level bond deployment: %v", err))
 }
 
+// verifyConnectivity runs verifyPodLevelBondWorkloads using the configured deployment-one and deployment-two IPs.
 func verifyConnectivity() {
 	verifyPodLevelBondWorkloads(
 		RDSCoreConfig.PodLevelBondDeploymentOneName,
@@ -1264,7 +1286,7 @@ func runPodLevelBondTopologyCase(sameNode, samePF bool) {
 	verifyConnectivity()
 }
 
-// VerifyPodLevelBondWorkloadsOnSameNodeSamePF verifies TCP traffic works on the same node and different PFs.
+// VerifyPodLevelBondWorkloadsOnSameNodeSamePF verifies TCP traffic works on the same node and same PF.
 func VerifyPodLevelBondWorkloadsOnSameNodeSamePF() {
 	runPodLevelBondTopologyCase(true, true)
 }
@@ -1336,8 +1358,6 @@ func VerifyPodLevelBondWorkloadsAfterVFFailOver() {
 		targetIP = RDSCoreConfig.PodLevelBondDeploymentTwoIPv6
 	default:
 		Fail("Neither IPv4 nor IPv6 server address is configured for the server deployment")
-
-		return
 	}
 
 	go func() {
