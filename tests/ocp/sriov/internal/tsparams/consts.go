@@ -43,7 +43,7 @@ const (
 	// MCPStableInterval represents polling interval for MCP stability checks.
 	MCPStableInterval = 10 * time.Second
 	// NADTimeout represents timeout for NAD creation.
-	NADTimeout = 10 * time.Second
+	NADTimeout = 1 * time.Minute
 	// PolicyApplicationTimeout represents timeout for SR-IOV policy application.
 	PolicyApplicationTimeout = 35 * time.Minute
 	// DebugPodCleanupTimeout represents timeout for debug pod cleanup.

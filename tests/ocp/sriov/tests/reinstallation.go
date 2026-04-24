@@ -14,6 +14,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/webhook"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/ocpsriovinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/sriovenv"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/sriovocpenv"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/tsparams"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -94,6 +95,9 @@ var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.Label
 				tsparams.TestNamespaceName, sriovTestResourceName).WithStaticIpam().WithMacAddressSupport().WithIPAddressSupport().
 				WithLogLevel("debug").Create()
 			Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network")
+
+			err = sriovenv.WaitForNADCreation(sriovTestResourceName, tsparams.TestNamespaceName, tsparams.NADTimeout)
+			Expect(err).ToNot(HaveOccurred(), "Failed to detect SR-IOV NAD")
 		})
 
 		It("Operator re-installation. Verify SR-IOV operator data plane is operational before removal",
@@ -173,6 +177,9 @@ var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.Label
 					tsparams.TestNamespaceName, sriovTestResourceName).WithStaticIpam().WithMacAddressSupport().WithIPAddressSupport().
 					WithLogLevel("debug").Create()
 				Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network")
+
+				err = sriovenv.WaitForNADCreation(sriovTestResourceName, tsparams.TestNamespaceName, tsparams.NADTimeout)
+				Expect(err).ToNot(HaveOccurred(), "Failed to detect SR-IOV NAD")
 			})
 
 		It("Operator re-installation. Validate that re-installed SR-IOV operator’s data plane is up and running",
