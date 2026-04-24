@@ -320,24 +320,24 @@ func extractRangesFromIPAM(obj map[string]interface{}) []string {
 // detectIPFamiliesFromRanges inspects a list of CIDR range strings and returns
 // whether IPv4 and/or IPv6 ranges are present.
 func detectIPFamiliesFromRanges(ranges []string) (hasIPv4, hasIPv6 bool) {
-	for _, r := range ranges {
-		cidr := strings.TrimSpace(r)
+	for _, rangeStr := range ranges {
+		cidr := strings.TrimSpace(rangeStr)
 		if dashIndex := strings.LastIndex(cidr, "-"); dashIndex >= 0 {
 			cidr = strings.TrimSpace(cidr[dashIndex+1:])
 		}
 
-		ip, _, err := net.ParseCIDR(cidr)
+		parsedIP, _, err := net.ParseCIDR(cidr)
 		if err != nil {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping invalid IPAM range %q: %v", r, err)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping invalid IPAM range %q: %v", rangeStr, err)
 
 			continue
 		}
 
-		if ip.To4() != nil {
+		if parsedIP.To4() != nil {
 			hasIPv4 = true
 		}
 
-		if ip.To4() == nil && ip.To16() != nil {
+		if parsedIP.To4() == nil && parsedIP.To16() != nil {
 			hasIPv6 = true
 		}
 	}
