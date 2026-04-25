@@ -228,15 +228,15 @@ func determineIPFamilyPolicy(nadName, namespace string) ([]corev1.IPFamily, core
 	nadBuilder, err := nad.Pull(APIClient, nadName, namespace)
 
 	Expect(err).ToNot(HaveOccurred(),
-		fmt.Sprintf("Failed to get NAD %q in %q namespace", nadName, namespace))
+		"Failed to get NAD %q in %q namespace", nadName, namespace)
 	Expect(nadBuilder.Definition.Spec.Config).ToNot(BeEmpty(),
-		fmt.Sprintf("NAD %q has empty spec.config field", nadName))
+		"NAD %q has empty spec.config field", nadName)
 
 	config := nadBuilder.Definition.Spec.Config
 
 	ranges := extractIPAMRanges(config)
 	Expect(ranges).ToNot(BeEmpty(),
-		fmt.Sprintf("NAD %q has no IPAM range entries in spec.config", nadName))
+		"NAD %q has no IPAM range entries in spec.config", nadName)
 
 	hasIPv4, hasIPv6 := detectIPFamiliesFromRanges(ranges)
 
@@ -251,15 +251,14 @@ func determineIPFamilyPolicy(nadName, namespace string) ([]corev1.IPFamily, core
 	case hasIPv4:
 		return []corev1.IPFamily{corev1.IPv4Protocol}, corev1.IPFamilyPolicySingleStack
 	default:
-		msg := fmt.Sprintf("NAD %q IPAM ranges contain no detectable IPv4 or IPv6 CIDR: %v", nadName, ranges)
-		Fail(msg)
+		Fail(fmt.Sprintf("NAD %q IPAM ranges contain no detectable IPv4 or IPv6 CIDR: %v", nadName, ranges))
 
 		return nil, "" // Unreachable in Ginkgo: Fail panics.
 	}
 }
 
-// extractIPAMRanges parses NAD spec.config and returns IPAM ranges
-// from ipam.range, ipam.subnet, and ipam.ipRanges[*].range.
+// extractIPAMRanges returns IPAM range strings from NAD spec.config
+// (from top-level ipam and plugins[*].ipam: range, subnet, ipRanges, range_start/range_end if no range).
 func extractIPAMRanges(config string) []string {
 	var parsed map[string]interface{}
 	if err := json.Unmarshal([]byte(config), &parsed); err != nil {
@@ -292,8 +291,32 @@ func extractRangesFromIPAM(obj map[string]interface{}) []string {
 
 	var ranges []string
 
+	// Convert optional range_start/range_end into a single range string.
+	appendRangeFromStartEnd := func(rangeObj map[string]interface{}) (string, bool) {
+		rangeStart, hasStart := rangeObj["range_start"].(string)
+		if !hasStart {
+			return "", false
+		}
+
+		rangeStart = strings.TrimSpace(rangeStart)
+		if rangeStart == "" {
+			return "", false
+		}
+
+		rangeEnd, hasEnd := rangeObj["range_end"].(string)
+		rangeEnd = strings.TrimSpace(rangeEnd)
+
+		if hasEnd && rangeEnd != "" {
+			return fmt.Sprintf("%s-%s", rangeStart, rangeEnd), true
+		}
+
+		return rangeStart, true
+	}
+
 	if rangeStr, ok := ipam["range"].(string); ok {
 		ranges = append(ranges, rangeStr)
+	} else if rangeFromStartEnd, found := appendRangeFromStartEnd(ipam); found {
+		ranges = append(ranges, rangeFromStartEnd)
 	}
 
 	if subnet, ok := ipam["subnet"].(string); ok {
@@ -305,6 +328,8 @@ func extractRangesFromIPAM(obj map[string]interface{}) []string {
 			if rangeMap, ok := entry.(map[string]interface{}); ok {
 				if rangeStr, ok := rangeMap["range"].(string); ok {
 					ranges = append(ranges, rangeStr)
+				} else if rangeFromStartEnd, found := appendRangeFromStartEnd(rangeMap); found {
+					ranges = append(ranges, rangeFromStartEnd)
 				}
 			}
 		}
@@ -316,21 +341,42 @@ func extractRangesFromIPAM(obj map[string]interface{}) []string {
 // detectIPFamiliesFromRanges inspects a list of CIDR range strings and returns
 // whether IPv4 and/or IPv6 ranges are present.
 func detectIPFamiliesFromRanges(ranges []string) (hasIPv4, hasIPv6 bool) {
-	for _, rangeStr := range ranges {
-		cidr := strings.TrimSpace(rangeStr)
-
-		parsedIP, _, err := net.ParseCIDR(cidr)
-		if err != nil {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping invalid IPAM range %q: %v", rangeStr, err)
-
-			continue
+	markFamily := func(ip net.IP) {
+		if len(ip) == 0 {
+			return
 		}
 
-		if parsedIP.To4() != nil {
+		if ip.To4() != nil {
 			hasIPv4 = true
 		} else {
 			hasIPv6 = true
 		}
+	}
+
+	for _, rangeStr := range ranges {
+		rangeValue := strings.TrimSpace(rangeStr)
+
+		parsedIP, _, err := net.ParseCIDR(rangeValue)
+		if err == nil {
+			markFamily(parsedIP)
+
+			continue
+		}
+
+		// Fallback for Whereabouts range_start/range_end values emitted as "start-end"
+		// and for single IP values without a CIDR prefix.
+		ipCandidate := rangeValue
+		if parts := strings.SplitN(rangeValue, "-", 2); len(parts) == 2 {
+			ipCandidate = strings.TrimSpace(parts[0])
+		}
+
+		if parsedFallbackIP := net.ParseIP(ipCandidate); parsedFallbackIP != nil {
+			markFamily(parsedFallbackIP)
+
+			continue
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping invalid IPAM range %q: %v", rangeStr, err)
 	}
 
 	return hasIPv4, hasIPv6
