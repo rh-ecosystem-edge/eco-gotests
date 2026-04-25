@@ -237,7 +237,7 @@ func determineIPFamilyPolicy(nadName, namespace string) ([]corev1.IPFamily, core
 	config := nadBuilder.Definition.Spec.Config
 
 	ranges := extractIPAMRanges(config)
-	Expect(len(ranges)).ToNot(Equal(0),
+	Expect(ranges).ToNot(BeEmpty(),
 		fmt.Sprintf("NAD %q has no IPAM range entries in spec.config", nadName))
 
 	hasIPv4, hasIPv6 := detectIPFamiliesFromRanges(ranges)
@@ -260,9 +260,8 @@ func determineIPFamilyPolicy(nadName, namespace string) ([]corev1.IPFamily, core
 	}
 }
 
-// extractIPAMRanges parses the NAD spec.config JSON and returns all IPAM range strings.
-// It supports both top-level ipam config and plugins[*].ipam config,
-// with both ipam.range (single) and ipam.ipRanges[*].range (multiple).
+// extractIPAMRanges parses NAD spec.config and returns IPAM ranges
+// from ipam.range, ipam.subnet, and ipam.ipRanges[*].range.
 func extractIPAMRanges(config string) []string {
 	var parsed map[string]interface{}
 	if err := json.Unmarshal([]byte(config), &parsed); err != nil {
@@ -299,6 +298,10 @@ func extractRangesFromIPAM(obj map[string]interface{}) []string {
 		ranges = append(ranges, r)
 	}
 
+	if subnet, ok := ipam["subnet"].(string); ok {
+		ranges = append(ranges, subnet)
+	}
+
 	if ipRanges, ok := ipam["ipRanges"].([]interface{}); ok {
 		for _, entry := range ipRanges {
 			if rangeMap, ok := entry.(map[string]interface{}); ok {
@@ -317,9 +320,6 @@ func extractRangesFromIPAM(obj map[string]interface{}) []string {
 func detectIPFamiliesFromRanges(ranges []string) (hasIPv4, hasIPv6 bool) {
 	for _, rangeStr := range ranges {
 		cidr := strings.TrimSpace(rangeStr)
-		if dashIndex := strings.LastIndex(cidr, "-"); dashIndex >= 0 {
-			cidr = strings.TrimSpace(cidr[dashIndex+1:])
-		}
 
 		parsedIP, _, err := net.ParseCIDR(cidr)
 		if err != nil {
@@ -384,12 +384,6 @@ func setupHeadlessService(svcName, namespace, svcLabel, svcPort, nadName string)
 	svcOne = defineHeadlessService(svcName, namespace, svcLabelsMap, svcPortCr)
 
 	ipFamilies, ipFamilyPolicy := determineIPFamilyPolicy(nadName, namespace)
-	Expect(ipFamilies).ToNot(BeNil(),
-		"determineIPFamilyPolicy returned nil ipFamilies for NAD %q in %q namespace",
-		nadName, namespace)
-	Expect(string(ipFamilyPolicy)).ToNot(BeEmpty(),
-		"determineIPFamilyPolicy returned empty ipFamilyPolicy for NAD %q in %q namespace",
-		nadName, namespace)
 
 	By(fmt.Sprintf("Setting ipFamilyPolicy to %q for NAD %q", ipFamilyPolicy, nadName))
 
