@@ -294,8 +294,8 @@ func extractRangesFromIPAM(obj map[string]interface{}) []string {
 
 	var ranges []string
 
-	if r, ok := ipam["range"].(string); ok {
-		ranges = append(ranges, r)
+	if rangeStr, ok := ipam["range"].(string); ok {
+		ranges = append(ranges, rangeStr)
 	}
 
 	if subnet, ok := ipam["subnet"].(string); ok {
@@ -305,8 +305,8 @@ func extractRangesFromIPAM(obj map[string]interface{}) []string {
 	if ipRanges, ok := ipam["ipRanges"].([]interface{}); ok {
 		for _, entry := range ipRanges {
 			if rangeMap, ok := entry.(map[string]interface{}); ok {
-				if r, ok := rangeMap["range"].(string); ok {
-					ranges = append(ranges, r)
+				if rangeStr, ok := rangeMap["range"].(string); ok {
+					ranges = append(ranges, rangeStr)
 				}
 			}
 		}
@@ -330,9 +330,7 @@ func detectIPFamiliesFromRanges(ranges []string) (hasIPv4, hasIPv6 bool) {
 
 		if parsedIP.To4() != nil {
 			hasIPv4 = true
-		}
-
-		if parsedIP.To4() == nil && parsedIP.To16() != nil {
+		} else {
 			hasIPv6 = true
 		}
 	}
