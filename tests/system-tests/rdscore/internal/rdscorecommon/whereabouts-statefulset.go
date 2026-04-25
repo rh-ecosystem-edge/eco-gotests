@@ -21,14 +21,13 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/bmc"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/configmap"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/service"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/statefulset"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 )
@@ -228,21 +227,14 @@ func createStatefulsetAndWaitReplicasReady(stName, namespace string, stBuilder *
 // determineIPFamilyPolicy fetches the NAD and inspects the IPAM range fields to determine
 // whether to use RequireDualStack, or SingleStack with IPv4 or IPv6.
 func determineIPFamilyPolicy(nadName, namespace string) ([]corev1.IPFamily, corev1.IPFamilyPolicy) {
-	nadObj, err := APIClient.Resource(
-		schema.GroupVersionResource{
-			Group:    "k8s.cni.cncf.io",
-			Version:  "v1",
-			Resource: "network-attachment-definitions",
-		}).Namespace(namespace).Get(context.TODO(), nadName, metav1.GetOptions{})
+	nadBuilder, err := nad.Pull(APIClient, nadName, namespace)
 
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to get NAD %q in %q namespace", nadName, namespace))
+	Expect(nadBuilder.Definition.Spec.Config).ToNot(BeEmpty(),
+		fmt.Sprintf("NAD %q has empty spec.config field", nadName))
 
-	config, found, err := unstructured.NestedString(nadObj.Object, "spec", "config")
-	Expect(err).ToNot(HaveOccurred(),
-		fmt.Sprintf("Failed to read config from NAD %q", nadName))
-	Expect(found).To(BeTrue(),
-		fmt.Sprintf("NAD %q has no spec.config field", nadName))
+	config := nadBuilder.Definition.Spec.Config
 
 	ranges := extractIPAMRanges(config)
 	Expect(len(ranges)).ToNot(Equal(0),
@@ -261,9 +253,10 @@ func determineIPFamilyPolicy(nadName, namespace string) ([]corev1.IPFamily, core
 	case hasIPv4:
 		return []corev1.IPFamily{corev1.IPv4Protocol}, corev1.IPFamilyPolicySingleStack
 	default:
-		Fail(fmt.Sprintf("NAD %q IPAM ranges contain no detectable IPv4 or IPv6 CIDR: %v", nadName, ranges))
+		msg := fmt.Sprintf("NAD %q IPAM ranges contain no detectable IPv4 or IPv6 CIDR: %v", nadName, ranges)
+		Fail(msg)
 
-		return nil, ""
+		return nil, "" // Unreachable in Ginkgo: Fail panics.
 	}
 }
 
@@ -391,6 +384,12 @@ func setupHeadlessService(svcName, namespace, svcLabel, svcPort, nadName string)
 	svcOne = defineHeadlessService(svcName, namespace, svcLabelsMap, svcPortCr)
 
 	ipFamilies, ipFamilyPolicy := determineIPFamilyPolicy(nadName, namespace)
+	Expect(ipFamilies).ToNot(BeNil(),
+		"determineIPFamilyPolicy returned nil ipFamilies for NAD %q in %q namespace",
+		nadName, namespace)
+	Expect(string(ipFamilyPolicy)).ToNot(BeEmpty(),
+		"determineIPFamilyPolicy returned empty ipFamilyPolicy for NAD %q in %q namespace",
+		nadName, namespace)
 
 	By(fmt.Sprintf("Setting ipFamilyPolicy to %q for NAD %q", ipFamilyPolicy, nadName))
 
