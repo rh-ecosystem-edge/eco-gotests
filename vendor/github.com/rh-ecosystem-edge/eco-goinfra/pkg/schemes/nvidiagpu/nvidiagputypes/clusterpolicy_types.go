@@ -174,6 +174,11 @@ type HostPathsSpec struct {
 	// DriverInstallDir represents the root at which driver files including libraries,
 	// config files, and executables can be found.
 	DriverInstallDir string `json:"driverInstallDir,omitempty"`
+
+	// KubeletRootDir represents the location of the kubelet root directory.
+	// If empty, it will default to "/var/lib/kubelet".
+	// +kubebuilder:default="/var/lib/kubelet"
+	KubeletRootDir string `json:"kubeletRootDir,omitempty"`
 }
 
 // EnvVar represents an environment variable present in a Container.
@@ -969,6 +974,11 @@ type DCGMExporterSpec struct {
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Arguments"
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:advanced,urn:alm:descriptor:com.tectonic.ui:text"
 	Args []string `json:"args,omitempty"`
+
+	// Optional: Annotations is an unstructured key value map stored with a resource that may be
+	// set by external tools to store and retrieve arbitrary metadata. They are not
+	// queryable and should be preserved when modifying objects.
+	Annotations map[string]string `json:"annotations,omitempty"`
 
 	// Optional: List of environment variables
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
