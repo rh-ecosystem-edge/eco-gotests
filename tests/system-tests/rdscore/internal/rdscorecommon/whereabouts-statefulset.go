@@ -236,7 +236,7 @@ func determineIPFamilyPolicy(nadName, namespace string) ([]corev1.IPFamily, core
 
 	config := nadBuilder.Definition.Spec.Config
 
-	ranges := extractIPAMRanges(config)
+	ranges := extractIPAMRanges(nadName, config)
 	Expect(ranges).ToNot(BeEmpty(),
 		"NAD %q has no IPAM range entries in spec.config", nadName)
 
@@ -261,13 +261,12 @@ func determineIPFamilyPolicy(nadName, namespace string) ([]corev1.IPFamily, core
 
 // extractIPAMRanges returns IPAM range strings from NAD spec.config
 // (from top-level ipam and plugins[*].ipam: range, subnet, ipRanges, range_start/range_end if no range).
-func extractIPAMRanges(config string) []string {
+func extractIPAMRanges(nadName, config string) []string {
 	var parsed map[string]interface{}
-	if err := json.Unmarshal([]byte(config), &parsed); err != nil {
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to parse NAD config JSON: %v", err)
 
-		return nil
-	}
+	err := json.Unmarshal([]byte(config), &parsed)
+	Expect(err).ToNot(HaveOccurred(),
+		"Failed to parse NAD %q spec.config JSON", nadName)
 
 	var ranges []string
 
