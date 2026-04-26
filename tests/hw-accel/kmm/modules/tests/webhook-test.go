@@ -7,6 +7,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/kmm/v1beta1"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/modules/internal/tsparams"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
@@ -375,6 +376,77 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 					Create()
 				Expect(err).To(HaveOccurred(), "error creating module")
 				Expect(err.Error()).To(ContainSubstring("Toleration[0] value must be empty when operator is 'Exists'"))
+			})
+		})
+
+		Context("FilesToSign", Label("webhook", "filestosign-glob-webhook"), func() {
+			It("should reject Module when sign is set but filesToSign is empty", reportxml.ID("88318"), func() {
+				By("Preparing Module with Sign but no filesToSign")
+
+				image := fmt.Sprintf("%s/%s/%s:$KERNEL_FULL_VERSION",
+					tsparams.LocalImageRegistry, kmmparams.WebhookModuleTestNamespace, "sign-no-files")
+
+				module := &v1beta1.Module{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "webhook-sign-no-files",
+						Namespace: nSpace,
+					},
+				}
+				module.Spec.Selector = GeneralConfig.WorkerLabelMap
+
+				kerMap := v1beta1.KernelMapping{
+					Regexp:         "^.+$",
+					ContainerImage: image,
+					Sign: &v1beta1.Sign{
+						CertSecret: &corev1.LocalObjectReference{Name: "my-signing-key-pub"},
+						KeySecret:  &corev1.LocalObjectReference{Name: "my-signing-key"},
+					},
+				}
+
+				if module.Spec.ModuleLoader == nil {
+					module.Spec.ModuleLoader = &v1beta1.ModuleLoaderSpec{}
+				}
+
+				module.Spec.ModuleLoader.Container.Modprobe.ModuleName = "webhook"
+				module.Spec.ModuleLoader.Container.KernelMappings = []v1beta1.KernelMapping{kerMap}
+
+				By("Create Module")
+
+				err := APIClient.Create(context.TODO(), module)
+				Expect(err).To(HaveOccurred(), "module should be rejected by webhook")
+				klog.V(kmmparams.KmmLogLevel).Infof("err is: %s", err)
+				Expect(err.Error()).To(ContainSubstring("filesToSign"))
+			})
+
+			It("should reject Module when filesToSign path is outside dirName", reportxml.ID("88319"), func() {
+				By("Create KernelMapping with filesToSign outside default dirName /opt")
+
+				image := fmt.Sprintf("%s/%s/%s:$KERNEL_FULL_VERSION",
+					tsparams.LocalImageRegistry, kmmparams.WebhookModuleTestNamespace, "sign-bad-path")
+				filesToSign := []string{"/usr/lib/modules/foo.ko"}
+
+				kernelMapping := kmm.NewRegExKernelMappingBuilder("^.+$")
+				kernelMapping.WithContainerImage(image).
+					WithSign("my-signing-key-pub", "my-signing-key", filesToSign)
+				kerMapOne, err := kernelMapping.BuildKernelMappingConfig()
+				Expect(err).ToNot(HaveOccurred(), "error creating kernel mapping")
+
+				By("Create ModuleLoaderContainer")
+
+				moduleLoaderContainerCfg, err := kmm.NewModLoaderContainerBuilder("webhook").
+					WithKernelMapping(kerMapOne).
+					BuildModuleLoaderContainerCfg()
+				Expect(err).ToNot(HaveOccurred(), "error creating moduleloadercontainer")
+
+				By("Create Module")
+
+				_, err = kmm.NewModuleBuilder(APIClient, "webhook-sign-bad-path", nSpace).
+					WithNodeSelector(GeneralConfig.WorkerLabelMap).
+					WithModuleLoaderContainer(moduleLoaderContainerCfg).
+					Create()
+				Expect(err).To(HaveOccurred(), "module should be rejected by webhook")
+				klog.V(kmmparams.KmmLogLevel).Infof("err is: %s", err)
+				Expect(err.Error()).To(ContainSubstring("must be under"))
 			})
 		})
 	})
