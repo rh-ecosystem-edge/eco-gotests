@@ -446,6 +446,7 @@ import http.server
 import socketserver
 import json
 import threading
+import socket
 from urllib.parse import urlparse
 
 class Stats:
@@ -489,8 +490,6 @@ class RemoteWriteHandler(http.server.BaseHTTPRequestHandler):
 
     def log_message(self, format, *args):
         pass  # Suppress default logging
-
-import socket
 
 class DualStackTCPServer(socketserver.TCPServer):
     address_family = socket.AF_INET6
