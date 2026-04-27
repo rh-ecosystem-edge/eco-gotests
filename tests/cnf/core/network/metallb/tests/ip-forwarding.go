@@ -185,7 +185,7 @@ var _ = Describe("IP Forwarding per Interface", Ordered,
 				By("Creating NMState policy with VLAN interfaces on the second worker node")
 
 				nncpPolicy = nmstate.NewPolicyBuilder(APIClient, ipFwdNNCPName,
-					map[string]string{netparam.LabelHostName: workerNodeList[1].Definition.Name}).
+					map[string]string{corev1.LabelHostname: workerNodeList[1].Definition.Name}).
 					WithVlanInterfaceIP(secInterfaces[0], ipFwdWorkerVlanIP1, ipFwdV6WorkerVlanIP1, ipFwdVlanID1).
 					WithVlanInterfaceIP(secInterfaces[1], ipFwdWorkerVlanIP2, ipFwdV6WorkerVlanIP2, ipFwdVlanID2).
 					WithStaticRoute(ipFwdInternalSubnet1, ipFwdFrrRouterIP1, iface1Name, 150, 254).
@@ -250,7 +250,7 @@ var _ = Describe("IP Forwarding per Interface", Ordered,
 				By("Creating BGP peers targeting the second worker node")
 
 				workerNode1Selector := map[string]string{
-					netparam.LabelHostName: workerNodeList[1].Definition.Name}
+					corev1.LabelHostname: workerNodeList[1].Definition.Name}
 
 				_, err = metallb.NewBPGPeerBuilder(
 					APIClient, tsparams.BgpPeerName1, NetConfig.MlbOperatorNamespace,
@@ -323,7 +323,7 @@ var _ = Describe("IP Forwarding per Interface", Ordered,
 					By("Enabling IP forwarding on the first VLAN interface via NNCP update")
 
 					nncpPolicy = nmstate.NewPolicyBuilder(APIClient, ipFwdNNCPName,
-						map[string]string{netparam.LabelHostName: workerNodeList[1].Definition.Name}).
+						map[string]string{corev1.LabelHostname: workerNodeList[1].Definition.Name}).
 						WithVlanInterfaceIP(secInterfaces[0], ipFwdWorkerVlanIP1, ipFwdV6WorkerVlanIP1, ipFwdVlanID1).
 						WithVlanInterfaceIP(secInterfaces[1], ipFwdWorkerVlanIP2, ipFwdV6WorkerVlanIP2, ipFwdVlanID2).
 						WithOptions(netnmstate.WithInterfaceIPv4Forwarding(iface1Name, true)).
@@ -344,7 +344,7 @@ var _ = Describe("IP Forwarding per Interface", Ordered,
 					By("Enabling IP forwarding on both VLAN interfaces via NNCP update")
 
 					nncpPolicy = nmstate.NewPolicyBuilder(APIClient, ipFwdNNCPName,
-						map[string]string{netparam.LabelHostName: workerNodeList[1].Definition.Name}).
+						map[string]string{corev1.LabelHostname: workerNodeList[1].Definition.Name}).
 						WithVlanInterfaceIP(secInterfaces[0], ipFwdWorkerVlanIP1, ipFwdV6WorkerVlanIP1, ipFwdVlanID1).
 						WithVlanInterfaceIP(secInterfaces[1], ipFwdWorkerVlanIP2, ipFwdV6WorkerVlanIP2, ipFwdVlanID2).
 						WithOptions(
@@ -368,7 +368,7 @@ var _ = Describe("IP Forwarding per Interface", Ordered,
 					By("Disabling IP forwarding on both VLAN interfaces via NNCP update")
 
 					nncpPolicy = nmstate.NewPolicyBuilder(APIClient, ipFwdNNCPName,
-						map[string]string{netparam.LabelHostName: workerNodeList[1].Definition.Name}).
+						map[string]string{corev1.LabelHostname: workerNodeList[1].Definition.Name}).
 						WithVlanInterfaceIP(secInterfaces[0], ipFwdWorkerVlanIP1, ipFwdV6WorkerVlanIP1, ipFwdVlanID1).
 						WithVlanInterfaceIP(secInterfaces[1], ipFwdWorkerVlanIP2, ipFwdV6WorkerVlanIP2, ipFwdVlanID2).
 						WithOptions(
@@ -395,7 +395,7 @@ var _ = Describe("IP Forwarding per Interface", Ordered,
 					By("Enabling IP forwarding on the first VLAN interface via NNCP update")
 
 					nncpPolicy = nmstate.NewPolicyBuilder(APIClient, ipFwdNNCPName,
-						map[string]string{netparam.LabelHostName: workerNodeList[1].Definition.Name}).
+						map[string]string{corev1.LabelHostname: workerNodeList[1].Definition.Name}).
 						WithVlanInterfaceIP(secInterfaces[0], ipFwdWorkerVlanIP1, ipFwdV6WorkerVlanIP1, ipFwdVlanID1).
 						WithVlanInterfaceIP(secInterfaces[1], ipFwdWorkerVlanIP2, ipFwdV6WorkerVlanIP2, ipFwdVlanID2).
 						WithOptions(netnmstate.WithInterfaceIPv4Forwarding(iface1Name, true)).
@@ -414,7 +414,7 @@ var _ = Describe("IP Forwarding per Interface", Ordered,
 					workerNode1Name := workerNodeList[1].Definition.Name
 					_, err = cluster.ExecCmdWithStdout(APIClient, "reboot -f",
 						metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s",
-							netparam.LabelHostName, workerNode1Name)})
+							corev1.LabelHostname, workerNode1Name)})
 					Expect(err).ToNot(HaveOccurred(), "Failed to reboot worker node %s", workerNode1Name)
 
 					By("Waiting for MachineConfigPool to stabilize after reboot")
@@ -452,7 +452,7 @@ var _ = Describe("IP Forwarding per Interface", Ordered,
 				By("Creating NMState policy with IPv6 VLAN interfaces on the second worker node")
 
 				nncpV6Policy = nmstate.NewPolicyBuilder(APIClient, ipFwdV6NNCPName,
-					map[string]string{netparam.LabelHostName: workerNodeList[1].Definition.Name}).
+					map[string]string{corev1.LabelHostname: workerNodeList[1].Definition.Name}).
 					WithVlanInterfaceIP(secInterfaces[0], ipFwdWorkerVlanIP1, ipFwdV6WorkerVlanIP1, ipFwdVlanID1).
 					WithVlanInterfaceIP(secInterfaces[1], ipFwdWorkerVlanIP2, ipFwdV6WorkerVlanIP2, ipFwdVlanID2).
 					WithStaticRoute(ipFwdV6InternalSubnet1, ipFwdV6FrrRouterIP1, iface1Name, 150, 254).
@@ -517,7 +517,7 @@ var _ = Describe("IP Forwarding per Interface", Ordered,
 				By("Creating BGP peers targeting the second worker node with IPv6 addresses")
 
 				workerNode1Selector := map[string]string{
-					netparam.LabelHostName: workerNodeList[1].Definition.Name}
+					corev1.LabelHostname: workerNodeList[1].Definition.Name}
 
 				_, err = metallb.NewBPGPeerBuilder(
 					APIClient, tsparams.BgpPeerName1, NetConfig.MlbOperatorNamespace,
@@ -583,7 +583,7 @@ var _ = Describe("IP Forwarding per Interface", Ordered,
 					By("Attempting to enable IPv6 forwarding on the first VLAN interface via NNCP update")
 
 					nncpV6Policy = nmstate.NewPolicyBuilder(APIClient, ipFwdV6NNCPName,
-						map[string]string{netparam.LabelHostName: workerNodeList[1].Definition.Name}).
+						map[string]string{corev1.LabelHostname: workerNodeList[1].Definition.Name}).
 						WithVlanInterfaceIP(secInterfaces[0], ipFwdWorkerVlanIP1, ipFwdV6WorkerVlanIP1, ipFwdVlanID1).
 						WithVlanInterfaceIP(secInterfaces[1], ipFwdWorkerVlanIP2, ipFwdV6WorkerVlanIP2, ipFwdVlanID2).
 						WithOptions(netnmstate.WithInterfaceIPv6Forwarding(iface1Name, true)).
@@ -600,7 +600,7 @@ var _ = Describe("IP Forwarding per Interface", Ordered,
 					By("Restoring NNCP by removing IPv6 forwarding configuration")
 
 					nncpV6Policy = nmstate.NewPolicyBuilder(APIClient, ipFwdV6NNCPName,
-						map[string]string{netparam.LabelHostName: workerNodeList[1].Definition.Name}).
+						map[string]string{corev1.LabelHostname: workerNodeList[1].Definition.Name}).
 						WithVlanInterfaceIP(secInterfaces[0], ipFwdWorkerVlanIP1, ipFwdV6WorkerVlanIP1, ipFwdVlanID1).
 						WithVlanInterfaceIP(secInterfaces[1], ipFwdWorkerVlanIP2, ipFwdV6WorkerVlanIP2, ipFwdVlanID2).
 						WithStaticRoute(ipFwdV6InternalSubnet1, ipFwdV6FrrRouterIP1, iface1Name, 150, 254).
@@ -616,7 +616,7 @@ var _ = Describe("IP Forwarding per Interface", Ordered,
 					By("Enabling IPv4 forwarding on the first VLAN interface via NNCP update")
 
 					nncpV6Policy = nmstate.NewPolicyBuilder(APIClient, ipFwdV6NNCPName,
-						map[string]string{netparam.LabelHostName: workerNodeList[1].Definition.Name}).
+						map[string]string{corev1.LabelHostname: workerNodeList[1].Definition.Name}).
 						WithVlanInterfaceIP(secInterfaces[0], ipFwdWorkerVlanIP1, ipFwdV6WorkerVlanIP1, ipFwdVlanID1).
 						WithVlanInterfaceIP(secInterfaces[1], ipFwdWorkerVlanIP2, ipFwdV6WorkerVlanIP2, ipFwdVlanID2).
 						WithOptions(netnmstate.WithInterfaceIPv4Forwarding(iface1Name, true)).
@@ -648,7 +648,7 @@ func cleanupIPFwdNNCP(
 		iface2Name := fmt.Sprintf("%s.%d", secInterfaces[1], vlanID2)
 
 		nncpPolicy = nmstate.NewPolicyBuilder(APIClient, nncpName,
-			map[string]string{netparam.LabelHostName: workerNodeList[1].Definition.Name}).
+			map[string]string{corev1.LabelHostname: workerNodeList[1].Definition.Name}).
 			WithAbsentInterface(iface1Name).
 			WithAbsentInterface(iface2Name)
 		err := netnmstate.UpdatePolicyAndWaitUntilItsAvailable(netparam.DefaultTimeout, nncpPolicy)
