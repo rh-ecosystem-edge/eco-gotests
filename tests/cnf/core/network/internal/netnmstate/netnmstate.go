@@ -340,6 +340,100 @@ func CheckThatWorkersDeployedWithBondVfs(
 	return bondName, bondSlaves, nil
 }
 
+// WithInterfaceIPv4Forwarding returns a function that sets IPv4 forwarding on the specified interface.
+func WithInterfaceIPv4Forwarding(
+	interfaceName string, forwarding bool) func(*nmstate.PolicyBuilder) (*nmstate.PolicyBuilder, error) {
+	klog.V(90).Infof("Setting IPv4 forwarding=%v on interface %s", forwarding, interfaceName)
+
+	return withInterfaceForwardingMutator(func(iface *nmstate.NetworkInterface) {
+		iface.Ipv4.Forwarding = &forwarding
+	},
+		interfaceName,
+	)
+}
+
+// WithInterfaceIPv6Forwarding returns a function that sets IPv6 forwarding on the specified interface.
+func WithInterfaceIPv6Forwarding(
+	interfaceName string, forwarding bool) func(*nmstate.PolicyBuilder) (*nmstate.PolicyBuilder, error) {
+	klog.V(90).Infof("Setting IPv6 forwarding=%v on interface %s", forwarding, interfaceName)
+
+	return withInterfaceForwardingMutator(func(iface *nmstate.NetworkInterface) {
+		iface.Ipv6.Forwarding = &forwarding
+	},
+		interfaceName,
+	)
+}
+
+// withInterfaceForwardingMutator returns a function that mutates IP forwarding on a specific interface.
+func withInterfaceForwardingMutator(
+	mutateFunc func(*nmstate.NetworkInterface),
+	interfaceName string) func(*nmstate.PolicyBuilder) (*nmstate.PolicyBuilder, error) {
+	return func(builder *nmstate.PolicyBuilder) (*nmstate.PolicyBuilder, error) {
+		klog.V(90).Infof("Mutating the interface %s forwarding configuration", interfaceName)
+
+		if interfaceName == "" {
+			klog.V(90).Infof("The interfaceName cannot be an empty string")
+
+			return builder, fmt.Errorf("the interfaceName is an empty string")
+		}
+
+		var currentState nmstate.DesiredState
+
+		err := yaml.Unmarshal(builder.Definition.Spec.DesiredState.Raw, &currentState)
+		if err != nil {
+			klog.V(90).Infof("Failed to unmarshal DesiredState")
+
+			return builder, fmt.Errorf("failed to unmarshal DesiredState: %w", err)
+		}
+
+		var foundInterface bool
+
+		for i, networkInterface := range currentState.Interfaces {
+			if networkInterface.Name == interfaceName {
+				mutateFunc(&currentState.Interfaces[i])
+
+				foundInterface = true
+
+				break
+			}
+		}
+
+		if !foundInterface {
+			klog.V(90).Infof("Failed to find the given interface")
+
+			return builder, fmt.Errorf("failed to find interface %s", interfaceName)
+		}
+
+		desiredStateYaml, err := yaml.Marshal(currentState)
+		if err != nil {
+			klog.V(90).Infof("Failed to marshal DesiredState")
+
+			return builder, fmt.Errorf("failed to marshal a new Desired state: %w", err)
+		}
+
+		builder.Definition.Spec.DesiredState = nmstateShared.NewState(string(desiredStateYaml))
+
+		return builder, nil
+	}
+}
+
+// UpdatePolicyAndWaitUntilItsDegraded updates a NodeNetworkConfigurationPolicy and waits until
+// it reaches the Degraded condition.
+func UpdatePolicyAndWaitUntilItsDegraded(
+	timeout time.Duration, nmstatePolicy *nmstate.PolicyBuilder) (*nmstate.PolicyBuilder, error) {
+	klog.V(90).Infof("Updating an NMState policy and waiting for it to become Degraded.")
+
+	nmstatePolicy, err := nmstatePolicy.Update(true)
+	if err != nil {
+		return nmstatePolicy, err
+	}
+
+	err = nmstatePolicy.WaitUntilCondition(
+		nmstateShared.NodeNetworkConfigurationPolicyConditionDegraded, timeout)
+
+	return nmstatePolicy, err
+}
+
 // withBondOptionMutator returns a function that mutates a specific option for a bond interface.
 func withBondOptionMutator(
 	mutateFunc func(*nmstate.OptionsLinkAggregation),
