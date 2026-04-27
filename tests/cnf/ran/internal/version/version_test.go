@@ -1,7 +1,8 @@
 package version
 
 // The version package imports cluster (via version.go), which pulls inittools. For local unit tests of
-// IsVersionStringInRange only, run: UNIT_TEST=true go test ./tests/cnf/ran/internal/version/... -run TestIsVersionStringInRange
+// IsVersionStringInRange only, run:
+// UNIT_TEST=true go test ./tests/cnf/ran/internal/version/... -run TestIsVersionStringInRange
 
 import (
 	"testing"
@@ -135,6 +136,7 @@ func TestIsVersionStringInRange(t *testing.T) {
 		result, err := IsVersionStringInRange(testCase.version, testCase.minimum, testCase.maximum)
 
 		assert.Equal(t, testCase.expectedResult, result)
+
 		if testCase.wantErrSubstring != "" {
 			assert.Error(t, err)
 			assert.ErrorContains(t, err, testCase.wantErrSubstring)

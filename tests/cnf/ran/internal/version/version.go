@@ -144,16 +144,16 @@ func IsVersionStringInRange(version, minimum, maximum string) (bool, error) {
 		return false, err
 	}
 
-	v, err := semver.NewVersion(trimSemverVPrefix(version))
+	parsedVersion, err := semver.NewVersion(trimSemverVPrefix(version))
 	if err != nil {
 		return maximum == "", nil
 	}
 
-	if minV != nil && v.LessThan(minV) {
+	if minV != nil && parsedVersion.LessThan(minV) {
 		return false, nil
 	}
 
-	if maxExclusive != nil && !v.LessThan(maxExclusive) {
+	if maxExclusive != nil && !parsedVersion.LessThan(maxExclusive) {
 		return false, nil
 	}
 
@@ -166,7 +166,7 @@ func trimSemverVPrefix(s string) string {
 
 func parseMinimumBound(minimum string) (*semver.Version, error) {
 	if minimum == "" {
-		return nil, nil
+		return nil, nil //nolint:nilnil // empty minimum means no lower bound
 	}
 
 	return parseSemverGateBound(minimum, "minimum")
@@ -176,7 +176,7 @@ func parseMinimumBound(minimum string) (*semver.Version, error) {
 // maximum uses the same coercion and parsing rules as minimum; pass a semver-compatible exclusive upper.
 func parseMaximumExclusiveUpper(maximum string) (*semver.Version, error) {
 	if maximum == "" {
-		return nil, nil
+		return nil, nil //nolint:nilnil // empty maximum means no upper bound
 	}
 
 	return parseSemverGateBound(maximum, "maximum")
@@ -186,6 +186,7 @@ func parseMaximumExclusiveUpper(maximum string) (*semver.Version, error) {
 // boundLabel is "minimum" or "maximum" for error messages.
 func parseSemverGateBound(raw string, boundLabel string) (*semver.Version, error) {
 	s := trimSemverVPrefix(raw)
+
 	coerced, err := coerceSemverCore(s)
 	if err != nil {
 		return nil, fmt.Errorf("invalid %s provided: '%s'", boundLabel, raw)
@@ -199,18 +200,19 @@ func parseSemverGateBound(raw string, boundLabel string) (*semver.Version, error
 	return parsed, nil
 }
 
-func splitSemverCore(s string) (core, tail string) {
-	for i, r := range s {
+func splitSemverCore(semverStr string) (core, tail string) {
+	for i, r := range semverStr {
 		if r == '-' || r == '+' {
-			return s[:i], s[i:]
+			return semverStr[:i], semverStr[i:]
 		}
 	}
 
-	return s, ""
+	return semverStr, ""
 }
 
 func coerceSemverCore(s string) (string, error) {
 	core, tail := splitSemverCore(s)
+
 	parts := strings.Split(core, ".")
 	if len(parts) < 2 {
 		return "", fmt.Errorf("need at least major.minor")
