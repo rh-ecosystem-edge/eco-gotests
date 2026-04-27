@@ -127,9 +127,8 @@ func GetZTPSiteGenerateImage(client *clients.Settings) (string, error) {
 // 4.20.0-20251212...), pass X.Y.0-0 — the lowest pre-release of X.Y.0. Plain X.Y.0 excludes pre-releases of X.Y.0.
 //
 // maximum: empty means no upper bound. Otherwise maximum is exclusive: the interval is minimum <= v < maximum
-// (half-open). Prefer an explicit exclusive bound such as "4.18.0-0" (all 4.16.z and 4.17.z, not 4.18.0+). As a
-// shorthand only, a plain two-segment "X.Y" (no prerelease/build suffix) still means "below the next minor", i.e.
-// exclusive upper X.(Y+1).0-0 — same as passing that explicit version.
+// (half-open). Non-empty maximum uses the same coercion and semver parsing as minimum (trim optional leading v,
+// coerce to a full semver string, then parse). Callers must pass the actual exclusive upper version (e.g. "4.21.0-0").
 //
 // If version is not a valid semver string and maximum is empty, the function returns (true, nil) for compatibility
 // with legacy call sites (e.g. empty or non-semver operator tags with no upper bound). Callers that require a parsed
@@ -170,65 +169,34 @@ func parseMinimumBound(minimum string) (*semver.Version, error) {
 		return nil, nil
 	}
 
-	s := trimSemverVPrefix(minimum)
-	coerced, err := coerceSemverCore(s)
-	if err != nil {
-		return nil, fmt.Errorf("invalid minimum provided: '%s'", minimum)
-	}
-
-	parsed, err := semver.NewVersion(coerced)
-	if err != nil {
-		return nil, fmt.Errorf("invalid minimum provided: '%s'", minimum)
-	}
-
-	return parsed, nil
+	return parseSemverGateBound(minimum, "minimum")
 }
 
 // parseMaximumExclusiveUpper returns the first version not allowed: valid versions satisfy v < upperExclusive.
+// maximum uses the same coercion and parsing rules as minimum; pass a semver-compatible exclusive upper.
 func parseMaximumExclusiveUpper(maximum string) (*semver.Version, error) {
 	if maximum == "" {
 		return nil, nil
 	}
 
-	s := trimSemverVPrefix(maximum)
-	core, tail := splitSemverCore(s)
-	parts := strings.Split(core, ".")
-	for _, p := range parts {
-		if _, err := strconv.ParseUint(p, 10, 64); err != nil {
-			return nil, fmt.Errorf("invalid maximum provided: '%s'", maximum)
-		}
+	return parseSemverGateBound(maximum, "maximum")
+}
+
+// parseSemverGateBound trims a leading v, coerces raw to a semver string, and parses it.
+// boundLabel is "minimum" or "maximum" for error messages.
+func parseSemverGateBound(raw string, boundLabel string) (*semver.Version, error) {
+	s := trimSemverVPrefix(raw)
+	coerced, err := coerceSemverCore(s)
+	if err != nil {
+		return nil, fmt.Errorf("invalid %s provided: '%s'", boundLabel, raw)
 	}
 
-	switch len(parts) {
-	case 0, 1:
-		return nil, fmt.Errorf("invalid maximum provided: '%s'", maximum)
-	case 2:
-		if tail != "" {
-			return nil, fmt.Errorf("invalid maximum provided: '%s'", maximum)
-		}
-
-		maj, _ := strconv.ParseUint(parts[0], 10, 64)
-		min, _ := strconv.ParseUint(parts[1], 10, 64)
-
-		upper, err := semver.NewVersion(fmt.Sprintf("%d.%d.0-0", maj, min+1))
-		if err != nil {
-			return nil, fmt.Errorf("invalid maximum provided: '%s'", maximum)
-		}
-
-		return upper, nil
-	default:
-		full := core
-		if tail != "" {
-			full = core + tail
-		}
-
-		exclusive, err := semver.NewVersion(full)
-		if err != nil {
-			return nil, fmt.Errorf("invalid maximum provided: '%s'", maximum)
-		}
-
-		return exclusive, nil
+	parsed, err := semver.NewVersion(coerced)
+	if err != nil {
+		return nil, fmt.Errorf("invalid %s provided: '%s'", boundLabel, raw)
 	}
+
+	return parsed, nil
 }
 
 func splitSemverCore(s string) (core, tail string) {
