@@ -282,8 +282,6 @@ func GetModifiableTestClients(tcp TestClientParams) (*Settings, *fakeRuntimeClie
 			genericClientObjects = append(genericClientObjects, v)
 		case *operatorv1.OpenShiftAPIServer:
 			genericClientObjects = append(genericClientObjects, v)
-		case *routev1.Route:
-			genericClientObjects = append(genericClientObjects, v)
 		case *configV1.Node:
 			genericClientObjects = append(genericClientObjects, v)
 		case *operatorv1.IngressController:
