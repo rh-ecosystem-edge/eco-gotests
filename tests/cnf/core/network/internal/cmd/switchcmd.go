@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -194,6 +195,28 @@ func (j *Junos) RunCommand(cmd string) (string, error) {
 	}
 
 	return reply.Data, nil
+}
+
+// IsSwitchInterfaceUp reports whether the given switch interface oper-status is up.
+func (j *Junos) IsSwitchInterfaceUp(switchInterface string) (bool, error) {
+	jsonOutput, err := j.RunCommand(fmt.Sprintf("show interfaces %s", switchInterface))
+	if err != nil {
+		return false, err
+	}
+
+	var interfaceStatus InterfaceStatus
+
+	if err := json.Unmarshal([]byte(jsonOutput), &interfaceStatus); err != nil {
+		return false, err
+	}
+
+	if len(interfaceStatus.InterfaceInformation) == 0 ||
+		len(interfaceStatus.InterfaceInformation[0].PhysicalInterface) == 0 ||
+		len(interfaceStatus.InterfaceInformation[0].PhysicalInterface[0].OperStatus) == 0 {
+		return false, fmt.Errorf("no oper-status for switch interface %s", switchInterface)
+	}
+
+	return interfaceStatus.InterfaceInformation[0].PhysicalInterface[0].OperStatus[0].Data == "up", nil
 }
 
 // GetInterfaceConfig returns configuration for given interface.
