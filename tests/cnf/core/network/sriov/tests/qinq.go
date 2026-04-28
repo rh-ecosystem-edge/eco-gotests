@@ -1075,17 +1075,11 @@ func runQinQDpdkTestCases(nodeName, serverName, clientName, sriovNetworkName, na
 	readAndValidateTCPDump(clientDpdk, []string{"bash", "-c", "tail -20 /tmp/tcpdump"}, outPutSubString)
 }
 
-// defineBondNAD returns network attachment definition for a Bond interface.
-func defineQinQBondNAD(nadname, mode string) *nad.Builder {
-	bondNad, err := nad.NewMasterBondPlugin(nadname, mode).WithFailOverMac(1).
-		WithLinksInContainer(true).WithVLANInContainer(uint16(100)).WithMiimon(100).
-		WithLinks([]nad.Link{{Name: "net1"}, {Name: "net2"}}).WithIPAM(&nad.IPAM{Type: ""}).GetMasterPluginConfig()
-	Expect(err).ToNot(HaveOccurred(), "Failed to define Bond NAD for %s", nadname)
-
-	createdNad, err := nad.NewBuilder(APIClient, nadname, tsparams.TestNamespaceName).WithMasterPlugin(bondNad).Create()
+// defineQinQBondNAD creates the Bond CNI NetworkAttachmentDefinition (CreateBondNAD already persists it).
+func defineQinQBondNAD(nadname, mode string) {
+	vlan := uint16(100)
+	_, err := sriovenv.CreateBondNAD(nadname, mode, 0, 2, "", &vlan)
 	Expect(err).ToNot(HaveOccurred(), "Failed to create Bond NAD for %s", nadname)
-
-	return createdNad
 }
 
 func defineCreateSriovNetPolices(vfioPCIName, vfioPCIResName, sriovInterface,
@@ -1162,10 +1156,7 @@ func defineAndCreateNADs(nadCVLAN100, nadCVLAN101, nadMasterBond0, intNet1 strin
 
 	By("Define and create a Bonded network attachment definition with a C-VLAN 100")
 
-	bondMasterNad := defineQinQBondNAD(nadMasterBond0, "active-backup")
-	_, err = bondMasterNad.Create()
-	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Fail to create a Bond Network-Attachment-Definition %s",
-		nadCVLAN100))
+	defineQinQBondNAD(nadMasterBond0, "active-backup")
 }
 
 func setVFPromiscMode(nodeName, srIovInterfacesUnderTest, sriovVendor, onOff string) {

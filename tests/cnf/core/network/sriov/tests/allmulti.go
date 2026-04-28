@@ -6,7 +6,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
@@ -148,18 +147,13 @@ var _ = Describe(
 
 			By("Define and create Bonded network attachment for allmulti client")
 
-			nadBondAllmultiConfig := defineBondNAD(bondNadNameAllMulti, "active-backup")
-
-			_, err = nadBondAllmultiConfig.Create()
-			Expect(err).ToNot(HaveOccurred(), "Failed to create Bond Nad %s",
-				nadBondAllmultiConfig.Definition.Name)
+			_, err = sriovenv.CreateBondNADStaticIPAM(bondNadNameAllMulti, "active-backup")
+			Expect(err).ToNot(HaveOccurred(), "Failed to create Bond NAD %s", bondNadNameAllMulti)
 
 			By("Define and create Bonded network attachment for default client")
 
-			nadBondDefaultConfig := defineBondNAD(bondNadNameDefault, "active-backup")
-			_, err = nadBondDefaultConfig.Create()
-			Expect(err).ToNot(HaveOccurred(), "Failed to create Bond Nad %s",
-				nadBondDefaultConfig.Definition.Name)
+			_, err = sriovenv.CreateBondNADStaticIPAM(bondNadNameDefault, "active-backup")
+			Expect(err).ToNot(HaveOccurred(), "Failed to create Bond NAD %s", bondNadNameDefault)
 
 			By("Waiting until cluster MCP and SR-IOV are stable")
 
@@ -473,20 +467,6 @@ func runAllMultiTestCases(
 
 	By("Verify the client receives traffic from the multicast group after being added to the group")
 	assertMulticastTrafficIsReceived(defaultClientPod, tcpDumpCMD, multicastGroupIP)
-}
-
-// defineBondNAD returns network attachment definition for a Bond interface.
-func defineBondNAD(nadname, mode string) *nad.Builder {
-	bondNad, err := nad.NewMasterBondPlugin(nadname, mode).WithFailOverMac(1).
-		WithLinksInContainer(true).WithMiimon(100).
-		WithLinks([]nad.Link{{Name: "net1"}, {Name: "net2"}}).WithCapabilities(&nad.Capability{IPs: true}).
-		WithIPAM(&nad.IPAM{Type: "static"}).GetMasterPluginConfig()
-	Expect(err).ToNot(HaveOccurred(), "Failed to define Bond NAD for %s", nadname)
-
-	createdNad, err := nad.NewBuilder(APIClient, nadname, tsparams.TestNamespaceName).WithMasterPlugin(bondNad).Create()
-	Expect(err).ToNot(HaveOccurred(), "Failed to create Bond NAD for %s", nadname)
-
-	return createdNad
 }
 
 // defineAndCreateSrIovNetworkWithOutIPAM is used to create sriovnetworks with IPAM for a bonded interface.
