@@ -3,7 +3,6 @@ package version
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -127,21 +126,34 @@ func GetZTPSiteGenerateImage(client *clients.Settings) (string, error) {
 // 4.20.0-20251212...), pass X.Y.0-0 — the lowest pre-release of X.Y.0. Plain X.Y.0 excludes pre-releases of X.Y.0.
 //
 // maximum: empty means no upper bound. Otherwise maximum is exclusive: the interval is minimum <= v < maximum
-// (half-open). Non-empty maximum uses the same coercion and semver parsing as minimum (trim optional leading v,
-// coerce to a full semver string, then parse). Callers must pass the actual exclusive upper version (e.g. "4.21.0-0").
+// (half-open). Non-empty bounds use the same rules as version: trim an optional leading v, then parse with
+// github.com/Masterminds/semver/v3. Callers must pass semver-compatible strings (e.g. lower bound "4.16.0-0",
+// exclusive upper "4.21.0-0").
 //
 // If version is not a valid semver string and maximum is empty, the function returns (true, nil) for compatibility
 // with legacy call sites (e.g. empty or non-semver operator tags with no upper bound). Callers that require a parsed
 // version should validate the string separately or pass a non-empty maximum so the result is (false, nil).
 func IsVersionStringInRange(version, minimum, maximum string) (bool, error) {
-	minV, err := parseMinimumBound(minimum)
-	if err != nil {
-		return false, err
+	var minV *semver.Version
+
+	if minimum != "" {
+		parsed, err := semver.NewVersion(trimSemverVPrefix(minimum))
+		if err != nil {
+			return false, fmt.Errorf("invalid minimum provided: '%s'", minimum)
+		}
+
+		minV = parsed
 	}
 
-	maxExclusive, err := parseMaximumExclusiveUpper(maximum)
-	if err != nil {
-		return false, err
+	var maxExclusive *semver.Version
+
+	if maximum != "" {
+		parsed, err := semver.NewVersion(trimSemverVPrefix(maximum))
+		if err != nil {
+			return false, fmt.Errorf("invalid maximum provided: '%s'", maximum)
+		}
+
+		maxExclusive = parsed
 	}
 
 	parsedVersion, err := semver.NewVersion(trimSemverVPrefix(version))
@@ -162,76 +174,4 @@ func IsVersionStringInRange(version, minimum, maximum string) (bool, error) {
 
 func trimSemverVPrefix(s string) string {
 	return strings.TrimPrefix(strings.TrimSpace(s), "v")
-}
-
-func parseMinimumBound(minimum string) (*semver.Version, error) {
-	if minimum == "" {
-		return nil, nil //nolint:nilnil // empty minimum means no lower bound
-	}
-
-	return parseSemverGateBound(minimum, "minimum")
-}
-
-// parseMaximumExclusiveUpper returns the first version not allowed: valid versions satisfy v < upperExclusive.
-// maximum uses the same coercion and parsing rules as minimum; pass a semver-compatible exclusive upper.
-func parseMaximumExclusiveUpper(maximum string) (*semver.Version, error) {
-	if maximum == "" {
-		return nil, nil //nolint:nilnil // empty maximum means no upper bound
-	}
-
-	return parseSemverGateBound(maximum, "maximum")
-}
-
-// parseSemverGateBound trims a leading v, coerces raw to a semver string, and parses it.
-// boundLabel is "minimum" or "maximum" for error messages.
-func parseSemverGateBound(raw string, boundLabel string) (*semver.Version, error) {
-	s := trimSemverVPrefix(raw)
-
-	coerced, err := coerceSemverCore(s)
-	if err != nil {
-		return nil, fmt.Errorf("invalid %s provided: '%s'", boundLabel, raw)
-	}
-
-	parsed, err := semver.NewVersion(coerced)
-	if err != nil {
-		return nil, fmt.Errorf("invalid %s provided: '%s'", boundLabel, raw)
-	}
-
-	return parsed, nil
-}
-
-func splitSemverCore(semverStr string) (core, tail string) {
-	for i, r := range semverStr {
-		if r == '-' || r == '+' {
-			return semverStr[:i], semverStr[i:]
-		}
-	}
-
-	return semverStr, ""
-}
-
-func coerceSemverCore(s string) (string, error) {
-	core, tail := splitSemverCore(s)
-
-	parts := strings.Split(core, ".")
-	if len(parts) < 2 {
-		return "", fmt.Errorf("need at least major.minor")
-	}
-
-	for _, p := range parts {
-		if _, err := strconv.ParseUint(p, 10, 64); err != nil {
-			return "", err
-		}
-	}
-
-	for len(parts) < 3 {
-		parts = append(parts, "0")
-	}
-
-	out := strings.Join(parts, ".")
-	if tail != "" {
-		out += tail
-	}
-
-	return out, nil
 }
