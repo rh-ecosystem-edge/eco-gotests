@@ -88,3 +88,13 @@ func KmmScannerConfigMapContents() map[string]string {
 
 	return configMapContent
 }
+
+// MultiKoConfigMapContent returns the configmap contents for building 3 kernel modules.
+func MultiKoConfigMapContent() map[string]string {
+	return map[string]string{"dockerfile": kmmparams.MultiKoContents}
+}
+
+// MultiKoCustomDirConfigMapContent returns the configmap contents for building 3 kernel modules under /custom.
+func MultiKoCustomDirConfigMapContent() map[string]string {
+	return map[string]string{"dockerfile": kmmparams.MultiKoCustomDirContents}
+}
