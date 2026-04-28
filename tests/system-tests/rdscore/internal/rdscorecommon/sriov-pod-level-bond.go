@@ -1529,9 +1529,51 @@ func VerifyPodLevelBondWorkloadsAfterPodCrashing() {
 
 	By("Delete test pod")
 
-	_, err = testPodObj.DeleteAndWait(time.Second * 30)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod deletion diagnostics - Pre-deletion state:")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Pod name: %s", testPodObj.Definition.Name)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Pod namespace: %s", testPodObj.Definition.Namespace)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Pod phase: %s", testPodObj.Object.Status.Phase)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  DeletionTimestamp: %v", testPodObj.Object.DeletionTimestamp)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Finalizers: %v", testPodObj.Object.Finalizers)
+
+	// Use 120s timeout - pod-level bonded SRIOV workloads require extended cleanup time
+	// for VF resource release, bonded interface teardown, and privileged container cleanup.
+	// Observed deletion times: 40-50s; 120s provides 2.5x safety margin.
+	startTime := time.Now()
+
+	_, err = testPodObj.DeleteAndWait(time.Second * 120)
+	if err != nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod deletion failed after 120s timeout (actual time: %v): %v",
+			time.Since(startTime), err)
+
+		// Try to retrieve current pod state for diagnostics
+		currentPod, podErr := pod.Pull(APIClient, testPodObj.Definition.Name, testPodObj.Definition.Namespace)
+		if podErr == nil && currentPod != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod deletion diagnostics - Post-deletion state:")
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Pod phase: %s", currentPod.Object.Status.Phase)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  DeletionTimestamp: %v", currentPod.Object.DeletionTimestamp)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Finalizers: %v", currentPod.Object.Finalizers)
+
+			// Log container states - reveals PreStop hook issues, SIGTERM/SIGKILL delays
+			for _, containerStatus := range currentPod.Object.Status.ContainerStatuses {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Container: %s, State: %+v",
+					containerStatus.Name, containerStatus.State)
+			}
+
+			// Log conditions to understand why deletion is stuck
+			for _, condition := range currentPod.Object.Status.Conditions {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Condition: Type=%s, Status=%s, Reason=%s, Message=%s",
+					condition.Type, condition.Status, condition.Reason, condition.Message)
+			}
+		} else {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod may already be deleted or unreachable: %v", podErr)
+		}
+	} else {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod deletion succeeded in %v", time.Since(startTime))
+	}
+
 	Expect(err).ToNot(HaveOccurred(),
-		fmt.Sprintf("Failed to delete test pod-level bond pod %s object from namespace %s: %v",
+		fmt.Sprintf("Failed to delete test pod-level bond pod %s from namespace %s within 120s timeout: %v",
 			RDSCoreConfig.PodLevelBondDeploymentTwoName, RDSCoreConfig.PodLevelBondNamespace, err))
 
 	By("Wait new test pod-level bond pod will be created")
