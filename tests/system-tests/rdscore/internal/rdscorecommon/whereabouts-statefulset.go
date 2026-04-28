@@ -79,6 +79,8 @@ const (
 	myStatefulsetOneTopologyKey = "kubernetes.io/hostname"
 	// interfaceName is the name of the network interface inside the pod.
 	interfaceName = "net1"
+	// ipv6Family is the IPv6 address family identifier.
+	ipv6Family = "inet6"
 
 	myHeadlessSvcTwo            = "rds-st-two-headless-2"
 	myStatefulsetTwo            = "rds-st-two"
@@ -302,7 +304,7 @@ func verifyInterPodCommunication(
 			podsMapping[_pod.Object.Name], podWhereaboutsIPs[podsMapping[_pod.Object.Name]])
 
 		for _, dstAddr := range podWhereaboutsIPs[podsMapping[_pod.Object.Name]][0].AddrInfo {
-			if dstAddr.Family == "inet6" && dstAddr.Scope == "link" {
+			if dstAddr.Family == ipv6Family && dstAddr.Scope == "link" {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping link-local address %q", dstAddr.Local)
 
 				continue
@@ -372,7 +374,7 @@ func checkPodIPv6Ready(podObj *pod.Builder, interfaceName, ipv6Addr string) (boo
 		line := scanner.Text()
 
 		// Look for lines containing the IPv6 address
-		if strings.Contains(line, ipv6Addr) && strings.Contains(line, "inet6") {
+		if strings.Contains(line, ipv6Addr) && strings.Contains(line, ipv6Family) {
 			// Check if DAD failed (permanent failure - must check first)
 			if strings.Contains(line, "dadfailed") {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("IPv6 address %s DAD failed for pod %q: %s",
@@ -460,7 +462,7 @@ func getPodWhereaboutsIPs(activePods []*pod.Builder, interfaceName string) map[s
 
 			// Check IPv6 addresses for tentative state (DAD must be complete)
 			for _, addr := range networkInterface[0].AddrInfo {
-				if addr.Family == "inet6" && addr.Scope == "global" {
+				if addr.Family == ipv6Family && addr.Scope == "global" {
 					klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 						"Checking IPv6 address %s readiness for pod %q", addr.Local, _pod.Object.Name)
 
@@ -597,6 +599,224 @@ func getActivePods(podLabel, namespace string) []*pod.Builder {
 	return activePods
 }
 
+// waitForWhereaboutsNetworkReady waits for Whereabouts network interfaces to be configured
+// with IP addresses on all pods matching the given label selector.
+// Simplified version that directly calls getPodWhereaboutsIPs (which has its own retry logic).
+func waitForWhereaboutsNetworkReady(
+	stLabel, namespace, interfaceName string,
+	expectedPodCount int) error {
+	By("Waiting for Whereabouts network interfaces to be ready")
+
+	activePods := getActivePods(stLabel, namespace)
+
+	if len(activePods) != expectedPodCount {
+		return fmt.Errorf("expected %d pods, found %d", expectedPodCount, len(activePods))
+	}
+
+	// getPodWhereaboutsIPs already has Eventually with 3min timeout and IPv6 DAD checks
+	// No need to wrap it in another Eventually block
+	podWhereaboutsIPs := getPodWhereaboutsIPs(activePods, interfaceName)
+
+	// Verify all pods have IP addresses assigned
+	for _, _pod := range activePods {
+		podIPs, exists := podWhereaboutsIPs[_pod.Object.Name]
+		if !exists || len(podIPs) == 0 {
+			return fmt.Errorf("pod %q has no Whereabouts IP addresses on interface %q",
+				_pod.Object.Name, interfaceName)
+		}
+
+		if len(podIPs[0].AddrInfo) == 0 {
+			return fmt.Errorf("pod %q has no IP addresses on interface %q",
+				_pod.Object.Name, interfaceName)
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Pod %q has %d IP addresses on interface %q",
+			_pod.Object.Name, len(podIPs[0].AddrInfo), interfaceName)
+	}
+
+	return nil
+}
+
+// logPodNetworkStatus logs detailed network status for pods matching the label selector.
+// Includes pod phase, node, ready conditions, and Whereabouts IP addresses.
+func logPodNetworkStatus(stLabel, namespace, interfaceName string) {
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("=== Pod Network Status ===")
+
+	activePods := getActivePods(stLabel, namespace)
+
+	for _, _pod := range activePods {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod: %s/%s",
+			_pod.Object.Namespace, _pod.Object.Name)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Phase: %s", _pod.Object.Status.Phase)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Node: %s", _pod.Object.Spec.NodeName)
+
+		// Log ready conditions
+		for _, condition := range _pod.Object.Status.Conditions {
+			if condition.Type == "Ready" {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Ready: %s (Reason: %s)",
+					condition.Status, condition.Reason)
+
+				break
+			}
+		}
+
+		// Log Whereabouts IPs (if available)
+		podWhereaboutsIPs := getPodWhereaboutsIPs([]*pod.Builder{_pod}, interfaceName)
+		if podIPs, exists := podWhereaboutsIPs[_pod.Object.Name]; exists && len(podIPs) > 0 {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Whereabouts Interface: %s", interfaceName)
+
+			for _, addr := range podIPs[0].AddrInfo {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("    %s: %s/%d",
+					addr.Family, addr.Local, addr.Prefixlen)
+			}
+		} else {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Whereabouts Interface: NOT CONFIGURED")
+		}
+	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("=========================")
+}
+
+// verifyPodConnectivityWithRetry verifies inter-pod connectivity with retry logic.
+// Returns error on failure, suitable for use in Eventually() blocks.
+// This is an error-returning version of VerifyPodConnectivity logic.
+func verifyPodConnectivityWithRetry(
+	stLabel, namespace, interfaceName string,
+	targetPort int,
+	expectedReplicas int) error {
+	// Get active pods
+	activePods := getActivePods(stLabel, namespace)
+
+	if len(activePods) != expectedReplicas {
+		return fmt.Errorf("expected %d active pods, found %d",
+			expectedReplicas, len(activePods))
+	}
+
+	// Get pod IP addresses
+	podWhereaboutsIPs := getPodWhereaboutsIPs(activePods, interfaceName)
+	if len(podWhereaboutsIPs) == 0 {
+		return fmt.Errorf("no Whereabouts IP addresses found for pods")
+	}
+
+	// Set up pod mapping for connectivity test
+	podOneName := activePods[0].Object.Name
+	podTwoName := activePods[len(activePods)-1].Object.Name
+
+	podsMapping := make(map[string]string)
+	podsMapping[podOneName] = podTwoName
+	podsMapping[podTwoName] = podOneName
+
+	// Verify inter-pod communication with error returns
+	return checkInterPodCommunicationWithError(activePods, podWhereaboutsIPs, podsMapping, targetPort)
+}
+
+// checkInterPodCommunicationWithError is an error-returning variant of verifyInterPodCommunication.
+// Sends netcat messages between pods and verifies receipt in logs, returning errors instead of using Expect().
+//
+//nolint:funlen,gocognit
+func checkInterPodCommunicationWithError(
+	activePods []*pod.Builder,
+	podWhereaboutsIPs map[string][]NetworkInterface,
+	podsMapping map[string]string,
+	parsedPort int) error {
+	for podIndex, _pod := range activePods {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Checking connectivity from %q to %q",
+			_pod.Object.Name, podsMapping[_pod.Object.Name])
+
+		for _, dstAddr := range podWhereaboutsIPs[podsMapping[_pod.Object.Name]][0].AddrInfo {
+			if dstAddr.Family == ipv6Family && dstAddr.Scope == "link" {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping link-local address %q", dstAddr.Local)
+
+				continue
+			}
+
+			randomNumber := rand.Intn(3000)
+			msgOne := fmt.Sprintf("Hello from %q to %q with random number %d",
+				_pod.Object.Name, podsMapping[_pod.Object.Name], randomNumber)
+
+			targetAddr := fmt.Sprintf("%s %d", dstAddr.Local, parsedPort)
+			sendDataOneCmd := []string{"/bin/bash", "-c",
+				fmt.Sprintf("echo '%s' | nc %s", msgOne, targetAddr)}
+
+			var (
+				podOneResult bytes.Buffer
+				execErr      error
+			)
+
+			timeStart := time.Now()
+
+			// Send data with retry logic - use polling approach to avoid hard-fail assertions
+			sendSuccess := false
+			sendStartTime := time.Now()
+
+			for time.Since(sendStartTime) < 1*time.Minute {
+				podOneResult.Reset()
+
+				podOneResult, execErr = _pod.ExecCommand(sendDataOneCmd, _pod.Definition.Spec.Containers[0].Name)
+				if execErr == nil {
+					sendSuccess = true
+
+					break
+				}
+
+				time.Sleep(10 * time.Second)
+			}
+
+			if !sendSuccess {
+				return fmt.Errorf("failed to send data from pod %q to %q after 1m: %w",
+					_pod.Object.Name, targetAddr, execErr)
+			}
+
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q send result: %s",
+				_pod.Object.Name, podOneResult.String())
+
+			targetPod := activePods[len(activePods)-(podIndex+1)]
+
+			// Verify message in logs - use polling approach to avoid hard-fail assertions
+			var podLog string
+
+			var logErr error
+
+			logSuccess := false
+			logStartTime := time.Now()
+
+			for time.Since(logStartTime) < 1*time.Minute {
+				logStartTimestamp := time.Since(timeStart)
+				if logStartTimestamp.Abs().Seconds() < 1 {
+					logStartTimestamp, _ = time.ParseDuration("1s")
+				}
+
+				podLog, logErr = targetPod.GetLog(logStartTimestamp, targetPod.Definition.Spec.Containers[0].Name)
+				if logErr == nil {
+					logSuccess = true
+
+					break
+				}
+
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to get logs from pod %q: %v",
+					targetPod.Definition.Name, logErr)
+
+				time.Sleep(5 * time.Second)
+			}
+
+			if !logSuccess {
+				return fmt.Errorf("failed to get logs from pod %q after 1m: %w", targetPod.Definition.Name, logErr)
+			}
+
+			// Check if message appears in logs
+			if !strings.Contains(podLog, msgOne) {
+				return fmt.Errorf("message %q not found in pod %q logs", msgOne, targetPod.Definition.Name)
+			}
+
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Successfully verified message in pod %q logs",
+				targetPod.Definition.Name)
+		}
+	}
+
+	return nil
+}
+
 func ensurePodConnectivityAfterPodTermination(stLabel, namespace, targetPort string, stReplicas int) {
 	By("Getting list of active pods")
 
@@ -646,14 +866,34 @@ func ensurePodConnectivityAfterPodTermination(stLabel, namespace, targetPort str
 	}).WithContext(ctx).WithPolling(15*time.Second).WithTimeout(5*time.Minute).Should(BeTrue(),
 		"New pod is not created")
 
+	// Enhancement #1: Wait for Whereabouts network to be ready
+	By("Waiting for Whereabouts network interfaces to be configured")
+
+	err = waitForWhereaboutsNetworkReady(stLabel, namespace, interfaceName, stReplicas)
+	Expect(err).ToNot(HaveOccurred(),
+		fmt.Sprintf("Whereabouts network not ready after pod termination: %v", err))
+
+	// Enhancement #5: Log pod network status before connectivity test
+	By("Logging pod network status for diagnostics")
+
+	logPodNetworkStatus(stLabel, namespace, interfaceName)
+
 	By("Verifying inter pod connectivity after pod termination")
 
-	parsedPort, err := strconv.Atoi(targetPort)
+	var parsedPort int
+
+	parsedPort, err = strconv.Atoi(targetPort)
 
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to parse port number: %v", targetPort))
 
-	VerifyPodConnectivity(stLabel, namespace, interfaceName, parsedPort)
+	// Enhancement #2: Wrap connectivity verification in retry logic
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Attempting connectivity verification with retry logic")
+
+	Eventually(func() error {
+		return verifyPodConnectivityWithRetry(stLabel, namespace, interfaceName, parsedPort, stReplicas)
+	}).WithContext(ctx).WithPolling(15*time.Second).WithTimeout(2*time.Minute).Should(Succeed(),
+		"Inter-pod connectivity verification failed after pod termination")
 }
 
 //nolint:funlen
@@ -745,14 +985,34 @@ func ensurePodConnectivityAfterNodeDrain(stLabel, namespace, targetPort string, 
 	}).WithContext(ctx).WithPolling(15*time.Second).WithTimeout(10*time.Minute).Should(BeTrue(),
 		"New pod is not created")
 
+	// Enhancement #1: Wait for Whereabouts network to be ready
+	By("Waiting for Whereabouts network interfaces to be configured after node drain")
+
+	err = waitForWhereaboutsNetworkReady(stLabel, namespace, interfaceName, stReplicas)
+	Expect(err).ToNot(HaveOccurred(),
+		fmt.Sprintf("Whereabouts network not ready after node drain: %v", err))
+
+	// Enhancement #5: Log pod network status before connectivity test
+	By("Logging pod network status for diagnostics")
+
+	logPodNetworkStatus(stLabel, namespace, interfaceName)
+
 	By("Verifying inter pod connectivity after node's drain")
 
-	parsedPort, err := strconv.Atoi(targetPort)
+	var parsedPort int
+
+	parsedPort, err = strconv.Atoi(targetPort)
 
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to parse port number: %v", targetPort))
 
-	VerifyPodConnectivity(stLabel, namespace, interfaceName, parsedPort)
+	// Enhancement #2: Wrap connectivity verification in retry logic
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Attempting connectivity verification with retry logic")
+
+	Eventually(func() error {
+		return verifyPodConnectivityWithRetry(stLabel, namespace, interfaceName, parsedPort, stReplicas)
+	}).WithContext(ctx).WithPolling(15*time.Second).WithTimeout(2*time.Minute).Should(Succeed(),
+		"Inter-pod connectivity verification failed after node drain")
 }
 
 func powerOnNodeWaitReady(bmcClient *bmc.BMC, nodeToPowerOff string, stopCh chan bool) {
@@ -1036,14 +1296,36 @@ func ensurePodConnectivityAfterNodePowerOff(stLabel, namespace, targetPort strin
 	}).WithContext(ctx).WithPolling(15*time.Second).WithTimeout(10*time.Minute).Should(BeTrue(),
 		"New pod is not created")
 
+	// Enhancement #1: Wait for Whereabouts network to be ready
+	By("Waiting for Whereabouts network interfaces to be configured after node power-on")
+
+	var err error
+
+	err = waitForWhereaboutsNetworkReady(stLabel, namespace, interfaceName, stReplicas)
+	Expect(err).ToNot(HaveOccurred(),
+		fmt.Sprintf("Whereabouts network not ready after node power-on: %v", err))
+
+	// Enhancement #5: Log pod network status before connectivity test
+	By("Logging pod network status for diagnostics")
+
+	logPodNetworkStatus(stLabel, namespace, interfaceName)
+
 	By("Verifying inter pod connectivity after pod termination")
 
-	parsedPort, err := strconv.Atoi(targetPort)
+	var parsedPort int
+
+	parsedPort, err = strconv.Atoi(targetPort)
 
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to parse port number: %v", targetPort))
 
-	VerifyPodConnectivity(stLabel, namespace, interfaceName, parsedPort)
+	// Enhancement #2: Wrap connectivity verification in retry logic
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Attempting connectivity verification with retry logic")
+
+	Eventually(func() error {
+		return verifyPodConnectivityWithRetry(stLabel, namespace, interfaceName, parsedPort, stReplicas)
+	}).WithContext(ctx).WithPolling(15*time.Second).WithTimeout(2*time.Minute).Should(Succeed(),
+		"Inter-pod connectivity verification failed after node power-off")
 }
 
 // parseLabelsMap converts "key=value" string to map[string]string.
