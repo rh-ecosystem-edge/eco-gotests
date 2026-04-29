@@ -78,7 +78,7 @@ var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.Label
 				sriovTestResourceName,
 				SriovOcpConfig.SriovOperatorNamespace,
 				sriovTestResourceName,
-				5,
+				SriovOcpConfig.VFNum,
 				[]string{sriovInterfacesUnderTest[0] + "#0-1"}, SriovOcpConfig.WorkerLabelMap)
 			err := sriovoperator.CreateSriovPolicyAndWaitUntilItsApplied(
 				APIClient,
@@ -132,7 +132,7 @@ var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.Label
 					sriovTestResourceName,
 					SriovOcpConfig.SriovOperatorNamespace,
 					sriovTestResourceName,
-					5,
+					SriovOcpConfig.VFNum,
 					[]string{sriovInterfacesUnderTest[0] + "#0-1"}, SriovOcpConfig.WorkerLabelMap).Create()
 				Expect(err).To(HaveOccurred(), "SriovNetworkNodePolicy is created unexpectedly")
 
@@ -160,7 +160,7 @@ var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.Label
 					sriovTestResourceName,
 					SriovOcpConfig.SriovOperatorNamespace,
 					sriovTestResourceName,
-					5,
+					SriovOcpConfig.VFNum,
 					[]string{sriovInterfacesUnderTest[0] + "#0-1"}, SriovOcpConfig.WorkerLabelMap)
 				err := sriovoperator.CreateSriovPolicyAndWaitUntilItsApplied(
 					APIClient,

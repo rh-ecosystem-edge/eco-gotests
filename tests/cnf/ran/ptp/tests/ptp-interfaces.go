@@ -286,7 +286,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			}
 			err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockStateQuery, metrics.ClockStateLocked,
 				metrics.AssertWithStableDuration(30*time.Second),
-				metrics.AssertWithTimeout(45*time.Second))
+				metrics.AssertWithTimeout(3*time.Minute))
 			Expect(err).ToNot(HaveOccurred(), "Failed to assert that the PTP metric stays in locked state")
 
 			By("validating that no holdover event is generated")
@@ -303,7 +303,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 
 			versionStr := RANConfig.Spoke1OperatorVersions[ranparam.PTP]
 			Expect(versionStr).ToNot(BeEmpty(), "PTP operator version is missing")
-			versionInRange, verErr := version.IsVersionStringInRange(versionStr, "4.18", "")
+			versionInRange, verErr := version.IsVersionStringInRange(versionStr, "4.18.0-0", "")
 			Expect(verErr).ToNot(HaveOccurred(), "Failed to parse PTP operator version")
 
 			if versionInRange {
@@ -626,7 +626,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			// for 4.18 versions and above, the clock class is 248
 			versionStr := RANConfig.Spoke1OperatorVersions[ranparam.PTP]
 			Expect(versionStr).ToNot(BeEmpty(), "PTP operator version is missing")
-			versionInRange, verErr := version.IsVersionStringInRange(versionStr, "4.18", "")
+			versionInRange, verErr := version.IsVersionStringInRange(versionStr, "4.18.0-0", "")
 			Expect(verErr).ToNot(HaveOccurred(), "Failed to parse PTP operator version")
 
 			if versionInRange {

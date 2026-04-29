@@ -70,7 +70,7 @@ var _ = Describe("CPU frequency tuning tests change the core frequencies of isol
 
 		When("reserved and isolated core frequency is configured via PerformanceProfile", func() {
 			It("sets the reserved and isolated core frequency correctly on the DUT", func() {
-				versionInRange, err := version.IsVersionStringInRange(RANConfig.Spoke1OCPVersion, "4.16", "")
+				versionInRange, err := version.IsVersionStringInRange(RANConfig.Spoke1OCPVersion, "4.16.0-0", "")
 				Expect(err).ToNot(HaveOccurred(), "Failed to compare OCP version string")
 
 				if !versionInRange {

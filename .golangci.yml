@@ -64,6 +64,7 @@ linters:
             - github.com/openshift
             - github.com/nmstate/kubernetes-nmstate
             - github.com/hashicorp/go-version
+            - github.com/Masterminds/semver/v3
             - github.com/cavaliergopher/grab/v3
             - github.com/k8snetworkplumbingwg
             - github.com/metallb/metallb-operator

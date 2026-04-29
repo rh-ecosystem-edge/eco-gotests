@@ -7,6 +7,7 @@ toolchain go1.26.0
 require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/Juniper/go-netconf v0.3.1
+	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/NVIDIA/gpu-operator v1.11.1
 	github.com/cavaliergopher/cpio v1.0.1
@@ -80,7 +81,6 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/MakeNowJust/heredoc v1.0.0 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
-	github.com/Masterminds/semver/v3 v3.4.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/PaesslerAG/gval v1.0.0 // indirect
 	github.com/PaesslerAG/jsonpath v0.1.1 // indirect
@@ -292,7 +292,7 @@ require (
 )
 
 require (
-	github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260424200316-f32d939b08da
+	github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260428185709-3aaf0a41ccdc
 	k8s.io/apiextensions-apiserver v0.34.5
 )
 

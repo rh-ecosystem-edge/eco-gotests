@@ -61,7 +61,7 @@ var _ = Describe("PTP Log Reduction", Label(tsparams.LabelLogReduction), func() 
 
 		By("skipping if the PTP version is not supported")
 
-		inRange, err := version.IsVersionStringInRange(RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.20", "")
+		inRange, err := version.IsVersionStringInRange(RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.20.0-0", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to check PTP version range")
 
 		if !inRange {
