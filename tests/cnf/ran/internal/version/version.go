@@ -158,7 +158,15 @@ func IsVersionStringInRange(version, minimum, maximum string) (bool, error) {
 
 	parsedVersion, err := semver.NewVersion(trimSemverVPrefix(version))
 	if err != nil {
-		return maximum == "", nil
+		if maximum == "" {
+			klog.V(ranparam.LogLevel).Infof(
+				"IsVersionStringInRange: unparsable version %q, returning (true, nil) for legacy no-upper-bound behavior: %v",
+				version, err)
+
+			return true, nil
+		}
+
+		return false, nil
 	}
 
 	if minV != nil && parsedVersion.LessThan(minV) {
