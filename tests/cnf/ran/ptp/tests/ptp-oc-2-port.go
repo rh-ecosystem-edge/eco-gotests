@@ -37,7 +37,7 @@ var _ = Describe("PTP OC 2-port", Label(tsparams.LabelOC2Port, tsparams.LabelInt
 		By("checking if PTP operator version supports OC 2-port tests")
 
 		inRange, err := version.IsVersionStringInRange(
-			RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.18", "")
+			RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.18.0-0", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to parse PTP operator version")
 
 		if !inRange {
