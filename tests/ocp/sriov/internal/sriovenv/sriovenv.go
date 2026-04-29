@@ -632,7 +632,6 @@ func VerifyLinkStateConfiguration(networkName, namespace, description string,
 // ============================================================================
 
 func verifySpoofCheck(clientPod *pod.Builder, interfaceName, expectedState string) error {
-	// Get node name and MAC
 	refreshedPod, err := pod.Pull(APIClient, clientPod.Definition.Name, clientPod.Definition.Namespace)
 	if err != nil {
 		return fmt.Errorf("failed to refresh pod: %w", err)
@@ -643,40 +642,85 @@ func verifySpoofCheck(clientPod *pod.Builder, interfaceName, expectedState strin
 		return fmt.Errorf("pod node name is empty")
 	}
 
+	// Prefer PCI-address-based lookup: the SR-IOV CNI may only set the MAC inside the
+	// container netns without propagating it to the host PF via "ip link set vf N mac",
+	// so matching by MAC in "ip link show <PF>" is unreliable on some hardware (e.g.
+	// Mellanox CX6-DX). Using the VF index derived from the PCI address is authoritative.
+	pciAddr, pciErr := GetPciAddress(
+		refreshedPod.Definition.Namespace, refreshedPod.Definition.Name, "net1")
+
+	if pciErr == nil && pciAddr != "" {
+		return verifySpoofCheckByPCI(nodeName, interfaceName, pciAddr, expectedState)
+	}
+
+	klog.V(90).Infof("PCI address unavailable (%v), falling back to MAC-based spoof check", pciErr)
+
 	mac, err := ExtractPodInterfaceMAC(clientPod, "net1")
 	if err != nil {
 		return fmt.Errorf("failed to extract MAC: %w", err)
 	}
 
-	// Execute on node via cluster helper
+	return verifySpoofCheckByMAC(nodeName, interfaceName, mac, expectedState)
+}
+
+// verifySpoofCheckByPCI checks spoof check state for the VF identified by its PCI address.
+// It finds the VF index by matching the PCI address against the PF's virtfnN symlinks,
+// then reads the specific VF line from "ip link show <PF>".
+func verifySpoofCheckByPCI(nodeName, interfaceName, pciAddr, expectedState string) error {
+	// Combine virtfn index lookup and ip link show into one nsenter call.
+	// Uses no single quotes since ExecCmdWithStdout wraps the command in '...'.
+	cmd := fmt.Sprintf(
+		`IDX=-1; `+
+			`for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31; do `+
+			`L=$(readlink /sys/class/net/%s/device/virtfn${i} 2>/dev/null); `+
+			`V=$(basename "$L" 2>/dev/null); `+
+			`if [ "$V" = "%s" ]; then IDX=$i; break; fi; `+
+			`done; `+
+			`if [ "$IDX" = "-1" ]; then echo VF_NOT_FOUND; `+
+			`else ip link show %s | grep "vf $IDX "; fi`,
+		interfaceName, pciAddr, interfaceName)
+
+	outputMap, err := cluster.ExecCmdWithStdout(APIClient, cmd,
+		metav1.ListOptions{LabelSelector: fmt.Sprintf("kubernetes.io/hostname=%s", nodeName)})
+	if err != nil {
+		return fmt.Errorf("failed to get VF spoof state for PCI %s: %w", pciAddr, err)
+	}
+
+	output := strings.TrimSpace(nodeOutput(outputMap, nodeName))
+
+	if output == "" || strings.HasPrefix(output, "VF_NOT_FOUND") {
+		return fmt.Errorf("VF with PCI address %s not found in virtfn symlinks for %s", pciAddr, interfaceName)
+	}
+
+	if strings.Contains(output, fmt.Sprintf("spoof checking %s", expectedState)) ||
+		strings.Contains(output, fmt.Sprintf("spoofchk %s", expectedState)) {
+		klog.V(90).Infof("Spoof check verified via PCI %s: %s", pciAddr, expectedState)
+
+		return nil
+	}
+
+	return fmt.Errorf("spoof check %s not confirmed for VF %s: %q", expectedState, pciAddr, output)
+}
+
+// verifySpoofCheckByMAC checks spoof check state by matching the pod's MAC address in
+// "ip link show <PF>" output. Used as fallback when the VF PCI address is unavailable.
+func verifySpoofCheckByMAC(nodeName, interfaceName, mac, expectedState string) error {
 	outputMap, err := cluster.ExecCmdWithStdout(APIClient, fmt.Sprintf("ip link show %s", interfaceName),
 		metav1.ListOptions{LabelSelector: fmt.Sprintf("kubernetes.io/hostname=%s", nodeName)})
 	if err != nil {
 		return fmt.Errorf("failed to execute on node: %w", err)
 	}
 
-	output, ok := outputMap[nodeName]
-	if !ok {
-		// Try to find by short hostname
-		for host, out := range outputMap {
-			if strings.HasPrefix(nodeName, host) || strings.HasPrefix(host, nodeName) {
-				output = out
-
-				break
-			}
-		}
-
-		if output == "" {
-			return fmt.Errorf("no output from node %s", nodeName)
-		}
+	output := nodeOutput(outputMap, nodeName)
+	if output == "" {
+		return fmt.Errorf("no output from node %s", nodeName)
 	}
 
-	// Find line with MAC and check spoof state
 	for _, line := range strings.Split(output, "\n") {
 		if strings.Contains(line, mac) {
 			if strings.Contains(line, fmt.Sprintf("spoof checking %s", expectedState)) ||
 				strings.Contains(line, fmt.Sprintf("spoofchk %s", expectedState)) {
-				klog.V(90).Infof("Spoof check verified: %s for MAC %s", expectedState, mac)
+				klog.V(90).Infof("Spoof check verified via MAC %s: %s", mac, expectedState)
 
 				return nil
 			}
@@ -684,6 +728,22 @@ func verifySpoofCheck(clientPod *pod.Builder, interfaceName, expectedState strin
 	}
 
 	return fmt.Errorf("spoof check %s not found for MAC %s", expectedState, mac)
+}
+
+// nodeOutput extracts the command output for nodeName from the ExecCmdWithStdout result map.
+// Falls back to prefix matching to handle FQDN vs short-hostname mismatches.
+func nodeOutput(outputMap map[string]string, nodeName string) string {
+	if out, ok := outputMap[nodeName]; ok {
+		return out
+	}
+
+	for host, out := range outputMap {
+		if strings.HasPrefix(nodeName, host) || strings.HasPrefix(host, nodeName) {
+			return out
+		}
+	}
+
+	return ""
 }
 
 // ============================================================================
