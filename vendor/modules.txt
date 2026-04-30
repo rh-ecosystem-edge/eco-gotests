@@ -1146,7 +1146,7 @@ github.com/redhat-cne/sdk-go/pkg/event/ptp
 github.com/redhat-cne/sdk-go/pkg/event/redfish
 github.com/redhat-cne/sdk-go/pkg/pubsub
 github.com/redhat-cne/sdk-go/pkg/types
-# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260429125201-6f72139d55ef
+# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260430161824-829059172081
 ## explicit; go 1.26
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/amdgpu
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/apiservers
@@ -1180,6 +1180,7 @@ github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/common/key
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/keda
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/kmm
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/kserve
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/lca
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/lso
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/machine
@@ -1277,6 +1278,8 @@ github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ipchange/api/ipconfig/v1
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/kmm-hub/v1beta1
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/kmm/v1beta1
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/kmm/v1beta2
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/kserve/v1alpha1
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/kserve/v1beta1
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/frrtypes
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/mlboperator
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/mlbtypes
