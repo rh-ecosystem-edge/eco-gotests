@@ -284,9 +284,28 @@ func extractIPAMRanges(nadName, config string) []string {
 }
 
 // extractRangesFromIPAM extracts range strings from an object's ipam field.
+//
+//nolint:funlen
 func extractRangesFromIPAM(obj map[string]interface{}) []string {
-	ipam, ok := obj["ipam"].(map[string]interface{})
+	ipamRaw, hasIPAM := obj["ipam"]
+	if !hasIPAM {
+		keys := make([]string, 0, len(obj))
+		for k := range obj {
+			keys = append(keys, k)
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"extractRangesFromIPAM: ipam field missing, skipping (object keys: %v)", keys)
+
+		return nil
+	}
+
+	ipam, ok := ipamRaw.(map[string]interface{})
 	if !ok {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"extractRangesFromIPAM: ipam has unexpected type %T (want map[string]interface{}), value=%v",
+			ipamRaw, ipamRaw)
+
 		return nil
 	}
 
@@ -296,11 +315,17 @@ func extractRangesFromIPAM(obj map[string]interface{}) []string {
 	appendRangeFromStartEnd := func(rangeObj map[string]interface{}) (string, bool) {
 		rangeStart, hasStart := rangeObj["range_start"].(string)
 		if !hasStart {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"appendRangeFromStartEnd: range_start field missing or not a string, skipping")
+
 			return "", false
 		}
 
 		rangeStart = strings.TrimSpace(rangeStart)
 		if rangeStart == "" {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"appendRangeFromStartEnd: range_start is empty after trimming, skipping")
+
 			return "", false
 		}
 
@@ -308,26 +333,42 @@ func extractRangesFromIPAM(obj map[string]interface{}) []string {
 		rangeEnd = strings.TrimSpace(rangeEnd)
 
 		if hasEnd && rangeEnd != "" {
-			return fmt.Sprintf("%s-%s", rangeStart, rangeEnd), true
+			result := fmt.Sprintf("%s-%s", rangeStart, rangeEnd)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"appendRangeFromStartEnd: built range from start/end: %q", result)
+
+			return result, true
 		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"appendRangeFromStartEnd: no valid range_end found, returning start only: %q", rangeStart)
 
 		return rangeStart, true
 	}
 
 	if rangeStr, ok := ipam["range"].(string); ok {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"extractRangesFromIPAM: found top-level range field: %q", rangeStr)
 		ranges = append(ranges, rangeStr)
 	} else if rangeFromStartEnd, found := appendRangeFromStartEnd(ipam); found {
 		ranges = append(ranges, rangeFromStartEnd)
 	}
 
 	if subnet, ok := ipam["subnet"].(string); ok {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"extractRangesFromIPAM: found subnet field: %q", subnet)
 		ranges = append(ranges, subnet)
 	}
 
 	if ipRanges, ok := ipam["ipRanges"].([]interface{}); ok {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"extractRangesFromIPAM: found ipRanges array with %d entries", len(ipRanges))
+
 		for _, entry := range ipRanges {
 			if rangeMap, ok := entry.(map[string]interface{}); ok {
 				if rangeStr, ok := rangeMap["range"].(string); ok {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+						"extractRangesFromIPAM: ipRanges entry range field: %q", rangeStr)
 					ranges = append(ranges, rangeStr)
 				} else if rangeFromStartEnd, found := appendRangeFromStartEnd(rangeMap); found {
 					ranges = append(ranges, rangeFromStartEnd)
@@ -336,23 +377,35 @@ func extractRangesFromIPAM(obj map[string]interface{}) []string {
 		}
 	}
 
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"extractRangesFromIPAM: returning %d range(s): %v", len(ranges), ranges)
+
 	return ranges
 }
 
 // detectIPFamiliesFromRanges inspects a list of CIDR range strings and returns
 // whether IPv4 and/or IPv6 ranges are present.
 func detectIPFamiliesFromRanges(ranges []string) (hasIPv4, hasIPv6 bool) {
-	markFamily := func(ip net.IP) {
-		if len(ip) == 0 {
+	markFamily := func(ipAddr net.IP) {
+		if len(ipAddr) == 0 {
 			return
 		}
 
-		if ip.To4() != nil {
+		if ipAddr.To4() != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"detectIPFamiliesFromRanges: detected IPv4 address: %s", ipAddr)
+
 			hasIPv4 = true
 		} else {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"detectIPFamiliesFromRanges: detected IPv6 address: %s", ipAddr)
+
 			hasIPv6 = true
 		}
 	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"detectIPFamiliesFromRanges: inspecting %d range(s): %v", len(ranges), ranges)
 
 	for _, rangeStr := range ranges {
 		rangeValue := strings.TrimSpace(rangeStr)
@@ -369,9 +422,13 @@ func detectIPFamiliesFromRanges(ranges []string) (hasIPv4, hasIPv6 bool) {
 		ipCandidate := rangeValue
 		if parts := strings.SplitN(rangeValue, "-", 2); len(parts) == 2 {
 			ipCandidate = strings.TrimSpace(parts[0])
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"detectIPFamiliesFromRanges: %q is not a CIDR, extracted start IP %q from start-end range", rangeValue, ipCandidate)
 		}
 
 		if parsedFallbackIP := net.ParseIP(ipCandidate); parsedFallbackIP != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"detectIPFamiliesFromRanges: parsed %q as plain IP: %s", ipCandidate, parsedFallbackIP)
 			markFamily(parsedFallbackIP)
 
 			continue
@@ -379,6 +436,9 @@ func detectIPFamiliesFromRanges(ranges []string) (hasIPv4, hasIPv6 bool) {
 
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping invalid IPAM range %q: %v", rangeStr, err)
 	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"detectIPFamiliesFromRanges: result — hasIPv4=%v, hasIPv6=%v", hasIPv4, hasIPv6)
 
 	return hasIPv4, hasIPv6
 }
