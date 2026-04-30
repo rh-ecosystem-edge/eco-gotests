@@ -38,6 +38,30 @@ const (
 	// Net1Interface is the name of the first secondary network interface attached to pods.
 	Net1Interface = "net1"
 
+	// MTU500 is used by SR-IOV IPv4 custom MTU tests.
+	MTU500 = 500
+	// MTU1280 is the minimum MTU for IPv6.
+	MTU1280 = 1280
+	// MTU9000 is used by jumbo MTU tests.
+	MTU9000 = 9000
+
+	// BondResourceV4PF1Custom is the SR-IOV policy resourceName for IPv4 bond PF1 (custom MTU tier).
+	BondResourceV4PF1Custom = "sriovbondpf1mtu500"
+	// BondResourceV4PF1Jumbo is the SR-IOV policy resourceName for IPv4 bond PF1 (jumbo MTU).
+	BondResourceV4PF1Jumbo = "sriovbondpf1mtu9000"
+	// BondResourceV4PF2Custom is the SR-IOV policy resourceName for IPv4 bond PF2 (custom MTU tier).
+	BondResourceV4PF2Custom = "sriovbondpf2mtu500"
+	// BondResourceV4PF2Jumbo is the SR-IOV policy resourceName for IPv4 bond PF2 (jumbo MTU).
+	BondResourceV4PF2Jumbo = "sriovbondpf2mtu9000"
+	// BondResourceV6PF1Custom is the SR-IOV policy resourceName for IPv6 bond PF1 (custom MTU tier).
+	BondResourceV6PF1Custom = "sriovbondpf1mtu1280v6"
+	// BondResourceV6PF1Jumbo is the SR-IOV policy resourceName for IPv6 bond PF1 (jumbo MTU).
+	BondResourceV6PF1Jumbo = "sriovbondpf1mtu9000v6"
+	// BondResourceV6PF2Custom is the SR-IOV policy resourceName for IPv6 bond PF2 (custom MTU tier).
+	BondResourceV6PF2Custom = "sriovbondpf2mtu1280v6"
+	// BondResourceV6PF2Jumbo is the SR-IOV policy resourceName for IPv6 bond PF2 (jumbo MTU).
+	BondResourceV6PF2Jumbo = "sriovbondpf2mtu9000v6"
+
 	// ClientPodMTU500 is the name of the client pod for MTU 500 tests.
 	ClientPodMTU500 = "client-mtu500"
 	// ServerPodMTU500 is the name of the server pod for MTU 500 tests.
