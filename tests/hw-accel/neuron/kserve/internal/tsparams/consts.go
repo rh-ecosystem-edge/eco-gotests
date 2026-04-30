@@ -2,6 +2,7 @@ package tsparams
 
 import "time"
 
+// KServe test suite constants.
 const (
 	LabelSuite = "kserve"
 
