@@ -95,7 +95,7 @@ var _ = Describe("SRIOV: Expose MTU:", Ordered, Label(tsparams.LabelExposeMTUTes
 			sriovAndResourceName5000,
 			SriovOcpConfig.VFNum,
 			[]string{fmt.Sprintf("%s#0-1", sriovInterfacesUnderTest[0])}, SriovOcpConfig.WorkerLabelMap).
-			WithDevType("netdevice").WithMTU(5000).Create()
+			WithDevType("netdevice").WithMTU(5000).WithExternallyManaged(true).Create()
 		Expect(err).ToNot(HaveOccurred(), "Failed to configure SR-IOV policy with mtu 5000")
 
 		_, err = sriov.NewPolicyBuilder(
@@ -105,7 +105,7 @@ var _ = Describe("SRIOV: Expose MTU:", Ordered, Label(tsparams.LabelExposeMTUTes
 			sriovAndResourceName9000,
 			SriovOcpConfig.VFNum,
 			[]string{fmt.Sprintf("%s#2-3", sriovInterfacesUnderTest[0])}, SriovOcpConfig.WorkerLabelMap).
-			WithDevType("netdevice").WithMTU(9000).Create()
+			WithDevType("netdevice").WithMTU(9000).WithExternallyManaged(true).Create()
 		Expect(err).ToNot(HaveOccurred(), "Failed to configure SR-IOV policy with mtu 9000")
 
 		err = sriovenv.WaitForSriovPolicyReady(tsparams.MCOWaitTimeout)
@@ -177,7 +177,7 @@ func testExposeMTU(mtu int, interfacesUnderTest []string, devType string) {
 		SriovOcpConfig.SriovOperatorNamespace,
 		sriovAndResourceNameExposeMTU,
 		SriovOcpConfig.VFNum,
-		interfacesUnderTest, SriovOcpConfig.WorkerLabelMap).WithDevType(devType).WithMTU(mtu)
+		interfacesUnderTest, SriovOcpConfig.WorkerLabelMap).WithDevType(devType).WithMTU(mtu).WithExternallyManaged(true)
 
 	err := sriovoperator.CreateSriovPolicyAndWaitUntilItsApplied(
 		APIClient,
