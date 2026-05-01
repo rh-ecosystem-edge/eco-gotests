@@ -393,6 +393,7 @@ var _ = Describe(
 			})
 	})
 
+// patchAPIServerTLSProfile applies the given TLS security profile to the cluster apiserver.
 func patchAPIServerTLSProfile(profile configv1.TLSSecurityProfile) {
 	patchMap := map[string]interface{}{
 		"spec": map[string]interface{}{
@@ -408,6 +409,7 @@ func patchAPIServerTLSProfile(profile configv1.TLSSecurityProfile) {
 	Expect(err).ToNot(HaveOccurred(), "failed to patch apiserver TLS profile")
 }
 
+// removeAPIServerTLSProfile removes the tlsSecurityProfile from the cluster apiserver.
 func removeAPIServerTLSProfile() {
 	patchBytes := []byte(`{"spec":{"tlsSecurityProfile":null}}`)
 	apiserver := &configv1.APIServer{ObjectMeta: metav1.ObjectMeta{Name: "cluster"}}
@@ -417,6 +419,7 @@ func removeAPIServerTLSProfile() {
 	Expect(err).ToNot(HaveOccurred(), "failed to remove apiserver TLS profile")
 }
 
+// listCAPOAPods returns all pods matching the "capoa" name pattern in the CAPOA namespace.
 func listCAPOAPods() []*pod.Builder {
 	pods, err := pod.ListByNamePattern(HubAPIClient, "capoa", capoaNS)
 	Expect(err).ToNot(HaveOccurred(), "failed to list CAPOA pods")
@@ -424,6 +427,7 @@ func listCAPOAPods() []*pod.Builder {
 	return pods
 }
 
+// findCAPOAPod returns the first CAPOA pod whose name contains deployName.
 func findCAPOAPod(deployName string) *pod.Builder {
 	for _, p := range listCAPOAPods() {
 		if strings.Contains(p.Object.Name, deployName) {
@@ -436,6 +440,7 @@ func findCAPOAPod(deployName string) *pod.Builder {
 	return nil
 }
 
+// waitCAPOAPodsReady waits until at least two CAPOA pods are healthy.
 func waitCAPOAPodsReady() {
 	Eventually(func() int {
 		pods, err := pod.ListByNamePattern(HubAPIClient, "capoa", capoaNS)
@@ -476,6 +481,7 @@ func waitCAPOAPodsRestarted() {
 	waitCAPOAPodsReady()
 }
 
+// restartCAPOAPods deletes all CAPOA pods and waits for them to come back ready.
 func restartCAPOAPods() {
 	pods := listCAPOAPods()
 
@@ -488,6 +494,7 @@ func restartCAPOAPods() {
 	waitCAPOAPodsReady()
 }
 
+// getCAPOAPodRestartCount returns the restart count of the manager container for the given deployment.
 func getCAPOAPodRestartCount(deployName string) int32 {
 	p := findCAPOAPod(deployName)
 	for _, cs := range p.Object.Status.ContainerStatuses {
@@ -499,6 +506,7 @@ func getCAPOAPodRestartCount(deployName string) int32 {
 	return -1
 }
 
+// assertControllerLogsContain asserts that the manager container logs contain the given pattern.
 func assertControllerLogsContain(deployName, pattern string) {
 	Eventually(func() string {
 		p := findCAPOAPod(deployName)
@@ -514,6 +522,7 @@ func assertControllerLogsContain(deployName, pattern string) {
 			fmt.Sprintf("%s logs should contain %q", deployName, pattern))
 }
 
+// assertTLSConnects verifies that a TLS handshake succeeds with the given version and cipher constraints.
 func assertTLSConnects(svcName string, minVersion, maxVersion uint16, cipherSuites []uint16) {
 	addr := startPortForward(svcName)
 
@@ -549,14 +558,17 @@ func assertTLSConnects(svcName string, minVersion, maxVersion uint16, cipherSuit
 		Should(Succeed(), "TLS connection to %s should succeed", svcName)
 }
 
+// assertTLSRejectedVersion verifies that a TLS handshake is rejected for the given TLS version.
 func assertTLSRejectedVersion(svcName string, version uint16) {
 	assertTLSRejectedWith(svcName, version, version, nil)
 }
 
+// assertTLSRejected verifies that a TLS 1.2 handshake is rejected with the given cipher suites.
 func assertTLSRejected(svcName string, cipherSuites []uint16) {
 	assertTLSRejectedWith(svcName, tls.VersionTLS12, tls.VersionTLS12, cipherSuites)
 }
 
+// assertTLSRejectedWith verifies that a TLS handshake is rejected with the given version and cipher constraints.
 func assertTLSRejectedWith(svcName string, minVersion, maxVersion uint16, cipherSuites []uint16) {
 	addr := startPortForward(svcName)
 
@@ -601,6 +613,7 @@ var portForwardPorts = map[string]int{
 	ctrlplaneWebhookSvc: 19444,
 }
 
+// startPortForward sets up a port-forward to the webhook pod behind svcName and returns the local address.
 func startPortForward(svcName string) string {
 	stopPortForward(svcName)
 
@@ -644,6 +657,7 @@ func startPortForward(svcName string) string {
 	return fmt.Sprintf("localhost:%d", localPort)
 }
 
+// stopPortForward closes the port-forward for the given service if one is active.
 func stopPortForward(svcName string) {
 	if stopChan, ok := portForwardStopChans[svcName]; ok {
 		close(stopChan)
