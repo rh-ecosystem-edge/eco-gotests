@@ -414,8 +414,8 @@ func removeAPIServerTLSProfile() {
 
 	err := HubAPIClient.Patch(context.TODO(), apiserver,
 		runtimeclient.RawPatch(types.JSONPatchType, patchBytes))
-	if err != nil && strings.Contains(err.Error(), "doesn't exist") {
-		return
+	if err != nil && !strings.Contains(err.Error(), "doesn't exist") {
+		Expect(err).ToNot(HaveOccurred(), "failed to remove apiserver TLS profile")
 	}
 }
 
@@ -492,8 +492,10 @@ func restartCAPOAPods() {
 
 func getCAPOAPodRestartCount(deployName string) int32 {
 	p := findCAPOAPod(deployName)
-	if len(p.Object.Status.ContainerStatuses) > 0 {
-		return p.Object.Status.ContainerStatuses[0].RestartCount
+	for _, cs := range p.Object.Status.ContainerStatuses {
+		if cs.Name == managerContainer {
+			return cs.RestartCount
+		}
 	}
 
 	return -1
