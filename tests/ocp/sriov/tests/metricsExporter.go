@@ -352,8 +352,7 @@ func defineMetricsPolicy(role, devType, nicVendor, pfName string, vfRange int) *
 			role+devType, SriovOcpConfig.OcpSriovOperatorNamespace, role+devType, SriovOcpConfig.VFNum, []string{pfName},
 			SriovOcpConfig.WorkerLabelMap).
 			WithDevType("netdevice").
-			WithVFRange(vfRange, vfRange).
-			WithExternallyManaged(nicVendor == tsparams.MlxVendorID)
+			WithVFRange(vfRange, vfRange)
 	case "vfiopci":
 		if nicVendor != tsparams.MlxVendorID {
 			policy = sriov.NewPolicyBuilder(APIClient,
@@ -368,8 +367,7 @@ func defineMetricsPolicy(role, devType, nicVendor, pfName string, vfRange int) *
 				SriovOcpConfig.WorkerLabelMap).
 				WithDevType("netdevice").
 				WithVFRange(vfRange, vfRange).
-				WithRDMA(true).
-				WithExternallyManaged(true)
+				WithRDMA(true)
 		}
 	default:
 		Fail(fmt.Sprintf("Invalid device type: %s", devType))
