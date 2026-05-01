@@ -1641,6 +1641,9 @@ func setupServiceAccountAndRBAC(config StatefulsetConfig) {
 func CreateWhereaboutsStatefulset(ctx SpecContext, config StatefulsetConfig) {
 	By(fmt.Sprintf("Setting up statefulset with %s", config.Description))
 
+	Expect(config.NAD).ToNot(BeEmpty(),
+		"NetworkAttachmentDefinition must be set for statefulset %q", config.Name)
+
 	configureWhereaboutsIPReconciler()
 
 	// Setup headless service
