@@ -141,6 +141,7 @@ linters:
         - github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools
         - github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran-deployment/internal/raninittools
         - github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/internal/ztpinittools
+        - github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/capoa-tls/internal/inittools
         - github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ipsec/internal/ipsecinittools
         - github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ran-du/internal/randuinittools
         - github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/systemtestsinittools
@@ -185,6 +186,9 @@ linters:
       - linters:
           - gochecknoinits
         path: tests/assisted/ztp/internal/ztpinittools
+      - linters:
+          - gochecknoinits
+        path: tests/assisted/ztp/capoa-tls/internal/inittools
       - linters:
           - gochecknoinits
         path: tests/system-tests/ipsec/internal/ipsecinittools
