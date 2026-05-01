@@ -2,10 +2,13 @@ package ipchange_test
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clusterversion"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/lca"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	lcaipcv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ipchange/api/ipconfig/v1"
@@ -32,44 +35,56 @@ var _ = Describe(
 			if ipcBuilder.Definition.Spec.Stage != "Idle" {
 				Skip("Stage is not Idle")
 			}
+
+			clusterVersion, err := clusterversion.Pull(APIClient)
+			Expect(err).NotTo(HaveOccurred(), "failed to pull ClusterVersion")
+			Expect(clusterVersion).NotTo(BeNil(), "ClusterVersion builder is nil")
 		})
 
 		DescribeTable("validates IPConfig spec fields",
-			func(expectedSubstr string, updateFunc func(*lca.IPConfigBuilder) error) {
+			func(getExpected func() string, updateFunc func(*lca.IPConfigBuilder) error) {
 				ipcBuilder, err := lca.PullIPConfig(APIClient)
 				Expect(err).NotTo(HaveOccurred(), "failed to pull IPConfig")
 				Expect(ipcBuilder).NotTo(BeNil(), "IPConfig builder is nil")
 
 				updateErr := updateFunc(ipcBuilder)
 				Expect(updateErr).To(HaveOccurred())
-				Expect(updateErr.Error()).To(ContainSubstring(expectedSubstr))
+				Expect(updateErr.Error()).To(ContainSubstring(getExpected()))
 			},
 			Entry("Validates input for the Stage field in the IPConfig spec", reportxml.ID("88085"),
-				"spec.stage: Unsupported value: \"Config2\": "+
-					"supported values: \"Idle\", \"Config\", \"Rollback\"",
+				func() string {
+					return "spec.stage: Unsupported value: \"Config2\": " +
+						"supported values: \"Idle\", \"Config\", \"Rollback\""
+				},
 				func(builder *lca.IPConfigBuilder) error {
 					_, err := builder.WithStage("Config2").Update()
 
 					return err
 				}),
 			Entry("Validates input for the vlanID field in the IPConfig spec", reportxml.ID("88088"),
-				"spec.vlanID: Invalid value: 5700: spec.vlanID in body should be less than or equal to 4095",
+				func() string {
+					return "spec.vlanID: Invalid value: 5700: spec.vlanID in body should be less than or equal to 4095"
+				},
 				func(builder *lca.IPConfigBuilder) error {
 					_, err := builder.WithVlanID(5700).Update()
 
 					return err
 				}),
 			Entry("Validates input for the autoRollbackOnFailure field in the IPConfig spec", reportxml.ID("88090"),
-				"Invalid value: -1: spec.autoRollbackOnFailure.initMonitorTimeoutSeconds in "+
-					"body should be greater than or equal to 0",
+				func() string {
+					return "Invalid value: -1: spec.autoRollbackOnFailure.initMonitorTimeoutSeconds in " +
+						"body should be greater than or equal to 0"
+				},
 				func(builder *lca.IPConfigBuilder) error {
 					_, err := builder.WithAutoRollbackOnFailure(-1).Update()
 
 					return err
 				}),
 			Entry("Validates input for the ipv4.address field in the IPConfig spec", reportxml.ID("88108"),
-				fmt.Sprintf("spec.ipv4.address: Invalid value: \"%s\": spec.ipv4.address "+
-					"in body must be of type ipv4: \"%s\"", tsparams.BadIPv4Address, tsparams.BadIPv4Address),
+				func() string {
+					return fmt.Sprintf("spec.ipv4.address: Invalid value: \"%s\": spec.ipv4.address "+
+						"in body must be of type ipv4: \"%s\"", tsparams.BadIPv4Address, tsparams.BadIPv4Address)
+				},
 				func(builder *lca.IPConfigBuilder) error {
 					if builder.Definition.Spec.IPv4 == nil {
 						builder.Definition.Spec.IPv4 = &lcaipcv1.IPv4Config{}
@@ -81,8 +96,10 @@ var _ = Describe(
 					return err
 				}),
 			Entry("Validates input for the ipv4.gateway field in the IPConfig spec", reportxml.ID("88107"),
-				fmt.Sprintf("spec.ipv4.gateway: Invalid value: \"%s\": spec.ipv4.gateway "+
-					"in body must be of type ipv4: \"%s\"", tsparams.BadIPv4Address, tsparams.BadIPv4Address),
+				func() string {
+					return fmt.Sprintf("spec.ipv4.gateway: Invalid value: \"%s\": spec.ipv4.gateway "+
+						"in body must be of type ipv4: \"%s\"", tsparams.BadIPv4Address, tsparams.BadIPv4Address)
+				},
 				func(builder *lca.IPConfigBuilder) error {
 					if builder.Definition.Spec.IPv4 == nil {
 						builder.Definition.Spec.IPv4 = &lcaipcv1.IPv4Config{}
@@ -94,8 +111,10 @@ var _ = Describe(
 					return err
 				}),
 			Entry("Validates input for the ipv4.machineNetwork field in the IPConfig spec", reportxml.ID("88089"),
-				fmt.Sprintf("spec.ipv4.machineNetwork: Invalid value: \"%s\": spec.ipv4.machineNetwork "+
-					"in body must be of type cidr: \"%s\"", tsparams.BadIPv4Address, tsparams.BadIPv4Address),
+				func() string {
+					return fmt.Sprintf("spec.ipv4.machineNetwork: Invalid value: \"%s\": spec.ipv4.machineNetwork "+
+						"in body must be of type cidr: \"%s\"", tsparams.BadIPv4Address, tsparams.BadIPv4Address)
+				},
 				func(builder *lca.IPConfigBuilder) error {
 					if builder.Definition.Spec.IPv4 == nil {
 						builder.Definition.Spec.IPv4 = &lcaipcv1.IPv4Config{}
@@ -107,7 +126,14 @@ var _ = Describe(
 					return err
 				}),
 			Entry("Validates input for dnsServers list entry in the IPConfig spec", reportxml.ID("88106"),
-				"spec.dnsServers[0]: Invalid value: \""+string(tsparams.BadIPv4Address)+"\": must be a valid IP address",
+				func() string {
+					if getClusterMinorVersion() < 22 {
+						return "spec.dnsServers[0]: Invalid value: \"string\": must be a valid IP address"
+					}
+
+					return fmt.Sprintf("spec.dnsServers[0]: Invalid value: \"%s\": must be a valid IP address",
+						tsparams.BadIPv4Address)
+				},
 				func(builder *lca.IPConfigBuilder) error {
 					builder.Definition.Spec.DNSServers = []lcaipcv1.IPAddress{tsparams.BadIPv4Address}
 
@@ -183,3 +209,16 @@ var _ = Describe(
 			Expect(err).NotTo(HaveOccurred(), "failed to wait for IPConfig to become Idle")
 		})
 	})
+
+func getClusterMinorVersion() int {
+	clusterVersion, err := clusterversion.Pull(APIClient)
+	Expect(err).NotTo(HaveOccurred(), "failed to pull ClusterVersion")
+	Expect(clusterVersion).NotTo(BeNil(), "ClusterVersion builder is nil")
+
+	minorVersion := strings.Split(clusterVersion.Object.Status.Desired.Version, ".")[1]
+	minorVersionInt, err := strconv.Atoi(minorVersion)
+	Expect(err).NotTo(HaveOccurred(), "failed to parse minor version from %q",
+		clusterVersion.Object.Status.Desired.Version)
+
+	return minorVersionInt
+}
