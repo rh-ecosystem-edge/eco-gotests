@@ -409,14 +409,12 @@ func patchAPIServerTLSProfile(profile configv1.TLSSecurityProfile) {
 }
 
 func removeAPIServerTLSProfile() {
-	patchBytes := []byte(`[{"op":"remove","path":"/spec/tlsSecurityProfile"}]`)
+	patchBytes := []byte(`{"spec":{"tlsSecurityProfile":null}}`)
 	apiserver := &configv1.APIServer{ObjectMeta: metav1.ObjectMeta{Name: "cluster"}}
 
 	err := HubAPIClient.Patch(context.TODO(), apiserver,
-		runtimeclient.RawPatch(types.JSONPatchType, patchBytes))
-	if err != nil && !strings.Contains(err.Error(), "doesn't exist") {
-		Expect(err).ToNot(HaveOccurred(), "failed to remove apiserver TLS profile")
-	}
+		runtimeclient.RawPatch(types.MergePatchType, patchBytes))
+	Expect(err).ToNot(HaveOccurred(), "failed to remove apiserver TLS profile")
 }
 
 func listCAPOAPods() []*pod.Builder {
