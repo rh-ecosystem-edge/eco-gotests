@@ -2,11 +2,13 @@ package ipchange_test
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/lca"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/network"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	lcaipcv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ipchange/api/ipconfig/v1"
 
@@ -130,11 +132,17 @@ var _ = Describe(
 				InitMonitorTimeoutSeconds: 9,
 			}
 
-			By("Updating IPv4 fields with arbitrary values to ensure the spec is updated")
+			By("Updating IP address fields with arbitrary values to ensure the spec is updated")
 
-			builder.WithIPv4Address("192.168.250.250").
-				WithIPv4Gateway("192.168.250.254").
-				WithIPv4MachineNetwork("192.168.250.0/24")
+			if clusterHasIPv4Network() {
+				builder.WithIPv4Address("192.168.250.250")
+				builder.WithIPv4Gateway("192.168.250.254")
+				builder.WithIPv4MachineNetwork("192.168.250.0/24")
+			} else {
+				builder.WithIPv6Address("2001:db8::2")
+				builder.WithIPv6Gateway("2001:db8::1")
+				builder.WithIPv6MachineNetwork("2001:db8::/64")
+			}
 
 			By("Setting the stage to Config")
 
@@ -183,3 +191,18 @@ var _ = Describe(
 			Expect(err).NotTo(HaveOccurred(), "failed to wait for IPConfig to become Idle")
 		})
 	})
+
+// clusterHasIPv4Network returns true if the cluster has at least one IPv4 cluster network CIDR
+// configured in the cluster-level Network config (config.openshift.io/v1).
+func clusterHasIPv4Network() bool {
+	netConfig, err := network.PullConfig(APIClient)
+	Expect(err).NotTo(HaveOccurred(), "failed to pull cluster network config")
+
+	for _, clusterNet := range netConfig.Object.Spec.ClusterNetwork {
+		if !strings.Contains(clusterNet.CIDR, ":") {
+			return true
+		}
+	}
+
+	return false
+}
