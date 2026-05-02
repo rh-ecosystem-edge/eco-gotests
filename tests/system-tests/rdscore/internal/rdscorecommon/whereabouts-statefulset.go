@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/bmc"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/configmap"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/service"
@@ -67,8 +69,8 @@ const (
 	WhereaboutsReconcilerKey = "reconciler_cron_expression"
 	// WhereaboutsReconcilerNamespace is the namespace for the whereabouts reconciler.
 	WhereaboutsReconcilerNamespace = "openshift-multus"
-	// WhereaboutsReconcilcerCMName is the name of the whereabouts reconciler configmap.
-	WhereaboutsReconcilcerCMName = "whereabouts-config"
+	// WhereaboutsReconcilerCMName is the name of the whereabouts reconciler configmap.
+	WhereaboutsReconcilerCMName = "whereabouts-config"
 
 	myHeadlessSvcOne            = "rds-st-one-headless-1"
 	myStatefulsetOne            = "rds-st-one"
@@ -143,6 +145,7 @@ var (
 	}
 )
 
+// cleanupStatefulset removes a statefulset and waits for its pods to be deleted.
 func cleanupStatefulset(stName, namespace, stLabel string) {
 	By(fmt.Sprintf("Checking that statefulset %q doesn't exist in %q namespace",
 		stName, namespace))
@@ -167,7 +170,7 @@ func cleanupStatefulset(stName, namespace, stLabel string) {
 			stName, namespace))
 
 		Eventually(func() bool {
-			pods, err := pod.List(APIClient, RDSCoreConfig.WhereaboutNS, metav1.ListOptions{
+			pods, err := pod.List(APIClient, namespace, metav1.ListOptions{
 				LabelSelector: stLabel,
 			})
 			if err != nil {
@@ -183,6 +186,7 @@ func cleanupStatefulset(stName, namespace, stLabel string) {
 	}
 }
 
+// createStatefulsetAndWaitReplicasReady creates a statefulset and waits for all replicas to become ready.
 func createStatefulsetAndWaitReplicasReady(stName, namespace string, stBuilder *statefulset.Builder) {
 	By(fmt.Sprintf("Creating statefulset %q in %q namespace", stName, namespace))
 
@@ -220,7 +224,227 @@ func createStatefulsetAndWaitReplicasReady(stName, namespace string, stBuilder *
 		"Statefulset %q in %q namespace is not ready", stName, namespace)
 }
 
-func setupHeadlessService(svcName, namespace, svcLabel, svcPort string) {
+// determineIPFamilyPolicy fetches the NAD and inspects the IPAM range fields to determine
+// whether to use RequireDualStack, or SingleStack with IPv4 or IPv6.
+func determineIPFamilyPolicy(nadName, namespace string) ([]corev1.IPFamily, corev1.IPFamilyPolicy) {
+	nadBuilder, err := nad.Pull(APIClient, nadName, namespace)
+
+	Expect(err).ToNot(HaveOccurred(),
+		"Failed to get NAD %q in %q namespace", nadName, namespace)
+	Expect(nadBuilder.Definition.Spec.Config).ToNot(BeEmpty(),
+		"NAD %q has empty spec.config field", nadName)
+
+	config := nadBuilder.Definition.Spec.Config
+
+	ranges := extractIPAMRanges(nadName, config)
+	Expect(ranges).ToNot(BeEmpty(),
+		"NAD %q has no IPAM range entries in spec.config", nadName)
+
+	hasIPv4, hasIPv6 := detectIPFamiliesFromRanges(ranges)
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("NAD %q IP family detection: hasIPv4=%v, hasIPv6=%v (ranges: %v)",
+		nadName, hasIPv4, hasIPv6, ranges)
+
+	switch {
+	case hasIPv4 && hasIPv6:
+		return []corev1.IPFamily{corev1.IPv4Protocol, corev1.IPv6Protocol}, corev1.IPFamilyPolicyRequireDualStack
+	case hasIPv6:
+		return []corev1.IPFamily{corev1.IPv6Protocol}, corev1.IPFamilyPolicySingleStack
+	case hasIPv4:
+		return []corev1.IPFamily{corev1.IPv4Protocol}, corev1.IPFamilyPolicySingleStack
+	default:
+		Fail(fmt.Sprintf("NAD %q IPAM ranges contain no detectable IPv4 or IPv6 CIDR: %v", nadName, ranges))
+
+		return nil, "" // Unreachable in Ginkgo: Fail panics.
+	}
+}
+
+// extractIPAMRanges returns IPAM range strings from NAD spec.config
+// (from top-level ipam and plugins[*].ipam: range, subnet, ipRanges, range_start/range_end if no range).
+func extractIPAMRanges(nadName, config string) []string {
+	var parsed map[string]interface{}
+
+	err := json.Unmarshal([]byte(config), &parsed)
+	Expect(err).ToNot(HaveOccurred(),
+		"Failed to parse NAD %q spec.config JSON", nadName)
+
+	var ranges []string
+
+	ranges = append(ranges, extractRangesFromIPAM(parsed)...)
+
+	if plugins, ok := parsed["plugins"].([]interface{}); ok {
+		for _, p := range plugins {
+			if plugin, ok := p.(map[string]interface{}); ok {
+				ranges = append(ranges, extractRangesFromIPAM(plugin)...)
+			}
+		}
+	}
+
+	return ranges
+}
+
+// extractRangesFromIPAM extracts range strings from an object's ipam field.
+//
+//nolint:funlen
+func extractRangesFromIPAM(obj map[string]interface{}) []string {
+	ipamRaw, hasIPAM := obj["ipam"]
+	if !hasIPAM {
+		keys := make([]string, 0, len(obj))
+		for k := range obj {
+			keys = append(keys, k)
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"extractRangesFromIPAM: ipam field missing, skipping (object keys: %v)", keys)
+
+		return nil
+	}
+
+	ipam, ok := ipamRaw.(map[string]interface{})
+	if !ok {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"extractRangesFromIPAM: ipam has unexpected type %T (want map[string]interface{}), value=%v",
+			ipamRaw, ipamRaw)
+
+		return nil
+	}
+
+	var ranges []string
+
+	// Convert optional range_start/range_end into a single range string.
+	appendRangeFromStartEnd := func(rangeObj map[string]interface{}) (string, bool) {
+		rangeStart, hasStart := rangeObj["range_start"].(string)
+		if !hasStart {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"appendRangeFromStartEnd: range_start field missing or not a string, skipping")
+
+			return "", false
+		}
+
+		rangeStart = strings.TrimSpace(rangeStart)
+		if rangeStart == "" {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"appendRangeFromStartEnd: range_start is empty after trimming, skipping")
+
+			return "", false
+		}
+
+		rangeEnd, hasEnd := rangeObj["range_end"].(string)
+		rangeEnd = strings.TrimSpace(rangeEnd)
+
+		if hasEnd && rangeEnd != "" {
+			result := fmt.Sprintf("%s-%s", rangeStart, rangeEnd)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"appendRangeFromStartEnd: built range from start/end: %q", result)
+
+			return result, true
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"appendRangeFromStartEnd: no valid range_end found, returning start only: %q", rangeStart)
+
+		return rangeStart, true
+	}
+
+	if rangeStr, ok := ipam["range"].(string); ok {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"extractRangesFromIPAM: found top-level range field: %q", rangeStr)
+		ranges = append(ranges, rangeStr)
+	} else if rangeFromStartEnd, found := appendRangeFromStartEnd(ipam); found {
+		ranges = append(ranges, rangeFromStartEnd)
+	}
+
+	if subnet, ok := ipam["subnet"].(string); ok {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"extractRangesFromIPAM: found subnet field: %q", subnet)
+		ranges = append(ranges, subnet)
+	}
+
+	if ipRanges, ok := ipam["ipRanges"].([]interface{}); ok {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"extractRangesFromIPAM: found ipRanges array with %d entries", len(ipRanges))
+
+		for _, entry := range ipRanges {
+			if rangeMap, ok := entry.(map[string]interface{}); ok {
+				if rangeStr, ok := rangeMap["range"].(string); ok {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+						"extractRangesFromIPAM: ipRanges entry range field: %q", rangeStr)
+					ranges = append(ranges, rangeStr)
+				} else if rangeFromStartEnd, found := appendRangeFromStartEnd(rangeMap); found {
+					ranges = append(ranges, rangeFromStartEnd)
+				}
+			}
+		}
+	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"extractRangesFromIPAM: returning %d range(s): %v", len(ranges), ranges)
+
+	return ranges
+}
+
+// detectIPFamiliesFromRanges inspects a list of CIDR range strings and returns
+// whether IPv4 and/or IPv6 ranges are present.
+func detectIPFamiliesFromRanges(ranges []string) (hasIPv4, hasIPv6 bool) {
+	markFamily := func(ipAddr net.IP) {
+		if len(ipAddr) == 0 {
+			return
+		}
+
+		if ipAddr.To4() != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"detectIPFamiliesFromRanges: detected IPv4 address: %s", ipAddr)
+
+			hasIPv4 = true
+		} else {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"detectIPFamiliesFromRanges: detected IPv6 address: %s", ipAddr)
+
+			hasIPv6 = true
+		}
+	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"detectIPFamiliesFromRanges: inspecting %d range(s): %v", len(ranges), ranges)
+
+	for _, rangeStr := range ranges {
+		rangeValue := strings.TrimSpace(rangeStr)
+
+		parsedIP, _, err := net.ParseCIDR(rangeValue)
+		if err == nil {
+			markFamily(parsedIP)
+
+			continue
+		}
+
+		// Fallback for Whereabouts range_start/range_end values emitted as "start-end"
+		// and for single IP values without a CIDR prefix.
+		ipCandidate := rangeValue
+		if parts := strings.SplitN(rangeValue, "-", 2); len(parts) == 2 {
+			ipCandidate = strings.TrimSpace(parts[0])
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"detectIPFamiliesFromRanges: %q is not a CIDR, extracted start IP %q from start-end range", rangeValue, ipCandidate)
+		}
+
+		if parsedFallbackIP := net.ParseIP(ipCandidate); parsedFallbackIP != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"detectIPFamiliesFromRanges: parsed %q as plain IP: %s", ipCandidate, parsedFallbackIP)
+			markFamily(parsedFallbackIP)
+
+			continue
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping invalid IPAM range %q: %v", rangeStr, err)
+	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"detectIPFamiliesFromRanges: result — hasIPv4=%v, hasIPv6=%v", hasIPv4, hasIPv6)
+
+	return hasIPv4, hasIPv6
+}
+
+// setupHeadlessService creates a headless service with ipFamilyPolicy determined from the NAD configuration.
+func setupHeadlessService(svcName, namespace, svcLabel, svcPort, nadName string) {
 	By(fmt.Sprintf("Checking that service %q doesn't exist in %q namespace",
 		svcName, namespace))
 
@@ -262,12 +486,14 @@ func setupHeadlessService(svcName, namespace, svcLabel, svcPort string) {
 
 	svcOne = defineHeadlessService(svcName, namespace, svcLabelsMap, svcPortCr)
 
-	By("Setting ipFamilyPolicy to 'RequireDualStack'")
+	ipFamilies, ipFamilyPolicy := determineIPFamilyPolicy(nadName, namespace)
 
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Setting ipFamilyPolicy to 'RequireDualStack'")
+	By(fmt.Sprintf("Setting ipFamilyPolicy to %q for NAD %q", ipFamilyPolicy, nadName))
 
-	svcOne = svcOne.WithIPFamily([]corev1.IPFamily{"IPv4", "IPv6"},
-		corev1.IPFamilyPolicyRequireDualStack)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("NAD %q: ipFamilies=%v, ipFamilyPolicy=%s",
+		nadName, ipFamilies, ipFamilyPolicy)
+
+	svcOne = svcOne.WithIPFamily(ipFamilies, ipFamilyPolicy)
 
 	By(fmt.Sprintf("Creating headless service %q in %q namespace",
 		svcName, namespace))
@@ -287,6 +513,7 @@ func setupHeadlessService(svcName, namespace, svcLabel, svcPort string) {
 		"Failed to create headless service %q in %q namespace", svcName, namespace)
 }
 
+// verifyInterPodCommunication validates network connectivity between all active pods via their whereabouts IPs.
 func verifyInterPodCommunication(
 	activePods []*pod.Builder,
 	podWhereaboutsIPs map[string][]NetworkInterface,
@@ -817,6 +1044,7 @@ func checkInterPodCommunicationWithError(
 	return nil
 }
 
+// ensurePodConnectivityAfterPodTermination verifies inter-pod connectivity is restored after terminating a pod.
 func ensurePodConnectivityAfterPodTermination(stLabel, namespace, targetPort string, stReplicas int) {
 	By("Getting list of active pods")
 
@@ -896,6 +1124,8 @@ func ensurePodConnectivityAfterPodTermination(stLabel, namespace, targetPort str
 		"Inter-pod connectivity verification failed after pod termination")
 }
 
+// ensurePodConnectivityAfterNodeDrain verifies inter-pod connectivity is restored after draining a node.
+//
 //nolint:funlen
 func ensurePodConnectivityAfterNodeDrain(stLabel, namespace, targetPort string, stReplicas int, sameNode bool) {
 	By("Getting list of active pods")
@@ -1015,6 +1245,7 @@ func ensurePodConnectivityAfterNodeDrain(stLabel, namespace, targetPort string, 
 		"Inter-pod connectivity verification failed after node drain")
 }
 
+// powerOnNodeWaitReady powers on a node via BMC and waits for it to reach Ready state.
 func powerOnNodeWaitReady(bmcClient *bmc.BMC, nodeToPowerOff string, stopCh chan bool) {
 	By("Stopping keepNodePoweredOff goroutine")
 
@@ -1083,6 +1314,7 @@ func powerOnNodeWaitReady(bmcClient *bmc.BMC, nodeToPowerOff string, stopCh chan
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Successfully powered on %q", nodeToPowerOff)
 }
 
+// keepNodePoweredOff continuously monitors and powers off a node via BMC until signaled to stop.
 func keepNodePoweredOff(bmcClient *bmc.BMC, nodeToPowerOff string, timeout time.Duration, stopCh chan bool) {
 	By(fmt.Sprintf("Keeping node %q powered off", nodeToPowerOff))
 
@@ -1136,6 +1368,8 @@ func keepNodePoweredOff(bmcClient *bmc.BMC, nodeToPowerOff string, timeout time.
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("keepNodePoweredOff finished")
 }
 
+// ensurePodConnectivityAfterNodePowerOff verifies inter-pod connectivity is restored after powering off a node.
+//
 //nolint:gocognit,funlen
 func ensurePodConnectivityAfterNodePowerOff(stLabel, namespace, targetPort string, stReplicas int, sameNode bool) {
 	By("Getting list of active pods")
@@ -1407,10 +1641,13 @@ func setupServiceAccountAndRBAC(config StatefulsetConfig) {
 func CreateWhereaboutsStatefulset(ctx SpecContext, config StatefulsetConfig) {
 	By(fmt.Sprintf("Setting up statefulset with %s", config.Description))
 
+	Expect(config.NAD).ToNot(BeEmpty(),
+		"NetworkAttachmentDefinition must be set for statefulset %q", config.Name)
+
 	configureWhereaboutsIPReconciler()
 
 	// Setup headless service
-	setupHeadlessService(config.ServiceName, RDSCoreConfig.WhereaboutNS, config.Label, config.Port)
+	setupHeadlessService(config.ServiceName, RDSCoreConfig.WhereaboutNS, config.Label, config.Port, config.NAD)
 
 	// Cleanup existing statefulset
 	cleanupStatefulset(config.Name, RDSCoreConfig.WhereaboutNS, config.Label)
@@ -1444,46 +1681,46 @@ func CreateWhereaboutsStatefulset(ctx SpecContext, config StatefulsetConfig) {
 // configureWhereaboutsIPReconciler configures whereabouts IP reconciler to run every 3 minutes.
 func configureWhereaboutsIPReconciler() {
 	By(fmt.Sprintf("Checking if configmap %q exists in %q namespace",
-		WhereaboutsReconcilcerCMName, WhereaboutsReconcilerNamespace))
+		WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace))
 
 	var ctx SpecContext
 
-	cmWhereabouts, err := configmap.Pull(APIClient, WhereaboutsReconcilcerCMName, WhereaboutsReconcilerNamespace)
+	cmWhereabouts, err := configmap.Pull(APIClient, WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
 	if err == nil {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Configmap %q exists in %q namespace, updating it",
-			WhereaboutsReconcilcerCMName, WhereaboutsReconcilerNamespace)
+			WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
 
 		if oldSchedule, ok := cmWhereabouts.Object.Data[WhereaboutsReconcilerKey]; ok {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Key %q already exists in configmap %q in %q namespace, updating it",
-				WhereaboutsReconcilerKey, WhereaboutsReconcilcerCMName, WhereaboutsReconcilerNamespace)
+				WhereaboutsReconcilerKey, WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
 
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Old schedule: %q", oldSchedule)
 
 			cmWhereabouts.Object.Data[WhereaboutsReconcilerKey] = WhereaboutsReconcilerSchedule
 		} else {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Key %q does not exist in configmap %q in %q namespace, adding it",
-				WhereaboutsReconcilerKey, WhereaboutsReconcilcerCMName, WhereaboutsReconcilerNamespace)
+				WhereaboutsReconcilerKey, WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
 
 			cmWhereabouts.Object.Data[WhereaboutsReconcilerKey] = WhereaboutsReconcilerSchedule
 		}
 
 		By(fmt.Sprintf("Updating configmap %q in %q namespace",
-			WhereaboutsReconcilcerCMName, WhereaboutsReconcilerNamespace))
+			WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace))
 
 		Eventually(func() error {
 			_, err := cmWhereabouts.Update()
 
 			return err
 		}).WithContext(ctx).WithPolling(15*time.Second).WithTimeout(1*time.Minute).Should(Succeed(),
-			"Failed to update configmap %q in %q namespace", WhereaboutsReconcilcerCMName, WhereaboutsReconcilerNamespace)
+			"Failed to update configmap %q in %q namespace", WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
 	} else {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Configmap %q does not exist in %q namespace, creating it",
-			WhereaboutsReconcilcerCMName, WhereaboutsReconcilerNamespace)
+			WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
 
 		By(fmt.Sprintf("Configuring whereabouts reconciler with configmap %q in %q namespace",
-			WhereaboutsReconcilcerCMName, WhereaboutsReconcilerNamespace))
+			WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace))
 
-		createConfigMap(WhereaboutsReconcilcerCMName, WhereaboutsReconcilerNamespace, map[string]string{
+		createConfigMap(WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace, map[string]string{
 			WhereaboutsReconcilerKey: WhereaboutsReconcilerSchedule,
 		})
 	}
