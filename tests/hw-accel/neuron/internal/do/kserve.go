@@ -126,7 +126,7 @@ func ensureCurlPod(ctx context.Context, apiClient *clients.Settings, name, names
 			Containers: []corev1.Container{
 				{
 					Name:    "curl",
-					Image:   "registry.access.redhat.com/ubi9/ubi-minimal:latest",
+					Image:   "curlimages/curl:8.12.1",
 					Command: []string{"sleep", "3600"},
 				},
 			},
