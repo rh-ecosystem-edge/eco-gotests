@@ -37,11 +37,14 @@ func ExecuteKServeInference(apiClient *clients.Settings, config KServeInferenceC
 
 	podName := "kserve-inference-test-curl"
 
-	if err := ensureCurlPod(ctx, apiClient, podName, config.Namespace); err != nil {
+	createdLocally, err := ensureCurlPod(ctx, apiClient, podName, config.Namespace)
+	if err != nil {
 		return "", fmt.Errorf("failed to create curl pod: %w", err)
 	}
 
-	defer cleanupCurlPod(apiClient, podName, config.Namespace)
+	if createdLocally {
+		defer cleanupCurlPod(apiClient, podName, config.Namespace)
+	}
 
 	endpoint := fmt.Sprintf("%s/v1/chat/completions", config.InferenceServiceURL)
 
@@ -92,10 +95,23 @@ func ExecuteKServeInference(apiClient *clients.Settings, config KServeInferenceC
 }
 
 // ensureCurlPod creates a long-running curl pod for executing inference requests.
-func ensureCurlPod(ctx context.Context, apiClient *clients.Settings, name, namespace string) error {
-	_, err := apiClient.Pods(namespace).Get(ctx, name, metav1.GetOptions{})
+// Returns true if the pod was created by this call (caller owns cleanup).
+func ensureCurlPod(ctx context.Context, apiClient *clients.Settings, name, namespace string) (bool, error) {
+	existing, err := apiClient.Pods(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err == nil {
-		return nil
+		if existing.Status.Phase == corev1.PodRunning {
+			return false, nil
+		}
+
+		if existing.Status.Phase == corev1.PodPending || existing.Status.Phase == corev1.PodFailed {
+			_ = apiClient.Pods(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+			_ = wait.PollUntilContextTimeout(ctx, 2*time.Second, 30*time.Second, true,
+				func(pollCtx context.Context) (bool, error) {
+					_, getErr := apiClient.Pods(namespace).Get(pollCtx, name, metav1.GetOptions{})
+
+					return apierrors.IsNotFound(getErr), nil
+				})
+		}
 	}
 
 	pod := &corev1.Pod{
@@ -120,10 +136,10 @@ func ensureCurlPod(ctx context.Context, apiClient *clients.Settings, name, names
 
 	_, err = apiClient.Pods(namespace).Create(ctx, pod, metav1.CreateOptions{})
 	if err != nil && !apierrors.IsAlreadyExists(err) {
-		return err
+		return false, err
 	}
 
-	return wait.PollUntilContextTimeout(ctx, 5*time.Second, 2*time.Minute, true,
+	err = wait.PollUntilContextTimeout(ctx, 5*time.Second, 2*time.Minute, true,
 		func(pollCtx context.Context) (bool, error) {
 			p, getErr := apiClient.Pods(namespace).Get(pollCtx, name, metav1.GetOptions{})
 			if getErr != nil {
@@ -132,6 +148,8 @@ func ensureCurlPod(ctx context.Context, apiClient *clients.Settings, name, names
 
 			return p.Status.Phase == corev1.PodRunning, nil
 		})
+
+	return true, err
 }
 
 // cleanupCurlPod removes the temporary curl pod.
