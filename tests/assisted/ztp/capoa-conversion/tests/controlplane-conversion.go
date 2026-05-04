@@ -104,22 +104,19 @@ var _ = Describe(
 
 				By("Verifying Duration fields are converted to seconds in MachineDeletionSpec")
 
-				nodeDrainSeconds, found, _ := unstructured.NestedFloat64(v3Obj.Object,
+				nodeDrainSeconds := nestedNumber(v3Obj.Object,
 					"spec", "machineTemplate", "deletion", "nodeDrainTimeoutSeconds")
-				Expect(found).To(BeTrue(), "nodeDrainTimeoutSeconds should exist in v1alpha3")
-				Expect(int32(nodeDrainSeconds)).To(Equal(int32(330)),
+				Expect(nodeDrainSeconds).To(Equal(int64(330)),
 					"nodeDrainTimeout 5m30s should convert to 330 seconds")
 
-				nodeVolumeSeconds, found, _ := unstructured.NestedFloat64(v3Obj.Object,
+				nodeVolumeSeconds := nestedNumber(v3Obj.Object,
 					"spec", "machineTemplate", "deletion", "nodeVolumeDetachTimeoutSeconds")
-				Expect(found).To(BeTrue(), "nodeVolumeDetachTimeoutSeconds should exist in v1alpha3")
-				Expect(int32(nodeVolumeSeconds)).To(Equal(int32(120)),
+				Expect(nodeVolumeSeconds).To(Equal(int64(120)),
 					"nodeVolumeDetachTimeout 2m0s should convert to 120 seconds")
 
-				nodeDeletionSeconds, found, _ := unstructured.NestedFloat64(v3Obj.Object,
+				nodeDeletionSeconds := nestedNumber(v3Obj.Object,
 					"spec", "machineTemplate", "deletion", "nodeDeletionTimeoutSeconds")
-				Expect(found).To(BeTrue(), "nodeDeletionTimeoutSeconds should exist in v1alpha3")
-				Expect(int32(nodeDeletionSeconds)).To(Equal(int32(600)),
+				Expect(nodeDeletionSeconds).To(Equal(int64(600)),
 					"nodeDeletionTimeout 10m0s should convert to 600 seconds")
 			})
 
@@ -284,18 +281,16 @@ var _ = Describe(
 
 				v3Obj := readResource(cpV1Alpha3GVK, resourceName, controlplaneTestNS)
 
-				replicas, found, _ := unstructured.NestedFloat64(v3Obj.Object, "spec", "replicas")
-				Expect(found).To(BeTrue(), "replicas should be present in v1alpha3")
-				Expect(int32(replicas)).To(Equal(int32(3)),
+				replicas := nestedNumber(v3Obj.Object, "spec", "replicas")
+				Expect(replicas).To(Equal(int64(3)),
 					"replicas value should be preserved through pointer boxing")
 
 				By("Reading back via v1alpha2")
 
 				v2Obj := readResource(cpV1Alpha2GVK, resourceName, controlplaneTestNS)
 
-				replicasV2, found, _ := unstructured.NestedFloat64(v2Obj.Object, "spec", "replicas")
-				Expect(found).To(BeTrue(), "replicas should be present in v1alpha2")
-				Expect(int32(replicasV2)).To(Equal(int32(3)),
+				replicasV2 := nestedNumber(v2Obj.Object, "spec", "replicas")
+				Expect(replicasV2).To(Equal(int64(3)),
 					"replicas value should survive round-trip")
 			})
 
@@ -531,5 +526,22 @@ func newControlPlaneV1Alpha3(name string, spec map[string]interface{}) *unstruct
 			},
 			"spec": spec,
 		},
+	}
+}
+
+func nestedNumber(obj map[string]interface{}, fields ...string) int64 {
+	val, found, err := unstructured.NestedFieldNoCopy(obj, fields...)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), "error reading %v", fields)
+	ExpectWithOffset(1, found).To(BeTrue(), "%v should exist", fields)
+
+	switch v := val.(type) {
+	case int64:
+		return v
+	case float64:
+		return int64(v)
+	default:
+		Fail(fmt.Sprintf("%v has unexpected type %T (value: %v)", fields, val, val))
+
+		return 0
 	}
 }
