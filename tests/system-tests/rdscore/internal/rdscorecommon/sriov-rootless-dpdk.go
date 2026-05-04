@@ -142,6 +142,12 @@ func createRootlessDPDKServerDeployment(
 func CleanupRootlessDPDKServerDeployment() {
 	By("Ensuring rootless DPDK server deployment was deleted")
 
+	if deploymentNamespace == "" {
+		klog.V(100).Info("Skipping rootless DPDK server cleanup: RootlessDPDKNamespace is not set in RDS config")
+
+		return
+	}
+
 	err := cleanUpRootlessDPDKDeployment(APIClient, serverDPDKDeploymentName, deploymentNamespace, serverPodLabel)
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to cleanup deployment %s from the namespace %s: %v",

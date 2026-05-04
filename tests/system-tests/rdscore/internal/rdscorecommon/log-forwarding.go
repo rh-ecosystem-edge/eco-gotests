@@ -713,6 +713,12 @@ func hasTrueConditionSuffix(conditions []metav1.Condition, conditionTypeSuffix s
 		if condition.Type == conditionTypeSuffix || strings.HasSuffix(condition.Type, fmt.Sprintf("/%s", conditionTypeSuffix)) {
 			return true
 		}
+
+		// observability.openshift.io/v1 uses e.g. ValidInput-audit; older forms used ValidInput/audit.
+		alt := strings.ReplaceAll(conditionTypeSuffix, "/", "-")
+		if alt != conditionTypeSuffix && strings.HasSuffix(condition.Type, alt) {
+			return true
+		}
 	}
 
 	return false

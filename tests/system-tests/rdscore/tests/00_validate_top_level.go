@@ -24,6 +24,11 @@ var _ = Describe(
 	Ordered,
 	ContinueOnFailure,
 	Label("rds-core-workflow"), func() {
+		Context("Dev smoke", Label("dev-smoke"), func() {
+			It("prints harness banner and reaches Kubernetes API",
+				rdscorecommon.VerifyDevSmokeSanity)
+		})
+
 		Context("Configured Cluster", Label("clean-cluster"), func() {
 			It("Verify EgressService with Cluster ExternalTrafficPolicy",
 				Label("egress", "egress-etp-cluster", "egress-etp-cluster-loadbalancer"),
