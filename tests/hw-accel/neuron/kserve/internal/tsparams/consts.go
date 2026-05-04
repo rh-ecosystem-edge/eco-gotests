@@ -14,7 +14,7 @@ const (
 
 	ServiceAccountName = "kserve-neuron-sa"
 
-	InferenceServiceReadyTimeout = 30 * time.Minute
+	InferenceServiceReadyTimeout = 45 * time.Minute
 
 	InferenceRequestTimeout = 5 * time.Minute
 

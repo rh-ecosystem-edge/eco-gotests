@@ -72,11 +72,11 @@ var _ = Describe("Neuron KServe Inference Tests", Ordered, Label(params.Label), 
 					WithResources(
 						corev1.ResourceList{
 							"aws.amazon.com/neuron": neuronQuantity,
-							corev1.ResourceMemory:   resource.MustParse("10Gi"),
+							corev1.ResourceMemory:   resource.MustParse("24Gi"),
 						},
 						corev1.ResourceList{
 							"aws.amazon.com/neuron": neuronQuantity,
-							corev1.ResourceMemory:   resource.MustParse("10Gi"),
+							corev1.ResourceMemory:   resource.MustParse("24Gi"),
 						},
 					).
 					WithAnnotation("serving.knative.dev/progress-deadline", "1800s").
@@ -106,11 +106,11 @@ var _ = Describe("Neuron KServe Inference Tests", Ordered, Label(params.Label), 
 			Label("kserve-002"), reportxml.ID("kserve-002"), func() {
 				By("Getting InferenceService URL")
 
-				url, err := kserve.PullInferenceService(
+				isvc, err := kserve.PullInferenceService(
 					APIClient, isvcName, neuronConfig.KServeNamespace)
 				Expect(err).ToNot(HaveOccurred(), "InferenceService must exist")
 
-				isvcURL, err := url.GetURL()
+				isvcURL, err := isvc.GetURL()
 				Expect(err).ToNot(HaveOccurred(), "InferenceService must have a URL")
 
 				By("Sending inference request")
@@ -118,7 +118,7 @@ var _ = Describe("Neuron KServe Inference Tests", Ordered, Label(params.Label), 
 				inferenceConfig := do.KServeInferenceConfig{
 					InferenceServiceURL: isvcURL,
 					Namespace:           neuronConfig.KServeNamespace,
-					ModelName:           neuronConfig.KServeModelName,
+					ModelName:           isvcName,
 					Timeout:             tsparams.InferenceRequestTimeout,
 				}
 

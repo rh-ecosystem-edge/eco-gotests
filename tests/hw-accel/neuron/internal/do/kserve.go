@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
@@ -46,7 +47,15 @@ func ExecuteKServeInference(apiClient *clients.Settings, config KServeInferenceC
 		defer cleanupCurlPod(apiClient, podName, config.Namespace)
 	}
 
-	endpoint := fmt.Sprintf("%s/v1/chat/completions", config.InferenceServiceURL)
+	serviceURL := config.InferenceServiceURL
+
+	parsed, parseErr := url.Parse(serviceURL)
+	if parseErr == nil && parsed.Port() == "" {
+		parsed.Host = parsed.Hostname() + ":8080"
+		serviceURL = parsed.String()
+	}
+
+	endpoint := fmt.Sprintf("%s/v1/chat/completions", serviceURL)
 
 	curlCmd := []string{
 		"curl", "-sk",
