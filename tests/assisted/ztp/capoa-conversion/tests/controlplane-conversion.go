@@ -528,20 +528,3 @@ func newControlPlaneV1Alpha3(name string, spec map[string]interface{}) *unstruct
 		},
 	}
 }
-
-func nestedNumber(obj map[string]interface{}, fields ...string) int64 {
-	val, found, err := unstructured.NestedFieldNoCopy(obj, fields...)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), "error reading %v", fields)
-	ExpectWithOffset(1, found).To(BeTrue(), "%v should exist", fields)
-
-	switch v := val.(type) {
-	case int64:
-		return v
-	case float64:
-		return int64(v)
-	default:
-		Fail(fmt.Sprintf("%v has unexpected type %T (value: %v)", fields, val, val))
-
-		return 0
-	}
-}

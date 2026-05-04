@@ -13,7 +13,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/capoa-conversion/internal/tsparams"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 const (
@@ -79,7 +78,7 @@ var _ = Describe(
 
 				By("Creating OpenshiftAssistedConfig via v1alpha1 API with populated spec")
 
-				oac := newBootstrapV1Alpha1(resourceName, bootstrapTestNS, map[string]interface{}{
+				oac := newBootstrapV1Alpha1(resourceName, map[string]interface{}{
 					"cpuArchitecture":      "x86_64",
 					"sshAuthorizedKey":     "ssh-rsa AAAA...",
 					"additionalNTPSources": []interface{}{"ntp1.example.com", "ntp2.example.com"},
@@ -136,7 +135,7 @@ var _ = Describe(
 
 				By("Creating OpenshiftAssistedConfig via v1alpha2 API with v1alpha2-only fields")
 
-				oac := newBootstrapV1Alpha2(resourceName, bootstrapTestNS, map[string]interface{}{
+				oac := newBootstrapV1Alpha2(resourceName, map[string]interface{}{
 					"cpuArchitecture":      "x86_64",
 					"preBootstrapCommands": []interface{}{"/usr/bin/pre-cmd"},
 					"nodeRegistration": map[string]interface{}{
@@ -235,77 +234,30 @@ var _ = Describe(
 			})
 	})
 
-func newBootstrapV1Alpha1(name, namespace string, spec map[string]interface{}) *unstructured.Unstructured {
+func newBootstrapV1Alpha1(name string, spec map[string]interface{}) *unstructured.Unstructured {
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "bootstrap.cluster.x-k8s.io/v1alpha1",
 			"kind":       "OpenshiftAssistedConfig",
 			"metadata": map[string]interface{}{
 				"name":      name,
-				"namespace": namespace,
+				"namespace": bootstrapTestNS,
 			},
 			"spec": spec,
 		},
 	}
 }
 
-func newBootstrapV1Alpha2(name, namespace string, spec map[string]interface{}) *unstructured.Unstructured {
+func newBootstrapV1Alpha2(name string, spec map[string]interface{}) *unstructured.Unstructured {
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "bootstrap.cluster.x-k8s.io/v1alpha2",
 			"kind":       "OpenshiftAssistedConfig",
 			"metadata": map[string]interface{}{
 				"name":      name,
-				"namespace": namespace,
+				"namespace": bootstrapTestNS,
 			},
 			"spec": spec,
 		},
 	}
-}
-
-func readResource(gvk schema.GroupVersionKind, name, namespace string) *unstructured.Unstructured {
-	obj := &unstructured.Unstructured{}
-	obj.SetGroupVersionKind(gvk)
-
-	err := HubAPIClient.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, obj)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(),
-		"failed to read %s/%s as %s", namespace, name, gvk.Version)
-
-	return obj
-}
-
-func assertCRDServesVersion(crdName, version string) {
-	crd := &unstructured.Unstructured{}
-	crd.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "apiextensions.k8s.io",
-		Version: "v1",
-		Kind:    "CustomResourceDefinition",
-	})
-
-	err := HubAPIClient.Get(context.TODO(), types.NamespacedName{Name: crdName}, crd)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), "CRD %s not found", crdName)
-
-	versions, found, _ := unstructured.NestedSlice(crd.Object, "spec", "versions")
-	ExpectWithOffset(1, found).To(BeTrue(), "CRD %s has no spec.versions", crdName)
-
-	served := false
-
-	for _, v := range versions {
-		vMap, ok := v.(map[string]interface{})
-		if !ok {
-			continue
-		}
-
-		vName, _, _ := unstructured.NestedString(vMap, "name")
-		vServed, _, _ := unstructured.NestedBool(vMap, "served")
-
-		if vName == version && vServed {
-			served = true
-
-			break
-		}
-	}
-
-	ExpectWithOffset(1, served).To(BeTrue(),
-		"CRD %s does not serve version %s", crdName, version)
 }
