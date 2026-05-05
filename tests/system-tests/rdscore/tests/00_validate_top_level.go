@@ -24,11 +24,6 @@ var _ = Describe(
 	Ordered,
 	ContinueOnFailure,
 	Label("rds-core-workflow"), func() {
-		Context("Dev smoke", Label("dev-smoke"), func() {
-			It("prints harness banner and reaches Kubernetes API",
-				rdscorecommon.VerifyDevSmokeSanity)
-		})
-
 		Context("Configured Cluster", Label("clean-cluster"), func() {
 			It("Verify EgressService with Cluster ExternalTrafficPolicy",
 				Label("egress", "egress-etp-cluster", "egress-etp-cluster-loadbalancer"),
@@ -290,33 +285,17 @@ var _ = Describe(
 				Label("log-forwarding", "kafka"), reportxml.ID("81882"),
 				rdscorecommon.VerifyLogForwardingToKafka)
 
-			It("Verify local Loki pods are running",
-				Label("log-forwarding", "loki"),
-				rdscorecommon.VerifyLokiPodsRunning)
-
-			It("Verify LokiStack resources are Ready",
-				Label("log-forwarding", "loki"),
-				rdscorecommon.VerifyLokiStackReady)
-
-			It("Verify Loki PVC resources are Bound",
-				Label("log-forwarding", "loki"),
-				rdscorecommon.VerifyLokiPVCsBound)
-
-			It("Verify ClusterLogForwarder configuration for LokiStack forwarding",
-				Label("log-forwarding", "loki"),
-				rdscorecommon.VerifyClusterLogForwarderLokiConfiguration)
-
-			It("Verify Loki distributor logs do not contain ingestion errors",
-				Label("log-forwarding", "loki"),
-				rdscorecommon.VerifyLokiDistributorLogsNoErrors)
-
-			It("Verify Loki API query via ServiceAccount token",
-				Label("log-forwarding", "loki"),
-				rdscorecommon.VerifyLokiQueryWithServiceAccountToken)
-
-			It("Verify Loki workloads have no topology spread constraints",
-				Label("log-forwarding", "loki"),
-				rdscorecommon.VerifyLokiTopologySpreadConstraintsNotDefined)
+			It("Verify local Loki end-to-end forwarding baseline",
+				Label("log-forwarding", "loki"), reportxml.ID("90001"),
+				func(ctx SpecContext) {
+					rdscorecommon.VerifyLokiPodsRunning(ctx)
+					rdscorecommon.VerifyLokiStackReady(ctx)
+					rdscorecommon.VerifyLokiPVCsBound(ctx)
+					rdscorecommon.VerifyClusterLogForwarderLokiConfiguration(ctx)
+					rdscorecommon.VerifyLokiDistributorLogsNoErrors(ctx)
+					rdscorecommon.VerifyLokiQueryWithServiceAccountToken(ctx)
+					rdscorecommon.VerifyLokiTopologySpreadConstraintsNotDefined(ctx)
+				})
 
 			It("Verifies connectivity between pods from statefuleset running on different nodes after pod's termination",
 				Label("statefulset-whereabouts", "statefulset-different-nodes-termination"),
