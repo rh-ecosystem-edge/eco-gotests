@@ -534,7 +534,17 @@ func VerifyLokiDistributorLogsNoErrors(ctx SpecContext) {
 
 	By("Verify distributor logs do not contain known ingestion/API errors")
 
-	errorMarkers := []string{"error", "failed", "429", "500"}
+	// Avoid generic terms like "error"/"failed" that often appear in harmless messages.
+	// Instead, look for known ingestion/API failure signatures.
+	errorPatterns := [][]string{
+		{"status=429"},
+		{"too many requests"},
+		{"status=500"},
+		{"internal server error"},
+		{"ingestion rate limit"},
+		{"context deadline exceeded"},
+		{"level=error", "push"},
+	}
 	logLookback := 20 * time.Minute
 
 	for _, distributorPod := range distributorPods {
@@ -545,10 +555,14 @@ func VerifyLokiDistributorLogsNoErrors(ctx SpecContext) {
 			fmt.Sprintf("failed to get logs for distributor pod %q", distributorPod.Definition.Name))
 
 		lowerLogOutput := strings.ToLower(logOutput)
-
-		for _, marker := range errorMarkers {
-			Expect(lowerLogOutput).ToNot(ContainSubstring(marker),
-				fmt.Sprintf("distributor pod %q logs contain marker %q", distributorPod.Definition.Name, marker))
+		for _, line := range strings.Split(lowerLogOutput, "\n") {
+			for _, pattern := range errorPatterns {
+				if containsAllFragments(line, pattern) {
+					Expect(line).To(BeEmpty(),
+						fmt.Sprintf("distributor pod %q logs contain unexpected ingestion/API error pattern %v in line: %s",
+							distributorPod.Definition.Name, pattern, line))
+				}
+			}
 		}
 	}
 }
@@ -732,4 +746,14 @@ func sliceContains(values []string, expected string) bool {
 	}
 
 	return false
+}
+
+func containsAllFragments(line string, fragments []string) bool {
+	for _, fragment := range fragments {
+		if !strings.Contains(line, fragment) {
+			return false
+		}
+	}
+
+	return true
 }
