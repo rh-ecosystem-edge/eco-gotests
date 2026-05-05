@@ -73,7 +73,7 @@ var _ = Describe(
 		})
 
 		It("Verifies spec fields survive v1alpha1 to v1alpha2 round-trip conversion",
-			reportxml.ID("00001"), func() {
+			reportxml.ID("88915"), func() {
 				resourceName := "conv-spec-roundtrip"
 
 				By("Creating OpenshiftAssistedConfig via v1alpha1 API with populated spec")
@@ -130,7 +130,7 @@ var _ = Describe(
 			})
 
 		It("Verifies v1alpha2-only fields are preserved when read back via v1alpha1",
-			reportxml.ID("00002"), func() {
+			reportxml.ID("88916"), func() {
 				resourceName := "conv-v2-extra-fields"
 
 				By("Creating OpenshiftAssistedConfig via v1alpha2 API with v1alpha2-only fields")
@@ -173,7 +173,7 @@ var _ = Describe(
 			})
 
 		It("Verifies OpenshiftAssistedConfigTemplate spec round-trip conversion",
-			reportxml.ID("00003"), func() {
+			reportxml.ID("88917"), func() {
 				resourceName := "conv-template-roundtrip"
 
 				By("Creating OpenshiftAssistedConfigTemplate via v1alpha1 API")

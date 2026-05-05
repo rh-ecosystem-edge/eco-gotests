@@ -63,7 +63,7 @@ var _ = Describe(
 		})
 
 		It("Verifies Duration to seconds conversion in MachineTemplate",
-			reportxml.ID("00004"), func() {
+			reportxml.ID("88918"), func() {
 				resourceName := "conv-duration-to-seconds"
 
 				By("Creating OpenshiftAssistedControlPlane via v1alpha2 with Duration fields")
@@ -121,7 +121,7 @@ var _ = Describe(
 			})
 
 		It("Verifies seconds to Duration reverse conversion in MachineTemplate",
-			reportxml.ID("00005"), func() {
+			reportxml.ID("88919"), func() {
 				resourceName := "conv-seconds-to-duration"
 
 				By("Creating OpenshiftAssistedControlPlane via v1alpha3 with seconds fields")
@@ -183,7 +183,7 @@ var _ = Describe(
 			})
 
 		It("Verifies InfrastructureRef type conversion between ObjectReference and ContractVersionedObjectReference",
-			reportxml.ID("00006"), func() {
+			reportxml.ID("88920"), func() {
 				resourceName := "conv-infraref-type"
 
 				By("Creating OpenshiftAssistedControlPlane via v1alpha2 with full ObjectReference")
@@ -245,7 +245,7 @@ var _ = Describe(
 			})
 
 		It("Verifies replica pointer boxing between v1alpha2 int32 and v1alpha3 *int32",
-			reportxml.ID("00007"), func() {
+			reportxml.ID("88921"), func() {
 				resourceName := "conv-replica-boxing"
 
 				By("Creating OpenshiftAssistedControlPlane via v1alpha2 with replicas=3")
@@ -295,7 +295,7 @@ var _ = Describe(
 			})
 
 		It("Verifies config spec fields survive v1alpha2 to v1alpha3 round-trip",
-			reportxml.ID("00008"), func() {
+			reportxml.ID("88922"), func() {
 				resourceName := "conv-config-roundtrip"
 
 				By("Creating OpenshiftAssistedControlPlane via v1alpha2 with full config")
@@ -366,7 +366,7 @@ var _ = Describe(
 			})
 
 		It("Verifies MachineTemplate metadata labels and annotations survive conversion",
-			reportxml.ID("00009"), func() {
+			reportxml.ID("88923"), func() {
 				resourceName := "conv-mt-metadata"
 
 				By("Creating OpenshiftAssistedControlPlane via v1alpha2 with MachineTemplate metadata")
@@ -434,7 +434,7 @@ var _ = Describe(
 			})
 
 		It("Verifies v1alpha2 bootstrap config spec is converted to v1alpha2 format in v1alpha3",
-			reportxml.ID("00010"), func() {
+			reportxml.ID("88924"), func() {
 				resourceName := "conv-bootstrap-spec-upgrade"
 
 				By("Creating OpenshiftAssistedControlPlane via v1alpha2 with v1alpha1-based bootstrap config")
