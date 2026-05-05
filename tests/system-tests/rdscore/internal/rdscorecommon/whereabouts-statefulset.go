@@ -1127,7 +1127,8 @@ func ensurePodConnectivityAfterPodTermination(stLabel, namespace, targetPort str
 // ensurePodConnectivityAfterNodeDrain verifies inter-pod connectivity is restored after draining a node.
 //
 //nolint:funlen
-func ensurePodConnectivityAfterNodeDrain(stLabel, namespace, targetPort string, stReplicas int, sameNode bool) {
+func ensurePodConnectivityAfterNodeDrain(
+	ctx SpecContext, stLabel, namespace, targetPort string, stReplicas int, sameNode bool) {
 	By("Getting list of active pods")
 
 	activePods := getActivePods(stLabel, namespace)
@@ -1166,20 +1167,14 @@ func ensurePodConnectivityAfterNodeDrain(stLabel, namespace, targetPort string, 
 
 	defer UncordonNode(nodeObj, uncordonNodeInterval, uncordonNodeTimeout)
 
-	By(fmt.Sprintf("Draining node %q", nodeToDrain))
-
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Draining node %q", nodeToDrain)
-
 	time.Sleep(5 * time.Second)
 
-	err = nodeObj.Drain()
+	err = DrainNodeWithRetry(ctx, nodeObj)
 
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to drain node %s due to: %v", nodeToDrain, err))
 
 	By("Waiting for new pod to be created")
-
-	var ctx SpecContext
 
 	Eventually(func() bool {
 		newActivePods := getActivePods(stLabel, namespace)
@@ -1805,7 +1800,7 @@ func EnsurePodConnectivityBetweenDifferentNodesAfterNodeDrain(ctx SpecContext) {
 
 	CreateStatefulsetOnDifferentNode(ctx)
 
-	ensurePodConnectivityAfterNodeDrain(myStatefulsetTwoLabel, RDSCoreConfig.WhereaboutNS,
+	ensurePodConnectivityAfterNodeDrain(ctx, myStatefulsetTwoLabel, RDSCoreConfig.WhereaboutNS,
 		RDSCoreConfig.WhereaboutsSTTwoPort, myStatefulsetTwoReplicas, false)
 }
 
@@ -1816,7 +1811,7 @@ func EnsurePodConnectivityOnSameNodeAfterNodeDrain(ctx SpecContext) {
 
 	CreateStatefulsetOnSameNode(ctx)
 
-	ensurePodConnectivityAfterNodeDrain(myStatefulsetOneLabel, RDSCoreConfig.WhereaboutNS,
+	ensurePodConnectivityAfterNodeDrain(ctx, myStatefulsetOneLabel, RDSCoreConfig.WhereaboutNS,
 		RDSCoreConfig.WhereaboutsSTOnePort, myStatefulsetOneReplicas, true)
 }
 
