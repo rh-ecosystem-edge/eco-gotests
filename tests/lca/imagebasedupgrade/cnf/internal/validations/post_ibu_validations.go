@@ -224,10 +224,11 @@ func ValidateSeedHostnameRefLogs() {
 	It("Validate no seed hostname references in pod logs", reportxml.ID("71392"), Label("ValidateSeedRefPodLogs",
 		"ValidateSeedReferences"), func() {
 		By("Validate no seed hostname references in pod logs", func() {
-			// Seed refs from garbage-collector-controller are expected during IBU; exclude them from this check.
+			// Seed refs from kube-controller-manager's garbage collector are expected during IBU
+			// as it cleans up seed Node/MachineConfigNode resources post-pivot.
 			logCmd := fmt.Sprintf(
 				`grep -Ri %q /var/log/pods | `+
-					`grep -vE "lifecycle-agent-controller-manager|garbage-collector-controller" | wc -l`,
+					`grep -vE "lifecycle-agent-controller-manager|kube-controller-manager" | wc -l`,
 				seedInfo.SNOHostname,
 			)
 			logRes, err := cluster.ExecCmdWithStdout(TargetSNOAPIClient, logCmd)

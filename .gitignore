@@ -27,3 +27,4 @@ reports
 .claude/
 tests/hw-accel/nfd/**/*.md
 tests/hw-accel/nfd/*.md
+CLAUDE.local.md
