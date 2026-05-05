@@ -398,7 +398,7 @@ var _ = Describe(
 				}
 
 				By("Ensure rootless DPDK server deployment was deleted")
-				rdscorecommon.CleanupRootlessDPDKServerDeployment()
+				rdscorecommon.CleanupRootlessDPDKServerDeployment(ctx)
 
 				By("Ensure all nodes are Ready and scheduling enabled")
 				rdscorecommon.EnsureInNodeReadiness(ctx)
@@ -748,7 +748,7 @@ var _ = Describe(
 				}
 
 				By("Ensure rootless DPDK server deployment was deleted")
-				rdscorecommon.CleanupRootlessDPDKServerDeployment()
+				rdscorecommon.CleanupRootlessDPDKServerDeployment(ctx)
 			})
 		})
 
@@ -1062,7 +1062,7 @@ var _ = Describe(
 				}
 
 				By("Ensure rootless DPDK server deployment was deleted")
-				rdscorecommon.CleanupRootlessDPDKServerDeployment()
+				rdscorecommon.CleanupRootlessDPDKServerDeployment(ctx)
 			})
 		})
 	})

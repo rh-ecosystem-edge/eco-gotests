@@ -138,20 +138,25 @@ func createRootlessDPDKServerDeployment(
 	return nil
 }
 
-// CleanupRootlessDPDKServerDeployment cleaning up the rootless DPDK server deployment.
-func CleanupRootlessDPDKServerDeployment() {
+// CleanupRootlessDPDKServerDeployment cleans up the rootless DPDK server deployment
+// with retry logic to handle transient infrastructure issues during cleanup.
+func CleanupRootlessDPDKServerDeployment(ctx SpecContext) {
 	By("Ensuring rootless DPDK server deployment was deleted")
 
-	if deploymentNamespace == "" {
-		klog.V(100).Info("Skipping rootless DPDK server cleanup: RootlessDPDKNamespace is not set in RDS config")
-
-		return
-	}
-
-	err := cleanUpRootlessDPDKDeployment(APIClient, serverDPDKDeploymentName, deploymentNamespace, serverPodLabel)
-	Expect(err).ToNot(HaveOccurred(),
-		fmt.Sprintf("Failed to cleanup deployment %s from the namespace %s: %v",
-			serverDPDKDeploymentName, deploymentNamespace, err))
+	// Use Eventually to handle transient errors during cleanup (etcd timeouts, connection issues)
+	// Retries every 5 seconds for up to 5 minutes with fresh timeout starting from cleanup phase
+	Eventually(func() error {
+		return cleanUpRootlessDPDKDeployment(
+			APIClient,
+			serverDPDKDeploymentName,
+			deploymentNamespace,
+			serverPodLabel)
+	}).WithContext(ctx).
+		WithTimeout(5*time.Minute).
+		WithPolling(5*time.Second).
+		Should(Succeed(),
+			"Failed to cleanup deployment %s from namespace %s after retries",
+			serverDPDKDeploymentName, deploymentNamespace)
 }
 
 func cleanUpRootlessDPDKDeployment(
