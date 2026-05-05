@@ -16,6 +16,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/reporter"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
@@ -120,13 +121,23 @@ var _ = AfterSuite(func() {
 	svcAccount.Exists()
 
 	crb := define.ModuleCRB(*svcAccount, prereqName)
-	err = crb.Delete()
-	Expect(err).ToNot(HaveOccurred(), "error deleting helper clusterrolebinding")
+	if err = crb.Delete(); err != nil {
+		if k8serrors.IsForbidden(err) {
+			klog.Infof("Skipping CRB deletion: blocked by managed cluster admission webhook: %v", err)
+		} else {
+			Expect(err).ToNot(HaveOccurred(), "error deleting helper clusterrolebinding")
+		}
+	}
 
 	By("Delete helper service account")
 
-	err = svcAccount.Delete()
-	Expect(err).ToNot(HaveOccurred(), "error deleting helper serviceaccount")
+	if err = svcAccount.Delete(); err != nil {
+		if k8serrors.IsForbidden(err) {
+			klog.Infof("Skipping SA deletion: blocked by managed cluster admission webhook: %v", err)
+		} else {
+			Expect(err).ToNot(HaveOccurred(), "error deleting helper serviceaccount")
+		}
+	}
 })
 
 var _ = ReportAfterSuite("", func(report Report) {
