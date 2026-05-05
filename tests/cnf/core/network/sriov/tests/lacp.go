@@ -3,7 +3,6 @@ package tests
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -1501,9 +1500,9 @@ func enableLACPOnSwitchInterfaces(credentials *sriovenv.SwitchCredentials, lacpI
 	}
 	defer jnpr.Close()
 
-	vlan, err := strconv.Atoi(NetConfig.VLAN)
+	vlan, err := NetConfig.GetNativeVLANID()
 	if err != nil {
-		return fmt.Errorf("failed to convert VLAN value: %w", err)
+		return fmt.Errorf("native VLAN: %w", err)
 	}
 
 	var commands []string
