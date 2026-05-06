@@ -40,12 +40,12 @@ func ExecuteKServeInference(apiClient *clients.Settings, config KServeInferenceC
 	podName := "kserve-inference-test-curl"
 
 	createdLocally, err := ensureCurlPod(ctx, apiClient, podName, config.Namespace)
-	if err != nil {
-		return "", fmt.Errorf("failed to create curl pod: %w", err)
-	}
-
 	if createdLocally {
 		defer cleanupCurlPod(apiClient, podName, config.Namespace)
+	}
+
+	if err != nil {
+		return "", fmt.Errorf("failed to create curl pod: %w", err)
 	}
 
 	serviceURL := config.InferenceServiceURL
