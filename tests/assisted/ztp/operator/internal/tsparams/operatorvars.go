@@ -12,7 +12,7 @@ import (
 
 var (
 	// Labels represents the range of labels that can be used for test cases selection.
-	Labels = append(ztpparams.Labels, LabelSuite)
+	Labels = append(append([]string{}, ztpparams.Labels...), LabelSuite)
 
 	// ReporterNamespacesToDump tells to the reporter from where to collect logs.
 	ReporterNamespacesToDump = map[string]string{
