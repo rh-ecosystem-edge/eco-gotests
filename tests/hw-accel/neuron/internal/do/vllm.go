@@ -132,7 +132,7 @@ echo "--- CHECKING /model DIRECTORY PERMISSIONS AND CONTENTS ---"
 # Only pull if /model is empty
 if [ ! -f "/model/config.json" ]; then
   export PYTHONUSERBASE="/tmp/pip"
-  pip install --no-cache-dir --user "huggingface_hub==1.13.0"
+  pip install --no-cache-dir --user "huggingface_hub>=1.0"
   echo "Pulling model %s ..."
   timeout 1200 /tmp/pip/bin/hf download %s --local-dir /model
 else
@@ -141,7 +141,7 @@ fi`, modelName, modelName)
 
 	return corev1.Container{
 		Name:  "fetch-model",
-		Image: "python:3.11.15-slim",
+		Image: "python:3.11-slim",
 		Env: []corev1.EnvVar{
 			{Name: "DOCKER_CONFIG", Value: "/auth"},
 			{Name: "HF_HOME", Value: "/model"},
