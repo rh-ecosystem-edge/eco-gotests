@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
@@ -50,7 +51,8 @@ func ExecuteKServeInference(apiClient *clients.Settings, config KServeInferenceC
 	serviceURL := config.InferenceServiceURL
 
 	parsed, parseErr := url.Parse(serviceURL)
-	if parseErr == nil && parsed.Port() == "" {
+	if parseErr == nil && parsed.Port() == "" &&
+		strings.Contains(parsed.Hostname(), "svc.cluster.local") {
 		parsed.Host = parsed.Hostname() + ":8080"
 		serviceURL = parsed.String()
 	}
