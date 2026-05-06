@@ -2,7 +2,7 @@ package ipchange_test
 
 import (
 	"fmt"
-	"strings"
+	"net"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -135,13 +135,13 @@ var _ = Describe(
 			By("Updating IP address fields with arbitrary values to ensure the spec is updated")
 
 			if clusterHasIPv4Network() {
-				builder.WithIPv4Address("192.168.250.250")
-				builder.WithIPv4Gateway("192.168.250.254")
-				builder.WithIPv4MachineNetwork("192.168.250.0/24")
+				builder.WithIPv4Address("192.168.250.250").
+					WithIPv4Gateway("192.168.250.254").
+					WithIPv4MachineNetwork("192.168.250.0/24")
 			} else {
-				builder.WithIPv6Address("2001:db8::2")
-				builder.WithIPv6Gateway("2001:db8::1")
-				builder.WithIPv6MachineNetwork("2001:db8::/64")
+				builder.WithIPv6Address("2001:db8::2").
+					WithIPv6Gateway("2001:db8::1").
+					WithIPv6MachineNetwork("2001:db8::/64")
 			}
 
 			By("Setting the stage to Config")
@@ -199,7 +199,8 @@ func clusterHasIPv4Network() bool {
 	Expect(err).NotTo(HaveOccurred(), "failed to pull cluster network config")
 
 	for _, clusterNet := range netConfig.Object.Spec.ClusterNetwork {
-		if !strings.Contains(clusterNet.CIDR, ":") {
+		ip, _, err := net.ParseCIDR(clusterNet.CIDR)
+		if err == nil && ip.To4() != nil {
 			return true
 		}
 	}
