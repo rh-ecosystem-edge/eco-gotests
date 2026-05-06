@@ -286,7 +286,7 @@ var _ = Describe(
 				rdscorecommon.VerifyLogForwardingToKafka)
 
 			It("Verify local Loki end-to-end forwarding baseline",
-				Label("log-forwarding", "loki"), reportxml.ID("90001"),
+				Label("log-forwarding", "loki"), reportxml.ID("88943"),
 				func(ctx SpecContext) {
 					rdscorecommon.VerifyLokiPodsRunning(ctx)
 					rdscorecommon.VerifyLokiStackReady(ctx)
