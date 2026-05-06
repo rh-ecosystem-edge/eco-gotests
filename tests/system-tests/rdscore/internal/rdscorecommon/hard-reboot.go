@@ -212,8 +212,7 @@ func VerifySoftReboot(ctx SpecContext) {
 
 		time.Sleep(5 * time.Second)
 
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Draining node %q", _node.Definition.Name)
-		err = _node.Drain()
+		err = DrainNodeWithRetry(ctx, _node)
 		Expect(err).ToNot(HaveOccurred(),
 			fmt.Sprintf("Failed to drain %q due to %v", _node.Definition.Name, err))
 
