@@ -265,21 +265,28 @@ var _ = Describe(
 				Label("pod-level-bond", "pod-level-pod-failure"), reportxml.ID("80490"),
 				rdscorecommon.VerifyPodLevelBondWorkloadsAfterPodCrashing)
 
-			It("Verifies Multus-Tap CNI for rootless DPDK on the same node, single VF with multiple VLANs",
-				Label("dpdk", "dpdk-vlan", "dpdk-same-node"), reportxml.ID("77195"),
-				rdscorecommon.VerifyRootlessDPDKOnTheSameNodeSingleVFMultipleVlans)
+			Context("DPDK Rootless Tests", Label("dpdk"), func() {
+				BeforeAll(func(ctx SpecContext) {
+					By("Cleaning up any stale DPDK client pods before tests")
+					rdscorecommon.CleanupRootlessDPDKClientPods(ctx)
+				})
 
-			It("Verifies Multus-Tap CNI for rootless DPDK pod workloads on the different nodes, multiple VLANs",
-				Label("dpdk", "dpdk-vlan", "dpdk-different-nodes"), reportxml.ID("81388"),
-				rdscorecommon.VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleVlans)
+				It("Verifies Multus-Tap CNI for rootless DPDK on the same node, single VF with multiple VLANs",
+					Label("dpdk-vlan", "dpdk-same-node"), reportxml.ID("77195"),
+					rdscorecommon.VerifyRootlessDPDKOnTheSameNodeSingleVFMultipleVlans)
 
-			It("Verifies Multus-Tap CNI for rootless DPDK pod workloads on the different nodes, multiple MACVLANs",
-				Label("dpdk", "dpdk-mac-vlan", "dpdk-different-nodes"), reportxml.ID("77488"),
-				rdscorecommon.VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleMacVlans)
+				It("Verifies Multus-Tap CNI for rootless DPDK pod workloads on the different nodes, multiple VLANs",
+					Label("dpdk-vlan", "dpdk-different-nodes"), reportxml.ID("81388"),
+					rdscorecommon.VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleVlans)
 
-			It("Verifies Multus-Tap CNI for rootless DPDK pod workloads on the different nodes, multiple IP-VLANs",
-				Label("dpdk", "dpdk-ip-vlan", "dpdk-different-nodes"), reportxml.ID("77490"),
-				rdscorecommon.VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleIPVlans)
+				It("Verifies Multus-Tap CNI for rootless DPDK pod workloads on the different nodes, multiple MACVLANs",
+					Label("dpdk-mac-vlan", "dpdk-different-nodes"), reportxml.ID("77488"),
+					rdscorecommon.VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleMacVlans)
+
+				It("Verifies Multus-Tap CNI for rootless DPDK pod workloads on the different nodes, multiple IP-VLANs",
+					Label("dpdk-ip-vlan", "dpdk-different-nodes"), reportxml.ID("77490"),
+					rdscorecommon.VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleIPVlans)
+			})
 
 			It("Verify cluster log forwarding to the Kafka broker",
 				Label("log-forwarding", "kafka"), reportxml.ID("81882"),
@@ -663,21 +670,28 @@ var _ = Describe(
 				MustPassRepeatedly(3), reportxml.ID("79336"),
 				rdscorecommon.VerifyPodLevelBondWorkloadsOnDifferentNodesDifferentPFs)
 
-			It("Verifies rootless DPDK on the same node, single VF with multiple VLANs post hard reboot",
-				Label("dpdk", "dpdk-vlan", "dpdk-same-node"), reportxml.ID("81423"),
-				rdscorecommon.VerifyRootlessDPDKOnTheSameNodeSingleVFMultipleVlans)
+			Context("DPDK Rootless Tests Post Hard Reboot", Label("dpdk"), func() {
+				BeforeAll(func(ctx SpecContext) {
+					By("Cleaning up any stale DPDK client pods before post-reboot tests")
+					rdscorecommon.CleanupRootlessDPDKClientPods(ctx)
+				})
 
-			It("Verifies rootless DPDK pod workloads on the different nodes, multiple VLANs post hard reboot",
-				Label("dpdk", "dpdk-vlan", "dpdk-different-nodes"), reportxml.ID("81426"),
-				rdscorecommon.VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleVlans)
+				It("Verifies rootless DPDK on the same node, single VF with multiple VLANs post hard reboot",
+					Label("dpdk-vlan", "dpdk-same-node"), reportxml.ID("81423"),
+					rdscorecommon.VerifyRootlessDPDKOnTheSameNodeSingleVFMultipleVlans)
 
-			It("Verifies rootless DPDK pod workloads on the different nodes, multiple MACVLANs post hard reboot",
-				Label("dpdk", "dpdk-mac-vlan", "dpdk-different-nodes"), reportxml.ID("81428"),
-				rdscorecommon.VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleMacVlans)
+				It("Verifies rootless DPDK pod workloads on the different nodes, multiple VLANs post hard reboot",
+					Label("dpdk-vlan", "dpdk-different-nodes"), reportxml.ID("81426"),
+					rdscorecommon.VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleVlans)
 
-			It("Verifies rootless DPDK pod workloads on the different nodes, multiple IP-VLANs post hard reboot",
-				Label("dpdk", "dpdk-ip-vlan", "dpdk-different-nodes"), reportxml.ID("81430"),
-				rdscorecommon.VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleIPVlans)
+				It("Verifies rootless DPDK pod workloads on the different nodes, multiple MACVLANs post hard reboot",
+					Label("dpdk-mac-vlan", "dpdk-different-nodes"), reportxml.ID("81428"),
+					rdscorecommon.VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleMacVlans)
+
+				It("Verifies rootless DPDK pod workloads on the different nodes, multiple IP-VLANs post hard reboot",
+					Label("dpdk-ip-vlan", "dpdk-different-nodes"), reportxml.ID("81430"),
+					rdscorecommon.VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleIPVlans)
+			})
 
 			It("Verify cluster log forwarding to the Kafka broker post hard reboot",
 				Label("log-forwarding", "kafka"), reportxml.ID("81884"),
@@ -976,21 +990,28 @@ var _ = Describe(
 				MustPassRepeatedly(3), reportxml.ID("79337"),
 				rdscorecommon.VerifyPodLevelBondWorkloadsOnDifferentNodesDifferentPFs)
 
-			It("Verifies rootless DPDK on the same node, single VF with multiple VLANs post soft reboot",
-				Label("dpdk", "dpdk-vlan", "dpdk-same-node"), reportxml.ID("81416"),
-				rdscorecommon.VerifyRootlessDPDKOnTheSameNodeSingleVFMultipleVlans)
+			Context("DPDK Rootless Tests Post Soft Reboot", Label("dpdk"), func() {
+				BeforeAll(func(ctx SpecContext) {
+					By("Cleaning up any stale DPDK client pods before post-reboot tests")
+					rdscorecommon.CleanupRootlessDPDKClientPods(ctx)
+				})
 
-			It("Verifies rootless DPDK pod workloads on the different nodes, multiple VLANs post soft reboot",
-				Label("dpdk", "dpdk-vlan", "dpdk-different-nodes"), reportxml.ID("81418"),
-				rdscorecommon.VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleVlans)
+				It("Verifies rootless DPDK on the same node, single VF with multiple VLANs post soft reboot",
+					Label("dpdk-vlan", "dpdk-same-node"), reportxml.ID("81416"),
+					rdscorecommon.VerifyRootlessDPDKOnTheSameNodeSingleVFMultipleVlans)
 
-			It("Verifies rootless DPDK pod workloads on the different nodes, multiple MACVLANs post soft reboot",
-				Label("dpdk", "dpdk-mac-vlan", "dpdk-different-nodes"), reportxml.ID("81420"),
-				rdscorecommon.VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleMacVlans)
+				It("Verifies rootless DPDK pod workloads on the different nodes, multiple VLANs post soft reboot",
+					Label("dpdk-vlan", "dpdk-different-nodes"), reportxml.ID("81418"),
+					rdscorecommon.VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleVlans)
 
-			It("Verifies rootless DPDK pod workloads on the different nodes, multiple IP-VLANs post soft reboot",
-				Label("dpdk", "dpdk-ip-vlan", "dpdk-different-nodes"), reportxml.ID("81422"),
-				rdscorecommon.VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleIPVlans)
+				It("Verifies rootless DPDK pod workloads on the different nodes, multiple MACVLANs post soft reboot",
+					Label("dpdk-mac-vlan", "dpdk-different-nodes"), reportxml.ID("81420"),
+					rdscorecommon.VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleMacVlans)
+
+				It("Verifies rootless DPDK pod workloads on the different nodes, multiple IP-VLANs post soft reboot",
+					Label("dpdk-ip-vlan", "dpdk-different-nodes"), reportxml.ID("81422"),
+					rdscorecommon.VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleIPVlans)
+			})
 
 			It("Verify cluster log forwarding to the Kafka broker post soft reboot",
 				Label("log-forwarding", "kafka"), reportxml.ID("81883"),
