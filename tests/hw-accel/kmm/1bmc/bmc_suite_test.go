@@ -15,7 +15,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/rbac"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/serviceaccount"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/bmc/internal/tsparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/1bmc/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/define"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
@@ -27,7 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
 
-	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/bmc/tests"
+	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/1bmc/tests"
 )
 
 var (
