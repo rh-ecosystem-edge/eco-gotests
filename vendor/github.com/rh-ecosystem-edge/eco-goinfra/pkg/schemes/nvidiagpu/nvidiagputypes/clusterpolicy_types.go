@@ -2020,10 +2020,6 @@ type ClusterPolicyList struct {
 	Items           []ClusterPolicy `json:"items"`
 }
 
-func init() {
-	SchemeBuilder.Register(&ClusterPolicy{}, &ClusterPolicyList{})
-}
-
 // SetStatus sets state and namespace of ClusterPolicy instance
 func (p *ClusterPolicy) SetStatus(s State, ns string) {
 	p.Status.State = s
