@@ -43,6 +43,14 @@ type NeuronConfig struct {
 	InstanceType string
 	// StorageClassName is the storage class for model PVC (default: gp3-csi).
 	StorageClassName string
+	// KServeModelName is the HuggingFace model for KServe inference tests.
+	KServeModelName string
+	// KServeVLLMImage is the vLLM Neuron image for the KServe ServingRuntime.
+	KServeVLLMImage string
+	// KServeNamespace is the namespace where KServe resources are deployed.
+	KServeNamespace string
+	// KServeTensorParallelSize is the tensor parallel size for KServe vLLM.
+	KServeTensorParallelSize string
 }
 
 // NewNeuronConfig creates a new NeuronConfig from environment variables.
@@ -65,6 +73,10 @@ func NewNeuronConfig() *NeuronConfig {
 		ImageRepoSecretName:       os.Getenv("ECO_HWACCEL_NEURON_IMAGE_REPO_SECRET"),
 		InstanceType:              os.Getenv("ECO_HWACCEL_NEURON_INSTANCE_TYPE"),
 		StorageClassName:          os.Getenv("ECO_HWACCEL_NEURON_STORAGE_CLASS"),
+		KServeModelName:           os.Getenv("ECO_HWACCEL_NEURON_KSERVE_MODEL_NAME"),
+		KServeVLLMImage:           os.Getenv("ECO_HWACCEL_NEURON_KSERVE_VLLM_IMAGE"),
+		KServeNamespace:           os.Getenv("ECO_HWACCEL_NEURON_KSERVE_NAMESPACE"),
+		KServeTensorParallelSize:  os.Getenv("ECO_HWACCEL_NEURON_KSERVE_TENSOR_PARALLEL_SIZE"),
 	}
 
 	// Set defaults
@@ -86,8 +98,19 @@ func NewNeuronConfig() *NeuronConfig {
 	}
 
 	if config.StorageClassName == "" {
-		// Default storage class for ROSA/AWS
 		config.StorageClassName = "gp3-csi"
+	}
+
+	if config.KServeModelName == "" {
+		config.KServeModelName = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+	}
+
+	if config.KServeNamespace == "" {
+		config.KServeNamespace = "neuron-inference"
+	}
+
+	if config.KServeTensorParallelSize == "" {
+		config.KServeTensorParallelSize = "1"
 	}
 
 	klog.V(params.NeuronLogLevel).Infof("NeuronConfig loaded: DriversImage=%s, DevicePluginImage=%s, NodeMetricsImage=%s",
@@ -109,4 +132,9 @@ func (c *NeuronConfig) IsVLLMConfigured() bool {
 // IsUpgradeConfigured checks if upgrade testing configuration is present.
 func (c *NeuronConfig) IsUpgradeConfigured() bool {
 	return c.UpgradeTargetVersion != "" && c.UpgradeTargetDriversImage != ""
+}
+
+// IsKServeConfigured checks if KServe testing configuration is present.
+func (c *NeuronConfig) IsKServeConfigured() bool {
+	return c.HuggingFaceToken != "" && c.KServeNamespace != ""
 }

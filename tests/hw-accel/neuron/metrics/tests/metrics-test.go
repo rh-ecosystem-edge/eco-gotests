@@ -174,7 +174,7 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.Label), Label(par
 		})
 
 		It("Should verify metrics DaemonSet is created",
-			Label("neuron-metrics-001"), reportxml.ID("neuron-metrics-001"), func() {
+			Label("neuron-metrics"), reportxml.ID("88109"), func() {
 				By("Checking metrics pods are running")
 
 				running, err := check.MetricsPodsRunning(APIClient)

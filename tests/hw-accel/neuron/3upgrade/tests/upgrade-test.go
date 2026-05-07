@@ -267,7 +267,7 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 			})
 
 		It("Should perform rolling upgrade of Neuron drivers",
-			Label("neuron-upgrade-002"), reportxml.ID("OCP-88117"), func() {
+			Label("neuron-upgrade"), reportxml.ID("88117"), func() {
 				By("Updating DeviceConfig with new driver version")
 
 				deviceConfigBuilder, err := neuron.Pull(
