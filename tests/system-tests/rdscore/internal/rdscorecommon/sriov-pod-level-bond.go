@@ -1399,10 +1399,10 @@ func VerifyPodLevelBondWorkloadsAfterVFFailOver() {
 
 		time.Sleep(time.Second * 2)
 
-		err = disableBondActiveVFInterface(serverPodObj)
-		Expect(err).ToNot(HaveOccurred(),
+		disableErr := disableBondActiveVFInterface(serverPodObj)
+		Expect(disableErr).ToNot(HaveOccurred(),
 			fmt.Sprintf("Failed to disable bond active interface for the pod %s in namespace %s: %v",
-				serverPodObj.Definition.Name, serverPodObj.Definition.Namespace, err))
+				serverPodObj.Definition.Name, serverPodObj.Definition.Namespace, disableErr))
 	}(&waitGroup)
 
 	var ctx SpecContext
