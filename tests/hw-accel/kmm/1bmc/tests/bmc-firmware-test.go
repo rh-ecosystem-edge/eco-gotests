@@ -15,7 +15,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/secret"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/serviceaccount"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/bmc/internal/tsparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/1bmc/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/await"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/check"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/define"
