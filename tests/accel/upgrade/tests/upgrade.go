@@ -32,43 +32,52 @@ var _ = Describe("OCP_UPGRADE", Ordered, Label("minor"), func() {
 	Context("OCP", func() {
 		It("should upgrade successfully", reportxml.ID("72245"), func() {
 			By("Get the clusterversion struct")
+
 			version, err := clusterversion.Pull(HubAPIClient)
 			Expect(err).ToNot(HaveOccurred(), "error retrieving clusterversion")
 			klog.V(90).Infof("got the clusterversion struct %+v", version)
 
 			By("Deploy a workload in the cluster, expose a service and create a route")
+
 			workloadRoute := startTestWorkloadAndGetRoute()
 
 			By("Patch the clusterversion with the desired upgrade channel")
 			klog.V(90).Infof("this is the desired upgrade channel: %+v", desiredUpgradeChannel)
+
 			if desiredUpgradeChannel == "stable-4." {
 				desiredUpgradeChannel = version.Object.Spec.Channel
 				klog.V(90).Infof("clusterversion channel %s", desiredUpgradeChannel)
 			}
+
 			version, err = version.WithDesiredUpdateChannel(desiredUpgradeChannel).Update()
 			Expect(err).ToNot(HaveOccurred(), "error patching the desired upgrade channel")
 			klog.V(90).Infof("patched the clusterversion channel %s", desiredUpgradeChannel)
 
 			By("Get the desired update image")
+
 			desiredImage := AccelConfig.UpgradeTargetVersion
 			if desiredImage == "" {
 				desiredImage, err = version.GetNextUpdateVersionImage(upgradeparams.Z, false)
 				Expect(err).ToNot(HaveOccurred(), "error getting the next update image")
 			}
+
 			klog.V(90).Infof("got the desired update image in %s stream %s", upgradeparams.Z, desiredImage)
 
 			By("Patch the clusterversion with the desired upgrade image")
+
 			version, err = version.WithDesiredUpdateImage(desiredImage, true).Update()
 			Expect(err).ToNot(HaveOccurred(), "error patching the desired image")
 			Expect(version.Object.Spec.DesiredUpdate.Image).To(Equal(desiredImage))
 			klog.V(90).Infof("patched the clusterversion with desired image %s", desiredImage)
 
 			By("Wait until upgrade starts")
+
 			err = version.WaitUntilUpdateIsStarted(waitToUpgradeStart)
 			Expect(err).ToNot(HaveOccurred(), "the upgrade didn't start after %s", waitToUpgradeStart)
 			klog.V(90).Infof("upgrade has started")
 
 			By("Wait until upgrade completes")
+
 			err = version.WaitUntilUpdateIsCompleted(waitToUpgradeCompleted)
 			Expect(err).ToNot(HaveOccurred(), "the upgrade didn't complete after %s", waitToUpgradeCompleted)
 			klog.V(90).Infof("upgrade has completed")
@@ -78,6 +87,7 @@ var _ = Describe("OCP_UPGRADE", Ordered, Label("minor"), func() {
 			klog.V(90).Infof("upgrade to image %s has completed successfully", desiredImage)
 
 			By("Check that all the operators version is the desired version")
+
 			clusteroperatorList, err := clusteroperator.List(HubAPIClient)
 			Expect(err).ToNot(HaveOccurred(), "failed to get the clusteroperators list %v", err)
 			hasVersion, err := clusteroperator.VerifyClusterOperatorsVersion(version.Object.Status.Desired.Version,
@@ -86,18 +96,21 @@ var _ = Describe("OCP_UPGRADE", Ordered, Label("minor"), func() {
 			Expect(hasVersion).To(BeTrue())
 
 			By("Check that no cluster operator is progressing")
+
 			cosStoppedProgressing, err := clusteroperator.
 				WaitForAllClusteroperatorsStopProgressing(HubAPIClient, time.Minute*5)
 			Expect(err).ToNot(HaveOccurred(), "error while waiting for cluster operators to stop progressing")
 			Expect(cosStoppedProgressing).To(BeTrue(), "error: some cluster operators are still progressing")
 
 			By("Check that all cluster operators are available")
+
 			cosAvailable, err := clusteroperator.
 				WaitForAllClusteroperatorsAvailable(HubAPIClient, time.Minute*5)
 			Expect(err).NotTo(HaveOccurred(), "error while waiting for cluster operators to become available")
 			Expect(cosAvailable).To(BeTrue(), "error: some cluster operators are not available")
 
 			By("Check that all pods are running in workload namespace")
+
 			workloadPods, err := pod.List(HubAPIClient, upgradeparams.TestNamespaceName)
 			Expect(err).NotTo(HaveOccurred(), "error listing pods in workload namespace %s", upgradeparams.TestNamespaceName)
 			Expect(len(workloadPods) > 0).To(BeTrue(),

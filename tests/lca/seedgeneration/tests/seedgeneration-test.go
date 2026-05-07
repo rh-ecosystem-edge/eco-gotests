@@ -21,7 +21,6 @@ import (
 var _ = Describe(
 	"Seed image generation",
 	func() {
-
 		var (
 			imageName string
 		)
@@ -41,6 +40,7 @@ var _ = Describe(
 				seedGenerator, err := lca.PullSeedGenerator(TargetSNOAPIClient, "seedimage")
 				if err == nil && seedGenerator != nil {
 					klog.V(lcaparams.LCALogLevel).Info("Existing SeedGenerator found, deleting it")
+
 					_, err = seedGenerator.Delete()
 					Expect(err).NotTo(HaveOccurred(), fmt.Sprintf("Failed to delete existing SeedGenerator: %v", err))
 				} else {

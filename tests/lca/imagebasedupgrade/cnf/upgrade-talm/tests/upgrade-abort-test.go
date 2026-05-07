@@ -51,7 +51,6 @@ var _ = Describe(
 
 		It("Aborts an upgrade at IBU upgrade stage", reportxml.ID("69055"), func() {
 			By("Creating an upgrade IBGU", func() {
-
 				newIbguBuilder := ibgu.NewIbguBuilder(cnfinittools.TargetHubAPIClient,
 					tsparams.IbguName, tsparams.IbguNamespace).
 					WithClusterLabelSelectors(tsparams.ClusterLabelSelector).
@@ -69,7 +68,6 @@ var _ = Describe(
 			})
 
 			By("Aborting the upgrade phase once prep phase has finished", func() {
-
 				_, err = ibu.WaitUntilStageComplete("Prep")
 				Expect(err).NotTo(HaveOccurred(), "error waiting for prep stage to complete")
 
@@ -82,17 +80,14 @@ var _ = Describe(
 
 				abortIbguBuilder, err = newIbguBuilder.Create()
 				Expect(err).ToNot(HaveOccurred(), "Failed to create IBGU")
-
 			})
 
 			By("Waiting until the IBU and IBGU have completed without errors", func() {
-
 				_, err = ibu.WaitUntilStageComplete("Idle")
 				Expect(err).NotTo(HaveOccurred(), "error waiting for idle stage to complete")
 
 				_, err = abortIbguBuilder.WaitUntilComplete(time.Minute * 10)
 				Expect(err).ToNot(HaveOccurred(), "error waiting for IBGU  complete")
-
 			})
 		})
 	})

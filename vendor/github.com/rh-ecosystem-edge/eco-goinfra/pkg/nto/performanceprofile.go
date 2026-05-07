@@ -2,7 +2,7 @@ package nto //nolint:misspell
 import (
 	"fmt"
 
-	"k8s.io/utils/strings/slices"
+	"slices"
 
 	performanceprofilev2 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/performanceprofile/v2"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"

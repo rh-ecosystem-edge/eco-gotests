@@ -24,41 +24,47 @@ var _ = Describe(
 		var (
 			clusterName string
 		)
+
 		BeforeAll(func() {
 			By("Preparing workload")
+
 			if namespace.NewBuilder(APIClient, RanDuTestConfig.TestWorkload.Namespace).Exists() {
 				By("Deleting workload using shell method")
+
 				_, err := shell.ExecuteCmd(RanDuTestConfig.TestWorkload.DeleteShellCmd)
 				Expect(err).ToNot(HaveOccurred(), "Failed to delete workload")
 			}
 
 			if RanDuTestConfig.TestWorkload.CreateMethod == randuparams.TestWorkloadShellLaunchMethod {
 				By("Launching workload using shell method")
+
 				_, err := shell.ExecuteCmd(RanDuTestConfig.TestWorkload.CreateShellCmd)
 				Expect(err).ToNot(HaveOccurred(), "Failed to launch workload")
 			}
 
 			By("Waiting for deployment replicas to become ready")
+
 			_, err := await.WaitUntilAllDeploymentsReady(APIClient, RanDuTestConfig.TestWorkload.Namespace,
 				randuparams.DefaultTimeout)
 			Expect(err).ToNot(HaveOccurred(), "error while waiting for deployment to become ready")
 
 			By("Waiting for statefulset replicas to become ready")
+
 			_, err = await.WaitUntilAllStatefulSetsReady(APIClient, RanDuTestConfig.TestWorkload.Namespace,
 				randuparams.DefaultTimeout)
 			Expect(err).ToNot(HaveOccurred(), "error while waiting for statefulsets to become ready")
 
 			By("Waiting for pods replicas to become ready")
+
 			_, err = await.WaitUntilAllPodsReady(APIClient, RanDuTestConfig.TestWorkload.Namespace, randuparams.DefaultTimeout)
 			Expect(err).ToNot(HaveOccurred(), "pod not ready: %s", err)
 
 			By("Fetching Cluster name")
+
 			clusterName, err = platform.GetOCPClusterName(APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get cluster name")
-
 		})
 		It("StabilityWorkload", reportxml.ID("42744"), Label("StabilityWorkload"), func() {
-
 			outputDir := RanDuTestConfig.StabilityOutputPath
 			policiesOutputFile := fmt.Sprintf("%s/stability_workload_policies.log", outputDir)
 			ptpOutputFile := fmt.Sprintf("%s/stability_workload_ptp.log", outputDir)
@@ -70,8 +76,8 @@ var _ = Describe(
 			startTime := time.Now()
 
 			By(fmt.Sprintf("Collecting metrics during %d minutes", RanDuTestConfig.StabilityWorkloadDurMins))
-			for time.Since(startTime) < totalDuration {
 
+			for time.Since(startTime) < totalDuration {
 				if RanDuTestConfig.PtpEnabled {
 					err := stability.SavePTPStatus(APIClient, ptpOutputFile, interval)
 					if err != nil {
@@ -104,10 +110,12 @@ var _ = Describe(
 
 			// Final check of all values
 			By("Check all results")
+
 			var stabilityErrors []string
 
 			// Verify policies
 			By("Check Policy changes")
+
 			if RanDuTestConfig.StabilityPoliciesCheck {
 				_, err := stability.VerifyStabilityStatusChange(policiesOutputFile)
 				if err != nil {
@@ -117,6 +125,7 @@ var _ = Describe(
 
 			// Verify podRestarts
 			By("Check Pod restarts")
+
 			for _, namespace := range namespaces {
 				_, err := stability.VerifyStabilityStatusChange(fmt.Sprintf("%s/stability_workload_%s.log", outputDir, namespace))
 				if err != nil {
@@ -126,6 +135,7 @@ var _ = Describe(
 
 			// Verify PTP output
 			By("Check PTP results")
+
 			if RanDuTestConfig.PtpEnabled {
 				_, err := stability.VerifyStabilityStatusChange(ptpOutputFile)
 				if err != nil {
@@ -135,19 +145,21 @@ var _ = Describe(
 
 			// Verify tuned restarts
 			By("Check tuneds restarts")
+
 			_, err := stability.VerifyStabilityStatusChange(tunedRestartsOutputFile)
 			if err != nil {
 				stabilityErrors = append(stabilityErrors, err.Error())
 			}
 
 			By("Check if there been any error")
+
 			if len(stabilityErrors) > 0 {
 				Expect(stabilityErrors).ToNot(HaveOccurred(), "One or more errors in stability tests: %s", stabilityErrors)
 			}
-
 		})
 		AfterAll(func() {
 			By("Cleaning up test workload resources")
+
 			_, err := shell.ExecuteCmd(RanDuTestConfig.TestWorkload.DeleteShellCmd)
 			Expect(err).ToNot(HaveOccurred(), "Failed to delete workload")
 		})

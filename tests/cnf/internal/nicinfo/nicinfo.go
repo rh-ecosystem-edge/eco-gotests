@@ -158,7 +158,7 @@ var (
 	driverRegex           = regexp.MustCompile(`(?m)^driver: (.+)$`)
 	versionRegex          = regexp.MustCompile(`(?m)^version: (.+)$`)
 	firmwareVersionRegex  = regexp.MustCompile(`(?m)^firmware-version: (.+)$`)
-	ptpHardwareClockRegex = regexp.MustCompile(`(?m)^PTP Hardware Clock: (\d+)$`)
+	ptpHardwareClockRegex = regexp.MustCompile(`(?m)^(?:PTP Hardware Clock|Hardware timestamp provider index): (\d+)$`)
 )
 
 const (
@@ -246,7 +246,7 @@ func getInterfaceInfo(client *clients.Settings, nodeName string, interfaceName s
 	ptpHardwareClock := ptpHardwareClockRegex.FindStringSubmatch(ptpHardwareClockOutput)
 	if len(ptpHardwareClock) == 0 {
 		return nicInfo{}, fmt.Errorf(
-			"failed to find PTP Hardware Clock in ethtool output for interface %s on node %s: output was %q",
+			"failed to find PTP hardware clock index in ethtool output for interface %s on node %s: output was %q",
 			interfaceName, nodeName, ptpHardwareClockOutput)
 	}
 

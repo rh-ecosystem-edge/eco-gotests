@@ -27,7 +27,6 @@ var (
 var _ = Describe(
 	"Validating rollback stage after a failed upgrade",
 	Label(tsparams.LabelRollbackFlow), func() {
-
 		BeforeEach(func() {
 			By("Saving target sno cluster info before the test", func() {
 				err := cnfclusterinfo.PreUpgradeClusterInfo.SaveClusterInfo()
@@ -59,19 +58,39 @@ var _ = Describe(
 				_, err = newIbguBuilder.DeleteAndWait(1 * time.Minute)
 				Expect(err).ToNot(HaveOccurred(), "Failed to delete prep-upgrade ibgu on target hub cluster")
 
-				abortIbguBuilder := ibgu.NewIbguBuilder(TargetHubAPIClient, "abortibgu", tsparams.IbguNamespace).
-					WithClusterLabelSelectors(tsparams.ClusterLabelSelector).
-					WithSeedImageRef(CNFConfig.IbguSeedImage, CNFConfig.IbguSeedImageVersion).
-					WithPlan([]string{"Abort"}, 5, 10)
+				// Check if IBU is already Idle after auto-rollback
+				ibu, err = lca.PullImageBasedUpgrade(TargetSNOAPIClient)
+				Expect(err).ToNot(HaveOccurred(), "Failed to pull IBU resource")
 
-				abortIbguBuilder, err = abortIbguBuilder.Create()
-				Expect(err).ToNot(HaveOccurred(), "Failed to create abort Ibgu.")
+				// Check the Idle condition status
+				isIdle := false
 
-				_, err = abortIbguBuilder.WaitUntilComplete(5 * time.Minute)
-				Expect(err).NotTo(HaveOccurred(), "abort IBGU did not complete in time.")
+				for _, condition := range ibu.Object.Status.Conditions {
+					if condition.Type == "Idle" && condition.Status == "True" {
+						isIdle = true
 
-				_, err = abortIbguBuilder.DeleteAndWait(1 * time.Minute)
-				Expect(err).ToNot(HaveOccurred(), "Failed to delete abort ibgu on target hub cluster")
+						break
+					}
+				}
+
+				// Only create abort IBGU if not already Idle
+				if !isIdle {
+					abortIbguBuilder := ibgu.NewIbguBuilder(TargetHubAPIClient, "abortibgu", tsparams.IbguNamespace).
+						WithClusterLabelSelectors(tsparams.ClusterLabelSelector).
+						WithSeedImageRef(CNFConfig.IbguSeedImage, CNFConfig.IbguSeedImageVersion).
+						WithPlan([]string{"Abort"}, 5, 10)
+
+					abortIbguBuilder, err = abortIbguBuilder.Create()
+					Expect(err).ToNot(HaveOccurred(), "Failed to create abort Ibgu.")
+
+					_, err = abortIbguBuilder.WaitUntilComplete(5 * time.Minute)
+					Expect(err).NotTo(HaveOccurred(), "abort IBGU did not complete in time.")
+
+					_, err = abortIbguBuilder.DeleteAndWait(1 * time.Minute)
+					Expect(err).ToNot(HaveOccurred(), "Failed to delete abort ibgu on target hub cluster")
+				} else {
+					klog.V(100).Infof("IBU already in Idle stage after auto-rollback, skipping abort IBGU")
+				}
 
 				// Sleep for 10 seconds to allow talm to reconcile state.
 				// Sometimes if the next test re-creates the IBGUs too quickly,
@@ -80,10 +99,8 @@ var _ = Describe(
 			})
 
 			By("Creating, enabling ibu finalize", func() {
-
 				_, err = ibu.WaitUntilStageComplete("Idle")
 				Expect(err).NotTo(HaveOccurred(), "error waiting for idle stage to complete")
-
 			})
 
 			// Sleep for 10 seconds to allow talm to reconcile state.
@@ -93,9 +110,7 @@ var _ = Describe(
 		})
 
 		It("Rollback after a failed upgrade", reportxml.ID("69054"), func() {
-
 			By("Creating Prep->Upgrade->FinalizeUpgrae IBGU and waiting for node rebooted into stateroot B", func() {
-
 				newIbguBuilder := ibgu.NewIbguBuilder(TargetHubAPIClient,
 					tsparams.IbguName, tsparams.IbguNamespace).
 					WithClusterLabelSelectors(tsparams.ClusterLabelSelector).
@@ -115,6 +130,7 @@ var _ = Describe(
 				Expect(err).NotTo(HaveOccurred(), "error listing node")
 
 				By("Wait until Prep stage is completed")
+
 				_, err = ibu.WaitUntilStageComplete("Prep")
 				Expect(err).NotTo(HaveOccurred(), "error waiting for prep stage to complete")
 
@@ -154,6 +170,7 @@ var _ = Describe(
 				seedImageVersion = ibu.Definition.Spec.SeedImageRef.Version
 
 				var seedVersionFound bool
+
 				retries := 3
 
 				// retry 3 times to get the stateroot name
@@ -167,6 +184,7 @@ var _ = Describe(
 						if bootedStaterootNameRes != "" {
 							if strings.Contains(bootedStaterootNameRes, seedImageVersion) {
 								klog.V(100).Infof("Found "+seedImageVersion+" in %s", bootedStaterootNameRes)
+
 								seedVersionFound = true
 
 								break
@@ -193,9 +211,7 @@ var _ = Describe(
 			})
 
 			By("Verifying auto rollback triggered upon upgrade failure", func() {
-
 				By("Waiting for node rebooted into stateroot A and cluster become available", func() {
-
 					By("Get list of node to be upgraded")
 
 					ibuNode, err := nodes.List(TargetSNOAPIClient)

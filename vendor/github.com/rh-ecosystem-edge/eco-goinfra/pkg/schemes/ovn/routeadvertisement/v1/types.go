@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright The OVN-Kubernetes Contributors
+// SPDX-License-Identifier: Apache-2.0
+
 package v1
 
 import (
@@ -66,6 +69,11 @@ const (
 
 	// EgressIP determines that egress IPs are being advertised.
 	EgressIP AdvertisementType = "EgressIP"
+)
+
+const (
+	// RouteAdvertisementsAccepted is the condition type for RouteAdvertisements acceptance status
+	RouteAdvertisementsAccepted = "Accepted"
 )
 
 // RouteAdvertisementsStatus defines the observed state of RouteAdvertisements.

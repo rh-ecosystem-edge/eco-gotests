@@ -144,6 +144,28 @@ func (builder *ModuleBuilder) WithImageRepoSecret(imageRepoSecret string) *Modul
 	return builder
 }
 
+// WithDevicePluginAutomountServiceAccountToken sets the AutomountServiceAccountToken field
+// on the DevicePlugin spec. When set to false, the projected service account volume
+// (SA token, CA files) will not be auto-mounted into the device plugin pod.
+func (builder *ModuleBuilder) WithDevicePluginAutomountServiceAccountToken(
+	automount bool) *ModuleBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof(
+		"Setting Module %s in namespace %s DevicePlugin AutomountServiceAccountToken to %v",
+		builder.Definition.Name, builder.Definition.Namespace, automount)
+
+	if builder.Definition.Spec.DevicePlugin == nil {
+		builder.Definition.Spec.DevicePlugin = &moduleV1Beta1.DevicePluginSpec{}
+	}
+
+	builder.Definition.Spec.DevicePlugin.AutomountServiceAccountToken = &automount
+
+	return builder
+}
+
 // WithDevicePluginVolume adds the specified DevicePlugin volume to the Module.
 func (builder *ModuleBuilder) WithDevicePluginVolume(name string, configMapName string) *ModuleBuilder {
 	if valid, _ := builder.validate(); !valid {
@@ -259,6 +281,23 @@ func (builder *ModuleBuilder) WithDevicePluginContainer(
 	}
 
 	builder.Definition.Spec.DevicePlugin.Container = *container
+
+	return builder
+}
+
+// WithImageRebuildTriggerGeneration adds the specified image rebuild trigger generation to the Module.
+// Setting this to a different value than the current status will trigger re-verification of the module image.
+// If the image is missing, a rebuild is triggered. If the image exists, no rebuild occurs.
+func (builder *ModuleBuilder) WithImageRebuildTriggerGeneration(generation int) *ModuleBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof(
+		"Creating Module %s in namespace %s with ImageRebuildTriggerGeneration: %d",
+		builder.Definition.Name, builder.Definition.Namespace, generation)
+
+	builder.Definition.Spec.ImageRebuildTriggerGeneration = &generation
 
 	return builder
 }

@@ -21,12 +21,14 @@ var _ = Describe("ZTP Generator Tests", Label(tsparams.LabelGeneratorTestCases, 
 
 	BeforeEach(func() {
 		By("getting current user")
+
 		output, err := ranhelper.ExecLocalCommand(time.Minute, "whoami")
 		Expect(err).ToNot(HaveOccurred(), "Failed to run get current user")
 
 		user := strings.TrimSpace(output)
 
 		By("checking siteconfig path")
+
 		siteConfigPath = fmt.Sprintf("/home/%s/site-configs", user)
 		_, err = os.Stat(siteConfigPath)
 		Expect(err).ToNot(HaveOccurred(), "Failed to find site config repo at '%s'", siteConfigPath)
@@ -34,6 +36,7 @@ var _ = Describe("ZTP Generator Tests", Label(tsparams.LabelGeneratorTestCases, 
 
 	AfterEach(func() {
 		By("deleting the generated manifests and policies")
+
 		_, err := ranhelper.ExecLocalCommand(time.Minute, "sudo", "rm", "-rf", siteConfigPath+"/siteconfig/out")
 		Expect(err).ToNot(HaveOccurred(), "Failed to delete siteconfig output")
 
@@ -45,6 +48,7 @@ var _ = Describe("ZTP Generator Tests", Label(tsparams.LabelGeneratorTestCases, 
 	It("generates and installs time crs, manifests, and policies, and verifies they are present",
 		reportxml.ID("54355"), func() {
 			By("generating the install time CRs and manifests")
+
 			_, err := ranhelper.ExecLocalCommand(
 				time.Minute,
 				"podman",
@@ -60,6 +64,7 @@ var _ = Describe("ZTP Generator Tests", Label(tsparams.LabelGeneratorTestCases, 
 			Expect(err).ToNot(HaveOccurred(), "Failed to generate the install time CRs and manifests")
 
 			By("validating CRs and manifests were created")
+
 			installCRsDir := fmt.Sprintf("%s/siteconfig/out/generated_installCRs/", siteConfigPath)
 			siteDirs, err := os.ReadDir(installCRsDir)
 			Expect(err).ToNot(HaveOccurred(), "Failed to read installed CRs directory: %s", installCRsDir)
@@ -74,6 +79,7 @@ var _ = Describe("ZTP Generator Tests", Label(tsparams.LabelGeneratorTestCases, 
 			}
 
 			By("generating the policies")
+
 			_, err = ranhelper.ExecLocalCommand(
 				time.Minute,
 				"podman",
@@ -88,6 +94,7 @@ var _ = Describe("ZTP Generator Tests", Label(tsparams.LabelGeneratorTestCases, 
 			Expect(err).ToNot(HaveOccurred(), "Failed to generate policies")
 
 			By("validating the policies were created")
+
 			expectedKind := []string{"Policy", "PlacementRule", "PlacementBinding"}
 
 			// Expect to have at least 3 subdirs - common, group DU, site

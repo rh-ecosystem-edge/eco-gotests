@@ -17,8 +17,14 @@ deps-update:
 	go mod tidy && \
 	go mod vendor
 
+# ECO_GOINFRA_BRANCH: optional branch to sync from (e.g. release-4.20). Empty = default branch.
+ECO_GOINFRA_BRANCH ?=
 sync-eco-goinfra:
+ifneq ($(ECO_GOINFRA_BRANCH),)
+	go get github.com/rh-ecosystem-edge/eco-goinfra@$(ECO_GOINFRA_BRANCH)
+else
 	go get github.com/rh-ecosystem-edge/eco-goinfra
+endif
 	go mod tidy
 	go mod vendor
 

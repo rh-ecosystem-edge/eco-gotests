@@ -8,15 +8,22 @@ type NetworkConfig struct {
 	DNSResolver DNSResolver `yaml:"dns-resolver"`
 }
 
+// VlanConfig defines the VLAN configuration for an interface.
+type VlanConfig struct {
+	ID        int    `yaml:"id"`
+	BaseIface string `yaml:"base-iface"`
+}
+
 // Interface defines an nmstate interface and its properties.
 type Interface struct {
-	Name       string   `yaml:"name"`
-	Type       string   `yaml:"type"`
-	State      string   `yaml:"state"`
-	Identifier string   `yaml:"identifier"`
-	MACAddress string   `yaml:"mac-address"`
-	IPv4       IPConfig `yaml:"ipv4"`
-	IPv6       IPConfig `yaml:"ipv6"`
+	Name       string     `yaml:"name"`
+	Type       string     `yaml:"type"`
+	State      string     `yaml:"state"`
+	Identifier string     `yaml:"identifier,omitempty"`
+	MACAddress string     `yaml:"mac-address,omitempty"`
+	VLAN       VlanConfig `yaml:"vlan,omitempty"`
+	IPv4       IPConfig   `yaml:"ipv4"`
+	IPv6       IPConfig   `yaml:"ipv6"`
 }
 
 // Routes contains the route configuration portion of the nmstate configuration.

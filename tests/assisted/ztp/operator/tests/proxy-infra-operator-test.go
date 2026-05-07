@@ -25,11 +25,13 @@ var _ = Describe(
 		When("on MCE 2.0 and above", func() {
 			BeforeAll(func() {
 				By("Check that hub cluster was deployed with a proxy")
+
 				if reqMet, msg := meets.HubProxyConfiguredRequirement(); !reqMet {
 					Skip(msg)
 				}
 
 				By("Get hub OCP proxy")
+
 				operatorDeployProxy, err = cluster.GetOCPProxy(HubAPIClient)
 				Expect(err).NotTo(HaveOccurred(), "error pulling hub ocp proxy")
 			})

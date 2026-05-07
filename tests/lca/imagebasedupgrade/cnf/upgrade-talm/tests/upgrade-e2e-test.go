@@ -16,6 +16,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/cnf/internal/cnfinittools"
 	cnfibuvalidations "github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/cnf/internal/validations"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/cnf/upgrade-talm/internal/tsparams"
+	"k8s.io/klog/v2"
 )
 
 var _ = Describe(
@@ -23,7 +24,6 @@ var _ = Describe(
 	Ordered,
 	ContinueOnFailure,
 	Label(tsparams.LabelEndToEndUpgrade), func() {
-
 		var (
 			clusterList       []*clients.Settings
 			upgradeSuccessful = true
@@ -56,7 +56,6 @@ var _ = Describe(
 					tsparams.IbguName, tsparams.IbguNamespace).DeleteAndWait(1 * time.Minute)
 
 				Expect(err).ToNot(HaveOccurred(), "Failed to delete ibgu on target hub cluster")
-
 			})
 
 			// Sleep for 10 seconds to allow talm to reconcile state.
@@ -76,12 +75,17 @@ var _ = Describe(
 					WithOadpContent(cnfinittools.CNFConfig.IbguOadpCmName, cnfinittools.CNFConfig.IbguOadpCmNamespace).
 					WithPlan([]string{"Prep", "Upgrade"}, 5, 30)
 
+				upgradeStart := time.Now()
+
 				newIbguBuilder, err := newIbguBuilder.Create()
 				Expect(err).ToNot(HaveOccurred(), "Failed to create upgrade Ibgu.")
 
 				_, err = newIbguBuilder.WaitUntilComplete(30 * time.Minute)
 				Expect(err).NotTo(HaveOccurred(), "Prep and Upgrade IBGU did not complete in time.")
 
+				upgradeDuration := time.Since(upgradeStart)
+				By(fmt.Sprintf("Upgrade (Prep+Upgrade) completed in %v", upgradeDuration))
+				klog.Infof("IBU upgrade duration (Prep+Upgrade): %v", upgradeDuration)
 			})
 
 			By("Saving target sno cluster info after upgrade", func() {
@@ -90,7 +94,6 @@ var _ = Describe(
 			})
 
 			upgradeSuccessful = true
-
 		})
 
 		if upgradeSuccessful {
@@ -114,14 +117,17 @@ var _ = Describe(
 					cnfinittools.CNFConfig.IbguOadpCmNamespace)
 				rollbackIbguBuilder = rollbackIbguBuilder.WithPlan([]string{"Rollback", "FinalizeRollback"}, 5, 30)
 
+				rollbackStart := time.Now()
+
 				rollbackIbguBuilder, err = rollbackIbguBuilder.Create()
 				Expect(err).ToNot(HaveOccurred(), "Failed to create rollback Ibgu.")
 
 				_, err = rollbackIbguBuilder.WaitUntilComplete(30 * time.Minute)
 				Expect(err).NotTo(HaveOccurred(), "Rollback IBGU did not complete in time.")
 
+				rollbackDuration := time.Since(rollbackStart)
+				By(fmt.Sprintf("Rollback (Rollback+FinalizeRollback) completed in %v", rollbackDuration))
+				klog.Infof("IBU rollback duration (Rollback+FinalizeRollback): %v", rollbackDuration)
 			})
-
 		})
-
 	})

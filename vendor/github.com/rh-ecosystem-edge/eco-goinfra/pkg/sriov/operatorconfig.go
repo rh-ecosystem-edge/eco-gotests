@@ -9,11 +9,12 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	"k8s.io/klog/v2"
 
+	"slices"
+
 	srIovV1 "github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/strings/slices"
 )
 
 const (

@@ -30,10 +30,12 @@ func TestORAN(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	By("checking that the hub cluster is present")
+
 	isHubPresent := rancluster.AreClustersPresent([]*clients.Settings{HubAPIClient})
 	Expect(isHubPresent).To(BeTrue(), "Hub cluster must be present for O-RAN tests")
 
 	By("deploying the subscriber for alarm notifications")
+
 	subscriberDomain := RANConfig.GetAppsURL(tsparams.SubscriberSubdomain)
 	err := subscriber.Deploy(HubAPIClient, tsparams.SubscriberNamespace, subscriberDomain, "")
 	Expect(err).ToNot(HaveOccurred(), "Failed to deploy subscriber")
@@ -41,6 +43,7 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	By("cleaning up the subscriber deployment")
+
 	err := subscriber.Cleanup(HubAPIClient, tsparams.SubscriberNamespace)
 	Expect(err).ToNot(HaveOccurred(), "Failed to cleanup subscriber")
 })

@@ -67,7 +67,20 @@ const (
 	// InspectAnnotationValueDisabled is a constant string="disabled"
 	// This is particularly useful to check if inspect annotation is disabled
 	// inspect.metal3.io=disabled.
+	//
+	// Deprecated: use InspectionMode instead.
 	InspectAnnotationValueDisabled = "disabled"
+)
+
+// InspectionMode represents the mode of host inspection.
+type InspectionMode string
+
+const (
+	// InspectionModeDisabled disables host inspection.
+	InspectionModeDisabled InspectionMode = "disabled"
+
+	// InspectionModeAgent runs standard agent-based inspection.
+	InspectionModeAgent InspectionMode = "agent"
 )
 
 // RootDeviceHints holds the hints for specifying the storage location
@@ -485,6 +498,13 @@ type BareMetalHostSpec struct {
 	// instead, a reboot will be used in place of power on/off
 	// +optional
 	DisablePowerOff bool `json:"disablePowerOff,omitempty"`
+
+	// Specifies the mode for host inspection.
+	// "disabled" - no inspection will be performed
+	// "agent" - normal agent-based inspection will run
+	// +optional
+	// +kubebuilder:validation:Enum=disabled;agent
+	InspectionMode InspectionMode `json:"inspectionMode,omitempty"`
 }
 
 // AutomatedCleaningMode is the interface to enable/disable automated cleaning
@@ -522,7 +542,7 @@ type Image struct {
 	URL string `json:"url"`
 
 	// Checksum is the checksum for the image. Required for all formats
-	// except for "live-iso".
+	// except for "live-iso" and OCI images (oci://).
 	Checksum string `json:"checksum,omitempty"`
 
 	// ChecksumType is the checksum algorithm for the image, e.g md5, sha256 or sha512.
@@ -539,6 +559,10 @@ type Image struct {
 
 func (image *Image) IsLiveISO() bool {
 	return image != nil && image.DiskFormat != nil && *image.DiskFormat == "live-iso"
+}
+
+func (image *Image) IsOCI() bool {
+	return image != nil && strings.HasPrefix(image.URL, "oci://")
 }
 
 // Custom deploy is a description of a customized deploy process.
@@ -658,6 +682,21 @@ type VLAN struct {
 	Name string `json:"name,omitempty"`
 }
 
+// LLDP represents Link Layer Discovery Protocol data for a network interface.
+type LLDP struct {
+	// The switch chassis ID from LLDP
+	// +optional
+	SwitchID string `json:"switchID,omitempty"`
+
+	// The switch port ID from LLDP
+	// +optional
+	PortID string `json:"portID,omitempty"`
+
+	// The switch system name from LLDP
+	// +optional
+	SwitchSystemName string `json:"switchSystemName,omitempty"`
+}
+
 // NIC describes one network interface on the host.
 type NIC struct {
 	// The name of the network interface, e.g. "en0"
@@ -687,6 +726,10 @@ type NIC struct {
 
 	// Whether the NIC is PXE Bootable
 	PXE bool `json:"pxe,omitempty"`
+
+	// LLDP data for this interface
+	// +optional
+	LLDP *LLDP `json:"lldp,omitempty"`
 }
 
 // Firmware describes the firmware on the host.
@@ -974,6 +1017,19 @@ func (host *BareMetalHost) CredentialsKey() types.NamespacedName {
 	}
 }
 
+// InspectionDisabled returns true if inspection is disabled via either
+// the inspect.metal3.io annotation or the inspectionMode field.
+func (host *BareMetalHost) InspectionDisabled() bool {
+	// Check the new InspectionMode field first
+	if host.Spec.InspectionMode == InspectionModeDisabled {
+		return true
+	}
+
+	// Fall back to the legacy annotation for backward compatibility
+	annotations := host.GetAnnotations()
+	return annotations[InspectAnnotationPrefix] == InspectAnnotationValueDisabled
+}
+
 // NeedsHardwareInspection looks at the state of the host to determine
 // if hardware inspection should be run.
 func (host *BareMetalHost) NeedsHardwareInspection() bool {
@@ -987,6 +1043,11 @@ func (host *BareMetalHost) NeedsHardwareInspection() bool {
 		// this host, because we don't want to reboot it.
 		return false
 	}
+	if host.InspectionDisabled() {
+		// Never perform inspection if it's explicitly disabled
+		return false
+	}
+	// FIXME(dtantsur): the HardwareDetails field is deprecated.
 	return host.Status.HardwareDetails == nil
 }
 
@@ -1134,7 +1195,11 @@ func (image *Image) GetChecksum() (checksum, checksumType string, err error) {
 		return "", "", nil
 	}
 
-	// FIXME(dtantsur): Ironic supports oci:// images with an embedded checksum
+	// Checksum is not required for OCI images as they have embedded checksums
+	if image.IsOCI() && image.Checksum == "" {
+		return "", "", nil
+	}
+
 	if image.Checksum == "" {
 		// Return empty if checksum is not provided
 		return "", "", errors.New("checksum is required for normal images")

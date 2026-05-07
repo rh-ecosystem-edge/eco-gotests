@@ -65,14 +65,15 @@ var _ = Describe(
 	Label(tsparams.LabelAdditionalTrustBundle), func() {
 		When("on MCE 2.4 and above", func() {
 			BeforeAll(func() {
-
 				tsparams.ReporterNamespacesToDump[trustBundleTestNS] = "trustbundle-test namespace"
 
 				By("Create trustbundle-test namespace")
+
 				testNS, err = namespace.NewBuilder(HubAPIClient, trustBundleTestNS).Create()
 				Expect(err).ToNot(HaveOccurred(), "error occurred when creating namespace")
 
 				By("Create trustbundle-test pull-secret")
+
 				testSecret, err = secret.NewBuilder(
 					HubAPIClient,
 					trustBundleTestNS+"-pull-secret",
@@ -81,6 +82,7 @@ var _ = Describe(
 				Expect(err).ToNot(HaveOccurred(), "error occurred when creating pull-secret")
 
 				By("Create trustbundle-test clusterdeployment")
+
 				testClusterDeployment, err = hive.NewABMClusterDeploymentBuilder(
 					HubAPIClient,
 					trustBundleTestNS+"clusterdeployment",
@@ -119,6 +121,7 @@ var _ = Describe(
 
 			It("Validates that InfraEnv can be updated with additionalTrustedBundle", reportxml.ID("65936"), func() {
 				By("Creating Infraenv")
+
 				infraenv := assisted.NewInfraEnvBuilder(
 					HubAPIClient,
 					"testinfraenv",
@@ -126,6 +129,7 @@ var _ = Describe(
 					testSecret.Definition.Name)
 				infraenv.Definition.Spec.AdditionalTrustBundle = additionalTrustCertificate
 				_, err = infraenv.Create()
+
 				Eventually(func() (string, error) {
 					infraenv.Object, err = infraenv.Get()
 					if err != nil {
@@ -140,18 +144,20 @@ var _ = Describe(
 					To(Equal(additionalTrustCertificate), "infraenv was created with wrong certificate")
 				By("Checking image was created with additionalTrustCertificate")
 				By("Getting Infraenv")
+
 				infraenv, err = assisted.PullInfraEnvInstall(HubAPIClient, "testinfraenv", trustBundleTestNS)
 				Expect(err).ToNot(HaveOccurred(), "error retrieving infraenv")
+
 				for _, condition := range infraenv.Object.Status.Conditions {
 					if agentinstallv1beta1.ImageCreatedCondition == condition.Type {
 						Expect(condition.Status).To(Equal(corev1.ConditionTrue), "error creating image")
 					}
 				}
-
 			})
 
 			It("Validates invalid certificate throws proper status", reportxml.ID("67490"), func() {
 				By("Creating Infraenv")
+
 				infraenv := assisted.NewInfraEnvBuilder(
 					HubAPIClient,
 					"testinfraenv",
@@ -170,46 +176,51 @@ var _ = Describe(
 				}).WithTimeout(time.Minute*3).ProbeEvery(time.Second*3).
 					Should(BeEmpty(), "error waiting for download url to be created")
 				By("Getting Infraenv")
+
 				infraenv, err = assisted.PullInfraEnvInstall(HubAPIClient, "testinfraenv", trustBundleTestNS)
 				Expect(err).ToNot(HaveOccurred(), "error in retrieving infraenv")
 				By("Checking additionalTrustBundle equal to additionalTrustCertificateEmpty")
 				Expect(infraenv.Object.Spec.AdditionalTrustBundle).
 					To(Equal(additionalTrustCertificateEmpty), "certificate should be empty")
 				By("Checking image was not created due to invalid certificate")
+
 				for _, condition := range infraenv.Object.Status.Conditions {
 					if agentinstallv1beta1.ImageCreatedCondition == condition.Type {
 						Expect(condition.Status).ToNot(Equal(corev1.ConditionTrue), "image was created with invalid certificate")
 					}
 				}
-
 			})
 			AfterEach(func() {
 				By("Getting Infraenv")
+
 				infraenv, err := assisted.PullInfraEnvInstall(HubAPIClient, "testinfraenv", trustBundleTestNS)
 				Expect(err).ToNot(HaveOccurred(), "error retrieving infraenv")
 				By("Deleting infraenv")
+
 				err = infraenv.DeleteAndWait(time.Second * 20)
 				Expect(err).ToNot(HaveOccurred(), "error deleting infraenv")
 			})
 
 			AfterAll(func() {
-
 				By("Deleting agentCLusterInstall")
+
 				err = testAgentClusterInstall.Delete()
 				Expect(err).ToNot(HaveOccurred(), "error deleting aci")
 
 				By("Deleting clusterdeployment")
+
 				err = testClusterDeployment.Delete()
 				Expect(err).ToNot(HaveOccurred(), "error deleting clusterdeployment")
 
 				By("Deleting pull secret")
+
 				err = testSecret.Delete()
 				Expect(err).ToNot(HaveOccurred(), "error deleting pull secret")
 
 				By("Deleting test namespace")
+
 				err = testNS.DeleteAndWait(timeout)
 				Expect(err).ToNot(HaveOccurred(), "error deleting test namespace")
 			})
-
 		})
 	})

@@ -57,6 +57,11 @@ const (
 	ClockTypeServer
 )
 
+// profileNameSeparator is the separator used by the PTP operator (4.22+) to construct qualified profile names
+// in the format PtpConfigName_ProfileName. Since Kubernetes resource names cannot contain underscores (RFC 1123),
+// splitting on the first underscore is always unambiguous.
+const profileNameSeparator = "_"
+
 // ProfileReference contains the information needed to identify a profile on a cluster.
 type ProfileReference struct {
 	// ConfigReference is the reference to the PtpConfig object that contains the profile.
@@ -66,6 +71,19 @@ type ProfileReference struct {
 	// ProfileName is the name of the profile. It is not necessary to get the profile directly, but is used as a key
 	// when recommending profiles to nodes.
 	ProfileName string
+}
+
+// QualifiedName returns the profile name as used by the linuxptp-daemon on operator 4.22+, which prepends the
+// PtpConfig CR name. Since Kubernetes resource names cannot contain underscores, this format is unambiguous.
+func (reference *ProfileReference) QualifiedName() string {
+	return reference.ConfigReference.Name + profileNameSeparator + reference.ProfileName
+}
+
+// MatchesDaemonName reports whether the provided name, as reported by the linuxptp-daemon (config file headers,
+// Prometheus labels, logs), matches this profile. It accepts both the qualified format (4.22+) and the unqualified
+// spec-level name (pre-4.22).
+func (reference *ProfileReference) MatchesDaemonName(daemonName string) bool {
+	return daemonName == reference.QualifiedName() || daemonName == reference.ProfileName
 }
 
 // PullPtpConfig pulls the PtpConfig for the profile referenced by this struct.
@@ -516,6 +534,25 @@ func (nodeInfo *NodeInfo) GetProfileByName(name string) *ProfileInfo {
 	return nil
 }
 
+// GetProfileByDaemonName returns the ProfileInfo matching a profile name as reported by the linuxptp-daemon. It
+// supports both the qualified format (configName_profileName, 4.22+) and the unqualified spec-level name (pre-4.22).
+// Qualified matches are preferred over unqualified matches to avoid ambiguity.
+func (nodeInfo *NodeInfo) GetProfileByDaemonName(daemonName string) *ProfileInfo {
+	for _, profileInfo := range nodeInfo.Profiles {
+		if profileInfo.Reference.QualifiedName() == daemonName {
+			return profileInfo
+		}
+	}
+
+	for _, profileInfo := range nodeInfo.Profiles {
+		if profileInfo.Reference.ProfileName == daemonName {
+			return profileInfo
+		}
+	}
+
+	return nil
+}
+
 // GetProfileByConfigPath returns the ProfileInfo for the profile with the provided config path. The config path will be
 // relative to /var/run, so it should be something like ptp4l.0.config. This function makes the assumption that the
 // first line of the file contains the profile name.
@@ -531,7 +568,7 @@ func (nodeInfo *NodeInfo) GetProfileByConfigPath(
 	}
 
 	profileName := strings.TrimSpace(output)
-	profile := nodeInfo.GetProfileByName(profileName)
+	profile := nodeInfo.GetProfileByDaemonName(profileName)
 
 	if profile == nil {
 		return nil, fmt.Errorf("profile %s not found on node %s", profileName, nodeInfo.Name)
@@ -589,13 +626,21 @@ func (nodeInfo *NodeInfo) SetConfigIndices(client *clients.Settings) error {
 	}
 
 	for _, profile := range nodeInfo.Profiles {
-		index, ok := profileIndices[profile.Reference.ProfileName]
-		if !ok {
+		var found bool
+
+		for name, index := range profileIndices {
+			if profile.Reference.MatchesDaemonName(name) {
+				profile.ConfigIndex = ptr.To(index)
+				found = true
+
+				break
+			}
+		}
+
+		if !found {
 			return fmt.Errorf("config index not found for profile %s on node %s",
 				profile.Reference.ProfileName, nodeInfo.Name)
 		}
-
-		profile.ConfigIndex = ptr.To(index)
 	}
 
 	return nil

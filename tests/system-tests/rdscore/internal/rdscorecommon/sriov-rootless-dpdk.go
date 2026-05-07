@@ -20,9 +20,12 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/apiobjectshelper"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreparams"
 )
 
 const (
@@ -44,7 +47,7 @@ const (
 	secondInterfaceBasedOnTapThree = "ext2.2"
 
 	dpdkTestpmdTimeout = 20 * time.Second
-	clientRxCmdTimeout = dpdkTestpmdTimeout + 2*time.Second
+	clientRxCmdTimeout = dpdkTestpmdTimeout + 10*time.Second
 	getLinkRxTimeout   = 3 * time.Second
 )
 
@@ -159,6 +162,69 @@ func CleanupRootlessDPDKServerDeployment(ctx SpecContext) {
 			serverDPDKDeploymentName, deploymentNamespace)
 }
 
+// CleanupRootlessDPDKClientPods removes stale client pods from the DPDK namespace
+// to prevent interference with subsequent test runs.
+// Cleans up both Failed and Succeeded pods to match getDPDKPod() filtering logic.
+func CleanupRootlessDPDKClientPods(ctx SpecContext) {
+	By("Ensuring rootless DPDK client pods are cleaned up")
+
+	// Use Eventually to handle transient errors during cleanup
+	Eventually(func() error {
+		allPods, err := pod.List(APIClient, deploymentNamespace, metav1.ListOptions{})
+		if err != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods in namespace %s: %v",
+				deploymentNamespace, err)
+
+			return fmt.Errorf("failed to list pods: %w", err)
+		}
+
+		var stalePods []*pod.Builder
+
+		for _, _pod := range allPods {
+			// Only clean up DPDK client pods (deployment-generated pods have format: name-hash-hash)
+			if strings.HasPrefix(_pod.Definition.Name, dpdkClientDeploymentName+"-") {
+				// Clean up pods that are Failed or Succeeded (not Running, not Terminating)
+				if (_pod.Object.Status.Phase == corev1.PodFailed || _pod.Object.Status.Phase == corev1.PodSucceeded) &&
+					_pod.Object.DeletionTimestamp == nil {
+					stalePods = append(stalePods, _pod)
+				}
+			}
+		}
+
+		if len(stalePods) == 0 {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("No stale DPDK client pods found in namespace %s",
+				deploymentNamespace)
+
+			return nil
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d stale DPDK client pod(s) in namespace %s",
+			len(stalePods), deploymentNamespace)
+
+		for _, stalePod := range stalePods {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deleting stale DPDK client pod %q in phase %s",
+				stalePod.Definition.Name, stalePod.Object.Status.Phase)
+
+			_, err := stalePod.DeleteAndWait(30 * time.Second)
+			if err != nil {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to delete pod %q: %v",
+					stalePod.Definition.Name, err)
+
+				return fmt.Errorf("failed to delete pod %s: %w", stalePod.Definition.Name, err)
+			}
+
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Successfully deleted stale pod %q",
+				stalePod.Definition.Name)
+		}
+
+		return nil
+	}).WithContext(ctx).
+		WithTimeout(2*time.Minute).
+		WithPolling(5*time.Second).
+		Should(Succeed(),
+			"Failed to cleanup DPDK client pods from namespace %s", deploymentNamespace)
+}
+
 func cleanUpRootlessDPDKDeployment(
 	apiClient *clients.Settings,
 	deploymentName,
@@ -176,18 +242,39 @@ func cleanUpRootlessDPDKDeployment(
 		return fmt.Errorf("the rootless DPDK deployment namespace has to be provided")
 	}
 
-	_, err := deployment.Pull(apiClient, deploymentName, nsName)
-	if err == nil {
-		klog.V(100).Infof("Ensure %s deployment does not exist in namespace %s", deploymentName, nsName)
+	deploymentObj, err := deployment.Pull(apiClient, deploymentName, nsName)
 
-		err = apiobjectshelper.DeleteDeployment(apiClient, deploymentName, nsName)
+	// If Pull failed with error other than NotFound, return error for retry
+	// isNotFoundError checks k8s NotFound errors (with unwrapping) and eco-goinfra's "does not exist"
+	if err != nil && !isNotFoundError(err) {
+		klog.V(100).Infof("Error pulling deployment %s from namespace %s: %v",
+			deploymentName, nsName, err)
+
+		return fmt.Errorf("failed to pull deployment %s from namespace %s: %w",
+			deploymentName, nsName, err)
+	}
+
+	// At this point: either deployment exists (err == nil) or NotFound (already cleaned up)
+	if err == nil {
+		klog.V(100).Infof("Deleting deployment %s from namespace %s", deploymentName, nsName)
+
+		// Use shorter timeout (30s) since Eventually() provides outer retry layer
+		// This allows faster retry on transient errors (etcd timeouts, connection issues)
+		err = deploymentObj.DeleteAndWait(30 * time.Second)
 		if err != nil {
-			klog.V(100).Infof("Failed to delete deployment %s from nsname %s due to %v",
+			klog.V(100).Infof("Failed to delete deployment %s from namespace %s: %v",
 				deploymentName, nsName, err)
 
-			return fmt.Errorf("failed to delete deployment %s from nsname %s due to %w",
+			return fmt.Errorf("failed to delete deployment %s from namespace %s: %w",
 				deploymentName, nsName, err)
 		}
+
+		klog.V(100).Infof("Successfully deleted deployment %s from namespace %s",
+			deploymentName, nsName)
+	} else {
+		// err is NotFound - deployment doesn't exist, already cleaned up
+		klog.V(100).Infof("Deployment %s not found in namespace %s, already cleaned up",
+			deploymentName, nsName)
 	}
 
 	err = apiobjectshelper.EnsureAllPodsRemoved(apiClient, nsName, podLabel)
@@ -198,6 +285,24 @@ func cleanUpRootlessDPDKDeployment(
 	}
 
 	return nil
+}
+
+// isNotFoundError checks if an error indicates a resource was not found.
+// This handles both Kubernetes NotFound errors and eco-goinfra's wrapped "does not exist" errors.
+func isNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	// Check if it's a Kubernetes NotFound error (handles unwrapping)
+	if k8serrors.IsNotFound(err) {
+		return true
+	}
+
+	// Fallback: check error message for eco-goinfra's "does not exist" pattern
+	errMsg := strings.ToLower(err.Error())
+
+	return strings.Contains(errMsg, "does not exist")
 }
 
 func defineAndCreateDPDKDeployment(
@@ -309,14 +414,90 @@ func retrieveClientDPDKPod(apiClient *clients.Settings, podNamePattern, podNames
 	return podObj, nil
 }
 
+// filterDPDKPodsByStatus separates pods into running and non-running categories.
+// Returns two slices: runningPods and nonRunningPods (stale/terminal pods only).
+func filterDPDKPodsByStatus(podList []*pod.Builder) (runningPods, nonRunningPods []*pod.Builder) {
+	for _, _pod := range podList {
+		switch {
+		case _pod.Object.Status.Phase == corev1.PodRunning && _pod.Object.DeletionTimestamp == nil:
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is active (running and not marked for deletion)",
+				_pod.Definition.Name)
+
+			runningPods = append(runningPods, _pod)
+
+		case _pod.Object.DeletionTimestamp != nil:
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is marked for deletion (phase: %s), skipping",
+				_pod.Definition.Name, _pod.Object.Status.Phase)
+
+		case _pod.Object.Status.Phase == corev1.PodPending:
+			// Pending pods are transient and may become Running - don't delete them
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is in Pending phase (transient), skipping",
+				_pod.Definition.Name)
+
+		case _pod.Object.Status.Phase == corev1.PodFailed ||
+			_pod.Object.Status.Phase == corev1.PodSucceeded ||
+			_pod.Object.Status.Phase == corev1.PodUnknown:
+			// Only terminal/failed phases are considered stale
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is in %s phase (terminal), will attempt cleanup",
+				_pod.Definition.Name, _pod.Object.Status.Phase)
+
+			nonRunningPods = append(nonRunningPods, _pod)
+
+		default:
+			// Catch any unexpected phases and log them
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is in unexpected phase %s, skipping",
+				_pod.Definition.Name, _pod.Object.Status.Phase)
+		}
+	}
+
+	return runningPods, nonRunningPods
+}
+
+// cleanupStaleDPDKPods removes terminal/failed pods (Failed, Succeeded, Unknown) from a namespace.
+// Pending pods are NOT cleaned up as they are transient and may become Running.
+// Returns true if cleanup succeeded, false if cleanup should be retried.
+func cleanupStaleDPDKPods(stalePods []*pod.Builder, podNamespace string) bool {
+	if len(stalePods) == 0 {
+		return true
+	}
+
+	for _, staleP := range stalePods {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deleting stale pod %q in phase %s from namespace %q",
+			staleP.Definition.Name, staleP.Object.Status.Phase, podNamespace)
+
+		// Use DeleteAndWait with shorter timeout since we have retry logic in outer loop
+		_, err := staleP.DeleteAndWait(30 * time.Second)
+		if err != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to delete stale pod %q: %v (will retry)",
+				staleP.Definition.Name, err)
+
+			// Don't fail - return false so the outer retry will try again
+			return false
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Successfully deleted stale pod %q", staleP.Definition.Name)
+	}
+
+	return true
+}
+
 func getDPDKPod(apiClient *clients.Settings, podNamePattern, podNamespace string) (*pod.Builder, error) {
 	var podObj *pod.Builder
 
-	err := wait.PollUntilContextTimeout(
-		context.TODO(),
-		time.Second*5,
-		time.Minute*1,
-		true,
+	// Use exponential backoff for better resilience when retrieving pods
+	backoff := wait.Backoff{
+		Duration: 5 * time.Second,
+		Factor:   1.5,
+		Steps:    10,
+		Cap:      20 * time.Second,
+	}
+
+	ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Minute)
+	defer cancel()
+
+	err := wait.ExponentialBackoffWithContext(
+		ctx,
+		backoff,
 		func(ctx context.Context) (bool, error) {
 			podObjList, err := pod.ListByNamePattern(apiClient, podNamePattern, podNamespace)
 			if err != nil {
@@ -327,23 +508,53 @@ func getDPDKPod(apiClient *clients.Settings, podNamePattern, podNamespace string
 			}
 
 			if len(podObjList) == 0 {
-				klog.V(100).Infof("No pods %s were found in namespace %q", podNamePattern, podNamespace)
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("No pods %s were found in namespace %q", podNamePattern, podNamespace)
 
 				return false, nil
 			}
 
-			if len(podObjList) > 1 {
-				klog.V(100).Infof("Wrong pods %s count was found in namespace %q",
-					podNamePattern, podNamespace)
+			// Filter out pods that are not running or marked for deletion
+			runningPods, nonRunningPods := filterDPDKPodsByStatus(podObjList)
 
-				for _, _pod := range podObjList {
-					klog.V(100).Infof("Pod %q is in %q phase", _pod.Definition.Name, _pod.Object.Status.Phase)
+			// Clean up non-running pods (Failed, Succeeded, etc.)
+			if !cleanupStaleDPDKPods(nonRunningPods, podNamespace) {
+				// Cleanup failed, retry
+				return false, nil
+			}
+
+			switch {
+			case len(runningPods) == 0:
+				// If we just deleted some pods, wait for the new one to appear
+				if len(nonRunningPods) > 0 {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cleaned up %d stale pod(s), waiting for new pod %s to appear",
+						len(nonRunningPods), podNamePattern)
+				} else {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("No running pods %s were found in namespace %q",
+						podNamePattern, podNamespace)
 				}
 
 				return false, nil
+
+			case len(runningPods) > 1:
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Multiple running pods %s found in namespace %q (count: %d)",
+					podNamePattern, podNamespace, len(runningPods))
+
+				runningPodNames := make([]string, 0, len(runningPods))
+				for _, _pod := range runningPods {
+					runningPodNames = append(runningPodNames, _pod.Definition.Name)
+				}
+
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Running pods: %v", runningPodNames)
+
+				// This indicates a deployment scaling issue or duplicate tests running
+				// Retry to see if one terminates naturally
+				return false, nil
 			}
 
-			podObj = podObjList[0]
+			podObj = runningPods[0]
+
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Selected pod %q in namespace %q",
+				podObj.Definition.Name, podObj.Definition.Namespace)
 
 			return true, nil
 		})
@@ -368,18 +579,28 @@ func rxTrafficOnClientPod(clientPod *pod.Builder, clientRxCmd string) error {
 
 	var err error
 
-	err = wait.PollUntilContextTimeout(
-		context.TODO(),
-		time.Second*5,
-		time.Minute*2,
-		false,
+	// Use exponential backoff for better resilience against transient network issues
+	// Starting at 5s, increasing by factor of 1.5, capped at 60s, for up to 10 attempts
+	backoff := wait.Backoff{
+		Duration: 5 * time.Second,
+		Factor:   1.5,
+		Steps:    10,
+		Cap:      60 * time.Second,
+	}
+
+	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Minute)
+	defer cancel()
+
+	err = wait.ExponentialBackoffWithContext(
+		ctx,
+		backoff,
 		func(ctx context.Context) (bool, error) {
 			clientOut, err = clientPod.ExecCommandWithTimeout([]string{"/bin/bash", "-c", clientRxCmd}, clientRxCmdTimeout)
 			if err != nil {
 				klog.V(100).Infof("Error running command: %v", err)
 
 				if err.Error() != timeoutError {
-					klog.V(100).Infof("Failed to run the dpdk-pmd command %s; %v", clientRxCmd, err)
+					klog.V(100).Infof("Failed to run the dpdk-pmd command %s; retrying with backoff", clientRxCmd)
 
 					return false, nil
 				}
@@ -421,11 +642,20 @@ func getCurrentLinkRx(runningPod *pod.Builder) (map[string]int, error) {
 
 	linksInfoMap := make(map[string]int)
 
-	err = wait.PollUntilContextTimeout(
-		context.TODO(),
-		time.Second*5,
-		time.Minute*2,
-		false,
+	// Use exponential backoff for better resilience against transient network issues
+	backoff := wait.Backoff{
+		Duration: 5 * time.Second,
+		Factor:   1.5,
+		Steps:    8,
+		Cap:      30 * time.Second,
+	}
+
+	ctx, cancel := context.WithTimeout(context.TODO(), 3*time.Minute)
+	defer cancel()
+
+	err = wait.ExponentialBackoffWithContext(
+		ctx,
+		backoff,
 		func(ctx context.Context) (bool, error) {
 			linksRawInfo, err = runningPod.ExecCommandWithTimeout(
 				[]string{"/bin/bash", "-c", "ip --json -s link show"}, getLinkRxTimeout)
@@ -439,7 +669,7 @@ func getCurrentLinkRx(runningPod *pod.Builder) (map[string]int, error) {
 			tmpLinksInfoList, err := link.NewListBuilder(linksRawInfo)
 			if err != nil {
 				klog.V(100).Infof("Failed to build a links object list for %q due to %v",
-					linksRawInfo, err)
+					linksRawInfo.String(), err)
 
 				return false, nil
 			}
@@ -574,11 +804,20 @@ func getLinkRx(runningPod *pod.Builder, linkName string) (int, error) {
 		err         error
 	)
 
-	err = wait.PollUntilContextTimeout(
-		context.TODO(),
-		5*time.Second,
-		time.Minute,
-		false,
+	// Use exponential backoff for better resilience against transient network issues
+	backoff := wait.Backoff{
+		Duration: 5 * time.Second,
+		Factor:   1.5,
+		Steps:    6,
+		Cap:      30 * time.Second,
+	}
+
+	ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Minute)
+	defer cancel()
+
+	err = wait.ExponentialBackoffWithContext(
+		ctx,
+		backoff,
 		func(ctx context.Context) (bool, error) {
 			linkRawInfo, err = runningPod.ExecCommandWithTimeout(
 				[]string{"/bin/bash", "-c", fmt.Sprintf("ip --json -s link show dev %s", linkName)}, getLinkRxTimeout)
@@ -689,6 +928,8 @@ func isPCIAddressAvailable(clientPod *pod.Builder) bool {
 func VerifyRootlessDPDKOnTheSameNodeSingleVFMultipleVlans(ctx SpecContext) {
 	By("Create Rootless DPDK server deployment on the same node")
 
+	DeferCleanup(CleanupRootlessDPDKServerDeployment)
+
 	err := createRootlessDPDKServerDeployment(
 		APIClient,
 		dpdkNetworkTwo,
@@ -750,6 +991,8 @@ func VerifyRootlessDPDKOnTheSameNodeSingleVFMultipleVlans(ctx SpecContext) {
 // on the different nodes with multiple VLANs.
 func VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleVlans(ctx SpecContext) {
 	By("Create Rootless DPDK server deployment on different node with multiple VLANs")
+
+	DeferCleanup(CleanupRootlessDPDKServerDeployment)
 
 	err := createRootlessDPDKServerDeployment(
 		APIClient,
@@ -813,6 +1056,8 @@ func VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleVlans(ctx SpecContext) {
 func VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleMacVlans(ctx SpecContext) {
 	By("Create Rootless DPDK server deployment on different node with multiple MAC-VLANs")
 
+	DeferCleanup(CleanupRootlessDPDKServerDeployment)
+
 	err := createRootlessDPDKServerDeployment(
 		APIClient,
 		dpdkNetworkTwo,
@@ -875,6 +1120,8 @@ func VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleMacVlans(ctx SpecContext
 // on the different nodes with multiple IP-VLANs.
 func VerifyRootlessDPDKWorkloadsOnDifferentNodesMultipleIPVlans(ctx SpecContext) {
 	By("Create Rootless DPDK server deployment on different node with multiple IP-VLANs")
+
+	DeferCleanup(CleanupRootlessDPDKServerDeployment)
 
 	err := createRootlessDPDKServerDeployment(
 		APIClient,

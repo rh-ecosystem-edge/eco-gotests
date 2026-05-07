@@ -259,11 +259,7 @@ func (builder *MemberRollBuilder) WithMembersList(membersList []string) *MemberR
 		return builder
 	}
 
-	if builder.Definition.Spec.Members == nil {
-		builder.Definition.Spec.Members = membersList
-	} else {
-		builder.Definition.Spec.Members = append(builder.Definition.Spec.Members, membersList...)
-	}
+	builder.Definition.Spec.Members = append(builder.Definition.Spec.Members, membersList...)
 
 	return builder
 }

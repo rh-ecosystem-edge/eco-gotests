@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ptp"
 	ptpv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v1"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/ptpdaemon"
 )
@@ -30,15 +31,15 @@ func GetUbloxProtocolVersion(profile *ptpv1.PtpProfile) (string, error) {
 		return "", fmt.Errorf("profile %q does not have any plugins", *profile.Name)
 	}
 
-	if _, hasE825 := profile.Plugins["e825"]; hasE825 {
+	if _, hasE825 := profile.Plugins[string(ptp.PluginTypeE825)]; hasE825 {
 		return "29.25", nil
 	}
 
-	if _, hasE830 := profile.Plugins["e830"]; hasE830 {
+	if _, hasE830 := profile.Plugins[string(ptp.PluginTypeE830)]; hasE830 {
 		return "29.25", nil
 	}
 
-	if _, hasE810 := profile.Plugins["e810"]; hasE810 {
+	if _, hasE810 := profile.Plugins[string(ptp.PluginTypeE810)]; hasE810 {
 		return "29.20", nil
 	}
 

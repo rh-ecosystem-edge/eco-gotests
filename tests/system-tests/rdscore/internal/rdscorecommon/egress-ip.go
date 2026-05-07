@@ -311,6 +311,103 @@ func defineDeployContainer(cImage string, cCmd []string) *pod.ContainerBuilder {
 	return deployContainer
 }
 
+// waitForIPv6NetworkReady validates that IPv6 networking is fully configured in the pod.
+// After ungraceful reboot, pods may pass readiness checks before IPv6 DAD completes and
+// default routes are configured. This function polls until:
+// - No IPv6 addresses are in tentative state (DAD complete)
+// - No IPv6 addresses are in dadfailed state (fails immediately)
+// - IPv6 default route exists
+//
+// Returns error if validation fails or times out after 2 minutes.
+func waitForIPv6NetworkReady(clientPod *pod.Builder) error {
+	klog.V(100).Infof("Validating IPv6 network readiness for pod %s on node %s",
+		clientPod.Object.Name, clientPod.Object.Spec.NodeName)
+
+	err := wait.PollUntilContextTimeout(
+		context.TODO(),
+		time.Second*2,
+		time.Minute*2,
+		true,
+		func(ctx context.Context) (bool, error) {
+			// Check IPv6 address state
+			cmdCheckAddr := []string{"/bin/sh", "-c", "ip -6 addr show scope global"}
+
+			output, err := clientPod.ExecCommand(cmdCheckAddr, clientPod.Object.Spec.Containers[0].Name)
+			if err != nil {
+				klog.V(100).Infof("Failed to execute ip addr command in pod %s: %v",
+					clientPod.Object.Name, err)
+
+				return false, nil
+			}
+
+			addrOutput := output.String()
+
+			// Log the IPv6 address output for diagnostics
+			klog.V(100).Infof("IPv6 addresses for pod %s:\n%s",
+				clientPod.Object.Name, strings.TrimSpace(addrOutput))
+
+			// Fail immediately if DAD failed (permanent error)
+			if strings.Contains(addrOutput, "dadfailed") {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"IPv6 DAD failed for pod %s on node %s. Output:\n%s",
+					clientPod.Object.Name, clientPod.Object.Spec.NodeName, strings.TrimSpace(addrOutput))
+
+				return false, fmt.Errorf("IPv6 DAD failed for pod %s on node %s",
+					clientPod.Object.Name, clientPod.Object.Spec.NodeName)
+			}
+
+			// Retry if addresses are still in tentative state
+			if strings.Contains(addrOutput, "tentative") {
+				klog.V(100).Infof("IPv6 addresses in tentative state (DAD in progress) for pod %s. Output:\n%s",
+					clientPod.Object.Name, strings.TrimSpace(addrOutput))
+
+				return false, nil
+			}
+
+			// Verify at least one global IPv6 address exists
+			if !strings.Contains(addrOutput, "inet6") || !strings.Contains(addrOutput, "scope global") {
+				klog.V(100).Infof("No global IPv6 address found for pod %s on node %s. Output:\n%s",
+					clientPod.Object.Name, clientPod.Object.Spec.NodeName, strings.TrimSpace(addrOutput))
+
+				return false, nil
+			}
+
+			// Check for IPv6 default route
+			cmdCheckRoute := []string{"/bin/sh", "-c", "ip -6 route show default"}
+
+			output, err = clientPod.ExecCommand(cmdCheckRoute, clientPod.Object.Spec.Containers[0].Name)
+			if err != nil {
+				klog.V(100).Infof("Failed to execute ip route command in pod %s: %v",
+					clientPod.Object.Name, err)
+
+				return false, nil
+			}
+
+			routeOutput := output.String()
+
+			if output.Len() == 0 {
+				klog.V(100).Infof("No IPv6 default route for pod %s on node %s",
+					clientPod.Object.Name, clientPod.Object.Spec.NodeName)
+
+				return false, nil
+			}
+
+			// Log the route information
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"IPv6 network fully configured for pod %s on node %s. Default route: %s",
+				clientPod.Object.Name, clientPod.Object.Spec.NodeName, strings.TrimSpace(routeOutput))
+
+			return true, nil
+		})
+	if err != nil {
+		return fmt.Errorf("IPv6 network not ready after 2 minutes for pod %s on node %s: %w",
+			clientPod.Object.Name, clientPod.Object.Spec.NodeName, err)
+	}
+
+	return nil
+}
+
+//nolint:gocognit
 func sendTrafficCheckIP(clientPods []*pod.Builder, isIPv6 bool, expectedIPs []string) error {
 	By("Validating pods source address")
 
@@ -335,6 +432,13 @@ func sendTrafficCheckIP(clientPods []*pod.Builder, isIPv6 bool, expectedIPs []st
 
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Pod %q in %q namespace is not Ready",
 			clientPod.Definition.Name, clientPod.Definition.Namespace))
+
+		// IPv6-specific network validation
+		if isIPv6 {
+			if err = waitForIPv6NetworkReady(clientPod); err != nil {
+				return fmt.Errorf("IPv6 network validation failed: %w", err)
+			}
+		}
 
 		err = wait.PollUntilContextTimeout(
 			context.TODO(),
@@ -916,23 +1020,48 @@ func VerifyEgressIPForPodWithWrongLabel() {
 		fmt.Sprintf("Failed to retrieve configured EgressIP addresses list from the egressIP %s: %v",
 			RDSCoreConfig.EgressIPName, err))
 
-	podObjectsPodObjects, err := pod.List(APIClient, RDSCoreConfig.EgressIPNamespaceOne, egressIPPodSelector)
-	Expect(err).ToNot(HaveOccurred(),
-		fmt.Sprintf("Failed to retrieve pods list from namespace %s with label %s: %v",
-			RDSCoreConfig.EgressIPNamespaceOne, RDSCoreConfig.EgressIPPodLabel, err))
+	type ipFamilyEntry struct {
+		name   string
+		isIPv6 bool
+	}
 
-	err = sendTrafficCheckIP(podObjectsPodObjects, false, expectedIPs)
-	Expect(err).ToNot(HaveOccurred(),
-		fmt.Sprintf("Server response was note received: %v", err))
+	var ipFamilies []ipFamilyEntry
 
-	podObjectsPodObjects, err = pod.List(APIClient, RDSCoreConfig.EgressIPNamespaceOne, nonEgressIPPodSelector)
-	Expect(err).ToNot(HaveOccurred(),
-		fmt.Sprintf("Failed to retrieve pods list from namespace %s with label %v: %v",
-			RDSCoreConfig.EgressIPNamespaceOne, nonEgressIPPodSelector, err))
+	if RDSCoreConfig.EgressIPv4 != "" && RDSCoreConfig.EgressIPRemoteIPv4 != "" {
+		ipFamilies = append(ipFamilies, ipFamilyEntry{name: "IPv4", isIPv6: false})
+	}
 
-	err = sendTrafficCheckIP(podObjectsPodObjects, false, expectedIPs)
-	Expect(err).To(HaveOccurred(),
-		fmt.Sprintf("Server response was received with the not correct egressIP address: %v", err))
+	if RDSCoreConfig.EgressIPv6 != "" && RDSCoreConfig.EgressIPRemoteIPv6 != "" {
+		ipFamilies = append(ipFamilies, ipFamilyEntry{name: "IPv6", isIPv6: true})
+	}
+
+	Expect(len(ipFamilies)).ToNot(Equal(0),
+		"Neither EgressIPRemoteIPv4 nor EgressIPRemoteIPv6 is configured")
+
+	for _, family := range ipFamilies {
+		By(fmt.Sprintf("Positive check: verifying EgressIP is used for correctly-labeled pods (%s)", family.name))
+
+		correctLabelPods, err := pod.List(APIClient, RDSCoreConfig.EgressIPNamespaceOne, egressIPPodSelector)
+		Expect(err).ToNot(HaveOccurred(),
+			fmt.Sprintf("Failed to retrieve pods list from namespace %s with label %s: %v",
+				RDSCoreConfig.EgressIPNamespaceOne, RDSCoreConfig.EgressIPPodLabel, err))
+
+		err = sendTrafficCheckIP(correctLabelPods, family.isIPv6, expectedIPs)
+		Expect(err).ToNot(HaveOccurred(),
+			fmt.Sprintf("%s: server response was not received from correctly-labeled pods: %v", family.name, err))
+
+		By(fmt.Sprintf("Negative check: verifying EgressIP is NOT used for wrong-labeled pods (%s)", family.name))
+
+		wrongLabelPods, err := pod.List(APIClient, RDSCoreConfig.EgressIPNamespaceOne, nonEgressIPPodSelector)
+		Expect(err).ToNot(HaveOccurred(),
+			fmt.Sprintf("Failed to retrieve pods list from namespace %s with label %v: %v",
+				RDSCoreConfig.EgressIPNamespaceOne, nonEgressIPPodSelector, err))
+
+		err = sendTrafficCheckIP(wrongLabelPods, family.isIPv6, expectedIPs)
+		Expect(err).To(HaveOccurred(),
+			fmt.Sprintf("%s: server response was received with egressIP from wrong-labeled pods: %v",
+				family.name, err))
+	}
 }
 
 // VerifyEgressIPForNamespaceWithWrongLabel verifies egress traffic applies only for the pods
@@ -970,9 +1099,32 @@ func VerifyEgressIPForNamespaceWithWrongLabel() {
 		fmt.Sprintf("Failed to retrieve pods list from namespace %s with label %s: %v",
 			nonEgressIPNamespace, RDSCoreConfig.EgressIPPodLabel, err))
 
-	err = sendTrafficCheckIP(podObjects, false, expectedIPs)
-	Expect(err).To(HaveOccurred(),
-		fmt.Sprintf("Server response was received with the not correct egressIP address: %v", err))
+	type ipFamilyEntry struct {
+		name   string
+		isIPv6 bool
+	}
+
+	var ipFamilies []ipFamilyEntry
+
+	if RDSCoreConfig.EgressIPv4 != "" && RDSCoreConfig.EgressIPRemoteIPv4 != "" {
+		ipFamilies = append(ipFamilies, ipFamilyEntry{name: "IPv4", isIPv6: false})
+	}
+
+	if RDSCoreConfig.EgressIPv6 != "" && RDSCoreConfig.EgressIPRemoteIPv6 != "" {
+		ipFamilies = append(ipFamilies, ipFamilyEntry{name: "IPv6", isIPv6: true})
+	}
+
+	Expect(len(ipFamilies)).ToNot(Equal(0),
+		"Neither EgressIPRemoteIPv4 nor EgressIPRemoteIPv6 is configured")
+
+	for _, family := range ipFamilies {
+		By(fmt.Sprintf("Verifying EgressIP is NOT used for pods in wrong namespace (%s)", family.name))
+
+		err = sendTrafficCheckIP(podObjects, family.isIPv6, expectedIPs)
+		Expect(err).To(HaveOccurred(),
+			fmt.Sprintf("%s: server response was received with egressIP from wrong namespace: %v",
+				family.name, err))
+	}
 }
 
 // VerifyEgressIPOneNamespaceThreeNodesBalancedEIPTrafficIPv4 verifies egress traffic works with egressIP
@@ -1054,12 +1206,16 @@ func VerifyEgressIPWrongNsLabel() {
 
 // VerifyEgressIPFailOverIPv4 verifies egressIP ipv4 address moving to the first available for assignment node
 // after current node goes down, NotReady and egressIP traffic continues to use egressIP configured.
-func VerifyEgressIPFailOverIPv4() {
+func VerifyEgressIPFailOverIPv4(ctx SpecContext) {
+	DeferCleanup(EnsureInNodeReadiness)
+
 	verifyEgressIPFailOver(false)
 }
 
 // VerifyEgressIPFailOverIPv6 verifies egressIP ipv4 address moving to the first available for assignment node
 // after current node goes down, NotReady and egressIP traffic continues to use egressIP configured.
-func VerifyEgressIPFailOverIPv6() {
+func VerifyEgressIPFailOverIPv6(ctx SpecContext) {
+	DeferCleanup(EnsureInNodeReadiness)
+
 	verifyEgressIPFailOver(true)
 }

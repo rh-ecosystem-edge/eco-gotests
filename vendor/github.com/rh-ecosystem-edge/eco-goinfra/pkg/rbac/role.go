@@ -114,11 +114,7 @@ func (builder *RoleBuilder) WithRules(rules []rbacv1.PolicyRule) *RoleBuilder {
 		}
 	}
 
-	if builder.Definition.Rules == nil {
-		builder.Definition.Rules = rules
-	} else {
-		builder.Definition.Rules = append(builder.Definition.Rules, rules...)
-	}
+	builder.Definition.Rules = append(builder.Definition.Rules, rules...)
 
 	return builder
 }

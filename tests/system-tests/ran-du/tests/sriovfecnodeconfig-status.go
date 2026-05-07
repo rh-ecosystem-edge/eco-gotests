@@ -43,7 +43,6 @@ var _ = Describe(
 					}
 
 					return false
-
 				}, 5*time.Minute, 30*time.Second).Should(BeTrue(), "SriovFecNodeConfig is not configured")
 			}
 		})

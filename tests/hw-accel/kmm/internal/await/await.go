@@ -79,6 +79,78 @@ func BuildPodCompleted(apiClient *clients.Settings, nsname string, timeout time.
 		})
 }
 
+// NewBuildPodCompleted awaits a NEW build pod (not in excludePods) to finish.
+// Use this when calling BuildPodCompleted a second time for the same namespace,
+// e.g. after setting imageRebuildTriggerGeneration. The old Succeeded build pod
+// may still exist briefly, so we must ignore it and wait for a fresh one.
+//
+//nolint:gocognit
+func NewBuildPodCompleted(apiClient *clients.Settings, nsname string,
+	excludePods []string, timeout time.Duration) error {
+	excludeSet := make(map[string]bool, len(excludePods))
+	for _, name := range excludePods {
+		excludeSet[name] = true
+	}
+
+	var trackedPod string
+
+	return wait.PollUntilContextTimeout(
+		context.TODO(), 5*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			if trackedPod == "" {
+				pods, err := pod.List(apiClient, nsname, metav1.ListOptions{})
+				if err != nil {
+					klog.V(kmmparams.KmmLogLevel).Infof("pod list error: %s", err)
+
+					return false, nil
+				}
+
+				for _, podObj := range pods {
+					if strings.Contains(podObj.Object.Name, "-build") && !excludeSet[podObj.Object.Name] {
+						trackedPod = podObj.Object.Name
+						klog.V(kmmparams.KmmLogLevel).Infof("New build pod '%s' found (excluding %v)",
+							trackedPod, excludePods)
+					}
+				}
+			}
+
+			if trackedPod != "" {
+				fieldSelector := fmt.Sprintf("metadata.name=%s", trackedPod)
+
+				pods, err := pod.List(apiClient, nsname, metav1.ListOptions{FieldSelector: fieldSelector})
+				if err != nil {
+					klog.V(kmmparams.KmmLogLevel).Infof("tracked build pod lookup error for %s: %s", trackedPod, err)
+
+					return false, nil
+				}
+
+				if len(pods) == 0 {
+					klog.V(kmmparams.KmmLogLevel).Infof("New build pod %s no longer in namespace", trackedPod)
+					trackedPod = ""
+
+					return true, nil
+				}
+
+				for _, podObj := range pods {
+					if strings.Contains(string(podObj.Object.Status.Phase), "Failed") {
+						err := fmt.Errorf("new build pod %s has failed", podObj.Object.Name)
+						klog.V(kmmparams.KmmLogLevel).Info(err)
+
+						return false, err
+					}
+
+					if strings.Contains(string(podObj.Object.Status.Phase), "Succeeded") {
+						klog.V(kmmparams.KmmLogLevel).Infof("New build pod %s is in phase Succeeded",
+							podObj.Object.Name)
+
+						return true, nil
+					}
+				}
+			}
+
+			return false, nil
+		})
+}
+
 // ModuleDeployment awaits module to de deployed.
 func ModuleDeployment(apiClient *clients.Settings, moduleName, nsname string,
 	timeout time.Duration, selector map[string]string) error {

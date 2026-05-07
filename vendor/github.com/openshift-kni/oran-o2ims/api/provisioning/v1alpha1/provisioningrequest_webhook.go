@@ -9,6 +9,7 @@ package v1alpha1
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/google/uuid"
@@ -28,6 +29,7 @@ var provisioningrequestlog = logf.Log.WithName("provisioningrequest-webhook")
 
 // SetupWebhookWithManager will setup the manager to manage the webhooks
 func (r *ProvisioningRequest) SetupWebhookWithManager(mgr ctrl.Manager) error {
+	// nolint:wrapcheck
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(&ProvisioningRequest{}).
 		WithValidator(&provisioningRequestValidator{Client: mgr.GetClient()}).
@@ -55,7 +57,7 @@ func (v *provisioningRequestValidator) ValidateCreate(ctx context.Context, obj r
 
 	// Validate that metadata.name is a valid UUID
 	if _, err := uuid.Parse(pr.Name); err != nil {
-		return nil, fmt.Errorf("metadata.name must be a valid UUID: %v", err)
+		return nil, fmt.Errorf("metadata.name must be a valid UUID: %w", err)
 	}
 
 	if err := v.validateCreateOrUpdate(ctx, nil, pr); err != nil {
@@ -67,7 +69,7 @@ func (v *provisioningRequestValidator) ValidateCreate(ctx context.Context, obj r
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (v *provisioningRequestValidator) ValidateUpdate(ctx context.Context, oldObj runtime.Object, newObj runtime.Object) (admission.Warnings, error) {
+func (v *provisioningRequestValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
 	oldPr, casted := oldObj.(*ProvisioningRequest)
 	if !casted {
 		return nil, fmt.Errorf("expected a ProvisioningRequest but got a %T", oldObj)
@@ -116,13 +118,17 @@ func (v *provisioningRequestValidator) ValidateDelete(ctx context.Context, obj r
 	return nil, nil
 }
 
-func (v *provisioningRequestValidator) validateCreateOrUpdate(ctx context.Context, oldPr *ProvisioningRequest, newPr *ProvisioningRequest) error {
+func (v *provisioningRequestValidator) validateCreateOrUpdate(ctx context.Context, oldPr, newPr *ProvisioningRequest) error {
 	clusterTemplate, err := newPr.GetClusterTemplateRef(ctx, v.Client)
 	if err != nil {
 		return err
 	}
 
-	if err = newPr.ValidateTemplateInputMatchesSchema(clusterTemplate); err != nil {
+	if err := newPr.ValidateTemplateInputMatchesSchema(clusterTemplate); err != nil {
+		return err
+	}
+
+	if err := newPr.ValidateHwTemplateParameters(ctx, v.Client, clusterTemplate); err != nil {
 		return err
 	}
 
@@ -136,6 +142,22 @@ func (v *provisioningRequestValidator) validateCreateOrUpdate(ctx context.Contex
 	if oldPr == nil {
 		// ProvisioningRequest is being created, no immutable fields to check
 		return nil
+	}
+
+	// Check if hardware provisioning has timed out or failed
+	// If so, reject any spec updates - user must delete and recreate the PR
+	hwProvisionedCond := meta.FindStatusCondition(
+		newPr.Status.Conditions, string(PRconditionTypes.HardwareProvisioned))
+	if hwProvisionedCond != nil &&
+		hwProvisionedCond.Status == "False" &&
+		(hwProvisionedCond.Reason == string(CRconditionReasons.TimedOut) ||
+			hwProvisionedCond.Reason == string(CRconditionReasons.Failed)) {
+		// Compare specs to see if there's an actual spec change
+		if !reflect.DeepEqual(oldPr.Spec, newPr.Spec) {
+			return fmt.Errorf("hardware provisioning has timed out or failed. " +
+				"Spec changes are not allowed. " +
+				"Please delete and recreate the ProvisioningRequest to retry")
+		}
 	}
 
 	crProvisionedCond := meta.FindStatusCondition(
@@ -156,26 +178,41 @@ func (v *provisioningRequestValidator) validateCreateOrUpdate(ctx context.Contex
 			"failed to extract matching input for subSchema %s: %w", TemplateParamClusterInstance, err)
 	}
 
-	allowedFields := [][]string{}
-	if crProvisionedCond.Reason == string(CRconditionReasons.Completed) {
-		allowedFields = AllowedClusterInstanceFields
-	}
-	disallowedFields, scalingNodes, err := FindClusterInstanceImmutableFieldUpdates(
-		oldPrClusterInstanceInput.(map[string]any), newPrClusterInstanceInput.(map[string]any), [][]string{}, allowedFields)
-	if err != nil {
-		return fmt.Errorf("failed to find immutable field updates for ClusterInstance (%s): %w", newPr.Name, err)
-	}
+	var disallowedFields, scalingNodes []string
 
-	if len(disallowedFields) > 0 && crProvisionedCond.Reason == string(CRconditionReasons.Completed) {
-		return fmt.Errorf("only \"%s\" and/or \"%s\" changes in spec.TemplateParameters.ClusterInstanceParameters "+
-			"are allowed after cluster installation is completed, detected changes in immutable fields: %s",
-			AllowedClusterInstanceFields[0], AllowedClusterInstanceFields[1], strings.Join(disallowedFields, ", "))
-	}
+	// State-based validation with explicit logic
+	if crProvisionedCond.Reason == string(CRconditionReasons.InProgress) {
+		// Block all changes during active cluster installation
+		// This includes field updates and node scaling to prevent interference with ongoing installation
+		disallowedFields, scalingNodes, err = FindClusterInstanceImmutableFieldUpdates(
+			oldPrClusterInstanceInput.(map[string]any), newPrClusterInstanceInput.(map[string]any), [][]string{}, [][]string{})
+		if err != nil {
+			return fmt.Errorf("failed to find immutable field updates for ClusterInstance (%s): %w", newPr.Name, err)
+		}
 
-	disallowedFields = append(disallowedFields, scalingNodes...)
-	if len(disallowedFields) > 0 && crProvisionedCond.Reason == string(CRconditionReasons.InProgress) {
-		return fmt.Errorf("updates to spec.TemplateParameters.ClusterInstanceParameters are "+
-			"disallowed during cluster installation, detected changes in fields: %s", strings.Join(disallowedFields, ", "))
+		// Combine field updates and node scaling for rejection
+		disallowedFields = append(disallowedFields, scalingNodes...)
+		if len(disallowedFields) > 0 {
+			return fmt.Errorf("updates to spec.TemplateParameters.ClusterInstanceParameters are "+
+				"disallowed during cluster installation, detected changes in fields: %s", strings.Join(disallowedFields, ", "))
+		}
+
+	} else if crProvisionedCond.Reason == string(CRconditionReasons.Completed) {
+		// Allow specific fields and node scaling after installation completes
+		// This enables Day 2 operations like annotation/label updates and cluster scaling
+		disallowedFields, _, err = FindClusterInstanceImmutableFieldUpdates(
+			oldPrClusterInstanceInput.(map[string]any), newPrClusterInstanceInput.(map[string]any),
+			[][]string{}, AllowedClusterInstanceFields)
+		if err != nil {
+			return fmt.Errorf("failed to find immutable field updates for ClusterInstance (%s): %w", newPr.Name, err)
+		}
+
+		// Only reject disallowed field changes; node scaling is explicitly allowed
+		if len(disallowedFields) > 0 {
+			return fmt.Errorf("only \"%s\" and/or \"%s\" changes in spec.TemplateParameters.ClusterInstanceParameters "+
+				"are allowed after cluster installation is completed, detected changes in immutable fields: %s",
+				AllowedClusterInstanceFields[0], AllowedClusterInstanceFields[1], strings.Join(disallowedFields, ", "))
+		}
 	}
 
 	return nil

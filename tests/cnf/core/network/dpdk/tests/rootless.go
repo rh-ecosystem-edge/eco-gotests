@@ -136,24 +136,28 @@ type podNetworkAnnotation struct {
 }
 
 var _ = Describe("rootless", Ordered, Label(tsparams.LabelSuite), ContinueOnFailure, func() {
-
 	Context("server-tx, client-rx connectivity test on different nodes", Label("rootless"), func() {
 		BeforeAll(func() {
 			By("Discover worker nodes")
+
 			var err error
+
 			workerNodes, err = nodes.List(APIClient,
 				metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
 			Expect(err).ToNot(HaveOccurred(), "Fail to discover nodes")
 
 			By("Collecting SR-IOV interface for rootless dpdk tests")
+
 			srIovInterfacesUnderTest, err := NetConfig.GetSriovInterfaces(1)
 			Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
 
 			By("Collection SR-IOV interfaces from Nodes")
+
 			nicVendor, err = discoverNICVendor(srIovInterfacesUnderTest[0], workerNodes[0].Definition.Name)
 			Expect(err).ToNot(HaveOccurred(), "failed to discover NIC vendor %s", srIovInterfacesUnderTest[0])
 
 			By("Defining dpdk-policies")
+
 			srIovPolicies := []*sriov.PolicyBuilder{
 				sriov.NewPolicyBuilder(
 					APIClient,
@@ -175,6 +179,7 @@ var _ = Describe("rootless", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 
 			for index := range srIovPolicies {
 				srIovPolicyName := srIovPolicies[index].Definition.Name
+
 				switch nicVendor {
 				case mlxVendorID:
 					By(fmt.Sprintf("Adding Mlx specific configuration to dpdk-policy %s", srIovPolicyName))
@@ -183,7 +188,9 @@ var _ = Describe("rootless", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 					By(fmt.Sprintf("Adding Intel specific configuration to dpdk-policy %s", srIovPolicyName))
 					srIovPolicies[index].WithDevType("vfio-pci")
 				}
+
 				By(fmt.Sprintf("Creating dpdk-policy %s", srIovPolicyName))
+
 				_, err = srIovPolicies[index].Create()
 				Expect(err).ToNot(HaveOccurred(),
 					fmt.Sprintf("Fail to create %s dpdk policy", srIovPolicies[index].Definition.Name))
@@ -194,15 +201,18 @@ var _ = Describe("rootless", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 			// then stable. The issue is that if no configuration is applied, then
 			// the status will never go to not stable and the test will fail.
 			time.Sleep(5 * time.Second)
+
 			err = sriovoperator.WaitForSriovAndMCPStable(
 				APIClient, tsparams.MCOWaitTimeout, time.Minute, NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "fail cluster is not stable")
 
 			By("Setting selinux flag container_use_devices to 1 on all compute nodes")
+
 			err = cluster.ExecCmd(APIClient, NetConfig.WorkerLabel, setSEBool+"1")
 			Expect(err).ToNot(HaveOccurred(), "Fail to enable selinux flag")
 
 			By("Setting vlan ID")
+
 			vlanID, err = NetConfig.GetVLAN()
 			Expect(err).ToNot(HaveOccurred(), "Fail to set vlanID")
 			Expect(dummyVlanID).ToNot(BeEquivalentTo(vlanID),
@@ -214,11 +224,13 @@ var _ = Describe("rootless", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 			defineAndCreateTapNADs(nil, nil)
 
 			By("Creating first mac-vlan NetworkAttachmentDefinition")
+
 			_, err := define.MacVlanNad(
 				APIClient, macVlanNetworkOne, tsparams.TestNamespaceName, tapOneInterfaceName, defaultWhereaboutIPAM)
 			Expect(err).ToNot(HaveOccurred(), "Fail to create first mac-vlan NetworkAttachmentDefinition")
 
 			By("Creating second mac-vlan NetworkAttachmentDefinition")
+
 			_, err = define.MacVlanNad(
 				APIClient, macVlanNetworkTwo, tsparams.TestNamespaceName, tapTwoInterfaceName, defaultWhereaboutIPAM)
 			Expect(err).ToNot(HaveOccurred(), "Fail to create second mac-vlan NetworkAttachmentDefinition")
@@ -236,6 +248,7 @@ var _ = Describe("rootless", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 				defineTestServerPmdCmd(dpdkClientMac, "${PCIDEVICE_OPENSHIFT_IO_DPDKPOLICYTWO}", ""))
 
 			By("Creating client pod")
+
 			clientPodNetConfig := definePodNetwork([]map[string]string{
 				{"netName": srIovNetworkOneName, "macAddr": dpdkClientMac},
 				{"netName": tapNetworkOne, "intName": tapOneInterfaceName},
@@ -280,6 +293,7 @@ var _ = Describe("rootless", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 				defineAndCreateTapNADs(nil, nil)
 
 				By("Creating mac-vlan one")
+
 				_, err := define.MacVlanNad(
 					APIClient, macVlanNetworkOne, tsparams.TestNamespaceName, tapOneInterfaceName, defaultWhereaboutIPAM)
 				Expect(err).ToNot(HaveOccurred(), "Fail to create first mac-vlan NetworkAttachmentDefinition")
@@ -294,6 +308,7 @@ var _ = Describe("rootless", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 					srIovNetworkOneName, tsparams.TestNamespaceName, dpdkServerMac)
 
 				By("Creating first server pod")
+
 				srvNetOne := defineTestServerPmdCmd(dpdkClientMac, "${PCIDEVICE_OPENSHIFT_IO_DPDKPOLICYONE}", "")
 				defineAndCreateDPDKPod(
 					"serverpod-one",
@@ -304,6 +319,7 @@ var _ = Describe("rootless", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 					srvNetOne)
 
 				By("Creating second server pod")
+
 				serverPodTwoNetConfig := pod.StaticIPAnnotationWithMacAndNamespace(
 					srIovNetworkTwoName, tsparams.TestNamespaceName, dpdkServerMacTwo)
 
@@ -317,6 +333,7 @@ var _ = Describe("rootless", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 					srvNetTwo)
 
 				By("Creating client pod")
+
 				firstVlanInterfaceBasedOnTapTwo := fmt.Sprintf("%s.%d", tapTwoInterfaceName, vlanID)
 				secondVlanInterfaceBasedOnTapTwo := fmt.Sprintf("%s.%d", tapTwoInterfaceName, dummyVlanID)
 				clientPodNetConfig := definePodNetwork([]map[string]string{
@@ -338,6 +355,7 @@ var _ = Describe("rootless", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 				Expect(err).ToNot(HaveOccurred(), "Fail to collect PCI addresses")
 
 				By("Running client dpdk-testpmd")
+
 				err = cmd.RxTrafficOnClientPod(clientPod, defineTestPmdCmd(tapOneInterfaceName, pciAddressList[0]))
 				Expect(err).ToNot(HaveOccurred(),
 					"The Receive traffic test on the the client pod failed")
@@ -372,19 +390,23 @@ var _ = Describe("rootless", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 			defineAndCreateVlanNad(vlanNetworkOne, tapTwoInterfaceName, vlanID, nad.IPAMWhereAbouts("2.2.2.0/24", "2.2.2.254"))
 
 			By("Creating first server pod")
+
 			srvNetOne := defineTestServerPmdCmd(
 				dpdkClientMac, "${PCIDEVICE_OPENSHIFT_IO_DPDKPOLICYONE}", "1.1.1.50,1.1.1.100")
 			defineAndCreateDPDKPod(
 				"serverpod-one", workerNodes[0].Definition.Name, serverSC, nil, serverPodOneNetConfig, srvNetOne)
+
 			serverPodTwoNetConfig := pod.StaticIPAnnotationWithMacAndNamespace(
 				srIovNetworkTwoName, tsparams.TestNamespaceName, dpdkServerMacTwo)
 
 			By("Creating second server pod")
+
 			srvNetTwo := defineTestServerPmdCmd(dpdkClientMacTwo, "${PCIDEVICE_OPENSHIFT_IO_DPDKPOLICYTWO}", "")
 			defineAndCreateDPDKPod(
 				"serverpod-two", workerNodes[0].Definition.Name, serverSC, nil, serverPodTwoNetConfig, srvNetTwo)
 
 			By("Creating client pod")
+
 			vlanInterfaceName := fmt.Sprintf("%s.%d", tapTwoInterfaceName, vlanID)
 			clientPodNetConfig := definePodNetwork([]map[string]string{
 				{"netName": srIovNetworkOneName, "macAddr": dpdkClientMac},
@@ -428,7 +450,6 @@ var _ = Describe("rootless", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 
 		It("multiple VFs, one tap with VLAN plus sysctl, second tap with two mac-vlans plus sysctl, filter untagged "+
 			"and tagged traffic, add and remove routes, deployment restart", reportxml.ID("63846"), func() {
-
 			defineAndCreateSrIovNetworks(vlanID)
 			defineAndCreateTapNADs(enabledSysctlFlags, disabledSysctlFlags)
 
@@ -436,16 +457,19 @@ var _ = Describe("rootless", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 			defineAndCreateVlanNad(vlanNetworkOne, tapOneInterfaceName, vlanID, defaultWhereaboutIPAM)
 
 			By("Creating mac-vlan one NetworkAttachmentDefinition")
+
 			_, err := define.MacVlanNad(
 				APIClient, macVlanNetworkOne, tsparams.TestNamespaceName, tapTwoInterfaceName, defaultWhereaboutIPAM)
 			Expect(err).ToNot(HaveOccurred(), "Fail to create first mac-vlan NetworkAttachmentDefinition")
 
 			By("Creating mac-vlan two NetworkAttachmentDefinition")
+
 			_, err = define.MacVlanNad(
 				APIClient, macVlanNetworkOne, tsparams.TestNamespaceName, tapTwoInterfaceName, defaultWhereaboutIPAM)
 			Expect(err).ToNot(HaveOccurred(), "Fail to create second mac-vlan NetworkAttachmentDefinition")
 
 			By("Creating first server pod")
+
 			serverPodOneNetConfig := pod.StaticIPAnnotationWithMacAndNamespace(
 				srIovNetworkTwoName, tsparams.TestNamespaceName, dpdkServerMac)
 			srvCmdOne := defineTestServerPmdCmd(dpdkClientMac, "${PCIDEVICE_OPENSHIFT_IO_DPDKPOLICYTWO}", "")
@@ -453,6 +477,7 @@ var _ = Describe("rootless", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 				"serverpod-one", workerNodes[0].Definition.Name, serverSC, nil, serverPodOneNetConfig, srvCmdOne)
 
 			By("Creating second server pod")
+
 			serverPodTwoNetConfig := pod.StaticIPAnnotationWithMacAndNamespace(
 				srIovNetworkOneName, tsparams.TestNamespaceName, dpdkServerMacTwo)
 			srvCmdTwo := defineTestServerPmdCmd(dpdkClientMacTwo, "${PCIDEVICE_OPENSHIFT_IO_DPDKPOLICYONE}", "")
@@ -460,6 +485,7 @@ var _ = Describe("rootless", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 				"serverpod-two", workerNodes[0].Definition.Name, serverSC, nil, serverPodTwoNetConfig, srvCmdTwo)
 
 			By("Creating SCC")
+
 			_, err = scc.NewBuilder(APIClient, "scc-test-admin", "MustRunAsNonRoot", "RunAsAny").
 				WithPrivilegedContainer(false).WithPrivilegedEscalation(true).
 				WithDropCapabilities([]corev1.Capability{"ALL"}).
@@ -471,6 +497,7 @@ var _ = Describe("rootless", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 			Expect(err).ToNot(HaveOccurred(), "Fail to create SCC")
 
 			By("Creating client deployment")
+
 			secondInterfaceBasedOnTapTwo := "ext1.2"
 			firstVlanInterfaceBasedOnTapOne := fmt.Sprintf("%s.%d", tapOneInterfaceName, vlanID)
 			clientPodNetConfig := definePodNetwork([]map[string]string{
@@ -501,6 +528,7 @@ var _ = Describe("rootless", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 				WithTerminationGracePeriodSeconds(90).
 				CreateAndWaitUntilReady(tsparams.WaitTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Fail to create deployment")
+
 			deploymentPod := fetchNewDeploymentPod("deployment-one")
 
 			By("Collecting PCI Address")
@@ -532,10 +560,12 @@ var _ = Describe("rootless", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 			testRouteInjection(deploymentPod, firstVlanInterfaceBasedOnTapOne)
 
 			By("Removing previous deployment pod")
+
 			_, err = deploymentPod.DeleteAndWait(tsparams.WaitTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Fail to remove deployment pod")
 
 			By("Collecting re-started deployment pods")
+
 			deploymentPod = fetchNewDeploymentPod("deployment-one")
 
 			By("Collecting PCI Address")
@@ -570,11 +600,13 @@ var _ = Describe("rootless", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 
 	AfterEach(func() {
 		By("Removing all srIovNetworks")
+
 		err := sriov.CleanAllNetworksByTargetNamespace(
 			APIClient, NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName)
 		Expect(err).ToNot(HaveOccurred(), "Fail to clean srIovNetworks")
 
 		By("Removing all pods from test namespace")
+
 		runningNamespace, err := namespace.Pull(APIClient, tsparams.TestNamespaceName)
 		Expect(err).ToNot(HaveOccurred(), "Failed to pull namespace")
 		Expect(runningNamespace.CleanObjects(
@@ -583,25 +615,30 @@ var _ = Describe("rootless", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 
 	AfterAll(func() {
 		By("Removing all pods from test namespace")
+
 		runningNamespace, err := namespace.Pull(APIClient, tsparams.TestNamespaceName)
 		Expect(err).ToNot(HaveOccurred(), "Failed to pull namespace")
 		Expect(runningNamespace.CleanObjects(tsparams.WaitTimeout, pod.GetGVR())).ToNot(HaveOccurred(),
 			"Fail to clean namespace")
 
 		By("Re-setting selinux flag container_use_devices to 0 on all compute nodes")
+
 		err = cluster.ExecCmd(APIClient, NetConfig.WorkerLabel, setSEBool+"0")
 		Expect(err).ToNot(HaveOccurred(), "Fail to disable selinux flag")
 
 		By("Removing all SR-IOV Policy")
+
 		err = sriov.CleanAllNetworkNodePolicies(APIClient, NetConfig.SriovOperatorNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Fail to clean srIovPolicy")
 
 		By("Removing all srIovNetworks")
+
 		err = sriov.CleanAllNetworksByTargetNamespace(
 			APIClient, NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName)
 		Expect(err).ToNot(HaveOccurred(), "Fail to clean sriov networks")
 
 		By("Removing SecurityContextConstraints")
+
 		testScc, err := scc.Pull(APIClient, "scc-test-admin")
 		if err == nil {
 			err = testScc.Delete()
@@ -613,6 +650,7 @@ var _ = Describe("rootless", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 		// then stable. The issue is that if no configuration is applied, then
 		// the status will never go to not stable and the test will fail.
 		time.Sleep(5 * time.Second)
+
 		err = sriovoperator.WaitForSriovAndMCPStable(
 			APIClient, tsparams.MCOWaitTimeout, time.Minute, NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Fail to wait until cluster is stable")

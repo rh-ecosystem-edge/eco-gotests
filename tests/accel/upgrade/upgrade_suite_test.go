@@ -30,6 +30,7 @@ func TestUpgrade(t *testing.T) {
 
 var _ = AfterSuite(func() {
 	By("Deleting test namespace")
+
 	err := testNS.DeleteAndWait(5 * time.Minute)
 	Expect(err).ToNot(HaveOccurred(), "error to delete test namespace")
 })

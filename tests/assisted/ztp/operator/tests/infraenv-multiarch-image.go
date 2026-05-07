@@ -56,6 +56,7 @@ var _ = Describe(
 		When("on MCE 2.2 and above", func() {
 			BeforeAll(func() {
 				By("Check the hub cluster is connected")
+
 				connectedCluster, _ := meets.HubConnectedRequirement()
 				if !connectedCluster {
 					Skip("The hub cluster must be connected")
@@ -66,9 +67,11 @@ var _ = Describe(
 				nsBuilder = namespace.NewBuilder(HubAPIClient, infraenvTestSpoke)
 
 				By("Grab the MirrorRegistryRef value from the spec")
+
 				mirrorRegistryRef = ZTPConfig.HubAgentServiceConfig.Definition.Spec.MirrorRegistryRef
 
 				By("Create configmap for AgentServiceConfig's annotation")
+
 				agentServiceConfigMapData := map[string]string{
 					"ISO_IMAGE_TYPE": "full-iso",
 				}
@@ -78,14 +81,17 @@ var _ = Describe(
 				Expect(err).ToNot(HaveOccurred(), "error creating configmap for AgentServiceConfig's annotation")
 
 				By("Delete the pre-existing AgentServiceConfig")
+
 				err = ZTPConfig.HubAgentServiceConfig.DeleteAndWait(time.Second * 10)
 				Expect(err).ToNot(HaveOccurred(), "error deleting pre-existing agentserviceconfig")
 
 				By("Retrieve ClusterImageSet before all tests if exists")
+
 				testClusterImageSetName = ZTPConfig.HubOCPXYVersion + "-test"
 				originalClusterImagesetBuilder, err = hive.PullClusterImageSet(HubAPIClient, testClusterImageSetName)
 
 				By("Delete ClusterImageSet if exists before all tests ")
+
 				if err == nil {
 					err = originalClusterImagesetBuilder.Delete()
 					Expect(err).ToNot(HaveOccurred(), "error deleting clusterimageset %s", testClusterImageSetName)
@@ -96,6 +102,7 @@ var _ = Describe(
 				}
 
 				By("Create AgentServiceConfig with OS images for multiple architectures")
+
 				multiarchAgentServiceConfigBuilder = assisted.NewDefaultAgentServiceConfigBuilder(HubAPIClient)
 
 				// Add annotation to be able to use full ISO with s390x arch
@@ -118,6 +125,7 @@ var _ = Describe(
 				if mirrorRegistryRef != nil {
 					multiarchAgentServiceConfigBuilder.Definition.Spec.MirrorRegistryRef = mirrorRegistryRef
 				}
+
 				_, err = multiarchAgentServiceConfigBuilder.WithOSImage(agentInstallV1Beta1.OSImage{
 					OpenshiftVersion: ZTPConfig.HubOCPXYVersion,
 					Version:          ZTPConfig.HubOCPXYVersion,
@@ -156,26 +164,28 @@ var _ = Describe(
 					"error creating agentserviceconfig with osimages for multiple archs")
 
 				By("Wait until AgentServiceConfig with OSImages for multiple archs is deployed")
+
 				_, err = multiarchAgentServiceConfigBuilder.WaitUntilDeployed(time.Minute * 10)
 				Expect(err).ToNot(HaveOccurred(),
 					"error waiting until agentserviceconfig with osimages for multiple archs is deployed")
-
 			})
 			AfterEach(func() {
 				By("Delete the temporary namespace after test")
+
 				if nsBuilder.Exists() {
 					err := nsBuilder.DeleteAndWait(time.Second * 300)
 					Expect(err).ToNot(HaveOccurred(), "error deleting the temporary namespace after test")
 				}
 
 				By("Delete ClusterImageSet after a test")
+
 				err = tempClusterImagesetBuilder.Delete()
 				Expect(err).ToNot(HaveOccurred(), "error deleting clusterimageset %s", testClusterImageSetName)
 				klog.V(ztpparams.ZTPLogLevel).Infof("The ClusterImageSet %s was deleted", testClusterImageSetName)
-
 			})
 			AfterAll(func() {
 				By("Re-create the original ClusterImageSet after all test if existed")
+
 				if originalClusterImagesetBuilder != nil {
 					_, err := originalClusterImagesetBuilder.Create()
 					Expect(err).ToNot(HaveOccurred(), "error re-creating clusterimageset %s",
@@ -184,15 +194,19 @@ var _ = Describe(
 				} else {
 					klog.V(ztpparams.ZTPLogLevel).Infof("Skip on re-creating the ClusterImageSet after all tests - didn't exist.")
 				}
+
 				By("Delete AgentServiceConfig after test")
+
 				err = multiarchAgentServiceConfigBuilder.DeleteAndWait(time.Second * 10)
 				Expect(err).ToNot(HaveOccurred(), "error deleting agentserviceconfig after test")
 
 				By("Delete ConfigMap after test")
+
 				err = configmapBuilder.Delete()
 				Expect(err).ToNot(HaveOccurred(), "error deleting configmap after test")
 
 				By("Re-create the original AgentServiceConfig after all tests")
+
 				_, err = ZTPConfig.HubAgentServiceConfig.Create()
 				Expect(err).ToNot(HaveOccurred(), "error re-creating the original agentserviceconfig after all tests")
 
@@ -205,8 +219,8 @@ var _ = Describe(
 			})
 			DescribeTable("Assert valid ISO is created by InfraEnv with different cpuArchitecture",
 				func(cpuArchitecture string, payloadURL string, mismatchCPUArchitecture ...string) {
-
 					By("Create ClusterImageSet")
+
 					payloadVersion, payloadImage, err := getLatestReleasePayload(payloadURL)
 					Expect(err).ToNot(HaveOccurred(), "error getting latest release payload image")
 
@@ -224,7 +238,6 @@ var _ = Describe(
 					} else {
 						createSpokeClusterResources(cpuArchitecture)
 					}
-
 				},
 
 				Entry("Assert valid ISO is created by InfraEnv with cpuArchitecture set to x86_64",
@@ -272,7 +285,6 @@ var _ = Describe(
 					reportxml.ID("56187")),
 			)
 		})
-
 	})
 
 // getArchURL returns the proper ISO image URL.

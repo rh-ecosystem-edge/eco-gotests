@@ -22,6 +22,7 @@ var _ = Describe(
 	Label(nmoparams.Label), func() {
 		BeforeAll(func() {
 			By("Get NMO deployment object")
+
 			nmoDeployment, err := deployment.Pull(
 				APIClient, nmoparams.OperatorDeploymentName, rhwaparams.RhwaOperatorNs)
 			Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to get NMO deployment %s", err))

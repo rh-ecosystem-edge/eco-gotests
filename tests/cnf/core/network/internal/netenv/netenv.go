@@ -9,13 +9,8 @@ import (
 	"strings"
 	"time"
 
-	configv1 "github.com/openshift/api/config/v1"
-	v2 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/performanceprofile/v2"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/infrastructure"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/mco"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nto"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netconfig"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
@@ -24,18 +19,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 )
-
-// IsSNOCluster checks if the cluster is a Single Node OpenShift (SNO) cluster.
-func IsSNOCluster(apiClient *clients.Settings) (bool, error) {
-	klog.V(90).Infof("Checking if cluster is SNO (Single Node OpenShift)")
-
-	infraConfig, err := infrastructure.Pull(apiClient)
-	if err != nil {
-		return false, fmt.Errorf("failed to pull infrastructure configuration: %w", err)
-	}
-
-	return infraConfig.Object.Status.ControlPlaneTopology == configv1.SingleReplicaTopologyMode, nil
-}
 
 // DoesClusterHasEnoughNodes verifies if given cluster has enough nodes to run tests.
 func DoesClusterHasEnoughNodes(
@@ -140,59 +123,6 @@ func MapFirstKeyValue(inputMap map[string]string) (string, string) {
 	return "", ""
 }
 
-// DeployPerformanceProfile installs performanceProfile on cluster.
-func DeployPerformanceProfile(
-	apiClient *clients.Settings,
-	netConfig *netconfig.NetworkConfig,
-	profileName string,
-	isolatedCPU string,
-	reservedCPU string,
-	hugePages1GCount int32) error {
-	klog.V(90).Infof("Ensuring cluster has correct PerformanceProfile deployed")
-
-	mcp, err := mco.Pull(apiClient, netConfig.CnfMcpLabel)
-	if err != nil {
-		return fmt.Errorf("fail to pull MCP due to : %w", err)
-	}
-
-	performanceProfiles, err := nto.ListProfiles(apiClient)
-	if err != nil {
-		return fmt.Errorf("fail to list PerformanceProfile objects on cluster due to: %w", err)
-	}
-
-	if len(performanceProfiles) > 0 {
-		for _, perfProfile := range performanceProfiles {
-			if perfProfile.Object.Name == profileName {
-				klog.V(90).Infof("PerformanceProfile %s exists", profileName)
-
-				return nil
-			}
-		}
-
-		klog.V(90).Infof("PerformanceProfile doesn't exist on cluster. Removing all pre-existing profiles")
-
-		err := nto.CleanAllPerformanceProfiles(apiClient)
-		if err != nil {
-			return fmt.Errorf("fail to clean pre-existing performance profiles due to %w", err)
-		}
-
-		err = mcp.WaitToBeStableFor(time.Minute, netparam.MCOWaitTimeout)
-		if err != nil {
-			return err
-		}
-	}
-
-	klog.V(90).Infof("Required PerformanceProfile doesn't exist. Installing new profile PerformanceProfile")
-
-	_, err = nto.NewBuilder(apiClient, profileName, isolatedCPU, reservedCPU, netConfig.WorkerLabelMap).
-		WithHugePages("1G", []v2.HugePage{{Size: "1G", Count: hugePages1GCount}}).Create()
-	if err != nil {
-		return fmt.Errorf("fail to deploy PerformanceProfile due to: %w", err)
-	}
-
-	return mcp.WaitToBeStableFor(time.Minute, netparam.MCOWaitTimeout)
-}
-
 // BuildRoutesMapWithSpecificRoutes creates a route map with specific routes.
 func BuildRoutesMapWithSpecificRoutes(podList []*pod.Builder, workerNodeList []*nodes.Builder,
 	nextHopList []string) (map[string]string, error) {
@@ -251,4 +181,69 @@ func SetStaticRoute(frrPod *pod.Builder, action, destIP, containerName string,
 	}
 
 	return buffer.String(), nil
+}
+
+// GetClusterIPFamily detects the cluster's IP family by checking node external OVN addresses.
+// Returns netparam.IPV4Family, netparam.IPV6Family, or netparam.DualIPFamily.
+func GetClusterIPFamily(apiClient *clients.Settings) (string, error) {
+	klog.V(90).Infof("Detecting cluster IP family from OVN external addresses")
+
+	const ovnExternalAddresses = "k8s.ovn.org/node-primary-ifaddr"
+
+	nodesList, err := nodes.List(apiClient)
+	if err != nil {
+		return "", fmt.Errorf("failed to list nodes: %w", err)
+	}
+
+	if len(nodesList) == 0 {
+		return "", fmt.Errorf("no nodes found")
+	}
+
+	// OVN's node-primary-ifaddr is expected to be consistent cluster-wide; use the first listed node only.
+	node := nodesList[0]
+
+	raw := node.Object.Annotations[ovnExternalAddresses]
+	if raw == "" {
+		return "", fmt.Errorf("node %q missing %q annotation", node.Object.Name, ovnExternalAddresses)
+	}
+
+	var extNetwork nodes.ExternalNetworks
+
+	err = json.Unmarshal([]byte(raw), &extNetwork)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse external network annotation on node %s: %w",
+			node.Object.Name, err)
+	}
+
+	var clusterIPFamily string
+
+	switch {
+	case extNetwork.IPv4 != "" && extNetwork.IPv6 != "":
+		clusterIPFamily = netparam.DualIPFamily
+	case extNetwork.IPv4 != "":
+		clusterIPFamily = netparam.IPV4Family
+	case extNetwork.IPv6 != "":
+		clusterIPFamily = netparam.IPV6Family
+	default:
+		return "", fmt.Errorf("no IPv4 or IPv6 external address found on node %s", node.Object.Name)
+	}
+
+	klog.V(90).Infof("Cluster IP family: %s", clusterIPFamily)
+
+	return clusterIPFamily, nil
+}
+
+// ClusterSupportsIPv4 returns true if the cluster supports IPv4 (single-stack or dual-stack).
+func ClusterSupportsIPv4(ipFamily string) bool {
+	return ipFamily == netparam.IPV4Family || ipFamily == netparam.DualIPFamily
+}
+
+// ClusterSupportsIPv6 returns true if the cluster supports IPv6 (single-stack or dual-stack).
+func ClusterSupportsIPv6(ipFamily string) bool {
+	return ipFamily == netparam.IPV6Family || ipFamily == netparam.DualIPFamily
+}
+
+// ClusterSupportsDualStack returns true if the cluster is dual-stack.
+func ClusterSupportsDualStack(ipFamily string) bool {
+	return ipFamily == netparam.DualIPFamily
 }

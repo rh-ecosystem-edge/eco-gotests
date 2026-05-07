@@ -21,17 +21,21 @@ var _ = Describe(
 			clusterName string
 			err         error
 		)
+
 		BeforeAll(func() {
 			By("Fetching Cluster name")
+
 			clusterName, err = platform.GetOCPClusterName(APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get cluster name")
 		})
 
 		It("Asserts all policies are compliant", func() {
 			klog.V(randuparams.RanDuLogLevel).Infof("Check all policies are compliant")
+
 			allPolicies, err := ocm.ListPoliciesInAllNamespaces(APIClient,
 				runtimeclient.ListOptions{Namespace: clusterName})
 			Expect(err).ToNot(HaveOccurred(), "Failed to get policies in %q NS", clusterName)
+
 			for _, policy := range allPolicies {
 				pName := policy.Definition.Name
 				klog.V(randuparams.RanDuLogLevel).Infof("Processing policy is %q", pName)
@@ -40,7 +44,6 @@ var _ = Describe(
 				Expect(pState).To(Equal("Compliant"))
 				klog.V(randuparams.RanDuLogLevel).Infof("Policy %q is in %q state", pName, pState)
 			}
-
 		})
 	},
 )

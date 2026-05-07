@@ -39,16 +39,16 @@ var _ = BeforeSuite(func() {
 		vcoreparams.ConfigurationFolderPath, VCoreConfig.Host))
 
 	execCmd := fmt.Sprintf("mkdir %s", vcoreparams.ConfigurationFolderPath)
-	_, err := remote.ExecCmdOnHost(VCoreConfig.Host, VCoreConfig.User, VCoreConfig.Pass, execCmd)
 
+	_, err := remote.ExecCmdOnHost(VCoreConfig.Host, VCoreConfig.User, VCoreConfig.Pass, execCmd)
 	if err != nil {
 		klog.V(vcoreparams.VCoreLogLevel).Infof("folder %s already exists",
 			vcoreparams.ConfigurationFolderPath)
 	}
 
 	execCmd = fmt.Sprintf("chmod 755 %s", vcoreparams.ConfigurationFolderPath)
-	_, err = remote.ExecCmdOnHost(VCoreConfig.Host, VCoreConfig.User, VCoreConfig.Pass, execCmd)
 
+	_, err = remote.ExecCmdOnHost(VCoreConfig.Host, VCoreConfig.User, VCoreConfig.Pass, execCmd)
 	if err != nil {
 		klog.V(vcoreparams.VCoreLogLevel).Infof("failed to change permitions for the folder %s",
 			vcoreparams.ConfigurationFolderPath)
@@ -59,8 +59,8 @@ var _ = AfterSuite(func() {
 	By(fmt.Sprintf("Deleting the folder %s", vcoreparams.ConfigurationFolderPath))
 
 	execCmd := fmt.Sprintf("rm -rf %s", vcoreparams.ConfigurationFolderPath)
-	_, err := remote.ExecCmdOnHost(VCoreConfig.Host, VCoreConfig.User, VCoreConfig.Pass, execCmd)
 
+	_, err := remote.ExecCmdOnHost(VCoreConfig.Host, VCoreConfig.User, VCoreConfig.Pass, execCmd)
 	if err != nil {
 		klog.V(vcoreparams.VCoreLogLevel).Infof("folder %s already removed",
 			vcoreparams.ConfigurationFolderPath)

@@ -28,16 +28,17 @@ func TestOperator(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	By("Check if hub has valid apiClient")
+
 	if HubAPIClient == nil {
 		Skip("Cannot run operator suite when hub has nil api client")
 	}
 
 	By("Check that assisted is running")
+
 	operandRunning, msg := meets.HubInfrastructureOperandRunningRequirement()
 	if !operandRunning {
 		Skip(msg)
 	}
-
 })
 
 var _ = ReportAfterSuite("", func(report Report) {

@@ -16,6 +16,7 @@ import (
 	siteconfigv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/siteconfig/v1alpha1"
 
 	lcav1 "github.com/openshift-kni/lifecycle-agent/api/imagebasedupgrade/v1"
+	lcasgv1 "github.com/openshift-kni/lifecycle-agent/api/seedgenerator/v1"
 	pluginsv1alpha1 "github.com/openshift-kni/oran-o2ims/api/hardwaremanagement/plugins/v1alpha1"
 	hardwaremanagementv1alpha1 "github.com/openshift-kni/oran-o2ims/api/hardwaremanagement/v1alpha1"
 	inventoryv1alpha1 "github.com/openshift-kni/oran-o2ims/api/inventory/v1alpha1"
@@ -76,6 +77,7 @@ var reporterSchemes = []clients.SchemeAttacher{
 	hardwaremanagementv1alpha1.AddToScheme,
 	inventoryv1alpha1.AddToScheme,
 	ptpv1.AddToScheme,
+	lcasgv1.AddToScheme,
 }
 
 func setReporterSchemes(scheme *runtime.Scheme) error {

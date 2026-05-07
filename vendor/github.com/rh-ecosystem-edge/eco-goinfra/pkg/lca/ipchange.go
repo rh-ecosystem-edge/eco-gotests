@@ -160,6 +160,32 @@ func (builder *IPConfigBuilder) Exists() bool {
 	return err == nil || !k8serrors.IsNotFound(err)
 }
 
+// Update changes the existing ipconfig resource on the cluster, failing if it does not exist or cannot be updated.
+func (builder *IPConfigBuilder) Update() (*IPConfigBuilder, error) {
+	if valid, err := builder.validate(); !valid {
+		return nil, err
+	}
+
+	klog.V(100).Infof("Updating ipconfig %s", builder.Definition.Name)
+
+	if !builder.Exists() {
+		klog.V(100).Infof("ipconfig %s does not exist", builder.Definition.Name)
+
+		return nil, fmt.Errorf("cannot update non-existing ipconfig")
+	}
+
+	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
+
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
+	if err != nil {
+		return nil, err
+	}
+
+	builder.Object = builder.Definition
+
+	return builder, nil
+}
+
 // WaitUntilComplete waits the specified timeout for the ipconfig to complete
 // actions.
 func (builder *IPConfigBuilder) WaitUntilComplete(timeout time.Duration) (*IPConfigBuilder, error) {
@@ -187,8 +213,90 @@ func (builder *IPConfigBuilder) WaitUntilComplete(timeout time.Duration) (*IPCon
 			}
 
 			for _, condition := range builder.Object.Status.Conditions {
-				if condition.Status == "True" && condition.Type == "ConfigCompleted" &&
+				if condition.Type == "ConfigCompleted" && condition.Status == isTrue &&
 					condition.Reason == "Completed" {
+					return true, nil
+				}
+			}
+
+			return false, nil
+		})
+	if err == nil {
+		return builder, nil
+	}
+
+	return nil, err
+}
+
+// WaitUntilFailed waits the specified timeout for the ipconfig to fail.
+func (builder *IPConfigBuilder) WaitUntilFailed(timeout time.Duration) (*IPConfigBuilder, error) {
+	if valid, err := builder.validate(); !valid {
+		return builder, err
+	}
+
+	klog.V(100).Infof("Waiting for ipconfig %s to fail",
+		builder.Definition.Name)
+
+	if !builder.Exists() {
+		klog.V(100).Info("The ipconfig does not exist on the cluster")
+
+		return builder, fmt.Errorf("%s", builder.errorMsg)
+	}
+
+	// Polls periodically to determine if ipconfig is in desired state.
+	var err error
+
+	err = wait.PollUntilContextTimeout(
+		context.TODO(), time.Second*3, timeout, true, func(ctx context.Context) (bool, error) {
+			builder.Object, err = builder.Get()
+			if err != nil {
+				return false, nil
+			}
+
+			for _, condition := range builder.Object.Status.Conditions {
+				if condition.Type == "ConfigCompleted" && condition.Status == isFalse &&
+					condition.Reason == "Failed" {
+					return true, nil
+				}
+			}
+
+			return false, nil
+		})
+	if err == nil {
+		return builder, nil
+	}
+
+	return nil, err
+}
+
+// WaitUntilIdle waits the specified timeout for the ipconfig to become Idle.
+func (builder *IPConfigBuilder) WaitUntilIdle(timeout time.Duration) (*IPConfigBuilder, error) {
+	if valid, err := builder.validate(); !valid {
+		return builder, err
+	}
+
+	klog.V(100).Infof("Waiting for ipconfig %s to become Idle",
+		builder.Definition.Name)
+
+	if !builder.Exists() {
+		klog.V(100).Info("The ipconfig does not exist on the cluster")
+
+		return builder, fmt.Errorf("%s", builder.errorMsg)
+	}
+
+	// Polls periodically to determine if ipconfig is in desired state.
+	var err error
+
+	err = wait.PollUntilContextTimeout(
+		context.TODO(), time.Second*3, timeout, true, func(ctx context.Context) (bool, error) {
+			builder.Object, err = builder.Get()
+			if err != nil {
+				return false, nil
+			}
+
+			for _, condition := range builder.Object.Status.Conditions {
+				if condition.Type == "Idle" && condition.Status == isTrue &&
+					condition.Reason == "Idle" {
 					return true, nil
 				}
 			}
@@ -221,6 +329,10 @@ func (builder *IPConfigBuilder) WithIPv4Address(
 
 	klog.V(100).Infof("Setting IPv4 %s in ipconfig", ipv4Address)
 
+	if builder.Definition.Spec.IPv4 == nil {
+		builder.Definition.Spec.IPv4 = &lcaipcv1.IPv4Config{}
+	}
+
 	builder.Definition.Spec.IPv4.Address = ipv4Address
 
 	return builder
@@ -244,6 +356,10 @@ func (builder *IPConfigBuilder) WithIPv6Address(
 	}
 
 	klog.V(100).Infof("Setting IPv6 %s in ipconfig", ipv6Address)
+
+	if builder.Definition.Spec.IPv6 == nil {
+		builder.Definition.Spec.IPv6 = &lcaipcv1.IPv6Config{}
+	}
 
 	builder.Definition.Spec.IPv6.Address = ipv6Address
 
@@ -269,6 +385,10 @@ func (builder *IPConfigBuilder) WithIPv6Gateway(
 
 	klog.V(100).Infof("Setting IPv6 gateway %s in ipconfig", ipv6Address)
 
+	if builder.Definition.Spec.IPv6 == nil {
+		builder.Definition.Spec.IPv6 = &lcaipcv1.IPv6Config{}
+	}
+
 	builder.Definition.Spec.IPv6.Gateway = ipv6Address
 
 	return builder
@@ -293,6 +413,10 @@ func (builder *IPConfigBuilder) WithIPv4Gateway(
 
 	klog.V(100).Infof("Setting IPv4 gateway %s in ipconfig", ipv4Address)
 
+	if builder.Definition.Spec.IPv4 == nil {
+		builder.Definition.Spec.IPv4 = &lcaipcv1.IPv4Config{}
+	}
+
 	builder.Definition.Spec.IPv4.Gateway = ipv4Address
 
 	return builder
@@ -315,6 +439,10 @@ func (builder *IPConfigBuilder) WithIPv4MachineNetwork(
 	}
 
 	klog.V(100).Infof("Setting IPv4 machine network %s in ipconfig", ipv4MachineNetwork)
+
+	if builder.Definition.Spec.IPv4 == nil {
+		builder.Definition.Spec.IPv4 = &lcaipcv1.IPv4Config{}
+	}
 
 	builder.Definition.Spec.IPv4.MachineNetwork = ipv4MachineNetwork
 
@@ -339,6 +467,10 @@ func (builder *IPConfigBuilder) WithIPv6MachineNetwork(
 
 	klog.V(100).Infof("Setting IPv6 machine network %s in ipconfig", ipv6MachineNetwork)
 
+	if builder.Definition.Spec.IPv6 == nil {
+		builder.Definition.Spec.IPv6 = &lcaipcv1.IPv6Config{}
+	}
+
 	builder.Definition.Spec.IPv6.MachineNetwork = ipv6MachineNetwork
 
 	return builder
@@ -353,6 +485,34 @@ func (builder *IPConfigBuilder) WithStage(
 
 	klog.V(100).Infof("Setting stage %s in ipconfig", stage)
 	builder.Definition.Spec.Stage = lcaipcv1.IPConfigStage(stage)
+
+	return builder
+}
+
+// WithVlanID sets the VLAN ID used by the ipconfig.
+func (builder *IPConfigBuilder) WithVlanID(
+	vlanID int) *IPConfigBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof("Setting VLAN ID %d in ipconfig", vlanID)
+	builder.Definition.Spec.VLANID = vlanID
+
+	return builder
+}
+
+// WithAutoRollbackOnFailure sets the AutoRollbackOnFailure used by the ipconfig.
+func (builder *IPConfigBuilder) WithAutoRollbackOnFailure(
+	seconds int) *IPConfigBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof("Setting AutoRollbackOnFailure to %d seconds in ipconfig", seconds)
+	builder.Definition.Spec.AutoRollbackOnFailure = &lcaipcv1.AutoRollbackOnFailure{
+		InitMonitorTimeoutSeconds: seconds,
+	}
 
 	return builder
 }

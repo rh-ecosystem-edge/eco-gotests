@@ -105,7 +105,7 @@ func getConfigurationPolicy(policyName string, object runtime.Object) configurat
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("%s-config", policyName),
 		},
-		Spec: &configurationPolicyv1.ConfigurationPolicySpec{
+		Spec: configurationPolicyv1.ConfigurationPolicySpec{
 			Severity:          "low",
 			RemediationAction: configurationPolicyv1.Inform,
 			NamespaceSelector: configurationPolicyv1.Target{

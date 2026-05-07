@@ -21,26 +21,29 @@ import (
 
 var _ = Describe("KMM-Hub", Ordered, Label(tsparams.LabelSuite), func() {
 	Context("MCM", Label("hub-check-install"), func() {
-
 		It("Operator should be properly installed", reportxml.ID("56674"), func() {
 			if ModulesConfig.SubscriptionName == "" {
 				Skip("No subscription name defined. Skipping test")
 			}
 
 			By("Checking subscription exists")
+
 			sub, err := olm.PullSubscription(APIClient, ModulesConfig.SubscriptionName, kmmparams.KmmHubOperatorNamespace)
 			Expect(err).NotTo(HaveOccurred(), "error getting subscription")
 			Expect(string(sub.Object.Status.State)).To(Equal("AtLatestKnown"))
 
 			By("Checking operator namespace exists")
+
 			exists := namespace.NewBuilder(APIClient, kmmparams.KmmHubOperatorNamespace).Exists()
 			Expect(exists).To(Equal(true))
 
 			By("Listing deployment in operator namespace")
+
 			deploymentList, err := deployment.List(APIClient, kmmparams.KmmHubOperatorNamespace)
 			Expect(err).NotTo(HaveOccurred(), "error getting deployment list")
 
 			By("Checking KMM-HUB deployment")
+
 			for _, ds := range deploymentList {
 				if strings.Contains(ds.Object.Name, kmmparams.HubDeploymentName) {
 					Expect(ds.Object.Status.ReadyReplicas).To(Equal(int32(1)))
@@ -52,6 +55,7 @@ var _ = Describe("KMM-Hub", Ordered, Label(tsparams.LabelSuite), func() {
 
 		It("HUB Webhook server be properly installed", reportxml.ID("72718"), func() {
 			By("Checking if version is greater than 2.1.0")
+
 			currentVersion, err := get.KmmHubOperatorVersion(APIClient)
 			Expect(err).ToNot(HaveOccurred(), "failed to get current KMM version")
 
@@ -61,10 +65,12 @@ var _ = Describe("KMM-Hub", Ordered, Label(tsparams.LabelSuite), func() {
 			}
 
 			By("Listing deployments in KMM-HUB operator namespace")
+
 			deploymentList, err := deployment.List(APIClient, kmmparams.KmmHubOperatorNamespace)
 			Expect(err).NotTo(HaveOccurred(), "error getting deployment list")
 
 			By("Checking KMM deployment")
+
 			for _, ds := range deploymentList {
 				if strings.Contains(ds.Object.Name, kmmparams.HubWebhookDeploymentName) {
 					Expect(ds.Object.Status.ReadyReplicas).To(Equal(int32(1)))
@@ -73,6 +79,5 @@ var _ = Describe("KMM-Hub", Ordered, Label(tsparams.LabelSuite), func() {
 				}
 			}
 		})
-
 	})
 })

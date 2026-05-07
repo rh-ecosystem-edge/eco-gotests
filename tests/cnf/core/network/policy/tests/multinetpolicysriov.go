@@ -16,7 +16,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/ipaddr"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/policy/internal/tsparams"
@@ -45,7 +44,6 @@ var (
 )
 
 var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailure, func() {
-
 	var (
 		workerNodeList                             []*nodes.Builder
 		serverPod, firstClientPod, secondClientPod *pod.Builder
@@ -54,8 +52,10 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 
 	BeforeAll(func() {
 		By("Checking if cluster is SNO")
-		isSNO, err := netenv.IsSNOCluster(APIClient)
+
+		isSNO, err := cluster.IsSNOCluster(APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to check if cluster is SNO")
+
 		if isSNO {
 			Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers")
 		}
@@ -64,18 +64,22 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 		enableMultiNetworkPolicy(true)
 
 		By("Listing worker nodes")
+
 		workerNodeList, err = nodes.List(
 			APIClient, metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
 		Expect(err).ToNot(HaveOccurred(), "Failed to list worker nodes")
+
 		if len(workerNodeList) <= 1 {
 			Skip("Skipping test - cluster doesn't have enough nodes (requires 2+ workers)")
 		}
 
 		By("Collecting SR-IOV interface for multinetwork policy tests")
+
 		srIovInterfacesUnderTest, err := NetConfig.GetSriovInterfaces(1)
 		Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
 
 		By("Configuring SR-IOV policy")
+
 		sriovPolicy, err := sriov.NewPolicyBuilder(
 			APIClient,
 			"policysriov",
@@ -87,6 +91,7 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 		Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV policy")
 
 		By("Creating sr-iov network with ipam static config")
+
 		srIovNet, err = sriov.NewNetworkBuilder(
 			APIClient,
 			"sriovnetpolicy",
@@ -97,6 +102,7 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 		Expect(err).ToNot(HaveOccurred(), "Failed to configure sr-iov network")
 
 		By("Waiting until cluster MCP and SR-IOV are stable")
+
 		err = sriovoperator.WaitForSriovAndMCPStable(
 			APIClient, tsparams.MCOWaitTimeout, time.Minute, NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Failed cluster is not stable")
@@ -104,6 +110,7 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 	Context("ipv4", func() {
 		BeforeEach(func() {
 			By("Creating first client pod")
+
 			firstClientPod = createClientPod(
 				"client1",
 				srIovNet.Definition.Name,
@@ -113,6 +120,7 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 				[]string{firstClientPodIP})
 
 			By("Creating second client pod")
+
 			secondClientPod = createClientPod(
 				"client2",
 				srIovNet.Definition.Name,
@@ -122,6 +130,7 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 				[]string{secondClientPodIP})
 
 			By("Creating server pod")
+
 			serverPod = createServerPod(
 				srIovNet.Definition.Name,
 				workerNodeList[0].Definition.Name,
@@ -249,6 +258,7 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 
 		It("Ingress and Egress allow IPv4 address", reportxml.ID("53898"), func() {
 			By("Apply MultiNetworkPolicy with ingress and egress rules allow specific IPv4 addresses")
+
 			egressRule, err := networkpolicy.NewEgressRuleBuilder().WithPeerPodSelectorAndCIDR(
 				metav1.LabelSelector{MatchLabels: map[string]string{"pod": labelSecondClientPod}},
 				ipaddr.RemovePrefix(secondClientPodIP)+"/"+"32").
@@ -303,6 +313,7 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 		// 55990
 		It("Disable multi-network policy", reportxml.ID("55990"), func() {
 			By("Apply MultiNetworkPolicy with ingress rule deny all")
+
 			_, err := networkpolicy.NewMultiNetworkPolicyBuilder(
 				APIClient, multiNetworkPolicyName, tsparams.TestNamespaceName).
 				WithNetwork(srIovNet.Definition.Name).WithPolicyType(multinetpolicyapiv1.PolicyTypeIngress).
@@ -350,6 +361,7 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 					secondClientPod.Definition.Name, serverPod.Definition.Name, port5003))
 
 			By("Applying MultiNetworkPolicy should fail")
+
 			_, err = networkpolicy.NewMultiNetworkPolicyBuilder(
 				APIClient, multiNetworkPolicyName, tsparams.TestNamespaceName).
 				WithNetwork(srIovNet.Definition.Name).WithPolicyType(multinetpolicyapiv1.PolicyTypeIngress).Create()
@@ -363,6 +375,7 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 	Context("ipv6 SCTP", func() {
 		BeforeEach(func() {
 			By("Creating first client pod")
+
 			firstClientPod = createClientPod(
 				"client1",
 				srIovNet.Definition.Name,
@@ -372,6 +385,7 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 				[]string{firstClientPodIPv6})
 
 			By("Creating second client pod")
+
 			secondClientPod = createClientPod(
 				"client2",
 				srIovNet.Definition.Name,
@@ -381,6 +395,7 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 				[]string{secondClientPodIPv6})
 
 			By("Creating server pod")
+
 			serverPod = createServerPod(
 				srIovNet.Definition.Name,
 				workerNodeList[0].Definition.Name,
@@ -540,6 +555,7 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 	Context("dual-stack", func() {
 		BeforeEach(func() {
 			By("Creating first client pod")
+
 			firstClientPod = createClientPod(
 				"client1",
 				srIovNet.Definition.Name,
@@ -549,6 +565,7 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 				[]string{firstClientPodIPv6, firstClientPodIP})
 
 			By("Creating second client pod")
+
 			secondClientPod = createClientPod(
 				"client2",
 				srIovNet.Definition.Name,
@@ -558,6 +575,7 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 				[]string{secondClientPodIPv6, secondClientPodIP})
 
 			By("Creating server pod")
+
 			serverPod = createServerPod(
 				srIovNet.Definition.Name,
 				workerNodeList[0].Definition.Name,
@@ -637,6 +655,7 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 		serverIP := serverPodIP
 		// Pull the latest version of firstClientPod in order to get an updated network Annotations from the cluster.
 		Expect(firstClientPod.Exists()).To(BeTrue(), "Client pod doesn't exist")
+
 		if strings.Contains(firstClientPod.Object.Annotations["k8s.v1.cni.cncf.io/network-status"],
 			removePrefixFromIP(firstClientPodIPv6)) {
 			serverIP = serverPodIPv6
@@ -662,15 +681,18 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 
 	AfterAll(func() {
 		By("Removing all SR-IOV Policies")
+
 		err := sriov.CleanAllNetworkNodePolicies(APIClient, NetConfig.SriovOperatorNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Fail to clean srIovPolicy")
 
 		By("Removing all srIovNetworks")
+
 		err = sriov.CleanAllNetworksByTargetNamespace(
 			APIClient, NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName)
 		Expect(err).ToNot(HaveOccurred(), "Fail to clean sriov networks")
 
 		By("Waiting until cluster MCP and SR-IOV are stable")
+
 		err = sriovoperator.WaitForSriovAndMCPStable(
 			APIClient, tsparams.MCOWaitTimeout, time.Minute, NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Fail to wait until cluster is stable")

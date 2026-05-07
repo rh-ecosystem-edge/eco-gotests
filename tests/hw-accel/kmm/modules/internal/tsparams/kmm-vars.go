@@ -30,6 +30,9 @@ var (
 		kmmparams.VersionModuleTestNamespace:      "module",
 		kmmparams.ScannerTestNamespace:            "module",
 		kmmparams.TolerationModuleTestNamespace:   "module",
+		kmmparams.RebuildTriggerBasicNamespace:    "module",
+		kmmparams.RebuildTriggerNoopNamespace:     "module",
+		kmmparams.AutomountSATokenTestNamespace:   "module",
 		kmmparams.DefaultNodesNamespace:           "nodes",
 	}
 

@@ -57,6 +57,11 @@ type ModuleImageSpec struct {
 	// +optional
 	// RegistryTLS set the TLS configs for accessing the registry of the image.
 	RegistryTLS *TLSOptions `json:"registryTLS,omitempty"`
+
+	// +optional
+	// DirName is the root directory for modules, used during signing.
+	// +kubebuilder:default=/opt
+	DirName string `json:"dirName,omitempty"`
 }
 
 // ModuleImagesConfigSpec describes the images of the Module whose status needs to be verified
@@ -77,6 +82,15 @@ type ModuleImagesConfigSpec struct {
 	// be pushed to a defined repository
 	// +optional
 	PushBuiltImage bool `json:"pushBuiltImage"`
+
+	// ImageRebuildTriggerGeneration is an optional counter that, when incremented, triggers a re-verification
+	// and potential rebuild of all module images. Propagated from Module.spec.imageRebuildTriggerGeneration.
+	// +optional
+	ImageRebuildTriggerGeneration *int `json:"imageRebuildTriggerGeneration,omitempty"`
+
+	// Tolerations specifies the tolerations for build/sign pods.
+	// +optional
+	Tolerations []v1.Toleration `json:"tolerations,omitempty"`
 }
 
 type ModuleImageState struct {
@@ -92,6 +106,12 @@ type ModuleImageState struct {
 // +kubebuilder:validation:Required
 type ModuleImagesConfigStatus struct {
 	ImagesStates []ModuleImageState `json:"imagesStates"`
+
+	// ImageRebuildTriggerGeneration contains the last value of spec.imageRebuildTriggerGeneration that was applied.
+	// When spec.imageRebuildTriggerGeneration differs from this value, all image statuses will be cleared
+	// to trigger re-verification and potential rebuilds.
+	// +optional
+	ImageRebuildTriggerGeneration *int `json:"imageRebuildTriggerGeneration,omitempty"`
 }
 
 // +kubebuilder:object:root=true

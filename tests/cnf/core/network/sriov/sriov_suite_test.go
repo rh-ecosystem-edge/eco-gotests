@@ -32,22 +32,27 @@ func TestLB(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	By("Creating test namespace with privileged labels")
+
 	for key, value := range params.PrivilegedNSLabels {
 		testNS.WithLabel(key, value)
 	}
+
 	_, err := testNS.Create()
 	Expect(err).ToNot(HaveOccurred(), "error to create test namespace")
 
 	By("Verifying if sriov tests can be executed on given cluster")
+
 	err = sriovoperator.IsSriovDeployed(APIClient, NetConfig.SriovOperatorNamespace)
 	Expect(err).ToNot(HaveOccurred(), "Cluster doesn't support sriov test cases")
 
 	By("Pulling test images on cluster before running test cases")
+
 	err = cluster.PullTestImageOnNodes(APIClient, NetConfig.WorkerLabel, NetConfig.CnfNetTestContainer, 300)
 	Expect(err).ToNot(HaveOccurred(), "Failed to pull test image on nodes")
 })
 var _ = AfterSuite(func() {
 	By("Deleting test namespace")
+
 	err := testNS.DeleteAndWait(tsparams.DefaultTimeout)
 	Expect(err).ToNot(HaveOccurred(), "error to delete test namespace")
 })

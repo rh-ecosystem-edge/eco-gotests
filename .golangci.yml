@@ -1,6 +1,6 @@
 version: "2"
 run:
-  go: "1.25"
+  go: "1.26"
 output:
   formats:
     text:
@@ -64,6 +64,7 @@ linters:
             - github.com/openshift
             - github.com/nmstate/kubernetes-nmstate
             - github.com/hashicorp/go-version
+            - github.com/Masterminds/semver/v3
             - github.com/cavaliergopher/grab/v3
             - github.com/k8snetworkplumbingwg
             - github.com/metallb/metallb-operator
@@ -115,6 +116,10 @@ linters:
       rules:
         - name: indent-error-flow
         - name: var-naming
+          arguments:
+            - []
+            - []
+            - - skipPackageNameCollisionWithGoStd: true
         - name: increment-decrement
         - name: exported
           arguments:

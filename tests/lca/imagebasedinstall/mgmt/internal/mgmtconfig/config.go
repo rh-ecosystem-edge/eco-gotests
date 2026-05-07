@@ -12,6 +12,11 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// ClusterHostNetworkInterface is one spoke host NIC entry under network.interfaces (map key = Linux iface name).
+type ClusterHostNetworkInterface struct {
+	MACAddress string `yaml:"mac_address"`
+}
+
 // Cluster contains resources information that make up the cluster to be installed.
 type Cluster struct {
 	Info struct {
@@ -24,9 +29,7 @@ type Cluster struct {
 		} `yaml:"machine_cidr"`
 		Hosts map[string]struct {
 			Network struct {
-				Interfaces map[string]struct {
-					MACAddress string `yaml:"mac_address"`
-				} `yaml:"interfaces"`
+				Interfaces map[string]ClusterHostNetworkInterface `yaml:"interfaces"`
 				BondConfig struct {
 					Interfaces string `yaml:"interfaces"`
 					Options    struct {
@@ -34,6 +37,7 @@ type Cluster struct {
 						MIIMON string `yaml:"miimon"`
 					} `yaml:"options"`
 				} `yaml:"bond_config"`
+				VLANID  string `yaml:"vlan_id"`
 				Address struct {
 					IPv4 string `yaml:"ipv4"`
 					IPv6 string `yaml:"ipv6"`

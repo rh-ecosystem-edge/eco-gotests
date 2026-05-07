@@ -45,7 +45,6 @@ var _ = Describe(
 	Label(tsparams.LabelOSImageVersionTestCases),
 	func() {
 		BeforeAll(func() {
-
 			osImagesBuffer, err := ZTPConfig.HubAssistedServicePod().ExecCommand(
 				[]string{"printenv", "OS_IMAGES"}, "assisted-service")
 			Expect(err).ToNot(HaveOccurred(), "error occurred when executing command in the pod")
@@ -72,5 +71,4 @@ var _ = Describe(
 				}
 			})
 		})
-
 	})

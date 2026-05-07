@@ -87,7 +87,8 @@ type Sign struct {
 	CertSecret *v1.LocalObjectReference `json:"certSecret"`
 
 	// +optional
-	// paths inside the image for the kernel modules to sign (if ommited all kmods are signed)
+	// Paths inside the image for the kernel modules to sign.
+	// Full path to explicit files are required or any globs supported by the Bash shell
 	FilesToSign []string `json:"filesToSign,omitempty"`
 }
 
@@ -312,6 +313,12 @@ type DevicePluginSpec struct {
 	ServiceAccountName string `json:"serviceAccountName,omitempty"`
 
 	Volumes []v1.Volume `json:"volumes,omitempty"`
+
+	// AutomountServiceAccountToken is used to disable the auto-mounting of the projected volume
+	// into device plugin pod. This volume includes as files: SA token, CAs' file etc'
+	// setting AutomountServiceAccountToken to false, will disale auto-mounting, and will allow user to mount
+	// whatever configmaps and tokens he deems necessary for the device plugin application
+	AutomountServiceAccountToken *bool `json:"automountServiceAccountToken,omitempty"`
 }
 
 // ModuleSpec describes how the KMM operator should deploy a Module on those nodes that need it.
@@ -337,6 +344,12 @@ type ModuleSpec struct {
 	// If specified, the pod's tolerations.
 	// +optional
 	Tolerations []v1.Toleration `json:"tolerations,omitempty"`
+
+	// ImageRebuildTriggerGeneration is an optional counter that can be incremented to trigger a rebuild of the module images.
+	// When this value changes (compared to the value stored in status), KMM will re-verify and potentially rebuild
+	// all module images.
+	// +optional
+	ImageRebuildTriggerGeneration *int `json:"imageRebuildTriggerGeneration,omitempty"`
 }
 
 // DaemonSetStatus contains the status for a daemonset deployed during
@@ -357,6 +370,10 @@ type ModuleStatus struct {
 	DevicePlugin DaemonSetStatus `json:"devicePlugin,omitempty"`
 	// ModuleLoader contains the status of the ModuleLoader daemonset
 	ModuleLoader DaemonSetStatus `json:"moduleLoader,omitempty"`
+	// ImageRebuildTriggerGeneration contains the last value of spec.imageRebuildTriggerGeneration that was applied.
+	// When this differs from spec.imageRebuildTriggerGeneration, all module images will be re-verified and potentially rebuilt.
+	// +optional
+	ImageRebuildTriggerGeneration *int `json:"imageRebuildTriggerGeneration,omitempty"`
 }
 
 //+kubebuilder:object:root=true

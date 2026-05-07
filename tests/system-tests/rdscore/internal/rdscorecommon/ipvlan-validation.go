@@ -155,36 +155,43 @@ func VerifyIPVlanOnDifferentNodes() {
 	VerifyIPVLANConnectivityBetweenDifferentNodes()
 }
 
+// verifyIPVLANTargets runs verifySRIOVConnectivity between srcPodLabel and dstPodLabel for
+// each non-empty target address.
+func verifyIPVLANTargets(srcNamespace, dstNamespace, srcPodLabel, dstPodLabel,
+	ipv4Target, ipv6Target, expectMsg string) {
+	Expect(ipv4Target != "" || ipv6Target != "").To(BeTrue(), expectMsg)
+
+	for _, targetAddress := range []string{ipv4Target, ipv6Target} {
+		if targetAddress == "" {
+			continue
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Access workload via %q", targetAddress)
+
+		verifySRIOVConnectivity(srcNamespace, dstNamespace, srcPodLabel, dstPodLabel, targetAddress)
+	}
+}
+
 // VerifyIPVLANConnectivityBetweenDifferentNodes verifies connectivity between workloads,
 // using IPVLAN interfaces and running on different nodes.
 func VerifyIPVLANConnectivityBetweenDifferentNodes() {
-	verifySRIOVConnectivity(
+	verifyIPVLANTargets(
 		RDSCoreConfig.IPVlanNSOne,
 		RDSCoreConfig.IPVlanNSOne,
 		ipvlanDeploy10Label,
 		ipvlanDeploy11Label,
-		RDSCoreConfig.IPVlanDeploy1TargetAddress)
+		RDSCoreConfig.IPVlanDeploy1TargetAddress,
+		RDSCoreConfig.IPVlanDeploy1TargetAddressIPv6,
+		"At least one target address (IPv4 or IPv6) must be configured for IPVlan Deploy1")
 
-	verifySRIOVConnectivity(
+	verifyIPVLANTargets(
 		RDSCoreConfig.IPVlanNSOne,
 		RDSCoreConfig.IPVlanNSOne,
 		ipvlanDeploy11Label,
 		ipvlanDeploy10Label,
-		RDSCoreConfig.IPVlanDeploy2TargetAddress)
-
-	verifySRIOVConnectivity(
-		RDSCoreConfig.IPVlanNSOne,
-		RDSCoreConfig.IPVlanNSOne,
-		ipvlanDeploy10Label,
-		ipvlanDeploy11Label,
-		RDSCoreConfig.IPVlanDeploy1TargetAddressIPv6)
-
-	verifySRIOVConnectivity(
-		RDSCoreConfig.IPVlanNSOne,
-		RDSCoreConfig.IPVlanNSOne,
-		ipvlanDeploy11Label,
-		ipvlanDeploy10Label,
-		RDSCoreConfig.IPVlanDeploy2TargetAddressIPv6)
+		RDSCoreConfig.IPVlanDeploy2TargetAddress,
+		RDSCoreConfig.IPVlanDeploy2TargetAddressIPv6,
+		"At least one target address (IPv4 or IPv6) must be configured for IPVlan Deploy2")
 }
 
 // VerifyIPVlanOnSameNode verifies connectivity between freshly deployed workloads that use
@@ -291,35 +298,26 @@ func VerifyIPVlanOnSameNode() {
 
 // VerifyIPVLANConnectivityOnSameNode verifies connectivity between workloads that use IPVLAN net.
 func VerifyIPVLANConnectivityOnSameNode() {
-	verifySRIOVConnectivity(
+	verifyIPVLANTargets(
 		RDSCoreConfig.IPVlanNSOne,
 		RDSCoreConfig.IPVlanNSOne,
 		ipvlanDeploy20Label,
 		ipvlanDeploy21Label,
-		RDSCoreConfig.IPVlanDeploy3TargetAddress)
+		RDSCoreConfig.IPVlanDeploy3TargetAddress,
+		RDSCoreConfig.IPVlanDeploy3TargetAddressIPv6,
+		"At least one target address (IPv4 or IPv6) must be configured for IPVlan Deploy3")
 
-	verifySRIOVConnectivity(
+	verifyIPVLANTargets(
 		RDSCoreConfig.IPVlanNSOne,
 		RDSCoreConfig.IPVlanNSOne,
 		ipvlanDeploy21Label,
 		ipvlanDeploy20Label,
-		RDSCoreConfig.IPVlanDeploy4TargetAddress)
-
-	verifySRIOVConnectivity(
-		RDSCoreConfig.IPVlanNSOne,
-		RDSCoreConfig.IPVlanNSOne,
-		ipvlanDeploy20Label,
-		ipvlanDeploy21Label,
-		RDSCoreConfig.IPVlanDeploy3TargetAddressIPv6)
-
-	verifySRIOVConnectivity(
-		RDSCoreConfig.IPVlanNSOne,
-		RDSCoreConfig.IPVlanNSOne,
-		ipvlanDeploy21Label,
-		ipvlanDeploy20Label,
-		RDSCoreConfig.IPVlanDeploy4TargetAddressIPv6)
+		RDSCoreConfig.IPVlanDeploy4TargetAddress,
+		RDSCoreConfig.IPVlanDeploy4TargetAddressIPv6,
+		"At least one target address (IPv4 or IPv6) must be configured for IPVlan Deploy4")
 }
 
+// defineIPVlanDeployment creates an IPVLAN deployment builder with the specified configuration.
 func defineIPVlanDeployment(dName, nsName, dLabels, netDefName, volName string,
 	dContainer *corev1.Container,
 	nodeSelector map[string]string) *deployment.Builder {

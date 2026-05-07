@@ -16,9 +16,6 @@ const (
 	// LabelNoContainer is the label for RAN test cases that should not be executed in a container.
 	LabelNoContainer = "no-container"
 
-	// AcmOperatorNamespace ACM's namespace.
-	AcmOperatorNamespace = "rhacm"
-
 	// MceOperatorNamespace is the namespace for the MCE operator.
 	MceOperatorNamespace = "multicluster-engine"
 
@@ -45,6 +42,8 @@ const (
 	PtpOperatorNamespace = "openshift-ptp"
 	// LinuxPtpDaemonsetName is the name of the Linux PTP daemon daemonset.
 	LinuxPtpDaemonsetName = "linuxptp-daemon"
+	// PtpServiceMonitorName is the name of the PTP operator's ServiceMonitor.
+	PtpServiceMonitorName = "monitor-ptp"
 
 	// CloudEventProxyContainerName is the sidecar in the linuxptp-daemon pod that emits events.
 	CloudEventProxyContainerName = "cloud-event-proxy"

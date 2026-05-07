@@ -14,8 +14,10 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
+	"k8s.io/klog/v2"
 )
 
 // VLLMDeploymentConfig holds configuration for creating a vLLM deployment.
@@ -45,14 +47,14 @@ func DefaultVLLMConfig(namespace string) VLLMDeploymentConfig {
 		Name:             "neuron-vllm-test",
 		Namespace:        namespace,
 		Image:            "public.ecr.aws/neuron/pytorch-inference-vllm-neuronx:0.7.2-neuronx-py310-sdk2.24.1-ubuntu22.04",
-		ModelName:        "meta-llama/Llama-3.1-8B-Instruct",
-		ServedModelName:  "meta-llama/Llama-3.1-8B-Instruct",
+		ModelName:        "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+		ServedModelName:  "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
 		Port:             8000,
 		Labels:           map[string]string{"app": "neuron-vllm-test"},
 		PVCName:          "model-cache",
 		HFSecretName:     "hf-token",
-		TensorParallel:   2,
-		MaxModelLen:      4096,
+		TensorParallel:   1,
+		MaxModelLen:      2048,
 		MaxNumSeqs:       4,
 		NeuronDevices:    1,
 		MemoryLimit:      "100Gi",
@@ -256,7 +258,7 @@ func CreateVLLMService(config VLLMServiceConfig) *corev1.Service {
 			Ports: []corev1.ServicePort{
 				{
 					Name:       "vllm-port",
-					Port:       80,
+					Port:       int32(config.Port),
 					TargetPort: intstr.FromInt(config.Port),
 					Protocol:   corev1.ProtocolTCP,
 				},
@@ -365,8 +367,8 @@ func extractInferenceContent(response string) (string, error) {
 }
 
 // ExecuteInferenceFromCluster executes an inference request from within the cluster.
+// It retries automatically since the first inference on Neuron requires model compilation.
 func ExecuteInferenceFromCluster(apiClient *clients.Settings, config InferenceConfig) (string, error) {
-	// Create context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), config.Timeout)
 	defer cancel()
 
@@ -375,11 +377,9 @@ func ExecuteInferenceFromCluster(apiClient *clients.Settings, config InferenceCo
 		return "", fmt.Errorf("failed to marshal inference request: %w", err)
 	}
 
-	// Build service URL with configured port
 	serviceURL := fmt.Sprintf("http://%s.%s.svc.cluster.local:%d/v1/chat/completions",
 		config.ServiceName, config.Namespace, config.Port)
 
-	// Build curl command as arg slice to avoid shell injection
 	curlCmd := []string{
 		"curl",
 		"-s",
@@ -389,21 +389,54 @@ func ExecuteInferenceFromCluster(apiClient *clients.Settings, config InferenceCo
 		"-d", string(jsonBody),
 	}
 
-	// Use configurable label selector, default to "app=neuron-vllm-test" if empty
 	labelSelector := config.PodLabelSelector
 	if labelSelector == "" {
 		labelSelector = "app=neuron-vllm-test"
 	}
 
-	targetPod, err := findRunningVLLMPod(ctx, apiClient, config.Namespace, labelSelector)
-	if err != nil {
-		return "", err
+	const retryInterval = 30 * time.Second
+
+	const perAttemptTimeout = 90 * time.Second
+
+	var inferenceResult string
+
+	pollErr := wait.PollUntilContextTimeout(
+		ctx, retryInterval, config.Timeout, true,
+		func(pollCtx context.Context) (bool, error) {
+			targetPod, findErr := findRunningVLLMPod(pollCtx, apiClient, config.Namespace, labelSelector)
+			if findErr != nil {
+				klog.V(params.NeuronLogLevel).Infof(
+					"No running vLLM pod found (pod may be restarting): %v", findErr)
+
+				return false, nil
+			}
+
+			execCtx, execCancel := context.WithTimeout(pollCtx, perAttemptTimeout)
+			defer execCancel()
+
+			response, execErr := executeInPod(execCtx, apiClient, targetPod, config.Namespace, "vllm", curlCmd)
+			if execErr != nil {
+				klog.V(params.NeuronLogLevel).Infof(
+					"Inference attempt failed (model may still be compiling): %v", execErr)
+
+				return false, nil
+			}
+
+			content, extractErr := extractInferenceContent(response)
+			if extractErr != nil {
+				klog.V(params.NeuronLogLevel).Infof(
+					"Inference response not ready (model may still be compiling): %v", extractErr)
+
+				return false, nil
+			}
+
+			inferenceResult = content
+
+			return true, nil
+		})
+	if pollErr != nil {
+		return "", fmt.Errorf("inference failed after %v: %w", config.Timeout, pollErr)
 	}
 
-	response, err := executeInPod(ctx, apiClient, targetPod, config.Namespace, "vllm", curlCmd)
-	if err != nil {
-		return "", fmt.Errorf("inference request failed: %w", err)
-	}
-
-	return extractInferenceContent(response)
+	return inferenceResult, nil
 }

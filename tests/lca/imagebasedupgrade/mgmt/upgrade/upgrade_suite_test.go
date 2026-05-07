@@ -28,6 +28,7 @@ func TestUpgrade(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	var err error
+
 	seedClusterInfo, err := seedimage.GetContent(APIClient, MGMTConfig.SeedImage)
 	Expect(err).NotTo(HaveOccurred(), "error getting seed image info")
 

@@ -39,8 +39,8 @@ var _ = Describe(
 		var (
 			fipsEnabledOnHub bool
 		)
-		When("on MCE 2.0 and above", func() {
 
+		When("on MCE 2.0 and above", func() {
 			BeforeAll(func() {
 				By("Creating temp directory")
 				Expect(createTmpDir(tmpDir)).NotTo(HaveOccurred(), "could not create temp directory "+tmpDir)
@@ -50,6 +50,7 @@ var _ = Describe(
 				installConfigData, err := installconfig.NewInstallConfigFromString(
 					ZTPConfig.HubInstallConfig.Object.Data["install-config"])
 				Expect(err).NotTo(HaveOccurred(), "error reading in install-config as yaml")
+
 				fipsEnabledOnHub = installConfigData.FIPS
 			})
 
@@ -62,6 +63,7 @@ var _ = Describe(
 					false, tmpDir)).ToNot(HaveOccurred(), "error extracting binary")
 
 				By("Testing assisted-service was compiled with CGO_ENABLED=1")
+
 				result, err := testBinaryCgoEnabled(tmpDir + "/" + assistedServiceBinary)
 				Expect(err).ToNot(HaveOccurred(), "error extracting assisted-service binary")
 				Expect(result).To(BeTrue(), "assisted service binary is compiled with CGO_ENABLED=1")
@@ -76,6 +78,7 @@ var _ = Describe(
 					HaveOccurred(), "error extracting binary")
 
 				By("Testing assisted-image-service was compiled with CGO_ENABLED=1")
+
 				result, err := testBinaryCgoEnabled(tmpDir + "/" + assistedImageServiceBinary)
 				Expect(err).ToNot(HaveOccurred(), "error extracting assisted-image-service binary")
 				Expect(result).To(BeTrue(), "assisted-image-service binary is not compiled with CGO_ENABLED=1")
@@ -85,6 +88,7 @@ var _ = Describe(
 				if !fipsEnabledOnHub {
 					Skip("hub is not installed with fips")
 				}
+
 				Expect(fipsEnabledOnHub).To(BeTrue(),
 					"hub cluster is not installed with fips")
 			})

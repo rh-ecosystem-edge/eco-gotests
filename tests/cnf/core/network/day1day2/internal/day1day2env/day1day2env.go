@@ -16,9 +16,9 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/day1day2/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/cmd"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 )
 
 // DoesClusterSupportDay1Day2Tests verifies if given environment supports Day1Day2 tests.
@@ -29,7 +29,7 @@ func DoesClusterSupportDay1Day2Tests(requiredCPNodeNumber, requiredWorkerNodeNum
 		return err
 	}
 
-	isSNO, err := netenv.IsSNOCluster(APIClient)
+	isSNO, err := cluster.IsSNOCluster(APIClient)
 	if err != nil {
 		return fmt.Errorf("failed to check if cluster is SNO: %w", err)
 	}

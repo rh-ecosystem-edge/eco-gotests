@@ -521,9 +521,9 @@ func sendProbeToHostPort(
 		func(ctx context.Context) (bool, error) {
 			output, err := proberPod.ExecCommand(cmdToRun, proberPod.Object.Spec.Containers[0].Name)
 			if err != nil {
-				klog.V(100).Infof("query failed. Request: %s, Output: %q, Error: %v", request, output, err)
+				klog.V(100).Infof("query failed. Request: %s, Output: %q, Error: %v", request, output.String(), err)
 
-				errorMsg = fmt.Errorf("query failed. Request: %s, Output: %q, Error: %w", request, output, err)
+				errorMsg = fmt.Errorf("query failed. Request: %s, Output: %q, Error: %w", request, output.String(), err)
 
 				return false, nil
 			}

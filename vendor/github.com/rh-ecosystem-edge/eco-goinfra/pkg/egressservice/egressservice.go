@@ -9,7 +9,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	"k8s.io/klog/v2"
 
-	egresssvcv1 "github.com/ovn-org/ovn-kubernetes/go-controller/pkg/crd/egressservice/v1"
+	egresssvcv1 "github.com/ovn-kubernetes/ovn-kubernetes/go-controller/pkg/crd/egressservice/v1"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

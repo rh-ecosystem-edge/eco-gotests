@@ -3,9 +3,11 @@ package deployment
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/go-logr/logr"
 	multus "gopkg.in/k8snetworkplumbingwg/multus-cni.v4/pkg/types"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
@@ -221,22 +223,12 @@ func (builder *Builder) WithHugePages() *Builder {
 	klog.V(100).Infof("Applying hugePages configuration to all containers in deployment: %s",
 		builder.Definition.Name)
 
-	// If volumes are not defined, create an empty list of volumes.
-	if builder.Definition.Spec.Template.Spec.Volumes == nil {
-		builder.Definition.Spec.Template.Spec.Volumes = []corev1.Volume{}
-	}
-
 	// Append hugepages volume to the deployment.
 	builder.Definition.Spec.Template.Spec.Volumes = append(builder.Definition.Spec.Template.Spec.Volumes, corev1.Volume{
 		Name: "hugepages", VolumeSource: corev1.VolumeSource{
 			EmptyDir: &corev1.EmptyDirVolumeSource{Medium: "HugePages"}}})
 
 	for idx := range builder.Definition.Spec.Template.Spec.Containers {
-		// If volumeMounts are not defined, create an empty list of volumeMounts.
-		if builder.Definition.Spec.Template.Spec.Containers[idx].VolumeMounts == nil {
-			builder.Definition.Spec.Template.Spec.Containers[idx].VolumeMounts = []corev1.VolumeMount{}
-		}
-
 		// Append hugepages volume mount to the deployment.
 		builder.Definition.Spec.Template.Spec.Containers[idx].VolumeMounts = append(
 			builder.Definition.Spec.Template.Spec.Containers[idx].VolumeMounts,
@@ -565,10 +557,30 @@ func (builder *Builder) IsReady(timeout time.Duration) bool {
 		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			var err error
 
+			// Add Discard logger to suppress verbose Kubernetes client logging.
+			// This preserves the behavior from logging.DiscardContext() while allowing
+			// us to add timeout and respect parent cancellation.
+			ctx = logr.NewContext(ctx, logr.Discard())
+
+			// Use context with 120s timeout for individual GET requests.
+			// This prevents failures when API server is slow (e.g., post-reboot)
+			// while still respecting the overall timeout from PollUntilContextTimeout.
+			getCtx, cancel := context.WithTimeout(ctx, 120*time.Second)
+			defer cancel()
+
 			builder.Object, err = builder.apiClient.Deployments(builder.Definition.Namespace).Get(
-				logging.DiscardContext(), builder.Definition.Name, metav1.GetOptions{})
+				getCtx, builder.Definition.Name, metav1.GetOptions{})
 			if err != nil {
 				klog.V(100).Infof("Failed to get deployment from cluster. Error is: '%s'", err.Error())
+
+				// Retry on timeout errors instead of failing immediately.
+				// This handles transient API server performance degradation and context timeouts.
+				if k8serrors.IsTimeout(err) || k8serrors.IsServerTimeout(err) || errors.Is(err, context.DeadlineExceeded) {
+					klog.V(100).Infof("API server timeout when getting deployment %s in namespace %s, will retry",
+						builder.Definition.Name, builder.Definition.Namespace)
+
+					return false, nil
+				}
 
 				return false, err
 			}

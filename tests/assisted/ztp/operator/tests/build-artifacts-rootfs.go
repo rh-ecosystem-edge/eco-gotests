@@ -38,12 +38,14 @@ var _ = Describe(
 		When("on MCE 2.1 and above", func() {
 			BeforeAll(func() {
 				By("Check that clusterimageset exists")
+
 				_, err = hive.PullClusterImageSet(HubAPIClient, ZTPConfig.HubOCPXYVersion)
 				if err != nil {
 					Skip(ZTPConfig.HubOCPXYVersion + " clusterimageset not present")
 				}
 
 				By("Check that rootfs was not passed via osImages")
+
 				for _, osImage := range ZTPConfig.HubAgentServiceConfig.Object.Spec.OSImages {
 					if osImage.OpenshiftVersion == ZTPConfig.HubOCPXYVersion && osImage.RootFSUrl != "" {
 						Skip("RootFSUrl was provided through osImages")
@@ -86,8 +88,10 @@ var _ = Describe(
 				dirEntry, err := os.ReadDir(rootfsDownloadDir)
 				Expect(err).ToNot(HaveOccurred(), "error reading in downloads dir")
 
-				var isoFile string
-				var rootfsFile string
+				var (
+					isoFile    string
+					rootfsFile string
+				)
 
 				for _, entry := range dirEntry {
 					if strings.Contains(entry.Name(), ".iso") {

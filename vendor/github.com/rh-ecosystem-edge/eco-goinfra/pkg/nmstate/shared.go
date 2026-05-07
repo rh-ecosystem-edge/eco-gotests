@@ -5,6 +5,7 @@ import "net"
 // DesiredState provides struct for the NMState desired state object containing all NMState configuration.
 type DesiredState struct {
 	Interfaces []NetworkInterface `yaml:"interfaces,omitempty"`
+	Routes     *DesiredRoutes     `yaml:"routes,omitempty"`
 }
 
 // NetworkInterface provides struct for the NMState interface state object containing interface information.
@@ -22,17 +23,19 @@ type NetworkInterface struct {
 
 // InterfaceIpv4 enables an IPv4 address on an interface.
 type InterfaceIpv4 struct {
-	Enabled bool                 `yaml:"enabled,omitempty"`
-	Dhcp    bool                 `yaml:"dhcp,omitempty"`
-	Address []InterfaceIPAddress `yaml:"address,omitempty"`
+	Enabled    bool                 `yaml:"enabled,omitempty"`
+	Dhcp       bool                 `yaml:"dhcp,omitempty"`
+	Forwarding *bool                `yaml:"forwarding,omitempty"`
+	Address    []InterfaceIPAddress `yaml:"address,omitempty"`
 }
 
 // InterfaceIpv6 enables an IPv6 address on an interface.
 type InterfaceIpv6 struct {
-	Enabled  bool                 `yaml:"enabled,omitempty"`
-	Dhcp     bool                 `json:"dhcp,omitempty"`
-	Autoconf bool                 `json:"autoconf,omitempty"`
-	Address  []InterfaceIPAddress `yaml:"address,omitempty"`
+	Enabled    bool                 `yaml:"enabled,omitempty"`
+	Dhcp       bool                 `yaml:"dhcp,omitempty"`
+	Autoconf   bool                 `yaml:"autoconf,omitempty"`
+	Forwarding *bool                `yaml:"forwarding,omitempty"`
+	Address    []InterfaceIPAddress `yaml:"address,omitempty"`
 }
 
 // InterfaceIPAddress is a struct for constructing an IP with prefix.
@@ -94,4 +97,18 @@ type OptionsLinkAggregation struct {
 type Vlan struct {
 	BaseIface string `yaml:"base-iface"`
 	ID        int    `yaml:"id"`
+}
+
+// DesiredRoutes provides struct for the NMState routes configuration.
+type DesiredRoutes struct {
+	Config []RouteConfig `yaml:"config,omitempty"`
+}
+
+// RouteConfig provides struct for a single NMState static route entry.
+type RouteConfig struct {
+	Destination      string `yaml:"destination"`
+	Metric           int    `yaml:"metric,omitempty"`
+	NextHopAddress   string `yaml:"next-hop-address,omitempty"`
+	NextHopInterface string `yaml:"next-hop-interface,omitempty"`
+	TableID          int    `yaml:"table-id,omitempty"`
 }

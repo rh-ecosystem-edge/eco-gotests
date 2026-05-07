@@ -32,6 +32,7 @@ func TestZtp(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	By("checking that the required clusters are present")
+
 	if !rancluster.AreClustersPresent([]*clients.Settings{HubAPIClient, Spoke1APIClient}) {
 		Skip("not all of the required clusters are present")
 	}
@@ -45,6 +46,7 @@ var _ = BeforeEach(func() {
 	}
 
 	By("deleting and recreating test namespace to ensure blank state")
+
 	for _, client := range []*clients.Settings{HubAPIClient, Spoke1APIClient} {
 		err := namespace.NewBuilder(client, tsparams.TestNamespace).DeleteAndWait(5 * time.Minute)
 		Expect(err).ToNot(HaveOccurred(), "Failed to delete ZTP test namespace")
@@ -56,6 +58,7 @@ var _ = BeforeEach(func() {
 
 var _ = AfterSuite(func() {
 	By("deleting test namespace")
+
 	for _, client := range []*clients.Settings{HubAPIClient, Spoke1APIClient} {
 		err := namespace.NewBuilder(client, tsparams.TestNamespace).DeleteAndWait(5 * time.Minute)
 		Expect(err).ToNot(HaveOccurred(), "Failed to delete ZTP test namespace")

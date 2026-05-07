@@ -3,7 +3,7 @@ package console
 import (
 	"fmt"
 
-	"k8s.io/utils/strings/slices"
+	"slices"
 
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -147,12 +147,6 @@ func (builder *ConsoleOperatorBuilder) WithPlugins(newPluginsList []string, rede
 		builder.errorMsg = "the newPluginsList can not be empty"
 
 		return builder
-	}
-
-	if builder.Definition.Spec.Plugins == nil {
-		klog.V(100).Info("Plugins are nil. Initializing one")
-
-		builder.Definition.Spec.Plugins = []string{}
 	}
 
 	if redefine {

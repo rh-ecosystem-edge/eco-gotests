@@ -22,6 +22,7 @@ var _ = Describe(
 				if len(ZTPConfig.SpokeInfraEnv.Object.Spec.AdditionalTrustBundle) == 0 {
 					Skip("spoke cluster was not installed with additional trust bundle")
 				}
+
 				trustBundle = ZTPConfig.SpokeInfraEnv.Object.Spec.AdditionalTrustBundle
 			})
 			It("Assure trust bundle exists on all nodes", reportxml.ID("67492"), func() {
@@ -29,6 +30,7 @@ var _ = Describe(
 				cmdResult, err := cluster.ExecCmdWithStdout(SpokeAPIClient, shellCmd)
 				Expect(err).
 					ToNot(HaveOccurred(), "error getting openshift-config-user-ca-bundle.crt content")
+
 				for _, stdout := range cmdResult {
 					Expect(stdout).To(
 						ContainSubstring(trustBundle),

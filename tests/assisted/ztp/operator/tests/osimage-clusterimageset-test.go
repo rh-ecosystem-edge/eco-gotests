@@ -38,6 +38,7 @@ var _ = Describe(
 		When("on MCE 2.0 and above", func() {
 			BeforeAll(func() {
 				By("Checking that clusterimageset is available on hub cluster")
+
 				_, err := hive.PullClusterImageSet(HubAPIClient, ZTPConfig.HubOCPXYVersion)
 				if err != nil {
 					Skip("Clusterimageset not created on hub")
@@ -60,10 +61,12 @@ var _ = Describe(
 
 			It("result in successfully created infraenv", reportxml.ID("41937"), func() {
 				By("Creating osimage-clusterimageset-test namespace")
+
 				osImageClusterImageSetNS, err = namespace.NewBuilder(HubAPIClient, osImageClusterImageSetName).Create()
 				Expect(err).ToNot(HaveOccurred(), "error occurred when creating namespace")
 
 				By("Creating osimage-clusterimageset-test pull-secret")
+
 				osImageClusterImageSetSecret, err = secret.NewBuilder(
 					HubAPIClient,
 					fmt.Sprintf("%s-pull-secret", osImageClusterImageSetName),
@@ -72,6 +75,7 @@ var _ = Describe(
 				Expect(err).ToNot(HaveOccurred(), "error occurred when creating pull-secret")
 
 				By("Creating osimage-clusterimageset-test clusterdeployment")
+
 				osImageClusterImageSetCD, err = hive.NewABMClusterDeploymentBuilder(
 					HubAPIClient,
 					osImageClusterImageSetName,
@@ -87,6 +91,7 @@ var _ = Describe(
 				Expect(err).ToNot(HaveOccurred(), "error occurred when creating clusterdeployment")
 
 				By("Creating osimage-clusterimageset-test agentclusterinstall")
+
 				osImageClusterImageSetACI, err = assisted.NewAgentClusterInstallBuilder(
 					HubAPIClient,
 					osImageClusterImageSetName,
@@ -106,6 +111,7 @@ var _ = Describe(
 					}).WithImageSet(ZTPConfig.HubOCPXYVersion).Create()
 
 				By("Creating osimage-clusterimageset-test infraenv")
+
 				osImageClusterImageSetInfraEnv, err = assisted.NewInfraEnvBuilder(
 					HubAPIClient,
 					osImageClusterImageSetName,
@@ -127,22 +133,27 @@ var _ = Describe(
 
 			AfterAll(func() {
 				By("Deleting osimage-clusterimageset-test infraenv")
+
 				err = osImageClusterImageSetInfraEnv.Delete()
 				Expect(err).ToNot(HaveOccurred(), "error deleting infraenv")
 
 				By("Deleting osimage-clusterimageset-test agentclusterinstall")
+
 				err = osImageClusterImageSetACI.Delete()
 				Expect(err).ToNot(HaveOccurred(), "error deleting agentclusterinstall")
 
 				By("Deleting osimage-clusterimageset-test clusterdeployment")
+
 				err = osImageClusterImageSetCD.Delete()
 				Expect(err).ToNot(HaveOccurred(), "error deleting clusterdeployment")
 
 				By("Deleting osimage-clusterimageset-test secret")
+
 				err = osImageClusterImageSetSecret.Delete()
 				Expect(err).ToNot(HaveOccurred(), "error deleting secret")
 
 				By("Deleting osimage-clusterimageset-test namespace")
+
 				err = osImageClusterImageSetNS.DeleteAndWait(time.Second * 120)
 				Expect(err).ToNot(HaveOccurred(), "error deleting namespace")
 			})

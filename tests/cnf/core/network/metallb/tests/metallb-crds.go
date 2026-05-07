@@ -42,6 +42,7 @@ var _ = Describe("MetalLb New CRDs", Ordered, Label("newcrds"), ContinueOnFailur
 
 	BeforeAll(func() {
 		By("Checking if cluster is SNO")
+
 		if IsSNO {
 			Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers")
 		}
@@ -49,7 +50,9 @@ var _ = Describe("MetalLb New CRDs", Ordered, Label("newcrds"), ContinueOnFailur
 		validateEnvVarAndGetNodeList()
 
 		firstMasterNode := masterNodeList[0]
+
 		By("Setup MetalLB CR")
+
 		err := metallbenv.CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(tsparams.DefaultTimeout, workerLabelMap)
 		Expect(err).ToNot(HaveOccurred(), "Failed create MetalLB CR")
 
@@ -59,13 +62,16 @@ var _ = Describe("MetalLb New CRDs", Ordered, Label("newcrds"), ContinueOnFailur
 			tsparams.LabelValue1)
 
 		By("Generating ConfigMap configuration for the external FRR pod")
+
 		masterConfigMap := createConfigMap(tsparams.LocalBGPASN, ipv4NodeAddrList, false, true)
 
 		By("Creating External NAD")
+
 		err = define.CreateExternalNad(APIClient, frrconfig.ExternalMacVlanNADName, tsparams.TestNamespaceName)
 		Expect(err).ToNot(HaveOccurred(), "Failed to create the external network-attachment-definition")
 
 		By("Creating FRR-L3client pod on a Master node")
+
 		staticIPAnnotation := pod.StaticIPAnnotation(
 			frrconfig.ExternalMacVlanNADName, []string{fmt.Sprintf("%s/%d", ipv4metalLbIPList[0], 24)})
 
@@ -74,9 +80,11 @@ var _ = Describe("MetalLb New CRDs", Ordered, Label("newcrds"), ContinueOnFailur
 
 		By("Verifying that the frrk8sPod deployment is in Ready state and create a list of the pods on " +
 			"worker nodes.")
+
 		frrk8sPods := verifyAndCreateFRRk8sPodList()
 
 		By("Configuring BGP and BFD")
+
 		bfdProfile := createBFDProfileAndVerifyIfItsReady(frrk8sPods)
 
 		createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, ipv4metalLbIPList[0], bfdProfile.Definition.Name,
@@ -90,6 +98,7 @@ var _ = Describe("MetalLb New CRDs", Ordered, Label("newcrds"), ContinueOnFailur
 		setLocalGWMode(true)
 
 		By("Adding IP to a secondary interface on the worker 0")
+
 		sriovInterfacesUnderTest, err = NetConfig.GetSriovInterfaces(1)
 		Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
 
@@ -97,6 +106,7 @@ var _ = Describe("MetalLb New CRDs", Ordered, Label("newcrds"), ContinueOnFailur
 			ipSecondaryInterface1, sriovInterfacesUnderTest[0])
 
 		By("Creating an IPAddressPool and BGPAdvertisement")
+
 		ipAddressPool = setupBgpAdvertisementAndIPAddressPool(
 			tsparams.BGPAdvAndAddressPoolName, addressPool, netparam.IPSubnetInt32)
 		validateAddressPool(tsparams.BGPAdvAndAddressPoolName, mlbtypes.IPAddressPoolStatus{
@@ -107,6 +117,7 @@ var _ = Describe("MetalLb New CRDs", Ordered, Label("newcrds"), ContinueOnFailur
 		})
 
 		By("Creating a L2Advertisement")
+
 		_, err = metallb.NewL2AdvertisementBuilder(
 			APIClient, "l2advertisement", NetConfig.MlbOperatorNamespace).
 			WithIPAddressPools([]string{ipAddressPool.Definition.Name}).
@@ -115,6 +126,7 @@ var _ = Describe("MetalLb New CRDs", Ordered, Label("newcrds"), ContinueOnFailur
 		Expect(err).ToNot(HaveOccurred(), "An unexpected error occurred while creating L2Advertisement.")
 
 		By("Enabling IPForwarding on a DUT interface")
+
 		output, err := cluster.ExecCmdWithStdout(APIClient,
 			fmt.Sprintf("sudo sysctl -w net.ipv4.conf.%s.forwarding=1", sriovInterfacesUnderTest[0]),
 			metav1.ListOptions{LabelSelector: fmt.Sprintf("kubernetes.io/hostname=%s", workerNodeList[0].Object.Name)})
@@ -136,6 +148,7 @@ var _ = Describe("MetalLb New CRDs", Ordered, Label("newcrds"), ContinueOnFailur
 		}
 
 		By("Disabling IPForwarding on a DUT interface")
+
 		output, err := cluster.ExecCmdWithStdout(APIClient,
 			fmt.Sprintf("sudo sysctl -w net.ipv4.conf.%s.forwarding=0", sriovInterfacesUnderTest[0]),
 			metav1.ListOptions{LabelSelector: fmt.Sprintf("kubernetes.io/hostname=%s", workerNodeList[0].Object.Name)})
@@ -165,6 +178,7 @@ var _ = Describe("MetalLb New CRDs", Ordered, Label("newcrds"), ContinueOnFailur
 		createExternalNadWithMasterInterface("l2nad", sriovInterfacesUnderTest[0])
 
 		By("Creating L2 client")
+
 		staticIPAnnotation := pod.StaticIPAnnotation("l2nad", []string{ipSecondaryInterface2})
 
 		l2ClientPod, err := pod.NewBuilder(APIClient, "l2client", tsparams.TestNamespaceName, NetConfig.CnfNetTestContainer).

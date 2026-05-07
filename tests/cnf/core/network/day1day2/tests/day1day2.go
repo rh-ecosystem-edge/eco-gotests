@@ -37,17 +37,21 @@ var _ = Describe("Day1Day2", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 
 	BeforeAll(func() {
 		var err error
+
 		By("Discovering worker nodes")
+
 		workerNodeList, err = nodes.List(APIClient,
 			metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()},
 		)
 		Expect(err).ToNot(HaveOccurred(), "Failed to discover worker nodes")
 
 		By("Creating a new instance of NMState instance")
+
 		err = netnmstate.CreateNewNMStateAndWaitUntilItsRunning(7 * time.Minute)
 		Expect(err).ToNot(HaveOccurred(), "Failed to create NMState instance")
 
 		By("Verifying that the cluster deployed via bond interface with enslaved SR-IOV VFs")
+
 		bondName, bondSlaves, err = netnmstate.CheckThatWorkersDeployedWithBondVfs(
 			workerNodeList, tsparams.TestNamespaceName)
 		if err != nil {
@@ -55,19 +59,23 @@ var _ = Describe("Day1Day2", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 		}
 
 		By("Getting switch credentials")
+
 		switchCredentials, err := juniper.NewSwitchCredentials()
 		Expect(err).ToNot(HaveOccurred(), "Failed to get switch credentials")
 
 		By("Opening management connection to switch")
+
 		juniperSession, err = juniper.NewSession(
 			switchCredentials.SwitchIP, switchCredentials.User, switchCredentials.Password)
 		Expect(err).ToNot(HaveOccurred(), "Failed to open a switch session")
 
 		By("Collecting switch interfaces")
+
 		switchInterfaces, err = NetConfig.GetPrimarySwitchInterfaces()
 		Expect(err).ToNot(HaveOccurred(), "Failed to get switch interfaces")
 
 		By("Collecting switch LAG names")
+
 		switchLagNames, err = NetConfig.GetSwitchLagNames()
 		Expect(err).ToNot(HaveOccurred(), "Failed to get switch LAG names")
 	})
@@ -78,16 +86,19 @@ var _ = Describe("Day1Day2", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 			recoverSwitchConfiguration(juniperSession, switchInterfaces, switchLagNames)
 
 			By("Verifying workers are still available over the bond interface")
+
 			err := day1day2env.CheckConnectivityBetweenMasterAndWorkers()
 			Expect(err).ToNot(HaveOccurred(), "Connectivity check failed")
 		}
 
 		By("Cleaning test namespace")
+
 		err := namespace.NewBuilder(APIClient, tsparams.TestNamespaceName).CleanObjects(
 			netparam.DefaultTimeout, pod.GetGVR())
 		Expect(err).ToNot(HaveOccurred(), "Failed to clean test namespace")
 
 		By("Removing NMState policies")
+
 		err = nmstate.CleanAllNMStatePolicies(APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to remove all NMState policies")
 	})
@@ -103,6 +114,7 @@ var _ = Describe("Day1Day2", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 
 	It("VF: change QOS configuration", reportxml.ID("63926"), func() {
 		By("Collecting information about test interfaces")
+
 		pfUnderTest, err := cmd.GetSrIovPf(bondSlaves[0], tsparams.TestNamespaceName, workerNodeList[0].Definition.Name)
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to get SR-IOV PF for VF %s", bondSlaves[0]))
 
@@ -111,6 +123,7 @@ var _ = Describe("Day1Day2", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 		Expect(err).ToNot(HaveOccurred(), "Failed to get default MaxTxRate value")
 
 		By("Configuring MaxTxRate on the first VF")
+
 		newExpectedMaxTxRateValue := 200
 		nmstatePolicy := nmstate.NewPolicyBuilder(APIClient, "qos", NetConfig.WorkerLabelMap).
 			WithInterfaceAndVFs(pfUnderTest, 3).
@@ -119,6 +132,7 @@ var _ = Describe("Day1Day2", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 		Expect(err).ToNot(HaveOccurred(), "Failed to create NMState network policy")
 
 		By("Verifying that expected MaxTxRate value is configured")
+
 		for _, workerNode := range workerNodeList {
 			currentMaxTxRateValue, err := day1day2env.GetFirstVfInterfaceMaxTxRate(workerNode.Object.Name, pfUnderTest)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get MaxTxRate configuration")
@@ -126,10 +140,12 @@ var _ = Describe("Day1Day2", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 		}
 
 		By("Verifying workers are available over the bond interface after MaxTxRate re-config")
+
 		err = day1day2env.CheckConnectivityBetweenMasterAndWorkers()
 		Expect(err).ToNot(HaveOccurred(), "Connectivity check failed")
 
 		By("Restoring MaxTxRate configuration")
+
 		nmstatePolicy = nmstate.NewPolicyBuilder(APIClient, "restoreqos", NetConfig.WorkerLabelMap).
 			WithInterfaceAndVFs(pfUnderTest, 3).
 			WithOptions(netnmstate.WithOptionMaxTxRateOnFirstVf(uint64(defaultMaxTxRate), pfUnderTest))
@@ -137,6 +153,7 @@ var _ = Describe("Day1Day2", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 		Expect(err).ToNot(HaveOccurred(), "Failed to create NMState network policy")
 
 		By("Verifying that MaxTxRate is restored")
+
 		for _, workerNode := range workerNodeList {
 			currentMaxTxRateValue, err := day1day2env.GetFirstVfInterfaceMaxTxRate(workerNode.Object.Name, pfUnderTest)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get MaxTxRate configuration")
@@ -144,14 +161,17 @@ var _ = Describe("Day1Day2", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 		}
 
 		By("Verifying workers are available over the bond interface after MaxTxRate reverted to default")
+
 		err = day1day2env.CheckConnectivityBetweenMasterAndWorkers()
 		Expect(err).ToNot(HaveOccurred(), "Connectivity check failed")
 	})
 
 	It("Day2 Bond: change miimon configuration", reportxml.ID("63881"), func() {
 		By("Saving miimon value on the bond interface before the test")
+
 		defaultMiimonValue, err := day1day2env.GetBondInterfaceMiimon(workerNodeList[0].Definition.Name, bondName)
 		Expect(err).ToNot(HaveOccurred(), "Failed to get miimon configuration")
+
 		newExpectedMiimonValue := defaultMiimonValue + 10
 
 		By("Configuring miimon on the bond interface")
@@ -171,10 +191,12 @@ var _ = Describe("Day1Day2", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 		}
 
 		By("Verifying workers are available over the bond interface after miimon re-config")
+
 		err = day1day2env.CheckConnectivityBetweenMasterAndWorkers()
 		Expect(err).ToNot(HaveOccurred(), "Connectivity check failed")
 
 		By("Restoring miimon configuration")
+
 		nmstatePolicy = nmstate.NewPolicyBuilder(APIClient, "restoremiimon", NetConfig.WorkerLabelMap).
 			WithBondInterface(bondSlaves, bondName, "active-backup").
 			WithOptions(netnmstate.WithBondOptionMiimon(uint64(defaultMiimonValue), bondName))
@@ -190,6 +212,7 @@ var _ = Describe("Day1Day2", Ordered, Label(tsparams.LabelSuite), ContinueOnFail
 		}
 
 		By("Verifying workers are available over the bond interface after miimon reverted to default")
+
 		err = day1day2env.CheckConnectivityBetweenMasterAndWorkers()
 		Expect(err).ToNot(HaveOccurred(), "Connectivity check failed")
 	})

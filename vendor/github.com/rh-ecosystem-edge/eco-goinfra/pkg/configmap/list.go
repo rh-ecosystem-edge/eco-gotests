@@ -5,6 +5,7 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -51,13 +52,7 @@ func List(apiClient *clients.Settings, nsname string, options ...metav1.ListOpti
 
 	for _, runningConfigmap := range configmapList.Items {
 		copiedConfigmap := runningConfigmap
-		configmapBuilder := &Builder{
-			apiClient:  apiClient.CoreV1Interface,
-			Object:     &copiedConfigmap,
-			Definition: &copiedConfigmap,
-		}
-
-		configmapObjects = append(configmapObjects, configmapBuilder)
+		configmapObjects = append(configmapObjects, newListedBuilder(apiClient, &copiedConfigmap))
 	}
 
 	return configmapObjects, nil
@@ -98,14 +93,20 @@ func ListInAllNamespaces(apiClient *clients.Settings, options ...metav1.ListOpti
 
 	for _, runningConfigmap := range configmapList.Items {
 		copiedConfigmap := runningConfigmap
-		configmapBuilder := &Builder{
-			apiClient:  apiClient.CoreV1Interface,
-			Object:     &copiedConfigmap,
-			Definition: &copiedConfigmap,
-		}
-
-		configmapObjects = append(configmapObjects, configmapBuilder)
+		configmapObjects = append(configmapObjects, newListedBuilder(apiClient, &copiedConfigmap))
 	}
 
 	return configmapObjects, nil
+}
+
+// newListedBuilder returns a fully initialized builder for a configmap obtained through a list call.
+func newListedBuilder(apiClient *clients.Settings, configMap *corev1.ConfigMap) *Builder {
+	builder := &Builder{}
+	builder.AttachMixins()
+	builder.SetClient(apiClient)
+	builder.SetGVK(builder.GetGVK())
+	builder.SetObject(configMap)
+	builder.SetDefinition(configMap)
+
+	return builder
 }

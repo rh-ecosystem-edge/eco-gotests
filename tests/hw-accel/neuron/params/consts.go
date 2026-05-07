@@ -12,7 +12,7 @@ const (
 	// NeuronLogLevel - Log Level for Neuron Tests.
 	NeuronLogLevel = 90
 	// NeuronNamespace - Namespace for the AWS Neuron Operator.
-	NeuronNamespace = "ai-operator-on-aws"
+	NeuronNamespace = "aws-neuron-operator"
 	// NeuronNFDLabelKey - The key of the label added by NFD.
 	NeuronNFDLabelKey = "feature.node.kubernetes.io/aws-neuron"
 	// NeuronNFDLabelValue - The value of the label added by NFD.

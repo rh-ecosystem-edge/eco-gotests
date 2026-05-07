@@ -12,7 +12,6 @@ import (
 
 var _ = Describe(
 	"ORAN Alarms Tests", Ordered, ContinueOnFailure, Label(ocloudparams.Label, "ocloud-alarms"), func() {
-
 		BeforeEach(func() {
 			By("deploying the subscriber for alarm notifications")
 			Expect(OCloudConfig.SubscriberURL).ToNot(BeEmpty(), "Subscriber URL is not set")
@@ -22,6 +21,7 @@ var _ = Describe(
 
 		AfterEach(func() {
 			By("cleaning up the subscriber deployment")
+
 			err := subscriber.Cleanup(HubAPIClient, "oran-subscriber")
 			Expect(err).ToNot(HaveOccurred(), "Failed to cleanup subscriber")
 		})
@@ -31,5 +31,4 @@ var _ = Describe(
 
 		It("Successful alarms cleanup from the database after the retention period",
 			VerifySuccessfulAlarmsCleanup)
-
 	})

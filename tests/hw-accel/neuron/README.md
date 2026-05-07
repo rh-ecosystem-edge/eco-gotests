@@ -16,6 +16,25 @@ The AWS Neuron Operator manages AWS AI accelerators on OpenShift clusters runnin
 * NFD Operator installed
 * KMM Operator installed
 
+### KMM Tolerations for Upgrade Tests
+
+During a Neuron driver rolling upgrade, nodes are tainted with `aws-neuron-driver-upgrade:NoExecute`. If the KMM operator pod runs on a tainted node, it gets evicted and cannot manage the module loader pods needed to complete the upgrade — causing a deadlock.
+
+The upgrade test suite (`3upgrade`) automatically patches the KMM subscription with the required toleration after KMM is confirmed ready. No manual intervention is needed when running the automated tests.
+
+For manual testing, you can apply the toleration via:
+
+```bash
+oc patch subscription kmm-subscription -n openshift-kmm --type='merge' -p '
+spec:
+  config:
+    tolerations:
+    - key: "aws-neuron-driver-upgrade"
+      operator: "Exists"
+      effect: "NoExecute"
+'
+```
+
 ### Test Suites
 
 | Name                                          | Description                                                          |
@@ -62,7 +81,7 @@ Notes:
 |----------|-------------|
 | `ECO_HWACCEL_NEURON_DRIVERS_IMAGE` | Neuron kernel module driver image (e.g., `public.ecr.aws/q5p6u7h8/neuron-openshift/neuron-kernel-module:2.24.23.0`) |
 | `ECO_HWACCEL_NEURON_DRIVER_VERSION` | Neuron driver version (e.g., `2.24.23.0`) - **REQUIRED** for DeviceConfig creation |
-| `ECO_HWACCEL_NEURON_DEVICE_PLUGIN_IMAGE` | Neuron device plugin image (e.g., `public.ecr.aws/neuron/neuron-device-plugin:2.24.23.0`) |
+| `ECO_HWACCEL_NEURON_DEVICE_PLUGIN_IMAGE` | Neuron device plugin image (e.g., `public.ecr.aws/neuron/neuron-device-plugin:2.29.94.0`) |
 | `ECO_HWACCEL_NEURON_NODE_METRICS_IMAGE` | Neuron node metrics exporter image (e.g., `public.ecr.aws/neuron/neuron-monitor:1.3.0`) - **REQUIRED** for DeviceConfig creation |
 
 #### Optional Configuration
@@ -82,7 +101,7 @@ Notes:
 | Variable | Description |
 |----------|-------------|
 | `ECO_HWACCEL_NEURON_VLLM_IMAGE` | vLLM container image with Neuron support. Default: `public.ecr.aws/neuron/pytorch-inference-vllm-neuronx:0.7.2-neuronx-py310-sdk2.24.1-ubuntu22.04` |
-| `ECO_HWACCEL_NEURON_MODEL_NAME` | Model to load for inference (default: `meta-llama/Llama-3.1-8B-Instruct`). Must use a Neuron-supported architecture: LlamaForCausalLM, MistralForCausalLM, Qwen2ForCausalLM, etc. |
+| `ECO_HWACCEL_NEURON_MODEL_NAME` | Model to load for inference (default: `TinyLlama/TinyLlama-1.1B-Chat-v1.0`). Must use a Neuron-supported architecture: LlamaForCausalLM, MistralForCausalLM, Qwen2ForCausalLM, etc. |
 | `ECO_HWACCEL_NEURON_HF_TOKEN` | **REQUIRED for vLLM tests** - HuggingFace token for downloading gated models (e.g., Llama). Get your token from https://huggingface.co/settings/tokens |
 | `ECO_HWACCEL_NEURON_STORAGE_CLASS` | Storage class for model PVC (default: `gp3-csi`). The PVC caches downloaded models to avoid re-downloading on pod restart. |
 
@@ -116,10 +135,10 @@ $ export ECO_TEST_LABELS='neuron,vllm'
 $ export ECO_VERBOSE_LEVEL=100
 $ export ECO_HWACCEL_NEURON_DRIVERS_IMAGE="public.ecr.aws/q5p6u7h8/neuron-openshift/neuron-kernel-module:2.24.23.0"
 $ export ECO_HWACCEL_NEURON_DRIVER_VERSION="2.24.23.0"
-$ export ECO_HWACCEL_NEURON_DEVICE_PLUGIN_IMAGE="public.ecr.aws/neuron/neuron-device-plugin:2.24.23.0"
+$ export ECO_HWACCEL_NEURON_DEVICE_PLUGIN_IMAGE="public.ecr.aws/neuron/neuron-device-plugin:2.29.94.0"
 $ export ECO_HWACCEL_NEURON_NODE_METRICS_IMAGE="public.ecr.aws/neuron/neuron-monitor:1.3.0"
 $ export ECO_HWACCEL_NEURON_SCHEDULER_IMAGE="public.ecr.aws/eks-distro/kubernetes/kube-scheduler:v1.32.9-eks-1-32-24"
-$ export ECO_HWACCEL_NEURON_SCHEDULER_EXTENSION_IMAGE="public.ecr.aws/neuron/neuron-scheduler:2.24.23.0"
+$ export ECO_HWACCEL_NEURON_SCHEDULER_EXTENSION_IMAGE="public.ecr.aws/neuron/neuron-scheduler:2.29.94.0"
 $ export ECO_HWACCEL_NEURON_VLLM_IMAGE="public.ecr.aws/neuron/pytorch-inference-vllm-neuronx:0.7.2-neuronx-py310-sdk2.24.1-ubuntu22.04"
 $ export ECO_HWACCEL_NEURON_MODEL_NAME="TinyLlama/TinyLlama-1.1B-Chat-v1.0"
 $ make run-tests
@@ -133,7 +152,7 @@ $ export ECO_TEST_FEATURES="neuron"
 $ export ECO_TEST_LABELS='neuron,metrics'
 $ export ECO_HWACCEL_NEURON_DRIVERS_IMAGE="public.ecr.aws/q5p6u7h8/neuron-openshift/neuron-kernel-module:2.24.23.0"
 $ export ECO_HWACCEL_NEURON_DRIVER_VERSION="2.24.23.0"
-$ export ECO_HWACCEL_NEURON_DEVICE_PLUGIN_IMAGE="public.ecr.aws/neuron/neuron-device-plugin:2.24.23.0"
+$ export ECO_HWACCEL_NEURON_DEVICE_PLUGIN_IMAGE="public.ecr.aws/neuron/neuron-device-plugin:2.29.94.0"
 $ export ECO_HWACCEL_NEURON_NODE_METRICS_IMAGE="public.ecr.aws/neuron/neuron-monitor:1.3.0"
 $ make run-tests
 ```
@@ -149,7 +168,7 @@ $ export ECO_TEST_LABELS='neuron,upgrade'
 # Initial driver configuration
 $ export ECO_HWACCEL_NEURON_DRIVERS_IMAGE="public.ecr.aws/q5p6u7h8/neuron-openshift/neuron-kernel-module:2.24.23.0"
 $ export ECO_HWACCEL_NEURON_DRIVER_VERSION="2.24.23.0"
-$ export ECO_HWACCEL_NEURON_DEVICE_PLUGIN_IMAGE="public.ecr.aws/neuron/neuron-device-plugin:2.24.23.0"
+$ export ECO_HWACCEL_NEURON_DEVICE_PLUGIN_IMAGE="public.ecr.aws/neuron/neuron-device-plugin:2.29.94.0"
 $ export ECO_HWACCEL_NEURON_NODE_METRICS_IMAGE="public.ecr.aws/neuron/neuron-monitor:1.3.0"
 # Upgrade target configuration
 $ export ECO_HWACCEL_NEURON_UPGRADE_TARGET_VERSION="2.25.0.0"
@@ -167,7 +186,7 @@ apiVersion: k8s.aws/v1beta1
 kind: DeviceConfig
 metadata:
   name: neuron
-  namespace: ai-operator-on-aws
+  namespace: aws-neuron-operator
 spec:
   driversImage: public.ecr.aws/q5p6u7h8/neuron-openshift/neuron-kernel-module:2.24.23.0
   driverVersion: 2.24.23.0

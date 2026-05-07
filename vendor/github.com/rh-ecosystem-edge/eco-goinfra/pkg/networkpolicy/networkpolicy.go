@@ -116,10 +116,6 @@ func (builder *NetworkPolicyBuilder) WithNamespaceIngressRule(
 		}
 	}
 
-	if builder.Definition.Spec.Ingress == nil {
-		builder.Definition.Spec.Ingress = []netv1.NetworkPolicyIngressRule{}
-	}
-
 	builder.Definition.Spec.Ingress = append(builder.Definition.Spec.Ingress, netv1.NetworkPolicyIngressRule{
 		From: []netv1.NetworkPolicyPeer{peerRule},
 	})
@@ -143,10 +139,6 @@ func (builder *NetworkPolicyBuilder) WithPolicyType(policyType netv1.PolicyType)
 		builder.errorMsg = "The policyType is an empty string"
 
 		return builder
-	}
-
-	if builder.Definition.Spec.PolicyTypes == nil {
-		builder.Definition.Spec.PolicyTypes = []netv1.PolicyType{}
 	}
 
 	builder.Definition.Spec.PolicyTypes = append(builder.Definition.Spec.PolicyTypes, policyType)

@@ -14,9 +14,6 @@ import (
 const (
 	machineConfigNamespace = "openshift-machine-config-operator"
 	machineConfigDaemonPod = "machine-config-daemon"
-	ptpNamespace           = "openshift-ptp"
-	ptpLinuxPod            = "linuxptp-daemon"
-	ptpLinuxContainer      = "linuxptp-daemon-container"
 )
 
 func isClockSync(apiClient *clients.Settings) (bool, error) {
@@ -72,7 +69,7 @@ func isClockSync(apiClient *clients.Settings) (bool, error) {
 }
 
 func isPtpClockSync(apiClient *clients.Settings) (bool, error) {
-	podList, err := pod.List(apiClient, ptpNamespace)
+	podList, err := pod.List(apiClient, Namespace)
 	if err != nil {
 		return false, fmt.Errorf("failed to get PTP pod list, %w", err)
 	}
@@ -81,7 +78,7 @@ func isPtpClockSync(apiClient *clients.Settings) (bool, error) {
 	ptpRe := regexp.MustCompile(ptpSyncPattern)
 
 	for _, pod := range podList {
-		if strings.Contains(pod.Object.Name, ptpLinuxPod) {
+		if strings.Contains(pod.Object.Name, DaemonPodLabelValueLinuxpt) {
 			const maxRetries = 6
 
 			var cmd bytes.Buffer
@@ -136,7 +133,7 @@ func ValidatePTPStatus(apiClient *clients.Settings, timeInterval time.Duration) 
 
 	ptpSync = ptpSync && clockSync
 
-	podList, err := pod.List(apiClient, ptpNamespace)
+	podList, err := pod.List(apiClient, Namespace)
 	if err != nil {
 		return ptpSync, err
 	}
@@ -148,8 +145,8 @@ func ValidatePTPStatus(apiClient *clients.Settings, timeInterval time.Duration) 
 	var ptpLog string
 
 	for _, pod := range podList {
-		if strings.Contains(pod.Object.Name, ptpLinuxPod) {
-			ptpLog, err = pod.GetLog(timeInterval, ptpLinuxContainer)
+		if strings.Contains(pod.Object.Name, DaemonPodLabelValueLinuxpt) {
+			ptpLog, err = pod.GetLog(timeInterval, DaemonContainerName)
 			if err != nil {
 				return ptpSync, err
 			}

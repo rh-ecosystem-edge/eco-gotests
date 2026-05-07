@@ -31,18 +31,22 @@ func TestLB(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	By("Creating test namespace with privileged labels")
+
 	for key, value := range params.PrivilegedNSLabels {
 		testNS.WithLabel(key, value)
 	}
+
 	_, err := testNS.Create()
 	Expect(err).ToNot(HaveOccurred(), "error to create test namespace")
 	By("Pulling test images on cluster before running test cases")
+
 	err = cluster.PullTestImageOnNodes(APIClient, NetConfig.WorkerLabel, NetConfig.CnfNetTestContainer, 300)
 	Expect(err).ToNot(HaveOccurred(), "Failed to pull test image on nodes")
 })
 
 var _ = AfterSuite(func() {
 	By("Deleting test namespace")
+
 	err := testNS.DeleteAndWait(tsparams.DefaultTimeout)
 	Expect(err).ToNot(HaveOccurred(), "error to delete test namespace")
 })

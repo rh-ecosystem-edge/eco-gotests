@@ -48,6 +48,8 @@ const (
 	MetallbServiceName2 = "service-2"
 	// BGPAdvAndAddressPoolName BGPAdvAndAdressPoolName is the name of the BgpAdvertisement and IPAddressPool.
 	BGPAdvAndAddressPoolName = "bgp-test"
+	// BGPAdvAndAddressPoolName2 is the name of the second BgpAdvertisement and IPAddressPool.
+	BGPAdvAndAddressPoolName2 = "bgp-test-2"
 	// LabelValue1 is the value name for the label1.
 	LabelValue1 = "nginx1"
 	// LabelValue2 is the value name for the label2.
@@ -75,6 +77,8 @@ bfd
 `
 	// FRRDefaultConfigMapName represents default FRR configMap name.
 	FRRDefaultConfigMapName = "frr-config"
+	// FRRDefaultConfigMapName2 represents the second default FRR configMap name.
+	FRRDefaultConfigMapName2 = "frr-config-2"
 	// LocalBGPASN represents local BGP AS number.
 	LocalBGPASN = 64500
 	// RemoteBGPASN represents remote BGP AS number.

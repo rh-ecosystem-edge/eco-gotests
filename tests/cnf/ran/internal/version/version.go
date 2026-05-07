@@ -3,11 +3,9 @@ package version
 import (
 	"errors"
 	"fmt"
-	"math"
-	"regexp"
-	"strconv"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/argocd"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
@@ -17,56 +15,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 )
-
-var inputStringRegex = regexp.MustCompile(`(\d+)\.(\d+)`)
-
-// IsVersionStringInRange checks if a version string is between a specified min and max value, inclusive. All the string
-// inputs to this function should contain dot separated positive intergers, e.g. "1.0.0" or "4.10". Each string input
-// must contain at least two dot separarted integers but may also contain more, though only the first two are compared.
-// Digits are compared per position, so 4.Y is not less than 5.0 if Y > 0.
-func IsVersionStringInRange(version, minimum, maximum string) (bool, error) {
-	versionDigits := getInputIntegers(version)
-	minimumDigits := getInputIntegers(minimum)
-	maximumDigits := getInputIntegers(maximum)
-
-	minInvalid := minimumDigits == nil
-	if minInvalid {
-		// Only accept invalid empty strings
-		if minimum != "" {
-			return false, fmt.Errorf("invalid minimum provided: '%s'", minimum)
-		}
-
-		// Assume the minimum digits are [0,0] for later comparison
-		minimumDigits = []int{0, 0}
-	}
-
-	maxInvalid := maximumDigits == nil
-	if maxInvalid {
-		// Only accept invalid empty strings
-		if maximum != "" {
-			return false, fmt.Errorf("invalid maximum provided: '%s'", maximum)
-		}
-
-		// Assume the maximum digits are [math.MaxInt, math.MaxInt] for later comparison
-		maximumDigits = []int{math.MaxInt, math.MaxInt}
-	}
-
-	// If the version was not valid then we return whether the maximum is empty.
-	if versionDigits == nil {
-		return maximum == "", nil
-	}
-
-	// Otherwise the versions were valid so compare the digits
-	for i := 0; i < 2; i++ {
-		// The version digit should be between the minimum and maximum, inclusive.
-		if versionDigits[i] < minimumDigits[i] || versionDigits[i] > maximumDigits[i] {
-			return false, nil
-		}
-	}
-
-	// At the end if we never returned then all the digits were in valid range
-	return true, nil
-}
 
 // GetOCPVersion uses the cluster version on a given cluster to find the latest OCP version, returning the desired
 // version if the latest version could not be found.
@@ -171,25 +119,67 @@ func GetZTPSiteGenerateImage(client *clients.Settings) (string, error) {
 	return "", errors.New("unable to identify ZTP site generate image")
 }
 
-// getInputIntegers returns the first two dot-separated integers in the input string. A nil return value indicates a
-// malformed input string.
-func getInputIntegers(input string) []int {
-	digits := inputStringRegex.FindStringSubmatch(input)
-	if digits == nil {
-		return nil
-	}
+// IsVersionStringInRange reports whether version satisfies minimum <= version < maximumUpper using SemVer 2.0
+// (github.com/Masterminds/semver/v3).
+//
+// minimum: empty means no lower bound. For a lower bound that must include pre-releases of X.Y.0 (e.g. OCP
+// 4.20.0-20251212...), pass X.Y.0-0 — the lowest pre-release of X.Y.0. Plain X.Y.0 excludes pre-releases of X.Y.0.
+//
+// maximum: empty means no upper bound. Otherwise maximum is exclusive: the interval is minimum <= v < maximum
+// (half-open). Non-empty bounds use the same rules as version: trim an optional leading v, then parse with
+// github.com/Masterminds/semver/v3. Callers must pass semver-compatible strings (e.g. lower bound "4.16.0-0",
+// exclusive upper "4.21.0-0").
+//
+// If version is not a valid semver string and maximum is empty, the function returns (true, nil) for compatibility
+// with legacy call sites (e.g. empty or non-semver operator tags with no upper bound). Callers that require a parsed
+// version should validate the string separately or pass a non-empty maximum so the result is (false, nil).
+func IsVersionStringInRange(version, minimum, maximum string) (bool, error) {
+	var minV *semver.Version
 
-	var integers []int
-
-	for _, digit := range digits[1:] {
-		integer, err := strconv.Atoi(digit)
+	if minimum != "" {
+		parsed, err := semver.NewVersion(trimSemverVPrefix(minimum))
 		if err != nil {
-			// Since we have already validated these are digits
-			return nil
+			return false, fmt.Errorf("invalid minimum provided: '%s'", minimum)
 		}
 
-		integers = append(integers, integer)
+		minV = parsed
 	}
 
-	return integers
+	var maxExclusive *semver.Version
+
+	if maximum != "" {
+		parsed, err := semver.NewVersion(trimSemverVPrefix(maximum))
+		if err != nil {
+			return false, fmt.Errorf("invalid maximum provided: '%s'", maximum)
+		}
+
+		maxExclusive = parsed
+	}
+
+	parsedVersion, err := semver.NewVersion(trimSemverVPrefix(version))
+	if err != nil {
+		if maximum == "" {
+			klog.V(ranparam.LogLevel).Infof(
+				"IsVersionStringInRange: unparsable version %q, returning (true, nil) for legacy no-upper-bound behavior: %v",
+				version, err)
+
+			return true, nil
+		}
+
+		return false, nil
+	}
+
+	if minV != nil && parsedVersion.LessThan(minV) {
+		return false, nil
+	}
+
+	if maxExclusive != nil && !parsedVersion.LessThan(maxExclusive) {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func trimSemverVPrefix(s string) string {
+	return strings.TrimPrefix(strings.TrimSpace(s), "v")
 }

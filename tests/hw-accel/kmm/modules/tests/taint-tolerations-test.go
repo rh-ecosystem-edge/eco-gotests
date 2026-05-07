@@ -29,13 +29,13 @@ import (
 )
 
 var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func() {
-
 	Context("Module", Label("tolerations"), func() {
-
-		var testNamespace *namespace.Builder
-		var node *nodes.Builder
-		var kerMapOne *moduleV1Beta1.KernelMapping
-		var svcAccount *serviceaccount.Builder
+		var (
+			testNamespace *namespace.Builder
+			node          *nodes.Builder
+			kerMapOne     *moduleV1Beta1.KernelMapping
+			svcAccount    *serviceaccount.Builder
+		)
 
 		moduleName := kmmparams.TolerationModuleTestNamespace
 		kmodName := "use-toleration"
@@ -45,6 +45,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 		buildArgValue := fmt.Sprintf("%s.o", kmodName)
 
 		var taintNoSchedule []corev1.Taint
+
 		taintNoSchedule = append(taintNoSchedule, corev1.Taint{
 			Key:    kmmparams.TolerationNoScheduleKeyValue.Key,
 			Value:  kmmparams.TolerationNoScheduleKeyValue.Value,
@@ -52,6 +53,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 		})
 
 		var taintNoExecute []corev1.Taint
+
 		taintNoExecute = append(taintNoExecute, corev1.Taint{
 			Key:    kmmparams.TolerationNoExecuteKeyValue.Key,
 			Value:  kmmparams.TolerationNoExecuteKeyValue.Value,
@@ -59,6 +61,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 		})
 
 		var taintsWhileUpgrade []corev1.Taint
+
 		taintsWhileUpgrade = append(taintsWhileUpgrade, corev1.Taint{
 			Key:    kmmparams.TolerationNoExecuteK8sUnreachable.Key,
 			Value:  kmmparams.TolerationNoExecuteK8sUnreachable.Value,
@@ -85,11 +88,14 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 
 		BeforeAll(func() {
 			By("Create Namespace")
+
 			var err error
+
 			testNamespace, err = namespace.NewBuilder(APIClient, kmmparams.TolerationModuleTestNamespace).Create()
 			Expect(err).ToNot(HaveOccurred(), "error creating test namespace")
 
 			By("Checking nodes are not tainted already")
+
 			nodeList, err := nodes.List(
 				APIClient, metav1.ListOptions{LabelSelector: labels.Set(GeneralConfig.WorkerLabelMap).String()})
 			Expect(err).ToNot(HaveOccurred(), "error getting nodes")
@@ -104,6 +110,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			}
 
 			By("Create ConfigMap")
+
 			configmapContents := define.MultiStageConfigMapContent(kmodName)
 			dockerfileConfigMap, err := configmap.
 				NewBuilder(APIClient, kmodName, testNamespace.Object.Name).
@@ -111,16 +118,19 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			Expect(err).ToNot(HaveOccurred(), "error creating configmap")
 
 			By("Create ServiceAccount")
+
 			svcAccount, err = serviceaccount.
 				NewBuilder(APIClient, serviceAccountName, kmmparams.TolerationModuleTestNamespace).Create()
 			Expect(err).ToNot(HaveOccurred(), "error creating serviceaccount")
 
 			By("Create ClusterRoleBinding")
+
 			crb := define.ModuleCRB(*svcAccount, kmodName)
 			_, err = crb.Create()
 			Expect(err).ToNot(HaveOccurred(), "error creating clusterrolebinding")
 
 			By("Create KernelMapping")
+
 			kernelMapping := kmm.NewRegExKernelMappingBuilder("^.+$")
 
 			kernelMapping.WithContainerImage(image).
@@ -132,6 +142,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 
 		AfterEach(func() {
 			By("Remove node taint")
+
 			if node != nil {
 				node.Definition.Spec.Taints = []corev1.Taint{}
 				_, err := node.Update()
@@ -139,16 +150,19 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			}
 
 			By("Delete Module")
+
 			_, err := kmm.NewModuleBuilder(APIClient, moduleName, kmmparams.TolerationModuleTestNamespace).Delete()
 			Expect(err).ToNot(HaveOccurred(), "error deleting module")
 
 			By("Await module to be deleted")
+
 			err = await.ModuleObjectDeleted(APIClient, moduleName, kmmparams.TolerationModuleTestNamespace, time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error while waiting module to be deleted")
 		})
 
 		AfterAll(func() {
 			By("Remove node taint")
+
 			if node != nil {
 				node.Definition.Spec.Taints = []corev1.Taint{}
 				_, err := node.Update()
@@ -159,18 +173,20 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			svcAccount.Exists()
 
 			By("Delete ClusterRoleBinding")
+
 			crb := define.ModuleCRB(*svcAccount, kmodName)
 			err := crb.Delete()
 			Expect(err).ToNot(HaveOccurred(), "error deleting test namespace")
 
 			By("Delete Namespace")
+
 			err = namespace.NewBuilder(APIClient, kmmparams.TolerationModuleTestNamespace).Delete()
 			Expect(err).ToNot(HaveOccurred(), "error creating test namespace")
-
 		})
 
 		It("should deploy module with NoSchedule toleration", reportxml.ID("79205"), func() {
 			By("Create ModuleLoaderContainer")
+
 			moduleLoaderContainer := kmm.NewModLoaderContainerBuilder(kmodName)
 			moduleLoaderContainer.WithKernelMapping(kerMapOne)
 			moduleLoaderContainer.WithImagePullPolicy("Always")
@@ -178,6 +194,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			Expect(err).ToNot(HaveOccurred(), "error creating moduleloadercontainer")
 
 			By("Create Module")
+
 			module := kmm.NewModuleBuilder(APIClient, moduleName, kmmparams.TolerationModuleTestNamespace).
 				WithNodeSelector(GeneralConfig.WorkerLabelMap)
 			module = module.WithModuleLoaderContainer(moduleLoaderContainerCfg).
@@ -192,27 +209,31 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			Expect(err).ToNot(HaveOccurred(), "error creating module")
 
 			By("Await build pod to complete build")
+
 			err = await.BuildPodCompleted(APIClient, kmmparams.TolerationModuleTestNamespace, 5*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error while building module")
 
 			By("Await driver container deployment")
+
 			err = await.ModuleDeployment(APIClient, moduleName, kmmparams.TolerationModuleTestNamespace, time.Minute,
 				GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while waiting on driver deployment")
 
 			By("Check module is loaded on node")
+
 			err = check.ModuleLoaded(APIClient, kmodName, time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
 
 			By("Check label is set on all nodes")
+
 			_, err = check.NodeLabel(APIClient, moduleName, kmmparams.TolerationModuleTestNamespace,
 				GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
 
 			By("Taint node with test taint")
+
 			nodeList, err := nodes.List(
 				APIClient, metav1.ListOptions{LabelSelector: labels.Set(GeneralConfig.WorkerLabelMap).String()})
-
 			if err != nil {
 				Skip(fmt.Sprintf("Error listing worker nodes. Got error: '%v'", err))
 			}
@@ -224,6 +245,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 
 			By("Check node is still loaded on node")
 			time.Sleep(30 * time.Second)
+
 			_, err = check.NodeLabel(APIClient, moduleName, kmmparams.TolerationModuleTestNamespace,
 				GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
@@ -231,6 +253,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 
 		It("should deploy module with NoExecute toleration", reportxml.ID("79206"), func() {
 			By("Create ModuleLoaderContainer")
+
 			moduleLoaderContainer := kmm.NewModLoaderContainerBuilder(kmodName)
 			moduleLoaderContainer.WithKernelMapping(kerMapOne)
 			moduleLoaderContainer.WithImagePullPolicy("Always")
@@ -238,6 +261,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			Expect(err).ToNot(HaveOccurred(), "error creating moduleloadercontainer")
 
 			By("Create Module")
+
 			module := kmm.NewModuleBuilder(APIClient, moduleName, kmmparams.TolerationModuleTestNamespace).
 				WithNodeSelector(GeneralConfig.WorkerLabelMap)
 			module = module.WithModuleLoaderContainer(moduleLoaderContainerCfg).
@@ -252,26 +276,31 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			Expect(err).ToNot(HaveOccurred(), "error creating module")
 
 			By("Await driver container deployment")
+
 			err = await.ModuleDeployment(APIClient, moduleName, kmmparams.TolerationModuleTestNamespace, time.Minute,
 				GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while waiting on driver deployment")
 
 			By("Check module is loaded on node")
+
 			err = check.ModuleLoaded(APIClient, kmodName, time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
 
 			By("Check label is set on all nodes")
+
 			_, err = check.NodeLabel(APIClient, moduleName, kmmparams.TolerationModuleTestNamespace,
 				GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
 
 			By("Taint node with test taint")
+
 			node.Definition.Spec.Taints = taintNoExecute
 			_, err = node.Update()
 			Expect(err).ToNot(HaveOccurred(), "error while tainting node")
 
 			By("Check node is still loaded on node")
 			time.Sleep(30 * time.Second)
+
 			_, err = check.NodeLabel(APIClient, moduleName, kmmparams.TolerationModuleTestNamespace,
 				GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
@@ -279,6 +308,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 
 		It("should deploy module with device plugin and NoSchedule toleration", reportxml.ID("79997"), func() {
 			By("Create ModuleLoaderContainer")
+
 			moduleLoaderContainer := kmm.NewModLoaderContainerBuilder(kmodName)
 			moduleLoaderContainer.WithKernelMapping(kerMapOne)
 			moduleLoaderContainer.WithImagePullPolicy("Always")
@@ -286,6 +316,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			Expect(err).ToNot(HaveOccurred(), "error creating moduleloadercontainer")
 
 			By("Create DevicePlugin")
+
 			arch, err := get.ClusterArchitecture(APIClient, GeneralConfig.WorkerLabelMap)
 			if err != nil {
 				Skip("could not detect cluster architecture")
@@ -302,6 +333,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			Expect(err).ToNot(HaveOccurred(), "error creating deviceplugincontainer")
 
 			By("Create Module")
+
 			module := kmm.NewModuleBuilder(APIClient, moduleName, kmmparams.TolerationModuleTestNamespace).
 				WithNodeSelector(GeneralConfig.WorkerLabelMap)
 			module = module.WithDevicePluginContainer(devicePluginContainerCfd).
@@ -318,31 +350,37 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			Expect(err).ToNot(HaveOccurred(), "error creating module")
 
 			By("Await driver container deployment")
+
 			err = await.ModuleDeployment(APIClient, moduleName, kmmparams.TolerationModuleTestNamespace, time.Minute,
 				GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while waiting on driver deployment")
 
 			By("Await device driver deployment")
+
 			err = await.DeviceDriverDeployment(APIClient, moduleName, kmmparams.TolerationModuleTestNamespace, time.Minute,
 				GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while waiting on device plugin deployment")
 
 			By("Check module is loaded on node")
+
 			err = check.ModuleLoaded(APIClient, kmodName, time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
 
 			By("Check label is set on all nodes")
+
 			_, err = check.NodeLabel(APIClient, moduleName, kmmparams.TolerationModuleTestNamespace,
 				GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
 
 			By("Taint node with test taint")
+
 			node.Definition.Spec.Taints = taintNoSchedule
 			_, err = node.Update()
 			Expect(err).ToNot(HaveOccurred(), "error while tainting node")
 
 			By("Check node is still loaded on node")
 			time.Sleep(30 * time.Second)
+
 			_, err = check.NodeLabel(APIClient, moduleName, kmmparams.TolerationModuleTestNamespace,
 				GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
@@ -350,6 +388,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 
 		It("should deploy module with device plugin and NoExecute toleration", reportxml.ID("79208"), func() {
 			By("Create ModuleLoaderContainer")
+
 			moduleLoaderContainer := kmm.NewModLoaderContainerBuilder(kmodName)
 			moduleLoaderContainer.WithKernelMapping(kerMapOne)
 			moduleLoaderContainer.WithImagePullPolicy("Always")
@@ -357,6 +396,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			Expect(err).ToNot(HaveOccurred(), "error creating moduleloadercontainer")
 
 			By("Create DevicePlugin")
+
 			arch, err := get.ClusterArchitecture(APIClient, GeneralConfig.WorkerLabelMap)
 			if err != nil {
 				Skip("could not detect cluster architecture")
@@ -373,6 +413,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			Expect(err).ToNot(HaveOccurred(), "error creating deviceplugincontainer")
 
 			By("Create Module")
+
 			module := kmm.NewModuleBuilder(APIClient, moduleName, kmmparams.TolerationModuleTestNamespace).
 				WithNodeSelector(GeneralConfig.WorkerLabelMap)
 			module = module.WithDevicePluginContainer(devicePluginContainerCfd).
@@ -389,31 +430,37 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			Expect(err).ToNot(HaveOccurred(), "error creating module")
 
 			By("Await driver container deployment")
+
 			err = await.ModuleDeployment(APIClient, moduleName, kmmparams.TolerationModuleTestNamespace, time.Minute,
 				GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while waiting on driver deployment")
 
 			By("Await device driver deployment")
+
 			err = await.DeviceDriverDeployment(APIClient, moduleName, kmmparams.TolerationModuleTestNamespace, time.Minute,
 				GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while waiting on device plugin deployment")
 
 			By("Check module is loaded on node")
+
 			err = check.ModuleLoaded(APIClient, kmodName, time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
 
 			By("Check label is set on all nodes")
+
 			_, err = check.NodeLabel(APIClient, moduleName, kmmparams.TolerationModuleTestNamespace,
 				GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
 
 			By("Taint node with test taint")
+
 			node.Definition.Spec.Taints = taintNoExecute
 			_, err = node.Update()
 			Expect(err).ToNot(HaveOccurred(), "error while tainting node")
 
 			By("Check node is still loaded on node")
 			time.Sleep(30 * time.Second)
+
 			_, err = check.NodeLabel(APIClient, moduleName, kmmparams.TolerationModuleTestNamespace,
 				GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
@@ -421,6 +468,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 
 		It("should handle taints used by cluster upgrade", reportxml.ID("79207"), func() {
 			By("Create ModuleLoaderContainer")
+
 			moduleLoaderContainer := kmm.NewModLoaderContainerBuilder(kmodName)
 			moduleLoaderContainer.WithKernelMapping(kerMapOne)
 			moduleLoaderContainer.WithImagePullPolicy("Always")
@@ -428,6 +476,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			Expect(err).ToNot(HaveOccurred(), "error creating moduleloadercontainer")
 
 			By("Create Module")
+
 			module := kmm.NewModuleBuilder(APIClient, moduleName, kmmparams.TolerationModuleTestNamespace).
 				WithNodeSelector(GeneralConfig.WorkerLabelMap)
 			module = module.WithModuleLoaderContainer(moduleLoaderContainerCfg).
@@ -460,26 +509,31 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			Expect(err).ToNot(HaveOccurred(), "error creating module")
 
 			By("Await driver container deployment")
+
 			err = await.ModuleDeployment(APIClient, moduleName, kmmparams.TolerationModuleTestNamespace, time.Minute,
 				GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while waiting on driver deployment")
 
 			By("Check module is loaded on node")
+
 			err = check.ModuleLoaded(APIClient, kmodName, time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
 
 			By("Check label is set on all nodes")
+
 			_, err = check.NodeLabel(APIClient, moduleName, kmmparams.TolerationModuleTestNamespace,
 				GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")
 
 			By("Taint node with upgrade taints")
+
 			node.Definition.Spec.Taints = taintsWhileUpgrade
 			_, err = node.Update()
 			Expect(err).ToNot(HaveOccurred(), "error while tainting node")
 
 			By("Check node is still loaded on node")
 			time.Sleep(30 * time.Second)
+
 			_, err = check.NodeLabel(APIClient, moduleName, kmmparams.TolerationModuleTestNamespace,
 				GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is loaded")

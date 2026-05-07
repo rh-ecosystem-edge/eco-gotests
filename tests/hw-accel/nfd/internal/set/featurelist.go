@@ -16,8 +16,8 @@ type Config struct {
 // CPUConfig cpu feature config.
 type CPUConfig struct {
 	CPUID struct {
-		AttributeBlacklist []string `yaml:"attributeBlacklist,omitempty"`
-		AttributeWhitelist []string `yaml:"attributeWhitelist,omitempty"`
+		AttributeBlacklist []string `yaml:"attributeDenyList,omitempty"`
+		AttributeWhitelist []string `yaml:"attributeAllowList,omitempty"`
 	} `yaml:"cpuid,omitempty"`
 }
 

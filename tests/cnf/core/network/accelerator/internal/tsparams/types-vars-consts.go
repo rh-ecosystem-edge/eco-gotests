@@ -31,6 +31,8 @@ var (
 	Labels = append(netparam.Labels, LabelSuite)
 	// WaitTimeout represents timeout for the most ginkgo Eventually functions.
 	WaitTimeout = 3 * time.Minute
+	// MCOWaitTimeout represent timeout for mco operations.
+	MCOWaitTimeout = 35 * time.Minute
 	// ReporterCRDsToDump tells to the reporter what CRs to dump.
 	ReporterCRDsToDump = []k8sreporter.CRData{
 		{Cr: &performanceprofileV2.PerformanceProfileList{}},

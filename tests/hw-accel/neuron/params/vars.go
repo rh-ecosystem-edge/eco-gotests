@@ -26,7 +26,6 @@ var (
 		"neuron_runtime_memory_used_bytes",
 		"neuron_hardware_info",
 		"neuroncore_utilization_ratio",
-		"neuron_instance_info",
 		"neuroncore_memory_usage_model_shared_scratchpad",
 		"neuroncore_memory_usage_constants",
 	}

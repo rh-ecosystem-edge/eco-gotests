@@ -16,18 +16,16 @@ var _ = Describe(
 	ContinueOnFailure,
 	Label(tsparams.LabelAssistedPodsNoRestartsTestCases), func() {
 		When("on MCE 2.0 and above", func() {
-
 			BeforeAll(func() {
 				if ZTPConfig.SpokeAgentClusterInstall.Object.Status.DebugInfo.State != models.ClusterStatusAddingHosts {
 					Skip("spoke cluster has not been installed")
 				}
-
 			})
 
 			DescribeTable("no restarts for assisted pods",
 				func(podName string, getPodName func() *pod.Builder) {
-
 					By("Get the " + podName + " pod")
+
 					podBuilder := getPodName()
 
 					By("Assure the " + podName + " pod didn't restart")
@@ -39,6 +37,5 @@ var _ = Describe(
 				Entry("Assert the assisted-image-service pod wasn't restarted after creation",
 					"assisted-image-service", ZTPConfig.HubAssistedImageServicePod, reportxml.ID("56583")),
 			)
-
 		})
 	})

@@ -3,6 +3,7 @@ package ptp
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -72,37 +73,59 @@ func NewPtpConfigBuilder(apiClient *clients.Settings, name, nsname string) *PtpC
 	return builder
 }
 
-// GetE810Plugin retrieves the E810 plugin from the specified profile in the PtpConfig, attempting to unmarshal the raw
-// JSON. If the profile or plugin is not found, it returns an error.
-func (builder *PtpConfigBuilder) GetE810Plugin(profileName string) (*E810Plugin, error) {
+// intelPluginTypes is the list of Intel plugin types to check for in order.
+var intelPluginTypes = []PluginType{PluginTypeE810, PluginTypeE825, PluginTypeE830}
+
+// GetIntelPlugin retrieves an Intel plugin (E810, E825, or E830) from the specified profile in the PtpConfig,
+// attempting to unmarshal the raw JSON. The plugin's Type field is set based on which plugin key was found. If the
+// profile is not found or no Intel plugin exists, it returns an error.
+func (builder *PtpConfigBuilder) GetIntelPlugin(profileName string) (*IntelPlugin, error) {
 	if valid, err := builder.validate(); !valid {
 		return nil, err
 	}
 
-	klog.V(100).Infof("Unmarshalling E810 plugin from PtpConfig %s in namespace %s",
+	klog.V(100).Infof("Unmarshalling Intel plugin from PtpConfig %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
+	if profileName == "" {
+		klog.V(100).Info("The profileName is empty")
+
+		return nil, fmt.Errorf("profileName cannot be empty")
+	}
+
 	for _, profile := range builder.Definition.Spec.Profile {
-		if profile.Name == nil || *profile.Name != profileName || profile.Plugins == nil {
+		if profile.Name == nil || *profile.Name != profileName {
 			continue
 		}
 
-		if plugin, ok := profile.Plugins["e810"]; ok && plugin != nil {
-			e810Plugin := &E810Plugin{}
+		// Check for each Intel plugin type in order
+		for _, pluginType := range intelPluginTypes {
+			if profile.Plugins == nil {
+				continue
+			}
 
-			err := json.Unmarshal(plugin.Raw, e810Plugin)
+			pluginJSON, ok := profile.Plugins[string(pluginType)]
+			if !ok || pluginJSON == nil {
+				continue
+			}
+
+			intelPlugin := &IntelPlugin{}
+
+			err := json.Unmarshal(pluginJSON.Raw, intelPlugin)
 			if err != nil {
-				klog.V(100).Infof("Failed to unmarshal E810 plugin: %v", err)
+				klog.V(100).Infof("Failed to unmarshal %s plugin: %v", pluginType, err)
 
 				return nil, err
 			}
 
-			return e810Plugin, nil
+			intelPlugin.Type = pluginType
+
+			return intelPlugin, nil
 		}
 
-		klog.V(100).Infof("E810 plugin not found for profile %s", profileName)
+		klog.V(100).Infof("No Intel plugin found for profile %s", profileName)
 
-		return nil, fmt.Errorf("ptpProfile %s does not have E810 plugin", profileName)
+		return nil, fmt.Errorf("ptpProfile %s does not have an Intel plugin", profileName)
 	}
 
 	klog.V(100).Infof("Profile %s not found in PtpConfig %s in namespace %s",
@@ -111,26 +134,59 @@ func (builder *PtpConfigBuilder) GetE810Plugin(profileName string) (*E810Plugin,
 	return nil, fmt.Errorf("ptpProfile %s not found", profileName)
 }
 
-// WithE810Plugin sets the E810 plugin in the specified profile of the PtpConfig, attempting to marshal the plugin
-// struct into JSON.
-func (builder *PtpConfigBuilder) WithE810Plugin(profileName string, e810Plugin *E810Plugin) *PtpConfigBuilder {
+// WithIntelPlugin sets an Intel plugin in the specified profile of the PtpConfig, attempting to marshal the plugin
+// struct into JSON. The plugin's Type field determines which key (e810, e825, or e830) is used in the Plugins map. If
+// the plugin's Type is not set, an error is returned.
+func (builder *PtpConfigBuilder) WithIntelPlugin(profileName string, plugin *IntelPlugin) *PtpConfigBuilder {
 	if valid, _ := builder.validate(); !valid {
 		return builder
 	}
 
-	klog.V(100).Infof("Setting E810 plugin for PtpConfig %s in namespace %s",
+	klog.V(100).Infof("Setting Intel plugin for PtpConfig %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
+
+	if profileName == "" {
+		klog.V(100).Info("The profileName is empty")
+
+		builder.errorMsg = "cannot set Intel plugin: profileName cannot be empty"
+
+		return builder
+	}
+
+	if plugin == nil {
+		klog.V(100).Info("Intel plugin is nil")
+
+		builder.errorMsg = "cannot set Intel plugin: plugin is nil"
+
+		return builder
+	}
+
+	if plugin.Type == "" {
+		klog.V(100).Info("Intel plugin Type is not set")
+
+		builder.errorMsg = "cannot set Intel plugin: plugin Type is not set"
+
+		return builder
+	}
+
+	if !slices.Contains(intelPluginTypes, plugin.Type) {
+		klog.V(100).Infof("Intel plugin type %s is not supported", plugin.Type)
+
+		builder.errorMsg = fmt.Sprintf("cannot set Intel plugin: plugin type %s is not supported", plugin.Type)
+
+		return builder
+	}
 
 	for profileIndex, profile := range builder.Definition.Spec.Profile {
 		if profile.Name == nil || *profile.Name != profileName {
 			continue
 		}
 
-		e810PluginRaw, err := json.Marshal(e810Plugin)
+		pluginRaw, err := json.Marshal(plugin)
 		if err != nil {
-			klog.V(100).Infof("Failed to marshal E810 plugin: %v", err)
+			klog.V(100).Infof("Failed to marshal %s plugin: %v", plugin.Type, err)
 
-			builder.errorMsg = fmt.Sprintf("cannot set E810 plugin: failed to marshal plugin struct: %v", err)
+			builder.errorMsg = fmt.Sprintf("cannot set Intel plugin: failed to marshal plugin struct: %v", err)
 
 			return builder
 		}
@@ -139,15 +195,65 @@ func (builder *PtpConfigBuilder) WithE810Plugin(profileName string, e810Plugin *
 			profile.Plugins = make(map[string]*apiextensionsv1.JSON)
 		}
 
-		profile.Plugins["e810"] = &apiextensionsv1.JSON{Raw: e810PluginRaw}
+		// Ensure only one Intel plugin key exists per profile.
+		for _, pluginType := range intelPluginTypes {
+			delete(profile.Plugins, string(pluginType))
+		}
+
+		profile.Plugins[string(plugin.Type)] = &apiextensionsv1.JSON{Raw: pluginRaw}
 		builder.Definition.Spec.Profile[profileIndex] = profile
 
 		return builder
 	}
 
-	builder.errorMsg = fmt.Sprintf("cannot set E810 plugin: ptpProfile %s does not exist", profileName)
+	builder.errorMsg = fmt.Sprintf("cannot set Intel plugin: ptpProfile %s does not exist", profileName)
 
 	return builder
+}
+
+// GetPluginType returns the Intel plugin type (e810, e825, or e830) for the specified profile, if one exists. This is a
+// lightweight check that does not unmarshal the plugin data.
+func (builder *PtpConfigBuilder) GetPluginType(profileName string) (PluginType, error) {
+	if valid, err := builder.validate(); !valid {
+		return "", err
+	}
+
+	klog.V(100).Infof("Getting Intel plugin type from PtpConfig %s in namespace %s",
+		builder.Definition.Name, builder.Definition.Namespace)
+
+	if profileName == "" {
+		klog.V(100).Info("The profileName is empty")
+
+		return "", fmt.Errorf("profileName cannot be empty")
+	}
+
+	for _, profile := range builder.Definition.Spec.Profile {
+		if profile.Name == nil || *profile.Name != profileName {
+			continue
+		}
+
+		for _, pluginType := range intelPluginTypes {
+			if profile.Plugins == nil {
+				continue
+			}
+
+			pluginJSON, ok := profile.Plugins[string(pluginType)]
+			if !ok || pluginJSON == nil {
+				continue
+			}
+
+			return pluginType, nil
+		}
+
+		klog.V(100).Infof("No Intel plugin found for profile %s", profileName)
+
+		return "", fmt.Errorf("ptpProfile %s does not have an Intel plugin", profileName)
+	}
+
+	klog.V(100).Infof("Profile %s not found in PtpConfig %s in namespace %s",
+		profileName, builder.Definition.Name, builder.Definition.Namespace)
+
+	return "", fmt.Errorf("ptpProfile %s not found", profileName)
 }
 
 // PullPtpConfig pulls an existing PtpConfig into a Builder struct.

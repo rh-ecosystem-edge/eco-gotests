@@ -217,9 +217,12 @@ type ArgoCDApplicationSet struct {
 	// VolumeMounts adds volumeMounts to the Argo CD ApplicationSet Controller container.
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
 
+	// Deprecated: use LogFormat instead.
+	Logformat string `json:"logformat,omitempty"`
+
 	// LogFormat refers to the log format used by the ApplicationSet component. Defaults to ArgoCDDefaultLogFormat if not configured. Valid options are text or json.
 	// +kubebuilder:validation:Enum=text;json
-	LogFormat string `json:"logformat,omitempty"`
+	LogFormat string `json:"logFormat,omitempty"`
 }
 
 func (a *ArgoCDApplicationSet) IsEnabled() bool {
@@ -429,28 +432,37 @@ type ArgoCDNotifications struct {
 	// LogLevel describes the log level that should be used by the argocd-notifications. Defaults to ArgoCDDefaultLogLevel if not set.  Valid options are debug,info, error, and warn.
 	LogLevel string `json:"logLevel,omitempty"`
 
+	// Deprecated: use LogFormat instead.
+	Logformat string `json:"logformat,omitempty"`
+
 	// LogFormat refers to the log format used by the argocd-notifications. Defaults to ArgoCDDefaultLogFormat if not configured. Valid options are text or json.
 	// +kubebuilder:validation:Enum=text;json
-	LogFormat string `json:"logformat,omitempty"`
+	LogFormat string `json:"logFormat,omitempty"`
 }
 
 // ArgoCDPrometheusSpec defines the desired state for the Prometheus component.
 type ArgoCDPrometheusSpec struct {
 	// Enabled will toggle Prometheus support globally for ArgoCD.
+	// When set to true, ServiceMonitors and PrometheusRules will be created for Argo CD metrics.
+	// The Prometheus CR, Route, and Ingress are deprecated and will no longer be created.
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Enabled",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:fieldGroup:Prometheus","urn:alm:descriptor:com.tectonic.ui:booleanSwitch"}
 	Enabled bool `json:"enabled"`
 
 	// Host is the hostname to use for Ingress/Route resources.
+	// Deprecated: This field is no longer used and will be ignored.
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Host",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:fieldGroup:Prometheus","urn:alm:descriptor:com.tectonic.ui:text"}
 	Host string `json:"host,omitempty"`
 
 	// Ingress defines the desired state for an Ingress for the Prometheus component.
+	// Deprecated: This field is no longer used and will be ignored.
 	Ingress ArgoCDIngressSpec `json:"ingress,omitempty"`
 
 	// Route defines the desired state for an OpenShift Route for the Prometheus component.
+	// Deprecated: This field is no longer used and will be ignored.
 	Route ArgoCDRouteSpec `json:"route,omitempty"`
 
 	// Size is the replica count for the Prometheus StatefulSet.
+	// Deprecated: This field is no longer used and will be ignored.
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Size",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:fieldGroup:Prometheus","urn:alm:descriptor:com.tectonic.ui:podCount"}
 	Size *int32 `json:"size,omitempty"`
 }
@@ -856,6 +868,19 @@ type ArgoCDNodePlacementSpec struct {
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 }
 
+// ArgoCDNetworkPolicySpec defines whether the operator should create NetworkPolicies for an Argo CD instance.
+type ArgoCDNetworkPolicySpec struct {
+	// Enabled defines whether NetworkPolicy resources are created for this Argo CD instance.
+	// When enabled, the operator will reconcile NetworkPolicies for Argo CD components.
+	// When disabled, the operator will remove any previously-created NetworkPolicies.
+	// +kubebuilder:default=true
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+func (a *ArgoCDNetworkPolicySpec) IsEnabled() bool {
+	return a == nil || a.Enabled == nil || *a.Enabled
+}
+
 // ArgoCDSpec defines the desired state of ArgoCD
 // +k8s:openapi-gen=true
 // +kubebuilder:validation:XValidation:rule="!(has(self.sso) && has(self.oidcConfig))",message="spec.sso and spec.oidcConfig cannot both be set"
@@ -952,6 +977,9 @@ type ArgoCDSpec struct {
 	// Monitoring defines whether workload status monitoring configuration for this instance.
 	Monitoring ArgoCDMonitoringSpec `json:"monitoring,omitempty"`
 
+	// NetworkPolicy controls whether the operator should create NetworkPolicy resources for this Argo CD instance.
+	NetworkPolicy ArgoCDNetworkPolicySpec `json:"networkPolicy,omitempty"`
+
 	// NodePlacement defines NodeSelectors and Taints for Argo CD workloads
 	NodePlacement *ArgoCDNodePlacementSpec `json:"nodePlacement,omitempty"`
 
@@ -1022,6 +1050,12 @@ type ArgoCDSpec struct {
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Version",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:fieldGroup:ArgoCD","urn:alm:descriptor:com.tectonic.ui:text"}
 	Version string `json:"version,omitempty"`
 
+	// ClusterDomain is the cluster domain suffix used for constructing service FQDNs. Defaults to "cluster.local".
+	// The full FQDN will be: <service>.<namespace>.svc.<clusterDomain>
+	// This is useful for clusters that use a different DNS suffix (e.g., "CLUSTER_ID.cluster.local", "edge.local").
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Cluster Domain",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text","urn:alm:descriptor:com.tectonic.ui:advanced"}
+	ClusterDomain string `json:"clusterDomain,omitempty"`
+
 	// Banner defines an additional banner to be displayed in Argo CD UI
 	Banner *Banner `json:"banner,omitempty"`
 
@@ -1032,6 +1066,8 @@ type ArgoCDSpec struct {
 	AggregatedClusterRoles bool `json:"aggregatedClusterRoles,omitempty"`
 
 	// CmdParams specifies command-line parameters for the Argo CD components.
+	// The only keys currently supported for this parameter are:
+	// - controller.resource.health.persist
 	CmdParams map[string]string `json:"cmdParams,omitempty"`
 
 	// ArgoCDAgent defines configurations for the ArgoCD Agent component.
@@ -1039,6 +1075,10 @@ type ArgoCDSpec struct {
 
 	// NamespaceManagement defines the list of namespaces that Argo CD is allowed to manage.
 	NamespaceManagement []ManagedNamespaces `json:"namespaceManagement,omitempty"`
+
+	// WebhookSecrets references Kubernetes Secrets that supply webhook credentials per provider.
+	// The operator syncs values into argocd-secret under the keys Argo CD expects.
+	WebhookSecrets *ArgoCDWebhookSecretsSpec `json:"webhookSecrets,omitempty"`
 }
 
 // NamespaceManagement defines the namespace management settings
@@ -1050,12 +1090,40 @@ type ManagedNamespaces struct {
 	AllowManagedBy bool `json:"allowManagedBy"`
 }
 
+// ArgoCDWebhookSecretsSpec holds declarative references to Secrets for Git provider webhook credentials.
+// +k8s:openapi-gen=true
+type ArgoCDWebhookSecretsSpec struct {
+	// GitHub: Secret key reference for the webhook secret used to verify incoming webhook requests.
+	GitHub *ArgoCDWebhookSecretsGitHub `json:"github,omitempty"`
+}
+
+// ArgoCDWebhookSecretsGitHub declares where to read the GitHub webhook secret.
+// +k8s:openapi-gen=true
+type ArgoCDWebhookSecretsGitHub struct {
+	// SecretRef points to the key holding the webhook secret value.
+	SecretRef *WebhookSecretKeySelector `json:"secretRef,omitempty"`
+}
+
+// WebhookSecretKeySelector references one key within a Secret.
+// +k8s:openapi-gen=true
+type WebhookSecretKeySelector struct {
+	// Name of the Secret.
+	// +kubebuilder:validation:Required
+	Name string `json:"name"`
+	// Key in the Secret whose value should be used.
+	// +kubebuilder:validation:Required
+	Key string `json:"key"`
+}
+
+const OpenShiftOAuthErrorMessage = "OpenShiftOAuth is not supported when external authentication is enabled on cluster, please provide OIDC config"
 const (
-	ArgoCDConditionType = "Reconciled"
+	ArgoCDConditionType               = "Reconciled"
+	ArgoCDConditionConfigurationError = "UnsupportedConfiguration"
 )
 
 const (
 	ArgoCDConditionReasonSuccess       = "Success"
+	ArgoCDConditionReasonSSOError      = "UnsupportedSSOConfiguration"
 	ArgoCDConditionReasonErrorOccurred = "ErrorOccurred"
 )
 
@@ -1261,6 +1329,9 @@ type PrincipalSpec struct {
 
 	// JWT defines the JWT options for the Principal component.
 	JWT *PrincipalJWTSpec `json:"jwt,omitempty"`
+
+	// DestinationBasedMapping is the flag to enable destination based mapping for the Principal component.
+	DestinationBasedMapping *bool `json:"destinationBasedMapping,omitempty"`
 }
 
 type PrincipalServerSpec struct {
@@ -1356,6 +1427,10 @@ type AgentSpec struct {
 	// Enabled is the flag to enable the Agent component during Argo CD installation. (optional, default `false`)
 	Enabled *bool `json:"enabled,omitempty"`
 
+	// AllowedNamespaces is a list of additional namespaces the agent is allowed to
+	// manage applications in. Supports glob patterns.
+	AllowedNamespaces []string `json:"allowedNamespaces,omitempty"`
+
 	// Creds is the credential identifier for the agent authentication
 	Creds string `json:"creds,omitempty"`
 
@@ -1379,6 +1454,32 @@ type AgentSpec struct {
 
 	// TLS defines the TLS options for the Agent component.
 	TLS *AgentTLSSpec `json:"tls,omitempty"`
+
+	// DestinationBasedMapping defines the options for destination based mapping for the Agent component.
+	DestinationBasedMapping *DestinationBasedMappingSpec `json:"destinationBasedMapping,omitempty"`
+}
+
+type DestinationBasedMappingSpec struct {
+	// Enabled is the flag to enable destination based mapping for the Agent component.
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// CreateNamespace enables automatic creation of target namespaces on the managed cluster
+	// when destination-based mapping is enabled.
+	CreateNamespace *bool `json:"createNamespace,omitempty"`
+}
+
+func (d *DestinationBasedMappingSpec) IsEnabled() bool {
+	if d == nil {
+		return false
+	}
+	return d.Enabled != nil && *d.Enabled
+}
+
+func (d *DestinationBasedMappingSpec) IsCreateNamespaceEnabled() bool {
+	if d == nil || !d.IsEnabled() || d.CreateNamespace == nil {
+		return false
+	}
+	return *d.CreateNamespace
 }
 
 type AgentClientSpec struct {

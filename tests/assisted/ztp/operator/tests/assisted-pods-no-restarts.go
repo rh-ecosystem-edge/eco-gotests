@@ -44,6 +44,5 @@ var _ = Describe(
 				Entry("Assert the assisted-image-service pod wasn't restarted shortly after creation",
 					"assisted-image-service", ZTPConfig.HubAssistedImageServicePod, reportxml.ID("56582")),
 			)
-
 		})
 	})

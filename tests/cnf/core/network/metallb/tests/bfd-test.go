@@ -47,6 +47,7 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 		validateEnvVarAndGetNodeList()
 
 		By("Creating a new instance of MetalLB Speakers on workers")
+
 		err := metallbenv.CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(tsparams.DefaultTimeout, workerLabelMap)
 		Expect(err).ToNot(HaveOccurred(), "Failed to create/recreate metalLb daemonset")
 
@@ -60,9 +61,11 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 		BeforeEach(func() {
 			By("Verifying that the frrk8sPod deployment is in Ready state and create a list of the pods on " +
 				"worker nodes.")
+
 			frrk8sPods := verifyAndCreateFRRk8sPodList()
 
 			By("Creating BFD profile.")
+
 			bfdProfile := createBFDProfileAndVerifyIfItsReady(frrk8sPods)
 
 			By("Creating BGP peer config.")
@@ -70,14 +73,17 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 				tsparams.RemoteBGPASN, false, 0, frrk8sPods)
 
 			By("Creating MetalLb configMap")
+
 			bfdConfigMap := createConfigMap(tsparams.RemoteBGPASN, ipv4NodeAddrList, false, true)
 
 			By("Creating static ip annotation")
+
 			staticIPAnnotation := pod.StaticIPAnnotation(
 				frrconfig.ExternalMacVlanNADName, []string{fmt.Sprintf("%s/%s", ipv4metalLbIPList[0],
 					netparam.IPSubnet24)})
 
 			By("Creating FRR Pod with network and IP address")
+
 			frrPod := createFrrPod(
 				masterNodeList[0].Object.Name, bfdConfigMap.Object.Name, []string{}, staticIPAnnotation)
 
@@ -101,6 +107,7 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 
 			By("Verifying that the frrk8sPod deployment is in Ready state and create a list of the pods on " +
 				"worker nodes.")
+
 			frrk8sPods := verifyAndCreateFRRk8sPodList()
 
 			prometheusPods, err := pod.List(APIClient, NetConfig.PrometheusOperatorNamespace, metav1.ListOptions{
@@ -113,6 +120,7 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 
 		It("Verify BGP over BFD session remains stable during service change", reportxml.ID("76013"), func() {
 			By("Getting existing FRR pod created by BeforeEach")
+
 			frrPod, err := pod.Pull(APIClient, tsparams.FRRContainerName, tsparams.TestNamespaceName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull FRR test pod")
 
@@ -151,6 +159,7 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 				workerNodeList, tsparams.MetallbServiceName2, tsparams.TestNamespaceName, []string{tsparams.BgpPeerName1})
 
 			By("Testing endpoint modification by adding second service backend pod")
+
 			if len(workerNodeList) > 1 {
 				By("Creating additional nginx pod on second worker to modify endpoints")
 				setupNGNXPod(tsparams.MLBNginxPodName+workerNodeList[1].Definition.Name,
@@ -179,26 +188,29 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 			removeNFTTable(workerNodeList[0].Object.Name)
 
 			By("Cleaning MetalLb operator namespace")
+
 			metalLbNs, err := namespace.Pull(APIClient, NetConfig.MlbOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull metalLb operator namespace")
 			err = metalLbNs.CleanObjects(tsparams.DefaultTimeout, metallb.GetBGPPeerGVR(), metallb.GetBFDProfileGVR())
 			Expect(err).ToNot(HaveOccurred(), "Failed to remove object's from operator namespace")
 
 			By("Cleaning test namespace")
+
 			err = namespace.NewBuilder(APIClient, tsparams.TestNamespaceName).
 				CleanObjects(tsparams.DefaultTimeout, pod.GetGVR(), configmap.GetGVR())
 			Expect(err).ToNot(HaveOccurred(), "Failed to clean objects from test namespace")
-
 		})
 	})
 
 	Context("multihop", Label("multihop"), func() {
 		var err error
+
 		speakerRoutesMap := make(map[string]string)
 
 		BeforeEach(func() {
 			By("Verifying that the frrk8sPod deployment is in Ready state and create a list of the pods on " +
 				"worker nodes.")
+
 			frrk8sPods := verifyAndCreateFRRk8sPodList()
 
 			speakerRoutesMap, err = buildRoutesMap(frrk8sPods, ipv4metalLbIPList)
@@ -213,6 +225,7 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 			removeNFTTable(workerNodeList[0].Object.Name)
 
 			By("Cleaning MetalLb operator namespace")
+
 			metalLbNs, err := namespace.Pull(APIClient, NetConfig.MlbOperatorNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull metalLb operator namespace")
 			err = metalLbNs.CleanObjects(
@@ -225,6 +238,7 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 			Expect(err).ToNot(HaveOccurred(), "Failed to remove object's from operator namespace")
 
 			By("Removing static routes from the speakers")
+
 			frrk8sPods := verifyAndCreateFRRk8sPodList()
 			for _, frrk8sPod := range frrk8sPods {
 				out, err := netenv.SetStaticRoute(frrk8sPod, "del", "172.16.0.1",
@@ -233,6 +247,7 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 			}
 
 			By("Cleaning test namespace")
+
 			err = namespace.NewBuilder(APIClient, tsparams.TestNamespaceName).CleanObjects(
 				tsparams.DefaultTimeout,
 				pod.GetGVR(),
@@ -251,26 +266,30 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 				Expect(speakerRoutesMap).ToNot(BeNil(), "Speaker route map is empty")
 
 				By("Setting test iteration parameters")
+
 				masterClientPodIP, subMast, mlbAddressList, nodeAddrList, addressPool, frrMasterIPs, err :=
 					metallbenv.DefineIterationParams(
 						ipv4metalLbIPList, ipv6metalLbIPList, ipv4NodeAddrList, ipv6NodeAddrList, ipStack)
-
 				if err != nil {
 					Skip(err.Error())
 				}
 
 				By("Verifying that the frrk8sPod deployment is in Ready state and create a list of the pods on " +
 					"worker nodes.")
+
 				frrk8sPods := verifyAndCreateFRRk8sPodList()
 
 				bfdProfile := createBFDProfileAndVerifyIfItsReady(frrk8sPods)
 
 				neighbourASN := uint32(tsparams.LocalBGPASN)
+
 				var eBgpMultiHop bool
+
 				if bgpProtocol == tsparams.EBGPProtocol {
 					neighbourASN = tsparams.RemoteBGPASN
 					eBgpMultiHop = true
 				}
+
 				createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, masterClientPodIP, bfdProfile.Definition.Name,
 					neighbourASN, eBgpMultiHop, 0, frrk8sPods)
 
@@ -280,6 +299,7 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 				}
 
 				By("Creating an IPAddressPool and BGPAdvertisement for bfd tests")
+
 				ipAddressPool := setupBgpAdvertisementAndIPAddressPool(
 					tsparams.BGPAdvAndAddressPoolName, addressPool, prefixLen)
 				validateAddressPool(tsparams.BGPAdvAndAddressPoolName, mlbtypes.IPAddressPoolStatus{
@@ -305,6 +325,7 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 				})
 
 				By("Creating internal NAD")
+
 				masterBridgePlugin, err := nad.NewMasterBridgePlugin("internalnad", "br0").
 					WithIPAM(nad.IPAMStatic()).GetMasterPluginConfig()
 				Expect(err).ToNot(HaveOccurred(), "Failed to create master bridge plugin setting")
@@ -323,9 +344,11 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 					masterNodeList[0].Object.Name, addressPool[0], nodeAddrList[1])
 
 				By("Creating client pod config map")
+
 				masterConfigMap := createConfigMap(int(neighbourASN), nodeAddrList, eBgpMultiHop, true)
 
 				By("Creating FRR pod in the test namespace")
+
 				frrPod := createFrrPod(
 					masterNodeList[0].Object.Name,
 					masterConfigMap.Object.Name,
@@ -337,7 +360,9 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 					buffer, err := mlbcmd.SetRouteOnPod(frrPod, workerAddress, frrMasterIPs[index])
 					Expect(err).ToNot(HaveOccurred(), buffer.String())
 				}
+
 				By("Adding static routes to the speakers")
+
 				for _, frrk8sPod := range frrk8sPods {
 					out, err := netenv.SetStaticRoute(frrk8sPod, "add", masterClientPodIP,
 						frrconfig.ContainerName, speakerRoutesMap)
@@ -345,6 +370,7 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 				}
 
 				By("Validating the service BGP statuses")
+
 				if externalTrafficPolicy == corev1.ServiceExternalTrafficPolicyTypeCluster {
 					validateServiceBGPStatus(
 						workerNodeList, tsparams.MetallbServiceName, tsparams.TestNamespaceName, []string{tsparams.BgpPeerName1})
@@ -361,12 +387,14 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 				validateBGPSessionState("Established", "Up", masterClientPodIP, workerNodeList)
 
 				By("Running http check")
+
 				httpOutput, err := mlbcmd.Curl(frrPod, masterClientPodIP, addressPool[0], ipStack, tsparams.FRRSecondContainerName)
 				Expect(err).ToNot(HaveOccurred(), httpOutput)
 
 				testBFDFailOver(masterClientPodIP)
 
 				By("Running http check after fail-over")
+
 				httpOutput, err = mlbcmd.Curl(frrPod, masterClientPodIP, addressPool[0], ipStack, tsparams.FRRSecondContainerName)
 				// If externalTrafficPolicy is Local, the server pod should be unreachable.
 				switch externalTrafficPolicy {
@@ -375,6 +403,7 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 				case corev1.ServiceExternalTrafficPolicyTypeCluster:
 					Expect(err).ToNot(HaveOccurred(), httpOutput)
 				}
+
 				testBFDFailBack(masterClientPodIP)
 			},
 
@@ -395,7 +424,6 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 				reportxml.SetProperty("IPStack", netparam.IPV4Family),
 				reportxml.SetProperty("TrafficPolicy", "Local")),
 		)
-
 	})
 
 	AfterAll(func() {
@@ -405,13 +433,16 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 		if len(cnfWorkerNodeList) > 2 {
 			removeNodeLabel(workerNodeList, metalLbTestsLabel)
 		}
+
 		By("Cleaning Metallb namespace")
+
 		metalLbNs, err := namespace.Pull(APIClient, NetConfig.MlbOperatorNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Failed to pull metalLb namespace")
 		err = metalLbNs.CleanObjects(tsparams.DefaultTimeout, metallb.GetMetalLbIoGVR())
 		Expect(err).ToNot(HaveOccurred(), "Failed to clean metalLb operator namespace")
 
 		By("Cleaning test namespace")
+
 		err = namespace.NewBuilder(APIClient, tsparams.TestNamespaceName).CleanObjects(
 			tsparams.DefaultTimeout, pod.GetGVR(), nad.GetGVR())
 		Expect(err).ToNot(HaveOccurred(), "Failed to clean test namespace")

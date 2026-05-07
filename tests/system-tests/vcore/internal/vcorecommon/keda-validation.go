@@ -22,6 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/ptr"
 
 	kedav1alpha1 "github.com/kedacore/keda-olm-operator/api/keda/v1alpha1"
 	kedav2v1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
@@ -231,7 +232,7 @@ func VerifyScaleObjectDeployment(ctx SpecContext) {
 
 	endpoints := []monv1.Endpoint{{
 		Port:   "http",
-		Scheme: "http",
+		Scheme: ptr.To(monv1.SchemeHTTP),
 	}}
 
 	_, err = monitoring.NewBuilder(APIClient,

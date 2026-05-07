@@ -16,7 +16,6 @@ import (
 var _ = Describe(
 	"Performing upgrade prep abort flow",
 	Label(tsparams.LabelPrepAbortFlow), func() {
-
 		BeforeEach(func() {
 			By("Fetching target sno cluster name", func() {
 				err := cnfclusterinfo.PreUpgradeClusterInfo.SaveClusterInfo()
@@ -43,9 +42,7 @@ var _ = Describe(
 		})
 
 		It("Upgrade prep abort flow", reportxml.ID("68956"), func() {
-
 			By("Creating IBGU and monitoring IBU status to report completed", func() {
-
 				newIbguBuilder := ibgu.NewIbguBuilder(cnfinittools.TargetHubAPIClient,
 					tsparams.IbguName, tsparams.IbguNamespace).
 					WithClusterLabelSelectors(tsparams.ClusterLabelSelector).
@@ -62,8 +59,6 @@ var _ = Describe(
 
 				_, err = newIbguBuilder.WaitUntilComplete(time.Minute * 10)
 				Expect(err).ToNot(HaveOccurred(), "error waiting for IBGU  complete")
-
 			})
-
 		})
 	})

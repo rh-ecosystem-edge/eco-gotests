@@ -134,7 +134,7 @@ func init() {
 // ReplicatedComplianceHistory defines the replicated policy compliance details history.
 type ReplicatedComplianceHistory struct {
 	LastTimestamp metav1.Time `json:"lastTimestamp,omitempty" protobuf:"bytes,7,opt,name=lastTimestamp"`
-	Message       string      `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
+	Message       string      `json:"message,omitempty"       protobuf:"bytes,4,opt,name=message"`
 }
 
 // ReplicatedDetailsPerTemplate defines the replicated policy compliance details and history.
@@ -153,10 +153,10 @@ type ReplicatedPolicyStatus struct {
 // ViolationContext defines the noncompliant replicated policy information that is sent to the
 // AnsibleJob through the extra_vars parameter.
 type ViolationContext struct {
-	TargetClusters   []string                          `json:"targetClusters" ansibleJob:"target_clusters"`
-	PolicyName       string                            `json:"policyName" ansibleJob:"policy_name"`
-	PolicyNamespace  string                            `json:"policyNamespace" ansibleJob:"policy_namespace"`
-	HubCluster       string                            `json:"hubCluster" ansibleJob:"hub_cluster"`
-	PolicySets       []string                          `json:"policySets" ansibleJob:"policy_sets"`
-	PolicyViolations map[string]ReplicatedPolicyStatus `json:"policyViolations" ansibleJob:"policy_violations"`
+	TargetClusters   []string                          `ansibleJob:"target_clusters"   json:"targetClusters"`
+	PolicyName       string                            `ansibleJob:"policy_name"       json:"policyName"`
+	PolicyNamespace  string                            `ansibleJob:"policy_namespace"  json:"policyNamespace"`
+	HubCluster       string                            `ansibleJob:"hub_cluster"       json:"hubCluster"`
+	PolicySets       []string                          `ansibleJob:"policy_sets"       json:"policySets"`
+	PolicyViolations map[string]ReplicatedPolicyStatus `ansibleJob:"policy_violations" json:"policyViolations"`
 }

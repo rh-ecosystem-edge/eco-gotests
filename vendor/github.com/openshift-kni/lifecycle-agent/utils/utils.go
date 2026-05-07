@@ -31,8 +31,10 @@ import (
 
 	"github.com/go-logr/logr"
 	ibuv1 "github.com/openshift-kni/lifecycle-agent/api/imagebasedupgrade/v1"
+	ipcv1 "github.com/openshift-kni/lifecycle-agent/api/ipconfig/v1"
 	"github.com/openshift-kni/lifecycle-agent/controllers/utils"
 	"github.com/openshift-kni/lifecycle-agent/internal/common"
+	mcfgv1 "github.com/openshift/api/machineconfiguration/v1"
 	cp "github.com/otiai10/copy"
 	"github.com/sirupsen/logrus"
 )
@@ -126,6 +128,19 @@ func CreateKubeClient(scheme *runtime.Scheme, kubeconfig string) (runtimeclient.
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build config from flags for kube client: %w", err)
+	}
+	config.WarningHandler = rest.NoWarnings{}
+	rc, err := runtimeclient.New(config, runtimeclient.Options{Scheme: scheme})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create runtimeclient for kube: %w", err)
+	}
+	return rc, nil
+}
+
+func CreateKubeClientFromBytes(scheme *runtime.Scheme, kubeconfigData []byte) (runtimeclient.Client, error) {
+	config, err := clientcmd.RESTConfigFromKubeConfig(kubeconfigData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build rest config from kubeconfig bytes: %w", err)
 	}
 	config.WarningHandler = rest.NoWarnings{}
 	rc, err := runtimeclient.New(config, runtimeclient.Options{Scheme: scheme})
@@ -255,11 +270,11 @@ func ReplaceImageRegistry(image, targetRegistry, sourceRegistry string) (string,
 	return re.ReplaceAllString(image, targetRegistry), nil
 }
 
-func RemoveListOfFolders(log *logrus.Logger, folders []string) error {
-	for _, folder := range folders {
-		log.Infof("Removing %s folder", folder)
-		if err := os.RemoveAll(folder); err != nil {
-			return fmt.Errorf("failed to remove %s folder: %w", folder, err)
+func RemoveListOfFiles(log *logrus.Logger, files []string) error {
+	for _, file := range files {
+		log.Infof("Removing %s file", file)
+		if err := os.RemoveAll(file); err != nil {
+			return fmt.Errorf("failed to remove %s file: %w", file, err)
 		}
 	}
 	return nil
@@ -319,6 +334,58 @@ func InitIBU(ctx context.Context, c client.Client, log *logr.Logger) error {
 		return fmt.Errorf("failed to remove IBU in %s: %w", filePath, err)
 	}
 	log.Info("Restore successful and saved IBU CR removed")
+	return nil
+}
+
+func InitIPConfig(ctx context.Context, c client.Client, log *logr.Logger) error {
+	savedIPCPath := common.PathOutsideChroot(common.IPCFilePath)
+	restored := false
+	ipc := &ipcv1.IPConfig{}
+	if err := ReadYamlOrJSONFile(savedIPCPath, ipc); err == nil {
+		ipc.SetResourceVersion("")
+		log.Info("Saved IPConfig CR found, restoring ...")
+		if err := c.Delete(ctx, ipc); err != nil {
+			if !k8serrors.IsNotFound(err) {
+				return fmt.Errorf("failed to delete IPConfig during restore: %w", err)
+			}
+		}
+
+		status := ipc.Status
+		if err := c.Create(ctx, ipc); err != nil {
+			return fmt.Errorf("failed to create IPConfig to restore: %w", err)
+		}
+		ipc.Status = status
+		if err := c.Status().Update(ctx, ipc); err != nil {
+			return fmt.Errorf("failed to update IPConfig during restore: %w", err)
+		}
+		if err := os.Remove(savedIPCPath); err != nil {
+			return fmt.Errorf("failed to remove IPC in %s: %w", savedIPCPath, err)
+		}
+		log.Info("Restore successful and saved IPConfig CR removed")
+		restored = true
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
+	if restored {
+		return nil
+	}
+
+	ipc = &ipcv1.IPConfig{
+		ObjectMeta: metav1.ObjectMeta{Name: common.IPConfigName},
+		Spec:       ipcv1.IPConfigSpec{Stage: ipcv1.IPStages.Idle},
+	}
+
+	if err := c.Create(ctx, ipc); err != nil {
+		if k8serrors.IsAlreadyExists(err) {
+			log.Info("IPConfig already exists")
+			return nil
+		}
+		return fmt.Errorf("failed to create IPConfig during init: %w", err)
+	}
+
+	log.Info("Initial IPConfig created")
+
 	return nil
 }
 
@@ -433,4 +500,47 @@ func LoadGroupedManifestsFromPath(basePath string, log *logr.Logger) ([][]*unstr
 	}
 
 	return sortedManifests, nil
+}
+
+// BuildKernelArguementsFromMCOFile reads the kernel arguments from MCO file
+// and builds the string arguments that ostree admin deploy requires
+func BuildKernelArgumentsFromMCOFile(path string) ([]string, error) {
+	mc := &mcfgv1.MachineConfig{}
+	if err := ReadYamlOrJSONFile(path, mc); err != nil {
+		return nil, fmt.Errorf("failed to read and decode machine config json file: %w", err)
+	}
+
+	return BuildKernelArgumentsFromMCOObject(mc)
+}
+
+func BuildKernelArgumentsFromMCOData(data []byte) ([]string, error) {
+	mc := &mcfgv1.MachineConfig{}
+	if err := k8syaml.Unmarshal(data, mc); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal machine config: %w", err)
+	}
+	return BuildKernelArgumentsFromMCOObject(mc)
+}
+
+func BuildKernelArgumentsFromMCOObject(mc *mcfgv1.MachineConfig) ([]string, error) {
+	args := make([]string, len(mc.Spec.KernelArguments)*2)
+	for i, karg := range mc.Spec.KernelArguments {
+		// if we don't marshal the karg, `"` won't appear in the kernel arguments after reboot
+		if val, err := json.Marshal(karg); err != nil {
+			return nil, fmt.Errorf("failed to marshal karg %s: %w", karg, err)
+		} else {
+			args[2*i] = "--karg-append"
+			args[2*i+1] = string(val)
+		}
+	}
+
+	if mc.Spec.FIPS {
+		args = append(args,
+			"--karg-append", "fips=1",
+			// This is needed because /boot is on a separate partition https://access.redhat.com/solutions/137833
+			// TODO: Should we have this regardless of FIPS?
+			"--karg-append", "boot=LABEL=boot",
+		)
+	}
+
+	return args, nil
 }

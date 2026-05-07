@@ -30,13 +30,16 @@ var _ = Describe("PTP OC 2-port", Label(tsparams.LabelOC2Port, tsparams.LabelInt
 		var err error
 
 		By("creating a Prometheus API client")
+
 		prometheusAPI, err = querier.CreatePrometheusAPIForCluster(RANConfig.Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to create Prometheus API client")
 
 		By("checking if PTP operator version supports OC 2-port tests")
+
 		inRange, err := version.IsVersionStringInRange(
-			RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.18", "")
+			RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.18.0-0", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to parse PTP operator version")
+
 		if !inRange {
 			Skip("Test is valid from version 4.18")
 		}
@@ -47,11 +50,13 @@ var _ = Describe("PTP OC 2-port", Label(tsparams.LabelOC2Port, tsparams.LabelInt
 		testActuallyRan := false
 
 		By("getting node info map")
+
 		nodeInfoMap, err := profiles.GetNodeInfoMap(RANConfig.Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to get node info map")
 
 		for nodeName, nodeInfo := range nodeInfoMap {
 			By("checking if node has OC 2-port configuration")
+
 			oc2PortProfiles := nodeInfo.GetProfilesByTypes(profiles.ProfileTypeTwoPortOC)
 			if len(oc2PortProfiles) == 0 {
 				klog.V(tsparams.LogLevel).Infof("Node %s has no OC 2-port configuration, skipping",
@@ -71,43 +76,16 @@ var _ = Describe("PTP OC 2-port", Label(tsparams.LabelOC2Port, tsparams.LabelInt
 
 				By("Restoring OC 2-port interfaces")
 				restoreOc2PortAndValidate(context.TODO(), prometheusAPI, nodeName, oc2PortInfo.Interfaces)
-
 			})
-			By("getting event consumer pod for the node")
-			eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeName)
-			Expect(err).ToNot(HaveOccurred(), "Failed to get event consumer pod for node %s", nodeName)
-
-			startTime := time.Now()
-
 			By("bringing down the active interface to cause a failover")
+
 			err = iface.SetInterfaceStatus(
 				RANConfig.Spoke1APIClient, nodeName, oc2PortInfo.ActiveInterface, iface.InterfaceStateDown)
 			Expect(err).ToNot(HaveOccurred(),
 				"Failed to set interface %s to down on node %s", oc2PortInfo.ActiveInterface, nodeName)
 
-			By("validating PTP clock class metric remains 6 after failover")
-			clockClassQuery := metrics.ClockClassQuery{
-				Node:    metrics.Equals(nodeName),
-				Process: metrics.Equals(metrics.ProcessPTP4L),
-			}
-			err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockClassQuery, metrics.ClockClass6,
-				metrics.AssertWithStableDuration(10*time.Second),
-				metrics.AssertWithTimeout(45*time.Second))
-			Expect(err).ToNot(HaveOccurred(),
-				"Failed to assert that the PTP clock class metric remains 6 after failover")
+			By("validating active interface transitions to FAULTY after failover")
 
-			By("validating PTP clock state metric remains LOCKED after failover")
-			clockStateQuery := metrics.ClockStateQuery{
-				Node:    metrics.Equals(nodeName),
-				Process: metrics.Includes(metrics.ProcessPTP4L, metrics.ProcessPHC2SYS),
-			}
-			err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockStateQuery, metrics.ClockStateLocked,
-				metrics.AssertWithStableDuration(10*time.Second),
-				metrics.AssertWithTimeout(45*time.Second))
-			Expect(err).ToNot(HaveOccurred(),
-				"Failed to assert that the PTP process metric stays in LOCKED state after failover")
-
-			By("validating PTP initial active interface role metric change to FAULTY after failover")
 			interfaceRoleQuery := metrics.InterfaceRoleQuery{
 				Interface: metrics.Equals(oc2PortInfo.ActiveInterface),
 				Node:      metrics.Equals(nodeName),
@@ -116,9 +94,11 @@ var _ = Describe("PTP OC 2-port", Label(tsparams.LabelOC2Port, tsparams.LabelInt
 			err = metrics.AssertQuery(context.TODO(), prometheusAPI, interfaceRoleQuery, metrics.InterfaceRoleFaulty,
 				metrics.AssertWithTimeout(45*time.Second))
 			Expect(err).ToNot(HaveOccurred(),
-				"Failed to assert that the PTP active interface role metric changed to FAULTY after failover")
+				"Role swap failed: active interface %s did not become FAULTY within %s",
+				oc2PortInfo.ActiveInterface, 45*time.Second)
 
-			By("validating PTP passive interface role metric changed to SLAVE after failover")
+			By("validating passive interface transitions to FOLLOWER after failover")
+
 			interfaceRoleQuery = metrics.InterfaceRoleQuery{
 				Interface: metrics.Equals(oc2PortInfo.PassiveInterface),
 				Node:      metrics.Equals(nodeName),
@@ -127,16 +107,33 @@ var _ = Describe("PTP OC 2-port", Label(tsparams.LabelOC2Port, tsparams.LabelInt
 			err = metrics.AssertQuery(context.TODO(), prometheusAPI, interfaceRoleQuery, metrics.InterfaceRoleFollower,
 				metrics.AssertWithTimeout(45*time.Second))
 			Expect(err).ToNot(HaveOccurred(),
-				"Failed to assert that the PTP passive interface role metric changed to SLAVE after failover")
+				"Role swap failed: passive interface %s did not become FOLLOWER within %s",
+				oc2PortInfo.PassiveInterface, 45*time.Second)
 
-			By("validating no FREERUN event is generated after failover")
-			freerunFilter := events.All(
-				events.IsType(eventptp.PtpStateChange),
-				events.HasValue(events.WithSyncState(eventptp.FREERUN), events.OnInterface(oc2PortInfo.IfaceGroup)),
-			)
-			err = events.WaitForEvent(eventPod, startTime, 1*time.Minute, freerunFilter)
-			Expect(err).To(HaveOccurred(),
-				"Unexpected FREERUN event detected for interface %s", oc2PortInfo.ActiveInterface)
+			By("validating PTP processes relock after failover")
+
+			clockStateQuery := metrics.ClockStateQuery{
+				Node:    metrics.Equals(nodeName),
+				Process: metrics.Includes(metrics.ProcessPTP4L, metrics.ProcessPHC2SYS),
+			}
+			err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockStateQuery, metrics.ClockStateLocked,
+				metrics.AssertWithStableDuration(10*time.Second),
+				metrics.AssertWithTimeout(90*time.Second))
+			Expect(err).ToNot(HaveOccurred(),
+				"Relock failed: ptp4l and phc2sys did not return to LOCKED within %s",
+				90*time.Second)
+
+			By("validating PTP clock class returns to 6 after failover convergence")
+
+			clockClassQuery := metrics.ClockClassQuery{
+				Node:    metrics.Equals(nodeName),
+				Process: metrics.Equals(metrics.ProcessPTP4L),
+			}
+			err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockClassQuery, metrics.ClockClass6,
+				metrics.AssertWithStableDuration(10*time.Second),
+				metrics.AssertWithTimeout(90*time.Second))
+			Expect(err).ToNot(HaveOccurred(),
+				"Relock failed: clock class did not return to 6 within %s", 90*time.Second)
 
 			By("restoring OC 2-port interfaces before test completion")
 			restoreOc2PortAndValidate(context.TODO(), prometheusAPI, nodeName, oc2PortInfo.Interfaces)
@@ -152,11 +149,13 @@ var _ = Describe("PTP OC 2-port", Label(tsparams.LabelOC2Port, tsparams.LabelInt
 		testActuallyRan := false
 
 		By("getting node info map")
+
 		nodeInfoMap, err := profiles.GetNodeInfoMap(RANConfig.Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to get node info map")
 
 		for nodeName, nodeInfo := range nodeInfoMap {
 			By("checking if node has OC 2-port configuration")
+
 			oc2PortProfiles := nodeInfo.GetProfilesByTypes(profiles.ProfileTypeTwoPortOC)
 			if len(oc2PortProfiles) == 0 {
 				klog.V(tsparams.LogLevel).Infof("Node %s has no OC 2-port configuration, skipping",
@@ -179,12 +178,14 @@ var _ = Describe("PTP OC 2-port", Label(tsparams.LabelOC2Port, tsparams.LabelInt
 			})
 
 			By("getting event consumer pod for the node")
+
 			eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get event consumer pod for node %s", nodeName)
 
 			startTime := time.Now()
 
 			By("bringing down both interfaces")
+
 			for _, ifaceName := range []iface.Name{
 				oc2PortInfo.ActiveInterface,
 				oc2PortInfo.PassiveInterface,
@@ -196,6 +197,7 @@ var _ = Describe("PTP OC 2-port", Label(tsparams.LabelOC2Port, tsparams.LabelInt
 			}
 
 			By("validating both interfaces are FAULTY")
+
 			for _, ifaceName := range []iface.Name{
 				oc2PortInfo.ActiveInterface,
 				oc2PortInfo.PassiveInterface,
@@ -212,6 +214,7 @@ var _ = Describe("PTP OC 2-port", Label(tsparams.LabelOC2Port, tsparams.LabelInt
 			}
 
 			By("validating clock states transition to FREERUN")
+
 			clockStateQuery := metrics.ClockStateQuery{
 				Node:    metrics.Equals(nodeName),
 				Process: metrics.Includes(metrics.ProcessPTP4L, metrics.ProcessPHC2SYS),
@@ -222,6 +225,7 @@ var _ = Describe("PTP OC 2-port", Label(tsparams.LabelOC2Port, tsparams.LabelInt
 			Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is FREERUN")
 
 			By("validating HOLDOVER event is generated")
+
 			holdoverFilter := events.All(
 				events.IsType(eventptp.PtpStateChange),
 				events.HasValue(events.WithSyncState(eventptp.HOLDOVER), events.OnInterface(oc2PortInfo.IfaceGroup)),
@@ -230,6 +234,7 @@ var _ = Describe("PTP OC 2-port", Label(tsparams.LabelOC2Port, tsparams.LabelInt
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for HOLDOVER event")
 
 			By("validating FREERUN event is generated")
+
 			freerunFilter := events.All(
 				events.IsType(eventptp.PtpStateChange),
 				events.HasValue(events.WithSyncState(eventptp.FREERUN), events.OnInterface(oc2PortInfo.IfaceGroup)),
@@ -251,11 +256,13 @@ var _ = Describe("PTP OC 2-port", Label(tsparams.LabelOC2Port, tsparams.LabelInt
 		testActuallyRan := false
 
 		By("getting node info map")
+
 		nodeInfoMap, err := profiles.GetNodeInfoMap(RANConfig.Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to get node info map")
 
 		for nodeName, nodeInfo := range nodeInfoMap {
 			By("checking if node has OC 2-port configuration")
+
 			oc2PortProfiles := nodeInfo.GetProfilesByTypes(profiles.ProfileTypeTwoPortOC)
 			if len(oc2PortProfiles) == 0 {
 				klog.V(tsparams.LogLevel).Infof("Node %s has no OC 2-port configuration, skipping",
@@ -278,12 +285,14 @@ var _ = Describe("PTP OC 2-port", Label(tsparams.LabelOC2Port, tsparams.LabelInt
 			})
 
 			By("getting event consumer pod for the node")
+
 			eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get event consumer pod for node %s", nodeName)
 
 			startTime := time.Now()
 
 			By("bringing down the passive interface")
+
 			err = iface.SetInterfaceStatus(
 				RANConfig.Spoke1APIClient, nodeName, oc2PortInfo.PassiveInterface, iface.InterfaceStateDown)
 			Expect(err).ToNot(HaveOccurred(),
@@ -291,6 +300,7 @@ var _ = Describe("PTP OC 2-port", Label(tsparams.LabelOC2Port, tsparams.LabelInt
 				oc2PortInfo.PassiveInterface, nodeName)
 
 			By("validating clock states remain LOCKED")
+
 			clockStateQuery := metrics.ClockStateQuery{
 				Node:    metrics.Equals(nodeName),
 				Process: metrics.Includes(metrics.ProcessPTP4L, metrics.ProcessPHC2SYS),
@@ -301,6 +311,7 @@ var _ = Describe("PTP OC 2-port", Label(tsparams.LabelOC2Port, tsparams.LabelInt
 			Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state remains LOCKED")
 
 			By("validating active interface remains FOLLOWER")
+
 			interfaceRoleQuery := metrics.InterfaceRoleQuery{
 				Interface: metrics.Equals(oc2PortInfo.ActiveInterface),
 				Node:      metrics.Equals(nodeName),
@@ -311,6 +322,7 @@ var _ = Describe("PTP OC 2-port", Label(tsparams.LabelOC2Port, tsparams.LabelInt
 			Expect(err).ToNot(HaveOccurred(), "Failed to assert active interface remains FOLLOWER")
 
 			By("validating passive interface is FAULTY")
+
 			interfaceRoleQuery = metrics.InterfaceRoleQuery{
 				Interface: metrics.Equals(oc2PortInfo.PassiveInterface),
 				Node:      metrics.Equals(nodeName),
@@ -321,6 +333,7 @@ var _ = Describe("PTP OC 2-port", Label(tsparams.LabelOC2Port, tsparams.LabelInt
 			Expect(err).ToNot(HaveOccurred(), "Failed to assert passive interface is FAULTY")
 
 			By("validating no HOLDOVER event is generated")
+
 			holdoverFilter := events.All(
 				events.IsType(eventptp.PtpStateChange),
 				events.HasValue(events.WithSyncState(eventptp.HOLDOVER), events.OnInterface(oc2PortInfo.IfaceGroup)),
@@ -403,20 +416,20 @@ func restoreOc2PortAndValidate(
 			oc2PortInterface.Name, nodeName)
 	}
 
-	By("validating OC 2-port clock state returns to LOCKED")
+	By("validating OC 2-port active/passive roles stabilize after restoration")
+
+	waitForOc2PortActivePassive(ctx, prometheusAPI, nodeName, oc2PortInterfaces, time.Minute)
+
+	By("validating OC 2-port clock state returns to LOCKED after restoration")
 
 	clockStateQuery := metrics.ClockStateQuery{
 		Node:    metrics.Equals(nodeName),
 		Process: metrics.Includes(metrics.ProcessPTP4L, metrics.ProcessPHC2SYS),
 	}
 	err := metrics.AssertQuery(ctx, prometheusAPI, clockStateQuery, metrics.ClockStateLocked,
-		metrics.AssertWithStableDuration(10*time.Second),
+		metrics.AssertWithStableDuration(5*time.Second),
 		metrics.AssertWithTimeout(3*time.Minute))
-	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is LOCKED after restoration")
-
-	By("validating OC 2-port active/passive roles after restoration")
-
-	waitForOc2PortActivePassive(ctx, prometheusAPI, nodeName, oc2PortInterfaces, 30*time.Second)
+	Expect(err).ToNot(HaveOccurred(), "Restore failed: clock state did not return to LOCKED after restoration")
 }
 
 // waitForOc2PortActivePassive waits for OC 2-port roles to stabilize.

@@ -2,6 +2,7 @@ package cnfclusterinfo
 
 import (
 	"errors"
+	"slices"
 	"strings"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
@@ -14,7 +15,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/cnf/internal/cnfinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/cnf/internal/cnfparams"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/strings/slices"
 )
 
 var (

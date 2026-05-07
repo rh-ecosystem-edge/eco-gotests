@@ -52,7 +52,7 @@ jobs:
       # and just overwrite every run.
       - name: Restore report cache
         continue-on-error: true
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: report-cache
           path: ${{ env.XDG_CACHE_HOME }}/eco-gotests
@@ -66,12 +66,12 @@ jobs:
 
       - name: Upload generated report as artifact
         id: upload-pages
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: ./report
 
       - name: Save report cache
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: report-cache
           overwrite: true
@@ -93,4 +93,4 @@ jobs:
     steps:
       - name: Deploy to GitHub pages
         id: upload-pages
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

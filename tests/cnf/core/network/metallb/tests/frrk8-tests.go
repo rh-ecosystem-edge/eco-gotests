@@ -56,6 +56,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 
 	BeforeAll(func() {
 		By("Checking if cluster is SNO")
+
 		if IsSNO {
 			Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers")
 		}
@@ -71,7 +72,6 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 	})
 
 	Context("IBGP Single hop", func() {
-
 		var (
 			nodeAddrList       []string
 			addressPool        []string
@@ -83,6 +83,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 
 		BeforeAll(func() {
 			By("Setting test iteration parameters")
+
 			_, _, _, nodeAddrList, addressPool, _, err =
 				metallbenv.DefineIterationParams(
 					ipv4metalLbIPList, ipv6metalLbIPList, ipv4NodeAddrList, ipv6NodeAddrList, netparam.IPV4Family)
@@ -99,11 +100,13 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 				prefixToFilter := externalAdvertisedIPv4Routes[1]
 
 				By("Creating a new instance of MetalLB Speakers on workers")
+
 				err = metallbenv.CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(tsparams.DefaultTimeout, workerLabelMap)
 				Expect(err).ToNot(HaveOccurred(), "Failed to recreate metalLb daemonset")
 
 				By("Verifying that the frrk8sPod deployment is in Ready state and create a list of the pods on " +
 					"worker nodes.")
+
 				frrk8sPods = verifyAndCreateFRRk8sPodList()
 
 				frrPod := deployTestPods(addressPool, hubIPv4ExternalAddresses, externalAdvertisedIPv4Routes,
@@ -142,13 +145,14 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 
 		It("Verify that when the allow all mode is configured all routes are received on the FRR speaker",
 			reportxml.ID("74273"), func() {
-
 				By("Creating a new instance of MetalLB Speakers on workers")
+
 				err = metallbenv.CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(tsparams.DefaultTimeout, workerLabelMap)
 				Expect(err).ToNot(HaveOccurred(), "Failed to recreate metalLb daemonset")
 
 				By("Verifying that the frrk8sPod deployment is in Ready state and create a list of the pods on " +
 					"worker nodes.")
+
 				frrk8sPods = verifyAndCreateFRRk8sPodList()
 
 				frrPod := deployTestPods(addressPool, hubIPv4ExternalAddresses, externalAdvertisedIPv4Routes,
@@ -183,13 +187,14 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 
 		It("Verify that a FRR speaker can be updated by merging two different FRRConfigurations",
 			reportxml.ID("74274"), func() {
-
 				By("Creating a new instance of MetalLB Speakers on workers")
+
 				err = metallbenv.CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(tsparams.DefaultTimeout, workerLabelMap)
 				Expect(err).ToNot(HaveOccurred(), "Failed to recreate metalLb daemonset")
 
 				By("Verifying that the frrk8sPod deployment is in Ready state and create a list of the pods on " +
 					"worker nodes.")
+
 				frrk8sPods = verifyAndCreateFRRk8sPodList()
 
 				frrPod := deployTestPods(addressPool, hubIPv4ExternalAddresses, externalAdvertisedIPv4Routes,
@@ -236,8 +241,8 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 
 		It("Verify that a FRR speaker rejects a contrasting FRRConfiguration merge",
 			reportxml.ID("74275"), func() {
-
 				By("Creating a new instance of MetalLB Speakers on workers")
+
 				err = metallbenv.CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(tsparams.DefaultTimeout, workerLabelMap)
 				Expect(err).ToNot(HaveOccurred(), "Failed to recreate metalLb daemonset")
 
@@ -257,8 +262,8 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 
 		It("Verify that the BGP status is correctly updated in the FRRNodeState",
 			reportxml.ID("74280"), func() {
-
 				By("Creating a new instance of MetalLB Speakers on workers")
+
 				err = metallbenv.CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(tsparams.DefaultTimeout, workerLabelMap)
 				Expect(err).ToNot(HaveOccurred(), "Failed to recreate metalLb daemonset")
 
@@ -313,7 +318,6 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 	})
 
 	Context("BGP Multihop", func() {
-
 		var (
 			frrk8sPods        []*pod.Builder
 			masterClientPodIP string
@@ -323,24 +327,29 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 
 		BeforeEach(func() {
 			By("Cleaning up any existing NMState policies from previous test runs")
+
 			err := nmstate.CleanAllNMStatePolicies(APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Failed to clean up NMState policies")
 
 			By("Creating a new instance of MetalLB Speakers on workers")
+
 			err = metallbenv.CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(tsparams.DefaultTimeout, workerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "Failed to recreate metalLb daemonset")
 
 			By("Verifying that the frrk8sPod deployment is in Ready state and create a list of the pods on " +
 				"worker nodes.")
+
 			frrk8sPods = verifyAndCreateFRRk8sPodList()
 
 			By("Setting test iteration parameters")
+
 			masterClientPodIP, _, _, nodeAddrList, addressPool, _, err =
 				metallbenv.DefineIterationParams(
 					ipv4metalLbIPList, ipv6metalLbIPList, ipv4NodeAddrList, ipv6NodeAddrList, netparam.IPV4Family)
 			Expect(err).ToNot(HaveOccurred(), "Fail to set iteration parameters")
 
 			By("Creating an IPAddressPool and BGPAdvertisement")
+
 			ipAddressPool := setupBgpAdvertisementAndIPAddressPool(
 				tsparams.BGPAdvAndAddressPoolName, addressPool, netparam.IPSubnetInt32)
 			validateAddressPool(tsparams.BGPAdvAndAddressPoolName, mlbtypes.IPAddressPoolStatus{
@@ -377,6 +386,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 
 		AfterEach(func() {
 			By("Removing static routes from the speakers")
+
 			frrk8sPods = verifyAndCreateFRRk8sPodList()
 			speakerRoutesMap, err := netenv.BuildRoutesMapWithSpecificRoutes(frrk8sPods, workerNodeList,
 				[]string{ipv4metalLbIPList[0], ipv4metalLbIPList[1], frrNodeSecIntIPv4Addresses[0], frrNodeSecIntIPv4Addresses[1]})
@@ -392,6 +402,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 			removeSecondaryIPsFromWorkerNodes(workerNodeList, frrNodeSecIntIPv4Addresses, frrNodeSecIntIPv6Addresses)
 
 			By("Removing NMState policies")
+
 			err = nmstate.CleanAllNMStatePolicies(APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Failed to remove all NMState policies")
 
@@ -401,8 +412,8 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 
 		It("Validate a FRR node receives and sends IPv4 and IPv6 routes from an IBGP multihop FRR instance",
 			reportxml.ID("74278"), func() {
-
 				By("Adding static routes to the speakers")
+
 				speakerRoutesMap, err := netenv.BuildRoutesMapWithSpecificRoutes(frrk8sPods, workerNodeList,
 					ipv4metalLbIPList)
 				Expect(err).ToNot(HaveOccurred(), "Failed to create route map with specific routes")
@@ -414,29 +425,35 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 				}
 
 				By("Creating External NAD for master FRR pod")
+
 				err = define.CreateExternalNad(APIClient, frrconfig.ExternalMacVlanNADName, tsparams.TestNamespaceName)
 				Expect(err).ToNot(HaveOccurred(), "Failed to create a network-attachment-definition")
 
 				By("Creating External NAD for hub FRR pods")
+
 				err = define.CreateExternalNad(APIClient, tsparams.HubMacVlanNADName, tsparams.TestNamespaceName)
 				Expect(err).ToNot(HaveOccurred(), "Failed to create a network-attachment-definition")
 
 				By("Creating static ip annotation for hub0")
+
 				hub0BRstaticIPAnnotation := frrconfig.CreateStaticIPAnnotations(frrconfig.ExternalMacVlanNADName,
 					tsparams.HubMacVlanNADName,
 					[]string{fmt.Sprintf("%s/%s", ipv4metalLbIPList[0], netparam.IPSubnet24)},
 					[]string{fmt.Sprintf("%s/%s", hubIPv4ExternalAddresses[0], netparam.IPSubnet24)})
 
 				By("Creating static ip annotation for hub1")
+
 				hub1BRstaticIPAnnotation := frrconfig.CreateStaticIPAnnotations(frrconfig.ExternalMacVlanNADName,
 					tsparams.HubMacVlanNADName,
 					[]string{fmt.Sprintf("%s/%s", ipv4metalLbIPList[1], netparam.IPSubnet24)},
 					[]string{fmt.Sprintf("%s/%s", hubIPv4ExternalAddresses[1], netparam.IPSubnet24)})
 
 				By("Creating MetalLb Hub pod configMap")
+
 				hubConfigMap := createHubConfigMap("frr-hub-node-config")
 
 				By("Creating FRR Hub pod on worker node 0")
+
 				_ = createFrrHubPod(hubPodWorker0,
 					workerNodeList[0].Object.Name,
 					hubConfigMap.Definition.Name,
@@ -444,6 +461,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 					hub0BRstaticIPAnnotation)
 
 				By("Creating FRR Hub pod on worker node 1")
+
 				_ = createFrrHubPod(hubPodWorker1,
 					workerNodeList[1].Object.Name,
 					hubConfigMap.Definition.Name,
@@ -451,6 +469,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 					hub1BRstaticIPAnnotation)
 
 				By("Creating configmap and MetalLb Master pod")
+
 				frrPod := createMasterFrrPod(tsparams.LocalBGPASN, frrExternalMasterIPAddress, nodeAddrList,
 					hubIPv4ExternalAddresses, externalAdvertisedIPv4Routes,
 					externalAdvertisedIPv6Routes, false)
@@ -486,8 +505,8 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 
 		It("Validate a FRR node receives and sends IPv4 and IPv6 routes from an EBGP multihop FRR instance",
 			reportxml.ID("47279"), func() {
-
 				By("Adding static routes to the speakers")
+
 				speakerRoutesMap, err := netenv.BuildRoutesMapWithSpecificRoutes(frrk8sPods, workerNodeList,
 					ipv4metalLbIPList)
 				Expect(err).ToNot(HaveOccurred(), "Failed to create route map with specific routes")
@@ -499,29 +518,35 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 				}
 
 				By("Creating External NAD for master FRR pod")
+
 				err = define.CreateExternalNad(APIClient, frrconfig.ExternalMacVlanNADName, tsparams.TestNamespaceName)
 				Expect(err).ToNot(HaveOccurred(), "Failed to create a network-attachment-definition")
 
 				By("Creating External NAD for hub FRR pods")
+
 				err = define.CreateExternalNad(APIClient, tsparams.HubMacVlanNADName, tsparams.TestNamespaceName)
 				Expect(err).ToNot(HaveOccurred(), "Failed to create a network-attachment-definition")
 
 				By("Creating static ip annotation for hub0")
+
 				hub0BRstaticIPAnnotation := frrconfig.CreateStaticIPAnnotations(frrconfig.ExternalMacVlanNADName,
 					tsparams.HubMacVlanNADName,
 					[]string{fmt.Sprintf("%s/%s", ipv4metalLbIPList[0], netparam.IPSubnet24)},
 					[]string{fmt.Sprintf("%s/%s", hubIPv4ExternalAddresses[0], netparam.IPSubnet24)})
 
 				By("Creating static ip annotation for hub1")
+
 				hub1BRstaticIPAnnotation := frrconfig.CreateStaticIPAnnotations(frrconfig.ExternalMacVlanNADName,
 					tsparams.HubMacVlanNADName,
 					[]string{fmt.Sprintf("%s/%s", ipv4metalLbIPList[1], netparam.IPSubnet24)},
 					[]string{fmt.Sprintf("%s/%s", hubIPv4ExternalAddresses[1], netparam.IPSubnet24)})
 
 				By("Creating MetalLb Hub pod configMap")
+
 				hubConfigMap := createHubConfigMap("frr-hub-node-config")
 
 				By("Creating FRR Hub pod on worker node 0")
+
 				_ = createFrrHubPod(hubPodWorker0,
 					workerNodeList[0].Object.Name,
 					hubConfigMap.Definition.Name,
@@ -529,6 +554,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 					hub0BRstaticIPAnnotation)
 
 				By("Creating FRR Hub pod on worker node 1")
+
 				_ = createFrrHubPod(hubPodWorker1,
 					workerNodeList[1].Object.Name,
 					hubConfigMap.Definition.Name,
@@ -536,6 +562,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 					hub1BRstaticIPAnnotation)
 
 				By("Creating MetalLb Master pod configMap")
+
 				frrPod := createMasterFrrPod(tsparams.RemoteBGPASN, frrExternalMasterIPAddress, nodeAddrList,
 					hubIPv4ExternalAddresses, externalAdvertisedIPv4Routes,
 					externalAdvertisedIPv6Routes, true)
@@ -569,8 +596,8 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 			})
 		It("Verify Frrk8 iBGP multihop over a secondary interface",
 			reportxml.ID("75248"), func() {
-
 				By("Collecting SR-IOV interface for secondary network")
+
 				srIovInterfacesUnderTest, err := NetConfig.GetSriovInterfaces(1)
 				Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
 
@@ -585,11 +612,13 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 				secondaryInterfaceName := srIovInterfacesUnderTest[0]
 
 				By("Verify secondary interfaces are UP with IP addresses on worker nodes")
+
 				for _, workerNode := range workerNodeList {
 					checkInterfaceExistsOnNode(workerNode.Definition.Name, secondaryInterfaceName)
 				}
 
 				By("Adding static routes to the speakers")
+
 				speakerRoutesMap, err := netenv.BuildRoutesMapWithSpecificRoutes(frrk8sPods, workerNodeList,
 					hubSecIntIPv4Addresses)
 				Expect(err).ToNot(HaveOccurred(), "Failed to create route map with specific routes")
@@ -611,39 +640,47 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 				createExternalNadWithMasterInterface(tsparams.HubMacVlanNADSecIntName, secondaryInterfaceName)
 
 				By("Creating External NAD for master FRR pod")
+
 				err = define.CreateExternalNad(APIClient, frrconfig.ExternalMacVlanNADName, tsparams.TestNamespaceName)
 				Expect(err).ToNot(HaveOccurred(), "Failed to create a network-attachment-definition")
 
 				By("Creating External NAD for hub FRR pods")
+
 				err = define.CreateExternalNad(APIClient, tsparams.HubMacVlanNADName, tsparams.TestNamespaceName)
 				Expect(err).ToNot(HaveOccurred(), "Failed to create a network-attachment-definition")
 
 				By("Creating MetalLb Hub pod configMap")
+
 				createHubConfigMapSecInt := createHubConfigMap("frr-hub-node-config")
 
 				By("Creating static ip annotation for hub0")
+
 				hub0BRStaticSecIntIPAnnotation := frrconfig.CreateStaticIPAnnotations(tsparams.HubMacVlanNADSecIntName,
 					tsparams.HubMacVlanNADName,
 					[]string{fmt.Sprintf("%s/%s", hubSecIntIPv4Addresses[0], netparam.IPSubnet24)},
 					[]string{fmt.Sprintf("%s/%s", hubIPv4ExternalAddresses[0], netparam.IPSubnet24)})
 
 				By("Creating static ip annotation for hub1")
+
 				hub1SecIntIPAnnotation := frrconfig.CreateStaticIPAnnotations(tsparams.HubMacVlanNADSecIntName,
 					tsparams.HubMacVlanNADName,
 					[]string{fmt.Sprintf("%s/%s", hubSecIntIPv4Addresses[1], netparam.IPSubnet24)},
 					[]string{fmt.Sprintf("%s/%s", hubIPv4ExternalAddresses[1], netparam.IPSubnet24)})
 
 				By("Creating FRR Hub pod on worker node 0")
+
 				_ = createFrrHubPod(hubPodWorker0,
 					workerNodeList[0].Object.Name, createHubConfigMapSecInt.Definition.Name, netparam.IPForwardAndSleepCmd,
 					hub0BRStaticSecIntIPAnnotation)
 
 				By("Creating FRR Hub pod on worker node 1")
+
 				_ = createFrrHubPod(hubPodWorker1,
 					workerNodeList[1].Object.Name, createHubConfigMapSecInt.Definition.Name, netparam.IPForwardAndSleepCmd,
 					hub1SecIntIPAnnotation)
 
 				By("Creating MetalLb Master pod configMap")
+
 				frrPod := createMasterFrrPod(tsparams.LocalBGPASN, frrExternalMasterIPAddress, frrNodeSecIntIPv4Addresses,
 					hubIPv4ExternalAddresses, externalAdvertisedIPv4Routes,
 					externalAdvertisedIPv6Routes, false)
@@ -688,6 +725,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 			enableOVNKRouteAdvertisements()
 
 			By("Setting test iteration parameters")
+
 			_, _, _, nodeAddrList, addressPool, _, err =
 				metallbenv.DefineIterationParams(
 					ipv4metalLbIPList, ipv6metalLbIPList, ipv4NodeAddrList, ipv6NodeAddrList, netparam.IPV4Family)
@@ -709,13 +747,14 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 
 		It("Verify OVN-K RouteAdvertisement advertises pod network routes to external FRR",
 			reportxml.ID("86912"), func() {
-
 				By("Creating a new instance of MetalLB Speakers on workers")
+
 				err = metallbenv.CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(tsparams.DefaultTimeout, workerLabelMap)
 				Expect(err).ToNot(HaveOccurred(), "Failed to recreate metalLb daemonset")
 
 				By("Verifying that the frrk8sPod deployment is in Ready state and create a list of the pods on " +
 					"worker nodes.")
+
 				frrk8sPods = verifyAndCreateFRRk8sPodList()
 
 				frrPod := deployTestPods(addressPool, hubIPv4ExternalAddresses, externalAdvertisedIPv4Routes,
@@ -749,7 +788,6 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 				verifyOVNKPodNetworkRoutesReceived(frrPod)
 			})
 	})
-
 })
 
 func deployTestPods(addressPool, hubIPAddresses, externalAdvertisedIPv4Routes,

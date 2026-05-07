@@ -46,14 +46,15 @@ var _ = Describe(
 	Label(tsparams.LabelHTTPWebserverSetup), Label("disruptive"), func() {
 		Describe("Skipping TLS Verification", Ordered, Label(tsparams.LabelHTTPWebserverSetup), func() {
 			BeforeAll(func() {
-
 				By("Validating that the environment is connected")
+
 				connectionReq, msg := meets.HubConnectedRequirement()
 				if !connectionReq {
 					Skip(msg)
 				}
 
 				By("Validating that the environment is IPv4")
+
 				singeStackIpv4Req, msg := meets.HubSingleStackIPv4Requirement()
 				if !singeStackIpv4Req {
 					Skip(msg)
@@ -62,6 +63,7 @@ var _ = Describe(
 				tsparams.ReporterNamespacesToDump[nsname] = "httpdtest namespace"
 
 				By("Creating httpd-test namespace")
+
 				testNS, err := namespace.NewBuilder(HubAPIClient, nsname).Create()
 				Expect(err).ToNot(HaveOccurred(), "error creating namespace")
 
@@ -69,6 +71,7 @@ var _ = Describe(
 				Expect(err).ToNot(HaveOccurred(), "error parsing persistentvolume quantity")
 
 				By("Create persistent volume claim for test")
+
 				httpsPVC = storage.NewPVCBuilder(HubAPIClient, "https-webserver-pvc", nsname)
 				httpsPVC.Definition.Spec = corev1.PersistentVolumeClaimSpec{
 					AccessModes: []corev1.PersistentVolumeAccessMode{
@@ -86,6 +89,7 @@ var _ = Describe(
 				Expect(err).ToNot(HaveOccurred(), "error creating persistent volume claim")
 
 				By("Starting the https-webserver pod running an httpd container")
+
 				httpPodBuilder = pod.NewBuilder(HubAPIClient, serverName, testNS.Definition.Name,
 					httpdContainerImage).WithLabel("app", serverName).WithVolume(corev1.Volume{
 					Name: "https-volume",
@@ -116,16 +120,20 @@ var _ = Describe(
 				})
 
 				By("Creating the pod on the cluster")
+
 				httpPodBuilder, err = httpPodBuilder.CreateAndWaitUntilRunning(time.Second * 180)
 				Expect(err).ToNot(HaveOccurred(), "error creating pod on cluster")
 
 				By("Create a service for the pod")
+
 				serviceBuilder, err := service.NewBuilder(HubAPIClient, serverName, testNS.Definition.Name,
 					map[string]string{"app": serverName}, corev1.ServicePort{Port: containerPort, Protocol: "TCP"}).Create()
 				Expect(err).ToNot(HaveOccurred(), "error creating service")
 
 				By("Downloading osImage to new mirror")
+
 				var imageName string
+
 				for _, image := range ZTPConfig.HubAgentServiceConfig.Object.Spec.OSImages {
 					if image.OpenshiftVersion == version {
 						testOSImage = image
@@ -142,12 +150,14 @@ var _ = Describe(
 				}
 
 				By("Deleting old agentserviceconfig")
+
 				testOSImage.Url = fmt.Sprintf("https://%s.%s.svc.cluster.local:%d/%s",
 					serviceBuilder.Object.Name, serviceBuilder.Object.Namespace, containerPort, imageName)
 				err = ZTPConfig.HubAgentServiceConfig.DeleteAndWait(time.Second * 20)
 				Expect(err).ToNot(HaveOccurred(), "could not delete agentserviceconfig")
 
 				By("Creating agentserviceconfig with annotation and osImages pointing to new mirror")
+
 				newAgentServiceConfig = assisted.NewDefaultAgentServiceConfigBuilder(HubAPIClient).WithOSImage(testOSImage)
 				newAgentServiceConfig.Definition.ObjectMeta.Annotations =
 					map[string]string{"unsupported.agent-install.openshift.io/assisted-image-service-skip-verify-tls": "true"}
@@ -166,24 +176,29 @@ var _ = Describe(
 
 			AfterAll(func() {
 				By("Deleting test pod")
+
 				_, err = httpPodBuilder.DeleteAndWait(time.Second * 60)
 				Expect(err).ToNot(HaveOccurred(), "could not delete pod")
 
 				By("Deleting persistent volume claim")
+
 				err = httpsPVC.DeleteAndWait(time.Second * 60)
 				Expect(err).ToNot(HaveOccurred(), "could not delete persistentvolumeclaim")
 
 				By("Deleting test namespace")
+
 				ns, err := namespace.Pull(HubAPIClient, nsname)
 				Expect(err).ToNot(HaveOccurred(), "could not pull namespace")
 				err = ns.DeleteAndWait(time.Second * 120)
 				Expect(err).ToNot(HaveOccurred(), "could not delete namespace")
 
 				By("Deleting the test agentserviceconfig")
+
 				err = newAgentServiceConfig.DeleteAndWait(time.Second * 120)
 				Expect(err).ToNot(HaveOccurred(), "could not delete agentserviceconfig")
 
 				By("Restoring the original agentserviceconfig")
+
 				_, err = ZTPConfig.HubAgentServiceConfig.Create()
 				Expect(err).ToNot(HaveOccurred(), "could not reinstate original agentserviceconfig")
 
@@ -205,6 +220,7 @@ var _ = Describe(
 				}
 
 				validOSImage := false
+
 				for _, image := range ZTPConfig.HubAgentServiceConfig.Object.Spec.OSImages {
 					if strings.Contains(image.Url, "https") {
 						validOSImage = true
@@ -223,5 +239,4 @@ var _ = Describe(
 				Expect(ok).To(BeTrue(), msg)
 			})
 		})
-
 	})

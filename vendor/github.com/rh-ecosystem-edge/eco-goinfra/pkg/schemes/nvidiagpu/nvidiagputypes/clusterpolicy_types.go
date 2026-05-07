@@ -94,6 +94,8 @@ type ClusterPolicySpec struct {
 	CCManager CCManagerSpec `json:"ccManager,omitempty"`
 	// HostPaths defines various paths on the host needed by GPU Operator components
 	HostPaths HostPathsSpec `json:"hostPaths,omitempty"`
+	// KataSandboxDevicePlugin component spec
+	KataSandboxDevicePlugin KataDevicePluginSpec `json:"kataSandboxDevicePlugin,omitempty"`
 }
 
 // Runtime defines container runtime type
@@ -124,11 +126,67 @@ func (r Runtime) String() string {
 	}
 }
 
+// SandboxWorkloadsMode defines the mode for sandbox workloads
+type SandboxWorkloadsMode string
+
+const (
+	// KubeVirt is the SandboxWorkloadsMode value for enabling KubeVirt based workloads
+	KubeVirt SandboxWorkloadsMode = "kubevirt"
+	// Kata is the SandboxWorkloadsMode value for enabling Kata Container based workloads
+	Kata SandboxWorkloadsMode = "kata"
+)
+
+// ServiceMonitorConfig defines configuration options for the ServiceMonitor
+// deployed for NVIDIA GPU Operator resources
+type ServiceMonitorConfig struct {
+	// Enabled indicates if ServiceMonitor is deployed
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Enable deployment of ServiceMonitor"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Interval at which metrics should be scraped. If not specified, Prometheus’ global scrape interval is used.
+	// Supported units: y, w, d, h, m, s, ms
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Interval at which metrics should be scraped"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:text"
+	Interval promv1.Duration `json:"interval,omitempty"`
+
+	// ScrapeTimeout to use when scraping metrics. Must not be greater than Interval.
+	// If not specified, Prometheus' global scrape timeout is used.
+	// Supported units: y, w, d, h, m, s, ms
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Scrape timeout"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:text"
+	ScrapeTimeout promv1.Duration `json:"scrapeTimeout,omitempty"`
+
+	// HonorLabels chooses the metric’s labels on collisions with target labels.
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Choose the metric's label on collisions with target labels"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	HonorLabels *bool `json:"honorLabels,omitempty"`
+
+	// AdditionalLabels to add to ServiceMonitor instance
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Additional labels to add to ServiceMonitor instance"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:text"
+	AdditionalLabels map[string]string `json:"additionalLabels,omitempty"`
+
+	// Relabelings allows to rewrite labels on metric sets
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Relabelings allows to rewrite labels on metric sets"
+	Relabelings []*promv1.RelabelConfig `json:"relabelings,omitempty"`
+}
+
+// The Alias for backward compatibility
+// This points the old name to the new struct definition
+type DCGMExporterServiceMonitorConfig = ServiceMonitorConfig
+
 // OperatorSpec describes configuration options for the operator
 type OperatorSpec struct {
-	// +kubebuilder:validation:Enum=docker;crio;containerd
-	// +kubebuilder:default=docker
-	DefaultRuntime Runtime `json:"defaultRuntime"`
+	// Deprecated: DefaultRuntime is no longer used by the gpu-operator. This is instead, detected at runtime.
+	// +optional
+	DefaultRuntime Runtime `json:"defaultRuntime,omitempty"`
 	// +kubebuilder:default=nvidia
 	RuntimeClass  string            `json:"runtimeClass,omitempty"`
 	InitContainer InitContainerSpec `json:"initContainer,omitempty"`
@@ -143,11 +201,21 @@ type OperatorSpec struct {
 	// queryable and should be preserved when modifying objects.
 	Annotations map[string]string `json:"annotations,omitempty"`
 
+	// Metrics configuration for NVIDIA GPU Operator
+	Metrics OperatorMetricsSpec `json:"metrics,omitempty"`
+
 	// UseOpenShiftDriverToolkit indicates if DriverToolkit image should be used on OpenShift to build and install driver modules
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="On OpenShift, enable DriverToolkit image to build and install driver modules"
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
 	UseOpenShiftDriverToolkit *bool `json:"use_ocp_driver_toolkit,omitempty"`
+}
+
+type OperatorMetricsSpec struct {
+	// Optional: ServiceMonitor configuration for NVIDIA GPU Operator
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="ServiceMonitor configuration for NVIDIA GPU Operator"
+	ServiceMonitor *ServiceMonitorConfig `json:"serviceMonitor,omitempty"`
 }
 
 // HostPathsSpec defines various paths on the host needed by GPU Operator components
@@ -162,6 +230,11 @@ type HostPathsSpec struct {
 	// DriverInstallDir represents the root at which driver files including libraries,
 	// config files, and executables can be found.
 	DriverInstallDir string `json:"driverInstallDir,omitempty"`
+
+	// KubeletRootDir represents the location of the kubelet root directory.
+	// If empty, it will default to "/var/lib/kubelet".
+	// +kubebuilder:default="/var/lib/kubelet"
+	KubeletRootDir string `json:"kubeletRootDir,omitempty"`
 }
 
 // EnvVar represents an environment variable present in a Container.
@@ -197,6 +270,11 @@ type SandboxWorkloadsSpec struct {
 	// +kubebuilder:validation:Enum=container;vm-passthrough;vm-vgpu
 	// +kubebuilder:default=container
 	DefaultWorkload string `json:"defaultWorkload,omitempty"`
+	// Mode indicates the sandbox mode. Accepted values are "kubevirt"
+	// and "kata". The default value is "kubevirt".
+	// +kubebuilder:validation:Enum=kubevirt;kata
+	// +kubebuilder:default=kubevirt
+	Mode string `json:"mode,omitempty"`
 }
 
 // PSPSpec describes configuration for PodSecurityPolicies to apply for all Pods
@@ -245,6 +323,9 @@ type DaemonsetsSpec struct {
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Rolling update configuration for all DaemonSet pods"
 	RollingUpdate *RollingUpdateSpec `json:"rollingUpdate,omitempty"`
+
+	// Optional: Set pod-level security context for all DaemonSet pods (applies as defaults to all containers)
+	PodSecurityContext *corev1.PodSecurityContext `json:"podSecurityContext,omitempty"`
 }
 
 // Deprecated: InitContainerSpec describes configuration for initContainer image used with all components
@@ -337,6 +418,13 @@ type ValidatorSpec struct {
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Environment Variables"
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:advanced,urn:alm:descriptor:com.tectonic.ui:text"
 	Env []EnvVar `json:"env,omitempty"`
+
+	// HostNetwork indicates whether the Validator pod uses the host's network namespace.
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Enable hostNetwork for NVIDIA Operator Validator"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	HostNetwork *bool `json:"hostNetwork,omitempty"`
 }
 
 // PluginValidatorSpec defines validator spec for NVIDIA Device Plugin
@@ -595,6 +683,13 @@ type DriverSpec struct {
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Name of the Kubernetes Secret with secret environment variables for the NVIDIA Driver"
 	SecretEnv string `json:"secretEnv,omitempty"`
+
+	// HostNetwork indicates whether the Driver pod uses the host's network namespace.
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Enable hostNetwork for NVIDIA Driver"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	HostNetwork *bool `json:"hostNetwork,omitempty"`
 }
 
 // VGPUManagerSpec defines the properties for the NVIDIA vGPU Manager deployment
@@ -656,6 +751,13 @@ type VGPUManagerSpec struct {
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Kernel module configuration parameters for the vGPU manager"
 	KernelModuleConfig *KernelModuleConfigSpec `json:"kernelModuleConfig,omitempty"`
+
+	// HostNetwork indicates whether the vGPU Manager pod uses the host's network namespace.
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Enable hostNetwork for NVIDIA vGPU Manager"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	HostNetwork *bool `json:"hostNetwork,omitempty"`
 }
 
 // ToolkitSpec defines the properties for NVIDIA Container Toolkit deployment
@@ -717,6 +819,13 @@ type ToolkitSpec struct {
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Toolkit install directory on the host"
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:text"
 	InstallDir string `json:"installDir,omitempty"`
+
+	// HostNetwork indicates whether the Container Toolkit pod uses the host's network namespace.
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Enable hostNetwork for NVIDIA Container Toolkit"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	HostNetwork *bool `json:"hostNetwork,omitempty"`
 }
 
 // DevicePluginSpec defines the properties for NVIDIA Device Plugin deployment
@@ -780,6 +889,13 @@ type DevicePluginSpec struct {
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="MPS related configuration for the NVIDIA Device Plugin"
 	MPS *MPSConfig `json:"mps,omitempty"`
+
+	// HostNetwork indicates whether the Device Plugin pod uses the host's network namespace.
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Enable hostNetwork for NVIDIA Device Plugin"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	HostNetwork *bool `json:"hostNetwork,omitempty"`
 }
 
 // DevicePluginConfig defines ConfigMap name for NVIDIA Device Plugin config
@@ -860,6 +976,13 @@ type SandboxDevicePluginSpec struct {
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Environment Variables"
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:advanced,urn:alm:descriptor:com.tectonic.ui:text"
 	Env []EnvVar `json:"env,omitempty"`
+
+	// HostNetwork indicates whether the Sandbox Device Plugin pod uses the host's network namespace.
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Enable hostNetwork for NVIDIA Sandbox Device Plugin"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	HostNetwork *bool `json:"hostNetwork,omitempty"`
 }
 
 // DCGMExporterSpec defines the properties for NVIDIA DCGM Exporter deployment
@@ -908,6 +1031,11 @@ type DCGMExporterSpec struct {
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:advanced,urn:alm:descriptor:com.tectonic.ui:text"
 	Args []string `json:"args,omitempty"`
 
+	// Optional: Annotations is an unstructured key value map stored with a resource that may be
+	// set by external tools to store and retrieve arbitrary metadata. They are not
+	// queryable and should be preserved when modifying objects.
+	Annotations map[string]string `json:"annotations,omitempty"`
+
 	// Optional: List of environment variables
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Environment Variables"
@@ -922,7 +1050,7 @@ type DCGMExporterSpec struct {
 	// Optional: ServiceMonitor configuration for NVIDIA DCGM Exporter
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="ServiceMonitor configuration for NVIDIA DCGM Exporter"
-	ServiceMonitor *DCGMExporterServiceMonitorConfig `json:"serviceMonitor,omitempty"`
+	ServiceMonitor *ServiceMonitorConfig `json:"serviceMonitor,omitempty"`
 
 	// Optional: Service configuration for NVIDIA DCGM Exporter
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
@@ -994,40 +1122,6 @@ type DCGMExporterServiceConfig struct {
 	InternalTrafficPolicy *corev1.ServiceInternalTrafficPolicy `json:"internalTrafficPolicy,omitempty"`
 }
 
-// DCGMExporterServiceMonitorConfig defines configuration options for the ServiceMonitor
-// deployed for DCGM Exporter
-type DCGMExporterServiceMonitorConfig struct {
-	// Enabled indicates if ServiceMonitor is deployed for NVIDIA DCGM Exporter
-	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
-	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Enable deployment of NVIDIA DCGM Exporter ServiceMonitor"
-	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
-	Enabled *bool `json:"enabled,omitempty"`
-
-	// Interval which metrics should be scraped from NVIDIA DCGM Exporter. If not specified Prometheus’ global scrape interval is used.
-	// Supported units: y, w, d, h, m, s, ms
-	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
-	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Interval which metrics should be scraped from NVDIA DCGM Exporter"
-	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:text"
-	Interval promv1.Duration `json:"interval,omitempty"`
-
-	// HonorLabels chooses the metric’s labels on collisions with target labels.
-	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
-	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Choose the metric's label on collisions with target labels"
-	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
-	HonorLabels *bool `json:"honorLabels,omitempty"`
-
-	// AdditionalLabels to add to ServiceMonitor instance for NVIDIA DCGM Exporter
-	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
-	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Additional labels to add to ServiceMonitor instance for NVIDIA DCGM Exporter"
-	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:text"
-	AdditionalLabels map[string]string `json:"additionalLabels,omitempty"`
-
-	// Relabelings allows to rewrite labels on metric sets for NVIDIA DCGM Exporter
-	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
-	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Relabelings allows to rewrite labels on metric sets for NVIDIA DCGM Exporter"
-	Relabelings []*promv1.RelabelConfig `json:"relabelings,omitempty"`
-}
-
 // DCGMSpec defines the properties for NVIDIA DCGM deployment
 type DCGMSpec struct {
 	// Enabled indicates if deployment of NVIDIA DCGM Hostengine as a separate pod is enabled.
@@ -1084,6 +1178,13 @@ type DCGMSpec struct {
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Host port to bind for DCGM engine"
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:number"
 	HostPort int32 `json:"hostPort,omitempty"`
+
+	// HostNetwork indicates whether the DCGM pod uses the host's network namespace.
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Enable hostNetwork for NVIDIA DCGM"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	HostNetwork *bool `json:"hostNetwork,omitempty"`
 }
 
 // NodeStatusExporterSpec defines the properties for node-status-exporter state
@@ -1137,6 +1238,13 @@ type NodeStatusExporterSpec struct {
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Environment Variables"
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:advanced,urn:alm:descriptor:com.tectonic.ui:text"
 	Env []EnvVar `json:"env,omitempty"`
+
+	// HostNetwork indicates whether the Node Status Exporter pod uses the host's network namespace.
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Enable hostNetwork for NVIDIA Node Status Exporter"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	HostNetwork *bool `json:"hostNetwork,omitempty"`
 }
 
 // DriverRepoConfigSpec defines custom repo configuration for NVIDIA Driver container
@@ -1259,6 +1367,13 @@ type GPUFeatureDiscoverySpec struct {
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Environment Variables"
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:advanced,urn:alm:descriptor:com.tectonic.ui:text"
 	Env []EnvVar `json:"env,omitempty"`
+
+	// HostNetwork indicates whether the GPU Feature Discovery pod uses the host's network namespace.
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Enable hostNetwork for GPU Feature Discovery"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	HostNetwork *bool `json:"hostNetwork,omitempty"`
 }
 
 // MIGManagerSpec defines the properties for deploying NVIDIA MIG Manager
@@ -1322,6 +1437,13 @@ type MIGManagerSpec struct {
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Custom gpu-clients configuration for NVIDIA MIG Manager container"
 	GPUClientsConfig *MIGGPUClientsConfigSpec `json:"gpuClientsConfig,omitempty"`
+
+	// HostNetwork indicates whether the MIG Manager pod uses the host's network namespace.
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Enable hostNetwork for NVIDIA MIG Manager"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	HostNetwork *bool `json:"hostNetwork,omitempty"`
 }
 
 // GPUDirectRDMASpec defines the properties for nvidia-peermem deployment
@@ -1460,6 +1582,76 @@ type MIGGPUClientsConfigSpec struct {
 	Name string `json:"name,omitempty"`
 }
 
+// ImageSpec defines shared fields for component images
+type ImageSpec struct {
+	// NVIDIA component image repository
+	// +kubebuilder:validation:Optional
+	Repository string `json:"repository,omitempty"`
+
+	// NVIDIA component image name
+	// +kubebuilder:validation:Pattern=[a-zA-Z0-9\-]+
+	Image string `json:"image,omitempty"`
+
+	// NVIDIA component image tag
+	// +kubebuilder:validation:Optional
+	Version string `json:"version,omitempty"`
+
+	// Image pull policy
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Image Pull Policy"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:imagePullPolicy"
+	ImagePullPolicy string `json:"imagePullPolicy,omitempty"`
+}
+
+// ComponentCommonSpec defines shared fields for components
+type ComponentCommonSpec struct {
+	// Enabled indicates if deployment of NVIDIA component through operator is enabled
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Enable NVIDIA component deployment through GPU Operator"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Image pull secrets
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Image pull secrets"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:io.kubernetes:Secret"
+	ImagePullSecrets []string `json:"imagePullSecrets,omitempty"`
+
+	// Optional: Define resources requests and limits for each pod
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Resource Requirements"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:advanced,urn:alm:descriptor:com.tectonic.ui:resourceRequirements"
+	Resources *ResourceRequirements `json:"resources,omitempty"`
+
+	// Optional: List of arguments
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Arguments"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:advanced,urn:alm:descriptor:com.tectonic.ui:text"
+	Args []string `json:"args,omitempty"`
+
+	// Optional: List of environment variables
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Environment Variables"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:advanced,urn:alm:descriptor:com.tectonic.ui:text"
+	Env []EnvVar `json:"env,omitempty"`
+}
+
+// KataDevicePluginSpec defines attributes for the kata device plugin.
+// The Kata device plugin is deployed when SandboxWorkloads is enabled, SandboxWorkloads.Mode is "kata", and Enabled is true.
+type KataDevicePluginSpec struct {
+	ImageSpec           `json:",inline"`
+	ComponentCommonSpec `json:",inline"`
+
+	// HostNetwork indicates whether the Kata Sandbox Device Plugin pod uses the host's network namespace.
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Enable hostNetwork for NVIDIA Kata Sandbox Device Plugin"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	HostNetwork *bool `json:"hostNetwork,omitempty"`
+}
+
 // KataManagerSpec defines the configuration for the kata-manager which prepares NVIDIA-specific kata runtimes
 type KataManagerSpec struct {
 	// Enabled indicates if deployment of Kata Manager is enabled
@@ -1516,6 +1708,13 @@ type KataManagerSpec struct {
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Environment Variables"
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:advanced,urn:alm:descriptor:com.tectonic.ui:text"
 	Env []EnvVar `json:"env,omitempty"`
+
+	// HostNetwork indicates whether the Kata Manager pod uses the host's network namespace.
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Enable hostNetwork for NVIDIA Kata Manager"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	HostNetwork *bool `json:"hostNetwork,omitempty"`
 }
 
 // CCManagerSpec defines the properties for deploying Confidential Containers (CC) manager
@@ -1576,6 +1775,13 @@ type CCManagerSpec struct {
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Environment Variables"
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:advanced,urn:alm:descriptor:com.tectonic.ui:text"
 	Env []EnvVar `json:"env,omitempty"`
+
+	// HostNetwork indicates whether the CC Manager pod uses the host's network namespace.
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Enable hostNetwork for NVIDIA CC Manager"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	HostNetwork *bool `json:"hostNetwork,omitempty"`
 }
 
 // VFIOManagerSpec defines the properties for deploying VFIO-PCI manager
@@ -1632,6 +1838,13 @@ type VFIOManagerSpec struct {
 
 	// DriverManager represents configuration for NVIDIA Driver Manager
 	DriverManager DriverManagerSpec `json:"driverManager,omitempty"`
+
+	// HostNetwork indicates whether the VFIO Manager pod uses the host's network namespace.
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Enable hostNetwork for NVIDIA VFIO Manager"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	HostNetwork *bool `json:"hostNetwork,omitempty"`
 }
 
 // VGPUDeviceManagerSpec defines the properties for deploying NVIDIA vGPU Device Manager
@@ -1690,6 +1903,13 @@ type VGPUDeviceManagerSpec struct {
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="NVIDIA vGPU devices configuration for NVIDIA vGPU Device Manager container"
 	Config *VGPUDevicesConfigSpec `json:"config,omitempty"`
+
+	// HostNetwork indicates whether the vGPU Device Manager pod uses the host's network namespace.
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Enable hostNetwork for NVIDIA vGPU Device Manager"
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	HostNetwork *bool `json:"hostNetwork,omitempty"`
 }
 
 // VGPUDevicesConfigSpec defines vGPU devices configuration for NVIDIA vGPU Device Manager container
@@ -1901,6 +2121,9 @@ func ImagePath(spec interface{}) (string, error) {
 	case *CCManagerSpec:
 		config := spec.(*CCManagerSpec)
 		return imagePath(config.Repository, config.Image, config.Version, "CC_MANAGER_IMAGE")
+	case *KataDevicePluginSpec:
+		config := spec.(*KataDevicePluginSpec)
+		return imagePath(config.Repository, config.Image, config.Version, "KATA_SANDBOX_DEVICE_PLUGIN_IMAGE")
 	default:
 		return "", fmt.Errorf("invalid type to construct image path: %v", v)
 	}
@@ -2079,6 +2302,15 @@ func (s *SandboxDevicePluginSpec) IsEnabled() bool {
 	return *s.Enabled
 }
 
+// IsEnabled returns true if the kata sandbox device plugin is enabled through gpu-operator
+func (k *KataDevicePluginSpec) IsEnabled() bool {
+	if k.Enabled == nil {
+		// default is false if not specified by user
+		return false
+	}
+	return *k.Enabled
+}
+
 // IsEnabled returns true if PodSecurityAdmission configuration is enabled for all gpu-operator pods
 func (p *PSASpec) IsEnabled() bool {
 	if p.Enabled == nil {
@@ -2161,10 +2393,10 @@ func (dcgm *DCGMSpec) IsEnabled() bool {
 	return *dcgm.Enabled
 }
 
-// IsEnabled returns true if ServiceMonitor for DCGM Exporter is enabled through gpu-operator
-func (sm *DCGMExporterServiceMonitorConfig) IsEnabled() bool {
+// IsEnabled returns true if ServiceMonitor is enabled through gpu-operator
+func (sm *ServiceMonitorConfig) IsEnabled() bool {
 	if sm.Enabled == nil {
-		// ServiceMonitor for DCGM Exporter is disabled by default
+		// ServiceMonitor is disabled by default
 		return false
 	}
 	return *sm.Enabled

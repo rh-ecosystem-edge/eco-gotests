@@ -70,7 +70,7 @@ const (
 	ArgoCDDefaultArgoImage = "quay.io/argoproj/argocd"
 
 	// ArgoCDDefaultArgoVersion is the Argo CD container image digest to use when version not specified.
-	ArgoCDDefaultArgoVersion = "sha256:ed0740273790e58154816104c1e1b41fb308a9c516ade3d0f195fa56f1840cca" // v3.3.0
+	ArgoCDDefaultArgoVersion = "sha256:16b92ba472fbb9287459cc52e0ecff07288dff461209955098edb56ce866fe49" // v3.3.6
 
 	// ArgoCDDefaultBackupKeyLength is the length of the generated default backup key.
 	ArgoCDDefaultBackupKeyLength = 32
@@ -117,6 +117,14 @@ const (
 
 	// ArgoCDDefaultDexServiceAccountName is the default Service Account name for the Dex server.
 	ArgoCDDefaultDexServiceAccountName = "argocd-dex-server"
+
+	// ArgoCDDexServerTokenExpirySecs is the Dex SA token lifetime in seconds (1 hour).
+	ArgoCDDexServerTokenExpirySecs = int64(3600)
+
+	// ArgoCDDexServerTokenRenewalThresholdPercent (1-99): renew the Dex token when less than this percent
+	// of ArgoCDDexServerTokenExpirySecs remains (default 33 is approximately equivalent to the last third
+	// of a 1h nominal lifetime).
+	ArgoCDDexServerTokenRenewalThresholdPercent int64 = 33
 
 	// ArgoCDDefaultDexVersion is the Dex container image tag to use when not specified.
 	ArgoCDDefaultDexVersion = "sha256:b08a58c9731c693b8db02154d7afda798e1888dc76db30d34c4a0d0b8a26d913" // v2.43.0
@@ -288,16 +296,19 @@ vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOf
 	ArgoCDCmdParamsConfigMapName = "argocd-cmd-params-cm"
 
 	// ArgoCDAgentPrincipalDefaultImageName is the default image name for the ArgoCD agent's principal component.
-	ArgoCDAgentPrincipalDefaultImageName = "quay.io/argoprojlabs/argocd-agent:v0.6.0"
+	ArgoCDAgentPrincipalDefaultImageName = "quay.io/argoprojlabs/argocd-agent:v0.8.1"
 
 	// ArgoCDAgentAgentDefaultImageName is the default image name for the ArgoCD agent's agent component.
-	ArgoCDAgentAgentDefaultImageName = "quay.io/argoprojlabs/argocd-agent:v0.6.0"
+	ArgoCDAgentAgentDefaultImageName = "quay.io/argoprojlabs/argocd-agent:v0.8.1"
 
 	// ArgoCDImageUpdaterControllerComponent is the name of the Image Updater controller control plane component
 	ArgoCDImageUpdaterControllerComponent = "argocd-image-updater-controller"
 
 	// DefaultImagePullPolicy is the default image pull policy to use when not specified.
 	DefaultImagePullPolicy = "IfNotPresent"
+
+	// ArgoCDDefaultClusterDomain is the default cluster domain suffix for service FQDNs.
+	ArgoCDDefaultClusterDomain = "cluster.local"
 )
 
 // DefaultLabels returns the default set of labels for controllers.
