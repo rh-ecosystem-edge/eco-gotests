@@ -56,7 +56,7 @@ var _ = Describe("Neuron KServe Inference Tests", Ordered, Label(params.Label), 
 		})
 
 		It("Should deploy InferenceService and reach Ready state",
-			Label("kserve-001"), reportxml.ID("kserve-001"), func() {
+			Label("kserve"), reportxml.ID("88956"), func() {
 				By("Creating InferenceService")
 
 				storageURI := fmt.Sprintf("hf://%s", neuronConfig.KServeModelName)
