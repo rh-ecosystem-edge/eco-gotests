@@ -103,7 +103,7 @@ var _ = Describe("Neuron KServe Inference Tests", Ordered, Label(params.Label), 
 			})
 
 		It("Should return valid inference response",
-			Label("kserve-002"), reportxml.ID("kserve-002"), func() {
+			Label("kserve"), reportxml.ID("88957"), func() {
 				By("Getting InferenceService URL")
 
 				isvc, err := kserve.PullInferenceService(
