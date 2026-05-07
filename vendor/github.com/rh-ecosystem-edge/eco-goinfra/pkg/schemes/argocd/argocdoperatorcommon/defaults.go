@@ -70,7 +70,7 @@ const (
 	ArgoCDDefaultArgoImage = "quay.io/argoproj/argocd"
 
 	// ArgoCDDefaultArgoVersion is the Argo CD container image digest to use when version not specified.
-	ArgoCDDefaultArgoVersion = "sha256:16b92ba472fbb9287459cc52e0ecff07288dff461209955098edb56ce866fe49" // v3.3.6
+	ArgoCDDefaultArgoVersion = "sha256:5d45dc6db21db32a0638ac9128462c6d9956a90fc81760146dada5a243ff7516" // v3.3.8
 
 	// ArgoCDDefaultBackupKeyLength is the length of the generated default backup key.
 	ArgoCDDefaultBackupKeyLength = 32
@@ -309,6 +309,8 @@ vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOf
 
 	// ArgoCDDefaultClusterDomain is the default cluster domain suffix for service FQDNs.
 	ArgoCDDefaultClusterDomain = "cluster.local"
+	// ArgoCDDefaultWebTerminalEnabled is the default web terminal enabled switch.
+	ArgoCDDefaultWebTerminalEnabled = "false"
 )
 
 // DefaultLabels returns the default set of labels for controllers.
