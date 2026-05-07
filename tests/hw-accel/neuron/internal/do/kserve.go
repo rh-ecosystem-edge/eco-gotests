@@ -105,6 +105,31 @@ func ExecuteKServeInference(apiClient *clients.Settings, config KServeInferenceC
 	return inferenceResult, nil
 }
 
+// ParseInferenceResponse parses a raw chat completions JSON response.
+func ParseInferenceResponse(response string) (string, error) {
+	var result map[string]interface{}
+	if err := json.Unmarshal([]byte(response), &result); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w, raw: %s", err, response)
+	}
+
+	if errMsg, ok := result["error"]; ok {
+		raw, _ := json.Marshal(errMsg)
+
+		return "", fmt.Errorf("inference returned error: %s", string(raw))
+	}
+
+	var buf bytes.Buffer
+
+	enc := json.NewEncoder(&buf)
+	enc.SetIndent("", "  ")
+
+	if err := enc.Encode(result); err != nil {
+		return fmt.Sprintf("%v", result), nil
+	}
+
+	return buf.String(), nil
+}
+
 // ensureCurlPod creates a long-running curl pod for executing inference requests.
 // Returns true if the pod was created by this call (caller owns cleanup).
 func ensureCurlPod(ctx context.Context, apiClient *clients.Settings, name, namespace string) (bool, error) {
@@ -172,29 +197,4 @@ func cleanupCurlPod(apiClient *clients.Settings, name, namespace string) {
 	if err != nil && !apierrors.IsNotFound(err) {
 		klog.V(params.NeuronLogLevel).Infof("Failed to delete curl pod: %v", err)
 	}
-}
-
-// ParseInferenceResponse parses a raw chat completions JSON response.
-func ParseInferenceResponse(response string) (string, error) {
-	var result map[string]interface{}
-	if err := json.Unmarshal([]byte(response), &result); err != nil {
-		return "", fmt.Errorf("failed to decode response: %w, raw: %s", err, response)
-	}
-
-	if errMsg, ok := result["error"]; ok {
-		raw, _ := json.Marshal(errMsg)
-
-		return "", fmt.Errorf("inference returned error: %s", string(raw))
-	}
-
-	var buf bytes.Buffer
-
-	enc := json.NewEncoder(&buf)
-	enc.SetIndent("", "  ")
-
-	if err := enc.Encode(result); err != nil {
-		return fmt.Sprintf("%v", result), nil
-	}
-
-	return buf.String(), nil
 }
