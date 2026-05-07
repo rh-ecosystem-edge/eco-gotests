@@ -1364,6 +1364,7 @@ func VerifyPodLevelBondWorkloadsAfterVFFailOver() {
 	var waitGroup sync.WaitGroup
 
 	waitGroup.Add(2)
+	defer waitGroup.Wait()
 
 	go func(waitGroup *sync.WaitGroup) {
 		defer GinkgoRecover()
@@ -1427,8 +1428,6 @@ func VerifyPodLevelBondWorkloadsAfterVFFailOver() {
 		return true
 	}).WithContext(ctx).WithPolling(time.Second).WithTimeout(30*time.Second).Should(BeTrue(),
 		"Fail-Over procedure failure; failed to switch to the new bond active interface")
-
-	waitGroup.Wait()
 
 	verifyConnectivity()
 }
