@@ -61,7 +61,8 @@ func assertCRDServesVersion(crdName, version string) {
 		"CRD %s does not serve version %s", crdName, version)
 }
 
-// nestedNumber extracts a numeric field from an unstructured object, handling both int64 and float64 JSON representations.
+// nestedNumber extracts a numeric field from an unstructured object,
+// handling both int64 and float64 JSON representations.
 func nestedNumber(obj map[string]interface{}, fields ...string) int64 {
 	val, found, err := unstructured.NestedFieldNoCopy(obj, fields...)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), "error reading %v", fields)
