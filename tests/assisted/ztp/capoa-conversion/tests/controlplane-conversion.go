@@ -43,6 +43,8 @@ var _ = Describe(
 				Skip("Hub API client is nil")
 			}
 
+			tsparams.ReporterNamespacesToDump[controlplaneTestNS] = "capoa-conv-ctrlplane namespace"
+
 			By("Verifying controlplane CRD serves v1alpha2")
 
 			assertCRDServesVersion("openshiftassistedcontrolplanes.controlplane.cluster.x-k8s.io", "v1alpha2")
@@ -50,14 +52,12 @@ var _ = Describe(
 			By(fmt.Sprintf("Creating test namespace %s", controlplaneTestNS))
 
 			nsBuilder := namespace.NewBuilder(HubAPIClient, controlplaneTestNS)
-
 			_ = nsBuilder.DeleteAndWait(2 * time.Minute)
 
-			_, err := namespace.NewBuilder(HubAPIClient, controlplaneTestNS).Create()
+			_, err := nsBuilder.Create()
 			Expect(err).ToNot(HaveOccurred(), "failed to create namespace %s", controlplaneTestNS)
 
 			DeferCleanup(func() {
-				nsBuilder := namespace.NewBuilder(HubAPIClient, controlplaneTestNS)
 				_ = nsBuilder.DeleteAndWait(2 * time.Minute)
 			})
 		})
@@ -93,10 +93,6 @@ var _ = Describe(
 
 				err := HubAPIClient.Create(context.TODO(), oacp)
 				Expect(err).ToNot(HaveOccurred(), "failed to create OpenshiftAssistedControlPlane via v1alpha2")
-
-				DeferCleanup(func() {
-					_ = HubAPIClient.Delete(context.TODO(), oacp)
-				})
 
 				By("Reading back via v1alpha3 API")
 
@@ -153,10 +149,6 @@ var _ = Describe(
 				err := HubAPIClient.Create(context.TODO(), oacp)
 				Expect(err).ToNot(HaveOccurred(), "failed to create OpenshiftAssistedControlPlane via v1alpha3")
 
-				DeferCleanup(func() {
-					_ = HubAPIClient.Delete(context.TODO(), oacp)
-				})
-
 				By("Reading back via v1alpha2 API")
 
 				v2Obj := readResource(cpV1Alpha2GVK, resourceName, controlplaneTestNS)
@@ -210,10 +202,6 @@ var _ = Describe(
 
 				err := HubAPIClient.Create(context.TODO(), oacp)
 				Expect(err).ToNot(HaveOccurred(), "failed to create OpenshiftAssistedControlPlane via v1alpha2")
-
-				DeferCleanup(func() {
-					_ = HubAPIClient.Delete(context.TODO(), oacp)
-				})
 
 				By("Reading back via v1alpha3 — should be ContractVersionedObjectReference with apiGroup")
 
@@ -273,10 +261,6 @@ var _ = Describe(
 				err := HubAPIClient.Create(context.TODO(), oacp)
 				Expect(err).ToNot(HaveOccurred(), "failed to create OpenshiftAssistedControlPlane via v1alpha2")
 
-				DeferCleanup(func() {
-					_ = HubAPIClient.Delete(context.TODO(), oacp)
-				})
-
 				By("Reading back via v1alpha3")
 
 				v3Obj := readResource(cpV1Alpha3GVK, resourceName, controlplaneTestNS)
@@ -327,10 +311,6 @@ var _ = Describe(
 
 				err := HubAPIClient.Create(context.TODO(), oacp)
 				Expect(err).ToNot(HaveOccurred(), "failed to create OpenshiftAssistedControlPlane via v1alpha2")
-
-				DeferCleanup(func() {
-					_ = HubAPIClient.Delete(context.TODO(), oacp)
-				})
 
 				By("Reading back via v1alpha3")
 
@@ -403,10 +383,6 @@ var _ = Describe(
 				err := HubAPIClient.Create(context.TODO(), oacp)
 				Expect(err).ToNot(HaveOccurred(), "failed to create OpenshiftAssistedControlPlane via v1alpha2")
 
-				DeferCleanup(func() {
-					_ = HubAPIClient.Delete(context.TODO(), oacp)
-				})
-
 				By("Reading back via v1alpha3")
 
 				v3Obj := readResource(cpV1Alpha3GVK, resourceName, controlplaneTestNS)
@@ -466,10 +442,6 @@ var _ = Describe(
 
 				err := HubAPIClient.Create(context.TODO(), oacp)
 				Expect(err).ToNot(HaveOccurred(), "failed to create OpenshiftAssistedControlPlane via v1alpha2")
-
-				DeferCleanup(func() {
-					_ = HubAPIClient.Delete(context.TODO(), oacp)
-				})
 
 				By("Reading back via v1alpha3")
 

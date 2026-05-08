@@ -18,7 +18,7 @@ var _, currentFile, _, _ = runtime.Caller(0)
 
 func TestCAPOAConversion(t *testing.T) {
 	_, reporterConfig := GinkgoConfiguration()
-	reporterConfig.JUnitReport = GeneralConfig.GetJunitReportPath(currentFile)
+	reporterConfig.JUnitReport = ZTPConfig.GetJunitReportPath(currentFile)
 
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "CAPOA Conversion Suite", Label(tsparams.Labels...), reporterConfig)
@@ -33,7 +33,7 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = ReportAfterSuite("", func(report Report) {
-	reportxml.Create(report, GeneralConfig.GetReportPath(), GeneralConfig.TCPrefix)
+	reportxml.Create(report, ZTPConfig.GetReportPath(), ZTPConfig.TCPrefix)
 })
 
 var _ = JustAfterEach(func() {

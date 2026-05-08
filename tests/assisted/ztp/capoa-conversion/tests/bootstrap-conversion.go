@@ -53,6 +53,8 @@ var _ = Describe(
 				Skip("Hub API client is nil")
 			}
 
+			tsparams.ReporterNamespacesToDump[bootstrapTestNS] = "capoa-conv-bootstrap namespace"
+
 			By("Verifying bootstrap CRD serves v1alpha1")
 
 			assertCRDServesVersion("openshiftassistedconfigs.bootstrap.cluster.x-k8s.io", "v1alpha1")
@@ -60,14 +62,12 @@ var _ = Describe(
 			By(fmt.Sprintf("Creating test namespace %s", bootstrapTestNS))
 
 			nsBuilder := namespace.NewBuilder(HubAPIClient, bootstrapTestNS)
-
 			_ = nsBuilder.DeleteAndWait(2 * time.Minute)
 
-			_, err := namespace.NewBuilder(HubAPIClient, bootstrapTestNS).Create()
+			_, err := nsBuilder.Create()
 			Expect(err).ToNot(HaveOccurred(), "failed to create namespace %s", bootstrapTestNS)
 
 			DeferCleanup(func() {
-				nsBuilder := namespace.NewBuilder(HubAPIClient, bootstrapTestNS)
 				_ = nsBuilder.DeleteAndWait(2 * time.Minute)
 			})
 		})
@@ -90,10 +90,6 @@ var _ = Describe(
 
 				err := HubAPIClient.Create(context.TODO(), oac)
 				Expect(err).ToNot(HaveOccurred(), "failed to create OpenshiftAssistedConfig via v1alpha1")
-
-				DeferCleanup(func() {
-					_ = HubAPIClient.Delete(context.TODO(), oac)
-				})
 
 				By("Reading the resource back via v1alpha2 API")
 
@@ -145,10 +141,6 @@ var _ = Describe(
 
 				err := HubAPIClient.Create(context.TODO(), oac)
 				Expect(err).ToNot(HaveOccurred(), "failed to create OpenshiftAssistedConfig via v1alpha2")
-
-				DeferCleanup(func() {
-					_ = HubAPIClient.Delete(context.TODO(), oac)
-				})
 
 				By("Reading the resource back via v1alpha1 API")
 
@@ -204,10 +196,6 @@ var _ = Describe(
 
 				err := HubAPIClient.Create(context.TODO(), tmpl)
 				Expect(err).ToNot(HaveOccurred(), "failed to create OpenshiftAssistedConfigTemplate via v1alpha1")
-
-				DeferCleanup(func() {
-					_ = HubAPIClient.Delete(context.TODO(), tmpl)
-				})
 
 				By("Reading the template back via v1alpha2 API")
 
