@@ -91,7 +91,9 @@ func AssertTLSRejectedWith(client *clients.Settings, component *Component,
 		}
 
 		errMsg := dialErr.Error()
-		if strings.Contains(errMsg, "connection refused") || errMsg == "EOF" {
+		if strings.Contains(errMsg, "connection refused") ||
+			strings.Contains(errMsg, "EOF") ||
+			strings.Contains(errMsg, "connection reset") {
 			return "not-ready"
 		}
 

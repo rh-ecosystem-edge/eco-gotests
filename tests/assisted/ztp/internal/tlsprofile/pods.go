@@ -162,14 +162,23 @@ func GetContainerRestartCount(client *clients.Settings, component *Component, de
 func AssertControllerLogsContain(client *clients.Settings, component *Component,
 	deploy Deployment, pattern string) {
 	Eventually(func() string {
-		p := FindPod(client, component, deploy.Name)
-
-		logs, err := p.GetFullLog(deploy.ContainerName)
+		pods, err := component.ListPods(client, component.Namespace)
 		if err != nil {
 			return ""
 		}
 
-		return logs
+		for _, p := range pods {
+			if strings.Contains(p.Object.Name, deploy.Name) {
+				logs, logErr := p.GetFullLog(deploy.ContainerName)
+				if logErr != nil {
+					return ""
+				}
+
+				return logs
+			}
+		}
+
+		return ""
 	}).WithTimeout(30*time.Second).WithPolling(5*time.Second).
 		Should(ContainSubstring(pattern),
 			fmt.Sprintf("%s %s logs should contain %q", component.Name, deploy.Name, pattern))
