@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"regexp"
 	"time"
 
 	"gopkg.in/yaml.v2"
@@ -27,12 +28,14 @@ import (
 )
 
 const (
-	nodeNetConfPolIntError = "nodenetworkconfigurationpolicy 'interfaceName' cannot be empty"
+	nodeNetConfPolIntError      = "nodenetworkconfigurationpolicy 'interfaceName' cannot be empty"
+	nodeNetConfPolAltnamesEmpty = "altnames cannot be empty array"
 )
 
 var (
 	// allowedBondModes represents all allowed modes for Bond interface.
 	allowedBondModes = []string{"balance-rr", "active-backup", "balance-xor", "broadcast", "802.3ad"}
+	pciAddressRegexp = regexp.MustCompile(`^[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-7]$`)
 )
 
 // AdditionalOptions additional options for pod object.
@@ -407,6 +410,168 @@ func (builder *PolicyBuilder) WithVlanInterfaceIP(baseInterface, ipv4Addresses, 
 	return builder.withInterface(newInterface)
 }
 
+// WithInterfaceAltnames adds ethernet interface configuration with alternative names to the policy.
+func (builder *PolicyBuilder) WithInterfaceAltnames(interfaceName string, altnames []string) *PolicyBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof("Creating NodeNetworkConfigurationPolicy %s with an interface altnames %v",
+		builder.Definition.Name, altnames)
+
+	if interfaceName == "" {
+		klog.V(100).Info("The interfaceName can not be empty string")
+
+		builder.errorMsg = nodeNetConfPolIntError
+
+		return builder
+	}
+
+	if len(altnames) == 0 {
+		klog.V(100).Info("The altnames can not be empty array")
+
+		builder.errorMsg = nodeNetConfPolAltnamesEmpty
+
+		return builder
+	}
+
+	altnamesList := make([]InterfaceAltName, len(altnames))
+	for i, altname := range altnames {
+		altnamesList[i] = InterfaceAltName{
+			Name: altname,
+		}
+	}
+
+	newInterface := NetworkInterface{
+		Name:     interfaceName,
+		Type:     "ethernet",
+		State:    "up",
+		AltNames: altnamesList,
+	}
+
+	return builder.withInterface(newInterface)
+}
+
+// WithMACAddressAltnames adds ethernet interface configuration identified by MAC address with alternative names.
+func (builder *PolicyBuilder) WithMACAddressAltnames(interfaceName string, macaddress string, altnames []string) *PolicyBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof("Creating NodeNetworkConfigurationPolicy %s with an interface macaddress %s and altnames %v",
+		builder.Definition.Name, macaddress, altnames)
+
+	if interfaceName == "" {
+		klog.V(100).Info("The interfaceName can not be empty string")
+
+		builder.errorMsg = nodeNetConfPolIntError
+
+		return builder
+	}
+
+	if macaddress == "" {
+		klog.V(100).Info("The macaddress can not be empty string")
+
+		builder.errorMsg = "macaddress cannot be empty string"
+
+		return builder
+	}
+
+	if _, err := net.ParseMAC(macaddress); err != nil {
+		klog.V(100).Infof("The macaddress %s is invalid", macaddress)
+
+		builder.errorMsg = "macaddress is invalid"
+
+		return builder
+	}
+
+	if len(altnames) == 0 {
+		klog.V(100).Info("The altnames can not be empty array")
+
+		builder.errorMsg = nodeNetConfPolAltnamesEmpty
+
+		return builder
+	}
+
+	altnamesList := make([]InterfaceAltName, len(altnames))
+	for i, altname := range altnames {
+		altnamesList[i] = InterfaceAltName{
+			Name: altname,
+		}
+	}
+
+	newInterface := NetworkInterface{
+		Name:       interfaceName,
+		Type:       "ethernet",
+		State:      "up",
+		MacAddress: macaddress,
+		Identifier: "mac-address",
+		AltNames:   altnamesList,
+	}
+
+	return builder.withInterface(newInterface)
+}
+
+// WithPCIAddressAltnames adds ethernet interface configuration identified by PCI address with alternative names.
+func (builder *PolicyBuilder) WithPCIAddressAltnames(interfaceName string, pciAddress string, altnames []string) *PolicyBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof("Creating NodeNetworkConfigurationPolicy %s with an interface pci-address %s and altnames %v",
+		builder.Definition.Name, pciAddress, altnames)
+
+	if interfaceName == "" {
+		klog.V(100).Info("The interfaceName can not be empty string")
+
+		builder.errorMsg = nodeNetConfPolIntError
+
+		return builder
+	}
+
+	if pciAddress == "" {
+		klog.V(100).Info("The pciAddress can not be empty string")
+
+		builder.errorMsg = "pciAddress cannot be empty string"
+
+		return builder
+	}
+
+	if !pciAddressRegexp.MatchString(pciAddress) {
+		klog.V(100).Infof("The pciAddress %s is invalid", pciAddress)
+
+		builder.errorMsg = "pciAddress is invalid"
+
+		return builder
+	}
+
+	if len(altnames) == 0 {
+		klog.V(100).Info("The altnames can not be empty array")
+
+		builder.errorMsg = nodeNetConfPolAltnamesEmpty
+
+		return builder
+	}
+
+	altnamesList := make([]InterfaceAltName, len(altnames))
+	for i, altname := range altnames {
+		altnamesList[i] = InterfaceAltName{
+			Name: altname,
+		}
+	}
+
+	newInterface := NetworkInterface{
+		Name:       interfaceName,
+		Type:       "ethernet",
+		State:      "up",
+		PciAddress: pciAddress,
+		Identifier: "pci-address",
+		AltNames:   altnamesList,
+	}
+
+	return builder.withInterface(newInterface)
+}
+
 // WithEthernetInterface adds type ethernet interface and IPs configuration to the NodeNetworkConfigurationPolicy.
 func (builder *PolicyBuilder) WithEthernetInterface(interfaceName, ipv4Address, ipv6Address string) *PolicyBuilder {
 	if valid, _ := builder.validate(); !valid {
@@ -605,6 +770,38 @@ func (builder *PolicyBuilder) WithOptions(options ...AdditionalOptions) *PolicyB
 	}
 
 	return builder
+}
+
+// RemoveInterfaceAltname appends configuration to mark the given alternative names absent on the interface.
+func (builder *PolicyBuilder) RemoveInterfaceAltname(interfaceName string, altnames []string) *PolicyBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof("Removing interface altnames for interface %s from NodeNetworkConfigurationPolicy %s",
+		interfaceName, builder.Definition.Name)
+
+	if interfaceName == "" {
+		klog.V(100).Info("The interfaceName can not be empty string")
+
+		builder.errorMsg = nodeNetConfPolIntError
+
+		return builder
+	}
+
+	altnamesList := []InterfaceAltName{}
+	for _, altname := range altnames {
+		altnamesList = append(altnamesList, InterfaceAltName{Name: altname, State: "absent"})
+	}
+
+	newInterface := NetworkInterface{
+		Name:     interfaceName,
+		Type:     "ethernet",
+		State:    "up",
+		AltNames: altnamesList,
+	}
+
+	return builder.withInterface(newInterface)
 }
 
 // WaitUntilCondition waits for the duration of the defined timeout or until the

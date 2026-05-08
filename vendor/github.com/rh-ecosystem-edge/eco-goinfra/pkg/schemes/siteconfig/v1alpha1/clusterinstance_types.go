@@ -54,29 +54,50 @@ type ServiceNetworkEntry struct {
 	CIDR string `json:"cidr"`
 }
 
-// BmcCredentialsName
+// BmcCredentialsName is a reference to a BareMetalHost BMC credentials Secret.
 type BmcCredentialsName struct {
+	// name is the name of the Secret containing the BMC credentials
+	// (requires keys "username" and "password").
 	// +required
 	Name string `json:"name"`
 }
 
-// IronicInspect is used to specify if automatic introspection carried out during registration
-// of BMH is enabled or disabled.
+// IronicInspect controls automatic hardware introspection performed by Ironic
+// during BareMetalHost registration. The default empty string enables
+// inspection. Set to "disabled" to skip hardware inspection.
 // +kubebuilder:validation:Enum="";disabled
 type IronicInspect string
 
-// PlatformType is a specific supported infrastructure provider.
+// PlatformType specifies the infrastructure platform for installation.
+// Only applicable to the Assisted Installer flow. When empty, the field
+// is omitted from the rendered AgentClusterInstall, allowing the installer
+// to select a default.
 // +kubebuilder:validation:Enum="";BareMetal;None;VSphere;Nutanix;External
 type PlatformType string
 
+// TangConfig holds the configuration for a single Tang server used for
+// network-bound disk encryption (NBDE).
 type TangConfig struct {
-	URL        string `json:"url,omitempty"`
+	// url is the URL of the Tang server.
+	URL string `json:"url,omitempty"`
+	// thumbprint is the thumbprint of the Tang server's signing key.
 	Thumbprint string `json:"thumbprint,omitempty"`
 }
 
+// DiskEncryption configures disk encryption for cluster nodes. Use the
+// type sub-field to select the encryption mode and tang to provide
+// Tang server details when using network-bound disk encryption.
 type DiskEncryption struct {
+	// type specifies the disk encryption mode. The default "none" disables
+	// encryption. Use "tpmv2" for TPM 2.0 or "tang" for network-bound disk
+	// encryption via Tang servers (requires the tang field).
 	// +kubebuilder:default:=none
-	Type string       `json:"type,omitempty"`
+	// +optional
+	Type string `json:"type,omitempty"`
+	// tang is a list of Tang server configurations used for network-bound
+	// disk encryption (NBDE). Each entry specifies a Tang server URL and
+	// its thumbprint.
+	// +optional
 	Tang []TangConfig `json:"tang,omitempty"`
 }
 
@@ -134,7 +155,9 @@ type ResourceRef struct {
 	Kind string `json:"kind"`
 }
 
-// NodeSpec
+// NodeSpec defines the desired configuration for a single node (host) in
+// a ClusterInstance, including bare-metal host details, network settings,
+// and node-level template overrides.
 type NodeSpec struct {
 	// BmcAddress holds the URL for accessing the controller on the network.
 	// +required
@@ -147,6 +170,9 @@ type NodeSpec struct {
 
 	// Which MAC address will PXE boot? This is optional for some
 	// types, but required for libvirt VMs driven by vbmc.
+	// This MAC address should correspond to one of the interfaces
+	// defined in nodeNetwork so that the host can be provisioned
+	// on the correct network.
 	// +kubebuilder:validation:Pattern=`[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}`
 	// +required
 	BootMACAddress string `json:"bootMACAddress"`
@@ -186,50 +212,77 @@ type NodeSpec struct {
 	HostRef *HostRef `json:"hostRef,omitempty"`
 
 	// CPUArchitecture is the software architecture of the node.
-	// If it is not defined here then it is inheirited from the ClusterInstanceSpec.
+	// If it is not defined here then it is inherited from the ClusterInstanceSpec.
 	// +kubebuilder:validation:Enum=x86_64;aarch64
 	// +optional
 	CPUArchitecture CPUArchitecture `json:"cpuArchitecture,omitempty"`
 
-	// Provide guidance about how to choose the device for the image being provisioned.
+	// bootMode selects the method of initializing the hardware during boot.
+	// Defaults to UEFI.
 	// +kubebuilder:default:=UEFI
 	// +optional
 	BootMode bmh_v1alpha1.BootMode `json:"bootMode,omitempty"`
 
-	// Json formatted string containing the user overrides for the host's coreos installer args
+	// installerArgs is a JSON-formatted string of arguments passed to the
+	// coreos-installer via the bare metal agent controller. Rendered as the
+	// bmac.agent-install.openshift.io/installer-args annotation on the
+	// BareMetalHost resource. Must be valid JSON when provided.
 	// +optional
 	InstallerArgs string `json:"installerArgs,omitempty"`
 
-	// Json formatted string containing the user overrides for the host's ignition config
-	// IgnitionConfigOverride enables the assignment of partitions for persistent storage.
-	// Adjust disk ID and size to the specific hardware.
+	// ignitionConfigOverride is a JSON-formatted string containing
+	// host-specific Ignition config overrides. Rendered as the
+	// bmac.agent-install.openshift.io/ignition-config-overrides annotation
+	// on the BareMetalHost resource. Must be valid JSON when provided.
 	// +optional
 	IgnitionConfigOverride string `json:"ignitionConfigOverride,omitempty"`
 
+	// role specifies the role of this node in the cluster. Defaults to "master".
 	// +kubebuilder:validation:Enum=master;worker;arbiter
 	// +kubebuilder:default:=master
 	// +optional
 	Role string `json:"role,omitempty"`
 
-	// Additional node-level annotations to be applied to the rendered templates
+	// extraAnnotations specifies additional node-level annotations keyed by
+	// the Kubernetes resource Kind (e.g., "BareMetalHost", "NMStateConfig").
+	// The key is matched against the kind field of each rendered manifest.
+	// If a Kind is present in the node-level map, those annotations are
+	// used for this node instead of any cluster-level annotations for the
+	// same Kind. Kinds not defined at node level fall back to cluster-level
+	// extraAnnotations. Annotations already defined in the template take
+	// precedence and are not overwritten.
 	// +optional
 	ExtraAnnotations map[string]map[string]string `json:"extraAnnotations,omitempty"`
 
-	// Additional node-level labels to be applied to the rendered templates
+	// extraLabels specifies additional node-level labels keyed by the
+	// Kubernetes resource Kind (e.g., "BareMetalHost", "NMStateConfig").
+	// The key is matched against the kind field of each rendered manifest.
+	// If a Kind is present in the node-level map, those labels are used
+	// for this node instead of any cluster-level labels for the same Kind.
+	// Kinds not defined at node level fall back to cluster-level
+	// extraLabels. Labels already defined in the template take precedence
+	// and are not overwritten.
 	// +optional
 	ExtraLabels map[string]map[string]string `json:"extraLabels,omitempty"`
 
-	// SuppressedManifests is a list of node-level manifest names to be excluded from the template rendering process
+	// suppressedManifests is a list of Kubernetes resource Kinds to exclude
+	// from rendering for this node. Combined with cluster-level
+	// suppressedManifests. Matching manifests are not applied and are
+	// recorded as "suppressed" in status. Previously applied resources
+	// are not deleted; use pruneManifests to remove them.
 	// +optional
 	SuppressedManifests []string `json:"suppressedManifests,omitempty"`
 
-	// PruneManifests represents a list of Kubernetes resource references that indicates which "node-level" manifests
-	// should be pruned (removed).
+	// pruneManifests is a list of resource references (apiVersion + kind)
+	// identifying node-level manifests that should be skipped during
+	// rendering and deleted from the cluster if previously applied.
+	// Combined with cluster-level pruneManifests.
 	// +optional
 	PruneManifests []ResourceRef `json:"pruneManifests,omitempty"`
 
-	// IronicInspect is used to specify if automatic introspection carried out during registration of BMH is enabled or
-	// disabled
+	// ironicInspect controls automatic hardware introspection performed by
+	// Ironic during BareMetalHost registration. The default empty string
+	// enables inspection. Set to "disabled" to skip hardware inspection.
 	// +kubebuilder:default:=""
 	// +optional
 	IronicInspect IronicInspect `json:"ironicInspect,omitempty"`
@@ -241,7 +294,7 @@ type NodeSpec struct {
 	TemplateRefs []TemplateRef `json:"templateRefs"`
 }
 
-// ClusterType is a string representing the cluster type
+// ClusterType specifies the topology of the cluster.
 type ClusterType string
 
 const (
@@ -288,12 +341,14 @@ type ReinstallSpec struct {
 	PreservationMode PreservationMode `json:"preservationMode"`
 }
 
-// ClusterInstanceSpec defines the desired state of ClusterInstance
+// ClusterInstanceSpec defines the desired state for a cluster, including
+// topology, networking, platform, node roles, and installation settings.
 type ClusterInstanceSpec struct {
-	// Desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// ClusterName is the name of the cluster.
+	// clusterName is the name of the cluster. It is used as the base name
+	// for generated resources and their namespace. Must be a valid
+	// Kubernetes namespace name: lowercase alphanumeric characters or
+	// hyphens, must start and end with an alphanumeric character, and at
+	// most 63 characters long.
 	// +required
 	ClusterName string `json:"clusterName"`
 
@@ -319,6 +374,7 @@ type ClusterInstanceSpec struct {
 	// Enter one IP address for single-stack clusters, or up to two for dual-stack clusters (at
 	// most one IP address per IP stack used). The order of stacks should be the same as order
 	// of subnets in Cluster Networks, Service Networks, and Machine Networks.
+	// Not applicable to Single Node OpenShift (SNO) clusters.
 	// +kubebuilder:validation:MaxItems=2
 	// +optional
 	ApiVIPs []string `json:"apiVIPs,omitempty"`
@@ -327,13 +383,15 @@ type ClusterInstanceSpec struct {
 	// Enter one IP address for single-stack clusters, or up to two for dual-stack clusters (at
 	// most one IP address per IP stack used). The order of stacks should be the same as order
 	// of subnets in Cluster Networks, Service Networks, and Machine Networks.
+	// Not applicable to Single Node OpenShift (SNO) clusters.
 	// +kubebuilder:validation:MaxItems=2
 	// +optional
 	IngressVIPs []string `json:"ingressVIPs,omitempty"`
 
-	// HoldInstallation will prevent installation from happening when true.
-	// Inspection and validation will proceed as usual, but once the RequirementsMet condition is true,
-	// installation will not begin until this field is set to false.
+	// holdInstallation prevents the Assisted Installer from starting the
+	// installation when set to true. Inspection and validation proceed
+	// normally, but installation is held until this field is set to false.
+	// Can only be enabled at creation time. Defaults to false.
 	// +kubebuilder:default:=false
 	// +optional
 	HoldInstallation bool `json:"holdInstallation,omitempty"`
@@ -355,35 +413,56 @@ type ClusterInstanceSpec struct {
 	// +optional
 	ServiceNetwork []ServiceNetworkEntry `json:"serviceNetwork,omitempty"`
 
-	// NetworkType is the Container Network Interface (CNI) plug-in to install
-	// The default value is OpenShiftSDN for IPv4, and OVNKubernetes for IPv6 or SNO
+	// networkType specifies the Container Network Interface (CNI) plugin
+	// to install. Defaults to OVNKubernetes.
 	// +kubebuilder:validation:Enum=OpenShiftSDN;OVNKubernetes
 	// +kubebuilder:default:=OVNKubernetes
 	// +optional
 	NetworkType string `json:"networkType,omitempty"`
 
-	// PlatformType is the name for the specific platform upon which to perform the installation.
+	// platformType specifies the infrastructure platform for installation.
+	// Only applicable to the Assisted Installer flow. When empty, the field
+	// is omitted from the rendered AgentClusterInstall, allowing the installer
+	// to select a default.
 	// +optional
 	PlatformType PlatformType `json:"platformType,omitempty"`
 
-	// Additional cluster-wide annotations to be applied to the rendered templates
+	// extraAnnotations specifies additional cluster-level annotations keyed by
+	// resource Kind (e.g., "ManagedCluster": {"key": "value"}). For each Kind,
+	// the annotations are merged into the matching rendered manifest's metadata.
+	// Annotations already defined in the template take precedence and are not
+	// overwritten by extraAnnotations.
 	// +optional
 	ExtraAnnotations map[string]map[string]string `json:"extraAnnotations,omitempty"`
 
-	// Additional cluster-wide labels to be applied to the rendered templates
+	// extraLabels specifies additional cluster-level labels keyed by resource
+	// Kind (e.g., "ManagedCluster": {"key": "value"}). For each Kind, the
+	// labels are merged into the matching rendered manifest's metadata.
+	// Labels already defined in the template take precedence and are not
+	// overwritten by extraLabels.
 	// +optional
 	ExtraLabels map[string]map[string]string `json:"extraLabels,omitempty"`
 
-	// InstallConfigOverrides is a Json formatted string that provides a generic way of passing
-	// install-config parameters.
+	// installConfigOverrides is a JSON-formatted string of install-config
+	// parameters. The controller automatically merges networkType and
+	// cpuPartitioningMode into this value. Rendered as the
+	// agent-install.openshift.io/install-config-overrides annotation on
+	// AgentClusterInstall. Applies to the Assisted Installer flow only.
 	// +optional
 	InstallConfigOverrides string `json:"installConfigOverrides,omitempty"`
 
-	// Json formatted string containing the user overrides for the initial ignition config
+	// ignitionConfigOverride is a JSON-formatted string containing overrides
+	// for the discovery-phase Ignition config. Rendered into
+	// InfraEnv.spec.ignitionConfigOverride. Applies to Assisted Installer
+	// and Hosted Control Plane flows.
 	// +optional
 	IgnitionConfigOverride string `json:"ignitionConfigOverride,omitempty"`
 
-	// DiskEncryption is the configuration to enable/disable disk encryption for cluster nodes.
+	// diskEncryption configures disk encryption for cluster nodes. Use the
+	// type sub-field to select the encryption mode and tang to provide
+	// Tang server details when using network-bound disk encryption.
+	// These fields are not consumed by the default provided templates
+	// and require custom templates (via templateRefs) to take effect.
 	// +optional
 	DiskEncryption *DiskEncryption `json:"diskEncryption,omitempty"`
 
@@ -395,12 +474,20 @@ type ClusterInstanceSpec struct {
 	// +optional
 	ExtraManifestsRefs []corev1.LocalObjectReference `json:"extraManifestsRefs,omitempty"`
 
-	// SuppressedManifests is a list of manifest names to be excluded from the template rendering process
+	// suppressedManifests is a list of Kubernetes resource Kinds to exclude
+	// from rendering. Manifests whose rendered Kind matches an entry in this
+	// list are not applied to the cluster and are recorded as "suppressed" in
+	// status. Cluster-level suppression also applies to node-level manifests.
+	// Previously applied resources are not deleted; use pruneManifests to
+	// remove them.
 	// +optional
 	SuppressedManifests []string `json:"suppressedManifests,omitempty"`
 
-	// PruneManifests represents a list of Kubernetes resource references that indicates which manifests should be
-	// pruned (removed).
+	// pruneManifests is a list of resource references (apiVersion + kind)
+	// identifying manifests that should be skipped during rendering and
+	// deleted from the cluster if they were previously applied. Unlike
+	// suppressedManifests, pruning actively removes existing resources.
+	// Cluster-level prune entries also apply to node-level manifests.
 	// +optional
 	PruneManifests []ResourceRef `json:"pruneManifests,omitempty"`
 
@@ -420,6 +507,14 @@ type ClusterInstanceSpec struct {
 	// +optional
 	CPUArchitecture CPUArchitecture `json:"cpuArchitecture,omitempty"`
 
+	// clusterType specifies the topology of the cluster.
+	// One of: SNO (Single Node OpenShift — exactly 1 control-plane node; worker nodes
+	// may also be specified and are provisioned independently of the initial installation),
+	// HighlyAvailable (multiple control-plane and worker nodes),
+	// HostedControlPlane (control plane hosted externally via HyperShift, no control-plane
+	// nodes in this spec),
+	// HighlyAvailableArbiter (at least 2 control-plane nodes with at least 1 arbiter node
+	// for stretched clusters).
 	// +kubebuilder:validation:Enum=SNO;HighlyAvailable;HostedControlPlane;HighlyAvailableArbiter
 	// +optional
 	ClusterType ClusterType `json:"clusterType,omitempty"`
@@ -430,15 +525,23 @@ type ClusterInstanceSpec struct {
 	// +required
 	TemplateRefs []TemplateRef `json:"templateRefs"`
 
-	// CABundle is a reference to a config map containing the new bundle of trusted certificates for the host.
+	// caBundleRef is a reference to a ConfigMap containing a bundle of
+	// trusted CA certificates. The controller passes this reference to
+	// the downstream resource (HostedCluster or ImageClusterInstall). Not
+	// applicable to the Assisted Installer flow.
 	// +optional
 	CaBundleRef *corev1.LocalObjectReference `json:"caBundleRef,omitempty"`
 
-	// List of node objects
+	// nodes is the list of nodes to provision for this cluster. The number
+	// and roles of nodes must be compatible with the selected clusterType.
 	// +required
 	Nodes []NodeSpec `json:"nodes"`
 
-	// Reinstall specifications
+	// reinstall triggers a cluster reinstallation workflow when populated.
+	// This is a destructive operation: all rendered resources (except
+	// ManagedCluster) are deleted and reprovisioned. Requires the controller
+	// to be configured with allowReinstalls enabled. Each reinstall must use
+	// a unique generation value.
 	// +optional
 	Reinstall *ReinstallSpec `json:"reinstall,omitempty"`
 }
@@ -608,7 +711,11 @@ type ClusterInstanceStatus struct {
 //+kubebuilder:printcolumn:name="ProvisionDetails",type="string",JSONPath=".status.conditions[?(@.type=='Provisioned')].message"
 //+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
-// ClusterInstance is the Schema for the clusterinstances API
+// ClusterInstance defines the desired configuration for provisioning an
+// OpenShift cluster. Based on the selected templateRefs and clusterType,
+// the controller renders and applies the Kubernetes resources needed for
+// cluster installation (e.g., ClusterDeployment, ManagedCluster,
+// BareMetalHost, or HostedCluster depending on the installation flow).
 type ClusterInstance struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

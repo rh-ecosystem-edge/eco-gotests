@@ -10,15 +10,26 @@ type DesiredState struct {
 
 // NetworkInterface provides struct for the NMState interface state object containing interface information.
 type NetworkInterface struct {
-	Name            string          `yaml:"name"`
-	Type            string          `yaml:"type"`
-	State           string          `yaml:"state"`
-	Ethernet        Ethernet        `yaml:"ethernet,omitempty"`
-	Bridge          Bridge          `yaml:"bridge,omitempty"`
-	LinkAggregation LinkAggregation `yaml:"link-aggregation,omitempty"`
-	Vlan            Vlan            `yaml:"vlan,omitempty"`
-	Ipv4            InterfaceIpv4   `yaml:"ipv4,omitempty"`
-	Ipv6            InterfaceIpv6   `yaml:"ipv6,omitempty"`
+	Name            string             `yaml:"name"`
+	Type            string             `yaml:"type"`
+	State           string             `yaml:"state"`
+	Identifier      string             `yaml:"identifier,omitempty"`
+	PciAddress      string             `yaml:"pci-address,omitempty"`
+	MacAddress      string             `yaml:"mac-address,omitempty"`
+	AltNames        []InterfaceAltName `yaml:"alt-names,omitempty"`
+	Ethernet        Ethernet           `yaml:"ethernet,omitempty"`
+	Bridge          Bridge             `yaml:"bridge,omitempty"`
+	LinkAggregation LinkAggregation    `yaml:"link-aggregation,omitempty"`
+	Vlan            Vlan               `yaml:"vlan,omitempty"`
+	Ipv4            InterfaceIpv4      `yaml:"ipv4,omitempty"`
+	Ipv6            InterfaceIpv6      `yaml:"ipv6,omitempty"`
+}
+
+// InterfaceAltName is an alternative interface name in desired state (nmstate.io/v1).
+// Set State to "absent" to remove an existing alt-name.
+type InterfaceAltName struct {
+	Name  string `yaml:"name"`
+	State string `yaml:"state,omitempty"`
 }
 
 // InterfaceIpv4 enables an IPv4 address on an interface.
@@ -59,6 +70,7 @@ type Sriov struct {
 // Vf provides struct for the NMState SR-IOV VF state object containing SR-IOV VF information.
 type Vf struct {
 	ID         int    `yaml:"id"`
+	IfaceName  string `yaml:"iface-name,omitempty"`
 	MacAddress string `yaml:"mac-address,omitempty"`
 	MaxTxRate  *int   `yaml:"max-tx-rate,omitempty"`
 	MinTxRate  *int   `yaml:"min-tx-rate,omitempty"`
