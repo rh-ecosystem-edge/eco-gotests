@@ -56,13 +56,13 @@ func WaitForClusterStability(client *clients.Settings, timeout time.Duration) {
 		}
 
 		for i := range coList.Items {
-			co := &coList.Items[i]
+			operator := &coList.Items[i]
 			available := false
 			progressing := true
 			degraded := true
 
-			for _, cond := range co.Status.Conditions {
-				switch cond.Type {
+			for _, cond := range operator.Status.Conditions {
+				switch cond.Type { //nolint:exhaustive
 				case configv1.OperatorAvailable:
 					available = cond.Status == configv1.ConditionTrue
 				case configv1.OperatorProgressing:
@@ -74,7 +74,7 @@ func WaitForClusterStability(client *clients.Settings, timeout time.Duration) {
 
 			if !available || progressing || degraded {
 				return fmt.Sprintf("operator %s: available=%v progressing=%v degraded=%v",
-					co.Name, available, progressing, degraded)
+					operator.Name, available, progressing, degraded)
 			}
 		}
 

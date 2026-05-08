@@ -79,13 +79,13 @@ func waitContainerRestart(client *clients.Settings, component *Component) {
 	restartCounts := make(map[string]int32)
 
 	Eventually(func() bool {
-		for _, d := range component.Deployments {
-			count := GetContainerRestartCount(client, component, d)
+		for _, deploy := range component.Deployments {
+			count := GetContainerRestartCount(client, component, deploy)
 			if count < 0 {
 				return false
 			}
 
-			restartCounts[d.Name] = count
+			restartCounts[deploy.Name] = count
 		}
 
 		return true

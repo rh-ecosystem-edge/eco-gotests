@@ -263,6 +263,9 @@ linters:
         path: tests/system-tests/vcore/internal/.*
       - linters:
           - depguard
+        path: tests/assisted/ztp/internal/tlsprofile
+      - linters:
+          - depguard
         path: tests/lca/imagebasedupgrade/cnf/internal/validations
       - path: (.+)\.go$
         text: "can't run linter goanalysis_metalinter: inspect: failed to load"

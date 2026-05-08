@@ -104,7 +104,6 @@ func ensureTLSAdherence() {
 // Tests are ordered to minimize TLS profile changes and cluster churn.
 // Flow: Intermediate → Old → Modern → Custom → (reuse) → reconciliation → restore
 //
-//nolint:funlen
 var _ = Describe(
 	"CAPOA TLS Profile",
 	Ordered, ContinueOnFailure,
@@ -153,13 +152,13 @@ var _ = Describe(
 						d, capoa.HonoringLogPattern)
 				}
 
-				for _, ep := range capoa.Endpoints {
-					By("Probing TLS 1.2 on " + ep.ServiceName)
-					tlsprofile.AssertTLSConnects(HubAPIClient, capoa, ep,
+				for _, endpoint := range capoa.Endpoints {
+					By("Probing TLS 1.2 on " + endpoint.ServiceName)
+					tlsprofile.AssertTLSConnects(HubAPIClient, capoa, endpoint,
 						tls.VersionTLS12, tls.VersionTLS12, nil)
 
-					By("Probing TLS 1.3 on " + ep.ServiceName)
-					tlsprofile.AssertTLSConnects(HubAPIClient, capoa, ep,
+					By("Probing TLS 1.3 on " + endpoint.ServiceName)
+					tlsprofile.AssertTLSConnects(HubAPIClient, capoa, endpoint,
 						tls.VersionTLS13, tls.VersionTLS13, nil)
 				}
 
@@ -192,9 +191,9 @@ var _ = Describe(
 						d, "VersionTLS10")
 				}
 
-				for _, ep := range capoa.Endpoints {
-					By("Verifying Old-specific cipher connects on " + ep.ServiceName)
-					tlsprofile.AssertTLSConnects(HubAPIClient, capoa, ep,
+				for _, endpoint := range capoa.Endpoints {
+					By("Verifying Old-specific cipher connects on " + endpoint.ServiceName)
+					tlsprofile.AssertTLSConnects(HubAPIClient, capoa, endpoint,
 						tls.VersionTLS12, tls.VersionTLS12,
 						[]uint16{capoa.OldProfileCipher})
 				}
@@ -220,13 +219,13 @@ var _ = Describe(
 						d, "VersionTLS13")
 				}
 
-				for _, ep := range capoa.Endpoints {
-					By("Verifying TLS 1.3 connects on " + ep.ServiceName)
-					tlsprofile.AssertTLSConnects(HubAPIClient, capoa, ep,
+				for _, endpoint := range capoa.Endpoints {
+					By("Verifying TLS 1.3 connects on " + endpoint.ServiceName)
+					tlsprofile.AssertTLSConnects(HubAPIClient, capoa, endpoint,
 						tls.VersionTLS13, tls.VersionTLS13, nil)
 
-					By("Verifying TLS 1.2 is rejected on " + ep.ServiceName)
-					tlsprofile.AssertTLSRejected(HubAPIClient, capoa, ep, nil)
+					By("Verifying TLS 1.2 is rejected on " + endpoint.ServiceName)
+					tlsprofile.AssertTLSRejected(HubAPIClient, capoa, endpoint, nil)
 				}
 			})
 
@@ -240,14 +239,14 @@ var _ = Describe(
 				By("Waiting for CAPOA pods to pick up Custom profile")
 				tlsprofile.WaitPodsRestarted(HubAPIClient, capoa)
 
-				for _, ep := range capoa.Endpoints {
-					By("Verifying allowed cipher connects on " + ep.ServiceName)
-					tlsprofile.AssertTLSConnects(HubAPIClient, capoa, ep,
+				for _, endpoint := range capoa.Endpoints {
+					By("Verifying allowed cipher connects on " + endpoint.ServiceName)
+					tlsprofile.AssertTLSConnects(HubAPIClient, capoa, endpoint,
 						tls.VersionTLS12, tls.VersionTLS12,
 						[]uint16{capoa.AllowedCipher})
 
-					By("Verifying disallowed cipher is rejected on " + ep.ServiceName)
-					tlsprofile.AssertTLSRejected(HubAPIClient, capoa, ep,
+					By("Verifying disallowed cipher is rejected on " + endpoint.ServiceName)
+					tlsprofile.AssertTLSRejected(HubAPIClient, capoa, endpoint,
 						[]uint16{capoa.DisallowedCipher})
 				}
 			})
