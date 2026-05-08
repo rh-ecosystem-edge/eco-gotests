@@ -433,7 +433,7 @@ var _ = Describe(
 					"MachineTemplate labels should survive round-trip")
 			})
 
-		It("Verifies v1alpha2 bootstrap config spec is converted to v1alpha2 format in v1alpha3",
+		It("Verifies v1alpha2 bootstrap config spec is converted to v1alpha3 format",
 			reportxml.ID("88924"), func() {
 				resourceName := "conv-bootstrap-spec-upgrade"
 
@@ -478,7 +478,7 @@ var _ = Describe(
 				arch, _, _ := unstructured.NestedString(v3Obj.Object,
 					"spec", "openshiftAssistedConfigSpec", "cpuArchitecture")
 				Expect(arch).To(Equal("x86_64"),
-					"bootstrap cpuArchitecture should be converted to v1alpha2 format in v1alpha3")
+					"bootstrap cpuArchitecture should be converted to v1alpha3 format")
 
 				ntp, _, _ := unstructured.NestedStringSlice(v3Obj.Object,
 					"spec", "openshiftAssistedConfigSpec", "additionalNTPSources")
