@@ -102,8 +102,7 @@ func ensureTLSAdherence() {
 }
 
 // Tests are ordered to minimize TLS profile changes and cluster churn.
-// Flow: Intermediate → Old → Modern → Custom → (reuse) → reconciliation → restore
-//
+// Flow: Intermediate → Old → Modern → Custom → (reuse) → reconciliation → restore.
 var _ = Describe(
 	"CAPOA TLS Profile",
 	Ordered, ContinueOnFailure,
