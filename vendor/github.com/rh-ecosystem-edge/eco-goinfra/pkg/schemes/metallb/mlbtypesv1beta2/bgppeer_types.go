@@ -26,14 +26,26 @@ type BGPPeerSpec struct {
 	// AS number to use for the local end of the session.
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=4294967295
+	// +kubebuilder:validation:Format=int64
 	MyASN uint32 `json:"myASN"`
 
 	// AS number to expect from the remote end of the session.
 	// ASN and DynamicASN are mutually exclusive and one of them must be specified.
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=4294967295
+	// +kubebuilder:validation:Format=int64
 	// +optional
 	ASN uint32 `json:"peerASN,omitempty"`
+
+	// LocalASN allows advertising a different AS number to the peer using BGP's
+	// local-as feature. When set, MetalLB will advertise this ASN to the peer
+	// via "neighbor <peer> local-as <ASN> no-prepend replace-as", overriding
+	// the router-level MyASN for this specific session.
+	// Not supported in native BGP mode.
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=4294967295
+	LocalASN uint32 `json:"localASN,omitempty"`
 
 	// DynamicASN detects the AS number to use for the remote end of the session
 	// without explicitly setting it via the ASN field. Limited to:

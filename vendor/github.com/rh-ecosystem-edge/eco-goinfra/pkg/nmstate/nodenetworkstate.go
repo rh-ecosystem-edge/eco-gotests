@@ -106,6 +106,114 @@ func (builder *StateBuilder) GetTotalVFs(sriovInterfaceName string) (int, error)
 	return 0, fmt.Errorf("failed to find interface %s", sriovInterfaceName)
 }
 
+// GetInterfaceAltnames returns non-empty alternative interface names for the given interface from current state.
+func (builder *StateBuilder) GetInterfaceAltnames(interfaceName string) ([]string, error) {
+	if valid, err := builder.validate(); !valid {
+		return nil, err
+	}
+
+	klog.V(100).Infof("Getting interface altnames for interface %s from NodeNetworkState %s",
+		interfaceName, builder.Object.Name)
+
+	if interfaceName == "" {
+		klog.V(100).Info("The interfaceName can not be empty string")
+
+		return nil, fmt.Errorf("the interfaceName is empty sting")
+	}
+
+	var CurrentState DesiredState
+
+	err := yaml.Unmarshal(builder.Object.Status.CurrentState.Raw, &CurrentState)
+	if err != nil {
+		return nil, fmt.Errorf("failed to Unmarshal NMState state")
+	}
+
+	for _, interfaceFromCurrentState := range CurrentState.Interfaces {
+		if interfaceFromCurrentState.Name == interfaceName {
+			names := make([]string, 0, len(interfaceFromCurrentState.AltNames))
+			for _, alt := range interfaceFromCurrentState.AltNames {
+				if alt.Name != "" {
+					names = append(names, alt.Name)
+				}
+			}
+
+			return names, nil
+		}
+	}
+
+	return nil, fmt.Errorf("failed to find interface %s", interfaceName)
+}
+
+// GetInterfaceMACAddress returns the mac-address field for the interface from NodeNetworkState current state.
+func (builder *StateBuilder) GetInterfaceMACAddress(interfaceName string) (string, error) {
+	if valid, err := builder.validate(); !valid {
+		return "", err
+	}
+
+	klog.V(100).Infof("Getting interface MAC address for interface %s from NodeNetworkState %s",
+		interfaceName, builder.Object.Name)
+
+	if interfaceName == "" {
+		klog.V(100).Info("The interfaceName can not be empty string")
+
+		return "", fmt.Errorf("the interfaceName is empty sting")
+	}
+
+	var CurrentState DesiredState
+
+	err := yaml.Unmarshal(builder.Object.Status.CurrentState.Raw, &CurrentState)
+	if err != nil {
+		return "", fmt.Errorf("failed to Unmarshal NMState state")
+	}
+
+	for _, interfaceFromCurrentState := range CurrentState.Interfaces {
+		if interfaceFromCurrentState.Name == interfaceName {
+			if interfaceFromCurrentState.MacAddress == "" {
+				return "", fmt.Errorf("failed to find mac-address for interface %s", interfaceName)
+			}
+
+			return interfaceFromCurrentState.MacAddress, nil
+		}
+	}
+
+	return "", fmt.Errorf("failed to find interface %s", interfaceName)
+}
+
+// GetInterfacePCIAddress returns the pci-address field for the interface from NodeNetworkState current state.
+func (builder *StateBuilder) GetInterfacePCIAddress(interfaceName string) (string, error) {
+	if valid, err := builder.validate(); !valid {
+		return "", err
+	}
+
+	klog.V(100).Infof("Getting interface PCI address for interface %s from NodeNetworkState %s",
+		interfaceName, builder.Object.Name)
+
+	if interfaceName == "" {
+		klog.V(100).Info("The interfaceName can not be empty string")
+
+		return "", fmt.Errorf("the interfaceName is empty sting")
+	}
+
+	var CurrentState DesiredState
+
+	err := yaml.Unmarshal(builder.Object.Status.CurrentState.Raw, &CurrentState)
+	if err != nil {
+		return "", fmt.Errorf("failed to Unmarshal NMState state")
+	}
+
+	for _, interfaceFromCurrentState := range CurrentState.Interfaces {
+		if interfaceFromCurrentState.Name == interfaceName {
+			if interfaceFromCurrentState.PciAddress == "" {
+				return "", fmt.Errorf("failed to find pci-address for interface %s", interfaceName)
+			}
+
+			return interfaceFromCurrentState.PciAddress, nil
+		}
+	}
+
+	return "", fmt.Errorf("failed to find interface %s", interfaceName)
+}
+
 // GetInterfaceType returns Interface with the given interface name and given type.
 func (builder *StateBuilder) GetInterfaceType(interfaceName, interfaceType string) (NetworkInterface, error) {
 	if valid, err := builder.validate(); !valid {

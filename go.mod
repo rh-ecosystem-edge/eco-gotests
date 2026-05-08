@@ -292,7 +292,7 @@ require (
 )
 
 require (
-	github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260506183940-49ab4a03e02f
+	github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260507161758-5dc0b0e2163e
 	k8s.io/apiextensions-apiserver v0.34.5
 )
 
