@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+// readResource fetches a cluster resource as the specified GVK and fails the test if not found.
 func readResource(gvk schema.GroupVersionKind, name, namespace string) *unstructured.Unstructured {
 	obj := &unstructured.Unstructured{}
 	obj.SetGroupVersionKind(gvk)
@@ -23,6 +24,7 @@ func readResource(gvk schema.GroupVersionKind, name, namespace string) *unstruct
 	return obj
 }
 
+// assertCRDServesVersion fails the test if the given CRD does not serve the specified API version.
 func assertCRDServesVersion(crdName, version string) {
 	crd := &unstructured.Unstructured{}
 	crd.SetGroupVersionKind(schema.GroupVersionKind{
@@ -59,6 +61,7 @@ func assertCRDServesVersion(crdName, version string) {
 		"CRD %s does not serve version %s", crdName, version)
 }
 
+// nestedNumber extracts a numeric field from an unstructured object, handling both int64 and float64 JSON representations.
 func nestedNumber(obj map[string]interface{}, fields ...string) int64 {
 	val, found, err := unstructured.NestedFieldNoCopy(obj, fields...)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), "error reading %v", fields)

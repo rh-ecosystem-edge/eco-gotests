@@ -234,6 +234,7 @@ var _ = Describe(
 			})
 	})
 
+// newBootstrapV1Alpha1 builds an OpenshiftAssistedConfig unstructured object using the v1alpha1 API version.
 func newBootstrapV1Alpha1(name string, spec map[string]interface{}) *unstructured.Unstructured {
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{
@@ -248,6 +249,7 @@ func newBootstrapV1Alpha1(name string, spec map[string]interface{}) *unstructure
 	}
 }
 
+// newBootstrapV1Alpha2 builds an OpenshiftAssistedConfig unstructured object using the v1alpha2 API version.
 func newBootstrapV1Alpha2(name string, spec map[string]interface{}) *unstructured.Unstructured {
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{

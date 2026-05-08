@@ -501,6 +501,7 @@ var _ = Describe(
 			})
 	})
 
+// newControlPlaneV1Alpha2 builds an OpenshiftAssistedControlPlane unstructured object using the v1alpha2 API version.
 func newControlPlaneV1Alpha2(name string, spec map[string]interface{}) *unstructured.Unstructured {
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{
@@ -515,6 +516,7 @@ func newControlPlaneV1Alpha2(name string, spec map[string]interface{}) *unstruct
 	}
 }
 
+// newControlPlaneV1Alpha3 builds an OpenshiftAssistedControlPlane unstructured object using the v1alpha3 API version.
 func newControlPlaneV1Alpha3(name string, spec map[string]interface{}) *unstructured.Unstructured {
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{
