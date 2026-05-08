@@ -257,20 +257,16 @@ var _ = Describe(
 			reportxml.ID("88848"), func() {
 				By("Ensuring test namespace does not exist")
 
-				nsBuilder := namespace.NewBuilder(HubAPIClient, "tls-test-capoa")
-
-				err := nsBuilder.DeleteAndWait(2 * time.Minute)
-				Expect(err).ToNot(HaveOccurred(),
-					"failed to clean up namespace tls-test-capoa")
+				nsBuilder := namespace.NewBuilder(HubAPIClient, tsparams.TestNamespace)
+				_ = nsBuilder.DeleteAndWait(2 * time.Minute)
 
 				By("Creating test namespace")
 
-				nsBuilder, err = namespace.NewBuilder(
-					HubAPIClient, "tls-test-capoa").Create()
+				_, err := nsBuilder.Create()
 				Expect(err).ToNot(HaveOccurred(), "failed to create test namespace")
 
 				DeferCleanup(func() {
-					_ = nsBuilder.Delete()
+					_ = nsBuilder.DeleteAndWait(2 * time.Minute)
 				})
 
 				By("Creating valid OpenshiftAssistedConfig")
@@ -281,7 +277,7 @@ var _ = Describe(
 						"kind":       "OpenshiftAssistedConfig",
 						"metadata": map[string]interface{}{
 							"name":      "test-webhook-validation",
-							"namespace": "tls-test-capoa",
+							"namespace": tsparams.TestNamespace,
 						},
 						"spec": map[string]interface{}{
 							"cpuArchitecture": "x86_64",
