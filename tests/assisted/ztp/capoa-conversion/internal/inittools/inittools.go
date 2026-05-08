@@ -14,6 +14,10 @@ var (
 )
 
 func init() {
-	HubAPIClient = ztpinittools.HubAPIClient
 	ZTPConfig = ztpinittools.ZTPConfig
+	HubAPIClient = ztpinittools.HubAPIClient
+
+	if HubAPIClient == nil {
+		HubAPIClient = clients.New("")
+	}
 }
