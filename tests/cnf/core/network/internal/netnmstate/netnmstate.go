@@ -64,12 +64,7 @@ func CreatePolicyAndWaitUntilItsAvailable(timeout time.Duration, nmstatePolicy *
 
 	klog.V(90).Infof("Waiting for the policy to reach the Available state.")
 
-	err = nmstatePolicy.WaitUntilCondition(nmstateShared.NodeNetworkConfigurationPolicyConditionAvailable, timeout)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return nmstatePolicy.WaitUntilCondition(nmstateShared.NodeNetworkConfigurationPolicyConditionAvailable, timeout)
 }
 
 // UpdatePolicyAndWaitUntilItsAvailable updates NodeNetworkConfigurationPolicy and waits until
@@ -91,12 +86,7 @@ func UpdatePolicyAndWaitUntilItsAvailable(timeout time.Duration, nmstatePolicy *
 
 	klog.V(90).Infof("Waiting for the policy to reach the Available state.")
 
-	err = nmstatePolicy.WaitUntilCondition(nmstateShared.NodeNetworkConfigurationPolicyConditionAvailable, timeout)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return nmstatePolicy.WaitUntilCondition(nmstateShared.NodeNetworkConfigurationPolicyConditionAvailable, timeout)
 }
 
 // ConfigureVFsAndWaitUntilItsConfigured creates NodeNetworkConfigurationPolicy with VFs configuration and waits until
@@ -113,12 +103,7 @@ func ConfigureVFsAndWaitUntilItsConfigured(
 	nmstatePolicy := nmstate.NewPolicyBuilder(
 		APIClient, policyName, nodeLabel).WithInterfaceAndVFs(sriovInterfaceName, numberOfVFs)
 
-	err := CreatePolicyAndWaitUntilItsAvailable(timeout, nmstatePolicy)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return CreatePolicyAndWaitUntilItsAvailable(timeout, nmstatePolicy)
 }
 
 // AreVFsCreated verifies that the specified number of VFs has been created by NMState
@@ -538,4 +523,19 @@ func isNMStateDeployedAndReady(timeout time.Duration) error {
 	}
 
 	return nil
+}
+
+// CreatePolicyAndWaitUntilItsDegraded creates NodeNetworkConfigurationPolicy and waits until
+// it is in Degraded state.
+func CreatePolicyAndWaitUntilItsDegraded(timeout time.Duration, nmstatePolicy *nmstate.PolicyBuilder) error {
+	klog.V(90).Infof("Creating an NMState policy and wait for its Degraded state.")
+
+	nmstatePolicy, err := nmstatePolicy.Create()
+	if err != nil {
+		return err
+	}
+
+	klog.V(90).Infof("Waiting for the policy to reach the Degraded state.")
+
+	return nmstatePolicy.WaitUntilCondition(nmstateShared.NodeNetworkConfigurationPolicyConditionDegraded, timeout)
 }
