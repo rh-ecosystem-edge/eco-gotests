@@ -24,7 +24,7 @@ import (
 )
 
 var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func() {
-	Context("Module", Label("filestosign-glob"), func() {
+	Context("Module", Label("filestosign-glob", "secureboot"), func() {
 		var (
 			nsName             = kmmparams.FilesToSignGlobTestNamespace
 			moduleName         = "sign-glob"
