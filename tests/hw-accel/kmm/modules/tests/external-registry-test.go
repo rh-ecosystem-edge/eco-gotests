@@ -383,6 +383,8 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 
 			configmapContent := define.SimpleKmodConfigMapContents()
 
+			_ = configmap.NewBuilder(APIClient, moduleName, localNsName).Delete()
+
 			dockerfileConfigMap, err := configmap.NewBuilder(APIClient, moduleName, localNsName).
 				WithData(configmapContent).Create()
 
