@@ -379,7 +379,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			})
 		})
 
-		Context("FilesToSign", Label("webhook", "filestosign-glob-webhook"), func() {
+		Context("FilesToSign", Label("webhook", "filestosign-glob-webhook", "secureboot"), func() {
 			It("should reject Module when sign is set but filesToSign is empty", reportxml.ID("88318"), func() {
 				By("Preparing Module with Sign but no filesToSign")
 
