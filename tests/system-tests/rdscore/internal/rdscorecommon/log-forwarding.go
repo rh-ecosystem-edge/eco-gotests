@@ -302,6 +302,17 @@ func VerifyLogForwardingToKafka() {
 		"failed to find log messages forwarded to the kafka server")
 }
 
+// VerifyLokiEndToEndForwardingBaseline runs the full Loki validation chain for the rdscore suite.
+func VerifyLokiEndToEndForwardingBaseline(ctx SpecContext) {
+	VerifyLokiPodsRunning(ctx)
+	VerifyLokiStackReady(ctx)
+	VerifyLokiPVCsBound(ctx)
+	VerifyClusterLogForwarderLokiConfiguration(ctx)
+	VerifyLokiDistributorLogsNoErrors(ctx)
+	VerifyLokiQueryWithServiceAccountToken(ctx)
+	VerifyLokiTopologySpreadConstraintsNotDefined(ctx)
+}
+
 // VerifyLokiPodsRunning verifies local Loki pods are running in openshift-logging namespace.
 func VerifyLokiPodsRunning(ctx SpecContext) {
 	By("Verify namespace for local Loki exists")

@@ -294,15 +294,7 @@ var _ = Describe(
 
 			It("Verify local Loki end-to-end forwarding baseline",
 				Label("log-forwarding", "loki"), reportxml.ID("88943"),
-				func(ctx SpecContext) {
-					rdscorecommon.VerifyLokiPodsRunning(ctx)
-					rdscorecommon.VerifyLokiStackReady(ctx)
-					rdscorecommon.VerifyLokiPVCsBound(ctx)
-					rdscorecommon.VerifyClusterLogForwarderLokiConfiguration(ctx)
-					rdscorecommon.VerifyLokiDistributorLogsNoErrors(ctx)
-					rdscorecommon.VerifyLokiQueryWithServiceAccountToken(ctx)
-					rdscorecommon.VerifyLokiTopologySpreadConstraintsNotDefined(ctx)
-				})
+				rdscorecommon.VerifyLokiEndToEndForwardingBaseline)
 
 			It("Verifies connectivity between pods from statefuleset running on different nodes after pod's termination",
 				Label("statefulset-whereabouts", "statefulset-different-nodes-termination"),
