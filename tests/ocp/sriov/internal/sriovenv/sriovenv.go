@@ -669,16 +669,18 @@ func verifySpoofCheck(clientPod *pod.Builder, interfaceName, expectedState strin
 func verifySpoofCheckByPCI(nodeName, interfaceName, pciAddr, expectedState string) error {
 	// Combine virtfn index lookup and ip link show into one nsenter call.
 	// Uses no single quotes since ExecCmdWithStdout wraps the command in '...'.
+	// Read sriov_totalvfs from sysfs so the loop adapts to NICs with more than 32 VFs.
 	cmd := fmt.Sprintf(
-		`IDX=-1; `+
-			`for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31; do `+
+		`N=$(cat /sys/class/net/%s/device/sriov_totalvfs 2>/dev/null || echo 64); `+
+			`IDX=-1; `+
+			`i=0; while [ "$i" -lt "$N" ]; do `+
 			`L=$(readlink /sys/class/net/%s/device/virtfn${i} 2>/dev/null); `+
 			`V=$(basename "$L" 2>/dev/null); `+
 			`if [ "$V" = "%s" ]; then IDX=$i; break; fi; `+
-			`done; `+
+			`i=$((i+1)); done; `+
 			`if [ "$IDX" = "-1" ]; then echo VF_NOT_FOUND; `+
 			`else ip link show %s | grep "vf $IDX "; fi`,
-		interfaceName, pciAddr, interfaceName)
+		interfaceName, interfaceName, pciAddr, interfaceName)
 
 	outputMap, err := cluster.ExecCmdWithStdout(APIClient, cmd,
 		metav1.ListOptions{LabelSelector: fmt.Sprintf("kubernetes.io/hostname=%s", nodeName)})
@@ -731,14 +733,23 @@ func verifySpoofCheckByMAC(nodeName, interfaceName, mac, expectedState string) e
 }
 
 // nodeOutput extracts the command output for nodeName from the ExecCmdWithStdout result map.
-// Falls back to prefix matching to handle FQDN vs short-hostname mismatches.
+// Falls back to prefix matching to handle FQDN vs short-hostname mismatches, requiring
+// a dot boundary to avoid false matches between sibling hostnames.
 func nodeOutput(outputMap map[string]string, nodeName string) string {
 	if out, ok := outputMap[nodeName]; ok {
 		return out
 	}
 
+	atDotBoundary := func(s, prefix string) bool {
+		return len(s) == len(prefix) || s[len(prefix)] == '.'
+	}
+
 	for host, out := range outputMap {
-		if strings.HasPrefix(nodeName, host) || strings.HasPrefix(host, nodeName) {
+		if strings.HasPrefix(nodeName, host) && atDotBoundary(nodeName, host) {
+			return out
+		}
+
+		if strings.HasPrefix(host, nodeName) && atDotBoundary(host, nodeName) {
 			return out
 		}
 	}
