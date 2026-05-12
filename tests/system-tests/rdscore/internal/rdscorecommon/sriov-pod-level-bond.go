@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreparams"
@@ -1360,8 +1361,14 @@ func VerifyPodLevelBondWorkloadsAfterVFFailOver() {
 		Fail("Neither IPv4 nor IPv6 server address is configured for the server deployment")
 	}
 
-	go func() {
+	var waitGroup sync.WaitGroup
+
+	waitGroup.Add(2)
+	defer waitGroup.Wait()
+
+	go func(waitGroup *sync.WaitGroup) {
 		defer GinkgoRecover()
+		defer waitGroup.Done()
 
 		By(fmt.Sprintf("Send data from the client container to the server address %s", targetIP))
 
@@ -1385,18 +1392,19 @@ func VerifyPodLevelBondWorkloadsAfterVFFailOver() {
 		Expect(testPassed).To(Equal(true),
 			fmt.Sprintf("TCP traffic test verification failed for the pod %s in namespace %s; output %s",
 				clientPodObj.Definition.Name, clientPodObj.Definition.Namespace, output))
-	}()
+	}(&waitGroup)
 
-	go func() {
+	go func(waitGroup *sync.WaitGroup) {
 		defer GinkgoRecover()
+		defer waitGroup.Done()
 
 		time.Sleep(time.Second * 2)
 
-		err = disableBondActiveVFInterface(serverPodObj)
-		Expect(err).ToNot(HaveOccurred(),
+		disableErr := disableBondActiveVFInterface(serverPodObj)
+		Expect(disableErr).ToNot(HaveOccurred(),
 			fmt.Sprintf("Failed to disable bond active interface for the pod %s in namespace %s: %v",
-				serverPodObj.Definition.Name, serverPodObj.Definition.Namespace, err))
-	}()
+				serverPodObj.Definition.Name, serverPodObj.Definition.Namespace, disableErr))
+	}(&waitGroup)
 
 	var ctx SpecContext
 
