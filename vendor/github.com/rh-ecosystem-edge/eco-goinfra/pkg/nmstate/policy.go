@@ -664,6 +664,32 @@ func (builder *PolicyBuilder) WithEthernetIPv6LinkLocalInterface(interfaceName s
 	return builder.withInterface(newInterface)
 }
 
+// WithInterfaceUp appends the configuration for an interface with state "up" to the NodeNetworkConfigurationPolicy.
+func (builder *PolicyBuilder) WithInterfaceUp(interfaceName string) *PolicyBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof("Creating NodeNetworkConfigurationPolicy %s to set interface %s to state up",
+		builder.Definition.Name, interfaceName)
+
+	if interfaceName == "" {
+		klog.V(100).Info("The interfaceName can not be empty string")
+
+		builder.errorMsg = nodeNetConfPolIntError
+
+		return builder
+	}
+
+	newInterface := NetworkInterface{
+		Name:  interfaceName,
+		State: "up",
+		Type:  "ethernet",
+	}
+
+	return builder.withInterface(newInterface)
+}
+
 // WithAbsentInterface appends the configuration for an absent interface to the NodeNetworkConfigurationPolicy.
 func (builder *PolicyBuilder) WithAbsentInterface(interfaceName string) *PolicyBuilder {
 	if valid, _ := builder.validate(); !valid {
