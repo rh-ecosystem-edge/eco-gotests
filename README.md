@@ -223,3 +223,11 @@ func Function(
 #### Note: To start using the new package for the first time:
 1. Add it to the import section of your test
 2. Run `go mod vendor`
+
+### Editing `.claude`
+
+When editing the repo's `.claude` directory, please be aware that this is a shared repo between multiple teams. Use `CLAUDE.local.md` and `.claude/settings.local.json` to store your local configuration so it does not affect others working in this repo.
+
+All skills should have the `disable-model-invocation: true` flag set in the YAML frontmatter so that team-specific skills do not interfere with each other.
+
+Subagents are strongly discouraged since they cannot be split along team boundaries.
