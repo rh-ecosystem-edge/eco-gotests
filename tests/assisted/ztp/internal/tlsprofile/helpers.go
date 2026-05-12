@@ -31,6 +31,24 @@ func PatchAPIServerTLSProfile(client *clients.Settings, profile configv1.TLSSecu
 	Expect(err).ToNot(HaveOccurred(), "failed to patch apiserver TLS profile")
 }
 
+// PatchTLSAdherence sets the tlsAdherence policy on the cluster APIServer.
+// The policy parameter is a string because TLSAdherencePolicy is behind a
+// feature gate and not available in the vendored configv1 types.
+func PatchTLSAdherence(client *clients.Settings, policy string) {
+	patchMap := map[string]interface{}{
+		"spec": map[string]interface{}{
+			"tlsAdherence": policy,
+		},
+	}
+
+	patchBytes, err := json.Marshal(patchMap)
+	Expect(err).ToNot(HaveOccurred(), "failed to marshal tlsAdherence patch")
+
+	apiserver := &configv1.APIServer{ObjectMeta: metav1.ObjectMeta{Name: "cluster"}}
+	err = client.Patch(context.TODO(), apiserver, runtimeclient.RawPatch(types.MergePatchType, patchBytes))
+	Expect(err).ToNot(HaveOccurred(), "failed to patch tlsAdherence to %s", policy)
+}
+
 // RemoveAPIServerTLSProfile removes the tlsSecurityProfile from the cluster APIServer.
 func RemoveAPIServerTLSProfile(client *clients.Settings) {
 	patchBytes := []byte(`{"spec":{"tlsSecurityProfile":null}}`)

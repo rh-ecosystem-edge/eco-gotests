@@ -75,6 +75,13 @@ var capoa = &tlsprofile.Component{
 	OldProfileCipher:    tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
 }
 
+const (
+	adherenceStrictAllComponents        = "StrictAllComponents"
+	adherenceLegacyAdheringOnly         = "LegacyAdheringComponentsOnly"
+
+	defaultsLogPattern = "using defaults"
+)
+
 func ensureTLSAdherence() {
 	apiserverU := &unstructured.Unstructured{}
 	apiserverU.SetGroupVersionKind(schema.GroupVersionKind{
@@ -89,20 +96,17 @@ func ensureTLSAdherence() {
 
 	adherence, _, _ := unstructured.NestedString(
 		apiserverU.Object, "spec", "tlsAdherence")
-	if adherence == "StrictAllComponents" {
+	if adherence == adherenceStrictAllComponents {
 		return
 	}
 
 	By("Setting tlsAdherence to StrictAllComponents")
-
-	patch := []byte(`{"spec":{"tlsAdherence":"StrictAllComponents"}}`)
-	err = HubAPIClient.Patch(context.TODO(), apiserverU,
-		runtimeclient.RawPatch(types.MergePatchType, patch))
-	Expect(err).ToNot(HaveOccurred(), "failed to set tlsAdherence")
+	tlsprofile.PatchTLSAdherence(HubAPIClient, adherenceStrictAllComponents)
 }
 
 // Tests are ordered to minimize TLS profile changes and cluster churn.
-// Flow: Intermediate → Old → Modern → Custom → (reuse) → reconciliation → restore.
+// Flow: Intermediate → Old → Modern → Custom → (reuse) → reconciliation → restore
+// → LegacyAdheringComponentsOnly/StrictAllComponents adherence transitions → restore.
 var _ = Describe(
 	"CAPOA TLS Profile",
 	Ordered, ContinueOnFailure,
@@ -407,5 +411,100 @@ var _ = Describe(
 					[]uint16{capoa.AllowedCipher})
 				tlsprofile.AssertTLSConnects(HubAPIClient, capoa, capoa.Endpoints[0],
 					tls.VersionTLS13, tls.VersionTLS13, nil)
+			})
+
+		// 9. LegacyAdheringComponentsOnly ignores profile, StrictAllComponents enforces it
+		It("Verifies non-honoring adherence ignores TLS profile and StrictAllComponents enforces it on CAPOA",
+			reportxml.ID("89003"), func() {
+				Skip("Blocked by ACM-34017: SecurityProfileWatcher restart loop — https://redhat.atlassian.net/browse/ACM-34017")
+
+				By("Setting adherence to LegacyAdheringComponentsOnly")
+				tlsprofile.PatchTLSAdherence(HubAPIClient, adherenceLegacyAdheringOnly)
+
+				By("Waiting for CAPOA pods to restart after adherence change")
+				tlsprofile.WaitPodsRestarted(HubAPIClient, capoa)
+				tlsprofile.WaitPodsReady(HubAPIClient, capoa)
+
+				By("Applying Modern TLS profile (TLS 1.3 only)")
+				tlsprofile.PatchAPIServerTLSProfile(HubAPIClient,
+					configv1.TLSSecurityProfile{
+						Type:   configv1.TLSProfileModernType,
+						Modern: &configv1.ModernTLSProfile{},
+					})
+
+				By("Waiting for CAPOA pods to restart after profile change")
+				tlsprofile.WaitPodsRestarted(HubAPIClient, capoa)
+				tlsprofile.WaitPodsReady(HubAPIClient, capoa)
+
+				By("Verifying controller logs show defaults path (not honoring)")
+				for _, d := range capoa.Deployments {
+					tlsprofile.AssertControllerLogsContain(HubAPIClient, capoa,
+						d, defaultsLogPattern)
+				}
+
+				By("Verifying TLS 1.2 still connects (Modern profile is ignored)")
+				tlsprofile.AssertTLSConnects(HubAPIClient, capoa, capoa.Endpoints[0],
+					tls.VersionTLS12, tls.VersionTLS12, nil)
+
+				By("Switching adherence to StrictAllComponents")
+				tlsprofile.PatchTLSAdherence(HubAPIClient, adherenceStrictAllComponents)
+
+				By("Waiting for CAPOA pods to restart after adherence change")
+				tlsprofile.WaitPodsRestarted(HubAPIClient, capoa)
+				tlsprofile.WaitPodsReady(HubAPIClient, capoa)
+
+				By("Verifying controller logs show honoring message")
+				for _, d := range capoa.Deployments {
+					tlsprofile.AssertControllerLogsContain(HubAPIClient, capoa,
+						d, capoa.HonoringLogPattern)
+				}
+
+				By("Verifying TLS 1.2 is now rejected (Modern profile enforced)")
+				tlsprofile.AssertTLSRejected(HubAPIClient, capoa, capoa.Endpoints[0], nil)
+
+				By("Verifying TLS 1.3 connects")
+				tlsprofile.AssertTLSConnects(HubAPIClient, capoa, capoa.Endpoints[0],
+					tls.VersionTLS13, tls.VersionTLS13, nil)
+			})
+
+		// 10. StrictAllComponents → LegacyAdheringComponentsOnly reverts to Intermediate defaults
+		It("Verifies switching to non-honoring adherence reverts CAPOA to Intermediate defaults",
+			reportxml.ID("89004"), func() {
+				Skip("Blocked by ACM-34017: SecurityProfileWatcher restart loop — https://redhat.atlassian.net/browse/ACM-34017")
+
+				By("Ensuring StrictAllComponents + Modern baseline from previous test")
+				tlsprofile.WaitPodsReady(HubAPIClient, capoa)
+
+				By("Verifying TLS 1.2 is rejected under Modern profile")
+				tlsprofile.AssertTLSRejected(HubAPIClient, capoa, capoa.Endpoints[0], nil)
+
+				By("Switching adherence to LegacyAdheringComponentsOnly")
+				tlsprofile.PatchTLSAdherence(HubAPIClient, adherenceLegacyAdheringOnly)
+
+				By("Waiting for CAPOA pods to restart after adherence change")
+				tlsprofile.WaitPodsRestarted(HubAPIClient, capoa)
+				tlsprofile.WaitPodsReady(HubAPIClient, capoa)
+
+				By("Verifying controller logs show defaults path")
+				for _, d := range capoa.Deployments {
+					tlsprofile.AssertControllerLogsContain(HubAPIClient, capoa,
+						d, defaultsLogPattern)
+				}
+
+				By("Verifying TLS 1.2 connects again (Intermediate defaults)")
+				tlsprofile.AssertTLSConnects(HubAPIClient, capoa, capoa.Endpoints[0],
+					tls.VersionTLS12, tls.VersionTLS12, nil)
+
+				By("Verifying TLS 1.3 also connects")
+				tlsprofile.AssertTLSConnects(HubAPIClient, capoa, capoa.Endpoints[0],
+					tls.VersionTLS13, tls.VersionTLS13, nil)
+
+				By("Restoring StrictAllComponents for suite cleanup")
+				tlsprofile.PatchTLSAdherence(HubAPIClient, adherenceStrictAllComponents)
+				tlsprofile.WaitPodsRestarted(HubAPIClient, capoa)
+
+				By("Removing Modern profile to restore Intermediate baseline")
+				tlsprofile.RemoveAPIServerTLSProfile(HubAPIClient)
+				tlsprofile.WaitPodsRestarted(HubAPIClient, capoa)
 			})
 	})
