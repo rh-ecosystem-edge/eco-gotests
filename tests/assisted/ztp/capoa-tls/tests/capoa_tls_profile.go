@@ -76,8 +76,8 @@ var capoa = &tlsprofile.Component{
 }
 
 const (
-	adherenceStrictAllComponents        = "StrictAllComponents"
-	adherenceLegacyAdheringOnly         = "LegacyAdheringComponentsOnly"
+	adherenceStrictAllComponents = "StrictAllComponents"
+	adherenceLegacyAdheringOnly  = "LegacyAdheringComponentsOnly"
 
 	defaultsLogPattern = "using defaults"
 )
@@ -94,9 +94,11 @@ func ensureTLSAdherence() {
 		runtimeclient.ObjectKey{Name: "cluster"}, apiserverU)
 	Expect(err).ToNot(HaveOccurred(), "failed to get apiserver/cluster")
 
-	adherence, _, _ := unstructured.NestedString(
+	adherence, found, err := unstructured.NestedString(
 		apiserverU.Object, "spec", "tlsAdherence")
-	if adherence == adherenceStrictAllComponents {
+	Expect(err).ToNot(HaveOccurred(), "failed to read spec.tlsAdherence from apiserver/cluster")
+
+	if found && adherence == adherenceStrictAllComponents {
 		return
 	}
 
