@@ -439,6 +439,7 @@ var _ = Describe(
 				tlsprofile.WaitPodsReady(HubAPIClient, capoa)
 
 				By("Verifying controller logs show defaults path (not honoring)")
+
 				for _, d := range capoa.Deployments {
 					tlsprofile.AssertControllerLogsContain(HubAPIClient, capoa,
 						d, defaultsLogPattern)
@@ -456,6 +457,7 @@ var _ = Describe(
 				tlsprofile.WaitPodsReady(HubAPIClient, capoa)
 
 				By("Verifying controller logs show honoring message")
+
 				for _, d := range capoa.Deployments {
 					tlsprofile.AssertControllerLogsContain(HubAPIClient, capoa,
 						d, capoa.HonoringLogPattern)
@@ -488,6 +490,7 @@ var _ = Describe(
 				tlsprofile.WaitPodsReady(HubAPIClient, capoa)
 
 				By("Verifying controller logs show defaults path")
+
 				for _, d := range capoa.Deployments {
 					tlsprofile.AssertControllerLogsContain(HubAPIClient, capoa,
 						d, defaultsLogPattern)
