@@ -182,6 +182,7 @@ var _ = Describe("IP Forwarding per Interface", Ordered,
 			var nncpPolicy *nmstate.PolicyBuilder
 
 			BeforeAll(func() {
+				validateIPFamilySupport(netparam.IPV4Family)
 				By("Creating NMState policy with VLAN interfaces on the second worker node")
 
 				nncpPolicy = nmstate.NewPolicyBuilder(APIClient, ipFwdNNCPName,

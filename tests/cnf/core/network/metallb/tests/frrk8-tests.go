@@ -82,6 +82,8 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 		)
 
 		BeforeAll(func() {
+			validateIPFamilySupport(netparam.IPV4Family)
+
 			By("Setting test iteration parameters")
 
 			_, _, _, nodeAddrList, addressPool, _, err =
@@ -326,6 +328,8 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 		)
 
 		BeforeEach(func() {
+			validateIPFamilySupport(netparam.IPV4Family)
+
 			By("Cleaning up any existing NMState policies from previous test runs")
 
 			err := nmstate.CleanAllNMStatePolicies(APIClient)
@@ -721,6 +725,8 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 		)
 
 		BeforeAll(func() {
+			validateIPFamilySupport(netparam.IPV4Family)
+
 			By("Enabling OVN-K RouteAdvertisements on the cluster")
 			enableOVNKRouteAdvertisements()
 

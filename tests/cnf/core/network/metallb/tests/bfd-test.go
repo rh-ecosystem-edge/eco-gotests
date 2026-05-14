@@ -45,6 +45,7 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 
 	BeforeAll(func() {
 		validateEnvVarAndGetNodeList()
+		validateIPFamilySupport(netparam.IPV4Family)
 
 		By("Creating a new instance of MetalLB Speakers on workers")
 

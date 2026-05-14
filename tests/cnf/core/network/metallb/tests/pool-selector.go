@@ -290,26 +290,6 @@ var _ = Describe("BGP", Ordered, Label("pool-selector"), ContinueOnFailure, func
 	})
 })
 
-// validateIPFamilySupport checks if the cluster supports the requested IP family and skips the test if not.
-func validateIPFamilySupport(ipStack string) {
-	switch ipStack {
-	case netparam.DualIPFamily:
-		if !clusterSupportsIPv4() || !clusterSupportsIPv6() {
-			Skip(fmt.Sprintf("Cluster does not support dual-stack (IPv4 + IPv6) - required for %s tests", ipStack))
-		}
-	case netparam.IPV6Family:
-		if !clusterSupportsIPv6() {
-			Skip(fmt.Sprintf("Cluster does not support IPv6 - required for %s tests", ipStack))
-		}
-	case netparam.IPV4Family:
-		if !clusterSupportsIPv4() {
-			Skip(fmt.Sprintf("Cluster does not support IPv4 - required for %s tests", ipStack))
-		}
-	default:
-		Skip(fmt.Sprintf("Unknown IP stack type: %s", ipStack))
-	}
-}
-
 func activateSCTPModuleOnMasterNodes() {
 	_, err := cluster.ExecCmdWithStdout(APIClient, "modprobe sctp",
 		metav1.ListOptions{LabelSelector: labels.Set(NetConfig.ControlPlaneLabelMap).String()})

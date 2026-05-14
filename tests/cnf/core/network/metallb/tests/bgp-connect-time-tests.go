@@ -29,6 +29,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelBGPTestCases), ContinueOnFa
 
 	BeforeAll(func() {
 		validateEnvVarAndGetNodeList()
+		validateIPFamilySupport(netparam.IPV4Family)
 	})
 
 	BeforeEach(func() {

@@ -66,6 +66,15 @@ var _ = Describe("nftables", Ordered, Label(tsparams.LabelNftablesTestCases), Co
 			Skip("Skipping test on SNO (Single Node OpenShift) cluster - requires 2+ workers")
 		}
 
+		By("Checking if cluster supports IPv4")
+
+		clusterIPFamily, err := netenv.GetClusterIPFamily(APIClient)
+		Expect(err).ToNot(HaveOccurred(), "Failed to get cluster IP family")
+
+		if clusterIPFamily == netparam.IPV6Family {
+			Skip("Skipping nftables test on IPv6-only cluster - test requires IPv4")
+		}
+
 		By("List CNF worker nodes in cluster")
 
 		cnfWorkerNodeList, err = nodes.List(APIClient,

@@ -87,6 +87,9 @@ bfd
 	ETPLocal = "Local"
 	// ETPCluster represents externalTrafficPolicy Cluster.
 	ETPCluster = "Cluster"
+	// DefaultBGPRouterID represents the default BGP router-id used on IPv6-only clusters
+	// where FRR cannot auto-derive a router-id from a non-existent IPv4 address.
+	DefaultBGPRouterID = "10.10.10.10"
 	// MetalLBIPv6 represents IPv6 label that can be used for test cases selection.
 	MetalLBIPv6 = "metallbipv6"
 	// MetalLBDual represents dual label that can be used for test cases selection.

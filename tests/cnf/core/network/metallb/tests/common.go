@@ -82,6 +82,34 @@ func clusterSupportsIPv4() bool {
 	return clusterIPVersion == netparam.IPV4Family || clusterIPVersion == netparam.DualIPFamily
 }
 
+func preferredIPFamily() string {
+	if clusterSupportsIPv4() {
+		return ipv4
+	}
+
+	return ipv6
+}
+
+// validateIPFamilySupport checks if the cluster supports the requested IP family and skips the test if not.
+func validateIPFamilySupport(ipStack string) {
+	switch ipStack {
+	case netparam.DualIPFamily:
+		if !clusterSupportsIPv4() || !clusterSupportsIPv6() {
+			Skip(fmt.Sprintf("Cluster does not support dual-stack (IPv4 + IPv6) - required for %s tests", ipStack))
+		}
+	case netparam.IPV6Family:
+		if !clusterSupportsIPv6() {
+			Skip(fmt.Sprintf("Cluster does not support IPv6 - required for %s tests", ipStack))
+		}
+	case netparam.IPV4Family:
+		if !clusterSupportsIPv4() {
+			Skip(fmt.Sprintf("Cluster does not support IPv4 - required for %s tests", ipStack))
+		}
+	default:
+		Skip(fmt.Sprintf("Unknown IP stack type: %s", ipStack))
+	}
+}
+
 // Initializes and validates Vars:
 // ipv4metalLbIPList, ipv6metalLbIPList,
 // ipv4NodeAddrList, ipv6NodeAddrList,
@@ -257,6 +285,10 @@ func createBGPPeerAndVerifyIfItsReady(
 
 	if len(disableMP) > 0 && disableMP[0] {
 		bgpPeer.WithDisableMP(true)
+	}
+
+	if !clusterSupportsIPv4() {
+		bgpPeer.WithRouterID(tsparams.DefaultBGPRouterID)
 	}
 
 	_, err := bgpPeer.Create()

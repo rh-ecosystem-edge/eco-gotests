@@ -47,6 +47,7 @@ var _ = Describe("BGP Unnumbered", Ordered, Label(tsparams.LabelBGPUnnumbered),
 			}
 
 			validateEnvVarAndGetNodeList()
+			validateIPFamilySupport(netparam.IPV4Family)
 
 			By("Creating a new instance of MetalLB Speakers on workers")
 
