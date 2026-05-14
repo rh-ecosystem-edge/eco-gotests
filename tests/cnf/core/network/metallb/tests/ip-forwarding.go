@@ -305,6 +305,11 @@ var _ = Describe("IP Forwarding per Interface", Ordered,
 				By("Disabling global IP forwarding on the network operator")
 
 				disableGlobalIPForwarding()
+
+				By("Waiting for IP forwarding to be disabled on VLAN interfaces")
+
+				waitForIPForwardingOnWorker(workerNodeList[1].Object.Name, iface1Name, "0")
+				waitForIPForwardingOnWorker(workerNodeList[1].Object.Name, iface2Name, "0")
 			})
 
 			AfterAll(func() {
@@ -871,24 +876,40 @@ func verifyIPFwdBGPSessionsEstablished(
 		"BGP sessions not established on FRR router pods")
 }
 
-func verifyIPForwardingOnWorker(nodeName, ifaceName, expectedValue string) {
+func readIPForwardingOnWorker(nodeName, ifaceName string) (string, error) {
 	speakerPods, err := pod.List(APIClient, NetConfig.MlbOperatorNamespace,
 		metav1.ListOptions{LabelSelector: tsparams.SpeakerLabel})
-	Expect(err).ToNot(HaveOccurred(), "Failed to list speaker pods")
+	if err != nil {
+		return "", fmt.Errorf("failed to list speaker pods: %w", err)
+	}
 
 	for _, speakerPod := range speakerPods {
 		if speakerPod.Object.Spec.NodeName == nodeName {
 			output, err := speakerPod.ExecCommand(
 				[]string{"cat", fmt.Sprintf("/proc/sys/net/ipv4/conf/%s/forwarding", ifaceName)},
 				"speaker")
-			Expect(err).ToNot(HaveOccurred(),
-				"Failed to read ip forwarding flag on %s", ifaceName)
-			Expect(strings.TrimSpace(output.String())).To(Equal(expectedValue),
-				"IP forwarding on %s should be %s", ifaceName, expectedValue)
+			if err != nil {
+				return "", fmt.Errorf("failed to read ip forwarding flag on %s: %w", ifaceName, err)
+			}
 
-			return
+			return strings.TrimSpace(output.String()), nil
 		}
 	}
 
-	Fail(fmt.Sprintf("Speaker pod not found on node %s", nodeName))
+	return "", fmt.Errorf("speaker pod not found on node %s", nodeName)
+}
+
+func waitForIPForwardingOnWorker(nodeName, ifaceName, expectedValue string) {
+	Eventually(func() (string, error) {
+		return readIPForwardingOnWorker(nodeName, ifaceName)
+	}, tsparams.DefaultTimeout, tsparams.DefaultRetryInterval).Should(Equal(expectedValue),
+		"Timed out waiting for IP forwarding on %s/%s to become %s", nodeName, ifaceName, expectedValue)
+}
+
+func verifyIPForwardingOnWorker(nodeName, ifaceName, expectedValue string) {
+	val, err := readIPForwardingOnWorker(nodeName, ifaceName)
+	Expect(err).ToNot(HaveOccurred(),
+		"Failed to read IP forwarding on %s/%s", nodeName, ifaceName)
+	Expect(val).To(Equal(expectedValue),
+		"IP forwarding on %s/%s should be %s", nodeName, ifaceName, expectedValue)
 }
