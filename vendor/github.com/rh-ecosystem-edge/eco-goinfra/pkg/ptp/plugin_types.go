@@ -71,10 +71,13 @@ type UblxCmd struct {
 }
 
 // InputPhaseDelays contains configurations for input phase delays.
+// The Input field was renamed from "inputPhaseDelay" to "inputConnector" in linuxptp-daemon 4.19
+// (commit 63b57f64). Both JSON tags are supported for backward compatibility with 4.18 CRs.
 type InputPhaseDelays struct {
 	ID                    string      `json:"id"`
 	Part                  string      `json:"Part"`
-	Input                 *InputDelay `json:"inputPhaseDelay"`
+	Input                 *InputDelay `json:"inputConnector,omitempty"`
+	InputLegacy           *InputDelay `json:"inputPhaseDelay,omitempty"`
 	GnssInput             bool        `json:"gnssInput"`
 	PhaseOutputConnectors []string    `json:"phaseOutputConnectors"`
 	UpstreamPort          string      `json:"upstreamPort"`
