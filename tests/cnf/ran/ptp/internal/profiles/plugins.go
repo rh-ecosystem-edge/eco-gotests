@@ -8,6 +8,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ptp"
 	ptpv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v1"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
+	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 
 // PinStateType enumerates the supported pin states.
@@ -153,4 +154,87 @@ func GetPluginTypesFromProfile(profile *ptpv1.PtpProfile) ([]ptp.PluginType, err
 	}
 
 	return pluginTypes, nil
+}
+
+// HoldoverPluginSettings groups the PTP plugin settings that control holdover behavior.
+type HoldoverPluginSettings struct {
+	LocalHoldoverTimeout   uint
+	LocalMaxHoldoverOffSet uint
+	MaxInSpecOffset        uint
+}
+
+// GetHoldoverPluginSettings reads the holdover plugin settings from the E810 plugin in the profile.
+// Uses the typed IntelPlugin struct for safe deserialization.
+func GetHoldoverPluginSettings(profile *ptpv1.PtpProfile) (*HoldoverPluginSettings, error) {
+	intelPlugin, err := getIntelPlugin(profile, ptp.PluginTypeE810)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Intel plugin for holdover settings: %w", err)
+	}
+
+	if intelPlugin.DpllSettings == nil {
+		return nil, fmt.Errorf("E810 plugin has no settings")
+	}
+
+	localHoldoverTimeout, timeoutFound := intelPlugin.DpllSettings["LocalHoldoverTimeout"]
+	if !timeoutFound {
+		return nil, fmt.Errorf("'LocalHoldoverTimeout' not found in plugin settings")
+	}
+
+	localMaxHoldoverOffset, offsetFound := intelPlugin.DpllSettings["LocalMaxHoldoverOffSet"]
+	if !offsetFound {
+		return nil, fmt.Errorf("'LocalMaxHoldoverOffSet' not found in plugin settings")
+	}
+
+	maxInSpecOffset, specFound := intelPlugin.DpllSettings["MaxInSpecOffset"]
+	if !specFound {
+		return nil, fmt.Errorf("'MaxInSpecOffset' not found in plugin settings")
+	}
+
+	return &HoldoverPluginSettings{
+		LocalHoldoverTimeout:   uint(localHoldoverTimeout),
+		LocalMaxHoldoverOffSet: uint(localMaxHoldoverOffset),
+		MaxInSpecOffset:        uint(maxInSpecOffset),
+	}, nil
+}
+
+// SetHoldoverPluginSettings patches the holdover plugin settings on the E810 plugin in the profile.
+func SetHoldoverPluginSettings(profile *ptpv1.PtpProfile, settings HoldoverPluginSettings) error {
+	intelPlugin, err := getIntelPlugin(profile, ptp.PluginTypeE810)
+	if err != nil {
+		return fmt.Errorf("failed to get Intel plugin for holdover settings: %w", err)
+	}
+
+	if intelPlugin.DpllSettings == nil {
+		intelPlugin.DpllSettings = make(map[string]uint64)
+	}
+
+	intelPlugin.DpllSettings["LocalHoldoverTimeout"] = uint64(settings.LocalHoldoverTimeout)
+	intelPlugin.DpllSettings["LocalMaxHoldoverOffSet"] = uint64(settings.LocalMaxHoldoverOffSet)
+	intelPlugin.DpllSettings["MaxInSpecOffset"] = uint64(settings.MaxInSpecOffset)
+
+	raw, err := json.Marshal(intelPlugin)
+	if err != nil {
+		return fmt.Errorf("failed to marshal E810 plugin: %w", err)
+	}
+
+	profile.Plugins[string(ptp.PluginTypeE810)] = &apiextv1.JSON{Raw: raw}
+
+	return nil
+}
+
+// GetUpstreamPort returns the upstream port from the E810 plugin's interconnections. Returns the first
+// interconnection entry that has an upstreamPort set.
+func GetUpstreamPort(profile *ptpv1.PtpProfile) (iface.Name, error) {
+	intelPlugin, err := getIntelPlugin(profile, ptp.PluginTypeE810)
+	if err != nil {
+		return "", fmt.Errorf("failed to get Intel plugin for upstream port: %w", err)
+	}
+
+	for _, interconnection := range intelPlugin.InputDelays {
+		if interconnection.UpstreamPort != "" {
+			return iface.Name(interconnection.UpstreamPort), nil
+		}
+	}
+
+	return "", fmt.Errorf("no upstream port found in E810 plugin interconnections")
 }
