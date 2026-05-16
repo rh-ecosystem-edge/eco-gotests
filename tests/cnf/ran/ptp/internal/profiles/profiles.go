@@ -43,6 +43,16 @@ const (
 	// ProfileTypeNTPFallback refers to a PTP profile that is configured to fall back to NTP when GNSS sync is lost.
 	// This is the same as a GM profile but with chronyd configured.
 	ProfileTypeNTPFallback
+	// ProfileTypeTBCTransmitter refers to the time-transmitter side of a Telecom Boundary Clock pair. It has
+	// multiple server interfaces and no client interfaces, and is linked to the receiver profile via the
+	// controllingProfile PTP setting.
+	ProfileTypeTBCTransmitter
+	// ProfileTypeTBCReceiver refers to the time-receiver side of a Telecom Boundary Clock pair. It is
+	// identified by being referenced as the controllingProfile from a TBC transmitter profile.
+	ProfileTypeTBCReceiver
+	// ProfileTypeTTSC refers to a Telecom Time Slave Clock (ITU-T G.8275.1). It has ts2phc and phc2sys
+	// configurations for hardware timestamping and holdover, but is not part of a T-BC pair.
+	ProfileTypeTTSC
 )
 
 // PtpClockType enumerates the roles of each interface. It is different from the roles in metrics, which include extra

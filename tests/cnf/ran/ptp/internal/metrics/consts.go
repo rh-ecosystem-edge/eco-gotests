@@ -48,8 +48,11 @@ type PtpClockClass uint8
 //nolint:revive // The clock class names are self explanatory and do not need individual comments.
 const (
 	ClockClass6   PtpClockClass = 6
-	ClockClass248 PtpClockClass = 248
 	ClockClass7   PtpClockClass = 7
+	ClockClass135 PtpClockClass = 135
+	ClockClass165 PtpClockClass = 165
+	ClockClass248 PtpClockClass = 248
+	ClockClass255 PtpClockClass = 255
 )
 
 // PtpProcessStatus is an enum representing all possible states of the PTP process.
@@ -142,5 +145,6 @@ const (
 	ProcessDPLL    PtpProcess = "dpll"
 	ProcessGNSS    PtpProcess = "gnss"
 	ProcessGM      PtpProcess = "GM"
+	ProcessTBC     PtpProcess = "T-BC"
 	ProcessChronyd PtpProcess = "chronyd"
 )

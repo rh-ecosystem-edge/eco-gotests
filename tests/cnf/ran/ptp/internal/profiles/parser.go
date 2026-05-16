@@ -14,7 +14,11 @@ type configSections = map[string]map[string]string
 
 // parsePtpProfile parses the PTP profile and the ptp4l information to get the interfaces and their types before making
 // a determination on the profile type. Maps in the parsedPtp4lConf struct are guaranteed to not be nil when returned.
-func parsePtpProfile(profile ptpv1.PtpProfile, reference ProfileReference) (*ProfileInfo, error) {
+func parsePtpProfile(
+	profile ptpv1.PtpProfile,
+	reference ProfileReference,
+	controlledNames map[string]bool,
+) (*ProfileInfo, error) {
 	profileInfo := &ProfileInfo{
 		Reference: reference,
 	}
@@ -49,7 +53,7 @@ func parsePtpProfile(profile ptpv1.PtpProfile, reference ProfileReference) (*Pro
 		interfaceInfo.Profile = profileInfo
 	}
 
-	profileInfo.ProfileType, err = determineProfileType(profileInfo.Interfaces, profile)
+	profileInfo.ProfileType, err = determineProfileType(profileInfo.Interfaces, profile, controlledNames)
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine profile type: %w", err)
 	}
@@ -146,10 +150,14 @@ func getInterfacesFromPtp4lSections(clientFlag bool, sections configSections) ma
 	return interfaces
 }
 
-// determineProfileType determines the PTP profile type based on the number of interfaces and their clock types.
-// Additionally, it makes use of ts2phc settings to determine if the profile is GM or MultiNICGM. An error is returned
-// if the profile type cannot be determined.
-func determineProfileType(interfaces map[iface.Name]*InterfaceInfo, profile ptpv1.PtpProfile) (PtpProfileType, error) {
+// determineProfileType determines the PTP profile type based on the number of interfaces, their clock types, and
+// cross-profile context. The controlledNames map contains profile names referenced by a TBC transmitter's
+// controllingProfile setting, enabling distinction between T-BC receivers and standalone T-TSC/OC profiles.
+func determineProfileType(
+	interfaces map[iface.Name]*InterfaceInfo,
+	profile ptpv1.PtpProfile,
+	controlledNames map[string]bool,
+) (PtpProfileType, error) {
 	// If the profile has chronyd configuration, it is a NTP fallback profile. This must be checked before the GM
 	// profile is determined, otherwise the profile would be incorrectly identified as a GM profile.
 	if profile.ChronydConf != nil && *profile.ChronydConf != "" {
@@ -186,7 +194,18 @@ func determineProfileType(interfaces map[iface.Name]*InterfaceInfo, profile ptpv
 		}
 	}
 
+	profileName := ""
+	if profile.Name != nil {
+		profileName = *profile.Name
+	}
+
 	switch {
+	// If the profile has one client interface and is referenced by a TBC transmitter, return ProfileTypeTBCReceiver.
+	case numInterfaces == 1 && numClientInterfaces == 1 && controlledNames[profileName]:
+		return ProfileTypeTBCReceiver, nil
+	// If the profile has one client interface with ts2phc and phc2sys (telecom slave), return ProfileTypeTTSC.
+	case numInterfaces == 1 && numClientInterfaces == 1 && hasTelecomSlaveConfig(profile):
+		return ProfileTypeTTSC, nil
 	// If the profile has one interface and one client interface, return ProfileTypeOC.
 	case numInterfaces == 1 && numClientInterfaces == 1:
 		return ProfileTypeOC, nil
@@ -196,6 +215,9 @@ func determineProfileType(interfaces map[iface.Name]*InterfaceInfo, profile ptpv
 	// If the profile has at least two interfaces and only one client interface, return ProfileTypeBC.
 	case numInterfaces >= 2 && numClientInterfaces == 1:
 		return ProfileTypeBC, nil
+	// If all interfaces are server, return ProfileTypeTBCTransmitter.
+	case numInterfaces >= 1 && numServerInterfaces == numInterfaces:
+		return ProfileTypeTBCTransmitter, nil
 	// All other profile types are considered unsupported.
 	default:
 		return 0, fmt.Errorf("unable to determine PTP profile type based on defined rules")
@@ -235,4 +257,19 @@ func hasClientFlag(ptp4lOpts *string) bool {
 	}
 
 	return false
+}
+
+// hasTelecomSlaveConfig checks whether a profile has the configuration markers of a Telecom Time Slave Clock
+// (ITU-T G.8275.1): ts2phc for hardware timestamping and phc2sys for system clock synchronization, without
+// being a ts2phc master (which would indicate a GM profile).
+func hasTelecomSlaveConfig(profile ptpv1.PtpProfile) bool {
+	if profile.Ts2PhcConf == nil || profile.Phc2sysOpts == nil {
+		return false
+	}
+
+	if strings.Contains(*profile.Ts2PhcConf, "ts2phc.master 1") {
+		return false
+	}
+
+	return true
 }
