@@ -434,9 +434,114 @@ var _ = Describe(
 			Expect(err).ToNot(HaveOccurred(), "DNS TXT record lookup failed")
 			Expect(txtRecords).To(BeEmpty(), "TXT record was not cleaned up after certificate issuance")
 		})
+
+		// 89043 - Verify successful alerts escalation
+		It("Verifies successful alerts escalation", reportxml.ID("89043"), func() {
+			By("Creating PrometheusRule with accelerated alert thresholds")
+
+			prometheusRule := buildCertRenewalPrometheusRule("alert-test-cert", 480, 360, 240)
+
+			_, err := APIClient.Resource(prometheusRuleGVR).Namespace(
+				randuparams.CertManagerOpenshiftMonitoringNamespace).Create(
+				context.TODO(), prometheusRule, metav1.CreateOptions{})
+			Expect(err).ToNot(HaveOccurred(), "Failed to create PrometheusRule")
+
+			By("Verifying renewal metric is available in Prometheus")
+
+			Eventually(func() error {
+				remainingSeconds, err := queryPrometheusRenewalMetric(prometheusAPI, "alert-test-cert")
+				if err != nil {
+					return err
+				}
+
+				if remainingSeconds <= 0 {
+					return fmt.Errorf("renewal metric shows %f seconds, expected positive value", remainingSeconds)
+				}
+
+				return nil
+			}, 2*time.Minute, 10*time.Second).Should(Succeed(), "Renewal metric not available or already past renewal time")
+
+			By("Waiting for CertManagerCertRenewalInfo alert to fire (remaining < 480s)")
+
+			Eventually(func() (string, error) {
+				return queryPrometheusAlertState(prometheusAPI, "CertManagerCertRenewalInfo")
+			}, randuparams.CertManagerAlertTimeout, randuparams.CertManagerAlertPollInterval).Should(Equal("firing"),
+				"CertManagerCertRenewalInfo alert did not fire")
+
+			By("Waiting for CertManagerCertRenewalWarning alert to fire (remaining < 360s)")
+
+			Eventually(func() (string, error) {
+				return queryPrometheusAlertState(prometheusAPI, "CertManagerCertRenewalWarning")
+			}, 5*time.Minute, randuparams.CertManagerAlertPollInterval).Should(Equal("firing"),
+				"CertManagerCertRenewalWarning alert did not fire")
+
+			By("Waiting for CertManagerCertRenewalCritical alert to fire (remaining < 240s)")
+
+			Eventually(func() (string, error) {
+				return queryPrometheusAlertState(prometheusAPI, "CertManagerCertRenewalCritical")
+			}, 5*time.Minute, randuparams.CertManagerAlertPollInterval).Should(Equal("firing"),
+				"CertManagerCertRenewalCritical alert did not fire")
+		})
 	})
 
 // Helper functions
+
+// buildCertRenewalPrometheusRule constructs a PrometheusRule CR for cert-manager renewal alerts
+// with configurable thresholds for info, warning, and critical severity levels.
+func buildCertRenewalPrometheusRule(certName string, infoThreshold, warningThreshold, criticalThreshold int) *unstructured.Unstructured {
+	return &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "monitoring.coreos.com/v1",
+			"kind":       "PrometheusRule",
+			"metadata": map[string]interface{}{
+				"name":      "cert-renewal-alert-test",
+				"namespace": randuparams.CertManagerOpenshiftMonitoringNamespace,
+			},
+			"spec": map[string]interface{}{
+				"groups": []interface{}{
+					map[string]interface{}{
+						"name": "cert-manager-alert-test",
+						"rules": []interface{}{
+							map[string]interface{}{
+								"alert": "CertManagerCertRenewalInfo",
+								"expr":  fmt.Sprintf(`(certmanager_certificate_renewal_timestamp_seconds{name="%s"} - time()) < %d`, certName, infoThreshold),
+								"for":   "0m",
+								"labels": map[string]interface{}{
+									"severity": "info",
+								},
+								"annotations": map[string]interface{}{
+									"description": fmt.Sprintf("Certificate %s will renew in less than %d seconds", certName, infoThreshold),
+								},
+							},
+							map[string]interface{}{
+								"alert": "CertManagerCertRenewalWarning",
+								"expr":  fmt.Sprintf(`(certmanager_certificate_renewal_timestamp_seconds{name="%s"} - time()) < %d`, certName, warningThreshold),
+								"for":   "0m",
+								"labels": map[string]interface{}{
+									"severity": "warning",
+								},
+								"annotations": map[string]interface{}{
+									"description": fmt.Sprintf("Certificate %s will renew in less than %d seconds", certName, warningThreshold),
+								},
+							},
+							map[string]interface{}{
+								"alert": "CertManagerCertRenewalCritical",
+								"expr":  fmt.Sprintf(`(certmanager_certificate_renewal_timestamp_seconds{name="%s"} - time()) < %d`, certName, criticalThreshold),
+								"for":   "0m",
+								"labels": map[string]interface{}{
+									"severity": "critical",
+								},
+								"annotations": map[string]interface{}{
+									"description": fmt.Sprintf("Certificate %s will renew in less than %d seconds", certName, criticalThreshold),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
 
 // queryPrometheusAlertState queries the state of a specific cert-manager alert rule.
 func queryPrometheusAlertState(promAPI promv1.API, alertName string) (string, error) {
@@ -461,7 +566,8 @@ func queryPrometheusAlertState(promAPI promv1.API, alertName string) (string, er
 	return "", fmt.Errorf("alert %s not found", alertName)
 }
 
-// queryPrometheusRenewalMetric queries Prometheus for the certmanager_certificate_renewal_timestamp_seconds metric.
+// queryPrometheusRenewalMetric queries Prometheus for the certmanager_certificate_renewal_timestamp_seconds metric
+// and returns the number of seconds remaining until renewal (renewal_timestamp - current_time).
 func queryPrometheusRenewalMetric(promAPI promv1.API, certName string) (float64, error) {
 	query := fmt.Sprintf(`certmanager_certificate_renewal_timestamp_seconds{name="%s"} - time()`, certName)
 
