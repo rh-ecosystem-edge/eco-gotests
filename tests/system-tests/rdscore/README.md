@@ -283,6 +283,65 @@ After data is stored in a a volume backed by the PVC deployment is scaled down a
 |rdscore_wlkd_odf_one_selector | Node selector for 1st node | `kubernetes.io/hostname: worker-X` |
 |rdscore_wlkd_odf_two_selector | Node selector for 2nd node | `kubernetes.io/hostname: worker-Y` |
 
+### _VerifyCommatrixHostFirewallArtifacts_
+
+This test verifies `oc commatrix` host-firewall _MachineConfig_ artifacts: direct `mc` output matches butane-rendered
+_MachineConfigs_, and embedded _nftables_ `openshift_filter` rules are present in generated MC payloads.
+
+Test expects `oc commatrix generate` to write under _rdscore_commatrix_output_dir_ (`format-mc` and `format-butane`), the
+butane CLI to render `mc-*.yaml` beside `butane-*.yaml`, and decoded MC payloads to contain host-firewall nftables rules.
+
+**Requires `oc commatrix` on the test runner, a writable output directory, and a cluster that will receive MCs in later specs**
+
+| parameter | description | example |
+|-----------|-------------|---------|
+|rdscore_commatrix_output_dir | Writable directory for `oc commatrix generate` output (_required_) | `/tmp/commatrix-work` |
+|rdscore_commatrix_open_pool_node_label | Label selector for open pool nodes (_optional_; inferred from `mc-*mcp-b*.yaml` when empty) | `` |
+
+API/kubelet/closed ports, MCP wait, and journal keyword are fixed in test code (6443, 10250, 9999, 15m, `firewall`).
+
+Run the ordered commatrix spec: `ginkgo --label-filter=commatrix ./tests/system-tests/rdscore`
+
+### _VerifyCommatrixHostFirewallApply_
+
+This test verifies host-firewall _MachineConfiguration_ apply on the cluster: node disruption policy merge patch,
+selective apply of secure-pool and master _MachineConfigs_, _MachineConfigPool_ stability, and `openshift_filter` chain
+presence on a worker node.
+
+Test expects `format-mc` artifacts from the artifacts spec, including `node-disruption-policy.yaml`, `mc-<secure-pool>.yaml`, and
+`mc-master.yaml`. Other generated `mc-<pool>.yaml` files (e.g. open pool) must remain unapplied so open workers stay
+without host-firewall rules for the open-pool kubelet connectivity check.
+
+**Requires commatrix artifacts and at least one node in each applied _MachineConfigPool_. Reverts cluster changes in AfterAll after all four specs**
+
+Uses commatrix parameters listed under _VerifyCommatrixHostFirewallArtifacts_.
+
+### _VerifyCommatrixHostFirewallConnectivity_
+
+This test verifies host-firewall TCP reachability from the test runner to node _InternalIP_ addresses: API and kubelet
+ports allowed or blocked per pool, and open-pool kubelet reachable when that pool's MC was not applied.
+
+Test expects `nc` on the test runner to reach the control-plane API where allowed, to fail or time out
+to secure-pool worker API ports, to reach kubelet on the secure worker, to fail on a closed test port, and to reach
+kubelet on an open-pool worker.
+
+**Requires applied host-firewall MCs, resolvable master/secure/open worker internal IPs (secure worker is the first node in the applied firewall MCP from apply; open pool via label or inferred MCP), and optionally a second node in an applied firewall MCP for the peer API probe**
+
+Uses commatrix parameters listed under _VerifyCommatrixHostFirewallArtifacts_.
+
+### _VerifyCommatrixHostFirewallJournal_
+
+This test verifies host-firewall kernel logging: rate-limited `firewall` / `firewall ` log-prefix buckets in the
+journal, and a temporary `TCP_TEST` nft log rule with matching journal lines after a probe.
+
+Test expects kernel journal lines on the same secure-worker node as connectivity matching the firewall log keyword, at most five
+lines per bucket in each of two consecutive one-minute windows (`2m–1m ago` and `last 1m`), and at least one `TCP_TEST` line referencing
+the probed destination port after `nc` from the test runner.
+
+**Requires applied host-firewall MCs, connectivity spec run first (same secure-worker node), and firewall traffic or probes sufficient to produce journal lines**
+
+Uses commatrix parameters listed under _VerifyCommatrixHostFirewallArtifacts_.
+
 ### _VerifyNMStateInstanceExists_
 
 Verifies that _NMState_ instance `nmstate` exists

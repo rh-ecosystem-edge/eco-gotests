@@ -1046,3 +1046,28 @@ var _ = Describe(
 			})
 		})
 	})
+
+var _ = Describe(
+	"Commatrix",
+	Ordered,
+	Label("commatrix"),
+	func() {
+		AfterAll(rdscorecommon.CommatrixRevertAfterSpec)
+
+		It("Verifies commatrix artifact generation",
+			Label("commatrix-artifacts"),
+			reportxml.ID("95001"), rdscorecommon.VerifyCommatrixHostFirewallArtifacts)
+
+		It("Verifies commatrix MachineConfig apply and nftables",
+			Label("commatrix-apply"),
+			reportxml.ID("95002"), rdscorecommon.VerifyCommatrixHostFirewallApply, SpecTimeout(20*time.Minute))
+
+		It("Verifies commatrix host-firewall TCP connectivity",
+			Label("commatrix-connectivity"),
+			reportxml.ID("95003"), rdscorecommon.VerifyCommatrixHostFirewallConnectivity)
+
+		It("Verifies commatrix firewall journal logging",
+			Label("commatrix-journal"),
+			reportxml.ID("95004"), rdscorecommon.VerifyCommatrixHostFirewallJournal)
+	},
+)
