@@ -37,4 +37,10 @@ const (
 	CertManagerPrometheusQuerierCRBName = "randu-prometheus-querier-crb"
 	// CertManagerOpenshiftMonitoringNamespace is the namespace for OpenShift monitoring.
 	CertManagerOpenshiftMonitoringNamespace = "openshift-monitoring"
+	// CertManagerAlertNameInfo is the name of the info-level certificate renewal alert.
+	CertManagerAlertNameInfo = "CertManagerCertRenewalInfo"
+	// CertManagerAlertNameWarning is the name of the warning-level certificate renewal alert.
+	CertManagerAlertNameWarning = "CertManagerCertRenewalWarning"
+	// CertManagerAlertNameCritical is the name of the critical-level certificate renewal alert.
+	CertManagerAlertNameCritical = "CertManagerCertRenewalCritical"
 )

@@ -34,6 +34,7 @@ import (
 	authorizationv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -464,23 +465,102 @@ var _ = Describe(
 			By("Waiting for CertManagerCertRenewalInfo alert to fire (remaining < 480s)")
 
 			Eventually(func() (string, error) {
-				return queryPrometheusAlertState(prometheusAPI, "CertManagerCertRenewalInfo")
+				return queryPrometheusAlertState(prometheusAPI, randuparams.CertManagerAlertNameInfo)
 			}, randuparams.CertManagerAlertTimeout, randuparams.CertManagerAlertPollInterval).Should(Equal("firing"),
 				"CertManagerCertRenewalInfo alert did not fire")
 
 			By("Waiting for CertManagerCertRenewalWarning alert to fire (remaining < 360s)")
 
 			Eventually(func() (string, error) {
-				return queryPrometheusAlertState(prometheusAPI, "CertManagerCertRenewalWarning")
+				return queryPrometheusAlertState(prometheusAPI, randuparams.CertManagerAlertNameWarning)
 			}, 5*time.Minute, randuparams.CertManagerAlertPollInterval).Should(Equal("firing"),
 				"CertManagerCertRenewalWarning alert did not fire")
 
 			By("Waiting for CertManagerCertRenewalCritical alert to fire (remaining < 240s)")
 
 			Eventually(func() (string, error) {
-				return queryPrometheusAlertState(prometheusAPI, "CertManagerCertRenewalCritical")
+				return queryPrometheusAlertState(prometheusAPI, randuparams.CertManagerAlertNameCritical)
 			}, 5*time.Minute, randuparams.CertManagerAlertPollInterval).Should(Equal("firing"),
 				"CertManagerCertRenewalCritical alert did not fire")
+		})
+
+		// 89044 - Verify successful alert resolution
+		It("Verifies successful alert resolution", reportxml.ID("89044"), func() {
+			defer func() {
+				By("Cleaning up alert test resources")
+
+				// Delete Certificate CR
+				err := APIClient.Resource(certGVR).Namespace(randuparams.CertManagerTestNamespace).Delete(
+					context.TODO(), "alert-test-cert", metav1.DeleteOptions{})
+				if err != nil && !k8serrors.IsNotFound(err) {
+					// log or ignore
+				}
+
+				// Delete TLS secret if it exists
+				tlsSecretCheck, pullErr := secret.Pull(APIClient, "alert-test-tls", randuparams.CertManagerTestNamespace)
+				if pullErr == nil && tlsSecretCheck.Exists() {
+					_ = tlsSecretCheck.Delete()
+				}
+
+				// Delete PrometheusRule
+				err = APIClient.Resource(prometheusRuleGVR).Namespace(
+					randuparams.CertManagerOpenshiftMonitoringNamespace).Delete(
+					context.TODO(), "cert-renewal-alert-test", metav1.DeleteOptions{})
+				if err != nil && !k8serrors.IsNotFound(err) {
+					// log or ignore
+				}
+
+				// Delete cert-test namespace
+				certTestNS := namespace.NewBuilder(APIClient, randuparams.CertManagerTestNamespace)
+				if certTestNS.Exists() {
+					_ = certTestNS.DeleteAndWait(randuparams.DefaultTimeout)
+				}
+			}()
+
+			By("Confirming all three cert-manager alerts are currently firing")
+
+			alertNames := []string{randuparams.CertManagerAlertNameInfo, randuparams.CertManagerAlertNameWarning, randuparams.CertManagerAlertNameCritical}
+			for _, alertName := range alertNames {
+				alertState, err := queryPrometheusAlertState(prometheusAPI, alertName)
+				Expect(err).ToNot(HaveOccurred(), "Failed to query state for alert %s", alertName)
+				Expect(alertState).To(Equal("firing"), "Expected %s to be firing", alertName)
+			}
+
+			By("Forcing certificate renewal by deleting the TLS secret")
+
+			tlsSecret, err := secret.Pull(APIClient, "alert-test-tls", randuparams.CertManagerTestNamespace)
+			Expect(err).ToNot(HaveOccurred(), "Failed to pull alert-test-tls secret")
+
+			err = tlsSecret.Delete()
+			Expect(err).ToNot(HaveOccurred(), "Failed to delete alert-test-tls secret")
+
+			By("Waiting for cert-manager to re-issue the certificate")
+
+			Eventually(func() (bool, error) {
+				return isCertificateReady(randuparams.CertManagerTestNamespace, "alert-test-cert")
+			}, randuparams.CertManagerDefaultTimeout, 10*time.Second).Should(BeTrue(),
+				"Certificate alert-test-cert did not become ready after renewal")
+
+			By("Verifying renewal timestamp metric has been updated")
+
+			Eventually(func() (float64, error) {
+				return queryPrometheusRenewalMetric(prometheusAPI, "alert-test-cert")
+			}, 2*time.Minute, 10*time.Second).Should(BeNumerically(">", 0),
+				"Renewal metric should show positive remaining time after renewal")
+
+			By("Verifying all cert-manager alerts have resolved")
+
+			Eventually(func() bool {
+				warningState, warningErr := queryPrometheusAlertState(prometheusAPI, randuparams.CertManagerAlertNameWarning)
+				criticalState, criticalErr := queryPrometheusAlertState(prometheusAPI, randuparams.CertManagerAlertNameCritical)
+
+				if warningErr != nil || criticalErr != nil {
+					return false
+				}
+
+				return warningState == "inactive" && criticalState == "inactive"
+			}, 5*time.Minute, randuparams.CertManagerAlertPollInterval).Should(BeTrue(),
+				"Warning and Critical alerts did not resolve")
 		})
 	})
 
@@ -503,7 +583,7 @@ func buildCertRenewalPrometheusRule(certName string, infoThreshold, warningThres
 						"name": "cert-manager-alert-test",
 						"rules": []interface{}{
 							map[string]interface{}{
-								"alert": "CertManagerCertRenewalInfo",
+								"alert": randuparams.CertManagerAlertNameInfo,
 								"expr":  fmt.Sprintf(`(certmanager_certificate_renewal_timestamp_seconds{name="%s"} - time()) < %d`, certName, infoThreshold),
 								"for":   "0m",
 								"labels": map[string]interface{}{
@@ -514,7 +594,7 @@ func buildCertRenewalPrometheusRule(certName string, infoThreshold, warningThres
 								},
 							},
 							map[string]interface{}{
-								"alert": "CertManagerCertRenewalWarning",
+								"alert": randuparams.CertManagerAlertNameWarning,
 								"expr":  fmt.Sprintf(`(certmanager_certificate_renewal_timestamp_seconds{name="%s"} - time()) < %d`, certName, warningThreshold),
 								"for":   "0m",
 								"labels": map[string]interface{}{
@@ -525,7 +605,7 @@ func buildCertRenewalPrometheusRule(certName string, infoThreshold, warningThres
 								},
 							},
 							map[string]interface{}{
-								"alert": "CertManagerCertRenewalCritical",
+								"alert": randuparams.CertManagerAlertNameCritical,
 								"expr":  fmt.Sprintf(`(certmanager_certificate_renewal_timestamp_seconds{name="%s"} - time()) < %d`, certName, criticalThreshold),
 								"for":   "0m",
 								"labels": map[string]interface{}{
