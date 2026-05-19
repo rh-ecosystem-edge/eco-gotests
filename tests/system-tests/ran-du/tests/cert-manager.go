@@ -561,6 +561,99 @@ var _ = Describe(
 				return warningState == "inactive" && criticalState == "inactive"
 			}, 5*time.Minute, randuparams.CertManagerAlertPollInterval).Should(BeTrue(),
 				"Warning and Critical alerts did not resolve")
+		// 89045 - Verify API Server certificate generation via DNS-01 ACME challenge
+		It("Verifies API Server certificate generation via DNS-01 ACME challenge", reportxml.ID("89045"), func() {
+			By("Creating API Server Certificate CR in openshift-config namespace")
+
+			apiDomain := RanDuTestConfig.CertManager.APIDomain
+			Expect(apiDomain).ToNot(BeEmpty(), "ECO_RANDU_CERTMANAGER_API_DOMAIN must be set")
+
+			issuerName := RanDuTestConfig.CertManager.IssuerName
+			if issuerName == "" {
+				issuerName = "acme-issuer"
+			}
+
+			err := createCertificateCR(
+				"api-server-certificate",
+				"openshift-config",
+				apiDomain,
+				"api-server-cert",
+				issuerName,
+				[]string{apiDomain},
+				"",
+				"",
+			)
+			Expect(err).ToNot(HaveOccurred(), "Failed to create API Server Certificate CR")
+
+			By("Waiting for API Server certificate to become ready")
+
+			Eventually(func() (bool, error) {
+				return isCertificateReady("openshift-config", "api-server-certificate")
+			}, randuparams.CertManagerDefaultTimeout, 10*time.Second).Should(BeTrue(),
+				"API Server certificate did not become ready")
+
+			By("Verifying API Server TLS secret contains correct certificate")
+
+			apiSecret, err := secret.Pull(APIClient, "api-server-cert", "openshift-config")
+			Expect(err).ToNot(HaveOccurred(), "Failed to pull API Server TLS secret")
+			Expect(apiSecret.Exists()).To(BeTrue(), "API Server TLS secret does not exist")
+
+			cert, err := parseCertFromSecret(apiSecret)
+			Expect(err).ToNot(HaveOccurred(), "Failed to parse API Server certificate from secret")
+			Expect(cert.Subject.CommonName).To(Equal(apiDomain),
+				"API Server certificate CN does not match configured domain")
+
+			By("Recording baseline certificate serial number before APIServer patch")
+
+			apiCertBaselineSerial = cert.SerialNumber.String()
+
+			By("Applying APIServer configuration to use the cert-manager issued certificate")
+
+			apiServerObj, err := APIClient.Resource(apiServerGVR).Get(context.TODO(), "cluster", metav1.GetOptions{})
+			Expect(err).ToNot(HaveOccurred(), "Failed to get APIServer cluster resource")
+
+			err = unstructured.SetNestedSlice(apiServerObj.Object, []interface{}{
+				map[string]interface{}{
+					"names": []interface{}{apiDomain},
+					"servingCertificate": map[string]interface{}{
+						"name": "api-server-cert",
+					},
+				},
+			}, "spec", "servingCerts", "namedCertificates")
+			Expect(err).ToNot(HaveOccurred(), "Failed to set servingCerts in APIServer spec")
+
+			_, err = APIClient.Resource(apiServerGVR).Update(context.TODO(), apiServerObj, metav1.UpdateOptions{})
+			Expect(err).ToNot(HaveOccurred(), "Failed to update APIServer with servingCerts")
+
+			By("Waiting for kube-apiserver rollout to complete")
+
+			Eventually(func() error {
+				kubeAPIServer, err := apiservers.PullKubeAPIServer(APIClient)
+				if err != nil {
+					return fmt.Errorf("failed to pull KubeAPIServer: %w", err)
+				}
+
+				return kubeAPIServer.WaitAllNodesAtTheLatestRevision(10 * time.Minute)
+			}, randuparams.CertManagerAPIServerRolloutTimeout, 30*time.Second).Should(Succeed(),
+				"kube-apiserver rollout did not complete")
+
+			By("Verifying API server is serving the cert-manager issued certificate")
+
+			Eventually(func() error {
+				cert, err := getTLSCertificateFromEndpoint(apiDomain, "6443", apiDomain)
+				if err != nil {
+					return fmt.Errorf("failed to get TLS certificate from API server: %w", err)
+				}
+
+				if cert.Subject.CommonName != apiDomain {
+					return fmt.Errorf("certificate CN %s does not match API domain %s",
+						cert.Subject.CommonName, apiDomain)
+				}
+
+				return nil
+			}, 2*time.Minute, 10*time.Second).Should(Succeed(),
+				"API server is not serving the cert-manager issued certificate")
+		})
 		})
 	})
 
@@ -919,3 +1012,4 @@ func getClusterDefaultRouterCAPool() (*x509.CertPool, error) {
 
 	return caPool, nil
 }
+
