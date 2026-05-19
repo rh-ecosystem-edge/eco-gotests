@@ -13,11 +13,11 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	monv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	promapi "github.com/prometheus/client_golang/api"
 	promv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
-	monv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/apiservers"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ingress"
@@ -371,6 +371,69 @@ var _ = Describe(
 				Expect(err).ToNot(HaveOccurred(), "CRD %s not found", crdName)
 			}
 		})
+
+		// 89042 - Verify certificate generation via DNS-01 ACME challenge
+		It("Verifies certificate generation via DNS-01 ACME challenge", reportxml.ID("89042"), func() {
+			By("Creating test namespace cert-test")
+
+			issuerName := RanDuTestConfig.CertManager.IssuerName
+			if issuerName == "" {
+				issuerName = "acme-issuer"
+			}
+
+			certTestNS := namespace.NewBuilder(APIClient, randuparams.CertManagerTestNamespace)
+			if certTestNS.Exists() {
+				err := certTestNS.DeleteAndWait(randuparams.DefaultTimeout)
+				Expect(err).ToNot(HaveOccurred(), "Failed to delete existing cert-test namespace")
+			}
+
+			_, err := certTestNS.Create()
+			Expect(err).ToNot(HaveOccurred(), "Failed to create cert-test namespace")
+
+			By("Creating Certificate CR for test domain with short renewal window")
+
+			certDomain := RanDuTestConfig.CertManager.CertDomain
+			Expect(certDomain).ToNot(BeEmpty(), "ECO_RANDU_CERTMANAGER_CERT_DOMAIN must be set")
+
+			err = createCertificateCR(
+				"alert-test-cert",
+				randuparams.CertManagerTestNamespace,
+				certDomain,
+				"alert-test-tls",
+				issuerName,
+				[]string{certDomain},
+				"24h",
+				"23h51m",
+			)
+			Expect(err).ToNot(HaveOccurred(), "Failed to create Certificate CR")
+
+			By("Waiting for certificate to become ready")
+
+			Eventually(func() (bool, error) {
+				return isCertificateReady(randuparams.CertManagerTestNamespace, "alert-test-cert")
+			}, randuparams.CertManagerDefaultTimeout, 10*time.Second).Should(BeTrue(),
+				"Certificate alert-test-cert did not become ready")
+
+			By("Verifying TLS secret was created with valid certificate data")
+
+			tlsSecret, err := secret.Pull(APIClient, "alert-test-tls", randuparams.CertManagerTestNamespace)
+			Expect(err).ToNot(HaveOccurred(), "Failed to pull TLS secret")
+			Expect(tlsSecret.Exists()).To(BeTrue(), "TLS secret does not exist")
+
+			cert, err := parseCertFromSecret(tlsSecret)
+			Expect(err).ToNot(HaveOccurred(), "Failed to parse certificate from secret")
+			Expect(cert.Subject.CommonName).To(Equal(certDomain),
+				"Certificate CN does not match configured domain")
+
+			By("Verifying ACME DNS TXT record was cleaned up after issuance")
+
+			dnsServer := RanDuTestConfig.CertManager.DNSServer
+			Expect(dnsServer).ToNot(BeEmpty(), "ECO_RANDU_CERTMANAGER_DNS_SERVER must be set")
+
+			txtRecords, err := lookupDNSTXTRecord(dnsServer, "_acme-challenge."+certDomain)
+			Expect(err).ToNot(HaveOccurred(), "DNS TXT record lookup failed")
+			Expect(txtRecords).To(BeEmpty(), "TXT record was not cleaned up after certificate issuance")
+		})
 	})
 
 // Helper functions
@@ -502,32 +565,34 @@ func parseCertFromSecret(secretBuilder *secret.Builder) (*x509.Certificate, erro
 	return cert, nil
 }
 
-// waitForCertificateReady polls a cert-manager Certificate CR until its status condition Ready is True.
-func waitForCertificateReady(ns, name string, timeout time.Duration) {
-	Eventually(func() bool {
-		certObj, err := APIClient.Resource(certGVR).Namespace(ns).Get(context.TODO(), name, metav1.GetOptions{})
-		if err != nil {
-			return false
+// isCertificateReady checks whether a cert-manager Certificate CR has a Ready=True condition.
+func isCertificateReady(ns, name string) (bool, error) {
+	certObj, err := APIClient.Resource(certGVR).Namespace(ns).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return false, fmt.Errorf("failed to get certificate %s/%s: %w", ns, name, err)
+	}
+
+	conditions, found, err := unstructured.NestedSlice(certObj.Object, "status", "conditions")
+	if err != nil {
+		return false, fmt.Errorf("failed to extract conditions: %w", err)
+	}
+
+	if !found || len(conditions) == 0 {
+		return false, nil
+	}
+
+	for _, c := range conditions {
+		cond, ok := c.(map[string]interface{})
+		if !ok {
+			continue
 		}
 
-		conditions, found, err := unstructured.NestedSlice(certObj.Object, "status", "conditions")
-		if err != nil || !found || len(conditions) == 0 {
-			return false
+		if cond["type"] == "Ready" && cond["status"] == "True" {
+			return true, nil
 		}
+	}
 
-		for _, c := range conditions {
-			cond, ok := c.(map[string]interface{})
-			if !ok {
-				continue
-			}
-
-			if cond["type"] == "Ready" && cond["status"] == "True" {
-				return true
-			}
-		}
-
-		return false
-	}, timeout, 10*time.Second).Should(BeTrue(), "Certificate %s/%s did not become ready within %v", ns, name, timeout)
+	return false, nil
 }
 
 // lookupDNSTXTRecord queries a specific DNS server for TXT records at a given FQDN.
