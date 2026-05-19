@@ -12,8 +12,10 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netconfig"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -246,4 +248,193 @@ func ClusterSupportsIPv6(ipFamily string) bool {
 // ClusterSupportsDualStack returns true if the cluster is dual-stack.
 func ClusterSupportsDualStack(ipFamily string) bool {
 	return ipFamily == netparam.DualIPFamily
+}
+
+// WaitUntilVfsCreated waits until all expected SR-IOV VFs are created.
+func WaitUntilVfsCreated(
+	apiClient *clients.Settings,
+	sriovOperatorNamespace string,
+	nodeList []*nodes.Builder,
+	sriovInterfaceName string,
+	numberOfVfs int,
+	timeout time.Duration,
+) error {
+	klog.V(90).Infof("Waiting for the creation of all VFs (%d) under"+
+		" the %s interface in the SriovNetworkState.", numberOfVfs, sriovInterfaceName)
+
+	for _, node := range nodeList {
+		err := wait.PollUntilContextTimeout(
+			context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+				sriovNetworkState := sriov.NewNetworkNodeStateBuilder(
+					apiClient, node.Object.Name, sriovOperatorNamespace)
+
+				err := sriovNetworkState.Discover()
+				if err != nil {
+					return false, nil
+				}
+
+				err = isVfCreated(sriovNetworkState, numberOfVfs, sriovInterfaceName)
+				if err != nil {
+					return false, nil
+				}
+
+				return true, nil
+			})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// IsMellanoxDevice checks if a given network interface on a node is a Mellanox device.
+func IsMellanoxDevice(apiClient *clients.Settings, sriovOperatorNamespace, intName, nodeName string) (bool, error) {
+	klog.V(90).Infof("Checking if specific interface %s on node %s is a Mellanox device.", intName, nodeName)
+
+	sriovNetworkState := sriov.NewNetworkNodeStateBuilder(apiClient, nodeName, sriovOperatorNamespace)
+
+	driverName, err := sriovNetworkState.GetDriverName(intName)
+	if err != nil {
+		return false, fmt.Errorf("failed to get driver name for interface %s on node %s: %w", intName, nodeName, err)
+	}
+
+	return driverName == "mlx5_core", nil
+}
+
+// ConfigureSriovMlnxFirmwareOnWorkers configures SR-IOV firmware on a given Mellanox device.
+func ConfigureSriovMlnxFirmwareOnWorkers(
+	apiClient *clients.Settings,
+	sriovOperatorNamespace string,
+	workerNodes []*nodes.Builder,
+	sriovInterfaceName string,
+	enableSriov bool,
+	numVfs int,
+) error {
+	for _, workerNode := range workerNodes {
+		klog.V(90).Infof("Configuring SR-IOV firmware on the Mellanox device %s on worker %s"+
+			" with parameters: enableSriov %t and numVfs %d",
+			sriovInterfaceName, workerNode.Object.Name, enableSriov, numVfs)
+
+		sriovNetworkState := sriov.NewNetworkNodeStateBuilder(
+			apiClient, workerNode.Object.Name, sriovOperatorNamespace)
+
+		pciAddress, err := sriovNetworkState.GetPciAddress(sriovInterfaceName)
+		if err != nil {
+			klog.V(90).Infof("Failed to get PCI address for the interface %s", sriovInterfaceName)
+
+			return fmt.Errorf("failed to get PCI address: %s", err.Error())
+		}
+
+		mstconfigCmd := fmt.Sprintf("mstconfig -y -d %s set SRIOV_EN=%t NUM_OF_VFS=%d",
+			pciAddress, enableSriov, numVfs)
+
+		output, err := runCommandOnConfigDaemon(apiClient, sriovOperatorNamespace, workerNode.Object.Name,
+			[]string{"bash", "-c", mstconfigCmd})
+		if err != nil {
+			klog.V(90).Infof("Failed to configure SR-IOV firmware.")
+
+			return fmt.Errorf("failed to configure Mellanox firmware for interface %s on a node %s: %s\n %s",
+				pciAddress, workerNode.Object.Name, output, err.Error())
+		}
+
+		// Reboot is issued separately: the exec session is expected to drop when the node reboots.
+		_, rebootErr := runCommandOnConfigDaemon(apiClient, sriovOperatorNamespace, workerNode.Object.Name,
+			[]string{"bash", "-c", "chroot /host reboot"})
+		if rebootErr != nil && !isRebootExecDisconnectError(rebootErr) {
+			return fmt.Errorf("failed to reboot node %s after Mellanox firmware configuration: %s",
+				workerNode.Object.Name, rebootErr.Error())
+		}
+	}
+
+	return nil
+}
+
+// ConfigureSriovMlnxFirmwareOnWorkersAndWaitMCP configures Mellanox firmware and wait for the cluster becomes stable.
+func ConfigureSriovMlnxFirmwareOnWorkersAndWaitMCP(
+	apiClient *clients.Settings,
+	mcpTimeout time.Duration,
+	stableDuration time.Duration,
+	mcpLabel string,
+	sriovOperatorNamespace string,
+	workerNodes []*nodes.Builder,
+	sriovInterfaceName string,
+	enableSriov bool,
+	numVfs int,
+) error {
+	klog.V(90).Infof("Enabling SR-IOV on Mellanox device")
+
+	err := ConfigureSriovMlnxFirmwareOnWorkers(
+		apiClient, sriovOperatorNamespace, workerNodes, sriovInterfaceName, enableSriov, numVfs)
+	if err != nil {
+		klog.V(90).Infof("Failed to configure SR-IOV Mellanox firmware")
+
+		return err
+	}
+
+	time.Sleep(10 * time.Second)
+
+	err = cluster.WaitForMcpStable(apiClient, mcpTimeout, stableDuration, mcpLabel)
+	if err != nil {
+		klog.V(90).Infof("Machineconfigpool is not stable")
+
+		return err
+	}
+
+	return nil
+}
+
+// isRebootExecDisconnectError reports whether err is the expected exec failure when reboot closes the session.
+func isRebootExecDisconnectError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	msg := strings.ToLower(err.Error())
+
+	return strings.Contains(msg, "connection reset") ||
+		strings.Contains(msg, "connection refused") ||
+		strings.Contains(msg, "eof") ||
+		strings.Contains(msg, "broken pipe") ||
+		strings.Contains(msg, "unable to upgrade connection") ||
+		strings.Contains(msg, "command terminated") ||
+		errors.Is(err, context.Canceled) ||
+		errors.Is(err, context.DeadlineExceeded)
+}
+
+// isVfCreated checks that the expected number of VFs exists on the given SR-IOV interface.
+func isVfCreated(sriovNodeState *sriov.NetworkNodeStateBuilder, vfNumber int, sriovInterfaceName string) error {
+	sriovNumVfs, err := sriovNodeState.GetNumVFs(sriovInterfaceName)
+	if err != nil {
+		return err
+	}
+
+	if sriovNumVfs != vfNumber {
+		return fmt.Errorf("expected number of VFs %d is not equal to the actual number of VFs %d", vfNumber, sriovNumVfs)
+	}
+
+	return nil
+}
+
+// runCommandOnConfigDaemon executes command on the sriov-network-config-daemon pod for nodeName.
+func runCommandOnConfigDaemon(
+	apiClient *clients.Settings,
+	sriovOperatorNamespace string,
+	nodeName string,
+	command []string,
+) (string, error) {
+	pods, err := pod.List(apiClient, sriovOperatorNamespace, metav1.ListOptions{
+		LabelSelector: "app=sriov-network-config-daemon", FieldSelector: fmt.Sprintf("spec.nodeName=%s", nodeName)})
+	if err != nil {
+		return "", err
+	}
+
+	if len(pods) != 1 {
+		return "", fmt.Errorf("there should be exactly one 'sriov-network-config-daemon' pod per node,"+
+			" but found %d on node %s", len(pods), nodeName)
+	}
+
+	output, err := pods[0].ExecCommand(command)
+
+	return output.String(), err
 }

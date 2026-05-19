@@ -12,19 +12,22 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/define"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netnmstate"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/nmstate/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 	"gopkg.in/k8snetworkplumbingwg/multus-cni.v4/pkg/types"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
-var _ = Describe("NMState Altnames:", Ordered, Label(tsparams.LabelAltnames), func() {
+var _ = Describe("NMState Altnames:", Ordered, Label(tsparams.LabelAltnames), ContinueOnFailure, func() {
 	var (
 		workerNodes     []*nodes.Builder
 		sriovInterfaces []string
@@ -228,6 +231,113 @@ var _ = Describe("NMState Altnames:", Ordered, Label(tsparams.LabelAltnames), fu
 			err = netnmstate.CreatePolicyAndWaitUntilItsAvailable(netparam.DefaultTimeout, nncp)
 			Expect(err).ToNot(HaveOccurred(), "Failed to create NMState policy to restore interface")
 		})
+
+		It("add altnames for SRIOV VFs that are configured via NMState", reportxml.ID("86297"), func() {
+			configureVFsPolicyName := "nncp-86297-configure-sriov-vfs"
+			configureAltnamesPolicyName := "nncp-86297-configure-vf-altnames"
+			removeAltnamesPolicyName := "nncp-86297-remove-vf-altnames"
+			disableVFsPolicyName := "nncp-86297-disable-sriov-vfs"
+			altnames1 := []string{"t86297-vf0-alt-a", "t86297-vf0-alt-b"}
+
+			By("Configuring Mellanox firmware on the worker node")
+
+			isMellanox, err := netenv.IsMellanoxDevice(
+				APIClient, NetConfig.SriovOperatorNamespace, sriovIf0, workerNodes[0].Object.Name)
+			Expect(err).ToNot(HaveOccurred(), "Failed to check if interface is a Mellanox device")
+
+			if isMellanox {
+				err := netenv.ConfigureSriovMlnxFirmwareOnWorkersAndWaitMCP(
+					APIClient,
+					netparam.MCOWaitTimeout,
+					time.Minute,
+					NetConfig.CnfMcpLabel,
+					NetConfig.SriovOperatorNamespace,
+					[]*nodes.Builder{workerNodes[0]},
+					sriovIf0,
+					true,
+					5,
+				)
+				Expect(err).ToNot(HaveOccurred(), "Failed to configure Mellanox firmware")
+			}
+
+			By("Creating SR-IOV VFs via NMState")
+
+			err = netnmstate.ConfigureVFsAndWaitUntilItsConfigured(
+				configureVFsPolicyName,
+				sriovIf0,
+				worker0LabelMap,
+				5,
+				netparam.DefaultTimeout)
+			Expect(err).ToNot(HaveOccurred(), "Failed to create VFs via NMState")
+
+			DeferCleanup(func() {
+				By("Disabling SR-IOV VFs created for test 86297")
+
+				_, _ = nmstate.NewPolicyBuilder(APIClient, configureVFsPolicyName, worker0LabelMap).Delete()
+
+				cleanupNNCP := nmstate.NewPolicyBuilder(APIClient, disableVFsPolicyName, worker0LabelMap).
+					WithInterfaceAndVFs(sriovIf0, 0)
+				cleanupErr := netnmstate.CreatePolicyAndWaitUntilItsAvailable(netparam.DefaultTimeout, cleanupNNCP)
+				Expect(cleanupErr).ToNot(HaveOccurred(), "Failed to disable SR-IOV during cleanup")
+
+				_, cleanupErr = cleanupNNCP.Delete()
+				Expect(cleanupErr).ToNot(HaveOccurred(), "Failed to delete cleanup NMState policy")
+			})
+
+			err = netenv.WaitUntilVfsCreated(
+				APIClient, NetConfig.SriovOperatorNamespace, []*nodes.Builder{workerNodes[0]}, sriovIf0, 5, netparam.DefaultTimeout)
+			Expect(err).ToNot(HaveOccurred(), "Expected number of VFs are not created")
+
+			nnstateWorker0, err := nmstate.PullNodeNetworkState(APIClient, workerNodes[0].Object.Name)
+			Expect(err).ToNot(HaveOccurred(), "Failed to pull NodeNetworkState for VF0 name resolution")
+
+			firstVFNetdev, err := netnmstate.SrIovVfNetdevFromNodeNetworkState(
+				nnstateWorker0, sriovIf0, 0)
+			Expect(err).ToNot(HaveOccurred(), "Failed to resolve VF0 netdev from NodeNetworkState (MAC match)")
+
+			By("Adding altnames for SR-IOV VFs that are configured via NMState")
+
+			nncp := nmstate.NewPolicyBuilder(APIClient, configureAltnamesPolicyName, worker0LabelMap).
+				WithInterfaceAltnames(firstVFNetdev, altnames1)
+
+			err = netnmstate.CreatePolicyAndWaitUntilItsAvailable(netparam.DefaultTimeout, nncp)
+			Expect(err).ToNot(HaveOccurred(), "Failed to create NMState policy")
+
+			By("Verifying altnames for SR-IOV VFs that are configured via NMState")
+
+			nnstates, err := getNodeNetworkStates(worker0LabelMap)
+			Expect(err).ToNot(HaveOccurred(), "Failed to get NodeNetwork states")
+
+			for _, nnstate := range nnstates {
+				vfName, err := netnmstate.SrIovVfNetdevFromNodeNetworkState(
+					nnstate, sriovIf0, 0)
+				Expect(err).ToNot(HaveOccurred(), "Failed to resolve VF0 netdev on node %s", nnstate.Object.Name)
+				validateAltnamesFromNodeNetworkState(nnstate, vfName, altnames1, false)(Default)
+			}
+
+			By("Delete Existing NNCP and Create a new one with altnames removed")
+
+			_, err = nncp.Delete()
+			Expect(err).ToNot(HaveOccurred(), "Failed to delete NMState policy")
+
+			nncp = nmstate.NewPolicyBuilder(APIClient, removeAltnamesPolicyName, worker0LabelMap).
+				RemoveInterfaceAltname(firstVFNetdev, altnames1)
+
+			err = netnmstate.CreatePolicyAndWaitUntilItsAvailable(netparam.DefaultTimeout, nncp)
+			Expect(err).ToNot(HaveOccurred(), "Failed to create NMState policy")
+
+			By("Verifying altnames removed")
+
+			nnstates, err = getNodeNetworkStates(worker0LabelMap)
+			Expect(err).ToNot(HaveOccurred(), "Failed to get NodeNetwork states")
+
+			for _, nnstate := range nnstates {
+				vfName, err := netnmstate.SrIovVfNetdevFromNodeNetworkState(
+					nnstate, sriovIf0, 0)
+				Expect(err).ToNot(HaveOccurred(), "Failed to resolve VF0 netdev on node %s", nnstate.Object.Name)
+				validateAltnamesFromNodeNetworkState(nnstate, vfName, altnames1, true)(Default)
+			}
+		})
 	})
 
 	Context("negative tests", func() {
@@ -394,6 +504,76 @@ var _ = Describe("NMState Altnames:", Ordered, Label(tsparams.LabelAltnames), fu
 				[]string{sriovIf0},
 				[][]string{altnames1},
 			)
+		})
+
+		It("create sriov policy with altname as interface name", reportxml.ID("88007"), func() {
+			policyName := "nncp-88007-altnames"
+			removalPolicyName := "nncp-88007-remove-altnames"
+			sriovPolicyName := "sriov-policy-88007-altname"
+			altnames1 := []string{"t88007-sriov-alt-a"}
+
+			By("Creating NMState policy to create altnames for interface")
+
+			nncp := nmstate.NewPolicyBuilder(APIClient, policyName, worker0LabelMap).
+				WithInterfaceAltnames(sriovIf0, altnames1)
+
+			err := netnmstate.CreatePolicyAndWaitUntilItsAvailable(netparam.DefaultTimeout, nncp)
+			Expect(err).ToNot(HaveOccurred(), "Failed to create NMState policy")
+
+			DeferCleanup(func() {
+				deletePriorPoliciesApplyRemovalPolicyAndVerify(
+					removalPolicyName,
+					worker0LabelMap,
+					[]*nmstate.PolicyBuilder{nncp},
+					[]string{sriovIf0},
+					[][]string{altnames1},
+				)
+			})
+
+			By("Verifying the altname is added")
+
+			nnstates, err := getNodeNetworkStates(worker0LabelMap)
+			Expect(err).ToNot(HaveOccurred(), "Failed to get NodeNetwork states")
+
+			for _, nnstate := range nnstates {
+				validateAltnamesFromNodeNetworkState(nnstate, sriovIf0, altnames1, false)(Default)
+			}
+
+			By("Creating SriovNetworkNodePolicy with altname as interface name")
+
+			sriovPolicy, err := sriov.NewPolicyBuilder(APIClient,
+				sriovPolicyName, NetConfig.SriovOperatorNamespace, "sriovpf1", 6,
+				altnames1, worker0LabelMap).
+				WithDevType("netdevice").
+				Create()
+			Expect(err).ToNot(HaveOccurred(), "Failed to create SriovNetworkNodePolicy")
+
+			DeferCleanup(func() {
+				By("Deleting the SriovNetworkNodePolicy")
+
+				err := sriovPolicy.Delete()
+				Expect(err).ToNot(HaveOccurred(), "Failed to delete SriovNetworkNodePolicy")
+
+				err = sriovoperator.WaitForSriovAndMCPStable(APIClient, netparam.MCOWaitTimeout, 1*time.Minute,
+					NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
+				Expect(err).ToNot(HaveOccurred(), "Failed cluster is not stable before creating test resources")
+			})
+
+			err = sriovoperator.WaitForSriovAndMCPStable(APIClient, netparam.MCOWaitTimeout, 1*time.Minute,
+				NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
+			Expect(err).ToNot(HaveOccurred(), "Failed cluster is not stable before creating test resources")
+
+			By("Verifying the sriov resource is created")
+
+			workerNode, err := nodes.Pull(APIClient, workerNodes[0].Object.Name)
+			Expect(err).ToNot(HaveOccurred(), "Failed to get worker node0")
+
+			resource, ok := workerNode.Object.Status.Allocatable[corev1.ResourceName("openshift.io/sriovpf1")]
+			Expect(ok).To(BeTrue(), "SriovResource is not present in the worker node")
+
+			resourceCount, canConvert := resource.AsInt64()
+			Expect(canConvert).To(BeTrue(), "Failed to parse SriovResource quantity as int64")
+			Expect(resourceCount).To(Equal(int64(6)), "SriovResource is not equal to 6 in the worker node")
 		})
 	})
 })

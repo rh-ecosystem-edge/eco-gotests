@@ -2,6 +2,7 @@ package tests
 
 import (
 	"fmt"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -55,7 +56,13 @@ var _ = Describe("Mellanox Secure Boot", Ordered, Label(tsparams.LabelMlxSecureB
 
 			By("Skipping test cases if the SR-IOV device is not Mellanox")
 
-			if !sriovenv.IsMellanoxDevice(sriovInterfacesUnderTest[0], workerNodeList[0].Object.Name) {
+			isMellanox, err := netenv.IsMellanoxDevice(
+				APIClient, NetConfig.SriovOperatorNamespace,
+				sriovInterfacesUnderTest[0], workerNodeList[0].Object.Name,
+			)
+			Expect(err).ToNot(HaveOccurred(), "Failed to check if interface is a Mellanox device")
+
+			if !isMellanox {
 				Skip("Mellanox Secure Boot test cases are supported only on Mellanox devices")
 			}
 
@@ -66,8 +73,17 @@ var _ = Describe("Mellanox Secure Boot", Ordered, Label(tsparams.LabelMlxSecureB
 
 			By("Enabling Mellanox firmware and wait for the cluster becomes stable")
 
-			err = sriovenv.ConfigureSriovMlnxFirmwareOnWorkersAndWaitMCP(
-				workerNodeList, sriovInterfacesUnderTest[0], true, totalVFs)
+			err = netenv.ConfigureSriovMlnxFirmwareOnWorkersAndWaitMCP(
+				APIClient,
+				tsparams.MCOWaitTimeout,
+				time.Minute,
+				NetConfig.CnfMcpLabel,
+				NetConfig.SriovOperatorNamespace,
+				workerNodeList,
+				sriovInterfacesUnderTest[0],
+				true,
+				totalVFs,
+			)
 			Expect(err).ToNot(HaveOccurred(), "Failed to configure Mellanox firmware")
 
 			By("Disabling Mellanox plugin in SriovOperatorConfig")
