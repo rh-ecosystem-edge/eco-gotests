@@ -68,9 +68,8 @@ var (
 		Resource: "apiservers",
 	}
 
-	// Describe-scoped variables for Prometheus API and cert serials.
-	prometheusAPI         promv1.API
-	ingressBaselineSerial string
+	// Describe-scoped variables for Prometheus API.
+	prometheusAPI promv1.API
 )
 
 var _ = Describe(
@@ -772,6 +771,106 @@ var _ = Describe(
 				return true
 			}, 2*time.Minute, 10*time.Second).Should(BeTrue(),
 				"kube-apiserver pods are not all Running after renewal")
+		})
+
+		// 89047 - Verify Ingress wildcard certificate generation via DNS-01 ACME challenge
+		It("Verifies Ingress wildcard certificate generation via DNS-01 ACME challenge", reportxml.ID("89047"), func() {
+			By("Creating Ingress wildcard Certificate CR in openshift-ingress namespace")
+
+			appsDomain := RanDuTestConfig.CertManager.AppsDomain
+			Expect(appsDomain).ToNot(BeEmpty(), "ECO_RANDU_CERTMANAGER_APPS_DOMAIN must be set")
+			Expect(appsDomain).To(HavePrefix("*."),
+				"ECO_RANDU_CERTMANAGER_APPS_DOMAIN must be a wildcard domain (e.g., *.apps.example.com)")
+
+			issuerName := RanDuTestConfig.CertManager.IssuerName
+			if issuerName == "" {
+				issuerName = "acme-issuer"
+			}
+
+			err := createCertificateCR(
+				"ingress-wildcard-certificate",
+				"openshift-ingress",
+				appsDomain,
+				"ingress-wildcard-cert",
+				issuerName,
+				[]string{appsDomain},
+				"",
+				"",
+			)
+			Expect(err).ToNot(HaveOccurred(), "Failed to create Ingress wildcard Certificate CR")
+
+			By("Waiting for Ingress wildcard certificate to become ready")
+
+			Eventually(func() (bool, error) {
+				return isCertificateReady("openshift-ingress", "ingress-wildcard-certificate")
+			}, randuparams.CertManagerDefaultTimeout, 10*time.Second).Should(BeTrue(),
+				"Ingress wildcard certificate did not become ready")
+
+			By("Verifying Ingress wildcard TLS secret contains correct certificate")
+
+			ingressSecret, err := secret.Pull(APIClient, "ingress-wildcard-cert", "openshift-ingress")
+			Expect(err).ToNot(HaveOccurred(), "Failed to pull Ingress wildcard TLS secret")
+			Expect(ingressSecret.Exists()).To(BeTrue(), "Ingress wildcard TLS secret does not exist")
+
+			cert, err := parseCertFromSecret(ingressSecret)
+			Expect(err).ToNot(HaveOccurred(), "Failed to parse Ingress wildcard certificate from secret")
+			Expect(cert.Subject.CommonName).To(Equal(appsDomain),
+				"Ingress wildcard certificate CN does not match configured domain")
+			Expect(cert.DNSNames).To(ContainElement(appsDomain),
+				"Ingress wildcard certificate SAN does not contain configured domain")
+
+			By("Patching IngressController to use the cert-manager issued wildcard certificate")
+
+			ingressController, err := ingress.Pull(APIClient, "default", "openshift-ingress-operator")
+			Expect(err).ToNot(HaveOccurred(), "Failed to pull IngressController")
+			Expect(ingressController.Exists()).To(BeTrue(), "IngressController default does not exist")
+
+			ingressController.Definition.Spec.DefaultCertificate = &corev1.LocalObjectReference{
+				Name: "ingress-wildcard-cert",
+			}
+
+			_, err = ingressController.Update()
+			Expect(err).ToNot(HaveOccurred(), "Failed to update IngressController with defaultCertificate")
+
+			By("Waiting for router-default deployment rollout to complete")
+
+			Eventually(func() bool {
+				routerDeploy, err := deployment.Pull(APIClient, "router-default", "openshift-ingress")
+				if err != nil {
+					return false
+				}
+
+				return routerDeploy.IsReady(randuparams.CertManagerDefaultTimeout)
+			}, randuparams.CertManagerDefaultTimeout+1*time.Minute, 10*time.Second).Should(BeTrue(),
+				"router-default deployment did not become ready")
+
+			By("Verifying wildcard certificate is served by the Ingress router")
+
+			ingressIP := RanDuTestConfig.CertManager.IngressIP
+			Expect(ingressIP).ToNot(BeEmpty(), "ECO_RANDU_CERTMANAGER_INGRESS_IP must be set")
+
+			// Extract base domain without wildcard prefix for route hostname
+			appsDomainWithoutWildcard := appsDomain
+			if len(appsDomain) > 2 && appsDomain[:2] == "*." {
+				appsDomainWithoutWildcard = appsDomain[2:]
+			}
+
+			routeHostname := "console-openshift-console." + appsDomainWithoutWildcard
+
+			Eventually(func() error {
+				servedCert, err := getTLSCertificateFromEndpoint(ingressIP, "443", routeHostname)
+				if err != nil {
+					return fmt.Errorf("failed to get TLS certificate from Ingress router: %w", err)
+				}
+
+				if servedCert.Subject.CommonName != appsDomain {
+					return fmt.Errorf("certificate CN %s does not match apps domain %s",
+						servedCert.Subject.CommonName, appsDomain)
+				}
+
+				return nil
+			}, 2*time.Minute, 10*time.Second).Should(Succeed(),
+				"Ingress router is not serving the cert-manager issued wildcard certificate")
 		})
 	})
 
