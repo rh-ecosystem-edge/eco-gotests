@@ -69,10 +69,8 @@ var (
 	}
 
 	// Describe-scoped variables for Prometheus API and cert serials.
-	prometheusAPI            promv1.API
-	apiCertBaselineSerial    string
-	apiRenewalBaselineSerial string
-	ingressBaselineSerial    string
+	prometheusAPI         promv1.API
+	ingressBaselineSerial string
 )
 
 var _ = Describe(
@@ -561,6 +559,8 @@ var _ = Describe(
 				return warningState == "inactive" && criticalState == "inactive"
 			}, 5*time.Minute, randuparams.CertManagerAlertPollInterval).Should(BeTrue(),
 				"Warning and Critical alerts did not resolve")
+		})
+
 		// 89045 - Verify API Server certificate generation via DNS-01 ACME challenge
 		It("Verifies API Server certificate generation via DNS-01 ACME challenge", reportxml.ID("89045"), func() {
 			By("Creating API Server Certificate CR in openshift-config namespace")
@@ -602,10 +602,6 @@ var _ = Describe(
 			Expect(err).ToNot(HaveOccurred(), "Failed to parse API Server certificate from secret")
 			Expect(cert.Subject.CommonName).To(Equal(apiDomain),
 				"API Server certificate CN does not match configured domain")
-
-			By("Recording baseline certificate serial number before APIServer patch")
-
-			apiCertBaselineSerial = cert.SerialNumber.String()
 
 			By("Applying APIServer configuration to use the cert-manager issued certificate")
 
@@ -654,6 +650,128 @@ var _ = Describe(
 			}, 2*time.Minute, 10*time.Second).Should(Succeed(),
 				"API server is not serving the cert-manager issued certificate")
 		})
+
+		// 89046 - Verify successful API server certificate renewal
+		It("Verifies successful API server certificate renewal", reportxml.ID("89046"), func() {
+			defer func() {
+				By("Restoring APIServer to default certificate and cleaning up resources")
+
+				// Remove servingCerts patch
+				apiServerObj, err := APIClient.Resource(apiServerGVR).Get(context.TODO(), "cluster", metav1.GetOptions{})
+				if err == nil {
+					_, found, _ := unstructured.NestedFieldNoCopy(apiServerObj.Object, "spec", "servingCerts")
+					if found {
+						unstructured.RemoveNestedField(apiServerObj.Object, "spec", "servingCerts")
+
+						_, updateErr := APIClient.Resource(apiServerGVR).Update(context.TODO(), apiServerObj, metav1.UpdateOptions{})
+						if updateErr == nil {
+							By("Waiting for kube-apiserver rollout after APIServer restore")
+
+							Eventually(func() error {
+								kubeAPIServer, pullErr := apiservers.PullKubeAPIServer(APIClient)
+								if pullErr != nil {
+									return fmt.Errorf("failed to pull KubeAPIServer: %w", pullErr)
+								}
+
+								return kubeAPIServer.WaitAllNodesAtTheLatestRevision(10 * time.Minute)
+							}, randuparams.CertManagerAPIServerRolloutTimeout, 30*time.Second).Should(Succeed(),
+								"kube-apiserver rollout did not complete after restore")
+						}
+					}
+				}
+
+				// Delete Certificate CR
+				err = APIClient.Resource(certGVR).Namespace("openshift-config").Delete(
+					context.TODO(), "api-server-certificate", metav1.DeleteOptions{})
+				if err != nil && !k8serrors.IsNotFound(err) {
+					// log or ignore
+				}
+
+				// Delete secret if it exists
+				apiSecretCheck, pullErr := secret.Pull(APIClient, "api-server-cert", "openshift-config")
+				if pullErr == nil && apiSecretCheck.Exists() {
+					_ = apiSecretCheck.Delete()
+				}
+			}()
+
+			By("Recording baseline API server certificate serial number and expiry")
+
+			apiSecret, err := secret.Pull(APIClient, "api-server-cert", "openshift-config")
+			Expect(err).ToNot(HaveOccurred(), "Failed to pull API Server TLS secret")
+			Expect(apiSecret.Exists()).To(BeTrue(), "API Server TLS secret does not exist")
+
+			cert, err := parseCertFromSecret(apiSecret)
+			Expect(err).ToNot(HaveOccurred(), "Failed to parse API Server certificate from secret")
+
+			baselineSerial := cert.SerialNumber.String()
+
+			By("Triggering API server certificate renewal by deleting TLS secret")
+
+			err = apiSecret.Delete()
+			Expect(err).ToNot(HaveOccurred(), "Failed to delete api-server-cert secret")
+
+			By("Waiting for API server certificate to be re-issued")
+
+			Eventually(func() (bool, error) {
+				return isCertificateReady("openshift-config", "api-server-certificate")
+			}, 5*time.Minute, 15*time.Second).Should(BeTrue(),
+				"API server certificate did not become ready after renewal")
+
+			By("Waiting for kube-apiserver rollout to complete after renewal")
+
+			Eventually(func() error {
+				kubeAPIServer, err := apiservers.PullKubeAPIServer(APIClient)
+				if err != nil {
+					return fmt.Errorf("failed to pull KubeAPIServer: %w", err)
+				}
+
+				return kubeAPIServer.WaitAllNodesAtTheLatestRevision(10 * time.Minute)
+			}, randuparams.CertManagerAPIServerRolloutTimeout, 30*time.Second).Should(Succeed(),
+				"kube-apiserver rollout did not complete after renewal")
+
+			By("Verifying API server is serving renewed certificate with new serial number")
+
+			Eventually(func() error {
+				renewedSecret, err := secret.Pull(APIClient, "api-server-cert", "openshift-config")
+				if err != nil {
+					return fmt.Errorf("failed to pull API Server TLS secret: %w", err)
+				}
+
+				if !renewedSecret.Exists() {
+					return fmt.Errorf("API Server TLS secret does not exist")
+				}
+
+				renewedCert, err := parseCertFromSecret(renewedSecret)
+				if err != nil {
+					return fmt.Errorf("failed to parse renewed certificate: %w", err)
+				}
+
+				newSerial := renewedCert.SerialNumber.String()
+				if newSerial == baselineSerial {
+					return fmt.Errorf("certificate serial did not change (still %s)", newSerial)
+				}
+
+				return nil
+			}, 3*time.Minute, 15*time.Second).Should(Succeed(),
+				"Certificate serial did not change after renewal")
+
+			By("Verifying cluster is fully functional after API server certificate renewal")
+
+			Eventually(func() bool {
+				pods, err := pod.ListByNamePattern(APIClient, "kube-apiserver", "openshift-kube-apiserver")
+				if err != nil || len(pods) == 0 {
+					return false
+				}
+
+				for _, p := range pods {
+					if p.Object.Status.Phase != corev1.PodRunning {
+						return false
+					}
+				}
+
+				return true
+			}, 2*time.Minute, 10*time.Second).Should(BeTrue(),
+				"kube-apiserver pods are not all Running after renewal")
 		})
 	})
 
@@ -1012,4 +1130,3 @@ func getClusterDefaultRouterCAPool() (*x509.CertPool, error) {
 
 	return caPool, nil
 }
-
