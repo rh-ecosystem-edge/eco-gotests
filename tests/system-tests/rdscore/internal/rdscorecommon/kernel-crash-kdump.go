@@ -254,6 +254,18 @@ func crashNodeKDump(ctx SpecContext, nodeLabel string) {
 		// Re-fetch node after reboot to get fresh object for WaitUntilReady
 		rebootedNode := fetchNodeWithRetry(ctx, nodeName)
 
+		// Defensive validation: ensure node object is valid before proceeding
+		Expect(rebootedNode).ToNot(BeNil(),
+			fmt.Sprintf("Failed to retrieve node %q after reboot: node object is nil", nodeName))
+		Expect(rebootedNode.Definition).ToNot(BeNil(),
+			fmt.Sprintf("Failed to retrieve node %q after reboot: node definition is nil", nodeName))
+		Expect(rebootedNode.Definition.Name).ToNot(BeEmpty(),
+			fmt.Sprintf("Failed to retrieve node %q after reboot: node name is empty", nodeName))
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Successfully retrieved node %q after reboot, waiting for Ready state",
+			rebootedNode.Definition.Name)
+
 		err = rebootedNode.WaitUntilReady(5 * time.Minute)
 		Expect(err).ToNot(HaveOccurred(), "Error waiting for node to go into Ready state")
 
