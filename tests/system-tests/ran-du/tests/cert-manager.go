@@ -13,7 +13,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	monv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	promapi "github.com/prometheus/client_golang/api"
 	promv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/config"
@@ -21,7 +20,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/apiservers"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ingress"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/monitoring"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/rbac"
@@ -31,7 +29,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/serviceaccount"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ran-du/internal/randuinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ran-du/internal/randuparams"
-	authorizationv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -106,86 +103,6 @@ var _ = Describe(
 				Skip(fmt.Sprintf("ClusterIssuer %s is not Ready (type=%s, status=%s). Skipping all cert-manager tests.",
 					issuerName, condType, condStatus))
 			}
-
-			By("Setting up Prometheus monitoring for cert-manager")
-
-			// Label cert-manager namespace for cluster monitoring
-			cmNamespace, err := namespace.Pull(APIClient, randuparams.CertManagerNamespace)
-			Expect(err).ToNot(HaveOccurred(), "Failed to pull cert-manager namespace")
-			Expect(cmNamespace.Exists()).To(BeTrue(), "cert-manager namespace does not exist")
-
-			cmNamespace.WithLabel("openshift.io/cluster-monitoring", "true")
-			_, err = cmNamespace.Update()
-			Expect(err).ToNot(HaveOccurred(), "Failed to label cert-manager namespace")
-
-			// Create RBAC Role for Prometheus with two separate policy rules
-			role := rbac.NewRoleBuilder(
-				APIClient,
-				"prometheus-k8s",
-				randuparams.CertManagerNamespace,
-				rbacv1.PolicyRule{
-					APIGroups: []string{"", "discovery.k8s.io"},
-					Resources: []string{"services", "endpoints", "pods", "endpointslices"},
-					Verbs:     []string{"get", "list", "watch"},
-				},
-			)
-
-			if !role.Exists() {
-				_, err = role.Create()
-				Expect(err).ToNot(HaveOccurred(), "Failed to create prometheus-k8s Role")
-			}
-
-			// Create RoleBinding
-			roleBinding := rbac.NewRoleBindingBuilder(
-				APIClient,
-				"prometheus-k8s",
-				randuparams.CertManagerNamespace,
-				"prometheus-k8s",
-				rbacv1.Subject{
-					Kind:      "ServiceAccount",
-					Name:      "prometheus-k8s",
-					Namespace: randuparams.CertManagerOpenshiftMonitoringNamespace,
-				},
-			)
-
-			if !roleBinding.Exists() {
-				_, err = roleBinding.Create()
-				Expect(err).ToNot(HaveOccurred(), "Failed to create prometheus-k8s RoleBinding")
-			}
-
-			By("Creating ServiceMonitor for cert-manager metrics")
-
-			smBuilder := monitoring.NewBuilder(APIClient, "cert-manager-metrics", randuparams.CertManagerNamespace)
-			smBuilder.WithEndpoints([]monv1.Endpoint{{
-				Port:     "tcp-prometheus-servicemonitor",
-				Interval: monv1.Duration("30s"),
-			}})
-			smBuilder.WithSelector(map[string]string{
-				"app.kubernetes.io/instance": "cert-manager",
-			})
-
-			if !smBuilder.Exists() {
-				_, err = smBuilder.Create()
-				Expect(err).ToNot(HaveOccurred(), "Failed to create cert-manager-metrics ServiceMonitor")
-			}
-
-			By("Verifying Prometheus RBAC via SubjectAccessReview")
-
-			sar := &authorizationv1.SubjectAccessReview{
-				Spec: authorizationv1.SubjectAccessReviewSpec{
-					ResourceAttributes: &authorizationv1.ResourceAttributes{
-						Namespace: randuparams.CertManagerNamespace,
-						Verb:      "list",
-						Resource:  "endpoints",
-					},
-					User: "system:serviceaccount:" + randuparams.CertManagerOpenshiftMonitoringNamespace + ":prometheus-k8s",
-				},
-			}
-
-			result, err := APIClient.K8sClient.AuthorizationV1().SubjectAccessReviews().Create(
-				context.TODO(), sar, metav1.CreateOptions{})
-			Expect(err).ToNot(HaveOccurred(), "Failed to create SubjectAccessReview")
-			Expect(result.Status.Allowed).To(BeTrue(), "Prometheus ServiceAccount does not have required permissions")
 
 			By("Setting up Prometheus API client")
 
@@ -269,38 +186,6 @@ var _ = Describe(
 			certTestNS := namespace.NewBuilder(APIClient, randuparams.CertManagerTestNamespace)
 			if certTestNS.Exists() {
 				_ = certTestNS.DeleteAndWait(randuparams.DefaultTimeout)
-			}
-
-			By("Cleaning up monitoring resources")
-
-			smBuilder, _ := monitoring.Pull(APIClient, "cert-manager-metrics", randuparams.CertManagerNamespace)
-			if smBuilder != nil && smBuilder.Exists() {
-				_, _ = smBuilder.Delete()
-			}
-
-			rbBuilder, _ := rbac.PullRoleBinding(APIClient, "prometheus-k8s", randuparams.CertManagerNamespace)
-			if rbBuilder != nil && rbBuilder.Exists() {
-				_ = rbBuilder.Delete()
-			}
-
-			roleBuilder, _ := rbac.PullRole(APIClient, "prometheus-k8s", randuparams.CertManagerNamespace)
-			if roleBuilder != nil && roleBuilder.Exists() {
-				_ = roleBuilder.Delete()
-			}
-
-			// Remove monitoring label
-			By("Removing cluster monitoring label from cert-manager namespace")
-
-			cmNamespace, _ := namespace.Pull(APIClient, randuparams.CertManagerNamespace)
-			if cmNamespace != nil && cmNamespace.Exists() {
-				cmNamespace.Definition.Labels = make(map[string]string)
-				for k, v := range cmNamespace.Object.Labels {
-					if k != "openshift.io/cluster-monitoring" {
-						cmNamespace.Definition.Labels[k] = v
-					}
-				}
-
-				_, _ = cmNamespace.Update()
 			}
 
 			// Delete Prometheus querier resources
