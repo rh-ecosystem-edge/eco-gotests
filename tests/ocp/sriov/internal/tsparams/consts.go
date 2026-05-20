@@ -6,6 +6,10 @@ import "time"
 const (
 	// TestNamespaceName sriov namespace where all test cases are performed.
 	TestNamespaceName = "sriov-tests"
+	// TestNamespaceName1 sriov namespace where all test cases are performed.
+	TestNamespaceName1 = "sriov-tests-1"
+	// TestNamespaceName2 sriov namespace where all test cases are performed.
+	TestNamespaceName2 = "sriov-tests-2"
 	// LabelSuite represents sriov label that can be used for test cases selection.
 	LabelSuite = "ocpsriov"
 	// LabelOcpSriovReinstallation represents an SR-IOV operator reinstallation label
@@ -19,6 +23,9 @@ const (
 	LabelSriovMetricsTestCases = "sriovmetrics"
 	// LabelSriovHWEnabled represents sriov HW Enabled tests that can be used for test cases selection.
 	LabelSriovHWEnabled = "sriov-hw-enabled"
+	// LabelSriovNetAppNsTestCases represents sriov network application namespace label that can be used
+	// for test cases selection.
+	LabelSriovNetAppNsTestCases = "sriovnet-app-ns"
 
 	// MCOWaitTimeout represent timeout for mco operations.
 	MCOWaitTimeout = 35 * time.Minute

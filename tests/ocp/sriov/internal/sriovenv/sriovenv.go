@@ -135,6 +135,26 @@ func WaitForNADCreation(name, namespace string, timeout time.Duration) error {
 		})
 }
 
+// WaitForNADDeletion waits for the NAD to be deleted.
+func WaitForNADDeletion(name, namespace string, timeout time.Duration) error {
+	return wait.PollUntilContextTimeout(context.Background(), tsparams.PollingInterval, timeout, true,
+		func(ctx context.Context) (bool, error) {
+			_, err := nad.Pull(APIClient, name, namespace)
+
+			return err != nil, nil
+		})
+}
+
+// TargetNamespaceOf returns the target namespace of a SriovNetwork.
+// If the target namespace is not set, it returns the namespace of the SriovNetwork.
+func TargetNamespaceOf(sriovNetwork *sriov.NetworkBuilder) string {
+	if sriovNetwork.Object.Spec.NetworkNamespace != "" {
+		return sriovNetwork.Object.Spec.NetworkNamespace
+	}
+
+	return sriovNetwork.Object.Namespace
+}
+
 // RemoveSriovNetwork removes a SRIOV network by name.
 func RemoveSriovNetwork(name string, timeout time.Duration) error {
 	sriovOpNs := SriovOcpConfig.OcpSriovOperatorNamespace
