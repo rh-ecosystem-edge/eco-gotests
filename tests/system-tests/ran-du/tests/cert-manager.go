@@ -104,6 +104,16 @@ var _ = Describe(
 					issuerName, condType, condStatus))
 			}
 
+			By("Labeling cert-manager namespace for cluster monitoring")
+
+			cmNamespace, err := namespace.Pull(APIClient, randuparams.CertManagerNamespace)
+			Expect(err).ToNot(HaveOccurred(), "Failed to pull cert-manager namespace")
+			Expect(cmNamespace.Exists()).To(BeTrue(), "cert-manager namespace does not exist")
+
+			cmNamespace.WithLabel("openshift.io/cluster-monitoring", "true")
+			_, err = cmNamespace.Update()
+			Expect(err).ToNot(HaveOccurred(), "Failed to label cert-manager namespace")
+
 			By("Setting up Prometheus API client")
 
 			var createErr error
@@ -186,6 +196,21 @@ var _ = Describe(
 			certTestNS := namespace.NewBuilder(APIClient, randuparams.CertManagerTestNamespace)
 			if certTestNS.Exists() {
 				_ = certTestNS.DeleteAndWait(randuparams.DefaultTimeout)
+			}
+
+			// Remove monitoring label
+			By("Removing cluster monitoring label from cert-manager namespace")
+
+			cmNamespace, _ := namespace.Pull(APIClient, randuparams.CertManagerNamespace)
+			if cmNamespace != nil && cmNamespace.Exists() {
+				cmNamespace.Definition.Labels = make(map[string]string)
+				for k, v := range cmNamespace.Object.Labels {
+					if k != "openshift.io/cluster-monitoring" {
+						cmNamespace.Definition.Labels[k] = v
+					}
+				}
+
+				_, _ = cmNamespace.Update()
 			}
 
 			// Delete Prometheus querier resources
