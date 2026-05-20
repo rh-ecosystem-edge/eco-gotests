@@ -872,6 +872,137 @@ var _ = Describe(
 			}, 2*time.Minute, 10*time.Second).Should(Succeed(),
 				"Ingress router is not serving the cert-manager issued wildcard certificate")
 		})
+
+		// 89048 - Verify successful ingress certificate renewal
+		It("Verifies successful ingress certificate renewal", reportxml.ID("89048"), func() {
+			defer func() {
+				By("Restoring IngressController to default certificate and cleaning up resources")
+
+				// Remove defaultCertificate patch
+				ingressController, err := ingress.Pull(APIClient, "default", "openshift-ingress-operator")
+				if err == nil && ingressController.Exists() && ingressController.Object.Spec.DefaultCertificate != nil {
+					ingressController.Definition.Spec.DefaultCertificate = nil
+
+					_, updateErr := ingressController.Update()
+					if updateErr == nil {
+						By("Waiting for router rollout after IngressController restore")
+
+						Eventually(func() bool {
+							routerDeploy, deployErr := deployment.Pull(APIClient, "router-default", "openshift-ingress")
+							if deployErr != nil {
+								return false
+							}
+
+							return routerDeploy.IsReady(randuparams.CertManagerDefaultTimeout)
+						}, randuparams.CertManagerDefaultTimeout+1*time.Minute, 10*time.Second).Should(BeTrue(),
+							"router-default deployment did not become ready after IngressController restore")
+					}
+				}
+
+				// Delete Certificate CR
+				err = APIClient.Resource(certGVR).Namespace("openshift-ingress").Delete(
+					context.TODO(), "ingress-wildcard-certificate", metav1.DeleteOptions{})
+				if err != nil && !k8serrors.IsNotFound(err) {
+					// log or ignore
+				}
+
+				// Delete secret if it exists
+				ingressSecretCheck, pullErr := secret.Pull(APIClient, "ingress-wildcard-cert", "openshift-ingress")
+				if pullErr == nil && ingressSecretCheck.Exists() {
+					_ = ingressSecretCheck.Delete()
+				}
+			}()
+
+			By("Recording baseline Ingress certificate serial number")
+
+			ingressSecret, err := secret.Pull(APIClient, "ingress-wildcard-cert", "openshift-ingress")
+			Expect(err).ToNot(HaveOccurred(), "Failed to pull Ingress wildcard TLS secret")
+			Expect(ingressSecret.Exists()).To(BeTrue(), "Ingress wildcard TLS secret does not exist")
+
+			cert, err := parseCertFromSecret(ingressSecret)
+			Expect(err).ToNot(HaveOccurred(), "Failed to parse Ingress wildcard certificate from secret")
+
+			baselineSerial := cert.SerialNumber.String()
+
+			By("Triggering Ingress certificate renewal by deleting TLS secret")
+
+			err = ingressSecret.Delete()
+			Expect(err).ToNot(HaveOccurred(), "Failed to delete ingress-wildcard-cert secret")
+
+			By("Waiting for Ingress certificate to be re-issued")
+
+			Eventually(func() (bool, error) {
+				return isCertificateReady("openshift-ingress", "ingress-wildcard-certificate")
+			}, 5*time.Minute, 15*time.Second).Should(BeTrue(),
+				"Ingress certificate did not become ready after renewal")
+
+			By("Waiting for router to reload with renewed certificate")
+
+			Eventually(func() bool {
+				routerDeploy, err := deployment.Pull(APIClient, "router-default", "openshift-ingress")
+				if err != nil {
+					return false
+				}
+
+				return routerDeploy.IsReady(randuparams.CertManagerDefaultTimeout)
+			}, randuparams.CertManagerDefaultTimeout+1*time.Minute, 10*time.Second).Should(BeTrue(),
+				"router-default deployment did not become ready after renewal")
+
+			By("Verifying Ingress router is serving renewed certificate with new serial number")
+
+			Eventually(func() error {
+				renewedSecret, err := secret.Pull(APIClient, "ingress-wildcard-cert", "openshift-ingress")
+				if err != nil {
+					return fmt.Errorf("failed to pull Ingress wildcard TLS secret: %w", err)
+				}
+
+				if !renewedSecret.Exists() {
+					return fmt.Errorf("Ingress wildcard TLS secret does not exist")
+				}
+
+				renewedCert, err := parseCertFromSecret(renewedSecret)
+				if err != nil {
+					return fmt.Errorf("failed to parse renewed certificate: %w", err)
+				}
+
+				newSerial := renewedCert.SerialNumber.String()
+				if newSerial == baselineSerial {
+					return fmt.Errorf("certificate serial did not change (still %s)", newSerial)
+				}
+
+				return nil
+			}, 3*time.Minute, 15*time.Second).Should(Succeed(),
+				"Certificate serial did not change after renewal")
+
+			By("Verifying cluster is fully functional after Ingress certificate renewal")
+
+			Eventually(func() bool {
+				routerDeploy, err := deployment.Pull(APIClient, "router-default", "openshift-ingress")
+				if err != nil {
+					return false
+				}
+
+				return routerDeploy.IsReady(randuparams.CertManagerDefaultTimeout)
+			}, 2*time.Minute, 10*time.Second).Should(BeTrue(),
+				"router-default deployment is not ready after renewal")
+
+			// Also verify router pods are running
+			Eventually(func() bool {
+				pods, err := pod.ListByNamePattern(APIClient, "router-default", "openshift-ingress")
+				if err != nil || len(pods) == 0 {
+					return false
+				}
+
+				for _, p := range pods {
+					if p.Object.Status.Phase != corev1.PodRunning {
+						return false
+					}
+				}
+
+				return true
+			}, 2*time.Minute, 10*time.Second).Should(BeTrue(),
+				"router-default pods are not all Running after renewal")
+		})
 	})
 
 // Helper functions
