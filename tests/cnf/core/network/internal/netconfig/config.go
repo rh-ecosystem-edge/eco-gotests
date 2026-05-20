@@ -43,9 +43,12 @@ type NetworkConfig struct {
 	SriovInterfaces             string `envconfig:"ECO_CNF_CORE_NET_SRIOV_INTERFACE_LIST"`
 	FrrImage                    string `yaml:"frr_image" envconfig:"ECO_CNF_CORE_NET_FRR_IMAGE"`
 	VLAN                        string `envconfig:"ECO_CNF_CORE_NET_VLAN"`
-	BMCHostNames                string `envconfig:"ECO_CNF_CORE_NET_BMC_HOST_NAMES"`
-	BMCHostUser                 string `envconfig:"ECO_CNF_CORE_NET_BMC_HOST_USER"`
-	BMCHostPass                 string `envconfig:"ECO_CNF_CORE_NET_BMC_HOST_PASS"`
+	// NativeVLAN is the physical switch native (untagged) VLAN ID for lab uplinks toward workers
+	// (e.g. 802.1Q native-vlan-id on a trunk).
+	NativeVLAN   string `envconfig:"ECO_CNF_CORE_NET_NATIVE_VLAN"`
+	BMCHostNames string `envconfig:"ECO_CNF_CORE_NET_BMC_HOST_NAMES"`
+	BMCHostUser  string `envconfig:"ECO_CNF_CORE_NET_BMC_HOST_USER"`
+	BMCHostPass  string `envconfig:"ECO_CNF_CORE_NET_BMC_HOST_PASS"`
 }
 
 // NewNetConfig returns instance of NetworkConfig config type.
@@ -120,6 +123,41 @@ func (netConfig *NetworkConfig) GetVLAN() (uint16, error) {
 	}
 
 	return uint16(vlanInt), nil
+}
+
+// GetNativeVLANID returns ECO_CNF_CORE_NET_NATIVE_VLAN as an integer after optional numeric suffix parsing,
+// with 802.1Q range validation (1–4094). Empty or invalid values return an error.
+func (netConfig *NetworkConfig) GetNativeVLANID() (int, error) {
+	vlanText := strings.TrimSpace(netConfig.NativeVLAN)
+	if vlanText == "" {
+		return 0, fmt.Errorf(
+			"native VLAN is empty: set ECO_CNF_CORE_NET_NATIVE_VLAN")
+	}
+
+	vlanInt, err := strconv.Atoi(parseEnvVlanNumericSuffix(vlanText))
+	if err != nil {
+		return 0, fmt.Errorf("invalid native VLAN id %q: %w", vlanText, err)
+	}
+
+	const min8021QVLAN, max8021QVLAN = 1, 4094
+	if vlanInt < min8021QVLAN || vlanInt > max8021QVLAN {
+		return 0, fmt.Errorf(
+			"native VLAN id %d is out of range (allowed %d-%d per 802.1Q)",
+			vlanInt, min8021QVLAN, max8021QVLAN)
+	}
+
+	return vlanInt, nil
+}
+
+// parseEnvVlanNumericSuffix trims raw. If raw looks like "NAME=92" (placeholder copied into the value), it
+// returns the substring after the last '=' so strconv can parse a VLAN id.
+func parseEnvVlanNumericSuffix(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if idx := strings.LastIndex(trimmed, "="); idx >= 0 {
+		trimmed = strings.TrimSpace(trimmed[idx+1:])
+	}
+
+	return trimmed
 }
 
 // GetSwitchUser checks the environmental variable ECO_CNF_CORE_NET_SWITCH_USER and returns the value in string.
