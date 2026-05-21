@@ -70,8 +70,6 @@ var (
 		Resource: "apiservers",
 	}
 
-	// Describe-scoped variables for Prometheus API.
-	prometheusAPI promv1.API
 )
 
 var _ = Describe(
@@ -79,13 +77,12 @@ var _ = Describe(
 	Ordered,
 	ContinueOnFailure,
 	Label(randuparams.LabelCertManager), func() {
+		var prometheusAPI promv1.API
+
 		BeforeAll(func() {
 			By("Verifying ClusterIssuer is Ready")
 
-			issuerName := RanDuTestConfig.CertManager.IssuerName
-			if issuerName == "" {
-				issuerName = "acme-issuer"
-			}
+			issuerName := getIssuerName()
 
 			issuerObj, err := APIClient.Resource(clusterIssuerGVR).Get(context.TODO(), issuerName, metav1.GetOptions{})
 			Expect(err).ToNot(HaveOccurred(), "ClusterIssuer %s not found", issuerName)
@@ -105,7 +102,10 @@ var _ = Describe(
 			Expect(ok).To(BeTrue(), "Failed to parse condition status as string")
 
 			if condType != "Ready" || condStatus != "True" {
-				Skip(fmt.Sprintf("ClusterIssuer %s is not Ready (type=%s, status=%s). Skipping all cert-manager tests.",
+				klog.V(randuparams.RanDuLogLevel).Infof(
+					"ClusterIssuer %s is not Ready (type=%s, status=%s), skipping all cert-manager tests",
+					issuerName, condType, condStatus)
+				Skip(fmt.Sprintf("ClusterIssuer %s is not Ready (type=%s, status=%s)",
 					issuerName, condType, condStatus))
 			}
 
@@ -250,12 +250,8 @@ var _ = Describe(
 				klog.V(100).Infof("Failed to pull cert-manager namespace: %v", pullErr)
 			} else if cmNamespace.Exists() {
 				klog.V(100).Infof("Removing cluster-monitoring label from namespace %s", randuparams.CertManagerNamespace)
-				cmNamespace.Definition.Labels = make(map[string]string)
-				for k, v := range cmNamespace.Object.Labels {
-					if k != "openshift.io/cluster-monitoring" {
-						cmNamespace.Definition.Labels[k] = v
-					}
-				}
+				delete(cmNamespace.Object.Labels, "openshift.io/cluster-monitoring")
+				cmNamespace.Definition.Labels = cmNamespace.Object.Labels
 
 				if _, updateErr := cmNamespace.Update(); updateErr != nil {
 					klog.V(100).Infof("Failed to update namespace %s labels: %v", randuparams.CertManagerNamespace, updateErr)
@@ -320,7 +316,7 @@ var _ = Describe(
 					}
 
 					return true
-				}, 2*time.Minute, 10*time.Second).Should(BeTrue(),
+				}, randuparams.CertManagerDefaultTimeout, randuparams.CertManagerPollInterval).Should(BeTrue(),
 					"cert-manager core pods with prefix %s are not all Running", prefix)
 			}
 
@@ -345,10 +341,7 @@ var _ = Describe(
 		It("Verifies certificate generation via DNS-01 ACME challenge", reportxml.ID("89042"), func() {
 			By("Creating test namespace cert-test")
 
-			issuerName := RanDuTestConfig.CertManager.IssuerName
-			if issuerName == "" {
-				issuerName = "acme-issuer"
-			}
+			issuerName := getIssuerName()
 
 			certTestNS := namespace.NewBuilder(APIClient, randuparams.CertManagerTestNamespace)
 			if certTestNS.Exists() {
@@ -380,7 +373,7 @@ var _ = Describe(
 
 			Eventually(func() (bool, error) {
 				return isCertificateReady(randuparams.CertManagerTestNamespace, "alert-test-cert")
-			}, randuparams.CertManagerDefaultTimeout, 10*time.Second).Should(BeTrue(),
+			}, randuparams.CertManagerDefaultTimeout, randuparams.CertManagerPollInterval).Should(BeTrue(),
 				"Certificate alert-test-cert did not become ready")
 
 			By("Verifying TLS secret was created with valid certificate data")
@@ -428,7 +421,7 @@ var _ = Describe(
 				}
 
 				return nil
-			}, 5*time.Minute, 10*time.Second).Should(Succeed(), "Renewal metric not available or already past renewal time")
+			}, 5*time.Minute, randuparams.CertManagerPollInterval).Should(Succeed(), "Renewal metric not available or already past renewal time")
 
 			By("Waiting for CertManagerCertRenewalInfo alert to fire (remaining < 600s)")
 
@@ -511,14 +504,14 @@ var _ = Describe(
 
 			Eventually(func() (bool, error) {
 				return isCertificateReady(randuparams.CertManagerTestNamespace, "alert-test-cert")
-			}, randuparams.CertManagerDefaultTimeout, 10*time.Second).Should(BeTrue(),
+			}, randuparams.CertManagerDefaultTimeout, randuparams.CertManagerPollInterval).Should(BeTrue(),
 				"Certificate alert-test-cert did not become ready after renewal")
 
 			By("Verifying renewal timestamp metric has been updated")
 
 			Eventually(func() (float64, error) {
 				return queryPrometheusRenewalMetric(prometheusAPI, "alert-test-cert")
-			}, 5*time.Minute, 10*time.Second).Should(BeNumerically(">", 0),
+			}, 5*time.Minute, randuparams.CertManagerPollInterval).Should(BeNumerically(">", 0),
 				"Renewal metric should show positive remaining time after renewal")
 
 			By("Verifying all cert-manager alerts have resolved")
@@ -545,10 +538,7 @@ var _ = Describe(
 			apiDomain := RanDuTestConfig.CertManager.APIDomain
 			Expect(apiDomain).ToNot(BeEmpty(), "ECO_RANDU_CERTMANAGER_API_DOMAIN must be set")
 
-			issuerName := RanDuTestConfig.CertManager.IssuerName
-			if issuerName == "" {
-				issuerName = "acme-issuer"
-			}
+			issuerName := getIssuerName()
 
 			err := createCertificateCR(
 				"api-server-certificate",
@@ -566,7 +556,7 @@ var _ = Describe(
 
 			Eventually(func() (bool, error) {
 				return isCertificateReady("openshift-config", "api-server-certificate")
-			}, randuparams.CertManagerDefaultTimeout, 10*time.Second).Should(BeTrue(),
+			}, randuparams.CertManagerDefaultTimeout, randuparams.CertManagerPollInterval).Should(BeTrue(),
 				"API Server certificate did not become ready")
 
 			By("Verifying API Server TLS secret contains correct certificate")
@@ -624,7 +614,7 @@ var _ = Describe(
 				}
 
 				return nil
-			}, 2*time.Minute, 10*time.Second).Should(Succeed(),
+			}, randuparams.CertManagerDefaultTimeout, randuparams.CertManagerPollInterval).Should(Succeed(),
 				"API server is not serving the cert-manager issued certificate")
 		})
 
@@ -757,7 +747,7 @@ var _ = Describe(
 				}
 
 				return true
-			}, 2*time.Minute, 10*time.Second).Should(BeTrue(),
+			}, randuparams.CertManagerDefaultTimeout, randuparams.CertManagerPollInterval).Should(BeTrue(),
 				"kube-apiserver pods are not all Running after renewal")
 		})
 
@@ -770,10 +760,7 @@ var _ = Describe(
 			Expect(appsDomain).To(HavePrefix("*."),
 				"ECO_RANDU_CERTMANAGER_APPS_DOMAIN must be a wildcard domain (e.g., *.apps.example.com)")
 
-			issuerName := RanDuTestConfig.CertManager.IssuerName
-			if issuerName == "" {
-				issuerName = "acme-issuer"
-			}
+			issuerName := getIssuerName()
 
 			err := createCertificateCR(
 				"ingress-wildcard-certificate",
@@ -791,7 +778,7 @@ var _ = Describe(
 
 			Eventually(func() (bool, error) {
 				return isCertificateReady("openshift-ingress", "ingress-wildcard-certificate")
-			}, randuparams.CertManagerDefaultTimeout, 10*time.Second).Should(BeTrue(),
+			}, randuparams.CertManagerDefaultTimeout, randuparams.CertManagerPollInterval).Should(BeTrue(),
 				"Ingress wildcard certificate did not become ready")
 
 			By("Verifying Ingress wildcard TLS secret contains correct certificate")
@@ -827,7 +814,7 @@ var _ = Describe(
 				}
 
 				return routerDeploy.IsReady(randuparams.CertManagerDefaultTimeout)
-			}, randuparams.CertManagerDefaultTimeout+1*time.Minute, 10*time.Second).Should(BeTrue(),
+			}, randuparams.CertManagerDefaultTimeout+1*time.Minute, randuparams.CertManagerPollInterval).Should(BeTrue(),
 				"router-default deployment did not become ready")
 
 			By("Verifying wildcard certificate is served by the Ingress router")
@@ -835,11 +822,7 @@ var _ = Describe(
 			ingressIP := RanDuTestConfig.CertManager.IngressIP
 			Expect(ingressIP).ToNot(BeEmpty(), "ECO_RANDU_CERTMANAGER_INGRESS_IP must be set")
 
-			// Extract base domain without wildcard prefix for route hostname
-			appsDomainWithoutWildcard := appsDomain
-			if len(appsDomain) > 2 && appsDomain[:2] == "*." {
-				appsDomainWithoutWildcard = appsDomain[2:]
-			}
+			appsDomainWithoutWildcard := strings.TrimPrefix(appsDomain, "*.")
 
 			routeHostname := "console-openshift-console." + appsDomainWithoutWildcard
 
@@ -855,7 +838,7 @@ var _ = Describe(
 				}
 
 				return nil
-			}, 2*time.Minute, 10*time.Second).Should(Succeed(),
+			}, randuparams.CertManagerDefaultTimeout, randuparams.CertManagerPollInterval).Should(Succeed(),
 				"Ingress router is not serving the cert-manager issued wildcard certificate")
 		})
 
@@ -889,7 +872,7 @@ var _ = Describe(
 							}
 
 							return routerDeploy.IsReady(randuparams.CertManagerDefaultTimeout)
-						}, randuparams.CertManagerDefaultTimeout+1*time.Minute, 10*time.Second).Should(BeTrue(),
+						}, randuparams.CertManagerDefaultTimeout+1*time.Minute, randuparams.CertManagerPollInterval).Should(BeTrue(),
 							"router-default deployment did not become ready after IngressController restore")
 					}
 				}
@@ -942,7 +925,7 @@ var _ = Describe(
 				}
 
 				return routerDeploy.IsReady(randuparams.CertManagerDefaultTimeout)
-			}, randuparams.CertManagerDefaultTimeout+1*time.Minute, 10*time.Second).Should(BeTrue(),
+			}, randuparams.CertManagerDefaultTimeout+1*time.Minute, randuparams.CertManagerPollInterval).Should(BeTrue(),
 				"router-default deployment did not become ready after renewal")
 
 			By("Verifying Ingress router is serving renewed certificate with new serial number")
@@ -980,7 +963,7 @@ var _ = Describe(
 				}
 
 				return routerDeploy.IsReady(randuparams.CertManagerDefaultTimeout)
-			}, 2*time.Minute, 10*time.Second).Should(BeTrue(),
+			}, randuparams.CertManagerDefaultTimeout, randuparams.CertManagerPollInterval).Should(BeTrue(),
 				"router-default deployment is not ready after renewal")
 
 			// Also verify router pods are running
@@ -997,12 +980,21 @@ var _ = Describe(
 				}
 
 				return true
-			}, 2*time.Minute, 10*time.Second).Should(BeTrue(),
+			}, randuparams.CertManagerDefaultTimeout, randuparams.CertManagerPollInterval).Should(BeTrue(),
 				"router-default pods are not all Running after renewal")
 		})
 	})
 
 // Helper functions
+
+// getIssuerName returns the configured ClusterIssuer name, defaulting to "acme-issuer".
+func getIssuerName() string {
+	if RanDuTestConfig.CertManager.IssuerName != "" {
+		return RanDuTestConfig.CertManager.IssuerName
+	}
+
+	return "acme-issuer"
+}
 
 // buildCertRenewalPrometheusRule constructs a PrometheusRule CR for cert-manager renewal alerts
 // with configurable thresholds for info, warning, and critical severity levels.
@@ -1084,7 +1076,7 @@ func queryPrometheusAlertState(promAPI promv1.API, alertName string) (string, er
 		}
 	}
 
-	return "", fmt.Errorf("alert %s not found", alertName)
+	return "inactive", nil
 }
 
 // queryPrometheusRenewalMetric queries Prometheus for the certmanager_certificate_renewal_timestamp_seconds metric
@@ -1155,8 +1147,10 @@ func createCertificateCR(name, ns, commonName, secretName, issuerName string, dn
 func getTLSCertificateFromEndpoint(host, port, servername string) (*x509.Certificate, error) {
 	dialer := &net.Dialer{Timeout: 10 * time.Second}
 
+	// InsecureSkipVerify is intentional: we are inspecting the served certificate content,
+	// not relying on TLS chain validation for security.
 	conn, err := tls.DialWithDialer(dialer, "tcp", host+":"+port, &tls.Config{
-		InsecureSkipVerify: true,
+		InsecureSkipVerify: true, //nolint:gosec
 		ServerName:         servername,
 	})
 	if err != nil {

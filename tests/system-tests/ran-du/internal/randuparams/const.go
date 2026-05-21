@@ -25,6 +25,8 @@ const (
 	CertManagerTestNamespace = "cert-test"
 	// CertManagerDefaultTimeout is the timeout for cert-manager certificate operations.
 	CertManagerDefaultTimeout = 3 * time.Minute
+	// CertManagerPollInterval is the default polling interval for cert-manager resource checks.
+	CertManagerPollInterval = 10 * time.Second
 	// CertManagerAlertPollInterval is the polling interval for alert status checks.
 	CertManagerAlertPollInterval = 30 * time.Second
 	// CertManagerAlertTimeout is the max time to wait for a single alert threshold.
