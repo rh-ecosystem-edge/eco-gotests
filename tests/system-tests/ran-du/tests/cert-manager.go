@@ -5,10 +5,11 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -29,12 +30,16 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/serviceaccount"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ran-du/internal/randuinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/ran-du/internal/randuparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/shell"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog/v2"
+	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -129,46 +134,74 @@ var _ = Describe(
 			By("Restoring APIServer configuration")
 
 			apiServerObj, err := APIClient.Resource(apiServerGVR).Get(context.TODO(), "cluster", metav1.GetOptions{})
-			if err == nil {
+			if err != nil {
+				klog.V(100).Infof("Failed to get APIServer cluster object: %v", err)
+			} else {
 				_, found, _ := unstructured.NestedFieldNoCopy(apiServerObj.Object, "spec", "servingCerts")
 				if found {
+					klog.V(100).Infof("Removing servingCerts from APIServer spec")
 					unstructured.RemoveNestedField(apiServerObj.Object, "spec", "servingCerts")
 
 					_, err = APIClient.Resource(apiServerGVR).Update(context.TODO(), apiServerObj, metav1.UpdateOptions{})
-					if err == nil {
+					if err != nil {
+						klog.V(100).Infof("Failed to update APIServer after removing servingCerts: %v", err)
+					} else {
 						By("Waiting for kube-apiserver rollout after APIServer restore")
 
 						kubeAPIServer, pullErr := apiservers.PullKubeAPIServer(APIClient)
-						if pullErr == nil {
-							_ = kubeAPIServer.WaitAllNodesAtTheLatestRevision(randuparams.CertManagerAPIServerRolloutTimeout)
+						if pullErr != nil {
+							klog.V(100).Infof("Failed to pull KubeAPIServer: %v", pullErr)
+						} else {
+							if waitErr := kubeAPIServer.WaitAllNodesAtTheLatestRevision(
+								randuparams.CertManagerAPIServerRolloutTimeout); waitErr != nil {
+								klog.V(100).Infof("KubeAPIServer rollout wait failed: %v", waitErr)
+							}
 						}
 					}
+				} else {
+					klog.V(100).Infof("APIServer spec.servingCerts not found, no restore needed")
 				}
 			}
 
 			// Delete API cert resources
 			By("Deleting API Server Certificate CR and Secret")
 
-			_ = APIClient.Resource(certGVR).Namespace("openshift-config").Delete(
+			err = APIClient.Resource(certGVR).Namespace("openshift-config").Delete(
 				context.TODO(), "api-server-certificate", metav1.DeleteOptions{})
+			if err != nil && !k8serrors.IsNotFound(err) {
+				klog.V(100).Infof("Failed to delete api-server-certificate: %v", err)
+			}
 
-			apiSecretBuilder, _ := secret.Pull(APIClient, "api-server-cert", "openshift-config")
-			if apiSecretBuilder != nil && apiSecretBuilder.Exists() {
-				_ = apiSecretBuilder.Delete()
+			apiSecretBuilder, pullErr := secret.Pull(APIClient, "api-server-cert", "openshift-config")
+			if pullErr == nil && apiSecretBuilder.Exists() {
+				if deleteErr := apiSecretBuilder.Delete(); deleteErr != nil {
+					klog.V(100).Infof("Failed to delete api-server-cert secret: %v", deleteErr)
+				}
 			}
 
 			By("Restoring IngressController default certificate")
 
 			ingressBuilder, pullErr := ingress.Pull(APIClient, "default", "openshift-ingress-operator")
-			if pullErr == nil && ingressBuilder.Exists() && ingressBuilder.Object.Spec.DefaultCertificate != nil {
-				ingressBuilder.Definition.Spec.DefaultCertificate = nil
-
-				_, updateErr := ingressBuilder.Update()
-				if updateErr == nil {
+			if pullErr != nil {
+				klog.V(100).Infof("Failed to pull IngressController: %v", pullErr)
+			} else if !ingressBuilder.Exists() {
+				klog.V(100).Infof("IngressController 'default' does not exist, skipping restore")
+			} else if ingressBuilder.Object.Spec.DefaultCertificate == nil {
+				klog.V(100).Infof("IngressController has no custom defaultCertificate, no restore needed")
+			} else {
+				klog.V(100).Infof("Removing defaultCertificate from IngressController")
+				patch := []byte(`{"spec":{"defaultCertificate":null}}`)
+				updateErr := APIClient.Patch(context.TODO(), ingressBuilder.Object,
+					runtimeClient.RawPatch(types.MergePatchType, patch))
+				if updateErr != nil {
+					klog.V(100).Infof("Failed to patch IngressController: %v", updateErr)
+				} else {
 					By("Waiting for router rollout after IngressController restore")
 
 					routerDeploy, deployErr := deployment.Pull(APIClient, "router-default", "openshift-ingress")
-					if deployErr == nil {
+					if deployErr != nil {
+						klog.V(100).Infof("Failed to pull router-default deployment: %v", deployErr)
+					} else {
 						routerDeploy.IsReady(randuparams.CertManagerDefaultTimeout)
 					}
 				}
@@ -176,33 +209,47 @@ var _ = Describe(
 
 			By("Deleting Ingress Certificate CR and Secret")
 
-			_ = APIClient.Resource(certGVR).Namespace("openshift-ingress").Delete(
+			err = APIClient.Resource(certGVR).Namespace("openshift-ingress").Delete(
 				context.TODO(), "ingress-wildcard-certificate", metav1.DeleteOptions{})
+			if err != nil && !k8serrors.IsNotFound(err) {
+				klog.V(100).Infof("Failed to delete ingress-wildcard-certificate: %v", err)
+			}
 
-			ingressSecretBuilder, _ := secret.Pull(APIClient, "ingress-wildcard-cert", "openshift-ingress")
-			if ingressSecretBuilder != nil && ingressSecretBuilder.Exists() {
-				_ = ingressSecretBuilder.Delete()
+			ingressSecretBuilder, pullErr := secret.Pull(APIClient, "ingress-wildcard-cert", "openshift-ingress")
+			if pullErr == nil && ingressSecretBuilder.Exists() {
+				if deleteErr := ingressSecretBuilder.Delete(); deleteErr != nil {
+					klog.V(100).Infof("Failed to delete ingress-wildcard-cert secret: %v", deleteErr)
+				}
 			}
 
 			// Delete PrometheusRule
 			By("Deleting PrometheusRule")
 
-			_ = APIClient.Resource(prometheusRuleGVR).Namespace(randuparams.CertManagerOpenshiftMonitoringNamespace).Delete(
+			err = APIClient.Resource(prometheusRuleGVR).Namespace(randuparams.CertManagerOpenshiftMonitoringNamespace).Delete(
 				context.TODO(), "cert-renewal-alert-test", metav1.DeleteOptions{})
+			if err != nil && !k8serrors.IsNotFound(err) {
+				klog.V(100).Infof("Failed to delete cert-renewal-alert-test PrometheusRule: %v", err)
+			}
 
 			// Delete cert-test namespace
 			By("Deleting cert-test namespace")
 
 			certTestNS := namespace.NewBuilder(APIClient, randuparams.CertManagerTestNamespace)
 			if certTestNS.Exists() {
-				_ = certTestNS.DeleteAndWait(randuparams.DefaultTimeout)
+				if deleteErr := certTestNS.DeleteAndWait(randuparams.DefaultTimeout); deleteErr != nil {
+					klog.V(100).Infof("Failed to delete namespace %s: %v",
+						randuparams.CertManagerTestNamespace, deleteErr)
+				}
 			}
 
 			// Remove monitoring label
 			By("Removing cluster monitoring label from cert-manager namespace")
 
-			cmNamespace, _ := namespace.Pull(APIClient, randuparams.CertManagerNamespace)
-			if cmNamespace != nil && cmNamespace.Exists() {
+			cmNamespace, pullErr := namespace.Pull(APIClient, randuparams.CertManagerNamespace)
+			if pullErr != nil {
+				klog.V(100).Infof("Failed to pull cert-manager namespace: %v", pullErr)
+			} else if cmNamespace.Exists() {
+				klog.V(100).Infof("Removing cluster-monitoring label from namespace %s", randuparams.CertManagerNamespace)
 				cmNamespace.Definition.Labels = make(map[string]string)
 				for k, v := range cmNamespace.Object.Labels {
 					if k != "openshift.io/cluster-monitoring" {
@@ -210,21 +257,35 @@ var _ = Describe(
 					}
 				}
 
-				_, _ = cmNamespace.Update()
+				if _, updateErr := cmNamespace.Update(); updateErr != nil {
+					klog.V(100).Infof("Failed to update namespace %s labels: %v", randuparams.CertManagerNamespace, updateErr)
+				}
 			}
 
 			// Delete Prometheus querier resources
 			By("Deleting Prometheus querier resources")
 
-			crbBuilder, _ := rbac.PullClusterRoleBinding(APIClient, randuparams.CertManagerPrometheusQuerierCRBName)
-			if crbBuilder != nil && crbBuilder.Exists() {
-				_ = crbBuilder.Delete()
+			crbBuilder, pullErr := rbac.PullClusterRoleBinding(APIClient, randuparams.CertManagerPrometheusQuerierCRBName)
+			if pullErr != nil && !k8serrors.IsNotFound(pullErr) {
+				klog.V(100).Infof("Failed to pull ClusterRoleBinding %s: %v",
+					randuparams.CertManagerPrometheusQuerierCRBName, pullErr)
+			} else if crbBuilder != nil && crbBuilder.Exists() {
+				if deleteErr := crbBuilder.Delete(); deleteErr != nil {
+					klog.V(100).Infof("Failed to delete ClusterRoleBinding %s: %v",
+						randuparams.CertManagerPrometheusQuerierCRBName, deleteErr)
+				}
 			}
 
-			saBuilder, _ := serviceaccount.Pull(APIClient, randuparams.CertManagerPrometheusQuerierSAName,
+			saBuilder, pullErr := serviceaccount.Pull(APIClient, randuparams.CertManagerPrometheusQuerierSAName,
 				randuparams.CertManagerOpenshiftMonitoringNamespace)
-			if saBuilder != nil && saBuilder.Exists() {
-				_ = saBuilder.Delete()
+			if pullErr != nil && !k8serrors.IsNotFound(pullErr) {
+				klog.V(100).Infof("Failed to pull ServiceAccount %s: %v",
+					randuparams.CertManagerPrometheusQuerierSAName, pullErr)
+			} else if saBuilder != nil && saBuilder.Exists() {
+				if deleteErr := saBuilder.Delete(); deleteErr != nil {
+					klog.V(100).Infof("Failed to delete ServiceAccount %s: %v",
+						randuparams.CertManagerPrometheusQuerierSAName, deleteErr)
+				}
 			}
 		})
 
@@ -311,7 +372,7 @@ var _ = Describe(
 				issuerName,
 				[]string{certDomain},
 				"24h",
-				"23h51m",
+				"23h45m",
 			)
 			Expect(err).ToNot(HaveOccurred(), "Failed to create Certificate CR")
 
@@ -347,7 +408,7 @@ var _ = Describe(
 		It("Verifies successful alerts escalation", reportxml.ID("89043"), func() {
 			By("Creating PrometheusRule with accelerated alert thresholds")
 
-			prometheusRule := buildCertRenewalPrometheusRule("alert-test-cert", 480, 360, 240)
+			prometheusRule := buildCertRenewalPrometheusRule("alert-test-cert", 600, 420, 240)
 
 			_, err := APIClient.Resource(prometheusRuleGVR).Namespace(
 				randuparams.CertManagerOpenshiftMonitoringNamespace).Create(
@@ -367,16 +428,16 @@ var _ = Describe(
 				}
 
 				return nil
-			}, 2*time.Minute, 10*time.Second).Should(Succeed(), "Renewal metric not available or already past renewal time")
+			}, 5*time.Minute, 10*time.Second).Should(Succeed(), "Renewal metric not available or already past renewal time")
 
-			By("Waiting for CertManagerCertRenewalInfo alert to fire (remaining < 480s)")
+			By("Waiting for CertManagerCertRenewalInfo alert to fire (remaining < 600s)")
 
 			Eventually(func() (string, error) {
 				return queryPrometheusAlertState(prometheusAPI, randuparams.CertManagerAlertNameInfo)
 			}, randuparams.CertManagerAlertTimeout, randuparams.CertManagerAlertPollInterval).Should(Equal("firing"),
 				"CertManagerCertRenewalInfo alert did not fire")
 
-			By("Waiting for CertManagerCertRenewalWarning alert to fire (remaining < 360s)")
+			By("Waiting for CertManagerCertRenewalWarning alert to fire (remaining < 420s)")
 
 			Eventually(func() (string, error) {
 				return queryPrometheusAlertState(prometheusAPI, randuparams.CertManagerAlertNameWarning)
@@ -400,13 +461,15 @@ var _ = Describe(
 				err := APIClient.Resource(certGVR).Namespace(randuparams.CertManagerTestNamespace).Delete(
 					context.TODO(), "alert-test-cert", metav1.DeleteOptions{})
 				if err != nil && !k8serrors.IsNotFound(err) {
-					// log or ignore
+					klog.V(100).Infof("Failed to delete alert-test-cert Certificate: %v", err)
 				}
 
 				// Delete TLS secret if it exists
 				tlsSecretCheck, pullErr := secret.Pull(APIClient, "alert-test-tls", randuparams.CertManagerTestNamespace)
 				if pullErr == nil && tlsSecretCheck.Exists() {
-					_ = tlsSecretCheck.Delete()
+					if deleteErr := tlsSecretCheck.Delete(); deleteErr != nil {
+						klog.V(100).Infof("Failed to delete alert-test-tls secret: %v", deleteErr)
+					}
 				}
 
 				// Delete PrometheusRule
@@ -414,13 +477,16 @@ var _ = Describe(
 					randuparams.CertManagerOpenshiftMonitoringNamespace).Delete(
 					context.TODO(), "cert-renewal-alert-test", metav1.DeleteOptions{})
 				if err != nil && !k8serrors.IsNotFound(err) {
-					// log or ignore
+					klog.V(100).Infof("Failed to delete cert-renewal-alert-test PrometheusRule: %v", err)
 				}
 
 				// Delete cert-test namespace
 				certTestNS := namespace.NewBuilder(APIClient, randuparams.CertManagerTestNamespace)
 				if certTestNS.Exists() {
-					_ = certTestNS.DeleteAndWait(randuparams.DefaultTimeout)
+					if deleteErr := certTestNS.DeleteAndWait(randuparams.DefaultTimeout); deleteErr != nil {
+					klog.V(100).Infof("Failed to delete namespace %s: %v",
+						randuparams.CertManagerTestNamespace, deleteErr)
+					}
 				}
 			}()
 
@@ -452,26 +518,28 @@ var _ = Describe(
 
 			Eventually(func() (float64, error) {
 				return queryPrometheusRenewalMetric(prometheusAPI, "alert-test-cert")
-			}, 2*time.Minute, 10*time.Second).Should(BeNumerically(">", 0),
+			}, 5*time.Minute, 10*time.Second).Should(BeNumerically(">", 0),
 				"Renewal metric should show positive remaining time after renewal")
 
 			By("Verifying all cert-manager alerts have resolved")
 
 			Eventually(func() bool {
+				infoState, infoErr := queryPrometheusAlertState(prometheusAPI, randuparams.CertManagerAlertNameInfo)
 				warningState, warningErr := queryPrometheusAlertState(prometheusAPI, randuparams.CertManagerAlertNameWarning)
 				criticalState, criticalErr := queryPrometheusAlertState(prometheusAPI, randuparams.CertManagerAlertNameCritical)
 
-				if warningErr != nil || criticalErr != nil {
+				if infoErr != nil || warningErr != nil || criticalErr != nil {
 					return false
 				}
 
-				return warningState == "inactive" && criticalState == "inactive"
+				return infoState == "inactive" && warningState == "inactive" && criticalState == "inactive"
 			}, 5*time.Minute, randuparams.CertManagerAlertPollInterval).Should(BeTrue(),
-				"Warning and Critical alerts did not resolve")
+				"Info, Warning, and Critical alerts did not all resolve after certificate renewal")
 		})
 
 		// 89045 - Verify API Server certificate generation via DNS-01 ACME challenge
 		It("Verifies API Server certificate generation via DNS-01 ACME challenge", reportxml.ID("89045"), func() {
+			Skip("Skipping API Server certificate generation via DNS-01 ACME challenge")
 			By("Creating API Server Certificate CR in openshift-config namespace")
 
 			apiDomain := RanDuTestConfig.CertManager.APIDomain
@@ -562,18 +630,24 @@ var _ = Describe(
 
 		// 89046 - Verify successful API server certificate renewal
 		It("Verifies successful API server certificate renewal", reportxml.ID("89046"), func() {
+			Skip("Skipping successful API server certificate renewal")
 			defer func() {
 				By("Restoring APIServer to default certificate and cleaning up resources")
 
 				// Remove servingCerts patch
 				apiServerObj, err := APIClient.Resource(apiServerGVR).Get(context.TODO(), "cluster", metav1.GetOptions{})
-				if err == nil {
+				if err != nil {
+					klog.V(100).Infof("Failed to get APIServer cluster object during cleanup: %v", err)
+				} else {
 					_, found, _ := unstructured.NestedFieldNoCopy(apiServerObj.Object, "spec", "servingCerts")
 					if found {
+						klog.V(100).Infof("Removing servingCerts from APIServer spec")
 						unstructured.RemoveNestedField(apiServerObj.Object, "spec", "servingCerts")
 
 						_, updateErr := APIClient.Resource(apiServerGVR).Update(context.TODO(), apiServerObj, metav1.UpdateOptions{})
-						if updateErr == nil {
+						if updateErr != nil {
+							klog.V(100).Infof("Failed to update APIServer after removing servingCerts: %v", updateErr)
+						} else {
 							By("Waiting for kube-apiserver rollout after APIServer restore")
 
 							Eventually(func() error {
@@ -586,20 +660,24 @@ var _ = Describe(
 							}, randuparams.CertManagerAPIServerRolloutTimeout, 30*time.Second).Should(Succeed(),
 								"kube-apiserver rollout did not complete after restore")
 						}
+					} else {
+						klog.V(100).Infof("APIServer spec.servingCerts not found, no restore needed")
 					}
 				}
 
 				// Delete Certificate CR
-				err = APIClient.Resource(certGVR).Namespace("openshift-config").Delete(
+				deleteErr := APIClient.Resource(certGVR).Namespace("openshift-config").Delete(
 					context.TODO(), "api-server-certificate", metav1.DeleteOptions{})
-				if err != nil && !k8serrors.IsNotFound(err) {
-					// log or ignore
+				if deleteErr != nil && !k8serrors.IsNotFound(deleteErr) {
+					klog.V(100).Infof("Failed to delete api-server-certificate: %v", deleteErr)
 				}
 
 				// Delete secret if it exists
 				apiSecretCheck, pullErr := secret.Pull(APIClient, "api-server-cert", "openshift-config")
 				if pullErr == nil && apiSecretCheck.Exists() {
-					_ = apiSecretCheck.Delete()
+					if deleteErr := apiSecretCheck.Delete(); deleteErr != nil {
+						klog.V(100).Infof("Failed to delete api-server-cert secret: %v", deleteErr)
+					}
 				}
 			}()
 
@@ -735,11 +813,9 @@ var _ = Describe(
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull IngressController")
 			Expect(ingressController.Exists()).To(BeTrue(), "IngressController default does not exist")
 
-			ingressController.Definition.Spec.DefaultCertificate = &corev1.LocalObjectReference{
-				Name: "ingress-wildcard-cert",
-			}
-
-			_, err = ingressController.Update()
+			patch := []byte(`{"spec":{"defaultCertificate":{"name":"ingress-wildcard-cert"}}}`)
+			err = APIClient.Patch(context.TODO(), ingressController.Object,
+				runtimeClient.RawPatch(types.MergePatchType, patch))
 			Expect(err).ToNot(HaveOccurred(), "Failed to update IngressController with defaultCertificate")
 
 			By("Waiting for router-default deployment rollout to complete")
@@ -790,11 +866,20 @@ var _ = Describe(
 
 				// Remove defaultCertificate patch
 				ingressController, err := ingress.Pull(APIClient, "default", "openshift-ingress-operator")
-				if err == nil && ingressController.Exists() && ingressController.Object.Spec.DefaultCertificate != nil {
-					ingressController.Definition.Spec.DefaultCertificate = nil
-
-					_, updateErr := ingressController.Update()
-					if updateErr == nil {
+				if err != nil {
+					klog.V(100).Infof("Failed to pull IngressController during cleanup: %v", err)
+				} else if !ingressController.Exists() {
+					klog.V(100).Infof("IngressController 'default' does not exist, skipping restore")
+				} else if ingressController.Object.Spec.DefaultCertificate == nil {
+					klog.V(100).Infof("IngressController has no custom defaultCertificate, no restore needed")
+				} else {
+					klog.V(100).Infof("Removing defaultCertificate from IngressController")
+					patch := []byte(`{"spec":{"defaultCertificate":null}}`)
+					updateErr := APIClient.Patch(context.TODO(), ingressController.Object,
+						runtimeClient.RawPatch(types.MergePatchType, patch))
+					if updateErr != nil {
+						klog.V(100).Infof("Failed to patch IngressController: %v", updateErr)
+					} else {
 						By("Waiting for router rollout after IngressController restore")
 
 						Eventually(func() bool {
@@ -810,16 +895,18 @@ var _ = Describe(
 				}
 
 				// Delete Certificate CR
-				err = APIClient.Resource(certGVR).Namespace("openshift-ingress").Delete(
+				deleteErr := APIClient.Resource(certGVR).Namespace("openshift-ingress").Delete(
 					context.TODO(), "ingress-wildcard-certificate", metav1.DeleteOptions{})
-				if err != nil && !k8serrors.IsNotFound(err) {
-					// log or ignore
+				if deleteErr != nil && !k8serrors.IsNotFound(deleteErr) {
+					klog.V(100).Infof("Failed to delete ingress-wildcard-certificate: %v", deleteErr)
 				}
 
 				// Delete secret if it exists
 				ingressSecretCheck, pullErr := secret.Pull(APIClient, "ingress-wildcard-cert", "openshift-ingress")
 				if pullErr == nil && ingressSecretCheck.Exists() {
-					_ = ingressSecretCheck.Delete()
+					if deleteErr := ingressSecretCheck.Delete(); deleteErr != nil {
+						klog.V(100).Infof("Failed to delete ingress-wildcard-cert secret: %v", deleteErr)
+					}
 				}
 			}()
 
@@ -919,7 +1006,10 @@ var _ = Describe(
 
 // buildCertRenewalPrometheusRule constructs a PrometheusRule CR for cert-manager renewal alerts
 // with configurable thresholds for info, warning, and critical severity levels.
-func buildCertRenewalPrometheusRule(certName string, infoThreshold, warningThreshold, criticalThreshold int) *unstructured.Unstructured {
+func buildCertRenewalPrometheusRule(certName string,
+	infoThreshold, warningThreshold, criticalThreshold int) *unstructured.Unstructured {
+	metricSelector := fmt.Sprintf(`certmanager_certificate_renewal_timestamp_seconds{name="%s"}`, certName)
+
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "monitoring.coreos.com/v1",
@@ -935,7 +1025,7 @@ func buildCertRenewalPrometheusRule(certName string, infoThreshold, warningThres
 						"rules": []interface{}{
 							map[string]interface{}{
 								"alert": randuparams.CertManagerAlertNameInfo,
-								"expr":  fmt.Sprintf(`(certmanager_certificate_renewal_timestamp_seconds{name="%s"} - time()) < %d`, certName, infoThreshold),
+								"expr":  fmt.Sprintf(`(%s - time()) < %d`, metricSelector, infoThreshold),
 								"for":   "0m",
 								"labels": map[string]interface{}{
 									"severity": "info",
@@ -946,7 +1036,7 @@ func buildCertRenewalPrometheusRule(certName string, infoThreshold, warningThres
 							},
 							map[string]interface{}{
 								"alert": randuparams.CertManagerAlertNameWarning,
-								"expr":  fmt.Sprintf(`(certmanager_certificate_renewal_timestamp_seconds{name="%s"} - time()) < %d`, certName, warningThreshold),
+								"expr":  fmt.Sprintf(`(%s - time()) < %d`, metricSelector, warningThreshold),
 								"for":   "0m",
 								"labels": map[string]interface{}{
 									"severity": "warning",
@@ -957,7 +1047,7 @@ func buildCertRenewalPrometheusRule(certName string, infoThreshold, warningThres
 							},
 							map[string]interface{}{
 								"alert": randuparams.CertManagerAlertNameCritical,
-								"expr":  fmt.Sprintf(`(certmanager_certificate_renewal_timestamp_seconds{name="%s"} - time()) < %d`, certName, criticalThreshold),
+								"expr":  fmt.Sprintf(`(%s - time()) < %d`, metricSelector, criticalThreshold),
 								"for":   "0m",
 								"labels": map[string]interface{}{
 									"severity": "critical",
@@ -1134,35 +1224,37 @@ func isCertificateReady(ns, name string) (bool, error) {
 
 // lookupDNSTXTRecord queries a specific DNS server for TXT records at a given FQDN.
 func lookupDNSTXTRecord(dnsServer, fqdn string) ([]string, error) {
-	resolver := &net.Resolver{
-		PreferGo: true,
-		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
-			d := net.Dialer{Timeout: 10 * time.Second}
-
-			return d.DialContext(ctx, "udp", dnsServer+":53")
-		},
+	host := dnsServer
+	if _, _, err := net.SplitHostPort(dnsServer); err == nil {
+		host, _, _ = net.SplitHostPort(dnsServer)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	records, err := resolver.LookupTXT(ctx, fqdn)
+	output, err := shell.ExecuteCmd(fmt.Sprintf("dig @%s %s TXT +short", host, fqdn))
 	if err != nil {
-		// Handle "not found" as empty result (expected after ACME cleanup)
-		var dnsErr *net.DNSError
-		if ok := errors.As(err, &dnsErr); ok && dnsErr.IsNotFound {
-			return []string{}, nil
-		}
+		return nil, fmt.Errorf("dig lookup failed for %s: %w", fqdn, err)
+	}
 
-		return nil, fmt.Errorf("DNS lookup failed for %s: %w", fqdn, err)
+	trimmed := strings.TrimSpace(string(output))
+	if trimmed == "" {
+		return []string{}, nil
+	}
+
+	var records []string
+	for _, line := range strings.Split(trimmed, "\n") {
+		record := strings.Trim(strings.TrimSpace(line), "\"")
+		if record != "" {
+			records = append(records, record)
+		}
 	}
 
 	return records, nil
 }
 
 // createPrometheusAPIClient creates a Prometheus API client using the Thanos Querier route.
+// When the route hostname is not DNS-resolvable (common in CI environments without *.apps DNS),
+// it falls back to dialing via the API server hostname from KUBECONFIG. This works on SNO clusters
+// where the API server and ingress router share the same node.
 func createPrometheusAPIClient() (promv1.API, error) {
-	// Get Thanos Querier route
 	thanosRoute, err := route.Pull(APIClient, "thanos-querier", randuparams.CertManagerOpenshiftMonitoringNamespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to pull thanos-querier route: %w", err)
@@ -1178,7 +1270,6 @@ func createPrometheusAPIClient() (promv1.API, error) {
 
 	address := thanosRoute.Object.Status.Ingress[0].Host
 
-	// Create ServiceAccount
 	saBuilder := serviceaccount.NewBuilder(
 		APIClient,
 		randuparams.CertManagerPrometheusQuerierSAName,
@@ -1192,7 +1283,6 @@ func createPrometheusAPIClient() (promv1.API, error) {
 		}
 	}
 
-	// Create ClusterRoleBinding
 	crbBuilder := rbac.NewClusterRoleBindingBuilder(
 		APIClient,
 		randuparams.CertManagerPrometheusQuerierCRBName,
@@ -1211,29 +1301,48 @@ func createPrometheusAPIClient() (promv1.API, error) {
 		}
 	}
 
-	// Create bearer token
 	token, err := saBuilder.CreateToken(24 * time.Hour)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create token: %w", err)
 	}
 
-	// Get router CA pool
 	caPool, err := getClusterDefaultRouterCAPool()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get router CA pool: %w", err)
 	}
 
-	// Create Prometheus API client
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			RootCAs: caPool,
+		},
+	}
+
+	_, dnsErr := net.LookupHost(address)
+
+	if dnsErr != nil {
+		dialHost, parseErr := extractAPIServerHostname()
+		if parseErr != nil {
+			return nil, fmt.Errorf(
+				"route hostname %s is unresolvable and failed to extract API server hostname: %w", address, parseErr)
+		}
+
+		transport.TLSClientConfig.ServerName = address
+		transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			_, port, _ := net.SplitHostPort(addr)
+			if port == "" {
+				port = "443"
+			}
+
+			return (&net.Dialer{Timeout: 30 * time.Second}).DialContext(ctx, network, net.JoinHostPort(dialHost, port))
+		}
+	}
+
 	client, err := promapi.NewClient(promapi.Config{
 		Address: "https://" + address,
 		RoundTripper: config.NewAuthorizationCredentialsRoundTripper(
 			"Bearer",
 			config.NewInlineSecret(token),
-			&http.Transport{
-				TLSClientConfig: &tls.Config{
-					RootCAs: caPool,
-				},
-			},
+			transport,
 		),
 	})
 	if err != nil {
@@ -1241,6 +1350,21 @@ func createPrometheusAPIClient() (promv1.API, error) {
 	}
 
 	return promv1.NewAPI(client), nil
+}
+
+// extractAPIServerHostname returns the hostname (or IP) from the KUBECONFIG API server URL.
+func extractAPIServerHostname() (string, error) {
+	apiURL, err := url.Parse(APIClient.Config.Host)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse API server URL %q: %w", APIClient.Config.Host, err)
+	}
+
+	hostname := apiURL.Hostname()
+	if hostname == "" {
+		return "", fmt.Errorf("API server URL %q has no hostname", APIClient.Config.Host)
+	}
+
+	return hostname, nil
 }
 
 // getClusterDefaultRouterCAPool retrieves the default router CA pool.

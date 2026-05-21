@@ -28,7 +28,9 @@ const (
 	// CertManagerAlertPollInterval is the polling interval for alert status checks.
 	CertManagerAlertPollInterval = 30 * time.Second
 	// CertManagerAlertTimeout is the max time to wait for a single alert threshold.
-	CertManagerAlertTimeout = 10 * time.Minute
+	// Sized to cover up to two cert renewal cycles (in case the first cycle is missed
+	// due to PrometheusRule loading delays).
+	CertManagerAlertTimeout = 15 * time.Minute
 	// CertManagerAPIServerRolloutTimeout is the timeout for kube-apiserver rollout.
 	CertManagerAPIServerRolloutTimeout = 15 * time.Minute
 	// CertManagerPrometheusQuerierSAName is the ServiceAccount name for Prometheus API access.
