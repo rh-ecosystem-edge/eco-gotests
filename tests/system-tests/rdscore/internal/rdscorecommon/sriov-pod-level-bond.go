@@ -1246,6 +1246,8 @@ func waitForPodLevelBondNodesSriovSync() error {
 		RDSCoreConfig.PodLevelBondPodTwoScheduleOnHost,
 	}
 
+	anyNodeResynced := false
+
 	for _, nodeName := range nodeNames {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Checking SRIOVNetworkNodeState sync status on node %q", nodeName)
 
@@ -1259,6 +1261,13 @@ func waitForPodLevelBondNodesSriovSync() error {
 			return fmt.Errorf("SRIOVNetworkNodeState not found for node %q: %w", nodeName, err)
 		}
 
+		if sriovNodeState.Objects.Status.SyncStatus == rdscoreparams.SriovNetworkNodeStateSucceededStatus {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"SRIOVNetworkNodeState on node %q is already Succeeded, no wait needed", nodeName)
+
+			continue
+		}
+
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 			"Waiting up to %v for SRIOVNetworkNodeState sync status '%s' on node %q",
 			timeout, rdscoreparams.SriovNetworkNodeStateSucceededStatus, nodeName)
@@ -1270,6 +1279,16 @@ func waitForPodLevelBondNodesSriovSync() error {
 
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 			"Successfully waited for SRIOVNetworkNodeState sync on node %q", nodeName)
+
+		anyNodeResynced = true
+	}
+
+	if anyNodeResynced {
+		// Wait for the SR-IOV device plugin to re-enumerate VFs and advertise updated
+		// resources to the kubelet.
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Waiting 120s for SR-IOV device plugin to advertise updated resources after sync")
+		time.Sleep(120 * time.Second)
 	}
 
 	return nil
