@@ -39,6 +39,11 @@ const (
 	mtuSize                        = "8900"
 )
 
+const (
+	sriovDevicePluginRecoveryDelay   = 2 * time.Minute
+	sriovNetworkNodeStateSyncTimeout = 15 * time.Minute
+)
+
 var (
 	podLevelBondPodLabelMap = map[string]string{"systemtest-test": "rdscore-pod-level-bond-privileged"}
 )
@@ -1240,7 +1245,6 @@ func waitForPodLevelBondNodesSriovSync() error {
 	By("Waiting for SRIOVNetworkNodeState to reach Succeeded sync status on pod-level bond nodes")
 
 	sriovNamespace := rdscoreparams.SriovOperatorNamespace
-	timeout := 15 * time.Minute
 	nodeNames := []string{
 		RDSCoreConfig.PodLevelBondPodOneScheduleOnHost,
 		RDSCoreConfig.PodLevelBondPodTwoScheduleOnHost,
@@ -1270,9 +1274,10 @@ func waitForPodLevelBondNodesSriovSync() error {
 
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 			"Waiting up to %v for SRIOVNetworkNodeState sync status '%s' on node %q",
-			timeout, rdscoreparams.SriovNetworkNodeStateSucceededStatus, nodeName)
+			sriovNetworkNodeStateSyncTimeout, rdscoreparams.SriovNetworkNodeStateSucceededStatus, nodeName)
 
-		err = sriovNodeState.WaitUntilSyncStatus(rdscoreparams.SriovNetworkNodeStateSucceededStatus, timeout)
+		err = sriovNodeState.WaitUntilSyncStatus(
+			rdscoreparams.SriovNetworkNodeStateSucceededStatus, sriovNetworkNodeStateSyncTimeout)
 		if err != nil {
 			return fmt.Errorf("timeout waiting for SRIOVNetworkNodeState sync on node %q: %w", nodeName, err)
 		}
@@ -1285,10 +1290,11 @@ func waitForPodLevelBondNodesSriovSync() error {
 
 	if anyNodeResynced {
 		// Wait for the SR-IOV device plugin to re-enumerate VFs and advertise updated
-		// resources to the kubelet.
+		// resources to kubelet.
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-			"Waiting 120s for SR-IOV device plugin to advertise updated resources after sync")
-		time.Sleep(120 * time.Second)
+			"Waiting %v for SR-IOV device plugin to advertise updated resources after sync",
+			sriovDevicePluginRecoveryDelay)
+		time.Sleep(sriovDevicePluginRecoveryDelay)
 	}
 
 	return nil
