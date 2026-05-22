@@ -296,7 +296,6 @@ butane CLI to render `mc-*.yaml` beside `butane-*.yaml`, and decoded MC payloads
 | parameter | description | example |
 |-----------|-------------|---------|
 |rdscore_commatrix_output_dir | Writable directory for `oc commatrix generate` output (_required_) | `/tmp/commatrix-work` |
-|rdscore_commatrix_open_pool_node_label | Label selector for open pool nodes (_optional_; inferred from `mc-*mcp-b*.yaml` when empty) | `` |
 
 API/kubelet/closed ports, MCP wait, and journal keyword are fixed in test code (6443, 10250, 9999, 15m, `firewall`).
 
@@ -309,8 +308,7 @@ selective apply of secure-pool and master _MachineConfigs_, _MachineConfigPool_ 
 presence on a worker node.
 
 Test expects `format-mc` artifacts from the artifacts spec, including `node-disruption-policy.yaml`, `mc-<secure-pool>.yaml`, and
-`mc-master.yaml`. Other generated `mc-<pool>.yaml` files (e.g. open pool) must remain unapplied so open workers stay
-without host-firewall rules for the open-pool kubelet connectivity check.
+`mc-master.yaml`. Other generated `mc-<pool>.yaml` files may exist; apply selectively per test configuration.
 
 **Requires commatrix artifacts and at least one node in each applied _MachineConfigPool_. Reverts cluster changes in AfterAll after all four specs**
 
@@ -319,13 +317,12 @@ Uses commatrix parameters listed under _VerifyCommatrixHostFirewallArtifacts_.
 ### _VerifyCommatrixHostFirewallConnectivity_
 
 This test verifies host-firewall TCP reachability from the test runner to node _InternalIP_ addresses: API and kubelet
-ports allowed or blocked per pool, and open-pool kubelet reachable when that pool's MC was not applied.
+ports allowed or blocked on master and secure-pool workers.
 
 Test expects `nc` on the test runner to reach the control-plane API where allowed, to fail or time out
-to secure-pool worker API ports, to reach kubelet on the secure worker, to fail on a closed test port, and to reach
-kubelet on an open-pool worker.
+to secure-pool worker API ports, to reach kubelet on the secure worker, and to fail on a closed test port.
 
-**Requires applied host-firewall MCs, resolvable master/secure/open worker internal IPs (secure worker is the first node in the applied firewall MCP from apply; open pool via label or inferred MCP), and optionally a second node in an applied firewall MCP for the peer API probe**
+**Requires host-firewall MCs applied on all MCPs, resolvable master/secure worker internal IPs (secure worker is the first node in the secure firewall MCP), and optionally a second node in an applied firewall MCP for the peer API probe**
 
 Uses commatrix parameters listed under _VerifyCommatrixHostFirewallArtifacts_.
 

@@ -176,11 +176,9 @@ type CoreConfig struct {
 	//nolint:lll
 	NMIRedfishCNFMCPNodeLabel string `yaml:"rdscore_nmi_redfish_cnf_node_label" envconfig:"ECO_RDSCORE_NMI_REDFISH_CNF_NODE_LABEL"`
 	//nolint:lll
-	// Commatrix host-firewall workflow: output dir plus optional open-pool label (pools and ports are inferred or fixed in code).
+	// Commatrix host-firewall workflow: output dir for oc commatrix generate (pools and probe ports are inferred or fixed in code).
 	//nolint:lll
 	CommatrixOutputDir string `yaml:"rdscore_commatrix_output_dir" envconfig:"ECO_RDSCORE_COMMATRIX_OUTPUT_DIR"`
-	//nolint:lll
-	CommatrixOpenPoolNodeLabel string `yaml:"rdscore_commatrix_open_pool_node_label" envconfig:"ECO_RDSCORE_COMMATRIX_OPEN_POOL_NODE_LABEL"`
 	//nolint:lll,nolintlint
 	WlkdTolerationList TolerationList `yaml:"rdscore_tolerations_list" envconfig:"ECO_RDSCORE_TOLERATIONS_LIST"`
 	//nolint:lll

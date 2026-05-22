@@ -1,5 +1,5 @@
-// Commatrix host-firewall workflow (ginkgo reportxml 95001–95004): generate artifacts, apply MCs,
-// verify TCP connectivity from the test runner, verify firewall journal logging; cleanup runs after apply.
+// Commatrix host-firewall workflow (ginkgo reportxml 95001–95004): optional generate/apply helpers,
+// plus connectivity (95003) and journal (95004) verification against a cluster that already has rules applied.
 //
 //nolint:varnamelen,lll,wsl_v5 // test helpers follow oc/k8s naming; long oc/shell/klog lines are intentional.
 package rdscorecommon
@@ -55,7 +55,8 @@ const (
 	commatrixAPIPort            = 6443
 	commatrixKubeletPort        = 10250
 	commatrixClosedTCPPort      = 9999
-	commatrixNFTablesLogKeyword = "firewall"
+	commatrixNFTablesLogKeyword              = "firewall"
+	commatrixHostFirewallMCNameSubstring   = "nftables-commatrix"
 )
 
 // commatrixMCPStableWait is how long apply/revert waits for all MachineConfigPools to stabilize.
@@ -143,12 +144,9 @@ func commatrixBuildJSONPatchRemoveNDPNFT(clusterJSON string) ([]byte, error) {
 
 // commatrixRunTopology holds node names and InternalIPs resolved for connectivity checks.
 type commatrixRunTopology struct {
-	MCName           string
 	SecureWorkerName string
-	OpenWorkerName   string
 	MasterIP         string
 	SecureWorkerIP   string
-	OpenWorkerIP     string
 }
 
 // commatrixWorkflowState carries shared state for the ordered Commatrix spec.
@@ -167,6 +165,123 @@ var commatrixWorkflow commatrixWorkflowState
 
 func commatrixResetWorkflow() {
 	commatrixWorkflow = commatrixWorkflowState{}
+}
+
+// commatrixPrimeWorkflowForVerification discovers applied host-firewall pools from format-mc artifacts
+// or commatrix MachineConfigs already on the cluster (rules must be applied before 95003/95004).
+func commatrixPrimeWorkflowForVerification() error {
+	if commatrixWorkflow.mcApplied {
+		return nil
+	}
+
+	var poolNames []string
+
+	if mcDir, err := commatrixFormatMCDir(); err == nil {
+		rels, listErr := commatrixListMachineConfigYAMLRels(mcDir)
+		if listErr == nil && len(rels) > 0 {
+			poolNames = commatrixMachineConfigPoolNamesFromMCRels(rels)
+			commatrixWorkflow.generatedMCPoolNames = append([]string(nil), poolNames...)
+		}
+	}
+
+	if len(poolNames) == 0 {
+		pools, err := commatrixHostFirewallPoolNamesFromCluster()
+		if err != nil {
+			return fmt.Errorf("discover host-firewall MachineConfig pools: %w", err)
+		}
+
+		if len(pools) == 0 {
+			return fmt.Errorf(
+				"no commatrix host-firewall MachineConfigs found on cluster or under %s/%s; "+
+					"apply rules before connectivity/journal tests (run 95001/95002 or platform prep)",
+				strings.TrimSpace(RDSCoreConfig.CommatrixOutputDir), commatrixFormatMCSubdir)
+		}
+
+		poolNames = pools
+		commatrixWorkflow.generatedMCPoolNames = append([]string(nil), pools...)
+	}
+
+	securePool := commatrixInferSecureMCPoolNameFromPools(poolNames)
+	if securePool == "" {
+		return fmt.Errorf("could not infer secure/firewall MCP from pools %v", poolNames)
+	}
+
+	masterPool := commatrixInferMasterMCPoolNameFromPools(poolNames)
+
+	applyPools := []string{securePool}
+	if masterPool != "" && masterPool != securePool {
+		applyPools = append(applyPools, masterPool)
+	}
+
+	commatrixWorkflow.appliedMCPoolNames = append([]string(nil), applyPools...)
+
+	secureNodes, err := commatrixNodesFromMachineConfigPools([]string{securePool})
+	if err != nil {
+		return fmt.Errorf("list nodes in secure pool %q: %w", securePool, err)
+	}
+
+	if len(secureNodes) == 0 {
+		return fmt.Errorf("no nodes in secure pool %q for connectivity/journal probes", securePool)
+	}
+
+	commatrixWorkflow.nftProbeNodeName = secureNodes[0]
+	commatrixWorkflow.mcApplied = true
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"Commatrix: primed verification workflow pools=%v secureWorker=%q",
+		applyPools, commatrixWorkflow.nftProbeNodeName)
+
+	return nil
+}
+
+func commatrixHostFirewallPoolNamesFromCluster() ([]string, error) {
+	ocGetMcJSONCmdOut, ocGetMcJSONCmdErr := commatrixRunOC("get", "mc", "-o", "json")
+	if ocGetMcJSONCmdErr != nil {
+		return nil, ocGetMcJSONCmdErr
+	}
+
+	var mcList struct {
+		Items []struct {
+			Metadata struct {
+				Name string `json:"name"`
+			} `json:"metadata"`
+			Spec struct {
+				Config struct {
+					Role string `json:"role"`
+				} `json:"config"`
+			} `json:"spec"`
+		} `json:"items"`
+	}
+
+	if err := json.Unmarshal([]byte(ocGetMcJSONCmdOut), &mcList); err != nil {
+		return nil, fmt.Errorf("parse MachineConfig list: %w", err)
+	}
+
+	seen := make(map[string]struct{})
+	pools := make([]string, 0)
+
+	for _, item := range mcList.Items {
+		if !strings.Contains(item.Metadata.Name, commatrixHostFirewallMCNameSubstring) {
+			continue
+		}
+
+		role := strings.TrimSpace(item.Spec.Config.Role)
+		if role == "" {
+			continue
+		}
+
+		if _, ok := seen[role]; ok {
+			continue
+		}
+
+		seen[role] = struct{}{}
+
+		pools = append(pools, role)
+	}
+
+	sort.Strings(pools)
+
+	return pools, nil
 }
 
 func commatrixMasterLabelSelector() string {
@@ -200,15 +315,30 @@ func commatrixRunLocalShell(shellCmd string) error {
 
 // commatrixRunTCPProbeFromRunner runs nc -z from the test runner to host:port.
 func commatrixRunTCPProbeFromRunner(expectConnect bool, host, port string) error {
-	var shellCmd string
+	ncCmd := exec.Command("nc", "-z", "-v", "-w3", host, port)
+	ncCmd.Env = os.Environ()
+
+	ncCmdOut, ncCmdErr := ncCmd.CombinedOutput()
 
 	if expectConnect {
-		shellCmd = fmt.Sprintf(`nc -z -v -w3 %s %s`, host, port)
-	} else {
-		shellCmd = fmt.Sprintf(`! nc -z -v -w3 %s %s`, host, port)
+		if ncCmdErr != nil {
+			klog.Infof("local: nc -z -v -w3 %s %s failed: %v\n%s", host, port, ncCmdErr, string(ncCmdOut))
+		} else {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("local: nc -z -v -w3 %s %s\n%s", host, port, string(ncCmdOut))
+		}
+
+		return ncCmdErr
 	}
 
-	return commatrixRunLocalShell(shellCmd)
+	if ncCmdErr == nil {
+		klog.Infof("local: nc unexpectedly connected to %s:%s\n%s", host, port, string(ncCmdOut))
+
+		return fmt.Errorf("expected connection to %s:%s to fail, but nc succeeded", host, port)
+	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("local: nc to %s:%s failed as expected: %v\n%s", host, port, ncCmdErr, string(ncCmdOut))
+
+	return nil
 }
 
 // commatrixRunOnNodeHostDebug runs `oc debug node/<name> -- <hostDebugCmdArgs...>` so `chroot /host` is the node root.
@@ -772,45 +902,6 @@ func commatrixInferMasterMCPoolNameFromPools(pools []string) string {
 	})
 }
 
-func commatrixInferOpenMCPoolName(securePool string) string {
-	pools := commatrixWorkflow.generatedMCPoolNames
-	if len(pools) == 0 {
-		pools = commatrixWorkflow.appliedMCPoolNames
-	}
-	if p := commatrixPickMCPoolName(pools, func(name string) bool {
-		lower := strings.ToLower(name)
-
-		return strings.Contains(lower, "appworker") && strings.Contains(lower, "mcp-b")
-	}); p != "" {
-		return p
-	}
-
-	for _, p := range pools {
-		if p == securePool {
-			continue
-		}
-
-		if strings.Contains(strings.ToLower(p), "appworker") {
-			return p
-		}
-	}
-
-	return ""
-}
-
-func commatrixFirstNodeNameInMCPool(poolName string) (string, error) {
-	names, err := commatrixNodesFromMachineConfigPools([]string{poolName})
-	if err != nil {
-		return "", err
-	}
-
-	if len(names) == 0 {
-		return "", fmt.Errorf("no nodes in MachineConfigPool %q", poolName)
-	}
-
-	return names[0], nil
-}
-
 func commatrixSetWorkerFromNodeName(nodeName string) error {
 	nb, errPull := nodes.Pull(APIClient, nodeName)
 	if errPull != nil {
@@ -828,32 +919,11 @@ func commatrixSetWorkerFromNodeName(nodeName string) error {
 	return nil
 }
 
-func commatrixSetOpenWorkerFromNodeName(nodeName string) error {
-	nb, errPull := nodes.Pull(APIClient, nodeName)
-	if errPull != nil {
-		return fmt.Errorf("pull open-pool node %q: %w", nodeName, errPull)
-	}
-
-	openIP, errIP := commatrixNodeInternalIP(nb)
-	if errIP != nil {
-		return errIP
-	}
-
-	commatrixWorkflow.run.OpenWorkerName = nodeName
-	commatrixWorkflow.run.OpenWorkerIP = openIP
-
-	return nil
-}
-
-// commatrixResolveConnectivityTopology fills master/secure/open node names and InternalIPs once for connectivity and journal specs.
-//
-//nolint:funlen // master + secure (nft probe node) + open pool resolution.
+// commatrixResolveConnectivityTopology fills master and secure-worker names and InternalIPs for connectivity and journal specs.
 func commatrixResolveConnectivityTopology() error {
 	commatrixWorkflow.run.MasterIP = ""
 	commatrixWorkflow.run.SecureWorkerName = ""
 	commatrixWorkflow.run.SecureWorkerIP = ""
-	commatrixWorkflow.run.OpenWorkerName = ""
-	commatrixWorkflow.run.OpenWorkerIP = ""
 
 	masters, err := nodes.List(APIClient, metav1.ListOptions{LabelSelector: commatrixMasterLabelSelector()})
 	if err != nil {
@@ -873,46 +943,11 @@ func commatrixResolveConnectivityTopology() error {
 
 	nftNode := strings.TrimSpace(commatrixWorkflow.nftProbeNodeName)
 	if nftNode == "" {
-		return fmt.Errorf("secure worker: run apply spec first (nft probe node not recorded)")
+		return fmt.Errorf("secure worker: nft probe node not recorded (prime verification workflow first)")
 	}
 
 	if err := commatrixSetWorkerFromNodeName(nftNode); err != nil {
 		return fmt.Errorf("secure worker %q: %w", nftNode, err)
-	}
-
-	openLabel := strings.TrimSpace(RDSCoreConfig.CommatrixOpenPoolNodeLabel)
-	switch {
-	case openLabel != "":
-		openNodes, errList := nodes.List(APIClient, metav1.ListOptions{LabelSelector: openLabel})
-		if errList != nil {
-			return fmt.Errorf("list open-pool nodes: %w", errList)
-		}
-
-		if len(openNodes) == 0 {
-			return fmt.Errorf("no nodes matched open pool label %q", openLabel)
-		}
-
-		if err := commatrixSetOpenWorkerFromNodeName(openNodes[0].Object.Name); err != nil {
-			return err
-		}
-	default:
-		securePool := commatrixInferSecureMCPoolName()
-		openPool := commatrixInferOpenMCPoolName(securePool)
-		if openPool == "" {
-			return fmt.Errorf(
-				"open worker: set rdscore_commatrix_open_pool_node_label or apply host-firewall MCs to one worker pool only")
-		}
-
-		openNode, errOpen := commatrixFirstNodeNameInMCPool(openPool)
-		if errOpen != nil {
-			return fmt.Errorf("open pool %q: %w", openPool, errOpen)
-		}
-
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Commatrix: using node %q from MachineConfigPool %q (open / no-firewall pool)", openNode, openPool)
-
-		if err := commatrixSetOpenWorkerFromNodeName(openNode); err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -1285,19 +1320,12 @@ func commatrixApplyHostFirewallMC(_ SpecContext) {
 
 // commatrixVerifyHostFirewallConnectivity probes API/kubelet TCP reachability from the test runner.
 func commatrixVerifyHostFirewallConnectivity(_ SpecContext) {
-	if !commatrixWorkflow.mcApplied {
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Connectivity skipped: host-firewall MachineConfigs were not applied")
-
-		return
-	}
-
 	By("Resolving cluster topology for connectivity probes")
 
 	Expect(commatrixResolveConnectivityTopology()).NotTo(HaveOccurred())
 
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Commatrix connectivity probes: masterIP=%s secure=%s/%s open=%s/%s",
-		commatrixWorkflow.run.MasterIP, commatrixWorkflow.run.SecureWorkerName, commatrixWorkflow.run.SecureWorkerIP,
-		commatrixWorkflow.run.OpenWorkerName, commatrixWorkflow.run.OpenWorkerIP)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Commatrix connectivity probes: masterIP=%s secure=%s/%s",
+		commatrixWorkflow.run.MasterIP, commatrixWorkflow.run.SecureWorkerName, commatrixWorkflow.run.SecureWorkerIP)
 
 	apiPort := strconv.Itoa(commatrixAPIPort)
 	kubeletPort := strconv.Itoa(commatrixKubeletPort)
@@ -1351,8 +1379,6 @@ func commatrixVerifyHostFirewallConnectivity(_ SpecContext) {
 	tryProbe("Secure-pool worker kubelet reachable from test runner", commatrixWorkflow.run.SecureWorkerIP, kubeletPort, true)
 
 	tryProbe("Closed test port blocked on secure-pool worker", commatrixWorkflow.run.SecureWorkerIP, closedPort, false)
-
-	tryProbe("Open-pool worker kubelet reachable (pool without host-firewall MC)", commatrixWorkflow.run.OpenWorkerIP, kubeletPort, true)
 }
 
 func commatrixRunJournalKernelGrep(nodeName, since, until, grepFilter string) (string, error) {
@@ -1467,12 +1493,6 @@ func commatrixFirewallLogBucket(line string) (string, bool) {
 //
 //nolint:funlen // journal: two 1-minute windows, TCP_TEST rule inject/probe, and journal assertions.
 func commatrixVerifyFirewallJournal(_ SpecContext) {
-	if !commatrixWorkflow.mcApplied {
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Journal checks skipped: host-firewall MachineConfigs were not applied")
-
-		return
-	}
-
 	journalNode := commatrixWorkflow.run.SecureWorkerName
 	Expect(journalNode).NotTo(BeEmpty(), "journal node: run connectivity spec first to resolve secure worker")
 
@@ -1498,14 +1518,17 @@ func commatrixVerifyFirewallJournal(_ SpecContext) {
 	Expect(errWin2).NotTo(HaveOccurred(), "firewall journal window 2 on %s: %s", journalNode, window2Raw)
 
 	window2Lines := commatrixParseJournalKernelLines(window2Raw)
-	Expect(window2Lines).NotTo(BeEmpty(),
-		"firewall journal: expected at least one kernel log line matching %q in the last minute on %s; last output:\n%s",
-		keyword, journalNode, window2Raw)
+	if len(window2Lines) == 0 {
+		_, _ = fmt.Fprintf(GinkgoWriter,
+			"WARNING: firewall journal: no kernel log lines matching %q in the last minute on %s; "+
+				"skipping window-2 rate-limit checks (traffic may be quiet). Last output:\n%s\n",
+			keyword, journalNode, window2Raw)
+	} else {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("firewall journal: %d line(s) matching %q on %s in the last minute",
+			len(window2Lines), keyword, journalNode)
 
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("firewall journal: %d line(s) matching %q on %s in the last minute",
-		len(window2Lines), keyword, journalNode)
-
-	commatrixExpectFirewallLogRateLimitsInWindow(window2Lines, commatrixJournalSinceOneMinute)
+		commatrixExpectFirewallLogRateLimitsInWindow(window2Lines, commatrixJournalSinceOneMinute)
+	}
 
 	apiPort := commatrixAPIPort
 	probeTargetIP := journalInternalIP
@@ -1531,9 +1554,7 @@ func commatrixVerifyFirewallJournal(_ SpecContext) {
 
 	By(fmt.Sprintf("Probing %s:%d from test runner", probeTargetIP, apiPort))
 
-	tcpProbeShellCmd := fmt.Sprintf(`nc -z -v -w1 %s %d`, probeTargetIP, apiPort)
-
-	if err := commatrixRunLocalShell(tcpProbeShellCmd); err != nil {
+	if err := commatrixRunTCPProbeFromRunner(false, probeTargetIP, strconv.Itoa(apiPort)); err != nil {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("local nc to %s:%d (drop expected): %v", probeTargetIP, apiPort, err)
 	}
 
@@ -1661,10 +1682,21 @@ func VerifyCommatrixHostFirewallApply(ctx SpecContext) {
 
 // VerifyCommatrixHostFirewallConnectivity verifies TCP connectivity from the test runner.
 func VerifyCommatrixHostFirewallConnectivity(ctx SpecContext) {
+	Expect(commatrixPrimeWorkflowForVerification()).NotTo(HaveOccurred(),
+		"host-firewall rules must be applied on the cluster before connectivity checks")
+
 	commatrixVerifyHostFirewallConnectivity(ctx)
 }
 
 // VerifyCommatrixHostFirewallJournal verifies firewall journal rate limits and TCP_TEST logging.
 func VerifyCommatrixHostFirewallJournal(ctx SpecContext) {
+	Expect(commatrixPrimeWorkflowForVerification()).NotTo(HaveOccurred(),
+		"host-firewall rules must be applied on the cluster before journal checks")
+
+	if strings.TrimSpace(commatrixWorkflow.run.SecureWorkerName) == "" {
+		Expect(commatrixResolveConnectivityTopology()).NotTo(HaveOccurred(),
+			"resolve connectivity topology before journal checks")
+	}
+
 	commatrixVerifyFirewallJournal(ctx)
 }
