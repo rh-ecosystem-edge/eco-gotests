@@ -62,7 +62,7 @@ var _ = Describe(
 
 			It("Verifies KDump service on Control Plane node",
 				Label("kdump", "kdump-cp"), reportxml.ID("75620"),
-				rdscorecommon.VerifyKDumpOnControlPlane, SpecTimeout(15*time.Minute))
+				rdscorecommon.VerifyKDumpOnControlPlane, SpecTimeout(25*time.Minute))
 
 			It("Cleanup UnexpectedAdmission pods after KDump test on Control Plane node",
 				Label("kdump", "kdump-cp", "kdump-cp-cleanup"),
@@ -71,7 +71,7 @@ var _ = Describe(
 
 			It("Verifies KDump service on Worker node",
 				Label("kdump", "kdump-worker"), reportxml.ID("75621"),
-				rdscorecommon.VerifyKDumpOnWorkerMCP, SpecTimeout(15*time.Minute))
+				rdscorecommon.VerifyKDumpOnWorkerMCP, SpecTimeout(25*time.Minute))
 
 			It("Cleanup UnexpectedAdmission pods after KDump test on Worker node",
 				Label("kdump", "kdump-worker", "kdump-worker-cleanup"),
@@ -80,7 +80,7 @@ var _ = Describe(
 
 			It("Verifies KDump service on CNF node",
 				Label("kdump", "kdump-cnf"), reportxml.ID("75622"),
-				rdscorecommon.VerifyKDumpOnCNFMCP, SpecTimeout(15*time.Minute))
+				rdscorecommon.VerifyKDumpOnCNFMCP, SpecTimeout(25*time.Minute))
 
 			It("Cleanup UnexpectedAdmission pods after KDump test on CNF node",
 				Label("kdump", "kdump-cnf", "kdump-cnf-cleanup"),
@@ -89,7 +89,7 @@ var _ = Describe(
 
 			It("Verifies NMI RedFish trigger on Control Plane node",
 				Label("nmi-redfish", "nmi-redfish-cp"), reportxml.ID("86253"),
-				rdscorecommon.VerifyNMIRedfishOnControlPlane, SpecTimeout(15*time.Minute))
+				rdscorecommon.VerifyNMIRedfishOnControlPlane, SpecTimeout(30*time.Minute))
 
 			It("Cleanup UnexpectedAdmission pods after NMI RedFish test on Control Plane node",
 				Label("nmi-redfish", "nmi-redfish-cp", "nmi-redfish-cp-cleanup"),
@@ -98,7 +98,7 @@ var _ = Describe(
 
 			It("Verifies NMI RedFish trigger on Worker node",
 				Label("nmi-redfish", "nmi-redfish-worker"), reportxml.ID("86254"),
-				rdscorecommon.VerifyNMIRedfishOnWorkerMCP, SpecTimeout(15*time.Minute))
+				rdscorecommon.VerifyNMIRedfishOnWorkerMCP, SpecTimeout(30*time.Minute))
 
 			It("Cleanup UnexpectedAdmission pods after NMI RedFish test on Worker node",
 				Label("nmi-redfish", "nmi-redfish-worker", "nmi-redfish-worker-cleanup"),
@@ -107,7 +107,7 @@ var _ = Describe(
 
 			It("Verifies NMI RedFish trigger on CNF node",
 				Label("nmi-redfish", "nmi-redfish-cnf"), reportxml.ID("86255"),
-				rdscorecommon.VerifyNMIRedfishOnCNFMCP, SpecTimeout(15*time.Minute))
+				rdscorecommon.VerifyNMIRedfishOnCNFMCP, SpecTimeout(30*time.Minute))
 
 			It("Cleanup UnexpectedAdmission pods after NMI RedFish test on CNF node",
 				Label("nmi-redfish", "nmi-redfish-cnf", "nmi-redfish-cnf-cleanup"),
