@@ -44,6 +44,7 @@ const (
 const (
 	sriovDevicePluginRecoveryDelay   = 2 * time.Minute
 	sriovNetworkNodeStateSyncTimeout = 15 * time.Minute
+	sriovResourcePollInterval        = 5 * time.Second
 	sriovResourcePrefix              = "openshift.io"
 )
 
@@ -1253,7 +1254,7 @@ func waitForPodLevelBondNodesSriovSync() error {
 		RDSCoreConfig.PodLevelBondPodTwoScheduleOnHost,
 	}
 
-	resyncedNodes := []string{}
+	var resyncedNodes []string
 
 	for _, nodeName := range nodeNames {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Checking SRIOVNetworkNodeState sync status on node %q", nodeName)
@@ -1342,7 +1343,7 @@ func waitForSriovResourcesOnNodes(nodeNames, resourceNames []string) error {
 			var finalQty resource.Quantity
 
 			err := wait.PollUntilContextTimeout(
-				context.Background(), 5*time.Second, sriovDevicePluginRecoveryDelay, true,
+				context.TODO(), sriovResourcePollInterval, sriovDevicePluginRecoveryDelay, true,
 				func(ctx context.Context) (bool, error) {
 					nodeBuilder, pullErr := nodes.Pull(APIClient, nodeName)
 					if pullErr != nil {
