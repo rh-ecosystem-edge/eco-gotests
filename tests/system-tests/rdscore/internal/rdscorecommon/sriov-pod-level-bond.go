@@ -16,8 +16,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/wait"
 
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/apiobjectshelper"
 
@@ -42,6 +44,7 @@ const (
 const (
 	sriovDevicePluginRecoveryDelay   = 2 * time.Minute
 	sriovNetworkNodeStateSyncTimeout = 15 * time.Minute
+	sriovResourcePrefix              = "openshift.io"
 )
 
 var (
@@ -1250,7 +1253,7 @@ func waitForPodLevelBondNodesSriovSync() error {
 		RDSCoreConfig.PodLevelBondPodTwoScheduleOnHost,
 	}
 
-	anyNodeResynced := false
+	resyncedNodes := []string{}
 
 	for _, nodeName := range nodeNames {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Checking SRIOVNetworkNodeState sync status on node %q", nodeName)
@@ -1285,16 +1288,91 @@ func waitForPodLevelBondNodesSriovSync() error {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 			"Successfully waited for SRIOVNetworkNodeState sync on node %q", nodeName)
 
-		anyNodeResynced = true
+		resyncedNodes = append(resyncedNodes, nodeName)
 	}
 
-	if anyNodeResynced {
-		// Wait for the SR-IOV device plugin to re-enumerate VFs and advertise updated
-		// resources to kubelet.
+	if len(resyncedNodes) > 0 {
+		resourceNames, err := getSriovResourceNamesForPodLevelBond()
+		if err != nil {
+			return fmt.Errorf("failed to get SR-IOV resource names for pod-level bond: %w", err)
+		}
+
+		return waitForSriovResourcesOnNodes(resyncedNodes, resourceNames)
+	}
+
+	return nil
+}
+
+// getSriovResourceNamesForPodLevelBond returns the full Kubernetes resource names
+// (e.g. "openshift.io/sriovleftmlxbond") for the two SR-IOV networks used by the
+// pod-level bond workload, by reading their ResourceName from the SriovNetwork CRs.
+func getSriovResourceNamesForPodLevelBond() ([]string, error) {
+	networkNames := []string{
+		RDSCoreConfig.PodLevelBondSRIOVNetOne,
+		RDSCoreConfig.PodLevelBondSRIOVNetTwo,
+	}
+
+	resourceNames := make([]string, 0, len(networkNames))
+
+	for _, netName := range networkNames {
+		net, err := sriov.PullNetwork(APIClient, netName, rdscoreparams.SriovOperatorNamespace)
+		if err != nil {
+			return nil, fmt.Errorf("failed to pull SriovNetwork %q: %w", netName, err)
+		}
+
+		resourceName := sriovResourcePrefix + "/" + net.Object.Spec.ResourceName
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-			"Waiting %v for SR-IOV device plugin to advertise updated resources after sync",
-			sriovDevicePluginRecoveryDelay)
-		time.Sleep(sriovDevicePluginRecoveryDelay)
+			"SriovNetwork %q has resource name %q", netName, resourceName)
+
+		resourceNames = append(resourceNames, resourceName)
+	}
+
+	return resourceNames, nil
+}
+
+// waitForSriovResourcesOnNodes polls each node's status.allocatable until all expected
+// SR-IOV resources show a non-zero count, confirming the device plugin has re-enumerated
+// the VFs after a sync.
+func waitForSriovResourcesOnNodes(nodeNames, resourceNames []string) error {
+	for _, nodeName := range nodeNames {
+		for _, resourceName := range resourceNames {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"Waiting for SR-IOV resource %q to become available on node %q", resourceName, nodeName)
+
+			var finalQty resource.Quantity
+
+			err := wait.PollUntilContextTimeout(
+				context.Background(), 5*time.Second, sriovDevicePluginRecoveryDelay, true,
+				func(ctx context.Context) (bool, error) {
+					nodeBuilder, pullErr := nodes.Pull(APIClient, nodeName)
+					if pullErr != nil {
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+							"Failed to pull node %q: %v", nodeName, pullErr)
+
+						return false, nil
+					}
+
+					qty, exists := nodeBuilder.Object.Status.Allocatable[corev1.ResourceName(resourceName)]
+					if !exists {
+						return false, nil
+					}
+
+					if qty.IsZero() {
+						return false, nil
+					}
+
+					finalQty = qty
+
+					return true, nil
+				})
+			if err != nil {
+				return fmt.Errorf("SR-IOV resource %q did not become available on node %q within %v: %w",
+					resourceName, nodeName, sriovDevicePluginRecoveryDelay, err)
+			}
+
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"SR-IOV resource %q is available on node %q with quantity %s", resourceName, nodeName, &finalQty)
+		}
 	}
 
 	return nil
