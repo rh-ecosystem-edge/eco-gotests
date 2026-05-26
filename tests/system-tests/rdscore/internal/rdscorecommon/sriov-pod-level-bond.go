@@ -1316,9 +1316,26 @@ func getSriovResourceNamesForPodLevelBond() ([]string, error) {
 	resourceNames := make([]string, 0, len(networkNames))
 
 	for _, netName := range networkNames {
-		net, err := sriov.PullNetwork(APIClient, netName, rdscoreparams.SriovOperatorNamespace)
+		var net *sriov.NetworkBuilder
+
+		err := wait.PollUntilContextTimeout(
+			context.TODO(), 5*time.Second, time.Minute*1, true,
+			func(ctx context.Context) (bool, error) {
+				var pullErr error
+
+				net, pullErr = sriov.PullNetwork(APIClient, netName, rdscoreparams.SriovOperatorNamespace)
+				if pullErr != nil {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+						"Failed to pull SriovNetwork %q, retrying: %v", netName, pullErr)
+
+					return false, nil
+				}
+
+				return true, nil
+			})
 		if err != nil {
-			return nil, fmt.Errorf("failed to pull SriovNetwork %q: %w", netName, err)
+			return nil, fmt.Errorf("failed to pull SriovNetwork %q after %v: %w",
+				netName, time.Minute*1, err)
 		}
 
 		resourceName := sriovResourcePrefix + "/" + net.Object.Spec.ResourceName
@@ -1355,10 +1372,18 @@ func waitForSriovResourcesOnNodes(nodeNames, resourceNames []string) error {
 
 					qty, exists := nodeBuilder.Object.Status.Allocatable[corev1.ResourceName(resourceName)]
 					if !exists {
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+							"Resource %q not yet present in allocatable resources on node %q, retrying",
+							resourceName, nodeName)
+
 						return false, nil
 					}
 
 					if qty.IsZero() {
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+							"Resource %q on node %q has zero allocatable quantity, retrying",
+							resourceName, nodeName)
+
 						return false, nil
 					}
 
