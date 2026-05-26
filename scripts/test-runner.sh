@@ -4,14 +4,12 @@ GOPATH="${GOPATH:-~/go}"
 PATH=$PATH:$GOPATH/bin
 TEST_DIR="./tests"
 
-# Check that ECO_TEST_FEATURES environment variable has been set
+# If ECO_TEST_FEATURES is unset, rely on explicit package path(s) passed as arguments
 if [[ -z "${ECO_TEST_FEATURES}" ]]; then
-    echo "ECO_TEST_FEATURES environment variable is undefined"
-    exit 1
-fi
-
+    echo "ECO_TEST_FEATURES not set; using explicit package path(s) from arguments"
+    feature_dirs=""
 # Set feature_dirs to top-level test directory when "all" feature provided
-if [[ "${ECO_TEST_FEATURES}" == "all" ]]; then
+elif [[ "${ECO_TEST_FEATURES}" == "all" ]]; then
     feature_dirs=${TEST_DIR}
 else
     # Find all test directories matching provided features
