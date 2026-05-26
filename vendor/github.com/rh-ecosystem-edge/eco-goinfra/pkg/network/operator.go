@@ -204,13 +204,8 @@ func (builder *OperatorBuilder) SetIPForwarding(
 	return builder, err
 }
 
-// SetMultiNetworkPolicy enables or disables the network.operator multinetworkpolicy feature.
-// When disabling, the Cluster Network Operator often does not set Progressing=True; the initial
-// wait for Progressing=True is skipped in that case only. Enabling keeps the original sequence.
-// On disable, we wait until status.observedGeneration catches metadata.generation from the update
-// so condition polling is not satisfied from stale status from before this change.
-// The wait for Progressing=False uses a disable-specific path: CNO may omit the Progressing
-// condition when idle, which would otherwise never match WaitUntilInCondition(..., False).
+// SetMultiNetworkPolicy sets network.operator spec.useMultiNetworkPolicy to state.
+// No-op if unchanged; otherwise Update then wait until Available=True within timeout.
 func (builder *OperatorBuilder) SetMultiNetworkPolicy(state bool, timeout time.Duration) (*OperatorBuilder, error) {
 	if valid, err := builder.validate(); !valid {
 		return builder, err
@@ -224,32 +219,6 @@ func (builder *OperatorBuilder) SetMultiNetworkPolicy(state bool, timeout time.D
 		builder.Definition.Spec.UseMultiNetworkPolicy = &state
 
 		builder, err := builder.Update()
-		if err != nil {
-			return nil, err
-		}
-
-		targetGeneration := builder.Definition.Generation
-
-		if state {
-			err = builder.WaitUntilInCondition(
-				operatorv1.OperatorStatusTypeProgressing, 60*time.Second, operatorv1.ConditionTrue)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			err = builder.waitUntilObservedGeneration(targetGeneration, timeout)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		if state {
-			err = builder.WaitUntilInCondition(
-				operatorv1.OperatorStatusTypeProgressing, timeout, operatorv1.ConditionFalse)
-		} else {
-			err = builder.waitUntilProgressingSettledOnDisable(timeout)
-		}
-
 		if err != nil {
 			return nil, err
 		}
@@ -314,11 +283,18 @@ func (builder *OperatorBuilder) WaitUntilInCondition(
 
 	err := wait.PollUntilContextTimeout(
 		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			if !builder.Exists() {
-				return false, fmt.Errorf("network.operator object %s does not exist", builder.Definition.Name)
+			obj, getErr := builder.Get()
+			if getErr != nil {
+				if k8serrors.IsNotFound(getErr) {
+					return false, fmt.Errorf("network.operator object %s does not exist", builder.Definition.Name)
+				}
+
+				return false, nil
 			}
 
-			for _, c := range builder.Object.Status.Conditions {
+			builder.Object = obj
+
+			for _, c := range obj.Status.Conditions {
 				if c.Type == condition && c.Status == status {
 					return true, nil
 				}
@@ -333,77 +309,6 @@ func (builder *OperatorBuilder) WaitUntilInCondition(
 	}
 
 	return err
-}
-
-// waitUntilObservedGeneration waits until status.observedGeneration reflects the given metadata.generation,
-// indicating the operator has reconciled that spec revision.
-func (builder *OperatorBuilder) waitUntilObservedGeneration(targetGeneration int64, timeout time.Duration) error {
-	if valid, err := builder.validate(); !valid {
-		return err
-	}
-
-	klog.V(100).Infof("Wait until network.operator %s observedGeneration >= %d",
-		builder.Definition.Name, targetGeneration)
-
-	return wait.PollUntilContextTimeout(
-		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			if !builder.Exists() {
-				return false, fmt.Errorf("network.operator object %s does not exist", builder.Definition.Name)
-			}
-
-			return builder.Object.Status.ObservedGeneration >= targetGeneration, nil
-		})
-}
-
-// waitUntilProgressingSettledOnDisable waits until Progressing is False, or until the operator
-// reports available and not degraded while Progressing is absent (CNO may omit Progressing when idle).
-func (builder *OperatorBuilder) waitUntilProgressingSettledOnDisable(timeout time.Duration) error {
-	if valid, err := builder.validate(); !valid {
-		return err
-	}
-
-	klog.V(100).Infof("Wait until network.operator %s is settled after disabling MultiNetworkPolicy",
-		builder.Definition.Name)
-
-	return wait.PollUntilContextTimeout(
-		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			if !builder.Exists() {
-				return false, fmt.Errorf("network.operator object %s does not exist", builder.Definition.Name)
-			}
-
-			for _, c := range builder.Object.Status.Conditions {
-				if c.Type != operatorv1.OperatorStatusTypeProgressing {
-					continue
-				}
-
-				return c.Status == operatorv1.ConditionFalse, nil
-			}
-
-			return operatorAvailableAndNotDegraded(builder.Object.Status.Conditions), nil
-		})
-}
-
-func operatorAvailableAndNotDegraded(conditions []operatorv1.OperatorCondition) bool {
-	var available, degraded *operatorv1.OperatorCondition
-
-	for i := range conditions {
-		switch conditions[i].Type {
-		case operatorv1.OperatorStatusTypeAvailable:
-			available = &conditions[i]
-		case operatorv1.OperatorStatusTypeDegraded:
-			degraded = &conditions[i]
-		}
-	}
-
-	if available == nil || available.Status != operatorv1.ConditionTrue {
-		return false
-	}
-
-	if degraded != nil && degraded.Status == operatorv1.ConditionTrue {
-		return false
-	}
-
-	return len(conditions) > 0
 }
 
 // validate will check that the builder and builder definition are properly initialized before

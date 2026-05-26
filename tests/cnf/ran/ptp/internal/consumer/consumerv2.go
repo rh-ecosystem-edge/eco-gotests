@@ -109,12 +109,12 @@ func createV2ConsumerDeploymentOnNode(client *clients.Settings, nodeName string)
 		return fmt.Errorf("failed to create consumer container: %w", err)
 	}
 
-	apiAddr := fmt.Sprintf("--local-api-addr=%s.%s.svc.cluster.local:9043",
+	apiAddr := fmt.Sprintf("--local-api-addr=%s.%s.svc.cluster.local.:9043",
 		getConsumerServiceName(nodeName), tsparams.CloudEventsNamespace)
 	consumerContainer.Args = []string{
 		apiAddr,
 		"--api-path=/api/ocloudNotifications/v2/",
-		"--http-event-publishers=ptp-event-publisher-service-NODE_NAME.openshift-ptp.svc.cluster.local:9043",
+		"--http-event-publishers=ptp-event-publisher-service-NODE_NAME.openshift-ptp.svc.cluster.local.:9043",
 	}
 	consumerContainer.SecurityContext = nil
 

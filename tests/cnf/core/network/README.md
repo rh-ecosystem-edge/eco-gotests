@@ -72,6 +72,7 @@ All network environmental variables can be found 'tests/cnf/core/network/interna
 # export ECO_TEST_VERBOSE='true'
 # export ECO_VERBOSE_LEVEL=100
 # export ECO_CNF_CORE_NET_VLAN=VLAN_ID
+# export ECO_CNF_CORE_NET_NATIVE_VLAN=92   # numeric native (untagged) VLAN on lab switch trunks; use netconfig.GetNativeVLANID() where needed (e.g. LACP); separate from ECO_CNF_CORE_NET_VLAN when they differ
 # export ECO_CNF_CORE_NET_SRIOV_INTERFACE_LIST=List SR-IOV interfaces under test # example "eno1,eno2"
 # export ECO_CNF_CORE_NET_MLB_ADDR_LIST=LIST of ip addresses # example 10.66.66.88,10.66.66.89,10.66.66.90,2666:66:0:2e51::88,2666:66:0:2e51::89,2666:66:0:2e51::90
 # export ECO_CNF_CORE_NET_SWITCH_IP="switch_ip_address"

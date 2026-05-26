@@ -68,6 +68,17 @@ func waitForBootIDChange(ctx SpecContext, nodeName, originalBootID string, timeo
 		}
 
 		newBootID := currentNode.Object.Status.NodeInfo.BootID
+
+		// Empty boot ID indicates node is in transient state (rebooting/starting)
+		// We must wait for a valid non-empty boot ID that differs from original
+		if newBootID == "" {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"Node %q boot ID is empty (node in transient state, waiting for reboot to complete)",
+				nodeName)
+
+			return false
+		}
+
 		if newBootID != originalBootID {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 				"Node %q boot ID changed: %s -> %s (reboot confirmed)",

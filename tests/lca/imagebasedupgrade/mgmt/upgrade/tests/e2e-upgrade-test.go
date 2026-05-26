@@ -249,18 +249,55 @@ var _ = Describe(
 				extraConfigmapString, err := brutil.NewBackupRestoreObject(
 					extraConfigmap.Definition, k8sScheme.Scheme, corev1.SchemeGroupVersion).String()
 				Expect(err).NotTo(HaveOccurred(), "error creating configmap data for extramanifest configmap")
-				extraManifestsConfigmapConfigmap, err := configmap.NewBuilder(
-					APIClient, extraManifesConfigmapConfigmapName, mgmtparams.LCANamespace).WithData(map[string]string{
+
+				extraManifestData := map[string]string{
 					"configmap.yaml": extraConfigmapString,
-				}).Create()
-				Expect(err).NotTo(HaveOccurred(), "error creating configmap for extra manifests configmap")
+				}
+
+				for _, nsWave := range []int{7, 9, 11} {
+					cmWave := nsWave + 1
+					nsName := fmt.Sprintf("namespace-wave%d", nsWave)
+					cmName := fmt.Sprintf("configmap-wave%d", cmWave)
+
+					By(fmt.Sprintf("Create %s with wave %d and %s with wave %d", nsName, nsWave, cmName, cmWave))
+
+					extraNamespace := namespace.NewBuilder(APIClient, nsName)
+					extraNamespace.Definition.Annotations = map[string]string{
+						"lca.openshift.io/apply-wave": strconv.Itoa(nsWave),
+					}
+
+					nsStr, err := brutil.NewBackupRestoreObject(
+						extraNamespace.Definition, k8sScheme.Scheme, corev1.SchemeGroupVersion).String()
+					Expect(err).NotTo(HaveOccurred(), "error creating configmap data for "+nsName)
+
+					extraConfigMap := configmap.NewBuilder(APIClient, cmName, nsName).
+						WithData(map[string]string{"hello": "world"})
+					extraConfigMap.Definition.Annotations = map[string]string{
+						"lca.openshift.io/apply-wave": strconv.Itoa(cmWave),
+					}
+
+					cmStr, err := brutil.NewBackupRestoreObject(
+						extraConfigMap.Definition, k8sScheme.Scheme, corev1.SchemeGroupVersion).String()
+					Expect(err).NotTo(HaveOccurred(), "error creating configmap data for "+cmName)
+
+					extraManifestData[nsName+".yaml"] = nsStr
+					extraManifestData[cmName+".yaml"] = cmStr
+				}
+
+				By("Create configmap for extramanifests including wave 2 and wave 7-12 resources")
+
+				extraManifestsConfigmapConfigmap, err := configmap.NewBuilder(
+					APIClient, extraManifesConfigmapConfigmapName, mgmtparams.LCANamespace).
+					WithData(extraManifestData).Create()
+				Expect(err).NotTo(HaveOccurred(), "error creating configmap for extra manifests")
 
 				By("Update IBU with extra manifests")
 
 				_, err = ibu.WithExtraManifests(
 					extraManifestsNamespaceConfigmap.Object.Name, extraManifestsNamespaceConfigmap.Object.Namespace).
 					WithExtraManifests(
-						extraManifestsConfigmapConfigmap.Object.Name, extraManifestsConfigmapConfigmap.Object.Namespace).Update()
+						extraManifestsConfigmapConfigmap.Object.Name, extraManifestsConfigmapConfigmap.Object.Namespace).
+					Update()
 				Expect(err).NotTo(HaveOccurred(), "error updating image based upgrade with extra manifests")
 			}
 

@@ -383,6 +383,9 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			It("should reject Module when sign is set but filesToSign is empty", reportxml.ID("88318"), func() {
 				By("Preparing Module with Sign but no filesToSign")
 
+				err := APIClient.AttachScheme(v1beta1.AddToScheme)
+				Expect(err).ToNot(HaveOccurred(), "error attaching v1beta1 scheme")
+
 				image := fmt.Sprintf("%s/%s/%s:$KERNEL_FULL_VERSION",
 					tsparams.LocalImageRegistry, kmmparams.WebhookModuleTestNamespace, "sign-no-files")
 
@@ -412,7 +415,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 
 				By("Create Module")
 
-				err := APIClient.Create(context.TODO(), module)
+				err = APIClient.Create(context.TODO(), module)
 				Expect(err).To(HaveOccurred(), "module should be rejected by webhook")
 				klog.V(kmmparams.KmmLogLevel).Infof("err is: %s", err)
 				Expect(err.Error()).To(ContainSubstring("filesToSign"))

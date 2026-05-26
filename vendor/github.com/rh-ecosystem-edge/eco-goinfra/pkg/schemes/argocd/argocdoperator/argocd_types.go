@@ -137,6 +137,9 @@ type ArgoCDApplicationControllerSpec struct {
 
 	// RespectRBAC restricts controller from discovering/syncing specific resources, Defaults is empty if not configured. Valid options are strict and normal.
 	RespectRBAC string `json:"respectRBAC,omitempty"`
+
+	// Metrics defines the metrics configuration for the Application Controller ServiceMonitor.
+	Metrics *ArgoCDMetricsSpec `json:"metrics,omitempty"`
 }
 
 func (a *ArgoCDApplicationControllerSpec) IsEnabled() bool {
@@ -165,6 +168,10 @@ type ArgoCDApplicationControllerShardSpec struct {
 	// ClustersPerShard defines the maximum number of clusters managed by each argocd shard
 	// +kubebuilder:validation:Minimum=1
 	ClustersPerShard int32 `json:"clustersPerShard,omitempty"`
+
+	// DistributionAlgorithm determines what algorithm will be used for distribution of shards. Valid options are legacy, round-robin, and consistent-hashing
+	// +kubebuilder:validation:Enum=legacy;round-robin;consistent-hashing
+	DistributionAlgorithm string `json:"algorithm,omitempty"`
 }
 
 // ArgoCDApplicationSet defines whether the Argo CD ApplicationSet controller should be installed.
@@ -438,6 +445,20 @@ type ArgoCDNotifications struct {
 	// LogFormat refers to the log format used by the argocd-notifications. Defaults to ArgoCDDefaultLogFormat if not configured. Valid options are text or json.
 	// +kubebuilder:validation:Enum=text;json
 	LogFormat string `json:"logFormat,omitempty"`
+
+	// Metrics defines the metrics configuration for the Notifications ServiceMonitor.
+	Metrics *ArgoCDMetricsSpec `json:"metrics,omitempty"`
+}
+
+// ArgoCDMetricsSpec defines the metrics configuration for a component's ServiceMonitor.
+type ArgoCDMetricsSpec struct {
+	// Interval specifies the Prometheus scrape interval for this component's ServiceMonitor.
+	// If empty, Prometheus uses its default scrape interval.
+	Interval string `json:"interval,omitempty"`
+
+	// ScrapeTimeout specifies the Prometheus scrape timeout for this component's ServiceMonitor.
+	// If empty, Prometheus uses the global scrape timeout.
+	ScrapeTimeout string `json:"scrapeTimeout,omitempty"`
 }
 
 // ArgoCDPrometheusSpec defines the desired state for the Prometheus component.
@@ -606,6 +627,9 @@ type ArgoCDRepoSpec struct {
 
 	// Custom certificates to inject into the repo server container and its plugins to trust source hosting sites
 	SystemCATrust *ArgoCDSystemCATrustSpec `json:"systemCATrust,omitempty"`
+
+	// Metrics defines the metrics configuration for the Repo Server ServiceMonitor.
+	Metrics *ArgoCDMetricsSpec `json:"metrics,omitempty"`
 }
 
 func (a *ArgoCDRepoSpec) IsEnabled() bool {
@@ -740,6 +764,9 @@ type ArgoCDServerSpec struct {
 
 	// Custom labels to pods deployed by the operator
 	Labels map[string]string `json:"labels,omitempty"`
+
+	// Metrics defines the metrics configuration for the Server ServiceMonitor.
+	Metrics *ArgoCDMetricsSpec `json:"metrics,omitempty"`
 }
 
 func (a *ArgoCDServerSpec) IsEnabled() bool {
@@ -873,7 +900,6 @@ type ArgoCDNetworkPolicySpec struct {
 	// Enabled defines whether NetworkPolicy resources are created for this Argo CD instance.
 	// When enabled, the operator will reconcile NetworkPolicies for Argo CD components.
 	// When disabled, the operator will remove any previously-created NetworkPolicies.
-	// +kubebuilder:default=true
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
@@ -1068,6 +1094,7 @@ type ArgoCDSpec struct {
 	// CmdParams specifies command-line parameters for the Argo CD components.
 	// The only keys currently supported for this parameter are:
 	// - controller.resource.health.persist
+	// - applicationsetcontroller.enable.tokenref.strict.mode — when ApplicationSet-in-any-namespace is active, the operator defaults this to "true"
 	CmdParams map[string]string `json:"cmdParams,omitempty"`
 
 	// ArgoCDAgent defines configurations for the ArgoCD Agent component.
@@ -1095,15 +1122,63 @@ type ManagedNamespaces struct {
 // ArgoCDWebhookSecretsSpec holds declarative references to Secrets for Git provider webhook credentials.
 // +k8s:openapi-gen=true
 type ArgoCDWebhookSecretsSpec struct {
-	// GitHub: Secret key reference for the webhook secret used to verify incoming webhook requests.
+	// GitHub: Secret key reference for the GitHub webhook shared secret.
 	GitHub *ArgoCDWebhookSecretsGitHub `json:"github,omitempty"`
+	// GitLab: Secret key reference for the GitLab webhook shared secret.
+	GitLab *ArgoCDWebhookSecretsGitLab `json:"gitlab,omitempty"`
+	// Bitbucket: Secret key reference for the Bitbucket Cloud webhook UUID.
+	Bitbucket *ArgoCDWebhookSecretsBitbucket `json:"bitbucket,omitempty"`
+	// BitbucketServer: Secret key reference for the Bitbucket Server webhook secret.
+	BitbucketServer *ArgoCDWebhookSecretsBitbucketServer `json:"bitbucketServer,omitempty"`
+	// Gogs: Secret key reference for the Gogs webhook shared secret.
+	Gogs *ArgoCDWebhookSecretsGogs `json:"gogs,omitempty"`
+	// AzureDevOps: Secret key references for the Azure DevOps webhook username and password (or PAT).
+	AzureDevOps *ArgoCDWebhookSecretsAzureDevOps `json:"azureDevOps,omitempty"`
 }
 
 // ArgoCDWebhookSecretsGitHub declares where to read the GitHub webhook secret.
 // +k8s:openapi-gen=true
 type ArgoCDWebhookSecretsGitHub struct {
-	// SecretRef points to the key holding the webhook secret value.
-	SecretRef *WebhookSecretKeySelector `json:"secretRef,omitempty"`
+	// WebhookSecretRef points to the key holding the GitHub webhook shared secret.
+	WebhookSecretRef *WebhookSecretKeySelector `json:"webhookSecretRef,omitempty"`
+}
+
+// ArgoCDWebhookSecretsGitLab declares where to read the GitLab webhook secret.
+// +k8s:openapi-gen=true
+type ArgoCDWebhookSecretsGitLab struct {
+	// WebhookSecretRef points to the key holding the GitLab webhook shared secret.
+	WebhookSecretRef *WebhookSecretKeySelector `json:"webhookSecretRef,omitempty"`
+}
+
+// ArgoCDWebhookSecretsBitbucket declares where to read the Bitbucket Cloud webhook UUID.
+// +k8s:openapi-gen=true
+type ArgoCDWebhookSecretsBitbucket struct {
+	// WebhookUUIDSecretRef points to the key holding the Bitbucket Cloud webhook UUID.
+	WebhookUUIDSecretRef *WebhookSecretKeySelector `json:"webhookUUIDSecretRef,omitempty"`
+}
+
+// ArgoCDWebhookSecretsBitbucketServer declares where to read the Bitbucket Server webhook secret.
+// +k8s:openapi-gen=true
+type ArgoCDWebhookSecretsBitbucketServer struct {
+	// WebhookSecretRef points to the key holding the Bitbucket Server webhook shared secret.
+	WebhookSecretRef *WebhookSecretKeySelector `json:"webhookSecretRef,omitempty"`
+}
+
+// ArgoCDWebhookSecretsGogs declares where to read the Gogs webhook secret.
+// +k8s:openapi-gen=true
+type ArgoCDWebhookSecretsGogs struct {
+	// WebhookSecretRef points to the key holding the Gogs webhook shared secret.
+	WebhookSecretRef *WebhookSecretKeySelector `json:"webhookSecretRef,omitempty"`
+}
+
+// ArgoCDWebhookSecretsAzureDevOps declares where to read the Azure DevOps webhook credentials.
+// +k8s:openapi-gen=true
+// +kubebuilder:validation:XValidation:rule="(has(self.usernameSecretRef) && has(self.passwordSecretRef)) || (!has(self.usernameSecretRef) && !has(self.passwordSecretRef))",message="usernameSecretRef and passwordSecretRef must be set together"
+type ArgoCDWebhookSecretsAzureDevOps struct {
+	// UsernameSecretRef points to the key holding the username.
+	UsernameSecretRef *WebhookSecretKeySelector `json:"usernameSecretRef,omitempty"`
+	// PasswordSecretRef points to the key holding the password or PAT.
+	PasswordSecretRef *WebhookSecretKeySelector `json:"passwordSecretRef,omitempty"`
 }
 
 // WebhookSecretKeySelector references one key within a Secret.
@@ -1338,6 +1413,9 @@ type PrincipalSpec struct {
 
 	// DestinationBasedMapping is the flag to enable destination based mapping for the Principal component.
 	DestinationBasedMapping *bool `json:"destinationBasedMapping,omitempty"`
+
+	// Metrics defines the metrics configuration for the Principal ServiceMonitor.
+	Metrics *ArgoCDMetricsSpec `json:"metrics,omitempty"`
 }
 
 type PrincipalServerSpec struct {
@@ -1467,6 +1545,9 @@ type AgentSpec struct {
 
 	// DestinationBasedMapping defines the options for destination based mapping for the Agent component.
 	DestinationBasedMapping *DestinationBasedMappingSpec `json:"destinationBasedMapping,omitempty"`
+
+	// Metrics defines the metrics configuration for the Agent ServiceMonitor.
+	Metrics *ArgoCDMetricsSpec `json:"metrics,omitempty"`
 }
 
 type DestinationBasedMappingSpec struct {

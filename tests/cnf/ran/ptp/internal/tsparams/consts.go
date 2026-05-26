@@ -25,6 +25,8 @@ const (
 	LabelStability = "stability"
 	// LabelLogReduction is the label for all tests in the PTP log reduction suite.
 	LabelLogReduction = "log-reduction"
+	// LabelTBCTSCHoldover is the label for T-BC and T-TSC upstream clock loss holdover tests.
+	LabelTBCTSCHoldover = "tbc-tsc-holdover"
 
 	// LeapConfigmapName is the name of the leap configmap.
 	LeapConfigmapName = "leap-configmap"

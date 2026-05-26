@@ -49,8 +49,10 @@ func GetNodeInfoMap(client *clients.Settings) (map[string]*NodeInfo, error) {
 			Name: nodeBuilder.Definition.Name,
 		}
 
+		controlledNames := getControlledNamesForNode(recommendsForNode, ptpConfigList)
+
 		for reference := range recommendsForNode {
-			profileInfo, err := getMemoizedAndClonedProfileInfo(reference, ptpConfigList, ptpProfileInfos)
+			profileInfo, err := getMemoizedAndClonedProfileInfo(reference, ptpConfigList, ptpProfileInfos, controlledNames)
 			if err != nil {
 				klog.V(tsparams.LogLevel).Infof("Failed to get profile info for reference %v: %v", reference, err)
 
@@ -163,6 +165,41 @@ func nodeMatches(node *corev1.Node, recommend ptpv1.PtpRecommend) bool {
 	return false
 }
 
+// getControlledNamesForNode scans all profiles recommended to the node and collects the values of controllingProfile
+// PTP settings. The returned map contains profile names that are referenced as T-BC receivers by a TBC transmitter.
+func getControlledNamesForNode(
+	recommendsForNode map[ProfileReference]struct{},
+	allConfigs []*ptp.PtpConfigBuilder,
+) map[string]bool {
+	controlled := map[string]bool{}
+
+	for reference := range recommendsForNode {
+		configIndex := slices.IndexFunc(allConfigs, func(config *ptp.PtpConfigBuilder) bool {
+			return runtimeclient.ObjectKeyFromObject(config.Definition) == reference.ConfigReference
+		})
+
+		if configIndex == -1 {
+			continue
+		}
+
+		configProfiles := allConfigs[configIndex].Definition.Spec.Profile
+		if reference.ProfileIndex < 0 || reference.ProfileIndex >= len(configProfiles) {
+			continue
+		}
+
+		profile := configProfiles[reference.ProfileIndex]
+		if profile.PtpSettings == nil {
+			continue
+		}
+
+		if name, ok := profile.PtpSettings["controllingProfile"]; ok && name != "" {
+			controlled[name] = true
+		}
+	}
+
+	return controlled
+}
+
 // getMemoizedAndClonedProfileInfo retrieves a ProfileInfo for the given reference from the provided PtpConfigs. If the
 // profile has already been parsed and saved in ptpProfileInfos, a clone of it is returned. Otherwise, the profile is
 // parsed from the PtpConfig, saved in ptpProfileInfos, and a clone is returned. The returned ProfileInfo pointer is
@@ -171,7 +208,8 @@ func nodeMatches(node *corev1.Node, recommend ptpv1.PtpRecommend) bool {
 func getMemoizedAndClonedProfileInfo(
 	reference ProfileReference,
 	allConfigs []*ptp.PtpConfigBuilder,
-	ptpProfileInfos map[ProfileReference]*ProfileInfo) (*ProfileInfo, error) {
+	ptpProfileInfos map[ProfileReference]*ProfileInfo,
+	controlledNames map[string]bool) (*ProfileInfo, error) {
 	if profileInfo, ok := ptpProfileInfos[reference]; ok {
 		return profileInfo.Clone(), nil
 	}
@@ -191,7 +229,7 @@ func getMemoizedAndClonedProfileInfo(
 
 	profile := profiles[reference.ProfileIndex]
 
-	profileInfo, err := parsePtpProfile(profile, reference)
+	profileInfo, err := parsePtpProfile(profile, reference, controlledNames)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse PTP profile %s: %w", reference.ProfileName, err)
 	}
