@@ -6,6 +6,10 @@ TEST_DIR="./tests"
 
 # If ECO_TEST_FEATURES is unset, rely on explicit package path(s) passed as arguments
 if [[ -z "${ECO_TEST_FEATURES}" ]]; then
+    if [[ $# -eq 0 ]]; then
+        echo "ERROR: ECO_TEST_FEATURES is unset and no package path arguments were provided"
+        exit 1
+    fi
     echo "ECO_TEST_FEATURES not set; using explicit package path(s) from arguments"
     feature_dirs=""
 # Set feature_dirs to top-level test directory when "all" feature provided
