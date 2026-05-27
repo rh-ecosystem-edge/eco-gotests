@@ -11,6 +11,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/service"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/metallb/internal/metallbenv"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/metallb/internal/tsparams"
 )
@@ -24,6 +25,7 @@ var _ = Describe("BGP", Ordered, Label("pool-selector"), ContinueOnFailure, func
 		}
 
 		validateEnvVarAndGetNodeList()
+		validateIPFamilySupport(netparam.IPV4Family)
 
 		By("Creating a new instance of MetalLB Speakers on workers")
 

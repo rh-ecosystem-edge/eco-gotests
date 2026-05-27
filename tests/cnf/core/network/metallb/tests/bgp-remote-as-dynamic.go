@@ -38,6 +38,7 @@ var _ = Describe("BGP remote-dynamicAS", Ordered, Label(tsparams.LabelDynamicRem
 			}
 
 			validateEnvVarAndGetNodeList()
+			validateIPFamilySupport(netparam.IPV4Family)
 		})
 
 		AfterAll(func() {

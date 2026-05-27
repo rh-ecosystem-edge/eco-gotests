@@ -50,6 +50,7 @@ var _ = Describe("MetalLB NodeSelector", Ordered, Label(tsparams.LabelBGPTestCas
 		}
 
 		validateEnvVarAndGetNodeList()
+		validateIPFamilySupport(netparam.IPV4Family)
 
 		By("Collecting information before test")
 

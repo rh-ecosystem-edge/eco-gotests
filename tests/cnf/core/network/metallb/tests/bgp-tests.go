@@ -70,37 +70,42 @@ var _ = Describe("BGP", Ordered, Label(tsparams.LabelBGPTestCases), ContinueOnFa
 
 	It("Session State: Verify the BGP peering status between worker nodes and their two expected BGP neighbors",
 		reportxml.ID("85987"), func() {
+			ipStack := preferredIPFamily()
+			prefixLen := defaultAggLen[ipStack]
+
 			if len(workerNodeList) < 2 {
 				Skip("Skipping test as there are less than 2 worker nodes")
 			}
 
 			By("Setting up test environment")
 
-			_, extFrrPod, _ := setupTestEnv(ipv4, 32, false)
+			_, extFrrPod, _ := setupTestEnv(ipStack, prefixLen, false)
+
+			peerAddrs := removePrefixFromIPList(nodeAddrList[ipStack])
+			Expect(len(peerAddrs)).To(BeNumerically(">=", 2),
+				"Expected at least 2 peer addresses for selected IP family")
 
 			By("Shutdown the BGP session on the external FRR pod for the second worker node")
 
-			workerNode1Address := workerNodeList[1].Object.Status.Addresses[0].Address
-			err := frr.ShutdownBGPNeighbor(extFrrPod, workerNode1Address, tsparams.LocalBGPASN)
+			err := frr.ShutdownBGPNeighbor(extFrrPod, peerAddrs[1], tsparams.LocalBGPASN)
 			Expect(err).ToNot(HaveOccurred(), "Failed to shutdown BGP connection")
 
 			By("Verify the BGP session is down on the second worker node")
-			verifyMetalLbBGPSessionsAreDownOnFrrPod(extFrrPod, []string{workerNodeList[1].Object.Status.Addresses[0].Address})
-			validateBGPSessionState("Active", "N/A", metallbAddrList[ipv4][0], []*nodes.Builder{workerNodeList[1]})
+			verifyMetalLbBGPSessionsAreDownOnFrrPod(extFrrPod, []string{nodeAddrList[ipStack][1]})
+			validateBGPSessionState("Active", "N/A", metallbAddrList[ipStack][0], []*nodes.Builder{workerNodeList[1]})
 
 			By("Verify the BGP session is up on the first worker node")
-			verifyMetalLbBGPSessionsAreUPOnFrrPod(extFrrPod, []string{workerNodeList[0].Object.Status.Addresses[0].Address})
-			validateBGPSessionState("Established", "N/A", metallbAddrList[ipv4][0], []*nodes.Builder{workerNodeList[0]})
+			verifyMetalLbBGPSessionsAreUPOnFrrPod(extFrrPod, []string{nodeAddrList[ipStack][0]})
+			validateBGPSessionState("Established", "N/A", metallbAddrList[ipStack][0], []*nodes.Builder{workerNodeList[0]})
 
 			By("Restart the BGP session on the second worker node")
 
-			err = frr.NoShutdownBGPNeighbor(
-				extFrrPod, workerNodeList[1].Object.Status.Addresses[0].Address, tsparams.LocalBGPASN)
+			err = frr.NoShutdownBGPNeighbor(extFrrPod, peerAddrs[1], tsparams.LocalBGPASN)
 			Expect(err).ToNot(HaveOccurred(), "Failed to restart BGP connection")
 
 			By("Verify the BGP session is up on the second worker node")
-			verifyMetalLbBGPSessionsAreUPOnFrrPod(extFrrPod, []string{workerNodeList[1].Object.Status.Addresses[0].Address})
-			validateBGPSessionState("Established", "N/A", metallbAddrList[ipv4][0], workerNodeList)
+			verifyMetalLbBGPSessionsAreUPOnFrrPod(extFrrPod, []string{nodeAddrList[ipStack][1]})
+			validateBGPSessionState("Established", "N/A", metallbAddrList[ipStack][0], workerNodeList)
 
 			By("Remove BGP peer and verify there are no BGP sessions")
 
@@ -112,7 +117,7 @@ var _ = Describe("BGP", Ordered, Label(tsparams.LabelBGPTestCases), ContinueOnFa
 			for _, workerNode := range workerNodeList {
 				Eventually(func() error {
 					_, err := metallb.PullBGPSessionStateByNodeAndPeer(
-						APIClient, workerNode.Definition.Name, metallbAddrList[ipv4][0])
+						APIClient, workerNode.Definition.Name, metallbAddrList[ipStack][0])
 
 					return err
 				}, 60*time.Second, tsparams.DefaultRetryInterval).Should(HaveOccurred(), "BGP session should not exist")
@@ -146,7 +151,8 @@ var _ = Describe("BGP", Ordered, Label(tsparams.LabelBGPTestCases), ContinueOnFa
 		)
 
 		It("provides Prometheus BGP metrics", reportxml.ID("47202"), func() {
-			frrk8sPods, _, _ := setupTestEnv(ipv4, 32, false)
+			ipStack := preferredIPFamily()
+			frrk8sPods, _, _ := setupTestEnv(ipStack, defaultAggLen[ipStack], false)
 
 			By("Label namespace")
 
@@ -331,6 +337,8 @@ var _ = Describe("BGP", Ordered, Label(tsparams.LabelBGPTestCases), ContinueOnFa
 		)
 
 		It("BGP Timer update", reportxml.ID("47180"), func() {
+			validateIPFamilySupport(netparam.IPV4Family)
+
 			frrk8sPods, extFrrPod, _ := setupTestEnv(ipv4, 32, false)
 
 			By("Verify BGP Timers of neighbors in external FRR Pod")

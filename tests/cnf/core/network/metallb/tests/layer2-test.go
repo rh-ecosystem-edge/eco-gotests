@@ -43,6 +43,7 @@ var _ = Describe("Layer2", Ordered, Label(tsparams.LabelLayer2TestCases), Contin
 		}
 
 		validateEnvVarAndGetNodeList()
+		validateIPFamilySupport(netparam.IPV4Family)
 
 		By("Creating a new instance of MetalLB Speakers on workers")
 

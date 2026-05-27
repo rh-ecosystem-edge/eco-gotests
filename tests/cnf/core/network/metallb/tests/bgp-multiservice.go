@@ -38,6 +38,7 @@ var _ = Describe("MetalLB BGP", Ordered, Label(tsparams.LabelBGPTestCases), Cont
 		}
 
 		validateEnvVarAndGetNodeList()
+		validateIPFamilySupport(netparam.IPV4Family)
 
 		By("Creating a new instance of MetalLB Speakers on workers")
 
