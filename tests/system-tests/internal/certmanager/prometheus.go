@@ -28,6 +28,9 @@ import (
 // with configurable thresholds for info, warning, and critical severity levels.
 func BuildCertRenewalPrometheusRule(namespace, certName string,
 	infoThreshold, warningThreshold, criticalThreshold int) *unstructured.Unstructured {
+	klog.V(100).Infof("Building PrometheusRule for cert %s with thresholds info=%d, warning=%d, critical=%d",
+		certName, infoThreshold, warningThreshold, criticalThreshold)
+
 	metricSelector := fmt.Sprintf(`certmanager_certificate_renewal_timestamp_seconds{name="%s"}`, certName)
 
 	return &unstructured.Unstructured{
@@ -89,6 +92,8 @@ func BuildCertRenewalPrometheusRule(namespace, certName string,
 
 // QueryPrometheusAlertState queries the state of a specific alert rule.
 func QueryPrometheusAlertState(promAPI promv1.API, alertName string) (string, error) {
+	klog.V(100).Infof("Querying Prometheus alert state for %s", alertName)
+
 	result, err := promAPI.Rules(context.TODO())
 	if err != nil {
 		return "", fmt.Errorf("failed to query Prometheus rules: %w", err)
@@ -102,10 +107,14 @@ func QueryPrometheusAlertState(promAPI promv1.API, alertName string) (string, er
 			}
 
 			if alertRule.Name == alertName {
+				klog.V(100).Infof("Alert %s state: %s", alertName, alertRule.State)
+
 				return alertRule.State, nil
 			}
 		}
 	}
+
+	klog.V(100).Infof("Alert %s not found in Prometheus rules, returning inactive", alertName)
 
 	return AlertStateInactive, nil
 }
@@ -113,6 +122,8 @@ func QueryPrometheusAlertState(promAPI promv1.API, alertName string) (string, er
 // QueryPrometheusRenewalMetric queries Prometheus for the certmanager_certificate_renewal_timestamp_seconds metric
 // and returns the number of seconds remaining until renewal (renewal_timestamp - current_time).
 func QueryPrometheusRenewalMetric(promAPI promv1.API, certName string) (float64, error) {
+	klog.V(100).Infof("Querying Prometheus renewal metric for certificate %s", certName)
+
 	query := fmt.Sprintf(`certmanager_certificate_renewal_timestamp_seconds{name="%s"} - time()`, certName)
 
 	result, _, err := promAPI.Query(context.TODO(), query, time.Now())
@@ -125,7 +136,11 @@ func QueryPrometheusRenewalMetric(promAPI promv1.API, certName string) (float64,
 		return 0, fmt.Errorf("no renewal metric data found for certificate %s", certName)
 	}
 
-	return float64(vector[0].Value), nil
+	remaining := float64(vector[0].Value)
+
+	klog.V(100).Infof("Certificate %s has %.0f seconds remaining until renewal", certName, remaining)
+
+	return remaining, nil
 }
 
 // NewPrometheusAPI returns a Prometheus v1 API interface, creating necessary authentication
@@ -134,6 +149,8 @@ func QueryPrometheusRenewalMetric(promAPI promv1.API, certName string) (float64,
 // route hostname is not DNS-resolvable.
 func NewPrometheusAPI(apiClient *clients.Settings,
 	saName, crbName, namespace string) (promv1.API, error) {
+	klog.V(100).Infof("Creating Prometheus API client via thanos-querier route in namespace %s", namespace)
+
 	thanosRoute, err := route.Pull(apiClient, "thanos-querier", namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to pull thanos-querier route: %w", err)
@@ -148,6 +165,8 @@ func NewPrometheusAPI(apiClient *clients.Settings,
 	}
 
 	address := thanosRoute.Object.Status.Ingress[0].Host
+
+	klog.V(100).Infof("Thanos Querier route address: %s", address)
 
 	token, err := ensurePrometheusAuth(apiClient, saName, crbName, namespace)
 	if err != nil {
@@ -200,6 +219,8 @@ func NewPrometheusAPI(apiClient *clients.Settings,
 		return nil, fmt.Errorf("failed to create Prometheus client: %w", err)
 	}
 
+	klog.V(100).Infof("Successfully created Prometheus API client for %s", address)
+
 	return promv1.NewAPI(client), nil
 }
 
@@ -220,6 +241,8 @@ func ExtractAPIServerHostname(apiClient *clients.Settings) (string, error) {
 
 // GetClusterDefaultRouterCAPool retrieves the default router CA pool.
 func GetClusterDefaultRouterCAPool(apiClient *clients.Settings) (*x509.CertPool, error) {
+	klog.V(100).Infof("Retrieving default router CA pool from openshift-ingress/router-certs-default")
+
 	routerCASecret, err := secret.Pull(apiClient, "router-certs-default", "openshift-ingress")
 	if err != nil {
 		return nil, fmt.Errorf("failed to pull router-certs-default secret: %w", err)
@@ -248,9 +271,13 @@ func GetClusterDefaultRouterCAPool(apiClient *clients.Settings) (*x509.CertPool,
 
 func ensurePrometheusAuth(apiClient *clients.Settings,
 	saName, crbName, namespace string) (string, error) {
+	klog.V(100).Infof("Ensuring Prometheus authentication resources exist (SA: %s, CRB: %s)", saName, crbName)
+
 	saBuilder := serviceaccount.NewBuilder(apiClient, saName, namespace)
 
 	if !saBuilder.Exists() {
+		klog.V(100).Infof("Creating ServiceAccount %s/%s", namespace, saName)
+
 		_, err := saBuilder.Create()
 		if err != nil {
 			return "", fmt.Errorf("failed to create ServiceAccount: %w", err)
@@ -269,11 +296,15 @@ func ensurePrometheusAuth(apiClient *clients.Settings,
 	)
 
 	if !crbBuilder.Exists() {
+		klog.V(100).Infof("Creating ClusterRoleBinding %s", crbName)
+
 		_, err := crbBuilder.Create()
 		if err != nil {
 			return "", fmt.Errorf("failed to create ClusterRoleBinding: %w", err)
 		}
 	}
+
+	klog.V(100).Infof("Creating token for ServiceAccount %s/%s", namespace, saName)
 
 	token, err := saBuilder.CreateToken(24 * time.Hour)
 	if err != nil {
