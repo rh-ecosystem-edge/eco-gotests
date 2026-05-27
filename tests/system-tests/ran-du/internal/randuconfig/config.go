@@ -100,6 +100,14 @@ type RanDuConfig struct {
 	PtpWpcPrimaryInterface     string      `yaml:"ptp_wpc_primary_interface" envconfig:"ECO_RANDU_PTP_WPC_PRIMARY_IFACE"`
 	RebootRecoveryTime         int         `yaml:"reboot_recovery_time" envconfig:"ECO_RANDU_RECOVERY_TIME"`
 	NodesCredentialsMap        NodesBMCMap `yaml:"randu_nodes_bmc_map" envconfig:"ECO_RANDU_NODES_CREDENTIALS_MAP"`
+	CertManager                struct {
+		DNSServer  string `yaml:"dns_server" envconfig:"ECO_RANDU_CERTMANAGER_DNS_SERVER"`
+		CertDomain string `yaml:"cert_domain" envconfig:"ECO_RANDU_CERTMANAGER_CERT_DOMAIN"`
+		APIDomain  string `yaml:"api_domain" envconfig:"ECO_RANDU_CERTMANAGER_API_DOMAIN"`
+		AppsDomain string `yaml:"apps_domain" envconfig:"ECO_RANDU_CERTMANAGER_APPS_DOMAIN"`
+		IngressIP  string `yaml:"ingress_ip" envconfig:"ECO_RANDU_CERTMANAGER_INGRESS_IP"`
+		IssuerName string `yaml:"issuer_name" envconfig:"ECO_RANDU_CERTMANAGER_ISSUER_NAME"`
+	} `yaml:"certmanager"`
 }
 
 // NewRanDuConfig returns instance of RanDuConfig config type.

@@ -36,3 +36,12 @@ ptp_wpc_primary_interface: ""
 # Format for env var ECO_RANDU_NODES_CREDENTIALS_MAP: "node1,user,pass,https://bmc:443;node2,user,pass,https://bmc2:443"
 # Tests requiring BMC will be skipped if this is empty.
 randu_nodes_bmc_map: {}
+
+# Cert-manager validation test configuration
+certmanager:
+    dns_server: ""
+    cert_domain: ""
+    api_domain: ""
+    apps_domain: ""
+    ingress_ip: ""
+    issuer_name: "acme-issuer"
