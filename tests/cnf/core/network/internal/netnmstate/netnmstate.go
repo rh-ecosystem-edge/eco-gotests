@@ -539,3 +539,88 @@ func CreatePolicyAndWaitUntilItsDegraded(timeout time.Duration, nmstatePolicy *n
 
 	return nmstatePolicy.WaitUntilCondition(nmstateShared.NodeNetworkConfigurationPolicyConditionDegraded, timeout)
 }
+
+// SrIovVfNetdevFromNodeNetworkState returns the kernel netdev name for the VF with vfID on pfName.
+// It prefers ethernet.sr-iov.vfs[].iface-name from status.currentState (as reported by nmstate ≥ 2.x),
+// and falls back to matching the VF MAC to a top-level ethernet interface when iface-name is absent
+// and MAC is not all-zero (nested vfs entries often report 00:00:00:00:00:00 while iface-name is set).
+// Callers must not assume "{pf}v0": VF names depend on udev/kernel naming (e.g. ens1f0v0 vs ens1f0np0v0).
+func SrIovVfNetdevFromNodeNetworkState(
+	nodeNetworkState *nmstate.StateBuilder, pfName string, vfID int) (string, error) {
+	if nodeNetworkState == nil || nodeNetworkState.Object == nil {
+		return "", fmt.Errorf("NodeNetworkState builder is nil")
+	}
+
+	raw := nodeNetworkState.Object.Status.CurrentState.Raw
+	if len(raw) == 0 {
+		return "", fmt.Errorf("NodeNetworkState %s has empty current state", nodeNetworkState.Object.Name)
+	}
+
+	var desiredState nmstate.DesiredState
+
+	err := yaml.Unmarshal(raw, &desiredState)
+	if err != nil {
+		return "", fmt.Errorf("unmarshal NodeNetworkState current state: %w", err)
+	}
+
+	ifaceFromPF, vfMACNorm, err := sriovVfIfaceNameAndMACFromDesiredState(&desiredState, pfName, vfID)
+	if err != nil {
+		return "", err
+	}
+
+	if strings.TrimSpace(ifaceFromPF) != "" {
+		return strings.TrimSpace(ifaceFromPF), nil
+	}
+
+	if vfMACNorm != "" && vfMACNorm != "000000000000" {
+		for _, iface := range desiredState.Interfaces {
+			if iface.Name == pfName || iface.Type != "ethernet" {
+				continue
+			}
+
+			ifaceMACNorm := normalizeMACAddr(iface.MacAddress)
+			if ifaceMACNorm != "" && ifaceMACNorm == vfMACNorm {
+				return iface.Name, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf(
+		"VF %d under PF %s: no iface-name and no MAC match in NodeNetworkState %s",
+		vfID, pfName, nodeNetworkState.Object.Name)
+}
+
+// sriovVfIfaceNameAndMACFromDesiredState returns the VF iface-name and normalized MAC from the PF sr-iov.vfs entry.
+func sriovVfIfaceNameAndMACFromDesiredState(
+	desiredState *nmstate.DesiredState, pfName string, vfID int) (ifaceName string, macNorm string, err error) {
+	for _, iface := range desiredState.Interfaces {
+		if iface.Name != pfName {
+			continue
+		}
+
+		if len(iface.Ethernet.Sriov.Vfs) == 0 || iface.Ethernet.Sriov.Vfs == nil {
+			return "", "", fmt.Errorf("PF %s has no VFs in desired state", pfName)
+		}
+
+		vfs := iface.Ethernet.Sriov.Vfs
+
+		for _, vf := range vfs {
+			if vf.ID == vfID {
+				return strings.TrimSpace(vf.IfaceName), normalizeMACAddr(vf.MacAddress), nil
+			}
+		}
+
+		return "", "", fmt.Errorf("VF id %d not found under PF %s sr-iov vfs", vfID, pfName)
+	}
+
+	return "", "", fmt.Errorf("PF %s not found in interfaces list", pfName)
+}
+
+// normalizeMACAddr strips separators and lowercases a MAC address for comparison.
+func normalizeMACAddr(mac string) string {
+	mac = strings.TrimSpace(strings.ToLower(mac))
+	mac = strings.ReplaceAll(mac, ":", "")
+	mac = strings.ReplaceAll(mac, "-", "")
+
+	return mac
+}

@@ -29,6 +29,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/sriovenv"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/tsparams"
@@ -645,8 +646,26 @@ var _ = Describe(
 				err = netnmstate.CreateNewNMStateAndWaitUntilItsRunning(7 * time.Minute)
 				Expect(err).ToNot(HaveOccurred(), "Failed to create NMState instance")
 
-				if sriovenv.IsMellanoxDevice(srIovInterfacesUnderTest[0], workerNodeList[0].Object.Name) {
-					err = sriovenv.ConfigureSriovMlnxFirmwareOnWorkersAndWaitMCP(workerNodeList, srIovInterfacesUnderTest[0], true, 5)
+				var isMellanox bool
+
+				isMellanox, err = netenv.IsMellanoxDevice(
+					APIClient, NetConfig.SriovOperatorNamespace,
+					srIovInterfacesUnderTest[0], workerNodeList[0].Object.Name,
+				)
+				Expect(err).ToNot(HaveOccurred(), "Failed to check if interface is a Mellanox device")
+
+				if isMellanox {
+					err = netenv.ConfigureSriovMlnxFirmwareOnWorkersAndWaitMCP(
+						APIClient,
+						tsparams.MCOWaitTimeout,
+						time.Minute,
+						NetConfig.CnfMcpLabel,
+						NetConfig.SriovOperatorNamespace,
+						workerNodeList,
+						srIovInterfacesUnderTest[0],
+						true,
+						5,
+					)
 					Expect(err).ToNot(HaveOccurred(), "Failed to configure Mellanox firmware")
 				}
 
@@ -660,7 +679,10 @@ var _ = Describe(
 					netparam.DefaultTimeout)
 				Expect(err).ToNot(HaveOccurred(), "Failed to create VFs via NMState")
 
-				err = sriovenv.WaitUntilVfsCreated(workerNodeList, srIovInterfacesUnderTest[0], 5, netparam.DefaultTimeout)
+				err = netenv.WaitUntilVfsCreated(
+					APIClient, NetConfig.SriovOperatorNamespace, workerNodeList,
+					srIovInterfacesUnderTest[0], 5, netparam.DefaultTimeout,
+				)
 				Expect(err).ToNot(HaveOccurred(), "Expected number of VFs are not created")
 
 				By("Configure SR-IOV with flag ExternallyManaged true")
@@ -671,7 +693,7 @@ var _ = Describe(
 
 				By("Define and create a network attachment definition with a C-VLAN 100")
 
-				_, err := define.VlanNad(APIClient, nadCVLAN100, tsparams.TestNamespaceName, "net1", 100,
+				_, err = define.VlanNad(APIClient, nadCVLAN100, tsparams.TestNamespaceName, "net1", 100,
 					nad.IPAMStatic())
 				Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Fail to create Network-Attachment-Definition %s",
 					nadCVLAN100))
@@ -726,7 +748,10 @@ var _ = Describe(
 
 				By("Verifying that VFs removed")
 
-				err = sriovenv.WaitUntilVfsCreated(workerNodeList, srIovInterfacesUnderTest[0], 0, netparam.DefaultTimeout)
+				err = netenv.WaitUntilVfsCreated(
+					APIClient, NetConfig.SriovOperatorNamespace, workerNodeList,
+					srIovInterfacesUnderTest[0], 0, netparam.DefaultTimeout,
+				)
 				Expect(err).ToNot(HaveOccurred(), "Unexpected amount of VF")
 
 				By("Removing NMState policies")

@@ -69,8 +69,24 @@ var _ = Describe("ExternallyManaged", Ordered, Label(tsparams.LabelExternallyMan
 				sriovInterfacesUnderTest, err = NetConfig.GetSriovInterfaces(1)
 				Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
 
-				if sriovenv.IsMellanoxDevice(sriovInterfacesUnderTest[0], workerNodeList[0].Object.Name) {
-					err = sriovenv.ConfigureSriovMlnxFirmwareOnWorkersAndWaitMCP(workerNodeList, sriovInterfacesUnderTest[0], true, 5)
+				isMellanox, err := netenv.IsMellanoxDevice(
+					APIClient, NetConfig.SriovOperatorNamespace,
+					sriovInterfacesUnderTest[0], workerNodeList[0].Object.Name,
+				)
+				Expect(err).ToNot(HaveOccurred(), "Failed to check if interface is a Mellanox device")
+
+				if isMellanox {
+					err = netenv.ConfigureSriovMlnxFirmwareOnWorkersAndWaitMCP(
+						APIClient,
+						tsparams.MCOWaitTimeout,
+						time.Minute,
+						NetConfig.CnfMcpLabel,
+						NetConfig.SriovOperatorNamespace,
+						workerNodeList,
+						sriovInterfacesUnderTest[0],
+						true,
+						5,
+					)
 					Expect(err).ToNot(HaveOccurred(), "Failed to configure Mellanox firmware")
 				}
 
@@ -84,7 +100,10 @@ var _ = Describe("ExternallyManaged", Ordered, Label(tsparams.LabelExternallyMan
 					netparam.DefaultTimeout)
 				Expect(err).ToNot(HaveOccurred(), "Failed to create VFs via NMState")
 
-				err = sriovenv.WaitUntilVfsCreated(workerNodeList, sriovInterfacesUnderTest[0], 5, netparam.DefaultTimeout)
+				err = netenv.WaitUntilVfsCreated(
+					APIClient, NetConfig.SriovOperatorNamespace, workerNodeList,
+					sriovInterfacesUnderTest[0], 5, netparam.DefaultTimeout,
+				)
 				Expect(err).ToNot(HaveOccurred(), "Expected number of VFs are not created")
 
 				By("Configure SR-IOV with flag ExternallyManaged true")
@@ -104,7 +123,10 @@ var _ = Describe("ExternallyManaged", Ordered, Label(tsparams.LabelExternallyMan
 
 				By("Verifying that VFs still exist")
 
-				err = sriovenv.WaitUntilVfsCreated(workerNodeList, sriovInterfacesUnderTest[0], 5, netparam.DefaultTimeout)
+				err = netenv.WaitUntilVfsCreated(
+					APIClient, NetConfig.SriovOperatorNamespace, workerNodeList,
+					sriovInterfacesUnderTest[0], 5, netparam.DefaultTimeout,
+				)
 				Expect(err).ToNot(HaveOccurred(), "Unexpected amount of VF")
 
 				err = netnmstate.AreVFsCreated(workerNodeList[0].Object.Name, sriovInterfacesUnderTest[0], 5)
@@ -120,7 +142,10 @@ var _ = Describe("ExternallyManaged", Ordered, Label(tsparams.LabelExternallyMan
 
 				By("Verifying that VFs removed")
 
-				err = sriovenv.WaitUntilVfsCreated(workerNodeList, sriovInterfacesUnderTest[0], 0, netparam.DefaultTimeout)
+				err = netenv.WaitUntilVfsCreated(
+					APIClient, NetConfig.SriovOperatorNamespace, workerNodeList,
+					sriovInterfacesUnderTest[0], 0, netparam.DefaultTimeout,
+				)
 				Expect(err).ToNot(HaveOccurred(), "Unexpected amount of VF")
 
 				By("Removing NMState policies")
@@ -191,7 +216,10 @@ var _ = Describe("ExternallyManaged", Ordered, Label(tsparams.LabelExternallyMan
 
 				By("Verifying that VFs removed")
 
-				err = sriovenv.WaitUntilVfsCreated(workerNodeList, sriovInterfacesUnderTest[0], 0, netparam.DefaultTimeout)
+				err = netenv.WaitUntilVfsCreated(
+					APIClient, NetConfig.SriovOperatorNamespace, workerNodeList,
+					sriovInterfacesUnderTest[0], 0, netparam.DefaultTimeout,
+				)
 				Expect(err).ToNot(HaveOccurred(), "Unexpected amount of VF")
 
 				By("Removing NMState policies")
@@ -211,7 +239,10 @@ var _ = Describe("ExternallyManaged", Ordered, Label(tsparams.LabelExternallyMan
 					sriovInterfacesUnderTest[0], NetConfig.WorkerLabelMap, 5, netparam.DefaultTimeout)
 				Expect(err).ToNot(HaveOccurred(), "Failed to recreate VFs via NMState")
 
-				err = sriovenv.WaitUntilVfsCreated(workerNodeList, sriovInterfacesUnderTest[0], 5, netparam.DefaultTimeout)
+				err = netenv.WaitUntilVfsCreated(
+					APIClient, NetConfig.SriovOperatorNamespace, workerNodeList,
+					sriovInterfacesUnderTest[0], 5, netparam.DefaultTimeout,
+				)
 				Expect(err).ToNot(HaveOccurred(), "Expected number of VFs are not created")
 
 				By("Re-create test pods and verify connectivity after recreating the VFs")
