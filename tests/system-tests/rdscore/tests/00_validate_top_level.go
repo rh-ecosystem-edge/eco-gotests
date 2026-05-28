@@ -727,11 +727,11 @@ var _ = Describe(
 
 			It("Verifies commatrix host-firewall TCP connectivity after ungraceful reboot",
 				Label("commatrix", "commatrix-connectivity"),
-				reportxml.ID("95003"), rdscorecommon.VerifyCommatrixHostFirewallConnectivity)
+				reportxml.ID("95005"), rdscorecommon.VerifyCommatrixHostFirewallConnectivity)
 
 			It("Verifies commatrix firewall journal logging after ungraceful reboot",
 				Label("commatrix", "commatrix-journal"),
-				reportxml.ID("95004"), rdscorecommon.VerifyCommatrixHostFirewallJournal)
+				reportxml.ID("95006"), rdscorecommon.VerifyCommatrixHostFirewallJournal)
 
 			AfterEach(func(ctx SpecContext) {
 				// Check if the test failed using CurrentSpecReport
@@ -1055,11 +1055,11 @@ var _ = Describe(
 
 			It("Verifies commatrix host-firewall TCP connectivity after graceful reboot",
 				Label("commatrix", "commatrix-connectivity"),
-				reportxml.ID("95003"), rdscorecommon.VerifyCommatrixHostFirewallConnectivity)
+				reportxml.ID("95007"), rdscorecommon.VerifyCommatrixHostFirewallConnectivity)
 
 			It("Verifies commatrix firewall journal logging after graceful reboot",
 				Label("commatrix", "commatrix-journal"),
-				reportxml.ID("95004"), rdscorecommon.VerifyCommatrixHostFirewallJournal)
+				reportxml.ID("95008"), rdscorecommon.VerifyCommatrixHostFirewallJournal)
 
 			AfterEach(func(ctx SpecContext) {
 				// Check if the test failed using CurrentSpecReport

@@ -1,5 +1,5 @@
-// Commatrix host-firewall workflow (ginkgo reportxml 95001–95004): optional generate/apply helpers,
-// plus connectivity (95003) and journal (95004) verification against a cluster that already has rules applied.
+// Commatrix host-firewall workflow (ginkgo reportxml 95001–95008): optional generate/apply helpers,
+// plus connectivity (95003/95005/95007) and journal (95004/95006/95008) verification against a cluster that already has rules applied.
 //
 //nolint:varnamelen,lll,wsl_v5 // test helpers follow oc/k8s naming; long oc/shell/klog lines are intentional.
 package rdscorecommon
@@ -243,13 +243,9 @@ func commatrixHostFirewallPoolNamesFromCluster() ([]string, error) {
 	var mcList struct {
 		Items []struct {
 			Metadata struct {
-				Name string `json:"name"`
+				Name   string            `json:"name"`
+				Labels map[string]string `json:"labels"`
 			} `json:"metadata"`
-			Spec struct {
-				Config struct {
-					Role string `json:"role"`
-				} `json:"config"`
-			} `json:"spec"`
 		} `json:"items"`
 	}
 
@@ -265,7 +261,7 @@ func commatrixHostFirewallPoolNamesFromCluster() ([]string, error) {
 			continue
 		}
 
-		role := strings.TrimSpace(item.Spec.Config.Role)
+		role := strings.TrimSpace(item.Metadata.Labels["machineconfiguration.openshift.io/role"])
 		if role == "" {
 			continue
 		}
@@ -1519,10 +1515,12 @@ func commatrixVerifyFirewallJournal(_ SpecContext) {
 
 	window2Lines := commatrixParseJournalKernelLines(window2Raw)
 	if len(window2Lines) == 0 {
-		_, _ = fmt.Fprintf(GinkgoWriter,
-			"WARNING: firewall journal: no kernel log lines matching %q in the last minute on %s; "+
-				"skipping window-2 rate-limit checks (traffic may be quiet). Last output:\n%s\n",
+		warnMsg := fmt.Sprintf(
+			"firewall journal: no kernel log lines matching %q in the last minute on %s; "+
+				"skipping window-2 rate-limit checks (traffic may be quiet). Last output:\n%s",
 			keyword, journalNode, window2Raw)
+		klog.Warning(warnMsg)
+		_, _ = fmt.Fprintf(GinkgoWriter, "WARNING: %s\n", warnMsg)
 	} else {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("firewall journal: %d line(s) matching %q on %s in the last minute",
 			len(window2Lines), keyword, journalNode)
