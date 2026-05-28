@@ -177,6 +177,10 @@ func WaitForPodLog(client *clients.Settings, nodeName string, options ...WaitFor
 // profileLoadMessage is the message that appears in the linuxptp-daemon-container logs when the profiles are loaded.
 const profileLoadMessage = "load profiles"
 
+// hardwareConfigLoadMessage is the message that appears in the linuxptp-daemon-container logs when a profile has
+// been successfully applied following a HardwareConfig-triggered PTP restart.
+const hardwareConfigLoadMessage = "Successfully applied profile"
+
 // WaitForProfileLoad waits for the profile load message to appear in the PTP daemon pod logs on the specified node. It
 // matches for the profile load message and uses the provided options for the WaitForPodLog function.
 func WaitForProfileLoad(client *clients.Settings, nodeName string, options ...WaitForPodLogOption) error {
@@ -185,6 +189,19 @@ func WaitForProfileLoad(client *clients.Settings, nodeName string, options ...Wa
 	err := WaitForPodLog(client, nodeName, options...)
 	if err != nil {
 		return fmt.Errorf("failed to wait for profile load on node %s: %w", nodeName, err)
+	}
+
+	return nil
+}
+
+// WaitForHardwareConfigLoad waits for the daemon to emit "Successfully applied profile", which the
+// linuxptp-daemon logs after reconciling a HardwareConfig CR change and restarting PTP processes.
+func WaitForHardwareConfigLoad(client *clients.Settings, nodeName string, options ...WaitForPodLogOption) error {
+	options = append(options, WithMatcher(ContainsMatcher(hardwareConfigLoadMessage)))
+
+	err := WaitForPodLog(client, nodeName, options...)
+	if err != nil {
+		return fmt.Errorf("failed to wait for hardware config load on node %s: %w", nodeName, err)
 	}
 
 	return nil

@@ -11,6 +11,8 @@ import (
 	ptpv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v1"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/klog/v2"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -32,6 +34,11 @@ func GetNodeInfoMap(client *clients.Settings) (map[string]*NodeInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to list PtpConfigs while building NodeInfo map: %w", err)
 	}
+
+	// Build a lookup of HardwareConfig CRs by RelatedPtpProfileName in a single list call.
+	// Non-fatal: if the CRD is not installed (pre-4.22 clusters), the index is empty and all
+	// profiles fall back to the PtpConfig plugin path.
+	hwConfigIndex := buildHardwareConfigIndex(client)
 
 	allRecommends := getAllRecommends(ptpConfigList)
 	ptpProfileInfos := make(map[ProfileReference]*ProfileInfo)
@@ -59,6 +66,10 @@ func GetNodeInfoMap(client *clients.Settings) (map[string]*NodeInfo, error) {
 				continue
 			}
 
+			// Associate HardwareConfig after cloning so each node gets its own ProfileInfo
+			// instance while sharing the same underlying HardwareConfigBuilder pointer.
+			profileInfo.HardwareConfig = hwConfigIndex[profileInfo.Reference.ProfileName]
+
 			nodeInfo.Profiles = append(nodeInfo.Profiles, profileInfo)
 		}
 
@@ -67,6 +78,32 @@ func GetNodeInfoMap(client *clients.Settings) (map[string]*NodeInfo, error) {
 	}
 
 	return nodeInfoMap, nil
+}
+
+// buildHardwareConfigIndex lists all HardwareConfig CRs and returns a map keyed by
+// RelatedPtpProfileName. Returns an empty map when the CRD is not installed.
+func buildHardwareConfigIndex(client *clients.Settings) map[string]*ptp.HardwareConfigBuilder {
+	index := make(map[string]*ptp.HardwareConfigBuilder)
+
+	hwConfigs, err := ptp.ListHardwareConfigs(client)
+	if err != nil {
+		if apierrors.IsNotFound(err) || apimeta.IsNoMatchError(err) {
+			klog.V(tsparams.LogLevel).Infof("HardwareConfig CRD not installed (pre-4.22 cluster): %v", err)
+		} else {
+			klog.V(tsparams.LogLevel).Infof("Failed to list HardwareConfigs, falling back to plugin path: %v", err)
+		}
+
+		return index
+	}
+
+	for _, hwConfig := range hwConfigs {
+		name := hwConfig.Definition.Spec.RelatedPtpProfileName
+		if name != "" {
+			index[name] = hwConfig
+		}
+	}
+
+	return index
 }
 
 // recommendWithProfileReference is a helper struct that combines a PTP recommend with a reference to the profile it

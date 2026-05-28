@@ -106,8 +106,8 @@ func (reference *ProfileReference) PullPtpConfig(client *clients.Settings) (*ptp
 	return ptpConfig, nil
 }
 
-// ProfileInfo contains information about a PTP profile. Since profiles can be readily retrieved from the cluster, it
-// only contains information that must be parsed and a reference to the profile on the cluster.
+// ProfileInfo contains information about a PTP profile, including parsed configuration,
+// a reference to the profile on the cluster, and an optional HardwareConfig CR association.
 type ProfileInfo struct {
 	ProfileType PtpProfileType
 	Reference   ProfileReference
@@ -117,6 +117,9 @@ type ProfileInfo struct {
 	// ConfigIndex is the number in the config file for the ptp4l corresponding to this profile. Profiles should
 	// have a ptp4l process unless they are HA.
 	ConfigIndex *uint
+	// HardwareConfig is the associated HardwareConfig CR for this profile, populated during GetNodeInfoMap.
+	// Nil means the profile uses the PtpConfig plugin path for holdover settings (pre-4.22 or non-GNRD).
+	HardwareConfig *ptp.HardwareConfigBuilder
 }
 
 // PullProfile pulls the PTP profile for the profile referenced by this struct. If error is nil, the profile is
@@ -337,13 +340,15 @@ func parseParentDataSetOutput(output string) (map[string]string, error) {
 	return parentIdentities, nil
 }
 
-// Clone creates a deep copy of the ProfileInfo instance, including all nested InterfaceInfo structs. This ensures that
-// modifications to the cloned ProfileInfo do not affect the original.
+// Clone creates a copy of the ProfileInfo. InterfaceInfo structs are deep-copied so modifications to the clone
+// do not affect the original. HardwareConfig is shared by pointer across clones for the same profile; callers
+// that write to it must re-fetch from the cluster first.
 func (profileInfo *ProfileInfo) Clone() *ProfileInfo {
 	clone := &ProfileInfo{
-		ProfileType: profileInfo.ProfileType,
-		Reference:   profileInfo.Reference,
-		Interfaces:  make(map[iface.Name]*InterfaceInfo),
+		ProfileType:    profileInfo.ProfileType,
+		Reference:      profileInfo.Reference,
+		Interfaces:     make(map[iface.Name]*InterfaceInfo),
+		HardwareConfig: profileInfo.HardwareConfig,
 	}
 
 	if profileInfo.ConfigIndex != nil {

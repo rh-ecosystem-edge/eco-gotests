@@ -9,6 +9,7 @@ import (
 	prometheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	ptpv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v1"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/daemonlogs"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/metrics"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -222,4 +223,59 @@ func holdoverMapNormalizer(holdovers HoldOverMap) func(string) string {
 
 		return daemonName
 	}
+}
+
+// GetHoldoverSettings reads holdover settings for the profile, dispatching to the HardwareConfig CR path
+// (4.22+/GNRD E825) when one is associated, or the PtpConfig plugin path otherwise.
+func GetHoldoverSettings(client *clients.Settings, profileInfo *ProfileInfo) (*HoldoverPluginSettings, error) {
+	if profileInfo.HardwareConfig != nil {
+		return GetHoldoverHardwareConfigSettings(profileInfo.HardwareConfig)
+	}
+
+	ptpProfile, err := profileInfo.PullProfile(client)
+	if err != nil {
+		return nil, err
+	}
+
+	return GetHoldoverPluginSettings(ptpProfile)
+}
+
+// ApplyHoldoverSettings writes holdover settings for the profile, dispatching to the HardwareConfig CR path
+// (4.22+/GNRD E825) when one is associated, or the PtpConfig plugin path otherwise.
+func ApplyHoldoverSettings(
+	client *clients.Settings, profileInfo *ProfileInfo, settings HoldoverPluginSettings) error {
+	if profileInfo.HardwareConfig != nil {
+		return SetHoldoverHardwareConfigSettings(profileInfo.HardwareConfig, settings)
+	}
+
+	ptpConfig, err := profileInfo.Reference.PullPtpConfig(client)
+	if err != nil {
+		return err
+	}
+
+	ptpProfile := &ptpConfig.Definition.Spec.Profile[profileInfo.Reference.ProfileIndex]
+
+	if err = SetHoldoverPluginSettings(ptpProfile, settings); err != nil {
+		return err
+	}
+
+	_, err = ptpConfig.Update()
+
+	return err
+}
+
+// WaitForHoldoverSettingsApplied waits for the daemon to acknowledge a holdover settings change.
+// HardwareConfig changes emit "Successfully applied profile"; PtpConfig changes emit "load profiles".
+func WaitForHoldoverSettingsApplied(
+	client *clients.Settings, nodeName string, profileInfo *ProfileInfo,
+	since time.Time, timeout time.Duration) error {
+	if profileInfo.HardwareConfig != nil {
+		return daemonlogs.WaitForHardwareConfigLoad(client, nodeName,
+			daemonlogs.WithStartTime(since),
+			daemonlogs.WithTimeout(timeout))
+	}
+
+	return daemonlogs.WaitForProfileLoad(client, nodeName,
+		daemonlogs.WithStartTime(since),
+		daemonlogs.WithTimeout(timeout))
 }
