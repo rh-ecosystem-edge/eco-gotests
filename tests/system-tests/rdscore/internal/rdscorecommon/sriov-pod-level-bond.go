@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreparams"
@@ -420,6 +419,90 @@ func generateTCPTraffic(
 	}
 
 	return output, nil
+}
+
+// sendFirstTrafficPacket sends a single TCP packet to establish connectivity
+// and confirms that traffic can flow between client and server pods.
+// This is used to signal that traffic has started before triggering failover operations.
+func sendFirstTrafficPacket(
+	clientPod *pod.Builder,
+	serverIPAddr,
+	serverPort string) error {
+	By("Send first TCP packet to establish connection")
+
+	klog.V(100).Infof("Ensure pod %q in namespace %q is Ready",
+		clientPod.Definition.Name, clientPod.Definition.Namespace)
+
+	err := clientPod.WaitUntilReady(1 * time.Minute)
+	if err != nil {
+		klog.V(100).Infof("Failed to wait for pod %q in namespace %q to become Ready: %v",
+			clientPod.Definition.Name, clientPod.Definition.Namespace, err)
+
+		return fmt.Errorf("failed to wait for pod %q in namespace %q to become Ready: %w",
+			clientPod.Definition.Name, clientPod.Definition.Namespace, err)
+	}
+
+	// Send single packet to verify connectivity
+	cmdToRun := []string{"bash", "-c",
+		fmt.Sprintf("testcmd -protocol tcp -port %s -interface net3 -packages 1 -timeoutTCP 5 -server %s -mtu %s",
+			serverPort, serverIPAddr, mtuSize)}
+
+	klog.V(100).Infof("Execute command: %q", cmdToRun)
+
+	var (
+		output      string
+		lastScanErr error
+	)
+
+	err = wait.PollUntilContextTimeout(
+		context.TODO(),
+		time.Second*3,
+		time.Second*30,
+		true,
+		func(ctx context.Context) (bool, error) {
+			result, err := clientPod.ExecCommand(cmdToRun, clientPod.Object.Spec.Containers[0].Name)
+			if err != nil {
+				klog.V(100).Infof("Error running first packet command from within pod %q: %v",
+					clientPod.Object.Name, err)
+
+				return false, nil
+			}
+
+			klog.V(100).Infof("Successfully executed first packet command from within pod %q in namespace %q",
+				clientPod.Object.Name, clientPod.Definition.Namespace)
+
+			output = result.String()
+			klog.V(100).Infof("First packet command output:\n\t%v", output)
+
+			testPassed, scanErr := scanClientPodTrafficOutput(output)
+			if scanErr != nil {
+				klog.V(100).Infof("Failed to validate first packet output: %v", scanErr)
+				lastScanErr = scanErr
+
+				return false, nil
+			}
+
+			if !testPassed {
+				klog.V(100).Infof("First packet did not succeed yet, retrying...")
+
+				lastScanErr = fmt.Errorf("first packet did not succeed: %s", output)
+
+				return false, nil
+			}
+
+			return true, nil
+		})
+	if err != nil {
+		if lastScanErr != nil {
+			return fmt.Errorf("failed to verify first packet traffic from within pod %s: %w", clientPod.Object.Name, lastScanErr)
+		}
+
+		return fmt.Errorf("failed to run first packet command from within pod %s: %w", clientPod.Object.Name, err)
+	}
+
+	klog.V(100).Infof("First packet sent successfully, traffic confirmed flowing")
+
+	return nil
 }
 
 // findInCmdExecOutput scans cmdExecOutput line-by-line and reports whether stringToFind appears.
@@ -1490,52 +1573,104 @@ func VerifyPodLevelBondWorkloadsAfterVFFailOver() {
 		Fail("Neither IPv4 nor IPv6 server address is configured for the server deployment")
 	}
 
-	var waitGroup sync.WaitGroup
+	// Create signaling channels for goroutine coordination
+	trafficStarted := make(chan bool, 1) // Buffered to prevent blocking if receiver exits
+	trafficDone := make(chan bool, 1)    // Buffered to prevent blocking if receiver exits
+	errCh := make(chan error, 2)         // Buffered for 2 senders (traffic + VF disabler) to prevent blocking
+	stopVFDisabler := make(chan bool, 1) // Buffered channel to signal VF disabler to stop
 
-	waitGroup.Add(2)
-	defer waitGroup.Wait()
-
-	go func(waitGroup *sync.WaitGroup) {
+	go func() {
 		defer GinkgoRecover()
-		defer waitGroup.Done()
 
 		By(fmt.Sprintf("Send data from the client container to the server address %s", targetIP))
 
 		klog.V(100).Infof("Using server address %s for TCP traffic generation", targetIP)
 
+		// Send first packet to establish connection before signaling VF disabler
+		err := sendFirstTrafficPacket(
+			clientPodObj,
+			targetIP,
+			RDSCoreConfig.PodLevelBondPort)
+		if err != nil {
+			errCh <- fmt.Errorf("failed to send first traffic packet from pod %s/%s to server %s: %w",
+				clientPodObj.Definition.Namespace, clientPodObj.Definition.Name, targetIP, err)
+
+			return
+		}
+
+		// Signal that traffic is flowing
+		trafficStarted <- true
+
+		klog.V(100).Infof("Traffic started, signaled VF disabler goroutine")
+
+		// Continue with full traffic generation (remaining packets)
 		output, err := generateTCPTraffic(
 			clientPodObj,
 			targetIP,
 			RDSCoreConfig.PodLevelBondPort,
 			"10",
 			"5")
-		Expect(err).ToNot(HaveOccurred(),
-			fmt.Sprintf("Failed to generate TCP traffic from the pod %s in namespace %s to the server %s: %v",
-				clientPodObj.Definition.Name, clientPodObj.Definition.Namespace,
-				targetIP, err))
+		if err != nil {
+			errCh <- fmt.Errorf("failed to generate TCP traffic from pod %s/%s to server %s: %w",
+				clientPodObj.Definition.Namespace, clientPodObj.Definition.Name, targetIP, err)
+
+			return
+		}
 
 		testPassed, err := scanClientPodTrafficOutput(output)
-		Expect(err).ToNot(HaveOccurred(),
-			fmt.Sprintf("Failed to parse client pod %s from namespace %s output: %v",
-				clientPodObj.Definition.Name, clientPodObj.Definition.Namespace, err))
-		Expect(testPassed).To(Equal(true),
-			fmt.Sprintf("TCP traffic test verification failed for the pod %s in namespace %s; output %s",
-				clientPodObj.Definition.Name, clientPodObj.Definition.Namespace, output))
-	}(&waitGroup)
+		if err != nil {
+			errCh <- fmt.Errorf("failed to parse traffic output from pod %s/%s: %w",
+				clientPodObj.Definition.Namespace, clientPodObj.Definition.Name, err)
 
-	go func(waitGroup *sync.WaitGroup) {
+			return
+		}
+
+		if !testPassed {
+			errCh <- fmt.Errorf("traffic test verification failed for pod %s/%s to server %s, output: %s",
+				clientPodObj.Definition.Namespace, clientPodObj.Definition.Name, targetIP, output)
+
+			return
+		}
+
+		// Signal that traffic generation completed
+		trafficDone <- true
+
+		klog.V(100).Infof("Traffic generation completed successfully")
+	}()
+
+	go func() {
 		defer GinkgoRecover()
-		defer waitGroup.Done()
 
-		time.Sleep(time.Second * 2)
+		// Wait for traffic to start flowing before disabling VF
+		select {
+		case <-trafficStarted:
+			klog.V(100).Infof("Received traffic started signal, waiting 2 seconds for TCP session to establish")
 
-		disableErr := disableBondActiveVFInterface(serverPodObj)
-		Expect(disableErr).ToNot(HaveOccurred(),
-			fmt.Sprintf("Failed to disable bond active interface for the pod %s in namespace %s: %v",
-				serverPodObj.Definition.Name, serverPodObj.Definition.Namespace, disableErr))
-	}(&waitGroup)
+			// Wait 2 seconds to ensure generateTCPTraffic has started its TCP session
+			time.Sleep(2 * time.Second)
 
-	var ctx SpecContext
+			klog.V(100).Infof("Disabling VF interface during active traffic")
+
+			disableErr := disableBondActiveVFInterface(serverPodObj)
+			if disableErr != nil {
+				errCh <- fmt.Errorf("failed to disable bond active interface for pod %s/%s: %w",
+					serverPodObj.Definition.Namespace, serverPodObj.Definition.Name, disableErr)
+
+				return
+			}
+
+			klog.V(100).Infof("VF interface disabled successfully during active traffic")
+
+		case <-stopVFDisabler:
+			klog.V(100).Infof("VF disabler goroutine stopped due to shutdown signal")
+
+			return
+
+		case <-time.After(1 * time.Minute):
+			klog.Errorf("Timeout waiting for traffic to start (1 minute)")
+			Fail("VF disabler goroutine timed out waiting for traffic to start")
+		}
+	}()
 
 	Eventually(func() bool {
 		newActiveInf, err := getBondActiveInterface(serverPodObj)
@@ -1555,8 +1690,36 @@ func VerifyPodLevelBondWorkloadsAfterVFFailOver() {
 		}
 
 		return true
-	}).WithContext(ctx).WithPolling(time.Second).WithTimeout(30*time.Second).Should(BeTrue(),
+	}).WithPolling(time.Second).WithTimeout(2*time.Minute).Should(BeTrue(),
 		"Fail-Over procedure failure; failed to switch to the new bond active interface")
+
+	// Wait for traffic generation to complete
+	select {
+	case <-trafficDone:
+		klog.V(100).Infof("All goroutines completed, traffic test successful")
+
+		stopVFDisabler <- true
+
+		klog.V(100).Infof("Signaled VF disabler goroutine to stop")
+
+	case err := <-errCh:
+		klog.Errorf("Test failed due to goroutine error: %v", err)
+
+		stopVFDisabler <- true
+
+		klog.V(100).Infof("Signaled VF disabler goroutine to stop due to error")
+
+		Fail(fmt.Sprintf("Test failed: %v", err))
+
+	case <-time.After(5 * time.Minute):
+		klog.Errorf("Timeout waiting for traffic generation to complete (5 minutes)")
+
+		stopVFDisabler <- true
+
+		klog.V(100).Infof("Signaled VF disabler goroutine to stop due to timeout")
+
+		Fail("Test timed out waiting for traffic generation goroutine to complete")
+	}
 
 	verifyConnectivity()
 }
