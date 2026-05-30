@@ -26,6 +26,8 @@ const (
 	// LabelSriovNetAppNsTestCases represents sriov network application namespace label that can be used
 	// for test cases selection.
 	LabelSriovNetAppNsTestCases = "sriovnet-app-ns"
+	// LabelRdmaMetricsAPITestCases represents Rdma Metrics label that can be used for test cases selection.
+	LabelRdmaMetricsAPITestCases = "rdmametricsapi"
 
 	// MCOWaitTimeout represent timeout for mco operations.
 	MCOWaitTimeout = 35 * time.Minute
