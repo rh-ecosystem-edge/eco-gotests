@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,16 +24,21 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	mcv1 "github.com/openshift/api/machineconfiguration/v1"
+	operatorv1 "github.com/openshift/api/operator/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/mco"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
-	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	apimachinerytypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
+	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/remote"
 
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreparams"
@@ -52,11 +58,11 @@ const (
 	commatrixFirewallLogPrefixWithSpace = "firewall " // kernel: firewall IN=...
 	commatrixFirewallRateLimitPerMinute = 5
 	// Fixed probe targets and waits (not configurable; same across OCP host-firewall test plans).
-	commatrixAPIPort            = 6443
-	commatrixKubeletPort        = 10250
-	commatrixClosedTCPPort      = 9999
-	commatrixNFTablesLogKeyword              = "firewall"
-	commatrixHostFirewallMCNameSubstring   = "nftables-commatrix"
+	commatrixAPIPort                     = 6443
+	commatrixKubeletPort                 = 10250
+	commatrixClosedTCPPort               = 9999
+	commatrixNFTablesLogKeyword          = "firewall"
+	commatrixHostFirewallMCNameSubstring = "nftables-commatrix"
 )
 
 // commatrixMCPStableWait is how long apply/revert waits for all MachineConfigPools to stabilize.
@@ -65,7 +71,7 @@ const commatrixMCPStableWait = 15 * time.Minute
 // journalShortTimePrefixRe parses journalctl short-iso timestamps for firewall log rate-limit checks.
 var journalShortTimePrefixRe = regexp.MustCompile(`^([A-Z][a-z]{2}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})`)
 
-// commatrixJSONPatchOp is one RFC 6902 operation for oc patch --type=json.
+// commatrixJSONPatchOp is one RFC 6902 operation for MachineConfiguration cluster JSON patches.
 type commatrixJSONPatchOp struct {
 	Op   string `json:"op"`
 	Path string `json:"path"`
@@ -142,11 +148,11 @@ func commatrixBuildJSONPatchRemoveNDPNFT(clusterJSON string) ([]byte, error) {
 	return patchBytes, nil
 }
 
-// commatrixRunTopology holds node names and InternalIPs resolved for connectivity checks.
+// commatrixRunTopology holds node names and probe IPs resolved for connectivity checks.
 type commatrixRunTopology struct {
 	SecureWorkerName string
-	MasterIP         string
-	SecureWorkerIP   string
+	MasterIPs        []string
+	SecureWorkerIPs  []string
 }
 
 // commatrixWorkflowState carries shared state for the ordered Commatrix spec.
@@ -167,39 +173,32 @@ func commatrixResetWorkflow() {
 	commatrixWorkflow = commatrixWorkflowState{}
 }
 
-// commatrixPrimeWorkflowForVerification discovers applied host-firewall pools from format-mc artifacts
-// or commatrix MachineConfigs already on the cluster (rules must be applied before 95003/95004).
+// commatrixPrimeWorkflowForVerification discovers host-firewall pools from commatrix MachineConfigs
+// already on the cluster (95003/95004 assume platform prep or 95002 apply completed there).
 func commatrixPrimeWorkflowForVerification() error {
 	if commatrixWorkflow.mcApplied {
 		return nil
 	}
 
-	var poolNames []string
-
-	if mcDir, err := commatrixFormatMCDir(); err == nil {
-		rels, listErr := commatrixListMachineConfigYAMLRels(mcDir)
-		if listErr == nil && len(rels) > 0 {
-			poolNames = commatrixMachineConfigPoolNamesFromMCRels(rels)
-			commatrixWorkflow.generatedMCPoolNames = append([]string(nil), poolNames...)
-		}
+	poolNames, err := commatrixHostFirewallPoolNamesFromCluster()
+	if err != nil {
+		return fmt.Errorf("discover host-firewall MachineConfig pools: %w", err)
 	}
 
 	if len(poolNames) == 0 {
-		pools, err := commatrixHostFirewallPoolNamesFromCluster()
-		if err != nil {
-			return fmt.Errorf("discover host-firewall MachineConfig pools: %w", err)
-		}
+		detail := commatrixHostFirewallMCDiscoveryDetail()
+		klog.Warningf("Commatrix: host-firewall MC discovery failed: %s", detail)
 
-		if len(pools) == 0 {
-			return fmt.Errorf(
-				"no commatrix host-firewall MachineConfigs found on cluster or under %s/%s; "+
-					"apply rules before connectivity/journal tests (run 95001/95002 or platform prep)",
-				strings.TrimSpace(RDSCoreConfig.CommatrixOutputDir), commatrixFormatMCSubdir)
-		}
-
-		poolNames = pools
-		commatrixWorkflow.generatedMCPoolNames = append([]string(nil), pools...)
+		return fmt.Errorf(
+			"no commatrix host-firewall MachineConfigs on cluster (look for %q in mc names); %s; "+
+				"apply rules before connectivity/journal tests (run 95001/95002 or platform prep)",
+			commatrixHostFirewallMCNameSubstring, detail)
 	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"Commatrix: discovered host-firewall MC pools on cluster: %v", poolNames)
+
+	commatrixWorkflow.generatedMCPoolNames = append([]string(nil), poolNames...)
 
 	securePool := commatrixInferSecureMCPoolNameFromPools(poolNames)
 	if securePool == "" {
@@ -234,34 +233,40 @@ func commatrixPrimeWorkflowForVerification() error {
 	return nil
 }
 
+func commatrixMachineConfigPoolRole(mcObj *mcv1.MachineConfig) string {
+	if role := strings.TrimSpace(mcObj.Labels[mcv1.MachineConfigRoleLabelKey]); role != "" {
+		return role
+	}
+
+	// Commatrix MC names encode the pool (e.g. 98-nftables-commatrix-appworker-mcp-a) even when the role label is absent.
+	markerIdx := strings.Index(mcObj.Name, commatrixHostFirewallMCNameSubstring)
+	if markerIdx < 0 {
+		return ""
+	}
+
+	return strings.TrimSpace(strings.TrimPrefix(mcObj.Name[markerIdx+len(commatrixHostFirewallMCNameSubstring):], "-"))
+}
+
 func commatrixHostFirewallPoolNamesFromCluster() ([]string, error) {
-	ocGetMcJSONCmdOut, ocGetMcJSONCmdErr := commatrixRunOC("get", "mc", "-o", "json")
-	if ocGetMcJSONCmdErr != nil {
-		return nil, ocGetMcJSONCmdErr
-	}
-
-	var mcList struct {
-		Items []struct {
-			Metadata struct {
-				Name   string            `json:"name"`
-				Labels map[string]string `json:"labels"`
-			} `json:"metadata"`
-		} `json:"items"`
-	}
-
-	if err := json.Unmarshal([]byte(ocGetMcJSONCmdOut), &mcList); err != nil {
-		return nil, fmt.Errorf("parse MachineConfig list: %w", err)
+	mcList, err := mco.ListMC(APIClient)
+	if err != nil {
+		return nil, err
 	}
 
 	seen := make(map[string]struct{})
 	pools := make([]string, 0)
 
-	for _, item := range mcList.Items {
-		if !strings.Contains(item.Metadata.Name, commatrixHostFirewallMCNameSubstring) {
+	for _, mcBuilder := range mcList {
+		if mcBuilder == nil || mcBuilder.Object == nil {
 			continue
 		}
 
-		role := strings.TrimSpace(item.Metadata.Labels["machineconfiguration.openshift.io/role"])
+		mcObj := mcBuilder.Object
+		if !strings.Contains(mcObj.Name, commatrixHostFirewallMCNameSubstring) {
+			continue
+		}
+
+		role := commatrixMachineConfigPoolRole(mcObj)
 		if role == "" {
 			continue
 		}
@@ -280,10 +285,56 @@ func commatrixHostFirewallPoolNamesFromCluster() ([]string, error) {
 	return pools, nil
 }
 
+// commatrixHostFirewallMCDiscoveryDetail summarizes ListMC results to explain empty pool discovery.
+func commatrixHostFirewallMCDiscoveryDetail() string {
+	mcList, err := mco.ListMC(APIClient)
+	if err != nil {
+		return fmt.Sprintf("list MachineConfigs failed: %v", err)
+	}
+
+	var commatrixNames []string
+
+	for _, mcBuilder := range mcList {
+		if mcBuilder == nil || mcBuilder.Object == nil {
+			continue
+		}
+
+		if strings.Contains(mcBuilder.Object.Name, commatrixHostFirewallMCNameSubstring) {
+			commatrixNames = append(commatrixNames, mcBuilder.Object.Name)
+		}
+	}
+
+	sort.Strings(commatrixNames)
+
+	var b strings.Builder
+
+	_, _ = fmt.Fprintf(&b, "listed %d MachineConfig(s)", len(mcList))
+
+	if len(commatrixNames) == 0 {
+		_, _ = fmt.Fprintf(&b, ", none matching %q in metadata.name", commatrixHostFirewallMCNameSubstring)
+	} else {
+		_, _ = fmt.Fprintf(&b, ", %d matching %q but no pool role resolved: %v",
+			len(commatrixNames), commatrixHostFirewallMCNameSubstring, commatrixNames)
+	}
+
+	if APIClient != nil && APIClient.Config != nil {
+		_, _ = fmt.Fprintf(&b, "; API server %s", APIClient.Config.Host)
+	}
+
+	if kubeconfig := strings.TrimSpace(os.Getenv("KUBECONFIG")); kubeconfig != "" {
+		_, _ = fmt.Fprintf(&b, "; KUBECONFIG=%s", kubeconfig)
+	} else {
+		b.WriteString("; KUBECONFIG unset (using default kubeconfig or in-cluster config)")
+	}
+
+	return b.String()
+}
+
 func commatrixMasterLabelSelector() string {
 	return labels.Set(inittools.GeneralConfig.ControlPlaneLabelMap).String()
 }
 
+// commatrixRunOC runs the oc CLI (required for the commatrix plugin subcommand only).
 func commatrixRunOC(ocCmdArgs ...string) (string, error) {
 	ocCmd := exec.Command("oc", ocCmdArgs...)
 	ocCmd.Env = os.Environ()
@@ -291,6 +342,150 @@ func commatrixRunOC(ocCmdArgs ...string) (string, error) {
 	ocCmdOut, ocCmdErr := ocCmd.CombinedOutput()
 
 	return string(ocCmdOut), ocCmdErr
+}
+
+func commatrixLoadMachineConfigYAML(path string) (*mcv1.MachineConfig, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var mc mcv1.MachineConfig
+
+	if err := yaml.Unmarshal(raw, &mc); err != nil {
+		return nil, fmt.Errorf("parse MachineConfig %s: %w", path, err)
+	}
+
+	if strings.TrimSpace(mc.Name) == "" {
+		return nil, fmt.Errorf("MachineConfig %s has no metadata.name", path)
+	}
+
+	return &mc, nil
+}
+
+func commatrixApplyMachineConfigYAML(path string) error {
+	mc, err := commatrixLoadMachineConfigYAML(path)
+	if err != nil {
+		return err
+	}
+
+	if err := APIClient.AttachScheme(mcv1.Install); err != nil {
+		return err
+	}
+
+	existing := &mcv1.MachineConfig{}
+
+	getErr := APIClient.Get(context.TODO(), goclient.ObjectKey{Name: mc.Name}, existing)
+	if getErr != nil {
+		if !k8serrors.IsNotFound(getErr) {
+			return fmt.Errorf("get MachineConfig %q: %w", mc.Name, getErr)
+		}
+
+		return APIClient.Create(context.TODO(), mc)
+	}
+
+	mc.ResourceVersion = existing.ResourceVersion
+
+	return APIClient.Update(context.TODO(), mc)
+}
+
+func commatrixDeleteMachineConfigYAML(path string) error {
+	mc, err := commatrixLoadMachineConfigYAML(path)
+	if err != nil {
+		return err
+	}
+
+	mcBuilder := mco.NewMCBuilder(APIClient, mc.Name)
+	if mcBuilder == nil {
+		return fmt.Errorf("create MachineConfig builder for %q", mc.Name)
+	}
+
+	if !mcBuilder.Exists() {
+		return nil
+	}
+
+	return mcBuilder.Delete()
+}
+
+func commatrixPatchMachineConfigurationClusterMerge(patchPath string) error {
+	patchBytes, err := os.ReadFile(patchPath)
+	if err != nil {
+		return err
+	}
+
+	patchBytes = bytes.TrimSpace(patchBytes)
+	if len(patchBytes) == 0 {
+		return fmt.Errorf("NDP patch file %s is empty", patchPath)
+	}
+
+	mcCluster := &operatorv1.MachineConfiguration{
+		ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+	}
+
+	return APIClient.Patch(
+		context.TODO(),
+		mcCluster,
+		goclient.RawPatch(apimachinerytypes.MergePatchType, patchBytes),
+	)
+}
+
+func commatrixGetMachineConfigurationClusterJSON() ([]byte, error) {
+	mcCluster := &operatorv1.MachineConfiguration{}
+
+	err := APIClient.Get(context.TODO(), goclient.ObjectKey{Name: "cluster"}, mcCluster)
+	if err != nil {
+		return nil, fmt.Errorf("get machineconfiguration/cluster: %w", err)
+	}
+
+	clusterJSON, err := json.Marshal(mcCluster)
+	if err != nil {
+		return nil, fmt.Errorf("marshal machineconfiguration/cluster: %w", err)
+	}
+
+	return clusterJSON, nil
+}
+
+func commatrixPatchMachineConfigurationClusterJSON(patch []byte) error {
+	if len(patch) == 0 || string(patch) == "[]" {
+		return nil
+	}
+
+	mcCluster := &operatorv1.MachineConfiguration{
+		ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+	}
+
+	return APIClient.Patch(
+		context.TODO(),
+		mcCluster,
+		goclient.RawPatch(apimachinerytypes.JSONPatchType, patch),
+	)
+}
+
+func commatrixFormatMCPStatusSnapshot() (string, error) {
+	mcpList, err := mco.ListMCP(APIClient)
+	if err != nil {
+		return "", err
+	}
+
+	var b strings.Builder
+
+	for _, mcpBuilder := range mcpList {
+		if mcpBuilder == nil || mcpBuilder.Object == nil {
+			continue
+		}
+
+		mcpObj := mcpBuilder.Object
+
+		_, _ = fmt.Fprintf(&b, "%s  updated=%d ready=%d machine=%d degraded=%d\n",
+			mcpObj.Name,
+			mcpObj.Status.UpdatedMachineCount,
+			mcpObj.Status.ReadyMachineCount,
+			mcpObj.Status.MachineCount,
+			mcpObj.Status.DegradedMachineCount,
+		)
+	}
+
+	return strings.TrimRight(b.String(), "\n"), nil
 }
 
 // commatrixRunLocalShell runs shellCmd on the machine executing the test (not via oc debug).
@@ -311,44 +506,103 @@ func commatrixRunLocalShell(shellCmd string) error {
 
 // commatrixRunTCPProbeFromRunner runs nc -z from the test runner to host:port.
 func commatrixRunTCPProbeFromRunner(expectConnect bool, host, port string) error {
-	ncCmd := exec.Command("nc", "-z", "-v", "-w3", host, port)
+	args := []string{"-z", "-v", "-w3"}
+
+	if ip := net.ParseIP(host); ip != nil {
+		if ip.To4() != nil {
+			args = append([]string{"-4"}, args...)
+		} else {
+			args = append([]string{"-6"}, args...)
+		}
+	}
+
+	args = append(args, host, port)
+
+	ncCmd := exec.Command("nc", args...)
 	ncCmd.Env = os.Environ()
 
 	ncCmdOut, ncCmdErr := ncCmd.CombinedOutput()
+	ncCmdLine := strings.Join(args, " ")
 
 	if expectConnect {
 		if ncCmdErr != nil {
-			klog.Infof("local: nc -z -v -w3 %s %s failed: %v\n%s", host, port, ncCmdErr, string(ncCmdOut))
+			klog.Infof("local: nc %s failed: %v\n%s", ncCmdLine, ncCmdErr, string(ncCmdOut))
 		} else {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("local: nc -z -v -w3 %s %s\n%s", host, port, string(ncCmdOut))
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("local: nc %s\n%s", ncCmdLine, string(ncCmdOut))
 		}
 
 		return ncCmdErr
 	}
 
 	if ncCmdErr == nil {
-		klog.Infof("local: nc unexpectedly connected to %s:%s\n%s", host, port, string(ncCmdOut))
+		klog.Infof("local: nc unexpectedly connected (%s)\n%s", ncCmdLine, string(ncCmdOut))
 
 		return fmt.Errorf("expected connection to %s:%s to fail, but nc succeeded", host, port)
 	}
 
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("local: nc to %s:%s failed as expected: %v\n%s", host, port, ncCmdErr, string(ncCmdOut))
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("local: nc to %s failed as expected (%s): %v\n%s",
+		host, ncCmdLine, ncCmdErr, string(ncCmdOut))
 
 	return nil
 }
 
-// commatrixRunOnNodeHostDebug runs `oc debug node/<name> -- <hostDebugCmdArgs...>` so `chroot /host` is the node root.
-func commatrixRunOnNodeHostDebug(nodeName string, hostDebugCmdArgs ...string) (string, error) {
-	ocDebugCmdArgs := append([]string{"debug", "node/" + nodeName, "--"}, hostDebugCmdArgs...)
+func commatrixProbeLabel(addr string) string {
+	if ip := net.ParseIP(addr); ip != nil && ip.To4() == nil {
+		return "IPv6 " + addr
+	}
 
-	hostDebugCmdOut, hostDebugCmdErr := commatrixRunOC(ocDebugCmdArgs...)
+	return "IPv4 " + addr
+}
+
+// commatrixTryTCPProbesFromRunner probes host:port on each address. When expectConnect is true, at least one
+// address must succeed; when false, every address must fail to connect.
+func commatrixTryTCPProbesFromRunner(desc string, addrs []string, port string, expectConnect bool) error {
+	if len(addrs) == 0 {
+		return fmt.Errorf("%s: no internal IP addresses to probe", desc)
+	}
+
+	if expectConnect {
+		var failures []string
+
+		for _, addr := range addrs {
+			label := commatrixProbeLabel(addr)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("TCP probe %s via %s -> %s:%s (expect connect)",
+				desc, label, addr, port)
+
+			if err := commatrixRunTCPProbeFromRunner(true, addr, port); err == nil {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("TCP probe %s succeeded via %s", desc, label)
+
+				return nil
+			} else {
+				failures = append(failures, fmt.Sprintf("%s: %v", label, err))
+			}
+		}
+
+		return fmt.Errorf("%s: none of %v reachable from test runner (%s)",
+			desc, addrs, strings.Join(failures, "; "))
+	}
+
+	for _, addr := range addrs {
+		label := commatrixProbeLabel(addr)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("TCP probe %s via %s -> %s:%s (expect blocked)",
+			desc, label, addr, port)
+
+		if err := commatrixRunTCPProbeFromRunner(false, addr, port); err != nil {
+			return fmt.Errorf("%s via %s: %w", desc, label, err)
+		}
+	}
+
+	return nil
+}
+
+// commatrixRunOnNodeHostDebug runs cmd on the node host via the MCO daemon pod (chroot /rootfs).
+func commatrixRunOnNodeHostDebug(nodeName string, cmd []string) (string, error) {
+	hostDebugCmdOut, hostDebugCmdErr := remote.ExecuteOnNodeWithDebugPod(cmd, nodeName)
 
 	if hostDebugCmdErr != nil {
-		klog.Infof("oc debug node/%s -- %s failed: %v\n%s",
-			nodeName, strings.Join(hostDebugCmdArgs, " "), hostDebugCmdErr, hostDebugCmdOut)
+		klog.Infof("node %s exec %v failed: %v\n%s", nodeName, cmd, hostDebugCmdErr, hostDebugCmdOut)
 	} else {
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("oc debug node/%s -- %s\n%s",
-			nodeName, strings.Join(hostDebugCmdArgs, " "), hostDebugCmdOut)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("node %s exec %v\n%s", nodeName, cmd, hostDebugCmdOut)
 	}
 
 	return hostDebugCmdOut, hostDebugCmdErr
@@ -500,7 +754,7 @@ func commatrixListMachineConfigYAMLRels(root string) ([]string, error) {
 }
 
 // commatrixFindNodeDisruptionPolicyPatch returns the absolute path to a single node-disruption-policy.yaml
-// under root (e.g. format-mc). MachineConfig apply skips that file; merged via oc patch on MachineConfiguration cluster instead.
+// under root (e.g. format-mc). MachineConfig apply skips that file; merged via API patch on MachineConfiguration cluster instead.
 // If none are present, returns ("", nil). More than one match is an error.
 func commatrixFindNodeDisruptionPolicyPatch(root string) (string, error) {
 	var matches []string
@@ -904,22 +1158,22 @@ func commatrixSetWorkerFromNodeName(nodeName string) error {
 		return fmt.Errorf("pull node %q: %w", nodeName, errPull)
 	}
 
-	ip, errIP := commatrixNodeInternalIP(nb)
-	if errIP != nil {
-		return errIP
+	ips, errIPs := commatrixNodeProbeIPs(nb)
+	if errIPs != nil {
+		return errIPs
 	}
 
 	commatrixWorkflow.run.SecureWorkerName = nodeName
-	commatrixWorkflow.run.SecureWorkerIP = ip
+	commatrixWorkflow.run.SecureWorkerIPs = ips
 
 	return nil
 }
 
-// commatrixResolveConnectivityTopology fills master and secure-worker names and InternalIPs for connectivity and journal specs.
+// commatrixResolveConnectivityTopology fills master and secure-worker names and probe IPs for connectivity and journal specs.
 func commatrixResolveConnectivityTopology() error {
-	commatrixWorkflow.run.MasterIP = ""
+	commatrixWorkflow.run.MasterIPs = nil
 	commatrixWorkflow.run.SecureWorkerName = ""
-	commatrixWorkflow.run.SecureWorkerIP = ""
+	commatrixWorkflow.run.SecureWorkerIPs = nil
 
 	masters, err := nodes.List(APIClient, metav1.ListOptions{LabelSelector: commatrixMasterLabelSelector()})
 	if err != nil {
@@ -930,12 +1184,12 @@ func commatrixResolveConnectivityTopology() error {
 		return fmt.Errorf("no nodes matched master label %q", commatrixMasterLabelSelector())
 	}
 
-	masterIP, err := commatrixNodeInternalIP(masters[0])
+	masterIPs, err := commatrixNodeProbeIPs(masters[0])
 	if err != nil {
 		return err
 	}
 
-	commatrixWorkflow.run.MasterIP = masterIP
+	commatrixWorkflow.run.MasterIPs = masterIPs
 
 	nftNode := strings.TrimSpace(commatrixWorkflow.nftProbeNodeName)
 	if nftNode == "" {
@@ -949,18 +1203,27 @@ func commatrixResolveConnectivityTopology() error {
 	return nil
 }
 
-func commatrixNodeInternalIP(nb *nodes.Builder) (string, error) {
-	if nb.Object == nil {
-		return "", fmt.Errorf("node %q has nil Object", nb.Definition.Name)
-	}
+// commatrixNodeProbeIPs returns IPv4 then IPv6 node addresses for nc probes via eco-goinfra nodes helpers.
+func commatrixNodeProbeIPs(nb *nodes.Builder) ([]string, error) {
+	var ips []string
 
-	for _, a := range nb.Object.Status.Addresses {
-		if a.Type == corev1.NodeInternalIP {
-			return a.Address, nil
+	if ipv4, err := nb.ExternalIPv4Network(); err == nil {
+		if addr := strings.TrimSpace(ipv4); addr != "" {
+			ips = append(ips, addr)
 		}
 	}
 
-	return "", fmt.Errorf("no internal IP on node %q", nb.Object.Name)
+	if ipv6, err := nb.ExternalIPv6Network(); err == nil {
+		if addr := strings.TrimSpace(ipv6); addr != "" {
+			ips = append(ips, addr)
+		}
+	}
+
+	if len(ips) == 0 {
+		return nil, fmt.Errorf("no external IPv4/IPv6 address on node %q", nb.Definition.Name)
+	}
+
+	return ips, nil
 }
 
 // commatrixFormatMCDir returns the direct oc commatrix mc output directory (<output_dir>/format-mc).
@@ -979,10 +1242,10 @@ func commatrixWaitAllMachineConfigPoolsStable(stepLabel string) {
 	err := mco.ListMCPWaitToBeStableFor(APIClient, 90*time.Second, commatrixMCPStableWait)
 	Expect(err).NotTo(HaveOccurred(), "%s: all MCPs did not stabilize within timeout", stepLabel)
 
-	ocGetMcpCmdOut, ocGetMcpCmdErr := commatrixRunOC("get", "mcp", "-o", "wide")
-	Expect(ocGetMcpCmdErr).NotTo(HaveOccurred(), "%s: oc get mcp", stepLabel)
+	mcpSnapshot, mcpSnapshotErr := commatrixFormatMCPStatusSnapshot()
+	Expect(mcpSnapshotErr).NotTo(HaveOccurred(), "%s: list MachineConfigPools", stepLabel)
 
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("%s: MCP snapshot after stable wait:\n%s", stepLabel, strings.TrimSpace(ocGetMcpCmdOut))
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("%s: MCP snapshot after stable wait:\n%s", stepLabel, mcpSnapshot)
 }
 
 // commatrixMachineConfigPoolNameFromMCRel extracts the MachineConfigPool name from a commatrix MachineConfig path.
@@ -1113,7 +1376,8 @@ func commatrixNodesFromMachineConfigPools(poolNames []string) ([]string, error) 
 
 // commatrixStopNFTOnNode stops nftables on one node (best-effort during suite cleanup).
 func commatrixStopNFTOnNode(nodeName string) {
-	stopNftablesCmdOut, stopNftablesCmdErr := commatrixRunOnNodeHostDebug(nodeName, "chroot", "/host", "sh", "-c", "systemctl stop nftables || true")
+	stopNftablesCmdOut, stopNftablesCmdErr := commatrixRunOnNodeHostDebug(nodeName,
+		[]string{"chroot", "/rootfs", "sh", "-c", "systemctl stop nftables || true"})
 	if stopNftablesCmdErr != nil {
 		klog.Errorf("stop nftables on %s: %v\n%s", nodeName, stopNftablesCmdErr, stopNftablesCmdOut)
 
@@ -1123,9 +1387,9 @@ func commatrixStopNFTOnNode(nodeName string) {
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("stop nftables on %s: %s", nodeName, strings.TrimSpace(stopNftablesCmdOut))
 }
 
-// commatrixRunOnNodeHostShell runs shellCmd on the node host via oc debug (chroot /host).
+// commatrixRunOnNodeHostShell runs shellCmd on the node host via the MCO daemon pod (chroot /rootfs).
 func commatrixRunOnNodeHostShell(nodeName, shellCmd string) (string, error) {
-	return commatrixRunOnNodeHostDebug(nodeName, "chroot", "/host", "sh", "-c", shellCmd)
+	return commatrixRunOnNodeHostDebug(nodeName, []string{"chroot", "/rootfs", "sh", "-c", shellCmd})
 }
 
 // commatrixGenerateArtifacts runs oc commatrix generate for mc and butane, runs the butane CLI in the same
@@ -1214,11 +1478,9 @@ func commatrixApplyHostFirewallMC(_ SpecContext) {
 
 	By("Patching MachineConfiguration cluster node disruption policy")
 
-	ocPatchNdpCmdOut, ocPatchNdpCmdErr := commatrixRunOC("patch", "machineconfiguration", "cluster",
-		"--type=merge", "--patch-file="+ndp)
-	Expect(ocPatchNdpCmdErr).NotTo(HaveOccurred(), "cluster NDP patch failed: %s", ocPatchNdpCmdOut)
+	Expect(commatrixPatchMachineConfigurationClusterMerge(ndp)).NotTo(HaveOccurred(), "cluster NDP patch failed")
 
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("patched NDP from %s: %s", ndp, strings.TrimSpace(ocPatchNdpCmdOut))
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("patched NDP from %s", ndp)
 	commatrixWorkflow.ndpApplied = true
 
 	commatrixWorkflow.generatedMCPoolNames = commatrixMachineConfigPoolNamesFromMCRels(mcRels)
@@ -1259,10 +1521,9 @@ func commatrixApplyHostFirewallMC(_ SpecContext) {
 	for _, rel := range applyRels {
 		abs := filepath.Join(mcDir, filepath.FromSlash(rel))
 
-		ocApplyMcCmdOut, ocApplyMcCmdErr := commatrixRunOC("apply", "-f", abs)
-		Expect(ocApplyMcCmdErr).NotTo(HaveOccurred(), "oc apply %q failed: %s", rel, ocApplyMcCmdOut)
+		Expect(commatrixApplyMachineConfigYAML(abs)).NotTo(HaveOccurred(), "apply MachineConfig %q", rel)
 
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("apply: applied %q: %s", rel, strings.TrimSpace(ocApplyMcCmdOut))
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("apply: applied %q", rel)
 	}
 
 	commatrixWaitAllMachineConfigPoolsStable("apply host firewall MCs")
@@ -1300,7 +1561,8 @@ func commatrixApplyHostFirewallMC(_ SpecContext) {
 		func(context.Context) (bool, error) {
 			var hostDebugCmdErr error
 
-			nftOpenshiftChainCmdOut, hostDebugCmdErr = commatrixRunOnNodeHostDebug(nftNode, "chroot", "/host", "sh", "-c", nftOpenshiftChainShellCmd)
+			nftOpenshiftChainCmdOut, hostDebugCmdErr = commatrixRunOnNodeHostDebug(nftNode,
+				[]string{"chroot", "/rootfs", "sh", "-c", nftOpenshiftChainShellCmd})
 			if hostDebugCmdErr != nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("nft list (retry) on %s: %v", nftNode, hostDebugCmdErr)
 
@@ -1320,24 +1582,22 @@ func commatrixVerifyHostFirewallConnectivity(_ SpecContext) {
 
 	Expect(commatrixResolveConnectivityTopology()).NotTo(HaveOccurred())
 
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Commatrix connectivity probes: masterIP=%s secure=%s/%s",
-		commatrixWorkflow.run.MasterIP, commatrixWorkflow.run.SecureWorkerName, commatrixWorkflow.run.SecureWorkerIP)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Commatrix connectivity probes: masterIPs=%v secure=%s/%v",
+		commatrixWorkflow.run.MasterIPs, commatrixWorkflow.run.SecureWorkerName, commatrixWorkflow.run.SecureWorkerIPs)
 
 	apiPort := strconv.Itoa(commatrixAPIPort)
 	kubeletPort := strconv.Itoa(commatrixKubeletPort)
 	closedPort := strconv.Itoa(commatrixClosedTCPPort)
 
-	tryProbe := func(desc, dstHost, port string, expectConnect bool) {
+	tryProbe := func(desc string, addrs []string, port string, expectConnect bool) {
 		By(desc)
 
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("TCP probe %s -> %s:%s (expect connect=%v)", desc, dstHost, port, expectConnect)
-
-		Expect(commatrixRunTCPProbeFromRunner(expectConnect, dstHost, port)).NotTo(HaveOccurred(), "%s", desc)
+		Expect(commatrixTryTCPProbesFromRunner(desc, addrs, port, expectConnect)).NotTo(HaveOccurred(), "%s", desc)
 	}
 
-	tryProbe("Master API reachable from test runner", commatrixWorkflow.run.MasterIP, apiPort, true)
+	tryProbe("Master API reachable from test runner", commatrixWorkflow.run.MasterIPs, apiPort, true)
 
-	tryProbe("Secure-pool worker API blocked from test runner", commatrixWorkflow.run.SecureWorkerIP, apiPort, false)
+	tryProbe("Secure-pool worker API blocked from test runner", commatrixWorkflow.run.SecureWorkerIPs, apiPort, false)
 
 	var securePoolPeerNames []string
 
@@ -1364,17 +1624,17 @@ func commatrixVerifyHostFirewallConnectivity(_ SpecContext) {
 		peerNB, errPull := nodes.Pull(APIClient, peerName)
 		Expect(errPull).NotTo(HaveOccurred())
 
-		peerIP, errIP := commatrixNodeInternalIP(peerNB)
+		peerIPs, errIP := commatrixNodeProbeIPs(peerNB)
 		Expect(errIP).NotTo(HaveOccurred())
 
-		tryProbe("Peer secure-pool worker API blocked from test runner", peerIP, apiPort, false)
+		tryProbe("Peer secure-pool worker API blocked from test runner", peerIPs, apiPort, false)
 	} else {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Skipping peer secure-pool worker API probe: fewer than two secure-pool nodes")
 	}
 
-	tryProbe("Secure-pool worker kubelet reachable from test runner", commatrixWorkflow.run.SecureWorkerIP, kubeletPort, true)
+	tryProbe("Secure-pool worker kubelet reachable from test runner", commatrixWorkflow.run.SecureWorkerIPs, kubeletPort, true)
 
-	tryProbe("Closed test port blocked on secure-pool worker", commatrixWorkflow.run.SecureWorkerIP, closedPort, false)
+	tryProbe("Closed test port blocked on secure-pool worker", commatrixWorkflow.run.SecureWorkerIPs, closedPort, false)
 }
 
 func commatrixRunJournalKernelGrep(nodeName, since, until, grepFilter string) (string, error) {
@@ -1385,10 +1645,10 @@ func commatrixRunJournalKernelGrep(nodeName, since, until, grepFilter string) (s
 
 	shellCmd += fmt.Sprintf(` 2>/dev/null | grep -F %q || true`, grepFilter)
 
-	return commatrixRunOnNodeHostDebug(nodeName, "chroot", "/host", "sh", "-c", shellCmd)
+	return commatrixRunOnNodeHostShell(nodeName, shellCmd)
 }
 
-// commatrixWaitForJournalKernelGrep runs journalctl -k --since on a node (via oc debug), greps for filter,
+// commatrixWaitForJournalKernelGrep runs journalctl -k --since on a node (via MCO daemon pod), greps for filter,
 // and polls until at least minLines kernel lines are present.
 func commatrixWaitForJournalKernelGrep(
 	nodeName, since, grepFilter string,
@@ -1495,8 +1755,8 @@ func commatrixVerifyFirewallJournal(_ SpecContext) {
 	journalNB, errPull := nodes.Pull(APIClient, journalNode)
 	Expect(errPull).NotTo(HaveOccurred(), "pull journal node %q", journalNode)
 
-	journalInternalIP, errIP := commatrixNodeInternalIP(journalNB)
-	Expect(errIP).NotTo(HaveOccurred(), "internal IP for journal node for %s", journalNode)
+	journalProbeIPs, errIP := commatrixNodeProbeIPs(journalNB)
+	Expect(errIP).NotTo(HaveOccurred(), "probe IP(s) for journal node %s", journalNode)
 
 	keyword := commatrixNFTablesLogKeyword
 
@@ -1529,7 +1789,6 @@ func commatrixVerifyFirewallJournal(_ SpecContext) {
 	}
 
 	apiPort := commatrixAPIPort
-	probeTargetIP := journalInternalIP
 
 	By(fmt.Sprintf("Injecting TCP_TEST log rule on node %s", journalNode))
 
@@ -1550,10 +1809,14 @@ func commatrixVerifyFirewallJournal(_ SpecContext) {
 		_, _ = commatrixRunOnNodeHostShell(journalNode, nftDeleteLogRuleShellCmd)
 	}()
 
-	By(fmt.Sprintf("Probing %s:%d from test runner", probeTargetIP, apiPort))
+	portStr := strconv.Itoa(apiPort)
 
-	if err := commatrixRunTCPProbeFromRunner(false, probeTargetIP, strconv.Itoa(apiPort)); err != nil {
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("local nc to %s:%d (drop expected): %v", probeTargetIP, apiPort, err)
+	By(fmt.Sprintf("Probing %v:%d from test runner (TCP_TEST drop expected)", journalProbeIPs, apiPort))
+
+	for _, probeTargetIP := range journalProbeIPs {
+		if err := commatrixRunTCPProbeFromRunner(false, probeTargetIP, portStr); err != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("local nc to %s:%d (drop expected): %v", probeTargetIP, apiPort, err)
+		}
 	}
 
 	By("Verifying TCP_TEST in kernel journal")
@@ -1561,8 +1824,8 @@ func commatrixVerifyFirewallJournal(_ SpecContext) {
 	tcpTestLines, tcpTestRaw, err := commatrixWaitForJournalKernelGrep(
 		journalNode, commatrixJournalSinceOneMinute, "TCP_TEST", 1, 3*time.Second, 90*time.Second)
 	Expect(err).NotTo(HaveOccurred(),
-		"TCP_TEST journal: expected at least one TCP_TEST kernel log line after nc to %s:%d on %s (got %d); last output:\n%s",
-		probeTargetIP, apiPort, journalNode, len(tcpTestLines), tcpTestRaw)
+		"TCP_TEST journal: expected at least one TCP_TEST kernel log line after nc to %v:%d on %s (got %d); last output:\n%s",
+		journalProbeIPs, apiPort, journalNode, len(tcpTestLines), tcpTestRaw)
 
 	Expect(tcpTestLines).NotTo(BeEmpty(), "TCP_TEST journal: expected ≥1 TCP_TEST log line on %s", journalNode)
 
@@ -1577,14 +1840,14 @@ func commatrixVerifyFirewallJournal(_ SpecContext) {
 }
 
 func commatrixRevertNDP() {
-	ocGetMcClusterCmdOut, ocGetMcClusterCmdErr := commatrixRunOC("get", "machineconfiguration", "cluster", "-o", "json")
-	if ocGetMcClusterCmdErr != nil {
-		klog.Errorf("revert NDP: get machineconfiguration/cluster: %v\n%s", ocGetMcClusterCmdErr, ocGetMcClusterCmdOut)
+	clusterJSON, errGet := commatrixGetMachineConfigurationClusterJSON()
+	if errGet != nil {
+		klog.Errorf("revert NDP: %v", errGet)
 
 		return
 	}
 
-	patch, errBuild := commatrixBuildJSONPatchRemoveNDPNFT(ocGetMcClusterCmdOut)
+	patch, errBuild := commatrixBuildJSONPatchRemoveNDPNFT(string(clusterJSON))
 	if errBuild != nil {
 		klog.Errorf("revert NDP: build JSON patch: %v", errBuild)
 
@@ -1597,15 +1860,13 @@ func commatrixRevertNDP() {
 		return
 	}
 
-	ocJSONPatchMcClusterCmdOut, ocJSONPatchMcClusterCmdErr := commatrixRunOC(
-		"patch", "machineconfiguration", "cluster", "--type=json", "-p", string(patch))
-	if ocJSONPatchMcClusterCmdErr != nil {
-		klog.Errorf("revert NDP: json patch failed: %v\n%s", ocJSONPatchMcClusterCmdErr, ocJSONPatchMcClusterCmdOut)
+	if errPatch := commatrixPatchMachineConfigurationClusterJSON(patch); errPatch != nil {
+		klog.Errorf("revert NDP: json patch failed: %v", errPatch)
 
 		return
 	}
 
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("revert NDP: %s", strings.TrimSpace(ocJSONPatchMcClusterCmdOut))
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("revert NDP: patched machineconfiguration/cluster")
 	commatrixWorkflow.ndpApplied = false
 }
 
@@ -1630,14 +1891,13 @@ func commatrixRevertHostFirewall() {
 	for _, rel := range commatrixWorkflow.appliedMCRels {
 		abs := filepath.Join(mcDir, filepath.FromSlash(rel))
 
-		ocDeleteMcCmdOut, ocDeleteMcCmdErr := commatrixRunOC("delete", "-f", abs, "--ignore-not-found=true")
-		if ocDeleteMcCmdErr != nil {
-			klog.Errorf("revert: oc delete %q: %v\n%s", rel, ocDeleteMcCmdErr, ocDeleteMcCmdOut)
+		if errDelete := commatrixDeleteMachineConfigYAML(abs); errDelete != nil {
+			klog.Errorf("revert: delete MachineConfig %q: %v", rel, errDelete)
 
 			continue
 		}
 
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("revert: deleted %q: %s", rel, strings.TrimSpace(ocDeleteMcCmdOut))
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("revert: deleted %q", rel)
 	}
 
 	if errWait := mco.ListMCPWaitToBeStableFor(APIClient, 90*time.Second, commatrixMCPStableWait); errWait != nil {
@@ -1667,13 +1927,13 @@ func CommatrixRevertAfterSpec() {
 	commatrixRevertHostFirewall()
 }
 
-// VerifyCommatrixHostFirewallArtifacts generates commatrix artifacts and validates embedded openshift_filter nftables.
+// VerifyCommatrixHostFirewallArtifacts (reportxml 95001) generates commatrix artifacts and validates embedded openshift_filter nftables.
 func VerifyCommatrixHostFirewallArtifacts(ctx SpecContext) {
 	commatrixResetWorkflow()
 	commatrixGenerateArtifacts(ctx)
 }
 
-// VerifyCommatrixHostFirewallApply applies host-firewall MachineConfigs and verifies nftables on a node.
+// VerifyCommatrixHostFirewallApply (reportxml 95002) applies host-firewall MachineConfigs and verifies nftables on a node.
 func VerifyCommatrixHostFirewallApply(ctx SpecContext) {
 	commatrixApplyHostFirewallMC(ctx)
 }
