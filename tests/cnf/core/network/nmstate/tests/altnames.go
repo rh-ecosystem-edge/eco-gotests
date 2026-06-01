@@ -539,6 +539,27 @@ var _ = Describe("NMState Altnames:", Ordered, Label(tsparams.LabelAltnames), Co
 				validateAltnamesFromNodeNetworkState(nnstate, sriovIf0, altnames1, false)(Default)
 			}
 
+			By("Waiting for SriovNetworkNodeState to reflect the new altname")
+
+			Eventually(func() error {
+				nodeState := sriov.NewNetworkNodeStateBuilder(
+					APIClient, workerNodes[0].Object.Name, NetConfig.SriovOperatorNamespace)
+
+				nics, err := nodeState.GetNICs()
+				if err != nil {
+					return err
+				}
+
+				for _, nic := range nics {
+					if nic.Name == altnames1[0] {
+						return nil
+					}
+				}
+
+				return fmt.Errorf("altname %s not yet found in SriovNetworkNodeState interfaces", altnames1[0])
+			}).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(Succeed(),
+				"SriovNetworkNodeState did not reflect the new altname in time")
+
 			By("Creating SriovNetworkNodePolicy with altname as interface name")
 
 			sriovPolicy, err := sriov.NewPolicyBuilder(APIClient,

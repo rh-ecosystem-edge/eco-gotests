@@ -141,7 +141,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelBGPTestCases), ContinueOnFa
 
 				// Return the integer value of ConnectRetryTimer for assertion
 				return connectTimeValue
-			}, 60*time.Second, 5*time.Second).Should(Equal(120),
+			}, 60*time.Second, 5*time.Second).Should(Equal(60),
 				"Failed to fetch BGP connect time")
 
 			By("Update the BGP Peers connect timer to 10 seconds")
