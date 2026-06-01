@@ -1203,18 +1203,42 @@ func commatrixResolveConnectivityTopology() error {
 	return nil
 }
 
+// commatrixProbeHostAddr returns the host portion of an OVN/node address (strips /prefix when present).
+func commatrixProbeHostAddr(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", fmt.Errorf("empty address")
+	}
+
+	if strings.Contains(raw, "/") {
+		ip, _, err := net.ParseCIDR(raw)
+		if err != nil {
+			return "", fmt.Errorf("parse address %q: %w", raw, err)
+		}
+
+		return ip.String(), nil
+	}
+
+	ip := net.ParseIP(raw)
+	if ip == nil {
+		return "", fmt.Errorf("invalid address %q", raw)
+	}
+
+	return ip.String(), nil
+}
+
 // commatrixNodeProbeIPs returns IPv4 then IPv6 node addresses for nc probes via eco-goinfra nodes helpers.
 func commatrixNodeProbeIPs(nb *nodes.Builder) ([]string, error) {
 	var ips []string
 
 	if ipv4, err := nb.ExternalIPv4Network(); err == nil {
-		if addr := strings.TrimSpace(ipv4); addr != "" {
+		if addr, errHost := commatrixProbeHostAddr(ipv4); errHost == nil {
 			ips = append(ips, addr)
 		}
 	}
 
 	if ipv6, err := nb.ExternalIPv6Network(); err == nil {
-		if addr := strings.TrimSpace(ipv6); addr != "" {
+		if addr, errHost := commatrixProbeHostAddr(ipv6); errHost == nil {
 			ips = append(ips, addr)
 		}
 	}
