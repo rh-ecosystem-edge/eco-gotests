@@ -27,3 +27,20 @@ func EnsureClocksAreLocked(prometheusAPI prometheusv1.API) error {
 
 	return nil
 }
+
+// EnsureClocksAreStable ensures that all PTP clocks are locked across all nodes for a specific continuous duration.
+// This is useful for waiting for plugins (e.g. DPLL) to build a sufficient history buffer.
+func EnsureClocksAreStable(prometheusAPI prometheusv1.API, stableDuration time.Duration) error {
+	query := ClockStateQuery{
+		Process: DoesNotEqual(ProcessChronyd),
+	}
+
+	err := AssertQuery(context.TODO(), prometheusAPI, query, ClockStateLocked,
+		AssertWithStableDuration(stableDuration),
+		AssertWithTimeout(stableDuration+5*time.Minute))
+	if err != nil {
+		return fmt.Errorf("failed to ensure clocks are stable for %s: %w", stableDuration, err)
+	}
+
+	return nil
+}
