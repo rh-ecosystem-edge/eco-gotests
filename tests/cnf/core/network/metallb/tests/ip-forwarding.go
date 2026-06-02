@@ -169,7 +169,7 @@ var _ = Describe("IP Forwarding per Interface", Ordered,
 			networkOperator, err := network.PullOperator(APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull network operator for restore")
 
-			_, err = networkOperator.SetIPForwarding(originalIPForwarding, 10*time.Minute)
+			networkOperator, err = networkOperator.SetIPForwarding(originalIPForwarding, 10*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "Failed to restore ipForwarding")
 
 			_, err = networkOperator.SetLocalGWMode(originalRoutingViaHost, 10*time.Minute)
