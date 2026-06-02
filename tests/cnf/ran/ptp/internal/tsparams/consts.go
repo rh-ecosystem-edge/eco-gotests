@@ -29,6 +29,8 @@ const (
 	LabelTBCTSCHoldover = "tbc-tsc-holdover"
 	// LabelGNSSLoss is the label for all tests in the PTP T-GM GNSS loss suite.
 	LabelGNSSLoss = "gnss-loss"
+	// LabelSMADisconnect is the label for all tests in the PTP T-GM SMA disconnect suite.
+	LabelSMADisconnect = "sma-disconnect"
 
 	// LeapConfigmapName is the name of the leap configmap.
 	LeapConfigmapName = "leap-configmap"
