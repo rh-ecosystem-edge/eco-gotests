@@ -28,6 +28,8 @@ const (
 	LabelSriovNetAppNsTestCases = "sriovnet-app-ns"
 	// LabelRdmaMetricsAPITestCases represents Rdma Metrics label that can be used for test cases selection.
 	LabelRdmaMetricsAPITestCases = "rdmametricsapi"
+	// LabelParallelDrainingTestCases represents parallel draining label that can be used for test cases selection.
+	LabelParallelDrainingTestCases = "paralleldraining"
 
 	// MCOWaitTimeout represent timeout for mco operations.
 	MCOWaitTimeout = 35 * time.Minute
