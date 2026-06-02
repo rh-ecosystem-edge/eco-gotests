@@ -63,6 +63,8 @@ const (
 	commatrixClosedTCPPort               = 9999
 	commatrixNFTablesLogKeyword          = "firewall"
 	commatrixHostFirewallMCNameSubstring = "nftables-commatrix"
+	// commatrixTCPProbeTimeout matches legacy nc -w3 probe wait.
+	commatrixTCPProbeTimeout = 3 * time.Second
 )
 
 // commatrixMCPStableWait is how long apply/revert waits for all MachineConfigPools to stabilize.
@@ -504,46 +506,55 @@ func commatrixRunLocalShell(shellCmd string) error {
 	return localCmdErr
 }
 
-// commatrixRunTCPProbeFromRunner runs nc -z from the test runner to host:port.
-func commatrixRunTCPProbeFromRunner(expectConnect bool, host, port string) error {
-	args := []string{"-z", "-v", "-w3"}
-
-	if ip := net.ParseIP(host); ip != nil {
-		if ip.To4() != nil {
-			args = append([]string{"-4"}, args...)
-		} else {
-			args = append([]string{"-6"}, args...)
-		}
+func commatrixTCPProbeNetwork(host string) string {
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return "tcp"
 	}
 
-	args = append(args, host, port)
+	if ip.To4() != nil {
+		return "tcp4"
+	}
 
-	ncCmd := exec.Command("nc", args...)
-	ncCmd.Env = os.Environ()
+	return "tcp6"
+}
 
-	ncCmdOut, ncCmdErr := ncCmd.CombinedOutput()
-	ncCmdLine := strings.Join(args, " ")
+func commatrixDialTCP(host, port string) error {
+	conn, err := net.DialTimeout(commatrixTCPProbeNetwork(host), net.JoinHostPort(host, port), commatrixTCPProbeTimeout)
+	if err != nil {
+		return err
+	}
+
+	return conn.Close()
+}
+
+// commatrixRunTCPProbeFromRunner TCP-dials host:port from the test runner (no external nc binary required).
+func commatrixRunTCPProbeFromRunner(expectConnect bool, host, port string) error {
+	network := commatrixTCPProbeNetwork(host)
+	addr := net.JoinHostPort(host, port)
+	probeDesc := fmt.Sprintf("dial %s %s", network, addr)
 
 	if expectConnect {
-		if ncCmdErr != nil {
-			klog.Infof("local: nc %s failed: %v\n%s", ncCmdLine, ncCmdErr, string(ncCmdOut))
-		} else {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("local: nc %s\n%s", ncCmdLine, string(ncCmdOut))
+		if err := commatrixDialTCP(host, port); err != nil {
+			klog.Infof("probe: %s failed: %v", probeDesc, err)
+
+			return err
 		}
 
-		return ncCmdErr
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("probe: %s succeeded", probeDesc)
+
+		return nil
 	}
 
-	if ncCmdErr == nil {
-		klog.Infof("local: nc unexpectedly connected (%s)\n%s", ncCmdLine, string(ncCmdOut))
+	if err := commatrixDialTCP(host, port); err != nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("probe: %s failed as expected: %v", probeDesc, err)
 
-		return fmt.Errorf("expected connection to %s:%s to fail, but nc succeeded", host, port)
+		return nil
 	}
 
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("local: nc to %s failed as expected (%s): %v\n%s",
-		host, ncCmdLine, ncCmdErr, string(ncCmdOut))
+	klog.Infof("probe: %s unexpectedly connected", probeDesc)
 
-	return nil
+	return fmt.Errorf("expected connection to %s to fail, but dial succeeded", addr)
 }
 
 func commatrixProbeLabel(addr string) string {
