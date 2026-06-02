@@ -3,11 +3,13 @@ package ptp
 import (
 	"runtime"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	monv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/internal/nicinfo"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/querier"
@@ -42,9 +44,17 @@ var _ = BeforeSuite(func() {
 	isSpoke1Present := rancluster.AreClustersPresent([]*clients.Settings{Spoke1APIClient})
 	Expect(isSpoke1Present).To(BeTrue(), "Spoke 1 cluster must be present for PTP tests")
 
-	By("updating the PTP ServiceMonitor scrape interval to 1s")
+	By("creating a Prometheus API client")
 
-	var err error
+	prometheusAPI, err := querier.CreatePrometheusAPIForCluster(RANConfig.Spoke1APIClient)
+	Expect(err).ToNot(HaveOccurred(), "Failed to create Prometheus API client")
+
+	By("ensuring clocks are locked before testing")
+
+	err = metrics.EnsureClocksAreLocked(prometheusAPI)
+	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
+
+	By("updating the PTP ServiceMonitor scrape interval to 1s")
 
 	savedPtpServiceMonitor, err = metrics.UpdatePtpServiceMonitorInterval(RANConfig.Spoke1APIClient, "1s")
 	Expect(err).ToNot(HaveOccurred(), "Failed to update PTP ServiceMonitor scrape interval")
@@ -75,6 +85,18 @@ var _ = AfterSuite(func() {
 })
 
 var _ = JustAfterEach(func() {
+	// If the JustAfterEach runs when the cluster is not reachable, we waste ~4.5 minutes waiting for the
+	// k8sreporter to finish timing out. To prevent that case, we poll the cluster to ensure we can list nodes as a
+	// reachability check.
+	//
+	// This still wastes 1 minute, but a persistent unreachable cluster is rare and this fix is good enough to
+	// prevent cascading issues in CI due to the entire suite timing out.
+	Eventually(func() error {
+		_, err := nodes.List(RANConfig.Spoke1APIClient)
+
+		return err
+	}).WithTimeout(time.Minute).WithPolling(10*time.Second).Should(Succeed(), "Reachability check to spoke 1 failed")
+
 	reporter.ReportIfFailed(
 		CurrentSpecReport(), currentFile, tsparams.ReporterSpokeNamespacesToDump, tsparams.ReporterSpokeCRsToDump)
 	mustgather.MustGatherIfFailed(CurrentSpecReport(), currentFile, RANConfig.Spoke1APIClient)
