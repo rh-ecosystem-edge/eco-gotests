@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"time"
@@ -17,6 +18,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/httpstream"
 	"k8s.io/apimachinery/pkg/util/httpstream/spdy"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -26,6 +28,17 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
+)
+
+const (
+	// defaultDialTimeout is the maximum time to wait for a TCP connection to be established.
+	defaultDialTimeout = 30 * time.Second
+	// defaultTLSHandshakeTimeout is the maximum time to wait for TLS handshake completion.
+	defaultTLSHandshakeTimeout = 10 * time.Second
+	// defaultResponseHeaderTimeout is the maximum time to wait for server response headers.
+	defaultResponseHeaderTimeout = 30 * time.Second
+	// defaultIdleConnTimeout is the maximum time an idle connection can remain in the pool.
+	defaultIdleConnTimeout = 90 * time.Second
 )
 
 // Builder provides a struct for pod object from the cluster and a pod definition.
@@ -465,8 +478,8 @@ func (builder *Builder) ExecCommand(command []string, containerName ...string) (
 			TTY:       true,
 		}, scheme.ParameterCodec)
 
-	exec, err := remotecommand.NewSPDYExecutor(builder.apiClient.Config, "POST", req.URL())
-
+	// Use 0 for all timeouts to disable timeout enforcement (backwards compatible behavior)
+	exec, err := builder.getExecutorFromRequest(req, 0, 0, 0)
 	if err != nil {
 		return buffer, err
 	}
@@ -547,8 +560,13 @@ func (builder *Builder) ExecCommandWithTimeout(
 			TTY:       true,
 		}, scheme.ParameterCodec)
 
-	exec, err := remotecommand.NewSPDYExecutor(builder.apiClient.Config, "POST", req.URL())
-
+	// Use configured timeouts to enforce timeout during connection establishment and streaming
+	exec, err := builder.getExecutorFromRequest(
+		req,
+		defaultDialTimeout,
+		defaultTLSHandshakeTimeout,
+		defaultResponseHeaderTimeout,
+	)
 	if err != nil {
 		return buffer, err
 	}
@@ -605,48 +623,21 @@ func (builder *Builder) Copy(path, containerName string, tar bool) (bytes.Buffer
 		VersionedParams(&corev1.PodExecOptions{
 			Container: containerName,
 			Command:   command,
-			Stdin:     true,
+			Stdin:     false,
 			Stdout:    true,
 			Stderr:    true,
 			TTY:       false,
 		}, scheme.ParameterCodec)
 
-	tlsConfig, err := rest.TLSConfigFor(builder.apiClient.Config)
-	if err != nil {
-		return bytes.Buffer{}, err
-	}
-
-	proxy := http.ProxyFromEnvironment
-	if builder.apiClient.Config.Proxy != nil {
-		proxy = builder.apiClient.Config.Proxy
-	}
-
-	// More verbose setup of remotecommand executor required in order to tweak PingPeriod.
-	// By default many large files are not copied in their entirety without disabling PingPeriod during the copy.
-	// https://github.com/kubernetes/kubernetes/issues/60140#issuecomment-1411477275
-	upgradeRoundTripper, err := spdy.NewRoundTripperWithConfig(spdy.RoundTripperConfig{
-		TLS:        tlsConfig,
-		Proxier:    proxy,
-		PingPeriod: 0,
-	})
-
-	if err != nil {
-		return bytes.Buffer{}, err
-	}
-
-	wrapper, err := rest.HTTPWrappersForConfig(builder.apiClient.Config, upgradeRoundTripper)
-	if err != nil {
-		return bytes.Buffer{}, err
-	}
-
-	exec, err := remotecommand.NewSPDYExecutorForTransports(wrapper, upgradeRoundTripper, "POST", req.URL())
-
+	// Use 0 for all timeouts to disable timeout enforcement.
+	// The helper function sets PingPeriod=0 which is required for large file transfers.
+	exec, err := builder.getExecutorFromRequest(req, 0, 0, 0)
 	if err != nil {
 		return buffer, err
 	}
 
 	err = exec.StreamWithContext(context.TODO(), remotecommand.StreamOptions{
-		Stdin:  os.Stdin,
+		Stdin:  nil,
 		Stdout: &buffer,
 		Stderr: os.Stderr,
 		Tty:    false,
@@ -1304,6 +1295,94 @@ func (builder *Builder) GetFullLog(containerName string) (string, error) {
 // GetGVR returns pod's GroupVersionResource which could be used for Clean function.
 func GetGVR() schema.GroupVersionResource {
 	return schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"}
+}
+
+// getExecutorFromRequest creates a remotecommand.Executor from a REST request with configurable timeouts.
+// This helper function centralizes executor creation logic that was previously duplicated across
+// ExecCommand, ExecCommandWithTimeout, and Copy methods.
+//
+// Parameters:
+//   - req: The REST request for the exec/copy operation
+//   - dialTimeout: Maximum time to establish TCP connection (0 = no timeout)
+//   - tlsTimeout: Maximum time to complete TLS handshake (0 = no timeout)
+//   - responseTimeout: Maximum time to receive response headers (0 = no timeout)
+//
+// The function creates both WebSocket and SPDY executors and returns a fallback executor
+// that tries WebSocket first, then falls back to SPDY if needed.
+//
+// Important: PingPeriod is set to 0 to avoid issues with large file transfers.
+// See: https://github.com/kubernetes/kubernetes/issues/60140#issuecomment-1411477275
+//
+//nolint:ireturn,nolintlint
+func (builder *Builder) getExecutorFromRequest(
+	req *rest.Request,
+	dialTimeout time.Duration,
+	tlsTimeout time.Duration,
+	responseTimeout time.Duration,
+) (remotecommand.Executor, error) {
+	tlsConfig, err := rest.TLSConfigFor(builder.apiClient.Config)
+	if err != nil {
+		return nil, err
+	}
+
+	proxy := http.ProxyFromEnvironment
+	if builder.apiClient.Config.Proxy != nil {
+		proxy = builder.apiClient.Config.Proxy
+	}
+
+	// Create HTTP transport with timeout configurations.
+	// This ensures connection, TLS handshake, and response header timeouts are enforced.
+	// When a timeout is 0, it means no timeout (unlimited wait).
+	httpTransport := &http.Transport{
+		Proxy:                 proxy,
+		TLSClientConfig:       tlsConfig,
+		TLSHandshakeTimeout:   tlsTimeout,
+		ResponseHeaderTimeout: responseTimeout,
+		IdleConnTimeout:       defaultIdleConnTimeout,
+		ExpectContinueTimeout: 1 * time.Second,
+		DialContext: (&net.Dialer{
+			Timeout:   dialTimeout,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+	}
+
+	// Configure SPDY round tripper with PingPeriod=0 and custom transport.
+	// Setting PingPeriod to 0 is required to avoid issues with large file transfers.
+	// https://github.com/kubernetes/kubernetes/issues/60140#issuecomment-1411477275
+	// The UpgradeTransport field allows us to inject our custom transport with timeout configurations.
+	// Note: UpgradeTransport is mutually exclusive with TLS and Proxier fields - the transport
+	// already contains TLS config and proxy settings, so we must not set them here.
+	upgradeRoundTripper, err := spdy.NewRoundTripperWithConfig(spdy.RoundTripperConfig{
+		PingPeriod:       0,
+		UpgradeTransport: httpTransport,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	wrapper, err := rest.HTTPWrappersForConfig(builder.apiClient.Config, upgradeRoundTripper)
+	if err != nil {
+		return nil, err
+	}
+
+	spdyExec, err := remotecommand.NewSPDYExecutorForTransports(wrapper, upgradeRoundTripper, "POST", req.URL())
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new SPDY executor: %w", err)
+	}
+
+	webSocketExec, err := remotecommand.NewWebSocketExecutor(builder.apiClient.Config, "GET", req.URL().String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new WebSocket executor: %w", err)
+	}
+
+	exec, err := remotecommand.NewFallbackExecutor(webSocketExec, spdyExec, func(err error) bool {
+		return httpstream.IsUpgradeFailure(err) || httpstream.IsHTTPSProxyError(err)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new fallback executor: %w", err)
+	}
+
+	return exec, nil
 }
 
 func getDefinition(name, nsName string) *corev1.Pod {
