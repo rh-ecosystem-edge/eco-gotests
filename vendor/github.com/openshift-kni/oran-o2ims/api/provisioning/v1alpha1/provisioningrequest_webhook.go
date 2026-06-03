@@ -115,7 +115,12 @@ func (v *provisioningRequestValidator) ValidateDelete(ctx context.Context, obj r
 		return nil, fmt.Errorf("deleting a ProvisioningRequest is disallowed while post-install hardware configuration is in progress")
 	}
 
-	return nil, nil
+	warnings := admission.Warnings{
+		"Deleting a ProvisioningRequest triggers cluster deprovisioning and resource cleanup, " +
+			"which typically takes several minutes. Please be patient and do not force-delete the resource.",
+	}
+
+	return warnings, nil
 }
 
 func (v *provisioningRequestValidator) validateCreateOrUpdate(ctx context.Context, oldPr, newPr *ProvisioningRequest) error {
@@ -128,7 +133,7 @@ func (v *provisioningRequestValidator) validateCreateOrUpdate(ctx context.Contex
 		return err
 	}
 
-	if err := newPr.ValidateHwTemplateParameters(ctx, v.Client, clusterTemplate); err != nil {
+	if err := newPr.ValidateHwMgmtHwProfiles(ctx, v.Client, clusterTemplate); err != nil {
 		return err
 	}
 

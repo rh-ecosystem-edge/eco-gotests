@@ -48,22 +48,6 @@ type ProvisioningRequestSpec struct {
 	Extensions runtime.RawExtension `json:"extensions,omitempty"`
 }
 
-// NodeAllocationRequestRef references a node allocation request.
-type NodeAllocationRequestRef struct {
-	// Contains the identifier of the created NodeAllocationRequest.
-	NodeAllocationRequestID string `json:"nodeAllocationRequestID,omitempty"`
-	// Represents the timestamp of the first status check for hardware provisioning
-	HardwareProvisioningCheckStart *metav1.Time `json:"hardwareProvisioningCheckStart,omitempty"`
-	// Represents the timestamp of the first status check for hardware configuring
-	HardwareConfiguringCheckStart *metav1.Time `json:"hardwareConfiguringCheckStart,omitempty"`
-	// ObservedConfigTransactionId tracks the ConfigTransactionId that has been observed
-	// by the hardware plugin. This helps with debugging by showing which configuration
-	// transaction the plugin has processed.
-	// A value of 0 indicates the transaction has not been observed yet. Since Kubernetes
-	// Generation starts at 1, 0 serves as a natural sentinel value for "not observed".
-	ObservedConfigTransactionId int64 `json:"observedConfigTransactionId,omitempty"`
-}
-
 type ClusterDetails struct {
 	// Contains the name of the created ClusterInstance.
 	Name string `json:"name,omitempty"`
@@ -78,18 +62,41 @@ type ClusterDetails struct {
 	NonCompliantAt *metav1.Time `json:"nonCompliantAt,omitempty"`
 }
 
+// ResourceProvisioningPhase defines the provisioning phase of an individual infrastructure resource.
+type ResourceProvisioningPhase string
+
+const (
+	ResourceProvisioningPhaseProcessing            ResourceProvisioningPhase = "PROCESSING"
+	ResourceProvisioningPhaseProvisioned           ResourceProvisioningPhase = "PROVISIONED"
+	ResourceProvisioningPhaseAwaitingFreeResources ResourceProvisioningPhase = "AWAITING_FREE_RESOURCES"
+	ResourceProvisioningPhaseFailed                ResourceProvisioningPhase = "FAILED"
+)
+
+// InfrastructureResourceStatus tracks the provisioning status of a single
+// infrastructure resource (e.g. a bare-metal node) within a ProvisioningRequest.
+type InfrastructureResourceStatus struct {
+	// Name of the infrastructure resource (hostname).
+	ResourceName string `json:"resourceName"`
+	// Identifier of the infrastructure resource (AllocatedNode ID).
+	ResourceId string `json:"resourceId"`
+	// Current provisioning phase of this resource.
+	// +kubebuilder:validation:Enum=PROCESSING;PROVISIONED;AWAITING_FREE_RESOURCES;FAILED
+	ResourceProvisioningPhase ResourceProvisioningPhase `json:"resourceProvisioningPhase"`
+}
+
 type Extensions struct {
 	// ClusterDetails references to the ClusterInstance.
 	ClusterDetails *ClusterDetails `json:"clusterDetails,omitempty"`
-
-	// NodeAllocationRequestRef references to the NodeAllocationRequest.
-	NodeAllocationRequestRef *NodeAllocationRequestRef `json:"nodeAllocationRequestRef,omitempty"`
 
 	// AllocatedNodeHostMap stores the mapping of AllocatedNode IDs to Hostnames
 	AllocatedNodeHostMap map[string]string `json:"allocatedNodeHostMap,omitempty"`
 
 	// Holds policies that are matched with the ManagedCluster created by the ProvisioningRequest.
 	Policies []PolicyDetails `json:"policies,omitempty"`
+
+	// Per-node infrastructure resource provisioning statuses, populated by the
+	// controller from individual AllocatedNode conditions.
+	InfrastructureResourceStatuses []InfrastructureResourceStatus `json:"infrastructureResourceStatuses,omitempty"`
 }
 
 // PolicyDetails holds information about an ACM policy.

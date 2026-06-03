@@ -55,13 +55,7 @@ var NicIDMap = []string{}
 
 var InitialState SriovNetworkNodeState
 
-// NetFilterType Represents the NetFilter tags to be used
-type NetFilterType int
-
 const (
-	// OpenstackNetworkID network UUID
-	OpenstackNetworkID NetFilterType = iota
-
 	SupportedNicIDConfigmap = "supported-nic-ids"
 )
 
@@ -71,15 +65,6 @@ const (
 	DaemonConfigurationMode  ConfigurationModeType = "daemon"
 	SystemdConfigurationMode ConfigurationModeType = "systemd"
 )
-
-func (e NetFilterType) String() string {
-	switch e {
-	case OpenstackNetworkID:
-		return "openstack/NetworkID"
-	default:
-		return fmt.Sprintf("%d", int(e))
-	}
-}
 
 func InitNicIDMapFromConfigMap(client kubernetes.Interface, namespace string) error {
 	cm, err := client.CoreV1().ConfigMaps(namespace).Get(
@@ -94,7 +79,7 @@ func InitNicIDMapFromConfigMap(client kubernetes.Interface, namespace string) er
 	for _, v := range cm.Data {
 		NicIDMap = append(NicIDMap, v)
 	}
-
+	fmt.Printf("NicIDMap: %+v\n", NicIDMap)
 	return nil
 }
 
@@ -315,6 +300,20 @@ func (p *SriovNetworkNodePolicy) Selected(node *corev1.Node) bool {
 func StringInArray(val string, array []string) bool {
 	for i := range array {
 		if array[i] == val {
+			return true
+		}
+	}
+	return false
+}
+
+// NameOrAltNameMatchesPfNames checks if the given name or any of the alternative names
+// match any entry in the pfNames list.
+func NameOrAltNameMatchesPfNames(name string, altNames []string, pfNames []string) bool {
+	if StringInArray(name, pfNames) {
+		return true
+	}
+	for _, altName := range altNames {
+		if StringInArray(altName, pfNames) {
 			return true
 		}
 	}
@@ -609,7 +608,8 @@ func (selector *SriovNetworkNicSelector) Selected(iface *InterfaceExt) bool {
 				pfNames = append(pfNames, p)
 			}
 		}
-		if !StringInArray(iface.Name, pfNames) {
+
+		if !NameOrAltNameMatchesPfNames(iface.Name, iface.AltNames, pfNames) {
 			return false
 		}
 	}
@@ -1008,4 +1008,25 @@ func OwnerRefToString(cr client.Object) string {
 	}
 
 	return cr.GetObjectKind().GroupVersionKind().GroupKind().String() + "/" + cr.GetNamespace() + "/" + cr.GetName()
+}
+
+// ResolveInterfaceName resolves an interface name that might be an alternative name
+// to the actual interface name using the nodeState. If the name is an alternative name,
+// it returns the actual interface name. Otherwise, it returns the name as-is.
+func ResolveInterfaceName(name string, nodeState *SriovNetworkNodeState) string {
+	if nodeState == nil {
+		return name
+	}
+	// Check all interfaces in the nodeState
+	for _, iface := range nodeState.Status.Interfaces {
+		// Check if the name matches the actual interface name
+		if iface.Name == name {
+			return name
+		}
+		if StringInArray(name, iface.AltNames) {
+			return iface.Name
+		}
+	}
+	// If not found in nodeState, return the name as-is
+	return name
 }

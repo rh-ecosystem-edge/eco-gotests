@@ -1,7 +1,6 @@
 package ocloudparams
 
 import (
-	pluginsv1alpha1 "github.com/openshift-kni/oran-o2ims/api/hardwaremanagement/plugins/v1alpha1"
 	hardwaremanagementv1alpha1 "github.com/openshift-kni/oran-o2ims/api/hardwaremanagement/v1alpha1"
 	provisioningv1alpha1 "github.com/openshift-kni/oran-o2ims/api/provisioning/v1alpha1"
 
@@ -25,9 +24,8 @@ var (
 	ReporterCRDsToDump = []k8sreporter.CRData{
 		{Cr: &provisioningv1alpha1.ClusterTemplateList{}},
 		{Cr: &provisioningv1alpha1.ProvisioningRequestList{}},
-		{Cr: &hardwaremanagementv1alpha1.HardwareTemplateList{}},
-		{Cr: &pluginsv1alpha1.AllocatedNodeList{}},
-		{Cr: &pluginsv1alpha1.NodeAllocationRequestList{}},
+		{Cr: &hardwaremanagementv1alpha1.AllocatedNodeList{}},
+		{Cr: &hardwaremanagementv1alpha1.NodeAllocationRequestList{}},
 	}
 
 	// PolicyTemplateParameters defines the policy template parameters.

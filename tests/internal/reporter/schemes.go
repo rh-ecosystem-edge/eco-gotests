@@ -17,7 +17,6 @@ import (
 
 	lcav1 "github.com/openshift-kni/lifecycle-agent/api/imagebasedupgrade/v1"
 	lcasgv1 "github.com/openshift-kni/lifecycle-agent/api/seedgenerator/v1"
-	pluginsv1alpha1 "github.com/openshift-kni/oran-o2ims/api/hardwaremanagement/plugins/v1alpha1"
 	hardwaremanagementv1alpha1 "github.com/openshift-kni/oran-o2ims/api/hardwaremanagement/v1alpha1"
 	inventoryv1alpha1 "github.com/openshift-kni/oran-o2ims/api/inventory/v1alpha1"
 	provisioningv1alpha1 "github.com/openshift-kni/oran-o2ims/api/provisioning/v1alpha1"
@@ -72,7 +71,6 @@ var reporterSchemes = []clients.SchemeAttacher{
 	ibiv1alpha1.AddToScheme,
 	siteconfigv1alpha1.AddToScheme,
 	certificatesv1.AddToScheme,
-	pluginsv1alpha1.AddToScheme,
 	provisioningv1alpha1.AddToScheme,
 	hardwaremanagementv1alpha1.AddToScheme,
 	inventoryv1alpha1.AddToScheme,

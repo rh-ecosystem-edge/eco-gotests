@@ -133,17 +133,17 @@ func VerifySimultaneousSnoDeprovisioningSameClusterTemplate(ctx SpecContext) {
 	Expect(pr1TemplateVersion).To(Equal(pr2TemplateVersion),
 		fmt.Sprintf("PR %s and %s are not using the same cluster template", prName1, prName2))
 
-	nodeAllocationRequest1, allocatedNodes1, namespace1 := VerifyOcloudCRsExist(provisioningRequest1)
+	allocatedNodes1, namespace1 := VerifyOcloudCRsExist(provisioningRequest1)
 	clusterInstance1 := VerifyClusterInstanceCompleted(provisioningRequest1, ctx)
 	bmhs1 := GetBMHsFromAllocatedNodes(allocatedNodes1)
 
-	nodeAllocationRequest2, allocatedNodes2, namespace2 := VerifyOcloudCRsExist(provisioningRequest2)
+	allocatedNodes2, namespace2 := VerifyOcloudCRsExist(provisioningRequest2)
 	clusterInstance2 := VerifyClusterInstanceCompleted(provisioningRequest2, ctx)
 	bmhs2 := GetBMHsFromAllocatedNodes(allocatedNodes2)
 
 	var waitGroup sync.WaitGroup
 
-	waitGroup.Add(10)
+	waitGroup.Add(8)
 
 	go VerifyProvisioningRequestIsDeleted(provisioningRequest1, &waitGroup, ctx)
 	go VerifyProvisioningRequestIsDeleted(provisioningRequest2, &waitGroup, ctx)
@@ -153,8 +153,6 @@ func VerifySimultaneousSnoDeprovisioningSameClusterTemplate(ctx SpecContext) {
 	go VerifyClusterInstanceDoesNotExist(clusterInstance2, &waitGroup, ctx)
 	go VerifyAllocatedNodesDoNotExist(allocatedNodes1, &waitGroup, ctx)
 	go VerifyAllocatedNodesDoNotExist(allocatedNodes2, &waitGroup, ctx)
-	go VerifyNodeAllocationRequestDoesNotExist(nodeAllocationRequest1, &waitGroup, ctx)
-	go VerifyNodeAllocationRequestDoesNotExist(nodeAllocationRequest2, &waitGroup, ctx)
 
 	waitGroup.Wait()
 
@@ -231,16 +229,16 @@ func VerifySimultaneousSnoDeprovisioningDifferentClusterTemplates(ctx SpecContex
 	Expect(pr1TemplateVersion).NotTo(Equal(pr2TemplateVersion),
 		fmt.Sprintf("PR %s and %s are using the same cluster template", prName1, prName2))
 
-	nodeAllocationRequest1, allocatedNodes1, namespace1 := VerifyOcloudCRsExist(provisioningRequest1)
+	allocatedNodes1, namespace1 := VerifyOcloudCRsExist(provisioningRequest1)
 	clusterInstance1 := VerifyClusterInstanceCompleted(provisioningRequest1, ctx)
 	bmhs1 := GetBMHsFromAllocatedNodes(allocatedNodes1)
-	nodeAllocationRequest2, allocatedNodes2, namespace2 := VerifyOcloudCRsExist(provisioningRequest2)
+	allocatedNodes2, namespace2 := VerifyOcloudCRsExist(provisioningRequest2)
 	clusterInstance2 := VerifyClusterInstanceCompleted(provisioningRequest2, ctx)
 	bmhs2 := GetBMHsFromAllocatedNodes(allocatedNodes2)
 
 	var waitGroup sync.WaitGroup
 
-	waitGroup.Add(10)
+	waitGroup.Add(8)
 
 	go VerifyProvisioningRequestIsDeleted(provisioningRequest1, &waitGroup, ctx)
 	go VerifyProvisioningRequestIsDeleted(provisioningRequest2, &waitGroup, ctx)
@@ -250,8 +248,6 @@ func VerifySimultaneousSnoDeprovisioningDifferentClusterTemplates(ctx SpecContex
 	go VerifyClusterInstanceDoesNotExist(clusterInstance2, &waitGroup, ctx)
 	go VerifyAllocatedNodesDoNotExist(allocatedNodes1, &waitGroup, ctx)
 	go VerifyAllocatedNodesDoNotExist(allocatedNodes2, &waitGroup, ctx)
-	go VerifyNodeAllocationRequestDoesNotExist(nodeAllocationRequest1, &waitGroup, ctx)
-	go VerifyNodeAllocationRequestDoesNotExist(nodeAllocationRequest2, &waitGroup, ctx)
 
 	waitGroup.Wait()
 

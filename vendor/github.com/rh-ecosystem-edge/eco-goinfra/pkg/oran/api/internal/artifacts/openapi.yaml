@@ -11,6 +11,7 @@
 # implied. See the License for the specific language governing permissions and limitations under the
 # License.
 #
+# Synced with oran-o2ims commit 32d7280bed8ac83dc1bc0bcfbbb07a01309392fc
 
 openapi: 3.0.3
 
@@ -375,12 +376,19 @@ components:
           type: string
           description: Human readable description of managed infrastructure template
           example: sno-ran-du
+        characteristics:
+          type: object
+          additionalProperties:
+            type: string
+          description: |
+            A list of key/value pairs describing characteristics associated with the template.
+          example: {"deploymentType": "sno", "networkType": "ran"}
         extensions:
           type: object
           additionalProperties:
             type: string
-          description: | 
-            These are unspecified (not standardized) properties (keys) which are tailored by the vendor or 
+          description: |
+            These are unspecified (not standardized) properties (keys) which are tailored by the vendor or
             operator to extend the information provided about the Artifact Resource.
           example: {"status": "ClusterTemplateValidated has Completed: The cluster template validation succeeded"}
       required:

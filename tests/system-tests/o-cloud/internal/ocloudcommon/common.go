@@ -294,27 +294,30 @@ func VerifyPoliciesAreNotCompliant(
 	klog.V(ocloudparams.OCloudLogLevel).Infof("all the policies in namespace %s are not compliant", nsName)
 }
 
-// VerifyAllocatedNodesExist verifies that AllocatedNodes associated with a NodeAllocationRequest exist.
-func VerifyAllocatedNodesExist(nodeAllocationRequest *oran.NARBuilder) []*oran.AllocatedNodeBuilder {
-	Expect(nodeAllocationRequest.Object).ToNot(BeNil(), "nodeAllocationRequest.Object should not be nil")
-	Expect(nodeAllocationRequest.Object.Status.Properties.NodeNames).ToNot(BeNil(),
-		"nodeAllocationRequest.Object.Status.Properties.NodeNames should not be nil")
+// VerifyAllocatedNodesExist verifies that AllocatedNodes referenced by a ProvisioningRequest exist.
+func VerifyAllocatedNodesExist(provisioningReq *oran.ProvisioningRequestBuilder) []*oran.AllocatedNodeBuilder {
+	Expect(provisioningReq.Object).ToNot(BeNil(), "provisioningReq.Object should not be nil")
 
-	allocatedNodeNames := nodeAllocationRequest.Object.Status.Properties.NodeNames
-	Expect(len(allocatedNodeNames) > 0).To(BeTrue(),
-		fmt.Sprintf("Failed to verify that AllocatedNodes exist for NodeAllocationRequest %s",
-			nodeAllocationRequest.Object.Name))
+	resourceStatuses := provisioningReq.Object.Status.Extensions.InfrastructureResourceStatuses
+	Expect(resourceStatuses).ToNot(BeNil(),
+		"provisioningReq.Object.Status.Extensions.InfrastructureResourceStatuses should not be nil")
+	Expect(resourceStatuses).ToNot(BeEmpty(),
+		fmt.Sprintf("Failed to verify that AllocatedNodes exist for ProvisioningRequest %s",
+			provisioningReq.Object.Name))
 
-	allocatedNodes := make([]*oran.AllocatedNodeBuilder, 0)
+	allocatedNodes := make([]*oran.AllocatedNodeBuilder, 0, len(resourceStatuses))
 
-	for _, allocatedNodeName := range allocatedNodeNames {
-		By(fmt.Sprintf("Verifying that AllocatedNode %s exists", allocatedNodeName))
-		allocatedNode, err := oran.PullAllocatedNode(HubAPIClient, allocatedNodeName, ocloudparams.OranO2ImsNamespace)
-		Expect(err).ToNot(HaveOccurred(), "Failed to pull AllocatedNode %s: %v", allocatedNodeName, err)
+	for _, resourceStatus := range resourceStatuses {
+		allocatedNodeID := resourceStatus.ResourceId
+		Expect(allocatedNodeID).ToNot(BeEmpty(), "InfrastructureResourceStatus.ResourceId should not be empty")
+
+		By(fmt.Sprintf("Verifying that AllocatedNode %s exists", allocatedNodeID))
+		allocatedNode, err := oran.PullAllocatedNode(HubAPIClient, allocatedNodeID, ocloudparams.OranO2ImsNamespace)
+		Expect(err).ToNot(HaveOccurred(), "Failed to pull AllocatedNode %s: %v", allocatedNodeID, err)
 
 		allocatedNodes = append(allocatedNodes, allocatedNode)
 
-		klog.V(ocloudparams.OCloudLogLevel).Infof("allocated node %s exists", allocatedNodeName)
+		klog.V(ocloudparams.OCloudLogLevel).Infof("allocated node %s exists", allocatedNodeID)
 	}
 
 	return allocatedNodes
@@ -344,42 +347,6 @@ func VerifyAllocatedNodesDoNotExist(
 	}
 }
 
-// VerifyNodeAllocationRequestExists verifies that a given NodeAllocationRequest exists.
-func VerifyNodeAllocationRequestExists(name string) *oran.NARBuilder {
-	By(fmt.Sprintf("Verifying that NodeAllocationRequest %s exists", name))
-
-	nodeAllocationRequest, err := oran.PullNodeAllocationRequest(
-		HubAPIClient, name, ocloudparams.OranO2ImsNamespace)
-	Expect(err).ToNot(HaveOccurred(),
-		"Failed to pull node allocation request %s: %v", name, err)
-
-	klog.V(ocloudparams.OCloudLogLevel).Infof("node allocation request %s exists", name)
-
-	return nodeAllocationRequest
-}
-
-// VerifyNodeAllocationRequestDoesNotExist verifies that a given NodeAllocationRequest does not exist.
-func VerifyNodeAllocationRequestDoesNotExist(
-	nodeAllocationRequest *oran.NARBuilder, waitGroup *sync.WaitGroup, ctx SpecContext) {
-	defer waitGroup.Done()
-	defer GinkgoRecover()
-
-	Expect(nodeAllocationRequest).ToNot(BeNil(), "nodeAllocationRequest should not be nil")
-	Expect(nodeAllocationRequest.Object).ToNot(BeNil(), "nodeAllocationRequest.Object should not be nil")
-	Expect(nodeAllocationRequest.Object.Name).ToNot(BeEmpty(), "nodeAllocationRequest.Object.Name should not be empty")
-
-	name := nodeAllocationRequest.Object.Name
-
-	By(fmt.Sprintf("Verifying that NodeAllocationRequest %s does not exist", name))
-
-	Eventually(func(ctx context.Context) bool {
-		return !nodeAllocationRequest.Exists()
-	}).WithTimeout(30*time.Minute).WithPolling(time.Second).WithContext(ctx).Should(BeTrue(),
-		fmt.Sprintf("NodeAllocationRequest %s still exists", name))
-
-	klog.V(ocloudparams.OCloudLogLevel).Infof("node allocation request %s does not exist", name)
-}
-
 // CreateSnoAPIClient creates a new client for the given node.
 func CreateSnoAPIClient(nodeName string) *clients.Settings {
 	path := fmt.Sprintf("tmp/%s/auth", nodeName)
@@ -396,22 +363,17 @@ func CreateSnoAPIClient(nodeName string) *clients.Settings {
 	return snoAPIClient
 }
 
-// VerifyOcloudCRsExist verifies that a given ProvisioningRequest has generated a Namespace,
-// a NodeAllocationRequest and a AllocatedNodes.
+// VerifyOcloudCRsExist verifies that a given ProvisioningRequest has generated a Namespace and AllocatedNodes.
 func VerifyOcloudCRsExist(provisioningReq *oran.ProvisioningRequestBuilder) (
-	*oran.NARBuilder, []*oran.AllocatedNodeBuilder, *namespace.Builder) {
+	[]*oran.AllocatedNodeBuilder, *namespace.Builder) {
 	Expect(provisioningReq.Object).ToNot(BeNil(), "provisioningReq.Object should not be nil")
 	Expect(provisioningReq.Object.Status.Extensions.ClusterDetails).ToNot(BeNil(),
 		"provisioningReq.Object.Status.Extensions.ClusterDetails should not be nil")
-	Expect(provisioningReq.Object.Status.Extensions.NodeAllocationRequestRef).ToNot(BeNil(),
-		"provisioningReq.Object.Status.Extensions.NodeAllocationRequestRef should not be nil")
 
-	nodeAllocationRequest := VerifyNodeAllocationRequestExists(
-		provisioningReq.Object.Status.Extensions.NodeAllocationRequestRef.NodeAllocationRequestID)
-	allocatedNodes := VerifyAllocatedNodesExist(nodeAllocationRequest)
+	allocatedNodes := VerifyAllocatedNodesExist(provisioningReq)
 	namespace := VerifyNamespaceExists(provisioningReq.Object.Status.Extensions.ClusterDetails.Name)
 
-	return nodeAllocationRequest, allocatedNodes, namespace
+	return allocatedNodes, namespace
 }
 
 // DeprovisionAiSnoCluster deprovisions a SNO cluster.
@@ -432,18 +394,17 @@ func DeprovisionAiSnoCluster(
 	prName := provisioningReq.Object.Name
 	By(fmt.Sprintf("Tearing down PR %s", prName))
 
-	nodeAllocationRequest, allocatedNodes, namespace := VerifyOcloudCRsExist(provisioningReq)
+	allocatedNodes, namespace := VerifyOcloudCRsExist(provisioningReq)
 	bmhs := GetBMHsFromAllocatedNodes(allocatedNodes)
 
 	var tearDownWg sync.WaitGroup
 
-	tearDownWg.Add(5)
+	tearDownWg.Add(4)
 
 	go VerifyProvisioningRequestIsDeleted(provisioningReq, &tearDownWg, ctx)
 	go VerifyNamespaceDoesNotExist(namespace, &tearDownWg, ctx)
 	go VerifyClusterInstanceDoesNotExist(clusterInstance, &tearDownWg, ctx)
 	go VerifyAllocatedNodesDoNotExist(allocatedNodes, &tearDownWg, ctx)
-	go VerifyNodeAllocationRequestDoesNotExist(nodeAllocationRequest, &tearDownWg, ctx)
 
 	tearDownWg.Wait()
 

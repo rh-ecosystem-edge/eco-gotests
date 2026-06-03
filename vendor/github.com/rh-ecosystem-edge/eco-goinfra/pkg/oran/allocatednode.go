@@ -3,7 +3,7 @@ package oran
 import (
 	"fmt"
 
-	pluginsv1alpha1 "github.com/openshift-kni/oran-o2ims/api/hardwaremanagement/plugins/v1alpha1"
+	hardwaremanagementv1alpha1 "github.com/openshift-kni/oran-o2ims/api/hardwaremanagement/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
@@ -15,9 +15,9 @@ import (
 // AllocatedNodeBuilder provides a struct to inferface with Node resources on a specific cluster.
 type AllocatedNodeBuilder struct {
 	// Definition of the AllocatedNode used to create the resource.
-	Definition *pluginsv1alpha1.AllocatedNode
+	Definition *hardwaremanagementv1alpha1.AllocatedNode
 	// Object of the AllocatedNode as it is on the cluster.
-	Object *pluginsv1alpha1.AllocatedNode
+	Object *hardwaremanagementv1alpha1.AllocatedNode
 	// apiClient used to interact with the cluster.
 	apiClient runtimeclient.Client
 	// errorMsg used to store latest error message from functions that do not return errors.
@@ -34,7 +34,7 @@ func PullAllocatedNode(apiClient *clients.Settings, name, nsname string) (*Alloc
 		return nil, fmt.Errorf("allocatedNode 'apiClient' cannot be nil")
 	}
 
-	err := apiClient.AttachScheme(pluginsv1alpha1.AddToScheme)
+	err := apiClient.AttachScheme(hardwaremanagementv1alpha1.AddToScheme)
 	if err != nil {
 		klog.V(100).Infof("Failed to add plugins v1alpha1 scheme to client schemes: %v", err)
 
@@ -43,7 +43,7 @@ func PullAllocatedNode(apiClient *clients.Settings, name, nsname string) (*Alloc
 
 	builder := &AllocatedNodeBuilder{
 		apiClient: apiClient.Client,
-		Definition: &pluginsv1alpha1.AllocatedNode{
+		Definition: &hardwaremanagementv1alpha1.AllocatedNode{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      name,
 				Namespace: nsname,
@@ -75,7 +75,7 @@ func PullAllocatedNode(apiClient *clients.Settings, name, nsname string) (*Alloc
 }
 
 // Get returns the AllocatedNode object if found.
-func (builder *AllocatedNodeBuilder) Get() (*pluginsv1alpha1.AllocatedNode, error) {
+func (builder *AllocatedNodeBuilder) Get() (*hardwaremanagementv1alpha1.AllocatedNode, error) {
 	if valid, err := builder.validate(); !valid {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func (builder *AllocatedNodeBuilder) Get() (*pluginsv1alpha1.AllocatedNode, erro
 	klog.V(100).Infof("Getting AllocatedNode object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
-	node := &pluginsv1alpha1.AllocatedNode{}
+	node := &hardwaremanagementv1alpha1.AllocatedNode{}
 
 	err := builder.apiClient.Get(logging.DiscardContext(), runtimeclient.ObjectKey{
 		Name:      builder.Definition.Name,

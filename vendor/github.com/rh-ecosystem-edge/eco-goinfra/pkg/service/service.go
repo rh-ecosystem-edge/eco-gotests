@@ -233,6 +233,8 @@ func (builder *Builder) WithOptions(options ...AdditionalOptions) *Builder {
 }
 
 // WithExternalTrafficPolicy redefines the service with ServiceExternalTrafficPolicy type.
+//
+//nolint:staticcheck // Removing deprecated types would break consumers of eco-goinfra
 func (builder *Builder) WithExternalTrafficPolicy(policyType corev1.ServiceExternalTrafficPolicyType) *Builder {
 	if valid, _ := builder.validate(); !valid {
 		return builder
@@ -355,6 +357,8 @@ func (builder *Builder) WithAnnotation(annotation map[string]string) *Builder {
 }
 
 // WithIPFamily redefines the service with IPFamilies type.
+//
+//nolint:staticcheck // Removing deprecated types would break consumers of eco-goinfra
 func (builder *Builder) WithIPFamily(ipFamily []corev1.IPFamily, ipStackPolicy corev1.IPFamilyPolicyType) *Builder {
 	if valid, _ := builder.validate(); !valid {
 		return builder

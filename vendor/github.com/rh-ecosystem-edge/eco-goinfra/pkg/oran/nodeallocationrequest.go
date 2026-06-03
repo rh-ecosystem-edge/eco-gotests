@@ -3,7 +3,7 @@ package oran
 import (
 	"fmt"
 
-	pluginsv1alpha1 "github.com/openshift-kni/oran-o2ims/api/hardwaremanagement/plugins/v1alpha1"
+	hardwaremanagementv1alpha1 "github.com/openshift-kni/oran-o2ims/api/hardwaremanagement/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
@@ -15,9 +15,9 @@ import (
 // NARBuilder provides a struct to inferface with NodeAllocationRequest resources on a specific cluster.
 type NARBuilder struct {
 	// Definition of the NodeAllocationRequest used to create the resource.
-	Definition *pluginsv1alpha1.NodeAllocationRequest
+	Definition *hardwaremanagementv1alpha1.NodeAllocationRequest
 	// Object of the NodeAllocationRequest as it is on the cluster.
-	Object *pluginsv1alpha1.NodeAllocationRequest
+	Object *hardwaremanagementv1alpha1.NodeAllocationRequest
 	// apiClient used to interact with the cluster.
 	apiClient runtimeclient.Client
 	// errorMsg used to store latest error message from functions that do not return errors.
@@ -34,7 +34,7 @@ func PullNodeAllocationRequest(apiClient *clients.Settings, name, nsname string)
 		return nil, fmt.Errorf("nodeAllocationRequest 'apiClient' cannot be nil")
 	}
 
-	err := apiClient.AttachScheme(pluginsv1alpha1.AddToScheme)
+	err := apiClient.AttachScheme(hardwaremanagementv1alpha1.AddToScheme)
 	if err != nil {
 		klog.V(100).Infof("Failed to add plugins v1alpha1 scheme to client schemes: %v", err)
 
@@ -43,7 +43,7 @@ func PullNodeAllocationRequest(apiClient *clients.Settings, name, nsname string)
 
 	builder := &NARBuilder{
 		apiClient: apiClient.Client,
-		Definition: &pluginsv1alpha1.NodeAllocationRequest{
+		Definition: &hardwaremanagementv1alpha1.NodeAllocationRequest{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      name,
 				Namespace: nsname,
@@ -75,7 +75,7 @@ func PullNodeAllocationRequest(apiClient *clients.Settings, name, nsname string)
 }
 
 // Get returns the NodeAllocationRequest object if found.
-func (builder *NARBuilder) Get() (*pluginsv1alpha1.NodeAllocationRequest, error) {
+func (builder *NARBuilder) Get() (*hardwaremanagementv1alpha1.NodeAllocationRequest, error) {
 	if valid, err := builder.validate(); !valid {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func (builder *NARBuilder) Get() (*pluginsv1alpha1.NodeAllocationRequest, error)
 	klog.V(100).Infof("Getting NodeAllocationRequest object %s in namespace %s",
 		builder.Definition.Name, builder.Definition.Namespace)
 
-	nodeAllocationRequest := &pluginsv1alpha1.NodeAllocationRequest{}
+	nodeAllocationRequest := &hardwaremanagementv1alpha1.NodeAllocationRequest{}
 
 	err := builder.apiClient.Get(logging.DiscardContext(), runtimeclient.ObjectKey{
 		Name:      builder.Definition.Name,

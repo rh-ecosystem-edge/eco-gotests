@@ -131,8 +131,8 @@ var _ = Describe("ORAN Template Inventory", Label(tsparams.LabelPreProvision, ts
 
 		By("retrieving the clusterInstanceDefaults and policyTemplateDefaults ConfigMaps from the ClusterTemplate spec")
 
-		clusterInstanceDefaultsCMName := chosenClusterTemplate.Definition.Spec.Templates.ClusterInstanceDefaults
-		policyTemplateDefaultsCMName := chosenClusterTemplate.Definition.Spec.Templates.PolicyTemplateDefaults
+		clusterInstanceDefaultsCMName := chosenClusterTemplate.Definition.Spec.TemplateDefaults.ClusterInstanceDefaults
+		policyTemplateDefaultsCMName := chosenClusterTemplate.Definition.Spec.TemplateDefaults.PolicyTemplateDefaults
 
 		ciDefaultsCM, err := configmap.Pull(HubAPIClient, clusterInstanceDefaultsCMName, clusterTemplateNamespace)
 		Expect(err).ToNot(HaveOccurred(), "Failed to pull clusterInstanceDefaults ConfigMap")

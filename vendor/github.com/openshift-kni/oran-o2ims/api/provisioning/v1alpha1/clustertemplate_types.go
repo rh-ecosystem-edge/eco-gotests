@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package v1alpha1
 
 import (
+	hwmgmtv1alpha1 "github.com/openshift-kni/oran-o2ims/api/hardwaremanagement/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -40,9 +41,9 @@ type ClusterTemplateSpec struct {
 	// Release defines the openshift release version of the template
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Release",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	Release string `json:"release"`
-	// Templates defines the references to the templates required for ClusterTemplate.
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Templates",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
-	Templates Templates `json:"templates"`
+	// TemplateDefaults defines the default values for templates required for ClusterTemplate.
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="TemplateDefaults",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	TemplateDefaults TemplateDefaults `json:"templateDefaults"`
 	// TemplateParameterSchema defines the parameters required for ClusterTemplate.
 	// The parameter definitions should follow the OpenAPI V3 schema and
 	// explicitly define required fields.
@@ -52,10 +53,25 @@ type ClusterTemplateSpec struct {
 	TemplateParameterSchema runtime.RawExtension `json:"templateParameterSchema"`
 }
 
-// Templates defines the references to the templates required for ClusterTemplate.
-type Templates struct {
-	// HwTemplate defines a reference to a HardwareTemplate resource
-	HwTemplate string `json:"hwTemplate,omitempty"`
+// HwMgmtDefaults defines the default hardware management parameters.
+// When NodeGroupData is empty, hardware provisioning is skipped.
+type HwMgmtDefaults struct {
+	// HardwareProvisioningTimeout defines the timeout duration string for the hardware provisioning.
+	// +optional
+	HardwareProvisioningTimeout string `json:"hardwareProvisioningTimeout,omitempty"`
+	// NodeGroupData defines a collection of node group configurations.
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	NodeGroupData []hwmgmtv1alpha1.NodeGroupData `json:"nodeGroupData,omitempty"`
+}
+
+// TemplateDefaults defines the default values for templates required for ClusterTemplate.
+type TemplateDefaults struct {
+	// HwMgmtDefaults defines the default hardware management parameters.
+	// When nodeGroupData is empty, hardware provisioning is skipped.
+	// +optional
+	HwMgmtDefaults HwMgmtDefaults `json:"hwMgmtDefaults,omitempty"`
 
 	// ClusterInstanceDefaults defines a reference to a configmap with
 	// default values for ClusterInstance

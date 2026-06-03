@@ -310,18 +310,17 @@ func DeprovisionIbiSnoCluster(
 	prName := provisioningRequest.Object.Name
 	By(fmt.Sprintf("Tearing down PR %s", prName))
 
-	nodeAllocationRequest, allocatedNodes, namespace := VerifyOcloudCRsExist(provisioningRequest)
+	allocatedNodes, namespace := VerifyOcloudCRsExist(provisioningRequest)
 	bmhs := GetBMHsFromAllocatedNodes(allocatedNodes)
 
 	var tearDownWg sync.WaitGroup
 
-	tearDownWg.Add(5)
+	tearDownWg.Add(4)
 
 	go VerifyProvisioningRequestIsDeleted(provisioningRequest, &tearDownWg, ctx)
 	go VerifyNamespaceDoesNotExist(namespace, &tearDownWg, ctx)
 	go VerifyAllocatedNodesDoNotExist(allocatedNodes, &tearDownWg, ctx)
 	go verifyImageClusterInstallDoesNotExist(imageClusterInstall, &tearDownWg, ctx)
-	go VerifyNodeAllocationRequestDoesNotExist(nodeAllocationRequest, &tearDownWg, ctx)
 
 	tearDownWg.Wait()
 

@@ -322,7 +322,8 @@ var provisioningRequestTypeMeta = metav1.TypeMeta{
 }
 
 // provisioningRequestFromInfo converts the ProvisioningRequestInfo returned by the O2IMS API to the ProvisioningRequest
-// object used by the Kubernetes API.
+// object used by the Kubernetes API. The goal is to match up as much information as possible from the O2IMS API to the
+// ProvisioningRequest object.
 func provisioningRequestFromInfo(
 	info provisioning.ProvisioningRequestInfo) (provisioningv1alpha1.ProvisioningRequest, error) {
 	jsonTemplateParameters, err := json.Marshal(info.ProvisioningRequestData.TemplateParameters)
@@ -344,6 +345,7 @@ func provisioningRequestFromInfo(
 			TemplateParameters: runtime.RawExtension{Raw: jsonTemplateParameters},
 		},
 		Status: provisioningv1alpha1.ProvisioningRequestStatus{
+			Extensions: provisioningRequestExtensionsFromInfo(info),
 			ProvisioningStatus: provisioningv1alpha1.ProvisioningStatus{
 				ProvisioningPhase: provisioningv1alpha1.ProvisioningPhase(
 					strings.ToLower(string(info.Status.ProvisioningPhase)),
@@ -356,4 +358,56 @@ func provisioningRequestFromInfo(
 			},
 		},
 	}, nil
+}
+
+// provisioningRequestExtensionsFromInfo maps O2IMS API status and provisioned resource fields to the K8s Extensions
+// struct.
+func provisioningRequestExtensionsFromInfo(info provisioning.ProvisioningRequestInfo) provisioningv1alpha1.Extensions {
+	extensions := provisioningv1alpha1.Extensions{}
+	extensions.AllocatedNodeHostMap = allocatedNodeHostMapFromInfo(info)
+	extensions.ClusterDetails = &provisioningv1alpha1.ClusterDetails{
+		Name: info.Status.NodeClusterProvisioningStatus.ResourceName,
+	}
+
+	if len(info.Status.InfrastructureResourceProvisioningStatus) == 0 {
+		return extensions
+	}
+
+	infrastructureResourceStatuses := make(
+		[]provisioningv1alpha1.InfrastructureResourceStatus,
+		0,
+		len(info.Status.InfrastructureResourceProvisioningStatus),
+	)
+
+	for _, resourceStatus := range info.Status.InfrastructureResourceProvisioningStatus {
+		infrastructureResourceStatuses = append(infrastructureResourceStatuses,
+			provisioningv1alpha1.InfrastructureResourceStatus{
+				ResourceName:              resourceStatus.ResourceName,
+				ResourceId:                resourceStatus.ResourceId,
+				ResourceProvisioningPhase: provisioningv1alpha1.ResourceProvisioningPhase(resourceStatus.ResourceProvisioningPhase),
+			},
+		)
+	}
+
+	extensions.InfrastructureResourceStatuses = infrastructureResourceStatuses
+
+	return extensions
+}
+
+// allocatedNodeHostMapFromInfo builds the AllocatedNode ID to hostname map from provisioned infrastructure resource
+// IDs and per-resource provisioning status.
+func allocatedNodeHostMapFromInfo(info provisioning.ProvisioningRequestInfo) map[string]string {
+	resourceNamesByID := make(map[string]string, len(info.Status.InfrastructureResourceProvisioningStatus))
+	for _, resourceStatus := range info.Status.InfrastructureResourceProvisioningStatus {
+		if resourceStatus.ResourceId != "" {
+			resourceNamesByID[resourceStatus.ResourceId] = resourceStatus.ResourceName
+		}
+	}
+
+	allocatedNodeHostMap := make(map[string]string, len(info.ProvisionedResourceSet.InfrastructureResourceIds))
+	for _, resourceID := range info.ProvisionedResourceSet.InfrastructureResourceIds {
+		allocatedNodeHostMap[resourceID] = resourceNamesByID[resourceID]
+	}
+
+	return allocatedNodeHostMap
 }
