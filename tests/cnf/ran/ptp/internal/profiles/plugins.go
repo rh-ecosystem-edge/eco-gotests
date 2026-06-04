@@ -3,6 +3,7 @@ package profiles
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ptp"
@@ -237,4 +238,43 @@ func GetUpstreamPort(profile *ptpv1.PtpProfile) (iface.Name, error) {
 	}
 
 	return "", fmt.Errorf("no upstream port found in E810 plugin interconnections")
+}
+
+// GetRxInterfaces returns the interfaces configured as RX (pin state 1) in the E810 plugin.
+func GetRxInterfaces(profile *ptpv1.PtpProfile) ([]iface.Name, error) {
+	return getInterfacesWithPluginPins(profile, ptp.PluginTypeE810, PinStateRx)
+}
+
+// GetSmaPinFromProfile returns the first active SMA pin name and its configuration string for
+// ifaceName from the E810 plugin. A pin is active when its state value (the first field in the
+// "pin-state channel" string) is not "0". Pin names are checked in sorted order so the result
+// is deterministic (e.g. SMA1 before SMA2).
+func GetSmaPinFromProfile(profile *ptpv1.PtpProfile, ifaceName iface.Name) (string, string, error) {
+	intelPlugin, err := getIntelPlugin(profile, ptp.PluginTypeE810)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get E810 plugin: %w", err)
+	}
+
+	ifacePins, ok := intelPlugin.Pins[string(ifaceName)]
+	if !ok {
+		return "", "", fmt.Errorf("interface %s not found in E810 plugin pins", ifaceName)
+	}
+
+	pinNames := make([]string, 0, len(ifacePins))
+	for p := range ifacePins {
+		pinNames = append(pinNames, p)
+	}
+
+	slices.Sort(pinNames)
+
+	for _, name := range pinNames {
+		config := ifacePins[name]
+		fields := strings.Fields(config)
+
+		if len(fields) > 0 && fields[0] != "0" {
+			return name, config, nil
+		}
+	}
+
+	return "", "", fmt.Errorf("no active SMA pin found for interface %s", ifaceName)
 }
