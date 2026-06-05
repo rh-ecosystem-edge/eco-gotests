@@ -53,10 +53,10 @@ var _ = Describe(
 			Expect(err).ToNot(HaveOccurred(), "pod not ready: %s", err)
 
 			if RanDuTestConfig.PtpEnabled {
-				timeInterval := 3 * time.Minute
+				timeInterval := 6 * time.Minute
 				time.Sleep(timeInterval)
 
-				By("Check PTP status for the last 3 minutes after workload deployment")
+				By("Check PTP status for the last 6 minutes after workload deployment")
 
 				ptpOnSync, err := ptp.ValidatePTPStatus(APIClient, timeInterval)
 				Expect(err).ToNot(HaveOccurred(), "PTP Error: %s", err)
