@@ -283,48 +283,20 @@ After data is stored in a a volume backed by the PVC deployment is scaled down a
 |rdscore_wlkd_odf_one_selector | Node selector for 1st node | `kubernetes.io/hostname: worker-X` |
 |rdscore_wlkd_odf_two_selector | Node selector for 2nd node | `kubernetes.io/hostname: worker-Y` |
 
-### _VerifyCommatrixHostFirewallArtifacts_
-
-This test verifies `oc commatrix` host-firewall _MachineConfig_ artifacts: direct `mc` output matches butane-rendered
-_MachineConfigs_, and embedded _nftables_ `openshift_filter` rules are present in generated MC payloads.
-
-Test expects `oc commatrix generate` to write under _rdscore_commatrix_output_dir_ (`format-mc` and `format-butane`), the
-butane CLI to render `mc-*.yaml` beside `butane-*.yaml`, and decoded MC payloads to contain host-firewall nftables rules.
-
-**Requires `oc commatrix` on the test runner, a writable output directory, and a cluster that will receive MCs in later specs**
-
-| parameter | description | example |
-|-----------|-------------|---------|
-|rdscore_commatrix_output_dir | Writable directory for `oc commatrix generate` output (_required_) | `/tmp/commatrix-work` |
-
-API/kubelet/closed ports, MCP wait, and journal keyword are fixed in test code (6443, 10250, 9999, 15m, `firewall`).
-
-Run the ordered commatrix spec: `ginkgo --label-filter=commatrix ./tests/system-tests/rdscore`
-
-### _VerifyCommatrixHostFirewallApply_
-
-This test verifies host-firewall _MachineConfiguration_ apply on the cluster: node disruption policy merge patch,
-selective apply of secure-pool and master _MachineConfigs_, _MachineConfigPool_ stability, and `openshift_filter` chain
-presence on a worker node.
-
-Test expects `format-mc` artifacts from the artifacts spec, including `node-disruption-policy.yaml`, `mc-<secure-pool>.yaml`, and
-`mc-master.yaml`. Other generated `mc-<pool>.yaml` files may exist; apply selectively per test configuration.
-
-**Requires commatrix artifacts and at least one node in each applied _MachineConfigPool_. Reverts cluster changes in AfterAll after all four specs**
-
-Uses commatrix parameters listed under _VerifyCommatrixHostFirewallArtifacts_.
-
 ### _VerifyCommatrixHostFirewallConnectivity_
 
-This test verifies host-firewall TCP reachability from the test runner to node _InternalIP_ addresses: API and kubelet
-ports allowed or blocked on master and secure-pool workers.
+This test verifies host-firewall TCP reachability from the test runner to node external IPs: API and dynamically selected
+open/blocked ports on master and secure-pool workers (ports are read from live `openshift_filter` nftables rules).
 
-Test expects `nc` on the test runner to reach the control-plane API where allowed, to fail or time out
-to secure-pool worker API ports, to reach kubelet on the secure worker, and to fail on a closed test port.
+Test expects TCP dials from the test runner to reach the control-plane API where allowed, to fail on blocked ports,
+to reach an accepted port on the secure worker, and optionally to fail on a second secure-pool worker for peer probes.
 
-**Requires host-firewall MCs applied on all MCPs, resolvable master/secure worker internal IPs (secure worker is the first node in the secure firewall MCP), and optionally a second node in an applied firewall MCP for the peer API probe**
+**Requires commatrix host-firewall MachineConfigs already applied on the cluster, resolvable master/secure worker IPs
+(secure worker is the first node in the inferred secure firewall MCP), and optionally a second node in that MCP for the peer probe**
 
-Uses commatrix parameters listed under _VerifyCommatrixHostFirewallArtifacts_.
+API, kubelet fallback, and closed-port candidates are fixed in test code (6443, 10250, 9999).
+
+Run commatrix specs: `ginkgo --label-filter=commatrix ./tests/system-tests/rdscore`
 
 ### _VerifyCommatrixHostFirewallJournal_
 
@@ -333,11 +305,10 @@ journal, and a temporary `TCP_TEST` nft log rule with matching journal lines aft
 
 Test expects kernel journal lines on the same secure-worker node as connectivity matching the firewall log keyword, at most five
 lines per bucket in each of two consecutive one-minute windows (`2m–1m ago` and `last 1m`), and at least one `TCP_TEST` line referencing
-the probed destination port after `nc` from the test runner.
+the probed destination port after a TCP probe from the test runner.
 
-**Requires applied host-firewall MCs, connectivity spec run first (same secure-worker node), and firewall traffic or probes sufficient to produce journal lines**
-
-Uses commatrix parameters listed under _VerifyCommatrixHostFirewallArtifacts_.
+**Requires commatrix host-firewall MCs on the cluster, connectivity spec run first when possible (same secure-worker node),
+and firewall traffic or probes sufficient to produce journal lines**
 
 ### _VerifyNMStateInstanceExists_
 
