@@ -316,13 +316,14 @@ func commatrixTryTCPProbesFromRunner(desc string, addrs []string, port string, e
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("TCP probe %s via %s -> %s:%s (expect connect)",
 				desc, label, addr, port)
 
-			if err := commatrixRunTCPProbeFromRunner(true, addr, port); err == nil {
+			err := commatrixRunTCPProbeFromRunner(true, addr, port)
+			if err == nil {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("TCP probe %s succeeded via %s", desc, label)
 
 				return nil
-			} else {
-				failures = append(failures, fmt.Sprintf("%s: %v", label, err))
 			}
+
+			failures = append(failures, fmt.Sprintf("%s: %v", label, err))
 		}
 
 		return fmt.Errorf("%s: none of %v reachable from test runner (%s)",
