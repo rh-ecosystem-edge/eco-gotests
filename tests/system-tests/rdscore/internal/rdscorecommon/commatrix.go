@@ -244,6 +244,10 @@ func commatrixHostFirewallPoolNamesFromCluster() ([]string, error) {
 		}
 
 		if _, ok := seen[role]; ok {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+				"%s: skip MachineConfig %q (pool %q already discovered from earlier commatrix MC)",
+				commatrixLogMsgPrefix, mcObj.Name, role))
+
 			continue
 		}
 
@@ -431,6 +435,10 @@ func commatrixTryTCPProbesFromRunner(desc string, addrs []string, port string, e
 		}
 	}
 
+	klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+		"%s: TCP probe %q blocked on all %d address(es) %v port %s as expected",
+		commatrixLogMsgPrefix, desc, len(addrs), addrs, port))
+
 	return nil
 }
 
@@ -550,21 +558,40 @@ func commatrixExtractPortNumbersAfterDport(ruleLine string) []int {
 // commatrixParseAcceptedTCPDPortsFromNFTables builds the set of TCP dports with accept rules in openshift_filter text.
 func commatrixParseAcceptedTCPDPortsFromNFTables(nftText string) map[int]struct{} {
 	allowed := make(map[int]struct{})
+	ruleLines := commatrixExtractOpenshiftFilterRuleLines(nftText)
 
-	for _, ruleLine := range commatrixExtractOpenshiftFilterRuleLines(nftText) {
+	var skippedNotTCPDport, skippedNoAccept, skippedNoPorts int
+
+	for _, ruleLine := range ruleLines {
 		lower := strings.ToLower(ruleLine)
 		if !strings.Contains(lower, "tcp") || !strings.Contains(lower, " dport ") {
+			skippedNotTCPDport++
+
 			continue
 		}
 
 		if !strings.Contains(lower, "accept") {
+			skippedNoAccept++
+
 			continue
 		}
 
-		for _, portNum := range commatrixExtractPortNumbersAfterDport(ruleLine) {
+		ports := commatrixExtractPortNumbersAfterDport(ruleLine)
+		if len(ports) == 0 {
+			skippedNoPorts++
+
+			continue
+		}
+
+		for _, portNum := range ports {
 			allowed[portNum] = struct{}{}
 		}
 	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+		"%s: parsed openshift_filter accept tcp dports from %d rule line(s): skippedNotTCPOrDport=%d skippedNoAccept=%d skippedNoPorts=%d -> %v",
+		commatrixLogMsgPrefix, len(ruleLines), skippedNotTCPDport, skippedNoAccept, skippedNoPorts,
+		commatrixFormatPortSet(allowed)))
 
 	return allowed
 }
@@ -722,6 +749,10 @@ func commatrixFilterPoolsOnCluster(pools []string) []string {
 	}
 
 	sort.Strings(filtered)
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+		"%s: filter pools on cluster: input=%v -> on-cluster=%v",
+		commatrixLogMsgPrefix, pools, filtered))
 
 	return filtered
 }
@@ -1151,12 +1182,18 @@ func commatrixResolveConnectivityTopology() error {
 func commatrixProbeHostAddr(raw string) (string, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+			"%s: probe host address %q -> error (empty address)", commatrixLogMsgPrefix, raw))
+
 		return "", fmt.Errorf("empty address")
 	}
 
 	if strings.Contains(raw, "/") {
 		ip, _, err := net.ParseCIDR(raw)
 		if err != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+				"%s: probe host address %q -> error (parse CIDR: %v)", commatrixLogMsgPrefix, raw, err))
+
 			return "", fmt.Errorf("parse address %q: %w", raw, err)
 		}
 
@@ -1165,6 +1202,9 @@ func commatrixProbeHostAddr(raw string) (string, error) {
 
 	ip := net.ParseIP(raw)
 	if ip == nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+			"%s: probe host address %q -> error (invalid IP)", commatrixLogMsgPrefix, raw))
+
 		return "", fmt.Errorf("invalid address %q", raw)
 	}
 
@@ -1173,18 +1213,27 @@ func commatrixProbeHostAddr(raw string) (string, error) {
 
 // commatrixNodeProbeIPs returns IPv4 then IPv6 node addresses for TCP probes via eco-goinfra nodes helpers.
 func commatrixNodeProbeIPs(nb *nodes.Builder) ([]string, error) {
+	nodeName := commatrixNodeBuilderName(nb)
 	var ips []string
 
-	if ipv4, err := nb.ExternalIPv4Network(); err == nil {
-		if addr, errHost := commatrixProbeHostAddr(ipv4); errHost == nil {
-			ips = append(ips, addr)
-		}
+	if ipv4, err := nb.ExternalIPv4Network(); err != nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+			"%s: node %q IPv4 external network lookup failed: %v", commatrixLogMsgPrefix, nodeName, err))
+	} else if addr, errHost := commatrixProbeHostAddr(ipv4); errHost != nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+			"%s: node %q IPv4 address %q unusable for probes: %v", commatrixLogMsgPrefix, nodeName, ipv4, errHost))
+	} else {
+		ips = append(ips, addr)
 	}
 
-	if ipv6, err := nb.ExternalIPv6Network(); err == nil {
-		if addr, errHost := commatrixProbeHostAddr(ipv6); errHost == nil {
-			ips = append(ips, addr)
-		}
+	if ipv6, err := nb.ExternalIPv6Network(); err != nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+			"%s: node %q IPv6 external network lookup failed: %v", commatrixLogMsgPrefix, nodeName, err))
+	} else if addr, errHost := commatrixProbeHostAddr(ipv6); errHost != nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+			"%s: node %q IPv6 address %q unusable for probes: %v", commatrixLogMsgPrefix, nodeName, ipv6, errHost))
+	} else {
+		ips = append(ips, addr)
 	}
 
 	if len(ips) == 0 {
@@ -1229,7 +1278,8 @@ func commatrixNodesFromMachineConfigPools(poolNames []string) ([]string, error) 
 		sel := mcpObj.Spec.NodeSelector
 		if sel == nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
-				"MachineConfigPool %q has nil nodeSelector; skipping node enumeration for this pool", poolName))
+				"%s: MachineConfigPool %q has nil nodeSelector; skipping node enumeration for this pool",
+				commatrixLogMsgPrefix, poolName))
 
 			continue
 		}
@@ -1243,6 +1293,10 @@ func commatrixNodesFromMachineConfigPools(poolNames []string) ([]string, error) 
 
 		labelStr := nodeLabelSel.String()
 		if labelStr == "" {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+				"%s: MachineConfigPool %q has empty nodeSelector; skipping node enumeration for this pool",
+				commatrixLogMsgPrefix, poolName))
+
 			continue
 		}
 
@@ -1254,6 +1308,8 @@ func commatrixNodesFromMachineConfigPools(poolNames []string) ([]string, error) 
 			return nil, fmt.Errorf("list nodes for pool %q (%s): %w", poolName, labelStr, errList)
 		}
 
+		poolNodeCount := 0
+
 		for _, nb := range nodeList {
 			if nb == nil || nb.Object == nil {
 				continue
@@ -1263,7 +1319,18 @@ func commatrixNodesFromMachineConfigPools(poolNames []string) ([]string, error) 
 			if _, ok := seen[name]; !ok {
 				seen[name] = struct{}{}
 				out = append(out, name)
+				poolNodeCount++
 			}
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+			"%s: MachineConfigPool %q nodeSelector %q -> %d node(s) listed, %d new unique (total unique so far %d)",
+			commatrixLogMsgPrefix, poolName, labelStr, len(nodeList), poolNodeCount, len(out)))
+
+		if len(nodeList) == 0 {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+				"%s: MachineConfigPool %q nodeSelector %q matched 0 nodes on cluster",
+				commatrixLogMsgPrefix, poolName, labelStr))
 		}
 	}
 
@@ -1407,6 +1474,10 @@ func commatrixWaitForJournalKernelGrep(
 
 			raw, pollErr = commatrixRunJournalKernelGrep(nodeName, since, "", grepFilter)
 			if pollErr != nil {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+					"%s: kernel journal grep on node %q filter=%q since=%q failed: %v",
+					commatrixLogMsgPrefix, nodeName, grepFilter, since, pollErr))
+
 				return false, pollErr
 			}
 
@@ -1419,6 +1490,13 @@ func commatrixWaitForJournalKernelGrep(
 			return len(lines) >= minLines, nil
 		})
 
+	if err != nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+			"%s: timed out waiting for kernel journal lines on node %q filter=%q since=%q (have %d, need %d, timeout %s): %v; last output: %q",
+			commatrixLogMsgPrefix, nodeName, grepFilter, since, len(lines), minLines, timeout, err,
+			commatrixLogOutputSnippet(raw, 1000)))
+	}
+
 	return lines, raw, err
 }
 
@@ -1426,20 +1504,38 @@ func commatrixWaitForJournalKernelGrep(
 func commatrixParseJournalKernelLines(raw string) []string {
 	var out []string
 
-	for _, line := range strings.Split(raw, "\n") {
+	rawLines := strings.Split(raw, "\n")
+	var skippedEmpty, skippedDebugPod, skippedNonKernel int
+
+	for _, line := range rawLines {
 		line = strings.TrimSpace(line)
-		if line == "" ||
-			strings.HasPrefix(line, "Starting pod/") ||
+		if line == "" {
+			skippedEmpty++
+
+			continue
+		}
+
+		if strings.HasPrefix(line, "Starting pod/") ||
 			strings.HasPrefix(line, "To use host binaries") ||
 			strings.HasPrefix(line, "Removing debug pod") ||
 			strings.HasPrefix(line, "error: non-zero exit code") {
+			skippedDebugPod++
+
 			continue
 		}
 
 		if strings.Contains(line, "kernel:") || journalShortTimePrefixRe.MatchString(line) {
 			out = append(out, line)
+
+			continue
 		}
+
+		skippedNonKernel++
 	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+		"%s: parsed kernel journal lines from %d raw line(s): kept=%d skippedEmpty=%d skippedDebugPod=%d skippedNonKernel=%d",
+		commatrixLogMsgPrefix, len(rawLines), len(out), skippedEmpty, skippedDebugPod, skippedNonKernel))
 
 	return out
 }
@@ -1662,6 +1758,10 @@ func VerifyCommatrixHostFirewallJournal(ctx SpecContext) {
 		"host-firewall rules must be applied on the cluster before journal checks")
 
 	if strings.TrimSpace(commatrixWorkflow.run.SecureWorkerName) == "" {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+			"%s: journal spec running without prior connectivity spec; resolving connectivity topology for secure worker",
+			commatrixLogMsgPrefix))
+
 		Expect(commatrixResolveConnectivityTopology()).NotTo(HaveOccurred(),
 			"resolve connectivity topology before journal checks")
 	}
