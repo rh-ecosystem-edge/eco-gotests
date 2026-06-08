@@ -7,10 +7,10 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/apiobjectshelper"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -108,18 +108,18 @@ func VerifyNROPWorkload(ctx SpecContext) {
 
 	deleteDeployments(nropDeploy1Name, RDSCoreConfig.WlkdNROPOneNS)
 
-	By(fmt.Sprintf("Ensuring pods from %q deployment are gone", sriovDeploy1OneName))
+	By(fmt.Sprintf("Ensuring pods from %q deployment are gone", nropDeploy1Name))
 
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Ensuring pods from %q deployment in %q namespace are gone",
 		nropDeploy1Name, RDSCoreConfig.WlkdNROPOneNS)
 
-	Eventually(func() bool {
-		oldPods, _ := pod.List(APIClient, RDSCoreConfig.WlkdNROPOneNS,
-			metav1.ListOptions{LabelSelector: nropDeployOneLabel})
-
-		return len(oldPods) == 0
-	}).WithContext(ctx).WithPolling(3*time.Second).WithTimeout(1*time.Minute).Should(
-		BeTrue(), "pods matching label() still present")
+	err := apiobjectshelper.EnsureAllPodsRemoved(
+		APIClient,
+		RDSCoreConfig.WlkdNROPOneNS,
+		nropDeployOneLabel)
+	Expect(err).ToNot(HaveOccurred(),
+		fmt.Sprintf("Failed to ensure pods from %q deployment are removed from %q namespace",
+			nropDeploy1Name, RDSCoreConfig.WlkdNROPOneNS))
 
 	By("Defining container configuration")
 
