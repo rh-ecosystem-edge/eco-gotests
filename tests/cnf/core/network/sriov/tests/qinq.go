@@ -78,8 +78,8 @@ var _ = Describe(
 				"-port 4444 -listen & testcmd -interface net3 -protocol tcp -port 4444 -listen"}
 			testCmdBond0 = []string{"bash", "-c", "sleep 5; testcmd -interface bond0.100 -protocol tcp " +
 				"-port 4444 -listen"}
-			tcpDumpNet1CMD              = []string{"bash", "-c", "tcpdump -i net1 -e > /tmp/tcpdump"}
-			tcpDumpReadFileCMD          = []string{"bash", "-c", "tail -20 /tmp/tcpdump"}
+			tcpDumpNet1CMD              = []string{"bash", "-c", "tcpdump -l -i net1 -e > /tmp/tcpdump"}
+			tcpDumpReadFileCMD          = []string{"bash", "-c", "tail -100 /tmp/tcpdump"}
 			tcpDumpDot1ADOutput         = "(ethertype 802\\.1Q-QinQ \\(0x88a8\\)).*?(ethertype 802\\.1Q.*?vlan 100)"
 			tcpDumpDot1QOutput          = "(ethertype 802\\.1Q \\(0x8100\\)).*?(ethertype 802\\.1Q.*?vlan 100)"
 			tcpDumpDot1QDPDKOutput      = "(ethertype 802\\.1Q \\(0x8100\\)).*?(ethertype 802\\.1Q \\(0x8100\\), vlan 100)"
@@ -1052,7 +1052,7 @@ func defineAndCreateClientDPDKPod(
 			Add: []corev1.Capability{"IPC_LOCK", "SYS_RESOURCE", "NET_RAW", "NET_ADMIN"},
 		},
 	}
-	testCommand := []string{"bash", "-c", "tcpdump -i net2 -e > /tmp/tcpdump"}
+	testCommand := []string{"bash", "-c", "tcpdump -l -i net2 -e > /tmp/tcpdump"}
 
 	dpdkContainerCfg, err := pod.NewContainerBuilder(podName, NetConfig.DpdkTestContainer,
 		[]string{"/bin/bash", "-c", "sleep INF"}).WithSecurityContext(&securityContext).
