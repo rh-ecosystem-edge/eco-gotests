@@ -11,13 +11,11 @@ import (
 	eventptp "github.com/redhat-cne/sdk-go/pkg/event/ptp"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ptp"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
-	ptpv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v1"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/querier"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/version"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/consumer"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/daemonlogs"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/events"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/metrics"
@@ -46,8 +44,7 @@ var (
 type holdoverTestData struct {
 	prometheusAPI prometheusv1.API
 	nodeName      string
-	ptpConfig     *ptp.PtpConfigBuilder
-	profileIndex  int
+	profileInfo   *profiles.ProfileInfo
 	upstreamIface iface.Name
 }
 
@@ -232,7 +229,7 @@ func assertHoldoverInSpecToLocked(
 ) {
 	GinkgoHelper()
 
-	changeHoldoverPluginSettings(testData, pluginSettings, expected.Locked, clockClassChanges, timeout)
+	changeHoldoverSettings(testData, pluginSettings, expected.Locked, clockClassChanges, timeout)
 
 	By("setting upstream clock interface down to enter holdover-in-spec")
 
@@ -274,7 +271,7 @@ func assertHoldoverInSpecToFreerun(
 ) {
 	GinkgoHelper()
 
-	changeHoldoverPluginSettings(testData, pluginSettings, expected.Locked, clockClassChanges, timeout)
+	changeHoldoverSettings(testData, pluginSettings, expected.Locked, clockClassChanges, timeout)
 
 	By("setting upstream clock interface down to enter holdover-in-spec")
 
@@ -318,7 +315,7 @@ func assertHoldoverInSpecToOutOfSpec(
 ) {
 	GinkgoHelper()
 
-	changeHoldoverPluginSettings(testData, pluginSettings, expected.Locked, clockClassChanges, timeout)
+	changeHoldoverSettings(testData, pluginSettings, expected.Locked, clockClassChanges, timeout)
 
 	By("setting upstream clock interface down to enter holdover-in-spec")
 
@@ -363,7 +360,7 @@ func assertHoldoverOutOfSpecToFreerun(
 ) {
 	GinkgoHelper()
 
-	changeHoldoverPluginSettings(testData, pluginSettings, expected.Locked, clockClassChanges, timeout)
+	changeHoldoverSettings(testData, pluginSettings, expected.Locked, clockClassChanges, timeout)
 
 	By("setting upstream clock interface down to enter holdover-in-spec")
 
@@ -650,11 +647,10 @@ func assertNoFreerunEvent(nodeName string, sinceTime time.Time) {
 	Expect(err).To(HaveOccurred(), "Expected no FREERUN event, but one was received")
 }
 
-// changeHoldoverPluginSettings configures holdover thresholds on a PTP profile and waits for the config to
-// take effect. If the desired settings already match the current settings, the function returns immediately.
-// Otherwise, it updates the PtpConfig CR, waits for the daemon to reload profiles, and then waits for the
-// clock to return to LOCKED state with stable metrics. The original settings are restored via DeferCleanup.
-func changeHoldoverPluginSettings(
+// changeHoldoverSettings updates holdover thresholds and waits for the daemon to re-lock.
+// Routes through HardwareConfig CR on 4.22+/GNRD or PtpConfig plugin on pre-4.22.
+// No-op when desired already matches current; restores originals via DeferCleanup.
+func changeHoldoverSettings(
 	testData holdoverTestData,
 	desired profiles.HoldoverPluginSettings,
 	expectedLockedClass metrics.PtpClockClass,
@@ -663,10 +659,8 @@ func changeHoldoverPluginSettings(
 ) {
 	GinkgoHelper()
 
-	profile := &testData.ptpConfig.Definition.Spec.Profile[testData.profileIndex]
-
-	current, err := profiles.GetHoldoverPluginSettings(profile)
-	Expect(err).ToNot(HaveOccurred(), "Failed to get current holdover plugin settings")
+	current, err := profiles.GetHoldoverSettings(RANConfig.Spoke1APIClient, testData.profileInfo)
+	Expect(err).ToNot(HaveOccurred(), "Failed to get current holdover settings")
 
 	if desired == *current {
 		return
@@ -674,31 +668,22 @@ func changeHoldoverPluginSettings(
 
 	original := *current
 
-	By("setting test case PTP profile plugin settings")
+	By("setting test case holdover settings")
 
-	err = profiles.SetHoldoverPluginSettings(profile, desired)
-	Expect(err).ToNot(HaveOccurred(), "Failed to set holdover plugin settings")
-
-	_, err = testData.ptpConfig.Update()
-	Expect(err).ToNot(HaveOccurred(), "Failed to update PtpConfig with new plugin settings")
+	err = profiles.ApplyHoldoverSettings(RANConfig.Spoke1APIClient, testData.profileInfo, desired)
+	Expect(err).ToNot(HaveOccurred(), "Failed to apply holdover settings")
 
 	DeferCleanup(func() {
-		By("restoring original plugin settings")
+		By("restoring original holdover settings")
 
-		restoreErr := profiles.SetHoldoverPluginSettings(profile, original)
-		Expect(restoreErr).ToNot(HaveOccurred(), "Failed to restore original plugin settings")
+		restoreErr := profiles.ApplyHoldoverSettings(RANConfig.Spoke1APIClient, testData.profileInfo, original)
+		Expect(restoreErr).ToNot(HaveOccurred(), "Failed to restore holdover settings")
 
 		restoreTime := time.Now()
 
-		_, restoreErr = testData.ptpConfig.Update()
-		Expect(restoreErr).ToNot(HaveOccurred(), "Failed to update PtpConfig with restored plugin settings")
-
-		By("waiting for daemon to reload and re-lock after restoring plugin settings")
-
-		restoreErr = daemonlogs.WaitForProfileLoad(RANConfig.Spoke1APIClient, testData.nodeName,
-			daemonlogs.WithStartTime(restoreTime),
-			daemonlogs.WithTimeout(5*time.Minute))
-		Expect(restoreErr).ToNot(HaveOccurred(), "Daemon did not reload profiles after restoring plugin settings")
+		restoreErr = profiles.WaitForHoldoverSettingsApplied(
+			RANConfig.Spoke1APIClient, testData.nodeName, testData.profileInfo, restoreTime, 5*time.Minute)
+		Expect(restoreErr).ToNot(HaveOccurred(), "Daemon did not reload after restore")
 
 		restoreTime = time.Now()
 
@@ -708,12 +693,9 @@ func changeHoldoverPluginSettings(
 
 	setTime := time.Now()
 
-	By("waiting for daemon to reload profiles after config change")
-
-	err = daemonlogs.WaitForProfileLoad(RANConfig.Spoke1APIClient, testData.nodeName,
-		daemonlogs.WithStartTime(setTime),
-		daemonlogs.WithTimeout(3*time.Minute))
-	Expect(err).ToNot(HaveOccurred(), "Daemon did not reload profiles after config change")
+	err = profiles.WaitForHoldoverSettingsApplied(
+		RANConfig.Spoke1APIClient, testData.nodeName, testData.profileInfo, setTime, 3*time.Minute)
+	Expect(err).ToNot(HaveOccurred(), "Daemon did not reload after config change")
 
 	setTime = time.Now()
 
@@ -723,6 +705,7 @@ func changeHoldoverPluginSettings(
 
 // discoverHoldoverTestData finds the first node with a matching profile type that supports holdover tests
 // and returns the test context. Returns nil if no suitable profile is found.
+// Without a HardwareConfig CR, only E810 supports holdover via the plugin path.
 func discoverHoldoverTestData(
 	prometheusAPI prometheusv1.API,
 	profileType profiles.PtpProfileType,
@@ -731,50 +714,35 @@ func discoverHoldoverTestData(
 	Expect(err).ToNot(HaveOccurred(), "Failed to get node info map")
 
 	for name, nodeInfo := range nodeInfoMap {
-		matchingProfiles := nodeInfo.GetProfilesByTypes(profileType)
-
-		for _, profileInfo := range matchingProfiles {
-			profile, pullErr := profileInfo.PullProfile(RANConfig.Spoke1APIClient)
+		for _, profileInfo := range nodeInfo.GetProfilesByTypes(profileType) {
+			ptpProfile, pullErr := profileInfo.PullProfile(RANConfig.Spoke1APIClient)
 			Expect(pullErr).ToNot(HaveOccurred())
 
-			if isUnsupportedPlugin(profile) {
+			if profileInfo.HardwareConfig == nil && !profiles.HasPlugin(ptpProfile, ptp.PluginTypeE810) {
+				klog.V(tsparams.LogLevel).Infof(
+					"Skipping profile %s on node %s: unsupported holdover path: %+v",
+					profileInfo.Reference.ProfileName, name, ptpProfile.Plugins)
+
 				continue
 			}
 
-			upstreamPort, upstreamErr := profiles.GetUpstreamPort(profile)
-			if upstreamErr != nil {
+			port, portErr := profiles.GetUpstreamPortForProfile(ptpProfile)
+			if portErr != nil {
+				klog.V(tsparams.LogLevel).Infof(
+					"Skipping profile %s on node %s: cannot determine upstream port: %v",
+					profileInfo.Reference.ProfileName, name, portErr)
+
 				continue
 			}
-
-			ptpConfigBuilder, pullErr := profileInfo.Reference.PullPtpConfig(RANConfig.Spoke1APIClient)
-			Expect(pullErr).ToNot(HaveOccurred())
 
 			return &holdoverTestData{
 				prometheusAPI: prometheusAPI,
 				nodeName:      name,
-				ptpConfig:     ptpConfigBuilder,
-				profileIndex:  profileInfo.Reference.ProfileIndex,
-				upstreamIface: upstreamPort,
+				profileInfo:   profileInfo,
+				upstreamIface: port,
 			}
 		}
 	}
 
 	return nil
-}
-
-// isUnsupportedPlugin checks whether the profile uses a plugin type that does not support holdover tests
-// (e825 or e830).
-func isUnsupportedPlugin(profile *ptpv1.PtpProfile) bool {
-	pluginTypes, err := profiles.GetPluginTypesFromProfile(profile)
-	if err != nil {
-		return false
-	}
-
-	for _, pluginType := range pluginTypes {
-		if pluginType == ptp.PluginTypeE825 || pluginType == ptp.PluginTypeE830 {
-			return true
-		}
-	}
-
-	return false
 }

@@ -164,16 +164,33 @@ type HoldoverPluginSettings struct {
 	MaxInSpecOffset        uint
 }
 
-// GetHoldoverPluginSettings reads the holdover plugin settings from the E810 plugin in the profile.
-// Uses the typed IntelPlugin struct for safe deserialization.
+// holdoverPluginTypes is the precedence order for resolving which Intel plugin carries DpllSettings.
+// E810, E825, and E830 all use an identical DpllSettings map for holdover parameters.
+var holdoverPluginTypes = []ptp.PluginType{ptp.PluginTypeE810, ptp.PluginTypeE825, ptp.PluginTypeE830}
+
+// resolveHoldoverPlugin returns the first Intel plugin type found in the profile that carries
+// DpllSettings, along with the unmarshaled plugin. Returns an error if none are present.
+func resolveHoldoverPlugin(profile *ptpv1.PtpProfile) (ptp.PluginType, *ptp.IntelPlugin, error) {
+	for _, pluginType := range holdoverPluginTypes {
+		plugin, err := getIntelPlugin(profile, pluginType)
+		if err == nil {
+			return pluginType, plugin, nil
+		}
+	}
+
+	return "", nil, fmt.Errorf("no Intel plugin (E810, E825, E830) found in profile")
+}
+
+// GetHoldoverPluginSettings reads the holdover plugin settings from the first Intel plugin
+// found in the profile. E810, E825, and E830 all use an identical DpllSettings map.
 func GetHoldoverPluginSettings(profile *ptpv1.PtpProfile) (*HoldoverPluginSettings, error) {
-	intelPlugin, err := getIntelPlugin(profile, ptp.PluginTypeE810)
+	_, intelPlugin, err := resolveHoldoverPlugin(profile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Intel plugin for holdover settings: %w", err)
 	}
 
 	if intelPlugin.DpllSettings == nil {
-		return nil, fmt.Errorf("E810 plugin has no settings")
+		return nil, fmt.Errorf("intel plugin has no settings")
 	}
 
 	localHoldoverTimeout, timeoutFound := intelPlugin.DpllSettings["LocalHoldoverTimeout"]
@@ -198,9 +215,10 @@ func GetHoldoverPluginSettings(profile *ptpv1.PtpProfile) (*HoldoverPluginSettin
 	}, nil
 }
 
-// SetHoldoverPluginSettings patches the holdover plugin settings on the E810 plugin in the profile.
+// SetHoldoverPluginSettings patches the holdover plugin settings on the first Intel plugin
+// found in the profile. E810, E825, and E830 all use an identical DpllSettings map.
 func SetHoldoverPluginSettings(profile *ptpv1.PtpProfile, settings HoldoverPluginSettings) error {
-	intelPlugin, err := getIntelPlugin(profile, ptp.PluginTypeE810)
+	pluginType, intelPlugin, err := resolveHoldoverPlugin(profile)
 	if err != nil {
 		return fmt.Errorf("failed to get Intel plugin for holdover settings: %w", err)
 	}
@@ -215,17 +233,43 @@ func SetHoldoverPluginSettings(profile *ptpv1.PtpProfile, settings HoldoverPlugi
 
 	raw, err := json.Marshal(intelPlugin)
 	if err != nil {
-		return fmt.Errorf("failed to marshal E810 plugin: %w", err)
+		return fmt.Errorf("failed to marshal %s plugin: %w", pluginType, err)
 	}
 
-	profile.Plugins[string(ptp.PluginTypeE810)] = &apiextv1.JSON{Raw: raw}
+	profile.Plugins[string(pluginType)] = &apiextv1.JSON{Raw: raw}
 
 	return nil
 }
 
-// GetUpstreamPort returns the upstream port from the E810 plugin's interconnections. Returns the first
+// HasPlugin reports whether the profile contains a plugin of the given type.
+func HasPlugin(profile *ptpv1.PtpProfile, pluginType ptp.PluginType) bool {
+	if profile == nil || profile.Plugins == nil {
+		return false
+	}
+
+	_, ok := profile.Plugins[string(pluginType)]
+
+	return ok
+}
+
+// GetUpstreamPortForProfile returns the upstream (time-receiving) network port for the profile.
+//
+// PtpSettings["upstreamPort"] is checked first — it is the mandatory field set by the operator
+// for all GNRD T-BC profiles (E825 plugin path and HardwareConfig path alike). When not present,
+// the function falls back to the E810 plugin interconnections.
+func GetUpstreamPortForProfile(profile *ptpv1.PtpProfile) (iface.Name, error) {
+	if profile.PtpSettings != nil {
+		if port, ok := profile.PtpSettings["upstreamPort"]; ok && port != "" {
+			return iface.Name(port), nil
+		}
+	}
+
+	return GetUpstreamPortFromE810Plugin(profile)
+}
+
+// GetUpstreamPortFromE810Plugin returns the upstream port from the E810 plugin's interconnections. Returns the first
 // interconnection entry that has an upstreamPort set.
-func GetUpstreamPort(profile *ptpv1.PtpProfile) (iface.Name, error) {
+func GetUpstreamPortFromE810Plugin(profile *ptpv1.PtpProfile) (iface.Name, error) {
 	intelPlugin, err := getIntelPlugin(profile, ptp.PluginTypeE810)
 	if err != nil {
 		return "", fmt.Errorf("failed to get Intel plugin for upstream port: %w", err)
