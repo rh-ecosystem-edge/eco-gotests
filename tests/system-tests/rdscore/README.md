@@ -283,6 +283,33 @@ After data is stored in a a volume backed by the PVC deployment is scaled down a
 |rdscore_wlkd_odf_one_selector | Node selector for 1st node | `kubernetes.io/hostname: worker-X` |
 |rdscore_wlkd_odf_two_selector | Node selector for 2nd node | `kubernetes.io/hostname: worker-Y` |
 
+### _VerifyCommatrixHostFirewallConnectivity_
+
+This test verifies host-firewall TCP reachability from the test runner to node external IPs: API and dynamically selected
+open/blocked ports on master and secure-pool workers (ports are read from live `openshift_filter` nftables rules).
+
+Test expects TCP dials from the test runner to reach the control-plane API where allowed, to fail on blocked ports,
+to reach an accepted port on the secure worker, and optionally to fail on a second secure-pool worker for peer probes.
+
+**Requires commatrix host-firewall MachineConfigs already applied on the cluster, resolvable master/secure worker IPs
+(secure worker is the first node in the inferred secure firewall MCP), and optionally a second node in that MCP for the peer probe**
+
+API, kubelet fallback, and closed-port candidates are fixed in test code (6443, 10250, 9999).
+
+Run commatrix specs: `ginkgo --label-filter=commatrix ./tests/system-tests/rdscore`
+
+### _VerifyCommatrixHostFirewallJournal_
+
+This test verifies host-firewall kernel logging: rate-limited `firewall` / `firewall ` log-prefix buckets in the
+journal, and a temporary `TCP_TEST` nft log rule with matching journal lines after a probe.
+
+Test expects kernel journal lines on the same secure-worker node as connectivity matching the firewall log keyword, at most five
+lines per bucket in each of two consecutive one-minute windows (`2m–1m ago` and `last 1m`), and at least one `TCP_TEST` line referencing
+the probed destination port after a TCP probe from the test runner.
+
+**Requires commatrix host-firewall MCs on the cluster, connectivity spec run first when possible (same secure-worker node),
+and firewall traffic or probes sufficient to produce journal lines**
+
 ### _VerifyNMStateInstanceExists_
 
 Verifies that _NMState_ instance `nmstate` exists

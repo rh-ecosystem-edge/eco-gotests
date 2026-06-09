@@ -207,3 +207,6 @@ rdscore_whereabouts_deploy_4_port: '1111'
 rdscore_whereabouts_deploy_3_nad: ''
 rdscore_whereabouts_deploy_4_nad: ''
 rdscore_python_http_server_image: registry.access.redhat.com/ubi9/python-39:latest
+
+# Commatrix (default is ephemeral; override for long-lived artifact/debug output, e.g. under CI artifacts)
+rdscore_commatrix_output_dir: '/tmp/commatrix-work'
