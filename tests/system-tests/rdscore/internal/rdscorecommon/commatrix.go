@@ -117,7 +117,8 @@ func commatrixPrimeWorkflowForVerification() error {
 
 	if len(poolNames) == 0 {
 		detail := commatrixHostFirewallMCDiscoveryDetail()
-		klog.Warningf("%s: host-firewall MachineConfig discovery failed: %s", commatrixLogMsgPrefix, detail)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf("%s: host-firewall MachineConfig discovery failed: %s",
+			commatrixLogMsgPrefix, detail))
 
 		return fmt.Errorf(
 			"no commatrix host-firewall MachineConfigs on cluster (look for %q in mc names); %s; "+
@@ -228,6 +229,10 @@ func commatrixHostFirewallPoolNamesFromCluster() ([]string, error) {
 
 	for _, mcBuilder := range mcList {
 		if mcBuilder == nil || mcBuilder.Object == nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+				"%s: skip nil MachineConfig builder while discovering host-firewall pools",
+				commatrixLogMsgPrefix))
+
 			continue
 		}
 
@@ -240,6 +245,10 @@ func commatrixHostFirewallPoolNamesFromCluster() ([]string, error) {
 
 		role := commatrixMachineConfigPoolRole(mcObj)
 		if role == "" {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+				"%s: skip MachineConfig %q (commatrix name match but pool role not resolved)",
+				commatrixLogMsgPrefix, mcObj.Name))
+
 			continue
 		}
 
@@ -470,13 +479,28 @@ func commatrixExtractOpenshiftFilterRuleLines(nftText string) []string {
 
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
+		if line == "" {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+				"%s: skip openshift_filter nft line (empty)", commatrixLogMsgPrefix))
+
+			continue
+		}
+
+		if strings.HasPrefix(line, "#") {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+				"%s: skip openshift_filter nft line (comment): %q",
+				commatrixLogMsgPrefix, commatrixLogOutputSnippet(line, 200)))
+
 			continue
 		}
 
 		lower := strings.ToLower(line)
 		if strings.HasPrefix(lower, "table ") || strings.HasPrefix(lower, "chain ") ||
 			strings.HasPrefix(lower, "type ") || strings.HasPrefix(lower, "delete ") {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+				"%s: skip openshift_filter nft line (table/chain metadata): %q",
+				commatrixLogMsgPrefix, commatrixLogOutputSnippet(line, 200)))
+
 			continue
 		}
 
@@ -486,7 +510,13 @@ func commatrixExtractOpenshiftFilterRuleLines(nftText string) []string {
 			strings.HasPrefix(lower, "tcp ") || strings.HasPrefix(lower, "udp ") ||
 			strings.HasPrefix(lower, "ip ") || strings.HasPrefix(lower, "meta ") {
 			rules = append(rules, line)
+
+			continue
 		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+			"%s: skip openshift_filter nft line (no rule heuristics matched): %q",
+			commatrixLogMsgPrefix, commatrixLogOutputSnippet(line, 200)))
 	}
 
 	if len(rules) == 0 {
@@ -566,12 +596,18 @@ func commatrixParseAcceptedTCPDPortsFromNFTables(nftText string) map[int]struct{
 		lower := strings.ToLower(ruleLine)
 		if !strings.Contains(lower, "tcp") || !strings.Contains(lower, " dport ") {
 			skippedNotTCPDport++
+			klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+				"%s: skip accept-port parse (not tcp dport rule): %q",
+				commatrixLogMsgPrefix, commatrixLogOutputSnippet(ruleLine, 200)))
 
 			continue
 		}
 
 		if !strings.Contains(lower, "accept") {
 			skippedNoAccept++
+			klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+				"%s: skip accept-port parse (no accept action): %q",
+				commatrixLogMsgPrefix, commatrixLogOutputSnippet(ruleLine, 200)))
 
 			continue
 		}
@@ -579,6 +615,9 @@ func commatrixParseAcceptedTCPDPortsFromNFTables(nftText string) map[int]struct{
 		ports := commatrixExtractPortNumbersAfterDport(ruleLine)
 		if len(ports) == 0 {
 			skippedNoPorts++
+			klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+				"%s: skip accept-port parse (no dport numbers parsed): %q",
+				commatrixLogMsgPrefix, commatrixLogOutputSnippet(ruleLine, 200)))
 
 			continue
 		}
@@ -629,9 +668,9 @@ func commatrixPickBlockedTCPPort(allowed map[int]struct{}) int {
 		}
 	}
 
-	klog.Warningf(
+	klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
 		"%s: all blocked-port candidates %v are in nft accept rules %v; falling back to default closed port %d",
-		commatrixLogMsgPrefix, candidates, commatrixFormatPortSet(allowed), commatrixClosedTCPPort)
+		commatrixLogMsgPrefix, candidates, commatrixFormatPortSet(allowed), commatrixClosedTCPPort))
 
 	return commatrixClosedTCPPort
 }
@@ -685,8 +724,9 @@ func commatrixAllowedTCPDPortsFromNode(nodeName string) (map[int]struct{}, error
 
 	allowed := commatrixParseAcceptedTCPDPortsFromNFTables(nftOutput)
 	if len(allowed) == 0 {
-		klog.Warningf("%s: node %q has no accepted tcp dport rules in openshift_filter; nft output: %q",
-			commatrixLogMsgPrefix, nodeName, commatrixLogOutputSnippet(nftOutput, 1000))
+		klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+			"%s: node %q has no accepted tcp dport rules in openshift_filter; nft output: %q",
+			commatrixLogMsgPrefix, nodeName, commatrixLogOutputSnippet(nftOutput, 1000)))
 
 		return nil, fmt.Errorf(
 			"no accepted tcp dport rules in openshift_filter on %q; nft output:\n%s",
@@ -1018,6 +1058,10 @@ func commatrixInferSecureMCPoolNameFromPools(pools []string) string {
 
 	for _, poolName := range onCluster {
 		if poolName == masterPool {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+				"%s: skip pool %q for secure worker MCP (same as master pool %q)",
+				commatrixLogMsgPrefix, poolName, masterPool))
+
 			continue
 		}
 
@@ -1312,6 +1356,10 @@ func commatrixNodesFromMachineConfigPools(poolNames []string) ([]string, error) 
 
 		for _, nb := range nodeList {
 			if nb == nil || nb.Object == nil {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+					"%s: skip nil node builder while listing nodes for pool %q",
+					commatrixLogMsgPrefix, poolName))
+
 				continue
 			}
 
@@ -1520,6 +1568,9 @@ func commatrixParseJournalKernelLines(raw string) []string {
 			strings.HasPrefix(line, "Removing debug pod") ||
 			strings.HasPrefix(line, "error: non-zero exit code") {
 			skippedDebugPod++
+			klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+				"%s: skip journal line (debug-pod noise): %q",
+				commatrixLogMsgPrefix, commatrixLogOutputSnippet(line, 200)))
 
 			continue
 		}
@@ -1531,6 +1582,9 @@ func commatrixParseJournalKernelLines(raw string) []string {
 		}
 
 		skippedNonKernel++
+		klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+			"%s: skip journal line (not kernel firewall output): %q",
+			commatrixLogMsgPrefix, commatrixLogOutputSnippet(line, 200)))
 	}
 
 	klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
@@ -1550,6 +1604,10 @@ func commatrixExpectFirewallLogRateLimitsInWindow(lines []string, windowLabel st
 	for _, line := range lines {
 		prefix, ok := commatrixFirewallLogBucket(line)
 		if !ok {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+				"%s: skip firewall journal line for rate-limit bucket in window %q (no bucket match)",
+				commatrixLogMsgPrefix, windowLabel))
+
 			continue
 		}
 
@@ -1651,13 +1709,11 @@ func commatrixVerifyFirewallJournal(_ SpecContext) {
 
 	window2Lines := commatrixParseJournalKernelLines(window2Raw)
 	if len(window2Lines) == 0 {
-		warnMsg := fmt.Sprintf(
+		klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
 			"%s: firewall journal window %q on node %q: no kernel lines matching %q; "+
 				"skipping window-2 rate-limit checks (traffic may be quiet). Last output: %q",
 			commatrixLogMsgPrefix, commatrixJournalSinceOneMinute, journalNode, keyword,
-			commatrixLogOutputSnippet(window2Raw, 500))
-		klog.Warning(warnMsg)
-		_, _ = fmt.Fprintf(GinkgoWriter, "WARNING: %s\n", warnMsg)
+			commatrixLogOutputSnippet(window2Raw, 500)))
 	} else {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf("%s: firewall journal window %q on node %q: %d kernel line(s) matching %q",
 			commatrixLogMsgPrefix, commatrixJournalSinceOneMinute, journalNode, len(window2Lines), keyword))
@@ -1699,7 +1755,17 @@ func commatrixVerifyFirewallJournal(_ SpecContext) {
 			`HANDLE=$(nft -a list chain inet openshift_filter %s 2>/dev/null | grep TCP_TEST | tail -1 | sed -E "s/.*handle ([0-9]+).*/\\1/"); [ -n "$HANDLE" ] && nft delete rule inet openshift_filter %s handle "$HANDLE" || true`,
 			commatrixNFTablesOpenshiftChain, commatrixNFTablesOpenshiftChain)
 
-		_, _ = commatrixRunOnNodeHostShell(journalNode, "remove TCP_TEST nft rule", nftDeleteLogRuleShellCmd)
+		nftDeleteOut, cleanupErr := commatrixRunOnNodeHostShell(
+			journalNode, "remove TCP_TEST nft rule", nftDeleteLogRuleShellCmd)
+		if cleanupErr != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+				"%s: error cleaning up TCP_TEST nft rule on node %q: %v output=%q",
+				commatrixLogMsgPrefix, journalNode, cleanupErr, commatrixLogOutputSnippet(nftDeleteOut, 500)))
+		} else {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Info(fmt.Sprintf(
+				"%s: cleaned up TCP_TEST nft rule on node %q: %q",
+				commatrixLogMsgPrefix, journalNode, commatrixLogOutputSnippet(nftDeleteOut, 500)))
+		}
 	}()
 
 	portStr := strconv.Itoa(testPort)
