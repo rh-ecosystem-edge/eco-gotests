@@ -7,9 +7,27 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/version"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
 	"k8s.io/klog/v2"
 )
+
+// useLegacyNICNaming is a flag that indicates whether to use the legacy NIC naming system. It is set to true if the PTP
+// version is 4.19- and false otherwise.
+var useLegacyNICNaming bool
+
+// InitNICNaming initializes the NIC naming system. It checks the PTP version and uses the legacy NIC naming system for
+// 4.19- and the modern NIC naming system for 4.20+. It returns an error if the version could not be compared.
+func InitNICNaming(ptpVersion string) error {
+	atLeast420, err := version.IsVersionStringInRange(ptpVersion, "4.20.0-0", "")
+	if err != nil {
+		return fmt.Errorf("failed to check if PTP version is at least 4.20: %w", err)
+	}
+
+	useLegacyNICNaming = !atLeast420
+
+	return nil
+}
 
 // nicNameRegexp is a regular expression that matches the name of a network interface. It is used for generating the NIC
 // name from the interface name. It comes from the upstream cloud-event-proxy package.
@@ -21,13 +39,13 @@ var nicNameRegexp = regexp.MustCompile(`^(.+?)(\d+)(?:np\d+)?(\..+)?$`)
 // canonical way to manipulate interface names in this test suite. The zero value is never valid.
 type Name string
 
-// GetNIC returns the NIC name associated with the interface. It follows the same system as the upstream
-// cloud-event-proxy package when determining the NIC name. See the upstream function at
-// https://github.com/redhat-cne/cloud-event-proxy/blob/ca4ced05bcc35e3cfccee41059528a0f315d6c3c/
-// plugins/ptp_operator/utils/utils.go#L23.
+// GetNIC returns the NIC name alias associated with the interface. It defaults to the modern NIC naming system, but
+// will use the legacy system if [InitNICNaming] has been called with a PTP version of 4.19 or earlier.
 //
 // Since this method is an identity operation for NIC names, it will return the special NIC names [ClockRealtime] and
-// [Master] unchanged.
+// [Master] unchanged, regardless of the naming system used.
+//
+// Interface names shorter than 2 characters are considered invalid and will return the zero value.
 func (iface Name) GetNIC() NICName {
 	if len(iface) < 2 {
 		klog.V(tsparams.LogLevel).Infof("Failed to get NIC name for interface %q: interface name is too short", iface)
@@ -39,6 +57,20 @@ func (iface Name) GetNIC() NICName {
 		return NICName(iface)
 	}
 
+	if useLegacyNICNaming {
+		return iface.getNICLegacy()
+	}
+
+	return iface.getNICModern()
+}
+
+// getNICModern returns the NIC name associated with the interface. It follows the same system as the upstream
+// cloud-event-proxy package when determining the NIC name. See the upstream function at
+// https://github.com/redhat-cne/cloud-event-proxy/blob/ca4ced05bcc35e3cfccee41059528a0f315d6c3c/
+// plugins/ptp_operator/utils/utils.go#L23.
+//
+// This method assumes that the interface name is longer than 2 characters and not one of the special NIC names.
+func (iface Name) getNICModern() NICName {
 	matches := nicNameRegexp.FindStringSubmatch(string(iface))
 
 	// Even if there is no VLAN part, the matches slice will just have an empty string for the VLAN part, not have
@@ -54,6 +86,24 @@ func (iface Name) GetNIC() NICName {
 		"Failed to get NIC name for interface %q: interface name does not match known format", iface)
 
 	return ""
+}
+
+// getNICLegacy returns the NIC name for the interface using the legacy NIC naming system. It is applicable to PTP
+// operator versions 4.19 and earlier.
+//
+// The logic is to simply replace the last digit in the interface name with an 'x'. If the interface name has a VLAN,
+// the VLAN is preserved.
+//
+// This method assumes that the interface name is longer than 2 characters and not one of the special NIC names.
+func (iface Name) getNICLegacy() NICName {
+	withoutVLAN, vlan, hasVLAN := strings.Cut(string(iface), ".")
+	withoutVLAN = withoutVLAN[:len(withoutVLAN)-1] + "x"
+
+	if hasVLAN {
+		return NICName(fmt.Sprintf("%s.%s", withoutVLAN, vlan))
+	}
+
+	return NICName(withoutVLAN)
 }
 
 // NICName represents a network interface name. It can be derived from [Name] using the [GetNIC] method. The zero value
