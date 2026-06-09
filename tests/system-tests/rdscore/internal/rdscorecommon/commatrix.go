@@ -1299,6 +1299,8 @@ func commatrixNodeProbeIPs(nb *nodes.Builder) ([]string, error) {
 
 // commatrixNodesFromMachineConfigPools returns sorted unique node names matching each pool's
 // MachineConfigPool.spec.nodeSelector on the live cluster.
+//
+//nolint:funlen // pool iteration: pull MCP, validate selector, list nodes, per-pool logging.
 func commatrixNodesFromMachineConfigPools(poolNames []string) ([]string, error) {
 	seen := make(map[string]struct{})
 
