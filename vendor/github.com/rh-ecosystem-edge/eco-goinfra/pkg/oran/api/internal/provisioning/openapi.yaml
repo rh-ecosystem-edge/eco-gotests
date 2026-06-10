@@ -11,12 +11,14 @@
 # implied. See the License for the specific language governing permissions and limitations under the
 # License.
 #
+# Synced with oran-o2ims commit 64800488a3190b322975a0b76325118813d14c13
+#
 
 openapi: 3.0.3
 
 info:
   title: O2IMS Infrastructure Provisioning API
-  version: 1.0.0
+  version: 1.2.0
   description: API for O2IMS Infrastructure Provisioning
   license:
     name: Apache 2.0
@@ -203,7 +205,15 @@ paths:
               $ref: "#/components/schemas/ProvisioningRequestData"
       responses:
         '201':
-          description: Successfully created the provisioning request.
+          description: |
+            Successfully created the provisioning request.
+            The Location header contains the resource URI of the newly created ProvisioningRequest.
+          headers:
+            Location:
+              description: URI of the newly created ProvisioningRequest instance.
+              schema:
+                type: string
+                format: uri-reference
           content:
             application/json:
               schema:
@@ -374,8 +384,17 @@ paths:
       tags:
       - provisioningRequests
       responses:
-        '200':
-          description: Successfully deleted the provisioning request.
+        '202':
+          description: |
+            The delete request has been accepted for processing.
+            The Location header contains the URI of the ProvisioningRequest being deleted,
+            which can be used to poll for the status of the deletion.
+          headers:
+            Location:
+              description: URI of the ProvisioningRequest instance being deleted.
+              schema:
+                type: string
+                format: uri-reference
         '401':
           description: Unauthorized
           content:
@@ -431,15 +450,22 @@ components:
         Information about a provisioning request.
       type: object
       properties:
+        provisioningRequestReference:
+          type: string
+          format: uuid
+          description: |
+            Unique reference of the provisioning request assigned by O-Cloud.
+          example: "822eca7c-54cd-4cbe-a01f-8b4ccb4bb3cf"
         provisioningRequestData:
           $ref: "#/components/schemas/ProvisioningRequestData"
-        provisionedResourceSets:
-          $ref: "#/components/schemas/ProvisionedResourceSets"
+        provisionedResourceSet:
+          $ref: "#/components/schemas/ProvisionedResourceSet"
         status:
           $ref: "#/components/schemas/ProvisioningStatus"
       required:
+      - provisioningRequestReference
       - provisioningRequestData
-      - provisionedResourceSets
+      - provisionedResourceSet
       - status
 
     ProvisioningRequestData:
@@ -503,16 +529,78 @@ components:
         provisioningPhase:
           type: string
           description: Current state of the provisioning request.
-          enum: [pending, progressing, fulfilled, failed, deleting]
-          example: "progressing"
+          enum: [PENDING, PROGRESSING, FULFILLED, FAILED, DELETING]
+          example: "PROGRESSING"
+        nodeClusterProvisioningStatus:
+          description: |
+            If the ProvisioningRequest includes provisioning of the NodeCluster,
+            this attribute will contain the provisioning phase of the NodeCluster.
+          allOf:
+          - $ref: "#/components/schemas/ResourceProvisioningStatus"
+        infrastructureResourceProvisioningStatus:
+          type: array
+          description: |
+            If the ProvisioningRequest includes provisioning of InfrastructureResource(s),
+            this attribute will contain the individual provisioning phase of each
+            InfrastructureResource used to fulfil it.
+          items:
+            $ref: "#/components/schemas/ResourceProvisioningStatus"
+      required:
+      - updateTime
+      - message
+      - provisioningPhase
+      - nodeClusterProvisioningStatus
+      - infrastructureResourceProvisioningStatus
 
-    ProvisionedResourceSets:
+    ProvisionedResourceSet:
       type: object
       description: |
         The resources that have been successfully provisioned as part of the provisioning process.
       properties:
         nodeClusterId:
           type: string
-          format: uuid
           description: Identifier of the NodeCluster that has been provisioned.
           example: "a1478db9-651f-4d30-96d6-8af13481d779"
+        infrastructureResourceIds:
+          type: array
+          description: |
+            List of identifiers of the InfrastructureResource objects that have been
+            provisioned as part of this ProvisioningRequest.
+          items:
+            type: string
+          example: ["res-001", "res-002"]
+      required:
+        - nodeClusterId
+        - infrastructureResourceIds
+
+    ResourceProvisioningStatus:
+      type: object
+      description: |
+        The provisioning status of an individual resource
+        (NodeCluster or InfrastructureResource) within a ProvisioningRequest.
+      properties:
+        resourceName:
+          type: string
+          description: Human-readable name of the resource.
+          example: "cluster-001"
+        resourceId:
+          type: string
+          description: Identifier of the resource.
+          example: "a1478db9-651f-4d30-96d6-8af13481d779"
+        resourceProvisioningPhase:
+          $ref: "#/components/schemas/ResourceProvisioningPhase"
+      required:
+        - resourceName
+        - resourceId
+        - resourceProvisioningPhase
+
+    ResourceProvisioningPhase:
+      type: string
+      description: |
+        The provisioning phase of an individual resource within a ProvisioningRequest.
+      enum:
+        - PROCESSING
+        - PROVISIONED
+        - AWAITING_FREE_RESOURCES
+        - FAILED
+      example: "PROCESSING"
