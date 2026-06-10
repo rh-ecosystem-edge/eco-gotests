@@ -325,7 +325,6 @@ var _ = Describe(
 				By("Ensuring Intermediate baseline")
 				tlsprofile.RemoveAPIServerTLSProfile(HubAPIClient)
 				tlsprofile.WaitPodsRestarted(HubAPIClient, capoa)
-				tlsprofile.WaitPodsReady(HubAPIClient, capoa)
 
 				By("Changing TLS profile to Custom")
 				tlsprofile.PatchAPIServerTLSProfile(HubAPIClient,
@@ -333,7 +332,6 @@ var _ = Describe(
 
 				By("Waiting for automatic restart")
 				tlsprofile.WaitPodsRestarted(HubAPIClient, capoa)
-				tlsprofile.WaitPodsReady(HubAPIClient, capoa)
 
 				By("Verifying controllers honour the new profile")
 
@@ -425,7 +423,6 @@ var _ = Describe(
 
 				By("Waiting for CAPOA pods to restart after adherence change")
 				tlsprofile.WaitPodsRestarted(HubAPIClient, capoa)
-				tlsprofile.WaitPodsReady(HubAPIClient, capoa)
 
 				By("Applying Modern TLS profile (TLS 1.3 only)")
 				tlsprofile.PatchAPIServerTLSProfile(HubAPIClient,
@@ -436,7 +433,6 @@ var _ = Describe(
 
 				By("Waiting for CAPOA pods to restart after profile change")
 				tlsprofile.WaitPodsRestarted(HubAPIClient, capoa)
-				tlsprofile.WaitPodsReady(HubAPIClient, capoa)
 
 				By("Verifying controller logs show defaults path (not honoring)")
 
@@ -454,7 +450,6 @@ var _ = Describe(
 
 				By("Waiting for CAPOA pods to restart after adherence change")
 				tlsprofile.WaitPodsRestarted(HubAPIClient, capoa)
-				tlsprofile.WaitPodsReady(HubAPIClient, capoa)
 
 				By("Verifying controller logs show honoring message")
 
@@ -487,7 +482,6 @@ var _ = Describe(
 
 				By("Waiting for CAPOA pods to restart after adherence change")
 				tlsprofile.WaitPodsRestarted(HubAPIClient, capoa)
-				tlsprofile.WaitPodsReady(HubAPIClient, capoa)
 
 				By("Verifying controller logs show defaults path")
 

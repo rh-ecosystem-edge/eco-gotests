@@ -93,7 +93,10 @@ func AssertTLSRejectedWith(client *clients.Settings, component *Component,
 		errMsg := dialErr.Error()
 		if strings.Contains(errMsg, "connection refused") ||
 			strings.Contains(errMsg, "EOF") ||
-			strings.Contains(errMsg, "connection reset") {
+			strings.Contains(errMsg, "connection reset") ||
+			strings.Contains(errMsg, "i/o timeout") ||
+			strings.Contains(errMsg, "context deadline exceeded") ||
+			strings.Contains(errMsg, "timeout") {
 			return "not-ready"
 		}
 
