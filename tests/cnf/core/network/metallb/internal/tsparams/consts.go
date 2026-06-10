@@ -21,6 +21,8 @@ const (
 	BGPPassword = "bgp-test"
 	// LabelGRTestCases represents graceful restart label that can be used for test cases selection.
 	LabelGRTestCases = "gracefulrestart"
+	// LabelMetalLBDeployment represents metallb-deployment label that can be used for test cases selection.
+	LabelMetalLBDeployment = "metallb-deployment"
 	// MlbAddressListError an error message when the ECO_CNF_CORE_NET_MLB_ADDR_LIST is incorrect.
 	MlbAddressListError = "An unexpected error occurred while " +
 		"determining the IP addresses from the ECO_CNF_CORE_NET_MLB_ADDR_LIST environment variable."
