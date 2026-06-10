@@ -14,11 +14,15 @@ var (
 )
 
 func init() {
-	if HubAPIClient = clients.New(""); HubAPIClient == nil {
-		klog.Fatalf("failed to initialize HubAPIClient: clients.New returned nil")
-	}
-
 	if GeneralConfig = config.NewConfig(); GeneralConfig == nil {
 		klog.Fatalf("failed to initialize GeneralConfig: config.NewConfig returned nil")
+	}
+
+	if HubAPIClient = clients.New(""); HubAPIClient == nil {
+		if GeneralConfig.DryRun {
+			return
+		}
+
+		klog.Fatalf("failed to initialize HubAPIClient: clients.New returned nil")
 	}
 }
