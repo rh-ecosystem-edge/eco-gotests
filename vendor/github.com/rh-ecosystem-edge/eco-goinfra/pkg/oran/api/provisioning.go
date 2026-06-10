@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	provisioningv1alpha1 "github.com/openshift-kni/oran-o2ims/api/provisioning/v1alpha1"
@@ -173,7 +174,7 @@ func (client *ProvisioningClient) Delete(
 		return fmt.Errorf("failed to delete ProvisioningRequest %s: error contacting api: %w", provisioningRequest.Name, err)
 	}
 
-	if resp.StatusCode() != 200 {
+	if resp.StatusCode() != 200 && resp.StatusCode() != 202 {
 		return fmt.Errorf("failed to delete ProvisioningRequest %s: received error from api: %w",
 			provisioningRequest.Name, apiErrorFromResponse(resp))
 	}
@@ -344,23 +345,15 @@ func provisioningRequestFromInfo(
 		},
 		Status: provisioningv1alpha1.ProvisioningRequestStatus{
 			ProvisioningStatus: provisioningv1alpha1.ProvisioningStatus{
-				ProvisioningPhase:   provisioningv1alpha1.ProvisioningPhase(unwrapOrDefault(info.Status.ProvisioningPhase)),
-				ProvisioningDetails: unwrapOrDefault(info.Status.Message),
+				ProvisioningPhase: provisioningv1alpha1.ProvisioningPhase(
+					strings.ToLower(string(info.Status.ProvisioningPhase)),
+				),
+				ProvisioningDetails: info.Status.Message,
 				ProvisionedResources: &provisioningv1alpha1.ProvisionedResources{
-					OCloudNodeClusterId: unwrapOrDefault(info.ProvisionedResourceSets.NodeClusterId).String(),
+					OCloudNodeClusterId: info.ProvisionedResourceSet.NodeClusterId,
 				},
-				UpdateTime: metav1.Time{Time: unwrapOrDefault(info.Status.UpdateTime)},
+				UpdateTime: metav1.Time{Time: info.Status.UpdateTime},
 			},
 		},
 	}, nil
-}
-
-// unwrapOrDefault functions the same as Option::unwrap_or_default in Rust. If T is nil, it returns the zero value of T.
-// Otherwise, it returns a dereferenced T.
-func unwrapOrDefault[T any](value *T) T {
-	if value == nil {
-		return *new(T)
-	}
-
-	return *value
 }
