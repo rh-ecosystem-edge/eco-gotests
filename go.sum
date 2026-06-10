@@ -696,6 +696,8 @@ github.com/openshift/machine-config-operator v0.0.1-0.20250320230514-53e78f3692e
 github.com/openshift/machine-config-operator v0.0.1-0.20250320230514-53e78f3692ee/go.mod h1:ZA2cpM5ol3zcxRpG4gQr+XSlEQJe732noPWcMz6MQ4k=
 github.com/openshift/sriov-network-operator v0.0.0-20251223102349-9cac901c5313 h1:tvUXevUJcOtOXUmf0VLrEjK/grhRD+I1IlABXAMS4d0=
 github.com/openshift/sriov-network-operator v0.0.0-20251223102349-9cac901c5313/go.mod h1:v98bbCRu4VXNUv+6cRKfgGAAUq3X79Iq0r+DbkEwl0w=
+github.com/openshift/sriov-network-operator v0.0.0-20260526181104-0626dd1a7086 h1:zoKKF2TzTWQDbiOPz2FdJssiZfQMY5GNTO7RlgXY3MY=
+github.com/openshift/sriov-network-operator v0.0.0-20260526181104-0626dd1a7086/go.mod h1:clgLhWVwTSNqLOPe48jl4vDXyT7+/FXTIgyPXpST82I=
 github.com/operator-framework/api v0.38.0 h1:RbIhBH7pot/tlVPkEppXOh2zT7GpSUjPJoC8pRnNnBo=
 github.com/operator-framework/api v0.38.0/go.mod h1:6UCZhZPh9zAZZq1D9B2+IO0ibVwHdTiNYLYRr8ZT8Mk=
 github.com/orisano/pixelmatch v0.0.0-20220722002657-fb0b55479cde/go.mod h1:nZgzbfBr3hhjoZnS66nKrHmduYNpc34ny7RK4z5/HM0=
