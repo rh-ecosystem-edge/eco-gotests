@@ -2,6 +2,7 @@ package tsparams
 
 import (
 	nadv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
+	sriovv1 "github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1"
 	"github.com/openshift-kni/k8sreporter"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
@@ -16,10 +17,14 @@ var (
 	TestNamespaceName = "cni-tests"
 	// ReporterNamespacesToDump tells to the reporter from where to collect logs.
 	ReporterNamespacesToDump = map[string]string{
-		NetConfig.MultusNamesapce: NetConfig.MultusNamesapce,
-		TestNamespaceName:         "other",
+		NetConfig.MultusNamesapce:        NetConfig.MultusNamesapce,
+		NetConfig.SriovOperatorNamespace: NetConfig.SriovOperatorNamespace,
+		TestNamespaceName:                "other",
 	}
 	// ReporterCRDsToDump tells to the reporter what CRs to dump.
 	ReporterCRDsToDump = []k8sreporter.CRData{
-		{Cr: &nadv1.NetworkAttachmentDefinitionList{}}}
+		{Cr: &nadv1.NetworkAttachmentDefinitionList{}},
+		{Cr: &sriovv1.SriovNetworkList{}},
+		{Cr: &sriovv1.SriovNetworkNodePolicyList{}},
+	}
 )
