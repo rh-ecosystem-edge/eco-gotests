@@ -49,6 +49,15 @@ const (
 	dpdkTestpmdTimeout = 20 * time.Second
 	clientRxCmdTimeout = dpdkTestpmdTimeout + 10*time.Second
 	getLinkRxTimeout   = 3 * time.Second
+
+	// SR-IOV interface MTU matches policy configuration (9000 bytes jumbo frames).
+	sriovInterfaceMTU = 9000
+	// Maximum packet length includes MTU plus Ethernet headers.
+	// MTU (9000) + Ethernet header (14) + CRC (4) + VLAN tag (4) = 9022.
+	maxPktLen = sriovInterfaceMTU + 22
+	// Mbuf size must be large enough to hold maximum packet plus headroom.
+	// Using 10240 bytes (10KB) for single-segment jumbo frame support.
+	mbufSize = 10240
 )
 
 var (
@@ -745,7 +754,10 @@ func getNumberOfPackets(line, firstFieldSubstr string) int {
 }
 
 func defineTestServerPmdCmd(ethPeer, pciAddress, txIPs string) []string {
-	baseCmd := fmt.Sprintf("dpdk-testpmd -a %s -- --forward-mode txonly --eth-peer=0,%s", pciAddress, ethPeer)
+	baseCmd := fmt.Sprintf("dpdk-testpmd -R -a %s -- "+
+		"--mbuf-size=%d "+
+		"--forward-mode txonly --eth-peer=0,%s --max-pkt-len=%d",
+		pciAddress, mbufSize, ethPeer, maxPktLen)
 	if txIPs != "" {
 		baseCmd += fmt.Sprintf(" --tx-ip=%s", txIPs)
 	}
@@ -757,8 +769,14 @@ func defineTestServerPmdCmd(ethPeer, pciAddress, txIPs string) []string {
 
 func defineTestPmdCmd(interfaceName string, pciAddress string) string {
 	return fmt.Sprintf("timeout -s SIGKILL %d dpdk-testpmd "+
+		"-R "+
 		"--vdev=virtio_user0,path=/dev/vhost-net,queues=2,queue_size=1024,iface=%s "+
-		"-a %s -- --stats-period 5", int(dpdkTestpmdTimeout.Seconds()), interfaceName, pciAddress)
+		"-a %s "+
+		"-- "+
+		"--mbuf-size=%d "+
+		"--max-pkt-len=%d "+
+		"--stats-period 5",
+		int(dpdkTestpmdTimeout.Seconds()), interfaceName, pciAddress, mbufSize, maxPktLen)
 }
 
 func checkRxOutputRateForInterfaces(
