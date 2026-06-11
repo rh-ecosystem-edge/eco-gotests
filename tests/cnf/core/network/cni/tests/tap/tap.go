@@ -19,6 +19,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/cni/internal/tsparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/cmd"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/define"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
@@ -149,8 +150,12 @@ var _ = Describe("", Ordered,
 				doesTapHasCorrectConfig(runningPod, secondTapInterfaceName, customUserID, customGroupID)
 
 				By("Verifying that devices have correct sysctl flags")
-				verifySysctlKernelParametersConfiguredOnPodInterface(runningPod, enabledSysctlFlags, firstTapInterfaceName)
-				verifySysctlKernelParametersConfiguredOnPodInterface(runningPod, disabledSysctlFlags, secondTapInterfaceName)
+				Expect(cmd.VerifySysctlKernelParametersConfiguredOnPodInterface(
+					runningPod, enabledSysctlFlags, firstTapInterfaceName)).
+					To(Succeed(), "sysctl kernel params are not in expected state")
+				Expect(cmd.VerifySysctlKernelParametersConfiguredOnPodInterface(
+					runningPod, disabledSysctlFlags, secondTapInterfaceName)).
+					To(Succeed(), "sysctl kernel params are not in expected state")
 
 				By("Verifying that devices have correct ip addresses")
 				doesInterfaceHasCorrectMasterAndIPAddress(runningPod, interfaceBasedOnFirstTap, firstNetIPv6)
@@ -213,10 +218,12 @@ var _ = Describe("", Ordered,
 				doesTapHasCorrectConfig(runningPod, secondTapInterfaceName, customUserID, customGroupID)
 
 				By("Verifying that devices have correct sysctl flags")
-				verifySysctlKernelParametersConfiguredOnPodInterface(
-					runningPod, enabledSysctlFlags, firstTapInterfaceName)
-				verifySysctlKernelParametersConfiguredOnPodInterface(
-					runningPod, disabledSysctlFlags, secondTapInterfaceName)
+				Expect(cmd.VerifySysctlKernelParametersConfiguredOnPodInterface(
+					runningPod, enabledSysctlFlags, firstTapInterfaceName)).
+					To(Succeed(), "sysctl kernel params are not in expected state")
+				Expect(cmd.VerifySysctlKernelParametersConfiguredOnPodInterface(
+					runningPod, disabledSysctlFlags, secondTapInterfaceName)).
+					To(Succeed(), "sysctl kernel params are not in expected state")
 
 				By("Verifying that devices have correct ipv4 address")
 				doesInterfaceHasCorrectMasterAndIPAddress(runningPod, interfaceBasedOnFirstTap, firstNetIPv4)
@@ -456,7 +463,9 @@ func testDualStackNetConfigWithTwoTapsTwoIPVLANsTwoVLANsOnTopOfDeploymentWithWhe
 	doesTapHasCorrectConfig(deploymentPod, firstTapInterfaceName, 0, 0)
 
 	By("Verifying that first tap interface have correct sysctl flags")
-	verifySysctlKernelParametersConfiguredOnPodInterface(deploymentPod, enabledSysctlFlags, firstTapInterfaceName)
+	Expect(cmd.VerifySysctlKernelParametersConfiguredOnPodInterface(
+		deploymentPod, enabledSysctlFlags, firstTapInterfaceName)).
+		To(Succeed(), "sysctl kernel params are not in expected state")
 
 	By("Verifying that the first vlan device has correct vlanID and ip addresses")
 	doesVlanHasCorrectConfig(deploymentPod, interfaceBasedOnFirstTap, firstTapInterfaceName, firstVlanID)
@@ -472,7 +481,9 @@ func testDualStackNetConfigWithTwoTapsTwoIPVLANsTwoVLANsOnTopOfDeploymentWithWhe
 	doesTapHasCorrectConfig(deploymentPod, secondTapInterfaceName, customUserID, customGroupID)
 
 	By("Verifying that the second tap interface have correct sysctl flags")
-	verifySysctlKernelParametersConfiguredOnPodInterface(deploymentPod, disabledSysctlFlags, secondTapInterfaceName)
+	Expect(cmd.VerifySysctlKernelParametersConfiguredOnPodInterface(
+		deploymentPod, disabledSysctlFlags, secondTapInterfaceName)).
+		To(Succeed(), "sysctl kernel params are not in expected state")
 
 	By("Verifying that the second vlan device has correct vlanID and ip addresses")
 	doesVlanHasCorrectConfig(deploymentPod, secondInterfaceBasedOnSecondTap, secondTapInterfaceName, secondVlanID)
@@ -499,7 +510,9 @@ func testSingleTapSysctlAdNetworkConfigurationUsingDeployment(
 	doesInterfaceHasCorrectMasterAndIPAddress(deploymentPod, secondInterfaceBasedOnFirstTap, "192.168.100.")
 
 	By("Verifying that devices have correct sysctl flags")
-	verifySysctlKernelParametersConfiguredOnPodInterface(deploymentPod, sysctlExpectedFlags, firstTapInterfaceName)
+	Expect(cmd.VerifySysctlKernelParametersConfiguredOnPodInterface(
+		deploymentPod, sysctlExpectedFlags, firstTapInterfaceName)).
+		To(Succeed(), "sysctl kernel params are not in expected state")
 }
 
 func fetchNewDeploymentPod(waitUntilRunning bool) *pod.Builder {
@@ -595,19 +608,4 @@ func defineAndCreateIPVlanNad(name, intName string, ipam *nad.IPAM) *nad.Builder
 	Expect(err).ToNot(HaveOccurred(), "Fail to create ip-vlan NetworkAttachmentDefinition")
 
 	return ipVlanNad
-}
-
-func verifySysctlKernelParametersConfiguredOnPodInterface(
-	podUnderTest *pod.Builder, sysctlPluginConfig map[string]string, interfaceName string) {
-	for key, value := range sysctlPluginConfig {
-		sysctlKernelParam := strings.Replace(key, "IFNAME", interfaceName, 1)
-
-		By(fmt.Sprintf("Validate sysctl flag: %s has the right value in pod's interface: %s",
-			sysctlKernelParam, interfaceName))
-
-		cmdBuffer, err := podUnderTest.ExecCommand([]string{"sysctl", "-n", sysctlKernelParam})
-		Expect(err).ToNot(HaveOccurred(), "Fail to execute cmd command on the pod")
-		Expect(strings.TrimSpace(cmdBuffer.String())).To(BeIdenticalTo(value),
-			"sysctl kernel param is not in expected state")
-	}
 }

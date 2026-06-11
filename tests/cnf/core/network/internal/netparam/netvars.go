@@ -11,6 +11,8 @@ var (
 	Labels = append(coreparams.Labels, Label)
 	// DefaultTimeout represents the default timeout for most of Eventually/PollImmediate functions.
 	DefaultTimeout = 300 * time.Second
+	// DefaultRetryInterval represents the default polling interval for wait.PollUntilContextTimeout.
+	DefaultRetryInterval = 1 * time.Second
 	// MCOWaitTimeout represent timeout for mco operations.
 	MCOWaitTimeout = 35 * time.Minute
 	// VtySh represents default vtysh cmd prefix.
