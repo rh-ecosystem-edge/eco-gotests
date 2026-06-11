@@ -9,9 +9,10 @@ import (
 // (process, interface, node) tuple that must be present in Prometheus for the configuration to be considered
 // healthy.
 //
-// The Interface field stores the exact iface label value as it appears in Prometheus. For ptp4l this is the
-// raw interface name (e.g., "ens1f0"); for dpll, gnss, and other processes this is the NIC name (e.g.,
-// "ens2fx"); for phc2sys this is "CLOCK_REALTIME".
+// The Interface field stores the exact iface label value as it appears in Prometheus. For ptp4l on simple
+// OC profiles this is the raw interface name (e.g., "ens1f0"); for ptp4l on T-BC receiver profiles and
+// for dpll, gnss, and other processes this is the NIC name (e.g., "ens2fx"); for phc2sys this is
+// "CLOCK_REALTIME".
 type ExpectedClockState struct {
 	Process   PtpProcess
 	Interface string

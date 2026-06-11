@@ -17,7 +17,9 @@ import (
 //
 // The expected metrics are:
 //   - process=phc2sys, iface=CLOCK_REALTIME: for each profile that runs phc2sys (all non-TBCTransmitter profiles)
-//   - process=ptp4l, iface=<raw_interface>: for each slave (client) interface (uses raw names, not NIC names)
+//   - process=ptp4l, iface=<interface>: for each slave (client) interface. Simple OC profiles use raw names
+//     (e.g., "ens1f0"); T-BC receiver profiles use NIC names (e.g., "enox") because boundary_clock_jbod mode
+//     consolidates the ptp4l clock state to the NIC level.
 //   - process=dpll, iface=<nic>: for each DPLL-monitored interface in profiles with DPLL capability
 //   - process=gnss, iface=<nic>: for each GNSS interface (TX/GPS) in GM profiles with Intel plugins
 //
@@ -59,13 +61,22 @@ func getExpectedForProfile(
 		})
 	}
 
-	// ptp4l: expected for each slave (client) interface. Uses raw interface names because ptp4l metrics
-	// report per-port with the actual interface name (e.g., "ens1f0"), not the NIC name (e.g., "ens1fx").
+	// ptp4l: expected for each slave (client) interface. The interface name format depends on the profile
+	// type: simple OC profiles report per-port with raw names (e.g., "ens1f0"), while T-BC receiver
+	// profiles consolidate the clock state to the NIC level (e.g., "enox") due to boundary_clock_jbod mode.
 	clientInterfaces := profileInfo.GetInterfacesByClockType(ClockTypeClient)
 	for _, ifaceInfo := range clientInterfaces {
+		ptp4lIface := string(ifaceInfo.Name)
+
+		if ptp4lUsesNICName(profileInfo.ProfileType) {
+			if nicName := ifaceInfo.Name.GetNIC(); nicName != "" {
+				ptp4lIface = string(nicName)
+			}
+		}
+
 		expected = append(expected, metrics.ExpectedClockState{
 			Process:   metrics.ProcessPTP4L,
-			Interface: string(ifaceInfo.Name),
+			Interface: ptp4lIface,
 			Node:      nodeName,
 		})
 	}
@@ -100,6 +111,18 @@ func getExpectedForProfile(
 func isGMProfile(profileType PtpProfileType) bool {
 	switch profileType {
 	case ProfileTypeGM, ProfileTypeMultiNICGM, ProfileTypeNTPFallback:
+		return true
+	default:
+		return false
+	}
+}
+
+// ptp4lUsesNICName returns true if the profile type reports ptp4l clock state metrics with NIC names rather
+// than raw interface names. T-BC receiver profiles run ptp4l with boundary_clock_jbod mode, which causes the
+// PTP operator to consolidate the ptp4l clock state to the NIC level (e.g., "enox" instead of "eno8403").
+func ptp4lUsesNICName(profileType PtpProfileType) bool {
+	switch profileType {
+	case ProfileTypeTBCReceiver:
 		return true
 	default:
 		return false
