@@ -590,6 +590,7 @@ func verifyMsgInPodLogs(podObj *pod.Builder, msg, cName string, timeSpan time.Ti
 	Expect(podLog).Should(ContainSubstring(msg))
 }
 
+//nolint:funlen
 func verifySRIOVConnectivity(nsOneName, nsTwoName, deployOneLabels, deployTwoLabels, targetAddr string) {
 	var (
 		podOneResult bytes.Buffer
@@ -602,8 +603,43 @@ func verifySRIOVConnectivity(nsOneName, nsTwoName, deployOneLabels, deployTwoLab
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Looking for pod(s) matching label %q in %q namespace",
 		deployOneLabels, nsOneName)
 
-	podOneList := findPodWithSelector(nsOneName, deployOneLabels)
-	Expect(len(podOneList)).To(Equal(1), "Expected only one pod")
+	var podOneList []*pod.Builder
+
+	podOneSelector := metav1.ListOptions{
+		LabelSelector: deployOneLabels,
+	}
+
+	Eventually(func() bool {
+		allPods, err := pod.List(APIClient, nsOneName, podOneSelector)
+		if err != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods in %q namespace: %v",
+				nsOneName, err)
+
+			return false
+		}
+
+		runningPods, nonRunningPods := filterDPDKPodsByStatus(allPods)
+
+		if len(nonRunningPods) > 0 {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"Found %d non-running pods in %q namespace, %d running pods",
+				len(nonRunningPods), nsOneName, len(runningPods))
+		}
+
+		if len(runningPods) != 1 {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"Expected 1 running pod in %q namespace, found %d, will retry",
+				nsOneName, len(runningPods))
+
+			return false
+		}
+
+		podOneList = runningPods
+
+		return true
+	}).WithContext(ctx).WithPolling(5*time.Second).WithTimeout(2*time.Minute).Should(BeTrue(),
+		fmt.Sprintf("Expected exactly 1 running pod matching label %q in %q namespace",
+			deployOneLabels, nsOneName))
 
 	podOne := podOneList[0]
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod one is %q on node %q",
@@ -619,8 +655,43 @@ func verifySRIOVConnectivity(nsOneName, nsTwoName, deployOneLabels, deployTwoLab
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Looking for pod(s) matching label %q in %q namespace",
 		deployTwoLabels, nsTwoName)
 
-	podTwoList := findPodWithSelector(nsTwoName, deployTwoLabels)
-	Expect(len(podTwoList)).To(Equal(1), "Expected only one pod")
+	var podTwoList []*pod.Builder
+
+	podTwoSelector := metav1.ListOptions{
+		LabelSelector: deployTwoLabels,
+	}
+
+	Eventually(func() bool {
+		allPods, err := pod.List(APIClient, nsTwoName, podTwoSelector)
+		if err != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods in %q namespace: %v",
+				nsTwoName, err)
+
+			return false
+		}
+
+		runningPods, nonRunningPods := filterDPDKPodsByStatus(allPods)
+
+		if len(nonRunningPods) > 0 {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"Found %d non-running pods in %q namespace, %d running pods",
+				len(nonRunningPods), nsTwoName, len(runningPods))
+		}
+
+		if len(runningPods) != 1 {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"Expected 1 running pod in %q namespace, found %d, will retry",
+				nsTwoName, len(runningPods))
+
+			return false
+		}
+
+		podTwoList = runningPods
+
+		return true
+	}).WithContext(ctx).WithPolling(5*time.Second).WithTimeout(2*time.Minute).Should(BeTrue(),
+		fmt.Sprintf("Expected exactly 1 running pod matching label %q in %q namespace",
+			deployTwoLabels, nsTwoName))
 
 	podTwo := podTwoList[0]
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod two is %q on node %q",
