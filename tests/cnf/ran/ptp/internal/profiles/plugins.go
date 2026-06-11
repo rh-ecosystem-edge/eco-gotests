@@ -289,6 +289,36 @@ func GetRxInterfaces(profile *ptpv1.PtpProfile) ([]iface.Name, error) {
 	return getInterfacesWithPluginPins(profile, ptp.PluginTypeE810, PinStateRx)
 }
 
+// GetDpllInterfaces returns the interfaces that have DPLL hardware monitoring enabled.
+// The discovery method depends on the Intel plugin type present in the profile:
+//   - E810: interfaces with RX pins (pin state 1), since DPLL monitors the receive path.
+//   - E825/E830: interfaces from the Devices list.
+//
+// Precedence is E810 > E825 > E830, matching the order used by resolveHoldoverPlugin and GetGmInterfaceToGPS.
+func GetDpllInterfaces(profile *ptpv1.PtpProfile) ([]iface.Name, error) {
+	if profile == nil {
+		return nil, fmt.Errorf("profile is nil")
+	}
+
+	if profile.Plugins == nil {
+		return nil, fmt.Errorf("profile has no plugins")
+	}
+
+	if _, ok := profile.Plugins[string(ptp.PluginTypeE810)]; ok {
+		return getInterfacesWithPluginPins(profile, ptp.PluginTypeE810, PinStateRx)
+	}
+
+	if _, ok := profile.Plugins[string(ptp.PluginTypeE825)]; ok {
+		return getInterfacesWithDevices(profile, ptp.PluginTypeE825)
+	}
+
+	if _, ok := profile.Plugins[string(ptp.PluginTypeE830)]; ok {
+		return getInterfacesWithDevices(profile, ptp.PluginTypeE830)
+	}
+
+	return nil, fmt.Errorf("no supported Intel plugin (E810, E825, E830) found for DPLL interface discovery")
+}
+
 // GetSmaPinFromProfile returns the first active SMA pin name and its configuration string for
 // ifaceName from the E810 plugin. A pin is active when its state value (the first field in the
 // "pin-state channel" string) is not "0". Pin names are checked in sorted order so the result

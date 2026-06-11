@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	ptpv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v1"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/metrics"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
@@ -17,8 +18,12 @@ import (
 // The expected metrics are:
 //   - process=phc2sys, iface=CLOCK_REALTIME: for each profile that runs phc2sys (all non-TBCTransmitter profiles)
 //   - process=ptp4l, iface=<raw_interface>: for each slave (client) interface (uses raw names, not NIC names)
-//   - process=dpll, iface=<nic>: for each DPLL-monitored interface (RX pins) in GM profiles with Intel plugins
+//   - process=dpll, iface=<nic>: for each DPLL-monitored interface in profiles with DPLL capability
 //   - process=gnss, iface=<nic>: for each GNSS interface (TX/GPS) in GM profiles with Intel plugins
+//
+// DPLL capability is determined by the presence of Intel plugin DpllSettings or a HardwareConfig CR with DPLL
+// holdover parameters. For GM profiles, DPLL interfaces are discovered from plugin pins (E810 RX) or devices
+// (E825/E830). For other profiles (T-BC, T-TSC, etc.), DPLL interfaces are the client (upstream) interfaces.
 //
 // The client parameter is used to pull raw PtpProfile specs when plugin inspection is needed for DPLL/GNSS detection.
 func GetExpectedClockStates(client *clients.Settings, nodeInfoMap map[string]*NodeInfo) ([]metrics.ExpectedClockState, error) {
@@ -65,15 +70,25 @@ func getExpectedForProfile(
 		})
 	}
 
-	// DPLL and GNSS: only applicable to GM/MultiNICGM/NTPFallback profiles that have Intel plugins.
+	// DPLL: applicable to any profile with DPLL capability (Intel plugin DpllSettings or HardwareConfig
+	// with DPLL holdover parameters).
+	dpllExpected, err := getExpectedDpll(client, nodeName, profileInfo)
+	if err != nil {
+		klog.V(tsparams.LogLevel).Infof(
+			"Could not determine DPLL expected metrics for profile %s on node %s: %v",
+			profileInfo.Reference.ProfileName, nodeName, err)
+	} else {
+		expected = append(expected, dpllExpected...)
+	}
+
+	// GNSS: only applicable to GM variant profiles with Intel plugins.
 	if isGMProfile(profileInfo.ProfileType) {
-		dpllExpected, gnssExpected, err := getExpectedForGMPlugins(client, nodeName, profileInfo)
+		gnssExpected, err := getExpectedGnss(client, nodeName, profileInfo)
 		if err != nil {
 			klog.V(tsparams.LogLevel).Infof(
-				"Could not determine DPLL/GNSS expected metrics for profile %s on node %s: %v",
+				"Could not determine GNSS expected metrics for profile %s on node %s: %v",
 				profileInfo.Reference.ProfileName, nodeName, err)
 		} else {
-			expected = append(expected, dpllExpected...)
 			expected = append(expected, gnssExpected...)
 		}
 	}
@@ -81,7 +96,7 @@ func getExpectedForProfile(
 	return expected, nil
 }
 
-// isGMProfile returns true if the profile type is a grandmaster variant that may have DPLL/GNSS hardware.
+// isGMProfile returns true if the profile type is a grandmaster variant that may have GNSS hardware.
 func isGMProfile(profileType PtpProfileType) bool {
 	switch profileType {
 	case ProfileTypeGM, ProfileTypeMultiNICGM, ProfileTypeNTPFallback:
@@ -91,53 +106,121 @@ func isGMProfile(profileType PtpProfileType) bool {
 	}
 }
 
-// getExpectedForGMPlugins inspects the raw PtpProfile plugins to determine expected DPLL and GNSS metrics.
-func getExpectedForGMPlugins(
+// hasDpllCapability reports whether the profile has DPLL monitoring capability, either through an Intel plugin
+// with DpllSettings or through a HardwareConfig CR with DPLL holdover parameters.
+func hasDpllCapability(profileInfo *ProfileInfo, rawProfile *ptpv1.PtpProfile) bool {
+	_, plugin, err := resolveHoldoverPlugin(rawProfile)
+	if err == nil && plugin != nil && plugin.DpllSettings != nil {
+		return true
+	}
+
+	if profileInfo.HardwareConfig != nil {
+		_, _, hwErr := firstHoldoverParameters(profileInfo.HardwareConfig)
+
+		return hwErr == nil
+	}
+
+	return false
+}
+
+// getExpectedDpll determines the expected DPLL clock state metrics for a profile. It is called for all profile
+// types and returns nil when the profile has no DPLL capability.
+//
+// DPLL interface discovery depends on the profile type:
+//   - GM variants (T-GM, Multi-NIC GM, NTP Fallback): plugin-based discovery via GetDpllInterfaces
+//     (E810 RX pins or E825/E830 Devices).
+//   - All other profiles (T-BC, T-TSC, etc.): client (upstream) interfaces from the parsed profile,
+//     since the DPLL monitors the clock recovery on the time-receiving NIC.
+//
+// When plugin-based discovery fails or returns no interfaces, the function falls back to client interfaces.
+func getExpectedDpll(
 	client *clients.Settings, nodeName string, profileInfo *ProfileInfo,
-) (dpll []metrics.ExpectedClockState, gnss []metrics.ExpectedClockState, err error) {
+) ([]metrics.ExpectedClockState, error) {
 	rawProfile, err := profileInfo.PullProfile(client)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to pull raw profile: %w", err)
+		return nil, fmt.Errorf("failed to pull raw profile: %w", err)
 	}
 
-	// DPLL: check for Intel plugin with DpllSettings and RX interfaces. DPLL metrics use NIC names.
-	_, plugin, resolveErr := resolveHoldoverPlugin(rawProfile)
-	if resolveErr == nil && plugin != nil && plugin.DpllSettings != nil {
-		rxInterfaces, rxErr := GetRxInterfaces(rawProfile)
-		if rxErr == nil {
-			for _, ifaceName := range rxInterfaces {
-				nicName := ifaceName.GetNIC()
-				if nicName == "" {
-					continue
-				}
+	if !hasDpllCapability(profileInfo, rawProfile) {
+		return nil, nil
+	}
 
-				dpll = append(dpll, metrics.ExpectedClockState{
-					Process:   metrics.ProcessDPLL,
-					Interface: string(nicName),
-					Node:      nodeName,
-				})
-			}
-		} else {
-			klog.V(tsparams.LogLevel).Infof("No RX interfaces for DPLL in profile %s: %v",
-				profileInfo.Reference.ProfileName, rxErr)
+	dpllIfaces := getDpllInterfaces(profileInfo, rawProfile)
+	if len(dpllIfaces) == 0 {
+		return nil, nil
+	}
+
+	var expected []metrics.ExpectedClockState
+
+	for _, ifaceName := range dpllIfaces {
+		nicName := ifaceName.GetNIC()
+		if nicName == "" {
+			continue
 		}
+
+		expected = append(expected, metrics.ExpectedClockState{
+			Process:   metrics.ProcessDPLL,
+			Interface: string(nicName),
+			Node:      nodeName,
+		})
 	}
 
-	// GNSS: check for GM interface to GPS (TX pin or device). GNSS metrics use NIC names.
+	return expected, nil
+}
+
+// getDpllInterfaces returns the interfaces that should have DPLL clock state metrics for the given profile.
+// For GM profiles, it tries plugin-based discovery first (E810 RX pins, E825/E830 Devices). For non-GM profiles
+// or when plugin discovery fails, it falls back to the profile's client interfaces.
+func getDpllInterfaces(profileInfo *ProfileInfo, rawProfile *ptpv1.PtpProfile) []iface.Name {
+	pluginIfaces, pluginErr := GetDpllInterfaces(rawProfile)
+	if pluginErr == nil && len(pluginIfaces) > 0 {
+		return pluginIfaces
+	}
+
+	if pluginErr != nil {
+		klog.V(tsparams.LogLevel).Infof("Plugin-based DPLL interface discovery failed for profile %s: %v",
+			profileInfo.Reference.ProfileName, pluginErr)
+	}
+
+	clientInterfaces := profileInfo.GetInterfacesByClockType(ClockTypeClient)
+
+	ifaceNames := make([]iface.Name, 0, len(clientInterfaces))
+	for _, ifaceInfo := range clientInterfaces {
+		ifaceNames = append(ifaceNames, ifaceInfo.Name)
+	}
+
+	return ifaceNames
+}
+
+// getExpectedGnss determines the expected GNSS clock state metrics for a GM profile. It inspects the raw PtpProfile
+// plugins to find the GPS interface (TX pin for E810 or device for E825). Only GM variant profiles have GPS
+// connections, so this function should only be called when isGMProfile returns true.
+func getExpectedGnss(
+	client *clients.Settings, nodeName string, profileInfo *ProfileInfo,
+) ([]metrics.ExpectedClockState, error) {
+	rawProfile, err := profileInfo.PullProfile(client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to pull raw profile: %w", err)
+	}
+
 	gpsInterface, gpsErr := GetGmInterfaceToGPS(rawProfile)
-	if gpsErr == nil {
-		nicName := gpsInterface.GetNIC()
-		if nicName != "" {
-			gnss = append(gnss, metrics.ExpectedClockState{
-				Process:   metrics.ProcessGNSS,
-				Interface: string(nicName),
-				Node:      nodeName,
-			})
-		}
-	} else {
+	if gpsErr != nil {
 		klog.V(tsparams.LogLevel).Infof("No GNSS interface in profile %s: %v",
 			profileInfo.Reference.ProfileName, gpsErr)
+
+		return nil, nil
 	}
 
-	return dpll, gnss, nil
+	nicName := gpsInterface.GetNIC()
+	if nicName == "" {
+		return nil, nil
+	}
+
+	return []metrics.ExpectedClockState{
+		{
+			Process:   metrics.ProcessGNSS,
+			Interface: string(nicName),
+			Node:      nodeName,
+		},
+	}, nil
 }
