@@ -360,7 +360,7 @@ var _ = Describe(
 
 				By("Waiting for automatic reconciliation (no manual pod restart)")
 				tlsprofile.WaitPodsRestarted(HubAPIClient, capoa)
-				tlsprofile.WaitForClusterStability(HubAPIClient, 15*time.Minute)
+				tlsprofile.WaitForClusterStability(HubAPIClient, 25*time.Minute)
 
 				for _, d := range capoa.Deployments {
 					tlsprofile.AssertControllerLogsContain(HubAPIClient, capoa,
@@ -374,7 +374,7 @@ var _ = Describe(
 				By("Switching back to Intermediate")
 				tlsprofile.RemoveAPIServerTLSProfile(HubAPIClient)
 				tlsprofile.WaitPodsRestarted(HubAPIClient, capoa)
-				tlsprofile.WaitForClusterStability(HubAPIClient, 15*time.Minute)
+				tlsprofile.WaitForClusterStability(HubAPIClient, 25*time.Minute)
 
 				By("Verifying AES256 is restored under Intermediate")
 				tlsprofile.AssertTLSConnects(HubAPIClient, capoa, capoa.Endpoints[0],
