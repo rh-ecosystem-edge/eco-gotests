@@ -328,34 +328,45 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 			err = processes.KillProcessByPID(RANConfig.Spoke1APIClient, nodeInfo.Name, ptp4lPIDToKill)
 			Expect(err).ToNot(HaveOccurred(), "Failed to kill ptp4l process for node %s", nodeInfo.Name)
 
-			By("waiting for the FREERUN event to be received after killing the ptp4l process")
+			// There is no FREERUN event, and therefore no LOCKED event, for GM profiles on /master. We
+			// assume that a node which has a GM profile will have the phc2sys process configured for the GM
+			// profile. This will be the reality in production use cases.
+			hasGMProfile := nodeInfo.Counts[profiles.ProfileTypeGM] > 0 ||
+				nodeInfo.Counts[profiles.ProfileTypeMultiNICGM] > 0 ||
+				nodeInfo.Counts[profiles.ProfileTypeNTPFallback] > 0
 
-			filter := events.All(
-				events.IsType(eventptp.PtpStateChange),
-				events.HasValue(events.WithSyncState(eventptp.FREERUN), events.ContainingResource(string(iface.Master))),
-			)
-			err = events.WaitForEvent(
-				eventPod, startTime, 2*time.Minute, filter, events.WithoutCurrentState(true))
-			Expect(err).ToNot(HaveOccurred(), "Failed to wait for free run event on node %s", nodeInfo.Name)
+			if !hasGMProfile {
+				By("waiting for the FREERUN event to be received after killing the ptp4l process")
+
+				filter := events.All(
+					events.IsType(eventptp.PtpStateChange),
+					events.HasValue(events.WithSyncState(eventptp.FREERUN), events.ContainingResource(string(iface.Master))),
+				)
+				err = events.WaitForEvent(
+					eventPod, startTime, 2*time.Minute, filter, events.WithoutCurrentState(true))
+				Expect(err).ToNot(HaveOccurred(), "Failed to wait for free run event on node %s", nodeInfo.Name)
+			}
 
 			By("waiting for the FREERUN event to be received for CLOCK_REALTIME")
 
-			filter = events.All(
+			filter := events.All(
 				events.IsType(eventptp.OsClockSyncStateChange),
 				events.HasValue(events.WithSyncState(eventptp.FREERUN), events.OnInterface(iface.ClockRealtime)),
 			)
 			err = events.WaitForEvent(eventPod, startTime, 2*time.Minute, filter, events.WithoutCurrentState(true))
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for free run event on node %s", nodeInfo.Name)
 
-			By("waiting for the LOCKED event to be received after ptp4l process recovery")
+			if !hasGMProfile {
+				By("waiting for the LOCKED event to be received after ptp4l process recovery")
 
-			filter = events.All(
-				events.IsType(eventptp.PtpStateChange),
-				events.HasValue(events.WithSyncState(eventptp.LOCKED), events.ContainingResource(string(iface.Master))),
-			)
-			err = events.WaitForEvent(
-				eventPod, startTime, 3*time.Minute, filter, events.WithoutCurrentState(true))
-			Expect(err).ToNot(HaveOccurred(), "Failed to wait for locked event on node %s", nodeInfo.Name)
+				filter = events.All(
+					events.IsType(eventptp.PtpStateChange),
+					events.HasValue(events.WithSyncState(eventptp.LOCKED), events.ContainingResource(string(iface.Master))),
+				)
+				err = events.WaitForEvent(
+					eventPod, startTime, 3*time.Minute, filter, events.WithoutCurrentState(true))
+				Expect(err).ToNot(HaveOccurred(), "Failed to wait for locked event on node %s", nodeInfo.Name)
+			}
 
 			By("waiting for the LOCKED event to be received for CLOCK_REALTIME")
 
