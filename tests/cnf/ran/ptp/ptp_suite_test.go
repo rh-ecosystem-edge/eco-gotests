@@ -13,7 +13,9 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/querier"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/rancluster"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/consumer"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/metrics"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/mustgather"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
@@ -42,9 +44,12 @@ var _ = BeforeSuite(func() {
 	isSpoke1Present := rancluster.AreClustersPresent([]*clients.Settings{Spoke1APIClient})
 	Expect(isSpoke1Present).To(BeTrue(), "Spoke 1 cluster must be present for PTP tests")
 
-	By("updating the PTP ServiceMonitor scrape interval to 1s")
+	By("initializing the NIC naming system based on the PTP version")
 
-	var err error
+	err := iface.InitNICNaming(RANConfig.Spoke1OperatorVersions[ranparam.PTP])
+	Expect(err).ToNot(HaveOccurred(), "Failed to initialize NIC naming system based on the PTP version")
+
+	By("updating the PTP ServiceMonitor scrape interval to 1s")
 
 	savedPtpServiceMonitor, err = metrics.UpdatePtpServiceMonitorInterval(RANConfig.Spoke1APIClient, "1s")
 	Expect(err).ToNot(HaveOccurred(), "Failed to update PTP ServiceMonitor scrape interval")

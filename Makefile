@@ -50,13 +50,17 @@ run-internal-pkg-unit-tests:
 	@echo "Executing eco-gotests internal package unit tests"
 	UNIT_TEST=true go test -v ./tests/internal/...
 
+run-ran-pkg-unit-tests:
+	@echo "Executing eco-gotests RAN package unit tests"
+	UNIT_TEST=true go test -tags=unit_test -v ./tests/cnf/ran/ptp/internal/iface
+
 run-system-tests-pkg-unit-tests:
 	@echo "Executing eco-gotests internal package unit tests"
 	UNIT_TEST=true go test -v ./tests/system-tests/diskencryption/internal/helper
 	UNIT_TEST=true go test -v ./tests/system-tests/diskencryption/internal/stdin-matcher
 
 # Note: To add more unit tests for more packages, add corresponding targets here
-test: run-internal-pkg-unit-tests run-system-tests-pkg-unit-tests
-	
+test: run-internal-pkg-unit-tests run-system-tests-pkg-unit-tests run-ran-pkg-unit-tests
+
 coverage-html: test
 	go tool cover -html cover.out
