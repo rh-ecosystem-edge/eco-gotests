@@ -158,6 +158,8 @@ linters:
         - github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/o-cloud/internal/ocloudcommon
         - github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/ocpsriovinittools
         - github.com/rh-ecosystem-edge/eco-gotests/tests/lca/seedgeneration/internal/seedgenerationinittools
+        - github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/capoa-tls/internal/inittools
+        - github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/capoa-conversion/internal/inittools
     wsl:
       strict-append: false
   exclusions:
@@ -227,6 +229,12 @@ linters:
       - linters:
           - gochecknoinits
         path: tests/lca/imagebasedinstall/mgmt/internal/mgmtinittools
+      - linters:
+          - gochecknoinits
+        path: tests/assisted/ztp/capoa-tls/internal/inittools
+      - linters:
+          - gochecknoinits
+        path: tests/assisted/ztp/capoa-conversion/internal/inittools
       - linters:
           - gochecknoinits
         path: tests/internal/reporter
