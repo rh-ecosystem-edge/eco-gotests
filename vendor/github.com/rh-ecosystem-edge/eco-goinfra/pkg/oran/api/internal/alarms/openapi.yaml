@@ -1,4 +1,4 @@
-# Synced with oran-o2ims commit ef24be52fab9677c8ae22615b51097f3572f4eee
+# Synced with oran-o2ims commit 32d7280bed8ac83dc1bc0bcfbbb07a01309392fc
 openapi: 3.0.3
 info:
   title: O2IMS Infrastructure Monitoring Alarms API

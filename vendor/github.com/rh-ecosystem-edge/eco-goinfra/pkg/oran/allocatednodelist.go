@@ -3,7 +3,7 @@ package oran
 import (
 	"fmt"
 
-	pluginsv1alpha1 "github.com/openshift-kni/oran-o2ims/api/hardwaremanagement/plugins/v1alpha1"
+	hardwaremanagementv1alpha1 "github.com/openshift-kni/oran-o2ims/api/hardwaremanagement/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
 	"k8s.io/klog/v2"
@@ -19,7 +19,7 @@ func ListAllocatedNodes(
 		return nil, fmt.Errorf("failed to list allocatedNodes, 'apiClient' parameter is nil")
 	}
 
-	err := apiClient.AttachScheme(pluginsv1alpha1.AddToScheme)
+	err := apiClient.AttachScheme(hardwaremanagementv1alpha1.AddToScheme)
 	if err != nil {
 		klog.V(100).Info("Failed to add plugins v1alpha1 scheme to client schemes")
 
@@ -42,7 +42,7 @@ func ListAllocatedNodes(
 
 	klog.V(100).Info(logMessage)
 
-	nodeList := new(pluginsv1alpha1.AllocatedNodeList)
+	nodeList := new(hardwaremanagementv1alpha1.AllocatedNodeList)
 
 	err = apiClient.List(logging.DiscardContext(), nodeList, &passedOptions)
 	if err != nil {

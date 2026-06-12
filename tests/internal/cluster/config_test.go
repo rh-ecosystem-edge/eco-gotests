@@ -25,7 +25,7 @@ func NewMockAPIClientGetter() *MockAPIClientGetter {
 
 // SetFakeOCPClient sets a fake k8s client for testing purposes.
 func (m *MockAPIClientGetter) SetFakeOCPClient(runtimeObjs []runtime.Object) {
-	configv1Client := configv1fake.NewSimpleClientset(runtimeObjs...)
+	configv1Client := configv1fake.NewClientset(runtimeObjs...)
 
 	myClient := clients.GetTestClients(clients.TestClientParams{
 		K8sMockObjects: runtimeObjs,
@@ -42,8 +42,8 @@ func (m *MockAPIClientGetter) SetFakeOCPClient(runtimeObjs []runtime.Object) {
 // SetFakeK8sClient sets a fake k8s client for testing purposes.
 func (m *MockAPIClientGetter) SetFakeK8sClient(runtimeObjs []runtime.Object) {
 	m.testClients = &clients.Settings{
-		K8sClient:       k8sfake.NewSimpleClientset(runtimeObjs...),
-		CoreV1Interface: k8sfake.NewSimpleClientset(runtimeObjs...).CoreV1(),
+		K8sClient:       k8sfake.NewClientset(runtimeObjs...),
+		CoreV1Interface: k8sfake.NewClientset(runtimeObjs...).CoreV1(),
 	}
 }
 
