@@ -50,6 +50,8 @@ var (
 	MetalLbIo = "metallb"
 	// MetalLbDsName default metalLb speaker daemonset names.
 	MetalLbDsName = "speaker"
+	// MetalLbControllerName default metalLb controller deployment name.
+	MetalLbControllerName = "controller"
 	// FrrDsName default metalLb frr daemonset name.
 	FrrDsName = "frr-k8s"
 	// FRRK8sDefaultLabel represents the default metalLb FRRK8S pod label.

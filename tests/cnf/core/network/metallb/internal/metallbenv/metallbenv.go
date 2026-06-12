@@ -67,31 +67,20 @@ func CreateNewMetalLbDaemonSetAndWaitUntilItsRunning(timeout time.Duration, node
 	logLevel ...mlboperator.MetalLBLogLevel) error {
 	klog.V(90).Infof("Verifying if MetalLB daemonset is running")
 
-	// Check if MetalLB DaemonSet already exists
-	metalLbIo, err := metallb.Pull(APIClient, tsparams.MetalLbIo, NetConfig.MlbOperatorNamespace)
-	if err == nil {
-		klog.V(90).Infof("MetalLB daemonset is running. Removing existing daemonset.")
-
-		_, err = metalLbIo.Delete()
-		if err != nil {
-			return fmt.Errorf("failed to delete existing MetalLB daemonset: %w", err)
-		}
-
-		err = waitForDsDeletion(tsparams.MetalLbDsName, NetConfig.MlbOperatorNamespace, 30*time.Second)
-		if err != nil {
-			return fmt.Errorf("failed to wait for speaker daemonset deletion")
-		}
+	// Wait for both operand controller and speaker workloads to be removed before recreating the CR.
+	if err := DeleteMetalLbCRAndWait(timeout); err != nil {
+		return fmt.Errorf("failed to delete existing MetalLB CR: %w", err)
 	}
 
 	klog.V(90).Infof("Creating a new MetalLB speaker daemonSet.")
 
 	// Create new MetalLB DaemonSet
-	metalLbIo = metallb.NewBuilder(APIClient, tsparams.MetalLbIo, NetConfig.MlbOperatorNamespace, nodeLabel)
+	metalLbIo := metallb.NewBuilder(APIClient, tsparams.MetalLbIo, NetConfig.MlbOperatorNamespace, nodeLabel)
 	if len(logLevel) > 0 {
 		metalLbIo.Definition.Spec.LogLevel = logLevel[0]
 	}
 
-	_, err = metalLbIo.Create()
+	_, err := metalLbIo.Create()
 	if err != nil {
 		return fmt.Errorf("failed to create MetalLB daemonset: %w", err)
 	}
@@ -158,6 +147,10 @@ func waitForDsDeletion(dsName, dsNamespace string, timeout time.Duration) error 
 		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			_, err := daemonset.Pull(APIClient, dsName, dsNamespace)
 			if err != nil {
+				if !isResourceMissing(err) {
+					return false, fmt.Errorf("failed to pull daemonset %s/%s: %w", dsNamespace, dsName, err)
+				}
+
 				klog.V(90).Infof("daemonset %s does not exist in namespace %s", dsName, dsNamespace)
 
 				return true, nil
@@ -167,6 +160,62 @@ func waitForDsDeletion(dsName, dsNamespace string, timeout time.Duration) error 
 
 			return false, nil
 		})
+}
+
+// DeleteMetalLbCRAndWait removes the MetalLB CR and waits until the operand controller deployment
+// and speaker daemonset are fully removed. Callers must wait for both workloads to disappear before
+// recreating the CR to avoid races with a lingering controller or speaker.
+func DeleteMetalLbCRAndWait(timeout time.Duration) error {
+	metalLbIo, err := metallb.Pull(APIClient, tsparams.MetalLbIo, NetConfig.MlbOperatorNamespace)
+	if err != nil {
+		if isResourceMissing(err) {
+			return nil
+		}
+
+		return fmt.Errorf("failed to pull MetalLB CR: %w", err)
+	}
+
+	_, err = metalLbIo.Delete()
+	if err != nil {
+		return fmt.Errorf("failed to delete MetalLB CR: %w", err)
+	}
+
+	err = waitForDeploymentDeletion(tsparams.MetalLbControllerName, NetConfig.MlbOperatorNamespace, timeout)
+	if err != nil {
+		return fmt.Errorf("failed to wait for MetalLB controller deployment deletion: %w", err)
+	}
+
+	if err := waitForDsDeletion(tsparams.MetalLbDsName, NetConfig.MlbOperatorNamespace, timeout); err != nil {
+		return fmt.Errorf("failed to wait for MetalLB speaker daemonset deletion: %w", err)
+	}
+
+	return nil
+}
+
+func waitForDeploymentDeletion(deploymentName, deploymentNamespace string, timeout time.Duration) error {
+	return wait.PollUntilContextTimeout(
+		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			_, err := deployment.Pull(APIClient, deploymentName, deploymentNamespace)
+			if err != nil {
+				if !isResourceMissing(err) {
+					return false, fmt.Errorf("failed to pull deployment %s/%s: %w",
+						deploymentNamespace, deploymentName, err)
+				}
+
+				klog.V(90).Infof("deployment %s does not exist in namespace %s", deploymentName, deploymentNamespace)
+
+				return true, nil
+			}
+
+			klog.V(90).Infof("deployment %s exists in namespace %s, waiting for deletion...",
+				deploymentName, deploymentNamespace)
+
+			return false, nil
+		})
+}
+
+func isResourceMissing(err error) bool {
+	return strings.Contains(err.Error(), "does not exist in namespace")
 }
 
 // GetMetalLbIPByIPStack returns metalLb IP addresses  from env var typo:ECO_CNF_CORE_NET_MLB_ADDR_LIST
