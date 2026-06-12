@@ -96,8 +96,8 @@ func (j *Junos) Commit() error {
 	}
 
 	if reply.Errors != nil {
-		for _, m := range reply.Errors {
-			return errors.New(m.Message)
+		for _, rpcErr := range reply.Errors {
+			return errors.New(rpcErr.Message)
 		}
 	}
 
@@ -107,13 +107,13 @@ func (j *Junos) Commit() error {
 	}
 
 	if errs.Errors != nil {
-		for _, m := range errs.Errors {
-			if strings.Contains(m.Message, "license") {
+		for _, commitErr := range errs.Errors {
+			if strings.Contains(commitErr.Message, "license") {
 				continue
 			}
 
-			message := fmt.Sprintf("[%s]\n    %s\nError: %s", strings.Trim(m.Path, "[\r\n]"),
-				strings.Trim(m.Element, "[\r\n]"), strings.Trim(m.Message, "[\r\n]"))
+			message := fmt.Sprintf("[%s]\n    %s\nError: %s", strings.Trim(commitErr.Path, "[\r\n]"),
+				strings.Trim(commitErr.Element, "[\r\n]"), strings.Trim(commitErr.Message, "[\r\n]"))
 
 			return errors.New(message)
 		}
@@ -137,8 +137,8 @@ func (j *Junos) Config(commands []string) error {
 	}
 
 	if reply.Errors != nil {
-		for _, m := range reply.Errors {
-			return errors.New(m.Message)
+		for _, rpcErr := range reply.Errors {
+			return errors.New(rpcErr.Message)
 		}
 	}
 
