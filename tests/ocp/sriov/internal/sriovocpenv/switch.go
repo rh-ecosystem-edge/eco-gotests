@@ -2,8 +2,10 @@ package sriovocpenv
 
 import (
 	"context"
+	"encoding/xml"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Juniper/go-netconf/netconf"
@@ -65,6 +67,82 @@ func NewJunosSession(host, user, password string) (*Junos, error) {
 // Close disconnects the session to the device.
 func (j *Junos) Close() {
 	j.Session.Transport.Close()
+}
+
+var (
+	rpcConfigStringSet = "<load-configuration action=\"set\"" +
+		" format=\"text\"><configuration-set>%s</configuration-set></load-configuration>"
+	rpcCommit = "<commit-configuration/>"
+)
+
+type commitError struct {
+	Path    string `xml:"error-path"`
+	Element string `xml:"error-info>bad-element"`
+	Message string `xml:"error-message"`
+}
+
+type commitResults struct {
+	XMLName xml.Name      `xml:"commit-results"`
+	Errors  []commitError `xml:"rpc-error"`
+}
+
+// Commit commits the configuration.
+func (j *Junos) Commit() error {
+	var errs commitResults
+
+	reply, err := j.Session.Exec(netconf.RawMethod(rpcCommit))
+	if err != nil {
+		return err
+	}
+
+	if reply.Errors != nil {
+		for _, m := range reply.Errors {
+			return errors.New(m.Message)
+		}
+	}
+
+	err = xml.Unmarshal([]byte(reply.Data), &errs)
+	if err != nil {
+		return err
+	}
+
+	if errs.Errors != nil {
+		for _, m := range errs.Errors {
+			if strings.Contains(m.Message, "license") {
+				continue
+			}
+
+			message := fmt.Sprintf("[%s]\n    %s\nError: %s", strings.Trim(m.Path, "[\r\n]"),
+				strings.Trim(m.Element, "[\r\n]"), strings.Trim(m.Message, "[\r\n]"))
+
+			return errors.New(message)
+		}
+	}
+
+	return nil
+}
+
+// Config sends commands to a Juniper switch.
+func (j *Junos) Config(commands []string) error {
+	command := fmt.Sprintf(rpcConfigStringSet, strings.Join(commands, "\n"))
+
+	reply, err := j.Session.Exec(netconf.RawMethod(command))
+	if err != nil {
+		return err
+	}
+
+	err = j.Commit()
+	if err != nil {
+		return err
+	}
+
+	if reply.Errors != nil {
+		for _, m := range reply.Errors {
+			return errors.New(m.Message)
+		}
+	}
+
+	return nil
 }
 
 // RunCommand executes any operational mode command, such as "show" or "request".
