@@ -213,12 +213,9 @@ var _ = Describe("NMState Altnames:", Ordered, Label(tsparams.LabelAltnames), Co
 
 			By("Verifying physical interface removed")
 
-			nnstates, err = getNodeNetworkStates(worker0LabelMap)
-			Expect(err).ToNot(HaveOccurred(), "Failed to get NodeNetwork states")
-
-			for _, nnstate := range nnstates {
-				validateAltnamesFromNodeNetworkState(nnstate, sriovIf0, altnames1, true)(Default)
-			}
+			Eventually(validateAltnamesOnNode(
+				workerNodes[0].Object.Name, sriovIf0, altnames1, true)).
+				WithTimeout(netparam.DefaultTimeout).WithPolling(5 * time.Second).Should(Succeed())
 
 			By("Restoring the physical interface to up state")
 
@@ -305,15 +302,9 @@ var _ = Describe("NMState Altnames:", Ordered, Label(tsparams.LabelAltnames), Co
 
 			By("Verifying altnames for SR-IOV VFs that are configured via NMState")
 
-			nnstates, err := getNodeNetworkStates(worker0LabelMap)
-			Expect(err).ToNot(HaveOccurred(), "Failed to get NodeNetwork states")
-
-			for _, nnstate := range nnstates {
-				vfName, err := netnmstate.SrIovVfNetdevFromNodeNetworkState(
-					nnstate, sriovIf0, 0)
-				Expect(err).ToNot(HaveOccurred(), "Failed to resolve VF0 netdev on node %s", nnstate.Object.Name)
-				validateAltnamesFromNodeNetworkState(nnstate, vfName, altnames1, false)(Default)
-			}
+			Eventually(validateAltnamesOnNode(
+				workerNodes[0].Object.Name, firstVFNetdev, altnames1, false)).
+				WithTimeout(netparam.DefaultTimeout).WithPolling(5 * time.Second).Should(Succeed())
 
 			By("Delete Existing NNCP and Create a new one with altnames removed")
 
@@ -328,15 +319,9 @@ var _ = Describe("NMState Altnames:", Ordered, Label(tsparams.LabelAltnames), Co
 
 			By("Verifying altnames removed")
 
-			nnstates, err = getNodeNetworkStates(worker0LabelMap)
-			Expect(err).ToNot(HaveOccurred(), "Failed to get NodeNetwork states")
-
-			for _, nnstate := range nnstates {
-				vfName, err := netnmstate.SrIovVfNetdevFromNodeNetworkState(
-					nnstate, sriovIf0, 0)
-				Expect(err).ToNot(HaveOccurred(), "Failed to resolve VF0 netdev on node %s", nnstate.Object.Name)
-				validateAltnamesFromNodeNetworkState(nnstate, vfName, altnames1, true)(Default)
-			}
+			Eventually(validateAltnamesOnNode(
+				workerNodes[0].Object.Name, firstVFNetdev, altnames1, true)).
+				WithTimeout(netparam.DefaultTimeout).WithPolling(5 * time.Second).Should(Succeed())
 		})
 	})
 
@@ -551,8 +536,14 @@ var _ = Describe("NMState Altnames:", Ordered, Label(tsparams.LabelAltnames), Co
 				}
 
 				for _, nic := range nics {
-					if nic.Name == altnames1[0] {
-						return nil
+					if nic.Name != sriovIf0 {
+						continue
+					}
+
+					for _, altname := range nic.AltNames {
+						if altname == altnames1[0] {
+							return nil
+						}
 					}
 				}
 
