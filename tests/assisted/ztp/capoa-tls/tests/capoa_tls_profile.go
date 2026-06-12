@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	configv1 "github.com/openshift/api/config/v1"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/apiservers"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
@@ -16,7 +17,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/capoa-tls/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/assisted/ztp/internal/tlsprofile"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -75,35 +75,18 @@ var capoa = &tlsprofile.Component{
 	OldProfileCipher:    tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
 }
 
-const (
-	adherenceStrictAllComponents = "StrictAllComponents"
-	adherenceLegacyAdheringOnly  = "LegacyAdheringComponentsOnly"
-
-	defaultsLogPattern = "using defaults"
-)
+const defaultsLogPattern = "using defaults"
 
 func ensureTLSAdherence() {
-	apiserverU := &unstructured.Unstructured{}
-	apiserverU.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "config.openshift.io",
-		Version: "v1",
-		Kind:    "APIServer",
-	})
+	builder, err := apiservers.PullAPIServer(HubAPIClient)
+	Expect(err).ToNot(HaveOccurred(), "failed to pull apiserver/cluster")
 
-	err := HubAPIClient.Get(context.TODO(),
-		runtimeclient.ObjectKey{Name: "cluster"}, apiserverU)
-	Expect(err).ToNot(HaveOccurred(), "failed to get apiserver/cluster")
-
-	adherence, found, err := unstructured.NestedString(
-		apiserverU.Object, "spec", "tlsAdherence")
-	Expect(err).ToNot(HaveOccurred(), "failed to read spec.tlsAdherence from apiserver/cluster")
-
-	if found && adherence == adherenceStrictAllComponents {
+	if builder.Definition.Spec.TLSAdherence == configv1.TLSAdherencePolicyStrictAllComponents {
 		return
 	}
 
 	By("Setting tlsAdherence to StrictAllComponents")
-	tlsprofile.PatchTLSAdherence(HubAPIClient, adherenceStrictAllComponents)
+	tlsprofile.PatchTLSAdherence(HubAPIClient, configv1.TLSAdherencePolicyStrictAllComponents)
 }
 
 // Tests are ordered to minimize TLS profile changes and cluster churn.
@@ -390,12 +373,9 @@ var _ = Describe(
 
 				By("Verifying no tlsSecurityProfile remains on apiserver")
 
-				apiserver := &configv1.APIServer{}
-
-				err := HubAPIClient.Get(context.TODO(),
-					runtimeclient.ObjectKey{Name: "cluster"}, apiserver)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(apiserver.Spec.TLSSecurityProfile).To(BeNil(),
+				builder, err := apiservers.PullAPIServer(HubAPIClient)
+				Expect(err).ToNot(HaveOccurred(), "failed to pull apiserver/cluster")
+				Expect(builder.Definition.Spec.TLSSecurityProfile).To(BeNil(),
 					"tlsSecurityProfile should be nil after restore")
 
 				By("Verifying controller logs show VersionTLS12")
@@ -419,7 +399,7 @@ var _ = Describe(
 				Skip("Blocked by ACM-34017: SecurityProfileWatcher restart loop — https://redhat.atlassian.net/browse/ACM-34017")
 
 				By("Setting adherence to LegacyAdheringComponentsOnly")
-				tlsprofile.PatchTLSAdherence(HubAPIClient, adherenceLegacyAdheringOnly)
+				tlsprofile.PatchTLSAdherence(HubAPIClient, configv1.TLSAdherencePolicyLegacyAdheringComponentsOnly)
 
 				By("Waiting for CAPOA pods to restart after adherence change")
 				tlsprofile.WaitPodsRestarted(HubAPIClient, capoa)
@@ -446,7 +426,7 @@ var _ = Describe(
 					tls.VersionTLS12, tls.VersionTLS12, nil)
 
 				By("Switching adherence to StrictAllComponents")
-				tlsprofile.PatchTLSAdherence(HubAPIClient, adherenceStrictAllComponents)
+				tlsprofile.PatchTLSAdherence(HubAPIClient, configv1.TLSAdherencePolicyStrictAllComponents)
 
 				By("Waiting for CAPOA pods to restart after adherence change")
 				tlsprofile.WaitPodsRestarted(HubAPIClient, capoa)
@@ -478,7 +458,7 @@ var _ = Describe(
 				tlsprofile.AssertTLSRejected(HubAPIClient, capoa, capoa.Endpoints[0], nil)
 
 				By("Switching adherence to LegacyAdheringComponentsOnly")
-				tlsprofile.PatchTLSAdherence(HubAPIClient, adherenceLegacyAdheringOnly)
+				tlsprofile.PatchTLSAdherence(HubAPIClient, configv1.TLSAdherencePolicyLegacyAdheringComponentsOnly)
 
 				By("Waiting for CAPOA pods to restart after adherence change")
 				tlsprofile.WaitPodsRestarted(HubAPIClient, capoa)
@@ -499,7 +479,7 @@ var _ = Describe(
 					tls.VersionTLS13, tls.VersionTLS13, nil)
 
 				By("Restoring StrictAllComponents for suite cleanup")
-				tlsprofile.PatchTLSAdherence(HubAPIClient, adherenceStrictAllComponents)
+				tlsprofile.PatchTLSAdherence(HubAPIClient, configv1.TLSAdherencePolicyStrictAllComponents)
 				tlsprofile.WaitPodsRestarted(HubAPIClient, capoa)
 
 				By("Removing Modern profile to restore Intermediate baseline")

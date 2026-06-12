@@ -2,60 +2,42 @@ package tlsprofile
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	configv1 "github.com/openshift/api/config/v1"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/apiservers"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // PatchAPIServerTLSProfile applies the given TLS security profile to the cluster APIServer.
 func PatchAPIServerTLSProfile(client *clients.Settings, profile configv1.TLSSecurityProfile) {
-	patchMap := map[string]interface{}{
-		"spec": map[string]interface{}{
-			"tlsSecurityProfile": profile,
-		},
-	}
+	builder, err := apiservers.PullAPIServer(client)
+	Expect(err).ToNot(HaveOccurred(), "failed to pull apiserver")
 
-	patchBytes, err := json.Marshal(patchMap)
-	Expect(err).ToNot(HaveOccurred(), "failed to marshal TLS profile patch")
-
-	apiserver := &configv1.APIServer{ObjectMeta: metav1.ObjectMeta{Name: "cluster"}}
-	err = client.Patch(context.TODO(), apiserver, runtimeclient.RawPatch(types.MergePatchType, patchBytes))
-	Expect(err).ToNot(HaveOccurred(), "failed to patch apiserver TLS profile")
+	_, err = builder.WithTLSSecurityProfile(&profile).Update()
+	Expect(err).ToNot(HaveOccurred(), "failed to update apiserver TLS profile")
 }
 
 // PatchTLSAdherence sets the tlsAdherence policy on the cluster APIServer.
-// The policy parameter is a string because TLSAdherencePolicy is behind a
-// feature gate and not available in the vendored configv1 types.
-func PatchTLSAdherence(client *clients.Settings, policy string) {
-	patchMap := map[string]interface{}{
-		"spec": map[string]interface{}{
-			"tlsAdherence": policy,
-		},
-	}
+func PatchTLSAdherence(client *clients.Settings, policy configv1.TLSAdherencePolicy) {
+	builder, err := apiservers.PullAPIServer(client)
+	Expect(err).ToNot(HaveOccurred(), "failed to pull apiserver")
 
-	patchBytes, err := json.Marshal(patchMap)
-	Expect(err).ToNot(HaveOccurred(), "failed to marshal tlsAdherence patch")
-
-	apiserver := &configv1.APIServer{ObjectMeta: metav1.ObjectMeta{Name: "cluster"}}
-	err = client.Patch(context.TODO(), apiserver, runtimeclient.RawPatch(types.MergePatchType, patchBytes))
-	Expect(err).ToNot(HaveOccurred(), "failed to patch tlsAdherence to %s", policy)
+	_, err = builder.WithTLSAdherence(policy).Update()
+	Expect(err).ToNot(HaveOccurred(), "failed to update tlsAdherence to %s", policy)
 }
 
 // RemoveAPIServerTLSProfile removes the tlsSecurityProfile from the cluster APIServer.
 func RemoveAPIServerTLSProfile(client *clients.Settings) {
-	patchBytes := []byte(`{"spec":{"tlsSecurityProfile":null}}`)
-	apiserver := &configv1.APIServer{ObjectMeta: metav1.ObjectMeta{Name: "cluster"}}
+	builder, err := apiservers.PullAPIServer(client)
+	Expect(err).ToNot(HaveOccurred(), "failed to pull apiserver")
 
-	err := client.Patch(context.TODO(), apiserver,
-		runtimeclient.RawPatch(types.MergePatchType, patchBytes))
+	builder.Definition.Spec.TLSSecurityProfile = nil
+
+	_, err = builder.Update()
 	Expect(err).ToNot(HaveOccurred(), "failed to remove apiserver TLS profile")
 }
 
