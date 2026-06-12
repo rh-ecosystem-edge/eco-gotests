@@ -62,8 +62,8 @@ func getExpectedForProfile(
 	}
 
 	// ptp4l: expected for each slave (client) interface. The interface name format depends on the profile
-	// type: simple OC profiles report per-port with raw names (e.g., "ens1f0"), while T-BC receiver
-	// profiles consolidate the clock state to the NIC level (e.g., "enox") due to boundary_clock_jbod mode.
+	// type: single-port OC profiles report per-port with raw names (e.g., "ens1f0"), while multi-port
+	// profiles (BC, T-BC receiver) consolidate the clock state to the NIC level (e.g., "ens3fx").
 	clientInterfaces := profileInfo.GetInterfacesByClockType(ClockTypeClient)
 	for _, ifaceInfo := range clientInterfaces {
 		ptp4lIface := string(ifaceInfo.Name)
@@ -118,11 +118,12 @@ func isGMProfile(profileType PtpProfileType) bool {
 }
 
 // ptp4lUsesNICName returns true if the profile type reports ptp4l clock state metrics with NIC names rather
-// than raw interface names. T-BC receiver profiles run ptp4l with boundary_clock_jbod mode, which causes the
-// PTP operator to consolidate the ptp4l clock state to the NIC level (e.g., "enox" instead of "eno8403").
+// than raw interface names. When ptp4l manages multiple ports (clock_type BC, or boundary_clock_jbod mode),
+// the PTP operator consolidates the ptp4l clock state to the NIC level (e.g., "ens3fx" instead of "ens3f2").
+// Single-port OC profiles report per-port with raw interface names.
 func ptp4lUsesNICName(profileType PtpProfileType) bool {
 	switch profileType {
-	case ProfileTypeTBCReceiver:
+	case ProfileTypeBC, ProfileTypeTBCReceiver:
 		return true
 	default:
 		return false
