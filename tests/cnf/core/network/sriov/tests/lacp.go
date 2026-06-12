@@ -52,8 +52,7 @@ const (
 	bondTestInterface         = "bond0"
 	nodeBond10Interface       = "bond10"
 	nodeBond20Interface       = "bond20"
-	bondModeActiveBackup      = "active-backup"
-	bondMode802_3ad           = "802.3ad"
+	lacpNMStateBondMode8023ad = "802.3ad" // NMState link-aggregation only; not valid for Bond CNI NAD
 	bondedNADNameActiveBackup = "lacp-bond-nad"
 	logTypeInitialization     = "initialization"
 	logTypeVFDisable          = "vf-disable"
@@ -306,7 +305,7 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelLACPTestCases
 				fmt.Sprintf("LACP should be functioning properly in bonded client pod %s", bondTestInterface))
 
 			performLACPFailureAndRecoveryTestWithMode(bondedClientPod, worker0NodeName, secondaryInterface0,
-				srIovInterfacesUnderTest, switchCredentials, bondModeActiveBackup)
+				srIovInterfacesUnderTest, switchCredentials, sriovenv.BondModeActiveBackup)
 		})
 
 		It("Verify that an interface can be added and removed from the PFLACPMonitor interface monitoring",
@@ -754,35 +753,6 @@ var _ = Describe("LACP Status Relay", Ordered, Label(tsparams.LabelLACPTestCases
 	})
 })
 
-func defineBondNad(nadName,
-	bondType,
-	ipam string,
-	numberSlaveInterfaces int) (*nad.Builder, error) {
-	var bondLinks []nad.Link
-	for i := 1; i <= numberSlaveInterfaces; i++ {
-		bondLinks = append(bondLinks, nad.Link{Name: fmt.Sprintf("net%d", i)})
-	}
-
-	ipamConfig := &nad.IPAM{Type: ipam}
-
-	bondPlugin := nad.NewMasterBondPlugin(nadName, bondType).
-		WithFailOverMac(1).
-		WithLinksInContainer(true).
-		WithMiimon(100).
-		WithLinks(bondLinks).
-		WithCapabilities(&nad.Capability{IPs: true}).
-		WithIPAM(ipamConfig)
-
-	masterPluginConfig, err := bondPlugin.GetMasterPluginConfig()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get master plugin config: %w", err)
-	}
-
-	// Use eco-goinfra framework for all bond types - consistent and reliable
-	return nad.NewBuilder(APIClient, nadName, tsparams.TestNamespaceName).
-		WithMasterPlugin(masterPluginConfig), nil
-}
-
 func lacpSwitchCleanup(credentials *sriovenv.SwitchCredentials, lacpInterfaces, interfaces, configs []string,
 	lacpConfigured, physicalInterfacesConfigured bool) {
 	By("Restoring switch configuration to pre-test state")
@@ -840,7 +810,12 @@ func configureLACPBondInterfaces(workerNodeName string, sriovInterfacesUnderTest
 	}
 
 	bond10Policy := nmstate.NewPolicyBuilder(APIClient, nodeBond10Interface, nodeSelector).
-		WithBondInterface([]string{sriovInterfacesUnderTest[0]}, nodeBond10Interface, bondMode802_3ad, bondInterfaceOptions)
+		WithBondInterface(
+			[]string{sriovInterfacesUnderTest[0]},
+			nodeBond10Interface,
+			lacpNMStateBondMode8023ad,
+			bondInterfaceOptions,
+		)
 
 	// Delete existing policy if it exists to ensure clean state
 	if bond10Policy.Exists() {
@@ -853,7 +828,12 @@ func configureLACPBondInterfaces(workerNodeName string, sriovInterfacesUnderTest
 
 	if len(sriovInterfacesUnderTest) > 1 {
 		bond20Policy := nmstate.NewPolicyBuilder(APIClient, nodeBond20Interface, nodeSelector).
-			WithBondInterface([]string{sriovInterfacesUnderTest[1]}, nodeBond20Interface, bondMode802_3ad, bondInterfaceOptions)
+			WithBondInterface(
+				[]string{sriovInterfacesUnderTest[1]},
+				nodeBond20Interface,
+				lacpNMStateBondMode8023ad,
+				bondInterfaceOptions,
+			)
 
 		// Delete existing policy if it exists to ensure clean state
 		if bond20Policy.Exists() {
@@ -867,9 +847,9 @@ func configureLACPBondInterfaces(workerNodeName string, sriovInterfacesUnderTest
 }
 
 func createBondedNAD(nadName string) error {
-	bondNadBuilder, err := defineBondNad(nadName, bondModeActiveBackup, "static", 2)
+	bondNadBuilder, err := sriovenv.CreateBondNAD(nadName, sriovenv.BondModeActiveBackup, "static", 0, 2)
 	if err != nil {
-		return fmt.Errorf("failed to define bonded NAD %s: %w", nadName, err)
+		return fmt.Errorf("failed to build bonded NAD %s: %w", nadName, err)
 	}
 
 	_, err = bondNadBuilder.Create()
@@ -1858,7 +1838,7 @@ func verifyVFEnableLogs(podLogs, targetInterface string, expectedVFs int) error 
 func checkBondingStatusInPod(bondedPod *pod.Builder, expectedMode ...string) error {
 	bondInterface := bondTestInterface
 
-	mode := bondModeActiveBackup
+	mode := sriovenv.BondModeActiveBackup
 	if len(expectedMode) > 0 {
 		mode = expectedMode[0]
 	}
@@ -1886,7 +1866,7 @@ func configureLACPBondInterfaceSecondary(nodeName, interfaceName string) {
 
 	nmstatePolicyName := fmt.Sprintf("lacp-bond-secondary-%s", nodeName)
 	secondaryBondPolicy := nmstate.NewPolicyBuilder(APIClient, nmstatePolicyName, nodeSelector).
-		WithBondInterface([]string{interfaceName}, nodeBond20Interface, bondMode802_3ad, bondInterfaceOptions)
+		WithBondInterface([]string{interfaceName}, nodeBond20Interface, lacpNMStateBondMode8023ad, bondInterfaceOptions)
 
 	err := netnmstate.CreatePolicyAndWaitUntilItsAvailable(netparam.DefaultTimeout, secondaryBondPolicy)
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to create secondary bond policy for %s", nodeBond20Interface))
@@ -2134,7 +2114,7 @@ func verifyInterfaceIsUp(nodeName, interfaceName string) error {
 }
 
 func analyzePodBondingStatus(bondingOutput, bondInterface, location string, expectedMode ...string) error {
-	mode := bondModeActiveBackup
+	mode := sriovenv.BondModeActiveBackup
 	if len(expectedMode) > 0 {
 		mode = expectedMode[0]
 	}
@@ -2261,11 +2241,11 @@ func verifyBondingDegradedState(bondedPod *pod.Builder) error {
 	// Verify exactly one interface is down (degraded state)
 	downInterfaces := 0
 
-	if net1Status == "down" {
+	if net1Status == lacpExpectedStateDown {
 		downInterfaces++
 	}
 
-	if net2Status == "down" {
+	if net2Status == lacpExpectedStateDown {
 		downInterfaces++
 	}
 
@@ -2282,10 +2262,10 @@ func verifyBondingDegradedState(bondedPod *pod.Builder) error {
 
 func validateBondingModeOutput(bondingMode, expectedMode, location, bondInterface string) error {
 	switch expectedMode {
-	case bondModeActiveBackup:
-		if !strings.Contains(bondingMode, bondModeActiveBackup) {
+	case sriovenv.BondModeActiveBackup:
+		if !strings.Contains(bondingMode, sriovenv.BondModeActiveBackup) {
 			return fmt.Errorf("expected %s bonding mode, got: %s on %s %s",
-				bondModeActiveBackup, bondingMode, location, bondInterface)
+				sriovenv.BondModeActiveBackup, bondingMode, location, bondInterface)
 		}
 	default:
 		return fmt.Errorf("unsupported bonding mode validation: %s", expectedMode)

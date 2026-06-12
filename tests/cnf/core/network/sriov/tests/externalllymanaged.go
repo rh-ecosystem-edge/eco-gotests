@@ -459,7 +459,7 @@ var _ = Describe("ExternallyManaged", Ordered, Label(tsparams.LabelExternallyMan
 				By("Creating a new bond interface with the VFs and vlan interface for this bond via nmstate operator")
 
 				bondPolicy := nmstate.NewPolicyBuilder(APIClient, secondBondInterfaceName, NetConfig.WorkerLabelMap).
-					WithBondInterface(vfsUnderTest, secondBondInterfaceName, "active-backup").
+					WithBondInterface(vfsUnderTest, secondBondInterfaceName, sriovenv.BondModeActiveBackup).
 					WithVlanInterface(secondBondInterfaceName, uint16(testVlan))
 
 				err = netnmstate.CreatePolicyAndWaitUntilItsAvailable(netparam.DefaultTimeout, bondPolicy)
