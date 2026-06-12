@@ -27,6 +27,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 )
 
 const (
@@ -129,17 +130,12 @@ var _ = Describe("IP Forwarding per Interface", Ordered,
 
 			By("Enabling routingViaHost on the cluster network operator")
 
-			_, err = networkOperator.SetLocalGWMode(true, 10*time.Minute)
-			Expect(err).ToNot(HaveOccurred(), "Failed to enable routingViaHost")
+			setLocalGWModeWithRetry(true, 10*time.Minute)
 
 			By("Ensuring global IP forwarding is enabled")
 
 			if originalIPForwarding != operatorv1.IPForwardingGlobal {
-				networkOperator, err = network.PullOperator(APIClient)
-				Expect(err).ToNot(HaveOccurred(), "Failed to pull network operator")
-
-				_, err = networkOperator.SetIPForwarding(operatorv1.IPForwardingGlobal, 10*time.Minute)
-				Expect(err).ToNot(HaveOccurred(), "Failed to set ipForwarding to Global")
+				setIPForwardingWithRetry(operatorv1.IPForwardingGlobal, 10*time.Minute)
 			}
 
 			By("Creating a new instance of MetalLB Speakers on workers")
@@ -166,14 +162,9 @@ var _ = Describe("IP Forwarding per Interface", Ordered,
 		AfterAll(func() {
 			By("Restoring network operator settings")
 
-			networkOperator, err := network.PullOperator(APIClient)
-			Expect(err).ToNot(HaveOccurred(), "Failed to pull network operator for restore")
+			setIPForwardingWithRetry(originalIPForwarding, 10*time.Minute)
 
-			networkOperator, err = networkOperator.SetIPForwarding(originalIPForwarding, 10*time.Minute)
-			Expect(err).ToNot(HaveOccurred(), "Failed to restore ipForwarding")
-
-			_, err = networkOperator.SetLocalGWMode(originalRoutingViaHost, 10*time.Minute)
-			Expect(err).ToNot(HaveOccurred(), "Failed to restore routingViaHost")
+			setLocalGWModeWithRetry(originalRoutingViaHost, 10*time.Minute)
 
 			resetOperatorAndTestNS()
 		})
@@ -705,11 +696,35 @@ func cleanupIPFwdContextResources() {
 }
 
 func disableGlobalIPForwarding() {
-	networkOperator, err := network.PullOperator(APIClient)
-	Expect(err).ToNot(HaveOccurred(), "Failed to pull network operator")
+	setIPForwardingWithRetry(operatorv1.IPForwardingRestricted, 10*time.Minute)
+}
 
-	_, err = networkOperator.SetIPForwarding(operatorv1.IPForwardingRestricted, 10*time.Minute)
-	Expect(err).ToNot(HaveOccurred(), "Failed to set ipForwarding to Restricted")
+func setLocalGWModeWithRetry(state bool, timeout time.Duration) {
+	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		networkOperator, pullErr := network.PullOperator(APIClient)
+		if pullErr != nil {
+			return pullErr
+		}
+
+		_, setErr := networkOperator.SetLocalGWMode(state, timeout)
+
+		return setErr
+	})
+	Expect(err).ToNot(HaveOccurred(), "Failed to set routingViaHost to %v", state)
+}
+
+func setIPForwardingWithRetry(mode operatorv1.IPForwardingMode, timeout time.Duration) {
+	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		networkOperator, pullErr := network.PullOperator(APIClient)
+		if pullErr != nil {
+			return pullErr
+		}
+
+		_, setErr := networkOperator.SetIPForwarding(mode, timeout)
+
+		return setErr
+	})
+	Expect(err).ToNot(HaveOccurred(), "Failed to set ipForwarding to %v", mode)
 }
 
 func createIPFwdBridgeNAD() {
