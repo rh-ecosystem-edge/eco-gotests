@@ -81,27 +81,25 @@ func getExpectedForProfile(
 		})
 	}
 
-	// DPLL: applicable to any profile with DPLL capability (Intel plugin DpllSettings or HardwareConfig
-	// with DPLL holdover parameters).
-	dpllExpected, err := getExpectedDpll(client, nodeName, profileInfo)
+	// Pull the raw profile once for DPLL and GNSS inspection.
+	rawProfile, err := profileInfo.PullProfile(client)
 	if err != nil {
 		klog.V(tsparams.LogLevel).Infof(
-			"Could not determine DPLL expected metrics for profile %s on node %s: %v",
+			"Could not pull raw profile %s on node %s for DPLL/GNSS inspection: %v",
 			profileInfo.Reference.ProfileName, nodeName, err)
-	} else {
-		expected = append(expected, dpllExpected...)
+
+		return expected, nil
 	}
+
+	// DPLL: applicable to any profile with DPLL capability (Intel plugin DpllSettings or HardwareConfig
+	// with DPLL holdover parameters).
+	dpllExpected := getExpectedDpll(nodeName, profileInfo, rawProfile)
+	expected = append(expected, dpllExpected...)
 
 	// GNSS: only applicable to GM variant profiles with Intel plugins.
 	if isGMProfile(profileInfo.ProfileType) {
-		gnssExpected, err := getExpectedGnss(client, nodeName, profileInfo)
-		if err != nil {
-			klog.V(tsparams.LogLevel).Infof(
-				"Could not determine GNSS expected metrics for profile %s on node %s: %v",
-				profileInfo.Reference.ProfileName, nodeName, err)
-		} else {
-			expected = append(expected, gnssExpected...)
-		}
+		gnssExpected := getExpectedGnss(nodeName, profileInfo, rawProfile)
+		expected = append(expected, gnssExpected...)
 	}
 
 	return expected, nil
@@ -158,20 +156,15 @@ func hasDpllCapability(profileInfo *ProfileInfo, rawProfile *ptpv1.PtpProfile) b
 //
 // When plugin-based discovery fails or returns no interfaces, the function falls back to client interfaces.
 func getExpectedDpll(
-	client *clients.Settings, nodeName string, profileInfo *ProfileInfo,
-) ([]metrics.ExpectedClockState, error) {
-	rawProfile, err := profileInfo.PullProfile(client)
-	if err != nil {
-		return nil, fmt.Errorf("failed to pull raw profile: %w", err)
-	}
-
+	nodeName string, profileInfo *ProfileInfo, rawProfile *ptpv1.PtpProfile,
+) []metrics.ExpectedClockState {
 	if !hasDpllCapability(profileInfo, rawProfile) {
-		return nil, nil
+		return nil
 	}
 
 	dpllIfaces := getDpllInterfaces(profileInfo, rawProfile)
 	if len(dpllIfaces) == 0 {
-		return nil, nil
+		return nil
 	}
 
 	var expected []metrics.ExpectedClockState
@@ -189,7 +182,7 @@ func getExpectedDpll(
 		})
 	}
 
-	return expected, nil
+	return expected
 }
 
 // getDpllInterfaces returns the interfaces that should have DPLL clock state metrics for the given profile.
@@ -220,24 +213,19 @@ func getDpllInterfaces(profileInfo *ProfileInfo, rawProfile *ptpv1.PtpProfile) [
 // plugins to find the GPS interface (TX pin for E810 or device for E825). Only GM variant profiles have GPS
 // connections, so this function should only be called when isGMProfile returns true.
 func getExpectedGnss(
-	client *clients.Settings, nodeName string, profileInfo *ProfileInfo,
-) ([]metrics.ExpectedClockState, error) {
-	rawProfile, err := profileInfo.PullProfile(client)
-	if err != nil {
-		return nil, fmt.Errorf("failed to pull raw profile: %w", err)
-	}
-
+	nodeName string, profileInfo *ProfileInfo, rawProfile *ptpv1.PtpProfile,
+) []metrics.ExpectedClockState {
 	gpsInterface, gpsErr := GetGmInterfaceToGPS(rawProfile)
 	if gpsErr != nil {
 		klog.V(tsparams.LogLevel).Infof("No GNSS interface in profile %s: %v",
 			profileInfo.Reference.ProfileName, gpsErr)
 
-		return nil, nil
+		return nil
 	}
 
 	nicName := gpsInterface.GetNIC()
 	if nicName == "" {
-		return nil, nil
+		return nil
 	}
 
 	return []metrics.ExpectedClockState{
@@ -246,5 +234,5 @@ func getExpectedGnss(
 			Interface: string(nicName),
 			Node:      nodeName,
 		},
-	}, nil
+	}
 }

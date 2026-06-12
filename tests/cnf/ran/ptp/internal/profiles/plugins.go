@@ -305,7 +305,7 @@ func GetDpllInterfaces(profile *ptpv1.PtpProfile) ([]iface.Name, error) {
 	}
 
 	if _, ok := profile.Plugins[string(ptp.PluginTypeE810)]; ok {
-		return getInterfacesWithPluginPins(profile, ptp.PluginTypeE810, PinStateRx)
+		return GetRxInterfaces(profile)
 	}
 
 	if _, ok := profile.Plugins[string(ptp.PluginTypeE825)]; ok {
