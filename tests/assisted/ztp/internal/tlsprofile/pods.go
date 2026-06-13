@@ -76,16 +76,21 @@ func WaitPodsRestarted(client *clients.Settings, component *Component) {
 }
 
 func waitContainerRestart(client *clients.Settings, component *Component) {
-	restartCounts := make(map[string]int32)
+	type baseline struct {
+		podUID       string
+		restartCount int32
+	}
+
+	baselines := make(map[string]baseline)
 
 	Eventually(func() bool {
 		for _, deploy := range component.Deployments {
-			count := GetContainerRestartCount(client, component, deploy)
-			if count < 0 {
+			uid, count := getContainerRestartInfo(client, component, deploy)
+			if uid == "" {
 				return false
 			}
 
-			restartCounts[deploy.Name] = count
+			baselines[deploy.Name] = baseline{podUID: uid, restartCount: count}
 		}
 
 		return true
@@ -94,12 +99,21 @@ func waitContainerRestart(client *clients.Settings, component *Component) {
 
 	for _, d := range component.Deployments {
 		deploy := d
+		base := baselines[deploy.Name]
 
-		Eventually(func() int32 {
-			return GetContainerRestartCount(client, component, deploy)
+		Eventually(func() bool {
+			uid, count := getContainerRestartInfo(client, component, deploy)
+			if uid == "" {
+				return false
+			}
+
+			if uid != base.podUID {
+				return true
+			}
+
+			return count > base.restartCount
 		}).WithTimeout(component.AutoRestartTimeout).WithPolling(5*time.Second).
-			Should(BeNumerically(">", restartCounts[deploy.Name]),
-				"%s %s should have restarted", component.Name, deploy.Name)
+			Should(BeTrue(), "%s %s should have restarted", component.Name, deploy.Name)
 	}
 }
 
@@ -137,25 +151,42 @@ func waitPodReplacement(client *clients.Settings, component *Component) {
 		Should(BeTrue(), "%s pods should have been replaced", component.Name)
 }
 
-// GetContainerRestartCount returns the restart count of the container for the given deployment.
-// Returns -1 if the pod or container cannot be found (e.g. API timeout during rollout).
-func GetContainerRestartCount(client *clients.Settings, component *Component, deploy Deployment) int32 {
+// getContainerRestartInfo returns the pod UID and restart count for the given deployment.
+// Returns ("", 0) if the pod or container cannot be found.
+func getContainerRestartInfo(
+	client *clients.Settings, component *Component, deploy Deployment,
+) (string, int32) {
 	pods, err := component.ListPods(client, component.Namespace)
 	if err != nil {
-		return -1
+		return "", 0
 	}
 
 	for _, p := range pods {
 		if strings.Contains(p.Object.Name, deploy.Name) {
+			uid := string(p.Object.UID)
+
 			for _, cs := range p.Object.Status.ContainerStatuses {
 				if cs.Name == deploy.ContainerName {
-					return cs.RestartCount
+					return uid, cs.RestartCount
 				}
 			}
+
+			return uid, 0
 		}
 	}
 
-	return -1
+	return "", 0
+}
+
+// GetContainerRestartCount returns the restart count of the container for the given deployment.
+// Returns -1 if the pod or container cannot be found (e.g. API timeout during rollout).
+func GetContainerRestartCount(client *clients.Settings, component *Component, deploy Deployment) int32 {
+	uid, count := getContainerRestartInfo(client, component, deploy)
+	if uid == "" {
+		return -1
+	}
+
+	return count
 }
 
 // AssertControllerLogsContain asserts that the deployment's container logs contain the given pattern.
