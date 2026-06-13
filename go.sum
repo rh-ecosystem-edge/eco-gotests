@@ -186,6 +186,8 @@ github.com/expr-lang/expr v1.17.7 h1:Q0xY/e/2aCIp8g9s/LGvMDCC5PxYlvHgDZRQ4y16JX8
 github.com/expr-lang/expr v1.17.7/go.mod h1:8/vRC7+7HBzESEqt5kKpYXxrxkr31SaO8r40VO/1IT4=
 github.com/fatih/color v1.18.0 h1:S8gINlzdQ840/4pfAwic/ZE0djQEH3wM94VfqLTZcOM=
 github.com/fatih/color v1.18.0/go.mod h1:4FelSpRwEGDpQ12mAdzqdOukCy4u8WUtOY6lkT/6HfU=
+github.com/frajamomo/eco-goinfra v0.0.0-20260612142449-56480a686961 h1:IASgxaQthe1DZxPE8AMhM8aVCGwXNNuaXngdpDMnGdo=
+github.com/frajamomo/eco-goinfra v0.0.0-20260612142449-56480a686961/go.mod h1:lJ1JIy4Y6PSN2k7xYrNR7kuBcFf7k8QXB/ZYMG/sY/4=
 github.com/frankban/quicktest v1.14.6 h1:7Xjx+VpznH+oBnejlPUj8oUpdxnVs4f8XU8WnHkI4W8=
 github.com/frankban/quicktest v1.14.6/go.mod h1:4ptaffx2x8+WTWXmUCuVU6aPUX1/Mz7zb5vbUoiM6w0=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
@@ -705,8 +707,6 @@ github.com/red-hat-storage/odf-operator v0.0.0-20260226164309-08c71191d483 h1:I8
 github.com/red-hat-storage/odf-operator v0.0.0-20260226164309-08c71191d483/go.mod h1:ezzeJZeZyinngGE5Ox4wAZg6w+Bdu7/9PtdQeV3fXUk=
 github.com/redhat-cne/sdk-go v1.23.6 h1:L+Rs12UihwDBJc/tj1eEMc4Otf7Lxf0bkFjdsg7FPGA=
 github.com/redhat-cne/sdk-go v1.23.6/go.mod h1:5hK1sILdB33pdMsNYTyBKV/v5GjjibmQZcyRtVrVfvs=
-github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260612002243-5010c14a630f h1:H57Yp6DO6SU9V3B4O+oKr/BcNX2jombCwTnR0qkzAqY=
-github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260612002243-5010c14a630f/go.mod h1:lJ1JIy4Y6PSN2k7xYrNR7kuBcFf7k8QXB/ZYMG/sY/4=
 github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=
 github.com/rivo/uniseg v0.4.7/go.mod h1:FN3SvrM+Zdj16jyLfmOkMNblXMcoc8DfTHruCPUcx88=
 github.com/rogpeppe/go-internal v1.9.0/go.mod h1:WtVeX8xhTBvf0smdhujwtBcq4Qrzq/fJaraNFVN+nFs=
