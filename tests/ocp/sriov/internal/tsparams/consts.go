@@ -30,6 +30,8 @@ const (
 	LabelRdmaMetricsAPITestCases = "rdmametricsapi"
 	// LabelParallelDrainingTestCases represents parallel draining label that can be used for test cases selection.
 	LabelParallelDrainingTestCases = "paralleldraining"
+	// LabelQinQTestCases represents QinQ label that can be used for test cases selection.
+	LabelQinQTestCases = "qinq"
 
 	// MCOWaitTimeout represent timeout for mco operations.
 	MCOWaitTimeout = 35 * time.Minute
