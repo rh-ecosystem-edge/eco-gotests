@@ -164,6 +164,8 @@ require (
 	github.com/hashicorp/vault/api/auth/kubernetes v0.10.0 // indirect
 	github.com/huandu/xstrings v1.5.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/itchyny/gojq v0.12.19 // indirect
+	github.com/itchyny/timefmt-go v0.1.8 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
@@ -198,9 +200,11 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/opencontainers/runtime-spec v1.2.1 // indirect
+	github.com/openshift/assisted-service/models v0.0.0 // indirect
 	github.com/openshift/cluster-logging-operator/api/observability v0.0.0-20250422180113-5bae4ccfc5ef // indirect
 	github.com/openshift/custom-resource-status v1.1.3-0.20220503160415-f2fdb4999d87 // indirect
 	github.com/openshift/elasticsearch-operator v0.0.0-20241202223819-cc1a232913d6 // indirect
+	github.com/openshift/hive/apis v0.0.0-20251117181851-acea5e9196a2 // indirect
 	github.com/otiai10/copy v1.14.0 // indirect
 	github.com/ovn-kubernetes/ovn-kubernetes/go-controller v0.0.0-20260303063950-da86b2aa2ff0 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
@@ -273,12 +277,13 @@ require (
 	sigs.k8s.io/kustomize/kyaml v0.21.0 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.2 // indirect
-	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
 require (
+	github.com/openshift/assisted-service/api v0.0.0
 	github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260612002243-5010c14a630f
 	k8s.io/apiextensions-apiserver v0.35.5
+	sigs.k8s.io/yaml v1.6.0
 )
 
 replace (
