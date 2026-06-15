@@ -42,6 +42,7 @@ Assisted ZTP tests are developed for the purpose of testing the infrastructure o
 ### Inputs
 - `ECO_ASSISTED_ZTP_SPOKE_KUBECONFIG`: Location of the spoke cluster kubeconfig file
 - `ECO_ASSISTED_ZTP_SPOKE_CLUSTERIMAGESET`: The clusterimageset that should be used by real/mocked spoke cluster resources
+- `ECO_ASSISTED_ZTP_HUB_PULL_SECRET_OVERRIDE_PATH`: Path to a file containing a pull secret override for the hub cluster
 
 Please refer to the project README for a list of global inputs - [How to run](../../../README.md#how-to-run)
 

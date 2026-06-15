@@ -53,6 +53,7 @@ Currently, only the TALM tests need more than the first spoke kubeconfig.
 
 * `ECO_CNF_RAN_SKIP_TLS_VERIFY`: Boolean for allowing the go-git library to skip TLS certificate validation for internal repositories.
   * Set to either `true` or `false`. Default is `false`.
+* `ECO_CNF_RAN_SPOKE1_NAME`: Name of the spoke 1 cluster.
 
 ### Running the RAN deployment test suites
 

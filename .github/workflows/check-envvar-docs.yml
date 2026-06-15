@@ -1,0 +1,20 @@
+name: Check env var documentation
+
+on:
+  workflow_dispatch:
+
+  push:
+
+  pull_request:
+    branches:
+      - main
+      - 'release-*'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check ECO_* env vars are documented in READMEs
+        run: bash scripts/check-envvar-docs.sh

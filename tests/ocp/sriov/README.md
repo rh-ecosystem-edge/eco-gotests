@@ -51,7 +51,15 @@ export ECO_OCP_SRIOV_INTERFACE_LIST="ens2f0,ens3f0"
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ECO_OCP_SRIOV_OPERATOR_NAMESPACE` | SR-IOV operator namespace | `openshift-sriov-network-operator` |
-| `ECO_OCP_SRIOV_TEST_CONTAINER` | Container image for test workloads | — |
+| `ECO_OCP_SRIOV_TEST_CONTAINER` | Container image for test workloads | -- |
+| `ECO_OCP_SRIOV_DPDK_TEST_CONTAINER` | Container image for DPDK test workloads | -- |
+| `ECO_OCP_SRIOV_PROMETHEUS_OPERATOR_NAMESPACE` | Prometheus operator namespace | -- |
+| `ECO_OCP_SRIOV_MCP_LABEL` | Machine config pool label | -- |
+| `ECO_OCP_SRIOV_SWITCH_USER` | Switch username for switch-based tests | -- |
+| `ECO_OCP_SRIOV_SWITCH_PASS` | Switch password for switch-based tests | -- |
+| `ECO_OCP_SRIOV_SWITCH_IP` | Switch IP address for switch-based tests | -- |
+| `ECO_OCP_SRIOV_SWITCH_INTERFACES` | Switch interfaces for switch-based tests (comma-separated `name:port` pairs) | -- |
+| `ECO_OCP_SRIOV_VLAN` | VLAN ID for switch-based tests (1-4094) | -- |
 
 ## Directory Structure
 

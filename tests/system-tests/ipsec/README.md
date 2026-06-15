@@ -90,9 +90,9 @@ to open ports for IPSec, as explained in Appendix A4.
 If the SNO cluster used for IPSec testing is changed, then most likely the IP addresses
 will have to be changed.
 
-To change the SNO cluster IP, first update the `iperf3_server_sno_ip` parameter
+To change the SNO cluster IP, first update the `iperf3_server_ocp_ips` parameter
 in the `eco-gotests/tests/system-tests/ipsec/internal/ipsecconfig/default.yaml`
-file. This parameter can be overridden in CI by setting the `ECO_IPSEC_IPERF3_SERVER_SNO_IP`
+file. This parameter can be overridden in CI by setting the `ECO_IPSEC_IPERF3_SERVER_OCP_IPS`
 environment variable.
 
 Additionally, the SNO cluster Machine Config must be created again and stored in
@@ -127,6 +127,26 @@ The test case could fail for one of the following reasons:
 3. The iperf3 image for the SNO cluster is not available. Refer to Appendix A3.
 4. One of the IPs in `eco-gotests/tests/system-tests/ipsec/internal/ipsecconfig/default.yaml`
    is incorrect.
+
+## Environment Variables
+
+The following environment variables configure the IPSec test suite. See
+`tests/system-tests/ipsec/internal/ipsecconfig/default.yaml` for default values.
+
+* `ECO_IPSEC_TESTS_IPERF3_IMAGE`: Container image for the iperf3 tool.
+* `ECO_IPSEC_SECGW_HOST_IP`: Host IP address of the Security Gateway (for SSH).
+* `ECO_IPSEC_SECGW_SERVER_IP`: IPSec tunnel IP of the Security Gateway.
+* `ECO_IPSEC_IPERF3_SERVER_OCP_IPS`: OCP cluster IP addresses for iperf3 server.
+* `ECO_IPSEC_IPERF3_CLIENT_TX_BYTES`: Number of bytes to transmit in iperf3 client tests.
+* `ECO_IPSEC_NODE_PORT`: NodePort used for iperf3 tests.
+* `ECO_IPSEC_NODE_PORT_INCREMENT`: Increment applied to the node port between tests.
+* `ECO_IPSEC_TESTWORKLOAD_NAMESPACE`: Namespace for the test workload.
+* `ECO_IPSEC_TESTWORKLOAD_CREATE_METHOD`: Method used to create the test workload.
+* `ECO_IPSEC_TESTWORKLOAD_CREATE_SHELLCMD`: Shell command to create the test workload.
+* `ECO_IPSEC_TESTWORKLOAD_DELETE_SHELLCMD`: Shell command to delete the test workload.
+* `ECO_SSH_USER`: SSH username for the Security Gateway.
+* `ECO_SSH_PRIVATE_KEY`: Path to SSH private key for the Security Gateway.
+* `ECO_SSH_PORT`: SSH port for the Security Gateway.
 
 ## Appendix
 

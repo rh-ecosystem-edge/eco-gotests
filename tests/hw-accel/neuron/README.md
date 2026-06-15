@@ -105,6 +105,15 @@ Notes:
 | `ECO_HWACCEL_NEURON_HF_TOKEN` | **REQUIRED for vLLM tests** - HuggingFace token for downloading gated models (e.g., Llama). Get your token from https://huggingface.co/settings/tokens |
 | `ECO_HWACCEL_NEURON_STORAGE_CLASS` | Storage class for model PVC (default: `gp3-csi`). The PVC caches downloaded models to avoid re-downloading on pod restart. |
 
+#### KServe Test Variables
+
+| Variable | Description |
+|----------|-------------|
+| `ECO_HWACCEL_NEURON_KSERVE_MODEL_NAME` | HuggingFace model for KServe inference tests (default: `TinyLlama/TinyLlama-1.1B-Chat-v1.0`) |
+| `ECO_HWACCEL_NEURON_KSERVE_VLLM_IMAGE` | vLLM Neuron image for the KServe ServingRuntime |
+| `ECO_HWACCEL_NEURON_KSERVE_NAMESPACE` | Namespace where KServe resources are deployed (default: `neuron-inference`) |
+| `ECO_HWACCEL_NEURON_KSERVE_TENSOR_PARALLEL_SIZE` | Tensor parallel size for KServe vLLM (default: `1`) |
+
 #### Upgrade Test Variables
 
 | Variable | Description |
