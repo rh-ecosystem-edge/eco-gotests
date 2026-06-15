@@ -31,6 +31,8 @@ const (
 	LabelGNSSLoss = "gnss-loss"
 	// LabelSMADisconnect is the label for all tests in the PTP T-GM SMA disconnect suite.
 	LabelSMADisconnect = "sma-disconnect"
+	// LabelGMPtpConfigLifecycle is the label for GM PtpConfig delete/apply lifecycle tests.
+	LabelGMPtpConfigLifecycle = "gm-ptpconfig-lifecycle"
 
 	// LeapConfigmapName is the name of the leap configmap.
 	LeapConfigmapName = "leap-configmap"
