@@ -1,8 +1,6 @@
 package profiles
 
 import (
-	"fmt"
-
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	ptpv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v1"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
@@ -28,17 +26,14 @@ import (
 // (E825/E830). For other profiles (T-BC, T-TSC, etc.), DPLL interfaces are the client (upstream) interfaces.
 //
 // The client parameter is used to pull raw PtpProfile specs when plugin inspection is needed for DPLL/GNSS detection.
-func GetExpectedClockStates(client *clients.Settings, nodeInfoMap map[string]*NodeInfo) ([]metrics.ExpectedClockState, error) {
+func GetExpectedClockStates(
+	client *clients.Settings, nodeInfoMap map[string]*NodeInfo,
+) ([]metrics.ExpectedClockState, error) {
 	var expected []metrics.ExpectedClockState
 
 	for nodeName, nodeInfo := range nodeInfoMap {
 		for _, profileInfo := range nodeInfo.Profiles {
-			profileExpected, err := getExpectedForProfile(client, nodeName, profileInfo)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get expected clock states for profile %s on node %s: %w",
-					profileInfo.Reference.ProfileName, nodeName, err)
-			}
-
+			profileExpected := getExpectedForProfile(client, nodeName, profileInfo)
 			expected = append(expected, profileExpected...)
 		}
 	}
@@ -48,7 +43,8 @@ func GetExpectedClockStates(client *clients.Settings, nodeInfoMap map[string]*No
 
 // getExpectedForProfile determines the expected clock state metrics for a single profile on a node.
 func getExpectedForProfile(
-	client *clients.Settings, nodeName string, profileInfo *ProfileInfo) ([]metrics.ExpectedClockState, error) {
+	client *clients.Settings, nodeName string, profileInfo *ProfileInfo,
+) []metrics.ExpectedClockState {
 	var expected []metrics.ExpectedClockState
 
 	// phc2sys / CLOCK_REALTIME: expected for all profiles except TBC transmitters (which only transmit time and
@@ -88,7 +84,7 @@ func getExpectedForProfile(
 			"Could not pull raw profile %s on node %s for DPLL/GNSS inspection: %v",
 			profileInfo.Reference.ProfileName, nodeName, err)
 
-		return expected, nil
+		return expected
 	}
 
 	// DPLL: applicable to any profile with DPLL capability (Intel plugin DpllSettings or HardwareConfig
@@ -102,7 +98,7 @@ func getExpectedForProfile(
 		expected = append(expected, gnssExpected...)
 	}
 
-	return expected, nil
+	return expected
 }
 
 // isGMProfile returns true if the profile type is a grandmaster variant that may have GNSS hardware.
@@ -110,9 +106,12 @@ func isGMProfile(profileType PtpProfileType) bool {
 	switch profileType {
 	case ProfileTypeGM, ProfileTypeMultiNICGM, ProfileTypeNTPFallback:
 		return true
-	default:
+	case ProfileTypeOC, ProfileTypeTwoPortOC, ProfileTypeBC, ProfileTypeHA,
+		ProfileTypeTBCTransmitter, ProfileTypeTBCReceiver, ProfileTypeTTSC:
 		return false
 	}
+
+	return false
 }
 
 // ptp4lUsesNICName returns true if the profile type reports ptp4l clock state metrics with NIC names rather
@@ -123,9 +122,12 @@ func ptp4lUsesNICName(profileType PtpProfileType) bool {
 	switch profileType {
 	case ProfileTypeBC, ProfileTypeTBCReceiver:
 		return true
-	default:
+	case ProfileTypeOC, ProfileTypeTwoPortOC, ProfileTypeHA, ProfileTypeGM,
+		ProfileTypeMultiNICGM, ProfileTypeNTPFallback, ProfileTypeTBCTransmitter, ProfileTypeTTSC:
 		return false
 	}
+
+	return false
 }
 
 // hasDpllCapability reports whether the profile has DPLL monitoring capability, either through an Intel plugin

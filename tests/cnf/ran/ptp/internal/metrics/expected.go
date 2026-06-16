@@ -44,27 +44,27 @@ func FormatExpectedClockStates(expected []ExpectedClockState) string {
 		return "(none)"
 	}
 
-	var sb strings.Builder
+	var stringBuilder strings.Builder
 
-	for i, e := range expected {
+	for i, expectedState := range expected {
 		if i > 0 {
-			sb.WriteString("\n")
+			stringBuilder.WriteString("\n")
 		}
 
-		sb.WriteString("  - ")
-		sb.WriteString(e.String())
+		stringBuilder.WriteString("  - ")
+		stringBuilder.WriteString(expectedState.String())
 	}
 
-	return sb.String()
+	return stringBuilder.String()
 }
 
 // deduplicateExpectedClockStates removes duplicate entries from the expected clock states slice. Two entries
 // are considered duplicates if they have the same process, interface, and node.
 func deduplicateExpectedClockStates(expected []ExpectedClockState) []ExpectedClockState {
 	type key struct {
-		process   PtpProcess
-		iface     string
-		node      string
+		process PtpProcess
+		iface   string
+		node    string
 	}
 
 	seen := make(map[key]struct{})
@@ -77,6 +77,7 @@ func deduplicateExpectedClockStates(expected []ExpectedClockState) []ExpectedClo
 		}
 
 		seen[k] = struct{}{}
+
 		result = append(result, entry)
 	}
 

@@ -74,7 +74,9 @@ func EnsureClocksAreLocked(prometheusAPI prometheusv1.API, opts ...EnsureLockedO
 //
 // When WithExpectedClockStates is provided, the function first verifies that all expected metric series are present
 // before asserting the stable locked state.
-func EnsureClocksAreStable(prometheusAPI prometheusv1.API, stableDuration time.Duration, opts ...EnsureLockedOption) error {
+func EnsureClocksAreStable(
+	prometheusAPI prometheusv1.API, stableDuration time.Duration, opts ...EnsureLockedOption,
+) error {
 	cfg := &ensureLockedConfig{}
 	for _, opt := range opts {
 		opt(cfg)
@@ -141,18 +143,18 @@ func ensureClockStatesPresent(
 		}
 
 		if time.Now().After(deadline) {
-			var sb strings.Builder
+			var stringBuilder strings.Builder
 
-			sb.WriteString(fmt.Sprintf("timed out after %s waiting for %d/%d expected clock state metrics:\n",
-				timeout, len(missing), len(expected)))
+			fmt.Fprintf(&stringBuilder, "timed out after %s waiting for %d/%d expected clock state metrics:\n",
+				timeout, len(missing), len(expected))
 
 			for _, m := range missing {
-				sb.WriteString("  - missing: ")
-				sb.WriteString(m.String())
-				sb.WriteString("\n")
+				stringBuilder.WriteString("  - missing: ")
+				stringBuilder.WriteString(m.String())
+				stringBuilder.WriteString("\n")
 			}
 
-			return fmt.Errorf("%s", sb.String())
+			return fmt.Errorf("%s", stringBuilder.String())
 		}
 
 		klog.V(tsparams.LogLevel).Infof("Presence check: %d/%d metrics missing, retrying in %s",
