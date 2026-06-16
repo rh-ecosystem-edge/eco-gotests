@@ -1639,11 +1639,13 @@ func CreateWhereaboutsStatefulset(ctx SpecContext, config StatefulsetConfig) {
 	Expect(config.NAD).ToNot(BeEmpty(),
 		"NetworkAttachmentDefinition must be set for statefulset %q", config.Name)
 
-	// Setup headless service
-	setupHeadlessService(config.ServiceName, RDSCoreConfig.WhereaboutNS, config.Label, config.Port, config.NAD)
-
-	// Cleanup existing statefulset
+	// Cleanup existing statefulset FIRST (before deleting service)
+	// This ensures pods fully terminate and release their endpoints
+	// before the service and its EndpointSlices are deleted
 	cleanupStatefulset(config.Name, RDSCoreConfig.WhereaboutNS, config.Label)
+
+	// Setup headless service AFTER pod cleanup
+	setupHeadlessService(config.ServiceName, RDSCoreConfig.WhereaboutNS, config.Label, config.Port, config.NAD)
 
 	// Parse service labels
 	svcLabelsMap := parseLabelsMap(config.Label)
@@ -2157,7 +2159,14 @@ func extractIPsFromNetworkStatus(
 
 // recordIPAllocation records an IP allocation and checks for duplicates.
 func recordIPAllocation(ipStr, podName string, allocatedIPv4, allocatedIPv6 map[string]string) error {
-	if net.ParseIP(ipStr).To4() != nil {
+	// Parse IP once and validate
+	parsedIP := net.ParseIP(ipStr)
+	if parsedIP == nil {
+		return fmt.Errorf("invalid IP address %q for pod %q", ipStr, podName)
+	}
+
+	// Check if IPv4 or IPv6
+	if parsedIP.To4() != nil {
 		// IPv4
 		if existingPod, exists := allocatedIPv4[ipStr]; exists {
 			return fmt.Errorf("duplicate IPv4 address %q allocated to both pod %q and pod %q",
