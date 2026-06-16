@@ -57,8 +57,8 @@ var (
 	}
 
 	// ReporterCRDsToDump tells to the reporter what CRs to dump.
-	// Enhanced to include Deployments, StatefulSets, ReplicaSets, Events, and storage resources
-	// for better failure debugging.
+	// Enhanced to include Deployments, StatefulSets, ReplicaSets, Events, ConfigMaps, Services,
+	// and storage resources for better failure debugging.
 	ReporterCRDsToDump = []k8sreporter.CRData{
 		// Core workload resources
 		{Cr: &corev1.PodList{}},
@@ -68,6 +68,12 @@ var (
 
 		// Events are critical for understanding scheduling failures and other issues
 		{Cr: &corev1.EventList{}},
+
+		// ConfigMaps for Whereabouts reconciler configuration debugging
+		{Cr: &corev1.ConfigMapList{}},
+
+		// Services for network connectivity debugging
+		{Cr: &corev1.ServiceList{}},
 
 		// Storage resources for debugging PVC binding and provisioning issues
 		{Cr: &corev1.PersistentVolumeList{}},

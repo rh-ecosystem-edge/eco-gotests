@@ -292,77 +292,103 @@ var _ = Describe(
 				Label("log-forwarding", "kafka"), reportxml.ID("81882"),
 				rdscorecommon.VerifyLogForwardingToKafka)
 
-			It("Verifies connectivity between pods from statefuleset running on different nodes after pod's termination",
-				Label("statefulset-whereabouts", "statefulset-different-nodes-termination"),
-				MustPassRepeatedly(3),
-				reportxml.ID("82769"),
-				rdscorecommon.EnsurePodConnectivityBetweenDifferentNodesAfterPodTermination)
+			Context("Whereabouts IPAM Validation", Ordered, Label("whereabouts"), func() {
+				BeforeAll(func(ctx SpecContext) {
+					By("Verifying Whereabouts reconciler configuration and health (once per suite)")
 
-			It("Verifies connectivity between pods from statefuleset running on the same node after pod's termination",
-				Label("statefulset-whereabouts", "statefulset-same-node-termination"),
-				MustPassRepeatedly(3),
-				reportxml.ID("82790"),
-				rdscorecommon.EnsurePodConnectivityOnSameNodeAfterPodTermination)
+					err := rdscorecommon.VerifyWhereaboutsReconcilerHealth()
+					Expect(err).ToNot(HaveOccurred(), "Reconciler health check failed")
 
-			It("Verifies connectivity between pods from statefuleset running on different nodes after node's power off",
-				Label("statefulset-whereabouts", "statefulset-different-nodes-power-off"),
-				reportxml.ID("82906"),
-				rdscorecommon.EnsurePodConnectivityBetweenDifferentNodesAfterNodePowerOff)
+					By("Waiting for Whereabouts reconciler cycle to complete (once per suite)")
 
-			It("Verifies connectivity between pods from statefuleset running on the same node after node's power off",
-				Label("statefulset-whereabouts", "statefulset-same-node-power-off"),
-				reportxml.ID("82908"),
-				rdscorecommon.EnsurePodConnectivityOnSameNodeAfterNodePowerOff)
+					err = rdscorecommon.WaitForReconcilerCycle()
+					Expect(err).ToNot(HaveOccurred(), "Reconciler cycle wait failed")
 
-			It("Verifies connectivity between pods from statefuleset running on different nodes after node's drain",
-				Label("statefulset-whereabouts", "statefulset-different-nodes-drain"),
-				reportxml.ID("82798"),
-				rdscorecommon.EnsurePodConnectivityBetweenDifferentNodesAfterNodeDrain)
+					By("Reconciler validation complete - subsequent tests will only validate IPAM state")
+				})
 
-			It("Verifies connectivity between pods from statefuleset running on the same node after node's drain",
-				Label("statefulset-whereabouts", "statefulset-same-node-drain"),
-				reportxml.ID("82799"),
-				rdscorecommon.EnsurePodConnectivityOnSameNodeAfterNodeDrain)
+				BeforeEach(func(ctx SpecContext) {
+					By("Verifying IPAM state consistency before test")
 
-			It("Verify Whereabouts Deployment on the same node",
-				Label("whereabouts", "whereabouts-deployment-same-node", "whereabouts-deployment"),
-				reportxml.ID("82714"),
-				rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNode)
+					err := rdscorecommon.VerifyIPAMStateConsistency(
+						RDSCoreConfig.WhereaboutNS,
+						"whereabouts")
+					Expect(err).ToNot(HaveOccurred(),
+						"IPAM state inconsistent - possible duplicate IPs or DAD failures")
+				})
 
-			It("Verify Whereabouts Deployment on the different nodes",
-				Label("whereabouts", "whereabouts-deployment-different-nodes", "whereabouts-deployment"),
-				reportxml.ID("82713"),
-				rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnDifferentNodes)
+				It("Verifies connectivity between pods from statefuleset running on different nodes after pod's termination",
+					Label("statefulset-whereabouts", "statefulset-different-nodes", "termination"),
+					MustPassRepeatedly(3),
+					reportxml.ID("82769"),
+					rdscorecommon.EnsurePodConnectivityBetweenDifferentNodesAfterPodTermination)
 
-			It("Verify Whereabouts Deployment on the same node after pod termination",
-				Label("whereabouts", "whereabouts-deployment-same-node-termination", "whereabouts-deployment"),
-				reportxml.ID("82741"),
-				rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNodeAfterPodTermination)
+				It("Verifies connectivity between pods from statefuleset running on the same node after pod's termination",
+					Label("statefulset-whereabouts", "statefulset-same-node", "termination"),
+					MustPassRepeatedly(3),
+					reportxml.ID("82790"),
+					rdscorecommon.EnsurePodConnectivityOnSameNodeAfterPodTermination)
 
-			It("Verify Whereabouts Deployment on the different nodes after pod termination",
-				Label("whereabouts", "whereabouts-deployment-different-nodes-termination", "whereabouts-deployment"),
-				reportxml.ID("82740"),
-				rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnDifferentNodesAfterPodTermination)
+				It("Verifies connectivity between pods from statefuleset running on different nodes after node's power off",
+					Label("statefulset-whereabouts", "statefulset-different-nodes", "power-off"),
+					reportxml.ID("82906"),
+					rdscorecommon.EnsurePodConnectivityBetweenDifferentNodesAfterNodePowerOff)
 
-			It("Verify Whereabouts Deployment on different nodes after node drain",
-				Label("whereabouts", "whereabouts-deployment-different-nodes-drain", "whereabouts-deployment"),
-				reportxml.ID("82743"),
-				rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnDifferentNodesAfterNodeDrain)
+				It("Verifies connectivity between pods from statefuleset running on the same node after node's power off",
+					Label("statefulset-whereabouts", "statefulset-same-node", "power-off"),
+					reportxml.ID("82908"),
+					rdscorecommon.EnsurePodConnectivityOnSameNodeAfterNodePowerOff)
 
-			It("Verify Whereabouts Deployment on the same node after node drain",
-				Label("whereabouts", "whereabouts-deployment-same-node-drain", "whereabouts-deployment"),
-				reportxml.ID("82744"),
-				rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNodeAfterNodeDrain)
+				It("Verifies connectivity between pods from statefuleset running on different nodes after node's drain",
+					Label("statefulset-whereabouts", "statefulset-different-nodes", "drain"),
+					reportxml.ID("82798"),
+					rdscorecommon.EnsurePodConnectivityBetweenDifferentNodesAfterNodeDrain)
 
-			It("Verify Whereabouts Deployment on different nodes after node power off",
-				Label("whereabouts", "whereabouts-deployment-different-nodes-power-off", "whereabouts-deployment"),
-				reportxml.ID("82909"),
-				rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnDifferentNodesAfterNodePowerOff)
+				It("Verifies connectivity between pods from statefuleset running on the same node after node's drain",
+					Label("statefulset-whereabouts", "statefulset-same-node", "drain"),
+					reportxml.ID("82799"),
+					rdscorecommon.EnsurePodConnectivityOnSameNodeAfterNodeDrain)
 
-			It("Verify Whereabouts Deployment on the same node after node power off",
-				Label("whereabouts", "whereabouts-deployment-same-node-power-off", "whereabouts-deployment"),
-				reportxml.ID("82910"),
-				rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNodeAfterNodePowerOff)
+				It("Verify Whereabouts Deployment on the same node",
+					Label("whereabouts-deployment", "same-node", "basic"),
+					reportxml.ID("82714"),
+					rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNode)
+
+				It("Verify Whereabouts Deployment on the different nodes",
+					Label("whereabouts-deployment", "different-nodes", "basic"),
+					reportxml.ID("82713"),
+					rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnDifferentNodes)
+
+				It("Verify Whereabouts Deployment on the same node after pod termination",
+					Label("whereabouts-deployment", "same-node", "termination"),
+					reportxml.ID("82741"),
+					rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNodeAfterPodTermination)
+
+				It("Verify Whereabouts Deployment on the different nodes after pod termination",
+					Label("whereabouts-deployment", "different-nodes", "termination"),
+					reportxml.ID("82740"),
+					rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnDifferentNodesAfterPodTermination)
+
+				It("Verify Whereabouts Deployment on different nodes after node drain",
+					Label("whereabouts-deployment", "different-nodes", "drain"),
+					reportxml.ID("82743"),
+					rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnDifferentNodesAfterNodeDrain)
+
+				It("Verify Whereabouts Deployment on the same node after node drain",
+					Label("whereabouts-deployment", "same-node", "drain"),
+					reportxml.ID("82744"),
+					rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNodeAfterNodeDrain)
+
+				It("Verify Whereabouts Deployment on different nodes after node power off",
+					Label("whereabouts-deployment", "different-nodes", "power-off"),
+					reportxml.ID("82909"),
+					rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnDifferentNodesAfterNodePowerOff)
+
+				It("Verify Whereabouts Deployment on the same node after node power off",
+					Label("whereabouts-deployment", "same-node", "power-off"),
+					reportxml.ID("82910"),
+					rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNodeAfterNodePowerOff)
+			})
 
 			It("Verifies commatrix host-firewall TCP connectivity",
 				Label("commatrix", "commatrix-connectivity"),
@@ -381,7 +407,7 @@ var _ = Describe(
 			})
 		})
 
-		Context("Ungraceful Cluster Reboot", Label("ungraceful-cluster-reboot"), func() {
+		Context("Ungraceful Cluster Reboot", Ordered, Label("ungraceful-cluster-reboot"), func() {
 			BeforeAll(func(ctx SpecContext) {
 				DeferCleanup(rdscorecommon.EnsureInNodeReadiness)
 
@@ -705,25 +731,51 @@ var _ = Describe(
 				Label("log-forwarding", "kafka"), reportxml.ID("81884"),
 				rdscorecommon.VerifyLogForwardingToKafka)
 
-			It("Verifies connectivity between pods from statefuleset scheduled on the same node post hard reboot",
-				Label("statefulset-whereabouts", "statefulset-same-node-validate"),
-				reportxml.ID("82919"),
-				rdscorecommon.ValidatePodConnectivityOnSameNodeAfterClusterReboot)
+			Context("Whereabouts Post-Reboot Validation", Ordered, Label("whereabouts"), func() {
+				BeforeAll(func(ctx SpecContext) {
+					By("Verifying Whereabouts reconciler health after reboot")
 
-			It("Verifies connectivity between pods from statefuleset scheduled on different nodes post hard reboot",
-				Label("statefulset-whereabouts", "statefulset-different-nodes-validate"),
-				reportxml.ID("82920"),
-				rdscorecommon.ValidatePodConnectivityBetweenDifferentNodesAfterClusterReboot)
+					err := rdscorecommon.VerifyWhereaboutsReconcilerHealth()
+					Expect(err).ToNot(HaveOccurred(), "Reconciler health check failed")
 
-			It("Verifies connectivity between pods from deployment scheduled on the same node post hard reboot",
-				Label("whereabouts", "deployment-whereabouts", "deployment-same-node-validate"),
-				reportxml.ID("82735"),
-				rdscorecommon.VerifyPodCommunicationOnSameNodeAfterClusterReboot)
+					By("Waiting for Whereabouts reconciler cycle")
 
-			It("Verifies connectivity between pods from deployment scheduled on different nodes post hard reboot",
-				Label("whereabouts", "deployment-whereabouts", "deployment-different-nodes-validate"),
-				reportxml.ID("82734"),
-				rdscorecommon.VerifyPodCommunicationOnDifferentNodesAfterClusterReboot)
+					err = rdscorecommon.WaitForReconcilerCycle()
+					Expect(err).ToNot(HaveOccurred(), "Reconciler cycle wait failed")
+
+					By("Reconciler validation complete - subsequent tests will only validate IPAM state")
+				})
+
+				BeforeEach(func(ctx SpecContext) {
+					By("Verifying IPAM state consistency before test")
+
+					err := rdscorecommon.VerifyIPAMStateConsistency(
+						RDSCoreConfig.WhereaboutNS,
+						"whereabouts")
+					Expect(err).ToNot(HaveOccurred(),
+						"IPAM state inconsistent - possible duplicate IPs or DAD failures")
+				})
+
+				It("Verifies connectivity between pods from statefuleset scheduled on the same node post hard reboot",
+					Label("statefulset-whereabouts", "statefulset-same-node-validate"),
+					reportxml.ID("82919"),
+					rdscorecommon.ValidatePodConnectivityOnSameNodeAfterClusterReboot)
+
+				It("Verifies connectivity between pods from statefuleset scheduled on different nodes post hard reboot",
+					Label("statefulset-whereabouts", "statefulset-different-nodes-validate"),
+					reportxml.ID("82920"),
+					rdscorecommon.ValidatePodConnectivityBetweenDifferentNodesAfterClusterReboot)
+
+				It("Verifies connectivity between pods from deployment scheduled on the same node post hard reboot",
+					Label("deployment-whereabouts", "deployment-same-node-validate"),
+					reportxml.ID("82735"),
+					rdscorecommon.VerifyPodCommunicationOnSameNodeAfterClusterReboot)
+
+				It("Verifies connectivity between pods from deployment scheduled on different nodes post hard reboot",
+					Label("deployment-whereabouts", "deployment-different-nodes-validate"),
+					reportxml.ID("82734"),
+					rdscorecommon.VerifyPodCommunicationOnDifferentNodesAfterClusterReboot)
+			})
 
 			It("Verifies commatrix host-firewall TCP connectivity after ungraceful reboot",
 				Label("commatrix", "commatrix-connectivity"),
@@ -742,7 +794,7 @@ var _ = Describe(
 			})
 		})
 
-		Context("Graceful Cluster Reboot", Label("graceful-cluster-reboot"), func() {
+		Context("Graceful Cluster Reboot", Ordered, Label("graceful-cluster-reboot"), func() {
 			BeforeAll(func(ctx SpecContext) {
 				DeferCleanup(rdscorecommon.EnsureInNodeReadiness)
 
@@ -1033,25 +1085,51 @@ var _ = Describe(
 				Label("log-forwarding", "kafka"), reportxml.ID("81883"),
 				rdscorecommon.VerifyLogForwardingToKafka)
 
-			It("Verifies connectivity between pods from statefuleset scheduled on the same node post soft reboot",
-				Label("statefulset-whereabouts", "statefulset-same-node-validate"),
-				reportxml.ID("82911"),
-				rdscorecommon.ValidatePodConnectivityOnSameNodeAfterClusterReboot)
+			Context("Whereabouts Post-Reboot Validation", Ordered, Label("whereabouts"), func() {
+				BeforeAll(func(ctx SpecContext) {
+					By("Verifying Whereabouts reconciler health after reboot")
 
-			It("Verifies connectivity between pods from statefuleset scheduled on different nodes post soft reboot",
-				Label("statefulset-whereabouts", "statefulset-different-nodes-validate"),
-				reportxml.ID("82918"),
-				rdscorecommon.ValidatePodConnectivityBetweenDifferentNodesAfterClusterReboot)
+					err := rdscorecommon.VerifyWhereaboutsReconcilerHealth()
+					Expect(err).ToNot(HaveOccurred(), "Reconciler health check failed")
 
-			It("Verifies connectivity between pods from deployment scheduled on the same node post soft reboot",
-				Label("whereabouts", "deployment-whereabouts", "deployment-same-node-validate"),
-				reportxml.ID("82737"),
-				rdscorecommon.VerifyPodCommunicationOnSameNodeAfterClusterReboot)
+					By("Waiting for Whereabouts reconciler cycle")
 
-			It("Verifies connectivity between pods from deployment scheduled on different nodes post soft reboot",
-				Label("whereabouts", "deployment-whereabouts", "deployment-different-nodes-validate"),
-				reportxml.ID("82736"),
-				rdscorecommon.VerifyPodCommunicationOnDifferentNodesAfterClusterReboot)
+					err = rdscorecommon.WaitForReconcilerCycle()
+					Expect(err).ToNot(HaveOccurred(), "Reconciler cycle wait failed")
+
+					By("Reconciler validation complete - subsequent tests will only validate IPAM state")
+				})
+
+				BeforeEach(func(ctx SpecContext) {
+					By("Verifying IPAM state consistency before test")
+
+					err := rdscorecommon.VerifyIPAMStateConsistency(
+						RDSCoreConfig.WhereaboutNS,
+						"whereabouts")
+					Expect(err).ToNot(HaveOccurred(),
+						"IPAM state inconsistent - possible duplicate IPs or DAD failures")
+				})
+
+				It("Verifies connectivity between pods from statefuleset scheduled on the same node post soft reboot",
+					Label("statefulset-whereabouts", "statefulset-same-node-validate"),
+					reportxml.ID("82911"),
+					rdscorecommon.ValidatePodConnectivityOnSameNodeAfterClusterReboot)
+
+				It("Verifies connectivity between pods from statefuleset scheduled on different nodes post soft reboot",
+					Label("statefulset-whereabouts", "statefulset-different-nodes-validate"),
+					reportxml.ID("82918"),
+					rdscorecommon.ValidatePodConnectivityBetweenDifferentNodesAfterClusterReboot)
+
+				It("Verifies connectivity between pods from deployment scheduled on the same node post soft reboot",
+					Label("deployment-whereabouts", "deployment-same-node-validate"),
+					reportxml.ID("82737"),
+					rdscorecommon.VerifyPodCommunicationOnSameNodeAfterClusterReboot)
+
+				It("Verifies connectivity between pods from deployment scheduled on different nodes post soft reboot",
+					Label("deployment-whereabouts", "deployment-different-nodes-validate"),
+					reportxml.ID("82736"),
+					rdscorecommon.VerifyPodCommunicationOnDifferentNodesAfterClusterReboot)
+			})
 
 			It("Verifies commatrix host-firewall TCP connectivity after graceful reboot",
 				Label("commatrix", "commatrix-connectivity"),

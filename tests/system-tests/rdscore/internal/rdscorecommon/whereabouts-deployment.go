@@ -553,8 +553,6 @@ func CreateWhereaboutsDeployment(ctx SpecContext, config WhereaboutsDeploymentCo
 
 	By(fmt.Sprintf("Setting up deployment with %s", config.Description))
 
-	configureWhereaboutsIPReconciler()
-
 	cleanupDeployment(config.Name, RDSCoreConfig.WhereaboutNS, config.Label)
 
 	waBuilder := createDeploymentBuilder(config)
