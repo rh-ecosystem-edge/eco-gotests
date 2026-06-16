@@ -1671,6 +1671,242 @@ func CreateWhereaboutsStatefulset(ctx SpecContext, config StatefulsetConfig) {
 	VerifyPodConnectivity(config.Label, RDSCoreConfig.WhereaboutNS, interfaceName, parsedPort)
 }
 
+// ReconcilerConfigState holds the original state of the reconciler configuration.
+type ReconcilerConfigState struct {
+	OriginalSchedule   string
+	ConfigMapExisted   bool
+	ScheduleKeyExisted bool
+}
+
+// ConfigureWhereaboutsReconciler configures the Whereabouts reconciler to run every 3 minutes
+// and returns the original configuration state for later restoration.
+//
+//nolint:funlen
+func ConfigureWhereaboutsReconciler() (*ReconcilerConfigState, error) {
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"Configuring Whereabouts reconciler schedule to %q", WhereaboutsReconcilerSchedule)
+
+	state := &ReconcilerConfigState{
+		ConfigMapExisted:   false,
+		ScheduleKeyExisted: false,
+		OriginalSchedule:   "",
+	}
+
+	// 1. Check if ConfigMap exists
+	configMap, err := configmap.Pull(APIClient, WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
+	if err != nil {
+		// ConfigMap doesn't exist - create it
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"ConfigMap %q not found in namespace %q, creating it",
+			WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
+
+		state.ConfigMapExisted = false
+
+		createConfigMap(WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace, map[string]string{
+			WhereaboutsReconcilerKey: WhereaboutsReconcilerSchedule,
+		})
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Successfully created ConfigMap %q with schedule %q",
+			WhereaboutsReconcilerCMName, WhereaboutsReconcilerSchedule)
+
+		return state, nil
+	}
+
+	// 2. ConfigMap exists - check if schedule key exists
+	state.ConfigMapExisted = true
+
+	if originalSchedule, ok := configMap.Object.Data[WhereaboutsReconcilerKey]; ok {
+		// Schedule key exists - save original value
+		state.ScheduleKeyExisted = true
+		state.OriginalSchedule = originalSchedule
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"ConfigMap %q exists with schedule %q, saving original",
+			WhereaboutsReconcilerCMName, originalSchedule)
+
+		// Only update if different from target schedule
+		if originalSchedule == WhereaboutsReconcilerSchedule {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"Schedule is already set to %q, no update needed", WhereaboutsReconcilerSchedule)
+
+			return state, nil
+		}
+	} else {
+		// Schedule key doesn't exist
+		state.ScheduleKeyExisted = false
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"ConfigMap %q exists but schedule key %q not found, adding it",
+			WhereaboutsReconcilerCMName, WhereaboutsReconcilerKey)
+	}
+
+	// 3. Update ConfigMap with accelerated schedule
+	if configMap.Object.Data == nil {
+		configMap.Object.Data = make(map[string]string)
+	}
+
+	configMap.Object.Data[WhereaboutsReconcilerKey] = WhereaboutsReconcilerSchedule
+
+	err = wait.PollUntilContextTimeout(
+		context.TODO(),
+		5*time.Second,
+		1*time.Minute,
+		true,
+		func(ctx context.Context) (bool, error) {
+			_, updateErr := configMap.Update()
+			if updateErr != nil {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"Failed to update ConfigMap, retrying: %v", updateErr)
+
+				// Re-pull ConfigMap in case it was modified
+				freshCM, pullErr := configmap.Pull(APIClient, WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
+				if pullErr != nil {
+					return false, nil
+				}
+
+				if freshCM.Object.Data == nil {
+					freshCM.Object.Data = make(map[string]string)
+				}
+
+				freshCM.Object.Data[WhereaboutsReconcilerKey] = WhereaboutsReconcilerSchedule
+				configMap = freshCM
+
+				return false, nil
+			}
+
+			return true, nil
+		})
+	if err != nil {
+		return nil, fmt.Errorf("failed to update reconciler ConfigMap after retries: %w", err)
+	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"Successfully configured reconciler schedule to %q", WhereaboutsReconcilerSchedule)
+
+	return state, nil
+}
+
+// RestoreWhereaboutsReconciler restores the Whereabouts reconciler configuration to its original state.
+//
+//nolint:funlen
+func RestoreWhereaboutsReconciler(state *ReconcilerConfigState) error {
+	if state == nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"No reconciler state to restore (state is nil)")
+
+		return nil
+	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"Restoring Whereabouts reconciler configuration (existed=%v, had_key=%v, original=%q)",
+		state.ConfigMapExisted, state.ScheduleKeyExisted, state.OriginalSchedule)
+
+	// Case 1: ConfigMap didn't exist before - delete it
+	if !state.ConfigMapExisted {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"ConfigMap %q was created by tests, deleting it",
+			WhereaboutsReconcilerCMName)
+
+		configMap, err := configmap.Pull(APIClient, WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
+		if err != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"ConfigMap %q not found during restoration (may have been deleted): %v",
+				WhereaboutsReconcilerCMName, err)
+
+			return nil // Already gone, nothing to restore
+		}
+
+		err = configMap.Delete()
+		if err != nil {
+			return fmt.Errorf("failed to delete ConfigMap %q: %w", WhereaboutsReconcilerCMName, err)
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Successfully deleted ConfigMap %q", WhereaboutsReconcilerCMName)
+
+		return nil
+	}
+
+	// Case 2: ConfigMap existed but schedule key didn't - remove the key
+	if !state.ScheduleKeyExisted {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Schedule key %q was added by tests, removing it", WhereaboutsReconcilerKey)
+
+		configMap, err := configmap.Pull(APIClient, WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
+		if err != nil {
+			return fmt.Errorf("failed to pull ConfigMap during restoration: %w", err)
+		}
+
+		if configMap.Object.Data != nil {
+			delete(configMap.Object.Data, WhereaboutsReconcilerKey)
+
+			_, err = configMap.Update()
+			if err != nil {
+				return fmt.Errorf("failed to remove schedule key from ConfigMap: %w", err)
+			}
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Successfully removed schedule key %q", WhereaboutsReconcilerKey)
+
+		return nil
+	}
+
+	// Case 3: Both ConfigMap and key existed - restore original schedule
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"Restoring original schedule %q", state.OriginalSchedule)
+
+	configMap, err := configmap.Pull(APIClient, WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
+	if err != nil {
+		return fmt.Errorf("failed to pull ConfigMap during restoration: %w", err)
+	}
+
+	if configMap.Object.Data == nil {
+		configMap.Object.Data = make(map[string]string)
+	}
+
+	configMap.Object.Data[WhereaboutsReconcilerKey] = state.OriginalSchedule
+
+	err = wait.PollUntilContextTimeout(
+		context.TODO(),
+		5*time.Second,
+		1*time.Minute,
+		true,
+		func(ctx context.Context) (bool, error) {
+			_, updateErr := configMap.Update()
+			if updateErr != nil {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"Failed to restore ConfigMap, retrying: %v", updateErr)
+
+				// Re-pull and retry
+				freshCM, pullErr := configmap.Pull(APIClient, WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
+				if pullErr != nil {
+					return false, nil
+				}
+
+				if freshCM.Object.Data == nil {
+					freshCM.Object.Data = make(map[string]string)
+				}
+
+				freshCM.Object.Data[WhereaboutsReconcilerKey] = state.OriginalSchedule
+				configMap = freshCM
+
+				return false, nil
+			}
+
+			return true, nil
+		})
+	if err != nil {
+		return fmt.Errorf("failed to restore ConfigMap after retries: %w", err)
+	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"Successfully restored reconciler schedule to %q", state.OriginalSchedule)
+
+	return nil
+}
+
 // VerifyWhereaboutsReconcilerHealth checks that the Whereabouts reconciler infrastructure is healthy.
 // It verifies:
 // - Reconciler ConfigMap exists and has valid cron schedule.
@@ -1739,12 +1975,12 @@ func WaitForReconcilerCycle() error {
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Waiting for Whereabouts reconciler cycle to complete")
 
 	// Parse reconciler schedule from ConfigMap
-	cm, err := configmap.Pull(APIClient, WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
+	configMap, err := configmap.Pull(APIClient, WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
 	if err != nil {
 		return fmt.Errorf("failed to get reconciler ConfigMap: %w", err)
 	}
 
-	schedule := cm.Object.Data[WhereaboutsReconcilerKey]
+	schedule := configMap.Object.Data[WhereaboutsReconcilerKey]
 
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Reconciler schedule: %q", schedule)
 
