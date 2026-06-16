@@ -43,6 +43,13 @@ const (
 
 	// ImmutableMessage is the message to expect in a Policy's history when an immutable field cannot be updated.
 	ImmutableMessage = "cannot be updated, likely due to immutable fields not matching"
+
+	// PRValidationFailedDetailsSubstring is a substring of status.provisioningStatus.provisioningDetails when
+	// ProvisioningRequest validation fails.
+	PRValidationFailedDetailsSubstring = "Validation failed"
+	// PRFulfilledDetailsSubstring is a substring of status.provisioningStatus.provisioningDetails when
+	// provisioning completes successfully.
+	PRFulfilledDetailsSubstring = "completed successfully"
 )
 
 const (
