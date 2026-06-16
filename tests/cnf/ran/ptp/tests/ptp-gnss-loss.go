@@ -6,13 +6,12 @@ import (
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
+	"github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	prometheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	eventptp "github.com/redhat-cne/sdk-go/pkg/event/ptp"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ptp"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
-	"k8s.io/klog/v2"
-
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/querier"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
@@ -25,7 +24,9 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/metrics"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/processes"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/profiles"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/ptpdaemon"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
+	"k8s.io/klog/v2"
 )
 
 var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
@@ -69,6 +70,10 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 	})
 
 	AfterEach(func() {
+		if CurrentSpecReport().State == types.SpecStateSkipped {
+			return
+		}
+
 		By("restoring PtpConfigs after testing")
 
 		startTime := time.Now()
@@ -155,6 +160,10 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 
 					err = metrics.EnsureClocksAreStable(prometheusAPI, 1*time.Minute)
 					Expect(err).ToNot(HaveOccurred(), "Failed to ensure clocks are stable after config change")
+
+					By("validating /gpsd/data is not growing after config change on node " + nodeName)
+
+					validateGpsdFileEmpty(nodeName)
 				}
 
 				By("simulating GNSS loss on node " + nodeName)
@@ -341,6 +350,10 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 
 					err = metrics.EnsureClocksAreStable(prometheusAPI, 1*time.Minute)
 					Expect(err).ToNot(HaveOccurred(), "Failed to ensure clocks are stable after config change")
+
+					By("validating /gpsd/data is not growing after config change on node " + nodeName)
+
+					validateGpsdFileEmpty(nodeName)
 				}
 
 				By("simulating GNSS loss on node " + nodeName)
@@ -562,6 +575,10 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 
 					err = metrics.EnsureClocksAreStable(prometheusAPI, 1*time.Minute)
 					Expect(err).ToNot(HaveOccurred(), "Failed to ensure clocks are stable after config change")
+
+					By("validating /gpsd/data is not growing after config change on node " + nodeName)
+
+					validateGpsdFileEmpty(nodeName)
 				}
 
 				By(fmt.Sprintf("simulating GNSS loss on node %s for %v to reach max in-spec offset",
@@ -714,3 +731,26 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 			}
 		})
 })
+
+// validateGpsdFileEmpty asserts that /gpsd/data is empty (zero-size or absent) for the full
+// validation window. It fails as soon as any poll finds content in the file.
+// This is a corrective measure for OCPBUGS-58131.
+func validateGpsdFileEmpty(nodeName string) {
+	GinkgoHelper()
+
+	const (
+		validateAttempts = 5
+		validateInterval = 1 * time.Second
+	)
+
+	Consistently(func() error {
+		_, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(
+			RANConfig.Spoke1APIClient,
+			nodeName,
+			"[ ! -s /gpsd/data ]",
+		)
+
+		return err
+	}, validateAttempts*validateInterval, validateInterval).ShouldNot(HaveOccurred(),
+		"/gpsd/data has content on node %s — file may be growing (OCPBUGS-58131)", nodeName)
+}
