@@ -77,8 +77,9 @@ var (
 		Status: metav1.ConditionTrue,
 	}
 
-	// CTInvalidSchemaCondition is the ClusterTemplate condition where the validation failed due to invalid schema.
-	CTInvalidSchemaCondition = metav1.Condition{
+	// CTInvalidInlineBMCSchemaCondition is the ClusterTemplate condition where validation failed because
+	// clusterInstanceParameters is missing the inline BMC fields required when hwMgmtDefaults is omitted.
+	CTInvalidInlineBMCSchemaCondition = metav1.Condition{
 		Type:    string(provisioningv1alpha1.CTconditionTypes.Validated),
 		Reason:  string(provisioningv1alpha1.CTconditionReasons.Failed),
 		Status:  metav1.ConditionFalse,
