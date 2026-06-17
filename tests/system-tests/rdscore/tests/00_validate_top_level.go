@@ -292,6 +292,10 @@ var _ = Describe(
 				Label("log-forwarding", "kafka"), reportxml.ID("81882"),
 				rdscorecommon.VerifyLogForwardingToKafka)
 
+			It("Verify local Loki end-to-end forwarding baseline",
+				Label("log-forwarding", "loki"), reportxml.ID("88943"),
+				rdscorecommon.VerifyLokiEndToEndForwardingBaseline)
+
 			It("Verifies connectivity between pods from statefuleset running on different nodes after pod's termination",
 				Label("statefulset-whereabouts", "statefulset-different-nodes-termination"),
 				MustPassRepeatedly(3),
