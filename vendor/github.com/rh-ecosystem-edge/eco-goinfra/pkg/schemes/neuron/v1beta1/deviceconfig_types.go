@@ -31,7 +31,6 @@ type DeviceConfigSpec struct {
 	UseInTreeDrivers bool `json:"useInTreeDrivers,omitempty"`
 
 	// defines image that includes drivers
-	// +kubebuilder:validation:Required
 	DriversImage string `json:"driversImage,omitempty"`
 
 	// defines the Version of the neuron drivers. used for rolling upgrade
