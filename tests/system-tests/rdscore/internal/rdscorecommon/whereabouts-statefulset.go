@@ -1639,13 +1639,13 @@ func CreateWhereaboutsStatefulset(ctx SpecContext, config StatefulsetConfig) {
 	Expect(config.NAD).ToNot(BeEmpty(),
 		"NetworkAttachmentDefinition must be set for statefulset %q", config.Name)
 
-	configureWhereaboutsIPReconciler()
-
-	// Setup headless service
-	setupHeadlessService(config.ServiceName, RDSCoreConfig.WhereaboutNS, config.Label, config.Port, config.NAD)
-
-	// Cleanup existing statefulset
+	// Cleanup existing statefulset FIRST (before deleting service)
+	// This ensures pods fully terminate and release their endpoints
+	// before the service and its EndpointSlices are deleted
 	cleanupStatefulset(config.Name, RDSCoreConfig.WhereaboutNS, config.Label)
+
+	// Setup headless service AFTER pod cleanup
+	setupHeadlessService(config.ServiceName, RDSCoreConfig.WhereaboutNS, config.Label, config.Port, config.NAD)
 
 	// Parse service labels
 	svcLabelsMap := parseLabelsMap(config.Label)
@@ -1673,52 +1673,596 @@ func CreateWhereaboutsStatefulset(ctx SpecContext, config StatefulsetConfig) {
 	VerifyPodConnectivity(config.Label, RDSCoreConfig.WhereaboutNS, interfaceName, parsedPort)
 }
 
-// configureWhereaboutsIPReconciler configures whereabouts IP reconciler to run every 3 minutes.
-func configureWhereaboutsIPReconciler() {
-	By(fmt.Sprintf("Checking if configmap %q exists in %q namespace",
-		WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace))
+// ReconcilerConfigState holds the original state of the reconciler configuration.
+type ReconcilerConfigState struct {
+	OriginalSchedule   string
+	ConfigMapExisted   bool
+	ScheduleKeyExisted bool
+}
 
-	var ctx SpecContext
+// ConfigureWhereaboutsReconciler configures the Whereabouts reconciler to run every 3 minutes
+// and returns the original configuration state for later restoration.
+//
+//nolint:funlen
+func ConfigureWhereaboutsReconciler() (*ReconcilerConfigState, error) {
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"Configuring Whereabouts reconciler schedule to %q", WhereaboutsReconcilerSchedule)
 
-	cmWhereabouts, err := configmap.Pull(APIClient, WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
-	if err == nil {
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Configmap %q exists in %q namespace, updating it",
+	state := &ReconcilerConfigState{
+		ConfigMapExisted:   false,
+		ScheduleKeyExisted: false,
+		OriginalSchedule:   "",
+	}
+
+	// 1. Check if ConfigMap exists
+	configMap, err := configmap.Pull(APIClient, WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
+	if err != nil {
+		// ConfigMap doesn't exist - create it
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"ConfigMap %q not found in namespace %q, creating it",
 			WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
 
-		if oldSchedule, ok := cmWhereabouts.Object.Data[WhereaboutsReconcilerKey]; ok {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Key %q already exists in configmap %q in %q namespace, updating it",
-				WhereaboutsReconcilerKey, WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
-
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Old schedule: %q", oldSchedule)
-
-			cmWhereabouts.Object.Data[WhereaboutsReconcilerKey] = WhereaboutsReconcilerSchedule
-		} else {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Key %q does not exist in configmap %q in %q namespace, adding it",
-				WhereaboutsReconcilerKey, WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
-
-			cmWhereabouts.Object.Data[WhereaboutsReconcilerKey] = WhereaboutsReconcilerSchedule
-		}
-
-		By(fmt.Sprintf("Updating configmap %q in %q namespace",
-			WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace))
-
-		Eventually(func() error {
-			_, err := cmWhereabouts.Update()
-
-			return err
-		}).WithContext(ctx).WithPolling(15*time.Second).WithTimeout(1*time.Minute).Should(Succeed(),
-			"Failed to update configmap %q in %q namespace", WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
-	} else {
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Configmap %q does not exist in %q namespace, creating it",
-			WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
-
-		By(fmt.Sprintf("Configuring whereabouts reconciler with configmap %q in %q namespace",
-			WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace))
+		state.ConfigMapExisted = false
 
 		createConfigMap(WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace, map[string]string{
 			WhereaboutsReconcilerKey: WhereaboutsReconcilerSchedule,
 		})
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Successfully created ConfigMap %q with schedule %q",
+			WhereaboutsReconcilerCMName, WhereaboutsReconcilerSchedule)
+
+		return state, nil
 	}
+
+	// 2. ConfigMap exists - check if schedule key exists
+	state.ConfigMapExisted = true
+
+	if originalSchedule, ok := configMap.Object.Data[WhereaboutsReconcilerKey]; ok {
+		// Schedule key exists - save original value
+		state.ScheduleKeyExisted = true
+		state.OriginalSchedule = originalSchedule
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"ConfigMap %q exists with schedule %q, saving original",
+			WhereaboutsReconcilerCMName, originalSchedule)
+
+		// Only update if different from target schedule
+		if originalSchedule == WhereaboutsReconcilerSchedule {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"Schedule is already set to %q, no update needed", WhereaboutsReconcilerSchedule)
+
+			return state, nil
+		}
+	} else {
+		// Schedule key doesn't exist
+		state.ScheduleKeyExisted = false
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"ConfigMap %q exists but schedule key %q not found, adding it",
+			WhereaboutsReconcilerCMName, WhereaboutsReconcilerKey)
+	}
+
+	// 3. Update ConfigMap with accelerated schedule
+	if configMap.Object.Data == nil {
+		configMap.Object.Data = make(map[string]string)
+	}
+
+	configMap.Object.Data[WhereaboutsReconcilerKey] = WhereaboutsReconcilerSchedule
+
+	err = wait.PollUntilContextTimeout(
+		context.TODO(),
+		5*time.Second,
+		1*time.Minute,
+		true,
+		func(ctx context.Context) (bool, error) {
+			_, updateErr := configMap.Update()
+			if updateErr != nil {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"Failed to update ConfigMap, retrying: %v", updateErr)
+
+				// Re-pull ConfigMap in case it was modified
+				freshCM, pullErr := configmap.Pull(APIClient, WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
+				if pullErr != nil {
+					return false, nil
+				}
+
+				if freshCM.Object.Data == nil {
+					freshCM.Object.Data = make(map[string]string)
+				}
+
+				freshCM.Object.Data[WhereaboutsReconcilerKey] = WhereaboutsReconcilerSchedule
+				configMap = freshCM
+
+				return false, nil
+			}
+
+			return true, nil
+		})
+	if err != nil {
+		return nil, fmt.Errorf("failed to update reconciler ConfigMap after retries: %w", err)
+	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"Successfully configured reconciler schedule to %q", WhereaboutsReconcilerSchedule)
+
+	return state, nil
+}
+
+// RestoreWhereaboutsReconciler restores the Whereabouts reconciler configuration to its original state.
+//
+//nolint:funlen
+func RestoreWhereaboutsReconciler(state *ReconcilerConfigState) error {
+	if state == nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"No reconciler state to restore (state is nil)")
+
+		return nil
+	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"Restoring Whereabouts reconciler configuration (existed=%v, had_key=%v, original=%q)",
+		state.ConfigMapExisted, state.ScheduleKeyExisted, state.OriginalSchedule)
+
+	// Case 1: ConfigMap didn't exist before - delete it
+	if !state.ConfigMapExisted {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"ConfigMap %q was created by tests, deleting it",
+			WhereaboutsReconcilerCMName)
+
+		configMap, err := configmap.Pull(APIClient, WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
+		if err != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"ConfigMap %q not found during restoration (may have been deleted): %v",
+				WhereaboutsReconcilerCMName, err)
+
+			return nil // Already gone, nothing to restore
+		}
+
+		err = configMap.Delete()
+		if err != nil {
+			return fmt.Errorf("failed to delete ConfigMap %q: %w", WhereaboutsReconcilerCMName, err)
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Successfully deleted ConfigMap %q", WhereaboutsReconcilerCMName)
+
+		return nil
+	}
+
+	// Case 2: ConfigMap existed but schedule key didn't - remove the key
+	if !state.ScheduleKeyExisted {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Schedule key %q was added by tests, removing it", WhereaboutsReconcilerKey)
+
+		configMap, err := configmap.Pull(APIClient, WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
+		if err != nil {
+			return fmt.Errorf("failed to pull ConfigMap during restoration: %w", err)
+		}
+
+		if configMap.Object.Data != nil {
+			delete(configMap.Object.Data, WhereaboutsReconcilerKey)
+
+			_, err = configMap.Update()
+			if err != nil {
+				return fmt.Errorf("failed to remove schedule key from ConfigMap: %w", err)
+			}
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Successfully removed schedule key %q", WhereaboutsReconcilerKey)
+
+		return nil
+	}
+
+	// Case 3: Both ConfigMap and key existed - restore original schedule
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"Restoring original schedule %q", state.OriginalSchedule)
+
+	configMap, err := configmap.Pull(APIClient, WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
+	if err != nil {
+		return fmt.Errorf("failed to pull ConfigMap during restoration: %w", err)
+	}
+
+	if configMap.Object.Data == nil {
+		configMap.Object.Data = make(map[string]string)
+	}
+
+	configMap.Object.Data[WhereaboutsReconcilerKey] = state.OriginalSchedule
+
+	err = wait.PollUntilContextTimeout(
+		context.TODO(),
+		5*time.Second,
+		1*time.Minute,
+		true,
+		func(ctx context.Context) (bool, error) {
+			_, updateErr := configMap.Update()
+			if updateErr != nil {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"Failed to restore ConfigMap, retrying: %v", updateErr)
+
+				// Re-pull and retry
+				freshCM, pullErr := configmap.Pull(APIClient, WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
+				if pullErr != nil {
+					return false, nil
+				}
+
+				if freshCM.Object.Data == nil {
+					freshCM.Object.Data = make(map[string]string)
+				}
+
+				freshCM.Object.Data[WhereaboutsReconcilerKey] = state.OriginalSchedule
+				configMap = freshCM
+
+				return false, nil
+			}
+
+			return true, nil
+		})
+	if err != nil {
+		return fmt.Errorf("failed to restore ConfigMap after retries: %w", err)
+	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"Successfully restored reconciler schedule to %q", state.OriginalSchedule)
+
+	return nil
+}
+
+// VerifyWhereaboutsReconcilerHealth checks that the Whereabouts reconciler infrastructure is healthy.
+// It verifies:
+// - Reconciler ConfigMap exists and has valid cron schedule.
+// - Reconciler pod exists and is running in openshift-multus namespace.
+func VerifyWhereaboutsReconcilerHealth() error {
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Verifying Whereabouts reconciler health")
+
+	// 1. Check ConfigMap exists and has valid schedule
+	configMap, err := configmap.Pull(APIClient, WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
+	if err != nil {
+		return fmt.Errorf("reconciler ConfigMap %q not found in namespace %q: %w",
+			WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace, err)
+	}
+
+	schedule, ok := configMap.Object.Data[WhereaboutsReconcilerKey]
+	if !ok || schedule == "" {
+		return fmt.Errorf("reconciler schedule key %q not found in ConfigMap %q",
+			WhereaboutsReconcilerKey, WhereaboutsReconcilerCMName)
+	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Reconciler ConfigMap found with schedule: %q", schedule)
+
+	// 2. Check reconciler pod exists and is Running
+	// Whereabouts reconciler pods are typically labeled with app=whereabouts-reconciler
+	pods, err := pod.List(APIClient, WhereaboutsReconcilerNamespace,
+		metav1.ListOptions{LabelSelector: "app=whereabouts-reconciler"})
+	if err != nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list reconciler pods: %v", err)
+
+		return fmt.Errorf("failed to list reconciler pods in namespace %q: %w",
+			WhereaboutsReconcilerNamespace, err)
+	}
+
+	if len(pods) == 0 {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("No reconciler pods found in namespace %q",
+			WhereaboutsReconcilerNamespace)
+
+		return fmt.Errorf("no reconciler pods found in namespace %q with label app=whereabouts-reconciler",
+			WhereaboutsReconcilerNamespace)
+	}
+
+	runningPods := 0
+
+	for _, podObj := range pods {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Reconciler pod %q status: %s",
+			podObj.Object.Name, podObj.Object.Status.Phase)
+
+		if podObj.Object.Status.Phase == corev1.PodRunning {
+			runningPods++
+		}
+	}
+
+	if runningPods == 0 {
+		return fmt.Errorf("no reconciler pods are in Running state in namespace %q",
+			WhereaboutsReconcilerNamespace)
+	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d running reconciler pod(s)", runningPods)
+
+	return nil
+}
+
+// WaitForReconcilerCycle waits for a Whereabouts reconciler cycle to complete.
+// The reconciler runs every 3 minutes (*/3 * * * *), so we wait for 3 minutes + 30 second buffer.
+func WaitForReconcilerCycle() error {
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Waiting for Whereabouts reconciler cycle to complete")
+
+	// Parse reconciler schedule from ConfigMap
+	configMap, err := configmap.Pull(APIClient, WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
+	if err != nil {
+		return fmt.Errorf("failed to get reconciler ConfigMap: %w", err)
+	}
+
+	schedule := configMap.Object.Data[WhereaboutsReconcilerKey]
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Reconciler schedule: %q", schedule)
+
+	// For */3 * * * * schedule, wait for 3 minutes + 30 second buffer = 210 seconds
+	waitDuration := 210 * time.Second
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Waiting %v for reconciler cycle", waitDuration)
+
+	time.Sleep(waitDuration)
+
+	// Verify reconciler pod has recent logs (optional check)
+	pods, err := pod.List(APIClient, WhereaboutsReconcilerNamespace,
+		metav1.ListOptions{LabelSelector: "app=whereabouts-reconciler"})
+	if err == nil && len(pods) > 0 {
+		for _, reconcilerPod := range pods {
+			logDuration := 4 * time.Minute
+
+			logs, err := reconcilerPod.GetLog(logDuration, "whereabouts")
+			if err != nil {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"Could not retrieve logs from reconciler pod %q: %v", reconcilerPod.Object.Name, err)
+
+				continue
+			}
+
+			if logs == "" {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"No recent logs from reconciler pod %q in the last 4 minutes", reconcilerPod.Object.Name)
+			} else {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"Reconciler pod %q has logs from the last 4 minutes", reconcilerPod.Object.Name)
+			}
+		}
+	}
+
+	return nil
+}
+
+// checkPodForDADFailure checks if a pod has any IPv6 addresses in dadfailed state.
+func checkPodForDADFailure(podObj *pod.Builder) error {
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"Checking pod %q/%q for IPv6 DAD failures",
+		podObj.Object.Namespace, podObj.Object.Name)
+
+	if podObj.Object.Status.Phase != corev1.PodRunning || len(podObj.Definition.Spec.Containers) == 0 {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Pod %q/%q: skipping DAD check - phase=%q, running=%v, containers=%d",
+			podObj.Object.Namespace, podObj.Object.Name,
+			podObj.Object.Status.Phase,
+			podObj.Object.Status.Phase == corev1.PodRunning,
+			len(podObj.Definition.Spec.Containers))
+
+		return nil
+	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"Pod %q/%q: executing 'ip addr show' in container %q",
+		podObj.Object.Namespace, podObj.Object.Name,
+		podObj.Definition.Spec.Containers[0].Name)
+
+	output, err := podObj.ExecCommand([]string{"ip", "addr", "show"}, podObj.Definition.Spec.Containers[0].Name)
+	if err != nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Pod %q/%q: failed to execute 'ip addr show': %v (assuming no DAD issues)",
+			podObj.Object.Namespace, podObj.Object.Name, err)
+
+		return nil
+	}
+
+	if strings.Contains(output.String(), "dadfailed") {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Pod %q/%q: DADFAILED IPv6 addresses detected in output",
+			podObj.Object.Namespace, podObj.Object.Name)
+
+		return fmt.Errorf("pod %q has IPv6 addresses in dadfailed state: %s",
+			podObj.Object.Name, output.String())
+	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"Pod %q/%q: DAD check passed, no dadfailed addresses found",
+		podObj.Object.Namespace, podObj.Object.Name)
+
+	return nil
+}
+
+// extractIPsFromNetworkStatus parses network-status annotation and extracts IPs for the given network.
+// Returns error if duplicate IPs are detected.
+func extractIPsFromNetworkStatus(
+	podObj *pod.Builder,
+	networkName string,
+	allocatedIPv4,
+	allocatedIPv6 map[string]string) error {
+	netStatus, ok := podObj.Object.Annotations["k8s.v1.cni.cncf.io/network-status"]
+	if !ok {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Pod %q/%q: no network-status annotation, skipping IP extraction",
+			podObj.Object.Namespace, podObj.Object.Name)
+
+		return nil
+	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q network-status: %s", podObj.Object.Name, netStatus)
+
+	var networkStatuses []map[string]interface{}
+	if err := json.Unmarshal([]byte(netStatus), &networkStatuses); err != nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to parse network-status for pod %q: %v",
+			podObj.Object.Name, err)
+
+		return nil
+	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"Pod %q/%q: searching for network matching %q in network-status annotation",
+		podObj.Object.Namespace, podObj.Object.Name, networkName)
+
+	ipCount := 0
+	foundMatchingNetwork := false
+
+	for _, netStatus := range networkStatuses {
+		name, _ := netStatus["name"].(string)
+		if !strings.Contains(name, networkName) {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"Pod %q/%q: skipping network %q (does not match %q)",
+				podObj.Object.Namespace, podObj.Object.Name, name, networkName)
+
+			continue
+		}
+
+		foundMatchingNetwork = true
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Pod %q/%q: found matching network %q, extracting IPs",
+			podObj.Object.Namespace, podObj.Object.Name, name)
+
+		ips, ok := netStatus["ips"].([]interface{})
+		if !ok {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"Pod %q/%q: network %q has no 'ips' array or wrong type",
+				podObj.Object.Namespace, podObj.Object.Name, name)
+
+			continue
+		}
+
+		for _, ipInterface := range ips {
+			ipStr, ok := ipInterface.(string)
+			if !ok {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"Pod %q/%q: network %q has IP entry with unexpected type (expected string, got %T)",
+					podObj.Object.Namespace, podObj.Object.Name, name, ipInterface)
+
+				continue
+			}
+
+			if err := recordIPAllocation(ipStr, podObj.Object.Name, allocatedIPv4, allocatedIPv6); err != nil {
+				return err
+			}
+
+			ipCount++
+		}
+	}
+
+	if !foundMatchingNetwork {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Pod %q/%q: no network matching %q found in network-status annotation",
+			podObj.Object.Namespace, podObj.Object.Name, networkName)
+	} else {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Pod %q/%q: extracted %d IP(s) for network matching %q",
+			podObj.Object.Namespace, podObj.Object.Name, ipCount, networkName)
+	}
+
+	return nil
+}
+
+// recordIPAllocation records an IP allocation and checks for duplicates.
+func recordIPAllocation(ipStr, podName string, allocatedIPv4, allocatedIPv6 map[string]string) error {
+	// Parse IP once and validate
+	parsedIP := net.ParseIP(ipStr)
+	if parsedIP == nil {
+		return fmt.Errorf("invalid IP address %q for pod %q", ipStr, podName)
+	}
+
+	// Check if IPv4 or IPv6
+	if parsedIP.To4() != nil {
+		// IPv4
+		if existingPod, exists := allocatedIPv4[ipStr]; exists {
+			return fmt.Errorf("duplicate IPv4 address %q allocated to both pod %q and pod %q",
+				ipStr, existingPod, podName)
+		}
+
+		allocatedIPv4[ipStr] = podName
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q allocated IPv4: %s", podName, ipStr)
+	} else {
+		// IPv6
+		if existingPod, exists := allocatedIPv6[ipStr]; exists {
+			return fmt.Errorf("duplicate IPv6 address %q allocated to both pod %q and pod %q",
+				ipStr, existingPod, podName)
+		}
+
+		allocatedIPv6[ipStr] = podName
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q allocated IPv6: %s", podName, ipStr)
+	}
+
+	return nil
+}
+
+// VerifyIPAMStateConsistency checks Whereabouts IPAM state for consistency issues.
+// It verifies:
+// - No duplicate IP allocations across pods.
+// - No pods have IPv6 addresses in dadfailed state.
+func VerifyIPAMStateConsistency(namespace, networkName string) error {
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"Verifying IPAM state consistency in namespace %q for network %q", namespace, networkName)
+
+	pods, err := pod.List(APIClient, namespace, metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to list pods in namespace %q: %w", namespace, err)
+	}
+
+	if len(pods) == 0 {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("No pods found in namespace %q, IPAM state is clean", namespace)
+
+		return nil
+	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"Processing %d total pod(s) in namespace %q, filtering for Running non-deleted pods",
+		len(pods), namespace)
+
+	allocatedIPv4 := make(map[string]string) // IP -> PodName
+	allocatedIPv6 := make(map[string]string) // IP -> PodName
+
+	processedCount := 0
+	skippedCount := 0
+
+	for _, podObj := range pods {
+		// Skip pods that are not running or being deleted
+		if podObj.Object.Status.Phase != corev1.PodRunning || podObj.Object.DeletionTimestamp != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"Skipping pod %q/%q: phase=%q, markedForDeletion=%v",
+				podObj.Object.Namespace, podObj.Object.Name,
+				podObj.Object.Status.Phase,
+				podObj.Object.DeletionTimestamp != nil)
+
+			skippedCount++
+
+			continue
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Validating pod %q/%q: checking network %q IPs and DAD state",
+			podObj.Object.Namespace, podObj.Object.Name, networkName)
+
+		if err := extractIPsFromNetworkStatus(podObj, networkName, allocatedIPv4, allocatedIPv6); err != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"Pod %q/%q: IP extraction failed: %v",
+				podObj.Object.Namespace, podObj.Object.Name, err)
+
+			return err
+		}
+
+		if err := checkPodForDADFailure(podObj); err != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"Pod %q/%q: DAD failure check failed: %v",
+				podObj.Object.Namespace, podObj.Object.Name, err)
+
+			return err
+		}
+
+		processedCount++
+	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"IPAM state verification complete: processed %d pod(s), skipped %d pod(s), "+
+			"found %d IPv4 and %d IPv6 addresses allocated",
+		processedCount, skippedCount, len(allocatedIPv4), len(allocatedIPv6))
+
+	return nil
 }
 
 // VerifyPodConnectivity verifies inter pod connectivity.
