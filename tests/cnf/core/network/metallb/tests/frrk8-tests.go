@@ -564,7 +564,10 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 
 				By("Verify secondary interfaces are UP with IP addresses on worker nodes")
 				for _, workerNode := range workerNodeList {
-					checkInterfaceExistsOnNode(workerNode.Definition.Name, secondaryInterfaceName)
+					Eventually(func() error {
+						return checkInterfaceExistsOnNode(workerNode.Definition.Name, secondaryInterfaceName)
+					}, time.Minute, 5*time.Second).Should(Succeed(),
+						"Interface %s not ready on node %s", secondaryInterfaceName, workerNode.Definition.Name)
 				}
 
 				By("Adding static routes to the speakers")
@@ -871,21 +874,31 @@ func removeSecondaryIPsFromWorkerNodes(workerNodeList []*nodes.Builder, ipv4Addr
 	}
 }
 
-func checkInterfaceExistsOnNode(nodeName, interfaceName string) {
+func checkInterfaceExistsOnNode(nodeName, interfaceName string) error {
 	nodeNetworkState, err := nmstate.PullNodeNetworkState(APIClient, nodeName)
-	Expect(err).ToNot(HaveOccurred(), "Failed to pull NodeNetworkState for node %s", nodeName)
+	if err != nil {
+		return fmt.Errorf("failed to pull NodeNetworkState for node %s: %w", nodeName, err)
+	}
 
 	netInterface, err := nodeNetworkState.GetInterfaceType(interfaceName, "ethernet")
-	Expect(err).ToNot(HaveOccurred(), "Interface %s not found on node %s", interfaceName, nodeName)
+	if err != nil {
+		return fmt.Errorf("interface %s not found on node %s: %w", interfaceName, nodeName, err)
+	}
 
-	Expect(netInterface.State).To(Equal("up"),
-		"Interface %s is not UP on node %s (current state: %s)", interfaceName, nodeName, netInterface.State)
+	if netInterface.State != "up" {
+		return fmt.Errorf("interface %s is not UP on node %s (current state: %s)",
+			interfaceName, nodeName, netInterface.State)
+	}
 
 	hasIPv4 := netInterface.Ipv4.Enabled && len(netInterface.Ipv4.Address) > 0
 	hasIPv6 := netInterface.Ipv6.Enabled && len(netInterface.Ipv6.Address) > 0
 
-	Expect(hasIPv4 || hasIPv6).To(BeTrue(),
-		"Interface %s does not have an IP address assigned on node %s", interfaceName, nodeName)
+	if !hasIPv4 && !hasIPv6 {
+		return fmt.Errorf("interface %s does not have an IP address assigned on node %s",
+			interfaceName, nodeName)
+	}
+
+	return nil
 }
 
 func createStaticIPAnnotations(internalNADName, externalNADName string, internalIPAddresses,
