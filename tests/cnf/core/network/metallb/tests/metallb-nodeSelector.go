@@ -444,10 +444,10 @@ func setupTestCase(ipAddressPool1, ipAddressPool2 *metallb.IPAddressPoolBuilder,
 		masterNodeList[1].Object.Name, masterConfigMap.Definition.Name, []string{}, staticIPAnnotation1, "frr-master1")
 
 	By("Create two BGPPeers")
-	createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, ipv4metalLbIPList[0], "", tsparams.LocalBGPASN,
-		false, 0, frrk8sPods)
-	createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName2, ipv4metalLbIPList[1], "", tsparams.LocalBGPASN,
-		false, 0, frrk8sPods)
+	createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, ipv4metalLbIPList[0], "", "",
+		tsparams.LocalBGPASN, nil, false, 0, frrk8sPods)
+	createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName2, ipv4metalLbIPList[1], "", "",
+		tsparams.LocalBGPASN, nil, false, 0, frrk8sPods)
 
 	By("Validating the BGP session states")
 	verifyMetalLbBGPSessionsAreUPOnFrrPod(frrPod0, netcmd.RemovePrefixFromIPList(ipv4NodeAddrList))

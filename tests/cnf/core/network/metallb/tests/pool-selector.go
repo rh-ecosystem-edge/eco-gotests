@@ -375,10 +375,10 @@ func runPoolSelectorTests(ipStack, trafficPolicy string, bgpASN int, twoPools bo
 			400, []string{tsparams.BgpPeerName2}, nil)
 	}
 
-	createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, metallbAddrList[ipStack][0], "", uint32(bgpASN),
-		false, 0, frrk8sPods)
-	createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName2, metallbAddrList[ipStack][1], "", uint32(bgpASN),
-		false, 0, frrk8sPods)
+	createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, metallbAddrList[ipStack][0], "", "",
+		uint32(bgpASN), nil, false, 0, frrk8sPods)
+	createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName2, metallbAddrList[ipStack][1], "", "",
+		uint32(bgpASN), nil, false, 0, frrk8sPods)
 
 	By("Deploy test pods that runs Nginx server and SCTP server on worker0 & worker-1")
 
@@ -506,14 +506,14 @@ func runPoolSelectorTestsDualStack(ipStack, trafficPolicy string, bgpASN int, tw
 	}
 
 	By("Creating BGP Peers")
-	createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, metallbAddrList[ipv4][0], "", uint32(bgpASN),
-		false, 0, frrk8sPods)
-	createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName2, metallbAddrList[ipv6][0], "", uint32(bgpASN),
-		false, 0, frrk8sPods)
-	createBGPPeerAndVerifyIfItsReady("bgppeer3", metallbAddrList[ipv4][1], "", uint32(bgpASN),
-		false, 0, frrk8sPods)
-	createBGPPeerAndVerifyIfItsReady("bgppeer4", metallbAddrList[ipv6][1], "", uint32(bgpASN),
-		false, 0, frrk8sPods)
+	createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, metallbAddrList[ipv4][0], "", "",
+		uint32(bgpASN), nil, false, 0, frrk8sPods)
+	createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName2, metallbAddrList[ipv6][0], "", "",
+		uint32(bgpASN), nil, false, 0, frrk8sPods)
+	createBGPPeerAndVerifyIfItsReady("bgppeer3", metallbAddrList[ipv4][1], "", "",
+		uint32(bgpASN), nil, false, 0, frrk8sPods)
+	createBGPPeerAndVerifyIfItsReady("bgppeer4", metallbAddrList[ipv6][1], "", "",
+		uint32(bgpASN), nil, false, 0, frrk8sPods)
 
 	By("Deploy test pods that runs Nginx server and SCTP server on worker0 & worker1")
 

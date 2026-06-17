@@ -71,7 +71,7 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 
 			By("Creating BGP peer config.")
 			createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, ipv4metalLbIPList[0], bfdProfile.Definition.Name,
-				tsparams.RemoteBGPASN, false, 0, frrk8sPods)
+				"", tsparams.RemoteBGPASN, nil, false, 0, frrk8sPods)
 
 			By("Creating MetalLb configMap")
 
@@ -292,7 +292,7 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 				}
 
 				createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, masterClientPodIP, bfdProfile.Definition.Name,
-					neighbourASN, eBgpMultiHop, 0, frrk8sPods)
+					"", neighbourASN, nil, eBgpMultiHop, 0, frrk8sPods)
 
 				prefixLen := netparam.IPSubnetInt32
 				if ipStack == netparam.IPV6Family {

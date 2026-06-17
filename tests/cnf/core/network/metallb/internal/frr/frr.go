@@ -587,7 +587,22 @@ func GetGracefulRestartStatus(frrPod *pod.Builder, neighborIP string) (GRStatus,
 }
 
 func runningConfig(frrPod *pod.Builder) (string, error) {
-	bgpStateOut, err := frrPod.ExecCommand(append(netparam.VtySh, "sh run"), tsparams.FRRContainerName)
+	containerName := tsparams.FRRContainerName
+	containerExists := false
+
+	for _, container := range frrPod.Definition.Spec.Containers {
+		if container.Name == tsparams.FRRContainerName {
+			containerExists = true
+
+			break
+		}
+	}
+
+	if !containerExists && len(frrPod.Definition.Spec.Containers) > 0 {
+		containerName = frrPod.Definition.Spec.Containers[0].Name
+	}
+
+	bgpStateOut, err := frrPod.ExecCommand(append(netparam.VtySh, "sh run"), containerName)
 	if err != nil {
 		return "", fmt.Errorf("error collecting frr running config from pod %s due to %w",
 			frrPod.Definition.Name, err)

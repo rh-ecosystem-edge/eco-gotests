@@ -116,7 +116,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 
 				By("Creating BGP Peers")
 				createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, ipv4metalLbIPList[0], "",
-					tsparams.LocalBGPASN, false, 0, frrk8sPods)
+					"", tsparams.LocalBGPASN, nil, false, 0, frrk8sPods)
 
 				By("Checking that BGP session is established and up")
 				verifyMetalLbBGPSessionsAreUPOnFrrPod(frrPod, netcmd.RemovePrefixFromIPList(ipv4NodeAddrList))
@@ -162,7 +162,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 
 				By("Creating BGP Peers")
 				createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, ipv4metalLbIPList[0], "",
-					tsparams.LocalBGPASN, false, 0, frrk8sPods)
+					"", tsparams.LocalBGPASN, nil, false, 0, frrk8sPods)
 
 				By("Checking that BGP session is established and up")
 				verifyMetalLbBGPSessionsAreUPOnFrrPod(frrPod, netcmd.RemovePrefixFromIPList(ipv4NodeAddrList))
@@ -204,7 +204,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 
 				By("Creating BGP Peers")
 				createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, ipv4metalLbIPList[0], "",
-					tsparams.LocalBGPASN, false, 0, frrk8sPods)
+					"", tsparams.LocalBGPASN, nil, false, 0, frrk8sPods)
 
 				By("Checking that BGP session is established and up")
 				verifyMetalLbBGPSessionsAreUPOnFrrPod(frrPod, netcmd.RemovePrefixFromIPList(ipv4NodeAddrList))
@@ -275,7 +275,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 
 				By("Creating BGP Peers")
 				createBGPPeerAndVerifyIfItsReady(tsparams.BGPTestPeer, ipv4metalLbIPList[0], "",
-					tsparams.LocalBGPASN, false, 0, frrk8sPods)
+					"", tsparams.LocalBGPASN, nil, false, 0, frrk8sPods)
 
 				By("Create first frrconfiguration that receives a single route")
 				createFrrConfiguration(frrConfigFiltered1, ipv4metalLbIPList[0],
@@ -480,7 +480,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 
 				By("Creating BGP Peers")
 				createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, frrExternalMasterIPAddress, "",
-					tsparams.LocalBGPASN, false, 0, frrk8sPods)
+					"", tsparams.LocalBGPASN, nil, false, 0, frrk8sPods)
 
 				By("Checking that BGP session is established and up")
 				verifyMetalLbBGPSessionsAreUPOnFrrPod(frrPod, netcmd.RemovePrefixFromIPList(ipv4NodeAddrList))
@@ -573,7 +573,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 
 				By("Creating BGP Peers")
 				createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, frrExternalMasterIPAddress, "",
-					tsparams.RemoteBGPASN, true, 0, frrk8sPods)
+					"", tsparams.RemoteBGPASN, nil, true, 0, frrk8sPods)
 
 				By("Validating the service BGP statuses")
 				validateServiceBGPStatus(
@@ -691,7 +691,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 
 				By("Creating BGP Peers")
 				createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, frrExternalMasterIPAddress, "",
-					tsparams.LocalBGPASN, false, 0, frrk8sPods)
+					"", tsparams.LocalBGPASN, nil, false, 0, frrk8sPods)
 
 				By("Validating the service BGP statuses")
 				validateServiceBGPStatus(
@@ -768,7 +768,7 @@ var _ = Describe("FRR", Ordered, Label(tsparams.LabelFRRTestCases), ContinueOnFa
 
 				By("Creating BGP Peers with multipath disabled for RouteAdvertisement compatibility")
 				createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, ipv4metalLbIPList[0], "",
-					tsparams.LocalBGPASN, false, 0, frrk8sPods, true)
+					"", tsparams.LocalBGPASN, nil, false, 0, frrk8sPods, true)
 
 				By("Checking that BGP session is established and up")
 				verifyMetalLbBGPSessionsAreUPOnFrrPod(frrPod, netcmd.RemovePrefixFromIPList(ipv4NodeAddrList))

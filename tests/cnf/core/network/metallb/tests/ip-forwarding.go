@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"time"
@@ -130,12 +131,12 @@ var _ = Describe("IP Forwarding per Interface", Ordered,
 
 			By("Enabling routingViaHost on the cluster network operator")
 
-			setLocalGWModeWithRetry(true, 10*time.Minute)
+			setLocalGWModeWithRetry(true)
 
 			By("Ensuring global IP forwarding is enabled")
 
 			if originalIPForwarding != operatorv1.IPForwardingGlobal {
-				setIPForwardingWithRetry(operatorv1.IPForwardingGlobal, 10*time.Minute)
+				setIPForwardingWithRetry(operatorv1.IPForwardingGlobal)
 			}
 
 			By("Creating a new instance of MetalLB Speakers on workers")
@@ -162,9 +163,9 @@ var _ = Describe("IP Forwarding per Interface", Ordered,
 		AfterAll(func() {
 			By("Restoring network operator settings")
 
-			setIPForwardingWithRetry(originalIPForwarding, 10*time.Minute)
+			setIPForwardingWithRetry(originalIPForwarding)
 
-			setLocalGWModeWithRetry(originalRoutingViaHost, 10*time.Minute)
+			setLocalGWModeWithRetry(originalRoutingViaHost)
 
 			resetOperatorAndTestNS()
 		})
@@ -696,31 +697,31 @@ func cleanupIPFwdContextResources() {
 }
 
 func disableGlobalIPForwarding() {
-	setIPForwardingWithRetry(operatorv1.IPForwardingRestricted, 10*time.Minute)
+	setIPForwardingWithRetry(operatorv1.IPForwardingRestricted)
 }
 
-func setLocalGWModeWithRetry(state bool, timeout time.Duration) {
+func setLocalGWModeWithRetry(state bool) {
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		networkOperator, pullErr := network.PullOperator(APIClient)
 		if pullErr != nil {
 			return pullErr
 		}
 
-		_, setErr := networkOperator.SetLocalGWMode(state, timeout)
+		_, setErr := networkOperator.SetLocalGWMode(state, 10*time.Minute)
 
 		return setErr
 	})
 	Expect(err).ToNot(HaveOccurred(), "Failed to set routingViaHost to %v", state)
 }
 
-func setIPForwardingWithRetry(mode operatorv1.IPForwardingMode, timeout time.Duration) {
+func setIPForwardingWithRetry(mode operatorv1.IPForwardingMode) {
 	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		networkOperator, pullErr := network.PullOperator(APIClient)
 		if pullErr != nil {
 			return pullErr
 		}
 
-		_, setErr := networkOperator.SetIPForwarding(mode, timeout)
+		_, setErr := networkOperator.SetIPForwarding(mode, 10*time.Minute)
 
 		return setErr
 	})
@@ -866,10 +867,30 @@ func createIPFwdFRRRouterPod(
 }
 
 func verifyIPFwdPingConnectivity(frrPod *pod.Builder, targetIP string) {
+	containerName := ""
+
+	for _, container := range frrPod.Definition.Spec.Containers {
+		if container.Name == tsparams.FRRSecondContainerName {
+			containerName = tsparams.FRRSecondContainerName
+
+			break
+		}
+	}
+
 	Eventually(func() error {
-		output, err := frrPod.ExecCommand(
-			[]string{"ping", "-c", "3", "-W", "2", targetIP},
-			tsparams.FRRSecondContainerName)
+		var (
+			output bytes.Buffer
+			err    error
+		)
+
+		if containerName == "" {
+			output, err = frrPod.ExecCommand([]string{"ping", "-c", "3", "-W", "2", targetIP})
+		} else {
+			output, err = frrPod.ExecCommand(
+				[]string{"ping", "-c", "3", "-W", "2", targetIP},
+				containerName)
+		}
+
 		if err != nil {
 			return fmt.Errorf("ping from %s to %s failed: %s %w",
 				frrPod.Definition.Name, targetIP, output.String(), err)
