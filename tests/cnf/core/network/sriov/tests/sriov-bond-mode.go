@@ -23,6 +23,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
+	multus "gopkg.in/k8snetworkplumbingwg/multus-cni.v4/pkg/types"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -48,6 +49,10 @@ const (
 
 	// bondMinSwitchInterfaces is the number of physical switch ports required for static LAG setup (2 LAGs × 2 members).
 	bondMinSwitchInterfaces = 4
+
+	// Placeholder Polarion IDs; update when assigned.
+	polarionBondIPAMDiffNodeDiffPF = "TBD"
+	polarionBondIPAMDiffNodeSamePF = "TBD"
 )
 
 // Lab switch state for balance-rr/xor LAG setup (active-backup tests leave the switch untouched).
@@ -122,7 +127,9 @@ var _ = Describe(
 			vf6SmallStart, vf6SmallEnd := 0, 4
 			vf6LargeStart, vf6LargeEnd := 5, 9
 
-			const bondMinVFsDualStack = 10
+			const bondMinVFsDualStack = 6
+
+			bondPolicyNumVFs := 10
 
 			if supportsIPv4 && supportsIPv6 {
 				By("Selecting non-overlapping VF ranges for dual-stack bond policies")
@@ -140,17 +147,25 @@ var _ = Describe(
 				}
 
 				if pf1Total >= 20 && pf2Total >= 20 {
-					// Expanded layout: IPv4 VFs 0-9, IPv6 VFs 10-19.
-					vf4SmallStart, vf4SmallEnd = 0, 4
-					vf4LargeStart, vf4LargeEnd = 5, 9
-					vf6SmallStart, vf6SmallEnd = 10, 14
-					vf6LargeStart, vf6LargeEnd = 15, 19
-				} else {
+					// Expanded layout: 20+ hardware VFs, but policies still provision 10 VFs (indices 0-9).
+					// Split 3+2 VFs per MTU tier per IP family within that range.
+					vf4SmallStart, vf4SmallEnd = 0, 2
+					vf4LargeStart, vf4LargeEnd = 3, 4
+					vf6SmallStart, vf6SmallEnd = 5, 7
+					vf6LargeStart, vf6LargeEnd = 8, 9
+				} else if pf1Total >= 10 && pf2Total >= 10 {
 					// Compact layout for 10-VF PFs: IPv4 VFs 0-4, IPv6 VFs 5-9 (split 2+3 per MTU tier).
 					vf4SmallStart, vf4SmallEnd = 0, 1
 					vf4LargeStart, vf4LargeEnd = 2, 4
 					vf6SmallStart, vf6SmallEnd = 5, 6
 					vf6LargeStart, vf6LargeEnd = 7, 9
+				} else {
+					// Minimal layout for 6-VF PFs: IPv4 VFs 0-2, IPv6 VFs 3-5 (split 1+2 per MTU tier).
+					vf4SmallStart, vf4SmallEnd = 0, 0
+					vf4LargeStart, vf4LargeEnd = 1, 2
+					vf6SmallStart, vf6SmallEnd = 3, 3
+					vf6LargeStart, vf6LargeEnd = 4, 5
+					bondPolicyNumVFs = 6
 				}
 			}
 
@@ -159,6 +174,7 @@ var _ = Describe(
 					familyLabel:  "IPv4",
 					policyPrefix: "ipv4",
 					dualStack:    supportsIPv6,
+					policyNumVFs: bondPolicyNumVFs,
 					pf1:          pf1,
 					pf2:          pf2,
 					mtuSmall:     mtu500,
@@ -187,6 +203,7 @@ var _ = Describe(
 					familyLabel:  "IPv6",
 					policyPrefix: "ipv6",
 					dualStack:    supportsIPv4,
+					policyNumVFs: bondPolicyNumVFs,
 					pf1:          pf1,
 					pf2:          pf2,
 					mtuSmall:     mtu1280,
@@ -300,6 +317,32 @@ var _ = Describe(
 					mtu1280, mtu9000,
 					tsparams.ServerIPv6IPAddress, tsparams.ClientIPv6IPAddress,
 					tsparams.ServerIPv6IPAddress2, tsparams.ClientIPv6IPAddress2,
+					workerNodeList[0].Definition.Name, workerNodeList[1].Definition.Name,
+					bondNetworksV6SamePFSmall, bondNetworksV6SamePFJumbo,
+				)
+			})
+
+			It("DiffNodeDiffPF IPv6 Whereabouts IPAM", reportxml.ID(polarionBondIPAMDiffNodeDiffPF), func() {
+				if !netenv.ClusterSupportsIPv6(clusterIPFamily) {
+					Skip("Cluster does not support IPv6 - skipping SR-IOV bond whereabouts IPAM tests")
+				}
+
+				runBondWhereaboutsScenario(
+					sriovenv.BondModeActiveBackup,
+					mtu1280, mtu9000,
+					workerNodeList[0].Definition.Name, workerNodeList[1].Definition.Name,
+					bondNetworksV6DiffPFSmall, bondNetworksV6DiffPFJumbo,
+				)
+			})
+
+			It("DiffNodeSamePF IPv6 Whereabouts IPAM", reportxml.ID(polarionBondIPAMDiffNodeSamePF), func() {
+				if !netenv.ClusterSupportsIPv6(clusterIPFamily) {
+					Skip("Cluster does not support IPv6 - skipping SR-IOV bond whereabouts IPAM tests")
+				}
+
+				runBondWhereaboutsScenario(
+					sriovenv.BondModeActiveBackup,
+					mtu1280, mtu9000,
 					workerNodeList[0].Definition.Name, workerNodeList[1].Definition.Name,
 					bondNetworksV6SamePFSmall, bondNetworksV6SamePFJumbo,
 				)
@@ -808,6 +851,7 @@ type bondStackFamilyParams struct {
 	familyLabel  string
 	policyPrefix string
 	dualStack    bool
+	policyNumVFs int
 	pf1,
 	pf2 string
 	mtuSmall,
@@ -846,6 +890,7 @@ func setupBondStackForFamily(params bondStackFamilyParams) {
 
 			Expect(sriovenv.CreateSriovPolicy(
 				policyName, policy.resource, policy.pf, policy.mtu, policy.vfStart, policy.vfEnd,
+				params.policyNumVFs,
 			)).To(Succeed(), "Failed to create %s %s MTU%d policy",
 				params.familyLabel, policy.pfSuffix, policy.mtu)
 		}
@@ -1056,41 +1101,45 @@ func toggleSwitchPortsAndVerifyTraffic(clientPod *pod.Builder, serverIP string, 
 	secondPort := bondSwitchInterfaces[1]
 	lagName := bondSwitchLagNames[0]
 
-	if err := disable(firstPort); err != nil {
+	err = disable(firstPort)
+	if err != nil {
 		return fmt.Errorf("failed to disable switch interface %s: %w", firstPort, err)
 	}
 
-	if err := verifyInitialBondTraffic(bondMode, clientPod, serverIP, mtu, "after failover", true); err != nil {
+	defer func() {
 		_ = enable(firstPort)
+	}()
 
+	if err = verifyInitialBondTraffic(bondMode, clientPod, serverIP, mtu, "after failover", true); err != nil {
 		return fmt.Errorf("traffic failed after disabling switch port %s: %w", firstPort, err)
 	}
 
-	if err := enable(firstPort); err != nil {
+	if err = enable(firstPort); err != nil {
 		return fmt.Errorf("failed to re-enable switch interface %s: %w", firstPort, err)
 	}
 
-	if err := disable(secondPort); err != nil {
+	err = disable(secondPort)
+	if err != nil {
 		return fmt.Errorf("failed to disable switch interface %s: %w", secondPort, err)
 	}
 
-	if err := waitForSwitchInterfaceUp(jnpr, lagName, time.Minute); err != nil {
+	defer func() {
 		_ = enable(secondPort)
+	}()
 
+	if err = waitForSwitchInterfaceUp(jnpr, lagName, time.Minute); err != nil {
 		return err
 	}
 
-	if err := verifyInitialBondTraffic(bondMode, clientPod, serverIP, mtu, "after failover", true); err != nil {
-		_ = enable(secondPort)
-
+	if err = verifyInitialBondTraffic(bondMode, clientPod, serverIP, mtu, "after failover", true); err != nil {
 		return fmt.Errorf("traffic failed after disabling switch port %s: %w", secondPort, err)
 	}
 
-	if err := enable(secondPort); err != nil {
+	if err = enable(secondPort); err != nil {
 		return fmt.Errorf("failed to re-enable switch interface %s: %w", secondPort, err)
 	}
 
-	if err := sriovenv.WaitForBondSlavesMIIUp(clientPod, sriovenv.BondInterfaceName); err != nil {
+	if err = sriovenv.WaitForBondSlavesMIIUp(clientPod, sriovenv.BondInterfaceName); err != nil {
 		return fmt.Errorf("bond did not recover after switch failover: %w", err)
 	}
 
@@ -1366,4 +1415,172 @@ func deleteBondNADIfExists(name string) error {
 	}
 
 	return nadBuilder.Delete()
+}
+
+func bondWhereaboutsIPAMForMTU(mtu int) (ipRange, gateway string) {
+	ipRange = tsparams.WhereaboutsIPv6Range
+	gateway = tsparams.WhereaboutsIPv6Gateway
+
+	if mtu >= mtu9000 {
+		ipRange = tsparams.WhereaboutsIPv6Range2
+		gateway = tsparams.WhereaboutsIPv6Gateway2
+	}
+
+	return ipRange, gateway
+}
+
+func runBondWhereaboutsScenario(
+	bondMode string,
+	mtuSmall, mtuLarge int,
+	serverNode, clientNode string,
+	slaveNetworksSmall, slaveNetworksLarge []string,
+) {
+	nadSmall := bondNADNameFor(bondMode, mtuSmall)
+	nadLarge := bondNADNameFor(bondMode, mtuLarge)
+
+	By("Creating bond NADs with whereabouts IPAM for both MTUs")
+
+	_ = deleteBondNADIfExists(nadSmall)
+	_ = deleteBondNADIfExists(nadLarge)
+
+	ipRangeSmall, gatewaySmall := bondWhereaboutsIPAMForMTU(mtuSmall)
+
+	bondSmall, err := sriovenv.CreateBondNADWithWhereabouts(
+		nadSmall, bondMode, mtuSmall, 2, ipRangeSmall, gatewaySmall)
+	Expect(err).ToNot(HaveOccurred(), "Failed to build small MTU whereabouts bond NAD")
+
+	_, err = bondSmall.Create()
+	Expect(err).ToNot(HaveOccurred(), "Failed to create small MTU whereabouts bond NAD")
+
+	defer func() { _ = deleteBondNADIfExists(nadSmall) }()
+
+	ipRangeLarge, gatewayLarge := bondWhereaboutsIPAMForMTU(mtuLarge)
+
+	bondLarge, err := sriovenv.CreateBondNADWithWhereabouts(
+		nadLarge, bondMode, mtuLarge, 2, ipRangeLarge, gatewayLarge)
+	Expect(err).ToNot(HaveOccurred(), "Failed to build large MTU whereabouts bond NAD")
+
+	_, err = bondLarge.Create()
+	Expect(err).ToNot(HaveOccurred(), "Failed to create large MTU whereabouts bond NAD")
+
+	defer func() { _ = deleteBondNADIfExists(nadLarge) }()
+
+	modeSuffix := strings.ReplaceAll(bondMode, "balance-", "")
+	serverSmallName := fmt.Sprintf("bond-wb-server-%s-mtu%d", modeSuffix, mtuSmall)
+	clientSmallName := fmt.Sprintf("bond-wb-client-%s-mtu%d", modeSuffix, mtuSmall)
+	serverLargeName := fmt.Sprintf("bond-wb-server-%s-mtu%d", modeSuffix, mtuLarge)
+	clientLargeName := fmt.Sprintf("bond-wb-client-%s-mtu%d", modeSuffix, mtuLarge)
+
+	By("Creating server and client pods for both MTUs (4 pods total)")
+
+	serverSmall, clientSmall := createBondWhereaboutsPodsPair(
+		nadSmall,
+		serverSmallName, clientSmallName,
+		serverNode, clientNode,
+		slaveNetworksSmall, mtuSmall,
+	)
+	serverLarge, clientLarge := createBondWhereaboutsPodsPair(
+		nadLarge,
+		serverLargeName, clientLargeName,
+		serverNode, clientNode,
+		slaveNetworksLarge, mtuLarge,
+	)
+
+	By("Discovering server bond IPs assigned by whereabouts")
+
+	serverIPSmall, err := sriovenv.GetPodIPFromInterface(serverSmall, sriovenv.BondInterfaceName, "ipv6")
+	Expect(err).ToNot(HaveOccurred(), "Failed to get server bond IP for small MTU")
+
+	serverIPLarge, err := sriovenv.GetPodIPFromInterface(serverLarge, sriovenv.BondInterfaceName, "ipv6")
+	Expect(err).ToNot(HaveOccurred(), "Failed to get server bond IP for large MTU")
+
+	By("Verifying traffic on bond interface for both MTUs")
+	Expect(verifyInitialBondTraffic(bondMode, clientSmall, serverIPSmall, mtuSmall, "small MTU", false)).
+		To(Succeed(), "Bond initial traffic failed (small MTU)")
+	Expect(verifyInitialBondTraffic(bondMode, clientLarge, serverIPLarge, mtuLarge, "large MTU", false)).
+		To(Succeed(), "Bond initial traffic failed (large MTU)")
+
+	By("Triggering link failure and verifying traffic still works for both MTUs")
+	Expect(triggerBondLinkFailureAndVerify(clientSmall, bondMode, serverIPSmall, mtuSmall)).
+		To(Succeed(), "Bond link failure verification failed (small MTU)")
+	Expect(triggerBondLinkFailureAndVerify(clientLarge, bondMode, serverIPLarge, mtuLarge)).
+		To(Succeed(), "Bond link failure verification failed (large MTU)")
+}
+
+func createBondWhereaboutsPodsPair(
+	nadName string,
+	serverName, clientName,
+	serverNode, clientNode string,
+	slaveNetworks []string,
+	mtu int,
+) (*pod.Builder, *pod.Builder) {
+	annotation := bondWhereaboutsPodAnnotation(nadName, slaveNetworks)
+	Expect(annotation).NotTo(BeEmpty(), "Failed to create whereabouts bond pod annotation")
+
+	baseCmd := sriovenv.BuildServerCommand("", sriovenv.BondInterfaceName, mtu)
+	serverCmd := bondWhereaboutsServerCommand(baseCmd[2])
+
+	serverContainer, err := pod.NewContainerBuilder("server", NetConfig.CnfNetTestContainer, serverCmd).GetContainerCfg()
+	Expect(err).ToNot(HaveOccurred(), "Failed to build server container config")
+
+	serverPod, err := pod.NewBuilder(APIClient, serverName, tsparams.TestNamespaceName, NetConfig.CnfNetTestContainer).
+		DefineOnNode(serverNode).
+		RedefineDefaultContainer(*serverContainer).
+		WithPrivilegedFlag().
+		WithSecondaryNetwork(annotation).
+		CreateAndWaitUntilRunning(netparam.DefaultTimeout)
+	Expect(err).ToNot(HaveOccurred(), "Failed to create server pod")
+
+	Expect(sriovenv.WaitForBondSlavesMIIUp(serverPod, sriovenv.BondInterfaceName)).
+		To(Succeed(), "Server bond slaves not MII up in pod %s", serverName)
+	Expect(sriovenv.WaitForServerReady(serverPod, tsparams.WaitTimeout)).
+		To(Succeed(), "Server pod testcmd listeners not ready")
+
+	clientPod, err := pod.NewBuilder(APIClient, clientName, tsparams.TestNamespaceName, NetConfig.CnfNetTestContainer).
+		DefineOnNode(clientNode).
+		WithPrivilegedFlag().
+		WithSecondaryNetwork(annotation).
+		CreateAndWaitUntilRunning(netparam.DefaultTimeout)
+	Expect(err).ToNot(HaveOccurred(), "Failed to create client pod")
+
+	Expect(sriovenv.WaitForBondSlavesMIIUp(clientPod, sriovenv.BondInterfaceName)).
+		To(Succeed(), "Client bond slaves not MII up in pod %s", clientName)
+
+	return serverPod, clientPod
+}
+
+// bondWhereaboutsServerCommand wraps the dynamic whereabouts server script with a bond-ready
+// wait. Bond slaves and the whereabouts IP take longer to settle than a single SR-IOV net1.
+func bondWhereaboutsServerCommand(baseScript string) []string {
+	bondName := sriovenv.BondInterfaceName
+	bondWait := fmt.Sprintf(
+		"for _ in $(seq 1 60); do "+
+			"[ \"$(cat /sys/class/net/%s/operstate 2>/dev/null)\" = up ] || { sleep 2; continue; }; "+
+			"BOND=/proc/net/bonding/%s; [ -r \"$BOND\" ] || { sleep 2; continue; }; "+
+			"SLAVE_UP=$(grep -c 'MII Status: up' \"$BOND\" 2>/dev/null || true); "+
+			"SLAVE_DOWN=$(grep -c 'MII Status: down' \"$BOND\" 2>/dev/null || true); "+
+			"[ \"${SLAVE_UP:-0}\" -ge 2 ] && [ \"${SLAVE_DOWN:-0}\" -eq 0 ] || { sleep 2; continue; }; "+
+			"ip -6 -o addr show %s 2>/dev/null | grep -v fe80 | grep -q . && break; "+
+			"sleep 2; done; sleep 5; ",
+		bondName, bondName, bondName)
+
+	return []string{"bash", "-c", bondWait + baseScript}
+}
+
+func bondWhereaboutsPodAnnotation(nadName string, slaveNetworks []string) []*multus.NetworkSelectionElement {
+	var annotation []*multus.NetworkSelectionElement
+
+	for _, slaveNetwork := range slaveNetworks {
+		slave := pod.StaticAnnotation(slaveNetwork)
+		Expect(slave).NotTo(BeNil(), "Failed to build slave network annotation for %s", slaveNetwork)
+		annotation = append(annotation, slave)
+	}
+
+	annotation = append(annotation, &multus.NetworkSelectionElement{
+		Name:             nadName,
+		Namespace:        tsparams.TestNamespaceName,
+		InterfaceRequest: sriovenv.BondInterfaceName,
+	})
+
+	return annotation
 }

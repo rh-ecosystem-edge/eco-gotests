@@ -71,6 +71,52 @@ func CreateBondNAD(
 		WithMasterPlugin(masterPlugin), nil
 }
 
+// CreateBondNADWithWhereabouts builds a Bond CNI NAD with Whereabouts IPAM on the bond interface.
+// The caller is responsible for calling .Create() on the returned builder.
+func CreateBondNADWithWhereabouts(
+	nadName,
+	mode string,
+	mtu,
+	slaveCount int,
+	ipRange,
+	gateway string,
+) (*nad.Builder, error) {
+	if slaveCount < 2 {
+		return nil, fmt.Errorf("slaveCount must be >= 2, got %d", slaveCount)
+	}
+
+	var links []nad.Link
+
+	for idx := 1; idx <= slaveCount; idx++ {
+		links = append(links, nad.Link{Name: fmt.Sprintf("net%d", idx)})
+	}
+
+	ipam := nad.IPAMWhereAbouts(ipRange, gateway)
+	if ipam == nil {
+		return nil, fmt.Errorf("invalid whereabouts IPAM range %q gateway %q", ipRange, gateway)
+	}
+
+	plugin := nad.NewMasterBondPlugin(nadName, mode).
+		WithFailOverMac(1).
+		WithLinksInContainer(true).
+		WithMiimon(100).
+		WithLinks(links).
+		WithCapabilities(&nad.Capability{IPs: true}).
+		WithIPAM(ipam)
+
+	masterPlugin, err := plugin.GetMasterPluginConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	if mtu > 0 {
+		masterPlugin.Mtu = mtu
+	}
+
+	return nad.NewBuilder(APIClient, nadName, tsparams.TestNamespaceName).
+		WithMasterPlugin(masterPlugin), nil
+}
+
 // GetBondActiveSlave reads the current active_slave from sysfs for the given bond interface.
 func GetBondActiveSlave(clientPod *pod.Builder, bondName string) (string, error) {
 	out, err := clientPod.ExecCommand([]string{"bash", "-c",

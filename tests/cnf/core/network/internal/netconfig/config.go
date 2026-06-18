@@ -253,7 +253,16 @@ func (netConfig *NetworkConfig) GetBondSwitchVLANID() (int, error) {
 		return 0, fmt.Errorf("bond switch VLAN: %w", err)
 	}
 
-	return int(vlanID), nil
+	const min8021QVLAN, max8021QVLAN = 1, 4094
+
+	vlanInt := int(vlanID)
+	if vlanInt < min8021QVLAN || vlanInt > max8021QVLAN {
+		return 0, fmt.Errorf(
+			"bond switch VLAN id %d is out of range (allowed %d-%d per 802.1Q)",
+			vlanInt, min8021QVLAN, max8021QVLAN)
+	}
+
+	return vlanInt, nil
 }
 
 func parseVLANIDList(raw string) ([]int, error) {

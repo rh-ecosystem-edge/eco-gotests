@@ -563,11 +563,13 @@ func CreateAllSriovPolicies(
 		vfEndLargeMTU   = 9
 	)
 
+	const policyNumVFs = 10
+
 	// Create policy for PF1 with small MTU
 	if err := CreateSriovPolicy(
 		fmt.Sprintf("%s-policy-pf1-mtu%d", policyPrefix, mtuSmall),
 		resourcePF1SmallMTU, pf1, mtuSmall,
-		vfStartSmallMTU, vfEndSmallMTU); err != nil {
+		vfStartSmallMTU, vfEndSmallMTU, policyNumVFs); err != nil {
 		return fmt.Errorf("failed to create PF1 MTU%d policy: %w", mtuSmall, err)
 	}
 
@@ -575,7 +577,7 @@ func CreateAllSriovPolicies(
 	if err := CreateSriovPolicy(
 		fmt.Sprintf("%s-policy-pf1-mtu%d", policyPrefix, mtuLarge),
 		resourcePF1LargeMTU, pf1, mtuLarge,
-		vfStartLargeMTU, vfEndLargeMTU); err != nil {
+		vfStartLargeMTU, vfEndLargeMTU, policyNumVFs); err != nil {
 		return fmt.Errorf("failed to create PF1 MTU%d policy: %w", mtuLarge, err)
 	}
 
@@ -583,7 +585,7 @@ func CreateAllSriovPolicies(
 	if err := CreateSriovPolicy(
 		fmt.Sprintf("%s-policy-pf2-mtu%d", policyPrefix, mtuSmall),
 		resourcePF2SmallMTU, pf2, mtuSmall,
-		vfStartSmallMTU, vfEndSmallMTU); err != nil {
+		vfStartSmallMTU, vfEndSmallMTU, policyNumVFs); err != nil {
 		return fmt.Errorf("failed to create PF2 MTU%d policy: %w", mtuSmall, err)
 	}
 
@@ -591,7 +593,7 @@ func CreateAllSriovPolicies(
 	if err := CreateSriovPolicy(
 		fmt.Sprintf("%s-policy-pf2-mtu%d", policyPrefix, mtuLarge),
 		resourcePF2LargeMTU, pf2, mtuLarge,
-		vfStartLargeMTU, vfEndLargeMTU); err != nil {
+		vfStartLargeMTU, vfEndLargeMTU, policyNumVFs); err != nil {
 		return fmt.Errorf("failed to create PF2 MTU%d policy: %w", mtuLarge, err)
 	}
 
@@ -614,18 +616,17 @@ func CreateSriovPolicy(
 	pfName string,
 	mtu,
 	vfStart,
-	vfEnd int,
+	vfEnd,
+	numVFs int,
 ) error {
 	klog.V(90).Infof("Creating SR-IOV policy %s", name)
-
-	const totalVFs = 10
 
 	_, err := sriov.NewPolicyBuilder(
 		APIClient,
 		name,
 		NetConfig.SriovOperatorNamespace,
 		resourceName,
-		totalVFs,
+		numVFs,
 		[]string{pfName},
 		NetConfig.WorkerLabelMap).
 		WithMTU(mtu).
