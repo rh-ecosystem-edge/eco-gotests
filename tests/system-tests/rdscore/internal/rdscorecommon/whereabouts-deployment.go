@@ -553,6 +553,9 @@ func CreateWhereaboutsDeployment(ctx SpecContext, config WhereaboutsDeploymentCo
 
 	By(fmt.Sprintf("Setting up deployment with %s", config.Description))
 
+	// Configure whereabouts reconciler to run every 3 minutes
+	ConfigureWhereaboutsIPReconciler()
+
 	cleanupDeployment(config.Name, RDSCoreConfig.WhereaboutNS, config.Label)
 
 	waBuilder := createDeploymentBuilder(config)

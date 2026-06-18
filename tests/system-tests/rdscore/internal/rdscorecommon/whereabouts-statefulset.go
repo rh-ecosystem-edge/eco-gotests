@@ -1639,6 +1639,9 @@ func CreateWhereaboutsStatefulset(ctx SpecContext, config StatefulsetConfig) {
 	Expect(config.NAD).ToNot(BeEmpty(),
 		"NetworkAttachmentDefinition must be set for statefulset %q", config.Name)
 
+	// Configure whereabouts reconciler to run every 3 minutes
+	ConfigureWhereaboutsIPReconciler()
+
 	// Cleanup existing statefulset FIRST (before deleting service)
 	// This ensures pods fully terminate and release their endpoints
 	// before the service and its EndpointSlices are deleted
@@ -1673,6 +1676,77 @@ func CreateWhereaboutsStatefulset(ctx SpecContext, config StatefulsetConfig) {
 	VerifyPodConnectivity(config.Label, RDSCoreConfig.WhereaboutNS, interfaceName, parsedPort)
 }
 
+// ConfigureWhereaboutsIPReconciler configures whereabouts IP reconciler to run every 3 minutes.
+func ConfigureWhereaboutsIPReconciler() {
+	By(fmt.Sprintf("Checking if configmap %q exists in %q namespace",
+		WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace))
+
+	var ctx SpecContext
+
+	cmWhereabouts, err := configmap.Pull(APIClient, WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
+	if err == nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Configmap %q exists in %q namespace, updating it",
+			WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
+
+		if oldSchedule, ok := cmWhereabouts.Object.Data[WhereaboutsReconcilerKey]; ok {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Key %q already exists in configmap %q in %q namespace, updating it",
+				WhereaboutsReconcilerKey, WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
+
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Old schedule: %q", oldSchedule)
+		} else {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Key %q does not exist in configmap %q in %q namespace, adding it",
+				WhereaboutsReconcilerKey, WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
+		}
+
+		// Initialize Data map if nil before writing
+		if cmWhereabouts.Object.Data == nil {
+			cmWhereabouts.Object.Data = make(map[string]string)
+		}
+
+		cmWhereabouts.Object.Data[WhereaboutsReconcilerKey] = WhereaboutsReconcilerSchedule
+
+		By(fmt.Sprintf("Updating configmap %q in %q namespace",
+			WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace))
+
+		Eventually(func() error {
+			_, updateErr := cmWhereabouts.Update()
+			if updateErr != nil {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"Failed to update ConfigMap, retrying: %v", updateErr)
+
+				// Re-pull ConfigMap to get latest resourceVersion
+				freshCM, pullErr := configmap.Pull(APIClient, WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
+				if pullErr != nil {
+					return pullErr
+				}
+
+				// Re-apply the schedule to the fresh ConfigMap
+				if freshCM.Object.Data == nil {
+					freshCM.Object.Data = make(map[string]string)
+				}
+
+				freshCM.Object.Data[WhereaboutsReconcilerKey] = WhereaboutsReconcilerSchedule
+				cmWhereabouts = freshCM
+
+				return updateErr
+			}
+
+			return nil
+		}).WithContext(ctx).WithPolling(15*time.Second).WithTimeout(1*time.Minute).Should(Succeed(),
+			"Failed to update configmap %q in %q namespace", WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
+	} else {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Configmap %q does not exist in %q namespace, creating it",
+			WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace)
+
+		By(fmt.Sprintf("Configuring whereabouts reconciler with configmap %q in %q namespace",
+			WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace))
+
+		createConfigMap(WhereaboutsReconcilerCMName, WhereaboutsReconcilerNamespace, map[string]string{
+			WhereaboutsReconcilerKey: WhereaboutsReconcilerSchedule,
+		})
+	}
+}
+
 // ReconcilerConfigState holds the original state of the reconciler configuration.
 type ReconcilerConfigState struct {
 	OriginalSchedule   string
@@ -1682,6 +1756,11 @@ type ReconcilerConfigState struct {
 
 // ConfigureWhereaboutsReconciler configures the Whereabouts reconciler to run every 3 minutes
 // and returns the original configuration state for later restoration.
+//
+// NOTE: Currently unused - configureWhereaboutsIPReconciler() is used instead.
+// This function was part of the restoration-based approach that had issues with
+// sync.Once across reboot contexts (ConfigMap lost after reboot but sync.Once prevented
+// reconfiguration). Kept for reference.
 //
 //nolint:funlen
 func ConfigureWhereaboutsReconciler() (*ReconcilerConfigState, error) {
@@ -1790,6 +1869,8 @@ func ConfigureWhereaboutsReconciler() (*ReconcilerConfigState, error) {
 }
 
 // RestoreWhereaboutsReconciler restores the Whereabouts reconciler configuration to its original state.
+//
+// NOTE: Currently unused - kept for reference. See ConfigureWhereaboutsReconciler comment for details.
 //
 //nolint:funlen
 func RestoreWhereaboutsReconciler(state *ReconcilerConfigState) error {
