@@ -36,20 +36,23 @@ var _ = Describe("Neuron In-Cluster Build Tests", Ordered,
 				}
 
 				By("Verifying NFD operator is ready")
+
 				nfdDeploy, err := deployment.Pull(APIClient, "nfd-controller-manager", "openshift-nfd")
 				Expect(err).ToNot(HaveOccurred(), "NFD operator deployment not found")
-				Expect(nfdDeploy.IsReady(30 * time.Second)).To(BeTrue(), "NFD operator must be ready")
+				Expect(nfdDeploy.IsReady(30*time.Second)).To(BeTrue(), "NFD operator must be ready")
 
 				By("Verifying KMM operator is ready")
+
 				kmmDeploy, err := deployment.Pull(APIClient, "kmm-operator-controller", "openshift-kmm")
 				Expect(err).ToNot(HaveOccurred(), "KMM operator deployment not found")
-				Expect(kmmDeploy.IsReady(30 * time.Second)).To(BeTrue(), "KMM operator must be ready")
+				Expect(kmmDeploy.IsReady(30*time.Second)).To(BeTrue(), "KMM operator must be ready")
 
 				By("Verifying Neuron operator is ready")
+
 				neuronDeploy, err := deployment.Pull(
 					APIClient, "awslabs-gpu-operator-controller-manager", params.NeuronNamespace)
 				Expect(err).ToNot(HaveOccurred(), "Neuron operator deployment not found")
-				Expect(neuronDeploy.IsReady(30 * time.Second)).To(BeTrue(), "Neuron operator must be ready")
+				Expect(neuronDeploy.IsReady(30*time.Second)).To(BeTrue(), "Neuron operator must be ready")
 
 				By("Creating DeviceConfig with in-cluster build (no DriversImage)")
 
