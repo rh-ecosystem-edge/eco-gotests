@@ -2,7 +2,6 @@ package rds_core_system_test
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -19,65 +18,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
-
-// Package-level variables for Whereabouts reconciler configuration.
-var (
-	reconcilerConfigState    *rdscorecommon.ReconcilerConfigState
-	reconcilerConfigureOnce  sync.Once
-	reconcilerRestoreOnce    sync.Once
-	errReconcilerConfigure   error
-	reconcilerConfigStateMux sync.Mutex
-)
-
-// configureWhereaboutsReconcilerOnce configures the Whereabouts reconciler once across all contexts.
-func configureWhereaboutsReconcilerOnce() {
-	reconcilerConfigureOnce.Do(func() {
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-			"Configuring Whereabouts reconciler (first Whereabouts context)")
-
-		state, err := rdscorecommon.ConfigureWhereaboutsReconciler()
-		if err != nil {
-			klog.Errorf("Failed to configure Whereabouts reconciler: %v", err)
-			errReconcilerConfigure = err
-
-			return
-		}
-
-		reconcilerConfigStateMux.Lock()
-		reconcilerConfigState = state
-		reconcilerConfigStateMux.Unlock()
-
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-			"Whereabouts reconciler configured successfully")
-	})
-}
-
-// restoreWhereaboutsReconcilerOnce restores the Whereabouts reconciler once after all contexts complete.
-func restoreWhereaboutsReconcilerOnce() {
-	reconcilerRestoreOnce.Do(func() {
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-			"Restoring Whereabouts reconciler configuration")
-
-		reconcilerConfigStateMux.Lock()
-		state := reconcilerConfigState
-		reconcilerConfigStateMux.Unlock()
-
-		if state == nil {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-				"No reconciler state to restore")
-
-			return
-		}
-
-		err := rdscorecommon.RestoreWhereaboutsReconciler(state)
-		if err != nil {
-			klog.Errorf("Failed to restore Whereabouts reconciler: %v", err)
-		} else {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-				"Whereabouts reconciler configuration restored successfully")
-		}
-	})
-}
 
 var _ = Describe(
 	"RDS Core Top Level Suite",
@@ -354,16 +294,9 @@ var _ = Describe(
 
 			Context("Whereabouts IPAM Validation", Ordered, Label("whereabouts"), func() {
 				BeforeAll(func(ctx SpecContext) {
-					By("Configuring Whereabouts reconciler (once across all Whereabouts contexts)")
+					By("Configuring Whereabouts reconciler")
 
-					configureWhereaboutsReconcilerOnce()
-					Expect(errReconcilerConfigure).ToNot(HaveOccurred(),
-						"Failed to configure Whereabouts reconciler")
-
-					// Schedule restoration to run after all Whereabouts contexts complete
-					DeferCleanup(func() {
-						restoreWhereaboutsReconcilerOnce()
-					})
+					rdscorecommon.ConfigureWhereaboutsIPReconciler()
 
 					By("Verifying Whereabouts reconciler health")
 
@@ -804,16 +737,9 @@ var _ = Describe(
 
 			Context("Whereabouts Post-Reboot Validation", Ordered, Label("whereabouts"), func() {
 				BeforeAll(func(ctx SpecContext) {
-					By("Configuring Whereabouts reconciler (once across all Whereabouts contexts)")
+					By("Configuring Whereabouts reconciler after reboot")
 
-					configureWhereaboutsReconcilerOnce()
-					Expect(errReconcilerConfigure).ToNot(HaveOccurred(),
-						"Failed to configure Whereabouts reconciler")
-
-					// Schedule restoration to run after all Whereabouts contexts complete
-					DeferCleanup(func() {
-						restoreWhereaboutsReconcilerOnce()
-					})
+					rdscorecommon.ConfigureWhereaboutsIPReconciler()
 
 					By("Verifying Whereabouts reconciler health after reboot")
 
@@ -1169,16 +1095,9 @@ var _ = Describe(
 
 			Context("Whereabouts Post-Reboot Validation", Ordered, Label("whereabouts"), func() {
 				BeforeAll(func(ctx SpecContext) {
-					By("Configuring Whereabouts reconciler (once across all Whereabouts contexts)")
+					By("Configuring Whereabouts reconciler after reboot")
 
-					configureWhereaboutsReconcilerOnce()
-					Expect(errReconcilerConfigure).ToNot(HaveOccurred(),
-						"Failed to configure Whereabouts reconciler")
-
-					// Schedule restoration to run after all Whereabouts contexts complete
-					DeferCleanup(func() {
-						restoreWhereaboutsReconcilerOnce()
-					})
+					rdscorecommon.ConfigureWhereaboutsIPReconciler()
 
 					By("Verifying Whereabouts reconciler health after reboot")
 
