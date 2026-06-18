@@ -425,34 +425,6 @@ func CreateSriovBondNetwork(name, resourceName string) error {
 	return WaitForNADCreation(name, tsparams.TestNamespaceName, tsparams.NADWaitTimeout)
 }
 
-// CreateSriovBondNetworkWithWhereaboutsIPAM creates a bond slave SriovNetwork with Whereabouts IPAM
-// and bond VF settings (Trust on, SpoofChk off, LinkState auto).
-func CreateSriovBondNetworkWithWhereaboutsIPAM(
-	name,
-	resourceName,
-	ipRange,
-	gateway,
-	networkName,
-	ipv6Range string,
-) error {
-	klog.V(90).Infof("Creating bond slave SR-IOV network %s with whereabouts IPAM, range %s, gateway %s",
-		name, ipRange, gateway)
-
-	networkBuilder := sriov.NewNetworkBuilder(
-		APIClient, name, NetConfig.SriovOperatorNamespace,
-		tsparams.TestNamespaceName, resourceName)
-
-	networkBuilder = applyBondSlaveVFSettings(networkBuilder)
-
-	if ipv6Range != "" {
-		networkBuilder.Definition.Spec.IPAM = whereaboutsDualStackIPAMJSON(ipRange, ipv6Range, networkName)
-	} else {
-		networkBuilder = networkBuilder.WithWhereaboutsIPAM(ipRange, gateway, "", networkName)
-	}
-
-	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.NADWaitTimeout)
-}
-
 // CreateSriovNetworkWithVLANAndWhereabouts creates an SR-IOV network with Whereabouts IPAM and VLAN tagging.
 // Dual-stack uses ipRanges without gateway (ipv6Gateway is ignored, same as CreateSriovNetworkWithWhereaboutsIPAM).
 func CreateSriovNetworkWithVLANAndWhereabouts(
@@ -805,17 +777,23 @@ func getIPv4MulticastConfig(mtu int) (group, mac string) {
 
 // buildTestcmdListeners returns the shell commands to start all testcmd listeners.
 // serverIP and mcastGroup can be shell variables (e.g., $SERVER_IP, $MCAST_GROUP) or literal values.
-func buildTestcmdListeners(interfaceName, serverIP, mcastGroup string, packetSize int) string {
-	return fmt.Sprintf(
+// When holdOpen is true, sleep infinity keeps the container alive (pod entrypoint use).
+func buildTestcmdListeners(interfaceName, serverIP, mcastGroup string, packetSize int, holdOpen bool) string {
+	listeners := fmt.Sprintf(
 		"testcmd -listen -protocol tcp -port 5001 -interface %s -mtu %d & "+
 			"testcmd -listen -protocol udp -port 5002 -interface %s -mtu %d & "+
 			"testcmd -listen -protocol sctp -port 5003 -interface %s -server %s -mtu %d & "+
-			"testcmd -listen -multicast -protocol udp -port 5004 -interface %s -server %s -mtu %d & "+
-			"sleep infinity",
+			"testcmd -listen -multicast -protocol udp -port 5004 -interface %s -server %s -mtu %d & ",
 		interfaceName, packetSize,
 		interfaceName, packetSize,
 		interfaceName, serverIP, packetSize,
 		interfaceName, mcastGroup, packetSize)
+
+	if holdOpen {
+		return listeners + "sleep infinity"
+	}
+
+	return listeners
 }
 
 // buildMulticastSetup returns the shell command to configure multicast and the multicast group address.
@@ -842,10 +820,9 @@ func BuildMulticastSetup(isIPv6 bool, interfaceName string, mtu int) (setupCmd, 
 	return buildMulticastSetup(isIPv6, interfaceName, mtu)
 }
 
-// buildDynamicIPServerCommand builds the server command for Whereabouts IPAM
-// where the IP is discovered at runtime inside the pod.
-func buildDynamicIPServerCommand(interfaceName string, mtu, packetSize int) []string {
-	// Step 1: Discover server IP (try IPv4 first, then IPv6).
+// buildDynamicServerStartScript returns a shell script that discovers the interface IP,
+// configures multicast, and starts testcmd listeners in the background.
+func buildDynamicServerStartScript(interfaceName string, mtu, packetSize int) string {
 	discoverIP := fmt.Sprintf(
 		"for _ in $(seq 1 10); do "+
 			"SERVER_IP=$(ip -4 -o addr show %s 2>/dev/null | awk '{print $4}' | cut -d'/' -f1 | head -1); "+
@@ -857,7 +834,6 @@ func buildDynamicIPServerCommand(interfaceName string, mtu, packetSize int) []st
 			"echo \"Discovered server IP: $SERVER_IP\"; ",
 		interfaceName, interfaceName)
 
-	// Step 2: Configure multicast based on discovered IP version (determined at runtime).
 	ipv6Setup, ipv6Group := buildMulticastSetup(true, interfaceName, mtu)
 	ipv4Setup, ipv4Group := buildMulticastSetup(false, interfaceName, mtu)
 
@@ -870,10 +846,17 @@ func buildDynamicIPServerCommand(interfaceName string, mtu, packetSize int) []st
 		ipv6Group, ipv6Setup,
 		ipv4Group, ipv4Setup)
 
-	// Step 3: Start listeners using shell variables set above.
-	listeners := buildTestcmdListeners(interfaceName, "$SERVER_IP", "$MCAST_GROUP", packetSize)
+	listeners := buildTestcmdListeners(interfaceName, "$SERVER_IP", "$MCAST_GROUP", packetSize, false)
 
-	return []string{"bash", "-c", discoverIP + setupMulticast + listeners}
+	return discoverIP + setupMulticast + listeners
+}
+
+// buildDynamicIPServerCommand builds the server command for Whereabouts IPAM
+// where the IP is discovered at runtime inside the pod.
+func buildDynamicIPServerCommand(interfaceName string, mtu, packetSize int) []string {
+	script := buildDynamicServerStartScript(interfaceName, mtu, packetSize)
+
+	return []string{"bash", "-c", script + "sleep infinity"}
 }
 
 // buildStaticIPServerCommand builds the server command when the IP is known at pod creation time.
@@ -881,7 +864,7 @@ func buildStaticIPServerCommand(serverBindIP, interfaceName string, mtu, packetS
 	isIPv6 := strings.Contains(serverBindIP, ":")
 	multicastSetup, multicastGroup := buildMulticastSetup(isIPv6, interfaceName, mtu)
 
-	listeners := buildTestcmdListeners(interfaceName, serverBindIP, multicastGroup, packetSize)
+	listeners := buildTestcmdListeners(interfaceName, serverBindIP, multicastGroup, packetSize, true)
 
 	return []string{"bash", "-c", multicastSetup + "sleep 5; " + listeners}
 }

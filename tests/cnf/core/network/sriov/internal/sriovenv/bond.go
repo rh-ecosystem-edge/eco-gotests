@@ -40,6 +40,58 @@ func CreateBondNAD(
 	mtu,
 	slaveCount int,
 ) (*nad.Builder, error) {
+	return createBondNAD(nadName, mode, mtu, slaveCount, &nad.IPAM{Type: ipamType})
+}
+
+// CreateBondNADWithWhereabouts builds a Bond CNI NAD with Whereabouts IPAM on the bond interface.
+// The caller is responsible for calling .Create() on the returned builder.
+func CreateBondNADWithWhereabouts(
+	nadName,
+	mode string,
+	mtu,
+	slaveCount int,
+	ipRange,
+	gateway string,
+) (*nad.Builder, error) {
+	ipam, err := bondWhereaboutsIPAM(ipRange, gateway)
+	if err != nil {
+		return nil, err
+	}
+
+	return createBondNAD(nadName, mode, mtu, slaveCount, ipam)
+}
+
+// bondWhereaboutsIPAM builds Whereabouts IPAM with an explicit alloc pool so the gateway is not
+// assigned to pods (same range_start/range_end pattern as SR-IOV Whereabouts NADs).
+func bondWhereaboutsIPAM(ipRange, gateway string) (*nad.IPAM, error) {
+	if ipRange == "" || gateway == "" {
+		return nil, fmt.Errorf("invalid whereabouts IPAM range %q gateway %q", ipRange, gateway)
+	}
+
+	rangeStart := tsparams.WhereaboutsIPv6AllocStart
+	rangeEnd := tsparams.WhereaboutsIPv6AllocEnd
+
+	if ipRange == tsparams.WhereaboutsIPv6Range2 {
+		rangeStart = tsparams.WhereaboutsIPv6AllocStart2
+		rangeEnd = tsparams.WhereaboutsIPv6AllocEnd2
+	}
+
+	return &nad.IPAM{
+		Type:       "whereabouts",
+		AddrRange:  ipRange,
+		RangeStart: rangeStart,
+		RangeEnd:   rangeEnd,
+		Gateway:    gateway,
+	}, nil
+}
+
+func createBondNAD(
+	nadName,
+	mode string,
+	mtu,
+	slaveCount int,
+	ipam *nad.IPAM,
+) (*nad.Builder, error) {
 	if slaveCount < 2 {
 		return nil, fmt.Errorf("slaveCount must be >= 2, got %d", slaveCount)
 	}
@@ -56,7 +108,7 @@ func CreateBondNAD(
 		WithMiimon(100).
 		WithLinks(links).
 		WithCapabilities(&nad.Capability{IPs: true}).
-		WithIPAM(&nad.IPAM{Type: ipamType})
+		WithIPAM(ipam)
 
 	masterPlugin, err := plugin.GetMasterPluginConfig()
 	if err != nil {

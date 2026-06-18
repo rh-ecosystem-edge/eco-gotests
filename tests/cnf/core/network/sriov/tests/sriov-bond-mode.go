@@ -23,6 +23,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
+	multus "gopkg.in/k8snetworkplumbingwg/multus-cni.v4/pkg/types"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -211,10 +212,12 @@ var _ = Describe(
 				runBondScenario(
 					sriovenv.BondModeActiveBackup,
 					mtu1280, mtu9000,
-					tsparams.ServerIPv4IPAddress, tsparams.ClientIPv4IPAddress,
-					tsparams.ServerIPv4IPAddress2, tsparams.ClientIPv4IPAddress2,
 					workerNodeList[0].Definition.Name, workerNodeList[1].Definition.Name,
 					bondNetworksV4DiffPFSmall, bondNetworksV4DiffPFJumbo,
+					staticBondIPs(
+						tsparams.ServerIPv4IPAddress, tsparams.ClientIPv4IPAddress,
+						tsparams.ServerIPv4IPAddress2, tsparams.ClientIPv4IPAddress2,
+					),
 				)
 			})
 
@@ -226,10 +229,12 @@ var _ = Describe(
 				runBondScenario(
 					sriovenv.BondModeActiveBackup,
 					mtu1280, mtu9000,
-					tsparams.ServerIPv4IPAddress, tsparams.ClientIPv4IPAddress,
-					tsparams.ServerIPv4IPAddress2, tsparams.ClientIPv4IPAddress2,
 					workerNodeList[0].Definition.Name, workerNodeList[1].Definition.Name,
 					bondNetworksV4SamePFSmall, bondNetworksV4SamePFJumbo,
+					staticBondIPs(
+						tsparams.ServerIPv4IPAddress, tsparams.ClientIPv4IPAddress,
+						tsparams.ServerIPv4IPAddress2, tsparams.ClientIPv4IPAddress2,
+					),
 				)
 			})
 
@@ -241,10 +246,12 @@ var _ = Describe(
 				runBondScenario(
 					sriovenv.BondModeActiveBackup,
 					mtu1280, mtu9000,
-					tsparams.ServerIPv6IPAddress, tsparams.ClientIPv6IPAddress,
-					tsparams.ServerIPv6IPAddress2, tsparams.ClientIPv6IPAddress2,
 					workerNodeList[0].Definition.Name, workerNodeList[1].Definition.Name,
 					bondNetworksV6DiffPFSmall, bondNetworksV6DiffPFJumbo,
+					staticBondIPs(
+						tsparams.ServerIPv6IPAddress, tsparams.ClientIPv6IPAddress,
+						tsparams.ServerIPv6IPAddress2, tsparams.ClientIPv6IPAddress2,
+					),
 				)
 			})
 
@@ -256,10 +263,40 @@ var _ = Describe(
 				runBondScenario(
 					sriovenv.BondModeActiveBackup,
 					mtu1280, mtu9000,
-					tsparams.ServerIPv6IPAddress, tsparams.ClientIPv6IPAddress,
-					tsparams.ServerIPv6IPAddress2, tsparams.ClientIPv6IPAddress2,
 					workerNodeList[0].Definition.Name, workerNodeList[1].Definition.Name,
 					bondNetworksV6SamePFSmall, bondNetworksV6SamePFJumbo,
+					staticBondIPs(
+						tsparams.ServerIPv6IPAddress, tsparams.ClientIPv6IPAddress,
+						tsparams.ServerIPv6IPAddress2, tsparams.ClientIPv6IPAddress2,
+					),
+				)
+			})
+
+			It("DiffNodeDiffPF IPv6 IPAM", reportxml.ID("89681"), func() {
+				if !netenv.ClusterSupportsIPv6(clusterIPFamily) {
+					Skip("Cluster does not support IPv6 - skipping SR-IOV bond whereabouts IPAM tests")
+				}
+
+				runBondScenario(
+					sriovenv.BondModeActiveBackup,
+					mtu1280, mtu9000,
+					workerNodeList[0].Definition.Name, workerNodeList[1].Definition.Name,
+					bondNetworksV6DiffPFSmall, bondNetworksV6DiffPFJumbo,
+					whereaboutsBondIPs(),
+				)
+			})
+
+			It("DiffNodeSamePF IPv6 IPAM", reportxml.ID("89682"), func() {
+				if !netenv.ClusterSupportsIPv6(clusterIPFamily) {
+					Skip("Cluster does not support IPv6 - skipping SR-IOV bond whereabouts IPAM tests")
+				}
+
+				runBondScenario(
+					sriovenv.BondModeActiveBackup,
+					mtu1280, mtu9000,
+					workerNodeList[0].Definition.Name, workerNodeList[1].Definition.Name,
+					bondNetworksV6SamePFSmall, bondNetworksV6SamePFJumbo,
+					whereaboutsBondIPs(),
 				)
 			})
 		})
@@ -285,10 +322,12 @@ var _ = Describe(
 				runBondScenario(
 					sriovenv.BondModeBalanceRR,
 					mtu1280, mtu9000,
-					tsparams.ServerIPv4IPAddress, tsparams.ClientIPv4IPAddress,
-					tsparams.ServerIPv4IPAddress2, tsparams.ClientIPv4IPAddress2,
 					workerNodeList[0].Definition.Name, workerNodeList[1].Definition.Name,
 					bondNetworksV4DiffPFSmall, bondNetworksV4DiffPFJumbo,
+					staticBondIPs(
+						tsparams.ServerIPv4IPAddress, tsparams.ClientIPv4IPAddress,
+						tsparams.ServerIPv4IPAddress2, tsparams.ClientIPv4IPAddress2,
+					),
 				)
 			})
 
@@ -300,10 +339,12 @@ var _ = Describe(
 				runBondScenario(
 					sriovenv.BondModeBalanceXOR,
 					mtu1280, mtu9000,
-					tsparams.ServerIPv4IPAddress, tsparams.ClientIPv4IPAddress,
-					tsparams.ServerIPv4IPAddress2, tsparams.ClientIPv4IPAddress2,
 					workerNodeList[0].Definition.Name, workerNodeList[1].Definition.Name,
 					bondNetworksV4DiffPFSmall, bondNetworksV4DiffPFJumbo,
+					staticBondIPs(
+						tsparams.ServerIPv4IPAddress, tsparams.ClientIPv4IPAddress,
+						tsparams.ServerIPv4IPAddress2, tsparams.ClientIPv4IPAddress2,
+					),
 				)
 			})
 
@@ -315,10 +356,12 @@ var _ = Describe(
 				runBondScenario(
 					sriovenv.BondModeBalanceRR,
 					mtu1280, mtu9000,
-					tsparams.ServerIPv6IPAddress, tsparams.ClientIPv6IPAddress,
-					tsparams.ServerIPv6IPAddress2, tsparams.ClientIPv6IPAddress2,
 					workerNodeList[0].Definition.Name, workerNodeList[1].Definition.Name,
 					bondNetworksV6DiffPFSmall, bondNetworksV6DiffPFJumbo,
+					staticBondIPs(
+						tsparams.ServerIPv6IPAddress, tsparams.ClientIPv6IPAddress,
+						tsparams.ServerIPv6IPAddress2, tsparams.ClientIPv6IPAddress2,
+					),
 				)
 			})
 
@@ -330,10 +373,12 @@ var _ = Describe(
 				runBondScenario(
 					sriovenv.BondModeBalanceXOR,
 					mtu1280, mtu9000,
-					tsparams.ServerIPv6IPAddress, tsparams.ClientIPv6IPAddress,
-					tsparams.ServerIPv6IPAddress2, tsparams.ClientIPv6IPAddress2,
 					workerNodeList[0].Definition.Name, workerNodeList[1].Definition.Name,
 					bondNetworksV6DiffPFSmall, bondNetworksV6DiffPFJumbo,
+					staticBondIPs(
+						tsparams.ServerIPv6IPAddress, tsparams.ClientIPv6IPAddress,
+						tsparams.ServerIPv6IPAddress2, tsparams.ClientIPv6IPAddress2,
+					),
 				)
 			})
 		})
@@ -525,63 +570,131 @@ var (
 	bondNetworksV6SamePFJumbo = []string{"sriov-bond-v6-samepf-jumbo-a", "sriov-bond-v6-samepf-jumbo-b"}
 )
 
+// bondScenarioIPSetup selects static pod IPs or Whereabouts IPAM for a bond scenario run.
+type bondScenarioIPSetup struct {
+	whereabouts   bool
+	serverIPSmall string
+	clientIPSmall string
+	serverIPLarge string
+	clientIPLarge string
+}
+
+func staticBondIPs(serverIPSmall, clientIPSmall, serverIPLarge, clientIPLarge string) bondScenarioIPSetup {
+	return bondScenarioIPSetup{
+		serverIPSmall: serverIPSmall,
+		clientIPSmall: clientIPSmall,
+		serverIPLarge: serverIPLarge,
+		clientIPLarge: clientIPLarge,
+	}
+}
+
+func whereaboutsBondIPs() bondScenarioIPSetup {
+	return bondScenarioIPSetup{whereabouts: true}
+}
+
+func createBondScenarioNAD(nadName, bondMode string, mtu int, whereabouts bool) {
+	deleteBondNADBestEffort(nadName)
+
+	var (
+		bondBuilder *nad.Builder
+		err         error
+	)
+
+	if whereabouts {
+		ipRange, gateway := bondWhereaboutsIPAMForMTU(mtu)
+		bondBuilder, err = sriovenv.CreateBondNADWithWhereabouts(
+			nadName, bondMode, mtu, 2, ipRange, gateway)
+		Expect(err).ToNot(HaveOccurred(), "Failed to build whereabouts bond NAD %s", nadName)
+	} else {
+		bondBuilder, err = sriovenv.CreateBondNAD(nadName, bondMode, "static", mtu, 2)
+		Expect(err).ToNot(HaveOccurred(), "Failed to build bond NAD %s", nadName)
+	}
+
+	_, err = bondBuilder.Create()
+	Expect(err).ToNot(HaveOccurred(), "Failed to create bond NAD %s", nadName)
+}
+
+func bondScenarioPodNames(whereabouts bool, modeSuffix string, mtu int) (serverName, clientName string) {
+	prefix := "bond"
+	if whereabouts {
+		prefix = "bond-wb"
+	}
+
+	serverName = fmt.Sprintf("%s-server-%s-mtu%d", prefix, modeSuffix, mtu)
+	clientName = fmt.Sprintf("%s-client-%s-mtu%d", prefix, modeSuffix, mtu)
+
+	return serverName, clientName
+}
+
+func createBondScenarioPodsPair(
+	nadName, serverName, clientName, serverNode, clientNode string,
+	slaveNetworks []string,
+	mtu int,
+	serverIPWithCIDR, clientIPWithCIDR string,
+	whereabouts bool,
+) (*pod.Builder, string) {
+	if whereabouts {
+		serverPod, clientPod := createBondWhereaboutsPodsPair(
+			nadName, serverName, clientName, serverNode, clientNode, slaveNetworks, mtu)
+
+		serverIP, err := sriovenv.GetPodIPFromInterface(serverPod, sriovenv.BondInterfaceName, "ipv6")
+		Expect(err).ToNot(HaveOccurred(), "Failed to get server bond IP on %s", serverName)
+
+		return clientPod, serverIP
+	}
+
+	_, clientPod := createBondedPodsPair(
+		nadName, serverName, clientName, serverNode, clientNode,
+		slaveNetworks, serverIPWithCIDR, clientIPWithCIDR, mtu)
+
+	return clientPod, serverIPWithCIDR
+}
+
 //nolint:unparam // mtu values are fixed by the suite's MTU matrix.
 func runBondScenario(
 	bondMode string,
 	mtuSmall int,
 	mtuLarge int,
-	serverIPSmall string,
-	clientIPSmall string,
-	serverIPLarge string,
-	clientIPLarge string,
 	serverNode string,
 	clientNode string,
 	slaveNetworksSmall []string,
 	slaveNetworksLarge []string,
+	ips bondScenarioIPSetup,
 ) {
 	nadSmall := bondNADNameFor(bondMode, mtuSmall)
 	nadLarge := bondNADNameFor(bondMode, mtuLarge)
 
-	By("Creating bond NADs for both MTUs")
+	if ips.whereabouts {
+		By("Creating bond NADs with whereabouts IPAM for both MTUs")
+	} else {
+		By("Creating bond NADs for both MTUs")
+	}
 
-	deleteBondNADBestEffort(nadSmall)
-	deleteBondNADBestEffort(nadLarge)
-
-	bondSmall, err := sriovenv.CreateBondNAD(nadSmall, bondMode, "static", mtuSmall, 2)
-	Expect(err).ToNot(HaveOccurred(), "Failed to build small MTU bond NAD")
-
-	_, err = bondSmall.Create()
-	Expect(err).ToNot(HaveOccurred(), "Failed to create small MTU bond NAD")
-
+	createBondScenarioNAD(nadSmall, bondMode, mtuSmall, ips.whereabouts)
 	defer func() { deleteBondNADBestEffort(nadSmall) }()
 
-	bondLarge, err := sriovenv.CreateBondNAD(nadLarge, bondMode, "static", mtuLarge, 2)
-	Expect(err).ToNot(HaveOccurred(), "Failed to build large MTU bond NAD")
-
-	_, err = bondLarge.Create()
-	Expect(err).ToNot(HaveOccurred(), "Failed to create large MTU bond NAD")
-
+	createBondScenarioNAD(nadLarge, bondMode, mtuLarge, ips.whereabouts)
 	defer func() { deleteBondNADBestEffort(nadLarge) }()
 
 	modeSuffix := strings.ReplaceAll(bondMode, "balance-", "")
-	serverSmallName := fmt.Sprintf("bond-server-%s-mtu%d", modeSuffix, mtuSmall)
-	clientSmallName := fmt.Sprintf("bond-client-%s-mtu%d", modeSuffix, mtuSmall)
-	serverLargeName := fmt.Sprintf("bond-server-%s-mtu%d", modeSuffix, mtuLarge)
-	clientLargeName := fmt.Sprintf("bond-client-%s-mtu%d", modeSuffix, mtuLarge)
+	serverSmallName, clientSmallName := bondScenarioPodNames(ips.whereabouts, modeSuffix, mtuSmall)
+	serverLargeName, clientLargeName := bondScenarioPodNames(ips.whereabouts, modeSuffix, mtuLarge)
 
 	By("Creating server and client pods for both MTUs (4 pods total)")
 
-	_, clientSmall := createBondedPodsPair(
+	clientSmall, serverIPSmall := createBondScenarioPodsPair(
 		nadSmall,
 		serverSmallName, clientSmallName,
 		serverNode, clientNode,
-		slaveNetworksSmall, serverIPSmall, clientIPSmall, mtuSmall,
+		slaveNetworksSmall, mtuSmall,
+		ips.serverIPSmall, ips.clientIPSmall, ips.whereabouts,
 	)
-	_, clientLarge := createBondedPodsPair(
+	clientLarge, serverIPLarge := createBondScenarioPodsPair(
 		nadLarge,
 		serverLargeName, clientLargeName,
 		serverNode, clientNode,
-		slaveNetworksLarge, serverIPLarge, clientIPLarge, mtuLarge,
+		slaveNetworksLarge, mtuLarge,
+		ips.serverIPLarge, ips.clientIPLarge, ips.whereabouts,
 	)
 
 	By("Verifying traffic on bond interface for both MTUs")
@@ -1330,4 +1443,75 @@ func deleteBondNADBestEffort(name string) {
 	if err := deleteBondNADIfExists(name); err != nil {
 		klog.Warningf("best-effort bond NAD cleanup failed for %s: %v", name, err)
 	}
+}
+
+func bondWhereaboutsIPAMForMTU(mtu int) (ipRange, gateway string) {
+	ipRange = tsparams.WhereaboutsIPv6Range
+	gateway = tsparams.WhereaboutsIPv6Gateway
+
+	if mtu >= mtu9000 {
+		ipRange = tsparams.WhereaboutsIPv6Range2
+		gateway = tsparams.WhereaboutsIPv6Gateway2
+	}
+
+	return ipRange, gateway
+}
+
+func createBondWhereaboutsPodsPair(
+	nadName string,
+	serverName, clientName,
+	serverNode, clientNode string,
+	slaveNetworks []string,
+	mtu int,
+) (*pod.Builder, *pod.Builder) {
+	annotation := bondWhereaboutsPodAnnotation(nadName, slaveNetworks)
+	Expect(annotation).NotTo(BeEmpty(), "Failed to create whereabouts bond pod annotation")
+
+	serverCmd := sriovenv.BuildServerCommand("", sriovenv.BondInterfaceName, mtu)
+
+	serverContainer, err := pod.NewContainerBuilder("server", NetConfig.CnfNetTestContainer, serverCmd).GetContainerCfg()
+	Expect(err).ToNot(HaveOccurred(), "Failed to build server container config")
+
+	serverPod, err := pod.NewBuilder(APIClient, serverName, tsparams.TestNamespaceName, NetConfig.CnfNetTestContainer).
+		DefineOnNode(serverNode).
+		RedefineDefaultContainer(*serverContainer).
+		WithPrivilegedFlag().
+		WithSecondaryNetwork(annotation).
+		CreateAndWaitUntilRunning(netparam.DefaultTimeout)
+	Expect(err).ToNot(HaveOccurred(), "Failed to create server pod")
+
+	Expect(sriovenv.WaitForServerReady(serverPod, tsparams.WaitTimeout)).
+		To(Succeed(), "Server pod testcmd listeners not ready")
+
+	clientPod, err := pod.NewBuilder(APIClient, clientName, tsparams.TestNamespaceName, NetConfig.CnfNetTestContainer).
+		DefineOnNode(clientNode).
+		WithPrivilegedFlag().
+		WithSecondaryNetwork(annotation).
+		CreateAndWaitUntilRunning(netparam.DefaultTimeout)
+	Expect(err).ToNot(HaveOccurred(), "Failed to create client pod")
+
+	Expect(sriovenv.WaitForBondSlavesMIIUp(serverPod, sriovenv.BondInterfaceName)).
+		To(Succeed(), "Server bond slaves not MII up in pod %s", serverName)
+	Expect(sriovenv.WaitForBondSlavesMIIUp(clientPod, sriovenv.BondInterfaceName)).
+		To(Succeed(), "Client bond slaves not MII up in pod %s", clientName)
+
+	return serverPod, clientPod
+}
+
+func bondWhereaboutsPodAnnotation(nadName string, slaveNetworks []string) []*multus.NetworkSelectionElement {
+	var annotation []*multus.NetworkSelectionElement
+
+	for _, slaveNetwork := range slaveNetworks {
+		slave := pod.StaticAnnotation(slaveNetwork)
+		Expect(slave).NotTo(BeNil(), "Failed to build slave network annotation for %s", slaveNetwork)
+		annotation = append(annotation, slave)
+	}
+
+	annotation = append(annotation, &multus.NetworkSelectionElement{
+		Name:             nadName,
+		Namespace:        tsparams.TestNamespaceName,
+		InterfaceRequest: sriovenv.BondInterfaceName,
+	})
+
+	return annotation
 }
