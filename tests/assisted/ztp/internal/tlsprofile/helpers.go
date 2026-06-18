@@ -12,8 +12,8 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 )
 
-// PatchAPIServerTLSProfile applies the given TLS security profile to the cluster APIServer.
-func PatchAPIServerTLSProfile(client *clients.Settings, profile configv1.TLSSecurityProfile) {
+// SetAPIServerTLSProfile applies the given TLS security profile to the cluster APIServer.
+func SetAPIServerTLSProfile(client *clients.Settings, profile configv1.TLSSecurityProfile) {
 	builder, err := apiservers.PullAPIServer(client)
 	Expect(err).ToNot(HaveOccurred(), "failed to pull apiserver")
 

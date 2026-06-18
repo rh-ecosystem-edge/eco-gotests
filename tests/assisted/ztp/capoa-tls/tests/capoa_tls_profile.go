@@ -163,7 +163,7 @@ var _ = Describe(
 		It("Verifies Old TLS profile enables broader cipher set on CAPOA",
 			reportxml.ID("88844"), func() {
 				By("Applying Old TLS profile")
-				tlsprofile.PatchAPIServerTLSProfile(HubAPIClient,
+				tlsprofile.SetAPIServerTLSProfile(HubAPIClient,
 					configv1.TLSSecurityProfile{
 						Type: configv1.TLSProfileOldType,
 						Old:  &configv1.OldTLSProfile{},
@@ -191,7 +191,7 @@ var _ = Describe(
 		It("Verifies Modern TLS profile restricts to TLS 1.3 only on CAPOA",
 			reportxml.ID("88845"), func() {
 				By("Applying Modern TLS profile")
-				tlsprofile.PatchAPIServerTLSProfile(HubAPIClient,
+				tlsprofile.SetAPIServerTLSProfile(HubAPIClient,
 					configv1.TLSSecurityProfile{
 						Type:   configv1.TLSProfileModernType,
 						Modern: &configv1.ModernTLSProfile{},
@@ -221,7 +221,7 @@ var _ = Describe(
 		It("Verifies Custom TLS profile restricts to specified ciphers on CAPOA",
 			reportxml.ID("88846"), func() {
 				By("Applying Custom TLS profile")
-				tlsprofile.PatchAPIServerTLSProfile(HubAPIClient,
+				tlsprofile.SetAPIServerTLSProfile(HubAPIClient,
 					customTLSProfile(customCiphers))
 
 				By("Waiting for CAPOA pods to pick up Custom profile")
@@ -310,7 +310,7 @@ var _ = Describe(
 				tlsprofile.WaitPodsRestarted(HubAPIClient, capoa)
 
 				By("Changing TLS profile to Custom")
-				tlsprofile.PatchAPIServerTLSProfile(HubAPIClient,
+				tlsprofile.SetAPIServerTLSProfile(HubAPIClient,
 					customTLSProfile(customCiphers))
 
 				By("Waiting for automatic restart")
@@ -338,7 +338,7 @@ var _ = Describe(
 				}
 
 				By("Switching to Custom single-cipher profile")
-				tlsprofile.PatchAPIServerTLSProfile(HubAPIClient,
+				tlsprofile.SetAPIServerTLSProfile(HubAPIClient,
 					customTLSProfile(singleCiphers))
 
 				By("Waiting for automatic reconciliation (no manual pod restart)")
@@ -405,7 +405,7 @@ var _ = Describe(
 				tlsprofile.WaitPodsRestarted(HubAPIClient, capoa)
 
 				By("Applying Modern TLS profile (TLS 1.3 only)")
-				tlsprofile.PatchAPIServerTLSProfile(HubAPIClient,
+				tlsprofile.SetAPIServerTLSProfile(HubAPIClient,
 					configv1.TLSSecurityProfile{
 						Type:   configv1.TLSProfileModernType,
 						Modern: &configv1.ModernTLSProfile{},
