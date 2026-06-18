@@ -325,6 +325,31 @@ func AllNeuronNodesResourceAvailable(apiClient *clients.Settings, timeout time.D
 		})
 }
 
+// BuildConfigMapCreated waits for the Dockerfile ConfigMap to be created by the operator.
+func BuildConfigMapCreated(apiClient *clients.Settings, namespace, deviceConfigName string,
+	timeout time.Duration) error {
+	cmName := params.BuildConfigMapPrefix + deviceConfigName
+
+	klog.V(params.NeuronLogLevel).Infof(
+		"Waiting for build ConfigMap %s in namespace %s", cmName, namespace)
+
+	return wait.PollUntilContextTimeout(
+		context.TODO(), 10*time.Second, timeout, true,
+		func(ctx context.Context) (bool, error) {
+			_, err := apiClient.K8sClient.CoreV1().ConfigMaps(namespace).Get(
+				ctx, cmName, metav1.GetOptions{})
+			if err != nil {
+				klog.V(params.NeuronLogLevel).Infof("ConfigMap %s not found yet: %v", cmName, err)
+
+				return false, nil
+			}
+
+			klog.V(params.NeuronLogLevel).Infof("ConfigMap %s exists", cmName)
+
+			return true, nil
+		})
+}
+
 // DevicePluginRunningOnNode waits for the device plugin pod to be running on a specific node.
 func DevicePluginRunningOnNode(apiClient *clients.Settings, nodeName string,
 	timeout time.Duration) error {

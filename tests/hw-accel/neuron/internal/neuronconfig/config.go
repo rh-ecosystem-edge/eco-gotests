@@ -120,8 +120,17 @@ func NewNeuronConfig() *NeuronConfig {
 }
 
 // IsValid checks if the minimum required configuration is present.
+// Supports both pre-compiled image mode (DriversImage set) and in-cluster build mode (only DriverVersion set).
 func (c *NeuronConfig) IsValid() bool {
-	return c.DriversImage != "" && c.DriverVersion != "" && c.DevicePluginImage != "" && c.NodeMetricsImage != ""
+	hasDriverSource := c.DriversImage != "" || c.DriverVersion != ""
+
+	return hasDriverSource && c.DevicePluginImage != "" && c.NodeMetricsImage != ""
+}
+
+// IsInClusterBuild returns true when the configuration targets in-cluster build mode
+// (DriversImage is empty but DriverVersion is set).
+func (c *NeuronConfig) IsInClusterBuild() bool {
+	return c.DriversImage == "" && c.DriverVersion != ""
 }
 
 // IsVLLMConfigured checks if vLLM testing configuration is present.
@@ -130,8 +139,18 @@ func (c *NeuronConfig) IsVLLMConfigured() bool {
 }
 
 // IsUpgradeConfigured checks if upgrade testing configuration is present.
+// In pre-built image mode, both UpgradeTargetVersion and UpgradeTargetDriversImage are required.
+// In in-cluster build mode, only UpgradeTargetVersion is required.
 func (c *NeuronConfig) IsUpgradeConfigured() bool {
-	return c.UpgradeTargetVersion != "" && c.UpgradeTargetDriversImage != ""
+	if c.UpgradeTargetVersion == "" {
+		return false
+	}
+
+	if c.IsInClusterBuild() {
+		return true
+	}
+
+	return c.UpgradeTargetDriversImage != ""
 }
 
 // IsKServeConfigured checks if KServe testing configuration is present.

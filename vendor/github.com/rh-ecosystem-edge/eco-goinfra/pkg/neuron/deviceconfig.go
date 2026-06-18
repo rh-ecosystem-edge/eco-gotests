@@ -109,6 +109,79 @@ func NewBuilder(
 	return builder
 }
 
+// NewBuilderWithInClusterBuild creates a new instance of Builder for in-cluster build mode.
+// In this mode, DriversImage is left empty and the operator triggers KMM in-cluster builds
+// using a Dockerfile ConfigMap. Only driverVersion and devicePluginImage are required.
+func NewBuilderWithInClusterBuild(
+	apiClient *clients.Settings,
+	name, namespace string,
+	driverVersion, devicePluginImage string) *Builder {
+	klog.V(100).Infof(
+		"Initializing new DeviceConfig (in-cluster build) with name: %s, namespace: %s",
+		name, namespace)
+
+	if apiClient == nil {
+		klog.V(100).Infof("The apiClient is empty")
+
+		return nil
+	}
+
+	err := apiClient.AttachScheme(neuronv1beta1.AddToScheme)
+	if err != nil {
+		klog.V(100).Infof("Failed to add neuron v1beta1 scheme to client schemes")
+
+		return nil
+	}
+
+	builder := &Builder{
+		apiClient: apiClient,
+		Definition: &neuronv1beta1.DeviceConfig{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: namespace,
+			},
+			Spec: neuronv1beta1.DeviceConfigSpec{
+				DriverVersion:     driverVersion,
+				DevicePluginImage: devicePluginImage,
+			},
+		},
+	}
+
+	if name == "" {
+		klog.V(100).Infof("The name of the DeviceConfig is empty")
+
+		builder.errorMsg = "DeviceConfig 'name' cannot be empty"
+
+		return builder
+	}
+
+	if namespace == "" {
+		klog.V(100).Infof("The namespace of the DeviceConfig is empty")
+
+		builder.errorMsg = "DeviceConfig 'namespace' cannot be empty"
+
+		return builder
+	}
+
+	if driverVersion == "" {
+		klog.V(100).Infof("The driverVersion of the DeviceConfig is empty")
+
+		builder.errorMsg = "DeviceConfig 'driverVersion' cannot be empty"
+
+		return builder
+	}
+
+	if devicePluginImage == "" {
+		klog.V(100).Infof("The devicePluginImage of the DeviceConfig is empty")
+
+		builder.errorMsg = "DeviceConfig 'devicePluginImage' cannot be empty"
+
+		return builder
+	}
+
+	return builder
+}
+
 // WithSelector sets the node selector for the DeviceConfig.
 func (builder *Builder) WithSelector(selector map[string]string) *Builder {
 	if valid, _ := builder.validate(); !valid {

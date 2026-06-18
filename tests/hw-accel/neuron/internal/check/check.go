@@ -1,6 +1,7 @@
 package check
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -267,6 +268,19 @@ func NeuronWorkloadsOnNode(apiClient *clients.Settings, nodeName, namespace stri
 	}
 
 	return count, nil
+}
+
+// BuildConfigMapExists checks if the Dockerfile ConfigMap created by the operator exists.
+func BuildConfigMapExists(apiClient *clients.Settings, namespace, deviceConfigName string) (bool, error) {
+	cmName := params.BuildConfigMapPrefix + deviceConfigName
+
+	_, err := apiClient.K8sClient.CoreV1().ConfigMaps(namespace).Get(
+		context.TODO(), cmName, metav1.GetOptions{})
+	if err != nil {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 // IsDevicePluginPod checks if a pod is a device plugin pod by comparing its name prefix.

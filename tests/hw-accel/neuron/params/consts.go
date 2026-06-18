@@ -40,6 +40,12 @@ const (
 	// MetricsDaemonSetPrefix represents the prefix for the metrics DaemonSet name.
 	MetricsDaemonSetPrefix = "neuron-node-metrics"
 
+	// InClusterBuildLabel represents the label for in-cluster build test cases.
+	InClusterBuildLabel = "in-cluster-build"
+
+	// BuildConfigMapPrefix represents the prefix for the Dockerfile ConfigMap created by the operator.
+	BuildConfigMapPrefix = "dockerfile-"
+
 	// DevicePluginDaemonSetPrefix represents the prefix for the device plugin DaemonSet name.
 	DevicePluginDaemonSetPrefix = "neuron-device-plugin"
 
