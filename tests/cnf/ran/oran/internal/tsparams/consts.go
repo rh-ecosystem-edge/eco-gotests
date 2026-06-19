@@ -46,10 +46,10 @@ const (
 
 	// PRValidationFailedDetailsSubstring is a substring of status.provisioningStatus.provisioningDetails when
 	// ProvisioningRequest validation fails.
-	PRValidationFailedDetailsSubstring = "Validation failed"
+	PRValidationFailedDetailsSubstring = "Failed to validate the ProvisioningRequest"
 	// PRFulfilledDetailsSubstring is a substring of status.provisioningStatus.provisioningDetails when
 	// provisioning completes successfully.
-	PRFulfilledDetailsSubstring = "completed successfully"
+	PRFulfilledDetailsSubstring = "Provisioning request has completed successfully"
 )
 
 const (
