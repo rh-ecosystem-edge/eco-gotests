@@ -110,7 +110,8 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 
 				isStale := false
 				if neuronConfig.IsInClusterBuild() {
-					isStale = existingDC.Definition.Spec.DriverVersion != neuronConfig.DriverVersion
+					isStale = existingDC.Definition.Spec.DriverVersion != neuronConfig.DriverVersion ||
+						existingDC.Definition.Spec.DriversImage != ""
 				} else {
 					isStale = existingDC.Definition.Spec.DriversImage != neuronConfig.DriversImage
 				}

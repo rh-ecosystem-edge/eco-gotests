@@ -5,7 +5,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/neuron"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
@@ -35,24 +34,17 @@ var _ = Describe("Neuron In-Cluster Build Tests", Ordered,
 					Skip("Not configured for in-cluster build - DriversImage is set, skipping in-cluster build tests")
 				}
 
-				By("Verifying NFD operator is ready")
+				By("Verifying all required operators are ready")
 
-				nfdDeploy, err := deployment.Pull(APIClient, "nfd-controller-manager", "openshift-nfd")
-				Expect(err).ToNot(HaveOccurred(), "NFD operator deployment not found")
-				Expect(nfdDeploy.IsReady(30*time.Second)).To(BeTrue(), "NFD operator must be ready")
+				var options *neuronhelpers.NeuronInstallConfigOptions
+				if neuronConfig.CatalogSource != "" {
+					options = &neuronhelpers.NeuronInstallConfigOptions{
+						CatalogSource: neuronhelpers.StringPtr(neuronConfig.CatalogSource),
+					}
+				}
 
-				By("Verifying KMM operator is ready")
-
-				kmmDeploy, err := deployment.Pull(APIClient, "kmm-operator-controller", "openshift-kmm")
-				Expect(err).ToNot(HaveOccurred(), "KMM operator deployment not found")
-				Expect(kmmDeploy.IsReady(30*time.Second)).To(BeTrue(), "KMM operator must be ready")
-
-				By("Verifying Neuron operator is ready")
-
-				neuronDeploy, err := deployment.Pull(
-					APIClient, "awslabs-gpu-operator-controller-manager", params.NeuronNamespace)
-				Expect(err).ToNot(HaveOccurred(), "Neuron operator deployment not found")
-				Expect(neuronDeploy.IsReady(30*time.Second)).To(BeTrue(), "Neuron operator must be ready")
+				Expect(neuronhelpers.AreAllOperatorsReady(APIClient, options)).To(BeTrue(),
+					"All operators (NFD, KMM, Neuron) must be pre-installed and ready")
 
 				By("Creating DeviceConfig with in-cluster build (no DriversImage)")
 
@@ -74,14 +66,37 @@ var _ = Describe("Neuron In-Cluster Build Tests", Ordered,
 					builder = builder.WithImageRepoSecret(neuronConfig.ImageRepoSecretName)
 				}
 
-				if !builder.Exists() {
+				if builder.Exists() {
+					existingDC, pullErr := neuron.Pull(
+						APIClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
+					Expect(pullErr).ToNot(HaveOccurred(), "Failed to pull existing DeviceConfig")
+
+					if existingDC.Definition.Spec.DriversImage != "" {
+						klog.V(params.NeuronLogLevel).Infof(
+							"Existing DeviceConfig has DriversImage set, recreating for in-cluster build")
+
+						_, deleteErr := existingDC.Delete()
+						Expect(deleteErr).ToNot(HaveOccurred(), "Failed to delete existing DeviceConfig")
+
+						Eventually(func() bool {
+							_, checkErr := neuron.Pull(
+								APIClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
+
+							return checkErr != nil
+						}, 5*time.Minute, 5*time.Second).Should(BeTrue(),
+							"DeviceConfig should be fully deleted")
+
+						_, createErr := builder.Create()
+						Expect(createErr).ToNot(HaveOccurred(), "Failed to create DeviceConfig for in-cluster build")
+					}
+				} else {
 					_, err := builder.Create()
 					Expect(err).ToNot(HaveOccurred(), "Failed to create DeviceConfig for in-cluster build")
 				}
 
 				By("Waiting for cluster stability after DeviceConfig")
 
-				err = neuronhelpers.WaitForClusterStabilityAfterDeviceConfig(APIClient)
+				err := neuronhelpers.WaitForClusterStabilityAfterDeviceConfig(APIClient)
 				Expect(err).ToNot(HaveOccurred(), "Cluster not stable after DeviceConfig")
 
 				By("Waiting for Neuron nodes to be labeled")

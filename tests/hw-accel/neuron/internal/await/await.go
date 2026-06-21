@@ -13,6 +13,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/neuronparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/params"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -339,9 +340,13 @@ func BuildConfigMapCreated(apiClient *clients.Settings, namespace, deviceConfigN
 			_, err := apiClient.K8sClient.CoreV1().ConfigMaps(namespace).Get(
 				ctx, cmName, metav1.GetOptions{})
 			if err != nil {
-				klog.V(params.NeuronLogLevel).Infof("ConfigMap %s not found yet: %v", cmName, err)
+				if apierrors.IsNotFound(err) {
+					klog.V(params.NeuronLogLevel).Infof("ConfigMap %s not found yet", cmName)
 
-				return false, nil
+					return false, nil
+				}
+
+				return false, err
 			}
 
 			klog.V(params.NeuronLogLevel).Infof("ConfigMap %s exists", cmName)
