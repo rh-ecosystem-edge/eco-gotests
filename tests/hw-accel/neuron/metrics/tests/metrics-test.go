@@ -8,7 +8,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/neuron"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/await"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/check"
@@ -69,37 +68,19 @@ var _ = Describe("Neuron Metrics Tests", Ordered, Label(params.Label), Label(par
 			Expect(neuronhelpers.AreAllOperatorsReady(APIClient, options)).To(BeTrue(),
 				"All operators (NFD, KMM, Neuron) must be pre-installed and ready")
 
-			var err error
-
 			By("Creating DeviceConfig")
 
-			builder := neuron.NewBuilder(
-				APIClient,
-				params.DefaultDeviceConfigName,
-				params.NeuronNamespace,
-				neuronConfig.DriversImage,
-				neuronConfig.DriverVersion,
-				neuronConfig.DevicePluginImage,
-			).WithSelector(map[string]string{
-				params.NeuronNFDLabelKey: params.NeuronNFDLabelValue,
-			}).WithNodeMetricsImage(neuronConfig.NodeMetricsImage)
-
-			if neuronConfig.SchedulerImage != "" && neuronConfig.SchedulerExtensionImage != "" {
-				builder = builder.WithScheduler(neuronConfig.SchedulerImage, neuronConfig.SchedulerExtensionImage)
-			}
-
-			if neuronConfig.ImageRepoSecretName != "" {
-				builder = builder.WithImageRepoSecret(neuronConfig.ImageRepoSecretName)
-			}
+			builder := neuronhelpers.NewDeviceConfigBuilder(APIClient, neuronConfig)
+			Expect(builder).ToNot(BeNil(), "Failed to create DeviceConfig builder")
 
 			if !builder.Exists() {
-				_, err = builder.Create()
+				_, err := builder.Create()
 				Expect(err).ToNot(HaveOccurred(), "Failed to create DeviceConfig")
 			}
 
 			By("Waiting for cluster stability after DeviceConfig")
 
-			err = neuronhelpers.WaitForClusterStabilityAfterDeviceConfig(APIClient)
+			err := neuronhelpers.WaitForClusterStabilityAfterDeviceConfig(APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Cluster not stable after DeviceConfig")
 
 			By("Waiting for Neuron nodes to be labeled")

@@ -13,6 +13,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/neuronparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/params"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -320,6 +321,35 @@ func AllNeuronNodesResourceAvailable(apiClient *clients.Settings, timeout time.D
 
 			klog.V(params.NeuronLogLevel).Infof(
 				"All %d Neuron nodes have resources available", len(nodeList))
+
+			return true, nil
+		})
+}
+
+// BuildConfigMapCreated waits for the Dockerfile ConfigMap to be created by the operator.
+func BuildConfigMapCreated(apiClient *clients.Settings, namespace, deviceConfigName string,
+	timeout time.Duration) error {
+	cmName := params.BuildConfigMapPrefix + deviceConfigName
+
+	klog.V(params.NeuronLogLevel).Infof(
+		"Waiting for build ConfigMap %s in namespace %s", cmName, namespace)
+
+	return wait.PollUntilContextTimeout(
+		context.TODO(), 10*time.Second, timeout, true,
+		func(ctx context.Context) (bool, error) {
+			_, err := apiClient.K8sClient.CoreV1().ConfigMaps(namespace).Get(
+				ctx, cmName, metav1.GetOptions{})
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					klog.V(params.NeuronLogLevel).Infof("ConfigMap %s not found yet", cmName)
+
+					return false, nil
+				}
+
+				return false, err
+			}
+
+			klog.V(params.NeuronLogLevel).Infof("ConfigMap %s exists", cmName)
 
 			return true, nil
 		})

@@ -9,6 +9,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/neuron"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nfd"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/neuronconfig"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/params"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -216,19 +217,32 @@ func NFDRuleExists(apiClient *clients.Settings, namespace string) bool {
 }
 
 // CreateDeviceConfigFromEnv creates a DeviceConfig from environment configuration.
+// When driversImage is empty, uses in-cluster build mode (only driverVersion required).
 func CreateDeviceConfigFromEnv(
 	apiClient *clients.Settings,
 	driversImage, driverVersion, devicePluginImage, nodeMetricsImage,
 	schedulerImage, schedulerExtensionImage, imageRepoSecretName string,
 ) error {
-	builder := neuron.NewBuilder(
-		apiClient,
-		params.DefaultDeviceConfigName,
-		params.NeuronNamespace,
-		driversImage,
-		driverVersion,
-		devicePluginImage,
-	)
+	var builder *neuron.Builder
+
+	if driversImage != "" {
+		builder = neuron.NewBuilder(
+			apiClient,
+			params.DefaultDeviceConfigName,
+			params.NeuronNamespace,
+			driversImage,
+			driverVersion,
+			devicePluginImage,
+		)
+	} else {
+		builder = neuron.NewBuilderWithInClusterBuild(
+			apiClient,
+			params.DefaultDeviceConfigName,
+			params.NeuronNamespace,
+			driverVersion,
+			devicePluginImage,
+		)
+	}
 
 	if builder == nil {
 		return fmt.Errorf("failed to create neuron DeviceConfig builder: invalid parameters")
@@ -249,4 +263,49 @@ func CreateDeviceConfigFromEnv(
 	_, err := builder.Create()
 
 	return err
+}
+
+// NewDeviceConfigBuilder creates a DeviceConfig builder from NeuronConfig.
+// Handles both pre-built image and in-cluster build modes.
+// Returns the builder ready for further customization or creation.
+func NewDeviceConfigBuilder(apiClient *clients.Settings,
+	config *neuronconfig.NeuronConfig) *neuron.Builder {
+	var builder *neuron.Builder
+
+	if config.DriversImage != "" {
+		builder = neuron.NewBuilder(
+			apiClient,
+			params.DefaultDeviceConfigName,
+			params.NeuronNamespace,
+			config.DriversImage,
+			config.DriverVersion,
+			config.DevicePluginImage,
+		)
+	} else {
+		builder = neuron.NewBuilderWithInClusterBuild(
+			apiClient,
+			params.DefaultDeviceConfigName,
+			params.NeuronNamespace,
+			config.DriverVersion,
+			config.DevicePluginImage,
+		)
+	}
+
+	if builder == nil {
+		return nil
+	}
+
+	builder = builder.WithSelector(map[string]string{
+		params.NeuronNFDLabelKey: params.NeuronNFDLabelValue,
+	}).WithNodeMetricsImage(config.NodeMetricsImage)
+
+	if config.SchedulerImage != "" && config.SchedulerExtensionImage != "" {
+		builder = builder.WithScheduler(config.SchedulerImage, config.SchedulerExtensionImage)
+	}
+
+	if config.ImageRepoSecretName != "" {
+		builder = builder.WithImageRepoSecret(config.ImageRepoSecretName)
+	}
+
+	return builder
 }

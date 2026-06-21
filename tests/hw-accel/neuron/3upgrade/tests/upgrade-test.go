@@ -42,8 +42,8 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 
 			if !neuronConfig.IsUpgradeConfigured() {
 				Skip("Upgrade configuration is not set - " +
-					"ECO_HWACCEL_NEURON_UPGRADE_TARGET_VERSION and " +
-					"ECO_HWACCEL_NEURON_UPGRADE_TARGET_DRIVERS_IMAGE are required")
+					"ECO_HWACCEL_NEURON_UPGRADE_TARGET_VERSION is required " +
+					"(ECO_HWACCEL_NEURON_UPGRADE_TARGET_DRIVERS_IMAGE also required in pre-built image mode)")
 			}
 
 			By("Verifying all required operators are ready")
@@ -100,34 +100,26 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 
 			By("Creating initial DeviceConfig with driver version")
 
-			builder := neuron.NewBuilder(
-				APIClient,
-				params.DefaultDeviceConfigName,
-				params.NeuronNamespace,
-				neuronConfig.DriversImage,
-				neuronConfig.DriverVersion,
-				neuronConfig.DevicePluginImage,
-			).WithSelector(map[string]string{
-				params.NeuronNFDLabelKey: params.NeuronNFDLabelValue,
-			}).WithNodeMetricsImage(neuronConfig.NodeMetricsImage)
-
-			if neuronConfig.SchedulerImage != "" && neuronConfig.SchedulerExtensionImage != "" {
-				builder = builder.WithScheduler(neuronConfig.SchedulerImage, neuronConfig.SchedulerExtensionImage)
-			}
-
-			if neuronConfig.ImageRepoSecretName != "" {
-				builder = builder.WithImageRepoSecret(neuronConfig.ImageRepoSecretName)
-			}
+			builder := neuronhelpers.NewDeviceConfigBuilder(APIClient, neuronConfig)
+			Expect(builder).ToNot(BeNil(), "Failed to create DeviceConfig builder")
 
 			if builder.Exists() {
 				existingDC, pullErr := neuron.Pull(
 					APIClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
 				Expect(pullErr).ToNot(HaveOccurred(), "Failed to pull existing DeviceConfig")
 
-				if existingDC.Definition.Spec.DriversImage != neuronConfig.DriversImage {
+				isStale := false
+				if neuronConfig.IsInClusterBuild() {
+					isStale = existingDC.Definition.Spec.DriverVersion != neuronConfig.DriverVersion ||
+						existingDC.Definition.Spec.DriversImage != ""
+				} else {
+					isStale = existingDC.Definition.Spec.DriversImage != neuronConfig.DriversImage
+				}
+
+				if isStale {
 					klog.V(params.NeuronLogLevel).Infof(
-						"DeviceConfig has stale image %s, recreating with initial version %s",
-						existingDC.Definition.Spec.DriversImage, neuronConfig.DriversImage)
+						"DeviceConfig is stale, recreating with initial version %s",
+						neuronConfig.DriverVersion)
 
 					_, deleteErr := existingDC.Delete()
 					Expect(deleteErr).ToNot(HaveOccurred(), "Failed to delete stale DeviceConfig")
@@ -274,8 +266,11 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 					APIClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
 				Expect(err).ToNot(HaveOccurred(), "Failed to pull DeviceConfig")
 
-				deviceConfigBuilder.Definition.Spec.DriversImage = neuronConfig.UpgradeTargetDriversImage
 				deviceConfigBuilder.Definition.Spec.DriverVersion = neuronConfig.UpgradeTargetVersion
+
+				if !neuronConfig.IsInClusterBuild() {
+					deviceConfigBuilder.Definition.Spec.DriversImage = neuronConfig.UpgradeTargetDriversImage
+				}
 
 				if neuronConfig.SchedulerImage != "" && neuronConfig.SchedulerExtensionImage != "" {
 					deviceConfigBuilder = deviceConfigBuilder.WithScheduler(
@@ -427,10 +422,17 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 					APIClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get DeviceConfig")
 
-				driversImage := deviceConfigBuilder.Definition.Spec.DriversImage
-				klog.V(params.NeuronLogLevel).Infof("DeviceConfig driversImage: %s", driversImage)
-				Expect(driversImage).To(Equal(neuronConfig.UpgradeTargetDriversImage),
-					"DeviceConfig should have the new drivers image")
+				driverVersion := deviceConfigBuilder.Definition.Spec.DriverVersion
+				klog.V(params.NeuronLogLevel).Infof("DeviceConfig driverVersion: %s", driverVersion)
+				Expect(driverVersion).To(Equal(neuronConfig.UpgradeTargetVersion),
+					"DeviceConfig should have the new driver version")
+
+				if !neuronConfig.IsInClusterBuild() {
+					driversImage := deviceConfigBuilder.Definition.Spec.DriversImage
+					klog.V(params.NeuronLogLevel).Infof("DeviceConfig driversImage: %s", driversImage)
+					Expect(driversImage).To(Equal(neuronConfig.UpgradeTargetDriversImage),
+						"DeviceConfig should have the new drivers image")
+				}
 
 				By("Verifying new device plugin pods are running")
 

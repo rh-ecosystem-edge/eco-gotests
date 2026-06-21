@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/internal/deploy"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/params"
 	"k8s.io/klog/v2"
@@ -153,15 +154,22 @@ func AreAllOperatorsReady(apiClient *clients.Settings, neuronOptions *NeuronInst
 
 	klog.V(params.NeuronLogLevel).Info("KMM operator is already ready")
 
-	// Check Neuron
+	// Check Neuron — try OLM first, fall back to direct deployment check
 	neuronInstallConfig := GetDefaultNeuronInstallConfig(apiClient, neuronOptions)
 	neuronInstaller := deploy.NewOperatorInstaller(neuronInstallConfig)
 	neuronReady, err := neuronInstaller.IsReady(OperatorReadinessCheckTimeout)
 
 	if err != nil || !neuronReady {
-		klog.V(params.NeuronLogLevel).Infof("Neuron operator not ready: %v", err)
+		klog.V(params.NeuronLogLevel).Infof(
+			"Neuron operator not ready via OLM check, trying direct deployment check: %v", err)
 
-		return false
+		neuronDeploy, deployErr := deployment.Pull(
+			apiClient, "awslabs-gpu-operator-controller-manager", params.NeuronNamespace)
+		if deployErr != nil || !neuronDeploy.IsReady(OperatorReadinessCheckTimeout) {
+			klog.V(params.NeuronLogLevel).Infof("Neuron operator not ready: %v", deployErr)
+
+			return false
+		}
 	}
 
 	klog.V(params.NeuronLogLevel).Info("Neuron operator is already ready")

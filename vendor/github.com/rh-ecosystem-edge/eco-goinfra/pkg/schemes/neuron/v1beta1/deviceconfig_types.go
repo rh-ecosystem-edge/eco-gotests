@@ -30,7 +30,9 @@ type DeviceConfigSpec struct {
 	// if the in-tree driver should be used instead of OOT drivers
 	UseInTreeDrivers bool `json:"useInTreeDrivers,omitempty"`
 
-	// defines image that includes drivers
+	// defines image that includes drivers. When empty, the operator triggers
+	// KMM in-cluster builds using a Dockerfile ConfigMap.
+	// +optional
 	DriversImage string `json:"driversImage,omitempty"`
 
 	// defines the Version of the neuron drivers. used for rolling upgrade
