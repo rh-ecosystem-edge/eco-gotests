@@ -83,6 +83,7 @@ The suite depends on shared helpers from `tests/system-tests/internal/`:
 |----------|---------|-------------|
 | `KUBECONFIG` | _(required)_ | Path to cluster kubeconfig |
 | `ECO_RANDU_TESTWORKLOAD_NAMESPACE` | `test` | Namespace for test workloads |
+| `ECO_RANDU_TESTWORKLOAD_CREATE_METHOD` | `shell` | Method used to create the test workload |
 | `ECO_RANDU_TESTWORKLOAD_CREATE_SHELLCMD` | `/opt/vdu-workload-emulator/add_test-deployments.sh` | Shell command to create workload |
 | `ECO_RANDU_TESTWORKLOAD_DELETE_SHELLCMD` | `/opt/vdu-workload-emulator/delete_test-deployments.sh` | Shell command to delete workload |
 

@@ -60,6 +60,17 @@ Environment variables to change test image locations and worker labels:
 - `ECO_CNF_CORE_NET_DPDK_TEST_CONTAINER`: controls the location of the DPDK test image.
 - `ECO_CNF_CORE_NET_FRR_IMAGE`: controls the location of the FRR test image.
 - `ECO_CNF_CORE_NET_CNF_MCP_LABEL`: variable used to identify the worker node label.
+- `ECO_CNF_CORE_NET_MLB_OPERATOR_NAMESPACE`: MetalLB operator namespace.
+- `ECO_CNF_CORE_NET_FRR_K8S_NAMESPACE`: FRR-K8s namespace.
+- `ECO_CNF_CORE_NET_PF_STATUS_RELAY_OPERATOR_NAMESPACE`: PF Status Relay operator namespace.
+- `ECO_CNF_CORE_NET_MULTUS_NAMESPACE`: Multus namespace.
+- `ECO_CNF_CORE_NET_PROMETHEUS_OPERATOR_NAMESPACE`: Prometheus operator namespace.
+- `ECO_CNF_CORE_NET_CLUSTER_VLAN`: Cluster VLAN identifier.
+- `ECO_CNF_CORE_NET_PRIMARY_SWITCH_INTERFACES`: Primary switch interfaces (comma-separated, expects 4 interfaces).
+- `ECO_CNF_CORE_NET_SWITCH_LAGS`: Switch LAG names (comma-separated, expects 2 names).
+- `ECO_CNF_CORE_NET_BMC_HOST_NAMES`: BMC host names (comma-separated).
+- `ECO_CNF_CORE_NET_BMC_HOST_USER`: BMC host username.
+- `ECO_CNF_CORE_NET_BMC_HOST_PASS`: BMC host password.
 
 Please refer to the project README for a list of global inputs - [How to run](../../../README.md#how-to-run)
 All network environmental variables can be found 'tests/cnf/core/network/internal/netconfig/config.go'

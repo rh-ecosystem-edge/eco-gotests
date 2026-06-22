@@ -56,7 +56,6 @@ Parameters for the script are controlled by the following environment variables:
 - `ECO_HWACCEL_NVIDIAGPU_INSTANCE_TYPE`: Use only when cluster is on a public cloud, and when you need to scale the cluster to add a GPU-enabled compute node. If cluster already has a GPU enabled worker node, this variable should be unset.
     - Example instance type: "g4dn.xlarge" in AWS, or "a2-highgpu-1g" in GCP, or "Standard_NC4as_T4_v3" in Azure - _required when need to scale cluster to add GPU node_
 - `ECO_HWACCEL_NVIDIAGPU_CATALOGSOURCE`: custom catalogsource to be used.  If not specified, the default "certified-operators" catalog is used - _optional_
-- `ECO_HWACCEL_NVIDIAGPU_SUBSCRIPTION_CHANNEL`: specific subscription channel to be used.  If not specified, the latest channel is used - _optional_
 - `ECO_HWACCEL_NVIDIAGPU_GPUBURN_IMAGE`: GPU burn container image specific to cluster architecture _required_
 
 It is recommended to execute the runner script through the `make run-tests` make target.
@@ -73,7 +72,6 @@ $ export ECO_TEST_LABELS='nvidiagpu,48452'
 $ export ECO_VERBOSE_LEVEL=100
 $ export ECO_HWACCEL_NVIDIAGPU_INSTANCE_TYPE="g4dn.xlarge"
 $ export ECO_HWACCEL_NVIDIAGPU_CATALOGSOURCE="certified-operators"
-$ export ECO_HWACCEL_NVIDIAGPU_SUBSCRIPTION_CHANNEL="v23.9"
 $ export ECO_HWACCEL_NVIDIAGPU_GPUBURN_IMAGE="<gpu-burn image to run, specific to cluster architecture>"
 $ make run-tests                    
 Executing eco-gotests test-runner script

@@ -52,6 +52,7 @@ Notes:
 #### Upgrade related
 - `ECO_HWACCEL_KMM_SUBSCRIPTION_NAME`: Name of subscription used to deploy the KMM operator
 - `ECO_HWACCEL_KMM_CATALOG_SOURCE_NAME`: Name of the catalog source used for performing upgrade
+- `ECO_HWACCEL_KMM_CATALOG_SOURCE_CHANNEL`: Channel of the catalog source used for performing upgrade
 - `ECO_HWACCEL_KMM_UPGRADE_TARGET_VERSION`: Expected version of the operator after upgrade
 
 #### MCM related

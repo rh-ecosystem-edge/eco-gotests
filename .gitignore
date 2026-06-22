@@ -26,6 +26,7 @@ reports
 
 tests/hw-accel/nfd/**/*.md
 tests/hw-accel/nfd/*.md
+!tests/hw-accel/nfd/README.md
 
 # Claude
 .claude/settings.local.json

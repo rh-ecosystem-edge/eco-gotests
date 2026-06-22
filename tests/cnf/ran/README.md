@@ -85,6 +85,39 @@ This input is specific to the ZTP generator tests and is optional.
 
 - `ECO_CNF_RAN_ZTP_SITE_GENERATE_IMAGE`: Container image to use for generating CRs from the site config.
 
+#### PTP inputs
+
+These inputs are all specific to the PTP test suites and are optional.
+
+* `ECO_CNF_RAN_PTP_STABILITY_DURATION`: Duration for PTP stability analysis (Go duration string).
+* `ECO_CNF_RAN_PTP_STABILITY_THRESHOLD`: Absolute offset threshold in nanoseconds for PTP stability analysis.
+* `ECO_CNF_RAN_PTP_EVENT_CONSUMER_IMAGE`: URL of the PTP event consumer image (without tag).
+* `ECO_CNF_RAN_PTP_EVENT_CONSUMER_V1_TAG`: Tag of the PTP event consumer image for v1 (include leading colon).
+* `ECO_CNF_RAN_PTP_EVENT_CONSUMER_V2_TAG`: Tag of the PTP event consumer image for v2 (include leading colon).
+* `ECO_CNF_RAN_PTP_MUST_GATHER_IMAGE`: Image to use for PTP must-gather. Falls back to CSV annotation or registry.redhat.io if unset.
+
+#### Spoke inputs
+
+* `ECO_CNF_RAN_SPOKE1_NAME`: Name of the spoke 1 cluster. Automatically updated if Spoke1Kubeconfig exists, otherwise provided as input.
+* `ECO_CNF_RAN_SPOKE1_HOSTNAME`: Hostname for the spoke 1 cluster, used as input for the O-RAN suite.
+* `ECO_CNF_RAN_SPOKE1_PASSWORD`: Path to the admin password for spoke 1, saved in the O-RAN suite.
+
+#### ACM inputs
+
+* `ECO_CNF_RAN_ACM_OPERATOR_NAMESPACE`: Namespace that the ACM operator uses.
+
+#### O-RAN inputs
+
+These inputs are specific to the O-RAN test suite.
+
+* `ECO_CNF_RAN_HUB_APPS_DOMAIN`: Subdomain for the hub cluster routes (e.g. `apps.<hub-cluster-name>.<hub-cluster-domain>`).
+* `ECO_CNF_RAN_O2IMS_CLIENT_CERT_SECRET`: Name of the secret containing the client certificate for O2IMS and OAuth APIs.
+* `ECO_CNF_RAN_O2IMS_CLIENT_CERT_SECRET_NAMESPACE`: Namespace for the O2IMS client certificate secret.
+* `ECO_CNF_RAN_O2IMS_OAUTH_CLIENT_ID`: Client ID for requesting an access token from the OAuth endpoint.
+* `ECO_CNF_RAN_O2IMS_OAUTH_CLIENT_SECRET`: Client secret for requesting an access token from the OAuth endpoint.
+* `ECO_CNF_RAN_O2IMS_TOKEN`: Token for authenticating with the O2IMS API (used when OAuth is not configured).
+* `ECO_CNF_RAN_CLUSTER_TEMPLATE_AFFIX`: Version-dependent affix for naming ClusterTemplates and O-RAN resources.
+
 ### Running the RAN test suites
 
 Except for the container namespace hiding tests, a dump of relevant CRs will be generated for failed tests only when `ECO_ENABLE_REPORT=true`.
