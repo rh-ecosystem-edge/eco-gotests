@@ -27,25 +27,43 @@ const (
 
 // UncordonNode uncordons a node referenced by nodeToUncordon parameter.
 // It retries uncordoning for the specified timeout duration at regular intervals.
-func UncordonNode(nodeToUncordon *nodes.Builder, interval, timeout time.Duration) {
+// Returns error if uncordon fails after timeout to allow caller to handle appropriately.
+func UncordonNode(nodeToUncordon *nodes.Builder, interval, timeout time.Duration) error {
 	By(fmt.Sprintf("Uncordoning node %q", nodeToUncordon.Definition.Name))
 
 	err := wait.PollUntilContextTimeout(context.TODO(), interval, timeout, true,
 		func(context.Context) (bool, error) {
 			err := nodeToUncordon.Uncordon()
 			if err != nil {
-				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to uncordon %q: %v", nodeToUncordon.Definition.Name, err)
+				errorMsg := err.Error()
+				// Log retryable errors differently from permanent failures
+				if strings.Contains(errorMsg, "ManagedNode infra config cache not synchronized") ||
+					strings.Contains(errorMsg, "connection reset") ||
+					strings.Contains(errorMsg, "connection refused") {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+						"Uncordon failed with retryable error, will retry: %v", err)
 
-				return false, nil
+					return false, nil
+				}
+
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"Failed to uncordon %q: %v", nodeToUncordon.Definition.Name, err)
+
+				return false, err
 			}
 
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Successfully uncordon %q", nodeToUncordon.Definition.Name)
 
-			return err == nil, nil
+			return true, nil
 		})
 	if err != nil {
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to uncordon %q: %v", nodeToUncordon.Definition.Name, err)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to uncordon %q after %v: %v",
+			nodeToUncordon.Definition.Name, timeout, err)
+
+		return fmt.Errorf("failed to uncordon %q within %v: %w", nodeToUncordon.Definition.Name, timeout, err)
 	}
+
+	return nil
 }
 
 // DrainNodeWithRetry drains a node with retry logic for transient failures.

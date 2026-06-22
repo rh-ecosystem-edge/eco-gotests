@@ -742,13 +742,9 @@ func gracefulNodeReboot(nodeName string) error {
 		return fmt.Errorf("node %s hasn't reached Ready state", nodeName)
 	}
 
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Uncordoning node %q", nodeName)
-
-	err = nodeObj.Uncordon()
+	err = UncordonNode(nodeObj, uncordonNodeInterval, uncordonNodeTimeout)
 	if err != nil {
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to uncordon %q due to %v", nodeName, err)
-
-		return fmt.Errorf("failed to uncordon %q due to %w", nodeName, err)
+		return err
 	}
 
 	time.Sleep(15 * time.Second)
@@ -913,10 +909,9 @@ func EnsureInNodeReadiness(ctx SpecContext) {
 			"Node hasn't reached Ready state")
 
 		if _node.Object.Spec.Unschedulable {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Uncordoning node %q", _node.Definition.Name)
-			err = _node.Uncordon()
+			err := UncordonNode(_node, uncordonNodeInterval, uncordonNodeTimeout)
 			Expect(err).ToNot(HaveOccurred(),
-				fmt.Sprintf("Failed to uncordon %q due to %v", _node.Definition.Name, err))
+				fmt.Sprintf("Failed to uncordon %q", _node.Definition.Name))
 
 			time.Sleep(15 * time.Second)
 		}

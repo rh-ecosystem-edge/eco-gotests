@@ -208,7 +208,11 @@ func VerifySoftReboot(ctx SpecContext) {
 		Expect(err).ToNot(HaveOccurred(),
 			fmt.Sprintf("Failed to cordon %q due to %v", _node.Definition.Name, err))
 
-		defer UncordonNode(_node, uncordonNodeInterval, uncordonNodeTimeout)
+		defer func() {
+			if err := UncordonNode(_node, uncordonNodeInterval, uncordonNodeTimeout); err != nil {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deferred uncordon failed: %v", err)
+			}
+		}()
 
 		time.Sleep(5 * time.Second)
 
@@ -284,10 +288,9 @@ func VerifySoftReboot(ctx SpecContext) {
 		}).WithTimeout(25*time.Minute).WithPolling(15*time.Second).WithContext(ctx).Should(BeTrue(),
 			"Node hasn't reached Ready state")
 
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Uncordoning node %q", _node.Definition.Name)
-		err = _node.Uncordon()
+		err = UncordonNode(_node, uncordonNodeInterval, uncordonNodeTimeout)
 		Expect(err).ToNot(HaveOccurred(),
-			fmt.Sprintf("Failed to uncordon %q due to %v", _node.Definition.Name, err))
+			fmt.Sprintf("Failed to uncordon %q", _node.Definition.Name))
 
 		time.Sleep(15 * time.Second)
 	}
