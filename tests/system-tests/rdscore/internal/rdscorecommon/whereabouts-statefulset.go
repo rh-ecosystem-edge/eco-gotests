@@ -1165,7 +1165,11 @@ func ensurePodConnectivityAfterNodeDrain(
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to cordon node %s due to: %v", nodeToDrain, err))
 
-	defer UncordonNode(nodeObj, uncordonNodeInterval, uncordonNodeTimeout)
+	defer func() {
+		if err := UncordonNode(nodeObj, uncordonNodeInterval, uncordonNodeTimeout); err != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deferred uncordon failed: %v", err)
+		}
+	}()
 
 	time.Sleep(5 * time.Second)
 
