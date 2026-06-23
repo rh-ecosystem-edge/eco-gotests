@@ -232,26 +232,13 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 
 				By("verifying clock class 6 in metrics")
 
-				var configFile string
-				if configSupported {
-					configFile, err = processes.GetPtp4lConfigByRelatedProcess(
-						RANConfig.Spoke1APIClient, nodeName, processes.Ts2phc)
-					Expect(err).ToNot(HaveOccurred(), "Failed to determine ptp4l config for node %s", nodeName)
-				}
-
-				clockClassQuery := metrics.ClockClassQuery{
-					Process: metrics.Equals(metrics.ProcessPTP4L),
-					Node:    metrics.Equals(nodeName),
-					Config:  metrics.Equals(configFile),
-				}
-				err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockClassQuery,
-					metrics.ClockClass6, metrics.AssertWithTimeout(1*time.Minute))
-				Expect(err).ToNot(HaveOccurred(), "Failed to assert clock class is 6 in metrics on node %s", nodeName)
+				assertClockClass6InMetrics(prometheusAPI, nodeName, configSupported)
 
 				By("verifying clock state LOCKED in metrics")
 
 				clockStateQuery := metrics.ClockStateQuery{
 					Process: metrics.DoesNotEqual(metrics.ProcessChronyd),
+					Node:    metrics.Equals(nodeName),
 				}
 				err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockStateQuery,
 					metrics.ClockStateLocked, metrics.AssertWithTimeout(1*time.Minute))
@@ -469,22 +456,7 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 
 				By("verifying clock class 6 in metrics")
 
-				var configFile string
-				if configSupported {
-					configFile, err = processes.GetPtp4lConfigByRelatedProcess(
-						RANConfig.Spoke1APIClient, nodeName, processes.Ts2phc)
-					Expect(err).ToNot(HaveOccurred(), "Failed to determine ptp4l config for node %s", nodeName)
-				}
-
-				clockClassQuery := metrics.ClockClassQuery{
-					Process: metrics.Equals(metrics.ProcessPTP4L),
-					Node:    metrics.Equals(nodeName),
-					Config:  metrics.Equals(configFile),
-				}
-				err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockClassQuery,
-					metrics.ClockClass6, metrics.AssertWithTimeout(1*time.Minute))
-				Expect(err).ToNot(HaveOccurred(),
-					"Failed to assert clock class is 6 in metrics on node %s", nodeName)
+				assertClockClass6InMetrics(prometheusAPI, nodeName, configSupported)
 			}
 
 			if !testActuallyRan {
@@ -691,22 +663,179 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 
 				By("verifying clock class 6 in metrics")
 
-				var configFile string
-				if configSupported {
-					configFile, err = processes.GetPtp4lConfigByRelatedProcess(
-						RANConfig.Spoke1APIClient, nodeName, processes.Ts2phc)
-					Expect(err).ToNot(HaveOccurred(), "Failed to determine ptp4l config for node %s", nodeName)
+				assertClockClass6InMetrics(prometheusAPI, nodeName, configSupported)
+			}
+
+			if !testActuallyRan {
+				Skip("Test requires Grandmaster configuration")
+			}
+		})
+
+	// 70111 - verifies GM clock event sequence during GNSS sync loss and recovery
+	It("verifies GM produces correct events when GNSS sync source is lost and restored",
+		reportxml.ID("70111"), func() {
+			testActuallyRan := false
+
+			By("getting node info map")
+
+			nodeInfoMap, err := profiles.GetNodeInfoMap(RANConfig.Spoke1APIClient)
+			Expect(err).ToNot(HaveOccurred(), "Failed to get node info map")
+
+			for nodeName, nodeInfo := range nodeInfoMap {
+				gmProfilesInfo := nodeInfo.GetProfilesByTypes(profiles.ProfileTypeGM, profiles.ProfileTypeMultiNICGM)
+				if len(gmProfilesInfo) == 0 {
+					continue
 				}
 
-				clockClassQuery := metrics.ClockClassQuery{
-					Process: metrics.Equals(metrics.ProcessPTP4L),
-					Node:    metrics.Equals(nodeName),
-					Config:  metrics.Equals(configFile),
+				testActuallyRan = true
+				gmProfileInfo := gmProfilesInfo[0]
+
+				By("getting the ublox protocol version for node " + nodeName)
+
+				gmProfile, err := gmProfileInfo.PullProfile(RANConfig.Spoke1APIClient)
+				Expect(err).ToNot(HaveOccurred(), "Failed to pull GM profile for node %s", nodeName)
+
+				protocolVersion, err := gnss.GetUbloxProtocolVersion(gmProfile)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get ublox protocol version for node %s", nodeName)
+
+				ptpConfig, err := gmProfileInfo.Reference.PullPtpConfig(RANConfig.Spoke1APIClient)
+				Expect(err).ToNot(HaveOccurred(), "Failed to pull PtpConfig for node %s", nodeName)
+
+				profileToUpdate := &ptpConfig.Definition.Spec.Profile[gmProfileInfo.Reference.ProfileIndex]
+
+				desiredSettings := profiles.HoldoverPluginSettings{
+					LocalHoldoverTimeout:   14400,
+					LocalMaxHoldoverOffSet: 1500,
+					MaxInSpecOffset:        1000,
 				}
-				err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockClassQuery,
-					metrics.ClockClass6, metrics.AssertWithTimeout(1*time.Minute))
+
+				currentSettings, err := profiles.GetHoldoverPluginSettings(profileToUpdate)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get current holdover plugin settings")
+
+				if *currentSettings != desiredSettings {
+					By("setting plugin DPLL settings for extended holdover on node " + nodeName)
+
+					err = profiles.SetHoldoverPluginSettings(profileToUpdate, desiredSettings)
+					Expect(err).ToNot(HaveOccurred(), "Failed to set holdover plugin settings on node %s", nodeName)
+
+					configChangeTime := time.Now()
+
+					_, updateErr := ptpConfig.Update()
+					Expect(updateErr).ToNot(HaveOccurred(), "Failed to update PtpConfig for node %s", nodeName)
+
+					By("waiting for profile load after config change")
+
+					err = daemonlogs.WaitForProfileLoadOnPTPNodes(RANConfig.Spoke1APIClient,
+						daemonlogs.WithStartTime(configChangeTime),
+						daemonlogs.WithTimeout(eventTimeout))
+					Expect(err).ToNot(HaveOccurred(), "Failed to wait for profile load after config change")
+
+					By("ensuring clocks are locked and holdover plugin stabilizes")
+
+					err = metrics.EnsureClocksAreStable(prometheusAPI, 1*time.Minute)
+					Expect(err).ToNot(HaveOccurred(), "Failed to ensure clocks are stable after config change")
+				}
+
+				By("checking NMEA status metric is available before GNSS loss on node " + nodeName)
+
+				nmeaQuery := metrics.NMEAStatusQuery{
+					Process: metrics.Equals(metrics.ProcessTS2PHC),
+					Node:    metrics.Equals(nodeName),
+				}
+				err = metrics.AssertQuery(context.TODO(), prometheusAPI, nmeaQuery,
+					metrics.NMEAStatusAvailable, metrics.AssertWithTimeout(1*time.Minute))
 				Expect(err).ToNot(HaveOccurred(),
-					"Failed to assert clock class is 6 in metrics on node %s", nodeName)
+					"Failed to assert NMEA status is available on node %s", nodeName)
+
+				By("simulating GNSS loss on node " + nodeName)
+
+				DeferCleanup(cleanupGNSSSync(prometheusAPI, nodeName, protocolVersion))
+
+				gpsLossTime := time.Now()
+
+				err = gnss.SimulateSyncLoss(RANConfig.Spoke1APIClient, nodeName, protocolVersion)
+				Expect(err).ToNot(HaveOccurred(), "Failed to simulate GNSS loss on node %s", nodeName)
+
+				By("getting the event consumer pod for node " + nodeName)
+
+				eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeName)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get event pod for node %s", nodeName)
+
+				By("waiting for FAILURE-NOFIX GNSS event")
+
+				err = events.WaitForEvent(eventPod, gpsLossTime, eventTimeout, events.All(
+					events.IsType(eventptp.GnssStateChange),
+					events.HasValue(events.WithSyncState(eventptp.FAILURE_NOFIX)),
+				))
+				Expect(err).ToNot(HaveOccurred(),
+					"Failed to receive FAILURE-NOFIX GNSS event on node %s", nodeName)
+
+				By("waiting for clock class 7 event")
+
+				err = events.WaitForEvent(eventPod, gpsLossTime, eventTimeout, events.All(
+					events.IsType(eventptp.PtpClockClassChange),
+					events.HasValue(events.WithMetric(int64(metrics.ClockClass7))),
+				))
+				Expect(err).ToNot(HaveOccurred(),
+					"Failed to receive clock class 7 event on node %s", nodeName)
+
+				By("waiting for HOLDOVER state event")
+
+				err = events.WaitForEvent(eventPod, gpsLossTime, eventTimeout, events.All(
+					events.IsType(eventptp.PtpStateChange),
+					events.HasValue(
+						events.WithSyncState(eventptp.HOLDOVER),
+						events.ContainingResource(string(iface.Master)),
+					),
+				))
+				Expect(err).ToNot(HaveOccurred(),
+					"Failed to receive HOLDOVER state event on node %s", nodeName)
+
+				By("restoring GNSS sync on node " + nodeName)
+
+				err = gnss.SimulateSyncRecovery(RANConfig.Spoke1APIClient, nodeName, protocolVersion)
+				Expect(err).ToNot(HaveOccurred(), "Failed to restore GNSS sync on node %s", nodeName)
+
+				By("waiting for SYNCHRONIZED GNSS event")
+
+				err = events.WaitForEvent(eventPod, gpsLossTime, eventTimeout, events.All(
+					events.IsType(eventptp.GnssStateChange),
+					events.HasValue(events.WithSyncState(eventptp.SYNCHRONIZED)),
+				))
+				Expect(err).ToNot(HaveOccurred(),
+					"Failed to receive SYNCHRONIZED GNSS event on node %s", nodeName)
+
+				By("waiting for clock class 6 event")
+
+				err = events.WaitForEvent(eventPod, gpsLossTime, eventTimeout, events.All(
+					events.IsType(eventptp.PtpClockClassChange),
+					events.HasValue(events.WithMetric(int64(metrics.ClockClass6))),
+				))
+				Expect(err).ToNot(HaveOccurred(),
+					"Failed to receive clock class 6 event on node %s", nodeName)
+
+				By("waiting for LOCKED state event")
+
+				err = events.WaitForEvent(eventPod, gpsLossTime, eventTimeout, events.All(
+					events.IsType(eventptp.PtpStateChange),
+					events.HasValue(
+						events.WithSyncState(eventptp.LOCKED),
+						events.ContainingResource(string(iface.Master)),
+					),
+				))
+				Expect(err).ToNot(HaveOccurred(),
+					"Failed to receive LOCKED state event on node %s", nodeName)
+
+				By("verifying recovery via NMEA status metric on node " + nodeName)
+
+				err = metrics.AssertQuery(context.TODO(), prometheusAPI, nmeaQuery,
+					metrics.NMEAStatusAvailable, metrics.AssertWithTimeout(1*time.Minute))
+				Expect(err).ToNot(HaveOccurred(),
+					"Failed to assert NMEA status is available after recovery on node %s", nodeName)
+
+				By("verifying clock class 6 in metrics on node " + nodeName)
+
+				assertClockClass6InMetrics(prometheusAPI, nodeName, configSupported)
 			}
 
 			if !testActuallyRan {
@@ -714,3 +843,30 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 			}
 		})
 })
+
+func assertClockClass6InMetrics(
+	prometheusAPI prometheusv1.API,
+	nodeName string,
+	configSupported bool,
+) {
+	GinkgoHelper()
+
+	var configFile string
+
+	var err error
+	if configSupported {
+		configFile, err = processes.GetPtp4lConfigByRelatedProcess(
+			RANConfig.Spoke1APIClient, nodeName, processes.Ts2phc)
+		Expect(err).ToNot(HaveOccurred(), "Failed to determine ptp4l config for node %s", nodeName)
+	}
+
+	clockClassQuery := metrics.ClockClassQuery{
+		Process: metrics.Equals(metrics.ProcessPTP4L),
+		Node:    metrics.Equals(nodeName),
+		Config:  metrics.Equals(configFile),
+	}
+	err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockClassQuery,
+		metrics.ClockClass6, metrics.AssertWithTimeout(1*time.Minute))
+	Expect(err).ToNot(HaveOccurred(),
+		"Failed to assert clock class is 6 in metrics on node %s", nodeName)
+}
