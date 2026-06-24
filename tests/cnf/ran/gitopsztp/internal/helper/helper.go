@@ -16,6 +16,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/storage"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/gitopsztp/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranhelper"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	configurationPolicyV1 "open-cluster-management.io/config-policy-controller/api/v1"
@@ -161,6 +162,8 @@ func CleanupImageRegistryConfig(client *clients.Settings) error {
 }
 
 // HubHasClusterInstance returns true when at least one ClusterInstance exists on the hub cluster.
+// It lists ClusterInstance CRs across all namespaces. If the ClusterInstance API is not installed,
+// it returns false.
 func HubHasClusterInstance(apiClient *clients.Settings) (bool, error) {
 	if apiClient == nil {
 		return false, fmt.Errorf("the apiClient cannot be nil")
@@ -175,6 +178,10 @@ func HubHasClusterInstance(apiClient *clients.Settings) (bool, error) {
 
 	err = apiClient.List(context.TODO(), clusterInstances)
 	if err != nil {
+		if apimeta.IsNoMatchError(err) {
+			return false, nil
+		}
+
 		return false, err
 	}
 
