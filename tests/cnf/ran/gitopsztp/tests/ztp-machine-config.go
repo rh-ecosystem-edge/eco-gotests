@@ -7,6 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/mco"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/gitopsztp/internal/helper"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/gitopsztp/internal/tsparams"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"k8s.io/klog/v2"
@@ -15,6 +16,14 @@ import (
 var _ = Describe("ZTP Machine Config Tests", Label(tsparams.LabelMachineConfigTestCases), func() {
 	// 54239 - Annotation on generated CRs for traceability
 	It("should find the ztp annotation present in the machine configs", reportxml.ID("54239"), func() {
+		By("checking whether the hub uses ClusterInstance")
+
+		hasClusterInstance, err := helper.HubHasClusterInstance(HubAPIClient)
+		Expect(err).ToNot(HaveOccurred(), "Failed to list ClusterInstance resources on hub")
+		if hasClusterInstance {
+			Skip("test only applies to SiteConfig deployments; ClusterInstance found on hub")
+		}
+
 		machineConfigsToCheck := []string{
 			"container-mount-namespace-and-kubelet-conf-master",
 			"container-mount-namespace-and-kubelet-conf-worker",

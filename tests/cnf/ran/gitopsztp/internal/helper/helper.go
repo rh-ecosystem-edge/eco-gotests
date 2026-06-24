@@ -12,6 +12,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ocm"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/serviceaccount"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/siteconfig"
+	siteconfigv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/siteconfig/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/storage"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/gitopsztp/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranhelper"
@@ -157,6 +158,27 @@ func CleanupImageRegistryConfig(client *clients.Settings) error {
 	}
 
 	return nil
+}
+
+// HubHasClusterInstance returns true when at least one ClusterInstance exists on the hub cluster.
+func HubHasClusterInstance(apiClient *clients.Settings) (bool, error) {
+	if apiClient == nil {
+		return false, fmt.Errorf("the apiClient cannot be nil")
+	}
+
+	err := apiClient.AttachScheme(siteconfigv1alpha1.AddToScheme)
+	if err != nil {
+		return false, err
+	}
+
+	clusterInstances := &siteconfigv1alpha1.ClusterInstanceList{}
+
+	err = apiClient.List(context.TODO(), clusterInstances)
+	if err != nil {
+		return false, err
+	}
+
+	return len(clusterInstances.Items) > 0, nil
 }
 
 // DoesCIExtraLabelsExists looks for a extraLabels on a cluster instance CR and returns true if it exists.
