@@ -411,6 +411,11 @@ var _ = Describe(
 
 		Context("802.1Q", func() {
 			BeforeAll(func() {
+				By("Configure lab switch interfaces to support VLAN trunk mode")
+
+				err = enableQinQTrunkOnSwitch(switchCredentials, switchInterfaces)
+				Expect(err).ToNot(HaveOccurred(), "Failed to enable QinQ trunk on the switch")
+
 				By("Define and create sriov network policy using worker node label with netDevice type netdevice")
 
 				_, err := sriov.NewPolicyBuilder(
@@ -964,6 +969,32 @@ func enableDot1ADonSwitchInterfaces(credentials *sriovocpenv.SwitchCredentials, 
 			fmt.Sprintf("delete interfaces %s unit 0", switchInterface),
 			fmt.Sprintf("set interfaces %s ether-options ethernet-switch-profile tag-protocol-id 0x88a8",
 				switchInterface),
+			fmt.Sprintf("set interfaces %s flexible-vlan-tagging encapsulation extended-vlan-bridge", switchInterface),
+			fmt.Sprintf("set interfaces %s unit 0 family ethernet-switching interface-mode trunk",
+				switchInterface),
+			fmt.Sprintf("set interfaces %s unit 0 family ethernet-switching vlan members all",
+				switchInterface),
+		}
+
+		err = jnpr.Config(commands)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func enableQinQTrunkOnSwitch(credentials *sriovocpenv.SwitchCredentials, switchInterfaces []string) error {
+	jnpr, err := sriovocpenv.NewJunosSession(credentials.SwitchIP, credentials.User, credentials.Password)
+	if err != nil {
+		return err
+	}
+	defer jnpr.Close()
+
+	for _, switchInterface := range switchInterfaces {
+		commands := []string{
+			fmt.Sprintf("delete interfaces %s unit 0", switchInterface),
 			fmt.Sprintf("set interfaces %s flexible-vlan-tagging encapsulation extended-vlan-bridge", switchInterface),
 			fmt.Sprintf("set interfaces %s unit 0 family ethernet-switching interface-mode trunk",
 				switchInterface),
