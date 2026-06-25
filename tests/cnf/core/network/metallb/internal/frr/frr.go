@@ -384,8 +384,13 @@ func IsProtocolConfigured(frrPod *pod.Builder, protocol string) (bool, error) {
 }
 
 // GetMetricsByPrefix pulls all metrics from frr pods and sort them in the list by given prefix.
-func GetMetricsByPrefix(frrPod *pod.Builder, metricPrefix string) ([]string, error) {
-	stdout, err := frrPod.ExecCommand([]string{"curl", "localhost:7573/metrics"}, "frr")
+// The token parameter is a bearer token used to authenticate against the kube-rbac-proxy on the metrics endpoint.
+func GetMetricsByPrefix(frrPod *pod.Builder, metricPrefix, token string) ([]string, error) {
+	stdout, err := frrPod.ExecCommand([]string{
+		"curl", "-sk",
+		"-H", fmt.Sprintf("Authorization: Bearer %s", token),
+		"https://localhost:9141/metrics",
+	}, "frr")
 	if err != nil {
 		return nil, err
 	}
