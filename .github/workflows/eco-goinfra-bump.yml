@@ -43,10 +43,10 @@ jobs:
         id: create-pr
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         env:
-          GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           commit-message: "deps: bump github.com/rh-ecosystem-edge/eco-goinfra"
-          author: ${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>
+          sign-commits: true
           title: Bump eco-goinfra dependency
           branch: eco-goinfra-bump-${{ inputs.target_branch || github.event.repository.default_branch }}
           base: ${{ inputs.target_branch || github.event.repository.default_branch }}
