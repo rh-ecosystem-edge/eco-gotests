@@ -351,19 +351,82 @@ func DefineBGPConfigWithIPv6Network(localBGPASN, remoteBGPASN int,
 
 // BGPNeighborshipHasState verifies that BGP session on a pod has given state.
 func BGPNeighborshipHasState(frrPod *pod.Builder, neighborIPAddress string, state string) (bool, error) {
-	var result map[string]bgpDescription
-
-	bgpStateOut, err := frrPod.ExecCommand(append(netparam.VtySh, "sh bgp neighbors json"))
+	neighbor, err := getBGPNeighborDescription(frrPod, neighborIPAddress)
 	if err != nil {
 		return false, err
 	}
+
+	return neighbor.BGPState == state, nil
+}
+
+func getBGPNeighborDescription(
+	frrPod *pod.Builder, neighborIPAddress string, containerName ...string,
+) (bgpDescription, error) {
+	var cName string
+
+	if len(containerName) > 0 {
+		cName = containerName[0]
+	} else {
+		cName = frrPod.Definition.Spec.Containers[0].Name
+	}
+
+	cmd := fmt.Sprintf("show bgp neighbor %s json", neighborIPAddress)
+
+	klog.V(90).Infof("Getting BGP neighbor state from container: %s of pod: %s", cName, frrPod.Definition.Name)
+
+	var (
+		bgpStateOut bytes.Buffer
+		err         error
+	)
+
+	err = wait.PollUntilContextTimeout(context.TODO(), 3*time.Second, 10*time.Second, true,
+		func(ctx context.Context) (bool, error) {
+			bgpStateOut, err = frrPod.ExecCommand(append(netparam.VtySh, cmd), cName)
+			if err != nil {
+				klog.V(90).Infof("Failed to execute BGP neighbor command: %v", err)
+
+				return false, err
+			}
+
+			output := strings.TrimSpace(bgpStateOut.String())
+			if output == "" {
+				klog.V(90).Infof("BGP neighbor command returned empty output. retrying...")
+
+				return false, nil
+			}
+
+			if !json.Valid([]byte(output)) {
+				klog.V(90).Infof("BGP neighbor command returned invalid JSON. retrying...")
+
+				return false, nil
+			}
+
+			return true, nil
+		})
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return bgpDescription{}, fmt.Errorf("BGP neighbor command returned invalid or empty output")
+		}
+
+		return bgpDescription{}, err
+	}
+
+	result := make(map[string]bgpDescription)
 
 	err = json.Unmarshal(bgpStateOut.Bytes(), &result)
 	if err != nil {
-		return false, err
+		klog.V(90).Infof("Failed to unmarshal BGP neighbor output: %s", bgpStateOut.String())
+
+		return bgpDescription{}, fmt.Errorf(
+			"failed to unmarshal BGP neighbor output with error: %w, output: %s", err, bgpStateOut.String())
 	}
 
-	return result[neighborIPAddress].BGPState == state, nil
+	neighbor, ok := result[neighborIPAddress]
+	if !ok {
+		return bgpDescription{}, nil
+	}
+
+	return neighbor, nil
 }
 
 // IsProtocolConfigured verifies that given protocol is set in frr config.
