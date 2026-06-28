@@ -8,7 +8,6 @@ import (
 	"time"
 
 	nadV1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
@@ -16,6 +15,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/ipaddr"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/sriovhelper"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
@@ -43,65 +43,17 @@ func ActivateSCTPModuleOnWorkerNodes() {
 // in workerNodeList. This ensures "Different Node" and other multi-worker tests do not fail
 // later when scheduling on a worker that does not expose the requested PF names.
 func ValidateSriovInterfaces(workerNodeList []*nodes.Builder, requestedNumber int) error {
-	requestedSriovInterfaceList, err := NetConfig.GetSriovInterfaces(requestedNumber)
-	if err != nil {
-		return err
-	}
-
-	for _, worker := range workerNodeList {
-		availableUpSriovInterfaces, err := sriov.NewNetworkNodeStateBuilder(APIClient,
-			worker.Definition.Name, NetConfig.SriovOperatorNamespace).GetUpNICs()
-		if err != nil {
-			return fmt.Errorf("failed to get SR-IOV devices from node %s: %w", worker.Definition.Name, err)
-		}
-
-		var validCount int
-
-		for _, availableUpSriovInterface := range availableUpSriovInterfaces {
-			for _, requestedSriovInterface := range requestedSriovInterfaceList {
-				if availableUpSriovInterface.Name == requestedSriovInterface {
-					validCount++
-
-					break
-				}
-			}
-		}
-
-		if validCount < requestedNumber {
-			return fmt.Errorf("requested interfaces %v are not all present on node %s (found %d of %d)",
-				requestedSriovInterfaceList, worker.Definition.Name, validCount, requestedNumber)
-		}
-	}
-
-	return nil
+	return sriovhelper.ValidateSriovInterfaces(workerNodeList, requestedNumber)
 }
 
 // CreateSriovNetworkAndWaitForNADCreation creates a SriovNetwork and waits for NAD Creation on the test namespace.
 func CreateSriovNetworkAndWaitForNADCreation(sNet *sriov.NetworkBuilder, timeout time.Duration) error {
-	klog.V(90).Infof("Creating SriovNetwork %s and waiting for net-attach-def to be created", sNet.Definition.Name)
-
-	sriovNetwork, err := sNet.Create()
-	if err != nil {
-		return err
-	}
-
-	return WaitForNADCreation(sriovNetwork.Object.Name, TargetNamespaceOf(sriovNetwork), timeout)
+	return sriovhelper.CreateSriovNetworkAndWaitForNADCreation(sNet, timeout)
 }
 
 // WaitForNADCreation waits for the NAD to be created.
 func WaitForNADCreation(name, namespace string, timeout time.Duration) error {
-	return wait.PollUntilContextTimeout(context.TODO(),
-		time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			_, err := nad.Pull(APIClient, name, namespace)
-			if err != nil {
-				klog.V(100).Infof("Failed to get NAD %s in namespace %s: %v",
-					name, namespace, err)
-
-				return false, nil
-			}
-
-			return true, nil
-		})
+	return sriovhelper.WaitForNADCreation(name, namespace, timeout)
 }
 
 // WaitForNADDeletion waits for the NAD to be deleted.
@@ -122,11 +74,7 @@ func WaitForNADDeletion(name, namespace string, timeout time.Duration) error {
 // TargetNamespaceOf returns the target namespace of a SriovNetwork.
 // If the target namespace is not set, it returns the namespace of the SriovNetwork.
 func TargetNamespaceOf(sriovNetwork *sriov.NetworkBuilder) string {
-	if sriovNetwork.Object.Spec.NetworkNamespace != "" {
-		return sriovNetwork.Object.Spec.NetworkNamespace
-	}
-
-	return sriovNetwork.Object.Namespace
+	return sriovhelper.TargetNamespaceOf(sriovNetwork)
 }
 
 // DefineAndCreateSriovNetwork creates an enhanced SriovNetwork with optional features and waits for NAD creation.
@@ -151,22 +99,7 @@ func DefineAndCreateSriovNetwork(networkName, resourceName string, withStaticIP,
 
 // DiscoverInterfaceUnderTestDeviceID discovers device ID for a given SR-IOV interface.
 func DiscoverInterfaceUnderTestDeviceID(srIovInterfaceUnderTest, workerNodeName string) string {
-	sriovInterfaces, err := sriov.NewNetworkNodeStateBuilder(
-		APIClient, workerNodeName, NetConfig.SriovOperatorNamespace).GetUpNICs()
-	if err != nil {
-		klog.V(90).Infof("Failed to discover device ID for network interface %s: %v",
-			srIovInterfaceUnderTest, err)
-
-		return ""
-	}
-
-	for _, srIovInterface := range sriovInterfaces {
-		if srIovInterface.Name == srIovInterfaceUnderTest {
-			return srIovInterface.DeviceID
-		}
-	}
-
-	return ""
+	return sriovhelper.DiscoverInterfaceUnderTestDeviceID(srIovInterfaceUnderTest, workerNodeName)
 }
 
 // createAndWaitTestPods creates test pods and waits until they are in the ready state.
