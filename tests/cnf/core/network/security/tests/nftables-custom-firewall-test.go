@@ -250,6 +250,11 @@ var _ = Describe("nftables", Ordered, Label(tsparams.LabelNftablesTestCases), Co
 				By(fmt.Sprintf("Reboot %s", cnfWorkerNodeList[0].Definition.Name))
 				rebootNodeAndWaitForMcpStable(cnfWorkerNodeList[0].Definition.Name)
 
+				By("Recreate test pods on worker node after reboot")
+
+				testPodWorker0, testPodList = recreateWorker0PodsAfterReboot(
+					cnfWorkerNodeList[0], ipv4SecurityIPList, hubIPv4ExternalAddresses, portNum8888, portNum8088)
+
 				By("Recreate a static route to the external Pod network on worker node after reboot")
 
 				routeMap, err = netenv.BuildRoutesMapWithSpecificRoutes(testPodList, cnfWorkerNodeList, ipv4SecurityIPList)
@@ -434,6 +439,25 @@ func createTestPodOnWorkers(podName, nodeName string, portNum int) *pod.Builder 
 	Expect(err).ToNot(HaveOccurred(), "Failed to create test pod")
 
 	return testPod
+}
+
+func recreateWorker0PodsAfterReboot(
+	workerNode *nodes.Builder,
+	ipv4SecurityIPList, hubIPv4ExternalAddresses []string,
+	port8888, port8088 int,
+) (*pod.Builder, []*pod.Builder) {
+	workerNodeName := workerNode.Definition.Name
+
+	workerTestPod := createTestPodOnWorkers("testpod1", workerNodeName, port8888)
+	_ = createTestPodOnWorkers("testpod2", workerNodeName, port8088)
+
+	hub0StaticIPAnnotation := frrconfig.CreateStaticIPAnnotations(frrconfig.ExternalMacVlanNADName, "nad-hub",
+		[]string{fmt.Sprintf("%s/24", ipv4SecurityIPList[0])},
+		[]string{fmt.Sprintf("%s/24", hubIPv4ExternalAddresses[0])})
+
+	_ = createFrrPodTest("hub-pod-0", workerNode.Object.Name, "hub-node-config", hub0StaticIPAnnotation, false)
+
+	return workerTestPod, []*pod.Builder{workerTestPod}
 }
 
 func createMCAndWaitforMCPStable(fileContentString, mcNftablesName string) {
