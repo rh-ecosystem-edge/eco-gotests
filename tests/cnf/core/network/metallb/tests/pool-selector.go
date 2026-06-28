@@ -302,7 +302,7 @@ func activateSCTPModuleOnMasterNodes() {
 	Expect(err).ToNot(HaveOccurred(), "Failed to verify sctp module status on master nodes")
 
 	for node, output := range nodeOutputs {
-		Expect(output).To(ContainSubstring("libcrc32c"), fmt.Sprintf("SCTP module is not active on %s", node))
+		Expect(output).To(MatchRegexp(`(?m)^sctp\s`), fmt.Sprintf("SCTP module is not active on %s", node))
 	}
 }
 
