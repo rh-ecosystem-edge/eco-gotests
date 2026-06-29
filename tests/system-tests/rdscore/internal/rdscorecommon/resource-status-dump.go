@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/statefulset"
@@ -724,5 +725,208 @@ func DumpPersistentVolumeClaimStatus(ctx SpecContext, namespace string) {
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("")
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("========================================")
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("End of PersistentVolumeClaim Status Dump for Namespace: %s", namespace)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("========================================")
+}
+
+// DumpPodLevelBondDeploymentDiagnostics logs comprehensive diagnostics when pod-level bond deployment
+// client pod retrieval fails. This helps debug issues where pods remain unavailable after cluster
+// operations (e.g., ungraceful reboot) but no artifacts are collected due to test skip.
+//
+// The function logs:
+//   - Deployment status (replicas, conditions) if deployment exists
+//   - Pod list with phases, conditions, and container states
+//   - Init container statuses (often cause of Pending pods)
+//   - Node assignment and scheduling information
+//
+// Parameters:
+//   - apiClient: Kubernetes API client
+//   - deploymentName: Name of the pod-level bond deployment to diagnose
+//   - namespace: Namespace where the deployment should exist
+//
+//nolint:gocognit,funlen // Diagnostic logging requires nested loops for comprehensive pod/container status
+func DumpPodLevelBondDeploymentDiagnostics(apiClient *clients.Settings, deploymentName, namespace string) {
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("========================================")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod-Level Bond Deployment Diagnostics")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deployment: %s, Namespace: %s", deploymentName, namespace)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("========================================")
+
+	// Log deployment status if it exists
+	deploymentObj, deployErr := deployment.Pull(
+		apiClient,
+		deploymentName,
+		namespace)
+
+	if deployErr == nil && deploymentObj != nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deployment %q exists in namespace %q", deploymentName, namespace)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("----------------------------------------")
+
+		desiredReplicas := int32(0)
+		if deploymentObj.Object.Spec.Replicas != nil {
+			desiredReplicas = *deploymentObj.Object.Spec.Replicas
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Replicas: desired=%d, ready=%d, available=%d, unavailable=%d",
+			desiredReplicas,
+			deploymentObj.Object.Status.ReadyReplicas,
+			deploymentObj.Object.Status.AvailableReplicas,
+			deploymentObj.Object.Status.UnavailableReplicas)
+
+		// Log deployment conditions
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deployment Conditions:")
+
+		if len(deploymentObj.Object.Status.Conditions) > 0 {
+			for _, condition := range deploymentObj.Object.Status.Conditions {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  - Type: %s, Status: %s, Reason: %s",
+					condition.Type, condition.Status, condition.Reason)
+
+				if condition.Message != "" {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("    Message: %s", condition.Message)
+				}
+			}
+		} else {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  <none>")
+		}
+	} else {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deployment %q not found in namespace %q: %v",
+			deploymentName, namespace, deployErr)
+	}
+
+	// Log pod list status if available
+	podList, podListErr := pod.ListByNamePattern(
+		apiClient,
+		deploymentName,
+		namespace)
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("----------------------------------------")
+
+	switch {
+	case podListErr != nil:
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods matching pattern %q in namespace %q: %v",
+			deploymentName, namespace, podListErr)
+	case len(podList) > 0:
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d pod(s) matching pattern %q in namespace %q",
+			len(podList), deploymentName, namespace)
+
+		for _, podItem := range podList {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("")
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod: %s", podItem.Definition.Name)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Phase: %s", podItem.Object.Status.Phase)
+
+			if podItem.Object.DeletionTimestamp != nil {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  DeletionTimestamp: %v", podItem.Object.DeletionTimestamp)
+			}
+
+			// Log pod conditions
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("")
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Pod Conditions:")
+
+			if len(podItem.Object.Status.Conditions) > 0 {
+				for _, condition := range podItem.Object.Status.Conditions {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("    - Type: %s, Status: %s, Reason: %s",
+						condition.Type, condition.Status, condition.Reason)
+
+					if condition.Message != "" {
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("      Message: %s", condition.Message)
+					}
+				}
+			} else {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("    <none>")
+			}
+
+			// Log container statuses
+			if len(podItem.Object.Status.ContainerStatuses) > 0 {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("")
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Container Statuses:")
+
+				for _, containerStatus := range podItem.Object.Status.ContainerStatuses {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("    - Name: %s, Ready: %t, RestartCount: %d",
+						containerStatus.Name, containerStatus.Ready, containerStatus.RestartCount)
+
+					if containerStatus.State.Waiting != nil {
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("      State: Waiting")
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("      Reason: %s", containerStatus.State.Waiting.Reason)
+
+						if containerStatus.State.Waiting.Message != "" {
+							klog.V(rdscoreparams.RDSCoreLogLevel).Infof("      Message: %s", containerStatus.State.Waiting.Message)
+						}
+					}
+
+					if containerStatus.State.Terminated != nil {
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("      State: Terminated")
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("      Reason: %s, ExitCode: %d",
+							containerStatus.State.Terminated.Reason,
+							containerStatus.State.Terminated.ExitCode)
+
+						if containerStatus.State.Terminated.Message != "" {
+							klog.V(rdscoreparams.RDSCoreLogLevel).Infof("      Message: %s", containerStatus.State.Terminated.Message)
+						}
+					}
+
+					if containerStatus.State.Running != nil {
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("      State: Running")
+					}
+				}
+			}
+
+			// Log init container statuses (often the cause of Pending pods)
+			if len(podItem.Object.Status.InitContainerStatuses) > 0 {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("")
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Init Container Statuses:")
+
+				for _, initContainerStatus := range podItem.Object.Status.InitContainerStatuses {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("    - Name: %s, Ready: %t, RestartCount: %d",
+						initContainerStatus.Name, initContainerStatus.Ready, initContainerStatus.RestartCount)
+
+					if initContainerStatus.State.Waiting != nil {
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("      State: Waiting")
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("      Reason: %s", initContainerStatus.State.Waiting.Reason)
+
+						if initContainerStatus.State.Waiting.Message != "" {
+							klog.V(rdscoreparams.RDSCoreLogLevel).Infof("      Message: %s", initContainerStatus.State.Waiting.Message)
+						}
+					}
+
+					if initContainerStatus.State.Terminated != nil {
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("      State: Terminated")
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("      Reason: %s, ExitCode: %d",
+							initContainerStatus.State.Terminated.Reason,
+							initContainerStatus.State.Terminated.ExitCode)
+
+						if initContainerStatus.State.Terminated.Message != "" {
+							klog.V(rdscoreparams.RDSCoreLogLevel).Infof("      Message: %s", initContainerStatus.State.Terminated.Message)
+						}
+					}
+
+					if initContainerStatus.State.Running != nil {
+						klog.V(rdscoreparams.RDSCoreLogLevel).Infof("      State: Running")
+					}
+				}
+			}
+
+			// Log node assignment
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("")
+
+			if podItem.Object.Spec.NodeName != "" {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Scheduled on node: %s", podItem.Object.Spec.NodeName)
+			} else {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Pod not yet scheduled to a node")
+
+				if podItem.Object.Status.NominatedNodeName != "" {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Nominated Node: %s", podItem.Object.Status.NominatedNodeName)
+				}
+			}
+		}
+	default:
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("No pods found matching pattern %q in namespace %q",
+			deploymentName, namespace)
+	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("========================================")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("End of Pod-Level Bond Deployment Diagnostics")
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("========================================")
 }

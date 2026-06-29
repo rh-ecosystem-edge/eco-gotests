@@ -1248,7 +1248,15 @@ func prepareSecondPodLevelBondDeployment(sameNode, samePF bool) {
 		RDSCoreConfig.PodLevelBondNamespace)
 
 	if err != nil || clientPod == nil {
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod-Level Bond client deployment not found")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Pod-Level Bond client pod retrieval failed, collecting diagnostics")
+
+		DumpPodLevelBondDeploymentDiagnostics(
+			APIClient,
+			RDSCoreConfig.PodLevelBondDeploymentOneName,
+			RDSCoreConfig.PodLevelBondNamespace)
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod-Level Bond client pod not ready after timeout, skipping test")
 
 		Skip("Pod-Level Bond client deployment not found. Skipping...")
 	}
