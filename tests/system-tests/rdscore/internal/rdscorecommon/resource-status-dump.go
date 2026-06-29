@@ -3,6 +3,7 @@ package rdscorecommon
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -11,7 +12,9 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/statefulset"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/storage"
 
@@ -928,5 +931,149 @@ func DumpPodLevelBondDeploymentDiagnostics(apiClient *clients.Settings, deployme
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("")
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("========================================")
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("End of Pod-Level Bond Deployment Diagnostics")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("========================================")
+}
+
+// DumpSRIOVSyncDiagnostics logs comprehensive diagnostics when SRIOV sync fails on pod-level bond nodes.
+// This helps debug issues where SRIOVNetworkNodeState doesn't reach Succeeded status or SR-IOV resources
+// don't become available after cluster operations (reboot, configuration changes).
+//
+// This function is specific to pod-level bond test scenarios and references pod-level bond configuration
+// from RDSCoreConfig (PodLevelBondSRIOVNetOne, PodLevelBondSRIOVNetTwo).
+//
+// The function logs:
+//   - SRIOVNetworkNodeState status for specified nodes (sync status, last sync error)
+//   - Node allocatable resources (filtered by "openshift.io/sriov" prefix for OpenShift SRIOV operator)
+//   - SriovNetwork CR details (resource names, VLAN, link state)
+//   - Pod-level bond deployment and pod diagnostics (via DumpPodLevelBondDeploymentDiagnostics)
+//
+// Parameters:
+//   - apiClient: Kubernetes API client
+//   - nodeNames: Names of nodes to check SRIOV sync status
+//   - sriovNamespace: Namespace where SRIOV operator is running
+//   - deploymentName: Name of the pod-level bond deployment to diagnose
+//   - deploymentNamespace: Namespace where deployment exists
+//
+//nolint:gocognit,funlen // Diagnostic logging requires nested loops for comprehensive SRIOV/node/pod status
+func DumpSRIOVSyncDiagnostics(
+	apiClient *clients.Settings,
+	nodeNames []string,
+	sriovNamespace string,
+	deploymentName string,
+	deploymentNamespace string) {
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("========================================")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("SRIOV Sync Diagnostics for Pod-Level Bond Nodes")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("========================================")
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Checking SRIOV sync status on nodes: %v", nodeNames)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("SRIOV Namespace: %s", sriovNamespace)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deployment: %s, Namespace: %s", deploymentName, deploymentNamespace)
+
+	// Check SRIOVNetworkNodeState for each node
+	for _, nodeName := range nodeNames {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("----------------------------------------")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node: %s", nodeName)
+
+		sriovNodeState := sriov.NewNetworkNodeStateBuilder(apiClient, nodeName, sriovNamespace)
+		if sriovNodeState == nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  SRIOVNetworkNodeState: <failed to create builder>")
+		} else {
+			err := sriovNodeState.Discover()
+			if err != nil {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  SRIOVNetworkNodeState: <not found: %v>", err)
+			} else {
+				// After successful Discover(), Objects field is populated with the SriovNetworkNodeState CR
+				// Log sync status
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  SRIOVNetworkNodeState Sync Status: %s",
+					sriovNodeState.Objects.Status.SyncStatus)
+
+				// Log last sync error if present
+				if sriovNodeState.Objects.Status.LastSyncError != "" {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Last Sync Error: %s",
+						sriovNodeState.Objects.Status.LastSyncError)
+				}
+			}
+		}
+
+		// Log node allocatable SR-IOV resources
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  SR-IOV Allocatable Resources:")
+
+		nodeBuilder, nodeErr := nodes.Pull(apiClient, nodeName)
+
+		switch {
+		case nodeErr != nil:
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("    <failed to pull node: %v>", nodeErr)
+		case nodeBuilder != nil && nodeBuilder.Object != nil:
+			sriovResourceCount := 0
+
+			// Filter for OpenShift SRIOV operator resources (openshift.io/sriov* prefix)
+			for resourceName, quantity := range nodeBuilder.Object.Status.Allocatable {
+				if strings.HasPrefix(string(resourceName), "openshift.io/sriov") {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("    - %s: %s", resourceName, quantity.String())
+
+					sriovResourceCount++
+				}
+			}
+
+			if sriovResourceCount == 0 {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("    <none>")
+			}
+		default:
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("    <node object unavailable>")
+		}
+	}
+
+	// Log SriovNetwork CRs for pod-level bond
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("----------------------------------------")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("SriovNetwork CRs for Pod-Level Bond:")
+
+	// These config values are from RDSCoreConfig - they're set during test initialization
+	networkNames := []string{
+		RDSCoreConfig.PodLevelBondSRIOVNetOne,
+		RDSCoreConfig.PodLevelBondSRIOVNetTwo,
+	}
+
+	for _, netName := range networkNames {
+		net, netErr := sriov.PullNetwork(apiClient, netName, sriovNamespace)
+		if netErr != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Network %q: <not found: %v>", netName, netErr)
+
+			continue
+		}
+
+		if net == nil || net.Object == nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Network %q: <object unavailable>", netName)
+
+			continue
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Network: %s", netName)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("    Resource Name: %s", net.Object.Spec.ResourceName)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("    Network Namespace: %s", net.Object.Spec.NetworkNamespace)
+
+		if net.Object.Spec.Vlan != 0 {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("    VLAN: %d", net.Object.Spec.Vlan)
+		}
+
+		if net.Object.Spec.LinkState != "" {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("    Link State: %s", net.Object.Spec.LinkState)
+		}
+	}
+
+	// Call existing pod-level bond deployment diagnostics for comprehensive pod/deployment status
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("----------------------------------------")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod-Level Bond Deployment Diagnostics:")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("")
+
+	DumpPodLevelBondDeploymentDiagnostics(apiClient, deploymentName, deploymentNamespace)
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("========================================")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("End of SRIOV Sync Diagnostics")
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("========================================")
 }
