@@ -76,6 +76,31 @@ func ValidateSriovInterfaces(workerNodeList []*nodes.Builder, requestedNumber in
 	return nil
 }
 
+// GetMinTotalVFsAcrossWorkers returns the minimum total VFs for pfName across all workers.
+// Use when sizing VF ranges for cluster-wide SR-IOV policies (WorkerLabelMap).
+func GetMinTotalVFsAcrossWorkers(workerNodeList []*nodes.Builder, pfName string) (int, error) {
+	if len(workerNodeList) == 0 {
+		return 0, fmt.Errorf("workerNodeList is empty")
+	}
+
+	minTotal := -1
+
+	for _, worker := range workerNodeList {
+		total, err := sriov.NewNetworkNodeStateBuilder(APIClient,
+			worker.Definition.Name, NetConfig.SriovOperatorNamespace).GetTotalVFs(pfName)
+		if err != nil {
+			return 0, fmt.Errorf("failed to get total VFs for %s on node %s: %w",
+				pfName, worker.Definition.Name, err)
+		}
+
+		if minTotal < 0 || total < minTotal {
+			minTotal = total
+		}
+	}
+
+	return minTotal, nil
+}
+
 // CreateSriovNetworkAndWaitForNADCreation creates a SriovNetwork and waits for NAD Creation on the test namespace.
 func CreateSriovNetworkAndWaitForNADCreation(sNet *sriov.NetworkBuilder, timeout time.Duration) error {
 	klog.V(90).Infof("Creating SriovNetwork %s and waiting for net-attach-def to be created", sNet.Definition.Name)
@@ -367,6 +392,39 @@ func CreateSriovNetworkWithWhereaboutsIPAM(
 	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.NADWaitTimeout)
 }
 
+// applyBondSlaveVFSettings sets bond slave VF params (cnf-gotests defineSriovBondNetwork).
+func applyBondSlaveVFSettings(builder *sriov.NetworkBuilder) *sriov.NetworkBuilder {
+	return builder.WithTrustFlag(true).WithSpoof(false).WithLinkState("auto")
+}
+
+// CreateSriovBondNetworkWithWhereaboutsIPAM creates a bond slave SriovNetwork with Whereabouts IPAM
+// and bond VF settings (Trust on, SpoofChk off, LinkState auto).
+func CreateSriovBondNetworkWithWhereaboutsIPAM(
+	name,
+	resourceName,
+	ipRange,
+	gateway,
+	networkName,
+	ipv6Range string,
+) error {
+	klog.V(90).Infof("Creating bond slave SR-IOV network %s with whereabouts IPAM, range %s, gateway %s",
+		name, ipRange, gateway)
+
+	networkBuilder := sriov.NewNetworkBuilder(
+		APIClient, name, NetConfig.SriovOperatorNamespace,
+		tsparams.TestNamespaceName, resourceName)
+
+	networkBuilder = applyBondSlaveVFSettings(networkBuilder)
+
+	if ipv6Range != "" {
+		networkBuilder.Definition.Spec.IPAM = whereaboutsDualStackIPAMJSON(ipRange, ipv6Range, networkName)
+	} else {
+		networkBuilder = networkBuilder.WithWhereaboutsIPAM(ipRange, gateway, "", networkName)
+	}
+
+	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.NADWaitTimeout)
+}
+
 // CreateSriovNetworkWithVLANAndWhereabouts creates an SR-IOV network with Whereabouts IPAM and VLAN tagging.
 // Dual-stack uses ipRanges without gateway (ipv6Gateway is ignored, same as CreateSriovNetworkWithWhereaboutsIPAM).
 func CreateSriovNetworkWithVLANAndWhereabouts(
@@ -505,11 +563,13 @@ func CreateAllSriovPolicies(
 		vfEndLargeMTU   = 9
 	)
 
+	const policyNumVFs = 10
+
 	// Create policy for PF1 with small MTU
 	if err := CreateSriovPolicy(
 		fmt.Sprintf("%s-policy-pf1-mtu%d", policyPrefix, mtuSmall),
 		resourcePF1SmallMTU, pf1, mtuSmall,
-		vfStartSmallMTU, vfEndSmallMTU); err != nil {
+		vfStartSmallMTU, vfEndSmallMTU, policyNumVFs); err != nil {
 		return fmt.Errorf("failed to create PF1 MTU%d policy: %w", mtuSmall, err)
 	}
 
@@ -517,7 +577,7 @@ func CreateAllSriovPolicies(
 	if err := CreateSriovPolicy(
 		fmt.Sprintf("%s-policy-pf1-mtu%d", policyPrefix, mtuLarge),
 		resourcePF1LargeMTU, pf1, mtuLarge,
-		vfStartLargeMTU, vfEndLargeMTU); err != nil {
+		vfStartLargeMTU, vfEndLargeMTU, policyNumVFs); err != nil {
 		return fmt.Errorf("failed to create PF1 MTU%d policy: %w", mtuLarge, err)
 	}
 
@@ -525,7 +585,7 @@ func CreateAllSriovPolicies(
 	if err := CreateSriovPolicy(
 		fmt.Sprintf("%s-policy-pf2-mtu%d", policyPrefix, mtuSmall),
 		resourcePF2SmallMTU, pf2, mtuSmall,
-		vfStartSmallMTU, vfEndSmallMTU); err != nil {
+		vfStartSmallMTU, vfEndSmallMTU, policyNumVFs); err != nil {
 		return fmt.Errorf("failed to create PF2 MTU%d policy: %w", mtuSmall, err)
 	}
 
@@ -533,7 +593,7 @@ func CreateAllSriovPolicies(
 	if err := CreateSriovPolicy(
 		fmt.Sprintf("%s-policy-pf2-mtu%d", policyPrefix, mtuLarge),
 		resourcePF2LargeMTU, pf2, mtuLarge,
-		vfStartLargeMTU, vfEndLargeMTU); err != nil {
+		vfStartLargeMTU, vfEndLargeMTU, policyNumVFs); err != nil {
 		return fmt.Errorf("failed to create PF2 MTU%d policy: %w", mtuLarge, err)
 	}
 
@@ -556,18 +616,17 @@ func CreateSriovPolicy(
 	pfName string,
 	mtu,
 	vfStart,
-	vfEnd int,
+	vfEnd,
+	numVFs int,
 ) error {
 	klog.V(90).Infof("Creating SR-IOV policy %s", name)
-
-	const totalVFs = 10
 
 	_, err := sriov.NewPolicyBuilder(
 		APIClient,
 		name,
 		NetConfig.SriovOperatorNamespace,
 		resourceName,
-		totalVFs,
+		numVFs,
 		[]string{pfName},
 		NetConfig.WorkerLabelMap).
 		WithMTU(mtu).
@@ -850,8 +909,14 @@ func CreateSriovNetworksForBothMTUs(
 }
 
 // RunTrafficTest runs all traffic type tests (ICMP, TCP, UDP, SCTP, multicast) between client and server pods.
-func RunTrafficTest(clientPod *pod.Builder, serverIP string, mtu int) error {
-	klog.V(90).Infof("Running traffic tests against %s with MTU %d", serverIP, mtu)
+// Optional interfaceName defaults to tsparams.Net1Interface when omitted or empty (e.g. bond tests use bond0).
+func RunTrafficTest(clientPod *pod.Builder, serverIP string, mtu int, interfaceName ...string) error {
+	iface := tsparams.Net1Interface
+	if len(interfaceName) > 0 && interfaceName[0] != "" {
+		iface = interfaceName[0]
+	}
+
+	klog.V(90).Infof("Running traffic tests against %s with MTU %d on interface %s", serverIP, mtu, iface)
 	serverIPAddress := ipaddr.RemovePrefix(serverIP)
 
 	// Subtract header overhead to fit within MTU.
@@ -866,25 +931,25 @@ func RunTrafficTest(clientPod *pod.Builder, serverIP string, mtu int) error {
 	}
 
 	if err := cmd.ICMPConnectivityCheck(
-		clientPod, []string{serverIPWithPrefix}, tsparams.Net1Interface); err != nil {
+		clientPod, []string{serverIPWithPrefix}, iface); err != nil {
 		failedProtocols = append(failedProtocols, fmt.Sprintf("ICMP: %v", err))
 	}
 
 	if err := RunProtocolTest(clientPod, "TCP",
 		fmt.Sprintf("testcmd -protocol tcp -port 5001 -interface %s -server %s -mtu %d",
-			tsparams.Net1Interface, serverIPAddress, packetSize)); err != nil {
+			iface, serverIPAddress, packetSize)); err != nil {
 		failedProtocols = append(failedProtocols, fmt.Sprintf("TCP: %v", err))
 	}
 
 	if err := RunProtocolTest(clientPod, "UDP",
 		fmt.Sprintf("testcmd -protocol udp -port 5002 -interface %s -server %s -mtu %d",
-			tsparams.Net1Interface, serverIPAddress, packetSize)); err != nil {
+			iface, serverIPAddress, packetSize)); err != nil {
 		failedProtocols = append(failedProtocols, fmt.Sprintf("UDP: %v", err))
 	}
 
 	if err := RunProtocolTest(clientPod, "SCTP",
 		fmt.Sprintf("testcmd -protocol sctp -port 5003 -interface %s -server %s -mtu %d",
-			tsparams.Net1Interface, serverIPAddress, packetSize)); err != nil {
+			iface, serverIPAddress, packetSize)); err != nil {
 		failedProtocols = append(failedProtocols, fmt.Sprintf("SCTP: %v", err))
 	}
 
@@ -897,7 +962,7 @@ func RunTrafficTest(clientPod *pod.Builder, serverIP string, mtu int) error {
 
 	if err := RunProtocolTest(clientPod, "multicast",
 		fmt.Sprintf("testcmd -multicast -protocol udp -port 5004 -interface %s -server %s -mtu %d",
-			tsparams.Net1Interface, multicastGroup, packetSize)); err != nil {
+			iface, multicastGroup, packetSize)); err != nil {
 		failedProtocols = append(failedProtocols, fmt.Sprintf("multicast: %v", err))
 	}
 

@@ -34,6 +34,8 @@ const (
 	LabelSriovHWEnabled = "sriov-hw-enabled"
 	// LabelLACPTestCases represents LACP tests that can be used for test cases selection.
 	LabelLACPTestCases = "lacp"
+	// LabelBondModeTestCases represents SR-IOV Bond CNI mode tests that can be used for test cases selection.
+	LabelBondModeTestCases = "bond-mode"
 
 	// Net1Interface is the name of the first secondary network interface attached to pods.
 	Net1Interface = "net1"
