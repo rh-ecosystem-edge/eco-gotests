@@ -36,6 +36,7 @@ type NetworkConfig struct {
 	SwitchInterfaces               string `envconfig:"ECO_CNF_CORE_NET_SWITCH_INTERFACES"`
 	PrimarySwitchInterfaces        string `envconfig:"ECO_CNF_CORE_NET_PRIMARY_SWITCH_INTERFACES"`
 	SwitchLagNames                 string `envconfig:"ECO_CNF_CORE_NET_SWITCH_LAGS"`
+	SwitchTrunkVLANs               string `envconfig:"ECO_CNF_CORE_NET_SWITCH_TRUNK_VLANS"`
 	ClusterVlan                    string `envconfig:"ECO_CNF_CORE_NET_CLUSTER_VLAN"`
 	//nolint:lll
 	PrometheusOperatorNamespace string `yaml:"prometheus_operator_namespace" envconfig:"ECO_CNF_CORE_NET_PROMETHEUS_OPERATOR_NAMESPACE"`
@@ -126,12 +127,16 @@ func (netConfig *NetworkConfig) GetVLAN() (uint16, error) {
 }
 
 // GetNativeVLANID returns ECO_CNF_CORE_NET_NATIVE_VLAN as an integer after optional numeric suffix parsing,
-// with 802.1Q range validation (1–4094). Empty or invalid values return an error.
+// with 802.1Q range validation (1–4094). When native VLAN is unset, falls back to ECO_CNF_CORE_NET_VLAN.
 func (netConfig *NetworkConfig) GetNativeVLANID() (int, error) {
 	vlanText := strings.TrimSpace(netConfig.NativeVLAN)
 	if vlanText == "" {
+		vlanText = strings.TrimSpace(netConfig.VLAN)
+	}
+
+	if vlanText == "" {
 		return 0, fmt.Errorf(
-			"native VLAN is empty: set ECO_CNF_CORE_NET_NATIVE_VLAN")
+			"native VLAN is empty: set ECO_CNF_CORE_NET_NATIVE_VLAN or ECO_CNF_CORE_NET_VLAN")
 	}
 
 	vlanInt, err := strconv.Atoi(parseEnvVlanNumericSuffix(vlanText))
@@ -191,7 +196,7 @@ func (netConfig *NetworkConfig) GetSwitchIP() (string, error) {
 // GetSwitchInterfaces checks the environmental variable ECO_CNF_CORE_NET_SWITCH_INTERFACES
 // and returns the value in []string. Requires at least 2 interfaces.
 func (netConfig *NetworkConfig) GetSwitchInterfaces() ([]string, error) {
-	envValue := strings.Split(netConfig.SwitchInterfaces, ",")
+	envValue := splitTrimmedCSV(netConfig.SwitchInterfaces)
 
 	if len(envValue) < 2 {
 		return nil, fmt.Errorf("the number of the switch interfaces is less than 2," +
@@ -217,7 +222,7 @@ func (netConfig *NetworkConfig) GetPrimarySwitchInterfaces() ([]string, error) {
 // GetSwitchLagNames checks the environmental variable ECO_CNF_CORE_NET_SWITCH_LAGS
 // and returns the value in []string.
 func (netConfig *NetworkConfig) GetSwitchLagNames() ([]string, error) {
-	envValue := strings.Split(netConfig.SwitchLagNames, ",")
+	envValue := splitTrimmedCSV(netConfig.SwitchLagNames)
 
 	if len(envValue) != 2 {
 		return nil, fmt.Errorf("the number of the switch lag names is not equal to 2," +
@@ -225,6 +230,72 @@ func (netConfig *NetworkConfig) GetSwitchLagNames() ([]string, error) {
 	}
 
 	return envValue, nil
+}
+
+// GetSwitchTrunkVLANIDs returns VLAN IDs to trunk on ae interfaces during bond switch LAG setup.
+func (netConfig *NetworkConfig) GetSwitchTrunkVLANIDs() ([]int, error) {
+	if strings.TrimSpace(netConfig.SwitchTrunkVLANs) == "" {
+		clusterVLAN, err := netConfig.GetBondSwitchVLANID()
+		if err != nil {
+			return nil, err
+		}
+
+		return []int{clusterVLAN}, nil
+	}
+
+	return parseVLANIDList(netConfig.SwitchTrunkVLANs)
+}
+
+// GetBondSwitchVLANID returns ECO_CNF_CORE_NET_VLAN for bond static LAG Junos trunk configuration.
+func (netConfig *NetworkConfig) GetBondSwitchVLANID() (int, error) {
+	vlanID, err := netConfig.GetVLAN()
+	if err != nil {
+		return 0, fmt.Errorf("bond switch VLAN: %w", err)
+	}
+
+	return int(vlanID), nil
+}
+
+func parseVLANIDList(raw string) ([]int, error) {
+	parts := splitTrimmedCSV(raw)
+
+	if len(parts) == 0 {
+		return nil, fmt.Errorf("VLAN list is empty")
+	}
+
+	const min8021QVLAN, max8021QVLAN = 1, 4094
+
+	ids := make([]int, 0, len(parts))
+
+	for _, part := range parts {
+		vlanInt, err := strconv.Atoi(parseEnvVlanNumericSuffix(part))
+		if err != nil {
+			return nil, fmt.Errorf("invalid VLAN id %q: %w", part, err)
+		}
+
+		if vlanInt < min8021QVLAN || vlanInt > max8021QVLAN {
+			return nil, fmt.Errorf(
+				"VLAN id %d is out of range (allowed %d-%d per 802.1Q)", vlanInt, min8021QVLAN, max8021QVLAN)
+		}
+
+		ids = append(ids, vlanInt)
+	}
+
+	return ids, nil
+}
+
+func splitTrimmedCSV(raw string) []string {
+	parts := strings.Split(raw, ",")
+
+	var trimmed []string
+
+	for _, part := range parts {
+		if value := strings.TrimSpace(part); value != "" {
+			trimmed = append(trimmed, value)
+		}
+	}
+
+	return trimmed
 }
 
 // GetBMCHostNames checks the environmental variable ECO_CNF_CORE_NET_BMC_HOST_NAMES
