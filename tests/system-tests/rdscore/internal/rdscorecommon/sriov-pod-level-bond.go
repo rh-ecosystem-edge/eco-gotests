@@ -1248,7 +1248,15 @@ func prepareSecondPodLevelBondDeployment(sameNode, samePF bool) {
 		RDSCoreConfig.PodLevelBondNamespace)
 
 	if err != nil || clientPod == nil {
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod-Level Bond client deployment not found")
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"Pod-Level Bond client pod retrieval failed, collecting diagnostics")
+
+		DumpPodLevelBondDeploymentDiagnostics(
+			APIClient,
+			RDSCoreConfig.PodLevelBondDeploymentOneName,
+			RDSCoreConfig.PodLevelBondNamespace)
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod-Level Bond client pod not ready after timeout, skipping test")
 
 		Skip("Pod-Level Bond client deployment not found. Skipping...")
 	}
@@ -1492,6 +1500,19 @@ func waitForSriovResourcesOnNodes(nodeNames, resourceNames []string) error {
 func runPodLevelBondTopologyCase(sameNode, samePF bool) {
 	err := waitForPodLevelBondNodesSriovSync()
 	if err != nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"SRIOV sync failed on pod-level bond nodes, collecting diagnostics: %v", err)
+
+		DumpSRIOVSyncDiagnostics(
+			APIClient,
+			[]string{
+				RDSCoreConfig.PodLevelBondPodOneScheduleOnHost,
+				RDSCoreConfig.PodLevelBondPodTwoScheduleOnHost,
+			},
+			rdscoreparams.SriovOperatorNamespace,
+			RDSCoreConfig.PodLevelBondDeploymentOneName,
+			RDSCoreConfig.PodLevelBondNamespace)
+
 		Skip(fmt.Sprintf("SRIOV sync failure on pod-level bond nodes: %v. Skipping...", err))
 	}
 
@@ -1527,6 +1548,19 @@ func VerifyPodLevelBondWorkloadsOnDifferentNodesDifferentPFs() {
 func VerifyPodLevelBondWorkloadsAfterVFFailOver() {
 	err := waitForPodLevelBondNodesSriovSync()
 	if err != nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"SRIOV sync failed on pod-level bond nodes, collecting diagnostics: %v", err)
+
+		DumpSRIOVSyncDiagnostics(
+			APIClient,
+			[]string{
+				RDSCoreConfig.PodLevelBondPodOneScheduleOnHost,
+				RDSCoreConfig.PodLevelBondPodTwoScheduleOnHost,
+			},
+			rdscoreparams.SriovOperatorNamespace,
+			RDSCoreConfig.PodLevelBondDeploymentOneName,
+			RDSCoreConfig.PodLevelBondNamespace)
+
 		Skip(fmt.Sprintf("SRIOV sync failure on pod-level bond nodes: %v. Skipping...", err))
 	}
 
@@ -1729,6 +1763,19 @@ func VerifyPodLevelBondWorkloadsAfterVFFailOver() {
 func VerifyPodLevelBondWorkloadsAfterBondInterfaceFailure() {
 	err := waitForPodLevelBondNodesSriovSync()
 	if err != nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"SRIOV sync failed on pod-level bond nodes, collecting diagnostics: %v", err)
+
+		DumpSRIOVSyncDiagnostics(
+			APIClient,
+			[]string{
+				RDSCoreConfig.PodLevelBondPodOneScheduleOnHost,
+				RDSCoreConfig.PodLevelBondPodTwoScheduleOnHost,
+			},
+			rdscoreparams.SriovOperatorNamespace,
+			RDSCoreConfig.PodLevelBondDeploymentOneName,
+			RDSCoreConfig.PodLevelBondNamespace)
+
 		Skip(fmt.Sprintf("SRIOV sync failure on pod-level bond nodes: %v. Skipping...", err))
 	}
 
@@ -1775,6 +1822,19 @@ func VerifyPodLevelBondWorkloadsAfterBondInterfaceFailure() {
 func VerifyPodLevelBondWorkloadsAfterBothVFsFailure() {
 	err := waitForPodLevelBondNodesSriovSync()
 	if err != nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"SRIOV sync failed on pod-level bond nodes, collecting diagnostics: %v", err)
+
+		DumpSRIOVSyncDiagnostics(
+			APIClient,
+			[]string{
+				RDSCoreConfig.PodLevelBondPodOneScheduleOnHost,
+				RDSCoreConfig.PodLevelBondPodTwoScheduleOnHost,
+			},
+			rdscoreparams.SriovOperatorNamespace,
+			RDSCoreConfig.PodLevelBondDeploymentOneName,
+			RDSCoreConfig.PodLevelBondNamespace)
+
 		Skip(fmt.Sprintf("SRIOV sync failure on pod-level bond nodes: %v. Skipping...", err))
 	}
 
@@ -1836,6 +1896,19 @@ func VerifyPodLevelBondWorkloadsAfterBothVFsFailure() {
 func VerifyPodLevelBondWorkloadsAfterPodCrashing() {
 	err := waitForPodLevelBondNodesSriovSync()
 	if err != nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"SRIOV sync failed on pod-level bond nodes, collecting diagnostics: %v", err)
+
+		DumpSRIOVSyncDiagnostics(
+			APIClient,
+			[]string{
+				RDSCoreConfig.PodLevelBondPodOneScheduleOnHost,
+				RDSCoreConfig.PodLevelBondPodTwoScheduleOnHost,
+			},
+			rdscoreparams.SriovOperatorNamespace,
+			RDSCoreConfig.PodLevelBondDeploymentOneName,
+			RDSCoreConfig.PodLevelBondNamespace)
+
 		Skip(fmt.Sprintf("SRIOV sync failure on pod-level bond nodes: %v. Skipping...", err))
 	}
 
