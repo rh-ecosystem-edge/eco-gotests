@@ -12,7 +12,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ocm"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/serviceaccount"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/siteconfig"
-	siteconfigv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/siteconfig/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/storage"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/gitopsztp/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranhelper"
@@ -165,18 +164,7 @@ func CleanupImageRegistryConfig(client *clients.Settings) error {
 // It lists ClusterInstance CRs across all namespaces. If the ClusterInstance API is not installed,
 // it returns false.
 func HubHasClusterInstance(apiClient *clients.Settings) (bool, error) {
-	if apiClient == nil {
-		return false, fmt.Errorf("the apiClient cannot be nil")
-	}
-
-	err := apiClient.AttachScheme(siteconfigv1alpha1.AddToScheme)
-	if err != nil {
-		return false, err
-	}
-
-	clusterInstances := &siteconfigv1alpha1.ClusterInstanceList{}
-
-	err = apiClient.List(context.TODO(), clusterInstances)
+	clusterInstances, err := siteconfig.ListClusterInstances(apiClient)
 	if err != nil {
 		if apimeta.IsNoMatchError(err) {
 			return false, nil
@@ -185,7 +173,7 @@ func HubHasClusterInstance(apiClient *clients.Settings) (bool, error) {
 		return false, err
 	}
 
-	return len(clusterInstances.Items) > 0, nil
+	return len(clusterInstances) > 0, nil
 }
 
 // DoesCIExtraLabelsExists looks for a extraLabels on a cluster instance CR and returns true if it exists.
