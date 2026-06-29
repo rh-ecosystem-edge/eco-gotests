@@ -705,8 +705,8 @@ github.com/red-hat-storage/odf-operator v0.0.0-20260226164309-08c71191d483 h1:I8
 github.com/red-hat-storage/odf-operator v0.0.0-20260226164309-08c71191d483/go.mod h1:ezzeJZeZyinngGE5Ox4wAZg6w+Bdu7/9PtdQeV3fXUk=
 github.com/redhat-cne/sdk-go v1.23.6 h1:L+Rs12UihwDBJc/tj1eEMc4Otf7Lxf0bkFjdsg7FPGA=
 github.com/redhat-cne/sdk-go v1.23.6/go.mod h1:5hK1sILdB33pdMsNYTyBKV/v5GjjibmQZcyRtVrVfvs=
-github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260622185633-e031a5cb53f8 h1:t/YoXlUrMjVfaLTznuD8EhgQwB4vBmXJn2R+sVyCbLc=
-github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260622185633-e031a5cb53f8/go.mod h1:lJ1JIy4Y6PSN2k7xYrNR7kuBcFf7k8QXB/ZYMG/sY/4=
+github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260628222137-f20bbb2cd259 h1:7M81hQnVMaRvNW4j+e0ZLWijYkVBJbmGVipy9bzbvNY=
+github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260628222137-f20bbb2cd259/go.mod h1:lJ1JIy4Y6PSN2k7xYrNR7kuBcFf7k8QXB/ZYMG/sY/4=
 github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=
 github.com/rivo/uniseg v0.4.7/go.mod h1:FN3SvrM+Zdj16jyLfmOkMNblXMcoc8DfTHruCPUcx88=
 github.com/rogpeppe/go-internal v1.9.0/go.mod h1:WtVeX8xhTBvf0smdhujwtBcq4Qrzq/fJaraNFVN+nFs=
