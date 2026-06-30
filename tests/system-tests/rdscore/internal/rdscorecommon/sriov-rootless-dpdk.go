@@ -295,7 +295,7 @@ func retrieveClientDPDKPod(apiClient *clients.Settings, podNamePattern, podNames
 			podNamePattern, podNamespace, err)
 	}
 
-	err = podObj.WaitUntilReady(time.Second * 30)
+	err = podObj.WaitUntilReady(150 * time.Second)
 	if err != nil {
 		klog.V(100).Infof("The rootless DPDK client pod %s in namespace %s is not in Ready condition: %v",
 			podNamePattern, podNamespace, err)
