@@ -42,10 +42,13 @@ func NewProvisioningRequest(client runtimeclient.Client, templateVersion string)
 	return prBuilder
 }
 
-// NewNoTemplatePR creates a ProvisioningRequest builder with templateVersion, following the schema for no
-// HardwareTemplate. All required parameters and the affix are set from RANConfig. The BMC and network data are
-// incorrect so that a ClusterInstance is generated but will not actually provision.
-func NewNoTemplatePR(client runtimeclient.Client, templateVersion string) *oran.ProvisioningRequestBuilder {
+// NewInlineBMCPR creates a ProvisioningRequest builder for ClusterTemplates that omit hwMgmtDefaults and rely on inline
+// BMC details in clusterInstanceParameters. All required parameters and the affix are set from RANConfig. The BMC and
+// network data are incorrect so that a ClusterInstance is generated but will not provision.
+//
+// Note that there is a similar scenario where the ProvisioningRequest includes hwMgmtParameters instead of the
+// ClusterTemplate's hwMgmtDefaults. This function is not for that scenario.
+func NewInlineBMCPR(client runtimeclient.Client, templateVersion string) *oran.ProvisioningRequestBuilder {
 	versionWithAffix := RANConfig.ClusterTemplateAffix + "-" + templateVersion
 	prBuilder := oran.NewPRBuilder(client, tsparams.TestPRName, tsparams.ClusterTemplateName, versionWithAffix).
 		WithTemplateParameter("nodeClusterName", RANConfig.Spoke1Name).

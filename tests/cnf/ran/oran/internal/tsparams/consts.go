@@ -65,10 +65,10 @@ const (
 	TemplateAddNew = "v10"
 	// TemplateUpdateSchema is the ClusterTemplate version for the policyTemplateParameters schema update test.
 	TemplateUpdateSchema = "v11"
-	// TemplateMissingSchema is the ClusterTemplate version for the missing schema without HardwareTemplate test.
-	TemplateMissingSchema = "v12"
-	// TemplateNoHWTemplate is the ClusterTemplate version for the successful no HardwareTemplate test.
-	TemplateNoHWTemplate = "v13"
+	// TemplateInlineBMCMissingSchema is the ClusterTemplate version for the missing inline BMC schema test (78245).
+	TemplateInlineBMCMissingSchema = "v12"
+	// TemplateInlineBMC is the ClusterTemplate version for the successful inline BMC provisioning test (78246).
+	TemplateInlineBMC = "v13"
 )
 
 const (
