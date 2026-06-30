@@ -20,6 +20,7 @@ var _ = Describe("ZTP Machine Config Tests", Label(tsparams.LabelMachineConfigTe
 
 		hasClusterInstance, err := helper.HubHasClusterInstance(HubAPIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to list ClusterInstance resources on hub")
+
 		if hasClusterInstance {
 			Skip("test only applies to SiteConfig deployments; ClusterInstance found on hub")
 		}
