@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -64,18 +65,24 @@ var _ = Describe("ORAN Provision Tests", Label(tsparams.LabelProvision), Ordered
 		err = prBuilder.WaitForPhaseAfter(provisioningv1alpha1.StateFailed, time.Time{}, time.Minute)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for the ProvisioningRequest to fail")
 
+		Expect(prBuilder.Object.Status.ProvisioningStatus.ProvisioningPhase).
+			To(Equal(provisioningv1alpha1.StateFailed), "Expected ProvisioningRequest to be failed after invalid parameters")
+		Expect(prBuilder.Object.Status.ProvisioningStatus.ProvisioningDetails).
+			To(ContainSubstring(tsparams.PRValidationFailedDetailsSubstring),
+				"Expected provisioning details to report a validation failure")
+
 		updateTime := time.Now()
 
 		By("updating the ProvisioningRequest with valid policyTemplateParameters")
 
 		prBuilder = prBuilder.WithTemplateParameter(tsparams.PolicyTemplateParamsKey, map[string]any{})
 		prBuilder, err = prBuilder.Update()
-		Expect(err).ToNot(HaveOccurred(), "Failed to update the ProvisioningRequest to add nodeClusterName")
+		Expect(err).ToNot(HaveOccurred(), "Failed to update the ProvisioningRequest with valid policyTemplateParameters")
 
 		By("waiting for ProvisioningRequest to start progressing")
 
 		err = prBuilder.WaitForPhaseAfter(provisioningv1alpha1.StateProgressing, updateTime, time.Minute)
-		Expect(err).ToNot(HaveOccurred(), "Failed to wait for ProvisioningRequest validation to succeed")
+		Expect(err).ToNot(HaveOccurred(), "Failed to wait for ProvisioningRequest to start progressing after recovery")
 	})
 
 	When("provisioning with a valid ProvisioningRequest", func() {
@@ -113,6 +120,11 @@ var _ = Describe("ORAN Provision Tests", Label(tsparams.LabelProvision), Ordered
 			_, err = prBuilder.WaitUntilFulfilled(2 * time.Hour)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for the ProvisioningRequest to be fulfilled")
 
+			By("verifying the fulfilled ProvisioningRequest status via the O2IMS API")
+
+			err = verifyProvisioningRequestFulfilled(prBuilder)
+			Expect(err).ToNot(HaveOccurred(), "Failed to verify fulfilled ProvisioningRequest status")
+
 			By("verifying provisioning succeeded")
 
 			err = verifySpokeProvisioning()
@@ -120,6 +132,85 @@ var _ = Describe("ORAN Provision Tests", Label(tsparams.LabelProvision), Ordered
 		})
 	})
 })
+
+// verifyProvisioningRequestFulfilled checks broad ProvisioningRequest status expectations after successful
+// provisioning, using fields exposed by the O2IMS API client.
+func verifyProvisioningRequestFulfilled(prBuilder *oran.ProvisioningRequestBuilder) error {
+	var (
+		accumulatedErrors []error
+		err               error
+	)
+
+	By("refreshing the ProvisioningRequest from the O2IMS API")
+
+	prBuilder.Object, err = prBuilder.Get()
+	if err != nil {
+		return fmt.Errorf("failed to refresh ProvisioningRequest from O2IMS API: %w", err)
+	}
+
+	status := prBuilder.Object.Status
+
+	By("verifying the ProvisioningRequest is in the fulfilled phase")
+
+	if status.ProvisioningStatus.ProvisioningPhase != provisioningv1alpha1.StateFulfilled {
+		accumulatedErrors = append(accumulatedErrors, fmt.Errorf("expected provisioning phase %q, got %q",
+			provisioningv1alpha1.StateFulfilled, status.ProvisioningStatus.ProvisioningPhase))
+	}
+
+	if !strings.Contains(status.ProvisioningStatus.ProvisioningDetails, tsparams.PRFulfilledDetailsSubstring) {
+		accumulatedErrors = append(accumulatedErrors, fmt.Errorf(
+			"expected provisioning details to contain %q, got %q",
+			tsparams.PRFulfilledDetailsSubstring, status.ProvisioningStatus.ProvisioningDetails))
+	}
+
+	By("verifying the ProvisionedResources are set")
+
+	if status.ProvisioningStatus.ProvisionedResources == nil ||
+		status.ProvisioningStatus.ProvisionedResources.OCloudNodeClusterId == "" {
+		accumulatedErrors = append(accumulatedErrors,
+			fmt.Errorf("expected provisioned node cluster ID after fulfillment"))
+	}
+
+	By("verifying the ClusterDetails are set")
+
+	if status.Extensions.ClusterDetails == nil ||
+		status.Extensions.ClusterDetails.Name != RANConfig.Spoke1Name {
+		accumulatedErrors = append(accumulatedErrors, fmt.Errorf(
+			"expected cluster name %q in extensions, got %#v",
+			RANConfig.Spoke1Name, status.Extensions.ClusterDetails))
+	}
+
+	By("verifying the InfrastructureResourceStatuses are set")
+
+	resourceStatuses := status.Extensions.InfrastructureResourceStatuses
+	if len(resourceStatuses) == 0 {
+		accumulatedErrors = append(accumulatedErrors,
+			fmt.Errorf("expected provisioned infrastructure nodes in extensions"))
+	}
+
+	By("verifying the InfrastructureResourceStatuses are provisioned")
+
+	for _, resourceStatus := range resourceStatuses {
+		if resourceStatus.ResourceProvisioningPhase != provisioningv1alpha1.ResourceProvisioningPhaseProvisioned {
+			accumulatedErrors = append(accumulatedErrors, fmt.Errorf(
+				"expected infrastructure resource %q to be provisioned, got %q",
+				resourceStatus.ResourceId, resourceStatus.ResourceProvisioningPhase))
+
+			continue
+		}
+
+		_, err := oran.PullAllocatedNode(HubAPIClient, resourceStatus.ResourceId, tsparams.O2IMSNamespace)
+		if err != nil {
+			klog.V(tsparams.LogLevel).Infof("Failed to verify AllocatedNode %s exists: %v",
+				resourceStatus.ResourceId, err)
+
+			accumulatedErrors = append(accumulatedErrors, fmt.Errorf(
+				"failed to verify AllocatedNode %s exists: %w", resourceStatus.ResourceId, err))
+		}
+	}
+
+	return errors.Join(accumulatedErrors...)
+}
 
 // saveSpoke1Secret will write the value of key in secret RANConfig.Spoke1Name+suffix to fileName, truncating if the
 // file exists, otherwise saving with permissions 644.
