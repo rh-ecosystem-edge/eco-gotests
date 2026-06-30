@@ -15,6 +15,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/storage"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/gitopsztp/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranhelper"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	configurationPolicyV1 "open-cluster-management.io/config-policy-controller/api/v1"
@@ -157,6 +158,22 @@ func CleanupImageRegistryConfig(client *clients.Settings) error {
 	}
 
 	return nil
+}
+
+// HubHasClusterInstance returns true when at least one ClusterInstance exists on the hub cluster.
+// It lists ClusterInstance CRs across all namespaces. If the ClusterInstance API is not installed,
+// it returns false.
+func HubHasClusterInstance(apiClient *clients.Settings) (bool, error) {
+	clusterInstances, err := siteconfig.ListClusterInstances(apiClient)
+	if err != nil {
+		if apimeta.IsNoMatchError(err) {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	return len(clusterInstances) > 0, nil
 }
 
 // DoesCIExtraLabelsExists looks for a extraLabels on a cluster instance CR and returns true if it exists.
