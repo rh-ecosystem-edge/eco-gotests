@@ -20,9 +20,11 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/apiobjectshelper"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreparams"
 )
 
 const (
@@ -155,6 +157,69 @@ func CleanupRootlessDPDKServerDeployment() {
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to cleanup deployment %s from the namespace %s: %v",
 			serverDPDKDeploymentName, deploymentNamespace, err))
+}
+
+// CleanupRootlessDPDKClientPods removes stale client pods from the DPDK namespace
+// to prevent interference with subsequent test runs.
+// Cleans up both Failed and Succeeded pods to match getDPDKPod() filtering logic.
+func CleanupRootlessDPDKClientPods(ctx SpecContext) {
+	By("Ensuring rootless DPDK client pods are cleaned up")
+
+	// Use Eventually to handle transient errors during cleanup
+	Eventually(func() error {
+		allPods, err := pod.List(APIClient, deploymentNamespace, metav1.ListOptions{})
+		if err != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to list pods in namespace %s: %v",
+				deploymentNamespace, err)
+
+			return fmt.Errorf("failed to list pods: %w", err)
+		}
+
+		var stalePods []*pod.Builder
+
+		for _, _pod := range allPods {
+			// Only clean up DPDK client pods (deployment-generated pods have format: name-hash-hash)
+			if strings.HasPrefix(_pod.Definition.Name, dpdkClientDeploymentName+"-") {
+				// Clean up pods that are Failed or Succeeded (not Running, not Terminating)
+				if (_pod.Object.Status.Phase == corev1.PodFailed || _pod.Object.Status.Phase == corev1.PodSucceeded) &&
+					_pod.Object.DeletionTimestamp == nil {
+					stalePods = append(stalePods, _pod)
+				}
+			}
+		}
+
+		if len(stalePods) == 0 {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("No stale DPDK client pods found in namespace %s",
+				deploymentNamespace)
+
+			return nil
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d stale DPDK client pod(s) in namespace %s",
+			len(stalePods), deploymentNamespace)
+
+		for _, stalePod := range stalePods {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deleting stale DPDK client pod %q in phase %s",
+				stalePod.Definition.Name, stalePod.Object.Status.Phase)
+
+			_, err := stalePod.DeleteAndWait(30 * time.Second)
+			if err != nil {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to delete pod %q: %v",
+					stalePod.Definition.Name, err)
+
+				return fmt.Errorf("failed to delete pod %s: %w", stalePod.Definition.Name, err)
+			}
+
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Successfully deleted stale pod %q",
+				stalePod.Definition.Name)
+		}
+
+		return nil
+	}).WithContext(ctx).
+		WithTimeout(2*time.Minute).
+		WithPolling(5*time.Second).
+		Should(Succeed(),
+			"Failed to cleanup DPDK client pods from namespace %s", deploymentNamespace)
 }
 
 func cleanUpRootlessDPDKDeployment(
@@ -307,6 +372,73 @@ func retrieveClientDPDKPod(apiClient *clients.Settings, podNamePattern, podNames
 	return podObj, nil
 }
 
+// filterDPDKPodsByStatus separates pods into running and non-running categories.
+// Returns two slices: runningPods and nonRunningPods (stale/terminal pods only).
+func filterDPDKPodsByStatus(podList []*pod.Builder) (runningPods, nonRunningPods []*pod.Builder) {
+	for _, _pod := range podList {
+		switch {
+		case _pod.Object.Status.Phase == corev1.PodRunning && _pod.Object.DeletionTimestamp == nil:
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is active (running and not marked for deletion)",
+				_pod.Definition.Name)
+
+			runningPods = append(runningPods, _pod)
+
+		case _pod.Object.DeletionTimestamp != nil:
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is marked for deletion (phase: %s), skipping",
+				_pod.Definition.Name, _pod.Object.Status.Phase)
+
+		case _pod.Object.Status.Phase == corev1.PodPending:
+			// Pending pods are transient and may become Running - don't delete them
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is in Pending phase (transient), skipping",
+				_pod.Definition.Name)
+
+		case _pod.Object.Status.Phase == corev1.PodFailed ||
+			_pod.Object.Status.Phase == corev1.PodSucceeded ||
+			_pod.Object.Status.Phase == corev1.PodUnknown:
+			// Only terminal/failed phases are considered stale
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is in %s phase (terminal), will attempt cleanup",
+				_pod.Definition.Name, _pod.Object.Status.Phase)
+
+			nonRunningPods = append(nonRunningPods, _pod)
+
+		default:
+			// Catch any unexpected phases and log them
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Pod %q is in unexpected phase %s, skipping",
+				_pod.Definition.Name, _pod.Object.Status.Phase)
+		}
+	}
+
+	return runningPods, nonRunningPods
+}
+
+// cleanupStaleDPDKPods removes terminal/failed pods (Failed, Succeeded, Unknown) from a namespace.
+// Pending pods are NOT cleaned up as they are transient and may become Running.
+// Returns true if cleanup succeeded, false if cleanup should be retried.
+func cleanupStaleDPDKPods(stalePods []*pod.Builder, podNamespace string) bool {
+	if len(stalePods) == 0 {
+		return true
+	}
+
+	for _, staleP := range stalePods {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Deleting stale pod %q in phase %s from namespace %q",
+			staleP.Definition.Name, staleP.Object.Status.Phase, podNamespace)
+
+		// Use DeleteAndWait with shorter timeout since we have retry logic in outer loop
+		_, err := staleP.DeleteAndWait(30 * time.Second)
+		if err != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to delete stale pod %q: %v (will retry)",
+				staleP.Definition.Name, err)
+
+			// Don't fail - return false so the outer retry will try again
+			return false
+		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Successfully deleted stale pod %q", staleP.Definition.Name)
+	}
+
+	return true
+}
+
 func getDPDKPod(apiClient *clients.Settings, podNamePattern, podNamespace string) (*pod.Builder, error) {
 	var podObj *pod.Builder
 
@@ -334,23 +466,53 @@ func getDPDKPod(apiClient *clients.Settings, podNamePattern, podNamespace string
 			}
 
 			if len(podObjList) == 0 {
-				klog.V(100).Infof("No pods %s were found in namespace %q", podNamePattern, podNamespace)
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("No pods %s were found in namespace %q", podNamePattern, podNamespace)
 
 				return false, nil
 			}
 
-			if len(podObjList) > 1 {
-				klog.V(100).Infof("Wrong pods %s count was found in namespace %q",
-					podNamePattern, podNamespace)
+			// Filter out pods that are not running or marked for deletion
+			runningPods, nonRunningPods := filterDPDKPodsByStatus(podObjList)
 
-				for _, _pod := range podObjList {
-					klog.V(100).Infof("Pod %q is in %q phase", _pod.Definition.Name, _pod.Object.Status.Phase)
+			// Clean up non-running pods (Failed, Succeeded, etc.)
+			if !cleanupStaleDPDKPods(nonRunningPods, podNamespace) {
+				// Cleanup failed, retry
+				return false, nil
+			}
+
+			switch {
+			case len(runningPods) == 0:
+				// If we just deleted some pods, wait for the new one to appear
+				if len(nonRunningPods) > 0 {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cleaned up %d stale pod(s), waiting for new pod %s to appear",
+						len(nonRunningPods), podNamePattern)
+				} else {
+					klog.V(rdscoreparams.RDSCoreLogLevel).Infof("No running pods %s were found in namespace %q",
+						podNamePattern, podNamespace)
 				}
 
 				return false, nil
+
+			case len(runningPods) > 1:
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Multiple running pods %s found in namespace %q (count: %d)",
+					podNamePattern, podNamespace, len(runningPods))
+
+				runningPodNames := make([]string, 0, len(runningPods))
+				for _, _pod := range runningPods {
+					runningPodNames = append(runningPodNames, _pod.Definition.Name)
+				}
+
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Running pods: %v", runningPodNames)
+
+				// This indicates a deployment scaling issue or duplicate tests running
+				// Retry to see if one terminates naturally
+				return false, nil
 			}
 
-			podObj = podObjList[0]
+			podObj = runningPods[0]
+
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Selected pod %q in namespace %q",
+				podObj.Definition.Name, podObj.Definition.Namespace)
 
 			return true, nil
 		})
