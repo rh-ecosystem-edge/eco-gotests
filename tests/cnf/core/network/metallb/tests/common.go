@@ -20,6 +20,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/mlbtypes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/mlbtypesv1beta2"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/service"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/serviceaccount"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/internal/coreparams"
 	netcmd "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/cmd"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/define"
@@ -591,6 +592,14 @@ func verifyMetricPresentInPrometheus(
 	frrk8sPods []*pod.Builder, prometheusPod *pod.Builder, metricPrefix string, expectedMetrics ...[]string) {
 	By("Verifying if metrics are present in Prometheus database")
 
+	By("Obtaining bearer token for FRR metrics endpoint")
+
+	promSA, err := serviceaccount.Pull(APIClient, "prometheus-k8s", "openshift-monitoring")
+	Expect(err).ToNot(HaveOccurred(), "Failed to pull prometheus-k8s service account")
+
+	metricsToken, err := promSA.CreateToken(10 * time.Minute)
+	Expect(err).ToNot(HaveOccurred(), "Failed to create token for prometheus-k8s service account")
+
 	for _, frrk8sPod := range frrk8sPods {
 		var (
 			metricsFromSpeaker []string
@@ -598,7 +607,7 @@ func verifyMetricPresentInPrometheus(
 		)
 
 		Eventually(func() error {
-			metricsFromSpeaker, err = frr.GetMetricsByPrefix(frrk8sPod, metricPrefix)
+			metricsFromSpeaker, err = frr.GetMetricsByPrefix(frrk8sPod, metricPrefix, metricsToken)
 
 			return err
 		}, time.Minute, tsparams.DefaultRetryInterval).ShouldNot(HaveOccurred(),
