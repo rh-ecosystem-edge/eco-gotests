@@ -132,7 +132,7 @@ var _ = Describe("MetalLB BGP", Ordered, Label(tsparams.LabelBGPTestCases), Cont
 
 		frrk8sPods := verifyAndCreateFRRk8sPodList()
 		createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, ipv4metalLbIPList[0], "",
-			tsparams.LocalBGPASN, false, 0,
+			"", tsparams.LocalBGPASN, nil, false, 0,
 			frrk8sPods)
 
 		By("Validating the service BGP statuses")

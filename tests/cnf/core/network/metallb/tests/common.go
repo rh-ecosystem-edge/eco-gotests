@@ -267,12 +267,22 @@ func createExternalNadWithMasterInterface(name, masterInterface string) {
 }
 
 func createBGPPeerAndVerifyIfItsReady(
-	name, peerIP, bfdProfileName string, remoteAsn uint32, eBgpMultiHop bool, connectTime int,
-	frrk8sPods []*pod.Builder, disableMP ...bool) {
+	name, peerIP, bfdProfileName, routerID string, remoteAsn uint32, nodeSelector map[string]string,
+	eBgpMultiHop bool, connectTime int, frrk8sPods []*pod.Builder, disableMP ...bool) {
 	By("Creating BGP Peer")
 
 	bgpPeer := metallb.NewBPGPeerBuilder(APIClient, name, NetConfig.MlbOperatorNamespace,
 		peerIP, tsparams.LocalBGPASN, remoteAsn).WithPassword(tsparams.BGPPassword).WithEBGPMultiHop(eBgpMultiHop)
+
+	if nodeSelector != nil {
+		bgpPeer.WithNodeSelector(nodeSelector)
+	}
+
+	if routerID != "" {
+		bgpPeer.WithRouterID(routerID)
+	} else if !clusterSupportsIPv4() {
+		bgpPeer.WithRouterID(tsparams.DefaultBGPRouterID)
+	}
 
 	if bfdProfileName != "" {
 		bgpPeer.WithBFDProfile(bfdProfileName)
@@ -285,10 +295,6 @@ func createBGPPeerAndVerifyIfItsReady(
 
 	if len(disableMP) > 0 && disableMP[0] {
 		bgpPeer.WithDisableMP(true)
-	}
-
-	if !clusterSupportsIPv4() {
-		bgpPeer.WithRouterID(tsparams.DefaultBGPRouterID)
 	}
 
 	_, err := bgpPeer.Create()
@@ -785,7 +791,7 @@ func setupTestEnv(ipStack string, prefixLen int, extFrrAdv bool) (
 
 	By("Creating BGPPeer with external FRR Pod")
 	createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1,
-		metallbAddrList[ipStack][0], "", tsparams.LocalBGPASN, false, 0, frrk8sPods)
+		metallbAddrList[ipStack][0], "", "", tsparams.LocalBGPASN, nil, false, 0, frrk8sPods)
 
 	By("Creating an IPAddressPool")
 
