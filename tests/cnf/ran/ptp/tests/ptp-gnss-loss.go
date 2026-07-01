@@ -31,9 +31,10 @@ import (
 
 var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 	var (
-		prometheusAPI   prometheusv1.API
-		savedPtpConfigs []*ptp.PtpConfigBuilder
-		configSupported bool
+		prometheusAPI        prometheusv1.API
+		savedPtpConfigs      []*ptp.PtpConfigBuilder
+		configSupported      bool
+		assertOsClockFreerun bool
 	)
 
 	eventTimeout := 5 * time.Minute
@@ -67,6 +68,9 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 		configSupported, err = version.IsVersionStringInRange(
 			RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.20.0-0", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to check PTP config label version range")
+
+		// OsClockSyncStateChange FREERUN event is supported from PTP version 4.20.0
+		assertOsClockFreerun = configSupported
 	})
 
 	AfterEach(func() {
@@ -433,14 +437,16 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 				))
 				Expect(err).ToNot(HaveOccurred(), "Failed to receive clock class 248 event on node %s", nodeName)
 
-				By("waiting for os-clock-sync-state FREERUN event for CLOCK_REALTIME")
+				if assertOsClockFreerun {
+					By("waiting for os-clock-sync-state FREERUN event for CLOCK_REALTIME")
 
-				err = events.WaitForEvent(eventPod, gpsLossTime, eventTimeout, events.All(
-					events.IsType(eventptp.OsClockSyncStateChange),
-					events.HasValue(events.WithSyncState(eventptp.FREERUN), events.OnInterface(iface.ClockRealtime)),
-				))
-				Expect(err).ToNot(HaveOccurred(),
-					"Failed to receive os-clock-sync-state FREERUN event on node %s", nodeName)
+					err = events.WaitForEvent(eventPod, gpsLossTime, eventTimeout, events.All(
+						events.IsType(eventptp.OsClockSyncStateChange),
+						events.HasValue(events.WithSyncState(eventptp.FREERUN), events.OnInterface(iface.ClockRealtime)),
+					))
+					Expect(err).ToNot(HaveOccurred(),
+						"Failed to receive os-clock-sync-state FREERUN event on node %s", nodeName)
+				}
 
 				By("waiting for SYNCHRONIZED GNSS event")
 
@@ -652,14 +658,16 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 				))
 				Expect(err).ToNot(HaveOccurred(), "Failed to receive clock class 248 event on node %s", nodeName)
 
-				By("waiting for os-clock-sync-state FREERUN event for CLOCK_REALTIME")
+				if assertOsClockFreerun {
+					By("waiting for os-clock-sync-state FREERUN event for CLOCK_REALTIME")
 
-				err = events.WaitForEvent(eventPod, gpsLossTime, eventTimeout, events.All(
-					events.IsType(eventptp.OsClockSyncStateChange),
-					events.HasValue(events.WithSyncState(eventptp.FREERUN), events.OnInterface(iface.ClockRealtime)),
-				))
-				Expect(err).ToNot(HaveOccurred(),
-					"Failed to receive os-clock-sync-state FREERUN event on node %s", nodeName)
+					err = events.WaitForEvent(eventPod, gpsLossTime, eventTimeout, events.All(
+						events.IsType(eventptp.OsClockSyncStateChange),
+						events.HasValue(events.WithSyncState(eventptp.FREERUN), events.OnInterface(iface.ClockRealtime)),
+					))
+					Expect(err).ToNot(HaveOccurred(),
+						"Failed to receive os-clock-sync-state FREERUN event on node %s", nodeName)
+				}
 
 				By("waiting for SYNCHRONIZED GNSS event")
 

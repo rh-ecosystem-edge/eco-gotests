@@ -566,6 +566,16 @@ func assertFreerunState(
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for clock class %d event", expectedClockClass)
 	}
 
+	By("waiting for os-clock-sync-state FREERUN event for CLOCK_REALTIME")
+
+	osClockFreerunFilter := events.All(
+		events.IsType(eventptp.OsClockSyncStateChange),
+		events.HasValue(events.WithSyncState(eventptp.FREERUN), events.OnInterface(iface.ClockRealtime)),
+	)
+	err = events.WaitForEvent(eventPod, sinceTime, timeout, osClockFreerunFilter)
+	Expect(err).ToNot(HaveOccurred(),
+		"Failed to wait for os-clock-sync-state FREERUN event for CLOCK_REALTIME on node %s", nodeName)
+
 	By(fmt.Sprintf("validating metrics: clock class %d, clock state FREERUN", expectedClockClass))
 
 	clockStateQuery := metrics.ClockStateQuery{
