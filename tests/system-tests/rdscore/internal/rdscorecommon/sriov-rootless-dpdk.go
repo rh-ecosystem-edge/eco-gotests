@@ -754,17 +754,34 @@ func getNumberOfPackets(line, firstFieldSubstr string) int {
 }
 
 func defineTestServerPmdCmd(ethPeer, pciAddress, txIPs string) []string {
-	baseCmd := fmt.Sprintf("dpdk-testpmd -R -a %s -- "+
-		"--mbuf-size=%d "+
-		"--forward-mode txonly --eth-peer=0,%s --max-pkt-len=%d",
-		pciAddress, mbufSize, ethPeer, maxPktLen)
+	// Build a bash script that detects NIC vendor and applies correct device arguments.
+	// Mellanox NICs (15b3) require txq_mem_algn=0 to disable contiguous UMEM layout.
+	// Intel NICs (8086) don't need this parameter.
+	script := fmt.Sprintf(`# Detect if the allocated SR-IOV device belongs to Mellanox (15b3) or Intel (8086)
+PCI_ADDR=%s
+VENDOR_ID=$(lspci -n -s ${PCI_ADDR} | cut -d' ' -f3 | cut -d':' -f1)
+
+DEV_ARGS=""
+if [ "$VENDOR_ID" == "15b3" ]; then
+    echo "Mellanox NIC detected. Applying txq_mem_algn workaround."
+    DEV_ARGS=",txq_mem_algn=0"
+else
+    echo "Intel NIC detected. No extra devargs needed."
+fi
+
+dpdk-testpmd -R -a ${PCI_ADDR}${DEV_ARGS} -- \
+  --mbuf-size=%d \
+  --forward-mode txonly \
+  --eth-peer=0,%s \
+  --max-pkt-len=%d`, pciAddress, mbufSize, ethPeer, maxPktLen)
+
 	if txIPs != "" {
-		baseCmd += fmt.Sprintf(" --tx-ip=%s", txIPs)
+		script += fmt.Sprintf(" \\\n  --tx-ip=%s", txIPs)
 	}
 
-	baseCmd += " --stats-period 5"
+	script += " \\\n  --stats-period 5"
 
-	return []string{"/bin/bash", "-c", baseCmd}
+	return []string{"/bin/bash", "-c", script}
 }
 
 func defineTestPmdCmd(interfaceName string, pciAddress string) string {
