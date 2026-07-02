@@ -26,6 +26,8 @@ const (
 )
 
 // DeviceConfigSpec describes how the AMD GPU operator should enable AMD GPU device for customer's use.
+// +kubebuilder:validation:XValidation:rule="!(size(self.draDriverImage) > 0 && (size(self.devicePluginImage) > 0 || size(self.customSchedulerImage) > 0 || size(self.schedulerExtensionImage) > 0))",message="draDriverImage is mutually exclusive with devicePluginImage, customSchedulerImage, and schedulerExtensionImage"
+// +kubebuilder:validation:XValidation:rule="(size(self.devicePluginImage) > 0 || size(self.customSchedulerImage) > 0 || size(self.schedulerExtensionImage) > 0) ? (size(self.devicePluginImage) > 0 && size(self.customSchedulerImage) > 0 && size(self.schedulerExtensionImage) > 0) : true",message="devicePluginImage, customSchedulerImage, and schedulerExtensionImage must all be set together"
 type DeviceConfigSpec struct {
 	// if the in-tree driver should be used instead of OOT drivers
 	UseInTreeDrivers bool `json:"useInTreeDrivers,omitempty"`
@@ -38,16 +40,21 @@ type DeviceConfigSpec struct {
 	DriverVersion string `json:"driverVersion,omitempty"`
 
 	// device plugin image
-	// +kubebuilder:validation:Required
+	// +optional
 	DevicePluginImage string `json:"devicePluginImage,omitempty"`
 
 	// custom scheduler image
-	// +kubebuilder:validation:Required
+	// +optional
 	CustomSchedulerImage string `json:"customSchedulerImage,omitempty"`
 
 	// scheduler extension image
-	// +kubebuilder:validation:Required
+	// +optional
 	SchedulerExtensionImage string `json:"schedulerExtensionImage,omitempty"`
+
+	// DRA driver image. Mutually exclusive with devicePluginImage,
+	// customSchedulerImage, and schedulerExtensionImage.
+	// +optional
+	DRADriverImage string `json:"draDriverImage,omitempty"`
 
 	// node metrics image
 	// +kubebuilder:validation:Required
