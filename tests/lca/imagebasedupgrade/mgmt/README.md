@@ -12,3 +12,4 @@
 | `ECO_LCA_IBU_MGMT_ADDITIONAL_NTP_SOURCES` | _(empty)_ | Additional NTP sources for the cluster |
 | `ECO_LCA_IBU_MGMT_STATE_TRANSITIONS` | `false` | Enable state transition testing before upgrade |
 | `ECO_LCA_IBU_MGMT_SECOND_UPGRADE` | `false` | Perform a second upgrade after the first completes |
+| `ECO_LCA_IBU_MGMT_JUMP_RELEASE` | `false` | Jump a release to upgrade to the subsequent version |

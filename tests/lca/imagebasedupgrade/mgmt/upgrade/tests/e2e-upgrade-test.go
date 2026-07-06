@@ -560,7 +560,7 @@ var _ = Describe(
 			seedYInt, _ := strconv.Atoi(strings.Split(seedImageClusterVersionXY, ".")[1])
 
 			originalYInt, _ := strconv.Atoi(strings.Split(originalClusterVersionXY, ".")[1])
-			if seedYInt-originalYInt == 2 {
+			if seedYInt-originalYInt == 2 || MGMTConfig.JumpRelease {
 				Skip("The y-stream version of the seed is 2 releases apart from the target")
 			}
 
@@ -594,7 +594,7 @@ var _ = Describe(
 			seedYInt, _ := strconv.Atoi(strings.Split(seedImageClusterVersionXY, ".")[1])
 
 			originalYInt, _ := strconv.Atoi(strings.Split(originalClusterVersionXY, ".")[1])
-			if seedYInt-originalYInt != 2 {
+			if seedYInt-originalYInt != 2 && !MGMTConfig.JumpRelease {
 				Skip("The y-stream version of the seed is not 2 releases apart from the target")
 			}
 
