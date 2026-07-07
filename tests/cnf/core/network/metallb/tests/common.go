@@ -397,15 +397,27 @@ func resetOperatorAndTestNS() {
 
 func validatePrefix(
 	masterNodeFRRPod *pod.Builder, ipProtoVersion string, workerNodesAddresses, addressPool []string) {
-	Eventually(
-		frr.GetBGPStatus, time.Minute, tsparams.DefaultRetryInterval).
-		WithArguments(masterNodeFRRPod, strings.ToLower(ipProtoVersion), "test").ShouldNot(BeNil())
+	_, subnet, err := net.ParseCIDR(fmt.Sprintf("%s/%d", addressPool[0], 32))
+	Expect(err).ToNot(HaveOccurred(), "Failed to parse CIDR")
+
+	Eventually(func() bool {
+		bgpStatus, err := frr.GetBGPStatus(masterNodeFRRPod, strings.ToLower(ipProtoVersion), "test")
+		if err != nil {
+			return false
+		}
+
+		if len(bgpStatus.Routes) == 0 {
+			return false
+		}
+
+		_, exists := bgpStatus.Routes[subnet.String()]
+
+		return exists
+	}, time.Minute, tsparams.DefaultRetryInterval).
+		Should(BeTrue(), "BGP status does not contain route for subnet %s", subnet.String())
 
 	bgpStatus, err := frr.GetBGPStatus(masterNodeFRRPod, strings.ToLower(ipProtoVersion), "test")
 	Expect(err).ToNot(HaveOccurred(), "Failed to verify bgp status")
-	_, subnet, err := net.ParseCIDR(fmt.Sprintf("%s/%d", addressPool[0], 32))
-	Expect(err).ToNot(HaveOccurred(), "Failed to parse CIDR")
-	Expect(bgpStatus.Routes).To(HaveKey(subnet.String()), "Failed to verify subnet in bgp status output")
 
 	var nextHopAddresses []string
 
