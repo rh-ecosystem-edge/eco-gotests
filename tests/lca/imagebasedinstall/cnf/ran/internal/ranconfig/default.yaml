@@ -1,0 +1,12 @@
+---
+# Defaults for IBI CNF / ran tests; override with environment (ECO_LCA_IBI_*).
+provisioning_user: "kni"
+provisioning_ssh_dir: "/home/kni/.ssh"
+siteconfig_kustomize_path: "siteconfig"
+siteconfig_git_skip_tls: false
+remote_iso_path: "/opt/cached_disconnected_images/rhcos-ibi.iso"
+# Base URL for the live ISO (no trailing slash), e.g. http://192.168.1.5:8080/images
+iso_http_base_url: ""
+preinstall_node_ssh_user: "core"
+preinstall_wait_timeout_seconds: 3600
+bootstrap_oc: "/home/kni/.local/bin/oc"
