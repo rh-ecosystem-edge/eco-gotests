@@ -18,12 +18,31 @@ package v1beta1
 
 import (
 	v1 "k8s.io/api/core/v1"
+	resourcev1 "k8s.io/api/resource/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
 	PCIVendorID = "1d0f"
 )
+
+// DeviceClassSpec defines a DeviceClass managed by the operator on behalf of a DeviceConfig.
+type DeviceClassSpec struct {
+	// Name is the cluster-scoped DeviceClass metadata.name.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`
+	Name string `json:"name"`
+
+	// Selectors restrict which devices satisfy this class.
+	// +optional
+	// +kubebuilder:validation:MaxItems=32
+	Selectors []resourcev1.DeviceSelector `json:"selectors,omitempty"`
+
+	// Config defines per-device configuration passed to the DRA driver.
+	// +optional
+	// +kubebuilder:validation:MaxItems=32
+	Config []resourcev1.DeviceClassConfiguration `json:"config,omitempty"`
+}
 
 // DeviceConfigSpec describes how the AMD GPU operator should enable AMD GPU device for customer's use.
 // +kubebuilder:validation:XValidation:rule="!(size(self.draDriverImage) > 0 && (size(self.devicePluginImage) > 0 || size(self.customSchedulerImage) > 0 || size(self.schedulerExtensionImage) > 0))",message="draDriverImage is mutually exclusive with devicePluginImage, customSchedulerImage, and schedulerExtensionImage"
@@ -55,6 +74,12 @@ type DeviceConfigSpec struct {
 	// customSchedulerImage, and schedulerExtensionImage.
 	// +optional
 	DRADriverImage string `json:"draDriverImage,omitempty"`
+
+	// DeviceClasses lists DeviceClass resources to manage.
+	// When set, the operator creates DeviceClasses using these definitions.
+	// When empty, a default DeviceClass "neuron.aws.com" is created.
+	// +optional
+	DeviceClasses []DeviceClassSpec `json:"deviceClasses,omitempty"`
 
 	// node metrics image
 	// +kubebuilder:validation:Required
