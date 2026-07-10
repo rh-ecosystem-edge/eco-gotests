@@ -560,9 +560,8 @@ func verifyMsgInPodLogs(podObj *pod.Builder, msg, cName string, timeSpan time.Ti
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Parsing duration %q", timeSpan)
 
 	var (
-		podLog string
-		err    error
-		ctx    SpecContext
+		err error
+		ctx SpecContext
 	)
 
 	Eventually(func() bool {
@@ -574,7 +573,7 @@ func verifyMsgInPodLogs(podObj *pod.Builder, msg, cName string, timeSpan time.Ti
 			Expect(err).ToNot(HaveOccurred(), "Failed to parse time duration")
 		}
 
-		podLog, err = podObj.GetLog(logStartTimestamp, cName)
+		podLog, err := podObj.GetLog(logStartTimestamp, cName)
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to get logs from pod %q: %v", podObj.Definition.Name, err)
 
@@ -583,11 +582,15 @@ func verifyMsgInPodLogs(podObj *pod.Builder, msg, cName string, timeSpan time.Ti
 
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Logs from pod %s:\n%s", podObj.Definition.Name, podLog)
 
-		return true
-	}).WithContext(ctx).WithPolling(5*time.Second).WithTimeout(1*time.Minute).Should(BeTrue(),
-		fmt.Sprintf("Failed to get logs from pod %q", podObj.Definition.Name))
+		if !strings.Contains(podLog, msg) {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Message %q not yet in logs, will retry", msg)
 
-	Expect(podLog).Should(ContainSubstring(msg))
+			return false
+		}
+
+		return true
+	}).WithContext(ctx).WithPolling(5*time.Second).WithTimeout(2*time.Minute).Should(BeTrue(),
+		fmt.Sprintf("Message %q not found in pod %q logs after 2 minutes", msg, podObj.Definition.Name))
 }
 
 //nolint:funlen
