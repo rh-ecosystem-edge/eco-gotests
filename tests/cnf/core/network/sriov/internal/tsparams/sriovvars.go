@@ -29,6 +29,10 @@ var (
 	PollingIntervalBMC = 30 * time.Second
 	// NADWaitTimeout represents timeout for the most ginkgo Eventually functions for NAD creation.
 	NADWaitTimeout = 5 * time.Second
+	// OperatorInstallWaitTimeout is the timeout for OLM-based SR-IOV operator install and daemonset readiness.
+	OperatorInstallWaitTimeout = 5 * time.Minute
+	// OperatorWebhookWaitTimeout is the timeout for SR-IOV operator webhook creation or removal.
+	OperatorWebhookWaitTimeout = time.Minute
 	// ReporterCRDsToDump tells to the reporter what CRs to dump.
 	ReporterCRDsToDump = []k8sreporter.CRData{
 		{Cr: &mcfgv1.MachineConfigPoolList{}},

@@ -36,6 +36,23 @@ const (
 	LabelLACPTestCases = "lacp"
 	// LabelBondModeTestCases represents SR-IOV Bond CNI mode tests that can be used for test cases selection.
 	LabelBondModeTestCases = "bond-mode"
+	// LabelSriovReinstallation represents SR-IOV operator reinstallation tests that can be used for test cases selection.
+	LabelSriovReinstallation = "sriovreinstall"
+
+	// MutatingWebhookResourceInjectorConfig is the SR-IOV network resource injector mutating webhook name.
+	MutatingWebhookResourceInjectorConfig = "network-resources-injector-config"
+	// MutatingWebhookSriovOperatorConfig is the SR-IOV operator mutating webhook name.
+	MutatingWebhookSriovOperatorConfig = "sriov-operator-webhook-config"
+	// ValidatingWebhookSriovOperatorConfig is the SR-IOV operator validating webhook name.
+	ValidatingWebhookSriovOperatorConfig = "sriov-operator-webhook-config"
+	// MutatingWebhookResourceInjectorEntry is the webhook entry name inside network-resources-injector-config.
+	MutatingWebhookResourceInjectorEntry = "network-resources-injector-config.k8s.io"
+	// SriovOperatorWebhookEntry is the webhook entry name inside sriov-operator-webhook-config (mutating and validating).
+	SriovOperatorWebhookEntry = "operator-webhook.sriovnetwork.openshift.io"
+	// OperatorGroupName is the default SR-IOV OperatorGroup resource name in the operator namespace.
+	OperatorGroupName = "sriov-network-operators"
+	// OperatorSubscriptionName is the default SR-IOV operator Subscription resource name.
+	OperatorSubscriptionName = "sriov-network-operator-subscription"
 
 	// Net1Interface is the name of the first secondary network interface attached to pods.
 	Net1Interface = "net1"
