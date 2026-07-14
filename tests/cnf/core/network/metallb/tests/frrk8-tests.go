@@ -763,7 +763,7 @@ func createSecondaryInterfaceOnNode(policyName, nodeName, interfaceName, ipv4Add
 
 	secondaryInterface.WithVlanInterfaceIP(interfaceName, ipv4Address, ipv6Address, vlanID)
 
-	_, err := secondaryInterface.Create()
+	err := netnmstate.CreatePolicyAndWaitUntilItsAvailable(netparam.DefaultTimeout, secondaryInterface)
 	Expect(err).ToNot(HaveOccurred(),
 		"fail to create secondary interface: %s.+%d", interfaceName, vlanID)
 }

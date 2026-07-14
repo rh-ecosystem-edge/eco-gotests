@@ -243,7 +243,7 @@ func enableEthernetInterfaceWithIP(policyName, nodeName, interfaceName string) {
 
 	ethernetInterface.WithEthernetIPv6LinkLocalInterface(interfaceName)
 
-	_, err := ethernetInterface.Create()
+	err := netnmstate.CreatePolicyAndWaitUntilItsAvailable(netparam.DefaultTimeout, ethernetInterface)
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("fail to add an IP address to interface: %s", interfaceName))
 }
