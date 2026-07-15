@@ -25,6 +25,13 @@ var _ = Describe(
 	ContinueOnFailure,
 	Label("rds-core-workflow"), func() {
 		Context("Configured Cluster", Label("clean-cluster"), func() {
+			var suiteStartTime time.Time
+
+			BeforeAll(func() {
+				suiteStartTime = time.Now()
+				klog.Infof("Configured Cluster suite started at: %v", suiteStartTime)
+			})
+
 			It("Verify EgressService with Cluster ExternalTrafficPolicy",
 				Label("egress", "egress-etp-cluster", "egress-etp-cluster-loadbalancer"),
 				reportxml.ID("76485"),
@@ -402,6 +409,18 @@ var _ = Describe(
 				Label("commatrix", "commatrix-journal"),
 				reportxml.ID("95004"), rdscorecommon.VerifyCommatrixHostFirewallJournal)
 
+			It("Measures and validates CPU usage per node",
+				Label(rdscoreparams.LabelCPUMeasurements, "cpu-measurement"),
+				reportxml.ID("TBD"), func() { // Polarion ID to be added
+					rdscorecommon.MeasureCPUWithDynamicDuration(suiteStartTime)
+				})
+
+			It("Measures and validates memory usage per node",
+				Label(rdscoreparams.LabelCPUMeasurements, "memory-measurement"),
+				reportxml.ID("TBD"), func() { // Polarion ID to be added
+					rdscorecommon.MeasureMemoryWithDynamicDuration(suiteStartTime)
+				})
+
 			AfterEach(func(ctx SpecContext) {
 				// Check if the test failed using CurrentSpecReport
 				if CurrentSpecReport().Failed() {
@@ -412,7 +431,12 @@ var _ = Describe(
 		})
 
 		Context("Ungraceful Cluster Reboot", Ordered, Label("ungraceful-cluster-reboot"), func() {
+			var rebootStartTime time.Time
+
 			BeforeAll(func(ctx SpecContext) {
+				rebootStartTime = time.Now()
+				klog.Infof("Ungraceful Reboot context started at: %v", rebootStartTime)
+
 				DeferCleanup(rdscorecommon.EnsureInNodeReadiness)
 
 				By("Creating EgressIP workload config")
@@ -793,6 +817,18 @@ var _ = Describe(
 				Label("commatrix", "commatrix-journal"),
 				reportxml.ID("95006"), rdscorecommon.VerifyCommatrixHostFirewallJournal)
 
+			It("Measures and validates CPU usage per node after ungraceful reboot",
+				Label(rdscoreparams.LabelCPUMeasurements, "cpu-measurement"),
+				reportxml.ID("TBD"), func() { // Polarion ID to be added
+					rdscorecommon.MeasureCPUWithDynamicDuration(rebootStartTime)
+				})
+
+			It("Measures and validates memory usage per node after ungraceful reboot",
+				Label(rdscoreparams.LabelCPUMeasurements, "memory-measurement"),
+				reportxml.ID("TBD"), func() { // Polarion ID to be added
+					rdscorecommon.MeasureMemoryWithDynamicDuration(rebootStartTime)
+				})
+
 			AfterEach(func(ctx SpecContext) {
 				// Check if the test failed using CurrentSpecReport
 				if CurrentSpecReport().Failed() {
@@ -803,7 +839,12 @@ var _ = Describe(
 		})
 
 		Context("Graceful Cluster Reboot", Ordered, Label("graceful-cluster-reboot"), func() {
+			var rebootStartTime time.Time
+
 			BeforeAll(func(ctx SpecContext) {
+				rebootStartTime = time.Now()
+				klog.Infof("Graceful Reboot context started at: %v", rebootStartTime)
+
 				DeferCleanup(rdscorecommon.EnsureInNodeReadiness)
 
 				By("Creating EgressIP workload config")
@@ -1150,6 +1191,18 @@ var _ = Describe(
 			It("Verifies commatrix firewall journal logging after graceful reboot",
 				Label("commatrix", "commatrix-journal"),
 				reportxml.ID("95008"), rdscorecommon.VerifyCommatrixHostFirewallJournal)
+
+			It("Measures and validates CPU usage per node after graceful reboot",
+				Label(rdscoreparams.LabelCPUMeasurements, "cpu-measurement"),
+				reportxml.ID("TBD"), func() { // Polarion ID to be added
+					rdscorecommon.MeasureCPUWithDynamicDuration(rebootStartTime)
+				})
+
+			It("Measures and validates memory usage per node after graceful reboot",
+				Label(rdscoreparams.LabelCPUMeasurements, "memory-measurement"),
+				reportxml.ID("TBD"), func() { // Polarion ID to be added
+					rdscorecommon.MeasureMemoryWithDynamicDuration(rebootStartTime)
+				})
 
 			AfterEach(func(ctx SpecContext) {
 				// Check if the test failed using CurrentSpecReport

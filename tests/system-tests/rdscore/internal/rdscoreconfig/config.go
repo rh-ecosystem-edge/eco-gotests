@@ -593,6 +593,31 @@ type CoreConfig struct {
 	// PythonHTTPServerImage is the container image for the monitoring remoteWrite test HTTP server.
 	//nolint:lll,nolintlint
 	PythonHTTPServerImage string `yaml:"rdscore_python_http_server_image" envconfig:"ECO_RDSCORE_PYTHON_HTTP_SERVER_IMAGE"`
+
+	// CPU/Memory measurement configuration.
+	// CPUMeasureNodeSelector is the label selector for nodes to measure CPU/Memory usage.
+	// If empty, all nodes will be measured.
+	//nolint:lll,nolintlint
+	CPUMeasureNodeSelector string `yaml:"rdscore_cpu_measure_node_selector" envconfig:"ECO_RDSCORE_CPU_NODE_SELECTOR"`
+	// CPUMeasureDuration is the time window for Prometheus rate() queries (e.g., "10m").
+	// Default: "10m" if not specified in YAML or environment variable.
+	//nolint:lll,nolintlint
+	CPUMeasureDuration string `yaml:"rdscore_cpu_measure_duration" envconfig:"ECO_RDSCORE_CPU_MEASURE_DURATION"`
+	// MinMeasureDuration is the minimum duration cap for dynamic duration calculation (e.g., "5m").
+	// Default: "5m" if not specified in YAML or environment variable.
+	//nolint:lll,nolintlint
+	MinMeasureDuration string `yaml:"rdscore_min_measure_duration" envconfig:"ECO_RDSCORE_MIN_DURATION"`
+	// MaxMeasureDuration is the maximum duration cap for dynamic duration calculation (e.g., "2h").
+	// Default: "2h" if not specified in YAML or environment variable.
+	//nolint:lll,nolintlint
+	MaxMeasureDuration string `yaml:"rdscore_max_measure_duration" envconfig:"ECO_RDSCORE_MAX_DURATION"`
+	// CPUMeasureThresholdCores is the optional CPU threshold in cores. If set, test fails if exceeded.
+	//nolint:lll,nolintlint
+	CPUMeasureThresholdCores *float64 `yaml:"rdscore_cpu_measure_threshold_cores" envconfig:"ECO_RDSCORE_CPU_THRESHOLD_CORES"`
+	// MemMeasureThresholdGB is the optional memory threshold in GB. If set, test fails if exceeded.
+	//nolint:lll,nolintlint
+	MemMeasureThresholdGB *float64 `yaml:"rdscore_mem_measure_threshold_gb" envconfig:"ECO_RDSCORE_MEM_THRESHOLD_GB"`
+
 	WorkerLabelListOption metav1.ListOptions
 }
 

@@ -582,3 +582,80 @@ and firewall traffic or probes sufficient to produce journal lines**
 
 Verifies that _NMState_ instance `nmstate` exists
 
+### _MeasureAndValidateCPUUsage_
+
+Measures CPU usage for OS system services and infrastructure pods on a per-node basis by querying Prometheus metrics.
+Reports min/max/avg statistics across all measured nodes.
+
+**Labels**: `rds-core-cpu-measurements`, `cpu-measurement`
+
+The test performs the following:
+1. Discovers target nodes based on configured label selector (or all nodes if not specified)
+2. Queries Prometheus for:
+   - System services CPU usage (kubelet, crio, ovs-vswitchd, etc.) from cgroups under `/system.slice`
+   - Infrastructure pods CPU usage (openshift-*, kube-* namespaces)
+3. Excludes namespaces: `workload`, `core-*`, `rds*`, and pods matching `cnfgotestpriv.*`
+4. Reports detailed breakdown and aggregated statistics
+5. Optionally validates against a threshold (if configured) and fails with top consumers if exceeded
+
+| Variable                          | Description                                                                      | Example                                |
+|-----------------------------------|----------------------------------------------------------------------------------|----------------------------------------|
+| `ECO_RDSCORE_CPU_NODE_SELECTOR`   | Label selector for target nodes. If empty, measures all nodes.                  | `node-role.kubernetes.io/worker=`      |
+| `ECO_RDSCORE_CPU_MEASURE_DURATION`| Time window for Prometheus rate() queries. Overrides dynamic calculation.       | `10m` (default)                        |
+| `ECO_RDSCORE_MIN_DURATION`        | Minimum duration cap for dynamic duration calculation                           | `5m` (default)                         |
+| `ECO_RDSCORE_MAX_DURATION`        | Maximum duration cap for dynamic duration calculation                           | `2h` (default)                         |
+| `ECO_RDSCORE_CPU_THRESHOLD_CORES` | Optional CPU threshold in cores. If set, test fails if any node exceeds it.     | `4.0`                                  |
+
+**Example Usage:**
+
+```bash
+# Measure on worker nodes only (no threshold - report only)
+export ECO_RDSCORE_CPU_NODE_SELECTOR="node-role.kubernetes.io/worker="
+ginkgo --label-filter="cpu-measurement" ./tests/system-tests/rdscore
+
+# Measure with threshold validation (test fails if exceeded)
+export ECO_RDSCORE_CPU_NODE_SELECTOR="node-role.kubernetes.io/worker-cnf="
+export ECO_RDSCORE_CPU_THRESHOLD_CORES="3.5"
+ginkgo --label-filter="cpu-measurement" ./tests/system-tests/rdscore
+```
+
+### _MeasureAndValidateMemoryUsage_
+
+Measures memory usage for OS system services and infrastructure pods on a per-node basis by querying Prometheus metrics.
+Reports min/max/avg statistics across all measured nodes.
+
+**Labels**: `rds-core-cpu-measurements`, `memory-measurement`
+
+The test performs the following:
+1. Discovers target nodes based on configured label selector (or all nodes if not specified)
+2. Queries Prometheus for:
+   - System services memory usage from cgroups under `/system.slice`
+   - Infrastructure pods memory usage (openshift-*, kube-* namespaces)
+3. Excludes namespaces: `workload`, `core-*`, `rds*`, and pods matching `cnfgotestpriv.*`
+4. Reports detailed breakdown and aggregated statistics in GB
+5. Optionally validates against a threshold (if configured) and fails with top consumers if exceeded
+
+| Variable                         | Description                                                                       | Example                                |
+|----------------------------------|-----------------------------------------------------------------------------------|----------------------------------------|
+| `ECO_RDSCORE_CPU_NODE_SELECTOR`  | Label selector for target nodes. If empty, measures all nodes.                   | `node-role.kubernetes.io/worker=`      |
+| `ECO_RDSCORE_MEM_THRESHOLD_GB`   | Optional memory threshold in GB. If set, test fails if any node exceeds it.      | `16.0`                                 |
+
+**Example Usage:**
+
+```bash
+# Measure on all nodes (no threshold - report only)
+ginkgo --label-filter="memory-measurement" ./tests/system-tests/rdscore
+
+# Measure with threshold validation
+export ECO_RDSCORE_CPU_NODE_SELECTOR="node-role.kubernetes.io/worker-cnf="
+export ECO_RDSCORE_MEM_THRESHOLD_GB="12.0"
+ginkgo --label-filter="memory-measurement" ./tests/system-tests/rdscore
+```
+
+### _CaptureNodeMetricsSnapshot_
+
+Lightweight function designed to capture current CPU/Memory metrics snapshot for diagnostic purposes.
+This function never fails and logs output to GinkgoWriter.
+
+**Usage**: Can be called manually or from test hooks when diagnostic snapshots are needed.
+

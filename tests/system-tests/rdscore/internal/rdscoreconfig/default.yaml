@@ -210,3 +210,8 @@ rdscore_python_http_server_image: registry.access.redhat.com/ubi9/python-39:late
 
 # Commatrix (default is ephemeral; override for long-lived artifact/debug output, e.g. under CI artifacts)
 rdscore_commatrix_output_dir: '/tmp/commatrix-work'
+# CPU/Memory measurement configuration.
+rdscore_cpu_measure_node_selector: ''
+rdscore_cpu_measure_duration: '10m'
+rdscore_min_measure_duration: '5m'
+rdscore_max_measure_duration: '2h'
