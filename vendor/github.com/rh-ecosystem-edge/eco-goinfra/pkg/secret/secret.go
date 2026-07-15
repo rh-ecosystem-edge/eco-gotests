@@ -211,8 +211,8 @@ func (builder *Builder) WithData(data map[string][]byte) *Builder {
 	}
 
 	klog.V(100).Infof(
-		"Defining secret %s in namespace %s with this data: %s",
-		builder.Definition.Name, builder.Definition.Namespace, data)
+		"Defining secret %s in namespace %s with data (redacted)",
+		builder.Definition.Name, builder.Definition.Namespace)
 
 	if len(data) == 0 {
 		klog.V(100).Info("The data of the secret is empty")
@@ -234,8 +234,8 @@ func (builder *Builder) WithStringData(data map[string]string) *Builder {
 	}
 
 	klog.V(100).Infof(
-		"Defining secret %s in namespace %s with this stringData: %s",
-		builder.Definition.Name, builder.Definition.Namespace, data)
+		"Defining secret %s in namespace %s with stringData (redacted)",
+		builder.Definition.Name, builder.Definition.Namespace)
 
 	if len(data) == 0 {
 		klog.V(100).Info("The stringData of the secret is empty")
