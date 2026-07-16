@@ -411,13 +411,13 @@ var _ = Describe(
 
 			It("Measures and validates CPU usage per node",
 				Label(rdscoreparams.LabelCPUMeasurements, "cpu-measurement"),
-				reportxml.ID("TBD"), func() { // Polarion ID to be added
+				reportxml.ID("89772"), func() {
 					rdscorecommon.MeasureCPUWithDynamicDuration(suiteStartTime)
 				})
 
 			It("Measures and validates memory usage per node",
 				Label(rdscoreparams.LabelCPUMeasurements, "memory-measurement"),
-				reportxml.ID("TBD"), func() { // Polarion ID to be added
+				reportxml.ID("89775"), func() {
 					rdscorecommon.MeasureMemoryWithDynamicDuration(suiteStartTime)
 				})
 
@@ -819,13 +819,13 @@ var _ = Describe(
 
 			It("Measures and validates CPU usage per node after ungraceful reboot",
 				Label(rdscoreparams.LabelCPUMeasurements, "cpu-measurement"),
-				reportxml.ID("TBD"), func() { // Polarion ID to be added
+				reportxml.ID("89773"), func() {
 					rdscorecommon.MeasureCPUWithDynamicDuration(rebootStartTime)
 				})
 
 			It("Measures and validates memory usage per node after ungraceful reboot",
 				Label(rdscoreparams.LabelCPUMeasurements, "memory-measurement"),
-				reportxml.ID("TBD"), func() { // Polarion ID to be added
+				reportxml.ID("89776"), func() {
 					rdscorecommon.MeasureMemoryWithDynamicDuration(rebootStartTime)
 				})
 
@@ -1194,13 +1194,13 @@ var _ = Describe(
 
 			It("Measures and validates CPU usage per node after graceful reboot",
 				Label(rdscoreparams.LabelCPUMeasurements, "cpu-measurement"),
-				reportxml.ID("TBD"), func() { // Polarion ID to be added
+				reportxml.ID("89774"), func() {
 					rdscorecommon.MeasureCPUWithDynamicDuration(rebootStartTime)
 				})
 
 			It("Measures and validates memory usage per node after graceful reboot",
 				Label(rdscoreparams.LabelCPUMeasurements, "memory-measurement"),
-				reportxml.ID("TBD"), func() { // Polarion ID to be added
+				reportxml.ID("89777"), func() {
 					rdscorecommon.MeasureMemoryWithDynamicDuration(rebootStartTime)
 				})
 
