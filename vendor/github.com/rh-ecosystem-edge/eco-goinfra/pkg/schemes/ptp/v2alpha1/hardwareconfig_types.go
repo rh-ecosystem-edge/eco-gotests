@@ -95,6 +95,19 @@ type Behavior struct {
 	Conditions []Condition `json:"conditions,omitempty" yaml:"conditions,omitempty"`
 }
 
+// SourceTypeID represents the types of Sources that can be defined
+// +kubebuilder:validation:Enum=ptpTimeReceiver;gnss;dpllPhaseLocked
+type SourceTypeID string
+
+const (
+	// SourceTypePTP is an incoming PTP timesource
+	SourceTypePTP SourceTypeID = "ptpTimeReceiver"
+	// SourceTypeGNSS is an incoming GNSS timesource
+	SourceTypeGNSS SourceTypeID = "gnss"
+	// SourceTypeDPLL represents a DPLL timesource
+	SourceTypeDPLL SourceTypeID = "dpllPhaseLocked"
+)
+
 // SourceConfig defines a source of frequency, phase and time reference.
 // Sources are identified by subsystem name and board label, tying them to the specific subsystem entity.
 // Sources are characterized by type and can be referenced system-wide by the name.
@@ -108,7 +121,8 @@ type SourceConfig struct {
 
 	// SourceType identifies the source type. Valid values: "ptpTimeReceiver", "gnss", "dpllPhaseLocked"
 	// If sourceType is ptpTimeReceiver, ptpTimeReceivers must be specified.
-	SourceType string `json:"sourceType" yaml:"sourceType"`
+	// If sourceType is gnss, gnssConfig must be specified.
+	SourceType SourceTypeID `json:"sourceType" yaml:"sourceType"`
 
 	// BoardLabel and subsystem together unambiguously identify the subsystem and the DPLL pin receiving the source
 	BoardLabel string `json:"boardLabel,omitempty" yaml:"boardLabel,omitempty"`
@@ -116,6 +130,90 @@ type SourceConfig struct {
 	// PTPTimeReceivers are ports configured to act as PTP time receivers
 	// (required if the sourceType is set to 'ptpTimeReceiver')
 	PTPTimeReceivers []string `json:"ptpTimeReceivers,omitempty" yaml:"ptpTimeReceivers,omitempty"`
+
+	// GNSSConfig specifies the configuration for the GNSS source
+	// (required if the sourceType is set to 'gnss')
+	// +optional
+	GNSSConfig *GNSSConfig `json:"gnssConfig,omitempty" yaml:"gnssConfig,omitempty"`
+}
+
+// GNSSConfig defines all configuration of a GNSS source
+type GNSSConfig struct {
+	// GNSSInit defines all user-configurable UBLX configuration commands for this GNSS source
+	Init GNSSInit `json:"init" yaml:"init"`
+
+	// Match defines a mechanism to find a GNSS device on the system.  If omitted, autodetects the best-available GNSS source
+	// +optional
+	Match *GNSSMatcher `json:"match,omitempty" yaml:"match,omitempty"`
+}
+
+// ConstellationID is a single GPS constellation identifier string
+// +kubebuilder:validation:Enum=GPS;Galileo;GLONASS;BeiDou;SBAS
+type ConstellationID string
+
+const (
+	// ConstellationGPS is the id for the GPS constellation
+	ConstellationGPS ConstellationID = "GPS"
+	// ConstellationGalileo is the id for the Galileo constellation
+	ConstellationGalileo ConstellationID = "Galileo"
+	// ConstellationGLONASS is the id for the GLONASS constellation
+	ConstellationGLONASS ConstellationID = "GLONASS"
+	// ConstellationBeiDou is the id for the BeiDou constellation
+	ConstellationBeiDou ConstellationID = "BeiDou"
+	// ConstellationSBAS is the id for the SBAS constellation
+	ConstellationSBAS ConstellationID = "SBAS"
+)
+
+// GNSSInit defines the user-configurable initialization parameters for GNSS hardware
+type GNSSInit struct {
+	// AntennaVoltage controls whether the antenna voltage is enabled or not (CFG-HW-ANT_CFG_VOLTCTRL)
+	// +kubebuilder:default=true
+	AntennaVoltage bool `json:"antennaVoltage" yaml:"antennaVoltage"`
+
+	// Constellations is the list of constellations to apply
+	// +kubebuilder:default={"GPS"}
+	// +optional
+	// +listType=set
+	Constellations []ConstellationID `json:"constellations" yaml:"constellations"`
+
+	// SurveyIn encodes the SURVEYIN parameters to begin the initial GNSS survey at initialization
+	SurveyIn GNSSSurveyParameters `json:"survey" yaml:"survey"`
+
+	// ExtraCommands allows user addition of arbitrary ubxtool commands
+	// +optional
+	ExtraCommands []UBLXCommand `json:"extraCommands,omitempty" yaml:"extraCommands,omitempty"`
+}
+
+// GNSSMatcher defines a mechanism to match GNSS devices
+// Either the TTYDevice or EthernetInterface must be provided.
+// +kubebuilder:validation:XValidation:rule="has(self.ttyDevice) != has(self.ethernetInterface)", message="Exactly one of ttyDevice or ethernetInterface must be provided."
+type GNSSMatcher struct {
+	// TTYDevice defines the GNSS device by its /dev/xxxx character device path
+	TTYDevice string `json:"ttyDevice,omitempty" yaml:"ttyDevice,omitempty"`
+
+	// EthernetInterface defines the GNSS device as the one attached to the physical ethernet device name listed
+	EthernetInterface string `json:"ethernetInterface,omitempty" yaml:"ethernetInterface,omitempty"`
+}
+
+// GNSSSurveyParameters outline the GPS SURVEYIN operation
+type GNSSSurveyParameters struct {
+	// ObservationTime specifies the maximum time in seconds we run the GPS SURVEY operation
+	// Setting to 0 disables GPS survey
+	// +kubebuilder:validation:Minimum=0
+	ObservationTime int `json:"observationTime" yaml:"observationTime"`
+
+	// Accuracy is the accuracy threshold, in meters, that will end the survey
+	// +kubebuilder:validation:Minimum=0
+	Accuracy int `json:"accuracy" yaml:"accuracy"`
+}
+
+// UBLXCommand allows arbitrary addition of ubxtool commands.
+type UBLXCommand struct {
+	// Args are the actual commandline arguments to pass to ubxtool  Note: Protocol '-P' is autodetected
+	Args []string `json:"args"`
+
+	// Record will record the resulting output in the object status when true
+	Record bool `json:"reportOutput,omitempty"`
 }
 
 // Condition defines a condition that evaluates an array of source states with implicit AND logic between them.
@@ -427,20 +525,28 @@ func (pc *PinConfig) Validate() error {
 	return nil
 }
 
-// Validate ensures PTPTimeReceivers is specified when sourceType is ptpTimeReceiver
+// Validate ensures proper sub-config sections are specified based on sourceType
 func (sc *SourceConfig) Validate() error {
 	if sc.Subsystem == "" {
 		return fmt.Errorf("subsystem must be specified")
 	}
 
-	if sc.SourceType == "ptpTimeReceiver" && len(sc.PTPTimeReceivers) == 0 {
-		return fmt.Errorf("ptpTimeReceivers must be specified when sourceType is ptpTimeReceiver")
-	}
-
-	for _, receiver := range sc.PTPTimeReceivers {
-		if err := ValidateAlphanumDash(receiver); err != nil {
-			return fmt.Errorf("invalid PTP time receiver format: %w", err)
+	switch sc.SourceType {
+	case SourceTypePTP:
+		if len(sc.PTPTimeReceivers) == 0 {
+			return fmt.Errorf("ptpTimeReceivers must be specified when sourceType is ptpTimeReceiver")
 		}
+
+		for _, receiver := range sc.PTPTimeReceivers {
+			if err := ValidateAlphanumDash(receiver); err != nil {
+				return fmt.Errorf("invalid PTP time receiver format: %w", err)
+			}
+		}
+	case SourceTypeGNSS:
+		if sc.GNSSConfig == nil {
+			return fmt.Errorf("gnssConfig must be specified when sourceType is gnss")
+		}
+	default:
 	}
 
 	return nil
