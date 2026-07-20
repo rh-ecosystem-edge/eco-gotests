@@ -179,6 +179,25 @@ func createIBIOResouces(addressFamily string) {
 
 		_, err = hostBMH.Create()
 		Expect(err).NotTo(HaveOccurred(), "error creating baremetalhost")
+
+		if len(MGMTConfig.HFSSettings) > 0 {
+			By("Wait for HostFirmwareSettings for " + host)
+
+			var hfsBuilder *bmh.HFSBuilder
+
+			Eventually(func() error {
+				var pullErr error
+				hfsBuilder, pullErr = bmh.PullHFS(APIClient, host, MGMTConfig.Cluster.Info.ClusterName)
+
+				return pullErr
+			}).WithTimeout(time.Minute*5).WithPolling(time.Second*10).Should(
+				BeNil(), "error waiting for HostFirmwareSettings to be created by BMO")
+
+			By("Update HostFirmwareSettings for " + host)
+
+			_, err = hfsBuilder.WithSettings(MGMTConfig.HFSSettings).Update()
+			Expect(err).NotTo(HaveOccurred(), "error updating HostFirmwareSettings")
+		}
 	}
 
 	var snoNodeName string

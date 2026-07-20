@@ -79,8 +79,9 @@ type MGMTConfig struct {
 	SiteConfig               bool   `envconfig:"ECO_LCA_IBI_SITECONFIG" default:"true"`
 	ExtraPartName            string `envconfig:"ECO_LCA_IBI_MGMT_EXTRA_PARTITION_NAME" default:""`
 	ExtraPartSizeMib         string `envconfig:"ECO_LCA_IBI_MGMT_EXTRA_PARTITION_SIZE" default:"50000"`
-	ReinstallGenerationLabel string `envconfig:"ECO_LCA_IBI_REINSTALL_GENERATION" default:"generate1"`
-	AdditionalNTPSources     string `envconfig:"ECO_LCA_IBI_ADDITIONAL_NTP_SOURCES" default:""`
+	ReinstallGenerationLabel string            `envconfig:"ECO_LCA_IBI_REINSTALL_GENERATION" default:"generate1"`
+	AdditionalNTPSources     string            `envconfig:"ECO_LCA_IBI_ADDITIONAL_NTP_SOURCES" default:""`
+	HFSSettings              map[string]string `envconfig:"ECO_LCA_IBI_MGMT_HFS_SETTINGS"`
 }
 
 // ReinstallConfig is used to collect info for performing resinstall test.
