@@ -420,6 +420,19 @@ var _ = Describe("IP Forwarding per Interface", Ordered,
 					err = cluster.WaitForMcpStable(APIClient, 35*time.Minute, 1*time.Minute, NetConfig.CnfMcpLabel)
 					Expect(err).ToNot(HaveOccurred(), "Failed to wait for MCP to be stable after reboot")
 
+					By("Recreating nginx server pods on the rebooted worker node")
+
+					for _, name := range []string{"server1", "server2"} {
+						existingPod, pullErr := pod.Pull(APIClient, name, tsparams.TestNamespaceName)
+						if pullErr == nil {
+							_, err = existingPod.DeleteAndWait(tsparams.DefaultTimeout)
+							Expect(err).ToNot(HaveOccurred(), "Failed to delete existing pod %s", name)
+						}
+					}
+
+					setupNGNXPod("server1", workerNode1Name, "server1")
+					setupNGNXPod("server2", workerNode1Name, "server2")
+
 					By("Verifying IP forwarding persisted on the first VLAN interface after reboot")
 
 					verifyIPForwardingOnWorker(workerNode1Name, iface1Name, "1")
@@ -431,7 +444,7 @@ var _ = Describe("IP Forwarding per Interface", Ordered,
 
 					By("Verifying traffic still passes on the first path after reboot")
 
-					verifyIPFwdTrafficPasses(clientPod1, ipFwdServiceIP1)
+					verifyIPFwdTrafficPasses(clientPod1, ipFwdServiceIP1, 3*time.Minute)
 
 					By("Verifying traffic still fails on the second path after reboot")
 
@@ -813,8 +826,13 @@ func createIPFwdClientPod(name, nodeName, clientIP, gatewayIP, serviceIP, vlanSu
 	return clientPod
 }
 
-func verifyIPFwdTrafficPasses(clientPod *pod.Builder, serviceIP string) {
+func verifyIPFwdTrafficPasses(clientPod *pod.Builder, serviceIP string, timeout ...time.Duration) {
 	curlTarget := formatCurlTarget(serviceIP)
+
+	pollTimeout := 15 * time.Second
+	if len(timeout) > 0 {
+		pollTimeout = timeout[0]
+	}
 
 	Eventually(func() error {
 		output, err := clientPod.ExecCommand(
@@ -829,7 +847,7 @@ func verifyIPFwdTrafficPasses(clientPod *pod.Builder, serviceIP string) {
 		}
 
 		return nil
-	}, 15*time.Second, 5*time.Second).Should(Succeed(),
+	}, pollTimeout, 5*time.Second).Should(Succeed(),
 		"Traffic should pass from %s to %s", clientPod.Definition.Name, serviceIP)
 }
 
