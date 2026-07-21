@@ -315,8 +315,16 @@ func createIBIOResouces(addressFamily string) {
 		}
 
 		return condition.Status == trueStatus && condition.Reason == ibiv1alpha1.InstallSucceededReason, nil
-	}).WithTimeout(time.Minute*20).WithPolling(time.Second*5).Should(
+	}).WithTimeout(iciCompletionTimeout()).WithPolling(time.Second*5).Should(
 		BeTrue(), "error waiting for imageclusterinstall to complete")
+}
+
+func iciCompletionTimeout() time.Duration {
+	if len(MGMTConfig.HFSSettings) > 0 {
+		return time.Minute * 45
+	}
+
+	return time.Minute * 25
 }
 
 //nolint:funlen
