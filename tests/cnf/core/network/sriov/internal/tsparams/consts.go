@@ -39,6 +39,8 @@ const (
 	// LabelOperatorConfigDefaultsTestCases represents SriovOperatorConfig default values tests
 	// that can be used for test cases selection.
 	LabelOperatorConfigDefaultsTestCases = "operatorconfig-defaults"
+	// LabelResourceVisibilityTestCases represents resource visibility tests that can be used for test cases selection.
+	LabelResourceVisibilityTestCases = "resourcevisibility"
 
 	// Net1Interface is the name of the first secondary network interface attached to pods.
 	Net1Interface = "net1"
