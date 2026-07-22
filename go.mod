@@ -278,7 +278,7 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
-require github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260720195212-664f0bd156b6
+require github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260721130448-14dda6560a71
 
 replace (
 	github.com/imdario/mergo => github.com/imdario/mergo v0.3.16

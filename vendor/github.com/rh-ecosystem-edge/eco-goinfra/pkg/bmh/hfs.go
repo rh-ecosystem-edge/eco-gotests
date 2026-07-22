@@ -9,6 +9,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/klog/v2"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -134,6 +135,54 @@ func (builder *HFSBuilder) Create() (*HFSBuilder, error) {
 	builder.Object = builder.Definition
 
 	return builder, nil
+}
+
+// Update modifies the HostFirmwareSettings on the cluster with the Definition values.
+func (builder *HFSBuilder) Update() (*HFSBuilder, error) {
+	if valid, err := builder.validate(); !valid {
+		return nil, err
+	}
+
+	klog.V(100).Infof(
+		"Updating HostFirmwareSettings %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
+
+	if !builder.Exists() {
+		return nil, fmt.Errorf("hostFirmwareSettings object %s does not exist in namespace %s",
+			builder.Definition.Name, builder.Definition.Namespace)
+	}
+
+	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
+	builder.Definition.CreationTimestamp = metav1.Time{}
+
+	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
+	if err != nil {
+		return nil, err
+	}
+
+	builder.Object = builder.Definition
+
+	return builder, nil
+}
+
+// WithSettings sets the desired firmware settings on the HostFirmwareSettings definition.
+func (builder *HFSBuilder) WithSettings(settings map[string]string) *HFSBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof(
+		"Setting firmware settings on HostFirmwareSettings %s in namespace %s",
+		builder.Definition.Name, builder.Definition.Namespace)
+
+	if builder.Definition.Spec.Settings == nil {
+		builder.Definition.Spec.Settings = make(bmhv1alpha1.DesiredSettingsMap)
+	}
+
+	for key, value := range settings {
+		builder.Definition.Spec.Settings[key] = intstr.FromString(value)
+	}
+
+	return builder
 }
 
 // Delete removes a HostFirmwareSettings from the cluster if it exists.

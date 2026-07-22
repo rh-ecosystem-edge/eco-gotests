@@ -45,8 +45,8 @@ type DeviceClassSpec struct {
 }
 
 // DeviceConfigSpec describes how the AMD GPU operator should enable AMD GPU device for customer's use.
-// +kubebuilder:validation:XValidation:rule="!(size(self.draDriverImage) > 0 && (size(self.devicePluginImage) > 0 || size(self.customSchedulerImage) > 0 || size(self.schedulerExtensionImage) > 0))",message="draDriverImage is mutually exclusive with devicePluginImage, customSchedulerImage, and schedulerExtensionImage"
-// +kubebuilder:validation:XValidation:rule="(size(self.devicePluginImage) > 0 || size(self.customSchedulerImage) > 0 || size(self.schedulerExtensionImage) > 0) ? (size(self.devicePluginImage) > 0 && size(self.customSchedulerImage) > 0 && size(self.schedulerExtensionImage) > 0) : true",message="devicePluginImage, customSchedulerImage, and schedulerExtensionImage must all be set together"
+// +kubebuilder:validation:XValidation:rule="!((has(self.draDriverImage) && size(self.draDriverImage) > 0) && ((has(self.devicePluginImage) && size(self.devicePluginImage) > 0) || (has(self.customSchedulerImage) && size(self.customSchedulerImage) > 0) || (has(self.schedulerExtensionImage) && size(self.schedulerExtensionImage) > 0)))",message="draDriverImage is mutually exclusive with devicePluginImage, customSchedulerImage, and schedulerExtensionImage"
+// +kubebuilder:validation:XValidation:rule="(has(self.devicePluginImage) && size(self.devicePluginImage) > 0 || has(self.customSchedulerImage) && size(self.customSchedulerImage) > 0 || has(self.schedulerExtensionImage) && size(self.schedulerExtensionImage) > 0) ? (has(self.devicePluginImage) && size(self.devicePluginImage) > 0 && has(self.customSchedulerImage) && size(self.customSchedulerImage) > 0 && has(self.schedulerExtensionImage) && size(self.schedulerExtensionImage) > 0) : true",message="devicePluginImage, customSchedulerImage, and schedulerExtensionImage must all be set together"
 type DeviceConfigSpec struct {
 	// if the in-tree driver should be used instead of OOT drivers
 	UseInTreeDrivers bool `json:"useInTreeDrivers,omitempty"`
