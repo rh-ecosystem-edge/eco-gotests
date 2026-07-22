@@ -36,6 +36,9 @@ const (
 	LabelLACPTestCases = "lacp"
 	// LabelBondModeTestCases represents SR-IOV Bond CNI mode tests that can be used for test cases selection.
 	LabelBondModeTestCases = "bond-mode"
+	// LabelOperatorConfigDefaultsTestCases represents SriovOperatorConfig default values tests
+	// that can be used for test cases selection.
+	LabelOperatorConfigDefaultsTestCases = "operatorconfig-defaults"
 
 	// Net1Interface is the name of the first secondary network interface attached to pods.
 	Net1Interface = "net1"
