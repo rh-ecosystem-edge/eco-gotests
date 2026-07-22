@@ -160,7 +160,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 
 			By("Check module is signed")
 
-			err = check.ModuleSigned(APIClient, kmodName, "cdvtest signing key",
+			err = check.ModuleSigned(APIClient, kmodName, kmmparams.SigningCertCN,
 				kmmparams.ModuleBuildAndSignNamespace, image)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is signed")
 
@@ -334,7 +334,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 		It("should rebuild and re-sign after trigger when image deleted", reportxml.ID("87952"), func() {
 			By("Verify module is signed before deletion")
 
-			err := check.ModuleSigned(APIClient, kmodName, "cdvtest signing key",
+			err := check.ModuleSigned(APIClient, kmodName, kmmparams.SigningCertCN,
 				kmmparams.ModuleBuildAndSignNamespace, image)
 			Expect(err).ToNot(HaveOccurred(), "error while checking module is signed before trigger")
 
@@ -382,7 +382,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 
 			By("Check module is signed after rebuild")
 
-			err = check.ModuleSigned(APIClient, kmodName, "cdvtest signing key",
+			err = check.ModuleSigned(APIClient, kmodName, kmmparams.SigningCertCN,
 				kmmparams.ModuleBuildAndSignNamespace, image)
 			Expect(err).ToNot(HaveOccurred(), "error while checking module is signed after rebuild")
 

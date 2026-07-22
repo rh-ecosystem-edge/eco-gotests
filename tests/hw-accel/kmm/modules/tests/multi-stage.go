@@ -213,7 +213,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 
 			By("Check module is signed")
 
-			err = check.ModuleSigned(APIClient, kmodName, "cdvtest signing key",
+			err = check.ModuleSigned(APIClient, kmodName, kmmparams.SigningCertCN,
 				kmmparams.UseLocalMultiStageTestNamespace, signedImage)
 			Expect(err).ToNot(HaveOccurred(), "error while checking the module is signed")
 

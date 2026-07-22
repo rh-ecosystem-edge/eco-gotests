@@ -30,7 +30,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			moduleName         = "sign-glob"
 			kmodName           = "kmm_ci_a"
 			serviceAccountName = "sign-glob-sa"
-			signerCN           = "cdvtest signing key"
+			signerCN           = kmmparams.SigningCertCN
 		)
 
 		BeforeAll(func() {
