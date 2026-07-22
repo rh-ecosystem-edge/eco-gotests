@@ -15,3 +15,4 @@
 | `ECO_LCA_IBI_MGMT_EXTRA_PARTITION_SIZE` | `50000` | Size of extra disk partition in MiB |
 | `ECO_LCA_IBI_REINSTALL_GENERATION` | `generate1` | Reinstall generation label for reinstall tests |
 | `ECO_LCA_IBI_ADDITIONAL_NTP_SOURCES` | _(empty)_ | Additional NTP sources for the cluster |
+| `ECO_LCA_IBI_MGMT_HFS_SETTINGS` | _(empty)_ | HostFirmwareSettings to apply after BMH creation. Comma-separated `key:value` pairs, e.g. `SecureBoot:Enabled,TpmSecurity:On` |

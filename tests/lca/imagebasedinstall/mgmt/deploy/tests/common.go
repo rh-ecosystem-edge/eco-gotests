@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	bmhv1alpha1 "github.com/metal3-io/baremetal-operator/apis/metal3.io/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/bmh"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/configmap"
@@ -187,6 +188,7 @@ func createIBIOResouces(addressFamily string) {
 
 			Eventually(func() error {
 				var pullErr error
+
 				hfsBuilder, pullErr = bmh.PullHFS(APIClient, host, MGMTConfig.Cluster.Info.ClusterName)
 
 				return pullErr
@@ -197,6 +199,10 @@ func createIBIOResouces(addressFamily string) {
 
 			_, err = hfsBuilder.WithSettings(MGMTConfig.HFSSettings).Update()
 			Expect(err).NotTo(HaveOccurred(), "error updating HostFirmwareSettings")
+
+			By("Wait for HostFirmwareSettings to be validated by BMO for " + host)
+
+			waitForHFSValidation(host, MGMTConfig.Cluster.Info.ClusterName)
 		}
 	}
 
@@ -325,6 +331,24 @@ func iciCompletionTimeout() time.Duration {
 	}
 
 	return time.Minute * 25
+}
+
+func waitForHFSValidation(host, namespace string) {
+	Eventually(func() (bool, error) {
+		refreshed, pullErr := bmh.PullHFS(APIClient, host, namespace)
+		if pullErr != nil {
+			return false, pullErr
+		}
+
+		for _, cond := range refreshed.Object.Status.Conditions {
+			if cond.Type == string(bmhv1alpha1.FirmwareSettingsValid) {
+				return cond.Status == metav1.ConditionTrue, nil
+			}
+		}
+
+		return false, nil
+	}).WithTimeout(time.Minute*5).WithPolling(time.Second*10).Should(
+		BeTrue(), "HostFirmwareSettings Valid condition not True")
 }
 
 //nolint:funlen
