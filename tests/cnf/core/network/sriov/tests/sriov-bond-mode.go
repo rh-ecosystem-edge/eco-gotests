@@ -33,20 +33,7 @@ import (
 const (
 	bondNADName = "sriov-bond-nad"
 
-	mtu1280 = 1280
-	mtu9000 = 9000
-
-	// SR-IOV policy resourceNames for bond tests (PF1/PF2 × small/jumbo MTU; shared by IPv4 and IPv6).
-	bondResourcePF1Small = "sriovbondpf1mtu1280"
-	bondResourcePF1Jumbo = "sriovbondpf1mtu9000"
-	bondResourcePF2Small = "sriovbondpf2mtu1280"
-	bondResourcePF2Jumbo = "sriovbondpf2mtu9000"
-
-	// bondMinVFsPerPF is the minimum total VFs per PF for bond tests on Mellanox and other five-VF devices.
-	bondMinVFsPerPF = 5
-	// bondMinVFsStandardLayout is the minimum total VFs per PF for the standard small/jumbo VF split.
-	bondMinVFsStandardLayout = 10
-	// bondMinSwitchInterfaces is the number of physical switch ports used for static LAG setup.
+	// bondMinSwitchInterfaces is the number of physical switch ports in NetConfig for LAG setup.
 	bondMinSwitchInterfaces = 4
 )
 
@@ -131,43 +118,45 @@ var _ = Describe(
 				minTotal = pf2Total
 			}
 
-			if minTotal < bondMinVFsPerPF {
+			if minTotal < sriovenv.BondMinVFsPerPF {
 				Skip(fmt.Sprintf(
 					"Bond tests require >=%d VFs per PF on every worker; min across workers: pf1=%d, pf2=%d",
-					bondMinVFsPerPF, pf1Total, pf2Total))
+					sriovenv.BondMinVFsPerPF, pf1Total, pf2Total))
 			}
 
-			vfSmallEnd, vfLargeStart, vfLargeEnd, layoutOK := selectBondVFLayout(minTotal)
+			vfSmallEnd, vfLargeStart, vfLargeEnd, layoutOK := sriovenv.SelectBondVFLayout(minTotal)
 			Expect(layoutOK).To(BeTrue(), "Failed to select bond VF layout")
 
 			bondNetworks := bondSlaveNetworkConfigs(
 				bondNetworksV4DiffPFSmall, bondNetworksV4DiffPFJumbo,
 				bondNetworksV4SamePFSmall, bondNetworksV4SamePFJumbo,
-				bondResourcePF1Small, bondResourcePF1Jumbo,
-				bondResourcePF2Small, bondResourcePF2Jumbo,
+				sriovenv.BondResourcePF1Small, sriovenv.BondResourcePF1Jumbo,
+				sriovenv.BondResourcePF2Small, sriovenv.BondResourcePF2Jumbo,
 			)
 			bondNetworks = append(bondNetworks, bondSlaveNetworkConfigs(
 				bondNetworksV6DiffPFSmall, bondNetworksV6DiffPFJumbo,
 				bondNetworksV6SamePFSmall, bondNetworksV6SamePFJumbo,
-				bondResourcePF1Small, bondResourcePF1Jumbo,
-				bondResourcePF2Small, bondResourcePF2Jumbo,
+				sriovenv.BondResourcePF1Small, sriovenv.BondResourcePF1Jumbo,
+				sriovenv.BondResourcePF2Small, sriovenv.BondResourcePF2Jumbo,
 			)...)
 
 			By("Removing stale bond SR-IOV policies from prior suite revisions")
 
-			Expect(cleanupStaleBondSriovPolicies()).To(Succeed(), "Failed to remove stale bond SR-IOV policies")
+			Expect(sriovenv.DeleteBondSriovPolicies(sriovenv.BondStalePolicyNames)).To(Succeed(),
+				"Failed to remove stale bond SR-IOV policies")
 
-			setupBondStack(bondStackParams{
-				pf1:          pf1,
-				pf2:          pf2,
-				pf1NumVFs:    pf1NumVFs,
-				pf2NumVFs:    pf2NumVFs,
-				vfSmallStart: 0,
-				vfSmallEnd:   vfSmallEnd,
-				vfLargeStart: vfLargeStart,
-				vfLargeEnd:   vfLargeEnd,
-				networks:     bondNetworks,
-			})
+			By("Creating shared SR-IOV policies and networks for bond tests")
+			Expect(sriovenv.SetupBondStack(sriovenv.BondStackParams{
+				PF1:          pf1,
+				PF2:          pf2,
+				PF1NumVFs:    pf1NumVFs,
+				PF2NumVFs:    pf2NumVFs,
+				VFSmallStart: 0,
+				VFSmallEnd:   vfSmallEnd,
+				VFLargeStart: vfLargeStart,
+				VFLargeEnd:   vfLargeEnd,
+				Networks:     bondNetworks,
+			})).To(Succeed(), "Failed to set up bond SR-IOV stack")
 		})
 
 		AfterAll(func() {
@@ -211,7 +200,7 @@ var _ = Describe(
 
 				runBondScenario(
 					sriovenv.BondModeActiveBackup,
-					mtu1280, mtu9000,
+					sriovenv.BondMTU1280, sriovenv.BondMTU9000,
 					workerNodeList[0].Definition.Name, workerNodeList[1].Definition.Name,
 					bondNetworksV4DiffPFSmall, bondNetworksV4DiffPFJumbo,
 					staticBondIPs(
@@ -228,7 +217,7 @@ var _ = Describe(
 
 				runBondScenario(
 					sriovenv.BondModeActiveBackup,
-					mtu1280, mtu9000,
+					sriovenv.BondMTU1280, sriovenv.BondMTU9000,
 					workerNodeList[0].Definition.Name, workerNodeList[1].Definition.Name,
 					bondNetworksV4SamePFSmall, bondNetworksV4SamePFJumbo,
 					staticBondIPs(
@@ -245,7 +234,7 @@ var _ = Describe(
 
 				runBondScenario(
 					sriovenv.BondModeActiveBackup,
-					mtu1280, mtu9000,
+					sriovenv.BondMTU1280, sriovenv.BondMTU9000,
 					workerNodeList[0].Definition.Name, workerNodeList[1].Definition.Name,
 					bondNetworksV6DiffPFSmall, bondNetworksV6DiffPFJumbo,
 					staticBondIPs(
@@ -262,7 +251,7 @@ var _ = Describe(
 
 				runBondScenario(
 					sriovenv.BondModeActiveBackup,
-					mtu1280, mtu9000,
+					sriovenv.BondMTU1280, sriovenv.BondMTU9000,
 					workerNodeList[0].Definition.Name, workerNodeList[1].Definition.Name,
 					bondNetworksV6SamePFSmall, bondNetworksV6SamePFJumbo,
 					staticBondIPs(
@@ -279,7 +268,7 @@ var _ = Describe(
 
 				runBondScenario(
 					sriovenv.BondModeActiveBackup,
-					mtu1280, mtu9000,
+					sriovenv.BondMTU1280, sriovenv.BondMTU9000,
 					workerNodeList[0].Definition.Name, workerNodeList[1].Definition.Name,
 					bondNetworksV6DiffPFSmall, bondNetworksV6DiffPFJumbo,
 					whereaboutsBondIPs(),
@@ -293,7 +282,7 @@ var _ = Describe(
 
 				runBondScenario(
 					sriovenv.BondModeActiveBackup,
-					mtu1280, mtu9000,
+					sriovenv.BondMTU1280, sriovenv.BondMTU9000,
 					workerNodeList[0].Definition.Name, workerNodeList[1].Definition.Name,
 					bondNetworksV6SamePFSmall, bondNetworksV6SamePFJumbo,
 					whereaboutsBondIPs(),
@@ -321,7 +310,7 @@ var _ = Describe(
 
 				runBondScenario(
 					sriovenv.BondModeBalanceRR,
-					mtu1280, mtu9000,
+					sriovenv.BondMTU1280, sriovenv.BondMTU9000,
 					workerNodeList[0].Definition.Name, workerNodeList[1].Definition.Name,
 					bondNetworksV4DiffPFSmall, bondNetworksV4DiffPFJumbo,
 					staticBondIPs(
@@ -338,7 +327,7 @@ var _ = Describe(
 
 				runBondScenario(
 					sriovenv.BondModeBalanceXOR,
-					mtu1280, mtu9000,
+					sriovenv.BondMTU1280, sriovenv.BondMTU9000,
 					workerNodeList[0].Definition.Name, workerNodeList[1].Definition.Name,
 					bondNetworksV4DiffPFSmall, bondNetworksV4DiffPFJumbo,
 					staticBondIPs(
@@ -355,7 +344,7 @@ var _ = Describe(
 
 				runBondScenario(
 					sriovenv.BondModeBalanceRR,
-					mtu1280, mtu9000,
+					sriovenv.BondMTU1280, sriovenv.BondMTU9000,
 					workerNodeList[0].Definition.Name, workerNodeList[1].Definition.Name,
 					bondNetworksV6DiffPFSmall, bondNetworksV6DiffPFJumbo,
 					staticBondIPs(
@@ -372,7 +361,7 @@ var _ = Describe(
 
 				runBondScenario(
 					sriovenv.BondModeBalanceXOR,
-					mtu1280, mtu9000,
+					sriovenv.BondMTU1280, sriovenv.BondMTU9000,
 					workerNodeList[0].Definition.Name, workerNodeList[1].Definition.Name,
 					bondNetworksV6DiffPFSmall, bondNetworksV6DiffPFJumbo,
 					staticBondIPs(
@@ -450,14 +439,14 @@ var _ = Describe(
 
 				By("Removing functional bond SR-IOV policies before scale setup")
 
-				Expect(deleteBondSriovPolicies(bondFunctionalPolicyNames)).To(Succeed(),
+				Expect(sriovenv.DeleteBondSriovPolicies(sriovenv.BondFunctionalPolicyNames)).To(Succeed(),
 					"Failed to remove functional bond SR-IOV policies before scale tests")
 
 				By("Creating shared SR-IOV policies and networks for 16-VF scale tests")
 
 				// Match functional policy NumVfs (PF total across workers) so scale setup does not
 				// change configured VF count after removing functional policies.
-				createBondScalePolicies(mtu1280, 0, pf1Total, pf2Total)
+				createBondScalePolicies(sriovenv.BondMTU1280, 0, pf1Total, pf2Total)
 
 				err = sriovenv.CreateSriovBondNetwork(scaleNetA, scaleResA)
 				Expect(err).ToNot(HaveOccurred(), "Failed to create scale SR-IOV network A")
@@ -535,7 +524,7 @@ var _ = Describe(
 
 				runBondScaleICMPTest(
 					scaleBondNADIPv4, scaleNetA, scaleNetB,
-					mtu1280,
+					sriovenv.BondMTU1280,
 					tsparams.ServerIPv4IPAddress, tsparams.ClientIPv4IPAddress, "/32",
 				)
 			})
@@ -547,7 +536,7 @@ var _ = Describe(
 
 				runBondScaleICMPTest(
 					scaleBondNADIPv6, scaleNetA, scaleNetB,
-					mtu1280,
+					sriovenv.BondMTU1280,
 					tsparams.ServerIPv6IPAddress, tsparams.ClientIPv6IPAddress, "/128",
 				)
 			})
@@ -821,132 +810,6 @@ func createBondedPodsPair(
 	return serverPod, clientPod
 }
 
-// bondNetworkConfig describes a single SR-IOV network for bond slave creation.
-type bondNetworkConfig struct {
-	name,
-	resource string
-}
-
-type bondStackParams struct {
-	pf1,
-	pf2 string
-	pf1NumVFs,
-	pf2NumVFs int
-	vfSmallStart,
-	vfSmallEnd,
-	vfLargeStart,
-	vfLargeEnd int
-	networks []bondNetworkConfig
-}
-
-// bondFunctionalPolicyNames are the shared MTU-split policies created by setupBondStack.
-var bondFunctionalPolicyNames = []string{
-	"bond-policy-pf1-mtu1280",
-	"bond-policy-pf1-mtu9000",
-	"bond-policy-pf2-mtu1280",
-	"bond-policy-pf2-mtu9000",
-}
-
-// bondSriovPolicyNames lists bond suite policy names from current and prior revisions.
-var bondSriovPolicyNames = []string{
-	"ipv4-policy-pf1-mtu500",
-	"ipv4-policy-pf1-mtu9000",
-	"ipv4-policy-pf2-mtu500",
-	"ipv4-policy-pf2-mtu9000",
-	"ipv6-policy-pf1-mtu1280",
-	"ipv6-policy-pf1-mtu9000",
-	"ipv6-policy-pf2-mtu1280",
-	"ipv6-policy-pf2-mtu9000",
-	"bond-policy-pf1-mtu1280",
-	"bond-policy-pf1-mtu9000",
-	"bond-policy-pf2-mtu1280",
-	"bond-policy-pf2-mtu9000",
-	"bond-scale-policy-pf1",
-	"bond-scale-policy-pf2",
-	"bond-scale-policy-pf1-ipv6",
-	"bond-scale-policy-pf2-ipv6",
-}
-
-func deleteBondSriovPolicies(policyNames []string) error {
-	deleted := false
-
-	for _, name := range policyNames {
-		policy, pullErr := sriov.PullPolicy(APIClient, name, NetConfig.SriovOperatorNamespace)
-		if pullErr != nil {
-			continue
-		}
-
-		if err := policy.Delete(); err != nil {
-			return fmt.Errorf("failed to delete SR-IOV policy %s: %w", name, err)
-		}
-
-		deleted = true
-	}
-
-	if !deleted {
-		return nil
-	}
-
-	return sriovoperator.WaitForSriovAndMCPStable(
-		APIClient, tsparams.MCOWaitTimeout, tsparams.DefaultStableDuration,
-		NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
-}
-
-func cleanupStaleBondSriovPolicies() error {
-	return deleteBondSriovPolicies(bondSriovPolicyNames)
-}
-
-// selectBondVFLayout returns VF ranges for shared 1280/9000 bond policies on each PF.
-func selectBondVFLayout(minTotal int) (vfSmallEnd, vfLargeStart, vfLargeEnd int, ok bool) {
-	if minTotal < bondMinVFsPerPF {
-		return 0, 0, 0, false
-	}
-
-	switch {
-	case minTotal >= bondMinVFsStandardLayout:
-		// Standard layout: small MTU VFs 0-4, jumbo MTU VFs 5-9.
-		return 4, 5, 9, true
-	default:
-		// Five-VF layout: small MTU VFs 0-1, jumbo MTU VFs 2-4.
-		return 1, 2, 4, true
-	}
-}
-
-func setupBondStack(params bondStackParams) {
-	By("Creating shared SR-IOV policies and networks for bond tests")
-
-	policies := []struct {
-		pfSuffix string
-		resource string
-		pf       string
-		numVFs   int
-		mtu      int
-		vfStart  int
-		vfEnd    int
-	}{
-		{"pf1", bondResourcePF1Small, params.pf1, params.pf1NumVFs, mtu1280, params.vfSmallStart, params.vfSmallEnd},
-		{"pf1", bondResourcePF1Jumbo, params.pf1, params.pf1NumVFs, mtu9000, params.vfLargeStart, params.vfLargeEnd},
-		{"pf2", bondResourcePF2Small, params.pf2, params.pf2NumVFs, mtu1280, params.vfSmallStart, params.vfSmallEnd},
-		{"pf2", bondResourcePF2Jumbo, params.pf2, params.pf2NumVFs, mtu9000, params.vfLargeStart, params.vfLargeEnd},
-	}
-
-	for _, policy := range policies {
-		policyName := fmt.Sprintf("bond-policy-%s-mtu%d", policy.pfSuffix, policy.mtu)
-
-		Expect(sriovenv.CreateSriovPolicy(
-			policyName, policy.resource, policy.pf, policy.mtu, policy.vfStart, policy.vfEnd, policy.numVFs,
-		)).To(Succeed(), "Failed to create bond %s MTU%d policy", policy.pfSuffix, policy.mtu)
-	}
-
-	Expect(sriovoperator.WaitForSriovAndMCPStable(
-		APIClient, tsparams.MCOWaitTimeout, tsparams.DefaultStableDuration,
-		NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)).
-		To(Succeed(), "Failed to wait for SR-IOV and MCP stability after bond policies")
-
-	Expect(createBondSlaveNetworks(params.networks)).
-		To(Succeed(), "Failed to create bond slave networks")
-}
-
 func bondSlaveNetworkConfigs(
 	diffPFSmall,
 	diffPFJumbo,
@@ -956,28 +819,17 @@ func bondSlaveNetworkConfigs(
 	resPF1Jumbo,
 	resPF2Small,
 	resPF2Jumbo string,
-) []bondNetworkConfig {
-	return []bondNetworkConfig{
-		{name: diffPFSmall[0], resource: resPF1Small},
-		{name: diffPFJumbo[0], resource: resPF1Jumbo},
-		{name: diffPFSmall[1], resource: resPF2Small},
-		{name: diffPFJumbo[1], resource: resPF2Jumbo},
-		{name: samePFSmall[0], resource: resPF1Small},
-		{name: samePFSmall[1], resource: resPF1Small},
-		{name: samePFJumbo[0], resource: resPF1Jumbo},
-		{name: samePFJumbo[1], resource: resPF1Jumbo},
+) []sriovenv.BondNetworkConfig {
+	return []sriovenv.BondNetworkConfig{
+		{Name: diffPFSmall[0], Resource: resPF1Small},
+		{Name: diffPFJumbo[0], Resource: resPF1Jumbo},
+		{Name: diffPFSmall[1], Resource: resPF2Small},
+		{Name: diffPFJumbo[1], Resource: resPF2Jumbo},
+		{Name: samePFSmall[0], Resource: resPF1Small},
+		{Name: samePFSmall[1], Resource: resPF1Small},
+		{Name: samePFJumbo[0], Resource: resPF1Jumbo},
+		{Name: samePFJumbo[1], Resource: resPF1Jumbo},
 	}
-}
-
-// createBondSlaveNetworks creates bond slave SriovNetworks without IPAM (Trust on, SpoofChk off, LinkState auto).
-func createBondSlaveNetworks(configs []bondNetworkConfig) error {
-	for _, cfg := range configs {
-		if err := sriovenv.CreateSriovBondNetwork(cfg.name, cfg.resource); err != nil {
-			return fmt.Errorf("failed to create network %s: %w", cfg.name, err)
-		}
-	}
-
-	return nil
 }
 
 func bondICMPDestination(serverIPWithCIDR string) string {
@@ -1196,7 +1048,7 @@ func bondNADNamesForCleanup() []string {
 		sriovenv.BondModeBalanceRR,
 		sriovenv.BondModeBalanceXOR,
 	}
-	mtus := []int{mtu1280, mtu9000}
+	mtus := []int{sriovenv.BondMTU1280, sriovenv.BondMTU9000}
 
 	seen := make(map[string]struct{})
 
@@ -1227,7 +1079,14 @@ func bondNADNamesForCleanup() []string {
 	return names
 }
 
-func setupBondSwitchLAGForActiveActiveTests() error {
+// setupBondSwitchLAG configures numLags static switch LAGs (2 ports each) from NetConfig.
+func setupBondSwitchLAG(numLags int) error {
+	if numLags < 1 {
+		return fmt.Errorf("numLags must be >= 1, got %d", numLags)
+	}
+
+	needPorts := 2 * numLags
+
 	var err error
 
 	if bondSwitchCredentials == nil {
@@ -1252,12 +1111,20 @@ func setupBondSwitchLAGForActiveActiveTests() error {
 		return fmt.Errorf("switch LAG names: %w", err)
 	}
 
+	if len(bondSwitchLagNames) < numLags {
+		return fmt.Errorf("need at least %d switch LAG name(s), got %d", numLags, len(bondSwitchLagNames))
+	}
+
+	bondSwitchInterfaces = bondSwitchInterfaces[:needPorts]
+	bondSwitchLagNames = bondSwitchLagNames[:numLags]
+
 	nativeVLAN, err := NetConfig.GetNativeVLANID()
 	if err != nil {
 		return fmt.Errorf("native VLAN: %w", err)
 	}
 
-	klog.Infof("Bond switch LAG native VLAN %d", nativeVLAN)
+	klog.Infof("Bond switch LAG native VLAN %d (lags=%v ports=%v)",
+		nativeVLAN, bondSwitchLagNames, bondSwitchInterfaces)
 
 	bondSwitchSavedConfigs, err = configureStaticLAGsOnSwitch(
 		bondSwitchCredentials, bondSwitchInterfaces, bondSwitchLagNames)
@@ -1278,6 +1145,10 @@ func setupBondSwitchLAGForActiveActiveTests() error {
 	klog.Infof("Configured static switch LAGs %v on ports %v", bondSwitchLagNames, bondSwitchInterfaces)
 
 	return nil
+}
+
+func setupBondSwitchLAGForActiveActiveTests() error {
+	return setupBondSwitchLAG(2)
 }
 
 func restoreBondSwitchLAGAfterActiveActiveTest() {
@@ -1313,18 +1184,19 @@ func bondStaticLAGCleanupCommands(physicalInterfaces, lagInterfaces []string) []
 	return cleanupCommands
 }
 
-// configureStaticLAGsOnSwitch mirrors cnf-gotests configureLAGsOnSwitch: wipe the four physical
-// ports, create two static (non-LACP) 802.3ad LAGs, and trunk lab VLANs on each ae.
+// configureStaticLAGsOnSwitch mirrors cnf-gotests configureLAGsOnSwitch: wipe the physical
+// ports, create static (non-LACP) 802.3ad LAGs, and trunk lab VLANs on each ae.
 func configureStaticLAGsOnSwitch(
 	credentials *sriovenv.SwitchCredentials,
 	physicalInterfaces, lagInterfaces []string,
 ) ([]string, error) {
-	if len(physicalInterfaces) != bondMinSwitchInterfaces {
-		return nil, fmt.Errorf("need %d switch interfaces, got %d", bondMinSwitchInterfaces, len(physicalInterfaces))
+	if len(lagInterfaces) < 1 {
+		return nil, fmt.Errorf("need at least 1 switch LAG name, got %d", len(lagInterfaces))
 	}
 
-	if len(lagInterfaces) != 2 {
-		return nil, fmt.Errorf("need 2 switch LAG names, got %d", len(lagInterfaces))
+	if len(physicalInterfaces) != 2*len(lagInterfaces) {
+		return nil, fmt.Errorf("need %d switch interfaces for %d LAG(s), got %d",
+			2*len(lagInterfaces), len(lagInterfaces), len(physicalInterfaces))
 	}
 
 	jnpr, err := cmd.NewSession(credentials.SwitchIP, credentials.User, credentials.Password)
@@ -1353,15 +1225,13 @@ func configureStaticLAGsOnSwitch(
 			fmt.Errorf("native VLAN: %w", err))
 	}
 
-	lagMembers := [][2]string{
-		{physicalInterfaces[0], physicalInterfaces[1]},
-		{physicalInterfaces[2], physicalInterfaces[3]},
-	}
-
 	var configureCommands []string
 
 	for idx, lagInterface := range lagInterfaces {
-		for _, physicalInterface := range lagMembers[idx] {
+		memberA := physicalInterfaces[idx*2]
+		memberB := physicalInterfaces[idx*2+1]
+
+		for _, physicalInterface := range []string{memberA, memberB} {
 			configureCommands = append(configureCommands,
 				fmt.Sprintf("set interfaces %s ether-options 802.3ad %s", physicalInterface, lagInterface))
 		}
@@ -1449,7 +1319,7 @@ func bondWhereaboutsIPAMForMTU(mtu int) (ipRange, gateway string) {
 	ipRange = tsparams.WhereaboutsIPv6Range
 	gateway = tsparams.WhereaboutsIPv6Gateway
 
-	if mtu >= mtu9000 {
+	if mtu >= sriovenv.BondMTU9000 {
 		ipRange = tsparams.WhereaboutsIPv6Range2
 		gateway = tsparams.WhereaboutsIPv6Gateway2
 	}
