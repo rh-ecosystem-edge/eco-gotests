@@ -9,7 +9,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/diskpartitioning/internal/tsparams"
-	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/internal/coreinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/internal/coreinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
@@ -25,7 +25,7 @@ var _ = Describe("Disk Partitioning", Label(tsparams.LabelDiskPartitioningTestCa
 			By("Checking that /var/lib/containers is a separate mount point on worker nodes")
 
 			outputs, err := cluster.ExecCmdWithStdoutWithRetries(
-				APIClient, 3, 10*time.Second,
+				coreinittools.APIClient, 3, 10*time.Second,
 				fmt.Sprintf("findmnt -n %s", tsparams.ContainersMountPoint),
 				workerListOptions,
 			)
@@ -45,7 +45,7 @@ var _ = Describe("Disk Partitioning", Label(tsparams.LabelDiskPartitioningTestCa
 			By("Checking the filesystem type of /var/lib/containers on worker nodes")
 
 			fsTypes, err := cluster.ExecCmdWithStdoutWithRetries(
-				APIClient, 3, 10*time.Second,
+				coreinittools.APIClient, 3, 10*time.Second,
 				fmt.Sprintf("findmnt -n -o FSTYPE %s", tsparams.ContainersMountPoint),
 				workerListOptions,
 			)
@@ -65,7 +65,7 @@ var _ = Describe("Disk Partitioning", Label(tsparams.LabelDiskPartitioningTestCa
 			By("Checking the mount source of /var/lib/containers on worker nodes")
 
 			sources, err := cluster.ExecCmdWithStdoutWithRetries(
-				APIClient, 3, 10*time.Second,
+				coreinittools.APIClient, 3, 10*time.Second,
 				fmt.Sprintf("findmnt -n -o SOURCE %s", tsparams.ContainersMountPoint),
 				workerListOptions,
 			)
@@ -86,7 +86,7 @@ var _ = Describe("Disk Partitioning", Label(tsparams.LabelDiskPartitioningTestCa
 			By("Checking the systemd mount unit status on worker nodes")
 
 			statuses, err := cluster.ExecCmdWithStdoutWithRetries(
-				APIClient, 3, 10*time.Second,
+				coreinittools.APIClient, 3, 10*time.Second,
 				fmt.Sprintf("systemctl is-active %s", tsparams.ContainersMountUnit),
 				workerListOptions,
 			)
