@@ -335,14 +335,14 @@ func (builder *Builder) WithMasterPlugin(masterPlugin *MasterPlugin) *Builder {
 		return builder
 	}
 
-	masterPluginSting, err := json.Marshal(masterPlugin)
+	masterPluginString, err := json.Marshal(masterPlugin)
 	if err != nil {
 		builder.errorMsg = err.Error()
 
 		return builder
 	}
 
-	builder.Definition.Spec.Config = string(masterPluginSting)
+	builder.Definition.Spec.Config = string(masterPluginString)
 
 	return builder
 }

@@ -58,6 +58,7 @@ type (
 		VlanID           uint16      `json:"vlanId,omitempty"`
 		FailOverMac      int         `json:"failOverMac,omitempty"`
 		Miimon           string      `json:"miimon,omitempty"`
+		XmitHashPolicy   string      `json:"xmitHashPolicy,omitempty"`
 		Mtu              int         `json:"mtu,omitempty"`
 		Links            []Link      `json:"links,omitempty"`
 		Capabilities     *Capability `json:"capabilities,omitempty"`

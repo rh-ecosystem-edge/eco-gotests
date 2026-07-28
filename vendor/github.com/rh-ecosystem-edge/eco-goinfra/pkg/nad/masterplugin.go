@@ -16,8 +16,9 @@ const (
 
 var (
 	// allowedMacVlanMode represents all allowed modes for macvlan plugin type.
-	allowedMacVlanMode      = []string{"bridge", "passthru", "private", "vepa"}
-	invalidIpamParameterMsg = "invalid ipam parameter"
+	allowedMacVlanMode       = []string{"bridge", "passthru", "private", "vepa"}
+	invalidIpamParameterMsg  = "invalid ipam parameter"
+	invalidXmitHashPolicyMsg = "error adding incorrect xmitHashPolicy value to MasterBondPlugin"
 )
 
 // MasterMacVlanPlugin provides struct for NetworkAttachmentDefinition Master plugin with macvlan configuration.
@@ -492,7 +493,7 @@ func (plugin *MasterBondPlugin) WithFailOverMac(failOverMac int) *MasterBondPlug
 
 // WithMiimon defines Miimon configuration to MasterBondPlugin.
 func (plugin *MasterBondPlugin) WithMiimon(miimon int) *MasterBondPlugin {
-	klog.V(100).Infof("Adding miimon %d to MasterBoundPlugin", miimon)
+	klog.V(100).Infof("Adding miimon %d to MasterBondPlugin", miimon)
 
 	if miimon < 0 {
 		klog.V(100).Infof("error adding incorrect miimon value %d to MasterBondPlugin", miimon)
@@ -503,6 +504,29 @@ func (plugin *MasterBondPlugin) WithMiimon(miimon int) *MasterBondPlugin {
 	}
 
 	plugin.masterPlugin.Miimon = fmt.Sprintf("%d", miimon)
+
+	return plugin
+}
+
+// WithXmitHashPolicy defines xmitHashPolicy configuration to MasterBondPlugin.
+func (plugin *MasterBondPlugin) WithXmitHashPolicy(xmitHashPolicy string) *MasterBondPlugin {
+	klog.V(100).Infof("Adding xmitHashPolicy %s to MasterBondPlugin", xmitHashPolicy)
+
+	validPolicies := map[string]bool{
+		"layer2":   true,
+		"layer2+3": true,
+		"layer3+4": true,
+	}
+
+	if !validPolicies[xmitHashPolicy] {
+		klog.V(100).Infof("error adding incorrect xmitHashPolicy value %s to MasterBondPlugin", xmitHashPolicy)
+
+		plugin.errorMsg = invalidXmitHashPolicyMsg
+
+		return plugin
+	}
+
+	plugin.masterPlugin.XmitHashPolicy = xmitHashPolicy
 
 	return plugin
 }
