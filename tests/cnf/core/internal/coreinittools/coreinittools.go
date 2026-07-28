@@ -15,7 +15,7 @@ var (
 	CoreConfig *coreconfig.CoreConfig
 )
 
-func init() {
+func init() { //nolint:gochecknoinits
 	klog.LogToStderr(false)
 	klog.SetOutput(ginkgo.GinkgoWriter)
 
