@@ -17,6 +17,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
+	mocksmo "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/oran-mock-smo"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/shell"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/o-cloud/internal/ocloudinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/o-cloud/internal/ocloudparams"
@@ -92,13 +93,13 @@ func matchesExtensions(extensions map[string]string, filters map[string]string) 
 // createAlarmSubscription creates a new alarm subscription and returns the subscription info.
 func createAlarmSubscription(alarmsClient *oranapi.AlarmsClient) oranapi.AlarmSubscriptionInfo {
 	By("creating a new subscription")
-	Expect(OCloudConfig.SubscriberURL).ToNot(BeEmpty(), "Subscriber URL is not set")
+	Expect(OCloudConfig.MockSMOBaseURL).ToNot(BeEmpty(), "Mock SMO base URL is not set")
 
 	subscriptionID := uuid.New()
 
 	subscription, err := alarmsClient.CreateSubscription(oranapi.AlarmSubscriptionInfo{
 		ConsumerSubscriptionId: &subscriptionID,
-		Callback:               OCloudConfig.SubscriberURL + "/" + subscriptionID.String(),
+		Callback:               mocksmo.ObserverCallbackURL(OCloudConfig.MockSMOBaseURL, subscriptionID.String()),
 	})
 	Expect(err).ToNot(HaveOccurred(), "Failed to create a new subscription")
 

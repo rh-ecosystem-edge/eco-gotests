@@ -117,6 +117,8 @@ These inputs are specific to the O-RAN test suite.
 * `ECO_CNF_RAN_O2IMS_OAUTH_CLIENT_SECRET`: Client secret for requesting an access token from the OAuth endpoint.
 * `ECO_CNF_RAN_O2IMS_TOKEN`: Token for authenticating with the O2IMS API (used when OAuth is not configured).
 * `ECO_CNF_RAN_CLUSTER_TEMPLATE_AFFIX`: Version-dependent affix for naming ClusterTemplates and O-RAN resources.
+* `ECO_CNF_RAN_MOCK_SMO_NAMESPACE`: Namespace where the mock SMO is deployed.
+* `ECO_CNF_RAN_MOCK_SMO_SUBDOMAIN`: Subdomain for the mock SMO route (the SMO registered in the inventory CR).
 
 ### Running the RAN test suites
 

@@ -20,7 +20,7 @@ registry_5005: ""
 registry_5000: ""
 ssh_key: ""
 pull_secret: ""
-registry_certificate: "" 
+registry_certificate: ""
 interface_name: ""
 interface_ipv6_1: ""
 interface_ipv6_2: ""
@@ -56,6 +56,5 @@ hostname2: ""
 
 authfile_path: /kubeconfig/docker/config.json
 
-subscriber_url: ""
-subscriber_domain: ""
+mock_smo_base_url: ""
 o2ims_base_url: ""

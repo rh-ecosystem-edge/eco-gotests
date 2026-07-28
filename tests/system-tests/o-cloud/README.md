@@ -51,6 +51,5 @@
 | `ECO_OCLOUD_HOSTNAME_1` | _(empty)_ | Hostname of the first cluster node |
 | `ECO_OCLOUD_HOSTNAME_2` | _(empty)_ | Hostname of the second cluster node |
 | `ECO_OCLOUD_AUTHFILE_PATH` | `/kubeconfig/docker/config.json` | Path to the auth file for Skopeo commands |
-| `ECO_OCLOUD_SUBSCRIBER_URL` | _(empty)_ | URL of the O-Cloud event subscriber |
-| `ECO_OCLOUD_SUBSCRIBER_DOMAIN` | _(empty)_ | Domain of the O-Cloud event subscriber |
+| `ECO_OCLOUD_MOCK_SMO_BASE_URL` | _(empty)_ | Base URL of the mock SMO used for alarm subscription callbacks |
 | `ECO_OCLOUD_O2IMS_BASE_URL` | _(empty)_ | Base URL for the O2IMS API |

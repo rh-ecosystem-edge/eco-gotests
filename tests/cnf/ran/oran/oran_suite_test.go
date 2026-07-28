@@ -14,7 +14,6 @@ import (
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/tsparams"
 	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/tests"
-	subscriber "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/oran-subscriber"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/reporter"
 )
 
@@ -33,19 +32,6 @@ var _ = BeforeSuite(func() {
 
 	isHubPresent := rancluster.AreClustersPresent([]*clients.Settings{HubAPIClient})
 	Expect(isHubPresent).To(BeTrue(), "Hub cluster must be present for O-RAN tests")
-
-	By("deploying the subscriber for alarm notifications")
-
-	subscriberDomain := RANConfig.GetAppsURL(tsparams.SubscriberSubdomain)
-	err := subscriber.Deploy(HubAPIClient, tsparams.SubscriberNamespace, subscriberDomain, "")
-	Expect(err).ToNot(HaveOccurred(), "Failed to deploy subscriber")
-})
-
-var _ = AfterSuite(func() {
-	By("cleaning up the subscriber deployment")
-
-	err := subscriber.Cleanup(HubAPIClient, tsparams.SubscriberNamespace)
-	Expect(err).ToNot(HaveOccurred(), "Failed to cleanup subscriber")
 })
 
 var _ = JustAfterEach(func() {

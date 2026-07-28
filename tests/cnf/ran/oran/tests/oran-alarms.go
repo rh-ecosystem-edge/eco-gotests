@@ -20,13 +20,13 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/auth"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/helper"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/tsparams"
-	subscriber "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/oran-subscriber"
+	mocksmo "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/oran-mock-smo"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 )
 
-// subscriberURL is the URL of the subscriber, including the scheme. It should not be modified.
-var subscriberURL = "https://" + RANConfig.GetAppsURL(tsparams.SubscriberSubdomain)
+// mockSMOBaseURL is the base URL of the mock SMO, including the scheme.
+var mockSMOBaseURL = "https://" + RANConfig.GetAppsURL(RANConfig.MockSMOSubdomain)
 
 var _ = Describe("ORAN Alarms Tests", Label(tsparams.LabelPostProvision, tsparams.LabelAlarms), func() {
 	var (
@@ -142,7 +142,7 @@ var _ = Describe("ORAN Alarms Tests", Label(tsparams.LabelPostProvision, tsparam
 		subscriptionID := uuid.New()
 		subscription, err := alarmsClient.CreateSubscription(oranapi.AlarmSubscriptionInfo{
 			ConsumerSubscriptionId: &subscriptionID,
-			Callback:               subscriberURL + "/" + subscriptionID.String(),
+			Callback:               mocksmo.ObserverCallbackURL(mockSMOBaseURL, subscriptionID.String()),
 		})
 		Expect(err).ToNot(HaveOccurred(), "Failed to create test subscription")
 
@@ -159,9 +159,10 @@ var _ = Describe("ORAN Alarms Tests", Label(tsparams.LabelPostProvision, tsparam
 
 		By("waiting for the notification")
 
-		err = subscriber.WaitForNotification(HubAPIClient, tsparams.SubscriberNamespace,
-			subscriber.WithStart(timeBeforeAcknowledge),
-			subscriber.WithMatchFunc(func(notification *oranapi.AlarmEventNotification) bool {
+		err = mocksmo.WaitForNotification(HubAPIClient, RANConfig.MockSMONamespace,
+			mocksmo.WithStart(timeBeforeAcknowledge),
+			mocksmo.WithObserverID(subscriptionID.String()),
+			mocksmo.WithMatchFunc(func(notification *oranapi.AlarmEventNotification) bool {
 				return notification.Extensions["tracker"] == tracker &&
 					notification.NotificationEventType == oranapi.AlarmEventNotificationTypeACKNOWLEDGE
 			}),
@@ -182,7 +183,7 @@ var _ = Describe("ORAN Alarms Tests", Label(tsparams.LabelPostProvision, tsparam
 		subscription1, err := alarmsClient.CreateSubscription(oranapi.AlarmSubscriptionInfo{
 			ConsumerSubscriptionId: &subscriptionID1,
 			// Callback URLs must be unique, so we use the subscription ID as a suffix.
-			Callback: subscriberURL + "/" + subscriptionID1.String(),
+			Callback: mocksmo.ObserverCallbackURL(mockSMOBaseURL, subscriptionID1.String()),
 		})
 		Expect(err).ToNot(HaveOccurred(), "Failed to create first test subscription")
 
@@ -192,7 +193,7 @@ var _ = Describe("ORAN Alarms Tests", Label(tsparams.LabelPostProvision, tsparam
 		subscription2, err := alarmsClient.CreateSubscription(oranapi.AlarmSubscriptionInfo{
 			ConsumerSubscriptionId: &subscriptionID2,
 			// Callback URLs must be unique, so we use the subscription ID as a suffix.
-			Callback: subscriberURL + "/" + subscriptionID2.String(),
+			Callback: mocksmo.ObserverCallbackURL(mockSMOBaseURL, subscriptionID2.String()),
 		})
 		Expect(err).ToNot(HaveOccurred(), "Failed to create second test subscription")
 
@@ -234,7 +235,7 @@ var _ = Describe("ORAN Alarms Tests", Label(tsparams.LabelPostProvision, tsparam
 		subscription, err := alarmsClient.CreateSubscription(oranapi.AlarmSubscriptionInfo{
 			ConsumerSubscriptionId: &subscriptionID,
 			// Callback URLs must be unique, so we use the subscription ID as a suffix.
-			Callback: subscriberURL + "/" + subscriptionID.String(),
+			Callback: mocksmo.ObserverCallbackURL(mockSMOBaseURL, subscriptionID.String()),
 		})
 		Expect(err).ToNot(HaveOccurred(), "Failed to create test subscription")
 
@@ -306,7 +307,7 @@ var _ = Describe("ORAN Alarms Tests", Label(tsparams.LabelPostProvision, tsparam
 		subscriptionID := uuid.New()
 		subscription, err := alarmsClient.CreateSubscription(oranapi.AlarmSubscriptionInfo{
 			ConsumerSubscriptionId: &subscriptionID,
-			Callback:               subscriberURL + "/" + subscriptionID.String(),
+			Callback:               mocksmo.ObserverCallbackURL(mockSMOBaseURL, subscriptionID.String()),
 			Filter:                 ptr.To(oranapi.AlarmSubscriptionFilterNEW),
 		})
 		Expect(err).ToNot(HaveOccurred(), "Failed to create test subscription")
@@ -322,7 +323,7 @@ var _ = Describe("ORAN Alarms Tests", Label(tsparams.LabelPostProvision, tsparam
 		By("waiting for all notifications to be received")
 		// This process really can take a while, so the timeout is necessarily long.
 		err = helper.WaitForAllNotifications(
-			HubAPIClient, tsparams.SubscriberNamespace, timeBeforeSend, sentAlerts, 20*time.Minute)
+			HubAPIClient, RANConfig.MockSMONamespace, subscriptionID.String(), timeBeforeSend, sentAlerts, 20*time.Minute)
 		Expect(err).ToNot(HaveOccurred(), "Failed to receive all notifications")
 		Expect(sentAlerts).To(BeEmpty(), "All alerts should have been received")
 

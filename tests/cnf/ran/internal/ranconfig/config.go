@@ -45,6 +45,13 @@ type RANConfig struct {
 	TalmPreCachePolicies  []string `yaml:"talmPreCachePolicies" envconfig:"ECO_CNF_RAN_TALM_PRECACHE_POLICIES"`
 	ZtpSiteGenerateImage  string   `yaml:"ztpSiteGenerateImage" envconfig:"ECO_CNF_RAN_ZTP_SITE_GENERATE_IMAGE"`
 
+	// MockSMONamespace is the namespace where the mock SMO is deployed. It is optional and only used for the O-RAN
+	// suite.
+	MockSMONamespace string `yaml:"mockSmoNamespace" envconfig:"ECO_CNF_RAN_MOCK_SMO_NAMESPACE"`
+	// MockSMOSubdomain is the subdomain for the mock SMO route. It should be the SMO registered in the inventory CR. It
+	// is optional and only used for the O-RAN suite.
+	MockSMOSubdomain string `yaml:"mockSmoSubdomain" envconfig:"ECO_CNF_RAN_MOCK_SMO_SUBDOMAIN"`
+
 	// PtpEventConsumerImage is the URL of the PTP event consumer image. It should not have a tag, since the
 	// expectation is that the program uses v1 or v2 as a tag.
 	PtpEventConsumerImage string `yaml:"ptpEventConsumerImage" envconfig:"ECO_CNF_RAN_PTP_EVENT_CONSUMER_IMAGE"`

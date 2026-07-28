@@ -16,7 +16,7 @@ import (
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/tsparams"
-	subscriber "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/oran-subscriber"
+	mocksmo "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/oran-mock-smo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
@@ -204,11 +204,12 @@ func matchesExtensions(extensions map[string]string, matchingExtensions map[stri
 }
 
 // WaitForAllNotifications waits up to timeout until all the expected trackers have been received as notifications by
-// the subscriber. The expectedTrackers map is modified in place as trackers are found; when all trackers are received,
-// the map will be empty.
+// the mock SMO observer echo endpoint. The expectedTrackers map is modified in place as trackers are found; when all
+// trackers are received, the map will be empty.
 func WaitForAllNotifications(
 	client *clients.Settings,
 	namespace string,
+	observerID string,
 	startTime time.Time,
 	expectedTrackers map[string]bool,
 	timeout time.Duration) error {
@@ -219,7 +220,7 @@ func WaitForAllNotifications(
 			// duplicates.
 			newStartTime := time.Now()
 
-			receivedNotifications, err := subscriber.ListReceivedNotifications(client, namespace, startTime)
+			receivedNotifications, err := mocksmo.ListReceivedNotifications(client, namespace, startTime, observerID)
 			if err != nil {
 				klog.V(tsparams.LogLevel).Infof("Failed to list received notifications: %v", err)
 

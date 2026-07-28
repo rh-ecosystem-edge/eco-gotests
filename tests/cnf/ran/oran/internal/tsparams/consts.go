@@ -117,13 +117,5 @@ const (
 	TestBase64Credential = "d3JvbmdwYXNzd29yZA=="
 )
 
-const (
-	// SubscriberSubdomain is the subdomain for the subscriber deployment. It is expected that there exists a *.apps
-	// route for this subdomain.
-	SubscriberSubdomain = "oran-subscriber"
-	// SubscriberNamespace is the namespace for the subscriber deployment.
-	SubscriberNamespace = "oran-subscriber"
-)
-
 // LogLevel is the glog verbosity level to use for logs in this suite or its helpers.
 const LogLevel klog.Level = 80
