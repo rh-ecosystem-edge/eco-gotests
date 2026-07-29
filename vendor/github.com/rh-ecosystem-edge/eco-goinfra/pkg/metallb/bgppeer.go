@@ -611,6 +611,7 @@ func (builder *BGPPeerBuilder) WithDisableMP(disableMP bool) *BGPPeerBuilder {
 
 	klog.V(100).Infof("Setting BGPPeer %s disableMP to %t", builder.Definition.Name, disableMP)
 
+	//nolint:staticcheck // DisableMP is deprecated, keep for backward compatibility.
 	builder.Definition.Spec.DisableMP = disableMP
 
 	return builder
