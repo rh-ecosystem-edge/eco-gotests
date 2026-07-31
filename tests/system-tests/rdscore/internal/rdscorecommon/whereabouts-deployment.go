@@ -66,7 +66,7 @@ const (
 	// DefaultAffinityWeight value for the weight of the pod affinity or anti-affinity.
 	DefaultAffinityWeight = 100
 	// DefaultDeploymentTimeout value for the timeout of the deployment creation.
-	DefaultDeploymentTimeout = 5 * time.Minute
+	DefaultDeploymentTimeout = 10 * time.Minute
 	// DefaultDeploymentPollingInterval value for the polling interval of the deployment creation.
 	DefaultDeploymentPollingInterval = 15 * time.Second
 	// DefaultCleanupPollingInterval value for the polling interval of the cleanup.
