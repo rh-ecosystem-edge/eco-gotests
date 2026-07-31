@@ -104,7 +104,7 @@ var _ = Describe("PTP T-GM SMA Disconnect", Label(tsparams.LabelSMADisconnect), 
 
 				testRanAtLeastOnce = true
 
-				txInterface, err := profiles.GetGmInterfaceToGPS(gmProfile)
+				txInterface, err := profiles.GetGmInterfaceToGPS(gmProfile, gmProfileInfo.HardwareConfig)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get TX (GPS) interface for node %s", nodeName)
 
 				klog.V(tsparams.LogLevel).Infof("Node %s: RX interfaces: %v", nodeName, rxInterfaces)

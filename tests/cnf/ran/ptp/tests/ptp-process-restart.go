@@ -576,7 +576,7 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 				gmProfile, err := gmProfiles[0].PullProfile(RANConfig.Spoke1APIClient)
 				Expect(err).ToNot(HaveOccurred(), "Failed to pull GM profile for node %s", nodeInfo.Name)
 
-				protocolVersion, err := gnss.GetUbloxProtocolVersion(gmProfile)
+				protocolVersion, err := gnss.GetUbloxProtocolVersion(gmProfile, gmProfiles[0].HardwareConfig)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get u-blox protocol version for node %s", nodeInfo.Name)
 
 				By("restarting sidecar container in linuxptp-daemon")
@@ -617,7 +617,7 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 
 				By("waiting for GNSS sync event to confirm recovery")
 
-				gmInterface, err := profiles.GetGmInterfaceToGPS(gmProfile)
+				gmInterface, err := profiles.GetGmInterfaceToGPS(gmProfile, gmProfiles[0].HardwareConfig)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get GM interface to GPS for node %s", nodeInfo.Name)
 
 				gmInterfaceName := gmInterface.GetNIC()

@@ -125,50 +125,14 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 
 				By("getting the ublox protocol version for node " + nodeName)
 
-				protocolVersion, err := gnss.GetUbloxProtocolVersion(gmProfile)
+				protocolVersion, err := gnss.GetUbloxProtocolVersion(gmProfile, gmProfileInfo.HardwareConfig)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get ublox protocol version for node %s", nodeName)
 
-				ptpConfig, err := gmProfileInfo.Reference.PullPtpConfig(RANConfig.Spoke1APIClient)
-				Expect(err).ToNot(HaveOccurred(), "Failed to pull PtpConfig for node %s", nodeName)
-
-				profileToUpdate := &ptpConfig.Definition.Spec.Profile[gmProfileInfo.Reference.ProfileIndex]
-
-				desiredSettings := profiles.HoldoverPluginSettings{
+				ensureGMHoldoverSettings(nodeName, gmProfileInfo, profiles.HoldoverPluginSettings{
 					LocalHoldoverTimeout:   14400,
 					LocalMaxHoldoverOffSet: 1500,
 					MaxInSpecOffset:        1000,
-				}
-
-				currentSettings, err := profiles.GetHoldoverPluginSettings(profileToUpdate)
-				Expect(err).ToNot(HaveOccurred(), "Failed to get current holdover plugin settings")
-
-				if *currentSettings != desiredSettings {
-					By("setting plugin DPLL settings for extended holdover on node " + nodeName)
-
-					err = profiles.SetHoldoverPluginSettings(profileToUpdate, desiredSettings)
-					Expect(err).ToNot(HaveOccurred(), "Failed to set holdover plugin settings on node %s", nodeName)
-
-					configChangeTime := time.Now()
-
-					_, updateErr := ptpConfig.Update()
-					Expect(updateErr).ToNot(HaveOccurred(), "Failed to update PtpConfig for node %s", nodeName)
-
-					By("waiting for profile load after config change")
-
-					err = daemonlogs.WaitForProfileLoadOnPTPNodes(RANConfig.Spoke1APIClient,
-						daemonlogs.WithStartTime(configChangeTime),
-						daemonlogs.WithTimeout(eventTimeout))
-					Expect(err).ToNot(HaveOccurred(), "Failed to wait for profile load after config change")
-
-					By("ensuring clocks are locked and holdover plugin stabilizes")
-
-					err = metrics.EnsureClocksAreStable(prometheusAPI, 1*time.Minute)
-					Expect(err).ToNot(HaveOccurred(), "Failed to ensure clocks are stable after config change")
-
-					By("validating /gpsd/data is not growing after config change on node " + nodeName)
-
-					validateGpsdFileEmpty(nodeName)
-				}
+				}, prometheusAPI, eventTimeout)
 
 				By("checking NMEA status metric is available before GNSS loss on node " + nodeName)
 
@@ -310,50 +274,14 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 				gmProfile, err := gmProfileInfo.PullProfile(RANConfig.Spoke1APIClient)
 				Expect(err).ToNot(HaveOccurred(), "Failed to pull GM profile for node %s", nodeName)
 
-				protocolVersion, err := gnss.GetUbloxProtocolVersion(gmProfile)
+				protocolVersion, err := gnss.GetUbloxProtocolVersion(gmProfile, gmProfileInfo.HardwareConfig)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get ublox protocol version for node %s", nodeName)
 
-				ptpConfig, err := gmProfileInfo.Reference.PullPtpConfig(RANConfig.Spoke1APIClient)
-				Expect(err).ToNot(HaveOccurred(), "Failed to pull PtpConfig for node %s", nodeName)
-
-				profileToUpdate := &ptpConfig.Definition.Spec.Profile[gmProfileInfo.Reference.ProfileIndex]
-
-				desiredSettings := profiles.HoldoverPluginSettings{
+				ensureGMHoldoverSettings(nodeName, gmProfileInfo, profiles.HoldoverPluginSettings{
 					LocalHoldoverTimeout:   holdoverTimeoutSeconds,
 					LocalMaxHoldoverOffSet: 300,
 					MaxInSpecOffset:        600,
-				}
-
-				currentSettings, err := profiles.GetHoldoverPluginSettings(profileToUpdate)
-				Expect(err).ToNot(HaveOccurred(), "Failed to get current holdover plugin settings")
-
-				if *currentSettings != desiredSettings {
-					By("setting plugin DPLL settings for short holdover timeout on node " + nodeName)
-
-					err = profiles.SetHoldoverPluginSettings(profileToUpdate, desiredSettings)
-					Expect(err).ToNot(HaveOccurred(), "Failed to set holdover plugin settings on node %s", nodeName)
-
-					configChangeTime := time.Now()
-
-					_, updateErr := ptpConfig.Update()
-					Expect(updateErr).ToNot(HaveOccurred(), "Failed to update PtpConfig for node %s", nodeName)
-
-					By("waiting for profile load after config change")
-
-					err = daemonlogs.WaitForProfileLoadOnPTPNodes(RANConfig.Spoke1APIClient,
-						daemonlogs.WithStartTime(configChangeTime),
-						daemonlogs.WithTimeout(eventTimeout))
-					Expect(err).ToNot(HaveOccurred(), "Failed to wait for profile load after config change")
-
-					By("ensuring clocks are locked and holdover plugin stabilizes")
-
-					err = metrics.EnsureClocksAreStable(prometheusAPI, 1*time.Minute)
-					Expect(err).ToNot(HaveOccurred(), "Failed to ensure clocks are stable after config change")
-
-					By("validating /gpsd/data is not growing after config change on node " + nodeName)
-
-					validateGpsdFileEmpty(nodeName)
-				}
+				}, prometheusAPI, eventTimeout)
 
 				By("checking NMEA status metric is available before GNSS loss on node " + nodeName)
 
@@ -530,50 +458,14 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 				gmProfile, err := gmProfileInfo.PullProfile(RANConfig.Spoke1APIClient)
 				Expect(err).ToNot(HaveOccurred(), "Failed to pull GM profile for node %s", nodeName)
 
-				protocolVersion, err := gnss.GetUbloxProtocolVersion(gmProfile)
+				protocolVersion, err := gnss.GetUbloxProtocolVersion(gmProfile, gmProfileInfo.HardwareConfig)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get ublox protocol version for node %s", nodeName)
 
-				ptpConfig, err := gmProfileInfo.Reference.PullPtpConfig(RANConfig.Spoke1APIClient)
-				Expect(err).ToNot(HaveOccurred(), "Failed to pull PtpConfig for node %s", nodeName)
-
-				profileToUpdate := &ptpConfig.Definition.Spec.Profile[gmProfileInfo.Reference.ProfileIndex]
-
-				desiredSettings := profiles.HoldoverPluginSettings{
+				ensureGMHoldoverSettings(nodeName, gmProfileInfo, profiles.HoldoverPluginSettings{
 					LocalHoldoverTimeout:   holdoverTimeoutSeconds,
 					LocalMaxHoldoverOffSet: localMaxHoldoverOffset,
 					MaxInSpecOffset:        maxInSpecOffset,
-				}
-
-				currentSettings, err := profiles.GetHoldoverPluginSettings(profileToUpdate)
-				Expect(err).ToNot(HaveOccurred(), "Failed to get current holdover plugin settings")
-
-				if *currentSettings != desiredSettings {
-					By("setting plugin DPLL settings for offset-triggered freerun on node " + nodeName)
-
-					err = profiles.SetHoldoverPluginSettings(profileToUpdate, desiredSettings)
-					Expect(err).ToNot(HaveOccurred(), "Failed to set holdover plugin settings on node %s", nodeName)
-
-					configChangeTime := time.Now()
-
-					_, updateErr := ptpConfig.Update()
-					Expect(updateErr).ToNot(HaveOccurred(), "Failed to update PtpConfig for node %s", nodeName)
-
-					By("waiting for profile load after config change")
-
-					err = daemonlogs.WaitForProfileLoadOnPTPNodes(RANConfig.Spoke1APIClient,
-						daemonlogs.WithStartTime(configChangeTime),
-						daemonlogs.WithTimeout(eventTimeout))
-					Expect(err).ToNot(HaveOccurred(), "Failed to wait for profile load after config change")
-
-					By("ensuring clocks are locked and holdover plugin stabilizes")
-
-					err = metrics.EnsureClocksAreStable(prometheusAPI, 1*time.Minute)
-					Expect(err).ToNot(HaveOccurred(), "Failed to ensure clocks are stable after config change")
-
-					By("validating /gpsd/data is not growing after config change on node " + nodeName)
-
-					validateGpsdFileEmpty(nodeName)
-				}
+				}, prometheusAPI, eventTimeout)
 
 				By("checking NMEA status metric is available before GNSS loss on node " + nodeName)
 
@@ -720,6 +612,61 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 			}
 		})
 })
+
+// ensureGMHoldoverSettings updates holdover thresholds via HardwareConfig (4.22+/GNR-D) or
+// PtpConfig plugins (pre-4.22), matching the T-BC holdover dual path. Restores originals via
+// DeferCleanup. No-op when desired already matches current.
+func ensureGMHoldoverSettings(
+	nodeName string,
+	profileInfo *profiles.ProfileInfo,
+	desired profiles.HoldoverPluginSettings,
+	prometheusAPI prometheusv1.API,
+	timeout time.Duration,
+) {
+	GinkgoHelper()
+
+	current, err := profiles.GetHoldoverSettings(RANConfig.Spoke1APIClient, profileInfo)
+	Expect(err).ToNot(HaveOccurred(), "Failed to get current holdover settings")
+
+	if desired == *current {
+		return
+	}
+
+	original := *current
+
+	By("setting holdover settings for GNSS loss test on node " + nodeName)
+
+	err = profiles.ApplyHoldoverSettings(RANConfig.Spoke1APIClient, profileInfo, desired)
+	Expect(err).ToNot(HaveOccurred(), "Failed to apply holdover settings on node %s", nodeName)
+
+	DeferCleanup(func() {
+		By("restoring original holdover settings on node " + nodeName)
+
+		restoreErr := profiles.ApplyHoldoverSettings(RANConfig.Spoke1APIClient, profileInfo, original)
+		Expect(restoreErr).ToNot(HaveOccurred(), "Failed to restore holdover settings on node %s", nodeName)
+
+		restoreTime := time.Now()
+
+		restoreErr = profiles.WaitForHoldoverSettingsApplied(
+			RANConfig.Spoke1APIClient, nodeName, profileInfo, restoreTime, timeout)
+		Expect(restoreErr).ToNot(HaveOccurred(), "Daemon did not reload after holdover restore on node %s", nodeName)
+	})
+
+	setTime := time.Now()
+
+	err = profiles.WaitForHoldoverSettingsApplied(
+		RANConfig.Spoke1APIClient, nodeName, profileInfo, setTime, timeout)
+	Expect(err).ToNot(HaveOccurred(), "Daemon did not reload after holdover config change on node %s", nodeName)
+
+	By("ensuring clocks are locked and holdover settings stabilize")
+
+	err = metrics.EnsureClocksAreStable(prometheusAPI, 1*time.Minute)
+	Expect(err).ToNot(HaveOccurred(), "Failed to ensure clocks are stable after holdover config change")
+
+	By("validating /gpsd/data is not growing after config change on node " + nodeName)
+
+	validateGpsdFileEmpty(nodeName)
+}
 
 func validateGpsdFileEmpty(nodeName string) {
 	GinkgoHelper()

@@ -24,19 +24,28 @@ const (
 	PinStateTx
 )
 
-// GetGmInterfaceToGPS returns the TX interface for the grand master profile to GPS. Returns an error if the profile
-// is nil, has no plugins, or the plugin is missing or invalid.
+// GetGmInterfaceToGPS returns the TX interface for the grand master profile to GPS.
+// Plugin path: E810 pins / TX state, else E825 devices. HardwareConfig path (4.22+/GNR-D):
+// GNSS source ethernetInterface or the GNSS subsystem network interface.
 // When both E810 and E825 plugins are present, E810 is used (pins / TX state);
 // E825 is only considered if E810 is absent.
-func GetGmInterfaceToGPS(profile *ptpv1.PtpProfile) (iface.Name, error) {
+func GetGmInterfaceToGPS(profile *ptpv1.PtpProfile, hwConfig *ptp.HardwareConfigBuilder) (iface.Name, error) {
 	if profile == nil {
 		return "", fmt.Errorf("profile is nil")
 	}
 
-	if profile.Plugins == nil {
-		return "", fmt.Errorf("profile has no plugins")
+	if len(profile.Plugins) > 0 {
+		return getGmInterfaceFromPlugins(profile)
 	}
 
+	if hwConfig != nil {
+		return GetGmInterfaceFromHardwareConfig(hwConfig)
+	}
+
+	return "", fmt.Errorf("profile has no plugins and no associated HardwareConfig")
+}
+
+func getGmInterfaceFromPlugins(profile *ptpv1.PtpProfile) (iface.Name, error) {
 	var txInterfaces []iface.Name
 
 	var err error

@@ -69,7 +69,7 @@ func TestGetGmInterfaceToGPS(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, err := GetGmInterfaceToGPS(testCase.profile)
+			got, err := GetGmInterfaceToGPS(testCase.profile, nil)
 			if testCase.wantErr {
 				assert.Error(t, err)
 			} else {

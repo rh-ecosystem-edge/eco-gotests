@@ -5,6 +5,7 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ptp"
 	ptpv2alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v2alpha1"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
 )
 
 // GetHoldoverHardwareConfigSettings reads holdover parameters from the first subsystem
@@ -71,4 +72,65 @@ func firstHoldoverParameters(
 
 	return nil, -1, fmt.Errorf("HardwareConfig %q: no HoldoverParameters found in any subsystem",
 		hwConfig.Definition.Name)
+}
+
+// GetGmInterfaceFromHardwareConfig returns the GNSS-facing network interface from a HardwareConfig
+// ClockChain. Prefers gnssConfig.match.ethernetInterface, then the GNSS subsystem's
+// dpll.networkInterface, then the first ethernet port on that subsystem.
+func GetGmInterfaceFromHardwareConfig(hwConfig *ptp.HardwareConfigBuilder) (iface.Name, error) {
+	if hwConfig == nil || hwConfig.Definition == nil {
+		return "", fmt.Errorf("HardwareConfig is nil")
+	}
+
+	chain := hwConfig.Definition.Spec.Profile.ClockChain
+	if chain == nil {
+		return "", fmt.Errorf("HardwareConfig %q has no ClockChain", hwConfig.Definition.Name)
+	}
+
+	if chain.Behavior != nil {
+		for _, source := range chain.Behavior.Sources {
+			if source.SourceType != ptpv2alpha1.SourceTypeGNSS {
+				continue
+			}
+
+			if source.GNSSConfig != nil && source.GNSSConfig.Match != nil &&
+				source.GNSSConfig.Match.EthernetInterface != "" {
+				return iface.Name(source.GNSSConfig.Match.EthernetInterface), nil
+			}
+
+			if ifaceName, err := networkInterfaceForSubsystem(chain, source.Subsystem); err == nil {
+				return ifaceName, nil
+			}
+		}
+	}
+
+	for i := range chain.Structure {
+		if ifaceName, err := networkInterfaceForSubsystem(chain, chain.Structure[i].Name); err == nil {
+			return ifaceName, nil
+		}
+	}
+
+	return "", fmt.Errorf("HardwareConfig %q: no GM GNSS interface found in ClockChain",
+		hwConfig.Definition.Name)
+}
+
+func networkInterfaceForSubsystem(chain *ptpv2alpha1.ClockChain, subsystemName string) (iface.Name, error) {
+	for i := range chain.Structure {
+		sub := &chain.Structure[i]
+		if sub.Name != subsystemName {
+			continue
+		}
+
+		if sub.DPLL.NetworkInterface != "" {
+			return iface.Name(sub.DPLL.NetworkInterface), nil
+		}
+
+		for _, eth := range sub.Ethernet {
+			if len(eth.Ports) > 0 && eth.Ports[0] != "" {
+				return iface.Name(eth.Ports[0]), nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("subsystem %q has no network interface", subsystemName)
 }
