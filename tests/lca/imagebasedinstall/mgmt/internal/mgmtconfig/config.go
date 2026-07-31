@@ -73,14 +73,15 @@ type MGMTConfig struct {
 	SeedClusterInfo          *seedimage.SeedImageContent
 	SSHKeyPath               string `envconfig:"ECO_LCA_IBI_MGMT_SSHKEY_PATH"`
 	PublicSSHKey             string
-	StaticNetworking         bool   `envconfig:"ECO_LCA_IBI_MGMT_STATIC_NETWORK" default:"false"`
-	ExtraManifests           bool   `envconfig:"ECO_LCA_IBI_EXTRA_MANIFESTS" default:"true"`
-	CABundle                 bool   `envconfig:"ECO_LCA_IBI_CA_BUNDLE" default:"true"`
-	SiteConfig               bool   `envconfig:"ECO_LCA_IBI_SITECONFIG" default:"true"`
-	ExtraPartName            string `envconfig:"ECO_LCA_IBI_MGMT_EXTRA_PARTITION_NAME" default:""`
-	ExtraPartSizeMib         string `envconfig:"ECO_LCA_IBI_MGMT_EXTRA_PARTITION_SIZE" default:"50000"`
-	ReinstallGenerationLabel string `envconfig:"ECO_LCA_IBI_REINSTALL_GENERATION" default:"generate1"`
-	AdditionalNTPSources     string `envconfig:"ECO_LCA_IBI_ADDITIONAL_NTP_SOURCES" default:""`
+	StaticNetworking         bool              `envconfig:"ECO_LCA_IBI_MGMT_STATIC_NETWORK" default:"false"`
+	ExtraManifests           bool              `envconfig:"ECO_LCA_IBI_EXTRA_MANIFESTS" default:"true"`
+	CABundle                 bool              `envconfig:"ECO_LCA_IBI_CA_BUNDLE" default:"true"`
+	SiteConfig               bool              `envconfig:"ECO_LCA_IBI_SITECONFIG" default:"true"`
+	ExtraPartName            string            `envconfig:"ECO_LCA_IBI_MGMT_EXTRA_PARTITION_NAME" default:""`
+	ExtraPartSizeMib         string            `envconfig:"ECO_LCA_IBI_MGMT_EXTRA_PARTITION_SIZE" default:"50000"`
+	ReinstallGenerationLabel string            `envconfig:"ECO_LCA_IBI_REINSTALL_GENERATION" default:"generate1"`
+	AdditionalNTPSources     string            `envconfig:"ECO_LCA_IBI_ADDITIONAL_NTP_SOURCES" default:""`
+	HFSSettings              map[string]string `envconfig:"ECO_LCA_IBI_MGMT_HFS_SETTINGS"`
 }
 
 // ReinstallConfig is used to collect info for performing resinstall test.
