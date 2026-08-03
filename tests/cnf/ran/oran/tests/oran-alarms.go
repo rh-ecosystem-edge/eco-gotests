@@ -159,10 +159,10 @@ var _ = Describe("ORAN Alarms Tests", Label(tsparams.LabelPostProvision, tsparam
 
 		By("waiting for the notification")
 
-		err = mocksmo.WaitForNotification(HubAPIClient, RANConfig.MockSMONamespace,
-			mocksmo.WithStart(timeBeforeAcknowledge),
-			mocksmo.WithObserverID(subscriptionID.String()),
-			mocksmo.WithMatchFunc(func(notification *oranapi.AlarmEventNotification) bool {
+		err = mocksmo.WaitFor[oranapi.AlarmEventNotification](HubAPIClient, RANConfig.MockSMONamespace,
+			mocksmo.WithStart[oranapi.AlarmEventNotification](timeBeforeAcknowledge),
+			mocksmo.WithObserverID[oranapi.AlarmEventNotification](subscriptionID.String()),
+			mocksmo.WithMatch(func(notification *oranapi.AlarmEventNotification) bool {
 				return notification.Extensions["tracker"] == tracker &&
 					notification.NotificationEventType == oranapi.AlarmEventNotificationTypeACKNOWLEDGE
 			}),

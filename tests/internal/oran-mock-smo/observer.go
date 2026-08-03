@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
-	oranapi "github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,58 +42,6 @@ type observerEchoLogEntry struct {
 	Body       json.RawMessage `json:"body"`
 }
 
-// waitForNotificationOptions are all of the options for the wait for a matching notification. It is used for an
-// options pattern to the WaitForNotification function.
-type waitForNotificationOptions struct {
-	timeout    time.Duration
-	start      time.Time
-	observerID string
-	matchFunc  func(notification *oranapi.AlarmEventNotification) bool
-}
-
-// getDefaultWaitForNotificationOptions returns the default options for the wait for a matching notification. The
-// defaults are a 30 second timeout, start time of now (when this function is called) and a match function that returns
-// true if any notification is received.
-func getDefaultWaitForNotificationOptions() *waitForNotificationOptions {
-	return &waitForNotificationOptions{
-		timeout:   time.Second * 30,
-		start:     time.Now(),
-		matchFunc: func(notification *oranapi.AlarmEventNotification) bool { return true },
-	}
-}
-
-// waitForNotificationOption is a function that can be used to modify the options for the wait for a matching
-// notification.
-type waitForNotificationOption func(options *waitForNotificationOptions)
-
-// WithTimeout sets the timeout for the wait for a matching notification.
-func WithTimeout(timeout time.Duration) waitForNotificationOption {
-	return func(options *waitForNotificationOptions) {
-		options.timeout = timeout
-	}
-}
-
-// WithStart sets the start time for the wait for a matching notification.
-func WithStart(start time.Time) waitForNotificationOption {
-	return func(options *waitForNotificationOptions) {
-		options.start = start
-	}
-}
-
-// WithObserverID limits notifications to those received for the given observer ID.
-func WithObserverID(observerID string) waitForNotificationOption {
-	return func(options *waitForNotificationOptions) {
-		options.observerID = observerID
-	}
-}
-
-// WithMatchFunc sets the match function for the wait for a matching notification.
-func WithMatchFunc(matchFunc func(notification *oranapi.AlarmEventNotification) bool) waitForNotificationOption {
-	return func(options *waitForNotificationOptions) {
-		options.matchFunc = matchFunc
-	}
-}
-
 // PullPod pulls the mock SMO server pod from the cluster. It will fail if no pods matching the app label are found. If
 // more than one pod is found, it will log a warning and return the first one.
 func PullPod(client *clients.Settings, nsname string) (*pod.Builder, error) {
@@ -120,13 +67,59 @@ func PullPod(client *clients.Settings, nsname string) (*pod.Builder, error) {
 	return matchingPods[0], nil
 }
 
-// WaitForNotification waits for an observer echo notification in the mock SMO server logs. Callers may provide options,
+type waitOptions[T any] struct {
+	timeout    time.Duration
+	start      time.Time
+	observerID string
+	matchFunc  func(*T) bool
+}
+
+// WaitOption configures WaitFor.
+type WaitOption[T any] func(*waitOptions[T])
+
+func defaultWaitOptions[T any]() *waitOptions[T] {
+	return &waitOptions[T]{
+		timeout:   time.Second * 30,
+		start:     time.Now(),
+		matchFunc: func(*T) bool { return true },
+	}
+}
+
+// WithTimeout sets the timeout for WaitFor.
+func WithTimeout[T any](timeout time.Duration) WaitOption[T] {
+	return func(options *waitOptions[T]) {
+		options.timeout = timeout
+	}
+}
+
+// WithStart sets the start time for WaitFor.
+func WithStart[T any](start time.Time) WaitOption[T] {
+	return func(options *waitOptions[T]) {
+		options.start = start
+	}
+}
+
+// WithObserverID limits notifications to those received for the given observer ID.
+func WithObserverID[T any](observerID string) WaitOption[T] {
+	return func(options *waitOptions[T]) {
+		options.observerID = observerID
+	}
+}
+
+// WithMatch sets the match function for WaitFor.
+func WithMatch[T any](matchFunc func(*T) bool) WaitOption[T] {
+	return func(options *waitOptions[T]) {
+		options.matchFunc = matchFunc
+	}
+}
+
+// WaitFor waits for an observer echo notification in the mock SMO server logs. Callers may provide options,
 // otherwise the defaults of 30 seconds timeout, start time of now, and a match function that returns true if any
 // notification is received will be used.
-func WaitForNotification(client *clients.Settings, namespace string, options ...waitForNotificationOption) error {
-	appliedOptions := getDefaultWaitForNotificationOptions()
+func WaitFor[T any](client *clients.Settings, namespace string, opts ...WaitOption[T]) error {
+	appliedOptions := defaultWaitOptions[T]()
 
-	for _, option := range options {
+	for _, option := range opts {
 		option(appliedOptions)
 	}
 
@@ -151,7 +144,7 @@ func WaitForNotification(client *clients.Settings, namespace string, options ...
 			// more efficient.
 			appliedOptions.start = newStart
 
-			parsedNotifications, err := parseNotifications(notificationsRaw, appliedOptions.observerID)
+			parsedNotifications, err := parseNotifications[T](notificationsRaw, appliedOptions.observerID)
 			if err != nil {
 				return false, fmt.Errorf("failed to parse notifications: %w", err)
 			}
@@ -160,14 +153,14 @@ func WaitForNotification(client *clients.Settings, namespace string, options ...
 		})
 }
 
-// ListReceivedNotifications lists observer echo notifications received since the given time. If sinceTime is zero, then
+// ListReceived lists observer echo notifications received since the given time. If sinceTime is zero, then
 // all notifications will be listed. If observerID is non-empty, only notifications for that observer are returned.
-func ListReceivedNotifications(
+func ListReceived[T any](
 	client *clients.Settings,
 	namespace string,
 	sinceTime time.Time,
 	observerID string,
-) ([]*oranapi.AlarmEventNotification, error) {
+) ([]*T, error) {
 	pod, err := PullPod(client, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to pull mock SMO server pod: %w", err)
@@ -185,7 +178,7 @@ func ListReceivedNotifications(
 		return nil, fmt.Errorf("failed to get mock SMO server pod logs: %w", err)
 	}
 
-	parsedNotifications, err := parseNotifications(notificationsRaw, observerID)
+	parsedNotifications, err := parseNotifications[T](notificationsRaw, observerID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse notifications: %w", err)
 	}
@@ -197,11 +190,11 @@ func ListReceivedNotifications(
 // in parsing. If an error is returned, the notifications will be empty. Elements of the returned slice are guaranteed
 // not to be nil.
 //
-// Notifications are expected as slog JSON log lines with msg "Observer echo notification". The alarm body is nested
-// under the body field. The parsing will look for the opening curly brace to determine the start of the JSON. Anything
-// prior to it on the line will be ignored.
-func parseNotifications(notificationsRaw []byte, observerID string) ([]*oranapi.AlarmEventNotification, error) {
-	var notifications []*oranapi.AlarmEventNotification
+// Notifications are expected as slog JSON log lines with msg "Observer echo notification". The notification body is
+// nested under the body field. The parsing will look for the opening curly brace to determine the start of the JSON.
+// Anything prior to it on the line will be ignored.
+func parseNotifications[T any](notificationsRaw []byte, observerID string) ([]*T, error) {
+	var notifications []*T
 
 	scanner := bufio.NewScanner(bytes.NewReader(notificationsRaw))
 	for scanner.Scan() {
@@ -234,7 +227,7 @@ func parseNotifications(notificationsRaw []byte, observerID string) ([]*oranapi.
 			continue
 		}
 
-		var notification oranapi.AlarmEventNotification
+		var notification T
 
 		err = json.Unmarshal(logEntry.Body, &notification)
 		if err != nil {

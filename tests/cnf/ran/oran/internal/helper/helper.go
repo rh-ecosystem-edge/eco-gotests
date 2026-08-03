@@ -220,7 +220,8 @@ func WaitForAllNotifications(
 			// duplicates.
 			newStartTime := time.Now()
 
-			receivedNotifications, err := mocksmo.ListReceivedNotifications(client, namespace, startTime, observerID)
+			receivedNotifications, err := mocksmo.ListReceived[oranapi.AlarmEventNotification](
+				client, namespace, startTime, observerID)
 			if err != nil {
 				klog.V(tsparams.LogLevel).Infof("Failed to list received notifications: %v", err)
 

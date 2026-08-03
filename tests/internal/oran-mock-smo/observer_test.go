@@ -34,7 +34,7 @@ func TestParseNotifications(t *testing.T) {
 			`"observerId":"sub-2","body":null}` + "\n",
 	)
 
-	notifications, err := parseNotifications(logs, "")
+	notifications, err := parseNotifications[oranapi.AlarmEventNotification](logs, "")
 	require.NoError(t, err)
 	require.Len(t, notifications, 1)
 
@@ -53,8 +53,26 @@ func TestParseNotificationsFiltersByObserverID(t *testing.T) {
 			`"observerId":"other","body":{"notificationEventType":0,"extensions":{"tracker":"two"}}}` + "\n",
 	)
 
-	notifications, err := parseNotifications(logs, "wanted")
+	notifications, err := parseNotifications[oranapi.AlarmEventNotification](logs, "wanted")
 	require.NoError(t, err)
 	require.Len(t, notifications, 1)
 	assert.Equal(t, "one", notifications[0].Extensions["tracker"])
+}
+
+func TestParseNotificationsGenericType(t *testing.T) {
+	t.Parallel()
+
+	type stubNotification struct {
+		ID string `json:"id"`
+	}
+
+	logs := []byte(
+		`{"time":"2026-07-28T12:25:10.000000000Z","level":"INFO","msg":"Observer echo notification",` +
+			`"observerId":"sub-1","body":{"id":"inventory-42"}}` + "\n",
+	)
+
+	notifications, err := parseNotifications[stubNotification](logs, "")
+	require.NoError(t, err)
+	require.Len(t, notifications, 1)
+	assert.Equal(t, "inventory-42", notifications[0].ID)
 }
