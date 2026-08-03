@@ -1,6 +1,6 @@
 module github.com/rh-ecosystem-edge/eco-gotests
 
-go 1.26.0
+go 1.26.3
 
 toolchain go1.26.4
 
@@ -278,7 +278,7 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
-require github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260707204424-92977eeae55e
+require github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260803144422-4da2bf44df02
 
 replace (
 	github.com/imdario/mergo => github.com/imdario/mergo v0.3.16
