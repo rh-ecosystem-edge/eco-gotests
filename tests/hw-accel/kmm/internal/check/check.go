@@ -461,9 +461,21 @@ func ImageExists(apiClient *clients.Settings, baseImage string,
 func isTransientError(err error) bool {
 	errMsg := err.Error()
 
-	return strings.Contains(errMsg, "x509") ||
-		strings.Contains(errMsg, "connection refused") ||
-		strings.Contains(errMsg, "connection reset")
+	transientPatterns := []string{
+		"connection refused",
+		"connection reset",
+		"i/o timeout",
+		"TLS handshake timeout",
+		"x509: certificate signed by unknown authority",
+	}
+
+	for _, pattern := range transientPatterns {
+		if strings.Contains(errMsg, pattern) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func runCommandOnTestPods(apiClient *clients.Settings,
