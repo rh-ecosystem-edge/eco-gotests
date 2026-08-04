@@ -29,6 +29,7 @@ import (
 
 const (
 	nodeNetConfPolIntError      = "nodenetworkconfigurationpolicy 'interfaceName' cannot be empty"
+	nodeNetConfPolSelectorEmpty = "nodeNetworkConfigurationPolicy 'nodeSelector' cannot be empty map"
 	nodeNetConfPolAltnamesEmpty = "altnames cannot be empty array"
 	bondModeActiveBackup        = "active-backup"
 	interfaceTypeEthernet       = "ethernet"
@@ -99,7 +100,7 @@ func NewPolicyBuilder(apiClient *clients.Settings, name string, nodeSelector map
 	if len(nodeSelector) == 0 {
 		klog.V(100).Info("The nodeSelector of the NodeNetworkConfigurationPolicy is empty")
 
-		builder.errorMsg = "nodeNetworkConfigurationPolicy 'nodeSelector' cannot be empty map"
+		builder.errorMsg = nodeNetConfPolSelectorEmpty
 
 		return builder
 	}
@@ -660,6 +661,39 @@ func (builder *PolicyBuilder) WithEthernetIPv6LinkLocalInterface(interfaceName s
 		State: "up",
 		Ipv4: InterfaceIpv4{
 			Enabled: false,
+		},
+		Ipv6: InterfaceIpv6{
+			Enabled: true,
+		},
+	}
+
+	return builder.withInterface(newInterface)
+}
+
+// WithEthernetDualStackInterface appends the configuration for an ethernet interface with state "up",
+// IPv4 enabled, and IPv6 enabled to the NodeNetworkConfigurationPolicy.
+func (builder *PolicyBuilder) WithEthernetDualStackInterface(interfaceName string) *PolicyBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof("Creating NodeNetworkConfigurationPolicy %s with a dual-stack ethernet interface %s",
+		builder.Definition.Name, interfaceName)
+
+	if interfaceName == "" {
+		klog.V(100).Info("The interfaceName can not be empty string")
+
+		builder.errorMsg = nodeNetConfPolIntError
+
+		return builder
+	}
+
+	newInterface := NetworkInterface{
+		Name:  interfaceName,
+		Type:  interfaceTypeEthernet,
+		State: "up",
+		Ipv4: InterfaceIpv4{
+			Enabled: true,
 		},
 		Ipv6: InterfaceIpv6{
 			Enabled: true,
