@@ -406,7 +406,7 @@ var _ = Describe("MetalLB system", Ordered, Label(tsparams.LabelSystemMetalLB), 
 			By("Rebooting the worker node with VLAN interfaces")
 
 			workerNodeName := workerNodeList[1].Definition.Name
-			_, err := cluster.ExecCmdWithStdout(APIClient, "reboot -f",
+			_, err := cluster.ExecCmdWithStdout(APIClient, "reboot",
 				metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", corev1.LabelHostname, workerNodeName)})
 			Expect(err).ToNot(HaveOccurred(), "Failed to reboot worker node %s", workerNodeName)
 

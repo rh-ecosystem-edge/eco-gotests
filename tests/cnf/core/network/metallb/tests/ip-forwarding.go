@@ -410,7 +410,7 @@ var _ = Describe("IP Forwarding per Interface", Ordered,
 					By("Rebooting the worker node with VLAN interfaces")
 
 					workerNode1Name := workerNodeList[1].Definition.Name
-					_, err = cluster.ExecCmdWithStdout(APIClient, "reboot -f",
+					_, err = cluster.ExecCmdWithStdout(APIClient, "reboot",
 						metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s",
 							corev1.LabelHostname, workerNode1Name)})
 					Expect(err).ToNot(HaveOccurred(), "Failed to reboot worker node %s", workerNode1Name)

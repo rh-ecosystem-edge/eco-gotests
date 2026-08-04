@@ -653,7 +653,7 @@ func verifyIngressTCPTrafficAfterCustomFirewallActive(
 
 func rebootNodeAndWaitForMcpStable(nodeName string) {
 	_, err := cluster.ExecCmdWithStdout(APIClient,
-		"reboot -f",
+		"reboot",
 		metav1.ListOptions{LabelSelector: fmt.Sprintf("kubernetes.io/hostname=%s", nodeName)})
 	Expect(err).ToNot(HaveOccurred(),
 		"Failed to reboot worker node with label %s", nodeName)
