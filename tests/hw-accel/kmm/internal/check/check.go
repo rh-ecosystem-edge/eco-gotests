@@ -458,6 +458,14 @@ func ImageExists(apiClient *clients.Settings, baseImage string,
 	return fmt.Sprintf("%s (kernel: %s)", baseImage, kernelVersion), nil
 }
 
+func isTransientError(err error) bool {
+	errMsg := err.Error()
+
+	return strings.Contains(errMsg, "x509") ||
+		strings.Contains(errMsg, "connection refused") ||
+		strings.Contains(errMsg, "connection reset")
+}
+
 func runCommandOnTestPods(apiClient *clients.Settings,
 	command []string, message string, timeout time.Duration) error {
 	return wait.PollUntilContextTimeout(
@@ -481,6 +489,13 @@ func runCommandOnTestPods(apiClient *clients.Settings,
 
 				buff, err := iterPod.ExecCommand(command, "test")
 				if err != nil {
+					if isTransientError(err) {
+						klog.V(kmmparams.KmmLogLevel).Infof("transient exec error on pod %s, retrying: %v",
+							iterPod.Object.Name, err)
+
+						return false, nil
+					}
+
 					return false, err
 				}
 
@@ -528,6 +543,13 @@ func runCommandOnTestPodsOnNode(apiClient *clients.Settings,
 
 				buff, err := iterPod.ExecCommand(command, "test")
 				if err != nil {
+					if isTransientError(err) {
+						klog.V(kmmparams.KmmLogLevel).Infof("transient exec error on pod %s, retrying: %v",
+							iterPod.Object.Name, err)
+
+						return false, nil
+					}
+
 					return false, err
 				}
 
