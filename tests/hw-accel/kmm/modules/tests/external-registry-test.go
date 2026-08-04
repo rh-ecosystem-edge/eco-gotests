@@ -78,7 +78,8 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 		It("should build and push image to quay", reportxml.ID("53584"), func() {
 			By("Create configmap")
 
-			configmapContent := define.SimpleKmodConfigMapContents()
+			dtkImage := get.LocalDTKImage(APIClient, GeneralConfig.WorkerLabelMap)
+			configmapContent := define.SimpleKmodConfigMapContents(dtkImage)
 
 			dockerfileConfigMap, err := configmap.NewBuilder(APIClient, moduleName, localNsName).
 				WithData(configmapContent).Create()
@@ -381,7 +382,8 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 		It("should build image without loading it", func() {
 			By("Create configmap")
 
-			configmapContent := define.SimpleKmodConfigMapContents()
+			dtkImage := get.LocalDTKImage(APIClient, GeneralConfig.WorkerLabelMap)
+			configmapContent := define.SimpleKmodConfigMapContents(dtkImage)
 
 			_ = configmap.NewBuilder(APIClient, moduleName, localNsName).Delete()
 

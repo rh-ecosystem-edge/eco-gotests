@@ -13,6 +13,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/serviceaccount"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/define"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/get"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -79,11 +80,13 @@ var _ = BeforeSuite(func() {
 		Skip(fmt.Sprintf("Error listing worker nodes. Got error: '%v'", err))
 	}
 
+	dtkImage := get.LocalDTKImage(ModulesConfig.SpokeAPIClient, GeneralConfig.WorkerLabelMap)
+
 	for _, node := range nodeList {
 		klog.V(kmmparams.KmmLogLevel).Infof("Creating privileged deployment on node '%v'", node.Object.Name)
 
 		deploymentName := fmt.Sprintf("%s-%s", kmmparams.KmmTestHelperLabelName, node.Object.Name)
-		containerCfg, _ := pod.NewContainerBuilder("test", kmmparams.DTKImage,
+		containerCfg, _ := pod.NewContainerBuilder("test", dtkImage,
 			[]string{"/bin/bash", "-c", "sleep INF"}).
 			WithSecurityContext(kmmparams.PrivilegedSC).GetContainerCfg()
 

@@ -60,8 +60,7 @@ COPY --from=builder /build/kmm-kmod/*.ko /opt/lib/modules/${KERNEL_VERSION}/
 RUN depmod -b /opt ${KERNEL_VERSION}
 `
 	// SimpleKmodContents represents the Dockerfile contents for simple-kmod build.
-	SimpleKmodContents = `ARG DTK_AUTO
-FROM ${DTK_AUTO} as builder
+	SimpleKmodContents = `FROM {{.DTKImage}} as builder
 ARG KERNEL_VERSION
 ARG KMODVER
 WORKDIR /build/
@@ -94,8 +93,7 @@ RUN depmod -b /opt ${KERNEL_VERSION}
 }
 `
 	// SimpleKmodFirmwareContents represents the Dockerfile contents for simple-kmod-firmware build.
-	SimpleKmodFirmwareContents = `ARG DTK_AUTO
-FROM ${DTK_AUTO} as builder
+	SimpleKmodFirmwareContents = `FROM {{.DTKImage}} as builder
 ARG KERNEL_FULL_VERSION
 ARG MOD_NAME
 ARG MOD_NAMESPACE
@@ -122,7 +120,7 @@ RUN mkdir /firmware
 RUN echo -n "simple_kmod_firmware validation string" >> /firmware/simple_kmod_firmware.bin
 `
 	// LocalMultiStageContents represents the Dockerfile contents for multi stage build using local registry.
-	LocalMultiStageContents = `FROM image-registry.openshift-image-registry.svc:5000/openshift/driver-toolkit as builder
+	LocalMultiStageContents = `FROM {{.DTKImage}} as builder
 ARG KERNEL_FULL_VERSION
 ARG MOD_NAME
 WORKDIR /build
@@ -142,8 +140,7 @@ RUN depmod -b /opt ${KERNEL_FULL_VERSION}
 `
 
 	// MultiKoContents represents the Dockerfile for building 3 kernel modules for glob signing tests.
-	MultiKoContents = `ARG DTK_AUTO
-FROM ${DTK_AUTO} as builder
+	MultiKoContents = `FROM {{.DTKImage}} as builder
 ARG KERNEL_VERSION
 WORKDIR /build
 RUN git clone https://github.com/cdvultur/kmm-kmod.git
@@ -162,8 +159,7 @@ RUN depmod -b /opt ${KERNEL_VERSION}
 `
 
 	// MultiKoCustomDirContents represents the Dockerfile for building 3 kernel modules under /custom dir.
-	MultiKoCustomDirContents = `ARG DTK_AUTO
-FROM ${DTK_AUTO} as builder
+	MultiKoCustomDirContents = `FROM {{.DTKImage}} as builder
 ARG KERNEL_VERSION
 WORKDIR /build
 RUN git clone https://github.com/cdvultur/kmm-kmod.git

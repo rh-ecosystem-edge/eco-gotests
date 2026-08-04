@@ -2,6 +2,7 @@ package tests
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -17,6 +18,7 @@ import (
 	kmmawait "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/await"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/check"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/define"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/get"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmminittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
@@ -47,9 +49,10 @@ var _ = Describe("KMM", Ordered, Label(tsparams.LabelSuite), func() {
 				Skip("No UpgradeTargetVersion defined. Skipping test")
 			}
 
-			// Skip module deployment for KMM-HUB since Module CRD is not available on hub cluster
-			// The test will still run to verify operator upgrade, just without module deployment
-			if check.IsKMMHub() {
+			kernelVersion, _ := get.KernelFullVersion(APIClient, GeneralConfig.WorkerLabelMap)
+
+			// Skip module deployment for KMM-HUB (no Module CRD) or RHEL 10 kernels
+			if check.IsKMMHub() || strings.HasPrefix(kernelVersion, "6.") {
 				return
 			}
 
@@ -61,7 +64,8 @@ var _ = Describe("KMM", Ordered, Label(tsparams.LabelSuite), func() {
 			// Deploy a simple module to verify upgrade behavior with existing modules
 			By("Create ConfigMap for module build")
 
-			configmapContents := define.SimpleKmodConfigMapContents()
+			dtkImage := get.LocalDTKImage(APIClient, GeneralConfig.WorkerLabelMap)
+			configmapContents := define.SimpleKmodConfigMapContents(dtkImage)
 			dockerfileConfigMap, err := configmap.
 				NewBuilder(APIClient, kmodName, upgradeTestNamespace).
 				WithData(configmapContents).Create()
@@ -119,8 +123,9 @@ var _ = Describe("KMM", Ordered, Label(tsparams.LabelSuite), func() {
 		})
 
 		AfterAll(func() {
-			// Skip cleanup for KMM-HUB since no resources were created (test was skipped)
-			if check.IsKMMHub() {
+			kernelVersion, _ := get.KernelFullVersion(APIClient, GeneralConfig.WorkerLabelMap)
+
+			if check.IsKMMHub() || strings.HasPrefix(kernelVersion, "6.") {
 				return
 			}
 
@@ -200,8 +205,10 @@ var _ = Describe("KMM", Ordered, Label(tsparams.LabelSuite), func() {
 
 			err = await.OperatorUpgrade(APIClient, ModulesConfig.UpgradeTargetVersion, 5*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "failed awaiting subscription upgrade")
-			// Skip module verification for KMM-HUB since no module was deployed on hub
-			if !check.IsKMMHub() {
+
+			kernelVersion, _ := get.KernelFullVersion(APIClient, GeneralConfig.WorkerLabelMap)
+
+			if !check.IsKMMHub() && !strings.HasPrefix(kernelVersion, "6.") {
 				By("Check module label is still set on nodes after upgrade")
 
 				_, err = check.NodeLabel(APIClient, moduleName, upgradeTestNamespace,

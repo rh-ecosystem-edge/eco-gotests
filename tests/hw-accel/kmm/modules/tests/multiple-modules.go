@@ -7,6 +7,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/await"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/check"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/define"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/get"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/modules/internal/tsparams"
 
@@ -62,7 +63,8 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 
 		Context("Modprobe", Label("multiple"), func() {
 			It("should fail if any of the modules is not present", reportxml.ID("62743"), func() {
-				configmapContents := define.LocalMultiStageConfigMapContent(kmodName)
+				dtkImage := get.LocalDTKImage(APIClient, GeneralConfig.WorkerLabelMap)
+				configmapContents := define.LocalMultiStageConfigMapContent(kmodName, dtkImage)
 
 				By("Create ConfigMap")
 

@@ -49,23 +49,42 @@ func UserDtkMultiStateConfigMapContents(module, dtkImage string) map[string]stri
 }
 
 // SimpleKmodConfigMapContents returns the configmap for simple-kmod example.
-func SimpleKmodConfigMapContents() map[string]string {
-	configmapContents := map[string]string{"dockerfile": kmmparams.SimpleKmodContents}
+func SimpleKmodConfigMapContents(dtkImage string) map[string]string {
+	data := map[string]interface{}{
+		"DTKImage": dtkImage,
+	}
 
-	return configmapContents
+	templateInstance := template.Must(template.New("contents").Parse(kmmparams.SimpleKmodContents))
+	builder := &strings.Builder{}
+
+	if err := templateInstance.Execute(builder, data); err != nil {
+		panic(err)
+	}
+
+	return map[string]string{"dockerfile": builder.String()}
 }
 
 // SimpleKmodFirmwareConfigMapContents returns the configmap for simple-kmod-firmware example.
-func SimpleKmodFirmwareConfigMapContents() map[string]string {
-	configmapContents := map[string]string{"dockerfile": kmmparams.SimpleKmodFirmwareContents}
+func SimpleKmodFirmwareConfigMapContents(dtkImage string) map[string]string {
+	data := map[string]interface{}{
+		"DTKImage": dtkImage,
+	}
 
-	return configmapContents
+	templateInstance := template.Must(template.New("contents").Parse(kmmparams.SimpleKmodFirmwareContents))
+	builder := &strings.Builder{}
+
+	if err := templateInstance.Execute(builder, data); err != nil {
+		panic(err)
+	}
+
+	return map[string]string{"dockerfile": builder.String()}
 }
 
 // LocalMultiStageConfigMapContent returns the configmap multi-stage contents for a specified module name.
-func LocalMultiStageConfigMapContent(module string) map[string]string {
+func LocalMultiStageConfigMapContent(module, dtkImage string) map[string]string {
 	data := map[string]interface{}{
-		"Module": module,
+		"Module":   module,
+		"DTKImage": dtkImage,
 	}
 
 	templateInstance := template.Must(template.New("contents").Parse(kmmparams.LocalMultiStageContents))
@@ -90,11 +109,33 @@ func KmmScannerConfigMapContents() map[string]string {
 }
 
 // MultiKoConfigMapContent returns the configmap contents for building 3 kernel modules.
-func MultiKoConfigMapContent() map[string]string {
-	return map[string]string{"dockerfile": kmmparams.MultiKoContents}
+func MultiKoConfigMapContent(dtkImage string) map[string]string {
+	data := map[string]interface{}{
+		"DTKImage": dtkImage,
+	}
+
+	templateInstance := template.Must(template.New("contents").Parse(kmmparams.MultiKoContents))
+	builder := &strings.Builder{}
+
+	if err := templateInstance.Execute(builder, data); err != nil {
+		panic(err)
+	}
+
+	return map[string]string{"dockerfile": builder.String()}
 }
 
 // MultiKoCustomDirConfigMapContent returns the configmap contents for building 3 kernel modules under /custom.
-func MultiKoCustomDirConfigMapContent() map[string]string {
-	return map[string]string{"dockerfile": kmmparams.MultiKoCustomDirContents}
+func MultiKoCustomDirConfigMapContent(dtkImage string) map[string]string {
+	data := map[string]interface{}{
+		"DTKImage": dtkImage,
+	}
+
+	templateInstance := template.Must(template.New("contents").Parse(kmmparams.MultiKoCustomDirContents))
+	builder := &strings.Builder{}
+
+	if err := templateInstance.Execute(builder, data); err != nil {
+		panic(err)
+	}
+
+	return map[string]string{"dockerfile": builder.String()}
 }

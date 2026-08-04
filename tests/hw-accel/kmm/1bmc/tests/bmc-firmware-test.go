@@ -111,7 +111,8 @@ var _ = Describe("KMM-BMC-Firmware", Ordered, Label(kmmparams.LabelSuite, kmmpar
 
 				By("Create ConfigMap with firmware module Dockerfile")
 
-				configmapContents := define.SimpleKmodFirmwareConfigMapContents()
+				dtkImage := get.LocalDTKImage(APIClient, GeneralConfig.WorkerLabelMap)
+				configmapContents := define.SimpleKmodFirmwareConfigMapContents(dtkImage)
 				dockerfileConfigMap, err := configmap.NewBuilder(APIClient,
 					tsparams.FirmwareModuleName, tsparams.FirmwareBuildNamespace).
 					WithData(configmapContents).Create()

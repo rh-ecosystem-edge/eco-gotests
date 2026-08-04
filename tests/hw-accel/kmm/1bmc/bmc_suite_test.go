@@ -17,6 +17,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/serviceaccount"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/1bmc/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/define"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/get"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/reporter"
@@ -77,10 +78,12 @@ var _ = BeforeSuite(func() {
 		Skip(fmt.Sprintf("Error listing worker nodes. Got error: '%v'", err))
 	}
 
+	dtkImage := get.LocalDTKImage(APIClient, GeneralConfig.WorkerLabelMap)
+
 	for _, node := range nodeList {
 		deploymentName := fmt.Sprintf("%s-%s", kmmparams.KmmTestHelperLabelName, node.Object.Name)
 
-		containerCfg, err := pod.NewContainerBuilder("test", kmmparams.DTKImage,
+		containerCfg, err := pod.NewContainerBuilder("test", dtkImage,
 			[]string{"/bin/bash", "-c", "sleep INF"}).
 			WithSecurityContext(kmmparams.PrivilegedSC).
 			WithVolumeMount(corev1.VolumeMount{Name: "host", MountPath: "/host", ReadOnly: false}).

@@ -14,6 +14,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/await"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/check"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/define"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/get"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/internal/kmmparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/kmm/modules/internal/tsparams"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
@@ -56,7 +57,8 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			testNamespace, err := namespace.NewBuilder(APIClient, kmmparams.FirmwareTestNamespace).Create()
 			Expect(err).ToNot(HaveOccurred(), "error creating test namespace")
 
-			configmapContents := define.SimpleKmodFirmwareConfigMapContents()
+			dtkImage := get.LocalDTKImage(APIClient, GeneralConfig.WorkerLabelMap)
+			configmapContents := define.SimpleKmodFirmwareConfigMapContents(dtkImage)
 
 			By("Create ConfigMap")
 

@@ -84,7 +84,7 @@ var _ = Describe("KMM-Hub", Ordered, Label(tsparams.LabelSuite), func() {
 
 			By("Obtain DTK image from the Spoke")
 
-			dtkImage, err := get.DTKImage(ModulesConfig.SpokeAPIClient)
+			dtkImage, err := get.DTKImage(ModulesConfig.SpokeAPIClient, GeneralConfig.WorkerLabelMap)
 			Expect(err).ToNot(HaveOccurred(), "Could not get spoke's DTK image.")
 
 			By("Create ConfigMap")

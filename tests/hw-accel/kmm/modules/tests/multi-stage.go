@@ -78,7 +78,8 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 		})
 
 		It("should use internal image-stream", reportxml.ID("53651"), func() {
-			configmapContents := define.LocalMultiStageConfigMapContent(kmodName)
+			dtkImage := get.LocalDTKImage(APIClient, GeneralConfig.WorkerLabelMap)
+			configmapContents := define.LocalMultiStageConfigMapContent(kmodName, dtkImage)
 
 			By("Create ConfigMap")
 

@@ -96,7 +96,8 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 
 				var err error
 
-				configmapContents := define.MultiKoConfigMapContent()
+				dtkImage := get.LocalDTKImage(APIClient, GeneralConfig.WorkerLabelMap)
+				configmapContents := define.MultiKoConfigMapContent(dtkImage)
 				dockerfileConfigMap, err = configmap.
 					NewBuilder(APIClient, "multi-ko-dockerfile", nsName).
 					WithData(configmapContents).Create()
@@ -379,7 +380,8 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 
 				By("Create custom-dir Dockerfile ConfigMap")
 
-				customDirContents := define.MultiKoCustomDirConfigMapContent()
+				dtkImage := get.LocalDTKImage(APIClient, GeneralConfig.WorkerLabelMap)
+				customDirContents := define.MultiKoCustomDirConfigMapContent(dtkImage)
 				customDirConfigMap, err := configmap.
 					NewBuilder(APIClient, "custom-dir-dockerfile", nsName).
 					WithData(customDirContents).Create()

@@ -253,19 +253,50 @@ func KmmHubOperatorVersion(apiClient *clients.Settings) (ver *version.Version, e
 	return operatorVersion(apiClient, "hub", kmmparams.KmmHubOperatorNamespace)
 }
 
-// DTKImage returns the DockerImage of the drivertoolkit imagestream.
-func DTKImage(apiClient *clients.Settings) (dtkImage string, err error) {
+// DTKImageStreamTag returns the imagestream tag to use for the DTK image based on kernel version.
+// RHEL 10 kernels (starting with "6.") use the "latest-rhel-10" tag.
+func DTKImageStreamTag(kernelVersion string) string {
+	if strings.HasPrefix(kernelVersion, "6.") {
+		return "latest-rhel-10"
+	}
+
+	return "latest"
+}
+
+// LocalDTKImage returns the internal registry DTK image with the correct tag for the cluster's kernel.
+func LocalDTKImage(apiClient *clients.Settings, nodeSelector map[string]string) string {
+	kernelVersion, err := KernelFullVersion(apiClient, nodeSelector)
+	if err != nil {
+		klog.V(kmmparams.KmmLogLevel).Infof("Could not determine kernel version for DTK tag, using default: %v", err)
+
+		return kmmparams.DTKImage
+	}
+
+	tag := DTKImageStreamTag(kernelVersion)
+
+	return fmt.Sprintf("%s:%s", kmmparams.DTKImage, tag)
+}
+
+// DTKImage returns the DockerImage of the drivertoolkit imagestream using the correct tag for the kernel.
+func DTKImage(apiClient *clients.Settings, nodeSelector map[string]string) (dtkImage string, err error) {
+	kernelVersion, err := KernelFullVersion(apiClient, nodeSelector)
+	if err != nil {
+		return "", fmt.Errorf("failed to get kernel version for DTK tag selection: %w", err)
+	}
+
+	tag := DTKImageStreamTag(kernelVersion)
+
 	dtkIS, err := imagestream.Pull(apiClient, kmmparams.DTKImageStream, kmmparams.DTKImageStreamNamespace)
 	if err != nil {
 		return "", err
 	}
 
-	dtkImage, err = dtkIS.GetDockerImage("latest")
+	dtkImage, err = dtkIS.GetDockerImage(tag)
 	if err != nil {
 		return "", err
 	}
 
-	klog.V(kmmparams.KmmLogLevel).Infof("DTK Image: %s", dtkImage)
+	klog.V(kmmparams.KmmLogLevel).Infof("DTK Image (tag=%s): %s", tag, dtkImage)
 
 	return dtkImage, nil
 }

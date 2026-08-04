@@ -78,7 +78,8 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 			_, err := namespace.NewBuilder(APIClient, kmmparams.InTreeReplacementNamespace).Create()
 			Expect(err).ToNot(HaveOccurred(), "error creating test namespace")
 
-			configmapContents := define.LocalMultiStageConfigMapContent(kmodName)
+			dtkImage := get.LocalDTKImage(APIClient, GeneralConfig.WorkerLabelMap)
+			configmapContents := define.LocalMultiStageConfigMapContent(kmodName, dtkImage)
 
 			By("Create ConfigMap")
 
