@@ -110,10 +110,10 @@ var _ = Describe("BGP Unnumbered", Ordered, Label(tsparams.LabelBGPUnnumbered),
 			By("Remove custom MetalLB test label from nodes")
 			removeNodeLabel(workerNodeList, metalLbTestsLabel)
 
-			By(fmt.Sprintf("Disabling ethernet interface %s on worker node %s",
+			By(fmt.Sprintf("Resetting ethernet interface %s on worker node %s",
 				interfacesUnderTest[0], workerNodeList[0].Definition.Name))
 			ethIntWorker0Policy := nmstate.NewPolicyBuilder(APIClient, nodeNetConfigPolicyName, NetConfig.WorkerLabelMap).
-				WithAbsentInterface(interfacesUnderTest[0])
+				WithEthernetDualStackInterface(interfacesUnderTest[0])
 			err := netnmstate.UpdatePolicyAndWaitUntilItsAvailable(netparam.DefaultTimeout, ethIntWorker0Policy)
 			Expect(err).ToNot(HaveOccurred(), "Failed to update NMState network policy")
 
