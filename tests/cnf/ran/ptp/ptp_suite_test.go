@@ -16,6 +16,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/rancluster"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/clock"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/consumer"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/metrics"
@@ -55,6 +56,11 @@ var _ = BeforeSuite(func() {
 
 	err = metrics.EnsureClocksAreLocked(prometheusAPI)
 	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
+
+	By("discovering PTP clocks")
+
+	err = clock.Discover(RANConfig.Spoke1APIClient)
+	Expect(err).ToNot(HaveOccurred(), "Failed to discover clocks")
 
 	By("initializing the NIC naming system based on the PTP version")
 
