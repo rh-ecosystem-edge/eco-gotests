@@ -60,7 +60,8 @@ COPY --from=builder /build/kmm-kmod/*.ko /opt/lib/modules/${KERNEL_VERSION}/
 RUN depmod -b /opt ${KERNEL_VERSION}
 `
 	// SimpleKmodContents represents the Dockerfile contents for simple-kmod build.
-	SimpleKmodContents = `FROM {{.DTKImage}} as builder
+	SimpleKmodContents = `ARG DTK_AUTO
+FROM ${DTK_AUTO} as builder
 ARG KERNEL_VERSION
 ARG KMODVER
 WORKDIR /build/

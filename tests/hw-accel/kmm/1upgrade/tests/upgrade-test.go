@@ -64,8 +64,7 @@ var _ = Describe("KMM", Ordered, Label(tsparams.LabelSuite), func() {
 			// Deploy a simple module to verify upgrade behavior with existing modules
 			By("Create ConfigMap for module build")
 
-			dtkImage := get.LocalDTKImage(APIClient, GeneralConfig.WorkerLabelMap)
-			configmapContents := define.SimpleKmodConfigMapContents(dtkImage)
+			configmapContents := define.SimpleKmodConfigMapContents()
 			dockerfileConfigMap, err := configmap.
 				NewBuilder(APIClient, kmodName, upgradeTestNamespace).
 				WithData(configmapContents).Create()

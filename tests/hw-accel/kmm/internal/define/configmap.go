@@ -49,19 +49,8 @@ func UserDtkMultiStateConfigMapContents(module, dtkImage string) map[string]stri
 }
 
 // SimpleKmodConfigMapContents returns the configmap for simple-kmod example.
-func SimpleKmodConfigMapContents(dtkImage string) map[string]string {
-	data := map[string]interface{}{
-		"DTKImage": dtkImage,
-	}
-
-	templateInstance := template.Must(template.New("contents").Parse(kmmparams.SimpleKmodContents))
-	builder := &strings.Builder{}
-
-	if err := templateInstance.Execute(builder, data); err != nil {
-		panic(err)
-	}
-
-	return map[string]string{"dockerfile": builder.String()}
+func SimpleKmodConfigMapContents() map[string]string {
+	return map[string]string{"dockerfile": kmmparams.SimpleKmodContents}
 }
 
 // SimpleKmodFirmwareConfigMapContents returns the configmap for simple-kmod-firmware example.
