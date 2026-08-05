@@ -27,6 +27,21 @@ const (
 	MetricHAProfileStatus PtpMetric = "openshift_ptp_ha_profile_status"
 	MetricPPSStatus       PtpMetric = "openshift_ptp_pps_status"
 	MetricClockClass      PtpMetric = "openshift_ptp_clock_class"
+	MetricPhaseStatus     PtpMetric = "openshift_ptp_phase_status"
+)
+
+// PtpPhaseStatus is an enum representing all possible values of the DPLL phase-status metric, matching the
+// kernel DPLL netlink UAPI's lock-status values.
+type PtpPhaseStatus int
+
+//nolint:revive // The phase status names are self explanatory and do not need individual comments.
+const (
+	PhaseStatusUnknown                PtpPhaseStatus = -1
+	PhaseStatusInvalid                PtpPhaseStatus = 0
+	PhaseStatusFreerun                PtpPhaseStatus = 1
+	PhaseStatusLocked                 PtpPhaseStatus = 2
+	PhaseStatusLockedHoldoverAcquired PtpPhaseStatus = 3
+	PhaseStatusHoldover               PtpPhaseStatus = 4
 )
 
 // PtpClockState is an enum representing all possible states of the PTP clock.
