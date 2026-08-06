@@ -54,3 +54,7 @@ type NamespaceManagementList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []NamespaceManagement `json:"items"`
 }
+
+func init() {
+	SchemeBuilder.Register(&NamespaceManagement{}, &NamespaceManagementList{})
+}

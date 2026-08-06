@@ -31,8 +31,6 @@ const (
 	ResourcesKeyOSD = "osd"
 	// ResourcesKeyPrepareOSD represents the name of resource in the CR for the osd prepare job
 	ResourcesKeyPrepareOSD = "prepareosd"
-	// ResourcesKeyCmdReporter represents the name of resource in the CR for the detect version and network jobs
-	ResourcesKeyCmdReporter = "cmd-reporter"
 	// ResourcesKeyMDS represents the name of resource in the CR for the mds
 	ResourcesKeyMDS = "mds"
 	// ResourcesKeyCrashCollector represents the name of resource in the CR for the crash
@@ -45,28 +43,26 @@ const (
 	ResourcesKeyFilesystemMirror = "fsmirror"
 	// ResourcesKeyCleanup represents the name of resource in the CR for the cleanup
 	ResourcesKeyCleanup = "cleanup"
-	// ResourcesKeyCephExporter represents the name of resource in the CR for ceph-exporter
+	// ResourcesKeyCleanup represents the name of resource in the CR for ceph-exporter
 	ResourcesKeyCephExporter = "exporter"
-	// ResourcesKeyFloatingMonShutDownApp is the resource key and container name for the floating mon DRBD shutdown sidecar.
-	ResourcesKeyFloatingMonShutDownApp = "floating-mon-shutdown"
 )
 
-// GetMgrResources returns the resources for the MGR service
+// GetMgrResources returns the placement for the MGR service
 func GetMgrResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyMgr]
 }
 
-// GetMgrSidecarResources returns the resources for the MGR sidecar container
+// GetMgrSidecarResources returns the placement for the MGR sidecar container
 func GetMgrSidecarResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyMgrSidecar]
 }
 
-// GetMonResources returns the resources for the monitors
+// GetMonResources returns the placement for the monitors
 func GetMonResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyMon]
 }
 
-// GetOSDResources returns the resources for all OSDs or for OSDs of specified device class (hdd, nvme, ssd)
+// GetOSDResources returns the placement for all OSDs or for OSDs of specified device class (hdd, nvme, ssd)
 func GetOSDResources(p ResourceSpec, deviceClass string) v1.ResourceRequirements {
 	if deviceClass == "" {
 		return p[ResourcesKeyOSD]
@@ -79,52 +75,32 @@ func GetOSDResources(p ResourceSpec, deviceClass string) v1.ResourceRequirements
 	return p[ResourcesKeyOSD]
 }
 
-// GetOSDResourcesForDeviceClass returns the resources for a device class, if specified
-func GetOSDResourcesForDeviceClass(resourceSpec ResourceSpec, deviceClass string) (v1.ResourceRequirements, bool) {
-	// if the device class requests specific resources, return them here
-	if resources, ok := resourceSpec[getOSDResourceKeyForDeviceClass(deviceClass)]; ok {
-		return resources, true
-	}
-	// no resources requested specific to the device class
-	return v1.ResourceRequirements{}, false
-}
-
 // getOSDResourceKeyForDeviceClass returns key name for device class in resources spec
 func getOSDResourceKeyForDeviceClass(deviceClass string) string {
 	return ResourcesKeyOSD + "-" + deviceClass
 }
 
-// GetPrepareOSDResources returns the resources for the OSDs prepare job
+// GetPrepareOSDResources returns the placement for the OSDs prepare job
 func GetPrepareOSDResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyPrepareOSD]
 }
 
-// GetCmdReporterResources returns the resources for the detect version job
-func GetCmdReporterResources(p ResourceSpec) v1.ResourceRequirements {
-	return p[ResourcesKeyCmdReporter]
-}
-
-// GetCrashCollectorResources returns the resources for the crash daemon
+// GetCrashCollectorResources returns the placement for the crash daemon
 func GetCrashCollectorResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyCrashCollector]
 }
 
-// GetLogCollectorResources returns the resources for the log collector
+// GetLogCollectorResources returns the placement for the crash daemon
 func GetLogCollectorResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyLogCollector]
 }
 
-// GetFloatingMonShutDownAppResources returns resources for the floating mon DRBD shutdown sidecar.
-func GetFloatingMonShutDownAppResources(p ResourceSpec) v1.ResourceRequirements {
-	return p[ResourcesKeyFloatingMonShutDownApp]
-}
-
-// GetCleanupResources returns the resources for the cleanup job
+// GetCleanupResources returns the placement for the cleanup job
 func GetCleanupResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyCleanup]
 }
 
-// GetCephExporterResources returns the resources for the cleanup job
+// GetCephExporterResources returns the placement for the cleanup job
 func GetCephExporterResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyCephExporter]
 }

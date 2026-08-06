@@ -292,6 +292,8 @@ replace (
 	// the branch name will fail.
 	github.com/openshift/installer => github.com/openshift/installer v0.0.0-20260626184649-2e33096a5884 // release-4.22
 	github.com/portworx/sched-ops => github.com/portworx/sched-ops v1.20.4-rc1
+	// REMOVE BEFORE MERGING; TESTING ONLY
+	github.com/rh-ecosystem-edge/eco-goinfra => github.com/klaskosk/eco-goinfra v0.0.0-20260803231413-2cc4b05ea913 // oran-omnibus
 	k8s.io/client-go => k8s.io/client-go v0.35.6
 	// The cluster-node-tuning-operator release-4.22 uses version k8s.io/kube-openapi v0.35.1, which does not exist.
 	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20260127142750-a19766b6e2d4

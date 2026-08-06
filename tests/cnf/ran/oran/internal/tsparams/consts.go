@@ -19,6 +19,8 @@ const (
 	LabelTemplateInventory = "template-inventory"
 	// LabelAlarms is the label applied to just the alarms test cases.
 	LabelAlarms = "alarms"
+	// LabelInventory is the label applied to just the inventory API test cases.
+	LabelInventory = "inventory"
 )
 
 const (
@@ -115,6 +117,21 @@ const (
 	// TestBase64Credential is a base64 encoded version of the string "wrongpassword" for when an obviously invalid
 	// credential is needed.
 	TestBase64Credential = "d3JvbmdwYXNzd29yZA=="
+
+	// TestLocationAlpha is the first Location name used by inventory filter tests.
+	TestLocationAlpha = "test-location-alpha"
+	// TestLocationBeta is the second Location name used by inventory filter tests.
+	TestLocationBeta = "test-location-beta"
+	// TestInventoryResourcePool is the ResourcePool name used by inventory subscription notification tests.
+	TestInventoryResourcePool = "oran-test-inventory-pool"
+	// ResourcePoolNameLabel is the BMH label that associates a host with a ResourcePool.
+	ResourcePoolNameLabel = "resources.clcm.openshift.io/resourcePoolName"
+	// ResourceInfoDescriptionAnnotation is the BMH annotation mapped to Resource.description.
+	ResourceInfoDescriptionAnnotation = "resourceinfo.clcm.openshift.io/description"
+	// ClusterTemplateArtifactsLabel is the ManagedCluster label required for Deployment Managers.
+	ClusterTemplateArtifactsLabel = "clustertemplates.clcm.openshift.io/templateId"
+	// NonExistentUUID is a well-known UUID used for not-found inventory API requests.
+	NonExistentUUID = "00000000-0000-0000-0000-000000000000"
 )
 
 // LogLevel is the glog verbosity level to use for logs in this suite or its helpers.

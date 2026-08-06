@@ -24,7 +24,9 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ocs/libopenstorage/secrets/vault"
 )
 
-var VaultTLSConnectionDetails = []string{api.EnvVaultCACert, api.EnvVaultClientCert, api.EnvVaultClientKey}
+var (
+	VaultTLSConnectionDetails = []string{api.EnvVaultCACert, api.EnvVaultClientCert, api.EnvVaultClientKey}
+)
 
 // IsEnabled return whether a KMS is configured
 func (kms *KeyManagementServiceSpec) IsEnabled() bool {
@@ -39,11 +41,6 @@ func (kms *KeyManagementServiceSpec) IsTokenAuthEnabled() bool {
 // IsK8sAuthEnabled return whether KMS Kubernetes auth is enabled
 func (kms *KeyManagementServiceSpec) IsK8sAuthEnabled() bool {
 	return getParam(kms.ConnectionDetails, vault.AuthMethod) == vault.AuthMethodKubernetes && kms.TokenSecretName == ""
-}
-
-// IsAgentAuthEnabled return whether Vault Agent auth is enabled
-func (kms *KeyManagementServiceSpec) IsAgentAuthEnabled() bool {
-	return getParam(kms.ConnectionDetails, vault.AuthMethod) == "agent" && kms.TokenSecretName == ""
 }
 
 // IsVaultKMS return whether Vault KMS is configured

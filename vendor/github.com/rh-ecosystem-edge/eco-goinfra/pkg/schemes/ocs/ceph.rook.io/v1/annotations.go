@@ -77,11 +77,6 @@ func GetCmdReporterAnnotations(a AnnotationsSpec) Annotations {
 	return mergeAllAnnotationsWithKey(a, KeyCmdReporter)
 }
 
-// GetCrashCollectorAnnotations returns the Annotations for the crash collector
-func GetCrashCollectorAnnotations(a AnnotationsSpec) Annotations {
-	return mergeAllAnnotationsWithKey(a, KeyCrashCollector)
-}
-
 func GetClusterMetadataAnnotations(a AnnotationsSpec) Annotations {
 	return a[KeyClusterMetadata]
 }
@@ -110,20 +105,14 @@ func (a Annotations) ApplyToObjectMeta(t *metav1.ObjectMeta) {
 // original Annotations with the attributes of the supplied one. The supplied
 // Annotation attributes will override the original ones if defined.
 func (a Annotations) Merge(with map[string]string) Annotations {
-	// Create a new map of type Annotations to hold the merged results
-	ret := Annotations{}
-
-	// Copy the contents of the original map (a) into ret
-	for k, v := range a {
-		ret[k] = v
+	ret := a
+	if ret == nil {
+		ret = map[string]string{}
 	}
-
-	// Add entries from the 'with' map only if the key does not already exist
 	for k, v := range with {
-		if _, exists := ret[k]; !exists {
+		if _, ok := ret[k]; !ok {
 			ret[k] = v
 		}
 	}
-
 	return ret
 }
