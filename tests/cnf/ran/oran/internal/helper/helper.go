@@ -25,21 +25,27 @@ import (
 )
 
 // NewProvisioningRequest creates a ProvisioningRequest builder with templateVersion, setting all the required
-// parameters and using the affix from RANConfig.
-func NewProvisioningRequest(client runtimeclient.Client, templateVersion string) *oran.ProvisioningRequestBuilder {
+// parameters and using the affix from RANConfig. Node hostnames come from ECO_CNF_RAN_CLUSTERINSTANCE_PATH when set,
+// otherwise from ECO_CNF_RAN_SPOKE1_HOSTNAME. The ClusterTemplate name resolves to mno-ran-du for multi-node
+// ClusterInstance files unless ECO_CNF_RAN_CLUSTER_TEMPLATE_NAME overrides it.
+func NewProvisioningRequest(
+	client runtimeclient.Client, templateVersion string) (*oran.ProvisioningRequestBuilder, error) {
+	hostnames, err := GetSpokeHostnames()
+	if err != nil {
+		return nil, fmt.Errorf("resolve spoke hostnames for ProvisioningRequest: %w", err)
+	}
+
 	versionWithAffix := RANConfig.ClusterTemplateAffix + "-" + templateVersion
-	prBuilder := oran.NewPRBuilder(client, tsparams.TestPRName, tsparams.ClusterTemplateName, versionWithAffix).
+	prBuilder := oran.NewPRBuilder(client, tsparams.TestPRName, GetClusterTemplateName(), versionWithAffix).
 		WithTemplateParameter("nodeClusterName", RANConfig.Spoke1Name).
 		WithTemplateParameter("oCloudSiteId", tsparams.OCloudSiteID).
 		WithTemplateParameter("policyTemplateParameters", map[string]any{}).
 		WithTemplateParameter("clusterInstanceParameters", map[string]any{
 			"clusterName": RANConfig.Spoke1Name,
-			"nodes": []map[string]any{{
-				"hostName": RANConfig.Spoke1Hostname,
-			}},
+			"nodes":       buildClusterInstanceNodes(hostnames),
 		})
 
-	return prBuilder
+	return prBuilder, nil
 }
 
 // NewSecondaryProvisioningRequest creates a ProvisioningRequest builder for a secondary PR using TestPRName2 and
@@ -48,7 +54,7 @@ func NewProvisioningRequest(client runtimeclient.Client, templateVersion string)
 func NewSecondaryProvisioningRequest(
 	client runtimeclient.Client, templateVersion string) *oran.ProvisioningRequestBuilder {
 	versionWithAffix := RANConfig.ClusterTemplateAffix + "-" + templateVersion
-	prBuilder := oran.NewPRBuilder(client, tsparams.TestPRName2, tsparams.ClusterTemplateName, versionWithAffix).
+	prBuilder := oran.NewPRBuilder(client, tsparams.TestPRName2, GetClusterTemplateName(), versionWithAffix).
 		WithTemplateParameter("nodeClusterName", tsparams.TestName2).
 		WithTemplateParameter("oCloudSiteId", tsparams.OCloudSiteID).
 		WithTemplateParameter("policyTemplateParameters", map[string]any{}).
@@ -70,7 +76,7 @@ func NewSecondaryProvisioningRequest(
 // ClusterTemplate's hwMgmtDefaults. This function is not for that scenario.
 func NewInlineBMCPR(client runtimeclient.Client, templateVersion string) *oran.ProvisioningRequestBuilder {
 	versionWithAffix := RANConfig.ClusterTemplateAffix + "-" + templateVersion
-	prBuilder := oran.NewPRBuilder(client, tsparams.TestPRName, tsparams.ClusterTemplateName, versionWithAffix).
+	prBuilder := oran.NewPRBuilder(client, tsparams.TestPRName, GetClusterTemplateName(), versionWithAffix).
 		WithTemplateParameter("nodeClusterName", RANConfig.Spoke1Name).
 		WithTemplateParameter("oCloudSiteId", tsparams.OCloudSiteID).
 		WithTemplateParameter("policyTemplateParameters", map[string]any{}).
