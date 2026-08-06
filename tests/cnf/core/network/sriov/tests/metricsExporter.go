@@ -523,14 +523,41 @@ func fetchScalarFromPromQLoutput(res string) int {
 
 	By("Fetch the final value from the PromQL output")
 
+	if strings.TrimSpace(res) == "" {
+		fmt.Fprintf(GinkgoWriter, "PromQL returned empty output, returning -1 to allow Eventually to retry\n")
+
+		return -1
+	}
+
 	var outValue podMetricPromQLoutput
 
 	err := json.Unmarshal([]byte(res), &outValue)
-	Expect(err).ToNot(HaveOccurred(), "Failed to Unmarshal promQL output from prometheus pod")
+	if err != nil {
+		fmt.Fprintf(GinkgoWriter, "Failed to unmarshal PromQL output: %v, returning -1 to allow Eventually to retry\n", err)
 
-	//nolint:forcetypeassert
-	finalVal, err := strconv.Atoi(outValue[0].Value[1].(string))
-	Expect(err).To(Not(HaveOccurred()), "Failed to convert counter value to int")
+		return -1
+	}
+
+	if len(outValue) == 0 || len(outValue[0].Value) < 2 {
+		fmt.Fprintf(GinkgoWriter, "PromQL output contains no usable metrics, returning -1 to allow Eventually to retry\n")
+
+		return -1
+	}
+
+	valueStr, ok := outValue[0].Value[1].(string)
+	if !ok {
+		fmt.Fprintf(GinkgoWriter, "PromQL metric value is not a string, returning -1 to allow Eventually to retry\n")
+
+		return -1
+	}
+
+	finalVal, err := strconv.Atoi(valueStr)
+	if err != nil {
+		fmt.Fprintf(GinkgoWriter,
+			"Failed to convert counter value to int: %v, returning -1 to allow Eventually to retry\n", err)
+
+		return -1
+	}
 
 	return finalVal
 }
