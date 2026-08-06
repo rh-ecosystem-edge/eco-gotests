@@ -22,12 +22,16 @@ const (
 )
 
 const (
-	// ClusterTemplateName is the name without the version of the ClusterTemplate used in the ORAN tests. It is also
-	// the namespace the ClusterTemplates are in.
+	// ClusterTemplateName is the default ClusterTemplate base name (without version) for SNO O-RAN tests. It is also
+	// the namespace the ClusterTemplates are in. Prefer helper.GetClusterTemplateName() when building PRs so MNO labs
+	// can resolve to MNOClusterTemplateName.
 	ClusterTemplateName = "sno-ran-du"
+	// MNOClusterTemplateName is the default ClusterTemplate base name for multi-node O-RAN provision tests.
+	MNOClusterTemplateName = "mno-ran-du"
 	// O2IMSNamespace is the namespace used by the oran-o2ims operator.
 	O2IMSNamespace = "oran-o2ims"
-	// ExtraManifestsName is the name of the generated extra manifests ConfigMap in the cluster Namespace.
+	// ExtraManifestsName is the default generated extra manifests ConfigMap name for SNO. Prefer
+	// helper.GetExtraManifestsName() so the name matches the resolved ClusterTemplate.
 	ExtraManifestsName = "sno-ran-du-extra-manifest-1"
 	// ClusterInstanceParamsKey is the key in the TemplateParameters map for the ClusterInstance parameters.
 	ClusterInstanceParamsKey = "clusterInstanceParameters"
@@ -50,6 +54,9 @@ const (
 	// PRValidationFailedDetailsSubstring is a substring of status.provisioningStatus.provisioningDetails when
 	// ProvisioningRequest validation fails.
 	PRValidationFailedDetailsSubstring = "Failed to validate the ProvisioningRequest"
+	// PRPolicyTemplateConfigMapFailedSubstring is a substring of provisioningDetails when invalid
+	// policyTemplateParameters are rejected while creating the policy template ConfigMap.
+	PRPolicyTemplateConfigMapFailedSubstring = "failed to create policy template ConfigMap"
 	// PRFulfilledDetailsSubstring is a substring of status.provisioningStatus.provisioningDetails when
 	// provisioning completes successfully.
 	PRFulfilledDetailsSubstring = "Provisioning request has completed successfully"
