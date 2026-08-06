@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	monv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	prometheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
@@ -30,6 +31,10 @@ var (
 
 	// savedPtpServiceMonitor holds the original PTP ServiceMonitor state so it can be restored in AfterSuite.
 	savedPtpServiceMonitor *monv1.ServiceMonitor
+
+	// spoke1PrometheusAPI is the Prometheus API client created in BeforeSuite, reused by JustAfterEach to dump a
+	// timestamped clock_state history for any failed spec.
+	spoke1PrometheusAPI prometheusv1.API
 )
 
 func TestPTP(t *testing.T) {
@@ -48,12 +53,14 @@ var _ = BeforeSuite(func() {
 
 	By("creating a Prometheus API client")
 
-	prometheusAPI, err := querier.CreatePrometheusAPIForCluster(RANConfig.Spoke1APIClient)
+	var err error
+
+	spoke1PrometheusAPI, err = querier.CreatePrometheusAPIForCluster(RANConfig.Spoke1APIClient)
 	Expect(err).ToNot(HaveOccurred(), "Failed to create Prometheus API client")
 
 	By("ensuring clocks are locked before testing")
 
-	err = metrics.EnsureClocksAreLocked(prometheusAPI)
+	err = metrics.EnsureClocksAreLocked(spoke1PrometheusAPI)
 	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
 
 	By("initializing the NIC naming system based on the PTP version")
@@ -107,6 +114,7 @@ var _ = JustAfterEach(func() {
 	reporter.ReportIfFailed(
 		CurrentSpecReport(), currentFile, tsparams.ReporterSpokeNamespacesToDump, tsparams.ReporterSpokeCRsToDump)
 	mustgather.MustGatherIfFailed(CurrentSpecReport(), currentFile, RANConfig.Spoke1APIClient)
+	metrics.DumpClockStateRangeIfFailed(CurrentSpecReport(), spoke1PrometheusAPI)
 })
 
 var _ = ReportAfterSuite("", func(report Report) {
