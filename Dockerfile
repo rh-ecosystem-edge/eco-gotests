@@ -24,7 +24,7 @@ LABEL ginkgo.version=${GINKGO_VER}
 LABEL container.user=${CONTAINERUSER}
 
 ENV PATH "$PATH:/usr/local/go/bin:/root/go/bin"
-RUN dnf install -y tar gcc make && \
+RUN dnf install -y tar gcc make nmstate && \
     dnf clean metadata packages && \
     useradd -U -u 1000 -m -d /home/${CONTAINERUSER} -s /usr/bin/bash ${CONTAINERUSER}
 
