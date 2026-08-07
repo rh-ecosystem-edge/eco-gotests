@@ -1,5 +1,6 @@
-// Package inventory provides framework-independent verification helpers that compare O2IMS inventory API responses
-// against hub cluster state (CRs, BMHs, ManagedClusters).
+// Package o2imsinventory provides framework-independent verification helpers that compare O2IMS inventory API responses
+// against hub cluster state (CRs, BMHs, ManagedClusters). Shared O2IMS response and notification checks are provided by
+// the o2imstest package.
 //
 // The helpers are designed to accumulate errors so that test assertions capture all possible mismatches. When the
 // helpers require cluster resources, they generally move the comparison logic into unexported functions that may be
@@ -11,4 +12,4 @@
 //
 // Unit tests which would require constructing builders are excluded and these cases are covered by the broader oran
 // test suite.
-package inventory
+package o2imsinventory

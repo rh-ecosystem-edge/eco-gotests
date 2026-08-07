@@ -1,4 +1,4 @@
-package inventory
+package o2imsinventory
 
 import (
 	"fmt"
@@ -9,6 +9,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/bmh"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	oranapi "github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/o2imstest"
 )
 
 const resourceInfoDescriptionAnnotation = "resourceinfo.clcm.openshift.io/description"
@@ -105,29 +106,14 @@ func buildResourceViewFromAPI(resource oranapi.Resource) resourceView {
 		Description:    resource.Description,
 		GlobalAssetID:  resource.GlobalAssetId,
 		Extensions: map[string]string{
-			extVendor:           readExtensionString(resource.Extensions, extVendor),
-			extModel:            readExtensionString(resource.Extensions, extModel),
-			extAdminState:       readExtensionString(resource.Extensions, extAdminState),
-			extOperationalState: readExtensionString(resource.Extensions, extOperationalState),
-			extUsageState:       readExtensionString(resource.Extensions, extUsageState),
-			extPowerState:       readExtensionString(resource.Extensions, extPowerState),
+			extVendor:           o2imstest.ExtensionString(resource.Extensions, extVendor),
+			extModel:            o2imstest.ExtensionString(resource.Extensions, extModel),
+			extAdminState:       o2imstest.ExtensionString(resource.Extensions, extAdminState),
+			extOperationalState: o2imstest.ExtensionString(resource.Extensions, extOperationalState),
+			extUsageState:       o2imstest.ExtensionString(resource.Extensions, extUsageState),
+			extPowerState:       o2imstest.ExtensionString(resource.Extensions, extPowerState),
 		},
 	}
-}
-
-// readExtensionString returns a string extension value, or an empty string when unavailable.
-func readExtensionString(extensions map[string]any, name string) string {
-	value, exists := extensions[name]
-	if !exists {
-		return ""
-	}
-
-	valueString, isString := value.(string)
-	if !isString {
-		return ""
-	}
-
-	return valueString
 }
 
 // deriveAdminState derives the inventory admin state from a BareMetalHost.
