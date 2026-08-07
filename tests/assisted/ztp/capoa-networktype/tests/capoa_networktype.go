@@ -344,19 +344,25 @@ var _ = Describe(
 				oacpBuilder, err = oacpBuilder.Create()
 				Expect(err).ToNot(HaveOccurred(), "failed to create OACP without networkType")
 
-				By("Verifying ACI networkType is empty (default behavior)")
+				By("Waiting for ACI to be created by controller")
 
-				Eventually(func() string {
+				aciBuilder := waitForACI(testClusterName, tsparams.TestNamespace)
+				Expect(aciBuilder.Object.Spec.Networking.NetworkType).To(BeEmpty(),
+					"ACI networkType should be empty on first appearance")
+
+				By("Verifying ACI networkType remains empty across subsequent polls")
+
+				Consistently(func() string {
 					aciBuilder, err := assisted.PullAgentClusterInstall(
 						HubAPIClient, testClusterName, tsparams.TestNamespace)
 					if err != nil {
-						return "NOT_FOUND"
+						return "PULL_ERROR"
 					}
 
 					return aciBuilder.Object.Spec.Networking.NetworkType
-				}).WithTimeout(3*time.Minute).WithPolling(5*time.Second).Should(
+				}).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(
 					BeEmpty(),
-					"ACI networkType should be empty when OACP omits it",
+					"ACI networkType should remain empty when OACP omits it",
 				)
 			})
 	})
@@ -384,6 +390,7 @@ var _ = Describe(
 					testDistributionVersion,
 					1,
 				).WithNetworkType("Flannel").
+					WithPullSecretRef(pullSecretName).
 					WithMachineTemplate(testMachineTemplate("nt-validation-test"))
 
 				_, err = invalidOACP.Create()
@@ -455,6 +462,19 @@ var _ = Describe(
 				Expect(apierrors.IsAlreadyExists(err)).To(BeTrue(),
 					"unexpected error creating test namespace: "+err.Error())
 			}
+
+			By("Ensuring pull secret exists in test namespace")
+
+			_, err = secret.NewBuilder(
+				HubAPIClient,
+				pullSecretName,
+				tsparams.TestNamespace,
+				corev1.SecretTypeDockerConfigJson,
+			).WithData(tsparams.HubPullSecretData).Create()
+			if err != nil {
+				Expect(apierrors.IsAlreadyExists(err)).To(BeTrue(),
+					"unexpected error creating pull secret: "+err.Error())
+			}
 		})
 
 		It("preserves networkType during v1alpha2 to v1alpha3 conversion",
@@ -505,6 +525,7 @@ var _ = Describe(
 					testDistributionVersion,
 					1,
 				).WithNetworkType("Calico").
+					WithPullSecretRef(pullSecretName).
 					WithMachineTemplate(testMachineTemplate(conversionTestName + "-v3"))
 
 				var err error
