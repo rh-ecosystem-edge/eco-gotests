@@ -21,8 +21,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	cephrookio "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ocs/ceph.rook.io"
 	bktv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ocs/objectbucket.io/v1alpha1"
+	cephrookio "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ocs/ceph.rook.io"
 )
 
 const (
@@ -65,10 +65,14 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&CephFilesystemList{},
 		&CephNFS{},
 		&CephNFSList{},
+		&CephNVMeOFGateway{},
+		&CephNVMeOFGatewayList{},
 		&CephObjectStore{},
 		&CephObjectStoreList{},
 		&CephObjectStoreUser{},
 		&CephObjectStoreUserList{},
+		&CephObjectStoreAccount{},
+		&CephObjectStoreAccountList{},
 		&CephObjectRealm{},
 		&CephObjectRealmList{},
 		&CephObjectZoneGroup{},
