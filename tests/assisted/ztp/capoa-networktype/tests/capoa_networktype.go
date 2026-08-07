@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/assisted"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/capi"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/capoa"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/hive"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
@@ -36,29 +37,14 @@ const (
 	testDistributionVersion = "4.22.0"
 )
 
-func newCAPICluster(name, namespaceName string) *unstructured.Unstructured {
-	return &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "cluster.x-k8s.io/v1beta1",
-			"kind":       "Cluster",
-			"metadata": map[string]interface{}{
-				"name":      name,
-				"namespace": namespaceName,
-			},
-			"spec": map[string]interface{}{
-				"paused": false,
-				"controlPlaneEndpoint": map[string]interface{}{
-					"host": "example.com",
-					"port": int64(8080),
-				},
-				"controlPlaneRef": map[string]interface{}{
-					"apiVersion": "controlplane.cluster.x-k8s.io/v1alpha3",
-					"kind":       "OpenshiftAssistedControlPlane",
-					"name":       name,
-				},
-			},
-		},
-	}
+func newCAPICluster(name, namespaceName string) *capi.ClusterBuilder {
+	return capi.NewClusterBuilder(HubAPIClient, name, namespaceName).
+		WithControlPlaneEndpoint("example.com", 8080).
+		WithControlPlaneRef(
+			"controlplane.cluster.x-k8s.io/v1alpha3",
+			"OpenshiftAssistedControlPlane",
+			name,
+		)
 }
 
 func newOpenshiftAssistedConfig(name, namespaceName, clusterName string) *unstructured.Unstructured {
@@ -160,9 +146,9 @@ var _ = Describe(
 	Ordered, ContinueOnFailure,
 	Label(tsparams.LabelSuite), func() {
 		var (
-			testNS      *namespace.Builder
-			capiCluster *unstructured.Unstructured
-			oacpBuilder *capoa.OpenshiftAssistedControlPlaneBuilder
+			testNS         *namespace.Builder
+			clusterBuilder *capi.ClusterBuilder
+			oacpBuilder    *capoa.OpenshiftAssistedControlPlaneBuilder
 		)
 
 		BeforeAll(func() {
@@ -185,8 +171,7 @@ var _ = Describe(
 
 			By("Creating CAPI Cluster resource")
 
-			capiCluster = newCAPICluster(testClusterName, tsparams.TestNamespace)
-			err = HubAPIClient.Create(context.TODO(), capiCluster)
+			clusterBuilder, err = newCAPICluster(testClusterName, tsparams.TestNamespace).Create()
 			Expect(err).ToNot(HaveOccurred(), "failed to create CAPI Cluster")
 
 			By("Creating ClusterDeployment with CAPI cluster label")
@@ -235,7 +220,7 @@ var _ = Describe(
 			reportxml.ID("90048"), func() {
 				By("Creating OACP with networkType Cilium")
 
-				clusterUID := capiCluster.GetUID()
+				clusterUID := clusterBuilder.Object.GetUID()
 
 				oacpBuilder = capoa.NewOpenshiftAssistedControlPlaneBuilder(
 					HubAPIClient,
@@ -330,7 +315,7 @@ var _ = Describe(
 
 				By("Creating new OACP without networkType")
 
-				clusterUID := capiCluster.GetUID()
+				clusterUID := clusterBuilder.Object.GetUID()
 
 				oacpBuilder = capoa.NewOpenshiftAssistedControlPlaneBuilder(
 					HubAPIClient,
