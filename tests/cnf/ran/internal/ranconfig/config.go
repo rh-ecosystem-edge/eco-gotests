@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
@@ -29,6 +30,7 @@ type RANConfig struct {
 	*HubConfig
 	*Spoke1Config
 	*Spoke2Config
+	*IBIPreinstallConfig
 
 	MetricSamplingInterval string        `yaml:"metricSamplingInterval" envconfig:"ECO_CNF_RAN_METRIC_SAMPLING_INTERVAL"`
 	NoWorkloadDuration     string        `yaml:"noWorkloadDuration" envconfig:"ECO_CNF_RAN_NO_WORKLOAD_DURATION"`
@@ -51,6 +53,10 @@ type RANConfig struct {
 	// MockSMOSubdomain is the subdomain for the mock SMO route. It should be the SMO registered in the inventory CR. It
 	// is optional and only used for the O-RAN suite.
 	MockSMOSubdomain string `yaml:"mockSmoSubdomain" envconfig:"ECO_CNF_RAN_MOCK_SMO_SUBDOMAIN"`
+
+	// SkipTLSVerify skips TLS certificate verification for HTTP fetches (e.g., fetching
+	// ClusterInstance YAML from a remote server whose CA is not in the container trust store).
+	SkipTLSVerify bool `default:"false" envconfig:"ECO_CNF_RAN_SKIP_TLS_VERIFY"`
 
 	// PtpEventConsumerImage is the URL of the PTP event consumer image. It should not have a tag, since the
 	// expectation is that the program uses v1 or v2 as a tag.
@@ -145,6 +151,34 @@ type Spoke2Config struct {
 	Spoke2Kubeconfig string `envconfig:"ECO_CNF_RAN_KUBECONFIG_SPOKE2"`
 }
 
+// IBIPreinstallConfig contains configuration specific to IBI preinstall workflows.
+type IBIPreinstallConfig struct {
+	// SeedImage is the seed image reference (e.g., registry:5000/ibu/seed:4.22.8).
+	SeedImage string `envconfig:"ECO_CNF_RAN_IBI_SEED_IMAGE"`
+	// SeedVersion overrides the tag parsed from SeedImage (needed when the seed ref is digest-pinned).
+	SeedVersion string `envconfig:"ECO_CNF_RAN_IBI_SEED_VERSION"`
+	// ClusterInstanceURL is the raw URL to the ClusterInstance YAML file (used for BMH fields).
+	ClusterInstanceURL string `envconfig:"ECO_CNF_RAN_IBI_CLUSTER_INSTANCE_URL"`
+	// IBIConfigTemplateURL is the raw URL to the image-based-installation-config.yaml template.
+	// The template uses Go text/template placeholders ({{.SeedImage}}, {{.PullSecret}}, etc.)
+	// that are resolved at runtime from hub cluster resources and env vars.
+	IBIConfigTemplateURL string `envconfig:"ECO_CNF_RAN_IBI_CONFIG_TEMPLATE_URL"`
+	// PreinstallRegistry is the disconnected registry host:port (e.g. registry.example.com:5000)
+	// used to resolve {{.PreinstallRegistry}} in the IBI config template.
+	PreinstallRegistry string `envconfig:"ECO_CNF_RAN_IBI_PREINSTALL_REGISTRY"`
+	// OpenshiftInstallPath is the path to the openshift-install binary (mounted by CI).
+	OpenshiftInstallPath string `envconfig:"ECO_CNF_RAN_IBI_OPENSHIFT_INSTALL"`
+	// PreinstallHTTPDir is the local directory that the HTTP server serves from.
+	// The generated ISO is copied here so the BMH can boot from it via PreinstallHTTPBaseURL.
+	// In CI this is a volume mount from the host's HTTP serve directory.
+	PreinstallHTTPDir string `envconfig:"ECO_CNF_RAN_IBI_PREINSTALL_HTTP_DIR"`
+	// PreinstallHTTPBaseURL is the HTTP URL that maps to PreinstallHTTPDir.
+	PreinstallHTTPBaseURL string `envconfig:"ECO_CNF_RAN_IBI_PREINSTALL_HTTP_BASE_URL"`
+	// PreinstallSSHKey is the path to the SSH private key (mounted into the container).
+	// Used to SSH into the target node for preinstall status monitoring and diagnostics.
+	PreinstallSSHKey string `envconfig:"ECO_CNF_RAN_IBI_PREINSTALL_SSH_KEY"`
+}
+
 // NewRANConfig returns an instance of RANConfig.
 func NewRANConfig() *RANConfig {
 	klog.V(ranparam.LogLevel).Infof("Creating new RANConfig struct")
@@ -167,8 +201,20 @@ func NewRANConfig() *RANConfig {
 	ranConfig.newHubConfig(configFile)
 	ranConfig.newSpoke1Config(configFile)
 	ranConfig.newSpoke2Config(configFile)
+	ranConfig.newIBIPreinstallConfig(configFile)
 
 	return &ranConfig
+}
+
+func (ranconfig *RANConfig) newIBIPreinstallConfig(configFile string) {
+	klog.V(ranparam.LogLevel).Infof("Creating new IBIPreinstallConfig struct from file %s", configFile)
+
+	ranconfig.IBIPreinstallConfig = new(IBIPreinstallConfig)
+
+	err := readConfig(ranconfig.IBIPreinstallConfig, configFile)
+	if err != nil {
+		klog.V(ranparam.LogLevel).Infof("Failed to instantiate IBIPreinstallConfig: %v", err)
+	}
 }
 
 func (ranconfig *RANConfig) newHubConfig(configFile string) {
@@ -355,4 +401,58 @@ func readEnv[C any](config *C) error {
 	err := envconfig.Process("", config)
 
 	return err
+}
+
+// ISOArtifactURL builds the full HTTP URL for the IBI ISO file.
+func (c *IBIPreinstallConfig) ISOArtifactURL(isoFilename string) string {
+	base := strings.TrimSuffix(c.PreinstallHTTPBaseURL, "/")
+
+	return fmt.Sprintf("%s/%s", base, isoFilename)
+}
+
+// ValidatePreinstallMandatory returns an error listing any mandatory IBI preinstall settings that are unset.
+func (c *IBIPreinstallConfig) ValidatePreinstallMandatory(bmcUsername, bmcPassword string) error {
+	if c == nil {
+		return fmt.Errorf("IBI preinstall config is nil")
+	}
+
+	var missing []string
+
+	if c.SeedImage == "" {
+		missing = append(missing, "ECO_CNF_RAN_IBI_SEED_IMAGE")
+	}
+
+	if c.ClusterInstanceURL == "" {
+		missing = append(missing, "ECO_CNF_RAN_IBI_CLUSTER_INSTANCE_URL")
+	}
+
+	if c.OpenshiftInstallPath == "" {
+		missing = append(missing, "ECO_CNF_RAN_IBI_OPENSHIFT_INSTALL")
+	}
+
+	if c.PreinstallHTTPDir == "" {
+		missing = append(missing, "ECO_CNF_RAN_IBI_PREINSTALL_HTTP_DIR")
+	}
+
+	if c.PreinstallHTTPBaseURL == "" {
+		missing = append(missing, "ECO_CNF_RAN_IBI_PREINSTALL_HTTP_BASE_URL")
+	}
+
+	if c.PreinstallSSHKey == "" {
+		missing = append(missing, "ECO_CNF_RAN_IBI_PREINSTALL_SSH_KEY")
+	}
+
+	if bmcUsername == "" {
+		missing = append(missing, "ECO_CNF_RAN_BMC_USERNAME")
+	}
+
+	if bmcPassword == "" {
+		missing = append(missing, "ECO_CNF_RAN_BMC_PASSWORD")
+	}
+
+	if len(missing) > 0 {
+		return fmt.Errorf("missing required IBI preinstall configuration: %s", strings.Join(missing, ", "))
+	}
+
+	return nil
 }

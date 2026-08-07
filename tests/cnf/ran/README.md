@@ -21,6 +21,7 @@ Some test suites (ZTP, TALM) require clusters to be deployed via GitOps ZTP and 
 | [powermanagement](powermanagement/powermanagement_suite_test.go) | Tests powersave settings using workload hints       |
 | [talm](talm/talm_suite_test.go)                                  | Tests the topology aware lifecycle manager (TALM)   |
 | [gitopsztp](gitopsztp/ztp_suite_test.go)                         | Tests zero touch provisioning (ZTP) and Argo CD     |
+| [ibipreinstall](ibipreinstall/ibipreinstall_suite_test.go)       | Tests IBI (Image-Based Install) preinstall workflow |
 
 ### Internal pkgs
 
@@ -52,9 +53,13 @@ Currently, only the TALM tests need more than the first spoke kubeconfig.
 * `ECO_CNF_RAN_KUBECONFIG_HUB`: For tests that need a hub cluster, this is the path to its kubeconfig.
 * `ECO_CNF_RAN_KUBECONFIG_SPOKE2`: For tests that need a second spoke cluster, this is the path to its kubeconfig.
 
+#### TLS
+
+* `ECO_CNF_RAN_SKIP_TLS_VERIFY`: Skip TLS certificate verification for HTTP fetches (e.g., fetching config files from a remote server whose CA is not in the container trust store). Defaults to `false`.
+
 #### BMC credentials
 
-Only the powermanagement and TALM pre-cache tests need BMC credentials.
+The powermanagement, TALM pre-cache, and IBI preinstall tests need BMC credentials.
 
 * `ECO_CNF_RAN_BMC_USERNAME`: Username used for the Redfish API.
 * `ECO_CNF_RAN_BMC_PASSWORD`: Password used for the Redfish API.
@@ -105,6 +110,20 @@ These inputs are all specific to the PTP test suites and are optional.
 #### ACM inputs
 
 * `ECO_CNF_RAN_ACM_OPERATOR_NAMESPACE`: Namespace that the ACM operator uses.
+
+#### IBI preinstall inputs
+
+These inputs are specific to the IBI preinstall test suite. The suite performs an Image-Based Install on a bare-metal node by generating an IBI ISO, booting the node via a BareMetalHost CR, and monitoring the preinstall service to completion.
+
+* `ECO_CNF_RAN_IBI_SEED_IMAGE`: Seed image reference (e.g., `registry:5000/ibu/seed:4.22.8`). Required.
+* `ECO_CNF_RAN_IBI_SEED_VERSION`: Overrides the version tag parsed from `ECO_CNF_RAN_IBI_SEED_IMAGE`. Only needed when the seed reference is digest-pinned.
+* `ECO_CNF_RAN_IBI_CLUSTER_INSTANCE_URL`: Raw URL to the ClusterInstance YAML file. Used to extract BMH fields (hostname, BMC address, MAC, etc.). Required.
+* `ECO_CNF_RAN_IBI_CONFIG_TEMPLATE_URL`: Raw URL to the `image-based-installation-config.yaml` Go template. If unset, it is auto-derived from `ECO_CNF_RAN_IBI_CLUSTER_INSTANCE_URL` by looking for `preinstall-test/image-based-installation-config.yaml` in the same directory.
+* `ECO_CNF_RAN_IBI_PREINSTALL_REGISTRY`: Disconnected registry `host:port` used to resolve `{{.PreinstallRegistry}}` in the IBI config template. If unset, it is auto-derived from the MCE/ACM mirror configuration on the hub.
+* `ECO_CNF_RAN_IBI_OPENSHIFT_INSTALL`: Path to the `openshift-install` binary (mounted by CI). Required.
+* `ECO_CNF_RAN_IBI_PREINSTALL_HTTP_DIR`: Local directory that the HTTP server serves from. The generated ISO is copied here so the BMH can boot from it. In CI this is a volume mount from the host's HTTP serve directory. Required.
+* `ECO_CNF_RAN_IBI_PREINSTALL_HTTP_BASE_URL`: HTTP base URL that maps to `ECO_CNF_RAN_IBI_PREINSTALL_HTTP_DIR` (e.g., `http://host:8080/images`). Required.
+* `ECO_CNF_RAN_IBI_PREINSTALL_SSH_KEY`: Path to the SSH private key for connecting to the target node. Used for preinstall status monitoring and diagnostics collection. Required.
 
 #### O-RAN inputs
 
@@ -171,6 +190,23 @@ If using more selective labels that do not include TALM pre-cache, such as with 
 ```
 
 The ZTP generator test cannot be run in a container and thus has the `no-container` label. To run it, set `ECO_TEST_LABELS="ran-ztp && no-container"`.
+
+#### Running the IBI preinstall test suite
+
+```bash
+# export ECO_TEST_FEATURES=ibipreinstall
+# export ECO_CNF_RAN_KUBECONFIG_HUB=</path/to/hub/kubeconfig>
+# export ECO_CNF_RAN_BMC_USERNAME=<bmc username>
+# export ECO_CNF_RAN_BMC_PASSWORD=<bmc password>
+# export ECO_CNF_RAN_IBI_SEED_IMAGE=<registry:port/ibu/seed:version>
+# export ECO_CNF_RAN_IBI_CLUSTER_INSTANCE_URL=<url to ClusterInstance YAML>
+# export ECO_CNF_RAN_IBI_OPENSHIFT_INSTALL=</path/to/openshift-install>
+# export ECO_CNF_RAN_IBI_PREINSTALL_HTTP_DIR=</path/to/http/serve/dir>
+# export ECO_CNF_RAN_IBI_PREINSTALL_HTTP_BASE_URL=<http://host:port/path>
+# export ECO_CNF_RAN_IBI_PREINSTALL_SSH_KEY=</path/to/ssh/private/key>
+# export ECO_CNF_RAN_SKIP_TLS_VERIFY=true  # if the server CA is not in the container trust store
+# make run-tests
+```
 
 ### Additional Information
 
