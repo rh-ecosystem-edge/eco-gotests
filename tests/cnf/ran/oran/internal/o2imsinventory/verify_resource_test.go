@@ -1,6 +1,6 @@
 //go:build unit_test
 
-package inventory
+package o2imsinventory
 
 import (
 	"testing"
@@ -74,17 +74,13 @@ func TestVerifyResourceMatchesBMHNilAnnotations(t *testing.T) {
 	assert.NoError(t, verifyResourceMatchesBMH(resource, host, poolID, hardware))
 }
 
-func TestReadExtensionString(t *testing.T) {
+func TestBuildResourceViewFromAPINonStringExtension(t *testing.T) {
 	t.Parallel()
 
-	extensions := map[string]any{
-		"string":    "value",
-		"notString": 123,
-	}
+	resource := oranapi.Resource{Extensions: map[string]any{extVendor: 42}}
+	view := buildResourceViewFromAPI(resource)
 
-	assert.Equal(t, "value", readExtensionString(extensions, "string"))
-	assert.Empty(t, readExtensionString(extensions, "missing"))
-	assert.Empty(t, readExtensionString(extensions, "notString"))
+	assert.Empty(t, view.Extensions[extVendor])
 }
 
 // createProvisionedOnlineHost creates a provisioned, online, powered-on host fixture.
