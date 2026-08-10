@@ -494,7 +494,19 @@ var _ = Describe(
 					"failed to create OACP via v1alpha2 API")
 
 				DeferCleanup(func() {
-					_ = HubAPIClient.Delete(context.TODO(), v1alpha2OACP)
+					err := HubAPIClient.Delete(context.TODO(), v1alpha2OACP)
+					Expect(err).ToNot(HaveOccurred(), "failed to delete v1alpha2 OACP")
+
+					Eventually(func() bool {
+						pullErr := HubAPIClient.Get(context.TODO(),
+							types.NamespacedName{
+								Name:      conversionTestName + "-v2",
+								Namespace: tsparams.TestNamespace,
+							}, v1alpha2OACP)
+
+						return apierrors.IsNotFound(pullErr)
+					}).WithTimeout(1*time.Minute).WithPolling(5*time.Second).Should(
+						BeTrue(), "v1alpha2 OACP should be deleted")
 				})
 
 				By("Reading back via v1alpha3 typed builder")
@@ -535,7 +547,8 @@ var _ = Describe(
 					"failed to create OACP via v1alpha3 typed builder")
 
 				DeferCleanup(func() {
-					_ = v3Builder.DeleteAndWait(1 * time.Minute)
+					err := v3Builder.DeleteAndWait(1 * time.Minute)
+					Expect(err).ToNot(HaveOccurred(), "failed to delete v1alpha3 OACP")
 				})
 
 				By("Reading back via v1alpha2 unstructured API")
