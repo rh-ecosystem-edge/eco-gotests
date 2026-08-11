@@ -3,6 +3,7 @@ package bmh
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -17,6 +18,10 @@ import (
 
 const (
 	fiveScds time.Duration = 5 * time.Second
+
+	// O2IMS inventory eligibility labels mirror oran-o2ims hardwaremanager/controller/inventory.go.
+	labelResourcePoolName       = "resources.clcm.openshift.io/resourcePoolName"
+	labelPrefixResourceSelector = "resourceselector.clcm.openshift.io/"
 )
 
 // List returns bareMetalHosts inventory in the given namespace.
@@ -79,6 +84,71 @@ func ListInAllNamespaces(apiClient *clients.Settings, options ...goclient.ListOp
 	klog.V(100).Info(logMessage)
 
 	return list(apiClient, passedOptions)
+}
+
+// ListInventoryEligibleBMH lists BareMetalHosts that match the O2IMS hardware inventory collector criteria.
+func ListInventoryEligibleBMH(apiClient *clients.Settings, options ...goclient.ListOptions) ([]*BmhBuilder, error) {
+	bmhList, err := ListInAllNamespaces(apiClient, options...)
+	if err != nil {
+		return nil, err
+	}
+
+	var eligibleBMHs []*BmhBuilder
+
+	for _, baremetalhost := range bmhList {
+		if IsInventoryEligibleBMH(baremetalhost.Definition) {
+			eligibleBMHs = append(eligibleBMHs, baremetalhost)
+		}
+	}
+
+	return eligibleBMHs, nil
+}
+
+// IsInventoryEligibleBMH reports whether a BareMetalHost would be included in the O2IMS hardware inventory.
+func IsInventoryEligibleBMH(bmh *bmhv1alpha1.BareMetalHost) bool {
+	if !isOCloudManagedBMH(bmh) {
+		return false
+	}
+
+	switch bmh.Status.Provisioning.State {
+	case bmhv1alpha1.StateAvailable,
+		bmhv1alpha1.StateProvisioning,
+		bmhv1alpha1.StateProvisioned,
+		bmhv1alpha1.StateExternallyProvisioned,
+		bmhv1alpha1.StatePreparing,
+		bmhv1alpha1.StateDeprovisioning:
+		return true
+	case bmhv1alpha1.StateNone,
+		bmhv1alpha1.StateUnmanaged,
+		bmhv1alpha1.StateRegistering,
+		bmhv1alpha1.StateMatchProfile,
+		bmhv1alpha1.StateReady,
+		bmhv1alpha1.StateInspecting,
+		bmhv1alpha1.StatePoweringOffBeforeDelete,
+		bmhv1alpha1.StateDeleting:
+		return false
+	}
+
+	return false
+}
+
+// isOCloudManagedBMH reports whether a BareMetalHost is managed by O-Cloud Manager based on required labels.
+func isOCloudManagedBMH(bmh *bmhv1alpha1.BareMetalHost) bool {
+	if bmh == nil || bmh.Labels == nil {
+		return false
+	}
+
+	if bmh.Labels[labelResourcePoolName] != "" {
+		return true
+	}
+
+	for label := range bmh.Labels {
+		if strings.HasPrefix(label, labelPrefixResourceSelector) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // WaitForAllBareMetalHostsInGoodOperationalState waits for all baremetalhosts to be in good Operational State

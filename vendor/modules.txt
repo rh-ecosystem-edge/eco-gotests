@@ -990,7 +990,7 @@ github.com/redhat-cne/sdk-go/pkg/event/ptp
 github.com/redhat-cne/sdk-go/pkg/event/redfish
 github.com/redhat-cne/sdk-go/pkg/pubsub
 github.com/redhat-cne/sdk-go/pkg/types
-# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260810131712-518ae9ae1ba8
+# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260810131712-518ae9ae1ba8 => github.com/klaskosk/eco-goinfra v0.0.0-20260803231413-2cc4b05ea913
 ## explicit; go 1.26.0
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/amdgpu
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/apiservers
@@ -1050,10 +1050,13 @@ github.com/rh-ecosystem-edge/eco-goinfra/pkg/ocm
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/olm
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/fields
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/filter
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/alarms
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/artifacts
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/cluster
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/common
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/inventory
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/provisioning
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/ovn
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/pfstatus
@@ -2280,6 +2283,7 @@ sigs.k8s.io/yaml/kyaml
 # github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20260702215625-3f47803587d4
 # github.com/openshift/installer => github.com/openshift/installer v0.0.0-20260626184649-2e33096a5884
 # github.com/portworx/sched-ops => github.com/portworx/sched-ops v1.20.4-rc1
+# github.com/rh-ecosystem-edge/eco-goinfra => github.com/klaskosk/eco-goinfra v0.0.0-20260803231413-2cc4b05ea913
 # k8s.io/client-go => k8s.io/client-go v0.35.6
 # k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20260127142750-a19766b6e2d4
 # sigs.k8s.io/cluster-api-provider-azure => github.com/mboersma/cluster-api-provider-azure v0.3.1-0.20251030205607-3161b9cc8d3e

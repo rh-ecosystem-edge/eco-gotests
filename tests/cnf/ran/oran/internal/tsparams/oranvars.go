@@ -38,6 +38,9 @@ var (
 		{Cr: &hardwaremanagementv1alpha1.AllocatedNodeList{}},
 		{Cr: &hardwaremanagementv1alpha1.NodeAllocationRequestList{}},
 		{Cr: &inventoryv1alpha1.InventoryList{}},
+		{Cr: &inventoryv1alpha1.LocationList{}},
+		{Cr: &inventoryv1alpha1.OCloudSiteList{}},
+		{Cr: &inventoryv1alpha1.ResourcePoolList{}},
 		{Cr: &policiesv1.PolicyList{}},
 		{Cr: &siteconfigv1alpha1.ClusterInstanceList{}},
 	}
@@ -85,5 +88,12 @@ var (
 		Reason:  string(provisioningv1alpha1.CTconditionReasons.Failed),
 		Status:  metav1.ConditionFalse,
 		Message: "ClusterTemplate must define hardware provisioning",
+	}
+
+	// InventoryReadyCondition matches Ready=True on inventory hierarchy CRs (Location, OCloudSite,
+	// ResourcePool).
+	InventoryReadyCondition = metav1.Condition{
+		Type:   inventoryv1alpha1.ConditionTypeReady,
+		Status: metav1.ConditionTrue,
 	}
 )
