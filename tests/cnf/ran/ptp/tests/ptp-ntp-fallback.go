@@ -34,17 +34,25 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 	var (
 		prometheusAPI   prometheusv1.API
 		savedPtpConfigs []*ptp.PtpConfigBuilder
+		// atLeast420 is true for PTP 4.20+, where chronyd starts only during NTP fallback. Earlier versions
+		// keep chronyd running continuously but sync only during fallback. All versions lock CLOCK_REALTIME via
+		// chronyd during NTP fallback; phc2sys and chronyd syncing are mutually exclusive.
+		atLeast420 bool
 	)
 
 	BeforeEach(func() {
 		By("skipping if the PTP version is not supported")
 
-		inRange, err := version.IsVersionStringInRange(RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.18.0-0", "")
+		ptpVersion := RANConfig.Spoke1OperatorVersions[ranparam.PTP]
+		inRange, err := version.IsVersionStringInRange(ptpVersion, "4.18.0-0", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to check PTP version range")
 
 		if !inRange {
 			Skip("ntpfailover is only supported for PTP version 4.18 and higher")
 		}
+
+		atLeast420, err = version.IsVersionStringInRange(ptpVersion, "4.20.0-0", "")
+		Expect(err).ToNot(HaveOccurred(), "Failed to check if PTP version is at least 4.20")
 
 		By("creating a Prometheus API client")
 
@@ -86,15 +94,9 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 			}
 		}
 
-		// Wait for 20 minutes instead of the usual 5 as a workaround for OCPBUGS-66352.
 		By("ensuring clocks are locked after testing")
 
-		query := metrics.ClockStateQuery{
-			Process: metrics.DoesNotEqual(metrics.ProcessChronyd),
-		}
-		err = metrics.AssertQuery(context.TODO(), prometheusAPI, query, metrics.ClockStateLocked,
-			metrics.AssertWithStableDuration(10*time.Second),
-			metrics.AssertWithTimeout(20*time.Minute))
+		err = metrics.EnsureClocksAreLocked(prometheusAPI)
 		Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
 	})
 
@@ -136,13 +138,7 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 
 			waitForLoadAndTS2PHCLocked(prometheusAPI, nodeName, updateTime)
 
-			By("using chronyc activity to verify chronyd is not syncing")
-
-			chronycActivity, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(
-				RANConfig.Spoke1APIClient, nodeName, "chronyc activity",
-				ptpdaemon.WithRetries(3), ptpdaemon.WithRetryOnError(true), ptpdaemon.WithRetryOnEmptyOutput(true))
-			Expect(err).ToNot(HaveOccurred(), "Failed to get chronyc activity for node %s", nodeName)
-			Expect(chronycActivity).To(ContainSubstring("0 sources online"), "Chronyd has sources online on node %s", nodeName)
+			verifyChronydNotSyncingDuringPTP(atLeast420, nodeName)
 
 			By("simulating GNSS sync loss")
 			DeferCleanup(cleanupGNSSSync(prometheusAPI, nodeName, protocolVersion))
@@ -171,13 +167,7 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 			err = processes.WaitForProcessRunning(RANConfig.Spoke1APIClient, nodeName, processes.Phc2sys, false, time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for phc2sys process to be not running on node %s", nodeName)
 
-			By("using chronyc activity to verify chronyd is syncing")
-			// We make an asynchronous assertion since chronyd initially does a burst before it starts
-			// showing sources online.
-			Eventually(ptpdaemon.ExecuteCommandInPtpDaemonPod).
-				WithArguments(RANConfig.Spoke1APIClient, nodeName, "chronyc activity").
-				WithTimeout(time.Minute).WithPolling(10*time.Second).
-				ShouldNot(ContainSubstring("0 sources online"), "Chronyd has 0 sources online on node %s", nodeName)
+			verifyChronydSyncingDuringNTPFallback(prometheusAPI, nodeName, time.Now())
 
 			By("restoring GNSS sync")
 
@@ -196,13 +186,8 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 			err = processes.WaitForProcessRunning(RANConfig.Spoke1APIClient, nodeName, processes.Phc2sys, true, time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for phc2sys process to be running on node %s", nodeName)
 
-			By("using chronyc activity to verify chronyd is not syncing")
-
-			chronycActivity, err = ptpdaemon.ExecuteCommandInPtpDaemonPod(
-				RANConfig.Spoke1APIClient, nodeName, "chronyc activity",
-				ptpdaemon.WithRetries(3), ptpdaemon.WithRetryOnError(true), ptpdaemon.WithRetryOnEmptyOutput(true))
-			Expect(err).ToNot(HaveOccurred(), "Failed to get chronyc activity for node %s", nodeName)
-			Expect(chronycActivity).To(ContainSubstring("0 sources online"), "Chronyd has sources online on node %s", nodeName)
+			ensureTS2PHCProcessLocked(prometheusAPI, nodeName)
+			verifyChronydNotSyncingDuringPTP(atLeast420, nodeName)
 
 			By("restoring the ts2phc holdover")
 
@@ -265,13 +250,7 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 
 			waitForLoadAndTS2PHCLocked(prometheusAPI, nodeName, updateTime)
 
-			By("using chronyc activity to verify chronyd is not syncing")
-
-			chronycActivity, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(
-				RANConfig.Spoke1APIClient, nodeName, "chronyc activity",
-				ptpdaemon.WithRetries(3), ptpdaemon.WithRetryOnError(true), ptpdaemon.WithRetryOnEmptyOutput(true))
-			Expect(err).ToNot(HaveOccurred(), "Failed to get chronyc activity for node %s", nodeName)
-			Expect(chronycActivity).To(ContainSubstring("0 sources online"), "Chronyd has sources online on node %s", nodeName)
+			verifyChronydNotSyncingDuringPTP(atLeast420, nodeName)
 
 			By("injecting offset spike to trigger servo state transition")
 
@@ -299,13 +278,7 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 			err = processes.WaitForProcessRunning(RANConfig.Spoke1APIClient, nodeName, processes.Phc2sys, false, time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for phc2sys process to be not running on node %s", nodeName)
 
-			By("using chronyc activity to verify chronyd is syncing")
-			// We make an asynchronous assertion since chronyd initially does a burst before it starts
-			// showing sources online.
-			Eventually(ptpdaemon.ExecuteCommandInPtpDaemonPod).
-				WithArguments(RANConfig.Spoke1APIClient, nodeName, "chronyc activity").
-				WithTimeout(time.Minute).WithPolling(10*time.Second).
-				ShouldNot(ContainSubstring("0 sources online"), "Chronyd has 0 sources online on node %s", nodeName)
+			verifyChronydSyncingDuringNTPFallback(prometheusAPI, nodeName, time.Now())
 
 			By("waiting for ts2phc to correct the offset and restore PTP sync")
 			// ts2phc will automatically work on correcting the offset spike. Once corrected, the system
@@ -318,16 +291,11 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 
 			By("verifying phc2sys process is running")
 
-			err = processes.WaitForProcessRunning(RANConfig.Spoke1APIClient, nodeName, processes.Phc2sys, true, time.Minute)
+			err = processes.WaitForProcessRunning(RANConfig.Spoke1APIClient, nodeName, processes.Phc2sys, true, 5*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for phc2sys process to be running on node %s", nodeName)
 
-			By("using chronyc activity to verify chronyd is not syncing")
-
-			chronycActivity, err = ptpdaemon.ExecuteCommandInPtpDaemonPod(
-				RANConfig.Spoke1APIClient, nodeName, "chronyc activity",
-				ptpdaemon.WithRetries(3), ptpdaemon.WithRetryOnError(true), ptpdaemon.WithRetryOnEmptyOutput(true))
-			Expect(err).ToNot(HaveOccurred(), "Failed to get chronyc activity for node %s", nodeName)
-			Expect(chronycActivity).To(ContainSubstring("0 sources online"), "Chronyd has sources online on node %s", nodeName)
+			ensureTS2PHCProcessLocked(prometheusAPI, nodeName)
+			verifyChronydNotSyncingDuringPTP(atLeast420, nodeName)
 
 			By("restoring the ts2phc holdover")
 
@@ -449,6 +417,15 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 			err = events.WaitForEvent(
 				eventPod, gnssRecoveryTime, 5*time.Minute, osClockLockedFilter, events.WithoutCurrentState(true))
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for os-clock-sync-state LOCKED event on node %s", nodeName)
+
+			By("verifying phc2sys process is running")
+
+			err = processes.WaitForProcessRunning(RANConfig.Spoke1APIClient, nodeName, processes.Phc2sys, true, time.Minute)
+			Expect(err).ToNot(HaveOccurred(), "Failed to wait for phc2sys process to be running on node %s", nodeName)
+
+			By("ensuring ts2phc process is locked after GNSS recovery")
+			ensureTS2PHCProcessLocked(prometheusAPI, nodeName)
+			verifyChronydNotSyncingDuringPTP(atLeast420, nodeName)
 
 			By("restoring the original profile configuration")
 
@@ -575,6 +552,15 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 				eventPod, gnssRecoveryTime, 5*time.Minute, osClockLockedFilter, events.WithoutCurrentState(true))
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for os-clock-sync-state LOCKED event on node %s", nodeName)
 
+			By("verifying phc2sys process is running")
+
+			err = processes.WaitForProcessRunning(RANConfig.Spoke1APIClient, nodeName, processes.Phc2sys, true, time.Minute)
+			Expect(err).ToNot(HaveOccurred(), "Failed to wait for phc2sys process to be running on node %s", nodeName)
+
+			By("ensuring ts2phc process is locked after GNSS recovery")
+			ensureTS2PHCProcessLocked(prometheusAPI, nodeName)
+			verifyChronydNotSyncingDuringPTP(atLeast420, nodeName)
+
 			By("restoring the ts2phc holdover")
 
 			restoreTime := time.Now()
@@ -652,4 +638,73 @@ func ensureTS2PHCProcessLocked(prometheusAPI prometheusv1.API, nodeName string) 
 		metrics.AssertWithStableDuration(10*time.Second),
 		metrics.AssertWithTimeout(5*time.Minute))
 	Expect(err).ToNot(HaveOccurred(), "Failed to ensure ts2phc process is locked on node %s", nodeName)
+}
+
+// verifyChronydNotSyncingDuringPTP verifies chronyd is not syncing CLOCK_REALTIME while PTP is active. On 4.20+,
+// chronyd must not be running. On earlier versions, chronyd stays running but must not sync.
+func verifyChronydNotSyncingDuringPTP(atLeast420 bool, nodeName string) {
+	if atLeast420 {
+		By("verifying chronyd process is not running")
+
+		err := processes.WaitForProcessRunning(
+			RANConfig.Spoke1APIClient, nodeName, processes.PtpProcess(metrics.ProcessChronyd), false, time.Minute)
+		Expect(err).ToNot(HaveOccurred(),
+			"Failed to wait for chronyd process to be not running on node %s", nodeName)
+
+		return
+	}
+
+	By("using chronyc activity to verify chronyd is not syncing")
+
+	chronycActivity, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(
+		RANConfig.Spoke1APIClient, nodeName, "chronyc activity",
+		ptpdaemon.WithRetries(3), ptpdaemon.WithRetryOnError(true), ptpdaemon.WithRetryOnEmptyOutput(true))
+	Expect(err).ToNot(HaveOccurred(), "Failed to get chronyc activity for node %s", nodeName)
+	Expect(chronycActivity).To(ContainSubstring("0 sources online"), "Chronyd has sources online on node %s", nodeName)
+}
+
+// verifyChronydSyncingDuringNTPFallback verifies chronyd syncs CLOCK_REALTIME during NTP fallback. These checks are not
+// version-dependent.
+func verifyChronydSyncingDuringNTPFallback(
+	prometheusAPI prometheusv1.API, nodeName string, fallbackStartTime time.Time,
+) {
+	By("verifying chronyd process is running")
+
+	err := processes.WaitForProcessRunning(
+		RANConfig.Spoke1APIClient, nodeName, processes.PtpProcess(metrics.ProcessChronyd), true, time.Minute)
+	Expect(err).ToNot(HaveOccurred(),
+		"Failed to wait for chronyd process to be running on node %s", nodeName)
+
+	By("ensuring chronyd process status is UP in metrics during NTP fallback")
+
+	query := metrics.ProcessStatusQuery{
+		Process: metrics.Equals(metrics.ProcessChronyd),
+		Node:    metrics.Equals(nodeName),
+	}
+	err = metrics.AssertQuery(context.TODO(), prometheusAPI, query, metrics.ProcessStatusUp,
+		metrics.AssertWithStartTime(fallbackStartTime),
+		metrics.AssertWithTimeout(time.Minute))
+	Expect(err).ToNot(HaveOccurred(),
+		"Failed to ensure %s process status is UP on node %s", metrics.ProcessChronyd, nodeName)
+
+	By("waiting for chronyd to sync from an NTP source")
+	Eventually(ptpdaemon.ExecuteCommandInPtpDaemonPod).
+		WithArguments(RANConfig.Spoke1APIClient, nodeName, "chronyc sources -n",
+			ptpdaemon.WithRetries(3), ptpdaemon.WithRetryOnError(true), ptpdaemon.WithRetryOnEmptyOutput(true)).
+		WithTimeout(time.Minute).WithPolling(3*time.Second).
+		Should(ContainSubstring("^*"),
+			"Chrony has no selected NTP source during fallback on node %s", nodeName)
+
+	By("ensuring CLOCK_REALTIME is LOCKED by chronyd during NTP fallback")
+
+	clockStateQuery := metrics.ClockStateQuery{
+		Interface: metrics.Equals(iface.ClockRealtime),
+		Node:      metrics.Equals(nodeName),
+		Process:   metrics.Equals(metrics.ProcessChronyd),
+	}
+	err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockStateQuery, metrics.ClockStateLocked,
+		metrics.AssertWithStartTime(fallbackStartTime),
+		metrics.AssertWithTimeout(time.Minute))
+	Expect(err).ToNot(HaveOccurred(),
+		"Failed to ensure CLOCK_REALTIME is LOCKED by chronyd on node %s", nodeName)
 }

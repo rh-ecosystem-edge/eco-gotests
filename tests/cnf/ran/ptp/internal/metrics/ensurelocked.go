@@ -11,8 +11,10 @@ import (
 // EnsureClocksAreLocked ensures that all PTP clocks are locked across all nodes covered by the Prometheus API client.
 // It is designed to be used as a BeforeEach/AfterEach check to ensure the cluster is in a stable state.
 //
-// It ensures that clocks are locked for 10 seconds with a timeout of 5 minutes. It does not check the clock state of
-// the chronyd process, as it will be FREERUN when PTP is working correctly.
+// It ensures that clocks are locked for 10 seconds with a timeout of 5 minutes. Chronyd is excluded because this check
+// establishes the healthy baseline where GNSS/PTP is the sync source. On versions before 4.20, chronyd remains FREERUN
+// in that baseline; on 4.20+ it is stopped outside of NTP fallback. Chronyd becoming LOCKED indicates NTP fallback,
+// which is tested separately, not the steady state this function validates.
 func EnsureClocksAreLocked(prometheusAPI prometheusv1.API) error {
 	query := ClockStateQuery{
 		Process: DoesNotEqual(ProcessChronyd),
