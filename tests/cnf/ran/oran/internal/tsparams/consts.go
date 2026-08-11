@@ -38,8 +38,6 @@ const (
 	HugePagesSizeKey = "hugepages-size"
 	// OCloudSiteID is the name of the site in the hardware manager to provision in.
 	OCloudSiteID = "rdu3"
-	// PolicySelectorLabel is the ExtraLabel applied to the managed cluster that determines which policies to apply.
-	PolicySelectorLabel = "sno-ran-du-policy"
 	// ClusterInstanceDefaultsKey is the key used for the ClusterInstance defaults in its ConfigMap.
 	ClusterInstanceDefaultsKey = "clusterinstance-defaults"
 	// PolicyTemplateDefaultsKey is the key used for the PolicyTemplate defaults in its ConfigMap.
@@ -86,8 +84,9 @@ const (
 	TemplateAddNew = "v10"
 	// TemplateUpdateSchema is the ClusterTemplate version for the policyTemplateParameters schema update test.
 	TemplateUpdateSchema = "v11"
-	// TemplateInlineBMCMissingSchema is the ClusterTemplate version for the missing inline BMC schema test (78245).
-	TemplateInlineBMCMissingSchema = "v12"
+	// TemplateUndefinedHwProvisioning is the ClusterTemplate version for test 78245: the template omits both
+	// hwMgmtDefaults.nodeGroupData and hwMgmtParameters, so hardware provisioning cannot be defined.
+	TemplateUndefinedHwProvisioning = "v12"
 	// TemplateBMCFirmwareUpdate is the ClusterTemplate version for BMC firmware upgrade test.
 	TemplateBMCFirmwareUpdate = "v14"
 	// TemplateBIOSFirmwareUpdate is the ClusterTemplate version for BIOS firmware upgrade test.

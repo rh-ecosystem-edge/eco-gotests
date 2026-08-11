@@ -3,6 +3,7 @@ package helper
 import (
 	"fmt"
 	"os"
+	"slices"
 	"sync"
 
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
@@ -133,6 +134,170 @@ func GetSpokeHostnames() ([]string, error) {
 	return extractHostnames(ciMap, cachedPRSource)
 }
 
+// SpokeNode is a hostname and role from the loaded ProvisioningRequest template.
+type SpokeNode struct {
+	HostName string
+	Role     string
+}
+
+// GetSpokeNodes returns spoke nodes (hostname and role) from the loaded ProvisioningRequest template.
+func GetSpokeNodes() ([]SpokeNode, error) {
+	prTemplate, err := loadProvisioningRequestTemplate()
+	if err != nil {
+		return nil, err
+	}
+
+	ciParamsRaw, hasParams := prTemplate.Spec.TemplateParameters[tsparams.ClusterInstanceParamsKey]
+	if !hasParams {
+		return nil, fmt.Errorf("ProvisioningRequest from %s has no %s in templateParameters",
+			cachedPRSource, tsparams.ClusterInstanceParamsKey)
+	}
+
+	ciMap, isMap := ciParamsRaw.(map[string]any)
+	if !isMap {
+		return nil, fmt.Errorf("ProvisioningRequest from %s: %s is not a map",
+			cachedPRSource, tsparams.ClusterInstanceParamsKey)
+	}
+
+	return extractSpokeNodes(ciMap, cachedPRSource)
+}
+
+// IsMultiNode returns true when more than one spoke hostname is configured in the PR template.
+func IsMultiNode() (bool, error) {
+	hostnames, err := GetSpokeHostnames()
+	if err != nil {
+		return false, err
+	}
+
+	return len(hostnames) > 1, nil
+}
+
+// HasWorkerNodes returns true when any configured spoke node has role worker.
+func HasWorkerNodes() (bool, error) {
+	nodes, err := GetSpokeNodes()
+	if err != nil {
+		return false, err
+	}
+
+	hasWorkers := slices.ContainsFunc(nodes, func(node SpokeNode) bool {
+		return node.Role == "worker"
+	})
+
+	return hasWorkers, nil
+}
+
+// CountNodesByRole returns how many configured spoke nodes have the given role.
+func CountNodesByRole(role string) (int, error) {
+	nodes, err := GetSpokeNodes()
+	if err != nil {
+		return 0, err
+	}
+
+	count := 0
+
+	for _, node := range nodes {
+		if node.Role == role {
+			count++
+		}
+	}
+
+	return count, nil
+}
+
+// GetPolicySelectorLabel returns the ManagedCluster ExtraLabel key used to select policy templates.
+func GetPolicySelectorLabel() (string, error) {
+	clusterTemplateName, err := GetClusterTemplateName()
+	if err != nil {
+		return "", err
+	}
+
+	return clusterTemplateName + "-policy", nil
+}
+
+// extractSpokeNodes reads hostname and role pairs from clusterInstanceParameters.
+func extractSpokeNodes(ciParams map[string]any, source string) ([]SpokeNode, error) {
+	if nodeGroups, ok := ciParams["nodeGroups"]; ok {
+		return extractSpokeNodesFromNodeGroups(nodeGroups, source)
+	}
+
+	if nodes, ok := ciParams["nodes"]; ok {
+		return extractSpokeNodesFromNodes(nodes, source, "master")
+	}
+
+	return nil, fmt.Errorf(
+		"ProvisioningRequest from %s: clusterInstanceParameters has neither nodeGroups nor nodes", source)
+}
+
+// extractSpokeNodesFromNodeGroups reads spoke nodes from the MNO nodeGroups structure.
+func extractSpokeNodesFromNodeGroups(nodeGroupsRaw any, source string) ([]SpokeNode, error) {
+	nodeGroups, ok := nodeGroupsRaw.([]any)
+	if !ok {
+		return nil, fmt.Errorf("ProvisioningRequest from %s: nodeGroups is not a list", source)
+	}
+
+	var spokeNodes []SpokeNode
+
+	for groupIndex, groupRaw := range nodeGroups {
+		group, isMap := groupRaw.(map[string]any)
+		if !isMap {
+			return nil, fmt.Errorf("ProvisioningRequest from %s: nodeGroups[%d] is not a map", source, groupIndex)
+		}
+
+		role, _ := group["role"].(string)
+		if role == "" {
+			role, _ = group["name"].(string)
+		}
+
+		if role != "master" && role != "worker" {
+			role = "master"
+		}
+
+		groupNodes, err := extractSpokeNodesFromNodes(group["nodes"], source, role)
+		if err != nil {
+			return nil, fmt.Errorf("ProvisioningRequest from %s: nodeGroups[%d]: %w", source, groupIndex, err)
+		}
+
+		spokeNodes = append(spokeNodes, groupNodes...)
+	}
+
+	if len(spokeNodes) == 0 {
+		return nil, fmt.Errorf("ProvisioningRequest from %s: nodeGroups contain no nodes", source)
+	}
+
+	return spokeNodes, nil
+}
+
+// extractSpokeNodesFromNodes reads spoke nodes from a nodes list, applying defaultRole when role is unset.
+func extractSpokeNodesFromNodes(nodesRaw any, source string, defaultRole string) ([]SpokeNode, error) {
+	nodes, ok := nodesRaw.([]any)
+	if !ok {
+		return nil, fmt.Errorf("ProvisioningRequest from %s: nodes is not a list", source)
+	}
+
+	spokeNodes := make([]SpokeNode, 0, len(nodes))
+
+	for nodeIndex, nodeRaw := range nodes {
+		node, isMap := nodeRaw.(map[string]any)
+		if !isMap {
+			return nil, fmt.Errorf("ProvisioningRequest from %s: nodes[%d] is not a map", source, nodeIndex)
+		}
+
+		hostname, hasName := node["hostName"].(string)
+		if !hasName || hostname == "" {
+			return nil, fmt.Errorf("ProvisioningRequest from %s: nodes[%d] has no hostName", source, nodeIndex)
+		}
+
+		role := defaultRole
+		if nodeRole, hasRole := node["role"].(string); hasRole && nodeRole != "" {
+			role = nodeRole
+		}
+
+		spokeNodes = append(spokeNodes, SpokeNode{HostName: hostname, Role: role})
+	}
+
+	return spokeNodes, nil
+}
+
 // extractHostnames reads hostnames from a clusterInstanceParameters map. It checks for nodeGroups (MNO) first, then
 // falls back to nodes (SNO).
 func extractHostnames(ciParams map[string]any, source string) ([]string, error) {
@@ -158,15 +323,15 @@ func extractHostnamesFromNodeGroups(nodeGroupsRaw any, source string) ([]string,
 
 	var hostnames []string
 
-	for groupIdx, groupRaw := range nodeGroups {
+	for groupIndex, groupRaw := range nodeGroups {
 		group, isMap := groupRaw.(map[string]any)
 		if !isMap {
-			return nil, fmt.Errorf("ProvisioningRequest from %s: nodeGroups[%d] is not a map", source, groupIdx)
+			return nil, fmt.Errorf("ProvisioningRequest from %s: nodeGroups[%d] is not a map", source, groupIndex)
 		}
 
 		groupHostnames, err := extractHostnamesFromNodes(group["nodes"], source)
 		if err != nil {
-			return nil, fmt.Errorf("ProvisioningRequest from %s: nodeGroups[%d]: %w", source, groupIdx, err)
+			return nil, fmt.Errorf("ProvisioningRequest from %s: nodeGroups[%d]: %w", source, groupIndex, err)
 		}
 
 		hostnames = append(hostnames, groupHostnames...)
@@ -188,15 +353,15 @@ func extractHostnamesFromNodes(nodesRaw any, source string) ([]string, error) {
 
 	hostnames := make([]string, 0, len(nodes))
 
-	for nodeIdx, nodeRaw := range nodes {
+	for nodeIndex, nodeRaw := range nodes {
 		node, isMap := nodeRaw.(map[string]any)
 		if !isMap {
-			return nil, fmt.Errorf("ProvisioningRequest from %s: nodes[%d] is not a map", source, nodeIdx)
+			return nil, fmt.Errorf("ProvisioningRequest from %s: nodes[%d] is not a map", source, nodeIndex)
 		}
 
 		hostname, hasName := node["hostName"].(string)
 		if !hasName || hostname == "" {
-			return nil, fmt.Errorf("ProvisioningRequest from %s: nodes[%d] has no hostName", source, nodeIdx)
+			return nil, fmt.Errorf("ProvisioningRequest from %s: nodes[%d] has no hostName", source, nodeIndex)
 		}
 
 		hostnames = append(hostnames, hostname)

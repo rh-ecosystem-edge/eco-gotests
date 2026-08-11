@@ -42,32 +42,34 @@ var _ = Describe("ORAN Pre-provision Tests", Label(tsparams.LabelPreProvision), 
 		Expect(err).To(HaveOccurred(), "Creating a ProvisioningRequest with an invalid ClusterTemplate should fail")
 	})
 
-	// 78245 - ClusterTemplate validation fails when inline BMC schema is missing without hwMgmtDefaults
-	It("fails ClusterTemplate validation when inline BMC schema is missing without hwMgmtDefaults",
+	// 78245 - ClusterTemplate validation fails when hardware provisioning cannot be defined. This applies to SNO and
+	// MNO: a valid template must provide hwMgmtDefaults.nodeGroupData or expose hwMgmtParameters in its schema.
+	It("fails ClusterTemplate validation when hardware provisioning cannot be defined",
 		reportxml.ID("78245"), func() {
 			clusterTemplateBaseName, err := helper.GetClusterTemplateName()
 			Expect(err).ToNot(HaveOccurred(), "Failed to resolve ClusterTemplate name")
 
 			clusterTemplateName := fmt.Sprintf("%s.%s-%s",
-				clusterTemplateBaseName, RANConfig.ClusterTemplateAffix, tsparams.TemplateInlineBMCMissingSchema)
+				clusterTemplateBaseName, RANConfig.ClusterTemplateAffix, tsparams.TemplateUndefinedHwProvisioning)
 			clusterTemplateNamespace := clusterTemplateBaseName + "-" + RANConfig.ClusterTemplateAffix
 
-			By("pulling the ClusterTemplate that omits hwMgmtDefaults and inline BMC schema")
+			By("pulling the ClusterTemplate that defines neither hwMgmtDefaults.nodeGroupData nor hwMgmtParameters")
 
 			clusterTemplate, err := oran.PullClusterTemplate(HubAPIClient, clusterTemplateName, clusterTemplateNamespace)
-			Expect(err).ToNot(HaveOccurred(), "Failed to pull ClusterTemplate with missing inline BMC schema")
-
-			By("verifying the ClusterTemplate omits hwMgmtDefaults and hwMgmtParameters")
-			Expect(clusterTemplate.Definition.Spec.TemplateDefaults.HwMgmtDefaults.NodeGroupData).To(BeEmpty(),
-				"ClusterTemplate defines hwMgmtDefaults nodeGroupData when it should not")
-			Expect(provisioningv1alpha1.SchemaDefinesHwMgmtParameters(clusterTemplate.Definition)).To(BeFalse(),
-				"ClusterTemplate defines hwMgmtParameters in its schema when it should not")
-
-			By("waiting for ClusterTemplate validation to fail due to missing inline BMC fields in the schema")
-
-			_, err = clusterTemplate.WaitForCondition(tsparams.CTInvalidInlineBMCSchemaCondition, time.Minute)
 			Expect(err).ToNot(HaveOccurred(),
-				"Failed to verify the ClusterTemplate validation failed due to missing inline BMC schema")
+				"Failed to pull ClusterTemplate %s/%s", clusterTemplateNamespace, clusterTemplateName)
+
+			By("verifying the ClusterTemplate omits both hardware-provisioning paths")
+			Expect(clusterTemplate.Definition.Spec.TemplateDefaults.HwMgmtDefaults.NodeGroupData).To(BeEmpty(),
+				"ClusterTemplate should not define hwMgmtDefaults.nodeGroupData")
+			Expect(provisioningv1alpha1.SchemaDefinesHwMgmtParameters(clusterTemplate.Definition)).To(BeFalse(),
+				"ClusterTemplate should not expose hwMgmtParameters in templateParameterSchema")
+
+			By("waiting for ClusterTemplate validation to fail because hardware provisioning cannot be defined")
+
+			_, err = clusterTemplate.WaitForCondition(tsparams.CTUndefinedHwProvisioningCondition, time.Minute)
+			Expect(err).ToNot(HaveOccurred(),
+				"Failed to verify ClusterTemplate validation failed because hardware provisioning cannot be defined")
 		})
 
 	When("a ProvisioningRequest is created", func() {
