@@ -17,7 +17,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreparams"
 )
 
-func runCmdOnWorkerNodes(cmd []string, description string) map[string]string {
+func runCmdOnWorkerNodes(ctx context.Context, cmd []string, description string) map[string]string {
 	By(fmt.Sprintf("Listing worker nodes for %s", description))
 
 	nodeList, err := nodes.List(APIClient, RDSCoreConfig.WorkerLabelListOption)
@@ -33,7 +33,7 @@ func runCmdOnWorkerNodes(cmd []string, description string) map[string]string {
 
 		var output string
 
-		err := wait.PollUntilContextTimeout(context.TODO(), 3*time.Second, time.Minute, true,
+		err := wait.PollUntilContextTimeout(ctx, 3*time.Second, time.Minute, true,
 			func(context.Context) (bool, error) {
 				out, execErr := remote.ExecuteOnNodeWithDebugPod(cmd, nodeName)
 				if execErr != nil {
@@ -60,7 +60,7 @@ func VerifyContainersMountPointOnWorkers(ctx SpecContext) {
 	cmd := []string{"chroot", "/rootfs", "/bin/sh", "-c",
 		fmt.Sprintf("findmnt -n %s", rdscoreparams.ContainersMountPoint)}
 
-	outputs := runCmdOnWorkerNodes(cmd, "verify containers mount point")
+	outputs := runCmdOnWorkerNodes(ctx, cmd, "verify containers mount point")
 
 	for nodeName, output := range outputs {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
@@ -75,7 +75,7 @@ func VerifyContainersXFSFilesystemOnWorkers(ctx SpecContext) {
 	cmd := []string{"chroot", "/rootfs", "/bin/sh", "-c",
 		fmt.Sprintf("findmnt -n -o FSTYPE %s", rdscoreparams.ContainersMountPoint)}
 
-	outputs := runCmdOnWorkerNodes(cmd, "verify containers filesystem type")
+	outputs := runCmdOnWorkerNodes(ctx, cmd, "verify containers filesystem type")
 
 	for nodeName, fsType := range outputs {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
@@ -90,7 +90,7 @@ func VerifyContainersPartitionSourceOnWorkers(ctx SpecContext) {
 	cmd := []string{"chroot", "/rootfs", "/bin/sh", "-c",
 		fmt.Sprintf("findmnt -n -o SOURCE %s", rdscoreparams.ContainersMountPoint)}
 
-	outputs := runCmdOnWorkerNodes(cmd, "verify containers mount source")
+	outputs := runCmdOnWorkerNodes(ctx, cmd, "verify containers mount source")
 
 	for nodeName, source := range outputs {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
@@ -106,7 +106,7 @@ func VerifyContainersMountUnitOnWorkers(ctx SpecContext) {
 	cmd := []string{"chroot", "/rootfs", "/bin/sh", "-c",
 		fmt.Sprintf("systemctl is-active %s", rdscoreparams.ContainersMountUnit)}
 
-	outputs := runCmdOnWorkerNodes(cmd, "verify containers mount unit")
+	outputs := runCmdOnWorkerNodes(ctx, cmd, "verify containers mount unit")
 
 	for nodeName, status := range outputs {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
