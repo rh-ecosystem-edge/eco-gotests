@@ -143,6 +143,57 @@ func GetSpokeHostnames() ([]string, error) {
 	return hostnames, nil
 }
 
+// IsMultiNode returns true when more than one spoke hostname is configured.
+func IsMultiNode() bool {
+	hostnames, err := GetSpokeHostnames()
+
+	return err == nil && len(hostnames) > 1
+}
+
+// HasWorkerNodes returns true when any configured spoke node has role worker.
+func HasWorkerNodes() bool {
+	nodes, err := GetSpokeNodes()
+	if err != nil {
+		return false
+	}
+
+	for _, node := range nodes {
+		if node.Role == "worker" {
+			return true
+		}
+	}
+
+	return false
+}
+
+// CountNodesByRole returns how many configured spoke nodes have the given role.
+func CountNodesByRole(role string) int {
+	nodes, err := GetSpokeNodes()
+	if err != nil {
+		return 0
+	}
+
+	count := 0
+
+	for _, node := range nodes {
+		if node.Role == role {
+			count++
+		}
+	}
+
+	return count
+}
+
+// GetPolicySelectorLabel returns the ManagedCluster ExtraLabel key used to select policy templates.
+func GetPolicySelectorLabel() (string, error) {
+	clusterTemplateName, err := GetClusterTemplateName()
+	if err != nil {
+		return "", err
+	}
+
+	return clusterTemplateName + "-policy", nil
+}
+
 // GetClusterTemplateName returns the ClusterTemplate base name for O-RAN ProvisioningRequests.
 // Precedence: ECO_CNF_RAN_CLUSTER_TEMPLATE_NAME if set; else mno-ran-du when a ClusterInstance file yields more than
 // one hostname; else sno-ran-du. When ECO_CNF_RAN_CLUSTERINSTANCE_PATH is set, a load error is returned instead of

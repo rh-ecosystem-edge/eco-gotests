@@ -41,7 +41,8 @@ const (
 	HugePagesSizeKey = "hugepages-size"
 	// OCloudSiteID is the name of the site in the hardware manager to provision in.
 	OCloudSiteID = "rdu3"
-	// PolicySelectorLabel is the ExtraLabel applied to the managed cluster that determines which policies to apply.
+	// PolicySelectorLabel is the ExtraLabel applied to the managed cluster that determines which policies to apply
+	// for SNO. Prefer helper.GetPolicySelectorLabel() so MNO resolves to mno-ran-du-policy.
 	PolicySelectorLabel = "sno-ran-du-policy"
 	// ClusterInstanceDefaultsKey is the key used for the ClusterInstance defaults in its ConfigMap.
 	ClusterInstanceDefaultsKey = "clusterinstance-defaults"
@@ -54,6 +55,9 @@ const (
 	// PRValidationFailedDetailsSubstring is a substring of status.provisioningStatus.provisioningDetails when
 	// ProvisioningRequest validation fails.
 	PRValidationFailedDetailsSubstring = "Failed to validate the ProvisioningRequest"
+	// PRInvalidPolicyTemplateParamDetailsSubstring is a substring of provisioningDetails when
+	// policyTemplateParameters fail schema type validation during policy template rendering.
+	PRInvalidPolicyTemplateParamDetailsSubstring = "policyTemplateParameters/policyTemplateSchema"
 	// PRFulfilledDetailsSubstring is a substring of status.provisioningStatus.provisioningDetails when
 	// provisioning completes successfully.
 	PRFulfilledDetailsSubstring = "Provisioning request has completed successfully"

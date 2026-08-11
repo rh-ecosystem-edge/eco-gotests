@@ -48,37 +48,46 @@ var _ = Describe("ORAN Provision Tests", Label(tsparams.LabelProvision), Ordered
 
 	// 77393 - Apply a ProvisioningRequest with missing required input parameter
 	It("recovers provisioning when invalid ProvisioningRequest is updated", reportxml.ID("77393"), func() {
-		By("verifying the ProvisioningRequest does not already exist")
+		var prBuilder *oran.ProvisioningRequestBuilder
 
-		_, err := oran.PullPR(o2imsAPIClient, tsparams.TestPRName)
+		existingPR, err := oran.PullPR(o2imsAPIClient, tsparams.TestPRName)
 		if err == nil {
-			Skip("cannot run provisioning tests if the ProvisioningRequest already exists")
+			if existingPR.Object.Status.ProvisioningStatus.ProvisioningPhase != provisioningv1alpha1.StateFailed {
+				Skip("cannot run provisioning tests if the ProvisioningRequest already exists")
+			}
+
+			By("continuing from an existing failed ProvisioningRequest")
+
+			prBuilder = existingPR
+		} else {
+			By("creating a ProvisioningRequest with invalid policyTemplateParameters")
+
+			prBuilder, err = helper.NewProvisioningRequest(o2imsAPIClient, tsparams.TemplateValid)
+			Expect(err).ToNot(HaveOccurred(), "Failed to build ProvisioningRequest")
+
+			prBuilder = prBuilder.WithTemplateParameter(tsparams.PolicyTemplateParamsKey, map[string]any{
+				// By using an integer when the schema specifies a string we can create an invalid
+				// ProvisioningRequest without being stopped by the webhook.
+				tsparams.TestName: 1,
+			})
+
+			prBuilder, err = prBuilder.Create()
+			Expect(err).ToNot(HaveOccurred(), "Failed to create an invalid ProvisioningRequest")
+
+			By("waiting for the ProvisioningRequest to be failed")
+
+			err = prBuilder.WaitForPhaseAfter(provisioningv1alpha1.StateFailed, time.Time{}, time.Minute)
+			Expect(err).ToNot(HaveOccurred(), "Failed to wait for the ProvisioningRequest to fail")
 		}
-
-		By("creating a ProvisioningRequest with invalid policyTemplateParameters")
-
-		prBuilder, err := helper.NewProvisioningRequest(o2imsAPIClient, tsparams.TemplateValid)
-		Expect(err).ToNot(HaveOccurred(), "Failed to build ProvisioningRequest")
-
-		prBuilder = prBuilder.WithTemplateParameter(tsparams.PolicyTemplateParamsKey, map[string]any{
-			// By using an integer when the schema specifies a string we can create an invalid
-			// ProvisioningRequest without being stopped by the webhook.
-			tsparams.TestName: 1,
-		})
-
-		prBuilder, err = prBuilder.Create()
-		Expect(err).ToNot(HaveOccurred(), "Failed to create an invalid ProvisioningRequest")
-
-		By("waiting for the ProvisioningRequest to be failed")
-
-		err = prBuilder.WaitForPhaseAfter(provisioningv1alpha1.StateFailed, time.Time{}, time.Minute)
-		Expect(err).ToNot(HaveOccurred(), "Failed to wait for the ProvisioningRequest to fail")
 
 		Expect(prBuilder.Object.Status.ProvisioningStatus.ProvisioningPhase).
 			To(Equal(provisioningv1alpha1.StateFailed), "Expected ProvisioningRequest to be failed after invalid parameters")
-		Expect(prBuilder.Object.Status.ProvisioningStatus.ProvisioningDetails).
-			To(ContainSubstring(tsparams.PRValidationFailedDetailsSubstring),
-				"Expected provisioning details to report a validation failure")
+
+		details := prBuilder.Object.Status.ProvisioningStatus.ProvisioningDetails
+		Expect(details).To(Or(
+			ContainSubstring(tsparams.PRValidationFailedDetailsSubstring),
+			ContainSubstring(tsparams.PRInvalidPolicyTemplateParamDetailsSubstring),
+		), "Expected provisioning details to report invalid policyTemplateParameters")
 
 		updateTime := time.Now()
 
@@ -224,6 +233,22 @@ func verifyProvisioningRequestFulfilled(prBuilder *oran.ProvisioningRequestBuild
 			accumulatedErrors = append(accumulatedErrors, fmt.Errorf(
 				"failed to verify AllocatedNode %s exists: %w", resourceStatus.ResourceId, err))
 		}
+	}
+
+	By("verifying allocated infrastructure resource count matches spoke topology")
+
+	if err == nil && status.Extensions.AllocatedNodeHostMap != nil {
+		if len(status.Extensions.AllocatedNodeHostMap) != len(expectedHostnames) {
+			accumulatedErrors = append(accumulatedErrors, fmt.Errorf(
+				"expected AllocatedNodeHostMap length %d, got %d",
+				len(expectedHostnames), len(status.Extensions.AllocatedNodeHostMap)))
+		}
+	}
+
+	By("verifying AllocatedNodes, BMH labels, and Day0 HardwareProfiles")
+
+	if err := helper.VerifyAllocatedHardwareForPR(prBuilder); err != nil {
+		accumulatedErrors = append(accumulatedErrors, err)
 	}
 
 	return errors.Join(accumulatedErrors...)
@@ -447,6 +472,38 @@ func validateSpokeNodeIdentities(nodeList []*nodes.Builder, expectedHostnames []
 
 		if !matched {
 			return fmt.Errorf("unexpected spoke node %q found in cluster", node.Object.Name)
+		}
+	}
+
+	expectedMasters := helper.CountNodesByRole("master")
+	expectedWorkers := helper.CountNodesByRole("worker")
+
+	if expectedMasters > 0 || expectedWorkers > 0 {
+		By("verifying spoke node roles match the ClusterInstance topology")
+
+		actualMasters := 0
+		actualWorkers := 0
+
+		for _, node := range nodeList {
+			_, isMaster := node.Object.Labels["node-role.kubernetes.io/master"]
+			_, isWorker := node.Object.Labels["node-role.kubernetes.io/worker"]
+
+			if isMaster {
+				actualMasters++
+			}
+
+			// Count dedicated workers only; control-plane nodes often also carry the worker role label.
+			if isWorker && !isMaster {
+				actualWorkers++
+			}
+		}
+
+		if expectedMasters > 0 && actualMasters != expectedMasters {
+			return fmt.Errorf("expected %d master nodes, got %d", expectedMasters, actualMasters)
+		}
+
+		if expectedWorkers > 0 && actualWorkers != expectedWorkers {
+			return fmt.Errorf("expected %d dedicated worker nodes, got %d", expectedWorkers, actualWorkers)
 		}
 	}
 
