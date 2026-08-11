@@ -245,7 +245,7 @@ func assertHoldoverInSpecToLocked(
 		restoreInterfaceAndWaitForRelock(testData.prometheusAPI, testData.nodeName, testData.upstreamIface)
 	})
 
-	assertHoldoverState(testData.prometheusAPI, testData.nodeName, ifaceDownTime,
+	assertHoldoverState(testData, ifaceDownTime,
 		expected.HoldoverInSpec, clockClassChanges, timeout)
 
 	By("setting upstream clock interface up to return to locked")
@@ -287,10 +287,10 @@ func assertHoldoverInSpecToFreerun(
 		restoreInterfaceAndWaitForRelock(testData.prometheusAPI, testData.nodeName, testData.upstreamIface)
 	})
 
-	assertHoldoverState(testData.prometheusAPI, testData.nodeName, ifaceDownTime,
+	assertHoldoverState(testData, ifaceDownTime,
 		expected.HoldoverInSpec, clockClassChanges, timeout)
 
-	assertFreerunState(testData.prometheusAPI, testData.nodeName, ifaceDownTime,
+	assertFreerunState(testData, ifaceDownTime,
 		expected.Freerun, clockClassChanges, timeout)
 
 	By("setting upstream clock interface up to return to locked")
@@ -331,10 +331,10 @@ func assertHoldoverInSpecToOutOfSpec(
 		restoreInterfaceAndWaitForRelock(testData.prometheusAPI, testData.nodeName, testData.upstreamIface)
 	})
 
-	assertHoldoverState(testData.prometheusAPI, testData.nodeName, ifaceDownTime,
+	assertHoldoverState(testData, ifaceDownTime,
 		expected.HoldoverInSpec, clockClassChanges, timeout)
 
-	assertHoldoverOutOfSpecClockClass(testData.prometheusAPI, testData.nodeName, ifaceDownTime,
+	assertHoldoverOutOfSpecClockClass(testData, ifaceDownTime,
 		expected.HoldoverOutOfSpec, clockClassChanges, timeout)
 
 	By("setting upstream clock interface up to return to locked")
@@ -376,13 +376,13 @@ func assertHoldoverOutOfSpecToFreerun(
 		restoreInterfaceAndWaitForRelock(testData.prometheusAPI, testData.nodeName, testData.upstreamIface)
 	})
 
-	assertHoldoverState(testData.prometheusAPI, testData.nodeName, ifaceDownTime,
+	assertHoldoverState(testData, ifaceDownTime,
 		expected.HoldoverInSpec, clockClassChanges, timeout)
 
-	assertHoldoverOutOfSpecClockClass(testData.prometheusAPI, testData.nodeName, ifaceDownTime,
+	assertHoldoverOutOfSpecClockClass(testData, ifaceDownTime,
 		expected.HoldoverOutOfSpec, clockClassChanges, timeout)
 
-	assertFreerunState(testData.prometheusAPI, testData.nodeName, ifaceDownTime,
+	assertFreerunState(testData, ifaceDownTime,
 		expected.Freerun, clockClassChanges, timeout)
 
 	By("setting upstream clock interface up to return to locked")
@@ -426,10 +426,11 @@ func restoreInterfaceAndWaitForRelock(
 }
 
 // assertHoldoverState waits for the HOLDOVER event and optional clock class change event, then validates
-// the corresponding Prometheus metrics.
+// the corresponding Prometheus metrics. The clock class query is scoped to this profile's own ptp4l
+// instance (see ProfileInfo.Ptp4lConfigName): a T-BC receiver and transmitter run as separate ptp4l
+// processes on the same node, and only the receiver's instance carries the pushed clock class.
 func assertHoldoverState(
-	prometheusAPI prometheusv1.API,
-	nodeName string,
+	testData holdoverTestData,
 	sinceTime time.Time,
 	expectedClockClass metrics.PtpClockClass,
 	clockClassChanges bool,
@@ -439,7 +440,7 @@ func assertHoldoverState(
 
 	By("waiting for clock state HOLDOVER event")
 
-	eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeName)
+	eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, testData.nodeName)
 	Expect(err).ToNot(HaveOccurred(), "Failed to get consumer pod for node")
 
 	holdoverFilter := events.All(
@@ -463,18 +464,22 @@ func assertHoldoverState(
 	By(fmt.Sprintf("validating metrics: clock class %d, clock state HOLDOVER", expectedClockClass))
 
 	clockStateQuery := metrics.ClockStateQuery{
-		Node:    metrics.Equals(nodeName),
+		Node:    metrics.Equals(testData.nodeName),
 		Process: metrics.Equals(metrics.ProcessTBC),
 	}
-	err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockStateQuery, metrics.ClockStateHoldover,
+	err = metrics.AssertQuery(context.TODO(), testData.prometheusAPI, clockStateQuery, metrics.ClockStateHoldover,
 		metrics.AssertWithTimeout(1*time.Minute))
 	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state HOLDOVER in metrics")
 
+	configName, err := testData.profileInfo.Ptp4lConfigName()
+	Expect(err).ToNot(HaveOccurred(), "Failed to get ptp4l config name for profile")
+
 	clockClassQuery := metrics.ClockClassQuery{
-		Node:    metrics.Equals(nodeName),
+		Node:    metrics.Equals(testData.nodeName),
 		Process: metrics.Equals(metrics.ProcessPTP4L),
+		Config:  metrics.Equals(configName),
 	}
-	err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockClassQuery, expectedClockClass,
+	err = metrics.AssertQuery(context.TODO(), testData.prometheusAPI, clockClassQuery, expectedClockClass,
 		metrics.AssertWithTimeout(1*time.Minute))
 	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock class %d in metrics", expectedClockClass)
 }
@@ -522,9 +527,13 @@ func assertLockedState(
 		metrics.AssertWithTimeout(1*time.Minute))
 	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock is stable and LOCKED in metrics")
 
+	configName, err := testData.profileInfo.Ptp4lConfigName()
+	Expect(err).ToNot(HaveOccurred(), "Failed to get ptp4l config name for profile")
+
 	clockClassQuery := metrics.ClockClassQuery{
 		Node:    metrics.Equals(testData.nodeName),
 		Process: metrics.Equals(metrics.ProcessPTP4L),
+		Config:  metrics.Equals(configName),
 	}
 	err = metrics.AssertQuery(context.TODO(), testData.prometheusAPI, clockClassQuery, expectedClockClass,
 		metrics.AssertWithTimeout(1*time.Minute))
@@ -532,10 +541,11 @@ func assertLockedState(
 }
 
 // assertFreerunState waits for the FREERUN event and optional clock class change event, then validates
-// the corresponding Prometheus metrics.
+// the corresponding Prometheus metrics. The clock class query is scoped to this profile's own ptp4l
+// instance (see ProfileInfo.Ptp4lConfigName): a T-BC receiver and transmitter run as separate ptp4l
+// processes on the same node, and only the receiver's instance carries the pushed clock class.
 func assertFreerunState(
-	prometheusAPI prometheusv1.API,
-	nodeName string,
+	testData holdoverTestData,
 	sinceTime time.Time,
 	expectedClockClass metrics.PtpClockClass,
 	clockClassChanges bool,
@@ -545,7 +555,7 @@ func assertFreerunState(
 
 	By("waiting for clock state FREERUN event")
 
-	eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeName)
+	eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, testData.nodeName)
 	Expect(err).ToNot(HaveOccurred(), "Failed to get consumer pod for node")
 
 	freerunFilter := events.All(
@@ -569,27 +579,32 @@ func assertFreerunState(
 	By(fmt.Sprintf("validating metrics: clock class %d, clock state FREERUN", expectedClockClass))
 
 	clockStateQuery := metrics.ClockStateQuery{
-		Node:    metrics.Equals(nodeName),
+		Node:    metrics.Equals(testData.nodeName),
 		Process: metrics.Equals(metrics.ProcessTBC),
 	}
-	err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockStateQuery, metrics.ClockStateFreerun,
+	err = metrics.AssertQuery(context.TODO(), testData.prometheusAPI, clockStateQuery, metrics.ClockStateFreerun,
 		metrics.AssertWithTimeout(1*time.Minute))
 	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state FREERUN in metrics")
 
+	configName, err := testData.profileInfo.Ptp4lConfigName()
+	Expect(err).ToNot(HaveOccurred(), "Failed to get ptp4l config name for profile")
+
 	clockClassQuery := metrics.ClockClassQuery{
-		Node:    metrics.Equals(nodeName),
+		Node:    metrics.Equals(testData.nodeName),
 		Process: metrics.Equals(metrics.ProcessPTP4L),
+		Config:  metrics.Equals(configName),
 	}
-	err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockClassQuery, expectedClockClass,
+	err = metrics.AssertQuery(context.TODO(), testData.prometheusAPI, clockClassQuery, expectedClockClass,
 		metrics.AssertWithTimeout(1*time.Minute))
 	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock class %d in metrics", expectedClockClass)
 }
 
 // assertHoldoverOutOfSpecClockClass waits for the clock class to transition to holdover-out-of-spec and
-// validates that the clock state remains HOLDOVER in metrics.
+// validates that the clock state remains HOLDOVER in metrics. The clock class query is scoped to this
+// profile's own ptp4l instance (see ProfileInfo.Ptp4lConfigName): a T-BC receiver and transmitter run as
+// separate ptp4l processes on the same node, and only the receiver's instance carries the pushed clock class.
 func assertHoldoverOutOfSpecClockClass(
-	prometheusAPI prometheusv1.API,
-	nodeName string,
+	testData holdoverTestData,
 	sinceTime time.Time,
 	expectedClockClass metrics.PtpClockClass,
 	clockClassChanges bool,
@@ -600,7 +615,7 @@ func assertHoldoverOutOfSpecClockClass(
 	if clockClassChanges {
 		By(fmt.Sprintf("waiting for clock class %d event (holdover-out-of-spec)", expectedClockClass))
 
-		eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeName)
+		eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, testData.nodeName)
 		Expect(err).ToNot(HaveOccurred(), "Failed to get consumer pod for node")
 
 		clockClassFilter := events.All(
@@ -614,18 +629,22 @@ func assertHoldoverOutOfSpecClockClass(
 	By(fmt.Sprintf("validating metrics: clock class %d, clock state HOLDOVER", expectedClockClass))
 
 	clockStateQuery := metrics.ClockStateQuery{
-		Node:    metrics.Equals(nodeName),
+		Node:    metrics.Equals(testData.nodeName),
 		Process: metrics.Equals(metrics.ProcessTBC),
 	}
-	err := metrics.AssertQuery(context.TODO(), prometheusAPI, clockStateQuery, metrics.ClockStateHoldover,
+	err := metrics.AssertQuery(context.TODO(), testData.prometheusAPI, clockStateQuery, metrics.ClockStateHoldover,
 		metrics.AssertWithTimeout(1*time.Minute))
 	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state HOLDOVER in metrics")
 
+	configName, err := testData.profileInfo.Ptp4lConfigName()
+	Expect(err).ToNot(HaveOccurred(), "Failed to get ptp4l config name for profile")
+
 	clockClassQuery := metrics.ClockClassQuery{
-		Node:    metrics.Equals(nodeName),
+		Node:    metrics.Equals(testData.nodeName),
 		Process: metrics.Equals(metrics.ProcessPTP4L),
+		Config:  metrics.Equals(configName),
 	}
-	err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockClassQuery, expectedClockClass,
+	err = metrics.AssertQuery(context.TODO(), testData.prometheusAPI, clockClassQuery, expectedClockClass,
 		metrics.AssertWithTimeout(1*time.Minute))
 	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock class %d in metrics", expectedClockClass)
 }

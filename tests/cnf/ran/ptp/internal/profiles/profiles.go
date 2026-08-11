@@ -157,6 +157,19 @@ func (profileInfo *ProfileInfo) GetInterfacesByClockType(clockType PtpClockType)
 // be expected for profiles that only run phc2sys (e.g., HA profiles).
 var errPtp4lConfigNotFound = errors.New("ptp4l config file not found")
 
+// Ptp4lConfigName returns the ptp4l config file name for this profile, e.g. "ptp4l.0.config". This matches the
+// config label the daemon attaches to Prometheus metrics for the ptp4l instance handling this profile, so it can
+// be used to scope a metric query to this profile's own instance rather than every ptp4l process on the node.
+// ConfigIndex must be set before calling this method (see SetConfigIndices).
+func (profileInfo *ProfileInfo) Ptp4lConfigName() (string, error) {
+	if profileInfo.ConfigIndex == nil {
+		return "", fmt.Errorf("cannot get ptp4l config name for profile %s: ConfigIndex is not set",
+			profileInfo.Reference.ProfileName)
+	}
+
+	return fmt.Sprintf("ptp4l.%d.config", *profileInfo.ConfigIndex), nil
+}
+
 // SetPortIdentities sets the PortIdentity and ParentPortIdentity for each interface in the profile by querying the
 // linuxptp-daemon pod using pmc. The ConfigIndex must be set before calling this method.
 func (profileInfo *ProfileInfo) SetPortIdentities(client *clients.Settings, nodeName string) error {

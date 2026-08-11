@@ -75,6 +75,13 @@ func Discover(client *clients.Settings) error {
 	found := make(map[profiles.PtpProfileType][]*Clock)
 
 	for name, nodeInfo := range nodeInfoMap {
+		// ConfigIndex lets a caller scope a clock_class query to this profile's own ptp4l instance instead of
+		// every ptp4l process on the node. Some profiles have no ptp4l process at all (HA followers running
+		// only phc2sys), so a failure here is expected on those nodes and does not block discovery.
+		if err := nodeInfo.SetConfigIndices(client); err != nil {
+			klog.V(tsparams.LogLevel).Infof("Skipping config index resolution on node %s: %v", name, err)
+		}
+
 		for _, profileInfo := range nodeInfo.Profiles {
 			discoveredClock, ok, err := discoverClock(client, name, profileInfo)
 			if err != nil {
