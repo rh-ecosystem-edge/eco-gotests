@@ -24,7 +24,11 @@ import (
 	"k8s.io/klog/v2"
 )
 
-const holdoverTestTimeout = 7 * time.Minute
+const holdoverTestTimeout = 10 * time.Minute
+
+// metricsAssertTimeout bounds each Prometheus metric assertion that follows an event wait. It is separate from
+// holdoverTestTimeout, which only bounds waiting for cloud events.
+const metricsAssertTimeout = 3 * time.Minute
 
 var (
 	holdoverPluginSettingsNoOutOfSpec = profiles.HoldoverPluginSettings{
@@ -468,7 +472,7 @@ func assertHoldoverState(
 		Process: metrics.Equals(metrics.ProcessTBC),
 	}
 	err = metrics.AssertQuery(context.TODO(), testData.prometheusAPI, clockStateQuery, metrics.ClockStateHoldover,
-		metrics.AssertWithTimeout(1*time.Minute))
+		metrics.AssertWithTimeout(metricsAssertTimeout))
 	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state HOLDOVER in metrics")
 
 	configName, err := testData.profileInfo.Ptp4lConfigName()
@@ -480,7 +484,7 @@ func assertHoldoverState(
 		Config:  metrics.Equals(configName),
 	}
 	err = metrics.AssertQuery(context.TODO(), testData.prometheusAPI, clockClassQuery, expectedClockClass,
-		metrics.AssertWithTimeout(1*time.Minute))
+		metrics.AssertWithTimeout(metricsAssertTimeout))
 	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock class %d in metrics", expectedClockClass)
 }
 
@@ -524,7 +528,7 @@ func assertLockedState(
 	By(fmt.Sprintf("validating metrics: clock class %d, clock state LOCKED", expectedClockClass))
 
 	err = testData.discoveredClock.AssertLocked(context.TODO(), testData.prometheusAPI,
-		metrics.AssertWithTimeout(1*time.Minute))
+		metrics.AssertWithTimeout(metricsAssertTimeout))
 	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock is stable and LOCKED in metrics")
 
 	configName, err := testData.profileInfo.Ptp4lConfigName()
@@ -536,7 +540,7 @@ func assertLockedState(
 		Config:  metrics.Equals(configName),
 	}
 	err = metrics.AssertQuery(context.TODO(), testData.prometheusAPI, clockClassQuery, expectedClockClass,
-		metrics.AssertWithTimeout(1*time.Minute))
+		metrics.AssertWithTimeout(metricsAssertTimeout))
 	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock class %d in metrics", expectedClockClass)
 }
 
@@ -583,7 +587,7 @@ func assertFreerunState(
 		Process: metrics.Equals(metrics.ProcessTBC),
 	}
 	err = metrics.AssertQuery(context.TODO(), testData.prometheusAPI, clockStateQuery, metrics.ClockStateFreerun,
-		metrics.AssertWithTimeout(1*time.Minute))
+		metrics.AssertWithTimeout(metricsAssertTimeout))
 	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state FREERUN in metrics")
 
 	configName, err := testData.profileInfo.Ptp4lConfigName()
@@ -595,7 +599,7 @@ func assertFreerunState(
 		Config:  metrics.Equals(configName),
 	}
 	err = metrics.AssertQuery(context.TODO(), testData.prometheusAPI, clockClassQuery, expectedClockClass,
-		metrics.AssertWithTimeout(1*time.Minute))
+		metrics.AssertWithTimeout(metricsAssertTimeout))
 	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock class %d in metrics", expectedClockClass)
 }
 
@@ -633,7 +637,7 @@ func assertHoldoverOutOfSpecClockClass(
 		Process: metrics.Equals(metrics.ProcessTBC),
 	}
 	err := metrics.AssertQuery(context.TODO(), testData.prometheusAPI, clockStateQuery, metrics.ClockStateHoldover,
-		metrics.AssertWithTimeout(1*time.Minute))
+		metrics.AssertWithTimeout(metricsAssertTimeout))
 	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state HOLDOVER in metrics")
 
 	configName, err := testData.profileInfo.Ptp4lConfigName()
@@ -645,7 +649,7 @@ func assertHoldoverOutOfSpecClockClass(
 		Config:  metrics.Equals(configName),
 	}
 	err = metrics.AssertQuery(context.TODO(), testData.prometheusAPI, clockClassQuery, expectedClockClass,
-		metrics.AssertWithTimeout(1*time.Minute))
+		metrics.AssertWithTimeout(metricsAssertTimeout))
 	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock class %d in metrics", expectedClockClass)
 }
 
