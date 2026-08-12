@@ -308,6 +308,227 @@ func (builder *ModuleBuilder) WithImageRebuildTriggerGeneration(generation int) 
 	return builder
 }
 
+// WithDRA sets the entire DRA spec on the Module.
+func (builder *ModuleBuilder) WithDRA(dra *moduleV1Beta1.DRASpec) *ModuleBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof(
+		"Setting Module %s in namespace %s DRA spec",
+		builder.Definition.Name, builder.Definition.Namespace)
+
+	if dra == nil {
+		builder.errorMsg = "invalid 'dra' argument cannot be nil"
+
+		return builder
+	}
+
+	builder.Definition.Spec.DRA = dra
+
+	return builder
+}
+
+// WithDRAContainer sets the DRA container on the Module.
+func (builder *ModuleBuilder) WithDRAContainer(
+	container *moduleV1Beta1.CommonContainerSpec) *ModuleBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	if container == nil {
+		builder.errorMsg = errNilContainer
+
+		return builder
+	}
+
+	if builder.Definition.Spec.DRA == nil {
+		builder.Definition.Spec.DRA = &moduleV1Beta1.DRASpec{}
+	}
+
+	builder.Definition.Spec.DRA.Container = *container
+
+	return builder
+}
+
+// WithDRAInitContainer sets the DRA init container on the Module.
+func (builder *ModuleBuilder) WithDRAInitContainer(
+	container *moduleV1Beta1.CommonContainerSpec) *ModuleBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	if container == nil {
+		builder.errorMsg = errNilContainer
+
+		return builder
+	}
+
+	if builder.Definition.Spec.DRA == nil {
+		builder.Definition.Spec.DRA = &moduleV1Beta1.DRASpec{}
+	}
+
+	builder.Definition.Spec.DRA.InitContainer = container
+
+	return builder
+}
+
+// WithDRAServiceAccount sets the DRA ServiceAccount on the Module.
+func (builder *ModuleBuilder) WithDRAServiceAccount(srvAccountName string) *ModuleBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof(
+		"Setting Module %s in namespace %s DRA ServiceAccount: %s",
+		builder.Definition.Name, builder.Definition.Namespace, srvAccountName)
+
+	return builder.withServiceAccount(srvAccountName, "dra")
+}
+
+// WithDRADriverName sets the DRA driver name on the Module.
+func (builder *ModuleBuilder) WithDRADriverName(driverName string) *ModuleBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof(
+		"Setting Module %s in namespace %s DRA DriverName: %s",
+		builder.Definition.Name, builder.Definition.Namespace, driverName)
+
+	if driverName == "" {
+		builder.errorMsg = "cannot set empty DRA driverName"
+
+		return builder
+	}
+
+	if builder.Definition.Spec.DRA == nil {
+		builder.Definition.Spec.DRA = &moduleV1Beta1.DRASpec{}
+	}
+
+	builder.Definition.Spec.DRA.DriverName = driverName
+
+	return builder
+}
+
+// WithDRADeviceClass appends a DeviceClass to the Module's DRA spec.
+func (builder *ModuleBuilder) WithDRADeviceClass(
+	deviceClass moduleV1Beta1.DeviceClassSpec) *ModuleBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof(
+		"Appending DRA DeviceClass %s to Module %s in namespace %s",
+		deviceClass.Name, builder.Definition.Name, builder.Definition.Namespace)
+
+	if deviceClass.Name == "" {
+		builder.errorMsg = "cannot append DeviceClass with empty name"
+
+		return builder
+	}
+
+	if builder.Definition.Spec.DRA == nil {
+		builder.Definition.Spec.DRA = &moduleV1Beta1.DRASpec{}
+	}
+
+	builder.Definition.Spec.DRA.DeviceClasses = append(
+		builder.Definition.Spec.DRA.DeviceClasses, deviceClass)
+
+	return builder
+}
+
+// WithDRAVolume adds a ConfigMap-backed volume to the Module's DRA spec.
+func (builder *ModuleBuilder) WithDRAVolume(name string, configMapName string) *ModuleBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	if name == "" {
+		builder.errorMsg = "cannot add DRA volume with empty 'name'"
+
+		return builder
+	}
+
+	if configMapName == "" {
+		builder.errorMsg = "cannot add DRA volume with empty 'configMapName'"
+
+		return builder
+	}
+
+	if builder.Definition.Spec.DRA == nil {
+		builder.Definition.Spec.DRA = &moduleV1Beta1.DRASpec{}
+	}
+
+	builder.Definition.Spec.DRA.Volumes = append(builder.Definition.Spec.DRA.Volumes, corev1.Volume{
+		Name: name,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: configMapName},
+			},
+		},
+	})
+
+	return builder
+}
+
+// WithDRAHostPathVolume adds a hostPath volume to the Module's DRA spec.
+func (builder *ModuleBuilder) WithDRAHostPathVolume(
+	name, path string, pathType *corev1.HostPathType) *ModuleBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	if name == "" {
+		builder.errorMsg = "cannot add DRA hostPath volume with empty 'name'"
+
+		return builder
+	}
+
+	if path == "" {
+		builder.errorMsg = "cannot add DRA hostPath volume with empty 'path'"
+
+		return builder
+	}
+
+	if builder.Definition.Spec.DRA == nil {
+		builder.Definition.Spec.DRA = &moduleV1Beta1.DRASpec{}
+	}
+
+	builder.Definition.Spec.DRA.Volumes = append(builder.Definition.Spec.DRA.Volumes, corev1.Volume{
+		Name: name,
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: path,
+				Type: pathType,
+			},
+		},
+	})
+
+	return builder
+}
+
+// WithDRAAutomountServiceAccountToken sets the AutomountServiceAccountToken on the DRA spec.
+func (builder *ModuleBuilder) WithDRAAutomountServiceAccountToken(
+	automount bool) *ModuleBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof(
+		"Setting Module %s in namespace %s DRA AutomountServiceAccountToken to %v",
+		builder.Definition.Name, builder.Definition.Namespace, automount)
+
+	if builder.Definition.Spec.DRA == nil {
+		builder.Definition.Spec.DRA = &moduleV1Beta1.DRASpec{}
+	}
+
+	builder.Definition.Spec.DRA.AutomountServiceAccountToken = &automount
+
+	return builder
+}
+
 // BuildModuleSpec returns module spec.
 func (builder *ModuleBuilder) BuildModuleSpec() (moduleV1Beta1.ModuleSpec, error) {
 	if valid, err := builder.validate(); !valid {
@@ -520,8 +741,14 @@ func (builder *ModuleBuilder) withServiceAccount(srvAccountName string, accountT
 		}
 
 		builder.Definition.Spec.DevicePlugin.ServiceAccountName = srvAccountName
+	case "dra":
+		if builder.Definition.Spec.DRA == nil {
+			builder.Definition.Spec.DRA = &moduleV1Beta1.DRASpec{}
+		}
+
+		builder.Definition.Spec.DRA.ServiceAccountName = srvAccountName
 	default:
-		builder.errorMsg = "invalid account type parameter. Supported parameters are: 'module', 'device'"
+		builder.errorMsg = "invalid account type parameter. Supported parameters are: 'module', 'device', 'dra'"
 
 		return builder
 	}

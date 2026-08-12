@@ -13,6 +13,7 @@ import (
 const (
 	errEmptyModName = "'modName' cannot be empty"
 	errEmptyMapping = "'mapping' can not be empty nil"
+	errEmptyImage   = "invalid parameter 'image' cannot be empty"
 )
 
 // ModuleLoaderContainerBuilder provides struct for the module object containing the ModuleLoaderContainerSpec
@@ -237,7 +238,7 @@ func NewDevicePluginContainerBuilder(image string) *DevicePluginContainerBuilder
 	if image == "" {
 		klog.V(100).Info("The image of NewDevicePluginContainerBuilder is empty")
 
-		builder.errorMsg = "invalid parameter 'image' cannot be empty"
+		builder.errorMsg = errEmptyImage
 
 		return builder
 	}
@@ -321,6 +322,186 @@ func (builder *DevicePluginContainerBuilder) GetDevicePluginContainerConfig() (
 // accessing any member fields.
 func (builder *DevicePluginContainerBuilder) validate() (bool, error) {
 	resourceCRD := "DevicePluginContainer"
+
+	if builder == nil {
+		klog.V(100).Infof("The %s builder is uninitialized", strings.ToLower(resourceCRD))
+
+		return false, fmt.Errorf("error: received nil %s builder", strings.ToLower(resourceCRD))
+	}
+
+	if builder.definition == nil {
+		klog.V(100).Infof("The %s is undefined", strings.ToLower(resourceCRD))
+
+		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
+	}
+
+	if builder.errorMsg != "" {
+		klog.V(100).Infof("The %s builder has error message: %s", strings.ToLower(resourceCRD), builder.errorMsg)
+
+		return false, fmt.Errorf("%s", builder.errorMsg)
+	}
+
+	return true, nil
+}
+
+// DRAContainerBuilder provides struct for the DRA container configuration.
+type DRAContainerBuilder struct {
+	definition *moduleV1Beta1.CommonContainerSpec
+	errorMsg   string
+}
+
+// NewDRAContainerBuilder creates a new DRA container builder with the given image.
+func NewDRAContainerBuilder(image string) *DRAContainerBuilder {
+	klog.V(100).Infof(
+		"Initializing new DRAContainerBuilder structure with the following params: %s", image)
+
+	builder := &DRAContainerBuilder{
+		definition: &moduleV1Beta1.CommonContainerSpec{
+			Image: image,
+		},
+	}
+
+	if image == "" {
+		klog.V(100).Info("The image of NewDRAContainerBuilder is empty")
+
+		builder.errorMsg = errEmptyImage
+
+		return builder
+	}
+
+	return builder
+}
+
+// WithCommand sets the entrypoint command for the DRA container.
+func (builder *DRAContainerBuilder) WithCommand(cmd []string) *DRAContainerBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof("Setting DRAContainerBuilder command: %v", cmd)
+
+	if len(cmd) == 0 {
+		builder.errorMsg = "'cmd' cannot be empty for DRA container command"
+
+		return builder
+	}
+
+	builder.definition.Command = cmd
+
+	return builder
+}
+
+// WithArgs sets the arguments for the DRA container.
+func (builder *DRAContainerBuilder) WithArgs(args []string) *DRAContainerBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof("Setting DRAContainerBuilder args: %v", args)
+
+	if len(args) == 0 {
+		builder.errorMsg = "'args' cannot be empty for DRA container args"
+
+		return builder
+	}
+
+	builder.definition.Args = args
+
+	return builder
+}
+
+// WithEnv adds an environment variable to the DRA container.
+func (builder *DRAContainerBuilder) WithEnv(name, value string) *DRAContainerBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof("Adding DRAContainerBuilder env: %s=%s", name, value)
+
+	if name == "" {
+		builder.errorMsg = "'name' cannot be empty for DRA container env"
+
+		return builder
+	}
+
+	builder.definition.Env = append(builder.definition.Env, corev1.EnvVar{Name: name, Value: value})
+
+	return builder
+}
+
+// WithVolumeMount adds a volume mount to the DRA container.
+func (builder *DRAContainerBuilder) WithVolumeMount(mountPath, name string) *DRAContainerBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof("Adding DRAContainerBuilder volume mount: %s at %s", name, mountPath)
+
+	if name == "" {
+		builder.errorMsg = "'name' cannot be empty for DRA container volumeMount"
+
+		return builder
+	}
+
+	if mountPath == "" {
+		builder.errorMsg = "'mountPath' cannot be empty for DRA container volumeMount"
+
+		return builder
+	}
+
+	builder.definition.VolumeMounts = append(
+		builder.definition.VolumeMounts, corev1.VolumeMount{Name: name, MountPath: mountPath})
+
+	return builder
+}
+
+// WithImagePullPolicy sets the image pull policy for the DRA container.
+func (builder *DRAContainerBuilder) WithImagePullPolicy(policy string) *DRAContainerBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof("Setting DRAContainerBuilder image pull policy: %s", policy)
+
+	if policy == "" {
+		builder.errorMsg = "'policy' cannot be empty for DRA container"
+
+		return builder
+	}
+
+	builder.definition.ImagePullPolicy = corev1.PullPolicy(policy)
+
+	return builder
+}
+
+// WithResources sets the resource requirements for the DRA container.
+func (builder *DRAContainerBuilder) WithResources(
+	resources corev1.ResourceRequirements) *DRAContainerBuilder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof("Setting DRAContainerBuilder resources: %v", resources)
+
+	builder.definition.Resources = resources
+
+	return builder
+}
+
+// GetDRAContainerConfig returns the DRA container spec configuration.
+func (builder *DRAContainerBuilder) GetDRAContainerConfig() (
+	*moduleV1Beta1.CommonContainerSpec, error) {
+	if valid, err := builder.validate(); !valid {
+		return nil, fmt.Errorf("error building DRA container config due to: %w", err)
+	}
+
+	return builder.definition, nil
+}
+
+// validate will check that the builder and builder definition are properly initialized before
+// accessing any member fields.
+func (builder *DRAContainerBuilder) validate() (bool, error) {
+	resourceCRD := "DRAContainer"
 
 	if builder == nil {
 		klog.V(100).Infof("The %s builder is uninitialized", strings.ToLower(resourceCRD))
