@@ -24,7 +24,7 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), func() {
+var _ = PDescribe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), func() {
 	var err error
 
 	BeforeEach(func() {

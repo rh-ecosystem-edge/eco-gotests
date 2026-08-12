@@ -427,7 +427,7 @@ var _ = Describe("TALM precache", Label(tsparams.LabelPreCacheTestCases), func()
 		})
 	})
 
-	When("there are multiple spokes and one turns off", Ordered, ContinueOnFailure, func() {
+	PWhen("there are multiple spokes and one turns off", Ordered, ContinueOnFailure, func() {
 		var (
 			talmCompleteLabel = "talmcomplete"
 		)

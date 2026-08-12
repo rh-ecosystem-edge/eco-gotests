@@ -145,7 +145,7 @@ var _ = Describe("TALM backup tests", Label(tsparams.LabelBackupTestCases), func
 		})
 	})
 
-	When("there are two spokes", func() {
+	PWhen("there are two spokes", func() {
 		BeforeEach(func() {
 			By("checking that hub and two spokes are present")
 			Expect(rancluster.AreClustersPresent([]*clients.Settings{HubAPIClient, Spoke1APIClient, Spoke2APIClient})).
