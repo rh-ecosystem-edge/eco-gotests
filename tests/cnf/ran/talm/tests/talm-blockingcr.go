@@ -16,7 +16,9 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/talm/internal/helper"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/talm/internal/setup"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/talm/internal/tsparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 )
 
@@ -40,6 +42,28 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 	})
 
 	AfterEach(func() {
+		By("printing CGU events in the ztp-install namespace for debugging")
+
+		ztpInstallEvents, err := cluster.ExecCommandOnSNOWithRetries(HubAPIClient, ranparam.RetryCount, ranparam.RetryInterval,
+			"oc get event.v1.events.k8s.io -n ztp-install --field-selector='regarding.kind==ClusterGroupUpgrade' "+
+				"--sort-by='{.metadata.creationTimestamp}'")
+		if err != nil {
+			klog.V(tsparams.LogLevel).Infof("Failed to get CGU events in the ztp-install namespace: %v", err)
+		} else {
+			klog.V(tsparams.LogLevel).Infof("CGU events in the ztp-install namespace:\n%s", ztpInstallEvents)
+		}
+
+		By(fmt.Sprintf("printing CGU events in the %s namespace for debugging", tsparams.TestNamespace))
+
+		talmTestEvents, err := cluster.ExecCommandOnSNOWithRetries(HubAPIClient, ranparam.RetryCount, ranparam.RetryInterval,
+			fmt.Sprintf("oc get event.v1.events.k8s.io -n %s --field-selector='regarding.kind==ClusterGroupUpgrade' "+
+				"--sort-by='{.metadata.creationTimestamp}'", tsparams.TestNamespace))
+		if err != nil {
+			klog.V(tsparams.LogLevel).Infof("Failed to get CGU events in the %s namespace: %v", tsparams.TestNamespace, err)
+		} else {
+			klog.V(tsparams.LogLevel).Infof("CGU events in the %s namespace:\n%s", tsparams.TestNamespace, talmTestEvents)
+		}
+
 		By("Cleaning up test resources on hub")
 
 		errList := setup.CleanupTestResourcesOnHub(HubAPIClient, tsparams.TestNamespace, blockingA)
@@ -50,7 +74,7 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 
 		By("Deleting test namespaces on spoke 1")
 
-		err := namespace.NewBuilder(Spoke1APIClient, tsparams.TemporaryNamespace+blockingA).
+		err = namespace.NewBuilder(Spoke1APIClient, tsparams.TemporaryNamespace+blockingA).
 			DeleteAndWait(5 * time.Minute)
 		Expect(err).ToNot(HaveOccurred(), "Failed to delete namespace for blocking A on spoke 1")
 
