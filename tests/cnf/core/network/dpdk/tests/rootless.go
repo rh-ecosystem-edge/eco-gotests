@@ -858,21 +858,6 @@ func getPCIAddressListFromSrIovNetworkName(podNetworkStatus string) ([]string, e
 	return pciAddressList, nil
 }
 
-func verifySysctlKernelParametersConfiguredOnPodInterface(
-	podUnderTest *pod.Builder, sysctlPluginConfig map[string]string, interfaceName string) {
-	for key, value := range sysctlPluginConfig {
-		sysctlKernelParam := strings.Replace(key, "IFNAME", interfaceName, 1)
-
-		By(fmt.Sprintf("Validate sysctl flag: %s has the right value in pod's interface: %s",
-			sysctlKernelParam, interfaceName))
-
-		cmdBuffer, err := podUnderTest.ExecCommand([]string{"sysctl", "-n", sysctlKernelParam})
-		Expect(err).ToNot(HaveOccurred(), "Fail to execute cmd command on the pod")
-		Expect(strings.TrimSpace(cmdBuffer.String())).To(BeIdenticalTo(value),
-			"sysctl kernel param is not in expected state")
-	}
-}
-
 func defineRoute(dstNet, nextHop, devName, mode string) []string {
 	return []string{"/bin/bash", "-c", fmt.Sprintf("route %s -net %s gw %s dev %s", mode, dstNet, nextHop, devName)}
 }
@@ -932,8 +917,12 @@ func fetchNewDeploymentPod(deploymentPodPrefix string) *pod.Builder {
 
 func testRouteInjection(clientPod *pod.Builder, nextHopInterface string) {
 	By("Verifying sysctl plugin configuration")
-	verifySysctlKernelParametersConfiguredOnPodInterface(clientPod, enabledSysctlFlags, tapOneInterfaceName)
-	verifySysctlKernelParametersConfiguredOnPodInterface(clientPod, disabledSysctlFlags, tapTwoInterfaceName)
+	Expect(cmd.VerifySysctlKernelParametersConfiguredOnPodInterface(
+		clientPod, enabledSysctlFlags, tapOneInterfaceName)).
+		To(Succeed(), "sysctl kernel params are not in expected state")
+	Expect(cmd.VerifySysctlKernelParametersConfiguredOnPodInterface(
+		clientPod, disabledSysctlFlags, tapTwoInterfaceName)).
+		To(Succeed(), "sysctl kernel params are not in expected state")
 
 	By("Adding route to rootless pod")
 

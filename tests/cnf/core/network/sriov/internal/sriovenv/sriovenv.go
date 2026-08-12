@@ -2,7 +2,6 @@ package sriovenv
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -16,6 +15,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/ipaddr"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netstatus"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
@@ -451,61 +451,10 @@ func CreateSriovNetworkWithVLANAndWhereabouts(
 	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.NADWaitTimeout)
 }
 
-// getInterfaceIPs returns all IPs assigned to an interface from the pod's network-status annotation.
-func getInterfaceIPs(podBuilder *pod.Builder, interfaceName string) ([]string, error) {
-	podObj, err := pod.Pull(APIClient, podBuilder.Definition.Name, podBuilder.Definition.Namespace)
-	if err != nil {
-		return nil, fmt.Errorf("failed to pull pod %s: %w", podBuilder.Definition.Name, err)
-	}
-
-	annotation := podObj.Object.Annotations["k8s.v1.cni.cncf.io/network-status"]
-	if annotation == "" {
-		return nil, fmt.Errorf("no network-status annotation on pod %s", podBuilder.Definition.Name)
-	}
-
-	var statuses []struct {
-		Interface string   `json:"interface"`
-		IPs       []string `json:"ips"`
-	}
-
-	if err := json.Unmarshal([]byte(annotation), &statuses); err != nil {
-		return nil, fmt.Errorf("failed to parse network-status annotation: %w", err)
-	}
-
-	for _, status := range statuses {
-		if status.Interface == interfaceName {
-			return status.IPs, nil
-		}
-	}
-
-	return nil, fmt.Errorf("interface %s not found in network-status annotation", interfaceName)
-}
-
 // GetPodIPFromInterface retrieves an IP address of a specific interface from a pod's network-status annotation.
 // ipFamily should be "ipv4" or "ipv6". For dual-stack, call this function twice with each family.
 func GetPodIPFromInterface(podBuilder *pod.Builder, interfaceName, ipFamily string) (string, error) {
-	klog.V(90).Infof("Getting %s from interface %s on pod %s", ipFamily, interfaceName, podBuilder.Definition.Name)
-
-	ips, err := getInterfaceIPs(podBuilder, interfaceName)
-	if err != nil {
-		return "", err
-	}
-
-	for _, ip := range ips {
-		ipClean := strings.Split(ip, "/")[0]
-		isIPv6 := strings.Contains(ipClean, ":")
-
-		if ipFamily == "ipv4" && !isIPv6 {
-			return ipClean, nil
-		}
-
-		// Skip link-local addresses (fe80::) for IPv6 - return only global/ULA addresses.
-		if ipFamily == "ipv6" && isIPv6 && !strings.HasPrefix(strings.ToLower(ipClean), "fe80") {
-			return ipClean, nil
-		}
-	}
-
-	return "", fmt.Errorf("no %s found for interface %s in network-status annotation", ipFamily, interfaceName)
+	return netstatus.PodIPFromInterface(APIClient, podBuilder, interfaceName, ipFamily)
 }
 
 // CreatePodPair creates a client and server pod pair for traffic testing.
