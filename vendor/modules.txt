@@ -998,6 +998,8 @@ github.com/rh-ecosystem-edge/eco-goinfra/pkg/argocd
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/assisted
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/bmc
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/bmh
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/capi
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/capoa
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/cgu
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/clusterlogging
@@ -1089,6 +1091,8 @@ github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/hive/api/v1/vspher
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/hive/scheme
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/models
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/assisted/pkg/validations
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/capi/cluster/v1beta1
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/capoa/controlplane/v1alpha3
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/fec/fectypes
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/hive/api/v1
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/hive/api/v1/agent
