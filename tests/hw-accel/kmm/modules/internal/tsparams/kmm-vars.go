@@ -34,6 +34,7 @@ var (
 		kmmparams.RebuildTriggerNoopNamespace:     "module",
 		kmmparams.AutomountSATokenTestNamespace:   "module",
 		kmmparams.FilesToSignGlobTestNamespace:    "module",
+		kmmparams.DRAValidationTestNamespace:      "module",
 		kmmparams.DefaultNodesNamespace:           "nodes",
 	}
 

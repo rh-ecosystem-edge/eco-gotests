@@ -303,6 +303,10 @@ const (
 	AutomountSATokenTestNamespace = "automount-satoken"
 	// FilesToSignGlobTestNamespace represents test case namespace name for filesToSign glob tests.
 	FilesToSignGlobTestNamespace = "filestosign-glob"
+	// DRAValidationTestNamespace represents test case namespace name for DRA validation tests.
+	DRAValidationTestNamespace = "dra-validation"
+	// DRANodeLabelTemplate represents template of the DRA readiness label set on a node.
+	DRANodeLabelTemplate = "kmm.node.kubernetes.io/%s.%s.dra-ready"
 	// DefaultNodesNamespace represents namespace of the nodes events.
 	DefaultNodesNamespace = "default"
 	// SimpleKmodImage represents the pre-built simple-kmod kernel module image.
