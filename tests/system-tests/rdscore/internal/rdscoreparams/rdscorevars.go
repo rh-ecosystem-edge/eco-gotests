@@ -4,6 +4,7 @@ import (
 	"github.com/openshift-kni/k8sreporter"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
 )
 
 var (
@@ -78,5 +79,6 @@ var (
 		// Storage resources for debugging PVC binding and provisioning issues
 		{Cr: &corev1.PersistentVolumeList{}},
 		{Cr: &corev1.PersistentVolumeClaimList{}},
+		{Cr: &policiesv1.PolicyList{}},
 	}
 )
