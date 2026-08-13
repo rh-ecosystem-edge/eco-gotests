@@ -57,6 +57,60 @@ func NodeLabel(apiClient *clients.Settings, moduleName, nsname string, nodeSelec
 	return false, err
 }
 
+// DRANodeLabel checks if DRA readiness label is present on all matching nodes.
+func DRANodeLabel(apiClient *clients.Settings, moduleName, nsname string,
+	nodeSelector map[string]string) (bool, error) {
+	nodeBuilder, err := nodes.List(apiClient,
+		metav1.ListOptions{LabelSelector: labels.Set(nodeSelector).String()})
+	if err != nil {
+		klog.V(kmmparams.KmmLogLevel).Infof("could not discover %v nodes", nodeSelector)
+
+		return false, err
+	}
+
+	foundLabels := 0
+	label := fmt.Sprintf(kmmparams.DRANodeLabelTemplate, nsname, moduleName)
+
+	for _, node := range nodeBuilder {
+		_, ok := node.Object.Labels[label]
+		if ok {
+			klog.V(kmmparams.KmmLogLevel).Infof("Found DRA label %v on node %v",
+				label, node.Object.Name)
+
+			foundLabels++
+			if foundLabels == len(nodeBuilder) {
+				return true, nil
+			}
+		}
+	}
+
+	err = fmt.Errorf("not all nodes (%v) have the DRA label '%s'", len(nodeBuilder), label)
+
+	return false, err
+}
+
+// NoDRANodeLabel checks that DRA readiness label is NOT present on any matching node.
+func NoDRANodeLabel(apiClient *clients.Settings, moduleName, nsname string,
+	nodeSelector map[string]string) (bool, error) {
+	nodeBuilder, err := nodes.List(apiClient,
+		metav1.ListOptions{LabelSelector: labels.Set(nodeSelector).String()})
+	if err != nil {
+		return false, err
+	}
+
+	label := fmt.Sprintf(kmmparams.DRANodeLabelTemplate, nsname, moduleName)
+
+	for _, node := range nodeBuilder {
+		_, ok := node.Object.Labels[label]
+		if ok {
+			return false, fmt.Errorf("node %s unexpectedly has DRA label '%s'",
+				node.Object.Name, label)
+		}
+	}
+
+	return true, nil
+}
+
 // ModuleLoaded verifies the module is loaded on the node.
 func ModuleLoaded(apiClient *clients.Settings, modName string, timeout time.Duration) error {
 	modName = strings.Replace(modName, "-", "_", 10)

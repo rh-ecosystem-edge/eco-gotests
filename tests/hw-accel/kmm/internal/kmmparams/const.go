@@ -307,6 +307,24 @@ const (
 	DRAValidationTestNamespace = "dra-validation"
 	// DRANodeLabelTemplate represents template of the DRA readiness label set on a node.
 	DRANodeLabelTemplate = "kmm.node.kubernetes.io/%s.%s.dra-ready"
+	// DRABackwardCompatTestNamespace represents test case namespace for DRA backward compatibility.
+	DRABackwardCompatTestNamespace = "89708-compat"
+	// DRARemoveTestNamespace represents test case namespace for DRA removal tests.
+	DRARemoveTestNamespace = "89704-dra-rm"
+	// DRAInTreeTestNamespace represents test case namespace for DRA in-tree driver mode tests.
+	DRAInTreeTestNamespace = "89707-intree"
+	// DRAHappyPathTestNamespace represents test case namespace for DRA happy path tests.
+	DRAHappyPathTestNamespace = "89695-dra"
+	// DRADeviceClassTestNamespace represents test case namespace for DeviceClass lifecycle tests.
+	DRADeviceClassTestNamespace = "89703-dc"
+	// DRAPresetEnvTestNamespace represents test case namespace for DRA preset env/probe tests.
+	DRAPresetEnvTestNamespace = "89705-env"
+	// DRADriverImage represents the DRA example driver image used in DRA tests.
+	DRADriverImage = "registry.k8s.io/dra-example-driver/dra-example-driver:v0.3.0"
+	// DRADriverName represents the DRA driver name used in tests.
+	DRADriverName = "gpu.example.com"
+	// DRADeviceClassName represents the default DeviceClass name used in DRA tests.
+	DRADeviceClassName = "test-device-class"
 	// DefaultNodesNamespace represents namespace of the nodes events.
 	DefaultNodesNamespace = "default"
 	// SimpleKmodImage represents the pre-built simple-kmod kernel module image.

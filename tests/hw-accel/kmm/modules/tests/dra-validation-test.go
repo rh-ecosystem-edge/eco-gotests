@@ -332,14 +332,14 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 	})
 })
 
-func newUnstructuredModule(name, ns string, spec map[string]interface{}) *unstructured.Unstructured {
+func newUnstructuredModule(name, nsname string, spec map[string]interface{}) *unstructured.Unstructured {
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"apiVersion": "kmm.sigs.x-k8s.io/v1beta1",
 			"kind":       "Module",
 			"metadata": map[string]interface{}{
 				"name":      name,
-				"namespace": ns,
+				"namespace": nsname,
 			},
 			"spec": spec,
 		},

@@ -307,6 +307,33 @@ func deploymentPerLabel(apiClient *clients.Settings, moduleName, label string,
 		})
 }
 
+// DRADeployment awaits DRA DaemonSet to be deployed by checking DRA readiness node labels.
+func DRADeployment(apiClient *clients.Settings, moduleName, nsname string,
+	timeout time.Duration, selector map[string]string) error {
+	label := fmt.Sprintf(kmmparams.DRANodeLabelTemplate, nsname, moduleName)
+
+	return deploymentPerLabel(apiClient, moduleName, label, timeout, selector)
+}
+
+// DRADaemonSetGone awaits DRA-labeled pods to be removed from the namespace.
+func DRADaemonSetGone(apiClient *clients.Settings, nsName string, timeout time.Duration) error {
+	return wait.PollUntilContextTimeout(
+		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			pods, err := pod.List(apiClient, nsName, metav1.ListOptions{
+				LabelSelector: "kmm.node.kubernetes.io/role=dra",
+			})
+			if err != nil {
+				klog.V(kmmparams.KmmLogLevel).Infof("error listing DRA pods: %s", err)
+
+				return false, nil
+			}
+
+			klog.V(kmmparams.KmmLogLevel).Infof("DRA pods remaining: %d", len(pods))
+
+			return len(pods) == 0, nil
+		})
+}
+
 // MachineConfigCreated awaits MachineConfig to be created.
 func MachineConfigCreated(apiClient *clients.Settings, mcName string, timeout time.Duration) error {
 	return wait.PollUntilContextTimeout(

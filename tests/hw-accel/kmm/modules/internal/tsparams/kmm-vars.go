@@ -35,6 +35,12 @@ var (
 		kmmparams.AutomountSATokenTestNamespace:   "module",
 		kmmparams.FilesToSignGlobTestNamespace:    "module",
 		kmmparams.DRAValidationTestNamespace:      "module",
+		kmmparams.DRABackwardCompatTestNamespace:  "module",
+		kmmparams.DRARemoveTestNamespace:          "module",
+		kmmparams.DRAInTreeTestNamespace:          "module",
+		kmmparams.DRAHappyPathTestNamespace:       "module",
+		kmmparams.DRADeviceClassTestNamespace:     "module",
+		kmmparams.DRAPresetEnvTestNamespace:       "module",
 		kmmparams.DefaultNodesNamespace:           "nodes",
 	}
 
