@@ -88,7 +88,7 @@ These inputs are all specific to the TALM pre-cache tests. They are also all opt
 
 This input is specific to the ZTP generator tests and is optional.
 
-- `ECO_CNF_RAN_ZTP_SITE_GENERATE_IMAGE`: Container image to use for generating CRs from the site config.
+* `ECO_CNF_RAN_ZTP_SITE_GENERATE_IMAGE`: Container image to use for generating CRs from the site config.
 
 #### PTP inputs
 
@@ -132,9 +132,9 @@ These inputs are specific to the O-RAN test suite.
 * `ECO_CNF_RAN_HUB_APPS_DOMAIN`: Subdomain for the hub cluster routes (e.g. `apps.<hub-cluster-name>.<hub-cluster-domain>`).
 * `ECO_CNF_RAN_O2IMS_CLIENT_CERT_SECRET`: Name of the secret containing the client certificate for O2IMS and OAuth APIs.
 * `ECO_CNF_RAN_O2IMS_CLIENT_CERT_SECRET_NAMESPACE`: Namespace for the O2IMS client certificate secret.
-* `ECO_CNF_RAN_O2IMS_OAUTH_CLIENT_ID`: Client ID for requesting an access token from the OAuth endpoint.
+* `ECO_CNF_RAN_O2IMS_OAUTH_CLIENT_ID`: Client ID for requesting an access token from the OAuth endpoint. The OAuth endpoint is assumed to allow requesting the `o2ims-reader` role, not just the `o2ims-admin` role.
 * `ECO_CNF_RAN_O2IMS_OAUTH_CLIENT_SECRET`: Client secret for requesting an access token from the OAuth endpoint.
-* `ECO_CNF_RAN_O2IMS_TOKEN`: Token for authenticating with the O2IMS API (used when OAuth is not configured).
+* `ECO_CNF_RAN_O2IMS_TOKEN`: Token for authenticating with the O2IMS API (used when OAuth is not configured). The security hardening test that verifies `o2ims-reader` RBAC (89915) requires OAuth client credentials and is skipped when only a bearer token is configured.
 * `ECO_CNF_RAN_CLUSTER_TEMPLATE_AFFIX`: Version-dependent affix for naming ClusterTemplates and O-RAN resources.
 * `ECO_CNF_RAN_MOCK_SMO_NAMESPACE`: Namespace where the mock SMO is deployed.
 * `ECO_CNF_RAN_MOCK_SMO_SUBDOMAIN`: Subdomain for the mock SMO route (the SMO registered in the inventory CR).

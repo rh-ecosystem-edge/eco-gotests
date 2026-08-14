@@ -23,10 +23,21 @@ import (
 // is required is that the access token has the o2ims-admin role and the audience is o2ims-client.
 var oAuthScopes = []string{"openid", "roles", "role:o2ims-admin", "o2ims-audience"}
 
-// NewClientBuilderForConfig creates a new ClientBuilder for the O2IMS API using the provided configuration. If the
-// OAuth client id and client secret are not provided, the builder will use the bearer token provided. Otherwise, the
-// builder will attempt to use mTLS and OAuth for authentication and authorization.
+// ReaderOAuthScopes are the OAuth scopes for an o2ims-reader client. These are specific to the Keycloak configuration;
+// what is required is that the access token has the o2ims-reader role and the audience is o2ims-client.
+var ReaderOAuthScopes = []string{"openid", "roles", "role:o2ims-reader", "o2ims-audience"}
+
+// NewClientBuilderForConfig creates a new ClientBuilder for the O2IMS API using the provided configuration with
+// o2ims-admin scopes.
 func NewClientBuilderForConfig(config *ranconfig.RANConfig) (*oranapi.ClientBuilder, error) {
+	return NewClientBuilderForConfigWithScopes(config, oAuthScopes)
+}
+
+// NewClientBuilderForConfigWithScopes creates a new ClientBuilder for the O2IMS API using the provided configuration
+// and OAuth scopes. If the OAuth client id and client secret are not provided, the builder will use the bearer token
+// provided. Otherwise, the builder will attempt to use mTLS and OAuth for authentication and authorization.
+func NewClientBuilderForConfigWithScopes(
+	config *ranconfig.RANConfig, scopes []string) (*oranapi.ClientBuilder, error) {
 	o2imsBaseURL := "https://" + config.GetAppsURL("o2ims")
 	oAuthURL := "https://" + config.GetAppsURL("keycloak") + "/realms/oran/protocol/openid-connect/token"
 
@@ -55,7 +66,7 @@ func NewClientBuilderForConfig(config *ranconfig.RANConfig) (*oranapi.ClientBuil
 		ClientID:     config.O2IMSOAuthClientID,
 		ClientSecret: config.O2IMSOAuthClientSecret,
 		TokenURL:     oAuthURL,
-		Scopes:       oAuthScopes,
+		Scopes:       scopes,
 	}
 
 	ctx := context.WithValue(context.TODO(), oauth2.HTTPClient, httpClient)
