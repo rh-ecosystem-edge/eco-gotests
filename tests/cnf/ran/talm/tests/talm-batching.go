@@ -40,9 +40,17 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 		if !versionInRange {
 			Skip("TALM batching tests require version 4.11 or higher")
 		}
+
+		By(fmt.Sprintf("clearing CGU events in the %s namespace for debugging", tsparams.TestNamespace))
+
+		helper.ClearCGUEvents()
 	})
 
 	AfterEach(func() {
+		By(fmt.Sprintf("printing CGU events in the %s namespace for debugging", tsparams.TestNamespace))
+
+		helper.PrintCGUEvents()
+
 		By("cleaning up resources on hub")
 
 		errorList := setup.CleanupTestResourcesOnHub(HubAPIClient, tsparams.TestNamespace, "")
@@ -71,6 +79,13 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 			By("waiting for the error condition to match")
 
 			_, err = cguBuilder.WaitForCondition(tsparams.CguNonExistentClusterCondition, 3*tsparams.TalmDefaultReconcileTime)
+
+			By("printing CGU events after waiting for the validation failure condition")
+
+			helper.PrintCGUEventsCheckpoint("47949", "missing spoke validation failure", tsparams.CguName, 0,
+				"CguValidationFailure/global RemediationOnHoldDueToValidationFailure "+
+					"(missing-clusters, missing-clusters-count annotations)")
+
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU to have matching condition")
 		})
 	})
@@ -91,6 +106,12 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 			By("waiting for the CGU status to report the missing policy")
 			// This should immediately error out so we don't need a long timeout
 			_, err = cguBuilder.WaitForCondition(tsparams.CguNonExistentPolicyCondition, 2*time.Minute)
+
+			By("printing CGU events after waiting for the missing policy validation failure condition")
+
+			helper.PrintCGUEventsCheckpoint("47955", "missing policy validation failure", tsparams.CguName, 0,
+				"CguValidationFailure/global RemediationOnHoldDueToValidationFailure (missing-policies annotation)")
+
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU to have matching condition")
 		})
 	})
@@ -129,6 +150,13 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 			By("waiting for the CGU to timeout")
 
 			cguBuilder, err = cguBuilder.WaitForCondition(tsparams.CguTimeoutReasonCondition, 11*time.Minute)
+
+			By("printing CGU events after waiting for the CGU to timeout (abort)")
+
+			helper.PrintCGUEventsCheckpoint("47952", "CGU timed out (abort)", tsparams.CguName, 0,
+				"CguTimedout/batch RemediationInBatchTimeout (timedout-clusters annotation)",
+				"CguTimedout/global RemediationTimeout (timedout-clusters annotation)")
+
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU to timeout")
 
 			By("validating that the policy failed on spoke1")
@@ -198,6 +226,12 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 			By("waiting for the CGU to timeout")
 
 			_, err = cguBuilder.WaitForCondition(tsparams.CguTimeoutReasonCondition, 16*time.Minute)
+
+			By("printing CGU events after waiting for the CGU to timeout (report)")
+
+			helper.PrintCGUEventsCheckpoint("47952", "CGU timed out (report)", tsparams.CguName, 0,
+				"CguTimedout/batch RemediationInBatchTimeout", "CguTimedout/global RemediationTimeout")
+
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU to timeout")
 
 			By("validating that the policy succeeded on spoke1")
@@ -246,6 +280,15 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 			By("waiting for the CGU to timeout")
 
 			_, err = cguBuilder.WaitForCondition(tsparams.CguTimeoutReasonCondition, 16*time.Minute)
+
+			By("printing CGU events after waiting for the CGU to timeout (terminal)")
+
+			helper.PrintCGUEventsCheckpoint("74753",
+				"CGU timeout with Continue action, second batch succeeds", tsparams.CguName, 0,
+				"CguTimedout/batch(0) RemediationInBatchTimeout", "CguSuccess/cluster(spoke2) RemediationInClusterCompleted",
+				"CguSuccess/batch(1) RemediationInBatchCompleted",
+				"CguSuccess/global RemediationCompleted (confirm on live cluster)")
+
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU to timeout")
 
 			By("validating that the policy succeeded on spoke2")
@@ -296,6 +339,14 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 				By("waiting for the CGU to timeout")
 
 				cguBuilder, err = cguBuilder.WaitForCondition(tsparams.CguTimeoutReasonCondition, 21*time.Minute)
+
+				By("printing CGU events after waiting for the CGU to timeout (terminal)")
+
+				helper.PrintCGUEventsCheckpoint("54296",
+					"CGU timeout with Continue action, second batch fails", tsparams.CguName, 0,
+					"CguSuccess/batch(0) RemediationInBatchCompleted (or cluster completion for spoke1)",
+					"CguTimedout/batch(1) RemediationInBatchTimeout", "CguTimedout/global RemediationTimeout")
+
 				Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU to timeout")
 
 				By("validating that the policy succeeded on spoke1")
@@ -359,6 +410,12 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 			By("waiting for the CGU to timeout")
 
 			cguBuilder, err = cguBuilder.WaitForCondition(tsparams.CguTimeoutReasonCondition, 11*time.Minute)
+
+			By("printing CGU events after waiting for the CGU to timeout")
+
+			helper.PrintCGUEventsCheckpoint("47954", "CGU timed out (single cluster, short timeout)", tsparams.CguName, 0,
+				"CguTimedout/batch RemediationInBatchTimeout", "CguTimedout/global RemediationTimeout")
+
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU to timeout")
 
 			By("validating that the timeout should have occurred after just the first reconcile")
@@ -446,6 +503,16 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 			By("waiting for the CGU to finish successfully")
 
 			_, err = cguBuilder.WaitForCondition(tsparams.CguSuccessfulFinishCondition, 21*time.Minute)
+
+			By("printing CGU events after waiting for the CGU to finish successfully (canonical full lifecycle)")
+
+			helper.PrintCGUEventsCheckpoint("47947",
+				"CGU finished successfully, two clusters in a single batch", tsparams.CguName, 0,
+				"CguCreated/global BuildingRemediationPlan", "CguStarted/global RemediationStarted",
+				"CguStarted/batch(0) RemediationInBatchStarted", "CguStarted/cluster x2 RemediationInClusterStarted",
+				"CguSuccess/cluster x2 RemediationInClusterCompleted", "CguSuccess/batch(0) RemediationInBatchCompleted",
+				"CguSuccess/global RemediationCompleted")
+
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for the CGU to finish successfully")
 
 			By("verifying the test policy was deleted upon CGU expiration")

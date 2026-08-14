@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"fmt"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -24,9 +25,17 @@ var _ = Describe("TALM Canary Tests", Label(tsparams.LabelCanaryTestCases), func
 		By("checking that hub and two spokes are present")
 		Expect(rancluster.AreClustersPresent([]*clients.Settings{HubAPIClient, Spoke1APIClient, Spoke2APIClient})).
 			To(BeTrue(), "Failed due to missing API client")
+
+		By(fmt.Sprintf("clearing CGU events in the %s namespace for debugging", tsparams.TestNamespace))
+
+		helper.ClearCGUEvents()
 	})
 
 	AfterEach(func() {
+		By(fmt.Sprintf("printing CGU events in the %s namespace for debugging", tsparams.TestNamespace))
+
+		helper.PrintCGUEvents()
+
 		By("cleaning up resources on hub")
 
 		errorList := setup.CleanupTestResourcesOnHub(HubAPIClient, tsparams.TestNamespace, "")
@@ -88,6 +97,12 @@ var _ = Describe("TALM Canary Tests", Label(tsparams.LabelCanaryTestCases), func
 		By("Validating that the timeout was due to canary failure")
 
 		_, err = cguBuilder.WaitForCondition(tsparams.CguTimeoutCanaryCondition, 11*time.Minute)
+
+		By("printing CGU events after waiting for the CGU to timeout due to canary failure")
+
+		helper.PrintCGUEventsCheckpoint("47954", "first canary timed out, CGU stopped", tsparams.CguName, 0,
+			"CguTimedout/batch RemediationInBatchTimeout (first canary batch)", "CguTimedout/global RemediationTimeout")
+
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for timeout due to canary failure")
 	})
 
@@ -119,6 +134,14 @@ var _ = Describe("TALM Canary Tests", Label(tsparams.LabelCanaryTestCases), func
 		By("waiting for the CGU to finish successfully")
 
 		_, err = cguBuilder.WaitForCondition(tsparams.CguSuccessfulFinishCondition, 10*time.Minute)
+
+		By("printing CGU events after waiting for the CGU to finish successfully")
+
+		helper.PrintCGUEventsCheckpoint("47947", "CGU finished successfully, all canaries succeeded", tsparams.CguName, 0,
+			"CguStarted/global RemediationStarted", "CguStarted/batch RemediationInBatchStarted (each batch)",
+			"CguSuccess/cluster RemediationInClusterCompleted (each canary)",
+			"CguSuccess/batch RemediationInBatchCompleted (each batch)", "CguSuccess/global RemediationCompleted")
+
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU to finish successfully")
 	})
 })

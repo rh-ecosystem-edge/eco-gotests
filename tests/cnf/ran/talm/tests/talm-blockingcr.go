@@ -10,7 +10,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/cgu"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranhelper"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/version"
@@ -18,7 +17,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/talm/internal/setup"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/talm/internal/tsparams"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 )
 
@@ -39,22 +37,16 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 		if !versionInRange {
 			Skip("TALM blocking CR tests require version 4.11 or higher")
 		}
+
+		By(fmt.Sprintf("clearing CGU events in the %s namespace for debugging", tsparams.TestNamespace))
+
+		helper.ClearCGUEvents()
 	})
 
 	AfterEach(func() {
 		By(fmt.Sprintf("printing CGU events in the %s namespace for debugging", tsparams.TestNamespace))
 
-		getEventsCmd := fmt.Sprintf(
-			"KUBECONFIG=%s /clusterconfigs/oc get event.v1.events.k8s.io -n %s "+
-				"--field-selector='regarding.kind==ClusterGroupUpgrade' --sort-by='{.metadata.creationTimestamp}'",
-			RANConfig.HubKubeconfig, tsparams.TestNamespace)
-
-		talmTestEvents, err := ranhelper.ExecLocalCommand(time.Minute, "/usr/bin/bash", "-c", getEventsCmd)
-		if err != nil {
-			klog.V(tsparams.LogLevel).Infof("Failed to get CGU events in the %s namespace: %v", tsparams.TestNamespace, err)
-		} else {
-			klog.V(tsparams.LogLevel).Infof("CGU events in the %s namespace:\n%s", tsparams.TestNamespace, talmTestEvents)
-		}
+		helper.PrintCGUEvents()
 
 		By("Cleaning up test resources on hub")
 
@@ -104,11 +96,25 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 			By("Waiting for CGU A to succeed")
 
 			_, err = cguA.WaitForCondition(tsparams.CguSuccessfulFinishCondition, 12*time.Minute)
+
+			By("printing CGU A events after waiting for CGU A to succeed")
+
+			helper.PrintCGUEventsCheckpoint("47948", "CGU A succeeded", tsparams.CguName+blockingA, 0,
+				"CguSuccess/cluster RemediationInClusterCompleted", "CguSuccess/batch RemediationInBatchCompleted",
+				"CguSuccess/global RemediationCompleted")
+
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU A to succeed")
 
 			By("Waiting for CGU B to succeed")
 
 			_, err = cguB.WaitForCondition(tsparams.CguSuccessfulFinishCondition, 17*time.Minute)
+
+			By("printing CGU B events after waiting for CGU B to succeed")
+
+			helper.PrintCGUEventsCheckpoint("47948", "CGU B succeeded", tsparams.CguName+blockingB, 0,
+				"CguSuccess/cluster RemediationInClusterCompleted", "CguSuccess/batch RemediationInBatchCompleted",
+				"CguSuccess/global RemediationCompleted")
+
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU B to succeed")
 		})
 	})
@@ -157,6 +163,12 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 			By("Waiting for CGU A to fail because of timeout")
 
 			_, err = cguA.WaitForCondition(tsparams.CguTimeoutMessageCondition, 7*time.Minute)
+
+			By("printing CGU A events after waiting for CGU A to timeout (CGU B should show no remediation events yet)")
+
+			helper.PrintCGUEventsCheckpoint("74768", "CGU A timed out, CGU B still blocked", tsparams.CguName+blockingA, 0,
+				"CguTimedout/batch RemediationInBatchTimeout", "CguTimedout/global RemediationTimeout")
+
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU A to fail")
 
 			By("Verifiying that CGU B is still blocked")
@@ -196,6 +208,12 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 
 			blockedMessage := fmt.Sprintf(tsparams.TalmMissingCRMessage, tsparams.CguName+blockingA)
 			err = helper.WaitForCguBlocked(cguB, blockedMessage)
+
+			By("printing CGU B events while still blocked (negative check - expect no remediation events yet)")
+
+			helper.PrintCGUEventsCheckpoint("47956", "CGU B blocked on missing blocking CR", tsparams.CguName+blockingB, 0,
+				"none expected: no CguStarted/CguSuccess events for B while blocked")
+
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU B to be blocked")
 
 			By("Setting up CGU A")
@@ -212,11 +230,23 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 			By("Waiting for CGU A to succeed")
 
 			_, err = cguA.WaitForCondition(tsparams.CguSucceededCondition, 12*time.Minute)
+
+			By("printing CGU A events after waiting for CGU A to succeed")
+
+			helper.PrintCGUEventsCheckpoint("47956", "CGU A succeeded", tsparams.CguName+blockingA, 0,
+				"CguStarted/global, batch, cluster", "CguSuccess/cluster, batch, global")
+
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU A to succeed")
 
 			By("Waiting for CGU B to succeed")
 
 			_, err = cguB.WaitForCondition(tsparams.CguSucceededCondition, 17*time.Minute)
+
+			By("printing CGU B events after unblocking and waiting for CGU B to succeed")
+
+			helper.PrintCGUEventsCheckpoint("47956", "CGU B unblocked and succeeded", tsparams.CguName+blockingB, 0,
+				"CguStarted/global, batch, cluster", "CguSuccess/cluster, batch, global")
+
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU B to succeed")
 		})
 	})
