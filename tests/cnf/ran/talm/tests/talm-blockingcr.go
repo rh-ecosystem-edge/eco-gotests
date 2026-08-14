@@ -45,7 +45,7 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 		By(fmt.Sprintf("printing CGU events in the %s namespace for debugging", tsparams.TestNamespace))
 
 		getEventsCmd := fmt.Sprintf(
-			"KUBECONFIG=%s /usr/local/bin/oc get event.v1.events.k8s.io -n %s "+
+			"KUBECONFIG=%s /clusterconfigs/oc get event.v1.events.k8s.io -n %s "+
 				"--field-selector='regarding.kind==ClusterGroupUpgrade' --sort-by='{.metadata.creationTimestamp}'",
 			RANConfig.HubKubeconfig, tsparams.TestNamespace)
 
