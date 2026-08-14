@@ -10,13 +10,13 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/cgu"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranhelper"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/version"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/talm/internal/helper"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/talm/internal/setup"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/talm/internal/tsparams"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
@@ -42,22 +42,13 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 	})
 
 	AfterEach(func() {
-		By("printing CGU events in the ztp-install namespace for debugging")
-
-		ztpInstallEvents, err := cluster.ExecCommandOnSNOWithRetries(HubAPIClient, ranparam.RetryCount, ranparam.RetryInterval,
-			"oc get event.v1.events.k8s.io -n ztp-install --field-selector='regarding.kind==ClusterGroupUpgrade' "+
-				"--sort-by='{.metadata.creationTimestamp}'")
-		if err != nil {
-			klog.V(tsparams.LogLevel).Infof("Failed to get CGU events in the ztp-install namespace: %v", err)
-		} else {
-			klog.V(tsparams.LogLevel).Infof("CGU events in the ztp-install namespace:\n%s", ztpInstallEvents)
-		}
-
 		By(fmt.Sprintf("printing CGU events in the %s namespace for debugging", tsparams.TestNamespace))
 
-		talmTestEvents, err := cluster.ExecCommandOnSNOWithRetries(HubAPIClient, ranparam.RetryCount, ranparam.RetryInterval,
-			fmt.Sprintf("oc get event.v1.events.k8s.io -n %s --field-selector='regarding.kind==ClusterGroupUpgrade' "+
-				"--sort-by='{.metadata.creationTimestamp}'", tsparams.TestNamespace))
+		getEventsCmd := fmt.Sprintf(
+			"KUBECONFIG=%s oc get event.v1.events.k8s.io -n %s --field-selector='regarding.kind==ClusterGroupUpgrade' "+
+				"--sort-by='{.metadata.creationTimestamp}'", RANConfig.HubKubeconfig, tsparams.TestNamespace)
+
+		talmTestEvents, err := ranhelper.ExecLocalCommand(time.Minute, "bash", "-c", getEventsCmd)
 		if err != nil {
 			klog.V(tsparams.LogLevel).Infof("Failed to get CGU events in the %s namespace: %v", tsparams.TestNamespace, err)
 		} else {
