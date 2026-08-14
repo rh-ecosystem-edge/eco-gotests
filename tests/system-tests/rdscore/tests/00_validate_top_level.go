@@ -353,12 +353,14 @@ var _ = Describe(
 				It("Verifies connectivity between pods from statefuleset running on different nodes after node's drain",
 					Label("statefulset-whereabouts", "statefulset-different-nodes", "drain"),
 					reportxml.ID("82798"),
-					rdscorecommon.EnsurePodConnectivityBetweenDifferentNodesAfterNodeDrain)
+					rdscorecommon.EnsurePodConnectivityBetweenDifferentNodesAfterNodeDrain,
+					SpecTimeout(35*time.Minute))
 
 				It("Verifies connectivity between pods from statefuleset running on the same node after node's drain",
 					Label("statefulset-whereabouts", "statefulset-same-node", "drain"),
 					reportxml.ID("82799"),
-					rdscorecommon.EnsurePodConnectivityOnSameNodeAfterNodeDrain)
+					rdscorecommon.EnsurePodConnectivityOnSameNodeAfterNodeDrain,
+					SpecTimeout(35*time.Minute))
 
 				It("Verify Whereabouts Deployment on the same node",
 					Label("whereabouts-deployment", "same-node", "basic"),
@@ -383,12 +385,14 @@ var _ = Describe(
 				It("Verify Whereabouts Deployment on different nodes after node drain",
 					Label("whereabouts-deployment", "different-nodes", "drain"),
 					reportxml.ID("82743"),
-					rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnDifferentNodesAfterNodeDrain)
+					rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnDifferentNodesAfterNodeDrain,
+					SpecTimeout(35*time.Minute))
 
 				It("Verify Whereabouts Deployment on the same node after node drain",
 					Label("whereabouts-deployment", "same-node", "drain"),
 					reportxml.ID("82744"),
-					rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNodeAfterNodeDrain)
+					rdscorecommon.VerifyWhereaboutsInterDeploymentPodCommunicationOnTheSameNodeAfterNodeDrain,
+					SpecTimeout(35*time.Minute))
 
 				It("Verify Whereabouts Deployment on different nodes after node power off",
 					Label("whereabouts-deployment", "different-nodes", "power-off"),
