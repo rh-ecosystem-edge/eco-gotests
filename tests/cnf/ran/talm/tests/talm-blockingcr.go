@@ -45,10 +45,11 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 		By(fmt.Sprintf("printing CGU events in the %s namespace for debugging", tsparams.TestNamespace))
 
 		getEventsCmd := fmt.Sprintf(
-			"KUBECONFIG=%s oc get event.v1.events.k8s.io -n %s --field-selector='regarding.kind==ClusterGroupUpgrade' "+
-				"--sort-by='{.metadata.creationTimestamp}'", RANConfig.HubKubeconfig, tsparams.TestNamespace)
+			"KUBECONFIG=%s /usr/local/bin/oc get event.v1.events.k8s.io -n %s "+
+				"--field-selector='regarding.kind==ClusterGroupUpgrade' --sort-by='{.metadata.creationTimestamp}'",
+			RANConfig.HubKubeconfig, tsparams.TestNamespace)
 
-		talmTestEvents, err := ranhelper.ExecLocalCommand(time.Minute, "bash", "-c", getEventsCmd)
+		talmTestEvents, err := ranhelper.ExecLocalCommand(time.Minute, "/usr/bin/bash", "-c", getEventsCmd)
 		if err != nil {
 			klog.V(tsparams.LogLevel).Infof("Failed to get CGU events in the %s namespace: %v", tsparams.TestNamespace, err)
 		} else {
