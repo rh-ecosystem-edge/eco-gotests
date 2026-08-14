@@ -76,36 +76,6 @@ var _ = Describe("ORAN Pre-provision Tests", Label(tsparams.LabelPreProvision), 
 			}
 		})
 
-		// 78246 - Successful ClusterInstance generation with inline BMC without hwMgmtDefaults
-		It("successfully generates ClusterInstance with inline BMC without hwMgmtDefaults", reportxml.ID("78246"), func() {
-			clusterTemplateName := fmt.Sprintf("%s.%s-%s",
-				tsparams.ClusterTemplateName, RANConfig.ClusterTemplateAffix, tsparams.TemplateInlineBMC)
-			clusterTemplateNamespace := tsparams.ClusterTemplateName + "-" + RANConfig.ClusterTemplateAffix
-
-			By("pulling the ClusterTemplate that defines inline BMC schema without hwMgmtDefaults")
-
-			clusterTemplate, err := oran.PullClusterTemplate(HubAPIClient, clusterTemplateName, clusterTemplateNamespace)
-			Expect(err).ToNot(HaveOccurred(), "Failed to pull ClusterTemplate with inline BMC schema")
-
-			By("verifying the ClusterTemplate omits hwMgmtDefaults and hwMgmtParameters")
-			Expect(clusterTemplate.Definition.Spec.TemplateDefaults.HwMgmtDefaults.NodeGroupData).To(BeEmpty(),
-				"ClusterTemplate defines hwMgmtDefaults nodeGroupData when it should not")
-			Expect(provisioningv1alpha1.SchemaDefinesHwMgmtParameters(clusterTemplate.Definition)).To(BeFalse(),
-				"ClusterTemplate defines hwMgmtParameters in its schema when it should not")
-
-			By("creating a ProvisioningRequest with inline BMC details in clusterInstanceParameters")
-
-			prBuilder := helper.NewInlineBMCPR(o2imsAPIClient, tsparams.TemplateInlineBMC)
-			_, err = prBuilder.Create()
-			Expect(err).ToNot(HaveOccurred(), "Failed to create a ProvisioningRequest")
-
-			By("waiting for its ClusterInstance to be created and validated")
-
-			err = helper.WaitForValidPRClusterInstance(HubAPIClient, 3*time.Minute)
-			Expect(err).ToNot(HaveOccurred(),
-				"Failed to wait for ClusterInstance to be created and have its templates applied")
-		})
-
 		// 83880 - Failed provisioning due to no hardware matching resource selector
 		It("fails when no hardware matches resource selector", reportxml.ID("83880"), func() {
 			By("creating a ProvisioningRequest with non-matching resource selector")

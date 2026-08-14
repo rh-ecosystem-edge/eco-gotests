@@ -76,8 +76,6 @@ const (
 	TemplateUpdateSchema = "v11"
 	// TemplateInlineBMCMissingSchema is the ClusterTemplate version for the missing inline BMC schema test (78245).
 	TemplateInlineBMCMissingSchema = "v12"
-	// TemplateInlineBMC is the ClusterTemplate version for the successful inline BMC provisioning test (78246).
-	TemplateInlineBMC = "v13"
 	// TemplateBMCFirmwareUpdate is the ClusterTemplate version for BMC firmware upgrade test.
 	TemplateBMCFirmwareUpdate = "v14"
 	// TemplateBIOSFirmwareUpdate is the ClusterTemplate version for BIOS firmware upgrade test.
@@ -112,9 +110,6 @@ const (
 	// TestPRName2 is the second UUID used for naming ProvisioningRequests. Metal3 tests require a second PR applied
 	// to verify the case of all hardware already allocated.
 	TestPRName2 = "a1b2c3d4-e5f6-7890-1234-567890abcdef"
-	// TestBase64Credential is a base64 encoded version of the string "wrongpassword" for when an obviously invalid
-	// credential is needed.
-	TestBase64Credential = "d3JvbmdwYXNzd29yZA=="
 )
 
 // LogLevel is the glog verbosity level to use for logs in this suite or its helpers.

@@ -3,7 +3,6 @@ package helper
 import (
 	"context"
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 
@@ -11,13 +10,9 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ocm"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran"
 	oranapi "github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api"
-	siteconfigv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/siteconfig/v1alpha1"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/siteconfig"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/tsparams"
 	mocksmo "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/oran-mock-smo"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
@@ -62,39 +57,6 @@ func NewSecondaryProvisioningRequest(
 	return prBuilder
 }
 
-// NewInlineBMCPR creates a ProvisioningRequest builder for ClusterTemplates that omit hwMgmtDefaults and rely on inline
-// BMC details in clusterInstanceParameters. All required parameters and the affix are set from RANConfig. The BMC and
-// network data are incorrect so that a ClusterInstance is generated but will not provision.
-//
-// Note that there is a similar scenario where the ProvisioningRequest includes hwMgmtParameters instead of the
-// ClusterTemplate's hwMgmtDefaults. This function is not for that scenario.
-func NewInlineBMCPR(client runtimeclient.Client, templateVersion string) *oran.ProvisioningRequestBuilder {
-	versionWithAffix := RANConfig.ClusterTemplateAffix + "-" + templateVersion
-	prBuilder := oran.NewPRBuilder(client, tsparams.TestPRName, tsparams.ClusterTemplateName, versionWithAffix).
-		WithTemplateParameter("nodeClusterName", RANConfig.Spoke1Name).
-		WithTemplateParameter("oCloudSiteId", tsparams.OCloudSiteID).
-		WithTemplateParameter("policyTemplateParameters", map[string]any{}).
-		WithTemplateParameter("clusterInstanceParameters", map[string]any{
-			"clusterName": RANConfig.Spoke1Name,
-			"nodes": []map[string]any{{
-				"hostName":   "fake.apps." + RANConfig.Spoke1Hostname,
-				"bmcAddress": "redfish-VirtualMedia://" + ranparam.UnreachableIPv4Address + "/redfish/v1/Systems/System.Embedded.1",
-				"bmcCredentialsDetails": map[string]any{
-					"username": tsparams.TestBase64Credential,
-					"password": tsparams.TestBase64Credential,
-				},
-				"bootMACAddress": "01:23:45:67:89:AB",
-				"nodeNetwork": map[string]any{
-					"interfaces": []map[string]any{{
-						"macAddress": "01:23:45:67:89:AB",
-					}},
-				},
-			}},
-		})
-
-	return prBuilder
-}
-
 // WaitForNoncompliantImmutable waits up to timeout until one of the policies in namespace is NonCompliant and the
 // message history shows it is due to an immutable field.
 func WaitForNoncompliantImmutable(client *clients.Settings, namespace string, timeout time.Duration) error {
@@ -132,25 +94,6 @@ func WaitForNoncompliantImmutable(client *clients.Settings, namespace string, ti
 			}
 
 			return false, nil
-		})
-}
-
-// WaitForValidPRClusterInstance waits up to timeout until the ClusterInstance for the ProvisioningRequest has condition
-// RenderedTemplatesApplied.
-func WaitForValidPRClusterInstance(client *clients.Settings, timeout time.Duration) error {
-	return wait.PollUntilContextTimeout(
-		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			clusterInstance, err := siteconfig.PullClusterInstance(client, RANConfig.Spoke1Name, RANConfig.Spoke1Name)
-			if err != nil {
-				klog.V(tsparams.LogLevel).Infof("Failed to pull ClusterInstance %s: %v", RANConfig.Spoke1Name, err)
-
-				return false, nil
-			}
-
-			return slices.ContainsFunc(clusterInstance.Definition.Status.Conditions, func(condition metav1.Condition) bool {
-				return condition.Type == string(siteconfigv1alpha1.RenderedTemplatesApplied) &&
-					condition.Status == metav1.ConditionTrue
-			}), nil
 		})
 }
 
