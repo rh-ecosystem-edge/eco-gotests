@@ -688,6 +688,15 @@ func verifyChronydSyncingDuringNTPFallback(
 		"Failed to ensure %s process status is UP on node %s", metrics.ProcessChronyd, nodeName)
 
 	By("waiting for chronyd to sync from an NTP source")
+
+	// Here we run `chronyc sources -n` to check the NTP sources that chronyd is accessing, using `-n` to avoid
+	// resolving hostnames.
+	//
+	// The substring `^*` refers to the first two columns of the output. The chronyc man page explains that `^` is
+	// the mode of the source, in this case a server. The next character is the state of the source. `*` refers to
+	// the source currently used for syncing.
+	//
+	// This check ensures that chronyd is able to reach and sync from an NTP source.
 	Eventually(ptpdaemon.ExecuteCommandInPtpDaemonPod).
 		WithArguments(RANConfig.Spoke1APIClient, nodeName, "chronyc sources -n",
 			ptpdaemon.WithRetries(3), ptpdaemon.WithRetryOnError(true), ptpdaemon.WithRetryOnEmptyOutput(true)).
