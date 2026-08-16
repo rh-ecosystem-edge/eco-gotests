@@ -112,7 +112,8 @@ var _ = Describe("BGP Unnumbered", Ordered, Label(tsparams.LabelBGPUnnumbered),
 
 			By(fmt.Sprintf("Resetting ethernet interface %s on worker node %s",
 				interfacesUnderTest[0], workerNodeList[0].Definition.Name))
-			ethIntWorker0Policy := nmstate.NewPolicyBuilder(APIClient, nodeNetConfigPolicyName, NetConfig.WorkerLabelMap).
+			ethIntWorker0Policy := nmstate.NewPolicyBuilder(APIClient, nodeNetConfigPolicyName,
+				map[string]string{corev1.LabelHostname: workerNodeList[0].Definition.Name}).
 				WithEthernetDualStackInterface(interfacesUnderTest[0])
 			err := netnmstate.UpdatePolicyAndWaitUntilItsAvailable(netparam.DefaultTimeout, ethIntWorker0Policy)
 			Expect(err).ToNot(HaveOccurred(), "Failed to update NMState network policy")
