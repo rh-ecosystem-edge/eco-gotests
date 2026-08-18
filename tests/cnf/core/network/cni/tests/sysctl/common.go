@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -217,6 +218,78 @@ func createSysctlTuningNad(nadName string, sysctlConfig map[string]string, macVl
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to create sysctl NAD %s", nadName))
 
 	assertSysctlNADConfig(nadName, macVlanIf, true, sysctlConfig)
+}
+
+func marshalSysctlTuningNadConfig(nadName string, sysctlConfig map[string]string, macVlanIf string) (string, error) {
+	plugins := []nad.Plugin{
+		{
+			Type:   "macvlan",
+			Master: macVlanIf,
+			Mode:   "bridge",
+			Ipam:   nad.IPAMStatic(),
+		},
+		*nad.TuningSysctlPlugin(false, sysctlConfig),
+	}
+
+	pluginsConfig := nad.MasterPlugin{
+		CniVersion: "0.4.0",
+		Name:       nadName,
+		Plugins:    &plugins,
+	}
+
+	configJSON, err := json.Marshal(pluginsConfig)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal sysctl NAD %s config: %w", nadName, err)
+	}
+
+	return string(configJSON), nil
+}
+
+// createSysctlTuningNadWithDuplicatedKernelArg creates a tuning NAD with one duplicated sysctl
+// key in the JSON config and returns the duplicated sysctl key for event matching.
+func createSysctlTuningNadWithDuplicatedKernelArg(
+	nadName, macVlanIf string, sysctlConfig map[string]string) string {
+	configJSON, err := marshalSysctlTuningNadConfig(nadName, sysctlConfig, macVlanIf)
+	Expect(err).ToNot(HaveOccurred(), "Failed to marshal sysctl NAD config")
+
+	sysctlKey, jsonFragment := prepDuplicatedSysctlConfig(sysctlConfig)
+	dupConfigJSON := strings.Replace(
+		configJSON, jsonFragment, fmt.Sprintf("%s,%s", jsonFragment, jsonFragment), 1)
+
+	builder := nad.NewBuilder(APIClient, nadName, tsparams.TestNamespaceName)
+	Expect(builder).NotTo(BeNil(), "Failed to initialize NAD builder for %s", nadName)
+	builder.Definition.Spec.Config = dupConfigJSON
+
+	_, err = builder.Create()
+	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to create duplicated sysctl NAD %s", nadName))
+
+	return sysctlKey
+}
+
+func prepDuplicatedSysctlConfig(sysctlConfig map[string]string) (sysctlKey, jsonFragment string) {
+	keys := make([]string, 0, len(sysctlConfig))
+	for key := range sysctlConfig {
+		keys = append(keys, key)
+	}
+
+	sort.Strings(keys)
+
+	sysctlKey = keys[0]
+	jsonFragment = fmt.Sprintf("\"%s\":\"%s\"", sysctlKey, sysctlConfig[sysctlKey])
+
+	return sysctlKey, jsonFragment
+}
+
+func defineDualSysctlNetPodNetworks() []*types.NetworkSelectionElement {
+	podNetworks := pod.StaticIPAnnotationWithNamespace(
+		tsparams.FirstSysctlNetworkName,
+		tsparams.TestNamespaceName,
+		[]string{tsparams.FirstSysctlNetworkIPv4CIDR})
+
+	return append(podNetworks, pod.StaticIPAnnotationWithNamespace(
+		tsparams.SecondSysctlNetworkName,
+		tsparams.TestNamespaceName,
+		[]string{tsparams.SecondSysctlNetworkIPv4CIDR})...)
 }
 
 // assertSysctlNADConfig pulls the NAD and unmarshals Spec.Config to verify CNI finished writing
@@ -468,17 +541,17 @@ func pingIPViaInterface(clientPod *pod.Builder, interfaceName, destIPAddr string
 }
 
 func cleanSysctlTestNamespace() {
-	By("Clean pods from the namespace")
+	By("Clean pods, NADs, and events from the namespace")
 
-	err := namespace.NewBuilder(APIClient, tsparams.TestNamespaceName).CleanObjects(
-		tsparams.DefaultTimeout, pod.GetGVR())
-	Expect(err).ToNot(HaveOccurred(), "Failed to remove pods from test namespace")
+	cniNs, err := namespace.Pull(APIClient, tsparams.TestNamespaceName)
+	Expect(err).ToNot(HaveOccurred(), "Failed to pull test namespace")
 
-	By("Clean NADs from the namespace")
-
-	err = namespace.NewBuilder(APIClient, tsparams.TestNamespaceName).CleanObjects(
-		tsparams.DefaultTimeout, nad.GetGVR())
-	Expect(err).ToNot(HaveOccurred(), "Failed to clean NetworkAttachmentDefinitions")
+	err = cniNs.CleanObjects(
+		tsparams.DefaultTimeout,
+		pod.GetGVR(),
+		nad.GetGVR(),
+		corev1.SchemeGroupVersion.WithResource("events"))
+	Expect(err).ToNot(HaveOccurred(), "Failed to clean test namespace")
 }
 
 func setHostIPForwarding(nodeName, interfaceName string, enabled bool) {

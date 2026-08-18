@@ -13,6 +13,8 @@ import (
 const (
 	// MultusFirstInterfaceName is the default name of the first secondary network interface.
 	MultusFirstInterfaceName = "net1"
+	// MultusSecondInterfaceName is the default name of the second secondary network interface.
+	MultusSecondInterfaceName = "net2"
 	// ClientIPv4 is the sysctl client address on the secondary network.
 	ClientIPv4 = "10.100.100.210"
 	// ServerIPv4 is the sysctl server address on the secondary network.
@@ -54,6 +56,16 @@ var (
 	NetworkWithoutSysctlMutation = "test-no-sysct-mutation"
 	// FirstSysctlNetworkName is the primary NAD name used by sysctl API tests.
 	FirstSysctlNetworkName = "test-nad-sysctl-first"
+	// SecondSysctlNetworkName is the secondary NAD name used by sysctl API tests.
+	SecondSysctlNetworkName = "test-nad-sysctl-second"
+	// FirstSysctlNetworkIPv4 is the static IP for the first sysctl API NAD.
+	FirstSysctlNetworkIPv4 = "10.100.100.200"
+	// SecondSysctlNetworkIPv4 is the static IP for the second sysctl API NAD.
+	SecondSysctlNetworkIPv4 = "10.100.200.200"
+	// FirstSysctlNetworkIPv4CIDR is FirstSysctlNetworkIPv4 with the secondary-network prefix.
+	FirstSysctlNetworkIPv4CIDR = FirstSysctlNetworkIPv4 + "/24"
+	// SecondSysctlNetworkIPv4CIDR is SecondSysctlNetworkIPv4 with the secondary-network prefix.
+	SecondSysctlNetworkIPv4CIDR = SecondSysctlNetworkIPv4 + "/24"
 	// AllFlagsSysctlPluginConfig contains all valid interface-level sysctl flags.
 	AllFlagsSysctlPluginConfig = map[string]string{
 		"net.ipv4.conf.IFNAME.accept_redirects":        "0",
@@ -68,6 +80,15 @@ var (
 	}
 	// GlobalSysctlFlag is a global kernel sysctl that is not permitted via the tuning CNI.
 	GlobalSysctlFlag = "kernel.shm_rmid_forced"
+	// TCPFastopenSysctlFlag is a network-wide sysctl that is not permitted via the tuning CNI.
+	TCPFastopenSysctlFlag = "net.ipv4.tcp_fastopen"
+	// MultipleFlagsSysctl contains multiple valid interface-level sysctl flags.
+	MultipleFlagsSysctl = map[string]string{
+		"net.ipv4.conf.IFNAME.accept_redirects":    "0",
+		"net.ipv4.conf.IFNAME.accept_source_route": "0",
+		"net.ipv4.conf.IFNAME.disable_policy":      "1",
+		"net.ipv4.conf.IFNAME.secure_redirects":    "0",
+	}
 	// SingleSysctlFlag sets accept_redirects=0 on the pod interface.
 	SingleSysctlFlag = map[string]string{
 		"net.ipv4.conf.IFNAME.accept_redirects": "0",
