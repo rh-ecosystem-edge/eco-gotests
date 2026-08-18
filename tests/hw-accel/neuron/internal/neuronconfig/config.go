@@ -51,6 +51,8 @@ type NeuronConfig struct {
 	KServeNamespace string
 	// KServeTensorParallelSize is the tensor parallel size for KServe vLLM.
 	KServeTensorParallelSize string
+	// DRADriverImage is the DRA driver image for DRA mode.
+	DRADriverImage string
 }
 
 // NewNeuronConfig creates a new NeuronConfig from environment variables.
@@ -77,6 +79,7 @@ func NewNeuronConfig() *NeuronConfig {
 		KServeVLLMImage:           os.Getenv("ECO_HWACCEL_NEURON_KSERVE_VLLM_IMAGE"),
 		KServeNamespace:           os.Getenv("ECO_HWACCEL_NEURON_KSERVE_NAMESPACE"),
 		KServeTensorParallelSize:  os.Getenv("ECO_HWACCEL_NEURON_KSERVE_TENSOR_PARALLEL_SIZE"),
+		DRADriverImage:            os.Getenv("ECO_HWACCEL_NEURON_DRA_DRIVER_IMAGE"),
 	}
 
 	// Set defaults
@@ -156,4 +159,9 @@ func (c *NeuronConfig) IsUpgradeConfigured() bool {
 // IsKServeConfigured checks if KServe testing configuration is present.
 func (c *NeuronConfig) IsKServeConfigured() bool {
 	return c.HuggingFaceToken != "" && c.KServeNamespace != ""
+}
+
+// IsDRAConfigured checks if DRA testing configuration is present.
+func (c *NeuronConfig) IsDRAConfigured() bool {
+	return c.DRADriverImage != ""
 }

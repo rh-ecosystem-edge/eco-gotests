@@ -51,6 +51,30 @@ const (
 
 	// SchedulerDeploymentName represents the name of the custom scheduler deployment.
 	SchedulerDeploymentName = "neuron-scheduler"
+
+	// DRALabel represents the label for DRA test cases.
+	DRALabel = "dra"
+
+	// DRADaemonSetLabelKey is the KMM label key for DRA-role DaemonSets.
+	DRADaemonSetLabelKey = "kmm.node.kubernetes.io/role"
+
+	// DRADaemonSetLabelValue is the KMM label value for DRA-role DaemonSets.
+	DRADaemonSetLabelValue = "dra"
+
+	// DRADriverName is the default DRA driver name for Neuron.
+	DRADriverName = "neuron.aws.com"
+
+	// DRADefaultDeviceClassName is the default DeviceClass name for Neuron DRA.
+	DRADefaultDeviceClassName = "neuron.aws.com"
+
+	// DRAServiceAccountName is the service account for the DRA driver pods.
+	DRAServiceAccountName = "awslabs-gpu-operator-dra-driver"
+
+	// DRADaemonSetPrefix is the prefix for DRA DaemonSet names created by KMM.
+	DRADaemonSetPrefix = "neuron-dra-"
+
+	// SchedulerExtensionDeploymentPrefix is the prefix for the scheduler extension deployment.
+	SchedulerExtensionDeploymentPrefix = "neuron-scheduler-extension"
 )
 
 // DeviceIDs contains all supported Neuron device IDs.

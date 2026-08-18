@@ -355,6 +355,143 @@ func BuildConfigMapCreated(apiClient *clients.Settings, namespace, deviceConfigN
 		})
 }
 
+// DRADaemonSet waits for the DRA DaemonSet to be ready.
+func DRADaemonSet(apiClient *clients.Settings, namespace string, timeout time.Duration) error {
+	klog.V(params.NeuronLogLevel).Infof(
+		"Waiting for DRA DaemonSet in namespace %s", namespace)
+
+	return wait.PollUntilContextTimeout(
+		context.TODO(), 10*time.Second, timeout, true,
+		func(ctx context.Context) (bool, error) {
+			dsList, err := apiClient.K8sClient.AppsV1().DaemonSets(namespace).List(
+				ctx, metav1.ListOptions{
+					LabelSelector: fmt.Sprintf("%s=%s",
+						params.DRADaemonSetLabelKey, params.DRADaemonSetLabelValue),
+				})
+			if err != nil {
+				klog.V(params.NeuronLogLevel).Infof("Error listing DRA daemonsets: %v", err)
+
+				return false, nil
+			}
+
+			for _, ds := range dsList.Items {
+				if ds.Status.DesiredNumberScheduled > 0 &&
+					ds.Status.NumberReady == ds.Status.DesiredNumberScheduled {
+					klog.V(params.NeuronLogLevel).Infof(
+						"DRA DaemonSet %s is ready: %d/%d",
+						ds.Name, ds.Status.NumberReady, ds.Status.DesiredNumberScheduled)
+
+					return true, nil
+				}
+			}
+
+			return false, nil
+		})
+}
+
+// DRADaemonSetGone waits for all DRA DaemonSets to be deleted from a namespace.
+func DRADaemonSetGone(apiClient *clients.Settings, namespace string, timeout time.Duration) error {
+	klog.V(params.NeuronLogLevel).Infof(
+		"Waiting for DRA DaemonSets to be deleted from namespace %s", namespace)
+
+	return wait.PollUntilContextTimeout(
+		context.TODO(), 5*time.Second, timeout, true,
+		func(ctx context.Context) (bool, error) {
+			dsList, err := apiClient.K8sClient.AppsV1().DaemonSets(namespace).List(
+				ctx, metav1.ListOptions{
+					LabelSelector: fmt.Sprintf("%s=%s",
+						params.DRADaemonSetLabelKey, params.DRADaemonSetLabelValue),
+				})
+			if err != nil {
+				return false, nil
+			}
+
+			if len(dsList.Items) == 0 {
+				klog.V(params.NeuronLogLevel).Info("All DRA DaemonSets deleted")
+
+				return true, nil
+			}
+
+			return false, nil
+		})
+}
+
+// DeviceClassExists waits for a DeviceClass to exist.
+func DeviceClassExists(apiClient *clients.Settings, name string, timeout time.Duration) error {
+	klog.V(params.NeuronLogLevel).Infof("Waiting for DeviceClass %s to exist", name)
+
+	return wait.PollUntilContextTimeout(
+		context.TODO(), 5*time.Second, timeout, true,
+		func(ctx context.Context) (bool, error) {
+			_, err := apiClient.K8sClient.ResourceV1().DeviceClasses().Get(
+				ctx, name, metav1.GetOptions{})
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					return false, nil
+				}
+
+				return false, err
+			}
+
+			klog.V(params.NeuronLogLevel).Infof("DeviceClass %s exists", name)
+
+			return true, nil
+		})
+}
+
+// DeviceClassGone waits for a DeviceClass to be deleted.
+func DeviceClassGone(apiClient *clients.Settings, name string, timeout time.Duration) error {
+	klog.V(params.NeuronLogLevel).Infof("Waiting for DeviceClass %s to be deleted", name)
+
+	return wait.PollUntilContextTimeout(
+		context.TODO(), 5*time.Second, timeout, true,
+		func(ctx context.Context) (bool, error) {
+			_, err := apiClient.K8sClient.ResourceV1().DeviceClasses().Get(
+				ctx, name, metav1.GetOptions{})
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					klog.V(params.NeuronLogLevel).Infof("DeviceClass %s deleted", name)
+
+					return true, nil
+				}
+
+				return false, err
+			}
+
+			return false, nil
+		})
+}
+
+// NoSchedulerDeployments waits until no scheduler-related deployments exist.
+func NoSchedulerDeployments(apiClient *clients.Settings, namespace string,
+	timeout time.Duration) error {
+	klog.V(params.NeuronLogLevel).Infof(
+		"Waiting for scheduler deployments to be absent from namespace %s", namespace)
+
+	return wait.PollUntilContextTimeout(
+		context.TODO(), 5*time.Second, timeout, true,
+		func(ctx context.Context) (bool, error) {
+			deployList, err := apiClient.K8sClient.AppsV1().Deployments(namespace).List(
+				ctx, metav1.ListOptions{})
+			if err != nil {
+				return false, nil
+			}
+
+			for _, deploy := range deployList.Items {
+				if strings.Contains(deploy.Name, "scheduler") {
+					klog.V(params.NeuronLogLevel).Infof(
+						"Scheduler deployment %s still exists", deploy.Name)
+
+					return false, nil
+				}
+			}
+
+			klog.V(params.NeuronLogLevel).Info("No scheduler deployments found")
+
+			return true, nil
+		})
+}
+
 // DevicePluginRunningOnNode waits for the device plugin pod to be running on a specific node.
 func DevicePluginRunningOnNode(apiClient *clients.Settings, nodeName string,
 	timeout time.Duration) error {
