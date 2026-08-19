@@ -214,6 +214,7 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 				Expect(err).ToNot(HaveOccurred(), "error listing existing pods")
 
 				var existingBuildPodNames []string
+
 				for _, p := range existingPods {
 					if strings.Contains(p.Object.Name, "-build") {
 						existingBuildPodNames = append(existingBuildPodNames, p.Object.Name)
