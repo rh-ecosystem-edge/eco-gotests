@@ -52,6 +52,21 @@ const (
 	// CLOInstanceName is a cluster logging instance name.
 	CLOInstanceName = "instance"
 
+	// LabelDiskPartitioning is a test selector label for disk partitioning validation.
+	LabelDiskPartitioning = "rds-core-disk-partitioning"
+
+	// ContainersMountPoint is the expected mount point for the containers partition.
+	ContainersMountPoint = "/var/lib/containers"
+
+	// ContainersPartLabel is the partition label used for the containers partition.
+	ContainersPartLabel = "containers"
+
+	// ContainersFSType is the expected filesystem type on the containers partition.
+	ContainersFSType = "xfs"
+
+	// ContainersMountUnit is the systemd mount unit name for the containers partition.
+	ContainersMountUnit = "var-lib-containers.mount"
+
 	// PureStorageFileSCName is a pure storage file storage class name.
 	PureStorageFileSCName = "fa-file-sc"
 
