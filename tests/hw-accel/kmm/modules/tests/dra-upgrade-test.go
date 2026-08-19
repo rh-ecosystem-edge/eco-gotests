@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -11,6 +12,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/configmap"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/serviceaccount"
 
@@ -206,12 +208,24 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 					"moduleLoader": tempMLSpec,
 				})
 
-				err := APIClient.Create(context.TODO(), tempModule)
+				By("Capture existing build pod names before creating temp module")
+
+				existingPods, err := pod.List(APIClient, nSpace, metav1.ListOptions{})
+				Expect(err).ToNot(HaveOccurred(), "error listing existing pods")
+
+				var existingBuildPodNames []string
+				for _, p := range existingPods {
+					if strings.Contains(p.Object.Name, "-build") {
+						existingBuildPodNames = append(existingBuildPodNames, p.Object.Name)
+					}
+				}
+
+				err = APIClient.Create(context.TODO(), tempModule)
 				Expect(err).ToNot(HaveOccurred(), "error creating temp module")
 
 				By("Await v2 build pod to complete")
 
-				err = await.BuildPodCompleted(APIClient, nSpace, 5*time.Minute)
+				err = await.NewBuildPodCompleted(APIClient, nSpace, existingBuildPodNames, 5*time.Minute)
 				Expect(err).ToNot(HaveOccurred(), "error building v2 module")
 
 				By("Delete temporary module")
