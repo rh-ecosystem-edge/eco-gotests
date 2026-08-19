@@ -325,6 +325,12 @@ const (
 	DRADriverName = "gpu.example.com"
 	// DRADeviceClassName represents the default DeviceClass name used in DRA tests.
 	DRADeviceClassName = "test-device-class"
+	// DRAUpgradeTestNamespace represents test case namespace for DRA ordered upgrade tests.
+	DRAUpgradeTestNamespace = "89710-upg"
+	// ModuleVersionLabelTemplate represents the user-set version label for ordered upgrades.
+	ModuleVersionLabelTemplate = "kmm.node.kubernetes.io/version-module.%s.%s"
+	// SchedulePodVersionLabelTemplate represents the KMM-managed version label for DRA/device-plugin DaemonSets.
+	SchedulePodVersionLabelTemplate = "beta.kmm.node.kubernetes.io/version-schedule-pod.%s.%s"
 	// DRAOptionalFeaturesTestNamespace represents test case namespace for DRA optional features tests.
 	DRAOptionalFeaturesTestNamespace = "89709-opt"
 	// DRATolerationTestNamespace represents test case namespace for DRA toleration tests.
