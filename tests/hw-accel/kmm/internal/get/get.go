@@ -397,6 +397,28 @@ func DRADaemonSet(apiClient *clients.Settings, moduleName,
 	return nil, fmt.Errorf("DRA DaemonSet with prefix %q not found in namespace %s", prefix, nsName)
 }
 
+// AllDRADaemonSets returns all DRA DaemonSets for a given module in a namespace.
+func AllDRADaemonSets(apiClient *clients.Settings, moduleName,
+	nsName string) ([]appsv1.DaemonSet, error) {
+	dsList, err := apiClient.K8sClient.AppsV1().DaemonSets(nsName).List(
+		context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("error listing DaemonSets: %w", err)
+	}
+
+	prefix := moduleName + "-dra-"
+
+	var result []appsv1.DaemonSet
+
+	for idx := range dsList.Items {
+		if strings.HasPrefix(dsList.Items[idx].Name, prefix) {
+			result = append(result, dsList.Items[idx])
+		}
+	}
+
+	return result, nil
+}
+
 // DRAContainer returns the container named "dra" from a pod spec, or nil if not found.
 func DRAContainer(podSpec corev1.PodSpec) *corev1.Container {
 	for idx := range podSpec.Containers {
