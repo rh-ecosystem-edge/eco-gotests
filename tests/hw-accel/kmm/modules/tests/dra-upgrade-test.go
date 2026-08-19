@@ -108,8 +108,12 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 				By("Create Module with moduleLoader v1 and DRA")
 
 				mlSpec := define.ModuleLoaderSpec(kmodName, imageV1, buildArgValue, serviceAccountName)
-				mlSpec["container"].(map[string]interface{})["version"] = "v1"
-				mlSpec["container"].(map[string]interface{})["imagePullPolicy"] = "Always"
+
+				containerSpec, ok := mlSpec["container"].(map[string]interface{})
+				Expect(ok).To(BeTrue(), "container spec should be a map")
+
+				containerSpec["version"] = "v1"
+				containerSpec["imagePullPolicy"] = "Always"
 
 				module := newUnstructuredModule(moduleName, nSpace, map[string]interface{}{
 					"selector":     GeneralConfig.WorkerLabelMap,
@@ -150,19 +154,20 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 
 				By("Verify DRA DaemonSet exists and record its name")
 
-				ds, err := get.DRADaemonSet(APIClient, moduleName, nSpace)
+				draDaemonSet, err := get.DRADaemonSet(APIClient, moduleName, nSpace)
 				Expect(err).ToNot(HaveOccurred(), "DRA DaemonSet should exist")
-				v1DSName = ds.Name
+
+				v1DSName = draDaemonSet.Name
 				klog.V(kmmparams.KmmLogLevel).Infof("v1 DRA DaemonSet: %s", v1DSName)
 
 				By("Verify DRA DaemonSet has version-schedule-pod label")
 
-				Expect(ds.Labels).To(HaveKeyWithValue(schedulePodLabel, "v1"),
+				Expect(draDaemonSet.Labels).To(HaveKeyWithValue(schedulePodLabel, "v1"),
 					"DRA DaemonSet should have schedule-pod version label v1")
 
 				By("Verify DRA DaemonSet nodeSelector includes version-schedule-pod label")
 
-				nodeSelector := ds.Spec.Template.Spec.NodeSelector
+				nodeSelector := draDaemonSet.Spec.Template.Spec.NodeSelector
 				Expect(nodeSelector).To(HaveKeyWithValue(schedulePodLabel, "v1"),
 					"DRA DaemonSet nodeSelector should include schedule-pod version label v1")
 
@@ -189,8 +194,12 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 				By("Pre-build v2 image via temporary module")
 
 				tempMLSpec := define.ModuleLoaderSpec(kmodName, imageV2, buildArgValue, serviceAccountName)
-				tempMLSpec["container"].(map[string]interface{})["version"] = "v2"
-				tempMLSpec["container"].(map[string]interface{})["imagePullPolicy"] = "Always"
+
+				tempContainerSpec, ok := tempMLSpec["container"].(map[string]interface{})
+				Expect(ok).To(BeTrue(), "container spec should be a map")
+
+				tempContainerSpec["version"] = "v2"
+				tempContainerSpec["imagePullPolicy"] = "Always"
 
 				tempModule := newUnstructuredModule(tempModuleName, nSpace, map[string]interface{}{
 					"selector":     GeneralConfig.WorkerLabelMap,
@@ -295,25 +304,25 @@ var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSani
 
 				By("Verify remaining DRA DaemonSet has v2 label")
 
-				ds, err := get.DRADaemonSet(APIClient, moduleName, nSpace)
+				draDaemonSet, err := get.DRADaemonSet(APIClient, moduleName, nSpace)
 				Expect(err).ToNot(HaveOccurred(), "DRA DaemonSet should exist")
-				Expect(ds.Name).ToNot(Equal(v1DSName),
+				Expect(draDaemonSet.Name).ToNot(Equal(v1DSName),
 					"v2 DRA DaemonSet should have a different name than v1")
-				Expect(ds.Labels).To(HaveKeyWithValue(schedulePodLabel, "v2"),
+				Expect(draDaemonSet.Labels).To(HaveKeyWithValue(schedulePodLabel, "v2"),
 					"remaining DRA DaemonSet should have version v2")
 
 				By("Verify DRA DaemonSet nodeSelector has v2 version")
 
-				nodeSelector := ds.Spec.Template.Spec.NodeSelector
+				nodeSelector := draDaemonSet.Spec.Template.Spec.NodeSelector
 				Expect(nodeSelector).To(HaveKeyWithValue(schedulePodLabel, "v2"),
 					"DRA DaemonSet nodeSelector should have schedule-pod version v2")
 
 				By("Verify DRA DaemonSet is fully available")
 
-				Expect(ds.Status.DesiredNumberScheduled).To(
+				Expect(draDaemonSet.Status.DesiredNumberScheduled).To(
 					BeNumerically(">", 0), "DRA DaemonSet should have desired pods")
-				Expect(ds.Status.NumberAvailable).To(
-					Equal(ds.Status.DesiredNumberScheduled),
+				Expect(draDaemonSet.Status.NumberAvailable).To(
+					Equal(draDaemonSet.Status.DesiredNumberScheduled),
 					"all DRA DaemonSet pods should be available")
 
 				By("Verify kernel module is still loaded")

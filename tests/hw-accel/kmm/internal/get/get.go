@@ -407,6 +407,7 @@ func AllDRADaemonSets(apiClient *clients.Settings, moduleName,
 	}
 
 	prefix := moduleName + "-dra-"
+
 	var result []appsv1.DaemonSet
 
 	for idx := range dsList.Items {
