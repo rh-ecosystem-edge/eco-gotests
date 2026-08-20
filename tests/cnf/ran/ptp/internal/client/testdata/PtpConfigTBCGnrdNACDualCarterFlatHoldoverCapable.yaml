@@ -1,0 +1,169 @@
+# Source: same PtpConfig shape as telco-reference's own
+# telco-ran/configuration/source-crs/ptp-operator/configuration/PtpConfigGnrdBcNoHoldover.yaml and the
+# official OKD/OCP 4.22 docs' equivalent GNR-D-without-holdover example (see
+# testdata/PtpConfigTBCGnrdNACDualCarterFlatHoldoverIncapable.yaml for both exact citations) -- paired
+# here with a real HardwareConfig CR
+# (testdata/HardwareConfigTBCGnrdNACDualCarterFlatHoldoverCapable.yaml) to exercise the WITH-holdover
+# case instead.
+#
+# GNR-D boundary clock: one Time Receiver port on the NAC (eno8503, resolved from the upstream
+# fixture's own "TR port (see 01-bc-tr profile)" comment against the skipped eno8503 entry below),
+# Time Transmitter ports across the remaining NAC and Carter Flat (e830) ports. The 01-bc-tr profile
+# carries an e825 plugin settings block (holdover values) *and* correlates to a HardwareConfig CR
+# (see testdata/HardwareConfigTBCGnrdNACDualCarterFlatHoldoverCapable.yaml).
+apiVersion: ptp.openshift.io/v1
+kind: PtpConfig
+metadata:
+  name: gnrd-bc
+  namespace: openshift-ptp
+  annotations:
+    ran.openshift.io/ztp-deploy-wave: "10"
+spec:
+  profile:
+    - name: 00-bc-tt
+      ptp4lConf: |
+        # All TimeTransmitter ports should be outlined here with 'masterOnly 1'
+        #[eno8303]
+        # ** Host management interface
+        [eno8403]
+        masterOnly 1
+        #[eno8503]
+        # ** TR port (see 01-bc-tr profile)
+        [eno8603]
+        masterOnly 1
+        [eno8703]
+        masterOnly 1
+        [eno8803]
+        masterOnly 1
+        [eno8903]
+        masterOnly 1
+        [eno9003]
+        masterOnly 1
+        [enp108s0f0]
+        masterOnly 1
+        [enp108s0f1]
+        masterOnly 1
+        [enp108s0f2]
+        masterOnly 1
+        [enp108s0f3]
+        masterOnly 1
+        [enp108s0f4]
+        masterOnly 1
+        [enp108s0f5]
+        masterOnly 1
+        [enp108s0f6]
+        masterOnly 1
+        [enp108s0f7]
+        masterOnly 1
+        [enp110s0f0]
+        masterOnly 1
+        [enp110s0f1]
+        masterOnly 1
+        [enp110s0f2]
+        masterOnly 1
+        [enp110s0f3]
+        masterOnly 1
+        [enp110s0f4]
+        masterOnly 1
+        [enp110s0f5]
+        masterOnly 1
+        [enp110s0f6]
+        masterOnly 1
+        [enp110s0f7]
+        masterOnly 1
+        [global]
+        twoStepFlag 1
+        slaveOnly 0
+        priority1 128
+        priority2 128
+        domainNumber 24
+        clockClass 248
+        clockAccuracy 0xFE
+        offsetScaledLogVariance 0xFFFF
+        clock_type BC
+        network_transport L2
+        delay_mechanism E2E
+        time_stamping hardware
+      ptp4lOpts: -2 --summary_interval -4
+      ptpSchedulingPolicy: SCHED_FIFO
+      ptpSchedulingPriority: 10
+      ptpSettings:
+        controllingProfile: 01-bc-tr
+        logReduce: "true"
+    - name: 01-bc-tr
+      phc2sysOpts: -r -n 24 -N 8 -R 16 -u 0 -m -w -s eno8503
+      ptp4lConf: |
+        [eno8503]
+        masterOnly 0
+        [global]
+        twoStepFlag 1
+        slaveOnly 0
+        priority1 128
+        priority2 128
+        domainNumber 24
+        clockClass 248
+        clockAccuracy 0xFE
+        offsetScaledLogVariance 0xFFFF
+        clock_type OC
+        network_transport L2
+        delay_mechanism E2E
+        time_stamping hardware
+      ptp4lOpts: -2 --summary_interval -4
+      ptpSchedulingPolicy: SCHED_FIFO
+      ptpSchedulingPriority: 10
+      ptpSettings:
+        clockType: T-BC
+        inSyncConditionThreshold: "10"
+        inSyncConditionTimes: "12"
+        logReduce: "true"
+        leadingInterface: eno8703
+        upstreamPort: eno8503
+      plugins:
+        e825:
+          devices:
+            - eno8703
+          settings:
+            LocalMaxHoldoverOffSet: 500
+            LocalHoldoverTimeout: 0
+            MaxInSpecOffset: 100
+        e830:
+          devices:
+            - enp108s0f0
+            - enp110s0f0
+      ts2phcConf: |
+        [global]
+        use_syslog  0
+        verbose 1
+        logging_level 7
+        ts2phc.pulsewidth 500000000
+        leapfile  /usr/share/zoneinfo/leap-seconds.list
+        domainNumber 24
+        uds_address /var/run/ptp4l.1.socket
+        [eno8703]
+        ts2phc.extts_correction 0
+        ts2phc.master 0
+        ts2phc.channel 0
+        ts2phc.pin_index 1
+        # This should be one section per Carter Flats (e830) card:
+        [enp108s0f0]
+        ts2phc.extts_polarity rising
+        ts2phc.extts_correction 0
+        ts2phc.master 0
+        ts2phc.channel 0
+        ts2phc.pin_index 1
+        [enp110s0f0]
+        ts2phc.extts_polarity rising
+        ts2phc.extts_correction 0
+        ts2phc.master 0
+        ts2phc.channel 0
+        ts2phc.pin_index 1
+      ts2phcOpts: -s generic -a --ts2phc.rh_external_pps 1
+  recommend:
+    - match:
+      - nodeLabel: node-role.kubernetes.io/master
+      priority: 4
+      profile: 00-bc-tt
+    - match:
+      - nodeLabel: node-role.kubernetes.io/master
+      priority: 4
+      profile: 01-bc-tr

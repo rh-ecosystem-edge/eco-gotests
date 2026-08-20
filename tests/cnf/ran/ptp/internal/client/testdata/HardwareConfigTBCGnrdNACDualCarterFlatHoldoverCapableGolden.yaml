@@ -1,0 +1,20 @@
+# Golden: GNR-D T-BC HardwareConfig after ChangeHoldoverParameters(7200, 750, 50).
+metadata:
+  name: t-bc
+  namespace: openshift-ptp
+  resourceVersion: "1000"
+spec:
+  profile:
+    clockChain:
+      structure:
+      - dpll:
+          holdoverParameters:
+            localHoldoverTimeout: 7200
+            localMaxHoldoverOffset: 750
+            maxInSpecOffset: 50
+        hardwareSpecificDefinitions: dell/XR8720t
+        name: leader
+    clockType: T-BC
+    name: GNR-D-T-BC
+  relatedPtpProfileName: 01-bc-tr
+status: {}

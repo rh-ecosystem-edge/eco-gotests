@@ -1,0 +1,25 @@
+# Real shape confirmed independently from two sources: ztp-site-configs' own HwConfigBcGnrd.yaml
+# (branches cnfdg55-4.20/4.22, cnfdg59-4.20/4.21/4.22, helix98-4.22/5.0, helix103/104-4.21/4.22/5.0)
+# and the official OKD/OCP 4.22 docs' "Configuring GNR-D T-BC holdover on a GNR-D platform" example
+# (https://docs.okd.io/4.22/networking/advanced_networking/ptp/configuring-ptp.html). relatedPtpProfileName
+# is set to 01-bc-tr to correlate with testdata/PtpConfigTBCGnrdNACDualCarterFlatHoldoverCapable.yaml's
+# own receiver profile.
+apiVersion: ptp.openshift.io/v2alpha1
+kind: HardwareConfig
+metadata:
+  name: t-bc
+  namespace: openshift-ptp
+spec:
+  profile:
+    name: GNR-D-T-BC
+    clockType: T-BC
+    clockChain:
+      structure:
+      - name: leader
+        hardwareSpecificDefinitions: dell/XR8720t
+        dpll:
+          holdoverParameters:
+            maxInSpecOffset: 100
+            localMaxHoldoverOffset: 1500
+            localHoldoverTimeout: 14400
+  relatedPtpProfileName: 01-bc-tr

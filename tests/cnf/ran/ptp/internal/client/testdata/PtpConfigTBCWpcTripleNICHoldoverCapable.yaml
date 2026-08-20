@@ -1,0 +1,135 @@
+# Sources (same real-world scenario -- multi-card T-BC with three E810 NICs, SMA-daisy-chained):
+#  - Official OKD/OCP 4.22 docs, "Applying unassisted holdover for boundary clocks and time
+#    synchronous clocks" (values used here -- already-resolved, no template variables):
+#    https://docs.okd.io/4.22/networking/advanced_networking/ptp/configuring-ptp.html#nw-ptp-t-bc-t-tsc-holdover_configuring-ptp
+#  - telco-reference's own equivalent template (same shape, placeholder interface names):
+#    telco-ran/configuration/source-crs/ptp-operator/configuration/PtpConfigDualCardTBCWpc.yaml
+apiVersion: ptp.openshift.io/v1
+kind: PtpConfig
+metadata:
+  name: t-bc
+  namespace: openshift-ptp
+spec:
+  profile:
+  - name: 00-tbc-tt
+    ptp4lConf: |
+      [ens4f0]
+      masterOnly 1
+      [ens8f0]
+      masterOnly 1
+      [ens1f0]
+      masterOnly 1
+      [global]
+      twoStepFlag 1
+      slaveOnly 0
+      priority1 128
+      priority2 128
+      domainNumber 25
+      clockClass 248
+      clockAccuracy 0xFE
+      offsetScaledLogVariance 0xFFFF
+      clock_type BC
+      network_transport L2
+      delay_mechanism E2E
+      time_stamping hardware
+    ptp4lOpts: -2 --summary_interval -4
+    ptpSchedulingPolicy: SCHED_FIFO
+    ptpSchedulingPriority: 10
+    ptpSettings:
+      controllingProfile: 01-tbc-tr
+      logReduce: "false"
+  - name: 01-tbc-tr
+    phc2sysOpts: -r -n 25 -N 8 -R 16 -u 0 -m -s ens4f1
+    plugins:
+      e810:
+        enableDefaultConfig: false
+        interconnections:
+        - gnssInput: false
+          id: ens4f0
+          part: E810-XXVDA4T
+          phaseOutputConnectors:
+          - SMA1
+          - SMA2
+          upstreamPort: ens4f1
+        - id: ens1f0
+          inputConnector:
+            connector: SMA1
+          part: E810-XXVDA4T
+        - id: ens8f0
+          inputConnector:
+            connector: SMA1
+          part: E810-XXVDA4T
+        pins:
+          ens4f0:
+            SMA1: 2 1
+            SMA2: 2 2
+            U.FL1: 0 1
+            U.FL2: 0 2
+          ens1f0:
+            SMA1: 1 1
+            SMA2: 0 2
+            U.FL1: 0 1
+            U.FL2: 0 2
+          ens8f0:
+            SMA1: 1 1
+            SMA2: 0 2
+            U.FL1: 0 1
+            U.FL2: 0 2
+        settings:
+          LocalHoldoverTimeout: 14400
+          LocalMaxHoldoverOffSet: 1500
+          MaxInSpecOffset: 100
+    ptp4lConf: |
+      [ens4f1]
+      masterOnly 0
+      [global]
+      twoStepFlag 1
+      slaveOnly 0
+      priority1 128
+      priority2 128
+      domainNumber 25
+      clockClass 248
+      clockAccuracy 0xFE
+      offsetScaledLogVariance 0xFFFF
+      clock_type OC
+      network_transport L2
+      delay_mechanism E2E
+      time_stamping hardware
+    ptp4lOpts: -2 --summary_interval -4
+    ptpSchedulingPolicy: SCHED_FIFO
+    ptpSchedulingPriority: 10
+    ptpSettings:
+      inSyncConditionThreshold: "10"
+      inSyncConditionTimes: "12"
+      logReduce: "false"
+    ts2phcConf: |
+      [global]
+      use_syslog  0
+      verbose 1
+      logging_level 7
+      ts2phc.pulsewidth 100000000
+      leapfile  /usr/share/zoneinfo/leap-seconds.list
+      domainNumber 25
+      uds_address /var/run/ptp4l.0.socket
+      [ens4f0]
+      ts2phc.extts_polarity rising
+      ts2phc.extts_correction -10
+      ts2phc.master 0
+      [ens1f0]
+      ts2phc.extts_polarity rising
+      ts2phc.extts_correction -27
+      ts2phc.master 0
+      [ens8f0]
+      ts2phc.extts_polarity rising
+      ts2phc.extts_correction -27
+      ts2phc.master 0
+    ts2phcOpts: -s generic -a --ts2phc.rh_external_pps 1
+  recommend:
+  - match:
+    - nodeLabel: node-role.kubernetes.io/master
+    priority: 4
+    profile: 00-tbc-tt
+  - match:
+    - nodeLabel: node-role.kubernetes.io/master
+    priority: 4
+    profile: 01-tbc-tr
