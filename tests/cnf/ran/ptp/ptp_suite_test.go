@@ -16,7 +16,9 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/rancluster"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/client"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/clock"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/cluster"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/consumer"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/metrics"
@@ -57,10 +59,13 @@ var _ = BeforeSuite(func() {
 	err = metrics.EnsureClocksAreLocked(prometheusAPI)
 	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
 
-	By("discovering PTP clocks")
+	By("registering PTP cluster domain facts")
 
-	err = clock.Discover(RANConfig.Spoke1APIClient)
-	Expect(err).ToNot(HaveOccurred(), "Failed to discover clocks")
+	cluster.Init(clock.PtpOperatorVersion(RANConfig.Spoke1OperatorVersions[ranparam.PTP]))
+
+	By("registering PTP client connections")
+
+	client.Init(RANConfig.Spoke1APIClient, prometheusAPI)
 
 	By("initializing the NIC naming system based on the PTP version")
 
