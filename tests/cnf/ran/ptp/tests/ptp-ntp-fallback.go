@@ -249,7 +249,7 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 			ntpFallbackProfiles := nodeInfo.GetProfilesByTypes(profiles.ProfileTypeNTPFallback)
 			Expect(ntpFallbackProfiles).ToNot(BeEmpty(), "No NTP fallback profile found for node %s", nodeName)
 
-			serverInterfaces := ntpFallbackProfiles[0].GetInterfacesByClockType(profiles.ClockTypeServer)
+			serverInterfaces := ntpFallbackProfiles[0].GetInterfacesByRole(profiles.InterfaceRoleServer)
 			Expect(serverInterfaces).ToNot(BeEmpty(), "No server interface found for NTP fallback profile on node %s", nodeName)
 
 			serverInterface := serverInterfaces[0].Name
@@ -502,7 +502,7 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 			ocProfiles := nodeInfo.GetProfilesByTypes(profiles.ProfileTypeOC)
 			Expect(ocProfiles).ToNot(BeEmpty(), "No OC profile found for node %s", nodeName)
 
-			ocInterfaces := ocProfiles[0].GetInterfacesByClockType(profiles.ClockTypeClient)
+			ocInterfaces := ocProfiles[0].GetInterfacesByRole(profiles.InterfaceRoleClient)
 			Expect(ocInterfaces).ToNot(BeEmpty(), "No follower interface found for OC profile on node %s", nodeName)
 
 			ocInterface := ocInterfaces[0].Name

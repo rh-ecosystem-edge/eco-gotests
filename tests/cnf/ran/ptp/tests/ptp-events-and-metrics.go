@@ -103,7 +103,7 @@ var _ = Describe("PTP Events and Metrics", Label(tsparams.LabelEventsAndMetrics)
 		for _, nodeInfo := range nodeInfoMap {
 			By("checking client interfaces on node " + nodeInfo.Name)
 
-			clientInterfaces := nodeInfo.GetInterfacesByClockType(profiles.ClockTypeClient)
+			clientInterfaces := nodeInfo.GetInterfacesByRole(profiles.InterfaceRoleClient)
 			if len(clientInterfaces) == 0 {
 				klog.V(tsparams.LogLevel).Infof("No client interfaces found for node %s", nodeInfo.Name)
 

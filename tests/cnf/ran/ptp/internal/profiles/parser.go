@@ -44,7 +44,7 @@ func parsePtpProfile(
 			profileInfo.Interfaces[ifaceName] = &InterfaceInfo{
 				Name: ifaceName,
 				// If the interface is not set in the config file, it cannot be server only.
-				ClockType: ClockTypeClient,
+				Role: InterfaceRoleClient,
 			}
 		}
 	}
@@ -128,22 +128,22 @@ func getInterfacesFromPtp4lSections(clientFlag bool, sections configSections) ma
 			continue
 		}
 
-		var clockType PtpClockType
+		var clockType PtpInterfaceRole
 
 		switch {
 		case clientFlag:
-			clockType = ClockTypeClient
+			clockType = InterfaceRoleClient
 		// masterOnly is deprecated but still used and supported by ptp4l, similar to slaveOnly.
 		case sectionValues["serverOnly"] == "1" || sectionValues["masterOnly"] == "1":
-			clockType = ClockTypeServer
+			clockType = InterfaceRoleServer
 		default:
-			clockType = ClockTypeClient
+			clockType = InterfaceRoleClient
 		}
 
 		ifaceName := iface.Name(sectionName)
 		interfaces[ifaceName] = &InterfaceInfo{
-			Name:      ifaceName,
-			ClockType: clockType,
+			Name: ifaceName,
+			Role: clockType,
 		}
 	}
 
@@ -186,10 +186,10 @@ func determineProfileType(
 	numServerInterfaces := 0
 
 	for _, interfaceInfo := range interfaces {
-		switch interfaceInfo.ClockType {
-		case ClockTypeClient:
+		switch interfaceInfo.Role {
+		case InterfaceRoleClient:
 			numClientInterfaces++
-		case ClockTypeServer:
+		case InterfaceRoleServer:
 			numServerInterfaces++
 		}
 	}

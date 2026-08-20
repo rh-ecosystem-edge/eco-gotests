@@ -91,7 +91,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 		for nodeName, nodeInfo := range nodeInfoMap {
 			By("getting receiver interfaces for node " + nodeName)
 
-			receiverInterfaces := nodeInfo.GetInterfacesByClockType(profiles.ClockTypeClient)
+			receiverInterfaces := nodeInfo.GetInterfacesByRole(profiles.InterfaceRoleClient)
 			if len(receiverInterfaces) == 0 {
 				continue
 			}
@@ -245,7 +245,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 
 			var masterInterfaces []*profiles.InterfaceInfo
 			for _, profile := range boundaryClockProfiles {
-				masterInterfaces = append(masterInterfaces, profile.GetInterfacesByClockType(profiles.ClockTypeServer)...)
+				masterInterfaces = append(masterInterfaces, profile.GetInterfacesByRole(profiles.InterfaceRoleServer)...)
 			}
 
 			Expect(masterInterfaces).ToNot(BeEmpty(),
@@ -545,7 +545,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			activeProfileInfo := nodeInfo.GetProfileByDaemonName(activeProfiles[0])
 			Expect(activeProfileInfo).ToNot(BeNil(), "Failed to find active profile in node info")
 
-			activeClientInterfaces := activeProfileInfo.GetInterfacesByClockType(profiles.ClockTypeClient)
+			activeClientInterfaces := activeProfileInfo.GetInterfacesByRole(profiles.InterfaceRoleClient)
 			Expect(len(activeClientInterfaces)).To(Equal(1), "Expected exactly one client interface for HA profile")
 
 			inactiveProfiles, err := profiles.GetHAProfiles(context.TODO(),
@@ -560,7 +560,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				inactiveProfileInfo := nodeInfo.GetProfileByDaemonName(inactiveProfile)
 				Expect(inactiveProfileInfo).ToNot(BeNil(), "Failed to find inactive profile in node info")
 
-				inactiveClientInterfaces := inactiveProfileInfo.GetInterfacesByClockType(profiles.ClockTypeClient)
+				inactiveClientInterfaces := inactiveProfileInfo.GetInterfacesByRole(profiles.InterfaceRoleClient)
 				Expect(len(inactiveClientInterfaces)).To(Equal(1), "Expected exactly one client interface for HA profile")
 				haInterfaces = append(haInterfaces, inactiveClientInterfaces[0].Name)
 			}
@@ -841,7 +841,7 @@ func getHAProfileClientInterface(nodeInfo *profiles.NodeInfo, profileName string
 	profileInfo := nodeInfo.GetProfileByDaemonName(profileName)
 	Expect(profileInfo).ToNot(BeNil(), "Failed to find profile %s in node info", profileName)
 
-	clientInterfaces := profileInfo.GetInterfacesByClockType(profiles.ClockTypeClient)
+	clientInterfaces := profileInfo.GetInterfacesByRole(profiles.InterfaceRoleClient)
 	Expect(len(clientInterfaces)).To(Equal(1),
 		"Expected exactly one client interface for HA profile %s", profileName)
 

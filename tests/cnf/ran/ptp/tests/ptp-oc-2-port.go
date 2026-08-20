@@ -363,7 +363,7 @@ func getOc2PortInfo(
 	By(fmt.Sprintf("Using OC 2-port profile %s on node %s",
 		oc2PortProfile.Reference.ProfileName, nodeName))
 
-	oc2PortInterfaces := oc2PortProfile.GetInterfacesByClockType(profiles.ClockTypeClient)
+	oc2PortInterfaces := oc2PortProfile.GetInterfacesByRole(profiles.InterfaceRoleClient)
 	Expect(len(oc2PortInterfaces)).To(Equal(2),
 		"Expected exactly 2 interfaces for OC 2-port profile %s on node %s",
 		oc2PortProfile.Reference.ProfileName, nodeName)

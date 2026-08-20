@@ -55,16 +55,16 @@ const (
 	ProfileTypeTTSC
 )
 
-// PtpClockType enumerates the roles of each interface. It is different from the roles in metrics, which include extra
-// runtime values not represented in the profile. The zero value is a client and only serverOnly (or masterOnly) values
-// of 1 indicate a server.
-type PtpClockType int
+// PtpInterfaceRole enumerates the roles of each interface. It is different from the roles in metrics, which
+// include extra runtime values not represented in the profile. The zero value is a client and only serverOnly
+// (or masterOnly) values of 1 indicate a server.
+type PtpInterfaceRole int
 
 const (
-	// ClockTypeClient indicates an interface is acting as a follower of time signals. Formerly slave.
-	ClockTypeClient PtpClockType = iota
-	// ClockTypeServer indicates an interface is acting as a leader of time signals. Formerly master.
-	ClockTypeServer
+	// InterfaceRoleClient indicates an interface is acting as a follower of time signals. Formerly slave.
+	InterfaceRoleClient PtpInterfaceRole = iota
+	// InterfaceRoleServer indicates an interface is acting as a leader of time signals. Formerly master.
+	InterfaceRoleServer
 )
 
 // profileNameSeparator is the separator used by the PTP operator (4.22+) to construct qualified profile names
@@ -139,13 +139,13 @@ func (profileInfo *ProfileInfo) PullProfile(client *clients.Settings) (*ptpv1.Pt
 	return &ptpConfig.Definition.Spec.Profile[profileIndex], nil
 }
 
-// GetInterfacesByClockType returns a slice of InterfaceInfo pointers for each interface in the profile matching the
-// provided clockType. Elements are guaranteed not to be nil.
-func (profileInfo *ProfileInfo) GetInterfacesByClockType(clockType PtpClockType) []*InterfaceInfo {
+// GetInterfacesByRole returns a slice of InterfaceInfo pointers for each interface in the profile matching the
+// provided role. Elements are guaranteed not to be nil.
+func (profileInfo *ProfileInfo) GetInterfacesByRole(role PtpInterfaceRole) []*InterfaceInfo {
 	var interfaces []*InterfaceInfo
 
 	for _, interfaceInfo := range profileInfo.Interfaces {
-		if interfaceInfo.ClockType == clockType {
+		if interfaceInfo.Role == role {
 			interfaces = append(interfaces, interfaceInfo)
 		}
 	}
@@ -382,7 +382,7 @@ func (profileInfo *ProfileInfo) Clone() *ProfileInfo {
 // metadata. In the future, it may also contain information about which interface it is connected to.
 type InterfaceInfo struct {
 	Name               iface.Name
-	ClockType          PtpClockType
+	Role               PtpInterfaceRole
 	PortIdentity       string
 	ParentPortIdentity string
 	// Parent is a pointer to the InterfaceInfo whose PortIdentity matches this interface's ParentPortIdentity, if any.
@@ -400,7 +400,7 @@ type InterfaceInfo struct {
 func (interfaceInfo *InterfaceInfo) Clone() *InterfaceInfo {
 	return &InterfaceInfo{
 		Name:               interfaceInfo.Name,
-		ClockType:          interfaceInfo.ClockType,
+		Role:               interfaceInfo.Role,
 		PortIdentity:       interfaceInfo.PortIdentity,
 		ParentPortIdentity: interfaceInfo.ParentPortIdentity,
 		// Parent is intentionally not cloned. It is a derived linkage that should be recomputed on the cloned graph
@@ -438,13 +438,13 @@ type NodeInfo struct {
 	Profiles []*ProfileInfo
 }
 
-// GetInterfacesByClockType returns a slice of InterfaceInfo pointers for each interface across all profiles on this
-// node matching the provided clockType. Elements are guaranteed not to be nil.
-func (nodeInfo *NodeInfo) GetInterfacesByClockType(clockType PtpClockType) []*InterfaceInfo {
+// GetInterfacesByRole returns a slice of InterfaceInfo pointers for each interface across all profiles on this
+// node matching the provided role. Elements are guaranteed not to be nil.
+func (nodeInfo *NodeInfo) GetInterfacesByRole(role PtpInterfaceRole) []*InterfaceInfo {
 	var nodeInterfaces []*InterfaceInfo
 
 	for _, profileInfo := range nodeInfo.Profiles {
-		nodeInterfaces = append(nodeInterfaces, profileInfo.GetInterfacesByClockType(clockType)...)
+		nodeInterfaces = append(nodeInterfaces, profileInfo.GetInterfacesByRole(role)...)
 	}
 
 	return nodeInterfaces
