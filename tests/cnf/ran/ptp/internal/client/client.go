@@ -102,16 +102,22 @@ func WaitForLockedClocks() error {
 }
 
 // NewPtpClusterSnapshot creates a new PtpClusterSnapshot instance.
-func NewPtpClusterSnapshot(clks clock.Clocks) *PtpClusterSnapshot {
+func NewPtpClusterSnapshot(
+	clks clock.Clocks, ptpConfigs profiles.PtpConfigSnapshot, hwConfigs profiles.HardwareConfigSnapshot,
+) *PtpClusterSnapshot {
 	return &PtpClusterSnapshot{
-		clocks: clks,
+		clocks:     clks,
+		ptpConfigs: ptpConfigs,
+		hwConfigs:  hwConfigs,
 	}
 }
 
 // PtpClusterSnapshot is a saved copy of everything a holdover test can mutate: every PtpConfig and
 // HardwareConfig in the cluster, and the given clocks' own upstream interfaces.
 type PtpClusterSnapshot struct {
-	clocks clock.Clocks
+	clocks     clock.Clocks
+	ptpConfigs profiles.PtpConfigSnapshot
+	hwConfigs  profiles.HardwareConfigSnapshot
 }
 
 // Snapshot captures every PtpConfig and HardwareConfig in the cluster, and the given clocks, ready to
@@ -126,7 +132,17 @@ func Snapshot() (*PtpClusterSnapshot, error) {
 		return nil, err
 	}
 
-	snapshot := NewPtpClusterSnapshot(clks)
+	ptpConfigs, err := profiles.SavePtpConfigs(ptpClient.client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to save PtpConfigs: %w", err)
+	}
+
+	hwConfigs, err := profiles.SaveHardwareConfigs(ptpClient.client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to save HardwareConfigs: %w", err)
+	}
+
+	snapshot := NewPtpClusterSnapshot(clks, ptpConfigs, hwConfigs)
 
 	return snapshot, nil
 }
@@ -143,6 +159,14 @@ func Restore(snapshot *PtpClusterSnapshot) error {
 		if err := SetUpstreamInterfaces(clk, iface.InterfaceStateUp); err != nil {
 			return fmt.Errorf("failed to restore upstream interfaces on node %s: %w", clk.NodeName, err)
 		}
+	}
+
+	if _, err := profiles.RestorePtpConfigs(ptpClient.client, snapshot.ptpConfigs); err != nil {
+		return fmt.Errorf("failed to restore PtpConfigs: %w", err)
+	}
+
+	if _, err := profiles.RestoreHardwareConfigs(ptpClient.client, snapshot.hwConfigs); err != nil {
+		return fmt.Errorf("failed to restore HardwareConfigs: %w", err)
 	}
 
 	return nil
@@ -200,6 +224,11 @@ func ChangeHoldoverParameters(clk *clock.Clock, desired clock.HoldoverParameters
 	}
 }
 
+// InterfaceStatusSetter is the capability SetUpstreamInterfaces needs -- a seam so a test doesn't need
+// real pod exec against a PTP daemon pod, mirroring kubectl's own RemoteExecutor (pkg/cmd/exec/exec.go).
+// Var, not const, so tests can substitute a fake.
+var InterfaceStatusSetter = iface.SetInterfaceStatus
+
 // SetUpstreamInterfaces sets every one of the clock's own upstream (time-receiver) interfaces to the given state.
 func SetUpstreamInterfaces(clk *clock.Clock, status iface.InterfaceState) error {
 	if ptpClient == nil {
@@ -207,7 +236,7 @@ func SetUpstreamInterfaces(clk *clock.Clock, status iface.InterfaceState) error 
 	}
 
 	for _, receiverIface := range clk.TimeReceiverIfaces() {
-		if err := iface.SetInterfaceStatus(ptpClient.client, clk.NodeName, receiverIface.Name, status); err != nil {
+		if err := InterfaceStatusSetter(ptpClient.client, clk.NodeName, receiverIface.Name, status); err != nil {
 			return fmt.Errorf("failed to set interface %s to %s on node %s: %w",
 				receiverIface.Name, status, clk.NodeName, err)
 		}
