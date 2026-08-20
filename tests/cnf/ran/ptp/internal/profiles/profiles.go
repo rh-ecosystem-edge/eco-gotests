@@ -106,6 +106,24 @@ func (reference *ProfileReference) PullPtpConfig(client *clients.Settings) (*ptp
 	return ptpConfig, nil
 }
 
+// ResolveProfile finds the PtpProfile this reference points to among an already-fetched list of PtpConfigs.
+func (reference *ProfileReference) ResolveProfile(configs []*ptp.PtpConfigBuilder) (ptpv1.PtpProfile, error) {
+	configIndex := slices.IndexFunc(configs, func(config *ptp.PtpConfigBuilder) bool {
+		return runtimeclient.ObjectKeyFromObject(config.Definition) == reference.ConfigReference
+	})
+	if configIndex == -1 {
+		return ptpv1.PtpProfile{}, fmt.Errorf("failed to find PtpConfig for reference %v", reference)
+	}
+
+	configProfiles := configs[configIndex].Definition.Spec.Profile
+	if reference.ProfileIndex < 0 || reference.ProfileIndex >= len(configProfiles) {
+		return ptpv1.PtpProfile{}, fmt.Errorf("failed to find profile %s at index %d: index out of bounds",
+			reference.ProfileName, reference.ProfileIndex)
+	}
+
+	return configProfiles[reference.ProfileIndex], nil
+}
+
 // ProfileInfo contains information about a PTP profile, including parsed configuration,
 // a reference to the profile on the cluster, and an optional HardwareConfig CR association.
 type ProfileInfo struct {
@@ -120,6 +138,9 @@ type ProfileInfo struct {
 	// HardwareConfig is the associated HardwareConfig CR for this profile, populated during GetNodeInfoMap.
 	// Nil means the profile uses the PtpConfig plugin path for holdover settings (pre-4.22 or non-GNRD).
 	HardwareConfig *ptp.HardwareConfigBuilder
+	// ControllingProfileName is this profile's own "controllingProfile" PtpSettings value, if it has one --
+	// set on a TBC transmitter profile, naming the receiver profile it is paired with. Empty otherwise.
+	ControllingProfileName string
 }
 
 // PullProfile pulls the PTP profile for the profile referenced by this struct. If error is nil, the profile is
@@ -358,10 +379,11 @@ func parseParentDataSetOutput(output string) (map[string]string, error) {
 // that write to it must re-fetch from the cluster first.
 func (profileInfo *ProfileInfo) Clone() *ProfileInfo {
 	clone := &ProfileInfo{
-		ProfileType:    profileInfo.ProfileType,
-		Reference:      profileInfo.Reference,
-		Interfaces:     make(map[iface.Name]*InterfaceInfo),
-		HardwareConfig: profileInfo.HardwareConfig,
+		ProfileType:            profileInfo.ProfileType,
+		Reference:              profileInfo.Reference,
+		Interfaces:             make(map[iface.Name]*InterfaceInfo),
+		HardwareConfig:         profileInfo.HardwareConfig,
+		ControllingProfileName: profileInfo.ControllingProfileName,
 	}
 
 	if profileInfo.ConfigIndex != nil {

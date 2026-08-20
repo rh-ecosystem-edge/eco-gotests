@@ -38,14 +38,14 @@ func GetNodeInfoMap(client *clients.Settings) (map[string]*NodeInfo, error) {
 	// Build a lookup of HardwareConfig CRs by RelatedPtpProfileName in a single list call.
 	// Non-fatal: if the CRD is not installed (pre-4.22 clusters), the index is empty and all
 	// profiles fall back to the PtpConfig plugin path.
-	hwConfigIndex := buildHardwareConfigIndex(client)
+	hwConfigIndex := BuildHardwareConfigIndex(client)
 
-	allRecommends := getAllRecommends(ptpConfigList)
+	allRecommends := GetAllRecommends(ptpConfigList)
 	ptpProfileInfos := make(map[ProfileReference]*ProfileInfo)
 	nodeInfoMap := make(map[string]*NodeInfo)
 
 	for _, nodeBuilder := range nodeList {
-		recommendsForNode := getRecommendsForNode(nodeBuilder.Definition, allRecommends)
+		recommendsForNode := GetRecommendsForNode(nodeBuilder.Definition, allRecommends)
 		if len(recommendsForNode) == 0 {
 			klog.V(tsparams.LogLevel).Infof("No PTP recommends found for node %s", nodeBuilder.Definition.Name)
 
@@ -56,7 +56,7 @@ func GetNodeInfoMap(client *clients.Settings) (map[string]*NodeInfo, error) {
 			Name: nodeBuilder.Definition.Name,
 		}
 
-		controlledNames := getControlledNamesForNode(recommendsForNode, ptpConfigList)
+		controlledNames := GetControlledNamesForNode(recommendsForNode, ptpConfigList)
 
 		for reference := range recommendsForNode {
 			profileInfo, err := getMemoizedAndClonedProfileInfo(reference, ptpConfigList, ptpProfileInfos, controlledNames)
@@ -80,9 +80,9 @@ func GetNodeInfoMap(client *clients.Settings) (map[string]*NodeInfo, error) {
 	return nodeInfoMap, nil
 }
 
-// buildHardwareConfigIndex lists all HardwareConfig CRs and returns a map keyed by
+// BuildHardwareConfigIndex lists all HardwareConfig CRs and returns a map keyed by
 // RelatedPtpProfileName. Returns an empty map when the CRD is not installed.
-func buildHardwareConfigIndex(client *clients.Settings) map[string]*ptp.HardwareConfigBuilder {
+func BuildHardwareConfigIndex(client *clients.Settings) map[string]*ptp.HardwareConfigBuilder {
 	index := make(map[string]*ptp.HardwareConfigBuilder)
 
 	hwConfigs, err := ptp.ListHardwareConfigs(client)
@@ -114,10 +114,10 @@ type recommendWithProfileReference struct {
 	reference ProfileReference
 }
 
-// getAllRecommends returns the recommend structures for all PtpConfigs provided and sorts by priority in ascending
+// GetAllRecommends returns the recommend structures for all PtpConfigs provided and sorts by priority in ascending
 // order. Recommends without profiles, priorities, or matches are filtered out. Recommends that do not match any profile
 // in the config are also filtered out.
-func getAllRecommends(configs []*ptp.PtpConfigBuilder) []recommendWithProfileReference {
+func GetAllRecommends(configs []*ptp.PtpConfigBuilder) []recommendWithProfileReference {
 	var recommends []recommendWithProfileReference
 
 	for _, config := range configs {
@@ -155,7 +155,7 @@ func getAllRecommends(configs []*ptp.PtpConfigBuilder) []recommendWithProfileRef
 	return recommends
 }
 
-// getRecommendsForNode matches the recommends to a node based on the match criteria. The provided recommends are
+// GetRecommendsForNode matches the recommends to a node based on the match criteria. The provided recommends are
 // assumed to be sorted in ascending order by priority, with non-nil priorities and profile names. It returns a set of
 // profile references that are recommended for the node. The returned map is guaranteed to not be nil.
 //
@@ -163,7 +163,7 @@ func getAllRecommends(configs []*ptp.PtpConfigBuilder) []recommendWithProfileRef
 //   - Loop through all recommends in order and ignore those that do not match the node.
 //   - The lowest priority that matches the node is used to determine which profiles are recommended.
 //   - If a recommend with a different priority is found, the loop is broken and no further recommends are considered.
-func getRecommendsForNode(
+func GetRecommendsForNode(
 	node *corev1.Node, allRecommends []recommendWithProfileReference) map[ProfileReference]struct{} {
 	profiles := make(map[ProfileReference]struct{})
 	priority := int64(-1)
@@ -202,9 +202,9 @@ func nodeMatches(node *corev1.Node, recommend ptpv1.PtpRecommend) bool {
 	return false
 }
 
-// getControlledNamesForNode scans all profiles recommended to the node and collects the values of controllingProfile
+// GetControlledNamesForNode scans all profiles recommended to the node and collects the values of controllingProfile
 // PTP settings. The returned map contains profile names that are referenced as T-BC receivers by a TBC transmitter.
-func getControlledNamesForNode(
+func GetControlledNamesForNode(
 	recommendsForNode map[ProfileReference]struct{},
 	allConfigs []*ptp.PtpConfigBuilder,
 ) map[string]bool {
@@ -266,7 +266,7 @@ func getMemoizedAndClonedProfileInfo(
 
 	profile := profiles[reference.ProfileIndex]
 
-	profileInfo, err := parsePtpProfile(profile, reference, controlledNames)
+	profileInfo, err := ParsePtpProfile(profile, reference, controlledNames)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse PTP profile %s: %w", reference.ProfileName, err)
 	}

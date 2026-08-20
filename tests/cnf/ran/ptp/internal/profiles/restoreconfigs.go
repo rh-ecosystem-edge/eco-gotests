@@ -5,21 +5,44 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
+	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ptp"
 	ptpv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v1"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/daemonlogs"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// PtpConfigSnapshot is a saved copy of every PtpConfig in the cluster, ready to be restored.
+type PtpConfigSnapshot []*ptp.PtpConfigBuilder
+
 // SavePtpConfigs returns a list of all PtpConfigs in the cluster.
-func SavePtpConfigs(client *clients.Settings) ([]*ptp.PtpConfigBuilder, error) {
+func SavePtpConfigs(client *clients.Settings) (PtpConfigSnapshot, error) {
 	ptpConfigList, err := ptp.ListPtpConfigs(client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list PtpConfigs: %w", err)
 	}
 
 	return ptpConfigList, nil
+}
+
+// Restore reverts every changed PtpConfig back to what was captured, waiting for the daemon to reload
+// only if anything actually changed.
+func (snapshot PtpConfigSnapshot) Restore(client *clients.Settings) error {
+	startTime := time.Now()
+
+	changedProfiles, err := RestorePtpConfigs(client, snapshot)
+	if err != nil {
+		return fmt.Errorf("failed to restore PtpConfigs: %w", err)
+	}
+
+	if len(changedProfiles) == 0 {
+		return nil
+	}
+
+	return daemonlogs.WaitForProfileLoadOnPTPNodes(client,
+		daemonlogs.WithStartTime(startTime), daemonlogs.WithTimeout(5*time.Minute))
 }
 
 // RestoreProfileToConfig updates the profile referenced by the provided ProfileReference with the provided profile. It

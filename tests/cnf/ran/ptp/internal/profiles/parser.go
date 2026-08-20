@@ -12,9 +12,9 @@ import (
 // configSections is a map of section names to their key-value pairs. It represents the format used by ptp4l and ts2phc.
 type configSections = map[string]map[string]string
 
-// parsePtpProfile parses the PTP profile and the ptp4l information to get the interfaces and their types before making
+// ParsePtpProfile parses the PTP profile and the ptp4l information to get the interfaces and their types before making
 // a determination on the profile type. Maps in the parsedPtp4lConf struct are guaranteed to not be nil when returned.
-func parsePtpProfile(
+func ParsePtpProfile(
 	profile ptpv1.PtpProfile,
 	reference ProfileReference,
 	controlledNames map[string]bool,
@@ -22,7 +22,7 @@ func parsePtpProfile(
 	profileInfo := &ProfileInfo{
 		Reference: reference,
 	}
-	clientFlag := hasClientFlag(profile.Ptp4lOpts)
+	clientFlag := HasClientFlag(profile.Ptp4lOpts)
 
 	var (
 		err           error
@@ -30,13 +30,13 @@ func parsePtpProfile(
 	)
 
 	if profile.Ptp4lConf != nil && *profile.Ptp4lConf != "" {
-		ptp4lSections, err = getSectionsFromPtp4lConf(*profile.Ptp4lConf)
+		ptp4lSections, err = GetSectionsFromPtp4lConf(*profile.Ptp4lConf)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get sections from ptp4lConf: %w", err)
 		}
 	}
 
-	profileInfo.Interfaces = getInterfacesFromPtp4lSections(clientFlag, ptp4lSections)
+	profileInfo.Interfaces = GetInterfacesFromPtp4lSections(clientFlag, ptp4lSections)
 
 	if profile.Interface != nil && *profile.Interface != "" {
 		ifaceName := iface.Name(*profile.Interface)
@@ -58,11 +58,15 @@ func parsePtpProfile(
 		return nil, fmt.Errorf("failed to determine profile type: %w", err)
 	}
 
+	if profile.PtpSettings != nil {
+		profileInfo.ControllingProfileName = profile.PtpSettings["controllingProfile"]
+	}
+
 	return profileInfo, nil
 }
 
-// getSectionsFromPtp4lConf parses the ptp4l configuration file and returns a map of sections and their key-value pairs.
-func getSectionsFromPtp4lConf(ptp4lConf string) (configSections, error) {
+// GetSectionsFromPtp4lConf parses the ptp4l configuration file and returns a map of sections and their key-value pairs.
+func GetSectionsFromPtp4lConf(ptp4lConf string) (configSections, error) {
 	var currentSectionName string
 
 	sections := make(configSections)
@@ -108,10 +112,10 @@ func getSectionsFromPtp4lConf(ptp4lConf string) (configSections, error) {
 	return sections, nil
 }
 
-// getInterfacesFromPtp4lSections extracts the interfaces and their clock types from the ptp4l configuration sections.
+// GetInterfacesFromPtp4lSections extracts the interfaces and their clock types from the ptp4l configuration sections.
 // The provided clientFlag indicates whether the clientOnly command line flag is set in ptp4lOpts. The returned map is
 // guaranteed to not be nil.
-func getInterfacesFromPtp4lSections(clientFlag bool, sections configSections) map[iface.Name]*InterfaceInfo {
+func GetInterfacesFromPtp4lSections(clientFlag bool, sections configSections) map[iface.Name]*InterfaceInfo {
 	interfaces := make(map[iface.Name]*InterfaceInfo)
 
 	// Setting clientOnly in the global section is equivalent to setting it as a command line flag, meaning all
@@ -224,9 +228,9 @@ func determineProfileType(
 	}
 }
 
-// hasClientFlag checks if the ptp4lOpts string contains any client-only flags. Though the reference PTP profiles use
+// HasClientFlag checks if the ptp4lOpts string contains any client-only flags. Though the reference PTP profiles use
 // only `-s`, this function supports all possible client-only flags that ptp4l supports.
-func hasClientFlag(ptp4lOpts *string) bool {
+func HasClientFlag(ptp4lOpts *string) bool {
 	if ptp4lOpts == nil {
 		return false
 	}

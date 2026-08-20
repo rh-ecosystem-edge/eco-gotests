@@ -53,6 +53,28 @@ func SetHoldoverHardwareConfigSettings(
 	return err
 }
 
+// HasHoldoverParameters reports whether any subsystem in the HardwareConfig's ClockChain has
+// HoldoverParameters set.
+func HasHoldoverParameters(hwConfig *ptp.HardwareConfigBuilder) bool {
+	_, _, err := firstHoldoverParameters(hwConfig)
+
+	return err == nil
+}
+
+// ParsedHardwareConfig is the pure-fact result of parsing one HardwareConfig CR.
+type ParsedHardwareConfig struct {
+	RelatedPtpProfileName string
+	HasHoldoverParameters bool
+}
+
+// ParseHardwareConfig extracts ParsedHardwareConfig facts from one HardwareConfig CR.
+func ParseHardwareConfig(hwConfig *ptp.HardwareConfigBuilder) *ParsedHardwareConfig {
+	return &ParsedHardwareConfig{
+		RelatedPtpProfileName: hwConfig.Definition.Spec.RelatedPtpProfileName,
+		HasHoldoverParameters: HasHoldoverParameters(hwConfig),
+	}
+}
+
 // firstHoldoverParameters returns the HoldoverParameters pointer and its subsystem index
 // from the first subsystem in the ClockChain that has them set.
 func firstHoldoverParameters(
