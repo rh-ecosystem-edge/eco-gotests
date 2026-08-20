@@ -4,14 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"strconv"
 	"time"
 
-	"slices"
-
 	"github.com/redhat-cne/sdk-go/pkg/event"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,48 +53,85 @@ func WithoutCurrentState(ignoreCurrentState bool) WaitForEventOption {
 	}
 }
 
+// LogFetcher is the minimal capability Collector needs from a pod -- fetching its own logs. *pod.Builder
+// already satisfies this; a fake implementation needs no Kubernetes plumbing at all.
+type LogFetcher interface {
+	GetLogsWithOptions(options *corev1.PodLogOptions) ([]byte, error)
+}
+
 // WaitForEvent waits up to the specified timeout for an event to be received by the cloud event consumer. It returns an
 // error if no event matches the provided filter within the timeout period.
 //
 // The startTime is the beginning of the time window to check for events and does not count towards the timeout. All
 // logs between startTime and the current time plus the timeout are checked for events.
 func WaitForEvent(
-	eventPod *pod.Builder,
+	eventPod LogFetcher,
 	startTime time.Time,
 	timeout time.Duration,
 	filter EventFilter,
 	options ...WaitForEventOption) error {
+	collector := NewCollector(eventPod, startTime, filter, options...)
+
+	return wait.PollUntilContextTimeout(
+		context.TODO(), 5*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			matched, err := collector.Poll()
+			if err != nil {
+				klog.V(tsparams.LogLevel).Infof("Failed to poll for events: %v", err)
+
+				return false, nil
+			}
+
+			return len(matched) > 0, nil
+		})
+}
+
+// Collector incrementally accumulates events matching its own filter from eventPod's own logs. Each Poll call
+// fetches only what's new since the previous Poll (or since the collector's own start time, for the first call) and
+// appends the matches to its own growing, append-only list -- it never re-fetches or re-parses logs already scraped.
+type Collector struct {
+	eventPod LogFetcher
+	filter   EventFilter
+	options  waitForEventOptions
+	lastPoll time.Time
+	events   []event.Event
+}
+
+// NewCollector creates a collector whose first Poll call fetches events starting from start.
+func NewCollector(
+	eventPod LogFetcher, start time.Time, filter EventFilter, options ...WaitForEventOption) *Collector {
 	combinedOptions := waitForEventOptions{}
 	for _, option := range options {
 		option(&combinedOptions)
 	}
 
-	return wait.PollUntilContextTimeout(
-		context.TODO(), 5*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			// Each loop we save the previous start time and set the new start time to the current time.
-			// Because the new start time is before the logs are fetched, we can guarantee that no logs are
-			// missed. The potential duplicates will not affect the result.
-			previousStartTime := startTime
-			startTime = time.Now()
+	return &Collector{eventPod: eventPod, filter: filter, options: combinedOptions, lastPoll: start}
+}
 
-			logs, err := eventPod.GetLogsWithOptions(&corev1.PodLogOptions{
-				SinceTime: &metav1.Time{Time: previousStartTime},
-				Container: combinedOptions.container,
-			})
-			if err != nil {
-				klog.V(tsparams.LogLevel).Infof("Failed to get logs starting at %s for pod: %v", previousStartTime, err)
+// Poll fetches any events new since the last Poll call, appends the ones matching the collector's own filter to its
+// accumulated list, and returns everything accumulated so far.
+func (collector *Collector) Poll() ([]event.Event, error) {
+	previousPoll := collector.lastPoll
+	collector.lastPoll = time.Now()
 
-				return false, nil
-			}
+	logs, err := collector.eventPod.GetLogsWithOptions(&corev1.PodLogOptions{
+		SinceTime: &metav1.Time{Time: previousPoll},
+		Container: collector.options.container,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get logs starting at %s: %w", previousPoll, err)
+	}
 
-			klog.V(tsparams.LogLevel).Infof("Logs: %s", string(logs))
+	klog.V(tsparams.LogLevel).Infof("Logs: %s", string(logs))
 
-			extractedEvents := extractEventsFromLogs(logs, combinedOptions.ignoreCurrentState)
+	for _, extractedEvent := range extractEventsFromLogs(logs, collector.options.ignoreCurrentState) {
+		if collector.filter.Filter(extractedEvent) {
+			collector.events = append(collector.events, extractedEvent)
+		}
+	}
 
-			klog.V(tsparams.LogLevel).Infof("Extracted events: %#v\nFilter: %#v", extractedEvents, filter)
+	klog.V(tsparams.LogLevel).Infof("Accumulated events: %#v", collector.events)
 
-			return slices.ContainsFunc(extractedEvents, filter.Filter), nil
-		})
+	return collector.events, nil
 }
 
 // extractEventsFromLogs extracts events from the logs of either the cloud event consumer or the cloud event proxy

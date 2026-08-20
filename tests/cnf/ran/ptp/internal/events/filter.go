@@ -127,12 +127,14 @@ func (f eventFilterHasValue) Filter(e event.Event) bool {
 
 // ValueFilter is an interface that defines a filter for event values. It has a single method, Filter, which takes an
 // event value and returns a boolean indicating whether the value matches the filter. Value filters are expected to be
-// stateless and callable concurrently.
+// stateless and callable concurrently. String renders the filter's own criterion for diagnostic display (e.g.
+// "LOCKED"), independent of any specific event.
 //
 // Implementors of this interface should provide a constructor function that returns a ValueFilter instance and reads
 // like a sentence inside the [HasValue] function.
 type ValueFilter interface {
 	Filter(event.DataValue) bool
+	String() string
 }
 
 // valueFilterWithSyncState is a filter that matches if the event has the specified sync state.
@@ -159,6 +161,11 @@ func (f valueFilterWithSyncState) Filter(value event.DataValue) bool {
 	}
 
 	return valueString == string(f)
+}
+
+// String implements the ValueFilter interface.
+func (f valueFilterWithSyncState) String() string {
+	return string(f)
 }
 
 // valueFilterWithMetric is a filter that matches if the event has the specified metric value.
@@ -191,6 +198,11 @@ func (f valueFilterWithMetric) Filter(value event.DataValue) bool {
 	return int64(math.Round(valueFloat)) == int64(f)
 }
 
+// String implements the ValueFilter interface.
+func (f valueFilterWithMetric) String() string {
+	return fmt.Sprintf("metric=%d", int64(f))
+}
+
 // valueFilterOnNode is a filter that matches if the event is on the specified node.
 type valueFilterOnNode string
 
@@ -207,6 +219,11 @@ func OnNode(nodeName string) ValueFilter {
 // name. The resource is expected to be in the format "/cluster/node/<node-name>/...".
 func (f valueFilterOnNode) Filter(value event.DataValue) bool {
 	return strings.HasPrefix(value.Resource, fmt.Sprintf("/cluster/node/%s", string(f)))
+}
+
+// String implements the ValueFilter interface.
+func (f valueFilterOnNode) String() string {
+	return fmt.Sprintf("node=%s", string(f))
 }
 
 // valueFilterOnInterface is a filter that matches if the event is on the specified interface.
@@ -234,6 +251,11 @@ func (f valueFilterOnInterface) Filter(value event.DataValue) bool {
 	return resourceFields[4] == string(f)
 }
 
+// String implements the ValueFilter interface.
+func (f valueFilterOnInterface) String() string {
+	return fmt.Sprintf("interface=%s", string(f))
+}
+
 // valueFilterResourceContains is a filter that matches if the event resource contains the specified string.
 type valueFilterResourceContains string
 
@@ -250,4 +272,9 @@ func ContainingResource(s string) ValueFilter {
 // makes no assumptions about the format of the resource string, so it can be used to match any part of the resource.
 func (f valueFilterResourceContains) Filter(value event.DataValue) bool {
 	return strings.Contains(value.Resource, string(f))
+}
+
+// String implements the ValueFilter interface.
+func (f valueFilterResourceContains) String() string {
+	return fmt.Sprintf("resource contains %q", string(f))
 }
