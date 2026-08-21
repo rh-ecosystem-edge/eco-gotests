@@ -36,6 +36,8 @@ const (
 	LabelLACPTestCases = "lacp"
 	// LabelBondModeTestCases represents SR-IOV Bond CNI mode tests that can be used for test cases selection.
 	LabelBondModeTestCases = "bond-mode"
+	// LabelBondCNITestCases represents Bond CNI + switch LAG connectivity matrix tests.
+	LabelBondCNITestCases = "bond-cni"
 	// LabelOperatorConfigDefaultsTestCases represents SriovOperatorConfig default values tests
 	// that can be used for test cases selection.
 	LabelOperatorConfigDefaultsTestCases = "operatorconfig-defaults"

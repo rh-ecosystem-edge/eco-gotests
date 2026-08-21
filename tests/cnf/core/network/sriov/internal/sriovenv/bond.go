@@ -7,8 +7,11 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/tsparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
+	"k8s.io/klog/v2"
 )
 
 // Bond CNI mode strings for CreateBondNAD. Must match eco-goinfra/pkg/nad validModes
@@ -18,6 +21,11 @@ const (
 	BondModeActiveBackup = "active-backup"
 	BondModeBalanceRR    = "balance-rr"
 	BondModeBalanceXOR   = "balance-xor"
+
+	// Bond xmitHashPolicy values for balance-xor (Bond CNI JSON field xmitHashPolicy).
+	BondXmitHashPolicyLayer2  = "layer2"
+	BondXmitHashPolicyLayer23 = "layer2+3"
+	BondXmitHashPolicyLayer34 = "layer3+4"
 
 	// BondInterfaceName is the default bond master interface created by the Bond CNI plugin.
 	BondInterfaceName = "bond0"
@@ -29,6 +37,25 @@ const (
 	BondActiveSlavePollInterval = 100 * time.Millisecond
 	// BondActiveSlaveChangeTimeout is the maximum wait for bond active_slave or MII state transitions.
 	BondActiveSlaveChangeTimeout = 30 * time.Second
+
+	// BondMTU1280 and BondMTU9000 are the MTUs used by shared bond-mode SR-IOV policies.
+	BondMTU1280 = 1280
+	BondMTU9000 = 9000
+	// BondMTUDefault is the standard L2 MTU used by Bond CNI xmitHashPolicy cases.
+	BondMTUDefault = 1500
+
+	// Shared bond policy resource names (must stay stable across bond-mode and bond-cni).
+	BondResourcePF1Small   = "sriovbondpf1mtu1280"
+	BondResourcePF1Jumbo   = "sriovbondpf1mtu9000"
+	BondResourcePF2Small   = "sriovbondpf2mtu1280"
+	BondResourcePF2Jumbo   = "sriovbondpf2mtu9000"
+	BondResourcePF1Default = "sriovbondpf1mtu1500"
+	BondResourcePF2Default = "sriovbondpf2mtu1500"
+
+	// BondMinVFsPerPF is the minimum total VFs per PF for bond tests on five-VF devices.
+	BondMinVFsPerPF = 5
+	// BondMinVFsStandardLayout is the minimum total VFs per PF for the standard small/jumbo split.
+	BondMinVFsStandardLayout = 10
 )
 
 // CreateBondNAD builds a Bond CNI NAD builder in the SR-IOV test namespace.
@@ -40,7 +67,20 @@ func CreateBondNAD(
 	mtu,
 	slaveCount int,
 ) (*nad.Builder, error) {
-	return createBondNAD(nadName, mode, mtu, slaveCount, &nad.IPAM{Type: ipamType})
+	return createBondNAD(nadName, mode, mtu, slaveCount, &nad.IPAM{Type: ipamType}, "")
+}
+
+// CreateBondNADWithXmitHashPolicy builds a Bond CNI NAD like CreateBondNAD with
+// MasterBondPlugin.WithXmitHashPolicy set (layer2, layer2+3, or layer3+4).
+func CreateBondNADWithXmitHashPolicy(
+	nadName,
+	mode,
+	ipamType string,
+	mtu,
+	slaveCount int,
+	xmitHashPolicy string,
+) (*nad.Builder, error) {
+	return createBondNAD(nadName, mode, mtu, slaveCount, &nad.IPAM{Type: ipamType}, xmitHashPolicy)
 }
 
 // CreateBondNADWithWhereabouts builds a Bond CNI NAD with Whereabouts IPAM on the bond interface.
@@ -58,7 +98,7 @@ func CreateBondNADWithWhereabouts(
 		return nil, err
 	}
 
-	return createBondNAD(nadName, mode, mtu, slaveCount, ipam)
+	return createBondNAD(nadName, mode, mtu, slaveCount, ipam, "")
 }
 
 // bondWhereaboutsIPAM builds Whereabouts IPAM with an explicit alloc pool so the gateway is not
@@ -91,6 +131,7 @@ func createBondNAD(
 	mtu,
 	slaveCount int,
 	ipam *nad.IPAM,
+	xmitHashPolicy string,
 ) (*nad.Builder, error) {
 	if slaveCount < 2 {
 		return nil, fmt.Errorf("slaveCount must be >= 2, got %d", slaveCount)
@@ -109,6 +150,10 @@ func createBondNAD(
 		WithLinks(links).
 		WithCapabilities(&nad.Capability{IPs: true}).
 		WithIPAM(ipam)
+
+	if xmitHashPolicy != "" {
+		plugin = plugin.WithXmitHashPolicy(xmitHashPolicy)
+	}
 
 	masterPlugin, err := plugin.GetMasterPluginConfig()
 	if err != nil {
@@ -196,6 +241,69 @@ func WaitForBondSlaveMIIDown(clientPod *pod.Builder, bondName, downSlave string)
 	}
 }
 
+// WaitForBondDegradedOneSlaveDown polls until the bond is up with at least one slave MII-down
+// and one MII-up.
+func WaitForBondDegradedOneSlaveDown(clientPod *pod.Builder, bondName string) error {
+	deadline := time.Now().Add(BondActiveSlaveChangeTimeout)
+
+	var (
+		lastSlaves map[string]string
+		lastBondUp bool
+		lastErr    error
+	)
+
+	for {
+		degraded, bondUp, slaves, err := checkBondDegradedOneSlaveDown(clientPod, bondName)
+		if err != nil {
+			lastErr = err
+		} else {
+			lastErr = nil
+			lastBondUp = bondUp
+			lastSlaves = slaves
+
+			if degraded {
+				return nil
+			}
+		}
+
+		if time.Now().After(deadline) {
+			if lastErr != nil {
+				return fmt.Errorf(
+					"bond %q did not degrade to at least one slave MII down within %v "+
+						"(bondUp=%t, slaves=%v, lastErr=%w)",
+					bondName, BondActiveSlaveChangeTimeout, lastBondUp, lastSlaves, lastErr)
+			}
+
+			return fmt.Errorf(
+				"bond %q did not degrade to at least one slave MII down within %v (bondUp=%t, slaves=%v)",
+				bondName, BondActiveSlaveChangeTimeout, lastBondUp, lastSlaves)
+		}
+
+		time.Sleep(BondActiveSlavePollInterval)
+	}
+}
+
+// checkBondDegradedOneSlaveDown reports whether the bond is up with mixed slave MII state.
+func checkBondDegradedOneSlaveDown(
+	clientPod *pod.Builder, bondName string,
+) (degraded, bondUp bool, slaves map[string]string, err error) {
+	bondUp, err = isBondInterfaceUp(clientPod, bondName)
+	if err != nil {
+		return false, false, nil, err
+	}
+
+	slaves, err = getBondSlaveMIIStatuses(clientPod, bondName)
+	if err != nil {
+		return false, bondUp, nil, err
+	}
+
+	degraded = bondUp &&
+		countBondSlavesWithMII(slaves, "down") >= 1 &&
+		countBondSlavesWithMII(slaves, "up") >= 1
+
+	return degraded, bondUp, slaves, nil
+}
+
 // WaitForBondSlavesMIIUp polls until all bond slaves report MII up and the bond is up.
 func WaitForBondSlavesMIIUp(clientPod *pod.Builder, bondName string) error {
 	deadline := time.Now().Add(BondActiveSlaveChangeTimeout)
@@ -240,6 +348,25 @@ func SetLinkStatus(podBuilder *pod.Builder, nic, status string) error {
 	}
 
 	return nil
+}
+
+// VerifyBondXmitHashPolicy checks sysfs xmit_hash_policy for the expected token (field match).
+func VerifyBondXmitHashPolicy(podBuilder *pod.Builder, bondName, expectedPolicy string) error {
+	out, err := podBuilder.ExecCommand([]string{"bash", "-c",
+		fmt.Sprintf("cat /sys/class/net/%s/bonding/xmit_hash_policy", bondName)})
+	if err != nil {
+		return fmt.Errorf("failed to read bond xmit_hash_policy: %w (out=%s)", err, out.String())
+	}
+
+	fields := strings.Fields(strings.TrimSpace(out.String()))
+	for _, field := range fields {
+		if field == expectedPolicy {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("bond xmit_hash_policy mismatch: expected %q, got %q",
+		expectedPolicy, strings.TrimSpace(out.String()))
 }
 
 // VerifyBondInterfaceState checks that the bond interface is up, has the expected mode, and slave count.
@@ -335,4 +462,176 @@ func countBondSlavesWithMII(slaves map[string]string, status string) int {
 	}
 
 	return count
+}
+
+// BondFunctionalPolicyNames are the shared MTU-split policies created by SetupBondStack.
+var BondFunctionalPolicyNames = []string{
+	"bond-policy-pf1-mtu1280",
+	"bond-policy-pf1-mtu9000",
+	"bond-policy-pf2-mtu1280",
+	"bond-policy-pf2-mtu9000",
+}
+
+// bondSriovPolicyNames lists bond suite policy names from current and prior revisions.
+var bondSriovPolicyNames = []string{
+	"ipv4-policy-pf1-mtu500",
+	"ipv4-policy-pf1-mtu9000",
+	"ipv4-policy-pf2-mtu500",
+	"ipv4-policy-pf2-mtu9000",
+	"ipv6-policy-pf1-mtu1280",
+	"ipv6-policy-pf1-mtu9000",
+	"ipv6-policy-pf2-mtu1280",
+	"ipv6-policy-pf2-mtu9000",
+	"bond-policy-pf1-mtu1280",
+	"bond-policy-pf1-mtu9000",
+	"bond-policy-pf2-mtu1280",
+	"bond-policy-pf2-mtu9000",
+	"bond-policy-pf1-mtu1500",
+	"bond-policy-pf2-mtu1500",
+	"bond-scale-policy-pf1",
+	"bond-scale-policy-pf2",
+	"bond-scale-policy-pf1-ipv6",
+	"bond-scale-policy-pf2-ipv6",
+}
+
+// BondNetworkConfig describes a single SR-IOV network for bond slave creation.
+type BondNetworkConfig struct {
+	Name     string
+	Resource string
+}
+
+// BondStackParams configures shared bond SR-IOV policies and slave networks.
+type BondStackParams struct {
+	PF1,
+	PF2 string
+	PF1NumVFs,
+	PF2NumVFs int
+	VFSmallStart,
+	VFSmallEnd,
+	VFLargeStart,
+	VFLargeEnd int
+	Networks       []BondNetworkConfig
+	DefaultMTUOnly bool // when true, create only MTU 1500 policies (Bond CNI xmitHashPolicy suite)
+}
+
+// SelectBondVFLayout returns VF ranges for shared 1280/9000 bond policies on each PF.
+func SelectBondVFLayout(minTotal int) (vfSmallEnd, vfLargeStart, vfLargeEnd int, ok bool) {
+	if minTotal < BondMinVFsPerPF {
+		return 0, 0, 0, false
+	}
+
+	switch {
+	case minTotal >= BondMinVFsStandardLayout:
+		// Standard layout: small MTU VFs 0-4, jumbo MTU VFs 5-9.
+		return 4, 5, 9, true
+	default:
+		// Five-VF layout: small MTU VFs 0-1, jumbo MTU VFs 2-4.
+		return 1, 2, 4, true
+	}
+}
+
+// SetupBondStack creates shared bond SR-IOV policies and slave networks, then waits for
+// SR-IOV/MCP stability after policy creation.
+func SetupBondStack(params BondStackParams) error {
+	type policySpec struct {
+		pfSuffix string
+		resource string
+		pf       string
+		numVFs   int
+		mtu      int
+		vfStart  int
+		vfEnd    int
+	}
+
+	policies := []policySpec{
+		{"pf1", BondResourcePF1Small, params.PF1, params.PF1NumVFs, BondMTU1280, params.VFSmallStart, params.VFSmallEnd},
+		{"pf1", BondResourcePF1Jumbo, params.PF1, params.PF1NumVFs, BondMTU9000, params.VFLargeStart, params.VFLargeEnd},
+		{"pf2", BondResourcePF2Small, params.PF2, params.PF2NumVFs, BondMTU1280, params.VFSmallStart, params.VFSmallEnd},
+		{"pf2", BondResourcePF2Jumbo, params.PF2, params.PF2NumVFs, BondMTU9000, params.VFLargeStart, params.VFLargeEnd},
+	}
+
+	if params.DefaultMTUOnly {
+		klog.Infof("Creating default-MTU (%d) SR-IOV bond policies only", BondMTUDefault)
+
+		policies = []policySpec{
+			{
+				"pf1", BondResourcePF1Default, params.PF1, params.PF1NumVFs,
+				BondMTUDefault, params.VFLargeStart, params.VFLargeEnd,
+			},
+			{
+				"pf2", BondResourcePF2Default, params.PF2, params.PF2NumVFs,
+				BondMTUDefault, params.VFLargeStart, params.VFLargeEnd,
+			},
+		}
+	}
+
+	for _, policy := range policies {
+		policyName := fmt.Sprintf("bond-policy-%s-mtu%d", policy.pfSuffix, policy.mtu)
+
+		if err := CreateSriovPolicy(
+			policyName, policy.resource, policy.pf, policy.mtu, policy.vfStart, policy.vfEnd, policy.numVFs,
+		); err != nil {
+			return fmt.Errorf("failed to create bond %s MTU%d policy: %w", policy.pfSuffix, policy.mtu, err)
+		}
+	}
+
+	if err := sriovoperator.WaitForSriovAndMCPStable(
+		APIClient, tsparams.MCOWaitTimeout, tsparams.DefaultStableDuration,
+		NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace); err != nil {
+		return fmt.Errorf("failed to wait for SR-IOV and MCP stability after bond policies: %w", err)
+	}
+
+	if err := CreateBondSlaveNetworks(params.Networks); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// CreateBondSlaveNetworks creates bond slave SriovNetworks without IPAM.
+func CreateBondSlaveNetworks(configs []BondNetworkConfig) error {
+	for _, cfg := range configs {
+		if err := CreateSriovBondNetwork(cfg.Name, cfg.Resource); err != nil {
+			return fmt.Errorf("failed to create network %s: %w", cfg.Name, err)
+		}
+	}
+
+	return nil
+}
+
+// DeleteBondSriovPolicies deletes the named SriovNetworkNodePolicies and waits for MCP to stabilize.
+func DeleteBondSriovPolicies(policyNames []string) error {
+	deleted := false
+
+	for _, name := range policyNames {
+		policy, pullErr := sriov.PullPolicy(APIClient, name, NetConfig.SriovOperatorNamespace)
+		if pullErr != nil {
+			// eco-goinfra PullPolicy returns a custom "does not exist" error, not k8s NotFound.
+			if strings.Contains(pullErr.Error(), "does not exist") {
+				continue
+			}
+
+			return fmt.Errorf("failed to pull SR-IOV policy %s: %w", name, pullErr)
+		}
+
+		if err := policy.Delete(); err != nil {
+			return fmt.Errorf("failed to delete SR-IOV policy %s: %w", name, err)
+		}
+
+		deleted = true
+	}
+
+	if !deleted {
+		return nil
+	}
+
+	return sriovoperator.WaitForSriovAndMCPStable(
+		APIClient, tsparams.MCOWaitTimeout, tsparams.DefaultStableDuration,
+		NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
+}
+
+// CleanupStaleBondSriovPolicies removes known bond-related policies from current and prior
+// suite revisions so a fresh bond stack can be installed.
+func CleanupStaleBondSriovPolicies() error {
+	return DeleteBondSriovPolicies(bondSriovPolicyNames)
 }
