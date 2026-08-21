@@ -30,8 +30,13 @@ type Builder struct {
 type AdditionalOptions func(builder *Builder) (*Builder, error)
 
 const (
+	errNameEmpty              = "DeviceConfig 'name' cannot be empty"
+	errNamespaceEmpty         = "DeviceConfig 'namespace' cannot be empty"
+	errDriversImageEmpty      = "DeviceConfig 'driversImage' cannot be empty"
 	errDriverVersionEmpty     = "DeviceConfig 'driverVersion' cannot be empty"
 	errDevicePluginImageEmpty = "DeviceConfig 'devicePluginImage' cannot be empty"
+	errDRADriverImageEmpty    = "DeviceConfig 'draDriverImage' cannot be empty"
+	errDeviceClassesEmpty     = "DeviceConfig 'deviceClasses' cannot be empty"
 )
 
 // NewBuilder creates a new instance of Builder.
@@ -74,7 +79,7 @@ func NewBuilder(
 	if name == "" {
 		klog.V(100).Infof("The name of the DeviceConfig is empty")
 
-		builder.errorMsg = "DeviceConfig 'name' cannot be empty"
+		builder.errorMsg = errNameEmpty
 
 		return builder
 	}
@@ -82,7 +87,7 @@ func NewBuilder(
 	if namespace == "" {
 		klog.V(100).Infof("The namespace of the DeviceConfig is empty")
 
-		builder.errorMsg = "DeviceConfig 'namespace' cannot be empty"
+		builder.errorMsg = errNamespaceEmpty
 
 		return builder
 	}
@@ -90,7 +95,7 @@ func NewBuilder(
 	if driversImage == "" {
 		klog.V(100).Infof("The driversImage of the DeviceConfig is empty")
 
-		builder.errorMsg = "DeviceConfig 'driversImage' cannot be empty"
+		builder.errorMsg = errDriversImageEmpty
 
 		return builder
 	}
@@ -155,7 +160,7 @@ func NewBuilderWithInClusterBuild(
 	if name == "" {
 		klog.V(100).Infof("The name of the DeviceConfig is empty")
 
-		builder.errorMsg = "DeviceConfig 'name' cannot be empty"
+		builder.errorMsg = errNameEmpty
 
 		return builder
 	}
@@ -163,7 +168,7 @@ func NewBuilderWithInClusterBuild(
 	if namespace == "" {
 		klog.V(100).Infof("The namespace of the DeviceConfig is empty")
 
-		builder.errorMsg = "DeviceConfig 'namespace' cannot be empty"
+		builder.errorMsg = errNamespaceEmpty
 
 		return builder
 	}
@@ -183,6 +188,206 @@ func NewBuilderWithInClusterBuild(
 
 		return builder
 	}
+
+	return builder
+}
+
+// NewBuilderWithDRA creates a new instance of Builder for DRA mode.
+// In DRA mode, draDriverImage replaces devicePluginImage and custom scheduler.
+func NewBuilderWithDRA(
+	apiClient *clients.Settings,
+	name, namespace string,
+	driversImage, driverVersion, draDriverImage string) *Builder {
+	klog.V(100).Infof(
+		"Initializing new DeviceConfig (DRA mode) with name: %s, namespace: %s",
+		name, namespace)
+
+	if apiClient == nil {
+		klog.V(100).Infof("The apiClient is empty")
+
+		return nil
+	}
+
+	err := apiClient.AttachScheme(neuronv1beta1.AddToScheme)
+	if err != nil {
+		klog.V(100).Infof("Failed to add neuron v1beta1 scheme to client schemes")
+
+		return nil
+	}
+
+	builder := &Builder{
+		apiClient: apiClient,
+		Definition: &neuronv1beta1.DeviceConfig{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: namespace,
+			},
+			Spec: neuronv1beta1.DeviceConfigSpec{
+				DriversImage:   driversImage,
+				DriverVersion:  driverVersion,
+				DRADriverImage: draDriverImage,
+			},
+		},
+	}
+
+	if name == "" {
+		klog.V(100).Infof("The name of the DeviceConfig is empty")
+
+		builder.errorMsg = errNameEmpty
+
+		return builder
+	}
+
+	if namespace == "" {
+		klog.V(100).Infof("The namespace of the DeviceConfig is empty")
+
+		builder.errorMsg = errNamespaceEmpty
+
+		return builder
+	}
+
+	if driversImage == "" {
+		klog.V(100).Infof("The driversImage of the DeviceConfig is empty")
+
+		builder.errorMsg = errDriversImageEmpty
+
+		return builder
+	}
+
+	if driverVersion == "" {
+		klog.V(100).Infof("The driverVersion of the DeviceConfig is empty")
+
+		builder.errorMsg = errDriverVersionEmpty
+
+		return builder
+	}
+
+	if draDriverImage == "" {
+		klog.V(100).Infof("The draDriverImage of the DeviceConfig is empty")
+
+		builder.errorMsg = errDRADriverImageEmpty
+
+		return builder
+	}
+
+	return builder
+}
+
+// NewBuilderWithInClusterBuildDRA creates a new instance of Builder for DRA mode with
+// in-cluster build. DriversImage is left empty so KMM triggers in-cluster builds.
+func NewBuilderWithInClusterBuildDRA(
+	apiClient *clients.Settings,
+	name, namespace string,
+	driverVersion, draDriverImage string) *Builder {
+	klog.V(100).Infof(
+		"Initializing new DeviceConfig (DRA + in-cluster build) with name: %s, namespace: %s",
+		name, namespace)
+
+	if apiClient == nil {
+		klog.V(100).Infof("The apiClient is empty")
+
+		return nil
+	}
+
+	err := apiClient.AttachScheme(neuronv1beta1.AddToScheme)
+	if err != nil {
+		klog.V(100).Infof("Failed to add neuron v1beta1 scheme to client schemes")
+
+		return nil
+	}
+
+	builder := &Builder{
+		apiClient: apiClient,
+		Definition: &neuronv1beta1.DeviceConfig{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: namespace,
+			},
+			Spec: neuronv1beta1.DeviceConfigSpec{
+				DriverVersion:  driverVersion,
+				DRADriverImage: draDriverImage,
+			},
+		},
+	}
+
+	if name == "" {
+		klog.V(100).Infof("The name of the DeviceConfig is empty")
+
+		builder.errorMsg = errNameEmpty
+
+		return builder
+	}
+
+	if namespace == "" {
+		klog.V(100).Infof("The namespace of the DeviceConfig is empty")
+
+		builder.errorMsg = errNamespaceEmpty
+
+		return builder
+	}
+
+	if driverVersion == "" {
+		klog.V(100).Infof("The driverVersion of the DeviceConfig is empty")
+
+		builder.errorMsg = errDriverVersionEmpty
+
+		return builder
+	}
+
+	if draDriverImage == "" {
+		klog.V(100).Infof("The draDriverImage of the DeviceConfig is empty")
+
+		builder.errorMsg = errDRADriverImageEmpty
+
+		return builder
+	}
+
+	return builder
+}
+
+// WithDRADriverImage sets the DRA driver image for the DeviceConfig.
+func (builder *Builder) WithDRADriverImage(image string) *Builder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof(
+		"Setting DeviceConfig %s in namespace %s with draDriverImage: %s",
+		builder.Definition.Name, builder.Definition.Namespace, image)
+
+	if image == "" {
+		klog.V(100).Infof(errDRADriverImageEmpty)
+
+		builder.errorMsg = errDRADriverImageEmpty
+
+		return builder
+	}
+
+	builder.Definition.Spec.DRADriverImage = image
+
+	return builder
+}
+
+// WithDeviceClasses sets custom DeviceClasses on the DeviceConfig.
+func (builder *Builder) WithDeviceClasses(
+	deviceClasses []neuronv1beta1.DeviceClassSpec) *Builder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof(
+		"Setting DeviceConfig %s in namespace %s with %d deviceClasses",
+		builder.Definition.Name, builder.Definition.Namespace, len(deviceClasses))
+
+	if len(deviceClasses) == 0 {
+		klog.V(100).Infof(errDeviceClassesEmpty)
+
+		builder.errorMsg = errDeviceClassesEmpty
+
+		return builder
+	}
+
+	builder.Definition.Spec.DeviceClasses = deviceClasses
 
 	return builder
 }
