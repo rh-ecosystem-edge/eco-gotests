@@ -32,6 +32,10 @@ const (
 	LabelParallelDrainingTestCases = "paralleldraining"
 	// LabelQinQTestCases represents QinQ label that can be used for test cases selection.
 	LabelQinQTestCases = "qinq"
+	// LabelExternallyManagedTestCases represents ExternallyManaged label that can be used for test cases selection.
+	LabelExternallyManagedTestCases = "externallymanaged"
+	// SriovResourceNameExManagedTrue is the SR-IOV policy and network name for ExternallyManaged tests.
+	SriovResourceNameExManagedTrue = "extmanaged"
 
 	// MCOWaitTimeout represent timeout for mco operations.
 	MCOWaitTimeout = 35 * time.Minute
