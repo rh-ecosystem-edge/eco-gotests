@@ -1,0 +1,1237 @@
+# Synced with oran-o2ims commit 2e34a01972e09fe8c16c512c25533d43053a6af5
+#
+# Copyright (c) 2024 Red Hat, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in
+# compliance with the License. You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software distributed under the License is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied. See the License for the specific language governing permissions and limitations under the
+# License.
+#
+
+openapi: "3.0.0"
+
+info:
+  title: O2IMS Infrastructure Cluster API
+  version: 1.0.0
+  description: |
+    API for O2IMS Infrastructure Cluster
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+
+externalDocs:
+  description: O-RAN O2ims Interface Specification 7.0 (October 2024)
+  url: https://specifications.o-ran.org/download?id=749
+
+servers:
+- url: http://localhost:8000
+
+tags:
+- name: nodeClusters
+  description: |
+    Information about node clusters.
+- name: nodeClusterTypes
+  description: |
+    Information about node cluster types.
+- name: clusterResources
+  description: |
+    Information about cluster resources.
+- name: clusterResourceTypes
+  description: |
+    Information about cluster resource types.
+- name: subscriptions
+  description: |
+    Information about cluster subscriptions.
+
+# Scope enforcement: OAuth scopes are not verified directly from the token's
+# scope claim. The OAuth server translates scopes into group memberships
+# (via the groups claim), and the Authorizer maps those groups to Kubernetes
+# RBAC permissions via SubjectAccessReview. See DD-003 in AGENTS.md.
+security:
+- oauth2:
+  - role:o2ims-admin
+
+paths:
+  /o2ims-infrastructureCluster/api_versions:
+    get:
+      operationId: getAllVersions
+      summary: Get API versions
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+      description: |
+        Returns the complete list of API versions implemented by the service.
+      tags:
+      - metadata
+      responses:
+        '200':
+          description: |
+            Successfully obtained the complete list of versions.
+          content:
+            application/json:
+              schema:
+                $ref: "../common/openapi.yaml#/components/schemas/APIVersions"
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+  /o2ims-infrastructureCluster/v1/api_versions:
+    get:
+      operationId: getMinorVersions
+      summary: Get minor API versions
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+      description: |
+        Returns the list of minor API versions implemented for this major version of the API.
+      tags:
+      - metadata
+      responses:
+        '200':
+          description: |
+            Success
+          content:
+            application/json:
+              schema:
+                $ref: "../common/openapi.yaml#/components/schemas/APIVersions"
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+  /o2ims-infrastructureCluster/v1/nodeClusterTypes:
+    get:
+      operationId: getNodeClusterTypes
+      summary: Get node cluster types
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+      description: |
+        Returns the list of node cluster types.
+      parameters:
+      - $ref: "../common/openapi.yaml#/components/parameters/allFields"
+      - $ref: "../common/openapi.yaml#/components/parameters/excludeFields"
+      - $ref: "../common/openapi.yaml#/components/parameters/fields"
+      - $ref: "../common/openapi.yaml#/components/parameters/filter"
+      tags:
+      - resourceTypes
+      responses:
+        '200':
+          description: |
+            Successfully obtained the list of node cluster types.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NodeClusterType"
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+  /o2ims-infrastructureCluster/v1/nodeClusterTypes/{nodeClusterTypeId}:
+    get:
+      operationId: getNodeClusterType
+      summary: Get a node cluster type
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+      description: |
+        Returns the details of a node cluster type.
+      parameters:
+      - $ref: "#/components/parameters/nodeClusterTypeId"
+      tags:
+      - resourceTypes
+      responses:
+        '200':
+          description: |
+            Successfully obtained the details of the node cluster type.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NodeClusterType"
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '404':
+          description: The specified entity was not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+  /o2ims-infrastructureCluster/v1/nodeClusterTypes/{nodeClusterTypeId}/alarmDictionary:
+    get:
+      operationId: getNodeClusterTypeAlarmDictionary
+      summary: Get an alarm dictionary for a node cluster type
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+      description: |
+        Returns the alarm dictionary for a node cluster type.
+      parameters:
+        - $ref: "#/components/parameters/nodeClusterTypeId"
+      tags:
+        - resourceTypes
+      responses:
+        '200':
+          description: |
+            Successfully obtained the details of the alarm dictionary.
+          content:
+            application/json:
+              schema:
+                $ref: "../common/openapi.yaml#/components/schemas/AlarmDictionary"
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '404':
+          description: The specified entity was not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+  /o2ims-infrastructureCluster/v1/nodeClusters:
+    get:
+      operationId: getNodeClusters
+      summary: Get node clusters
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+      description: |
+        Returns the list of node clusters.
+      parameters:
+      - $ref: "../common/openapi.yaml#/components/parameters/allFields"
+      - $ref: "../common/openapi.yaml#/components/parameters/excludeFields"
+      - $ref: "../common/openapi.yaml#/components/parameters/fields"
+      - $ref: "../common/openapi.yaml#/components/parameters/filter"
+      tags:
+      - resourceTypes
+      responses:
+        '200':
+          description: |
+            Successfully obtained the list of node clusters.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NodeCluster"
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+  /o2ims-infrastructureCluster/v1/nodeClusters/{nodeClusterId}:
+    get:
+      operationId: getNodeCluster
+      summary: Get a node cluster
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+      description: |
+        Returns the details of a node cluster.
+      parameters:
+      - $ref: "#/components/parameters/nodeClusterId"
+      tags:
+      - resourceTypes
+      responses:
+        '200':
+          description: |
+            Successfully obtained the details of the node cluster.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NodeCluster"
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '404':
+          description: The specified entity was not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+  /o2ims-infrastructureCluster/v1/clusterResourceTypes:
+    get:
+      operationId: getClusterResourceTypes
+      summary: Get cluster resource types
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+      description: |
+        Returns the list of cluster resource types.
+      parameters:
+      - $ref: "../common/openapi.yaml#/components/parameters/allFields"
+      - $ref: "../common/openapi.yaml#/components/parameters/excludeFields"
+      - $ref: "../common/openapi.yaml#/components/parameters/fields"
+      - $ref: "../common/openapi.yaml#/components/parameters/filter"
+      tags:
+      - resourceTypes
+      responses:
+        '200':
+          description: |
+            Successfully obtained the list of cluster resource types.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClusterResourceType"
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+  /o2ims-infrastructureCluster/v1/clusterResourceTypes/{clusterResourceTypeId}:
+    get:
+      operationId: getClusterResourceType
+      summary: Get a node cluster type
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+      description: |
+        Returns the details of a node cluster type.
+      parameters:
+      - $ref: "#/components/parameters/clusterResourceTypeId"
+      tags:
+      - resourceTypes
+      responses:
+        '200':
+          description: |
+            Successfully obtained the details of the node cluster type.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClusterResourceType"
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '404':
+          description: The specified entity was not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+  /o2ims-infrastructureCluster/v1/clusterResources:
+    get:
+      operationId: getClusterResources
+      summary: Get cluster resources
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+      description: |
+        Returns the list of cluster resources.
+      parameters:
+      - $ref: "../common/openapi.yaml#/components/parameters/allFields"
+      - $ref: "../common/openapi.yaml#/components/parameters/excludeFields"
+      - $ref: "../common/openapi.yaml#/components/parameters/fields"
+      - $ref: "../common/openapi.yaml#/components/parameters/filter"
+      tags:
+      - resourceTypes
+      responses:
+        '200':
+          description: |
+            Successfully obtained the list of cluster resources.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClusterResource"
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+  /o2ims-infrastructureCluster/v1/clusterResources/{clusterResourceId}:
+    get:
+      operationId: getClusterResource
+      summary: Get a cluster resource
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+      description: |
+        Returns the details of a cluster resource.
+      parameters:
+      - $ref: "#/components/parameters/clusterResourceId"
+      tags:
+      - resourceTypes
+      responses:
+        '200':
+          description: |
+            Successfully obtained the details of the cluster resource.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClusterResource"
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '404':
+          description: The specified entity was not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+  /o2ims-infrastructureCluster/v1/subscriptions:
+    get:
+      operationId: getSubscriptions
+      summary: Get subscriptions
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+        - role:o2ims-subscriber
+      description: |
+        Returns the list of cluster subscriptions.
+      parameters:
+      - $ref: "../common/openapi.yaml#/components/parameters/allFields"
+      - $ref: "../common/openapi.yaml#/components/parameters/excludeFields"
+      - $ref: "../common/openapi.yaml#/components/parameters/fields"
+      - $ref: "../common/openapi.yaml#/components/parameters/filter"
+      tags:
+      - subscriptions
+      responses:
+        '200':
+          description: |
+            Successfully obtained the list of subscriptions.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Subscription'
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+    post:
+      operationId: createSubscription
+      summary: Create subscriptions
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-subscriber
+      description: |
+        Creates an cluster subscription.
+      tags:
+      - subscriptions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Subscription'
+      responses:
+        '201':
+          description: |
+            Successfully created the subscription.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+  /o2ims-infrastructureCluster/v1/subscriptions/{subscriptionId}:
+    get:
+      operationId: getSubscription
+      summary: Get subscription
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+        - role:o2ims-subscriber
+      description: |
+        Returns the details of a subscription.
+      parameters:
+      - $ref: "#/components/parameters/subscriptionId"
+      tags:
+      - subscriptions
+      responses:
+        '200':
+          description: |
+            Successfully obtained the details of the subscription.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '404':
+          description: The specified entity was not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+    delete:
+      operationId: deleteSubscription
+      summary: Delete subscription
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-subscriber
+      description: |
+        Deletes a subscription.
+      parameters:
+      - $ref: "#/components/parameters/subscriptionId"
+      tags:
+      - subscriptions
+      responses:
+        '200':
+          description: |
+            Successfully deleted the subscription.
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '404':
+          description: The specified entity was not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+  /o2ims-infrastructureCluster/v1/alarmDictionaries:
+    get:
+      operationId: getAlarmDictionaries
+      summary: Get alarm dictionaries
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+      description: |
+        Returns the list of alarm dictionaries.
+      parameters:
+        - $ref: "../common/openapi.yaml#/components/parameters/allFields"
+        - $ref: "../common/openapi.yaml#/components/parameters/excludeFields"
+        - $ref: "../common/openapi.yaml#/components/parameters/fields"
+        - $ref: "../common/openapi.yaml#/components/parameters/filter"
+      tags:
+        - dictionaries
+      responses:
+        '200':
+          description: |
+            Successfully obtained the list of alarm dictionaries.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "../common/openapi.yaml#/components/schemas/AlarmDictionary"
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+  /o2ims-infrastructureCluster/v1/alarmDictionaries/{alarmDictionaryId}:
+    get:
+      operationId: getAlarmDictionary
+      summary: Get an alarm dictionary
+      security:
+      - oauth2:
+        - role:o2ims-admin
+        - role:o2ims-reader
+      description: |
+        Returns the details of an alarm dictionary.
+      parameters:
+        - $ref: "../common/openapi.yaml#/components/parameters/alarmDictionaryId"
+      tags:
+        - dictionaries
+      responses:
+        '200':
+          description: |
+            Successfully obtained the details of an alarm dictionary.
+          content:
+            application/json:
+              schema:
+                $ref: "../common/openapi.yaml#/components/schemas/AlarmDictionary"
+        '400':
+          description: Bad request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '403':
+          description: Forbidden
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '404':
+          description: The specified entity was not found.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+        '500':
+          description: Internal server error.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
+
+components:
+  securitySchemes:
+    oauth2:
+      type: oauth2
+      description: This API uses OAuth 2 with the client credentials flow.
+      flows:
+        clientCredentials:
+          tokenUrl: https://keycloak.example.com/realms/oran/protocol/openid-connect/token
+          scopes:
+            role:o2ims-reader: O2IMS Reader Role
+            role:o2ims-subscriber: O2IMS Subscriber Role
+
+  parameters:
+    nodeClusterId:
+      name: nodeClusterId
+      description: |
+        Unique identifier of a node cluster.
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      example: 65221564-8b05-416a-bfc3-c250bc64e1aa
+
+    nodeClusterTypeId:
+      name: nodeClusterTypeId
+      description: |
+        Unique identifier of a node cluster type.
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      example: 38dcb63b-b1f0-4d2c-88bf-56446670ef01
+
+    clusterResourceId:
+      name: clusterResourceId
+      description: |
+        Unique identifier of a cluster resource.
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      example: 38dcb63b-b1f0-4d2c-88bf-56446670ef01
+
+    clusterResourceTypeId:
+      name: clusterResourceTypeId
+      description: |
+        Unique identifier of a cluster resource type.
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      example: 31a69575-3f90-4eb5-b8fa-8f8e23f99cf0
+
+    subscriptionId:
+      name: subscriptionId
+      description: |
+        Unique identifier of a subscription.
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      example: aa83d0ba-a5ee-4f1f-be84-f334b21166cf
+
+  schemas:
+    NodeClusterType:
+      description: Information about a Node Cluster Type
+      type: object
+      properties:
+        nodeClusterTypeId:
+          type: string
+          format: uuid
+          description: |
+            Unique identifier for the NodeClusterType instance
+        name:
+          type: string
+          description: |
+            Name of the Node Cluster Type
+        description:
+          type: string
+          description: |
+            Human readable description of the Node Cluster Type.
+        extensions:
+          type: object
+          additionalProperties: {}
+          description: |
+            These are unspecified (not standardized) properties (keys) which are tailored extend the information
+            provided about the Node Cluster Type.
+      required:
+      - nodeClusterTypeId
+      - name
+      - description
+
+    NodeCluster:
+      description: Information about a Node Cluster
+      type: object
+      properties:
+        nodeClusterId:
+          type: string
+          format: uuid
+          description: |
+            Unique identifier for the NodeClusterType instance
+        clientNodeClusterId:
+          type: string
+          format: uuid
+          description: |
+            Unique identifier for the NodeCluster instance assigned by the consumer who requested its creation
+        name:
+          type: string
+          description: |
+            Name of the NodeCluster.
+        description:
+          type: string
+          description: |
+            Human readable description of the NodeCluster.
+        extensions:
+          type: object
+          additionalProperties: {}
+          description: |
+            These are unspecified (not standardized) properties (keys) which are tailored extend the information
+            provided about the NodeCluster.
+        clusterDistributionDescription:
+          type: string
+          description: |
+            Human readable text identifying the method of distribution of ClusterResources over OCloud Sites.
+        nodeClusterTypeId:
+          type: string
+          format: uuid
+          description: |
+            Identifier for the NodeClusterType that this NodeCluster is.
+        artifactResourceId:
+          type: string
+          format: uuid
+          description: |
+            Identifier for the template artifact which this NodeCluster is based on.
+        clusterResourceIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: |
+            The list of cluster resource identifiers that are used to construct this NodeCluster.
+        clusterResourceGroups:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: |
+            Optional list node groups that comprise the cluster resources which compose the NodeCluster
+      required:
+      - nodeClusterId
+      - clientNodeClusterId
+      - name
+      - description
+      - clusterDistributionDescription
+      - nodeClusterTypeId
+      - artifactResourceId
+      - clusterResourceIds
+
+    ClusterResourceType:
+      description: Information about a Cluster Resource Type
+      type: object
+      properties:
+        clusterResourceTypeId:
+          type: string
+          format: uuid
+          description: |
+            Unique identifier for the ClusterResourceType instance
+        name:
+          type: string
+          description: |
+            Name of the Cluster Resource Type
+        description:
+          type: string
+          description: |
+            Human readable description of the Cluster Resource Type.
+        extensions:
+          type: object
+          additionalProperties: {}
+          description: |
+            These are unspecified (not standardized) properties (keys) which are tailored extend the information
+            provided about the Cluster Resource Type.
+      required:
+      - clusterResourceTypeId
+      - name
+      - description
+
+    ClusterResource:
+      description: Information about a Cluster Resource
+      type: object
+      properties:
+        clusterResourceId:
+          type: string
+          format: uuid
+          description: |
+            Unique identifier for the ClusterResource instance
+        name:
+          type: string
+          description: |
+            Name of the cluster resource
+        description:
+          type: string
+          description: |
+            Human readable description of the cluster resource.
+        extensions:
+          type: object
+          additionalProperties: {}
+          description: |
+            These are unspecified (not standardized) properties (keys) which are tailored extend the information
+            provided about the Cluster Resource.
+        clusterResourceTypeId:
+          type: string
+          format: uuid
+          description: |
+            Identifier for the ClusterResourceType for this resource.
+        memberOf:
+          type: array
+          items:
+            type: string
+          description: |
+            list of other ClusterResources which are linked together.
+        artifactResourceIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: |
+            Identifiers for the artifact(s) which this resource is based on.
+        resourceId:
+          type: string
+          format: uuid
+          description: |
+            Identifier for the inventory resource which this resource is mapped to
+      required:
+      - clusterResourceId
+      - name
+      - description
+      - clusterResourceTypeId
+      - resourceId
+
+    Subscription:
+      description: |
+        Information about an inventory subscription.
+      type: object
+      properties:
+        subscriptionId:
+          type: string
+          format: uuid
+          readOnly: true
+          description: Identifier for the Subscription. This identifier is allocated by the O-Cloud.
+          example: "65221564-8b05-416a-bfc3-c250bc64e1aa"
+        consumerSubscriptionId:
+          type: string
+          format: uuid
+          description: Identifier for the consumer of events sent due to the Subscription.
+        filter:
+          type: string
+          description: |
+            Criteria for events which do not need to be reported or will be filtered by the subscription 
+            notification service. Therefore, if a filter is not provided then all events are reported.
+        callback:
+          type: string
+          description: |
+            The fully qualified URI to a consumer procedure which can process a Post of the 
+            InventoryEventNotification.
+          example: https://smo.example.com/smo/v1/ocloud_inventory_observer
+      required:
+      - callback
+
+    ClusterChangeNotification:
+      description: Information about an inventory change notification
+      type: object
+      properties:
+        notificationId:
+          type: string
+          format: uuid
+          description: |
+            A unique identifier to represent this notification event
+        consumerSubscriptionId:
+          type: string
+          format: uuid
+          description: |
+            The value provided by the consumer in the subscription
+        notificationEventType:
+          type: integer
+          enum: [ 0, 1, 2 ]
+          description: |
+            One of the following values: 0 - create, 1 - modify, 2 - delete
+        objectRef:
+          type: string
+          description: |
+            The URL to the object. This is not required if the notificationEventType is 2 (DELETE). It will point to
+            one of the following data types defined in clause 3.2.6 and the reference will match the type of objects
+            supplied in priorObjectState and/or postObjectState.
+        priorObjectState:
+          type: object
+          description: |
+            This is required if the notificationEventType is 1 (MODIFY) or 2 (DELETE) and is one of the following
+            data types defined in clause 3.2.6 and will match the type of object in postObjectState and/or the type
+            referred to in objectRef.
+        postObjectState:
+          type: object
+          description: |
+            This is required if the notificationEventType is 0 (CREATE) or 1 (MODIFY) and is one of the following data
+            types defined in clause 3.2.6 and will match the type of object in priorObjectState and/or the type
+            referred to in objectRef.
+      required:
+      - notificationId
+      - notificationEventType

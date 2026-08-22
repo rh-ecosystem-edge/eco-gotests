@@ -8,6 +8,7 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/alarms"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/artifacts"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/cluster"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/provisioning"
 )
 
@@ -22,6 +23,8 @@ const (
 	ArtifactsClientType ClientType = "ArtifactsClient"
 	// AlarmsClientType is the client type for the alarms client.
 	AlarmsClientType ClientType = "AlarmsClient"
+	// ClusterClientType is the client type for the cluster client.
+	ClusterClientType ClientType = "ClusterClient"
 )
 
 // ClientBuilder is a builder for creating clients that correspond to different parts of the O-RAN O2IMS API. Unlike
@@ -190,6 +193,37 @@ func (builder *ClientBuilder) BuildAlarms() (*AlarmsClient, error) {
 	}
 
 	return &AlarmsClient{client}, nil
+}
+
+// BuildCluster creates a new ClusterClient using the configuration set on this builder. If the builder has an
+// error message, it will be returned here. This method does not modify the builder so the builder can be reused.
+//
+// Unlike the provisioning client, the cluster client does not serve as a runtimeclient.Client.
+func (builder *ClientBuilder) BuildCluster() (*ClusterClient, error) {
+	if err := builder.validate(); err != nil {
+		return nil, err
+	}
+
+	var opts []cluster.ClientOption
+
+	if builder.client != nil {
+		opts = append(opts, cluster.WithHTTPClient(builder.client))
+	}
+
+	if builder.token != "" {
+		opts = append(opts, cluster.WithRequestEditorFn(func(_ context.Context, req *http.Request) error {
+			req.Header.Set("Authorization", "Bearer "+builder.token)
+
+			return nil
+		}))
+	}
+
+	client, err := cluster.NewClientWithResponses(builder.baseURL, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ClusterClient{client}, nil
 }
 
 // validate checks if the builder is valid and returns an error if not. A valid builder is defined as being non-nil,
