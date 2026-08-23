@@ -50,7 +50,9 @@ func deleteDeviceConfigIfExists() {
 
 var _ = Describe("Neuron DRA CRD Validation Tests", Ordered,
 	Label(params.Label, params.DRALabel, tsparams.LabelValidation), func() {
-		_ = neuronscheme.AddToScheme(APIClient.Scheme())
+		BeforeAll(func() {
+			Expect(neuronscheme.AddToScheme(APIClient.Scheme())).ToNot(HaveOccurred())
+		})
 
 		BeforeEach(func() {
 			deleteDeviceConfigIfExists()
