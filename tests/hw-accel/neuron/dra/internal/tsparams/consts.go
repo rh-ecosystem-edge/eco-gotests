@@ -6,6 +6,9 @@ const (
 	// LabelSuite represents the DRA test suite label.
 	LabelSuite = "neuron-dra"
 
+	// LabelValidation represents the DRA CRD validation test label.
+	LabelValidation = "dra-validation"
+
 	// DRADeployTimeout is the timeout for DRA DaemonSet to become ready.
 	DRADeployTimeout = 10 * time.Minute
 
