@@ -19,8 +19,8 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/neuronhelpers"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/params"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	resourcev1 "k8s.io/api/resource/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
 

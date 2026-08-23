@@ -1064,6 +1064,7 @@ github.com/rh-ecosystem-edge/eco-goinfra/pkg/proxy
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/ptp
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/rbac
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/resource
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/route
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/scc
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/amd/gpu-operator/api/v1alpha1

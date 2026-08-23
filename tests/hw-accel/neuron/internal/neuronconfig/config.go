@@ -123,8 +123,14 @@ func NewNeuronConfig() *NeuronConfig {
 }
 
 // IsValid checks if the minimum required configuration is present.
-// Supports both pre-compiled image mode (DriversImage set) and in-cluster build mode (only DriverVersion set).
+// In DRA mode, only NodeMetricsImage is required — the operator handles driver provisioning
+// via in-cluster build when DriversImage is not set.
+// In device-plugin mode, a driver source and DevicePluginImage are required.
 func (c *NeuronConfig) IsValid() bool {
+	if c.IsDRAConfigured() {
+		return c.NodeMetricsImage != ""
+	}
+
 	hasDriverSource := c.DriversImage != "" || c.DriverVersion != ""
 
 	return hasDriverSource && c.DevicePluginImage != "" && c.NodeMetricsImage != ""

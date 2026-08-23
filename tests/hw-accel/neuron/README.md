@@ -42,6 +42,7 @@ spec:
 | [vllm](vllm/vllm_suite_test.go)               | Tests vLLM inference workload deployment on Neuron devices          |
 | [metrics](metrics/metrics_suite_test.go)      | Tests metrics provisioning and ServiceMonitor functionality         |
 | [3upgrade](3upgrade/upgrade_suite_test.go)    | Tests rolling upgrade of Neuron drivers across cluster nodes        |
+| [dra](dra/dra_suite_test.go)                  | Tests DRA (Dynamic Resource Allocation) mode for Neuron devices     |
 
 Notes:
 - `3upgrade` follows the naming convention: kmm=1upgrade, nfd=2upgrade, neuron=3upgrade
@@ -121,6 +122,12 @@ Notes:
 | `ECO_HWACCEL_NEURON_UPGRADE_TARGET_VERSION` | Target driver version for upgrade tests |
 | `ECO_HWACCEL_NEURON_UPGRADE_TARGET_DRIVERS_IMAGE` | Target drivers image for upgrade tests |
 
+#### DRA Test Variables
+
+| Variable | Description |
+|----------|-------------|
+| `ECO_HWACCEL_NEURON_DRA_DRIVER_IMAGE` | **REQUIRED for DRA tests** - DRA driver image (e.g., `public.ecr.aws/neuron/neuron-dra-driver:1.0.1`). When set, DRA tests are enabled and device-plugin mode tests are skipped. |
+
 #### General Test Framework Variables
 
 | Variable | Description |
@@ -185,6 +192,21 @@ $ export ECO_HWACCEL_NEURON_UPGRADE_TARGET_DRIVERS_IMAGE="public.ecr.aws/q5p6u7h
 $ make run-tests
 ```
 
+
+#### Running DRA Tests
+
+DRA mode requires the Neuron operator built from `main` (DRA support is not yet in a released version). The operator must be deployed via `make deploy` from the [upstream repo](https://github.com/awslabs/operator-for-ai-chips-on-aws), not via OLM.
+
+```bash
+$ export KUBECONFIG=/path/to/kubeconfig
+$ export ECO_TEST_FEATURES="neuron"
+$ export ECO_TEST_LABELS='neuron,dra'
+$ export ECO_HWACCEL_NEURON_DRIVERS_IMAGE="public.ecr.aws/os-partners/neuron-openshift/neuron-kernel-module:2.27.4.0"
+$ export ECO_HWACCEL_NEURON_DRIVER_VERSION="2.27.4.0"
+$ export ECO_HWACCEL_NEURON_NODE_METRICS_IMAGE="public.ecr.aws/neuron/neuron-monitor:1.9.0"
+$ export ECO_HWACCEL_NEURON_DRA_DRIVER_IMAGE="public.ecr.aws/neuron/neuron-dra-driver:1.0.1"
+$ make run-tests
+```
 
 ### DeviceConfig Example
 
