@@ -102,7 +102,7 @@ var _ = Describe("Neuron DRA DeviceConfig Tests", Ordered,
 
 			// DRA-1: DeviceConfig to Module DRA Mapping
 			It("should create KMM Module with correct DRA spec",
-				reportxml.ID("89001"), func() {
+				reportxml.ID("90390"), func() {
 					By("Pulling the KMM Module")
 
 					module, err := kmm.Pull(
@@ -143,7 +143,7 @@ var _ = Describe("Neuron DRA DeviceConfig Tests", Ordered,
 				})
 
 			It("should have DRA DaemonSet running on Neuron nodes",
-				reportxml.ID("89002"), func() {
+				reportxml.ID("90391"), func() {
 					By("Waiting for DRA DaemonSet to be ready")
 
 					err := await.DRADaemonSet(
@@ -170,7 +170,7 @@ var _ = Describe("Neuron DRA DeviceConfig Tests", Ordered,
 				})
 
 			It("should have DeviceClass created",
-				reportxml.ID("89003"), func() {
+				reportxml.ID("90392"), func() {
 					By("Waiting for default DeviceClass to exist")
 
 					err := await.DeviceClassExists(
@@ -191,7 +191,7 @@ var _ = Describe("Neuron DRA DeviceConfig Tests", Ordered,
 				})
 
 			It("should have ResourceSlices published",
-				reportxml.ID("89004"), func() {
+				reportxml.ID("90393"), func() {
 					By("Listing ResourceSlices for neuron.aws.com driver")
 
 					slices, err := resource.ListResourceSlicesByDriver(
@@ -209,7 +209,7 @@ var _ = Describe("Neuron DRA DeviceConfig Tests", Ordered,
 				})
 
 			It("should report DRA availability in Module status",
-				reportxml.ID("89005"), func() {
+				reportxml.ID("90394"), func() {
 					By("Checking Module status.dra")
 
 					module, err := kmm.Pull(
@@ -229,7 +229,7 @@ var _ = Describe("Neuron DRA DeviceConfig Tests", Ordered,
 
 			// DRA-2: No Scheduler in DRA Mode
 			It("should NOT deploy custom scheduler in DRA mode",
-				reportxml.ID("89010"), func() {
+				reportxml.ID("90395"), func() {
 					By("Listing all deployments in operator namespace")
 
 					deployList, err := APIClient.K8sClient.AppsV1().Deployments(
@@ -247,7 +247,7 @@ var _ = Describe("Neuron DRA DeviceConfig Tests", Ordered,
 				})
 
 			It("should NOT deploy device-plugin DaemonSet in DRA mode",
-				reportxml.ID("89011"), func() {
+				reportxml.ID("90396"), func() {
 					By("Listing DaemonSets in operator namespace")
 
 					dsList, err := APIClient.K8sClient.AppsV1().DaemonSets(
@@ -266,7 +266,7 @@ var _ = Describe("Neuron DRA DeviceConfig Tests", Ordered,
 
 			// DRA-3: Custom DeviceClasses via DeviceConfig
 			It("should support custom DeviceClasses via DeviceConfig",
-				reportxml.ID("89020"), func() {
+				reportxml.ID("90397"), func() {
 					By("Patching DeviceConfig with custom DeviceClasses")
 
 					dcBuilder, err := neuron.Pull(
