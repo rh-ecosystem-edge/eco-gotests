@@ -186,6 +186,10 @@ var _ = Describe("Neuron DRA DeviceConfig Tests", Ordered,
 
 					labels := dcBuilder.Object.Labels
 					Expect(labels).ToNot(BeNil(), "DeviceClass should have labels")
+					Expect(labels).To(HaveKeyWithValue(
+						"kmm.node.kubernetes.io/module.name", params.DefaultDeviceConfigName))
+					Expect(labels).To(HaveKeyWithValue(
+						"kmm.node.kubernetes.io/module.namespace", params.NeuronNamespace))
 
 					klog.V(params.NeuronLogLevel).Infof("DeviceClass labels: %v", labels)
 				})
