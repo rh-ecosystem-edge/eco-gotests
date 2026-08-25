@@ -25,6 +25,12 @@ import (
 
 var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func() {
 	Context("DRA Functional", Label("dra", "dra-functional"), func() {
+		BeforeEach(func() {
+			if kmmparams.DRADriverImage == "" {
+				Skip("ECO_HWACCEL_KMM_DRA_DRIVER_IMAGE_REPO is not set")
+			}
+		})
+
 		Context("Backward Compatibility", Label("dra-compat"), func() {
 			nSpace := kmmparams.DRABackwardCompatTestNamespace
 			moduleName := "compat-test-module"

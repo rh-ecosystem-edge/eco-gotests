@@ -48,6 +48,7 @@ Notes:
 - `ECO_HWACCEL_KMM_PULL_SECRET`: External registry pull-secret 
 - `ECO_HWACCEL_KMM_REGISTRY`: External registry url (eg: quay.io/ocp-edge-qe )
 - `ECO_HWACCEL_KMM_DEVICE_PLUGIN_IMAGE`: Image used for the device-plugin test. If the image tag includes `%s` it will be replaced with the architecture ( amd64 / arm64 )
+- `ECO_HWACCEL_KMM_DRA_DRIVER_IMAGE_REPO`: DRA example driver image repository. The tag is resolved automatically from the cluster's Kubernetes version. DRA tests are skipped if not set.
 
 #### Upgrade related
 - `ECO_HWACCEL_KMM_SUBSCRIPTION_NAME`: Name of subscription used to deploy the KMM operator

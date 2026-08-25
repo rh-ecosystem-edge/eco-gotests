@@ -319,8 +319,6 @@ const (
 	DRADeviceClassTestNamespace = "89703-dc"
 	// DRAPresetEnvTestNamespace represents test case namespace for DRA preset env/probe tests.
 	DRAPresetEnvTestNamespace = "89705-env"
-	// DRADriverImageRepo is the base repository for the DRA example driver.
-	DRADriverImageRepo = "quay.io/ocp-edge-qe/dra-example-driver"
 	// DRADriverName represents the DRA driver name used in tests.
 	DRADriverName = "gpu.example.com"
 	// DRADeviceClassName represents the default DeviceClass name used in DRA tests.

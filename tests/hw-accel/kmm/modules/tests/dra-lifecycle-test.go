@@ -28,6 +28,12 @@ import (
 
 var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func() {
 	Context("DRA Lifecycle", Label("dra", "dra-lifecycle"), func() {
+		BeforeEach(func() {
+			if kmmparams.DRADriverImage == "" {
+				Skip("ECO_HWACCEL_KMM_DRA_DRIVER_IMAGE_REPO is not set")
+			}
+		})
+
 		Context("Happy Path", Label("dra-happy-path"), func() {
 			nSpace := kmmparams.DRAHappyPathTestNamespace
 			moduleName := "dra-test-module"

@@ -111,8 +111,8 @@ var (
 
 	// DRADriverImage is the DRA example driver image, resolved at runtime
 	// from the cluster's Kubernetes version. Call SetDRADriverImage before
-	// running DRA tests.
-	DRADriverImage = fmt.Sprintf("%s:v0.4.0", DRADriverImageRepo)
+	// running DRA tests. Empty until SetDRADriverImage is called.
+	DRADriverImage string
 
 	draDriverTags = map[int]string{
 		32: "v0.1.0",
@@ -126,20 +126,26 @@ var (
 
 // SetDRADriverImage resolves the DRA example driver image tag from the
 // cluster's Kubernetes version (e.g. "v1.35.3") and stores it in
-// DRADriverImage. Unknown versions fall back to the latest tag.
-func SetDRADriverImage(serverVersion string) {
+// DRADriverImage. repo is the image repository set via
+// ECO_HWACCEL_KMM_DRA_DRIVER_IMAGE_REPO. If repo is empty,
+// DRADriverImage remains empty and DRA tests should be skipped.
+func SetDRADriverImage(repo, serverVersion string) {
+	if repo == "" {
+		return
+	}
+
+	tag := "v0.4.0"
+
 	v := strings.TrimPrefix(serverVersion, "v")
 	parts := strings.SplitN(v, ".", 3)
 
 	if len(parts) >= 2 {
 		if minor, err := strconv.Atoi(parts[1]); err == nil {
-			if tag, ok := draDriverTags[minor]; ok {
-				DRADriverImage = fmt.Sprintf("%s:%s", DRADriverImageRepo, tag)
-
-				return
+			if t, ok := draDriverTags[minor]; ok {
+				tag = t
 			}
 		}
 	}
 
-	DRADriverImage = fmt.Sprintf("%s:v0.4.0", DRADriverImageRepo)
+	DRADriverImage = fmt.Sprintf("%s:%s", repo, tag)
 }

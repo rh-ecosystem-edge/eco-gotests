@@ -19,6 +19,7 @@ type ModulesConfig struct {
 	CatalogSourceName    string `envconfig:"ECO_HWACCEL_KMM_CATALOG_SOURCE_NAME"`
 	CatalogSourceChannel string `envconfig:"ECO_HWACCEL_KMM_CATALOG_SOURCE_CHANNEL"`
 	UpgradeTargetVersion string `envconfig:"ECO_HWACCEL_KMM_UPGRADE_TARGET_VERSION"`
+	DRADriverImageRepo   string `envconfig:"ECO_HWACCEL_KMM_DRA_DRIVER_IMAGE_REPO"`
 	SpokeKubeConfig      string `envconfig:"ECO_HWACCEL_KMM_SPOKE_KUBECONFIG"`
 	SpokeClusterName     string `envconfig:"ECO_HWACCEL_KMM_SPOKE_CLUSTER_NAME"`
 	SpokeAPIClient       *clients.Settings

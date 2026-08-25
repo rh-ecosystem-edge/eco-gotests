@@ -20,6 +20,12 @@ import (
 
 var _ = Describe("KMM", Ordered, Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func() {
 	Context("DRA Validation", Label("dra", "dra-validation"), func() {
+		BeforeEach(func() {
+			if kmmparams.DRADriverImage == "" {
+				Skip("ECO_HWACCEL_KMM_DRA_DRIVER_IMAGE_REPO is not set")
+			}
+		})
+
 		nSpace := kmmparams.DRAValidationTestNamespace
 		image := fmt.Sprintf("%s/%s/%s:$KERNEL_FULL_VERSION",
 			tsparams.LocalImageRegistry, nSpace, "dra-kmod")
