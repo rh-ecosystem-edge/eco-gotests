@@ -2,6 +2,8 @@ package kmmparams
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/internal/hwaccelparams"
 	corev1 "k8s.io/api/core/v1"
@@ -106,4 +108,38 @@ var (
 		Operator: corev1.TolerationOpEqual,
 		Effect:   corev1.TaintEffectNoExecute,
 	}
+
+	// DRADriverImage is the DRA example driver image, resolved at runtime
+	// from the cluster's Kubernetes version. Call SetDRADriverImage before
+	// running DRA tests.
+	DRADriverImage = fmt.Sprintf("%s:v0.4.0", DRADriverImageRepo)
+
+	draDriverTags = map[int]string{
+		32: "v0.1.0",
+		33: "v0.2.0",
+		34: "v0.2.1",
+		35: "v0.2.1",
+		36: "v0.3.0",
+		37: "v0.4.0",
+	}
 )
+
+// SetDRADriverImage resolves the DRA example driver image tag from the
+// cluster's Kubernetes version (e.g. "v1.35.3") and stores it in
+// DRADriverImage. Unknown versions fall back to the latest tag.
+func SetDRADriverImage(serverVersion string) {
+	v := strings.TrimPrefix(serverVersion, "v")
+	parts := strings.SplitN(v, ".", 3)
+
+	if len(parts) >= 2 {
+		if minor, err := strconv.Atoi(parts[1]); err == nil {
+			if tag, ok := draDriverTags[minor]; ok {
+				DRADriverImage = fmt.Sprintf("%s:%s", DRADriverImageRepo, tag)
+
+				return
+			}
+		}
+	}
+
+	DRADriverImage = fmt.Sprintf("%s:v0.4.0", DRADriverImageRepo)
+}
