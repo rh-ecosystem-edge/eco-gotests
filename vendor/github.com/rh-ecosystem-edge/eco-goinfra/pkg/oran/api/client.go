@@ -9,6 +9,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/alarms"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/artifacts"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/cluster"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/inventory"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/provisioning"
 )
 
@@ -25,6 +26,8 @@ const (
 	AlarmsClientType ClientType = "AlarmsClient"
 	// ClusterClientType is the client type for the cluster client.
 	ClusterClientType ClientType = "ClusterClient"
+	// InventoryClientType is the client type for the inventory client.
+	InventoryClientType ClientType = "InventoryClient"
 )
 
 // ClientBuilder is a builder for creating clients that correspond to different parts of the O-RAN O2IMS API. Unlike
@@ -224,6 +227,37 @@ func (builder *ClientBuilder) BuildCluster() (*ClusterClient, error) {
 	}
 
 	return &ClusterClient{client}, nil
+}
+
+// BuildInventory creates a new InventoryClient using the configuration set on this builder. If the builder has an
+// error message, it will be returned here. This method does not modify the builder so the builder can be reused.
+//
+// Unlike the provisioning client, the inventory client does not serve as a runtimeclient.Client.
+func (builder *ClientBuilder) BuildInventory() (*InventoryClient, error) {
+	if err := builder.validate(); err != nil {
+		return nil, err
+	}
+
+	var opts []inventory.ClientOption
+
+	if builder.client != nil {
+		opts = append(opts, inventory.WithHTTPClient(builder.client))
+	}
+
+	if builder.token != "" {
+		opts = append(opts, inventory.WithRequestEditorFn(func(_ context.Context, req *http.Request) error {
+			req.Header.Set("Authorization", "Bearer "+builder.token)
+
+			return nil
+		}))
+	}
+
+	client, err := inventory.NewClientWithResponses(builder.baseURL, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &InventoryClient{client}, nil
 }
 
 // validate checks if the builder is valid and returns an error if not. A valid builder is defined as being non-nil,

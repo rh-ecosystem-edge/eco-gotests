@@ -990,7 +990,7 @@ github.com/redhat-cne/sdk-go/pkg/event/ptp
 github.com/redhat-cne/sdk-go/pkg/event/redfish
 github.com/redhat-cne/sdk-go/pkg/pubsub
 github.com/redhat-cne/sdk-go/pkg/types
-# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260821185000-4d62bd465612
+# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260824173105-c15a9d8bbf39
 ## explicit; go 1.26.0
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/amdgpu
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/apiservers
@@ -1056,6 +1056,7 @@ github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/alarms
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/artifacts
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/cluster
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/common
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/inventory
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api/internal/provisioning
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/ovn
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/pfstatus
