@@ -60,6 +60,14 @@ var _ = BeforeSuite(func() {
 		Skip("Skipping test. No Spoke environment variables defined.")
 	}
 
+	By("Resolve DRA driver image for spoke k8s version")
+
+	serverVersion, err := ModulesConfig.SpokeAPIClient.K8sClient.Discovery().ServerVersion()
+	Expect(err).ToNot(HaveOccurred(), "error getting spoke server version")
+	kmmparams.SetDRADriverImage(ModulesConfig.DRADriverImageRepo, serverVersion.GitVersion)
+	klog.V(kmmparams.KmmLogLevel).Infof("Resolved DRA driver image: %s (spoke k8s %s)",
+		kmmparams.DRADriverImage, serverVersion.GitVersion)
+
 	By("Create helper ServiceAccount")
 
 	svcAccount, err := serviceaccount.
