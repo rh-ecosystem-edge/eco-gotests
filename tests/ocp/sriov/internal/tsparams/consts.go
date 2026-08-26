@@ -34,8 +34,13 @@ const (
 	LabelQinQTestCases = "qinq"
 	// LabelExternallyManagedTestCases represents ExternallyManaged label that can be used for test cases selection.
 	LabelExternallyManagedTestCases = "externallymanaged"
+	// LabelWebhookInjector represents sriov webhook injector match conditions tests that can be used
+	// for test cases selection.
+	LabelWebhookInjector = "webhook-resource-injector"
 	// SriovResourceNameExManagedTrue is the SR-IOV policy and network name for ExternallyManaged tests.
 	SriovResourceNameExManagedTrue = "extmanaged"
+	// OperatorResourceInjector is the default SR-IOV network resource injector daemonset.
+	OperatorResourceInjector = "network-resources-injector"
 
 	// MCOWaitTimeout represent timeout for mco operations.
 	MCOWaitTimeout = 35 * time.Minute
