@@ -129,6 +129,13 @@ func And(filters ...Filter) *andFilter {
 	return (*andFilter)(&filters)
 }
 
+// Raw returns a filter from the given string without validation. The caller accepts the risk that the
+// filter may be malformed or rejected by the API. Prefer the typed constructors when building filters
+// for production use.
+func Raw(s string) *rawFilter {
+	return &rawFilter{value: s}
+}
+
 // basicFilter is a filter that contains only a single operator with its associated field and value(s).
 type basicFilter struct {
 	Operator FilterOperator
@@ -168,6 +175,19 @@ func (f *basicFilter) Filter() string {
 	builder.WriteByte(')')
 
 	return builder.String()
+}
+
+// rawFilter is a filter string used verbatim. It is not validated and may be malformed.
+type rawFilter struct {
+	value string
+}
+
+// Assert at compile time that rawFilter implements the Filter interface.
+var _ Filter = (*rawFilter)(nil)
+
+// Filter returns the raw filter string.
+func (f *rawFilter) Filter() string {
+	return f.value
 }
 
 // andFilter is a filter that contains multiple filters, all of which must match. It can compose basicFilters and other
