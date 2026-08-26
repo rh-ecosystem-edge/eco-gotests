@@ -50,10 +50,15 @@ const (
 	LabelOperatorConfigDefaultsTestCases = "operatorconfig-defaults"
 	// LabelResourceVisibilityTestCases represents resource visibility tests that can be used for test cases selection.
 	LabelResourceVisibilityTestCases = "resourcevisibility"
+	// LabelWebhookInjector represents sriov webhook injector match conditions tests that can be used
+	// for test cases selection.
+	LabelWebhookInjector = "webhook-resource-injector"
 	// SCTPMachineConfigName is the MachineConfig that loads the SCTP kernel module on workers.
 	SCTPMachineConfigName = "load-sctp-module"
 	// SriovResourceNameExManagedTrue is the SR-IOV policy and network name for ExternallyManaged tests.
 	SriovResourceNameExManagedTrue = "extmanaged"
+	// OperatorResourceInjector is the default SR-IOV network resource injector daemonset.
+	OperatorResourceInjector = "network-resources-injector"
 
 	// Cluster IP family values returned by sriovocpenv.GetClusterIPFamily.
 
