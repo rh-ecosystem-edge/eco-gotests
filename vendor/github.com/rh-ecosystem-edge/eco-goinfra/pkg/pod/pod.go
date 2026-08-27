@@ -1263,6 +1263,96 @@ func (builder *Builder) WithTerminationGracePeriodSeconds(terminationGracePeriod
 	return builder
 }
 
+// WithCommand sets the command for the first container in the pod spec.
+func (builder *Builder) WithCommand(command []string) *Builder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof("Setting command %v on pod %s in namespace %s",
+		command, builder.Definition.Name, builder.Definition.Namespace)
+
+	builder.isMutationAllowed("command")
+
+	if builder.errorMsg != "" {
+		return builder
+	}
+
+	if len(command) == 0 {
+		klog.V(100).Infof("Failed to set command on pod %s: command cannot be empty",
+			builder.Definition.Name)
+
+		builder.errorMsg = "pod command cannot be empty"
+
+		return builder
+	}
+
+	if len(builder.Definition.Spec.Containers) == 0 {
+		klog.V(100).Infof("Failed to set command on pod %s: no containers defined",
+			builder.Definition.Name)
+
+		builder.errorMsg = "pod has no containers to set command on"
+
+		return builder
+	}
+
+	builder.Definition.Spec.Containers[0].Command = command
+
+	return builder
+}
+
+// WithResourceClaim adds a ResourceClaim to the pod that references a ResourceClaimTemplate.
+func (builder *Builder) WithResourceClaim(claimName, claimTemplateName string) *Builder {
+	if valid, _ := builder.validate(); !valid {
+		return builder
+	}
+
+	klog.V(100).Infof("Adding ResourceClaim %s (template: %s) to pod %s in namespace %s",
+		claimName, claimTemplateName, builder.Definition.Name, builder.Definition.Namespace)
+
+	builder.isMutationAllowed("ResourceClaim")
+
+	if builder.errorMsg != "" {
+		return builder
+	}
+
+	if claimName == "" {
+		builder.errorMsg = "ResourceClaim name cannot be empty"
+
+		return builder
+	}
+
+	if claimTemplateName == "" {
+		builder.errorMsg = "ResourceClaimTemplate name cannot be empty"
+
+		return builder
+	}
+
+	for _, existing := range builder.Definition.Spec.ResourceClaims {
+		if existing.Name == claimName {
+			klog.V(100).Infof("ResourceClaim %s already exists on pod %s, skipping",
+				claimName, builder.Definition.Name)
+
+			return builder
+		}
+	}
+
+	builder.Definition.Spec.ResourceClaims = append(
+		builder.Definition.Spec.ResourceClaims,
+		corev1.PodResourceClaim{
+			Name:                      claimName,
+			ResourceClaimTemplateName: &claimTemplateName,
+		})
+
+	if len(builder.Definition.Spec.Containers) > 0 {
+		builder.Definition.Spec.Containers[0].Resources.Claims = append(
+			builder.Definition.Spec.Containers[0].Resources.Claims,
+			corev1.ResourceClaim{Name: claimName})
+	}
+
+	return builder
+}
+
 // GetLog connects to a pod and fetches log.
 func (builder *Builder) GetLog(logStartTime time.Duration, containerName string) (string, error) {
 	// GetLogsWithOptions already handles validation, so no need to duplicate it here.
