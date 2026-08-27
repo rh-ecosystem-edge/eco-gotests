@@ -69,3 +69,8 @@ func ClusterSupportsIPv4(ipFamily string) bool {
 func ClusterSupportsIPv6(ipFamily string) bool {
 	return ipFamily == tsparams.IPV6Family || ipFamily == tsparams.DualIPFamily
 }
+
+// ClusterSupportsDualStack returns true if the cluster is dual-stack.
+func ClusterSupportsDualStack(ipFamily string) bool {
+	return ipFamily == tsparams.DualIPFamily
+}
