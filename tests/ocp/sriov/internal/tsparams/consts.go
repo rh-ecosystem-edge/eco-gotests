@@ -34,8 +34,21 @@ const (
 	LabelQinQTestCases = "qinq"
 	// LabelExternallyManagedTestCases represents ExternallyManaged label that can be used for test cases selection.
 	LabelExternallyManagedTestCases = "externallymanaged"
+	// LabelSriovIPv4 represents SR-IOV IPv4 connectivity tests that can be used for test cases selection.
+	LabelSriovIPv4 = "sriov-ipv4"
+	// SCTPMachineConfigName is the MachineConfig that loads the SCTP kernel module on workers.
+	SCTPMachineConfigName = "load-sctp-module"
 	// SriovResourceNameExManagedTrue is the SR-IOV policy and network name for ExternallyManaged tests.
 	SriovResourceNameExManagedTrue = "extmanaged"
+
+	// Cluster IP family values returned by sriovocpenv.GetClusterIPFamily.
+
+	// IPV4Family represents IP version 4 protocol.
+	IPV4Family = "IPv4"
+	// IPV6Family represents IP version 6 protocol.
+	IPV6Family = "IPv6"
+	// DualIPFamily represents dual-stack (IPv4 and IPv6) IP protocol.
+	DualIPFamily = "dual"
 
 	// MCOWaitTimeout represent timeout for mco operations.
 	MCOWaitTimeout = 35 * time.Minute
@@ -74,6 +87,43 @@ const (
 	TestPodClientIP = "192.168.0.1/24"
 	// TestPodServerIP is the default IP address for test server pods.
 	TestPodServerIP = "192.168.0.2/24"
+
+	// Net1Interface is the name of the first secondary network interface attached to pods.
+	Net1Interface = "net1"
+
+	// ClientPodMTU500 is the name of the client pod for MTU 500 tests.
+	ClientPodMTU500 = "client-mtu500"
+	// ServerPodMTU500 is the name of the server pod for MTU 500 tests.
+	ServerPodMTU500 = "server-mtu500"
+	// ClientPodMTU9000 is the name of the client pod for MTU 9000 tests.
+	ClientPodMTU9000 = "client-mtu9000"
+	// ServerPodMTU9000 is the name of the server pod for MTU 9000 tests.
+	ServerPodMTU9000 = "server-mtu9000"
+	// ClientPodWhereabouts is the name of the client pod for whereabouts IPAM tests.
+	ClientPodWhereabouts = "client-whereabouts"
+	// ServerPodWhereabouts is the name of the server pod for whereabouts IPAM tests.
+	ServerPodWhereabouts = "server-whereabouts"
+	// ClientPodVlanMTU500 is the name of the client pod for VLAN MTU 500 tests.
+	ClientPodVlanMTU500 = "client-vlan-mtu500"
+	// ServerPodVlanMTU500 is the name of the server pod for VLAN MTU 500 tests.
+	ServerPodVlanMTU500 = "server-vlan-mtu500"
+	// ClientPodVlanMTU9000 is the name of the client pod for VLAN MTU 9000 tests.
+	ClientPodVlanMTU9000 = "client-vlan-mtu9000"
+	// ServerPodVlanMTU9000 is the name of the server pod for VLAN MTU 9000 tests.
+	ServerPodVlanMTU9000 = "server-vlan-mtu9000"
+
+	// MulticastIPv4Group is the default IPv4 multicast group address.
+	MulticastIPv4Group = "239.100.0.250"
+	// MulticastIPv4MAC is the Ethernet multicast MAC for 239.100.0.250.
+	MulticastIPv4MAC = "01:00:5e:64:00:fa"
+	// MulticastIPv4GroupLargeMTU is the IPv4 multicast group for MTU > 1500.
+	MulticastIPv4GroupLargeMTU = "239.100.100.250"
+	// MulticastIPv4MACLargeMTU is the Ethernet multicast MAC for 239.100.100.250.
+	MulticastIPv4MACLargeMTU = "01:00:5e:64:64:fa"
+	// MulticastIPv6Group is the IPv6 site-local multicast group address.
+	MulticastIPv6Group = "ff05:5::5"
+	// MulticastIPv6MAC is the Ethernet multicast MAC for ff05:5::5.
+	MulticastIPv6MAC = "33:33:00:00:00:05"
 
 	// DefaultTestMTU is the default MTU value for testing.
 	DefaultTestMTU = 9000
