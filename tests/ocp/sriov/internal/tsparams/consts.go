@@ -39,6 +39,8 @@ const (
 	LabelMultiContainerTestCases = "multicontainer"
 	// LabelSriovIPv4 represents SR-IOV IPv4 connectivity tests that can be used for test cases selection.
 	LabelSriovIPv4 = "sriov-ipv4"
+	// LabelSriovIPv6 represents SR-IOV IPv6 connectivity tests that can be used for test cases selection.
+	LabelSriovIPv6 = "sriov-ipv6"
 	// SCTPMachineConfigName is the MachineConfig that loads the SCTP kernel module on workers.
 	SCTPMachineConfigName = "load-sctp-module"
 	// SriovResourceNameExManagedTrue is the SR-IOV policy and network name for ExternallyManaged tests.
@@ -98,6 +100,10 @@ const (
 	ClientPodMTU500 = "client-mtu500"
 	// ServerPodMTU500 is the name of the server pod for MTU 500 tests.
 	ServerPodMTU500 = "server-mtu500"
+	// ClientPodMTU1280 is the name of the client pod for MTU 1280 tests.
+	ClientPodMTU1280 = "client-mtu1280"
+	// ServerPodMTU1280 is the name of the server pod for MTU 1280 tests.
+	ServerPodMTU1280 = "server-mtu1280"
 	// ClientPodMTU9000 is the name of the client pod for MTU 9000 tests.
 	ClientPodMTU9000 = "client-mtu9000"
 	// ServerPodMTU9000 is the name of the server pod for MTU 9000 tests.
@@ -110,6 +116,10 @@ const (
 	ClientPodVlanMTU500 = "client-vlan-mtu500"
 	// ServerPodVlanMTU500 is the name of the server pod for VLAN MTU 500 tests.
 	ServerPodVlanMTU500 = "server-vlan-mtu500"
+	// ClientPodVlanMTU1280 is the name of the client pod for VLAN MTU 1280 tests.
+	ClientPodVlanMTU1280 = "client-vlan-mtu1280"
+	// ServerPodVlanMTU1280 is the name of the server pod for VLAN MTU 1280 tests.
+	ServerPodVlanMTU1280 = "server-vlan-mtu1280"
 	// ClientPodVlanMTU9000 is the name of the client pod for VLAN MTU 9000 tests.
 	ClientPodVlanMTU9000 = "client-vlan-mtu9000"
 	// ServerPodVlanMTU9000 is the name of the server pod for VLAN MTU 9000 tests.
