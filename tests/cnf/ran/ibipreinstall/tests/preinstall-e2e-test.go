@@ -166,6 +166,7 @@ var _ = Describe(
 			}
 		})
 
+		// 89666 - Performs disconnected IBI cluster node preinstall end to end
 		It("performs disconnected IBI cluster node preinstall end to end", reportxml.ID("89666"), func() {
 			ibiCfg := RANConfig.IBIPreinstallConfig
 

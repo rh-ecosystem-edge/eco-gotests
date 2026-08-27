@@ -151,12 +151,12 @@ func WaitForPreinstallCompletion(
 			}
 
 			failDuration := now.Sub(*sshFailingSince)
-			klog.V(tsparams.LogLevel).Infof("SSH to %s unavailable for %v (timeout %v), waiting %v...",
-				host, failDuration.Round(time.Second), sshFailureTimeout, pollInterval)
+			klog.V(tsparams.LogLevel).Infof("SSH to %s unavailable for %v (timeout %v): %v, waiting %v...",
+				host, failDuration.Round(time.Second), sshFailureTimeout, sshErr, pollInterval)
 
 			if failDuration >= sshFailureTimeout {
-				return false, fmt.Errorf("SSH to %s unreachable for %v — node may have been powered off or deprovisioned",
-					host, failDuration.Round(time.Second))
+				return false, fmt.Errorf("SSH to %s unreachable for %v — node may have been powered off or deprovisioned: %w",
+					host, failDuration.Round(time.Second), sshErr)
 			}
 
 			return false, nil
