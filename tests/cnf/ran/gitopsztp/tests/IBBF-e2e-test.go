@@ -15,6 +15,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/siteconfig"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/gitopsztp/internal/gitdetails"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/gitopsztp/internal/tsparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/rancluster"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,6 +29,13 @@ var _ = Describe(
 		var (
 			spokeNamespace = RANConfig.Spoke1Name
 		)
+
+		BeforeAll(func() {
+			By("Checking BMC configuration is provided for original-node power-off")
+
+			Expect(BMCClient).ToNot(BeNil(),
+				"IBBF requires BMC configuration (ECO_CNF_RAN_BMC_HOSTS/USERNAME/PASSWORD) to power off the original node")
+		})
 
 		BeforeEach(func() {
 			By("checking if the git path exists")
@@ -93,6 +101,16 @@ var _ = Describe(
 			clusterInstance, err := siteconfig.PullClusterInstance(
 				HubAPIClient, RANConfig.Spoke1Name, spokeNamespace)
 			Expect(err).ToNot(HaveOccurred(), "error pulling clusterinstance")
+
+			By("Powering off the original node before IBBF reinstall")
+
+			powerState, err := BMCClient.SystemPowerState()
+			Expect(err).ToNot(HaveOccurred(), "Failed to get original node power state before IBBF")
+
+			if powerState != "Off" {
+				err = rancluster.PowerOffWithRetries(BMCClient, 3)
+				Expect(err).ToNot(HaveOccurred(), "Failed to power off original node before IBBF")
+			}
 
 			By("Changing clusters app to point to IBBF test target directory")
 
