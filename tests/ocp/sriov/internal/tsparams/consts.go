@@ -34,6 +34,9 @@ const (
 	LabelQinQTestCases = "qinq"
 	// LabelExternallyManagedTestCases represents ExternallyManaged label that can be used for test cases selection.
 	LabelExternallyManagedTestCases = "externallymanaged"
+	// LabelMultiContainerTestCases represents multi-container shared VF pool tests that can be used
+	// for test cases selection.
+	LabelMultiContainerTestCases = "multicontainer"
 	// SriovResourceNameExManagedTrue is the SR-IOV policy and network name for ExternallyManaged tests.
 	SriovResourceNameExManagedTrue = "extmanaged"
 
