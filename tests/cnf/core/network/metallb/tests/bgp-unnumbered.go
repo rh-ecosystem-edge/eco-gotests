@@ -110,17 +110,27 @@ var _ = Describe("BGP Unnumbered", Ordered, Label(tsparams.LabelBGPUnnumbered),
 			By("Remove custom MetalLB test label from nodes")
 			removeNodeLabel(workerNodeList, metalLbTestsLabel)
 
-			By(fmt.Sprintf("Resetting ethernet interface %s on worker node %s",
-				interfacesUnderTest[0], workerNodeList[0].Definition.Name))
-			ethIntWorker0Policy := nmstate.NewPolicyBuilder(APIClient, nodeNetConfigPolicyName, NetConfig.WorkerLabelMap).
-				WithEthernetDualStackInterface(interfacesUnderTest[0])
-			err := netnmstate.UpdatePolicyAndWaitUntilItsAvailable(netparam.DefaultTimeout, ethIntWorker0Policy)
-			Expect(err).ToNot(HaveOccurred(), "Failed to update NMState network policy")
+			// Leave the PF up on the setup node.
+			// Do not use absent — that leaves the PF down after NNCP deletion and breaks later suites.
+			// Capture the error so CleanAllNMStatePolicies still runs if restore fails.
+			var restoreErr error
+
+			if len(interfacesUnderTest) > 0 && len(workerNodeList) > 0 {
+				By(fmt.Sprintf("Restoring ethernet interface %s on worker node %s",
+					interfacesUnderTest[0], workerNodeList[0].Definition.Name))
+				ethIntWorker0Policy := nmstate.NewPolicyBuilder(APIClient, nodeNetConfigPolicyName,
+					map[string]string{corev1.LabelHostname: workerNodeList[0].Definition.Name}).
+					WithInterfaceUp(interfacesUnderTest[0])
+				restoreErr = netnmstate.UpdatePolicyAndWaitUntilItsAvailable(
+					netparam.DefaultTimeout, ethIntWorker0Policy)
+			}
 
 			By("Removing NMState policies")
 
-			err = nmstate.CleanAllNMStatePolicies(APIClient)
-			Expect(err).ToNot(HaveOccurred(), "Failed to remove all NMState policies")
+			cleanErr := nmstate.CleanAllNMStatePolicies(APIClient)
+
+			Expect(restoreErr).ToNot(HaveOccurred(), "Failed to restore ethernet interface via NMState policy")
+			Expect(cleanErr).ToNot(HaveOccurred(), "Failed to remove all NMState policies")
 
 			By("Clean MetalLB operator and test namespaces")
 			resetOperatorAndTestNS()
