@@ -74,8 +74,18 @@ func CreatePolicyComponents(
 		})
 
 	_, err = placementBinding.Create()
+	if err != nil {
+		return err
+	}
 
-	return err
+	// MCSB is namespace-scoped and shared across tests in talm-test, so there is no harm in keeping it around. We
+	// just use Create to create if it does not exist (since the method is idempotent).
+	_, err = ocm.NewMCSBBuilder(client, tsparams.ManagedClusterSetName, tsparams.TestNamespace).Create()
+	if err != nil {
+		return fmt.Errorf("failed to create ManagedClusterSetBinding: %w", err)
+	}
+
+	return nil
 }
 
 // GetPolicyNameWithPrefix returns the name of the first policy to start with prefix in the provided namespace, or an

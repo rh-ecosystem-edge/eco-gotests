@@ -79,6 +79,7 @@ linters:
             - open-cluster-management.io/governance-policy-propagator/api
             - open-cluster-management.io/config-policy-controller/api
             - open-cluster-management.io/multicloud-operators-subscription/pkg/apis
+            - open-cluster-management.io/api
             - sigs.k8s.io/controller-runtime
             - $gostd
             - github.com/stretchr/testify

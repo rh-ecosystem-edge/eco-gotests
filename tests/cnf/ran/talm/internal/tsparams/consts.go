@@ -42,6 +42,11 @@ const (
 	PlacementRuleName = "talm-placementrule"
 	// PlacementBindingName is the name for the test talm placement binding.
 	PlacementBindingName = "talm-placementbinding"
+	// ManagedClusterSetName is the ManagedClusterSet bound into the policy namespace on TALM 5.0+. TALM 5.0+
+	// requires a ManagedClusterSetBinding in the policy namespace for Placement API discovery. We use "global"
+	// rather than the operator's "default" because the Telco RAN RDS binds the global ManagedClusterSet, which
+	// includes all managed clusters in our test hub configuration.
+	ManagedClusterSetName = "global"
 	// CatalogSourceName is the name for the test talm catalog source.
 	CatalogSourceName = "talm-catsrc"
 	// PreCachingConfigName is the name for the test talm pre caching config.

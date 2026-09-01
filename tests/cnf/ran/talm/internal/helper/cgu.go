@@ -148,6 +148,11 @@ func waitForPolicyComponentsExist(client *clients.Settings, suffix string) error
 				return false, nil
 			}
 
+			mcsb := ocm.NewMCSBBuilder(client, tsparams.ManagedClusterSetName, tsparams.TestNamespace)
+			if !mcsb.Exists() {
+				return false, nil
+			}
+
 			return true, nil
 		})
 }

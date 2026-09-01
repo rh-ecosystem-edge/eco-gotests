@@ -68,6 +68,7 @@ require (
 	k8s.io/klog/v2 v2.140.0
 	k8s.io/kubelet v0.35.6
 	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
+	open-cluster-management.io/api v1.3.0
 	open-cluster-management.io/config-policy-controller v0.19.0
 	open-cluster-management.io/governance-policy-propagator v0.18.1-0.20260302212915-815d063a291a // prior to controller-runtime v0.23
 	open-cluster-management.io/multicloud-operators-subscription v0.16.0
@@ -266,7 +267,6 @@ require (
 	k8s.io/kubectl v0.35.6 // indirect
 	knative.dev/pkg v0.0.0-20260120122510-4a022ed9999a // indirect
 	maistra.io/api v0.0.0-20240319144440-ffa91c765143 // indirect
-	open-cluster-management.io/api v1.3.0 // indirect
 	sigs.k8s.io/cluster-api v1.11.8 // indirect
 	sigs.k8s.io/cluster-api-provider-azure v1.21.1-0.20250929163617-2c4eaa611a39 // indirect
 	sigs.k8s.io/container-object-storage-interface-api v0.1.0 // indirect

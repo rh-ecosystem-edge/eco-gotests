@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
+	clusterv1beta2 "open-cluster-management.io/api/cluster/v1beta2"
 	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
 	policiesv1beta1 "open-cluster-management.io/governance-policy-propagator/api/v1beta1"
 	placementrulev1 "open-cluster-management.io/multicloud-operators-subscription/pkg/apis/apps/placementrule/v1"
@@ -44,6 +45,7 @@ var (
 		{Cr: &policiesv1.PlacementBindingList{}, Namespace: ptr.To(TestNamespace)},
 		{Cr: &placementrulev1.PlacementRuleList{}, Namespace: ptr.To(TestNamespace)},
 		{Cr: &policiesv1beta1.PolicySetList{}, Namespace: ptr.To(TestNamespace)},
+		{Cr: &clusterv1beta2.ManagedClusterSetBindingList{}, Namespace: ptr.To(TestNamespace)},
 	}
 
 	// ReporterSpokeCRsToDump is the CRs the reporter should dump on the spokes.
