@@ -251,20 +251,32 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 
 				assertNMEAStatusAvailable(prometheusAPI, nodeName)
 
-				By("verifying clock class 6 in metrics")
+				By("verifying clock class 6 and clock state LOCKED in metrics")
 
-				assertClockClass6InMetrics(prometheusAPI, nodeName, configSupported)
+				var configFile string
+				if configSupported {
+					configFile, err = processes.GetPtp4lConfigByRelatedProcess(
+						RANConfig.Spoke1APIClient, nodeName, processes.Ts2phc)
+					Expect(err).ToNot(HaveOccurred(), "Failed to determine ptp4l config for node %s", nodeName)
+				}
 
-				By("verifying clock state LOCKED in metrics")
-
+				clockClassQuery := metrics.ClockClassQuery{
+					Process: metrics.Equals(metrics.ProcessPTP4L),
+					Node:    metrics.Equals(nodeName),
+					Config:  metrics.Equals(configFile),
+				}
 				clockStateQuery := metrics.ClockStateQuery{
 					Process: metrics.DoesNotEqual(metrics.ProcessChronyd),
 					Node:    metrics.Equals(nodeName),
 				}
-				err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockStateQuery,
-					metrics.ClockStateLocked, metrics.AssertWithTimeout(1*time.Minute))
+				err = metrics.AssertQuerySet(context.TODO(), prometheusAPI,
+					[]metrics.QueryExpectation{
+						metrics.Expect(clockClassQuery, metrics.ClockClass6),
+						metrics.Expect(clockStateQuery, metrics.ClockStateLocked),
+					},
+					metrics.AssertWithTimeout(1*time.Minute))
 				Expect(err).ToNot(HaveOccurred(),
-					"Failed to assert clock state is LOCKED in metrics on node %s", nodeName)
+					"Failed to assert recovery metrics on node %s", nodeName)
 
 				By("validating no FREERUN events were received")
 

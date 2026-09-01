@@ -404,17 +404,17 @@ func assertHoldoverState(
 		Node:    metrics.Equals(nodeName),
 		Process: metrics.Equals(metrics.ProcessTBC),
 	}
-	err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockStateQuery, metrics.ClockStateHoldover,
-		metrics.AssertWithTimeout(1*time.Minute))
-	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state HOLDOVER in metrics")
-
 	clockClassQuery := metrics.ClockClassQuery{
 		Node:    metrics.Equals(nodeName),
 		Process: metrics.Equals(metrics.ProcessPTP4L),
 	}
-	err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockClassQuery, expectedClockClass,
+	err = metrics.AssertQuerySet(context.TODO(), prometheusAPI,
+		[]metrics.QueryExpectation{
+			metrics.Expect(clockStateQuery, metrics.ClockStateHoldover),
+			metrics.Expect(clockClassQuery, expectedClockClass),
+		},
 		metrics.AssertWithTimeout(1*time.Minute))
-	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock class %d in metrics", expectedClockClass)
+	Expect(err).ToNot(HaveOccurred(), "Failed to assert holdover metrics")
 }
 
 // assertLockedState waits for the LOCKED event and optional clock class change event, then validates
@@ -458,17 +458,17 @@ func assertLockedState(
 		Node:    metrics.Equals(nodeName),
 		Process: metrics.Equals(metrics.ProcessTBC),
 	}
-	err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockStateQuery, metrics.ClockStateLocked,
-		metrics.AssertWithTimeout(1*time.Minute))
-	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state LOCKED in metrics")
-
 	clockClassQuery := metrics.ClockClassQuery{
 		Node:    metrics.Equals(nodeName),
 		Process: metrics.Equals(metrics.ProcessPTP4L),
 	}
-	err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockClassQuery, expectedClockClass,
+	err = metrics.AssertQuerySet(context.TODO(), prometheusAPI,
+		[]metrics.QueryExpectation{
+			metrics.Expect(clockStateQuery, metrics.ClockStateLocked),
+			metrics.Expect(clockClassQuery, expectedClockClass),
+		},
 		metrics.AssertWithTimeout(1*time.Minute))
-	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock class %d in metrics", expectedClockClass)
+	Expect(err).ToNot(HaveOccurred(), "Failed to assert locked metrics")
 }
 
 // assertFreerunState waits for the FREERUN event and optional clock class change event, then validates
@@ -522,17 +522,17 @@ func assertFreerunState(
 		Node:    metrics.Equals(nodeName),
 		Process: metrics.Equals(metrics.ProcessTBC),
 	}
-	err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockStateQuery, metrics.ClockStateFreerun,
-		metrics.AssertWithTimeout(1*time.Minute))
-	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state FREERUN in metrics")
-
 	clockClassQuery := metrics.ClockClassQuery{
 		Node:    metrics.Equals(nodeName),
 		Process: metrics.Equals(metrics.ProcessPTP4L),
 	}
-	err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockClassQuery, expectedClockClass,
+	err = metrics.AssertQuerySet(context.TODO(), prometheusAPI,
+		[]metrics.QueryExpectation{
+			metrics.Expect(clockStateQuery, metrics.ClockStateFreerun),
+			metrics.Expect(clockClassQuery, expectedClockClass),
+		},
 		metrics.AssertWithTimeout(1*time.Minute))
-	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock class %d in metrics", expectedClockClass)
+	Expect(err).ToNot(HaveOccurred(), "Failed to assert freerun metrics")
 }
 
 // assertHoldoverOutOfSpecClockClass waits for the clock class to transition to holdover-out-of-spec and
@@ -567,17 +567,17 @@ func assertHoldoverOutOfSpecClockClass(
 		Node:    metrics.Equals(nodeName),
 		Process: metrics.Equals(metrics.ProcessTBC),
 	}
-	err := metrics.AssertQuery(context.TODO(), prometheusAPI, clockStateQuery, metrics.ClockStateHoldover,
-		metrics.AssertWithTimeout(1*time.Minute))
-	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state HOLDOVER in metrics")
-
 	clockClassQuery := metrics.ClockClassQuery{
 		Node:    metrics.Equals(nodeName),
 		Process: metrics.Equals(metrics.ProcessPTP4L),
 	}
-	err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockClassQuery, expectedClockClass,
+	err := metrics.AssertQuerySet(context.TODO(), prometheusAPI,
+		[]metrics.QueryExpectation{
+			metrics.Expect(clockStateQuery, metrics.ClockStateHoldover),
+			metrics.Expect(clockClassQuery, expectedClockClass),
+		},
 		metrics.AssertWithTimeout(1*time.Minute))
-	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock class %d in metrics", expectedClockClass)
+	Expect(err).ToNot(HaveOccurred(), "Failed to assert holdover-out-of-spec metrics")
 }
 
 // assertNoFreerunEvent validates that no FREERUN ptp-state-change event is generated within 30 seconds.

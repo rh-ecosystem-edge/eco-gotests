@@ -110,30 +110,26 @@ var _ = Describe("PTP OC 2-port", Label(tsparams.LabelOC2Port, tsparams.LabelInt
 				"Role swap failed: passive interface %s did not become FOLLOWER within %s",
 				oc2PortInfo.PassiveInterface, 45*time.Second)
 
-			By("validating PTP processes relock after failover")
+			By("validating PTP processes relock and clock class after failover convergence")
 
 			clockStateQuery := metrics.ClockStateQuery{
 				Node:    metrics.Equals(nodeName),
 				Process: metrics.Includes(metrics.ProcessPTP4L, metrics.ProcessPHC2SYS),
 			}
-			err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockStateQuery, metrics.ClockStateLocked,
-				metrics.AssertWithStableDuration(10*time.Second),
-				metrics.AssertWithTimeout(90*time.Second))
-			Expect(err).ToNot(HaveOccurred(),
-				"Relock failed: ptp4l and phc2sys did not return to LOCKED within %s",
-				90*time.Second)
-
-			By("validating PTP clock class returns to 6 after failover convergence")
-
 			clockClassQuery := metrics.ClockClassQuery{
 				Node:    metrics.Equals(nodeName),
 				Process: metrics.Equals(metrics.ProcessPTP4L),
 			}
-			err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockClassQuery, metrics.ClockClass6,
+			err = metrics.AssertQuerySet(context.TODO(), prometheusAPI,
+				[]metrics.QueryExpectation{
+					metrics.Expect(clockStateQuery, metrics.ClockStateLocked),
+					metrics.Expect(clockClassQuery, metrics.ClockClass6),
+				},
 				metrics.AssertWithStableDuration(10*time.Second),
 				metrics.AssertWithTimeout(90*time.Second))
 			Expect(err).ToNot(HaveOccurred(),
-				"Relock failed: clock class did not return to 6 within %s", 90*time.Second)
+				"Relock failed: ptp4l/phc2sys did not return to LOCKED or clock class did not return to 6 within %s",
+				90*time.Second)
 
 			By("restoring OC 2-port interfaces before test completion")
 			restoreOc2PortAndValidate(context.TODO(), prometheusAPI, nodeName, oc2PortInfo.Interfaces)
@@ -299,38 +295,31 @@ var _ = Describe("PTP OC 2-port", Label(tsparams.LabelOC2Port, tsparams.LabelInt
 				"Failed to set interface %s to down on node %s",
 				oc2PortInfo.PassiveInterface, nodeName)
 
-			By("validating clock states remain LOCKED")
+			By("validating steady state: clock LOCKED, active FOLLOWER, passive FAULTY")
 
 			clockStateQuery := metrics.ClockStateQuery{
 				Node:    metrics.Equals(nodeName),
 				Process: metrics.Includes(metrics.ProcessPTP4L, metrics.ProcessPHC2SYS),
 			}
-			err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockStateQuery, metrics.ClockStateLocked,
-				metrics.AssertWithStableDuration(10*time.Second),
-				metrics.AssertWithTimeout(1*time.Minute))
-			Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state remains LOCKED")
-
-			By("validating active interface remains FOLLOWER")
-
-			interfaceRoleQuery := metrics.InterfaceRoleQuery{
+			activeInterfaceRoleQuery := metrics.InterfaceRoleQuery{
 				Interface: metrics.Equals(oc2PortInfo.ActiveInterface),
 				Node:      metrics.Equals(nodeName),
 				Process:   metrics.Equals(metrics.ProcessPTP4L),
 			}
-			err = metrics.AssertQuery(context.TODO(), prometheusAPI, interfaceRoleQuery, metrics.InterfaceRoleFollower,
-				metrics.AssertWithTimeout(1*time.Minute))
-			Expect(err).ToNot(HaveOccurred(), "Failed to assert active interface remains FOLLOWER")
-
-			By("validating passive interface is FAULTY")
-
-			interfaceRoleQuery = metrics.InterfaceRoleQuery{
+			passiveInterfaceRoleQuery := metrics.InterfaceRoleQuery{
 				Interface: metrics.Equals(oc2PortInfo.PassiveInterface),
 				Node:      metrics.Equals(nodeName),
 				Process:   metrics.Equals(metrics.ProcessPTP4L),
 			}
-			err = metrics.AssertQuery(context.TODO(), prometheusAPI, interfaceRoleQuery, metrics.InterfaceRoleFaulty,
+			err = metrics.AssertQuerySet(context.TODO(), prometheusAPI,
+				[]metrics.QueryExpectation{
+					metrics.Expect(clockStateQuery, metrics.ClockStateLocked),
+					metrics.Expect(activeInterfaceRoleQuery, metrics.InterfaceRoleFollower),
+					metrics.Expect(passiveInterfaceRoleQuery, metrics.InterfaceRoleFaulty),
+				},
+				metrics.AssertWithStableDuration(10*time.Second),
 				metrics.AssertWithTimeout(1*time.Minute))
-			Expect(err).ToNot(HaveOccurred(), "Failed to assert passive interface is FAULTY")
+			Expect(err).ToNot(HaveOccurred(), "Failed to assert steady-state metrics after passive interface down")
 
 			By("validating no HOLDOVER event is generated")
 
