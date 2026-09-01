@@ -139,57 +139,7 @@ func AssertQuery[V constraints.Integer](
 		option(opts)
 	}
 
-	// queryTime is the time at which each query is executed. It begins as the start time and will be incremented by
-	// the poll interval until the timeout is reached.
-	queryTime := opts.startTime
-	// stableTime is the first time at which a query succeeded, reset after a failure. The time in between the
-	// stableTime and the queryTime is the running stable duration. For the query to be considered stable, the
-	// running stable duration must be greater than or equal to the stable duration.
-	stableTime := queryTime
-	// lastTime is the time at which the query will stop being executed. It is the current time plus the timeout. If
-	// queryTime is lastTime or later, the query is considered to have timed out.
-	lastTime := time.Now().Add(opts.timeout)
-
-	// Since Before is a strict comparison and the loop should run if the queryTime is earlier or equal to the
-	// lastTime, the second condition is necessary. This is what allows the query to be executed exactly once if the
-	// timeout is zero.
-	for queryTime.Before(lastTime) || queryTime.Equal(lastTime) {
-		select {
-		// Wait until the queryTime is no longer in the future. If the queryTime is in the past, it is executed
-		// immediately.
-		case <-time.After(time.Until(queryTime)):
-			// Actually execute the query at the queryTime. Since the metrics are saved to Prometheus, the
-			// queryTime is allowed to be in the past and in fact always should be to avoid it being in the
-			// future.
-			err := assertQueryAtTime(ctx, client, query, expected, queryTime)
-			// If the query succeeds and there is no stable duration, or the query has been stable for the
-			// stable duration, return nil. This indicates the assertion has succeeded.
-			if err == nil && (opts.stableDuration == 0 || queryTime.Sub(stableTime) >= opts.stableDuration) {
-				return nil
-			} else if err == nil {
-				// If the query succeeds but the stable duration has not been reached, continue without
-				// updating the stableTime. This allows the stableTime to be the earlier of the last
-				// success or the queryTime. Query time must still be updated when we will query again.
-				queryTime = queryTime.Add(opts.pollInterval)
-
-				continue
-			}
-
-			klog.V(tsparams.LogLevel).Infof("Query assert failed at time %s: %v", queryTime, err)
-
-			// After a failure, update the queryTime to the next queryTime by adding the poll interval.
-			queryTime = queryTime.Add(opts.pollInterval)
-			// Since the query failed, the earliest it can start being stable is the next queryTime, so
-			// update queryTime first then set stableTime to the queryTime.
-			stableTime = queryTime
-		// If the context is done, return an error and consider the assertion to have failed. This allows the
-		// caller to cancel or set their own timeout.
-		case <-ctx.Done():
-			return fmt.Errorf("failed to assert query eventually: context finished: %w", ctx.Err())
-		}
-	}
-
-	return fmt.Errorf("failed to assert query eventually: timeout of %s exceeded", opts.timeout)
+	return pollQueryAssertions(ctx, client, []QueryExpectation{Expect(query, expected)}, opts, "query")
 }
 
 // AssertThresholdsOption configures optional behavior for [AssertThresholds].
