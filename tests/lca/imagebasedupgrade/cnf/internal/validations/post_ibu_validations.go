@@ -83,6 +83,8 @@ func PostUpgradeValidations() {
 			ValidateSeedRefMetrics()
 
 			ValidateSeedRefLogs()
+
+			ValidateCertManagerPersistence()
 		})
 }
 

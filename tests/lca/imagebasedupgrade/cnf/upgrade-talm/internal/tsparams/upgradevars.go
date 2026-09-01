@@ -51,9 +51,12 @@ var (
 
 	// ReporterSpokeNamespacesToDump tells the reporter which namespaces on the spokes to collect pod logs from.
 	ReporterSpokeNamespacesToDump = map[string]string{
-		LCANamespace:           "lca",
-		LCAWorkloadName:        "workload",
-		LCAKlusterletNamespace: "klusterlet",
+		LCANamespace:            "lca",
+		LCAWorkloadName:         "workload",
+		LCAKlusterletNamespace:  "klusterlet",
+		"cert-manager-operator": "cert-manager-operator",
+		"cert-manager":          "cert-manager",
+		"cert-test":             "cert-test",
 	}
 
 	// ReporterSpokeCRsToDump is the CRs the reporter should dump on the spokes.
