@@ -341,7 +341,7 @@ func ConfigureSriovMlnxFirmwareOnWorkers(
 		// Reboot is issued separately: the exec session is expected to drop when the node reboots.
 		_, rebootErr := runCommandOnConfigDaemon(apiClient, sriovOperatorNamespace, workerNode.Object.Name,
 			[]string{"bash", "-c", "chroot /host reboot"})
-		if rebootErr != nil && !isRebootExecDisconnectError(rebootErr) {
+		if rebootErr != nil && !IsRebootExecDisconnectError(rebootErr) {
 			return fmt.Errorf("failed to reboot node %s after Mellanox firmware configuration: %s",
 				workerNode.Object.Name, rebootErr.Error())
 		}
@@ -384,8 +384,8 @@ func ConfigureSriovMlnxFirmwareOnWorkersAndWaitMCP(
 	return nil
 }
 
-// isRebootExecDisconnectError reports whether err is the expected exec failure when reboot closes the session.
-func isRebootExecDisconnectError(err error) bool {
+// IsRebootExecDisconnectError reports whether err is the expected exec failure when reboot closes the session.
+func IsRebootExecDisconnectError(err error) bool {
 	if err == nil {
 		return false
 	}
@@ -398,6 +398,9 @@ func isRebootExecDisconnectError(err error) bool {
 		strings.Contains(msg, "broken pipe") ||
 		strings.Contains(msg, "unable to upgrade connection") ||
 		strings.Contains(msg, "command terminated") ||
+		strings.Contains(msg, "i/o timeout") ||
+		strings.Contains(msg, "error reading from error stream") ||
+		strings.Contains(msg, "use of closed network connection") ||
 		errors.Is(err, context.Canceled) ||
 		errors.Is(err, context.DeadlineExceeded)
 }
