@@ -18,6 +18,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/execoutput"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -184,7 +185,7 @@ func ExecCmdWithStdout(
 			}
 
 			hostname := regexp.MustCompile(`\r`).ReplaceAllString(hostnameBuf.String(), "")
-			output := regexp.MustCompile(`\r`).ReplaceAllString(commandBuf.String(), "")
+			output := execoutput.Normalize(commandBuf.String())
 
 			outputMap[hostname] = output
 		}
