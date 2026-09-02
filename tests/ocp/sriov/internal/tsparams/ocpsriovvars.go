@@ -31,6 +31,18 @@ var (
 	ClientMacAddress = "20:04:0f:f1:88:01"
 	// ServerMacAddress represents the test server MAC address.
 	ServerMacAddress = "20:04:0f:f1:88:02"
+	// ClientMacAddress2 represents the second test client MAC address.
+	ClientMacAddress2 = "20:04:0f:f1:88:03"
+	// ServerMacAddress2 represents the second test server MAC address.
+	ServerMacAddress2 = "20:04:0f:f1:88:04"
+	// WhereaboutsIPv4Range is the IP range for whereabouts IPAM.
+	WhereaboutsIPv4Range = "192.168.100.0/24"
+	// WhereaboutsIPv4Gateway is the gateway for whereabouts IPAM.
+	WhereaboutsIPv4Gateway = "192.168.100.1"
+	// WhereaboutsIPv4Range2 is an additional IP range for whereabouts IPAM (separate range to avoid conflicts).
+	WhereaboutsIPv4Range2 = "192.168.101.0/24"
+	// WhereaboutsIPv4Gateway2 is the gateway for whereabouts IPAM range 2.
+	WhereaboutsIPv4Gateway2 = "192.168.101.1"
 	// NADWaitTimeout represents timeout for NAD creation in QinQ tests.
 	NADWaitTimeout = 30 * time.Second
 	// ClusterMonitoringNSLabel represents Cluster Monitoring label for a NS to enable Prometheus Scraping.
