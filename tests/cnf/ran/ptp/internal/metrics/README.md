@@ -137,7 +137,7 @@ func assertExample(ctx context.Context, client prometheusapi.API) {
 
 Use `AssertQuerySet` when related metrics must be validated at the same Prometheus query time. Each separate `AssertQuery` call uses its own poll loop and timestamp, so in unstable environments one metric may change before the next is retrieved.
 
-Build expectations with `Expect` and pass them to `AssertQuerySet`:
+Build expectations with `Expect`, `ExpectLocked`, or `Set` and pass them to `AssertQuerySet`:
 
 ```go
 func assertLockedMetricsExample(ctx context.Context, client prometheusapi.API, nodeName string) {
@@ -153,10 +153,10 @@ func assertLockedMetricsExample(ctx context.Context, client prometheusapi.API, n
     err := metrics.AssertQuerySet(
         ctx,
         client,
-        []metrics.QueryExpectation{
-            metrics.Expect(clockStateQuery, metrics.ClockStateLocked),
+        metrics.Set(
+            metrics.ExpectLocked(clockStateQuery),
             metrics.Expect(clockClassQuery, metrics.ClockClass6),
-        },
+        ),
         metrics.AssertWithTimeout(1*time.Minute),
     )
     if err != nil {
@@ -171,6 +171,8 @@ func assertLockedMetricsExample(ctx context.Context, client prometheusapi.API, n
 `AssertQuerySet` accepts the same `QueryAssertOption` values as `AssertQuery` (timeout, poll interval, stable duration, start time). At each poll tick, all expectations are evaluated at the same `queryTime`. If any expectation fails, the tick fails and the stable-duration timer resets.
 
 Use separate `AssertQuery` calls when each assertion waits for a different state transition (for example, waiting for one interface to become FAULTY before another becomes FOLLOWER during failover). Use `AssertQuerySet` when the metrics should be consistent at a single point in time.
+
+For the standard cluster-wide locked baseline (excluding chronyd), use `LockedClockExpectations` or `AssertAllClocksLocked`. `EnsureClocksAreLocked` and `EnsureClocksAreStable` build on these helpers for BeforeEach/AfterEach checks.
 
 To assert PTP clock thresholds, use `AssertThresholds`:
 

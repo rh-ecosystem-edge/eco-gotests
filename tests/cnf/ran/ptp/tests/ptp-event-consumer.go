@@ -109,10 +109,7 @@ var _ = Describe("PTP Event Consumer", Label(tsparams.LabelEventConsumer), func(
 
 			By("waiting up to 10 minutes for metrics to be locked")
 
-			query := metrics.ClockStateQuery{
-				Process: metrics.DoesNotEqual(metrics.ProcessChronyd),
-			}
-			err = metrics.AssertQuery(context.TODO(), prometheusAPI, query, metrics.ClockStateLocked,
+			err = metrics.AssertAllClocksLocked(prometheusAPI,
 				metrics.AssertWithStableDuration(10*time.Second),
 				metrics.AssertWithTimeout(10*time.Minute))
 			Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked and stable after pod restart")
@@ -194,7 +191,8 @@ var _ = Describe("PTP Event Consumer", Label(tsparams.LabelEventConsumer), func(
 
 		By("verifying that all PTP clocks are in a LOCKED state")
 
-		err = metrics.AssertQuery(context.TODO(), prometheusAPI, metrics.ClockStateQuery{}, metrics.ClockStateLocked,
+		err = metrics.AssertQuerySet(context.TODO(), prometheusAPI,
+			metrics.Set(metrics.Expect(metrics.ClockStateQuery{}, metrics.ClockStateLocked)),
 			metrics.AssertWithStableDuration(1*time.Minute),
 			metrics.AssertWithTimeout(10*time.Minute))
 		Expect(err).ToNot(HaveOccurred(), "Failed to assert all clocks are locked after API version change")
@@ -221,7 +219,8 @@ var _ = Describe("PTP Event Consumer", Label(tsparams.LabelEventConsumer), func(
 
 		By("waiting for the PTP clocks to return to a LOCKED state")
 
-		err = metrics.AssertQuery(context.TODO(), prometheusAPI, metrics.ClockStateQuery{}, metrics.ClockStateLocked,
+		err = metrics.AssertQuerySet(context.TODO(), prometheusAPI,
+			metrics.Set(metrics.Expect(metrics.ClockStateQuery{}, metrics.ClockStateLocked)),
 			metrics.AssertWithStableDuration(1*time.Minute),
 			metrics.AssertWithTimeout(10*time.Minute))
 		Expect(err).ToNot(HaveOccurred(), "Failed to assert all clocks are locked after restoring original config")
