@@ -8,6 +8,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/execoutput"
 	"k8s.io/klog/v2"
 )
 
@@ -125,7 +126,7 @@ func ExecuteCommandInPtpDaemonPod(
 		}
 
 		// In the success case, we do not need to retry and we can return the output.
-		return output.String(), nil
+		return execoutput.Normalize(output.String()), nil
 	}
 
 	return "", fmt.Errorf(
