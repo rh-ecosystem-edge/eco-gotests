@@ -415,7 +415,8 @@ func restoreOc2PortAndValidate(
 		Node:    metrics.Equals(nodeName),
 		Process: metrics.Includes(metrics.ProcessPTP4L, metrics.ProcessPHC2SYS),
 	}
-	err := metrics.AssertQuery(ctx, prometheusAPI, clockStateQuery, metrics.ClockStateLocked,
+	err := metrics.AssertQuerySet(ctx, prometheusAPI,
+		metrics.Set(metrics.ExpectLocked(clockStateQuery)),
 		metrics.AssertWithStableDuration(5*time.Second),
 		metrics.AssertWithTimeout(3*time.Minute))
 	Expect(err).ToNot(HaveOccurred(), "Restore failed: clock state did not return to LOCKED after restoration")

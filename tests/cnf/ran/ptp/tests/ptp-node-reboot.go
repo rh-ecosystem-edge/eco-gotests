@@ -96,7 +96,8 @@ var _ = Describe("PTP Node Reboot", Ordered, ContinueOnFailure, Label(tsparams.L
 			Node:    metrics.Equals(nodeName),
 			Process: metrics.DoesNotEqual(metrics.ProcessChronyd),
 		}
-		err = metrics.AssertQuery(context.TODO(), prometheusAPI, query, metrics.ClockStateLocked,
+		err = metrics.AssertQuerySet(context.TODO(), prometheusAPI,
+			metrics.Set(metrics.ExpectLocked(query)),
 			metrics.AssertWithStableDuration(10*time.Second),
 			metrics.AssertWithTimeout(10*time.Minute))
 		Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked after 5 minutes")

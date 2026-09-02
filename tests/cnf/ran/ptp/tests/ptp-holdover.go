@@ -718,7 +718,8 @@ func restoreInterfacesAndWaitForRelock(
 		Node:    metrics.Equals(nodeName),
 		Process: metrics.Equals(metrics.ProcessTBC),
 	}
-	err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockStateQuery, metrics.ClockStateLocked,
+	err = metrics.AssertQuerySet(context.TODO(), prometheusAPI,
+		metrics.Set(metrics.ExpectLocked(clockStateQuery)),
 		metrics.AssertWithStableDuration(5*time.Second),
 		metrics.AssertWithTimeout(3*time.Minute))
 	Expect(err).ToNot(HaveOccurred(), "Clock did not return to LOCKED after restoration")
