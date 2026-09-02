@@ -18,6 +18,17 @@ type QueryExpectation struct {
 	assert      func(ctx context.Context, client prometheusv1.API, assertTime time.Time) error
 }
 
+// Set wraps one or more expectations for [AssertQuerySet]. Use for single-metric checks as well as
+// multi-metric snapshots so call sites can add expectations without changing assertion machinery.
+func Set(expectations ...QueryExpectation) []QueryExpectation {
+	return expectations
+}
+
+// ExpectLocked returns an expectation that clock_state equals [ClockStateLocked].
+func ExpectLocked(query ClockStateQuery) QueryExpectation {
+	return Expect(query, ClockStateLocked)
+}
+
 // Expect returns a [QueryExpectation] for the given query and expected value.
 func Expect[V constraints.Integer](query Query[V], expected V) QueryExpectation {
 	metricQuery := query.ToMetricQuery()
