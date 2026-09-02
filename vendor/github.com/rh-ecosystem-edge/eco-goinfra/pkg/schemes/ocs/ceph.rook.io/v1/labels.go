@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	"maps"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -53,7 +54,7 @@ type LabelsSpec map[KeyType]Labels
 // KeyType type safety
 type KeyType string
 
-// Labels are label for a given daemons
+// Labels are the labels for a given daemon
 type Labels map[string]string
 
 func (a LabelsSpec) All() Labels {
@@ -138,9 +139,7 @@ func (a Labels) OverwriteApplyToObjectMeta(t *metav1.ObjectMeta) {
 	if t.Labels == nil {
 		t.Labels = map[string]string{}
 	}
-	for k, v := range a {
-		t.Labels[k] = v
-	}
+	maps.Copy(t.Labels, a)
 }
 
 // Merge returns a Labels which results from merging the attributes of the
@@ -169,7 +168,7 @@ func (a Labels) Merge(with Labels) Labels {
 //   - Multiple resultant dashes in a row are compressed to a single dash.
 //   - If the starting character is a number, a 'd' is prepended to preserve the number.
 //   - Any non-alphanumeric starting or ending characters are removed.
-//   - If the resultant string is longer than the maximum-allowed 63 characters], characters are
+//   - If the resultant string is longer than the maximum-allowed 63 characters, characters are
 //     removed from the middle and replaced with a double dash ('--') to reduce the string to 63
 //     characters.
 func ToValidDNSLabel(input string) string {
