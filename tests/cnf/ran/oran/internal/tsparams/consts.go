@@ -19,6 +19,8 @@ const (
 	LabelTemplateInventory = "template-inventory"
 	// LabelAlarms is the label applied to just the alarms test cases.
 	LabelAlarms = "alarms"
+	// LabelInventory is the label applied to just the inventory API test cases.
+	LabelInventory = "inventory"
 )
 
 const (
@@ -110,6 +112,17 @@ const (
 	// TestPRName2 is the second UUID used for naming ProvisioningRequests. Metal3 tests require a second PR applied
 	// to verify the case of all hardware already allocated.
 	TestPRName2 = "a1b2c3d4-e5f6-7890-1234-567890abcdef"
+
+	// TestLocationAlpha is the first Location name used by inventory filter tests.
+	TestLocationAlpha = "test-location-alpha"
+	// TestLocationBeta is the second Location name used by inventory filter tests.
+	TestLocationBeta = "test-location-beta"
+	// TestInventoryResourcePool is the ResourcePool name used by inventory subscription notification tests.
+	TestInventoryResourcePool = "oran-test-inventory-pool"
+	// ResourcePoolNameLabel is the BMH label that associates a host with a ResourcePool.
+	ResourcePoolNameLabel = "resources.clcm.openshift.io/resourcePoolName"
+	// NonExistentUUID is a well-known UUID used for not-found inventory API requests.
+	NonExistentUUID = "00000000-0000-0000-0000-000000000000"
 )
 
 // LogLevel is the glog verbosity level to use for logs in this suite or its helpers.

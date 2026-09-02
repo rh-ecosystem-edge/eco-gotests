@@ -1,6 +1,7 @@
 package tsparams
 
 import (
+	bmhv1alpha1 "github.com/metal3-io/baremetal-operator/apis/metal3.io/v1alpha1"
 	"github.com/openshift-kni/k8sreporter"
 	hardwaremanagementv1alpha1 "github.com/openshift-kni/oran-o2ims/api/hardwaremanagement/v1alpha1"
 	inventoryv1alpha1 "github.com/openshift-kni/oran-o2ims/api/inventory/v1alpha1"
@@ -32,12 +33,17 @@ var (
 
 	// ReporterHubCRsToDump is the CRs the reporter should dump on the hub.
 	ReporterHubCRsToDump = []k8sreporter.CRData{
+		{Cr: &bmhv1alpha1.BareMetalHostList{}},
+		{Cr: &bmhv1alpha1.HardwareDataList{}},
 		{Cr: &provisioningv1alpha1.ClusterTemplateList{}},
 		{Cr: &provisioningv1alpha1.ProvisioningRequestList{}},
 		{Cr: &hardwaremanagementv1alpha1.HardwareProfileList{}},
 		{Cr: &hardwaremanagementv1alpha1.AllocatedNodeList{}},
 		{Cr: &hardwaremanagementv1alpha1.NodeAllocationRequestList{}},
 		{Cr: &inventoryv1alpha1.InventoryList{}},
+		{Cr: &inventoryv1alpha1.LocationList{}},
+		{Cr: &inventoryv1alpha1.OCloudSiteList{}},
+		{Cr: &inventoryv1alpha1.ResourcePoolList{}},
 		{Cr: &policiesv1.PolicyList{}},
 		{Cr: &siteconfigv1alpha1.ClusterInstanceList{}},
 	}
@@ -85,5 +91,12 @@ var (
 		Reason:  string(provisioningv1alpha1.CTconditionReasons.Failed),
 		Status:  metav1.ConditionFalse,
 		Message: "ClusterTemplate must define hardware provisioning",
+	}
+
+	// InventoryReadyCondition matches Ready=True on inventory hierarchy CRs (Location, OCloudSite,
+	// ResourcePool).
+	InventoryReadyCondition = metav1.Condition{
+		Type:   inventoryv1alpha1.ConditionTypeReady,
+		Status: metav1.ConditionTrue,
 	}
 )

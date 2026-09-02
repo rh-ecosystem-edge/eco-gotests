@@ -101,6 +101,7 @@ linters:
             - github.com/go-openapi/strfmt
             - golang.org/x/oauth2
             - github.com/google/uuid
+            - github.com/google/go-cmp
             - golang.org/x/exp/constraints
             - github.com/redhat-cne/sdk-go
             - github.com/prometheus-operator/prometheus-operator
