@@ -40,12 +40,13 @@ const (
 
 var (
 	reHubSideTemplate           = regexp.MustCompile(`\{\{\s*hub[^\r\n]+hub\s*\}\}`)
-	ignorePaths       [5]string = [5]string{
+	ignorePaths       [6]string = [6]string{
 		"source-crs/",
 		"custom-crs/",
 		"extra-manifest/",
 		"extra-manifests/",
 		"ztp-test/",
+		"preinstall-test/",
 	}
 )
 
