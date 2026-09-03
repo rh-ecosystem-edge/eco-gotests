@@ -19,6 +19,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/events"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/metrics"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/processes"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/profiles"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
 	"k8s.io/klog/v2"
@@ -208,7 +209,7 @@ func assertHoldoverInSpecToLocked(
 	Expect(err).ToNot(HaveOccurred(), "Failed to set upstream clock interfaces down")
 
 	assertHoldoverState(testData.PrometheusAPI, testData.NodeName, ifaceDownTime,
-		expected.HoldoverInSpec, clockClassChanges, timeout, true)
+		expected.HoldoverInSpec, clockClassChanges, timeout, true, testData.ConfigFile)
 
 	By("setting upstream clock interfaces up to return to locked")
 
@@ -219,7 +220,7 @@ func assertHoldoverInSpecToLocked(
 	Expect(err).ToNot(HaveOccurred(), "Failed to set upstream clock interfaces up")
 
 	assertLockedState(testData.PrometheusAPI, testData.NodeName, ifaceUpTime,
-		expected.Locked, clockClassChanges, timeout, testData.UpstreamIfaces)
+		expected.Locked, clockClassChanges, timeout, testData.UpstreamIfaces, testData.ConfigFile)
 
 	assertNoFreerunEvent(testData.NodeName, ifaceUpTime)
 }
@@ -250,10 +251,10 @@ func assertHoldoverInSpecToFreerun(
 	Expect(err).ToNot(HaveOccurred(), "Failed to set upstream clock interfaces down")
 
 	assertHoldoverState(testData.PrometheusAPI, testData.NodeName, ifaceDownTime,
-		expected.HoldoverInSpec, clockClassChanges, timeout, true)
+		expected.HoldoverInSpec, clockClassChanges, timeout, true, testData.ConfigFile)
 
 	assertFreerunState(testData.PrometheusAPI, testData.NodeName, ifaceDownTime,
-		expected.Freerun, clockClassChanges, timeout)
+		expected.Freerun, clockClassChanges, timeout, testData.ConfigFile)
 
 	By("setting upstream clock interfaces up to return to locked")
 
@@ -264,7 +265,7 @@ func assertHoldoverInSpecToFreerun(
 	Expect(err).ToNot(HaveOccurred(), "Failed to set upstream clock interfaces up")
 
 	assertLockedState(testData.PrometheusAPI, testData.NodeName, ifaceUpTime,
-		expected.Locked, clockClassChanges, timeout, testData.UpstreamIfaces)
+		expected.Locked, clockClassChanges, timeout, testData.UpstreamIfaces, testData.ConfigFile)
 }
 
 // assertHoldoverInSpecToOutOfSpec validates that after upstream clock loss the clock enters holdover-in-spec,
@@ -294,10 +295,10 @@ func assertHoldoverInSpecToOutOfSpec(
 	Expect(err).ToNot(HaveOccurred(), "Failed to set upstream clock interfaces down")
 
 	assertHoldoverState(testData.PrometheusAPI, testData.NodeName, ifaceDownTime,
-		expected.HoldoverInSpec, clockClassChanges, timeout, true)
+		expected.HoldoverInSpec, clockClassChanges, timeout, true, testData.ConfigFile)
 
 	assertHoldoverOutOfSpecClockClass(testData.PrometheusAPI, testData.NodeName, ifaceDownTime,
-		expected.HoldoverOutOfSpec, clockClassChanges, timeout)
+		expected.HoldoverOutOfSpec, clockClassChanges, timeout, testData.ConfigFile)
 
 	By("setting upstream clock interfaces up to return to locked")
 
@@ -308,7 +309,7 @@ func assertHoldoverInSpecToOutOfSpec(
 	Expect(err).ToNot(HaveOccurred(), "Failed to set upstream clock interfaces up")
 
 	assertLockedState(testData.PrometheusAPI, testData.NodeName, ifaceUpTime,
-		expected.Locked, clockClassChanges, timeout, testData.UpstreamIfaces)
+		expected.Locked, clockClassChanges, timeout, testData.UpstreamIfaces, testData.ConfigFile)
 
 	assertNoFreerunEvent(testData.NodeName, ifaceUpTime)
 }
@@ -339,13 +340,13 @@ func assertHoldoverOutOfSpecToFreerun(
 	Expect(err).ToNot(HaveOccurred(), "Failed to set upstream clock interfaces down")
 
 	assertHoldoverState(testData.PrometheusAPI, testData.NodeName, ifaceDownTime,
-		expected.HoldoverInSpec, clockClassChanges, timeout, true)
+		expected.HoldoverInSpec, clockClassChanges, timeout, true, testData.ConfigFile)
 
 	assertHoldoverOutOfSpecClockClass(testData.PrometheusAPI, testData.NodeName, ifaceDownTime,
-		expected.HoldoverOutOfSpec, clockClassChanges, timeout)
+		expected.HoldoverOutOfSpec, clockClassChanges, timeout, testData.ConfigFile)
 
 	assertFreerunState(testData.PrometheusAPI, testData.NodeName, ifaceDownTime,
-		expected.Freerun, clockClassChanges, timeout)
+		expected.Freerun, clockClassChanges, timeout, testData.ConfigFile)
 
 	By("setting upstream clock interfaces up to return to locked")
 
@@ -356,7 +357,7 @@ func assertHoldoverOutOfSpecToFreerun(
 	Expect(err).ToNot(HaveOccurred(), "Failed to set upstream clock interfaces up")
 
 	assertLockedState(testData.PrometheusAPI, testData.NodeName, ifaceUpTime,
-		expected.Locked, clockClassChanges, timeout, testData.UpstreamIfaces)
+		expected.Locked, clockClassChanges, timeout, testData.UpstreamIfaces, testData.ConfigFile)
 }
 
 // assertHoldoverState waits for the HOLDOVER event and optional clock class change event, then validates
@@ -372,6 +373,7 @@ func assertHoldoverState(
 	clockClassChanges bool,
 	timeout time.Duration,
 	checkMetrics bool,
+	configFile string,
 ) {
 	GinkgoHelper()
 
@@ -415,6 +417,7 @@ func assertHoldoverState(
 	clockClassQuery := metrics.ClockClassQuery{
 		Node:    metrics.Equals(nodeName),
 		Process: metrics.Equals(metrics.ProcessPTP4L),
+		Config:  metrics.Equals(configFile),
 	}
 	err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockClassQuery, expectedClockClass,
 		metrics.AssertWithTimeout(1*time.Minute))
@@ -431,6 +434,7 @@ func assertLockedState(
 	clockClassChanges bool,
 	timeout time.Duration,
 	upstreamIfaces []iface.Name,
+	configFile string,
 ) {
 	GinkgoHelper()
 
@@ -470,6 +474,7 @@ func assertLockedState(
 	clockClassQuery := metrics.ClockClassQuery{
 		Node:    metrics.Equals(nodeName),
 		Process: metrics.Equals(metrics.ProcessPTP4L),
+		Config:  metrics.Equals(configFile),
 	}
 	err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockClassQuery, expectedClockClass,
 		metrics.AssertWithTimeout(1*time.Minute))
@@ -487,6 +492,7 @@ func assertFreerunState(
 	expectedClockClass metrics.PtpClockClass,
 	clockClassChanges bool,
 	timeout time.Duration,
+	configFile string,
 ) {
 	GinkgoHelper()
 
@@ -536,6 +542,7 @@ func assertFreerunState(
 	clockClassQuery := metrics.ClockClassQuery{
 		Node:    metrics.Equals(nodeName),
 		Process: metrics.Equals(metrics.ProcessPTP4L),
+		Config:  metrics.Equals(configFile),
 	}
 	err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockClassQuery, expectedClockClass,
 		metrics.AssertWithTimeout(1*time.Minute))
@@ -551,6 +558,7 @@ func assertHoldoverOutOfSpecClockClass(
 	expectedClockClass metrics.PtpClockClass,
 	clockClassChanges bool,
 	timeout time.Duration,
+	configFile string,
 ) {
 	GinkgoHelper()
 
@@ -581,6 +589,7 @@ func assertHoldoverOutOfSpecClockClass(
 	clockClassQuery := metrics.ClockClassQuery{
 		Node:    metrics.Equals(nodeName),
 		Process: metrics.Equals(metrics.ProcessPTP4L),
+		Config:  metrics.Equals(configFile),
 	}
 	err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockClassQuery, expectedClockClass,
 		metrics.AssertWithTimeout(1*time.Minute))
@@ -667,7 +676,7 @@ func changeHoldoverSettings(
 		restoreTime = time.Now()
 
 		assertLockedState(testData.PrometheusAPI, testData.NodeName, restoreTime,
-			expectedLockedClass, clockClassChanges, timeout, testData.UpstreamIfaces)
+			expectedLockedClass, clockClassChanges, timeout, testData.UpstreamIfaces, testData.ConfigFile)
 	})
 
 	setTime := time.Now()
@@ -679,7 +688,7 @@ func changeHoldoverSettings(
 	setTime = time.Now()
 
 	assertLockedState(testData.PrometheusAPI, testData.NodeName, setTime,
-		expectedLockedClass, clockClassChanges, timeout, testData.UpstreamIfaces)
+		expectedLockedClass, clockClassChanges, timeout, testData.UpstreamIfaces, testData.ConfigFile)
 }
 
 // discoverHoldoverTestData finds the first node with a matching profile type that supports holdover tests
@@ -719,11 +728,28 @@ func discoverHoldoverTestData(
 				NodeName:       name,
 				ProfileInfo:    profileInfo,
 				UpstreamIfaces: ports,
+				ConfigFile:     getPtp4lConfigFileForNode(name),
 			}
 		}
 	}
 
 	return nil
+}
+
+// getPtp4lConfigFileForNode returns the ptp4l.<index>.config name for the ts2phc process on the given node.
+func getPtp4lConfigFileForNode(nodeName string) string {
+	configSupported, err := version.IsVersionStringInRange(
+		RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.21.0-0", "")
+	Expect(err).ToNot(HaveOccurred(), "Failed to check PTP operator version range")
+
+	if !configSupported {
+		return ""
+	}
+
+	configFile, err := processes.GetPtp4lConfigByRelatedProcess(RANConfig.Spoke1APIClient, nodeName, processes.Ts2phc)
+	Expect(err).ToNot(HaveOccurred(), "Failed to determine ptp4l config for node %s", nodeName)
+
+	return configFile
 }
 
 // restoreInterfacesAndWaitForRelock brings the upstream interfaces back up and waits for the T-BC clock to return
