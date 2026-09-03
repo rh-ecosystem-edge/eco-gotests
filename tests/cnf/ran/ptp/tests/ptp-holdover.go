@@ -639,6 +639,13 @@ func changeHoldoverSettings(
 
 		assertLockedState(testData.PrometheusAPI, testData.NodeName, restoreTime,
 			expectedLockedClass, clockClassChanges, timeout)
+
+		restoreErr = profiles.EnsureExpectedClocksLocked(testData.PrometheusAPI, RANConfig.Spoke1APIClient,
+			metrics.WithAssertOptions(
+				metrics.AssertWithStableDuration(5*time.Second),
+				metrics.AssertWithTimeout(timeout),
+			))
+		Expect(restoreErr).ToNot(HaveOccurred(), "Expected clock state metrics not locked after holdover restore")
 	})
 
 	setTime := time.Now()
@@ -714,13 +721,10 @@ func restoreInterfacesAndWaitForRelock(
 	err := iface.SetInterfacesStatus(RANConfig.Spoke1APIClient, nodeName, upstreamIfaces, iface.InterfaceStateUp)
 	Expect(err).ToNot(HaveOccurred(), "Failed to restore upstream clock interfaces")
 
-	clockStateQuery := metrics.ClockStateQuery{
-		Node:    metrics.Equals(nodeName),
-		Process: metrics.Equals(metrics.ProcessTBC),
-	}
-	err = metrics.AssertQuerySet(context.TODO(), prometheusAPI,
-		metrics.Set(metrics.ExpectLocked(clockStateQuery)),
-		metrics.AssertWithStableDuration(5*time.Second),
-		metrics.AssertWithTimeout(3*time.Minute))
+	err = profiles.EnsureExpectedClocksLocked(prometheusAPI, RANConfig.Spoke1APIClient,
+		metrics.WithAssertOptions(
+			metrics.AssertWithStableDuration(5*time.Second),
+			metrics.AssertWithTimeout(3*time.Minute),
+		))
 	Expect(err).ToNot(HaveOccurred(), "Clock did not return to LOCKED after restoration")
 }

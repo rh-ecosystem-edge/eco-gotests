@@ -369,3 +369,49 @@ func TestAssertQueryPreservesTimeoutErrorMessage(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to assert query eventually")
 }
+
+func TestLockedExpectationsFromExpectedFailsOnMissingSeries(t *testing.T) {
+	t.Parallel()
+
+	fake := &fakePrometheusAPI{
+		values: map[string]model.SampleValue{},
+	}
+
+	expectations := LockedExpectationsFromExpected([]ExpectedClockState{
+		{
+			Process:   ProcessPTP4L,
+			Interface: "ens1f0",
+			Node:      "worker-0",
+		},
+	})
+
+	err := assertQueriesAtTime(
+		context.Background(),
+		fake,
+		expectations,
+		time.Now(),
+	)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no samples returned")
+}
+
+func TestLockedExpectationsFromExpectedPassesWhenPresent(t *testing.T) {
+	t.Parallel()
+
+	fake := &fakePrometheusAPI{
+		values: map[string]model.SampleValue{
+			string(MetricClockState): model.SampleValue(ClockStateLocked),
+		},
+	}
+
+	expectations := LockedExpectationsFromExpected([]ExpectedClockState{
+		{
+			Process:   ProcessPTP4L,
+			Interface: "ens1f0",
+			Node:      "worker-0",
+		},
+	})
+
+	err := AssertQuerySet(context.Background(), fake, expectations)
+	require.NoError(t, err)
+}
