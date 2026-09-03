@@ -93,6 +93,30 @@ func TestGetRxInterfaces(t *testing.T) {
 	assert.Equal(t, []iface.Name{"ens2f0"}, got)
 }
 
+func TestGetDpllInterfaces(t *testing.T) {
+	t.Parallel()
+
+	t.Run("E810 uses RX pins", func(t *testing.T) {
+		t.Parallel()
+
+		profile := profileWithE810Pins(t, map[string]map[string]string{
+			"ens7f0": {"SMA1": "0 1", "SMA2": "0 2"},
+			"ens2f0": {"SMA1": "0 1", "SMA2": "1 2"},
+		})
+
+		got, err := GetDpllInterfaces(profile)
+		require.NoError(t, err)
+		assert.Equal(t, []iface.Name{"ens2f0"}, got)
+	})
+
+	t.Run("nil profile", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := GetDpllInterfaces(nil)
+		assert.Error(t, err)
+	})
+}
+
 func TestGetUpstreamPortsForProfile(t *testing.T) {
 	t.Parallel()
 
