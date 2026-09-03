@@ -28,6 +28,7 @@ func Normalize(output string) string {
 func LeadingPID(line string) (string, bool) {
 	line = strings.TrimSpace(Normalize(line))
 	match := leadingPIDRegex.FindStringSubmatch(line)
+
 	if len(match) < 2 {
 		return "", false
 	}
@@ -38,6 +39,7 @@ func LeadingPID(line string) (string, bool) {
 // LinesAsPIDs extracts leading PIDs from each line of command output.
 func LinesAsPIDs(output string) []string {
 	normalized := Normalize(output)
+
 	var pids []string
 
 	for line := range strings.SplitSeq(normalized, "\n") {

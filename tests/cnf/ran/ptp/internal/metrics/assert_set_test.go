@@ -28,24 +28,24 @@ type fakePrometheusAPI struct {
 }
 
 type queryCall struct {
-	query string
-	ts    time.Time
+	query     string
+	timestamp time.Time
 }
 
 func (fake *fakePrometheusAPI) Query(
-	_ context.Context, query string, ts time.Time, _ ...prometheusv1.Option,
+	_ context.Context, query string, timestamp time.Time, _ ...prometheusv1.Option,
 ) (model.Value, prometheusv1.Warnings, error) {
 	fake.mu.Lock()
 	defer fake.mu.Unlock()
 
-	if len(fake.queryCalls) == 0 || !fake.queryCalls[len(fake.queryCalls)-1].ts.Equal(ts) {
+	if len(fake.queryCalls) == 0 || !fake.queryCalls[len(fake.queryCalls)-1].timestamp.Equal(timestamp) {
 		fake.tick++
 		if fake.tickHandler != nil {
 			fake.values = fake.tickHandler(fake.tick)
 		}
 	}
 
-	fake.queryCalls = append(fake.queryCalls, queryCall{query: query, ts: ts})
+	fake.queryCalls = append(fake.queryCalls, queryCall{query: query, timestamp: timestamp})
 
 	value, ok := fake.valueForQuery(query)
 	if !ok {
@@ -144,7 +144,9 @@ func (fake *fakePrometheusAPI) Targets(context.Context) (prometheusv1.TargetsRes
 	panic("unexpected Targets call")
 }
 
-func (fake *fakePrometheusAPI) TargetsMetadata(context.Context, string, string, string) ([]prometheusv1.MetricMetadata, error) {
+func (fake *fakePrometheusAPI) TargetsMetadata(
+	context.Context, string, string, string,
+) ([]prometheusv1.MetricMetadata, error) {
 	panic("unexpected TargetsMetadata call")
 }
 
@@ -160,16 +162,16 @@ func (fake *fakePrometheusAPI) WalReplay(context.Context) (prometheusv1.WalRepla
 	panic("unexpected WalReplay call")
 }
 
-func clockStateQueryForNode(node string) ClockStateQuery {
+func clockStateQueryForWorker0() ClockStateQuery {
 	return ClockStateQuery{
-		Node:    Equals(node),
+		Node:    Equals("worker-0"),
 		Process: Equals(ProcessTBC),
 	}
 }
 
-func clockClassQueryForNode(node string) ClockClassQuery {
+func clockClassQueryForWorker0() ClockClassQuery {
 	return ClockClassQuery{
-		Node:    Equals(node),
+		Node:    Equals("worker-0"),
 		Process: Equals(ProcessPTP4L),
 	}
 }
@@ -189,7 +191,7 @@ func TestAssertQuerySetNilClient(t *testing.T) {
 	err := AssertQuerySet(
 		context.Background(),
 		nil,
-		[]QueryExpectation{Expect(clockStateQueryForNode("worker-0"), ClockStateLocked)},
+		[]QueryExpectation{Expect(clockStateQueryForWorker0(), ClockStateLocked)},
 	)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "nil client")
@@ -209,14 +211,14 @@ func TestAssertQuerySetUsesSameTimestampPerTick(t *testing.T) {
 		context.Background(),
 		fake,
 		[]QueryExpectation{
-			Expect(clockStateQueryForNode("worker-0"), ClockStateLocked),
-			Expect(clockClassQueryForNode("worker-0"), ClockClass6),
+			Expect(clockStateQueryForWorker0(), ClockStateLocked),
+			Expect(clockClassQueryForWorker0(), ClockClass6),
 		},
 	)
 	require.NoError(t, err)
 	require.Len(t, fake.queryCalls, 2)
 
-	assert.Equal(t, fake.queryCalls[0].ts, fake.queryCalls[1].ts)
+	assert.Equal(t, fake.queryCalls[0].timestamp, fake.queryCalls[1].timestamp)
 }
 
 func TestAssertQueriesAtTimeReturnsFirstFailure(t *testing.T) {
@@ -233,8 +235,8 @@ func TestAssertQueriesAtTimeReturnsFirstFailure(t *testing.T) {
 		context.Background(),
 		fake,
 		[]QueryExpectation{
-			Expect(clockStateQueryForNode("worker-0"), ClockStateLocked),
-			Expect(clockClassQueryForNode("worker-0"), ClockClass6),
+			Expect(clockStateQueryForWorker0(), ClockStateLocked),
+			Expect(clockClassQueryForWorker0(), ClockClass6),
 		},
 		time.Now(),
 	)
@@ -256,8 +258,8 @@ func TestAssertQuerySetFailsWhenAnyExpectationFails(t *testing.T) {
 		context.Background(),
 		fake,
 		[]QueryExpectation{
-			Expect(clockStateQueryForNode("worker-0"), ClockStateLocked),
-			Expect(clockClassQueryForNode("worker-0"), ClockClass6),
+			Expect(clockStateQueryForWorker0(), ClockStateLocked),
+			Expect(clockClassQueryForWorker0(), ClockClass6),
 		},
 		AssertWithTimeout(10*time.Millisecond),
 	)
@@ -288,8 +290,8 @@ func TestAssertQuerySetStableDuration(t *testing.T) {
 		context.Background(),
 		fake,
 		[]QueryExpectation{
-			Expect(clockStateQueryForNode("worker-0"), ClockStateLocked),
-			Expect(clockClassQueryForNode("worker-0"), ClockClass6),
+			Expect(clockStateQueryForWorker0(), ClockStateLocked),
+			Expect(clockClassQueryForWorker0(), ClockClass6),
 		},
 		AssertWithStableDuration(30*time.Millisecond),
 		AssertWithPollInterval(40*time.Millisecond),
@@ -320,8 +322,8 @@ func TestAssertQuerySetStableDurationResetsOnFailure(t *testing.T) {
 		context.Background(),
 		fake,
 		[]QueryExpectation{
-			Expect(clockStateQueryForNode("worker-0"), ClockStateLocked),
-			Expect(clockClassQueryForNode("worker-0"), ClockClass6),
+			Expect(clockStateQueryForWorker0(), ClockStateLocked),
+			Expect(clockClassQueryForWorker0(), ClockClass6),
 		},
 		AssertWithStableDuration(50*time.Millisecond),
 		AssertWithPollInterval(20*time.Millisecond),
@@ -343,7 +345,7 @@ func TestAssertQueryDelegatesToPollLoop(t *testing.T) {
 	err := AssertQuery(
 		context.Background(),
 		fake,
-		clockStateQueryForNode("worker-0"),
+		clockStateQueryForWorker0(),
 		ClockStateLocked,
 	)
 	require.NoError(t, err)
@@ -362,7 +364,7 @@ func TestAssertQueryPreservesTimeoutErrorMessage(t *testing.T) {
 	err := AssertQuery(
 		context.Background(),
 		fake,
-		clockStateQueryForNode("worker-0"),
+		clockStateQueryForWorker0(),
 		ClockStateLocked,
 		AssertWithTimeout(10*time.Millisecond),
 	)
