@@ -13,6 +13,9 @@ const (
 
 	// LCANamespace is the namespace used by the lifecycle-agent.
 	LCANamespace = "openshift-lifecycle-agent"
+
+	// OADPNamespace is the namespace used by the OADP operator.
+	OADPNamespace = "openshift-adp"
 )
 
 var (

@@ -7,6 +7,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/lca"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oadp"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/secret"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
@@ -15,6 +16,8 @@ import (
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/lca/seedgeneration/internal/seedgenerationinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/seedgeneration/internal/tsparams"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/klog/v2"
 )
 
@@ -35,6 +38,37 @@ var _ = Describe(
 
 			// Verify we have the required API client
 			Expect(TargetSNOAPIClient).NotTo(BeNil(), "TargetSNOAPIClient is not initialized")
+
+			By("removing DataProtectionApplication if present", func() {
+				// ListDataProtectionApplication requires nsname but does not apply it
+				// unless ListOptions.Namespace is set; omitting ListOptions lists all namespaces.
+				dpaList, err := oadp.ListDataProtectionApplication(
+					TargetSNOAPIClient, tsparams.OADPNamespace)
+				if apimeta.IsNoMatchError(err) || apierrors.IsNotFound(err) {
+					klog.V(lcaparams.LCALogLevel).Info(
+						"DataProtectionApplication CRD is not installed, skipping deletion")
+
+					return
+				}
+
+				Expect(err).NotTo(HaveOccurred(),
+					fmt.Sprintf("Failed to list DataProtectionApplication CRs: %v", err))
+
+				for _, dpa := range dpaList {
+					dpaNS, dpaName := dpa.Definition.Namespace, dpa.Definition.Name
+
+					klog.V(lcaparams.LCALogLevel).Infof(
+						"Deleting DataProtectionApplication %s/%s", dpaNS, dpaName)
+
+					err = dpa.Delete()
+					Expect(err).NotTo(HaveOccurred(),
+						fmt.Sprintf("Failed to delete DataProtectionApplication %s/%s: %v",
+							dpaNS, dpaName, err))
+
+					Eventually(dpa.Exists, 2*time.Minute, 5*time.Second).Should(BeFalse(),
+						fmt.Sprintf("DataProtectionApplication %s/%s was not deleted", dpaNS, dpaName))
+				}
+			})
 
 			By("checking for existing SeedGenerator and deleting if present", func() {
 				seedGenerator, err := lca.PullSeedGenerator(TargetSNOAPIClient, "seedimage")
