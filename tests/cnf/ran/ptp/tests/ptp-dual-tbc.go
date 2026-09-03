@@ -104,7 +104,7 @@ func assertDualTBCFailoverToBackup(testData profiles.HoldoverTestData, timeout t
 		profiles.TBCClockClasses().HoldoverInSpec, true, timeout, false)
 
 	assertLockedState(testData.PrometheusAPI, testData.NodeName, ifaceDownTime,
-		profiles.TBCClockClasses().Locked, true, timeout)
+		profiles.TBCClockClasses().Locked, true, timeout, testData.UpstreamIfaces)
 
 	By("validating interface roles after failover")
 

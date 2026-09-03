@@ -82,6 +82,8 @@ var _ = Describe("PTP Holdover", Label(tsparams.LabelTBCTSCHoldover), func() {
 
 			klog.V(tsparams.LogLevel).Infof(
 				"T-BC holdover test on node %s, upstream interfaces %v", testData.NodeName, testData.UpstreamIfaces)
+
+			assertDPLLPhaseLockedHoldoverAcquired(testData.PrometheusAPI, testData.NodeName, testData.UpstreamIfaces)
 		})
 
 		// 83297 - Verifies t-bc transition from holdover-in-spec to locked when upstream clock recovers
@@ -146,6 +148,8 @@ var _ = Describe("PTP Holdover", Label(tsparams.LabelTBCTSCHoldover), func() {
 
 			klog.V(tsparams.LogLevel).Infof(
 				"T-TSC holdover test on node %s, upstream interfaces %v", testData.NodeName, testData.UpstreamIfaces)
+
+			assertDPLLPhaseLockedHoldoverAcquired(testData.PrometheusAPI, testData.NodeName, testData.UpstreamIfaces)
 		})
 
 		// 88274 - Verifies t-tsc transition from holdover-in-spec to locked when upstream clock recovers
@@ -215,7 +219,7 @@ func assertHoldoverInSpecToLocked(
 	Expect(err).ToNot(HaveOccurred(), "Failed to set upstream clock interfaces up")
 
 	assertLockedState(testData.PrometheusAPI, testData.NodeName, ifaceUpTime,
-		expected.Locked, clockClassChanges, timeout)
+		expected.Locked, clockClassChanges, timeout, testData.UpstreamIfaces)
 
 	assertNoFreerunEvent(testData.NodeName, ifaceUpTime)
 }
@@ -260,7 +264,7 @@ func assertHoldoverInSpecToFreerun(
 	Expect(err).ToNot(HaveOccurred(), "Failed to set upstream clock interfaces up")
 
 	assertLockedState(testData.PrometheusAPI, testData.NodeName, ifaceUpTime,
-		expected.Locked, clockClassChanges, timeout)
+		expected.Locked, clockClassChanges, timeout, testData.UpstreamIfaces)
 }
 
 // assertHoldoverInSpecToOutOfSpec validates that after upstream clock loss the clock enters holdover-in-spec,
@@ -304,7 +308,7 @@ func assertHoldoverInSpecToOutOfSpec(
 	Expect(err).ToNot(HaveOccurred(), "Failed to set upstream clock interfaces up")
 
 	assertLockedState(testData.PrometheusAPI, testData.NodeName, ifaceUpTime,
-		expected.Locked, clockClassChanges, timeout)
+		expected.Locked, clockClassChanges, timeout, testData.UpstreamIfaces)
 
 	assertNoFreerunEvent(testData.NodeName, ifaceUpTime)
 }
@@ -352,7 +356,7 @@ func assertHoldoverOutOfSpecToFreerun(
 	Expect(err).ToNot(HaveOccurred(), "Failed to set upstream clock interfaces up")
 
 	assertLockedState(testData.PrometheusAPI, testData.NodeName, ifaceUpTime,
-		expected.Locked, clockClassChanges, timeout)
+		expected.Locked, clockClassChanges, timeout, testData.UpstreamIfaces)
 }
 
 // assertHoldoverState waits for the HOLDOVER event and optional clock class change event, then validates
@@ -426,6 +430,7 @@ func assertLockedState(
 	expectedClockClass metrics.PtpClockClass,
 	clockClassChanges bool,
 	timeout time.Duration,
+	upstreamIfaces []iface.Name,
 ) {
 	GinkgoHelper()
 
@@ -469,6 +474,8 @@ func assertLockedState(
 	err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockClassQuery, expectedClockClass,
 		metrics.AssertWithTimeout(1*time.Minute))
 	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock class %d in metrics", expectedClockClass)
+
+	assertDPLLPhaseLockedHoldoverAcquired(prometheusAPI, nodeName, upstreamIfaces)
 }
 
 // assertFreerunState waits for the FREERUN event and optional clock class change event, then validates
@@ -580,6 +587,28 @@ func assertHoldoverOutOfSpecClockClass(
 	Expect(err).ToNot(HaveOccurred(), "Failed to assert clock class %d in metrics", expectedClockClass)
 }
 
+// assertDPLLPhaseLockedHoldoverAcquired validates that the DPLL phase status is LOCKED_HO_ACQ on every upstream NIC.
+func assertDPLLPhaseLockedHoldoverAcquired(
+	prometheusAPI prometheusv1.API, nodeName string, upstreamIfaces []iface.Name,
+) {
+	GinkgoHelper()
+
+	for nicName := range iface.GroupInterfacesByNIC(upstreamIfaces) {
+		By(fmt.Sprintf("validating metrics: DPLL phase LOCKED_HO_ACQ on interface %s", nicName))
+
+		phaseStatusQuery := metrics.PhaseStatusQuery{
+			Node:      metrics.Equals(nodeName),
+			Interface: metrics.Equals(nicName),
+			From:      metrics.Equals(metrics.ProcessDPLL),
+			Process:   metrics.Equals(metrics.ProcessDPLL),
+		}
+		err := metrics.AssertQuery(
+			context.TODO(), prometheusAPI, phaseStatusQuery, metrics.PhaseStateLockedHoldoverAcquired,
+			metrics.AssertWithTimeout(1*time.Minute))
+		Expect(err).ToNot(HaveOccurred(), "Failed to assert DPLL phase state LOCKED_HO_ACQ on interface %s", nicName)
+	}
+}
+
 // assertNoFreerunEvent validates that no FREERUN ptp-state-change event is generated within 30 seconds.
 func assertNoFreerunEvent(nodeName string, sinceTime time.Time) {
 	GinkgoHelper()
@@ -638,7 +667,7 @@ func changeHoldoverSettings(
 		restoreTime = time.Now()
 
 		assertLockedState(testData.PrometheusAPI, testData.NodeName, restoreTime,
-			expectedLockedClass, clockClassChanges, timeout)
+			expectedLockedClass, clockClassChanges, timeout, testData.UpstreamIfaces)
 	})
 
 	setTime := time.Now()
@@ -650,7 +679,7 @@ func changeHoldoverSettings(
 	setTime = time.Now()
 
 	assertLockedState(testData.PrometheusAPI, testData.NodeName, setTime,
-		expectedLockedClass, clockClassChanges, timeout)
+		expectedLockedClass, clockClassChanges, timeout, testData.UpstreamIfaces)
 }
 
 // discoverHoldoverTestData finds the first node with a matching profile type that supports holdover tests
