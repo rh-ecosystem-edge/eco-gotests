@@ -174,6 +174,20 @@ Use separate `AssertQuery` calls when each assertion waits for a different state
 
 For the standard cluster-wide locked baseline (excluding chronyd), use `LockedClockExpectations` or `AssertAllClocksLocked`. `EnsureClocksAreLocked` and `EnsureClocksAreStable` build on these helpers for BeforeEach/AfterEach checks.
 
+#### Profile-aware expected clock state checks
+
+When tests must verify that specific `openshift_ptp_clock_state` series exist (not only that whatever is present is LOCKED), derive expectations from PtpConfig via `profiles.GetExpectedClockStates` and pass them to `EnsureClocksAreLocked` with `WithExpectedClockStates`. Each expected `(process, iface, node)` tuple becomes one `AssertQuerySet` expectation; a missing series fails with `no samples returned`.
+
+```go
+nodeInfoMap, err := profiles.GetNodeInfoMap(client)
+expected, err := profiles.GetExpectedClockStates(client, nodeInfoMap)
+err = metrics.EnsureClocksAreLocked(prometheusAPI, metrics.WithExpectedClockStates(expected))
+```
+
+Or use the convenience helper `profiles.EnsureExpectedClocksLocked(prometheusAPI, client)` which performs both steps. Override poll behavior with `metrics.WithAssertOptions` (stable duration, timeout).
+
+By default, `EnsureClocksAreLocked` without options keeps the broad `process != chronyd` LOCKED check for backward compatibility at other call sites. `ExpectFromMetricQuery` and `LockedExpectationsFromExpected` use raw `MetricQuery` iface labels so OC ptp4l port names (e.g. `ens1f0`) are not converted to NIC names.
+
 To assert PTP clock thresholds, use `AssertThresholds`:
 
 ```go

@@ -29,6 +29,12 @@ func ExpectLocked(query ClockStateQuery) QueryExpectation {
 	return Expect(query, ClockStateLocked)
 }
 
+// ExpectFromMetricQuery returns a [QueryExpectation] for a raw [MetricQuery]. Use this when exact iface labels
+// must be preserved (e.g. ptp4l on OC profiles) without [ClockStateQuery]'s ensureNIC() conversion.
+func ExpectFromMetricQuery(query MetricQuery[PtpClockState], expected PtpClockState) QueryExpectation {
+	return Expect(query, expected)
+}
+
 // Expect returns a [QueryExpectation] for the given query and expected value.
 func Expect[V constraints.Integer](query Query[V], expected V) QueryExpectation {
 	metricQuery := query.ToMetricQuery()
