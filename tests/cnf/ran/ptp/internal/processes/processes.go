@@ -123,7 +123,8 @@ func GetPtp4lPIDsByRelatedProcess(
 		getPIDsCommand = fmt.Sprintf("pgrep -f '/var/run/ptp4l\\.(%s)\\.config'", indicesPattern)
 	} else {
 		getPIDsCommand = fmt.Sprintf(
-			"ls -1 /var/run/ptp4l.*.config 2>/dev/null | grep -vE 'ptp4l\\.(%s)\\.config$' | while read -r cfg; do pgrep -f \"$cfg\"; done",
+			"ls -1 /var/run/ptp4l.*.config 2>/dev/null | grep -vE 'ptp4l\\.(%s)\\.config$' | "+
+				"while read -r cfg; do pgrep -f \"$cfg\"; done",
 			indicesPattern)
 	}
 

@@ -138,7 +138,7 @@ func isGMProfile(profileType PtpProfileType) bool {
 	case ProfileTypeGM, ProfileTypeMultiNICGM, ProfileTypeNTPFallback:
 		return true
 	case ProfileTypeOC, ProfileTypeTwoPortOC, ProfileTypeBC, ProfileTypeHA,
-		ProfileTypeTBCTransmitter, ProfileTypeTBCReceiver, ProfileTypeTTSC:
+		ProfileTypeTBCTransmitter, ProfileTypeTBCReceiver, ProfileTypeDualTBCReceiver, ProfileTypeTTSC:
 		return false
 	}
 
@@ -151,7 +151,7 @@ func isGMProfile(profileType PtpProfileType) bool {
 // Single-port OC profiles report per-port with raw interface names.
 func ptp4lUsesNICName(profileType PtpProfileType) bool {
 	switch profileType {
-	case ProfileTypeBC, ProfileTypeTBCReceiver:
+	case ProfileTypeBC, ProfileTypeTBCReceiver, ProfileTypeDualTBCReceiver:
 		return true
 	case ProfileTypeOC, ProfileTypeTwoPortOC, ProfileTypeHA, ProfileTypeGM,
 		ProfileTypeMultiNICGM, ProfileTypeNTPFallback, ProfileTypeTBCTransmitter, ProfileTypeTTSC:
