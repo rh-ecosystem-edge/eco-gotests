@@ -2,10 +2,12 @@ package tests
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/olm"
@@ -17,8 +19,10 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/sriovenv"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/sriovocpenv"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/tsparams"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.LabelOcpSriovReinstallation),
@@ -149,7 +153,7 @@ var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.Label
 				installSriovOperator(sriovNamespace, sriovOperatorgroup, sriovSubscription)
 
 				Eventually(sriovoperator.IsSriovDeployed,
-					time.Minute, tsparams.RetryInterval).
+					tsparams.DefaultTimeout, tsparams.RetryInterval).
 					WithArguments(APIClient, SriovOcpConfig.OcpSriovOperatorNamespace).
 					ShouldNot(HaveOccurred(), "SR-IOV operator is not installed")
 
@@ -229,6 +233,7 @@ func removeSriovOperator(sriovNamespace *namespace.Builder) {
 
 	_, err = sriovOperatorConfig.Delete()
 	Expect(err).ToNot(HaveOccurred(), "Failed to remove default SR-IOV operator config")
+	waitUntilSriovOperatorConfigIsNotTerminating(SriovOcpConfig.SriovOperatorNamespace)
 
 	By("Validation that SR-IOV webhooks are not available")
 
@@ -258,6 +263,10 @@ func removeSriovOperator(sriovNamespace *namespace.Builder) {
 func installSriovOperator(sriovNamespace *namespace.Builder,
 	sriovOperatorGroup *olm.OperatorGroupBuilder,
 	sriovSubscription *olm.SubscriptionBuilder) {
+	By("Waiting until leftover SriovOperatorConfig is fully removed")
+
+	waitUntilSriovOperatorConfigIsNotTerminating(sriovNamespace.Definition.Name)
+
 	By("Creating SR-IOV operator namespace")
 
 	_, err := namespace.NewBuilder(APIClient, sriovNamespace.Definition.Name).Create()
@@ -274,14 +283,15 @@ func installSriovOperator(sriovNamespace *namespace.Builder,
 
 	By("Creating SR-IOV operator Subscription")
 
-	_, err = olm.NewSubscriptionBuilder(
-		APIClient, sriovSubscription.Definition.Name,
-		sriovSubscription.Definition.Namespace,
-		sriovSubscription.Definition.Spec.CatalogSource,
-		sriovSubscription.Definition.Spec.CatalogSourceNamespace,
-		sriovSubscription.Definition.Spec.Package).Create()
-	Expect(err).ToNot(HaveOccurred(),
-		fmt.Sprintf("Failed to create SR-IOV Subscription %s", sriovSubscription.Definition.Name))
+	replaceSriovOperatorSubscription(sriovSubscription)
+
+	startingCSV := collectedStartingCSV(sriovSubscription)
+	if startingCSV != "" {
+		approveInstallPlanForCSV(sriovNamespace.Definition.Name, startingCSV)
+		waitUntilClusterServiceVersionSucceeded(sriovNamespace.Definition.Name, startingCSV)
+	} else {
+		waitUntilSriovOperatorDeploymentReady(sriovNamespace.Definition.Name)
+	}
 
 	By("Creating SR-IOV operator default configuration")
 
@@ -290,4 +300,182 @@ func installSriovOperator(sriovNamespace *namespace.Builder,
 		WithInjector(true).
 		Create()
 	Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV operator config")
+}
+
+func replaceSriovOperatorSubscription(sriovSubscription *olm.SubscriptionBuilder) {
+	existingSub, pullErr := olm.PullSubscription(
+		APIClient,
+		sriovSubscription.Definition.Name,
+		sriovSubscription.Definition.Namespace)
+	if pullErr != nil {
+		Expect(isNotFoundOrDoesNotExist(pullErr)).To(BeTrue(),
+			fmt.Sprintf("Failed to pull SR-IOV Subscription %s: %s",
+				sriovSubscription.Definition.Name, pullErr.Error()))
+	} else {
+		Expect(existingSub.Delete()).ToNot(HaveOccurred(),
+			fmt.Sprintf("Failed to delete SR-IOV Subscription %s", sriovSubscription.Definition.Name))
+		Eventually(func() bool {
+			_, err := olm.PullSubscription(
+				APIClient,
+				sriovSubscription.Definition.Name,
+				sriovSubscription.Definition.Namespace)
+
+			return isNotFoundOrDoesNotExist(err)
+		}, tsparams.DefaultTimeout, tsparams.RetryInterval).Should(BeTrue(),
+			fmt.Sprintf("SR-IOV Subscription %s was not removed", sriovSubscription.Definition.Name))
+	}
+
+	sriovSub := olm.NewSubscriptionBuilder(
+		APIClient, sriovSubscription.Definition.Name,
+		sriovSubscription.Definition.Namespace,
+		sriovSubscription.Definition.Spec.CatalogSource,
+		sriovSubscription.Definition.Spec.CatalogSourceNamespace,
+		sriovSubscription.Definition.Spec.Package)
+
+	if sriovSubscription.Definition.Spec.Channel != "" {
+		sriovSub = sriovSub.WithChannel(sriovSubscription.Definition.Spec.Channel)
+	}
+
+	startingCSV := collectedStartingCSV(sriovSubscription)
+	if startingCSV != "" {
+		sriovSub = sriovSub.WithStartingCSV(startingCSV)
+		// Manual approval keeps OLM on the CSV that was actually running. Automatic
+		// would upgrade to catalog head, which on disconnected clusters is often an
+		// unmirrored image.
+		sriovSub = sriovSub.WithInstallPlanApproval("Manual")
+	} else if sriovSubscription.Definition.Spec.InstallPlanApproval != "" {
+		sriovSub = sriovSub.WithInstallPlanApproval(sriovSubscription.Definition.Spec.InstallPlanApproval)
+	}
+
+	_, err := sriovSub.Create()
+	Expect(err).ToNot(HaveOccurred(),
+		fmt.Sprintf("Failed to create SR-IOV Subscription %s", sriovSubscription.Definition.Name))
+}
+
+func collectedStartingCSV(sriovSubscription *olm.SubscriptionBuilder) string {
+	if sriovSubscription == nil || sriovSubscription.Definition == nil || sriovSubscription.Definition.Spec == nil {
+		return ""
+	}
+
+	if sriovSubscription.Definition.Spec.StartingCSV != "" {
+		return sriovSubscription.Definition.Spec.StartingCSV
+	}
+
+	if sriovSubscription.Definition.Status.InstalledCSV != "" {
+		return sriovSubscription.Definition.Status.InstalledCSV
+	}
+
+	return sriovSubscription.Definition.Status.CurrentCSV
+}
+
+func approveInstallPlanForCSV(operatorNamespace, csvName string) {
+	By(fmt.Sprintf("Approving InstallPlan for CSV %s", csvName))
+
+	Eventually(func() error {
+		plans, err := olm.ListInstallPlan(APIClient, operatorNamespace,
+			ctrlclient.ListOptions{Namespace: operatorNamespace})
+		if err != nil {
+			return err
+		}
+
+		for _, plan := range plans {
+			if !installPlanContainsCSV(plan, csvName) {
+				continue
+			}
+
+			if plan.Definition.Spec.Approved {
+				return nil
+			}
+
+			plan.Definition.Spec.Approved = true
+			_, err = plan.Update()
+
+			return err
+		}
+
+		return fmt.Errorf("install plan for CSV %s not found", csvName)
+	}, tsparams.DefaultTimeout, tsparams.RetryInterval).
+		Should(Succeed(), "Failed to approve SR-IOV InstallPlan")
+}
+
+func installPlanContainsCSV(plan *olm.InstallPlanBuilder, csvName string) bool {
+	if plan == nil || plan.Definition == nil {
+		return false
+	}
+
+	for _, name := range plan.Definition.Spec.ClusterServiceVersionNames {
+		if name == csvName {
+			return true
+		}
+	}
+
+	return false
+}
+
+func waitUntilClusterServiceVersionSucceeded(operatorNamespace, csvName string) {
+	By(fmt.Sprintf("Waiting for ClusterServiceVersion %s to succeed", csvName))
+
+	Eventually(func() error {
+		clusterServiceVersion, err := olm.PullClusterServiceVersion(APIClient, csvName, operatorNamespace)
+		if err != nil {
+			return err
+		}
+
+		succeeded, err := clusterServiceVersion.IsSuccessful()
+		if err != nil {
+			return err
+		}
+
+		if !succeeded {
+			return fmt.Errorf("ClusterServiceVersion %s is not Succeeded", csvName)
+		}
+
+		return nil
+	}, tsparams.DefaultTimeout, tsparams.RetryInterval).
+		Should(Succeed(), "SR-IOV ClusterServiceVersion did not succeed")
+}
+
+func waitUntilSriovOperatorDeploymentReady(operatorNamespace string) {
+	By("Waiting for SR-IOV operator deployment to be ready")
+
+	Eventually(isSriovOperatorDeploymentReady, tsparams.DefaultTimeout, tsparams.RetryInterval).
+		WithArguments(operatorNamespace).
+		Should(BeTrue(), "SR-IOV operator deployment did not become ready")
+}
+
+func isSriovOperatorDeploymentReady(operatorNamespace string) bool {
+	deploy, err := deployment.Pull(APIClient, "sriov-network-operator", operatorNamespace)
+	if err != nil || deploy.Object == nil {
+		return false
+	}
+
+	return deploy.Object.Status.ReadyReplicas > 0 &&
+		deploy.Object.Status.ReadyReplicas == deploy.Object.Status.Replicas
+}
+
+func waitUntilSriovOperatorConfigIsNotTerminating(sriovOperatorNamespace string) {
+	Eventually(func() bool {
+		config, err := sriov.PullOperatorConfig(APIClient, sriovOperatorNamespace)
+		if isNotFoundOrDoesNotExist(err) {
+			return true
+		}
+
+		if err != nil || config == nil || config.Object == nil {
+			return false
+		}
+
+		if config.Object.GetDeletionTimestamp() == nil {
+			return true
+		}
+
+		config.Definition.Finalizers = []string{}
+		_, err = config.Update()
+
+		return err == nil && !config.Exists()
+	}, tsparams.DefaultTimeout, tsparams.RetryInterval).Should(BeTrue(),
+		"SriovOperatorConfig is still terminating")
+}
+
+func isNotFoundOrDoesNotExist(err error) bool {
+	return err != nil && (k8serrors.IsNotFound(err) || strings.Contains(err.Error(), "does not exist"))
 }
