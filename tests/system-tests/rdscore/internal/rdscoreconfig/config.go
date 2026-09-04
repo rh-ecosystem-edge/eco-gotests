@@ -618,6 +618,20 @@ type CoreConfig struct {
 	//nolint:lll,nolintlint
 	MemMeasureThresholdGB *float64 `yaml:"rdscore_mem_measure_threshold_gb" envconfig:"ECO_RDSCORE_MEM_THRESHOLD_GB"`
 
+	// Image signature / ClusterImagePolicy validation configuration.
+	// ImageSignatureTestNS is the namespace where signature-validation workloads are deployed.
+	//nolint:lll,nolintlint
+	ImageSignatureTestNS string `yaml:"rdscore_image_signature_test_ns" envconfig:"ECO_RDSCORE_IMAGE_SIGNATURE_TEST_NS"`
+	// ImageSignatureConfigMapName is the name of the ConfigMap holding the image references (with
+	// dynamic digests) used by the ClusterImagePolicy validation tests. The ConfigMap is populated
+	// out-of-band by the image-provisioning script.
+	//nolint:lll,nolintlint
+	ImageSignatureConfigMapName string `yaml:"rdscore_image_signature_cm_name" envconfig:"ECO_RDSCORE_IMAGE_SIGNATURE_CM_NAME"`
+	// ImageSignatureConfigMapNamespace is the namespace of the ConfigMap referenced by
+	// ImageSignatureConfigMapName.
+	//nolint:lll,nolintlint
+	ImageSignatureConfigMapNamespace string `yaml:"rdscore_image_signature_cm_namespace" envconfig:"ECO_RDSCORE_IMAGE_SIGNATURE_CM_NS"`
+
 	WorkerLabelListOption metav1.ListOptions
 }
 

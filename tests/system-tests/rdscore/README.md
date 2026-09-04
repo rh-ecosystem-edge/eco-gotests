@@ -269,6 +269,9 @@ See `default.yaml` in the same directory for default values.
 | `ECO_RDSCORE_WHEREABOUTS_DEPLOY_3_NAD` | Whereabouts deploy 3 NAD |
 | `ECO_RDSCORE_WHEREABOUTS_DEPLOY_4_NAD` | Whereabouts deploy 4 NAD |
 | `ECO_RDSCORE_PYTHON_HTTP_SERVER_IMAGE` | Python HTTP server image |
+| `ECO_RDSCORE_IMAGE_SIGNATURE_TEST_NS` | Namespace for the CRI-O image signature validation workloads |
+| `ECO_RDSCORE_IMAGE_SIGNATURE_CM_NAME` | Name of the ConfigMap holding the image references for signature validation tests |
+| `ECO_RDSCORE_IMAGE_SIGNATURE_CM_NS` | Namespace of the ConfigMap holding the image references for signature validation tests |
 
 ### _VerifySRIOVWorkloadsOnSameNodeDifferentNet_
 
