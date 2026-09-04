@@ -38,12 +38,6 @@ import (
 )
 
 var _ = Describe("TALM precache", Label(tsparams.LabelPreCacheTestCases), func() {
-	BeforeEach(func() {
-		By(fmt.Sprintf("clearing CGU events in the %s namespace for debugging", tsparams.TestNamespace))
-
-		helper.ClearCGUEvents()
-	})
-
 	When("there is a single spoke", func() {
 		Context("precache operator", func() {
 			var (
@@ -68,10 +62,6 @@ var _ = Describe("TALM precache", Label(tsparams.LabelPreCacheTestCases), func()
 			})
 
 			AfterEach(func() {
-				By(fmt.Sprintf("printing CGU events in the %s namespace for debugging", tsparams.TestNamespace))
-
-				helper.PrintCGUEvents()
-
 				for _, suffix := range suffixes {
 					errorList := setup.CleanupTestResourcesOnHub(HubAPIClient, tsparams.TestNamespace, suffix)
 					Expect(errorList).To(BeEmpty(), "Failed to clean up resources on hub for suffix %s", suffix)
@@ -106,10 +96,6 @@ var _ = Describe("TALM precache", Label(tsparams.LabelPreCacheTestCases), func()
 
 		Context("precache OCP with version", func() {
 			AfterEach(func() {
-				By(fmt.Sprintf("printing CGU events in the %s namespace for debugging", tsparams.TestNamespace))
-
-				helper.PrintCGUEvents()
-
 				By("cleaning up resources on hub")
 
 				errorList := setup.CleanupTestResourcesOnHub(HubAPIClient, tsparams.TestNamespace, "")
@@ -179,10 +165,6 @@ var _ = Describe("TALM precache", Label(tsparams.LabelPreCacheTestCases), func()
 			})
 
 			AfterEach(func() {
-				By(fmt.Sprintf("printing CGU events in the %s namespace for debugging", tsparams.TestNamespace))
-
-				helper.PrintCGUEvents()
-
 				err := cgu.NewPreCachingConfigBuilder(
 					HubAPIClient, tsparams.PreCachingConfigName, tsparams.TestNamespace).Delete()
 				Expect(err).ToNot(HaveOccurred(), "Failed to delete PreCachingConfig on hub")
@@ -399,16 +381,6 @@ var _ = Describe("TALM precache", Label(tsparams.LabelPreCacheTestCases), func()
 				_, err = helper.SetupCguWithClusterVersion(cguBuilder, clusterVersion)
 				Expect(err).ToNot(HaveOccurred(), "Failed to setup cgu with cluster version")
 
-				// Placed before assertPrecacheStatus (rather than after) since that helper's own Eventually/Should
-				// assertion can fail and stop the test before any code after it would run. Per
-				// TALM-events-test-plan.md, confirm on a live cluster whether TALM emits CguTimedout (batch+global)
-				// or a distinct precache-specific event for an invalid custom precache image before implementing.
-				By("printing CGU events before checking CGU pre cache failed with UnrecoverableError")
-
-				helper.PrintCGUEventsCheckpoint("64747", "before invalid custom precache image status check", tsparams.CguName, 0,
-					"unconfirmed - CguTimedout/batch+global RemediationInBatchTimeout+RemediationTimeout, "+
-						"or a distinct precache-specific event")
-
 				By("waiting until CGU pre cache failed with UnrecoverableError")
 				assertPrecacheStatus(RANConfig.Spoke1Name, "UnrecoverableError")
 			})
@@ -493,10 +465,6 @@ var _ = Describe("TALM precache", Label(tsparams.LabelPreCacheTestCases), func()
 
 		Context("precaching with one managed cluster powered off and unavailable", func() {
 			AfterEach(func() {
-				By(fmt.Sprintf("printing CGU events in the %s namespace for debugging", tsparams.TestNamespace))
-
-				helper.PrintCGUEvents()
-
 				By("cleaning up resources on hub")
 
 				errorList := setup.CleanupTestResourcesOnHub(HubAPIClient, tsparams.TestNamespace, "")
@@ -519,14 +487,6 @@ var _ = Describe("TALM precache", Label(tsparams.LabelPreCacheTestCases), func()
 
 				cguBuilder, err = cguBuilder.WaitForCondition(tsparams.CguPreCacheValidCondition, 5*time.Minute)
 
-				// The precache-specific waits in this test don't map cleanly to the remediation lifecycle events
-				// described in TALM-events-test-plan.md - these checkpoints exist to observe and confirm real
-				// TALM behavior, not to assume it.
-				By("printing CGU events after waiting for pre cache to be valid (baseline, likely none yet)")
-
-				helper.PrintCGUEventsCheckpoint("54286", "precache valid", tsparams.CguName, 0,
-					"baseline - likely no remediation events yet")
-
 				Expect(err).ToNot(HaveOccurred(), "Failed to wait for pre cache to be valid")
 
 				By("waiting until CGU Succeeded")
@@ -542,20 +502,7 @@ var _ = Describe("TALM precache", Label(tsparams.LabelPreCacheTestCases), func()
 
 				_, err = cguBuilder.WaitForCondition(tsparams.CguPreCachePartialCondition, 5*time.Minute)
 
-				By("printing CGU events after waiting for the CGU to report one spoke failed precaching")
-
-				helper.PrintCGUEventsCheckpoint("54286", "one spoke failed precaching, other continues", tsparams.CguName, 0,
-					"CguTimedout/batch(0) RemediationInBatchTimeout", "CguSuccess/cluster(spoke2) RemediationInClusterCompleted",
-					"CguSuccess/batch(1) RemediationInBatchCompleted", "CguSuccess/global RemediationCompleted")
-
 				Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU to report one spoke failed precaching")
-
-				By("printing CGU events before checking CGU reports spoke 1 failed with UnrecoverableError")
-
-				// Placed before assertPrecacheStatus (rather than after) since that helper's own Eventually/Should
-				// assertion can fail and stop the test before any code after it would run.
-				helper.PrintCGUEventsCheckpoint("54286", "before final precache status check for spoke1", tsparams.CguName, 0,
-					"terminal - full expected set from the previous checkpoint should still be present")
 
 				By("checking CGU reports spoke 1 failed with UnrecoverableError")
 				assertPrecacheStatus(RANConfig.Spoke1Name, "UnrecoverableError")
@@ -564,12 +511,6 @@ var _ = Describe("TALM precache", Label(tsparams.LabelPreCacheTestCases), func()
 
 		Context("batching with one managed cluster powered off and unavailable", Ordered, func() {
 			var cguBuilder *cgu.CguBuilder
-
-			AfterEach(func() {
-				By(fmt.Sprintf("printing CGU events in the %s namespace for debugging", tsparams.TestNamespace))
-
-				helper.PrintCGUEvents()
-			})
 
 			BeforeAll(func() {
 				By("creating and setting up CGU with two spokes, one unavailable")
@@ -621,36 +562,17 @@ var _ = Describe("TALM precache", Label(tsparams.LabelPreCacheTestCases), func()
 
 					cguBuilder, err := cguBuilder.WaitUntilClusterComplete(RANConfig.Spoke2Name, 22*time.Minute)
 
-					By("printing CGU events after waiting for spoke 2 to complete")
-
-					helper.PrintCGUEventsCheckpoint("54854", "spoke2 batch remediation complete", tsparams.CguName, 0,
-						"CguSuccess/cluster(spoke2) RemediationInClusterCompleted")
-
 					Expect(err).ToNot(HaveOccurred(), "Failed to wait for spoke 2 batch remediation progress to complete")
 
 					By("waiting for the CGU to timeout")
 
 					_, err = cguBuilder.WaitForCondition(tsparams.CguTimeoutReasonCondition, 22*time.Minute)
 
-					By("printing CGU events after waiting for the CGU to timeout (terminal)")
-
-					helper.PrintCGUEventsCheckpoint("54854", "CGU timed out, down spoke in first batch", tsparams.CguName, 0,
-						"CguTimedout/batch(0) RemediationInBatchTimeout", "CguSuccess/cluster RemediationInClusterCompleted",
-						"CguSuccess/batch(1) RemediationInBatchCompleted", "CguSuccess/global RemediationCompleted")
-
 					Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU to timeout")
 				})
 
 			// 59946 - Post completion action on a per cluster basis
 			It("verifies CGU afterCompletion action executes on spoke2 when spoke1 is offline", reportxml.ID("59946"), func() {
-				// This test shares the CGU from the OCP-54854 It above (Ordered context), so the events it checks
-				// were already emitted there. Printed first, before any assertion in this It, on a best-effort basis.
-				By("printing CGU events for the CGU shared with OCP-54854 (spoke1 offline, spoke2 completes)")
-
-				helper.PrintCGUEventsCheckpoint("59946", "post-completion action check, spoke1 offline", tsparams.CguName, 0,
-					"CguTimedout/batch RemediationInBatchTimeout (spoke1)",
-					"CguSuccess/cluster(spoke2) RemediationInClusterCompleted", "CguSuccess/global RemediationCompleted")
-
 				By("checking spoke 2 for post-action label present")
 
 				labelPresent, err := helper.DoesClusterLabelExist(HubAPIClient, RANConfig.Spoke2Name, talmCompleteLabel)

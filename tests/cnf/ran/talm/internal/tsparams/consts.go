@@ -139,6 +139,35 @@ const (
 	// TalmSystemStablizationTime is the default time to wait for talm to settle.
 	TalmSystemStablizationTime = 15 * time.Second
 
+	// CguEventScopeAnnotation is annotation key for event scope.
+	CguEventScopeAnnotation = "cgu.openshift.io/event-type"
+	// CguRegardingKind is regarding.kind for all CGU events.
+	CguRegardingKind = "ClusterGroupUpgrade"
+	// CguMissingClustersAnnotation is annotation key for missing clusters list.
+	CguMissingClustersAnnotation = "cgu.openshift.io/missing-clusters"
+	// CguMissingClustersCountAnnotation is annotation key for missing cluster count.
+	CguMissingClustersCountAnnotation = "cgu.openshift.io/missing-clusters-count"
+	// CguMissingPoliciesAnnotation is annotation key for missing policies list.
+	CguMissingPoliciesAnnotation = "cgu.openshift.io/missing-policies"
+	// CguTimedoutClustersAnnotation is annotation key for timed-out clusters list.
+	CguTimedoutClustersAnnotation = "cgu.openshift.io/timedout-clusters"
+	// CguCreated is event reason when CGU is created.
+	CguCreated = "CguCreated"
+	// CguStarted is event reason when remediation starts.
+	CguStarted = "CguStarted"
+	// CguSuccess is event reason when remediation succeeds.
+	CguSuccess = "CguSuccess"
+	// CguTimedout is event reason when remediation times out.
+	CguTimedout = "CguTimedout"
+	// CguValidationFailure is event reason when validation fails.
+	CguValidationFailure = "CguValidationFailure"
+	// EventScopeGlobal is scope value for CGU-wide events.
+	EventScopeGlobal = "global"
+	// EventScopeBatch is scope value for batch-specific events.
+	EventScopeBatch = "batch"
+	// EventScopeCluster is scope value for cluster-specific events.
+	EventScopeCluster = "cluster"
+
 	// LogLevel is the verbosity of glog statements in this test suite.
 	LogLevel klog.Level = 90
 )

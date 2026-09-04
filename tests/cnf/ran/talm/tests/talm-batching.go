@@ -79,14 +79,28 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 			By("waiting for the error condition to match")
 
 			_, err = cguBuilder.WaitForCondition(tsparams.CguNonExistentClusterCondition, 3*tsparams.TalmDefaultReconcileTime)
-
-			By("printing CGU events after waiting for the validation failure condition")
-
-			helper.PrintCGUEventsCheckpoint("47949", "missing spoke validation failure", tsparams.CguName, 0,
-				"CguValidationFailure/global RemediationOnHoldDueToValidationFailure "+
-					"(missing-clusters, missing-clusters-count annotations)")
-
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU to have matching condition")
+
+			By("verifying CGU emitted validation failure event with scope annotation")
+
+			events, err := helper.GetCGUEvents(tsparams.CguName)
+			Expect(err).ToNot(HaveOccurred(), "[EVENT CHECK] Failed to retrieve CGU events")
+
+			Expect(events).ToNot(BeEmpty(), "[EVENT CHECK] No CGU events found")
+
+			// KNOWN BUG: TALM should emit CguValidationFailure with scope=global annotation
+			validationEvents := helper.FindEventsByReasonAndScope(events,
+				tsparams.CguValidationFailure, tsparams.EventScopeGlobal)
+			Expect(validationEvents).ToNot(BeEmpty(),
+				"[EVENT CHECK] Missing CguValidationFailure/global event. "+
+					"KNOWN BUG: TALM omits scope annotation on validation events")
+
+			// Verify missing-clusters annotations are present
+			Expect(helper.HasEventWithAnnotation(events, tsparams.CguMissingClustersAnnotation)).To(BeTrue(),
+				"[EVENT CHECK] Missing missing-clusters annotation on validation event")
+
+			Expect(helper.HasEventWithAnnotation(events, tsparams.CguMissingClustersCountAnnotation)).To(BeTrue(),
+				"[EVENT CHECK] Missing missing-clusters-count annotation on validation event")
 		})
 	})
 
@@ -106,13 +120,25 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 			By("waiting for the CGU status to report the missing policy")
 			// This should immediately error out so we don't need a long timeout
 			_, err = cguBuilder.WaitForCondition(tsparams.CguNonExistentPolicyCondition, 2*time.Minute)
-
-			By("printing CGU events after waiting for the missing policy validation failure condition")
-
-			helper.PrintCGUEventsCheckpoint("47955", "missing policy validation failure", tsparams.CguName, 0,
-				"CguValidationFailure/global RemediationOnHoldDueToValidationFailure (missing-policies annotation)")
-
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU to have matching condition")
+
+			By("verifying CGU emitted validation failure event with scope annotation")
+
+			events, err := helper.GetCGUEvents(tsparams.CguName)
+			Expect(err).ToNot(HaveOccurred(), "[EVENT CHECK] Failed to retrieve CGU events")
+
+			Expect(events).ToNot(BeEmpty(), "[EVENT CHECK] No CGU events found")
+
+			// KNOWN BUG: TALM should emit CguValidationFailure with scope=global annotation
+			validationEvents := helper.FindEventsByReasonAndScope(events,
+				tsparams.CguValidationFailure, tsparams.EventScopeGlobal)
+			Expect(validationEvents).ToNot(BeEmpty(),
+				"[EVENT CHECK] Missing CguValidationFailure/global event. "+
+					"KNOWN BUG: TALM omits scope annotation on validation events")
+
+			// Verify missing-policies annotation is present
+			Expect(helper.HasEventWithAnnotation(events, tsparams.CguMissingPoliciesAnnotation)).To(BeTrue(),
+				"[EVENT CHECK] Missing missing-policies annotation on validation event")
 		})
 	})
 
@@ -150,14 +176,27 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 			By("waiting for the CGU to timeout")
 
 			cguBuilder, err = cguBuilder.WaitForCondition(tsparams.CguTimeoutReasonCondition, 11*time.Minute)
-
-			By("printing CGU events after waiting for the CGU to timeout (abort)")
-
-			helper.PrintCGUEventsCheckpoint("47952", "CGU timed out (abort)", tsparams.CguName, 0,
-				"CguTimedout/batch RemediationInBatchTimeout (timedout-clusters annotation)",
-				"CguTimedout/global RemediationTimeout (timedout-clusters annotation)")
-
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU to timeout")
+
+			By("verifying CGU emitted timeout events with timedout-clusters annotation")
+
+			events, err := helper.GetCGUEvents(tsparams.CguName)
+			Expect(err).ToNot(HaveOccurred(), "[EVENT CHECK] Failed to retrieve CGU events")
+
+			Expect(events).ToNot(BeEmpty(), "[EVENT CHECK] No CGU events found")
+
+			// Expect batch timeout followed by global timeout
+			expectedSequence := []helper.EventMatcher{
+				{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeBatch},
+				{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeGlobal},
+			}
+
+			Expect(helper.VerifyEventSequence(events, expectedSequence)).To(BeTrue(),
+				"[EVENT CHECK] CGU event sequence mismatch for timeout (abort mode)")
+
+			// Verify timedout-clusters annotation on timeout events
+			Expect(helper.HasEventWithAnnotation(events, tsparams.CguTimedoutClustersAnnotation)).To(BeTrue(),
+				"[EVENT CHECK] Missing timedout-clusters annotation on timeout events")
 
 			By("validating that the policy failed on spoke1")
 
@@ -226,13 +265,23 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 			By("waiting for the CGU to timeout")
 
 			_, err = cguBuilder.WaitForCondition(tsparams.CguTimeoutReasonCondition, 16*time.Minute)
-
-			By("printing CGU events after waiting for the CGU to timeout (report)")
-
-			helper.PrintCGUEventsCheckpoint("47952", "CGU timed out (report)", tsparams.CguName, 0,
-				"CguTimedout/batch RemediationInBatchTimeout", "CguTimedout/global RemediationTimeout")
-
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU to timeout")
+
+			By("verifying CGU emitted timeout events")
+
+			events, err := helper.GetCGUEvents(tsparams.CguName)
+			Expect(err).ToNot(HaveOccurred(), "[EVENT CHECK] Failed to retrieve CGU events")
+
+			Expect(events).ToNot(BeEmpty(), "[EVENT CHECK] No CGU events found")
+
+			// Expect batch timeout followed by global timeout
+			expectedSequence := []helper.EventMatcher{
+				{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeBatch},
+				{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeGlobal},
+			}
+
+			Expect(helper.VerifyEventSequence(events, expectedSequence)).To(BeTrue(),
+				"[EVENT CHECK] CGU event sequence mismatch for timeout (report mode)")
 
 			By("validating that the policy succeeded on spoke1")
 
@@ -280,16 +329,28 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 			By("waiting for the CGU to timeout")
 
 			_, err = cguBuilder.WaitForCondition(tsparams.CguTimeoutReasonCondition, 16*time.Minute)
-
-			By("printing CGU events after waiting for the CGU to timeout (terminal)")
-
-			helper.PrintCGUEventsCheckpoint("74753",
-				"CGU timeout with Continue action, second batch succeeds", tsparams.CguName, 0,
-				"CguTimedout/batch(0) RemediationInBatchTimeout", "CguSuccess/cluster(spoke2) RemediationInClusterCompleted",
-				"CguSuccess/batch(1) RemediationInBatchCompleted",
-				"CguSuccess/global RemediationCompleted (confirm on live cluster)")
-
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU to timeout")
+
+			By("verifying CGU emitted events for first batch timeout, second batch success, and final recompliance check")
+
+			events, err := helper.GetCGUEvents(tsparams.CguName)
+			Expect(err).ToNot(HaveOccurred(), "[EVENT CHECK] Failed to retrieve CGU events")
+
+			Expect(events).ToNot(BeEmpty(), "[EVENT CHECK] No CGU events found")
+
+			// First batch times out, second batch succeeds, then final recompliance check (intentional behavior per dev feedback #4)
+			// This means: timeout in first batch, success in second batch, but global timeout at end
+			expectedSequence := []helper.EventMatcher{
+				{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeGlobal},
+				{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeBatch},   // first batch
+				{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeBatch},  // first batch times out
+				{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeBatch},   // second batch
+				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeBatch},   // second batch succeeds
+				{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeGlobal}, // global timeout (late non-compliant)
+			}
+
+			Expect(helper.VerifyEventSequence(events, expectedSequence)).To(BeTrue(),
+				"[EVENT CHECK] CGU event sequence mismatch for Continue action with timeout and recompliance check")
 
 			By("validating that the policy succeeded on spoke2")
 
@@ -339,15 +400,27 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 				By("waiting for the CGU to timeout")
 
 				cguBuilder, err = cguBuilder.WaitForCondition(tsparams.CguTimeoutReasonCondition, 21*time.Minute)
-
-				By("printing CGU events after waiting for the CGU to timeout (terminal)")
-
-				helper.PrintCGUEventsCheckpoint("54296",
-					"CGU timeout with Continue action, second batch fails", tsparams.CguName, 0,
-					"CguSuccess/batch(0) RemediationInBatchCompleted (or cluster completion for spoke1)",
-					"CguTimedout/batch(1) RemediationInBatchTimeout", "CguTimedout/global RemediationTimeout")
-
 				Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU to timeout")
+
+				By("verifying CGU emitted events for first batch success and second batch timeout")
+
+				events, err := helper.GetCGUEvents(tsparams.CguName)
+				Expect(err).ToNot(HaveOccurred(), "[EVENT CHECK] Failed to retrieve CGU events")
+
+				Expect(events).ToNot(BeEmpty(), "[EVENT CHECK] No CGU events found")
+
+				// First batch (spoke1) completes, second batch (spoke2) times out
+				expectedSequence := []helper.EventMatcher{
+					{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeGlobal},
+					{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeBatch},  // first batch
+					{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeBatch},  // first batch completes
+					{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeBatch},  // second batch
+					{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeBatch}, // second batch times out
+					{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeGlobal},
+				}
+
+				Expect(helper.VerifyEventSequence(events, expectedSequence)).To(BeTrue(),
+					"[EVENT CHECK] CGU event sequence mismatch for first batch success, second batch timeout")
 
 				By("validating that the policy succeeded on spoke1")
 
@@ -410,13 +483,23 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 			By("waiting for the CGU to timeout")
 
 			cguBuilder, err = cguBuilder.WaitForCondition(tsparams.CguTimeoutReasonCondition, 11*time.Minute)
-
-			By("printing CGU events after waiting for the CGU to timeout")
-
-			helper.PrintCGUEventsCheckpoint("47954", "CGU timed out (single cluster, short timeout)", tsparams.CguName, 0,
-				"CguTimedout/batch RemediationInBatchTimeout", "CguTimedout/global RemediationTimeout")
-
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU to timeout")
+
+			By("verifying CGU emitted timeout events for single cluster batch")
+
+			events, err := helper.GetCGUEvents(tsparams.CguName)
+			Expect(err).ToNot(HaveOccurred(), "[EVENT CHECK] Failed to retrieve CGU events")
+
+			Expect(events).ToNot(BeEmpty(), "[EVENT CHECK] No CGU events found")
+
+			// Single cluster batch timeout
+			expectedSequence := []helper.EventMatcher{
+				{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeBatch},
+				{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeGlobal},
+			}
+
+			Expect(helper.VerifyEventSequence(events, expectedSequence)).To(BeTrue(),
+				"[EVENT CHECK] CGU event sequence mismatch for single cluster timeout")
 
 			By("validating that the timeout should have occurred after just the first reconcile")
 
@@ -456,7 +539,7 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 		It("should complete the CGU when two clusters are successful in a single batch", reportxml.ID("47947"), func() {
 			By("creating the CGU and associated resources")
 
-			cguBuilder := cgu.NewCguBuilder(HubAPIClient, tsparams.CguName, tsparams.TestNamespace, 1).
+			cguBuilder := cgu.NewCguBuilder(HubAPIClient, tsparams.CguName, tsparams.TestNamespace, 2).
 				WithManagedPolicy(tsparams.PolicyName)
 			cguBuilder.Definition.Spec.RemediationStrategy.Timeout = 15
 			cguBuilder.Definition.Spec.Enable = ptr.To(false)
@@ -503,17 +586,28 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 			By("waiting for the CGU to finish successfully")
 
 			_, err = cguBuilder.WaitForCondition(tsparams.CguSuccessfulFinishCondition, 21*time.Minute)
-
-			By("printing CGU events after waiting for the CGU to finish successfully (canonical full lifecycle)")
-
-			helper.PrintCGUEventsCheckpoint("47947",
-				"CGU finished successfully, two clusters in a single batch", tsparams.CguName, 0,
-				"CguCreated/global BuildingRemediationPlan", "CguStarted/global RemediationStarted",
-				"CguStarted/batch(0) RemediationInBatchStarted", "CguStarted/cluster x2 RemediationInClusterStarted",
-				"CguSuccess/cluster x2 RemediationInClusterCompleted", "CguSuccess/batch(0) RemediationInBatchCompleted",
-				"CguSuccess/global RemediationCompleted")
-
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for the CGU to finish successfully")
+
+			By("verifying CGU emitted correct lifecycle events")
+
+			events, err := helper.GetCGUEvents(tsparams.CguName)
+			Expect(err).ToNot(HaveOccurred(), "[EVENT CHECK] Failed to retrieve CGU events")
+
+			Expect(events).ToNot(BeEmpty(), "[EVENT CHECK] No CGU events found")
+
+			// Define expected event sequence for successful 2-cluster, 1-batch CGU
+			expectedSequence := []helper.EventMatcher{
+				{Reason: tsparams.CguCreated, Scope: tsparams.EventScopeGlobal},
+				{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeGlobal},
+				{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeBatch},
+				{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeCluster, Count: 2},
+				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeCluster, Count: 2},
+				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeBatch},
+				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeGlobal},
+			}
+
+			Expect(helper.VerifyEventSequence(events, expectedSequence)).To(BeTrue(),
+				"[EVENT CHECK] CGU event sequence mismatch for successful 2-cluster lifecycle")
 
 			By("verifying the test policy was deleted upon CGU expiration")
 

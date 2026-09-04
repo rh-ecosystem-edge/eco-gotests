@@ -48,8 +48,8 @@ var _ = JustAfterEach(func() {
 	var (
 		currentDir, currentFilename = path.Split(currentFile)
 		hubReportPath               = fmt.Sprintf("%shub_%s", currentDir, currentFilename)
-		// spoke2ReportPath            = fmt.Sprintf("%sspoke2_%s", currentDir, currentFilename)
-		report = CurrentSpecReport()
+		spoke2ReportPath            = fmt.Sprintf("%sspoke2_%s", currentDir, currentFilename)
+		report                      = CurrentSpecReport()
 	)
 
 	reporter.ReportIfFailed(
@@ -64,14 +64,14 @@ var _ = JustAfterEach(func() {
 			tsparams.ReporterHubCRsToDump)
 	}
 
-	// if Spoke2APIClient != nil {
-	// 	reporter.ReportIfFailedOnCluster(
-	// 		RANConfig.Spoke2Kubeconfig,
-	// 		report,
-	// 		spoke2ReportPath,
-	// 		tsparams.ReporterSpokeNamespacesToDump,
-	// 		tsparams.ReporterSpokeCRsToDump)
-	// }
+	if Spoke2APIClient != nil {
+		reporter.ReportIfFailedOnCluster(
+			RANConfig.Spoke2Kubeconfig,
+			report,
+			spoke2ReportPath,
+			tsparams.ReporterSpokeNamespacesToDump,
+			tsparams.ReporterSpokeCRsToDump)
+	}
 })
 
 var _ = ReportAfterSuite("", func(report Report) {
