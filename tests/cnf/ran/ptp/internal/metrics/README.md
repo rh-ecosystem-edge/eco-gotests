@@ -8,7 +8,7 @@ This package provides a robust and type-safe way to query and assert Prometheus 
 * **Structured Queries**: The `Query` interface and `MetricQuery` struct allow for building well-defined Prometheus queries with support for instant and range queries. Specific query structs like `ClockStateQuery` and `ProcessStatusQuery` provide tailored interfaces for common PTP metrics.
 * **Flexible Label Matching**: `MetricLabel` and its associated helper functions (`Equals`, `DoesNotEqual`, `Matches`, `DoesNotMatch`, `Includes`, `Excludes`) enable precise control over label matching in PromQL queries, supporting exact matches, negative matches, and regex-based filtering.
 * **Query Execution**: `ExecuteQuery` and `ExecuteQueryRange` functions simplify the execution of Prometheus queries against a Prometheus API client, handling result parsing and warning logging.
-* **Assertion Capabilities**: `AssertQuery` and `AssertThresholds` provide powerful mechanisms to verify metric values over time. These functions support timeouts, polling intervals, and stable duration checks, essential for robust test automation.
+* **Assertion Capabilities**: `AssertQuery`, `AssertQuerySet`, and `AssertThresholds` provide powerful mechanisms to verify metric values over time. These functions support timeouts, polling intervals, and stable duration checks, essential for robust test automation.
 
 ### How to Use
 
@@ -132,6 +132,61 @@ func assertExample(ctx context.Context, client prometheusapi.API) {
     fmt.Println("PTP clock state is locked and stable.")
 }
 ```
+
+#### Asserting Multiple Metrics as a Set
+
+Use `AssertQuerySet` when related metrics must be validated at the same Prometheus query time. Each separate `AssertQuery` call uses its own poll loop and timestamp, so in unstable environments one metric may change before the next is retrieved.
+
+Build expectations with `Expect`, `ExpectLocked`, or `Set` and pass them to `AssertQuerySet`:
+
+```go
+func assertLockedMetricsExample(ctx context.Context, client prometheusapi.API, nodeName string) {
+    clockStateQuery := metrics.ClockStateQuery{
+        Node:    metrics.Equals(nodeName),
+        Process: metrics.Equals(metrics.ProcessTBC),
+    }
+    clockClassQuery := metrics.ClockClassQuery{
+        Node:    metrics.Equals(nodeName),
+        Process: metrics.Equals(metrics.ProcessPTP4L),
+    }
+
+    err := metrics.AssertQuerySet(
+        ctx,
+        client,
+        metrics.Set(
+            metrics.ExpectLocked(clockStateQuery),
+            metrics.Expect(clockClassQuery, metrics.ClockClass6),
+        ),
+        metrics.AssertWithTimeout(1*time.Minute),
+    )
+    if err != nil {
+        fmt.Printf("Metric set assertion failed: %v\n", err)
+        return
+    }
+
+    fmt.Println("Clock state and clock class match at the same snapshot.")
+}
+```
+
+`AssertQuerySet` accepts the same `QueryAssertOption` values as `AssertQuery` (timeout, poll interval, stable duration, start time). At each poll tick, all expectations are evaluated at the same `queryTime`. If any expectation fails, the tick fails and the stable-duration timer resets.
+
+Use separate `AssertQuery` calls when each assertion waits for a different state transition (for example, waiting for one interface to become FAULTY before another becomes FOLLOWER during failover). Use `AssertQuerySet` when the metrics should be consistent at a single point in time.
+
+For the standard cluster-wide locked baseline (excluding chronyd), use `LockedClockExpectations` or `AssertAllClocksLocked`. `EnsureClocksAreLocked` and `EnsureClocksAreStable` build on these helpers for BeforeEach/AfterEach checks.
+
+#### Profile-aware expected clock state checks
+
+When tests must verify that specific `openshift_ptp_clock_state` series exist (not only that whatever is present is LOCKED), derive expectations from PtpConfig via `profiles.GetExpectedClockStates` and pass them to `EnsureClocksAreLocked` with `WithExpectedClockStates`. Each expected `(process, iface, node)` tuple becomes one `AssertQuerySet` expectation; a missing series fails with `no samples returned`.
+
+```go
+nodeInfoMap, err := profiles.GetNodeInfoMap(client)
+expected, err := profiles.GetExpectedClockStates(client, nodeInfoMap)
+err = metrics.EnsureClocksAreLocked(prometheusAPI, metrics.WithExpectedClockStates(expected))
+```
+
+Or use the convenience helper `profiles.EnsureExpectedClocksLocked(prometheusAPI, client)` which performs both steps. Override poll behavior with `metrics.WithAssertOptions` (stable duration, timeout).
+
+By default, `EnsureClocksAreLocked` without options keeps the broad `process != chronyd` LOCKED check for backward compatibility at other call sites. `ExpectFromMetricQuery` and `LockedExpectationsFromExpected` use raw `MetricQuery` iface labels so OC ptp4l port names (e.g. `ens1f0`) are not converted to NIC names.
 
 To assert PTP clock thresholds, use `AssertThresholds`:
 

@@ -251,20 +251,32 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 
 				assertNMEAStatusAvailable(prometheusAPI, nodeName)
 
-				By("verifying clock class 6 in metrics")
+				By("verifying clock class 6 and clock state LOCKED in metrics")
 
-				assertClockClass6InMetrics(prometheusAPI, nodeName, configSupported)
+				var configFile string
+				if configSupported {
+					configFile, err = processes.GetPtp4lConfigByRelatedProcess(
+						RANConfig.Spoke1APIClient, nodeName, processes.Ts2phc)
+					Expect(err).ToNot(HaveOccurred(), "Failed to determine ptp4l config for node %s", nodeName)
+				}
 
-				By("verifying clock state LOCKED in metrics")
-
+				clockClassQuery := metrics.ClockClassQuery{
+					Process: metrics.Equals(metrics.ProcessPTP4L),
+					Node:    metrics.Equals(nodeName),
+					Config:  metrics.Equals(configFile),
+				}
 				clockStateQuery := metrics.ClockStateQuery{
 					Process: metrics.DoesNotEqual(metrics.ProcessChronyd),
 					Node:    metrics.Equals(nodeName),
 				}
-				err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockStateQuery,
-					metrics.ClockStateLocked, metrics.AssertWithTimeout(1*time.Minute))
+				err = metrics.AssertQuerySet(context.TODO(), prometheusAPI,
+					[]metrics.QueryExpectation{
+						metrics.Expect(clockClassQuery, metrics.ClockClass6),
+						metrics.Expect(clockStateQuery, metrics.ClockStateLocked),
+					},
+					metrics.AssertWithTimeout(1*time.Minute))
 				Expect(err).ToNot(HaveOccurred(),
-					"Failed to assert clock state is LOCKED in metrics on node %s", nodeName)
+					"Failed to assert recovery metrics on node %s", nodeName)
 
 				By("validating no FREERUN events were received")
 
@@ -485,13 +497,9 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 				Expect(err).ToNot(HaveOccurred(),
 					"Failed to receive os-clock-sync-state LOCKED event on node %s", nodeName)
 
-				By("verifying NMEA status is available after recovery on node " + nodeName)
+				By("verifying NMEA status and clock class 6 in metrics after recovery on node " + nodeName)
 
-				assertNMEAStatusAvailable(prometheusAPI, nodeName)
-
-				By("verifying clock class 6 in metrics")
-
-				assertClockClass6InMetrics(prometheusAPI, nodeName, configSupported)
+				assertGMAvailableMetrics(prometheusAPI, nodeName, configSupported)
 			}
 
 			if !testActuallyRan {
@@ -706,13 +714,9 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 				Expect(err).ToNot(HaveOccurred(),
 					"Failed to receive os-clock-sync-state LOCKED event on node %s", nodeName)
 
-				By("verifying NMEA status is available after recovery on node " + nodeName)
+				By("verifying NMEA status and clock class 6 in metrics after recovery on node " + nodeName)
 
-				assertNMEAStatusAvailable(prometheusAPI, nodeName)
-
-				By("verifying clock class 6 in metrics")
-
-				assertClockClass6InMetrics(prometheusAPI, nodeName, configSupported)
+				assertGMAvailableMetrics(prometheusAPI, nodeName, configSupported)
 			}
 
 			if !testActuallyRan {
@@ -751,18 +755,24 @@ func assertNMEAStatusAvailable(
 		Process: metrics.Equals(metrics.ProcessTS2PHC),
 		Node:    metrics.Equals(nodeName),
 	}
-	err := metrics.AssertQuery(context.TODO(), prometheusAPI, nmeaQuery,
-		metrics.NMEAStatusAvailable, metrics.AssertWithTimeout(1*time.Minute))
+	err := metrics.AssertQuerySet(context.TODO(), prometheusAPI,
+		metrics.Set(metrics.Expect(nmeaQuery, metrics.NMEAStatusAvailable)),
+		metrics.AssertWithTimeout(1*time.Minute))
 	Expect(err).ToNot(HaveOccurred(),
 		"Failed to assert NMEA status is available on node %s", nodeName)
 }
 
-func assertClockClass6InMetrics(
+func assertGMAvailableMetrics(
 	prometheusAPI prometheusv1.API,
 	nodeName string,
 	configSupported bool,
 ) {
 	GinkgoHelper()
+
+	nmeaQuery := metrics.NMEAStatusQuery{
+		Process: metrics.Equals(metrics.ProcessTS2PHC),
+		Node:    metrics.Equals(nodeName),
+	}
 
 	var configFile string
 
@@ -778,8 +788,13 @@ func assertClockClass6InMetrics(
 		Node:    metrics.Equals(nodeName),
 		Config:  metrics.Equals(configFile),
 	}
-	err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockClassQuery,
-		metrics.ClockClass6, metrics.AssertWithTimeout(1*time.Minute))
+
+	err = metrics.AssertQuerySet(context.TODO(), prometheusAPI,
+		metrics.Set(
+			metrics.Expect(nmeaQuery, metrics.NMEAStatusAvailable),
+			metrics.Expect(clockClassQuery, metrics.ClockClass6),
+		),
+		metrics.AssertWithTimeout(1*time.Minute))
 	Expect(err).ToNot(HaveOccurred(),
-		"Failed to assert clock class is 6 in metrics on node %s", nodeName)
+		"Failed to assert NMEA status and clock class 6 on node %s", nodeName)
 }

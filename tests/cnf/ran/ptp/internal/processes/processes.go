@@ -10,6 +10,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/ptpdaemon"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/execoutput"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 )
@@ -115,14 +116,17 @@ func GetPtp4lPIDsByRelatedProcess(
 		return nil, err
 	}
 
-	grepFlag := ""
-	if !related {
-		grepFlag = "-v"
-	}
+	indicesPattern := strings.Join(indices, "|")
 
-	// Match any ptp4l.<index>.config derived from the related process indices.
-	grepPattern := fmt.Sprintf("\\/var\\/run\\/ptp4l\\.(%s)\\.config", strings.Join(indices, "|"))
-	getPIDsCommand := fmt.Sprintf("pgrep -a ptp4l | grep -E %s '%s' | cut -d' ' -f1", grepFlag, grepPattern)
+	var getPIDsCommand string
+	if related {
+		getPIDsCommand = fmt.Sprintf("pgrep -f '/var/run/ptp4l\\.(%s)\\.config'", indicesPattern)
+	} else {
+		getPIDsCommand = fmt.Sprintf(
+			"ls -1 /var/run/ptp4l.*.config 2>/dev/null | grep -vE 'ptp4l\\.(%s)\\.config$' | "+
+				"while read -r cfg; do pgrep -f \"$cfg\"; done",
+			indicesPattern)
+	}
 
 	output, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, getPIDsCommand,
 		ptpdaemon.WithRetries(3), ptpdaemon.WithRetryOnEmptyOutput(true))
@@ -130,15 +134,18 @@ func GetPtp4lPIDsByRelatedProcess(
 		return nil, err
 	}
 
-	pidStrings := strings.Split(strings.TrimSpace(output), "\n")
-
-	return pidStrings, nil
+	return execoutput.LinesAsPIDs(output), nil
 }
 
 // KillProcessByPID kills a process on a node by executing a kill -9 command in the ptp daemon pod. Unlike
 // [KillPtpProcess] this function accepts the PID, not the process name.
 func KillProcessByPID(client *clients.Settings, nodeName string, pid string) error {
-	command := fmt.Sprintf("kill -9 %s", strings.TrimSpace(pid))
+	pid = strings.TrimSpace(pid)
+	if !execoutput.IsNumericPID(pid) {
+		return fmt.Errorf("invalid PID %q for kill on node %s", pid, nodeName)
+	}
+
+	command := fmt.Sprintf("kill -9 %s", pid)
 
 	_, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, command)
 	if err != nil {
@@ -221,7 +228,7 @@ func WaitForProcessRunning(
 // getRelatedIndices returns the indices of the related processes for a given process.
 // error is nil if the matches are found.
 func getRelatedIndices(client *clients.Settings, nodeName string, relatedProcess PtpProcess) ([]string, error) {
-	getIndexCommand := fmt.Sprintf("pgrep -a %s | grep /var/run |  head -n 1", relatedProcess)
+	getIndexCommand := fmt.Sprintf("ls -1 /var/run/%s.*.config 2>/dev/null | head -n 1", relatedProcess)
 
 	output, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, getIndexCommand,
 		ptpdaemon.WithRetries(3), ptpdaemon.WithRetryOnEmptyOutput(true))
