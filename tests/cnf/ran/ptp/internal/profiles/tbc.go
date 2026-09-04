@@ -13,6 +13,7 @@ type HoldoverTestData struct {
 	NodeName       string
 	ProfileInfo    *ProfileInfo
 	UpstreamIfaces []iface.Name
+	ConfigFile     string
 }
 
 // HoldoverExpectedClockClasses groups the expected clock class values for each holdover state.

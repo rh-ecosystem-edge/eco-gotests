@@ -101,10 +101,10 @@ func assertDualTBCFailoverToBackup(testData profiles.HoldoverTestData, timeout t
 		"Failed to set active upstream interface %s down on node %s", activeIface, testData.NodeName)
 
 	assertHoldoverState(testData.PrometheusAPI, testData.NodeName, ifaceDownTime,
-		profiles.TBCClockClasses().HoldoverInSpec, true, timeout, false)
+		profiles.TBCClockClasses().HoldoverInSpec, true, timeout, false, testData.ConfigFile)
 
 	assertLockedState(testData.PrometheusAPI, testData.NodeName, ifaceDownTime,
-		profiles.TBCClockClasses().Locked, true, timeout)
+		profiles.TBCClockClasses().Locked, true, timeout, testData.UpstreamIfaces, testData.ConfigFile)
 
 	By("validating interface roles after failover")
 
@@ -150,10 +150,10 @@ func assertDualTBCHoldoverInSpecToFreerun(
 	Expect(err).ToNot(HaveOccurred(), "Failed to set upstream clock interfaces down")
 
 	assertHoldoverState(testData.PrometheusAPI, testData.NodeName, ifaceDownTime,
-		expected.HoldoverInSpec, true, timeout, true)
+		expected.HoldoverInSpec, true, timeout, true, testData.ConfigFile)
 
 	assertFreerunState(testData.PrometheusAPI, testData.NodeName, ifaceDownTime,
-		expected.Freerun, true, timeout)
+		expected.Freerun, true, timeout, testData.ConfigFile)
 
 	By("validating both upstream interfaces are FAULTY")
 

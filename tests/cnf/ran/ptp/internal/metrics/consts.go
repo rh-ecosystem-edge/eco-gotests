@@ -27,6 +27,20 @@ const (
 	MetricHAProfileStatus PtpMetric = "openshift_ptp_ha_profile_status"
 	MetricPPSStatus       PtpMetric = "openshift_ptp_pps_status"
 	MetricClockClass      PtpMetric = "openshift_ptp_clock_class"
+	MetricPhaseStatus     PtpMetric = "openshift_ptp_phase_status"
+)
+
+// PtpPhaseState is an enum representing all possible states of the openshift_ptp_phase_status metric.
+type PtpPhaseState int
+
+//nolint:revive // The phase state names are self explanatory and do not need individual comments.
+const (
+	PhaseStateUnknown PtpPhaseState = iota - 1
+	PhaseStateInvalid
+	PhaseStateFreerun
+	PhaseStateLocked
+	PhaseStateLockedHoldoverAcquired
+	PhaseStateHoldover
 )
 
 // PtpClockState is an enum representing all possible states of the PTP clock.

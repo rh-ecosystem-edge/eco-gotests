@@ -384,6 +384,30 @@ func (query PPSStatusQuery) ToMetricQuery() MetricQuery[PtpPPSStatus] {
 	}
 }
 
+// PhaseStatusQuery is a query for the openshift_ptp_phase_status metric.
+type PhaseStatusQuery struct {
+	From      MetricLabel[PtpProcess]
+	Interface MetricLabel[iface.NICName]
+	Node      MetricLabel[string]
+	Process   MetricLabel[PtpProcess]
+}
+
+// This asserts at compile time that PhaseStatusQuery implements the Query interface.
+var _ Query[PtpPhaseState] = PhaseStatusQuery{}
+
+// ToMetricQuery converts the PhaseStatusQuery to a MetricQuery to fulfill the Query interface.
+func (query PhaseStatusQuery) ToMetricQuery() MetricQuery[PtpPhaseState] {
+	return MetricQuery[PtpPhaseState]{
+		Metric: MetricPhaseStatus,
+		Labels: map[PtpMetricKey]MetricLabel[any]{
+			KeyFrom:      query.From.ToAny(),
+			KeyInterface: query.Interface.ensureNIC().ToAny(),
+			KeyNode:      query.Node.ToAny(),
+			KeyProcess:   query.Process.ToAny(),
+		},
+	}
+}
+
 // ClockClassQuery is a query for the openshift_ptp_clock_class metric.
 type ClockClassQuery struct {
 	Node    MetricLabel[string]
