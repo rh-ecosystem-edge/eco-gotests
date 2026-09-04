@@ -312,6 +312,10 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 
 		// 55990
 		It("Disable multi-network policy", reportxml.ID("55990"), func() {
+			DeferCleanup(func() {
+				enableMultiNetworkPolicy(true)
+			})
+
 			By("Apply MultiNetworkPolicy with ingress rule deny all")
 
 			_, err := networkpolicy.NewMultiNetworkPolicyBuilder(
@@ -350,13 +354,13 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 			// All traffic is accepted and there is no any policy because feature is off
 			Eventually(func() error {
 				return runTraffic(firstClientPod, ipaddr.RemovePrefix(serverPodIP), tcpProtocol, port5001)
-			}, tsparams.WaitTrafficTimeout, tsparams.RetryTrafficInterval).ShouldNot(HaveOccurred(),
+			}, tsparams.WaitTimeout, tsparams.RetryTrafficInterval).ShouldNot(HaveOccurred(),
 				fmt.Sprintf("pod %s can NOT reach %s with port %d",
 					firstClientPod.Definition.Name, serverPod.Definition.Name, port5001))
 
 			Eventually(func() error {
 				return runTraffic(secondClientPod, ipaddr.RemovePrefix(serverPodIP), tcpProtocol, port5003)
-			}, tsparams.WaitTrafficTimeout, tsparams.RetryTrafficInterval).ShouldNot(HaveOccurred(),
+			}, tsparams.WaitTimeout, tsparams.RetryTrafficInterval).ShouldNot(HaveOccurred(),
 				fmt.Sprintf("pod %s can NOT reach %s with port %d",
 					secondClientPod.Definition.Name, serverPod.Definition.Name, port5003))
 
