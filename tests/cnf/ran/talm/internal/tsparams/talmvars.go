@@ -9,6 +9,7 @@ import (
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	corev1 "k8s.io/api/core/v1"
+	eventsv1 "k8s.io/api/events/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	clusterv1beta2 "open-cluster-management.io/api/cluster/v1beta2"
@@ -41,6 +42,7 @@ var (
 		{Cr: &corev1.PodList{}},
 		{Cr: &cguv1alpha1.ClusterGroupUpgradeList{}, Namespace: ptr.To(TestNamespace)},
 		{Cr: &cguv1alpha1.PreCachingConfigList{}, Namespace: ptr.To(TestNamespace)},
+		{Cr: &eventsv1.EventList{}, Namespace: ptr.To(TestNamespace)},
 		{Cr: &policiesv1.PolicyList{}},
 		{Cr: &policiesv1.PlacementBindingList{}, Namespace: ptr.To(TestNamespace)},
 		{Cr: &placementrulev1.PlacementRuleList{}, Namespace: ptr.To(TestNamespace)},

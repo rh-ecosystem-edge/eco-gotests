@@ -486,6 +486,7 @@ var _ = Describe("TALM precache", Label(tsparams.LabelPreCacheTestCases), func()
 				By("waiting for pre cache to confirm it is valid")
 
 				cguBuilder, err = cguBuilder.WaitForCondition(tsparams.CguPreCacheValidCondition, 5*time.Minute)
+
 				Expect(err).ToNot(HaveOccurred(), "Failed to wait for pre cache to be valid")
 
 				By("waiting until CGU Succeeded")
@@ -500,6 +501,7 @@ var _ = Describe("TALM precache", Label(tsparams.LabelPreCacheTestCases), func()
 				By("waiting until CGU reports one spoke failed precaching")
 
 				_, err = cguBuilder.WaitForCondition(tsparams.CguPreCachePartialCondition, 5*time.Minute)
+
 				Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU to report one spoke failed precaching")
 
 				By("checking CGU reports spoke 1 failed with UnrecoverableError")
@@ -559,11 +561,13 @@ var _ = Describe("TALM precache", Label(tsparams.LabelPreCacheTestCases), func()
 					By("waiting for spoke 2 to complete successfully")
 
 					cguBuilder, err := cguBuilder.WaitUntilClusterComplete(RANConfig.Spoke2Name, 22*time.Minute)
+
 					Expect(err).ToNot(HaveOccurred(), "Failed to wait for spoke 2 batch remediation progress to complete")
 
 					By("waiting for the CGU to timeout")
 
 					_, err = cguBuilder.WaitForCondition(tsparams.CguTimeoutReasonCondition, 22*time.Minute)
+
 					Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU to timeout")
 				})
 
