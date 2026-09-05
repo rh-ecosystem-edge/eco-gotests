@@ -250,6 +250,7 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 			// cluster or batch remediation until unblocked.
 			clusterStarts := helper.FindEventsByReasonAndScope(eventsB, tsparams.CguStarted, tsparams.EventScopeCluster)
 			batchStarts := helper.FindEventsByReasonAndScope(eventsB, tsparams.CguStarted, tsparams.EventScopeBatch)
+
 			Expect(clusterStarts).To(BeEmpty(),
 				"[EVENT CHECK] CGU B should not have cluster-scoped starts while blocked by missing CR")
 			Expect(batchStarts).To(BeEmpty(),

@@ -177,7 +177,7 @@ func VerifyEventSequence(events []*eventsv1.Event, matchers []EventMatcher) bool
 // TODO: Delete entire section once formal assertions validated
 // =============================================================================
 
-// Debug-only constants (not moved to tsparams - will be deleted)
+// Debug-only constants (not moved to tsparams - will be deleted).
 const (
 	// DefaultCGUEventCheckpointDelaySeconds is default wait before listing events in checkpoint.
 	DefaultCGUEventCheckpointDelaySeconds = 10

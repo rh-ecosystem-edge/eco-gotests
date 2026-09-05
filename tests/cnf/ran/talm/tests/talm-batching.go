@@ -338,7 +338,8 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 
 			Expect(events).ToNot(BeEmpty(), "[EVENT CHECK] No CGU events found")
 
-			// First batch times out, second batch succeeds, then final recompliance check (intentional behavior per dev feedback #4)
+			// First batch times out, second batch succeeds, then final recompliance check
+			// (intentional behavior per dev feedback #4)
 			// This means: timeout in first batch, success in second batch, but global timeout at end
 			expectedSequence := []helper.EventMatcher{
 				{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeGlobal},
