@@ -6,6 +6,7 @@ import (
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/infrastructure"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/mco"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/route"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
@@ -296,6 +297,22 @@ func WaitForRecover(client *clients.Settings, namespaces []string, timeout time.
 	}
 
 	return nil
+}
+
+// WaitForRouteAPIAvailable waits up to timeout for the given Route to be readable.
+func WaitForRouteAPIAvailable(
+	client *clients.Settings, routeName, routeNamespace string, timeout time.Duration) error {
+	klog.V(90).Infof("Wait for route.openshift.io API available with timeout: %v", timeout)
+
+	return wait.PollUntilContextTimeout(
+		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			_, err := route.Pull(client, routeName, routeNamespace)
+			if err != nil {
+				return true, nil
+			}
+
+			return false, nil
+		})
 }
 
 // SoftRebootSNO executes systemctl reboot on a node.

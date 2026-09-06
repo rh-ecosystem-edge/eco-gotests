@@ -11,6 +11,11 @@ import (
 const UnreachableIPv4Address = "192.0.2.1"
 
 const (
+	// OpenshiftAPINamespace is the namespace where OCP API is.
+	OpenshiftAPINamespace = "openshift-apiserver"
+)
+
+const (
 	// Label represents the label for the ran test cases.
 	Label = "ran"
 	// LabelNoContainer is the label for RAN test cases that should not be executed in a container.
