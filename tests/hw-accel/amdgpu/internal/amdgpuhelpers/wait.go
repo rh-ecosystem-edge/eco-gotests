@@ -164,10 +164,10 @@ func waitForNodesReadiness(ctx context.Context, wg *sync.WaitGroup, apiClients *
 	_, err := watchtools.UntilWithSync(ctx,
 
 		&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
 				return apiClients.CoreV1Interface.Nodes().List(ctx, options)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
 				return apiClients.CoreV1Interface.Nodes().Watch(ctx, options)
 			},
 		},
@@ -216,10 +216,10 @@ func waitForClientConfig(ctx context.Context, wg *sync.WaitGroup, apiClients *cl
 
 	_, err = watchtools.UntilWithSync(ctx,
 		&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
 				return configClient.ConfigV1().ClusterOperators().List(ctx, options)
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
 				return configClient.ConfigV1().ClusterOperators().Watch(ctx, options)
 			},
 		},
