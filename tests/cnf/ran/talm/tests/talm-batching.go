@@ -99,11 +99,11 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 					return false, fmt.Errorf("no CguValidationFailure events found")
 				}
 
-				if !helper.HasEventWithAnnotation(events, tsparams.CguMissingClustersAnnotation) {
+				if !helper.HasEventWithAnnotation(validationEvents, tsparams.CguMissingClustersAnnotation) {
 					return false, fmt.Errorf("missing missing-clusters annotation on validation event")
 				}
 
-				if !helper.HasEventWithAnnotation(events, tsparams.CguMissingClustersCountAnnotation) {
+				if !helper.HasEventWithAnnotation(validationEvents, tsparams.CguMissingClustersCountAnnotation) {
 					return false, fmt.Errorf("missing missing-clusters-count annotation on validation event")
 				}
 
@@ -156,7 +156,7 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 					return false, fmt.Errorf("no CguValidationFailure events found")
 				}
 
-				if !helper.HasEventWithAnnotation(events, tsparams.CguMissingPoliciesAnnotation) {
+				if !helper.HasEventWithAnnotation(validationEvents, tsparams.CguMissingPoliciesAnnotation) {
 					return false, fmt.Errorf("missing missing-policies annotation on validation event")
 				}
 

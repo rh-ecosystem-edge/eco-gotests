@@ -20,6 +20,7 @@ type EventMatcher struct {
 	Reason string // Event reason (e.g., CguStarted, CguSuccess)
 	Scope  string // Event scope annotation (global, batch, cluster)
 	Count  int    // Expected count: 0 = at least one, >0 = exact minimum
+	Strict bool   // When true with Count>1, all occurrences must precede the next matcher
 }
 
 // cguAnnotations lists annotation keys to include in debug output, ordered for stability.
@@ -59,11 +60,15 @@ func GetCGUEvents(cguName string) ([]*eventsv1.Event, error) {
 	}
 
 	sort.SliceStable(cguEvents, func(i, j int) bool {
-		if cguEvents[i].EventTime.Time.Equal(cguEvents[j].EventTime.Time) {
-			return cguEvents[i].Name < cguEvents[j].Name
+		if !cguEvents[i].EventTime.Time.Equal(cguEvents[j].EventTime.Time) {
+			return cguEvents[i].EventTime.Time.Before(cguEvents[j].EventTime.Time)
 		}
 
-		return cguEvents[i].EventTime.Time.Before(cguEvents[j].EventTime.Time)
+		if cguEvents[i].Reason != cguEvents[j].Reason {
+			return cguEvents[i].Reason < cguEvents[j].Reason
+		}
+
+		return cguEvents[i].Name < cguEvents[j].Name
 	})
 
 	return cguEvents, nil
@@ -161,6 +166,13 @@ func CountEventsByReasonAndScope(events []*eventsv1.Event, reason, scope string)
 // For each matcher, all remaining events from the current position are scanned to count total
 // occurrences of the (reason, scope) pair. This allows interleaved events from concurrent
 // clusters while still enforcing cross-phase ordering between different matchers.
+//
+// Position advancement after a satisfied matcher depends on the Strict field:
+//   - Strict=false (default): advances past the first match, allowing later occurrences to
+//     interleave with events matched by subsequent matchers (e.g., concurrent cluster events).
+//   - Strict=true: advances past the last match, ensuring all counted occurrences precede
+//     any event matched by the next matcher.
+//
 // Returns (true, nil) if all matchers are satisfied, or (false, error) describing which
 // matcher failed and how many occurrences were found.
 func VerifyEventSequence(events []*eventsv1.Event, matchers []EventMatcher) (bool, error) {
@@ -174,6 +186,7 @@ func VerifyEventSequence(events []*eventsv1.Event, matchers []EventMatcher) (boo
 
 		found := 0
 		firstMatch := -1
+		lastMatch := -1
 
 		for i := pos; i < len(events); i++ {
 			eventScope := events[i].Annotations[tsparams.CguEventTypeAnnotation]
@@ -183,6 +196,7 @@ func VerifyEventSequence(events []*eventsv1.Event, matchers []EventMatcher) (boo
 					firstMatch = i
 				}
 
+				lastMatch = i
 				found++
 			}
 		}
@@ -192,7 +206,11 @@ func VerifyEventSequence(events []*eventsv1.Event, matchers []EventMatcher) (boo
 				idx, matcher.Reason, matcher.Scope, found, requiredCount, pos)
 		}
 
-		pos = firstMatch + 1
+		if matcher.Strict {
+			pos = lastMatch + 1
+		} else {
+			pos = firstMatch + 1
+		}
 	}
 
 	return true, nil
