@@ -17,6 +17,21 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/talm/internal/tsparams"
 )
 
+// EventMatcher defines expected event with reason, scope, and optional count.
+type EventMatcher struct {
+	Reason string // Event reason (e.g., CguStarted, CguSuccess)
+	Scope  string // Event scope annotation (global, batch, cluster)
+	Count  int    // Expected count: 0 = at least one, >0 = exact minimum
+}
+
+// cguAnnotations lists annotation keys to include in debug output, ordered for stability.
+var cguAnnotations = []string{
+	tsparams.CguMissingClustersAnnotation,
+	tsparams.CguMissingClustersCountAnnotation,
+	tsparams.CguMissingPoliciesAnnotation,
+	tsparams.CguTimedoutClustersAnnotation,
+}
+
 // GetCGUEvents lists CGU events in test namespace, optionally filtered by CGU name, sorted by event time.
 func GetCGUEvents(cguName string) ([]*eventsv1.Event, error) {
 	fieldSet := fields.Set{"regarding.kind": tsparams.CguRegardingKind}
@@ -71,13 +86,6 @@ func ClearCGUEvents() {
 	}
 
 	klog.V(tsparams.LogLevel).Infof("Cleared CGU events in the %s namespace", tsparams.TestNamespace)
-}
-
-// EventMatcher defines expected event with reason, scope, and optional count.
-type EventMatcher struct {
-	Reason string // Event reason (e.g., CguStarted, CguSuccess)
-	Scope  string // Event scope annotation (global, batch, cluster)
-	Count  int    // Expected count: 0 = at least one, >0 = exact minimum
 }
 
 // FindEventsByReason filters events by reason, returning all matching events.
@@ -162,14 +170,6 @@ func VerifyEventSequence(events []*eventsv1.Event, matchers []EventMatcher) bool
 
 	// All matchers must be satisfied
 	return matcherIdx == len(matchers)
-}
-
-// cguAnnotations lists annotation keys to include in debug output, ordered for stability.
-var cguAnnotations = []string{
-	tsparams.CguMissingClustersAnnotation,
-	tsparams.CguMissingClustersCountAnnotation,
-	tsparams.CguMissingPoliciesAnnotation,
-	tsparams.CguTimedoutClustersAnnotation,
 }
 
 // PrintCGUEvents logs all CGU events in test namespace (call from AfterEach).
