@@ -51,4 +51,9 @@ const (
 	RollbackCguName = "cgu-ibu-rollback"
 	// RollbackPolicyName is the name of managed policy for ibu rollback stage validation.
 	RollbackPolicyName = "group-ibu-rollback-stage-policy"
+
+	// SpecRollbackSuccessfulUpgrade is the It text for test 69058. AfterEach
+	// matches CurrentSpecReport().LeafNodeText against this so Recover leaves
+	// a completed Upgrade in place for that Ordered spec.
+	SpecRollbackSuccessfulUpgrade = "Rollback successful upgrade"
 )

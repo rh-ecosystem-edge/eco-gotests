@@ -31,8 +31,10 @@ import (
 	ibiv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/imagebasedinstall/api/hiveextensions/v1alpha1"
 	mcmv1beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/kmm-hub/v1beta1"
 	modulev1beta1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/kmm/v1beta1"
+	oadpv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/oadp/api/v1alpha1"
 	olmv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/olm/operators/v1alpha1"
 	ptpv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v1"
+	velerov1 "github.com/vmware-tanzu/velero/pkg/apis/velero/v1"
 	certificatesv1 "k8s.io/api/certificates/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
@@ -76,8 +78,13 @@ var reporterSchemes = []clients.SchemeAttacher{
 	inventoryv1alpha1.AddToScheme,
 	ptpv1.AddToScheme,
 	lcasgv1.AddToScheme,
+	// Velero and OADP are required to dump BSL/Backup/Restore/DPA on TALM IBU
+	// spoke failures. Extra attachers are unused by other suites.
+	velerov1.AddToScheme,
+	oadpv1alpha1.AddToScheme,
 }
 
+// setReporterSchemes registers every CRD scheme the failure reporter needs to dump.
 func setReporterSchemes(scheme *runtime.Scheme) error {
 	for _, schemeAttacher := range reporterSchemes {
 		if err := schemeAttacher(scheme); err != nil {

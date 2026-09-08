@@ -12,6 +12,7 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/reporter"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/cnf/internal/cnfhelper"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/cnf/upgrade-talm/internal/tsparams"
 	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/cnf/upgrade-talm/tests"
 )
@@ -39,6 +40,14 @@ var _ = BeforeSuite(func() {
 	if TargetSNOAPIClient == nil {
 		Skip("Cannot run test suite when target sno cluster has nil api client")
 	}
+
+	By("Waiting until the spoke cluster is healthy")
+
+	// Fresh deployment often still have ClusterOperators progressing. Wait once
+	// here so the first spec's fail-fast BeforeEach does not fail immediately.
+	// Do not wait in BeforeEach: that would delay cascaded failures.
+	Expect(cnfhelper.WaitUntilHealthy(cnfhelper.DefaultHealthTimeout)).To(Succeed(),
+		"spoke cluster was not healthy before the suite")
 })
 
 var _ = ReportAfterSuite("", func(report Report) {

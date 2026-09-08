@@ -998,6 +998,7 @@ github.com/rh-ecosystem-edge/eco-goinfra/pkg/argocd
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/assisted
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/bmc
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/bmh
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/certificate
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/cgu
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/clusterlogging
