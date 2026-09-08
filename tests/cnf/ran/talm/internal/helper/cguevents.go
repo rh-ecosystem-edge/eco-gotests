@@ -59,16 +59,16 @@ func GetCGUEvents(cguName string) ([]*eventsv1.Event, error) {
 		cguEvents = append(cguEvents, builder.Object)
 	}
 
-	sort.SliceStable(cguEvents, func(i, j int) bool {
-		if !cguEvents[i].EventTime.Time.Equal(cguEvents[j].EventTime.Time) {
-			return cguEvents[i].EventTime.Time.Before(cguEvents[j].EventTime.Time)
+	sort.SliceStable(cguEvents, func(left, right int) bool {
+		if !cguEvents[left].EventTime.Time.Equal(cguEvents[right].EventTime.Time) {
+			return cguEvents[left].EventTime.Time.Before(cguEvents[right].EventTime.Time)
 		}
 
-		if cguEvents[i].Reason != cguEvents[j].Reason {
-			return cguEvents[i].Reason < cguEvents[j].Reason
+		if cguEvents[left].Reason != cguEvents[right].Reason {
+			return cguEvents[left].Reason < cguEvents[right].Reason
 		}
 
-		return cguEvents[i].Name < cguEvents[j].Name
+		return cguEvents[left].Name < cguEvents[right].Name
 	})
 
 	return cguEvents, nil
@@ -188,15 +188,15 @@ func VerifyEventSequence(events []*eventsv1.Event, matchers []EventMatcher) (boo
 		firstMatch := -1
 		lastMatch := -1
 
-		for i := pos; i < len(events); i++ {
-			eventScope := events[i].Annotations[tsparams.CguEventTypeAnnotation]
+		for eventIdx := pos; eventIdx < len(events); eventIdx++ {
+			eventScope := events[eventIdx].Annotations[tsparams.CguEventTypeAnnotation]
 
-			if events[i].Reason == matcher.Reason && eventScope == matcher.Scope {
+			if events[eventIdx].Reason == matcher.Reason && eventScope == matcher.Scope {
 				if firstMatch == -1 {
-					firstMatch = i
+					firstMatch = eventIdx
 				}
 
-				lastMatch = i
+				lastMatch = eventIdx
 				found++
 			}
 		}
