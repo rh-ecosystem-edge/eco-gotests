@@ -38,13 +38,13 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 			Skip("TALM blocking CR tests require version 4.11 or higher")
 		}
 
-		By(fmt.Sprintf("clearing CGU events in the %s namespace for debugging", tsparams.TestNamespace))
+		By(fmt.Sprintf("clearing CGU events in the %s namespace", tsparams.TestNamespace))
 
 		helper.ClearCGUEvents()
 	})
 
 	AfterEach(func() {
-		By(fmt.Sprintf("printing CGU events in the %s namespace for debugging", tsparams.TestNamespace))
+		By(fmt.Sprintf("printing CGU events in the %s namespace", tsparams.TestNamespace))
 
 		helper.PrintCGUEvents()
 

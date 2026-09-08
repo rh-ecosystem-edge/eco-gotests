@@ -164,15 +164,15 @@ func VerifyEventSequence(events []*eventsv1.Event, matchers []EventMatcher) bool
 	return matcherIdx == len(matchers)
 }
 
-// cguDebugAnnotations lists annotation keys to include in debug output, ordered for stability.
-var cguDebugAnnotations = []string{
+// cguAnnotations lists annotation keys to include in debug output, ordered for stability.
+var cguAnnotations = []string{
 	tsparams.CguMissingClustersAnnotation,
 	tsparams.CguMissingClustersCountAnnotation,
 	tsparams.CguMissingPoliciesAnnotation,
 	tsparams.CguTimedoutClustersAnnotation,
 }
 
-// PrintCGUEvents logs all CGU events in test namespace for debugging (call from AfterEach).
+// PrintCGUEvents logs all CGU events in test namespace (call from AfterEach).
 func PrintCGUEvents() {
 	cguEvents, err := GetCGUEvents("")
 	if err != nil {
@@ -202,7 +202,7 @@ func formatCGUEvents(cguEvents []*eventsv1.Event) string {
 		line := fmt.Sprintf("  %s  %-7s %-36s scope=%-7s regarding=%-24s",
 			event.EventTime.Time.Format(time.RFC3339Nano), event.Type, event.Reason, scope, event.Regarding.Name)
 
-		if annotations := formatCGUDebugAnnotations(event.Annotations); annotations != "" {
+		if annotations := formatCGUAnnotations(event.Annotations); annotations != "" {
 			line += " " + annotations
 		}
 
@@ -212,11 +212,11 @@ func formatCGUEvents(cguEvents []*eventsv1.Event) string {
 	return strings.Join(lines, "\n")
 }
 
-// formatCGUDebugAnnotations renders present annotations as "annotations=[key=value, ...]" or empty string.
-func formatCGUDebugAnnotations(annotations map[string]string) string {
-	pairs := make([]string, 0, len(cguDebugAnnotations))
+// formatCGUAnnotations renders present annotations as "annotations=[key=value, ...]" or empty string.
+func formatCGUAnnotations(annotations map[string]string) string {
+	pairs := make([]string, 0, len(cguAnnotations))
 
-	for _, key := range cguDebugAnnotations {
+	for _, key := range cguAnnotations {
 		if value, ok := annotations[key]; ok && value != "" {
 			pairs = append(pairs, fmt.Sprintf("%s=%s", key, value))
 		}
@@ -228,4 +228,3 @@ func formatCGUDebugAnnotations(annotations map[string]string) string {
 
 	return fmt.Sprintf("annotations=[%s]", strings.Join(pairs, ", "))
 }
-

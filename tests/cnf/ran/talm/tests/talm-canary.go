@@ -26,13 +26,13 @@ var _ = Describe("TALM Canary Tests", Label(tsparams.LabelCanaryTestCases), func
 		Expect(rancluster.AreClustersPresent([]*clients.Settings{HubAPIClient, Spoke1APIClient, Spoke2APIClient})).
 			To(BeTrue(), "Failed due to missing API client")
 
-		By(fmt.Sprintf("clearing CGU events in the %s namespace for debugging", tsparams.TestNamespace))
+		By(fmt.Sprintf("clearing CGU events in the %s namespace", tsparams.TestNamespace))
 
 		helper.ClearCGUEvents()
 	})
 
 	AfterEach(func() {
-		By(fmt.Sprintf("printing CGU events in the %s namespace for debugging", tsparams.TestNamespace))
+		By(fmt.Sprintf("printing CGU events in the %s namespace", tsparams.TestNamespace))
 
 		helper.PrintCGUEvents()
 

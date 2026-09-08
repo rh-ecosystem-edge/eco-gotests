@@ -41,13 +41,13 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 			Skip("TALM batching tests require version 4.11 or higher")
 		}
 
-		By(fmt.Sprintf("clearing CGU events in the %s namespace for debugging", tsparams.TestNamespace))
+		By(fmt.Sprintf("clearing CGU events in the %s namespace", tsparams.TestNamespace))
 
 		helper.ClearCGUEvents()
 	})
 
 	AfterEach(func() {
-		By(fmt.Sprintf("printing CGU events in the %s namespace for debugging", tsparams.TestNamespace))
+		By(fmt.Sprintf("printing CGU events in the %s namespace", tsparams.TestNamespace))
 
 		helper.PrintCGUEvents()
 
