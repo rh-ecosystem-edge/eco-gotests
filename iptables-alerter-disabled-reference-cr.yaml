@@ -1,0 +1,40 @@
+---
+# Reference ConfigMap for oc cluster-compare validation
+# This ConfigMap disables the iptables-alerter component in production Telco clusters
+#
+# Purpose:
+#   The iptables-alerter can cause high CPU usage and cluster instability in Telco
+#   production environments. Telco partners tightly control their workloads, making
+#   the iptables-alerter component unnecessary in production.
+#
+# Scope:
+#   Required for RAN, Core, and Hub RDS configurations
+#
+# References:
+#   - KCS Article: https://access.redhat.com/solutions/7134521
+#   - OCPBUGS-87026: NF Pod Readiness Probe Failures in Production Cluster
+#   - OCPBUGS-73767: High CPU usage for iptables-alerter pods
+#
+# Usage:
+#   1. Add this file to your cluster-compare reference CR directory
+#   2. Run: oc cluster-compare -r <reference-directory>
+#   3. The tool will verify this ConfigMap exists in openshift-network-operator namespace
+#
+# Manual Application (for existing clusters):
+#   Step 1: Create the ConfigMap
+#   oc -n openshift-network-operator create configmap iptables-alerter-config --from-literal enabled=false
+#
+#   Step 2: Restart network operator to apply the configuration
+#   oc -n openshift-network-operator delete pod -l name=network-operator
+#
+# Partner Responsibilities:
+#   - Run checks for iptables use in pre-production/lab environments (with iptables-alerter enabled)
+#   - Migrate workloads from iptables to nftables before RHEL10-based OCP releases
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: iptables-alerter-config
+  namespace: openshift-network-operator
+data:
+  enabled: "false"
