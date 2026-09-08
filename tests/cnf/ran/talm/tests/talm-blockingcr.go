@@ -40,7 +40,8 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 
 		By(fmt.Sprintf("clearing CGU events in the %s namespace", tsparams.TestNamespace))
 
-		helper.ClearCGUEvents()
+		err = helper.ClearCGUEvents()
+		Expect(err).ToNot(HaveOccurred(), "Failed to clear CGU events")
 	})
 
 	AfterEach(func() {
@@ -100,19 +101,24 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 
 			By("verifying CGU A emitted success events")
 
-			eventsA, err := helper.GetCGUEvents(tsparams.CguName + blockingA)
-			Expect(err).ToNot(HaveOccurred(), "[EVENT CHECK] Failed to retrieve CGU A events")
-
-			Expect(eventsA).ToNot(BeEmpty(), "[EVENT CHECK] No CGU A events found")
-
-			// Single cluster success
 			expectedSequenceA := []helper.EventMatcher{
 				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeCluster},
 				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeBatch},
 				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeGlobal},
 			}
 
-			Expect(helper.VerifyEventSequence(eventsA, expectedSequenceA)).To(BeTrue(),
+			Eventually(func() (bool, error) {
+				eventsA, err := helper.GetCGUEvents(tsparams.CguName + blockingA)
+				if err != nil {
+					return false, err
+				}
+
+				if len(eventsA) == 0 {
+					return false, fmt.Errorf("no CGU A events found")
+				}
+
+				return helper.VerifyEventSequence(eventsA, expectedSequenceA)
+			}).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
 				"[EVENT CHECK] CGU A event sequence mismatch for successful completion")
 
 			By("Waiting for CGU B to succeed")
@@ -122,19 +128,24 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 
 			By("verifying CGU B emitted success events")
 
-			eventsB, err := helper.GetCGUEvents(tsparams.CguName + blockingB)
-			Expect(err).ToNot(HaveOccurred(), "[EVENT CHECK] Failed to retrieve CGU B events")
-
-			Expect(eventsB).ToNot(BeEmpty(), "[EVENT CHECK] No CGU B events found")
-
-			// Single cluster success
 			expectedSequenceB := []helper.EventMatcher{
 				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeCluster},
 				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeBatch},
 				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeGlobal},
 			}
 
-			Expect(helper.VerifyEventSequence(eventsB, expectedSequenceB)).To(BeTrue(),
+			Eventually(func() (bool, error) {
+				eventsB, err := helper.GetCGUEvents(tsparams.CguName + blockingB)
+				if err != nil {
+					return false, err
+				}
+
+				if len(eventsB) == 0 {
+					return false, fmt.Errorf("no CGU B events found")
+				}
+
+				return helper.VerifyEventSequence(eventsB, expectedSequenceB)
+			}).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
 				"[EVENT CHECK] CGU B event sequence mismatch for successful completion")
 		})
 	})
@@ -187,18 +198,23 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 
 			By("verifying CGU A emitted timeout events while CGU B remains blocked")
 
-			eventsA, err := helper.GetCGUEvents(tsparams.CguName + blockingA)
-			Expect(err).ToNot(HaveOccurred(), "[EVENT CHECK] Failed to retrieve CGU A events")
-
-			Expect(eventsA).ToNot(BeEmpty(), "[EVENT CHECK] No CGU A events found")
-
-			// CGU A times out
 			expectedSequenceA := []helper.EventMatcher{
 				{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeBatch},
 				{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeGlobal},
 			}
 
-			Expect(helper.VerifyEventSequence(eventsA, expectedSequenceA)).To(BeTrue(),
+			Eventually(func() (bool, error) {
+				eventsA, err := helper.GetCGUEvents(tsparams.CguName + blockingA)
+				if err != nil {
+					return false, err
+				}
+
+				if len(eventsA) == 0 {
+					return false, fmt.Errorf("no CGU A events found")
+				}
+
+				return helper.VerifyEventSequence(eventsA, expectedSequenceA)
+			}).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
 				"[EVENT CHECK] CGU A event sequence mismatch for timeout")
 
 			By("Verifiying that CGU B is still blocked")
@@ -274,12 +290,6 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 
 			By("verifying CGU A emitted success events")
 
-			eventsA, err := helper.GetCGUEvents(tsparams.CguName + blockingA)
-			Expect(err).ToNot(HaveOccurred(), "[EVENT CHECK] Failed to retrieve CGU A events")
-
-			Expect(eventsA).ToNot(BeEmpty(), "[EVENT CHECK] No CGU A events found")
-
-			// Single cluster success
 			expectedSequenceA := []helper.EventMatcher{
 				{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeGlobal},
 				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeCluster},
@@ -287,7 +297,18 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeGlobal},
 			}
 
-			Expect(helper.VerifyEventSequence(eventsA, expectedSequenceA)).To(BeTrue(),
+			Eventually(func() (bool, error) {
+				eventsA, err := helper.GetCGUEvents(tsparams.CguName + blockingA)
+				if err != nil {
+					return false, err
+				}
+
+				if len(eventsA) == 0 {
+					return false, fmt.Errorf("no CGU A events found")
+				}
+
+				return helper.VerifyEventSequence(eventsA, expectedSequenceA)
+			}).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
 				"[EVENT CHECK] CGU A event sequence mismatch for successful completion")
 
 			By("Waiting for CGU B to succeed")
@@ -297,12 +318,6 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 
 			By("verifying CGU B emitted success events after unblocking")
 
-			eventsB, err = helper.GetCGUEvents(tsparams.CguName + blockingB)
-			Expect(err).ToNot(HaveOccurred(), "[EVENT CHECK] Failed to retrieve CGU B events")
-
-			Expect(eventsB).ToNot(BeEmpty(), "[EVENT CHECK] No CGU B events found")
-
-			// Single cluster success - B should now have remediation events
 			expectedSequenceB := []helper.EventMatcher{
 				{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeGlobal},
 				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeCluster},
@@ -310,7 +325,18 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeGlobal},
 			}
 
-			Expect(helper.VerifyEventSequence(eventsB, expectedSequenceB)).To(BeTrue(),
+			Eventually(func() (bool, error) {
+				eventsB, err := helper.GetCGUEvents(tsparams.CguName + blockingB)
+				if err != nil {
+					return false, err
+				}
+
+				if len(eventsB) == 0 {
+					return false, fmt.Errorf("no CGU B events found")
+				}
+
+				return helper.VerifyEventSequence(eventsB, expectedSequenceB)
+			}).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
 				"[EVENT CHECK] CGU B event sequence mismatch after unblocking")
 		})
 	})

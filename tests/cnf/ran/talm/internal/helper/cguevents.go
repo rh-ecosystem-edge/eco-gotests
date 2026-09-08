@@ -1,7 +1,6 @@
 package helper
 
 import (
-	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -9,7 +8,6 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/events"
 	eventsv1 "k8s.io/api/events/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/klog/v2"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -33,15 +31,11 @@ var cguAnnotations = []string{
 }
 
 // GetCGUEvents lists CGU events in test namespace, optionally filtered by CGU name, sorted by event time.
+// Filtering by regarding.kind and regarding.name is done client-side because events.k8s.io/v1 does not
+// register regarding.* as server-selectable fields on all apiserver versions.
 func GetCGUEvents(cguName string) ([]*eventsv1.Event, error) {
-	fieldSet := fields.Set{"regarding.kind": tsparams.CguRegardingKind}
-	if cguName != "" {
-		fieldSet["regarding.name"] = cguName
-	}
-
 	builders, err := events.ListEventV1s(HubAPIClient,
-		runtimeclient.InNamespace(tsparams.TestNamespace),
-		runtimeclient.MatchingFieldsSelector{Selector: fieldSet.AsSelector()})
+		runtimeclient.InNamespace(tsparams.TestNamespace))
 	if err != nil {
 		return nil, err
 	}
@@ -53,6 +47,10 @@ func GetCGUEvents(cguName string) ([]*eventsv1.Event, error) {
 			continue
 		}
 
+		if builder.Object.Regarding.Kind != tsparams.CguRegardingKind {
+			continue
+		}
+
 		if cguName != "" && builder.Object.Regarding.Name != cguName {
 			continue
 		}
@@ -60,32 +58,48 @@ func GetCGUEvents(cguName string) ([]*eventsv1.Event, error) {
 		cguEvents = append(cguEvents, builder.Object)
 	}
 
-	sort.Slice(cguEvents, func(i, j int) bool {
+	sort.SliceStable(cguEvents, func(i, j int) bool {
+		if cguEvents[i].EventTime.Time.Equal(cguEvents[j].EventTime.Time) {
+			return cguEvents[i].Name < cguEvents[j].Name
+		}
+
 		return cguEvents[i].EventTime.Time.Before(cguEvents[j].EventTime.Time)
 	})
 
 	return cguEvents, nil
 }
 
-// ClearCGUEvents deletes all CGU events in test namespace via single DeleteCollection request.
-func ClearCGUEvents() {
-	if err := eventsv1.AddToScheme(HubAPIClient.Scheme()); err != nil {
-		klog.V(tsparams.LogLevel).Infof("Failed to attach the events/v1 scheme for clearing CGU events: %v", err)
-
-		return
-	}
-
-	err := HubAPIClient.DeleteAllOf(context.TODO(), &eventsv1.Event{},
-		runtimeclient.InNamespace(tsparams.TestNamespace),
-		runtimeclient.MatchingFieldsSelector{Selector: fields.Set{"regarding.kind": tsparams.CguRegardingKind}.AsSelector()})
+// ClearCGUEvents deletes all CGU events in test namespace by listing and deleting each event individually.
+// Uses client-side filtering to avoid depending on regarding.* server-side field selectors.
+func ClearCGUEvents() error {
+	builders, err := events.ListEventV1s(HubAPIClient,
+		runtimeclient.InNamespace(tsparams.TestNamespace))
 	if err != nil {
-		klog.V(tsparams.LogLevel).Infof(
-			"Failed to clear CGU events in the %s namespace: %v", tsparams.TestNamespace, err)
-
-		return
+		return fmt.Errorf("failed to list events in the %s namespace: %w", tsparams.TestNamespace, err)
 	}
 
-	klog.V(tsparams.LogLevel).Infof("Cleared CGU events in the %s namespace", tsparams.TestNamespace)
+	deleted := 0
+
+	for _, builder := range builders {
+		if builder.Object == nil {
+			continue
+		}
+
+		if builder.Object.Regarding.Kind != tsparams.CguRegardingKind {
+			continue
+		}
+
+		if err := builder.Delete(); err != nil {
+			return fmt.Errorf("failed to delete CGU event %s in the %s namespace: %w",
+				builder.Object.Name, tsparams.TestNamespace, err)
+		}
+
+		deleted++
+	}
+
+	klog.V(tsparams.LogLevel).Infof("Cleared %d CGU events in the %s namespace", deleted, tsparams.TestNamespace)
+
+	return nil
 }
 
 // FindEventsByReason filters events by reason, returning all matching events.
@@ -106,7 +120,7 @@ func FindEventsByReasonAndScope(events []*eventsv1.Event, reason, scope string) 
 	matches := make([]*eventsv1.Event, 0)
 
 	for _, event := range events {
-		if event.Reason == reason && event.Annotations[tsparams.CguEventScopeAnnotation] == scope {
+		if event.Reason == reason && event.Annotations[tsparams.CguEventTypeAnnotation] == scope {
 			matches = append(matches, event)
 		}
 	}
@@ -144,32 +158,44 @@ func CountEventsByReasonAndScope(events []*eventsv1.Event, reason, scope string)
 }
 
 // VerifyEventSequence checks that events appear in expected order (allows gaps and extras).
-// Returns true if all matchers appear in sequence; false otherwise.
-func VerifyEventSequence(events []*eventsv1.Event, matchers []EventMatcher) bool {
-	matcherIdx := 0
-	matcherCounts := make(map[int]int) // Track count for each matcher
+// For each matcher, all remaining events from the current position are scanned to count total
+// occurrences of the (reason, scope) pair. This allows interleaved events from concurrent
+// clusters while still enforcing cross-phase ordering between different matchers.
+// Returns (true, nil) if all matchers are satisfied, or (false, error) describing which
+// matcher failed and how many occurrences were found.
+func VerifyEventSequence(events []*eventsv1.Event, matchers []EventMatcher) (bool, error) {
+	pos := 0
 
-	for _, event := range events {
-		if matcherIdx >= len(matchers) {
-			break // All matchers satisfied
+	for idx, matcher := range matchers {
+		requiredCount := matcher.Count
+		if requiredCount == 0 {
+			requiredCount = 1
 		}
 
-		matcher := matchers[matcherIdx]
-		eventScope := event.Annotations[tsparams.CguEventScopeAnnotation]
+		found := 0
+		firstMatch := -1
 
-		// Check if event matches current matcher
-		if event.Reason == matcher.Reason && eventScope == matcher.Scope {
-			matcherCounts[matcherIdx]++
+		for i := pos; i < len(events); i++ {
+			eventScope := events[i].Annotations[tsparams.CguEventTypeAnnotation]
 
-			// Move to next matcher if count requirement met
-			if matcher.Count == 0 || matcherCounts[matcherIdx] >= matcher.Count {
-				matcherIdx++
+			if events[i].Reason == matcher.Reason && eventScope == matcher.Scope {
+				if firstMatch == -1 {
+					firstMatch = i
+				}
+
+				found++
 			}
 		}
+
+		if found < requiredCount {
+			return false, fmt.Errorf("matcher %d (%s/scope=%s) failed: found %d, expected at least %d (from event position %d)",
+				idx, matcher.Reason, matcher.Scope, found, requiredCount, pos)
+		}
+
+		pos = firstMatch + 1
 	}
 
-	// All matchers must be satisfied
-	return matcherIdx == len(matchers)
+	return true, nil
 }
 
 // PrintCGUEvents logs all CGU events in test namespace (call from AfterEach).
@@ -194,7 +220,7 @@ func formatCGUEvents(cguEvents []*eventsv1.Event) string {
 	lines := make([]string, 0, len(cguEvents))
 
 	for _, event := range cguEvents {
-		scope := event.Annotations[tsparams.CguEventScopeAnnotation]
+		scope := event.Annotations[tsparams.CguEventTypeAnnotation]
 		if scope == "" {
 			scope = "-"
 		}

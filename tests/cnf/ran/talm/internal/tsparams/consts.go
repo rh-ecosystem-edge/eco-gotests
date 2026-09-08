@@ -139,8 +139,8 @@ const (
 	// TalmSystemStablizationTime is the default time to wait for talm to settle.
 	TalmSystemStablizationTime = 15 * time.Second
 
-	// CguEventScopeAnnotation is annotation key for event scope.
-	CguEventScopeAnnotation = "cgu.openshift.io/event-type"
+	// CguEventTypeAnnotation is annotation key for event type (global, batch, cluster).
+	CguEventTypeAnnotation = "cgu.openshift.io/event-type"
 	// CguRegardingKind is regarding.kind for all CGU events.
 	CguRegardingKind = "ClusterGroupUpgrade"
 	// CguMissingClustersAnnotation is annotation key for missing clusters list.
