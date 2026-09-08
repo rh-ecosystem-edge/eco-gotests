@@ -151,23 +151,37 @@ const (
 	CguMissingPoliciesAnnotation = "cgu.openshift.io/missing-policies"
 	// CguTimedoutClustersAnnotation is annotation key for timed-out clusters list.
 	CguTimedoutClustersAnnotation = "cgu.openshift.io/timedout-clusters"
-	// CguCreated is event reason when CGU is created.
-	CguCreated = "CguCreated"
-	// CguStarted is event reason when remediation starts.
-	CguStarted = "CguStarted"
-	// CguSuccess is event reason when remediation succeeds.
-	CguSuccess = "CguSuccess"
-	// CguTimedout is event reason when remediation times out.
-	CguTimedout = "CguTimedout"
-	// CguValidationFailure is event reason when validation fails.
-	CguValidationFailure = "CguValidationFailure"
-	// EventScopeGlobal is scope value for CGU-wide events.
-	EventScopeGlobal = "global"
-	// EventScopeBatch is scope value for batch-specific events.
-	EventScopeBatch = "batch"
-	// EventScopeCluster is scope value for cluster-specific events.
-	EventScopeCluster = "cluster"
 
 	// LogLevel is the verbosity of glog statements in this test suite.
 	LogLevel klog.Level = 90
+)
+
+// CguEventReason is the reason string set on CGU events emitted by TALM.
+// These are not exported by the operator API, so we define them here.
+type CguEventReason string
+
+const (
+	// CguCreated is event reason when CGU is created.
+	CguCreated CguEventReason = "CguCreated"
+	// CguStarted is event reason when remediation starts.
+	CguStarted CguEventReason = "CguStarted"
+	// CguSuccess is event reason when remediation succeeds.
+	CguSuccess CguEventReason = "CguSuccess"
+	// CguTimedout is event reason when remediation times out.
+	CguTimedout CguEventReason = "CguTimedout"
+	// CguValidationFailure is event reason when validation fails.
+	CguValidationFailure CguEventReason = "CguValidationFailure"
+)
+
+// CguEventScope is the scope annotation value on CGU events indicating the event granularity.
+// These are not exported by the operator API, so we define them here.
+type CguEventScope string
+
+const (
+	// EventScopeGlobal is scope value for CGU-wide events.
+	EventScopeGlobal CguEventScope = "global"
+	// EventScopeBatch is scope value for batch-specific events.
+	EventScopeBatch CguEventScope = "batch"
+	// EventScopeCluster is scope value for cluster-specific events.
+	EventScopeCluster CguEventScope = "cluster"
 )

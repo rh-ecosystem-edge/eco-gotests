@@ -107,18 +107,8 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeGlobal},
 			}
 
-			Eventually(func() (bool, error) {
-				eventsA, err := helper.GetCGUEvents(tsparams.CguName + blockingA)
-				if err != nil {
-					return false, err
-				}
-
-				if len(eventsA) == 0 {
-					return false, fmt.Errorf("no CGU A events found")
-				}
-
-				return helper.VerifyEventSequence(eventsA, expectedSequenceA)
-			}).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
+			Eventually(helper.EventSequencePoller(tsparams.CguName+blockingA, expectedSequenceA)).
+				WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
 				"[EVENT CHECK] CGU A event sequence mismatch for successful completion")
 
 			By("Waiting for CGU B to succeed")
@@ -134,18 +124,8 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeGlobal},
 			}
 
-			Eventually(func() (bool, error) {
-				eventsB, err := helper.GetCGUEvents(tsparams.CguName + blockingB)
-				if err != nil {
-					return false, err
-				}
-
-				if len(eventsB) == 0 {
-					return false, fmt.Errorf("no CGU B events found")
-				}
-
-				return helper.VerifyEventSequence(eventsB, expectedSequenceB)
-			}).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
+			Eventually(helper.EventSequencePoller(tsparams.CguName+blockingB, expectedSequenceB)).
+				WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
 				"[EVENT CHECK] CGU B event sequence mismatch for successful completion")
 		})
 	})
@@ -203,18 +183,8 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 				{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeGlobal},
 			}
 
-			Eventually(func() (bool, error) {
-				eventsA, err := helper.GetCGUEvents(tsparams.CguName + blockingA)
-				if err != nil {
-					return false, err
-				}
-
-				if len(eventsA) == 0 {
-					return false, fmt.Errorf("no CGU A events found")
-				}
-
-				return helper.VerifyEventSequence(eventsA, expectedSequenceA)
-			}).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
+			Eventually(helper.EventSequencePoller(tsparams.CguName+blockingA, expectedSequenceA)).
+				WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
 				"[EVENT CHECK] CGU A event sequence mismatch for timeout")
 
 			By("Verifiying that CGU B is still blocked")
@@ -297,18 +267,8 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeGlobal},
 			}
 
-			Eventually(func() (bool, error) {
-				eventsA, err := helper.GetCGUEvents(tsparams.CguName + blockingA)
-				if err != nil {
-					return false, err
-				}
-
-				if len(eventsA) == 0 {
-					return false, fmt.Errorf("no CGU A events found")
-				}
-
-				return helper.VerifyEventSequence(eventsA, expectedSequenceA)
-			}).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
+			Eventually(helper.EventSequencePoller(tsparams.CguName+blockingA, expectedSequenceA)).
+				WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
 				"[EVENT CHECK] CGU A event sequence mismatch for successful completion")
 
 			By("Waiting for CGU B to succeed")
@@ -325,18 +285,8 @@ var _ = Describe("TALM Blocking CRs Tests", Label(tsparams.LabelBlockingCRTestCa
 				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeGlobal},
 			}
 
-			Eventually(func() (bool, error) {
-				eventsB, err := helper.GetCGUEvents(tsparams.CguName + blockingB)
-				if err != nil {
-					return false, err
-				}
-
-				if len(eventsB) == 0 {
-					return false, fmt.Errorf("no CGU B events found")
-				}
-
-				return helper.VerifyEventSequence(eventsB, expectedSequenceB)
-			}).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
+			Eventually(helper.EventSequencePoller(tsparams.CguName+blockingB, expectedSequenceB)).
+				WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
 				"[EVENT CHECK] CGU B event sequence mismatch after unblocking")
 		})
 	})

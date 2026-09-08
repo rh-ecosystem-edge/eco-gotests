@@ -19,6 +19,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/talm/internal/setup"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/talm/internal/tsparams"
 	corev1 "k8s.io/api/core/v1"
+	eventsv1 "k8s.io/api/events/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
@@ -84,19 +85,12 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 
 			By("verifying CGU emitted validation failure event with annotations")
 
-			Eventually(func() (bool, error) {
-				events, err := helper.GetCGUEvents(tsparams.CguName)
-				if err != nil {
-					return false, err
-				}
-
-				if len(events) == 0 {
-					return false, fmt.Errorf("no CGU events found")
-				}
-
-				validationEvents := helper.FindEventsByReason(events, tsparams.CguValidationFailure)
+			Eventually(helper.EventPoller(tsparams.CguName, func(events []*eventsv1.Event) (bool, error) {
+				// OCPBUGS-120826: scope annotation on validation events
+				validationEvents := helper.FindEventsByReasonAndScope(events,
+					tsparams.CguValidationFailure, tsparams.EventScopeGlobal)
 				if len(validationEvents) == 0 {
-					return false, fmt.Errorf("no CguValidationFailure events found")
+					return false, fmt.Errorf("no CguValidationFailure/global events found (OCPBUGS-120826)")
 				}
 
 				if !helper.HasEventWithAnnotation(validationEvents, tsparams.CguMissingClustersAnnotation) {
@@ -108,16 +102,8 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 				}
 
 				return true, nil
-			}).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
-				"[EVENT CHECK] Missing CguValidationFailure event or missing-clusters annotations")
-
-			// Skip: OCPBUGS-120826 — TALM does not set scope annotation on validation events.
-			// Once fixed, replace FindEventsByReason above with FindEventsByReasonAndScope
-			// using tsparams.EventScopeGlobal and uncomment the assertion below.
-			// validationEventsScoped := helper.FindEventsByReasonAndScope(events,
-			//     tsparams.CguValidationFailure, tsparams.EventScopeGlobal)
-			// Expect(validationEventsScoped).ToNot(BeEmpty(),
-			//     "[EVENT CHECK] Missing CguValidationFailure/global event")
+			})).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
+				"[EVENT CHECK] Missing CguValidationFailure/global event or missing-clusters annotations")
 		})
 	})
 
@@ -141,19 +127,12 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 
 			By("verifying CGU emitted validation failure event with annotations")
 
-			Eventually(func() (bool, error) {
-				events, err := helper.GetCGUEvents(tsparams.CguName)
-				if err != nil {
-					return false, err
-				}
-
-				if len(events) == 0 {
-					return false, fmt.Errorf("no CGU events found")
-				}
-
-				validationEvents := helper.FindEventsByReason(events, tsparams.CguValidationFailure)
+			Eventually(helper.EventPoller(tsparams.CguName, func(events []*eventsv1.Event) (bool, error) {
+				// OCPBUGS-120826: scope annotation on validation events
+				validationEvents := helper.FindEventsByReasonAndScope(events,
+					tsparams.CguValidationFailure, tsparams.EventScopeGlobal)
 				if len(validationEvents) == 0 {
-					return false, fmt.Errorf("no CguValidationFailure events found")
+					return false, fmt.Errorf("no CguValidationFailure/global events found (OCPBUGS-120826)")
 				}
 
 				if !helper.HasEventWithAnnotation(validationEvents, tsparams.CguMissingPoliciesAnnotation) {
@@ -161,16 +140,8 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 				}
 
 				return true, nil
-			}).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
-				"[EVENT CHECK] Missing CguValidationFailure event or missing-policies annotation")
-
-			// Skip: OCPBUGS-120826 — TALM does not set scope annotation on validation events.
-			// Once fixed, replace FindEventsByReason above with FindEventsByReasonAndScope
-			// using tsparams.EventScopeGlobal and uncomment the assertion below.
-			// validationEventsScoped := helper.FindEventsByReasonAndScope(events,
-			//     tsparams.CguValidationFailure, tsparams.EventScopeGlobal)
-			// Expect(validationEventsScoped).ToNot(BeEmpty(),
-			//     "[EVENT CHECK] Missing CguValidationFailure/global event")
+			})).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
+				"[EVENT CHECK] Missing CguValidationFailure/global event or missing-policies annotation")
 		})
 	})
 
@@ -217,16 +188,7 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 				{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeGlobal},
 			}
 
-			Eventually(func() (bool, error) {
-				events, err := helper.GetCGUEvents(tsparams.CguName)
-				if err != nil {
-					return false, err
-				}
-
-				if len(events) == 0 {
-					return false, fmt.Errorf("no CGU events found")
-				}
-
+			Eventually(helper.EventPoller(tsparams.CguName, func(events []*eventsv1.Event) (bool, error) {
 				matched, seqErr := helper.VerifyEventSequence(events, expectedSequence)
 				if !matched {
 					return false, seqErr
@@ -237,7 +199,7 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 				}
 
 				return true, nil
-			}).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
+			})).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
 				"[EVENT CHECK] CGU event sequence mismatch for timeout (abort mode)")
 
 			By("validating that the policy failed on spoke1")
@@ -316,18 +278,8 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 				{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeGlobal},
 			}
 
-			Eventually(func() (bool, error) {
-				events, err := helper.GetCGUEvents(tsparams.CguName)
-				if err != nil {
-					return false, err
-				}
-
-				if len(events) == 0 {
-					return false, fmt.Errorf("no CGU events found")
-				}
-
-				return helper.VerifyEventSequence(events, expectedSequence)
-			}).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
+			Eventually(helper.EventSequencePoller(tsparams.CguName, expectedSequence)).
+				WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
 				"[EVENT CHECK] CGU event sequence mismatch for timeout (report mode)")
 
 			By("validating that the policy succeeded on spoke1")
@@ -392,18 +344,8 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 				{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeGlobal}, // global timeout (late non-compliant)
 			}
 
-			Eventually(func() (bool, error) {
-				events, err := helper.GetCGUEvents(tsparams.CguName)
-				if err != nil {
-					return false, err
-				}
-
-				if len(events) == 0 {
-					return false, fmt.Errorf("no CGU events found")
-				}
-
-				return helper.VerifyEventSequence(events, expectedSequence)
-			}).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
+			Eventually(helper.EventSequencePoller(tsparams.CguName, expectedSequence)).
+				WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
 				"[EVENT CHECK] CGU event sequence mismatch for Continue action with timeout and recompliance check")
 
 			By("validating that the policy succeeded on spoke2")
@@ -468,18 +410,8 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 					{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeGlobal},
 				}
 
-				Eventually(func() (bool, error) {
-					events, err := helper.GetCGUEvents(tsparams.CguName)
-					if err != nil {
-						return false, err
-					}
-
-					if len(events) == 0 {
-						return false, fmt.Errorf("no CGU events found")
-					}
-
-					return helper.VerifyEventSequence(events, expectedSequence)
-				}).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
+				Eventually(helper.EventSequencePoller(tsparams.CguName, expectedSequence)).
+					WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
 					"[EVENT CHECK] CGU event sequence mismatch for first batch success, second batch timeout")
 
 				By("validating that the policy succeeded on spoke1")
@@ -552,18 +484,8 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 				{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeGlobal},
 			}
 
-			Eventually(func() (bool, error) {
-				events, err := helper.GetCGUEvents(tsparams.CguName)
-				if err != nil {
-					return false, err
-				}
-
-				if len(events) == 0 {
-					return false, fmt.Errorf("no CGU events found")
-				}
-
-				return helper.VerifyEventSequence(events, expectedSequence)
-			}).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
+			Eventually(helper.EventSequencePoller(tsparams.CguName, expectedSequence)).
+				WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
 				"[EVENT CHECK] CGU event sequence mismatch for single cluster timeout")
 
 			By("validating that the timeout should have occurred after just the first reconcile")
@@ -666,18 +588,8 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeGlobal},
 			}
 
-			Eventually(func() (bool, error) {
-				events, err := helper.GetCGUEvents(tsparams.CguName)
-				if err != nil {
-					return false, err
-				}
-
-				if len(events) == 0 {
-					return false, fmt.Errorf("no CGU events found")
-				}
-
-				return helper.VerifyEventSequence(events, expectedSequence)
-			}).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
+			Eventually(helper.EventSequencePoller(tsparams.CguName, expectedSequence)).
+				WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
 				"[EVENT CHECK] CGU event sequence mismatch for successful 2-cluster lifecycle")
 
 			By("verifying the test policy was deleted upon CGU expiration")

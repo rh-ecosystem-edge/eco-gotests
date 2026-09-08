@@ -8,6 +8,7 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/events"
 	eventsv1 "k8s.io/api/events/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/klog/v2"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -17,10 +18,10 @@ import (
 
 // EventMatcher defines expected event with reason, scope, and optional count.
 type EventMatcher struct {
-	Reason string // Event reason (e.g., CguStarted, CguSuccess)
-	Scope  string // Event scope annotation (global, batch, cluster)
-	Count  int    // Expected count: 0 = at least one, >0 = exact minimum
-	Strict bool   // When true with Count>1, all occurrences must precede the next matcher
+	Reason tsparams.CguEventReason // Event reason (e.g., CguStarted, CguSuccess)
+	Scope  tsparams.CguEventScope  // Event scope annotation (global, batch, cluster)
+	Count  int                     // Expected count: 0 = at least one, >0 = exact minimum
+	Strict bool                    // When true with Count>1, all occurrences must precede the next matcher
 }
 
 // cguAnnotations lists annotation keys to include in debug output, ordered for stability.
@@ -94,7 +95,7 @@ func ClearCGUEvents() error {
 			continue
 		}
 
-		if err := builder.Delete(); err != nil {
+		if err := builder.Delete(); err != nil && !k8serrors.IsNotFound(err) {
 			return fmt.Errorf("failed to delete CGU event %s in the %s namespace: %w",
 				builder.Object.Name, tsparams.TestNamespace, err)
 		}
@@ -108,11 +109,11 @@ func ClearCGUEvents() error {
 }
 
 // FindEventsByReason filters events by reason, returning all matching events.
-func FindEventsByReason(events []*eventsv1.Event, reason string) []*eventsv1.Event {
+func FindEventsByReason(events []*eventsv1.Event, reason tsparams.CguEventReason) []*eventsv1.Event {
 	matches := make([]*eventsv1.Event, 0)
 
 	for _, event := range events {
-		if event.Reason == reason {
+		if event.Reason == string(reason) {
 			matches = append(matches, event)
 		}
 	}
@@ -121,11 +122,13 @@ func FindEventsByReason(events []*eventsv1.Event, reason string) []*eventsv1.Eve
 }
 
 // FindEventsByReasonAndScope filters events by both reason AND scope annotation.
-func FindEventsByReasonAndScope(events []*eventsv1.Event, reason, scope string) []*eventsv1.Event {
+func FindEventsByReasonAndScope(
+	events []*eventsv1.Event, reason tsparams.CguEventReason, scope tsparams.CguEventScope,
+) []*eventsv1.Event {
 	matches := make([]*eventsv1.Event, 0)
 
 	for _, event := range events {
-		if event.Reason == reason && event.Annotations[tsparams.CguEventTypeAnnotation] == scope {
+		if event.Reason == string(reason) && event.Annotations[tsparams.CguEventTypeAnnotation] == string(scope) {
 			matches = append(matches, event)
 		}
 	}
@@ -145,9 +148,11 @@ func HasEventWithAnnotation(events []*eventsv1.Event, annotationKey string) bool
 }
 
 // GetEventAnnotation retrieves annotation value from first event matching reason, returns value and exists flag.
-func GetEventAnnotation(events []*eventsv1.Event, reason, annotationKey string) (string, bool) {
+func GetEventAnnotation(
+	events []*eventsv1.Event, reason tsparams.CguEventReason, annotationKey string,
+) (string, bool) {
 	for _, event := range events {
-		if event.Reason == reason {
+		if event.Reason == string(reason) {
 			if value, exists := event.Annotations[annotationKey]; exists {
 				return value, true
 			}
@@ -158,7 +163,9 @@ func GetEventAnnotation(events []*eventsv1.Event, reason, annotationKey string) 
 }
 
 // CountEventsByReasonAndScope counts events matching both reason and scope.
-func CountEventsByReasonAndScope(events []*eventsv1.Event, reason, scope string) int {
+func CountEventsByReasonAndScope(
+	events []*eventsv1.Event, reason tsparams.CguEventReason, scope tsparams.CguEventScope,
+) int {
 	return len(FindEventsByReasonAndScope(events, reason, scope))
 }
 
@@ -191,7 +198,7 @@ func VerifyEventSequence(events []*eventsv1.Event, matchers []EventMatcher) (boo
 		for eventIdx := pos; eventIdx < len(events); eventIdx++ {
 			eventScope := events[eventIdx].Annotations[tsparams.CguEventTypeAnnotation]
 
-			if events[eventIdx].Reason == matcher.Reason && eventScope == matcher.Scope {
+			if events[eventIdx].Reason == string(matcher.Reason) && eventScope == string(matcher.Scope) {
 				if firstMatch == -1 {
 					firstMatch = eventIdx
 				}
@@ -214,6 +221,32 @@ func VerifyEventSequence(events []*eventsv1.Event, matchers []EventMatcher) (boo
 	}
 
 	return true, nil
+}
+
+// EventPoller returns a polling function for use with Eventually that fetches CGU events
+// for the given CGU name and passes them to the provided check function. This generalizes
+// the common pattern of polling events until some condition is satisfied.
+func EventPoller(cguName string, check func([]*eventsv1.Event) (bool, error)) func() (bool, error) {
+	return func() (bool, error) {
+		cguEvents, err := GetCGUEvents(cguName)
+		if err != nil {
+			return false, err
+		}
+
+		if len(cguEvents) == 0 {
+			return false, fmt.Errorf("no CGU events found for %s", cguName)
+		}
+
+		return check(cguEvents)
+	}
+}
+
+// EventSequencePoller returns a polling function for use with Eventually that fetches CGU events
+// for the given CGU name and verifies they match the expected sequence.
+func EventSequencePoller(cguName string, matchers []EventMatcher) func() (bool, error) {
+	return EventPoller(cguName, func(events []*eventsv1.Event) (bool, error) {
+		return VerifyEventSequence(events, matchers)
+	})
 }
 
 // PrintCGUEvents logs all CGU events in test namespace (call from AfterEach).

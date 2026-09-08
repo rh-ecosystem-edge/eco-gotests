@@ -15,6 +15,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/talm/internal/helper"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/talm/internal/setup"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/talm/internal/tsparams"
+	eventsv1 "k8s.io/api/events/v1"
 	"k8s.io/utils/ptr"
 )
 
@@ -102,21 +103,12 @@ var _ = Describe("TALM Canary Tests", Label(tsparams.LabelCanaryTestCases), func
 
 		By("verifying CGU emitted timeout events for canary batch")
 
-		// Skip: OCPBUGS-120827 — TALM does not emit batch timeout for canary batch failure.
-		// Once fixed, uncomment the assertion below.
-		// batchTimeoutEvents := helper.FindEventsByReasonAndScope(events,
-		//     tsparams.CguTimedout, tsparams.EventScopeBatch)
-		// Expect(batchTimeoutEvents).ToNot(BeEmpty(),
-		//     "[EVENT CHECK] Missing CguTimedout/batch event for canary timeout")
-
-		Eventually(func() (bool, error) {
-			events, err := helper.GetCGUEvents(tsparams.CguName)
-			if err != nil {
-				return false, err
-			}
-
-			if len(events) == 0 {
-				return false, fmt.Errorf("no CGU events found")
+		Eventually(helper.EventPoller(tsparams.CguName, func(events []*eventsv1.Event) (bool, error) {
+			// OCPBUGS-120827: batch timeout for canary batch failure
+			batchTimeoutEvents := helper.FindEventsByReasonAndScope(events,
+				tsparams.CguTimedout, tsparams.EventScopeBatch)
+			if len(batchTimeoutEvents) == 0 {
+				return false, fmt.Errorf("no CguTimedout/batch events found for canary timeout (OCPBUGS-120827)")
 			}
 
 			globalTimeoutEvents := helper.FindEventsByReasonAndScope(events,
@@ -130,8 +122,8 @@ var _ = Describe("TALM Canary Tests", Label(tsparams.LabelCanaryTestCases), func
 			}
 
 			return true, nil
-		}).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
-			"[EVENT CHECK] Missing CguTimedout/global event or timedout-clusters annotation")
+		})).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
+			"[EVENT CHECK] Missing canary timeout events or timedout-clusters annotation")
 	})
 
 	// 47947 - Tests successful ocp and operator upgrade with canaries and multiple batches.
@@ -179,18 +171,8 @@ var _ = Describe("TALM Canary Tests", Label(tsparams.LabelCanaryTestCases), func
 			{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeGlobal},
 		}
 
-		Eventually(func() (bool, error) {
-			events, err := helper.GetCGUEvents(tsparams.CguName)
-			if err != nil {
-				return false, err
-			}
-
-			if len(events) == 0 {
-				return false, fmt.Errorf("no CGU events found")
-			}
-
-			return helper.VerifyEventSequence(events, expectedSequence)
-		}).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
+		Eventually(helper.EventSequencePoller(tsparams.CguName, expectedSequence)).
+			WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
 			"[EVENT CHECK] CGU event sequence mismatch for successful canary lifecycle")
 	})
 })
