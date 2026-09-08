@@ -183,6 +183,7 @@ var _ = Describe("TALM backup tests", Label(tsparams.LabelBackupTestCases), func
 				WithCluster(RANConfig.Spoke1Name).
 				WithCluster(RANConfig.Spoke2Name).
 				WithManagedPolicy(tsparams.PolicyName)
+
 			cguBuilder.Definition.Spec.Backup = true
 
 			_, err = helper.SetupCguWithNamespace(cguBuilder, "")

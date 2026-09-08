@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 RAN DU system tests for OpenShift — Ginkgo v2 tests that validate workload lifecycle, node reboots, kernel crash recovery, PTP synchronization, ZTP policy compliance, cert-manager certificate management, and long-running stability on a live OCP cluster with RAN DU profile.
 
-Part of the [eco-gotests](../../../CLAUDE.local.md) framework. Go 1.26, Ginkgo v2.
+Part of the [eco-gotests](../../../CLAUDE.local.md) framework. Go 1.27, Ginkgo v2.
 
 ## Build and Lint
 
