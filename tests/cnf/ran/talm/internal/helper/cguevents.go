@@ -3,10 +3,7 @@ package helper
 import (
 	"context"
 	"fmt"
-	"os"
-	"os/exec"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -20,12 +17,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/talm/internal/tsparams"
 )
 
-// =============================================================================
-// SECTION 1: Production Event Helpers (PERMANENT)
-// Uses constants from tsparams package
-// =============================================================================
-
-// GetCGUEvents lists CGU events in test namespace, optionally filtered by CGU name, sorted by creation timestamp.
+// GetCGUEvents lists CGU events in test namespace, optionally filtered by CGU name, sorted by event time.
 func GetCGUEvents(cguName string) ([]*eventsv1.Event, error) {
 	fieldSet := fields.Set{"regarding.kind": tsparams.CguRegardingKind}
 	if cguName != "" {
@@ -172,38 +164,12 @@ func VerifyEventSequence(events []*eventsv1.Event, matchers []EventMatcher) bool
 	return matcherIdx == len(matchers)
 }
 
-// =============================================================================
-// SECTION 2: DEBUG HELPERS - Remove after test verification (Phase 8)
-// TODO: Delete entire section once formal assertions validated
-// =============================================================================
-
-// Debug-only constants (not moved to tsparams - will be deleted).
-const (
-	// DefaultCGUEventCheckpointDelaySeconds is default wait before listing events in checkpoint.
-	DefaultCGUEventCheckpointDelaySeconds = 10
-	// talmCguCheckpointLogTag is log marker for checkpoint summary lines.
-	talmCguCheckpointLogTag = "TALM_CGU_CHECKPOINT"
-	// talmCguEventLogTag is log marker for checkpoint event lines.
-	talmCguEventLogTag = "TALM_CGU_EVENT"
-)
-
-// cguDebugAnnotations lists annotation keys to check on events, ordered for stable debug output.
+// cguDebugAnnotations lists annotation keys to include in debug output, ordered for stability.
 var cguDebugAnnotations = []string{
 	tsparams.CguMissingClustersAnnotation,
 	tsparams.CguMissingClustersCountAnnotation,
 	tsparams.CguMissingPoliciesAnnotation,
 	tsparams.CguTimedoutClustersAnnotation,
-}
-
-// cguDebugAnnotationFields maps annotations to logfmt-friendly field names.
-var cguDebugAnnotationFields = []struct {
-	annotationKey string
-	logfmtField   string
-}{
-	{tsparams.CguMissingClustersAnnotation, "missing_clusters"},
-	{tsparams.CguMissingClustersCountAnnotation, "missing_clusters_count"},
-	{tsparams.CguMissingPoliciesAnnotation, "missing_policies"},
-	{tsparams.CguTimedoutClustersAnnotation, "timedout_clusters"},
 }
 
 // PrintCGUEvents logs all CGU events in test namespace for debugging (call from AfterEach).
@@ -217,59 +183,6 @@ func PrintCGUEvents() {
 
 	klog.V(tsparams.LogLevel).Infof(
 		"CGU events in the %s namespace:\n%s", tsparams.TestNamespace, formatCGUEvents(cguEvents))
-}
-
-// PrintCGUEventsCheckpoint logs CGU events at test milestone with tcID, checkpoint label, and expected events.
-func PrintCGUEventsCheckpoint(tcID, checkpoint, cguName string, expected ...string) {
-	time.Sleep(DefaultCGUEventCheckpointDelaySeconds * time.Second)
-
-	cguEvents, err := GetCGUEvents(cguName)
-	if err != nil {
-		klog.V(tsparams.LogLevel).Infof("%s tc=%s checkpoint=%s cgu=%s error=%s",
-			talmCguCheckpointLogTag, tcID, logfmtQuote(checkpoint), cguName, logfmtQuote(err.Error()))
-
-		return
-	}
-
-	klog.V(tsparams.LogLevel).Infof("%s tc=%s checkpoint=%s cgu=%s expected=%s event_count=%d",
-		talmCguCheckpointLogTag, tcID, logfmtQuote(checkpoint), cguName,
-		logfmtQuote(strings.Join(expected, "; ")), len(cguEvents))
-
-	for _, event := range cguEvents {
-		klog.V(tsparams.LogLevel).Infof("%s", formatCGUEventLogfmt(tcID, checkpoint, cguName, event))
-	}
-}
-
-// formatCGUEventLogfmt renders event as TALM_CGU_EVENT logfmt line with checkpoint context.
-func formatCGUEventLogfmt(tcID, checkpoint, cguName string, event *eventsv1.Event) string {
-	scope := event.Annotations[tsparams.CguEventScopeAnnotation]
-	if scope == "" {
-		scope = "-"
-	}
-
-	fields := []string{
-		talmCguEventLogTag,
-		"tc=" + tcID,
-		"checkpoint=" + logfmtQuote(checkpoint),
-		"cgu=" + cguName,
-		"ts=" + event.EventTime.Time.Format(time.RFC3339Nano),
-		"type=" + event.Type,
-		"reason=" + event.Reason,
-		"scope=" + scope,
-	}
-
-	for _, annotation := range cguDebugAnnotationFields {
-		if value, ok := event.Annotations[annotation.annotationKey]; ok && value != "" {
-			fields = append(fields, annotation.logfmtField+"="+logfmtQuote(value))
-		}
-	}
-
-	return strings.Join(append(fields, "note="+logfmtQuote(event.Note)), " ")
-}
-
-// logfmtQuote double-quotes and escapes value for logfmt output.
-func logfmtQuote(value string) string {
-	return strconv.Quote(value)
 }
 
 // formatCGUEvents renders events as multi-line summary with timestamps, types, reasons, and annotations.
@@ -316,73 +229,3 @@ func formatCGUDebugAnnotations(annotations map[string]string) string {
 	return fmt.Sprintf("annotations=[%s]", strings.Join(pairs, ", "))
 }
 
-// =============================================================================
-// SECTION 3: DEPRECATED FALLBACK - oc command implementations (Phase 8 removal)
-// TODO: Remove if not needed after validation
-// Merged from eventsdebug.go as safety net only
-// =============================================================================
-
-// fallbackOcPaths lists oc binary locations checked when not found in PATH.
-var fallbackOcPaths = []string{"/clusterconfigs/oc", "/usr/local/bin/oc", "/usr/bin/oc"}
-
-// ClearCGUEventsViaOc deletes CGU events via oc command (deprecated fallback).
-func ClearCGUEventsViaOc() {
-	output, err := runOcCommand("delete", "event.v1.events.k8s.io",
-		"-n", tsparams.TestNamespace,
-		"--field-selector", "regarding.kind==ClusterGroupUpgrade",
-		"--ignore-not-found")
-	if err != nil {
-		klog.V(tsparams.LogLevel).Infof(
-			"Failed to clear CGU events in the %s namespace: %v\noutput: %s", tsparams.TestNamespace, err, output)
-	} else {
-		klog.V(tsparams.LogLevel).Infof("Cleared CGU events in the %s namespace", tsparams.TestNamespace)
-	}
-}
-
-// PrintCGUEventsViaOc prints CGU events via oc command (deprecated fallback).
-func PrintCGUEventsViaOc() {
-	output, err := runOcCommand("get", "event.v1.events.k8s.io",
-		"-n", tsparams.TestNamespace,
-		"--field-selector", "regarding.kind==ClusterGroupUpgrade",
-		"--sort-by", "{.metadata.creationTimestamp}")
-	if err != nil {
-		klog.V(tsparams.LogLevel).Infof(
-			"Failed to get CGU events in the %s namespace: %v\noutput: %s", tsparams.TestNamespace, err, output)
-	} else {
-		klog.V(tsparams.LogLevel).Infof("CGU events in the %s namespace:\n%s", tsparams.TestNamespace, output)
-	}
-}
-
-// runOcCommand executes oc against hub cluster and returns combined output.
-func runOcCommand(args ...string) ([]byte, error) {
-	ocPath := resolveOcPath()
-
-	hubKubeconfig := RANConfig.HubKubeconfig
-	if _, statErr := os.Stat(hubKubeconfig); statErr != nil {
-		klog.V(tsparams.LogLevel).Infof("Hub kubeconfig %q not found or inaccessible: %v", hubKubeconfig, statErr)
-	}
-
-	cmd := exec.Command(ocPath, args...)
-
-	cmd.Env = append(os.Environ(), "KUBECONFIG="+hubKubeconfig)
-
-	return cmd.CombinedOutput()
-}
-
-// resolveOcPath finds oc binary via PATH or fallback locations.
-func resolveOcPath() string {
-	if pathFromLookup, lookErr := exec.LookPath("oc"); lookErr == nil {
-		return pathFromLookup
-	}
-
-	for _, candidate := range fallbackOcPaths {
-		if _, statErr := os.Stat(candidate); statErr == nil {
-			return candidate
-		}
-	}
-
-	klog.V(tsparams.LogLevel).Infof(
-		"Could not resolve oc from PATH or fallback locations %v, defaulting to bare 'oc'", fallbackOcPaths)
-
-	return "oc"
-}
