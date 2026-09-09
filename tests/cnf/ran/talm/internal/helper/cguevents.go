@@ -108,19 +108,6 @@ func ClearCGUEvents() error {
 	return nil
 }
 
-// FindEventsByReason filters events by reason, returning all matching events.
-func FindEventsByReason(events []*eventsv1.Event, reason tsparams.CguEventReason) []*eventsv1.Event {
-	matches := make([]*eventsv1.Event, 0)
-
-	for _, event := range events {
-		if event.Reason == string(reason) {
-			matches = append(matches, event)
-		}
-	}
-
-	return matches
-}
-
 // FindEventsByReasonAndScope filters events by both reason AND scope annotation.
 func FindEventsByReasonAndScope(
 	events []*eventsv1.Event, reason tsparams.CguEventReason, scope tsparams.CguEventScope,
@@ -145,28 +132,6 @@ func HasEventWithAnnotation(events []*eventsv1.Event, annotationKey string) bool
 	}
 
 	return false
-}
-
-// GetEventAnnotation retrieves annotation value from first event matching reason, returns value and exists flag.
-func GetEventAnnotation(
-	events []*eventsv1.Event, reason tsparams.CguEventReason, annotationKey string,
-) (string, bool) {
-	for _, event := range events {
-		if event.Reason == string(reason) {
-			if value, exists := event.Annotations[annotationKey]; exists {
-				return value, true
-			}
-		}
-	}
-
-	return "", false
-}
-
-// CountEventsByReasonAndScope counts events matching both reason and scope.
-func CountEventsByReasonAndScope(
-	events []*eventsv1.Event, reason tsparams.CguEventReason, scope tsparams.CguEventScope,
-) int {
-	return len(FindEventsByReasonAndScope(events, reason, scope))
 }
 
 // VerifyEventSequence checks that events appear in expected order (allows gaps and extras).
