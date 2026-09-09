@@ -45,9 +45,12 @@ var _ = Describe("ORAN Pre-provision Tests", Label(tsparams.LabelPreProvision), 
 	// 78245 - ClusterTemplate validation fails when inline BMC schema is missing without hwMgmtDefaults
 	It("fails ClusterTemplate validation when inline BMC schema is missing without hwMgmtDefaults",
 		reportxml.ID("78245"), func() {
+			clusterTemplateBaseName, err := helper.GetClusterTemplateName()
+			Expect(err).ToNot(HaveOccurred(), "Failed to resolve ClusterTemplate name")
+
 			clusterTemplateName := fmt.Sprintf("%s.%s-%s",
-				helper.GetClusterTemplateName(), RANConfig.ClusterTemplateAffix, tsparams.TemplateInlineBMCMissingSchema)
-			clusterTemplateNamespace := helper.GetClusterTemplateName() + "-" + RANConfig.ClusterTemplateAffix
+				clusterTemplateBaseName, RANConfig.ClusterTemplateAffix, tsparams.TemplateInlineBMCMissingSchema)
+			clusterTemplateNamespace := clusterTemplateBaseName + "-" + RANConfig.ClusterTemplateAffix
 
 			By("pulling the ClusterTemplate that omits hwMgmtDefaults and inline BMC schema")
 

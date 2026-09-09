@@ -257,24 +257,36 @@ func verifySpokeProvisioning() error {
 
 	By("verifying spoke 1 extra-manifests was created")
 
-	_, err = configmap.Pull(HubAPIClient, helper.GetExtraManifestsName(), RANConfig.Spoke1Name)
+	extraManifestsName, err := helper.GetExtraManifestsName()
 	if err != nil {
-		klog.V(tsparams.LogLevel).Infof("Failed to verify the extra-manifests ConfigMap was created: %v", err)
-
 		accumulatedErrors = append(accumulatedErrors,
-			fmt.Errorf("failed to verify the extra-manifests ConfigMap was created: %w", err))
+			fmt.Errorf("resolve extra-manifests ConfigMap name: %w", err))
+	} else {
+		_, err = configmap.Pull(HubAPIClient, extraManifestsName, RANConfig.Spoke1Name)
+		if err != nil {
+			klog.V(tsparams.LogLevel).Infof("Failed to verify the extra-manifests ConfigMap was created: %v", err)
+
+			accumulatedErrors = append(accumulatedErrors,
+				fmt.Errorf("failed to verify the extra-manifests ConfigMap was created: %w", err))
+		}
 	}
 
 	By("verifying spoke 1 policy ConfigMap was created")
 
-	ztpNamespace := fmt.Sprintf("ztp-%s-%s", helper.GetClusterTemplateName(), RANConfig.ClusterTemplateAffix)
-
-	_, err = configmap.Pull(HubAPIClient, RANConfig.Spoke1Name+"-pg", ztpNamespace)
+	clusterTemplateName, err := helper.GetClusterTemplateName()
 	if err != nil {
-		klog.V(tsparams.LogLevel).Infof("Failed to verify spoke 1 policy ConfigMap was created: %v", err)
-
 		accumulatedErrors = append(accumulatedErrors,
-			fmt.Errorf("failed to verify spoke 1 policy ConfigMap was created: %w", err))
+			fmt.Errorf("resolve ClusterTemplate name for policy ConfigMap verification: %w", err))
+	} else {
+		ztpNamespace := fmt.Sprintf("ztp-%s-%s", clusterTemplateName, RANConfig.ClusterTemplateAffix)
+
+		_, err = configmap.Pull(HubAPIClient, RANConfig.Spoke1Name+"-pg", ztpNamespace)
+		if err != nil {
+			klog.V(tsparams.LogLevel).Infof("Failed to verify spoke 1 policy ConfigMap was created: %v", err)
+
+			accumulatedErrors = append(accumulatedErrors,
+				fmt.Errorf("failed to verify spoke 1 policy ConfigMap was created: %w", err))
+		}
 	}
 
 	By("verifying all the policies are compliant")

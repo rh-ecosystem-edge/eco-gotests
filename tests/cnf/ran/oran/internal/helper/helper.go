@@ -25,42 +25,86 @@ import (
 // ClusterInstance files unless ECO_CNF_RAN_CLUSTER_TEMPLATE_NAME overrides it.
 func NewProvisioningRequest(
 	client runtimeclient.Client, templateVersion string) (*oran.ProvisioningRequestBuilder, error) {
-	hostnames, err := GetSpokeHostnames()
+	spokeNodes, err := GetSpokeNodes()
 	if err != nil {
-		return nil, fmt.Errorf("resolve spoke hostnames for ProvisioningRequest: %w", err)
+		return nil, fmt.Errorf("resolve spoke nodes for ProvisioningRequest: %w", err)
+	}
+
+	clusterTemplateName, err := GetClusterTemplateName()
+	if err != nil {
+		return nil, fmt.Errorf("resolve ClusterTemplate name for ProvisioningRequest: %w", err)
+	}
+
+	clusterName, err := GetClusterInstanceClusterName()
+	if err != nil {
+		return nil, fmt.Errorf("resolve cluster name for ProvisioningRequest: %w", err)
 	}
 
 	versionWithAffix := RANConfig.ClusterTemplateAffix + "-" + templateVersion
-	prBuilder := oran.NewPRBuilder(client, tsparams.TestPRName, GetClusterTemplateName(), versionWithAffix).
+	clusterInstanceParams := map[string]any{
+		"clusterName": clusterName,
+	}
+
+	if clusterTemplateName == tsparams.MNOClusterTemplateName {
+		clusterInstanceParams["nodeGroups"] = buildClusterInstanceNodeGroups(spokeNodes)
+	} else {
+		hostnames := make([]string, 0, len(spokeNodes))
+		for _, node := range spokeNodes {
+			hostnames = append(hostnames, node.HostName)
+		}
+
+		clusterInstanceParams["nodes"] = buildClusterInstanceNodes(hostnames)
+	}
+
+	prBuilder := oran.NewPRBuilder(client, tsparams.TestPRName, clusterTemplateName, versionWithAffix).
 		WithTemplateParameter("nodeClusterName", RANConfig.Spoke1Name).
 		WithTemplateParameter("oCloudSiteId", tsparams.OCloudSiteID).
 		WithTemplateParameter("policyTemplateParameters", map[string]any{}).
-		WithTemplateParameter("clusterInstanceParameters", map[string]any{
-			"clusterName": RANConfig.Spoke1Name,
-			"nodes":       buildClusterInstanceNodes(hostnames),
-		})
+		WithTemplateParameter("clusterInstanceParameters", clusterInstanceParams)
 
 	return prBuilder, nil
 }
 
 // NewSecondaryProvisioningRequest creates a ProvisioningRequest builder for a secondary PR using TestPRName2 and
 // distinct cluster/node names so the request does not fail on clusterName ownership before hardware allocation is
-// attempted.
+// attempted. Node count matches the primary spoke topology so MNO pools remain fully claimed.
 func NewSecondaryProvisioningRequest(
-	client runtimeclient.Client, templateVersion string) *oran.ProvisioningRequestBuilder {
+	client runtimeclient.Client, templateVersion string) (*oran.ProvisioningRequestBuilder, error) {
+	clusterTemplateName, err := GetClusterTemplateName()
+	if err != nil {
+		return nil, fmt.Errorf("resolve ClusterTemplate name for secondary ProvisioningRequest: %w", err)
+	}
+
+	spokeNodes, err := GetSpokeNodes()
+	if err != nil {
+		return nil, fmt.Errorf("resolve spoke nodes for secondary ProvisioningRequest: %w", err)
+	}
+
+	secondaryNodes := buildSecondarySpokeNodes(spokeNodes)
 	versionWithAffix := RANConfig.ClusterTemplateAffix + "-" + templateVersion
-	prBuilder := oran.NewPRBuilder(client, tsparams.TestPRName2, GetClusterTemplateName(), versionWithAffix).
+
+	clusterInstanceParams := map[string]any{
+		"clusterName": tsparams.TestName2,
+	}
+
+	if clusterTemplateName == tsparams.MNOClusterTemplateName {
+		clusterInstanceParams["nodeGroups"] = buildClusterInstanceNodeGroups(secondaryNodes)
+	} else {
+		hostnames := make([]string, 0, len(secondaryNodes))
+		for _, node := range secondaryNodes {
+			hostnames = append(hostnames, node.HostName)
+		}
+
+		clusterInstanceParams["nodes"] = buildClusterInstanceNodes(hostnames)
+	}
+
+	prBuilder := oran.NewPRBuilder(client, tsparams.TestPRName2, clusterTemplateName, versionWithAffix).
 		WithTemplateParameter("nodeClusterName", tsparams.TestName2).
 		WithTemplateParameter("oCloudSiteId", tsparams.OCloudSiteID).
 		WithTemplateParameter("policyTemplateParameters", map[string]any{}).
-		WithTemplateParameter("clusterInstanceParameters", map[string]any{
-			"clusterName": tsparams.TestName2,
-			"nodes": []map[string]any{{
-				"hostName": tsparams.TestName2,
-			}},
-		})
+		WithTemplateParameter("clusterInstanceParameters", clusterInstanceParams)
 
-	return prBuilder
+	return prBuilder, nil
 }
 
 // WaitForNoncompliantImmutable waits up to timeout until one of the policies in namespace is NonCompliant and the
