@@ -68,9 +68,12 @@ var _ = Describe("ORAN Template Inventory", Label(tsparams.LabelPreProvision, ts
 	It("successfully filters ManagedInfrastructureTemplates", reportxml.ID("82941"), func() {
 		By("getting the specific ClusterTemplate resource for the valid template")
 
-		clusterTemplateNamespace := helper.GetClusterTemplateName() + "-" + RANConfig.ClusterTemplateAffix
+		clusterTemplateBaseName, err := helper.GetClusterTemplateName()
+		Expect(err).ToNot(HaveOccurred(), "Failed to resolve ClusterTemplate name")
+
+		clusterTemplateNamespace := clusterTemplateBaseName + "-" + RANConfig.ClusterTemplateAffix
 		clusterTemplateName := fmt.Sprintf("%s.%s-%s",
-			helper.GetClusterTemplateName(), RANConfig.ClusterTemplateAffix, tsparams.TemplateValid)
+			clusterTemplateBaseName, RANConfig.ClusterTemplateAffix, tsparams.TemplateValid)
 
 		chosenClusterTemplate, err := oran.PullClusterTemplate(HubAPIClient, clusterTemplateName, clusterTemplateNamespace)
 		Expect(err).ToNot(HaveOccurred(),
@@ -105,9 +108,12 @@ var _ = Describe("ORAN Template Inventory", Label(tsparams.LabelPreProvision, ts
 	It("successfully retrieves ManagedInfrastructureTemplate defaults", reportxml.ID("82942"), func() {
 		By("getting the specific ClusterTemplate resource for the valid template")
 
-		clusterTemplateNamespace := helper.GetClusterTemplateName() + "-" + RANConfig.ClusterTemplateAffix
+		clusterTemplateBaseName, err := helper.GetClusterTemplateName()
+		Expect(err).ToNot(HaveOccurred(), "Failed to resolve ClusterTemplate name")
+
+		clusterTemplateNamespace := clusterTemplateBaseName + "-" + RANConfig.ClusterTemplateAffix
 		clusterTemplateName := fmt.Sprintf("%s.%s-%s",
-			helper.GetClusterTemplateName(), RANConfig.ClusterTemplateAffix, tsparams.TemplateValid)
+			clusterTemplateBaseName, RANConfig.ClusterTemplateAffix, tsparams.TemplateValid)
 
 		chosenClusterTemplate, err := oran.PullClusterTemplate(HubAPIClient, clusterTemplateName, clusterTemplateNamespace)
 		Expect(err).ToNot(HaveOccurred(),
