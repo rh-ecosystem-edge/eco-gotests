@@ -5,6 +5,78 @@ go 1.27.0
 toolchain go1.27.1
 
 require (
+	github.com/BurntSushi/toml v1.6.0
+	github.com/Juniper/go-netconf v0.3.1
+	github.com/Masterminds/semver/v3 v3.5.0
+	github.com/Masterminds/sprig/v3 v3.3.0
+	github.com/NVIDIA/gpu-operator v1.11.1
+	github.com/cavaliergopher/cpio v1.0.1
+	github.com/cavaliergopher/grab/v3 v3.0.1
+	github.com/containers/image/v5 v5.36.2
+	github.com/coreos/ignition/v2 v2.26.0
+	github.com/go-git/go-git/v5 v5.19.1
+	github.com/go-logr/logr v1.4.3
+	github.com/go-openapi/runtime v0.32.4
+	github.com/go-openapi/strfmt v0.26.4
+	github.com/google/uuid v1.6.0
+	github.com/grafana/loki/operator/apis/loki v0.0.0-20241021105923-5e970e50b166
+	github.com/hashicorp/go-version v1.9.0
+	github.com/k8snetworkplumbingwg/multi-networkpolicy v1.0.1
+	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.7
+	github.com/k8snetworkplumbingwg/sriov-network-operator v1.6.0
+	github.com/kedacore/keda-olm-operator v0.0.0-20260618141108-6814218d455e // aligned with k8s v0.35
+	github.com/kedacore/keda/v2 v2.19.0 // aligned with k8s v0.35
+	github.com/kelseyhightower/envconfig v1.4.0
+	github.com/klauspost/compress v1.19.0
+	github.com/metal3-io/baremetal-operator/apis v0.13.1
+	github.com/nmstate/kubernetes-nmstate/api v0.0.0-20260707144101-8853341855d6
+	github.com/onsi/ginkgo/v2 v2.32.0
+	github.com/onsi/gomega v1.42.1
+	github.com/openshift-kni/cluster-group-upgrades-operator v0.0.0-20260707161822-9b9043d4494b // release-4.22
+	github.com/openshift-kni/k8sreporter v1.0.7
+	github.com/openshift-kni/lifecycle-agent v0.0.0-20260707161814-ec769a366476 // release-4.22
+	github.com/openshift-kni/numaresources-operator v0.4.18-0.2024100201.0.20260707092512-254b162fcd0f // release-4.22
+	github.com/openshift-kni/oran-o2ims v0.0.0-20260707122918-22ed0a55833b // release-4.22
+	github.com/openshift/api v0.0.0-20260521125114-09730f85d883 // release-4.22
+	github.com/openshift/client-go v0.0.0-20260330134249-7e1499aaacd7 // release-4.22
+	github.com/openshift/cluster-nfd-operator v0.0.0-20260629131115-e53505ffcb61 // release-4.22
+	github.com/openshift/cluster-node-tuning-operator v0.0.0-20260209053755-f5fe4460e852 // release-4.22, prior to controller-runtime v0.23
+	github.com/openshift/installer v0.0.0-00010101000000-000000000000
+	github.com/openshift/local-storage-operator v0.0.0-20260630133617-4d174e9c9eff // release-4.22
+	github.com/operator-framework/api v0.43.1-0.20260609071724-52c4c326869d // aligned with k8s v0.35
+	github.com/povsister/scp v0.0.0-20250701154629-777cf82de5df
+	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.91.0 // aligned with k8s v0.35
+	github.com/prometheus/alertmanager v0.33.1
+	github.com/prometheus/client_golang v1.23.2
+	github.com/prometheus/common v1.20.99
+	github.com/redhat-cne/sdk-go v1.23.6
+	github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260908145339-5fda849b4d3e
+	github.com/stmcginnis/gofish v0.20.0 // v0.21.0 contains many breaking changes. Should be upgraded separately.
+	github.com/stretchr/testify v1.11.1
+	github.com/vmware-tanzu/velero v1.18.0
+	github.com/walle/targz v0.0.0-20140417120357-57fe4206da5a
+	github.com/wk8/go-ordered-map/v2 v2.1.8
+	golang.org/x/crypto v0.53.0
+	golang.org/x/exp v0.0.0-20260611194520-c48552f49976
+	golang.org/x/oauth2 v0.36.0
+	gopkg.in/k8snetworkplumbingwg/multus-cni.v4 v4.3.0
+	gopkg.in/yaml.v2 v2.4.0
+	gopkg.in/yaml.v3 v3.0.1
+	k8s.io/api v0.35.6
+	k8s.io/apiextensions-apiserver v0.35.6
+	k8s.io/apimachinery v0.35.6
+	k8s.io/client-go v12.0.0+incompatible
+	k8s.io/klog/v2 v2.140.0
+	k8s.io/kubelet v0.35.6
+	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
+	open-cluster-management.io/api v1.3.0
+	open-cluster-management.io/config-policy-controller v0.19.0
+	open-cluster-management.io/governance-policy-propagator v0.18.1-0.20260302212915-815d063a291a // prior to controller-runtime v0.23
+	open-cluster-management.io/multicloud-operators-subscription v0.16.0
+	sigs.k8s.io/controller-runtime v0.23.3
+)
+
+require (
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.21.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.11.2 // indirect
@@ -205,78 +277,6 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.1 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
-)
-
-require (
-	github.com/BurntSushi/toml v1.6.0
-	github.com/Juniper/go-netconf v0.3.1
-	github.com/Masterminds/semver/v3 v3.5.0
-	github.com/Masterminds/sprig/v3 v3.3.0
-	github.com/NVIDIA/gpu-operator v1.11.1
-	github.com/cavaliergopher/cpio v1.0.1
-	github.com/cavaliergopher/grab/v3 v3.0.1
-	github.com/containers/image/v5 v5.36.2
-	github.com/coreos/ignition/v2 v2.26.0
-	github.com/go-git/go-git/v5 v5.19.1
-	github.com/go-logr/logr v1.4.3
-	github.com/go-openapi/runtime v0.32.4
-	github.com/go-openapi/strfmt v0.26.4
-	github.com/google/uuid v1.6.0
-	github.com/grafana/loki/operator/apis/loki v0.0.0-20241021105923-5e970e50b166
-	github.com/hashicorp/go-version v1.9.0
-	github.com/k8snetworkplumbingwg/multi-networkpolicy v1.0.1
-	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.7
-	github.com/k8snetworkplumbingwg/sriov-network-operator v1.6.0
-	github.com/kedacore/keda-olm-operator v0.0.0-20260618141108-6814218d455e // aligned with k8s v0.35
-	github.com/kedacore/keda/v2 v2.19.0 // aligned with k8s v0.35
-	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/klauspost/compress v1.19.0
-	github.com/metal3-io/baremetal-operator/apis v0.13.1
-	github.com/nmstate/kubernetes-nmstate/api v0.0.0-20260707144101-8853341855d6
-	github.com/onsi/ginkgo/v2 v2.32.0
-	github.com/onsi/gomega v1.42.1
-	github.com/openshift-kni/cluster-group-upgrades-operator v0.0.0-20260707161822-9b9043d4494b // release-4.22
-	github.com/openshift-kni/k8sreporter v1.0.7
-	github.com/openshift-kni/lifecycle-agent v0.0.0-20260707161814-ec769a366476 // release-4.22
-	github.com/openshift-kni/numaresources-operator v0.4.18-0.2024100201.0.20260707092512-254b162fcd0f // release-4.22
-	github.com/openshift-kni/oran-o2ims v0.0.0-20260707122918-22ed0a55833b // release-4.22
-	github.com/openshift/api v0.0.0-20260521125114-09730f85d883 // release-4.22
-	github.com/openshift/client-go v0.0.0-20260330134249-7e1499aaacd7 // release-4.22
-	github.com/openshift/cluster-nfd-operator v0.0.0-20260629131115-e53505ffcb61 // release-4.22
-	github.com/openshift/cluster-node-tuning-operator v0.0.0-20260209053755-f5fe4460e852 // release-4.22, prior to controller-runtime v0.23
-	github.com/openshift/installer v0.0.0-00010101000000-000000000000
-	github.com/openshift/local-storage-operator v0.0.0-20260630133617-4d174e9c9eff // release-4.22
-	github.com/operator-framework/api v0.43.1-0.20260609071724-52c4c326869d // aligned with k8s v0.35
-	github.com/povsister/scp v0.0.0-20250701154629-777cf82de5df
-	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.91.0 // aligned with k8s v0.35
-	github.com/prometheus/alertmanager v0.33.1
-	github.com/prometheus/client_golang v1.23.2
-	github.com/prometheus/common v1.20.99
-	github.com/redhat-cne/sdk-go v1.23.6
-	github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20260904180917-8da9cd3edff2
-	github.com/stmcginnis/gofish v0.20.0 // v0.21.0 contains many breaking changes. Should be upgraded separately.
-	github.com/stretchr/testify v1.11.1
-	github.com/vmware-tanzu/velero v1.18.0
-	github.com/walle/targz v0.0.0-20140417120357-57fe4206da5a
-	github.com/wk8/go-ordered-map/v2 v2.1.8
-	golang.org/x/crypto v0.53.0
-	golang.org/x/exp v0.0.0-20260611194520-c48552f49976
-	golang.org/x/oauth2 v0.36.0
-	gopkg.in/k8snetworkplumbingwg/multus-cni.v4 v4.3.0
-	gopkg.in/yaml.v2 v2.4.0
-	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.35.6
-	k8s.io/apiextensions-apiserver v0.35.6
-	k8s.io/apimachinery v0.35.6
-	k8s.io/client-go v12.0.0+incompatible
-	k8s.io/klog/v2 v2.140.0
-	k8s.io/kubelet v0.35.6
-	k8s.io/utils v0.0.0-20260707023825-cf1189d6abe3
-	open-cluster-management.io/api v1.3.0
-	open-cluster-management.io/config-policy-controller v0.19.0
-	open-cluster-management.io/governance-policy-propagator v0.18.1-0.20260302212915-815d063a291a // prior to controller-runtime v0.23
-	open-cluster-management.io/multicloud-operators-subscription v0.16.0
-	sigs.k8s.io/controller-runtime v0.23.3
 )
 
 replace (
