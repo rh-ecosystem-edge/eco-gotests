@@ -206,6 +206,7 @@ func buildClusterInstanceNodeGroups(nodes []SpokeNode) []map[string]any {
 		nodeEntry := map[string]any{
 			"hostName": node.HostName,
 		}
+
 		if node.NodeNetwork != nil {
 			nodeEntry["nodeNetwork"] = node.NodeNetwork
 		}

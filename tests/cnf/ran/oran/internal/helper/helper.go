@@ -41,6 +41,7 @@ func NewProvisioningRequest(
 	}
 
 	versionWithAffix := RANConfig.ClusterTemplateAffix + "-" + templateVersion
+
 	clusterInstanceParams := map[string]any{
 		"clusterName": clusterName,
 	}
@@ -81,6 +82,7 @@ func NewSecondaryProvisioningRequest(
 	}
 
 	secondaryNodes := buildSecondarySpokeNodes(spokeNodes)
+
 	versionWithAffix := RANConfig.ClusterTemplateAffix + "-" + templateVersion
 
 	clusterInstanceParams := map[string]any{
