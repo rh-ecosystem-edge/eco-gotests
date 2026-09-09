@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -22,10 +23,13 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/helper"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/tsparams"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+const spokeNodesReadyTimeout = 30 * time.Minute
 
 var _ = Describe("ORAN Provision Tests", Label(tsparams.LabelProvision), Ordered, ContinueOnFailure, func() {
 	var o2imsAPIClient runtimeclient.Client
@@ -191,6 +195,7 @@ func verifyProvisioningRequestFulfilled(prBuilder *oran.ProvisioningRequestBuild
 	By("verifying the InfrastructureResourceStatuses are set")
 
 	resourceStatuses := status.Extensions.InfrastructureResourceStatuses
+
 	expectedHostnames, err := helper.GetSpokeHostnames()
 	if err != nil {
 		accumulatedErrors = append(accumulatedErrors, fmt.Errorf("resolve expected node count: %w", err))
@@ -306,65 +311,155 @@ func verifySpokeProvisioning() error {
 	return errors.Join(accumulatedErrors...)
 }
 
-// verifySpokeNodesReady checks that the provisioned spoke has the expected number of Ready nodes, using the existing
-// spoke client when available or a temporary client built from the hub admin-kubeconfig secret.
+// verifySpokeNodesReady polls until the provisioned spoke has the expected Ready nodes, using the existing spoke client
+// when available or a temporary client built from the hub admin-kubeconfig secret.
 func verifySpokeNodesReady() error {
 	expectedHostnames, err := helper.GetSpokeHostnames()
 	if err != nil {
 		return fmt.Errorf("resolve expected spoke node count: %w", err)
 	}
 
-	spokeClient := Spoke1APIClient
-	if spokeClient == nil {
-		By("building a temporary spoke client from the admin-kubeconfig secret")
-
-		kubeconfigPath, err := os.CreateTemp("", "oran-spoke-kubeconfig-*.yaml")
-		if err != nil {
-			return fmt.Errorf("create temp kubeconfig file: %w", err)
-		}
-
-		defer os.Remove(kubeconfigPath.Name())
-
-		if err := kubeconfigPath.Close(); err != nil {
-			return fmt.Errorf("close temp kubeconfig file: %w", err)
-		}
-
-		if err := saveSpoke1Secret("-admin-kubeconfig", "kubeconfig", kubeconfigPath.Name()); err != nil {
-			return fmt.Errorf("save admin kubeconfig for spoke node verification: %w", err)
-		}
-
-		spokeClient = clients.New(kubeconfigPath.Name())
-		if spokeClient == nil {
-			return fmt.Errorf("failed to create spoke API client from admin kubeconfig")
-		}
-	}
-
-	By("verifying spoke nodes are Ready")
-
-	nodeList, err := nodes.List(spokeClient)
+	spokeClient, cleanup, err := spokeClientForNodeVerification()
 	if err != nil {
-		return fmt.Errorf("list spoke nodes: %w", err)
+		return err
 	}
 
-	if len(nodeList) != len(expectedHostnames) {
-		return fmt.Errorf("expected %d spoke nodes, got %d", len(expectedHostnames), len(nodeList))
+	if cleanup != nil {
+		defer cleanup()
 	}
 
-	for _, node := range nodeList {
-		ready := false
+	By("waiting for spoke nodes to become Ready")
 
-		for _, condition := range node.Object.Status.Conditions {
-			if condition.Type == corev1.NodeReady && condition.Status == corev1.ConditionTrue {
-				ready = true
+	err = wait.PollUntilContextTimeout(
+		context.TODO(), 15*time.Second, spokeNodesReadyTimeout, true,
+		func(ctx context.Context) (bool, error) {
+			nodeList, err := nodes.List(spokeClient)
+			if err != nil {
+				klog.V(tsparams.LogLevel).Infof("Failed to list spoke nodes: %v", err)
+
+				return false, nil
+			}
+
+			if len(nodeList) != len(expectedHostnames) {
+				klog.V(tsparams.LogLevel).Infof(
+					"Waiting for spoke nodes: expected %d, got %d",
+					len(expectedHostnames), len(nodeList))
+
+				return false, nil
+			}
+
+			if err := validateSpokeNodeIdentities(nodeList, expectedHostnames); err != nil {
+				klog.V(tsparams.LogLevel).Infof("Spoke node identity check: %v", err)
+
+				return false, nil
+			}
+
+			for _, node := range nodeList {
+				if !isSpokeNodeReady(node) {
+					klog.V(tsparams.LogLevel).Infof("Waiting for spoke node %s to become Ready", node.Object.Name)
+
+					return false, nil
+				}
+			}
+
+			return true, nil
+		})
+	if err != nil {
+		return fmt.Errorf("timed out waiting for spoke nodes to become Ready: %w", err)
+	}
+
+	return nil
+}
+
+// spokeClientForNodeVerification returns the spoke API client, building a temporary client from the hub
+// admin-kubeconfig secret when Spoke1APIClient is not configured. When a temp kubeconfig is created, cleanup removes
+// the file and must be called after node verification completes.
+func spokeClientForNodeVerification() (*clients.Settings, func(), error) {
+	if Spoke1APIClient != nil {
+		return Spoke1APIClient, nil, nil
+	}
+
+	By("building a temporary spoke client from the admin-kubeconfig secret")
+
+	kubeconfigPath, err := os.CreateTemp("", "oran-spoke-kubeconfig-*.yaml")
+	if err != nil {
+		return nil, nil, fmt.Errorf("create temp kubeconfig file: %w", err)
+	}
+
+	kubeconfigFile := kubeconfigPath.Name()
+
+	if err := kubeconfigPath.Close(); err != nil {
+		return nil, nil, fmt.Errorf("close temp kubeconfig file: %w", err)
+	}
+
+	if err := saveSpoke1Secret("-admin-kubeconfig", "kubeconfig", kubeconfigFile); err != nil {
+		return nil, nil, fmt.Errorf("save admin kubeconfig for spoke node verification: %w", err)
+	}
+
+	spokeClient := clients.New(kubeconfigFile)
+	if spokeClient == nil {
+		return nil, nil, fmt.Errorf("failed to create spoke API client from admin kubeconfig")
+	}
+
+	return spokeClient, func() { os.Remove(kubeconfigFile) }, nil
+}
+
+// spokeNodeNameMatches reports whether a Kubernetes node name corresponds to an expected ClusterInstance hostname.
+// Node objects use the short hostname while ClusterInstance files may specify an FQDN.
+func spokeNodeNameMatches(expectedHostname, nodeName string) bool {
+	if nodeName == expectedHostname {
+		return true
+	}
+
+	shortExpectedHostname, _, _ := strings.Cut(expectedHostname, ".")
+
+	return nodeName == shortExpectedHostname
+}
+
+// validateSpokeNodeIdentities ensures every expected hostname maps to a cluster node and no unexpected nodes exist.
+func validateSpokeNodeIdentities(nodeList []*nodes.Builder, expectedHostnames []string) error {
+	for _, expectedHostname := range expectedHostnames {
+		found := false
+
+		for _, node := range nodeList {
+			if spokeNodeNameMatches(expectedHostname, node.Object.Name) {
+				found = true
 
 				break
 			}
 		}
 
-		if !ready {
-			return fmt.Errorf("spoke node %s is not Ready", node.Object.Name)
+		if !found {
+			return fmt.Errorf("expected spoke node %q not found in cluster", expectedHostname)
+		}
+	}
+
+	for _, node := range nodeList {
+		matched := false
+
+		for _, expectedHostname := range expectedHostnames {
+			if spokeNodeNameMatches(expectedHostname, node.Object.Name) {
+				matched = true
+
+				break
+			}
+		}
+
+		if !matched {
+			return fmt.Errorf("unexpected spoke node %q found in cluster", node.Object.Name)
 		}
 	}
 
 	return nil
+}
+
+// isSpokeNodeReady reports whether the node has a True NodeReady condition.
+func isSpokeNodeReady(node *nodes.Builder) bool {
+	for _, condition := range node.Object.Status.Conditions {
+		if condition.Type == corev1.NodeReady && condition.Status == corev1.ConditionTrue {
+			return true
+		}
+	}
+
+	return false
 }
