@@ -20,8 +20,16 @@ import (
 type EventMatcher struct {
 	Reason tsparams.CguEventReason // Event reason (e.g., CguStarted, CguSuccess)
 	Scope  tsparams.CguEventScope  // Event scope annotation (global, batch, cluster)
-	Count  int                     // Expected count: 0 = at least one, >0 = exact minimum
-	Strict bool                    // When true with Count>1, all occurrences must precede the next matcher
+	Count  int                     // Expected count: 0 = at least one, >0 = minimum
+
+	// Strict controls how the match position advances after this matcher is satisfied, and
+	// therefore how strictly this phase is ordered relative to the next matcher. Events matched
+	// by a single matcher may occur in any order among themselves (e.g. concurrent per-spoke
+	// events within a batch). Set Strict=true when every matched occurrence must precede the
+	// next matcher's events, i.e. the whole group must complete before the next phase begins.
+	// Leave it false (the default) to allow the next matcher's events to interleave with this
+	// group, e.g. one spoke reaching success before another spoke's start is recorded.
+	Strict bool
 }
 
 // cguAnnotations lists annotation keys to include in debug output, ordered for stability.
@@ -69,6 +77,16 @@ func GetCGUEvents(cguName string) ([]*eventsv1.Event, error) {
 			return cguEvents[left].Reason < cguEvents[right].Reason
 		}
 
+		// Tiebreak on scope annotation before falling back to the auto-generated event Name
+		// (a hash), so same-time, same-reason events across scopes order deterministically
+		// instead of relying on hash order, which can flake VerifyEventSequence.
+		scopeLeft := cguEvents[left].Annotations[tsparams.CguEventTypeAnnotation]
+		scopeRight := cguEvents[right].Annotations[tsparams.CguEventTypeAnnotation]
+
+		if scopeLeft != scopeRight {
+			return scopeLeft < scopeRight
+		}
+
 		return cguEvents[left].Name < cguEvents[right].Name
 	})
 
@@ -95,9 +113,14 @@ func ClearCGUEvents() error {
 			continue
 		}
 
-		if err := builder.Delete(); err != nil && !k8serrors.IsNotFound(err) {
-			return fmt.Errorf("failed to delete CGU event %s in the %s namespace: %w",
-				builder.Object.Name, tsparams.TestNamespace, err)
+		if err := builder.Delete(); err != nil {
+			if !k8serrors.IsNotFound(err) {
+				return fmt.Errorf("failed to delete CGU event %s in the %s namespace: %w",
+					builder.Object.Name, tsparams.TestNamespace, err)
+			}
+
+			// Event was already gone (e.g. GC'd between List and Delete); don't count it.
+			continue
 		}
 
 		deleted++
@@ -139,7 +162,7 @@ func HasEventWithAnnotation(events []*eventsv1.Event, annotationKey string) bool
 // occurrences of the (reason, scope) pair. This allows interleaved events from concurrent
 // clusters while still enforcing cross-phase ordering between different matchers.
 //
-// Position advancement after a satisfied matcher depends on the Strict field:
+// Position advancement after a satisfied matcher depends on the matcher's Strict field:
 //   - Strict=false (default): advances past the first match, allowing later occurrences to
 //     interleave with events matched by subsequent matchers (e.g., concurrent cluster events).
 //   - Strict=true: advances past the last match, ensuring all counted occurrences precede

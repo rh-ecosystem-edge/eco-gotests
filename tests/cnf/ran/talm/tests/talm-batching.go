@@ -584,8 +584,12 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 				{Reason: tsparams.CguCreated, Scope: tsparams.EventScopeGlobal},
 				{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeGlobal},
 				{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeBatch},
+				// Both spokes start concurrently and a spoke may succeed before the other's start
+				// is recorded, so the cluster-started group is left non-strict to allow interleaving.
 				{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeCluster, Count: 2},
-				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeCluster, Count: 2},
+				// Batch success must only follow after both clusters succeed, so require the whole
+				// cluster-success group to precede the batch-success event.
+				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeCluster, Count: 2, Strict: true},
 				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeBatch},
 				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeGlobal},
 			}
