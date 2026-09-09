@@ -27,6 +27,13 @@ import (
 // This test must be ordered so that we only need to reboot the node once. It may continue on failure since the test
 // cases are not necessarily dependent on each other.
 var _ = Describe("PTP Node Reboot", Ordered, ContinueOnFailure, Label(tsparams.LabelNodeReboot), func() {
+	var testCriticalNs = []string{
+		ranparam.OpenshiftAPINamespace,
+		ranparam.OpenshiftIngressNamespace,
+		ranparam.PtpOperatorNamespace,
+		ranparam.OpenshiftMonitoringNamespace,
+	}
+
 	var (
 		nodeName   string
 		rebootTime time.Time
@@ -39,7 +46,7 @@ var _ = Describe("PTP Node Reboot", Ordered, ContinueOnFailure, Label(tsparams.L
 		Expect(err).ToNot(HaveOccurred(), "Failed to check if the cluster is SNO")
 
 		By("selecting a node to reboot")
-		// list all the ptp daemon set pods, select the first, then use spec.nodeName to get the node name
+
 		ptpDaemonPods, err := pod.List(RANConfig.Spoke1APIClient, ranparam.PtpOperatorNamespace, metav1.ListOptions{
 			LabelSelector: ranparam.PtpDaemonsetLabelSelector,
 		})
@@ -59,9 +66,14 @@ var _ = Describe("PTP Node Reboot", Ordered, ContinueOnFailure, Label(tsparams.L
 		Expect(err).ToNot(HaveOccurred(), "Failed to soft reboot the node")
 
 		if isSNO {
+			By("Wait for SNO cluster to be unreachable")
+
+			err = cluster.WaitForUnreachable(RANConfig.Spoke1APIClient, 30*time.Second)
+			Expect(err).ToNot(HaveOccurred(), "Failed to wait for kubeapi becoming unreachable")
+
 			By("waiting for the SNO node to recover")
 
-			err = cluster.WaitForRecover(RANConfig.Spoke1APIClient, []string{}, 45*time.Minute)
+			err = cluster.WaitForRecover(RANConfig.Spoke1APIClient, testCriticalNs, 45*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for the node to recover")
 		} else {
 			By("waiting for the node to recover")
@@ -78,9 +90,10 @@ var _ = Describe("PTP Node Reboot", Ordered, ContinueOnFailure, Label(tsparams.L
 
 			By("waiting for all pods on rebooted node to be healthy")
 
-			err = pod.WaitForPodsInNamespacesHealthy(RANConfig.Spoke1APIClient, nil, 10*time.Minute, metav1.ListOptions{
-				FieldSelector: fields.OneTermEqualSelector("spec.nodeName", nodeName).String(),
-			})
+			err = pod.WaitForPodsInNamespacesHealthy(
+				RANConfig.Spoke1APIClient, testCriticalNs, 10*time.Minute, metav1.ListOptions{
+					FieldSelector: fields.OneTermEqualSelector("spec.nodeName", nodeName).String(),
+				})
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for all pods on rebooted node to be healthy")
 		}
 	})
@@ -88,6 +101,10 @@ var _ = Describe("PTP Node Reboot", Ordered, ContinueOnFailure, Label(tsparams.L
 	// 59858 - verify the system returns to stability after reboot node
 	It("should return to same stable status after ptp node soft reboot", reportxml.ID("59858"), func() {
 		By("waiting for all clocks to be locked")
+
+		err := cluster.WaitForRouteAPIAvailable(
+			RANConfig.Spoke1APIClient, ranparam.ThanosQuerierRouteName, ranparam.OpenshiftMonitoringNamespace, 3*time.Minute)
+		Expect(err).ToNot(HaveOccurred(), "Failed to wait for monitoring Route API availability")
 
 		prometheusAPI, err := querier.CreatePrometheusAPIForCluster(RANConfig.Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to create Prometheus API client")
