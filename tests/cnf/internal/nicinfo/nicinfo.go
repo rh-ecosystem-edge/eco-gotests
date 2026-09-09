@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"iter"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -134,6 +135,45 @@ func GenerateReport(client *clients.Settings) (string, error) {
 	}
 
 	return string(report), nil
+}
+
+// TestedInterfaceNames returns a compact, deterministic summary of the tested interfaces suitable for use as a
+// suite-level report property (and thus an indexable join key in DCI). The format is:
+//
+//	node=iface,iface;node=iface,iface
+//
+// Nodes are sorted by name and interfaces are sorted within each node. It returns an empty string if no interfaces
+// have been marked as tested. Unlike GenerateReport, this does not contact the cluster; it only reflects what was
+// marked via MarkTested/MarkSeqTested.
+func TestedInterfaceNames() string {
+	nodeNICInfos := getStoredNodeNICInfos()
+
+	nodeSummaries := make([]string, 0, len(nodeNICInfos))
+
+	for _, nodeNICInfo := range nodeNICInfos {
+		var interfaceNames []string
+
+		nodeNICInfo.interfaces.Range(func(interfaceNameUntyped, _ any) bool {
+			if interfaceName, ok := interfaceNameUntyped.(string); ok {
+				interfaceNames = append(interfaceNames, interfaceName)
+			}
+
+			return true
+		})
+
+		if len(interfaceNames) == 0 {
+			continue
+		}
+
+		sort.Strings(interfaceNames)
+
+		nodeSummaries = append(nodeSummaries,
+			fmt.Sprintf("%s=%s", nodeNICInfo.name, strings.Join(interfaceNames, ",")))
+	}
+
+	sort.Strings(nodeSummaries)
+
+	return strings.Join(nodeSummaries, ";")
 }
 
 func getStoredNodeNICInfos() []*NodeNICInfo {

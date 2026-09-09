@@ -20,14 +20,34 @@ jobs:
         if: ${{ !contains(github.event.*.labels.*.name, 'ignore-dep-check') }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
+      - name: Install dependent PRs if needed
+        if: ${{ !contains(github.event.*.labels.*.name, 'ignore-dep-check') }}
+        uses: depends-on/depends-on-action@c7ac9a6932a7069e83aef80c202d9f60f91e43fd # 0.17.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Set up Go
         if: ${{ !contains(github.event.*.labels.*.name, 'ignore-dep-check') }}
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
 
-      - name: Check out the eco-goinfra code
+      # If a Depends-On eco-goinfra PR is present, depends-on-action has already added a
+      # replace directive pointing at that branch; in that case we must not override it
+      # with the base_ref checkout below.
+      - name: Detect eco-goinfra replace from Depends-On
+        id: goinfra_dep
         if: ${{ !contains(github.event.*.labels.*.name, 'ignore-dep-check') }}
+        run: |
+          if go mod edit -json | jq -e '.Replace[]? | select(.Old.Path == "github.com/rh-ecosystem-edge/eco-goinfra")' >/dev/null; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+            echo "Depends-On already added a replace for eco-goinfra; skipping base_ref checkout."
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out the eco-goinfra code
+        if: ${{ !contains(github.event.*.labels.*.name, 'ignore-dep-check') && steps.goinfra_dep.outputs.present != 'true' }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: ${{ env.ECO_GOINFRA_REPO }}
@@ -35,14 +55,29 @@ jobs:
           ref:  ${{ github.base_ref }}
           path: ${{ env.ECO_GOINFRA_PATH }}
 
-      # Update the go.mod file in eco-gotests to include the current eco-goinfra code
+      # Point go.mod at the base_ref eco-goinfra checkout, unless a Depends-On replace is already set.
       - name: Update go.mod in eco-gotests
+        if: ${{ !contains(github.event.*.labels.*.name, 'ignore-dep-check') && steps.goinfra_dep.outputs.present != 'true' }}
+        run: go mod edit -replace github.com/rh-ecosystem-edge/eco-goinfra=${{ github.workspace }}/${{ env.ECO_GOINFRA_PATH }}
+
+      - name: Vendor eco-goinfra
         if: ${{ !contains(github.event.*.labels.*.name, 'ignore-dep-check') }}
         run: |
-          go mod edit -replace github.com/rh-ecosystem-edge/eco-goinfra=${{ github.workspace }}/${{ env.ECO_GOINFRA_PATH }}
           go mod tidy
           go mod vendor
 
       - name: eco-goinfra go vet
         if: ${{ !contains(github.event.*.labels.*.name, 'ignore-dep-check') }}
         run: make vet
+
+  check-all-dependencies-are-merged:
+    name: "Check all dependencies are merged"
+    runs-on: ubuntu-24.04
+    if: ${{ !contains(github.event.*.labels.*.name, 'ignore-dep-check') }}
+    steps:
+
+      - name: Check all dependent Pull Requests are merged
+        uses: depends-on/depends-on-action@c7ac9a6932a7069e83aef80c202d9f60f91e43fd # 0.17.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          check-unmerged-pr: true

@@ -2,6 +2,7 @@ package ptp
 
 import (
 	"runtime"
+	"strconv"
 	"testing"
 	"time"
 
@@ -110,7 +111,23 @@ var _ = JustAfterEach(func() {
 })
 
 var _ = ReportAfterSuite("", func(report Report) {
-	reportxml.Create(report, RANConfig.GetReportPath(), RANConfig.TCPrefix)
+	reportxml.Create(report, RANConfig.GetReportPath(), RANConfig.TCPrefix,
+		reportxml.WithSuiteProperties(map[string]string{
+			"ptp-operator-version":      RANConfig.Spoke1OperatorVersions[ranparam.PTP],
+			"ptp-operator-namespace":    RANConfig.PtpOperatorNamespace,
+			"ptp-stability-duration":    RANConfig.PtpStabilityDuration.String(),
+			"ptp-stability-threshold":   strconv.FormatInt(RANConfig.PtpStabilityThreshold, 10),
+			"ptp-event-consumer-image":  RANConfig.PtpEventConsumerImage,
+			"ptp-event-consumer-v1-tag": RANConfig.PtpEventConsumerV1Tag,
+			"ptp-event-consumer-v2-tag": RANConfig.PtpEventConsumerV2Tag,
+			"ptp-must-gather-image":     RANConfig.PtpMustGatherImage,
+			"metric-sampling-interval":  RANConfig.MetricSamplingInterval,
+			"workload-duration":         RANConfig.WorkloadDuration,
+			"no-workload-duration":      RANConfig.NoWorkloadDuration,
+			"spoke1-name":               RANConfig.Spoke1Name,
+			"spoke1-ocp-version":        RANConfig.Spoke1OCPVersion,
+			"tested-interfaces":         nicinfo.TestedInterfaceNames(),
+		}))
 
 	By("generating network interface information report")
 
