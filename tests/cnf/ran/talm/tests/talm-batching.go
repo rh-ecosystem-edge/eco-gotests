@@ -194,8 +194,10 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 					return false, seqErr
 				}
 
-				if !helper.HasEventWithAnnotation(events, tsparams.CguTimedoutClustersAnnotation) {
-					return false, fmt.Errorf("missing timedout-clusters annotation on timeout events")
+				timeoutEvents := helper.FindEventsByReasonAndScope(events,
+					tsparams.CguTimedout, tsparams.EventScopeGlobal)
+				if !helper.HasEventWithAnnotation(timeoutEvents, tsparams.CguTimedoutClustersAnnotation) {
+					return false, fmt.Errorf("missing timedout-clusters annotation on global timeout event")
 				}
 
 				return true, nil

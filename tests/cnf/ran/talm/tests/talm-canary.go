@@ -117,7 +117,7 @@ var _ = Describe("TALM Canary Tests", Label(tsparams.LabelCanaryTestCases), func
 				return false, fmt.Errorf("no CguTimedout/global events found")
 			}
 
-			if !helper.HasEventWithAnnotation(events, tsparams.CguTimedoutClustersAnnotation) {
+			if !helper.HasEventWithAnnotation(globalTimeoutEvents, tsparams.CguTimedoutClustersAnnotation) {
 				return false, fmt.Errorf("missing timedout-clusters annotation on global timeout event")
 			}
 
