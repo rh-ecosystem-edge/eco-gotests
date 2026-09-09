@@ -8,6 +8,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	hardwaremanagementv1alpha1 "github.com/openshift-kni/oran-o2ims/api/hardwaremanagement/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/configmap"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran"
 	oranapi "github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api"
@@ -15,6 +16,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/auth"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/helper"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/tsparams"
 	"gopkg.in/yaml.v3"
 )
@@ -61,15 +63,27 @@ var _ = Describe("ORAN Template Inventory", Label(tsparams.LabelPreProvision, ts
 			Expect(found).To(BeTrue(), "ClusterTemplate %s (version %s) does not have a matching ManagedInfrastructureTemplate",
 				clusterTemplate.Definition.Spec.Name, clusterTemplate.Definition.Spec.Version)
 		}
+
+		By("verifying the expected ClusterTemplate name is present in ManagedInfrastructureTemplates")
+
+		expectedTemplateName, err := helper.GetClusterTemplateName()
+		Expect(err).ToNot(HaveOccurred(), "Failed to resolve ClusterTemplate name")
+		Expect(slices.ContainsFunc(managedInfrastructureTemplates,
+			func(managedInfrastructureTemplate oranapi.ManagedInfrastructureTemplate) bool {
+				return managedInfrastructureTemplate.Name == expectedTemplateName
+			})).To(BeTrue(), "Expected ManagedInfrastructureTemplate %s to be listed", expectedTemplateName)
 	})
 
 	// 82941 - Successfully filter ManagedInfrastructureTemplates
 	It("successfully filters ManagedInfrastructureTemplates", reportxml.ID("82941"), func() {
 		By("getting the specific ClusterTemplate resource for the valid template")
 
-		clusterTemplateNamespace := tsparams.ClusterTemplateName + "-" + RANConfig.ClusterTemplateAffix
+		clusterTemplateBaseName, err := helper.GetClusterTemplateName()
+		Expect(err).ToNot(HaveOccurred(), "Failed to resolve ClusterTemplate name")
+
+		clusterTemplateNamespace := clusterTemplateBaseName + "-" + RANConfig.ClusterTemplateAffix
 		clusterTemplateName := fmt.Sprintf("%s.%s-%s",
-			tsparams.ClusterTemplateName, RANConfig.ClusterTemplateAffix, tsparams.TemplateValid)
+			clusterTemplateBaseName, RANConfig.ClusterTemplateAffix, tsparams.TemplateValid)
 
 		chosenClusterTemplate, err := oran.PullClusterTemplate(HubAPIClient, clusterTemplateName, clusterTemplateNamespace)
 		Expect(err).ToNot(HaveOccurred(),
@@ -104,9 +118,12 @@ var _ = Describe("ORAN Template Inventory", Label(tsparams.LabelPreProvision, ts
 	It("successfully retrieves ManagedInfrastructureTemplate defaults", reportxml.ID("82942"), func() {
 		By("getting the specific ClusterTemplate resource for the valid template")
 
-		clusterTemplateNamespace := tsparams.ClusterTemplateName + "-" + RANConfig.ClusterTemplateAffix
+		clusterTemplateBaseName, err := helper.GetClusterTemplateName()
+		Expect(err).ToNot(HaveOccurred(), "Failed to resolve ClusterTemplate name")
+
+		clusterTemplateNamespace := clusterTemplateBaseName + "-" + RANConfig.ClusterTemplateAffix
 		clusterTemplateName := fmt.Sprintf("%s.%s-%s",
-			tsparams.ClusterTemplateName, RANConfig.ClusterTemplateAffix, tsparams.TemplateValid)
+			clusterTemplateBaseName, RANConfig.ClusterTemplateAffix, tsparams.TemplateValid)
 
 		chosenClusterTemplate, err := oran.PullClusterTemplate(HubAPIClient, clusterTemplateName, clusterTemplateNamespace)
 		Expect(err).ToNot(HaveOccurred(),
@@ -174,6 +191,46 @@ var _ = Describe("ORAN Template Inventory", Label(tsparams.LabelPreProvision, ts
 		Expect(isMap).To(BeTrue(), "editable key in ManagedInfrastructureTemplateDefaults should be a map")
 		Expect(policyTemplateEditable).To(Equal(expectedPolicyTemplateDefaults),
 			"editable content in ManagedInfrastructureTemplateDefaults should match the ConfigMap")
+
+		By("verifying hwMgmtDefaults include a master node group")
+
+		nodeGroupData := chosenClusterTemplate.Definition.Spec.TemplateDefaults.HwMgmtDefaults.NodeGroupData
+		Expect(nodeGroupData).ToNot(BeEmpty(),
+			"ClusterTemplate hwMgmtDefaults.nodeGroupData should not be empty")
+
+		hasMasterGroup := slices.ContainsFunc(nodeGroupData,
+			func(group hardwaremanagementv1alpha1.NodeGroupData) bool {
+				return group.Role == "master" || group.Name == "master"
+			})
+		Expect(hasMasterGroup).To(BeTrue(),
+			"ClusterTemplate hwMgmtDefaults.nodeGroupData should include a master group")
+
+		if helper.IsMultiNode() {
+			By("verifying multi-node ClusterTemplate includes a worker node group and multi-node schema")
+
+			hasWorkerGroup := slices.ContainsFunc(nodeGroupData,
+				func(group hardwaremanagementv1alpha1.NodeGroupData) bool {
+					return group.Role == "worker" || group.Name == "worker"
+				})
+			Expect(hasWorkerGroup).To(BeTrue(),
+				"MNO ClusterTemplate hwMgmtDefaults.nodeGroupData should include a worker group")
+
+			var clusterTemplateSchema map[string]any
+
+			err = json.Unmarshal(chosenClusterTemplate.Definition.Spec.TemplateParameterSchema.Raw, &clusterTemplateSchema)
+			Expect(err).ToNot(HaveOccurred(), "Failed to unmarshal ClusterTemplate parameter schema")
+
+			properties, ok := clusterTemplateSchema["properties"].(map[string]any)
+			Expect(ok).To(BeTrue(), "templateParameterSchema.properties should be a map")
+
+			ciParams, ok := properties[tsparams.ClusterInstanceParamsKey].(map[string]any)
+			Expect(ok).To(BeTrue(), "clusterInstanceParameters schema should be present")
+
+			ciProps, ok := ciParams["properties"].(map[string]any)
+			Expect(ok).To(BeTrue(), "clusterInstanceParameters.properties should be a map")
+			Expect(ciProps).To(HaveKey("nodes"),
+				"clusterInstanceParameters schema should allow nodes[] for multi-node installs")
+		}
 	})
 })
 

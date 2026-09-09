@@ -35,22 +35,30 @@ var _ = Describe("ORAN Pre-provision Tests", Label(tsparams.LabelPreProvision), 
 	It("fails to create ProvisioningRequest with invalid ClusterTemplate", reportxml.ID("77392"), func() {
 		By("attempting to create a ProvisioningRequest")
 
-		prBuilder := helper.NewProvisioningRequest(o2imsAPIClient, tsparams.TemplateInvalid)
-		_, err := prBuilder.Create()
+		prBuilder, err := helper.NewProvisioningRequest(o2imsAPIClient, tsparams.TemplateInvalid)
+		Expect(err).ToNot(HaveOccurred(), "Failed to build ProvisioningRequest")
+
+		_, err = prBuilder.Create()
 		Expect(err).To(HaveOccurred(), "Creating a ProvisioningRequest with an invalid ClusterTemplate should fail")
 	})
 
 	// 78245 - ClusterTemplate validation fails when inline BMC schema is missing without hwMgmtDefaults
 	It("fails ClusterTemplate validation when inline BMC schema is missing without hwMgmtDefaults",
 		reportxml.ID("78245"), func() {
+			clusterTemplateBaseName, err := helper.GetClusterTemplateName()
+			Expect(err).ToNot(HaveOccurred(), "Failed to resolve ClusterTemplate name")
+
 			clusterTemplateName := fmt.Sprintf("%s.%s-%s",
-				tsparams.ClusterTemplateName, RANConfig.ClusterTemplateAffix, tsparams.TemplateInlineBMCMissingSchema)
-			clusterTemplateNamespace := tsparams.ClusterTemplateName + "-" + RANConfig.ClusterTemplateAffix
+				clusterTemplateBaseName, RANConfig.ClusterTemplateAffix, tsparams.TemplateInlineBMCMissingSchema)
+			clusterTemplateNamespace := clusterTemplateBaseName + "-" + RANConfig.ClusterTemplateAffix
 
 			By("pulling the ClusterTemplate that omits hwMgmtDefaults and inline BMC schema")
 
 			clusterTemplate, err := oran.PullClusterTemplate(HubAPIClient, clusterTemplateName, clusterTemplateNamespace)
-			Expect(err).ToNot(HaveOccurred(), "Failed to pull ClusterTemplate with missing inline BMC schema")
+			if err != nil {
+				Skip(fmt.Sprintf("ClusterTemplate %s/%s not deployed for this topology: %v",
+					clusterTemplateNamespace, clusterTemplateName, err))
+			}
 
 			By("verifying the ClusterTemplate omits hwMgmtDefaults and hwMgmtParameters")
 			Expect(clusterTemplate.Definition.Spec.TemplateDefaults.HwMgmtDefaults.NodeGroupData).To(BeEmpty(),
@@ -80,8 +88,10 @@ var _ = Describe("ORAN Pre-provision Tests", Label(tsparams.LabelPreProvision), 
 		It("fails when no hardware matches resource selector", reportxml.ID("83880"), func() {
 			By("creating a ProvisioningRequest with non-matching resource selector")
 
-			prBuilder := helper.NewProvisioningRequest(o2imsAPIClient, tsparams.TemplateNoHardwareMatch)
-			_, err := prBuilder.Create()
+			prBuilder, err := helper.NewProvisioningRequest(o2imsAPIClient, tsparams.TemplateNoHardwareMatch)
+			Expect(err).ToNot(HaveOccurred(), "Failed to build ProvisioningRequest")
+
+			_, err = prBuilder.Create()
 			Expect(err).ToNot(HaveOccurred(), "Failed to create ProvisioningRequest with non-matching resource selector")
 
 			By("waiting for ProvisioningRequest to fail due to no matching hardware")
@@ -104,8 +114,10 @@ var _ = Describe("ORAN Pre-provision Tests", Label(tsparams.LabelPreProvision), 
 		It("fails when boot interface label is missing", reportxml.ID("83881"), func() {
 			By("creating a ProvisioningRequest with missing boot interface label")
 
-			prBuilder := helper.NewProvisioningRequest(o2imsAPIClient, tsparams.TemplateMissingBootInterface)
-			_, err := prBuilder.Create()
+			prBuilder, err := helper.NewProvisioningRequest(o2imsAPIClient, tsparams.TemplateMissingBootInterface)
+			Expect(err).ToNot(HaveOccurred(), "Failed to build ProvisioningRequest")
+
+			_, err = prBuilder.Create()
 			Expect(err).ToNot(HaveOccurred(), "Failed to create ProvisioningRequest with missing boot interface label")
 
 			By("waiting for ProvisioningRequest to fail due to missing boot interface")
@@ -128,8 +140,10 @@ var _ = Describe("ORAN Pre-provision Tests", Label(tsparams.LabelPreProvision), 
 		It("fails when hardware profile does not exist", reportxml.ID("83882"), func() {
 			By("attempting to create a ProvisioningRequest with nonexistent hardware profile")
 
-			prBuilder := helper.NewProvisioningRequest(o2imsAPIClient, tsparams.TemplateNonexistentHWProfile)
-			_, err := prBuilder.Create()
+			prBuilder, err := helper.NewProvisioningRequest(o2imsAPIClient, tsparams.TemplateNonexistentHWProfile)
+			Expect(err).ToNot(HaveOccurred(), "Failed to build ProvisioningRequest")
+
+			_, err = prBuilder.Create()
 			Expect(err).To(HaveOccurred(),
 				"Creating a ProvisioningRequest with a nonexistent hardware profile should be rejected by the admission webhook")
 			Expect(err.Error()).To(ContainSubstring("does not exist"),
