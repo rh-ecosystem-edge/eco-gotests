@@ -30,13 +30,21 @@ var (
 	err      error
 )
 
-// PostUpgradeValidations is a dedicated func to run post upgrade test validations.
+// UpgradeSucceeded is set by the TALM e2e upgrade It after 68954 passes.
+var UpgradeSucceeded bool
+
+// PostUpgradeValidations registers post-upgrade checks. Call it from inside the
+// Ordered e2e Describe after test 68954 so this nested BeforeAll runs after that It.
 func PostUpgradeValidations() {
 	Describe(
 		"PostIBUValidations",
 		Ordered,
 		Label("PostIBUValidations"), func() {
 			BeforeAll(func() {
+				if !UpgradeSucceeded {
+					Skip("post-upgrade validations require a successful 68954 upgrade")
+				}
+
 				By("Retrieve seed image info", func() {
 					Eventually(func() bool {
 						ibu, err = lca.PullImageBasedUpgrade(TargetSNOAPIClient)

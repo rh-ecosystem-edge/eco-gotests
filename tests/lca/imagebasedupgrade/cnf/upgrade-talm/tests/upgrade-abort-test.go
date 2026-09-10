@@ -5,89 +5,83 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ibgu"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/lca"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	ibguv1alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/imagebasedgroupupgrades/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/cnf/internal/cnfclusterinfo"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/cnf/internal/cnfinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/cnf/internal/cnfhelper"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/cnf/upgrade-talm/internal/tsparams"
 )
 
 var _ = Describe(
 	"Validating abort at IBU upgrade stage",
 	Label(tsparams.LabelUpgradeAbortFlow), func() {
-		var abortIbguBuilder *ibgu.IbguBuilder
-
 		BeforeEach(func() {
-			By("Fetching target sno cluster name", func() {
-				err := cnfclusterinfo.PreUpgradeClusterInfo.SaveClusterInfo()
-				Expect(err).ToNot(HaveOccurred(), "Failed to extract target sno cluster name")
+			By("Ensuring the spoke IBU is Idle and ready for Prep")
 
-				tsparams.TargetSnoClusterName = cnfclusterinfo.PreUpgradeClusterInfo.Name
+			Expect(cnfhelper.EnsureSpokeReadyForNextIbgu()).To(Succeed(),
+				"spoke IBU was not Idle with Prep in validNextStages before upgrade abort")
 
-				ibu, err = lca.PullImageBasedUpgrade(cnfinittools.TargetSNOAPIClient)
-				Expect(err).NotTo(HaveOccurred(), "error pulling ibu resource from cluster")
-			})
+			By("Fetching target sno cluster name")
+
+			err := cnfclusterinfo.PreUpgradeClusterInfo.SaveClusterInfo()
+			Expect(err).ToNot(HaveOccurred(), "Failed to extract target sno cluster name")
+
+			tsparams.TargetSnoClusterName = cnfclusterinfo.PreUpgradeClusterInfo.Name
 		})
 
 		AfterEach(func() {
-			By("Deleting IBGUs on target hub cluster", func() {
-				_, err := ibgu.NewIbguBuilder(cnfinittools.TargetHubAPIClient,
-					tsparams.IbguName, tsparams.IbguNamespace).DeleteAndWait(1 * time.Minute)
-
-				Expect(err).ToNot(HaveOccurred(), "Failed to delete prep-upgrade ibgu on target hub cluster")
-
-				_, err = ibgu.NewIbguBuilder(cnfinittools.TargetHubAPIClient,
-					tsparams.AbortIbguName, tsparams.IbguNamespace).DeleteAndWait(1 * time.Minute)
-
-				Expect(err).ToNot(HaveOccurred(), "Failed to delete Abort IBGU cgu on target hub cluster")
-			})
-
-			// Sleep for 10 seconds to allow talm to reconcile state.
-			// Sometimes if the next test re-creates the IBGUs too quickly,
-			// the policies compliance status is not updated correctly.
-			time.Sleep(10 * time.Second)
+			deleteIbgusAndRecoverIfFailed()
 		})
 
+		// 69055 - Aborts an upgrade at IBU upgrade stage, before pivot.
+		// A second Abort IBGU is required: the CRD does not allow appending
+		// Abort after Prep+Upgrade. Delete the original IBGU after Abort
+		// completes so leftover TALM ManifestWorks cannot re-apply Prep
+		// during WaitUntilHealthy.
 		It("Aborts an upgrade at IBU upgrade stage", reportxml.ID("69055"), func() {
-			By("Creating an upgrade IBGU", func() {
-				newIbguBuilder := ibgu.NewIbguBuilder(cnfinittools.TargetHubAPIClient,
-					tsparams.IbguName, tsparams.IbguNamespace).
-					WithClusterLabelSelectors(tsparams.ClusterLabelSelector).
-					WithOadpContent(cnfinittools.CNFConfig.IbguOadpCmName, cnfinittools.CNFConfig.IbguOadpCmNamespace).
-					WithSeedImageRef(cnfinittools.CNFConfig.IbguSeedImage, cnfinittools.CNFConfig.IbguSeedImageVersion).
-					WithPlan([]string{"Prep"}, 20, 20).
-					WithPlan([]string{"Upgrade"}, 20, 20).
-					WithPlan([]string{"FinalizeUpgrade"}, 20, 20)
+			By("Creating Prep+Upgrade IBGU")
 
-				_, err := newIbguBuilder.Create()
-				Expect(err).ToNot(HaveOccurred(), "Failed to create IBGU")
+			_, err := cnfhelper.NewIbgu(tsparams.IbguName).
+				WithPlan([]string{ibguv1alpha1.Prep}, 20, 20).
+				WithPlan([]string{ibguv1alpha1.Upgrade}, 20, 20).
+				Create()
+			Expect(err).ToNot(HaveOccurred(), "Failed to create IBGU")
 
-				// Wait for 10 seconds to avoid upgrade and finalize CGUs getting created simultaneously.
-				time.Sleep(10 * time.Second)
-			})
+			By("Waiting until spoke IBU Prep completes")
 
-			By("Aborting the upgrade phase once prep phase has finished", func() {
-				_, err = ibu.WaitUntilStageComplete("Prep")
-				Expect(err).NotTo(HaveOccurred(), "error waiting for prep stage to complete")
+			Expect(cnfhelper.WaitForSpokeIBU(cnfhelper.SpokePrepCompleted, 20*time.Minute)).To(Succeed(),
+				"Prep did not complete on the spoke IBU")
 
-				newIbguBuilder := ibgu.NewIbguBuilder(cnfinittools.TargetHubAPIClient,
-					tsparams.AbortIbguName, tsparams.IbguNamespace).
-					WithClusterLabelSelectors(tsparams.ClusterLabelSelector).
-					WithOadpContent(cnfinittools.CNFConfig.IbguOadpCmName, cnfinittools.CNFConfig.IbguOadpCmNamespace).
-					WithSeedImageRef(cnfinittools.CNFConfig.IbguSeedImage, cnfinittools.CNFConfig.IbguSeedImageVersion).
-					WithPlan([]string{"Abort"}, 20, 20)
+			By("Waiting until spoke IBU Upgrade starts (pre-pivot)")
 
-				abortIbguBuilder, err = newIbguBuilder.Create()
-				Expect(err).ToNot(HaveOccurred(), "Failed to create IBGU")
-			})
+			Expect(cnfhelper.WaitForSpokeIBU(cnfhelper.SpokeUpgradeInProgress, 10*time.Minute)).To(Succeed(),
+				"Upgrade did not start on the spoke IBU before pivot")
 
-			By("Waiting until the IBU and IBGU have completed without errors", func() {
-				_, err = ibu.WaitUntilStageComplete("Idle")
-				Expect(err).NotTo(HaveOccurred(), "error waiting for idle stage to complete")
+			By("Creating abort IBGU")
 
-				_, err = abortIbguBuilder.WaitUntilComplete(time.Minute * 10)
-				Expect(err).ToNot(HaveOccurred(), "error waiting for IBGU  complete")
-			})
+			abortIbgu, err := cnfhelper.NewIbgu(tsparams.AbortIbguName).
+				WithPlan([]string{ibguv1alpha1.Abort}, 20, 20).
+				Create()
+			Expect(err).ToNot(HaveOccurred(), "Failed to create abort IBGU")
+
+			By("Waiting until spoke IBU returns to Idle")
+
+			Expect(cnfhelper.WaitForSpokeIBU(cnfhelper.SpokeIdle, 10*time.Minute)).To(Succeed(),
+				"spoke IBU did not return to Idle after Abort")
+
+			By("Waiting until abort IBGU completes")
+
+			Expect(cnfhelper.WaitForIbgu(abortIbgu, cnfhelper.IbguCompleted, 10*time.Minute)).To(Succeed(),
+				"Abort IBGU did not complete")
+
+			By("Deleting original Prep+Upgrade IBGU")
+
+			Expect(cnfhelper.DeleteIbgus(tsparams.IbguName)).To(Succeed(),
+				"failed to delete original IBGU after Abort")
+
+			By("Waiting until the spoke is healthy after upgrade abort")
+
+			Expect(cnfhelper.WaitUntilHealthy(cnfhelper.DefaultHealthTimeout)).To(Succeed(),
+				"spoke cluster was not healthy after upgrade abort")
 		})
 	})
