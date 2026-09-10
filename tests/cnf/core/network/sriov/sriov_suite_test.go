@@ -63,5 +63,29 @@ var _ = JustAfterEach(func() {
 })
 
 var _ = ReportAfterSuite("", func(report Report) {
-	reportxml.Create(report, NetConfig.GetReportPath(), NetConfig.TCPrefix)
+	clusterTopology := "multi-node"
+
+	if isSNO, err := cluster.IsSNOCluster(APIClient); err != nil {
+		clusterTopology = "unknown"
+	} else if isSNO {
+		clusterTopology = "sno"
+	}
+
+	reportxml.Create(report, NetConfig.GetReportPath(), NetConfig.TCPrefix,
+		reportxml.WithSuiteProperties(map[string]string{
+			"sriov-interface-list":               NetConfig.SriovInterfaces,
+			"sriov-operator-namespace":           NetConfig.SriovOperatorNamespace,
+			"cnf-net-test-container":             NetConfig.CnfNetTestContainer,
+			"dpdk-test-container":                NetConfig.DpdkTestContainer,
+			"cnf-mcp-label":                      NetConfig.CnfMcpLabel,
+			"worker-label":                       NetConfig.WorkerLabelEnvVar,
+			"vlan":                               NetConfig.VLAN,
+			"native-vlan":                        NetConfig.NativeVLAN,
+			"cluster-vlan":                       NetConfig.ClusterVlan,
+			"switch-interfaces":                  NetConfig.SwitchInterfaces,
+			"switch-lags":                        NetConfig.SwitchLagNames,
+			"pf-status-relay-operator-namespace": NetConfig.PFStatusRelayOperatorNamespace,
+			"prometheus-operator-namespace":      NetConfig.PrometheusOperatorNamespace,
+			"cluster-topology":                   clusterTopology,
+		}))
 })

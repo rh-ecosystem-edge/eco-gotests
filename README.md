@@ -224,6 +224,25 @@ func Function(
 1. Add it to the import section of your test
 2. Run `go mod vendor`
 
+### Depending on an unmerged eco-goinfra change
+
+When an eco-gotests change needs an eco-goinfra change that is still open (not yet merged
+into eco-goinfra `main`), reference the eco-goinfra PR from your eco-gotests PR so CI builds
+against it:
+
+1. Add a `Depends-On:` line to your eco-gotests **PR description**, pointing at the eco-goinfra PR:
+   ```
+   Depends-On: https://github.com/rh-ecosystem-edge/eco-goinfra/pull/<number>
+   ```
+2. The `eco-goinfra integration` check detects this and vets eco-gotests against the referenced
+   eco-goinfra branch instead of `main`, so the check reflects the real build.
+3. Merge the eco-goinfra PR first, then update the vendored copy via the
+   "Update eco-goinfra modules" steps above so `main` matches. Only merge the eco-gotests PR
+   after that — otherwise `main` will not contain the eco-goinfra change and will fail to build.
+
+To bypass the integration check entirely (e.g. an unrelated, temporary failure), add the
+`ignore-dep-check` label to the eco-gotests PR. Use sparingly.
+
 ### Editing `.claude`
 
 When editing the repo's `.claude` directory, please be aware that this is a shared repo between multiple teams. Use `CLAUDE.local.md` and `.claude/settings.local.json` to store your local configuration so it does not affect others working in this repo.
