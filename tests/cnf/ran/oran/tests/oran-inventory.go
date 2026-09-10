@@ -442,6 +442,10 @@ var _ = Describe("ORAN Inventory API Tests", Label(tsparams.LabelPostProvision, 
 			_ = inventoryClient.DeleteInventorySubscription(subscriptionID)
 			_ = oran.NewResourcePoolBuilder(
 				HubAPIClient, tsparams.TestInventoryResourcePool, tsparams.O2IMSNamespace).Delete()
+
+			// ResourcePool deletion is asynchronous. Wait for both the Ready CR and the inventory API entry
+			// to disappear before the next spec starts.
+			waitForResourcePoolDeletion(inventoryClient, tsparams.TestInventoryResourcePool)
 		})
 
 		By("creating a temporary ResourcePool and waiting until Ready")
@@ -497,6 +501,11 @@ var _ = Describe("ORAN Inventory API Tests", Label(tsparams.LabelPostProvision, 
 					return false
 				}
 
+				if notification.ConsumerSubscriptionId == nil ||
+					*notification.ConsumerSubscriptionId != consumerSubscriptionID {
+					return false
+				}
+
 				return inventoryNotificationRefersToPool(notification, poolID)
 			}),
 		)
@@ -507,13 +516,8 @@ var _ = Describe("ORAN Inventory API Tests", Label(tsparams.LabelPostProvision, 
 	It("filters inventory Locations", reportxml.ID("89902"), func() {
 		By("creating two test Location CRs")
 
-		alpha := createTestLocation(tsparams.TestLocationAlpha, "Alpha Site")
-		beta := createTestLocation(tsparams.TestLocationBeta, "Beta Site")
-
-		DeferCleanup(func() {
-			_ = alpha.Delete()
-			_ = beta.Delete()
-		})
+		createTestLocation(inventoryClient, tsparams.TestLocationAlpha, "Alpha Site")
+		createTestLocation(inventoryClient, tsparams.TestLocationBeta, "Beta Site")
 
 		By("waiting for both test Locations to appear in the inventory API")
 		waitForLocationInAPI(inventoryClient, tsparams.TestLocationAlpha)
@@ -784,7 +788,7 @@ func collectExpectedResourceTypePairs() map[vendorModelPair]struct{} {
 	return pairs
 }
 
-func createTestLocation(name, address string) *oran.LocationBuilder {
+func createTestLocation(inventoryClient *oranapi.InventoryClient, name, address string) {
 	GinkgoHelper()
 
 	location := oran.NewLocationBuilder(HubAPIClient, name, tsparams.O2IMSNamespace).
@@ -794,10 +798,30 @@ func createTestLocation(name, address string) *oran.LocationBuilder {
 	created, err := location.Create()
 	Expect(err).ToNot(HaveOccurred(), "Failed to create Location %s", name)
 
-	created, err = created.WaitForCondition(tsparams.InventoryReadyCondition, 2*time.Minute)
-	Expect(err).ToNot(HaveOccurred(), "Failed to wait for Location %s to become Ready", name)
+	DeferCleanup(func() {
+		Expect(created.Delete()).To(Succeed(), "Failed to delete Location %s", name)
 
-	return created
+		// We wait for the Location to be deleted both from the Ready CRs and the inventory API. This ensures
+		// they cannot leak into other tests.
+		Eventually(func(gomega Gomega) {
+			readyLocations, err := oran.ListReadyLocations(HubAPIClient,
+				client.InNamespace(tsparams.O2IMSNamespace))
+			gomega.Expect(err).ToNot(HaveOccurred(), "Failed to list Ready Locations while waiting for %s deletion", name)
+			gomega.Expect(slices.IndexFunc(readyLocations, func(location *oran.LocationBuilder) bool {
+				return location.Definition.Name == name
+			})).To(Equal(-1), "Location %s still in Ready Location CR list", name)
+
+			apiLocations, err := inventoryClient.ListLocations()
+			gomega.Expect(err).ToNot(HaveOccurred(), "Failed to list Locations while waiting for %s deletion", name)
+			gomega.Expect(slices.IndexFunc(apiLocations, func(location oranapi.LocationInfo) bool {
+				return location.GlobalLocationId == name
+			})).To(Equal(-1), "Location %s still in inventory API", name)
+		}).WithTimeout(2*time.Minute).WithPolling(5*time.Second).
+			Should(Succeed(), "Timeout waiting for Location %s to be deleted", name)
+	})
+
+	_, err = created.WaitForCondition(tsparams.InventoryReadyCondition, 2*time.Minute)
+	Expect(err).ToNot(HaveOccurred(), "Failed to wait for Location %s to become Ready", name)
 }
 
 func waitForLocationInAPI(inventoryClient *oranapi.InventoryClient, name string) {
@@ -811,6 +835,30 @@ func waitForLocationInAPI(inventoryClient *oranapi.InventoryClient, name string)
 		})).ToNot(Equal(-1), "Location %s not yet in API", name)
 	}).WithTimeout(2*time.Minute).WithPolling(5*time.Second).
 		Should(Succeed(), "Timeout waiting for Location %s to appear in API", name)
+}
+
+func waitForResourcePoolDeletion(inventoryClient *oranapi.InventoryClient, name string) {
+	GinkgoHelper()
+
+	// Similar to the createTestLocation helper, we wait for the ResourcePool to be deleted both from the Ready CRs
+	// and the inventory API. This ensures they cannot leak into other tests.
+	Eventually(func(gomega Gomega) {
+		readyPools, err := oran.ListReadyResourcePools(HubAPIClient,
+			client.InNamespace(tsparams.O2IMSNamespace))
+		gomega.Expect(err).ToNot(HaveOccurred(),
+			"Failed to list Ready Resource Pools while waiting for %s deletion", name)
+		gomega.Expect(slices.IndexFunc(readyPools, func(pool *oran.ResourcePoolBuilder) bool {
+			return pool.Definition.Name == name
+		})).To(Equal(-1), "ResourcePool %s still in Ready ResourcePool CR list", name)
+
+		apiPools, err := inventoryClient.ListResourcePools()
+		gomega.Expect(err).ToNot(HaveOccurred(),
+			"Failed to list Resource Pools while waiting for %s deletion", name)
+		gomega.Expect(slices.IndexFunc(apiPools, func(pool oranapi.ResourcePool) bool {
+			return pool.Name == name
+		})).To(Equal(-1), "ResourcePool %s still in inventory API", name)
+	}).WithTimeout(2*time.Minute).WithPolling(5*time.Second).
+		Should(Succeed(), "Timeout waiting for ResourcePool %s to be deleted", name)
 }
 
 func inventoryNotificationRefersToPool(
