@@ -774,9 +774,12 @@ func collectExpectedResourceTypePairs() map[vendorModelPair]struct{} {
 
 	for _, host := range hosts {
 		hwDataBuilder, err := bmh.PullHardwareData(HubAPIClient, host.Definition.Name, host.Definition.Namespace)
-		if err != nil || hwDataBuilder.Definition == nil || hwDataBuilder.Definition.Spec.HardwareDetails == nil {
-			continue
-		}
+		Expect(err).ToNot(HaveOccurred(),
+			"Failed to pull hardware data for BMH %s while collecting expected resource type pairs", host.Definition.Name)
+		Expect(hwDataBuilder.Definition).ToNot(BeNil(),
+			"Hardware data builder for BMH %s should not be nil", host.Definition.Name)
+		Expect(hwDataBuilder.Definition.Spec.HardwareDetails).ToNot(BeNil(),
+			"Hardware details for BMH %s should not be nil", host.Definition.Name)
 
 		pair := vendorModelPair{
 			vendor: hwDataBuilder.Definition.Spec.HardwareDetails.SystemVendor.Manufacturer,
