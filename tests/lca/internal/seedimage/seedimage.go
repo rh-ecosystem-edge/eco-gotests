@@ -25,6 +25,8 @@ const (
 	seedImageLabel    = "com.openshift.lifecycle-agent.seed_cluster_info"
 	seedGeneratorName = "seedimage"
 	defaultTimeout    = 30 * time.Minute
+	// registryAuthFile is the pull secret written to nodes by the machine-config-operator.
+	registryAuthFile = "/var/lib/kubelet/config.json"
 )
 
 // GetContent returns the structured contents of a seed image as SeedImageContent.
@@ -68,7 +70,8 @@ func GetContent(apiClient *clients.Settings, seedImageLocation string) (*SeedIma
 		connectionString = "sudo"
 	}
 
-	skopeoInspectCmd := fmt.Sprintf("%s skopeo inspect docker://%s", connectionString, seedImageLocation)
+	skopeoInspectCmd := fmt.Sprintf("%s skopeo inspect --authfile %s docker://%s",
+		connectionString, registryAuthFile, seedImageLocation)
 
 	skopeoInspectJSONOutput, err := cluster.ExecCmdWithStdout(
 		apiClient, skopeoInspectCmd, metav1.ListOptions{
@@ -104,7 +107,7 @@ func GetContent(apiClient *clients.Settings, seedImageLocation string) (*SeedIma
 	var unmount func()
 
 	if seedInfo.HasProxy {
-		podmanPullCmd := fmt.Sprintf("%s podman pull", connectionString)
+		podmanPullCmd := fmt.Sprintf("%s podman pull --authfile %s", connectionString, registryAuthFile)
 
 		mountedFilePath, unmount, err = pullAndMountImage(apiClient, seedNode, podmanPullCmd, seedImageLocation)
 		if err != nil {
@@ -132,7 +135,7 @@ func GetContent(apiClient *clients.Settings, seedImageLocation string) (*SeedIma
 
 	if seedInfo.MirrorRegistryConfigured {
 		if mountedFilePath == "" {
-			podmanPullCmd := fmt.Sprintf("%s podman pull", connectionString)
+			podmanPullCmd := fmt.Sprintf("%s podman pull --authfile %s", connectionString, registryAuthFile)
 
 			mountedFilePath, unmount, err = pullAndMountImage(apiClient, seedNode, podmanPullCmd, seedImageLocation)
 			if err != nil {
@@ -333,7 +336,8 @@ func GenerateSeedImage(
 // Uses ExecCommandOnSNOWithRetries to handle temporary cluster unavailability
 // after seed generation completes.
 func verifySeedImageExists(apiClient *clients.Settings, seedImageLocation string) error {
-	skopeoInspectCmd := fmt.Sprintf("sudo skopeo inspect docker://%s", seedImageLocation)
+	skopeoInspectCmd := fmt.Sprintf("sudo skopeo inspect --authfile %s docker://%s",
+		registryAuthFile, seedImageLocation)
 
 	// Use retries to handle temporary cluster unavailability after seed generation
 	// 3 retries with 5 second intervals gives us ~15 seconds total retry time
