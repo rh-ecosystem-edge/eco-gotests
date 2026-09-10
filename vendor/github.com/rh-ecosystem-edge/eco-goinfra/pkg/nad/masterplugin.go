@@ -12,6 +12,12 @@ import (
 const (
 	cniVersion031 = "0.3.1"
 	cniTypeIpvlan = "ipvlan"
+
+	bondModeBalanceRR    = "balance-rr"
+	bondModeActiveBackup = "active-backup"
+	bondModeBalanceXOR   = "balance-xor"
+	bondModeBalanceTLB   = "balance-tlb"
+	bondModeBalanceALB   = "balance-alb"
 )
 
 var (
@@ -19,6 +25,14 @@ var (
 	allowedMacVlanMode       = []string{"bridge", "passthru", "private", "vepa"}
 	invalidIpamParameterMsg  = "invalid ipam parameter"
 	invalidXmitHashPolicyMsg = "error adding incorrect xmitHashPolicy value to MasterBondPlugin"
+	// validBondModes represents all allowed modes for bond plugin type.
+	validBondModes = map[string]bool{
+		bondModeBalanceRR:    true,
+		bondModeActiveBackup: true,
+		bondModeBalanceXOR:   true,
+		bondModeBalanceTLB:   true,
+		bondModeBalanceALB:   true,
+	}
 )
 
 // MasterMacVlanPlugin provides struct for NetworkAttachmentDefinition Master plugin with macvlan configuration.
@@ -429,14 +443,6 @@ type MasterBondPlugin struct {
 func NewMasterBondPlugin(name, mode string) *MasterBondPlugin {
 	klog.V(100).Infof("Initializing new NewMasterBondPlugin structure %s and %s", name, mode)
 
-	validModes := map[string]bool{
-		"balance-rr":    true,
-		"active-backup": true,
-		"balance-xor":   true,
-		"balance-tlb":   true,
-		"balance-alb":   true,
-	}
-
 	builder := &MasterBondPlugin{
 		masterPlugin: &MasterPlugin{
 			CniVersion: cniVersion031,
@@ -447,7 +453,7 @@ func NewMasterBondPlugin(name, mode string) *MasterBondPlugin {
 	}
 
 	// Check if the provided mode is valid
-	if !validModes[mode] {
+	if !validBondModes[mode] {
 		klog.V(100).Infof("error: invalid mode type %s used for MasterBondPlugin bond interface", mode)
 
 		builder.errorMsg = "Bond mode type is not valid"

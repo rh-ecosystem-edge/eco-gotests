@@ -27,3 +27,32 @@ func TuningMacPlugin(macCap bool) *Plugin {
 		Capabilities: &Capability{Mac: macCap},
 	}
 }
+
+// BondPluginOptions holds bond plugin fields for BondPlugin.
+type BondPluginOptions struct {
+	FailOverMac      int
+	LinksInContainer bool
+	Miimon           string
+}
+
+// BondPlugin returns bond plugin configuration.
+func BondPlugin(ipam *IPAM, bondPorts []string, bondMode string, opts BondPluginOptions) *Plugin {
+	if !validBondModes[bondMode] {
+		return nil
+	}
+
+	links := make([]Link, 0, len(bondPorts))
+	for _, port := range bondPorts {
+		links = append(links, Link{Name: port})
+	}
+
+	return &Plugin{
+		Type:             "bond",
+		Mode:             bondMode,
+		FailOverMac:      opts.FailOverMac,
+		LinksInContainer: opts.LinksInContainer,
+		Miimon:           opts.Miimon,
+		Ipam:             ipam,
+		Links:            links,
+	}
+}

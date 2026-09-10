@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/kelseyhightower/envconfig"
@@ -62,17 +63,35 @@ type (
 		CaseTag      string `default:"testcase-id" envconfig:"REPORT_CASE_TAG"`
 		ParameterTag string `default:"parameter" envconfig:"REPORT_PARAMETER_TAG"`
 	}
+
+	// Option configures optional behavior of Create. Options are supplied by the
+	// caller (e.g. eco-gotests), keeping ownership of what gets reported in the
+	// caller rather than in this shared writer.
+	Option func(*createOptions)
+
+	// createOptions accumulates the optional configuration applied by Options.
+	createOptions struct {
+		suiteProperties []Property
+	}
 )
 
 var config *settings
 
 // Create writes report to a given xml file.
-func Create(report ginkgo.Report, destFile, projectTag string) {
+//
+// Optional suite-level properties can be supplied via WithSuiteProperties; the
+// caller owns the allowlist of what to expose.
+func Create(report ginkgo.Report, destFile, projectTag string, opts ...Option) {
 	if destFile == "" {
 		return
 	}
 
-	testSuite := setTestSuite(report)
+	options := &createOptions{}
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	testSuite := setTestSuite(report, options.suiteProperties)
 
 	for _, testCaseSpecReport := range report.SpecReports {
 		if testCaseSpecReport.FullText() == "" {
@@ -106,6 +125,29 @@ func Create(report ginkgo.Report, destFile, projectTag string) {
 	}
 
 	generateReportXMLFile(destFile, testSuite)
+}
+
+// WithSuiteProperties adds caller-supplied name/value pairs as suite-level
+// <properties> in the JUnit report. The caller (e.g. eco-gotests) owns the
+// allowlist and sources the values from its own configuration. Pairs with an
+// empty name are skipped; the resulting properties are sorted by name for
+// deterministic output, so callers need not sort. Passing no properties (or not
+// using this option) leaves the suite properties empty, so existing consumers
+// see no behavior change.
+func WithSuiteProperties(properties map[string]string) Option {
+	return func(options *createOptions) {
+		for name, value := range properties {
+			if name == "" {
+				continue
+			}
+
+			options.suiteProperties = append(options.suiteProperties, Property{Name: name, Value: value})
+		}
+
+		sort.Slice(options.suiteProperties, func(i, j int) bool {
+			return options.suiteProperties[i].Name < options.suiteProperties[j].Name
+		})
+	}
 }
 
 // ID sets test id for a test case.
@@ -208,14 +250,15 @@ func setSkipMessage(testReport types.SpecReport) *Skipped {
 	return nil
 }
 
-func setTestSuite(report ginkgo.Report) *TestSuite {
+func setTestSuite(report ginkgo.Report, suiteProperties []Property) *TestSuite {
 	return &TestSuite{
-		XMLName:  xml.Name{Space: report.SuiteDescription},
-		Name:     report.SuiteDescription,
-		Tests:    0,
-		Time:     report.RunTime.Seconds(),
-		Skipped:  report.SpecReports.CountWithState(types.SpecStateSkipped),
-		Failures: report.SpecReports.CountWithState(types.SpecStateFailureStates),
+		XMLName:    xml.Name{Space: report.SuiteDescription},
+		Name:       report.SuiteDescription,
+		Tests:      0,
+		Time:       report.RunTime.Seconds(),
+		Skipped:    report.SpecReports.CountWithState(types.SpecStateSkipped),
+		Failures:   report.SpecReports.CountWithState(types.SpecStateFailureStates),
+		Properties: Properties{Property: suiteProperties},
 	}
 }
 
