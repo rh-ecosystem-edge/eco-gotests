@@ -15,12 +15,15 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/cni/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/cmd"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/define"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/ipaddr"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netstatus"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 	"gopkg.in/k8snetworkplumbingwg/multus-cni.v4/pkg/types"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,11 +52,9 @@ var (
 	errSysctlMacVlanDiscovery  error
 )
 
-// ensureSysctlMacVlanSetup discovers a worker node and macvlan-capable interface once per suite
-// run so api and e2e Describes do not each pay for a hostNetwork probe pod.
-// Discovery failures are stored and re-asserted outside Once so a failed first caller
-// (with ContinueOnFailure) does not turn a later Describe into Skip on empty results.
-func ensureSysctlMacVlanSetup() (string, []nodeInterface) {
+// discoverSysctlMacVlanSetup discovers a worker node and macvlan-capable interfaces once per
+// suite run. It never skips; callers that require macvlan must call requireSysctlMacVlanInterfaces.
+func discoverSysctlMacVlanSetup() (string, []nodeInterface) {
 	sysctlMacVlanDiscoveryOnce.Do(func() {
 		By("Collect node list based on worker label")
 
@@ -80,11 +81,28 @@ func ensureSysctlMacVlanSetup() (string, []nodeInterface) {
 
 	Expect(errSysctlMacVlanDiscovery).ToNot(HaveOccurred(), "sysctl macvlan discovery failed")
 
-	if len(sysctlMacVlanInterfaces) < 1 {
+	return sysctlWorkerNodeName, sysctlMacVlanInterfaces
+}
+
+// ensureSysctlMacVlanSetup is used by API tests that always require a macvlan parent interface.
+func ensureSysctlMacVlanSetup() (string, []nodeInterface) {
+	workerNodeName, macVlanInterfaces := discoverSysctlMacVlanSetup()
+
+	if len(macVlanInterfaces) < 1 {
 		Skip("cluster doesn't have secondary interfaces available for sysctl test")
 	}
 
-	return sysctlWorkerNodeName, sysctlMacVlanInterfaces
+	return workerNodeName, macVlanInterfaces
+}
+
+func requireSysctlMacVlanInterfaces() []nodeInterface {
+	_, macVlanInterfaces := discoverSysctlMacVlanSetup()
+
+	if len(macVlanInterfaces) < 1 {
+		Skip("cluster doesn't have secondary interfaces available for sysctl test")
+	}
+
+	return macVlanInterfaces
 }
 
 func getValidMacVlanInterfaces(nodeName string, requestNumber int) ([]nodeInterface, error) {
@@ -199,6 +217,167 @@ func createStaticIpamNad(nadName, macVlanInterfaceName string) {
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to create NAD %s", nadName))
 
 	assertSysctlNADConfig(nadName, macVlanInterfaceName, false, nil)
+}
+
+func createSysctlTuningSriovNetwork(networkName string, sysctlFlags map[string]string, withIPAM bool) {
+	By(fmt.Sprintf("Define and create SriovNetwork %s", networkName))
+
+	networkBuilder := sriov.NewNetworkBuilder(
+		APIClient, networkName, NetConfig.SriovOperatorNamespace,
+		tsparams.TestNamespaceName, tsparams.ResourceNameSysctl).
+		WithMacAddressSupport().
+		WithIPAddressSupport().
+		WithLogLevel(netparam.LogLevelDebug)
+
+	if withIPAM {
+		networkBuilder = networkBuilder.WithStaticIpam()
+	}
+
+	if len(sysctlFlags) > 0 {
+		tuningPlugin := nad.TuningSysctlPlugin(false, sysctlFlags)
+		metaPluginJSON, err := json.Marshal(tuningPlugin)
+		Expect(err).ToNot(HaveOccurred(), "Failed to marshal sysctl tuning meta plugin")
+
+		networkBuilder.Definition.Spec.MetaPluginsConfig = string(metaPluginJSON)
+	}
+
+	_, err := networkBuilder.Create()
+	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to create SriovNetwork %s", networkName))
+
+	err = sriovoperator.WaitForNADCreation(
+		APIClient, networkName, tsparams.TestNamespaceName, tsparams.DefaultTimeout)
+	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to wait for NAD %s", networkName))
+
+	assertSriovSysctlNADConfig(networkName, sysctlFlags)
+}
+
+func validateSysctlSriovInterfaces(workerNodeList []*nodes.Builder, requestedNumber int) error {
+	requestedSriovInterfaceList, err := NetConfig.GetSriovInterfaces(requestedNumber)
+	if err != nil {
+		return fmt.Errorf("failed to read requested SR-IOV interfaces from environment: %w", err)
+	}
+
+	for _, worker := range workerNodeList {
+		availableUpSriovInterfaces, err := sriov.NewNetworkNodeStateBuilder(
+			APIClient, worker.Definition.Name, NetConfig.SriovOperatorNamespace).GetUpNICs()
+		if err != nil {
+			return fmt.Errorf("failed to get SR-IOV devices from node %s: %w", worker.Definition.Name, err)
+		}
+
+		validCount := 0
+
+		for _, availableUpSriovInterface := range availableUpSriovInterfaces {
+			for _, requestedSriovInterface := range requestedSriovInterfaceList {
+				if availableUpSriovInterface.Name == requestedSriovInterface {
+					validCount++
+
+					break
+				}
+			}
+		}
+
+		if validCount < requestedNumber {
+			return fmt.Errorf("requested interfaces %v are not all present on node %s (found %d of %d)",
+				requestedSriovInterfaceList, worker.Definition.Name, validCount, requestedNumber)
+		}
+	}
+
+	return nil
+}
+
+func assertSriovSysctlNADConfig(nadName string, expectedSysctl map[string]string) {
+	By(fmt.Sprintf("Verifying SriovNetwork-backed NAD %s Spec.Config JSON fields", nadName))
+
+	pulled, err := nad.Pull(APIClient, nadName, tsparams.TestNamespaceName)
+	Expect(err).ToNot(HaveOccurred(), "Failed to pull NAD %s", nadName)
+	Expect(pulled.Definition.Spec.Config).NotTo(BeEmpty(), "NAD %s has empty Spec.Config", nadName)
+
+	var cfg map[string]interface{}
+	Expect(json.Unmarshal([]byte(pulled.Definition.Spec.Config), &cfg)).
+		To(Succeed(), "Failed to unmarshal NAD %s Spec.Config: %s",
+			nadName, pulled.Definition.Spec.Config)
+
+	assertSriovPluginType(nadName, cfg)
+
+	if len(expectedSysctl) == 0 {
+		return
+	}
+
+	Expect(assertTuningSysctlInPlugins(nadName, cfg, expectedSysctl)).To(BeTrue(),
+		"NAD %s missing tuning plugin", nadName)
+}
+
+func assertSriovPluginType(nadName string, cfg map[string]interface{}) {
+	if cfg["type"] == "sriov" {
+		return
+	}
+
+	plugins, ok := cfg["plugins"].([]interface{})
+	Expect(ok).To(BeTrue(), "NAD %s missing sriov plugin type", nadName)
+	Expect(plugins).ToNot(BeEmpty(), "NAD %s plugins list is empty", nadName)
+
+	plugin, ok := plugins[0].(map[string]interface{})
+	Expect(ok).To(BeTrue(), "NAD %s first plugin is not an object", nadName)
+	Expect(plugin["type"]).To(Equal("sriov"), "NAD %s first plugin type mismatch", nadName)
+}
+
+func assertTuningSysctlInPlugins(
+	nadName string, cfg map[string]interface{}, expectedSysctl map[string]string) bool {
+	plugins, ok := cfg["plugins"].([]interface{})
+	if !ok {
+		return false
+	}
+
+	for _, pluginEntry := range plugins {
+		plugin, ok := pluginEntry.(map[string]interface{})
+		if !ok || plugin["type"] != "tuning" {
+			continue
+		}
+
+		assertTuningSysctlFields(nadName, plugin, expectedSysctl)
+
+		return true
+	}
+
+	return false
+}
+
+func listSysctlPerTestSriovNetworkNames() ([]string, error) {
+	networks, err := sriov.List(APIClient, NetConfig.SriovOperatorNamespace)
+	if err != nil {
+		return nil, err
+	}
+
+	var names []string
+
+	for _, network := range networks {
+		if network.Object.Spec.NetworkNamespace == tsparams.TestNamespaceName {
+			names = append(names, network.Object.Name)
+		}
+	}
+
+	return names, nil
+}
+
+// cleanSysctlPerTestSriovNetworks removes SriovNetwork CRs whose NADs land in cni-tests.
+// SriovNetworkNodePolicies (e.g. sysctl-sriov-policy from BeforeAll) are intentionally not touched.
+func cleanSysctlPerTestSriovNetworks() {
+	By("Clean per-test SriovNetwork CRs targeting the test namespace")
+
+	networkNames, err := listSysctlPerTestSriovNetworkNames()
+	Expect(err).ToNot(HaveOccurred(), "Failed to list per-test SriovNetwork CRs")
+
+	err = sriov.CleanAllNetworksByTargetNamespace(
+		APIClient, NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName)
+	Expect(err).ToNot(HaveOccurred(),
+		"Failed to clean per-test SriovNetwork CRs from operator namespace")
+
+	for _, networkName := range networkNames {
+		err = sriovoperator.WaitForNADDeletion(
+			APIClient, networkName, tsparams.TestNamespaceName, tsparams.DefaultTimeout)
+		Expect(err).ToNot(HaveOccurred(),
+			fmt.Sprintf("Timed out waiting for operator NAD %s removal", networkName))
+	}
 }
 
 func createSysctlTuningNad(nadName string, sysctlConfig map[string]string, macVlanIf string) {
@@ -426,6 +605,29 @@ func assertSysctlConfiguredOnPodInterface(
 		To(Succeed(), "sysctl kernel params are not in expected state on interface %s", interfaceName)
 }
 
+func assertSysctlWriteRejectedOnPodInterface(
+	runningPod *pod.Builder, sysctlConfig map[string]string, interfaceName, writeValue string) {
+	Expect(sysctlConfig).To(HaveLen(1), "sysctl write rejection check expects a single-key map")
+
+	for key := range sysctlConfig {
+		sysctlKernelParam := strings.Replace(key, "IFNAME", interfaceName, 1)
+
+		output, err := runningPod.ExecCommand([]string{
+			"sysctl", "-w", fmt.Sprintf("%s=%s", sysctlKernelParam, writeValue),
+		})
+		Expect(err).To(HaveOccurred(),
+			"sysctl -w on %s should be rejected in container", sysctlKernelParam)
+
+		outputStr := output.String()
+		Expect(outputStr).To(Or(
+			ContainSubstring("Read-only file system"),
+			ContainSubstring("permission denied"),
+		), "sysctl -w on %s should be rejected, got: %q", sysctlKernelParam, outputStr)
+
+		return
+	}
+}
+
 func waitUntilEventListContainsSysctlFailedCreatePodSandBoxMessage(sysctlFlag string) {
 	expectedSysctlFailedMessage := fmt.Sprintf(
 		"Sysctl %s is not allowed. Only the following sysctls are allowed", sysctlFlag)
@@ -460,28 +662,206 @@ func assertTuningSysctlFields(nadName string, plugin map[string]interface{}, exp
 	}
 }
 
+func createSysctlBondNad(nadName string, slaveIfs []string, sysctlConfig map[string]string) {
+	bondPlugin := nad.BondPlugin(
+		nad.IPAMStatic(),
+		slaveIfs,
+		"active-backup",
+		nad.BondPluginOptions{
+			FailOverMac:      1,
+			LinksInContainer: true,
+			Miimon:           "100",
+		},
+	)
+	Expect(bondPlugin).ToNot(BeNil())
+
+	plugins := []nad.Plugin{*bondPlugin}
+
+	if len(sysctlConfig) > 0 {
+		plugins = append(plugins, *nad.TuningSysctlPlugin(false, sysctlConfig))
+	}
+
+	_, err := nad.NewBuilder(APIClient, nadName, tsparams.TestNamespaceName).
+		WithPlugins(nadName, &plugins).
+		Create()
+	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to create bond NAD %s", nadName))
+
+	assertBondSysctlNADConfig(nadName, slaveIfs, sysctlConfig)
+}
+
+// assertBondSysctlNADConfig pulls the NAD and unmarshals Spec.Config to verify bond plugin
+// fields and optional tuning sysctl plugin values.
+func assertBondSysctlNADConfig(nadName string, expectedSlaveIfs []string, expectedSysctl map[string]string) {
+	By(fmt.Sprintf("Verifying bond NAD %s Spec.Config JSON fields", nadName))
+
+	pulled, err := nad.Pull(APIClient, nadName, tsparams.TestNamespaceName)
+	Expect(err).ToNot(HaveOccurred(), "Failed to pull NAD %s", nadName)
+	Expect(pulled.Definition.Spec.Config).NotTo(BeEmpty(), "NAD %s has empty Spec.Config", nadName)
+
+	var cfg map[string]interface{}
+	Expect(json.Unmarshal([]byte(pulled.Definition.Spec.Config), &cfg)).
+		To(Succeed(), "Failed to unmarshal NAD %s Spec.Config: %s",
+			nadName, pulled.Definition.Spec.Config)
+
+	Expect(cfg).To(HaveKey("plugins"), "NAD %s missing plugins list", nadName)
+
+	plugins, ok := cfg["plugins"].([]interface{})
+	Expect(ok).To(BeTrue(), "NAD %s plugins is not a list", nadName)
+	Expect(plugins).ToNot(BeEmpty(), "NAD %s plugins list is empty", nadName)
+
+	var foundBond, foundTuning bool
+
+	for _, pluginEntry := range plugins {
+		plugin, ok := pluginEntry.(map[string]interface{})
+		Expect(ok).To(BeTrue(), "NAD %s plugin entry is not an object", nadName)
+
+		switch plugin["type"] {
+		case "bond":
+			foundBond = true
+
+			assertBondPluginFields(nadName, plugin, expectedSlaveIfs)
+		case "tuning":
+			foundTuning = true
+
+			assertTuningSysctlFields(nadName, plugin, expectedSysctl)
+		}
+	}
+
+	Expect(foundBond).To(BeTrue(), "NAD %s missing bond plugin", nadName)
+
+	if len(expectedSysctl) > 0 {
+		Expect(foundTuning).To(BeTrue(), "NAD %s missing tuning plugin", nadName)
+	} else {
+		Expect(foundTuning).To(BeFalse(), "NAD %s should not have tuning plugin", nadName)
+	}
+}
+
+func assertBondPluginFields(nadName string, plugin map[string]interface{}, expectedSlaveIfs []string) {
+	Expect(plugin["type"]).To(Equal("bond"), "NAD %s type mismatch", nadName)
+	Expect(plugin["mode"]).To(Equal("active-backup"), "NAD %s bond mode mismatch", nadName)
+	Expect(plugin["linksInContainer"]).To(BeTrue(), "NAD %s linksInContainer mismatch", nadName)
+	Expect(plugin["failOverMac"]).To(BeEquivalentTo(1), "NAD %s failOverMac mismatch", nadName)
+	Expect(plugin["miimon"]).To(Equal("100"), "NAD %s miimon mismatch", nadName)
+
+	linksRaw, hasLinks := plugin["links"].([]interface{})
+	Expect(hasLinks).To(BeTrue(), "NAD %s missing bond links list", nadName)
+	Expect(linksRaw).To(HaveLen(len(expectedSlaveIfs)), "NAD %s bond links count mismatch", nadName)
+
+	for i, linkEntry := range linksRaw {
+		link, isObject := linkEntry.(map[string]interface{})
+		Expect(isObject).To(BeTrue(), "NAD %s bond link entry is not an object", nadName)
+		Expect(link["name"]).To(Equal(expectedSlaveIfs[i]),
+			"NAD %s bond link %d name mismatch", nadName, i)
+	}
+
+	ipam, hasIPAM := plugin["ipam"].(map[string]interface{})
+	Expect(hasIPAM).To(BeTrue(), "NAD %s missing ipam object", nadName)
+	Expect(ipam["type"]).To(Equal("static"), "NAD %s ipam type mismatch", nadName)
+}
+
+func defineBondNetCfg(
+	netName string,
+	ipAddrs []string,
+	bondInterfaceName string,
+) []*types.NetworkSelectionElement {
+	netParam := pod.StaticIPAnnotation(netName, ipAddrs)
+	netParam[0].InterfaceRequest = bondInterfaceName
+
+	return append(
+		[]*types.NetworkSelectionElement{
+			pod.StaticAnnotation(tsparams.SysctlBondSlaveSriovNetworkName),
+			pod.StaticAnnotation(tsparams.SysctlBondSlaveSriovNetworkName),
+		},
+		netParam...,
+	)
+}
+
+func defineBondClientNetCfg(multipleIP bool) []*types.NetworkSelectionElement {
+	clientNetCfg := defineBondNetCfg(
+		tsparams.NetworkWithoutSysctlMutation,
+		[]string{tsparams.ClientIPv4CIDR},
+		tsparams.BondInterfaceName)
+
+	if multipleIP {
+		clientNetCfg = append(clientNetCfg, defineBondNetCfg(
+			tsparams.NetworkWithSysctlMutation,
+			[]string{tsparams.ClientSecondIPv4 + "/24"},
+			tsparams.BondInterfaceNameSecond)...)
+	}
+
+	return clientNetCfg
+}
+
+func defineBondServerNetCfg(multipleIP bool) []*types.NetworkSelectionElement {
+	serverIPs := []string{tsparams.ServerIPv4CIDR}
+	if multipleIP {
+		serverIPs = append(serverIPs, tsparams.SecondSysctlNetworkIPv4CIDR)
+	}
+
+	return defineBondNetCfg(tsparams.NetworkWithoutSysctlMutation, serverIPs, tsparams.BondInterfaceName)
+}
+
+func defineBondRedirectNetCfg(multipleIP bool) []*types.NetworkSelectionElement {
+	redirectIPs := []string{tsparams.RedirectIPv4CIDR}
+	if multipleIP {
+		redirectIPs = append(redirectIPs, tsparams.RedirectSecondIPv4+"/24")
+	}
+
+	return defineBondNetCfg(tsparams.NetworkWithoutSysctlMutation, redirectIPs, tsparams.BondInterfaceName)
+}
+
 func defineClientNetCfg(networkName string) []*types.NetworkSelectionElement {
 	return pod.StaticIPAnnotation(networkName, []string{tsparams.ClientIPv4CIDR})
+}
+
+func defineDualClientNetCfg() []*types.NetworkSelectionElement {
+	return append(
+		pod.StaticIPAnnotation(tsparams.NetworkWithoutSysctlMutation, []string{tsparams.ClientIPv4CIDR}),
+		pod.StaticIPAnnotation(tsparams.NetworkWithSysctlMutation, []string{tsparams.ClientSecondIPv4 + "/24"})...)
 }
 
 func defineServerNetCfg() []*types.NetworkSelectionElement {
 	return pod.StaticIPAnnotation(tsparams.NetworkWithoutSysctlMutation, []string{tsparams.ServerIPv4CIDR})
 }
 
+func defineDualServerNetCfg() []*types.NetworkSelectionElement {
+	return pod.StaticIPAnnotation(
+		tsparams.NetworkWithoutSysctlMutation,
+		[]string{tsparams.ServerIPv4CIDR, tsparams.SecondSysctlNetworkIPv4CIDR})
+}
+
 func defineRedirectNetCfg() []*types.NetworkSelectionElement {
 	return pod.StaticIPAnnotation(tsparams.NetworkWithoutSysctlMutation, []string{tsparams.RedirectIPv4CIDR})
 }
 
+func defineDualRedirectNetCfg() []*types.NetworkSelectionElement {
+	return pod.StaticIPAnnotation(
+		tsparams.NetworkWithoutSysctlMutation,
+		[]string{tsparams.RedirectIPv4CIDR, tsparams.RedirectSecondIPv4 + "/24"})
+}
+
 func createServerPod() {
-	createSysctlPod(sysctlServerPodName, defineServerNetCfg(), tsparams.SrvInitCMD, nil)
+	createServerPodWithInit(defineServerNetCfg(), tsparams.SrvInitCMD)
+}
+
+func createServerPodWithInit(podNetworks []*types.NetworkSelectionElement, initCmd string) {
+	createSysctlPod(sysctlServerPodName, podNetworks, initCmd, nil)
 }
 
 func createRedirectPod() {
-	createSysctlPod(sysctlRedirectPodName, defineRedirectNetCfg(), tsparams.RdrInitCMD, nil)
+	createRedirectPodWithInit(defineRedirectNetCfg(), tsparams.RdrInitCMD)
+}
+
+func createRedirectPodWithInit(podNetworks []*types.NetworkSelectionElement, initCmd string) {
+	createSysctlPod(sysctlRedirectPodName, podNetworks, initCmd, nil)
 }
 
 func createClientPod(clientNetCfg []*types.NetworkSelectionElement) *pod.Builder {
-	return createSysctlPod(sysctlClientPodName, clientNetCfg, tsparams.ClientInitCMD, []string{"NET_RAW"})
+	return createClientPodWithInit(clientNetCfg, tsparams.ClientInitCMD)
+}
+
+func createClientPodWithInit(clientNetCfg []*types.NetworkSelectionElement, initCmd string) *pod.Builder {
+	return createSysctlPod(sysctlClientPodName, clientNetCfg, initCmd, []string{"NET_RAW", "NET_ADMIN"})
 }
 
 func createSysctlPod(
@@ -576,18 +956,42 @@ func pingIPViaInterface(clientPod *pod.Builder, interfaceName, destIPAddr string
 	return err
 }
 
-func cleanSysctlTestNamespace() {
-	By("Clean pods, NADs, and events from the namespace")
+func cleanSysctlTestPods() {
+	By("Clean pods from the namespace")
+
+	cniNs, err := namespace.Pull(APIClient, tsparams.TestNamespaceName)
+	Expect(err).ToNot(HaveOccurred(), "Failed to pull test namespace")
+
+	err = cniNs.CleanObjects(tsparams.DefaultTimeout, pod.GetGVR())
+	Expect(err).ToNot(HaveOccurred(), "Failed to clean test pods")
+}
+
+func cleanSysctlTestNADsAndEvents() {
+	By("Clean NADs and events from the namespace")
 
 	cniNs, err := namespace.Pull(APIClient, tsparams.TestNamespaceName)
 	Expect(err).ToNot(HaveOccurred(), "Failed to pull test namespace")
 
 	err = cniNs.CleanObjects(
 		tsparams.DefaultTimeout,
-		pod.GetGVR(),
 		nad.GetGVR(),
 		corev1.SchemeGroupVersion.WithResource("events"))
-	Expect(err).ToNot(HaveOccurred(), "Failed to clean test namespace")
+	Expect(err).ToNot(HaveOccurred(), "Failed to clean test NADs and events")
+}
+
+func cleanSysctlTestNamespace() {
+	cleanSysctlTestPods()
+	cleanSysctlTestNADsAndEvents()
+}
+
+// cleanSysctlTestNamespaceForE2E resets per-test state in cni-tests between e2e specs.
+// Order matters: pods first (release VFs), then SriovNetwork CRs (drops operator NADs),
+// then bond/macvlan NADs and events. Suite-level sysctl-sriov-policy is created in BeforeAll
+// and removed only in AfterAll.
+func cleanSysctlTestNamespaceForE2E() {
+	cleanSysctlTestPods()
+	cleanSysctlPerTestSriovNetworks()
+	cleanSysctlTestNADsAndEvents()
 }
 
 func setHostIPForwarding(nodeName, interfaceName string, enabled bool) {

@@ -15,6 +15,19 @@ const (
 	MultusFirstInterfaceName = "net1"
 	// MultusSecondInterfaceName is the default name of the second secondary network interface.
 	MultusSecondInterfaceName = "net2"
+	// BondInterfaceName is the default bond master interface from the bond CNI plugin.
+	BondInterfaceName = "bond0"
+	// BondInterfaceNameSecond is the second bond master when a pod attaches two bond NADs.
+	BondInterfaceNameSecond = "bond1"
+	// ResourceNameSysctl is the resourceName in SysctlSriovPolicyName (openshift.io/sriovnicsysctl).
+	// Suite-scoped: created in e2e BeforeAll, not removed in BeforeEach.
+	ResourceNameSysctl = "sriovnicsysctl"
+	// SysctlSriovPolicyName is the SriovNetworkNodePolicy for sysctl e2e tests.
+	// Suite-scoped: created in e2e BeforeAll, not removed in BeforeEach.
+	SysctlSriovPolicyName = "sysctl-sriov-policy"
+	// SysctlBondSlaveSriovNetworkName is the per-test SriovNetwork for bond VF slaves (no IPAM).
+	// Uses ResourceNameSysctl; cleaned and recreated in BeforeEach like other per-test networks.
+	SysctlBondSlaveSriovNetworkName = "sysctl-bond-slave"
 	// ClientIPv4 is the sysctl client address on the secondary network.
 	ClientIPv4 = "10.100.100.210"
 	// ServerIPv4 is the sysctl server address on the secondary network.
@@ -27,6 +40,18 @@ const (
 	ServerIPv4CIDR = ServerIPv4 + "/24"
 	// RedirectIPv4CIDR is RedirectIPv4 with the secondary-network prefix.
 	RedirectIPv4CIDR = RedirectIPv4 + "/24"
+	// ClientSecondIPv4 is the sysctl client address on the second secondary network.
+	ClientSecondIPv4 = "10.100.200.210"
+	// RedirectSecondIPv4 is the redirect-pod address on the second secondary network.
+	RedirectSecondIPv4 = "10.100.200.1"
+	// SysctlPolicyNumVFs is the number of VFs configured by the sysctl SR-IOV policy.
+	SysctlPolicyNumVFs = 10
+	// SysctlPolicyVFStart is the first VF index in the sysctl SR-IOV policy range.
+	SysctlPolicyVFStart = 0
+	// SysctlPolicyVFEnd is the last VF index in the sysctl SR-IOV policy range.
+	SysctlPolicyVFEnd = SysctlPolicyNumVFs - 1
+	// SysctlPolicyMTU is the MTU configured on the sysctl SR-IOV policy.
+	SysctlPolicyMTU = 1500
 )
 
 var (
@@ -99,14 +124,26 @@ var (
 	}
 	// SrvLopIPAddr is the server loopback destination address used for ICMP redirect tests.
 	SrvLopIPAddr = "4.4.4.4"
+	// SrvLopSecondIPAddr is the second server loopback destination for dual-interface redirect tests.
+	SrvLopSecondIPAddr = "5.5.5.5"
 	// SrvInitCMD configures the server pod routing for redirect tests.
 	SrvInitCMD = fmt.Sprintf(
 		"ip addr add %s/32 dev lo && ip route add blackhole %s/32", SrvLopIPAddr, RedirectIPv4)
+	// SrvDualInitCMD configures the server pod routing for dual-interface redirect tests.
+	SrvDualInitCMD = fmt.Sprintf(
+		"%s && ip addr add %s/32 dev lo && ip route add blackhole %s/32",
+		SrvInitCMD, SrvLopSecondIPAddr, RedirectSecondIPv4)
 	// RdrInitCMD is the redirect-pod init script body for createSysctlPod's bash -c.
 	RdrInitCMD = fmt.Sprintf("echo 1 > /proc/sys/net/ipv4/ip_forward 2>/dev/null || true;"+
 		" ip route add %s/32 via %s", SrvLopIPAddr, ServerIPv4)
+	// RdrDualInitCMD configures the redirect pod routing for dual-interface redirect tests.
+	RdrDualInitCMD = fmt.Sprintf("%s && ip route add %s/32 via %s",
+		RdrInitCMD, SrvLopSecondIPAddr, SecondSysctlNetworkIPv4)
 	// ClientInitCMD is the client-pod init script body for createSysctlPod's bash -c.
 	ClientInitCMD = fmt.Sprintf("echo 1 > /proc/sys/net/ipv4/ip_forward 2>/dev/null || true;"+
 		" sysctl -w net.ipv4.conf.all.accept_redirects=1 && ip route add %s/32 via %s",
 		SrvLopIPAddr, RedirectIPv4)
+	// ClientDualInitCMD configures the client pod routing for dual-interface redirect tests.
+	ClientDualInitCMD = fmt.Sprintf("%s && ip route add %s/32 via %s",
+		ClientInitCMD, SrvLopSecondIPAddr, RedirectSecondIPv4)
 )
