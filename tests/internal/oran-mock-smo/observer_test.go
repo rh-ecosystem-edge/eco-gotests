@@ -43,6 +43,29 @@ func TestParseNotifications(t *testing.T) {
 	assert.Equal(t, "abc", notification.Extensions["tracker"])
 }
 
+func TestParseInventoryChangeNotifications(t *testing.T) {
+	t.Parallel()
+
+	logs := []byte(
+		`{"time":"2026-07-28T12:25:10.000000000Z","level":"INFO","msg":"Observer echo notification",` +
+			`"observerId":"sub-1","body":{"notificationEventType":0,"notificationId":` +
+			`"11111111-1111-1111-1111-111111111111","objectRef":"/resourcePools/abc",` +
+			`"postObjectState":{"name":"oran-test-inventory-pool"}}}` + "\n" +
+			`{"time":"2026-07-28T12:25:11.000000000Z","level":"INFO","msg":"Observer echo notification",` +
+			`"observerId":"sub-2","body":{"notificationEventType":2,"notificationId":` +
+			`"22222222-2222-2222-2222-222222222222","priorObjectState":{"name":"other"}}}` + "\n",
+	)
+
+	notifications, err := parseNotifications[oranapi.InventoryChangeNotification](logs, "sub-1")
+	require.NoError(t, err)
+	require.Len(t, notifications, 1)
+
+	notification := notifications[0]
+	assert.Equal(t, oranapi.InventoryChangeNotificationEventTypeCreate, notification.NotificationEventType)
+	require.NotNil(t, notification.ObjectRef)
+	assert.Equal(t, "/resourcePools/abc", *notification.ObjectRef)
+}
+
 func TestParseNotificationsFiltersByObserverID(t *testing.T) {
 	t.Parallel()
 

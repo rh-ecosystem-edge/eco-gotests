@@ -67,6 +67,26 @@ func NewClientBuilderForConfig(config *ranconfig.RANConfig) (*oranapi.ClientBuil
 	return clientBuilder, nil
 }
 
+// NewUnauthenticatedClientBuilderForConfig creates a ClientBuilder that can reach the O2IMS API over TLS/mTLS but does
+// not attach an Authorization header or OAuth token. Use this to verify that unauthenticated requests are rejected.
+func NewUnauthenticatedClientBuilderForConfig(config *ranconfig.RANConfig) (*oranapi.ClientBuilder, error) {
+	o2imsBaseURL := "https://" + config.GetAppsURL("o2ims")
+
+	if config.O2IMSOAuthClientID == "" || config.O2IMSOAuthClientSecret == "" {
+		return oranapi.NewClientBuilder(o2imsBaseURL).
+			WithTLSConfig(&tls.Config{MinVersion: tls.VersionTLS12, InsecureSkipVerify: true}), nil
+	}
+
+	tlsConfig, err := getTLSConfigFromCertificateSecret(
+		config.HubAPIClient, config.O2IMSClientCertSecret, config.O2IMSClientCertSecretNamespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get TLS config from certificate secret: %w", err)
+	}
+
+	return oranapi.NewClientBuilder(o2imsBaseURL).
+		WithHTTPClient(&http.Client{Transport: &http.Transport{TLSClientConfig: tlsConfig}}), nil
+}
+
 func getTLSConfigFromCertificateSecret(
 	hubClient *clients.Settings, certSecretName string, certSecretNamespace string) (*tls.Config, error) {
 	certSecret, err := secret.Pull(hubClient, certSecretName, certSecretNamespace)
