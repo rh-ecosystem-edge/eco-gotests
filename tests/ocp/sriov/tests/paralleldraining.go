@@ -307,7 +307,7 @@ func createSriovConfigurationParallelDrainOcp(sriovInterfaceName string) {
 		sriovAndResourceNameParallelDrain,
 		SriovOcpConfig.OcpSriovOperatorNamespace,
 		sriovAndResourceNameParallelDrain,
-		5,
+		SriovOcpConfig.VFNum,
 		[]string{sriovInterfaceName}, SriovOcpConfig.WorkerLabelMap)
 
 	err := sriovoperator.CreateSriovPolicyAndWaitUntilItsApplied(
