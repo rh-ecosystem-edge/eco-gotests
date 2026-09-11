@@ -47,8 +47,10 @@ var _ = Describe("ORAN Metal3 Day2 Tests", Label(tsparams.LabelMetal3Day2), Orde
 	It("fails when all matching hardware is already allocated", reportxml.ID("83883"), func() {
 		By("creating a second ProvisioningRequest when hardware is already allocated")
 
-		prBuilder2 := helper.NewSecondaryProvisioningRequest(o2imsAPIClient, tsparams.TemplateHardwareAllocated)
-		prBuilder2, err := prBuilder2.Create()
+		prBuilder2, err := helper.NewSecondaryProvisioningRequest(o2imsAPIClient, tsparams.TemplateHardwareAllocated)
+		Expect(err).ToNot(HaveOccurred(), "Failed to build second ProvisioningRequest when hardware is allocated")
+
+		prBuilder2, err = prBuilder2.Create()
 		Expect(err).ToNot(HaveOccurred(), "Failed to create second ProvisioningRequest when hardware is allocated")
 
 		DeferCleanup(func() {

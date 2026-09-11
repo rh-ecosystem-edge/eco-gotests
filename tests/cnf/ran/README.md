@@ -104,7 +104,7 @@ These inputs are all specific to the PTP test suites and are optional.
 #### Spoke inputs
 
 * `ECO_CNF_RAN_SPOKE1_NAME`: Name of the spoke 1 cluster. Automatically updated if Spoke1Kubeconfig exists, otherwise provided as input.
-* `ECO_CNF_RAN_SPOKE1_HOSTNAME`: Hostname for the spoke 1 cluster, used as input for the O-RAN suite.
+* `ECO_CNF_RAN_SPOKE1_HOSTNAME`: Hostname for the spoke 1 cluster, used as input for the O-RAN suite when a ClusterInstance file is not provided (SNO).
 * `ECO_CNF_RAN_SPOKE1_PASSWORD`: Path to the admin password for spoke 1, saved in the O-RAN suite.
 
 #### ACM inputs
@@ -136,6 +136,8 @@ These inputs are specific to the O-RAN test suite.
 * `ECO_CNF_RAN_O2IMS_OAUTH_CLIENT_SECRET`: Client secret for requesting an access token from the OAuth endpoint.
 * `ECO_CNF_RAN_O2IMS_TOKEN`: Token for authenticating with the O2IMS API (used when OAuth is not configured).
 * `ECO_CNF_RAN_CLUSTER_TEMPLATE_AFFIX`: Version-dependent affix for naming ClusterTemplates and O-RAN resources.
+* `ECO_CNF_RAN_CLUSTER_TEMPLATE_NAME`: Optional ClusterTemplate base name (without version). Defaults to `sno-ran-du`, or `mno-ran-du` when `ECO_CNF_RAN_CLUSTERINSTANCE_PATH` points to a multi-node ClusterInstance YAML.
+* `ECO_CNF_RAN_CLUSTERINSTANCE_PATH`: Optional path to a site-config `clusterinstance.yaml`. When set, ProvisioningRequest `nodes[].hostName` values are derived from `spec.nodes[].hostName` (used for MNO installs).
 * `ECO_CNF_RAN_MOCK_SMO_NAMESPACE`: Namespace where the mock SMO is deployed.
 * `ECO_CNF_RAN_MOCK_SMO_SUBDOMAIN`: Subdomain for the mock SMO route (the SMO registered in the inventory CR).
 
