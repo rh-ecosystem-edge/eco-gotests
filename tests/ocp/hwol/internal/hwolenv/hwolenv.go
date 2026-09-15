@@ -609,7 +609,7 @@ func CleanupHwolResources(operatorNS, mcpName, pfName string, timeout, stableDur
 		}
 	}
 
-	if err := deleteHwolSriovNetwork(operatorNS); err != nil {
+	if err := deleteHwolSriovNetwork(operatorNS, timeout); err != nil {
 		return err
 	}
 
@@ -636,7 +636,7 @@ func CleanupHwolResources(operatorNS, mcpName, pfName string, timeout, stableDur
 	return verifyHwolCleanup(operatorNS, mcpName, pfName)
 }
 
-func deleteHwolSriovNetwork(operatorNS string) error {
+func deleteHwolSriovNetwork(operatorNS string, timeout time.Duration) error {
 	network, err := sriov.PullNetwork(APIClient, tsparams.SriovNetworkName, operatorNS)
 	if err != nil {
 		if k8serrors.IsNotFound(err) || strings.Contains(err.Error(), "does not exist") {
@@ -646,7 +646,7 @@ func deleteHwolSriovNetwork(operatorNS string) error {
 		return fmt.Errorf("failed to pull HWOL SriovNetwork %s: %w", tsparams.SriovNetworkName, err)
 	}
 
-	if err := network.Delete(); err != nil {
+	if err := network.DeleteAndWait(timeout); err != nil {
 		return fmt.Errorf("failed to delete HWOL SriovNetwork %s: %w", tsparams.SriovNetworkName, err)
 	}
 
@@ -671,6 +671,10 @@ func deleteHwolPolicy(operatorNS string) error {
 }
 
 func verifyHwolCleanup(operatorNS, mcpName, pfName string) error {
+	if err := verifyHwolSriovNetworkDeleted(operatorNS); err != nil {
+		return err
+	}
+
 	if _, err := sriov.PullPolicy(APIClient, tsparams.PolicyName, operatorNS); err == nil {
 		return fmt.Errorf("HWOL SriovNetworkNodePolicy %s still exists after cleanup", tsparams.PolicyName)
 	} else if !k8serrors.IsNotFound(err) && !strings.Contains(err.Error(), "does not exist") {
@@ -726,6 +730,18 @@ func verifyHwolCleanup(operatorNS, mcpName, pfName string) error {
 				}
 			}
 		}
+	}
+
+	return nil
+}
+
+func verifyHwolSriovNetworkDeleted(operatorNS string) error {
+	if _, err := sriov.PullNetwork(APIClient, tsparams.SriovNetworkName, operatorNS); err == nil {
+		return fmt.Errorf("HWOL SriovNetwork %s still exists after cleanup", tsparams.SriovNetworkName)
+	} else if !k8serrors.IsNotFound(err) && !strings.Contains(err.Error(), "does not exist") {
+		return fmt.Errorf(
+			"failed to verify deletion of HWOL SriovNetwork %s: %w",
+			tsparams.SriovNetworkName, err)
 	}
 
 	return nil
