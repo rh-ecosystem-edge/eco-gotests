@@ -48,7 +48,7 @@ var _ = Describe("Mellanox Secure Boot", Ordered, Label(tsparams.LabelMlxSecureB
 			// Restricting to the first worker node for further operations
 			workerNodeList = workerNodeList[:1]
 
-			Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 1)).ToNot(HaveOccurred(),
+			Expect(netenv.ValidateSriovInterfaces(APIClient, NetConfig, workerNodeList, 1)).ToNot(HaveOccurred(),
 				"Failed to get required SR-IOV interfaces")
 
 			sriovInterfacesUnderTest, err = NetConfig.GetSriovInterfaces(1)
@@ -173,7 +173,7 @@ var _ = Describe("Mellanox Secure Boot", Ordered, Label(tsparams.LabelMlxSecureB
 				APIClient, sriovAndResourceNameSecureBoot, NetConfig.SriovOperatorNamespace,
 				tsparams.TestNamespaceName, sriovAndResourceNameSecureBoot).WithStaticIpam().
 				WithIPAddressSupport().WithLogLevel(netparam.LogLevelDebug)
-			err = sriovenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetworkMlxSecureBoot, tsparams.NADWaitTimeout)
+			err = netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, sriovNetworkMlxSecureBoot, tsparams.NADWaitTimeout)
 			Expect(err).ToNot(HaveOccurred(),
 				"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
 				sriovAndResourceNameSecureBoot, err)

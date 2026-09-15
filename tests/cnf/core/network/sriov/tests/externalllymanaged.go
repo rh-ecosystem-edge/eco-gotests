@@ -63,7 +63,7 @@ var _ = Describe("ExternallyManaged", Ordered, Label(tsparams.LabelExternallyMan
 					metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
 				Expect(err).ToNot(HaveOccurred(), "Failed to discover worker nodes")
 
-				Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 1)).ToNot(HaveOccurred(),
+				Expect(netenv.ValidateSriovInterfaces(APIClient, NetConfig, workerNodeList, 1)).ToNot(HaveOccurred(),
 					"Failed to get required SR-IOV interfaces")
 
 				sriovInterfacesUnderTest, err = NetConfig.GetSriovInterfaces(1)
@@ -173,7 +173,7 @@ var _ = Describe("ExternallyManaged", Ordered, Label(tsparams.LabelExternallyMan
 					}
 
 					By("Validating SR-IOV interfaces on 2 workers")
-					Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 2)).ToNot(HaveOccurred(),
+					Expect(netenv.ValidateSriovInterfaces(APIClient, NetConfig, workerNodeList, 2)).ToNot(HaveOccurred(),
 						"Failed to get required SR-IOV interfaces on 2 workers")
 
 					_, err = NetConfig.GetSriovInterfaces(2)
@@ -503,7 +503,7 @@ var _ = Describe("ExternallyManaged", Ordered, Label(tsparams.LabelExternallyMan
 					tsparams.TestNamespaceName, sriovAndResourceNameExManagedTrue).
 					WithStaticIpam().WithMacAddressSupport().WithIPAddressSupport().WithVLAN(uint16(testVlan)).
 					WithLogLevel(netparam.LogLevelDebug)
-				err = sriovenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetworkBuilder, tsparams.NADWaitTimeout)
+				err = netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, sriovNetworkBuilder, tsparams.NADWaitTimeout)
 				Expect(err).ToNot(HaveOccurred(),
 					"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
 					sriovAndResourceNameExManagedTrue, err)
@@ -539,7 +539,7 @@ func createSriovConfiguration(sriovAndResName, sriovInterfaceName string, extern
 	sriovNetworkBuilder := sriov.NewNetworkBuilder(APIClient, sriovAndResName, NetConfig.SriovOperatorNamespace,
 		tsparams.TestNamespaceName, sriovAndResName).WithStaticIpam().WithMacAddressSupport().WithIPAddressSupport().
 		WithLogLevel(netparam.LogLevelDebug)
-	err = sriovenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetworkBuilder, tsparams.NADWaitTimeout)
+	err = netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, sriovNetworkBuilder, tsparams.NADWaitTimeout)
 	Expect(err).ToNot(HaveOccurred(),
 		"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
 		sriovAndResName, err)

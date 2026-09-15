@@ -6,13 +6,12 @@ import (
 	"strings"
 	"time"
 
-	nadV1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/cmd"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/ipaddr"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netstatus"
@@ -21,12 +20,10 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 	"gopkg.in/k8snetworkplumbingwg/multus-cni.v4/pkg/types"
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
-	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // ActivateSCTPModuleOnWorkerNodes loads the SCTP kernel module on worker nodes when possible.
@@ -37,43 +34,6 @@ func ActivateSCTPModuleOnWorkerNodes() {
 
 	_, _ = cluster.ExecCmdWithStdout(APIClient, "modprobe sctp",
 		metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
-}
-
-// ValidateSriovInterfaces checks that the requested interfaces (from env) exist on every worker
-// in workerNodeList. This ensures "Different Node" and other multi-worker tests do not fail
-// later when scheduling on a worker that does not expose the requested PF names.
-func ValidateSriovInterfaces(workerNodeList []*nodes.Builder, requestedNumber int) error {
-	requestedSriovInterfaceList, err := NetConfig.GetSriovInterfaces(requestedNumber)
-	if err != nil {
-		return err
-	}
-
-	for _, worker := range workerNodeList {
-		availableUpSriovInterfaces, err := sriov.NewNetworkNodeStateBuilder(APIClient,
-			worker.Definition.Name, NetConfig.SriovOperatorNamespace).GetUpNICs()
-		if err != nil {
-			return fmt.Errorf("failed to get SR-IOV devices from node %s: %w", worker.Definition.Name, err)
-		}
-
-		var validCount int
-
-		for _, availableUpSriovInterface := range availableUpSriovInterfaces {
-			for _, requestedSriovInterface := range requestedSriovInterfaceList {
-				if availableUpSriovInterface.Name == requestedSriovInterface {
-					validCount++
-
-					break
-				}
-			}
-		}
-
-		if validCount < requestedNumber {
-			return fmt.Errorf("requested interfaces %v are not all present on node %s (found %d of %d)",
-				requestedSriovInterfaceList, worker.Definition.Name, validCount, requestedNumber)
-		}
-	}
-
-	return nil
 }
 
 // GetMinTotalVFsAcrossWorkers returns the minimum total VFs for pfName across all workers.
@@ -101,59 +61,6 @@ func GetMinTotalVFsAcrossWorkers(workerNodeList []*nodes.Builder, pfName string)
 	return minTotal, nil
 }
 
-// CreateSriovNetworkAndWaitForNADCreation creates a SriovNetwork and waits for NAD Creation on the test namespace.
-func CreateSriovNetworkAndWaitForNADCreation(sNet *sriov.NetworkBuilder, timeout time.Duration) error {
-	klog.V(90).Infof("Creating SriovNetwork %s and waiting for net-attach-def to be created", sNet.Definition.Name)
-
-	sriovNetwork, err := sNet.Create()
-	if err != nil {
-		return err
-	}
-
-	return WaitForNADCreation(sriovNetwork.Object.Name, TargetNamespaceOf(sriovNetwork), timeout)
-}
-
-// WaitForNADCreation waits for the NAD to be created.
-func WaitForNADCreation(name, namespace string, timeout time.Duration) error {
-	return wait.PollUntilContextTimeout(context.TODO(),
-		time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			_, err := nad.Pull(APIClient, name, namespace)
-			if err != nil {
-				klog.V(100).Infof("Failed to get NAD %s in namespace %s: %v",
-					name, namespace, err)
-
-				return false, nil
-			}
-
-			return true, nil
-		})
-}
-
-// WaitForNADDeletion waits for the NAD to be deleted.
-func WaitForNADDeletion(name, namespace string, timeout time.Duration) error {
-	return wait.PollUntilContextTimeout(context.TODO(),
-		time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			var testNAD nadV1.NetworkAttachmentDefinition
-
-			err := APIClient.Client.Get(context.TODO(), k8sclient.ObjectKey{Name: name, Namespace: namespace}, &testNAD)
-			if k8serrors.IsNotFound(err) {
-				return true, nil
-			}
-
-			return false, nil
-		})
-}
-
-// TargetNamespaceOf returns the target namespace of a SriovNetwork.
-// If the target namespace is not set, it returns the namespace of the SriovNetwork.
-func TargetNamespaceOf(sriovNetwork *sriov.NetworkBuilder) string {
-	if sriovNetwork.Object.Spec.NetworkNamespace != "" {
-		return sriovNetwork.Object.Spec.NetworkNamespace
-	}
-
-	return sriovNetwork.Object.Namespace
-}
-
 // DefineAndCreateSriovNetwork creates an enhanced SriovNetwork with optional features and waits for NAD creation.
 func DefineAndCreateSriovNetwork(networkName, resourceName string, withStaticIP, withTrust bool) error {
 	networkBuilder := sriov.NewNetworkBuilder(
@@ -171,7 +78,7 @@ func DefineAndCreateSriovNetwork(networkName, resourceName string, withStaticIP,
 		networkBuilder = networkBuilder.WithStaticIpam()
 	}
 
-	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.NADWaitTimeout)
+	return netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, networkBuilder, tsparams.NADWaitTimeout)
 }
 
 // DiscoverInterfaceUnderTestDeviceID discovers device ID for a given SR-IOV interface.
@@ -328,7 +235,7 @@ func CreateSriovNetworkWithStaticIPAM(name, resourceName string) error {
 		WithMacAddressSupport().
 		WithLogLevel(netparam.LogLevelDebug)
 
-	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.NADWaitTimeout)
+	return netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, networkBuilder, tsparams.NADWaitTimeout)
 }
 
 // whereaboutsDualStackIPAMJSON builds Whereabouts IPAM using ipRanges (per upstream Whereabouts README):
@@ -389,7 +296,7 @@ func CreateSriovNetworkWithWhereaboutsIPAM(
 		networkBuilder = networkBuilder.WithWhereaboutsIPAM(ipRange, gateway, "", networkName)
 	}
 
-	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.NADWaitTimeout)
+	return netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, networkBuilder, tsparams.NADWaitTimeout)
 }
 
 // applyBondSlaveVFSettings sets bond slave VF params (cnf-gotests defineSriovBondNetwork).
@@ -422,7 +329,7 @@ func CreateSriovBondNetwork(name, resourceName string) error {
 		return fmt.Errorf("create or update bond slave SriovNetwork %s: %w", name, err)
 	}
 
-	return WaitForNADCreation(name, tsparams.TestNamespaceName, tsparams.NADWaitTimeout)
+	return netenv.WaitForNADCreation(APIClient, name, tsparams.TestNamespaceName, tsparams.NADWaitTimeout)
 }
 
 // CreateSriovNetworkWithVLANAndWhereabouts creates an SR-IOV network with Whereabouts IPAM and VLAN tagging.
@@ -448,7 +355,7 @@ func CreateSriovNetworkWithVLANAndWhereabouts(
 		networkBuilder = networkBuilder.WithWhereaboutsIPAM(ipRange, gateway, "", "")
 	}
 
-	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.NADWaitTimeout)
+	return netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, networkBuilder, tsparams.NADWaitTimeout)
 }
 
 // GetPodIPFromInterface retrieves an IP address of a specific interface from a pod's network-status annotation.

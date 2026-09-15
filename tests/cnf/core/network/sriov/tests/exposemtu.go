@@ -36,7 +36,7 @@ var _ = Describe("SRIOV: Expose MTU:", Ordered, Label(tsparams.LabelExposeMTUTes
 			workerNodeList, err = nodes.List(APIClient,
 				metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
 			Expect(err).ToNot(HaveOccurred(), "Failed to discover worker nodes")
-			Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 1)).ToNot(HaveOccurred(),
+			Expect(netenv.ValidateSriovInterfaces(APIClient, NetConfig, workerNodeList, 1)).ToNot(HaveOccurred(),
 				"Failed to get required SR-IOV interfaces")
 
 			sriovInterfacesUnderTest, err = NetConfig.GetSriovInterfaces(1)
@@ -126,7 +126,7 @@ var _ = Describe("SRIOV: Expose MTU:", Ordered, Label(tsparams.LabelExposeMTUTes
 				NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName, sriovAndResourceName5000).
 				WithStaticIpam().WithMacAddressSupport().
 				WithIPAddressSupport().WithLogLevel(netparam.LogLevelDebug)
-			err = sriovenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetworkBuilder5000, tsparams.NADWaitTimeout)
+			err = netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, sriovNetworkBuilder5000, tsparams.NADWaitTimeout)
 			Expect(err).ToNot(HaveOccurred(),
 				"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
 				sriovAndResourceName5000, err)
@@ -135,7 +135,7 @@ var _ = Describe("SRIOV: Expose MTU:", Ordered, Label(tsparams.LabelExposeMTUTes
 				NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName, sriovAndResourceName9000).
 				WithStaticIpam().WithMacAddressSupport().
 				WithIPAddressSupport().WithLogLevel(netparam.LogLevelDebug)
-			err = sriovenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetworkBuilder9000, tsparams.NADWaitTimeout)
+			err = netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, sriovNetworkBuilder9000, tsparams.NADWaitTimeout)
 			Expect(err).ToNot(HaveOccurred(),
 				"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
 				sriovAndResourceName9000, err)
@@ -202,7 +202,7 @@ func testExposeMTU(mtu int, interfacesUnderTest []string, devType, workerName st
 	sriovNetworkBuilder := sriov.NewNetworkBuilder(APIClient, sriovAndResourceNameExposeMTU,
 		NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName, sriovAndResourceNameExposeMTU).
 		WithStaticIpam().WithMacAddressSupport().WithIPAddressSupport().WithLogLevel(netparam.LogLevelDebug)
-	err = sriovenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetworkBuilder, tsparams.NADWaitTimeout)
+	err = netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, sriovNetworkBuilder, tsparams.NADWaitTimeout)
 	Expect(err).ToNot(HaveOccurred(),
 		"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
 		sriovAndResourceNameExposeMTU, err)

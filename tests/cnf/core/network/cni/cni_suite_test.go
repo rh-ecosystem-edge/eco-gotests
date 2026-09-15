@@ -11,6 +11,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/cni/internal/tsparams"
 	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/cni/tests/sysctl"
 	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/cni/tests/tap"
+	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/cni/tests/vrf"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/params"

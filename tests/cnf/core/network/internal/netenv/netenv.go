@@ -10,12 +10,14 @@ import (
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netconfig"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -286,6 +288,118 @@ func WaitUntilVfsCreated(
 	}
 
 	return nil
+}
+
+// ValidateSriovInterfaces checks that the requested interfaces (from env) exist on every worker
+// in workerNodeList. This ensures "Different Node" and other multi-worker tests do not fail
+// later when scheduling on a worker that does not expose the requested PF names.
+func ValidateSriovInterfaces(
+	apiClient *clients.Settings,
+	netConfig *netconfig.NetworkConfig,
+	workerNodeList []*nodes.Builder,
+	requestedNumber int,
+) error {
+	requestedSriovInterfaceList, err := netConfig.GetSriovInterfaces(requestedNumber)
+	if err != nil {
+		return err
+	}
+
+	requestedSriovInterfaceList = requestedSriovInterfaceList[:requestedNumber]
+
+	requestedSet := make(map[string]struct{}, len(requestedSriovInterfaceList))
+	for _, name := range requestedSriovInterfaceList {
+		requestedSet[name] = struct{}{}
+	}
+
+	for _, worker := range workerNodeList {
+		availableUpSriovInterfaces, err := sriov.NewNetworkNodeStateBuilder(apiClient,
+			worker.Definition.Name, netConfig.SriovOperatorNamespace).GetUpNICs()
+		if err != nil {
+			return fmt.Errorf("failed to get SR-IOV devices from node %s: %w", worker.Definition.Name, err)
+		}
+
+		found := make(map[string]struct{})
+
+		for _, nic := range availableUpSriovInterfaces {
+			if _, ok := requestedSet[nic.Name]; ok {
+				found[nic.Name] = struct{}{}
+			}
+		}
+
+		if len(found) < requestedNumber {
+			return fmt.Errorf("requested interfaces %v are not all present on node %s (found %d of %d)",
+				requestedSriovInterfaceList, worker.Definition.Name, len(found), requestedNumber)
+		}
+	}
+
+	return nil
+}
+
+// CreateSriovNetworkAndWaitForNADCreation creates a SriovNetwork and waits for NAD creation on the test namespace.
+func CreateSriovNetworkAndWaitForNADCreation(
+	apiClient *clients.Settings,
+	sNet *sriov.NetworkBuilder,
+	timeout time.Duration,
+) error {
+	klog.V(90).Infof("Creating SriovNetwork %s and waiting for net-attach-def to be created", sNet.Definition.Name)
+
+	sriovNetwork, err := sNet.Create()
+	if err != nil {
+		return err
+	}
+
+	return WaitForNADCreation(apiClient, sriovNetwork.Object.Name, TargetNamespaceOf(sriovNetwork), timeout)
+}
+
+// WaitForNADCreation waits for the NAD to be created.
+func WaitForNADCreation(
+	apiClient *clients.Settings,
+	name, namespace string,
+	timeout time.Duration,
+) error {
+	return wait.PollUntilContextTimeout(context.TODO(),
+		time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			_, err := nad.Pull(apiClient, name, namespace)
+			if err != nil {
+				klog.V(100).Infof("Failed to get NAD %s in namespace %s: %v",
+					name, namespace, err)
+
+				return false, nil
+			}
+
+			return true, nil
+		})
+}
+
+// WaitForNADDeletion waits for the NAD to be deleted.
+func WaitForNADDeletion(
+	apiClient *clients.Settings,
+	name, namespace string,
+	timeout time.Duration,
+) error {
+	return wait.PollUntilContextTimeout(context.TODO(),
+		time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			_, err := nad.Pull(apiClient, name, namespace)
+			if err == nil {
+				return false, nil
+			}
+
+			if k8serrors.IsNotFound(err) || strings.Contains(err.Error(), "does not exist") {
+				return true, nil
+			}
+
+			return false, nil
+		})
+}
+
+// TargetNamespaceOf returns the target namespace of a SriovNetwork.
+// If the target namespace is not set, it returns the namespace of the SriovNetwork.
+func TargetNamespaceOf(sriovNetwork *sriov.NetworkBuilder) string {
+	if sriovNetwork.Object.Spec.NetworkNamespace != "" {
+		return sriovNetwork.Object.Spec.NetworkNamespace
+	}
+
+	return sriovNetwork.Object.Namespace
 }
 
 // IsMellanoxDevice checks if a given network interface on a node is a Mellanox device.

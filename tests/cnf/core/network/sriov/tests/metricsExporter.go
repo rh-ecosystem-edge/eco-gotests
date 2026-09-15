@@ -68,7 +68,7 @@ var _ = Describe(
 				metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
 			Expect(err).ToNot(HaveOccurred(), "Failed to discover worker nodes")
 
-			Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 1)).ToNot(HaveOccurred(),
+			Expect(netenv.ValidateSriovInterfaces(APIClient, NetConfig, workerNodeList, 1)).ToNot(HaveOccurred(),
 				"Failed to get required SR-IOV interfaces")
 
 			sriovInterfacesUnderTest, err = NetConfig.GetSriovInterfaces(1)
@@ -142,7 +142,7 @@ var _ = Describe(
 			})
 			It("Different PF", reportxml.ID("75929"), func() {
 				By("Verifying we have 2 SR-IOV interfaces available")
-				Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 1)).ToNot(HaveOccurred(),
+				Expect(netenv.ValidateSriovInterfaces(APIClient, NetConfig, workerNodeList, 1)).ToNot(HaveOccurred(),
 					"Failed to get required SR-IOV interfaces")
 
 				interfaces, err := NetConfig.GetSriovInterfaces(2)
@@ -159,7 +159,7 @@ var _ = Describe(
 				}
 
 				By("Validating SR-IOV interfaces on 2 workers")
-				Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 2)).ToNot(HaveOccurred(),
+				Expect(netenv.ValidateSriovInterfaces(APIClient, NetConfig, workerNodeList, 2)).ToNot(HaveOccurred(),
 					"Failed to get required SR-IOV interfaces on 2 workers")
 				runNettoNetTests(sriovInterfacesUnderTest[0], sriovInterfacesUnderTest[0],
 					workerNodeList[0].Object.Name, workerNodeList[1].Object.Name, sriovVendorID)
@@ -191,7 +191,7 @@ var _ = Describe(
 			})
 			It("Different PF", reportxml.ID("75931"), func() {
 				By("Verifying we have 2 SR-IOV interfaces available")
-				Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 1)).ToNot(HaveOccurred(),
+				Expect(netenv.ValidateSriovInterfaces(APIClient, NetConfig, workerNodeList, 1)).ToNot(HaveOccurred(),
 					"Failed to get required SR-IOV interfaces")
 
 				interfaces, err := NetConfig.GetSriovInterfaces(2)
@@ -208,7 +208,7 @@ var _ = Describe(
 				}
 
 				By("Validating SR-IOV interfaces on 2 workers")
-				Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 2)).ToNot(HaveOccurred(),
+				Expect(netenv.ValidateSriovInterfaces(APIClient, NetConfig, workerNodeList, 2)).ToNot(HaveOccurred(),
 					"Failed to get required SR-IOV interfaces on 2 workers")
 				runNettoVfioTests(sriovInterfacesUnderTest[0], sriovInterfacesUnderTest[0],
 					workerNodeList[0].Object.Name, workerNodeList[1].Object.Name, sriovVendorID)
@@ -240,7 +240,7 @@ var _ = Describe(
 			})
 			It("Different PF", reportxml.ID("75933"), func() {
 				By("Verifying we have 2 SR-IOV interfaces available")
-				Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 1)).ToNot(HaveOccurred(),
+				Expect(netenv.ValidateSriovInterfaces(APIClient, NetConfig, workerNodeList, 1)).ToNot(HaveOccurred(),
 					"Failed to get required SR-IOV interfaces")
 
 				interfaces, err := NetConfig.GetSriovInterfaces(2)
@@ -257,7 +257,7 @@ var _ = Describe(
 				}
 
 				By("Validating SR-IOV interfaces on 2 workers")
-				Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 2)).ToNot(HaveOccurred(),
+				Expect(netenv.ValidateSriovInterfaces(APIClient, NetConfig, workerNodeList, 2)).ToNot(HaveOccurred(),
 					"Failed to get required SR-IOV interfaces on 2 workers")
 				runVfiotoVfioTests(sriovInterfacesUnderTest[0], sriovInterfacesUnderTest[0],
 					workerNodeList[0].Object.Name, workerNodeList[1].Object.Name, sriovVendorID)
@@ -449,7 +449,7 @@ func createTestResources(cRes, sRes testResource) (*pod.Builder, *pod.Builder) {
 
 		By("Create SriovNetwork")
 
-		err = sriovenv.CreateSriovNetworkAndWaitForNADCreation(res.network, tsparams.NADWaitTimeout)
+		err = netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, res.network, tsparams.NADWaitTimeout)
 		Expect(err).ToNot(HaveOccurred(),
 			"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
 			res.network.Definition.Name, err)
