@@ -688,14 +688,22 @@ func verifyHwolCleanup(operatorNS, mcpName, pfName string) error {
 		return fmt.Errorf("failed to list HWOL MCP nodes: %w", err)
 	}
 
+	if len(workerNodes) == 0 {
+		return fmt.Errorf("no nodes found with label node-role.kubernetes.io/%s", mcpName)
+	}
+
 	for _, node := range workerNodes {
 		nodeName := node.Object.Name
+
 		state := sriov.NewNetworkNodeStateBuilder(APIClient, nodeName, operatorNS)
 		if err := state.Discover(); err != nil {
 			return fmt.Errorf("failed to discover SriovNetworkNodeState for %s: %w", nodeName, err)
 		}
+
 		if state.Objects.Status.SyncStatus != "Succeeded" {
-			return fmt.Errorf("node %s syncStatus is %q after HWOL cleanup, want Succeeded", nodeName, state.Objects.Status.SyncStatus)
+			return fmt.Errorf(
+				"node %s syncStatus is %q after HWOL cleanup, want Succeeded",
+				nodeName, state.Objects.Status.SyncStatus)
 		}
 
 		iface, err := findStatusInterface(state.Objects.Status.Interfaces, pfName)
@@ -704,13 +712,17 @@ func verifyHwolCleanup(operatorNS, mcpName, pfName string) error {
 		}
 		// Empty is the operator's representation of the default legacy mode.
 		if iface.EswitchMode != "" && iface.EswitchMode != "legacy" {
-			return fmt.Errorf("node %s interface %s eSwitchMode is %q after HWOL cleanup, want legacy", nodeName, pfName, iface.EswitchMode)
+			return fmt.Errorf(
+				"node %s interface %s eSwitchMode is %q after HWOL cleanup, want legacy",
+				nodeName, pfName, iface.EswitchMode)
 		}
 
 		for _, bridge := range state.Objects.Status.Bridges.OVS {
 			for _, uplink := range bridge.Uplinks {
 				if uplink.Name == pfName || uplink.PciAddress == iface.PciAddress {
-					return fmt.Errorf("node %s still has managed OVS bridge %s for PF %s after HWOL cleanup", nodeName, bridge.Name, pfName)
+					return fmt.Errorf(
+						"node %s still has managed OVS bridge %s for PF %s after HWOL cleanup",
+						nodeName, bridge.Name, pfName)
 				}
 			}
 		}
