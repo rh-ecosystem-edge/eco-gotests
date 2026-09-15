@@ -595,8 +595,10 @@ func newOvsDebugPod(nodeName, image string) (*pod.Builder, error) {
 	return created, nil
 }
 
-// CleanupHwolResources removes switchdev-created networks, policies, and pool config, then waits for stability.
-func CleanupHwolResources(operatorNS, mcpName string, timeout, stableDuration time.Duration) error {
+// CleanupHwolResources removes only HWOL-owned resources and verifies that the
+// target PFs have left switchdev before returning. A failure here must fail the
+// suite: otherwise a green run can leave the next suite with an unusable NIC.
+func CleanupHwolResources(operatorNS, mcpName, pfName string, timeout, stableDuration time.Duration) error {
 	klog.V(90).Infof("Cleaning HWOL test resources in namespace %s", operatorNS)
 
 	ovsNet := NewOvsNetworkBuilder(
@@ -607,11 +609,11 @@ func CleanupHwolResources(operatorNS, mcpName string, timeout, stableDuration ti
 		}
 	}
 
-	if err := sriovoperator.RemoveAllSriovNetworks(APIClient, operatorNS, tsparams.DefaultTimeout); err != nil {
+	if err := deleteHwolSriovNetwork(operatorNS, timeout); err != nil {
 		return err
 	}
 
-	if err := sriov.CleanAllNetworkNodePolicies(APIClient, operatorNS); err != nil {
+	if err := deleteHwolPolicy(operatorNS); err != nil {
 		return err
 	}
 
@@ -629,6 +631,200 @@ func CleanupHwolResources(operatorNS, mcpName string, timeout, stableDuration ti
 			"HWOL cleanup timed out waiting for SR-IOV/MCP stable: SNNS may be stuck resetting "+
 				"switchdev (device or resource busy); reboot the MCP-labeled HWOL node before re-run: %w",
 			err)
+	}
+
+	return verifyHwolCleanup(operatorNS, mcpName, pfName)
+}
+
+// RecoverHwolCleanup reboots only HWOL MCP nodes after failed cleanup, then verifies
+// the switchdev and OVS state is gone. Callers must preserve the original failure.
+func RecoverHwolCleanup(operatorNS, mcpName, pfName string, timeout, stableDuration time.Duration) error {
+	workerNodes, err := ListMCPWorkerNodes(mcpName)
+	if err != nil {
+		return fmt.Errorf("failed to list HWOL MCP nodes for recovery: %w", err)
+	}
+
+	if len(workerNodes) == 0 {
+		return fmt.Errorf("no nodes found with label node-role.kubernetes.io/%s", mcpName)
+	}
+
+	for _, workerNode := range workerNodes {
+		if err := rebootHwolNode(workerNode.Object.Name, operatorNS, timeout); err != nil {
+			return err
+		}
+	}
+
+	if err := WaitForSriovAndMCPStable(operatorNS, mcpName, timeout, stableDuration); err != nil {
+		return fmt.Errorf("HWOL cleanup recovery did not stabilize SR-IOV/MCP: %w", err)
+	}
+
+	if err := verifyHwolCleanup(operatorNS, mcpName, pfName); err != nil {
+		return fmt.Errorf("HWOL cleanup recovery verification failed: %w", err)
+	}
+
+	return nil
+}
+
+func rebootHwolNode(nodeName, operatorNS string, timeout time.Duration) error {
+	workerNode, err := nodes.Pull(APIClient, nodeName)
+	if err != nil {
+		return fmt.Errorf("failed to get HWOL node %s for recovery: %w", nodeName, err)
+	}
+
+	klog.V(90).Infof("Rebooting HWOL node %s after cleanup failure", nodeName)
+
+	daemonPods, err := pod.List(APIClient, operatorNS, metav1.ListOptions{
+		LabelSelector: "app=sriov-network-config-daemon",
+		FieldSelector: fmt.Sprintf("spec.nodeName=%s", nodeName),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to list SR-IOV config daemon on node %s: %w", nodeName, err)
+	}
+
+	if len(daemonPods) == 0 {
+		return fmt.Errorf("no SR-IOV config daemon found on HWOL node %s", nodeName)
+	}
+
+	_, rebootErr := daemonPods[0].ExecCommand([]string{"chroot", "/host", "reboot"})
+	if rebootErr != nil && !isExpectedRebootDisconnect(rebootErr) {
+		return fmt.Errorf("failed to reboot HWOL node %s: %w", nodeName, rebootErr)
+	}
+
+	if err := workerNode.WaitUntilNotReady(tsparams.DefaultTimeout); err != nil {
+		return fmt.Errorf("HWOL node %s did not become NotReady after reboot: %w", nodeName, err)
+	}
+
+	workerNode, err = nodes.Pull(APIClient, nodeName)
+	if err != nil {
+		return fmt.Errorf("failed to get HWOL node %s after reboot: %w", nodeName, err)
+	}
+
+	if err := workerNode.WaitUntilReady(timeout); err != nil {
+		return fmt.Errorf("HWOL node %s did not become Ready after reboot: %w", nodeName, err)
+	}
+
+	return nil
+}
+
+func isExpectedRebootDisconnect(err error) bool {
+	message := strings.ToLower(err.Error())
+
+	return strings.Contains(message, "connection reset") ||
+		strings.Contains(message, "connection refused") ||
+		strings.Contains(message, "eof") ||
+		strings.Contains(message, "broken pipe") ||
+		strings.Contains(message, "unable to upgrade connection") ||
+		strings.Contains(message, "command terminated") ||
+		strings.Contains(message, "context canceled") ||
+		strings.Contains(message, "context deadline exceeded")
+}
+
+func deleteHwolSriovNetwork(operatorNS string, timeout time.Duration) error {
+	network, err := sriov.PullNetwork(APIClient, tsparams.SriovNetworkName, operatorNS)
+	if err != nil {
+		if k8serrors.IsNotFound(err) || strings.Contains(err.Error(), "does not exist") {
+			return nil
+		}
+
+		return fmt.Errorf("failed to pull HWOL SriovNetwork %s: %w", tsparams.SriovNetworkName, err)
+	}
+
+	if err := network.DeleteAndWait(timeout); err != nil {
+		return fmt.Errorf("failed to delete HWOL SriovNetwork %s: %w", tsparams.SriovNetworkName, err)
+	}
+
+	return nil
+}
+
+func deleteHwolPolicy(operatorNS string) error {
+	policy, err := sriov.PullPolicy(APIClient, tsparams.PolicyName, operatorNS)
+	if err != nil {
+		if k8serrors.IsNotFound(err) || strings.Contains(err.Error(), "does not exist") {
+			return nil
+		}
+
+		return fmt.Errorf("failed to pull HWOL SriovNetworkNodePolicy %s: %w", tsparams.PolicyName, err)
+	}
+
+	if err := policy.Delete(); err != nil {
+		return fmt.Errorf("failed to delete HWOL SriovNetworkNodePolicy %s: %w", tsparams.PolicyName, err)
+	}
+
+	return nil
+}
+
+func verifyHwolCleanup(operatorNS, mcpName, pfName string) error {
+	if err := verifyHwolSriovNetworkDeleted(operatorNS); err != nil {
+		return err
+	}
+
+	if _, err := sriov.PullPolicy(APIClient, tsparams.PolicyName, operatorNS); err == nil {
+		return fmt.Errorf("HWOL SriovNetworkNodePolicy %s still exists after cleanup", tsparams.PolicyName)
+	} else if !k8serrors.IsNotFound(err) && !strings.Contains(err.Error(), "does not exist") {
+		return fmt.Errorf("failed to verify deletion of HWOL SriovNetworkNodePolicy %s: %w", tsparams.PolicyName, err)
+	}
+
+	if _, err := sriov.PullPoolConfig(APIClient, tsparams.PoolConfigName, operatorNS); err == nil {
+		return fmt.Errorf("HWOL SriovNetworkPoolConfig %s still exists after cleanup", tsparams.PoolConfigName)
+	} else if !k8serrors.IsNotFound(err) && !strings.Contains(err.Error(), "does not exist") {
+		return fmt.Errorf("failed to verify deletion of HWOL SriovNetworkPoolConfig %s: %w", tsparams.PoolConfigName, err)
+	}
+
+	workerNodes, err := ListMCPWorkerNodes(mcpName)
+	if err != nil {
+		return fmt.Errorf("failed to list HWOL MCP nodes: %w", err)
+	}
+
+	if len(workerNodes) == 0 {
+		return fmt.Errorf("no nodes found with label node-role.kubernetes.io/%s", mcpName)
+	}
+
+	for _, node := range workerNodes {
+		nodeName := node.Object.Name
+
+		state := sriov.NewNetworkNodeStateBuilder(APIClient, nodeName, operatorNS)
+		if err := state.Discover(); err != nil {
+			return fmt.Errorf("failed to discover SriovNetworkNodeState for %s: %w", nodeName, err)
+		}
+
+		if state.Objects.Status.SyncStatus != "Succeeded" {
+			return fmt.Errorf(
+				"node %s syncStatus is %q after HWOL cleanup, want Succeeded",
+				nodeName, state.Objects.Status.SyncStatus)
+		}
+
+		iface, err := findStatusInterface(state.Objects.Status.Interfaces, pfName)
+		if err != nil {
+			return fmt.Errorf("node %s: %w", nodeName, err)
+		}
+		// Empty is the operator's representation of the default legacy mode.
+		if iface.EswitchMode != "" && iface.EswitchMode != "legacy" {
+			return fmt.Errorf(
+				"node %s interface %s eSwitchMode is %q after HWOL cleanup, want legacy",
+				nodeName, pfName, iface.EswitchMode)
+		}
+
+		for _, bridge := range state.Objects.Status.Bridges.OVS {
+			for _, uplink := range bridge.Uplinks {
+				if uplink.Name == pfName || uplink.PciAddress == iface.PciAddress {
+					return fmt.Errorf(
+						"node %s still has managed OVS bridge %s for PF %s after HWOL cleanup",
+						nodeName, bridge.Name, pfName)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func verifyHwolSriovNetworkDeleted(operatorNS string) error {
+	if _, err := sriov.PullNetwork(APIClient, tsparams.SriovNetworkName, operatorNS); err == nil {
+		return fmt.Errorf("HWOL SriovNetwork %s still exists after cleanup", tsparams.SriovNetworkName)
+	} else if !k8serrors.IsNotFound(err) && !strings.Contains(err.Error(), "does not exist") {
+		return fmt.Errorf(
+			"failed to verify deletion of HWOL SriovNetwork %s: %w",
+			tsparams.SriovNetworkName, err)
 	}
 
 	return nil

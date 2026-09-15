@@ -37,6 +37,7 @@ Devices are **not** configured in YAML. `ECO_OCP_HWOL_DEVICES` is required.
 | `ECO_OCP_HWOL_TEST_CONTAINER` | Workload / traffic image (needs `iperf3` for offload) | `quay.io/openshifttest/iperf3@sha256:440c5925…` |
 | `ECO_OCP_HWOL_MCP_LABEL` | Machine config pool name / role label | `sriov` |
 | `ECO_OCP_HWOL_VF_NUM` | Number of VFs (≥3 recommended; VF0 reserved) | `3` |
+| `ECO_HWOL_RECOVER_ON_CLEANUP_FAILURE` | On a dedicated CI lab only, reboot HWOL MCP nodes after failed cleanup; the run still fails | `false` |
 | `ECO_WORKER_LABEL` | Worker node label selector | from shared ocpconfig |
 
 Default test image is the OpenShift org Quay `iperf3` image (digest-pinned). Prefer
@@ -154,11 +155,16 @@ sleep pod. The ovs offload Entry creates two same-node iperf pods, asserts
 representors on the managed bridge, runs traffic, and asserts non-empty
 `type=offloaded` datapath flows on the node.
 
-`AfterAll` removes HWOL OVSNetwork/SriovNetwork objects, policies, and the pool
-config — run on a dedicated lab MCP, not a shared production-like pool. Cleanup
-waits up to `CleanupWaitTimeout` (15m). If that times out (often switchdev reset
-stuck with `device or resource busy`), reboot the MCP-labeled HWOL node before
-re-running.
+`AfterAll` removes only the HWOL-created OVSNetwork/SriovNetwork objects,
+`hwol-switchdev` policy, and HWOL pool config — run on a dedicated lab MCP, not
+a shared production-like pool. Cleanup waits up to `CleanupWaitTimeout` (15m),
+then verifies that the MCP and SR-IOV node state are stable, the policy and pool
+config are gone, the target PF has returned to legacy mode, and its managed OVS
+bridge has been removed. A cleanup timeout (often switchdev reset stuck with
+`device or resource busy`) fails the suite. On a dedicated CI lab,
+`ECO_HWOL_RECOVER_ON_CLEANUP_FAILURE=true` reboots the HWOL MCP nodes one at a
+time, waits for recovery, and verifies cleanup. The original cleanup failure is
+still reported, so this workaround never turns a failed cleanup into a pass.
 
 ## Current coverage
 

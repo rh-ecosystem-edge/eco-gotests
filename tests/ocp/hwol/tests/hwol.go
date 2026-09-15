@@ -85,25 +85,32 @@ var _ = Describe(
 			err := hwolenv.CleanupHwolResources(
 				operatorNS,
 				mcpLabel,
+				pfName,
 				tsparams.CleanupWaitTimeout,
 				tsparams.DefaultStableDuration,
 			)
-			if err == nil {
-				return
-			}
+			if err != nil {
+				AddReportEntry("hwol-cleanup-failure", err.Error())
 
-			// Leaving switchdev often hits mlx5 "device or resource busy"; do not fail
-			// an otherwise green ovs run. Unexpected cleanup errors still fail AfterAll.
-			errMsg := err.Error()
-			if strings.Contains(errMsg, "device or resource busy") ||
-				strings.Contains(errMsg, "context deadline exceeded") ||
-				strings.Contains(errMsg, "stuck resetting switchdev") {
-				GinkgoWriter.Printf(
-					"WARNING: HWOL cleanup timed out leaving switchdev (reboot MCP node before re-run): %v\n",
-					err)
-				AddReportEntry("hwol-cleanup-busy", errMsg)
+				if HwolOcpConfig.RecoverOnCleanupFailure {
+					By("Recovering HWOL nodes after cleanup failure")
 
-				return
+					recoveryErr := hwolenv.RecoverHwolCleanup(
+						operatorNS,
+						mcpLabel,
+						pfName,
+						tsparams.MCOWaitTimeout,
+						tsparams.DefaultStableDuration,
+					)
+					if recoveryErr != nil {
+						AddReportEntry("hwol-cleanup-recovery-failure", recoveryErr.Error())
+					} else {
+						AddReportEntry(
+							"hwol-cleanup-recovery",
+							"reboot recovery completed; preserving original cleanup failure",
+						)
+					}
+				}
 			}
 
 			Expect(err).ToNot(HaveOccurred(), "Failed to clean HWOL resources")
