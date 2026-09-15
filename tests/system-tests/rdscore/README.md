@@ -662,3 +662,57 @@ This function never fails and logs output to GinkgoWriter.
 
 **Usage**: Can be called manually or from test hooks when diagnostic snapshots are needed.
 
+
+## Network Operator Configuration
+
+### _VerifyIptablesAlerterDisabled_
+
+This test verifies that the `iptables-alerter` component is disabled in production Telco clusters.
+
+**Background:**
+The `iptables-alerter` can cause significant CPU usage and cluster instability in production environments. Multiple customer escalations (OCPBUGS-87026, OCPBUGS-73767) have demonstrated that even after mitigations, corner cases remain where the component can trigger high CPU usage. Telco partners tightly control their workloads, making the runtime iptables detection component unnecessary in production.
+
+**What the test validates:**
+1. ConfigMap `iptables-alerter-config` exists in namespace `openshift-network-operator`
+2. ConfigMap contains `enabled: "false"`
+3. No `iptables-alerter` pods are running in the cluster
+
+**RDS Requirement:**
+This configuration is **required** for RAN, Core, and Hub RDS configurations. It must be enabled by default in production deployments.
+
+**Partner Responsibilities:**
+While `iptables-alerter` is disabled in production, partners are responsible for:
+- Running iptables usage checks in pre-production/lab environments (with `iptables-alerter` enabled) to validate all anticipated workloads
+- Migrating any workloads using iptables to nftables prior to RHEL10-based OCP releases (where iptables will be removed)
+
+**References:**
+- KCS Article: https://access.redhat.com/solutions/7134521
+- OCPBUGS-87026: Resolving NF Pod Readiness Probe Failures in Production Cluster
+- OCPBUGS-73767: High CPU usage for iptables-alerter pods
+
+**Labels:** `iptables-alerter`, `network-operator-config`
+
+**Example Usage:**
+```bash
+# Run the iptables-alerter test
+ginkgo --label-filter="iptables-alerter" ./tests/system-tests/rdscore
+
+# Run all network operator configuration tests
+ginkgo --label-filter="network-operator-config" ./tests/system-tests/rdscore
+```
+
+**Manual remediation (for non-compliant clusters):**
+```bash
+# Create the ConfigMap to disable iptables-alerter
+oc -n openshift-network-operator create configmap iptables-alerter-config --from-literal enabled=false
+
+# Restart the network operator to apply the configuration
+oc -n openshift-network-operator delete pod -l name=network-operator
+```
+
+**Cluster-compare validation:**
+Add the reference ConfigMap to your cluster-compare reference directory:
+```bash
+# Reference CR location: iptables-alerter-disabled-reference-cr.yaml
+oc cluster-compare -r <reference-directory>
+```
