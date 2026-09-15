@@ -92,6 +92,7 @@ var _ = Describe(
 			if err != nil {
 				AddReportEntry("hwol-cleanup-failure", err.Error())
 			}
+
 			Expect(err).ToNot(HaveOccurred(), "Failed to clean HWOL resources")
 		})
 
