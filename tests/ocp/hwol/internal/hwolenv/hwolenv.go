@@ -595,8 +595,10 @@ func newOvsDebugPod(nodeName, image string) (*pod.Builder, error) {
 	return created, nil
 }
 
-// CleanupHwolResources removes switchdev-created networks, policies, and pool config, then waits for stability.
-func CleanupHwolResources(operatorNS, mcpName string, timeout, stableDuration time.Duration) error {
+// CleanupHwolResources removes only HWOL-owned resources and verifies that the
+// target PFs have left switchdev before returning. A failure here must fail the
+// suite: otherwise a green run can leave the next suite with an unusable NIC.
+func CleanupHwolResources(operatorNS, mcpName, pfName string, timeout, stableDuration time.Duration) error {
 	klog.V(90).Infof("Cleaning HWOL test resources in namespace %s", operatorNS)
 
 	ovsNet := NewOvsNetworkBuilder(
@@ -607,11 +609,11 @@ func CleanupHwolResources(operatorNS, mcpName string, timeout, stableDuration ti
 		}
 	}
 
-	if err := sriovoperator.RemoveAllSriovNetworks(APIClient, operatorNS, tsparams.DefaultTimeout); err != nil {
+	if err := deleteHwolSriovNetwork(operatorNS); err != nil {
 		return err
 	}
 
-	if err := sriov.CleanAllNetworkNodePolicies(APIClient, operatorNS); err != nil {
+	if err := deleteHwolPolicy(operatorNS); err != nil {
 		return err
 	}
 
@@ -629,6 +631,89 @@ func CleanupHwolResources(operatorNS, mcpName string, timeout, stableDuration ti
 			"HWOL cleanup timed out waiting for SR-IOV/MCP stable: SNNS may be stuck resetting "+
 				"switchdev (device or resource busy); reboot the MCP-labeled HWOL node before re-run: %w",
 			err)
+	}
+
+	return verifyHwolCleanup(operatorNS, mcpName, pfName)
+}
+
+func deleteHwolSriovNetwork(operatorNS string) error {
+	network, err := sriov.PullNetwork(APIClient, tsparams.SriovNetworkName, operatorNS)
+	if err != nil {
+		if k8serrors.IsNotFound(err) || strings.Contains(err.Error(), "does not exist") {
+			return nil
+		}
+
+		return fmt.Errorf("failed to pull HWOL SriovNetwork %s: %w", tsparams.SriovNetworkName, err)
+	}
+
+	if err := network.Delete(); err != nil {
+		return fmt.Errorf("failed to delete HWOL SriovNetwork %s: %w", tsparams.SriovNetworkName, err)
+	}
+
+	return nil
+}
+
+func deleteHwolPolicy(operatorNS string) error {
+	policy, err := sriov.PullPolicy(APIClient, tsparams.PolicyName, operatorNS)
+	if err != nil {
+		if k8serrors.IsNotFound(err) || strings.Contains(err.Error(), "does not exist") {
+			return nil
+		}
+
+		return fmt.Errorf("failed to pull HWOL SriovNetworkNodePolicy %s: %w", tsparams.PolicyName, err)
+	}
+
+	if err := policy.Delete(); err != nil {
+		return fmt.Errorf("failed to delete HWOL SriovNetworkNodePolicy %s: %w", tsparams.PolicyName, err)
+	}
+
+	return nil
+}
+
+func verifyHwolCleanup(operatorNS, mcpName, pfName string) error {
+	if _, err := sriov.PullPolicy(APIClient, tsparams.PolicyName, operatorNS); err == nil {
+		return fmt.Errorf("HWOL SriovNetworkNodePolicy %s still exists after cleanup", tsparams.PolicyName)
+	} else if !k8serrors.IsNotFound(err) && !strings.Contains(err.Error(), "does not exist") {
+		return fmt.Errorf("failed to verify deletion of HWOL SriovNetworkNodePolicy %s: %w", tsparams.PolicyName, err)
+	}
+
+	if _, err := sriov.PullPoolConfig(APIClient, tsparams.PoolConfigName, operatorNS); err == nil {
+		return fmt.Errorf("HWOL SriovNetworkPoolConfig %s still exists after cleanup", tsparams.PoolConfigName)
+	} else if !k8serrors.IsNotFound(err) && !strings.Contains(err.Error(), "does not exist") {
+		return fmt.Errorf("failed to verify deletion of HWOL SriovNetworkPoolConfig %s: %w", tsparams.PoolConfigName, err)
+	}
+
+	workerNodes, err := ListMCPWorkerNodes(mcpName)
+	if err != nil {
+		return fmt.Errorf("failed to list HWOL MCP nodes: %w", err)
+	}
+
+	for _, node := range workerNodes {
+		nodeName := node.Object.Name
+		state := sriov.NewNetworkNodeStateBuilder(APIClient, nodeName, operatorNS)
+		if err := state.Discover(); err != nil {
+			return fmt.Errorf("failed to discover SriovNetworkNodeState for %s: %w", nodeName, err)
+		}
+		if state.Objects.Status.SyncStatus != "Succeeded" {
+			return fmt.Errorf("node %s syncStatus is %q after HWOL cleanup, want Succeeded", nodeName, state.Objects.Status.SyncStatus)
+		}
+
+		iface, err := findStatusInterface(state.Objects.Status.Interfaces, pfName)
+		if err != nil {
+			return fmt.Errorf("node %s: %w", nodeName, err)
+		}
+		// Empty is the operator's representation of the default legacy mode.
+		if iface.EswitchMode != "" && iface.EswitchMode != "legacy" {
+			return fmt.Errorf("node %s interface %s eSwitchMode is %q after HWOL cleanup, want legacy", nodeName, pfName, iface.EswitchMode)
+		}
+
+		for _, bridge := range state.Objects.Status.Bridges.OVS {
+			for _, uplink := range bridge.Uplinks {
+				if uplink.Name == pfName || uplink.PciAddress == iface.PciAddress {
+					return fmt.Errorf("node %s still has managed OVS bridge %s for PF %s after HWOL cleanup", nodeName, bridge.Name, pfName)
+				}
+			}
+		}
 	}
 
 	return nil

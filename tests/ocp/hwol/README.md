@@ -154,11 +154,14 @@ sleep pod. The ovs offload Entry creates two same-node iperf pods, asserts
 representors on the managed bridge, runs traffic, and asserts non-empty
 `type=offloaded` datapath flows on the node.
 
-`AfterAll` removes HWOL OVSNetwork/SriovNetwork objects, policies, and the pool
-config — run on a dedicated lab MCP, not a shared production-like pool. Cleanup
-waits up to `CleanupWaitTimeout` (15m). If that times out (often switchdev reset
-stuck with `device or resource busy`), reboot the MCP-labeled HWOL node before
-re-running.
+`AfterAll` removes only the HWOL-created OVSNetwork/SriovNetwork objects,
+`hwol-switchdev` policy, and HWOL pool config — run on a dedicated lab MCP, not
+a shared production-like pool. Cleanup waits up to `CleanupWaitTimeout` (15m),
+then verifies that the MCP and SR-IOV node state are stable, the policy and pool
+config are gone, the target PF has returned to legacy mode, and its managed OVS
+bridge has been removed. A cleanup timeout (often switchdev reset stuck with
+`device or resource busy`) fails the suite; reboot the MCP-labeled HWOL node
+before re-running.
 
 ## Current coverage
 
