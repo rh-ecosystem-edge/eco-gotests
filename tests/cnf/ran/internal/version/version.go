@@ -97,6 +97,10 @@ func GetZTPVersionFromArgoCd(client *clients.Settings, name, namespace string) (
 	}
 
 	// The format here will be like vX.Y.Z so we need to remove the v at the start.
+	if len(ztpVersion) < 2 || ztpVersion[0] != 'v' {
+		return "", fmt.Errorf("unexpected ztp-site-generate version tag %q", ztpVersion)
+	}
+
 	return ztpVersion[1:], nil
 }
 
@@ -106,6 +110,12 @@ func GetZTPSiteGenerateImage(client *clients.Settings) (string, error) {
 	gitops, err := argocd.Pull(client, ranparam.OpenshiftGitOpsNamespace, ranparam.OpenshiftGitOpsNamespace)
 	if err != nil {
 		return "", err
+	}
+
+	// argocd.Pull can return a nil Definition when Get fails with a non-NotFound error (Exists treats that as
+	// present). Guard so hub config init logs an error instead of panicking.
+	if gitops == nil || gitops.Definition == nil {
+		return "", errors.New("argocd object is nil after pull; cannot read ztp-site-generate image")
 	}
 
 	for _, container := range gitops.Definition.Spec.Repo.InitContainers {
