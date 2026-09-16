@@ -10,7 +10,7 @@ Modernization and style guidelines for Go code.
 ## modernization
 
 - do not use `interface{}` now that `any` exists
-- use `for i := range 6` syntax instead of `for i := 0; i < 6; i++`
+- use `for i := range 6` syntax instead of `for i := 0; i < 6; i++` unless you need to modify the index in the loop
 - write doc comments for all functions, including unexported ones. do not write comments for `TestXXX` functions in `_test.go` files, however
 - avoid overly abbreviated variable names, except for very common conventions. `i` for index is okay. but say `options` instead of `opts`, for example. `idx` should be avoided, similarly.
 - loop variable capturing is solved now. each iteration receives its own variable, rather than it being shared
