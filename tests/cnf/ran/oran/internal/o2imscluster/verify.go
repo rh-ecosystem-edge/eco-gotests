@@ -145,6 +145,7 @@ func VerifyClusterResourceTypeMatchesKey(apiType oranapi.ClusterResourceType, ke
 func VerifyClusterResourceMatchesAgent(
 	apiResource oranapi.ClusterResource,
 	agent *agentInstallV1Beta1.Agent,
+	clusterResourceTypes []oranapi.ClusterResourceType,
 ) error {
 	var errs []error
 
@@ -166,6 +167,19 @@ func VerifyClusterResourceMatchesAgent(
 
 	if apiResource.ClusterResourceTypeId == uuid.Nil {
 		errs = append(errs, fmt.Errorf("clusterResourceTypeId: want non-nil UUID, got %s", apiResource.ClusterResourceTypeId))
+
+		return errors.Join(errs...)
+	}
+
+	typeIndex := slices.IndexFunc(clusterResourceTypes, func(resourceType oranapi.ClusterResourceType) bool {
+		return resourceType.ClusterResourceTypeId == apiResource.ClusterResourceTypeId
+	})
+	if typeIndex == -1 {
+		errs = append(errs, fmt.Errorf("clusterResourceTypeId %s not found in ClusterResourceType list",
+			apiResource.ClusterResourceTypeId))
+	} else if typeErr := VerifyClusterResourceTypeMatchesKey(
+		clusterResourceTypes[typeIndex], ClusterResourceTypeKeyFromAgent(agent)); typeErr != nil {
+		errs = append(errs, fmt.Errorf("cluster resource type association mismatch: %w", typeErr))
 	}
 
 	extensions := map[string]any{}

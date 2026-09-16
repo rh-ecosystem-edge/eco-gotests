@@ -163,67 +163,12 @@ func TestVerifyClusterResourceIDsExist(t *testing.T) {
 func TestVerifyClusterResourceMatchesAgent(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name             string
-		setup            func() (oranapi.ClusterResource, *agentInstallV1Beta1.Agent)
-		wantError        string
-		wantErrorContain string
-	}{
-		{
-			name: "nil agent",
-			setup: func() (oranapi.ClusterResource, *agentInstallV1Beta1.Agent) {
-				return oranapi.ClusterResource{}, nil
-			},
-			wantError: "agent is nil",
-		},
-		{
-			name: "matching resource",
-			setup: func() (oranapi.ClusterResource, *agentInstallV1Beta1.Agent) {
-				agent := verificationAgent("node-2")
-
-				return testClusterResourceForAgent(agent), agent
-			},
-		},
-		{
-			name: "nil cluster resource type ID",
-			setup: func() (oranapi.ClusterResource, *agentInstallV1Beta1.Agent) {
-				agent := verificationAgent("node-3")
-				resource := testClusterResourceForAgent(agent)
-				resource.ClusterResourceTypeId = uuid.Nil
-
-				return resource, agent
-			},
-			wantError: "clusterResourceTypeId: want non-nil UUID, got 00000000-0000-0000-0000-000000000000",
-		},
-		{
-			name: "resource mismatch",
-			setup: func() (oranapi.ClusterResource, *agentInstallV1Beta1.Agent) {
-				agent := verificationAgent("node-4")
-				resource := testClusterResourceForAgent(agent)
-				resource.Name = "unexpected-name"
-
-				return resource, agent
-			},
-			wantErrorContain: "cluster resource mismatch",
-		},
-		{
-			name: "missing resource ID label",
-			setup: func() (oranapi.ClusterResource, *agentInstallV1Beta1.Agent) {
-				agent := verificationAgent("node-5")
-				agent.Labels = nil
-
-				return oranapi.ClusterResource{}, agent
-			},
-			wantError: "agent test-namespace/test-agent is missing " + tsparams.HardwareManagerNodeIDLabel + " label",
-		},
-	}
-
-	for _, testCase := range tests {
+	for _, testCase := range clusterResourceMatchesAgentTestCases() {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			resource, agent := testCase.setup()
-			err := VerifyClusterResourceMatchesAgent(resource, agent)
+			resource, agent, resourceTypes := testCase.setup()
+			err := VerifyClusterResourceMatchesAgent(resource, agent, resourceTypes)
 
 			switch {
 			case testCase.wantError != "":
@@ -235,6 +180,85 @@ func TestVerifyClusterResourceMatchesAgent(t *testing.T) {
 			}
 		})
 	}
+}
+
+// clusterResourceMatchesAgentTestCases returns cases for cluster resource verification.
+func clusterResourceMatchesAgentTestCases() []clusterResourceMatchesAgentTestCase {
+	return []clusterResourceMatchesAgentTestCase{
+		{
+			name: "nil agent",
+			setup: func() (oranapi.ClusterResource, *agentInstallV1Beta1.Agent, []oranapi.ClusterResourceType) {
+				return oranapi.ClusterResource{}, nil, nil
+			},
+			wantError: "agent is nil",
+		},
+		{
+			name: "matching resource",
+			setup: func() (oranapi.ClusterResource, *agentInstallV1Beta1.Agent, []oranapi.ClusterResourceType) {
+				agent := verificationAgent("node-2")
+				resource := testClusterResourceForAgent(agent)
+
+				return resource, agent, testClusterResourceTypesForAgent(resource, agent)
+			},
+		},
+		{
+			name: "nil cluster resource type ID",
+			setup: func() (oranapi.ClusterResource, *agentInstallV1Beta1.Agent, []oranapi.ClusterResourceType) {
+				agent := verificationAgent("node-3")
+				resource := testClusterResourceForAgent(agent)
+				resource.ClusterResourceTypeId = uuid.Nil
+
+				return resource, agent, nil
+			},
+			wantError: "clusterResourceTypeId: want non-nil UUID, got 00000000-0000-0000-0000-000000000000",
+		},
+		{
+			name: "resource mismatch",
+			setup: func() (oranapi.ClusterResource, *agentInstallV1Beta1.Agent, []oranapi.ClusterResourceType) {
+				agent := verificationAgent("node-4")
+				resource := testClusterResourceForAgent(agent)
+				resource.Name = "unexpected-name"
+
+				return resource, agent, testClusterResourceTypesForAgent(resource, agent)
+			},
+			wantErrorContain: "cluster resource mismatch",
+		},
+		{
+			name: "resource has wrong valid cluster resource type",
+			setup: func() (oranapi.ClusterResource, *agentInstallV1Beta1.Agent, []oranapi.ClusterResourceType) {
+				agent := verificationAgent("node-5")
+				resource := testClusterResourceForAgent(agent)
+				wrongType := oranapi.ClusterResourceType{
+					ClusterResourceTypeId: resource.ClusterResourceTypeId,
+					Name:                  "ARM64 CPU with 32 Cores",
+					Description:           "ARM64 CPU with 32 Cores",
+				}
+
+				return resource, agent, []oranapi.ClusterResourceType{
+					wrongType,
+					{ClusterResourceTypeId: uuid.New(), Name: "X86_64 CPU with 96 Cores", Description: "X86_64 CPU with 96 Cores"},
+				}
+			},
+			wantErrorContain: "cluster resource type association mismatch",
+		},
+		{
+			name: "missing resource ID label",
+			setup: func() (oranapi.ClusterResource, *agentInstallV1Beta1.Agent, []oranapi.ClusterResourceType) {
+				agent := verificationAgent("node-6")
+				agent.Labels = nil
+
+				return oranapi.ClusterResource{}, agent, nil
+			},
+			wantError: "agent test-namespace/test-agent is missing " + tsparams.HardwareManagerNodeIDLabel + " label",
+		},
+	}
+}
+
+type clusterResourceMatchesAgentTestCase struct {
+	name             string
+	setup            func() (oranapi.ClusterResource, *agentInstallV1Beta1.Agent, []oranapi.ClusterResourceType)
+	wantError        string
+	wantErrorContain string
 }
 
 // verificationAgent returns an Agent fixture for cluster resource verification tests.
@@ -286,4 +310,18 @@ func testClusterResourceForAgent(agent *agentInstallV1Beta1.Agent) oranapi.Clust
 		Name:                  agent.Spec.Hostname,
 		ResourceId:            uuid.MustParse(agent.Labels[tsparams.HardwareManagerNodeIDLabel]),
 	}
+}
+
+// testClusterResourceTypesForAgent returns a ClusterResourceType matching the agent's CPU key.
+func testClusterResourceTypesForAgent(
+	resource oranapi.ClusterResource,
+	agent *agentInstallV1Beta1.Agent,
+) []oranapi.ClusterResourceType {
+	key := ClusterResourceTypeKeyFromAgent(agent)
+
+	return []oranapi.ClusterResourceType{{
+		ClusterResourceTypeId: resource.ClusterResourceTypeId,
+		Name:                  key.Name(),
+		Description:           key.Name(),
+	}}
 }

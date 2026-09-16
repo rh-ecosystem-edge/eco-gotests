@@ -404,6 +404,11 @@ var _ = Describe("ORAN Cluster API Tests", Label(tsparams.LabelPostProvision, ts
 		Expect(agents).ToNot(BeEmpty(),
 			"At least one ORAN-eligible assisted-service Agent is required")
 
+		By("listing ClusterResourceTypes for resource association verification")
+
+		apiTypes, err := clusterClient.ListClusterResourceTypes()
+		Expect(err).ToNot(HaveOccurred(), "Failed to list ClusterResourceTypes")
+
 		By("listing ClusterResources from the cluster API")
 
 		apiResources, err := clusterClient.ListClusterResources()
@@ -418,7 +423,7 @@ var _ = Describe("ORAN Cluster API Tests", Label(tsparams.LabelPostProvision, ts
 			Expect(matchErr).ToNot(HaveOccurred(),
 				"Agent %s missing from API response", o2imscluster.ExpectedAgentExternalID(agent.Definition))
 
-			verifyErr := o2imscluster.VerifyClusterResourceMatchesAgent(matched, agent.Definition)
+			verifyErr := o2imscluster.VerifyClusterResourceMatchesAgent(matched, agent.Definition, apiTypes)
 			Expect(verifyErr).ToNot(HaveOccurred(),
 				"Agent %s does not match API ClusterResource",
 				o2imscluster.ExpectedAgentExternalID(agent.Definition))
@@ -435,6 +440,11 @@ var _ = Describe("ORAN Cluster API Tests", Label(tsparams.LabelPostProvision, ts
 			"At least one ClusterResource is required (assisted-installer Agents)")
 
 		chosen := apiResources[0]
+
+		By("listing ClusterResourceTypes for resource association verification")
+
+		apiTypes, err := clusterClient.ListClusterResourceTypes()
+		Expect(err).ToNot(HaveOccurred(), "Failed to list ClusterResourceTypes")
 
 		By("retrieving the ClusterResource by ID")
 
@@ -460,7 +470,7 @@ var _ = Describe("ORAN Cluster API Tests", Label(tsparams.LabelPostProvision, ts
 			}
 
 			matched = true
-			verifyErr := o2imscluster.VerifyClusterResourceMatchesAgent(retrieved, agent.Definition)
+			verifyErr := o2imscluster.VerifyClusterResourceMatchesAgent(retrieved, agent.Definition, apiTypes)
 			Expect(verifyErr).ToNot(HaveOccurred(),
 				"Agent %s does not match retrieved ClusterResource",
 				o2imscluster.ExpectedAgentExternalID(agent.Definition))
