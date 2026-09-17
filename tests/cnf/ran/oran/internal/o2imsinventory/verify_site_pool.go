@@ -1,4 +1,4 @@
-package inventory
+package o2imsinventory
 
 import (
 	"errors"
