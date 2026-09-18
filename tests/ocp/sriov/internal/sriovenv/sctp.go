@@ -49,10 +49,16 @@ func EnableSCTPOnWorkerNodes() error {
 		if err := createSCTPMachineConfig(); err != nil {
 			return err
 		}
-	}
 
-	if err := waitForWorkerMCPAfterSCTP(); err != nil {
-		return fmt.Errorf("failed to wait for MCP after enabling SCTP: %w", err)
+		if err := waitForWorkerMCPAfterSCTP(); err != nil {
+			return fmt.Errorf("failed to wait for MCP after enabling SCTP: %w", err)
+		}
+	} else {
+		mcpName := workerMCPName()
+		if err := cluster.WaitForMcpStable(
+			APIClient, tsparams.MCOWaitTimeout, sctpMCPStableDuration, mcpName); err != nil {
+			return fmt.Errorf("failed to wait for MCP %s stability: %w", mcpName, err)
+		}
 	}
 
 	loaded, err = isSCTPLoadedOnWorkers()
