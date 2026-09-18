@@ -665,10 +665,16 @@ func RecoverHwolCleanup(operatorNS, mcpName, pfName string, timeout, stableDurat
 	return nil
 }
 
+// rebootHwolNode verifies a worker is Ready, reboots it through its SR-IOV
+// config-daemon pod, and confirms its NotReady-to-Ready transition.
 func rebootHwolNode(nodeName, operatorNS string, timeout time.Duration) error {
 	workerNode, err := nodes.Pull(APIClient, nodeName)
 	if err != nil {
 		return fmt.Errorf("failed to get HWOL node %s for recovery: %w", nodeName, err)
+	}
+
+	if err := workerNode.WaitUntilReady(timeout); err != nil {
+		return fmt.Errorf("HWOL node %s was not Ready before reboot: %w", nodeName, err)
 	}
 
 	klog.V(90).Infof("Rebooting HWOL node %s after cleanup failure", nodeName)
@@ -706,6 +712,8 @@ func rebootHwolNode(nodeName, operatorNS string, timeout time.Duration) error {
 	return nil
 }
 
+// isExpectedRebootDisconnect identifies transport errors expected when reboot
+// terminates the exec session that issued the host reboot command.
 func isExpectedRebootDisconnect(err error) bool {
 	message := strings.ToLower(err.Error())
 
