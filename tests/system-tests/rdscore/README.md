@@ -392,6 +392,42 @@ for e.g. on `192.168.12.22 1111` on 1st workload and `192.168.12.33 1111` on 2nd
 |rdscore_wlkd2_sriov_deploy_two_target | IPv4 address and port configured on 1st workload | `192.168.12.12 1111` |
 |rdscore_wlkd2_sriov_deploy_two_target_ipv6 | IPv6 address configured on 1st workload(_Optional_) | |
 
+### _VerifyJumboFrameOnSecondarySRIOVKernelMode_
+
+This test verifies 9000 MTU jumbo frames on secondary SR-IOV kernel-mode interfaces
+(`net1` / `net1.<vlan>`) and that RAN KPIs do not degrade versus MTU 1500.
+
+SriovNetworks use empty IPAM. IPs are assigned in-container via `config.sh` (same as the
+other SR-IOV kernel tests). The spec pings with DF: payload 1472 at MTU 1500, then 8972
+at MTU 9000. After each ping it collects CPU (Prometheus non-idle rate, 2m window,
+averaged across workers), oslat max, and cyclictest max. Fail if any KPI increases
+more than 10% from the 1500 baseline.
+
+Label: `sriov-jumbo-frame`. Polarion ID: 95010.
+
+**Requires 2 different SR-IOV networks, a path that supports MTU 9000, Prometheus,
+and a workload image with `ping`, `oslat`, and `cyclictest`**
+
+Run: `ginkgo --label-filter=sriov-jumbo-frame ./tests/system-tests/rdscore`
+
+| parameter | description | example |
+|-----------|-------------|---------|
+|rdscore_wlkd_sriov_one_ns | Namespace where to deploy test workload | `my-ns-1` |
+|rdscore_wlkd_sriov_cm_data_one | Content of configMap that is mounted within pods under `/opt/net/` | |
+|rdscore_wlkd_sriov_one_image | Image used by the 1st workload | `quay.io/myorg/my-sriov-app:1.1` |
+|rdscore_wlkd_sriov_one_cmd | Command executed by 1st container | `["/bin/sh", "-c", "/opt/net/config.sh 3814 192.168.12.12/24"]` |
+|rdscore_wlkd_sriov_one_res_requests | Resource requests for 1st container(_Optional_) | `cpu: 1` |
+|rdscore_wlkd_sriov_one_res_limits | Resource limits for 1st container(_Optional_) | `memory: 100M` |
+|rdscore_wlkd_sriov_two_image | Image used by the 2nd workload | `quay.io/myorg/my-sriov-app:1.1` |
+|rdscore_wlkd_sriov_two_cmd | Command executed by 2nd container | `["/bin/sh", "-c", "/opt/net/config.sh 3814 192.168.12.22/24"]` |
+|rdscore_wlkd_sriov_two_res_requests | Resource requests for 2nd container(_Optional_) | `cpu: 1` |
+|rdscore_wlkd_sriov_two_res_limits | Resource limits for 2nd container(_Optional_) | `memory: 100M` |
+|rdscore_wlkd_sriov_net_one | SR-IOV Network for 1st workload | `sriov-net-one` |
+|rdscore_wlkd_sriov_net_two | SR-IOV Network for 2nd workload (must differ from net one) | `sriov-net-two` |
+|rdscore_wlkd_sriov_one_selector | Node selector for 1st workload | `kubernetes.io/hostname: worker-X` |
+|rdscore_wlkd_sriov_two_selector | Node selector for 2nd workload | `kubernetes.io/hostname: worker-Y` |
+|rdscore_wlkd_sriov_deploy_one_target | IPv4 address on 2nd workload (first field is the ping target) | `192.168.12.22 1111` |
+
 ### _ValidateAllPoliciesCompliant_
 
 Checks that all governance policies are Complaint

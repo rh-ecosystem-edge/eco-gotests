@@ -144,7 +144,7 @@ var _ = Describe(
 				rdscorecommon.VerifySRIOVWorkloadsOnDifferentNodesDifferentNet)
 
 			It("Verifies jumbo frame support on secondary SR-IOV kernel-mode interfaces",
-				Label("sriov", "sriov-jumbo-frame", "cnf-24979"),
+				Label("sriov", "sriov-jumbo-frame"),
 				reportxml.ID("95010"),
 				rdscorecommon.VerifyJumboFrameOnSecondarySRIOVKernelMode)
 
