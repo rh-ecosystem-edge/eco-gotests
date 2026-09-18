@@ -3,6 +3,8 @@ package rdscorecommon
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -40,7 +42,18 @@ const (
 	// Ping payload sizes: MTU minus IPv4 (20) and ICMP (8) headers.
 	pingSize9000 = 8972
 	pingSize1500 = 1472
+	// RAN KPI sample window for CPU rate, oslat, and cyclictest.
+	jumboKPIDuration = 2 * time.Minute
+	// Allowed relative increase from MTU 1500 to MTU 9000.
+	jumboKPIThresholdPercent = 10.0
 )
+
+// jumboKPIMetrics is the RAN KPI snapshot collected at one MTU.
+type jumboKPIMetrics struct {
+	CPU       float64
+	OslatMax  float64
+	CyclicMax float64
+}
 
 // VerifyJumboFrameOnSecondarySRIOVKernelMode verifies jumbo frame (9000 MTU) functionality
 // over secondary SR-IOV kernel-mode interfaces and validates no negative impact on RAN KPIs.
@@ -136,39 +149,31 @@ func VerifyJumboFrameOnSecondarySRIOVKernelMode(ctx SpecContext) {
 	pods := deployJumboFrameWorkloads(ctx)
 	targetIP := strings.Fields(RDSCoreConfig.WlkdSRIOVDeployOneTargetAddress)[0]
 
-	By("Verifying connectivity with standard MTU (1500)")
+	By("Collecting RAN KPIs at MTU 1500")
 
 	setJumboFrameMTU(ctx, pods, mtuStandard)
 	verifyJumboFrameConnectivity(ctx, pods[0], targetIP, pingSize1500)
 
-	By("Measuring baseline CPU utilization with MTU 1500")
+	baselineKPI := collectJumboKPIMetrics(pods[0], jumboKPIDuration)
 
-	baselineCPU, err := measureCPUUtilization(2 * time.Minute)
-
-	Expect(err).ToNot(HaveOccurred(), "Failed to measure baseline CPU")
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Baseline CPU utilization: %.2f cores", baselineCPU)
-
-	By("Verifying connectivity with jumbo frames (MTU 9000)")
+	By("Collecting RAN KPIs at MTU 9000")
 
 	setJumboFrameMTU(ctx, pods, mtuJumboFrame)
 	verifyJumboFrameConnectivity(ctx, pods[0], targetIP, pingSize9000)
 
-	By("Measuring CPU utilization with MTU 9000")
+	jumboKPI := collectJumboKPIMetrics(pods[0], jumboKPIDuration)
 
-	testCPU, err := measureCPUUtilization(2 * time.Minute)
+	By("Comparing RAN KPIs (CPU, oslat, cyclictest) between MTU 1500 and 9000")
 
-	Expect(err).ToNot(HaveOccurred(), "Failed to measure test CPU")
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Test CPU utilization with jumbo frames: %.2f cores", testCPU)
-
-	By("Comparing baseline and test metrics")
-
-	err = compareMetrics(baselineCPU, testCPU)
+	err := compareJumboKPIMetrics(baselineKPI, jumboKPI)
 
 	Expect(err).ToNot(HaveOccurred(), "Performance degradation detected with jumbo frames")
 
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-		"Jumbo frame verification completed successfully - Baseline: %.2f cores, Test: %.2f cores",
-		baselineCPU, testCPU)
+		"Jumbo frame verification completed successfully - "+
+			"baseline CPU=%.2f oslat=%.0fus cyclic=%.0fus, jumbo CPU=%.2f oslat=%.0fus cyclic=%.0fus",
+		baselineKPI.CPU, baselineKPI.OslatMax, baselineKPI.CyclicMax,
+		jumboKPI.CPU, jumboKPI.OslatMax, jumboKPI.CyclicMax)
 }
 
 func deployJumboFrameWorkloads(ctx SpecContext) []*pod.Builder {
@@ -360,31 +365,125 @@ func measureCPUUtilization(duration time.Duration) (float64, error) {
 	return avgCPU, nil
 }
 
-func compareMetrics(baselineCPU, testCPU float64) error {
+func collectJumboKPIMetrics(sourcePod *pod.Builder, duration time.Duration) jumboKPIMetrics {
+	By("Measuring CPU utilization")
+
+	cpuCores, err := measureCPUUtilization(duration)
+
+	Expect(err).ToNot(HaveOccurred(), "Failed to measure CPU utilization")
+
+	By("Running oslat")
+
+	oslatMax := runJumboLatencyTool(sourcePod, jumboOslatCmd(duration), duration)
+
+	By("Running cyclictest")
+
+	cyclicMax := runJumboLatencyTool(sourcePod, jumboCyclictestCmd(duration), duration)
+
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-		"Comparing metrics - Baseline CPU: %.2f cores, Test CPU: %.2f cores",
-		baselineCPU, testCPU)
+		"Collected RAN KPIs CPU=%.2f oslat_max=%.0fus cyclictest_max=%.0fus",
+		cpuCores, oslatMax, cyclicMax)
 
-	thresholdPercent := 10.0
-	cpuIncrease := testCPU - baselineCPU
-	increasePercent := (cpuIncrease / baselineCPU) * 100.0
+	return jumboKPIMetrics{CPU: cpuCores, OslatMax: oslatMax, CyclicMax: cyclicMax}
+}
 
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-		"CPU increase: %.2f cores (%.2f%% relative increase, threshold: %.2f%%)",
-		cpuIncrease, increasePercent, thresholdPercent)
+func jumboOslatCmd(duration time.Duration) []string {
+	return []string{"oslat", "-D", fmt.Sprintf("%ds", int(duration.Seconds()))}
+}
 
-	if increasePercent > thresholdPercent {
-		return fmt.Errorf(
-			"CPU utilization increased beyond acceptable threshold: baseline=%.2f cores, test=%.2f cores, "+
-				"increase=%.2f cores (%.2f%%), threshold=%.2f%%",
-			baselineCPU, testCPU, cpuIncrease, increasePercent, thresholdPercent)
+func jumboCyclictestCmd(duration time.Duration) []string {
+	return []string{"cyclictest", "-q", "-m", "-p", "95", "-t", "1",
+		"-D", fmt.Sprintf("%d", int(duration.Seconds()))}
+}
+
+func runJumboLatencyTool(sourcePod *pod.Builder, command []string, duration time.Duration) float64 {
+	output, err := sourcePod.ExecCommandWithTimeout(
+		command, duration+30*time.Second, sourcePod.Definition.Spec.Containers[0].Name)
+
+	Expect(err).ToNot(HaveOccurred(),
+		fmt.Sprintf("Failed to run %s in pod %s: %v\n%s",
+			command[0], sourcePod.Definition.Name, err, output.String()))
+
+	maxUs, parseErr := parseMaxLatencyUs(output.String())
+
+	Expect(parseErr).ToNot(HaveOccurred(),
+		fmt.Sprintf("Failed to parse max latency from %s output:\n%s", command[0], output.String()))
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("%s max latency: %.0f us\n%s",
+		command[0], maxUs, output.String())
+
+	return maxUs
+}
+
+func parseMaxLatencyUs(output string) (float64, error) {
+	maxRe := regexp.MustCompile(`(?i)max(?:imum)?[:\s]+(\d+)`)
+	matches := maxRe.FindAllStringSubmatch(output, -1)
+
+	if len(matches) == 0 {
+		return 0, fmt.Errorf("no max latency value in output")
 	}
 
+	maxVal := 0.0
+
+	for _, match := range matches {
+		value, convErr := strconv.ParseFloat(match[1], 64)
+		if convErr != nil {
+			continue
+		}
+
+		if value > maxVal {
+			maxVal = value
+		}
+	}
+
+	return maxVal, nil
+}
+
+func compareJumboKPIMetrics(baseline, jumbo jumboKPIMetrics) error {
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-		"Performance validation passed - CPU increase %.2f%% is within threshold %.2f%%",
-		increasePercent, thresholdPercent)
+		"Comparing RAN KPIs - baseline CPU=%.2f oslat=%.0fus cyclic=%.0fus, "+
+			"jumbo CPU=%.2f oslat=%.0fus cyclic=%.0fus (threshold %.1f%%)",
+		baseline.CPU, baseline.OslatMax, baseline.CyclicMax,
+		jumbo.CPU, jumbo.OslatMax, jumbo.CyclicMax, jumboKPIThresholdPercent)
+
+	var failures []string
+
+	failures = appendKPIFailure(failures, "CPU", baseline.CPU, jumbo.CPU)
+	failures = appendKPIFailure(failures, "oslat", baseline.OslatMax, jumbo.OslatMax)
+	failures = appendKPIFailure(failures, "cyclictest", baseline.CyclicMax, jumbo.CyclicMax)
+
+	if len(failures) > 0 {
+		return fmt.Errorf("RAN KPI degradation: %s", strings.Join(failures, "; "))
+	}
 
 	return nil
+}
+
+func appendKPIFailure(failures []string, name string, baseline, jumbo float64) []string {
+	increasePercent := kpiIncreasePercent(baseline, jumbo)
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"%s: baseline=%.2f jumbo=%.2f increase=%.2f%%", name, baseline, jumbo, increasePercent)
+
+	if increasePercent > jumboKPIThresholdPercent {
+		return append(failures, fmt.Sprintf(
+			"%s increased beyond threshold: baseline=%.2f jumbo=%.2f increase=%.2f%% threshold=%.1f%%",
+			name, baseline, jumbo, increasePercent, jumboKPIThresholdPercent))
+	}
+
+	return failures
+}
+
+func kpiIncreasePercent(baseline, jumbo float64) float64 {
+	if baseline == 0 {
+		if jumbo == 0 {
+			return 0
+		}
+
+		return 100
+	}
+
+	return ((jumbo - baseline) / baseline) * 100
 }
 
 func dumpJumboFrameDeployFailure(ctx SpecContext, namespace, podLabel string, err error) {
