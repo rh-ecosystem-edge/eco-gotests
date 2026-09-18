@@ -636,6 +636,97 @@ func CleanupHwolResources(operatorNS, mcpName, pfName string, timeout, stableDur
 	return verifyHwolCleanup(operatorNS, mcpName, pfName)
 }
 
+// RecoverHwolCleanup reboots only HWOL MCP nodes after failed cleanup, then verifies
+// the switchdev and OVS state is gone. Callers must preserve the original failure.
+func RecoverHwolCleanup(operatorNS, mcpName, pfName string, timeout, stableDuration time.Duration) error {
+	workerNodes, err := ListMCPWorkerNodes(mcpName)
+	if err != nil {
+		return fmt.Errorf("failed to list HWOL MCP nodes for recovery: %w", err)
+	}
+
+	if len(workerNodes) == 0 {
+		return fmt.Errorf("no nodes found with label node-role.kubernetes.io/%s", mcpName)
+	}
+
+	for _, workerNode := range workerNodes {
+		if err := rebootHwolNode(workerNode.Object.Name, operatorNS, timeout); err != nil {
+			return err
+		}
+	}
+
+	if err := WaitForSriovAndMCPStable(operatorNS, mcpName, timeout, stableDuration); err != nil {
+		return fmt.Errorf("HWOL cleanup recovery did not stabilize SR-IOV/MCP: %w", err)
+	}
+
+	if err := verifyHwolCleanup(operatorNS, mcpName, pfName); err != nil {
+		return fmt.Errorf("HWOL cleanup recovery verification failed: %w", err)
+	}
+
+	return nil
+}
+
+// rebootHwolNode verifies a worker is Ready, reboots it through its SR-IOV
+// config-daemon pod, and confirms its NotReady-to-Ready transition.
+func rebootHwolNode(nodeName, operatorNS string, timeout time.Duration) error {
+	workerNode, err := nodes.Pull(APIClient, nodeName)
+	if err != nil {
+		return fmt.Errorf("failed to get HWOL node %s for recovery: %w", nodeName, err)
+	}
+
+	if err := workerNode.WaitUntilReady(timeout); err != nil {
+		return fmt.Errorf("HWOL node %s was not Ready before reboot: %w", nodeName, err)
+	}
+
+	klog.V(90).Infof("Rebooting HWOL node %s after cleanup failure", nodeName)
+
+	daemonPods, err := pod.List(APIClient, operatorNS, metav1.ListOptions{
+		LabelSelector: "app=sriov-network-config-daemon",
+		FieldSelector: fmt.Sprintf("spec.nodeName=%s", nodeName),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to list SR-IOV config daemon on node %s: %w", nodeName, err)
+	}
+
+	if len(daemonPods) == 0 {
+		return fmt.Errorf("no SR-IOV config daemon found on HWOL node %s", nodeName)
+	}
+
+	_, rebootErr := daemonPods[0].ExecCommand([]string{"chroot", "/host", "reboot"})
+	if rebootErr != nil && !isExpectedRebootDisconnect(rebootErr) {
+		return fmt.Errorf("failed to reboot HWOL node %s: %w", nodeName, rebootErr)
+	}
+
+	if err := workerNode.WaitUntilNotReady(tsparams.DefaultTimeout); err != nil {
+		return fmt.Errorf("HWOL node %s did not become NotReady after reboot: %w", nodeName, err)
+	}
+
+	workerNode, err = nodes.Pull(APIClient, nodeName)
+	if err != nil {
+		return fmt.Errorf("failed to get HWOL node %s after reboot: %w", nodeName, err)
+	}
+
+	if err := workerNode.WaitUntilReady(timeout); err != nil {
+		return fmt.Errorf("HWOL node %s did not become Ready after reboot: %w", nodeName, err)
+	}
+
+	return nil
+}
+
+// isExpectedRebootDisconnect identifies transport errors expected when reboot
+// terminates the exec session that issued the host reboot command.
+func isExpectedRebootDisconnect(err error) bool {
+	message := strings.ToLower(err.Error())
+
+	return strings.Contains(message, "connection reset") ||
+		strings.Contains(message, "connection refused") ||
+		strings.Contains(message, "eof") ||
+		strings.Contains(message, "broken pipe") ||
+		strings.Contains(message, "unable to upgrade connection") ||
+		strings.Contains(message, "command terminated") ||
+		strings.Contains(message, "context canceled") ||
+		strings.Contains(message, "context deadline exceeded")
+}
+
 func deleteHwolSriovNetwork(operatorNS string, timeout time.Duration) error {
 	network, err := sriov.PullNetwork(APIClient, tsparams.SriovNetworkName, operatorNS)
 	if err != nil {

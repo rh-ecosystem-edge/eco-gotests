@@ -91,6 +91,26 @@ var _ = Describe(
 			)
 			if err != nil {
 				AddReportEntry("hwol-cleanup-failure", err.Error())
+
+				if HwolOcpConfig.RecoverOnCleanupFailure {
+					By("Recovering HWOL nodes after cleanup failure")
+
+					recoveryErr := hwolenv.RecoverHwolCleanup(
+						operatorNS,
+						mcpLabel,
+						pfName,
+						tsparams.MCOWaitTimeout,
+						tsparams.DefaultStableDuration,
+					)
+					if recoveryErr != nil {
+						AddReportEntry("hwol-cleanup-recovery-failure", recoveryErr.Error())
+					} else {
+						AddReportEntry(
+							"hwol-cleanup-recovery",
+							"reboot recovery completed; preserving original cleanup failure",
+						)
+					}
+				}
 			}
 
 			Expect(err).ToNot(HaveOccurred(), "Failed to clean HWOL resources")
