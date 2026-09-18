@@ -64,3 +64,8 @@ func GetClusterIPFamily(apiClient *clients.Settings) (string, error) {
 func ClusterSupportsIPv4(ipFamily string) bool {
 	return ipFamily == tsparams.IPV4Family || ipFamily == tsparams.DualIPFamily
 }
+
+// ClusterSupportsIPv6 returns true if the cluster supports IPv6 (single-stack or dual-stack).
+func ClusterSupportsIPv6(ipFamily string) bool {
+	return ipFamily == tsparams.IPV6Family || ipFamily == tsparams.DualIPFamily
+}
