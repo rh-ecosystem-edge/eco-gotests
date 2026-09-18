@@ -82,7 +82,7 @@ var _ = Describe(
 			}
 
 			By("Validating SR-IOV interfaces exist on nodes")
-			Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 2)).ToNot(HaveOccurred(),
+			Expect(netenv.ValidateSriovInterfaces(APIClient, NetConfig, workerNodeList, 2)).ToNot(HaveOccurred(),
 				"Failed to get required SR-IOV interfaces")
 
 			sriovInterfaces, err := NetConfig.GetSriovInterfaces(2)

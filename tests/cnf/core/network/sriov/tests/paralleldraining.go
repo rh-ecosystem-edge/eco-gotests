@@ -47,7 +47,7 @@ var _ = Describe("ParallelDraining", Ordered, Label(tsparams.LabelParallelDraini
 			workerNodeList, err = nodes.List(APIClient,
 				metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
 			Expect(err).ToNot(HaveOccurred(), "Failed to discover worker nodes")
-			Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 1)).ToNot(HaveOccurred(),
+			Expect(netenv.ValidateSriovInterfaces(APIClient, NetConfig, workerNodeList, 1)).ToNot(HaveOccurred(),
 				"Failed to get required SR-IOV interfaces")
 
 			sriovInterfacesUnderTest, err = NetConfig.GetSriovInterfaces(1)
@@ -291,7 +291,7 @@ func createSriovConfigurationParallelDrain(sriovInterfaceName string) {
 		NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName, sriovAndResourceNameParallelDrain).
 		WithStaticIpam().WithMacAddressSupport().WithIPAddressSupport().WithLogLevel(netparam.LogLevelDebug)
 
-	err = sriovenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetworkBuilder, tsparams.NADWaitTimeout)
+	err = netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, sriovNetworkBuilder, tsparams.NADWaitTimeout)
 	Expect(err).ToNot(HaveOccurred(),
 		"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
 		sriovAndResourceNameParallelDrain, err)

@@ -17,7 +17,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/sriovenv"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/params"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,7 +53,7 @@ var _ = Describe("Application Namespace SriovNetwork:", Ordered, Label(tsparams.
 				metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
 			Expect(err).ToNot(HaveOccurred(), "Failed to discover worker nodes")
 
-			Expect(sriovenv.ValidateSriovInterfaces(workerNodeList, 2)).ToNot(HaveOccurred(),
+			Expect(netenv.ValidateSriovInterfaces(APIClient, NetConfig, workerNodeList, 2)).ToNot(HaveOccurred(),
 				"Failed to get required SR-IOV interfaces")
 
 			sriovInterfacesUnderTest, err := NetConfig.GetSriovInterfaces(2)
@@ -142,7 +141,7 @@ var _ = Describe("Application Namespace SriovNetwork:", Ordered, Label(tsparams.
 
 				By("Waiting for NAD creation in namespace 1")
 
-				err = sriovenv.WaitForNADCreation(sriovNetwork1.Object.Name, tNs1.Object.Name, tsparams.WaitTimeout)
+				err = netenv.WaitForNADCreation(APIClient, sriovNetwork1.Object.Name, tNs1.Object.Name, tsparams.WaitTimeout)
 				Expect(err).ToNot(HaveOccurred(), "Failed to create NAD")
 
 				err = validateNADOwnerReferenceWithSriovNetwork(sriovNetwork1)
@@ -158,7 +157,7 @@ var _ = Describe("Application Namespace SriovNetwork:", Ordered, Label(tsparams.
 
 				By("Waiting for NAD creation in namespace 2")
 
-				err = sriovenv.WaitForNADCreation(sriovNetwork2.Object.Name, tNs2.Object.Name, tsparams.WaitTimeout)
+				err = netenv.WaitForNADCreation(APIClient, sriovNetwork2.Object.Name, tNs2.Object.Name, tsparams.WaitTimeout)
 				Expect(err).ToNot(HaveOccurred(), "Failed to create NAD")
 
 				err = validateNADOwnerReferenceWithSriovNetwork(sriovNetwork2)
@@ -195,7 +194,7 @@ var _ = Describe("Application Namespace SriovNetwork:", Ordered, Label(tsparams.
 
 				By("Waiting for NAD creation in namespace 1")
 
-				err = sriovenv.WaitForNADCreation(sriovNetwork1.Object.Name, tNs1.Object.Name, tsparams.WaitTimeout)
+				err = netenv.WaitForNADCreation(APIClient, sriovNetwork1.Object.Name, tNs1.Object.Name, tsparams.WaitTimeout)
 				Expect(err).ToNot(HaveOccurred(), "Failed to create NAD")
 
 				err = validateNADOwnerReferenceWithSriovNetwork(sriovNetwork1)
@@ -212,7 +211,7 @@ var _ = Describe("Application Namespace SriovNetwork:", Ordered, Label(tsparams.
 
 				By("Waiting for NAD creation in namespace 2")
 
-				err = sriovenv.WaitForNADCreation(sriovNetwork2.Object.Name, tNs2.Object.Name, tsparams.WaitTimeout)
+				err = netenv.WaitForNADCreation(APIClient, sriovNetwork2.Object.Name, tNs2.Object.Name, tsparams.WaitTimeout)
 				Expect(err).ToNot(HaveOccurred(), "Failed to create NAD")
 
 				err = validateNADOwnerReferenceWithSriovNetwork(sriovNetwork2)
@@ -266,7 +265,7 @@ var _ = Describe("Application Namespace SriovNetwork:", Ordered, Label(tsparams.
 
 				By("Waiting for NAD creation in namespace 1")
 
-				err = sriovenv.WaitForNADCreation(sriovNetwork1.Object.Name, tNs1.Object.Name, tsparams.WaitTimeout)
+				err = netenv.WaitForNADCreation(APIClient, sriovNetwork1.Object.Name, tNs1.Object.Name, tsparams.WaitTimeout)
 				Expect(err).ToNot(HaveOccurred(), "Failed to create NAD")
 
 				err = validateNADOwnerReferenceWithSriovNetwork(sriovNetwork1)
@@ -282,7 +281,7 @@ var _ = Describe("Application Namespace SriovNetwork:", Ordered, Label(tsparams.
 
 				By("Waiting for NAD creation in namespace 2")
 
-				err = sriovenv.WaitForNADCreation(sriovNetwork2.Object.Name, tNs2.Object.Name, tsparams.WaitTimeout)
+				err = netenv.WaitForNADCreation(APIClient, sriovNetwork2.Object.Name, tNs2.Object.Name, tsparams.WaitTimeout)
 				Expect(err).ToNot(HaveOccurred(), "Failed to create NAD")
 
 				err = validateNADOwnerReferenceWithSriovNetwork(sriovNetwork2)
@@ -300,7 +299,7 @@ var _ = Describe("Application Namespace SriovNetwork:", Ordered, Label(tsparams.
 
 			By("Waiting for NAD creation in namespace 1")
 
-			err = sriovenv.WaitForNADCreation(sriovNetwork1.Object.Name, tNs1.Object.Name, tsparams.WaitTimeout)
+			err = netenv.WaitForNADCreation(APIClient, sriovNetwork1.Object.Name, tNs1.Object.Name, tsparams.WaitTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for NAD creation")
 
 			By("Deleting SriovNetwork in namespace 1")
@@ -310,7 +309,7 @@ var _ = Describe("Application Namespace SriovNetwork:", Ordered, Label(tsparams.
 
 			By("Waiting for NAD deletion in namespace 1")
 
-			err = sriovenv.WaitForNADDeletion("sriovnetwork1", tNs1.Object.Name, tsparams.WaitTimeout)
+			err = netenv.WaitForNADDeletion(APIClient, "sriovnetwork1", tNs1.Object.Name, tsparams.WaitTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for NAD deletion")
 		})
 	})
@@ -318,7 +317,7 @@ var _ = Describe("Application Namespace SriovNetwork:", Ordered, Label(tsparams.
 func validateNADOwnerReferenceWithSriovNetwork(sriovNetwork *sriov.NetworkBuilder) error {
 	By("Fetching NAD")
 
-	nadBuilder, err := nad.Pull(APIClient, sriovNetwork.Object.Name, sriovenv.TargetNamespaceOf(sriovNetwork))
+	nadBuilder, err := nad.Pull(APIClient, sriovNetwork.Object.Name, netenv.TargetNamespaceOf(sriovNetwork))
 	if err != nil {
 		return err
 	}
@@ -331,7 +330,7 @@ func validateNADOwnerReferenceWithSriovNetwork(sriovNetwork *sriov.NetworkBuilde
 func validateNADAnnotationsWithSriovNetwork(sriovNetwork *sriov.NetworkBuilder) error {
 	By("Fetching NAD")
 
-	nadBuilder, err := nad.Pull(APIClient, sriovNetwork.Object.Name, sriovenv.TargetNamespaceOf(sriovNetwork))
+	nadBuilder, err := nad.Pull(APIClient, sriovNetwork.Object.Name, netenv.TargetNamespaceOf(sriovNetwork))
 	if err != nil {
 		return err
 	}

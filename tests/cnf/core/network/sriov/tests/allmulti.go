@@ -12,6 +12,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/cmd"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/sriov/internal/sriovenv"
@@ -347,7 +348,7 @@ func defineAndCreateSrIovNetwork(srIovNetwork, resName string, allMulti bool) {
 		srIovNetworkObject.WithTrustFlag(true).WithMetaPluginAllMultiFlag(true)
 	}
 
-	err := sriovenv.CreateSriovNetworkAndWaitForNADCreation(srIovNetworkObject, tsparams.NADWaitTimeout)
+	err := netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, srIovNetworkObject, tsparams.NADWaitTimeout)
 	Expect(err).ToNot(HaveOccurred(),
 		"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
 		srIovNetworkObject.Definition.Name, err)
@@ -485,7 +486,7 @@ func defineAndCreateSrIovNetworkWithOutIPAM(srIovNetwork string, allMulti bool) 
 		srIovNetworkObject.WithTrustFlag(true).WithMetaPluginAllMultiFlag(true)
 	}
 
-	err := sriovenv.CreateSriovNetworkAndWaitForNADCreation(srIovNetworkObject, tsparams.NADWaitTimeout)
+	err := netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, srIovNetworkObject, tsparams.NADWaitTimeout)
 	Expect(err).ToNot(HaveOccurred(),
 		"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
 		srIovNetworkObject.Definition.Name, err)
