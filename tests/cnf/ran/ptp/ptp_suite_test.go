@@ -13,6 +13,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/internal/nicinfo"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/mustgather"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/querier"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/rancluster"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
@@ -20,7 +21,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/consumer"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/metrics"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/mustgather"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
 	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/tests"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/reporter"
@@ -107,7 +107,8 @@ var _ = JustAfterEach(func() {
 
 	reporter.ReportIfFailed(
 		CurrentSpecReport(), currentFile, tsparams.ReporterSpokeNamespacesToDump, tsparams.ReporterSpokeCRsToDump)
-	mustgather.MustGatherIfFailed(CurrentSpecReport(), currentFile, RANConfig.Spoke1APIClient)
+	mustgather.CollectIfFailed(
+		CurrentSpecReport(), currentFile, RANConfig.Spoke1APIClient, "ptp", RANConfig.ResolvePTPMustGatherImage)
 })
 
 var _ = ReportAfterSuite("", func(report Report) {
@@ -120,7 +121,7 @@ var _ = ReportAfterSuite("", func(report Report) {
 			"ptp-event-consumer-image":  RANConfig.PtpEventConsumerImage,
 			"ptp-event-consumer-v1-tag": RANConfig.PtpEventConsumerV1Tag,
 			"ptp-event-consumer-v2-tag": RANConfig.PtpEventConsumerV2Tag,
-			"ptp-must-gather-image":     RANConfig.PtpMustGatherImage,
+			"ptp-must-gather-image":     RANConfig.PTPMustGatherImage,
 			"metric-sampling-interval":  RANConfig.MetricSamplingInterval,
 			"workload-duration":         RANConfig.WorkloadDuration,
 			"no-workload-duration":      RANConfig.NoWorkloadDuration,

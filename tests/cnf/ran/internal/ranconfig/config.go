@@ -68,10 +68,12 @@ type RANConfig struct {
 	// so that digests may be specified if needed.
 	PtpEventConsumerV2Tag string `yaml:"ptpEventConsumerV2Tag" envconfig:"ECO_CNF_RAN_PTP_EVENT_CONSUMER_V2_TAG"`
 
-	// PtpMustGatherImage is the image to use for PTP must-gather. If the value is set, this will be used for the
+	// PTPMustGatherImage is the image to use for PTP must-gather. If the value is set, this will be used for the
 	// must-gather. Otherwise, it will fallback to the CSV annotation, followed by the image from registry.redhat.io
-	// corresponding to the current Spoke 1 OCP version.
-	PtpMustGatherImage string `envconfig:"ECO_CNF_RAN_PTP_MUST_GATHER_IMAGE"`
+	// corresponding to the current PTP operator version.
+	PTPMustGatherImage string `envconfig:"ECO_CNF_RAN_PTP_MUST_GATHER_IMAGE"`
+	// O2IMSMustGatherImage is the image to use for O2IMS must-gather on the hub cluster.
+	O2IMSMustGatherImage string `yaml:"o2imsMustGatherImage" envconfig:"ECO_CNF_RAN_O2IMS_MUST_GATHER_IMAGE"`
 
 	// ClusterTemplateAffix is the version-dependent affix used for naming ClusterTemplates and other O-RAN
 	// resources.
