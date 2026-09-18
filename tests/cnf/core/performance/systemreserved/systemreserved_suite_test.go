@@ -8,7 +8,6 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/performance/systemreserved/internal/tsparams"
-	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/performance/systemreserved/tests"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/reporter"
 )

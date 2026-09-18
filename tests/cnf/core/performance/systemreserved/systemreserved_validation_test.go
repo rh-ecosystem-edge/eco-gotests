@@ -1,4 +1,4 @@
-package tests
+package systemreserved_test
 
 import (
 	"fmt"
