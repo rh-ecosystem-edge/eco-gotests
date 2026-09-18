@@ -3,6 +3,11 @@ package tsparams
 import (
 	"os"
 	"strconv"
+
+	"github.com/openshift-kni/k8sreporter"
+	mcfgv1 "github.com/openshift/api/machineconfiguration/v1"
+	performanceprofileV2 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/performanceprofile/v2"
+	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 )
 
 const (
@@ -54,11 +59,11 @@ var (
 	}
 
 	// ReporterCRDsToDump tells reporter which CRDs to dump.
-	ReporterCRDsToDump = []string{
-		"performanceprofiles",
-		"tuneds",
-		"machineconfigs",
-		"machineconfigpools",
+	ReporterCRDsToDump = []k8sreporter.CRData{
+		{Cr: &performanceprofileV2.PerformanceProfileList{}},
+		{Cr: &tunedv1.TunedList{}},
+		{Cr: &mcfgv1.MachineConfigList{}},
+		{Cr: &mcfgv1.MachineConfigPoolList{}},
 	}
 )
 

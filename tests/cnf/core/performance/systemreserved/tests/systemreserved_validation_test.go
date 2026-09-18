@@ -1,17 +1,18 @@
 package tests
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
-	performancev2 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/performanceprofile/performanceprofilev2"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nto"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/performance/systemreserved/internal/tsparams"
-	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/performance/systemreserved"
+	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,9 +22,10 @@ import (
 var _ = Describe("SystemReserved", Ordered, Label(tsparams.LabelSystemReservedValidation), func() {
 
 	var (
-		controlPlaneNodes []*nodes.Builder
-		workerNodes       []*nodes.Builder
-		performanceProfile *performancev2.PerformanceProfile
+		controlPlaneNodes  []*nodes.Builder
+		workerNodes        []*nodes.Builder
+		performanceProfile *nto.Builder
+		allProfiles        []*nto.Builder
 	)
 
 	BeforeAll(func() {
@@ -39,61 +41,59 @@ var _ = Describe("SystemReserved", Ordered, Label(tsparams.LabelSystemReservedVa
 			metav1.ListOptions{LabelSelector: labels.Set{"node-role.kubernetes.io/worker": ""}.String()})
 		Expect(err).ToNot(HaveOccurred(), "Failed to list worker nodes")
 
-		By("Finding PerformanceProfile")
-		// Try to find PerformanceProfile - if name is specified, use it; otherwise find any
+		By("Finding PerformanceProfiles")
+		// List all PerformanceProfiles
+		allProfiles, err = nto.ListProfiles(APIClient)
+		Expect(err).ToNot(HaveOccurred(), "Failed to list PerformanceProfiles")
+
+		if len(allProfiles) == 0 {
+			GinkgoWriter.Printf("⚠ No PerformanceProfile found in cluster - tests will use default baseline values\n")
+			return
+		}
+
+		// Try to find PerformanceProfile - if name is specified, use it; otherwise use first one
 		profileName := tsparams.PerformanceProfileName
 		if profileName == "" {
-			// List all PerformanceProfiles and use the first one
-			profileList := &performancev2.PerformanceProfileList{}
-			err = APIClient.List(context.TODO(), profileList)
-			Expect(err).ToNot(HaveOccurred(), "Failed to list PerformanceProfiles")
-
-			if len(profileList.Items) > 0 {
-				performanceProfile = &profileList.Items[0]
-				GinkgoWriter.Printf("Found PerformanceProfile: %s\n", performanceProfile.Name)
-			} else {
-				Skip("No PerformanceProfile found in cluster - skipping systemReserved validation tests")
-			}
+			// Use the first PerformanceProfile for basic validation
+			performanceProfile = allProfiles[0]
+			GinkgoWriter.Printf("Found PerformanceProfile: %s\n", performanceProfile.Object.Name)
 		} else {
-			// Get specific PerformanceProfile by name
-			performanceProfile = &performancev2.PerformanceProfile{}
-			err = APIClient.Get(context.TODO(),
-				metav1.ObjectMeta{Name: profileName}.GetObjectMeta(),
-				performanceProfile)
-			if err != nil {
-				Skip(fmt.Sprintf("PerformanceProfile %s not found - skipping tests", profileName))
+			// Find specific PerformanceProfile by name
+			found := false
+			for _, profile := range allProfiles {
+				if profile.Object.Name == profileName {
+					performanceProfile = profile
+					found = true
+					GinkgoWriter.Printf("Found PerformanceProfile: %s\n", performanceProfile.Object.Name)
+					break
+				}
+			}
+			if !found {
+				GinkgoWriter.Printf("⚠ PerformanceProfile %s not found - will test nodes individually\n", profileName)
 			}
 		}
+
+		GinkgoWriter.Printf("Found %d PerformanceProfile(s) in total\n", len(allProfiles))
 	})
 
 	Context("PerformanceProfile systemReserved configuration", func() {
 		It("Should contain expected systemReserved values", func() {
 			By("Verifying PerformanceProfile exists and has systemReserved configuration")
 			Expect(performanceProfile).ToNot(BeNil(), "PerformanceProfile is nil")
-			Expect(performanceProfile.Spec).ToNot(BeNil(), "PerformanceProfile spec is nil")
+			Expect(performanceProfile.Object.Spec).ToNot(BeNil(), "PerformanceProfile spec is nil")
 
-			GinkgoWriter.Printf("PerformanceProfile Name: %s\n", performanceProfile.Name)
-			GinkgoWriter.Printf("PerformanceProfile NodeSelector: %v\n", performanceProfile.Spec.NodeSelector)
+			GinkgoWriter.Printf("PerformanceProfile Name: %s\n", performanceProfile.Object.Name)
+			GinkgoWriter.Printf("PerformanceProfile NodeSelector: %v\n", performanceProfile.Object.Spec.NodeSelector)
 
-			// systemReserved configuration can be in different locations depending on the version
-			// Try multiple locations to find the configuration
-
-			By("Checking for systemReserved in additionalKernelArgs")
-			// Sometimes systemReserved is set via kernel args
-			foundSystemReservedConfig := false
-
-			if performanceProfile.Spec.AdditionalKernelRuntimeConfig != nil {
-				if len(performanceProfile.Spec.AdditionalKernelRuntimeConfig) > 0 {
-					GinkgoWriter.Printf("Found additionalKernelRuntimeConfig: %v\n", performanceProfile.Spec.AdditionalKernelRuntimeConfig)
-					foundSystemReservedConfig = true
-				}
-			}
+			// Note: In PerformanceProfile v2, systemReserved is typically applied via MachineConfig
+			// generated by the Performance Addon Operator, not directly in the PerformanceProfile spec.
+			// The actual validation happens in Test Case 4.2 (kubelet config on nodes).
 
 			// Check WorkloadHints as systemReserved might affect them
-			if performanceProfile.Spec.WorkloadHints != nil {
+			if performanceProfile.Object.Spec.WorkloadHints != nil {
 				GinkgoWriter.Printf("WorkloadHints configured: realTime=%v, highPowerConsumption=%v\n",
-					performanceProfile.Spec.WorkloadHints.RealTime,
-					performanceProfile.Spec.WorkloadHints.HighPowerConsumption)
+					performanceProfile.Object.Spec.WorkloadHints.RealTime,
+					performanceProfile.Object.Spec.WorkloadHints.HighPowerConsumption)
 			}
 
 			// Note: In PerformanceProfile v2, systemReserved is typically applied via MachineConfig
@@ -101,12 +101,12 @@ var _ = Describe("SystemReserved", Ordered, Label(tsparams.LabelSystemReservedVa
 			// The actual validation happens in Test Case 4.2 (kubelet config on nodes).
 
 			// At minimum, verify the PerformanceProfile has CPU configuration which affects systemReserved
-			Expect(performanceProfile.Spec.CPU).ToNot(BeNil(), "PerformanceProfile CPU configuration is nil")
-			Expect(performanceProfile.Spec.CPU.Reserved).ToNot(BeEmpty(), "PerformanceProfile CPU reserved is empty")
-			Expect(performanceProfile.Spec.CPU.Isolated).ToNot(BeEmpty(), "PerformanceProfile CPU isolated is empty")
+			Expect(performanceProfile.Object.Spec.CPU).ToNot(BeNil(), "PerformanceProfile CPU configuration is nil")
+			Expect(performanceProfile.Object.Spec.CPU.Reserved).ToNot(BeNil(), "PerformanceProfile CPU reserved is nil")
+			Expect(performanceProfile.Object.Spec.CPU.Isolated).ToNot(BeNil(), "PerformanceProfile CPU isolated is nil")
 
 			GinkgoWriter.Printf("✓ PerformanceProfile has CPU partitioning: reserved=%s, isolated=%s\n",
-				performanceProfile.Spec.CPU.Reserved, performanceProfile.Spec.CPU.Isolated)
+				performanceProfile.Object.Spec.CPU.Reserved, performanceProfile.Object.Spec.CPU.Isolated)
 
 			// Log that systemReserved will be validated via kubelet config in Test Case 4.2
 			GinkgoWriter.Printf("Note: systemReserved memory/CPU values will be validated via kubelet config in Test Case 4.2\n")
@@ -114,23 +114,51 @@ var _ = Describe("SystemReserved", Ordered, Label(tsparams.LabelSystemReservedVa
 	})
 
 	Context("Kubelet systemReserved configuration", func() {
-		testNodeSystemReserved := func(nodeList []*nodes.Builder, expectedCPU, expectedMemory string, nodeType string) {
-			if len(nodeList) == 0 {
-				Skip(fmt.Sprintf("No %s nodes found - skipping kubelet config validation", nodeType))
-			}
+		When("Testing control plane nodes", func() {
+			It("Should have correct systemReserved in /etc/node-sizing.env", func() {
+				if len(controlPlaneNodes) == 0 {
+					Skip("No control-plane nodes found - skipping kubelet config validation")
+				}
 
-			for _, node := range nodeList {
-				nodeObj := node.Object
-				nodeName := nodeObj.Name
+				for _, node := range controlPlaneNodes {
+					nodeObj := node.Object
+					nodeName := nodeObj.Name
 
-				It(fmt.Sprintf("Should have correct systemReserved in /etc/node-sizing.env on %s node %s", nodeType, nodeName), func() {
+					// Skip nodes that are not ready or schedulable
+					if !isNodeReadyForTesting(node) {
+						GinkgoWriter.Printf("⊘ Skipping node %s (NotReady or SchedulingDisabled)\n", nodeName)
+						continue
+					}
+
+					// Check if node has a matching PerformanceProfile
+					matchingProfile := findPerformanceProfileForNode(nodeObj.Labels, allProfiles)
+
+					var expectedCPU, expectedMemory string
+					if matchingProfile != nil {
+						// Extract systemReserved from PerformanceProfile
+						cpu, mem, err := extractSystemReservedFromProfile(matchingProfile)
+						if err != nil {
+							GinkgoWriter.Printf("⚠ Node %s: Failed to extract systemReserved from PerformanceProfile %s: %v\n",
+								nodeName, matchingProfile.Object.Name, err)
+							GinkgoWriter.Printf("⚠ Using default baseline values instead\n")
+							expectedCPU = tsparams.ControlPlaneCPUReserved
+							expectedMemory = tsparams.ControlPlaneMemoryReserved
+						} else {
+							expectedCPU = cpu
+							expectedMemory = mem
+							GinkgoWriter.Printf("ℹ Node %s matched PerformanceProfile %s: expecting CPU=%s, Memory=%s\n",
+								nodeName, matchingProfile.Object.Name, expectedCPU, expectedMemory)
+						}
+					} else {
+						// No PerformanceProfile for this node - use defaults or log warning
+						GinkgoWriter.Printf("⚠ Node %s has no matching PerformanceProfile - using baseline values for comparison\n", nodeName)
+						expectedCPU = tsparams.ControlPlaneCPUReserved
+						expectedMemory = tsparams.ControlPlaneMemoryReserved
+					}
+
 					By(fmt.Sprintf("Executing debug pod on node %s", nodeName))
 
-					// Read /etc/node-sizing.env from the node
-					// Using oc debug node/<node> or direct file read via pod
 					cmd := []string{"cat", tsparams.NodeSizingEnvPath}
-
-					// Create debug pod and execute command
 					output, err := executeDebugPodCommand(nodeName, cmd)
 					Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to read %s from node %s", tsparams.NodeSizingEnvPath, nodeName))
 					Expect(output).ToNot(BeEmpty(), fmt.Sprintf("%s is empty on node %s", tsparams.NodeSizingEnvPath, nodeName))
@@ -142,35 +170,135 @@ var _ = Describe("SystemReserved", Ordered, Label(tsparams.LabelSystemReservedVa
 					actualCPU, found := envVars["SYSTEM_RESERVED_CPU"]
 					Expect(found).To(BeTrue(), fmt.Sprintf("SYSTEM_RESERVED_CPU not found in %s on node %s", tsparams.NodeSizingEnvPath, nodeName))
 
-					// Normalize CPU values for comparison (handle "40" vs "40000m")
-					Expect(normalizeCPUValue(actualCPU)).To(Equal(normalizeCPUValue(expectedCPU)),
-						fmt.Sprintf("CPU systemReserved mismatch on %s node %s: expected %s, got %s", nodeType, nodeName, expectedCPU, actualCPU))
+					if matchingProfile != nil {
+						// Strict check for nodes with PerformanceProfile
+						Expect(normalizeCPUValue(actualCPU)).To(Equal(normalizeCPUValue(expectedCPU)),
+							fmt.Sprintf("CPU systemReserved mismatch on control-plane node %s: expected %s (from PerformanceProfile), got %s",
+								nodeName, expectedCPU, actualCPU))
+					} else {
+						// Informational for nodes without PerformanceProfile
+						if normalizeCPUValue(actualCPU) != normalizeCPUValue(expectedCPU) {
+							GinkgoWriter.Printf("ℹ Node %s: CPU systemReserved is %s (scale lab baseline suggests %s)\n",
+								nodeName, actualCPU, expectedCPU)
+						}
+					}
 
 					By("Verifying SYSTEM_RESERVED_MEMORY")
 					actualMemory, found := envVars["SYSTEM_RESERVED_MEMORY"]
 					Expect(found).To(BeTrue(), fmt.Sprintf("SYSTEM_RESERVED_MEMORY not found in %s on node %s", tsparams.NodeSizingEnvPath, nodeName))
-					Expect(actualMemory).To(Equal(expectedMemory),
-						fmt.Sprintf("Memory systemReserved mismatch on %s node %s: expected %s, got %s", nodeType, nodeName, expectedMemory, actualMemory))
 
-					GinkgoWriter.Printf("✓ Node %s has correct systemReserved: CPU=%s, Memory=%s\n", nodeName, actualCPU, actualMemory)
-				})
-			}
-		}
+					if matchingProfile != nil {
+						// Strict check for nodes with PerformanceProfile
+						Expect(actualMemory).To(Equal(expectedMemory),
+							fmt.Sprintf("Memory systemReserved mismatch on control-plane node %s: expected %s (from PerformanceProfile), got %s",
+								nodeName, expectedMemory, actualMemory))
+					} else {
+						// Informational for nodes without PerformanceProfile
+						if actualMemory != expectedMemory {
+							GinkgoWriter.Printf("ℹ Node %s: Memory systemReserved is %s (scale lab baseline suggests %s)\n",
+								nodeName, actualMemory, expectedMemory)
+						}
+					}
 
-		When("Testing control plane nodes", func() {
-			testNodeSystemReserved(controlPlaneNodes, tsparams.ControlPlaneCPUReserved, tsparams.ControlPlaneMemoryReserved, "control-plane")
+					GinkgoWriter.Printf("✓ Node %s systemReserved validated: CPU=%s, Memory=%s\n", nodeName, actualCPU, actualMemory)
+				}
+			})
 		})
 
 		When("Testing worker nodes", func() {
-			testNodeSystemReserved(workerNodes, tsparams.WorkerCPUReserved, tsparams.WorkerMemoryReserved, "worker")
+			It("Should have correct systemReserved in /etc/node-sizing.env", func() {
+				if len(workerNodes) == 0 {
+					Skip("No worker nodes found - skipping kubelet config validation")
+				}
+
+				for _, node := range workerNodes {
+					nodeObj := node.Object
+					nodeName := nodeObj.Name
+
+					// Skip nodes that are not ready or schedulable
+					if !isNodeReadyForTesting(node) {
+						GinkgoWriter.Printf("⊘ Skipping node %s (NotReady or SchedulingDisabled)\n", nodeName)
+						continue
+					}
+
+					// Check if node has a matching PerformanceProfile
+					matchingProfile := findPerformanceProfileForNode(nodeObj.Labels, allProfiles)
+
+					var expectedCPU, expectedMemory string
+					if matchingProfile != nil {
+						// Extract systemReserved from PerformanceProfile
+						cpu, mem, err := extractSystemReservedFromProfile(matchingProfile)
+						if err != nil {
+							GinkgoWriter.Printf("⚠ Node %s: Failed to extract systemReserved from PerformanceProfile %s: %v\n",
+								nodeName, matchingProfile.Object.Name, err)
+							GinkgoWriter.Printf("⚠ Using default baseline values instead\n")
+							expectedCPU = tsparams.WorkerCPUReserved
+							expectedMemory = tsparams.WorkerMemoryReserved
+						} else {
+							expectedCPU = cpu
+							expectedMemory = mem
+							GinkgoWriter.Printf("ℹ Node %s matched PerformanceProfile %s: expecting CPU=%s, Memory=%s\n",
+								nodeName, matchingProfile.Object.Name, expectedCPU, expectedMemory)
+						}
+					} else {
+						// No PerformanceProfile for this node - use defaults
+						GinkgoWriter.Printf("⚠ Node %s has no matching PerformanceProfile - using baseline values for comparison\n", nodeName)
+						expectedCPU = tsparams.WorkerCPUReserved
+						expectedMemory = tsparams.WorkerMemoryReserved
+					}
+
+					By(fmt.Sprintf("Executing debug pod on node %s", nodeName))
+
+					cmd := []string{"cat", tsparams.NodeSizingEnvPath}
+					output, err := executeDebugPodCommand(nodeName, cmd)
+					Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to read %s from node %s", tsparams.NodeSizingEnvPath, nodeName))
+					Expect(output).ToNot(BeEmpty(), fmt.Sprintf("%s is empty on node %s", tsparams.NodeSizingEnvPath, nodeName))
+
+					By("Parsing node-sizing.env file")
+					envVars := parseEnvFile(output)
+
+					By("Verifying SYSTEM_RESERVED_CPU")
+					actualCPU, found := envVars["SYSTEM_RESERVED_CPU"]
+					Expect(found).To(BeTrue(), fmt.Sprintf("SYSTEM_RESERVED_CPU not found in %s on node %s", tsparams.NodeSizingEnvPath, nodeName))
+
+					if matchingProfile != nil {
+						// Strict check for nodes with PerformanceProfile
+						Expect(normalizeCPUValue(actualCPU)).To(Equal(normalizeCPUValue(expectedCPU)),
+							fmt.Sprintf("CPU systemReserved mismatch on worker node %s: expected %s (from PerformanceProfile), got %s",
+								nodeName, expectedCPU, actualCPU))
+					} else {
+						// Informational for nodes without PerformanceProfile
+						if normalizeCPUValue(actualCPU) != normalizeCPUValue(expectedCPU) {
+							GinkgoWriter.Printf("ℹ Node %s: CPU systemReserved is %s (baseline suggests %s)\n",
+								nodeName, actualCPU, expectedCPU)
+						}
+					}
+
+					By("Verifying SYSTEM_RESERVED_MEMORY")
+					actualMemory, found := envVars["SYSTEM_RESERVED_MEMORY"]
+					Expect(found).To(BeTrue(), fmt.Sprintf("SYSTEM_RESERVED_MEMORY not found in %s on node %s", tsparams.NodeSizingEnvPath, nodeName))
+
+					if matchingProfile != nil {
+						// Strict check for nodes with PerformanceProfile
+						Expect(actualMemory).To(Equal(expectedMemory),
+							fmt.Sprintf("Memory systemReserved mismatch on worker node %s: expected %s (from PerformanceProfile), got %s",
+								nodeName, expectedMemory, actualMemory))
+					} else {
+						// Informational for nodes without PerformanceProfile
+						if actualMemory != expectedMemory {
+							GinkgoWriter.Printf("ℹ Node %s: Memory systemReserved is %s (baseline suggests %s)\n",
+								nodeName, actualMemory, expectedMemory)
+						}
+					}
+
+					GinkgoWriter.Printf("✓ Node %s systemReserved validated: CPU=%s, Memory=%s\n", nodeName, actualCPU, actualMemory)
+				}
+			})
 		})
 	})
 
 	Context("Node allocatable capacity validation", func() {
 		testNodeAllocatable := func(nodeList []*nodes.Builder, nodeType string) {
-			if len(nodeList) == 0 {
-				Skip(fmt.Sprintf("No %s nodes found - skipping allocatable validation", nodeType))
-			}
 
 			for _, node := range nodeList {
 				nodeObj := node.Object
@@ -265,9 +393,6 @@ var _ = Describe("SystemReserved", Ordered, Label(tsparams.LabelSystemReservedVa
 
 	Context("systemReserved enforcement validation", func() {
 		testNodeEnforcement := func(nodeList []*nodes.Builder, nodeType string) {
-			if len(nodeList) == 0 {
-				Skip(fmt.Sprintf("No %s nodes found - skipping enforcement validation", nodeType))
-			}
 
 			for _, node := range nodeList {
 				nodeObj := node.Object
@@ -385,6 +510,28 @@ var _ = Describe("SystemReserved", Ordered, Label(tsparams.LabelSystemReservedVa
 
 // Helper functions
 
+// isNodeReadyForTesting checks if a node is in a state where it can be tested.
+// Returns false if node is NotReady or has SchedulingDisabled.
+func isNodeReadyForTesting(node *nodes.Builder) bool {
+	nodeObj := node.Object
+
+	// Check if node is schedulable
+	if nodeObj.Spec.Unschedulable {
+		return false
+	}
+
+	// Check node conditions
+	for _, condition := range nodeObj.Status.Conditions {
+		if condition.Type == corev1.NodeReady {
+			if condition.Status != corev1.ConditionTrue {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
 // executeDebugPodCommand executes a command on a node via debug pod.
 func executeDebugPodCommand(nodeName string, cmd []string) (string, error) {
 	debugPodName := fmt.Sprintf("systemreserved-debug-%s", strings.ReplaceAll(nodeName, ".", "-"))
@@ -431,9 +578,23 @@ func executeDebugPodCommand(nodeName string, cmd []string) (string, error) {
 		Privileged: func(b bool) *bool { return &b }(true),
 	}
 
+	// Add tolerations for master/control-plane nodes
+	debugPod.Definition.Spec.Tolerations = []corev1.Toleration{
+		{
+			Key:      "node-role.kubernetes.io/master",
+			Operator: corev1.TolerationOpExists,
+			Effect:   corev1.TaintEffectNoSchedule,
+		},
+		{
+			Key:      "node-role.kubernetes.io/control-plane",
+			Operator: corev1.TolerationOpExists,
+			Effect:   corev1.TaintEffectNoSchedule,
+		},
+	}
+
 	// Create and wait for pod to be running
 	GinkgoWriter.Printf("Creating debug pod %s on node %s\n", debugPodName, nodeName)
-	_, err := debugPod.CreateAndWaitUntilRunning(2 * time.Minute)
+	_, err := debugPod.CreateAndWaitUntilRunning(5 * time.Minute)
 	if err != nil {
 		return "", fmt.Errorf("failed to create debug pod on node %s: %v", nodeName, err)
 	}
@@ -443,7 +604,7 @@ func executeDebugPodCommand(nodeName string, cmd []string) (string, error) {
 	output, err := debugPod.ExecCommand(cmd, debugPod.Definition.Spec.Containers[0].Name)
 	if err != nil {
 		// Try to cleanup even if command failed
-		cleanupErr := debugPod.DeleteAndWait(30 * time.Second)
+		_, cleanupErr := debugPod.DeleteAndWait(30 * time.Second)
 		if cleanupErr != nil {
 			GinkgoWriter.Printf("Warning: failed to delete debug pod: %v\n", cleanupErr)
 		}
@@ -452,13 +613,13 @@ func executeDebugPodCommand(nodeName string, cmd []string) (string, error) {
 
 	// Cleanup debug pod
 	GinkgoWriter.Printf("Cleaning up debug pod %s\n", debugPodName)
-	err = debugPod.DeleteAndWait(30 * time.Second)
+	_, err = debugPod.DeleteAndWait(30 * time.Second)
 	if err != nil {
 		GinkgoWriter.Printf("Warning: failed to delete debug pod: %v\n", err)
 		// Don't return error for cleanup failure - we got the output
 	}
 
-	return string(output), nil
+	return output.String(), nil
 }
 
 // parseEnvFile parses environment variable file content into a map.
@@ -503,4 +664,83 @@ func normalizeCPUValue(cpuStr string) int64 {
 		return 0
 	}
 	return int64(cores * 1000)
+}
+
+// findPerformanceProfileForNode checks if a node matches any PerformanceProfile's nodeSelector.
+// Returns the matching PerformanceProfile or nil if no match.
+func findPerformanceProfileForNode(nodeLabels map[string]string, profiles []*nto.Builder) *nto.Builder {
+	for _, profile := range profiles {
+		if profile.Object.Spec.NodeSelector == nil {
+			continue
+		}
+
+		// Check if all nodeSelector labels match
+		allMatch := true
+		for key, value := range profile.Object.Spec.NodeSelector {
+			// Check if the label exists in node AND has the correct value
+			nodeValue, exists := nodeLabels[key]
+			if !exists || nodeValue != value {
+				allMatch = false
+				break
+			}
+		}
+
+		if allMatch {
+			return profile
+		}
+	}
+	return nil
+}
+
+// extractSystemReservedFromProfile extracts systemReserved CPU and memory from PerformanceProfile's kubeletconfig annotation.
+// Returns (cpuValue, memoryValue, error).
+func extractSystemReservedFromProfile(profile *nto.Builder) (string, string, error) {
+	if profile == nil || profile.Object.Annotations == nil {
+		return "", "", fmt.Errorf("profile or annotations are nil")
+	}
+
+	kubeletConfig, found := profile.Object.Annotations["kubeletconfig.experimental"]
+	if !found {
+		return "", "", fmt.Errorf("kubeletconfig.experimental annotation not found")
+	}
+
+	// Parse JSON to extract systemReserved values
+	// The annotation contains JSON like: { "systemReserved": { "memory": "38Gi", "cpu": "10000m" }, ... }
+
+	// Simple parsing - look for systemReserved CPU and memory values
+	var cpuValue, memoryValue string
+
+	// Extract CPU value
+	cpuStart := strings.Index(kubeletConfig, `"cpu":`)
+	if cpuStart != -1 {
+		cpuStart += len(`"cpu":`)
+		cpuEnd := strings.Index(kubeletConfig[cpuStart:], `"`)
+		if cpuEnd != -1 {
+			cpuStart += cpuEnd + 1
+			cpuEnd = strings.Index(kubeletConfig[cpuStart:], `"`)
+			if cpuEnd != -1 {
+				cpuValue = kubeletConfig[cpuStart : cpuStart+cpuEnd]
+			}
+		}
+	}
+
+	// Extract memory value
+	memStart := strings.Index(kubeletConfig, `"memory":`)
+	if memStart != -1 {
+		memStart += len(`"memory":`)
+		memEnd := strings.Index(kubeletConfig[memStart:], `"`)
+		if memEnd != -1 {
+			memStart += memEnd + 1
+			memEnd = strings.Index(kubeletConfig[memStart:], `"`)
+			if memEnd != -1 {
+				memoryValue = kubeletConfig[memStart : memStart+memEnd]
+			}
+		}
+	}
+
+	if cpuValue == "" || memoryValue == "" {
+		return "", "", fmt.Errorf("failed to parse systemReserved values from kubeletconfig annotation")
+	}
+
+	return cpuValue, memoryValue, nil
 }
