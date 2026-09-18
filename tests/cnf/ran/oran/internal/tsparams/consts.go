@@ -21,6 +21,8 @@ const (
 	LabelAlarms = "alarms"
 	// LabelInventory is the label applied to just the inventory API test cases.
 	LabelInventory = "inventory"
+	// LabelSecurity is the label applied to O-Cloud Manager security hardening test cases.
+	LabelSecurity = "security"
 )
 
 const (
@@ -61,6 +63,17 @@ const (
 	// PRMissingBootInterfaceDetailsSubstring is a substring of provisioningDetails when no NIC in the
 	// ClusterInstance defaults matches the boot interface label value.
 	PRMissingBootInterfaceDetailsSubstring = "no NIC found matching boot interface label value"
+	// PRExistingNamespaceDetailsSubstring is a substring of provisioningDetails when clusterName matches an
+	// existing namespace not owned by the ProvisioningRequest.
+	PRExistingNamespaceDetailsSubstring = "not owned by ProvisioningRequest"
+	// PRReservedNamespaceDetailsSubstring is a substring of API error detail when clusterName is a reserved namespace.
+	PRReservedNamespaceDetailsSubstring = `targets a reserved namespace (prefix "default")`
+	// PROpenshiftPrefixDetailsSubstring is a substring of API error detail when clusterName uses the openshift- prefix.
+	PROpenshiftPrefixDetailsSubstring = `targets a reserved namespace (prefix "openshift-")`
+	// PRKubePrefixDetailsSubstring is a substring of API error detail when clusterName uses the kube- prefix.
+	PRKubePrefixDetailsSubstring = `targets a reserved namespace (prefix "kube-")`
+	// PRDNS1123DetailsSubstring is a substring of API error detail when clusterName is not DNS-1123 compliant.
+	PRDNS1123DetailsSubstring = "not a valid DNS-1123 label"
 )
 
 const (
@@ -112,6 +125,10 @@ const (
 	// TestPRName2 is the second UUID used for naming ProvisioningRequests. Metal3 tests require a second PR applied
 	// to verify the case of all hardware already allocated.
 	TestPRName2 = "a1b2c3d4-e5f6-7890-1234-567890abcdef"
+	// TestPRNameSecurity is the UUID used for security hardening ProvisioningRequest tests.
+	TestPRNameSecurity = "b2c3d4e5-f6a7-8901-2345-678901bcdef0"
+	// TestExistingNamespace is a namespace created manually for clusterName ownership validation tests.
+	TestExistingNamespace = "oran-test-existing-ns"
 
 	// TestLocationAlpha is the first Location name used by inventory filter tests.
 	TestLocationAlpha = "test-location-alpha"

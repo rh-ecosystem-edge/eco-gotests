@@ -6,8 +6,12 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
+	"strings"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	oranapi "github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran/api"
@@ -23,10 +27,22 @@ import (
 // is required is that the access token has the o2ims-admin role and the audience is o2ims-client.
 var oAuthScopes = []string{"openid", "roles", "role:o2ims-admin", "o2ims-audience"}
 
-// NewClientBuilderForConfig creates a new ClientBuilder for the O2IMS API using the provided configuration. If the
-// OAuth client id and client secret are not provided, the builder will use the bearer token provided. Otherwise, the
-// builder will attempt to use mTLS and OAuth for authentication and authorization.
+// ReaderOAuthScopes are the OAuth scopes for an o2ims-reader client. These are specific to the Keycloak configuration;
+// what is required is that the access token has the o2ims-reader role and the audience is o2ims-client.
+var ReaderOAuthScopes = []string{"openid", "roles", "role:o2ims-reader", "o2ims-audience"}
+
+// NewClientBuilderForConfig creates a new ClientBuilder for the O2IMS API using the provided configuration with
+// o2ims-admin scopes.
 func NewClientBuilderForConfig(config *ranconfig.RANConfig) (*oranapi.ClientBuilder, error) {
+	return NewClientBuilderForConfigWithScopes(config, oAuthScopes)
+}
+
+// NewClientBuilderForConfigWithScopes creates a new ClientBuilder for the O2IMS API using the provided configuration
+// and OAuth scopes. If the OAuth client id and client secret are not provided, the builder will use the bearer token
+// provided. Otherwise, the builder will attempt to use mTLS and OAuth for authentication and authorization and verify
+// that the returned token contains exactly the requested O2IMS role scopes.
+func NewClientBuilderForConfigWithScopes(
+	config *ranconfig.RANConfig, scopes []string) (*oranapi.ClientBuilder, error) {
 	o2imsBaseURL := "https://" + config.GetAppsURL("o2ims")
 	oAuthURL := "https://" + config.GetAppsURL("keycloak") + "/realms/oran/protocol/openid-connect/token"
 
@@ -55,16 +71,63 @@ func NewClientBuilderForConfig(config *ranconfig.RANConfig) (*oranapi.ClientBuil
 		ClientID:     config.O2IMSOAuthClientID,
 		ClientSecret: config.O2IMSOAuthClientSecret,
 		TokenURL:     oAuthURL,
-		Scopes:       oAuthScopes,
+		Scopes:       scopes,
 	}
 
 	ctx := context.WithValue(context.TODO(), oauth2.HTTPClient, httpClient)
-	httpClient = oAuthConfig.Client(ctx)
+	tokenSource := oAuthConfig.TokenSource(ctx)
+
+	token, err := tokenSource.Token()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get OAuth token: %w", err)
+	}
+
+	if err := validateO2IMSRoleScopes(token.AccessToken, scopes); err != nil {
+		return nil, err
+	}
+
+	httpClient = oauth2.NewClient(ctx, tokenSource)
 
 	clientBuilder := oranapi.NewClientBuilder(o2imsBaseURL).
 		WithHTTPClient(httpClient)
 
 	return clientBuilder, nil
+}
+
+// validateO2IMSRoleScopes verifies that a JWT contains exactly the requested O2IMS role scopes.
+func validateO2IMSRoleScopes(accessToken string, requestedScopes []string) error {
+	tokenParts := strings.Split(accessToken, ".")
+	if len(tokenParts) != 3 {
+		return fmt.Errorf("OAuth access token is not a JWT")
+	}
+
+	claimsJSON, err := base64.RawURLEncoding.DecodeString(tokenParts[1])
+	if err != nil {
+		return fmt.Errorf("failed to decode OAuth access token claims: %w", err)
+	}
+
+	var claims struct {
+		Scope string `json:"scope"`
+	}
+
+	if err := json.Unmarshal(claimsJSON, &claims); err != nil {
+		return fmt.Errorf("failed to parse OAuth access token claims: %w", err)
+	}
+
+	tokenScopes := strings.Fields(claims.Scope)
+	for _, scope := range requestedScopes {
+		if strings.HasPrefix(scope, "role:o2ims-") && !slices.Contains(tokenScopes, scope) {
+			return fmt.Errorf("OAuth access token is missing requested scope %q", scope)
+		}
+	}
+
+	for _, scope := range tokenScopes {
+		if strings.HasPrefix(scope, "role:o2ims-") && !slices.Contains(requestedScopes, scope) {
+			return fmt.Errorf("OAuth access token contains unexpected scope %q", scope)
+		}
+	}
+
+	return nil
 }
 
 // NewUnauthenticatedClientBuilderForConfig creates a ClientBuilder that can reach the O2IMS API over TLS/mTLS but does
