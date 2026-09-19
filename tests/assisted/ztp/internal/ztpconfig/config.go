@@ -49,6 +49,7 @@ type SpokeConfig struct {
 	SpokeClusterName         string
 	SpokeKubeConfig          string `envconfig:"ECO_ASSISTED_ZTP_SPOKE_KUBECONFIG"`
 	SpokeClusterImageSet     string `envconfig:"ECO_ASSISTED_ZTP_SPOKE_CLUSTERIMAGESET"`
+	SpokeInfraEnvName        string `envconfig:"ECO_ASSISTED_ZTP_SPOKE_INFRAENV_NAME"`
 	SpokeClusterDeployment   *hive.ClusterDeploymentBuilder
 	SpokeAgentClusterInstall *assisted.AgentClusterInstallBuilder
 	SpokeInfraEnv            *assisted.InfraEnvBuilder
@@ -213,8 +214,10 @@ func (ztpconfig *ZTPConfig) newSpokeConfig() error {
 			return err
 		}
 
-		ztpconfig.SpokeConfig.SpokeInfraEnv, err = assisted.PullInfraEnvInstall(ztpconfig.HubConfig.HubAPIClient,
-			ztpconfig.SpokeConfig.SpokeClusterName, ztpconfig.SpokeConfig.SpokeClusterName)
+		ztpconfig.SpokeConfig.SpokeInfraEnv, err = find.SpokeInfraEnv(
+			ztpconfig.HubConfig.HubAPIClient,
+			ztpconfig.SpokeConfig.SpokeClusterName,
+			ztpconfig.SpokeConfig.SpokeInfraEnvName)
 		if err != nil {
 			klog.V(ztpparams.ZTPLogLevel).Infof("failed to find spoke infra env: %v", err)
 
