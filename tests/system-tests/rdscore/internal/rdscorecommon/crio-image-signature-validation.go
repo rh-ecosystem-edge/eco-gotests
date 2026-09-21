@@ -45,10 +45,14 @@ const (
 	imageSignatureKeyPublicKeyRegularUnsigned   = "rds_pubkey_regular_unsigned"
 	imageSignatureKeyPublicKeyMultiArchSigned   = "rds_pubkey_multiarch_signed"
 	imageSignatureKeyPublicKeyMultiArchUnsigned = "rds_pubkey_multiarch_unsigned"
+	imageSignatureKeyPublicKeyMirroredSigned    = "rds_pubkey_mirrored_signed"
+	imageSignatureKeyPublicKeyMirroredUnsigned  = "rds_pubkey_mirrored_unsigned"
 	imageSignatureKeyCertRegularSigned          = "rds_cert_regular_signed"
 	imageSignatureKeyCertRegularUnsigned        = "rds_cert_regular_unsigned"
 	imageSignatureKeyCertMultiArchSigned        = "rds_cert_multiarch_signed"
 	imageSignatureKeyCertMultiArchUnsigned      = "rds_cert_multiarch_unsigned"
+	imageSignatureKeyCertMirroredSigned         = "rds_cert_mirrored_signed"
+	imageSignatureKeyCertMirroredUnsigned       = "rds_cert_mirrored_unsigned"
 )
 
 // imageSignatureDefaultCmd is the command used to keep the workload container running.
@@ -101,6 +105,20 @@ var imageSignatureCases = map[string]imageSignatureCase{
 		},
 		shouldSucceed: false,
 	},
+	"publickey-mirrored-signed": {
+		deployName: "rds-crio-pubkey-mirrored-signed",
+		imageFn: func(ctx SpecContext) string {
+			return imageSignatureImage(ctx, imageSignatureKeyPublicKeyMirroredSigned)
+		},
+		shouldSucceed: true,
+	},
+	"publickey-mirrored-unsigned": {
+		deployName: "rds-crio-pubkey-mirrored-unsigned",
+		imageFn: func(ctx SpecContext) string {
+			return imageSignatureImage(ctx, imageSignatureKeyPublicKeyMirroredUnsigned)
+		},
+		shouldSucceed: false,
+	},
 	"certificate-regular-signed": {
 		deployName: "rds-crio-cert-reg-signed",
 		imageFn: func(ctx SpecContext) string {
@@ -126,6 +144,20 @@ var imageSignatureCases = map[string]imageSignatureCase{
 		deployName: "rds-crio-cert-multi-unsigned",
 		imageFn: func(ctx SpecContext) string {
 			return imageSignatureImage(ctx, imageSignatureKeyCertMultiArchUnsigned)
+		},
+		shouldSucceed: false,
+	},
+	"certificate-mirrored-signed": {
+		deployName: "rds-crio-cert-mirrored-signed",
+		imageFn: func(ctx SpecContext) string {
+			return imageSignatureImage(ctx, imageSignatureKeyCertMirroredSigned)
+		},
+		shouldSucceed: true,
+	},
+	"certificate-mirrored-unsigned": {
+		deployName: "rds-crio-cert-mirrored-unsigned",
+		imageFn: func(ctx SpecContext) string {
+			return imageSignatureImage(ctx, imageSignatureKeyCertMirroredUnsigned)
 		},
 		shouldSucceed: false,
 	},
