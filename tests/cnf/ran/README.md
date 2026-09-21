@@ -104,7 +104,7 @@ These inputs are all specific to the PTP test suites and are optional.
 #### Spoke inputs
 
 * `ECO_CNF_RAN_SPOKE1_NAME`: Name of the spoke 1 cluster. Automatically updated if Spoke1Kubeconfig exists, otherwise provided as input.
-* `ECO_CNF_RAN_SPOKE1_HOSTNAME`: Hostname for the spoke 1 cluster, used as input for the O-RAN suite when a ClusterInstance file is not provided (SNO).
+* `ECO_CNF_RAN_SPOKE1_HOSTNAME`: Hostname for the spoke 1 cluster.
 * `ECO_CNF_RAN_SPOKE1_PASSWORD`: Path to the admin password for spoke 1, saved in the O-RAN suite.
 
 #### ACM inputs
@@ -136,8 +136,9 @@ These inputs are specific to the O-RAN test suite.
 * `ECO_CNF_RAN_O2IMS_OAUTH_CLIENT_SECRET`: Client secret for requesting an access token from the OAuth endpoint.
 * `ECO_CNF_RAN_O2IMS_TOKEN`: Token for authenticating with the O2IMS API (used when OAuth is not configured). The security hardening test that verifies `o2ims-reader` RBAC (89915) requires OAuth client credentials and is skipped when only a bearer token is configured.
 * `ECO_CNF_RAN_CLUSTER_TEMPLATE_AFFIX`: Version-dependent affix for naming ClusterTemplates and O-RAN resources.
-* `ECO_CNF_RAN_CLUSTER_TEMPLATE_NAME`: Optional ClusterTemplate base name (without version). Defaults to `sno-ran-du`, or `mno-ran-du` when `ECO_CNF_RAN_CLUSTERINSTANCE_PATH` points to a multi-node ClusterInstance YAML.
-* `ECO_CNF_RAN_CLUSTERINSTANCE_PATH`: Optional path to a site-config `clusterinstance.yaml`. When set, ProvisioningRequest `nodes[].hostName` values are derived from `spec.nodes[].hostName` (used for MNO installs).
+* `ECO_CNF_RAN_CLUSTER_TEMPLATE_NAME`: Optional ClusterTemplate base name (without version). When empty, read from `spec.templateName` in the loaded ProvisioningRequest YAML.
+* `ECO_CNF_RAN_PROVISIONING_REQUEST_URL`: Raw HTTPS URL to a site-config ProvisioningRequest YAML (preferred for Jenkins/container runs). When set, the suite fetches the YAML and uses it as the basis for test ProvisioningRequests (overriding `metadata.name` and `templateVersion` per test case). Cleartext `http` URLs and HTTPS-to-HTTP redirects are rejected. Uses `ECO_CNF_RAN_SKIP_TLS_VERIFY` when the remote CA is not trusted.
+* `ECO_CNF_RAN_PROVISIONING_REQUEST_PATH`: Optional local path to a site-config ProvisioningRequest YAML. Used when URL is unset. Same loading behavior as the URL input.
 * `ECO_CNF_RAN_MOCK_SMO_NAMESPACE`: Namespace where the mock SMO is deployed.
 * `ECO_CNF_RAN_MOCK_SMO_SUBDOMAIN`: Subdomain for the mock SMO route (the SMO registered in the inventory CR).
 

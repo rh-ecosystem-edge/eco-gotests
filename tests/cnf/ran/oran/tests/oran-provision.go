@@ -13,7 +13,6 @@ import (
 	provisioningv1alpha1 "github.com/openshift-kni/oran-o2ims/api/provisioning/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/configmap"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ocm"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
@@ -23,6 +22,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/helper"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/tsparams"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
@@ -333,12 +333,16 @@ func verifySpokeNodesReady() error {
 	err = wait.PollUntilContextTimeout(
 		context.TODO(), 15*time.Second, spokeNodesReadyTimeout, true,
 		func(ctx context.Context) (bool, error) {
-			nodeList, err := nodes.List(spokeClient)
+			// List with the poll context so a stalled API call is cancelled when the overall timeout expires.
+			// eco-goinfra nodes.List uses logging.DiscardContext() and cannot honor this deadline.
+			apiNodeList, err := spokeClient.CoreV1Interface.Nodes().List(ctx, metav1.ListOptions{})
 			if err != nil {
 				klog.V(tsparams.LogLevel).Infof("Failed to list spoke nodes: %v", err)
 
 				return false, nil
 			}
+
+			nodeList := apiNodeList.Items
 
 			if len(nodeList) != len(expectedHostnames) {
 				klog.V(tsparams.LogLevel).Infof(
@@ -354,9 +358,9 @@ func verifySpokeNodesReady() error {
 				return false, nil
 			}
 
-			for _, node := range nodeList {
-				if !isSpokeNodeReady(node) {
-					klog.V(tsparams.LogLevel).Infof("Waiting for spoke node %s to become Ready", node.Object.Name)
+			for i := range nodeList {
+				if !isSpokeNodeReady(&nodeList[i]) {
+					klog.V(tsparams.LogLevel).Infof("Waiting for spoke node %s to become Ready", nodeList[i].Name)
 
 					return false, nil
 				}
@@ -387,6 +391,14 @@ func spokeClientForNodeVerification() (*clients.Settings, func(), error) {
 	}
 
 	kubeconfigFile := kubeconfigPath.Name()
+	cleanup := func() { _ = os.Remove(kubeconfigFile) }
+	success := false
+
+	defer func() {
+		if !success {
+			cleanup()
+		}
+	}()
 
 	if err := kubeconfigPath.Close(); err != nil {
 		return nil, nil, fmt.Errorf("close temp kubeconfig file: %w", err)
@@ -401,7 +413,9 @@ func spokeClientForNodeVerification() (*clients.Settings, func(), error) {
 		return nil, nil, fmt.Errorf("failed to create spoke API client from admin kubeconfig")
 	}
 
-	return spokeClient, func() { os.Remove(kubeconfigFile) }, nil
+	success = true
+
+	return spokeClient, cleanup, nil
 }
 
 // spokeNodeNameMatches reports whether a Kubernetes node name corresponds to an expected ClusterInstance hostname.
@@ -417,12 +431,12 @@ func spokeNodeNameMatches(expectedHostname, nodeName string) bool {
 }
 
 // validateSpokeNodeIdentities ensures every expected hostname maps to a cluster node and no unexpected nodes exist.
-func validateSpokeNodeIdentities(nodeList []*nodes.Builder, expectedHostnames []string) error {
+func validateSpokeNodeIdentities(nodeList []corev1.Node, expectedHostnames []string) error {
 	for _, expectedHostname := range expectedHostnames {
 		found := false
 
-		for _, node := range nodeList {
-			if spokeNodeNameMatches(expectedHostname, node.Object.Name) {
+		for i := range nodeList {
+			if spokeNodeNameMatches(expectedHostname, nodeList[i].Name) {
 				found = true
 
 				break
@@ -434,11 +448,11 @@ func validateSpokeNodeIdentities(nodeList []*nodes.Builder, expectedHostnames []
 		}
 	}
 
-	for _, node := range nodeList {
+	for i := range nodeList {
 		matched := false
 
 		for _, expectedHostname := range expectedHostnames {
-			if spokeNodeNameMatches(expectedHostname, node.Object.Name) {
+			if spokeNodeNameMatches(expectedHostname, nodeList[i].Name) {
 				matched = true
 
 				break
@@ -446,7 +460,7 @@ func validateSpokeNodeIdentities(nodeList []*nodes.Builder, expectedHostnames []
 		}
 
 		if !matched {
-			return fmt.Errorf("unexpected spoke node %q found in cluster", node.Object.Name)
+			return fmt.Errorf("unexpected spoke node %q found in cluster", nodeList[i].Name)
 		}
 	}
 
@@ -454,8 +468,8 @@ func validateSpokeNodeIdentities(nodeList []*nodes.Builder, expectedHostnames []
 }
 
 // isSpokeNodeReady reports whether the node has a True NodeReady condition.
-func isSpokeNodeReady(node *nodes.Builder) bool {
-	for _, condition := range node.Object.Status.Conditions {
+func isSpokeNodeReady(node *corev1.Node) bool {
+	for _, condition := range node.Status.Conditions {
 		if condition.Type == corev1.NodeReady && condition.Status == corev1.ConditionTrue {
 			return true
 		}

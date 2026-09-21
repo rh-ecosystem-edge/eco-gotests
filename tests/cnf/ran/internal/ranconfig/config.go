@@ -77,8 +77,7 @@ type RANConfig struct {
 	// resources.
 	ClusterTemplateAffix string `envconfig:"ECO_CNF_RAN_CLUSTER_TEMPLATE_AFFIX"`
 	// ClusterTemplateName is the ClusterTemplate base name (without version) for O-RAN ProvisioningRequests.
-	// When empty, the O-RAN suite defaults to sno-ran-du, or mno-ran-du when a multi-node ClusterInstance
-	// file is provided via ECO_CNF_RAN_CLUSTERINSTANCE_PATH.
+	// When empty, the suite reads spec.templateName from the loaded ProvisioningRequest YAML.
 	ClusterTemplateName string `envconfig:"ECO_CNF_RAN_CLUSTER_TEMPLATE_NAME"`
 }
 
@@ -137,12 +136,16 @@ type Spoke1Config struct {
 	// derived from that kubeconfig. An explicitly set name is never overwritten (hub KUBECONFIG would otherwise
 	// replace the intended spoke name during Day0 provisioning).
 	Spoke1Name string `envconfig:"ECO_CNF_RAN_SPOKE1_NAME"`
-	// Spoke1Hostname is not automatically updated but instead used as an input for the O-RAN suite when a
-	// ClusterInstance file is not provided.
 	Spoke1Hostname string `envconfig:"ECO_CNF_RAN_SPOKE1_HOSTNAME"`
-	// ClusterInstancePath is an optional path to a site-config ClusterInstance YAML. When set, the O-RAN suite
-	// derives ProvisioningRequest node hostnames from spec.nodes[].hostName (used for MNO installs).
-	ClusterInstancePath string `envconfig:"ECO_CNF_RAN_CLUSTERINSTANCE_PATH"`
+	// OranProvisioningRequestURL is a raw HTTPS URL to a site-config ProvisioningRequest YAML for the O-RAN
+	// suite (preferred for Jenkins/container runs). Takes precedence over OranProvisioningRequestPath. The
+	// suite loads the YAML and uses it as the basis for ProvisioningRequest creation (overriding metadata.name
+	// and templateVersion per test case). Named distinctly from IBIPreinstallConfig.ClusterInstanceURL to avoid
+	// an ambiguous promoted field on RANConfig.
+	OranProvisioningRequestURL string `envconfig:"ECO_CNF_RAN_PROVISIONING_REQUEST_URL"`
+	// OranProvisioningRequestPath is an optional local path to a site-config ProvisioningRequest YAML. Used
+	// when URL is unset (e.g. a one-time local smoke test). Same loading behavior as the URL input.
+	OranProvisioningRequestPath string `envconfig:"ECO_CNF_RAN_PROVISIONING_REQUEST_PATH"`
 	Spoke1Kubeconfig    string `envconfig:"KUBECONFIG"`
 	// Spoke1Password is the path to the admin password, saved in the O-RAN suite.
 	Spoke1Password string `envconfig:"ECO_CNF_RAN_SPOKE1_PASSWORD"`

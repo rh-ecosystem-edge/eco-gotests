@@ -19,49 +19,23 @@ import (
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// NewProvisioningRequest creates a ProvisioningRequest builder with templateVersion, setting all the required
-// parameters and using the affix from RANConfig. Node hostnames come from ECO_CNF_RAN_CLUSTERINSTANCE_PATH when set,
-// otherwise from ECO_CNF_RAN_SPOKE1_HOSTNAME. The ClusterTemplate name resolves to mno-ran-du for multi-node
-// ClusterInstance files unless ECO_CNF_RAN_CLUSTER_TEMPLATE_NAME overrides it.
+// NewProvisioningRequest loads the ProvisioningRequest template from the configured source
+// (ECO_CNF_RAN_PROVISIONING_REQUEST_URL or _PATH), overrides metadata.name to TestPRName, and sets templateVersion
+// to ClusterTemplateAffix-templateVersion. All templateParameters (clusterInstanceParameters, nodeClusterName,
+// oCloudSiteId, policyTemplateParameters, etc.) come directly from the site-config YAML.
 func NewProvisioningRequest(
 	client runtimeclient.Client, templateVersion string) (*oran.ProvisioningRequestBuilder, error) {
-	spokeNodes, err := GetSpokeNodes()
+	prTemplate, err := loadProvisioningRequestTemplate()
 	if err != nil {
-		return nil, fmt.Errorf("resolve spoke nodes for ProvisioningRequest: %w", err)
-	}
-
-	clusterTemplateName, err := GetClusterTemplateName()
-	if err != nil {
-		return nil, fmt.Errorf("resolve ClusterTemplate name for ProvisioningRequest: %w", err)
-	}
-
-	clusterName, err := GetClusterInstanceClusterName()
-	if err != nil {
-		return nil, fmt.Errorf("resolve cluster name for ProvisioningRequest: %w", err)
+		return nil, fmt.Errorf("load ProvisioningRequest template: %w", err)
 	}
 
 	versionWithAffix := RANConfig.ClusterTemplateAffix + "-" + templateVersion
 
-	clusterInstanceParams := map[string]any{
-		"clusterName": clusterName,
+	prBuilder := oran.NewPRBuilder(client, tsparams.TestPRName, prTemplate.Spec.TemplateName, versionWithAffix)
+	for key, value := range prTemplate.Spec.TemplateParameters {
+		prBuilder = prBuilder.WithTemplateParameter(key, value)
 	}
-
-	if clusterTemplateName == tsparams.MNOClusterTemplateName {
-		clusterInstanceParams["nodeGroups"] = buildClusterInstanceNodeGroups(spokeNodes)
-	} else {
-		hostnames := make([]string, 0, len(spokeNodes))
-		for _, node := range spokeNodes {
-			hostnames = append(hostnames, node.HostName)
-		}
-
-		clusterInstanceParams["nodes"] = buildClusterInstanceNodes(hostnames)
-	}
-
-	prBuilder := oran.NewPRBuilder(client, tsparams.TestPRName, clusterTemplateName, versionWithAffix).
-		WithTemplateParameter("nodeClusterName", RANConfig.Spoke1Name).
-		WithTemplateParameter("oCloudSiteId", tsparams.OCloudSiteID).
-		WithTemplateParameter("policyTemplateParameters", map[string]any{}).
-		WithTemplateParameter("clusterInstanceParameters", clusterInstanceParams)
 
 	return prBuilder, nil
 }
@@ -104,45 +78,31 @@ func WithClusterInstanceClusterName(
 	return prBuilder.WithTemplateParameter(tsparams.ClusterInstanceParamsKey, clusterInstanceParams), nil
 }
 
-// NewSecondaryProvisioningRequest creates a ProvisioningRequest builder for a secondary PR using TestPRName2 and
-// distinct cluster/node names so the request does not fail on clusterName ownership before hardware allocation is
-// attempted. Node count matches the primary spoke topology so MNO pools remain fully claimed.
+// NewSecondaryProvisioningRequest loads the ProvisioningRequest template and builds a secondary PR using TestPRName2
+// with synthetic cluster/node names so the request does not fail on clusterName ownership before hardware allocation
+// is attempted. Node count matches the primary topology so MNO pools remain fully claimed.
 func NewSecondaryProvisioningRequest(
 	client runtimeclient.Client, templateVersion string) (*oran.ProvisioningRequestBuilder, error) {
-	clusterTemplateName, err := GetClusterTemplateName()
+	prTemplate, err := loadProvisioningRequestTemplate()
 	if err != nil {
-		return nil, fmt.Errorf("resolve ClusterTemplate name for secondary ProvisioningRequest: %w", err)
+		return nil, fmt.Errorf("load ProvisioningRequest template for secondary PR: %w", err)
 	}
 
-	spokeNodes, err := GetSpokeNodes()
+	secondaryCIParams, err := buildSecondaryCIParams(prTemplate)
 	if err != nil {
-		return nil, fmt.Errorf("resolve spoke nodes for secondary ProvisioningRequest: %w", err)
+		return nil, fmt.Errorf("build secondary clusterInstanceParameters: %w", err)
 	}
-
-	secondaryNodes := buildSecondarySpokeNodes(spokeNodes)
 
 	versionWithAffix := RANConfig.ClusterTemplateAffix + "-" + templateVersion
 
-	clusterInstanceParams := map[string]any{
-		"clusterName": tsparams.TestName2,
+	prBuilder := oran.NewPRBuilder(client, tsparams.TestPRName2, prTemplate.Spec.TemplateName, versionWithAffix)
+	for key, value := range prTemplate.Spec.TemplateParameters {
+		prBuilder = prBuilder.WithTemplateParameter(key, value)
 	}
 
-	if clusterTemplateName == tsparams.MNOClusterTemplateName {
-		clusterInstanceParams["nodeGroups"] = buildClusterInstanceNodeGroups(secondaryNodes)
-	} else {
-		hostnames := make([]string, 0, len(secondaryNodes))
-		for _, node := range secondaryNodes {
-			hostnames = append(hostnames, node.HostName)
-		}
-
-		clusterInstanceParams["nodes"] = buildClusterInstanceNodes(hostnames)
-	}
-
-	prBuilder := oran.NewPRBuilder(client, tsparams.TestPRName2, clusterTemplateName, versionWithAffix).
+	prBuilder = prBuilder.
 		WithTemplateParameter("nodeClusterName", tsparams.TestName2).
-		WithTemplateParameter("oCloudSiteId", tsparams.OCloudSiteID).
-		WithTemplateParameter("policyTemplateParameters", map[string]any{}).
-		WithTemplateParameter("clusterInstanceParameters", clusterInstanceParams)
+		WithTemplateParameter(tsparams.ClusterInstanceParamsKey, secondaryCIParams)
 
 	return prBuilder, nil
 }
