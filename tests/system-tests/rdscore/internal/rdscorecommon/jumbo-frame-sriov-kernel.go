@@ -154,12 +154,18 @@ func VerifyJumboFrameOnSecondarySRIOVKernelMode(ctx SpecContext) {
 	setJumboFrameMTU(ctx, pods, mtuStandard)
 	verifyJumboFrameConnectivity(ctx, pods[0], targetIP, pingSize1500)
 
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Waiting %v for MTU %d to stabilize", jumboKPIDuration, mtuStandard)
+	time.Sleep(jumboKPIDuration)
+
 	baselineKPI := collectJumboKPIMetrics(pods[0], jumboKPIDuration)
 
 	By("Collecting RAN KPIs at MTU 9000")
 
 	setJumboFrameMTU(ctx, pods, mtuJumboFrame)
 	verifyJumboFrameConnectivity(ctx, pods[0], targetIP, pingSize9000)
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Waiting %v for MTU %d to stabilize", jumboKPIDuration, mtuJumboFrame)
+	time.Sleep(jumboKPIDuration)
 
 	jumboKPI := collectJumboKPIMetrics(pods[0], jumboKPIDuration)
 
@@ -416,24 +422,33 @@ func runJumboLatencyTool(sourcePod *pod.Builder, command []string, duration time
 }
 
 func parseMaxLatencyUs(output string) (float64, error) {
-	maxRe := regexp.MustCompile(`(?i)max(?:imum)?[:\s]+(\d+)`)
-	matches := maxRe.FindAllStringSubmatch(output, -1)
+	lineRe := regexp.MustCompile(`(?i).*max(?:imum)?[:\s].*`)
+	numberRe := regexp.MustCompile(`\d+`)
 
-	if len(matches) == 0 {
-		return 0, fmt.Errorf("no max latency value in output")
+	lines := strings.Split(output, "\n")
+	maxVal := 0.0
+	foundAny := false
+
+	for _, line := range lines {
+		if lineRe.MatchString(line) {
+			numbers := numberRe.FindAllString(line, -1)
+			for _, numStr := range numbers {
+				value, convErr := strconv.ParseFloat(numStr, 64)
+				if convErr != nil {
+					continue
+				}
+
+				if value > maxVal {
+					maxVal = value
+				}
+
+				foundAny = true
+			}
+		}
 	}
 
-	maxVal := 0.0
-
-	for _, match := range matches {
-		value, convErr := strconv.ParseFloat(match[1], 64)
-		if convErr != nil {
-			continue
-		}
-
-		if value > maxVal {
-			maxVal = value
-		}
+	if !foundAny {
+		return 0, fmt.Errorf("no max latency value in output")
 	}
 
 	return maxVal, nil
