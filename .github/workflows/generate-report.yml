@@ -21,7 +21,7 @@ jobs:
       - name: Free Disk Space
         uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # main
         with:
-          tool-cache: false
+          preinstalled-runtimes: false
 
       # Since we only use the checked out repo for the report generation code,
       # always grab the latest from the default branch rather than the branch
