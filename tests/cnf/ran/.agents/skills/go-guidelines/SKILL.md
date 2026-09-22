@@ -24,3 +24,4 @@ Modernization and style guidelines for Go code.
 - avoid complex trees of unexported functions. if a function is only called once or twice or is only a few lines long, it can often be inlined. this is not a hard rule, but something to keep in mind
 - when using Gomega, always include a description for assertions. instead of `Expect(err).ToNot(HaveOccurred())`, do something like `Expect(err).ToNot(HaveOccurred(), "Failed to pull resource %s", resourceName)`
 - add `//go:build unit_test` to unit test files. use `make test` to run tests
+- prefer verb names without stuttering for functions. `alert.SendToClient` is good. `alert.AlertClient` and `clientNotification()` are bad
