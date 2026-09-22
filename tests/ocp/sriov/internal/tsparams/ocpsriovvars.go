@@ -51,6 +51,22 @@ var (
 	WhereaboutsIPv6Range2 = "2001:100:101::/64"
 	// WhereaboutsIPv6Gateway2 is the IPv6 gateway for whereabouts IPAM range 2.
 	WhereaboutsIPv6Gateway2 = "2001:100:101::1"
+	// WhereaboutsIPv4AllocStart is the first IPv4 in the dynamic pool for dual-stack Whereabouts NADs (ipRanges).
+	WhereaboutsIPv4AllocStart = "192.168.100.10"
+	// WhereaboutsIPv4AllocEnd is the last IPv4 in the dynamic pool for dual-stack Whereabouts NADs (ipRanges).
+	WhereaboutsIPv4AllocEnd = "192.168.100.250"
+	// WhereaboutsIPv6AllocStart is the first IPv6 in the dynamic pool for dual-stack Whereabouts NADs (ipRanges).
+	WhereaboutsIPv6AllocStart = "2001:100:100::10"
+	// WhereaboutsIPv6AllocEnd is the last IPv6 in the dynamic pool for dual-stack Whereabouts NADs (ipRanges).
+	WhereaboutsIPv6AllocEnd = "2001:100:100::ff00"
+	// WhereaboutsIPv4AllocStart2 is the first IPv4 in the second pool (WhereaboutsIPv4Range2 / IPv6 range 2).
+	WhereaboutsIPv4AllocStart2 = "192.168.101.10"
+	// WhereaboutsIPv4AllocEnd2 is the last IPv4 in the second pool.
+	WhereaboutsIPv4AllocEnd2 = "192.168.101.250"
+	// WhereaboutsIPv6AllocStart2 is the first IPv6 in the second pool.
+	WhereaboutsIPv6AllocStart2 = "2001:100:101::10"
+	// WhereaboutsIPv6AllocEnd2 is the last IPv6 in the second pool.
+	WhereaboutsIPv6AllocEnd2 = "2001:100:101::ff00"
 	// NADWaitTimeout represents timeout for NAD creation in QinQ tests.
 	NADWaitTimeout = 30 * time.Second
 	// ClusterMonitoringNSLabel represents Cluster Monitoring label for a NS to enable Prometheus Scraping.

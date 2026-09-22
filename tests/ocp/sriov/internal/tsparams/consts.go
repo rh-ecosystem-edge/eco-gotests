@@ -38,6 +38,8 @@ const (
 	LabelSriovIPv4 = "sriov-ipv4"
 	// LabelSriovIPv6 represents SR-IOV IPv6 connectivity tests that can be used for test cases selection.
 	LabelSriovIPv6 = "sriov-ipv6"
+	// LabelSriovIPvDual represents SR-IOV dual-stack connectivity tests that can be used for test cases selection.
+	LabelSriovIPvDual = "sriov-ipdual"
 	// SCTPMachineConfigName is the MachineConfig that loads the SCTP kernel module on workers.
 	SCTPMachineConfigName = "load-sctp-module"
 	// SriovResourceNameExManagedTrue is the SR-IOV policy and network name for ExternallyManaged tests.
@@ -134,6 +136,11 @@ const (
 	MulticastIPv6Group = "ff05:5::5"
 	// MulticastIPv6MAC is the Ethernet multicast MAC for ff05:5::5.
 	MulticastIPv6MAC = "33:33:00:00:00:05"
+
+	// DualStackSCTPv6Port is the SCTP listener port for IPv6 in dual-stack tests (IPv4 uses 5003).
+	DualStackSCTPv6Port = 5005
+	// DualStackMulticastV6Port is the multicast listener port for IPv6 in dual-stack tests.
+	DualStackMulticastV6Port = 5006
 
 	// DefaultTestMTU is the default MTU value for testing.
 	DefaultTestMTU = 9000

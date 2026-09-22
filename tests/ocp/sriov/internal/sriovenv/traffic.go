@@ -291,6 +291,11 @@ func buildMulticastSetup(isIPv6 bool, interfaceName string, mtu int) (setupCmd, 
 		ipv4MAC, interfaceName), ipv4Group
 }
 
+// BuildMulticastSetup returns the ip-maddr setup command and multicast group for the given IP family.
+func BuildMulticastSetup(isIPv6 bool, interfaceName string, mtu int) (setupCmd, multicastGroup string) {
+	return buildMulticastSetup(isIPv6, interfaceName, mtu)
+}
+
 func buildDynamicServerStartScript(interfaceName string, mtu, packetSize int) string {
 	discoverIP := fmt.Sprintf(
 		"for _ in $(seq 1 10); do "+

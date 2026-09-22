@@ -40,6 +40,40 @@ func CreateSriovNetworkWithStaticIPAM(name, resourceName string) error {
 	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.NADWaitTimeout)
 }
 
+// whereaboutsDualStackIPAMJSON builds Whereabouts IPAM using ipRanges (per upstream Whereabouts README):
+// two RangeConfiguration entries with "range" (CIDR) plus optional range_start/range_end.
+// Do not use "ranges"/"subnet" — they are not unmarshaled into types.IPAMConfig, so allocation returns
+// no IPs and Multus/SR-IOV reports "IPAM plugin returned missing IP config".
+// IPv4/IPv6 gateways are not passed here: a bare IPv6 gateway string is parsed as CIDR elsewhere and fails.
+func whereaboutsDualStackIPAMJSON(ipRange, ipv6Range, networkName string) string {
+	v4Start, v4End := tsparams.WhereaboutsIPv4AllocStart, tsparams.WhereaboutsIPv4AllocEnd
+	v6Start, v6End := tsparams.WhereaboutsIPv6AllocStart, tsparams.WhereaboutsIPv6AllocEnd
+
+	if ipRange == tsparams.WhereaboutsIPv4Range2 {
+		v4Start, v4End = tsparams.WhereaboutsIPv4AllocStart2, tsparams.WhereaboutsIPv4AllocEnd2
+		v6Start, v6End = tsparams.WhereaboutsIPv6AllocStart2, tsparams.WhereaboutsIPv6AllocEnd2
+	}
+
+	if networkName != "" {
+		return fmt.Sprintf(`{
+			"type": "whereabouts",
+			"ipRanges": [
+				{"range": "%s", "range_start": "%s", "range_end": "%s"},
+				{"range": "%s", "range_start": "%s", "range_end": "%s"}
+			],
+			"network_name": "%s"
+		}`, ipRange, v4Start, v4End, ipv6Range, v6Start, v6End, networkName)
+	}
+
+	return fmt.Sprintf(`{
+		"type": "whereabouts",
+		"ipRanges": [
+			{"range": "%s", "range_start": "%s", "range_end": "%s"},
+			{"range": "%s", "range_start": "%s", "range_end": "%s"}
+		]
+	}`, ipRange, v4Start, v4End, ipv6Range, v6Start, v6End)
+}
+
 // CreateSriovNetworkWithWhereaboutsIPAM creates an SR-IOV network with whereabouts IPAM for dynamic IP assignment.
 // ipRange should be in CIDR notation (e.g., "2001:100::/64" for IPv6 or "192.168.1.0/24" for IPv4).
 // gateway is used for single-stack only. Dual-stack uses ranges without gateway (ipv6Gateway is ignored).
@@ -59,10 +93,10 @@ func CreateSriovNetworkWithWhereaboutsIPAM(
 		tsparams.TestNamespaceName, resourceName)
 
 	if ipv6Range != "" {
-		return fmt.Errorf("dual-stack whereabouts IPAM is not implemented for OCP SR-IOV helpers")
+		networkBuilder.Definition.Spec.IPAM = whereaboutsDualStackIPAMJSON(ipRange, ipv6Range, networkName)
+	} else {
+		networkBuilder = networkBuilder.WithWhereaboutsIPAM(ipRange, gateway, "", networkName)
 	}
-
-	networkBuilder = networkBuilder.WithWhereaboutsIPAM(ipRange, gateway, "", networkName)
 
 	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.NADWaitTimeout)
 }
@@ -84,10 +118,10 @@ func CreateSriovNetworkWithVLANAndWhereabouts(
 		tsparams.TestNamespaceName, resourceName).WithVLAN(vlanID)
 
 	if ipv6Range != "" {
-		return fmt.Errorf("dual-stack whereabouts IPAM is not implemented for OCP SR-IOV helpers")
+		networkBuilder.Definition.Spec.IPAM = whereaboutsDualStackIPAMJSON(ipRange, ipv6Range, "")
+	} else {
+		networkBuilder = networkBuilder.WithWhereaboutsIPAM(ipRange, gateway, "", "")
 	}
-
-	networkBuilder = networkBuilder.WithWhereaboutsIPAM(ipRange, gateway, "", "")
 
 	return CreateSriovNetworkAndWaitForNADCreation(networkBuilder, tsparams.NADWaitTimeout)
 }
