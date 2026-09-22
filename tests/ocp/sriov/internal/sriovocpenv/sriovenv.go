@@ -62,7 +62,7 @@ func ValidateSriovInterfaces(
 	klog.V(90).Infof("Getting available SR-IOV interfaces from node %s", workerNodeList[0].Definition.Name)
 
 	availableUpSriovInterfaces, err := sriov.NewNetworkNodeStateBuilder(APIClient,
-		workerNodeList[0].Definition.Name, SriovOcpConfig.SriovOperatorNamespace).GetUpNICs()
+		workerNodeList[0].Definition.Name, SriovOcpConfig.OcpSriovOperatorNamespace).GetUpNICs()
 	if err != nil {
 		return fmt.Errorf("failed to get SR-IOV devices from the node %s: %w", workerNodeList[0].Definition.Name, err)
 	}
@@ -91,4 +91,14 @@ func ValidateSriovInterfaces(
 	klog.V(90).Infof("SR-IOV interface validation completed successfully")
 
 	return nil
+}
+
+// MapFirstKeyValue returns the first key-value pair found in the input map.
+// If the input map is empty, it returns empty strings.
+func MapFirstKeyValue(inputMap map[string]string) (string, string) {
+	for key, value := range inputMap {
+		return key, value
+	}
+
+	return "", ""
 }
