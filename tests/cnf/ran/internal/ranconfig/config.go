@@ -76,9 +76,6 @@ type RANConfig struct {
 	// ClusterTemplateAffix is the version-dependent affix used for naming ClusterTemplates and other O-RAN
 	// resources.
 	ClusterTemplateAffix string `envconfig:"ECO_CNF_RAN_CLUSTER_TEMPLATE_AFFIX"`
-	// ClusterTemplateName is the ClusterTemplate base name (without version) for O-RAN ProvisioningRequests.
-	// When empty, the suite reads spec.templateName from the loaded ProvisioningRequest YAML.
-	ClusterTemplateName string `envconfig:"ECO_CNF_RAN_CLUSTER_TEMPLATE_NAME"`
 }
 
 // HubConfig contains the configuration for the hub cluster, if present.
@@ -136,7 +133,6 @@ type Spoke1Config struct {
 	// derived from that kubeconfig. An explicitly set name is never overwritten (hub KUBECONFIG would otherwise
 	// replace the intended spoke name during Day0 provisioning).
 	Spoke1Name string `envconfig:"ECO_CNF_RAN_SPOKE1_NAME"`
-	Spoke1Hostname string `envconfig:"ECO_CNF_RAN_SPOKE1_HOSTNAME"`
 	// OranProvisioningRequestURL is a raw HTTPS URL to a site-config ProvisioningRequest YAML for the O-RAN
 	// suite (preferred for Jenkins/container runs). Takes precedence over OranProvisioningRequestPath. The
 	// suite loads the YAML and uses it as the basis for ProvisioningRequest creation (overriding metadata.name
@@ -146,7 +142,7 @@ type Spoke1Config struct {
 	// OranProvisioningRequestPath is an optional local path to a site-config ProvisioningRequest YAML. Used
 	// when URL is unset (e.g. a one-time local smoke test). Same loading behavior as the URL input.
 	OranProvisioningRequestPath string `envconfig:"ECO_CNF_RAN_PROVISIONING_REQUEST_PATH"`
-	Spoke1Kubeconfig    string `envconfig:"KUBECONFIG"`
+	Spoke1Kubeconfig            string `envconfig:"KUBECONFIG"`
 	// Spoke1Password is the path to the admin password, saved in the O-RAN suite.
 	Spoke1Password string `envconfig:"ECO_CNF_RAN_SPOKE1_PASSWORD"`
 

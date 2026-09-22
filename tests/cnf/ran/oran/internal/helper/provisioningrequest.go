@@ -72,31 +72,26 @@ func loadProvisioningRequestTemplate() (*provisioningRequestFile, error) {
 // parseProvisioningRequestYAML unmarshals ProvisioningRequest YAML and validates that templateName and
 // templateParameters are present.
 func parseProvisioningRequestYAML(data []byte, source string) (*provisioningRequestFile, error) {
-	var pr provisioningRequestFile
+	var parsed provisioningRequestFile
 
-	if err := yaml.Unmarshal(data, &pr); err != nil {
+	if err := yaml.Unmarshal(data, &parsed); err != nil {
 		return nil, fmt.Errorf("parse ProvisioningRequest from %s: %w", source, err)
 	}
 
-	if pr.Spec.TemplateName == "" {
+	if parsed.Spec.TemplateName == "" {
 		return nil, fmt.Errorf("ProvisioningRequest from %s has empty spec.templateName", source)
 	}
 
-	if pr.Spec.TemplateParameters == nil {
+	if parsed.Spec.TemplateParameters == nil {
 		return nil, fmt.Errorf("ProvisioningRequest from %s has nil spec.templateParameters", source)
 	}
 
-	return &pr, nil
+	return &parsed, nil
 }
 
-// GetClusterTemplateName returns the ClusterTemplate base name for O-RAN ProvisioningRequests.
-// Precedence: ECO_CNF_RAN_CLUSTER_TEMPLATE_NAME if set; else spec.templateName from the loaded ProvisioningRequest
-// YAML.
+// GetClusterTemplateName returns the ClusterTemplate base name from spec.templateName in the loaded
+// ProvisioningRequest YAML.
 func GetClusterTemplateName() (string, error) {
-	if RANConfig.ClusterTemplateName != "" {
-		return RANConfig.ClusterTemplateName, nil
-	}
-
 	prTemplate, err := loadProvisioningRequestTemplate()
 	if err != nil {
 		return "", err
@@ -123,14 +118,14 @@ func GetSpokeHostnames() ([]string, error) {
 		return nil, err
 	}
 
-	ciParams, ok := prTemplate.Spec.TemplateParameters[tsparams.ClusterInstanceParamsKey]
-	if !ok {
+	ciParamsRaw, hasParams := prTemplate.Spec.TemplateParameters[tsparams.ClusterInstanceParamsKey]
+	if !hasParams {
 		return nil, fmt.Errorf("ProvisioningRequest from %s has no %s in templateParameters",
 			cachedPRSource, tsparams.ClusterInstanceParamsKey)
 	}
 
-	ciMap, ok := ciParams.(map[string]any)
-	if !ok {
+	ciMap, isMap := ciParamsRaw.(map[string]any)
+	if !isMap {
 		return nil, fmt.Errorf("ProvisioningRequest from %s: %s is not a map",
 			cachedPRSource, tsparams.ClusterInstanceParamsKey)
 	}
@@ -163,15 +158,15 @@ func extractHostnamesFromNodeGroups(nodeGroupsRaw any, source string) ([]string,
 
 	var hostnames []string
 
-	for i, groupRaw := range nodeGroups {
-		group, ok := groupRaw.(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("ProvisioningRequest from %s: nodeGroups[%d] is not a map", source, i)
+	for groupIdx, groupRaw := range nodeGroups {
+		group, isMap := groupRaw.(map[string]any)
+		if !isMap {
+			return nil, fmt.Errorf("ProvisioningRequest from %s: nodeGroups[%d] is not a map", source, groupIdx)
 		}
 
 		groupHostnames, err := extractHostnamesFromNodes(group["nodes"], source)
 		if err != nil {
-			return nil, fmt.Errorf("ProvisioningRequest from %s: nodeGroups[%d]: %w", source, i, err)
+			return nil, fmt.Errorf("ProvisioningRequest from %s: nodeGroups[%d]: %w", source, groupIdx, err)
 		}
 
 		hostnames = append(hostnames, groupHostnames...)
@@ -193,15 +188,15 @@ func extractHostnamesFromNodes(nodesRaw any, source string) ([]string, error) {
 
 	hostnames := make([]string, 0, len(nodes))
 
-	for i, nodeRaw := range nodes {
-		node, ok := nodeRaw.(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("ProvisioningRequest from %s: nodes[%d] is not a map", source, i)
+	for nodeIdx, nodeRaw := range nodes {
+		node, isMap := nodeRaw.(map[string]any)
+		if !isMap {
+			return nil, fmt.Errorf("ProvisioningRequest from %s: nodes[%d] is not a map", source, nodeIdx)
 		}
 
-		hostname, ok := node["hostName"].(string)
-		if !ok || hostname == "" {
-			return nil, fmt.Errorf("ProvisioningRequest from %s: nodes[%d] has no hostName", source, i)
+		hostname, hasName := node["hostName"].(string)
+		if !hasName || hostname == "" {
+			return nil, fmt.Errorf("ProvisioningRequest from %s: nodes[%d] has no hostName", source, nodeIdx)
 		}
 
 		hostnames = append(hostnames, hostname)
@@ -213,8 +208,8 @@ func extractHostnamesFromNodes(nodesRaw any, source string) ([]string, error) {
 // buildSecondaryCIParams deep-copies the clusterInstanceParameters from the loaded ProvisioningRequest and replaces
 // clusterName and all hostnames with synthetic values for the secondary ProvisioningRequest.
 func buildSecondaryCIParams(prTemplate *provisioningRequestFile) (map[string]any, error) {
-	ciParamsRaw, ok := prTemplate.Spec.TemplateParameters[tsparams.ClusterInstanceParamsKey]
-	if !ok {
+	ciParamsRaw, hasParams := prTemplate.Spec.TemplateParameters[tsparams.ClusterInstanceParamsKey]
+	if !hasParams {
 		return nil, fmt.Errorf("ProvisioningRequest template has no %s", tsparams.ClusterInstanceParamsKey)
 	}
 
@@ -223,8 +218,8 @@ func buildSecondaryCIParams(prTemplate *provisioningRequestFile) (map[string]any
 		return nil, fmt.Errorf("deep-copy clusterInstanceParameters: %w", err)
 	}
 
-	ciParams, ok := copied.(map[string]any)
-	if !ok {
+	ciParams, isMap := copied.(map[string]any)
+	if !isMap {
 		return nil, fmt.Errorf("clusterInstanceParameters is not a map after deep-copy")
 	}
 
@@ -232,21 +227,21 @@ func buildSecondaryCIParams(prTemplate *provisioningRequestFile) (map[string]any
 
 	counter := 0
 
-	if nodeGroups, ok := ciParams["nodeGroups"].([]any); ok {
+	if nodeGroups, isSlice := ciParams["nodeGroups"].([]any); isSlice {
 		for _, groupRaw := range nodeGroups {
-			group, ok := groupRaw.(map[string]any)
-			if !ok {
+			group, isGroupMap := groupRaw.(map[string]any)
+			if !isGroupMap {
 				continue
 			}
 
-			nodes, ok := group["nodes"].([]any)
-			if !ok {
+			nodes, isNodeSlice := group["nodes"].([]any)
+			if !isNodeSlice {
 				continue
 			}
 
 			for _, nodeRaw := range nodes {
-				node, ok := nodeRaw.(map[string]any)
-				if !ok {
+				node, isNodeMap := nodeRaw.(map[string]any)
+				if !isNodeMap {
 					continue
 				}
 
@@ -254,10 +249,10 @@ func buildSecondaryCIParams(prTemplate *provisioningRequestFile) (map[string]any
 				counter++
 			}
 		}
-	} else if nodes, ok := ciParams["nodes"].([]any); ok {
+	} else if nodes, isSlice := ciParams["nodes"].([]any); isSlice {
 		for _, nodeRaw := range nodes {
-			node, ok := nodeRaw.(map[string]any)
-			if !ok {
+			node, isNodeMap := nodeRaw.(map[string]any)
+			if !isNodeMap {
 				continue
 			}
 

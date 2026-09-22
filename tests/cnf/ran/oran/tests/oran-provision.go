@@ -13,6 +13,7 @@ import (
 	provisioningv1alpha1 "github.com/openshift-kni/oran-o2ims/api/provisioning/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/configmap"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ocm"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/oran"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
@@ -22,7 +23,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/helper"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/tsparams"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
@@ -94,54 +94,39 @@ var _ = Describe("ORAN Provision Tests", Label(tsparams.LabelProvision), Ordered
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for ProvisioningRequest to start progressing after recovery")
 	})
 
-	When("provisioning with a valid ProvisioningRequest", func() {
-		AfterEach(func() {
-			if RANConfig.Spoke1Kubeconfig != "" {
-				By("saving the spoke 1 admin kubeconfig")
+	// 77394 - Apply a valid ProvisioningRequest
+	It("successfully provisions and generates the correct resources", reportxml.ID("77394"), func() {
+		By("pulling the ProvisioningRequest")
 
-				err := saveSpoke1Secret("-admin-kubeconfig", "kubeconfig", RANConfig.Spoke1Kubeconfig)
-				Expect(err).ToNot(HaveOccurred(), "Failed to save spoke 1 admin kubeconfig")
-			}
+		prBuilder, err := oran.PullPR(o2imsAPIClient, tsparams.TestPRName)
+		if err != nil {
+			By("creating the ProvisioningRequest since it does not exist")
 
-			if RANConfig.Spoke1Password != "" {
-				By("saving the spoke 1 admin password")
+			prBuilder, err = helper.NewProvisioningRequest(o2imsAPIClient, tsparams.TemplateValid)
+			Expect(err).ToNot(HaveOccurred(), "Failed to build ProvisioningRequest")
 
-				err := saveSpoke1Secret("-admin-password", "password", RANConfig.Spoke1Password)
-				Expect(err).ToNot(HaveOccurred(), "Failed to save the spoke 1 admin password")
-			}
-		})
+			prBuilder, err = prBuilder.Create()
+			Expect(err).ToNot(HaveOccurred(), "Failed to create ProvisioningRequest since it does not exist")
+		}
 
-		// 77394 - Apply a valid ProvisioningRequest
-		It("successfully provisions and generates the correct resources", reportxml.ID("77394"), func() {
-			By("pulling the ProvisioningRequest")
+		By("waiting for the ProvisioningRequest to be fulfilled")
+		// Since we know the ProvisioningRequest did not already start as fulfilled, we do not need to
+		// use WaitForPhaseAfter.
+		_, err = prBuilder.WaitUntilFulfilled(2 * time.Hour)
+		Expect(err).ToNot(HaveOccurred(), "Failed to wait for the ProvisioningRequest to be fulfilled")
 
-			prBuilder, err := oran.PullPR(o2imsAPIClient, tsparams.TestPRName)
-			if err != nil {
-				By("creating the ProvisioningRequest since it does not exist")
+		By("verifying the fulfilled ProvisioningRequest status via the O2IMS API")
 
-				prBuilder, err = helper.NewProvisioningRequest(o2imsAPIClient, tsparams.TemplateValid)
-				Expect(err).ToNot(HaveOccurred(), "Failed to build ProvisioningRequest")
+		err = verifyProvisioningRequestFulfilled(prBuilder)
+		Expect(err).ToNot(HaveOccurred(), "Failed to verify fulfilled ProvisioningRequest status")
 
-				prBuilder, err = prBuilder.Create()
-				Expect(err).ToNot(HaveOccurred(), "Failed to create ProvisioningRequest since it does not exist")
-			}
+		err = configureSpoke1ClientFromHub()
+		Expect(err).ToNot(HaveOccurred(), "Failed to configure spoke API client from hub secrets")
 
-			By("waiting for the ProvisioningRequest to be fulfilled")
-			// Since we know the ProvisioningRequest did not already start as fulfilled, we do not need to
-			// use WaitForPhaseAfter.
-			_, err = prBuilder.WaitUntilFulfilled(2 * time.Hour)
-			Expect(err).ToNot(HaveOccurred(), "Failed to wait for the ProvisioningRequest to be fulfilled")
+		By("verifying provisioning succeeded")
 
-			By("verifying the fulfilled ProvisioningRequest status via the O2IMS API")
-
-			err = verifyProvisioningRequestFulfilled(prBuilder)
-			Expect(err).ToNot(HaveOccurred(), "Failed to verify fulfilled ProvisioningRequest status")
-
-			By("verifying provisioning succeeded")
-
-			err = verifySpokeProvisioning()
-			Expect(err).ToNot(HaveOccurred(), "Failed to verify spoke provisioning succeeded")
-		})
+		err = verifySpokeProvisioning()
+		Expect(err).ToNot(HaveOccurred(), "Failed to verify spoke provisioning succeeded")
 	})
 })
 
@@ -229,6 +214,37 @@ func verifyProvisioningRequestFulfilled(prBuilder *oran.ProvisioningRequestBuild
 	return errors.Join(accumulatedErrors...)
 }
 
+// configureSpoke1ClientFromHub saves the provisioned spoke admin kubeconfig (and password when configured) from hub
+// secrets and rebuilds Spoke1APIClient so downstream checks use the same client pattern as post-provision tests.
+func configureSpoke1ClientFromHub() error {
+	if RANConfig.Spoke1Kubeconfig == "" {
+		return fmt.Errorf("KUBECONFIG path must be set to save the provisioned spoke admin kubeconfig")
+	}
+
+	By("saving the spoke admin kubeconfig from the hub")
+
+	if err := saveSpoke1Secret("-admin-kubeconfig", "kubeconfig", RANConfig.Spoke1Kubeconfig); err != nil {
+		return fmt.Errorf("save spoke admin kubeconfig: %w", err)
+	}
+
+	if RANConfig.Spoke1Password != "" {
+		By("saving the spoke admin password from the hub")
+
+		if err := saveSpoke1Secret("-admin-password", "password", RANConfig.Spoke1Password); err != nil {
+			return fmt.Errorf("save spoke admin password: %w", err)
+		}
+	}
+
+	Spoke1APIClient = clients.New(RANConfig.Spoke1Kubeconfig)
+	if Spoke1APIClient == nil {
+		return fmt.Errorf("create spoke API client from %s", RANConfig.Spoke1Kubeconfig)
+	}
+
+	RANConfig.Spoke1APIClient = Spoke1APIClient
+
+	return nil
+}
+
 // saveSpoke1Secret will write the value of key in secret RANConfig.Spoke1Name+suffix to fileName, truncating if the
 // file exists, otherwise saving with permissions 644.
 func saveSpoke1Secret(suffix, key, fileName string) error {
@@ -311,21 +327,15 @@ func verifySpokeProvisioning() error {
 	return errors.Join(accumulatedErrors...)
 }
 
-// verifySpokeNodesReady polls until the provisioned spoke has the expected Ready nodes, using the existing spoke client
-// when available or a temporary client built from the hub admin-kubeconfig secret.
+// verifySpokeNodesReady polls until the provisioned spoke has the expected Ready nodes using Spoke1APIClient.
 func verifySpokeNodesReady() error {
+	if Spoke1APIClient == nil {
+		return fmt.Errorf("spoke API client is not configured")
+	}
+
 	expectedHostnames, err := helper.GetSpokeHostnames()
 	if err != nil {
 		return fmt.Errorf("resolve expected spoke node count: %w", err)
-	}
-
-	spokeClient, cleanup, err := spokeClientForNodeVerification()
-	if err != nil {
-		return err
-	}
-
-	if cleanup != nil {
-		defer cleanup()
 	}
 
 	By("waiting for spoke nodes to become Ready")
@@ -333,16 +343,12 @@ func verifySpokeNodesReady() error {
 	err = wait.PollUntilContextTimeout(
 		context.TODO(), 15*time.Second, spokeNodesReadyTimeout, true,
 		func(ctx context.Context) (bool, error) {
-			// List with the poll context so a stalled API call is cancelled when the overall timeout expires.
-			// eco-goinfra nodes.List uses logging.DiscardContext() and cannot honor this deadline.
-			apiNodeList, err := spokeClient.CoreV1Interface.Nodes().List(ctx, metav1.ListOptions{})
+			nodeList, err := nodes.List(Spoke1APIClient)
 			if err != nil {
 				klog.V(tsparams.LogLevel).Infof("Failed to list spoke nodes: %v", err)
 
 				return false, nil
 			}
-
-			nodeList := apiNodeList.Items
 
 			if len(nodeList) != len(expectedHostnames) {
 				klog.V(tsparams.LogLevel).Infof(
@@ -358,9 +364,9 @@ func verifySpokeNodesReady() error {
 				return false, nil
 			}
 
-			for i := range nodeList {
-				if !isSpokeNodeReady(&nodeList[i]) {
-					klog.V(tsparams.LogLevel).Infof("Waiting for spoke node %s to become Ready", nodeList[i].Name)
+			for _, node := range nodeList {
+				if !isSpokeNodeReady(node) {
+					klog.V(tsparams.LogLevel).Infof("Waiting for spoke node %s to become Ready", node.Object.Name)
 
 					return false, nil
 				}
@@ -373,49 +379,6 @@ func verifySpokeNodesReady() error {
 	}
 
 	return nil
-}
-
-// spokeClientForNodeVerification returns the spoke API client, building a temporary client from the hub
-// admin-kubeconfig secret when Spoke1APIClient is not configured. When a temp kubeconfig is created, cleanup removes
-// the file and must be called after node verification completes.
-func spokeClientForNodeVerification() (*clients.Settings, func(), error) {
-	if Spoke1APIClient != nil {
-		return Spoke1APIClient, nil, nil
-	}
-
-	By("building a temporary spoke client from the admin-kubeconfig secret")
-
-	kubeconfigPath, err := os.CreateTemp("", "oran-spoke-kubeconfig-*.yaml")
-	if err != nil {
-		return nil, nil, fmt.Errorf("create temp kubeconfig file: %w", err)
-	}
-
-	kubeconfigFile := kubeconfigPath.Name()
-	cleanup := func() { _ = os.Remove(kubeconfigFile) }
-	success := false
-
-	defer func() {
-		if !success {
-			cleanup()
-		}
-	}()
-
-	if err := kubeconfigPath.Close(); err != nil {
-		return nil, nil, fmt.Errorf("close temp kubeconfig file: %w", err)
-	}
-
-	if err := saveSpoke1Secret("-admin-kubeconfig", "kubeconfig", kubeconfigFile); err != nil {
-		return nil, nil, fmt.Errorf("save admin kubeconfig for spoke node verification: %w", err)
-	}
-
-	spokeClient := clients.New(kubeconfigFile)
-	if spokeClient == nil {
-		return nil, nil, fmt.Errorf("failed to create spoke API client from admin kubeconfig")
-	}
-
-	success = true
-
-	return spokeClient, cleanup, nil
 }
 
 // spokeNodeNameMatches reports whether a Kubernetes node name corresponds to an expected ClusterInstance hostname.
@@ -431,12 +394,12 @@ func spokeNodeNameMatches(expectedHostname, nodeName string) bool {
 }
 
 // validateSpokeNodeIdentities ensures every expected hostname maps to a cluster node and no unexpected nodes exist.
-func validateSpokeNodeIdentities(nodeList []corev1.Node, expectedHostnames []string) error {
+func validateSpokeNodeIdentities(nodeList []*nodes.Builder, expectedHostnames []string) error {
 	for _, expectedHostname := range expectedHostnames {
 		found := false
 
-		for i := range nodeList {
-			if spokeNodeNameMatches(expectedHostname, nodeList[i].Name) {
+		for _, node := range nodeList {
+			if spokeNodeNameMatches(expectedHostname, node.Object.Name) {
 				found = true
 
 				break
@@ -448,11 +411,11 @@ func validateSpokeNodeIdentities(nodeList []corev1.Node, expectedHostnames []str
 		}
 	}
 
-	for i := range nodeList {
+	for _, node := range nodeList {
 		matched := false
 
 		for _, expectedHostname := range expectedHostnames {
-			if spokeNodeNameMatches(expectedHostname, nodeList[i].Name) {
+			if spokeNodeNameMatches(expectedHostname, node.Object.Name) {
 				matched = true
 
 				break
@@ -460,7 +423,7 @@ func validateSpokeNodeIdentities(nodeList []corev1.Node, expectedHostnames []str
 		}
 
 		if !matched {
-			return fmt.Errorf("unexpected spoke node %q found in cluster", nodeList[i].Name)
+			return fmt.Errorf("unexpected spoke node %q found in cluster", node.Object.Name)
 		}
 	}
 
@@ -468,8 +431,8 @@ func validateSpokeNodeIdentities(nodeList []corev1.Node, expectedHostnames []str
 }
 
 // isSpokeNodeReady reports whether the node has a True NodeReady condition.
-func isSpokeNodeReady(node *corev1.Node) bool {
-	for _, condition := range node.Status.Conditions {
+func isSpokeNodeReady(node *nodes.Builder) bool {
+	for _, condition := range node.Object.Status.Conditions {
 		if condition.Type == corev1.NodeReady && condition.Status == corev1.ConditionTrue {
 			return true
 		}

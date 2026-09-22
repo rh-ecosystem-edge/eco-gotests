@@ -28,17 +28,8 @@ const (
 )
 
 const (
-	// ClusterTemplateName is the default ClusterTemplate base name (without version) for SNO O-RAN tests. It is also
-	// the namespace the ClusterTemplates are in. Prefer helper.GetClusterTemplateName() when building PRs so MNO labs
-	// can resolve to MNOClusterTemplateName.
-	ClusterTemplateName = "sno-ran-du"
-	// MNOClusterTemplateName is the default ClusterTemplate base name for multi-node O-RAN provision tests.
-	MNOClusterTemplateName = "mno-ran-du"
 	// O2IMSNamespace is the namespace used by the oran-o2ims operator.
 	O2IMSNamespace = "oran-o2ims"
-	// ExtraManifestsName is the default generated extra manifests ConfigMap name for SNO. Prefer
-	// helper.GetExtraManifestsName() so the name matches the resolved ClusterTemplate.
-	ExtraManifestsName = "sno-ran-du-extra-manifest-1"
 	// ClusterInstanceParamsKey is the key in the TemplateParameters map for the ClusterInstance parameters.
 	ClusterInstanceParamsKey = "clusterInstanceParameters"
 	// PolicyTemplateParamsKey is the key in the TemplateParameters map for the policy template parameters.
@@ -58,8 +49,8 @@ const (
 	ImmutableMessage = "cannot be updated, likely due to immutable fields not matching"
 
 	// PRValidationFailedDetailsSubstring is a substring of status.provisioningStatus.provisioningDetails when
-	// ProvisioningRequest validation fails.
-	PRValidationFailedDetailsSubstring = "Failed to validate the ProvisioningRequest"
+	// a ProvisioningRequest fails due to invalid policyTemplateParameters (e.g. integer value where string expected).
+	PRValidationFailedDetailsSubstring = "is not a string"
 	// PRFulfilledDetailsSubstring is a substring of status.provisioningStatus.provisioningDetails when
 	// provisioning completes successfully.
 	PRFulfilledDetailsSubstring = "Provisioning request has completed successfully"

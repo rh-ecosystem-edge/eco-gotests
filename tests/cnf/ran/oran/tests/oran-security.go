@@ -76,10 +76,11 @@ var _ = Describe("ORAN Security Tests", Label(tsparams.LabelPreProvision, tspara
 			By("creating a ProvisioningRequest with clusterName " + testCase.clusterName)
 
 			prName := uuid.New().String()
-			prBuilder, err := helper.WithClusterInstanceClusterName(
-				helper.NewProvisioningRequestNamed(o2imsAPIClient, prName, tsparams.TemplateValid),
-				testCase.clusterName,
-			)
+
+			namedBuilder, err := helper.NewProvisioningRequestNamed(o2imsAPIClient, prName, tsparams.TemplateValid)
+			Expect(err).ToNot(HaveOccurred(), "Failed to build ProvisioningRequest for clusterName %q", testCase.clusterName)
+
+			prBuilder, err := helper.WithClusterInstanceClusterName(namedBuilder, testCase.clusterName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to set clusterName %q", testCase.clusterName)
 
 			_, err = prBuilder.Create()
@@ -131,10 +132,12 @@ var _ = Describe("ORAN Security Tests", Label(tsparams.LabelPreProvision, tspara
 
 			By("creating a ProvisioningRequest with clusterName matching the existing namespace")
 
-			prBuilder, err := helper.WithClusterInstanceClusterName(
-				helper.NewProvisioningRequestNamed(o2imsAPIClient, tsparams.TestPRNameSecurity, tsparams.TemplateValid),
-				tsparams.TestExistingNamespace,
-			)
+			namedBuilder, err := helper.NewProvisioningRequestNamed(
+				o2imsAPIClient, tsparams.TestPRNameSecurity, tsparams.TemplateValid)
+			Expect(err).ToNot(HaveOccurred(), "Failed to build ProvisioningRequest for clusterName %q",
+				tsparams.TestExistingNamespace)
+
+			prBuilder, err := helper.WithClusterInstanceClusterName(namedBuilder, tsparams.TestExistingNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to set clusterName %q", tsparams.TestExistingNamespace)
 
 			_, err = prBuilder.Create()

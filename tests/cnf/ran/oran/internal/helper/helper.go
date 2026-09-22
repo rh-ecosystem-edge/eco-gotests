@@ -40,23 +40,23 @@ func NewProvisioningRequest(
 	return prBuilder, nil
 }
 
-// NewProvisioningRequestNamed creates a ProvisioningRequest builder with the given name and templateVersion,
-// setting all the required parameters and using the affix from RANConfig.
+// NewProvisioningRequestNamed loads the ProvisioningRequest template from the configured source, overrides
+// metadata.name, and sets templateVersion to ClusterTemplateAffix-templateVersion.
 func NewProvisioningRequestNamed(
-	client runtimeclient.Client, name, templateVersion string) *oran.ProvisioningRequestBuilder {
-	versionWithAffix := RANConfig.ClusterTemplateAffix + "-" + templateVersion
-	prBuilder := oran.NewPRBuilder(client, name, tsparams.ClusterTemplateName, versionWithAffix).
-		WithTemplateParameter("nodeClusterName", RANConfig.Spoke1Name).
-		WithTemplateParameter("oCloudSiteId", tsparams.OCloudSiteID).
-		WithTemplateParameter("policyTemplateParameters", map[string]any{}).
-		WithTemplateParameter("clusterInstanceParameters", map[string]any{
-			"clusterName": RANConfig.Spoke1Name,
-			"nodes": []map[string]any{{
-				"hostName": RANConfig.Spoke1Hostname,
-			}},
-		})
+	client runtimeclient.Client, name, templateVersion string) (*oran.ProvisioningRequestBuilder, error) {
+	prTemplate, err := loadProvisioningRequestTemplate()
+	if err != nil {
+		return nil, fmt.Errorf("load ProvisioningRequest template: %w", err)
+	}
 
-	return prBuilder
+	versionWithAffix := RANConfig.ClusterTemplateAffix + "-" + templateVersion
+
+	prBuilder := oran.NewPRBuilder(client, name, prTemplate.Spec.TemplateName, versionWithAffix)
+	for key, value := range prTemplate.Spec.TemplateParameters {
+		prBuilder = prBuilder.WithTemplateParameter(key, value)
+	}
+
+	return prBuilder, nil
 }
 
 // WithClusterInstanceClusterName sets clusterInstanceParameters.clusterName on the ProvisioningRequest builder.
