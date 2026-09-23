@@ -304,9 +304,21 @@ func runMetricsNettoVfioTests(clientPf, serverPf, clientWorker, serverWorker, de
 		"Failed to add server mac address in client pod mac table. Output: %s", outputbuf.String()))
 
 	By("ICMP check between client and server pods")
-	Eventually(func() error {
-		return sriovocpenv.ICMPConnectivityCheck(cPod, []string{tsparams.ServerIPv4IPAddress}, "net1")
-	}, 1*time.Minute, 2*time.Second).Should(HaveOccurred(), "ICMP fail scenario could not be executed")
+
+	// Derive the expected ICMP outcome from the device type that defineMetricsPolicy() actually
+	// configured on the server policy. With true vfio-pci (Intel), the VF is exclusively owned
+	// by DPDK and ICMP fails. With netdevice+RDMA (Mellanox "vfiopci" mode), the kernel network
+	// stack remains active on the VF and ICMP succeeds.
+	if serverResources.policy.Definition.Spec.DeviceType == "vfio-pci" {
+		Eventually(func() error {
+			return sriovocpenv.ICMPConnectivityCheck(cPod, []string{tsparams.ServerIPv4IPAddress}, "net1")
+		}, 1*time.Minute, 2*time.Second).Should(HaveOccurred(), "ICMP fail scenario could not be executed")
+	} else {
+		Eventually(func() error {
+			return sriovocpenv.ICMPConnectivityCheck(cPod, []string{tsparams.ServerIPv4IPAddress}, "net1")
+		}, 1*time.Minute, 2*time.Second).ShouldNot(HaveOccurred(),
+			"ICMP connectivity check failed for netdevice+RDMA server")
+	}
 
 	checkMetricsWithPromQL()
 }
@@ -472,16 +484,23 @@ func defineMetricsDPDKPod(role, devType, worker string) *pod.Builder {
 }
 
 func createMetricsTestResources(cRes, sRes metricsTestResource) *pod.Builder {
+	// Create all policies first so the SR-IOV daemon sees them in the same reconcile generation.
+	// Creating policies and networks in an interleaved loop (policy1 → network1 → NAD wait →
+	// policy2) introduces a gap that causes the daemon to process them in separate generations.
+	// The first generation reports "Succeeded" with only one device plugin resource registered,
+	// and WaitForSriovStable returns prematurely — leaving the server DPDK pod Pending.
 	for _, res := range []metricsTestResource{cRes, sRes} {
-		By("Create SriovNetworkNodePolicy")
+		By(fmt.Sprintf("Create SriovNetworkNodePolicy %s", res.policy.Definition.Name))
 
 		_, err := res.policy.Create()
 		Expect(err).ToNot(HaveOccurred(),
 			fmt.Sprintf("Failed to Create SriovNetworkNodePolicy %s", res.policy.Definition.Name))
+	}
 
-		By("Create SriovNetwork")
+	for _, res := range []metricsTestResource{cRes, sRes} {
+		By(fmt.Sprintf("Create SriovNetwork %s", res.network.Definition.Name))
 
-		_, err = res.network.Create()
+		_, err := res.network.Create()
 		Expect(err).ToNot(HaveOccurred(),
 			fmt.Sprintf("Failed to create SriovNetwork %s", res.network.Definition.Name))
 
