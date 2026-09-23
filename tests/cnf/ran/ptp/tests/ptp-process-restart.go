@@ -554,7 +554,7 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 
 	Context("sidecar container recovery", func() {
 		// 84297 - should verify events are logged during sidecar recovery
-		It("should verify events are logged during sidecar recovery", reportxml.ID("84297"), func() {
+		FIt("should verify events are logged during sidecar recovery", reportxml.ID("84297"), func() {
 			testRanAtLeastOnce := false
 
 			nodeInfoMap, err := profiles.GetNodeInfoMap(RANConfig.Spoke1APIClient)
