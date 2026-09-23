@@ -63,8 +63,14 @@ func GetGmInterfaceToGPS(profile *ptpv1.PtpProfile, hwConfig *ptp.HardwareConfig
 // getGmInterfaceFromProfile resolves the GNSS-facing NIC from PtpProfile fields used on
 // GNR-D T-GM (HardwareConfig) deployments where ClockChain CRs omit port names.
 func getGmInterfaceFromProfile(profile *ptpv1.PtpProfile) (iface.Name, error) {
+	// Prefer ts2phc.master 1 over leadingInterface: on GNR-D T-GM, leadingInterface may be
+	// the logical GNSS source name (e.g. "nmea") while cloud events use the PTP port (enox).
+	if ifaceName, err := getGmInterfaceFromTs2PhcConf(profile); err == nil {
+		return ifaceName, nil
+	}
+
 	if profile.PtpSettings != nil {
-		if leading := profile.PtpSettings["leadingInterface"]; leading != "" {
+		if leading := profile.PtpSettings["leadingInterface"]; leading != "" && leading != "nmea" {
 			return iface.Name(leading), nil
 		}
 	}
@@ -73,7 +79,7 @@ func getGmInterfaceFromProfile(profile *ptpv1.PtpProfile) (iface.Name, error) {
 		return iface.Name(*profile.Interface), nil
 	}
 
-	return getGmInterfaceFromTs2PhcConf(profile)
+	return "", fmt.Errorf("profile has no GM GNSS interface in ts2phc, leadingInterface, or interface")
 }
 
 func getGmInterfaceFromTs2PhcConf(profile *ptpv1.PtpProfile) (iface.Name, error) {

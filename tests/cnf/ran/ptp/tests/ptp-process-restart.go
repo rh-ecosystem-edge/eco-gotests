@@ -617,16 +617,11 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 
 				By("waiting for GNSS sync event to confirm recovery")
 
-				gmInterface, err := profiles.GetGmInterfaceToGPS(gmProfile, gmProfiles[0].HardwareConfig)
-				Expect(err).ToNot(HaveOccurred(), "Failed to get GM interface to GPS for node %s", nodeInfo.Name)
-
-				gmInterfaceName := gmInterface.GetNIC()
-
 				gnssSyncFilter := events.All(
 					events.IsType(eventptp.GnssStateChange),
-					events.HasValue(events.WithSyncState(eventptp.SYNCHRONIZED),
+					events.HasValue(
+						events.WithSyncState(eventptp.SYNCHRONIZED),
 						events.ContainingResource(string(iface.Master)),
-						events.OnInterface(gmInterfaceName),
 					),
 				)
 

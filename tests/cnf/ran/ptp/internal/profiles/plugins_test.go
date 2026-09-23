@@ -110,7 +110,20 @@ func TestGetGmInterfaceToGPSHardwareConfigProfileFallback(t *testing.T) {
 		},
 	}
 
-	t.Run("leadingInterface when ClockChain has no ports", func(t *testing.T) {
+	t.Run("ts2phc.master 1 over leadingInterface nmea on GNR-D T-GM", func(t *testing.T) {
+		t.Parallel()
+
+		profile := &ptpv1.PtpProfile{
+			PtpSettings: map[string]string{"leadingInterface": "nmea"},
+			Ts2PhcConf:  ptr.To("[enox]\nts2phc.master 1\n"),
+		}
+
+		got, err := GetGmInterfaceToGPS(profile, minimalGNRDHardwareConfig)
+		require.NoError(t, err)
+		assert.Equal(t, iface.Name("enox"), got)
+	})
+
+	t.Run("leadingInterface when ClockChain has no ports and no ts2phc", func(t *testing.T) {
 		t.Parallel()
 
 		profile := &ptpv1.PtpProfile{
