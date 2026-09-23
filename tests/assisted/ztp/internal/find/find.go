@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/assisted"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/hive"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
@@ -53,6 +54,52 @@ func SpokeClusterName(hubAPIClient, spokeAPIClient *clients.Settings) (string, e
 	}
 
 	return "", fmt.Errorf("could not find ClusterDeployment from provided API clients")
+}
+
+// SpokeInfraEnv returns an InfraEnv for the spoke cluster on the hub.
+// Resolution order:
+//  1. Explicit infraEnvName when provided
+//  2. Classic CIM naming (InfraEnv name == cluster name)
+//  3. First InfraEnv listed in the spoke namespace (SiteConfig per-node InfraEnvs)
+func SpokeInfraEnv(
+	hubAPIClient *clients.Settings, clusterName, infraEnvName string) (*assisted.InfraEnvBuilder, error) {
+	if hubAPIClient == nil {
+		return nil, fmt.Errorf("hub apiClient is nil")
+	}
+
+	if clusterName == "" {
+		return nil, fmt.Errorf("spoke cluster name cannot be empty")
+	}
+
+	if infraEnvName != "" {
+		infraEnv, err := assisted.PullInfraEnvInstall(hubAPIClient, infraEnvName, clusterName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to pull spoke infraenv %s in namespace %s: %w",
+				infraEnvName, clusterName, err)
+		}
+
+		return infraEnv, nil
+	}
+
+	infraEnv, err := assisted.PullInfraEnvInstall(hubAPIClient, clusterName, clusterName)
+	if err == nil {
+		return infraEnv, nil
+	}
+
+	infraEnvs, listErr := assisted.ListInfraEnvs(hubAPIClient, clusterName)
+	if listErr != nil {
+		return nil, fmt.Errorf(
+			"failed to find spoke infraenv %s/%s (%w) and failed to list infraenvs in namespace %s: %w",
+			clusterName, clusterName, err, clusterName, listErr)
+	}
+
+	if len(infraEnvs) == 0 {
+		return nil, fmt.Errorf(
+			"failed to find spoke infraenv %s/%s (%w) and no infraenvs found in namespace %s",
+			clusterName, clusterName, err, clusterName)
+	}
+
+	return infraEnvs[0], nil
 }
 
 // AssistedServicePod returns pod running assisted-service.
