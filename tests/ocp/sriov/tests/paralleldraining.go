@@ -22,7 +22,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-const sriovAndResourceNameParallelDrain = "paralleldraining"
+const (
+	sriovAndResourceNameParallelDrain = "paralleldraining"
+	// The overlap where all workers are draining is transient. Polling at the general three-second
+	// retry interval can miss it and incorrectly fail the parallel-drain check.
+	drainingPollInterval = 100 * time.Millisecond
+)
 
 var _ = Describe("ParallelDraining", Ordered, Label(tsparams.LabelParallelDrainingTestCases),
 	ContinueOnFailure, func() {
@@ -129,7 +134,7 @@ var _ = Describe("ParallelDraining", Ordered, Label(tsparams.LabelParallelDraini
 			removeTestConfigurationOcp()
 
 			By("Validating that nodes are drained all together")
-			Eventually(isDrainingRunningAsExpectedOcp, time.Minute, tsparams.RetryInterval).
+			Eventually(isDrainingRunningAsExpectedOcp, time.Minute, drainingPollInterval).
 				WithArguments(len(workerNodeList)).
 				Should(BeTrue(), "draining runs not as expected")
 
@@ -283,7 +288,7 @@ var _ = Describe("ParallelDraining", Ordered, Label(tsparams.LabelParallelDraini
 			removeTestConfigurationOcp()
 
 			By("Validating that all workers are drained simultaneously")
-			Eventually(isDrainingRunningAsExpectedOcp, time.Minute, tsparams.RetryInterval).
+			Eventually(isDrainingRunningAsExpectedOcp, time.Minute, drainingPollInterval).
 				WithArguments(len(workerNodeList)).
 				Should(BeTrue(), "draining runs not as expected")
 
