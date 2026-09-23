@@ -308,10 +308,10 @@ func WaitForRouteAPIAvailable(
 		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			_, err := route.Pull(client, routeName, routeNamespace)
 			if err != nil {
-				return true, nil
+				return false, nil
 			}
 
-			return false, nil
+			return true, nil
 		})
 }
 

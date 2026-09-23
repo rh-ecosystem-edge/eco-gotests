@@ -86,36 +86,86 @@ type ProcessResult struct {
 
 // processEntry tries to parse a log line and updates per-process accumulators if it matches.
 func (p *ProcessResult) processEntry(line string) {
+	line = normalizeLinuxptpLine(line)
+
 	result := tryParseEntry(line, p.pattern)
-	if !result.Matched {
+	if result.Matched {
+		p.candidateLines++
+
+		if result.Dropped {
+			klog.V(tsparams.LogLevel).Infof("%s: dropping line with unparseable offset %q", p.name, line)
+
+			p.droppedLines++
+
+			return
+		}
+
+		p.observeSample(result.Entry.Offset, result.Entry.State, result.Entry.Raw)
+
+		return
+	}
+
+	p.tryProcessSummaryEntry(line)
+}
+
+func (p *ProcessResult) summaryPattern() *regexp.Regexp {
+	switch p.name {
+	case string(processes.Ptp4l):
+		return ptp4lSummaryPattern
+	case string(processes.Phc2sys):
+		return phc2sysSummaryPattern
+	default:
+		return nil
+	}
+}
+
+func (p *ProcessResult) tryProcessSummaryEntry(line string) {
+	pattern := p.summaryPattern()
+	if pattern == nil {
+		return
+	}
+
+	summary, matched := tryParseSummaryEntry(line, pattern)
+	if !matched {
 		return
 	}
 
 	p.candidateLines++
 
-	if result.Dropped {
-		klog.V(tsparams.LogLevel).Infof("%s: dropping line with unparseable offset %q", p.name, line)
+	if summary.Cnt == 0 {
+		klog.V(tsparams.LogLevel).Infof("%s: dropping summary line with unparseable offsets %q", p.name, line)
 
 		p.droppedLines++
 
 		return
 	}
 
-	p.Stats.observe(result.Entry.Offset)
+	p.Stats.observe(summary.Min)
+	p.Stats.observe(summary.Max)
 
-	if result.Entry.State == "s2" && abs(result.Entry.Offset) > p.threshold {
+	if abs(summary.Min) > p.threshold || abs(summary.Max) > p.threshold {
 		p.ThresholdViolationCount++
 	}
 
-	if p.prevState != "" && p.prevState != result.Entry.State {
+	p.prevState = lockedServoState
+}
+
+func (p *ProcessResult) observeSample(offset int64, state string, raw string) {
+	p.Stats.observe(offset)
+
+	if state == lockedServoState && abs(offset) > p.threshold {
+		p.ThresholdViolationCount++
+	}
+
+	if p.prevState != "" && p.prevState != state {
 		p.StateTransitions = append(p.StateTransitions, StateTransition{
 			From: p.prevState,
-			To:   result.Entry.State,
-			Raw:  result.Entry.Raw,
+			To:   state,
+			Raw:  raw,
 		})
 	}
 
-	p.prevState = result.Entry.State
+	p.prevState = state
 }
 
 // parseWarning returns a human-readable warning if any lines were dropped during parsing, or an empty string otherwise.
