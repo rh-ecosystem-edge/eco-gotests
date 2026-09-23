@@ -8,10 +8,13 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ptp"
 	ptpv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v1"
+	ptpv2alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v2alpha1"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 )
 
 func profileWithE810Pins(t *testing.T, pins map[string]map[string]string) *ptpv1.PtpProfile {
@@ -78,6 +81,58 @@ func TestGetGmInterfaceToGPS(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetGmInterfaceToGPSHardwareConfigProfileFallback(t *testing.T) {
+	t.Parallel()
+
+	minimalGNRDHardwareConfig := &ptp.HardwareConfigBuilder{
+		Definition: &ptpv2alpha1.HardwareConfig{
+			ObjectMeta: metav1.ObjectMeta{Name: "gm-gnrd-three-card"},
+			Spec: ptpv2alpha1.HardwareConfigSpec{
+				Profile: ptpv2alpha1.HardwareProfile{
+					ClockChain: &ptpv2alpha1.ClockChain{
+						Structure: []ptpv2alpha1.Subsystem{{
+							Name:                          "gm",
+							HardwareSpecificDefinitions: "dell/XR8720t",
+						}},
+						Behavior: &ptpv2alpha1.Behavior{
+							Sources: []ptpv2alpha1.SourceConfig{{
+								Name:       "gnss",
+								Subsystem:  "gm",
+								SourceType: ptpv2alpha1.SourceTypeGNSS,
+								GNSSConfig: &ptpv2alpha1.GNSSConfig{Init: ptpv2alpha1.GNSSInit{}},
+							}},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	t.Run("leadingInterface when ClockChain has no ports", func(t *testing.T) {
+		t.Parallel()
+
+		profile := &ptpv1.PtpProfile{
+			PtpSettings: map[string]string{"leadingInterface": "eno8703np0"},
+		}
+
+		got, err := GetGmInterfaceToGPS(profile, minimalGNRDHardwareConfig)
+		require.NoError(t, err)
+		assert.Equal(t, iface.Name("eno8703np0"), got)
+	})
+
+	t.Run("ts2phc.master 1 when ClockChain and leadingInterface are absent", func(t *testing.T) {
+		t.Parallel()
+
+		profile := &ptpv1.PtpProfile{
+			Ts2PhcConf: ptr.To("[eno8703np0]\nts2phc.master 1\n[eno8403np0]\nts2phc.master 0\n"),
+		}
+
+		got, err := GetGmInterfaceToGPS(profile, minimalGNRDHardwareConfig)
+		require.NoError(t, err)
+		assert.Equal(t, iface.Name("eno8703np0"), got)
+	})
 }
 
 func TestGetRxInterfaces(t *testing.T) {
