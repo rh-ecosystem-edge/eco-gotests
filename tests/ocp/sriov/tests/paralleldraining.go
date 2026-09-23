@@ -22,7 +22,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-const sriovAndResourceNameParallelDrain = "paralleldraining"
+const (
+	sriovAndResourceNameParallelDrain = "paralleldraining"
+	// Draining is a transient state. Polling at the general three-second retry interval can miss
+	// the overlap between concurrently draining nodes and incorrectly fail the parallel-drain check.
+	drainingPollInterval = 100 * time.Millisecond
+)
 
 var _ = Describe("ParallelDraining", Ordered, Label(tsparams.LabelParallelDrainingTestCases),
 	ContinueOnFailure, func() {
@@ -109,7 +114,7 @@ var _ = Describe("ParallelDraining", Ordered, Label(tsparams.LabelParallelDraini
 			removeTestConfigurationOcp()
 
 			By("Validating that nodes are drained one by one")
-			Eventually(isDrainingRunningAsExpectedOcp, time.Minute, tsparams.RetryInterval).WithArguments(1).
+			Eventually(isDrainingRunningAsExpectedOcp, time.Minute, drainingPollInterval).WithArguments(1).
 				Should(BeTrue(), "draining runs not as expected")
 
 			err = sriovoperator.WaitForSriovStable(APIClient, tsparams.MCOWaitTimeout,
@@ -129,7 +134,7 @@ var _ = Describe("ParallelDraining", Ordered, Label(tsparams.LabelParallelDraini
 			removeTestConfigurationOcp()
 
 			By("Validating that nodes are drained all together")
-			Eventually(isDrainingRunningAsExpectedOcp, time.Minute, tsparams.RetryInterval).
+			Eventually(isDrainingRunningAsExpectedOcp, time.Minute, drainingPollInterval).
 				WithArguments(len(workerNodeList)).
 				Should(BeTrue(), "draining runs not as expected")
 
@@ -157,7 +162,7 @@ var _ = Describe("ParallelDraining", Ordered, Label(tsparams.LabelParallelDraini
 			removeTestConfigurationOcp()
 
 			By("Validating that nodes are drained by 2")
-			Eventually(isDrainingRunningAsExpectedOcp, time.Minute, tsparams.RetryInterval).WithArguments(2).
+			Eventually(isDrainingRunningAsExpectedOcp, time.Minute, drainingPollInterval).WithArguments(2).
 				Should(BeTrue(), "draining runs not as expected")
 
 			err = sriovoperator.WaitForSriovStable(APIClient, tsparams.MCOWaitTimeout,
@@ -204,7 +209,7 @@ var _ = Describe("ParallelDraining", Ordered, Label(tsparams.LabelParallelDraini
 			removeTestConfigurationOcp()
 
 			By("Verifying that two workers are draining, and the third worker remains in an idle state permanently")
-			Eventually(isDrainingRunningAsExpectedOcp, time.Minute, tsparams.RetryInterval).WithArguments(2).
+			Eventually(isDrainingRunningAsExpectedOcp, time.Minute, drainingPollInterval).WithArguments(2).
 				Should(BeTrue(), "draining runs not as expected")
 
 			sriovNodeStateList, err := sriov.ListNetworkNodeState(APIClient,
@@ -283,7 +288,7 @@ var _ = Describe("ParallelDraining", Ordered, Label(tsparams.LabelParallelDraini
 			removeTestConfigurationOcp()
 
 			By("Validating that all workers are drained simultaneously")
-			Eventually(isDrainingRunningAsExpectedOcp, time.Minute, tsparams.RetryInterval).
+			Eventually(isDrainingRunningAsExpectedOcp, time.Minute, drainingPollInterval).
 				WithArguments(len(workerNodeList)).
 				Should(BeTrue(), "draining runs not as expected")
 
