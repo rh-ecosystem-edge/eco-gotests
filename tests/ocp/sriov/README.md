@@ -2,7 +2,9 @@
 
 ## Overview
 
-This test suite validates SR-IOV (Single Root I/O Virtualization) functionality on OpenShift Container Platform (OCP) clusters. The tests cover Virtual Function (VF) configuration, network connectivity, and operator lifecycle management.
+This test suite validates SR-IOV (Single Root I/O Virtualization) functionality on OpenShift Container Platform (OCP) clusters. The tests cover Virtual Function (VF) configuration, network connectivity, operator lifecycle management, QinQ/VLAN tagging, metrics export, DPDK, RDMA, and parallel draining.
+
+> **Agent reference**: [`agent.md`](agent.md) in this directory captures deep investigation notes, non-obvious skip conditions, infrastructure requirements per test file, and switch configuration details for AI-assisted analysis.
 
 ## Prerequisites
 
@@ -55,11 +57,11 @@ export ECO_OCP_SRIOV_INTERFACE_LIST="ens2f0,ens3f0"
 | `ECO_OCP_SRIOV_DPDK_TEST_CONTAINER` | Container image for DPDK test workloads | -- |
 | `ECO_OCP_SRIOV_PROMETHEUS_OPERATOR_NAMESPACE` | Prometheus operator namespace | -- |
 | `ECO_OCP_SRIOV_MCP_LABEL` | Machine config pool label | -- |
-| `ECO_OCP_SRIOV_SWITCH_USER` | Switch username for switch-based tests | -- |
-| `ECO_OCP_SRIOV_SWITCH_PASS` | Switch password for switch-based tests | -- |
-| `ECO_OCP_SRIOV_SWITCH_IP` | Switch IP address for switch-based tests | -- |
-| `ECO_OCP_SRIOV_SWITCH_INTERFACES` | Switch interfaces for switch-based tests (comma-separated `name:port` pairs) | -- |
-| `ECO_OCP_SRIOV_VLAN` | VLAN ID for switch-based tests (1-4094) | -- |
+| `ECO_OCP_SRIOV_SWITCH_USER` | Switch username for QinQ/metrics tests | -- |
+| `ECO_OCP_SRIOV_SWITCH_PASS` | Switch password for QinQ/metrics tests | -- |
+| `ECO_OCP_SRIOV_SWITCH_IP` | Switch IP address for QinQ/metrics tests | -- |
+| `ECO_OCP_SRIOV_SWITCH_INTERFACES` | Comma-separated Junos port names (e.g. `et-0/0/15,et-0/0/14`) | -- |
+| `ECO_OCP_SRIOV_VLAN` | S-VLAN ID for QinQ tests (1–4094) | -- |
 
 ## Directory Structure
 
@@ -72,24 +74,32 @@ tests/ocp/sriov/
 │   │   └── default.yaml        # Default device configurations
 │   ├── ocpsriovinittools/      # Initialization tools (APIClient, SriovOcpConfig)
 │   ├── sriovenv/               # SR-IOV network/policy/pod helpers
-│   ├── sriovocpenv/            # OCP-specific environment helpers
+│   ├── sriovocpenv/            # OCP-specific environment helpers (switch NETCONF)
 │   └── tsparams/               # Test suite constants and parameters
 │       ├── consts.go           # Labels, timeouts, test constants
 │       └── ocpsriovvars.go     # Variables and reporter configuration
 ├── tests/
+│   ├── allmulti.go             # Allmulti/multicast reception tests
+│   ├── app-ns-sriovnet.go      # SriovNetwork cross-namespace tests
 │   ├── basic.go                # Basic SR-IOV VF tests
+│   ├── exposemtu.go            # MTU exposure tests
+│   ├── metricsExporter.go      # SR-IOV metrics exporter tests
+│   ├── paralleldraining.go     # Parallel drain behavior tests
+│   ├── qinq.go                 # QinQ / 802.1AD / 802.1Q / DPDK tests
+│   ├── rdmametricsapi.go       # RDMA metrics API tests (Mellanox only)
 │   └── reinstallation.go       # SR-IOV operator reinstallation tests
+├── agent.md                    # Agent reference: investigation notes, infra requirements
 ├── README.md
 └── sriov_suite_test.go         # Ginkgo test suite entry point
 ```
 
 ## Test Cases
 
-### Basic Tests (`basic.go`)
+For detailed test ID tables, per-test skip conditions, and infrastructure requirements by test file, see [agent.md](agent.md).
 
-Label: `basic`
+### Basic Tests (`basic.go`) — Label: `basic`
 
-Tests VF creation, network configuration, and connectivity across multiple hardware configurations.
+Tests VF creation, network configuration, and connectivity across multiple hardware configurations. Iterates over all configured devices in `ECO_OCP_SRIOV_DEVICES`.
 
 | Test ID | Description |
 |---------|-------------|
@@ -109,11 +119,9 @@ Tests VF creation, network configuration, and connectivity across multiple hardw
 - VLAN/rate limiting test (25963) only runs on devices with `supportsMinTxRate: true`
 - DPDK test (69582) skips Broadcom NICs due to OCPBUGS-30909
 
-### Reinstallation Tests (`reinstallation.go`)
+### Reinstallation Tests (`reinstallation.go`) — Label: `sriovreinstall`
 
-Label: `sriovreinstall`
-
-Tests SR-IOV operator lifecycle: removal, validation, and reinstallation.
+Tests SR-IOV operator lifecycle: removal, validation, and reinstallation. Requires `ECO_OCP_SRIOV_INTERFACE_LIST` (≥2 interfaces). Tests run in strict order.
 
 | Test ID | Description |
 |---------|-------------|
@@ -124,18 +132,65 @@ Tests SR-IOV operator lifecycle: removal, validation, and reinstallation.
 | 46532 | Validate that re-installed SR-IOV operator control plane is up |
 | 46533 | Validate that re-installed SR-IOV operator data plane is up |
 
-**Notes:**
-- Tests run in order (Ordered container)
-- Requires at least 2 SR-IOV interfaces (`ECO_OCP_SRIOV_INTERFACE_LIST`)
-- May trigger Machine Config Operator (MCO) rolling updates
+### Allmulti Tests (`allmulti.go`) — Labels: `allmulti`, `sriov-hw-enabled`
+
+Tests multicast reception via SR-IOV allmulti mode. Requires 2+ workers. Cross-node tests (67815, 67816) send traffic through the switch but do not require switch credentials.
+
+Test IDs: 67813, 67815, 67816, 67817, 67818, 67819, 67820
+
+### Expose MTU Tests (`exposemtu.go`) — Label: `exposemtu`
+
+Tests MTU exposure for netdev and vfio-pci SR-IOV devices at 1500 and 9000 byte MTU.
+
+Test IDs: 73786, 73787, 73788, 73789, 73790
+
+### Metrics Exporter Tests (`metricsExporter.go`) — Labels: `sriovmetricsexporter`, `sriov-hw-enabled`
+
+Tests the SR-IOV network metrics exporter feature gate. Enables the `metricsExporter` feature in SriovOperatorConfig and validates Prometheus metrics. Vfio-pci contexts require a PerformanceProfile and switch credentials (switch MAC table is cleared in BeforeEach).
+
+Test IDs: 74762, 74797, 74800, 75929, 75930, 75931, 75932, 75933, 75934
+
+### Parallel Draining Tests (`paralleldraining.go`) — Label: `paralleldraining`
+
+Tests SR-IOV node draining behavior with and without `SriovNetworkPoolConfig`. Requires 2+ workers (3+ for some tests).
+
+Test IDs: 68640, 68661, 68662, 68663, 68664
+
+### QinQ Tests (`qinq.go`) — Labels: `qinq`, `sriov-hw-enabled`
+
+Tests double-tagged VLAN (802.1AD, 802.1Q) and DPDK QinQ functionality. Requires 2 workers, switch credentials, and L2 connectivity through a Juniper switch configured via NETCONF. 802.1AD and DPDK tests are Intel E810 only (device IDs `1592`/`1593`).
+
+**Required env vars**: `ECO_OCP_SRIOV_SWITCH_IP`, `ECO_OCP_SRIOV_SWITCH_USER`, `ECO_OCP_SRIOV_SWITCH_PASS`, `ECO_OCP_SRIOV_SWITCH_INTERFACES`, `ECO_OCP_SRIOV_VLAN`
+
+Test IDs: 71676, 71677, 71678, 71679, 71680, 71681, 71682, 71683, 71684, 72636, 72638, 73105
+
+### RDMA Metrics API Tests (`rdmametricsapi.go`) — Labels: `rdmametricsapi`, `sriov-hw-enabled`
+
+Tests RDMA metrics API in exclusive and shared modes via `SriovNetworkPoolConfig`. Requires Mellanox NIC and 2 SR-IOV interfaces. Deploys a PerformanceProfile.
+
+Test IDs: 77649, 77650, 77651, 77653
+
+### Application Namespace SR-IOV Network Tests (`app-ns-sriovnet.go`) — Label: `sriovnetappns`
+
+Tests SriovNetwork scoping and lifecycle across application namespaces, including targetNamespace and resource update behavior.
+
+Test IDs: 83121, 83123, 83124, 83125, 83142
 
 ## Test Labels
 
 | Label | Description |
 |-------|-------------|
-| `ocpsriov` | Suite label - all SR-IOV tests |
+| `ocpsriov` | Suite label — all SR-IOV tests |
 | `basic` | Basic VF functionality tests |
 | `sriovreinstall` | Operator reinstallation tests |
+| `allmulti` | Allmulti/multicast reception tests |
+| `exposemtu` | MTU exposure tests |
+| `sriovmetricsexporter` | SR-IOV metrics exporter tests |
+| `paralleldraining` | Parallel drain behavior tests |
+| `qinq` | QinQ / 802.1AD / 802.1Q tests |
+| `rdmametricsapi` | RDMA metrics API tests |
+| `sriovnetappns` | Application namespace SR-IOV network tests |
+| `sriov-hw-enabled` | Hardware-dependent tests (switch, PerformanceProfile, or specific NIC required) |
 
 ## Running Tests
 
@@ -162,6 +217,18 @@ make run-tests
 ```bash
 export ECO_TEST_LABELS="sriovreinstall"
 export ECO_OCP_SRIOV_INTERFACE_LIST="ens2f0,ens3f0"
+make run-tests
+```
+
+### Run QinQ Tests
+
+```bash
+export ECO_TEST_LABELS="qinq"
+export ECO_OCP_SRIOV_SWITCH_IP=<switch-ip>
+export ECO_OCP_SRIOV_SWITCH_USER=<user>
+export ECO_OCP_SRIOV_SWITCH_PASS=<pass>
+export ECO_OCP_SRIOV_SWITCH_INTERFACES="et-0/0/15,et-0/0/14,et-0/0/10,et-0/0/11"
+export ECO_OCP_SRIOV_VLAN=3010
 make run-tests
 ```
 
@@ -205,7 +272,10 @@ Tests are designed to work with common SR-IOV NICs:
 | Mellanox/NVIDIA | ConnectX-6, ConnectX-7 | `15b3` |
 | Broadcom | BCM57xxx | `14e4` |
 
-**Note:** DPDK tests skip Broadcom NICs due to driver configuration requirements (OCPBUGS-30909).
+**Notes:**
+- DPDK tests skip Broadcom NICs due to driver configuration requirements (OCPBUGS-30909)
+- QinQ 802.1AD and DPDK tests require Intel E810 (device IDs `1592` or `1593`)
+- RDMA metrics tests require Mellanox NICs
 
 ## Troubleshooting
 
@@ -228,3 +298,10 @@ If VF initialization fails:
 Reinstallation tests may timeout during MCO rolling updates:
 - Increase `MCOWaitTimeout` if needed
 - Check MCO status: `oc get mcp`
+
+### QinQ Switch Configuration
+
+QinQ tests configure a Juniper switch via NETCONF. If switch-related tests fail:
+- Verify switch credentials in `ECO_OCP_SRIOV_SWITCH_*` env vars
+- Confirm switch port names match physical wiring (`ECO_OCP_SRIOV_SWITCH_INTERFACES`)
+- See [agent.md](agent.md) for switch port mapping, NETCONF command details, and known failure analysis
