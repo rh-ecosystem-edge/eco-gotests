@@ -1,6 +1,6 @@
 //go:build unit_test
 
-package inventory
+package o2imsinventory
 
 import (
 	"testing"

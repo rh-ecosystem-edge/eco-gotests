@@ -23,6 +23,8 @@ const (
 	LabelInventory = "inventory"
 	// LabelSecurity is the label applied to O-Cloud Manager security hardening test cases.
 	LabelSecurity = "security"
+	// LabelClusterAPI is the label applied to just the cluster API test cases.
+	LabelClusterAPI = "cluster-api"
 )
 
 const (
@@ -138,8 +140,38 @@ const (
 	TestInventoryResourcePool = "oran-test-inventory-pool"
 	// ResourcePoolNameLabel is the BMH label that associates a host with a ResourcePool.
 	ResourcePoolNameLabel = "resources.clcm.openshift.io/resourcePoolName"
-	// NonExistentUUID is a well-known UUID used for not-found inventory API requests.
+	// NonExistentUUID is a well-known UUID used for not-found O2IMS API requests.
 	NonExistentUUID = "00000000-0000-0000-0000-000000000000"
+	// TestNotificationLabel is the ManagedCluster label key used to trigger cluster change notifications.
+	TestNotificationLabel = "oran-test-notification"
+	// ClusterVendorLabel is the ManagedCluster label mapped to NodeCluster extensions.vendor.
+	ClusterVendorLabel = "vendor"
+	// ClusterIDLabel is the ManagedCluster label used as NodeCluster.nodeClusterId.
+	ClusterIDLabel = "clusterID"
+	// OpenshiftVersionLabel is the ManagedCluster label mapped to NodeCluster extensions.openshiftVersion.
+	OpenshiftVersionLabel = "openshiftVersion"
+	// LocalClusterLabel is the ManagedCluster label that identifies the ACM hub cluster.
+	LocalClusterLabel = "local-cluster"
+	// ClusterModelExtension is the NodeCluster / NodeClusterType extensions key for hub vs spoke model.
+	ClusterModelExtension = "model"
+	// ClusterVersionExtension is the NodeClusterType extensions key for OpenShift version.
+	ClusterVersionExtension = "version"
+	// ClusterModelHubCluster is the model value for the ACM hub (local-cluster).
+	ClusterModelHubCluster = "hub-cluster"
+	// ClusterModelManagedCluster is the model value for spoke ManagedClusters.
+	ClusterModelManagedCluster = "managed-cluster"
+	// HardwareManagerNodeIDLabel is the Agent label mapped to ClusterResource.resourceId.
+	HardwareManagerNodeIDLabel = "clcm.openshift.io/hwMgrNodeId"
+	// AlarmDefinitionSeverityField is the AlarmDefinition additionalFields key for severity.
+	AlarmDefinitionSeverityField = "severity"
+	// ClusterAPIVersion is the expected first version in cluster API version responses.
+	ClusterAPIVersion = "1.0.0"
+	// ClusterAPIURIPrefix is the expected uriPrefix in cluster API version responses.
+	ClusterAPIURIPrefix = "/o2ims-infrastructureCluster/v1"
+	// InventoryAPIVersion is the expected first version in inventory API version responses.
+	InventoryAPIVersion = "2.0.0"
+	// InventoryAPIURIPrefix is the expected uriPrefix in inventory API version responses.
+	InventoryAPIURIPrefix = "/o2ims-infrastructureInventory/v2"
 )
 
 // LogLevel is the glog verbosity level to use for logs in this suite or its helpers.

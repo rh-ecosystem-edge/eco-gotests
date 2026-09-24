@@ -55,7 +55,9 @@ run-ran-pkg-unit-tests:
 	UNIT_TEST=true go test -tags=unit_test -v ./tests/cnf/ran/ptp/internal/iface
 	UNIT_TEST=true go test -tags=unit_test -v ./tests/cnf/ran/ptp/internal/profiles
 	UNIT_TEST=true go test -tags=unit_test -v ./tests/cnf/ran/ptp/internal/consumer
-	UNIT_TEST=true go test -tags=unit_test -v ./tests/cnf/ran/oran/internal/inventory
+	UNIT_TEST=true go test -tags=unit_test -v ./tests/cnf/ran/oran/internal/o2imstest
+	UNIT_TEST=true go test -tags=unit_test -v ./tests/cnf/ran/oran/internal/o2imsinventory
+	UNIT_TEST=true go test -tags=unit_test -v ./tests/cnf/ran/oran/internal/o2imscluster
 
 run-system-tests-pkg-unit-tests:
 	@echo "Executing eco-gotests internal package unit tests"

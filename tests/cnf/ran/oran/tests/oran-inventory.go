@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,7 +18,8 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/auth"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/inventory"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/o2imsinventory"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/o2imstest"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/tsparams"
 	mocksmo "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/oran-mock-smo"
 	"k8s.io/apimachinery/pkg/labels"
@@ -61,7 +61,8 @@ var _ = Describe("ORAN Inventory API Tests", Label(tsparams.LabelPostProvision, 
 		allVersions, err := inventoryClient.GetAllVersions()
 		Expect(err).ToNot(HaveOccurred(), "Failed to get all inventory API versions")
 
-		verifyErr := inventory.VerifyAPIVersions(allVersions)
+		verifyErr := o2imstest.VerifyAPIVersions(
+			allVersions, tsparams.InventoryAPIVersion, tsparams.InventoryAPIURIPrefix)
 		Expect(verifyErr).ToNot(HaveOccurred(), "All API versions response failed verification")
 
 		By("getting minor inventory API versions")
@@ -69,7 +70,8 @@ var _ = Describe("ORAN Inventory API Tests", Label(tsparams.LabelPostProvision, 
 		minorVersions, err := inventoryClient.GetMinorVersions()
 		Expect(err).ToNot(HaveOccurred(), "Failed to get minor inventory API versions")
 
-		verifyErr = inventory.VerifyAPIVersions(minorVersions)
+		verifyErr = o2imstest.VerifyAPIVersions(
+			minorVersions, tsparams.InventoryAPIVersion, tsparams.InventoryAPIURIPrefix)
 		Expect(verifyErr).ToNot(HaveOccurred(), "Minor API versions response failed verification")
 	})
 
@@ -98,7 +100,7 @@ var _ = Describe("ORAN Inventory API Tests", Label(tsparams.LabelPostProvision, 
 				return loc.GlobalLocationId == locationCR.Definition.Name
 			})
 			Expect(locationIdx).ToNot(Equal(-1), "Location CR %s missing from API response", locationCR.Definition.Name)
-			verifyErr := inventory.VerifyLocationMatchesCR(apiLocations[locationIdx], locationCR, readySites)
+			verifyErr := o2imsinventory.VerifyLocationMatchesCR(apiLocations[locationIdx], locationCR, readySites)
 			Expect(verifyErr).ToNot(HaveOccurred(),
 				"Location CR %s does not match API Location", locationCR.Definition.Name)
 		}
@@ -137,7 +139,7 @@ var _ = Describe("ORAN Inventory API Tests", Label(tsparams.LabelPostProvision, 
 				return site.OCloudSiteId.String() == siteID
 			})
 			Expect(siteIdx).ToNot(Equal(-1), "OCloudSite CR %s missing from API response", siteCR.Definition.Name)
-			verifyErr := inventory.VerifyOCloudSiteMatchesCR(apiSites[siteIdx], siteCR, readyPools)
+			verifyErr := o2imsinventory.VerifyOCloudSiteMatchesCR(apiSites[siteIdx], siteCR, readyPools)
 			Expect(verifyErr).ToNot(HaveOccurred(),
 				"OCloudSite CR %s does not match API O-Cloud Site", siteCR.Definition.Name)
 		}
@@ -173,7 +175,7 @@ var _ = Describe("ORAN Inventory API Tests", Label(tsparams.LabelPostProvision, 
 				return pool.ResourcePoolId.String() == poolID
 			})
 			Expect(poolIdx).ToNot(Equal(-1), "ResourcePool CR %s missing from API response", poolCR.Definition.Name)
-			verifyErr := inventory.VerifyResourcePoolMatchesCR(apiPools[poolIdx], poolCR)
+			verifyErr := o2imsinventory.VerifyResourcePoolMatchesCR(apiPools[poolIdx], poolCR)
 			Expect(verifyErr).ToNot(HaveOccurred(),
 				"ResourcePool CR %s does not match API Resource Pool", poolCR.Definition.Name)
 		}
@@ -221,7 +223,7 @@ var _ = Describe("ORAN Inventory API Tests", Label(tsparams.LabelPostProvision, 
 			})
 			Expect(resourceIdx).ToNot(Equal(-1), "BMH %s/%s missing from API response",
 				host.Definition.Namespace, host.Definition.Name)
-			verifyErr := inventory.VerifyResourceMatchesBMH(HubAPIClient, apiResources[resourceIdx], host, poolID)
+			verifyErr := o2imsinventory.VerifyResourceMatchesBMH(HubAPIClient, apiResources[resourceIdx], host, poolID)
 			Expect(verifyErr).ToNot(HaveOccurred(),
 				"BMH %s/%s does not match API Resource", host.Definition.Namespace, host.Definition.Name)
 		}
@@ -251,13 +253,13 @@ var _ = Describe("ORAN Inventory API Tests", Label(tsparams.LabelPostProvision, 
 		By("verifying each vendor/model pair has a matching Resource Type")
 
 		for pair := range expectedPairs {
-			typeIdx := slices.IndexFunc(apiResourceTypes, func(resourceType oranapi.ResourceType) bool {
+			typeIndex := slices.IndexFunc(apiResourceTypes, func(resourceType oranapi.ResourceType) bool {
 				return resourceType.Vendor == pair.vendor && resourceType.Model == pair.model
 			})
-			Expect(typeIdx).ToNot(Equal(-1), "Missing ResourceType for vendor=%s model=%s", pair.vendor, pair.model)
-			Expect(string(apiResourceTypes[typeIdx].ResourceKind)).To(Equal("PHYSICAL"),
+			Expect(typeIndex).ToNot(Equal(-1), "Missing ResourceType for vendor=%s model=%s", pair.vendor, pair.model)
+			Expect(string(apiResourceTypes[typeIndex].ResourceKind)).To(Equal("PHYSICAL"),
 				"ResourceType vendor=%s model=%s should have resourceKind PHYSICAL", pair.vendor, pair.model)
-			Expect(string(apiResourceTypes[typeIdx].ResourceClass)).To(Equal("COMPUTE"),
+			Expect(string(apiResourceTypes[typeIndex].ResourceClass)).To(Equal("COMPUTE"),
 				"ResourceType vendor=%s model=%s should have resourceClass COMPUTE", pair.vendor, pair.model)
 		}
 
@@ -302,6 +304,9 @@ var _ = Describe("ORAN Inventory API Tests", Label(tsparams.LabelPostProvision, 
 		Expect(err).ToNot(HaveOccurred(), "Failed to get Resource Type alarm dictionary")
 		Expect(alarmDictionary.AlarmDictionaryId).To(Equal(*chosen.AlarmDictionaryId),
 			"Retrieved alarm dictionary ID should match Resource Type alarmDictionaryId")
+		verifyErr := o2imstest.VerifyAlarmDictionaryStructure(alarmDictionary)
+		Expect(verifyErr).ToNot(HaveOccurred(),
+			"Retrieved alarm dictionary %s failed verification", alarmDictionary.AlarmDictionaryId)
 	})
 
 	// 89898 - List and retrieve Deployment Managers
@@ -326,7 +331,7 @@ var _ = Describe("ORAN Inventory API Tests", Label(tsparams.LabelPostProvision, 
 				return manager.Name == cluster.Definition.Name
 			})
 			Expect(managerIdx).ToNot(Equal(-1), "ManagedCluster %s missing from API response", cluster.Definition.Name)
-			verifyErr := inventory.VerifyDeploymentManagerMatchesCluster(apiManagers[managerIdx], cluster)
+			verifyErr := o2imsinventory.VerifyDeploymentManagerMatchesCluster(apiManagers[managerIdx], cluster)
 			Expect(verifyErr).ToNot(HaveOccurred(),
 				"ManagedCluster %s does not match API Deployment Manager", cluster.Definition.Name)
 		}
@@ -353,6 +358,14 @@ var _ = Describe("ORAN Inventory API Tests", Label(tsparams.LabelPostProvision, 
 		Expect(err).ToNot(HaveOccurred(), "Failed to list Alarm Dictionaries")
 		Expect(alarmDictionaries).ToNot(BeEmpty(), "At least one Alarm Dictionary is required")
 
+		By("verifying each alarm dictionary structure")
+
+		for _, alarmDictionary := range alarmDictionaries {
+			verifyErr := o2imstest.VerifyAlarmDictionaryStructure(alarmDictionary)
+			Expect(verifyErr).ToNot(HaveOccurred(),
+				"Alarm dictionary %s failed verification", alarmDictionary.AlarmDictionaryId)
+		}
+
 		By("retrieving an Alarm Dictionary by ID")
 
 		chosen := alarmDictionaries[0]
@@ -360,6 +373,9 @@ var _ = Describe("ORAN Inventory API Tests", Label(tsparams.LabelPostProvision, 
 		Expect(err).ToNot(HaveOccurred(), "Failed to get Alarm Dictionary %s", chosen.AlarmDictionaryId)
 		Expect(retrieved.AlarmDictionaryId).To(Equal(chosen.AlarmDictionaryId),
 			"Retrieved Alarm Dictionary ID should match listed dictionary")
+		verifyErr := o2imstest.VerifyAlarmDictionaryStructure(retrieved)
+		Expect(verifyErr).ToNot(HaveOccurred(),
+			"Retrieved Alarm Dictionary %s failed verification", retrieved.AlarmDictionaryId)
 	})
 
 	// 89900 - Subscription lifecycle (create, list, get, delete)
@@ -479,7 +495,11 @@ var _ = Describe("ORAN Inventory API Tests", Label(tsparams.LabelPostProvision, 
 					return false
 				}
 
-				return inventoryNotificationRefersToPool(notification, poolID)
+				return o2imstest.RefersTo(
+					notification.ObjectRef,
+					notification.PostObjectState,
+					notification.PriorObjectState,
+					"resourcePoolId", poolID, "name", tsparams.TestInventoryResourcePool)
 			}),
 		)
 		Expect(err).ToNot(HaveOccurred(), "Failed to receive CREATE inventory notification")
@@ -506,7 +526,11 @@ var _ = Describe("ORAN Inventory API Tests", Label(tsparams.LabelPostProvision, 
 					return false
 				}
 
-				return inventoryNotificationRefersToPool(notification, poolID)
+				return o2imstest.RefersTo(
+					notification.ObjectRef,
+					notification.PostObjectState,
+					notification.PriorObjectState,
+					"resourcePoolId", poolID, "name", tsparams.TestInventoryResourcePool)
 			}),
 		)
 		Expect(err).ToNot(HaveOccurred(), "Failed to receive DELETE inventory notification")
@@ -603,8 +627,8 @@ var _ = Describe("ORAN Inventory API Tests", Label(tsparams.LabelPostProvision, 
 			Expect(manager.OCloudId).ToNot(Equal(uuid.Nil), "oCloudId is mandatory")
 			Expect(manager.ServiceUri).ToNot(BeEmpty(), "serviceUri is mandatory")
 			Expect(manager.Extensions).To(BeNil(), "extensions should be absent")
-			Expect(manager.Capacity).To(BeNil(), "capacity should be absent")
-			Expect(manager.Capabilities).To(BeNil(), "capabilities should be absent")
+			Expect(manager.Capacity).To(BeEmpty(), "capacity should be empty when excluded")
+			Expect(manager.Capabilities).To(BeEmpty(), "capabilities should be empty when excluded")
 		}
 
 		By("listing Deployment Managers with all_fields=true")
@@ -862,35 +886,4 @@ func waitForResourcePoolDeletion(inventoryClient *oranapi.InventoryClient, name 
 		})).To(Equal(-1), "ResourcePool %s still in inventory API", name)
 	}).WithTimeout(2*time.Minute).WithPolling(5*time.Second).
 		Should(Succeed(), "Timeout waiting for ResourcePool %s to be deleted", name)
-}
-
-func inventoryNotificationRefersToPool(
-	notification *oranapi.InventoryChangeNotification, poolID string) bool {
-	if notification.ObjectRef != nil && strings.Contains(*notification.ObjectRef, poolID) {
-		return true
-	}
-
-	if notification.PostObjectState != nil {
-		if value, ok := (*notification.PostObjectState)["resourcePoolId"]; ok && fmt.Sprint(value) == poolID {
-			return true
-		}
-
-		if value, ok := (*notification.PostObjectState)["name"]; ok &&
-			fmt.Sprint(value) == tsparams.TestInventoryResourcePool {
-			return true
-		}
-	}
-
-	if notification.PriorObjectState != nil {
-		if value, ok := (*notification.PriorObjectState)["resourcePoolId"]; ok && fmt.Sprint(value) == poolID {
-			return true
-		}
-
-		if value, ok := (*notification.PriorObjectState)["name"]; ok &&
-			fmt.Sprint(value) == tsparams.TestInventoryResourcePool {
-			return true
-		}
-	}
-
-	return false
 }
