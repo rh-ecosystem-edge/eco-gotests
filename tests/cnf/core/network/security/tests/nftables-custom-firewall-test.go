@@ -655,8 +655,11 @@ func rebootNodeAndWaitForMcpStable(nodeName string) {
 	_, err := cluster.ExecCmdWithStdout(APIClient,
 		"reboot",
 		metav1.ListOptions{LabelSelector: fmt.Sprintf("kubernetes.io/hostname=%s", nodeName)})
-	Expect(err).ToNot(HaveOccurred(),
-		"Failed to reboot worker node with label %s", nodeName)
+	// reboot -f drops the exec stream; treat disconnect/timeout as expected.
+	if err != nil && !netenv.IsRebootExecDisconnectError(err) {
+		Expect(err).ToNot(HaveOccurred(),
+			"Failed to reboot worker node with label %s", nodeName)
+	}
 
 	err = cluster.WaitForMcpStable(APIClient, 35*time.Minute, 1*time.Minute, NetConfig.CnfMcpLabel)
 	Expect(err).ToNot(HaveOccurred(), "Failed to wait for MCP to be stable")
