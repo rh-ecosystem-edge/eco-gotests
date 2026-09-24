@@ -59,7 +59,7 @@ var _ = BeforeSuite(func() {
 
 	By("initializing the NIC naming system based on the PTP version")
 
-	err = iface.InitNICNaming(RANConfig.Spoke1OperatorVersions[ranparam.PTP])
+	err = iface.InitIfaceAliasing(RANConfig.Spoke1OperatorVersions[ranparam.PTP], RANConfig.Spoke1APIClient)
 	Expect(err).ToNot(HaveOccurred(), "Failed to initialize NIC naming system based on the PTP version")
 
 	By("updating the PTP ServiceMonitor scrape interval to 1s")
