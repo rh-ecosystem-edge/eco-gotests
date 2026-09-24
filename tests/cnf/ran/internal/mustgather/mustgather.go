@@ -249,6 +249,14 @@ func waitForGatherComplete(podBuilder *pod.Builder) error {
 				return false, fmt.Errorf("pod no longer exists")
 			}
 
+			// Some errors may cause Exists to return true but the pod object to be nil. Often, these are
+			// transient issues that will resolve themselves.
+			if podBuilder.Object == nil {
+				klog.V(ranparam.LogLevel).Infof("Pod object is nil, retrying")
+
+				return false, nil
+			}
+
 			for _, containerStatus := range podBuilder.Object.Status.ContainerStatuses {
 				if containerStatus.Name != gatherContainerName || containerStatus.State.Terminated == nil {
 					continue
