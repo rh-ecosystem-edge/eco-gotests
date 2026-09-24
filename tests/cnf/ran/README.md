@@ -134,6 +134,7 @@ These inputs are specific to the O-RAN test suite.
 * `ECO_CNF_RAN_O2IMS_OAUTH_CLIENT_ID`: Client ID for requesting an access token from the OAuth endpoint. The OAuth endpoint is assumed to allow requesting the `o2ims-reader` role, not just the `o2ims-admin` role.
 * `ECO_CNF_RAN_O2IMS_OAUTH_CLIENT_SECRET`: Client secret for requesting an access token from the OAuth endpoint.
 * `ECO_CNF_RAN_O2IMS_TOKEN`: Token for authenticating with the O2IMS API (used when OAuth is not configured). The security hardening test that verifies `o2ims-reader` RBAC (89915) requires OAuth client credentials and is skipped when only a bearer token is configured.
+* `ECO_CNF_RAN_O2IMS_MUST_GATHER_IMAGE`: Image used to collect O2IMS must-gather data on the hub after a failed test.
 * `ECO_CNF_RAN_CLUSTER_TEMPLATE_AFFIX`: Version-dependent affix for naming ClusterTemplates and O-RAN resources.
 * `ECO_CNF_RAN_PROVISIONING_REQUEST_URL`: Raw HTTPS URL to a site-config ProvisioningRequest YAML (preferred for Jenkins/container runs). When set, the suite fetches the YAML and uses it as the basis for test ProvisioningRequests (overriding `metadata.name` and `templateVersion` per test case). Cleartext `http` URLs and HTTPS-to-HTTP redirects are rejected. Uses `ECO_CNF_RAN_SKIP_TLS_VERIFY` when the remote CA is not trusted.
 * `ECO_CNF_RAN_PROVISIONING_REQUEST_PATH`: Optional local path to a site-config ProvisioningRequest YAML. Used when URL is unset. Same loading behavior as the URL input.
