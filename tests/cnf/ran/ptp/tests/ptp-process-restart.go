@@ -620,13 +620,13 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 				gmInterface, err := profiles.GetGmInterfaceToGPS(gmProfile)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get GM interface to GPS for node %s", nodeInfo.Name)
 
-				gmInterfaceName := gmInterface.GetNIC()
+				gmIfaceAlias := gmInterface.GetAlias()
 
 				gnssSyncFilter := events.All(
 					events.IsType(eventptp.GnssStateChange),
 					events.HasValue(events.WithSyncState(eventptp.SYNCHRONIZED),
 						events.ContainingResource(string(iface.Master)),
-						events.OnInterface(gmInterfaceName),
+						events.OnInterface(gmIfaceAlias),
 					),
 				)
 

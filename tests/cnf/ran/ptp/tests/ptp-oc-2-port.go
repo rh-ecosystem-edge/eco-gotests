@@ -186,7 +186,7 @@ var _ = Describe("PTP OC 2-port", Label(tsparams.LabelOC2Port, tsparams.LabelInt
 
 			By("bringing down both interfaces")
 
-			for _, ifaceName := range []iface.Name{
+			for _, ifaceName := range []iface.Iface{
 				oc2PortInfo.ActiveInterface,
 				oc2PortInfo.PassiveInterface,
 			} {
@@ -198,7 +198,7 @@ var _ = Describe("PTP OC 2-port", Label(tsparams.LabelOC2Port, tsparams.LabelInt
 
 			By("validating both interfaces are FAULTY")
 
-			for _, ifaceName := range []iface.Name{
+			for _, ifaceName := range []iface.Iface{
 				oc2PortInfo.ActiveInterface,
 				oc2PortInfo.PassiveInterface,
 			} {
@@ -373,10 +373,10 @@ func getOc2PortInfo(
 		"Expected to find one interface group for OC 2-port profile %s on node %s",
 		oc2PortProfile.Reference.ProfileName, nodeName)
 
-	var oc2PortIfaceGroup iface.NICName
+	var oc2PortIfaceAlias iface.Alias
 
-	for nicName := range interfaceGroups {
-		oc2PortIfaceGroup = nicName
+	for nicAlias := range interfaceGroups {
+		oc2PortIfaceAlias = nicAlias
 
 		break
 	}
@@ -392,7 +392,7 @@ func getOc2PortInfo(
 
 	return profiles.Oc2PortInfo{
 		Interfaces:       oc2PortInterfaces,
-		IfaceGroup:       oc2PortIfaceGroup,
+		IfaceGroup:       oc2PortIfaceAlias,
 		ActiveInterface:  activeInterface,
 		PassiveInterface: passiveInterface,
 	}
@@ -411,9 +411,9 @@ func restoreOc2PortAndValidate(
 
 	for _, oc2PortInterface := range oc2PortInterfaces {
 		err := iface.SetInterfaceStatus(RANConfig.Spoke1APIClient, nodeName,
-			oc2PortInterface.Name, iface.InterfaceStateUp)
+			oc2PortInterface.Iface, iface.InterfaceStateUp)
 		Expect(err).ToNot(HaveOccurred(), "Failed to set interface %s to up on node %s",
-			oc2PortInterface.Name, nodeName)
+			oc2PortInterface.Iface, nodeName)
 	}
 
 	By("validating OC 2-port active/passive roles stabilize after restoration")

@@ -28,7 +28,7 @@ const (
 // is nil, has no plugins, or the plugin is missing or invalid.
 // When both E810 and E825 plugins are present, E810 is used (pins / TX state);
 // E825 is only considered if E810 is absent.
-func GetGmInterfaceToGPS(profile *ptpv1.PtpProfile) (iface.Name, error) {
+func GetGmInterfaceToGPS(profile *ptpv1.PtpProfile) (iface.Iface, error) {
 	if profile == nil {
 		return "", fmt.Errorf("profile is nil")
 	}
@@ -37,7 +37,7 @@ func GetGmInterfaceToGPS(profile *ptpv1.PtpProfile) (iface.Name, error) {
 		return "", fmt.Errorf("profile has no plugins")
 	}
 
-	var txInterfaces []iface.Name
+	var txInterfaces []iface.Iface
 
 	var err error
 
@@ -49,7 +49,7 @@ func GetGmInterfaceToGPS(profile *ptpv1.PtpProfile) (iface.Name, error) {
 
 		if len(intelPlugin.Pins) == 1 {
 			for ifaceName := range intelPlugin.Pins {
-				return iface.Name(ifaceName), nil
+				return iface.Iface(ifaceName), nil
 			}
 		}
 
@@ -99,7 +99,7 @@ func getIntelPlugin(profile *ptpv1.PtpProfile, pluginType ptp.PluginType) (*ptp.
 // Devices is a list of device names for E825/E830 plugins.
 // Returns an error if the profile is nil, has no plugins, or the plugin is missing or invalid.
 func getInterfacesWithDevices(profile *ptpv1.PtpProfile,
-	pluginType ptp.PluginType) ([]iface.Name, error) {
+	pluginType ptp.PluginType) ([]iface.Iface, error) {
 	intelPlugin, err := getIntelPlugin(profile, pluginType)
 	if err != nil {
 		return nil, err
@@ -109,10 +109,10 @@ func getInterfacesWithDevices(profile *ptpv1.PtpProfile,
 		return nil, fmt.Errorf("%s plugin has no devices", pluginType)
 	}
 
-	var interfaceNames []iface.Name
+	var interfaceNames []iface.Iface
 
 	for _, device := range intelPlugin.Devices {
-		interfaceNames = append(interfaceNames, iface.Name(device))
+		interfaceNames = append(interfaceNames, iface.Iface(device))
 	}
 
 	return interfaceNames, nil
@@ -124,7 +124,7 @@ func getInterfacesWithDevices(profile *ptpv1.PtpProfile,
 // pinState is the pin state to look for.
 func getInterfacesWithPluginPins(profile *ptpv1.PtpProfile,
 	pluginType ptp.PluginType,
-	pinState PinStateType) ([]iface.Name, error) {
+	pinState PinStateType) ([]iface.Iface, error) {
 	intelPlugin, err := getIntelPlugin(profile, pluginType)
 	if err != nil {
 		return nil, err
@@ -134,13 +134,13 @@ func getInterfacesWithPluginPins(profile *ptpv1.PtpProfile,
 		return nil, fmt.Errorf("%s plugin has no pins", pluginType)
 	}
 
-	var interfaceNames []iface.Name
+	var interfaceNames []iface.Iface
 
 	for ifaceName, connectorToValue := range intelPlugin.Pins {
 		for _, value := range connectorToValue {
 			first := strings.Fields(value)
 			if len(first) >= 1 && first[0] == fmt.Sprintf("%d", pinState) {
-				interfaceNames = append(interfaceNames, iface.Name(ifaceName))
+				interfaceNames = append(interfaceNames, iface.Iface(ifaceName))
 
 				break
 			}
@@ -269,7 +269,7 @@ func HasPlugin(profile *ptpv1.PtpProfile, pluginType ptp.PluginType) bool {
 // PtpSettings["upstreamPort"] is checked first — it is the mandatory field set by the operator
 // for all GNRD T-BC profiles (E825 plugin path and HardwareConfig path alike). When not present,
 // the function falls back to the E810 plugin interconnections.
-func GetUpstreamPortsForProfile(profile *ptpv1.PtpProfile) ([]iface.Name, error) {
+func GetUpstreamPortsForProfile(profile *ptpv1.PtpProfile) ([]iface.Iface, error) {
 	if profile != nil && profile.PtpSettings != nil {
 		if port, ok := profile.PtpSettings["upstreamPort"]; ok && port != "" {
 			ports := splitUpstreamPorts(port)
@@ -285,7 +285,7 @@ func GetUpstreamPortsForProfile(profile *ptpv1.PtpProfile) ([]iface.Name, error)
 }
 
 // GetUpstreamPortForProfile returns the first upstream (time-receiving) network port for the profile.
-func GetUpstreamPortForProfile(profile *ptpv1.PtpProfile) (iface.Name, error) {
+func GetUpstreamPortForProfile(profile *ptpv1.PtpProfile) (iface.Iface, error) {
 	ports, err := GetUpstreamPortsForProfile(profile)
 	if err != nil {
 		return "", err
@@ -297,7 +297,7 @@ func GetUpstreamPortForProfile(profile *ptpv1.PtpProfile) (iface.Name, error) {
 // GetUpstreamPortsFromE810Plugin returns the upstream ports from the E810 plugin's interconnections.
 // Returns ports from the first interconnection entry that has an upstreamPort set. Comma-separated
 // values are split into individual interface names.
-func GetUpstreamPortsFromE810Plugin(profile *ptpv1.PtpProfile) ([]iface.Name, error) {
+func GetUpstreamPortsFromE810Plugin(profile *ptpv1.PtpProfile) ([]iface.Iface, error) {
 	intelPlugin, err := getIntelPlugin(profile, ptp.PluginTypeE810)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Intel plugin for upstream port: %w", err)
@@ -316,7 +316,7 @@ func GetUpstreamPortsFromE810Plugin(profile *ptpv1.PtpProfile) ([]iface.Name, er
 }
 
 // GetUpstreamPortFromE810Plugin returns the first upstream port from the E810 plugin's interconnections.
-func GetUpstreamPortFromE810Plugin(profile *ptpv1.PtpProfile) (iface.Name, error) {
+func GetUpstreamPortFromE810Plugin(profile *ptpv1.PtpProfile) (iface.Iface, error) {
 	ports, err := GetUpstreamPortsFromE810Plugin(profile)
 	if err != nil {
 		return "", err
@@ -326,13 +326,13 @@ func GetUpstreamPortFromE810Plugin(profile *ptpv1.PtpProfile) (iface.Name, error
 }
 
 // splitUpstreamPorts splits a comma-separated upstreamPort value into interface names.
-func splitUpstreamPorts(port string) []iface.Name {
-	var ports []iface.Name
+func splitUpstreamPorts(port string) []iface.Iface {
+	var ports []iface.Iface
 
 	for _, part := range strings.Split(port, ",") {
 		part = strings.TrimSpace(part)
 		if part != "" {
-			ports = append(ports, iface.Name(part))
+			ports = append(ports, iface.Iface(part))
 		}
 	}
 
@@ -340,7 +340,7 @@ func splitUpstreamPorts(port string) []iface.Name {
 }
 
 // GetRxInterfaces returns the interfaces configured as RX (pin state 1) in the E810 plugin.
-func GetRxInterfaces(profile *ptpv1.PtpProfile) ([]iface.Name, error) {
+func GetRxInterfaces(profile *ptpv1.PtpProfile) ([]iface.Iface, error) {
 	return getInterfacesWithPluginPins(profile, ptp.PluginTypeE810, PinStateRx)
 }
 
@@ -348,7 +348,7 @@ func GetRxInterfaces(profile *ptpv1.PtpProfile) ([]iface.Name, error) {
 // ifaceName from the E810 plugin. A pin is active when its state value (the first field in the
 // "pin-state channel" string) is not "0". Pin names are checked in sorted order so the result
 // is deterministic (e.g. SMA1 before SMA2).
-func GetSmaPinFromProfile(profile *ptpv1.PtpProfile, ifaceName iface.Name) (string, string, error) {
+func GetSmaPinFromProfile(profile *ptpv1.PtpProfile, ifaceName iface.Iface) (string, string, error) {
 	intelPlugin, err := getIntelPlugin(profile, ptp.PluginTypeE810)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get E810 plugin: %w", err)

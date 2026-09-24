@@ -433,7 +433,7 @@ func assertLockedState(
 	expectedClockClass metrics.PtpClockClass,
 	clockClassChanges bool,
 	timeout time.Duration,
-	upstreamIfaces []iface.Name,
+	upstreamIfaces []iface.Iface,
 	configFile string,
 ) {
 	GinkgoHelper()
@@ -598,7 +598,7 @@ func assertHoldoverOutOfSpecClockClass(
 
 // assertDPLLPhaseLockedHoldoverAcquired validates that the DPLL phase status is LOCKED_HO_ACQ on every upstream NIC.
 func assertDPLLPhaseLockedHoldoverAcquired(
-	prometheusAPI prometheusv1.API, nodeName string, upstreamIfaces []iface.Name,
+	prometheusAPI prometheusv1.API, nodeName string, upstreamIfaces []iface.Iface,
 ) {
 	GinkgoHelper()
 
@@ -760,7 +760,7 @@ func getPtp4lConfigFileForNode(nodeName string) string {
 func restoreInterfacesAndWaitForRelock(
 	prometheusAPI prometheusv1.API,
 	nodeName string,
-	upstreamIfaces []iface.Name,
+	upstreamIfaces []iface.Iface,
 ) {
 	GinkgoHelper()
 

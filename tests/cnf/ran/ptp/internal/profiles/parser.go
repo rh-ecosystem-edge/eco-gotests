@@ -39,10 +39,10 @@ func parsePtpProfile(
 	profileInfo.Interfaces = getInterfacesFromPtp4lSections(clientFlag, ptp4lSections)
 
 	if profile.Interface != nil && *profile.Interface != "" {
-		ifaceName := iface.Name(*profile.Interface)
+		ifaceName := iface.Iface(*profile.Interface)
 		if _, ok := profileInfo.Interfaces[ifaceName]; !ok {
 			profileInfo.Interfaces[ifaceName] = &InterfaceInfo{
-				Name: ifaceName,
+				Iface: ifaceName,
 				// If the interface is not set in the config file, it cannot be server only.
 				ClockType: ClockTypeClient,
 			}
@@ -111,8 +111,8 @@ func getSectionsFromPtp4lConf(ptp4lConf string) (configSections, error) {
 // getInterfacesFromPtp4lSections extracts the interfaces and their clock types from the ptp4l configuration sections.
 // The provided clientFlag indicates whether the clientOnly command line flag is set in ptp4lOpts. The returned map is
 // guaranteed to not be nil.
-func getInterfacesFromPtp4lSections(clientFlag bool, sections configSections) map[iface.Name]*InterfaceInfo {
-	interfaces := make(map[iface.Name]*InterfaceInfo)
+func getInterfacesFromPtp4lSections(clientFlag bool, sections configSections) map[iface.Iface]*InterfaceInfo {
+	interfaces := make(map[iface.Iface]*InterfaceInfo)
 
 	// Setting clientOnly in the global section is equivalent to setting it as a command line flag, meaning all
 	// interfaces are client only.
@@ -140,9 +140,9 @@ func getInterfacesFromPtp4lSections(clientFlag bool, sections configSections) ma
 			clockType = ClockTypeClient
 		}
 
-		ifaceName := iface.Name(sectionName)
+		ifaceName := iface.Iface(sectionName)
 		interfaces[ifaceName] = &InterfaceInfo{
-			Name:      ifaceName,
+			Iface:     ifaceName,
 			ClockType: clockType,
 		}
 	}
@@ -154,7 +154,7 @@ func getInterfacesFromPtp4lSections(clientFlag bool, sections configSections) ma
 // cross-profile context. The controlledNames map contains profile names referenced by a TBC transmitter's
 // controllingProfile setting, enabling distinction between T-BC receivers and standalone T-TSC/OC profiles.
 func determineProfileType(
-	interfaces map[iface.Name]*InterfaceInfo,
+	interfaces map[iface.Iface]*InterfaceInfo,
 	profile ptpv1.PtpProfile,
 	controlledNames map[string]bool,
 ) (PtpProfileType, error) {

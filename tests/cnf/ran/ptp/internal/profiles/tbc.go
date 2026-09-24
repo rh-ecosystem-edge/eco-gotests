@@ -12,7 +12,7 @@ type HoldoverTestData struct {
 	PrometheusAPI  prometheusv1.API
 	NodeName       string
 	ProfileInfo    *ProfileInfo
-	UpstreamIfaces []iface.Name
+	UpstreamIfaces []iface.Iface
 	ConfigFile     string
 }
 
