@@ -129,11 +129,20 @@ type Spoke1Config struct {
 	Spoke1OCPVersion       string
 	Spoke1OperatorVersions map[ranparam.SpokeOperatorName]string
 
-	// Spoke1Name is automatically updated if Spoke1Kubeconfig exists, otherwise it can be provided as an input.
+	// Spoke1Name can be provided via ECO_CNF_RAN_SPOKE1_NAME. If unset and Spoke1Kubeconfig exists, it is
+	// derived from that kubeconfig. An explicitly set name is never overwritten (hub KUBECONFIG would otherwise
+	// replace the intended spoke name during Day0 provisioning).
 	Spoke1Name string `envconfig:"ECO_CNF_RAN_SPOKE1_NAME"`
-	// Spoke1Hostname is not automatically updated but instead used as an input for the O-RAN suite.
-	Spoke1Hostname   string `envconfig:"ECO_CNF_RAN_SPOKE1_HOSTNAME"`
-	Spoke1Kubeconfig string `envconfig:"KUBECONFIG"`
+	// OranProvisioningRequestURL is a raw HTTPS URL to a site-config ProvisioningRequest YAML for the O-RAN
+	// suite (preferred for Jenkins/container runs). Takes precedence over OranProvisioningRequestPath. The
+	// suite loads the YAML and uses it as the basis for ProvisioningRequest creation (overriding metadata.name
+	// and templateVersion per test case). Named distinctly from IBIPreinstallConfig.ClusterInstanceURL to avoid
+	// an ambiguous promoted field on RANConfig.
+	OranProvisioningRequestURL string `envconfig:"ECO_CNF_RAN_PROVISIONING_REQUEST_URL"`
+	// OranProvisioningRequestPath is an optional local path to a site-config ProvisioningRequest YAML. Used
+	// when URL is unset (e.g. a one-time local smoke test). Same loading behavior as the URL input.
+	OranProvisioningRequestPath string `envconfig:"ECO_CNF_RAN_PROVISIONING_REQUEST_PATH"`
+	Spoke1Kubeconfig            string `envconfig:"KUBECONFIG"`
 	// Spoke1Password is the path to the admin password, saved in the O-RAN suite.
 	Spoke1Password string `envconfig:"ECO_CNF_RAN_SPOKE1_PASSWORD"`
 
@@ -296,15 +305,21 @@ func (ranconfig *RANConfig) newSpoke1Config(configFile string) {
 
 	ranconfig.Spoke1Config.Spoke1APIClient = inittools.APIClient
 
-	if spoke1Kubeconfig := ranconfig.Spoke1Config.Spoke1Kubeconfig; spoke1Kubeconfig != "" {
-		spoke1Name, err := version.GetClusterName(spoke1Kubeconfig)
-		if err != nil {
-			klog.V(ranparam.LogLevel).Infof("Failed to get spoke 1 name from kubeconfig at %s: %v", spoke1Kubeconfig, err)
+	if ranconfig.Spoke1Config.Spoke1Name == "" {
+		if spoke1Kubeconfig := ranconfig.Spoke1Config.Spoke1Kubeconfig; spoke1Kubeconfig != "" {
+			spoke1Name, err := version.GetClusterName(spoke1Kubeconfig)
+			if err != nil {
+				klog.V(ranparam.LogLevel).Infof(
+					"Failed to get spoke 1 name from kubeconfig at %s: %v", spoke1Kubeconfig, err)
+			} else {
+				ranconfig.Spoke1Config.Spoke1Name = spoke1Name
+			}
 		} else {
-			ranconfig.Spoke1Config.Spoke1Name = spoke1Name
+			klog.V(ranparam.LogLevel).Infof("No spoke 1 kubeconfig specified in KUBECONFIG environment variable")
 		}
 	} else {
-		klog.V(ranparam.LogLevel).Infof("No spoke 1 kubeconfig specified in KUBECONFIG environment variable")
+		klog.V(ranparam.LogLevel).Infof(
+			"Using explicit Spoke1Name %q (not derived from KUBECONFIG)", ranconfig.Spoke1Config.Spoke1Name)
 	}
 
 	ranconfig.Spoke1Config.Spoke1OCPVersion, err = version.GetOCPVersion(ranconfig.Spoke1Config.Spoke1APIClient)

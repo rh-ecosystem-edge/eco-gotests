@@ -28,13 +28,8 @@ const (
 )
 
 const (
-	// ClusterTemplateName is the name without the version of the ClusterTemplate used in the ORAN tests. It is also
-	// the namespace the ClusterTemplates are in.
-	ClusterTemplateName = "sno-ran-du"
 	// O2IMSNamespace is the namespace used by the oran-o2ims operator.
 	O2IMSNamespace = "oran-o2ims"
-	// ExtraManifestsName is the name of the generated extra manifests ConfigMap in the cluster Namespace.
-	ExtraManifestsName = "sno-ran-du-extra-manifest-1"
 	// ClusterInstanceParamsKey is the key in the TemplateParameters map for the ClusterInstance parameters.
 	ClusterInstanceParamsKey = "clusterInstanceParameters"
 	// PolicyTemplateParamsKey is the key in the TemplateParameters map for the policy template parameters.
@@ -54,8 +49,8 @@ const (
 	ImmutableMessage = "cannot be updated, likely due to immutable fields not matching"
 
 	// PRValidationFailedDetailsSubstring is a substring of status.provisioningStatus.provisioningDetails when
-	// ProvisioningRequest validation fails.
-	PRValidationFailedDetailsSubstring = "Failed to validate the ProvisioningRequest"
+	// a ProvisioningRequest fails due to invalid policyTemplateParameters (e.g. integer value where string expected).
+	PRValidationFailedDetailsSubstring = "is not a string"
 	// PRFulfilledDetailsSubstring is a substring of status.provisioningStatus.provisioningDetails when
 	// provisioning completes successfully.
 	PRFulfilledDetailsSubstring = "Provisioning request has completed successfully"
