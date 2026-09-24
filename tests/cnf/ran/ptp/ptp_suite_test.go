@@ -18,6 +18,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/rancluster"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/version"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/consumer"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/metrics"
@@ -59,7 +60,17 @@ var _ = BeforeSuite(func() {
 
 	By("initializing the NIC naming system based on the PTP version")
 
-	err = iface.InitNICNaming(RANConfig.Spoke1OperatorVersions[ranparam.PTP])
+	atLeast422, err := version.IsVersionStringInRange(RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.22.0-0", "")
+	Expect(err).ToNot(HaveOccurred(), "Failed to check PTP versin")
+
+	if atLeast422 {
+		err = iface.InitIfaceAliasingByAPI(RANConfig.Spoke1APIClient)
+		Expect(err).ToNot(HaveOccurred(), "Failed to init iface aliasing by API")
+	} else {
+		err = iface.InitIfaceAliasingByParsing(RANConfig.Spoke1OperatorVersions[ranparam.PTP])
+		Expect(err).ToNot(HaveOccurred(), "Failed to init iface aliasing by parsing")
+	}
+
 	Expect(err).ToNot(HaveOccurred(), "Failed to initialize NIC naming system based on the PTP version")
 
 	By("updating the PTP ServiceMonitor scrape interval to 1s")

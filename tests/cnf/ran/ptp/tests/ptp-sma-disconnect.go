@@ -170,7 +170,7 @@ var _ = Describe("PTP T-GM SMA Disconnect", Label(tsparams.LabelSMADisconnect), 
 						context.TODO(),
 						prometheusAPI,
 						metrics.ClockStateQuery{
-							Interface: metrics.Equals(rxIface.GetNIC()),
+							Interface: metrics.Equals(rxIface.GetAlias()),
 							Process:   metrics.DoesNotEqual(metrics.ProcessTS2PHC),
 						},
 						metrics.ClockStateFreerun,
@@ -187,7 +187,7 @@ var _ = Describe("PTP T-GM SMA Disconnect", Label(tsparams.LabelSMADisconnect), 
 						context.TODO(),
 						prometheusAPI,
 						metrics.ClockStateQuery{
-							Interface: metrics.Equals(txInterface.GetNIC()),
+							Interface: metrics.Equals(txInterface.GetAlias()),
 							Process: metrics.Excludes(
 								metrics.ProcessDPLL, metrics.ProcessGNSS, metrics.ProcessTS2PHC),
 						},

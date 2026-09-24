@@ -35,7 +35,7 @@ func TestGetGmInterfaceToGPS(t *testing.T) {
 	tests := []struct {
 		name    string
 		profile *ptpv1.PtpProfile
-		want    iface.Name
+		want    iface.Iface
 		wantErr bool
 	}{
 		{
@@ -90,7 +90,7 @@ func TestGetRxInterfaces(t *testing.T) {
 
 	got, err := GetRxInterfaces(profile)
 	require.NoError(t, err)
-	assert.Equal(t, []iface.Name{"ens2f0"}, got)
+	assert.Equal(t, []iface.Iface{"ens2f0"}, got)
 }
 
 func TestGetUpstreamPortsForProfile(t *testing.T) {
@@ -99,7 +99,7 @@ func TestGetUpstreamPortsForProfile(t *testing.T) {
 	tests := []struct {
 		name    string
 		profile *ptpv1.PtpProfile
-		want    []iface.Name
+		want    []iface.Iface
 		wantErr bool
 	}{
 		{
@@ -107,21 +107,21 @@ func TestGetUpstreamPortsForProfile(t *testing.T) {
 			profile: &ptpv1.PtpProfile{
 				PtpSettings: map[string]string{"upstreamPort": "ens7f1"},
 			},
-			want: []iface.Name{"ens7f1"},
+			want: []iface.Iface{"ens7f1"},
 		},
 		{
 			name: "dual comma-separated upstreamPort",
 			profile: &ptpv1.PtpProfile{
 				PtpSettings: map[string]string{"upstreamPort": "ens7f1,ens7f3"},
 			},
-			want: []iface.Name{"ens7f1", "ens7f3"},
+			want: []iface.Iface{"ens7f1", "ens7f3"},
 		},
 		{
 			name: "dual upstreamPort with spaces",
 			profile: &ptpv1.PtpProfile{
 				PtpSettings: map[string]string{"upstreamPort": "eno8503np2, eno8603np3"},
 			},
-			want: []iface.Name{"eno8503np2", "eno8603np3"},
+			want: []iface.Iface{"eno8503np2", "eno8603np3"},
 		},
 		{
 			name:    "missing upstreamPort and plugin",

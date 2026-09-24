@@ -210,7 +210,7 @@ func (f valueFilterOnNode) Filter(value event.DataValue) bool {
 }
 
 // valueFilterOnInterface is a filter that matches if the event is on the specified interface.
-type valueFilterOnInterface iface.NICName
+type valueFilterOnInterface iface.Alias
 
 // Assert at compile time that valueFilterOnInterface implements ValueFilter.
 var _ ValueFilter = valueFilterOnInterface("")
@@ -218,8 +218,8 @@ var _ ValueFilter = valueFilterOnInterface("")
 // OnInterface returns a filter that matches if the event is on the specified interface. Since events are aggregated by
 // NIC name rather than interface name, the function accepts a NIC name and converts it to one if it is actually an
 // interface name.
-func OnInterface(nicName iface.NICName) ValueFilter {
-	return valueFilterOnInterface(nicName.EnsureNIC())
+func OnInterface(nicName iface.Alias) ValueFilter {
+	return valueFilterOnInterface(nicName.EnsureIfaceAlias())
 }
 
 // Filter implements the ValueFilter interface. It checks if the event value resource has at least 5 fields (since the

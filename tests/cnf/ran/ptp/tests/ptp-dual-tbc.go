@@ -170,7 +170,7 @@ func assertDualTBCHoldoverInSpecToFreerun(
 
 // dualTBCActiveBackupInterfaces returns the currently active (FOLLOWER/SLAVE) and backup (LISTENING)
 // time-receiver interfaces for the dual T-BC profile.
-func dualTBCActiveBackupInterfaces(testData profiles.HoldoverTestData) (iface.Name, iface.Name) {
+func dualTBCActiveBackupInterfaces(testData profiles.HoldoverTestData) (iface.Iface, iface.Iface) {
 	GinkgoHelper()
 
 	clientIfaces := testData.ProfileInfo.GetInterfacesByClockType(profiles.ClockTypeClient)
