@@ -21,16 +21,17 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
-var _ = Describe("CNF VRF", Ordered, Label(tsparams.LabelSriovVRFTestCases), ContinueOnFailure, func() {
+var _ = Describe("CNF VRF", Ordered, Label(tsparams.LabelSriovVRFDualTestCases), ContinueOnFailure, func() {
 	var (
 		workerNodeList           []*nodes.Builder
 		sriovInterfacesUnderTest []string
 	)
 
 	const (
-		resName     = "sriovpf0"
-		redNetName  = "sriov-network-red"
-		blueNetName = "sriov-network-blue"
+		dualResNamePF0  = "sriovdualvf0"
+		dualResNamePF1  = "sriovdualvf1"
+		dualRedNetName  = "sriov-dual-network-red"
+		dualBlueNetName = "sriov-dual-network-blue"
 	)
 
 	BeforeAll(func() {
@@ -45,37 +46,43 @@ var _ = Describe("CNF VRF", Ordered, Label(tsparams.LabelSriovVRFTestCases), Con
 			metav1.ListOptions{LabelSelector: labels.Set(NetConfig.WorkerLabelMap).String()})
 		Expect(err).ToNot(HaveOccurred(), "Failed to discover worker nodes")
 
-		Expect(netenv.ValidateSriovInterfaces(APIClient, NetConfig, workerNodeList, 1)).ToNot(HaveOccurred(),
+		Expect(netenv.ValidateSriovInterfaces(APIClient, NetConfig, workerNodeList, 2)).ToNot(HaveOccurred(),
 			"Failed to get required SR-IOV interfaces")
 
-		sriovInterfacesUnderTest, err = NetConfig.GetSriovInterfaces(1)
+		sriovInterfacesUnderTest, err = NetConfig.GetSriovInterfaces(2)
 		Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
 
-		By("Creating Sriov Policy for PF0")
+		By("Creating SR-IOV Policy for PF0 (red)")
 
-		_, err = sriov.NewPolicyBuilder(APIClient, "sriov-policy-pf0", NetConfig.SriovOperatorNamespace,
-			resName, 6, []string{sriovInterfacesUnderTest[0]}, NetConfig.WorkerLabelMap).
+		_, err = sriov.NewPolicyBuilder(APIClient, "sriov-dual-policy-pf0", NetConfig.SriovOperatorNamespace,
+			dualResNamePF0, 6, []string{sriovInterfacesUnderTest[0]}, NetConfig.WorkerLabelMap).
 			WithDevType("netdevice").WithMTU(1500).Create()
+		Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV Policy for PF0")
 
-		Expect(err).ToNot(HaveOccurred(), "Failed to create Sriov Policy")
+		By("Creating SR-IOV Policy for PF1 (blue)")
 
-		By("Creating Sriov Networks")
+		_, err = sriov.NewPolicyBuilder(APIClient, "sriov-dual-policy-pf1", NetConfig.SriovOperatorNamespace,
+			dualResNamePF1, 6, []string{sriovInterfacesUnderTest[1]}, NetConfig.WorkerLabelMap).
+			WithDevType("netdevice").WithMTU(1500).Create()
+		Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV Policy for PF1")
 
-		redNet := sriov.NewNetworkBuilder(APIClient, redNetName, NetConfig.SriovOperatorNamespace,
-			tsparams.TestNamespaceName, resName).
+		By("Creating SR-IOV Networks")
+
+		redNet := sriov.NewNetworkBuilder(APIClient, dualRedNetName, NetConfig.SriovOperatorNamespace,
+			tsparams.TestNamespaceName, dualResNamePF0).
 			WithStaticIpam().WithLinkState("enable").
 			WithOptions(WithVRFMetaPlugin(vrfRedName))
 
 		err = netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, redNet, netparam.MCOWaitTimeout)
-		Expect(err).ToNot(HaveOccurred(), "Failed to create red VRF Sriov Network")
+		Expect(err).ToNot(HaveOccurred(), "Failed to create red VRF SR-IOV Network")
 
-		blueNet := sriov.NewNetworkBuilder(APIClient, blueNetName, NetConfig.SriovOperatorNamespace,
-			tsparams.TestNamespaceName, resName).
+		blueNet := sriov.NewNetworkBuilder(APIClient, dualBlueNetName, NetConfig.SriovOperatorNamespace,
+			tsparams.TestNamespaceName, dualResNamePF1).
 			WithStaticIpam().WithLinkState("enable").
 			WithOptions(WithVRFMetaPlugin(vrfBlueName))
 
 		err = netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, blueNet, netparam.MCOWaitTimeout)
-		Expect(err).ToNot(HaveOccurred(), "Failed to create blue VRF Sriov Network")
+		Expect(err).ToNot(HaveOccurred(), "Failed to create blue VRF SR-IOV Network")
 
 		By("Waiting until cluster MCP and SR-IOV are stable")
 
@@ -85,9 +92,8 @@ var _ = Describe("CNF VRF", Ordered, Label(tsparams.LabelSriovVRFTestCases), Con
 	})
 
 	AfterAll(func() {
-		By("Removing SR-IOV networks and policy")
+		By("Removing SR-IOV networks and policies")
 
-		// WorkerLabelEnvVar is used by convention for MCP stabilisation in AfterAll
 		err := sriovoperator.RemoveSriovConfigurationAndWaitForSriovAndMCPStable(
 			APIClient,
 			NetConfig.WorkerLabelEnvVar,
@@ -105,12 +111,12 @@ var _ = Describe("CNF VRF", Ordered, Label(tsparams.LabelSriovVRFTestCases), Con
 		Expect(err).ToNot(HaveOccurred(), "Failed to clean pods from namespace")
 	})
 
-	// 36303
-	DescribeTable("Integration: SRIOV, IPAM: static, Interfaces: 1, Scheme: 2 Pods 2 VRFs OCP Primary network overlap",
-		reportxml.ID("36303"),
+	// 36299
+	DescribeTable("Integration: SRIOV, IPAM: static, Interfaces: 2, Scheme: 2 Pods 2 VRFs OCP Primary network overlap",
+		reportxml.ID("36299"),
 		func(sameNode bool) {
 			clientNetConfig, serverNetConfig := defineClientServerVRFsIPOverlapConfig(workerNodeList, sameNode)
-			runVRFScenario(workerNodeList, sameNode, redNetName, blueNetName, clientNetConfig, serverNetConfig, false)
+			runVRFScenario(workerNodeList, sameNode, dualRedNetName, dualBlueNetName, clientNetConfig, serverNetConfig, false)
 		},
 		Entry("SameNode IPv4", true,
 			reportxml.SetProperty("Node", "SameNode"),
@@ -120,12 +126,12 @@ var _ = Describe("CNF VRF", Ordered, Label(tsparams.LabelSriovVRFTestCases), Con
 			reportxml.SetProperty("IPStack", netparam.IPV4Family)),
 	)
 
-	// 36311
-	DescribeTable("Integration: SRIOV, IPAM: static, Interfaces: 1, Scheme: 2 Pods 2 VRFs ip network overlap",
-		reportxml.ID("36311"),
+	// 36308
+	DescribeTable("Integration: SRIOV, IPAM: static, Interfaces: 2, Scheme: 2 VRFs ip network overlap",
+		reportxml.ID("36308"),
 		func(sameNode bool, ipStack string) {
 			clientNetConfig, serverNetConfig := defineClientServerVRFsIPConfig(true, ipStack)
-			runVRFScenario(workerNodeList, sameNode, redNetName, blueNetName, clientNetConfig, serverNetConfig, false)
+			runVRFScenario(workerNodeList, sameNode, dualRedNetName, dualBlueNetName, clientNetConfig, serverNetConfig, false)
 		},
 		Entry("SameNode IPv4", true, netparam.IPV4Family,
 			reportxml.SetProperty("Node", "SameNode"),
@@ -141,12 +147,12 @@ var _ = Describe("CNF VRF", Ordered, Label(tsparams.LabelSriovVRFTestCases), Con
 			reportxml.SetProperty("IPStack", netparam.IPV6Family)),
 	)
 
-	// 36319
-	DescribeTable("Integration: SRIOV, IPAM: static, Interfaces: 1, Scheme: 2 Pods 2 VRFs Different IP networks",
-		reportxml.ID("36319"),
+	// 36312
+	DescribeTable("Integration: SRIOV, IPAM: static, Interfaces: 2, Scheme: 2 Pods 2 VRFs Different IP networks",
+		reportxml.ID("36312"),
 		func(sameNode bool, ipStack string) {
-			clientNetConfig, serverNetConfig := defineClientServerVRFsIPConfig(false, ipStack)
-			runVRFScenario(workerNodeList, sameNode, redNetName, blueNetName, clientNetConfig, serverNetConfig, false)
+			clientNetConfig, serverNetConfig := defineClientServerVRFsIPConfig(true, ipStack)
+			runVRFScenario(workerNodeList, sameNode, dualRedNetName, dualBlueNetName, clientNetConfig, serverNetConfig, false)
 		},
 		Entry("SameNode IPv4", true, netparam.IPV4Family,
 			reportxml.SetProperty("Node", "SameNode"),

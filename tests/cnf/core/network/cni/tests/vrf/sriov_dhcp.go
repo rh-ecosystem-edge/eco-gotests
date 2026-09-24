@@ -21,16 +21,18 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
-var _ = Describe("CNF VRF", Ordered, Label(tsparams.LabelSriovVRFTestCases), ContinueOnFailure, func() {
+var _ = Describe("CNF VRF", Ordered, Label(tsparams.LabelSriovVRFDhcpTestCases), ContinueOnFailure, func() {
 	var (
 		workerNodeList           []*nodes.Builder
 		sriovInterfacesUnderTest []string
+		dhcpShimNetworkAdded     bool
 	)
 
 	const (
-		resName     = "sriovpf0"
-		redNetName  = "sriov-network-red"
-		blueNetName = "sriov-network-blue"
+		resName     = "sriovdhcppf0"
+		redNetName  = "sriov-dhcp-network-red"
+		blueNetName = "sriov-dhcp-network-blue"
+		policyName  = "sriov-dhcp-policy-pf0"
 	)
 
 	BeforeAll(func() {
@@ -38,6 +40,8 @@ var _ = Describe("CNF VRF", Ordered, Label(tsparams.LabelSriovVRFTestCases), Con
 		if err != nil {
 			Skip(fmt.Sprintf("Skipping test - cluster doesn't have enough nodes: %v", err))
 		}
+
+		dhcpShimNetworkAdded = ensureDhcpDaemon()
 
 		By("Validating SR-IOV interfaces")
 
@@ -53,17 +57,17 @@ var _ = Describe("CNF VRF", Ordered, Label(tsparams.LabelSriovVRFTestCases), Con
 
 		By("Creating Sriov Policy for PF0")
 
-		_, err = sriov.NewPolicyBuilder(APIClient, "sriov-policy-pf0", NetConfig.SriovOperatorNamespace,
+		_, err = sriov.NewPolicyBuilder(APIClient, policyName, NetConfig.SriovOperatorNamespace,
 			resName, 6, []string{sriovInterfacesUnderTest[0]}, NetConfig.WorkerLabelMap).
 			WithDevType("netdevice").WithMTU(1500).Create()
-
 		Expect(err).ToNot(HaveOccurred(), "Failed to create Sriov Policy")
 
-		By("Creating Sriov Networks")
+		By("Creating Sriov Networks with DHCP IPAM")
 
 		redNet := sriov.NewNetworkBuilder(APIClient, redNetName, NetConfig.SriovOperatorNamespace,
 			tsparams.TestNamespaceName, resName).
-			WithStaticIpam().WithLinkState("enable").
+			WithOptions(WithVRFDhcpIpam()).
+			WithMacAddressSupport().WithLinkState("enable").
 			WithOptions(WithVRFMetaPlugin(vrfRedName))
 
 		err = netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, redNet, netparam.MCOWaitTimeout)
@@ -71,7 +75,8 @@ var _ = Describe("CNF VRF", Ordered, Label(tsparams.LabelSriovVRFTestCases), Con
 
 		blueNet := sriov.NewNetworkBuilder(APIClient, blueNetName, NetConfig.SriovOperatorNamespace,
 			tsparams.TestNamespaceName, resName).
-			WithStaticIpam().WithLinkState("enable").
+			WithOptions(WithVRFDhcpIpam()).
+			WithMacAddressSupport().WithLinkState("enable").
 			WithOptions(WithVRFMetaPlugin(vrfBlueName))
 
 		err = netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, blueNet, netparam.MCOWaitTimeout)
@@ -87,7 +92,6 @@ var _ = Describe("CNF VRF", Ordered, Label(tsparams.LabelSriovVRFTestCases), Con
 	AfterAll(func() {
 		By("Removing SR-IOV networks and policy")
 
-		// WorkerLabelEnvVar is used by convention for MCP stabilisation in AfterAll
 		err := sriovoperator.RemoveSriovConfigurationAndWaitForSriovAndMCPStable(
 			APIClient,
 			NetConfig.WorkerLabelEnvVar,
@@ -95,6 +99,10 @@ var _ = Describe("CNF VRF", Ordered, Label(tsparams.LabelSriovVRFTestCases), Con
 			netparam.MCOWaitTimeout,
 			tsparams.DefaultTimeout)
 		Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV configuration")
+
+		if dhcpShimNetworkAdded {
+			removeDhcpShimNetwork()
+		}
 	})
 
 	AfterEach(func() {
@@ -105,12 +113,12 @@ var _ = Describe("CNF VRF", Ordered, Label(tsparams.LabelSriovVRFTestCases), Con
 		Expect(err).ToNot(HaveOccurred(), "Failed to clean pods from namespace")
 	})
 
-	// 36303
-	DescribeTable("Integration: SRIOV, IPAM: static, Interfaces: 1, Scheme: 2 Pods 2 VRFs OCP Primary network overlap",
-		reportxml.ID("36303"),
+	// 36323
+	DescribeTable("Integration: SRIOV, IPAM: dynamic, Interfaces: 1, Scheme: 2 Pods 2 VRFs ip network overlap",
+		reportxml.ID("36323"),
 		func(sameNode bool) {
-			clientNetConfig, serverNetConfig := defineClientServerVRFsIPOverlapConfig(workerNodeList, sameNode)
-			runVRFScenario(workerNodeList, sameNode, redNetName, blueNetName, clientNetConfig, serverNetConfig, false)
+			clientNetConfig, serverNetConfig := defineClientServerVRFsIPOverlapWithStaticMac()
+			runVRFScenario(workerNodeList, sameNode, redNetName, blueNetName, clientNetConfig, serverNetConfig, true)
 		},
 		Entry("SameNode IPv4", true,
 			reportxml.SetProperty("Node", "SameNode"),
@@ -118,47 +126,5 @@ var _ = Describe("CNF VRF", Ordered, Label(tsparams.LabelSriovVRFTestCases), Con
 		Entry("DiffNode IPv4", false,
 			reportxml.SetProperty("Node", "DiffNode"),
 			reportxml.SetProperty("IPStack", netparam.IPV4Family)),
-	)
-
-	// 36311
-	DescribeTable("Integration: SRIOV, IPAM: static, Interfaces: 1, Scheme: 2 Pods 2 VRFs ip network overlap",
-		reportxml.ID("36311"),
-		func(sameNode bool, ipStack string) {
-			clientNetConfig, serverNetConfig := defineClientServerVRFsIPConfig(true, ipStack)
-			runVRFScenario(workerNodeList, sameNode, redNetName, blueNetName, clientNetConfig, serverNetConfig, false)
-		},
-		Entry("SameNode IPv4", true, netparam.IPV4Family,
-			reportxml.SetProperty("Node", "SameNode"),
-			reportxml.SetProperty("IPStack", netparam.IPV4Family)),
-		Entry("DiffNode IPv4", false, netparam.IPV4Family,
-			reportxml.SetProperty("Node", "DiffNode"),
-			reportxml.SetProperty("IPStack", netparam.IPV4Family)),
-		Entry("SameNode IPv6", true, netparam.IPV6Family,
-			reportxml.SetProperty("Node", "SameNode"),
-			reportxml.SetProperty("IPStack", netparam.IPV6Family)),
-		Entry("DiffNode IPv6", false, netparam.IPV6Family,
-			reportxml.SetProperty("Node", "DiffNode"),
-			reportxml.SetProperty("IPStack", netparam.IPV6Family)),
-	)
-
-	// 36319
-	DescribeTable("Integration: SRIOV, IPAM: static, Interfaces: 1, Scheme: 2 Pods 2 VRFs Different IP networks",
-		reportxml.ID("36319"),
-		func(sameNode bool, ipStack string) {
-			clientNetConfig, serverNetConfig := defineClientServerVRFsIPConfig(false, ipStack)
-			runVRFScenario(workerNodeList, sameNode, redNetName, blueNetName, clientNetConfig, serverNetConfig, false)
-		},
-		Entry("SameNode IPv4", true, netparam.IPV4Family,
-			reportxml.SetProperty("Node", "SameNode"),
-			reportxml.SetProperty("IPStack", netparam.IPV4Family)),
-		Entry("DiffNode IPv4", false, netparam.IPV4Family,
-			reportxml.SetProperty("Node", "DiffNode"),
-			reportxml.SetProperty("IPStack", netparam.IPV4Family)),
-		Entry("SameNode IPv6", true, netparam.IPV6Family,
-			reportxml.SetProperty("Node", "SameNode"),
-			reportxml.SetProperty("IPStack", netparam.IPV6Family)),
-		Entry("DiffNode IPv6", false, netparam.IPV6Family,
-			reportxml.SetProperty("Node", "DiffNode"),
-			reportxml.SetProperty("IPStack", netparam.IPV6Family)),
 	)
 })
