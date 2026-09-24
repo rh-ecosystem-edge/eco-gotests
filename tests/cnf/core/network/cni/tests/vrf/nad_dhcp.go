@@ -2,26 +2,24 @@ package tests
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/cni/internal/tsparams"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
-var _ = Describe("CNF VRF", Ordered, Label(tsparams.LabelSriovVRFDhcpTestCases), ContinueOnFailure, func() {
+var _ = Describe("CNF VRF", Ordered, Label(tsparams.LabelNadVRFDhcpTestCases), ContinueOnFailure, func() {
 	var (
 		workerNodeList           []*nodes.Builder
 		sriovInterfacesUnderTest []string
@@ -29,10 +27,8 @@ var _ = Describe("CNF VRF", Ordered, Label(tsparams.LabelSriovVRFDhcpTestCases),
 	)
 
 	const (
-		resName     = "sriovdhcppf0"
-		redNetName  = "sriov-dhcp-network-red"
-		blueNetName = "sriov-dhcp-network-blue"
-		policyName  = "sriov-dhcp-policy-pf0"
+		redNetName  = "test-vrf-dhcp-red"
+		blueNetName = "test-vrf-dhcp-blue"
 	)
 
 	BeforeAll(func() {
@@ -55,50 +51,18 @@ var _ = Describe("CNF VRF", Ordered, Label(tsparams.LabelSriovVRFDhcpTestCases),
 		sriovInterfacesUnderTest, err = NetConfig.GetSriovInterfaces(1)
 		Expect(err).ToNot(HaveOccurred(), "Failed to retrieve SR-IOV interfaces for testing")
 
-		By("Creating Sriov Policy for PF0")
+		By("Adding NADs")
 
-		_, err = sriov.NewPolicyBuilder(APIClient, policyName, NetConfig.SriovOperatorNamespace,
-			resName, 6, []string{sriovInterfacesUnderTest[0]}, NetConfig.WorkerLabelMap).
-			WithDevType("netdevice").WithMTU(1500).Create()
-		Expect(err).ToNot(HaveOccurred(), "Failed to create Sriov Policy")
-
-		By("Creating Sriov Networks with DHCP IPAM")
-
-		redNet := sriov.NewNetworkBuilder(APIClient, redNetName, NetConfig.SriovOperatorNamespace,
-			tsparams.TestNamespaceName, resName).
-			WithOptions(WithVRFDhcpIpam()).
-			WithMacAddressSupport().WithLinkState("enable").
-			WithOptions(WithVRFMetaPlugin(vrfRedName))
-
-		err = netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, redNet, netparam.MCOWaitTimeout)
-		Expect(err).ToNot(HaveOccurred(), "Failed to create red VRF Sriov Network")
-
-		blueNet := sriov.NewNetworkBuilder(APIClient, blueNetName, NetConfig.SriovOperatorNamespace,
-			tsparams.TestNamespaceName, resName).
-			WithOptions(WithVRFDhcpIpam()).
-			WithMacAddressSupport().WithLinkState("enable").
-			WithOptions(WithVRFMetaPlugin(vrfBlueName))
-
-		err = netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, blueNet, netparam.MCOWaitTimeout)
-		Expect(err).ToNot(HaveOccurred(), "Failed to create blue VRF Sriov Network")
-
-		By("Waiting until cluster MCP and SR-IOV are stable")
-
-		err = sriovoperator.WaitForSriovAndMCPStable(
-			APIClient, netparam.MCOWaitTimeout, time.Minute, NetConfig.CnfMcpLabel, NetConfig.SriovOperatorNamespace)
-		Expect(err).ToNot(HaveOccurred(), "Failed cluster is not stable")
+		createVRFNad(blueNetName, sriovInterfacesUnderTest[0], vrfBlueName, &nad.IPAM{Type: "dhcp"})
+		createVRFNad(redNetName, sriovInterfacesUnderTest[0], vrfRedName, &nad.IPAM{Type: "dhcp"})
 	})
 
 	AfterAll(func() {
-		By("Removing SR-IOV networks and policy")
+		By("Cleaning up NADs")
 
-		err := sriovoperator.RemoveSriovConfigurationAndWaitForSriovAndMCPStable(
-			APIClient,
-			NetConfig.WorkerLabelEnvVar,
-			NetConfig.SriovOperatorNamespace,
-			netparam.MCOWaitTimeout,
-			tsparams.DefaultTimeout)
-		Expect(err).ToNot(HaveOccurred(), "Failed to remove SR-IOV configuration")
+		err := namespace.NewBuilder(APIClient, tsparams.TestNamespaceName).CleanObjects(
+			tsparams.DefaultTimeout, nad.GetGVR())
+		Expect(err).ToNot(HaveOccurred(), "Failed to clean NADs from namespace")
 
 		if dhcpShimNetworkAdded {
 			removeDhcpShimNetwork()
@@ -113,9 +77,9 @@ var _ = Describe("CNF VRF", Ordered, Label(tsparams.LabelSriovVRFDhcpTestCases),
 		Expect(err).ToNot(HaveOccurred(), "Failed to clean pods from namespace")
 	})
 
-	// 36323
-	DescribeTable("Integration: SRIOV, IPAM: dynamic, Interfaces: 1, Scheme: 2 Pods 2 VRFs ip network overlap",
-		reportxml.ID("36323"),
+	// 36325
+	DescribeTable("Integration: NAD, IPAM: dynamic, Interfaces: 1, Scheme: 2 Pods 2 VRFs ip network overlap",
+		reportxml.ID("36325"),
 		func(sameNode bool) {
 			clientNetConfig, serverNetConfig := defineClientServerVRFsIPOverlapWithStaticMac()
 			runVRFScenario(workerNodeList, sameNode, redNetName, blueNetName, clientNetConfig, serverNetConfig, vrfIPAMDHCP)
