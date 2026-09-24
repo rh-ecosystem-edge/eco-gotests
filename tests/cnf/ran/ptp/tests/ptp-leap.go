@@ -93,6 +93,7 @@ var _ = Describe("PTP Leap File", Label(tsparams.LabelLeapFile), func() {
 				withoutLastLeapAnnouncementData := ptpleap.RemoveLastLeapAnnouncement(leapConfigMap.Object.Data[nodeName])
 				strippedLastAnnouncement, err := ptpleap.GetLastAnnouncement(withoutLastLeapAnnouncementData)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get last announcement after strip")
+
 				leapConfigMap.Definition.Data[nodeName] = withoutLastLeapAnnouncementData
 				_, err = leapConfigMap.Update()
 				Expect(err).ToNot(HaveOccurred(), "Failed to update original leap configmap")

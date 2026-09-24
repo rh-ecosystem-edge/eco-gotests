@@ -7,9 +7,9 @@ import (
 	"time"
 )
 
-// announcementPattern is a regular expression that matches the last leap event announcement.
-// An example of an announcement is: "\n3692217600     37    # 1 Jan 2017".
-var announcementPattern = regexp.MustCompile(`\n(\d+\s+\d+\s+#\s\d+\s[a-zA-Z]+\s\d{4})\n\n`)
+// announcementPattern matches a complete leap event announcement line.
+// An example is: "3692217600     37    # 1 Jan 2017".
+var announcementPattern = regexp.MustCompile(`(?m)^(\d+\s+\d+\s+#\s\d+\s[a-zA-Z]+\s\d{4})$`)
 
 // leapLinePattern is a regular expression that matches the last line of the leap event announcement.
 // An example of a leap line is: "3692217600     37    #".
@@ -21,13 +21,12 @@ func GetLastAnnouncement(leapConfigMapData string) (string, error) {
 		return leapConfigMapData, nil
 	}
 
-	announcementSlice := announcementPattern.FindStringSubmatch(leapConfigMapData)
-
-	if len(announcementSlice) < 2 {
+	announcements := announcementPattern.FindAllStringSubmatch(leapConfigMapData, -1)
+	if len(announcements) == 0 {
 		return "", fmt.Errorf("error finding the last announcement")
 	}
 
-	return announcementSlice[1], nil
+	return announcements[len(announcements)-1][1], nil
 }
 
 // RemoveLastLeapAnnouncement removes the last "leap announcement" line,

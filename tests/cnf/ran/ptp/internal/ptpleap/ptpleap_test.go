@@ -21,6 +21,38 @@ func TestParseAnnouncementDate(t *testing.T) {
 	}
 }
 
+func TestGetLastAnnouncementBeforeHashLine(t *testing.T) {
+	t.Parallel()
+
+	data := "# Do not edit\n3644697600     36    # 1 Jul 2015\n3692217600     37    # 1 Jan 2017\n#h\te65754d4"
+
+	got, err := GetLastAnnouncement(data)
+	if err != nil {
+		t.Fatalf("GetLastAnnouncement: %v", err)
+	}
+
+	want := "3692217600     37    # 1 Jan 2017"
+	if got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestGetLastAnnouncementWithBlankLineBeforeHash(t *testing.T) {
+	t.Parallel()
+
+	data := "3644697600     36    # 1 Jul 2015\n3692217600     37    # 1 Jan 2017\n\n#h\te65754d4"
+
+	got, err := GetLastAnnouncement(data)
+	if err != nil {
+		t.Fatalf("GetLastAnnouncement: %v", err)
+	}
+
+	want := "3692217600     37    # 1 Jan 2017"
+	if got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
 func TestParseAnnouncementDateInvalid(t *testing.T) {
 	t.Parallel()
 
