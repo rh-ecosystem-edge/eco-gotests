@@ -206,18 +206,16 @@ const (
 	ethtoolRetryInterval = 20 * time.Second
 )
 
-// execEthtoolWithRetry executes an ethtool command on a node and retries when output is empty or
-// cannot be parsed. cluster.ExecCmdWithStdout already normalizes exec output via execoutput.Normalize.
-func execEthtoolWithRetry(
-	client *clients.Settings, nodeName, command string, nodeSelector metav1.ListOptions,
-	parse func(string) error,
-) (string, error) {
+// execEthtoolWithRetryOnEmpty executes an ethtool command on a node and retries if the output is empty.
+// This is necessary because ethtool output can sometimes be inexplicably empty.
+func execEthtoolWithRetryOnEmpty(
+	client *clients.Settings, nodeName, command string, nodeSelector metav1.ListOptions) (string, error) {
 	var output string
 
 	for attempt := range ethtoolRetries {
 		if attempt > 0 {
 			klog.V(logLevel).Infof(
-				"Retrying ethtool command %q on node %s (attempt %d/%d)",
+				"Retrying ethtool command %q on node %s (attempt %d/%d) due to empty output",
 				command, nodeName, attempt+1, ethtoolRetries)
 			time.Sleep(ethtoolRetryInterval)
 		}
@@ -229,49 +227,15 @@ func execEthtoolWithRetry(
 		}
 
 		output = outputs[nodeName]
-		if strings.TrimSpace(output) == "" {
-			klog.V(logLevel).Infof("Ethtool command %q on node %s returned empty output", command, nodeName)
-
-			continue
+		if strings.TrimSpace(output) != "" {
+			return output, nil
 		}
 
-		if err := parse(output); err != nil {
-			klog.V(logLevel).Infof(
-				"Ethtool command %q on node %s returned unparseable output (attempt %d/%d): %v",
-				command, nodeName, attempt+1, ethtoolRetries, err)
-
-			continue
-		}
-
-		return output, nil
+		klog.V(logLevel).Infof("Ethtool command %q on node %s returned empty output", command, nodeName)
 	}
 
-	return "", fmt.Errorf("ethtool command %q on node %s failed after %d attempts: last output was %q",
-		command, nodeName, ethtoolRetries, output)
-}
-
-func parseDriverInfoOutput(output string) error {
-	if len(driverRegex.FindStringSubmatch(output)) == 0 {
-		return fmt.Errorf("driver line not found")
-	}
-
-	if len(versionRegex.FindStringSubmatch(output)) == 0 {
-		return fmt.Errorf("version line not found")
-	}
-
-	if len(firmwareVersionRegex.FindStringSubmatch(output)) == 0 {
-		return fmt.Errorf("firmware-version line not found")
-	}
-
-	return nil
-}
-
-func parsePTPHardwareClockOutput(output string) error {
-	if len(ptpHardwareClockRegex.FindStringSubmatch(output)) == 0 {
-		return fmt.Errorf("PTP hardware clock line not found")
-	}
-
-	return nil
+	return "", fmt.Errorf("ethtool command %q on node %s returned empty output after %d attempts",
+		command, nodeName, ethtoolRetries)
 }
 
 // getInterfaceInfo gets the information for a given interface on a given node by running ethtool commands on the node
@@ -284,8 +248,7 @@ func getInterfaceInfo(client *clients.Settings, nodeName string, interfaceName s
 
 	driverInfoCommand := fmt.Sprintf("ethtool -i %s", interfaceName)
 
-	driverInfoOutput, err := execEthtoolWithRetry(
-		client, nodeName, driverInfoCommand, nodeSelector, parseDriverInfoOutput)
+	driverInfoOutput, err := execEthtoolWithRetryOnEmpty(client, nodeName, driverInfoCommand, nodeSelector)
 	if err != nil {
 		return nicInfo{}, fmt.Errorf(
 			"failed to get driver info for interface %s on node %s: %w", interfaceName, nodeName, err)
@@ -314,8 +277,7 @@ func getInterfaceInfo(client *clients.Settings, nodeName string, interfaceName s
 
 	ptpHardwareClockCommand := fmt.Sprintf("ethtool -T %s", interfaceName)
 
-	ptpHardwareClockOutput, err := execEthtoolWithRetry(
-		client, nodeName, ptpHardwareClockCommand, nodeSelector, parsePTPHardwareClockOutput)
+	ptpHardwareClockOutput, err := execEthtoolWithRetryOnEmpty(client, nodeName, ptpHardwareClockCommand, nodeSelector)
 	if err != nil {
 		return nicInfo{}, fmt.Errorf(
 			"failed to get PTP hardware clock for interface %s on node %s: %w", interfaceName, nodeName, err)
