@@ -43,7 +43,7 @@ var _ = BeforeSuite(func() {
 
 	By("Verifying if accelerator tests can be executed on given cluster")
 
-	err = netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 2)
+	err = netenv.DoesClusterHasEnoughNodes(APIClient, NetConfig, 1, 1)
 	if err != nil {
 		Skip(fmt.Sprintf("Skipping test - cluster doesn't have enough nodes: %v", err))
 	}
