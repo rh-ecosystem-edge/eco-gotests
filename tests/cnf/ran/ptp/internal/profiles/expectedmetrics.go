@@ -248,7 +248,7 @@ func getDpllInterfaces(profileInfo *ProfileInfo, rawProfile *ptpv1.PtpProfile) [
 func getExpectedGnss(
 	nodeName string, profileInfo *ProfileInfo, rawProfile *ptpv1.PtpProfile,
 ) []metrics.ExpectedClockState {
-	gpsInterface, gpsErr := GetGmInterfaceToGPS(rawProfile)
+	gpsInterface, gpsErr := GetGmInterfaceToGPS(rawProfile, profileInfo.HardwareConfig)
 	if gpsErr != nil {
 		klog.V(tsparams.LogLevel).Infof("No GNSS interface in profile %s: %v",
 			profileInfo.Reference.ProfileName, gpsErr)
