@@ -87,11 +87,15 @@ func GetGmInterfaceFromHardwareConfig(hwConfig *ptp.HardwareConfigBuilder) (ifac
 		return "", fmt.Errorf("HardwareConfig %q has no ClockChain", hwConfig.Definition.Name)
 	}
 
+	hasGNSSSource := false
+
 	if chain.Behavior != nil {
 		for _, source := range chain.Behavior.Sources {
 			if source.SourceType != ptpv2alpha1.SourceTypeGNSS {
 				continue
 			}
+
+			hasGNSSSource = true
 
 			if source.GNSSConfig != nil && source.GNSSConfig.Match != nil &&
 				source.GNSSConfig.Match.EthernetInterface != "" {
@@ -102,6 +106,11 @@ func GetGmInterfaceFromHardwareConfig(hwConfig *ptp.HardwareConfigBuilder) (ifac
 				return ifaceName, nil
 			}
 		}
+	}
+
+	if hasGNSSSource {
+		return "", fmt.Errorf("HardwareConfig %q: GNSS source has no resolvable network interface in ClockChain",
+			hwConfig.Definition.Name)
 	}
 
 	for i := range chain.Structure {

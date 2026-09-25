@@ -26,10 +26,10 @@ const (
 
 // GetGmInterfaceToGPS returns the TX interface for the grand master profile to GPS.
 // Plugin path: E810 pins / TX state, else E825 devices. HardwareConfig path (4.22+/GNR-D):
-// GNSS source ethernetInterface or the GNSS subsystem network interface, then PtpProfile
-// leadingInterface or ts2phc.master 1 when the ClockChain CR is not fully resolved.
+// GNSS source ethernetInterface or the GNSS subsystem network interface.
 // When both E810 and E825 plugins are present, E810 is used (pins / TX state);
 // E825 is only considered if E810 is absent.
+// PtpProfile fallback for incomplete HardwareConfig lives on branch tgm-fallback-thirdpath only.
 func GetGmInterfaceToGPS(profile *ptpv1.PtpProfile, hwConfig *ptp.HardwareConfigBuilder) (iface.Name, error) {
 	if profile == nil {
 		return "", fmt.Errorf("profile is nil")
@@ -39,80 +39,11 @@ func GetGmInterfaceToGPS(profile *ptpv1.PtpProfile, hwConfig *ptp.HardwareConfig
 		return getGmInterfaceFromPlugins(profile)
 	}
 
-	var hwErr error
 	if hwConfig != nil {
-		ifaceName, err := GetGmInterfaceFromHardwareConfig(hwConfig)
-		if err == nil {
-			return ifaceName, nil
-		}
-
-		hwErr = err
-	}
-
-	if ifaceName, err := getGmInterfaceFromProfile(profile); err == nil {
-		return ifaceName, nil
-	}
-
-	if hwErr != nil {
-		return "", hwErr
+		return GetGmInterfaceFromHardwareConfig(hwConfig)
 	}
 
 	return "", fmt.Errorf("profile has no plugins and no associated HardwareConfig")
-}
-
-// getGmInterfaceFromProfile resolves the GNSS-facing NIC from PtpProfile fields used on
-// GNR-D T-GM (HardwareConfig) deployments where ClockChain CRs omit port names.
-func getGmInterfaceFromProfile(profile *ptpv1.PtpProfile) (iface.Name, error) {
-	// Prefer ts2phc.master 1 over leadingInterface: on GNR-D T-GM, leadingInterface may be
-	// the logical GNSS source name (e.g. "nmea") while cloud events use the PTP port (enox).
-	if ifaceName, err := getGmInterfaceFromTs2PhcConf(profile); err == nil {
-		return ifaceName, nil
-	}
-
-	if profile.PtpSettings != nil {
-		if leading := profile.PtpSettings["leadingInterface"]; leading != "" && leading != "nmea" {
-			return iface.Name(leading), nil
-		}
-	}
-
-	if profile.Interface != nil && *profile.Interface != "" {
-		return iface.Name(*profile.Interface), nil
-	}
-
-	return "", fmt.Errorf("profile has no GM GNSS interface in ts2phc, leadingInterface, or interface")
-}
-
-func getGmInterfaceFromTs2PhcConf(profile *ptpv1.PtpProfile) (iface.Name, error) {
-	if profile.Ts2PhcConf == nil || *profile.Ts2PhcConf == "" {
-		return "", fmt.Errorf("profile has no ts2phc configuration")
-	}
-
-	sections, err := getSectionsFromPtp4lConf(*profile.Ts2PhcConf)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse ts2phc conf: %w", err)
-	}
-
-	var masterIfaces []iface.Name
-
-	for sectionName, settings := range sections {
-		if sectionName == "global" {
-			continue
-		}
-
-		if settings["ts2phc.master"] == "1" {
-			masterIfaces = append(masterIfaces, iface.Name(sectionName))
-		}
-	}
-
-	if len(masterIfaces) == 0 {
-		return "", fmt.Errorf("no ts2phc.master 1 interface in profile")
-	}
-
-	if len(masterIfaces) != 1 {
-		return "", fmt.Errorf("expected 1 ts2phc.master 1 interface, got %d", len(masterIfaces))
-	}
-
-	return masterIfaces[0], nil
 }
 
 func getGmInterfaceFromPlugins(profile *ptpv1.PtpProfile) (iface.Name, error) {
