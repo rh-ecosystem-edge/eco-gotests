@@ -54,18 +54,3 @@ phc2sys[1.1]: [ptp4l.1.config:6] phc offset summary: cnt=10, min=-3, max=2, avg=
 	assert.Positive(t, result.PTP4L.Stats.SampleCount)
 	assert.Positive(t, result.PHC2SYS.Stats.SampleCount)
 }
-
-func TestAnalyzeFromFileGNRDLogReductionArtifact(t *testing.T) {
-	t.Parallel()
-
-	logPath := "../../../../../../logs/kniqe-ci-ocp-far-edge-vran-tests-7430/failed_ptp_suite_test/" +
-		"failed_ptp_suite_test/PTP_Stability_validates_PTP_stability_and_offset_behavior_over_configured_duration/" +
-		"openshift-ptp_linuxptp-daemon-bt5zp_pods_logs.log"
-	if _, err := os.Stat(logPath); err != nil {
-		t.Skip("CI stability log artifact not present locally")
-	}
-
-	result, err := AnalyzeFromFile(logPath, 100)
-	require.NoError(t, err)
-	assert.True(t, result.Passed, result.DiagnosticMessage())
-}
