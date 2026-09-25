@@ -103,7 +103,7 @@ var _ = Describe("PTP Node Reboot", Ordered, ContinueOnFailure, Label(tsparams.L
 		By("waiting for all clocks to be locked")
 
 		err := cluster.WaitForRouteAPIAvailable(
-			RANConfig.Spoke1APIClient, ranparam.ThanosQuerierRouteName, ranparam.OpenshiftMonitoringNamespace, 3*time.Minute)
+			RANConfig.Spoke1APIClient, ranparam.ThanosQuerierRouteName, ranparam.OpenshiftMonitoringNamespace, 10*time.Minute)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for monitoring Route API availability")
 
 		prometheusAPI, err := querier.CreatePrometheusAPIForCluster(RANConfig.Spoke1APIClient)

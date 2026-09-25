@@ -124,7 +124,8 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 			ntpFallbackProfile, err := ntpFallbackProfiles[0].PullProfile(RANConfig.Spoke1APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull NTP fallback profile for node %s", nodeName)
 
-			protocolVersion, err := gnss.GetUbloxProtocolVersion(ntpFallbackProfile)
+			protocolVersion, err := gnss.GetUbloxProtocolVersion(
+				ntpFallbackProfile, ntpFallbackProfiles[0].HardwareConfig)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get u-blox protocol version for node %s", nodeName)
 
 			// Include all interfaces from the profile in the interface information report for this suite.
@@ -338,7 +339,8 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 			ntpFallbackProfile, err := ntpFallbackProfiles[0].PullProfile(RANConfig.Spoke1APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull NTP fallback profile for node %s", nodeName)
 
-			protocolVersion, err := gnss.GetUbloxProtocolVersion(ntpFallbackProfile)
+			protocolVersion, err := gnss.GetUbloxProtocolVersion(
+				ntpFallbackProfile, ntpFallbackProfiles[0].HardwareConfig)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get u-blox protocol version for node %s", nodeName)
 
 			// Include all interfaces from the profile in the interface information report for this suite.
@@ -468,7 +470,8 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 			ntpFallbackProfile, err := ntpFallbackProfiles[0].PullProfile(RANConfig.Spoke1APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull NTP fallback profile for node %s", nodeName)
 
-			protocolVersion, err := gnss.GetUbloxProtocolVersion(ntpFallbackProfile)
+			protocolVersion, err := gnss.GetUbloxProtocolVersion(
+				ntpFallbackProfile, ntpFallbackProfiles[0].HardwareConfig)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get u-blox protocol version for node %s", nodeName)
 
 			// Include all interfaces from the profile in the interface information report for this suite.

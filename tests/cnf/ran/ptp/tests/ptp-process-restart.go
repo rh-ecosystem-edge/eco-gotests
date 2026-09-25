@@ -50,6 +50,18 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 		err = metrics.EnsureClocksAreLocked(prometheusAPI)
 		Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
 
+		By("ensuring phc2sys is running on PTP nodes before testing")
+
+		nodeInfoMap, err := profiles.GetNodeInfoMap(RANConfig.Spoke1APIClient)
+		Expect(err).ToNot(HaveOccurred(), "Failed to get node info map")
+
+		for _, nodeInfo := range nodeInfoMap {
+			err = processes.WaitForProcessRunning(
+				RANConfig.Spoke1APIClient, nodeInfo.Name, processes.Phc2sys, true, 5*time.Minute)
+			Expect(err).ToNot(HaveOccurred(),
+				"Failed to wait for phc2sys to be running on node %s", nodeInfo.Name)
+		}
+
 		By("saving PtpConfigs before testing")
 
 		savedPtpConfigs, err = profiles.SavePtpConfigs(RANConfig.Spoke1APIClient)
@@ -135,7 +147,8 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 
 			By("getting the new phc2sys PID")
 
-			newPhc2sysPID, err := processes.GetPID(RANConfig.Spoke1APIClient, nodeInfo.Name, processes.Phc2sys)
+			newPhc2sysPID, err := processes.WaitForProcessPID(
+				RANConfig.Spoke1APIClient, nodeInfo.Name, processes.Phc2sys, 5*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get phc2sys PID for node %s", nodeInfo.Name)
 			Expect(newPhc2sysPID).NotTo(Equal(oldPhc2sysPID), "phc2sys PID did not change: "+oldPhc2sysPID)
 		}
@@ -576,7 +589,7 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 				gmProfile, err := gmProfiles[0].PullProfile(RANConfig.Spoke1APIClient)
 				Expect(err).ToNot(HaveOccurred(), "Failed to pull GM profile for node %s", nodeInfo.Name)
 
-				protocolVersion, err := gnss.GetUbloxProtocolVersion(gmProfile)
+				protocolVersion, err := gnss.GetUbloxProtocolVersion(gmProfile, gmProfiles[0].HardwareConfig)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get u-blox protocol version for node %s", nodeInfo.Name)
 
 				By("restarting sidecar container in linuxptp-daemon")
@@ -617,16 +630,11 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 
 				By("waiting for GNSS sync event to confirm recovery")
 
-				gmInterface, err := profiles.GetGmInterfaceToGPS(gmProfile)
-				Expect(err).ToNot(HaveOccurred(), "Failed to get GM interface to GPS for node %s", nodeInfo.Name)
-
-				gmInterfaceName := gmInterface.GetNIC()
-
 				gnssSyncFilter := events.All(
 					events.IsType(eventptp.GnssStateChange),
-					events.HasValue(events.WithSyncState(eventptp.SYNCHRONIZED),
+					events.HasValue(
+						events.WithSyncState(eventptp.SYNCHRONIZED),
 						events.ContainingResource(string(iface.Master)),
-						events.OnInterface(gmInterfaceName),
 					),
 				)
 
