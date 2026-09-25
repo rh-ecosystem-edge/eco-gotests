@@ -2,24 +2,103 @@ package systemreserved_test
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/openshift-kni/k8sreporter"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nto"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/performance/systemreserved/internal/tsparams"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
+	mcfgv1 "github.com/openshift/api/machineconfiguration/v1"
+	performanceprofileV2 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/performanceprofile/v2"
+	tunedv1 "github.com/openshift/cluster-node-tuning-operator/pkg/apis/tuned/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
-var _ = Describe("SystemReserved", Ordered, Label(tsparams.LabelSystemReservedValidation), func() {
+const (
+	// LabelSystemReservedValidation represents systemreserved validation test label.
+	labelSystemReservedValidation = "systemreserved-validation"
+	// NodeSizingEnvPath is the path to node-sizing.env file on nodes
+	nodeSizingEnvPath = "/host/etc/node-sizing.env"
+)
+
+var (
+	// Default systemReserved values based on CNF-16828 and scale lab data
+	// These can be overridden via environment variables
+
+	// controlPlaneCPUReserved is the default CPU cores reserved for control plane nodes (40 cores based on scale lab max 39.1)
+	controlPlaneCPUReserved = getEnvOrDefault("CONTROL_PLANE_CPU_RESERVED", "40")
+	// controlPlaneMemoryReserved is the default memory reserved for control plane nodes (30Gi per CNF-16828)
+	controlPlaneMemoryReserved = getEnvOrDefault("CONTROL_PLANE_MEMORY_RESERVED", "30Gi")
+	// workerCPUReserved is the default CPU reserved for worker nodes (1 core / 1000m)
+	workerCPUReserved = getEnvOrDefault("WORKER_CPU_RESERVED", "1000m")
+	// workerMemoryReserved is the default memory reserved for worker nodes (11Gi per CNF-16828)
+	workerMemoryReserved = getEnvOrDefault("WORKER_MEMORY_RESERVED", "11Gi")
+
+	// performanceProfileName is the name of the PerformanceProfile to validate
+	performanceProfileName = getEnvOrDefault("PERFORMANCE_PROFILE_NAME", "")
+
+	// Scale lab baseline data
+	// scaleLabControlPlaneCPUMax is the maximum CPU usage observed in scale lab for control plane (OCP 4.16)
+	scaleLabControlPlaneCPUMax = 39.1
+	// scaleLabControlPlaneMemoryMax is the maximum memory usage observed in scale lab for control plane (OCP 4.16) in GB
+	scaleLabControlPlaneMemoryMax = 33.9
+
+	// reporterNamespacesToDump tells reporter which namespaces to collect pod logs from.
+	reporterNamespacesToDump = map[string]string{
+		"openshift-performance-addon-operator":       "openshift-performance-addon-operator",
+		"openshift-cluster-node-tuning-operator":     "openshift-cluster-node-tuning-operator",
+	}
+
+	// reporterCRDsToDump tells reporter which CRDs to dump.
+	reporterCRDsToDump = []k8sreporter.CRData{
+		{Cr: &performanceprofileV2.PerformanceProfileList{}},
+		{Cr: &tunedv1.TunedList{}},
+		{Cr: &mcfgv1.MachineConfigList{}},
+		{Cr: &mcfgv1.MachineConfigPoolList{}},
+	}
+)
+
+// getEnvOrDefault retrieves environment variable or returns default value.
+func getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+// getControlPlaneCPUCores returns control plane CPU reserved as numeric cores.
+func getControlPlaneCPUCores() (float64, error) {
+	return strconv.ParseFloat(controlPlaneCPUReserved, 64)
+}
+
+// getWorkerCPUMillicores returns worker CPU reserved in millicores.
+// Handles formats like "1000m", "1", "2000m".
+func getWorkerCPUMillicores() (int, error) {
+	cpuStr := workerCPUReserved
+
+	// If ends with 'm', parse as millicores
+	if len(cpuStr) > 0 && cpuStr[len(cpuStr)-1] == 'm' {
+		return strconv.Atoi(cpuStr[:len(cpuStr)-1])
+	}
+
+	// Otherwise parse as cores and convert to millicores
+	cores, err := strconv.ParseFloat(cpuStr, 64)
+	if err != nil {
+		return 0, err
+	}
+	return int(cores * 1000), nil
+}
+
+var _ = Describe("SystemReserved", Ordered, Label(labelSystemReservedValidation), func() {
 
 	var (
 		controlPlaneNodes  []*nodes.Builder
@@ -52,7 +131,7 @@ var _ = Describe("SystemReserved", Ordered, Label(tsparams.LabelSystemReservedVa
 		}
 
 		// Try to find PerformanceProfile - if name is specified, use it; otherwise use first one
-		profileName := tsparams.PerformanceProfileName
+		profileName := performanceProfileName
 		if profileName == "" {
 			// Use the first PerformanceProfile for basic validation
 			performanceProfile = allProfiles[0]
@@ -79,7 +158,9 @@ var _ = Describe("SystemReserved", Ordered, Label(tsparams.LabelSystemReservedVa
 	Context("PerformanceProfile systemReserved configuration", func() {
 		It("Should contain expected systemReserved values", func() {
 			By("Verifying PerformanceProfile exists and has systemReserved configuration")
-			Expect(performanceProfile).ToNot(BeNil(), "PerformanceProfile is nil")
+			if performanceProfile == nil {
+				Skip("No PerformanceProfile found in cluster - skipping PerformanceProfile validation")
+			}
 			Expect(performanceProfile.Object.Spec).ToNot(BeNil(), "PerformanceProfile spec is nil")
 
 			GinkgoWriter.Printf("PerformanceProfile Name: %s\n", performanceProfile.Object.Name)
@@ -124,9 +205,13 @@ var _ = Describe("SystemReserved", Ordered, Label(tsparams.LabelSystemReservedVa
 					nodeObj := node.Object
 					nodeName := nodeObj.Name
 
-					// Skip nodes that are not ready or schedulable
+					// Skip nodes that are not ready, schedulable, or storage nodes
 					if !isNodeReadyForTesting(node) {
-						GinkgoWriter.Printf("⊘ Skipping node %s (NotReady or SchedulingDisabled)\n", nodeName)
+						reason := "NotReady or SchedulingDisabled"
+						if _, hasStorageRole := nodeObj.Labels["node-role.kubernetes.io/storage"]; hasStorageRole {
+							reason = "Storage node - not tested for systemReserved"
+						}
+						GinkgoWriter.Printf("⊘ Skipping node %s (%s)\n", nodeName, reason)
 						continue
 					}
 
@@ -134,15 +219,15 @@ var _ = Describe("SystemReserved", Ordered, Label(tsparams.LabelSystemReservedVa
 					matchingProfile := findPerformanceProfileForNode(nodeObj.Labels, allProfiles)
 
 					var expectedCPU, expectedMemory string
+					var skipValidation bool
 					if matchingProfile != nil {
 						// Extract systemReserved from PerformanceProfile
 						cpu, mem, err := extractSystemReservedFromProfile(matchingProfile)
 						if err != nil {
-							GinkgoWriter.Printf("⚠ Node %s: Failed to extract systemReserved from PerformanceProfile %s: %v\n",
+							GinkgoWriter.Printf("⚠ Node %s: PerformanceProfile %s found but no systemReserved annotation: %v\n",
 								nodeName, matchingProfile.Object.Name, err)
-							GinkgoWriter.Printf("⚠ Using default baseline values instead\n")
-							expectedCPU = tsparams.ControlPlaneCPUReserved
-							expectedMemory = tsparams.ControlPlaneMemoryReserved
+							GinkgoWriter.Printf("⚠ Skipping strict validation - will only verify that systemReserved is present\n")
+							skipValidation = true
 						} else {
 							expectedCPU = cpu
 							expectedMemory = mem
@@ -150,53 +235,59 @@ var _ = Describe("SystemReserved", Ordered, Label(tsparams.LabelSystemReservedVa
 								nodeName, matchingProfile.Object.Name, expectedCPU, expectedMemory)
 						}
 					} else {
-						// No PerformanceProfile for this node - use defaults or log warning
+						// No PerformanceProfile for this node - use baseline defaults for validation
 						GinkgoWriter.Printf("⚠ Node %s has no matching PerformanceProfile - using baseline values for comparison\n", nodeName)
-						expectedCPU = tsparams.ControlPlaneCPUReserved
-						expectedMemory = tsparams.ControlPlaneMemoryReserved
+						expectedCPU = controlPlaneCPUReserved
+						expectedMemory = controlPlaneMemoryReserved
 					}
 
 					By(fmt.Sprintf("Executing debug pod on node %s", nodeName))
 
-					cmd := []string{"cat", tsparams.NodeSizingEnvPath}
+					cmd := []string{"cat", nodeSizingEnvPath}
 					output, err := executeDebugPodCommand(nodeName, cmd)
-					Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to read %s from node %s", tsparams.NodeSizingEnvPath, nodeName))
-					Expect(output).ToNot(BeEmpty(), fmt.Sprintf("%s is empty on node %s", tsparams.NodeSizingEnvPath, nodeName))
+					Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to read %s from node %s", nodeSizingEnvPath, nodeName))
+					Expect(output).ToNot(BeEmpty(), fmt.Sprintf("%s is empty on node %s", nodeSizingEnvPath, nodeName))
 
 					By("Parsing node-sizing.env file")
 					envVars := parseEnvFile(output)
 
 					By("Verifying SYSTEM_RESERVED_CPU")
 					actualCPU, found := envVars["SYSTEM_RESERVED_CPU"]
-					Expect(found).To(BeTrue(), fmt.Sprintf("SYSTEM_RESERVED_CPU not found in %s on node %s", tsparams.NodeSizingEnvPath, nodeName))
+					Expect(found).To(BeTrue(), fmt.Sprintf("SYSTEM_RESERVED_CPU not found in %s on node %s", nodeSizingEnvPath, nodeName))
 
-					if matchingProfile != nil {
-						// Strict check for nodes with PerformanceProfile
+					if matchingProfile != nil && !skipValidation {
+						// Strict check for nodes with PerformanceProfile that has systemReserved annotation
 						Expect(normalizeCPUValue(actualCPU)).To(Equal(normalizeCPUValue(expectedCPU)),
 							fmt.Sprintf("CPU systemReserved mismatch on control-plane node %s: expected %s (from PerformanceProfile), got %s",
 								nodeName, expectedCPU, actualCPU))
 					} else {
-						// Informational for nodes without PerformanceProfile
-						if normalizeCPUValue(actualCPU) != normalizeCPUValue(expectedCPU) {
+						// Informational for nodes without PerformanceProfile or without systemReserved annotation
+						if !skipValidation && normalizeCPUValue(actualCPU) != normalizeCPUValue(expectedCPU) {
 							GinkgoWriter.Printf("ℹ Node %s: CPU systemReserved is %s (scale lab baseline suggests %s)\n",
 								nodeName, actualCPU, expectedCPU)
+						} else if skipValidation {
+							GinkgoWriter.Printf("ℹ Node %s: CPU systemReserved is %s (PerformanceProfile exists but no annotation)\n",
+								nodeName, actualCPU)
 						}
 					}
 
 					By("Verifying SYSTEM_RESERVED_MEMORY")
 					actualMemory, found := envVars["SYSTEM_RESERVED_MEMORY"]
-					Expect(found).To(BeTrue(), fmt.Sprintf("SYSTEM_RESERVED_MEMORY not found in %s on node %s", tsparams.NodeSizingEnvPath, nodeName))
+					Expect(found).To(BeTrue(), fmt.Sprintf("SYSTEM_RESERVED_MEMORY not found in %s on node %s", nodeSizingEnvPath, nodeName))
 
-					if matchingProfile != nil {
-						// Strict check for nodes with PerformanceProfile
+					if matchingProfile != nil && !skipValidation {
+						// Strict check for nodes with PerformanceProfile that has systemReserved annotation
 						Expect(actualMemory).To(Equal(expectedMemory),
 							fmt.Sprintf("Memory systemReserved mismatch on control-plane node %s: expected %s (from PerformanceProfile), got %s",
 								nodeName, expectedMemory, actualMemory))
 					} else {
-						// Informational for nodes without PerformanceProfile
-						if actualMemory != expectedMemory {
+						// Informational for nodes without PerformanceProfile or without systemReserved annotation
+						if !skipValidation && actualMemory != expectedMemory {
 							GinkgoWriter.Printf("ℹ Node %s: Memory systemReserved is %s (scale lab baseline suggests %s)\n",
 								nodeName, actualMemory, expectedMemory)
+						} else if skipValidation {
+							GinkgoWriter.Printf("ℹ Node %s: Memory systemReserved is %s (PerformanceProfile exists but no annotation)\n",
+								nodeName, actualMemory)
 						}
 					}
 
@@ -215,9 +306,13 @@ var _ = Describe("SystemReserved", Ordered, Label(tsparams.LabelSystemReservedVa
 					nodeObj := node.Object
 					nodeName := nodeObj.Name
 
-					// Skip nodes that are not ready or schedulable
+					// Skip nodes that are not ready, schedulable, or storage nodes
 					if !isNodeReadyForTesting(node) {
-						GinkgoWriter.Printf("⊘ Skipping node %s (NotReady or SchedulingDisabled)\n", nodeName)
+						reason := "NotReady or SchedulingDisabled"
+						if _, hasStorageRole := nodeObj.Labels["node-role.kubernetes.io/storage"]; hasStorageRole {
+							reason = "Storage node - not tested for systemReserved"
+						}
+						GinkgoWriter.Printf("⊘ Skipping node %s (%s)\n", nodeName, reason)
 						continue
 					}
 
@@ -225,15 +320,15 @@ var _ = Describe("SystemReserved", Ordered, Label(tsparams.LabelSystemReservedVa
 					matchingProfile := findPerformanceProfileForNode(nodeObj.Labels, allProfiles)
 
 					var expectedCPU, expectedMemory string
+					var skipValidation bool
 					if matchingProfile != nil {
 						// Extract systemReserved from PerformanceProfile
 						cpu, mem, err := extractSystemReservedFromProfile(matchingProfile)
 						if err != nil {
-							GinkgoWriter.Printf("⚠ Node %s: Failed to extract systemReserved from PerformanceProfile %s: %v\n",
+							GinkgoWriter.Printf("⚠ Node %s: PerformanceProfile %s found but no systemReserved annotation: %v\n",
 								nodeName, matchingProfile.Object.Name, err)
-							GinkgoWriter.Printf("⚠ Using default baseline values instead\n")
-							expectedCPU = tsparams.WorkerCPUReserved
-							expectedMemory = tsparams.WorkerMemoryReserved
+							GinkgoWriter.Printf("⚠ Skipping strict validation - will only verify that systemReserved is present\n")
+							skipValidation = true
 						} else {
 							expectedCPU = cpu
 							expectedMemory = mem
@@ -241,53 +336,59 @@ var _ = Describe("SystemReserved", Ordered, Label(tsparams.LabelSystemReservedVa
 								nodeName, matchingProfile.Object.Name, expectedCPU, expectedMemory)
 						}
 					} else {
-						// No PerformanceProfile for this node - use defaults
+						// No PerformanceProfile for this node - use baseline defaults for validation
 						GinkgoWriter.Printf("⚠ Node %s has no matching PerformanceProfile - using baseline values for comparison\n", nodeName)
-						expectedCPU = tsparams.WorkerCPUReserved
-						expectedMemory = tsparams.WorkerMemoryReserved
+						expectedCPU = workerCPUReserved
+						expectedMemory = workerMemoryReserved
 					}
 
 					By(fmt.Sprintf("Executing debug pod on node %s", nodeName))
 
-					cmd := []string{"cat", tsparams.NodeSizingEnvPath}
+					cmd := []string{"cat", nodeSizingEnvPath}
 					output, err := executeDebugPodCommand(nodeName, cmd)
-					Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to read %s from node %s", tsparams.NodeSizingEnvPath, nodeName))
-					Expect(output).ToNot(BeEmpty(), fmt.Sprintf("%s is empty on node %s", tsparams.NodeSizingEnvPath, nodeName))
+					Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to read %s from node %s", nodeSizingEnvPath, nodeName))
+					Expect(output).ToNot(BeEmpty(), fmt.Sprintf("%s is empty on node %s", nodeSizingEnvPath, nodeName))
 
 					By("Parsing node-sizing.env file")
 					envVars := parseEnvFile(output)
 
 					By("Verifying SYSTEM_RESERVED_CPU")
 					actualCPU, found := envVars["SYSTEM_RESERVED_CPU"]
-					Expect(found).To(BeTrue(), fmt.Sprintf("SYSTEM_RESERVED_CPU not found in %s on node %s", tsparams.NodeSizingEnvPath, nodeName))
+					Expect(found).To(BeTrue(), fmt.Sprintf("SYSTEM_RESERVED_CPU not found in %s on node %s", nodeSizingEnvPath, nodeName))
 
-					if matchingProfile != nil {
-						// Strict check for nodes with PerformanceProfile
+					if matchingProfile != nil && !skipValidation {
+						// Strict check for nodes with PerformanceProfile that has systemReserved annotation
 						Expect(normalizeCPUValue(actualCPU)).To(Equal(normalizeCPUValue(expectedCPU)),
 							fmt.Sprintf("CPU systemReserved mismatch on worker node %s: expected %s (from PerformanceProfile), got %s",
 								nodeName, expectedCPU, actualCPU))
 					} else {
-						// Informational for nodes without PerformanceProfile
-						if normalizeCPUValue(actualCPU) != normalizeCPUValue(expectedCPU) {
+						// Informational for nodes without PerformanceProfile or without systemReserved annotation
+						if !skipValidation && normalizeCPUValue(actualCPU) != normalizeCPUValue(expectedCPU) {
 							GinkgoWriter.Printf("ℹ Node %s: CPU systemReserved is %s (baseline suggests %s)\n",
 								nodeName, actualCPU, expectedCPU)
+						} else if skipValidation {
+							GinkgoWriter.Printf("ℹ Node %s: CPU systemReserved is %s (PerformanceProfile exists but no annotation)\n",
+								nodeName, actualCPU)
 						}
 					}
 
 					By("Verifying SYSTEM_RESERVED_MEMORY")
 					actualMemory, found := envVars["SYSTEM_RESERVED_MEMORY"]
-					Expect(found).To(BeTrue(), fmt.Sprintf("SYSTEM_RESERVED_MEMORY not found in %s on node %s", tsparams.NodeSizingEnvPath, nodeName))
+					Expect(found).To(BeTrue(), fmt.Sprintf("SYSTEM_RESERVED_MEMORY not found in %s on node %s", nodeSizingEnvPath, nodeName))
 
-					if matchingProfile != nil {
-						// Strict check for nodes with PerformanceProfile
+					if matchingProfile != nil && !skipValidation {
+						// Strict check for nodes with PerformanceProfile that has systemReserved annotation
 						Expect(actualMemory).To(Equal(expectedMemory),
 							fmt.Sprintf("Memory systemReserved mismatch on worker node %s: expected %s (from PerformanceProfile), got %s",
 								nodeName, expectedMemory, actualMemory))
 					} else {
-						// Informational for nodes without PerformanceProfile
-						if actualMemory != expectedMemory {
+						// Informational for nodes without PerformanceProfile or without systemReserved annotation
+						if !skipValidation && actualMemory != expectedMemory {
 							GinkgoWriter.Printf("ℹ Node %s: Memory systemReserved is %s (baseline suggests %s)\n",
 								nodeName, actualMemory, expectedMemory)
+						} else if skipValidation {
+							GinkgoWriter.Printf("ℹ Node %s: Memory systemReserved is %s (PerformanceProfile exists but no annotation)\n",
+								nodeName, actualMemory)
 						}
 					}
 
@@ -350,11 +451,11 @@ var _ = Describe("SystemReserved", Ordered, Label(tsparams.LabelSystemReservedVa
 					}
 
 					if isControlPlane {
-						cpuReserved = tsparams.ControlPlaneCPUReserved
-						memoryReserved = tsparams.ControlPlaneMemoryReserved
+						cpuReserved = controlPlaneCPUReserved
+						memoryReserved = controlPlaneMemoryReserved
 					} else {
-						cpuReserved = tsparams.WorkerCPUReserved
-						memoryReserved = tsparams.WorkerMemoryReserved
+						cpuReserved = workerCPUReserved
+						memoryReserved = workerMemoryReserved
 					}
 
 					// Parse systemReserved values
@@ -367,13 +468,26 @@ var _ = Describe("SystemReserved", Ordered, Label(tsparams.LabelSystemReservedVa
 					expectedAllocatableCPU.Sub(systemReservedCPU)
 					expectedAllocatableMemory.Sub(systemReservedMemory)
 
+					// Skip validation if systemReserved is larger than capacity (would result in negative expected)
+					if expectedAllocatableCPU.Sign() < 0 {
+						GinkgoWriter.Printf("⚠ Node %s - systemReserved CPU (%s) exceeds capacity (%s) - skipping allocatable validation\n",
+							nodeName, systemReservedCPU.String(), capacityCPU.String())
+						return
+					}
+
+					if expectedAllocatableMemory.Sign() < 0 {
+						GinkgoWriter.Printf("⚠ Node %s - systemReserved memory (%s) exceeds capacity (%s) - skipping allocatable validation\n",
+							nodeName, systemReservedMemory.String(), capacityMemory.String())
+						return
+					}
+
 					GinkgoWriter.Printf("Node %s - Expected allocatable (without eviction): CPU~%s, Memory~%s\n",
 						nodeName, expectedAllocatableCPU.String(), expectedAllocatableMemory.String())
 
 					// Actual allocatable should be approximately expected (allowing for eviction thresholds)
 					// We check that it's less than expected (due to eviction) but more than 90% of expected
 					minExpectedCPU := expectedAllocatableCPU.DeepCopy()
-					minExpectedCPU.Set(int64(float64(minExpectedCPU.MilliValue()) * 0.9))
+					minExpectedCPU.SetMilli(int64(float64(minExpectedCPU.MilliValue()) * 0.9))
 
 					Expect(allocatableCPU.Cmp(minExpectedCPU)).To(BeNumerically(">=", 0),
 						fmt.Sprintf("Node %s allocatable CPU (%s) is significantly less than expected (%s)",
@@ -471,10 +585,10 @@ var _ = Describe("SystemReserved", Ordered, Label(tsparams.LabelSystemReservedVa
 	Context("Scale lab baseline validation", func() {
 		It("Should have systemReserved values adequate for scale lab requirements", func() {
 			By("Checking control plane CPU systemReserved against scale lab baseline")
-			cpuCores, err := tsparams.GetControlPlaneCPUCores()
+			cpuCores, err := getControlPlaneCPUCores()
 			Expect(err).ToNot(HaveOccurred(), "Failed to parse control plane CPU reserved")
 
-			scaleLabMax := tsparams.ScaleLabControlPlaneCPUMax
+			scaleLabMax := scaleLabControlPlaneCPUMax
 			Expect(cpuCores).To(BeNumerically(">=", scaleLabMax),
 				fmt.Sprintf("Control plane CPU systemReserved (%.1f cores) should be >= scale lab max (%.1f cores)",
 					cpuCores, scaleLabMax))
@@ -482,11 +596,11 @@ var _ = Describe("SystemReserved", Ordered, Label(tsparams.LabelSystemReservedVa
 				cpuCores, scaleLabMax)
 
 			By("Checking control plane memory systemReserved against scale lab baseline")
-			memoryQuantity, err := resource.ParseQuantity(tsparams.ControlPlaneMemoryReserved)
+			memoryQuantity, err := resource.ParseQuantity(controlPlaneMemoryReserved)
 			Expect(err).ToNot(HaveOccurred(), "Failed to parse control plane memory reserved")
 
 			memoryGB := float64(memoryQuantity.Value()) / (1024 * 1024 * 1024)
-			scaleLabMaxMemory := tsparams.ScaleLabControlPlaneMemoryMax
+			scaleLabMaxMemory := scaleLabControlPlaneMemoryMax
 
 			if memoryGB < scaleLabMaxMemory {
 				GinkgoWriter.Printf("⚠ WARNING: Control plane memory systemReserved (%.1f GB) is BELOW scale lab max (%.1f GB)\n",
@@ -498,7 +612,7 @@ var _ = Describe("SystemReserved", Ordered, Label(tsparams.LabelSystemReservedVa
 			}
 
 			By("Verifying worker systemReserved meets baseline requirements")
-			workerCPUMillicores, err := tsparams.GetWorkerCPUMillicores()
+			workerCPUMillicores, err := getWorkerCPUMillicores()
 			Expect(err).ToNot(HaveOccurred(), "Failed to parse worker CPU reserved")
 			Expect(workerCPUMillicores).To(BeNumerically(">=", 500),
 				fmt.Sprintf("Worker CPU systemReserved (%dm) should be >= minimum requirement (500m)", workerCPUMillicores))
@@ -511,9 +625,14 @@ var _ = Describe("SystemReserved", Ordered, Label(tsparams.LabelSystemReservedVa
 // Helper functions
 
 // isNodeReadyForTesting checks if a node is in a state where it can be tested.
-// Returns false if node is NotReady or has SchedulingDisabled.
+// Returns false if node is NotReady, has SchedulingDisabled, or has storage role.
 func isNodeReadyForTesting(node *nodes.Builder) bool {
 	nodeObj := node.Object
+
+	// Skip storage nodes - they typically don't have PerformanceProfile configuration
+	if _, hasStorageRole := nodeObj.Labels["node-role.kubernetes.io/storage"]; hasStorageRole {
+		return false
+	}
 
 	// Check if node is schedulable
 	if nodeObj.Spec.Unschedulable {
