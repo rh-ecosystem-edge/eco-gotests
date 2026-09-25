@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// TestParseAnnouncementDate verifies ParseAnnouncementDate on a valid announcement line.
 func TestParseAnnouncementDate(t *testing.T) {
 	t.Parallel()
 
@@ -21,6 +22,7 @@ func TestParseAnnouncementDate(t *testing.T) {
 	}
 }
 
+// TestGetLastAnnouncementBeforeHashLine verifies the last announcement is found when #h follows immediately.
 func TestGetLastAnnouncementBeforeHashLine(t *testing.T) {
 	t.Parallel()
 
@@ -37,6 +39,7 @@ func TestGetLastAnnouncementBeforeHashLine(t *testing.T) {
 	}
 }
 
+// TestGetLastAnnouncementWithBlankLineBeforeHash verifies the last announcement when a blank line precedes #h.
 func TestGetLastAnnouncementWithBlankLineBeforeHash(t *testing.T) {
 	t.Parallel()
 
@@ -53,6 +56,7 @@ func TestGetLastAnnouncementWithBlankLineBeforeHash(t *testing.T) {
 	}
 }
 
+// TestParseAnnouncementDateInvalid verifies ParseAnnouncementDate rejects malformed input.
 func TestParseAnnouncementDateInvalid(t *testing.T) {
 	t.Parallel()
 

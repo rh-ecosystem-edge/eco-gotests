@@ -129,6 +129,7 @@ var _ = Describe("PTP Leap File", Label(tsparams.LabelLeapFile), func() {
 				Expect(err).ToNot(HaveOccurred(), "Failed to parse stripped last announcement date")
 
 				todayUTC := time.Now().UTC().Truncate(24 * time.Hour)
+
 				Expect(newAnnouncementDate.After(strippedAnnouncementDate)).To(BeTrue(),
 					"New last announcement %q should be after stripped last announcement %q",
 					newLastAnnouncement, strippedLastAnnouncement)
