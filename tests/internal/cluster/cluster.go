@@ -308,6 +308,9 @@ func WaitForRouteAPIAvailable(
 		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			_, err := route.Pull(client, routeName, routeNamespace)
 			if err != nil {
+				klog.V(90).Infof(
+					"route API not ready yet (route %s/%s): %v", routeNamespace, routeName, err)
+
 				return false, nil
 			}
 
