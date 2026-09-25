@@ -1,3 +1,5 @@
+//go:build unit_test
+
 package version
 
 // The version package imports cluster (via version.go), which pulls inittools. For local unit tests of
