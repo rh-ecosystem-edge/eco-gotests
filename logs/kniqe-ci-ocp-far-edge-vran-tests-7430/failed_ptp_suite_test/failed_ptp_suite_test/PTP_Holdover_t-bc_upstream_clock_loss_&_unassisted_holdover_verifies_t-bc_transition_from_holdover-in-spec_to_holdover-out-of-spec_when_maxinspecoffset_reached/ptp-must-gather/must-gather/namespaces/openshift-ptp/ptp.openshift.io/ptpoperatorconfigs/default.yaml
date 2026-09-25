@@ -1,0 +1,36 @@
+apiVersion: ptp.openshift.io/v1
+kind: PtpOperatorConfig
+metadata:
+  creationTimestamp: "2026-08-31T21:40:25Z"
+  generation: 2
+  managedFields:
+  - apiVersion: ptp.openshift.io/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:spec:
+        .: {}
+        f:daemonNodeSelector: {}
+    manager: ptp-operator
+    operation: Update
+    time: "2026-08-31T21:40:25Z"
+  - apiVersion: ptp.openshift.io/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:spec:
+        f:daemonNodeSelector:
+          f:node-role.kubernetes.io/master: {}
+        f:ptpEventConfig:
+          .: {}
+          f:enableEventPublisher: {}
+    manager: config-policy-controller
+    operation: Update
+    time: "2026-08-31T21:40:57Z"
+  name: default
+  namespace: openshift-ptp
+  resourceVersion: "12788"
+  uid: 1a55bb1b-5d85-404c-9134-165db70c9ed7
+spec:
+  daemonNodeSelector:
+    node-role.kubernetes.io/master: ""
+  ptpEventConfig:
+    enableEventPublisher: true

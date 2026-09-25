@@ -1,0 +1,1163 @@
+Started by user Bonnie Block
+Rebuilds build #7732
+Checking out git https://gitlab.cee.redhat.com/ocp-edge-qe/ocp-edge-ci.git into /var/jenkins_home/jobs/ocp-far-edge-vran-tests/workspace@script/0b68470f7f5f903fb8f1dde0a1eac9e128d944d7c121d8d3197a18af033a9caf to read jenkins/jobs/ocp-far-edge-vran-pipeline/ocp-far-edge-vran-tests.groovy
+The recommended git tool is: git
+No credentials specified
+ > git rev-parse --resolve-git-dir /var/jenkins_home/jobs/ocp-far-edge-vran-tests/workspace@script/0b68470f7f5f903fb8f1dde0a1eac9e128d944d7c121d8d3197a18af033a9caf/.git # timeout=10
+Fetching changes from the remote Git repository
+ > git config remote.origin.url https://gitlab.cee.redhat.com/ocp-edge-qe/ocp-edge-ci.git # timeout=10
+Using shallow fetch with depth 1
+Fetching upstream changes from https://gitlab.cee.redhat.com/ocp-edge-qe/ocp-edge-ci.git
+ > git --version # timeout=10
+ > git --version # 'git version 2.47.3'
+ > git fetch --no-tags --force --progress --depth=1 -- https://gitlab.cee.redhat.com/ocp-edge-qe/ocp-edge-ci.git +refs/heads/*:refs/remotes/origin/* # timeout=10
+ > git rev-parse origin/master^{commit} # timeout=10
+Checking out Revision 7f74f74c7f1f1fc219bec50b9b8ec200efbb2da6 (origin/master)
+ > git config core.sparsecheckout # timeout=10
+ > git checkout -f 7f74f74c7f1f1fc219bec50b9b8ec200efbb2da6 # timeout=10
+Commit message: "Merge branch 'yobshans-master-patch-b7c4' into 'master'"
+ > git rev-list --no-walk 7f74f74c7f1f1fc219bec50b9b8ec200efbb2da6 # timeout=10
+Loading library kni-qe-ci-lib@master
+Attempting to resolve master from remote references...
+ > git --version # timeout=10
+ > git --version # 'git version 2.47.3'
+ > git ls-remote -- https://gitlab.cee.redhat.com/ocp-edge-qe/kni-qe-ci-lib.git # timeout=10
+Found match: refs/heads/master revision 2f8a07e25635a408852bd588e5235742444f7c9d
+Selected Git installation does not exist. Using Default
+The recommended git tool is: NONE
+No credentials specified
+ > git rev-parse --resolve-git-dir /var/jenkins_home/jobs/ocp-far-edge-vran-tests/workspace@libs/b1314b7dc77279d727a986e6b20053509088e596ae7e844efb95bf7c7b1cbc1c/.git # timeout=10
+Fetching changes from the remote Git repository
+ > git config remote.origin.url https://gitlab.cee.redhat.com/ocp-edge-qe/kni-qe-ci-lib.git # timeout=10
+Fetching without tags
+Fetching upstream changes from https://gitlab.cee.redhat.com/ocp-edge-qe/kni-qe-ci-lib.git
+ > git --version # timeout=10
+ > git --version # 'git version 2.47.3'
+ > git fetch --no-tags --force --progress -- https://gitlab.cee.redhat.com/ocp-edge-qe/kni-qe-ci-lib.git +refs/heads/*:refs/remotes/origin/* # timeout=10
+Checking out Revision 2f8a07e25635a408852bd588e5235742444f7c9d (master)
+ > git config core.sparsecheckout # timeout=10
+ > git checkout -f 2f8a07e25635a408852bd588e5235742444f7c9d # timeout=10
+Commit message: "Merge branch 'poc' into 'master'"
+ > git rev-list --no-walk 2f8a07e25635a408852bd588e5235742444f7c9d # timeout=10
+[Pipeline] Start of Pipeline
+[Pipeline] node
+Running on registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com in /var/lib/jenkins/workspace/ocp-far-edge-vran-tests
+[Pipeline] {
+[Pipeline] stage
+[Pipeline] { (Declarative: Checkout SCM)
+[Pipeline] checkout
+The recommended git tool is: git
+No credentials specified
+Fetching changes from the remote Git repository
+Using shallow fetch with depth 1
+ > git rev-parse --resolve-git-dir /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/.git # timeout=10
+ > git config remote.origin.url https://gitlab.cee.redhat.com/ocp-edge-qe/ocp-edge-ci.git # timeout=10
+Fetching upstream changes from https://gitlab.cee.redhat.com/ocp-edge-qe/ocp-edge-ci.git
+ > git --version # timeout=10
+ > git --version # 'git version 2.43.5'
+ > git fetch --no-tags --force --progress --depth=1 -- https://gitlab.cee.redhat.com/ocp-edge-qe/ocp-edge-ci.git +refs/heads/*:refs/remotes/origin/* # timeout=10
+Checking out Revision 7f74f74c7f1f1fc219bec50b9b8ec200efbb2da6 (origin/master)
+Commit message: "Merge branch 'yobshans-master-patch-b7c4' into 'master'"
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] withEnv
+[Pipeline] {
+[Pipeline] withEnv
+[Pipeline] {
+[Pipeline] lock
+Trying to acquire lock on [Label: registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com, Quantity: 1]
+Lock acquired on [Label: registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com, Quantity: 1]
+[Pipeline] {
+[Pipeline] ansiColor
+[Pipeline] {
+
+[Pipeline] stage
+[Pipeline] { (Clone Repos)
+[Pipeline] echo
+Cleaning workspace
+[Pipeline] cleanWs
+[WS-CLEANUP] Deleting project workspace...
+[WS-CLEANUP] Deferred wipeout is disabled by the job configuration...
+ > git rev-parse origin/master^{commit} # timeout=10
+ > git config core.sparsecheckout # timeout=10
+ > git checkout -f 7f74f74c7f1f1fc219bec50b9b8ec200efbb2da6 # timeout=10
+[WS-CLEANUP] done
+[Pipeline] script
+[Pipeline] {
+[Pipeline] addBadge
+WARNING: Unknown parameter(s) found for class type 'com.jenkinsci.plugins.badge.dsl.AddBadgeStep': background,border,borderColor,color
+[Pipeline] addBadge
+WARNING: Unknown parameter(s) found for class type 'com.jenkinsci.plugins.badge.dsl.AddBadgeStep': background,border,borderColor,color
+[Pipeline] addBadge
+WARNING: Unknown parameter(s) found for class type 'com.jenkinsci.plugins.badge.dsl.AddBadgeStep': background,border,borderColor,color
+[Pipeline] checkout
+The recommended git tool is: NONE
+No credentials specified
+Cloning the remote Git repository
+Using shallow clone with depth 1
+Avoid fetching tags
+Cloning repository https://gitlab.cee.redhat.com/ran/ran-integration.git
+ > git init /var/lib/jenkins/workspace/ocp-far-edge-vran-tests # timeout=10
+Fetching upstream changes from https://gitlab.cee.redhat.com/ran/ran-integration.git
+ > git --version # timeout=10
+ > git --version # 'git version 2.43.5'
+ > git fetch --no-tags --force --progress --depth=1 -- https://gitlab.cee.redhat.com/ran/ran-integration.git +refs/heads/*:refs/remotes/origin/* # timeout=10
+Avoid second fetch
+Checking out Revision 79bd1f6962ca55281322df0cd4ac2c6b9a97b165 (origin/master)
+Commit message: "Merge branch 'add-oran-must-gather' into 'master'"
+ > git config remote.origin.url https://gitlab.cee.redhat.com/ran/ran-integration.git # timeout=10
+ > git config --add remote.origin.fetch +refs/heads/*:refs/remotes/origin/* # timeout=10
+ > git rev-parse origin/master^{commit} # timeout=10
+ > git config core.sparsecheckout # timeout=10
+ > git checkout -f 79bd1f6962ca55281322df0cd4ac2c6b9a97b165 # timeout=10
+ > git rev-list --no-walk 79bd1f6962ca55281322df0cd4ac2c6b9a97b165 # timeout=10
+[Pipeline] sh
++ rm -fr artifacts
++ mkdir -p artifacts
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Setup gotests env)
+[Pipeline] script
+[Pipeline] {
+[Pipeline] sh
++ which go
++ alias
++ eval declare -f
+++ declare -f
++ /usr/bin/which --tty-only --read-alias --read-functions --show-tilde --show-dot go
+/usr/bin/go
+[Pipeline] echo
+Go already installed
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Run oslat test)
+Stage "Run oslat test" skipped due to when conditional
+[Pipeline] getContext
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Run cyclictest)
+Stage "Run cyclictest" skipped due to when conditional
+[Pipeline] getContext
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Run cpu_util test)
+Stage "Run cpu_util test" skipped due to when conditional
+[Pipeline] getContext
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Run rfc2544 test)
+Stage "Run rfc2544 test" skipped due to when conditional
+[Pipeline] getContext
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Run ptp test)
+Stage "Run ptp test" skipped due to when conditional
+[Pipeline] getContext
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Run reboot test)
+Stage "Run reboot test" skipped due to when conditional
+[Pipeline] getContext
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (RAN eco-gotests no container tests)
+Stage "RAN eco-gotests no container tests" skipped due to when conditional
+[Pipeline] getContext
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (RAN eco-gotests)
+[Pipeline] withCredentials
+Masking supported pattern matches of $OCP_EDGE_QE_CREDS
+[Pipeline] {
+[Pipeline] script
+[Pipeline] {
+[Pipeline] catchError
+[Pipeline] {
+[Pipeline] sh
++ rm -fr eco-gotests
++ '[' '!' -z https://github.com/Bonnie-Block/eco-gotests.git ']'
++ git clone --single-branch -b gnrd-tgm-holdover https://github.com/Bonnie-Block/eco-gotests.git
+Cloning into 'eco-gotests'...
+Updating files:  56% (7127/12628)Updating files:  57% (7198/12628)Updating files:  58% (7325/12628)Updating files:  59% (7451/12628)Updating files:  60% (7577/12628)Updating files:  61% (7704/12628)Updating files:  62% (7830/12628)Updating files:  63% (7956/12628)Updating files:  64% (8082/12628)Updating files:  65% (8209/12628)Updating files:  66% (8335/12628)Updating files:  67% (8461/12628)Updating files:  68% (8588/12628)Updating files:  69% (8714/12628)Updating files:  70% (8840/12628)Updating files:  71% (8966/12628)Updating files:  72% (9093/12628)Updating files:  73% (9219/12628)Updating files:  74% (9345/12628)Updating files:  75% (9471/12628)Updating files:  76% (9598/12628)Updating files:  77% (9724/12628)Updating files:  78% (9850/12628)Updating files:  79% (9977/12628)Updating files:  80% (10103/12628)Updating files:  81% (10229/12628)Updating files:  82% (10355/12628)Updating files:  83% (10482/12628)Updating files:  84% (10608/12628)Updating files:  85% (10734/12628)Updating files:  86% (10861/12628)Updating files:  87% (10987/12628)Updating files:  88% (11113/12628)Updating files:  89% (11239/12628)Updating files:  90% (11366/12628)Updating files:  91% (11492/12628)Updating files:  92% (11618/12628)Updating files:  93% (11745/12628)Updating files:  94% (11871/12628)Updating files:  95% (11997/12628)Updating files:  96% (12123/12628)Updating files:  97% (12250/12628)Updating files:  98% (12376/12628)Updating files:  99% (12502/12628)Updating files: 100% (12628/12628)Updating files: 100% (12628/12628), done.
++ export KUBECONFIG=/home/kni/clusterconfigs/helix103/auth/kubeconfig
++ KUBECONFIG=/home/kni/clusterconfigs/helix103/auth/kubeconfig
++ SCRIPTS_DIR=/var/lib/jenkins/workspace/ocp-far-edge-vran-tests/scripts
++ ./scripts/test_ecogotests.sh ecogotests=ptp
++ set +H
++ . /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/scripts/ranStageUtils.sh
+++ WORKSPACE=/var/lib/jenkins/workspace/ocp-far-edge-vran-tests
+++ ARTIFACT_DIR=/var/lib/jenkins/workspace/ocp-far-edge-vran-tests/artifacts
++++ basename ./scripts/test_ecogotests.sh
+++ script_name=test_ecogotests.sh
+++ [[ -z '' ]]
++++ date +%s
+++ script_start_time=1790335728
+++ TRACE_PATH=/sys/kernel/tracing
+++ MC_NS=openshift-machine-config-operator
++ rc=0
++ [[ ecogotests=ptp =~ ecogotests ]]
+++ get_test_info ecogotests ecogotests=ptp
+++ local test_prefix=ecogotests= tests item
+++ IFS=,
+++ read -ra tests
+++ for item in "${tests[@]}"
+++ [[ ecogotests=ptp =~ ^ecogotests= ]]
+++ echo ptp
+++ return 0
++ SUITES=ptp
++ shift
+++ get_cluster
+++ local cluster
++++ oc config view -o 'jsonpath={.clusters[].cluster.server}{"\n"}'
+++ cluster=https://api.helix103.telcoqe.eng.rdu2.dc.redhat.com:6443
+++ cluster=helix103.telcoqe.eng.rdu2.dc.redhat.com:6443
+++ echo helix103
++ cluster=helix103
++ export RAN_EXTRA_VARS=/var/lib/jenkins/workspace/ocp-far-edge-vran-tests/ran-extra-vars_helix103
++ RAN_EXTRA_VARS=/var/lib/jenkins/workspace/ocp-far-edge-vran-tests/ran-extra-vars_helix103
+++ oc version
+++ grep Server
+++ awk -F ': ' '{ print $2 }'
++ OCP_VERSION=5.0.0-rc.3
++ DEFAULT_SUITES=containernshide
++ '[' -z ptp ']'
++ TEST_SUITES=(${SUITES})
++ IFS=';'
++ read -a TEST_SUITES
++ echo 'eco-gotests RAN test suites to be executed: ptp'
+eco-gotests RAN test suites to be executed: ptp
++ set_ran_test_image ran-test/oslat quay.io/container-perf-tools/oslat
++ export RAN_TEST_IMAGE=quay.io/container-perf-tools/oslat
++ RAN_TEST_IMAGE=quay.io/container-perf-tools/oslat
++ local reg
++ local 'registry_pattern=registry.*500.'
+++ oc -n openshift-config get secret pull-secret -o json
+++ jq -r '.data[".dockerconfigjson"]'
+++ base64 -d
+++ jq -r .auths
+++ jq -r '.|keys[]'
+++ grep -E 'registry.*500.'
+++ head -n 1
++ reg=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000
++ local image_path=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/oslat
++ [[ -n registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000 ]]
++ skopeo inspect docker://registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/oslat
+{
+    "Name": "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/oslat",
+    "Digest": "sha256:078b3f6e9a8babc1ef8f303657922405152cea0f43e8f8a8bce94147e145b667",
+    "RepoTags": [
+        "latest"
+    ],
+    "Created": "2026-08-26T13:43:13.539822576Z",
+    "DockerVersion": "",
+    "Labels": {
+        "io.buildah.version": "1.43.1",
+        "license": "MIT",
+        "name": "fedora",
+        "org.opencontainers.image.authors": "Container Performance Tools Team",
+        "org.opencontainers.image.created": "2026-08-26T13:27:29Z",
+        "org.opencontainers.image.description": "Container for running oslat OS latency testing",
+        "org.opencontainers.image.documentation": "https://github.com/redhat-nfvpe/container-perf-tools/blob/main/README.md",
+        "org.opencontainers.image.license": "MIT",
+        "org.opencontainers.image.licenses": "GPL-2.0",
+        "org.opencontainers.image.name": "fedora",
+        "org.opencontainers.image.revision": "047f035",
+        "org.opencontainers.image.source": "https://github.com/redhat-nfvpe/container-perf-tools",
+        "org.opencontainers.image.title": "oslat performance testing container",
+        "org.opencontainers.image.url": "https://github.com/redhat-nfvpe/container-perf-tools",
+        "org.opencontainers.image.vendor": "Container Performance Tools Team",
+        "org.opencontainers.image.version": "1.6",
+        "vendor": "Fedora Project",
+        "version": "42"
+    },
+    "Architecture": "amd64",
+    "Os": "linux",
+    "Layers": [
+        "sha256:419b79a05f4b7b7596e704ce4aa07898ca036fd8f9cad5964b8cb2811ae51d21",
+        "sha256:3ae52e06bc6e4bec85cc81d88426c0ccc4ec05bfb6894452c004b7029f649733",
+        "sha256:fb843e77c55d37ca04b85a6be0c5e5106eeb90a4eb3bc34d46b834a1482a3faa",
+        "sha256:276d1d6f78d59931a1e50c65b778d940236f434711df5b789766c213ceba67b1"
+    ],
+    "Env": [
+        "PATH=/usr/local/bin:/usr/bin",
+        "container=oci"
+    ]
+}
++ RAN_TEST_IMAGE=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/oslat
++ export OSLAT_TEST_IMAGE=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/oslat
++ OSLAT_TEST_IMAGE=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/oslat
++ echo 'export OSLAT_TEST_IMAGE=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/oslat'
+export OSLAT_TEST_IMAGE=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/oslat
++ set_ran_test_image ran-test/stress-ng quay.io/container-perf-tools/stress-ng
++ export RAN_TEST_IMAGE=quay.io/container-perf-tools/stress-ng
++ RAN_TEST_IMAGE=quay.io/container-perf-tools/stress-ng
++ local reg
++ local 'registry_pattern=registry.*500.'
+++ oc -n openshift-config get secret pull-secret -o json
+++ jq -r '.data[".dockerconfigjson"]'
+++ base64 -d
+++ jq -r .auths
+++ jq -r '.|keys[]'
+++ grep -E 'registry.*500.'
+++ head -n 1
++ reg=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000
++ local image_path=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/stress-ng
++ [[ -n registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000 ]]
++ skopeo inspect docker://registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/stress-ng
+{
+    "Name": "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/stress-ng",
+    "Digest": "sha256:0f52a61924459e67f2dfb45708bff5e0f2bbf01a3ac5d16e57b90eec78db93a9",
+    "RepoTags": [
+        "latest"
+    ],
+    "Created": "2026-08-26T13:58:34.062899055Z",
+    "DockerVersion": "",
+    "Labels": {
+        "io.buildah.version": "1.43.1",
+        "license": "MIT",
+        "name": "fedora",
+        "org.opencontainers.image.authors": "Container Performance Tools Team",
+        "org.opencontainers.image.created": "2026-08-26T13:27:29Z",
+        "org.opencontainers.image.description": "Container for running stress-ng system stress testing",
+        "org.opencontainers.image.documentation": "https://github.com/redhat-nfvpe/container-perf-tools/blob/main/README.md",
+        "org.opencontainers.image.license": "MIT",
+        "org.opencontainers.image.licenses": "GPL-2.0",
+        "org.opencontainers.image.name": "fedora",
+        "org.opencontainers.image.revision": "047f035",
+        "org.opencontainers.image.source": "https://github.com/redhat-nfvpe/container-perf-tools",
+        "org.opencontainers.image.title": "stress-ng performance testing container",
+        "org.opencontainers.image.url": "https://github.com/redhat-nfvpe/container-perf-tools",
+        "org.opencontainers.image.vendor": "Container Performance Tools Team",
+        "org.opencontainers.image.version": "1.6",
+        "vendor": "Fedora Project",
+        "version": "42"
+    },
+    "Architecture": "amd64",
+    "Os": "linux",
+    "Layers": [
+        "sha256:419b79a05f4b7b7596e704ce4aa07898ca036fd8f9cad5964b8cb2811ae51d21",
+        "sha256:9793d983b570a85eff6ec478c3661d04c430e45b84a5c6398f32fdc7eed8b188",
+        "sha256:714624bc937d139357494de8a65b470ead76c06c76036237d4a86b236a5a618a",
+        "sha256:c6e9115374a5788d51ac1e9ecaf4e10d8175f323c826f3864fc5ae2d5fc2d68d"
+    ],
+    "Env": [
+        "PATH=/usr/local/bin:/usr/bin",
+        "container=oci"
+    ]
+}
++ RAN_TEST_IMAGE=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/stress-ng
++ export STRESSNG_TEST_IMAGE=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/stress-ng
++ STRESSNG_TEST_IMAGE=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/stress-ng
++ echo 'export STRESSNG_TEST_IMAGE=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/stress-ng'
+export STRESSNG_TEST_IMAGE=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/stress-ng
++ set_ran_test_image ran-test/cnf-tests:4.8 quay.io/openshift-kni/cnf-tests:4.8
++ export RAN_TEST_IMAGE=quay.io/openshift-kni/cnf-tests:4.8
++ RAN_TEST_IMAGE=quay.io/openshift-kni/cnf-tests:4.8
++ local reg
++ local 'registry_pattern=registry.*500.'
+++ oc -n openshift-config get secret pull-secret -o json
+++ jq -r '.data[".dockerconfigjson"]'
+++ base64 -d
+++ jq -r .auths
+++ jq -r '.|keys[]'
+++ grep -E 'registry.*500.'
+++ head -n 1
++ reg=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000
++ local image_path=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/cnf-tests:4.8
++ [[ -n registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000 ]]
++ skopeo inspect docker://registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/cnf-tests:4.8
+{
+    "Name": "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/cnf-tests",
+    "Digest": "sha256:a85a76fa1430aecef14f19c3293c92860aca5427d7fff093257b013103614277",
+    "RepoTags": [
+        "4.8"
+    ],
+    "Created": "2022-09-07T15:56:59.83874783Z",
+    "DockerVersion": "",
+    "Labels": {
+        "License": "GPLv2+",
+        "architecture": "x86_64",
+        "build-date": "2022-08-25T03:40:16.181535",
+        "com.redhat.build-host": "cpt-1001.osbs.prod.upshift.rdu2.redhat.com",
+        "com.redhat.component": "openshift-enterprise-base-container",
+        "com.redhat.license_terms": "https://www.redhat.com/agreements",
+        "description": "This is the base image from which all OpenShift Container Platform images inherit.",
+        "distribution-scope": "public",
+        "io.buildah.version": "1.24.2",
+        "io.k8s.description": "ART equivalent image openshift-4.8-openshift-enterprise-base - rhel-8/base-repos",
+        "io.k8s.display-name": "4.8-base",
+        "io.openshift.build.commit.author": "",
+        "io.openshift.build.commit.date": "",
+        "io.openshift.build.commit.id": "ab604657b15b2a795416035a9213563b79e4aabb",
+        "io.openshift.build.commit.message": "",
+        "io.openshift.build.commit.ref": "release-4.8",
+        "io.openshift.build.commit.url": "https://github.com/openshift/images/commit/ad38e116f3533e0e78621a2887d8b70cde7cba31",
+        "io.openshift.build.name": "",
+        "io.openshift.build.namespace": "",
+        "io.openshift.build.source-context-dir": "",
+        "io.openshift.build.source-location": "https://github.com/openshift-kni/cnf-features-deploy",
+        "io.openshift.ci.from.base": "sha256:8cd238c846bf6d75334cd71cfce77cef32676f8c59c0e861e3e4f8ead81d5b2d",
+        "io.openshift.expose-services": "",
+        "io.openshift.maintainer.component": "Release",
+        "io.openshift.maintainer.product": "OpenShift Container Platform",
+        "io.openshift.tags": "openshift",
+        "maintainer": "Federico Paolinelli \u003cfpaoline@redhat.com\u003e",
+        "name": "openshift/ose-base",
+        "release": "202208241844.p0.gad38e11.assembly.stream",
+        "summary": "Provides the latest release of the Red Hat Extended Life Base Image.",
+        "url": "https://access.redhat.com/containers/#/registry.access.redhat.com/openshift/ose-base/images/v4.8.0-202208241844.p0.gad38e11.assembly.stream",
+        "vcs-ref": "ab604657b15b2a795416035a9213563b79e4aabb",
+        "vcs-type": "git",
+        "vcs-url": "https://github.com/openshift-kni/cnf-features-deploy",
+        "vendor": "Red Hat, Inc.",
+        "version": "v4.8.0"
+    },
+    "Architecture": "amd64",
+    "Os": "linux",
+    "Layers": [
+        "sha256:cadc283046514317dd4ecd1438530437d99cc92bf73080fb9e12e76751108de0",
+        "sha256:fd464176d200a96c67f45dd10129481cbb797d604395b3240f80fcef996f5f4c",
+        "sha256:b988c8c7898a0efb6582c467c495fa2fcaa724f579f260307433effd55074aba",
+        "sha256:a967c739d6f4b2cda9d3d85bbb13c06d5762b28ae6b16842092ba9e4ce984a2d",
+        "sha256:39644210bcd714b9b5a0f0d698034e8028b4bccf490db1bf39346882abfd26f9",
+        "sha256:56b2d846ec2d0c5149d7c5968427408bd6d7c1648ab1d012c78bc888626d1867"
+    ],
+    "Env": [
+        "__doozer=merge",
+        "BUILD_RELEASE=202208241844.p0.gad38e11.assembly.stream",
+        "BUILD_VERSION=v4.8.0",
+        "OS_GIT_MAJOR=4",
+        "OS_GIT_MINOR=8",
+        "OS_GIT_PATCH=0",
+        "OS_GIT_TREE_STATE=clean",
+        "OS_GIT_VERSION=4.8.0-202208241844.p0.gad38e11.assembly.stream-ad38e11",
+        "SOURCE_GIT_TREE_STATE=clean",
+        "OS_GIT_COMMIT=ad38e11",
+        "SOURCE_DATE_EPOCH=1622627932",
+        "SOURCE_GIT_COMMIT=ad38e116f3533e0e78621a2887d8b70cde7cba31",
+        "SOURCE_GIT_TAG=ad38e11",
+        "SOURCE_GIT_URL=https://github.com/openshift/images",
+        "GODEBUG=x509ignoreCN=0,madvdontneed=1",
+        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "container=oci",
+        "OPENSHIFT_CI=true",
+        "BUILD_LOGLEVEL=0",
+        "SUITES_PATH=/usr/bin/",
+        "OPENSHIFT_BUILD_NAME=cnf-tests",
+        "OPENSHIFT_BUILD_NAMESPACE=ci-op-tjh8lmv3"
+    ]
+}
++ RAN_TEST_IMAGE=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/cnf-tests:4.8
++ export CNF_TEST_IMAGE=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/cnf-tests:4.8
++ CNF_TEST_IMAGE=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/cnf-tests:4.8
++ echo 'export CNF_TEST_IMAGE=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/cnf-tests:4.8'
+export CNF_TEST_IMAGE=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/cnf-tests:4.8
++ TEST_DIR=/var/lib/jenkins/workspace/ocp-far-edge-vran-tests/eco-gotests
++ REPORT_DIR=/var/lib/jenkins/workspace/ocp-far-edge-vran-tests/artifacts/ecogotests_reports
++ mkdir -p /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/artifacts/ecogotests_reports
++ mkdir -p /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/eco-gotests/reports
++ bash /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/scripts/set_ran_extra_vars.sh
++ [[ -f /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/ran-extra-vars_helix103 ]]
++ touch /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/ran-extra-vars_helix103
++ source /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/ran-extra-vars_helix103
++ [[ -z /home/kni/clusterconfigs/helix103/auth/kubeconfig ]]
++ [[ -z '' ]]
++ export OC_EXE=oc
++ OC_EXE=oc
++ [[ -z '' ]]
+++ oc config view -o 'jsonpath={.clusters[].cluster.server}{"\n"}'
++ cluster=https://api.helix103.telcoqe.eng.rdu2.dc.redhat.com:6443
++ cluster=helix103.telcoqe.eng.rdu2.dc.redhat.com:6443
++ cluster=helix103
++ echo 'export RAN_METRICS_CLUSTER="helix103"'
+++ oc version
+++ grep Server
+++ awk '{print $3}'
++ export_version='export RAN_METRICS_SW_VERSION="5.0.0-rc.3"'
++ strings /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/ran-extra-vars_helix103
++ grep -q RAN_METRICS_SW_VERSION
++ echo 'export RAN_METRICS_SW_VERSION="5.0.0-rc.3"'
++ MC_NS=openshift-machine-config-operator
++ [[ -z '' ]]
+++ oc get node -l kubernetes.io/hostname -o name
+++ awk -F / '{print $2}'
++ NODE=helix103.telcoqe.eng.rdu2.dc.redhat.com
+++ oc get pods -n openshift-machine-config-operator -o wide
+++ grep -E 'machine-config-daemon.*helix103.telcoqe.eng.rdu2.dc.redhat.com'
+++ awk '{print $1}'
++ MACHINE_CONFIG_DAEMON=machine-config-daemon-cb8qs
+++ oc exec -n openshift-machine-config-operator machine-config-daemon-cb8qs -c machine-config-daemon -- chroot /rootfs lscpu
++ LSCPU='Architecture:                            x86_64
+CPU op-mode(s):                          32-bit, 64-bit
+Address sizes:                           52 bits physical, 57 bits virtual
+Byte Order:                              Little Endian
+CPU(s):                                  80
+On-line CPU(s) list:                     0-79
+Vendor ID:                               GenuineIntel
+BIOS Vendor ID:                          Intel
+Model name:                              INTEL(R) XEON(R) 6716P-B
+BIOS Model name:                         INTEL(R) XEON(R) 6716P-B  CPU @ 1.8GHz
+BIOS CPU family:                         179
+CPU family:                              6
+Model:                                   174
+Thread(s) per core:                      2
+Core(s) per socket:                      40
+Socket(s):                               1
+Stepping:                                1
+CPU(s) scaling MHz:                      33%
+CPU max MHz:                             3500.0000
+CPU min MHz:                             800.0000
+BogoMIPS:                                3600.00
+Flags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid dca sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb cat_l3 cat_l2 cdp_l3 intel_ppin cdp_l2 ssbd mba ibrs ibpb stibp ibrs_enhanced tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid cqm rdt_a avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb intel_pt avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves cqm_llc cqm_occup_llc cqm_mbm_total cqm_mbm_local split_lock_detect user_shstk avx_vnni avx512_bf16 wbnoinvd dtherm ida arat pln pts hwp hwp_act_window hwp_epp hwp_pkg_req hfi vnmi avx512vbmi umip pku ospke waitpkg avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid bus_lock_detect cldemote movdiri movdir64b enqcmd fsrm md_clear serialize tsxldtrk pconfig arch_lbr ibt amx_bf16 avx512_fp16 amx_tile amx_int8 flush_l1d arch_capabilities
+Virtualization:                          VT-x
+L1d cache:                               1.9 MiB (40 instances)
+L1i cache:                               2.5 MiB (40 instances)
+L2 cache:                                80 MiB (40 instances)
+L3 cache:                                160 MiB (1 instance)
+NUMA node(s):                            1
+NUMA node0 CPU(s):                       0-79
+Vulnerability Gather data sampling:      Not affected
+Vulnerability Indirect target selection: Not affected
+Vulnerability Itlb multihit:             Not affected
+Vulnerability L1tf:                      Not affected
+Vulnerability Mds:                       Not affected
+Vulnerability Meltdown:                  Not affected
+Vulnerability Mmio stale data:           Not affected
+Vulnerability Old microcode:             Not affected
+Vulnerability Reg file data sampling:    Not affected
+Vulnerability Retbleed:                  Not affected
+Vulnerability Spec rstack overflow:      Not affected
+Vulnerability Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl
+Vulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization
+Vulnerability Spectre v2:                Mitigation; Enhanced / Automatic IBRS; IBPB conditional; PBRSB-eIBRS Not affected; BHI BHI_DIS_S
+Vulnerability Srbds:                     Not affected
+Vulnerability Tsa:                       Not affected
+Vulnerability Tsx async abort:           Not affected
+Vulnerability Vmscape:                   Not affected'
+++ echo 'Architecture:                            x86_64
+CPU op-mode(s):                          32-bit, 64-bit
+Address sizes:                           52 bits physical, 57 bits virtual
+Byte Order:                              Little Endian
+CPU(s):                                  80
+On-line CPU(s) list:                     0-79
+Vendor ID:                               GenuineIntel
+BIOS Vendor ID:                          Intel
+Model name:                              INTEL(R) XEON(R) 6716P-B
+BIOS Model name:                         INTEL(R) XEON(R) 6716P-B  CPU @ 1.8GHz
+BIOS CPU family:                         179
+CPU family:                              6
+Model:                                   174
+Thread(s) per core:                      2
+Core(s) per socket:                      40
+Socket(s):                               1
+Stepping:                                1
+CPU(s) scaling MHz:                      33%
+CPU max MHz:                             3500.0000
+CPU min MHz:                             800.0000
+BogoMIPS:                                3600.00
+Flags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid dca sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb cat_l3 cat_l2 cdp_l3 intel_ppin cdp_l2 ssbd mba ibrs ibpb stibp ibrs_enhanced tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid cqm rdt_a avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb intel_pt avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves cqm_llc cqm_occup_llc cqm_mbm_total cqm_mbm_local split_lock_detect user_shstk avx_vnni avx512_bf16 wbnoinvd dtherm ida arat pln pts hwp hwp_act_window hwp_epp hwp_pkg_req hfi vnmi avx512vbmi umip pku ospke waitpkg avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid bus_lock_detect cldemote movdiri movdir64b enqcmd fsrm md_clear serialize tsxldtrk pconfig arch_lbr ibt amx_bf16 avx512_fp16 amx_tile amx_int8 flush_l1d arch_capabilities
+Virtualization:                          VT-x
+L1d cache:                               1.9 MiB (40 instances)
+L1i cache:                               2.5 MiB (40 instances)
+L2 cache:                                80 MiB (40 instances)
+L3 cache:                                160 MiB (1 instance)
+NUMA node(s):                            1
+NUMA node0 CPU(s):                       0-79
+Vulnerability Gather data sampling:      Not affected
+Vulnerability Indirect target selection: Not affected
+Vulnerability Itlb multihit:             Not affected
+Vulnerability L1tf:                      Not affected
+Vulnerability Mds:                       Not affected
+Vulnerability Meltdown:                  Not affected
+Vulnerability Mmio stale data:           Not affected
+Vulnerability Old microcode:             Not affected
+Vulnerability Reg file data sampling:    Not affected
+Vulnerability Retbleed:                  Not affected
+Vulnerability Spec rstack overflow:      Not affected
+Vulnerability Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl
+Vulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization
+Vulnerability Spectre v2:                Mitigation; Enhanced / Automatic IBRS; IBPB conditional; PBRSB-eIBRS Not affected; BHI BHI_DIS_S
+Vulnerability Srbds:                     Not affected
+Vulnerability Tsa:                       Not affected
+Vulnerability Tsx async abort:           Not affected
+Vulnerability Vmscape:                   Not affected'
+++ grep '^Model name'
+++ awk '{print substr($0, index($0,$3))}'
++ CPU_TYPE='INTEL(R) XEON(R) 6716P-B'
+++ echo 'Architecture:                            x86_64
+CPU op-mode(s):                          32-bit, 64-bit
+Address sizes:                           52 bits physical, 57 bits virtual
+Byte Order:                              Little Endian
+CPU(s):                                  80
+On-line CPU(s) list:                     0-79
+Vendor ID:                               GenuineIntel
+BIOS Vendor ID:                          Intel
+Model name:                              INTEL(R) XEON(R) 6716P-B
+BIOS Model name:                         INTEL(R) XEON(R) 6716P-B  CPU @ 1.8GHz
+BIOS CPU family:                         179
+CPU family:                              6
+Model:                                   174
+Thread(s) per core:                      2
+Core(s) per socket:                      40
+Socket(s):                               1
+Stepping:                                1
+CPU(s) scaling MHz:                      33%
+CPU max MHz:                             3500.0000
+CPU min MHz:                             800.0000
+BogoMIPS:                                3600.00
+Flags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid dca sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb cat_l3 cat_l2 cdp_l3 intel_ppin cdp_l2 ssbd mba ibrs ibpb stibp ibrs_enhanced tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid cqm rdt_a avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb intel_pt avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves cqm_llc cqm_occup_llc cqm_mbm_total cqm_mbm_local split_lock_detect user_shstk avx_vnni avx512_bf16 wbnoinvd dtherm ida arat pln pts hwp hwp_act_window hwp_epp hwp_pkg_req hfi vnmi avx512vbmi umip pku ospke waitpkg avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq la57 rdpid bus_lock_detect cldemote movdiri movdir64b enqcmd fsrm md_clear serialize tsxldtrk pconfig arch_lbr ibt amx_bf16 avx512_fp16 amx_tile amx_int8 flush_l1d arch_capabilities
+Virtualization:                          VT-x
+L1d cache:                               1.9 MiB (40 instances)
+L1i cache:                               2.5 MiB (40 instances)
+L2 cache:                                80 MiB (40 instances)
+L3 cache:                                160 MiB (1 instance)
+NUMA node(s):                            1
+NUMA node0 CPU(s):                       0-79
+Vulnerability Gather data sampling:      Not affected
+Vulnerability Indirect target selection: Not affected
+Vulnerability Itlb multihit:             Not affected
+Vulnerability L1tf:                      Not affected
+Vulnerability Mds:                       Not affected
+Vulnerability Meltdown:                  Not affected
+Vulnerability Mmio stale data:           Not affected
+Vulnerability Old microcode:             Not affected
+Vulnerability Reg file data sampling:    Not affected
+Vulnerability Retbleed:                  Not affected
+Vulnerability Spec rstack overflow:      Not affected
+Vulnerability Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl
+Vulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization
+Vulnerability Spectre v2:                Mitigation; Enhanced / Automatic IBRS; IBPB conditional; PBRSB-eIBRS Not affected; BHI BHI_DIS_S
+Vulnerability Srbds:                     Not affected
+Vulnerability Tsa:                       Not affected
+Vulnerability Tsx async abort:           Not affected
+Vulnerability Vmscape:                   Not affected'
+++ grep Thread
+++ awk '{print $4}'
++ HYPERTHREAD=2
++ echo 'export RAN_METRICS_CPU_TYPE="INTEL(R) XEON(R) 6716P-B"'
++ echo 'export RAN_METRICS_HYPERTHREAD="2"'
++ [[ -z '' ]]
+++ oc get nodes -o 'jsonpath={.items[0]..kernelVersion}'
++ KERNEL_RELEASE=6.12.0-211.54.1.el10_2.x86_64+rt
++ KERNEL_REALTIME=false
++ [[ 6.12.0-211.54.1.el10_2.x86_64+rt =~ .*\.rt[0-9]+\..* ]]
++ [[ 6.12.0-211.54.1.el10_2.x86_64+rt =~ .*\+rt$ ]]
++ KERNEL_REALTIME=true
++ echo 'export RAN_METRICS_KERNEL_VERSION="6.12.0-211.54.1.el10_2.x86_64+rt"'
++ echo 'export RAN_METRICS_KERNEL_REALTIME="true"'
++ [[ -z '' ]]
+++ oc get performanceprofile -o 'jsonpath={.items[0].spec.workloadHints}'
++ WORKLOADHINTS='{"highPowerConsumption":false,"perPodPowerManagement":false,"realTime":true}'
++ [[ -z {"highPowerConsumption":false,"perPodPowerManagement":false,"realTime":true} ]]
+++ jq '.realTime // false'
++ REALTIME=true
+++ jq '.highPowerConsumption // false'
++ HIGH_POWER_CONSUMPTION=false
+++ jq '.perPodPowerManagement // false'
++ PER_POD_POWER_MANAGEMENT=false
++ [[ true == true ]]
++ [[ false == false ]]
++ [[ false == false ]]
++ POWER_MODE=performance
++ [[ performance != \u\n\k\n\o\w\n ]]
++ echo 'export RAN_METRICS_POWER_MODE="performance"'
++ set_ran_metrics_global_tags 0
++ local rc=0
++ [[ -z /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/ran-extra-vars_helix103 ]]
++ [[ -f /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/ran-extra-vars_helix103 ]]
++ source /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/ran-extra-vars_helix103
+++ export RAN_METRICS_CLUSTER=helix103
+++ RAN_METRICS_CLUSTER=helix103
+++ export RAN_METRICS_SW_VERSION=5.0.0-rc.3
+++ RAN_METRICS_SW_VERSION=5.0.0-rc.3
+++ export 'RAN_METRICS_CPU_TYPE=INTEL(R) XEON(R) 6716P-B'
+++ RAN_METRICS_CPU_TYPE='INTEL(R) XEON(R) 6716P-B'
+++ export RAN_METRICS_HYPERTHREAD=2
+++ RAN_METRICS_HYPERTHREAD=2
+++ export RAN_METRICS_KERNEL_VERSION=6.12.0-211.54.1.el10_2.x86_64+rt
+++ RAN_METRICS_KERNEL_VERSION=6.12.0-211.54.1.el10_2.x86_64+rt
+++ export RAN_METRICS_KERNEL_REALTIME=true
+++ RAN_METRICS_KERNEL_REALTIME=true
+++ export RAN_METRICS_POWER_MODE=performance
+++ RAN_METRICS_POWER_MODE=performance
++ [[ -z 5.0.0-rc.3 ]]
++ local 'tags=pipeline=\"ci\", rc=\"0\"'
++ local field
+++ compgen -e RAN_METRICS
++ for field in $(compgen -e RAN_METRICS)
++ [[ RAN_METRICS_CLUSTER == \R\A\N\_\M\E\T\R\I\C\S\_\U\R\L ]]
++ local name=CLUSTER
++ tags='pipeline=\"ci\", rc=\"0\", cluster=\"helix103\"'
++ for field in $(compgen -e RAN_METRICS)
++ [[ RAN_METRICS_CPU_TYPE == \R\A\N\_\M\E\T\R\I\C\S\_\U\R\L ]]
++ local name=CPU_TYPE
++ tags='pipeline=\"ci\", rc=\"0\", cluster=\"helix103\", cpu_type=\"INTEL(R) XEON(R) 6716P-B\"'
++ for field in $(compgen -e RAN_METRICS)
++ [[ RAN_METRICS_FORMAL_TEST == \R\A\N\_\M\E\T\R\I\C\S\_\U\R\L ]]
++ local name=FORMAL_TEST
++ tags='pipeline=\"ci\", rc=\"0\", cluster=\"helix103\", cpu_type=\"INTEL(R) XEON(R) 6716P-B\", formal_test=\"false\"'
++ for field in $(compgen -e RAN_METRICS)
++ [[ RAN_METRICS_HYPERTHREAD == \R\A\N\_\M\E\T\R\I\C\S\_\U\R\L ]]
++ local name=HYPERTHREAD
++ tags='pipeline=\"ci\", rc=\"0\", cluster=\"helix103\", cpu_type=\"INTEL(R) XEON(R) 6716P-B\", formal_test=\"false\", hyperthread=\"2\"'
++ for field in $(compgen -e RAN_METRICS)
++ [[ RAN_METRICS_KERNEL_REALTIME == \R\A\N\_\M\E\T\R\I\C\S\_\U\R\L ]]
++ local name=KERNEL_REALTIME
++ tags='pipeline=\"ci\", rc=\"0\", cluster=\"helix103\", cpu_type=\"INTEL(R) XEON(R) 6716P-B\", formal_test=\"false\", hyperthread=\"2\", kernel_realtime=\"true\"'
++ for field in $(compgen -e RAN_METRICS)
++ [[ RAN_METRICS_KERNEL_VERSION == \R\A\N\_\M\E\T\R\I\C\S\_\U\R\L ]]
++ local name=KERNEL_VERSION
++ tags='pipeline=\"ci\", rc=\"0\", cluster=\"helix103\", cpu_type=\"INTEL(R) XEON(R) 6716P-B\", formal_test=\"false\", hyperthread=\"2\", kernel_realtime=\"true\", kernel_version=\"6.12.0-211.54.1.el10_2.x86_64+rt\"'
++ for field in $(compgen -e RAN_METRICS)
++ [[ RAN_METRICS_POWER_MODE == \R\A\N\_\M\E\T\R\I\C\S\_\U\R\L ]]
++ local name=POWER_MODE
++ tags='pipeline=\"ci\", rc=\"0\", cluster=\"helix103\", cpu_type=\"INTEL(R) XEON(R) 6716P-B\", formal_test=\"false\", hyperthread=\"2\", kernel_realtime=\"true\", kernel_version=\"6.12.0-211.54.1.el10_2.x86_64+rt\", power_mode=\"performance\"'
++ for field in $(compgen -e RAN_METRICS)
++ [[ RAN_METRICS_SW_VERSION == \R\A\N\_\M\E\T\R\I\C\S\_\U\R\L ]]
++ local name=SW_VERSION
++ tags='pipeline=\"ci\", rc=\"0\", cluster=\"helix103\", cpu_type=\"INTEL(R) XEON(R) 6716P-B\", formal_test=\"false\", hyperthread=\"2\", kernel_realtime=\"true\", kernel_version=\"6.12.0-211.54.1.el10_2.x86_64+rt\", power_mode=\"performance\", sw_version=\"5.0.0-rc.3\"'
++ for field in $(compgen -e RAN_METRICS)
++ [[ RAN_METRICS_URL == \R\A\N\_\M\E\T\R\I\C\S\_\U\R\L ]]
++ continue
++ sed /RAN_GLOBAL_TAGS/d /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/ran-extra-vars_helix103
+export RAN_METRICS_CLUSTER="helix103"
+export RAN_METRICS_SW_VERSION="5.0.0-rc.3"
+export RAN_METRICS_CPU_TYPE="INTEL(R) XEON(R) 6716P-B"
+export RAN_METRICS_HYPERTHREAD="2"
+export RAN_METRICS_KERNEL_VERSION="6.12.0-211.54.1.el10_2.x86_64+rt"
+export RAN_METRICS_KERNEL_REALTIME="true"
+export RAN_METRICS_POWER_MODE="performance"
++ echo 'export RAN_GLOBAL_TAGS="pipeline=\"ci\", rc=\"0\", cluster=\"helix103\", cpu_type=\"INTEL(R) XEON(R) 6716P-B\", formal_test=\"false\", hyperthread=\"2\", kernel_realtime=\"true\", kernel_version=\"6.12.0-211.54.1.el10_2.x86_64+rt\", power_mode=\"performance\", sw_version=\"5.0.0-rc.3\""'
++ source /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/ran-extra-vars_helix103
+++ export RAN_METRICS_CLUSTER=helix103
+++ RAN_METRICS_CLUSTER=helix103
+++ export RAN_METRICS_SW_VERSION=5.0.0-rc.3
+++ RAN_METRICS_SW_VERSION=5.0.0-rc.3
+++ export 'RAN_METRICS_CPU_TYPE=INTEL(R) XEON(R) 6716P-B'
+++ RAN_METRICS_CPU_TYPE='INTEL(R) XEON(R) 6716P-B'
+++ export RAN_METRICS_HYPERTHREAD=2
+++ RAN_METRICS_HYPERTHREAD=2
+++ export RAN_METRICS_KERNEL_VERSION=6.12.0-211.54.1.el10_2.x86_64+rt
+++ RAN_METRICS_KERNEL_VERSION=6.12.0-211.54.1.el10_2.x86_64+rt
+++ export RAN_METRICS_KERNEL_REALTIME=true
+++ RAN_METRICS_KERNEL_REALTIME=true
+++ export RAN_METRICS_POWER_MODE=performance
+++ RAN_METRICS_POWER_MODE=performance
+++ export 'RAN_GLOBAL_TAGS=pipeline="ci", rc="0", cluster="helix103", cpu_type="INTEL(R) XEON(R) 6716P-B", formal_test="false", hyperthread="2", kernel_realtime="true", kernel_version="6.12.0-211.54.1.el10_2.x86_64+rt", power_mode="performance", sw_version="5.0.0-rc.3"'
+++ RAN_GLOBAL_TAGS='pipeline="ci", rc="0", cluster="helix103", cpu_type="INTEL(R) XEON(R) 6716P-B", formal_test="false", hyperthread="2", kernel_realtime="true", kernel_version="6.12.0-211.54.1.el10_2.x86_64+rt", power_mode="performance", sw_version="5.0.0-rc.3"'
++ KUBECONFIG_HUB=/home/kni/clusterconfigs/auth/kubeconfig
++ KUBECONFIG_SPOKE=/home/kni/clusterconfigs/helix103/auth/kubeconfig
++ CLUSTERCONFIGS=/home/kni/clusterconfigs
++ [[ ! -f /home/kni/clusterconfigs/helix103/auth/kubeconfig ]]
++ [[ ptp == *ibipreinstall* ]]
++ set_bmc_vars
++ host_info_file=/var/lib/jenkins/workspace/ocp-far-edge-vran-tests/scripts/../inventory/hosts.helix103
++ grep -qE '^bmc_' '/var/lib/jenkins/workspace/ocp-far-edge-vran-tests/scripts/../inventory/hosts.helix103.*'
+grep: /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/scripts/../inventory/hosts.helix103.*: No such file or directory
+++ echo 5.0.0-rc.3
+++ awk -F - '{ print $1 }'
+++ awk -F . '{ print $1 "." $2 }'
++ MAJOR_VERSION=5.0
+++ oc -n openshift-config get secret pull-secret -o json
+++ jq -r '.data[".dockerconfigjson"]'
+++ base64 -d
+++ jq -r .auths
+++ jq -r '.|keys[]'
+++ grep -E 'registry.*500'
+++ head -n 1
++ REG=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000
++ for suite in ${TEST_SUITES[@]}
++ step '[INFO] Run ptp test suite'
++ local 'st=[INFO] Run ptp test suite'
++ local 'message=[INFO] Run ptp test suite'
++ color_echo 34 '[INFO] Run ptp test suite'
++ local color=34
++ shift
++ local 'message=[INFO] Run ptp test suite'
++ [[ -t 1 ]]
++ echo -e '[INFO] Run ptp test suite'
+[INFO] Run ptp test suite
++ reset_envvars_and_mounts
++ ECO_TEST_LABELS='!no-container'
++ [[ -n '' ]]
++ env_vars=
++ vol_mnt=
++ env_vars+=' -e KUBECONFIG=/kubeconfig/kubeconfig'
++ env_vars+=' -e ECO_TEST_TRACE=true'
++ env_vars+=' -e ECO_TEST_VERBOSE=true'
++ env_vars+=' -e ECO_VERBOSE_LEVEL=100'
++ env_vars+=' -e ECO_VERBOSE_SCRIPT=true'
++ env_vars+=' -e ECO_DUMP_FAILED_TESTS=true'
++ env_vars+=' -e REPORT_CASE_TAG=polarion-testcase-id'
++ env_vars+=' -e REPORT_PARAMETER_TAG=polarion-parameter'
++ env_vars+=' -e ECO_TC_PREFIX=OCP-'
++ vol_mnt+=' -v /home/kni/clusterconfigs/helix103/auth/kubeconfig:/kubeconfig/kubeconfig:Z '
++ vol_mnt+=' -v /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/eco-gotests/reports:/tmp/reports:Z'
++ vol_mnt+=' -v /home/kni/clusterconfigs:/clusterconfigs:Z'
++ [[ -n '' ]]
++ define_envvars_containernshide ptp
++ [[ ptp != containernshide ]]
++ return
++ define_envvars_powermanagement ptp
++ [[ ptp != powermanagement ]]
++ return
++ define_envvars_talm ptp
++ [[ ptp != talm ]]
++ return
++ define_envvars_ztp ptp
++ [[ ptp != ztp ]]
++ return
++ define_envvars_ibu ptp
++ [[ ptp != ibu ]]
++ return
++ define_envvars_oran ptp
++ [[ ptp == oran* ]]
++ return
++ define_envvars_seedgeneration ptp
++ [[ ptp != seedgeneration ]]
++ return
++ define_envvars_deploymenttypes ptp
++ [[ ptp != deploymenttypes ]]
++ return
++ define_envvars_ibipreinstall ptp
++ [[ ptp != ibipreinstall ]]
++ return
++ define_envvars_ptp ptp
++ [[ ptp != ptp ]]
++ env_vars+=' -e ECO_TEST_FEATURES=ptp'
++ local upstream_image_minus_tag=quay.io/redhat-cne/cloud-event-consumer
++ local upstream_v1_tag=4.18
++ local upstream_v2_tag=latest
++ local consumer_image=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/cloud-event-consumer
++ oc image mirror --keep-manifest-list=true quay.io/redhat-cne/cloud-event-consumer:4.18 registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/cloud-event-consumer:v1
+registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/
+  ran-test/cloud-event-consumer
+    manifests:
+      sha256:55a55e12415b4b44e3ca3fe34fd8422e83a250ab0521bd786e69e8cf3cdf29f4
+      sha256:874d2457f185a6dd2b9ab04c2611148789b687132c9557ac5ac94c9be3590904
+      sha256:87dc50d85ca4b81cb94c7a93d1ea3824beaacf46db5d77787143d275a094e2b2 -> v1
+  stats: shared=0 unique=0 size=0B
+
+phase 0:
+  registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000 ran-test/cloud-event-consumer blobs=0 mounts=0 manifests=3 shared=0
+
+info: Planning completed in 680ms
+sha256:55a55e12415b4b44e3ca3fe34fd8422e83a250ab0521bd786e69e8cf3cdf29f4 registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/cloud-event-consumer
+sha256:874d2457f185a6dd2b9ab04c2611148789b687132c9557ac5ac94c9be3590904 registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/cloud-event-consumer
+sha256:87dc50d85ca4b81cb94c7a93d1ea3824beaacf46db5d77787143d275a094e2b2 registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/cloud-event-consumer:v1
+info: Mirroring completed in 100ms (0B/s)
++ oc image mirror --keep-manifest-list=true quay.io/redhat-cne/cloud-event-consumer:latest registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/cloud-event-consumer:v2
+registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/
+  ran-test/cloud-event-consumer
+    manifests:
+      sha256:19a5a9fb7c20971fdb8a9a4c8908da00877820228ceb7cfa411eb846fbb2847e
+      sha256:737f4ea1ee3911b1d52d1baa604208ad91041ceff0c773a71c6a45182eefc723
+      sha256:5765d234d8afdb2ea3a0e38a9e1d741b34f80f67c3ec90cea75664d98a1aeb1b -> v2
+  stats: shared=0 unique=0 size=0B
+
+phase 0:
+  registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000 ran-test/cloud-event-consumer blobs=0 mounts=0 manifests=3 shared=0
+
+info: Planning completed in 670ms
+sha256:19a5a9fb7c20971fdb8a9a4c8908da00877820228ceb7cfa411eb846fbb2847e registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/cloud-event-consumer
+sha256:737f4ea1ee3911b1d52d1baa604208ad91041ceff0c773a71c6a45182eefc723 registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/cloud-event-consumer
+sha256:5765d234d8afdb2ea3a0e38a9e1d741b34f80f67c3ec90cea75664d98a1aeb1b registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/cloud-event-consumer:v2
+info: Mirroring completed in 90ms (0B/s)
+++ echo 5.0
+++ awk -F . '{ print $1 }'
++ local major_version=5
+++ echo 5.0
+++ awk -F . '{ print $2 }'
++ local minor_version=0
++ [[ 5 -lt 4 ]]
++ [[ 5 -eq 4 ]]
++ env_vars+=' -e ECO_CNF_RAN_PTP_EVENT_CONSUMER_IMAGE=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/cloud-event-consumer'
++ env_vars+=' -e ECO_CNF_RAN_PTP_EVENT_CONSUMER_V1_TAG=:v1'
++ env_vars+=' -e ECO_CNF_RAN_PTP_EVENT_CONSUMER_V2_TAG=:v2'
++ echo 'env_vars= -e KUBECONFIG=/kubeconfig/kubeconfig -e ECO_TEST_TRACE=true -e ECO_TEST_VERBOSE=true -e ECO_VERBOSE_LEVEL=100 -e ECO_VERBOSE_SCRIPT=true -e ECO_DUMP_FAILED_TESTS=true -e REPORT_CASE_TAG=polarion-testcase-id -e REPORT_PARAMETER_TAG=polarion-parameter -e ECO_TC_PREFIX=OCP- -e ECO_TEST_FEATURES=ptp -e ECO_CNF_RAN_PTP_EVENT_CONSUMER_IMAGE=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/cloud-event-consumer -e ECO_CNF_RAN_PTP_EVENT_CONSUMER_V1_TAG=:v1 -e ECO_CNF_RAN_PTP_EVENT_CONSUMER_V2_TAG=:v2'
+env_vars= -e KUBECONFIG=/kubeconfig/kubeconfig -e ECO_TEST_TRACE=true -e ECO_TEST_VERBOSE=true -e ECO_VERBOSE_LEVEL=100 -e ECO_VERBOSE_SCRIPT=true -e ECO_DUMP_FAILED_TESTS=true -e REPORT_CASE_TAG=polarion-testcase-id -e REPORT_PARAMETER_TAG=polarion-parameter -e ECO_TC_PREFIX=OCP- -e ECO_TEST_FEATURES=ptp -e ECO_CNF_RAN_PTP_EVENT_CONSUMER_IMAGE=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/cloud-event-consumer -e ECO_CNF_RAN_PTP_EVENT_CONSUMER_V1_TAG=:v1 -e ECO_CNF_RAN_PTP_EVENT_CONSUMER_V2_TAG=:v2
++ echo 'vol_mnt= -v /home/kni/clusterconfigs/helix103/auth/kubeconfig:/kubeconfig/kubeconfig:Z  -v /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/eco-gotests/reports:/tmp/reports:Z -v /home/kni/clusterconfigs:/clusterconfigs:Z'
+vol_mnt= -v /home/kni/clusterconfigs/helix103/auth/kubeconfig:/kubeconfig/kubeconfig:Z  -v /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/eco-gotests/reports:/tmp/reports:Z -v /home/kni/clusterconfigs:/clusterconfigs:Z
++ TEST_LOG=/var/lib/jenkins/workspace/ocp-far-edge-vran-tests/artifacts/ecogotests_reports/ptp_helix103.xml
++ TEST_LOG_TMP=/var/lib/jenkins/workspace/ocp-far-edge-vran-tests/eco-gotests/reports/ptp_suite_test_junit.xml
+++ podman info --format '{{ range .Host.IDMappings.UIDMap }}+{{.Size }}{{end }}'
++ subuidSize=65536
+++ podman info --format '{{ range .Host.IDMappings.GIDMap }}+{{.Size }}{{end }}'
++ subgidSize=65536
+++ podman pull quay.io/ocp-edge-qe/eco-gotests:latest
+Trying to pull quay.io/ocp-edge-qe/eco-gotests:latest...
+Getting image source signatures
+Copying blob sha256:dc6a5db61d4158c935296f0a94df447461c5b960a048b5d0d56d3daedfa7b77a
+Copying blob sha256:3f751024641956e1a023432f954b6767208fd28073242ae42030f1c019e3168b
+Copying blob sha256:e4165b4c7557ca7d3cf7f686cee78e8808814789ea8e3ac182745292b95bd598
+Copying blob sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1
+Copying blob sha256:3c2656b653d9d2edda649bbf31b531ed53c776c9f1c5b2f3675df25fe2d56d20
+Copying blob sha256:6631dbe7c130fe6b3a93eb0e3baae0841cf79297ae722455fd0fea47fd450fd1
+Copying config sha256:1233ffb4242a0a9751787dc930934b8ee96934ba6ffcfb0470e75d6a63644f3a
+Writing manifest to image destination
+Storing signatures
++ pulled_image=1233ffb4242a0a9751787dc930934b8ee96934ba6ffcfb0470e75d6a63644f3a
++ override_eco_gotests 1233ffb4242a0a9751787dc930934b8ee96934ba6ffcfb0470e75d6a63644f3a
+++ podman inspect 1233ffb4242a0a9751787dc930934b8ee96934ba6ffcfb0470e75d6a63644f3a
+++ jq -r '.[].Config.WorkingDir'
+++ xargs
++ working_dir=/home/testuser
+++ podman inspect 1233ffb4242a0a9751787dc930934b8ee96934ba6ffcfb0470e75d6a63644f3a
+++ jq -r '.[].Config.Entrypoint[0]'
+++ xargs
++ entry_point=scripts/test-runner.sh
++ cat
++ chmod +x /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/eco-gotests/entry_point.sh
++ [[ -n https://github.com/Bonnie-Block/eco-gotests.git ]]
++ sed -i -e '1acp -r /eco-gotests/* /home/testuser/' /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/eco-gotests/entry_point.sh
++ vol_mnt+=' -v /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/eco-gotests:/eco-gotests:Z --entrypoint /eco-gotests/entry_point.sh'
++ echo 'podman run -it --rm --net=host         --uidmap 0:1:1000 --uidmap 1000:0:1 --uidmap 1001:1001:64536         --gidmap 0:1:1000 --gidmap 1000:0:1 --gidmap 1001:1001:64536         --pids-limit -1          -e KUBECONFIG=/kubeconfig/kubeconfig -e ECO_TEST_TRACE=true -e ECO_TEST_VERBOSE=true -e ECO_VERBOSE_LEVEL=100 -e ECO_VERBOSE_SCRIPT=true -e ECO_DUMP_FAILED_TESTS=true -e REPORT_CASE_TAG=polarion-testcase-id -e REPORT_PARAMETER_TAG=polarion-parameter -e ECO_TC_PREFIX=OCP- -e ECO_TEST_FEATURES=ptp -e ECO_CNF_RAN_PTP_EVENT_CONSUMER_IMAGE=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/cloud-event-consumer -e ECO_CNF_RAN_PTP_EVENT_CONSUMER_V1_TAG=:v1 -e ECO_CNF_RAN_PTP_EVENT_CONSUMER_V2_TAG=:v2 -e ECO_TEST_LABELS="!no-container"  -v /home/kni/clusterconfigs/helix103/auth/kubeconfig:/kubeconfig/kubeconfig:Z  -v /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/eco-gotests/reports:/tmp/reports:Z -v /home/kni/clusterconfigs:/clusterconfigs:Z -v /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/eco-gotests:/eco-gotests:Z --entrypoint /eco-gotests/entry_point.sh 1233ffb4242a0a9751787dc930934b8ee96934ba6ffcfb0470e75d6a63644f3a'
+podman run -it --rm --net=host         --uidmap 0:1:1000 --uidmap 1000:0:1 --uidmap 1001:1001:64536         --gidmap 0:1:1000 --gidmap 1000:0:1 --gidmap 1001:1001:64536         --pids-limit -1          -e KUBECONFIG=/kubeconfig/kubeconfig -e ECO_TEST_TRACE=true -e ECO_TEST_VERBOSE=true -e ECO_VERBOSE_LEVEL=100 -e ECO_VERBOSE_SCRIPT=true -e ECO_DUMP_FAILED_TESTS=true -e REPORT_CASE_TAG=polarion-testcase-id -e REPORT_PARAMETER_TAG=polarion-parameter -e ECO_TC_PREFIX=OCP- -e ECO_TEST_FEATURES=ptp -e ECO_CNF_RAN_PTP_EVENT_CONSUMER_IMAGE=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/cloud-event-consumer -e ECO_CNF_RAN_PTP_EVENT_CONSUMER_V1_TAG=:v1 -e ECO_CNF_RAN_PTP_EVENT_CONSUMER_V2_TAG=:v2 -e ECO_TEST_LABELS="!no-container"  -v /home/kni/clusterconfigs/helix103/auth/kubeconfig:/kubeconfig/kubeconfig:Z  -v /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/eco-gotests/reports:/tmp/reports:Z -v /home/kni/clusterconfigs:/clusterconfigs:Z -v /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/eco-gotests:/eco-gotests:Z --entrypoint /eco-gotests/entry_point.sh 1233ffb4242a0a9751787dc930934b8ee96934ba6ffcfb0470e75d6a63644f3a
++ podman run -it --rm --net=host --uidmap 0:1:1000 --uidmap 1000:0:1 --uidmap 1001:1001:64536 --gidmap 0:1:1000 --gidmap 1000:0:1 --gidmap 1001:1001:64536 --pids-limit -1 -e KUBECONFIG=/kubeconfig/kubeconfig -e ECO_TEST_TRACE=true -e ECO_TEST_VERBOSE=true -e ECO_VERBOSE_LEVEL=100 -e ECO_VERBOSE_SCRIPT=true -e ECO_DUMP_FAILED_TESTS=true -e REPORT_CASE_TAG=polarion-testcase-id -e REPORT_PARAMETER_TAG=polarion-parameter -e ECO_TC_PREFIX=OCP- -e ECO_TEST_FEATURES=ptp -e ECO_CNF_RAN_PTP_EVENT_CONSUMER_IMAGE=registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/cloud-event-consumer -e ECO_CNF_RAN_PTP_EVENT_CONSUMER_V1_TAG=:v1 -e ECO_CNF_RAN_PTP_EVENT_CONSUMER_V2_TAG=:v2 -e 'ECO_TEST_LABELS=!no-container' -v /home/kni/clusterconfigs/helix103/auth/kubeconfig:/kubeconfig/kubeconfig:Z -v /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/eco-gotests/reports:/tmp/reports:Z -v /home/kni/clusterconfigs:/clusterconfigs:Z -v /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/eco-gotests:/eco-gotests:Z --entrypoint /eco-gotests/entry_point.sh 1233ffb4242a0a9751787dc930934b8ee96934ba6ffcfb0470e75d6a63644f3a
+time="2026-09-25T11:29:12Z" level=warning msg="The input device is not a TTY. The --tty and --interactive flags might not work properly"
+Found feature directories:
+./tests/cnf/ran/ptp
+ginkgo --seed=1 -timeout=24h --keep-going --require-suite -r -vv --trace --label-filter="!no-container" ./tests/cnf/ran/ptp
+Failed to compile ptp:
+
+# github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranconfig
+../internal/ranconfig/ptpmustgather.go:22:15: ranconfig.PTPMustGatherImage undefined (type *RANConfig has no field or method PTPMustGatherImage, but does have field PtpMustGatherImage)
+../internal/ranconfig/ptpmustgather.go:23:20: ranconfig.PTPMustGatherImage undefined (type *RANConfig has no field or method PTPMustGatherImage, but does have field PtpMustGatherImage)
+
+Failed to compile consumer:
+
+# github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranconfig
+../../../internal/ranconfig/ptpmustgather.go:22:15: ranconfig.PTPMustGatherImage undefined (type *RANConfig has no field or method PTPMustGatherImage, but does have field PtpMustGatherImage)
+../../../internal/ranconfig/ptpmustgather.go:23:20: ranconfig.PTPMustGatherImage undefined (type *RANConfig has no field or method PTPMustGatherImage, but does have field PtpMustGatherImage)
+FAIL	github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/consumer [build failed]
+FAIL
+
+Skipping ./tests/cnf/ran/ptp/internal/iface (no test files)
+Skipping ./tests/cnf/ran/ptp/internal/profiles (no test files)
+=== RUN   TestTryParseEntryDelayLines
+=== PAUSE TestTryParseEntryDelayLines
+=== RUN   TestTryParseSummaryEntry
+=== PAUSE TestTryParseSummaryEntry
+=== RUN   TestNormalizeLinuxptpLine
+=== PAUSE TestNormalizeLinuxptpLine
+=== RUN   TestAnalyzeFromFileLogReductionSummaries
+=== PAUSE TestAnalyzeFromFileLogReductionSummaries
+=== CONT  TestTryParseEntryDelayLines
+=== CONT  TestNormalizeLinuxptpLine
+=== CONT  TestAnalyzeFromFileLogReductionSummaries
+--- PASS: TestTryParseEntryDelayLines (0.00s)
+--- PASS: TestNormalizeLinuxptpLine (0.00s)
+=== CONT  TestTryParseSummaryEntry
+--- PASS: TestTryParseSummaryEntry (0.00s)
+--- PASS: TestAnalyzeFromFileLogReductionSummaries (0.00s)
+PASS
+
+Ginkgo ran 5 suites in 1m12.317227038s
+
+There were failures detected in the following suites:
+  [38;5;9m     ptp [38;5;243m./tests/cnf/ran/ptp [38;5;13m[Compilation failure][0m
+  [38;5;9mconsumer [38;5;243m./tests/cnf/ran/ptp/internal/consumer [38;5;13m[Compilation failure][0m
+
+Test Suite Failed
+++ echo 1
++ tmp=1
++ [[ 1 -ne 0 ]]
++ echo 'ERROR: ptp suite failed'
+ERROR: ptp suite failed
++ rc=1
++ cp /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/eco-gotests/reports/ptp_suite_test_junit.xml /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/artifacts/ecogotests_reports/ptp_helix103.xml
+cp: cannot stat '/var/lib/jenkins/workspace/ocp-far-edge-vran-tests/eco-gotests/reports/ptp_suite_test_junit.xml': No such file or directory
++ move_log_if_oran ptp
++ [[ ptp == oran* ]]
++ return
++ [[ ptp == ibipreinstall ]]
++ sleep 30
++ step ' [INFO] Zipping failed test suite reports in /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/eco-gotests/reports'
++ local 'st= [INFO] Zipping failed test suite reports in /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/eco-gotests/reports'
++ local 'message= [INFO] Zipping failed test suite reports in /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/eco-gotests/reports'
++ color_echo 34 ' [INFO] Zipping failed test suite reports in /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/eco-gotests/reports'
++ local color=34
++ shift
++ local 'message= [INFO] Zipping failed test suite reports in /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/eco-gotests/reports'
++ [[ -t 1 ]]
++ echo -e ' [INFO] Zipping failed test suite reports in /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/eco-gotests/reports'
+ [INFO] Zipping failed test suite reports in /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/eco-gotests/reports
++ pushd /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/eco-gotests/reports
+/var/lib/jenkins/workspace/ocp-far-edge-vran-tests/eco-gotests/reports /var/lib/jenkins/workspace/ocp-far-edge-vran-tests
++ find . -mindepth 1 -maxdepth 1 -type d -exec zip -r '{}' '{}' ';'
++ popd
+/var/lib/jenkins/workspace/ocp-far-edge-vran-tests
++ do_script_exit 1
++ local rc script_end_time delta
++ rc=1
+++ date +%s
++ script_end_time=1790335860
++ delta=132
++ [[ -n https://pushgateway.ran-metrics.telco5g.corp.redhat.com/metrics/job/pipeline1/ ]]
++ msg 'Script took 132 seconds'
++ local 'st=Script took 132 seconds'
++ local 'message=Script took 132 seconds'
++ color_echo 36 'Script took 132 seconds'
++ local color=36
++ shift
++ local 'message=Script took 132 seconds'
++ [[ -t 1 ]]
++ echo -e 'Script took 132 seconds'
+Script took 132 seconds
++ set_ran_metrics_global_tags 1
++ local rc=1
++ [[ -z /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/ran-extra-vars_helix103 ]]
++ [[ -f /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/ran-extra-vars_helix103 ]]
++ source /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/ran-extra-vars_helix103
+++ export RAN_METRICS_CLUSTER=helix103
+++ RAN_METRICS_CLUSTER=helix103
+++ export RAN_METRICS_SW_VERSION=5.0.0-rc.3
+++ RAN_METRICS_SW_VERSION=5.0.0-rc.3
+++ export 'RAN_METRICS_CPU_TYPE=INTEL(R) XEON(R) 6716P-B'
+++ RAN_METRICS_CPU_TYPE='INTEL(R) XEON(R) 6716P-B'
+++ export RAN_METRICS_HYPERTHREAD=2
+++ RAN_METRICS_HYPERTHREAD=2
+++ export RAN_METRICS_KERNEL_VERSION=6.12.0-211.54.1.el10_2.x86_64+rt
+++ RAN_METRICS_KERNEL_VERSION=6.12.0-211.54.1.el10_2.x86_64+rt
+++ export RAN_METRICS_KERNEL_REALTIME=true
+++ RAN_METRICS_KERNEL_REALTIME=true
+++ export RAN_METRICS_POWER_MODE=performance
+++ RAN_METRICS_POWER_MODE=performance
+++ export 'RAN_GLOBAL_TAGS=pipeline="ci", rc="0", cluster="helix103", cpu_type="INTEL(R) XEON(R) 6716P-B", formal_test="false", hyperthread="2", kernel_realtime="true", kernel_version="6.12.0-211.54.1.el10_2.x86_64+rt", power_mode="performance", sw_version="5.0.0-rc.3"'
+++ RAN_GLOBAL_TAGS='pipeline="ci", rc="0", cluster="helix103", cpu_type="INTEL(R) XEON(R) 6716P-B", formal_test="false", hyperthread="2", kernel_realtime="true", kernel_version="6.12.0-211.54.1.el10_2.x86_64+rt", power_mode="performance", sw_version="5.0.0-rc.3"'
++ [[ -z 5.0.0-rc.3 ]]
++ local 'tags=pipeline=\"ci\", rc=\"1\"'
++ local field
+++ compgen -e RAN_METRICS
++ for field in $(compgen -e RAN_METRICS)
++ [[ RAN_METRICS_CLUSTER == \R\A\N\_\M\E\T\R\I\C\S\_\U\R\L ]]
++ local name=CLUSTER
++ tags='pipeline=\"ci\", rc=\"1\", cluster=\"helix103\"'
++ for field in $(compgen -e RAN_METRICS)
++ [[ RAN_METRICS_CPU_TYPE == \R\A\N\_\M\E\T\R\I\C\S\_\U\R\L ]]
++ local name=CPU_TYPE
++ tags='pipeline=\"ci\", rc=\"1\", cluster=\"helix103\", cpu_type=\"INTEL(R) XEON(R) 6716P-B\"'
++ for field in $(compgen -e RAN_METRICS)
++ [[ RAN_METRICS_FORMAL_TEST == \R\A\N\_\M\E\T\R\I\C\S\_\U\R\L ]]
++ local name=FORMAL_TEST
++ tags='pipeline=\"ci\", rc=\"1\", cluster=\"helix103\", cpu_type=\"INTEL(R) XEON(R) 6716P-B\", formal_test=\"false\"'
++ for field in $(compgen -e RAN_METRICS)
++ [[ RAN_METRICS_HYPERTHREAD == \R\A\N\_\M\E\T\R\I\C\S\_\U\R\L ]]
++ local name=HYPERTHREAD
++ tags='pipeline=\"ci\", rc=\"1\", cluster=\"helix103\", cpu_type=\"INTEL(R) XEON(R) 6716P-B\", formal_test=\"false\", hyperthread=\"2\"'
++ for field in $(compgen -e RAN_METRICS)
++ [[ RAN_METRICS_KERNEL_REALTIME == \R\A\N\_\M\E\T\R\I\C\S\_\U\R\L ]]
++ local name=KERNEL_REALTIME
++ tags='pipeline=\"ci\", rc=\"1\", cluster=\"helix103\", cpu_type=\"INTEL(R) XEON(R) 6716P-B\", formal_test=\"false\", hyperthread=\"2\", kernel_realtime=\"true\"'
++ for field in $(compgen -e RAN_METRICS)
++ [[ RAN_METRICS_KERNEL_VERSION == \R\A\N\_\M\E\T\R\I\C\S\_\U\R\L ]]
++ local name=KERNEL_VERSION
++ tags='pipeline=\"ci\", rc=\"1\", cluster=\"helix103\", cpu_type=\"INTEL(R) XEON(R) 6716P-B\", formal_test=\"false\", hyperthread=\"2\", kernel_realtime=\"true\", kernel_version=\"6.12.0-211.54.1.el10_2.x86_64+rt\"'
++ for field in $(compgen -e RAN_METRICS)
++ [[ RAN_METRICS_POWER_MODE == \R\A\N\_\M\E\T\R\I\C\S\_\U\R\L ]]
++ local name=POWER_MODE
++ tags='pipeline=\"ci\", rc=\"1\", cluster=\"helix103\", cpu_type=\"INTEL(R) XEON(R) 6716P-B\", formal_test=\"false\", hyperthread=\"2\", kernel_realtime=\"true\", kernel_version=\"6.12.0-211.54.1.el10_2.x86_64+rt\", power_mode=\"performance\"'
++ for field in $(compgen -e RAN_METRICS)
++ [[ RAN_METRICS_SW_VERSION == \R\A\N\_\M\E\T\R\I\C\S\_\U\R\L ]]
++ local name=SW_VERSION
++ tags='pipeline=\"ci\", rc=\"1\", cluster=\"helix103\", cpu_type=\"INTEL(R) XEON(R) 6716P-B\", formal_test=\"false\", hyperthread=\"2\", kernel_realtime=\"true\", kernel_version=\"6.12.0-211.54.1.el10_2.x86_64+rt\", power_mode=\"performance\", sw_version=\"5.0.0-rc.3\"'
++ for field in $(compgen -e RAN_METRICS)
++ [[ RAN_METRICS_URL == \R\A\N\_\M\E\T\R\I\C\S\_\U\R\L ]]
++ continue
++ sed /RAN_GLOBAL_TAGS/d /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/ran-extra-vars_helix103
+export RAN_METRICS_CLUSTER="helix103"
+export RAN_METRICS_SW_VERSION="5.0.0-rc.3"
+export RAN_METRICS_CPU_TYPE="INTEL(R) XEON(R) 6716P-B"
+export RAN_METRICS_HYPERTHREAD="2"
+export RAN_METRICS_KERNEL_VERSION="6.12.0-211.54.1.el10_2.x86_64+rt"
+export RAN_METRICS_KERNEL_REALTIME="true"
+export RAN_METRICS_POWER_MODE="performance"
++ echo 'export RAN_GLOBAL_TAGS="pipeline=\"ci\", rc=\"1\", cluster=\"helix103\", cpu_type=\"INTEL(R) XEON(R) 6716P-B\", formal_test=\"false\", hyperthread=\"2\", kernel_realtime=\"true\", kernel_version=\"6.12.0-211.54.1.el10_2.x86_64+rt\", power_mode=\"performance\", sw_version=\"5.0.0-rc.3\""'
++ local 'tags=pipeline="ci", rc="0", cluster="helix103", cpu_type="INTEL(R) XEON(R) 6716P-B", formal_test="false", hyperthread="2", kernel_realtime="true", kernel_version="6.12.0-211.54.1.el10_2.x86_64+rt", power_mode="performance", sw_version="5.0.0-rc.3", pipeline_stage="test_ecogotests"'
++ echo 'Posting time: 132, tags pipeline="ci", rc="0", cluster="helix103", cpu_type="INTEL(R) XEON(R) 6716P-B", formal_test="false", hyperthread="2", kernel_realtime="true", kernel_version="6.12.0-211.54.1.el10_2.x86_64+rt", power_mode="performance", sw_version="5.0.0-rc.3", pipeline_stage="test_ecogotests"'
+Posting time: 132, tags pipeline="ci", rc="0", cluster="helix103", cpu_type="INTEL(R) XEON(R) 6716P-B", formal_test="false", hyperthread="2", kernel_realtime="true", kernel_version="6.12.0-211.54.1.el10_2.x86_64+rt", power_mode="performance", sw_version="5.0.0-rc.3", pipeline_stage="test_ecogotests"
++ echo -e 'ranmetrics_stage_duration_seconds{pipeline="ci", rc="0", cluster="helix103", cpu_type="INTEL(R) XEON(R) 6716P-B", formal_test="false", hyperthread="2", kernel_realtime="true", kernel_version="6.12.0-211.54.1.el10_2.x86_64+rt", power_mode="performance", sw_version="5.0.0-rc.3", pipeline_stage="test_ecogotests"} 132\n'
++ curl -k --data-binary @- https://pushgateway.ran-metrics.telco5g.corp.redhat.com/metrics/job/pipeline1/
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100   317    0     0  100   317      0    715 --:--:-- --:--:-- --:--:--   715
++ curl -k --data-binary @- https://pushgateway.ran-metrics.telco5g.corp.redhat.com/metrics/job/pipeline1/
++ echo -e 'ranmetrics_stage_test_ecogotests_duration_seconds{pipeline="ci", rc="0", cluster="helix103", cpu_type="INTEL(R) XEON(R) 6716P-B", formal_test="false", hyperthread="2", kernel_realtime="true", kernel_version="6.12.0-211.54.1.el10_2.x86_64+rt", power_mode="performance", sw_version="5.0.0-rc.3", pipeline_stage="test_ecogotests"} 132\n'
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100   333    0     0  100   333      0   2413 --:--:-- --:--:-- --:--:--  2413
++ sleep 20
++ rm -fv /var/lib/jenkins/workspace/ocp-far-edge-vran-tests/ran-extra-vars_helix103
+removed '/var/lib/jenkins/workspace/ocp-far-edge-vran-tests/ran-extra-vars_helix103'
++ exit 1
+[Pipeline] }
+ERROR: script returned exit code 1
+Setting overall build result to UNSTABLE
+[Pipeline] // catchError
+[Pipeline] archiveArtifacts
+Archiving artifacts
+‘eco-gotests/reports/*.xml’ doesn’t match anything: ‘eco-gotests’ exists but not ‘eco-gotests/reports/*.xml’
+No artifacts found that match the file pattern "eco-gotests/reports/*.xml, eco-gotests/reports/*.zip". Configuration error?
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // withCredentials
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (RAN functional test)
+Stage "RAN functional test" skipped due to when conditional
+[Pipeline] getContext
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Run upstream ptp e2e tests in discovery mode)
+Stage "Run upstream ptp e2e tests in discovery mode" skipped due to when conditional
+[Pipeline] getContext
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Declarative: Post Actions)
+[Pipeline] script
+[Pipeline] {
+[Pipeline] catchError
+[Pipeline] {
+[Pipeline] sh
++ echo 'archiving build url'
+archiving build url
++ echo https://jenkins-csb-kniqe-ci.dno.corp.redhat.com/job/ocp-far-edge-vran-tests/7733/
+[Pipeline] archiveArtifacts
+Archiving artifacts
+[Pipeline] }
+[Pipeline] // catchError
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] }
+
+[Pipeline] // ansiColor
+[Pipeline] }
+Lock released on resource [Label: registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com, Quantity: 1]
+[Pipeline] // lock
+[Pipeline] }
+[Pipeline] // withEnv
+[Pipeline] }
+[Pipeline] // withEnv
+[Pipeline] }
+[Pipeline] // node
+[Pipeline] End of Pipeline
+Finished: UNSTABLE

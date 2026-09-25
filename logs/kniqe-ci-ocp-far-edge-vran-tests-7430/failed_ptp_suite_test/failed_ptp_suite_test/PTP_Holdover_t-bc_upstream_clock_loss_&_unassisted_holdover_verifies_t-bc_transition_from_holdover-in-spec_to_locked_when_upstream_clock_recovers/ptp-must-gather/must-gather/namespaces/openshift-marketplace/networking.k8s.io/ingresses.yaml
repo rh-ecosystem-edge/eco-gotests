@@ -1,0 +1,6 @@
+---
+apiVersion: networking.k8s.io/v1
+items: []
+kind: IngressList
+metadata:
+  resourceVersion: "457810"

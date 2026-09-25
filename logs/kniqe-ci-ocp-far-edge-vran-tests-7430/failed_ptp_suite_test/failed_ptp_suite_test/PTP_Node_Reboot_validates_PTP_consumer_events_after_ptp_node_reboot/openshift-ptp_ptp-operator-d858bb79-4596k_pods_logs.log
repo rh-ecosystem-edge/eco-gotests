@@ -1,0 +1,618 @@
+-----------------------------------
+Dumping logs for pod openshift-ptp-ptp-operator-d858bb79-4596k-ptp-operator
+I0903 01:12:43.550896       1 leaderelection.go:272] "Successfully acquired lease" lock="openshift-ptp/ptp.openshift.io"
+2026-09-03T01:12:43Z	DEBUG	events	ptp-operator-d858bb79-4596k_bb496f51-c8fd-4860-9016-224adb004dd8 became leader	{"type": "Normal", "object": {"kind":"Lease","namespace":"openshift-ptp","name":"ptp.openshift.io","uid":"5c3e5c7f-844f-4dda-bafe-9d7de1da933f","apiVersion":"coordination.k8s.io/v1","resourceVersion":"474764"}, "reason": "LeaderElection"}
+2026-09-03T01:12:43Z	INFO	Starting EventSource	{"controller": "ptpoperatorconfig", "controllerGroup": "ptp.openshift.io", "controllerKind": "PtpOperatorConfig", "source": "kind source: *v1.DaemonSet"}
+2026-09-03T01:12:43Z	INFO	Starting EventSource	{"controller": "hardwareconfig", "controllerGroup": "ptp.openshift.io", "controllerKind": "HardwareConfig", "source": "kind source: *v1.PtpConfig"}
+2026-09-03T01:12:43Z	INFO	Starting EventSource	{"controller": "ptpconfig", "controllerGroup": "ptp.openshift.io", "controllerKind": "PtpConfig", "source": "kind source: *v1.Secret"}
+2026-09-03T01:12:43Z	INFO	Starting EventSource	{"controller": "hardwareconfig", "controllerGroup": "ptp.openshift.io", "controllerKind": "HardwareConfig", "source": "kind source: *v2alpha1.HardwareConfig"}
+2026-09-03T01:12:43Z	INFO	Starting EventSource	{"controller": "ptpoperatorconfig", "controllerGroup": "ptp.openshift.io", "controllerKind": "PtpOperatorConfig", "source": "kind source: *v1.PtpOperatorConfig"}
+2026-09-03T01:12:43Z	INFO	Starting EventSource	{"controller": "ptpconfig", "controllerGroup": "ptp.openshift.io", "controllerKind": "PtpConfig", "source": "kind source: *v1.PtpConfig"}
+2026-09-03T01:12:43Z	INFO	Starting EventSource	{"controller": "tlssecurityprofilewatcher", "source": "kind source: *v1.APIServer"}
+2026-09-03T01:12:43Z	INFO	controllers.HardwareConfig	PTP config changed, triggering HardwareConfig reconciliation	{"eventType": "create"}
+2026-09-03T01:12:43Z	INFO	Starting Controller	{"controller": "ptpoperatorconfig", "controllerGroup": "ptp.openshift.io", "controllerKind": "PtpOperatorConfig"}
+2026-09-03T01:12:43Z	INFO	Starting workers	{"controller": "ptpoperatorconfig", "controllerGroup": "ptp.openshift.io", "controllerKind": "PtpOperatorConfig", "worker count": 1}
+2026-09-03T01:12:43Z	INFO	controllers.HardwareConfig	Enqueued HardwareConfig reconciliation requests	{"count": 1, "eventType": "create"}
+2026-09-03T01:12:43Z	INFO	controllers.HardwareConfig	PTP config changed, triggering HardwareConfig reconciliation	{"eventType": "create"}
+2026-09-03T01:12:43Z	INFO	controllers.HardwareConfig	Enqueued HardwareConfig reconciliation requests	{"count": 1, "eventType": "create"}
+I0903 01:12:43.655309       1 ptpconfig_controller.go:284] Secret created: webhook-server-cert
+I0903 01:12:43.656271       1 ptpconfig_controller.go:352] Secret 'webhook-server-cert' not referenced by any PtpConfig, skipping reconciliation
+I0903 01:12:43.656301       1 ptpconfig_controller.go:284] Secret created: linuxptp-daemon-secret
+I0903 01:12:43.656385       1 ptpconfig_controller.go:352] Secret 'linuxptp-daemon-secret' not referenced by any PtpConfig, skipping reconciliation
+I0903 01:12:43.656402       1 ptpconfig_controller.go:284] Secret created: ptp-operator-service-cert
+I0903 01:12:43.656493       1 ptpconfig_controller.go:352] Secret 'ptp-operator-service-cert' not referenced by any PtpConfig, skipping reconciliation
+2026-09-03T01:12:43Z	INFO	controllers.PtpOperatorConfig	Reconciling PtpOperatorConfig	{"Request.Namespace": "openshift-ptp", "Request.Name": "default"}
+2026-09-03T01:12:43Z	INFO	Starting Controller	{"controller": "hardwareconfig", "controllerGroup": "ptp.openshift.io", "controllerKind": "HardwareConfig"}
+2026-09-03T01:12:43Z	INFO	Starting workers	{"controller": "hardwareconfig", "controllerGroup": "ptp.openshift.io", "controllerKind": "HardwareConfig", "worker count": 1}
+2026-09-03T01:12:43Z	INFO	Starting Controller	{"controller": "ptpconfig", "controllerGroup": "ptp.openshift.io", "controllerKind": "PtpConfig"}
+2026-09-03T01:12:43Z	INFO	Starting workers	{"controller": "ptpconfig", "controllerGroup": "ptp.openshift.io", "controllerKind": "PtpConfig", "worker count": 1}
+2026-09-03T01:12:43Z	INFO	controllers.HardwareConfig	Reconciling HardwareConfig	{"Request.Namespace": "openshift-ptp", "Request.Name": "bc-gnrd-three-card"}
+2026-09-03T01:12:43Z	INFO	controllers.PtpConfig	Reconciling PtpConfig	{"Request.Namespace": "openshift-ptp", "Request.Name": "gnrd-bc-tr"}
+2026-09-03T01:12:43Z	INFO	controllers.HardwareConfig	Found matching node	{"HardwareConfig": "bc-gnrd-three-card", "node": "helix103.telcoqe.eng.rdu2.dc.redhat.com", "ptpProfile": "01-bc-tr"}
+I0903 01:12:43.755929       1 recommend.go:110] ptp profiles to be updated for node: helix103.telcoqe.eng.rdu2.dc.redhat.com
+I0903 01:12:43.755942       1 recommend.go:112] ------------------------------------
+I0903 01:12:43.755947       1 recommend.go:115] PtpConfig CR: gnrd-bc-tr, Profile: 01-bc-tr
+I0903 01:12:43.755951       1 recommend.go:90] Ptp4lOpts: -2 --summary_interval -4
+I0903 01:12:43.755961       1 recommend.go:90] Phc2sysOpts: -r -n 24 -N 8 -R 16 -u 0 -m -w -s eno8403
+I0903 01:12:43.755963       1 recommend.go:90] Ptp4lConf: # The interface name is hardware-specific
+[eno8403]
+masterOnly 0
+[global]
+#
+# Default Data Set
+#
+twoStepFlag 1
+slaveOnly 0
+priority1 128
+priority2 128
+domainNumber 24
+#utc_offset 37
+clockClass 248
+clockAccuracy 0xFE
+offsetScaledLogVariance 0xFFFF
+free_running 0
+freq_est_interval 1
+dscp_event 0
+dscp_general 0
+dataset_comparison G.8275.x
+G.8275.defaultDS.localPriority 128
+#
+# Port Data Set
+#
+logAnnounceInterval -3
+logSyncInterval -4
+logMinDelayReqInterval -4
+logMinPdelayReqInterval -4
+announceReceiptTimeout 3
+syncReceiptTimeout 0
+delayAsymmetry 0
+fault_reset_interval -4
+neighborPropDelayThresh 20000000
+masterOnly 0
+G.8275.portDS.localPriority 128
+#
+# Run time options
+#
+assume_two_step 0
+logging_level 6
+path_trace_enabled 0
+follow_up_info 0
+hybrid_e2e 0
+inhibit_multicast_service 0
+net_sync_monitor 0
+tc_spanning_tree 0
+tx_timestamp_timeout 50
+unicast_listen 0
+unicast_master_table 0
+unicast_req_duration 3600
+use_syslog 1
+verbose 0
+summary_interval 0
+kernel_leap 1
+check_fup_sync 0
+clock_class_threshold 135
+#
+# Servo Options
+#
+
+# NGEN TEST MODIFIED
+# New:
+# pi_proportional_const 0.60
+# pi_integral_const 0.0003
+# Old:
+# pi_proportional_const 0.0
+# pi_integral_const 0.0
+# END TEST MOD
+
+pi_proportional_const 0.60
+pi_integral_const 0.001
+pi_proportional_scale 0.0
+pi_proportional_exponent -0.3
+pi_proportional_norm_max 0.7
+pi_integral_scale 0.0
+pi_integral_exponent 0.4
+pi_integral_norm_max 0.3
+step_threshold 2.0
+# end T-BC experiment
+first_step_threshold 0.00002
+max_frequency 900000000
+clock_servo pi
+sanity_freq_limit 200000000
+ntpshm_segment 0
+#
+# Transport options
+#
+transportSpecific 0x0
+ptp_dst_mac 01:1B:19:00:00:00
+p2p_dst_mac 01:80:C2:00:00:0E
+udp_ttl 1
+udp6_scope 0x0E
+uds_address /var/run/ptp4l
+#
+# Default interface options
+#
+clock_type OC
+network_transport L2
+delay_mechanism E2E
+time_stamping hardware
+tsproc_mode filter
+delay_filter moving_median
+delay_filter_length 10
+egressLatency 0
+ingressLatency 0
+boundary_clock_jbod 1
+#
+# Clock description
+#
+productDescription ;;
+revisionData ;;
+manufacturerIdentity 00:00:00
+userDescription ;
+timeSource 0xA0
+I0903 01:12:43.755967       1 recommend.go:90] PtpSchedulingPolicy: SCHED_FIFO
+I0903 01:12:43.755970       1 recommend.go:94] PtpSchedulingPriority: 10
+I0903 01:12:43.755972       1 recommend.go:126] ------------------------------------
+I0903 01:12:43.755975       1 recommend.go:112] ------------------------------------
+I0903 01:12:43.755978       1 recommend.go:115] PtpConfig CR: gnrd-bc-tt, Profile: 00-bc-tt
+I0903 01:12:43.755981       1 recommend.go:90] Ptp4lOpts: -2 --summary_interval -4
+I0903 01:12:43.755984       1 recommend.go:90] Ptp4lConf: [eno8503]
+masterOnly 1
+[eno8703]
+masterOnly 1
+[enp110s0f1]
+masterOnly 1
+[enp108s0f0]
+masterOnly 1
+[enp108s0f1]
+masterOnly 1
+[global]
+#
+# Default Data Set
+#
+twoStepFlag 1
+slaveOnly 0
+priority1 128
+priority2 128
+domainNumber 24
+#utc_offset 37
+clockClass 248
+clockAccuracy 0xFE
+offsetScaledLogVariance 0xFFFF
+free_running 0
+freq_est_interval 1
+dscp_event 0
+dscp_general 0
+dataset_comparison G.8275.x
+G.8275.defaultDS.localPriority 128
+#
+# Port Data Set
+#
+logAnnounceInterval -3
+logSyncInterval -4
+logMinDelayReqInterval -4
+logMinPdelayReqInterval -4
+announceReceiptTimeout 3
+syncReceiptTimeout 0
+delayAsymmetry 0
+fault_reset_interval -4
+neighborPropDelayThresh 20000000
+masterOnly 0
+G.8275.portDS.localPriority 128
+#
+# Run time options
+#
+assume_two_step 0
+logging_level 6
+path_trace_enabled 0
+follow_up_info 0
+hybrid_e2e 0
+inhibit_multicast_service 0
+net_sync_monitor 0
+tc_spanning_tree 0
+tx_timestamp_timeout 50
+unicast_listen 0
+unicast_master_table 0
+unicast_req_duration 3600
+use_syslog 1
+verbose 0
+summary_interval 0
+kernel_leap 1
+check_fup_sync 0
+clock_class_threshold 135
+#
+# Servo Options
+#
+
+# NGEN TEST MODIFIED
+# New:
+# pi_proportional_const 0.60
+# pi_integral_const 0.0003
+# Old:
+# pi_proportional_const 0.0
+# pi_integral_const 0.0
+# END TEST MOD
+
+pi_proportional_const 0.60
+pi_integral_const 0.001
+pi_proportional_scale 0.0
+pi_proportional_exponent -0.3
+pi_proportional_norm_max 0.7
+pi_integral_scale 0.0
+pi_integral_exponent 0.4
+pi_integral_norm_max 0.3
+step_threshold 2.0
+# end T-BC experiment
+first_step_threshold 0.00002
+max_frequency 900000000
+clock_servo pi
+sanity_freq_limit 200000000
+ntpshm_segment 0
+#
+# Transport options
+#
+transportSpecific 0x0
+ptp_dst_mac 01:1B:19:00:00:00
+p2p_dst_mac 01:80:C2:00:00:0E
+udp_ttl 1
+udp6_scope 0x0E
+uds_address /var/run/ptp4l
+#
+# Default interface options
+#
+clock_type BC
+network_transport L2
+delay_mechanism E2E
+time_stamping hardware
+tsproc_mode filter
+delay_filter moving_median
+delay_filter_length 10
+egressLatency 0
+ingressLatency 0
+boundary_clock_jbod 1
+#
+# Clock description
+#
+productDescription ;;
+revisionData ;;
+manufacturerIdentity 00:00:00
+userDescription ;
+timeSource 0xA0
+I0903 01:12:43.755986       1 recommend.go:90] PtpSchedulingPolicy: SCHED_FIFO
+I0903 01:12:43.755988       1 recommend.go:94] PtpSchedulingPriority: 10
+I0903 01:12:43.755990       1 recommend.go:126] ------------------------------------
+2026-09-03T01:12:43Z	INFO	Starting Controller	{"controller": "tlssecurityprofilewatcher"}
+2026-09-03T01:12:43Z	INFO	Starting workers	{"controller": "tlssecurityprofilewatcher", "worker count": 1}
+2026-09-03T01:12:43Z	DEBUG	Reconciling APIServer TLS profile	{"controller": "tlssecurityprofilewatcher", "reconcileID": "147c1c9f-a358-4a50-973e-fb2c66f84862", "name": "cluster"}
+2026-09-03T01:12:43Z	DEBUG	Finished reconciling APIServer TLS profile	{"controller": "tlssecurityprofilewatcher", "reconcileID": "147c1c9f-a358-4a50-973e-fb2c66f84862", "name": "cluster"}
+I0903 01:12:43.856940       1 ptpconfig_controller.go:156] ptp config map already exists, updating
+I0903 01:12:43.858675       1 ptpoperatorconfig_controller.go:426] NodePtpDevice exists for node: helix103.telcoqe.eng.rdu2.dc.redhat.com, skipping
+I0903 01:12:43.858764       1 ptpoperatorconfig_controller.go:333] Applying network policies from YAML file: bindata/linuxptp/network-policy.yaml
+I0903 01:12:43.859216       1 ptpconfig_controller.go:367] Scanning PtpConfigs for {secretName, sa_file} pairs...
+W0903 01:12:43.859241       1 ptpconfig_controller.go:381] Failed to parse ptp4lConf for profile 01-bc-tr: config option not in section
+I0903 01:12:43.859272       1 ptpconfig_controller.go:415] Found 0 unique secret(s) to mount
+I0903 01:12:43.859278       1 ptpconfig_controller.go:436] Found 0 existing secret(s) out of 0 referenced
+2026/09/03 01:12:43 reconciling (apps/v1, Kind=DaemonSet) openshift-ptp/linuxptp-daemon
+2026/09/03 01:12:43 MergeDaemonSet: Controller source from context: ptpconfig
+2026/09/03 01:12:43 MergeDaemonSet: Merged volumes: 6 non-security + 0 security = 6 total
+2026/09/03 01:12:43 MergeDaemonSet: Merged annotations: 1 non-security + 0 security = 1 total
+2026/09/03 01:12:43 MergeDaemonSet: Merged mounts: 4 non-security + 0 security = 4 total
+2026/09/03 01:12:43 updating (apps/v1, Kind=DaemonSet) openshift-ptp/linuxptp-daemon (object differs from existing)
+2026/09/03 01:12:43   DaemonSet volumes after merge: 6 volumes
+2026/09/03 01:12:43     - volume: config-volume
+2026/09/03 01:12:43     - volume: leap-volume
+2026/09/03 01:12:43     - volume: linuxptp-certs
+2026/09/03 01:12:43     - volume: pubsubstore
+2026/09/03 01:12:43     - volume: event-bus-socket
+2026/09/03 01:12:43     - volume: socket-dir
+2026/09/03 01:12:43 update was successful
+I0903 01:12:43.871522       1 ptpconfig_controller.go:474] Successfully updated linuxptp-daemon DaemonSet with security mounts
+2026-09-03T01:12:43Z	INFO	controllers.PtpConfig	Reconciling PtpConfig	{"Request.Namespace": "openshift-ptp", "Request.Name": "gnrd-bc-tt"}
+I0903 01:12:43.871684       1 recommend.go:110] ptp profiles to be updated for node: helix103.telcoqe.eng.rdu2.dc.redhat.com
+I0903 01:12:43.871691       1 recommend.go:112] ------------------------------------
+I0903 01:12:43.871695       1 recommend.go:115] PtpConfig CR: gnrd-bc-tr, Profile: 01-bc-tr
+I0903 01:12:43.871699       1 recommend.go:90] Ptp4lOpts: -2 --summary_interval -4
+I0903 01:12:43.871703       1 recommend.go:90] Phc2sysOpts: -r -n 24 -N 8 -R 16 -u 0 -m -w -s eno8403
+I0903 01:12:43.871705       1 recommend.go:90] Ptp4lConf: # The interface name is hardware-specific
+[eno8403]
+masterOnly 0
+[global]
+#
+# Default Data Set
+#
+twoStepFlag 1
+slaveOnly 0
+priority1 128
+priority2 128
+domainNumber 24
+#utc_offset 37
+clockClass 248
+clockAccuracy 0xFE
+offsetScaledLogVariance 0xFFFF
+free_running 0
+freq_est_interval 1
+dscp_event 0
+dscp_general 0
+dataset_comparison G.8275.x
+G.8275.defaultDS.localPriority 128
+#
+# Port Data Set
+#
+logAnnounceInterval -3
+logSyncInterval -4
+logMinDelayReqInterval -4
+logMinPdelayReqInterval -4
+announceReceiptTimeout 3
+syncReceiptTimeout 0
+delayAsymmetry 0
+fault_reset_interval -4
+neighborPropDelayThresh 20000000
+masterOnly 0
+G.8275.portDS.localPriority 128
+#
+# Run time options
+#
+assume_two_step 0
+logging_level 6
+path_trace_enabled 0
+follow_up_info 0
+hybrid_e2e 0
+inhibit_multicast_service 0
+net_sync_monitor 0
+tc_spanning_tree 0
+tx_timestamp_timeout 50
+unicast_listen 0
+unicast_master_table 0
+unicast_req_duration 3600
+use_syslog 1
+verbose 0
+summary_interval 0
+kernel_leap 1
+check_fup_sync 0
+clock_class_threshold 135
+#
+# Servo Options
+#
+
+# NGEN TEST MODIFIED
+# New:
+# pi_proportional_const 0.60
+# pi_integral_const 0.0003
+# Old:
+# pi_proportional_const 0.0
+# pi_integral_const 0.0
+# END TEST MOD
+
+pi_proportional_const 0.60
+pi_integral_const 0.001
+pi_proportional_scale 0.0
+pi_proportional_exponent -0.3
+pi_proportional_norm_max 0.7
+pi_integral_scale 0.0
+pi_integral_exponent 0.4
+pi_integral_norm_max 0.3
+step_threshold 2.0
+# end T-BC experiment
+first_step_threshold 0.00002
+max_frequency 900000000
+clock_servo pi
+sanity_freq_limit 200000000
+ntpshm_segment 0
+#
+# Transport options
+#
+transportSpecific 0x0
+ptp_dst_mac 01:1B:19:00:00:00
+p2p_dst_mac 01:80:C2:00:00:0E
+udp_ttl 1
+udp6_scope 0x0E
+uds_address /var/run/ptp4l
+#
+# Default interface options
+#
+clock_type OC
+network_transport L2
+delay_mechanism E2E
+time_stamping hardware
+tsproc_mode filter
+delay_filter moving_median
+delay_filter_length 10
+egressLatency 0
+ingressLatency 0
+boundary_clock_jbod 1
+#
+# Clock description
+#
+productDescription ;;
+revisionData ;;
+manufacturerIdentity 00:00:00
+userDescription ;
+timeSource 0xA0
+I0903 01:12:43.871710       1 recommend.go:90] PtpSchedulingPolicy: SCHED_FIFO
+I0903 01:12:43.871714       1 recommend.go:94] PtpSchedulingPriority: 10
+I0903 01:12:43.871717       1 recommend.go:126] ------------------------------------
+I0903 01:12:43.871720       1 recommend.go:112] ------------------------------------
+I0903 01:12:43.871723       1 recommend.go:115] PtpConfig CR: gnrd-bc-tt, Profile: 00-bc-tt
+I0903 01:12:43.871726       1 recommend.go:90] Ptp4lOpts: -2 --summary_interval -4
+I0903 01:12:43.871728       1 recommend.go:90] Ptp4lConf: [eno8503]
+masterOnly 1
+[eno8703]
+masterOnly 1
+[enp110s0f1]
+masterOnly 1
+[enp108s0f0]
+masterOnly 1
+[enp108s0f1]
+masterOnly 1
+[global]
+#
+# Default Data Set
+#
+twoStepFlag 1
+slaveOnly 0
+priority1 128
+priority2 128
+domainNumber 24
+#utc_offset 37
+clockClass 248
+clockAccuracy 0xFE
+offsetScaledLogVariance 0xFFFF
+free_running 0
+freq_est_interval 1
+dscp_event 0
+dscp_general 0
+dataset_comparison G.8275.x
+G.8275.defaultDS.localPriority 128
+#
+# Port Data Set
+#
+logAnnounceInterval -3
+logSyncInterval -4
+logMinDelayReqInterval -4
+logMinPdelayReqInterval -4
+announceReceiptTimeout 3
+syncReceiptTimeout 0
+delayAsymmetry 0
+fault_reset_interval -4
+neighborPropDelayThresh 20000000
+masterOnly 0
+G.8275.portDS.localPriority 128
+#
+# Run time options
+#
+assume_two_step 0
+logging_level 6
+path_trace_enabled 0
+follow_up_info 0
+hybrid_e2e 0
+inhibit_multicast_service 0
+net_sync_monitor 0
+tc_spanning_tree 0
+tx_timestamp_timeout 50
+unicast_listen 0
+unicast_master_table 0
+unicast_req_duration 3600
+use_syslog 1
+verbose 0
+summary_interval 0
+kernel_leap 1
+check_fup_sync 0
+clock_class_threshold 135
+#
+# Servo Options
+#
+
+# NGEN TEST MODIFIED
+# New:
+# pi_proportional_const 0.60
+# pi_integral_const 0.0003
+# Old:
+# pi_proportional_const 0.0
+# pi_integral_const 0.0
+# END TEST MOD
+
+pi_proportional_const 0.60
+pi_integral_const 0.001
+pi_proportional_scale 0.0
+pi_proportional_exponent -0.3
+pi_proportional_norm_max 0.7
+pi_integral_scale 0.0
+pi_integral_exponent 0.4
+pi_integral_norm_max 0.3
+step_threshold 2.0
+# end T-BC experiment
+first_step_threshold 0.00002
+max_frequency 900000000
+clock_servo pi
+sanity_freq_limit 200000000
+ntpshm_segment 0
+#
+# Transport options
+#
+transportSpecific 0x0
+ptp_dst_mac 01:1B:19:00:00:00
+p2p_dst_mac 01:80:C2:00:00:0E
+udp_ttl 1
+udp6_scope 0x0E
+uds_address /var/run/ptp4l
+#
+# Default interface options
+#
+clock_type BC
+network_transport L2
+delay_mechanism E2E
+time_stamping hardware
+tsproc_mode filter
+delay_filter moving_median
+delay_filter_length 10
+egressLatency 0
+ingressLatency 0
+boundary_clock_jbod 1
+#
+# Clock description
+#
+productDescription ;;
+revisionData ;;
+manufacturerIdentity 00:00:00
+userDescription ;
+timeSource 0xA0
+I0903 01:12:43.871730       1 recommend.go:90] PtpSchedulingPolicy: SCHED_FIFO
+I0903 01:12:43.871732       1 recommend.go:94] PtpSchedulingPriority: 10
+I0903 01:12:43.871734       1 recommend.go:126] ------------------------------------
+I0903 01:12:43.871784       1 ptpconfig_controller.go:156] ptp config map already exists, updating
+I0903 01:12:43.873867       1 ptpconfig_controller.go:367] Scanning PtpConfigs for {secretName, sa_file} pairs...
+W0903 01:12:43.873949       1 ptpconfig_controller.go:381] Failed to parse ptp4lConf for profile 01-bc-tr: config option not in section
+I0903 01:12:43.873988       1 ptpconfig_controller.go:415] Found 0 unique secret(s) to mount
+I0903 01:12:43.873994       1 ptpconfig_controller.go:436] Found 0 existing secret(s) out of 0 referenced
+2026/09/03 01:12:43 reconciling (apps/v1, Kind=DaemonSet) openshift-ptp/linuxptp-daemon
+2026/09/03 01:12:43 MergeDaemonSet: Controller source from context: ptpconfig
+2026/09/03 01:12:43 MergeDaemonSet: Merged volumes: 6 non-security + 0 security = 6 total
+2026/09/03 01:12:43 MergeDaemonSet: Merged annotations: 1 non-security + 0 security = 1 total
+2026/09/03 01:12:43 MergeDaemonSet: Merged mounts: 4 non-security + 0 security = 4 total
+2026/09/03 01:12:43 updating (apps/v1, Kind=DaemonSet) openshift-ptp/linuxptp-daemon (object differs from existing)
+2026/09/03 01:12:43   DaemonSet volumes after merge: 6 volumes
+2026/09/03 01:12:43     - volume: config-volume
+2026/09/03 01:12:43     - volume: leap-volume
+2026/09/03 01:12:43     - volume: linuxptp-certs
+2026/09/03 01:12:43     - volume: pubsubstore
+2026/09/03 01:12:43     - volume: event-bus-socket
+2026/09/03 01:12:43     - volume: socket-dir
+2026/09/03 01:12:43 update was successful
+I0903 01:12:43.880649       1 ptpconfig_controller.go:474] Successfully updated linuxptp-daemon DaemonSet with security mounts
+I0903 01:12:43.959828       1 ptpoperatorconfig_controller.go:400] NetworkPolicy openshift-ptp/allow-webhook-traffic already exists. Skipping creation.
+I0903 01:12:43.960181       1 ptpoperatorconfig_controller.go:400] NetworkPolicy openshift-ptp/allow-egress-to-api-server already exists. Skipping creation.
+W0903 01:12:43.960195       1 ptpoperatorconfig_controller.go:465] ptp operator config Spec, ptpEventConfig.transportHost= is not valid, proceed as http://ptp-event-publisher-service-NODE_NAME.openshift-ptp.svc.cluster.local:9043
+I0903 01:12:43.960199       1 ptpoperatorconfig_controller.go:255] Event API version is '', using version 2.0.
+I0903 01:12:43.960204       1 ptpoperatorconfig_controller.go:275] ptp operator enabled plugins: e810,e825,e830,ntpfailover
+2026/09/03 01:12:43 reconciling (apps/v1, Kind=DaemonSet) openshift-ptp/linuxptp-daemon
+2026/09/03 01:12:43 MergeDaemonSet: Controller source from context: ptpoperatorconfig
+2026/09/03 01:12:43 MergeDaemonSet: Merged volumes: 6 non-security + 0 security = 6 total
+2026/09/03 01:12:43 MergeDaemonSet: Merged annotations: 1 non-security + 0 security = 1 total
+2026/09/03 01:12:43 MergeDaemonSet: Merged mounts: 4 non-security + 0 security = 4 total
+2026/09/03 01:12:43 updating (apps/v1, Kind=DaemonSet) openshift-ptp/linuxptp-daemon (object differs from existing)
+2026/09/03 01:12:43   DaemonSet volumes after merge: 6 volumes
+2026/09/03 01:12:43     - volume: config-volume
+2026/09/03 01:12:43     - volume: leap-volume
+2026/09/03 01:12:43     - volume: linuxptp-certs
+2026/09/03 01:12:43     - volume: pubsubstore
+2026/09/03 01:12:43     - volume: event-bus-socket
+2026/09/03 01:12:43     - volume: socket-dir
+2026/09/03 01:12:43 update was successful
+2026/09/03 01:12:43 reconciling (monitoring.coreos.com/v1, Kind=ServiceMonitor) openshift-ptp/monitor-ptp
+2026/09/03 01:12:43 updating (monitoring.coreos.com/v1, Kind=ServiceMonitor) openshift-ptp/monitor-ptp (object differs from existing)
+2026/09/03 01:12:43 update was successful
+2026/09/03 01:12:43 reconciling (/v1, Kind=Service) openshift-ptp/ptp-monitor-service
+2026/09/03 01:12:43 updating (/v1, Kind=Service) openshift-ptp/ptp-monitor-service (object differs from existing)
+2026/09/03 01:12:43 update was successful
+2026/09/03 01:12:43 reconciling (rbac.authorization.k8s.io/v1, Kind=Role) openshift-ptp/prometheus-k8s
+2026/09/03 01:12:43 updating (rbac.authorization.k8s.io/v1, Kind=Role) openshift-ptp/prometheus-k8s (object differs from existing)
+2026/09/03 01:12:43 update was successful
+2026/09/03 01:12:43 reconciling (rbac.authorization.k8s.io/v1, Kind=RoleBinding) openshift-ptp/prometheus-k8s
+2026/09/03 01:12:43 updating (rbac.authorization.k8s.io/v1, Kind=RoleBinding) openshift-ptp/prometheus-k8s (object differs from existing)
+2026/09/03 01:12:43 update was successful
+2026/09/03 01:12:43 reconciling (monitoring.coreos.com/v1, Kind=PrometheusRule) openshift-ptp/ptp-rules
+2026/09/03 01:12:43 updating (monitoring.coreos.com/v1, Kind=PrometheusRule) openshift-ptp/ptp-rules (object differs from existing)
+2026/09/03 01:12:43 update was successful
+2026/09/03 01:12:43 reconciling (/v1, Kind=Service) openshift-ptp/ptp-event-publisher-service-helix103
+2026/09/03 01:12:44 updating (/v1, Kind=Service) openshift-ptp/ptp-event-publisher-service-helix103 (object differs from existing)
+2026/09/03 01:12:44 update was successful
+

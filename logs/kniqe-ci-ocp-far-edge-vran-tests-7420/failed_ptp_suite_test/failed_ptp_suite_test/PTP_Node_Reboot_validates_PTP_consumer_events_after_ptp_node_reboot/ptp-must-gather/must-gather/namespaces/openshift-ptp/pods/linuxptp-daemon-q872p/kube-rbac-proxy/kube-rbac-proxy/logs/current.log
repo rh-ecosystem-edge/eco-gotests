@@ -1,0 +1,11 @@
+2026-09-02T19:49:41.893769581Z W0902 19:49:41.893637    8924 deprecated.go:66] 
+2026-09-02T19:49:41.893769581Z ==== Removed Flag Warning ======================
+2026-09-02T19:49:41.893769581Z 
+2026-09-02T19:49:41.893769581Z logtostderr is removed in the k8s upstream and has no effect any more.
+2026-09-02T19:49:41.893769581Z 
+2026-09-02T19:49:41.893769581Z ===============================================
+2026-09-02T19:49:41.893769581Z 		
+2026-09-02T19:49:41.894221865Z I0902 19:49:41.894208    8924 kube-rbac-proxy.go:235] Valid token audiences: 
+2026-09-02T19:49:41.894765700Z I0902 19:49:41.894743    8924 kube-rbac-proxy.go:349] Reading certificate files
+2026-09-02T19:49:41.894993694Z I0902 19:49:41.894984    8924 kube-rbac-proxy.go:397] Starting TCP socket on :8443
+2026-09-02T19:49:41.895183538Z I0902 19:49:41.895175    8924 kube-rbac-proxy.go:404] Listening securely on :8443

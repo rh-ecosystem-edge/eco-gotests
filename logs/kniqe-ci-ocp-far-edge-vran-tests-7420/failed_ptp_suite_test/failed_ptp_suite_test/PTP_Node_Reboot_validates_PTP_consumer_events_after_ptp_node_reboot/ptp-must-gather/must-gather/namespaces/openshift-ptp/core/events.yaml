@@ -1,0 +1,803 @@
+---
+apiVersion: v1
+items:
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T19:49:40Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{cloud-event-proxy}
+    kind: Pod
+    name: linuxptp-daemon-q872p
+    namespace: openshift-ptp
+    resourceVersion: "388578"
+    uid: d61e5dd3-80cf-4b41-bf6a-baa151735a1e
+  kind: Event
+  lastTimestamp: "2026-09-02T19:49:40Z"
+  message: Container image "registry.redhat.io/openshift4/ose-cloud-event-proxy-rhel9@sha256:5f126665e92f32ad66cf4377be8884ffb0d36b3c1e37833de7de3910a9012c40"
+    already present on machine and can be accessed by the pod
+  metadata:
+    creationTimestamp: "2026-09-02T19:49:47Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T19:49:47Z"
+    name: linuxptp-daemon-q872p.18d198d7eee5d57b
+    namespace: openshift-ptp
+    resourceVersion: "416657"
+    uid: 1deab086-e3e4-4065-8e37-001c2e8321e0
+  reason: Pulled
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T19:49:40Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{cloud-event-proxy}
+    kind: Pod
+    name: linuxptp-daemon-q872p
+    namespace: openshift-ptp
+    resourceVersion: "388578"
+    uid: d61e5dd3-80cf-4b41-bf6a-baa151735a1e
+  kind: Event
+  lastTimestamp: "2026-09-02T19:49:40Z"
+  message: Container created
+  metadata:
+    creationTimestamp: "2026-09-02T19:49:48Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T19:49:48Z"
+    name: linuxptp-daemon-q872p.18d198d810e2a9a5
+    namespace: openshift-ptp
+    resourceVersion: "416708"
+    uid: 481f0e71-ee2d-4b6d-9622-e736d6e3fbd8
+  reason: Created
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T19:49:40Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{cloud-event-proxy}
+    kind: Pod
+    name: linuxptp-daemon-q872p
+    namespace: openshift-ptp
+    resourceVersion: "388578"
+    uid: d61e5dd3-80cf-4b41-bf6a-baa151735a1e
+  kind: Event
+  lastTimestamp: "2026-09-02T19:49:40Z"
+  message: Container started
+  metadata:
+    creationTimestamp: "2026-09-02T19:49:48Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T19:49:48Z"
+    name: linuxptp-daemon-q872p.18d198d811c88cae
+    namespace: openshift-ptp
+    resourceVersion: "416711"
+    uid: e6e6d6bb-6c3c-49e8-9009-7be99c2c7b7f
+  reason: Started
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T19:49:40Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{kube-rbac-proxy}
+    kind: Pod
+    name: linuxptp-daemon-q872p
+    namespace: openshift-ptp
+    resourceVersion: "388578"
+    uid: d61e5dd3-80cf-4b41-bf6a-baa151735a1e
+  kind: Event
+  lastTimestamp: "2026-09-02T19:49:40Z"
+  message: Container image "registry.redhat.io/openshift4/ose-kube-rbac-proxy-rhel9@sha256:1915da376c32d710ec6f4e5431ca7d500c5c1862c4156c2a3befe3b98561debc"
+    already present on machine and can be accessed by the pod
+  metadata:
+    creationTimestamp: "2026-09-02T19:49:48Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T19:49:48Z"
+    name: linuxptp-daemon-q872p.18d198d811d34fdd
+    namespace: openshift-ptp
+    resourceVersion: "416712"
+    uid: 18b7fd14-98e6-4ee6-ad05-812e4cd11d2b
+  reason: Pulled
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T19:49:41Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{kube-rbac-proxy}
+    kind: Pod
+    name: linuxptp-daemon-q872p
+    namespace: openshift-ptp
+    resourceVersion: "388578"
+    uid: d61e5dd3-80cf-4b41-bf6a-baa151735a1e
+  kind: Event
+  lastTimestamp: "2026-09-02T19:49:41Z"
+  message: Container created
+  metadata:
+    creationTimestamp: "2026-09-02T19:49:52Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T19:49:52Z"
+    name: linuxptp-daemon-q872p.18d198d84af81123
+    namespace: openshift-ptp
+    resourceVersion: "417163"
+    uid: ef145ea7-0a03-408e-a594-1ce4854bf31f
+  reason: Created
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T19:49:41Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{kube-rbac-proxy}
+    kind: Pod
+    name: linuxptp-daemon-q872p
+    namespace: openshift-ptp
+    resourceVersion: "388578"
+    uid: d61e5dd3-80cf-4b41-bf6a-baa151735a1e
+  kind: Event
+  lastTimestamp: "2026-09-02T19:49:41Z"
+  message: Container started
+  metadata:
+    creationTimestamp: "2026-09-02T19:49:52Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T19:49:52Z"
+    name: linuxptp-daemon-q872p.18d198d84c15962f
+    namespace: openshift-ptp
+    resourceVersion: "417170"
+    uid: 7eb7f7c8-6fde-4774-9511-631702921fcb
+  reason: Started
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T19:49:41Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{linuxptp-daemon-container}
+    kind: Pod
+    name: linuxptp-daemon-q872p
+    namespace: openshift-ptp
+    resourceVersion: "388578"
+    uid: d61e5dd3-80cf-4b41-bf6a-baa151735a1e
+  kind: Event
+  lastTimestamp: "2026-09-02T19:49:41Z"
+  message: Container image "registry.redhat.io/openshift4/ose-ptp-rhel9@sha256:0bf2e4999e35570c3f87b137028240f193401df75c2ea94c771044274d00b25a"
+    already present on machine and can be accessed by the pod
+  metadata:
+    creationTimestamp: "2026-09-02T19:49:52Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T19:49:52Z"
+    name: linuxptp-daemon-q872p.18d198d84c1c34b2
+    namespace: openshift-ptp
+    resourceVersion: "417171"
+    uid: 262cb976-35af-47ce-b029-108a8c8f299d
+  reason: Pulled
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T19:49:41Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{linuxptp-daemon-container}
+    kind: Pod
+    name: linuxptp-daemon-q872p
+    namespace: openshift-ptp
+    resourceVersion: "388578"
+    uid: d61e5dd3-80cf-4b41-bf6a-baa151735a1e
+  kind: Event
+  lastTimestamp: "2026-09-02T19:49:41Z"
+  message: Container created
+  metadata:
+    creationTimestamp: "2026-09-02T19:49:53Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T19:49:53Z"
+    name: linuxptp-daemon-q872p.18d198d8566a42a9
+    namespace: openshift-ptp
+    resourceVersion: "417184"
+    uid: 82f94c02-22f5-44e5-aba0-110cb2833fc6
+  reason: Created
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T19:49:42Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{linuxptp-daemon-container}
+    kind: Pod
+    name: linuxptp-daemon-q872p
+    namespace: openshift-ptp
+    resourceVersion: "388578"
+    uid: d61e5dd3-80cf-4b41-bf6a-baa151735a1e
+  kind: Event
+  lastTimestamp: "2026-09-02T19:49:42Z"
+  message: Container started
+  metadata:
+    creationTimestamp: "2026-09-02T19:49:53Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T19:49:53Z"
+    name: linuxptp-daemon-q872p.18d198d85b640829
+    namespace: openshift-ptp
+    resourceVersion: "417190"
+    uid: 1dfcf30c-a621-4cb4-a190-dd0958878af0
+  reason: Started
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 11
+  eventTime: null
+  firstTimestamp: "2026-09-02T19:49:39Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: ptp-operator-d858bb79-4596k
+    namespace: openshift-ptp
+    resourceVersion: "386001"
+    uid: b29cb40f-ad24-423d-9d6b-a16b570bddb5
+  kind: Event
+  lastTimestamp: "2026-09-02T19:49:59Z"
+  message: 'network is not ready: container runtime network not ready: NetworkReady=false
+    reason:NetworkPluginNotReady message:Network plugin returns error: no CNI configuration
+    file in /etc/kubernetes/cni/net.d/. Has your network provider started?'
+  metadata:
+    creationTimestamp: "2026-09-02T19:49:39Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T19:50:07Z"
+    name: ptp-operator-d858bb79-4596k.18d198d7c45edcb9
+    namespace: openshift-ptp
+    resourceVersion: "417957"
+    uid: 22f940f4-c9ef-486e-9bd9-233530814338
+  reason: NetworkNotReady
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Warning
+- apiVersion: v1
+  count: 6
+  eventTime: null
+  firstTimestamp: "2026-09-02T19:49:39Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: ptp-operator-d858bb79-4596k
+    namespace: openshift-ptp
+    resourceVersion: "386001"
+    uid: b29cb40f-ad24-423d-9d6b-a16b570bddb5
+  kind: Event
+  lastTimestamp: "2026-09-02T19:49:55Z"
+  message: 'MountVolume.SetUp failed for volume "webhook-cert" : object "openshift-ptp"/"ptp-operator-service-cert"
+    not registered'
+  metadata:
+    creationTimestamp: "2026-09-02T19:49:40Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T19:50:04Z"
+    name: ptp-operator-d858bb79-4596k.18d198d7c7818b35
+    namespace: openshift-ptp
+    resourceVersion: "417808"
+    uid: ff998033-57d6-4abe-9c08-4690caa78c89
+  reason: FailedMount
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Warning
+- apiVersion: v1
+  count: 6
+  eventTime: null
+  firstTimestamp: "2026-09-02T19:49:39Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: ptp-operator-d858bb79-4596k
+    namespace: openshift-ptp
+    resourceVersion: "386001"
+    uid: b29cb40f-ad24-423d-9d6b-a16b570bddb5
+  kind: Event
+  lastTimestamp: "2026-09-02T19:49:55Z"
+  message: 'MountVolume.SetUp failed for volume "apiservice-cert" : object "openshift-ptp"/"ptp-operator-service-cert"
+    not registered'
+  metadata:
+    creationTimestamp: "2026-09-02T19:49:41Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T19:50:05Z"
+    name: ptp-operator-d858bb79-4596k.18d198d7c7a928ad
+    namespace: openshift-ptp
+    resourceVersion: "417827"
+    uid: ae4536d0-b48e-4b09-bcda-232bfe293acb
+  reason: FailedMount
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Warning
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T19:50:11Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: ptp-operator-d858bb79-4596k
+    namespace: openshift-ptp
+    resourceVersion: "416212"
+    uid: b29cb40f-ad24-423d-9d6b-a16b570bddb5
+  kind: Event
+  lastTimestamp: "2026-09-02T19:50:11Z"
+  message: Add eth0 [10.128.0.91/23] from ovn-kubernetes
+  metadata:
+    creationTimestamp: "2026-09-02T19:50:11Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: multus-daemon
+      operation: Update
+      time: "2026-09-02T19:50:11Z"
+    name: ptp-operator-d858bb79-4596k.18d198df3fc2c6e6
+    namespace: openshift-ptp
+    resourceVersion: "417985"
+    uid: 31f42d24-e342-47c5-b6bb-2a107367d33a
+  reason: AddedInterface
+  reportingComponent: multus
+  reportingInstance: ""
+  source:
+    component: multus
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T19:50:11Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{ptp-operator}
+    kind: Pod
+    name: ptp-operator-d858bb79-4596k
+    namespace: openshift-ptp
+    resourceVersion: "386001"
+    uid: b29cb40f-ad24-423d-9d6b-a16b570bddb5
+  kind: Event
+  lastTimestamp: "2026-09-02T19:50:11Z"
+  message: Container image "registry.redhat.io/openshift4/ose-ptp-rhel9-operator@sha256:65d0d1fc62c2caab2e78d120156d3d71391d96cd41bda22c0f8930d9e4256278"
+    already present on machine and can be accessed by the pod
+  metadata:
+    creationTimestamp: "2026-09-02T19:50:11Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T19:50:11Z"
+    name: ptp-operator-d858bb79-4596k.18d198df430b7262
+    namespace: openshift-ptp
+    resourceVersion: "417986"
+    uid: c76c2707-18ca-4511-849a-8a458e8351c0
+  reason: Pulled
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T19:50:11Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{ptp-operator}
+    kind: Pod
+    name: ptp-operator-d858bb79-4596k
+    namespace: openshift-ptp
+    resourceVersion: "386001"
+    uid: b29cb40f-ad24-423d-9d6b-a16b570bddb5
+  kind: Event
+  lastTimestamp: "2026-09-02T19:50:11Z"
+  message: Container created
+  metadata:
+    creationTimestamp: "2026-09-02T19:50:11Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T19:50:11Z"
+    name: ptp-operator-d858bb79-4596k.18d198df4d3c8b74
+    namespace: openshift-ptp
+    resourceVersion: "417988"
+    uid: 5f3c9f14-0916-4f0d-a76d-07b770f79c84
+  reason: Created
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T19:50:11Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{ptp-operator}
+    kind: Pod
+    name: ptp-operator-d858bb79-4596k
+    namespace: openshift-ptp
+    resourceVersion: "386001"
+    uid: b29cb40f-ad24-423d-9d6b-a16b570bddb5
+  kind: Event
+  lastTimestamp: "2026-09-02T19:50:11Z"
+  message: Container started
+  metadata:
+    creationTimestamp: "2026-09-02T19:50:11Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T19:50:11Z"
+    name: ptp-operator-d858bb79-4596k.18d198df53c175e0
+    namespace: openshift-ptp
+    resourceVersion: "417991"
+    uid: dead3273-ffb9-457d-8ae5-4f5d2e1f8329
+  reason: Started
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T19:54:48Z"
+  involvedObject:
+    apiVersion: coordination.k8s.io/v1
+    kind: Lease
+    name: ptp.openshift.io
+    namespace: openshift-ptp
+    resourceVersion: "419318"
+    uid: 5c3e5c7f-844f-4dda-bafe-9d7de1da933f
+  kind: Event
+  lastTimestamp: "2026-09-02T19:54:48Z"
+  message: ptp-operator-d858bb79-4596k_c76a860f-d68d-46d9-b5a4-f463c0a2cbf6 became
+    leader
+  metadata:
+    creationTimestamp: "2026-09-02T19:54:48Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: ptp-operator
+      operation: Update
+      time: "2026-09-02T19:54:48Z"
+    name: ptp.openshift.io.18d1991fa2487e21
+    namespace: openshift-ptp
+    resourceVersion: "419320"
+    uid: 0758f117-5cd8-46db-8305-14394f6dc518
+  reason: LeaderElection
+  reportingComponent: ptp-operator-d858bb79-4596k_c76a860f-d68d-46d9-b5a4-f463c0a2cbf6
+  reportingInstance: ""
+  source:
+    component: ptp-operator-d858bb79-4596k_c76a860f-d68d-46d9-b5a4-f463c0a2cbf6
+  type: Normal
+kind: EventList
+metadata:
+  resourceVersion: "419642"

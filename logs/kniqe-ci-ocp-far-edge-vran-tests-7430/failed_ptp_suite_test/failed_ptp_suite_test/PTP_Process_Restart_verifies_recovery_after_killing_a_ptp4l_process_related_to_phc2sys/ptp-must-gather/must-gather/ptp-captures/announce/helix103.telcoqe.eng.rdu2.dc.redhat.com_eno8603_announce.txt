@@ -1,0 +1,28 @@
+=== PTP Announce Packet ===
+Node: helix103.telcoqe.eng.rdu2.dc.redhat.com
+Interface: eno8603
+
+Timestamp: 00:41:47.530071
+
+--- Message Info ---
+  msg type: announce msg
+  length: 64
+  domain: 24
+  Flags [utc reasonable
+  control: 0 (sync msg)
+  log message interval: 253
+
+--- Clock Identity ---
+  clock identity: 0xb4e9b8fffe5ec712
+  port id: 5
+
+--- Grandmaster Info ---
+  gm priority_1: 128
+  gm clock class: 6
+  gm clock accuracy: 33
+  gm clock variance: 20061
+  gm priority_2: 128
+  gm clock id: 0x1747fffe70181a
+  steps removed: 3
+  time source: 0x20
+

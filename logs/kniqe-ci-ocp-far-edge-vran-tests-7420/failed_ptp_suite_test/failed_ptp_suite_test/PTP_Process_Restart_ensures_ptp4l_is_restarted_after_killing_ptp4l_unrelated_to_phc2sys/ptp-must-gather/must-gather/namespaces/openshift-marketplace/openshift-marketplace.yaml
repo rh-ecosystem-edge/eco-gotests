@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    openshift.io/node-selector: ""
+    openshift.io/sa.scc.mcs: s0:c11,c5
+    openshift.io/sa.scc.supplemental-groups: 1000120000/10000
+    openshift.io/sa.scc.uid-range: 1000120000/10000
+    ran.openshift.io/ztp-gitops-generated: '{}'
+    workload.openshift.io/allowed: management
+  creationTimestamp: "2026-08-31T21:17:44Z"
+  labels:
+    kubernetes.io/metadata.name: openshift-marketplace
+    olm.operatorgroup.uid/0352374b-e907-49f1-a138-047dc9b9a176: ""
+    openshift.io/cluster-monitoring: "true"
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/audit-version: v1.25
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/enforce-version: v1.25
+    pod-security.kubernetes.io/warn: baseline
+    pod-security.kubernetes.io/warn-version: v1.25
+  managedFields:
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:annotations:
+          f:openshift.io/sa.scc.mcs: {}
+          f:openshift.io/sa.scc.supplemental-groups: {}
+          f:openshift.io/sa.scc.uid-range: {}
+    manager: cluster-policy-controller
+    operation: Apply
+    time: "2026-08-31T21:17:44Z"
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:annotations:
+          .: {}
+          f:openshift.io/node-selector: {}
+          f:ran.openshift.io/ztp-gitops-generated: {}
+          f:workload.openshift.io/allowed: {}
+        f:labels:
+          .: {}
+          f:kubernetes.io/metadata.name: {}
+          f:openshift.io/cluster-monitoring: {}
+          f:pod-security.kubernetes.io/audit: {}
+          f:pod-security.kubernetes.io/audit-version: {}
+          f:pod-security.kubernetes.io/enforce: {}
+          f:pod-security.kubernetes.io/enforce-version: {}
+          f:pod-security.kubernetes.io/warn: {}
+          f:pod-security.kubernetes.io/warn-version: {}
+    manager: cluster-bootstrap
+    operation: Update
+    time: "2026-08-31T21:17:44Z"
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:labels:
+          f:olm.operatorgroup.uid/0352374b-e907-49f1-a138-047dc9b9a176: {}
+    manager: olm
+    operation: Update
+    time: "2026-08-31T21:29:11Z"
+  name: openshift-marketplace
+  resourceVersion: "5727"
+  uid: 5fb3196f-9d88-45cf-8d6c-f3f2b81c8b05
+spec:
+  finalizers:
+  - kubernetes
+status:
+  phase: Active

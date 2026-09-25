@@ -1,0 +1,1251 @@
+
+<!doctype html>
+<html lang="en">
+  <head>
+    
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.3/css/all.css" integrity="sha384-UHRtZLI+pbxtHCWp1t77Bi1L4ZtiqrqD80Kn4Z8NTSRyMA2Fd33n5dQ8lWUE00s/" crossorigin="anonymous">
+	<link href="https://unpkg.com/bootstrap-table@1.17.1/dist/bootstrap-table.min.css" rel="stylesheet">
+
+    <title>Events</title>
+	<style type="text/css">
+      body * {
+       font-size: 12px!important;
+      }
+	  .text-overflow() {
+       overflow: hidden;
+	   text-overflow: ellipsis;
+	   white-space: nowrap;
+	  }
+      .truncated {
+        display: inline-block;
+        max-width: 200px;
+        .text-overflow();
+      }
+    </style>
+  </head>
+  <body>
+
+<table
+  id="events"
+  class="table table-bordered table-hover table-sm"
+  data-toggle="table"
+  data-search="true"
+  data-show-search-clear-button="true"
+  data-filter-control="true"
+  data-advanced-search="true"
+  data-id-table="advancedTable"
+  data-pagination="true"
+  data-page-size="100"
+  data-show-columns-toggle-all="true"
+  data-show-pagination-switch="true"
+  data-show-columns="true">
+  <thead>
+    <tr>
+      <th data-width="100" data-field="time" data-filter-control="input" data-sortable="true">Time</th>
+      <th data-width="200" data-field="namespace" data-filter-control="input" data-sortable="true">Namespace</th>
+      <th data-width="200" data-field="component" data-filter-control="input" data-sortable="true">Component</th>
+      <th data-width="200" data-field="relatedobject" data-filter-control="input" data-sortable="true">RelatedObject</th>
+      <th data-field="reason" data-filter-control="input">Reason</th>
+      <th data-field="message" data-filter-control="input" data-escape="true">Message</th>
+    </tr>
+  </thead>
+  <tbody>
+    
+    <tr>
+      <td><time datetime="2026-09-02 13:43:13 +0000 UTC" title="First Seen: 13:43:13">13:43:13</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">default-scheduler</p></td>
+      <td><p class="truncated">certified-operators-custom-pszpb</p></td>
+      <td><p class="text-muted">Scheduled</p></td>
+      <td data-formatter="messageFormatter">Successfully assigned openshift-marketplace/certified-operators-custom-pszpb to helix103.telcoqe.eng.rdu2.dc.redhat.com</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 13:43:13 +0000 UTC" title="First Seen: 13:43:13">13:43:13</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-pszpb</p></td>
+      <td><p class="text-muted">Started</p></td>
+      <td data-formatter="messageFormatter">Container started</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 13:43:13 +0000 UTC" title="First Seen: 13:43:13">13:43:13</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-pszpb</p></td>
+      <td><p class="text-muted">Created</p></td>
+      <td data-formatter="messageFormatter">Container created</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 13:43:13 +0000 UTC" title="First Seen: 13:43:13">13:43:13</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-pszpb</p></td>
+      <td><p class="text-muted">Pulled</p></td>
+      <td data-formatter="messageFormatter">Successfully pulled image &#34;registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/far-edge-sriov-fec:v4.22&#34; in 95ms (95ms including waiting). Image size: 1038971282 bytes.</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 13:43:13 +0000 UTC" title="First Seen: 13:43:13">13:43:13</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-pszpb</p></td>
+      <td><p class="text-muted">Pulling</p></td>
+      <td data-formatter="messageFormatter">Pulling image &#34;registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/far-edge-sriov-fec:v4.22&#34;</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 13:43:13 +0000 UTC" title="First Seen: 13:43:13">13:43:13</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">multus</p></td>
+      <td><p class="truncated">certified-operators-custom-pszpb</p></td>
+      <td><p class="text-muted">AddedInterface</p></td>
+      <td data-formatter="messageFormatter">Add eth0 [10.128.0.75/23] from ovn-kubernetes</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 13:43:26 +0000 UTC" title="First Seen: 13:43:26">13:43:26</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-pszpb</p></td>
+      <td><p class="text-danger">Killing</p></td>
+      <td data-formatter="messageFormatter">Stopping container registry-server</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 13:43:37 +0000 UTC" title="First Seen: 13:43:37">13:43:37</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-pgvq8</p></td>
+      <td><p class="text-muted">Pulling</p></td>
+      <td data-formatter="messageFormatter">Pulling image &#34;registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/redhat-operators:v4.22&#34;</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 13:43:37 +0000 UTC" title="First Seen: 13:43:37">13:43:37</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-pgvq8</p></td>
+      <td><p class="text-muted">Started</p></td>
+      <td data-formatter="messageFormatter">Container started</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 13:43:37 +0000 UTC" title="First Seen: 13:43:37">13:43:37</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-pgvq8</p></td>
+      <td><p class="text-muted">Created</p></td>
+      <td data-formatter="messageFormatter">Container created</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 13:43:37 +0000 UTC" title="First Seen: 13:43:37">13:43:37</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-pgvq8</p></td>
+      <td><p class="text-muted">Pulled</p></td>
+      <td data-formatter="messageFormatter">Successfully pulled image &#34;registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/redhat-operators:v4.22&#34; in 83ms (83ms including waiting). Image size: 84682095 bytes.</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 13:43:37 +0000 UTC" title="First Seen: 13:43:37">13:43:37</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">multus</p></td>
+      <td><p class="truncated">redhat-operators-custom-pgvq8</p></td>
+      <td><p class="text-muted">AddedInterface</p></td>
+      <td data-formatter="messageFormatter">Add eth0 [10.128.0.78/23] from ovn-kubernetes</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 13:43:37 +0000 UTC" title="First Seen: 13:43:37">13:43:37</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">default-scheduler</p></td>
+      <td><p class="truncated">redhat-operators-custom-pgvq8</p></td>
+      <td><p class="text-muted">Scheduled</p></td>
+      <td data-formatter="messageFormatter">Successfully assigned openshift-marketplace/redhat-operators-custom-pgvq8 to helix103.telcoqe.eng.rdu2.dc.redhat.com</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 13:43:50 +0000 UTC" title="First Seen: 13:43:50">13:43:50</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-pgvq8</p></td>
+      <td><p class="text-danger">Killing</p></td>
+      <td data-formatter="messageFormatter">Stopping container registry-server</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 14:43:13 +0000 UTC" title="First Seen: 14:43:13">14:43:13</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">multus</p></td>
+      <td><p class="truncated">certified-operators-custom-zvjkf</p></td>
+      <td><p class="text-muted">AddedInterface</p></td>
+      <td data-formatter="messageFormatter">Add eth0 [10.128.0.81/23] from ovn-kubernetes</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 14:43:13 +0000 UTC" title="First Seen: 14:43:13">14:43:13</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-zvjkf</p></td>
+      <td><p class="text-muted">Pulling</p></td>
+      <td data-formatter="messageFormatter">Pulling image &#34;registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/far-edge-sriov-fec:v4.22&#34;</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 14:43:13 +0000 UTC" title="First Seen: 14:43:13">14:43:13</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-zvjkf</p></td>
+      <td><p class="text-muted">Created</p></td>
+      <td data-formatter="messageFormatter">Container created</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 14:43:13 +0000 UTC" title="First Seen: 14:43:13">14:43:13</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">default-scheduler</p></td>
+      <td><p class="truncated">certified-operators-custom-zvjkf</p></td>
+      <td><p class="text-muted">Scheduled</p></td>
+      <td data-formatter="messageFormatter">Successfully assigned openshift-marketplace/certified-operators-custom-zvjkf to helix103.telcoqe.eng.rdu2.dc.redhat.com</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 14:43:13 +0000 UTC" title="First Seen: 14:43:13">14:43:13</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-zvjkf</p></td>
+      <td><p class="text-muted">Pulled</p></td>
+      <td data-formatter="messageFormatter">Successfully pulled image &#34;registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/far-edge-sriov-fec:v4.22&#34; in 107ms (107ms including waiting). Image size: 1038971282 bytes.</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 14:43:13 +0000 UTC" title="First Seen: 14:43:13">14:43:13</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-zvjkf</p></td>
+      <td><p class="text-muted">Started</p></td>
+      <td data-formatter="messageFormatter">Container started</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 14:43:25 +0000 UTC" title="First Seen: 14:43:25">14:43:25</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-zvjkf</p></td>
+      <td><p class="text-danger">Killing</p></td>
+      <td data-formatter="messageFormatter">Stopping container registry-server</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 14:43:37 +0000 UTC" title="First Seen: 14:43:37">14:43:37</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-6jx8w</p></td>
+      <td><p class="text-muted">Pulled</p></td>
+      <td data-formatter="messageFormatter">Successfully pulled image &#34;registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/redhat-operators:v4.22&#34; in 149ms (149ms including waiting). Image size: 84682095 bytes.</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 14:43:37 +0000 UTC" title="First Seen: 14:43:37">14:43:37</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">default-scheduler</p></td>
+      <td><p class="truncated">redhat-operators-custom-6jx8w</p></td>
+      <td><p class="text-muted">Scheduled</p></td>
+      <td data-formatter="messageFormatter">Successfully assigned openshift-marketplace/redhat-operators-custom-6jx8w to helix103.telcoqe.eng.rdu2.dc.redhat.com</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 14:43:37 +0000 UTC" title="First Seen: 14:43:37">14:43:37</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">multus</p></td>
+      <td><p class="truncated">redhat-operators-custom-6jx8w</p></td>
+      <td><p class="text-muted">AddedInterface</p></td>
+      <td data-formatter="messageFormatter">Add eth0 [10.128.0.84/23] from ovn-kubernetes</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 14:43:37 +0000 UTC" title="First Seen: 14:43:37">14:43:37</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-6jx8w</p></td>
+      <td><p class="text-muted">Pulling</p></td>
+      <td data-formatter="messageFormatter">Pulling image &#34;registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/redhat-operators:v4.22&#34;</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 14:43:37 +0000 UTC" title="First Seen: 14:43:37">14:43:37</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-6jx8w</p></td>
+      <td><p class="text-muted">Created</p></td>
+      <td data-formatter="messageFormatter">Container created</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 14:43:37 +0000 UTC" title="First Seen: 14:43:37">14:43:37</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-6jx8w</p></td>
+      <td><p class="text-muted">Started</p></td>
+      <td data-formatter="messageFormatter">Container started</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 14:43:49 +0000 UTC" title="First Seen: 14:43:49">14:43:49</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-6jx8w</p></td>
+      <td><p class="text-danger">Killing</p></td>
+      <td data-formatter="messageFormatter">Stopping container registry-server</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:09:30 +0000 UTC" title="First Seen: 15:09:30">15:09:30</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-p7m2w</p></td>
+      <td><p class="text-danger">Killing</p></td>
+      <td data-formatter="messageFormatter">Stopping container kube-rbac-proxy</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:09:30 +0000 UTC" title="First Seen: 15:09:30">15:09:30</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-p7m2w</p></td>
+      <td><p class="text-danger">Killing</p></td>
+      <td data-formatter="messageFormatter">Stopping container linuxptp-daemon-container</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:09:30 +0000 UTC" title="First Seen: 15:09:30">15:09:30</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-p7m2w</p></td>
+      <td><p class="text-danger">Killing</p></td>
+      <td data-formatter="messageFormatter">Stopping container cloud-event-proxy</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:09:31 +0000 UTC" title="First Seen: 15:09:31">15:09:31</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-kjf8p</p></td>
+      <td><p class="text-muted">Pulled</p></td>
+      <td data-formatter="messageFormatter">Container image &#34;registry.redhat.io/openshift4/ose-cloud-event-proxy-rhel9@sha256:5f126665e92f32ad66cf4377be8884ffb0d36b3c1e37833de7de3910a9012c40&#34; already present on machine and can be accessed by the pod</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:09:31 +0000 UTC" title="First Seen: 15:09:31">15:09:31</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-kjf8p</p></td>
+      <td><p class="text-muted">Created</p></td>
+      <td data-formatter="messageFormatter">Container created</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:09:31 +0000 UTC" title="First Seen: 15:09:31">15:09:31</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-kjf8p</p></td>
+      <td><p class="text-muted">Created</p></td>
+      <td data-formatter="messageFormatter">Container created</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:09:31 +0000 UTC" title="First Seen: 15:09:31">15:09:31</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-kjf8p</p></td>
+      <td><p class="text-muted">Started</p></td>
+      <td data-formatter="messageFormatter">Container started</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:09:31 +0000 UTC" title="First Seen: 15:09:31">15:09:31</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-kjf8p</p></td>
+      <td><p class="text-muted">Pulled</p></td>
+      <td data-formatter="messageFormatter">Container image &#34;registry.redhat.io/openshift4/ose-ptp-rhel9@sha256:0bf2e4999e35570c3f87b137028240f193401df75c2ea94c771044274d00b25a&#34; already present on machine and can be accessed by the pod</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:09:31 +0000 UTC" title="First Seen: 15:09:31">15:09:31</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">default-scheduler</p></td>
+      <td><p class="truncated">linuxptp-daemon-kjf8p</p></td>
+      <td><p class="text-muted">Scheduled</p></td>
+      <td data-formatter="messageFormatter">Successfully assigned openshift-ptp/linuxptp-daemon-kjf8p to helix103.telcoqe.eng.rdu2.dc.redhat.com</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:09:31 +0000 UTC" title="First Seen: 15:09:31">15:09:31</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">daemonset-controller</p></td>
+      <td><p class="truncated">linuxptp-daemon</p></td>
+      <td><p class="text-muted">SuccessfulCreate</p></td>
+      <td data-formatter="messageFormatter">Created pod: linuxptp-daemon-kjf8p</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:09:31 +0000 UTC" title="First Seen: 15:09:31">15:09:31</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-kjf8p</p></td>
+      <td><p class="text-muted">Started</p></td>
+      <td data-formatter="messageFormatter">Container started</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:09:31 +0000 UTC" title="First Seen: 15:09:31">15:09:31</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-kjf8p</p></td>
+      <td><p class="text-muted">Started</p></td>
+      <td data-formatter="messageFormatter">Container started</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:09:31 +0000 UTC" title="First Seen: 15:09:31">15:09:31</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-kjf8p</p></td>
+      <td><p class="text-muted">Pulled</p></td>
+      <td data-formatter="messageFormatter">Container image &#34;registry.redhat.io/openshift4/ose-kube-rbac-proxy-rhel9@sha256:1915da376c32d710ec6f4e5431ca7d500c5c1862c4156c2a3befe3b98561debc&#34; already present on machine and can be accessed by the pod</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:09:31 +0000 UTC" title="First Seen: 15:09:31">15:09:31</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-kjf8p</p></td>
+      <td><p class="text-muted">Created</p></td>
+      <td data-formatter="messageFormatter">Container created</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:43:17 +0000 UTC" title="First Seen: 15:43:17">15:43:17</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">default-scheduler</p></td>
+      <td><p class="truncated">certified-operators-custom-rdhfg</p></td>
+      <td><p class="text-muted">Scheduled</p></td>
+      <td data-formatter="messageFormatter">Successfully assigned openshift-marketplace/certified-operators-custom-rdhfg to helix103.telcoqe.eng.rdu2.dc.redhat.com</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:43:18 +0000 UTC" title="First Seen: 15:43:18">15:43:18</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-rdhfg</p></td>
+      <td><p class="text-muted">Pulling</p></td>
+      <td data-formatter="messageFormatter">Pulling image &#34;registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/far-edge-sriov-fec:v4.22&#34;</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:43:18 +0000 UTC" title="First Seen: 15:43:18">15:43:18</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-rdhfg</p></td>
+      <td><p class="text-muted">Pulled</p></td>
+      <td data-formatter="messageFormatter">Successfully pulled image &#34;registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/far-edge-sriov-fec:v4.22&#34; in 90ms (90ms including waiting). Image size: 1038971282 bytes.</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:43:18 +0000 UTC" title="First Seen: 15:43:18">15:43:18</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-rdhfg</p></td>
+      <td><p class="text-muted">Created</p></td>
+      <td data-formatter="messageFormatter">Container created</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:43:18 +0000 UTC" title="First Seen: 15:43:18">15:43:18</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-rdhfg</p></td>
+      <td><p class="text-muted">Started</p></td>
+      <td data-formatter="messageFormatter">Container started</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:43:18 +0000 UTC" title="First Seen: 15:43:18">15:43:18</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">multus</p></td>
+      <td><p class="truncated">certified-operators-custom-rdhfg</p></td>
+      <td><p class="text-muted">AddedInterface</p></td>
+      <td data-formatter="messageFormatter">Add eth0 [10.128.0.100/23] from ovn-kubernetes</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:43:30 +0000 UTC" title="First Seen: 15:43:30">15:43:30</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-rdhfg</p></td>
+      <td><p class="text-danger">Killing</p></td>
+      <td data-formatter="messageFormatter">Stopping container registry-server</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:43:37 +0000 UTC" title="First Seen: 15:43:37">15:43:37</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">default-scheduler</p></td>
+      <td><p class="truncated">redhat-operators-custom-7p2j5</p></td>
+      <td><p class="text-muted">Scheduled</p></td>
+      <td data-formatter="messageFormatter">Successfully assigned openshift-marketplace/redhat-operators-custom-7p2j5 to helix103.telcoqe.eng.rdu2.dc.redhat.com</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:43:38 +0000 UTC" title="First Seen: 15:43:38">15:43:38</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-7p2j5</p></td>
+      <td><p class="text-muted">Started</p></td>
+      <td data-formatter="messageFormatter">Container started</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:43:38 +0000 UTC" title="First Seen: 15:43:38">15:43:38</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">multus</p></td>
+      <td><p class="truncated">redhat-operators-custom-7p2j5</p></td>
+      <td><p class="text-muted">AddedInterface</p></td>
+      <td data-formatter="messageFormatter">Add eth0 [10.128.0.101/23] from ovn-kubernetes</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:43:38 +0000 UTC" title="First Seen: 15:43:38">15:43:38</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-7p2j5</p></td>
+      <td><p class="text-muted">Pulling</p></td>
+      <td data-formatter="messageFormatter">Pulling image &#34;registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/redhat-operators:v4.22&#34;</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:43:38 +0000 UTC" title="First Seen: 15:43:38">15:43:38</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-7p2j5</p></td>
+      <td><p class="text-muted">Pulled</p></td>
+      <td data-formatter="messageFormatter">Successfully pulled image &#34;registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/redhat-operators:v4.22&#34; in 94ms (94ms including waiting). Image size: 84682095 bytes.</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:43:38 +0000 UTC" title="First Seen: 15:43:38">15:43:38</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-7p2j5</p></td>
+      <td><p class="text-muted">Created</p></td>
+      <td data-formatter="messageFormatter">Container created</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 15:43:50 +0000 UTC" title="First Seen: 15:43:50">15:43:50</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-7p2j5</p></td>
+      <td><p class="text-danger">Killing</p></td>
+      <td data-formatter="messageFormatter">Stopping container registry-server</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:30:29 +0000 UTC" title="First Seen: 16:30:29">16:30:29</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-kjf8p</p></td>
+      <td><p class="text-muted">Pulled</p></td>
+      <td data-formatter="messageFormatter">Container image &#34;registry.redhat.io/openshift4/ose-cloud-event-proxy-rhel9@sha256:5f126665e92f32ad66cf4377be8884ffb0d36b3c1e37833de7de3910a9012c40&#34; already present on machine and can be accessed by the pod</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:30:31 +0000 UTC" title="First Seen: 16:30:31">16:30:31</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-kjf8p</p></td>
+      <td><p class="text-muted">Started</p></td>
+      <td data-formatter="messageFormatter">Container started</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:30:31 +0000 UTC" title="First Seen: 16:30:31">16:30:31</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-kjf8p</p></td>
+      <td><p class="text-muted">Started</p></td>
+      <td data-formatter="messageFormatter">Container started</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:30:31 +0000 UTC" title="First Seen: 16:30:31">16:30:31</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-kjf8p</p></td>
+      <td><p class="text-muted">Created</p></td>
+      <td data-formatter="messageFormatter">Container created</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:30:31 +0000 UTC" title="First Seen: 16:30:31">16:30:31</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-kjf8p</p></td>
+      <td><p class="text-muted">Pulled</p></td>
+      <td data-formatter="messageFormatter">Container image &#34;registry.redhat.io/openshift4/ose-kube-rbac-proxy-rhel9@sha256:1915da376c32d710ec6f4e5431ca7d500c5c1862c4156c2a3befe3b98561debc&#34; already present on machine and can be accessed by the pod</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:30:31 +0000 UTC" title="First Seen: 16:30:31">16:30:31</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-kjf8p</p></td>
+      <td><p class="text-muted">Created</p></td>
+      <td data-formatter="messageFormatter">Container created</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:30:31 +0000 UTC" title="First Seen: 16:30:31">16:30:31</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-kjf8p</p></td>
+      <td><p class="text-muted">Started</p></td>
+      <td data-formatter="messageFormatter">Container started</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:30:31 +0000 UTC" title="First Seen: 16:30:31">16:30:31</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-kjf8p</p></td>
+      <td><p class="text-muted">Pulled</p></td>
+      <td data-formatter="messageFormatter">Container image &#34;registry.redhat.io/openshift4/ose-ptp-rhel9@sha256:0bf2e4999e35570c3f87b137028240f193401df75c2ea94c771044274d00b25a&#34; already present on machine and can be accessed by the pod</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:30:31 +0000 UTC" title="First Seen: 16:30:31">16:30:31</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-kjf8p</p></td>
+      <td><p class="text-muted">Created</p></td>
+      <td data-formatter="messageFormatter">Container created</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:30:44 +0000 UTC" title="First Seen: 16:30:28">16:30:44</time> <small>(x6)</small></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">ptp-operator-d858bb79-4596k</p></td>
+      <td><p class="text-danger">FailedMount</p></td>
+      <td data-formatter="messageFormatter">MountVolume.SetUp failed for volume &#34;apiservice-cert&#34; : object &#34;openshift-ptp&#34;/&#34;ptp-operator-service-cert&#34; not registered</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:30:44 +0000 UTC" title="First Seen: 16:30:28">16:30:44</time> <small>(x6)</small></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-6pr86</p></td>
+      <td><p class="text-danger">FailedMount</p></td>
+      <td data-formatter="messageFormatter">MountVolume.SetUp failed for volume &#34;kube-api-access-kvcbf&#34; : [object &#34;openshift-marketplace&#34;/&#34;kube-root-ca.crt&#34; not registered, object &#34;openshift-marketplace&#34;/&#34;openshift-service-ca.crt&#34; not registered]</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:30:44 +0000 UTC" title="First Seen: 16:30:28">16:30:44</time> <small>(x6)</small></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">ptp-operator-d858bb79-4596k</p></td>
+      <td><p class="text-danger">FailedMount</p></td>
+      <td data-formatter="messageFormatter">MountVolume.SetUp failed for volume &#34;webhook-cert&#34; : object &#34;openshift-ptp&#34;/&#34;ptp-operator-service-cert&#34; not registered</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:30:44 +0000 UTC" title="First Seen: 16:30:28">16:30:44</time> <small>(x6)</small></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-h87fm</p></td>
+      <td><p class="text-danger">FailedMount</p></td>
+      <td data-formatter="messageFormatter">MountVolume.SetUp failed for volume &#34;kube-api-access-8vjrc&#34; : [object &#34;openshift-marketplace&#34;/&#34;kube-root-ca.crt&#34; not registered, object &#34;openshift-marketplace&#34;/&#34;openshift-service-ca.crt&#34; not registered]</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:30:47 +0000 UTC" title="First Seen: 16:30:47">16:30:47</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">node-controller</p></td>
+      <td><p class="truncated">linuxptp-daemon-kjf8p</p></td>
+      <td><p class="text-warning">NodeNotReady</p></td>
+      <td data-formatter="messageFormatter">Node is not ready</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:30:48 +0000 UTC" title="First Seen: 16:30:28">16:30:48</time> <small>(x11)</small></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-h87fm</p></td>
+      <td><p class="text-warning">NetworkNotReady</p></td>
+      <td data-formatter="messageFormatter">network is not ready: container runtime network not ready: NetworkReady=false reason:NetworkPluginNotReady message:Network plugin returns error: no CNI configuration file in /etc/kubernetes/cni/net.d/. Has your network provider started?</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:30:48 +0000 UTC" title="First Seen: 16:30:28">16:30:48</time> <small>(x11)</small></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-6pr86</p></td>
+      <td><p class="text-warning">NetworkNotReady</p></td>
+      <td data-formatter="messageFormatter">network is not ready: container runtime network not ready: NetworkReady=false reason:NetworkPluginNotReady message:Network plugin returns error: no CNI configuration file in /etc/kubernetes/cni/net.d/. Has your network provider started?</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:30:48 +0000 UTC" title="First Seen: 16:30:28">16:30:48</time> <small>(x11)</small></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">ptp-operator-d858bb79-4596k</p></td>
+      <td><p class="text-warning">NetworkNotReady</p></td>
+      <td data-formatter="messageFormatter">network is not ready: container runtime network not ready: NetworkReady=false reason:NetworkPluginNotReady message:Network plugin returns error: no CNI configuration file in /etc/kubernetes/cni/net.d/. Has your network provider started?</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:31:02 +0000 UTC" title="First Seen: 16:31:02">16:31:02</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">multus</p></td>
+      <td><p class="truncated">certified-operators-custom-6pr86</p></td>
+      <td><p class="text-muted">AddedInterface</p></td>
+      <td data-formatter="messageFormatter">Add eth0 [10.128.0.82/23] from ovn-kubernetes</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:31:02 +0000 UTC" title="First Seen: 16:31:02">16:31:02</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-6pr86</p></td>
+      <td><p class="text-muted">Created</p></td>
+      <td data-formatter="messageFormatter">Container created</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:31:02 +0000 UTC" title="First Seen: 16:31:02">16:31:02</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-6pr86</p></td>
+      <td><p class="text-muted">Pulled</p></td>
+      <td data-formatter="messageFormatter">Successfully pulled image &#34;registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/far-edge-sriov-fec:v4.22&#34; in 146ms (146ms including waiting). Image size: 1038971282 bytes.</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:31:02 +0000 UTC" title="First Seen: 16:31:02">16:31:02</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-6pr86</p></td>
+      <td><p class="text-muted">Pulling</p></td>
+      <td data-formatter="messageFormatter">Pulling image &#34;registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/far-edge-sriov-fec:v4.22&#34;</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:31:02 +0000 UTC" title="First Seen: 16:31:02">16:31:02</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-6pr86</p></td>
+      <td><p class="text-muted">Started</p></td>
+      <td data-formatter="messageFormatter">Container started</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:31:03 +0000 UTC" title="First Seen: 16:31:03">16:31:03</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">ptp-operator-d858bb79-4596k</p></td>
+      <td><p class="text-muted">Pulled</p></td>
+      <td data-formatter="messageFormatter">Container image &#34;registry.redhat.io/openshift4/ose-ptp-rhel9-operator@sha256:65d0d1fc62c2caab2e78d120156d3d71391d96cd41bda22c0f8930d9e4256278&#34; already present on machine and can be accessed by the pod</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:31:03 +0000 UTC" title="First Seen: 16:31:03">16:31:03</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">multus</p></td>
+      <td><p class="truncated">ptp-operator-d858bb79-4596k</p></td>
+      <td><p class="text-muted">AddedInterface</p></td>
+      <td data-formatter="messageFormatter">Add eth0 [10.128.0.91/23] from ovn-kubernetes</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:31:03 +0000 UTC" title="First Seen: 16:31:03">16:31:03</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">multus</p></td>
+      <td><p class="truncated">redhat-operators-custom-h87fm</p></td>
+      <td><p class="text-muted">AddedInterface</p></td>
+      <td data-formatter="messageFormatter">Add eth0 [10.128.0.83/23] from ovn-kubernetes</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:31:04 +0000 UTC" title="First Seen: 16:31:04">16:31:04</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-h87fm</p></td>
+      <td><p class="text-muted">Pulled</p></td>
+      <td data-formatter="messageFormatter">Successfully pulled image &#34;registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/redhat-operators:v4.22&#34; in 489ms (489ms including waiting). Image size: 84682095 bytes.</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:31:04 +0000 UTC" title="First Seen: 16:31:04">16:31:04</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">ptp-operator-d858bb79-4596k</p></td>
+      <td><p class="text-muted">Created</p></td>
+      <td data-formatter="messageFormatter">Container created</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:31:04 +0000 UTC" title="First Seen: 16:31:04">16:31:04</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-h87fm</p></td>
+      <td><p class="text-muted">Pulling</p></td>
+      <td data-formatter="messageFormatter">Pulling image &#34;registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/redhat-operators:v4.22&#34;</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:31:04 +0000 UTC" title="First Seen: 16:31:04">16:31:04</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">ptp-operator-d858bb79-4596k</p></td>
+      <td><p class="text-muted">Started</p></td>
+      <td data-formatter="messageFormatter">Container started</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:31:06 +0000 UTC" title="First Seen: 16:31:06">16:31:06</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-h87fm</p></td>
+      <td><p class="text-muted">Started</p></td>
+      <td data-formatter="messageFormatter">Container started</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:31:06 +0000 UTC" title="First Seen: 16:31:06">16:31:06</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-h87fm</p></td>
+      <td><p class="text-muted">Created</p></td>
+      <td data-formatter="messageFormatter">Container created</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:35:58 +0000 UTC" title="First Seen: 16:35:58">16:35:58</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">ptp-operator-d858bb79-4596k_1fee008b-1b0b-47a0-aafc-d0f8b95484f2</p></td>
+      <td><p class="truncated">ptp.openshift.io</p></td>
+      <td><p class="text-muted">LeaderElection</p></td>
+      <td data-formatter="messageFormatter">ptp-operator-d858bb79-4596k_1fee008b-1b0b-47a0-aafc-d0f8b95484f2 became leader</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:42:02 +0000 UTC" title="First Seen: 16:42:02">16:42:02</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">default-scheduler</p></td>
+      <td><p class="truncated">linuxptp-daemon-q872p</p></td>
+      <td><p class="text-muted">Scheduled</p></td>
+      <td data-formatter="messageFormatter">Successfully assigned openshift-ptp/linuxptp-daemon-q872p to helix103.telcoqe.eng.rdu2.dc.redhat.com</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:42:02 +0000 UTC" title="First Seen: 16:42:02">16:42:02</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">daemonset-controller</p></td>
+      <td><p class="truncated">linuxptp-daemon</p></td>
+      <td><p class="text-muted">SuccessfulCreate</p></td>
+      <td data-formatter="messageFormatter">Created pod: linuxptp-daemon-q872p</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:42:02 +0000 UTC" title="First Seen: 16:42:02">16:42:02</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-kjf8p</p></td>
+      <td><p class="text-danger">Killing</p></td>
+      <td data-formatter="messageFormatter">Stopping container cloud-event-proxy</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:42:02 +0000 UTC" title="First Seen: 16:42:02">16:42:02</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-kjf8p</p></td>
+      <td><p class="text-danger">Killing</p></td>
+      <td data-formatter="messageFormatter">Stopping container linuxptp-daemon-container</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:42:02 +0000 UTC" title="First Seen: 16:42:02">16:42:02</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-kjf8p</p></td>
+      <td><p class="text-danger">Killing</p></td>
+      <td data-formatter="messageFormatter">Stopping container kube-rbac-proxy</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:42:03 +0000 UTC" title="First Seen: 16:42:03">16:42:03</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-q872p</p></td>
+      <td><p class="text-muted">Created</p></td>
+      <td data-formatter="messageFormatter">Container created</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:42:03 +0000 UTC" title="First Seen: 16:42:03">16:42:03</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-q872p</p></td>
+      <td><p class="text-muted">Pulled</p></td>
+      <td data-formatter="messageFormatter">Container image &#34;registry.redhat.io/openshift4/ose-kube-rbac-proxy-rhel9@sha256:1915da376c32d710ec6f4e5431ca7d500c5c1862c4156c2a3befe3b98561debc&#34; already present on machine and can be accessed by the pod</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:42:03 +0000 UTC" title="First Seen: 16:42:03">16:42:03</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-q872p</p></td>
+      <td><p class="text-muted">Started</p></td>
+      <td data-formatter="messageFormatter">Container started</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:42:03 +0000 UTC" title="First Seen: 16:42:03">16:42:03</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-q872p</p></td>
+      <td><p class="text-muted">Created</p></td>
+      <td data-formatter="messageFormatter">Container created</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:42:03 +0000 UTC" title="First Seen: 16:42:03">16:42:03</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-q872p</p></td>
+      <td><p class="text-muted">Pulled</p></td>
+      <td data-formatter="messageFormatter">Container image &#34;registry.redhat.io/openshift4/ose-cloud-event-proxy-rhel9@sha256:5f126665e92f32ad66cf4377be8884ffb0d36b3c1e37833de7de3910a9012c40&#34; already present on machine and can be accessed by the pod</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:42:03 +0000 UTC" title="First Seen: 16:42:03">16:42:03</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-q872p</p></td>
+      <td><p class="text-muted">Created</p></td>
+      <td data-formatter="messageFormatter">Container created</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:42:03 +0000 UTC" title="First Seen: 16:42:03">16:42:03</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-q872p</p></td>
+      <td><p class="text-muted">Started</p></td>
+      <td data-formatter="messageFormatter">Container started</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:42:03 +0000 UTC" title="First Seen: 16:42:03">16:42:03</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-q872p</p></td>
+      <td><p class="text-muted">Pulled</p></td>
+      <td data-formatter="messageFormatter">Container image &#34;registry.redhat.io/openshift4/ose-ptp-rhel9@sha256:0bf2e4999e35570c3f87b137028240f193401df75c2ea94c771044274d00b25a&#34; already present on machine and can be accessed by the pod</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:42:03 +0000 UTC" title="First Seen: 16:42:03">16:42:03</time></td>
+      <td><p class="truncated">openshift-ptp</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">linuxptp-daemon-q872p</p></td>
+      <td><p class="text-muted">Started</p></td>
+      <td data-formatter="messageFormatter">Container started</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:43:17 +0000 UTC" title="First Seen: 16:43:17">16:43:17</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-zzmb6</p></td>
+      <td><p class="text-muted">Created</p></td>
+      <td data-formatter="messageFormatter">Container created</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:43:17 +0000 UTC" title="First Seen: 16:43:17">16:43:17</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-zzmb6</p></td>
+      <td><p class="text-muted">Started</p></td>
+      <td data-formatter="messageFormatter">Container started</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:43:17 +0000 UTC" title="First Seen: 16:43:17">16:43:17</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">default-scheduler</p></td>
+      <td><p class="truncated">certified-operators-custom-zzmb6</p></td>
+      <td><p class="text-muted">Scheduled</p></td>
+      <td data-formatter="messageFormatter">Successfully assigned openshift-marketplace/certified-operators-custom-zzmb6 to helix103.telcoqe.eng.rdu2.dc.redhat.com</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:43:17 +0000 UTC" title="First Seen: 16:43:17">16:43:17</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">multus</p></td>
+      <td><p class="truncated">certified-operators-custom-zzmb6</p></td>
+      <td><p class="text-muted">AddedInterface</p></td>
+      <td data-formatter="messageFormatter">Add eth0 [10.128.0.24/23] from ovn-kubernetes</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:43:17 +0000 UTC" title="First Seen: 16:43:17">16:43:17</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-zzmb6</p></td>
+      <td><p class="text-muted">Pulling</p></td>
+      <td data-formatter="messageFormatter">Pulling image &#34;registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/far-edge-sriov-fec:v4.22&#34;</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:43:17 +0000 UTC" title="First Seen: 16:43:17">16:43:17</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-zzmb6</p></td>
+      <td><p class="text-muted">Pulled</p></td>
+      <td data-formatter="messageFormatter">Successfully pulled image &#34;registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/far-edge-sriov-fec:v4.22&#34; in 86ms (86ms including waiting). Image size: 1038971282 bytes.</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:43:30 +0000 UTC" title="First Seen: 16:43:30">16:43:30</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-zzmb6</p></td>
+      <td><p class="text-danger">Killing</p></td>
+      <td data-formatter="messageFormatter">Stopping container registry-server</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:43:39 +0000 UTC" title="First Seen: 16:43:39">16:43:39</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">default-scheduler</p></td>
+      <td><p class="truncated">redhat-operators-custom-686lv</p></td>
+      <td><p class="text-muted">Scheduled</p></td>
+      <td data-formatter="messageFormatter">Successfully assigned openshift-marketplace/redhat-operators-custom-686lv to helix103.telcoqe.eng.rdu2.dc.redhat.com</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:43:40 +0000 UTC" title="First Seen: 16:43:40">16:43:40</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-686lv</p></td>
+      <td><p class="text-muted">Pulled</p></td>
+      <td data-formatter="messageFormatter">Successfully pulled image &#34;registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/redhat-operators:v4.22&#34; in 81ms (81ms including waiting). Image size: 84682095 bytes.</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:43:40 +0000 UTC" title="First Seen: 16:43:40">16:43:40</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-686lv</p></td>
+      <td><p class="text-muted">Created</p></td>
+      <td data-formatter="messageFormatter">Container created</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:43:40 +0000 UTC" title="First Seen: 16:43:40">16:43:40</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-686lv</p></td>
+      <td><p class="text-muted">Pulling</p></td>
+      <td data-formatter="messageFormatter">Pulling image &#34;registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/redhat-operators:v4.22&#34;</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:43:40 +0000 UTC" title="First Seen: 16:43:40">16:43:40</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-686lv</p></td>
+      <td><p class="text-muted">Started</p></td>
+      <td data-formatter="messageFormatter">Container started</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:43:40 +0000 UTC" title="First Seen: 16:43:40">16:43:40</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">multus</p></td>
+      <td><p class="truncated">redhat-operators-custom-686lv</p></td>
+      <td><p class="text-muted">AddedInterface</p></td>
+      <td data-formatter="messageFormatter">Add eth0 [10.128.0.25/23] from ovn-kubernetes</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 16:43:52 +0000 UTC" title="First Seen: 16:43:52">16:43:52</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-686lv</p></td>
+      <td><p class="text-danger">Killing</p></td>
+      <td data-formatter="messageFormatter">Stopping container registry-server</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 17:43:18 +0000 UTC" title="First Seen: 17:43:18">17:43:18</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-s8sgc</p></td>
+      <td><p class="text-muted">Created</p></td>
+      <td data-formatter="messageFormatter">Container created</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 17:43:18 +0000 UTC" title="First Seen: 17:43:18">17:43:18</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-s8sgc</p></td>
+      <td><p class="text-muted">Pulling</p></td>
+      <td data-formatter="messageFormatter">Pulling image &#34;registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/far-edge-sriov-fec:v4.22&#34;</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 17:43:18 +0000 UTC" title="First Seen: 17:43:18">17:43:18</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-s8sgc</p></td>
+      <td><p class="text-muted">Pulled</p></td>
+      <td data-formatter="messageFormatter">Successfully pulled image &#34;registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/far-edge-sriov-fec:v4.22&#34; in 87ms (87ms including waiting). Image size: 1038971282 bytes.</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 17:43:18 +0000 UTC" title="First Seen: 17:43:18">17:43:18</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-s8sgc</p></td>
+      <td><p class="text-muted">Started</p></td>
+      <td data-formatter="messageFormatter">Container started</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 17:43:18 +0000 UTC" title="First Seen: 17:43:18">17:43:18</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">default-scheduler</p></td>
+      <td><p class="truncated">certified-operators-custom-s8sgc</p></td>
+      <td><p class="text-muted">Scheduled</p></td>
+      <td data-formatter="messageFormatter">Successfully assigned openshift-marketplace/certified-operators-custom-s8sgc to helix103.telcoqe.eng.rdu2.dc.redhat.com</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 17:43:18 +0000 UTC" title="First Seen: 17:43:18">17:43:18</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">multus</p></td>
+      <td><p class="truncated">certified-operators-custom-s8sgc</p></td>
+      <td><p class="text-muted">AddedInterface</p></td>
+      <td data-formatter="messageFormatter">Add eth0 [10.128.0.28/23] from ovn-kubernetes</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 17:43:30 +0000 UTC" title="First Seen: 17:43:30">17:43:30</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">certified-operators-custom-s8sgc</p></td>
+      <td><p class="text-danger">Killing</p></td>
+      <td data-formatter="messageFormatter">Stopping container registry-server</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 17:43:40 +0000 UTC" title="First Seen: 17:43:40">17:43:40</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">default-scheduler</p></td>
+      <td><p class="truncated">redhat-operators-custom-gt2pf</p></td>
+      <td><p class="text-muted">Scheduled</p></td>
+      <td data-formatter="messageFormatter">Successfully assigned openshift-marketplace/redhat-operators-custom-gt2pf to helix103.telcoqe.eng.rdu2.dc.redhat.com</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 17:43:41 +0000 UTC" title="First Seen: 17:43:41">17:43:41</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">multus</p></td>
+      <td><p class="truncated">redhat-operators-custom-gt2pf</p></td>
+      <td><p class="text-muted">AddedInterface</p></td>
+      <td data-formatter="messageFormatter">Add eth0 [10.128.0.31/23] from ovn-kubernetes</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 17:43:41 +0000 UTC" title="First Seen: 17:43:41">17:43:41</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-gt2pf</p></td>
+      <td><p class="text-muted">Pulling</p></td>
+      <td data-formatter="messageFormatter">Pulling image &#34;registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/redhat-operators:v4.22&#34;</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 17:43:41 +0000 UTC" title="First Seen: 17:43:41">17:43:41</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-gt2pf</p></td>
+      <td><p class="text-muted">Created</p></td>
+      <td data-formatter="messageFormatter">Container created</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 17:43:41 +0000 UTC" title="First Seen: 17:43:41">17:43:41</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-gt2pf</p></td>
+      <td><p class="text-muted">Started</p></td>
+      <td data-formatter="messageFormatter">Container started</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 17:43:41 +0000 UTC" title="First Seen: 17:43:41">17:43:41</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-gt2pf</p></td>
+      <td><p class="text-muted">Pulled</p></td>
+      <td data-formatter="messageFormatter">Successfully pulled image &#34;registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/redhat-operators:v4.22&#34; in 80ms (80ms including waiting). Image size: 84682095 bytes.</td>
+    </tr>
+    
+    <tr>
+      <td><time datetime="2026-09-02 17:43:53 +0000 UTC" title="First Seen: 17:43:53">17:43:53</time></td>
+      <td><p class="truncated">openshift-marketplace</p></td>
+      <td><p class="truncated">kubelet</p></td>
+      <td><p class="truncated">redhat-operators-custom-gt2pf</p></td>
+      <td><p class="text-danger">Killing</p></td>
+      <td data-formatter="messageFormatter">Stopping container registry-server</td>
+    </tr>
+    
+  </tbody>
+</table>
+
+    
+    
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+
+    <script src="https://unpkg.com/bootstrap-table@1.17.1/dist/bootstrap-table.min.js" crossorigin="anonymous"></script>
+	<script src="https://unpkg.com/bootstrap-table@1.17.1/dist/extensions/toolbar/bootstrap-table-toolbar.min.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/bootstrap-table@1.17.1/dist/extensions/filter-control/bootstrap-table-filter-control.min.js" crossorigin="anonymous"></script>
+
+	<script>
+	function messageFormatter(value, row) {
+    	return '<code>'+value+'</code>'
+  	}
+    $(function() {
+      $('#events').bootstrapTable()
+    })
+	</script>
+  </body>
+</html>

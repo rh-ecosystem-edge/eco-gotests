@@ -1,0 +1,228 @@
+---
+apiVersion: networking.k8s.io/v1
+items:
+- apiVersion: networking.k8s.io/v1
+  kind: NetworkPolicy
+  metadata:
+    creationTimestamp: "2026-08-31T21:38:46Z"
+    generation: 1
+    labels:
+      olm.catalogSource: certified-operators-custom
+      olm.managed: "true"
+    managedFields:
+    - apiVersion: networking.k8s.io/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:metadata:
+          f:labels:
+            .: {}
+            f:olm.catalogSource: {}
+            f:olm.managed: {}
+          f:ownerReferences:
+            .: {}
+            k:{"uid":"dfff085e-ccfe-4ce5-869d-56a49c2b9cac"}: {}
+        f:spec:
+          f:ingress: {}
+          f:podSelector: {}
+          f:policyTypes: {}
+      manager: catalog
+      operation: Update
+      time: "2026-08-31T21:38:46Z"
+    name: certified-operators-custom-grpc-server
+    namespace: openshift-marketplace
+    ownerReferences:
+    - apiVersion: operators.coreos.com/v1alpha1
+      blockOwnerDeletion: false
+      controller: false
+      kind: CatalogSource
+      name: certified-operators-custom
+      uid: dfff085e-ccfe-4ce5-869d-56a49c2b9cac
+    resourceVersion: "10742"
+    uid: b168ff44-f1e6-4d84-9af6-c0b7af612f19
+  spec:
+    ingress:
+    - ports:
+      - port: 50051
+        protocol: TCP
+    podSelector:
+      matchLabels:
+        olm.catalogSource: certified-operators-custom
+        olm.managed: "true"
+    policyTypes:
+    - Ingress
+    - Egress
+- apiVersion: networking.k8s.io/v1
+  kind: NetworkPolicy
+  metadata:
+    creationTimestamp: "2026-08-31T21:38:46Z"
+    generation: 1
+    labels:
+      olm.catalogSource: certified-operators-custom
+      olm.managed: "true"
+    managedFields:
+    - apiVersion: networking.k8s.io/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:metadata:
+          f:labels:
+            .: {}
+            f:olm.catalogSource: {}
+            f:olm.managed: {}
+          f:ownerReferences:
+            .: {}
+            k:{"uid":"dfff085e-ccfe-4ce5-869d-56a49c2b9cac"}: {}
+        f:spec:
+          f:egress: {}
+          f:podSelector: {}
+          f:policyTypes: {}
+      manager: catalog
+      operation: Update
+      time: "2026-08-31T21:38:46Z"
+    name: certified-operators-custom-unpack-bundles
+    namespace: openshift-marketplace
+    ownerReferences:
+    - apiVersion: operators.coreos.com/v1alpha1
+      blockOwnerDeletion: false
+      controller: false
+      kind: CatalogSource
+      name: certified-operators-custom
+      uid: dfff085e-ccfe-4ce5-869d-56a49c2b9cac
+    resourceVersion: "10745"
+    uid: 623c9e50-9252-410d-b233-4e8228c8e8e7
+  spec:
+    egress:
+    - {}
+    - ports:
+      - port: 53
+        protocol: TCP
+      - port: 53
+        protocol: UDP
+      - port: 5353
+        protocol: TCP
+      - port: 5353
+        protocol: UDP
+    podSelector:
+      matchExpressions:
+      - key: operatorframework.io/bundle-unpack-ref
+        operator: Exists
+      - key: olm.managed
+        operator: In
+        values:
+        - "true"
+    policyTypes:
+    - Ingress
+    - Egress
+- apiVersion: networking.k8s.io/v1
+  kind: NetworkPolicy
+  metadata:
+    creationTimestamp: "2026-08-31T21:38:46Z"
+    generation: 1
+    labels:
+      olm.catalogSource: redhat-operators-custom
+      olm.managed: "true"
+    managedFields:
+    - apiVersion: networking.k8s.io/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:metadata:
+          f:labels:
+            .: {}
+            f:olm.catalogSource: {}
+            f:olm.managed: {}
+          f:ownerReferences:
+            .: {}
+            k:{"uid":"53edf77b-2d98-4c1a-bdb5-abbeb53aeb0b"}: {}
+        f:spec:
+          f:ingress: {}
+          f:podSelector: {}
+          f:policyTypes: {}
+      manager: catalog
+      operation: Update
+      time: "2026-08-31T21:38:46Z"
+    name: redhat-operators-custom-grpc-server
+    namespace: openshift-marketplace
+    ownerReferences:
+    - apiVersion: operators.coreos.com/v1alpha1
+      blockOwnerDeletion: false
+      controller: false
+      kind: CatalogSource
+      name: redhat-operators-custom
+      uid: 53edf77b-2d98-4c1a-bdb5-abbeb53aeb0b
+    resourceVersion: "10736"
+    uid: 2cf1af50-4946-4efe-9516-7cc3b7f8f9d2
+  spec:
+    ingress:
+    - ports:
+      - port: 50051
+        protocol: TCP
+    podSelector:
+      matchLabels:
+        olm.catalogSource: redhat-operators-custom
+        olm.managed: "true"
+    policyTypes:
+    - Ingress
+    - Egress
+- apiVersion: networking.k8s.io/v1
+  kind: NetworkPolicy
+  metadata:
+    creationTimestamp: "2026-08-31T21:38:46Z"
+    generation: 1
+    labels:
+      olm.catalogSource: redhat-operators-custom
+      olm.managed: "true"
+    managedFields:
+    - apiVersion: networking.k8s.io/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:metadata:
+          f:labels:
+            .: {}
+            f:olm.catalogSource: {}
+            f:olm.managed: {}
+          f:ownerReferences:
+            .: {}
+            k:{"uid":"53edf77b-2d98-4c1a-bdb5-abbeb53aeb0b"}: {}
+        f:spec:
+          f:egress: {}
+          f:podSelector: {}
+          f:policyTypes: {}
+      manager: catalog
+      operation: Update
+      time: "2026-08-31T21:38:46Z"
+    name: redhat-operators-custom-unpack-bundles
+    namespace: openshift-marketplace
+    ownerReferences:
+    - apiVersion: operators.coreos.com/v1alpha1
+      blockOwnerDeletion: false
+      controller: false
+      kind: CatalogSource
+      name: redhat-operators-custom
+      uid: 53edf77b-2d98-4c1a-bdb5-abbeb53aeb0b
+    resourceVersion: "10737"
+    uid: 362ff538-cb8f-4db0-83ef-02432560c4b6
+  spec:
+    egress:
+    - {}
+    - ports:
+      - port: 53
+        protocol: TCP
+      - port: 53
+        protocol: UDP
+      - port: 5353
+        protocol: TCP
+      - port: 5353
+        protocol: UDP
+    podSelector:
+      matchExpressions:
+      - key: operatorframework.io/bundle-unpack-ref
+        operator: Exists
+      - key: olm.managed
+        operator: In
+        values:
+        - "true"
+    policyTypes:
+    - Ingress
+    - Egress
+kind: NetworkPolicyList
+metadata:
+  resourceVersion: "461498"

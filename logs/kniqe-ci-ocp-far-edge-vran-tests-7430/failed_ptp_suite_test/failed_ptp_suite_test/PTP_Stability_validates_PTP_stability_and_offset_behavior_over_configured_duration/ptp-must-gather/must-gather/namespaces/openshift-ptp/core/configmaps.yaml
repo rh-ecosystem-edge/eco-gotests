@@ -1,0 +1,461 @@
+---
+apiVersion: v1
+items:
+- apiVersion: v1
+  data:
+    32820bbc-4ce6-36ef-8197-2f057b364e4e: |-
+      {
+       "clientID": "32820bbc-4ce6-36ef-8197-2f057b364e4e",
+       "subStore": {
+        "store": {
+         "02577d40-339e-4ea6-b39a-4c13d7f184e2": {
+          "ResourceAddress": "/cluster/node/helix103.telcoqe.eng.rdu2.dc.redhat.com/sync/sync-status/sync-state",
+          "EndpointUri": "http://consumer-events-service-helix103.cloud-events.svc.cluster.local.:9043/event",
+          "SubscriptionId": "02577d40-339e-4ea6-b39a-4c13d7f184e2",
+          "UriLocation": "http://ptp-event-publisher-service-helix103.openshift-ptp.svc.cluster.local:9043/api/ocloudNotifications/v2/subscriptions/02577d40-339e-4ea6-b39a-4c13d7f184e2"
+         },
+         "1131e963-6b18-43c8-abc2-e5dc62c759db": {
+          "ResourceAddress": "/cluster/node/helix103.telcoqe.eng.rdu2.dc.redhat.com/sync/sync-status/os-clock-sync-state",
+          "EndpointUri": "http://consumer-events-service-helix103.cloud-events.svc.cluster.local.:9043/event",
+          "SubscriptionId": "1131e963-6b18-43c8-abc2-e5dc62c759db",
+          "UriLocation": "http://ptp-event-publisher-service-helix103.openshift-ptp.svc.cluster.local:9043/api/ocloudNotifications/v2/subscriptions/1131e963-6b18-43c8-abc2-e5dc62c759db"
+         },
+         "76dae919-55cc-472d-bb54-61c1609d9abe": {
+          "ResourceAddress": "/cluster/node/helix103.telcoqe.eng.rdu2.dc.redhat.com/sync/gnss-status/gnss-sync-status",
+          "EndpointUri": "http://consumer-events-service-helix103.cloud-events.svc.cluster.local.:9043/event",
+          "SubscriptionId": "76dae919-55cc-472d-bb54-61c1609d9abe",
+          "UriLocation": "http://ptp-event-publisher-service-helix103.openshift-ptp.svc.cluster.local:9043/api/ocloudNotifications/v2/subscriptions/76dae919-55cc-472d-bb54-61c1609d9abe"
+         },
+         "97d976af-90c1-4dad-b9ac-184f885ceea7": {
+          "ResourceAddress": "/cluster/node/helix103.telcoqe.eng.rdu2.dc.redhat.com/sync/ptp-status/lock-state",
+          "EndpointUri": "http://consumer-events-service-helix103.cloud-events.svc.cluster.local.:9043/event",
+          "SubscriptionId": "97d976af-90c1-4dad-b9ac-184f885ceea7",
+          "UriLocation": "http://ptp-event-publisher-service-helix103.openshift-ptp.svc.cluster.local:9043/api/ocloudNotifications/v2/subscriptions/97d976af-90c1-4dad-b9ac-184f885ceea7"
+         },
+         "c8281ee2-b9ff-4a97-875f-d76d970a1d77": {
+          "ResourceAddress": "/cluster/node/helix103.telcoqe.eng.rdu2.dc.redhat.com/sync/ptp-status/clock-class",
+          "EndpointUri": "http://consumer-events-service-helix103.cloud-events.svc.cluster.local.:9043/event",
+          "SubscriptionId": "c8281ee2-b9ff-4a97-875f-d76d970a1d77",
+          "UriLocation": "http://ptp-event-publisher-service-helix103.openshift-ptp.svc.cluster.local:9043/api/ocloudNotifications/v2/subscriptions/c8281ee2-b9ff-4a97-875f-d76d970a1d77"
+         }
+        }
+       },
+       "EndpointUri": "http://consumer-events-service-helix103.cloud-events.svc.cluster.local.:9043/event",
+       "status": 1,
+       "action": 0
+      }
+  kind: ConfigMap
+  metadata:
+    creationTimestamp: "2026-08-31T21:41:00Z"
+    name: helix103.telcoqe.eng.rdu2.dc.redhat.com
+    namespace: openshift-ptp
+    resourceVersion: "457636"
+    uid: 7d2020bd-da4c-4c9e-aa3a-62f6f7c7fe24
+- apiVersion: v1
+  data:
+    ca.crt: |
+      -----BEGIN CERTIFICATE-----
+      MIIDMjCCAhqgAwIBAgIIOmCuz+QEHGwwDQYJKoZIhvcNAQELBQAwNzESMBAGA1UE
+      CxMJb3BlbnNoaWZ0MSEwHwYDVQQDExhrdWJlLWFwaXNlcnZlci1sYi1zaWduZXIw
+      HhcNMjYwODMxMjExMzE2WhcNMzYwODI4MjExMzE2WjA3MRIwEAYDVQQLEwlvcGVu
+      c2hpZnQxITAfBgNVBAMTGGt1YmUtYXBpc2VydmVyLWxiLXNpZ25lcjCCASIwDQYJ
+      KoZIhvcNAQEBBQADggEPADCCAQoCggEBAMDWqNLesyQmvDjlC/wH9y3anFAu+y7C
+      XoCK198GZU4aDzA4m7Uqo15eI7WuKbWxluB2W+GvKur+dqcVcT97Ndy2SklmTcmn
+      rPFh0/TSa9O1MqAWECmAIKgI7J0dwCanLSWIlDmnl2IjfEI2O2bpceYlp+Z+XkNz
+      Dv/iebMxDKO9hwas1BGi/pnVqCLePhMJQ/5l8OEpEH+n8iE2e41exY1xV/bpKqfo
+      a22OGD5aNtof/6Aet+uEv6hs0m5hHsouVKGWa0bolVcds3QoYIsKWK8HQecRYklj
+      4dogggo38XCEPyLAGJfsEfL4/36ONSX80qGySPLjYqZWz2yeUVa8JakCAwEAAaNC
+      MEAwDgYDVR0PAQH/BAQDAgKkMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0OBBYEFM7q
+      5yf5ve+D1nQib4UUT9X2fdswMA0GCSqGSIb3DQEBCwUAA4IBAQCLvbs2Vfj+5LtY
+      q01wkHWQYKyiCR9owIdc1bIfnwTa+cQ+qiNKHaRx2wZyLr0mPuXTEsYAngf2Amz5
+      5tBuv4trIVHP15mhMtF1QGnTlyVuDc65o2+96aOvQm4OHfTWCRgNMdvHpc9gBOe+
+      pCzBjfqZBiKshjGm85d02ICU+pPwI0XjgQtfp9ALXX1VhKXp9olpmzX40TcVnifl
+      7/Gy5hfb8UTByrWCW/EmyS/rFfGevBX51D3jAvGT2i4rPszLOuAtlVsfykXoLgff
+      37MQh8UEnLryxo2KNKb1OtCAkIPAt+cuzcMrT8axP3IQi+LYjg+Rruxvo5TcV+le
+      1BbYjdfF
+      -----END CERTIFICATE-----
+      -----BEGIN CERTIFICATE-----
+      MIIDQDCCAiigAwIBAgIIRvyBIoWDimYwDQYJKoZIhvcNAQELBQAwPjESMBAGA1UE
+      CxMJb3BlbnNoaWZ0MSgwJgYDVQQDEx9rdWJlLWFwaXNlcnZlci1sb2NhbGhvc3Qt
+      c2lnbmVyMB4XDTI2MDgzMTIxMTMxNVoXDTM2MDgyODIxMTMxNVowPjESMBAGA1UE
+      CxMJb3BlbnNoaWZ0MSgwJgYDVQQDEx9rdWJlLWFwaXNlcnZlci1sb2NhbGhvc3Qt
+      c2lnbmVyMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvdKcJICORqRh
+      V/p+IjBkx8S/awnLTob0s/qRpOmS7nnxBGonpN6wXLSBICe+NqnovanhynfupDMg
+      Euo5+jUg9LKxRifrP+wjg7tFIrbkfel+f+a+QjeqJ+MTmCQyH3Z4NNCZzbwEvlYZ
+      cXpAOqhuI/OsIFm7WuQItld113R+ekI7ILh/vPWaWCxfm/Kv6f1EYR6kwzBO/Dr/
+      ETAe5sLeqRVu7GcDWJc077+/1m9zsbicq8m1bXfeU9sTt/diWCpiJDpYnWLU+SiL
+      D5nmkh7qbeMSww7aIr02vrHGTCET2RGB7uq8BzTWQPTTOoOBdWHdD+ayYUSQt/+W
+      xVFvAuX8NQIDAQABo0IwQDAOBgNVHQ8BAf8EBAMCAqQwDwYDVR0TAQH/BAUwAwEB
+      /zAdBgNVHQ4EFgQUimmTrnzn2yWZjBzUFOfzTKQWXMkwDQYJKoZIhvcNAQELBQAD
+      ggEBAIP1YoZs2vncc1mUE98eRQhvyvpPrwunMoVTacJLFz32lqXowfieleddl6ql
+      5876/grV1vo0vdIq2Es27wCGJLjT9RlP+pGoef7kORuwdy1SutILpy49BglmN2Fx
+      /wZFnkO8/PE0E3WeVN41HJyzgC161lbUTTSwiaOoz2hD5COJdwYwMwXxvSsiMMVZ
+      sVZkOfLoHSMt1IqCUkCgDPHMOIYciINGSbRv88iP/J7pppjSnT5aRag07dAyFxzP
+      Vq7a9y5OvbNgQlx5lYz7DEojUSjGeiv/zdWb8oAlyWudsm7eWshLpoWH5MaPUpNJ
+      dq1q8G86OPYXCK0Q6XnS9FpnqHs=
+      -----END CERTIFICATE-----
+      -----BEGIN CERTIFICATE-----
+      MIIDTDCCAjSgAwIBAgIIODFy68z8rxYwDQYJKoZIhvcNAQELBQAwRDESMBAGA1UE
+      CxMJb3BlbnNoaWZ0MS4wLAYDVQQDEyVrdWJlLWFwaXNlcnZlci1zZXJ2aWNlLW5l
+      dHdvcmstc2lnbmVyMB4XDTI2MDgzMTIxMTMxNloXDTM2MDgyODIxMTMxNlowRDES
+      MBAGA1UECxMJb3BlbnNoaWZ0MS4wLAYDVQQDEyVrdWJlLWFwaXNlcnZlci1zZXJ2
+      aWNlLW5ldHdvcmstc2lnbmVyMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKC
+      AQEA0RMf4lMFxJa5d2HgWt2pPOmK9yqeos07n0OgVQ/vNmBExS3jNIaUx+uMdbof
+      dim1LMeFiZ0fxJsaoqFJuKDe37qLUeuYvEVl1JEpIpMKu1ZScNg7vOgXV/twsycB
+      T6Yx7H6f62EbI2N6PaHL3cekPehZHU2FIMTXiRPOfk+49mHNF8qWWtukNPD1i/No
+      h02FxRE2R29KwUSDXMRALhr6nKfiyKeOXM0wvtvaZsC6jam7I03EN8Mso8te5gy9
+      JNCjc/EXf2mMH+6OFjrin1l8o9oZqBmgR9rfv7fgKSYZ/3upJ+Ho01RmXhvnkVAD
+      oO5BoLCROUAg3R0uc2l0VhOANQIDAQABo0IwQDAOBgNVHQ8BAf8EBAMCAqQwDwYD
+      VR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUwEYhP35aLhhW8RmFpZgP0/CqPYAwDQYJ
+      KoZIhvcNAQELBQADggEBAAGTc73tGrqhsngtavfy2pVphxyohTBts5AHra8UlrEU
+      dOAA1tjWDsFVQgVXsCD3qPuTa8hdsTkLIdSF4PQKXFBWaN/Ccc+8PnKhgQUZWLKj
+      8OkyBys/Nl5TKOaErUffkrNFp/h6UhuJBZRWEErKHkrWsrJ3rx7Sf3GSXGxgmIhe
+      PKMTs8BzNarIs4cmgxrexNNgHuCePxG3Hk9/oHwmscxS+VuLRtAcfDctAjy4D5V/
+      kaxxY/A1/Ny1+09nTnQkuePEPTUKY2pklmjh2g1aOMUARg4ZANBTBY0jdD5k1rCn
+      /6jG30Hrub+It/67hlXXyudwp4dro7BJb9+kiuNTSKM=
+      -----END CERTIFICATE-----
+      -----BEGIN CERTIFICATE-----
+      MIIDlzCCAn+gAwIBAgIIEqw9OPiJ4pEwDQYJKoZIhvcNAQELBQAwWTFXMFUGA1UE
+      AwxOb3BlbnNoaWZ0LWt1YmUtYXBpc2VydmVyLW9wZXJhdG9yX2xvY2FsaG9zdC1y
+      ZWNvdmVyeS1zZXJ2aW5nLXNpZ25lckAxNzg4MjExNzMyMB4XDTI2MDgzMTIxMjg1
+      MVoXDTM2MDgyODIxMjg1MlowWTFXMFUGA1UEAwxOb3BlbnNoaWZ0LWt1YmUtYXBp
+      c2VydmVyLW9wZXJhdG9yX2xvY2FsaG9zdC1yZWNvdmVyeS1zZXJ2aW5nLXNpZ25l
+      ckAxNzg4MjExNzMyMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvf+Z
+      Opw7U2+cpd0W2TbCXslApjVeBrcqBb5Lok7/jOFE7yH+Dz5c9p5ylB9HaoSjOyiv
+      suIU4vYSIMx5u5OH5qPl6+b9NvBF33bWvuWHeE5LCBjD83mkX2G8FnMWX8rnT79n
+      o23SdviZCwFl67vayV5eezGNVEdM7P4qBxF+lZdKJTeSiqR6mvQzl/6X1jlnRzad
+      oKP2Mll9aVJ3bxGq0Pl9dX/G6l/E2qD/eURRW4xn7WcQUPtedLzjg1aRnC2CLsqW
+      GrlD2np3dmDwXfictKe5IzJ8SLvxqK3marEKBLe0KeQyKy9zPLej1Y3PhWlIr8Yc
+      DG69OMSXjFjDI6jtswIDAQABo2MwYTAOBgNVHQ8BAf8EBAMCAqQwDwYDVR0TAQH/
+      BAUwAwEB/zAdBgNVHQ4EFgQUqrNDkB7+GKzJ7LR3HijBS5QyO60wHwYDVR0jBBgw
+      FoAUqrNDkB7+GKzJ7LR3HijBS5QyO60wDQYJKoZIhvcNAQELBQADggEBAHrZ8k8f
+      4HUJV6BT5mBSJdvOPXWKmsLa9KZGhTzsPtSlk0Whhp2HhkVjFI220cbJcfCtH1Hz
+      lrYiEwiLWSmtUaEqdeuG7E4//WOgKlPyLfZMnIcROq2AkpaTIMKZujRrveeAk3eg
+      Bi6UzRY8spSsS8O4PvzaDOxNRY+tOnDxYZOjg5aT0AmUJqK3HV8xoqLjSA+zDhqS
+      RUc9GCaizWf83eRQ+BEBlpo/tmB1k/GW/tbvxsofBMijCnad6tKsRUl98j1PKiMQ
+      YteVQtreK/AeuflM1GzkJaR3tMiHXhmh1h9MglJr3q7IBknXTmuyReQr/U7mrBnZ
+      o6AruOmRHoVxfh0=
+      -----END CERTIFICATE-----
+      -----BEGIN CERTIFICATE-----
+      MIIDkzCCAnugAwIBAgIIfxl/9TfgJswwDQYJKoZIhvcNAQELBQAwJjEkMCIGA1UE
+      AwwbaW5ncmVzcy1vcGVyYXRvckAxNzg4MjExNzQ3MB4XDTI2MDgzMTIxMjkwNloX
+      DTI4MDgzMDIxMjkwN1owOTE3MDUGA1UEAwwuKi5hcHBzLmhlbGl4MTAzLnRlbGNv
+      cWUuZW5nLnJkdTIuZGMucmVkaGF0LmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEP
+      ADCCAQoCggEBAO2rvUNj1D6SKk1m25e463LBM36GPP7Kbbp+s7EVbeurykIvYgr+
+      6vKJ3AFhFhL3FjLCsZuRH0EsuA76R17HCKbTkoQD37F5P9njgCPLxzWywDK3CXLN
+      0yWGe9OE1T9lRGQZo8ki8YixMPWnS5byUZCw2unpJ4pShb67B7vi9oZejsVdRL0V
+      bYhqKBhwJakaApinFVDPP961A05bcU/DTW+OsY5bgwD/VmAHGfigMjFdx0xdWmC7
+      3I4Ae2fC9jJMmz1Zzh7DbSQdZxfPXdaglM0ShO/uliIGbhygKq5lssRrfzfcsQvz
+      fxmx5JdW+zIMji8b1t0qinAuplRzsX/R11cCAwEAAaOBsTCBrjAOBgNVHQ8BAf8E
+      BAMCBaAwEwYDVR0lBAwwCgYIKwYBBQUHAwEwDAYDVR0TAQH/BAIwADAdBgNVHQ4E
+      FgQUegZOFI9HECttEHesx54pn8Dg7rgwHwYDVR0jBBgwFoAUxfOVQo7wd+9yF8R6
+      Ejv3LqQWaicwOQYDVR0RBDIwMIIuKi5hcHBzLmhlbGl4MTAzLnRlbGNvcWUuZW5n
+      LnJkdTIuZGMucmVkaGF0LmNvbTANBgkqhkiG9w0BAQsFAAOCAQEAWpVmVkgLRxL4
+      2XwrgYOkA/trNKZImJqo5gGmxsIBBGZZX9do0AMCTvEvgbUBNHwJr97TxqLdcl3q
+      cjGCizR9xAnf/1NI3brFQ09zcX8b2/lDtq3J3/w++TnsIR0caunm0vq2g3TCSo0K
+      KaMMoL4V8RBdM8lqfW1vcVMJfbRciQKQMYi6+2K1/MSLx3xtknKfvjOS0+X/X4pO
+      IwQzoIKCBt7yy89+6H3DNcG2/+QUunBymhQhKopxL4mTrFIVLvQYdc8hDiLgkOhE
+      5A8BmuyteL0wY4Ip+gB+gPMaskHf5aNG/ZHfZFQbs/G8e5xksv02AthxqgEk0I9l
+      KWrZZv1+EQ==
+      -----END CERTIFICATE-----
+      -----BEGIN CERTIFICATE-----
+      MIIDDDCCAfSgAwIBAgIBATANBgkqhkiG9w0BAQsFADAmMSQwIgYDVQQDDBtpbmdy
+      ZXNzLW9wZXJhdG9yQDE3ODgyMTE3NDcwHhcNMjYwODMxMjEyOTA2WhcNMjgwODMw
+      MjEyOTA3WjAmMSQwIgYDVQQDDBtpbmdyZXNzLW9wZXJhdG9yQDE3ODgyMTE3NDcw
+      ggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQClP7IVMa9iEFib0ag+CBZ8
+      eg1+ny9vXd42EzNC7+OM/IPSy33Z3HkbumLVcI5wtxt+HmPRc/45Pl+1mUgv9Fxy
+      pCzCe7XuTCoe2R6ib7LLDwoZE+H5HdzxFLrNa0I+N25wtTJqRwwg7/OT4chHgvD4
+      VBXuOt/C8pbc8c7q+tVSZ9kNtMjtuQvC2a3489Gj2iz12/jdinRuI5UrAMQU9z6D
+      zfn7c3XGOwusPSRS5m3oEppxiSof8HCUkq1orcDq5+e96NC3Gn4Mks+iu/bPFHi8
+      +KLL7FqUAc3VdwDL45zDIZkbFD0voNx1NiEviMt4fP81CtV18EEXk9hl1iTToeBv
+      AgMBAAGjRTBDMA4GA1UdDwEB/wQEAwICpDASBgNVHRMBAf8ECDAGAQH/AgEAMB0G
+      A1UdDgQWBBTF85VCjvB373IXxHoSO/cupBZqJzANBgkqhkiG9w0BAQsFAAOCAQEA
+      J3Krcb1lyQIVBj/PAMFBVJQjHCu8AM1N7AKM1gtEc9/UVQbJCN87BzmlLpEceQxH
+      yx6c4mji/na7E26c4J+paohnZ7EtcDZHmvG1hBFlplu4hQ6P3HeNsO61CpufXAhS
+      ZNxCCEUQQwXlOrQmsuB1NJNZNTsiqA7dc87m1jfXTWA8OAUoos0RQilHdt+qOCxP
+      +d/b1rm9YuhVCLJBTeHlnuTfD7CzPjdnovoGxOFkWrGQhvYGevQh8cw4vyencm5R
+      57heDIA/Mwsdqsv4X0xh1tI+8h7PPjuDVswU8hLmJ0Jz6p9KEQNd5RdSAhqIna4Y
+      3SnyLEh44t6JiIaVsJVnrQ==
+      -----END CERTIFICATE-----
+  kind: ConfigMap
+  metadata:
+    annotations:
+      kubernetes.io/description: Contains a CA bundle that can be used to verify the
+        kube-apiserver when using internal endpoints such as the internal service
+        IP or kubernetes.default.svc. No other usage is guaranteed across distributions
+        of Kubernetes clusters.
+    creationTimestamp: "2026-08-31T21:39:41Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:data:
+          .: {}
+          f:ca.crt: {}
+        f:metadata:
+          f:annotations:
+            .: {}
+            f:kubernetes.io/description: {}
+      manager: kube-controller-manager
+      operation: Update
+      time: "2026-08-31T21:39:41Z"
+    name: kube-root-ca.crt
+    namespace: openshift-ptp
+    resourceVersion: "11068"
+    uid: 0b2f0473-663c-43f1-b1c2-073d1aafd656
+- apiVersion: v1
+  data:
+    helix103.telcoqe.eng.rdu2.dc.redhat.com: "# Do not edit\n# This file is generated
+      automatically by linuxptp-daemon\n#$\t3676924800\n#@\t4291747200\n2272060800
+      \    10    # 1 Jan 1972\n2287785600     11    # 1 Jul 1972\n2303683200     12
+      \   # 1 Jan 1973\n2335219200     13    # 1 Jan 1974\n2366755200     14    #
+      1 Jan 1975\n2398291200     15    # 1 Jan 1976\n2429913600     16    # 1 Jan
+      1977\n2461449600     17    # 1 Jan 1978\n2492985600     18    # 1 Jan 1979\n2524521600
+      \    19    # 1 Jan 1980\n2571782400     20    # 1 Jul 1981\n2603318400     21
+      \   # 1 Jul 1982\n2634854400     22    # 1 Jul 1983\n2698012800     23    #
+      1 Jul 1985\n2776982400     24    # 1 Jan 1988\n2840140800     25    # 1 Jan
+      1990\n2871676800     26    # 1 Jan 1991\n2918937600     27    # 1 Jul 1992\n2950473600
+      \    28    # 1 Jul 1993\n2982009600     29    # 1 Jul 1994\n3029443200     30
+      \   # 1 Jan 1996\n3076704000     31    # 1 Jul 1997\n3124137600     32    #
+      1 Jan 1999\n3345062400     33    # 1 Jan 2006\n3439756800     34    # 1 Jan
+      2009\n3550089600     35    # 1 Jul 2012\n3644697600     36    # 1 Jul 2015\n3692217600
+      \    37    # 1 Jan 2017\n\n#h\t3ce176b7 325b0bdb 9802f120 38112b0c 6781420a"
+  kind: ConfigMap
+  metadata:
+    creationTimestamp: "2026-08-31T21:40:26Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:metadata:
+          f:ownerReferences:
+            .: {}
+            k:{"uid":"1a55bb1b-5d85-404c-9134-165db70c9ed7"}: {}
+      manager: ptp-operator
+      operation: Update
+      time: "2026-08-31T21:40:26Z"
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:data:
+          .: {}
+          f:helix103.telcoqe.eng.rdu2.dc.redhat.com: {}
+      manager: ptp
+      operation: Update
+      time: "2026-09-01T15:50:12Z"
+    name: leap-configmap
+    namespace: openshift-ptp
+    ownerReferences:
+    - apiVersion: ptp.openshift.io/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: PtpOperatorConfig
+      name: default
+      uid: 1a55bb1b-5d85-404c-9134-165db70c9ed7
+    resourceVersion: "176327"
+    uid: 63a99fb5-f565-4a34-91a4-8842e6be6f28
+- apiVersion: v1
+  data:
+    controller_manager_config.yaml: |
+      apiVersion: controller-runtime.sigs.k8s.io/v1alpha1
+      kind: ControllerManagerConfig
+      health:
+        healthProbeBindAddress: :8081
+      metrics:
+        bindAddress: 127.0.0.1:8080
+      webhook:
+        port: 9443
+      leaderElection:
+        leaderElect: true
+        resourceName: c5793dcc.openshift.io
+  kind: ConfigMap
+  metadata:
+    creationTimestamp: "2026-08-31T21:40:17Z"
+    labels:
+      olm.managed: "true"
+      operators.coreos.com/ptp-operator.openshift-ptp: ""
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:data:
+          .: {}
+          f:controller_manager_config.yaml: {}
+        f:metadata:
+          f:labels:
+            .: {}
+            f:olm.managed: {}
+          f:ownerReferences:
+            .: {}
+            k:{"uid":"fa3777e0-16fb-4c82-86c3-7f0467a16c9f"}: {}
+      manager: catalog
+      operation: Update
+      time: "2026-08-31T21:40:17Z"
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:metadata:
+          f:labels:
+            f:operators.coreos.com/ptp-operator.openshift-ptp: {}
+      manager: olm
+      operation: Update
+      time: "2026-08-31T21:40:17Z"
+    name: manager-config
+    namespace: openshift-ptp
+    ownerReferences:
+    - apiVersion: operators.coreos.com/v1alpha1
+      blockOwnerDeletion: false
+      controller: false
+      kind: ClusterServiceVersion
+      name: ptp-operator.v4.22.0-202608310801
+      uid: fa3777e0-16fb-4c82-86c3-7f0467a16c9f
+    resourceVersion: "11790"
+    uid: e4591fc9-d5ef-497c-8b7a-568f5d41a6a4
+- apiVersion: v1
+  data:
+    service-ca.crt: |
+      -----BEGIN CERTIFICATE-----
+      MIIDUTCCAjmgAwIBAgIINVDPOItM+c4wDQYJKoZIhvcNAQELBQAwNjE0MDIGA1UE
+      Awwrb3BlbnNoaWZ0LXNlcnZpY2Utc2VydmluZy1zaWduZXJAMTc4ODIxMTczMjAe
+      Fw0yNjA4MzEyMTI4NTFaFw0yODEwMjkyMTI4NTJaMDYxNDAyBgNVBAMMK29wZW5z
+      aGlmdC1zZXJ2aWNlLXNlcnZpbmctc2lnbmVyQDE3ODgyMTE3MzIwggEiMA0GCSqG
+      SIb3DQEBAQUAA4IBDwAwggEKAoIBAQDQ/PuIxEFwCcl0V4Bm/mp3/RAJloIuqkI0
+      6S09u0Jt79btxwiL0mrvJO813Ylj2MpoiJ4fToMi2wgnYx+FG7BxgrIwxprRWc7h
+      hZ4pMXFDWhZtkbqMSd7cp5mKsTWIyA8vZ9ZDAzHPnyOkScyiEK6jWd7H5PufjETa
+      FtjKdaGap1/Z5PLoYO+Kb6C9R5tzh9pD+2avvi6o5yZNr/IgDcsvu0olFuqx7+18
+      u/prQiz228xyvnV385J3BzQNPrlLCApXEghqc4lcMpj6Jj+sDAX4/bJFWRQRtGAL
+      tWklYgtBgME8iIVAMiXghlQyMSr0tOICHqtZQKWLwtkuI1ZTZs+5AgMBAAGjYzBh
+      MA4GA1UdDwEB/wQEAwICpDAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBRwwDap
+      sJwcsVzuXnB955rAncWV+zAfBgNVHSMEGDAWgBRwwDapsJwcsVzuXnB955rAncWV
+      +zANBgkqhkiG9w0BAQsFAAOCAQEAtdEyXfljur06V2sDBxOa1GP7M0BnqM6j/Cki
+      cp2Lc/EF0y7JGM/MXiRuN1hwntNYtolKxWOPclKMwfKn6Cq69NWwx8rb+XTisTXq
+      8aP+1Jr49IY9JzMFAne1hkzvvY3PQuUBu01U3WOe8ufJfa3Ahzy6948GsDa8+n0v
+      oJb4qoHG1hoA/0l60U0Ms5ezeSD8TtU9DIekJkvXndRqRgLjpxxIqEKDBPI8Vl91
+      v5Lbpe7Op9ua35ypKQ3N/fCkCGImNDh1w46EkH6ZO3AnFmq6bflxL23HXgAR/lu7
+      A9EcT7rLgw3BpD7XKxU6JPlXhA2nhvF/JQo5WBZeEr/W9IkGAw==
+      -----END CERTIFICATE-----
+  kind: ConfigMap
+  metadata:
+    annotations:
+      service.beta.openshift.io/inject-cabundle: "true"
+    creationTimestamp: "2026-08-31T21:39:41Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:data: {}
+        f:metadata:
+          f:annotations:
+            .: {}
+            f:service.beta.openshift.io/inject-cabundle: {}
+      manager: kube-controller-manager
+      operation: Update
+      time: "2026-08-31T21:39:41Z"
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:data:
+          f:service-ca.crt: {}
+      manager: service-ca-operator
+      operation: Update
+      time: "2026-08-31T21:39:41Z"
+    name: openshift-service-ca.crt
+    namespace: openshift-ptp
+    resourceVersion: "11072"
+    uid: 36eaf7da-157d-4830-928e-91b780a3d1be
+- apiVersion: v1
+  data:
+    helix103.telcoqe.eng.rdu2.dc.redhat.com: '[{"name":"gnrd-bc-tr_01-bc-tr","ptp4lOpts":"-2
+      --summary_interval -4","phc2sysOpts":"-r -n 24 -N 8 -R 16 -u 0 -m -w -s eno8403","ts2phcOpts":"-s
+      generic -a --ts2phc.rh_external_pps 1","ptp4lConf":"# The interface name is
+      hardware-specific\n[eno8403]\nmasterOnly 0\n[global]\n#\n# Default Data Set\n#\ntwoStepFlag
+      1\nslaveOnly 0\npriority1 128\npriority2 128\ndomainNumber 24\n#utc_offset 37\nclockClass
+      248\nclockAccuracy 0xFE\noffsetScaledLogVariance 0xFFFF\nfree_running 0\nfreq_est_interval
+      1\ndscp_event 0\ndscp_general 0\ndataset_comparison G.8275.x\nG.8275.defaultDS.localPriority
+      128\n#\n# Port Data Set\n#\nlogAnnounceInterval -3\nlogSyncInterval -4\nlogMinDelayReqInterval
+      -4\nlogMinPdelayReqInterval -4\nannounceReceiptTimeout 3\nsyncReceiptTimeout
+      0\ndelayAsymmetry 0\nfault_reset_interval -4\nneighborPropDelayThresh 20000000\nmasterOnly
+      0\nG.8275.portDS.localPriority 128\n#\n# Run time options\n#\nassume_two_step
+      0\nlogging_level 6\npath_trace_enabled 0\nfollow_up_info 0\nhybrid_e2e 0\ninhibit_multicast_service
+      0\nnet_sync_monitor 0\ntc_spanning_tree 0\ntx_timestamp_timeout 50\nunicast_listen
+      0\nunicast_master_table 0\nunicast_req_duration 3600\nuse_syslog 1\nverbose
+      0\nsummary_interval 0\nkernel_leap 1\ncheck_fup_sync 0\nclock_class_threshold
+      135\n#\n# Servo Options\n#\n\n# NGEN TEST MODIFIED\n# New:\n# pi_proportional_const
+      0.60\n# pi_integral_const 0.0003\n# Old:\n# pi_proportional_const 0.0\n# pi_integral_const
+      0.0\n# END TEST MOD\n\npi_proportional_const 0.60\npi_integral_const 0.001\npi_proportional_scale
+      0.0\npi_proportional_exponent -0.3\npi_proportional_norm_max 0.7\npi_integral_scale
+      0.0\npi_integral_exponent 0.4\npi_integral_norm_max 0.3\nstep_threshold 2.0\n#
+      end T-BC experiment\nfirst_step_threshold 0.00002\nmax_frequency 900000000\nclock_servo
+      pi\nsanity_freq_limit 200000000\nntpshm_segment 0\n#\n# Transport options\n#\ntransportSpecific
+      0x0\nptp_dst_mac 01:1B:19:00:00:00\np2p_dst_mac 01:80:C2:00:00:0E\nudp_ttl 1\nudp6_scope
+      0x0E\nuds_address /var/run/ptp4l\n#\n# Default interface options\n#\nclock_type
+      OC\nnetwork_transport L2\ndelay_mechanism E2E\ntime_stamping hardware\ntsproc_mode
+      filter\ndelay_filter moving_median\ndelay_filter_length 10\negressLatency 0\ningressLatency
+      0\nboundary_clock_jbod 1\n#\n# Clock description\n#\nproductDescription ;;\nrevisionData
+      ;;\nmanufacturerIdentity 00:00:00\nuserDescription ;\ntimeSource 0xA0\n","ts2phcConf":"[global]\nuse_syslog  0\nverbose
+      1\nlogging_level 7\nts2phc.pulsewidth 500000000\nleapfile  /usr/share/zoneinfo/leap-seconds.list\ndomainNumber
+      24\nuds_address /var/run/ptp4l.1.socket\n[eno8703]\nts2phc.extts_correction
+      0\nts2phc.master 0\nts2phc.channel 0\nts2phc.pin_index 1\n[enp108s0f0]\nts2phc.extts_polarity
+      rising\nts2phc.extts_correction 0\nts2phc.master 0\nts2phc.channel 0\nts2phc.pin_index
+      1\n[enp110s0f0]\nts2phc.extts_polarity rising\nts2phc.extts_correction 0\nts2phc.master
+      0\nts2phc.channel 0\nts2phc.pin_index 1\n","ptpSchedulingPolicy":"SCHED_FIFO","ptpSchedulingPriority":10,"ptpSettings":{"clockType":"T-BC","inSyncConditionThreshold":"100","inSyncConditionTimes":"12","leadingInterface":"eno8703","logReduce":"enhanced
+      10s","upstreamPort":"eno8403"}},{"name":"gnrd-bc-tt_00-bc-tt","ptp4lOpts":"-2
+      --summary_interval -4","ptp4lConf":"[eno8503]\nmasterOnly 1\n[eno8703]\nmasterOnly
+      1\n[enp110s0f1]\nmasterOnly 1\n[enp108s0f0]\nmasterOnly 1\n[enp108s0f1]\nmasterOnly
+      1\n[global]\n#\n# Default Data Set\n#\ntwoStepFlag 1\nslaveOnly 0\npriority1
+      128\npriority2 128\ndomainNumber 24\n#utc_offset 37\nclockClass 248\nclockAccuracy
+      0xFE\noffsetScaledLogVariance 0xFFFF\nfree_running 0\nfreq_est_interval 1\ndscp_event
+      0\ndscp_general 0\ndataset_comparison G.8275.x\nG.8275.defaultDS.localPriority
+      128\n#\n# Port Data Set\n#\nlogAnnounceInterval -3\nlogSyncInterval -4\nlogMinDelayReqInterval
+      -4\nlogMinPdelayReqInterval -4\nannounceReceiptTimeout 3\nsyncReceiptTimeout
+      0\ndelayAsymmetry 0\nfault_reset_interval -4\nneighborPropDelayThresh 20000000\nmasterOnly
+      0\nG.8275.portDS.localPriority 128\n#\n# Run time options\n#\nassume_two_step
+      0\nlogging_level 6\npath_trace_enabled 0\nfollow_up_info 0\nhybrid_e2e 0\ninhibit_multicast_service
+      0\nnet_sync_monitor 0\ntc_spanning_tree 0\ntx_timestamp_timeout 50\nunicast_listen
+      0\nunicast_master_table 0\nunicast_req_duration 3600\nuse_syslog 1\nverbose
+      0\nsummary_interval 0\nkernel_leap 1\ncheck_fup_sync 0\nclock_class_threshold
+      135\n#\n# Servo Options\n#\n\n# NGEN TEST MODIFIED\n# New:\n# pi_proportional_const
+      0.60\n# pi_integral_const 0.0003\n# Old:\n# pi_proportional_const 0.0\n# pi_integral_const
+      0.0\n# END TEST MOD\n\npi_proportional_const 0.60\npi_integral_const 0.001\npi_proportional_scale
+      0.0\npi_proportional_exponent -0.3\npi_proportional_norm_max 0.7\npi_integral_scale
+      0.0\npi_integral_exponent 0.4\npi_integral_norm_max 0.3\nstep_threshold 2.0\n#
+      end T-BC experiment\nfirst_step_threshold 0.00002\nmax_frequency 900000000\nclock_servo
+      pi\nsanity_freq_limit 200000000\nntpshm_segment 0\n#\n# Transport options\n#\ntransportSpecific
+      0x0\nptp_dst_mac 01:1B:19:00:00:00\np2p_dst_mac 01:80:C2:00:00:0E\nudp_ttl 1\nudp6_scope
+      0x0E\nuds_address /var/run/ptp4l\n#\n# Default interface options\n#\nclock_type
+      BC\nnetwork_transport L2\ndelay_mechanism E2E\ntime_stamping hardware\ntsproc_mode
+      filter\ndelay_filter moving_median\ndelay_filter_length 10\negressLatency 0\ningressLatency
+      0\nboundary_clock_jbod 1\n#\n# Clock description\n#\nproductDescription ;;\nrevisionData
+      ;;\nmanufacturerIdentity 00:00:00\nuserDescription ;\ntimeSource 0xA0\n","ptpSchedulingPolicy":"SCHED_FIFO","ptpSchedulingPriority":10,"ptpSettings":{"controllingProfile":"gnrd-bc-tr_01-bc-tr","logReduce":"enhanced
+      10s"}}]'
+  kind: ConfigMap
+  metadata:
+    creationTimestamp: "2026-08-31T21:40:26Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:data:
+          .: {}
+          f:helix103.telcoqe.eng.rdu2.dc.redhat.com: {}
+        f:metadata:
+          f:ownerReferences:
+            .: {}
+            k:{"uid":"1a55bb1b-5d85-404c-9134-165db70c9ed7"}: {}
+      manager: ptp-operator
+      operation: Update
+      time: "2026-09-03T00:17:03Z"
+    name: ptp-configmap
+    namespace: openshift-ptp
+    ownerReferences:
+    - apiVersion: ptp.openshift.io/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: PtpOperatorConfig
+      name: default
+      uid: 1a55bb1b-5d85-404c-9134-165db70c9ed7
+    resourceVersion: "463603"
+    uid: 06dfa5a9-ad92-4504-a15f-0a28ff9fca4c
+kind: ConfigMapList
+metadata:
+  resourceVersion: "465180"

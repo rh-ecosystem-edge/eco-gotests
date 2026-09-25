@@ -1,0 +1,433 @@
+---
+apiVersion: apps/v1
+items:
+- apiVersion: apps/v1
+  kind: DaemonSet
+  metadata:
+    annotations:
+      deprecated.daemonset.template.generation: "2"
+      release.openshift.io/version: ""
+    creationTimestamp: "2026-08-31T21:40:26Z"
+    generation: 2
+    managedFields:
+    - apiVersion: apps/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:metadata:
+          f:annotations:
+            .: {}
+            f:deprecated.daemonset.template.generation: {}
+            f:release.openshift.io/version: {}
+          f:ownerReferences:
+            .: {}
+            k:{"uid":"1a55bb1b-5d85-404c-9134-165db70c9ed7"}: {}
+        f:spec:
+          f:revisionHistoryLimit: {}
+          f:selector: {}
+          f:template:
+            f:metadata:
+              f:annotations:
+                .: {}
+                f:target.workload.openshift.io/management: {}
+              f:labels:
+                .: {}
+                f:app: {}
+                f:role: {}
+            f:spec:
+              f:containers:
+                k:{"name":"cloud-event-proxy"}:
+                  .: {}
+                  f:args: {}
+                  f:env:
+                    .: {}
+                    k:{"name":"NAME_SPACE"}:
+                      .: {}
+                      f:name: {}
+                      f:value: {}
+                    k:{"name":"NODE_NAME"}:
+                      .: {}
+                      f:name: {}
+                      f:valueFrom:
+                        .: {}
+                        f:fieldRef: {}
+                    k:{"name":"PTP_PLUGIN"}:
+                      .: {}
+                      f:name: {}
+                      f:value: {}
+                  f:image: {}
+                  f:imagePullPolicy: {}
+                  f:name: {}
+                  f:ports:
+                    .: {}
+                    k:{"containerPort":9043,"protocol":"TCP"}:
+                      .: {}
+                      f:containerPort: {}
+                      f:name: {}
+                      f:protocol: {}
+                    k:{"containerPort":9091,"protocol":"TCP"}:
+                      .: {}
+                      f:containerPort: {}
+                      f:name: {}
+                      f:protocol: {}
+                  f:resources: {}
+                  f:terminationMessagePath: {}
+                  f:terminationMessagePolicy: {}
+                  f:volumeMounts:
+                    .: {}
+                    k:{"mountPath":"/cloud-native"}:
+                      .: {}
+                      f:mountPath: {}
+                      f:name: {}
+                    k:{"mountPath":"/etc/linuxptp"}:
+                      .: {}
+                      f:mountPath: {}
+                      f:name: {}
+                    k:{"mountPath":"/store"}:
+                      .: {}
+                      f:mountPath: {}
+                      f:name: {}
+                    k:{"mountPath":"/var/run"}:
+                      .: {}
+                      f:mountPath: {}
+                      f:name: {}
+                k:{"name":"kube-rbac-proxy"}:
+                  .: {}
+                  f:args: {}
+                  f:image: {}
+                  f:imagePullPolicy: {}
+                  f:name: {}
+                  f:ports:
+                    .: {}
+                    k:{"containerPort":8443,"protocol":"TCP"}:
+                      .: {}
+                      f:containerPort: {}
+                      f:name: {}
+                      f:protocol: {}
+                  f:resources:
+                    .: {}
+                    f:requests:
+                      .: {}
+                      f:cpu: {}
+                      f:memory: {}
+                  f:terminationMessagePath: {}
+                  f:terminationMessagePolicy: {}
+                  f:volumeMounts:
+                    .: {}
+                    k:{"mountPath":"/etc/metrics"}:
+                      .: {}
+                      f:mountPath: {}
+                      f:name: {}
+                      f:readOnly: {}
+                k:{"name":"linuxptp-daemon-container"}:
+                  .: {}
+                  f:args: {}
+                  f:command: {}
+                  f:env:
+                    .: {}
+                    k:{"name":"LOGS_TO_SOCKET"}:
+                      .: {}
+                      f:name: {}
+                      f:value: {}
+                    k:{"name":"NODE_NAME"}:
+                      .: {}
+                      f:name: {}
+                      f:valueFrom:
+                        .: {}
+                        f:fieldRef: {}
+                    k:{"name":"PLUGINS"}:
+                      .: {}
+                      f:name: {}
+                      f:value: {}
+                    k:{"name":"POD_NAME"}:
+                      .: {}
+                      f:name: {}
+                      f:valueFrom:
+                        .: {}
+                        f:fieldRef: {}
+                  f:image: {}
+                  f:imagePullPolicy: {}
+                  f:name: {}
+                  f:resources:
+                    .: {}
+                    f:requests:
+                      .: {}
+                      f:cpu: {}
+                      f:memory: {}
+                  f:securityContext:
+                    .: {}
+                    f:privileged: {}
+                  f:terminationMessagePath: {}
+                  f:terminationMessagePolicy: {}
+                  f:volumeMounts:
+                    .: {}
+                    k:{"mountPath":"/cloud-native"}:
+                      .: {}
+                      f:mountPath: {}
+                      f:name: {}
+                    k:{"mountPath":"/etc/leap"}:
+                      .: {}
+                      f:mountPath: {}
+                      f:name: {}
+                    k:{"mountPath":"/etc/linuxptp"}:
+                      .: {}
+                      f:mountPath: {}
+                      f:name: {}
+                    k:{"mountPath":"/var/run"}:
+                      .: {}
+                      f:mountPath: {}
+                      f:name: {}
+              f:dnsPolicy: {}
+              f:hostNetwork: {}
+              f:hostPID: {}
+              f:nodeSelector: {}
+              f:priorityClassName: {}
+              f:restartPolicy: {}
+              f:schedulerName: {}
+              f:securityContext: {}
+              f:serviceAccount: {}
+              f:serviceAccountName: {}
+              f:terminationGracePeriodSeconds: {}
+              f:tolerations: {}
+              f:volumes:
+                .: {}
+                k:{"name":"config-volume"}:
+                  .: {}
+                  f:configMap:
+                    .: {}
+                    f:defaultMode: {}
+                    f:name: {}
+                  f:name: {}
+                k:{"name":"event-bus-socket"}:
+                  .: {}
+                  f:emptyDir: {}
+                  f:name: {}
+                k:{"name":"leap-volume"}:
+                  .: {}
+                  f:configMap:
+                    .: {}
+                    f:defaultMode: {}
+                    f:name: {}
+                  f:name: {}
+                k:{"name":"linuxptp-certs"}:
+                  .: {}
+                  f:name: {}
+                  f:secret:
+                    .: {}
+                    f:defaultMode: {}
+                    f:secretName: {}
+                k:{"name":"pubsubstore"}:
+                  .: {}
+                  f:emptyDir: {}
+                  f:name: {}
+                k:{"name":"socket-dir"}:
+                  .: {}
+                  f:hostPath:
+                    .: {}
+                    f:path: {}
+                    f:type: {}
+                  f:name: {}
+          f:updateStrategy:
+            f:rollingUpdate:
+              .: {}
+              f:maxSurge: {}
+              f:maxUnavailable: {}
+            f:type: {}
+      manager: ptp-operator
+      operation: Update
+      time: "2026-08-31T21:40:57Z"
+    - apiVersion: apps/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:status:
+          f:currentNumberScheduled: {}
+          f:desiredNumberScheduled: {}
+          f:numberAvailable: {}
+          f:numberReady: {}
+          f:observedGeneration: {}
+          f:updatedNumberScheduled: {}
+      manager: kube-controller-manager
+      operation: Update
+      subresource: status
+      time: "2026-09-02T23:15:47Z"
+    name: linuxptp-daemon
+    namespace: openshift-ptp
+    ownerReferences:
+    - apiVersion: ptp.openshift.io/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: PtpOperatorConfig
+      name: default
+      uid: 1a55bb1b-5d85-404c-9134-165db70c9ed7
+    resourceVersion: "453348"
+    uid: 1cb5158d-2809-481c-bb7f-c61b67e6c3cf
+  spec:
+    revisionHistoryLimit: 10
+    selector:
+      matchLabels:
+        app: linuxptp-daemon
+    template:
+      metadata:
+        annotations:
+          target.workload.openshift.io/management: '{"effect": "PreferredDuringScheduling"}'
+        labels:
+          app: linuxptp-daemon
+          role: ptp
+      spec:
+        containers:
+        - args:
+          - --metrics-addr=127.0.0.1:9091
+          - --store-path=/store
+          - --transport-host=http://ptp-event-publisher-service-NODE_NAME.openshift-ptp.svc.cluster.local:9043
+          - --api-version=2.0
+          - --api-port=9043
+          env:
+          - name: PTP_PLUGIN
+            value: "true"
+          - name: NODE_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: spec.nodeName
+          - name: NAME_SPACE
+            value: openshift-ptp
+          image: registry.redhat.io/openshift4/ose-cloud-event-proxy-rhel9@sha256:5f126665e92f32ad66cf4377be8884ffb0d36b3c1e37833de7de3910a9012c40
+          imagePullPolicy: IfNotPresent
+          name: cloud-event-proxy
+          ports:
+          - containerPort: 9091
+            name: metrics-port
+            protocol: TCP
+          - containerPort: 9043
+            name: api-port
+            protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /etc/linuxptp
+            name: config-volume
+          - mountPath: /store
+            name: pubsubstore
+          - mountPath: /cloud-native
+            name: event-bus-socket
+          - mountPath: /var/run
+            name: socket-dir
+        - args:
+          - --logtostderr
+          - --secure-listen-address=:8443
+          - --tls-cipher-suites=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_RSA_WITH_AES_128_CBC_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
+          - --upstream=http://127.0.0.1:9091/
+          - --tls-private-key-file=/etc/metrics/tls.key
+          - --tls-cert-file=/etc/metrics/tls.crt
+          - --http2-disable=true
+          image: registry.redhat.io/openshift4/ose-kube-rbac-proxy-rhel9@sha256:1915da376c32d710ec6f4e5431ca7d500c5c1862c4156c2a3befe3b98561debc
+          imagePullPolicy: IfNotPresent
+          name: kube-rbac-proxy
+          ports:
+          - containerPort: 8443
+            name: https
+            protocol: TCP
+          resources:
+            requests:
+              cpu: 10m
+              memory: 20Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: FallbackToLogsOnError
+          volumeMounts:
+          - mountPath: /etc/metrics
+            name: linuxptp-certs
+            readOnly: true
+        - args:
+          - until [ $(curl -s -w '%{http_code}' 'http://localhost:9043/api/ocloudNotifications/v2/health'
+            -o /dev/null) -eq 200 ]; do echo 'waiting for cloud event proxy to start';
+            sleep 10s; done; /usr/local/bin/ptp --alsologtostderr -v 10
+          command:
+          - /bin/bash
+          - -c
+          - --
+          env:
+          - name: NODE_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: spec.nodeName
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.name
+          - name: LOGS_TO_SOCKET
+            value: "true"
+          - name: PLUGINS
+            value: e810,e825,e830,ntpfailover
+          image: registry.redhat.io/openshift4/ose-ptp-rhel9@sha256:0bf2e4999e35570c3f87b137028240f193401df75c2ea94c771044274d00b25a
+          imagePullPolicy: IfNotPresent
+          name: linuxptp-daemon-container
+          resources:
+            requests:
+              cpu: 20m
+              memory: 50Mi
+          securityContext:
+            privileged: true
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /etc/linuxptp
+            name: config-volume
+          - mountPath: /etc/leap
+            name: leap-volume
+          - mountPath: /var/run
+            name: socket-dir
+          - mountPath: /cloud-native
+            name: event-bus-socket
+        dnsPolicy: ClusterFirstWithHostNet
+        hostNetwork: true
+        hostPID: true
+        nodeSelector:
+          node-role.kubernetes.io/master: ""
+        priorityClassName: system-node-critical
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        serviceAccount: linuxptp-daemon
+        serviceAccountName: linuxptp-daemon
+        terminationGracePeriodSeconds: 30
+        tolerations:
+        - operator: Exists
+        volumes:
+        - configMap:
+            defaultMode: 420
+            name: ptp-configmap
+          name: config-volume
+        - configMap:
+            defaultMode: 420
+            name: leap-configmap
+          name: leap-volume
+        - name: linuxptp-certs
+          secret:
+            defaultMode: 420
+            secretName: linuxptp-daemon-secret
+        - emptyDir: {}
+          name: pubsubstore
+        - emptyDir: {}
+          name: event-bus-socket
+        - hostPath:
+            path: /var/run/ptp
+            type: DirectoryOrCreate
+          name: socket-dir
+    updateStrategy:
+      rollingUpdate:
+        maxSurge: 0
+        maxUnavailable: 33%
+      type: RollingUpdate
+  status:
+    currentNumberScheduled: 1
+    desiredNumberScheduled: 1
+    numberAvailable: 1
+    numberMisscheduled: 0
+    numberReady: 1
+    observedGeneration: 2
+    updatedNumberScheduled: 1
+kind: DaemonSetList
+metadata:
+  resourceVersion: "474930"

@@ -1,0 +1,463 @@
+{
+    "metadata": {
+        "name": "cloud-event-consumer-helix103-594f54b77d-lht96",
+        "generateName": "cloud-event-consumer-helix103-594f54b77d-",
+        "namespace": "cloud-events",
+        "uid": "5ca82b6b-7d4b-4da9-ace0-bafd2c92624f",
+        "resourceVersion": "473865",
+        "generation": 1,
+        "creationTimestamp": "2026-09-02T23:48:12Z",
+        "labels": {
+            "app": "cloud-event-consumer-helix103",
+            "cloud-events-consumer": "",
+            "pod-template-hash": "594f54b77d"
+        },
+        "annotations": {
+            "k8s.ovn.org/pod-networks": "{\"default\":{\"ip_addresses\":[\"10.128.0.28/23\"],\"mac_address\":\"0a:58:0a:80:00:1c\",\"gateway_ips\":[\"10.128.0.1\"],\"routes\":[{\"dest\":\"10.128.0.0/14\",\"nextHop\":\"10.128.0.1\"},{\"dest\":\"172.30.0.0/16\",\"nextHop\":\"10.128.0.1\"},{\"dest\":\"169.254.0.5/32\",\"nextHop\":\"10.128.0.1\"},{\"dest\":\"100.64.0.0/16\",\"nextHop\":\"10.128.0.1\"}],\"ip_address\":\"10.128.0.28/23\",\"gateway_ip\":\"10.128.0.1\",\"role\":\"primary\"}}",
+            "k8s.v1.cni.cncf.io/network-status": "[{\n    \"name\": \"ovn-kubernetes\",\n    \"interface\": \"eth0\",\n    \"ips\": [\n        \"10.128.0.28\"\n    ],\n    \"mac\": \"0a:58:0a:80:00:1c\",\n    \"default\": true,\n    \"dns\": {}\n}]",
+            "openshift.io/scc": "restricted-v2",
+            "resources.workload.openshift.io/cloud-event-consumer": "{\"cpushares\": 2}",
+            "seccomp.security.alpha.kubernetes.io/pod": "runtime/default",
+            "security.openshift.io/validated-scc-subject-type": "user",
+            "target.workload.openshift.io/management": "{\"effect\":\"PreferredDuringScheduling\"}"
+        },
+        "ownerReferences": [
+            {
+                "apiVersion": "apps/v1",
+                "kind": "ReplicaSet",
+                "name": "cloud-event-consumer-helix103-594f54b77d",
+                "uid": "d4bfcb9e-faf1-4b2e-bda3-94fae76c2c94",
+                "controller": true,
+                "blockOwnerDeletion": true
+            }
+        ],
+        "managedFields": [
+            {
+                "manager": "helix103.telcoqe.eng.rdu2.dc.redhat.com",
+                "operation": "Update",
+                "apiVersion": "v1",
+                "time": "2026-09-02T23:48:12Z",
+                "fieldsType": "FieldsV1",
+                "fieldsV1": {
+                    "f:metadata": {
+                        "f:annotations": {
+                            "f:k8s.ovn.org/pod-networks": {}
+                        }
+                    }
+                },
+                "subresource": "status"
+            },
+            {
+                "manager": "kube-controller-manager",
+                "operation": "Update",
+                "apiVersion": "v1",
+                "time": "2026-09-02T23:48:12Z",
+                "fieldsType": "FieldsV1",
+                "fieldsV1": {
+                    "f:metadata": {
+                        "f:annotations": {
+                            ".": {},
+                            "f:target.workload.openshift.io/management": {}
+                        },
+                        "f:generateName": {},
+                        "f:labels": {
+                            ".": {},
+                            "f:app": {},
+                            "f:cloud-events-consumer": {},
+                            "f:pod-template-hash": {}
+                        },
+                        "f:ownerReferences": {
+                            ".": {},
+                            "k:{\"uid\":\"d4bfcb9e-faf1-4b2e-bda3-94fae76c2c94\"}": {}
+                        }
+                    },
+                    "f:spec": {
+                        "f:affinity": {
+                            ".": {},
+                            "f:nodeAffinity": {
+                                ".": {},
+                                "f:requiredDuringSchedulingIgnoredDuringExecution": {}
+                            }
+                        },
+                        "f:containers": {
+                            "k:{\"name\":\"cloud-event-consumer\"}": {
+                                ".": {},
+                                "f:args": {},
+                                "f:command": {},
+                                "f:env": {
+                                    ".": {},
+                                    "k:{\"name\":\"CONSUMER_TYPE\"}": {
+                                        ".": {},
+                                        "f:name": {},
+                                        "f:value": {}
+                                    },
+                                    "k:{\"name\":\"ENABLE_STATUS_CHECK\"}": {
+                                        ".": {},
+                                        "f:name": {},
+                                        "f:value": {}
+                                    },
+                                    "k:{\"name\":\"NODE_NAME\"}": {
+                                        ".": {},
+                                        "f:name": {},
+                                        "f:value": {}
+                                    }
+                                },
+                                "f:image": {},
+                                "f:imagePullPolicy": {},
+                                "f:name": {},
+                                "f:ports": {
+                                    ".": {},
+                                    "k:{\"containerPort\":9043,\"protocol\":\"TCP\"}": {
+                                        ".": {},
+                                        "f:containerPort": {},
+                                        "f:name": {},
+                                        "f:protocol": {}
+                                    }
+                                },
+                                "f:resources": {},
+                                "f:terminationMessagePath": {},
+                                "f:terminationMessagePolicy": {}
+                            }
+                        },
+                        "f:dnsPolicy": {},
+                        "f:enableServiceLinks": {},
+                        "f:restartPolicy": {},
+                        "f:schedulerName": {},
+                        "f:securityContext": {},
+                        "f:terminationGracePeriodSeconds": {}
+                    }
+                }
+            },
+            {
+                "manager": "multus-daemon",
+                "operation": "Update",
+                "apiVersion": "v1",
+                "time": "2026-09-02T23:48:13Z",
+                "fieldsType": "FieldsV1",
+                "fieldsV1": {
+                    "f:metadata": {
+                        "f:annotations": {
+                            "f:k8s.v1.cni.cncf.io/network-status": {}
+                        }
+                    }
+                },
+                "subresource": "status"
+            },
+            {
+                "manager": "kubelet",
+                "operation": "Update",
+                "apiVersion": "v1",
+                "time": "2026-09-03T01:07:25Z",
+                "fieldsType": "FieldsV1",
+                "fieldsV1": {
+                    "f:status": {
+                        "f:conditions": {
+                            "k:{\"type\":\"ContainersReady\"}": {
+                                ".": {},
+                                "f:lastProbeTime": {},
+                                "f:lastTransitionTime": {},
+                                "f:observedGeneration": {},
+                                "f:status": {},
+                                "f:type": {}
+                            },
+                            "k:{\"type\":\"Initialized\"}": {
+                                ".": {},
+                                "f:lastProbeTime": {},
+                                "f:lastTransitionTime": {},
+                                "f:observedGeneration": {},
+                                "f:status": {},
+                                "f:type": {}
+                            },
+                            "k:{\"type\":\"PodReadyToStartContainers\"}": {
+                                ".": {},
+                                "f:lastProbeTime": {},
+                                "f:lastTransitionTime": {},
+                                "f:observedGeneration": {},
+                                "f:status": {},
+                                "f:type": {}
+                            },
+                            "k:{\"type\":\"PodScheduled\"}": {
+                                "f:observedGeneration": {}
+                            },
+                            "k:{\"type\":\"Ready\"}": {
+                                ".": {},
+                                "f:lastProbeTime": {},
+                                "f:lastTransitionTime": {},
+                                "f:observedGeneration": {},
+                                "f:status": {},
+                                "f:type": {}
+                            }
+                        },
+                        "f:containerStatuses": {},
+                        "f:hostIP": {},
+                        "f:hostIPs": {},
+                        "f:observedGeneration": {},
+                        "f:phase": {},
+                        "f:podIP": {},
+                        "f:podIPs": {
+                            ".": {},
+                            "k:{\"ip\":\"10.128.0.28\"}": {
+                                ".": {},
+                                "f:ip": {}
+                            }
+                        },
+                        "f:startTime": {}
+                    }
+                },
+                "subresource": "status"
+            }
+        ]
+    },
+    "spec": {
+        "volumes": [
+            {
+                "name": "kube-api-access-cvzml",
+                "projected": {
+                    "sources": [
+                        {
+                            "serviceAccountToken": {
+                                "expirationSeconds": 3607,
+                                "path": "token"
+                            }
+                        },
+                        {
+                            "configMap": {
+                                "name": "kube-root-ca.crt",
+                                "items": [
+                                    {
+                                        "key": "ca.crt",
+                                        "path": "ca.crt"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "downwardAPI": {
+                                "items": [
+                                    {
+                                        "path": "namespace",
+                                        "fieldRef": {
+                                            "apiVersion": "v1",
+                                            "fieldPath": "metadata.namespace"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "configMap": {
+                                "name": "openshift-service-ca.crt",
+                                "items": [
+                                    {
+                                        "key": "service-ca.crt",
+                                        "path": "service-ca.crt"
+                                    }
+                                ]
+                            }
+                        }
+                    ],
+                    "defaultMode": 420
+                }
+            }
+        ],
+        "containers": [
+            {
+                "name": "cloud-event-consumer",
+                "image": "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/cloud-event-consumer:v2",
+                "command": [
+                    "./cloud-event-consumer"
+                ],
+                "args": [
+                    "--local-api-addr=consumer-events-service-helix103.cloud-events.svc.cluster.local.:9043",
+                    "--api-path=/api/ocloudNotifications/v2/",
+                    "--http-event-publishers=ptp-event-publisher-service-NODE_NAME.openshift-ptp.svc.cluster.local.:9043"
+                ],
+                "ports": [
+                    {
+                        "name": "sub-port",
+                        "containerPort": 9043,
+                        "protocol": "TCP"
+                    }
+                ],
+                "env": [
+                    {
+                        "name": "CONSUMER_TYPE",
+                        "value": "PTP"
+                    },
+                    {
+                        "name": "ENABLE_STATUS_CHECK",
+                        "value": "true"
+                    },
+                    {
+                        "name": "NODE_NAME",
+                        "value": "helix103.telcoqe.eng.rdu2.dc.redhat.com"
+                    }
+                ],
+                "resources": {},
+                "volumeMounts": [
+                    {
+                        "name": "kube-api-access-cvzml",
+                        "readOnly": true,
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount"
+                    }
+                ],
+                "terminationMessagePath": "/dev/termination-log",
+                "terminationMessagePolicy": "File",
+                "imagePullPolicy": "Always",
+                "securityContext": {
+                    "capabilities": {
+                        "drop": [
+                            "ALL"
+                        ]
+                    },
+                    "runAsUser": 1000710000,
+                    "runAsNonRoot": true,
+                    "allowPrivilegeEscalation": false
+                }
+            }
+        ],
+        "restartPolicy": "Always",
+        "terminationGracePeriodSeconds": 30,
+        "dnsPolicy": "ClusterFirst",
+        "serviceAccountName": "default",
+        "serviceAccount": "default",
+        "nodeName": "helix103.telcoqe.eng.rdu2.dc.redhat.com",
+        "securityContext": {
+            "seLinuxOptions": {
+                "level": "s0:c27,c4"
+            },
+            "fsGroup": 1000710000,
+            "seccompProfile": {
+                "type": "RuntimeDefault"
+            }
+        },
+        "affinity": {
+            "nodeAffinity": {
+                "requiredDuringSchedulingIgnoredDuringExecution": {
+                    "nodeSelectorTerms": [
+                        {
+                            "matchFields": [
+                                {
+                                    "key": "metadata.name",
+                                    "operator": "In",
+                                    "values": [
+                                        "helix103.telcoqe.eng.rdu2.dc.redhat.com"
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        "schedulerName": "default-scheduler",
+        "tolerations": [
+            {
+                "key": "node.kubernetes.io/not-ready",
+                "operator": "Exists",
+                "effect": "NoExecute",
+                "tolerationSeconds": 300
+            },
+            {
+                "key": "node.kubernetes.io/unreachable",
+                "operator": "Exists",
+                "effect": "NoExecute",
+                "tolerationSeconds": 300
+            }
+        ],
+        "priority": 0,
+        "enableServiceLinks": true,
+        "preemptionPolicy": "PreemptLowerPriority"
+    },
+    "status": {
+        "observedGeneration": 1,
+        "phase": "Running",
+        "conditions": [
+            {
+                "type": "PodReadyToStartContainers",
+                "observedGeneration": 1,
+                "status": "True",
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-09-03T01:07:20Z"
+            },
+            {
+                "type": "Initialized",
+                "observedGeneration": 1,
+                "status": "True",
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-09-02T23:48:12Z"
+            },
+            {
+                "type": "Ready",
+                "observedGeneration": 1,
+                "status": "True",
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-09-03T01:07:20Z"
+            },
+            {
+                "type": "ContainersReady",
+                "observedGeneration": 1,
+                "status": "True",
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-09-03T01:07:20Z"
+            },
+            {
+                "type": "PodScheduled",
+                "observedGeneration": 1,
+                "status": "True",
+                "lastProbeTime": null,
+                "lastTransitionTime": "2026-09-02T23:48:12Z"
+            }
+        ],
+        "hostIP": "10.6.159.44",
+        "hostIPs": [
+            {
+                "ip": "10.6.159.44"
+            }
+        ],
+        "podIP": "10.128.0.28",
+        "podIPs": [
+            {
+                "ip": "10.128.0.28"
+            }
+        ],
+        "startTime": "2026-09-02T23:48:12Z",
+        "containerStatuses": [
+            {
+                "name": "cloud-event-consumer",
+                "state": {
+                    "running": {
+                        "startedAt": "2026-09-03T01:07:19Z"
+                    }
+                },
+                "lastState": {},
+                "ready": true,
+                "restartCount": 1,
+                "image": "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/ran-test/cloud-event-consumer:v2",
+                "imageID": "quay.io/redhat-cne/cloud-event-consumer@sha256:00bf53f43c34123a38ec0c05246fc442d82894d1bce8726ce6943969f54823dd",
+                "containerID": "cri-o://9c14b3c8a098ad8d9b250c19511ff167fb104f54eb711905a3922aa6d7bf732d",
+                "started": true,
+                "resources": {},
+                "volumeMounts": [
+                    {
+                        "name": "kube-api-access-cvzml",
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                        "readOnly": true,
+                        "recursiveReadOnly": "Disabled"
+                    }
+                ],
+                "user": {
+                    "linux": {
+                        "uid": 1000710000,
+                        "gid": 0,
+                        "supplementalGroups": [
+                            0,
+                            1000710000
+                        ]
+                    }
+                }
+            }
+        ],
+        "qosClass": "BestEffort"
+    }
+}

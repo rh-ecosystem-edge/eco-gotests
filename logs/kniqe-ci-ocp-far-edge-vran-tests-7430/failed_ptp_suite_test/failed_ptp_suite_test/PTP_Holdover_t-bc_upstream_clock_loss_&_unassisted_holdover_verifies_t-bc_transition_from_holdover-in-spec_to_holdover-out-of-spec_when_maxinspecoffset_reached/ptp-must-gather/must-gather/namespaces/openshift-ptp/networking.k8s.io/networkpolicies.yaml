@@ -1,0 +1,102 @@
+---
+apiVersion: networking.k8s.io/v1
+items:
+- apiVersion: networking.k8s.io/v1
+  kind: NetworkPolicy
+  metadata:
+    creationTimestamp: "2026-08-31T21:40:26Z"
+    generation: 1
+    managedFields:
+    - apiVersion: networking.k8s.io/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:metadata:
+          f:ownerReferences:
+            .: {}
+            k:{"uid":"1a55bb1b-5d85-404c-9134-165db70c9ed7"}: {}
+        f:spec:
+          f:egress: {}
+          f:podSelector: {}
+          f:policyTypes: {}
+      manager: ptp-operator
+      operation: Update
+      time: "2026-08-31T21:40:26Z"
+    name: allow-egress-to-api-server
+    namespace: openshift-ptp
+    ownerReferences:
+    - apiVersion: ptp.openshift.io/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: PtpOperatorConfig
+      name: default
+      uid: 1a55bb1b-5d85-404c-9134-165db70c9ed7
+    resourceVersion: "12067"
+    uid: f2d2b926-8b5a-4db5-bb1c-2c95ad8bfc37
+  spec:
+    egress:
+    - to:
+      - namespaceSelector: {}
+    - ports:
+      - port: 6443
+        protocol: TCP
+      - port: 443
+        protocol: TCP
+    podSelector:
+      matchLabels:
+        name: ptp-operator
+    policyTypes:
+    - Egress
+- apiVersion: networking.k8s.io/v1
+  kind: NetworkPolicy
+  metadata:
+    creationTimestamp: "2026-08-31T21:40:26Z"
+    generation: 1
+    managedFields:
+    - apiVersion: networking.k8s.io/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:metadata:
+          f:ownerReferences:
+            .: {}
+            k:{"uid":"1a55bb1b-5d85-404c-9134-165db70c9ed7"}: {}
+        f:spec:
+          f:egress: {}
+          f:ingress: {}
+          f:podSelector: {}
+          f:policyTypes: {}
+      manager: ptp-operator
+      operation: Update
+      time: "2026-08-31T21:40:26Z"
+    name: allow-webhook-traffic
+    namespace: openshift-ptp
+    ownerReferences:
+    - apiVersion: ptp.openshift.io/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: PtpOperatorConfig
+      name: default
+      uid: 1a55bb1b-5d85-404c-9134-165db70c9ed7
+    resourceVersion: "12066"
+    uid: a1dd511c-c10a-4c9b-8490-85f58c7740e6
+  spec:
+    egress:
+    - ports:
+      - port: 9443
+        protocol: TCP
+      - port: 443
+        protocol: TCP
+    ingress:
+    - ports:
+      - port: 9443
+        protocol: TCP
+      - port: 443
+        protocol: TCP
+    podSelector:
+      matchLabels:
+        name: ptp-operator
+    policyTypes:
+    - Ingress
+    - Egress
+kind: NetworkPolicyList
+metadata:
+  resourceVersion: "460074"

@@ -1,0 +1,4628 @@
+---
+apiVersion: v1
+items:
+- apiVersion: v1
+  count: 11
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:30:28Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: certified-operators-custom-6pr86
+    namespace: openshift-marketplace
+    resourceVersion: "237511"
+    uid: 9836ef2d-47c3-42b6-af15-ba7584840774
+  kind: Event
+  lastTimestamp: "2026-09-02T16:30:48Z"
+  message: 'network is not ready: container runtime network not ready: NetworkReady=false
+    reason:NetworkPluginNotReady message:Network plugin returns error: no CNI configuration
+    file in /etc/kubernetes/cni/net.d/. Has your network provider started?'
+  metadata:
+    creationTimestamp: "2026-09-02T16:30:28Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T16:30:56Z"
+    name: certified-operators-custom-6pr86.18d18df9450013b3
+    namespace: openshift-marketplace
+    resourceVersion: "385633"
+    uid: 268282f4-b7f7-40b0-840e-110dd73b15f0
+  reason: NetworkNotReady
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Warning
+- apiVersion: v1
+  count: 6
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:30:28Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: certified-operators-custom-6pr86
+    namespace: openshift-marketplace
+    resourceVersion: "237511"
+    uid: 9836ef2d-47c3-42b6-af15-ba7584840774
+  kind: Event
+  lastTimestamp: "2026-09-02T16:30:44Z"
+  message: 'MountVolume.SetUp failed for volume "kube-api-access-kvcbf" : [object
+    "openshift-marketplace"/"kube-root-ca.crt" not registered, object "openshift-marketplace"/"openshift-service-ca.crt"
+    not registered]'
+  metadata:
+    creationTimestamp: "2026-09-02T16:30:31Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T16:30:55Z"
+    name: certified-operators-custom-6pr86.18d18df94e400ff4
+    namespace: openshift-marketplace
+    resourceVersion: "385547"
+    uid: 9a871459-86b4-42c3-acf6-9bbbbfd73715
+  reason: FailedMount
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Warning
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:31:02Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: certified-operators-custom-6pr86
+    namespace: openshift-marketplace
+    resourceVersion: "383837"
+    uid: 9836ef2d-47c3-42b6-af15-ba7584840774
+  kind: Event
+  lastTimestamp: "2026-09-02T16:31:02Z"
+  message: Add eth0 [10.128.0.82/23] from ovn-kubernetes
+  metadata:
+    creationTimestamp: "2026-09-02T16:31:02Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: multus-daemon
+      operation: Update
+      time: "2026-09-02T16:31:02Z"
+    name: certified-operators-custom-6pr86.18d18e010df7e3ac
+    namespace: openshift-marketplace
+    resourceVersion: "385714"
+    uid: 7bbe91cc-9aee-4ba7-a26b-4e1021cc3c1b
+  reason: AddedInterface
+  reportingComponent: multus
+  reportingInstance: ""
+  source:
+    component: multus
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:31:02Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-6pr86
+    namespace: openshift-marketplace
+    resourceVersion: "237511"
+    uid: 9836ef2d-47c3-42b6-af15-ba7584840774
+  kind: Event
+  lastTimestamp: "2026-09-02T16:31:02Z"
+  message: Pulling image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/far-edge-sriov-fec:v4.22"
+  metadata:
+    creationTimestamp: "2026-09-02T16:31:02Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T16:31:02Z"
+    name: certified-operators-custom-6pr86.18d18e0111e54342
+    namespace: openshift-marketplace
+    resourceVersion: "385746"
+    uid: c5ba419f-aa0f-4784-a303-1204e039e35a
+  reason: Pulling
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:31:02Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-6pr86
+    namespace: openshift-marketplace
+    resourceVersion: "237511"
+    uid: 9836ef2d-47c3-42b6-af15-ba7584840774
+  kind: Event
+  lastTimestamp: "2026-09-02T16:31:02Z"
+  message: 'Successfully pulled image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/far-edge-sriov-fec:v4.22"
+    in 146ms (146ms including waiting). Image size: 1038971282 bytes.'
+  metadata:
+    creationTimestamp: "2026-09-02T16:31:02Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T16:31:02Z"
+    name: certified-operators-custom-6pr86.18d18e011aa7d6b0
+    namespace: openshift-marketplace
+    resourceVersion: "385760"
+    uid: 7f3cf3ac-1ed6-4d59-a9f3-ad1905f5665b
+  reason: Pulled
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:31:02Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-6pr86
+    namespace: openshift-marketplace
+    resourceVersion: "237511"
+    uid: 9836ef2d-47c3-42b6-af15-ba7584840774
+  kind: Event
+  lastTimestamp: "2026-09-02T16:31:02Z"
+  message: Container created
+  metadata:
+    creationTimestamp: "2026-09-02T16:31:02Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T16:31:02Z"
+    name: certified-operators-custom-6pr86.18d18e0123ba1c30
+    namespace: openshift-marketplace
+    resourceVersion: "385772"
+    uid: dfc7952e-81e4-474d-b011-378903dd1471
+  reason: Created
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:31:02Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-6pr86
+    namespace: openshift-marketplace
+    resourceVersion: "237511"
+    uid: 9836ef2d-47c3-42b6-af15-ba7584840774
+  kind: Event
+  lastTimestamp: "2026-09-02T16:31:02Z"
+  message: Container started
+  metadata:
+    creationTimestamp: "2026-09-02T16:31:02Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T16:31:02Z"
+    name: certified-operators-custom-6pr86.18d18e01247a22a0
+    namespace: openshift-marketplace
+    resourceVersion: "385775"
+    uid: ac9440c8-0f88-4ce8-9597-c22c0cf93855
+  reason: Started
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T18:43:18Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: certified-operators-custom-78qhw
+    namespace: openshift-marketplace
+    resourceVersion: "405311"
+    uid: 80ed086e-612f-4696-92be-aa0680232d21
+  kind: Event
+  lastTimestamp: "2026-09-02T18:43:18Z"
+  message: Successfully assigned openshift-marketplace/certified-operators-custom-78qhw
+    to helix103.telcoqe.eng.rdu2.dc.redhat.com
+  metadata:
+    creationTimestamp: "2026-09-02T18:43:18Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: kube-scheduler
+      operation: Update
+      time: "2026-09-02T18:43:18Z"
+    name: certified-operators-custom-78qhw.18d19538df397283
+    namespace: openshift-marketplace
+    resourceVersion: "405314"
+    uid: f0e733c9-194e-4c5e-92e1-99a205a46a06
+  reason: Scheduled
+  reportingComponent: default-scheduler
+  reportingInstance: ""
+  source:
+    component: default-scheduler
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T18:43:19Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: certified-operators-custom-78qhw
+    namespace: openshift-marketplace
+    resourceVersion: "405316"
+    uid: 80ed086e-612f-4696-92be-aa0680232d21
+  kind: Event
+  lastTimestamp: "2026-09-02T18:43:19Z"
+  message: Add eth0 [10.128.0.35/23] from ovn-kubernetes
+  metadata:
+    creationTimestamp: "2026-09-02T18:43:19Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: multus-daemon
+      operation: Update
+      time: "2026-09-02T18:43:19Z"
+    name: certified-operators-custom-78qhw.18d1953902f89836
+    namespace: openshift-marketplace
+    resourceVersion: "405318"
+    uid: 6c154398-61a0-4f9f-bb92-ca3dedc957d8
+  reason: AddedInterface
+  reportingComponent: multus
+  reportingInstance: ""
+  source:
+    component: multus
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T18:43:19Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-78qhw
+    namespace: openshift-marketplace
+    resourceVersion: "405312"
+    uid: 80ed086e-612f-4696-92be-aa0680232d21
+  kind: Event
+  lastTimestamp: "2026-09-02T18:43:19Z"
+  message: Pulling image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/far-edge-sriov-fec:v4.22"
+  metadata:
+    creationTimestamp: "2026-09-02T18:43:19Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T18:43:19Z"
+    name: certified-operators-custom-78qhw.18d1953903d9ef67
+    namespace: openshift-marketplace
+    resourceVersion: "405320"
+    uid: a1ce33d7-0166-447b-b1fe-00e39927b7f9
+  reason: Pulling
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T18:43:19Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-78qhw
+    namespace: openshift-marketplace
+    resourceVersion: "405312"
+    uid: 80ed086e-612f-4696-92be-aa0680232d21
+  kind: Event
+  lastTimestamp: "2026-09-02T18:43:19Z"
+  message: 'Successfully pulled image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/far-edge-sriov-fec:v4.22"
+    in 96ms (96ms including waiting). Image size: 1038971282 bytes.'
+  metadata:
+    creationTimestamp: "2026-09-02T18:43:19Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T18:43:19Z"
+    name: certified-operators-custom-78qhw.18d1953909974497
+    namespace: openshift-marketplace
+    resourceVersion: "405321"
+    uid: 8f28c37b-07a3-4f1d-8278-95d30d2c2e97
+  reason: Pulled
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T18:43:19Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-78qhw
+    namespace: openshift-marketplace
+    resourceVersion: "405312"
+    uid: 80ed086e-612f-4696-92be-aa0680232d21
+  kind: Event
+  lastTimestamp: "2026-09-02T18:43:19Z"
+  message: Container created
+  metadata:
+    creationTimestamp: "2026-09-02T18:43:19Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T18:43:19Z"
+    name: certified-operators-custom-78qhw.18d195390d9c2193
+    namespace: openshift-marketplace
+    resourceVersion: "405323"
+    uid: 20e2492a-ad55-49e0-9da5-ce0d35336a61
+  reason: Created
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T18:43:19Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-78qhw
+    namespace: openshift-marketplace
+    resourceVersion: "405312"
+    uid: 80ed086e-612f-4696-92be-aa0680232d21
+  kind: Event
+  lastTimestamp: "2026-09-02T18:43:19Z"
+  message: Container started
+  metadata:
+    creationTimestamp: "2026-09-02T18:43:19Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T18:43:19Z"
+    name: certified-operators-custom-78qhw.18d195390e0a5f27
+    namespace: openshift-marketplace
+    resourceVersion: "405324"
+    uid: 38d7180b-5013-4297-8dda-18cc2c3dd769
+  reason: Started
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T18:43:31Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-78qhw
+    namespace: openshift-marketplace
+    resourceVersion: "405312"
+    uid: 80ed086e-612f-4696-92be-aa0680232d21
+  kind: Event
+  lastTimestamp: "2026-09-02T18:43:31Z"
+  message: Stopping container registry-server
+  metadata:
+    creationTimestamp: "2026-09-02T18:43:31Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T18:43:31Z"
+    name: certified-operators-custom-78qhw.18d1953bd7621f8b
+    namespace: openshift-marketplace
+    resourceVersion: "405354"
+    uid: 138c9f56-ff68-4f11-9284-50d8b622fbd4
+  reason: Killing
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T13:43:13Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: certified-operators-custom-pszpb
+    namespace: openshift-marketplace
+    resourceVersion: "356730"
+    uid: 43b386f6-a759-4df1-9037-c39e7f9e1151
+  kind: Event
+  lastTimestamp: "2026-09-02T13:43:13Z"
+  message: Successfully assigned openshift-marketplace/certified-operators-custom-pszpb
+    to helix103.telcoqe.eng.rdu2.dc.redhat.com
+  metadata:
+    creationTimestamp: "2026-09-02T13:43:13Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: kube-scheduler
+      operation: Update
+      time: "2026-09-02T13:43:13Z"
+    name: certified-operators-custom-pszpb.18d184d8a6a3f287
+    namespace: openshift-marketplace
+    resourceVersion: "356734"
+    uid: 2b2d1aed-1cc3-41ea-b001-0f5c245477a6
+  reason: Scheduled
+  reportingComponent: default-scheduler
+  reportingInstance: ""
+  source:
+    component: default-scheduler
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T13:43:13Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: certified-operators-custom-pszpb
+    namespace: openshift-marketplace
+    resourceVersion: "356736"
+    uid: 43b386f6-a759-4df1-9037-c39e7f9e1151
+  kind: Event
+  lastTimestamp: "2026-09-02T13:43:13Z"
+  message: Add eth0 [10.128.0.75/23] from ovn-kubernetes
+  metadata:
+    creationTimestamp: "2026-09-02T13:43:13Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: multus-daemon
+      operation: Update
+      time: "2026-09-02T13:43:13Z"
+    name: certified-operators-custom-pszpb.18d184d8ca0a3622
+    namespace: openshift-marketplace
+    resourceVersion: "356737"
+    uid: 8c793ab9-05fd-4c1c-a982-b7d776d1a533
+  reason: AddedInterface
+  reportingComponent: multus
+  reportingInstance: ""
+  source:
+    component: multus
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T13:43:13Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-pszpb
+    namespace: openshift-marketplace
+    resourceVersion: "356732"
+    uid: 43b386f6-a759-4df1-9037-c39e7f9e1151
+  kind: Event
+  lastTimestamp: "2026-09-02T13:43:13Z"
+  message: Pulling image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/far-edge-sriov-fec:v4.22"
+  metadata:
+    creationTimestamp: "2026-09-02T13:43:13Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T13:43:13Z"
+    name: certified-operators-custom-pszpb.18d184d8cae09f6b
+    namespace: openshift-marketplace
+    resourceVersion: "356739"
+    uid: fa4fefa4-8a10-46ed-940a-b5208b11fcaa
+  reason: Pulling
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T13:43:13Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-pszpb
+    namespace: openshift-marketplace
+    resourceVersion: "356732"
+    uid: 43b386f6-a759-4df1-9037-c39e7f9e1151
+  kind: Event
+  lastTimestamp: "2026-09-02T13:43:13Z"
+  message: 'Successfully pulled image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/far-edge-sriov-fec:v4.22"
+    in 95ms (95ms including waiting). Image size: 1038971282 bytes.'
+  metadata:
+    creationTimestamp: "2026-09-02T13:43:13Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T13:43:13Z"
+    name: certified-operators-custom-pszpb.18d184d8d0936fb6
+    namespace: openshift-marketplace
+    resourceVersion: "356740"
+    uid: 6fd3dd60-64cb-4268-a67e-8e58f634b4cb
+  reason: Pulled
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T13:43:13Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-pszpb
+    namespace: openshift-marketplace
+    resourceVersion: "356732"
+    uid: 43b386f6-a759-4df1-9037-c39e7f9e1151
+  kind: Event
+  lastTimestamp: "2026-09-02T13:43:13Z"
+  message: Container created
+  metadata:
+    creationTimestamp: "2026-09-02T13:43:13Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T13:43:13Z"
+    name: certified-operators-custom-pszpb.18d184d8d4c60327
+    namespace: openshift-marketplace
+    resourceVersion: "356741"
+    uid: 6e25e584-d08b-4ca6-bd93-0398d9259013
+  reason: Created
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T13:43:13Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-pszpb
+    namespace: openshift-marketplace
+    resourceVersion: "356732"
+    uid: 43b386f6-a759-4df1-9037-c39e7f9e1151
+  kind: Event
+  lastTimestamp: "2026-09-02T13:43:13Z"
+  message: Container started
+  metadata:
+    creationTimestamp: "2026-09-02T13:43:13Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T13:43:13Z"
+    name: certified-operators-custom-pszpb.18d184d8d5249a85
+    namespace: openshift-marketplace
+    resourceVersion: "356742"
+    uid: 3181b84b-c70f-46c1-8fc7-49ac8e5ceb79
+  reason: Started
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T13:43:26Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-pszpb
+    namespace: openshift-marketplace
+    resourceVersion: "356732"
+    uid: 43b386f6-a759-4df1-9037-c39e7f9e1151
+  kind: Event
+  lastTimestamp: "2026-09-02T13:43:26Z"
+  message: Stopping container registry-server
+  metadata:
+    creationTimestamp: "2026-09-02T13:43:26Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T13:43:26Z"
+    name: certified-operators-custom-pszpb.18d184dbbbdc2eb1
+    namespace: openshift-marketplace
+    resourceVersion: "356775"
+    uid: 21576e63-a336-47eb-93bc-52f51257abb1
+  reason: Killing
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T15:43:17Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: certified-operators-custom-rdhfg
+    namespace: openshift-marketplace
+    resourceVersion: "376195"
+    uid: 300e2c3b-1e12-4002-adbd-5e8bca06a019
+  kind: Event
+  lastTimestamp: "2026-09-02T15:43:17Z"
+  message: Successfully assigned openshift-marketplace/certified-operators-custom-rdhfg
+    to helix103.telcoqe.eng.rdu2.dc.redhat.com
+  metadata:
+    creationTimestamp: "2026-09-02T15:43:17Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: kube-scheduler
+      operation: Update
+      time: "2026-09-02T15:43:17Z"
+    name: certified-operators-custom-rdhfg.18d18b662bfed25b
+    namespace: openshift-marketplace
+    resourceVersion: "376198"
+    uid: 09059233-10d4-41fe-af4d-ba50f59d899c
+  reason: Scheduled
+  reportingComponent: default-scheduler
+  reportingInstance: ""
+  source:
+    component: default-scheduler
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T15:43:18Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: certified-operators-custom-rdhfg
+    namespace: openshift-marketplace
+    resourceVersion: "376200"
+    uid: 300e2c3b-1e12-4002-adbd-5e8bca06a019
+  kind: Event
+  lastTimestamp: "2026-09-02T15:43:18Z"
+  message: Add eth0 [10.128.0.100/23] from ovn-kubernetes
+  metadata:
+    creationTimestamp: "2026-09-02T15:43:18Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: multus-daemon
+      operation: Update
+      time: "2026-09-02T15:43:18Z"
+    name: certified-operators-custom-rdhfg.18d18b66500fed0c
+    namespace: openshift-marketplace
+    resourceVersion: "376202"
+    uid: 8ec17938-618f-4d82-80eb-d51f33454aa3
+  reason: AddedInterface
+  reportingComponent: multus
+  reportingInstance: ""
+  source:
+    component: multus
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T15:43:18Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-rdhfg
+    namespace: openshift-marketplace
+    resourceVersion: "376196"
+    uid: 300e2c3b-1e12-4002-adbd-5e8bca06a019
+  kind: Event
+  lastTimestamp: "2026-09-02T15:43:18Z"
+  message: Pulling image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/far-edge-sriov-fec:v4.22"
+  metadata:
+    creationTimestamp: "2026-09-02T15:43:18Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T15:43:18Z"
+    name: certified-operators-custom-rdhfg.18d18b665121b372
+    namespace: openshift-marketplace
+    resourceVersion: "376204"
+    uid: b30d5d5d-1e8c-448e-b485-1970e37bb859
+  reason: Pulling
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T15:43:18Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-rdhfg
+    namespace: openshift-marketplace
+    resourceVersion: "376196"
+    uid: 300e2c3b-1e12-4002-adbd-5e8bca06a019
+  kind: Event
+  lastTimestamp: "2026-09-02T15:43:18Z"
+  message: 'Successfully pulled image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/far-edge-sriov-fec:v4.22"
+    in 90ms (90ms including waiting). Image size: 1038971282 bytes.'
+  metadata:
+    creationTimestamp: "2026-09-02T15:43:18Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T15:43:18Z"
+    name: certified-operators-custom-rdhfg.18d18b6656825dbd
+    namespace: openshift-marketplace
+    resourceVersion: "376205"
+    uid: 403584c3-8afb-48af-9cfd-adff455353a7
+  reason: Pulled
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T15:43:18Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-rdhfg
+    namespace: openshift-marketplace
+    resourceVersion: "376196"
+    uid: 300e2c3b-1e12-4002-adbd-5e8bca06a019
+  kind: Event
+  lastTimestamp: "2026-09-02T15:43:18Z"
+  message: Container created
+  metadata:
+    creationTimestamp: "2026-09-02T15:43:18Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T15:43:18Z"
+    name: certified-operators-custom-rdhfg.18d18b665aa37e8a
+    namespace: openshift-marketplace
+    resourceVersion: "376206"
+    uid: 09929459-ee22-4a89-b525-1a44eabf23d5
+  reason: Created
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T15:43:18Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-rdhfg
+    namespace: openshift-marketplace
+    resourceVersion: "376196"
+    uid: 300e2c3b-1e12-4002-adbd-5e8bca06a019
+  kind: Event
+  lastTimestamp: "2026-09-02T15:43:18Z"
+  message: Container started
+  metadata:
+    creationTimestamp: "2026-09-02T15:43:18Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T15:43:18Z"
+    name: certified-operators-custom-rdhfg.18d18b665b0840d8
+    namespace: openshift-marketplace
+    resourceVersion: "376207"
+    uid: 97df23b9-69a0-4bf2-bf09-3f4d14192892
+  reason: Started
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T15:43:30Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-rdhfg
+    namespace: openshift-marketplace
+    resourceVersion: "376196"
+    uid: 300e2c3b-1e12-4002-adbd-5e8bca06a019
+  kind: Event
+  lastTimestamp: "2026-09-02T15:43:30Z"
+  message: Stopping container registry-server
+  metadata:
+    creationTimestamp: "2026-09-02T15:43:30Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T15:43:30Z"
+    name: certified-operators-custom-rdhfg.18d18b6918498838
+    namespace: openshift-marketplace
+    resourceVersion: "376242"
+    uid: f2e530e6-160a-4b14-9ced-8cf9e0683676
+  reason: Killing
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T17:43:18Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: certified-operators-custom-s8sgc
+    namespace: openshift-marketplace
+    resourceVersion: "396701"
+    uid: 91757587-2910-466c-8408-47ca8944d3d1
+  kind: Event
+  lastTimestamp: "2026-09-02T17:43:18Z"
+  message: Successfully assigned openshift-marketplace/certified-operators-custom-s8sgc
+    to helix103.telcoqe.eng.rdu2.dc.redhat.com
+  metadata:
+    creationTimestamp: "2026-09-02T17:43:18Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: kube-scheduler
+      operation: Update
+      time: "2026-09-02T17:43:18Z"
+    name: certified-operators-custom-s8sgc.18d191f298eac167
+    namespace: openshift-marketplace
+    resourceVersion: "396705"
+    uid: c5a1765e-3f46-4d22-8ce2-1db1bc656961
+  reason: Scheduled
+  reportingComponent: default-scheduler
+  reportingInstance: ""
+  source:
+    component: default-scheduler
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T17:43:18Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: certified-operators-custom-s8sgc
+    namespace: openshift-marketplace
+    resourceVersion: "396707"
+    uid: 91757587-2910-466c-8408-47ca8944d3d1
+  kind: Event
+  lastTimestamp: "2026-09-02T17:43:18Z"
+  message: Add eth0 [10.128.0.28/23] from ovn-kubernetes
+  metadata:
+    creationTimestamp: "2026-09-02T17:43:18Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: multus-daemon
+      operation: Update
+      time: "2026-09-02T17:43:18Z"
+    name: certified-operators-custom-s8sgc.18d191f2bca3fee9
+    namespace: openshift-marketplace
+    resourceVersion: "396710"
+    uid: b6974f80-a880-4aa8-bd57-2be2d3def39c
+  reason: AddedInterface
+  reportingComponent: multus
+  reportingInstance: ""
+  source:
+    component: multus
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T17:43:18Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-s8sgc
+    namespace: openshift-marketplace
+    resourceVersion: "396703"
+    uid: 91757587-2910-466c-8408-47ca8944d3d1
+  kind: Event
+  lastTimestamp: "2026-09-02T17:43:18Z"
+  message: Pulling image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/far-edge-sriov-fec:v4.22"
+  metadata:
+    creationTimestamp: "2026-09-02T17:43:18Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T17:43:18Z"
+    name: certified-operators-custom-s8sgc.18d191f2bd8f2787
+    namespace: openshift-marketplace
+    resourceVersion: "396712"
+    uid: 4f99b6c4-659c-41c2-bbf4-4e43e03b0ad6
+  reason: Pulling
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T17:43:18Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-s8sgc
+    namespace: openshift-marketplace
+    resourceVersion: "396703"
+    uid: 91757587-2910-466c-8408-47ca8944d3d1
+  kind: Event
+  lastTimestamp: "2026-09-02T17:43:18Z"
+  message: 'Successfully pulled image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/far-edge-sriov-fec:v4.22"
+    in 87ms (87ms including waiting). Image size: 1038971282 bytes.'
+  metadata:
+    creationTimestamp: "2026-09-02T17:43:18Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T17:43:18Z"
+    name: certified-operators-custom-s8sgc.18d191f2c2c691d2
+    namespace: openshift-marketplace
+    resourceVersion: "396713"
+    uid: dfdf97ea-05ba-4aa5-b710-e219cc33b1ef
+  reason: Pulled
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T17:43:18Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-s8sgc
+    namespace: openshift-marketplace
+    resourceVersion: "396703"
+    uid: 91757587-2910-466c-8408-47ca8944d3d1
+  kind: Event
+  lastTimestamp: "2026-09-02T17:43:18Z"
+  message: Container created
+  metadata:
+    creationTimestamp: "2026-09-02T17:43:18Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T17:43:18Z"
+    name: certified-operators-custom-s8sgc.18d191f2c7baa4fe
+    namespace: openshift-marketplace
+    resourceVersion: "396714"
+    uid: c5c41c9c-146a-4f41-8ac9-29b2b2c8661c
+  reason: Created
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T17:43:18Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-s8sgc
+    namespace: openshift-marketplace
+    resourceVersion: "396703"
+    uid: 91757587-2910-466c-8408-47ca8944d3d1
+  kind: Event
+  lastTimestamp: "2026-09-02T17:43:18Z"
+  message: Container started
+  metadata:
+    creationTimestamp: "2026-09-02T17:43:18Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T17:43:18Z"
+    name: certified-operators-custom-s8sgc.18d191f2c817861c
+    namespace: openshift-marketplace
+    resourceVersion: "396715"
+    uid: d5d7ebc8-d9ba-4a19-86b3-6a8482b923ed
+  reason: Started
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T17:43:30Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-s8sgc
+    namespace: openshift-marketplace
+    resourceVersion: "396703"
+    uid: 91757587-2910-466c-8408-47ca8944d3d1
+  kind: Event
+  lastTimestamp: "2026-09-02T17:43:30Z"
+  message: Stopping container registry-server
+  metadata:
+    creationTimestamp: "2026-09-02T17:43:30Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T17:43:30Z"
+    name: certified-operators-custom-s8sgc.18d191f5811173d7
+    namespace: openshift-marketplace
+    resourceVersion: "396746"
+    uid: 6e10de39-56da-4447-b4e5-744a2af4c298
+  reason: Killing
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T14:43:13Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: certified-operators-custom-zvjkf
+    namespace: openshift-marketplace
+    resourceVersion: "364610"
+    uid: 155bdf57-d559-44b2-beb8-b400dda0875c
+  kind: Event
+  lastTimestamp: "2026-09-02T14:43:13Z"
+  message: Successfully assigned openshift-marketplace/certified-operators-custom-zvjkf
+    to helix103.telcoqe.eng.rdu2.dc.redhat.com
+  metadata:
+    creationTimestamp: "2026-09-02T14:43:13Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: kube-scheduler
+      operation: Update
+      time: "2026-09-02T14:43:13Z"
+    name: certified-operators-custom-zvjkf.18d1881ed6401e74
+    namespace: openshift-marketplace
+    resourceVersion: "364613"
+    uid: c5529fa1-866a-476a-992b-5de4c5b768bd
+  reason: Scheduled
+  reportingComponent: default-scheduler
+  reportingInstance: ""
+  source:
+    component: default-scheduler
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T14:43:13Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: certified-operators-custom-zvjkf
+    namespace: openshift-marketplace
+    resourceVersion: "364615"
+    uid: 155bdf57-d559-44b2-beb8-b400dda0875c
+  kind: Event
+  lastTimestamp: "2026-09-02T14:43:13Z"
+  message: Add eth0 [10.128.0.81/23] from ovn-kubernetes
+  metadata:
+    creationTimestamp: "2026-09-02T14:43:13Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: multus-daemon
+      operation: Update
+      time: "2026-09-02T14:43:13Z"
+    name: certified-operators-custom-zvjkf.18d1881efa8f3561
+    namespace: openshift-marketplace
+    resourceVersion: "364616"
+    uid: 9431180c-5d12-4cad-882b-987ed7ac8e1b
+  reason: AddedInterface
+  reportingComponent: multus
+  reportingInstance: ""
+  source:
+    component: multus
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T14:43:13Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-zvjkf
+    namespace: openshift-marketplace
+    resourceVersion: "364612"
+    uid: 155bdf57-d559-44b2-beb8-b400dda0875c
+  kind: Event
+  lastTimestamp: "2026-09-02T14:43:13Z"
+  message: Pulling image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/far-edge-sriov-fec:v4.22"
+  metadata:
+    creationTimestamp: "2026-09-02T14:43:13Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T14:43:13Z"
+    name: certified-operators-custom-zvjkf.18d1881efb67aa36
+    namespace: openshift-marketplace
+    resourceVersion: "364618"
+    uid: bde519c6-eab2-4fe5-a2ec-fc86ab4c3a7e
+  reason: Pulling
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T14:43:13Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-zvjkf
+    namespace: openshift-marketplace
+    resourceVersion: "364612"
+    uid: 155bdf57-d559-44b2-beb8-b400dda0875c
+  kind: Event
+  lastTimestamp: "2026-09-02T14:43:13Z"
+  message: 'Successfully pulled image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/far-edge-sriov-fec:v4.22"
+    in 107ms (107ms including waiting). Image size: 1038971282 bytes.'
+  metadata:
+    creationTimestamp: "2026-09-02T14:43:13Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T14:43:13Z"
+    name: certified-operators-custom-zvjkf.18d1881f01c96a5f
+    namespace: openshift-marketplace
+    resourceVersion: "364620"
+    uid: db61c683-ff0e-4647-8879-4ef18e3b3380
+  reason: Pulled
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T14:43:13Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-zvjkf
+    namespace: openshift-marketplace
+    resourceVersion: "364612"
+    uid: 155bdf57-d559-44b2-beb8-b400dda0875c
+  kind: Event
+  lastTimestamp: "2026-09-02T14:43:13Z"
+  message: Container created
+  metadata:
+    creationTimestamp: "2026-09-02T14:43:13Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T14:43:13Z"
+    name: certified-operators-custom-zvjkf.18d1881f057eb25b
+    namespace: openshift-marketplace
+    resourceVersion: "364621"
+    uid: 7500ed50-a065-4a63-89ae-10dc95806dec
+  reason: Created
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T14:43:13Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-zvjkf
+    namespace: openshift-marketplace
+    resourceVersion: "364612"
+    uid: 155bdf57-d559-44b2-beb8-b400dda0875c
+  kind: Event
+  lastTimestamp: "2026-09-02T14:43:13Z"
+  message: Container started
+  metadata:
+    creationTimestamp: "2026-09-02T14:43:13Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T14:43:13Z"
+    name: certified-operators-custom-zvjkf.18d1881f05d44d2b
+    namespace: openshift-marketplace
+    resourceVersion: "364622"
+    uid: 48f5feb9-8319-4ab8-9bbc-a7bfe4dfc1bb
+  reason: Started
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T14:43:25Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-zvjkf
+    namespace: openshift-marketplace
+    resourceVersion: "364612"
+    uid: 155bdf57-d559-44b2-beb8-b400dda0875c
+  kind: Event
+  lastTimestamp: "2026-09-02T14:43:25Z"
+  message: Stopping container registry-server
+  metadata:
+    creationTimestamp: "2026-09-02T14:43:25Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T14:43:25Z"
+    name: certified-operators-custom-zvjkf.18d18821d036a08f
+    namespace: openshift-marketplace
+    resourceVersion: "364651"
+    uid: c2cc904d-fbdd-45ea-9ec2-14f878b1f2e5
+  reason: Killing
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:43:17Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: certified-operators-custom-zzmb6
+    namespace: openshift-marketplace
+    resourceVersion: "388750"
+    uid: 251df79d-555b-4454-ba6d-cd40d3edebc8
+  kind: Event
+  lastTimestamp: "2026-09-02T16:43:17Z"
+  message: Successfully assigned openshift-marketplace/certified-operators-custom-zzmb6
+    to helix103.telcoqe.eng.rdu2.dc.redhat.com
+  metadata:
+    creationTimestamp: "2026-09-02T16:43:17Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: kube-scheduler
+      operation: Update
+      time: "2026-09-02T16:43:17Z"
+    name: certified-operators-custom-zzmb6.18d18eac25eb480e
+    namespace: openshift-marketplace
+    resourceVersion: "388753"
+    uid: 7049a4ee-be50-4390-a62b-19126545a68d
+  reason: Scheduled
+  reportingComponent: default-scheduler
+  reportingInstance: ""
+  source:
+    component: default-scheduler
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:43:17Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: certified-operators-custom-zzmb6
+    namespace: openshift-marketplace
+    resourceVersion: "388755"
+    uid: 251df79d-555b-4454-ba6d-cd40d3edebc8
+  kind: Event
+  lastTimestamp: "2026-09-02T16:43:17Z"
+  message: Add eth0 [10.128.0.24/23] from ovn-kubernetes
+  metadata:
+    creationTimestamp: "2026-09-02T16:43:17Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: multus-daemon
+      operation: Update
+      time: "2026-09-02T16:43:17Z"
+    name: certified-operators-custom-zzmb6.18d18eac494e2840
+    namespace: openshift-marketplace
+    resourceVersion: "388759"
+    uid: 062f756b-fd26-4524-8e14-758679592a69
+  reason: AddedInterface
+  reportingComponent: multus
+  reportingInstance: ""
+  source:
+    component: multus
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:43:17Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-zzmb6
+    namespace: openshift-marketplace
+    resourceVersion: "388751"
+    uid: 251df79d-555b-4454-ba6d-cd40d3edebc8
+  kind: Event
+  lastTimestamp: "2026-09-02T16:43:17Z"
+  message: Pulling image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/far-edge-sriov-fec:v4.22"
+  metadata:
+    creationTimestamp: "2026-09-02T16:43:17Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T16:43:17Z"
+    name: certified-operators-custom-zzmb6.18d18eac4a1d7e79
+    namespace: openshift-marketplace
+    resourceVersion: "388761"
+    uid: 74753569-b5e3-4801-a750-b00cbfb64c58
+  reason: Pulling
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:43:17Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-zzmb6
+    namespace: openshift-marketplace
+    resourceVersion: "388751"
+    uid: 251df79d-555b-4454-ba6d-cd40d3edebc8
+  kind: Event
+  lastTimestamp: "2026-09-02T16:43:17Z"
+  message: 'Successfully pulled image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/far-edge-sriov-fec:v4.22"
+    in 86ms (86ms including waiting). Image size: 1038971282 bytes.'
+  metadata:
+    creationTimestamp: "2026-09-02T16:43:17Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T16:43:17Z"
+    name: certified-operators-custom-zzmb6.18d18eac4f49f6bc
+    namespace: openshift-marketplace
+    resourceVersion: "388762"
+    uid: a100263e-a056-49fb-a2c3-531a6e33254e
+  reason: Pulled
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:43:17Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-zzmb6
+    namespace: openshift-marketplace
+    resourceVersion: "388751"
+    uid: 251df79d-555b-4454-ba6d-cd40d3edebc8
+  kind: Event
+  lastTimestamp: "2026-09-02T16:43:17Z"
+  message: Container created
+  metadata:
+    creationTimestamp: "2026-09-02T16:43:17Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T16:43:17Z"
+    name: certified-operators-custom-zzmb6.18d18eac533768ab
+    namespace: openshift-marketplace
+    resourceVersion: "388763"
+    uid: 7bb1eccc-badb-4d28-9ece-da33f2b2857f
+  reason: Created
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:43:17Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-zzmb6
+    namespace: openshift-marketplace
+    resourceVersion: "388751"
+    uid: 251df79d-555b-4454-ba6d-cd40d3edebc8
+  kind: Event
+  lastTimestamp: "2026-09-02T16:43:17Z"
+  message: Container started
+  metadata:
+    creationTimestamp: "2026-09-02T16:43:17Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T16:43:17Z"
+    name: certified-operators-custom-zzmb6.18d18eac538d8d83
+    namespace: openshift-marketplace
+    resourceVersion: "388765"
+    uid: b028fc4f-c95a-4842-b847-68c347d2a3f4
+  reason: Started
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:43:30Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: certified-operators-custom-zzmb6
+    namespace: openshift-marketplace
+    resourceVersion: "388751"
+    uid: 251df79d-555b-4454-ba6d-cd40d3edebc8
+  kind: Event
+  lastTimestamp: "2026-09-02T16:43:30Z"
+  message: Stopping container registry-server
+  metadata:
+    creationTimestamp: "2026-09-02T16:43:30Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T16:43:30Z"
+    name: certified-operators-custom-zzmb6.18d18eaf31d4763b
+    namespace: openshift-marketplace
+    resourceVersion: "388797"
+    uid: 87b120ab-7b16-42a1-b087-3a89424b1119
+  reason: Killing
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:43:39Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: redhat-operators-custom-686lv
+    namespace: openshift-marketplace
+    resourceVersion: "388820"
+    uid: 2829e4a0-1b32-449c-bb6e-b4241ffe247f
+  kind: Event
+  lastTimestamp: "2026-09-02T16:43:39Z"
+  message: Successfully assigned openshift-marketplace/redhat-operators-custom-686lv
+    to helix103.telcoqe.eng.rdu2.dc.redhat.com
+  metadata:
+    creationTimestamp: "2026-09-02T16:43:39Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: kube-scheduler
+      operation: Update
+      time: "2026-09-02T16:43:39Z"
+    name: redhat-operators-custom-686lv.18d18eb16799abe3
+    namespace: openshift-marketplace
+    resourceVersion: "388823"
+    uid: 51a8e560-f042-4e1d-9ead-ce887633074a
+  reason: Scheduled
+  reportingComponent: default-scheduler
+  reportingInstance: ""
+  source:
+    component: default-scheduler
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:43:40Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: redhat-operators-custom-686lv
+    namespace: openshift-marketplace
+    resourceVersion: "388825"
+    uid: 2829e4a0-1b32-449c-bb6e-b4241ffe247f
+  kind: Event
+  lastTimestamp: "2026-09-02T16:43:40Z"
+  message: Add eth0 [10.128.0.25/23] from ovn-kubernetes
+  metadata:
+    creationTimestamp: "2026-09-02T16:43:40Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: multus-daemon
+      operation: Update
+      time: "2026-09-02T16:43:40Z"
+    name: redhat-operators-custom-686lv.18d18eb18c423cc6
+    namespace: openshift-marketplace
+    resourceVersion: "388829"
+    uid: 956ef8e9-1523-4d49-a123-e91085746e22
+  reason: AddedInterface
+  reportingComponent: multus
+  reportingInstance: ""
+  source:
+    component: multus
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:43:40Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-686lv
+    namespace: openshift-marketplace
+    resourceVersion: "388822"
+    uid: 2829e4a0-1b32-449c-bb6e-b4241ffe247f
+  kind: Event
+  lastTimestamp: "2026-09-02T16:43:40Z"
+  message: Pulling image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/redhat-operators:v4.22"
+  metadata:
+    creationTimestamp: "2026-09-02T16:43:40Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T16:43:40Z"
+    name: redhat-operators-custom-686lv.18d18eb18d372915
+    namespace: openshift-marketplace
+    resourceVersion: "388831"
+    uid: 5cdbddfe-394d-49bd-9f71-349196b60c05
+  reason: Pulling
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:43:40Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-686lv
+    namespace: openshift-marketplace
+    resourceVersion: "388822"
+    uid: 2829e4a0-1b32-449c-bb6e-b4241ffe247f
+  kind: Event
+  lastTimestamp: "2026-09-02T16:43:40Z"
+  message: 'Successfully pulled image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/redhat-operators:v4.22"
+    in 81ms (81ms including waiting). Image size: 84682095 bytes.'
+  metadata:
+    creationTimestamp: "2026-09-02T16:43:40Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T16:43:40Z"
+    name: redhat-operators-custom-686lv.18d18eb19213f42e
+    namespace: openshift-marketplace
+    resourceVersion: "388833"
+    uid: 58fdfff3-76b7-411c-bff1-88fab7e0d242
+  reason: Pulled
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:43:40Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-686lv
+    namespace: openshift-marketplace
+    resourceVersion: "388822"
+    uid: 2829e4a0-1b32-449c-bb6e-b4241ffe247f
+  kind: Event
+  lastTimestamp: "2026-09-02T16:43:40Z"
+  message: Container created
+  metadata:
+    creationTimestamp: "2026-09-02T16:43:40Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T16:43:40Z"
+    name: redhat-operators-custom-686lv.18d18eb1960958d8
+    namespace: openshift-marketplace
+    resourceVersion: "388834"
+    uid: fa4c5cfa-9d63-44ee-8b1d-b74ecc9b8336
+  reason: Created
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:43:40Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-686lv
+    namespace: openshift-marketplace
+    resourceVersion: "388822"
+    uid: 2829e4a0-1b32-449c-bb6e-b4241ffe247f
+  kind: Event
+  lastTimestamp: "2026-09-02T16:43:40Z"
+  message: Container started
+  metadata:
+    creationTimestamp: "2026-09-02T16:43:40Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T16:43:40Z"
+    name: redhat-operators-custom-686lv.18d18eb196654093
+    namespace: openshift-marketplace
+    resourceVersion: "388835"
+    uid: 43249836-4d66-446d-b7f4-3d5aa9e9ea3b
+  reason: Started
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:43:52Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-686lv
+    namespace: openshift-marketplace
+    resourceVersion: "388822"
+    uid: 2829e4a0-1b32-449c-bb6e-b4241ffe247f
+  kind: Event
+  lastTimestamp: "2026-09-02T16:43:52Z"
+  message: Stopping container registry-server
+  metadata:
+    creationTimestamp: "2026-09-02T16:43:52Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T16:43:52Z"
+    name: redhat-operators-custom-686lv.18d18eb4592786fe
+    namespace: openshift-marketplace
+    resourceVersion: "388865"
+    uid: e08b00cb-3144-4618-9bc5-3fc908fd9089
+  reason: Killing
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T14:43:37Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: redhat-operators-custom-6jx8w
+    namespace: openshift-marketplace
+    resourceVersion: "364683"
+    uid: 7d5b82d0-3eeb-43b9-ae4f-064c37b0aae3
+  kind: Event
+  lastTimestamp: "2026-09-02T14:43:37Z"
+  message: Successfully assigned openshift-marketplace/redhat-operators-custom-6jx8w
+    to helix103.telcoqe.eng.rdu2.dc.redhat.com
+  metadata:
+    creationTimestamp: "2026-09-02T14:43:37Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: kube-scheduler
+      operation: Update
+      time: "2026-09-02T14:43:37Z"
+    name: redhat-operators-custom-6jx8w.18d188246ca33372
+    namespace: openshift-marketplace
+    resourceVersion: "364686"
+    uid: 98f3bd20-0852-4841-a5b4-9f359de1c8c8
+  reason: Scheduled
+  reportingComponent: default-scheduler
+  reportingInstance: ""
+  source:
+    component: default-scheduler
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T14:43:37Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: redhat-operators-custom-6jx8w
+    namespace: openshift-marketplace
+    resourceVersion: "364688"
+    uid: 7d5b82d0-3eeb-43b9-ae4f-064c37b0aae3
+  kind: Event
+  lastTimestamp: "2026-09-02T14:43:37Z"
+  message: Add eth0 [10.128.0.84/23] from ovn-kubernetes
+  metadata:
+    creationTimestamp: "2026-09-02T14:43:37Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: multus-daemon
+      operation: Update
+      time: "2026-09-02T14:43:37Z"
+    name: redhat-operators-custom-6jx8w.18d18824908d3ab0
+    namespace: openshift-marketplace
+    resourceVersion: "364689"
+    uid: 584620d8-fd2b-42c1-a2bc-83d803ef52ff
+  reason: AddedInterface
+  reportingComponent: multus
+  reportingInstance: ""
+  source:
+    component: multus
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T14:43:37Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-6jx8w
+    namespace: openshift-marketplace
+    resourceVersion: "364685"
+    uid: 7d5b82d0-3eeb-43b9-ae4f-064c37b0aae3
+  kind: Event
+  lastTimestamp: "2026-09-02T14:43:37Z"
+  message: Pulling image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/redhat-operators:v4.22"
+  metadata:
+    creationTimestamp: "2026-09-02T14:43:37Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T14:43:37Z"
+    name: redhat-operators-custom-6jx8w.18d1882491769dc4
+    namespace: openshift-marketplace
+    resourceVersion: "364691"
+    uid: 99248521-d22e-4b74-b0ab-1c4c88a83818
+  reason: Pulling
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T14:43:37Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-6jx8w
+    namespace: openshift-marketplace
+    resourceVersion: "364685"
+    uid: 7d5b82d0-3eeb-43b9-ae4f-064c37b0aae3
+  kind: Event
+  lastTimestamp: "2026-09-02T14:43:37Z"
+  message: 'Successfully pulled image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/redhat-operators:v4.22"
+    in 149ms (149ms including waiting). Image size: 84682095 bytes.'
+  metadata:
+    creationTimestamp: "2026-09-02T14:43:37Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T14:43:37Z"
+    name: redhat-operators-custom-6jx8w.18d188249a5a0f57
+    namespace: openshift-marketplace
+    resourceVersion: "364692"
+    uid: b27218b0-c4ad-4440-9063-1662e9f5db80
+  reason: Pulled
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T14:43:37Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-6jx8w
+    namespace: openshift-marketplace
+    resourceVersion: "364685"
+    uid: 7d5b82d0-3eeb-43b9-ae4f-064c37b0aae3
+  kind: Event
+  lastTimestamp: "2026-09-02T14:43:37Z"
+  message: Container created
+  metadata:
+    creationTimestamp: "2026-09-02T14:43:37Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T14:43:37Z"
+    name: redhat-operators-custom-6jx8w.18d18824a02927d8
+    namespace: openshift-marketplace
+    resourceVersion: "364693"
+    uid: f43db0c8-64f4-419d-8381-b01274643788
+  reason: Created
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T14:43:37Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-6jx8w
+    namespace: openshift-marketplace
+    resourceVersion: "364685"
+    uid: 7d5b82d0-3eeb-43b9-ae4f-064c37b0aae3
+  kind: Event
+  lastTimestamp: "2026-09-02T14:43:37Z"
+  message: Container started
+  metadata:
+    creationTimestamp: "2026-09-02T14:43:37Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T14:43:37Z"
+    name: redhat-operators-custom-6jx8w.18d18824a0b87226
+    namespace: openshift-marketplace
+    resourceVersion: "364695"
+    uid: 7c1a3c2f-fc8c-4cf4-812e-4d20590d5666
+  reason: Started
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T14:43:49Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-6jx8w
+    namespace: openshift-marketplace
+    resourceVersion: "364685"
+    uid: 7d5b82d0-3eeb-43b9-ae4f-064c37b0aae3
+  kind: Event
+  lastTimestamp: "2026-09-02T14:43:49Z"
+  message: Stopping container registry-server
+  metadata:
+    creationTimestamp: "2026-09-02T14:43:49Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T14:43:49Z"
+    name: redhat-operators-custom-6jx8w.18d188276ef39176
+    namespace: openshift-marketplace
+    resourceVersion: "364727"
+    uid: a4e95948-352b-4c87-bcf3-5f0ef99b1ca2
+  reason: Killing
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T15:43:37Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: redhat-operators-custom-7p2j5
+    namespace: openshift-marketplace
+    resourceVersion: "376262"
+    uid: 7bfaf37d-38e4-4641-a3a2-f8ca865d0d4e
+  kind: Event
+  lastTimestamp: "2026-09-02T15:43:37Z"
+  message: Successfully assigned openshift-marketplace/redhat-operators-custom-7p2j5
+    to helix103.telcoqe.eng.rdu2.dc.redhat.com
+  metadata:
+    creationTimestamp: "2026-09-02T15:43:37Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: kube-scheduler
+      operation: Update
+      time: "2026-09-02T15:43:37Z"
+    name: redhat-operators-custom-7p2j5.18d18b6ad29cff79
+    namespace: openshift-marketplace
+    resourceVersion: "376265"
+    uid: 6136cfe1-e005-4611-bbab-f4b9cb511c8f
+  reason: Scheduled
+  reportingComponent: default-scheduler
+  reportingInstance: ""
+  source:
+    component: default-scheduler
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T15:43:38Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: redhat-operators-custom-7p2j5
+    namespace: openshift-marketplace
+    resourceVersion: "376267"
+    uid: 7bfaf37d-38e4-4641-a3a2-f8ca865d0d4e
+  kind: Event
+  lastTimestamp: "2026-09-02T15:43:38Z"
+  message: Add eth0 [10.128.0.101/23] from ovn-kubernetes
+  metadata:
+    creationTimestamp: "2026-09-02T15:43:38Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: multus-daemon
+      operation: Update
+      time: "2026-09-02T15:43:38Z"
+    name: redhat-operators-custom-7p2j5.18d18b6af65e1f42
+    namespace: openshift-marketplace
+    resourceVersion: "376270"
+    uid: 32861d68-67cc-4f67-a3d3-6adaea4ce7d8
+  reason: AddedInterface
+  reportingComponent: multus
+  reportingInstance: ""
+  source:
+    component: multus
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T15:43:38Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-7p2j5
+    namespace: openshift-marketplace
+    resourceVersion: "376263"
+    uid: 7bfaf37d-38e4-4641-a3a2-f8ca865d0d4e
+  kind: Event
+  lastTimestamp: "2026-09-02T15:43:38Z"
+  message: Pulling image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/redhat-operators:v4.22"
+  metadata:
+    creationTimestamp: "2026-09-02T15:43:38Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T15:43:38Z"
+    name: redhat-operators-custom-7p2j5.18d18b6af73b692a
+    namespace: openshift-marketplace
+    resourceVersion: "376272"
+    uid: d671c207-ed1f-40c0-bad1-e2020538d86c
+  reason: Pulling
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T15:43:38Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-7p2j5
+    namespace: openshift-marketplace
+    resourceVersion: "376263"
+    uid: 7bfaf37d-38e4-4641-a3a2-f8ca865d0d4e
+  kind: Event
+  lastTimestamp: "2026-09-02T15:43:38Z"
+  message: 'Successfully pulled image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/redhat-operators:v4.22"
+    in 94ms (94ms including waiting). Image size: 84682095 bytes.'
+  metadata:
+    creationTimestamp: "2026-09-02T15:43:38Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T15:43:38Z"
+    name: redhat-operators-custom-7p2j5.18d18b6afcdce734
+    namespace: openshift-marketplace
+    resourceVersion: "376273"
+    uid: e9175c66-feaf-4eaa-a2aa-6642e9f18a62
+  reason: Pulled
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T15:43:38Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-7p2j5
+    namespace: openshift-marketplace
+    resourceVersion: "376263"
+    uid: 7bfaf37d-38e4-4641-a3a2-f8ca865d0d4e
+  kind: Event
+  lastTimestamp: "2026-09-02T15:43:38Z"
+  message: Container created
+  metadata:
+    creationTimestamp: "2026-09-02T15:43:38Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T15:43:38Z"
+    name: redhat-operators-custom-7p2j5.18d18b6b00cedbe5
+    namespace: openshift-marketplace
+    resourceVersion: "376274"
+    uid: 28ba6acd-1524-458a-b6a9-5b3a89aaadb8
+  reason: Created
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T15:43:38Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-7p2j5
+    namespace: openshift-marketplace
+    resourceVersion: "376263"
+    uid: 7bfaf37d-38e4-4641-a3a2-f8ca865d0d4e
+  kind: Event
+  lastTimestamp: "2026-09-02T15:43:38Z"
+  message: Container started
+  metadata:
+    creationTimestamp: "2026-09-02T15:43:38Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T15:43:38Z"
+    name: redhat-operators-custom-7p2j5.18d18b6b01264042
+    namespace: openshift-marketplace
+    resourceVersion: "376275"
+    uid: bb4fb5b6-beb4-448c-a49a-a11d026007e6
+  reason: Started
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T15:43:50Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-7p2j5
+    namespace: openshift-marketplace
+    resourceVersion: "376263"
+    uid: 7bfaf37d-38e4-4641-a3a2-f8ca865d0d4e
+  kind: Event
+  lastTimestamp: "2026-09-02T15:43:50Z"
+  message: Stopping container registry-server
+  metadata:
+    creationTimestamp: "2026-09-02T15:43:50Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T15:43:50Z"
+    name: redhat-operators-custom-7p2j5.18d18b6dc6a99c18
+    namespace: openshift-marketplace
+    resourceVersion: "376306"
+    uid: 08615205-2831-4b47-9a6f-b2b1af90ed10
+  reason: Killing
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T17:43:40Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: redhat-operators-custom-gt2pf
+    namespace: openshift-marketplace
+    resourceVersion: "396770"
+    uid: a1994bdb-efc3-4423-b791-e922085e4de5
+  kind: Event
+  lastTimestamp: "2026-09-02T17:43:40Z"
+  message: Successfully assigned openshift-marketplace/redhat-operators-custom-gt2pf
+    to helix103.telcoqe.eng.rdu2.dc.redhat.com
+  metadata:
+    creationTimestamp: "2026-09-02T17:43:40Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: kube-scheduler
+      operation: Update
+      time: "2026-09-02T17:43:40Z"
+    name: redhat-operators-custom-gt2pf.18d191f7d9dc84d6
+    namespace: openshift-marketplace
+    resourceVersion: "396773"
+    uid: 983e21bb-1650-41cb-a3f0-89a0c3cc5e40
+  reason: Scheduled
+  reportingComponent: default-scheduler
+  reportingInstance: ""
+  source:
+    component: default-scheduler
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T17:43:41Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: redhat-operators-custom-gt2pf
+    namespace: openshift-marketplace
+    resourceVersion: "396775"
+    uid: a1994bdb-efc3-4423-b791-e922085e4de5
+  kind: Event
+  lastTimestamp: "2026-09-02T17:43:41Z"
+  message: Add eth0 [10.128.0.31/23] from ovn-kubernetes
+  metadata:
+    creationTimestamp: "2026-09-02T17:43:41Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: multus-daemon
+      operation: Update
+      time: "2026-09-02T17:43:41Z"
+    name: redhat-operators-custom-gt2pf.18d191f7fdb97906
+    namespace: openshift-marketplace
+    resourceVersion: "396778"
+    uid: 835a6d9f-91c2-413f-bb68-91162c897dae
+  reason: AddedInterface
+  reportingComponent: multus
+  reportingInstance: ""
+  source:
+    component: multus
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T17:43:41Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-gt2pf
+    namespace: openshift-marketplace
+    resourceVersion: "396771"
+    uid: a1994bdb-efc3-4423-b791-e922085e4de5
+  kind: Event
+  lastTimestamp: "2026-09-02T17:43:41Z"
+  message: Pulling image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/redhat-operators:v4.22"
+  metadata:
+    creationTimestamp: "2026-09-02T17:43:41Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T17:43:41Z"
+    name: redhat-operators-custom-gt2pf.18d191f7fe998062
+    namespace: openshift-marketplace
+    resourceVersion: "396780"
+    uid: ff4842f2-9133-49f9-a1b3-cf1105c73ce9
+  reason: Pulling
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T17:43:41Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-gt2pf
+    namespace: openshift-marketplace
+    resourceVersion: "396771"
+    uid: a1994bdb-efc3-4423-b791-e922085e4de5
+  kind: Event
+  lastTimestamp: "2026-09-02T17:43:41Z"
+  message: 'Successfully pulled image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/redhat-operators:v4.22"
+    in 80ms (80ms including waiting). Image size: 84682095 bytes.'
+  metadata:
+    creationTimestamp: "2026-09-02T17:43:41Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T17:43:41Z"
+    name: redhat-operators-custom-gt2pf.18d191f8036c514c
+    namespace: openshift-marketplace
+    resourceVersion: "396782"
+    uid: 4bb53d3c-4fcf-4b4b-89f4-cb261d4290b5
+  reason: Pulled
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T17:43:41Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-gt2pf
+    namespace: openshift-marketplace
+    resourceVersion: "396771"
+    uid: a1994bdb-efc3-4423-b791-e922085e4de5
+  kind: Event
+  lastTimestamp: "2026-09-02T17:43:41Z"
+  message: Container created
+  metadata:
+    creationTimestamp: "2026-09-02T17:43:41Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T17:43:41Z"
+    name: redhat-operators-custom-gt2pf.18d191f807cb3c88
+    namespace: openshift-marketplace
+    resourceVersion: "396783"
+    uid: d62b445b-6d4e-48b0-8d0c-a8067f940a68
+  reason: Created
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T17:43:41Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-gt2pf
+    namespace: openshift-marketplace
+    resourceVersion: "396771"
+    uid: a1994bdb-efc3-4423-b791-e922085e4de5
+  kind: Event
+  lastTimestamp: "2026-09-02T17:43:41Z"
+  message: Container started
+  metadata:
+    creationTimestamp: "2026-09-02T17:43:41Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T17:43:41Z"
+    name: redhat-operators-custom-gt2pf.18d191f8082109eb
+    namespace: openshift-marketplace
+    resourceVersion: "396784"
+    uid: a93e7272-1a2f-4512-81d8-5c46e1c71f4b
+  reason: Started
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T17:43:53Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-gt2pf
+    namespace: openshift-marketplace
+    resourceVersion: "396771"
+    uid: a1994bdb-efc3-4423-b791-e922085e4de5
+  kind: Event
+  lastTimestamp: "2026-09-02T17:43:53Z"
+  message: Stopping container registry-server
+  metadata:
+    creationTimestamp: "2026-09-02T17:43:53Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T17:43:53Z"
+    name: redhat-operators-custom-gt2pf.18d191fae2b9631b
+    namespace: openshift-marketplace
+    resourceVersion: "396812"
+    uid: 20869054-7fd2-42a5-b847-40a51f82d98a
+  reason: Killing
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 11
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:30:28Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: redhat-operators-custom-h87fm
+    namespace: openshift-marketplace
+    resourceVersion: "237503"
+    uid: 884bbb71-30f6-4f3f-b825-3a7f66623459
+  kind: Event
+  lastTimestamp: "2026-09-02T16:30:48Z"
+  message: 'network is not ready: container runtime network not ready: NetworkReady=false
+    reason:NetworkPluginNotReady message:Network plugin returns error: no CNI configuration
+    file in /etc/kubernetes/cni/net.d/. Has your network provider started?'
+  metadata:
+    creationTimestamp: "2026-09-02T16:30:28Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T16:30:57Z"
+    name: redhat-operators-custom-h87fm.18d18df94510be47
+    namespace: openshift-marketplace
+    resourceVersion: "385654"
+    uid: bb1897a4-065c-42df-8407-8d2eb1b195f1
+  reason: NetworkNotReady
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Warning
+- apiVersion: v1
+  count: 6
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:30:28Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: redhat-operators-custom-h87fm
+    namespace: openshift-marketplace
+    resourceVersion: "237503"
+    uid: 884bbb71-30f6-4f3f-b825-3a7f66623459
+  kind: Event
+  lastTimestamp: "2026-09-02T16:30:44Z"
+  message: 'MountVolume.SetUp failed for volume "kube-api-access-8vjrc" : [object
+    "openshift-marketplace"/"kube-root-ca.crt" not registered, object "openshift-marketplace"/"openshift-service-ca.crt"
+    not registered]'
+  metadata:
+    creationTimestamp: "2026-09-02T16:30:31Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T16:30:55Z"
+    name: redhat-operators-custom-h87fm.18d18df94e412dff
+    namespace: openshift-marketplace
+    resourceVersion: "385549"
+    uid: 663bd4fc-67ff-4d6a-b750-f7687cee82dc
+  reason: FailedMount
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Warning
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:31:03Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: redhat-operators-custom-h87fm
+    namespace: openshift-marketplace
+    resourceVersion: "383885"
+    uid: 884bbb71-30f6-4f3f-b825-3a7f66623459
+  kind: Event
+  lastTimestamp: "2026-09-02T16:31:03Z"
+  message: Add eth0 [10.128.0.83/23] from ovn-kubernetes
+  metadata:
+    creationTimestamp: "2026-09-02T16:31:04Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: multus-daemon
+      operation: Update
+      time: "2026-09-02T16:31:04Z"
+    name: redhat-operators-custom-h87fm.18d18e015575ed5a
+    namespace: openshift-marketplace
+    resourceVersion: "385924"
+    uid: 2a3e114e-82a6-4fa5-b66d-1a405f43abc9
+  reason: AddedInterface
+  reportingComponent: multus
+  reportingInstance: ""
+  source:
+    component: multus
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:31:04Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-h87fm
+    namespace: openshift-marketplace
+    resourceVersion: "237503"
+    uid: 884bbb71-30f6-4f3f-b825-3a7f66623459
+  kind: Event
+  lastTimestamp: "2026-09-02T16:31:04Z"
+  message: Pulling image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/redhat-operators:v4.22"
+  metadata:
+    creationTimestamp: "2026-09-02T16:31:04Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T16:31:04Z"
+    name: redhat-operators-custom-h87fm.18d18e01854d9a95
+    namespace: openshift-marketplace
+    resourceVersion: "385947"
+    uid: a241511b-28e7-42d6-9d45-bbc4985d5fd9
+  reason: Pulling
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:31:04Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-h87fm
+    namespace: openshift-marketplace
+    resourceVersion: "237503"
+    uid: 884bbb71-30f6-4f3f-b825-3a7f66623459
+  kind: Event
+  lastTimestamp: "2026-09-02T16:31:04Z"
+  message: 'Successfully pulled image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/redhat-operators:v4.22"
+    in 489ms (489ms including waiting). Image size: 84682095 bytes.'
+  metadata:
+    creationTimestamp: "2026-09-02T16:31:05Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T16:31:05Z"
+    name: redhat-operators-custom-h87fm.18d18e01a279fd7d
+    namespace: openshift-marketplace
+    resourceVersion: "385997"
+    uid: 36a8d07f-8a8a-4334-96df-95bb732279ba
+  reason: Pulled
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:31:06Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-h87fm
+    namespace: openshift-marketplace
+    resourceVersion: "237503"
+    uid: 884bbb71-30f6-4f3f-b825-3a7f66623459
+  kind: Event
+  lastTimestamp: "2026-09-02T16:31:06Z"
+  message: Container created
+  metadata:
+    creationTimestamp: "2026-09-02T16:31:08Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T16:31:08Z"
+    name: redhat-operators-custom-h87fm.18d18e01f73d1f25
+    namespace: openshift-marketplace
+    resourceVersion: "386139"
+    uid: b1f4cccf-f498-4d50-9632-a24cc8ad3c21
+  reason: Created
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T16:31:06Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-h87fm
+    namespace: openshift-marketplace
+    resourceVersion: "237503"
+    uid: 884bbb71-30f6-4f3f-b825-3a7f66623459
+  kind: Event
+  lastTimestamp: "2026-09-02T16:31:06Z"
+  message: Container started
+  metadata:
+    creationTimestamp: "2026-09-02T16:31:08Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T16:31:08Z"
+    name: redhat-operators-custom-h87fm.18d18e020a5db1a3
+    namespace: openshift-marketplace
+    resourceVersion: "386171"
+    uid: 87d09815-f23f-4629-82a2-ef36b4bddf9e
+  reason: Started
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T18:43:41Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: redhat-operators-custom-hbqnh
+    namespace: openshift-marketplace
+    resourceVersion: "405411"
+    uid: eb84ccd6-8ec4-425b-ae50-15a5652e8eec
+  kind: Event
+  lastTimestamp: "2026-09-02T18:43:41Z"
+  message: '0/1 nodes are available: 1 node(s) were unschedulable. no new claims to
+    deallocate, preemption: 0/1 nodes are available: 1 Preemption is not helpful for
+    scheduling.'
+  metadata:
+    creationTimestamp: "2026-09-02T18:43:41Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: kube-scheduler
+      operation: Update
+      time: "2026-09-02T18:43:41Z"
+    name: redhat-operators-custom-hbqnh.18d1953e4ba8f74a
+    namespace: openshift-marketplace
+    resourceVersion: "405413"
+    uid: a8b45150-f33f-45ec-b105-f2ddd434aa47
+  reason: FailedScheduling
+  reportingComponent: default-scheduler
+  reportingInstance: ""
+  source:
+    component: default-scheduler
+  type: Warning
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T18:43:42Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: redhat-operators-custom-hbqnh
+    namespace: openshift-marketplace
+    resourceVersion: "405414"
+    uid: eb84ccd6-8ec4-425b-ae50-15a5652e8eec
+  kind: Event
+  lastTimestamp: "2026-09-02T18:43:42Z"
+  message: '0/1 nodes are available: 1 node(s) had untolerated taint(s). no new claims
+    to deallocate, preemption: 0/1 nodes are available: 1 Preemption is not helpful
+    for scheduling.'
+  metadata:
+    creationTimestamp: "2026-09-02T18:43:42Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: kube-scheduler
+      operation: Update
+      time: "2026-09-02T18:43:42Z"
+    name: redhat-operators-custom-hbqnh.18d1953e5edd9946
+    namespace: openshift-marketplace
+    resourceVersion: "405420"
+    uid: 3fc33e44-b271-43d8-a403-2f77cfc92378
+  reason: FailedScheduling
+  reportingComponent: default-scheduler
+  reportingInstance: ""
+  source:
+    component: default-scheduler
+  type: Warning
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T18:43:42Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: redhat-operators-custom-hbqnh
+    namespace: openshift-marketplace
+    resourceVersion: "405419"
+    uid: eb84ccd6-8ec4-425b-ae50-15a5652e8eec
+  kind: Event
+  lastTimestamp: "2026-09-02T18:43:42Z"
+  message: Successfully assigned openshift-marketplace/redhat-operators-custom-hbqnh
+    to helix103.telcoqe.eng.rdu2.dc.redhat.com
+  metadata:
+    creationTimestamp: "2026-09-02T18:43:42Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: kube-scheduler
+      operation: Update
+      time: "2026-09-02T18:43:42Z"
+    name: redhat-operators-custom-hbqnh.18d1953e62084780
+    namespace: openshift-marketplace
+    resourceVersion: "405423"
+    uid: 28a49e88-059f-44db-a2fc-131d52663f78
+  reason: Scheduled
+  reportingComponent: default-scheduler
+  reportingInstance: ""
+  source:
+    component: default-scheduler
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T18:43:42Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: redhat-operators-custom-hbqnh
+    namespace: openshift-marketplace
+    resourceVersion: "405425"
+    uid: eb84ccd6-8ec4-425b-ae50-15a5652e8eec
+  kind: Event
+  lastTimestamp: "2026-09-02T18:43:42Z"
+  message: Add eth0 [10.128.0.38/23] from ovn-kubernetes
+  metadata:
+    creationTimestamp: "2026-09-02T18:43:42Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: multus-daemon
+      operation: Update
+      time: "2026-09-02T18:43:42Z"
+    name: redhat-operators-custom-hbqnh.18d1953e8708e5fc
+    namespace: openshift-marketplace
+    resourceVersion: "405437"
+    uid: 58a92db0-888b-468e-96ab-dafdeb95a085
+  reason: AddedInterface
+  reportingComponent: multus
+  reportingInstance: ""
+  source:
+    component: multus
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T18:43:42Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-hbqnh
+    namespace: openshift-marketplace
+    resourceVersion: "405422"
+    uid: eb84ccd6-8ec4-425b-ae50-15a5652e8eec
+  kind: Event
+  lastTimestamp: "2026-09-02T18:43:42Z"
+  message: Pulling image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/redhat-operators:v4.22"
+  metadata:
+    creationTimestamp: "2026-09-02T18:43:42Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T18:43:42Z"
+    name: redhat-operators-custom-hbqnh.18d1953e87e452a7
+    namespace: openshift-marketplace
+    resourceVersion: "405439"
+    uid: d1153f4d-7223-43c3-bbdb-62b9de5cd2ac
+  reason: Pulling
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T18:43:42Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-hbqnh
+    namespace: openshift-marketplace
+    resourceVersion: "405422"
+    uid: eb84ccd6-8ec4-425b-ae50-15a5652e8eec
+  kind: Event
+  lastTimestamp: "2026-09-02T18:43:42Z"
+  message: 'Successfully pulled image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/redhat-operators:v4.22"
+    in 80ms (80ms including waiting). Image size: 84682095 bytes.'
+  metadata:
+    creationTimestamp: "2026-09-02T18:43:42Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T18:43:42Z"
+    name: redhat-operators-custom-hbqnh.18d1953e8cb58fe4
+    namespace: openshift-marketplace
+    resourceVersion: "405441"
+    uid: 004dc499-06b5-432c-9d54-ff5de283cca1
+  reason: Pulled
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T18:43:42Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-hbqnh
+    namespace: openshift-marketplace
+    resourceVersion: "405422"
+    uid: eb84ccd6-8ec4-425b-ae50-15a5652e8eec
+  kind: Event
+  lastTimestamp: "2026-09-02T18:43:42Z"
+  message: Container created
+  metadata:
+    creationTimestamp: "2026-09-02T18:43:42Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T18:43:42Z"
+    name: redhat-operators-custom-hbqnh.18d1953e908c18a9
+    namespace: openshift-marketplace
+    resourceVersion: "405442"
+    uid: eecaec9c-5840-4e36-aeb7-443ba3de64f7
+  reason: Created
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T18:43:42Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-hbqnh
+    namespace: openshift-marketplace
+    resourceVersion: "405422"
+    uid: eb84ccd6-8ec4-425b-ae50-15a5652e8eec
+  kind: Event
+  lastTimestamp: "2026-09-02T18:43:42Z"
+  message: Container started
+  metadata:
+    creationTimestamp: "2026-09-02T18:43:42Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T18:43:42Z"
+    name: redhat-operators-custom-hbqnh.18d1953e90dfb05b
+    namespace: openshift-marketplace
+    resourceVersion: "405443"
+    uid: 3e5f022f-c235-4d1a-8b34-f0e6c0b9ae4e
+  reason: Started
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T18:43:55Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-hbqnh
+    namespace: openshift-marketplace
+    resourceVersion: "405422"
+    uid: eb84ccd6-8ec4-425b-ae50-15a5652e8eec
+  kind: Event
+  lastTimestamp: "2026-09-02T18:43:55Z"
+  message: Stopping container registry-server
+  metadata:
+    creationTimestamp: "2026-09-02T18:43:55Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T18:43:55Z"
+    name: redhat-operators-custom-hbqnh.18d19541773e590d
+    namespace: openshift-marketplace
+    resourceVersion: "405476"
+    uid: f422a717-c5b2-4c56-bf9e-26e96453b212
+  reason: Killing
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T13:43:37Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: redhat-operators-custom-pgvq8
+    namespace: openshift-marketplace
+    resourceVersion: "356808"
+    uid: 682b01fc-1b14-4d8b-bdee-efd05c304e02
+  kind: Event
+  lastTimestamp: "2026-09-02T13:43:37Z"
+  message: Successfully assigned openshift-marketplace/redhat-operators-custom-pgvq8
+    to helix103.telcoqe.eng.rdu2.dc.redhat.com
+  metadata:
+    creationTimestamp: "2026-09-02T13:43:37Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: kube-scheduler
+      operation: Update
+      time: "2026-09-02T13:43:37Z"
+    name: redhat-operators-custom-pgvq8.18d184de4299a031
+    namespace: openshift-marketplace
+    resourceVersion: "356811"
+    uid: 7c304af2-a743-486e-8b76-46f6c7321110
+  reason: Scheduled
+  reportingComponent: default-scheduler
+  reportingInstance: ""
+  source:
+    component: default-scheduler
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T13:43:37Z"
+  involvedObject:
+    apiVersion: v1
+    kind: Pod
+    name: redhat-operators-custom-pgvq8
+    namespace: openshift-marketplace
+    resourceVersion: "356813"
+    uid: 682b01fc-1b14-4d8b-bdee-efd05c304e02
+  kind: Event
+  lastTimestamp: "2026-09-02T13:43:37Z"
+  message: Add eth0 [10.128.0.78/23] from ovn-kubernetes
+  metadata:
+    creationTimestamp: "2026-09-02T13:43:37Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:source:
+          f:component: {}
+        f:type: {}
+      manager: multus-daemon
+      operation: Update
+      time: "2026-09-02T13:43:37Z"
+    name: redhat-operators-custom-pgvq8.18d184de66c58a8d
+    namespace: openshift-marketplace
+    resourceVersion: "356815"
+    uid: d081a76c-138a-4219-8530-7556cbe510da
+  reason: AddedInterface
+  reportingComponent: multus
+  reportingInstance: ""
+  source:
+    component: multus
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T13:43:37Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-pgvq8
+    namespace: openshift-marketplace
+    resourceVersion: "356810"
+    uid: 682b01fc-1b14-4d8b-bdee-efd05c304e02
+  kind: Event
+  lastTimestamp: "2026-09-02T13:43:37Z"
+  message: Pulling image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/redhat-operators:v4.22"
+  metadata:
+    creationTimestamp: "2026-09-02T13:43:37Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T13:43:37Z"
+    name: redhat-operators-custom-pgvq8.18d184de67a4f215
+    namespace: openshift-marketplace
+    resourceVersion: "356817"
+    uid: 8f004894-45ec-4b8e-80ff-3da851b9a56c
+  reason: Pulling
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T13:43:37Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-pgvq8
+    namespace: openshift-marketplace
+    resourceVersion: "356810"
+    uid: 682b01fc-1b14-4d8b-bdee-efd05c304e02
+  kind: Event
+  lastTimestamp: "2026-09-02T13:43:37Z"
+  message: 'Successfully pulled image "registry.kni-qe-90.telcoqe.eng.rdu2.dc.redhat.com:5000/olm/redhat-operators:v4.22"
+    in 83ms (83ms including waiting). Image size: 84682095 bytes.'
+  metadata:
+    creationTimestamp: "2026-09-02T13:43:37Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T13:43:37Z"
+    name: redhat-operators-custom-pgvq8.18d184de6c9c32b8
+    namespace: openshift-marketplace
+    resourceVersion: "356818"
+    uid: 20f5d2a0-6341-48d4-858b-50636cd8b5e7
+  reason: Pulled
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T13:43:37Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-pgvq8
+    namespace: openshift-marketplace
+    resourceVersion: "356810"
+    uid: 682b01fc-1b14-4d8b-bdee-efd05c304e02
+  kind: Event
+  lastTimestamp: "2026-09-02T13:43:37Z"
+  message: Container created
+  metadata:
+    creationTimestamp: "2026-09-02T13:43:37Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T13:43:37Z"
+    name: redhat-operators-custom-pgvq8.18d184de71b39484
+    namespace: openshift-marketplace
+    resourceVersion: "356819"
+    uid: 1afc90d1-5aa3-4a08-9018-7e0d363d079f
+  reason: Created
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T13:43:37Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-pgvq8
+    namespace: openshift-marketplace
+    resourceVersion: "356810"
+    uid: 682b01fc-1b14-4d8b-bdee-efd05c304e02
+  kind: Event
+  lastTimestamp: "2026-09-02T13:43:37Z"
+  message: Container started
+  metadata:
+    creationTimestamp: "2026-09-02T13:43:37Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T13:43:37Z"
+    name: redhat-operators-custom-pgvq8.18d184de7208d7c1
+    namespace: openshift-marketplace
+    resourceVersion: "356820"
+    uid: eebb8748-f5f4-47a4-8063-f8aa52293ec9
+  reason: Started
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+- apiVersion: v1
+  count: 1
+  eventTime: null
+  firstTimestamp: "2026-09-02T13:43:50Z"
+  involvedObject:
+    apiVersion: v1
+    fieldPath: spec.containers{registry-server}
+    kind: Pod
+    name: redhat-operators-custom-pgvq8
+    namespace: openshift-marketplace
+    resourceVersion: "356810"
+    uid: 682b01fc-1b14-4d8b-bdee-efd05c304e02
+  kind: Event
+  lastTimestamp: "2026-09-02T13:43:50Z"
+  message: Stopping container registry-server
+  metadata:
+    creationTimestamp: "2026-09-02T13:43:50Z"
+    managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:count: {}
+        f:firstTimestamp: {}
+        f:involvedObject: {}
+        f:lastTimestamp: {}
+        f:message: {}
+        f:reason: {}
+        f:reportingComponent: {}
+        f:reportingInstance: {}
+        f:source:
+          f:component: {}
+          f:host: {}
+        f:type: {}
+      manager: kubelet
+      operation: Update
+      time: "2026-09-02T13:43:50Z"
+    name: redhat-operators-custom-pgvq8.18d184e1597d086e
+    namespace: openshift-marketplace
+    resourceVersion: "356851"
+    uid: 698389c9-1938-4764-9391-e03b7d797575
+  reason: Killing
+  reportingComponent: kubelet
+  reportingInstance: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  source:
+    component: kubelet
+    host: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  type: Normal
+kind: EventList
+metadata:
+  resourceVersion: "406160"

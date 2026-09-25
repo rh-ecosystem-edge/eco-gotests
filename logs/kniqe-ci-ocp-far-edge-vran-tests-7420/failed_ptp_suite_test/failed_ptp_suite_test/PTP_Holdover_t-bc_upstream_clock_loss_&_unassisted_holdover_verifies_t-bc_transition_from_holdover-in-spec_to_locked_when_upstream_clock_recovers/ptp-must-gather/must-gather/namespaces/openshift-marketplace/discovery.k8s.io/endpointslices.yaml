@@ -1,0 +1,138 @@
+---
+apiVersion: discovery.k8s.io/v1
+items:
+- addressType: IPv4
+  apiVersion: discovery.k8s.io/v1
+  endpoints:
+  - addresses:
+    - 10.128.0.82
+    conditions:
+      ready: true
+      serving: true
+      terminating: false
+    nodeName: helix103.telcoqe.eng.rdu2.dc.redhat.com
+    targetRef:
+      kind: Pod
+      name: certified-operators-custom-6pr86
+      namespace: openshift-marketplace
+      uid: 9836ef2d-47c3-42b6-af15-ba7584840774
+  kind: EndpointSlice
+  metadata:
+    annotations:
+      endpoints.kubernetes.io/last-change-trigger-time: "2026-09-02T16:31:11Z"
+    creationTimestamp: "2026-08-31T21:38:46Z"
+    generateName: certified-operators-custom-
+    generation: 35
+    labels:
+      endpointslice.kubernetes.io/managed-by: endpointslice-controller.k8s.io
+      kubernetes.io/service-name: certified-operators-custom
+      olm.managed: "true"
+      olm.service-spec-hash: b0vQiZLrZzReq8wOgUb0Db08Gfp1bZRM4LBcbM
+    managedFields:
+    - apiVersion: discovery.k8s.io/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:addressType: {}
+        f:endpoints: {}
+        f:metadata:
+          f:annotations:
+            .: {}
+            f:endpoints.kubernetes.io/last-change-trigger-time: {}
+          f:generateName: {}
+          f:labels:
+            .: {}
+            f:endpointslice.kubernetes.io/managed-by: {}
+            f:kubernetes.io/service-name: {}
+            f:olm.managed: {}
+            f:olm.service-spec-hash: {}
+          f:ownerReferences:
+            .: {}
+            k:{"uid":"e61f5061-3b87-48f6-a65e-e8cb8a0c911b"}: {}
+        f:ports: {}
+      manager: kube-controller-manager
+      operation: Update
+      time: "2026-09-02T16:31:11Z"
+    name: certified-operators-custom-kvz7f
+    namespace: openshift-marketplace
+    ownerReferences:
+    - apiVersion: v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Service
+      name: certified-operators-custom
+      uid: e61f5061-3b87-48f6-a65e-e8cb8a0c911b
+    resourceVersion: "386372"
+    uid: cbf4b991-4fe1-4faf-ae78-783364b87e6b
+  ports:
+  - name: grpc
+    port: 50051
+    protocol: TCP
+- addressType: IPv4
+  apiVersion: discovery.k8s.io/v1
+  endpoints:
+  - addresses:
+    - 10.128.0.83
+    conditions:
+      ready: true
+      serving: true
+      terminating: false
+    nodeName: helix103.telcoqe.eng.rdu2.dc.redhat.com
+    targetRef:
+      kind: Pod
+      name: redhat-operators-custom-h87fm
+      namespace: openshift-marketplace
+      uid: 884bbb71-30f6-4f3f-b825-3a7f66623459
+  kind: EndpointSlice
+  metadata:
+    annotations:
+      endpoints.kubernetes.io/last-change-trigger-time: "2026-09-02T16:31:11Z"
+    creationTimestamp: "2026-08-31T21:38:49Z"
+    generateName: redhat-operators-custom-
+    generation: 36
+    labels:
+      endpointslice.kubernetes.io/managed-by: endpointslice-controller.k8s.io
+      kubernetes.io/service-name: redhat-operators-custom
+      olm.managed: "true"
+      olm.service-spec-hash: 4J19RBdDTdTb3tL3WHaNqvrX3PXe2Xs0t8QZqM
+    managedFields:
+    - apiVersion: discovery.k8s.io/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:addressType: {}
+        f:endpoints: {}
+        f:metadata:
+          f:annotations:
+            .: {}
+            f:endpoints.kubernetes.io/last-change-trigger-time: {}
+          f:generateName: {}
+          f:labels:
+            .: {}
+            f:endpointslice.kubernetes.io/managed-by: {}
+            f:kubernetes.io/service-name: {}
+            f:olm.managed: {}
+            f:olm.service-spec-hash: {}
+          f:ownerReferences:
+            .: {}
+            k:{"uid":"4f6e01c4-be98-4ea4-898d-2a09bdf635a8"}: {}
+        f:ports: {}
+      manager: kube-controller-manager
+      operation: Update
+      time: "2026-09-02T16:31:11Z"
+    name: redhat-operators-custom-4t8xg
+    namespace: openshift-marketplace
+    ownerReferences:
+    - apiVersion: v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Service
+      name: redhat-operators-custom
+      uid: 4f6e01c4-be98-4ea4-898d-2a09bdf635a8
+    resourceVersion: "386379"
+    uid: 722635de-8e06-4278-8b39-eaf49ec0fe5e
+  ports:
+  - name: grpc
+    port: 50051
+    protocol: TCP
+kind: EndpointSliceList
+metadata:
+  resourceVersion: "404595"

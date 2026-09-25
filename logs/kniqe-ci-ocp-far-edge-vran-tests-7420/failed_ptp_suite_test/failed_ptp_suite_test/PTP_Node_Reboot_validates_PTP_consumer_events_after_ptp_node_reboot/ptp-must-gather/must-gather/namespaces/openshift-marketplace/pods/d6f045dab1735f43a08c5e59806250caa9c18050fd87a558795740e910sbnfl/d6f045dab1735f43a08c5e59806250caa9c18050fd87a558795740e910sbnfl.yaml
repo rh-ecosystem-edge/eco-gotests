@@ -1,0 +1,568 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    k8s.ovn.org/pod-networks: '{"default":{"ip_addresses":["10.128.0.88/23"],"mac_address":"0a:58:0a:80:00:58","gateway_ips":["10.128.0.1"],"routes":[{"dest":"10.128.0.0/14","nextHop":"10.128.0.1"},{"dest":"172.30.0.0/16","nextHop":"10.128.0.1"},{"dest":"169.254.0.5/32","nextHop":"10.128.0.1"},{"dest":"100.64.0.0/16","nextHop":"10.128.0.1"}],"ip_address":"10.128.0.88/23","gateway_ip":"10.128.0.1","role":"primary"}}'
+    k8s.v1.cni.cncf.io/network-status: |-
+      [{
+          "name": "ovn-kubernetes",
+          "interface": "eth0",
+          "ips": [
+              "10.128.0.88"
+          ],
+          "mac": "0a:58:0a:80:00:58",
+          "default": true,
+          "dns": {}
+      }]
+    openshift.io/scc: restricted-v2
+    seccomp.security.alpha.kubernetes.io/pod: runtime/default
+    security.openshift.io/validated-scc-subject-type: user
+  creationTimestamp: "2026-08-31T21:39:55Z"
+  generateName: d6f045dab1735f43a08c5e59806250caa9c18050fd87a558795740e9103a1f0-
+  generation: 1
+  labels:
+    batch.kubernetes.io/controller-uid: fd9ce645-7eeb-48ba-8018-9f88fbac22f4
+    batch.kubernetes.io/job-name: d6f045dab1735f43a08c5e59806250caa9c18050fd87a558795740e9103a1f0
+    controller-uid: fd9ce645-7eeb-48ba-8018-9f88fbac22f4
+    job-name: d6f045dab1735f43a08c5e59806250caa9c18050fd87a558795740e9103a1f0
+    olm.managed: "true"
+    operatorframework.io/bundle-unpack-ref: d6f045dab1735f43a08c5e59806250caa9c18050fd87a558795740e9103a1f0
+  managedFields:
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:annotations:
+          f:k8s.ovn.org/pod-networks: {}
+    manager: helix103.telcoqe.eng.rdu2.dc.redhat.com
+    operation: Update
+    subresource: status
+    time: "2026-08-31T21:39:55Z"
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:generateName: {}
+        f:labels:
+          .: {}
+          f:batch.kubernetes.io/controller-uid: {}
+          f:batch.kubernetes.io/job-name: {}
+          f:controller-uid: {}
+          f:job-name: {}
+          f:olm.managed: {}
+          f:operatorframework.io/bundle-unpack-ref: {}
+        f:ownerReferences:
+          .: {}
+          k:{"uid":"fd9ce645-7eeb-48ba-8018-9f88fbac22f4"}: {}
+      f:spec:
+        f:containers:
+          k:{"name":"extract"}:
+            .: {}
+            f:command: {}
+            f:env:
+              .: {}
+              k:{"name":"CONTAINER_IMAGE"}:
+                .: {}
+                f:name: {}
+                f:value: {}
+            f:image: {}
+            f:imagePullPolicy: {}
+            f:name: {}
+            f:resources:
+              .: {}
+              f:requests:
+                .: {}
+                f:cpu: {}
+                f:memory: {}
+            f:securityContext:
+              .: {}
+              f:allowPrivilegeEscalation: {}
+              f:capabilities:
+                .: {}
+                f:drop: {}
+              f:readOnlyRootFilesystem: {}
+            f:terminationMessagePath: {}
+            f:terminationMessagePolicy: {}
+            f:volumeMounts:
+              .: {}
+              k:{"mountPath":"/bundle"}:
+                .: {}
+                f:mountPath: {}
+                f:name: {}
+        f:dnsPolicy: {}
+        f:enableServiceLinks: {}
+        f:initContainers:
+          .: {}
+          k:{"name":"pull"}:
+            .: {}
+            f:command: {}
+            f:image: {}
+            f:imagePullPolicy: {}
+            f:name: {}
+            f:resources:
+              .: {}
+              f:requests:
+                .: {}
+                f:cpu: {}
+                f:memory: {}
+            f:securityContext:
+              .: {}
+              f:allowPrivilegeEscalation: {}
+              f:capabilities:
+                .: {}
+                f:drop: {}
+              f:readOnlyRootFilesystem: {}
+            f:terminationMessagePath: {}
+            f:terminationMessagePolicy: {}
+            f:volumeMounts:
+              .: {}
+              k:{"mountPath":"/bundle"}:
+                .: {}
+                f:mountPath: {}
+                f:name: {}
+              k:{"mountPath":"/util"}:
+                .: {}
+                f:mountPath: {}
+                f:name: {}
+          k:{"name":"util"}:
+            .: {}
+            f:command: {}
+            f:image: {}
+            f:imagePullPolicy: {}
+            f:name: {}
+            f:resources:
+              .: {}
+              f:requests:
+                .: {}
+                f:cpu: {}
+                f:memory: {}
+            f:securityContext:
+              .: {}
+              f:allowPrivilegeEscalation: {}
+              f:capabilities:
+                .: {}
+                f:drop: {}
+              f:readOnlyRootFilesystem: {}
+            f:terminationMessagePath: {}
+            f:terminationMessagePolicy: {}
+            f:volumeMounts:
+              .: {}
+              k:{"mountPath":"/util"}:
+                .: {}
+                f:mountPath: {}
+                f:name: {}
+        f:nodeSelector: {}
+        f:restartPolicy: {}
+        f:schedulerName: {}
+        f:securityContext:
+          .: {}
+          f:seccompProfile:
+            .: {}
+            f:type: {}
+        f:serviceAccount: {}
+        f:serviceAccountName: {}
+        f:terminationGracePeriodSeconds: {}
+        f:tolerations: {}
+        f:volumes:
+          .: {}
+          k:{"name":"bundle"}:
+            .: {}
+            f:emptyDir: {}
+            f:name: {}
+          k:{"name":"util"}:
+            .: {}
+            f:emptyDir: {}
+            f:name: {}
+    manager: kube-controller-manager
+    operation: Update
+    time: "2026-08-31T21:39:55Z"
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:metadata:
+        f:annotations:
+          f:k8s.v1.cni.cncf.io/network-status: {}
+    manager: multus-daemon
+    operation: Update
+    subresource: status
+    time: "2026-08-31T21:39:55Z"
+  - apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:status:
+        f:conditions:
+          k:{"type":"ContainersReady"}:
+            .: {}
+            f:lastProbeTime: {}
+            f:lastTransitionTime: {}
+            f:observedGeneration: {}
+            f:reason: {}
+            f:status: {}
+            f:type: {}
+          k:{"type":"Initialized"}:
+            .: {}
+            f:lastProbeTime: {}
+            f:lastTransitionTime: {}
+            f:observedGeneration: {}
+            f:reason: {}
+            f:status: {}
+            f:type: {}
+          k:{"type":"PodReadyToStartContainers"}:
+            .: {}
+            f:lastProbeTime: {}
+            f:lastTransitionTime: {}
+            f:observedGeneration: {}
+            f:status: {}
+            f:type: {}
+          k:{"type":"PodScheduled"}:
+            f:observedGeneration: {}
+          k:{"type":"Ready"}:
+            .: {}
+            f:lastProbeTime: {}
+            f:lastTransitionTime: {}
+            f:observedGeneration: {}
+            f:reason: {}
+            f:status: {}
+            f:type: {}
+        f:containerStatuses: {}
+        f:hostIP: {}
+        f:hostIPs: {}
+        f:initContainerStatuses: {}
+        f:observedGeneration: {}
+        f:phase: {}
+        f:startTime: {}
+    manager: kubelet
+    operation: Update
+    subresource: status
+    time: "2026-08-31T21:39:59Z"
+  name: d6f045dab1735f43a08c5e59806250caa9c18050fd87a558795740e910sbnfl
+  namespace: openshift-marketplace
+  ownerReferences:
+  - apiVersion: batch/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Job
+    name: d6f045dab1735f43a08c5e59806250caa9c18050fd87a558795740e9103a1f0
+    uid: fd9ce645-7eeb-48ba-8018-9f88fbac22f4
+  resourceVersion: "14155"
+  uid: de6546a3-2f86-4cdf-a137-b3814e9360af
+spec:
+  containers:
+  - command:
+    - opm
+    - alpha
+    - bundle
+    - extract
+    - -m
+    - /bundle/
+    - -n
+    - openshift-marketplace
+    - -c
+    - d6f045dab1735f43a08c5e59806250caa9c18050fd87a558795740e9103a1f0
+    - -z
+    env:
+    - name: CONTAINER_IMAGE
+      value: registry.redhat.io/openshift4/ose-ptp-operator-bundle@sha256:25e05e0102af8a7f0ac395b161885d7943d2447a297e7090ad373a6d6a9aa793
+    image: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:70259c080741f045c19c2dfb1fcd5069e9eb7e413294d855262975ae03e60b6a
+    imagePullPolicy: IfNotPresent
+    name: extract
+    resources:
+      requests:
+        cpu: 10m
+        memory: 50Mi
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+      runAsUser: 1000120000
+    terminationMessagePath: /dev/termination-log
+    terminationMessagePolicy: FallbackToLogsOnError
+    volumeMounts:
+    - mountPath: /bundle
+      name: bundle
+    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      name: kube-api-access-5529c
+      readOnly: true
+  dnsPolicy: ClusterFirst
+  enableServiceLinks: true
+  initContainers:
+  - command:
+    - /bin/cp
+    - -Rv
+    - /bin/cpb
+    - /util/cpb
+    image: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:955419c1ead9dbc1c2545f367907dd4b1e8133ea23ef65407341e9a505b1cd17
+    imagePullPolicy: IfNotPresent
+    name: util
+    resources:
+      requests:
+        cpu: 10m
+        memory: 50Mi
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+      runAsUser: 1000120000
+    terminationMessagePath: /dev/termination-log
+    terminationMessagePolicy: FallbackToLogsOnError
+    volumeMounts:
+    - mountPath: /util
+      name: util
+    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      name: kube-api-access-5529c
+      readOnly: true
+  - command:
+    - /util/cpb
+    - /bundle
+    image: registry.redhat.io/openshift4/ose-ptp-operator-bundle@sha256:25e05e0102af8a7f0ac395b161885d7943d2447a297e7090ad373a6d6a9aa793
+    imagePullPolicy: IfNotPresent
+    name: pull
+    resources:
+      requests:
+        cpu: 10m
+        memory: 50Mi
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+      runAsUser: 1000120000
+    terminationMessagePath: /dev/termination-log
+    terminationMessagePolicy: FallbackToLogsOnError
+    volumeMounts:
+    - mountPath: /bundle
+      name: bundle
+    - mountPath: /util
+      name: util
+    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      name: kube-api-access-5529c
+      readOnly: true
+  nodeName: helix103.telcoqe.eng.rdu2.dc.redhat.com
+  nodeSelector:
+    kubernetes.io/os: linux
+  preemptionPolicy: PreemptLowerPriority
+  priority: 0
+  restartPolicy: Never
+  schedulerName: default-scheduler
+  securityContext:
+    fsGroup: 1000120000
+    seLinuxOptions:
+      level: s0:c11,c5
+    seccompProfile:
+      type: RuntimeDefault
+  serviceAccount: d6f045dab1735f43a08c5e59806250caa9c18050fd87a558795740e9103a1f0
+  serviceAccountName: d6f045dab1735f43a08c5e59806250caa9c18050fd87a558795740e9103a1f0
+  terminationGracePeriodSeconds: 30
+  tolerations:
+  - key: kubernetes.io/arch
+    operator: Equal
+    value: amd64
+  - key: kubernetes.io/arch
+    operator: Equal
+    value: arm64
+  - key: kubernetes.io/arch
+    operator: Equal
+    value: ppc64le
+  - key: kubernetes.io/arch
+    operator: Equal
+    value: s390x
+  - effect: NoSchedule
+    key: node-role.kubernetes.io/master
+    operator: Exists
+  - effect: NoExecute
+    key: node.kubernetes.io/unreachable
+    operator: Exists
+    tolerationSeconds: 120
+  - effect: NoExecute
+    key: node.kubernetes.io/not-ready
+    operator: Exists
+    tolerationSeconds: 120
+  - effect: NoSchedule
+    key: node.kubernetes.io/memory-pressure
+    operator: Exists
+  volumes:
+  - emptyDir: {}
+    name: bundle
+  - emptyDir: {}
+    name: util
+  - name: kube-api-access-5529c
+    projected:
+      defaultMode: 420
+      sources:
+      - serviceAccountToken:
+          expirationSeconds: 3607
+          path: token
+      - configMap:
+          items:
+          - key: ca.crt
+            path: ca.crt
+          name: kube-root-ca.crt
+      - downwardAPI:
+          items:
+          - fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+            path: namespace
+      - configMap:
+          items:
+          - key: service-ca.crt
+            path: service-ca.crt
+          name: openshift-service-ca.crt
+status:
+  conditions:
+  - lastProbeTime: null
+    lastTransitionTime: "2026-08-31T21:39:59Z"
+    observedGeneration: 1
+    status: "False"
+    type: PodReadyToStartContainers
+  - lastProbeTime: null
+    lastTransitionTime: "2026-08-31T21:39:57Z"
+    observedGeneration: 1
+    reason: PodCompleted
+    status: "True"
+    type: Initialized
+  - lastProbeTime: null
+    lastTransitionTime: "2026-08-31T21:39:55Z"
+    observedGeneration: 1
+    reason: PodCompleted
+    status: "False"
+    type: Ready
+  - lastProbeTime: null
+    lastTransitionTime: "2026-08-31T21:39:55Z"
+    observedGeneration: 1
+    reason: PodCompleted
+    status: "False"
+    type: ContainersReady
+  - lastProbeTime: null
+    lastTransitionTime: "2026-08-31T21:39:55Z"
+    observedGeneration: 1
+    status: "True"
+    type: PodScheduled
+  containerStatuses:
+  - allocatedResources:
+      cpu: 10m
+      memory: 50Mi
+    containerID: cri-o://0be0f286de75bd760ae1652b5745830b1a2e7df0fdf56892aad28a61ba56636b
+    image: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:70259c080741f045c19c2dfb1fcd5069e9eb7e413294d855262975ae03e60b6a
+    imageID: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:70259c080741f045c19c2dfb1fcd5069e9eb7e413294d855262975ae03e60b6a
+    lastState: {}
+    name: extract
+    ready: false
+    resources:
+      requests:
+        cpu: 10m
+        memory: 50Mi
+    restartCount: 0
+    started: false
+    state:
+      terminated:
+        containerID: cri-o://0be0f286de75bd760ae1652b5745830b1a2e7df0fdf56892aad28a61ba56636b
+        exitCode: 0
+        finishedAt: "2026-08-31T21:39:57Z"
+        reason: Completed
+        startedAt: "2026-08-31T21:39:57Z"
+    user:
+      linux:
+        gid: 0
+        supplementalGroups:
+        - 0
+        - 1000120000
+        uid: 1000120000
+    volumeMounts:
+    - mountPath: /bundle
+      name: bundle
+    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      name: kube-api-access-5529c
+      readOnly: true
+      recursiveReadOnly: Disabled
+  hostIP: 10.6.159.44
+  hostIPs:
+  - ip: 10.6.159.44
+  initContainerStatuses:
+  - allocatedResources:
+      cpu: 10m
+      memory: 50Mi
+    containerID: cri-o://4758e7711629d1f1fdaa7fc6ffe4d565e478e5c1bb1d553d5205ad4ba1e414cf
+    image: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:955419c1ead9dbc1c2545f367907dd4b1e8133ea23ef65407341e9a505b1cd17
+    imageID: quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:955419c1ead9dbc1c2545f367907dd4b1e8133ea23ef65407341e9a505b1cd17
+    lastState: {}
+    name: util
+    ready: true
+    resources:
+      requests:
+        cpu: 10m
+        memory: 50Mi
+    restartCount: 0
+    started: false
+    state:
+      terminated:
+        containerID: cri-o://4758e7711629d1f1fdaa7fc6ffe4d565e478e5c1bb1d553d5205ad4ba1e414cf
+        exitCode: 0
+        finishedAt: "2026-08-31T21:39:55Z"
+        reason: Completed
+        startedAt: "2026-08-31T21:39:55Z"
+    user:
+      linux:
+        gid: 0
+        supplementalGroups:
+        - 0
+        - 1000120000
+        uid: 1000120000
+    volumeMounts:
+    - mountPath: /util
+      name: util
+    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      name: kube-api-access-5529c
+      readOnly: true
+      recursiveReadOnly: Disabled
+  - allocatedResources:
+      cpu: 10m
+      memory: 50Mi
+    containerID: cri-o://4173e2e55b15a8f759eff6c2f05ffbff95d19b5e998da2f744a14c33a1f0b685
+    image: registry.redhat.io/openshift4/ose-ptp-operator-bundle@sha256:25e05e0102af8a7f0ac395b161885d7943d2447a297e7090ad373a6d6a9aa793
+    imageID: registry.redhat.io/openshift4/ose-ptp-operator-bundle@sha256:25e05e0102af8a7f0ac395b161885d7943d2447a297e7090ad373a6d6a9aa793
+    lastState: {}
+    name: pull
+    ready: true
+    resources:
+      requests:
+        cpu: 10m
+        memory: 50Mi
+    restartCount: 0
+    started: false
+    state:
+      terminated:
+        containerID: cri-o://4173e2e55b15a8f759eff6c2f05ffbff95d19b5e998da2f744a14c33a1f0b685
+        exitCode: 0
+        finishedAt: "2026-08-31T21:39:56Z"
+        reason: Completed
+        startedAt: "2026-08-31T21:39:56Z"
+    user:
+      linux:
+        gid: 0
+        supplementalGroups:
+        - 0
+        - 1000120000
+        uid: 1000120000
+    volumeMounts:
+    - mountPath: /bundle
+      name: bundle
+    - mountPath: /util
+      name: util
+    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      name: kube-api-access-5529c
+      readOnly: true
+      recursiveReadOnly: Disabled
+  observedGeneration: 1
+  phase: Succeeded
+  qosClass: Burstable
+  startTime: "2026-08-31T21:39:55Z"

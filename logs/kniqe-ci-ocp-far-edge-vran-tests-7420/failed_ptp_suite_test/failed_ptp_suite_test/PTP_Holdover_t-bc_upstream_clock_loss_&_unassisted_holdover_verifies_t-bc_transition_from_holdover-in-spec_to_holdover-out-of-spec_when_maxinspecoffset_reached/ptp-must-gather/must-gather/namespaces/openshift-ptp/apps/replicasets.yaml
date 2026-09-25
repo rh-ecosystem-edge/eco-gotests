@@ -1,0 +1,415 @@
+---
+apiVersion: apps/v1
+items:
+- apiVersion: apps/v1
+  kind: ReplicaSet
+  metadata:
+    annotations:
+      deployment.kubernetes.io/desired-replicas: "1"
+      deployment.kubernetes.io/max-replicas: "2"
+      deployment.kubernetes.io/revision: "1"
+    creationTimestamp: "2026-08-31T21:40:23Z"
+    generation: 1
+    labels:
+      name: ptp-operator
+      pod-template-hash: d858bb79
+      role: ptp
+    managedFields:
+    - apiVersion: apps/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:metadata:
+          f:annotations:
+            .: {}
+            f:deployment.kubernetes.io/desired-replicas: {}
+            f:deployment.kubernetes.io/max-replicas: {}
+            f:deployment.kubernetes.io/revision: {}
+          f:labels:
+            .: {}
+            f:name: {}
+            f:pod-template-hash: {}
+            f:role: {}
+          f:ownerReferences:
+            .: {}
+            k:{"uid":"33dce40e-c498-44bb-acc0-f7b956c4292a"}: {}
+        f:spec:
+          f:replicas: {}
+          f:selector: {}
+          f:template:
+            f:metadata:
+              f:annotations:
+                .: {}
+                f:alm-examples: {}
+                f:capabilities: {}
+                f:categories: {}
+                f:certified: {}
+                f:containerImage: {}
+                f:createdAt: {}
+                f:description: {}
+                f:features.operators.openshift.io/cnf: {}
+                f:features.operators.openshift.io/cni: {}
+                f:features.operators.openshift.io/csi: {}
+                f:features.operators.openshift.io/disconnected: {}
+                f:features.operators.openshift.io/fips-compliant: {}
+                f:features.operators.openshift.io/proxy-aware: {}
+                f:features.operators.openshift.io/tls-profiles: {}
+                f:features.operators.openshift.io/token-auth-aws: {}
+                f:features.operators.openshift.io/token-auth-azure: {}
+                f:features.operators.openshift.io/token-auth-gcp: {}
+                f:olm.operatorGroup: {}
+                f:olm.operatorNamespace: {}
+                f:olm.skipRange: {}
+                f:olm.targetNamespaces: {}
+                f:olmcahash: {}
+                f:operatorframework.io/properties: {}
+                f:operatorframework.io/suggested-namespace: {}
+                f:operators.openshift.io/infrastructure-features: {}
+                f:operators.openshift.io/must-gather-image: {}
+                f:operators.openshift.io/valid-subscription: {}
+                f:operators.operatorframework.io/builder: {}
+                f:operators.operatorframework.io/project_layout: {}
+                f:provider: {}
+                f:repository: {}
+                f:service.beta.openshift.io/serving-cert-secret-name: {}
+                f:support: {}
+                f:target.workload.openshift.io/management: {}
+              f:labels:
+                .: {}
+                f:name: {}
+                f:pod-template-hash: {}
+                f:role: {}
+            f:spec:
+              f:containers:
+                k:{"name":"ptp-operator"}:
+                  .: {}
+                  f:args: {}
+                  f:command: {}
+                  f:env:
+                    .: {}
+                    k:{"name":"KUBE_RBAC_PROXY_IMAGE"}:
+                      .: {}
+                      f:name: {}
+                      f:value: {}
+                    k:{"name":"LINUXPTP_DAEMON_IMAGE"}:
+                      .: {}
+                      f:name: {}
+                      f:value: {}
+                    k:{"name":"OPERATOR_CONDITION_NAME"}:
+                      .: {}
+                      f:name: {}
+                      f:value: {}
+                    k:{"name":"OPERATOR_NAME"}:
+                      .: {}
+                      f:name: {}
+                      f:value: {}
+                    k:{"name":"POD_NAME"}:
+                      .: {}
+                      f:name: {}
+                      f:valueFrom:
+                        .: {}
+                        f:fieldRef: {}
+                    k:{"name":"RELEASE_VERSION"}:
+                      .: {}
+                      f:name: {}
+                      f:value: {}
+                    k:{"name":"SIDECAR_EVENT_IMAGE"}:
+                      .: {}
+                      f:name: {}
+                      f:value: {}
+                    k:{"name":"WATCH_NAMESPACE"}:
+                      .: {}
+                      f:name: {}
+                      f:valueFrom:
+                        .: {}
+                        f:fieldRef: {}
+                  f:image: {}
+                  f:imagePullPolicy: {}
+                  f:name: {}
+                  f:ports:
+                    .: {}
+                    k:{"containerPort":9443,"protocol":"TCP"}:
+                      .: {}
+                      f:containerPort: {}
+                      f:name: {}
+                      f:protocol: {}
+                  f:resources:
+                    .: {}
+                    f:requests:
+                      .: {}
+                      f:cpu: {}
+                      f:memory: {}
+                  f:terminationMessagePath: {}
+                  f:terminationMessagePolicy: {}
+                  f:volumeMounts:
+                    .: {}
+                    k:{"mountPath":"/apiserver.local.config/certificates"}:
+                      .: {}
+                      f:mountPath: {}
+                      f:name: {}
+                    k:{"mountPath":"/tmp/k8s-webhook-server/serving-certs"}:
+                      .: {}
+                      f:mountPath: {}
+                      f:name: {}
+              f:dnsPolicy: {}
+              f:nodeSelector: {}
+              f:priorityClassName: {}
+              f:restartPolicy: {}
+              f:schedulerName: {}
+              f:securityContext: {}
+              f:serviceAccount: {}
+              f:serviceAccountName: {}
+              f:terminationGracePeriodSeconds: {}
+              f:tolerations: {}
+              f:volumes:
+                .: {}
+                k:{"name":"apiservice-cert"}:
+                  .: {}
+                  f:name: {}
+                  f:secret:
+                    .: {}
+                    f:defaultMode: {}
+                    f:items: {}
+                    f:secretName: {}
+                k:{"name":"cert"}:
+                  .: {}
+                  f:name: {}
+                  f:secret:
+                    .: {}
+                    f:defaultMode: {}
+                    f:secretName: {}
+                k:{"name":"webhook-cert"}:
+                  .: {}
+                  f:name: {}
+                  f:secret:
+                    .: {}
+                    f:defaultMode: {}
+                    f:items: {}
+                    f:secretName: {}
+      manager: kube-controller-manager
+      operation: Update
+      time: "2026-08-31T21:40:23Z"
+    - apiVersion: apps/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:status:
+          f:availableReplicas: {}
+          f:fullyLabeledReplicas: {}
+          f:observedGeneration: {}
+          f:readyReplicas: {}
+          f:replicas: {}
+          f:terminatingReplicas: {}
+      manager: kube-controller-manager
+      operation: Update
+      subresource: status
+      time: "2026-09-02T16:31:05Z"
+    name: ptp-operator-d858bb79
+    namespace: openshift-ptp
+    ownerReferences:
+    - apiVersion: apps/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Deployment
+      name: ptp-operator
+      uid: 33dce40e-c498-44bb-acc0-f7b956c4292a
+    resourceVersion: "386008"
+    uid: 88acad70-bf0f-4eb4-b985-81c5f0a858c4
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        name: ptp-operator
+        pod-template-hash: d858bb79
+    template:
+      metadata:
+        annotations:
+          alm-examples: |-
+            [
+              {
+                "apiVersion": "ptp.openshift.io/v1",
+                "kind": "NodePtpDevice",
+                "metadata": {
+                  "name": "node.example.com"
+                },
+                "spec": {}
+              },
+              {
+                "apiVersion": "ptp.openshift.io/v1",
+                "kind": "PtpConfig",
+                "metadata": {
+                  "name": "example-ptpconfig"
+                },
+                "spec": {
+                  "profile": [
+                    {
+                      "interface": "ens787f1",
+                      "name": "profile1",
+                      "phc2sysOpts": "-a -r",
+                      "ptp4lOpts": "-s -2",
+                      "ptpClockThreshold": {}
+                    }
+                  ],
+                  "recommend": [
+                    {
+                      "match": [
+                        {
+                          "nodeLabel": "node-role.kubernetes.io/worker=",
+                          "nodeName": "node.example.com"
+                        }
+                      ],
+                      "priority": 4,
+                      "profile": "profile1"
+                    }
+                  ]
+                }
+              },
+              {
+                "apiVersion": "ptp.openshift.io/v1",
+                "kind": "PtpOperatorConfig",
+                "metadata": {
+                  "name": "default"
+                },
+                "spec": {
+                  "daemonNodeSelector": {
+                    "feature.node.kubernetes.io/ptp-capable": "yes",
+                    "node-role.kubernetes.io/worker": ""
+                  },
+                  "ptpEventConfig": {}
+                }
+              }
+            ]
+          capabilities: Basic Install
+          categories: Networking
+          certified: "false"
+          containerImage: registry.redhat.io/openshift4/ose-ptp-rhel9-operator@sha256:65d0d1fc62c2caab2e78d120156d3d71391d96cd41bda22c0f8930d9e4256278
+          createdAt: "2026-04-28T19:58:20Z"
+          description: This software enables configuration of Precision Time Protocol(PTP)
+            on Kubernetes. It detects hardware capable PTP devices on each node, and
+            configures linuxptp processes such as ptp4l, phc2sys and timemaster.
+          features.operators.openshift.io/cnf: "false"
+          features.operators.openshift.io/cni: "false"
+          features.operators.openshift.io/csi: "false"
+          features.operators.openshift.io/disconnected: "true"
+          features.operators.openshift.io/fips-compliant: "true"
+          features.operators.openshift.io/proxy-aware: "false"
+          features.operators.openshift.io/tls-profiles: "true"
+          features.operators.openshift.io/token-auth-aws: "false"
+          features.operators.openshift.io/token-auth-azure: "false"
+          features.operators.openshift.io/token-auth-gcp: "false"
+          olm.operatorGroup: ptp-operators
+          olm.operatorNamespace: openshift-ptp
+          olm.skipRange: '>=4.3.0-0 <4.22.0-202608310801'
+          olm.targetNamespaces: openshift-ptp
+          olmcahash: 3683496c1d3f2043f4563138db3e0143cdfe3d572b46a44c4874318fbfbd8866
+          operatorframework.io/properties: '{"properties":[{"type":"olm.gvk","value":{"group":"ptp.openshift.io","kind":"HardwareConfig","version":"v2alpha1"}},{"type":"olm.gvk","value":{"group":"ptp.openshift.io","kind":"NodePtpDevice","version":"v1"}},{"type":"olm.gvk","value":{"group":"ptp.openshift.io","kind":"PtpConfig","version":"v1"}},{"type":"olm.gvk","value":{"group":"ptp.openshift.io","kind":"PtpOperatorConfig","version":"v1"}},{"type":"olm.package","value":{"packageName":"ptp-operator","version":"4.22.0-202608310801"}}]}'
+          operatorframework.io/suggested-namespace: openshift-ptp
+          operators.openshift.io/infrastructure-features: '["disconnected"]'
+          operators.openshift.io/must-gather-image: registry.redhat.io/openshift4/ptp-must-gather-rhel9@sha256:e9ba678993ec494352184045d7360975072b31f29fbb809e914e051e5640ec26
+          operators.openshift.io/valid-subscription: '["OpenShift Kubernetes Engine",
+            "OpenShift Container Platform", "OpenShift Platform Plus"]'
+          operators.operatorframework.io/builder: operator-sdk-v1.36.1-ocp
+          operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
+          provider: Red Hat
+          repository: https://github.com/k8snetworkplumbingwg/ptp-operator
+          service.beta.openshift.io/serving-cert-secret-name: webhook-server-cert
+          support: Red Hat
+          target.workload.openshift.io/management: '{"effect": "PreferredDuringScheduling"}'
+        labels:
+          name: ptp-operator
+          pod-template-hash: d858bb79
+          role: ptp
+      spec:
+        containers:
+        - args:
+          - --enable-leader-election
+          - --logtostderr
+          - --stderrthreshold=INFO
+          command:
+          - ptp-operator
+          env:
+          - name: OPERATOR_NAME
+            value: ptp-operator
+          - name: RELEASE_VERSION
+            value: v4.22.0
+          - name: LINUXPTP_DAEMON_IMAGE
+            value: registry.redhat.io/openshift4/ose-ptp-rhel9@sha256:0bf2e4999e35570c3f87b137028240f193401df75c2ea94c771044274d00b25a
+          - name: KUBE_RBAC_PROXY_IMAGE
+            value: registry.redhat.io/openshift4/ose-kube-rbac-proxy-rhel9@sha256:1915da376c32d710ec6f4e5431ca7d500c5c1862c4156c2a3befe3b98561debc
+          - name: SIDECAR_EVENT_IMAGE
+            value: registry.redhat.io/openshift4/ose-cloud-event-proxy-rhel9@sha256:5f126665e92f32ad66cf4377be8884ffb0d36b3c1e37833de7de3910a9012c40
+          - name: WATCH_NAMESPACE
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.annotations['olm.targetNamespaces']
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.name
+          - name: OPERATOR_CONDITION_NAME
+            value: ptp-operator.v4.22.0-202608310801
+          image: registry.redhat.io/openshift4/ose-ptp-rhel9-operator@sha256:65d0d1fc62c2caab2e78d120156d3d71391d96cd41bda22c0f8930d9e4256278
+          imagePullPolicy: IfNotPresent
+          name: ptp-operator
+          ports:
+          - containerPort: 9443
+            name: webhook-server
+            protocol: TCP
+          resources:
+            requests:
+              cpu: 50m
+              memory: 100Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /tmp/k8s-webhook-server/serving-certs
+            name: webhook-cert
+          - mountPath: /apiserver.local.config/certificates
+            name: apiservice-cert
+        dnsPolicy: ClusterFirst
+        nodeSelector:
+          node-role.kubernetes.io/master: ""
+        priorityClassName: system-node-critical
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        serviceAccount: ptp-operator
+        serviceAccountName: ptp-operator
+        terminationGracePeriodSeconds: 30
+        tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+          operator: Exists
+        volumes:
+        - name: cert
+          secret:
+            defaultMode: 420
+            secretName: webhook-server-cert
+        - name: apiservice-cert
+          secret:
+            defaultMode: 420
+            items:
+            - key: tls.crt
+              path: apiserver.crt
+            - key: tls.key
+              path: apiserver.key
+            secretName: ptp-operator-service-cert
+        - name: webhook-cert
+          secret:
+            defaultMode: 420
+            items:
+            - key: tls.crt
+              path: tls.crt
+            - key: tls.key
+              path: tls.key
+            secretName: ptp-operator-service-cert
+  status:
+    availableReplicas: 1
+    fullyLabeledReplicas: 1
+    observedGeneration: 1
+    readyReplicas: 1
+    replicas: 1
+    terminatingReplicas: 0
+kind: ReplicaSetList
+metadata:
+  resourceVersion: "406159"
