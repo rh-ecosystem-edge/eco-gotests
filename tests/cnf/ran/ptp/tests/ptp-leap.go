@@ -88,12 +88,14 @@ var _ = Describe("PTP Leap File", Label(tsparams.LabelLeapFile), func() {
 
 				testRanAtLeastOnce = true
 				nodeName = nodeInfo.Name
-				originalLeapConfigMapData := leapConfigMap.Object.Data[nodeName]
 
 				By(fmt.Sprintf("removing the last leap announcement from the leap configmap for node %s", nodeName))
 				withoutLastLeapAnnouncementData := ptpleap.RemoveLastLeapAnnouncement(leapConfigMap.Object.Data[nodeName])
+				strippedLastAnnouncement, err := ptpleap.GetLastAnnouncement(withoutLastLeapAnnouncementData)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get last announcement after strip")
+
 				leapConfigMap.Definition.Data[nodeName] = withoutLastLeapAnnouncementData
-				_, err := leapConfigMap.Update()
+				_, err = leapConfigMap.Update()
 				Expect(err).ToNot(HaveOccurred(), "Failed to update original leap configmap")
 
 				By("deleting the PTP daemon pod for node " + nodeName)
@@ -106,22 +108,33 @@ var _ = Describe("PTP Leap File", Label(tsparams.LabelLeapFile), func() {
 				err = ptpdaemon.ValidatePtpDaemonPodRunning(RANConfig.Spoke1APIClient, nodeName)
 				Expect(err).ToNot(HaveOccurred(), "Failed to validate PTP daemon pod running on node %s", nodeName)
 
-				By("waiting for configmap to be updated with today's date leap announcement")
+				By("waiting for configmap to be updated after PTP daemon restart")
 
-				err = ptpleap.WaitForConfigmapToBeUpdated(5*time.Second, 10*time.Minute)
+				err = ptpleap.WaitForConfigmapToBeUpdated(nodeName, withoutLastLeapAnnouncementData, 5*time.Second, 10*time.Minute)
 				Expect(err).ToNot(HaveOccurred(), "Failed to wait for configmap to be updated")
 
-				By("ensuring new last announcement is different from the original last announcement")
+				By("validating the new last announcement date is newer than after strip and not in the future")
 
-				originalLastAnnouncement, err := ptpleap.GetLastAnnouncement(originalLeapConfigMapData)
-				Expect(err).ToNot(HaveOccurred(), "Failed to get last announcement")
 				newLeapConfigMap, err := configmap.Pull(
 					RANConfig.Spoke1APIClient, tsparams.LeapConfigmapName, ranparam.PtpOperatorNamespace)
 				Expect(err).ToNot(HaveOccurred(), "Failed to pull leap configmap")
 
 				newLastAnnouncement, err := ptpleap.GetLastAnnouncement(newLeapConfigMap.Object.Data[nodeName])
 				Expect(err).ToNot(HaveOccurred(), "Failed to get last announcement")
-				Expect(newLastAnnouncement).NotTo(Equal(originalLastAnnouncement), "Last announcement should be different")
+
+				newAnnouncementDate, err := ptpleap.ParseAnnouncementDate(newLastAnnouncement)
+				Expect(err).ToNot(HaveOccurred(), "Failed to parse new last announcement date")
+
+				strippedAnnouncementDate, err := ptpleap.ParseAnnouncementDate(strippedLastAnnouncement)
+				Expect(err).ToNot(HaveOccurred(), "Failed to parse stripped last announcement date")
+
+				todayUTC := time.Now().UTC().Truncate(24 * time.Hour)
+
+				Expect(newAnnouncementDate.After(strippedAnnouncementDate)).To(BeTrue(),
+					"New last announcement %q should be after stripped last announcement %q",
+					newLastAnnouncement, strippedLastAnnouncement)
+				Expect(newAnnouncementDate.After(todayUTC)).To(BeFalse(),
+					"New last announcement date should not be in the future")
 			}
 
 			if !testRanAtLeastOnce {
