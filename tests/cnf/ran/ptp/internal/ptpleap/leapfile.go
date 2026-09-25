@@ -18,7 +18,7 @@ var leapLinePattern = regexp.MustCompile(`^\s*\d+\s+\d+\s+#`)
 // GetLastAnnouncement returns the last leap event announcement from a leap-configmap Data.
 func GetLastAnnouncement(leapConfigMapData string) (string, error) {
 	if len(leapConfigMapData) == 0 {
-		return leapConfigMapData, nil
+		return "", fmt.Errorf("error finding the last announcement")
 	}
 
 	announcements := announcementPattern.FindAllStringSubmatch(leapConfigMapData, -1)
