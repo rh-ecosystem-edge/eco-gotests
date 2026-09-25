@@ -1,7 +1,0 @@
----
-apiVersion: k8s.ovn.org/v1
-items: []
-kind: UserDefinedNetworkList
-metadata:
-  continue: ""
-  resourceVersion: "404595"
