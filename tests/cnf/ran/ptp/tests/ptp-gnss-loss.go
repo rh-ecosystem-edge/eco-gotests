@@ -649,11 +649,17 @@ func ensureGMHoldoverSettings(
 		restoreErr := profiles.ApplyHoldoverSettings(RANConfig.Spoke1APIClient, profileInfo, original)
 		Expect(restoreErr).ToNot(HaveOccurred(), "Failed to restore holdover settings on node %s", nodeName)
 
-		restoreTime := time.Now()
+		// Do not gate cleanup on "load profiles" / HardwareConfig reload logs. On wpc GM the daemon often
+		// resyncs on a ~5m cadence; restore can land just after a tick and miss a 5m PollUntil (CNF-17455 #1312).
+		// Prod tolerated that gap; AfterEach RestorePtpConfigs + EnsureClocksAreLocked still guards suite exit.
+		restored, restoreErr := profiles.GetHoldoverSettings(RANConfig.Spoke1APIClient, profileInfo)
+		Expect(restoreErr).ToNot(HaveOccurred(), "Failed to read holdover settings after restore on node %s", nodeName)
+		Expect(*restored).To(Equal(original),
+			"Holdover settings on node %s do not match originals after restore", nodeName)
 
-		restoreErr = profiles.WaitForHoldoverSettingsApplied(
-			RANConfig.Spoke1APIClient, nodeName, profileInfo, restoreTime, timeout)
-		Expect(restoreErr).ToNot(HaveOccurred(), "Daemon did not reload after holdover restore on node %s", nodeName)
+		restoreErr = metrics.EnsureClocksAreLocked(prometheusAPI)
+		Expect(restoreErr).ToNot(HaveOccurred(),
+			"Clocks were not locked after holdover restore on node %s", nodeName)
 	})
 
 	setTime := time.Now()
