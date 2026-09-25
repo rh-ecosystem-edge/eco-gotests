@@ -57,6 +57,7 @@ run-ran-pkg-unit-tests:
 	UNIT_TEST=true go test -tags=unit_test -v ./tests/cnf/ran/ptp/internal/iface
 	UNIT_TEST=true go test -tags=unit_test -v ./tests/cnf/ran/ptp/internal/profiles
 	UNIT_TEST=true go test -tags=unit_test -v ./tests/cnf/ran/ptp/internal/consumer
+	UNIT_TEST=true go test -tags=unit_test -v ./tests/cnf/ran/ptp/internal/ptpleap
 	UNIT_TEST=true go test -tags=unit_test -v ./tests/cnf/ran/oran/internal/o2imstest
 	UNIT_TEST=true go test -tags=unit_test -v ./tests/cnf/ran/oran/internal/o2imsinventory
 	UNIT_TEST=true go test -tags=unit_test -v ./tests/cnf/ran/oran/internal/o2imscluster
