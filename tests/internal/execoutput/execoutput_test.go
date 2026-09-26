@@ -3,6 +3,9 @@ package execoutput
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNormalizeStripsMCOANSIFromEthtool(t *testing.T) {
@@ -15,9 +18,7 @@ func TestNormalizeStripsMCOANSIFromEthtool(t *testing.T) {
 		"\x1b[1;31m2026-09-02T22:29:13.122701Z: ports-priv-flags: yes\n\x1b[0m\n"
 
 	normalized := Normalize(raw)
-	if !stringsHasPrefixLine(normalized, "driver: ice") {
-		t.Fatalf("expected driver line after normalize, got %q", normalized)
-	}
+	assert.True(t, stringsHasPrefixLine(normalized, "driver: ice"), "normalized output: %q", normalized)
 }
 
 func TestLeadingPIDFromPgrepNoise(t *testing.T) {
@@ -26,9 +27,8 @@ func TestLeadingPIDFromPgrepNoise(t *testing.T) {
 	raw := "\x1b[1;31m2026-08-29T22:47:25.064767Z: 119854 ptp4l -f /var/run/ptp4l.1.config\n"
 
 	pid, ok := LeadingPID(raw)
-	if !ok || pid != "119854" {
-		t.Fatalf("expected pid 119854, got ok=%v pid=%q", ok, pid)
-	}
+	require.True(t, ok)
+	assert.Equal(t, "119854", pid)
 }
 
 func TestLinesAsPIDsSkipsNonPIDLines(t *testing.T) {
@@ -39,9 +39,7 @@ func TestLinesAsPIDsSkipsNonPIDLines(t *testing.T) {
 		"120001 ptp4l -f /var/run/ptp4l.0.config\n"
 
 	pids := LinesAsPIDs(raw)
-	if len(pids) != 2 || pids[0] != "119854" || pids[1] != "120001" {
-		t.Fatalf("unexpected pids: %v", pids)
-	}
+	assert.Equal(t, []string{"119854", "120001"}, pids)
 }
 
 func stringsHasPrefixLine(output, prefix string) bool {

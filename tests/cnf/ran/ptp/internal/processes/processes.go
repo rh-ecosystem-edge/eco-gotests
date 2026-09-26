@@ -121,6 +121,9 @@ func GetPtp4lPIDsByRelatedProcess(
 
 	indicesPattern := strings.Join(indices, "|")
 
+	// Resolve PIDs via config paths and execoutput.LinesAsPIDs instead of pgrep -a | grep | cut. MCO-prefixed
+	// pod exec output can make that pipeline exit successfully while yielding non-numeric tokens (or missing a
+	// process that never started), so we match /var/run/ptp4l.<index>.config explicitly and parse PIDs from noise.
 	var getPIDsCommand string
 	if related {
 		getPIDsCommand = fmt.Sprintf("pgrep -f '/var/run/ptp4l\\.(%s)\\.config'", indicesPattern)
@@ -228,8 +231,9 @@ func WaitForProcessRunning(
 	return nil
 }
 
-// getRelatedIndices returns the indices of the related processes for a given process.
-// error is nil if the matches are found.
+// getRelatedIndices returns the ptp4l config index numbers associated with relatedProcess on a node.
+// It lists /var/run/<process>.*.config instead of pgrep -a so a missing or failed process does not look like
+// success when MCO log prefixes pollute pgrep output.
 func getRelatedIndices(client *clients.Settings, nodeName string, relatedProcess PtpProcess) ([]string, error) {
 	getIndexCommand := fmt.Sprintf("ls -1 /var/run/%s.*.config 2>/dev/null | head -n 1", relatedProcess)
 

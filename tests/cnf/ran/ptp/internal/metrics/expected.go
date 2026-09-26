@@ -61,22 +61,15 @@ func FormatExpectedClockStates(expected []ExpectedClockState) string {
 // deduplicateExpectedClockStates removes duplicate entries from the expected clock states slice. Two entries
 // are considered duplicates if they have the same process, interface, and node.
 func deduplicateExpectedClockStates(expected []ExpectedClockState) []ExpectedClockState {
-	type key struct {
-		process PtpProcess
-		iface   string
-		node    string
-	}
-
-	seen := make(map[key]struct{})
+	seen := make(map[ExpectedClockState]struct{})
 	result := make([]ExpectedClockState, 0, len(expected))
 
 	for _, entry := range expected {
-		k := key{process: entry.Process, iface: entry.Interface, node: entry.Node}
-		if _, exists := seen[k]; exists {
+		if _, exists := seen[entry]; exists {
 			continue
 		}
 
-		seen[k] = struct{}{}
+		seen[entry] = struct{}{}
 
 		result = append(result, entry)
 	}
