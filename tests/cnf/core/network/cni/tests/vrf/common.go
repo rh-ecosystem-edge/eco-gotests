@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"net"
@@ -22,6 +23,10 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 const (
@@ -40,6 +45,9 @@ const (
 	vrfRedServerIPv4Overlap    = "10.255.255.4"
 	vrfRedClientIPv4NonOverlap = "192.168.255.3"
 	vrfRedServerIPv4NonOverlap = "192.168.255.4"
+	// Whereabouts IPPool names for the /24 and /64 covering blue+red overlap addresses above.
+	vrfWhereaboutsIPPoolIPv4 = "10.255.255.0-24"
+	vrfWhereaboutsIPPoolIPv6 = "2001-100---64"
 
 	vrfBlueClientIPv6          = "2001:100::1"
 	vrfBlueServerIPv6          = "2001:100::2"
@@ -199,6 +207,29 @@ func WithVRFMetaPlugin(vrfName string) sriov.NetworkAdditionalOptions {
 
 		return builder, nil
 	}
+}
+
+// createVRFNad creates a NetworkAttachmentDefinition with macvlan + VRF plugins.
+func createVRFNad(nadName, ifName, vrfName string, ipam *nad.IPAM) {
+	By(fmt.Sprintf("Creating VRF NAD %s on interface %s", nadName, ifName))
+
+	plugins := []nad.Plugin{
+		{
+			Type:   "macvlan",
+			Master: ifName,
+			Mode:   "bridge",
+			Ipam:   ipam,
+		},
+		{
+			Type:    "vrf",
+			VrfName: vrfName,
+		},
+	}
+
+	_, err := nad.NewBuilder(APIClient, nadName, tsparams.TestNamespaceName).
+		WithPlugins(nadName, &plugins).
+		Create()
+	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to create VRF NAD %s", nadName))
 }
 
 func buildVRFServerCommand() string {
@@ -403,6 +434,23 @@ func buildVRFNetworks(blueNetName, redNetName string, netConfig []vrfNetConfig) 
 	}
 }
 
+// buildVRFNetworksNameOnly attaches only network names so whereabouts IPAM can assign addresses.
+func buildVRFNetworksNameOnly(blueNetName, redNetName string, _ []vrfNetConfig) []*types.NetworkSelectionElement {
+	return []*types.NetworkSelectionElement{
+		{Name: blueNetName},
+		{Name: redNetName},
+	}
+}
+
+// ipamWhereabouts returns whereabouts IPAM using the source-style range field
+// (e.g. "10.255.255.1-10.255.255.2/24").
+func ipamWhereabouts(addrRange string) *nad.IPAM {
+	return &nad.IPAM{
+		Type:      "whereabouts",
+		AddrRange: addrRange,
+	}
+}
+
 func defineClientServerVRFsIPOverlapConfig(
 	workerNodeList []*nodes.Builder,
 	sameNode bool,
@@ -473,15 +521,21 @@ func defineClientServerVRFsIPOverlapConfig(
 // networkBuilderFunc is a function type that builds network selection elements for VRF pods.
 type networkBuilderFunc func(blueNetName, redNetName string, netConfig []vrfNetConfig) []*types.NetworkSelectionElement
 
-// runVRFScenario runs a VRF scenario with optional DHCP server setup.
-// If setupDhcp is true, it will run the DHCP server before creating pods and use MAC-based network attachments.
-// If setupDhcp is false, it will use static IP-based network attachments.
+const (
+	vrfIPAMStatic      = "static"
+	vrfIPAMDHCP        = "dhcp"
+	vrfIPAMWhereabouts = "whereabouts"
+)
+
+// runVRFScenario runs a VRF scenario for the given IPAM mode.
+// static uses IP requests, dhcp starts DHCP servers and uses MAC requests,
+// whereabouts attaches networks by name only so the CNI assigns addresses.
 func runVRFScenario(
 	workerNodeList []*nodes.Builder,
 	sameNode bool,
 	redNetName, blueNetName string,
 	clientNetConfig, serverNetConfig []vrfNetConfig,
-	setupDhcp bool,
+	ipamType string,
 ) *pod.Builder {
 	clientPodNode := workerNodeList[0].Object.Name
 	serverPodNode := clientPodNode
@@ -494,14 +548,19 @@ func runVRFScenario(
 		serverPodNode = workerNodeList[1].Object.Name
 	}
 
-	// Determine which network builder function to use
 	var networkBuilder networkBuilderFunc
 
-	if setupDhcp {
+	switch ipamType {
+	case vrfIPAMDHCP:
 		runDHCPServer(clientNetConfig, serverNetConfig, sameNode, clientPodNode, serverPodNode)
 
 		networkBuilder = buildVRFNetworksWithMac
-	} else {
+	case vrfIPAMWhereabouts:
+		// Whereabouts assigns IPs in creation order (client first). Validation still uses
+		// defineClientServerVRFsIPConfig expected .1/.2 (and overlap .3/.4); keep NAD ranges
+		// as two-address pools and create the client pod before the server.
+		networkBuilder = buildVRFNetworksNameOnly
+	default:
 		networkBuilder = buildVRFNetworks
 	}
 
@@ -727,4 +786,36 @@ func lastIPv4Addr(network *net.IPNet) (net.IP, error) {
 		ip, binary.BigEndian.Uint32(network.IP.To4())|^binary.BigEndian.Uint32(net.IP(network.Mask).To4()))
 
 	return ip, nil
+}
+
+var whereaboutsIPPoolGVR = schema.GroupVersionResource{
+	Group:    "whereabouts.cni.cncf.io",
+	Version:  "v1alpha1",
+	Resource: "ippools",
+}
+
+// waitUntilIPPoolIsEmpty waits until the whereabouts IPPool has released all allocations.
+// If the IPPool does not exist, this is a no-op (matching source WaitUntilIPPoolIsEmpty).
+func waitUntilIPPoolIsEmpty(ipPoolName string) {
+	_, err := APIClient.Resource(whereaboutsIPPoolGVR).Namespace(NetConfig.MultusNamesapce).
+		Get(context.Background(), ipPoolName, metav1.GetOptions{})
+	if k8serrors.IsNotFound(err) {
+		return
+	}
+
+	Eventually(func() bool {
+		ipPool, getErr := APIClient.Resource(whereaboutsIPPoolGVR).Namespace(NetConfig.MultusNamesapce).
+			Get(context.Background(), ipPoolName, metav1.GetOptions{})
+		if getErr != nil {
+			return false
+		}
+
+		allocations, found, nestedErr := unstructured.NestedMap(ipPool.Object, "spec", "allocations")
+		if nestedErr != nil || !found {
+			return true
+		}
+
+		return len(allocations) == 0
+	}, tsparams.IPPoolEmptyTimeout, tsparams.IPPoolEmptyPollingInterval).Should(BeTrue(),
+		fmt.Sprintf("IPPool %s did not release IP addresses", ipPoolName))
 }
