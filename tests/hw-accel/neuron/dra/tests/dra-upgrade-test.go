@@ -168,9 +168,9 @@ var _ = Describe("Neuron DRA Upgrade Tests", Ordered,
 						"Module spec.dra.container.image should match new DRA driver image")
 				})
 
-			It("should create new DRA DaemonSet with updated image",
+			It("should roll the DRA DaemonSet to the updated image",
 				reportxml.ID("90516"), func() {
-					By("Waiting for a ready DRA DaemonSet with the upgrade image and the old DS gone")
+					By("Waiting for the existing DRA DaemonSet to roll to the upgrade image")
 
 					Eventually(func() bool {
 						dsList, listErr := APIClient.K8sClient.AppsV1().DaemonSets(
@@ -183,30 +183,29 @@ var _ = Describe("Neuron DRA Upgrade Tests", Ordered,
 							return false
 						}
 
-						oldGone := true
-
-						var newReady bool
+						var upgradedReady bool
 
 						for idx := range dsList.Items {
 							currentDS := &dsList.Items[idx]
 
-							if currentDS.Name == originalDSName {
-								oldGone = false
+							if currentDS.Name != originalDSName {
+								continue
 							}
 
 							if len(currentDS.Spec.Template.Spec.Containers) > 0 &&
 								currentDS.Spec.Template.Spec.Containers[0].Image == neuronCfg.UpgradeDRADriverImage &&
 								currentDS.Status.DesiredNumberScheduled > 0 &&
+								currentDS.Status.UpdatedNumberScheduled == currentDS.Status.DesiredNumberScheduled &&
 								currentDS.Status.NumberReady == currentDS.Status.DesiredNumberScheduled {
-								newReady = true
+								upgradedReady = true
 							}
 						}
 
-						return oldGone && newReady
+						return upgradedReady
 					}, upgradeTimeout, 10*time.Second).Should(BeTrue(),
-						"Old DRA DaemonSet should be GC'd and new one with upgrade image should be ready")
+						"The existing DRA DaemonSet should roll to the upgrade image and be ready")
 
-					By("Verifying the DRA container has the upgrade image")
+					By("Verifying the existing DRA DaemonSet has the upgrade image")
 
 					dsList, err := APIClient.K8sClient.AppsV1().DaemonSets(
 						params.NeuronNamespace).List(
@@ -217,13 +216,28 @@ var _ = Describe("Neuron DRA Upgrade Tests", Ordered,
 					Expect(err).ToNot(HaveOccurred())
 					Expect(dsList.Items).ToNot(BeEmpty())
 
-					draContainer := dsList.Items[0].Spec.Template.Spec.Containers[0]
+					var upgradedDSFound bool
 
-					Expect(draContainer.Image).To(Equal(neuronCfg.UpgradeDRADriverImage),
-						"DRA container image should be the upgrade target")
+					for idx := range dsList.Items {
+						currentDS := &dsList.Items[idx]
+						if currentDS.Name != originalDSName {
+							continue
+						}
+
+						Expect(currentDS.Spec.Template.Spec.Containers).ToNot(BeEmpty())
+						Expect(currentDS.Spec.Template.Spec.Containers[0].Image).To(Equal(
+							neuronCfg.UpgradeDRADriverImage),
+							"DRA container image should be the upgrade target")
+						upgradedDSFound = true
+						break
+					}
+
+					Expect(upgradedDSFound).To(BeTrue(),
+						"The original DRA DaemonSet should remain during an image rollout")
 
 					klog.V(params.NeuronLogLevel).Infof(
-						"New DRA DaemonSet: %s (was: %s)", dsList.Items[0].Name, originalDSName)
+						"DRA DaemonSet %s rolled from image %s to %s",
+						originalDSName, originalImage, neuronCfg.UpgradeDRADriverImage)
 				})
 
 			It("should still have ResourceSlices published after upgrade",
