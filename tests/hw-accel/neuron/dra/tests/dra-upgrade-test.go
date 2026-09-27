@@ -194,6 +194,7 @@ var _ = Describe("Neuron DRA Upgrade Tests", Ordered,
 
 							if len(currentDS.Spec.Template.Spec.Containers) > 0 &&
 								currentDS.Spec.Template.Spec.Containers[0].Image == neuronCfg.UpgradeDRADriverImage &&
+								currentDS.Status.ObservedGeneration == currentDS.Generation &&
 								currentDS.Status.DesiredNumberScheduled > 0 &&
 								currentDS.Status.UpdatedNumberScheduled == currentDS.Status.DesiredNumberScheduled &&
 								currentDS.Status.NumberReady == currentDS.Status.DesiredNumberScheduled {
@@ -228,7 +229,9 @@ var _ = Describe("Neuron DRA Upgrade Tests", Ordered,
 						Expect(currentDS.Spec.Template.Spec.Containers[0].Image).To(Equal(
 							neuronCfg.UpgradeDRADriverImage),
 							"DRA container image should be the upgrade target")
+
 						upgradedDSFound = true
+
 						break
 					}
 
