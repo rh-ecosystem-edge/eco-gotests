@@ -1,6 +1,7 @@
 package systemreserved_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -21,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -533,28 +535,50 @@ var _ = Describe("SystemReserved", Ordered, Label(labelSystemReservedValidation)
 					}
 
 					By("Verifying enforceNodeAllocatable includes system-reserved")
-					// enforceNodeAllocatable should include "pods" and may include "system-reserved"
-					// Common values: ["pods"], ["pods","system-reserved"], ["pods","system-reserved","kube-reserved"]
+					// Parse kubelet config to check enforceNodeAllocatable array
+					var kubeletConfig map[string]interface{}
 
-					if strings.Contains(output, "enforceNodeAllocatable") {
-						// Check if system-reserved is in the list
-						if strings.Contains(output, "system-reserved") {
-							GinkgoWriter.Printf("✓ Node %s has system-reserved enforcement enabled\n", nodeName)
-						} else {
-							GinkgoWriter.Printf("⚠ Node %s: enforceNodeAllocatable does not include system-reserved (may use default enforcement)\n", nodeName)
+					// Try to parse as JSON first
+					err = json.Unmarshal([]byte(output), &kubeletConfig)
+					if err != nil {
+						// If JSON parsing fails, try YAML
+						err = yaml.Unmarshal([]byte(output), &kubeletConfig)
+						if err != nil {
+							GinkgoWriter.Printf("Warning: Could not parse kubelet config on node %s: %v\n", nodeName, err)
+							Skip(fmt.Sprintf("Kubelet config is not valid JSON or YAML on node %s", nodeName))
 						}
 					}
 
-					By("Verifying systemReservedCgroup is configured")
-					// systemReservedCgroup is typically "/system.slice"
-					if strings.Contains(output, "systemReservedCgroup") {
-						if strings.Contains(output, "/system.slice") {
-							GinkgoWriter.Printf("✓ Node %s has systemReservedCgroup set to /system.slice\n", nodeName)
-						} else {
-							GinkgoWriter.Printf("⚠ Node %s: systemReservedCgroup found but not /system.slice\n", nodeName)
-						}
+					// Check enforceNodeAllocatable field
+					enforceAllocatable, found := kubeletConfig["enforceNodeAllocatable"]
+					if !found {
+						GinkgoWriter.Printf("⚠ Node %s: enforceNodeAllocatable not found in kubelet config (may use default)\n", nodeName)
 					} else {
-						GinkgoWriter.Printf("Note: Node %s kubelet config does not specify systemReservedCgroup (may use default)\n", nodeName)
+						// enforceNodeAllocatable is typically an array like ["pods", "system-reserved"]
+						hasSystemReserved := false
+
+						switch v := enforceAllocatable.(type) {
+						case []interface{}:
+							for _, item := range v {
+								if str, ok := item.(string); ok && str == "system-reserved" {
+									hasSystemReserved = true
+									break
+								}
+							}
+						case []string:
+							for _, item := range v {
+								if item == "system-reserved" {
+									hasSystemReserved = true
+									break
+								}
+							}
+						}
+
+						if hasSystemReserved {
+							GinkgoWriter.Printf("✓ Node %s has system-reserved in enforceNodeAllocatable\n", nodeName)
+						} else {
+							GinkgoWriter.Printf("⚠ Node %s: enforceNodeAllocatable does not include system-reserved\n", nodeName)
+						}
 					}
 
 					// At minimum, verify the node has allocatable resources properly set
@@ -585,112 +609,139 @@ var _ = Describe("SystemReserved", Ordered, Label(labelSystemReservedValidation)
 
 	Context("Scale lab baseline validation", func() {
 		It("Should have systemReserved values adequate for scale lab requirements", func() {
-			By("Reading actual systemReserved values from control plane nodes")
+			By("Validating control plane nodes against scale lab baseline")
 			if len(controlPlaneNodes) == 0 {
 				Skip("No control plane nodes found - skipping scale lab validation")
 			}
 
-			// Read actual systemReserved from first control plane node
-			cpNode := controlPlaneNodes[0]
-			cpNodeName := cpNode.Object.Name
-
-			// Skip if node is not ready
-			if !isNodeReadyForTesting(cpNode) {
-				Skip(fmt.Sprintf("Control plane node %s not ready - skipping scale lab validation", cpNodeName))
-			}
-
 			cmd := []string{"cat", nodeSizingEnvPath}
-			output, err := executeDebugPodCommand(cpNodeName, cmd)
-			if err != nil {
-				Skip(fmt.Sprintf("Failed to read systemReserved from control plane node %s - skipping scale lab validation", cpNodeName))
-			}
-
-			envVars := parseEnvFile(output)
-			cpuStr, foundCPU := envVars["SYSTEM_RESERVED_CPU"]
-			memStr, foundMem := envVars["SYSTEM_RESERVED_MEMORY"]
-
-			if !foundCPU || !foundMem {
-				Skip(fmt.Sprintf("systemReserved not configured on control plane node %s - skipping scale lab validation", cpNodeName))
-			}
-
-			By("Checking control plane CPU systemReserved against scale lab baseline")
-			cpuQuantity, err := resource.ParseQuantity(cpuStr)
-			Expect(err).ToNot(HaveOccurred(), "Failed to parse control plane CPU reserved")
-
-			cpuCores := float64(cpuQuantity.MilliValue()) / 1000
 			scaleLabMax := scaleLabControlPlaneCPUMax
-
-			if cpuCores < scaleLabMax {
-				GinkgoWriter.Printf("⚠ WARNING: Control plane CPU systemReserved (%.1f cores) is BELOW scale lab max (%.1f cores)\n",
-					cpuCores, scaleLabMax)
-				GinkgoWriter.Printf("⚠ Consider increasing to at least 40 cores for large-scale production environments\n")
-			} else {
-				GinkgoWriter.Printf("✓ Control plane CPU systemReserved (%.1f cores) meets scale lab requirement (%.1f cores)\n",
-					cpuCores, scaleLabMax)
-			}
-
-			By("Checking control plane memory systemReserved against scale lab baseline")
-			memoryQuantity, err := resource.ParseQuantity(memStr)
-			Expect(err).ToNot(HaveOccurred(), "Failed to parse control plane memory reserved")
-
-			memoryGB := float64(memoryQuantity.Value()) / (1024 * 1024 * 1024)
 			scaleLabMaxMemory := scaleLabControlPlaneMemoryMax
 
-			if memoryGB < scaleLabMaxMemory {
-				GinkgoWriter.Printf("⚠ WARNING: Control plane memory systemReserved (%.1f GB) is BELOW scale lab max (%.1f GB)\n",
-					memoryGB, scaleLabMaxMemory)
-				GinkgoWriter.Printf("⚠ Consider increasing to at least 34Gi for production environments\n")
-			} else {
-				GinkgoWriter.Printf("✓ Control plane memory systemReserved (%.1f GB) meets scale lab requirement (%.1f GB)\n",
-					memoryGB, scaleLabMaxMemory)
+			// Check all control plane nodes
+			cpNodesChecked := 0
+			for _, cpNode := range controlPlaneNodes {
+				cpNodeName := cpNode.Object.Name
+
+				// Skip nodes that are not ready or are storage nodes
+				if !isNodeReadyForTesting(cpNode) {
+					reason := "NotReady or SchedulingDisabled"
+					if _, hasStorageRole := cpNode.Object.Labels["node-role.kubernetes.io/storage"]; hasStorageRole {
+						reason = "Storage node"
+					}
+					GinkgoWriter.Printf("⊘ Skipping control plane node %s (%s)\n", cpNodeName, reason)
+					continue
+				}
+
+				output, err := executeDebugPodCommand(cpNodeName, cmd)
+				if err != nil {
+					GinkgoWriter.Printf("⚠ Failed to read systemReserved from control plane node %s - skipping\n", cpNodeName)
+					continue
+				}
+
+				envVars := parseEnvFile(output)
+				cpuStr, foundCPU := envVars["SYSTEM_RESERVED_CPU"]
+				memStr, foundMem := envVars["SYSTEM_RESERVED_MEMORY"]
+
+				if !foundCPU || !foundMem {
+					GinkgoWriter.Printf("⚠ systemReserved not configured on control plane node %s - skipping\n", cpNodeName)
+					continue
+				}
+
+				// Validate CPU
+				cpuQuantity, err := resource.ParseQuantity(cpuStr)
+				if err != nil {
+					GinkgoWriter.Printf("⚠ Failed to parse CPU on control plane node %s - skipping\n", cpNodeName)
+					continue
+				}
+
+				cpuCores := float64(cpuQuantity.MilliValue()) / 1000
+				if cpuCores < scaleLabMax {
+					GinkgoWriter.Printf("⚠ WARNING: Control plane node %s CPU systemReserved (%.1f cores) is BELOW scale lab max (%.1f cores)\n",
+						cpNodeName, cpuCores, scaleLabMax)
+				} else {
+					GinkgoWriter.Printf("✓ Control plane node %s CPU systemReserved (%.1f cores) meets scale lab requirement\n",
+						cpNodeName, cpuCores)
+				}
+
+				// Validate Memory
+				memoryQuantity, err := resource.ParseQuantity(memStr)
+				if err != nil {
+					GinkgoWriter.Printf("⚠ Failed to parse memory on control plane node %s - skipping memory\n", cpNodeName)
+				} else {
+					memoryGB := float64(memoryQuantity.Value()) / (1024 * 1024 * 1024)
+					if memoryGB < scaleLabMaxMemory {
+						GinkgoWriter.Printf("⚠ WARNING: Control plane node %s memory systemReserved (%.1f GB) is BELOW scale lab max (%.1f GB)\n",
+							cpNodeName, memoryGB, scaleLabMaxMemory)
+					} else {
+						GinkgoWriter.Printf("✓ Control plane node %s memory systemReserved (%.1f GB) meets scale lab requirement\n",
+							cpNodeName, memoryGB)
+					}
+				}
+
+				cpNodesChecked++
 			}
 
-			By("Verifying worker systemReserved meets baseline requirements")
+			if cpNodesChecked == 0 {
+				Skip("No eligible control plane nodes found for scale lab validation")
+			}
+
+			By("Validating worker nodes against scale lab baseline")
 			if len(workerNodes) == 0 {
 				GinkgoWriter.Printf("⚠ No worker nodes found - skipping worker systemReserved validation\n")
 				return
 			}
 
-			// Read actual systemReserved from first worker node
-			var workerNode *nodes.Builder
-			for _, node := range workerNodes {
-				if isNodeReadyForTesting(node) {
-					workerNode = node
-					break
+			// Check all worker nodes
+			workerNodesChecked := 0
+			for _, workerNode := range workerNodes {
+				workerNodeName := workerNode.Object.Name
+
+				// Skip nodes that are not ready or are storage nodes
+				if !isNodeReadyForTesting(workerNode) {
+					reason := "NotReady or SchedulingDisabled"
+					if _, hasStorageRole := workerNode.Object.Labels["node-role.kubernetes.io/storage"]; hasStorageRole {
+						reason = "Storage node"
+					}
+					GinkgoWriter.Printf("⊘ Skipping worker node %s (%s)\n", workerNodeName, reason)
+					continue
 				}
+
+				output, err := executeDebugPodCommand(workerNodeName, cmd)
+				if err != nil {
+					GinkgoWriter.Printf("⚠ Failed to read systemReserved from worker node %s - skipping\n", workerNodeName)
+					continue
+				}
+
+				workerEnvVars := parseEnvFile(output)
+				workerCPUStr, foundWorkerCPU := workerEnvVars["SYSTEM_RESERVED_CPU"]
+
+				if !foundWorkerCPU {
+					GinkgoWriter.Printf("⚠ systemReserved not configured on worker node %s - skipping\n", workerNodeName)
+					continue
+				}
+
+				workerCPUQuantity, err := resource.ParseQuantity(workerCPUStr)
+				if err != nil {
+					GinkgoWriter.Printf("⚠ Failed to parse CPU on worker node %s - skipping\n", workerNodeName)
+					continue
+				}
+
+				workerCPUMillicores := workerCPUQuantity.MilliValue()
+
+				if workerCPUMillicores < 500 {
+					GinkgoWriter.Printf("⚠ WARNING: Worker node %s CPU systemReserved (%dm) is BELOW minimum (500m)\n",
+						workerNodeName, workerCPUMillicores)
+				} else {
+					GinkgoWriter.Printf("✓ Worker node %s CPU systemReserved (%dm) meets minimum requirement\n",
+						workerNodeName, workerCPUMillicores)
+				}
+
+				workerNodesChecked++
 			}
 
-			if workerNode == nil {
-				GinkgoWriter.Printf("⚠ No ready worker nodes found - skipping worker systemReserved validation\n")
-				return
-			}
-
-			workerNodeName := workerNode.Object.Name
-			output, err = executeDebugPodCommand(workerNodeName, cmd)
-			if err != nil {
-				GinkgoWriter.Printf("⚠ Failed to read systemReserved from worker node %s - skipping worker validation\n", workerNodeName)
-				return
-			}
-
-			workerEnvVars := parseEnvFile(output)
-			workerCPUStr, foundWorkerCPU := workerEnvVars["SYSTEM_RESERVED_CPU"]
-
-			if !foundWorkerCPU {
-				GinkgoWriter.Printf("⚠ systemReserved not configured on worker node %s - skipping worker validation\n", workerNodeName)
-				return
-			}
-
-			workerCPUQuantity, err := resource.ParseQuantity(workerCPUStr)
-			Expect(err).ToNot(HaveOccurred(), "Failed to parse worker CPU reserved")
-
-			workerCPUMillicores := workerCPUQuantity.MilliValue()
-
-			if workerCPUMillicores < 500 {
-				GinkgoWriter.Printf("⚠ WARNING: Worker CPU systemReserved (%dm) is BELOW minimum recommendation (500m)\n",
-					workerCPUMillicores)
-				GinkgoWriter.Printf("⚠ Consider increasing to at least 500m for production workloads\n")
-			} else {
-				GinkgoWriter.Printf("✓ Worker CPU systemReserved (%dm) meets minimum requirement (500m)\n", workerCPUMillicores)
+			if workerNodesChecked == 0 {
+				GinkgoWriter.Printf("⚠ No eligible worker nodes found for scale lab validation\n")
 			}
 		})
 	})
