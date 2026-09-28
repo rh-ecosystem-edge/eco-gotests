@@ -129,17 +129,7 @@ func AssertWithStartTime(startTime time.Time) QueryAssertOption {
 // queries.
 func AssertQuery[V constraints.Integer](
 	ctx context.Context, client prometheusv1.API, query Query[V], expected V, options ...QueryAssertOption) error {
-	if client == nil {
-		return fmt.Errorf("cannot assert query with nil client")
-	}
-
-	opts := newQueryAssertOptions()
-
-	for _, option := range options {
-		option(opts)
-	}
-
-	return pollQueryAssertions(ctx, client, []QueryExpectation{Expect(query, expected)}, opts, "query")
+	return assertQueryExpectations(ctx, client, []QueryExpectation{Expect(query, expected)}, "query", options...)
 }
 
 // AssertThresholdsOption configures optional behavior for [AssertThresholds].
@@ -285,17 +275,17 @@ func buildActualThresholds(
 // value after converting the actual values to int64. It is used by AssertQuery to execute the query at a specific time.
 // When AssertQuery is called with no options, this function is called once with the current time. Otherwise, the more
 // complex logic in AssertQuery is used to poll with this function.
-func assertQueryAtTime[V constraints.Integer](
-	ctx context.Context, client prometheusv1.API, query Query[V], expected V, assertTime time.Time) error {
-	metricQuery := query.ToMetricQuery()
+func assertQueryAtTime(
+	ctx context.Context, client prometheusv1.API, query MetricQuery[int64], expected int64, assertTime time.Time,
+) error {
 	// Since this function is only called with non-zero assertTimes in the past, we can set the queryTime to be the
 	// assertTime knowing it is valid. Setting the query time is done by setting the end time when using
 	// ExecuteQuery.
-	metricQuery.End = assertTime
+	query.End = assertTime
 
-	result, err := ExecuteQuery(ctx, client, metricQuery)
+	result, err := ExecuteQuery(ctx, client, query)
 	if err != nil {
-		return fmt.Errorf("failed to execute query %#v at time %s: %w", metricQuery, assertTime, err)
+		return fmt.Errorf("failed to execute query %#v at time %s: %w", query, assertTime, err)
 	}
 
 	if len(result) == 0 {
@@ -308,14 +298,14 @@ func assertQueryAtTime[V constraints.Integer](
 		}
 
 		roundedValue := convertSampleValueToInt64(sample.Value)
-		if roundedValue != int64(expected) {
+		if roundedValue != expected {
 			return fmt.Errorf("query assert error at time %s: expected %d, got %d\nquery: %s\nsample: %s",
-				assertTime, int64(expected), roundedValue, metricQuery.String(), sample)
+				assertTime, expected, roundedValue, query.String(), sample)
 		}
 	}
 
 	klog.V(tsparams.LogLevel).Infof("Query assert passed at time %s: expected %d, got %#v\nquery: %s",
-		assertTime, int64(expected), result, metricQuery.String())
+		assertTime, expected, result, query.String())
 
 	return nil
 }

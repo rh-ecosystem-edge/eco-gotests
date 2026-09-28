@@ -57,15 +57,6 @@ func profileWithDpllSettings(t *testing.T) *ptpv1.PtpProfile {
 	}
 }
 
-func TestPtp4lUsesNICName(t *testing.T) {
-	t.Parallel()
-
-	assert.True(t, ptp4lUsesNICName(ProfileTypeBC))
-	assert.True(t, ptp4lUsesNICName(ProfileTypeTBCReceiver))
-	assert.False(t, ptp4lUsesNICName(ProfileTypeOC))
-	assert.False(t, ptp4lUsesNICName(ProfileTypeTBCTransmitter))
-}
-
 func TestIsGMProfile(t *testing.T) {
 	t.Parallel()
 
@@ -75,7 +66,7 @@ func TestIsGMProfile(t *testing.T) {
 	assert.False(t, isGMProfile(ProfileTypeBC))
 }
 
-func TestGetExpectedForProfileOCSlaveUsesRawIface(t *testing.T) {
+func TestGetExpectedForProfileOCSlaveUsesIfaceAlias(t *testing.T) {
 	t.Parallel()
 
 	profileInfo := profileInfoWithClientIfaces(ProfileTypeOC, "ens1f0")
@@ -89,7 +80,7 @@ func TestGetExpectedForProfileOCSlaveUsesRawIface(t *testing.T) {
 	}, got[0])
 	assert.Equal(t, metrics.ExpectedClockState{
 		Process:   metrics.ProcessPTP4L,
-		Interface: "ens1f0",
+		Interface: "ens1fx",
 		Node:      "worker-0",
 	}, got[1])
 }
@@ -170,7 +161,7 @@ func TestGetExpectedClockStatesAggregatesProfiles(t *testing.T) {
 	foundPtp4l := false
 
 	for _, entry := range got {
-		if entry.Process == metrics.ProcessPTP4L && entry.Interface == "ens1f0" {
+		if entry.Process == metrics.ProcessPTP4L && entry.Interface == "ens1fx" {
 			foundPtp4l = true
 		}
 	}

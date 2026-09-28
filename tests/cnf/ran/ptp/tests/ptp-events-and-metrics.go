@@ -49,8 +49,7 @@ var _ = Describe("PTP Events and Metrics", Label(tsparams.LabelEventsAndMetrics)
 
 		By("ensuring all expected clock state metrics are present and locked before testing")
 
-		err = metrics.EnsureClocksAreLocked(prometheusAPI,
-			metrics.WithExpectedClockStates(expectedClockStates))
+		err = metrics.EnsureExpectedClockStatesAreLocked(prometheusAPI, expectedClockStates)
 		Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
 
 		By("saving PtpConfigs before testing")
@@ -81,8 +80,7 @@ var _ = Describe("PTP Events and Metrics", Label(tsparams.LabelEventsAndMetrics)
 
 		By("ensuring all expected clock state metrics are present and locked after testing")
 
-		err = metrics.EnsureClocksAreLocked(prometheusAPI,
-			metrics.WithExpectedClockStates(expectedClockStates))
+		err = metrics.EnsureExpectedClockStatesAreLocked(prometheusAPI, expectedClockStates)
 		Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
 	})
 
@@ -90,8 +88,7 @@ var _ = Describe("PTP Events and Metrics", Label(tsparams.LabelEventsAndMetrics)
 	It("verifies all clocks are LOCKED", reportxml.ID("82480"), func() {
 		By("ensuring all expected clock state metrics are present and LOCKED")
 
-		err := metrics.EnsureClocksAreLocked(prometheusAPI,
-			metrics.WithExpectedClockStates(expectedClockStates))
+		err := metrics.EnsureExpectedClockStatesAreLocked(prometheusAPI, expectedClockStates)
 		Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked after 5 minutes")
 	})
 

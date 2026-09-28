@@ -18,9 +18,8 @@ import (
 //
 // The expected metrics are:
 //   - process=phc2sys, iface=CLOCK_REALTIME: for each profile that runs phc2sys (all non-TBCTransmitter profiles)
-//   - process=ptp4l, iface=<interface>: for each slave (client) interface. Simple OC profiles use raw names
-//     (e.g., "ens1f0"); T-BC receiver profiles use NIC names (e.g., "enox") because boundary_clock_jbod mode
-//     consolidates the ptp4l clock state to the NIC level.
+//   - process=ptp4l, iface=<alias>: for each slave (client) interface, using the interface alias from
+//     [iface.Name.GetAlias] (e.g., "ens1fx" for "ens1f0").
 //   - process=dpll, iface=<nic>: for each DPLL-monitored interface in profiles with DPLL capability
 //   - process=gnss, iface=<nic>: for each GNSS interface (TX/GPS) in GM profiles with Intel plugins
 //
@@ -50,12 +49,12 @@ func GetExpectedClockStates(
 }
 
 // EnsureExpectedClocksLocked derives expected clock state series from the cluster PtpConfig and asserts each
-// is present and LOCKED via [metrics.EnsureClocksAreLocked]. Additional [metrics.EnsureLockedOption] values
-// configure stable duration, timeout, or other assertion behavior.
+// is present and LOCKED via [metrics.EnsureExpectedClockStatesAreLocked]. Optional [metrics.QueryAssertOption]
+// values configure stable duration, timeout, or other assertion behavior.
 func EnsureExpectedClocksLocked(
 	prometheusAPI prometheusv1.API,
 	client *clients.Settings,
-	opts ...metrics.EnsureLockedOption,
+	opts ...metrics.QueryAssertOption,
 ) error {
 	nodeInfoMap, err := GetNodeInfoMap(client)
 	if err != nil {
@@ -67,9 +66,7 @@ func EnsureExpectedClocksLocked(
 		return fmt.Errorf("failed to derive expected clock states: %w", err)
 	}
 
-	allOpts := append([]metrics.EnsureLockedOption{metrics.WithExpectedClockStates(expected)}, opts...)
-
-	err = metrics.EnsureClocksAreLocked(prometheusAPI, allOpts...)
+	err = metrics.EnsureExpectedClockStatesAreLocked(prometheusAPI, expected, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to ensure expected clocks are locked: %w", err)
 	}
@@ -93,17 +90,12 @@ func getExpectedForProfile(
 		})
 	}
 
-	// ptp4l: expected for each slave (client) interface. The interface name format depends on the profile
-	// type: single-port OC profiles report per-port with raw names (e.g., "ens1f0"), while multi-port
-	// profiles (BC, T-BC receiver) consolidate the clock state to the NIC level (e.g., "ens3fx").
+	// ptp4l: expected for each slave (client) interface, keyed by interface alias in metrics.
 	clientInterfaces := profileInfo.GetInterfacesByClockType(ClockTypeClient)
 	for _, ifaceInfo := range clientInterfaces {
-		ptp4lIface := string(ifaceInfo.Name)
-
-		if ptp4lUsesNICName(profileInfo.ProfileType) {
-			if nicName := ifaceInfo.Name.GetNIC(); nicName != "" {
-				ptp4lIface = string(nicName)
-			}
+		ptp4lIface := string(ifaceInfo.Name.GetAlias())
+		if ptp4lIface == "" {
+			ptp4lIface = string(ifaceInfo.Name)
 		}
 
 		expected = append(expected, metrics.ExpectedClockState{
@@ -145,22 +137,6 @@ func isGMProfile(profileType PtpProfileType) bool {
 		return true
 	case ProfileTypeOC, ProfileTypeTwoPortOC, ProfileTypeBC, ProfileTypeHA,
 		ProfileTypeTBCTransmitter, ProfileTypeTBCReceiver, ProfileTypeDualTBCReceiver, ProfileTypeTTSC:
-		return false
-	}
-
-	return false
-}
-
-// ptp4lUsesNICName returns true if the profile type reports ptp4l clock state metrics with NIC names rather
-// than raw interface names. When ptp4l manages multiple ports (clock_type BC, or boundary_clock_jbod mode),
-// the PTP operator consolidates the ptp4l clock state to the NIC level (e.g., "ens3fx" instead of "ens3f2").
-// Single-port OC profiles report per-port with raw interface names.
-func ptp4lUsesNICName(profileType PtpProfileType) bool {
-	switch profileType {
-	case ProfileTypeBC, ProfileTypeTBCReceiver, ProfileTypeDualTBCReceiver:
-		return true
-	case ProfileTypeOC, ProfileTypeTwoPortOC, ProfileTypeHA, ProfileTypeGM,
-		ProfileTypeMultiNICGM, ProfileTypeNTPFallback, ProfileTypeTBCTransmitter, ProfileTypeTTSC:
 		return false
 	}
 

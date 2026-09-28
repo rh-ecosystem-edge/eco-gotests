@@ -47,6 +47,13 @@ type Name string
 //
 // Interface names shorter than 2 characters are considered invalid and will return the zero value.
 func (iface Name) GetNIC() NICName {
+	return iface.GetAlias()
+}
+
+// GetAlias returns the interface alias used in PTP metrics and events (for example "ens3fx" for "ens3f2").
+// It follows the legacy or modern naming rules based on [InitNICNaming]; PTP 4.22+ API-based aliasing is
+// handled in a follow-up (#1672).
+func (iface Name) GetAlias() NICName {
 	if len(iface) < 2 {
 		klog.V(tsparams.LogLevel).Infof("Failed to get NIC name for interface %q: interface name is too short", iface)
 

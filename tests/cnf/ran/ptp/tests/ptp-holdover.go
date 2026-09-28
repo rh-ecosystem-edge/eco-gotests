@@ -679,10 +679,9 @@ func changeHoldoverSettings(
 			expectedLockedClass, clockClassChanges, timeout, testData.UpstreamIfaces, testData.ConfigFile)
 
 		restoreErr = profiles.EnsureExpectedClocksLocked(testData.PrometheusAPI, RANConfig.Spoke1APIClient,
-			metrics.WithAssertOptions(
-				metrics.AssertWithStableDuration(5*time.Second),
-				metrics.AssertWithTimeout(timeout),
-			))
+			metrics.AssertWithStableDuration(5*time.Second),
+			metrics.AssertWithTimeout(timeout),
+		)
 		Expect(restoreErr).ToNot(HaveOccurred(), "Expected clock state metrics not locked after holdover restore")
 	})
 
@@ -777,9 +776,8 @@ func restoreInterfacesAndWaitForRelock(
 	Expect(err).ToNot(HaveOccurred(), "Failed to restore upstream clock interfaces")
 
 	err = profiles.EnsureExpectedClocksLocked(prometheusAPI, RANConfig.Spoke1APIClient,
-		metrics.WithAssertOptions(
-			metrics.AssertWithStableDuration(5*time.Second),
-			metrics.AssertWithTimeout(3*time.Minute),
-		))
+		metrics.AssertWithStableDuration(5*time.Second),
+		metrics.AssertWithTimeout(3*time.Minute),
+	)
 	Expect(err).ToNot(HaveOccurred(), "Clock did not return to LOCKED after restoration")
 }

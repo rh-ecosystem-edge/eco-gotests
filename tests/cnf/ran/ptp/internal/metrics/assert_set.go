@@ -11,11 +11,17 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// QueryExpectation pairs a typed query with its expected value for use in [AssertQuerySet].
-// Construct expectations with [Expect] to preserve compile-time type safety.
+// QueryExpectation pairs a query with its expected value for use in [AssertQuerySet].
+// Construct expectations with [Expect] to preserve compile-time type safety at the call site.
 type QueryExpectation struct {
-	description string
-	assert      func(ctx context.Context, client prometheusv1.API, assertTime time.Time) error
+	// query is stored as MetricQuery[int64] for type erasure so heterogeneous expectations can share one slice.
+	// PTP metric values are integers; erasure is safe when built via [Expect].
+	query    MetricQuery[int64]
+	expected int64
+}
+
+func (expectation QueryExpectation) description() string {
+	return fmt.Sprintf("%s (expected %d)", expectation.query.String(), expectation.expected)
 }
 
 // Set wraps one or more expectations for [AssertQuerySet]. Use for single-metric checks as well as
@@ -37,13 +43,9 @@ func ExpectFromMetricQuery(query MetricQuery[PtpClockState], expected PtpClockSt
 
 // Expect returns a [QueryExpectation] for the given query and expected value.
 func Expect[V constraints.Integer](query Query[V], expected V) QueryExpectation {
-	metricQuery := query.ToMetricQuery()
-
 	return QueryExpectation{
-		description: fmt.Sprintf("%s (expected %d)", metricQuery.String(), int64(expected)),
-		assert: func(ctx context.Context, client prometheusv1.API, assertTime time.Time) error {
-			return assertQueryAtTime(ctx, client, query, expected, assertTime)
-		},
+		query:    MetricQuery[int64](query.ToMetricQuery()),
+		expected: int64(expected),
 	}
 }
 
@@ -62,12 +64,22 @@ func AssertQuerySet(
 	expectations []QueryExpectation,
 	options ...QueryAssertOption,
 ) error {
+	return assertQueryExpectations(ctx, client, expectations, "query set", options...)
+}
+
+func assertQueryExpectations(
+	ctx context.Context,
+	client prometheusv1.API,
+	expectations []QueryExpectation,
+	assertionKind string,
+	options ...QueryAssertOption,
+) error {
 	if client == nil {
-		return fmt.Errorf("cannot assert query set with nil client")
+		return fmt.Errorf("cannot assert %s with nil client", assertionKind)
 	}
 
 	if len(expectations) == 0 {
-		return fmt.Errorf("cannot assert query set with no expectations")
+		return fmt.Errorf("cannot assert %s with no expectations", assertionKind)
 	}
 
 	opts := newQueryAssertOptions()
@@ -76,7 +88,7 @@ func AssertQuerySet(
 		option(opts)
 	}
 
-	return pollQueryAssertions(ctx, client, expectations, opts, "query set")
+	return pollQueryAssertions(ctx, client, expectations, opts, assertionKind)
 }
 
 // pollQueryAssertions runs the poll loop shared by [AssertQuery] and [AssertQuerySet].
@@ -123,12 +135,8 @@ func assertQueriesAtTime(
 	assertTime time.Time,
 ) error {
 	for _, expectation := range expectations {
-		if err := expectation.assert(ctx, client, assertTime); err != nil {
-			if expectation.description != "" {
-				return fmt.Errorf("expectation %q failed: %w", expectation.description, err)
-			}
-
-			return err
+		if err := assertQueryAtTime(ctx, client, expectation.query, expectation.expected, assertTime); err != nil {
+			return fmt.Errorf("expectation %q failed: %w", expectation.description(), err)
 		}
 	}
 
