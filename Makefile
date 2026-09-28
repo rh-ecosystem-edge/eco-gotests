@@ -3,9 +3,7 @@ BASE_IMG ?= eco-gotests
 BASE_TAG ?= latest
 
 GO_PACKAGES=$(shell go list ./... | grep -v vendor)
-.PHONY: lint \
-        deps-update \
-        vet
+.PHONY: vet lint deps-update sync-eco-goinfra install-ginkgo build-docker-image-ran-du install test coverage-html run-internal-pkg-unit-tests run-ran-pkg-unit-tests run-system-tests-pkg-unit-tests
 vet:
 	go vet ${GO_PACKAGES}
 
@@ -48,27 +46,20 @@ run-tests:
 
 run-internal-pkg-unit-tests:
 	@echo "Executing eco-gotests internal package unit tests"
-	UNIT_TEST=true go test -v ./tests/internal/...
+	UNIT_TEST=true go test -v -tags=unit_test ./tests/internal/...
 
 run-ran-pkg-unit-tests:
 	@echo "Executing eco-gotests RAN package unit tests"
-	UNIT_TEST=true go test -tags=unit_test -v ./tests/cnf/ran/internal/mustgather
-	UNIT_TEST=true go test -tags=unit_test -v ./tests/cnf/ran/internal/ranconfig
-	UNIT_TEST=true go test -tags=unit_test -v ./tests/cnf/ran/ptp/internal/iface
-	UNIT_TEST=true go test -tags=unit_test -v ./tests/cnf/ran/ptp/internal/profiles
-	UNIT_TEST=true go test -tags=unit_test -v ./tests/cnf/ran/ptp/internal/consumer
-	UNIT_TEST=true go test -tags=unit_test -v ./tests/cnf/ran/ptp/internal/ptpleap
-	UNIT_TEST=true go test -tags=unit_test -v ./tests/cnf/ran/oran/internal/o2imstest
-	UNIT_TEST=true go test -tags=unit_test -v ./tests/cnf/ran/oran/internal/o2imsinventory
-	UNIT_TEST=true go test -tags=unit_test -v ./tests/cnf/ran/oran/internal/o2imscluster
+	UNIT_TEST=true go test -v -tags=unit_test ./tests/cnf/ran/internal/... ./tests/cnf/ran/.../internal/...
 
 run-system-tests-pkg-unit-tests:
 	@echo "Executing eco-gotests internal package unit tests"
-	UNIT_TEST=true go test -v ./tests/system-tests/diskencryption/internal/helper
-	UNIT_TEST=true go test -v ./tests/system-tests/diskencryption/internal/stdin-matcher
+	UNIT_TEST=true go test -v -tags=unit_test ./tests/system-tests/internal/... ./tests/system-tests/.../internal/...
 
-# Note: To add more unit tests for more packages, add corresponding targets here
-test: run-internal-pkg-unit-tests run-system-tests-pkg-unit-tests run-ran-pkg-unit-tests
+# Rather than run each unit test target individually, run all unit tests in one go.
+test:
+	@echo "Executing eco-gotests unit tests"
+	UNIT_TEST=true go test -v -tags=unit_test ./tests/internal/... ./tests/.../internal/...
 
 coverage-html: test
 	go tool cover -html cover.out
