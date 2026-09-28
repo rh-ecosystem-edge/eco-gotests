@@ -114,6 +114,10 @@ func GetPtp4lPIDsByRelatedProcess(
 		return nil, fmt.Errorf("cannot get ptp4l PIDs related or not related to itself")
 	}
 
+	if _, err := GetPID(client, nodeName, relatedProcess); err != nil {
+		return nil, fmt.Errorf("related process %s is not running on node %s: %w", relatedProcess, nodeName, err)
+	}
+
 	indices, err := getRelatedIndices(client, nodeName, relatedProcess)
 	if err != nil {
 		return nil, err

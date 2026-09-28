@@ -79,8 +79,8 @@ func TestGetExpectedForProfileOCSlaveUsesRawIface(t *testing.T) {
 	t.Parallel()
 
 	profileInfo := profileInfoWithClientIfaces(ProfileTypeOC, "ens1f0")
-	got := getExpectedForProfile(nil, "worker-0", profileInfo)
-
+	got, err := getExpectedForProfile(nil, "worker-0", profileInfo)
+	require.NoError(t, err)
 	require.Len(t, got, 2)
 	assert.Equal(t, metrics.ExpectedClockState{
 		Process:   metrics.ProcessPHC2SYS,
@@ -98,8 +98,8 @@ func TestGetExpectedForProfileBCUsesNICIface(t *testing.T) {
 	t.Parallel()
 
 	profileInfo := profileInfoWithClientIfaces(ProfileTypeBC, "ens3f2")
-	got := getExpectedForProfile(nil, "worker-0", profileInfo)
-
+	got, err := getExpectedForProfile(nil, "worker-0", profileInfo)
+	require.NoError(t, err)
 	require.Len(t, got, 2)
 	assert.Equal(t, metrics.ExpectedClockState{
 		Process:   metrics.ProcessPTP4L,
@@ -112,7 +112,8 @@ func TestGetExpectedForProfileTBCTransmitterExcludesPhc2sys(t *testing.T) {
 	t.Parallel()
 
 	profileInfo := profileInfoWithClientIfaces(ProfileTypeTBCTransmitter)
-	got := getExpectedForProfile(nil, "worker-0", profileInfo)
+	got, err := getExpectedForProfile(nil, "worker-0", profileInfo)
+	require.NoError(t, err)
 
 	for _, entry := range got {
 		assert.NotEqual(t, metrics.ProcessPHC2SYS, entry.Process)

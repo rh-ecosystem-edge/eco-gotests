@@ -36,7 +36,12 @@ func GetExpectedClockStates(
 
 	for nodeName, nodeInfo := range nodeInfoMap {
 		for _, profileInfo := range nodeInfo.Profiles {
-			profileExpected := getExpectedForProfile(client, nodeName, profileInfo)
+			profileExpected, err := getExpectedForProfile(client, nodeName, profileInfo)
+			if err != nil {
+				return nil, fmt.Errorf("failed to derive expectations for profile %s on node %s: %w",
+					profileInfo.Reference.ProfileName, nodeName, err)
+			}
+
 			expected = append(expected, profileExpected...)
 		}
 	}
@@ -75,7 +80,7 @@ func EnsureExpectedClocksLocked(
 // getExpectedForProfile determines the expected clock state metrics for a single profile on a node.
 func getExpectedForProfile(
 	client *clients.Settings, nodeName string, profileInfo *ProfileInfo,
-) []metrics.ExpectedClockState {
+) ([]metrics.ExpectedClockState, error) {
 	var expected []metrics.ExpectedClockState
 
 	// phc2sys / CLOCK_REALTIME: expected for all profiles except TBC transmitters (which only transmit time and
@@ -108,14 +113,15 @@ func getExpectedForProfile(
 		})
 	}
 
-	// Pull the raw profile once for DPLL and GNSS inspection.
+	// Pull the raw profile once for DPLL and GNSS inspection. Unit tests pass a nil client and only assert
+	// phc2sys/ptp4l expectations derived from ProfileInfo.
+	if client == nil {
+		return expected, nil
+	}
+
 	rawProfile, err := profileInfo.PullProfile(client)
 	if err != nil {
-		klog.V(tsparams.LogLevel).Infof(
-			"Could not pull raw profile %s on node %s for DPLL/GNSS inspection: %v",
-			profileInfo.Reference.ProfileName, nodeName, err)
-
-		return expected
+		return nil, fmt.Errorf("failed to pull raw profile: %w", err)
 	}
 
 	// DPLL: applicable to any profile with DPLL capability (Intel plugin DpllSettings or HardwareConfig
@@ -129,7 +135,7 @@ func getExpectedForProfile(
 		expected = append(expected, gnssExpected...)
 	}
 
-	return expected
+	return expected, nil
 }
 
 // isGMProfile returns true if the profile type is a grandmaster variant that may have GNSS hardware.
