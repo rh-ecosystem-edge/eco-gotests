@@ -167,6 +167,7 @@ func TestGetExpectedClockStatesAggregatesProfiles(t *testing.T) {
 	require.NotEmpty(t, got)
 
 	foundPtp4l := false
+
 	for _, entry := range got {
 		if entry.Process == metrics.ProcessPTP4L && entry.Interface == "ens1f0" {
 			foundPtp4l = true
