@@ -70,7 +70,7 @@ func GetContent(apiClient *clients.Settings, seedImageLocation string) (*SeedIma
 		connectionString = "sudo"
 	}
 
-	skopeoInspectCmd := fmt.Sprintf("%s skopeo inspect --authfile %s docker://%s",
+	skopeoInspectCmd := fmt.Sprintf("%s skopeo inspect --authfile %s --no-tags docker://%s",
 		connectionString, registryAuthFile, seedImageLocation)
 
 	skopeoInspectJSONOutput, err := cluster.ExecCmdWithStdout(
@@ -336,7 +336,7 @@ func GenerateSeedImage(
 // Uses ExecCommandOnSNOWithRetries to handle temporary cluster unavailability
 // after seed generation completes.
 func verifySeedImageExists(apiClient *clients.Settings, seedImageLocation string) error {
-	skopeoInspectCmd := fmt.Sprintf("sudo skopeo inspect --authfile %s docker://%s",
+	skopeoInspectCmd := fmt.Sprintf("sudo skopeo inspect --authfile %s --no-tags docker://%s",
 		registryAuthFile, seedImageLocation)
 
 	// Use retries to handle temporary cluster unavailability after seed generation
