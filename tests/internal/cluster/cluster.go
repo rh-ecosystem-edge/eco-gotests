@@ -3,6 +3,8 @@ package cluster
 import (
 	"regexp"
 
+	configv1 "github.com/openshift/api/config/v1"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/infrastructure"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/mco"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
@@ -21,6 +23,18 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/ptr"
 )
+
+// IsSNOCluster checks if the cluster is a Single Node OpenShift (SNO) cluster.
+func IsSNOCluster(apiClient *clients.Settings) (bool, error) {
+	klog.V(90).Infof("Checking if cluster is SNO (Single Node OpenShift)")
+
+	infraConfig, err := infrastructure.Pull(apiClient)
+	if err != nil {
+		return false, fmt.Errorf("failed to pull infrastructure configuration: %w", err)
+	}
+
+	return infraConfig.Object.Status.ControlPlaneTopology == configv1.SingleReplicaTopologyMode, nil
+}
 
 // PullTestImageOnNodes pulls given image on range of relevant nodes based on nodeSelector.
 func PullTestImageOnNodes(apiClient *clients.Settings, nodeSelector, image string, pullTimeout int) error {

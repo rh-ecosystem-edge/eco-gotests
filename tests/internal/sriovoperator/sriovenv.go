@@ -193,3 +193,24 @@ func RemoveAllPoliciesAndWaitForSriovAndMCPStable(
 		apiClient, timeout, time.Minute,
 		workerLabel, sriovOperatorNamespace)
 }
+
+// DiscoverInterfaceUnderTestVendorID discovers vendor ID for a given SR-IOV interface.
+func DiscoverInterfaceUnderTestVendorID(
+	apiClient *clients.Settings,
+	sriovOperatorNamespace,
+	srIovInterfaceUnderTest,
+	workerNodeName string) (string, error) {
+	sriovInterfaces, err := sriov.NewNetworkNodeStateBuilder(
+		apiClient, workerNodeName, sriovOperatorNamespace).GetUpNICs()
+	if err != nil {
+		return "", err
+	}
+
+	for _, srIovInterface := range sriovInterfaces {
+		if srIovInterface.Name == srIovInterfaceUnderTest {
+			return srIovInterface.Vendor, nil
+		}
+	}
+
+	return "", fmt.Errorf("interface %s not found", srIovInterfaceUnderTest)
+}

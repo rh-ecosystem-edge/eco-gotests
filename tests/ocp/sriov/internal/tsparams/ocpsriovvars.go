@@ -2,6 +2,8 @@
 package tsparams
 
 import (
+	"time"
+
 	sriovv1 "github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1"
 	"github.com/openshift-kni/k8sreporter"
 	mcfgv1 "github.com/openshift/api/machineconfiguration/v1"
@@ -13,6 +15,62 @@ var (
 	ClientIPv4IPAddress = "192.168.0.1/24"
 	// ServerIPv4IPAddress represents the full test server IPv4 address.
 	ServerIPv4IPAddress = "192.168.0.2/24"
+	// ClientIPv4IPAddress2 represents the IPv4 address (with CIDR range) for a second test pod.
+	ClientIPv4IPAddress2 = "192.168.1.1/24"
+	// ServerIPv4IPAddress2 represents the IPv4 address (with CIDR range) for a second test pod.
+	ServerIPv4IPAddress2 = "192.168.1.2/24"
+	// ClientIPv6IPAddress represents the full test IPv6 address.
+	ClientIPv6IPAddress = "2001::1/64"
+	// ServerIPv6IPAddress represents the full test IPv6 address.
+	ServerIPv6IPAddress = "2001::2/64"
+	// ClientIPv6IPAddress2 represents the full test IPv6 address.
+	ClientIPv6IPAddress2 = "2001:100::1/64"
+	// ServerIPv6IPAddress2 represents the full test IPv6 address.
+	ServerIPv6IPAddress2 = "2001:100::2/64"
+	// ClientMacAddress represents the test client MAC address.
+	ClientMacAddress = "20:04:0f:f1:88:01"
+	// ServerMacAddress represents the test server MAC address.
+	ServerMacAddress = "20:04:0f:f1:88:02"
+	// ClientMacAddress2 represents the second test client MAC address.
+	ClientMacAddress2 = "20:04:0f:f1:88:03"
+	// ServerMacAddress2 represents the second test server MAC address.
+	ServerMacAddress2 = "20:04:0f:f1:88:04"
+	// WhereaboutsIPv4Range is the IP range for whereabouts IPAM.
+	WhereaboutsIPv4Range = "192.168.100.0/24"
+	// WhereaboutsIPv4Gateway is the gateway for whereabouts IPAM.
+	WhereaboutsIPv4Gateway = "192.168.100.1"
+	// WhereaboutsIPv4Range2 is an additional IP range for whereabouts IPAM (separate range to avoid conflicts).
+	WhereaboutsIPv4Range2 = "192.168.101.0/24"
+	// WhereaboutsIPv4Gateway2 is the gateway for whereabouts IPAM range 2.
+	WhereaboutsIPv4Gateway2 = "192.168.101.1"
+	// WhereaboutsIPv6Range is the IPv6 range for whereabouts IPAM.
+	WhereaboutsIPv6Range = "2001:100:100::/64"
+	// WhereaboutsIPv6Gateway is the IPv6 gateway for whereabouts IPAM.
+	WhereaboutsIPv6Gateway = "2001:100:100::1"
+	// WhereaboutsIPv6Range2 is an additional IPv6 range for whereabouts IPAM (separate range to avoid conflicts).
+	WhereaboutsIPv6Range2 = "2001:100:101::/64"
+	// WhereaboutsIPv6Gateway2 is the IPv6 gateway for whereabouts IPAM range 2.
+	WhereaboutsIPv6Gateway2 = "2001:100:101::1"
+	// WhereaboutsIPv4AllocStart is the first IPv4 in the dynamic pool for dual-stack Whereabouts NADs (ipRanges).
+	WhereaboutsIPv4AllocStart = "192.168.100.10"
+	// WhereaboutsIPv4AllocEnd is the last IPv4 in the dynamic pool for dual-stack Whereabouts NADs (ipRanges).
+	WhereaboutsIPv4AllocEnd = "192.168.100.250"
+	// WhereaboutsIPv6AllocStart is the first IPv6 in the dynamic pool for dual-stack Whereabouts NADs (ipRanges).
+	WhereaboutsIPv6AllocStart = "2001:100:100::10"
+	// WhereaboutsIPv6AllocEnd is the last IPv6 in the dynamic pool for dual-stack Whereabouts NADs (ipRanges).
+	WhereaboutsIPv6AllocEnd = "2001:100:100::ff00"
+	// WhereaboutsIPv4AllocStart2 is the first IPv4 in the second pool (WhereaboutsIPv4Range2 / IPv6 range 2).
+	WhereaboutsIPv4AllocStart2 = "192.168.101.10"
+	// WhereaboutsIPv4AllocEnd2 is the last IPv4 in the second pool.
+	WhereaboutsIPv4AllocEnd2 = "192.168.101.250"
+	// WhereaboutsIPv6AllocStart2 is the first IPv6 in the second pool.
+	WhereaboutsIPv6AllocStart2 = "2001:100:101::10"
+	// WhereaboutsIPv6AllocEnd2 is the last IPv6 in the second pool.
+	WhereaboutsIPv6AllocEnd2 = "2001:100:101::ff00"
+	// NADWaitTimeout represents timeout for NAD creation in QinQ tests.
+	NADWaitTimeout = 30 * time.Second
+	// ClusterMonitoringNSLabel represents Cluster Monitoring label for a NS to enable Prometheus Scraping.
+	ClusterMonitoringNSLabel = map[string]string{"openshift.io/cluster-monitoring": "true"}
 	// Labels represent the suite-level labels applied to all tests in the suite.
 	// Feature-specific labels (LabelBasic, LabelGUI, etc.) should be applied to individual tests.
 	Labels = []string{LabelSuite}
