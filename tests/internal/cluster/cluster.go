@@ -3,6 +3,9 @@ package cluster
 import (
 	"regexp"
 
+	configv1 "github.com/openshift/api/config/v1"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/infrastructure"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/mco"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
@@ -20,6 +23,18 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/ptr"
 )
+
+// IsSNOCluster checks if the cluster is a Single Node OpenShift (SNO) cluster.
+func IsSNOCluster(apiClient *clients.Settings) (bool, error) {
+	klog.V(90).Infof("Checking if cluster is SNO (Single Node OpenShift)")
+
+	infraConfig, err := infrastructure.Pull(apiClient)
+	if err != nil {
+		return false, fmt.Errorf("failed to pull infrastructure configuration: %w", err)
+	}
+
+	return infraConfig.Object.Status.ControlPlaneTopology == configv1.SingleReplicaTopologyMode, nil
+}
 
 // PullTestImageOnNodes pulls given image on range of relevant nodes based on nodeSelector.
 func PullTestImageOnNodes(apiClient *clients.Settings, nodeSelector, image string, pullTimeout int) error {
@@ -308,6 +323,23 @@ func WaitForUnreachable(client *clients.Settings, timeout time.Duration) error {
 
 			return false, nil
 		})
+}
+
+// WaitForMcpStable waits for the stability of the MCP with the given name.
+func WaitForMcpStable(apiClient *clients.Settings, waitingTime, stableDuration time.Duration, mcpName string) error {
+	klog.V(90).Infof("Waiting up to %v for mcp %s stable to be ready", waitingTime, mcpName)
+
+	mcp, err := mco.Pull(apiClient, mcpName)
+	if err != nil {
+		return fmt.Errorf("fail to pull mcp %s from cluster due to: %s", mcpName, err.Error())
+	}
+
+	err = mcp.WaitToBeStableFor(stableDuration, waitingTime)
+	if err != nil {
+		return fmt.Errorf("cluster is not stable: %s", err.Error())
+	}
+
+	return nil
 }
 
 // waitForReachable waits up to timeout for the cluster to become available by attempting to list nodes in the
