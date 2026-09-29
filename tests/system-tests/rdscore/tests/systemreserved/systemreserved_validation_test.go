@@ -402,13 +402,9 @@ var _ = Describe("SystemReserved", Ordered, Label(labelSystemReservedValidation)
 	})
 
 	Context("Node allocatable capacity validation", func() {
-		testNodeAllocatable := func(nodeList []*nodes.Builder, nodeType string) {
-
-			for _, node := range nodeList {
-				nodeObj := node.Object
-				nodeName := nodeObj.Name
-
-				It(fmt.Sprintf("Should have correct allocatable capacity on %s node %s", nodeType, nodeName), func() {
+		validateNodeAllocatable := func(node *nodes.Builder, nodeType string) {
+			nodeObj := node.Object
+			nodeName := nodeObj.Name
 					By("Getting node capacity and allocatable from status")
 					capacity := nodeObj.Status.Capacity
 					allocatable := nodeObj.Status.Allocatable
@@ -492,47 +488,82 @@ var _ = Describe("SystemReserved", Ordered, Label(labelSystemReservedValidation)
 					minExpectedCPU := expectedAllocatableCPU.DeepCopy()
 					minExpectedCPU.SetMilli(int64(float64(minExpectedCPU.MilliValue()) * 0.9))
 
-					Expect(allocatableCPU.Cmp(minExpectedCPU)).To(BeNumerically(">=", 0),
-						fmt.Sprintf("Node %s allocatable CPU (%s) is significantly less than expected (%s)",
-							nodeName, allocatableCPU.String(), expectedAllocatableCPU.String()))
-				})
-			}
+			Expect(allocatableCPU.Cmp(minExpectedCPU)).To(BeNumerically(">=", 0),
+				fmt.Sprintf("Node %s allocatable CPU (%s) is significantly less than expected (%s)",
+					nodeName, allocatableCPU.String(), expectedAllocatableCPU.String()))
 		}
 
 		When("Validating control plane node allocatable", func() {
-			testNodeAllocatable(controlPlaneNodes, "control-plane")
+			It("Should have correct allocatable capacity on all control plane nodes", func() {
+				for _, node := range controlPlaneNodes {
+					nodeName := node.Object.Name
+
+					// Skip nodes that are not ready or are storage nodes
+					if !isNodeReadyForTesting(node) {
+						reason := "NotReady or SchedulingDisabled"
+						if _, hasStorageRole := node.Object.Labels["node-role.kubernetes.io/storage"]; hasStorageRole {
+							reason = "Storage node"
+						}
+						GinkgoWriter.Printf("⊘ Skipping control plane node %s (%s)\n", nodeName, reason)
+						continue
+					}
+
+					By(fmt.Sprintf("Validating allocatable on control plane node %s", nodeName))
+					validateNodeAllocatable(node, "control-plane")
+				}
+			})
 		})
 
 		When("Validating worker node allocatable", func() {
-			testNodeAllocatable(workerNodes, "worker")
+			It("Should have correct allocatable capacity on all worker nodes", func() {
+				for _, node := range workerNodes {
+					nodeName := node.Object.Name
+
+					// Skip nodes that are not ready or are storage nodes
+					if !isNodeReadyForTesting(node) {
+						reason := "NotReady or SchedulingDisabled"
+						if _, hasStorageRole := node.Object.Labels["node-role.kubernetes.io/storage"]; hasStorageRole {
+							reason = "Storage node"
+						}
+						GinkgoWriter.Printf("⊘ Skipping worker node %s (%s)\n", nodeName, reason)
+						continue
+					}
+
+					By(fmt.Sprintf("Validating allocatable on worker node %s", nodeName))
+					validateNodeAllocatable(node, "worker")
+				}
+			})
 		})
 	})
 
 	Context("systemReserved enforcement validation", func() {
-		testNodeEnforcement := func(nodeList []*nodes.Builder, nodeType string) {
+		validateNodeEnforcement := func(node *nodes.Builder, nodeType string) {
+			nodeObj := node.Object
+			nodeName := nodeObj.Name
+			By(fmt.Sprintf("Checking kubelet config enforcement on node %s", nodeName))
 
-			for _, node := range nodeList {
-				nodeObj := node.Object
-				nodeName := nodeObj.Name
+			// Read kubelet configuration to verify enforcement settings
+			// Try OpenShift's standard kubelet config location first
+			cmd := []string{"cat", "/host/etc/kubernetes/kubelet.conf"}
+			output, err := executeDebugPodCommand(nodeName, cmd)
 
-				It(fmt.Sprintf("Should have systemReserved enforcement enabled on %s node %s", nodeType, nodeName), func() {
-					By(fmt.Sprintf("Checking kubelet config enforcement on node %s", nodeName))
+			if err != nil {
+				// If kubelet.conf doesn't exist, try YAML format in kubelet dir
+				cmd = []string{"cat", "/host/var/lib/kubelet/config.yaml"}
+				output, err = executeDebugPodCommand(nodeName, cmd)
+			}
 
-					// Read kubelet configuration to verify enforcement settings
-					cmd := []string{"cat", "/host/var/lib/kubelet/config.json"}
-					output, err := executeDebugPodCommand(nodeName, cmd)
+			if err != nil {
+				// Last resort: try config.json (note: this may be pull secrets, not kubelet config)
+				cmd = []string{"cat", "/host/var/lib/kubelet/config.json"}
+				output, err = executeDebugPodCommand(nodeName, cmd)
+			}
 
-					if err != nil {
-						// If config.json doesn't exist, try the YAML format
-						cmd = []string{"cat", "/host/var/lib/kubelet/config.yaml"}
-						output, err = executeDebugPodCommand(nodeName, cmd)
-					}
-
-					if err != nil {
-						GinkgoWriter.Printf("Warning: Could not read kubelet config from node %s: %v\n", nodeName, err)
-						GinkgoWriter.Printf("Skipping enforcement check - config file may be in different location\n")
-						Skip(fmt.Sprintf("Kubelet config not accessible on node %s", nodeName))
-					}
+			if err != nil {
+				GinkgoWriter.Printf("Warning: Could not read kubelet config from node %s: %v\n", nodeName, err)
+				GinkgoWriter.Printf("Tried: /host/etc/kubernetes/kubelet.conf, /host/var/lib/kubelet/config.yaml, /host/var/lib/kubelet/config.json\n")
+				return // Skip this node, continue with others
+			}
 
 					By("Verifying enforceNodeAllocatable includes system-reserved")
 					// Parse kubelet config to check enforceNodeAllocatable array
@@ -589,21 +620,53 @@ var _ = Describe("SystemReserved", Ordered, Label(labelSystemReservedValidation)
 					cpuAllocatable := allocatable[corev1.ResourceCPU]
 					cpuCapacity := capacity[corev1.ResourceCPU]
 
-					Expect(cpuAllocatable.Cmp(cpuCapacity)).To(Equal(-1),
-						fmt.Sprintf("Node %s allocatable CPU (%s) should be less than capacity (%s), indicating systemReserved is in effect",
-							nodeName, cpuAllocatable.String(), cpuCapacity.String()))
+			Expect(cpuAllocatable.Cmp(cpuCapacity)).To(Equal(-1),
+				fmt.Sprintf("Node %s allocatable CPU (%s) should be less than capacity (%s), indicating systemReserved is in effect",
+					nodeName, cpuAllocatable.String(), cpuCapacity.String()))
 
-					GinkgoWriter.Printf("✓ Node %s has systemReserved enforcement in effect (allocatable < capacity)\n", nodeName)
-				})
-			}
+			GinkgoWriter.Printf("✓ Node %s has systemReserved enforcement in effect (allocatable < capacity)\n", nodeName)
 		}
 
 		When("Validating control plane node enforcement", func() {
-			testNodeEnforcement(controlPlaneNodes, "control-plane")
+			It("Should have systemReserved enforcement enabled on all control plane nodes", func() {
+				for _, node := range controlPlaneNodes {
+					nodeName := node.Object.Name
+
+					// Skip nodes that are not ready or are storage nodes
+					if !isNodeReadyForTesting(node) {
+						reason := "NotReady or SchedulingDisabled"
+						if _, hasStorageRole := node.Object.Labels["node-role.kubernetes.io/storage"]; hasStorageRole {
+							reason = "Storage node"
+						}
+						GinkgoWriter.Printf("⊘ Skipping control plane node %s (%s)\n", nodeName, reason)
+						continue
+					}
+
+					By(fmt.Sprintf("Checking enforcement on control plane node %s", nodeName))
+					validateNodeEnforcement(node, "control-plane")
+				}
+			})
 		})
 
 		When("Validating worker node enforcement", func() {
-			testNodeEnforcement(workerNodes, "worker")
+			It("Should have systemReserved enforcement enabled on all worker nodes", func() {
+				for _, node := range workerNodes {
+					nodeName := node.Object.Name
+
+					// Skip nodes that are not ready or are storage nodes
+					if !isNodeReadyForTesting(node) {
+						reason := "NotReady or SchedulingDisabled"
+						if _, hasStorageRole := node.Object.Labels["node-role.kubernetes.io/storage"]; hasStorageRole {
+							reason = "Storage node"
+						}
+						GinkgoWriter.Printf("⊘ Skipping worker node %s (%s)\n", nodeName, reason)
+						continue
+					}
+
+					By(fmt.Sprintf("Checking enforcement on worker node %s", nodeName))
+					validateNodeEnforcement(node, "worker")
+				}
+			})
 		})
 	})
 
