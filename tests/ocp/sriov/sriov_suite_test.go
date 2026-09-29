@@ -49,6 +49,9 @@ var _ = BeforeSuite(func() {
 
 	err = cluster.PullTestImageOnNodes(APIClient, SriovOcpConfig.WorkerLabel, SriovOcpConfig.OcpSriovTestContainer, 300)
 	Expect(err).ToNot(HaveOccurred(), "Failed to pull test image on nodes")
+
+	err = cluster.PullTestImageOnNodes(APIClient, SriovOcpConfig.WorkerLabel, SriovOcpConfig.DpdkTestContainer, 300)
+	Expect(err).ToNot(HaveOccurred(), "Failed to pull DPDK test image on nodes")
 })
 var _ = AfterSuite(func() {
 	By("Deleting test namespace")
