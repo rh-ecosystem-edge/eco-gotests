@@ -8,10 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	nmstateShared "github.com/nmstate/kubernetes-nmstate/api/shared"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/configmap"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/daemonset"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nad"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nmstate"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
@@ -37,9 +34,8 @@ import (
 )
 
 const (
-	sriovAndResourceNameExManagedTrue = "extmanaged"
-	logLevelDebug                     = "debug"
-	mlxVendorID                       = "15b3"
+	logLevelDebug = "debug"
+	mlxVendorID   = "15b3"
 )
 
 var _ = Describe(
@@ -657,25 +653,24 @@ var _ = Describe(
 
 				By("Checking if NMState operator is installed")
 
-				_, err = namespace.Pull(APIClient, nmstateOperatorNamespace)
-				if err != nil {
+				if !sriovocpenv.IsNMStateOperatorInstalled() {
 					Skip("NMState operator is not installed on this cluster")
 				}
 
 				By("Creating a new instance of NMstate instance")
 
-				err = createNewNMStateAndWaitUntilItsRunning(7 * time.Minute)
+				err = sriovocpenv.CreateNewNMStateAndWaitUntilItsRunning(7 * time.Minute)
 				Expect(err).ToNot(HaveOccurred(), "Failed to create NMState instance")
 
 				var isMellanox bool
 
-				isMellanox, err = isMellanoxDevice(
+				isMellanox, err = sriovocpenv.IsMellanoxDevice(
 					srIovInterfacesUnderTest[0], workerNodeList[0].Object.Name,
 				)
 				Expect(err).ToNot(HaveOccurred(), "Failed to check if interface is a Mellanox device")
 
 				if isMellanox {
-					err = configureSriovMlnxFirmwareOnWorkersAndWaitMCP(
+					err = sriovocpenv.ConfigureSriovMlnxFirmwareOnWorkersAndWaitMCP(
 						tsparams.MCOWaitTimeout,
 						time.Minute,
 						workerNodeList,
@@ -688,7 +683,7 @@ var _ = Describe(
 
 				By("Creating SR-IOV VFs via NMState")
 
-				err = configureVFsAndWaitUntilItsConfigured(
+				err = sriovocpenv.ConfigureVFsAndWaitUntilItsConfigured(
 					configureNMStatePolicyName,
 					srIovInterfacesUnderTest[0],
 					SriovOcpConfig.WorkerLabelMap,
@@ -696,7 +691,7 @@ var _ = Describe(
 					tsparams.DefaultTimeout)
 				Expect(err).ToNot(HaveOccurred(), "Failed to create VFs via NMState")
 
-				err = waitUntilVfsCreated(
+				err = sriovocpenv.WaitUntilVfsCreated(
 					workerNodeList,
 					srIovInterfacesUnderTest[0], 5, tsparams.DefaultTimeout,
 				)
@@ -704,7 +699,8 @@ var _ = Describe(
 
 				By("Configure SR-IOV with flag ExternallyManaged true")
 
-				err = createSriovPolicyWithExManaged(sriovAndResourceNameExManagedTrue, srIovInterfacesUnderTest[0])
+				err = createSriovPolicyWithExternallyManaged(
+					tsparams.SriovResourceNameExManagedTrue, 5, []string{srIovInterfacesUnderTest[0]})
 				Expect(err).ToNot(HaveOccurred(),
 					"Failed to create sriov configuration with flag ExternallyManaged true")
 
@@ -717,7 +713,7 @@ var _ = Describe(
 
 				By("Define and create sriov-networks")
 				defineAndCreateSriovNetworks(srIovNetworkPromiscuous, srIovNetworkDot1AD, srIovNetworkDot1Q,
-					sriovAndResourceNameExManagedTrue)
+					tsparams.SriovResourceNameExManagedTrue)
 
 				By("Enable VF promiscuous support on sriov interface under test")
 				setVFPromiscMode(workerNodeList[0].Definition.Name, srIovInterfacesUnderTest[0], sriovVendor, "on")
@@ -760,12 +756,12 @@ var _ = Describe(
 				nmstatePolicy := nmstate.NewPolicyBuilder(
 					APIClient, configureNMStatePolicyName, SriovOcpConfig.WorkerLabelMap).
 					WithInterfaceAndVFs(srIovInterfacesUnderTest[0], 0)
-				err = updatePolicyAndWaitUntilItsAvailable(tsparams.DefaultTimeout, nmstatePolicy)
+				err = sriovocpenv.UpdatePolicyAndWaitUntilItsAvailable(tsparams.DefaultTimeout, nmstatePolicy)
 				Expect(err).ToNot(HaveOccurred(), "Failed to update NMState network policy")
 
 				By("Verifying that VFs removed")
 
-				err = waitUntilVfsCreated(
+				err = sriovocpenv.WaitUntilVfsCreated(
 					workerNodeList,
 					srIovInterfacesUnderTest[0], 0, tsparams.DefaultTimeout,
 				)
@@ -1283,7 +1279,8 @@ func setVFPromiscMode(nodeName, srIovInterfacesUnderTest, sriovVendor, onOff str
 			srIovInterfacesUnderTest, onOff)
 	}
 
-	output, err := runCommandOnHostNetworkPod(nodeName, SriovOcpConfig.OcpSriovOperatorNamespace, promiscVFCommand)
+	output, err := sriovocpenv.RunCommandOnHostNetworkPod(
+		nodeName, SriovOcpConfig.OcpSriovOperatorNamespace, promiscVFCommand)
 	Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to run command on node %s", output))
 }
 
@@ -1312,27 +1309,6 @@ func cleanTestEnvSRIOVConfiguration() {
 		APIClient, tsparams.MCOWaitTimeout, time.Minute,
 		SriovOcpConfig.MCPLabel, SriovOcpConfig.OcpSriovOperatorNamespace)
 	Expect(err).ToNot(HaveOccurred(), "Failed cluster is not stable")
-}
-
-func createSriovPolicyWithExManaged(sriovAndResName, sriovInterfaceName string) error {
-	klog.V(90).Infof("Creating SR-IOV policy with flag ExternallyManaged true")
-
-	sriovPolicy := sriov.NewPolicyBuilder(APIClient, sriovAndResName, SriovOcpConfig.OcpSriovOperatorNamespace,
-		sriovAndResName,
-		5, []string{sriovInterfaceName}, SriovOcpConfig.WorkerLabelMap).WithExternallyManaged(true)
-
-	err := sriovoperator.CreateSriovPolicyAndWaitUntilItsApplied(
-		APIClient,
-		SriovOcpConfig.WorkerLabelEnvVar,
-		SriovOcpConfig.OcpSriovOperatorNamespace,
-		sriovPolicy,
-		tsparams.MCOWaitTimeout,
-		tsparams.DefaultStableDuration)
-	if err != nil {
-		return fmt.Errorf("failed to sriov policy, %w", err)
-	}
-
-	return nil
 }
 
 func createSriovNetworkAndWaitForNAD(sNet *sriov.NetworkBuilder, timeout time.Duration) error {
@@ -1372,31 +1348,6 @@ func defineAndCreateSriovNetwork(networkName, resourceName string, withStaticIP,
 	return createSriovNetworkAndWaitForNAD(networkBuilder, tsparams.NADWaitTimeout)
 }
 
-func runCommandOnHostNetworkPod(nodeName, nsName, command string) (string, error) {
-	klog.V(90).Infof("Running command %s on the host network pod on node %s",
-		command, nodeName)
-
-	testPod, err := pod.NewBuilder(APIClient, "hostnetworkpod", nsName, SriovOcpConfig.OcpSriovTestContainer).
-		DefineOnNode(nodeName).WithPrivilegedFlag().WithHostNetwork().CreateAndWaitUntilRunning(tsparams.DefaultTimeout)
-	if err != nil {
-		return "", err
-	}
-
-	defer func() {
-		_, deleteErr := testPod.DeleteAndWait(tsparams.DefaultTimeout)
-		if deleteErr != nil {
-			klog.V(90).Infof("failed to delete hostnetwork pod %s: %v", testPod.Definition.Name, deleteErr)
-		}
-	}()
-
-	output, err := testPod.ExecCommand([]string{"/bin/bash", "-c", command})
-	if err != nil {
-		return "", err
-	}
-
-	return output.String(), nil
-}
-
 func rxTrafficOnClientPod(clientPod *pod.Builder, clientRxCmd string) error {
 	timeoutError := "command terminated with exit code 137"
 
@@ -1433,184 +1384,4 @@ func createTapNad(name string, nsname string, user int, group int,
 	}
 
 	return nad.NewBuilder(APIClient, name, nsname).WithPlugins(name, &plugins).Create()
-}
-
-func isMellanoxDevice(intName, nodeName string) (bool, error) {
-	sriovNetworkState := sriov.NewNetworkNodeStateBuilder(APIClient, nodeName,
-		SriovOcpConfig.OcpSriovOperatorNamespace)
-
-	driverName, err := sriovNetworkState.GetDriverName(intName)
-	if err != nil {
-		return false, fmt.Errorf("failed to get driver name for interface %s on node %s: %w", intName, nodeName, err)
-	}
-
-	return driverName == "mlx5_core", nil
-}
-
-func waitUntilVfsCreated(
-	nodeList []*nodes.Builder,
-	sriovInterfaceName string,
-	numberOfVfs int,
-	timeout time.Duration,
-) error {
-	for _, node := range nodeList {
-		err := wait.PollUntilContextTimeout(
-			context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-				sriovNetworkState := sriov.NewNetworkNodeStateBuilder(
-					APIClient, node.Object.Name, SriovOcpConfig.OcpSriovOperatorNamespace)
-
-				if discoverErr := sriovNetworkState.Discover(); discoverErr != nil {
-					return false, nil
-				}
-
-				sriovNumVfs, numErr := sriovNetworkState.GetNumVFs(sriovInterfaceName)
-				if numErr != nil {
-					return false, nil
-				}
-
-				return sriovNumVfs == numberOfVfs, nil
-			})
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func configureSriovMlnxFirmwareOnWorkersAndWaitMCP(
-	mcpTimeout time.Duration,
-	stableDuration time.Duration,
-	workerNodes []*nodes.Builder,
-	sriovInterfaceName string,
-	enableSriov bool,
-	numVfs int,
-) error {
-	for _, workerNode := range workerNodes {
-		sriovNetworkState := sriov.NewNetworkNodeStateBuilder(
-			APIClient, workerNode.Object.Name, SriovOcpConfig.OcpSriovOperatorNamespace)
-
-		pciAddress, err := sriovNetworkState.GetPciAddress(sriovInterfaceName)
-		if err != nil {
-			return fmt.Errorf("failed to get PCI address: %w", err)
-		}
-
-		mstconfigCmd := fmt.Sprintf("mstconfig -y -d %s set SRIOV_EN=%t NUM_OF_VFS=%d",
-			pciAddress, enableSriov, numVfs)
-
-		pods, err := pod.List(APIClient, SriovOcpConfig.OcpSriovOperatorNamespace, metav1.ListOptions{
-			LabelSelector: "app=sriov-network-config-daemon",
-			FieldSelector: fmt.Sprintf("spec.nodeName=%s", workerNode.Object.Name),
-		})
-		if err != nil || len(pods) == 0 {
-			return fmt.Errorf("failed to find config daemon pod on node %s", workerNode.Object.Name)
-		}
-
-		output, err := pods[0].ExecCommand([]string{"bash", "-c", mstconfigCmd})
-		if err != nil {
-			return fmt.Errorf("failed to configure Mellanox firmware on node %s: %s %w",
-				workerNode.Object.Name, output.String(), err)
-		}
-
-		_, _ = pods[0].ExecCommand([]string{"bash", "-c", "chroot /host reboot"})
-	}
-
-	time.Sleep(10 * time.Second)
-
-	return cluster.WaitForMcpStable(APIClient, mcpTimeout, stableDuration, SriovOcpConfig.MCPLabel)
-}
-
-const (
-	nmstateName                  = "nmstate"
-	nmstateHandlerDsName         = "nmstate-handler"
-	nmstateWebhookDeploymentName = "nmstate-webhook"
-	nmstateOperatorNamespace     = "openshift-nmstate"
-)
-
-func createNewNMStateAndWaitUntilItsRunning(timeout time.Duration) error {
-	nmstateInstance, err := nmstate.PullNMstate(APIClient, nmstateName)
-	if err == nil {
-		_, err = nmstateInstance.Delete()
-		if err != nil {
-			return err
-		}
-	}
-
-	_, err = nmstate.NewBuilder(APIClient, nmstateName).Create()
-	if err != nil {
-		return err
-	}
-
-	return isNMStateDeployedAndReady(timeout)
-}
-
-func isNMStateDeployedAndReady(timeout time.Duration) error {
-	var (
-		nmstateHandlerDs         *daemonset.Builder
-		nmstateWebhookDeployment *deployment.Builder
-		err                      error
-	)
-
-	err = wait.PollUntilContextTimeout(
-		context.TODO(), 5*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			nmstateHandlerDs, err = daemonset.Pull(
-				APIClient, nmstateHandlerDsName, nmstateOperatorNamespace)
-			if err != nil {
-				return false, nil
-			}
-
-			nmstateWebhookDeployment, err = deployment.Pull(
-				APIClient, nmstateWebhookDeploymentName, nmstateOperatorNamespace)
-			if err != nil {
-				return false, nil
-			}
-
-			return true, nil
-		})
-	if err != nil {
-		return err
-	}
-
-	time.Sleep(10 * time.Second)
-
-	if !nmstateHandlerDs.IsReady(timeout) {
-		return fmt.Errorf("nmstate handler daemonset is not ready")
-	}
-
-	if !nmstateWebhookDeployment.IsReady(timeout) {
-		return fmt.Errorf("nmstate webhook deployment is not ready")
-	}
-
-	return nil
-}
-
-func configureVFsAndWaitUntilItsConfigured(
-	policyName string,
-	sriovInterfaceName string,
-	nodeLabel map[string]string,
-	numberOfVFs uint8,
-	timeout time.Duration) error {
-	nmstatePolicy := nmstate.NewPolicyBuilder(
-		APIClient, policyName, nodeLabel).WithInterfaceAndVFs(sriovInterfaceName, numberOfVFs)
-
-	nmstatePolicy, err := nmstatePolicy.Create()
-	if err != nil {
-		return err
-	}
-
-	return nmstatePolicy.WaitUntilCondition(nmstateShared.NodeNetworkConfigurationPolicyConditionAvailable, timeout)
-}
-
-func updatePolicyAndWaitUntilItsAvailable(timeout time.Duration, nmstatePolicy *nmstate.PolicyBuilder) error {
-	nmstatePolicy, err := nmstatePolicy.Update(true)
-	if err != nil {
-		return err
-	}
-
-	err = nmstatePolicy.WaitUntilCondition(nmstateShared.NodeNetworkConfigurationPolicyConditionProgressing, timeout)
-	if err != nil {
-		return err
-	}
-
-	return nmstatePolicy.WaitUntilCondition(nmstateShared.NodeNetworkConfigurationPolicyConditionAvailable, timeout)
 }
