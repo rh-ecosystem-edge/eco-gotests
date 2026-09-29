@@ -59,6 +59,11 @@ var _ = Describe("Neuron DRA vLLM Inference Tests", Ordered,
 					APIClient, params.DRADefaultDeviceClassName, tsparams.DeviceClassTimeout)
 				Expect(err).ToNot(HaveOccurred(), "Neuron DeviceClass should exist")
 
+				By("Waiting for the DRA driver to publish Neuron ResourceSlices")
+
+				err = await.DRAResourcesAvailable(APIClient, tsparams.DRADeployTimeout)
+				Expect(err).ToNot(HaveOccurred(), "Neuron ResourceSlices should be published")
+
 				_, deviceCount, err := check.SmallestDRANode(APIClient)
 				Expect(err).ToNot(HaveOccurred(), "Neuron ResourceSlices should be published")
 				Expect(deviceCount).To(BeNumerically(">=", vllmConfig.NeuronDevices),
