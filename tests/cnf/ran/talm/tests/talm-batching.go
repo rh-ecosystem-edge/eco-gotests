@@ -26,7 +26,10 @@ import (
 )
 
 var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), func() {
-	var err error
+	var (
+		err             error
+		eventsSupported bool
+	)
 
 	BeforeEach(func() {
 		By("checking that hub and two spokes are present")
@@ -42,16 +45,24 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 			Skip("TALM batching tests require version 4.11 or higher")
 		}
 
-		By(fmt.Sprintf("clearing CGU events in the %s namespace", tsparams.TestNamespace))
+		eventsSupported, err = version.IsVersionStringInRange(
+			RANConfig.HubOperatorVersions[ranparam.TALM], tsparams.MinTalmCGUEventsVersion, "")
+		Expect(err).ToNot(HaveOccurred(), "Failed to compare TALM version for CGU events")
 
-		err = helper.ClearCGUEvents()
-		Expect(err).ToNot(HaveOccurred(), "Failed to clear CGU events")
+		if eventsSupported {
+			By(fmt.Sprintf("clearing CGU events in the %s namespace", tsparams.TestNamespace))
+
+			err = helper.ClearCGUEvents()
+			Expect(err).ToNot(HaveOccurred(), "Failed to clear CGU events")
+		}
 	})
 
 	AfterEach(func() {
-		By(fmt.Sprintf("printing CGU events in the %s namespace", tsparams.TestNamespace))
+		if eventsSupported {
+			By(fmt.Sprintf("printing CGU events in the %s namespace", tsparams.TestNamespace))
 
-		helper.PrintCGUEvents()
+			helper.PrintCGUEvents()
+		}
 
 		By("cleaning up resources on hub")
 
@@ -83,27 +94,29 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 			_, err = cguBuilder.WaitForCondition(tsparams.CguNonExistentClusterCondition, 3*tsparams.TalmDefaultReconcileTime)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU to have matching condition")
 
-			By("verifying CGU emitted validation failure event with annotations")
+			if eventsSupported {
+				By("verifying CGU emitted validation failure event with annotations")
 
-			Eventually(helper.EventPoller(tsparams.CguName, func(events []*eventsv1.Event) (bool, error) {
-				// OCPBUGS-120826: scope annotation on validation events
-				validationEvents := helper.FindEventsByReasonAndScope(events,
-					tsparams.CguValidationFailure, tsparams.EventScopeGlobal)
-				if len(validationEvents) == 0 {
-					return false, fmt.Errorf("no CguValidationFailure/global events found (OCPBUGS-120826)")
-				}
+				Eventually(helper.EventPoller(tsparams.CguName, func(events []*eventsv1.Event) (bool, error) {
+					// OCPBUGS-120826: scope annotation on validation events
+					validationEvents := helper.FindEventsByReasonAndScope(events,
+						tsparams.CguValidationFailure, tsparams.EventScopeGlobal)
+					if len(validationEvents) == 0 {
+						return false, fmt.Errorf("no CguValidationFailure/global events found (OCPBUGS-120826)")
+					}
 
-				if !helper.HasEventWithAnnotation(validationEvents, tsparams.CguMissingClustersAnnotation) {
-					return false, fmt.Errorf("missing missing-clusters annotation on validation event")
-				}
+					if !helper.HasEventWithAnnotation(validationEvents, tsparams.CguMissingClustersAnnotation) {
+						return false, fmt.Errorf("missing missing-clusters annotation on validation event")
+					}
 
-				if !helper.HasEventWithAnnotation(validationEvents, tsparams.CguMissingClustersCountAnnotation) {
-					return false, fmt.Errorf("missing missing-clusters-count annotation on validation event")
-				}
+					if !helper.HasEventWithAnnotation(validationEvents, tsparams.CguMissingClustersCountAnnotation) {
+						return false, fmt.Errorf("missing missing-clusters-count annotation on validation event")
+					}
 
-				return true, nil
-			})).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
-				"[EVENT CHECK] Missing CguValidationFailure/global event or missing-clusters annotations")
+					return true, nil
+				})).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
+					"[EVENT CHECK] Missing CguValidationFailure/global event or missing-clusters annotations")
+			}
 		})
 	})
 
@@ -125,23 +138,25 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 			_, err = cguBuilder.WaitForCondition(tsparams.CguNonExistentPolicyCondition, 2*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU to have matching condition")
 
-			By("verifying CGU emitted validation failure event with annotations")
+			if eventsSupported {
+				By("verifying CGU emitted validation failure event with annotations")
 
-			Eventually(helper.EventPoller(tsparams.CguName, func(events []*eventsv1.Event) (bool, error) {
-				// OCPBUGS-120826: scope annotation on validation events
-				validationEvents := helper.FindEventsByReasonAndScope(events,
-					tsparams.CguValidationFailure, tsparams.EventScopeGlobal)
-				if len(validationEvents) == 0 {
-					return false, fmt.Errorf("no CguValidationFailure/global events found (OCPBUGS-120826)")
-				}
+				Eventually(helper.EventPoller(tsparams.CguName, func(events []*eventsv1.Event) (bool, error) {
+					// OCPBUGS-120826: scope annotation on validation events
+					validationEvents := helper.FindEventsByReasonAndScope(events,
+						tsparams.CguValidationFailure, tsparams.EventScopeGlobal)
+					if len(validationEvents) == 0 {
+						return false, fmt.Errorf("no CguValidationFailure/global events found (OCPBUGS-120826)")
+					}
 
-				if !helper.HasEventWithAnnotation(validationEvents, tsparams.CguMissingPoliciesAnnotation) {
-					return false, fmt.Errorf("missing missing-policies annotation on validation event")
-				}
+					if !helper.HasEventWithAnnotation(validationEvents, tsparams.CguMissingPoliciesAnnotation) {
+						return false, fmt.Errorf("missing missing-policies annotation on validation event")
+					}
 
-				return true, nil
-			})).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
-				"[EVENT CHECK] Missing CguValidationFailure/global event or missing-policies annotation")
+					return true, nil
+				})).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
+					"[EVENT CHECK] Missing CguValidationFailure/global event or missing-policies annotation")
+			}
 		})
 	})
 
@@ -181,28 +196,30 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 			cguBuilder, err = cguBuilder.WaitForCondition(tsparams.CguTimeoutReasonCondition, 11*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU to timeout")
 
-			By("verifying CGU emitted timeout events with timedout-clusters annotation")
+			if eventsSupported {
+				By("verifying CGU emitted timeout events with timedout-clusters annotation")
 
-			expectedSequence := []helper.EventMatcher{
-				{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeBatch},
-				{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeGlobal},
+				expectedSequence := []helper.EventMatcher{
+					{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeBatch},
+					{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeGlobal},
+				}
+
+				Eventually(helper.EventPoller(tsparams.CguName, func(events []*eventsv1.Event) (bool, error) {
+					matched, seqErr := helper.VerifyEventSequence(events, expectedSequence)
+					if !matched {
+						return false, seqErr
+					}
+
+					timeoutEvents := helper.FindEventsByReasonAndScope(events,
+						tsparams.CguTimedout, tsparams.EventScopeGlobal)
+					if !helper.HasEventWithAnnotation(timeoutEvents, tsparams.CguTimedoutClustersAnnotation) {
+						return false, fmt.Errorf("missing timedout-clusters annotation on global timeout event")
+					}
+
+					return true, nil
+				})).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
+					"[EVENT CHECK] CGU event sequence mismatch for timeout (abort mode)")
 			}
-
-			Eventually(helper.EventPoller(tsparams.CguName, func(events []*eventsv1.Event) (bool, error) {
-				matched, seqErr := helper.VerifyEventSequence(events, expectedSequence)
-				if !matched {
-					return false, seqErr
-				}
-
-				timeoutEvents := helper.FindEventsByReasonAndScope(events,
-					tsparams.CguTimedout, tsparams.EventScopeGlobal)
-				if !helper.HasEventWithAnnotation(timeoutEvents, tsparams.CguTimedoutClustersAnnotation) {
-					return false, fmt.Errorf("missing timedout-clusters annotation on global timeout event")
-				}
-
-				return true, nil
-			})).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
-				"[EVENT CHECK] CGU event sequence mismatch for timeout (abort mode)")
 
 			By("validating that the policy failed on spoke1")
 
@@ -273,16 +290,18 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 			_, err = cguBuilder.WaitForCondition(tsparams.CguTimeoutReasonCondition, 16*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU to timeout")
 
-			By("verifying CGU emitted timeout events")
+			if eventsSupported {
+				By("verifying CGU emitted timeout events")
 
-			expectedSequence := []helper.EventMatcher{
-				{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeBatch},
-				{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeGlobal},
+				expectedSequence := []helper.EventMatcher{
+					{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeBatch},
+					{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeGlobal},
+				}
+
+				Eventually(helper.EventSequencePoller(tsparams.CguName, expectedSequence)).
+					WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
+					"[EVENT CHECK] CGU event sequence mismatch for timeout (report mode)")
 			}
-
-			Eventually(helper.EventSequencePoller(tsparams.CguName, expectedSequence)).
-				WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
-				"[EVENT CHECK] CGU event sequence mismatch for timeout (report mode)")
 
 			By("validating that the policy succeeded on spoke1")
 
@@ -332,23 +351,25 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 			_, err = cguBuilder.WaitForCondition(tsparams.CguTimeoutReasonCondition, 16*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU to timeout")
 
-			By("verifying CGU emitted events for first batch timeout, second batch success, and final recompliance check")
+			if eventsSupported {
+				By("verifying CGU emitted events for first batch timeout, second batch success, and final recompliance check")
 
-			// First batch times out, second batch succeeds, then final recompliance check
-			// (intentional behavior per dev feedback #4)
-			// This means: timeout in first batch, success in second batch, but global timeout at end
-			expectedSequence := []helper.EventMatcher{
-				{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeGlobal},
-				{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeBatch},   // first batch
-				{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeBatch},  // first batch times out
-				{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeBatch},   // second batch
-				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeBatch},   // second batch succeeds
-				{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeGlobal}, // global timeout (late non-compliant)
+				// First batch times out, second batch succeeds, then final recompliance check
+				// (intentional behavior per dev feedback #4)
+				// This means: timeout in first batch, success in second batch, but global timeout at end
+				expectedSequence := []helper.EventMatcher{
+					{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeGlobal},
+					{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeBatch},   // first batch
+					{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeBatch},  // first batch times out
+					{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeBatch},   // second batch
+					{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeBatch},   // second batch succeeds
+					{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeGlobal}, // global timeout (late non-compliant)
+				}
+
+				Eventually(helper.EventSequencePoller(tsparams.CguName, expectedSequence)).
+					WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
+					"[EVENT CHECK] CGU event sequence mismatch for Continue action with timeout and recompliance check")
 			}
-
-			Eventually(helper.EventSequencePoller(tsparams.CguName, expectedSequence)).
-				WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
-				"[EVENT CHECK] CGU event sequence mismatch for Continue action with timeout and recompliance check")
 
 			By("validating that the policy succeeded on spoke2")
 
@@ -400,21 +421,23 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 				cguBuilder, err = cguBuilder.WaitForCondition(tsparams.CguTimeoutReasonCondition, 21*time.Minute)
 				Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU to timeout")
 
-				By("verifying CGU emitted events for first batch success and second batch timeout")
+				if eventsSupported {
+					By("verifying CGU emitted events for first batch success and second batch timeout")
 
-				// First batch (spoke1) completes, second batch (spoke2) times out
-				expectedSequence := []helper.EventMatcher{
-					{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeGlobal},
-					{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeBatch},  // first batch
-					{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeBatch},  // first batch completes
-					{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeBatch},  // second batch
-					{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeBatch}, // second batch times out
-					{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeGlobal},
+					// First batch (spoke1) completes, second batch (spoke2) times out
+					expectedSequence := []helper.EventMatcher{
+						{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeGlobal},
+						{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeBatch},  // first batch
+						{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeBatch},  // first batch completes
+						{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeBatch},  // second batch
+						{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeBatch}, // second batch times out
+						{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeGlobal},
+					}
+
+					Eventually(helper.EventSequencePoller(tsparams.CguName, expectedSequence)).
+						WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
+						"[EVENT CHECK] CGU event sequence mismatch for first batch success, second batch timeout")
 				}
-
-				Eventually(helper.EventSequencePoller(tsparams.CguName, expectedSequence)).
-					WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
-					"[EVENT CHECK] CGU event sequence mismatch for first batch success, second batch timeout")
 
 				By("validating that the policy succeeded on spoke1")
 
@@ -479,16 +502,18 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 			cguBuilder, err = cguBuilder.WaitForCondition(tsparams.CguTimeoutReasonCondition, 11*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU to timeout")
 
-			By("verifying CGU emitted timeout events for single cluster batch")
+			if eventsSupported {
+				By("verifying CGU emitted timeout events for single cluster batch")
 
-			expectedSequence := []helper.EventMatcher{
-				{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeBatch},
-				{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeGlobal},
+				expectedSequence := []helper.EventMatcher{
+					{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeBatch},
+					{Reason: tsparams.CguTimedout, Scope: tsparams.EventScopeGlobal},
+				}
+
+				Eventually(helper.EventSequencePoller(tsparams.CguName, expectedSequence)).
+					WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
+					"[EVENT CHECK] CGU event sequence mismatch for single cluster timeout")
 			}
-
-			Eventually(helper.EventSequencePoller(tsparams.CguName, expectedSequence)).
-				WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
-				"[EVENT CHECK] CGU event sequence mismatch for single cluster timeout")
 
 			By("validating that the timeout should have occurred after just the first reconcile")
 
@@ -577,26 +602,28 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 			_, err = cguBuilder.WaitForCondition(tsparams.CguSuccessfulFinishCondition, 21*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for the CGU to finish successfully")
 
-			By("verifying CGU emitted correct lifecycle events")
+			if eventsSupported {
+				By("verifying CGU emitted correct lifecycle events")
 
-			// Define expected event sequence for successful 2-cluster, 1-batch CGU
-			expectedSequence := []helper.EventMatcher{
-				{Reason: tsparams.CguCreated, Scope: tsparams.EventScopeGlobal},
-				{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeGlobal},
-				{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeBatch},
-				// Both spokes start concurrently and a spoke may succeed before the other's start
-				// is recorded, so the cluster-started group is left non-strict to allow interleaving.
-				{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeCluster, Count: 2},
-				// Batch success must only follow after both clusters succeed, so require the whole
-				// cluster-success group to precede the batch-success event.
-				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeCluster, Count: 2, Strict: true},
-				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeBatch},
-				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeGlobal},
+				// Define expected event sequence for successful 2-cluster, 1-batch CGU
+				expectedSequence := []helper.EventMatcher{
+					{Reason: tsparams.CguCreated, Scope: tsparams.EventScopeGlobal},
+					{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeGlobal},
+					{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeBatch},
+					// Both spokes start concurrently and a spoke may succeed before the other's start
+					// is recorded, so the cluster-started group is left non-strict to allow interleaving.
+					{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeCluster, Count: 2},
+					// Batch success must only follow after both clusters succeed, so require the whole
+					// cluster-success group to precede the batch-success event.
+					{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeCluster, Count: 2, Strict: true},
+					{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeBatch},
+					{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeGlobal},
+				}
+
+				Eventually(helper.EventSequencePoller(tsparams.CguName, expectedSequence)).
+					WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
+					"[EVENT CHECK] CGU event sequence mismatch for successful 2-cluster lifecycle")
 			}
-
-			Eventually(helper.EventSequencePoller(tsparams.CguName, expectedSequence)).
-				WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
-				"[EVENT CHECK] CGU event sequence mismatch for successful 2-cluster lifecycle")
 
 			By("verifying the test policy was deleted upon CGU expiration")
 
