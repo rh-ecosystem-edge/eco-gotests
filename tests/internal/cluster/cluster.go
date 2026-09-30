@@ -59,6 +59,13 @@ func PullTestImageOnNodes(apiClient *clients.Settings, nodeSelector, image strin
 		if err != nil {
 			return err
 		}
+
+		// PullImage deletes the pod without waiting. The next pull reuses this name and
+		// would skip creation while the old pod is still terminating.
+		err = podBuilder.WaitUntilDeleted(time.Duration(pullTimeout) * time.Second)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
