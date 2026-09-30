@@ -77,7 +77,7 @@ func firstHoldoverParameters(
 // GetGmInterfaceFromHardwareConfig returns the GNSS-facing network interface from a HardwareConfig
 // ClockChain. Prefers gnssConfig.match.ethernetInterface, then the GNSS subsystem's
 // dpll.networkInterface, then the first ethernet port on that subsystem.
-func GetGmInterfaceFromHardwareConfig(hwConfig *ptp.HardwareConfigBuilder) (iface.Name, error) {
+func GetGmInterfaceFromHardwareConfig(hwConfig *ptp.HardwareConfigBuilder) (iface.Iface, error) {
 	if hwConfig == nil || hwConfig.Definition == nil {
 		return "", fmt.Errorf("HardwareConfig is nil")
 	}
@@ -99,7 +99,7 @@ func GetGmInterfaceFromHardwareConfig(hwConfig *ptp.HardwareConfigBuilder) (ifac
 
 			if source.GNSSConfig != nil && source.GNSSConfig.Match != nil &&
 				source.GNSSConfig.Match.EthernetInterface != "" {
-				return iface.Name(source.GNSSConfig.Match.EthernetInterface), nil
+				return iface.Iface(source.GNSSConfig.Match.EthernetInterface), nil
 			}
 
 			if ifaceName, err := networkInterfaceForSubsystem(chain, source.Subsystem); err == nil {
@@ -123,7 +123,7 @@ func GetGmInterfaceFromHardwareConfig(hwConfig *ptp.HardwareConfigBuilder) (ifac
 		hwConfig.Definition.Name)
 }
 
-func networkInterfaceForSubsystem(chain *ptpv2alpha1.ClockChain, subsystemName string) (iface.Name, error) {
+func networkInterfaceForSubsystem(chain *ptpv2alpha1.ClockChain, subsystemName string) (iface.Iface, error) {
 	for i := range chain.Structure {
 		sub := &chain.Structure[i]
 		if sub.Name != subsystemName {
@@ -131,12 +131,12 @@ func networkInterfaceForSubsystem(chain *ptpv2alpha1.ClockChain, subsystemName s
 		}
 
 		if sub.DPLL.NetworkInterface != "" {
-			return iface.Name(sub.DPLL.NetworkInterface), nil
+			return iface.Iface(sub.DPLL.NetworkInterface), nil
 		}
 
 		for _, eth := range sub.Ethernet {
 			if len(eth.Ports) > 0 && eth.Ports[0] != "" {
-				return iface.Name(eth.Ports[0]), nil
+				return iface.Iface(eth.Ports[0]), nil
 			}
 		}
 	}

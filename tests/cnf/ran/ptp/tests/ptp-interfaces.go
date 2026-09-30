@@ -111,7 +111,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			for nicName, interfaceGroup := range interfaceGroups {
 				// Especially for SNO, bringing down the egress interface will break the test, so we skip
 				// this NIC.
-				if nicName == egressInterface.GetNIC() {
+				if nicName == egressInterface.GetAlias() {
 					klog.V(tsparams.LogLevel).Infof("Skipping test for egress interface %s", nicName)
 
 					continue
@@ -261,9 +261,9 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				By("setting the boundary clock master interfaces up")
 
 				for _, masterInterface := range masterInterfaces {
-					By(fmt.Sprintf("setting the Boundary Clock master interface %s up", masterInterface.Name))
-					err := iface.SetInterfaceStatus(RANConfig.Spoke1APIClient, nodeName, masterInterface.Name, iface.InterfaceStateUp)
-					Expect(err).ToNot(HaveOccurred(), "Failed to set interface %s to up on node %s", masterInterface.Name, nodeName)
+					By(fmt.Sprintf("setting the Boundary Clock master interface %s up", masterInterface.Iface))
+					err := iface.SetInterfaceStatus(RANConfig.Spoke1APIClient, nodeName, masterInterface.Iface, iface.InterfaceStateUp)
+					Expect(err).ToNot(HaveOccurred(), "Failed to set interface %s to up on node %s", masterInterface.Iface, nodeName)
 				}
 			})
 
@@ -272,9 +272,10 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			By("setting the boundary clock master interfaces down")
 
 			for _, masterInterface := range masterInterfaces {
-				By(fmt.Sprintf("setting the Boundary Clock master interface %s down", masterInterface.Name))
-				err := iface.SetInterfaceStatus(RANConfig.Spoke1APIClient, nodeName, masterInterface.Name, iface.InterfaceStateDown)
-				Expect(err).ToNot(HaveOccurred(), "Failed to set interface %s to down on node %s", masterInterface.Name, nodeName)
+				By(fmt.Sprintf("setting the Boundary Clock master interface %s down", masterInterface.Iface))
+				err := iface.SetInterfaceStatus(
+					RANConfig.Spoke1APIClient, nodeName, masterInterface.Iface, iface.InterfaceStateDown)
+				Expect(err).ToNot(HaveOccurred(), "Failed to set interface %s to down on node %s", masterInterface.Iface, nodeName)
 			}
 
 			By("validating that the ptp metric stays in locked state")
@@ -310,25 +311,25 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				By("validating clock class is still 6 for all boundary clock master interfaces")
 
 				for _, masterInterface := range masterInterfaces {
-					By(fmt.Sprintf("validating clock class is 6 for interface %s", masterInterface.Name))
+					By(fmt.Sprintf("validating clock class is 6 for interface %s", masterInterface.Iface))
 					clockClassEventFilter := events.All(
 						events.IsType(eventptp.PtpClockClassChange),
 						events.HasValue(
 							events.WithMetric(6),
-							events.ContainingResource(string(masterInterface.Name.GetNIC())),
+							events.ContainingResource(string(masterInterface.Iface.GetAlias())),
 						),
 					)
 					err = events.WaitForEvent(eventPod, startTime, 1*time.Minute, clockClassEventFilter)
-					Expect(err).ToNot(HaveOccurred(), "Failed to wait for clock class event for interface %s", masterInterface.Name)
+					Expect(err).ToNot(HaveOccurred(), "Failed to wait for clock class event for interface %s", masterInterface.Iface)
 				}
 			}
 
 			By("setting the boundary clock master interfaces up")
 
 			for _, masterInterface := range masterInterfaces {
-				By(fmt.Sprintf("setting the Boundary Clock master interface %s up", masterInterface.Name))
-				err := iface.SetInterfaceStatus(RANConfig.Spoke1APIClient, nodeName, masterInterface.Name, iface.InterfaceStateUp)
-				Expect(err).ToNot(HaveOccurred(), "Failed to set interface %s to up on node %s", masterInterface.Name, nodeName)
+				By(fmt.Sprintf("setting the Boundary Clock master interface %s up", masterInterface.Iface))
+				err := iface.SetInterfaceStatus(RANConfig.Spoke1APIClient, nodeName, masterInterface.Iface, iface.InterfaceStateUp)
+				Expect(err).ToNot(HaveOccurred(), "Failed to set interface %s to up on node %s", masterInterface.Iface, nodeName)
 			}
 
 			By("validating that the ptp metric stays in locked state")
@@ -381,7 +382,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 
 			activeProfileClientInterface := getHAProfileClientInterface(nodeInfo, activeProfile)
 
-			inactiveProfileClientInterfaces := make([]iface.Name, 0, 1)
+			inactiveProfileClientInterfaces := make([]iface.Iface, 0, 1)
 
 			for _, inactiveProfile := range inactiveProfiles {
 				inactiveProfileClientInterface := getHAProfileClientInterface(nodeInfo, inactiveProfile)
@@ -394,7 +395,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			Expect(err).ToNot(HaveOccurred(), "Failed to get egress interface")
 
 			if activeProfileClientInterface == egressInterface {
-				klog.V(tsparams.LogLevel).Infof("Skipping test for egress interface %s", activeProfileClientInterface.GetNIC())
+				klog.V(tsparams.LogLevel).Infof("Skipping test for egress interface %s", activeProfileClientInterface.GetAlias())
 
 				continue
 			}
@@ -423,7 +424,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 
 			By("validating the original active interface is in FREERUN state")
 
-			activeNIC := activeProfileClientInterface.GetNIC()
+			activeNIC := activeProfileClientInterface.GetAlias()
 			clockStateQuery := metrics.ClockStateQuery{
 				Interface: metrics.Equals(activeNIC),
 				Node:      metrics.Equals(nodeName),
@@ -435,13 +436,14 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 
 			By("validating that all inactive HA profile client interfaces are in LOCKED state")
 
-			inactiveProfileClientNICs := make([]iface.NICName, 0, len(inactiveProfileClientInterfaces))
+			inactiveProfileClientIfacesAliases := make([]iface.Alias, 0, len(inactiveProfileClientInterfaces))
 			for _, inactiveProfileClientInterface := range inactiveProfileClientInterfaces {
-				inactiveProfileClientNICs = append(inactiveProfileClientNICs, inactiveProfileClientInterface.GetNIC())
+				inactiveProfileClientIfacesAliases = append(
+					inactiveProfileClientIfacesAliases, inactiveProfileClientInterface.GetAlias())
 			}
 
 			inactiveIfacesClockStateQuery := metrics.ClockStateQuery{
-				Interface: metrics.Includes(inactiveProfileClientNICs...),
+				Interface: metrics.Includes(inactiveProfileClientIfacesAliases...),
 				Node:      metrics.Equals(nodeName),
 			}
 			err = metrics.AssertQuery(context.TODO(), prometheusAPI, inactiveIfacesClockStateQuery, metrics.ClockStateLocked,
@@ -455,7 +457,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			Expect(err).ToNot(HaveOccurred(), "Failed to get event pod")
 
 			for _, inactiveProfileClientInterface := range inactiveProfileClientInterfaces {
-				inactiveProfileClientNIC := inactiveProfileClientInterface.GetNIC()
+				inactiveProfileClientNIC := inactiveProfileClientInterface.GetAlias()
 				holdoverFilter := events.All(
 					events.IsType(eventptp.PtpStateChange),
 					events.HasValue(events.WithSyncState(eventptp.HOLDOVER), events.OnInterface(inactiveProfileClientNIC)),
@@ -484,7 +486,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 
 			By("validating restored active profile client interface returns to LOCKED state")
 
-			activeNIC = activeProfileClientInterface.GetNIC()
+			activeNIC = activeProfileClientInterface.GetAlias()
 			clockStateQuery = metrics.ClockStateQuery{
 				Interface: metrics.Equals(activeNIC),
 				Node:      metrics.Equals(nodeName),
@@ -553,8 +555,8 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			Expect(err).ToNot(HaveOccurred(), "Failed to get inactive HA profiles")
 			Expect(len(inactiveProfiles)).To(BeNumerically(">=", 1), "Expected at least one inactive HA profile")
 
-			haInterfaces := make([]iface.Name, 0, len(activeProfiles)+len(inactiveProfiles))
-			haInterfaces = append(haInterfaces, activeClientInterfaces[0].Name)
+			haInterfaces := make([]iface.Iface, 0, len(activeProfiles)+len(inactiveProfiles))
+			haInterfaces = append(haInterfaces, activeClientInterfaces[0].Iface)
 
 			for _, inactiveProfile := range inactiveProfiles {
 				inactiveProfileInfo := nodeInfo.GetProfileByDaemonName(inactiveProfile)
@@ -562,7 +564,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 
 				inactiveClientInterfaces := inactiveProfileInfo.GetInterfacesByClockType(profiles.ClockTypeClient)
 				Expect(len(inactiveClientInterfaces)).To(Equal(1), "Expected exactly one client interface for HA profile")
-				haInterfaces = append(haInterfaces, inactiveClientInterfaces[0].Name)
+				haInterfaces = append(haInterfaces, inactiveClientInterfaces[0].Iface)
 			}
 
 			By("checking if any interface is the egress interface")
@@ -597,13 +599,13 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 
 			By("validating all HA Clock States are in FREERUN state")
 
-			haNICs := make([]iface.NICName, 0, len(haInterfaces))
+			haIfaceAliases := make([]iface.Alias, 0, len(haInterfaces))
 			for _, haInterface := range haInterfaces {
-				haNICs = append(haNICs, haInterface.GetNIC())
+				haIfaceAliases = append(haIfaceAliases, haInterface.GetAlias())
 			}
 
 			haIfacesClockStateQuery := metrics.ClockStateQuery{
-				Interface: metrics.Includes(haNICs...),
+				Interface: metrics.Includes(haIfaceAliases...),
 				Node:      metrics.Equals(nodeName),
 			}
 
@@ -638,16 +640,16 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				By("validating clock class is 248 for HA interfaces")
 
 				for _, haInterface := range haInterfaces {
-					By(fmt.Sprintf("validating clock class is 248 for interface %s", haInterface.GetNIC()))
+					By(fmt.Sprintf("validating clock class is 248 for interface %s", haInterface.GetAlias()))
 					clockClassEventFilter := events.All(
 						events.IsType(eventptp.PtpClockClassChange),
 						events.HasValue(
 							events.WithMetric(248),
-							events.ContainingResource(string(haInterface.GetNIC())),
+							events.ContainingResource(string(haInterface.GetAlias())),
 						),
 					)
 					err = events.WaitForEvent(eventPod, startTime, 1*time.Minute, clockClassEventFilter)
-					Expect(err).ToNot(HaveOccurred(), "Failed to wait for clock class event for interface %s", haInterface.GetNIC())
+					Expect(err).ToNot(HaveOccurred(), "Failed to wait for clock class event for interface %s", haInterface.GetAlias())
 				}
 			}
 
@@ -660,13 +662,13 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 
 			By("validating all Clock State metrics return to LOCKED state")
 
-			haNICs = make([]iface.NICName, 0, len(haInterfaces))
+			haIfaceAliases = make([]iface.Alias, 0, len(haInterfaces))
 			for _, haInterface := range haInterfaces {
-				haNICs = append(haNICs, haInterface.GetNIC())
+				haIfaceAliases = append(haIfaceAliases, haInterface.GetAlias())
 			}
 
 			haIfacesClockStateQuery = metrics.ClockStateQuery{
-				Interface: metrics.Includes(haNICs...),
+				Interface: metrics.Includes(haIfaceAliases...),
 				Node:      metrics.Equals(nodeName),
 			}
 
@@ -770,7 +772,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 					By("validating new active interface is in LOCKED state")
 
 					newActiveInterface := getHAProfileClientInterface(nodeInfo, newActiveProfile)
-					nicName := newActiveInterface.GetNIC()
+					nicName := newActiveInterface.GetAlias()
 					clockStateQuery := metrics.ClockStateQuery{
 						Interface: metrics.Equals(nicName),
 						Node:      metrics.Equals(nodeName),
@@ -835,7 +837,7 @@ func waitForActiveHAProfileChange(
 
 // getHAProfileClientInterface returns the client interface for a given HA profile name.
 // This is a convenience helper to reduce boilerplate in tests. It expects the profile to have exactly one client.
-func getHAProfileClientInterface(nodeInfo *profiles.NodeInfo, profileName string) iface.Name {
+func getHAProfileClientInterface(nodeInfo *profiles.NodeInfo, profileName string) iface.Iface {
 	GinkgoHelper()
 
 	profileInfo := nodeInfo.GetProfileByDaemonName(profileName)
@@ -845,7 +847,7 @@ func getHAProfileClientInterface(nodeInfo *profiles.NodeInfo, profileName string
 	Expect(len(clientInterfaces)).To(Equal(1),
 		"Expected exactly one client interface for HA profile %s", profileName)
 
-	return clientInterfaces[0].Name
+	return clientInterfaces[0].Iface
 }
 
 // waitForHAHealthy waits for the HA to return to a healthy state with the expected
