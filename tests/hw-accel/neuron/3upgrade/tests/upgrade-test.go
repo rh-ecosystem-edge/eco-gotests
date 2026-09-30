@@ -95,8 +95,22 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 					kmmSub.Definition.Spec.Config.Tolerations, upgradeToleration)
 			}
 
-			_, err = kmmSub.Update()
-			Expect(err).ToNot(HaveOccurred(), "Failed to patch KMM subscription with upgrade toleration")
+			if !hasToleration {
+				_, err = kmmSub.Update()
+				Expect(err).ToNot(HaveOccurred(), "Failed to patch KMM subscription with upgrade toleration")
+
+				By("Waiting for KMM to become ready after the Subscription update")
+
+				err = commonawait.KMMOperatorReadyWithToleration(
+					APIClient,
+					upgradeToleration.Key,
+					upgradeToleration.Effect,
+					tsparams.OperatorDeployTimeout)
+				Expect(err).ToNot(HaveOccurred(), "KMM operator should be ready after the Subscription update")
+			} else {
+				klog.V(params.NeuronLogLevel).Info(
+					"KMM Subscription already contains the Neuron upgrade toleration")
+			}
 
 			By("Creating initial DeviceConfig with driver version")
 
@@ -282,15 +296,43 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 						neuronConfig.ImageRepoSecretName)
 				}
 
+				startTime := time.Now()
+
 				_, err = deviceConfigBuilder.Update(false)
 				Expect(err).ToNot(HaveOccurred(), "Failed to update DeviceConfig")
 
 				klog.V(params.NeuronLogLevel).Infof("DeviceConfig updated with driver version: %s",
 					neuronConfig.UpgradeTargetVersion)
 
-				By("Monitoring rolling upgrade process")
+				By("Waiting for DeviceConfig to contain the upgrade target")
 
-				startTime := time.Now()
+				expectedDriversImage := ""
+				if !neuronConfig.IsInClusterBuild() {
+					expectedDriversImage = neuronConfig.UpgradeTargetDriversImage
+				}
+
+				err = commonawait.DeviceConfigDriverUpdated(
+					APIClient,
+					params.DefaultDeviceConfigName,
+					params.NeuronNamespace,
+					neuronConfig.UpgradeTargetVersion,
+					expectedDriversImage,
+					tsparams.DevicePluginReadyTimeout)
+				Expect(err).ToNot(HaveOccurred(), "DeviceConfig should contain the upgrade target")
+
+				if expectedDriversImage != "" {
+					By("Waiting for KMM Module to contain the upgrade driver image")
+
+					err = commonawait.ModuleDriverImageUpdated(
+						APIClient,
+						params.DefaultDeviceConfigName,
+						params.NeuronNamespace,
+						expectedDriversImage,
+						tsparams.DevicePluginReadyTimeout)
+					Expect(err).ToNot(HaveOccurred(), "KMM Module should contain the upgrade driver image")
+				}
+
+				By("Monitoring rolling upgrade process")
 
 				updatedNodes := make(map[string]bool)
 
