@@ -543,42 +543,28 @@ var _ = Describe("SystemReserved", Ordered, Label(labelSystemReservedValidation)
 			By(fmt.Sprintf("Checking kubelet config enforcement on node %s", nodeName))
 
 			// Read kubelet configuration to verify enforcement settings
-			// Try OpenShift's standard kubelet config location first
 			cmd := []string{"cat", "/host/etc/kubernetes/kubelet.conf"}
 			output, err := executeDebugPodCommand(nodeName, cmd)
 
 			if err != nil {
-				// If kubelet.conf doesn't exist, try YAML format in kubelet dir
-				cmd = []string{"cat", "/host/var/lib/kubelet/config.yaml"}
-				output, err = executeDebugPodCommand(nodeName, cmd)
-			}
-
-			if err != nil {
-				// Last resort: try config.json (note: this may be pull secrets, not kubelet config)
-				cmd = []string{"cat", "/host/var/lib/kubelet/config.json"}
-				output, err = executeDebugPodCommand(nodeName, cmd)
-			}
-
-			if err != nil {
-				GinkgoWriter.Printf("Warning: Could not read kubelet config from node %s: %v\n", nodeName, err)
-				GinkgoWriter.Printf("Tried: /host/etc/kubernetes/kubelet.conf, /host/var/lib/kubelet/config.yaml, /host/var/lib/kubelet/config.json\n")
+				GinkgoWriter.Printf("❌ Node %s: Failed to read kubelet config: %v\n", nodeName, err)
 				return // Skip this node, continue with others
 			}
 
-					By("Verifying enforceNodeAllocatable includes system-reserved")
-					// Parse kubelet config to check enforceNodeAllocatable array
-					var kubeletConfig map[string]interface{}
+			By("Verifying enforceNodeAllocatable includes system-reserved")
+			// Parse kubelet config to check enforceNodeAllocatable array
+			var kubeletConfig map[string]interface{}
 
-					// Try to parse as JSON first
-					err = json.Unmarshal([]byte(output), &kubeletConfig)
-					if err != nil {
-						// If JSON parsing fails, try YAML
-						err = yaml.Unmarshal([]byte(output), &kubeletConfig)
-						if err != nil {
-							GinkgoWriter.Printf("Warning: Could not parse kubelet config on node %s: %v\n", nodeName, err)
-							Skip(fmt.Sprintf("Kubelet config is not valid JSON or YAML on node %s", nodeName))
-						}
-					}
+			// Try to parse as JSON first
+			err = json.Unmarshal([]byte(output), &kubeletConfig)
+			if err != nil {
+				// If JSON parsing fails, try YAML
+				err = yaml.Unmarshal([]byte(output), &kubeletConfig)
+				if err != nil {
+					GinkgoWriter.Printf("❌ Node %s: Failed to parse kubelet config (tried JSON and YAML): %v\n", nodeName, err)
+					return // Skip this node, continue with others
+				}
+			}
 
 					// Check enforceNodeAllocatable field
 					enforceAllocatable, found := kubeletConfig["enforceNodeAllocatable"]
