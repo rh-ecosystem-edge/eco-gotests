@@ -421,19 +421,13 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			newActiveProfile := waitForActiveHAProfileChange(prometheusAPI, nodeName, activeProfile, 2*time.Minute)
 			Expect(newActiveProfile).NotTo(Equal(activeProfile), "Active profile should have changed: %s", newActiveProfile)
 
-			By("validating the original active interface is in FREERUN state")
+			By("validating post-failover metric snapshot")
 
 			activeNIC := activeProfileClientInterface.GetNIC()
-			clockStateQuery := metrics.ClockStateQuery{
+			activeClockStateQuery := metrics.ClockStateQuery{
 				Interface: metrics.Equals(activeNIC),
 				Node:      metrics.Equals(nodeName),
 			}
-			err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockStateQuery, metrics.ClockStateFreerun,
-				metrics.AssertWithTimeout(5*time.Minute),
-				metrics.AssertWithStableDuration(10*time.Second))
-			Expect(err).ToNot(HaveOccurred(), "Failed to assert original active interface is in FREERUN")
-
-			By("validating that all inactive HA profile client interfaces are in LOCKED state")
 
 			inactiveProfileClientNICs := make([]iface.NICName, 0, len(inactiveProfileClientInterfaces))
 			for _, inactiveProfileClientInterface := range inactiveProfileClientInterfaces {
@@ -444,10 +438,19 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				Interface: metrics.Includes(inactiveProfileClientNICs...),
 				Node:      metrics.Equals(nodeName),
 			}
-			err = metrics.AssertQuery(context.TODO(), prometheusAPI, inactiveIfacesClockStateQuery, metrics.ClockStateLocked,
+			clockRealtimeQuery := metrics.ClockStateQuery{
+				Interface: metrics.Equals(iface.ClockRealtime),
+				Node:      metrics.Equals(nodeName),
+			}
+			err = metrics.AssertQuerySet(context.TODO(), prometheusAPI,
+				[]metrics.QueryExpectation{
+					metrics.Expect(activeClockStateQuery, metrics.ClockStateFreerun),
+					metrics.Expect(inactiveIfacesClockStateQuery, metrics.ClockStateLocked),
+					metrics.Expect(clockRealtimeQuery, metrics.ClockStateLocked),
+				},
 				metrics.AssertWithTimeout(5*time.Minute),
 				metrics.AssertWithStableDuration(10*time.Second))
-			Expect(err).ToNot(HaveOccurred(), "Failed to assert all inactive interfaces are in LOCKED state")
+			Expect(err).ToNot(HaveOccurred(), "Failed to assert post-failover metric snapshot")
 
 			By("validating no HOLDOVER event for original inactive interfaces")
 
@@ -465,17 +468,6 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 					inactiveProfileClientNIC)
 			}
 
-			By("validating CLOCK_REALTIME is in LOCKED state")
-
-			clockRealtimeQuery := metrics.ClockStateQuery{
-				Interface: metrics.Equals(iface.ClockRealtime),
-				Node:      metrics.Equals(nodeName),
-			}
-			err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockRealtimeQuery, metrics.ClockStateLocked,
-				metrics.AssertWithTimeout(5*time.Minute),
-				metrics.AssertWithStableDuration(10*time.Second))
-			Expect(err).ToNot(HaveOccurred(), "Failed to assert CLOCK_REALTIME is LOCKED")
-
 			By("restoring original active HA's interface")
 
 			err = iface.SetInterfaceStatus(RANConfig.Spoke1APIClient,
@@ -485,7 +477,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			By("validating restored active profile client interface returns to LOCKED state")
 
 			activeNIC = activeProfileClientInterface.GetNIC()
-			clockStateQuery = metrics.ClockStateQuery{
+			clockStateQuery := metrics.ClockStateQuery{
 				Interface: metrics.Equals(activeNIC),
 				Node:      metrics.Equals(nodeName),
 			}
@@ -595,7 +587,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 
 			startTime := time.Now()
 
-			By("validating all HA Clock States are in FREERUN state")
+			By("validating all HA and CLOCK_REALTIME clock states are in FREERUN state")
 
 			haNICs := make([]iface.NICName, 0, len(haInterfaces))
 			for _, haInterface := range haInterfaces {
@@ -606,22 +598,18 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				Interface: metrics.Includes(haNICs...),
 				Node:      metrics.Equals(nodeName),
 			}
-
-			err = metrics.AssertQuery(context.TODO(), prometheusAPI, haIfacesClockStateQuery, metrics.ClockStateFreerun,
-				metrics.AssertWithTimeout(1*time.Minute),
-				metrics.AssertWithStableDuration(10*time.Second))
-			Expect(err).ToNot(HaveOccurred(), "Failed to assert all HA interfaces are in FREERUN state")
-
-			By("validating CLOCK_REALTIME is in FREERUN state")
-
 			clockRealtimeQuery := metrics.ClockStateQuery{
 				Interface: metrics.Equals(iface.ClockRealtime),
 				Node:      metrics.Equals(nodeName),
 			}
-			err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockRealtimeQuery, metrics.ClockStateFreerun,
+			err = metrics.AssertQuerySet(context.TODO(), prometheusAPI,
+				[]metrics.QueryExpectation{
+					metrics.Expect(haIfacesClockStateQuery, metrics.ClockStateFreerun),
+					metrics.Expect(clockRealtimeQuery, metrics.ClockStateFreerun),
+				},
 				metrics.AssertWithTimeout(1*time.Minute),
 				metrics.AssertWithStableDuration(10*time.Second))
-			Expect(err).ToNot(HaveOccurred(), "Failed to assert CLOCK_REALTIME is in FREERUN")
+			Expect(err).ToNot(HaveOccurred(), "Failed to assert HA and CLOCK_REALTIME are in FREERUN state")
 
 			// for 4.18 versions and above, the clock class is 248
 			versionStr := RANConfig.Spoke1OperatorVersions[ranparam.PTP]
@@ -658,7 +646,7 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				Expect(err).ToNot(HaveOccurred(), "Failed to restore HA interface %s", haInterface)
 			}
 
-			By("validating all Clock State metrics return to LOCKED state")
+			By("validating all HA clock states and CLOCK_REALTIME return to LOCKED state")
 
 			haNICs = make([]iface.NICName, 0, len(haInterfaces))
 			for _, haInterface := range haInterfaces {
@@ -669,25 +657,21 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				Interface: metrics.Includes(haNICs...),
 				Node:      metrics.Equals(nodeName),
 			}
-
-			err = metrics.AssertQuery(context.TODO(), prometheusAPI, haIfacesClockStateQuery, metrics.ClockStateLocked,
-				metrics.AssertWithTimeout(3*time.Minute),
-				metrics.AssertWithStableDuration(10*time.Second))
-			Expect(err).ToNot(HaveOccurred(), "Failed to assert all HA interfaces are in LOCKED state")
-
-			By("validating HA system returns to healthy state")
-			waitForHAHealthy(prometheusAPI, nodeName, len(haInterfaces), 2*time.Minute)
-
-			By("validating CLOCK_REALTIME returns to LOCKED state")
-
 			clockRealtimeQuery = metrics.ClockStateQuery{
 				Interface: metrics.Equals(iface.ClockRealtime),
 				Node:      metrics.Equals(nodeName),
 			}
-			err = metrics.AssertQuery(context.TODO(), prometheusAPI, clockRealtimeQuery, metrics.ClockStateLocked,
+			err = metrics.AssertQuerySet(context.TODO(), prometheusAPI,
+				[]metrics.QueryExpectation{
+					metrics.Expect(haIfacesClockStateQuery, metrics.ClockStateLocked),
+					metrics.Expect(clockRealtimeQuery, metrics.ClockStateLocked),
+				},
 				metrics.AssertWithTimeout(3*time.Minute),
 				metrics.AssertWithStableDuration(10*time.Second))
-			Expect(err).ToNot(HaveOccurred(), "Failed to assert CLOCK_REALTIME is LOCKED")
+			Expect(err).ToNot(HaveOccurred(), "Failed to assert HA and CLOCK_REALTIME are in LOCKED state")
+
+			By("validating HA system returns to healthy state")
+			waitForHAHealthy(prometheusAPI, nodeName, len(haInterfaces), 2*time.Minute)
 
 			break
 		}
