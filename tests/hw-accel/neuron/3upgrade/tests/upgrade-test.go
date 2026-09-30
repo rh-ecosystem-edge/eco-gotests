@@ -100,6 +100,7 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 				Expect(err).ToNot(HaveOccurred(), "Failed to patch KMM subscription with upgrade toleration")
 
 				By("Waiting for KMM to become ready after the Subscription update")
+
 				err = commonawait.KMMOperatorReadyWithToleration(
 					APIClient,
 					upgradeToleration.Key,
@@ -295,6 +296,8 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 						neuronConfig.ImageRepoSecretName)
 				}
 
+				startTime := time.Now()
+
 				_, err = deviceConfigBuilder.Update(false)
 				Expect(err).ToNot(HaveOccurred(), "Failed to update DeviceConfig")
 
@@ -330,8 +333,6 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 				}
 
 				By("Monitoring rolling upgrade process")
-
-				startTime := time.Now()
 
 				updatedNodes := make(map[string]bool)
 

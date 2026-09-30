@@ -56,7 +56,7 @@ func kmmOperatorReady(apiClient *clients.Settings, tolerationKey string,
 					return false, nil
 				}
 
-				if !kmmDeployment.IsReady(10 * time.Second) {
+				if !deploymentRolloutReady(kmmDeployment) {
 					return false, nil
 				}
 
@@ -79,6 +79,17 @@ func kmmOperatorReady(apiClient *clients.Settings, tolerationKey string,
 
 			return true, nil
 		})
+}
+
+func deploymentRolloutReady(builder *deployment.Builder) bool {
+	desiredReplicas := int32(1)
+	if builder.Definition.Spec.Replicas != nil {
+		desiredReplicas = *builder.Definition.Spec.Replicas
+	}
+
+	return builder.Definition.Status.ObservedGeneration >= builder.Definition.Generation &&
+		builder.Definition.Status.UpdatedReplicas == desiredReplicas &&
+		builder.Definition.Status.AvailableReplicas == desiredReplicas
 }
 
 // DeviceConfigDriverUpdated waits until DeviceConfig contains the requested
@@ -133,7 +144,7 @@ func ModuleDriverImageUpdated(apiClient *clients.Settings, name, namespace,
 		})
 	if err != nil {
 		return fmt.Errorf(
-			"Module %s in namespace %s did not reach driver image %q (observed %q): %w",
+			"module %s in namespace %s did not reach driver image %q (observed %q): %w",
 			name, namespace, expectedImage, observedImage, err)
 	}
 
