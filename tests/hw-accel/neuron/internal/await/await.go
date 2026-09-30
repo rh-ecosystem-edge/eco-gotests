@@ -8,6 +8,7 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/kmm"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/neuron"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
@@ -21,6 +22,123 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 )
+
+const (
+	kmmNamespace            = "openshift-kmm"
+	kmmControllerDeployment = "kmm-operator-controller"
+	kmmWebhookDeployment    = "kmm-operator-webhook-server"
+)
+
+// KMMOperatorReady waits for the KMM controller and webhook deployments to be
+// ready. This is useful after changing the KMM Subscription, which can cause
+// OLM to roll the operator while a test is reconciling a Module.
+func KMMOperatorReady(apiClient *clients.Settings, timeout time.Duration) error {
+	return kmmOperatorReady(apiClient, "", "", timeout)
+}
+
+// KMMOperatorReadyWithToleration waits for KMM to be ready and for the
+// controller pod template to contain the requested toleration. Checking the
+// pod template prevents the caller from racing an asynchronous OLM rollout by
+// observing the old, still-ready deployment.
+func KMMOperatorReadyWithToleration(apiClient *clients.Settings, key string,
+	effect corev1.TaintEffect, timeout time.Duration) error {
+	return kmmOperatorReady(apiClient, key, effect, timeout)
+}
+
+func kmmOperatorReady(apiClient *clients.Settings, tolerationKey string,
+	tolerationEffect corev1.TaintEffect, timeout time.Duration) error {
+	return wait.PollUntilContextTimeout(
+		context.TODO(), 5*time.Second, timeout, true,
+		func(context.Context) (bool, error) {
+			for _, deploymentName := range []string{kmmControllerDeployment, kmmWebhookDeployment} {
+				kmmDeployment, err := deployment.Pull(apiClient, deploymentName, kmmNamespace)
+				if err != nil {
+					return false, nil
+				}
+
+				if !kmmDeployment.IsReady(10 * time.Second) {
+					return false, nil
+				}
+
+				if deploymentName == kmmControllerDeployment && tolerationKey != "" {
+					hasToleration := false
+
+					for _, toleration := range kmmDeployment.Definition.Spec.Template.Spec.Tolerations {
+						if toleration.Key == tolerationKey && toleration.Effect == tolerationEffect {
+							hasToleration = true
+
+							break
+						}
+					}
+
+					if !hasToleration {
+						return false, nil
+					}
+				}
+			}
+
+			return true, nil
+		})
+}
+
+// DeviceConfigDriverUpdated waits until DeviceConfig contains the requested
+// driver version and, when supplied, the requested driver image.
+func DeviceConfigDriverUpdated(apiClient *clients.Settings, name, namespace,
+	expectedVersion, expectedImage string, timeout time.Duration) error {
+	var observedVersion, observedImage string
+
+	err := wait.PollUntilContextTimeout(
+		context.TODO(), 5*time.Second, timeout, true,
+		func(context.Context) (bool, error) {
+			deviceConfig, err := neuron.Pull(apiClient, name, namespace)
+			if err != nil {
+				return false, nil
+			}
+
+			observedVersion = deviceConfig.Definition.Spec.DriverVersion
+			observedImage = deviceConfig.Definition.Spec.DriversImage
+
+			return observedVersion == expectedVersion &&
+				(expectedImage == "" || observedImage == expectedImage), nil
+		})
+	if err != nil {
+		return fmt.Errorf(
+			"DeviceConfig %s in namespace %s did not reach driver version %q and image %q "+
+				"(observed version %q, image %q): %w",
+			name, namespace, expectedVersion, expectedImage, observedVersion, observedImage, err)
+	}
+
+	return nil
+}
+
+// ModuleDriverImageUpdated waits until KMM's Module references the requested
+// driver image. KMM appends the node kernel version to pre-built driver images.
+func ModuleDriverImageUpdated(apiClient *clients.Settings, name, namespace,
+	expectedImage string, timeout time.Duration) error {
+	var observedImage string
+
+	err := wait.PollUntilContextTimeout(
+		context.TODO(), 5*time.Second, timeout, true,
+		func(context.Context) (bool, error) {
+			module, err := kmm.Pull(apiClient, name, namespace)
+			if err != nil || module.Definition.Spec.ModuleLoader == nil ||
+				len(module.Definition.Spec.ModuleLoader.Container.KernelMappings) == 0 {
+				return false, nil
+			}
+
+			observedImage = module.Definition.Spec.ModuleLoader.Container.KernelMappings[0].ContainerImage
+
+			return observedImage == expectedImage ||
+				strings.HasPrefix(observedImage, expectedImage+"-"), nil
+		})
+	if err != nil {
+		return fmt.Errorf(
+			"Module %s in namespace %s did not reach driver image %q (observed %q): %w",
+			name, namespace, expectedImage, observedImage, err)
+	}
+
+	return nil
+}
 
 // DRADeviceConfig waits for a DeviceConfig with a configured DRA driver image.
 func DRADeviceConfig(apiClient *clients.Settings, name, namespace string,
