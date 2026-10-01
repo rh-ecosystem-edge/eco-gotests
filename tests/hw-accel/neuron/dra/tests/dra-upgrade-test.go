@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -289,6 +290,48 @@ var _ = Describe("Neuron DRA Upgrade Tests", Ordered,
 					Expect(int(dra.AvailableNumber)).To(Equal(len(neuronNodes)),
 						"DRA availableNumber should equal Neuron node count after upgrade")
 				})
+
+			AfterAll(func() {
+				if originalImage == "" {
+					return
+				}
+
+				By("Restoring the initial DRA driver image after upgrade tests")
+
+				cleanupErrors := make([]error, 0, 4)
+				deviceConfig, err := neuron.Pull(
+					APIClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
+				if err != nil {
+					cleanupErrors = append(cleanupErrors,
+						fmt.Errorf("failed to retrieve DeviceConfig for restore: %w", err))
+				} else if deviceConfig.Definition.Spec.DRADriverImage != originalImage {
+					deviceConfig.Definition.Spec.DRADriverImage = originalImage
+					if _, err = deviceConfig.Update(false); err != nil {
+						cleanupErrors = append(cleanupErrors,
+							fmt.Errorf("failed to restore initial DRA driver image: %w", err))
+					} else {
+						if err = neuronhelpers.WaitForClusterStabilityAfterDeviceConfig(APIClient); err != nil {
+							cleanupErrors = append(cleanupErrors,
+								fmt.Errorf("cluster did not stabilize after restoring DRA driver image: %w", err))
+						}
+
+						if err = await.DRADaemonSetImage(
+							APIClient, params.NeuronNamespace, originalImage, upgradeTimeout); err != nil {
+							cleanupErrors = append(cleanupErrors,
+								fmt.Errorf("DRA DaemonSet did not roll back to initial image: %w", err))
+						}
+
+						if err = await.DRAResourcesAvailable(APIClient, upgradeTimeout); err != nil {
+							cleanupErrors = append(cleanupErrors,
+								fmt.Errorf("DRA ResourceSlices were not restored after image rollback: %w", err))
+						}
+					}
+				}
+
+				if cleanupErr := errors.Join(cleanupErrors...); cleanupErr != nil {
+					klog.Errorf("DRA upgrade cleanup completed with errors: %v", cleanupErr)
+				}
+			})
 		})
 
 		// DRA-4: Node Metrics Alongside DRA

@@ -2,6 +2,8 @@ package tests
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -9,7 +11,10 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/neuron"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/dra/internal/tsparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/await"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/do"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/neuronconfig"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/neuronhelpers"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/params"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,6 +25,7 @@ var _ = Describe("Neuron DRA Cleanup Tests", Ordered,
 	Label(params.Label, params.DRALabel, "dra-cleanup"), func() {
 		Context("DeviceConfig deletion cleanup", Label(tsparams.LabelSuite), func() {
 			neuronCfg := neuronconfig.NewNeuronConfig()
+			var originalDeviceConfig *do.DeviceConfigState
 
 			BeforeAll(func() {
 				if !neuronCfg.IsDRAConfigured() {
@@ -33,6 +39,11 @@ var _ = Describe("Neuron DRA Cleanup Tests", Ordered,
 				Expect(err).ToNot(HaveOccurred(), "DRA DeviceConfig must exist")
 				Expect(dcBuilder.Definition.Spec.DRADriverImage).ToNot(BeEmpty(),
 					"DeviceConfig must be in DRA mode")
+				originalDeviceConfig = &do.DeviceConfigState{
+					Original:  dcBuilder.Definition.DeepCopy(),
+					Name:      dcBuilder.Definition.Name,
+					Namespace: dcBuilder.Definition.Namespace,
+				}
 
 				By("Deleting DeviceConfig")
 
@@ -50,6 +61,42 @@ var _ = Describe("Neuron DRA Cleanup Tests", Ordered,
 					"DeviceConfig should be deleted")
 
 				klog.V(params.NeuronLogLevel).Info("DeviceConfig deleted, verifying cleanup")
+			})
+
+			AfterAll(func() {
+				if originalDeviceConfig == nil {
+					return
+				}
+
+				By("Restoring the DRA DeviceConfig after cleanup tests")
+
+				cleanupErrors := make([]error, 0, 4)
+				if err := do.RestoreDeviceConfig(
+					APIClient, originalDeviceConfig, params.DefaultTimeout); err != nil {
+					cleanupErrors = append(cleanupErrors,
+						fmt.Errorf("failed to restore the DRA DeviceConfig: %w", err))
+				} else {
+					if err := neuronhelpers.WaitForClusterStabilityAfterDeviceConfig(APIClient); err != nil {
+						cleanupErrors = append(cleanupErrors,
+							fmt.Errorf("cluster did not stabilize after restoring DeviceConfig: %w", err))
+					}
+
+					if err := await.DRADaemonSet(
+						APIClient, params.NeuronNamespace, tsparams.DRADeployTimeout); err != nil {
+						cleanupErrors = append(cleanupErrors,
+							fmt.Errorf("DRA DaemonSet was not ready after restore: %w", err))
+					}
+
+					if err := await.DRAResourcesAvailable(
+						APIClient, tsparams.DRADeployTimeout); err != nil {
+						cleanupErrors = append(cleanupErrors,
+							fmt.Errorf("DRA ResourceSlices were not restored: %w", err))
+					}
+				}
+
+				if cleanupErr := errors.Join(cleanupErrors...); cleanupErr != nil {
+					klog.Errorf("DRA cleanup restoration completed with errors: %v", cleanupErr)
+				}
 			})
 
 			It("should remove DRA DaemonSet after DeviceConfig deletion",
