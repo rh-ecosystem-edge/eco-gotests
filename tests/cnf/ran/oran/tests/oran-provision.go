@@ -50,35 +50,41 @@ var _ = Describe("ORAN Provision Tests", Label(tsparams.LabelProvision), Ordered
 	It("recovers provisioning when invalid ProvisioningRequest is updated", reportxml.ID("77393"), func() {
 		var prBuilder *oran.ProvisioningRequestBuilder
 
-		existingPR, err := oran.PullPR(o2imsAPIClient, tsparams.TestPRName)
+		_, err := oran.PullPR(o2imsAPIClient, tsparams.TestPRName)
 		if err == nil {
-			if existingPR.Object.Status.ProvisioningStatus.ProvisioningPhase != provisioningv1alpha1.StateFailed {
-				Skip("cannot run provisioning tests if the ProvisioningRequest already exists")
+			Skip("cannot run test 77393 if the ProvisioningRequest already exists")
+		}
+
+		By("creating a ProvisioningRequest with invalid policyTemplateParameters")
+
+		prBuilder, err = helper.NewProvisioningRequest(o2imsAPIClient, tsparams.TemplateValid)
+		Expect(err).ToNot(HaveOccurred(), "Failed to build ProvisioningRequest")
+
+		prBuilder = prBuilder.WithTemplateParameter(tsparams.PolicyTemplateParamsKey, map[string]any{
+			// By using an integer when the schema specifies a string we can create an invalid
+			// ProvisioningRequest without being stopped by the webhook.
+			tsparams.TestName: 1,
+		})
+
+		prBuilder, err = prBuilder.Create()
+		Expect(err).ToNot(HaveOccurred(), "Failed to create an invalid ProvisioningRequest")
+
+		DeferCleanup(func() {
+			if !CurrentSpecReport().Failed() {
+				return
 			}
 
-			By("continuing from an existing failed ProvisioningRequest")
+			// If the creation succeeded with the invalid parameter, but the test failed, we need to update
+			// the ProvisioningRequest to have valid parameters so that future tests can run.
+			prBuilder = prBuilder.WithTemplateParameter(tsparams.PolicyTemplateParamsKey, map[string]any{})
+			prBuilder, err = prBuilder.Update()
+			Expect(err).ToNot(HaveOccurred(), "Failed to update the ProvisioningRequest with valid policyTemplateParameters")
+		})
 
-			prBuilder = existingPR
-		} else {
-			By("creating a ProvisioningRequest with invalid policyTemplateParameters")
+		By("waiting for the ProvisioningRequest to be failed")
 
-			prBuilder, err = helper.NewProvisioningRequest(o2imsAPIClient, tsparams.TemplateValid)
-			Expect(err).ToNot(HaveOccurred(), "Failed to build ProvisioningRequest")
-
-			prBuilder = prBuilder.WithTemplateParameter(tsparams.PolicyTemplateParamsKey, map[string]any{
-				// By using an integer when the schema specifies a string we can create an invalid
-				// ProvisioningRequest without being stopped by the webhook.
-				tsparams.TestName: 1,
-			})
-
-			prBuilder, err = prBuilder.Create()
-			Expect(err).ToNot(HaveOccurred(), "Failed to create an invalid ProvisioningRequest")
-
-			By("waiting for the ProvisioningRequest to be failed")
-
-			err = prBuilder.WaitForPhaseAfter(provisioningv1alpha1.StateFailed, time.Time{}, time.Minute)
-			Expect(err).ToNot(HaveOccurred(), "Failed to wait for the ProvisioningRequest to fail")
-		}
+		err = prBuilder.WaitForPhaseAfter(provisioningv1alpha1.StateFailed, time.Time{}, time.Minute)
+		Expect(err).ToNot(HaveOccurred(), "Failed to wait for the ProvisioningRequest to fail")
 
 		Expect(prBuilder.Object.Status.ProvisioningStatus.ProvisioningPhase).
 			To(Equal(provisioningv1alpha1.StateFailed), "Expected ProvisioningRequest to be failed after invalid parameters")
