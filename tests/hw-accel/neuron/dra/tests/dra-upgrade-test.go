@@ -16,6 +16,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/dra/internal/tsparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/await"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/check"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/do"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/neuronconfig"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/neuronhelpers"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/params"
@@ -35,8 +36,7 @@ var _ = Describe("Neuron DRA Upgrade Tests", Ordered,
 		Context("DRA driver image upgrade", Label(tsparams.LabelSuite), func() {
 			neuronCfg := neuronconfig.NewNeuronConfig()
 
-			var originalImage string
-
+			var originalDeviceConfig *do.DeviceConfigState
 			var originalDSName string
 
 			BeforeAll(func() {
@@ -66,56 +66,30 @@ var _ = Describe("Neuron DRA Upgrade Tests", Ordered,
 				Expect(err).ToNot(HaveOccurred())
 				Expect(exists).To(BeTrue(), "At least one Neuron node must exist")
 
-				By("Ensuring DRA-mode DeviceConfig exists")
+				By("Replacing the DeviceConfig with the initial DRA image")
 
-				if existingDC, _ := neuron.Pull(
-					APIClient, params.DefaultDeviceConfigName, params.NeuronNamespace); existingDC != nil {
-					if existingDC.Definition.Spec.DRADriverImage == neuronCfg.DRADriverImage {
-						originalImage = neuronCfg.DRADriverImage
+				builder := neuron.NewBuilderWithDRA(
+					APIClient,
+					params.DefaultDeviceConfigName,
+					params.NeuronNamespace,
+					neuronCfg.DriversImage,
+					neuronCfg.DriverVersion,
+					neuronCfg.DRADriverImage,
+				).WithSelector(map[string]string{
+					params.NeuronNFDLabelKey: params.NeuronNFDLabelValue,
+				}).WithNodeMetricsImage(neuronCfg.NodeMetricsImage)
 
-						klog.V(params.NeuronLogLevel).Infof(
-							"Existing DRA DeviceConfig already uses initial image: %s", originalImage)
-					} else {
-						By("Deleting existing DeviceConfig to normalize to initial DRA image")
-
-						_, err := existingDC.Delete()
-						Expect(err).ToNot(HaveOccurred())
-
-						Eventually(func() bool {
-							_, pullErr := neuron.Pull(
-								APIClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
-
-							return pullErr != nil
-						}, upgradePollTimeout, 5*time.Second).Should(BeTrue())
-					}
+				if neuronCfg.ImageRepoSecretName != "" {
+					builder = builder.WithImageRepoSecret(neuronCfg.ImageRepoSecretName)
 				}
 
-				if originalImage == "" {
-					originalImage = neuronCfg.DRADriverImage
+				originalDeviceConfig, err = do.ReplaceDeviceConfig(
+					APIClient, builder, params.DefaultTimeout)
+				Expect(err).ToNot(HaveOccurred(),
+					"Failed to install the initial DRA DeviceConfig")
 
-					By("Creating DRA DeviceConfig with initial image")
-
-					builder := neuron.NewBuilderWithDRA(
-						APIClient,
-						params.DefaultDeviceConfigName,
-						params.NeuronNamespace,
-						neuronCfg.DriversImage,
-						neuronCfg.DriverVersion,
-						neuronCfg.DRADriverImage,
-					).WithSelector(map[string]string{
-						params.NeuronNFDLabelKey: params.NeuronNFDLabelValue,
-					}).WithNodeMetricsImage(neuronCfg.NodeMetricsImage)
-
-					if neuronCfg.ImageRepoSecretName != "" {
-						builder = builder.WithImageRepoSecret(neuronCfg.ImageRepoSecretName)
-					}
-
-					_, err := builder.Create()
-					Expect(err).ToNot(HaveOccurred())
-
-					err = neuronhelpers.WaitForClusterStabilityAfterDeviceConfig(APIClient)
-					Expect(err).ToNot(HaveOccurred())
-				}
+				err = neuronhelpers.WaitForClusterStabilityAfterDeviceConfig(APIClient)
+				Expect(err).ToNot(HaveOccurred())
 
 				By("Waiting for DRA DaemonSet to be ready")
 
@@ -137,7 +111,8 @@ var _ = Describe("Neuron DRA Upgrade Tests", Ordered,
 				originalDSName = dsList.Items[0].Name
 
 				klog.V(params.NeuronLogLevel).Infof(
-					"Original DRA DaemonSet: %s, image: %s", originalDSName, originalImage)
+					"Original DRA DaemonSet: %s, image: %s",
+					originalDSName, neuronCfg.DRADriverImage)
 			})
 
 			It("should update Module spec.dra after draDriverImage change",
@@ -241,7 +216,7 @@ var _ = Describe("Neuron DRA Upgrade Tests", Ordered,
 
 					klog.V(params.NeuronLogLevel).Infof(
 						"DRA DaemonSet %s rolled from image %s to %s",
-						originalDSName, originalImage, neuronCfg.UpgradeDRADriverImage)
+						originalDSName, neuronCfg.DRADriverImage, neuronCfg.UpgradeDRADriverImage)
 				})
 
 			It("should still have ResourceSlices published after upgrade",
@@ -292,36 +267,32 @@ var _ = Describe("Neuron DRA Upgrade Tests", Ordered,
 				})
 
 			AfterAll(func() {
-				if originalImage == "" {
+				if originalDeviceConfig == nil {
 					return
 				}
 
-				By("Restoring the initial DRA driver image after upgrade tests")
+				By("Restoring the original DeviceConfig after upgrade tests")
 
 				cleanupErrors := make([]error, 0, 4)
-				deviceConfig, err := neuron.Pull(
-					APIClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
-				if err != nil {
+				if err := do.RestoreDeviceConfig(
+					APIClient, originalDeviceConfig, params.DefaultTimeout); err != nil {
 					cleanupErrors = append(cleanupErrors,
-						fmt.Errorf("failed to retrieve DeviceConfig for restore: %w", err))
-				} else if deviceConfig.Definition.Spec.DRADriverImage != originalImage {
-					deviceConfig.Definition.Spec.DRADriverImage = originalImage
-					if _, err = deviceConfig.Update(false); err != nil {
+						fmt.Errorf("failed to restore the original DeviceConfig: %w", err))
+				} else if originalDeviceConfig.Original != nil {
+					if err := neuronhelpers.WaitForClusterStabilityAfterDeviceConfig(APIClient); err != nil {
 						cleanupErrors = append(cleanupErrors,
-							fmt.Errorf("failed to restore initial DRA driver image: %w", err))
-					} else {
-						if err = neuronhelpers.WaitForClusterStabilityAfterDeviceConfig(APIClient); err != nil {
+							fmt.Errorf("cluster did not stabilize after restoring DeviceConfig: %w", err))
+					}
+
+					restoredImage := originalDeviceConfig.Original.Spec.DRADriverImage
+					if restoredImage != "" {
+						if err := await.DRADaemonSetImage(
+							APIClient, params.NeuronNamespace, restoredImage, upgradeTimeout); err != nil {
 							cleanupErrors = append(cleanupErrors,
-								fmt.Errorf("cluster did not stabilize after restoring DRA driver image: %w", err))
+								fmt.Errorf("DRA DaemonSet did not roll back to original image: %w", err))
 						}
 
-						if err = await.DRADaemonSetImage(
-							APIClient, params.NeuronNamespace, originalImage, upgradeTimeout); err != nil {
-							cleanupErrors = append(cleanupErrors,
-								fmt.Errorf("DRA DaemonSet did not roll back to initial image: %w", err))
-						}
-
-						if err = await.DRAResourcesAvailable(APIClient, upgradeTimeout); err != nil {
+						if err := await.DRAResourcesAvailable(APIClient, upgradeTimeout); err != nil {
 							cleanupErrors = append(cleanupErrors,
 								fmt.Errorf("DRA ResourceSlices were not restored after image rollback: %w", err))
 						}
@@ -330,6 +301,9 @@ var _ = Describe("Neuron DRA Upgrade Tests", Ordered,
 
 				if cleanupErr := errors.Join(cleanupErrors...); cleanupErr != nil {
 					klog.Errorf("DRA upgrade cleanup completed with errors: %v", cleanupErr)
+
+					Expect(cleanupErr).ToNot(HaveOccurred(),
+						"DRA upgrade cleanup must complete without errors")
 				}
 			})
 		})

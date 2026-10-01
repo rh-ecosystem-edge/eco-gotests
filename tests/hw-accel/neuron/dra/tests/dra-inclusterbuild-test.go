@@ -61,6 +61,7 @@ var _ = Describe("Neuron DRA In-Cluster Build Tests", Ordered,
 					if err != nil {
 						neuronhelpers.LogDRAInClusterBuildDiagnostics(APIClient)
 					}
+
 					Expect(err).ToNot(HaveOccurred(), "The Neuron in-cluster build ConfigMap was not created")
 
 					err = await.DRADaemonSet(
@@ -68,6 +69,7 @@ var _ = Describe("Neuron DRA In-Cluster Build Tests", Ordered,
 					if err != nil {
 						neuronhelpers.LogDRAInClusterBuildDiagnostics(APIClient)
 					}
+
 					Expect(err).ToNot(HaveOccurred(), "The DRA DaemonSet did not become ready after the build")
 
 					err = await.DeviceClassExists(

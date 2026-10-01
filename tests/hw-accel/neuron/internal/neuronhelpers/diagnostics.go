@@ -89,6 +89,7 @@ func logEventDiagnostics(ctx context.Context, apiClient *clients.Settings, names
 
 func isBuildRelatedPod(pod corev1.Pod) bool {
 	name := strings.ToLower(pod.Name)
+
 	return strings.Contains(name, "build") || strings.Contains(name, "kmm") ||
 		strings.Contains(name, params.DefaultDeviceConfigName)
 }

@@ -25,6 +25,7 @@ var _ = Describe("Neuron DRA Cleanup Tests", Ordered,
 	Label(params.Label, params.DRALabel, "dra-cleanup"), func() {
 		Context("DeviceConfig deletion cleanup", Label(tsparams.LabelSuite), func() {
 			neuronCfg := neuronconfig.NewNeuronConfig()
+
 			var originalDeviceConfig *do.DeviceConfigState
 
 			BeforeAll(func() {
@@ -96,6 +97,9 @@ var _ = Describe("Neuron DRA Cleanup Tests", Ordered,
 
 				if cleanupErr := errors.Join(cleanupErrors...); cleanupErr != nil {
 					klog.Errorf("DRA cleanup restoration completed with errors: %v", cleanupErr)
+
+					Expect(cleanupErr).ToNot(HaveOccurred(),
+						"DRA cleanup restoration must complete without errors")
 				}
 			})
 
