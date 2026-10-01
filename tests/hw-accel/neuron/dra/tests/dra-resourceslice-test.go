@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/dra/internal/tsparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/await"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/check"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/neuronconfig"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/params"
@@ -25,6 +26,12 @@ var _ = Describe("Neuron DRA ResourceSlice Tests", Ordered,
 				if !neuronCfg.IsDRAConfigured() {
 					Skip("DRA not configured - ECO_HWACCEL_NEURON_DRA_DRIVER_IMAGE not set")
 				}
+
+				By("Waiting for every Neuron node to publish a DRA ResourceSlice")
+
+				err := await.DRAResourcesAvailable(APIClient, tsparams.DRADeployTimeout)
+				Expect(err).ToNot(HaveOccurred(),
+					"Every Neuron node should have a populated DRA ResourceSlice")
 			})
 
 			It("should have one ResourceSlice per Neuron node",

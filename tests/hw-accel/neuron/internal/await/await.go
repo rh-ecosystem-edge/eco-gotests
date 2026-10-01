@@ -12,6 +12,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/neuron"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/resource"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/check"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/neuronparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/params"
@@ -227,18 +228,46 @@ func ResourceClaimAllocatedAndReserved(
 		})
 }
 
-// DRAResourcesAvailable waits until ResourceSlices advertise at least one
-// Neuron device on a node.
+// DRAResourcesAvailable waits until every Neuron node has a populated
+// ResourceSlice for the Neuron DRA driver. Waiting for only one slice allows
+// callers to race the driver's per-node publication and observe a partial
+// inventory.
 func DRAResourcesAvailable(apiClient *clients.Settings, timeout time.Duration) error {
 	return wait.PollUntilContextTimeout(
 		context.TODO(), 10*time.Second, timeout, true,
 		func(context.Context) (bool, error) {
-			_, deviceCount, err := check.SmallestDRANode(apiClient)
+			neuronNodes, err := check.GetNeuronNodes(apiClient)
+			if err != nil || len(neuronNodes) == 0 {
+				return false, nil
+			}
+
+			slices, err := resource.ListResourceSlicesByDriver(apiClient, params.DRADriverName)
 			if err != nil {
 				return false, nil
 			}
 
-			return deviceCount > 0, nil
+			populatedNodes := make(map[string]struct{}, len(slices))
+			for _, slice := range slices {
+				if slice.Object.Spec.NodeName == nil || len(slice.Object.Spec.Devices) == 0 {
+					continue
+				}
+
+				populatedNodes[*slice.Object.Spec.NodeName] = struct{}{}
+			}
+
+			for _, node := range neuronNodes {
+				if _, found := populatedNodes[node.Object.Name]; !found {
+					klog.V(params.NeuronLogLevel).Infof(
+						"Neuron ResourceSlice for node %s is not populated yet", node.Object.Name)
+
+					return false, nil
+				}
+			}
+
+			klog.V(params.NeuronLogLevel).Infof(
+				"All %d Neuron nodes have populated ResourceSlices", len(neuronNodes))
+
+			return true, nil
 		})
 }
 
@@ -762,6 +791,38 @@ func DRADaemonSet(apiClient *clients.Settings, namespace string, timeout time.Du
 						"DRA DaemonSet %s is ready: %d/%d",
 						ds.Name, ds.Status.NumberReady, ds.Status.DesiredNumberScheduled)
 
+					return true, nil
+				}
+			}
+
+			return false, nil
+		})
+}
+
+// DRADaemonSetImage waits for the ready DRA DaemonSet to use the requested
+// image and to have observed the corresponding template generation.
+func DRADaemonSetImage(apiClient *clients.Settings, namespace, image string,
+	timeout time.Duration) error {
+	return wait.PollUntilContextTimeout(
+		context.TODO(), 10*time.Second, timeout, true,
+		func(ctx context.Context) (bool, error) {
+			daemonSets, err := apiClient.K8sClient.AppsV1().DaemonSets(namespace).List(
+				ctx, metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s",
+					params.DRADaemonSetLabelKey, params.DRADaemonSetLabelValue)})
+			if err != nil {
+				return false, nil
+			}
+
+			for _, daemonSet := range daemonSets.Items {
+				if len(daemonSet.Spec.Template.Spec.Containers) == 0 ||
+					daemonSet.Spec.Template.Spec.Containers[0].Image != image {
+					continue
+				}
+
+				if daemonSet.Status.ObservedGeneration == daemonSet.Generation &&
+					daemonSet.Status.DesiredNumberScheduled > 0 &&
+					daemonSet.Status.UpdatedNumberScheduled == daemonSet.Status.DesiredNumberScheduled &&
+					daemonSet.Status.NumberReady == daemonSet.Status.DesiredNumberScheduled {
 					return true, nil
 				}
 			}
