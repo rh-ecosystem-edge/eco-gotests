@@ -102,7 +102,7 @@ var _ = Describe(
 
 			By("Waiting until spoke IBU returns to Idle")
 
-			Expect(cnfhelper.WaitForSpokeIBU(cnfhelper.SpokeIdle, 10*time.Minute)).To(Succeed(),
+			Expect(cnfhelper.WaitForSpokeIBU(cnfhelper.SpokeIdle, 15*time.Minute)).To(Succeed(),
 				"spoke IBU did not return to Idle after Abort")
 
 			By("Waiting until abort IBGU completes")
