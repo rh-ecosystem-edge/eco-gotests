@@ -46,9 +46,9 @@ const (
 	// ImmutableMessage is the message to expect in a Policy's history when an immutable field cannot be updated.
 	ImmutableMessage = "cannot be updated, likely due to immutable fields not matching"
 
-	// PRValidationFailedDetailsSubstring is a substring of status.provisioningStatus.provisioningDetails when
-	// a ProvisioningRequest fails due to invalid policyTemplateParameters (e.g. integer value where string expected).
-	PRValidationFailedDetailsSubstring = "is not a string"
+	// PRValidationFailedDetailsSubstring is a substring of status.provisioningStatus.provisioningDetails when a
+	// ProvisioningRequest fails due to invalid policyTemplateParameters caused by an integer instead of a string.
+	PRValidationFailedDetailsSubstring = "Invalid type. Expected: string, given: integer"
 	// PRFulfilledDetailsSubstring is a substring of status.provisioningStatus.provisioningDetails when
 	// provisioning completes successfully.
 	PRFulfilledDetailsSubstring = "Provisioning request has completed successfully"
