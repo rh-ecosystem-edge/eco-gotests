@@ -37,6 +37,7 @@ var _ = Describe("Neuron DRA Upgrade Tests", Ordered,
 			neuronCfg := neuronconfig.NewNeuronConfig()
 
 			var originalDeviceConfig *do.DeviceConfigState
+
 			var originalDSName string
 
 			BeforeAll(func() {
