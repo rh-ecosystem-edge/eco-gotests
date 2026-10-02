@@ -27,6 +27,7 @@ const (
 	defaultTimeout    = 30 * time.Minute
 	// registryAuthFile is the pull secret written to nodes by the machine-config-operator.
 	registryAuthFile = "/var/lib/kubelet/config.json"
+	mcpName          = "master"
 )
 
 // GetContent returns the structured contents of a seed image as SeedImageContent.
@@ -317,6 +318,12 @@ func GenerateSeedImage(
 	}
 
 	klog.V(lcaparams.LCALogLevel).Info("SeedGenerator completed successfully, verifying seed image exists")
+
+	// Wait for MCP to be stable
+	err = cluster.WaitForMcpStable(apiClient, 1*time.Minute, 30*time.Second, mcpName)
+	if err != nil {
+		return "", fmt.Errorf("failed to wait for MCP to be stable: %w", err)
+	}
 
 	// Verify the seed image exists by inspecting it
 	err = verifySeedImageExists(apiClient, seedImageLocation)
