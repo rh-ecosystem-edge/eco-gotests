@@ -1,7 +1,6 @@
 package seedimage
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -19,7 +18,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/internal/lcaparams"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 )
 
@@ -350,41 +348,38 @@ func GenerateSeedImage(
 
 // verifySeedImageExists verifies that the seed image exists in the registry.
 // If skopeo inspect succeeds, the image exists and is accessible.
-// An outer retry wraps ExecCommandOnSNOWithRetries so faults that cause that
-// helper to stop early (non-exec errors) are still retried after seed generation.
+// An attempt-counted outer retry wraps ExecCommandOnSNOWithRetries so faults that
+// cause that helper to stop early (non-exec errors) are still retried after seed
+// generation. Unlike a wall-clock poll timeout, slow failures do not reduce the
+// number of outer attempts.
 func verifySeedImageExists(apiClient *clients.Settings, seedImageLocation string) error {
 	skopeoInspectCmd := fmt.Sprintf("sudo skopeo inspect --authfile %s --no-tags docker://%s",
 		registryAuthFile, seedImageLocation)
 
-	attempt := 1
-	timeout := time.Duration(seedImageVerifyOuterRetries-1) * seedImageVerifyOuterInterval
+	var lastErr error
 
-	err := wait.PollUntilContextTimeout(
-		context.TODO(), seedImageVerifyOuterInterval, timeout, true,
-		func(_ context.Context) (bool, error) {
-			_, execErr := cluster.ExecCommandOnSNOWithRetries(
-				apiClient,
-				seedImageVerifyInnerRetries,
-				seedImageVerifyInnerInterval,
-				skopeoInspectCmd,
-			)
-			if execErr != nil {
-				klog.V(lcaparams.LCALogLevel).Infof(
-					"Seed image verify attempt %d/%d failed: %v",
-					attempt, seedImageVerifyOuterRetries, execErr)
+	for attempt := 1; attempt <= seedImageVerifyOuterRetries; attempt++ {
+		_, lastErr = cluster.ExecCommandOnSNOWithRetries(
+			apiClient,
+			seedImageVerifyInnerRetries,
+			seedImageVerifyInnerInterval,
+			skopeoInspectCmd,
+		)
+		if lastErr == nil {
+			klog.V(lcaparams.LCALogLevel).Info("Seed image verified successfully")
 
-				attempt++
+			return nil
+		}
 
-				return false, nil
-			}
+		klog.V(lcaparams.LCALogLevel).Infof(
+			"Seed image verify attempt %d/%d failed: %v",
+			attempt, seedImageVerifyOuterRetries, lastErr)
 
-			return true, nil
-		})
-	if err != nil {
-		return fmt.Errorf("failed to verify seed image exists at %s: %w", seedImageLocation, err)
+		if attempt < seedImageVerifyOuterRetries {
+			time.Sleep(seedImageVerifyOuterInterval)
+		}
 	}
 
-	klog.V(lcaparams.LCALogLevel).Info("Seed image verified successfully")
-
-	return nil
+	return fmt.Errorf("failed to verify seed image exists at %s after %d attempts: %w",
+		seedImageLocation, seedImageVerifyOuterRetries, lastErr)
 }
