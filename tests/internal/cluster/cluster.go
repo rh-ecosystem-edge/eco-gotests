@@ -188,7 +188,7 @@ func ExecCmdWithStdout(
 
 			commandBuf, err := mcPod.ExecCommand(cmdToExec)
 			if err != nil {
-				return nil, fmt.Errorf("failed executing command '%s' on node %s: %s\n%w",
+				return nil, fmt.Errorf("failed executing command '%s' on node %s\noutput: %q\nerror: %w",
 					shellCmd, hostnameBuf.String(), commandBuf.String(), err)
 			}
 
