@@ -1,6 +1,7 @@
 package seedimage
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -18,6 +19,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/internal/lcaparams"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 )
 
@@ -25,9 +27,17 @@ const (
 	seedImageLabel    = "com.openshift.lifecycle-agent.seed_cluster_info"
 	seedGeneratorName = "seedimage"
 	defaultTimeout    = 30 * time.Minute
+
 	// registryAuthFile is the pull secret written to nodes by the machine-config-operator.
 	registryAuthFile = "/var/lib/kubelet/config.json"
 	mcpName          = "master"
+
+	// Outer retry around ExecCommandOnSNOWithRetries, which may stop early on
+	// non-exec faults. Nested retries can multiply total attempts.
+	seedImageVerifyOuterRetries  = 5
+	seedImageVerifyOuterInterval = 10 * time.Second
+	seedImageVerifyInnerRetries  = 3
+	seedImageVerifyInnerInterval = 5 * time.Second
 )
 
 // GetContent returns the structured contents of a seed image as SeedImageContent.
@@ -320,7 +330,7 @@ func GenerateSeedImage(
 	klog.V(lcaparams.LCALogLevel).Info("SeedGenerator completed successfully, verifying seed image exists")
 
 	// Wait for MCP to be stable
-	err = cluster.WaitForMcpStable(apiClient, 1*time.Minute, 30*time.Second, mcpName)
+	err = cluster.WaitForMcpStable(apiClient, 90*time.Second, 5*time.Second, mcpName)
 	if err != nil {
 		return "", fmt.Errorf("failed to wait for MCP to be stable: %w", err)
 	}
@@ -340,20 +350,36 @@ func GenerateSeedImage(
 
 // verifySeedImageExists verifies that the seed image exists in the registry.
 // If skopeo inspect succeeds, the image exists and is accessible.
-// Uses ExecCommandOnSNOWithRetries to handle temporary cluster unavailability
-// after seed generation completes.
+// An outer retry wraps ExecCommandOnSNOWithRetries so faults that cause that
+// helper to stop early (non-exec errors) are still retried after seed generation.
 func verifySeedImageExists(apiClient *clients.Settings, seedImageLocation string) error {
 	skopeoInspectCmd := fmt.Sprintf("sudo skopeo inspect --authfile %s --no-tags docker://%s",
 		registryAuthFile, seedImageLocation)
 
-	// Use retries to handle temporary cluster unavailability after seed generation
-	// 3 retries with 5 second intervals gives us ~15 seconds total retry time
-	_, err := cluster.ExecCommandOnSNOWithRetries(
-		apiClient,
-		3,             // retries
-		5*time.Second, // interval
-		skopeoInspectCmd,
-	)
+	attempt := 1
+	timeout := time.Duration(seedImageVerifyOuterRetries-1) * seedImageVerifyOuterInterval
+
+	err := wait.PollUntilContextTimeout(
+		context.TODO(), seedImageVerifyOuterInterval, timeout, true,
+		func(_ context.Context) (bool, error) {
+			_, execErr := cluster.ExecCommandOnSNOWithRetries(
+				apiClient,
+				seedImageVerifyInnerRetries,
+				seedImageVerifyInnerInterval,
+				skopeoInspectCmd,
+			)
+			if execErr != nil {
+				klog.V(lcaparams.LCALogLevel).Infof(
+					"Seed image verify attempt %d/%d failed: %v",
+					attempt, seedImageVerifyOuterRetries, execErr)
+
+				attempt++
+
+				return false, nil
+			}
+
+			return true, nil
+		})
 	if err != nil {
 		return fmt.Errorf("failed to verify seed image exists at %s: %w", seedImageLocation, err)
 	}
