@@ -14,7 +14,9 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ptp"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
@@ -34,6 +36,7 @@ var workloadManagementAnnotation = map[string]string{
 func GetConsumerPodforNode(client *clients.Settings, nodeName string) (*pod.Builder, error) {
 	podList, err := pod.List(client, tsparams.CloudEventsNamespace, metav1.ListOptions{
 		LabelSelector: labels.SelectorFromSet(getConsumerSelectorLabels(nodeName)).String(),
+		FieldSelector: fields.SelectorFromSet(fields.Set{"status.phase": string(corev1.PodRunning)}).String(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list consumer pods: %w", err)
@@ -50,6 +53,7 @@ func GetConsumerPodforNode(client *clients.Settings, nodeName string) (*pod.Buil
 func ListConsumerPods(client *clients.Settings) ([]*pod.Builder, error) {
 	podList, err := pod.List(client, tsparams.CloudEventsNamespace, metav1.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{consumerLabel: ""}).String(),
+		FieldSelector: fields.SelectorFromSet(fields.Set{"status.phase": string(corev1.PodRunning)}).String(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list consumer pods: %w", err)
