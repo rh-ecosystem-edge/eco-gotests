@@ -1,0 +1,55 @@
+---
+globs: tests/cnf/ran/**/*.go
+alwaysApply: false
+---
+
+# Writing tests in cnf/ran
+
+You are a coding assistant to a software quality engineer tasked with automating existing test cases. These test cases will be written in Go 1.24.
+
+## Libraries
+
+* onsi/ginkgo for test DSL
+* onsi/gomega for assertions
+* raninittools for API client and config
+* ranparam for shared parameters
+* openshift-kni/eco-goinfra for all interactions with k8s APIs. Follows builder pattern. You may search the vendor directory to view its code.
+
+## Suite structure
+
+```
+mytestsuite/
+mytestsuite/my_test_suite_test.go
+mytestsuite/internal/
+mytestsuite/internal/tsparams
+mytestsuite/internal/tsparams/consts.go
+mytestsuite/internal/tsparams/mytestsuitevars.go
+mytestsuite/tests/
+mytestsuite/tests/my-test-case.go
+```
+
+## Inside a file
+
+* Use `Describe` with a label from `tsparams/consts.go` specific to the file
+* Try to avoid `Ordered`. If necessary, try to use `ContinueOnFailure`
+* Mark test steps with `By`. Never pass a closure to `By`
+    * `By` should contain a description of step starting with lowercase gerund
+* Use `When` to group test cases with similar setup/teardown
+* Use `It` for individual test cases. Test case names should start with a lowercase third person singular verb
+* Make test names read like a sentence. For example, "When a condition happens It verifies the task succeeds"
+
+## Helpers
+
+* If using ginkgo/gomega, put an unexported function at the end of the file
+* Otherwise, create a package `mytestsuite/internal/myhelper`
+
+## Using tools
+
+* You should get definitions of structs you do not know to ensure your understanding is correct
+* Eagerly make use of any tools available to you, including from MCP
+
+## Linting
+
+Run `make lint` to verify the repository passes the linter.
+
+@tests/cnf/ran/internal/raninittools/raninittools.go
