@@ -25,9 +25,10 @@ import (
 )
 
 const (
-	kmmNamespace            = "openshift-kmm"
-	kmmControllerDeployment = "kmm-operator-controller"
-	kmmWebhookDeployment    = "kmm-operator-webhook-server"
+	kmmNamespace               = "openshift-kmm"
+	kmmControllerDeployment    = "kmm-operator-controller"
+	kmmWebhookDeployment       = "kmm-operator-webhook"
+	kmmLegacyWebhookDeployment = "kmm-operator-webhook-server"
 )
 
 // KMMOperatorReady waits for the KMM controller and webhook deployments to be
@@ -51,35 +52,46 @@ func kmmOperatorReady(apiClient *clients.Settings, tolerationKey string,
 	return wait.PollUntilContextTimeout(
 		context.TODO(), 5*time.Second, timeout, true,
 		func(context.Context) (bool, error) {
-			for _, deploymentName := range []string{kmmControllerDeployment, kmmWebhookDeployment} {
-				kmmDeployment, err := deployment.Pull(apiClient, deploymentName, kmmNamespace)
-				if err != nil {
-					return false, nil
-				}
+			controller, err := deployment.Pull(apiClient, kmmControllerDeployment, kmmNamespace)
+			if err != nil {
+				klog.V(params.NeuronLogLevel).Infof("KMM controller deployment is not available yet: %v", err)
 
-				if !deploymentRolloutReady(kmmDeployment) {
-					return false, nil
-				}
-
-				if deploymentName == kmmControllerDeployment && tolerationKey != "" {
-					hasToleration := false
-
-					for _, toleration := range kmmDeployment.Definition.Spec.Template.Spec.Tolerations {
-						if toleration.Key == tolerationKey && toleration.Effect == tolerationEffect {
-							hasToleration = true
-
-							break
-						}
-					}
-
-					if !hasToleration {
-						return false, nil
-					}
-				}
+				return false, nil
+			}
+			if controller == nil || !deploymentRolloutReady(controller) {
+				return false, nil
 			}
 
-			return true, nil
+			if tolerationKey != "" && !deploymentHasToleration(controller, tolerationKey, tolerationEffect) {
+				return false, nil
+			}
+
+			webhookReady := false
+			for _, deploymentName := range []string{kmmWebhookDeployment, kmmLegacyWebhookDeployment} {
+				kmmDeployment, pullErr := deployment.Pull(apiClient, deploymentName, kmmNamespace)
+				if pullErr != nil {
+					continue
+				}
+				if kmmDeployment == nil {
+					continue
+				}
+
+				webhookReady = deploymentRolloutReady(kmmDeployment)
+				break
+			}
+
+			return webhookReady, nil
 		})
+}
+
+func deploymentHasToleration(builder *deployment.Builder, key string, effect corev1.TaintEffect) bool {
+	for _, toleration := range builder.Definition.Spec.Template.Spec.Tolerations {
+		if toleration.Key == key && toleration.Effect == effect {
+			return true
+		}
+	}
+
+	return false
 }
 
 func deploymentRolloutReady(builder *deployment.Builder) bool {
