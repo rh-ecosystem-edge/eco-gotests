@@ -24,15 +24,28 @@ const (
 )
 
 var (
-	buildGVR                 = schema.GroupVersionResource{Group: "build.openshift.io", Version: "v1", Resource: "builds"}
-	buildConfigGVR           = schema.GroupVersionResource{Group: "build.openshift.io", Version: "v1", Resource: "buildconfigs"}
-	imageStreamGVR           = schema.GroupVersionResource{Group: "image.openshift.io", Version: "v1", Resource: "imagestreams"}
+	buildGVR = schema.GroupVersionResource{
+		Group: "build.openshift.io", Version: "v1", Resource: "builds",
+	}
+	buildConfigGVR = schema.GroupVersionResource{
+		Group: "build.openshift.io", Version: "v1", Resource: "buildconfigs",
+	}
+	imageStreamGVR = schema.GroupVersionResource{
+		Group: "image.openshift.io", Version: "v1", Resource: "imagestreams",
+	}
 	moduleBuildSignConfigGVR = schema.GroupVersionResource{
 		Group: "kmm.sigs.x-k8s.io", Version: "v1beta1", Resource: "modulebuildsignconfigs",
 	}
-	sensitiveDiagnosticKey  = regexp.MustCompile(`(?i)(secret|password|token|authorization|credential|dockerconfig|pullsecret|auth)`)
+	sensitiveDiagnosticKey = regexp.MustCompile(
+		`(?i)(secret|password|token|authorization|credential|dockerconfig|pullsecret|auth)`,
+	)
 	sensitiveDiagnosticText = regexp.MustCompile(
-		`(?i)(bearer\s+)[^\s]+|((?:password|token|authorization|secret|credential)\s*[=:]\s*)[^\s,]+|([a-z][a-z0-9+.-]*://[^/\s:@]+:)[^@\s]+@`)
+		`(?i)(authorization\s*[=:]\s*)(?:bearer|basic)\s+[^\s,"]+|` +
+			`(bearer\s+)[^\s,"]+|` +
+			`((?:password|token|authorization|secret|credential|auth|dockerconfig|pullsecret)` +
+			`\s*[=:]\s*)(?:"[^"]*"|'[^']*'|[^\s,]+)|` +
+			`([a-z][a-z0-9+.-]*://[^/\s:@]+:)[^@\s]+@`,
+	)
 )
 
 // LogDRAInClusterBuildDiagnostics records the KMM Module, build resources,
@@ -97,7 +110,7 @@ func logPodDiagnostics(ctx context.Context, apiClient *clients.Settings, namespa
 		}
 
 		if isBuildLogPod(pod) {
-			logPodContainerLogs(ctx, apiClient, namespace, pod.Name)
+			logPodContainerLogs(ctx, apiClient, namespace, pod)
 		}
 	}
 }
@@ -128,30 +141,45 @@ func logDynamicResource(ctx context.Context, apiClient *clients.Settings,
 	}
 }
 
-func logPodContainerLogs(ctx context.Context, apiClient *clients.Settings, namespace, podName string) {
+func logPodContainerLogs(ctx context.Context, apiClient *clients.Settings, namespace string, pod corev1.Pod) {
 	tailLines := diagnosticLogLines
+	containerNames := make([]string, 0, len(pod.Spec.InitContainers)+len(pod.Spec.Containers))
+
+	for _, container := range append(pod.Spec.InitContainers, pod.Spec.Containers...) {
+		containerNames = append(containerNames, container.Name)
+	}
 
 	for _, previous := range []bool{false, true} {
-		options := &corev1.PodLogOptions{Previous: previous, TailLines: &tailLines}
-		stream, err := apiClient.K8sClient.CoreV1().Pods(namespace).GetLogs(podName, options).Stream(ctx)
-		if err != nil {
-			continue
-		}
+		for _, containerName := range containerNames {
+			options := &corev1.PodLogOptions{Previous: previous, TailLines: &tailLines}
 
-		logs, readErr := io.ReadAll(stream)
-		closeErr := stream.Close()
-		if readErr != nil {
-			klog.Errorf("DRA in-cluster build diagnostics: logs read failed for %s/%s previous=%t: %v",
-				namespace, podName, previous, readErr)
-			continue
-		}
-		if closeErr != nil {
-			klog.Errorf("DRA in-cluster build diagnostics: logs close failed for %s/%s previous=%t: %v",
-				namespace, podName, previous, closeErr)
-		}
+			if len(containerNames) > 1 {
+				options.Container = containerName
+			}
 
-		klog.Infof("DRA in-cluster build diagnostics: pod %s/%s previous=%t logs:\n%s",
-			namespace, podName, previous, redactDiagnosticText(string(logs)))
+			stream, err := apiClient.K8sClient.CoreV1().Pods(namespace).GetLogs(pod.Name, options).Stream(ctx)
+			if err != nil {
+				continue
+			}
+
+			logs, readErr := io.ReadAll(stream)
+			closeErr := stream.Close()
+
+			if readErr != nil {
+				klog.Errorf("DRA in-cluster build diagnostics: logs read failed for %s/%s container=%s previous=%t: %v",
+					namespace, pod.Name, containerName, previous, readErr)
+
+				continue
+			}
+
+			if closeErr != nil {
+				klog.Errorf("DRA in-cluster build diagnostics: logs close failed for %s/%s container=%s previous=%t: %v",
+					namespace, pod.Name, containerName, previous, closeErr)
+			}
+
+			klog.Infof("DRA in-cluster build diagnostics: pod %s/%s container=%s previous=%t logs:\n%s",
+				namespace, pod.Name, containerName, previous, redactDiagnosticText(string(logs)))
+		}
 	}
 }
 
@@ -174,7 +202,7 @@ func isBuildRelatedPod(pod corev1.Pod) bool {
 	name := strings.ToLower(pod.Name)
 
 	return strings.Contains(name, "build") || strings.Contains(name, "kmm") ||
-		strings.Contains(name, params.DefaultDeviceConfigName)
+		strings.Contains(name, params.DefaultDeviceConfigName) || strings.Contains(name, "pull")
 }
 
 func isBuildLogPod(pod corev1.Pod) bool {
@@ -212,11 +240,23 @@ func sanitizeDiagnosticValue(value interface{}) interface{} {
 	switch typed := value.(type) {
 	case map[string]interface{}:
 		result := make(map[string]interface{}, len(typed))
+		sensitiveNamedValue := false
+
+		for _, nameKey := range []string{"name", "key"} {
+			if name, ok := typed[nameKey].(string); ok && sensitiveDiagnosticKey.MatchString(name) {
+				sensitiveNamedValue = true
+			}
+		}
+
 		for key, nested := range typed {
-			if sensitiveDiagnosticKey.MatchString(key) {
+			if sensitiveDiagnosticKey.MatchString(key) ||
+				(sensitiveNamedValue &&
+					(key == "value" || key == "valueFrom" || key == "data" || key == "stringData")) {
 				result[key] = "<redacted>"
+
 				continue
 			}
+
 			result[key] = sanitizeDiagnosticValue(nested)
 		}
 

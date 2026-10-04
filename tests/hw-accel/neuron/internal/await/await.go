@@ -58,6 +58,7 @@ func kmmOperatorReady(apiClient *clients.Settings, tolerationKey string,
 
 				return false, nil
 			}
+
 			if controller == nil || !deploymentRolloutReady(controller) {
 				return false, nil
 			}
@@ -67,16 +68,19 @@ func kmmOperatorReady(apiClient *clients.Settings, tolerationKey string,
 			}
 
 			webhookReady := false
+
 			for _, deploymentName := range []string{kmmWebhookDeployment, kmmLegacyWebhookDeployment} {
 				kmmDeployment, pullErr := deployment.Pull(apiClient, deploymentName, kmmNamespace)
 				if pullErr != nil {
 					continue
 				}
+
 				if kmmDeployment == nil {
 					continue
 				}
 
 				webhookReady = deploymentRolloutReady(kmmDeployment)
+
 				break
 			}
 
