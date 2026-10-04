@@ -42,7 +42,7 @@ var (
 	sensitiveDiagnosticText = regexp.MustCompile(
 		`(?i)(authorization\s*[=:]\s*)(?:bearer|basic)\s+[^\s,"]+|` +
 			`(bearer\s+)[^\s,"]+|` +
-			`((?:password|token|authorization|secret|credential|auth|dockerconfig|pullsecret)` +
+			`("?(?:password|token|authorization|secret|credential|auth(?:token)?|dockerconfig|pullsecret)"?` +
 			`\s*[=:]\s*)(?:"[^"]*"|'[^']*'|[^\s,]+)|` +
 			`([a-z][a-z0-9+.-]*://[^/\s:@]+:)[^@\s]+@`,
 	)
