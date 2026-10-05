@@ -161,6 +161,11 @@ func deleteV2ConsumerDeploymentOnNode(client *clients.Settings, nodeName string)
 		return fmt.Errorf("failed to delete consumer deployment: %w", err)
 	}
 
+	err = waitForConsumerPodsRemovedOnNode(client, nodeName, createDeleteTimeout)
+	if err != nil {
+		return fmt.Errorf("timed out waiting for consumer pods to terminate on node %s: %w", nodeName, err)
+	}
+
 	return nil
 }
 
