@@ -36,18 +36,72 @@ var workloadManagementAnnotation = map[string]string{
 // selector label, ignoring pods that are terminating or in a terminal phase. It returns an error if the active pod
 // list is empty or contains more than one pod.
 func GetConsumerPodforNode(client *clients.Settings, nodeName string) (*pod.Builder, error) {
-	podList, err := listConsumerPodsForNode(client, nodeName)
+	return activeConsumerPodOnNode(client, nodeName)
+}
+
+// WaitForActiveConsumerPodOnNode polls until a single running consumer pod exists on the node. After events such as a
+// node reboot, stale terminating pods may remain while the replacement pod is still starting.
+func WaitForActiveConsumerPodOnNode(client *clients.Settings, nodeName string, timeout time.Duration) (*pod.Builder, error) {
+	var activePod *pod.Builder
+
+	err := wait.PollUntilContextTimeout(
+		context.TODO(), 5*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			consumerPod, activeCount, _, err := lookupActiveConsumerPodOnNode(client, nodeName)
+			if err != nil {
+				return false, err
+			}
+
+			if activeCount == 1 {
+				activePod = consumerPod
+
+				return true, nil
+			}
+
+			return false, nil
+		})
+	if err != nil {
+		return nil, fmt.Errorf("timed out waiting for active consumer pod on node %s: %w", nodeName, err)
+	}
+
+	return activePod, nil
+}
+
+func activeConsumerPodOnNode(client *clients.Settings, nodeName string) (*pod.Builder, error) {
+	consumerPod, activeCount, totalCount, err := lookupActiveConsumerPodOnNode(client, nodeName)
 	if err != nil {
 		return nil, err
 	}
 
-	activePods := filterActiveConsumerPods(podList)
-	if len(activePods) != 1 {
+	if activeCount != 1 {
 		return nil, fmt.Errorf("expected 1 active consumer pod on node %s, got %d (%d pods total including terminating)",
-			nodeName, len(activePods), len(podList))
+			nodeName, activeCount, totalCount)
 	}
 
-	return activePods[0], nil
+	return consumerPod, nil
+}
+
+// lookupActiveConsumerPodOnNode returns the single active consumer pod when exactly one is running. activeCount is zero
+// while terminating pods are being replaced and the new pod is still starting. An error is returned when more than one
+// running pod exists.
+func lookupActiveConsumerPodOnNode(client *clients.Settings, nodeName string) (*pod.Builder, int, int, error) {
+	podList, err := listConsumerPodsForNode(client, nodeName)
+	if err != nil {
+		return nil, 0, 0, err
+	}
+
+	activePods := filterActiveConsumerPods(podList)
+	activeCount := len(activePods)
+	if activeCount > 1 {
+		return nil, activeCount, len(podList), fmt.Errorf(
+			"expected 1 active consumer pod on node %s, got %d (%d pods total including terminating)",
+			nodeName, activeCount, len(podList))
+	}
+
+	if activeCount == 0 {
+		return nil, 0, len(podList), nil
+	}
+
+	return activePods[0], 1, len(podList), nil
 }
 
 // ListConsumerPods lists all active consumer pods in the cluster. Terminating pods are excluded. It returns an error if
