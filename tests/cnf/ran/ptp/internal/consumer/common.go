@@ -41,7 +41,8 @@ func GetConsumerPodforNode(client *clients.Settings, nodeName string) (*pod.Buil
 
 // WaitForActiveConsumerPodOnNode polls until a single running consumer pod exists on the node. After events such as a
 // node reboot, stale terminating pods may remain while the replacement pod is still starting.
-func WaitForActiveConsumerPodOnNode(client *clients.Settings, nodeName string, timeout time.Duration) (*pod.Builder, error) {
+func WaitForActiveConsumerPodOnNode(
+	client *clients.Settings, nodeName string, timeout time.Duration) (*pod.Builder, error) {
 	var activePod *pod.Builder
 
 	err := wait.PollUntilContextTimeout(
@@ -90,6 +91,7 @@ func lookupActiveConsumerPodOnNode(client *clients.Settings, nodeName string) (*
 	}
 
 	activePods := filterActiveConsumerPods(podList)
+
 	activeCount := len(activePods)
 	if activeCount > 1 {
 		return nil, activeCount, len(podList), fmt.Errorf(
