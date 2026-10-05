@@ -17,9 +17,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/internal/nodestate"
 )
 
-// abortAfterFailedUpgradeTimeout is both the Abort CGU timeout and the spoke
-// Idle wait after auto-rollback. They must stay equal: TALM stops Abort when
-// the CGU times out, so waiting longer than the CGU cannot help.
+// abortAfterFailedUpgradeTimeout is both the Abort CGU timeout and the spoke Idle wait after auto-rollback.
 const abortAfterFailedUpgradeTimeout = 20 * time.Minute
 
 var _ = Describe(
