@@ -4,7 +4,6 @@
 package consumer
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -18,7 +17,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 const (
@@ -33,78 +31,23 @@ var workloadManagementAnnotation = map[string]string{
 }
 
 // GetConsumerPodforNode returns the cloud-event-consumer pod for a specific node. It lists pods using the node-specific
-// selector label, ignoring pods that are terminating or in a terminal phase. It returns an error if the active pod
-// list is empty or contains more than one pod.
+// selector label, ignoring pods that are terminating or not running. It returns an error if the active pod list is
+// empty or contains more than one pod.
 func GetConsumerPodforNode(client *clients.Settings, nodeName string) (*pod.Builder, error) {
-	return activeConsumerPodOnNode(client, nodeName)
-}
-
-// WaitForActiveConsumerPodOnNode polls until a single running consumer pod exists on the node. After events such as a
-// node reboot, stale terminating pods may remain while the replacement pod is still starting.
-func WaitForActiveConsumerPodOnNode(
-	client *clients.Settings, nodeName string, timeout time.Duration) (*pod.Builder, error) {
-	var activePod *pod.Builder
-
-	err := wait.PollUntilContextTimeout(
-		context.TODO(), 5*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			consumerPod, activeCount, _, err := lookupActiveConsumerPodOnNode(client, nodeName)
-			if err != nil {
-				return false, err
-			}
-
-			if activeCount == 1 {
-				activePod = consumerPod
-
-				return true, nil
-			}
-
-			return false, nil
-		})
+	podList, err := pod.List(client, tsparams.CloudEventsNamespace, metav1.ListOptions{
+		LabelSelector: labels.SelectorFromSet(getConsumerSelectorLabels(nodeName)).String(),
+	})
 	if err != nil {
-		return nil, fmt.Errorf("timed out waiting for active consumer pod on node %s: %w", nodeName, err)
-	}
-
-	return activePod, nil
-}
-
-// activeConsumerPodOnNode returns the single running consumer pod on a node, or an error if the count is not one.
-func activeConsumerPodOnNode(client *clients.Settings, nodeName string) (*pod.Builder, error) {
-	consumerPod, activeCount, totalCount, err := lookupActiveConsumerPodOnNode(client, nodeName)
-	if err != nil {
-		return nil, err
-	}
-
-	if activeCount != 1 {
-		return nil, fmt.Errorf("expected 1 active consumer pod on node %s, got %d (%d pods total including terminating)",
-			nodeName, activeCount, totalCount)
-	}
-
-	return consumerPod, nil
-}
-
-// lookupActiveConsumerPodOnNode returns the single active consumer pod when exactly one is running. activeCount is zero
-// while terminating pods are being replaced and the new pod is still starting. An error is returned when more than one
-// running pod exists.
-func lookupActiveConsumerPodOnNode(client *clients.Settings, nodeName string) (*pod.Builder, int, int, error) {
-	podList, err := listConsumerPodsForNode(client, nodeName)
-	if err != nil {
-		return nil, 0, 0, err
+		return nil, fmt.Errorf("failed to list consumer pods: %w", err)
 	}
 
 	activePods := filterActiveConsumerPods(podList)
-
-	activeCount := len(activePods)
-	if activeCount > 1 {
-		return nil, activeCount, len(podList), fmt.Errorf(
-			"expected 1 active consumer pod on node %s, got %d (%d pods total including terminating)",
-			nodeName, activeCount, len(podList))
+	if len(activePods) != 1 {
+		return nil, fmt.Errorf("expected 1 active consumer pod on node %s, got %d (%d pods total including terminating)",
+			nodeName, len(activePods), len(podList))
 	}
 
-	if activeCount == 0 {
-		return nil, 0, len(podList), nil
-	}
-
-	return activePods[0], 1, len(podList), nil
+	return activePods[0], nil
 }
 
 // ListConsumerPods lists all active consumer pods in the cluster. Terminating pods are excluded. It returns an error if
@@ -123,18 +66,6 @@ func ListConsumerPods(client *clients.Settings) ([]*pod.Builder, error) {
 	}
 
 	return activePods, nil
-}
-
-// listConsumerPodsForNode lists all consumer pods on a node, including pods that are terminating.
-func listConsumerPodsForNode(client *clients.Settings, nodeName string) ([]*pod.Builder, error) {
-	podList, err := pod.List(client, tsparams.CloudEventsNamespace, metav1.ListOptions{
-		LabelSelector: labels.SelectorFromSet(getConsumerSelectorLabels(nodeName)).String(),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list consumer pods: %w", err)
-	}
-
-	return podList, nil
 }
 
 // filterActiveConsumerPods returns pods that are not terminating and are still eligible to receive events (running).
@@ -158,20 +89,6 @@ func filterActiveConsumerPods(podList []*pod.Builder) []*pod.Builder {
 	}
 
 	return activePods
-}
-
-// waitForConsumerPodsRemovedOnNode waits until no consumer pods remain for the given node. Deployment deletion does
-// not wait for pods to terminate; callers must wait before redeploying to avoid duplicate pods during rollout.
-func waitForConsumerPodsRemovedOnNode(client *clients.Settings, nodeName string, timeout time.Duration) error {
-	return wait.PollUntilContextTimeout(
-		context.TODO(), 2*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			podList, err := listConsumerPodsForNode(client, nodeName)
-			if err != nil {
-				return false, err
-			}
-
-			return len(podList) == 0, nil
-		})
 }
 
 // AreEventsEnabled checks if events are enabled in the PTP operator config. Events are considered enabled if and only

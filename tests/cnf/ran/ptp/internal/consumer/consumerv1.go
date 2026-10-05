@@ -311,7 +311,7 @@ func createV1ConsumerDeploymentOnNode(client *clients.Settings, nodeName string,
 }
 
 // deleteV1ConsumerDeploymentOnNode deletes the cloud-event-consumer deployment with a specific node selected. It is the
-// inverse of [createV1ConsumerDeploymentOnNode]. It waits until the deployment and its pods are removed from the node.
+// inverse of [createV1ConsumerDeploymentOnNode] and also waits for [createDeleteTimeout] until the deployment is gone.
 func deleteV1ConsumerDeploymentOnNode(client *clients.Settings, nodeName string) error {
 	consumerDeployment, err := deployment.Pull(client, getConsumerDeploymentName(nodeName), tsparams.CloudEventsNamespace)
 	if err != nil {
@@ -321,11 +321,6 @@ func deleteV1ConsumerDeploymentOnNode(client *clients.Settings, nodeName string)
 	err = consumerDeployment.DeleteAndWait(createDeleteTimeout)
 	if err != nil {
 		return fmt.Errorf("failed to delete consumer deployment: %w", err)
-	}
-
-	err = waitForConsumerPodsRemovedOnNode(client, nodeName, createDeleteTimeout)
-	if err != nil {
-		return fmt.Errorf("timed out waiting for consumer pods to terminate on node %s: %w", nodeName, err)
 	}
 
 	return nil

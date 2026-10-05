@@ -121,10 +121,15 @@ var _ = Describe("PTP Node Reboot", Ordered, ContinueOnFailure, Label(tsparams.L
 
 	// 59995 - Validates PTP consumer events after ptp node reboot
 	It("validates PTP consumer events after ptp node reboot", reportxml.ID("59995"), func() {
+		var eventPod *pod.Builder
+
 		By("waiting for the event consumer pod on the node " + nodeName)
-		eventPod, err := consumer.WaitForActiveConsumerPodOnNode(
-			RANConfig.Spoke1APIClient, nodeName, 10*time.Minute)
-		Expect(err).ToNot(HaveOccurred(), "Failed to wait for event consumer pod on node %s", nodeName)
+		Eventually(func(g Gomega) {
+			pod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeName)
+			g.Expect(err).ToNot(HaveOccurred(), "Failed to get event consumer pod for node %s", nodeName)
+
+			eventPod = pod
+		}).WithTimeout(10 * time.Minute).WithPolling(5 * time.Second).Should(Succeed())
 
 		By("waiting for the LOCKED event to be reported")
 
@@ -132,7 +137,7 @@ var _ = Describe("PTP Node Reboot", Ordered, ContinueOnFailure, Label(tsparams.L
 			events.IsType(eventptp.PtpStateChange),
 			events.HasValue(events.WithSyncState(eventptp.LOCKED), events.ContainingResource(string(iface.Master))),
 		)
-		err = events.WaitForEvent(eventPod, rebootTime, 5*time.Minute, filter)
+		err := events.WaitForEvent(eventPod, rebootTime, 5*time.Minute, filter)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for locked event on node %s", nodeName)
 	})
 })
