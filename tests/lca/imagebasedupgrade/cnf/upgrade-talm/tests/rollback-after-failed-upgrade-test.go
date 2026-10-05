@@ -17,6 +17,11 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/lca/imagebasedupgrade/internal/nodestate"
 )
 
+// abortAfterFailedUpgradeTimeout is both the Abort CGU timeout and the spoke
+// Idle wait after auto-rollback. They must stay equal: TALM stops Abort when
+// the CGU times out, so waiting longer than the CGU cannot help.
+const abortAfterFailedUpgradeTimeout = 20 * time.Minute
+
 var _ = Describe(
 	"Validating rollback stage after a failed upgrade",
 	Label(tsparams.LabelRollbackFlow), func() {
@@ -96,13 +101,13 @@ var _ = Describe(
 			By("Creating abort IBGU after auto-rollback")
 
 			abortIbgu, err := cnfhelper.NewIbgu(tsparams.AbortIbguName).
-				WithPlan([]string{ibguv1alpha1.Abort}, 5, 10).
+				WithPlan([]string{ibguv1alpha1.Abort}, 5, int(abortAfterFailedUpgradeTimeout.Minutes())).
 				Create()
 			Expect(err).ToNot(HaveOccurred(), "Failed to create abort Ibgu.")
 
 			By("Waiting until spoke IBU returns to Idle")
 
-			Expect(cnfhelper.WaitForSpokeIBU(cnfhelper.SpokeIdle, 15*time.Minute)).To(Succeed(),
+			Expect(cnfhelper.WaitForSpokeIBU(cnfhelper.SpokeIdle, abortAfterFailedUpgradeTimeout)).To(Succeed(),
 				"spoke IBU did not return to Idle after Abort")
 
 			By("Waiting until abort IBGU completes")
