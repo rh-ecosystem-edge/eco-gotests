@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// TestFilterActiveConsumerPods verifies filterActiveConsumerPods keeps only running, non-terminating pods.
 func TestFilterActiveConsumerPods(t *testing.T) {
 	t.Parallel()
 
@@ -31,12 +32,14 @@ func TestFilterActiveConsumerPods(t *testing.T) {
 	assert.Equal(t, runningPod, active[0])
 }
 
+// TestFilterActiveConsumerPodsEmpty verifies filterActiveConsumerPods returns nil for an empty input list.
 func TestFilterActiveConsumerPodsEmpty(t *testing.T) {
 	t.Parallel()
 
 	assert.Empty(t, filterActiveConsumerPods(nil))
 }
 
+// TestFilterActiveConsumerPodsPendingExcluded verifies filterActiveConsumerPods excludes pending pods.
 func TestFilterActiveConsumerPodsPendingExcluded(t *testing.T) {
 	t.Parallel()
 

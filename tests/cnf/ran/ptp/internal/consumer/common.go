@@ -67,6 +67,7 @@ func WaitForActiveConsumerPodOnNode(
 	return activePod, nil
 }
 
+// activeConsumerPodOnNode returns the single running consumer pod on a node, or an error if the count is not one.
 func activeConsumerPodOnNode(client *clients.Settings, nodeName string) (*pod.Builder, error) {
 	consumerPod, activeCount, totalCount, err := lookupActiveConsumerPodOnNode(client, nodeName)
 	if err != nil {
@@ -124,6 +125,7 @@ func ListConsumerPods(client *clients.Settings) ([]*pod.Builder, error) {
 	return activePods, nil
 }
 
+// listConsumerPodsForNode lists all consumer pods on a node, including pods that are terminating.
 func listConsumerPodsForNode(client *clients.Settings, nodeName string) ([]*pod.Builder, error) {
 	podList, err := pod.List(client, tsparams.CloudEventsNamespace, metav1.ListOptions{
 		LabelSelector: labels.SelectorFromSet(getConsumerSelectorLabels(nodeName)).String(),

@@ -148,8 +148,8 @@ func createV2ConsumerDeploymentOnNode(client *clients.Settings, nodeName string)
 	return nil
 }
 
-// deleteV2ConsumerDeploymentOnNode deletes the cloud-event-consumer deployment with a specific node selected. It is
-// the inverse of createV2ConsumerDeploymentOnNode.
+// deleteV2ConsumerDeploymentOnNode deletes the cloud-event-consumer deployment with a specific node selected. It is the
+// inverse of createV2ConsumerDeploymentOnNode. It waits until the deployment and its pods are removed from the node.
 func deleteV2ConsumerDeploymentOnNode(client *clients.Settings, nodeName string) error {
 	consumerDeployment, err := deployment.Pull(client, getConsumerDeploymentName(nodeName), tsparams.CloudEventsNamespace)
 	if err != nil {
