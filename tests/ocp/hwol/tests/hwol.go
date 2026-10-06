@@ -471,7 +471,49 @@ func createTrafficPod(podName, networkName, nodeName string, cmd []string) (*pod
 		Limits:   corev1.ResourceList{resName: resource.MustParse("1")},
 	}
 
-	return builder.CreateAndWaitUntilRunning(tsparams.DefaultTimeout)
+	created, err := builder.CreateAndWaitUntilRunning(tsparams.DefaultTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("traffic pod %s did not become Running: %w; %s",
+			podName, err, trafficPodDiagnostics(podName))
+	}
+
+	return created, nil
+}
+
+// trafficPodDiagnostics preserves the scheduling and CNI clues that would
+// otherwise disappear when the suite cleanup removes the test namespace.
+func trafficPodDiagnostics(podName string) string {
+	podBuilder, err := pod.Pull(APIClient, podName, tsparams.TestNamespaceName)
+	if err != nil {
+		return fmt.Sprintf("unable to retrieve pod status: %v", err)
+	}
+
+	podObject := podBuilder.Object
+	details := []string{fmt.Sprintf("phase=%s node=%s", podObject.Status.Phase, podObject.Spec.NodeName)}
+	for _, condition := range podObject.Status.Conditions {
+		details = append(details, fmt.Sprintf("condition %s=%s reason=%s message=%q",
+			condition.Type, condition.Status, condition.Reason, condition.Message))
+	}
+
+	for _, status := range podObject.Status.ContainerStatuses {
+		if status.State.Waiting != nil {
+			details = append(details, fmt.Sprintf("container %s waiting reason=%s message=%q",
+				status.Name, status.State.Waiting.Reason, status.State.Waiting.Message))
+		}
+	}
+
+	events, eventErr := APIClient.K8sClient.CoreV1().Events(tsparams.TestNamespaceName).List(
+		context.Background(), metav1.ListOptions{FieldSelector: fmt.Sprintf("involvedObject.name=%s", podName)})
+	if eventErr != nil {
+		details = append(details, fmt.Sprintf("unable to list pod events: %v", eventErr))
+	} else {
+		for _, event := range events.Items {
+			details = append(details, fmt.Sprintf("event %s reason=%s message=%q",
+				event.Type, event.Reason, event.Message))
+		}
+	}
+
+	return strings.Join(details, "; ")
 }
 
 // iperfServerCMD returns a shell command that waits for net1, then runs iperf3 bound to that IP.
