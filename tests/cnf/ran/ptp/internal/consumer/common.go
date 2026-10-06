@@ -14,7 +14,9 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ptp"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
@@ -29,11 +31,12 @@ var workloadManagementAnnotation = map[string]string{
 	"target.workload.openshift.io/management": `{"effect": "PreferredDuringScheduling"}`,
 }
 
-// GetConsumerPodforNode returns the cloud-event-consumer pod for a specific node. It lists pods using the node-specific
-// selector label. It returns an error if the pod list is empty or contains more than one pod.
+// GetConsumerPodforNode returns the cloud-event-consumer pod for a specific node. It lists pods which have not Failed
+// using the node-specific selector label. It returns an error if the pod list is empty or contains more than one pod.
 func GetConsumerPodforNode(client *clients.Settings, nodeName string) (*pod.Builder, error) {
 	podList, err := pod.List(client, tsparams.CloudEventsNamespace, metav1.ListOptions{
 		LabelSelector: labels.SelectorFromSet(getConsumerSelectorLabels(nodeName)).String(),
+		FieldSelector: fields.OneTermNotEqualSelector("status.phase", string(corev1.PodFailed)).String(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list consumer pods: %w", err)
@@ -46,10 +49,12 @@ func GetConsumerPodforNode(client *clients.Settings, nodeName string) (*pod.Buil
 	return podList[0], nil
 }
 
-// ListConsumerPods lists all the consumer pods in the cluster. It returns an error if there are no consumer pods found.
+// ListConsumerPods lists all the consumer pods which have not Failed in the cluster. It returns an error if there are
+// no consumer pods found.
 func ListConsumerPods(client *clients.Settings) ([]*pod.Builder, error) {
 	podList, err := pod.List(client, tsparams.CloudEventsNamespace, metav1.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{consumerLabel: ""}).String(),
+		FieldSelector: fields.OneTermNotEqualSelector("status.phase", string(corev1.PodFailed)).String(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list consumer pods: %w", err)
