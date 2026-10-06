@@ -22,32 +22,30 @@ import (
 )
 
 const (
-	// LabelSystemReservedValidation represents systemreserved validation test label.
-	labelSystemReservedValidation = "systemreserved-validation"
-	// NodeSizingEnvPath is the path to node-sizing.env file on nodes
+	// NodeSizingEnvPath is the path to node-sizing.env file on nodes.
 	nodeSizingEnvPath = "/host/etc/node-sizing.env"
 )
 
 var (
-	// Default systemReserved values based on CNF-16828 and scale lab data
-	// These can be overridden via environment variables
+	// Default systemReserved values based on CNF-16828 and scale lab data.
+	// These can be overridden via environment variables.
 
-	// controlPlaneCPUReserved is the default CPU cores reserved for control plane nodes (40 cores based on scale lab max 39.1)
+	// controlPlaneCPUReserved is the default CPU cores reserved for control plane nodes (40 cores based on scale lab max 39.1).
 	controlPlaneCPUReserved = getEnvOrDefault("CONTROL_PLANE_CPU_RESERVED", "40")
-	// controlPlaneMemoryReserved is the default memory reserved for control plane nodes (30Gi per CNF-16828)
+	// controlPlaneMemoryReserved is the default memory reserved for control plane nodes (30Gi per CNF-16828).
 	controlPlaneMemoryReserved = getEnvOrDefault("CONTROL_PLANE_MEMORY_RESERVED", "30Gi")
-	// workerCPUReserved is the default CPU reserved for worker nodes (1 core / 1000m)
+	// workerCPUReserved is the default CPU reserved for worker nodes (1 core / 1000m).
 	workerCPUReserved = getEnvOrDefault("WORKER_CPU_RESERVED", "1000m")
-	// workerMemoryReserved is the default memory reserved for worker nodes (11Gi per CNF-16828)
+	// workerMemoryReserved is the default memory reserved for worker nodes (11Gi per CNF-16828).
 	workerMemoryReserved = getEnvOrDefault("WORKER_MEMORY_RESERVED", "11Gi")
 
-	// performanceProfileName is the name of the PerformanceProfile to validate
+	// performanceProfileName is the name of the PerformanceProfile to validate.
 	performanceProfileName = getEnvOrDefault("PERFORMANCE_PROFILE_NAME", "")
 
-	// Scale lab baseline data
-	// scaleLabControlPlaneCPUMax is the maximum CPU usage observed in scale lab for control plane (OCP 4.16)
+	// Scale lab baseline data.
+	// scaleLabControlPlaneCPUMax is the maximum CPU usage observed in scale lab for control plane (OCP 4.16).
 	scaleLabControlPlaneCPUMax = 39.1
-	// scaleLabControlPlaneMemoryMax is the maximum memory usage observed in scale lab for control plane (OCP 4.16) in GB
+	// scaleLabControlPlaneMemoryMax is the maximum memory usage observed in scale lab for control plane (OCP 4.16) in GB.
 	scaleLabControlPlaneMemoryMax = 33.9
 )
 
@@ -128,6 +126,8 @@ func ValidatePerformanceProfileSystemReserved() {
 }
 
 // ValidateControlPlaneNodeSystemReserved validates systemReserved configuration in /etc/node-sizing.env on control plane nodes.
+//
+//nolint:funlen // Complex validation logic with node filtering and detailed checks
 func ValidateControlPlaneNodeSystemReserved() {
 	By("Getting control plane nodes")
 	controlPlaneNodes, err := nodes.List(APIClient,
@@ -249,6 +249,8 @@ func ValidateControlPlaneNodeSystemReserved() {
 }
 
 // ValidateWorkerNodeSystemReserved validates systemReserved configuration in /etc/node-sizing.env on worker nodes.
+//
+//nolint:funlen // Complex validation logic with node filtering and detailed checks
 func ValidateWorkerNodeSystemReserved() {
 	By("Getting worker nodes")
 	workerNodes, err := nodes.List(APIClient,
@@ -440,7 +442,7 @@ func ValidateControlPlaneNodeEnforcement() {
 		}
 
 		By(fmt.Sprintf("Checking enforcement on control plane node %s", nodeName))
-		validateNodeEnforcement(node, "control-plane")
+		validateNodeEnforcement(node)
 	}
 }
 
@@ -465,11 +467,13 @@ func ValidateWorkerNodeEnforcement() {
 		}
 
 		By(fmt.Sprintf("Checking enforcement on worker node %s", nodeName))
-		validateNodeEnforcement(node, "worker")
+		validateNodeEnforcement(node)
 	}
 }
 
 // ValidateScaleLabBaseline validates that systemReserved values are adequate for scale lab requirements.
+//
+//nolint:gocognit // Complex multi-node baseline validation with multiple conditional branches
 func ValidateScaleLabBaseline() {
 	By("Validating control plane nodes against scale lab baseline")
 	controlPlaneNodes, err := nodes.List(APIClient,
@@ -618,6 +622,8 @@ func ValidateScaleLabBaseline() {
 // Helper functions
 
 // validateNodeAllocatable validates node allocatable capacity.
+//
+//nolint:funlen // Detailed capacity calculation and validation logic
 func validateNodeAllocatable(node *nodes.Builder, nodeType string) {
 	nodeObj := node.Object
 	nodeName := nodeObj.Name
@@ -710,7 +716,7 @@ func validateNodeAllocatable(node *nodes.Builder, nodeType string) {
 }
 
 // validateNodeEnforcement validates systemReserved enforcement configuration on a node.
-func validateNodeEnforcement(node *nodes.Builder, nodeType string) {
+func validateNodeEnforcement(node *nodes.Builder) {
 	nodeObj := node.Object
 	nodeName := nodeObj.Name
 	By(fmt.Sprintf("Checking kubelet config enforcement on node %s", nodeName))
@@ -877,7 +883,7 @@ func executeDebugPodCommand(nodeName string, cmd []string) (string, error) {
 	GinkgoWriter.Printf("Creating debug pod %s on node %s\n", debugPodName, nodeName)
 	_, err := debugPod.CreateAndWaitUntilRunning(5 * time.Minute)
 	if err != nil {
-		return "", fmt.Errorf("failed to create debug pod on node %s: %v", nodeName, err)
+		return "", fmt.Errorf("failed to create debug pod on node %s: %w", nodeName, err)
 	}
 
 	// Execute the command
@@ -889,7 +895,7 @@ func executeDebugPodCommand(nodeName string, cmd []string) (string, error) {
 		if cleanupErr != nil {
 			GinkgoWriter.Printf("Warning: failed to delete debug pod: %v\n", cleanupErr)
 		}
-		return "", fmt.Errorf("failed to execute command on node %s: %v", nodeName, err)
+		return "", fmt.Errorf("failed to execute command on node %s: %w", nodeName, err)
 	}
 
 	// Cleanup debug pod
