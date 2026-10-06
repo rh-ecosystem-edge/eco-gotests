@@ -14,6 +14,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ptp"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
@@ -30,7 +31,8 @@ var workloadManagementAnnotation = map[string]string{
 }
 
 // GetConsumerPodforNode returns the cloud-event-consumer pod for a specific node. It lists pods using the node-specific
-// selector label. It returns an error if the pod list is empty or contains more than one pod.
+// selector label, ignoring pods that are terminating or not running. It returns an error if the active pod list is
+// empty or contains more than one pod.
 func GetConsumerPodforNode(client *clients.Settings, nodeName string) (*pod.Builder, error) {
 	podList, err := pod.List(client, tsparams.CloudEventsNamespace, metav1.ListOptions{
 		LabelSelector: labels.SelectorFromSet(getConsumerSelectorLabels(nodeName)).String(),
@@ -39,14 +41,17 @@ func GetConsumerPodforNode(client *clients.Settings, nodeName string) (*pod.Buil
 		return nil, fmt.Errorf("failed to list consumer pods: %w", err)
 	}
 
-	if len(podList) != 1 {
-		return nil, fmt.Errorf("expected 1 consumer pod on node %s, got %d", nodeName, len(podList))
+	activePods := filterActiveConsumerPods(podList)
+	if len(activePods) != 1 {
+		return nil, fmt.Errorf("expected 1 active consumer pod on node %s, got %d (%d pods total including terminating)",
+			nodeName, len(activePods), len(podList))
 	}
 
-	return podList[0], nil
+	return activePods[0], nil
 }
 
-// ListConsumerPods lists all the consumer pods in the cluster. It returns an error if there are no consumer pods found.
+// ListConsumerPods lists all active consumer pods in the cluster. Terminating pods are excluded. It returns an error if
+// there are no active consumer pods found.
 func ListConsumerPods(client *clients.Settings) ([]*pod.Builder, error) {
 	podList, err := pod.List(client, tsparams.CloudEventsNamespace, metav1.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{consumerLabel: ""}).String(),
@@ -55,11 +60,35 @@ func ListConsumerPods(client *clients.Settings) ([]*pod.Builder, error) {
 		return nil, fmt.Errorf("failed to list consumer pods: %w", err)
 	}
 
-	if len(podList) == 0 {
-		return nil, fmt.Errorf("no consumer pods found in the cluster")
+	activePods := filterActiveConsumerPods(podList)
+	if len(activePods) == 0 {
+		return nil, fmt.Errorf("no active consumer pods found in the cluster")
 	}
 
-	return podList, nil
+	return activePods, nil
+}
+
+// filterActiveConsumerPods returns pods that are not terminating and are still eligible to receive events (running).
+func filterActiveConsumerPods(podList []*pod.Builder) []*pod.Builder {
+	var activePods []*pod.Builder
+
+	for _, consumerPod := range podList {
+		if consumerPod == nil || consumerPod.Object == nil {
+			continue
+		}
+
+		if consumerPod.Object.DeletionTimestamp != nil {
+			continue
+		}
+
+		if consumerPod.Object.Status.Phase != corev1.PodRunning {
+			continue
+		}
+
+		activePods = append(activePods, consumerPod)
+	}
+
+	return activePods
 }
 
 // AreEventsEnabled checks if events are enabled in the PTP operator config. Events are considered enabled if and only

@@ -32,6 +32,7 @@ var _ = Describe("PTP Node Reboot", Ordered, ContinueOnFailure, Label(tsparams.L
 		ranparam.OpenshiftIngressNamespace,
 		ranparam.PtpOperatorNamespace,
 		ranparam.OpenshiftMonitoringNamespace,
+		tsparams.CloudEventsNamespace,
 	}
 
 	var (
@@ -121,9 +122,9 @@ var _ = Describe("PTP Node Reboot", Ordered, ContinueOnFailure, Label(tsparams.L
 
 	// 59995 - Validates PTP consumer events after ptp node reboot
 	It("validates PTP consumer events after ptp node reboot", reportxml.ID("59995"), func() {
-		By("getting the event pod for the node " + nodeName)
+		By("getting the event consumer pod for the node " + nodeName)
 		eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeName)
-		Expect(err).ToNot(HaveOccurred(), "Failed to get event pod for node %s", nodeName)
+		Expect(err).ToNot(HaveOccurred(), "Failed to get event consumer pod for node %s", nodeName)
 
 		By("waiting for the LOCKED event to be reported")
 
