@@ -1,6 +1,7 @@
 package hwol
 
 import (
+	"fmt"
 	"runtime"
 	"testing"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/params"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/reporter"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/hwol/internal/hwolenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/hwol/internal/ocphwolinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/hwol/internal/tsparams"
 	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/hwol/tests"
@@ -64,13 +66,33 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	return nil
 }, func([]byte) {})
 
-// Match synchronized setup with a single final namespace cleanup. This prevents
-// parallel workers from racing to delete the fixed-name namespace.
+// Match synchronized setup with one final fixed-name HWOL resource cleanup and
+// namespace cleanup. The HWOL Describe also cleans up in AfterAll, but this
+// suite-level safeguard covers interruptions or failures before AfterAll runs.
 var _ = SynchronizedAfterSuite(func() {}, func() {
+	var cleanupErr error
+	if HwolOcpConfig != nil {
+		devices, err := HwolOcpConfig.GetHwolDevices()
+		if err != nil {
+			cleanupErr = err
+		} else if len(devices) == 0 {
+			cleanupErr = fmt.Errorf("no HWOL devices configured for final cleanup")
+		} else {
+			cleanupErr = hwolenv.CleanupHwolResources(
+				HwolOcpConfig.OcpHwolOperatorNamespace,
+				HwolOcpConfig.MCPLabel,
+				devices[0].InterfaceName,
+				tsparams.CleanupWaitTimeout,
+				tsparams.DefaultStableDuration,
+			)
+		}
+	}
+
 	By("Deleting test namespace")
 
-	err := testNS.DeleteAndWait(tsparams.DefaultTimeout)
-	Expect(err).ToNot(HaveOccurred(), "error to delete test namespace")
+	namespaceErr := testNS.DeleteAndWait(tsparams.DefaultTimeout)
+	Expect(cleanupErr).ToNot(HaveOccurred(), "failed to perform final HWOL cleanup")
+	Expect(namespaceErr).ToNot(HaveOccurred(), "error to delete test namespace")
 })
 
 var _ = JustAfterEach(func() {

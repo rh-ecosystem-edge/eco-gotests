@@ -601,6 +601,17 @@ func newOvsDebugPod(nodeName, image string) (*pod.Builder, error) {
 func CleanupHwolResources(operatorNS, mcpName, pfName string, timeout, stableDuration time.Duration) error {
 	klog.V(90).Infof("Cleaning HWOL test resources in namespace %s", operatorNS)
 
+	exists, err := hwolResourcesExist(operatorNS)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		klog.V(90).Info("No HWOL test resources found; cleanup is already complete")
+
+		return nil
+	}
+
 	ovsNet := NewOvsNetworkBuilder(
 		APIClient, tsparams.OvsNetworkName, operatorNS, tsparams.TestNamespaceName, tsparams.ResourceName)
 	if ovsNet != nil {
@@ -634,6 +645,41 @@ func CleanupHwolResources(operatorNS, mcpName, pfName string, timeout, stableDur
 	}
 
 	return verifyHwolCleanup(operatorNS, mcpName, pfName)
+}
+
+// hwolResourcesExist reports whether any fixed-name resources owned by the HWOL
+// suite remain. This makes CleanupHwolResources safe to call as a final suite
+// safeguard after the per-Describe cleanup has already completed.
+func hwolResourcesExist(operatorNS string) (bool, error) {
+	ovsNet := NewOvsNetworkBuilder(
+		APIClient, tsparams.OvsNetworkName, operatorNS, tsparams.TestNamespaceName, tsparams.ResourceName)
+	if ovsNet == nil {
+		return false, fmt.Errorf("failed to initialize OVSNetwork cleanup builder")
+	}
+
+	if ovsNet.Exists() {
+		return true, nil
+	}
+
+	if _, err := sriov.PullNetwork(APIClient, tsparams.SriovNetworkName, operatorNS); err == nil {
+		return true, nil
+	} else if !k8serrors.IsNotFound(err) && !strings.Contains(err.Error(), "does not exist") {
+		return false, fmt.Errorf("failed to look up HWOL SriovNetwork %s: %w", tsparams.SriovNetworkName, err)
+	}
+
+	if _, err := sriov.PullPolicy(APIClient, tsparams.PolicyName, operatorNS); err == nil {
+		return true, nil
+	} else if !k8serrors.IsNotFound(err) && !strings.Contains(err.Error(), "does not exist") {
+		return false, fmt.Errorf("failed to look up HWOL SriovNetworkNodePolicy %s: %w", tsparams.PolicyName, err)
+	}
+
+	if _, err := sriov.PullPoolConfig(APIClient, tsparams.PoolConfigName, operatorNS); err == nil {
+		return true, nil
+	} else if !k8serrors.IsNotFound(err) && !strings.Contains(err.Error(), "does not exist") {
+		return false, fmt.Errorf("failed to look up HWOL SriovNetworkPoolConfig %s: %w", tsparams.PoolConfigName, err)
+	}
+
+	return false, nil
 }
 
 // RecoverHwolCleanup reboots only HWOL MCP nodes after failed cleanup, then verifies

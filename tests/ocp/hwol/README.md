@@ -166,6 +166,11 @@ bridge has been removed. A cleanup timeout (often switchdev reset stuck with
 time, waits for recovery, and verifies cleanup. The original cleanup failure is
 still reported, so this workaround never turns a failed cleanup into a pass.
 
+The suite also repeats this fixed-name resource cleanup once in its synchronized
+after-suite hook. This covers a process interruption or setup failure that
+prevents the ordered `AfterAll` from running; if the regular cleanup succeeded,
+the final hook is a no-op.
+
 ## Current coverage
 
 | Spec | What it checks |
