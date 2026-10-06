@@ -272,16 +272,39 @@ func ListMCPWorkerNodes(mcpLabel string) ([]*nodes.Builder, error) {
 	return nodes.List(APIClient, metav1.ListOptions{LabelSelector: selector})
 }
 
+// ListMCPWorkerNodesWithPF returns MCP workers that expose pfName in their
+// SriovNetworkNodeState. An MCP can contain workers with different NIC layouts.
+func ListMCPWorkerNodesWithPF(operatorNS, mcpLabel, pfName string) ([]*nodes.Builder, error) {
+	workerNodes, err := ListMCPWorkerNodes(mcpLabel)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list MCP nodes: %w", err)
+	}
+
+	matchingNodes := make([]*nodes.Builder, 0, len(workerNodes))
+	for _, node := range workerNodes {
+		state := sriov.NewNetworkNodeStateBuilder(APIClient, node.Object.Name, operatorNS)
+		if err := state.Discover(); err != nil {
+			return nil, fmt.Errorf("failed to discover SriovNetworkNodeState for %s: %w", node.Object.Name, err)
+		}
+
+		if _, err := findStatusInterface(state.Objects.Status.Interfaces, pfName); err == nil {
+			matchingNodes = append(matchingNodes, node)
+		}
+	}
+
+	if len(matchingNodes) == 0 {
+		return nil, fmt.Errorf("no MCP-labeled workers expose interface %s", pfName)
+	}
+
+	return matchingNodes, nil
+}
+
 // AssertSwitchdevAndOVSBridge checks SriovNetworkNodeState for switchdev mode and a managed OVS bridge
 // on the given PF for each MCP-labeled node.
 func AssertSwitchdevAndOVSBridge(operatorNS, mcpLabel, pfName string) error {
-	workerNodes, err := ListMCPWorkerNodes(mcpLabel)
+	workerNodes, err := ListMCPWorkerNodesWithPF(operatorNS, mcpLabel, pfName)
 	if err != nil {
-		return fmt.Errorf("failed to list MCP nodes: %w", err)
-	}
-
-	if len(workerNodes) == 0 {
-		return fmt.Errorf("no nodes found with label node-role.kubernetes.io/%s", mcpLabel)
+		return err
 	}
 
 	for _, node := range workerNodes {
@@ -330,13 +353,9 @@ func findStatusInterface(ifaces sriovv1.InterfaceExts, pfName string) (*sriovv1.
 
 // LookupManagedOVSBridge returns the managed OVS bridge name for pfName on the first MCP worker.
 func LookupManagedOVSBridge(operatorNS, mcpLabel, pfName string) (string, error) {
-	workerNodes, err := ListMCPWorkerNodes(mcpLabel)
+	workerNodes, err := ListMCPWorkerNodesWithPF(operatorNS, mcpLabel, pfName)
 	if err != nil {
-		return "", fmt.Errorf("failed to list MCP nodes: %w", err)
-	}
-
-	if len(workerNodes) == 0 {
-		return "", fmt.Errorf("no nodes found with label node-role.kubernetes.io/%s", mcpLabel)
+		return "", err
 	}
 
 	nodeName := workerNodes[0].Object.Name
@@ -685,13 +704,9 @@ func hwolResourcesExist(operatorNS string) (bool, error) {
 // RecoverHwolCleanup reboots only HWOL MCP nodes after failed cleanup, then verifies
 // the switchdev and OVS state is gone. Callers must preserve the original failure.
 func RecoverHwolCleanup(operatorNS, mcpName, pfName string, timeout, stableDuration time.Duration) error {
-	workerNodes, err := ListMCPWorkerNodes(mcpName)
+	workerNodes, err := ListMCPWorkerNodesWithPF(operatorNS, mcpName, pfName)
 	if err != nil {
-		return fmt.Errorf("failed to list HWOL MCP nodes for recovery: %w", err)
-	}
-
-	if len(workerNodes) == 0 {
-		return fmt.Errorf("no nodes found with label node-role.kubernetes.io/%s", mcpName)
+		return err
 	}
 
 	for _, workerNode := range workerNodes {
@@ -833,6 +848,7 @@ func verifyHwolCleanup(operatorNS, mcpName, pfName string) error {
 		return fmt.Errorf("no nodes found with label node-role.kubernetes.io/%s", mcpName)
 	}
 
+	matchedPF := false
 	for _, node := range workerNodes {
 		nodeName := node.Object.Name
 
@@ -841,15 +857,16 @@ func verifyHwolCleanup(operatorNS, mcpName, pfName string) error {
 			return fmt.Errorf("failed to discover SriovNetworkNodeState for %s: %w", nodeName, err)
 		}
 
+		iface, err := findStatusInterface(state.Objects.Status.Interfaces, pfName)
+		if err != nil {
+			continue
+		}
+		matchedPF = true
+
 		if state.Objects.Status.SyncStatus != "Succeeded" {
 			return fmt.Errorf(
 				"node %s syncStatus is %q after HWOL cleanup, want Succeeded",
 				nodeName, state.Objects.Status.SyncStatus)
-		}
-
-		iface, err := findStatusInterface(state.Objects.Status.Interfaces, pfName)
-		if err != nil {
-			return fmt.Errorf("node %s: %w", nodeName, err)
 		}
 		// Empty is the operator's representation of the default legacy mode.
 		if iface.EswitchMode != "" && iface.EswitchMode != "legacy" {
@@ -867,6 +884,10 @@ func verifyHwolCleanup(operatorNS, mcpName, pfName string) error {
 				}
 			}
 		}
+	}
+
+	if !matchedPF {
+		return fmt.Errorf("no MCP-labeled workers expose interface %s", pfName)
 	}
 
 	return nil

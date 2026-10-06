@@ -69,7 +69,7 @@ var _ = Describe(
 				operatorNS, mcpLabel, devices[0], vfNum,
 			)).To(Succeed(), "Failed to ensure switchdev foundation")
 
-			mcpNodes, err := hwolenv.ListMCPWorkerNodes(mcpLabel)
+			mcpNodes, err := hwolenv.ListMCPWorkerNodesWithPF(operatorNS, mcpLabel, pfName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to list MCP nodes")
 			Expect(mcpNodes).ToNot(BeEmpty(), "No MCP-labeled workers")
 			workerNode = mcpNodes[0].Object.Name
