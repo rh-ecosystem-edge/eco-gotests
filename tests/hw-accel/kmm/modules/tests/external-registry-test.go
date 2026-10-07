@@ -9,7 +9,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/configmap"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/events"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/kmm"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
@@ -24,7 +23,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/klog/v2"
 )
 
 var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func() {
@@ -172,45 +170,19 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 		})
 
 		It("should generate events on nodes when module is loaded", reportxml.ID("68106"), func() {
-			By("Waiting events to be flushed")
-			time.Sleep(30 * time.Second)
+			totalNodes, err := get.NumberOfNodesForSelector(APIClient, GeneralConfig.WorkerLabelMap)
+			Expect(err).ToNot(HaveOccurred(), "failed to determine the expected number of module events")
 
-			By("Getting events from 'default' namespace")
+			By("Waiting for ModuleLoaded and ModuleUnloaded events")
 
-			eventList, err := events.List(APIClient, "default")
-			Expect(err).ToNot(HaveOccurred(), "Fail to collect events")
-
-			totalNodes, _ := get.NumberOfNodesForSelector(APIClient, GeneralConfig.WorkerLabelMap)
-
-			foundModuleLoadedEvents := 0
-			foundModuleUnloadedEvents := 0
-
-			messageModuleLoaded := get.ModuleLoadedMessage(localNsName, moduleName)
-			messageModuleUnloaded := get.ModuleUnloadedMessage(localNsName, moduleName)
-
-			for _, event := range eventList {
-				klog.V(kmmparams.KmmLogLevel).Infof("Reason: %s, Message: %s", event.Object.Reason, event.Object.Message)
-
-				if event.Object.Reason == kmmparams.ReasonModuleLoaded &&
-					event.Object.Message == messageModuleLoaded {
-					foundModuleLoadedEvents++
-					klog.V(kmmparams.KmmLogLevel).Infof("ModuleLoaded events: %d", foundModuleLoadedEvents)
-				}
-
-				if event.Object.Reason == kmmparams.ReasonModuleUnloaded &&
-					event.Object.Message == messageModuleUnloaded {
-					foundModuleUnloadedEvents++
-					klog.V(kmmparams.KmmLogLevel).Infof("ModuleUnloaded events: %d", foundModuleUnloadedEvents)
-				}
-			}
-
-			Expect(foundModuleLoadedEvents).To(Equal(totalNodes), "ModuleLoaded events do not match")
-			Expect(foundModuleUnloadedEvents).To(Equal(totalNodes), "ModuleUnloaded events do not match")
+			err = await.ModuleLifecycleEvents(APIClient, kmmparams.DefaultNodesNamespace,
+				localNsName, moduleName, totalNodes, 2*time.Minute)
+			Expect(err).ToNot(HaveOccurred(), "module lifecycle events did not arrive")
 		})
 	})
 
-	// Separate context to isolate flaky event test (68106) in first context.
-	// If 68106 fails, these tests will still run. Reuses namespace/secrets.
+	// Keep the event verification isolated from the additional tests below.
+	// Reuses namespace and secrets created by the first context.
 	Context("Module - Additional Tests", Ordered, Label("simple-kmod"), func() {
 		image := fmt.Sprintf("%s/%s:$KERNEL_FULL_VERSION-%v",
 			ModulesConfig.Registry, moduleName, time.Now().Unix())
