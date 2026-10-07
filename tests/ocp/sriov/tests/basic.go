@@ -92,7 +92,6 @@ var _ = Describe(
 					continue
 				}
 
-				executed = true
 				testNamespace := setupTestNamespace(caseID+"-", data)
 				networkName := caseID + "-" + data.Name
 				setupSriovNetwork(networkName, data.Name, testNamespace,
@@ -108,6 +107,7 @@ var _ = Describe(
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
+				executed = true
 			}
 
 			if !executed {
@@ -130,7 +130,6 @@ var _ = Describe(
 					continue
 				}
 
-				executed = true
 				testNamespace := setupTestNamespace(caseID+"-", data)
 				networkName := caseID + "-" + data.Name
 				setupSriovNetwork(networkName, data.Name, testNamespace,
@@ -139,10 +138,13 @@ var _ = Describe(
 				err = sriovenv.CheckVFStatusWithPassTraffic(networkName, data.InterfaceName,
 					testNamespace, "spoof checking off", tsparams.PodReadyTimeout)
 				if isNoCarrierError(err) {
-					Skip("Interface has NO-CARRIER status")
+					By(fmt.Sprintf("Skipping device %q - NO-CARRIER status", data.Name))
+
+					continue
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
+				executed = true
 			}
 
 			if !executed {
@@ -165,7 +167,6 @@ var _ = Describe(
 					continue
 				}
 
-				executed = true
 				testNamespace := setupTestNamespace(caseID+"-", data)
 				networkName := caseID + "-" + data.Name
 				setupSriovNetwork(networkName, data.Name, testNamespace,
@@ -174,10 +175,13 @@ var _ = Describe(
 				err = sriovenv.CheckVFStatusWithPassTraffic(networkName, data.InterfaceName,
 					testNamespace, "trust off", tsparams.PodReadyTimeout)
 				if isNoCarrierError(err) {
-					Skip("Interface has NO-CARRIER status")
+					By(fmt.Sprintf("Skipping device %q - NO-CARRIER status", data.Name))
+
+					continue
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
+				executed = true
 			}
 
 			if !executed {
@@ -200,7 +204,6 @@ var _ = Describe(
 					continue
 				}
 
-				executed = true
 				testNamespace := setupTestNamespace(caseID+"-", data)
 				networkName := caseID + "-" + data.Name
 				setupSriovNetwork(networkName, data.Name, testNamespace,
@@ -209,10 +212,13 @@ var _ = Describe(
 				err = sriovenv.CheckVFStatusWithPassTraffic(networkName, data.InterfaceName,
 					testNamespace, "trust on", tsparams.PodReadyTimeout)
 				if isNoCarrierError(err) {
-					Skip("Interface has NO-CARRIER status")
+					By(fmt.Sprintf("Skipping device %q - NO-CARRIER status", data.Name))
+
+					continue
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
+				executed = true
 			}
 
 			if !executed {
@@ -241,7 +247,6 @@ var _ = Describe(
 					continue
 				}
 
-				executed = true
 				testNamespace := setupTestNamespace(caseID+"-", data)
 				networkName := caseID + "-" + data.Name
 				setupSriovNetwork(networkName, data.Name, testNamespace,
@@ -254,10 +259,13 @@ var _ = Describe(
 					testNamespace, fmt.Sprintf("vlan %d, qos %d", tsparams.TestVLAN, tsparams.TestVlanQoS),
 					tsparams.PodReadyTimeout)
 				if isNoCarrierError(err) {
-					Skip("Interface has NO-CARRIER status")
+					By(fmt.Sprintf("Skipping device %q - NO-CARRIER status", data.Name))
+
+					continue
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
+				executed = true
 			}
 
 			if !executed {
@@ -280,7 +288,6 @@ var _ = Describe(
 					continue
 				}
 
-				executed = true
 				testNamespace := setupTestNamespace(caseID+"-", data)
 				networkName := caseID + "-" + data.Name
 				setupSriovNetwork(networkName, data.Name, testNamespace,
@@ -289,10 +296,13 @@ var _ = Describe(
 				err = sriovenv.CheckVFStatusWithPassTraffic(networkName, data.InterfaceName,
 					testNamespace, "link-state auto", tsparams.PodReadyTimeout)
 				if isNoCarrierError(err) {
-					Skip("Interface has NO-CARRIER status")
+					By(fmt.Sprintf("Skipping device %q - NO-CARRIER status", data.Name))
+
+					continue
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
+				executed = true
 			}
 
 			if !executed {
@@ -315,7 +325,6 @@ var _ = Describe(
 					continue
 				}
 
-				executed = true
 				testNamespace := setupTestNamespace(caseID+"-", data)
 				networkName := caseID + "-" + data.Name
 				setupSriovNetwork(networkName, data.Name, testNamespace,
@@ -328,7 +337,9 @@ var _ = Describe(
 				Expect(err).ToNot(HaveOccurred(), "Failed to verify link state configuration")
 
 				if !hasCarrier {
-					Skip("NO-CARRIER status - link state valid but no physical connection")
+					By(fmt.Sprintf("Skipping device %q - NO-CARRIER status", data.Name))
+
+					continue
 				}
 
 				// Part 2: Test connectivity
@@ -336,6 +347,7 @@ var _ = Describe(
 				err = sriovenv.CheckVFStatusWithPassTraffic(networkName, data.InterfaceName,
 					testNamespace, "link-state enable", tsparams.PodReadyTimeout)
 				Expect(err).ToNot(HaveOccurred(), "VF connectivity test failed")
+				executed = true
 			}
 
 			if !executed {
@@ -358,8 +370,6 @@ var _ = Describe(
 					continue
 				}
 
-				executed = true
-
 				// Configure MTU in SR-IOV policy
 				By(fmt.Sprintf("Updating SR-IOV policy %q with MTU %d", data.Name, tsparams.DefaultTestMTU))
 				err = sriovenv.UpdateSriovPolicyMTU(data.Name, tsparams.DefaultTestMTU)
@@ -377,10 +387,13 @@ var _ = Describe(
 				err = sriovenv.CheckVFStatusWithPassTraffic(networkName, data.InterfaceName,
 					testNamespace, fmt.Sprintf("mtu %d", tsparams.DefaultTestMTU), tsparams.PodReadyTimeout)
 				if isNoCarrierError(err) {
-					Skip("Interface has NO-CARRIER status")
+					By(fmt.Sprintf("Skipping device %q - NO-CARRIER status", data.Name))
+
+					continue
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
+				executed = true
 			}
 
 			if !executed {
@@ -411,7 +424,6 @@ var _ = Describe(
 					continue
 				}
 
-				executed = true
 				testNamespace := setupTestNamespace(caseID+"-", data)
 				networkName := caseID + "-" + data.Name + "-dpdk"
 				setupSriovNetwork(networkName, data.Name, testNamespace)
@@ -461,6 +473,7 @@ var _ = Describe(
 					"Network status should contain PCI address")
 				Expect(podNetAnnotation).To(ContainSubstring(pciAddress),
 					"Network status should contain the assigned PCI address")
+				executed = true
 			}
 
 			if !executed {
