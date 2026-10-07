@@ -22,12 +22,15 @@ func ModuleLifecycleEvents(apiClient *clients.Settings, eventNamespace, moduleNa
 	if apiClient == nil {
 		return fmt.Errorf("apiClient cannot be nil")
 	}
+
 	if eventNamespace == "" || moduleNamespace == "" || moduleName == "" {
 		return fmt.Errorf("eventNamespace, moduleNamespace, and moduleName cannot be empty")
 	}
+
 	if expectedCount < 1 {
 		return fmt.Errorf("expectedCount must be greater than zero")
 	}
+
 	if timeout <= 0 {
 		return fmt.Errorf("timeout must be greater than zero")
 	}
@@ -46,6 +49,7 @@ func ModuleLifecycleEvents(apiClient *clients.Settings, eventNamespace, moduleNa
 			}
 
 			loadedCount, unloadedCount = 0, 0
+
 			for _, event := range eventList {
 				if event.Object.Reason == kmmparams.ReasonModuleLoaded && event.Object.Message == loadedMessage {
 					loadedCount++

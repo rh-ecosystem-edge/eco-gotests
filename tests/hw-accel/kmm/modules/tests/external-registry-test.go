@@ -174,6 +174,7 @@ var _ = Describe("KMM", Label(kmmparams.LabelSuite, kmmparams.LabelSanity), func
 			Expect(err).ToNot(HaveOccurred(), "failed to determine the expected number of module events")
 
 			By("Waiting for ModuleLoaded and ModuleUnloaded events")
+
 			err = await.ModuleLifecycleEvents(APIClient, kmmparams.DefaultNodesNamespace,
 				localNsName, moduleName, totalNodes, 2*time.Minute)
 			Expect(err).ToNot(HaveOccurred(), "module lifecycle events did not arrive")
