@@ -57,7 +57,7 @@ const (
 	PRNoHardwareMatchDetailsSubstring = "not enough free resources matching"
 	// PRMissingBootInterfaceDetailsSubstring is a substring of provisioningDetails when no NIC in the
 	// ClusterInstance defaults matches the boot interface label value.
-	PRMissingBootInterfaceDetailsSubstring = "no NIC found matching boot interface label value"
+	PRMissingBootInterfaceDetailsSubstring = "failed to assign MACs for node"
 	// PRExistingNamespaceDetailsSubstring is a substring of provisioningDetails when clusterName matches an
 	// existing namespace not owned by the ProvisioningRequest.
 	PRExistingNamespaceDetailsSubstring = "not owned by ProvisioningRequest"
