@@ -1,7 +1,10 @@
 package cluster
 
 import (
+	"errors"
+	"io"
 	"regexp"
+	"slices"
 
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/infrastructure"
@@ -326,6 +329,60 @@ func WaitForRouteAPIAvailable(
 		})
 }
 
+// SoftRebootNodes executes systemctl reboot on provided node names.
+func SoftRebootNodes(apiClient *clients.Settings, nodeNames []string) error {
+	rebootCmd := "sudo systemctl reboot"
+
+	klog.V(90).Infof("Rebooting nodes %v", nodeNames)
+
+	nodeList, err := nodes.List(
+		apiClient,
+	)
+	if err != nil {
+		return err
+	}
+
+	if len(nodeNames) == 0 {
+		return fmt.Errorf("at least one node name is required")
+	}
+
+	for _, node := range nodeList {
+		if !slices.Contains(nodeNames, node.Object.Name) {
+			continue
+		}
+
+		listOptions := metav1.ListOptions{
+			FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": node.Definition.Name}).String(),
+			LabelSelector: labels.SelectorFromSet(labels.Set{"k8s-app": GeneralConfig.MCOConfigDaemonName}).String(),
+		}
+
+		mcPodList, err := pod.List(apiClient, GeneralConfig.MCONamespace, listOptions)
+		if err != nil {
+			return err
+		}
+
+		for _, mcPod := range mcPodList {
+			err = mcPod.WaitUntilRunning(300 * time.Second)
+			if err != nil {
+				return err
+			}
+
+			cmdToExec := []string{"sh", "-c", fmt.Sprintf("nsenter --mount=/proc/1/ns/mnt -- sh -c '%s'", rebootCmd)}
+
+			klog.V(90).Infof("Exec cmd %v on pod %s", cmdToExec, mcPod.Definition.Name)
+
+			buf, err := mcPod.ExecCommand(cmdToExec)
+			// Allow unexpected EOF, due to reboot SSH conncetions could be distrupted before
+			// the graceful exit of the command causing a 'Unexpected EOF'.
+			if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) {
+				return fmt.Errorf("%w\n%s", err, buf.String())
+			}
+		}
+	}
+
+	return nil
+}
+
 // SoftRebootSNO executes systemctl reboot on a node.
 func SoftRebootSNO(apiClient *clients.Settings, retries uint, interval time.Duration) error {
 	klog.V(90).Infof("Rebooting SNO node with %d retries interval %v", retries, interval)
@@ -333,6 +390,12 @@ func SoftRebootSNO(apiClient *clients.Settings, retries uint, interval time.Dura
 	cmdToExec := "sudo systemctl reboot"
 
 	_, err := ExecCommandOnSNOWithRetries(apiClient, retries, interval, cmdToExec)
+
+	// Allow unexpected EOF, due to reboot SSH conncetions could be distrupted before
+	// the graceful exit of the command causing a 'Unexpected EOF'.
+	if errors.Is(err, io.ErrUnexpectedEOF) {
+		return nil
+	}
 
 	return err
 }

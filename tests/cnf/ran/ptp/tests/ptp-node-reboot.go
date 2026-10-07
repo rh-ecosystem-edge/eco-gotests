@@ -57,13 +57,9 @@ var _ = Describe("PTP Node Reboot", Ordered, ContinueOnFailure, Label(tsparams.L
 		rebootTime = time.Now()
 
 		By("soft rebooting the node")
-		// Even though we do not care about the output, we need to use ExecCmdWithStdoutWithRetries to get
-		// access to the node list options directly.
-		_, err = cluster.ExecCmdWithStdoutWithRetries(
-			RANConfig.Spoke1APIClient, 3, 10*time.Second, "sudo systemctl reboot",
-			metav1.ListOptions{FieldSelector: fields.OneTermEqualSelector("metadata.name", nodeName).String()},
-		)
-		Expect(err).ToNot(HaveOccurred(), "Failed to soft reboot the node")
+
+		err = cluster.SoftRebootNodes(RANConfig.Spoke1APIClient, []string{nodeName})
+		Expect(err).ToNot(HaveOccurred(), "Failed to reboot node")
 
 		if isSNO {
 			By("Wait for SNO cluster to be unreachable")
