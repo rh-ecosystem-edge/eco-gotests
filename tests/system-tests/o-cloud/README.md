@@ -42,6 +42,10 @@
 | `ECO_OCLOUD_TEMPLATE_VERSION_IBI_FAILURE` | _(empty)_ | ClusterTemplate version for failing IBI-based SNO provisioning |
 | `ECO_OCLOUD_TEMPLATE_VERSION_DAY2` | _(empty)_ | ClusterTemplate version for Day 2 operations |
 | `ECO_OCLOUD_TEMPLATE_VERSION_SEED` | _(empty)_ | ClusterTemplate version for IBI seed cluster provisioning |
+| `ECO_OCLOUD_TEMPLATE_VERSION_MNO_UPGRADE` | _(empty)_ | ClusterTemplate version used to trigger an MNO z-stream upgrade |
+| `ECO_OCLOUD_MNO_UPGRADE_TARGET_VERSION` | _(empty)_ | Expected spoke OpenShift version after the MNO z-stream upgrade |
+| `ECO_OCLOUD_MNO_UPGRADE_TARGET_IMAGE` | _(empty)_ | Optional payload image pull spec written to PR upgradeParameters |
+| `ECO_OCLOUD_MNO_UPGRADE_TIMEOUT` | `4h` | Timeout waiting for ProvisioningRequest UpgradeCompleted |
 | `ECO_OCLOUD_NODE_CLUSTER_NAME_1` | _(empty)_ | Name of the first ORAN Node Cluster |
 | `ECO_OCLOUD_NODE_CLUSTER_NAME_2` | _(empty)_ | Name of the second ORAN Node Cluster |
 | `ECO_OCLOUD_OCLOUD_SITE_ID` | _(empty)_ | ID of the ORAN O-Cloud Site |
