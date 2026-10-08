@@ -21,7 +21,6 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/daemonset"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nto"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	sriovfec "github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov-fec"
 
@@ -71,30 +70,18 @@ var _ = Describe("Intel Accelerator", Ordered, Label(tsparams.LabelSuite), Conti
 
 		secureBoot = isSecureBootEnabled()
 
-		By("Deploying PerformanceProfile if it's not installed")
+		By("Ensuring PerformanceProfile with 1Gi hugepages is deployed")
 
-		performanceProfiles, err := nto.ListProfiles(APIClient)
-		Expect(err).ToNot(HaveOccurred(), "Failed to list PerformanceProfiles")
-
-		if len(performanceProfiles) == 0 {
-			err = perfprofile.DeployPerformanceProfile(
-				APIClient,
-				NetConfig.WorkerLabelMap,
-				NetConfig.CnfMcpLabel,
-				"performance-profile-dpdk",
-				"1,3,5,7,9,11,13,15,17,19,21,23,25",
-				"0,2,4,6,8,10,12,14,16,18,20",
-				24,
-				tsparams.MCOWaitTimeout)
-			Expect(err).ToNot(HaveOccurred(), "Fail to deploy PerformanceProfile")
-		} else {
-			names := make([]string, 0, len(performanceProfiles))
-			for _, profile := range performanceProfiles {
-				names = append(names, profile.Object.Name)
-			}
-
-			By(fmt.Sprintf("Skipping PerformanceProfile deploy; cluster already has: %s", strings.Join(names, ", ")))
-		}
+		err = perfprofile.DeployPerformanceProfile(
+			APIClient,
+			NetConfig.WorkerLabelMap,
+			NetConfig.CnfMcpLabel,
+			"performance-profile-dpdk",
+			"1,3,5,7,9,11,13,15,17,19,21,23,25",
+			"0,2,4,6,8,10,12,14,16,18,20",
+			24,
+			tsparams.MCOWaitTimeout)
+		Expect(err).ToNot(HaveOccurred(), "Fail to deploy PerformanceProfile")
 	})
 
 	defineAcceleratorCardContext(&secureBoot, accCardProfile{
@@ -201,12 +188,19 @@ func runAcceleratorResourceValidation(sfnc *sriovfec.NodeConfigBuilder, profile 
 		GetContainerCfg()
 	Expect(err).ToNot(HaveOccurred(), "Failed to get container configuration")
 
-	bbdevPod, err := pod.NewBuilder(APIClient, "bbdev-test", tsparams.TestNamespaceName, NetConfig.CnfNetTestContainer).
+	bbdevPodName := fmt.Sprintf("bbdev-test-%s", strings.ToLower(profile.cardName))
+	bbdevPod, err := pod.NewBuilder(APIClient, bbdevPodName, tsparams.TestNamespaceName, NetConfig.CnfNetTestContainer).
 		RedefineDefaultContainer(*bbdevContainer).
 		DefineOnNode(sfnc.Object.Name).
 		WithHugePages().
 		CreateAndWaitUntilRunning(2 * time.Minute)
 	Expect(err).ToNot(HaveOccurred(), "Failed to create bbdev test pod")
+
+	defer func() {
+		By(fmt.Sprintf("Deleting bbdev test pod %s", bbdevPodName))
+		_, delErr := bbdevPod.DeleteAndWait(tsparams.WaitTimeout)
+		Expect(delErr).NotTo(HaveOccurred(), "Failed to delete bbdev test pod")
+	}()
 
 	By("Running bbdev tests")
 
