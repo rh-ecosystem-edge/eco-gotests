@@ -49,14 +49,12 @@ var _ = BeforeSuite(func() {
 	}
 })
 
-/*
 var _ = AfterSuite(func() {
 	By("Deleting test namespace")
 
 	err := testNS.DeleteAndWait(tsparams.WaitTimeout)
 	Expect(err).ToNot(HaveOccurred(), "Fail to delete test namespace")
 })
-*/
 
 var _ = JustAfterEach(func() {
 	reporter.ReportIfFailed(
