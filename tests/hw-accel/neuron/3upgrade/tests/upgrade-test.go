@@ -127,7 +127,8 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 					isStale = existingDC.Definition.Spec.DriverVersion != neuronConfig.DriverVersion ||
 						existingDC.Definition.Spec.DriversImage != ""
 				} else {
-					isStale = existingDC.Definition.Spec.DriversImage != neuronConfig.DriversImage
+					isStale = existingDC.Definition.Spec.DriversImage != neuronConfig.DriversImage ||
+						existingDC.Definition.Spec.DriverVersion != neuronConfig.DriverVersion
 				}
 
 				if isStale {
