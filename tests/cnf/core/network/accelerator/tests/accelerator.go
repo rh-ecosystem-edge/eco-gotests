@@ -162,7 +162,7 @@ func defineAcceleratorCardContext(
 		}
 
 		validationSpec := func() {
-			runAcceleratorResourceValidation(sfnc, profile)
+			runAcceleratorResourceValidation(sfnc, profile, *secureBoot)
 		}
 		if validationReportID != "" {
 			It(fmt.Sprintf("validation of %s resource", strings.ToLower(profile.cardName)),
@@ -173,7 +173,7 @@ func defineAcceleratorCardContext(
 	})
 }
 
-func runAcceleratorResourceValidation(sfnc *sriovfec.NodeConfigBuilder, profile accCardProfile) {
+func runAcceleratorResourceValidation(sfnc *sriovfec.NodeConfigBuilder, profile accCardProfile, secureBoot bool) {
 	Eventually(getNodeResource, 10*time.Minute, time.Second).
 		WithArguments(sfnc.Object.Name, profile.resourceName).To(BeNumerically(">", 0))
 
@@ -210,7 +210,7 @@ func runAcceleratorResourceValidation(sfnc *sriovfec.NodeConfigBuilder, profile 
 
 	By("Running bbdev tests")
 
-	bbdevTestsOutput := runBbdevTests(bbdevPod, profile.envVar)
+	bbdevTestsOutput := runBbdevTests(bbdevPod, secureBoot, profile.envVar)
 	fmt.Println(bbdevTestsOutput)
 	Expect(bbdevTestsOutput).ToNot(BeEmpty(), "Failed to run bbdev tests")
 
@@ -332,8 +332,13 @@ func acc100BBDevConfig(queueGroupConfig fectypes.QueueGroupConfig) *fectypes.ACC
 }
 
 func newFecClusterConfigBuilder(
-	pciAddress, nodeName string, _ bool, bbdevConfig fectypes.BBDevConfig,
+	pciAddress, nodeName string, secureBoot bool, bbdevConfig fectypes.BBDevConfig,
 ) *sriovfec.ClusterConfigBuilder {
+	pfDriverType := "pci-pf-stub"
+	if secureBoot {
+		pfDriverType = "vfio-pci"
+	}
+
 	sfccBuilder := sriovfec.NewClusterConfigBuilder(APIClient, "config", tsparams.OperatorNamespace)
 
 	sfccBuilder.Definition.Spec = fectypes.SriovFecClusterConfigSpec{
@@ -345,7 +350,7 @@ func newFecClusterConfigBuilder(
 			PCIAddress: pciAddress,
 		},
 		PhysicalFunction: fectypes.PhysicalFunctionConfig{
-			PFDriver:    "vfio-pci",
+			PFDriver:    pfDriverType,
 			VFAmount:    2,
 			VFDriver:    "vfio-pci",
 			BBDevConfig: bbdevConfig,
@@ -395,16 +400,35 @@ func waitForNodeConfigToSucceed() error {
 }
 
 // runBbdevTests executes bbdev tests in bbdev pod.
-func runBbdevTests(bbdevPod *pod.Builder, deviceEnvVar string) string {
-	pciAddress, vfioToken, err := getFecDevicePluginEnv(bbdevPod, deviceEnvVar)
-	Expect(err).NotTo(HaveOccurred(), "Failed to read FEC device plugin environment")
+func runBbdevTests(bbdevPod *pod.Builder, isSecureEnabled bool, resName string) string {
+	printEnvCommand := []string{"bash", "-c", "printenv | grep INTEL"}
 
-	ealParams := buildBbdevEALParams(pciAddress, vfioToken)
+	if isSecureEnabled {
+		printEnvCommand = []string{"bash", "-c", "printenv | grep INTEL | grep -v INFO"}
+	}
+
+	pcideviceIntelComIntelFec5GBuff, err := bbdevPod.ExecCommand(printEnvCommand)
+	Expect(err).NotTo(HaveOccurred(), "Failed to execute printenv command")
+
+	pcideviceIntelComIntelFec5GString := strings.TrimSpace(
+		strings.Split(pcideviceIntelComIntelFec5GBuff.String(), "=")[1])
+
 	testCommand := fmt.Sprintf("/usr/bbdev/test-bbdev.py"+
-		" -e \"%s\"  -c validation"+
+		" -e \"-a $%v -d /usr/bbdev/\"  -c validation"+
 		" -p /usr/bbdev/dpdk-test-bbdev"+
 		" -n 64 -b 8"+
-		" -v /usr/bbdev/test_vectors/*", ealParams)
+		" -v /usr/bbdev/test_vectors/*", resName)
+
+	if isSecureEnabled {
+		token, err := getVFIOToken(bbdevPod, pcideviceIntelComIntelFec5GString)
+		Expect(err).NotTo(HaveOccurred(), "Failed to get vfio-token")
+
+		testCommand = fmt.Sprintf("/usr/bbdev/test-bbdev.py"+
+			" -e \"-w %v --vfio-vf-token %s -d /usr/bbdev/\"  -c validation"+
+			" -p /usr/bbdev/dpdk-test-bbdev"+
+			" -n 64 -b 8 "+
+			" -v /usr/bbdev/test_vectors/*", resName, token)
+	}
 
 	bbdevTestsOutput, err := bbdevPod.ExecCommand([]string{"bash", "-c", testCommand})
 	Expect(err).NotTo(HaveOccurred(), "Failed to execute test command")
@@ -412,58 +436,24 @@ func runBbdevTests(bbdevPod *pod.Builder, deviceEnvVar string) string {
 	return bbdevTestsOutput.String()
 }
 
-func getFecDevicePluginEnv(bbdevPod *pod.Builder, deviceEnvVar string) (pciAddress, vfioToken string, err error) {
-	pciAddress, err = podPrintenv(bbdevPod, deviceEnvVar)
-	if err != nil {
-		return "", "", fmt.Errorf("reading %s: %w", deviceEnvVar, err)
-	}
-
-	if pciAddress == "" {
-		return "", "", fmt.Errorf("%s is not set in the pod", deviceEnvVar)
-	}
-
-	infoEnvVar := deviceEnvVar + "_INFO"
-	infoJSON, err := podPrintenv(bbdevPod, infoEnvVar)
-	if err != nil || infoJSON == "" {
-		return pciAddress, "", nil
-	}
-
-	vfioToken, err = vfioTokenFromDeviceInfo(infoJSON, pciAddress)
-	if err != nil {
-		return pciAddress, "", fmt.Errorf("reading %s: %w", infoEnvVar, err)
-	}
-
-	return pciAddress, vfioToken, nil
-}
-
-func podPrintenv(bbdevPod *pod.Builder, name string) (string, error) {
-	output, err := bbdevPod.ExecCommand([]string{"printenv", name})
+// getVFIOToken returns the vfio-token.
+func getVFIOToken(bbdevPod *pod.Builder, pci string) (string, error) {
+	vfioTokenJSONBuff, err := bbdevPod.ExecCommand([]string{"bash", "-c", "printenv INFO"})
 	if err != nil {
 		return "", err
 	}
 
-	return strings.TrimSpace(output.String()), nil
-}
-
-func buildBbdevEALParams(pciAddress, vfioToken string) string {
-	if vfioToken != "" {
-		return fmt.Sprintf("-a %s --vfio-vf-token %s -d /usr/bbdev/", pciAddress, vfioToken)
-	}
-
-	return fmt.Sprintf("-a %s -d /usr/bbdev/", pciAddress)
-}
-
-func vfioTokenFromDeviceInfo(infoJSON, pciAddress string) (string, error) {
+	vfioTokenJSONString := strings.TrimSpace(strings.Split(vfioTokenJSONBuff.String(), "=")[1])
 	result := map[string]tsparams.VFIOToken{}
 
-	err := json.Unmarshal([]byte(infoJSON), &result)
+	err = json.Unmarshal([]byte(vfioTokenJSONString), &result)
 	if err != nil {
 		return "", err
 	}
 
-	tokenData, ok := result[pciAddress]
+	tokenData, ok := result[pci]
 	if !ok || tokenData.Extra.VfioToken == "" {
-		return "", fmt.Errorf("VFIO token not found for PCI %s", pciAddress)
+		return "", fmt.Errorf("VFIO token not found for PCI %s", pci)
 	}
 
 	return tokenData.Extra.VfioToken, nil
