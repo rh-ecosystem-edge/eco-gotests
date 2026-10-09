@@ -126,7 +126,7 @@ var bondCNIListenerBIPs = []string{
 var _ = Describe(
 	"Bond CNI xmitHashPolicy",
 	Ordered,
-	Label(tsparams.LabelSuite, tsparams.LabelBondCNITestCases),
+	Label(tsparams.LabelSuite, tsparams.LabelBondCNITestCases, tsparams.LabelSriovHWEnabled),
 	ContinueOnFailure,
 	func() {
 		var (

@@ -22,7 +22,8 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
-var _ = Describe("SR-IOV IPv6", Ordered, Label(tsparams.LabelSuite), ContinueOnFailure, func() {
+var _ = Describe("SR-IOV IPv6", Ordered, Label(
+	tsparams.LabelSuite, tsparams.LabelSriovHWEnabled), ContinueOnFailure, func() {
 	const (
 		// SR-IOV resource names for policies.
 		sriovResourcePF1MTU1280 = "sriovpf1mtu1280v6"
