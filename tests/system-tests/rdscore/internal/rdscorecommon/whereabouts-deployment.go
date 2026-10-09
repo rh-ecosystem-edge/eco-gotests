@@ -947,37 +947,6 @@ func waitForPodsToBeMarkedForDeletionOrDeleted(
 		"Pods from previous deployments are still present")
 }
 
-// waitForNodeToBeNotReady waits for the node to be not ready.
-func waitForNodeToBeNotReady(ctx SpecContext, nodeToPowerOff string, pollingInterval, timeout time.Duration) {
-	By(fmt.Sprintf("Waiting for node %q to get into NotReady state", nodeToPowerOff))
-
-	Eventually(func() bool {
-		currentNode, err := nodes.Pull(APIClient, nodeToPowerOff)
-
-		if err != nil {
-			glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Failed to pull node: %v", err)
-
-			return false
-		}
-
-		for _, condition := range currentNode.Object.Status.Conditions {
-			if condition.Type == rdscoreparams.ConditionTypeReadyString {
-				if condition.Status != rdscoreparams.ConstantTrueString {
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q is notReady", currentNode.Definition.Name)
-					glog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Reason: %s", condition.Reason)
-
-					return true
-				}
-			}
-		}
-
-		glog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %q is Ready", currentNode.Definition.Name)
-
-		return false
-	}).WithContext(ctx).WithPolling(pollingInterval).WithTimeout(timeout).Should(BeTrue(),
-		"Node %q hasn't reached NotReady state", nodeToPowerOff)
-}
-
 // VerifyConnectivityAfterNodePowerOff verifies inter pod communication between the deployments
 // after a node is powered off.
 //
