@@ -1,4 +1,4 @@
-# Synced with oran-o2ims commit 2e34a01972e09fe8c16c512c25533d43053a6af5
+# Synced with oran-o2ims commit 14a520a4dd5ca6f58cf409c835aad077c20b6881
 #
 # Copyright (c) 2024 Red Hat, Inc.
 #
@@ -57,7 +57,7 @@ security:
   - role:o2ims-admin
 
 paths:
-  /o2ims-infrastructureCluster/api_versions:
+  /O2ims_infrastructureCluster/api_versions:
     get:
       operationId: getAllVersions
       summary: Get API versions
@@ -102,7 +102,7 @@ paths:
               schema:
                 $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
 
-  /o2ims-infrastructureCluster/v1/api_versions:
+  /O2ims_infrastructureCluster/v1/api_versions:
     get:
       operationId: getMinorVersions
       summary: Get minor API versions
@@ -147,7 +147,7 @@ paths:
               schema:
                 $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
 
-  /o2ims-infrastructureCluster/v1/nodeClusterTypes:
+  /O2ims_infrastructureCluster/v1/nodeClusterTypes:
     get:
       operationId: getNodeClusterTypes
       summary: Get node cluster types
@@ -199,7 +199,7 @@ paths:
               schema:
                 $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
 
-  /o2ims-infrastructureCluster/v1/nodeClusterTypes/{nodeClusterTypeId}:
+  /O2ims_infrastructureCluster/v1/nodeClusterTypes/{nodeClusterTypeId}:
     get:
       operationId: getNodeClusterType
       summary: Get a node cluster type
@@ -252,7 +252,7 @@ paths:
               schema:
                 $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
 
-  /o2ims-infrastructureCluster/v1/nodeClusterTypes/{nodeClusterTypeId}/alarmDictionary:
+  /O2ims_infrastructureCluster/v1/nodeClusterTypes/{nodeClusterTypeId}/alarmDictionary:
     get:
       operationId: getNodeClusterTypeAlarmDictionary
       summary: Get an alarm dictionary for a node cluster type
@@ -305,7 +305,7 @@ paths:
               schema:
                 $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
 
-  /o2ims-infrastructureCluster/v1/nodeClusters:
+  /O2ims_infrastructureCluster/v1/nodeClusters:
     get:
       operationId: getNodeClusters
       summary: Get node clusters
@@ -357,7 +357,7 @@ paths:
               schema:
                 $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
 
-  /o2ims-infrastructureCluster/v1/nodeClusters/{nodeClusterId}:
+  /O2ims_infrastructureCluster/v1/nodeClusters/{nodeClusterId}:
     get:
       operationId: getNodeCluster
       summary: Get a node cluster
@@ -410,7 +410,7 @@ paths:
               schema:
                 $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
 
-  /o2ims-infrastructureCluster/v1/clusterResourceTypes:
+  /O2ims_infrastructureCluster/v1/clusterResourceTypes:
     get:
       operationId: getClusterResourceTypes
       summary: Get cluster resource types
@@ -462,7 +462,7 @@ paths:
               schema:
                 $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
 
-  /o2ims-infrastructureCluster/v1/clusterResourceTypes/{clusterResourceTypeId}:
+  /O2ims_infrastructureCluster/v1/clusterResourceTypes/{clusterResourceTypeId}:
     get:
       operationId: getClusterResourceType
       summary: Get a node cluster type
@@ -515,7 +515,7 @@ paths:
               schema:
                 $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
 
-  /o2ims-infrastructureCluster/v1/clusterResources:
+  /O2ims_infrastructureCluster/v1/clusterResources:
     get:
       operationId: getClusterResources
       summary: Get cluster resources
@@ -567,7 +567,7 @@ paths:
               schema:
                 $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
 
-  /o2ims-infrastructureCluster/v1/clusterResources/{clusterResourceId}:
+  /O2ims_infrastructureCluster/v1/clusterResources/{clusterResourceId}:
     get:
       operationId: getClusterResource
       summary: Get a cluster resource
@@ -620,7 +620,7 @@ paths:
               schema:
                 $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
 
-  /o2ims-infrastructureCluster/v1/subscriptions:
+  /O2ims_infrastructureCluster/v1/subscriptions:
     get:
       operationId: getSubscriptions
       summary: Get subscriptions
@@ -722,7 +722,7 @@ paths:
               schema:
                 $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
 
-  /o2ims-infrastructureCluster/v1/subscriptions/{subscriptionId}:
+  /O2ims_infrastructureCluster/v1/subscriptions/{subscriptionId}:
     get:
       operationId: getSubscription
       summary: Get subscription
@@ -817,7 +817,7 @@ paths:
               schema:
                 $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
 
-  /o2ims-infrastructureCluster/v1/alarmDictionaries:
+  /O2ims_infrastructureCluster/v1/alarmDictionaries:
     get:
       operationId: getAlarmDictionaries
       summary: Get alarm dictionaries
@@ -869,7 +869,7 @@ paths:
               schema:
                 $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
 
-  /o2ims-infrastructureCluster/v1/alarmDictionaries/{alarmDictionaryId}:
+  /O2ims_infrastructureCluster/v1/alarmDictionaries/{alarmDictionaryId}:
     get:
       operationId: getAlarmDictionary
       summary: Get an alarm dictionary

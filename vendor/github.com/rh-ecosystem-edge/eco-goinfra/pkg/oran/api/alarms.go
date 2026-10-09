@@ -154,7 +154,7 @@ func (client *AlarmsClient) UpdateAlarmServiceConfiguration(
 
 	// The API will reject a null value, so ensure that it is a non-nil map.
 	if config.Extensions == nil {
-		config.Extensions = make(map[string]string)
+		config.Extensions = make(map[string]any)
 	}
 
 	resp, err := client.UpdateAlarmServiceConfigurationWithResponse(context.TODO(), config)

@@ -80,9 +80,9 @@ func filterAlarmsByExtensions(
 }
 
 // matchesExtensions checks if alarm extensions match all the specified filter criteria.
-func matchesExtensions(extensions map[string]string, filters map[string]string) bool {
+func matchesExtensions(extensions map[string]interface{}, filters map[string]string) bool {
 	for field, expectedValue := range filters {
-		if actualValue, exists := extensions[field]; !exists || actualValue != expectedValue {
+		if actualValue, exists := extensions[field].(string); !exists || actualValue != expectedValue {
 			return false
 		}
 	}
