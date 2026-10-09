@@ -28,6 +28,15 @@ import (
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/core/network/internal/netinittools"
 )
 
+type accCardProfile struct {
+	cardName                 string
+	deviceID                 string
+	resourceName             string
+	envVar                   string
+	expectedBbdevTestsPassed int
+	buildClusterConfig       func(pciAddress, nodeName string, secureBoot bool) *sriovfec.ClusterConfigBuilder
+}
+
 var _ = Describe("Intel Accelerator", Ordered, Label(tsparams.LabelSuite), ContinueOnFailure, func() {
 	var secureBoot bool
 
@@ -61,7 +70,7 @@ var _ = Describe("Intel Accelerator", Ordered, Label(tsparams.LabelSuite), Conti
 
 		secureBoot = isSecureBootEnabled()
 
-		By("Deploying PerformanceProfile if it's not installed")
+		By("Ensuring PerformanceProfile with 1Gi hugepages is deployed")
 
 		err = perfprofile.DeployPerformanceProfile(
 			APIClient,
@@ -75,7 +84,29 @@ var _ = Describe("Intel Accelerator", Ordered, Label(tsparams.LabelSuite), Conti
 		Expect(err).ToNot(HaveOccurred(), "Fail to deploy PerformanceProfile")
 	})
 
-	Context("ACC100", func() {
+	defineAcceleratorCardContext(&secureBoot, accCardProfile{
+		cardName:                 "ACC100",
+		deviceID:                 tsparams.Acc100DeviceID,
+		resourceName:             tsparams.Acc100ResourceName,
+		envVar:                   tsparams.Acc100EnvVar,
+		expectedBbdevTestsPassed: tsparams.ExpectedNumberBbdevTestsPassedForAcc100,
+		buildClusterConfig:       defineFecClusterConfigAcc100,
+	}, "41073", "41216")
+
+	defineAcceleratorCardContext(&secureBoot, accCardProfile{
+		cardName:                 "ACC200",
+		deviceID:                 tsparams.Acc200DeviceID,
+		resourceName:             tsparams.Acc200ResourceName,
+		envVar:                   tsparams.Acc200EnvVar,
+		expectedBbdevTestsPassed: tsparams.ExpectedNumberBbdevTestsPassedForAcc200,
+		buildClusterConfig:       defineFecClusterConfigAcc200,
+	}, "", "")
+})
+
+func defineAcceleratorCardContext(
+	secureBoot *bool, profile accCardProfile, nodeResourceReportID, validationReportID string,
+) {
+	Context(profile.cardName, func() {
 		var (
 			sfnc        *sriovfec.NodeConfigBuilder
 			accelerator *fectypes.SriovAccelerator
@@ -83,28 +114,18 @@ var _ = Describe("Intel Accelerator", Ordered, Label(tsparams.LabelSuite), Conti
 		)
 
 		BeforeAll(func() {
-			By("Checking if the cluster has ACC100 cards")
+			By(fmt.Sprintf("Checking if the cluster has %s cards", profile.cardName))
 
-			sfnc, accelerator, err = getFecNodeConfigWithAccCard(tsparams.Acc100DeviceID)
+			sfnc, accelerator, err = getFecNodeConfigWithAccCard(profile.deviceID)
 			if err != nil {
-				Skip(fmt.Sprintf("Cluster does not have ACC100 cards: %s", err.Error()))
+				Skip(fmt.Sprintf("Cluster does not have %s cards: %s", profile.cardName, err.Error()))
 			}
 
-			By("Deleting SriovFecClusterConfig if any present in the cluster")
-
-			sfccList, err := sriovfec.ListClusterConfig(APIClient, tsparams.OperatorNamespace)
-			Expect(err).ToNot(HaveOccurred(), "Failed to list SriovFecClusterConfig")
-
-			if len(sfccList) != 0 {
-				for _, sfcc := range sfccList {
-					_, err := sfcc.Delete()
-					Expect(err).ToNot(HaveOccurred(), "Failed to delete SriovFecClusterConfig")
-				}
-			}
+			deleteSriovFecClusterConfigs()
 
 			By("Creating SriovFecClusterConfig")
 
-			_, err = defineFecClusterConfig(accelerator.PCIAddress, sfnc.Object.Name, secureBoot).Create()
+			_, err = profile.buildClusterConfig(accelerator.PCIAddress, sfnc.Object.Name, *secureBoot).Create()
 			Expect(err).ToNot(HaveOccurred(), "Failed to create SriovFecClusterConfig")
 
 			err = waitForNodeConfigToSucceed()
@@ -113,77 +134,103 @@ var _ = Describe("Intel Accelerator", Ordered, Label(tsparams.LabelSuite), Conti
 
 		AfterAll(func() {
 			By("Deleting SriovFecClusterConfig in the cluster")
-
-			sfccList, err := sriovfec.ListClusterConfig(APIClient, tsparams.OperatorNamespace)
-			Expect(err).ToNot(HaveOccurred(), "Failed to list SriovFecClusterConfig")
-
-			if len(sfccList) != 0 {
-				for _, sfcc := range sfccList {
-					_, err := sfcc.Delete()
-					Expect(err).ToNot(HaveOccurred(), "Failed to delete SriovFecClusterConfig")
-				}
-			}
+			deleteSriovFecClusterConfigs()
 		})
 
-		It("node should show acc100 resource", reportxml.ID("41073"), func() {
+		nodeResourceSpec := func() {
 			Eventually(getNodeResource, 10*time.Minute, time.Second).
-				WithArguments(sfnc.Object.Name, tsparams.Acc100ResourceName).To(BeNumerically(">", 0))
-		})
+				WithArguments(sfnc.Object.Name, profile.resourceName).To(BeNumerically(">", 0))
+		}
+		if nodeResourceReportID != "" {
+			It(fmt.Sprintf("node should show %s resource", strings.ToLower(profile.cardName)),
+				reportxml.ID(nodeResourceReportID), nodeResourceSpec)
+		} else {
+			It(fmt.Sprintf("node should show %s resource", strings.ToLower(profile.cardName)), nodeResourceSpec)
+		}
 
-		It("validation of acc100 resource", reportxml.ID("41216"), func() {
-			Eventually(getNodeResource, 10*time.Minute, time.Second).
-				WithArguments(sfnc.Object.Name, tsparams.Acc100ResourceName).To(BeNumerically(">", 0))
-
-			By("Creating bbdev test pod")
-
-			bbdevContainer, err := pod.NewContainerBuilder(
-				"bbdev", NetConfig.CnfNetTestContainer, []string{"bash", "-c", "sleep infinity"}).
-				WithSecurityContext(&corev1.SecurityContext{
-					Privileged:   ptr.To(false),
-					RunAsUser:    ptr.To(int64(0)),
-					Capabilities: &corev1.Capabilities{Add: []corev1.Capability{"IPC_LOCK", "SYS_RESOURCE"}},
-				}).
-				WithCustomResourcesLimits(corev1.ResourceList{
-					"hugepages-1Gi":             resource.MustParse("1Gi"),
-					"memory":                    resource.MustParse("1Gi"),
-					"cpu":                       *resource.NewQuantity(4, resource.DecimalSI),
-					tsparams.Acc100ResourceName: resource.MustParse("1"),
-				}).
-				WithCustomResourcesRequests(corev1.ResourceList{
-					"hugepages-1Gi":             resource.MustParse("1Gi"),
-					"memory":                    resource.MustParse("1Gi"),
-					"cpu":                       *resource.NewQuantity(4, resource.DecimalSI),
-					tsparams.Acc100ResourceName: resource.MustParse("1"),
-				}).
-				GetContainerCfg()
-			Expect(err).ToNot(HaveOccurred(), "Failed to get container configuration")
-
-			bbdevPod, err := pod.NewBuilder(APIClient, "bbdev-test", tsparams.TestNamespaceName, NetConfig.CnfNetTestContainer).
-				RedefineDefaultContainer(*bbdevContainer).
-				DefineOnNode(sfnc.Object.Name).
-				WithHugePages().
-				CreateAndWaitUntilRunning(2 * time.Minute)
-			Expect(err).ToNot(HaveOccurred(), "Failed to create bbdev test pod")
-
-			By("Running bbdev tests")
-
-			bbdevTestsOutput := runBbdevTests(bbdevPod, secureBoot, tsparams.Acc100EnvVar)
-			fmt.Println(bbdevTestsOutput)
-			Expect(bbdevTestsOutput).ToNot(BeEmpty(), "Failed to run bbdev tests")
-
-			By("Checking if bbdev tests executed")
-
-			totalSuites, totalPassed, totalFailed := countBbdevTestResults(bbdevTestsOutput)
-
-			By(fmt.Sprintf("BBdev test results: %d suites ran, %d tests passed, %d tests failed",
-				totalSuites, totalPassed, totalFailed))
-
-			Expect(totalSuites).To(Equal(tsparams.TotalNumberBbdevTests), "Not all test suites were executed")
-			Expect(totalPassed).To(Equal(tsparams.ExpectedNumberBbdevTestsPassedForAcc100), "Not all expected tests passed")
-			Expect(totalFailed).To(Equal(0), "Some tests failed")
-		})
+		validationSpec := func() {
+			runAcceleratorResourceValidation(sfnc, profile, *secureBoot)
+		}
+		if validationReportID != "" {
+			It(fmt.Sprintf("validation of %s resource", strings.ToLower(profile.cardName)),
+				reportxml.ID(validationReportID), validationSpec)
+		} else {
+			It(fmt.Sprintf("validation of %s resource", strings.ToLower(profile.cardName)), validationSpec)
+		}
 	})
-})
+}
+
+func runAcceleratorResourceValidation(sfnc *sriovfec.NodeConfigBuilder, profile accCardProfile, secureBoot bool) {
+	Eventually(getNodeResource, 10*time.Minute, time.Second).
+		WithArguments(sfnc.Object.Name, profile.resourceName).To(BeNumerically(">", 0))
+
+	By("Creating bbdev test pod")
+
+	bbdevContainer, err := pod.NewContainerBuilder(
+		"bbdev", NetConfig.CnfNetTestContainer, []string{"bash", "-c", "sleep infinity"}).
+		WithSecurityContext(&corev1.SecurityContext{
+			Privileged:   ptr.To(false),
+			RunAsUser:    ptr.To(int64(0)),
+			Capabilities: &corev1.Capabilities{Add: []corev1.Capability{"IPC_LOCK", "SYS_RESOURCE"}},
+		}).
+		WithCustomResourcesLimits(corev1.ResourceList{
+			"hugepages-1Gi": resource.MustParse("1Gi"),
+			"memory":        resource.MustParse("1Gi"),
+			"cpu":           *resource.NewQuantity(4, resource.DecimalSI),
+			corev1.ResourceName(profile.resourceName): resource.MustParse("1"),
+		}).
+		WithCustomResourcesRequests(corev1.ResourceList{
+			"hugepages-1Gi": resource.MustParse("1Gi"),
+			"memory":        resource.MustParse("1Gi"),
+			"cpu":           *resource.NewQuantity(4, resource.DecimalSI),
+			corev1.ResourceName(profile.resourceName): resource.MustParse("1"),
+		}).
+		GetContainerCfg()
+	Expect(err).ToNot(HaveOccurred(), "Failed to get container configuration")
+
+	bbdevPodName := fmt.Sprintf("bbdev-test-%s", strings.ToLower(profile.cardName))
+	bbdevPod, err := pod.NewBuilder(APIClient, bbdevPodName, tsparams.TestNamespaceName, NetConfig.CnfNetTestContainer).
+		RedefineDefaultContainer(*bbdevContainer).
+		DefineOnNode(sfnc.Object.Name).
+		WithHugePages().
+		CreateAndWaitUntilRunning(2 * time.Minute)
+	Expect(err).ToNot(HaveOccurred(), "Failed to create bbdev test pod")
+
+	defer func() {
+		By(fmt.Sprintf("Deleting bbdev test pod %s", bbdevPodName))
+		_, delErr := bbdevPod.DeleteAndWait(tsparams.WaitTimeout)
+		Expect(delErr).NotTo(HaveOccurred(), "Failed to delete bbdev test pod")
+	}()
+
+	By("Running bbdev tests")
+
+	bbdevTestsOutput := runBbdevTests(bbdevPod, secureBoot, profile.envVar)
+	fmt.Println(bbdevTestsOutput)
+	Expect(bbdevTestsOutput).ToNot(BeEmpty(), "Failed to run bbdev tests")
+
+	By("Checking if bbdev tests executed")
+
+	totalSuites, totalPassed, totalFailed := countBbdevTestResults(bbdevTestsOutput)
+
+	By(fmt.Sprintf("BBdev test results: %d suites ran, %d tests passed, %d tests failed",
+		totalSuites, totalPassed, totalFailed))
+
+	Expect(totalSuites).To(Equal(tsparams.TotalNumberBbdevTests), "Not all test suites were executed")
+	Expect(totalPassed).To(Equal(profile.expectedBbdevTestsPassed), "Not all expected tests passed")
+	Expect(totalFailed).To(Equal(0), "Some tests failed")
+}
+
+func deleteSriovFecClusterConfigs() {
+	By("Deleting SriovFecClusterConfig if any present in the cluster")
+
+	sfccList, err := sriovfec.ListClusterConfig(APIClient, tsparams.OperatorNamespace)
+	Expect(err).ToNot(HaveOccurred(), "Failed to list SriovFecClusterConfig")
+
+	for _, sfcc := range sfccList {
+		_, err := sfcc.Delete()
+		Expect(err).ToNot(HaveOccurred(), "Failed to delete SriovFecClusterConfig")
+	}
+}
 
 func getNodeResource(nodeName, resName string) (int64, error) {
 	testNode, err := nodes.Pull(APIClient, nodeName)
@@ -258,15 +305,30 @@ func getFecNodeConfigWithAccCard(devID string) (*sriovfec.NodeConfigBuilder, *fe
 	return nil, nil, fmt.Errorf("cluster doesn`t have sriovfecnodeconfig with accelerator id %s", devID)
 }
 
-func defineFecClusterConfig(pciAddress, nodeName string, secureBoot bool) *sriovfec.ClusterConfigBuilder {
-	queueGroupConfig := fectypes.QueueGroupConfig{
+func defaultQueueGroupConfig() fectypes.QueueGroupConfig {
+	return fectypes.QueueGroupConfig{
 		AqDepthLog2:     4,
 		NumAqsPerGroups: 16,
 		NumQueueGroups:  2,
 	}
+}
 
+func acc100BBDevConfig(queueGroupConfig fectypes.QueueGroupConfig) *fectypes.ACC100BBDevConfig {
+	return &fectypes.ACC100BBDevConfig{
+		Downlink4G:   queueGroupConfig,
+		Downlink5G:   queueGroupConfig,
+		Uplink4G:     queueGroupConfig,
+		Uplink5G:     queueGroupConfig,
+		PFMode:       false,
+		MaxQueueSize: 1024,
+		NumVfBundles: 2,
+	}
+}
+
+func newFecClusterConfigBuilder(
+	pciAddress, nodeName string, secureBoot bool, bbdevConfig fectypes.BBDevConfig,
+) *sriovfec.ClusterConfigBuilder {
 	pfDriverType := "pci-pf-stub"
-
 	if secureBoot {
 		pfDriverType = "vfio-pci"
 	}
@@ -282,24 +344,33 @@ func defineFecClusterConfig(pciAddress, nodeName string, secureBoot bool) *sriov
 			PCIAddress: pciAddress,
 		},
 		PhysicalFunction: fectypes.PhysicalFunctionConfig{
-			PFDriver: pfDriverType,
-			VFAmount: 2,
-			VFDriver: "vfio-pci",
-			BBDevConfig: fectypes.BBDevConfig{
-				ACC100: &fectypes.ACC100BBDevConfig{
-					Downlink4G:   queueGroupConfig,
-					Downlink5G:   queueGroupConfig,
-					Uplink4G:     queueGroupConfig,
-					Uplink5G:     queueGroupConfig,
-					PFMode:       false,
-					MaxQueueSize: 1024,
-					NumVfBundles: 2,
-				},
-			},
+			PFDriver:    pfDriverType,
+			VFAmount:    2,
+			VFDriver:    "vfio-pci",
+			BBDevConfig: bbdevConfig,
 		},
 	}
 
 	return sfccBuilder
+}
+
+func defineFecClusterConfigAcc100(pciAddress, nodeName string, secureBoot bool) *sriovfec.ClusterConfigBuilder {
+	queueGroupConfig := defaultQueueGroupConfig()
+
+	return newFecClusterConfigBuilder(pciAddress, nodeName, secureBoot, fectypes.BBDevConfig{
+		ACC100: acc100BBDevConfig(queueGroupConfig),
+	})
+}
+
+func defineFecClusterConfigAcc200(pciAddress, nodeName string, secureBoot bool) *sriovfec.ClusterConfigBuilder {
+	queueGroupConfig := defaultQueueGroupConfig()
+
+	return newFecClusterConfigBuilder(pciAddress, nodeName, secureBoot, fectypes.BBDevConfig{
+		ACC200: &fectypes.ACC200BBDevConfig{
+			ACC100BBDevConfig: *acc100BBDevConfig(queueGroupConfig),
+			QFFT:              queueGroupConfig,
+		},
+	})
 }
 
 func waitForNodeConfigToSucceed() error {
