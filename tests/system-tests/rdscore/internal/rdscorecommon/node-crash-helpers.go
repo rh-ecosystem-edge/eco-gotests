@@ -46,8 +46,6 @@ func waitForNodeToBeNotReady(ctx SpecContext, nodeName string, pollingInterval, 
 }
 
 // verifyVmcoreDumpGenerated verifies that vmcore dump was generated in /var/crash.
-//
-//nolint:unused
 func verifyVmcoreDumpGenerated(ctx SpecContext, nodeName string) {
 	By("Assert vmcore dump was generated")
 
@@ -75,8 +73,6 @@ func verifyVmcoreDumpGenerated(ctx SpecContext, nodeName string) {
 }
 
 // cleanupVarCrashDirectory cleans up the /var/crash directory on the specified node.
-//
-//nolint:unused
 func cleanupVarCrashDirectory(ctx SpecContext, nodeName string) {
 	By(fmt.Sprintf("Cleaning up /var/crash directory on node %q", nodeName))
 
