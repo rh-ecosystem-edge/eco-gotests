@@ -1,3 +1,4 @@
+# Synced with oran-o2ims commit 14a520a4dd5ca6f58cf409c835aad077c20b6881
 #
 # Copyright (c) 2024 Red Hat, Inc.
 #
@@ -11,7 +12,6 @@
 # implied. See the License for the specific language governing permissions and limitations under the
 # License.
 #
-# Synced with oran-o2ims commit 32d7280bed8ac83dc1bc0bcfbbb07a01309392fc
 
 openapi: 3.0.3
 
@@ -38,12 +38,16 @@ tags:
   description: |
     Information about infrastructure templates.
 
+# Scope enforcement: OAuth scopes are not verified directly from the token's
+# scope claim. The OAuth server translates scopes into group memberships
+# (via the groups claim), and the Authorizer maps those groups to Kubernetes
+# RBAC permissions via SubjectAccessReview. See DD-003 in AGENTS.md.
 security:
 - oauth2:
   - role:o2ims-admin
 
 paths:
-  /o2ims-infrastructureArtifacts/api_versions:
+  /O2ims_infrastructureArtifacts/api_versions:
     get:
       operationId: getAllVersions
       summary: Get API versions
@@ -88,7 +92,7 @@ paths:
               schema:
                 $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
 
-  /o2ims-infrastructureArtifacts/v1/api_versions:
+  /O2ims_infrastructureArtifacts/v1/api_versions:
     get:
       operationId: getMinorVersions
       summary: Get minor API versions
@@ -133,7 +137,7 @@ paths:
               schema:
                 $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
 
-  /o2ims-infrastructureArtifacts/v1/managedInfrastructureTemplates:
+  /O2ims_infrastructureArtifacts/v1/managedInfrastructureTemplates:
     get:
       operationId: getManagedInfrastructureTemplates
       summary: Get managed infrastructure templates
@@ -186,7 +190,7 @@ paths:
               schema:
                 $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
 
-  /o2ims-infrastructureArtifacts/v1/managedInfrastructureTemplates/{managedInfrastructureTemplateId}:
+  /O2ims_infrastructureArtifacts/v1/managedInfrastructureTemplates/{managedInfrastructureTemplateId}:
     get:
       operationId: getManagedInfrastructureTemplate
       summary: Get managed infrastructure templates
@@ -240,7 +244,7 @@ paths:
               schema:
                 $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
 
-  /o2ims-infrastructureArtifacts/v1/managedInfrastructureTemplates/{managedInfrastructureTemplateId}/defaults:
+  /O2ims_infrastructureArtifacts/v1/managedInfrastructureTemplates/{managedInfrastructureTemplateId}/defaults:
     get:
       operationId: getManagedInfrastructureTemplateDefaults
       summary: Get managed infrastructure template defaults
@@ -385,8 +389,7 @@ components:
           example: {"deploymentType": "sno", "networkType": "ran"}
         extensions:
           type: object
-          additionalProperties:
-            type: string
+          additionalProperties: {}
           description: |
             These are unspecified (not standardized) properties (keys) which are tailored by the vendor or
             operator to extend the information provided about the Artifact Resource.

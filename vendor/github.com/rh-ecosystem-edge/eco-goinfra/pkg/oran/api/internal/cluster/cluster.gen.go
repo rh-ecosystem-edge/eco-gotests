@@ -1109,7 +1109,7 @@ func NewGetAllVersionsRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureCluster/api_versions")
+	operationPath := fmt.Sprintf("/O2ims_infrastructureCluster/api_versions")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1136,7 +1136,7 @@ func NewGetAlarmDictionariesRequest(server string, params *GetAlarmDictionariesP
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureCluster/v1/alarmDictionaries")
+	operationPath := fmt.Sprintf("/O2ims_infrastructureCluster/v1/alarmDictionaries")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1233,7 +1233,7 @@ func NewGetAlarmDictionaryRequest(server string, alarmDictionaryId externalRef0.
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureCluster/v1/alarmDictionaries/%s", pathParam0)
+	operationPath := fmt.Sprintf("/O2ims_infrastructureCluster/v1/alarmDictionaries/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1260,7 +1260,7 @@ func NewGetMinorVersionsRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureCluster/v1/api_versions")
+	operationPath := fmt.Sprintf("/O2ims_infrastructureCluster/v1/api_versions")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1287,7 +1287,7 @@ func NewGetClusterResourceTypesRequest(server string, params *GetClusterResource
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureCluster/v1/clusterResourceTypes")
+	operationPath := fmt.Sprintf("/O2ims_infrastructureCluster/v1/clusterResourceTypes")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1384,7 +1384,7 @@ func NewGetClusterResourceTypeRequest(server string, clusterResourceTypeId Clust
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureCluster/v1/clusterResourceTypes/%s", pathParam0)
+	operationPath := fmt.Sprintf("/O2ims_infrastructureCluster/v1/clusterResourceTypes/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1411,7 +1411,7 @@ func NewGetClusterResourcesRequest(server string, params *GetClusterResourcesPar
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureCluster/v1/clusterResources")
+	operationPath := fmt.Sprintf("/O2ims_infrastructureCluster/v1/clusterResources")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1508,7 +1508,7 @@ func NewGetClusterResourceRequest(server string, clusterResourceId ClusterResour
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureCluster/v1/clusterResources/%s", pathParam0)
+	operationPath := fmt.Sprintf("/O2ims_infrastructureCluster/v1/clusterResources/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1535,7 +1535,7 @@ func NewGetNodeClusterTypesRequest(server string, params *GetNodeClusterTypesPar
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureCluster/v1/nodeClusterTypes")
+	operationPath := fmt.Sprintf("/O2ims_infrastructureCluster/v1/nodeClusterTypes")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1632,7 +1632,7 @@ func NewGetNodeClusterTypeRequest(server string, nodeClusterTypeId NodeClusterTy
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureCluster/v1/nodeClusterTypes/%s", pathParam0)
+	operationPath := fmt.Sprintf("/O2ims_infrastructureCluster/v1/nodeClusterTypes/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1666,7 +1666,7 @@ func NewGetNodeClusterTypeAlarmDictionaryRequest(server string, nodeClusterTypeI
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureCluster/v1/nodeClusterTypes/%s/alarmDictionary", pathParam0)
+	operationPath := fmt.Sprintf("/O2ims_infrastructureCluster/v1/nodeClusterTypes/%s/alarmDictionary", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1693,7 +1693,7 @@ func NewGetNodeClustersRequest(server string, params *GetNodeClustersParams) (*h
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureCluster/v1/nodeClusters")
+	operationPath := fmt.Sprintf("/O2ims_infrastructureCluster/v1/nodeClusters")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1790,7 +1790,7 @@ func NewGetNodeClusterRequest(server string, nodeClusterId NodeClusterId) (*http
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureCluster/v1/nodeClusters/%s", pathParam0)
+	operationPath := fmt.Sprintf("/O2ims_infrastructureCluster/v1/nodeClusters/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1817,7 +1817,7 @@ func NewGetSubscriptionsRequest(server string, params *GetSubscriptionsParams) (
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureCluster/v1/subscriptions")
+	operationPath := fmt.Sprintf("/O2ims_infrastructureCluster/v1/subscriptions")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1918,7 +1918,7 @@ func NewCreateSubscriptionRequestWithBody(server string, contentType string, bod
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureCluster/v1/subscriptions")
+	operationPath := fmt.Sprintf("/O2ims_infrastructureCluster/v1/subscriptions")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1954,7 +1954,7 @@ func NewDeleteSubscriptionRequest(server string, subscriptionId SubscriptionId) 
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureCluster/v1/subscriptions/%s", pathParam0)
+	operationPath := fmt.Sprintf("/O2ims_infrastructureCluster/v1/subscriptions/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1988,7 +1988,7 @@ func NewGetSubscriptionRequest(server string, subscriptionId SubscriptionId) (*h
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureCluster/v1/subscriptions/%s", pathParam0)
+	operationPath := fmt.Sprintf("/O2ims_infrastructureCluster/v1/subscriptions/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}

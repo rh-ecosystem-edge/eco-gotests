@@ -1595,7 +1595,7 @@ func NewGetAllVersionsRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureInventory/api_versions")
+	operationPath := fmt.Sprintf("/O2ims_infrastructureInventory/api_versions")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1622,7 +1622,7 @@ func NewGetCloudInfoRequest(server string, params *GetCloudInfoParams) (*http.Re
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureInventory/v2")
+	operationPath := fmt.Sprintf("/O2ims_infrastructureInventory/v2")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1700,7 +1700,7 @@ func NewGetAlarmDictionariesRequest(server string, params *GetAlarmDictionariesP
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureInventory/v2/alarmDictionaries")
+	operationPath := fmt.Sprintf("/O2ims_infrastructureInventory/v2/alarmDictionaries")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1797,7 +1797,7 @@ func NewGetAlarmDictionaryRequest(server string, alarmDictionaryId externalRef0.
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureInventory/v2/alarmDictionaries/%s", pathParam0)
+	operationPath := fmt.Sprintf("/O2ims_infrastructureInventory/v2/alarmDictionaries/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1824,7 +1824,7 @@ func NewGetMinorVersionsRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureInventory/v2/api_versions")
+	operationPath := fmt.Sprintf("/O2ims_infrastructureInventory/v2/api_versions")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1851,7 +1851,7 @@ func NewGetDeploymentManagersRequest(server string, params *GetDeploymentManager
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureInventory/v2/deploymentManagers")
+	operationPath := fmt.Sprintf("/O2ims_infrastructureInventory/v2/deploymentManagers")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1948,7 +1948,7 @@ func NewGetDeploymentManagerRequest(server string, deploymentManagerId Deploymen
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureInventory/v2/deploymentManagers/%s", pathParam0)
+	operationPath := fmt.Sprintf("/O2ims_infrastructureInventory/v2/deploymentManagers/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1975,7 +1975,7 @@ func NewGetLocationsRequest(server string, params *GetLocationsParams) (*http.Re
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureInventory/v2/locations")
+	operationPath := fmt.Sprintf("/O2ims_infrastructureInventory/v2/locations")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2072,7 +2072,7 @@ func NewGetLocationRequest(server string, globalLocationId GlobalLocationId) (*h
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureInventory/v2/locations/%s", pathParam0)
+	operationPath := fmt.Sprintf("/O2ims_infrastructureInventory/v2/locations/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2099,7 +2099,7 @@ func NewGetOCloudSitesRequest(server string, params *GetOCloudSitesParams) (*htt
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureInventory/v2/oCloudSites")
+	operationPath := fmt.Sprintf("/O2ims_infrastructureInventory/v2/oCloudSites")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2196,7 +2196,7 @@ func NewGetOCloudSiteRequest(server string, oCloudSiteId OCloudSiteId) (*http.Re
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureInventory/v2/oCloudSites/%s", pathParam0)
+	operationPath := fmt.Sprintf("/O2ims_infrastructureInventory/v2/oCloudSites/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2223,7 +2223,7 @@ func NewGetResourcePoolsRequest(server string, params *GetResourcePoolsParams) (
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureInventory/v2/resourcePools")
+	operationPath := fmt.Sprintf("/O2ims_infrastructureInventory/v2/resourcePools")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2320,7 +2320,7 @@ func NewGetResourcePoolRequest(server string, resourcePoolId ResourcePoolId) (*h
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureInventory/v2/resourcePools/%s", pathParam0)
+	operationPath := fmt.Sprintf("/O2ims_infrastructureInventory/v2/resourcePools/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2354,7 +2354,7 @@ func NewGetResourcesRequest(server string, resourcePoolId ResourcePoolId, params
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureInventory/v2/resourcePools/%s/resources", pathParam0)
+	operationPath := fmt.Sprintf("/O2ims_infrastructureInventory/v2/resourcePools/%s/resources", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2458,7 +2458,7 @@ func NewGetResourceRequest(server string, resourcePoolId ResourcePoolId, resourc
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureInventory/v2/resourcePools/%s/resources/%s", pathParam0, pathParam1)
+	operationPath := fmt.Sprintf("/O2ims_infrastructureInventory/v2/resourcePools/%s/resources/%s", pathParam0, pathParam1)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2485,7 +2485,7 @@ func NewGetResourceTypesRequest(server string, params *GetResourceTypesParams) (
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureInventory/v2/resourceTypes")
+	operationPath := fmt.Sprintf("/O2ims_infrastructureInventory/v2/resourceTypes")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2582,7 +2582,7 @@ func NewGetResourceTypeRequest(server string, resourceTypeId ResourceTypeId) (*h
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureInventory/v2/resourceTypes/%s", pathParam0)
+	operationPath := fmt.Sprintf("/O2ims_infrastructureInventory/v2/resourceTypes/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2616,7 +2616,7 @@ func NewGetResourceTypeAlarmDictionaryRequest(server string, resourceTypeId Reso
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureInventory/v2/resourceTypes/%s/alarmDictionary", pathParam0)
+	operationPath := fmt.Sprintf("/O2ims_infrastructureInventory/v2/resourceTypes/%s/alarmDictionary", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2643,7 +2643,7 @@ func NewGetSubscriptionsRequest(server string, params *GetSubscriptionsParams) (
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureInventory/v2/subscriptions")
+	operationPath := fmt.Sprintf("/O2ims_infrastructureInventory/v2/subscriptions")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2744,7 +2744,7 @@ func NewCreateSubscriptionRequestWithBody(server string, contentType string, bod
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureInventory/v2/subscriptions")
+	operationPath := fmt.Sprintf("/O2ims_infrastructureInventory/v2/subscriptions")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2780,7 +2780,7 @@ func NewDeleteSubscriptionRequest(server string, subscriptionId SubscriptionId) 
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureInventory/v2/subscriptions/%s", pathParam0)
+	operationPath := fmt.Sprintf("/O2ims_infrastructureInventory/v2/subscriptions/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2814,7 +2814,7 @@ func NewGetSubscriptionRequest(server string, subscriptionId SubscriptionId) (*h
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/o2ims-infrastructureInventory/v2/subscriptions/%s", pathParam0)
+	operationPath := fmt.Sprintf("/O2ims_infrastructureInventory/v2/subscriptions/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
