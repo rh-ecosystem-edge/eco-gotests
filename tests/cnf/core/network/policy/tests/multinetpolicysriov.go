@@ -312,13 +312,9 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 
 		// 55990
 		It("Disable multi-network policy", reportxml.ID("55990"), func() {
-			DeferCleanup(func() {
-				enableMultiNetworkPolicy(true)
-			})
-
 			By("Apply MultiNetworkPolicy with ingress rule deny all")
 
-			_, err := networkpolicy.NewMultiNetworkPolicyBuilder(
+			policy, err := networkpolicy.NewMultiNetworkPolicyBuilder(
 				APIClient, multiNetworkPolicyName, tsparams.TestNamespaceName).
 				WithNetwork(srIovNet.Definition.Name).WithPolicyType(multinetpolicyapiv1.PolicyTypeIngress).
 				WithEmptyIngress().
@@ -347,20 +343,40 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 				fmt.Sprintf("Pod %s can NOT reach %s with port %d",
 					secondClientPod.Definition.Name, firstClientPod.Definition.Name, port5001))
 
-			By("Disable MultiNetworkPolicy feature")
-			enableMultiNetworkPolicy(false)
+			// Delete the deny-all while the controller is still running so dataplane rules are
+			// flushed. Disabling the feature alone can leave nftables deny rules in the pod
+			// netns and break this and later specs.
+			By("Delete MultiNetworkPolicy so dataplane rules are flushed")
 
-			By("Traffic verification with MultiNetworkPolicy disabled")
-			// All traffic is accepted and there is no any policy because feature is off
+			err = policy.Delete()
+			Expect(err).ToNot(HaveOccurred(), "Failed to delete multiNetworkPolicy")
+
+			By("Traffic verification after MultiNetworkPolicy deleted")
 			Eventually(func() error {
 				return runTraffic(firstClientPod, ipaddr.RemovePrefix(serverPodIP), tcpProtocol, port5001)
-			}, tsparams.WaitTimeout, tsparams.RetryTrafficInterval).ShouldNot(HaveOccurred(),
+			}, tsparams.WaitSecondaryNetTrafficTimeout, tsparams.RetrySecondaryNetTrafficInterval).ShouldNot(HaveOccurred(),
 				fmt.Sprintf("pod %s can NOT reach %s with port %d",
 					firstClientPod.Definition.Name, serverPod.Definition.Name, port5001))
 
 			Eventually(func() error {
 				return runTraffic(secondClientPod, ipaddr.RemovePrefix(serverPodIP), tcpProtocol, port5003)
-			}, tsparams.WaitTimeout, tsparams.RetryTrafficInterval).ShouldNot(HaveOccurred(),
+			}, tsparams.WaitSecondaryNetTrafficTimeout, tsparams.RetrySecondaryNetTrafficInterval).ShouldNot(HaveOccurred(),
+				fmt.Sprintf("pod %s can NOT reach %s with port %d",
+					secondClientPod.Definition.Name, serverPod.Definition.Name, port5003))
+
+			By("Disable MultiNetworkPolicy feature")
+			enableMultiNetworkPolicy(false)
+
+			By("Traffic verification with MultiNetworkPolicy disabled")
+			Eventually(func() error {
+				return runTraffic(firstClientPod, ipaddr.RemovePrefix(serverPodIP), tcpProtocol, port5001)
+			}, tsparams.WaitTrafficTimeout, tsparams.RetryTrafficInterval).ShouldNot(HaveOccurred(),
+				fmt.Sprintf("pod %s can NOT reach %s with port %d",
+					firstClientPod.Definition.Name, serverPod.Definition.Name, port5001))
+
+			Eventually(func() error {
+				return runTraffic(secondClientPod, ipaddr.RemovePrefix(serverPodIP), tcpProtocol, port5003)
+			}, tsparams.WaitTrafficTimeout, tsparams.RetryTrafficInterval).ShouldNot(HaveOccurred(),
 				fmt.Sprintf("pod %s can NOT reach %s with port %d",
 					secondClientPod.Definition.Name, serverPod.Definition.Name, port5003))
 
@@ -414,23 +430,24 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 					serverPod.WaitUntilRunning(10*time.Second) == nil
 			}, 1*time.Minute, 3*time.Second).Should(BeTrue(), "Failed not all pods are in running state")
 
-			// Connectivity works without policy
+			// Connectivity works without policy. Pod Running is not enough for SCTP on the
+			// SR-IOV secondary interface; wait until associations succeed.
 			By("Testing connectivity without multiNetworkPolicy applied")
 			Eventually(func() error {
 				return runTraffic(firstClientPod, removePrefixFromIP(serverPodIPv6), sctpProtocol, port5001)
-			}, tsparams.WaitTrafficTimeout, tsparams.RetryTrafficInterval).ShouldNot(HaveOccurred(),
+			}, tsparams.WaitSecondaryNetTrafficTimeout, tsparams.RetrySecondaryNetTrafficInterval).ShouldNot(HaveOccurred(),
 				fmt.Sprintf("pod %s can NOT reach %s with port %d",
 					firstClientPod.Definition.Name, serverPod.Definition.Name, port5001))
 
 			Eventually(func() error {
 				return runTraffic(secondClientPod, removePrefixFromIP(serverPodIPv6), sctpProtocol, port5003)
-			}, tsparams.WaitTrafficTimeout, tsparams.RetryTrafficInterval).ShouldNot(HaveOccurred(),
+			}, tsparams.WaitSecondaryNetTrafficTimeout, tsparams.RetrySecondaryNetTrafficInterval).ShouldNot(HaveOccurred(),
 				fmt.Sprintf("pod %s can NOT reach %s with port %d",
 					secondClientPod.Definition.Name, serverPod.Definition.Name, port5003))
 
 			Eventually(func() error {
 				return runTraffic(secondClientPod, removePrefixFromIP(firstClientPodIPv6), sctpProtocol, port5001)
-			}, tsparams.WaitTrafficTimeout, tsparams.RetryTrafficInterval).ShouldNot(HaveOccurred(),
+			}, tsparams.WaitSecondaryNetTrafficTimeout, tsparams.RetrySecondaryNetTrafficInterval).ShouldNot(HaveOccurred(),
 				fmt.Sprintf("pod %s can NOT reach %s with port %d",
 					secondClientPod.Definition.Name, firstClientPod.Definition.Name, port5001))
 		})
@@ -650,10 +667,16 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 	AfterEach(func() {
 		testNameSpace, err := namespace.Pull(APIClient, tsparams.TestNamespaceName)
 		Expect(err).ToNot(HaveOccurred(), "Failed to pull namespace")
+
+		// Remove MultiNetworkPolicy CRs before re-enabling the feature. Re-enabling while a
+		// deny-all CR is still present re-applies dataplane rules and poisons later specs.
 		err = testNameSpace.CleanObjects(
 			10*time.Minute,
 			networkpolicy.GetMultiNetworkGVR())
 		Expect(err).ToNot(HaveOccurred(), "Failed to remove multiNetworkPolicy object from namespace")
+
+		// 55990 disables the feature and may fail before re-enabling.
+		enableMultiNetworkPolicy(true)
 
 		protocol := tcpProtocol
 		serverIP := serverPodIP
@@ -673,7 +696,7 @@ var _ = Describe("SRIOV", Ordered, Label("multinetworkpolicy"), ContinueOnFailur
 		// All traffic is accepted
 		Eventually(func() error {
 			return runTraffic(firstClientPod, removePrefixFromIP(serverIP), protocol, port5001)
-		}, tsparams.WaitTrafficTimeout, tsparams.RetryTrafficInterval).ShouldNot(HaveOccurred(),
+		}, tsparams.WaitSecondaryNetTrafficTimeout, tsparams.RetrySecondaryNetTrafficInterval).ShouldNot(HaveOccurred(),
 			fmt.Sprintf("pod %s can NOT reach %s with port %d",
 				firstClientPod.Definition.Name, serverPod.Definition.Name, port5001))
 
@@ -744,7 +767,32 @@ func enableMultiNetworkPolicy(status bool) {
 			return fmt.Errorf("DS is not ready")
 		}, tsparams.WaitTimeout, tsparams.RetryInterval).ShouldNot(HaveOccurred(),
 			"Failed MultiNetworkPolicy daemonSet is not ready")
+
+		return
 	}
+
+	// When disabling, wait until the dataplane DaemonSet is gone or no longer running.
+	// network.operator Available alone is not enough; deny rules can linger while pods remain.
+	Eventually(func() error {
+		multusDs, err := daemonset.Pull(APIClient, tsparams.MultiNetworkPolicyDSName, NetConfig.MultusNamesapce)
+		if err != nil {
+			return nil
+		}
+
+		// Pull can return nil error with a nil Object on transient API failures because
+		// Exists() treats every non-NotFound error as present.
+		if multusDs == nil || multusDs.Object == nil {
+			return fmt.Errorf("MultiNetworkPolicy daemonSet pull returned empty object")
+		}
+
+		if multusDs.Object.Status.NumberReady == 0 && multusDs.Object.Status.DesiredNumberScheduled == 0 {
+			return nil
+		}
+
+		return fmt.Errorf("MultiNetworkPolicy daemonSet still active: ready=%d desired=%d",
+			multusDs.Object.Status.NumberReady, multusDs.Object.Status.DesiredNumberScheduled)
+	}, tsparams.WaitTimeout, tsparams.RetryInterval).ShouldNot(HaveOccurred(),
+		"Failed MultiNetworkPolicy daemonSet did not stop after disabling the feature")
 }
 
 func defineClientCMD(protocol, serverIP string) []string {
@@ -866,19 +914,19 @@ func testSCTPConnectivityWithoutPolicy(
 	By("Testing SCTP connectivity without multiNetworkPolicy applied")
 	Eventually(func() error {
 		return runTraffic(firstClientPod, removePrefixFromIP(serverPodIP), sctpProtocol, port5001)
-	}, tsparams.WaitTrafficTimeout, tsparams.RetryTrafficInterval).ShouldNot(HaveOccurred(),
+	}, tsparams.WaitSecondaryNetTrafficTimeout, tsparams.RetrySecondaryNetTrafficInterval).ShouldNot(HaveOccurred(),
 		fmt.Sprintf("pod %s can NOT reach %s dst ip %s with port %d",
 			firstClientPod.Definition.Name, serverPod.Definition.Name, serverPodIP, port5001))
 
 	Eventually(func() error {
 		return runTraffic(secondClientPod, removePrefixFromIP(serverPodIP), sctpProtocol, port5003)
-	}, tsparams.WaitTrafficTimeout, tsparams.RetryTrafficInterval).ShouldNot(HaveOccurred(),
+	}, tsparams.WaitSecondaryNetTrafficTimeout, tsparams.RetrySecondaryNetTrafficInterval).ShouldNot(HaveOccurred(),
 		fmt.Sprintf("pod %s can NOT reach %s dst ip %s with port %d",
 			secondClientPod.Definition.Name, serverPod.Definition.Name, serverPodIP, port5003))
 
 	Eventually(func() error {
 		return runTraffic(secondClientPod, removePrefixFromIP(clientPodIP), sctpProtocol, port5001)
-	}, tsparams.WaitTrafficTimeout, tsparams.RetryTrafficInterval).ShouldNot(HaveOccurred(),
+	}, tsparams.WaitSecondaryNetTrafficTimeout, tsparams.RetrySecondaryNetTrafficInterval).ShouldNot(HaveOccurred(),
 		fmt.Sprintf("pod %s can NOT reach %s dst ip %s with port %d",
 			secondClientPod.Definition.Name, firstClientPod.Definition.Name, serverPodIP, port5001))
 }
