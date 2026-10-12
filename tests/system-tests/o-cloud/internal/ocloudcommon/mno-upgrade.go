@@ -1,7 +1,6 @@
 package ocloudcommon
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -51,32 +50,26 @@ func VerifySuccessfulMNOZStreamUpgrade(ctx SpecContext) {
 func GetSoleProvisioningRequest() *oran.ProvisioningRequestBuilder {
 	By("Finding the sole ProvisioningRequest on the hub")
 
-	err := provisioningv1alpha1.AddToScheme(HubAPIClient.Scheme())
-	Expect(err).NotTo(HaveOccurred(), "Failed to add provisioning scheme to hub client")
-
-	prList := &provisioningv1alpha1.ProvisioningRequestList{}
-	err = HubAPIClient.List(context.TODO(), prList)
+	provisioningRequests, err := oran.ListProvisioningRequests(HubAPIClient)
 	Expect(err).NotTo(HaveOccurred(), "Failed to list ProvisioningRequests")
 
-	var names []string
+	var active []*oran.ProvisioningRequestBuilder
 
-	for _, item := range prList.Items {
-		if item.DeletionTimestamp != nil {
+	for _, provisioningRequest := range provisioningRequests {
+		if provisioningRequest.Object.DeletionTimestamp != nil {
 			continue
 		}
 
-		names = append(names, item.Name)
+		active = append(active, provisioningRequest)
 	}
 
-	Expect(names).To(HaveLen(1),
-		fmt.Sprintf("Expected exactly one ProvisioningRequest on the hub, found %d: %v", len(names), names))
+	Expect(active).To(HaveLen(1),
+		fmt.Sprintf("Expected exactly one ProvisioningRequest on the hub, found %d", len(active)))
 
-	provisioningRequest, err := oran.PullPR(HubAPIClient, names[0])
-	Expect(err).NotTo(HaveOccurred(), "Failed to pull ProvisioningRequest %s", names[0])
+	klog.V(ocloudparams.OCloudLogLevel).Infof(
+		"found sole ProvisioningRequest %s", active[0].Object.Name)
 
-	klog.V(ocloudparams.OCloudLogLevel).Infof("found sole ProvisioningRequest %s", names[0])
-
-	return provisioningRequest
+	return active[0]
 }
 
 // UpdatePRForMNOUpgrade updates the ProvisioningRequest templateVersion to the configured upgrade
@@ -103,16 +96,45 @@ func UpdatePRForMNOUpgrade(provisioningRequest *oran.ProvisioningRequestBuilder)
 			desiredUpdate["image"] = OCloudConfig.MNOUpgradeTargetImage
 		}
 
-		provisioningRequest = provisioningRequest.WithTemplateParameter("upgradeParameters", map[string]any{
-			"clusterVersion": map[string]any{
-				"cvSpec": map[string]any{
-					"desiredUpdate": desiredUpdate,
-				},
-			},
-		})
+		templateParameters, err := provisioningRequest.GetTemplateParameters()
+		Expect(err).NotTo(HaveOccurred(),
+			"Failed to get TemplateParameters for ProvisioningRequest %s",
+			provisioningRequest.Definition.Name)
+
+		upgradeParameters := map[string]any{}
+
+		if existing, ok := templateParameters["upgradeParameters"].(map[string]any); ok {
+			for key, value := range existing {
+				upgradeParameters[key] = value
+			}
+		}
+
+		clusterVersion := map[string]any{}
+
+		if existing, ok := upgradeParameters["clusterVersion"].(map[string]any); ok {
+			for key, value := range existing {
+				clusterVersion[key] = value
+			}
+		}
+
+		cvSpec := map[string]any{}
+
+		if existing, ok := clusterVersion["cvSpec"].(map[string]any); ok {
+			for key, value := range existing {
+				cvSpec[key] = value
+			}
+		}
+
+		cvSpec["desiredUpdate"] = desiredUpdate
+		clusterVersion["cvSpec"] = cvSpec
+		upgradeParameters["clusterVersion"] = clusterVersion
+
+		provisioningRequest = provisioningRequest.WithTemplateParameter("upgradeParameters", upgradeParameters)
 	}
 
-	updateTime := time.Now()
+	// Hub condition timestamps are second-granularity; subtract a small margin so same-second
+	// transitions and minor runner/hub clock skew are not rejected by After(start) checks.
+	updateTime := time.Now().Add(-5 * time.Second).Truncate(time.Second)
 
 	_, err := provisioningRequest.Update()
 	Expect(err).NotTo(HaveOccurred(),
