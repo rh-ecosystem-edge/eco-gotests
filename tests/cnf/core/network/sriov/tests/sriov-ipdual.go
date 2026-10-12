@@ -22,7 +22,8 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
-var _ = Describe("SR-IOV DualStack", Ordered, Label(tsparams.LabelSuite), ContinueOnFailure, func() {
+var _ = Describe("SR-IOV DualStack", Ordered, Label(
+	tsparams.LabelSuite, tsparams.LabelSriovHWEnabled), ContinueOnFailure, func() {
 	const (
 		sriovResourcePF1MTU1280 = "sriovpf1mtu1280ds"
 		sriovResourcePF1MTU9000 = "sriovpf1mtu9000ds"
