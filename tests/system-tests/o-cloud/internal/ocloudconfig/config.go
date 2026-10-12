@@ -113,6 +113,15 @@ type OCloudConfig struct {
 	//nolint:lll
 	// TemplateVersionSeed defines the version of the referenced ClusterTemplate used for the provisioning of the seed cluster for IBI.
 	TemplateVersionSeed string `yaml:"template_version_seed" envconfig:"ECO_OCLOUD_TEMPLATE_VERSION_SEED"`
+	//nolint:lll
+	// TemplateVersionMNOUpgrade defines the ClusterTemplate version used to trigger an MNO z-stream upgrade.
+	TemplateVersionMNOUpgrade string `yaml:"template_version_mno_upgrade" envconfig:"ECO_OCLOUD_TEMPLATE_VERSION_MNO_UPGRADE"`
+	// MNOUpgradeTargetVersion is the expected spoke OpenShift version after the MNO z-stream upgrade.
+	MNOUpgradeTargetVersion string `yaml:"mno_upgrade_target_version" envconfig:"ECO_OCLOUD_MNO_UPGRADE_TARGET_VERSION"`
+	// MNOUpgradeTargetImage is an optional payload image pull spec for the MNO upgrade.
+	MNOUpgradeTargetImage string `yaml:"mno_upgrade_target_image" envconfig:"ECO_OCLOUD_MNO_UPGRADE_TARGET_IMAGE"`
+	// MNOUpgradeTimeout is the timeout for waiting on UpgradeCompleted during an MNO upgrade.
+	MNOUpgradeTimeout time.Duration `yaml:"mno_upgrade_timeout" envconfig:"ECO_OCLOUD_MNO_UPGRADE_TIMEOUT"`
 
 	// NodeClusterName1 is the name of the first ORAN Node Cluster.
 	NodeClusterName1 string `yaml:"node_cluster_name_1" envconfig:"ECO_OCLOUD_NODE_CLUSTER_NAME_1"`
