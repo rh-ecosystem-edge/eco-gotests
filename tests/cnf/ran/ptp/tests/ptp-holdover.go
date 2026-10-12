@@ -635,6 +635,23 @@ func assertNoFreerunEvent(nodeName string, sinceTime time.Time) {
 	Expect(err).To(HaveOccurred(), "Expected no FREERUN event, but one was received")
 }
 
+// assertNoHoldoverEvent validates that no HOLDOVER ptp-state-change event is generated within 30 seconds.
+func assertNoHoldoverEvent(nodeName string, sinceTime time.Time) {
+	GinkgoHelper()
+
+	By("validating no HOLDOVER event is generated")
+
+	eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeName)
+	Expect(err).ToNot(HaveOccurred(), "Failed to get consumer pod for node")
+
+	holdoverFilter := events.All(
+		events.IsType(eventptp.PtpStateChange),
+		events.HasValue(events.WithSyncState(eventptp.HOLDOVER)),
+	)
+	err = events.WaitForEvent(eventPod, sinceTime, 30*time.Second, holdoverFilter)
+	Expect(err).To(HaveOccurred(), "Expected no HOLDOVER event, but one was received")
+}
+
 // changeHoldoverSettings updates holdover thresholds and waits for the daemon to re-lock.
 // Routes through HardwareConfig CR on 4.22+/GNRD or PtpConfig plugin on pre-4.22.
 // No-op when desired already matches current; restores originals via DeferCleanup.
