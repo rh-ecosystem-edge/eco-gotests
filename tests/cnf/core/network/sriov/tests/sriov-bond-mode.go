@@ -48,7 +48,7 @@ var (
 var _ = Describe(
 	"SRIOV Bond CNI",
 	Ordered,
-	Label(tsparams.LabelSuite, tsparams.LabelBondModeTestCases),
+	Label(tsparams.LabelSuite, tsparams.LabelBondModeTestCases, tsparams.LabelSriovHWEnabled),
 	ContinueOnFailure,
 	func() {
 		var (
