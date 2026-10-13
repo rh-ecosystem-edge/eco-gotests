@@ -120,6 +120,10 @@ var _ = JustAfterEach(func() {
 		CurrentSpecReport(), currentFile, tsparams.ReporterSpokeNamespacesToDump, tsparams.ReporterSpokeCRsToDump)
 	mustgather.CollectIfFailed(
 		CurrentSpecReport(), currentFile, RANConfig.Spoke1APIClient, "ptp", RANConfig.ResolvePTPMustGatherImage)
+
+	prometheusAPI, err := querier.CreatePrometheusAPIForCluster(RANConfig.Spoke1APIClient)
+	Expect(err).ToNot(HaveOccurred(), "Failed to create Prometheus API client")
+	metrics.CollectIfFailed(CurrentSpecReport(), currentFile, prometheusAPI)
 })
 
 var _ = ReportAfterSuite("", func(report Report) {
