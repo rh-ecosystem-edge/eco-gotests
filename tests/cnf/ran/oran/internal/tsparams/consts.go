@@ -161,11 +161,11 @@ const (
 	// ClusterAPIVersion is the expected first version in cluster API version responses.
 	ClusterAPIVersion = "1.0.0"
 	// ClusterAPIURIPrefix is the expected uriPrefix in cluster API version responses.
-	ClusterAPIURIPrefix = "/o2ims-infrastructureCluster/v1"
+	ClusterAPIURIPrefix = "/O2ims_infrastructureCluster/v1"
 	// InventoryAPIVersion is the expected first version in inventory API version responses.
 	InventoryAPIVersion = "2.0.0"
 	// InventoryAPIURIPrefix is the expected uriPrefix in inventory API version responses.
-	InventoryAPIURIPrefix = "/o2ims-infrastructureInventory/v2"
+	InventoryAPIURIPrefix = "/O2ims_infrastructureInventory/v2"
 )
 
 // LogLevel is the glog verbosity level to use for logs in this suite or its helpers.
