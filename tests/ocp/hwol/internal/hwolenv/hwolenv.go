@@ -626,9 +626,10 @@ func CleanupHwolResources(operatorNS, mcpName, pfName string, timeout, stableDur
 	}
 
 	if !exists {
-		klog.V(90).Info("No HWOL test resources found; cleanup is already complete")
-
-		return nil
+		// The CRs can disappear before the SR-IOV daemon has finished restoring
+		// the PF. Continue through the idempotent delete, stability wait, and
+		// legacy-mode verification below rather than reporting cleanup complete.
+		klog.V(90).Info("No HWOL test resources found; verifying SR-IOV cleanup is complete")
 	}
 
 	ovsNet := NewOvsNetworkBuilder(
