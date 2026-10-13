@@ -6,6 +6,7 @@ import (
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
+	"github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	prometheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/configmap"
@@ -22,11 +23,10 @@ import (
 
 var _ = Describe("PTP Leap File", Label(tsparams.LabelLeapFile), func() {
 	var (
-		prometheusAPI      prometheusv1.API
-		leapConfigMap      *configmap.Builder
-		err                error
-		nodeName           string
-		testRanAtLeastOnce = false
+		prometheusAPI prometheusv1.API
+		leapConfigMap *configmap.Builder
+		err           error
+		nodeName      string
 	)
 
 	BeforeEach(func() {
@@ -35,6 +35,29 @@ var _ = Describe("PTP Leap File", Label(tsparams.LabelLeapFile), func() {
 		prometheusAPI, err = querier.CreatePrometheusAPIForCluster(RANConfig.Spoke1APIClient)
 		Expect(err).ToNot(HaveOccurred(), "Failed to create Prometheus API client")
 
+		// Unlike most PTP tests, which check profile eligibility inside each It block, this test
+		// checks in BeforeEach to avoid a misleading EnsureClocksAreLocked timeout on configs that
+		// have no GM profiles (e.g. BC-only). See CNF-26740.
+		By("skipping if no GM or Multi-NIC GM profiles are configured")
+
+		nodeInfoMap, err := profiles.GetNodeInfoMap(RANConfig.Spoke1APIClient)
+		Expect(err).ToNot(HaveOccurred(), "Failed to get node info map")
+
+		hasGMNode := false
+
+		for _, nodeInfo := range nodeInfoMap {
+			if nodeInfo.Counts[profiles.ProfileTypeGM] > 0 ||
+				nodeInfo.Counts[profiles.ProfileTypeMultiNICGM] > 0 {
+				hasGMNode = true
+
+				break
+			}
+		}
+
+		if !hasGMNode {
+			Skip("No GM or Multi-NIC GM profiles found — leap test not applicable")
+		}
+
 		By("ensuring clocks are locked before testing")
 
 		err = metrics.EnsureClocksAreLocked(prometheusAPI)
@@ -42,8 +65,8 @@ var _ = Describe("PTP Leap File", Label(tsparams.LabelLeapFile), func() {
 	})
 
 	AfterEach(func() {
-		if !testRanAtLeastOnce {
-			Skip("Test did not run at least once. Skipping cleanup.")
+		if CurrentSpecReport().State == types.SpecStateSkipped {
+			return
 		}
 
 		By("restoring the original leap configmap")
@@ -79,6 +102,8 @@ var _ = Describe("PTP Leap File", Label(tsparams.LabelLeapFile), func() {
 
 			nodeInfoMap, err := profiles.GetNodeInfoMap(RANConfig.Spoke1APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Failed to get node info map")
+
+			testRanAtLeastOnce := false
 
 			for _, nodeInfo := range nodeInfoMap {
 				if nodeInfo.Counts[profiles.ProfileTypeMultiNICGM] == 0 &&
