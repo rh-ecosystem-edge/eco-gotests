@@ -634,7 +634,7 @@ func CleanupHwolResources(operatorNS, mcpName, pfName string, timeout, stableDur
 	ovsNet := NewOvsNetworkBuilder(
 		APIClient, tsparams.OvsNetworkName, operatorNS, tsparams.TestNamespaceName, tsparams.ResourceName)
 	if ovsNet != nil {
-		if err := ovsNet.Delete(); err != nil {
+		if err := ovsNet.DeleteAndWait(timeout); err != nil {
 			return fmt.Errorf("failed to delete OVSNetwork %s: %w", tsparams.OvsNetworkName, err)
 		}
 	}
@@ -823,6 +823,18 @@ func deleteHwolPolicy(operatorNS string) error {
 }
 
 func verifyHwolCleanup(operatorNS, mcpName, pfName string) error {
+	ovsNet := NewOvsNetworkBuilder(
+		APIClient, tsparams.OvsNetworkName, operatorNS, tsparams.TestNamespaceName, tsparams.ResourceName)
+	if ovsNet == nil {
+		return fmt.Errorf("failed to initialize OVSNetwork cleanup builder")
+	}
+
+	if _, err := ovsNet.Get(); err == nil {
+		return fmt.Errorf("HWOL OVSNetwork %s still exists after cleanup", tsparams.OvsNetworkName)
+	} else if !k8serrors.IsNotFound(err) {
+		return fmt.Errorf("failed to verify deletion of HWOL OVSNetwork %s: %w", tsparams.OvsNetworkName, err)
+	}
+
 	if err := verifyHwolSriovNetworkDeleted(operatorNS); err != nil {
 		return err
 	}

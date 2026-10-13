@@ -3,13 +3,16 @@ package hwolenv
 import (
 	"context"
 	"fmt"
+	"time"
 
 	sriovv1 "github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/hwol/internal/ocphwolinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/hwol/internal/tsparams"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -208,6 +211,42 @@ func (builder *OvsNetworkBuilder) Delete() error {
 	builder.Object = nil
 
 	return nil
+}
+
+// DeleteAndWait removes the OVSNetwork object and waits until it is gone.
+// The SR-IOV operator may keep its managed bridge while an OVSNetwork is
+// terminating, so HWOL teardown must not proceed to delete its policy first.
+func (builder *OvsNetworkBuilder) DeleteAndWait(timeout time.Duration) error {
+	if valid, err := builder.validate(); !valid {
+		return err
+	}
+
+	if err := builder.Delete(); err != nil {
+		return err
+	}
+
+	return builder.WaitUntilDeleted(timeout)
+}
+
+// WaitUntilDeleted waits until the OVSNetwork object no longer exists.
+func (builder *OvsNetworkBuilder) WaitUntilDeleted(timeout time.Duration) error {
+	if valid, err := builder.validate(); !valid {
+		return err
+	}
+
+	return wait.PollUntilContextTimeout(
+		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			_, err := builder.Get()
+			if err == nil {
+				return false, nil
+			}
+
+			if k8serrors.IsNotFound(err) {
+				return true, nil
+			}
+
+			return false, err
+		})
 }
 
 func (builder *OvsNetworkBuilder) validate() (bool, error) {
