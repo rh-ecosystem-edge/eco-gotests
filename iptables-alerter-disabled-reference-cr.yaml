@@ -21,11 +21,8 @@
 #   3. The tool will verify this ConfigMap exists in openshift-network-operator namespace
 #
 # Manual Application (for existing clusters):
-#   Step 1: Create the ConfigMap
 #   oc -n openshift-network-operator create configmap iptables-alerter-config --from-literal enabled=false
-#
-#   Step 2: Restart network operator to apply the configuration
-#   oc -n openshift-network-operator delete pod -l name=network-operator
+#   (iptables-alerter pods will automatically stop within ~1 minute)
 #
 # Partner Responsibilities:
 #   - Run checks for iptables use in pre-production/lab environments (with iptables-alerter enabled)

@@ -705,9 +705,7 @@ ginkgo --label-filter="network-operator-config" ./tests/system-tests/rdscore
 ```bash
 # Create the ConfigMap to disable iptables-alerter
 oc -n openshift-network-operator create configmap iptables-alerter-config --from-literal enabled=false
-
-# Restart the network operator to apply the configuration
-oc -n openshift-network-operator delete pod -l name=network-operator
+# The iptables-alerter pods will automatically stop within ~1 minute
 ```
 
 **Cluster-compare validation:**
