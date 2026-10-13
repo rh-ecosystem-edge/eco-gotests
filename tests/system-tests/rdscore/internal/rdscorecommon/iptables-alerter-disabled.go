@@ -93,6 +93,7 @@ func VerifyIptablesAlerterDisabled(ctx SpecContext) {
 		fmt.Sprintf("Failed to list iptables-alerter pods: %v", err))
 
 	runningCount := 0
+
 	for _, p := range alerterPods {
 		if p.Object.Status.Phase == corev1.PodRunning {
 			runningCount++
