@@ -844,6 +844,10 @@ func verifyHwolCleanup(operatorNS, mcpName, pfName string) error {
 		return fmt.Errorf("failed to verify deletion of HWOL SriovNetworkPoolConfig %s: %w", tsparams.PoolConfigName, err)
 	}
 
+	return verifyHwolNodeCleanup(operatorNS, mcpName, pfName)
+}
+
+func verifyHwolNodeCleanup(operatorNS, mcpName, pfName string) error {
 	workerNodes, err := ListMCPWorkerNodes(mcpName)
 	if err != nil {
 		return fmt.Errorf("failed to list HWOL MCP nodes: %w", err)
