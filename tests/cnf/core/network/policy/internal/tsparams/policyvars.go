@@ -45,8 +45,14 @@ var (
 	RetryInterval = 3 * time.Second
 	// WaitTrafficTimeout represents timeout for the traffic Eventually functions.
 	WaitTrafficTimeout = 1 * time.Minute
+	// WaitSecondaryNetTrafficTimeout represents timeout for traffic Eventually functions
+	// that wait for secondary-network paths (for example SCTP over SR-IOV) to become ready.
+	WaitSecondaryNetTrafficTimeout = 3 * time.Minute
 	// RetryTrafficInterval represents retry interval for the traffic Eventually functions.
 	RetryTrafficInterval = 20 * time.Second
+	// RetrySecondaryNetTrafficInterval represents retry interval while waiting for
+	// secondary-network traffic to become ready.
+	RetrySecondaryNetTrafficInterval = 5 * time.Second
 	// AllOpen represents that ports 5001,5002,5003 to be open.
 	AllOpen = map[string]string{"5001": "pass", "5002": "pass", "5003": "pass"}
 	// AllClose represents that ports 5001,5002,5003 to be close.
