@@ -71,6 +71,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 // suite-level safeguard covers interruptions or failures before AfterAll runs.
 var _ = SynchronizedAfterSuite(func() {}, func() {
 	var cleanupErr error
+
 	if HwolOcpConfig != nil {
 		devices, err := HwolOcpConfig.GetHwolDevices()
 		if err != nil {
@@ -91,6 +92,7 @@ var _ = SynchronizedAfterSuite(func() {}, func() {
 	By("Deleting test namespace")
 
 	namespaceErr := testNS.DeleteAndWait(tsparams.DefaultTimeout)
+
 	Expect(cleanupErr).ToNot(HaveOccurred(), "failed to perform final HWOL cleanup")
 	Expect(namespaceErr).ToNot(HaveOccurred(), "error to delete test namespace")
 })

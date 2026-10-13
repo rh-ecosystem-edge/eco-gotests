@@ -824,16 +824,8 @@ func deleteHwolPolicy(operatorNS string) error {
 }
 
 func verifyHwolCleanup(operatorNS, mcpName, pfName string) error {
-	ovsNet := NewOvsNetworkBuilder(
-		APIClient, tsparams.OvsNetworkName, operatorNS, tsparams.TestNamespaceName, tsparams.ResourceName)
-	if ovsNet == nil {
-		return fmt.Errorf("failed to initialize OVSNetwork cleanup builder")
-	}
-
-	if _, err := ovsNet.Get(); err == nil {
-		return fmt.Errorf("HWOL OVSNetwork %s still exists after cleanup", tsparams.OvsNetworkName)
-	} else if !k8serrors.IsNotFound(err) {
-		return fmt.Errorf("failed to verify deletion of HWOL OVSNetwork %s: %w", tsparams.OvsNetworkName, err)
+	if err := verifyHwolOvsNetworkDeleted(operatorNS); err != nil {
+		return err
 	}
 
 	if err := verifyHwolSriovNetworkDeleted(operatorNS); err != nil {
@@ -862,6 +854,7 @@ func verifyHwolCleanup(operatorNS, mcpName, pfName string) error {
 	}
 
 	matchedPF := false
+
 	for _, node := range workerNodes {
 		nodeName := node.Object.Name
 
@@ -874,6 +867,7 @@ func verifyHwolCleanup(operatorNS, mcpName, pfName string) error {
 		if err != nil {
 			continue
 		}
+
 		matchedPF = true
 
 		if state.Objects.Status.SyncStatus != "Succeeded" {
@@ -901,6 +895,22 @@ func verifyHwolCleanup(operatorNS, mcpName, pfName string) error {
 
 	if !matchedPF {
 		return fmt.Errorf("no MCP-labeled workers expose interface %s", pfName)
+	}
+
+	return nil
+}
+
+func verifyHwolOvsNetworkDeleted(operatorNS string) error {
+	ovsNet := NewOvsNetworkBuilder(
+		APIClient, tsparams.OvsNetworkName, operatorNS, tsparams.TestNamespaceName, tsparams.ResourceName)
+	if ovsNet == nil {
+		return fmt.Errorf("failed to initialize OVSNetwork cleanup builder")
+	}
+
+	if _, err := ovsNet.Get(); err == nil {
+		return fmt.Errorf("HWOL OVSNetwork %s still exists after cleanup", tsparams.OvsNetworkName)
+	} else if !k8serrors.IsNotFound(err) {
+		return fmt.Errorf("failed to verify deletion of HWOL OVSNetwork %s: %w", tsparams.OvsNetworkName, err)
 	}
 
 	return nil

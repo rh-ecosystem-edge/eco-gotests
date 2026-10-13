@@ -489,6 +489,7 @@ func trafficPodDiagnostics(podName string) string {
 	}
 
 	podObject := podBuilder.Object
+
 	details := []string{fmt.Sprintf("phase=%s node=%s", podObject.Status.Phase, podObject.Spec.NodeName)}
 	for _, condition := range podObject.Status.Conditions {
 		details = append(details, fmt.Sprintf("condition %s=%s reason=%s message=%q",
