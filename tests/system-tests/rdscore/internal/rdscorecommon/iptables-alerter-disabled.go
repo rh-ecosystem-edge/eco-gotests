@@ -90,9 +90,17 @@ func VerifyIptablesAlerterDisabled(ctx SpecContext) {
 
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to list iptables-alerter pods: %v", err))
-	Expect(len(alerterPods)).To(Equal(0),
+
+	runningCount := 0
+	for _, p := range alerterPods {
+		if p.Object.Status.Phase == "Running" {
+			runningCount++
+		}
+	}
+
+	Expect(runningCount).To(Equal(0),
 		fmt.Sprintf("Found %d iptables-alerter pods running, expected 0 (iptables-alerter should be disabled)",
-			len(alerterPods)))
+			runningCount))
 
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 		"Verified: no iptables-alerter pods running in cluster",

@@ -678,7 +678,7 @@ The `iptables-alerter` can cause significant CPU usage and cluster instability i
 3. No `iptables-alerter` pods are running in the cluster
 
 **RDS Requirement:**
-This configuration is **required** for RAN, Core, and Hub RDS configurations. It must be enabled by default in production deployments.
+This configuration is **required** for RAN, Core, and Hub RDS configurations. The iptables-alerter component must be disabled by default in production deployments.
 
 **Partner Responsibilities:**
 While `iptables-alerter` is disabled in production, partners are responsible for:
