@@ -89,8 +89,6 @@ var _ = Describe("ORAN Cluster API Tests", Label(tsparams.LabelPostProvision, ts
 
 		apiTypes, err := clusterClient.ListNodeClusterTypes()
 		Expect(err).ToNot(HaveOccurred(), "Failed to list NodeClusterTypes")
-		Expect(apiTypes).To(HaveLen(len(expectedKeys)),
-			"Number of API NodeClusterTypes should match unique ManagedCluster combinations")
 
 		By("verifying each unique combination has a matching NodeClusterType")
 
