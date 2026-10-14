@@ -84,6 +84,7 @@ func countModuleEvents(eventList []*events.Builder, reason, moduleNamespace, mod
 	}
 
 	count := 0
+
 	for _, event := range eventList {
 		if !isModuleEvent(event, reason, moduleRef, message) {
 			continue
@@ -93,6 +94,7 @@ func countModuleEvents(eventList []*events.Builder, reason, moduleNamespace, mod
 		if event.Object.Series != nil && int(event.Object.Series.Count) > occurrences {
 			occurrences = int(event.Object.Series.Count)
 		}
+
 		if occurrences == 0 {
 			occurrences = 1
 		}
