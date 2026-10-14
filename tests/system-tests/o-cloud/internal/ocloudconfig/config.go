@@ -114,9 +114,9 @@ type OCloudConfig struct {
 	// TemplateVersionSeed defines the version of the referenced ClusterTemplate used for the provisioning of the seed cluster for IBI.
 	TemplateVersionSeed string `yaml:"template_version_seed" envconfig:"ECO_OCLOUD_TEMPLATE_VERSION_SEED"`
 	//nolint:lll
-	// TemplateVersionMNOUpgrade defines the ClusterTemplate version used to trigger an MNO z-stream upgrade.
+	// TemplateVersionMNOUpgrade defines the ClusterTemplate version used to trigger an MNO upgrade.
 	TemplateVersionMNOUpgrade string `yaml:"template_version_mno_upgrade" envconfig:"ECO_OCLOUD_TEMPLATE_VERSION_MNO_UPGRADE"`
-	// MNOUpgradeTargetVersion is the expected spoke OpenShift version after the MNO z-stream upgrade.
+	// MNOUpgradeTargetVersion is the expected spoke OpenShift version after the MNO upgrade.
 	MNOUpgradeTargetVersion string `yaml:"mno_upgrade_target_version" envconfig:"ECO_OCLOUD_MNO_UPGRADE_TARGET_VERSION"`
 	// MNOUpgradeTargetImage is an optional payload image pull spec for the MNO upgrade.
 	MNOUpgradeTargetImage string `yaml:"mno_upgrade_target_image" envconfig:"ECO_OCLOUD_MNO_UPGRADE_TARGET_IMAGE"`
