@@ -13,9 +13,9 @@ var _ = Describe(
 	ContinueOnFailure,
 	Label(ocloudparams.Label), func() {
 		Context("Pre-provisioned MNO spoke", Label(ocloudparams.LabelMNOUpgrade), func() {
-			// 123456789 - Successfully performs MNO z-stream upgrade via ProvisioningRequest
-			It("Successfully performs MNO z-stream upgrade",
+			// 90701 - Successfully performs MNO upgrade via ProvisioningRequest
+			It("Successfully performs MNO upgrade",
 				reportxml.ID("90701"),
-				ocloudcommon.VerifySuccessfulMNOZStreamUpgrade)
+				ocloudcommon.VerifySuccessfulMNOUpgrade)
 		})
 	})

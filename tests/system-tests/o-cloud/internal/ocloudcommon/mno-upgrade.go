@@ -15,11 +15,11 @@ import (
 	"k8s.io/klog/v2"
 )
 
-// VerifySuccessfulMNOZStreamUpgrade verifies an MNO z-stream upgrade on a pre-provisioned cluster.
+// VerifySuccessfulMNOUpgrade verifies an MNO upgrade on a pre-provisioned cluster.
 // CI is expected to own hub/OSUS/spoke/mirror setup and leave exactly one fulfilled ProvisioningRequest
 // on the hub. The test updates that PR to the upgrade ClusterTemplate version, waits for
 // UpgradeCompleted, and asserts the ManagedCluster openshiftVersion label.
-func VerifySuccessfulMNOZStreamUpgrade(ctx SpecContext) {
+func VerifySuccessfulMNOUpgrade(ctx SpecContext) {
 	Expect(OCloudConfig.TemplateVersionMNOUpgrade).NotTo(BeEmpty(),
 		"ECO_OCLOUD_TEMPLATE_VERSION_MNO_UPGRADE must be set")
 	Expect(OCloudConfig.MNOUpgradeTargetVersion).NotTo(BeEmpty(),
