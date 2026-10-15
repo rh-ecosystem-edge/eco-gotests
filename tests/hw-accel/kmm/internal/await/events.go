@@ -3,6 +3,7 @@ package await
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
@@ -16,6 +17,8 @@ import (
 const moduleEventsPollInterval = 5 * time.Second
 
 const moduleEventAnnotation = "module"
+
+const aggregatedEventMessagePrefix = "(combined from similar events): "
 
 // ModuleLifecycleEvents waits until the expected number of ModuleLoaded and
 // ModuleUnloaded events for a Module are present in the specified namespace.
@@ -120,5 +123,8 @@ func isModuleEvent(event *events.Builder, reason, moduleRef, message string) boo
 
 	// Older KMM versions did not add the module annotation. Keep the message
 	// fallback for those versions while preferring the unambiguous annotation.
-	return event.Object.Message == message
+	actualMessage := strings.TrimSpace(event.Object.Message)
+	actualMessage = strings.TrimPrefix(actualMessage, aggregatedEventMessagePrefix)
+
+	return actualMessage == message
 }

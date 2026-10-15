@@ -85,6 +85,31 @@ func TestCountModuleEvents(t *testing.T) {
 			reason: "ModuleUnloaded",
 			want:   1,
 		},
+		"supports aggregated legacy events without annotation": {
+			events: []*events.Builder{
+				newNodeEvent(corev1.Event{
+					Reason:  "ModuleLoaded",
+					Message: "(combined from similar events): " + loadedMessage,
+					Count:   2,
+				}),
+			},
+			reason: "ModuleLoaded",
+			want:   2,
+		},
+		"uses annotation for aggregated events": {
+			events: []*events.Builder{
+				newNodeEvent(corev1.Event{
+					Reason:  "ModuleUnloaded",
+					Message: "(combined from similar events): " + unloadedMessage,
+					Count:   2,
+					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+						moduleEventAnnotation: moduleRef,
+					}},
+				}),
+			},
+			reason: "ModuleUnloaded",
+			want:   2,
+		},
 	}
 
 	for name, test := range tests {
