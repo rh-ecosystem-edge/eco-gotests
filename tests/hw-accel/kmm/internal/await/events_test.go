@@ -85,27 +85,48 @@ func TestCountModuleEvents(t *testing.T) {
 			reason: "ModuleUnloaded",
 			want:   1,
 		},
-		"supports aggregated legacy events without annotation": {
-			events: []*events.Builder{
-				newNodeEvent(corev1.Event{
-					Reason:  "ModuleLoaded",
-					Message: "(combined from similar events): " + loadedMessage,
-					Count:   2,
-				}),
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, test.want,
+				countModuleEvents(test.events, test.reason, moduleNamespace, moduleName))
+		})
+	}
+}
+
+func TestCountAggregatedModuleEvents(t *testing.T) {
+	const (
+		moduleNamespace = "simple-kmod"
+		moduleName      = "simple-kmod"
+		moduleRef       = moduleNamespace + "/" + moduleName
+	)
+
+	loadedMessage := "Module simple-kmod/simple-kmod loaded into the kernel"
+	unloadedMessage := "Module simple-kmod/simple-kmod unloaded from the kernel"
+
+	tests := map[string]struct {
+		event  corev1.Event
+		reason string
+		want   int
+	}{
+		"supports legacy event aggregation without annotation": {
+			event: corev1.Event{
+				Reason:  "ModuleLoaded",
+				Message: "(combined from similar events): " + loadedMessage,
+				Count:   2,
 			},
 			reason: "ModuleLoaded",
 			want:   2,
 		},
 		"uses annotation for aggregated events": {
-			events: []*events.Builder{
-				newNodeEvent(corev1.Event{
-					Reason:  "ModuleUnloaded",
-					Message: "(combined from similar events): " + unloadedMessage,
-					Count:   2,
-					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
-						moduleEventAnnotation: moduleRef,
-					}},
-				}),
+			event: corev1.Event{
+				Reason:  "ModuleUnloaded",
+				Message: "(combined from similar events): " + unloadedMessage,
+				Count:   2,
+				ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+					moduleEventAnnotation: moduleRef,
+				}},
 			},
 			reason: "ModuleUnloaded",
 			want:   2,
@@ -115,7 +136,8 @@ func TestCountModuleEvents(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			assert.Equal(t, test.want,
-				countModuleEvents(test.events, test.reason, moduleNamespace, moduleName))
+				countModuleEvents([]*events.Builder{newNodeEvent(test.event)},
+					test.reason, moduleNamespace, moduleName))
 		})
 	}
 }
