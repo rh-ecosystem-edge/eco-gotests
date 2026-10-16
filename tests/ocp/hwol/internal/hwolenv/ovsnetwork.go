@@ -175,13 +175,19 @@ func (builder *OvsNetworkBuilder) Create() (*OvsNetworkBuilder, error) {
 		return builder, err
 	}
 
-	if !builder.Exists() {
-		err := builder.apiClient.Create(context.TODO(), builder.Definition)
-		if err != nil {
-			klog.V(100).Info("Failed to create OVSNetwork")
-
+	if builder.Exists() {
+		if err := ensureHwolResourceOwnership("OVSNetwork", builder.Object.Name, builder.Object.Labels); err != nil {
 			return nil, err
 		}
+
+		return builder, nil
+	}
+
+	err := builder.apiClient.Create(context.TODO(), builder.Definition)
+	if err != nil {
+		klog.V(100).Info("Failed to create OVSNetwork")
+
+		return nil, err
 	}
 
 	builder.Object = builder.Definition
@@ -201,6 +207,9 @@ func (builder *OvsNetworkBuilder) Delete() error {
 		builder.Object = nil
 
 		return nil
+	}
+	if err := ensureHwolResourceOwnership("OVSNetwork", builder.Object.Name, builder.Object.Labels); err != nil {
+		return err
 	}
 
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)

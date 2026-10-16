@@ -172,8 +172,11 @@ representors on the managed bridge, runs traffic, and asserts non-empty
 `type=offloaded` datapath flows on the node.
 
 `AfterAll` removes only the HWOL-created OVSNetwork/SriovNetwork objects,
-`hwol-switchdev` policy, and HWOL pool config — run on a dedicated lab MCP, not
-a shared production-like pool. Cleanup waits up to `CleanupWaitTimeout` (15m),
+`hwol-switchdev` policy, and HWOL pool config. Every one of these resources
+carries `eco-gotests.openshift.io/test=ocp-hwol`; a matching unlabelled object
+is treated as externally owned and is rejected rather than changed or deleted.
+Run on a dedicated lab MCP, not a shared production-like pool. Cleanup waits
+up to `CleanupWaitTimeout` (15m),
 then verifies that the MCP and SR-IOV node state are stable, the policy and pool
 config are gone, the target PF has returned to legacy mode, and its managed OVS
 bridge has been removed. A cleanup timeout (often switchdev reset stuck with

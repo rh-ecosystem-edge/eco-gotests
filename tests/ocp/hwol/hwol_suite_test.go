@@ -81,7 +81,13 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 var _ = SynchronizedAfterSuite(func() {}, func() {
 	var cleanupErr error
 
-	if HwolOcpConfig != nil {
+	// Pods using the HWOL NAD can retain VF representors and offloaded TC flows.
+	// Their namespace must be fully gone before cleanup disables HW offload or
+	// asks mlx5 to leave switchdev.
+	By("Deleting test namespace before HWOL infrastructure cleanup")
+	namespaceErr := testNS.DeleteAndWait(tsparams.DefaultTimeout)
+
+	if namespaceErr == nil && HwolOcpConfig != nil {
 		devices, err := HwolOcpConfig.GetHwolDevices()
 		if err != nil {
 			cleanupErr = err
@@ -98,12 +104,8 @@ var _ = SynchronizedAfterSuite(func() {}, func() {
 		}
 	}
 
-	By("Deleting test namespace")
-
-	namespaceErr := testNS.DeleteAndWait(tsparams.DefaultTimeout)
-
-	Expect(cleanupErr).ToNot(HaveOccurred(), "failed to perform final HWOL cleanup")
 	Expect(namespaceErr).ToNot(HaveOccurred(), "error to delete test namespace")
+	Expect(cleanupErr).ToNot(HaveOccurred(), "failed to perform final HWOL cleanup")
 })
 
 var _ = JustAfterEach(func() {

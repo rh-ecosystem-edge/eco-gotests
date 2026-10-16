@@ -31,6 +31,20 @@ func MCPNodeSelector(mcpLabel string) map[string]string {
 	return map[string]string{fmt.Sprintf("node-role.kubernetes.io/%s", mcpLabel): ""}
 }
 
+func hwolResourceLabels() map[string]string {
+	return map[string]string{tsparams.TestResourceLabelKey: tsparams.TestResourceLabelValue}
+}
+
+func ensureHwolResourceOwnership(kind, name string, resourceLabels map[string]string) error {
+	if resourceLabels[tsparams.TestResourceLabelKey] == tsparams.TestResourceLabelValue {
+		return nil
+	}
+
+	return fmt.Errorf(
+		"%s %s exists but is not owned by the HWOL suite; expected label %s=%s",
+		kind, name, tsparams.TestResourceLabelKey, tsparams.TestResourceLabelValue)
+}
+
 // EnsureHwolOperatorConfig verifies the cluster-wide SriovOperatorConfig is
 // already suitable for the manageSoftwareBridges + mlx5 HWOL path. It must not
 // modify the object: HWOL cleanup owns only its fixed-name resources and cannot
@@ -130,6 +144,9 @@ func ensureHwolTargetIsDedicated(operatorNS, pfName string) error {
 
 	for _, policy := range policies {
 		if policy.Object.Name == tsparams.PolicyName {
+			if err := ensureHwolResourceOwnership("SriovNetworkNodePolicy", policy.Object.Name, policy.Object.Labels); err != nil {
+				return err
+			}
 			continue
 		}
 		for _, pfSelector := range policy.Object.Spec.NicSelector.PfNames {
@@ -158,6 +175,9 @@ func ensureHwolMCPIsDedicated(operatorNS, mcpName string) error {
 
 	for _, poolConfig := range poolConfigs {
 		if poolConfig.Object.Name == tsparams.PoolConfigName {
+			if err := ensureHwolResourceOwnership("SriovNetworkPoolConfig", poolConfig.Object.Name, poolConfig.Object.Labels); err != nil {
+				return err
+			}
 			continue
 		}
 		if poolConfig.Object.Spec.OvsHardwareOffloadConfig.Name == mcpName {
@@ -189,8 +209,12 @@ func CreateOvsOffloadPoolConfig(name, operatorNS, mcpName string) (*sriov.PoolCo
 	builder.Definition.Spec.OvsHardwareOffloadConfig = sriovv1.OvsHardwareOffloadConfig{
 		Name: mcpName,
 	}
+	builder.Definition.Labels = hwolResourceLabels()
 
 	if builder.Exists() {
+		if err := ensureHwolResourceOwnership("SriovNetworkPoolConfig", name, builder.Object.Labels); err != nil {
+			return nil, err
+		}
 		builder.Definition.ResourceVersion = builder.Object.ResourceVersion
 
 		updated, err := builder.Update()
@@ -240,8 +264,12 @@ func CreateSwitchdevPolicy(
 	policy.Definition.Spec.Bridge = sriovv1.Bridge{
 		OVS: &sriovv1.OVSConfig{},
 	}
+	policy.Definition.Labels = hwolResourceLabels()
 
 	if policy.Exists() {
+		if err := ensureHwolResourceOwnership("SriovNetworkNodePolicy", name, policy.Object.Labels); err != nil {
+			return nil, err
+		}
 		existing := policy.Object.Spec
 		same := existing.NumVfs == vfNum &&
 			existing.EswitchMode == tsparams.SwitchdevMode &&
@@ -281,6 +309,7 @@ func CreateSwitchdevPolicy(
 		policy.Definition.Spec.Bridge = sriovv1.Bridge{
 			OVS: &sriovv1.OVSConfig{},
 		}
+		policy.Definition.Labels = hwolResourceLabels()
 	}
 
 	created, err := policy.Create()
@@ -311,6 +340,18 @@ func CreateSriovNetwork(
 	}
 
 	network.Definition.Spec.IPAM = ipam
+	network.Definition.Labels = hwolResourceLabels()
+
+	if network.Exists() {
+		if network.Object == nil {
+			return nil, fmt.Errorf("failed to determine whether SriovNetwork %s is owned by HWOL", name)
+		}
+		if err := ensureHwolResourceOwnership("SriovNetwork", name, network.Object.Labels); err != nil {
+			return nil, err
+		}
+
+		return network, nil
+	}
 
 	created, err := network.Create()
 	if err != nil {
@@ -711,8 +752,13 @@ func CleanupHwolResources(operatorNS, mcpName, pfName string, timeout, stableDur
 		if !k8serrors.IsNotFound(err) && !strings.Contains(err.Error(), "does not exist") {
 			return fmt.Errorf("failed to pull SriovNetworkPoolConfig %s: %w", tsparams.PoolConfigName, err)
 		}
-	} else if delErr := pool.Delete(); delErr != nil {
-		return fmt.Errorf("failed to delete SriovNetworkPoolConfig %s: %w", tsparams.PoolConfigName, delErr)
+	} else {
+		if err := ensureHwolResourceOwnership("SriovNetworkPoolConfig", pool.Object.Name, pool.Object.Labels); err != nil {
+			return err
+		}
+		if delErr := pool.Delete(); delErr != nil {
+			return fmt.Errorf("failed to delete SriovNetworkPoolConfig %s: %w", tsparams.PoolConfigName, delErr)
+		}
 	}
 
 	// The SR-IOV Operator owns the rendered MachineConfig. Do not delete it
@@ -792,22 +838,34 @@ func hwolResourcesExist(operatorNS string) (bool, error) {
 	}
 
 	if ovsNet.Exists() {
+		if err := ensureHwolResourceOwnership("OVSNetwork", ovsNet.Object.Name, ovsNet.Object.Labels); err != nil {
+			return false, err
+		}
 		return true, nil
 	}
 
-	if _, err := sriov.PullNetwork(APIClient, tsparams.SriovNetworkName, operatorNS); err == nil {
+	if network, err := sriov.PullNetwork(APIClient, tsparams.SriovNetworkName, operatorNS); err == nil {
+		if err := ensureHwolResourceOwnership("SriovNetwork", network.Object.Name, network.Object.Labels); err != nil {
+			return false, err
+		}
 		return true, nil
 	} else if !k8serrors.IsNotFound(err) && !strings.Contains(err.Error(), "does not exist") {
 		return false, fmt.Errorf("failed to look up HWOL SriovNetwork %s: %w", tsparams.SriovNetworkName, err)
 	}
 
-	if _, err := sriov.PullPolicy(APIClient, tsparams.PolicyName, operatorNS); err == nil {
+	if policy, err := sriov.PullPolicy(APIClient, tsparams.PolicyName, operatorNS); err == nil {
+		if err := ensureHwolResourceOwnership("SriovNetworkNodePolicy", policy.Object.Name, policy.Object.Labels); err != nil {
+			return false, err
+		}
 		return true, nil
 	} else if !k8serrors.IsNotFound(err) && !strings.Contains(err.Error(), "does not exist") {
 		return false, fmt.Errorf("failed to look up HWOL SriovNetworkNodePolicy %s: %w", tsparams.PolicyName, err)
 	}
 
-	if _, err := sriov.PullPoolConfig(APIClient, tsparams.PoolConfigName, operatorNS); err == nil {
+	if pool, err := sriov.PullPoolConfig(APIClient, tsparams.PoolConfigName, operatorNS); err == nil {
+		if err := ensureHwolResourceOwnership("SriovNetworkPoolConfig", pool.Object.Name, pool.Object.Labels); err != nil {
+			return false, err
+		}
 		return true, nil
 	} else if !k8serrors.IsNotFound(err) && !strings.Contains(err.Error(), "does not exist") {
 		return false, fmt.Errorf("failed to look up HWOL SriovNetworkPoolConfig %s: %w", tsparams.PoolConfigName, err)
@@ -912,9 +970,35 @@ func deleteHwolSriovNetwork(operatorNS string, timeout time.Duration) error {
 
 		return fmt.Errorf("failed to pull HWOL SriovNetwork %s: %w", tsparams.SriovNetworkName, err)
 	}
+	if err := ensureHwolResourceOwnership("SriovNetwork", network.Object.Name, network.Object.Labels); err != nil {
+		return err
+	}
 
 	if err := network.DeleteAndWait(timeout); err != nil {
 		return fmt.Errorf("failed to delete HWOL SriovNetwork %s: %w", tsparams.SriovNetworkName, err)
+	}
+
+	return nil
+}
+
+// DeleteOwnedSriovNetwork deletes a suite-owned SriovNetwork. It rejects a
+// matching fixed-name object that was created by an administrator or another
+// test suite.
+func DeleteOwnedSriovNetwork(name, operatorNS string) error {
+	network, err := sriov.PullNetwork(APIClient, name, operatorNS)
+	if err != nil {
+		if k8serrors.IsNotFound(err) || strings.Contains(err.Error(), "does not exist") {
+			return nil
+		}
+
+		return fmt.Errorf("failed to pull SriovNetwork %s: %w", name, err)
+	}
+	if err := ensureHwolResourceOwnership("SriovNetwork", network.Object.Name, network.Object.Labels); err != nil {
+		return err
+	}
+
+	if err := network.Delete(); err != nil {
+		return fmt.Errorf("failed to delete SriovNetwork %s: %w", name, err)
 	}
 
 	return nil
@@ -928,6 +1012,9 @@ func deleteHwolPolicy(operatorNS string) error {
 		}
 
 		return fmt.Errorf("failed to pull HWOL SriovNetworkNodePolicy %s: %w", tsparams.PolicyName, err)
+	}
+	if err := ensureHwolResourceOwnership("SriovNetworkNodePolicy", policy.Object.Name, policy.Object.Labels); err != nil {
+		return err
 	}
 
 	if err := policy.Delete(); err != nil {

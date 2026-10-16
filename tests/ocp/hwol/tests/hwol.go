@@ -12,13 +12,11 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/hwol/internal/hwolenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/hwol/internal/ocphwolinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/hwol/internal/tsparams"
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -333,16 +331,7 @@ func deleteAttachNetwork(cniType sriovoperator.CNIType, networkName, operatorNS 
 
 		return builder.Delete()
 	case sriovoperator.CNITypeSriov:
-		builder, err := sriov.PullNetwork(APIClient, networkName, operatorNS)
-		if err != nil {
-			if k8serrors.IsNotFound(err) || strings.Contains(err.Error(), "does not exist") {
-				return nil
-			}
-
-			return err
-		}
-
-		return builder.Delete()
+		return hwolenv.DeleteOwnedSriovNetwork(networkName, operatorNS)
 	default:
 		return fmt.Errorf("unsupported CNI type %q", cniType)
 	}
