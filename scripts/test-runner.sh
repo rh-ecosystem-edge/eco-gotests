@@ -52,7 +52,16 @@ fi
 if [[ ! -z "${ECO_TEST_LABELS}" ]]; then
     cmd+=" --label-filter=\"${ECO_TEST_LABELS}\""
 fi
-cmd+=" $@ $feature_dirs"   # add user args before feature dirs
+# HWOL changes SR-IOV/MCP state and performs a potentially long, synchronized
+# foundation wait.  Running it with the repository-wide parallelism leaves
+# non-primary Ginkgo workers blocked until their launcher kills them, which
+# produces the misleading "parallel process disappeared" failure.  Keep the
+# suite serial unless a caller explicitly opts into parallel execution.
+if [[ " ${ECO_TEST_FEATURES} " == *" hwol "* && " ${ECO_HWOL_ALLOW_PARALLEL:-false} " != " true "* ]]; then
+    cmd+=" $@ --procs=1 $feature_dirs"
+else
+    cmd+=" $@ $feature_dirs"
+fi
 
 # Execute ginkgo command
 echo $cmd

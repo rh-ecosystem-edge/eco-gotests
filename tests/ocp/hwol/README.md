@@ -143,12 +143,28 @@ export ECO_OCP_HWOL_VF_NUM=3
 make run-tests
 ```
 
-The Ordered HWOL spec ensures `SriovOperatorConfig`
-(`featureGates.manageSoftwareBridges`, `enableOvsOffload`; mellanox plugin left
-enabled so firmware SR-IOV/TotalVfs can be programmed on CX6), creates
+Before changing any HWOL-owned resource, the Ordered HWOL spec verifies that
+`SriovOperatorConfig` already enables `featureGates.manageSoftwareBridges` and
+`enableOvsOffload`, that the mellanox plugin is not disabled, and that no
+non-HWOL policy selects the requested PF. The suite never mutates the
+cluster-wide operator configuration. Configure these prerequisites on a
+dedicated HWOL MCP; a shared or externally OVS-managed PF is rejected before
+the suite changes cluster state. If this read-only preflight fails, the suite
+does not create a namespace, pull images, or perform cleanup against the PF.
+
+After this preflight, the Ordered HWOL spec creates
 `SriovNetworkPoolConfig` (OvsHardwareOffload only — no parallel
-nodeSelector/maxUnavailable), applies switchdev policy with `bridge.ovs: {}`,
-and waits for MCP/node-state sync. The `switchdev` spec asserts
+nodeSelector/maxUnavailable). The SR-IOV Operator renders the corresponding
+`00-<MCP>-ovs-hw-offload` MachineConfig; it is owned indirectly by the suite's
+PoolConfig, not by a hand-written MachineConfig. Cleanup deletes the workload
+networks, deletes that PoolConfig, waits for the operator to remove its
+MachineConfig and for the MCP to disable hardware offload, and only then
+removes the switchdev policy. This avoids asking mlx5 to change eSwitch mode
+while OVN's offloaded TC rules still hold eSwitch references (`E-BUSY`). A
+different PoolConfig already enabling OVS offload on the same MCP is rejected
+during preflight because it would share that MachineConfig. The suite then
+applies switchdev policy with `bridge.ovs: {}`, and waits for MCP/node-state
+sync. The `switchdev` spec asserts
 `eSwitchMode=switchdev` and a managed OVS bridge uplink. Attach table Entries
 create the network CR, assert NAD type/resource (and bridge for ovs), and run a
 sleep pod. The ovs offload Entry creates two same-node iperf pods, asserts
@@ -156,8 +172,11 @@ representors on the managed bridge, runs traffic, and asserts non-empty
 `type=offloaded` datapath flows on the node.
 
 `AfterAll` removes only the HWOL-created OVSNetwork/SriovNetwork objects,
-`hwol-switchdev` policy, and HWOL pool config — run on a dedicated lab MCP, not
-a shared production-like pool. Cleanup waits up to `CleanupWaitTimeout` (15m),
+`hwol-switchdev` policy, and HWOL pool config. Every one of these resources
+carries `eco-gotests.openshift.io/test=ocp-hwol`; a matching unlabelled object
+is treated as externally owned and is rejected rather than changed or deleted.
+Run on a dedicated lab MCP, not a shared production-like pool. Cleanup waits
+up to `CleanupWaitTimeout` (15m),
 then verifies that the MCP and SR-IOV node state are stable, the policy and pool
 config are gone, the target PF has returned to legacy mode, and its managed OVS
 bridge has been removed. A cleanup timeout (often switchdev reset stuck with
@@ -165,6 +184,12 @@ bridge has been removed. A cleanup timeout (often switchdev reset stuck with
 `ECO_HWOL_RECOVER_ON_CLEANUP_FAILURE=true` reboots the HWOL MCP nodes one at a
 time, waits for recovery, and verifies cleanup. The original cleanup failure is
 still reported, so this workaround never turns a failed cleanup into a pass.
+
+The suite also repeats this fixed-name resource cleanup once in its synchronized
+after-suite hook. This covers a process interruption or setup failure that
+prevents the ordered `AfterAll` from running. When regular cleanup succeeded,
+the final hook performs only read-only checks for residual suite resources and
+the operator-generated MachineConfig; it makes no further cluster changes.
 
 ## Current coverage
 

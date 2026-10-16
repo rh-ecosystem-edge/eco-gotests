@@ -1,6 +1,7 @@
 package hwol
 
 import (
+	"fmt"
 	"runtime"
 	"testing"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/params"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/reporter"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/hwol/internal/hwolenv"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/hwol/internal/ocphwolinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/hwol/internal/tsparams"
 	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/hwol/tests"
@@ -20,6 +22,7 @@ import (
 var (
 	_, currentFile, _, _ = runtime.Caller(0)
 	testNS               = namespace.NewBuilder(APIClient, tsparams.TestNamespaceName)
+	hwolPreflightPassed  bool
 )
 
 func TestHWOL(t *testing.T) {
@@ -34,10 +37,22 @@ func TestHWOL(t *testing.T) {
 	RunSpecs(t, "hwol", Label(tsparams.Labels...), reporterConfig)
 }
 
-var _ = BeforeSuite(func() {
+// HWOL setup changes shared cluster state and creates fixed-name resources. It must
+// run only once: a normal BeforeSuite runs in every Ginkgo parallel process and
+// causes those processes to race on the image-pull pod and test namespace.
+var _ = SynchronizedBeforeSuite(func() []byte {
 	if HwolOcpConfig == nil {
 		Fail("HwolOcpConfig is nil: config init failed (see NewHwolOcpConfig logs)")
 	}
+
+	By("Validating HWOL preconditions without changing cluster state")
+
+	devices, err := HwolOcpConfig.GetHwolDevices()
+	Expect(err).ToNot(HaveOccurred(), "Failed to get HWOL devices")
+	Expect(devices).ToNot(BeEmpty(), "No HWOL devices configured")
+	Expect(hwolenv.ValidateHwolPreconditions(
+		HwolOcpConfig.OcpHwolOperatorNamespace, HwolOcpConfig.MCPLabel, devices[0],
+	)).To(Succeed(), "HWOL requires a dedicated, preconfigured PF and MCP")
 
 	By("Creating test namespace with privileged labels")
 
@@ -45,7 +60,7 @@ var _ = BeforeSuite(func() {
 		testNS.WithLabel(key, value)
 	}
 
-	_, err := testNS.Create()
+	_, err = testNS.Create()
 	Expect(err).ToNot(HaveOccurred(), "error to create test namespace")
 
 	By("Verifying if HWOL tests can be executed on given cluster")
@@ -57,13 +72,50 @@ var _ = BeforeSuite(func() {
 
 	err = cluster.PullTestImageOnNodes(APIClient, HwolOcpConfig.WorkerLabel, HwolOcpConfig.OcpHwolTestContainer, 300)
 	Expect(err).ToNot(HaveOccurred(), "Failed to pull test image on nodes")
+
+	return []byte("preflight-passed")
+}, func(data []byte) {
+	hwolPreflightPassed = string(data) == "preflight-passed"
 })
 
-var _ = AfterSuite(func() {
-	By("Deleting test namespace")
+// Match synchronized setup with one final fixed-name HWOL resource cleanup and
+// namespace cleanup. The HWOL Describe also cleans up in AfterAll, but this
+// suite-level safeguard covers interruptions or failures before AfterAll runs.
+var _ = SynchronizedAfterSuite(func() {}, func() {
+	var cleanupErr error
 
-	err := testNS.DeleteAndWait(tsparams.DefaultTimeout)
-	Expect(err).ToNot(HaveOccurred(), "error to delete test namespace")
+	// Pods using the HWOL NAD can retain VF representors and offloaded TC flows.
+	// Their namespace must be fully gone before cleanup disables HW offload or
+	// asks mlx5 to leave switchdev.
+	By("Deleting test namespace before HWOL infrastructure cleanup")
+
+	namespaceErr := testNS.DeleteAndWait(tsparams.DefaultTimeout)
+
+	if namespaceErr == nil && hwolPreflightPassed && HwolOcpConfig != nil {
+		devices, err := HwolOcpConfig.GetHwolDevices()
+		if err != nil {
+			cleanupErr = err
+		} else if len(devices) == 0 {
+			cleanupErr = fmt.Errorf("no HWOL devices configured for final cleanup")
+		} else {
+			if err := hwolenv.ValidateHwolPreconditions(
+				HwolOcpConfig.OcpHwolOperatorNamespace, HwolOcpConfig.MCPLabel, devices[0],
+			); err != nil {
+				cleanupErr = fmt.Errorf("refusing final HWOL cleanup after preflight revalidation: %w", err)
+			} else {
+				cleanupErr = hwolenv.CleanupHwolResources(
+					HwolOcpConfig.OcpHwolOperatorNamespace,
+					HwolOcpConfig.MCPLabel,
+					devices[0].InterfaceName,
+					tsparams.CleanupWaitTimeout,
+					tsparams.DefaultStableDuration,
+				)
+			}
+		}
+	}
+
+	Expect(namespaceErr).ToNot(HaveOccurred(), "error to delete test namespace")
+	Expect(cleanupErr).ToNot(HaveOccurred(), "failed to perform final HWOL cleanup")
 })
 
 var _ = JustAfterEach(func() {
