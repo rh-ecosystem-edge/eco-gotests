@@ -123,8 +123,10 @@ const (
 	AcmCrsPolicyName = "acm-crs-policy"
 	// HubTemplatingPolicyName is the name used for the hub templating policy.
 	HubTemplatingPolicyName = "hub-templating-policy-sriov-config"
-	// HubTemplatingCguName is the name used for the hub templating CGU.
-	HubTemplatingCguName = "hub-templating"
+	// HubTemplatingCguName is the name used for the hub templating CGU. Since it is part of the name used by TALM
+	// to generate the ACM Placement, it must be at most 12 characters, otherwise it will exceed 63 characters for
+	// the Placement name, causing a test failure.
+	HubTemplatingCguName = "hub-temp"
 	// HubTemplatingCguNamespace is the namespace used by the hub templating CGU. It should be different than the
 	// policy namespace.
 	HubTemplatingCguNamespace = "default"
