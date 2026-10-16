@@ -143,12 +143,28 @@ export ECO_OCP_HWOL_VF_NUM=3
 make run-tests
 ```
 
-The Ordered HWOL spec ensures `SriovOperatorConfig`
-(`featureGates.manageSoftwareBridges`, `enableOvsOffload`; mellanox plugin left
-enabled so firmware SR-IOV/TotalVfs can be programmed on CX6), creates
+Before changing any HWOL-owned resource, the Ordered HWOL spec verifies that
+`SriovOperatorConfig` already enables `featureGates.manageSoftwareBridges` and
+`enableOvsOffload`, that the mellanox plugin is not disabled, and that no
+non-HWOL policy selects the requested PF. The suite never mutates the
+cluster-wide operator configuration. Configure these prerequisites on a
+dedicated HWOL MCP; a shared or externally OVS-managed PF is rejected before
+the suite changes cluster state. If this read-only preflight fails, the suite
+does not create a namespace, pull images, or perform cleanup against the PF.
+
+After this preflight, the Ordered HWOL spec creates
 `SriovNetworkPoolConfig` (OvsHardwareOffload only — no parallel
-nodeSelector/maxUnavailable), applies switchdev policy with `bridge.ovs: {}`,
-and waits for MCP/node-state sync. The `switchdev` spec asserts
+nodeSelector/maxUnavailable). The SR-IOV Operator renders the corresponding
+`00-<MCP>-ovs-hw-offload` MachineConfig; it is owned indirectly by the suite's
+PoolConfig, not by a hand-written MachineConfig. Cleanup deletes the workload
+networks, deletes that PoolConfig, waits for the operator to remove its
+MachineConfig and for the MCP to disable hardware offload, and only then
+removes the switchdev policy. This avoids asking mlx5 to change eSwitch mode
+while OVN's offloaded TC rules still hold eSwitch references (`E-BUSY`). A
+different PoolConfig already enabling OVS offload on the same MCP is rejected
+during preflight because it would share that MachineConfig. The suite then
+applies switchdev policy with `bridge.ovs: {}`, and waits for MCP/node-state
+sync. The `switchdev` spec asserts
 `eSwitchMode=switchdev` and a managed OVS bridge uplink. Attach table Entries
 create the network CR, assert NAD type/resource (and bridge for ovs), and run a
 sleep pod. The ovs offload Entry creates two same-node iperf pods, asserts

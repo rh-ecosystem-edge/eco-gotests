@@ -44,13 +44,22 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 		Fail("HwolOcpConfig is nil: config init failed (see NewHwolOcpConfig logs)")
 	}
 
+	By("Validating HWOL preconditions without changing cluster state")
+
+	devices, err := HwolOcpConfig.GetHwolDevices()
+	Expect(err).ToNot(HaveOccurred(), "Failed to get HWOL devices")
+	Expect(devices).ToNot(BeEmpty(), "No HWOL devices configured")
+	Expect(hwolenv.ValidateHwolPreconditions(
+		HwolOcpConfig.OcpHwolOperatorNamespace, HwolOcpConfig.MCPLabel, devices[0],
+	)).To(Succeed(), "HWOL requires a dedicated, preconfigured PF and MCP")
+
 	By("Creating test namespace with privileged labels")
 
 	for key, value := range params.PrivilegedNSLabels {
 		testNS.WithLabel(key, value)
 	}
 
-	_, err := testNS.Create()
+	_, err = testNS.Create()
 	Expect(err).ToNot(HaveOccurred(), "error to create test namespace")
 
 	By("Verifying if HWOL tests can be executed on given cluster")
