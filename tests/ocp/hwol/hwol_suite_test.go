@@ -34,7 +34,10 @@ func TestHWOL(t *testing.T) {
 	RunSpecs(t, "hwol", Label(tsparams.Labels...), reporterConfig)
 }
 
-var _ = BeforeSuite(func() {
+// HWOL setup changes shared cluster state and creates fixed-name resources. It must
+// run only once: a normal BeforeSuite runs in every Ginkgo parallel process and
+// causes those processes to race on the image-pull pod and test namespace.
+var _ = SynchronizedBeforeSuite(func() []byte {
 	if HwolOcpConfig == nil {
 		Fail("HwolOcpConfig is nil: config init failed (see NewHwolOcpConfig logs)")
 	}
@@ -57,9 +60,13 @@ var _ = BeforeSuite(func() {
 
 	err = cluster.PullTestImageOnNodes(APIClient, HwolOcpConfig.WorkerLabel, HwolOcpConfig.OcpHwolTestContainer, 300)
 	Expect(err).ToNot(HaveOccurred(), "Failed to pull test image on nodes")
-})
 
-var _ = AfterSuite(func() {
+	return nil
+}, func([]byte) {})
+
+// Match synchronized setup with a single final namespace cleanup. This prevents
+// parallel workers from racing to delete the fixed-name namespace.
+var _ = SynchronizedAfterSuite(func() {}, func() {
 	By("Deleting test namespace")
 
 	err := testNS.DeleteAndWait(tsparams.DefaultTimeout)
