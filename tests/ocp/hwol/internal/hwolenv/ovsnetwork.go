@@ -208,6 +208,7 @@ func (builder *OvsNetworkBuilder) Delete() error {
 
 		return nil
 	}
+
 	if err := ensureHwolResourceOwnership("OVSNetwork", builder.Object.Name, builder.Object.Labels); err != nil {
 		return err
 	}

@@ -22,6 +22,7 @@ import (
 var (
 	_, currentFile, _, _ = runtime.Caller(0)
 	testNS               = namespace.NewBuilder(APIClient, tsparams.TestNamespaceName)
+	hwolPreflightPassed  bool
 )
 
 func TestHWOL(t *testing.T) {
@@ -72,8 +73,10 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	err = cluster.PullTestImageOnNodes(APIClient, HwolOcpConfig.WorkerLabel, HwolOcpConfig.OcpHwolTestContainer, 300)
 	Expect(err).ToNot(HaveOccurred(), "Failed to pull test image on nodes")
 
-	return nil
-}, func([]byte) {})
+	return []byte("preflight-passed")
+}, func(data []byte) {
+	hwolPreflightPassed = string(data) == "preflight-passed"
+})
 
 // Match synchronized setup with one final fixed-name HWOL resource cleanup and
 // namespace cleanup. The HWOL Describe also cleans up in AfterAll, but this
@@ -85,22 +88,29 @@ var _ = SynchronizedAfterSuite(func() {}, func() {
 	// Their namespace must be fully gone before cleanup disables HW offload or
 	// asks mlx5 to leave switchdev.
 	By("Deleting test namespace before HWOL infrastructure cleanup")
+
 	namespaceErr := testNS.DeleteAndWait(tsparams.DefaultTimeout)
 
-	if namespaceErr == nil && HwolOcpConfig != nil {
+	if namespaceErr == nil && hwolPreflightPassed && HwolOcpConfig != nil {
 		devices, err := HwolOcpConfig.GetHwolDevices()
 		if err != nil {
 			cleanupErr = err
 		} else if len(devices) == 0 {
 			cleanupErr = fmt.Errorf("no HWOL devices configured for final cleanup")
 		} else {
-			cleanupErr = hwolenv.CleanupHwolResources(
-				HwolOcpConfig.OcpHwolOperatorNamespace,
-				HwolOcpConfig.MCPLabel,
-				devices[0].InterfaceName,
-				tsparams.CleanupWaitTimeout,
-				tsparams.DefaultStableDuration,
-			)
+			if err := hwolenv.ValidateHwolPreconditions(
+				HwolOcpConfig.OcpHwolOperatorNamespace, HwolOcpConfig.MCPLabel, devices[0],
+			); err != nil {
+				cleanupErr = fmt.Errorf("refusing final HWOL cleanup after preflight revalidation: %w", err)
+			} else {
+				cleanupErr = hwolenv.CleanupHwolResources(
+					HwolOcpConfig.OcpHwolOperatorNamespace,
+					HwolOcpConfig.MCPLabel,
+					devices[0].InterfaceName,
+					tsparams.CleanupWaitTimeout,
+					tsparams.DefaultStableDuration,
+				)
+			}
 		}
 	}
 

@@ -51,10 +51,9 @@ const (
 
 	// PoolConfigName is the SriovNetworkPoolConfig created by switchdev tests.
 	PoolConfigName = "hwol-ovs-offload"
-	// OvsOffloadMachineConfigPrefix/Suffix identify the MachineConfig rendered
-	// by the SR-IOV Operator for an OvsHardwareOffloadConfig. The suite owns
-	// it indirectly through PoolConfigName and must let the operator delete it.
+	// OvsOffloadMachineConfigPrefix begins the MachineConfig name rendered by the SR-IOV Operator.
 	OvsOffloadMachineConfigPrefix = "00-"
+	// OvsOffloadMachineConfigSuffix ends the MachineConfig name rendered by the SR-IOV Operator.
 	OvsOffloadMachineConfigSuffix = "-ovs-hw-offload"
 	// PolicyName is the SriovNetworkNodePolicy created by switchdev tests.
 	PolicyName = "hwol-switchdev"
