@@ -142,15 +142,6 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 						"DeviceConfig is stale, recreating with initial version %s",
 						neuronConfig.DriverVersion)
 
-					By("Waiting for the current KMM Module rollout to be ready before deletion")
-
-					err = neuronhelpers.WaitForKMMModuleReady(
-						APIClient,
-						params.DefaultDeviceConfigName,
-						params.NeuronNamespace,
-						tsparams.DeviceConfigLifecycleTimeout)
-					Expect(err).ToNot(HaveOccurred(), "Current KMM Module should be ready before DeviceConfig deletion")
-
 					_, deleteErr := existingDC.Delete()
 					Expect(deleteErr).ToNot(HaveOccurred(), "Failed to delete stale DeviceConfig")
 

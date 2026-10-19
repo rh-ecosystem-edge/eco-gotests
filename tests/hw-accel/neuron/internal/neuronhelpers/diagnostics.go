@@ -70,6 +70,7 @@ func LogDeviceConfigDeletionDiagnostics(apiClient *clients.Settings, reason stri
 	logEventDiagnostics(ctx, apiClient, kmmBuildNamespace)
 }
 
+// logWorkloadNamespaceDiagnostics records pods that may be blocking resource cleanup.
 func logWorkloadNamespaceDiagnostics(ctx context.Context, apiClient *clients.Settings, namespace string) {
 	pods, err := apiClient.K8sClient.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {

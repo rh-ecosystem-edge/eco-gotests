@@ -31,12 +31,16 @@ var (
 // CleanupVLLMWorkload removes the shared vLLM namespace and waits for all of
 // its pods to terminate before a DeviceConfig lifecycle operation begins.
 func CleanupVLLMWorkload(apiClient *clients.Settings, timeout time.Duration) error {
-	nsBuilder := namespace.NewBuilder(apiClient, params.VLLMTestNamespace)
-	if !nsBuilder.Exists() {
+	nsBuilder, err := namespace.Pull(apiClient, params.VLLMTestNamespace)
+	if apierrors.IsNotFound(err) {
 		klog.V(params.NeuronLogLevel).Infof(
 			"vLLM namespace %s is not present; no cleanup required", params.VLLMTestNamespace)
 
 		return nil
+	}
+
+	if err != nil {
+		return fmt.Errorf("failed to check vLLM namespace %s: %w", params.VLLMTestNamespace, err)
 	}
 
 	klog.V(params.NeuronLogLevel).Infof(
@@ -157,6 +161,7 @@ func WaitForDeviceConfigDeletion(apiClient *clients.Settings, name, namespace st
 	return nil
 }
 
+// resourceExists distinguishes an absent resource from a failed API lookup.
 func resourceExists(ctx context.Context, resource interface {
 	Get(context.Context, string, metav1.GetOptions, ...string) (*unstructured.Unstructured, error)
 }, name string) (bool, error) {
@@ -172,6 +177,7 @@ func resourceExists(ctx context.Context, resource interface {
 	return true, nil
 }
 
+// listNMCModuleConsumers returns NMCs still reporting the named KMM Module.
 func listNMCModuleConsumers(ctx context.Context, apiClient *clients.Settings,
 	moduleName, moduleNamespace string) ([]string, error) {
 	list, err := apiClient.Resource(nodeModulesConfigGVR).List(ctx, metav1.ListOptions{})
