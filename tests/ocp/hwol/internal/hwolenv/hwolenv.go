@@ -867,9 +867,15 @@ func CleanupHwolResources(operatorNS, mcpName, pfName string, timeout, stableDur
 				OvsOffloadMachineConfigName(mcpName))
 		}
 
-		klog.V(90).Info("No HWOL test resources found; skipping cleanup")
+		// An interrupted run may have removed its CRs before the operator finished
+		// returning the PF to legacy mode. Treat the absence of fixed-name
+		// resources as a read-only cleanup-verification path, not as proof that
+		// teardown completed.
+		if err := WaitForSriovAndMCPStable(operatorNS, mcpName, timeout, stableDuration); err != nil {
+			return fmt.Errorf("HWOL cleanup verification timed out waiting for SR-IOV/MCP stable: %w", err)
+		}
 
-		return nil
+		return verifyHwolCleanup(operatorNS, mcpName, pfName)
 	}
 
 	ovsNet := NewOvsNetworkBuilder(
