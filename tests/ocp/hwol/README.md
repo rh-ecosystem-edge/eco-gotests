@@ -38,6 +38,7 @@ Devices are **not** configured in YAML. `ECO_OCP_HWOL_DEVICES` is required.
 | `ECO_OCP_HWOL_MCP_LABEL` | Machine config pool name / role label | `sriov` |
 | `ECO_OCP_HWOL_VF_NUM` | Number of VFs (≥3 recommended; VF0 reserved) | `3` |
 | `ECO_HWOL_RECOVER_ON_CLEANUP_FAILURE` | On a dedicated CI lab only, reboot HWOL MCP nodes after failed cleanup; the run still fails | `false` |
+| `ECO_HWOL_ALLOW_PARALLEL` | Allow parallel Ginkgo workers for HWOL (dedicated debugging only) | `false` |
 | `ECO_WORKER_LABEL` | Worker node label selector | from shared ocpconfig |
 
 Default test image is the OpenShift org Quay `iperf3` image (digest-pinned). Prefer
@@ -187,9 +188,25 @@ still reported, so this workaround never turns a failed cleanup into a pass.
 
 The suite also repeats this fixed-name resource cleanup once in its synchronized
 after-suite hook. This covers a process interruption or setup failure that
-prevents the ordered `AfterAll` from running. When regular cleanup succeeded,
-the final hook performs only read-only checks for residual suite resources and
-the operator-generated MachineConfig; it makes no further cluster changes.
+prevents the ordered `AfterAll` from running. It reruns the stability wait and
+cleanup verification even when no resources remain, so it adds runtime.
+
+`scripts/test-runner.sh` forces HWOL to one Ginkgo process by default, then
+runs an independent post-run cleanup command after Ginkgo exits. The command
+deletes only suite-owned resources and fails unless every matching PF returns
+to `legacy` (or the operator's empty/default representation), with no managed
+HWOL bridge or rendered offload MachineConfig remaining. Configure the BOS2
+Jenkins job to run the same command from an unconditional post-build step;
+that post step is needed if the runner itself is interrupted before its normal
+post-run guard can execute:
+
+```bash
+go run ./tests/ocp/hwol/cmd/cleanup
+```
+
+The cleanup command revalidates PF/MCP ownership before it changes anything.
+If the PF has become shared or an unowned fixed-name resource exists, it exits
+unsuccessfully and leaves that resource untouched.
 
 ## Current coverage
 
