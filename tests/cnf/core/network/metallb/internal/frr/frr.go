@@ -383,6 +383,24 @@ func IsProtocolConfigured(frrPod *pod.Builder, protocol string) (bool, error) {
 	return false, nil
 }
 
+// IsBFDPeerPassiveMode reports whether the BFD session to peerIP is in passive mode.
+func IsBFDPeerPassiveMode(frrPod *pod.Builder, peerIP string) (bool, error) {
+	out, err := frrPod.ExecCommand(append(netparam.VtySh, fmt.Sprintf("sh bfd peer %s json", peerIP)), "frr")
+	if err != nil {
+		return false, err
+	}
+
+	var status struct {
+		PassiveMode bool `json:"passive-mode"`
+	}
+
+	if err := json.Unmarshal(out.Bytes(), &status); err != nil {
+		return false, err
+	}
+
+	return status.PassiveMode, nil
+}
+
 // GetMetricsByPrefix pulls all metrics from frr pods and sort them in the list by given prefix.
 // The token parameter is a bearer token used to authenticate against the kube-rbac-proxy on the metrics endpoint.
 func GetMetricsByPrefix(frrPod *pod.Builder, metricPrefix, token string) ([]string, error) {

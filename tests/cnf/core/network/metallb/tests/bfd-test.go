@@ -65,9 +65,9 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 
 			frrk8sPods := verifyAndCreateFRRk8sPodList()
 
-			By("Creating BFD profile.")
+			By("Creating BFD profile with passiveMode false (active).")
 
-			bfdProfile := createBFDProfileAndVerifyIfItsReady(frrk8sPods)
+			bfdProfile := createBFDProfileAndVerifyIfItsReady(frrk8sPods, false)
 
 			By("Creating BGP peer config.")
 			createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, ipv4metalLbIPList[0], bfdProfile.Definition.Name,
@@ -203,6 +203,83 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 		})
 	})
 
+	// MetalLB speakers use BFD passiveMode:true; the external FRR pod remains active
+	Context("passive mode", Label("singlehop"), func() {
+		BeforeEach(func() {
+			By("Verifying that the frrk8sPod deployment is in Ready state and create a list of the pods on " +
+				"worker nodes.")
+
+			frrk8sPods := verifyAndCreateFRRk8sPodList()
+
+			By("Creating BFD profile with passiveMode true on MetalLB speakers.")
+
+			bfdProfile := createBFDProfileAndVerifyIfItsReady(frrk8sPods, true)
+
+			By("Creating BGP peer config.")
+			createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, ipv4metalLbIPList[0], bfdProfile.Definition.Name,
+				"", tsparams.RemoteBGPASN, nil, false, 0, frrk8sPods)
+
+			By("Creating MetalLb configMap with active BFD on the external FRR peer")
+
+			bfdConfigMap := createConfigMap(tsparams.RemoteBGPASN, ipv4NodeAddrList, false, true)
+
+			By("Creating static ip annotation")
+
+			staticIPAnnotation := pod.StaticIPAnnotation(
+				frrconfig.ExternalMacVlanNADName, []string{fmt.Sprintf("%s/%s", ipv4metalLbIPList[0],
+					netparam.IPSubnet24)})
+
+			By("Creating FRR Pod with network and IP address")
+
+			frrPod := createFrrPod(
+				masterNodeList[0].Object.Name, bfdConfigMap.Object.Name, []string{}, staticIPAnnotation)
+
+			By("Checking that BGP and BFD sessions are established and up")
+			verifyMetalLbBFDAndBGPSessionsAreUPOnFrrPod(frrPod, ipv4NodeAddrList)
+			validateBGPSessionState("Established", "Up", peerIP, workerNodeList)
+		})
+
+		It("provides fast link failure detection", reportxml.ID("90708"), func() {
+			By("Verifying BFDProfile has passiveMode enabled")
+
+			bfdProfile, err := metallb.PullBFDProfile(APIClient, tsparams.BfdProfileName, NetConfig.MlbOperatorNamespace)
+			Expect(err).ToNot(HaveOccurred(), "Failed to pull BFD profile")
+			Expect(bfdProfile.Object.Spec.PassiveMode).ToNot(BeNil(), "passiveMode is not set on BFD profile")
+			Expect(*bfdProfile.Object.Spec.PassiveMode).To(BeTrue(), "passiveMode is not true on BFD profile")
+
+			By("Verifying BFD peers are in passive mode on MetalLB speaker FRR pods")
+
+			frrk8sPods := verifyAndCreateFRRk8sPodList()
+			for _, frrk8sPod := range frrk8sPods {
+				Eventually(frr.IsBFDPeerPassiveMode,
+					time.Minute, tsparams.DefaultRetryInterval).WithArguments(frrk8sPod, peerIP).
+					Should(BeTrue(), "BFD peer %s is not in passive mode on speaker %s",
+						peerIP, frrk8sPod.Definition.Name)
+			}
+
+			testBFDFailOver(peerIP)
+			testBFDFailBack(peerIP)
+		})
+
+		AfterEach(func() {
+			By("Removing custom nft table if exists")
+			removeNFTTable(workerNodeList[0].Object.Name)
+
+			By("Cleaning MetalLb operator namespace")
+
+			metalLbNs, err := namespace.Pull(APIClient, NetConfig.MlbOperatorNamespace)
+			Expect(err).ToNot(HaveOccurred(), "Failed to pull metalLb operator namespace")
+			err = metalLbNs.CleanObjects(tsparams.DefaultTimeout, metallb.GetBGPPeerGVR(), metallb.GetBFDProfileGVR())
+			Expect(err).ToNot(HaveOccurred(), "Failed to remove object's from operator namespace")
+
+			By("Cleaning test namespace")
+
+			err = namespace.NewBuilder(APIClient, tsparams.TestNamespaceName).
+				CleanObjects(tsparams.DefaultTimeout, pod.GetGVR(), configmap.GetGVR())
+			Expect(err).ToNot(HaveOccurred(), "Failed to clean objects from test namespace")
+		})
+	})
+
 	Context("multihop", Label("multihop"), func() {
 		var err error
 
@@ -280,7 +357,7 @@ var _ = Describe("BFD", Ordered, Label(tsparams.LabelBFDTestCases), ContinueOnFa
 
 				frrk8sPods := verifyAndCreateFRRk8sPodList()
 
-				bfdProfile := createBFDProfileAndVerifyIfItsReady(frrk8sPods)
+				bfdProfile := createBFDProfileAndVerifyIfItsReady(frrk8sPods, false)
 
 				neighbourASN := uint32(tsparams.LocalBGPASN)
 
@@ -526,11 +603,11 @@ func testBFDFailBack(peerIP string) {
 	validateBGPSessionState("Established", "Up", peerIP, workerNodeList)
 }
 
-func createBFDProfileAndVerifyIfItsReady(frrk8sPods []*pod.Builder) *metallb.BFDBuilder {
-	By("Creating BFD profile")
+func createBFDProfileAndVerifyIfItsReady(frrk8sPods []*pod.Builder, passiveMode bool) *metallb.BFDBuilder {
+	By(fmt.Sprintf("Creating BFD profile with passiveMode %v", passiveMode))
 
-	bfdProfile, err := metallb.NewBFDBuilder(APIClient, "bfdprofile", NetConfig.MlbOperatorNamespace).
-		WithRcvInterval(300).WithPassiveMode(false).WithMinimumTTL(5).
+	bfdProfile, err := metallb.NewBFDBuilder(APIClient, tsparams.BfdProfileName, NetConfig.MlbOperatorNamespace).
+		WithRcvInterval(300).WithPassiveMode(passiveMode).WithMinimumTTL(5).
 		WithMultiplier(3).Create()
 	Expect(err).ToNot(HaveOccurred(), "Failed to create BFD profile")
 	Expect(bfdProfile.Exists()).To(BeTrue(), "BFD profile doesn't exist")
