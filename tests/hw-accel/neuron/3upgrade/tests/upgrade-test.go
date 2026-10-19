@@ -58,6 +58,12 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 			Expect(neuronhelpers.AreAllOperatorsReady(APIClient, options)).To(BeTrue(),
 				"All operators (NFD, KMM, Neuron) must be pre-installed and ready")
 
+			By("Cleaning up the shared vLLM workload before DeviceConfig lifecycle operations")
+
+			err := neuronhelpers.CleanupVLLMWorkload(
+				APIClient, tsparams.DeviceConfigLifecycleTimeout)
+			Expect(err).ToNot(HaveOccurred(), "Shared vLLM workload should be fully deleted before upgrade")
+
 			By("Patching KMM subscription with Neuron upgrade toleration")
 
 			kmmSub, err := olm.PullSubscription(APIClient, "kmm-subscription", "openshift-kmm")
@@ -139,13 +145,12 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 					_, deleteErr := existingDC.Delete()
 					Expect(deleteErr).ToNot(HaveOccurred(), "Failed to delete stale DeviceConfig")
 
-					Eventually(func() bool {
-						_, checkErr := neuron.Pull(
-							APIClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
-
-						return checkErr != nil
-					}, 5*time.Minute, 5*time.Second).Should(BeTrue(),
-						"DeviceConfig should be fully deleted")
+					err = neuronhelpers.WaitForDeviceConfigDeletion(
+						APIClient,
+						params.DefaultDeviceConfigName,
+						params.NeuronNamespace,
+						tsparams.DeviceConfigLifecycleTimeout)
+					Expect(err).ToNot(HaveOccurred(), "DeviceConfig and its KMM resources should be fully deleted")
 
 					_, err = builder.Create()
 					Expect(err).ToNot(HaveOccurred(), "Failed to create DeviceConfig with initial version")
@@ -159,6 +164,15 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 
 			err = neuronhelpers.WaitForClusterStabilityAfterDeviceConfig(APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Cluster not stable after DeviceConfig")
+
+			By("Waiting for the recreated KMM Module rollout to be ready")
+
+			err = neuronhelpers.WaitForKMMModuleReady(
+				APIClient,
+				params.DefaultDeviceConfigName,
+				params.NeuronNamespace,
+				tsparams.DeviceConfigLifecycleTimeout)
+			Expect(err).ToNot(HaveOccurred(), "Recreated KMM Module should be ready before upgrade tests")
 
 			By("Waiting for Neuron nodes to be labeled")
 

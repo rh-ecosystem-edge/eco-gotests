@@ -13,6 +13,9 @@ const (
 	NeuronLogLevel = 90
 	// NeuronNamespace - Namespace for the AWS Neuron Operator.
 	NeuronNamespace = "aws-neuron-operator"
+	// VLLMTestNamespace represents the shared vLLM workload namespace.
+	// The upgrade suite must remove this workload before DeviceConfig deletion.
+	VLLMTestNamespace = "neuron-vllm-test"
 	// NeuronNFDLabelKey - The key of the label added by NFD.
 	NeuronNFDLabelKey = "feature.node.kubernetes.io/aws-neuron"
 	// NeuronNFDLabelValue - The value of the label added by NFD.

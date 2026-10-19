@@ -11,12 +11,79 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/kmm"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/neuron"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/params"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/klog/v2"
 )
+
+// LogDeviceConfigDeletionDiagnostics records the DeviceConfig and KMM state
+// that can prevent deletion, including Module finalizers, NMC consumers, and
+// remaining workload pods. It is intended for deletion timeouts and does not
+// fail the test by itself.
+func LogDeviceConfigDeletionDiagnostics(apiClient *clients.Settings, reason string) {
+	ctx := context.TODO()
+
+	klog.Errorf("DeviceConfig deletion diagnostics: %s", reason)
+
+	deviceConfig, err := neuron.Pull(apiClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
+	if err != nil {
+		klog.Errorf("DeviceConfig deletion diagnostics: DeviceConfig lookup failed: %v", err)
+	} else {
+		logJSON("DeviceConfig deletion diagnostics: DeviceConfig metadata", map[string]interface{}{
+			"name":              deviceConfig.Definition.Name,
+			"namespace":         deviceConfig.Definition.Namespace,
+			"deletionTimestamp": deviceConfig.Definition.DeletionTimestamp,
+			"finalizers":        deviceConfig.Definition.Finalizers,
+		})
+	}
+
+	module, err := kmm.Pull(apiClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
+	if err != nil {
+		klog.Errorf("DeviceConfig deletion diagnostics: Module lookup failed: %v", err)
+	} else {
+		logJSON("DeviceConfig deletion diagnostics: Module metadata", map[string]interface{}{
+			"name":              module.Definition.Name,
+			"namespace":         module.Definition.Namespace,
+			"deletionTimestamp": module.Definition.DeletionTimestamp,
+			"finalizers":        module.Definition.Finalizers,
+			"ownerReferences":   module.Definition.OwnerReferences,
+		})
+		logJSON("DeviceConfig deletion diagnostics: Module status",
+			sanitizeDiagnosticObject(module.Definition.Status))
+	}
+
+	consumers, err := listNMCModuleConsumers(
+		ctx, apiClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
+	if err != nil {
+		klog.Errorf("DeviceConfig deletion diagnostics: NMC lookup failed: %v", err)
+	} else {
+		klog.Errorf("DeviceConfig deletion diagnostics: NMC consumers for Module %s/%s: %v",
+			params.NeuronNamespace, params.DefaultDeviceConfigName, consumers)
+	}
+
+	logWorkloadNamespaceDiagnostics(ctx, apiClient, params.VLLMTestNamespace)
+	logWorkloadNamespaceDiagnostics(ctx, apiClient, params.NeuronNamespace)
+	logEventDiagnostics(ctx, apiClient, params.NeuronNamespace)
+	logEventDiagnostics(ctx, apiClient, kmmBuildNamespace)
+}
+
+// logWorkloadNamespaceDiagnostics records pods that may be blocking resource cleanup.
+func logWorkloadNamespaceDiagnostics(ctx context.Context, apiClient *clients.Settings, namespace string) {
+	pods, err := apiClient.K8sClient.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		klog.Errorf("DeviceConfig deletion diagnostics: pod listing failed in %s: %v", namespace, err)
+
+		return
+	}
+
+	for _, pod := range pods.Items {
+		klog.Errorf("DeviceConfig deletion diagnostics: workload pod %s/%s phase=%s node=%s",
+			namespace, pod.Name, pod.Status.Phase, pod.Spec.NodeName)
+	}
+}
 
 const (
 	kmmBuildNamespace  = "openshift-kmm"

@@ -18,6 +18,8 @@ const (
 	OperatorDeployTimeout = 10 * time.Minute
 	// DevicePluginReadyTimeout represents the timeout for device plugin readiness.
 	DevicePluginReadyTimeout = 10 * time.Minute
+	// DeviceConfigLifecycleTimeout covers workload cleanup and KMM resource convergence.
+	DeviceConfigLifecycleTimeout = 10 * time.Minute
 	// TotalUpgradeTimeout represents the total timeout for the upgrade process.
 	TotalUpgradeTimeout = 45 * time.Minute
 )
