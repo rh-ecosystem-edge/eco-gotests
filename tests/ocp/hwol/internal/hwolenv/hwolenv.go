@@ -1031,6 +1031,26 @@ func hwolResourcesExist(operatorNS string) (bool, error) {
 // RecoverHwolCleanup reboots only HWOL MCP nodes after failed cleanup, then verifies
 // the switchdev and OVS state is gone. Callers must preserve the original failure.
 func RecoverHwolCleanup(operatorNS, mcpName, pfName string, timeout, stableDuration time.Duration) error {
+	// A reboot is a last resort for a PF stuck leaving switchdev, not a
+	// substitute for deleting the suite's CRs or disabling hardware offload.
+	// In particular, never reboot while an operator-owned offload MC remains.
+	resourcesExist, err := hwolResourcesExist(operatorNS)
+	if err != nil {
+		return err
+	}
+	if resourcesExist {
+		return fmt.Errorf("refusing HWOL reboot recovery while test-owned resources remain")
+	}
+
+	machineConfigName := OvsOffloadMachineConfigName(mcpName)
+	machineConfigExists, err := ovsOffloadMachineConfigExists(machineConfigName)
+	if err != nil {
+		return err
+	}
+	if machineConfigExists {
+		return fmt.Errorf("refusing HWOL reboot recovery while MachineConfig %s remains", machineConfigName)
+	}
+
 	workerNodes, err := ListMCPWorkerNodesWithPF(operatorNS, mcpName, pfName)
 	if err != nil {
 		return err
