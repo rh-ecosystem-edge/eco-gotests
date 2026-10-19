@@ -1,6 +1,7 @@
 package hwol
 
 import (
+	"errors"
 	"fmt"
 	"runtime"
 	"testing"
@@ -110,6 +111,22 @@ var _ = SynchronizedAfterSuite(func() {}, func() {
 					tsparams.CleanupWaitTimeout,
 					tsparams.DefaultStableDuration,
 				)
+				if cleanupErr != nil && HwolOcpConfig.RecoverOnCleanupFailure {
+					By("Recovering HWOL nodes after final cleanup failure")
+
+					recoveryErr := hwolenv.RecoverHwolCleanup(
+						HwolOcpConfig.OcpHwolOperatorNamespace,
+						HwolOcpConfig.MCPLabel,
+						devices[0].InterfaceName,
+						tsparams.MCOWaitTimeout,
+						tsparams.DefaultStableDuration,
+					)
+					if recoveryErr != nil {
+						cleanupErr = errors.Join(cleanupErr, fmt.Errorf("HWOL reboot recovery also failed: %w", recoveryErr))
+					} else {
+						cleanupErr = fmt.Errorf("%w; HWOL reboot recovery succeeded", cleanupErr)
+					}
+				}
 			}
 		}
 	}
