@@ -1038,15 +1038,18 @@ func RecoverHwolCleanup(operatorNS, mcpName, pfName string, timeout, stableDurat
 	if err != nil {
 		return err
 	}
+
 	if resourcesExist {
 		return fmt.Errorf("refusing HWOL reboot recovery while test-owned resources remain")
 	}
 
 	machineConfigName := OvsOffloadMachineConfigName(mcpName)
+
 	machineConfigExists, err := ovsOffloadMachineConfigExists(machineConfigName)
 	if err != nil {
 		return err
 	}
+
 	if machineConfigExists {
 		return fmt.Errorf("refusing HWOL reboot recovery while MachineConfig %s remains", machineConfigName)
 	}

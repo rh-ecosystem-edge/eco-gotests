@@ -58,6 +58,7 @@ func cleanup() error {
 	); err != nil {
 		if HwolOcpConfig.RecoverOnCleanupFailure {
 			fmt.Fprintf(os.Stderr, "HWOL post-run cleanup failed; attempting opt-in reboot recovery: %v\n", err)
+
 			recoveryErr := hwolenv.RecoverHwolCleanup(
 				HwolOcpConfig.OcpHwolOperatorNamespace,
 				HwolOcpConfig.MCPLabel,
@@ -66,10 +67,12 @@ func cleanup() error {
 				tsparams.DefaultStableDuration,
 			)
 			if recoveryErr != nil {
-				return fmt.Errorf("HWOL cleanup failed: %w; reboot recovery also failed: %v", err, recoveryErr)
+				return fmt.Errorf("HWOL cleanup failed: %w; reboot recovery also failed: %w", err, recoveryErr)
 			}
+
 			return fmt.Errorf("HWOL cleanup failed: %w; reboot recovery succeeded", err)
 		}
+
 		return err
 	}
 
