@@ -9,6 +9,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
@@ -78,6 +79,15 @@ var _ = Describe(
 		})
 
 		AfterAll(func() {
+			// Ginkgo runs AfterAll before DeferCleanup callbacks for the last
+			// Ordered spec. Ensure its workload pods are gone before changing
+			// the offload MachineConfig or switchdev policy.
+			By("Deleting test namespace before HWOL infrastructure cleanup")
+
+			Expect(namespace.NewBuilder(APIClient, tsparams.TestNamespaceName).
+				DeleteAndWait(tsparams.DefaultTimeout)).To(Succeed(),
+				"workload pods must release their VFs before disabling hardware offload")
+
 			By("Cleaning HWOL resources")
 
 			err := hwolenv.CleanupHwolResources(
@@ -171,7 +181,7 @@ var _ = Describe(
 				DeferCleanup(func() {
 					By("Deleting attach pod")
 
-					_, delErr := attachPod.Delete()
+					_, delErr := attachPod.DeleteAndWait(tsparams.DefaultTimeout)
 					Expect(delErr).ToNot(HaveOccurred(), "Failed to delete attach pod")
 				})
 
@@ -244,7 +254,7 @@ var _ = Describe(
 				Expect(err).ToNot(HaveOccurred(), "Failed to create iperf server pod")
 
 				DeferCleanup(func() {
-					_, delErr := serverPod.Delete()
+					_, delErr := serverPod.DeleteAndWait(tsparams.DefaultTimeout)
 					Expect(delErr).ToNot(HaveOccurred(), "Failed to delete iperf server pod")
 				})
 
@@ -256,7 +266,7 @@ var _ = Describe(
 				Expect(err).ToNot(HaveOccurred(), "Failed to create iperf client pod")
 
 				DeferCleanup(func() {
-					_, delErr := clientPod.Delete()
+					_, delErr := clientPod.DeleteAndWait(tsparams.DefaultTimeout)
 					Expect(delErr).ToNot(HaveOccurred(), "Failed to delete iperf client pod")
 				})
 
