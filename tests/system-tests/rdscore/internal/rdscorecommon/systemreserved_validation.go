@@ -48,10 +48,10 @@ var (
 
 	// Scale lab baseline data.
 	// scaleLabControlPlaneCPUMax is the maximum CPU usage observed in scale lab for
-	// control plane (OCP 4.16).
+	// control plane.
 	scaleLabControlPlaneCPUMax = 39.1
 	// scaleLabControlPlaneMemoryMax is the maximum memory usage observed in scale lab for
-	// control plane (OCP 4.16) in GB.
+	// control plane in GB.
 	scaleLabControlPlaneMemoryMax = 33.9
 )
 
@@ -167,14 +167,8 @@ func ValidateControlPlaneNodeSystemReserved() {
 		nodeObj := node.Object
 		nodeName := nodeObj.Name
 
-		// Skip nodes that are not ready, schedulable, or storage nodes
-		if !isNodeReadyForTesting(node) {
-			reason := "NotReady or SchedulingDisabled"
-
-			if _, hasStorageRole := nodeObj.Labels["node-role.kubernetes.io/storage"]; hasStorageRole {
-				reason = "Storage node - not tested for systemReserved"
-			}
-
+		// Skip nodes that are not ready, schedulable, or are not master/worker nodes
+		if ready, reason := isNodeReadyForTesting(node); !ready {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⊘ Skipping node %s (%s)\n", nodeName, reason)
 
 			continue
@@ -311,14 +305,8 @@ func ValidateWorkerNodeSystemReserved() {
 		nodeObj := node.Object
 		nodeName := nodeObj.Name
 
-		// Skip nodes that are not ready, schedulable, or storage nodes
-		if !isNodeReadyForTesting(node) {
-			reason := "NotReady or SchedulingDisabled"
-
-			if _, hasStorageRole := nodeObj.Labels["node-role.kubernetes.io/storage"]; hasStorageRole {
-				reason = "Storage node - not tested for systemReserved"
-			}
-
+		// Skip nodes that are not ready, schedulable, or are not master/worker nodes
+		if ready, reason := isNodeReadyForTesting(node); !ready {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⊘ Skipping node %s (%s)\n", nodeName, reason)
 
 			continue
@@ -442,15 +430,9 @@ func ValidateControlPlaneNodeAllocatable() {
 	for _, node := range controlPlaneNodes {
 		nodeName := node.Object.Name
 
-		// Skip nodes that are not ready or are storage nodes
-		if !isNodeReadyForTesting(node) {
-			reason := "NotReady or SchedulingDisabled"
-
-			if _, hasStorageRole := node.Object.Labels["node-role.kubernetes.io/storage"]; hasStorageRole {
-				reason = "Storage node"
-			}
-
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⊘ Skipping control plane node %s (%s)\n", nodeName, reason)
+		// Skip nodes that are not ready or are not master/worker nodes
+		if ready, reason := isNodeReadyForTesting(node); !ready {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⊘ Skipping node %s (%s)\n", nodeName, reason)
 
 			continue
 		}
@@ -472,15 +454,9 @@ func ValidateWorkerNodeAllocatable() {
 	for _, node := range workerNodes {
 		nodeName := node.Object.Name
 
-		// Skip nodes that are not ready or are storage nodes
-		if !isNodeReadyForTesting(node) {
-			reason := "NotReady or SchedulingDisabled"
-
-			if _, hasStorageRole := node.Object.Labels["node-role.kubernetes.io/storage"]; hasStorageRole {
-				reason = "Storage node"
-			}
-
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⊘ Skipping worker node %s (%s)\n", nodeName, reason)
+		// Skip nodes that are not ready or are not master/worker nodes
+		if ready, reason := isNodeReadyForTesting(node); !ready {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⊘ Skipping node %s (%s)\n", nodeName, reason)
 
 			continue
 		}
@@ -502,15 +478,9 @@ func ValidateControlPlaneNodeEnforcement() {
 	for _, node := range controlPlaneNodes {
 		nodeName := node.Object.Name
 
-		// Skip nodes that are not ready or are storage nodes
-		if !isNodeReadyForTesting(node) {
-			reason := "NotReady or SchedulingDisabled"
-
-			if _, hasStorageRole := node.Object.Labels["node-role.kubernetes.io/storage"]; hasStorageRole {
-				reason = "Storage node"
-			}
-
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⊘ Skipping control plane node %s (%s)\n", nodeName, reason)
+		// Skip nodes that are not ready or are not master/worker nodes
+		if ready, reason := isNodeReadyForTesting(node); !ready {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⊘ Skipping node %s (%s)\n", nodeName, reason)
 
 			continue
 		}
@@ -532,15 +502,9 @@ func ValidateWorkerNodeEnforcement() {
 	for _, node := range workerNodes {
 		nodeName := node.Object.Name
 
-		// Skip nodes that are not ready or are storage nodes
-		if !isNodeReadyForTesting(node) {
-			reason := "NotReady or SchedulingDisabled"
-
-			if _, hasStorageRole := node.Object.Labels["node-role.kubernetes.io/storage"]; hasStorageRole {
-				reason = "Storage node"
-			}
-
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⊘ Skipping worker node %s (%s)\n", nodeName, reason)
+		// Skip nodes that are not ready or are not master/worker nodes
+		if ready, reason := isNodeReadyForTesting(node); !ready {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⊘ Skipping node %s (%s)\n", nodeName, reason)
 
 			continue
 		}
@@ -575,14 +539,8 @@ func ValidateScaleLabBaseline() {
 	for _, cpNode := range controlPlaneNodes {
 		cpNodeName := cpNode.Object.Name
 
-		// Skip nodes that are not ready or are storage nodes
-		if !isNodeReadyForTesting(cpNode) {
-			reason := "NotReady or SchedulingDisabled"
-
-			if _, hasStorageRole := cpNode.Object.Labels["node-role.kubernetes.io/storage"]; hasStorageRole {
-				reason = "Storage node"
-			}
-
+		// Skip nodes that are not ready or are not master/worker nodes
+		if ready, reason := isNodeReadyForTesting(cpNode); !ready {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⊘ Skipping control plane node %s (%s)\n", cpNodeName, reason)
 
 			continue
@@ -666,14 +624,8 @@ func ValidateScaleLabBaseline() {
 	for _, workerNode := range workerNodes {
 		workerNodeName := workerNode.Object.Name
 
-		// Skip nodes that are not ready or are storage nodes
-		if !isNodeReadyForTesting(workerNode) {
-			reason := "NotReady or SchedulingDisabled"
-
-			if _, hasStorageRole := workerNode.Object.Labels["node-role.kubernetes.io/storage"]; hasStorageRole {
-				reason = "Storage node"
-			}
-
+		// Skip nodes that are not ready or are not master/worker nodes
+		if ready, reason := isNodeReadyForTesting(workerNode); !ready {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⊘ Skipping worker node %s (%s)\n", workerNodeName, reason)
 
 			continue
@@ -912,30 +864,38 @@ func validateNodeEnforcement(node *nodes.Builder) {
 }
 
 // isNodeReadyForTesting checks if a node is in a state where it can be tested.
-// Returns false if node is NotReady, has SchedulingDisabled, or has storage role.
-func isNodeReadyForTesting(node *nodes.Builder) bool {
+// Returns (ready, reason) where ready is true if node can be tested, and reason explains why if not.
+func isNodeReadyForTesting(node *nodes.Builder) (bool, string) {
 	nodeObj := node.Object
 
-	// Skip storage nodes - they typically don't have PerformanceProfile configuration
+	// Skip storage nodes explicitly - they can have worker label but don't have PerformanceProfile
 	if _, hasStorageRole := nodeObj.Labels["node-role.kubernetes.io/storage"]; hasStorageRole {
-		return false
+		return false, "Storage node"
+	}
+
+	// Only test master and worker nodes - other MCPs typically don't have PerformanceProfile
+	_, hasMaster := nodeObj.Labels["node-role.kubernetes.io/master"]
+	_, hasWorker := nodeObj.Labels["node-role.kubernetes.io/worker"]
+
+	if !hasMaster && !hasWorker {
+		return false, "Not master/worker node"
 	}
 
 	// Check if node is schedulable
 	if nodeObj.Spec.Unschedulable {
-		return false
+		return false, "Unschedulable"
 	}
 
 	// Check node conditions
 	for _, condition := range nodeObj.Status.Conditions {
 		if condition.Type == corev1.NodeReady {
 			if condition.Status != corev1.ConditionTrue {
-				return false
+				return false, "Not ready"
 			}
 		}
 	}
 
-	return true
+	return true, ""
 }
 
 // executeDebugPodCommand executes a command on a node via debug pod.
