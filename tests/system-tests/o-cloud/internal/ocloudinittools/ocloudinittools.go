@@ -10,6 +10,8 @@ import (
 var (
 	// HubAPIClient provides API access to hub cluster.
 	HubAPIClient *clients.Settings
+	// ScaleSpokeAPIClient provides API access to the spoke selected for scale-in/out tests.
+	ScaleSpokeAPIClient *clients.Settings
 	// OCloudConfig provides access to O-Cloud system tests configuration parameters.
 	OCloudConfig *ocloudconfig.OCloudConfig
 	// BMCClient provides API access to BMC.
@@ -21,4 +23,8 @@ var (
 func init() {
 	OCloudConfig = ocloudconfig.NewOCloudConfig()
 	HubAPIClient = inittools.APIClient
+
+	if OCloudConfig.ScaleSpokeKubeconfig != "" {
+		ScaleSpokeAPIClient = clients.New(OCloudConfig.ScaleSpokeKubeconfig)
+	}
 }
