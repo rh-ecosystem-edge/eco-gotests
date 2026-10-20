@@ -6,15 +6,14 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nto"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreparams"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/remote"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,7 +24,7 @@ import (
 
 const (
 	// NodeSizingEnvPath is the path to node-sizing.env file on nodes.
-	nodeSizingEnvPath = "/host/etc/node-sizing.env"
+	nodeSizingEnvPath = "/etc/node-sizing.env"
 )
 
 var (
@@ -167,8 +166,8 @@ func ValidateControlPlaneNodeSystemReserved() {
 		nodeObj := node.Object
 		nodeName := nodeObj.Name
 
-		// Skip nodes that are not ready, schedulable, or are not master/worker nodes
-		if ready, reason := isNodeReadyForTesting(node); !ready {
+		// Skip nodes that are not ready, schedulable, or don't match any PerformanceProfile
+		if ready, reason := isNodeReadyForTesting(node, allProfiles); !ready {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⊘ Skipping node %s (%s)\n", nodeName, reason)
 
 			continue
@@ -208,9 +207,9 @@ func ValidateControlPlaneNodeSystemReserved() {
 
 		By(fmt.Sprintf("Executing debug pod on node %s", nodeName))
 
-		cmd := []string{"cat", nodeSizingEnvPath}
+		cmd := []string{"chroot", "/rootfs", "cat", nodeSizingEnvPath}
 
-		output, err := executeDebugPodCommand(nodeName, cmd)
+		output, err := remote.ExecuteOnNodeWithDebugPod(cmd, nodeName)
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to read %s from node %s", nodeSizingEnvPath, nodeName))
 		Expect(output).ToNot(BeEmpty(), fmt.Sprintf("%s is empty on node %s", nodeSizingEnvPath, nodeName))
 
@@ -305,8 +304,8 @@ func ValidateWorkerNodeSystemReserved() {
 		nodeObj := node.Object
 		nodeName := nodeObj.Name
 
-		// Skip nodes that are not ready, schedulable, or are not master/worker nodes
-		if ready, reason := isNodeReadyForTesting(node); !ready {
+		// Skip nodes that are not ready, schedulable, or don't match any PerformanceProfile
+		if ready, reason := isNodeReadyForTesting(node, allProfiles); !ready {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⊘ Skipping node %s (%s)\n", nodeName, reason)
 
 			continue
@@ -346,9 +345,9 @@ func ValidateWorkerNodeSystemReserved() {
 
 		By(fmt.Sprintf("Executing debug pod on node %s", nodeName))
 
-		cmd := []string{"cat", nodeSizingEnvPath}
+		cmd := []string{"chroot", "/rootfs", "cat", nodeSizingEnvPath}
 
-		output, err := executeDebugPodCommand(nodeName, cmd)
+		output, err := remote.ExecuteOnNodeWithDebugPod(cmd, nodeName)
 		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to read %s from node %s", nodeSizingEnvPath, nodeName))
 		Expect(output).ToNot(BeEmpty(), fmt.Sprintf("%s is empty on node %s", nodeSizingEnvPath, nodeName))
 
@@ -427,11 +426,16 @@ func ValidateControlPlaneNodeAllocatable() {
 		metav1.ListOptions{LabelSelector: labels.Set{"node-role.kubernetes.io/master": ""}.String()})
 	Expect(err).ToNot(HaveOccurred(), "Failed to list control plane nodes")
 
+	By("Finding PerformanceProfiles")
+
+	allProfiles, err := nto.ListProfiles(APIClient)
+	Expect(err).ToNot(HaveOccurred(), "Failed to list PerformanceProfiles")
+
 	for _, node := range controlPlaneNodes {
 		nodeName := node.Object.Name
 
-		// Skip nodes that are not ready or are not master/worker nodes
-		if ready, reason := isNodeReadyForTesting(node); !ready {
+		// Skip nodes that are not ready, schedulable, or don't match any PerformanceProfile
+		if ready, reason := isNodeReadyForTesting(node, allProfiles); !ready {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⊘ Skipping node %s (%s)\n", nodeName, reason)
 
 			continue
@@ -451,11 +455,16 @@ func ValidateWorkerNodeAllocatable() {
 		metav1.ListOptions{LabelSelector: labels.Set{"node-role.kubernetes.io/worker": ""}.String()})
 	Expect(err).ToNot(HaveOccurred(), "Failed to list worker nodes")
 
+	By("Finding PerformanceProfiles")
+
+	allProfiles, err := nto.ListProfiles(APIClient)
+	Expect(err).ToNot(HaveOccurred(), "Failed to list PerformanceProfiles")
+
 	for _, node := range workerNodes {
 		nodeName := node.Object.Name
 
-		// Skip nodes that are not ready or are not master/worker nodes
-		if ready, reason := isNodeReadyForTesting(node); !ready {
+		// Skip nodes that are not ready, schedulable, or don't match any PerformanceProfile
+		if ready, reason := isNodeReadyForTesting(node, allProfiles); !ready {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⊘ Skipping node %s (%s)\n", nodeName, reason)
 
 			continue
@@ -475,11 +484,16 @@ func ValidateControlPlaneNodeEnforcement() {
 		metav1.ListOptions{LabelSelector: labels.Set{"node-role.kubernetes.io/master": ""}.String()})
 	Expect(err).ToNot(HaveOccurred(), "Failed to list control plane nodes")
 
+	By("Finding PerformanceProfiles")
+
+	allProfiles, err := nto.ListProfiles(APIClient)
+	Expect(err).ToNot(HaveOccurred(), "Failed to list PerformanceProfiles")
+
 	for _, node := range controlPlaneNodes {
 		nodeName := node.Object.Name
 
-		// Skip nodes that are not ready or are not master/worker nodes
-		if ready, reason := isNodeReadyForTesting(node); !ready {
+		// Skip nodes that are not ready, schedulable, or don't match any PerformanceProfile
+		if ready, reason := isNodeReadyForTesting(node, allProfiles); !ready {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⊘ Skipping node %s (%s)\n", nodeName, reason)
 
 			continue
@@ -499,11 +513,16 @@ func ValidateWorkerNodeEnforcement() {
 		metav1.ListOptions{LabelSelector: labels.Set{"node-role.kubernetes.io/worker": ""}.String()})
 	Expect(err).ToNot(HaveOccurred(), "Failed to list worker nodes")
 
+	By("Finding PerformanceProfiles")
+
+	allProfiles, err := nto.ListProfiles(APIClient)
+	Expect(err).ToNot(HaveOccurred(), "Failed to list PerformanceProfiles")
+
 	for _, node := range workerNodes {
 		nodeName := node.Object.Name
 
-		// Skip nodes that are not ready or are not master/worker nodes
-		if ready, reason := isNodeReadyForTesting(node); !ready {
+		// Skip nodes that are not ready, schedulable, or don't match any PerformanceProfile
+		if ready, reason := isNodeReadyForTesting(node, allProfiles); !ready {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⊘ Skipping node %s (%s)\n", nodeName, reason)
 
 			continue
@@ -519,6 +538,11 @@ func ValidateWorkerNodeEnforcement() {
 //
 //nolint:gocognit,funlen // Complex multi-node baseline validation with multiple conditional branches
 func ValidateScaleLabBaseline() {
+	By("Finding PerformanceProfiles")
+
+	allProfiles, err := nto.ListProfiles(APIClient)
+	Expect(err).ToNot(HaveOccurred(), "Failed to list PerformanceProfiles")
+
 	By("Validating control plane nodes against scale lab baseline")
 
 	controlPlaneNodes, err := nodes.List(APIClient,
@@ -529,7 +553,7 @@ func ValidateScaleLabBaseline() {
 		Skip("No control plane nodes found - skipping scale lab validation")
 	}
 
-	cmd := []string{"cat", nodeSizingEnvPath}
+	cmd := []string{"chroot", "/rootfs", "cat", nodeSizingEnvPath}
 	scaleLabMax := scaleLabControlPlaneCPUMax
 	scaleLabMaxMemory := scaleLabControlPlaneMemoryMax
 
@@ -539,14 +563,14 @@ func ValidateScaleLabBaseline() {
 	for _, cpNode := range controlPlaneNodes {
 		cpNodeName := cpNode.Object.Name
 
-		// Skip nodes that are not ready or are not master/worker nodes
-		if ready, reason := isNodeReadyForTesting(cpNode); !ready {
+		// Skip nodes that are not ready, schedulable, or don't match any PerformanceProfile
+		if ready, reason := isNodeReadyForTesting(cpNode, allProfiles); !ready {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⊘ Skipping control plane node %s (%s)\n", cpNodeName, reason)
 
 			continue
 		}
 
-		output, err := executeDebugPodCommand(cpNodeName, cmd)
+		output, err := remote.ExecuteOnNodeWithDebugPod(cmd, cpNodeName)
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⚠ Failed to read systemReserved from control plane node %s - skipping\n", cpNodeName)
 
@@ -624,14 +648,14 @@ func ValidateScaleLabBaseline() {
 	for _, workerNode := range workerNodes {
 		workerNodeName := workerNode.Object.Name
 
-		// Skip nodes that are not ready or are not master/worker nodes
-		if ready, reason := isNodeReadyForTesting(workerNode); !ready {
+		// Skip nodes that are not ready, schedulable, or don't match any PerformanceProfile
+		if ready, reason := isNodeReadyForTesting(workerNode, allProfiles); !ready {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⊘ Skipping worker node %s (%s)\n", workerNodeName, reason)
 
 			continue
 		}
 
-		output, err := executeDebugPodCommand(workerNodeName, cmd)
+		output, err := remote.ExecuteOnNodeWithDebugPod(cmd, workerNodeName)
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⚠ Failed to read systemReserved from worker node %s - skipping\n", workerNodeName)
 
@@ -788,9 +812,9 @@ func validateNodeEnforcement(node *nodes.Builder) {
 	By(fmt.Sprintf("Checking kubelet config enforcement on node %s", nodeName))
 
 	// Read kubelet configuration to verify enforcement settings
-	cmd := []string{"cat", "/host/etc/kubernetes/kubelet.conf"}
+	cmd := []string{"chroot", "/rootfs", "cat", "/etc/kubernetes/kubelet.conf"}
 
-	output, err := executeDebugPodCommand(nodeName, cmd)
+	output, err := remote.ExecuteOnNodeWithDebugPod(cmd, nodeName)
 	if err != nil {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("❌ Node %s: Failed to read kubelet config: %v\n", nodeName, err)
 
@@ -865,20 +889,19 @@ func validateNodeEnforcement(node *nodes.Builder) {
 
 // isNodeReadyForTesting checks if a node is in a state where it can be tested.
 // Returns (ready, reason) where ready is true if node can be tested, and reason explains why if not.
-func isNodeReadyForTesting(node *nodes.Builder) (bool, string) {
+func isNodeReadyForTesting(node *nodes.Builder, allProfiles []*nto.Builder) (bool, string) {
 	nodeObj := node.Object
 
-	// Skip storage nodes explicitly - they can have worker label but don't have PerformanceProfile
+	// Skip storage nodes explicitly - they can have worker label but typically don't have PerformanceProfile
 	if _, hasStorageRole := nodeObj.Labels["node-role.kubernetes.io/storage"]; hasStorageRole {
 		return false, "Storage node"
 	}
 
-	// Only test master and worker nodes - other MCPs typically don't have PerformanceProfile
-	_, hasMaster := nodeObj.Labels["node-role.kubernetes.io/master"]
-	_, hasWorker := nodeObj.Labels["node-role.kubernetes.io/worker"]
-
-	if !hasMaster && !hasWorker {
-		return false, "Not master/worker node"
+	// Check if node matches any PerformanceProfile's nodeSelector
+	// This is more flexible than hardcoding master/worker roles
+	matchingProfile := findPerformanceProfileForNode(nodeObj.Labels, allProfiles)
+	if matchingProfile == nil {
+		return false, "No matching PerformanceProfile"
 	}
 
 	// Check if node is schedulable
@@ -896,100 +919,6 @@ func isNodeReadyForTesting(node *nodes.Builder) (bool, string) {
 	}
 
 	return true, ""
-}
-
-// executeDebugPodCommand executes a command on a node via debug pod.
-func executeDebugPodCommand(nodeName string, cmd []string) (string, error) {
-	debugPodName := fmt.Sprintf("systemreserved-debug-%s", strings.ReplaceAll(nodeName, ".", "-"))
-	debugNamespace := "default"
-
-	// Create debug pod that mounts host filesystem
-	debugPod := pod.NewBuilder(
-		APIClient,
-		debugPodName,
-		debugNamespace,
-		"registry.access.redhat.com/ubi8/ubi-minimal:latest",
-	)
-
-	// Configure pod to run on specific node with host filesystem access
-	debugPod.WithNodeSelector(map[string]string{
-		"kubernetes.io/hostname": nodeName,
-	})
-
-	// Mount /etc from host as /host/etc
-	debugPod.Definition.Spec.Volumes = []corev1.Volume{
-		{
-			Name: "host-etc",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/etc",
-				},
-			},
-		},
-	}
-
-	debugPod.Definition.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{
-		{
-			Name:      "host-etc",
-			MountPath: "/host/etc",
-			ReadOnly:  true,
-		},
-	}
-
-	// Keep pod running for command execution
-	debugPod.Definition.Spec.Containers[0].Command = []string{"/bin/sh", "-c", "sleep 300"}
-
-	// Set privileged security context
-	debugPod.Definition.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{
-		Privileged: func(b bool) *bool { return &b }(true),
-	}
-
-	// Add tolerations for master/control-plane nodes
-	debugPod.Definition.Spec.Tolerations = []corev1.Toleration{
-		{
-			Key:      "node-role.kubernetes.io/master",
-			Operator: corev1.TolerationOpExists,
-			Effect:   corev1.TaintEffectNoSchedule,
-		},
-		{
-			Key:      "node-role.kubernetes.io/control-plane",
-			Operator: corev1.TolerationOpExists,
-			Effect:   corev1.TaintEffectNoSchedule,
-		},
-	}
-
-	// Create and wait for pod to be running
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Creating debug pod %s on node %s\n", debugPodName, nodeName)
-
-	_, err := debugPod.CreateAndWaitUntilRunning(5 * time.Minute)
-	if err != nil {
-		return "", fmt.Errorf("failed to create debug pod on node %s: %w", nodeName, err)
-	}
-
-	// Execute the command
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Executing command in debug pod: %v\n", cmd)
-
-	output, err := debugPod.ExecCommand(cmd, debugPod.Definition.Spec.Containers[0].Name)
-	if err != nil {
-		// Try to cleanup even if command failed
-		_, cleanupErr := debugPod.DeleteAndWait(30 * time.Second)
-		if cleanupErr != nil {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Warning: failed to delete debug pod: %v\n", cleanupErr)
-		}
-
-		return "", fmt.Errorf("failed to execute command on node %s: %w", nodeName, err)
-	}
-
-	// Cleanup debug pod
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Cleaning up debug pod %s\n", debugPodName)
-
-	_, err = debugPod.DeleteAndWait(30 * time.Second)
-	if err != nil {
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Warning: failed to delete debug pod: %v\n", err)
-		// Don't return error for cleanup failure - we got the output
-	}
-
-	return output.String(), nil
 }
 
 // parseEnvFile parses environment variable file content into a map.
