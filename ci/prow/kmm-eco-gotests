@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+readonly ARTIFACT_ROOT="${ARTIFACT_DIR:-/tmp/artifacts}"
+readonly REPORT_ROOT="${ECO_REPORTS_DUMP_DIR:-${ARTIFACT_ROOT}/reports}"
+
+mkdir -p "${ARTIFACT_ROOT}" "${REPORT_ROOT}"
+
+export ECO_TEST_FEATURES="${ECO_TEST_FEATURES:-modules}"
+export ECO_TEST_LABELS="${ECO_TEST_LABELS:-KMM}"
+export ECO_TEST_VERBOSE="${ECO_TEST_VERBOSE:-true}"
+export ECO_VERBOSE_LEVEL="${ECO_VERBOSE_LEVEL:-100}"
+export ECO_DUMP_FAILED_TESTS="${ECO_DUMP_FAILED_TESTS:-true}"
+export ECO_REPORTS_DUMP_DIR="${REPORT_ROOT}"
+export ECO_HWACCEL_KMM_REGISTRY="${ECO_HWACCEL_KMM_REGISTRY:-quay.io/ocp-edge-qe}"
+export ECO_HWACCEL_KMM_DEVICE_PLUGIN_IMAGE="${ECO_HWACCEL_KMM_DEVICE_PLUGIN_IMAGE:-quay.io/cvultur/device-plugin:latest-%s}"
+export ECO_HWACCEL_KMM_SUBSCRIPTION_NAME="${ECO_HWACCEL_KMM_SUBSCRIPTION_NAME:-kernel-module-management-subscription}"
+export ECO_TEST_TIMEOUT="${ECO_TEST_TIMEOUT:-12h}"
+
+if [[ -z "${ECO_HWACCEL_KMM_PULL_SECRET:-}" && \
+      -n "${ECO_HWACCEL_KMM_PULL_SECRET_FILE:-}" ]]; then
+  export ECO_HWACCEL_KMM_PULL_SECRET="$(tr -d '\r\n' < "${ECO_HWACCEL_KMM_PULL_SECRET_FILE}")"
+fi
+
+: "${ECO_HWACCEL_KMM_PULL_SECRET:?Set ECO_HWACCEL_KMM_PULL_SECRET or ECO_HWACCEL_KMM_PULL_SECRET_FILE}"
+
+echo "Cluster information"
+oc version || true
+oc get nodes -o wide | tee "${ARTIFACT_ROOT}/nodes.txt"
+
+if [[ "${KMM_REQUIRE_LOCAL_REGISTRY:-true}" == "true" ]]; then
+  echo "Checking the OpenShift integrated registry required by the KMM tests"
+  if ! oc wait --for=condition=Available \
+    deployment.apps/image-registry \
+    --namespace openshift-image-registry --timeout=10m; then
+    oc get configs.imageregistry.operator.openshift.io/cluster \
+      -o yaml > "${ARTIFACT_ROOT}/image-registry-config.yaml" || true
+    oc get pods --namespace openshift-image-registry -o wide \
+      > "${ARTIFACT_ROOT}/image-registry-pods.txt" || true
+    echo "The OpenShift integrated registry is not Available" >&2
+    exit 1
+  fi
+fi
+
+collect_diagnostics() {
+  local rc="$1"
+
+  set +e
+  oc get pods --all-namespaces -o wide > "${ARTIFACT_ROOT}/pods.txt"
+  oc get events --all-namespaces --sort-by=.lastTimestamp > "${ARTIFACT_ROOT}/events.txt"
+  oc get modules.kmm.sigs.x-k8s.io --all-namespaces -o yaml > "${ARTIFACT_ROOT}/modules.yaml"
+  oc get daemonsets,deployments --all-namespaces -o wide > "${ARTIFACT_ROOT}/workloads.txt"
+  return "${rc}"
+}
+
+set +e
+./scripts/test-runner.sh \
+  --junit-report="${ARTIFACT_ROOT}/junit.xml" \
+  --json-report="${ARTIFACT_ROOT}/ginkgo.json" \
+  "$@"
+test_rc="$?"
+collect_diagnostics "${test_rc}"
+exit "${test_rc}"
