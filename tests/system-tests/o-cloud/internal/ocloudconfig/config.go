@@ -148,6 +148,13 @@ type OCloudConfig struct {
 	MockSMOBaseURL string `yaml:"mock_smo_base_url" envconfig:"ECO_OCLOUD_MOCK_SMO_BASE_URL"`
 	// O2IMSBaseURL is the base URL for the O2IMS API.
 	O2IMSBaseURL string `yaml:"o2ims_base_url" envconfig:"ECO_OCLOUD_O2IMS_BASE_URL"`
+
+	// ScalePRName is the existing ProvisioningRequest to use for scale-in/out tests.
+	ScalePRName string `yaml:"scale_pr_name" envconfig:"ECO_OCLOUD_SCALE_PR_NAME"`
+	// ScaleSpokeKubeconfig is the kubeconfig path for the spoke used in scale-in/out tests.
+	ScaleSpokeKubeconfig string `yaml:"scale_spoke_kubeconfig" envconfig:"ECO_OCLOUD_SCALE_SPOKE_KUBECONFIG"`
+	// ScaleTimeout is the timeout for one scale-in or scale-out operation.
+	ScaleTimeout time.Duration `yaml:"scale_timeout" envconfig:"ECO_OCLOUD_SCALE_TIMEOUT"`
 }
 
 // NewOCloudConfig returns instance of OCloudConfig config type.
