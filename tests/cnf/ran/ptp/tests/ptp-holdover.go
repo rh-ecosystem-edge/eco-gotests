@@ -687,7 +687,8 @@ func changeHoldoverSettings(
 		restoreTime := time.Now()
 
 		restoreErr = profiles.WaitForHoldoverSettingsApplied(
-			RANConfig.Spoke1APIClient, testData.NodeName, testData.ProfileInfo, restoreTime, 5*time.Minute)
+			RANConfig.Spoke1APIClient, testData.NodeName, testData.ProfileInfo, restoreTime, 5*time.Minute,
+			RANConfig.Spoke1OperatorVersions[ranparam.PTP])
 		Expect(restoreErr).ToNot(HaveOccurred(), "Daemon did not reload after restore")
 
 		restoreTime = time.Now()
@@ -699,7 +700,8 @@ func changeHoldoverSettings(
 	setTime := time.Now()
 
 	err = profiles.WaitForHoldoverSettingsApplied(
-		RANConfig.Spoke1APIClient, testData.NodeName, testData.ProfileInfo, setTime, 3*time.Minute)
+		RANConfig.Spoke1APIClient, testData.NodeName, testData.ProfileInfo, setTime, 3*time.Minute,
+		RANConfig.Spoke1OperatorVersions[ranparam.PTP])
 	Expect(err).ToNot(HaveOccurred(), "Daemon did not reload after config change")
 
 	setTime = time.Now()

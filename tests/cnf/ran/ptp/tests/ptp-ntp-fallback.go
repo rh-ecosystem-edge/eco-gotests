@@ -86,7 +86,8 @@ var _ = Describe("PTP GNSS with NTP Fallback", Label(tsparams.LabelNTPFallback),
 
 			err := daemonlogs.WaitForProfileLoadOnPTPNodes(RANConfig.Spoke1APIClient,
 				daemonlogs.WithStartTime(startTime),
-				daemonlogs.WithTimeout(5*time.Minute))
+				daemonlogs.WithTimeout(5*time.Minute),
+				daemonlogs.WithPTPVersion(RANConfig.Spoke1OperatorVersions[ranparam.PTP]))
 			if err != nil {
 				// Timeouts may occur if the profiles changed do not apply to all PTP nodes, so we make
 				// this non-fatal. This only happens in certain scenarios in MNO clusters.
@@ -611,7 +612,8 @@ func waitForLoadAndTS2PHCLocked(prometheusAPI prometheusv1.API, nodeName string,
 
 	err := daemonlogs.WaitForProfileLoadOnNodes(RANConfig.Spoke1APIClient, []string{nodeName},
 		daemonlogs.WithStartTime(updateTime),
-		daemonlogs.WithTimeout(5*time.Minute))
+		daemonlogs.WithTimeout(5*time.Minute),
+		daemonlogs.WithPTPVersion(RANConfig.Spoke1OperatorVersions[ranparam.PTP]))
 	Expect(err).ToNot(HaveOccurred(), "Failed to wait for profile load on node %s", nodeName)
 
 	// If we do not wait for ts2phc to start properly after the profile load, we risk ending up in a situation where
