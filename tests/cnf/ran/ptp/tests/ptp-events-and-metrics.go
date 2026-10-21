@@ -14,6 +14,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/internal/nicinfo"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/querier"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/consumer"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/daemonlogs"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/events"
@@ -61,7 +62,8 @@ var _ = Describe("PTP Events and Metrics", Label(tsparams.LabelEventsAndMetrics)
 
 			err := daemonlogs.WaitForProfileLoadOnPTPNodes(RANConfig.Spoke1APIClient,
 				daemonlogs.WithStartTime(startTime),
-				daemonlogs.WithTimeout(5*time.Minute))
+				daemonlogs.WithTimeout(5*time.Minute),
+				daemonlogs.WithPTPVersion(RANConfig.Spoke1OperatorVersions[ranparam.PTP]))
 			if err != nil {
 				// Timeouts may occur if the profiles changed do not apply to all PTP nodes, so we make
 				// this non-fatal. This only happens in certain scenarios in MNO clusters.

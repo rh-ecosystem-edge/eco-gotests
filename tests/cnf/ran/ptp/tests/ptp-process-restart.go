@@ -87,7 +87,8 @@ var _ = Describe("PTP Process Restart", Label(tsparams.LabelProcessRestart), fun
 
 			err := daemonlogs.WaitForProfileLoadOnPTPNodes(RANConfig.Spoke1APIClient,
 				daemonlogs.WithStartTime(startTime),
-				daemonlogs.WithTimeout(5*time.Minute))
+				daemonlogs.WithTimeout(5*time.Minute),
+				daemonlogs.WithPTPVersion(RANConfig.Spoke1OperatorVersions[ranparam.PTP]))
 			if err != nil {
 				// Timeouts may occur if the profiles changed do not apply to all PTP nodes, so we make
 				// this non-fatal. This only happens in certain scenarios in MNO clusters.
