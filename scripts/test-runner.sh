@@ -39,7 +39,7 @@ fi
 
 
 # Build ginkgo command
-cmd="ginkgo -timeout=24h --keep-going --require-suite -r"
+cmd="ginkgo -timeout=${ECO_TEST_TIMEOUT:-24h} --keep-going --require-suite -r"
 
 if [[ "${ECO_TEST_VERBOSE}" == "true" ]]; then
     cmd+=" -vv"
