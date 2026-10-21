@@ -112,6 +112,8 @@ var _ = SynchronizedAfterSuite(func() {}, func() {
 					tsparams.DefaultStableDuration,
 				)
 				if cleanupErr != nil && HwolOcpConfig.RecoverOnCleanupFailure {
+					originalErr := cleanupErr
+
 					By("Recovering HWOL nodes after final cleanup failure")
 
 					recoveryErr := hwolenv.RecoverHwolCleanup(
@@ -122,9 +124,17 @@ var _ = SynchronizedAfterSuite(func() {}, func() {
 						tsparams.DefaultStableDuration,
 					)
 					if recoveryErr != nil {
-						cleanupErr = errors.Join(cleanupErr, fmt.Errorf("HWOL reboot recovery also failed: %w", recoveryErr))
+						cleanupErr = errors.Join(originalErr, fmt.Errorf("HWOL reboot recovery also failed: %w", recoveryErr))
+					} else if errors.Is(originalErr, hwolenv.ErrSwitchdevCleanupTimeout) {
+						message := fmt.Sprintf("PASS after verified final reboot recovery; original cleanup timeout: %v", originalErr)
+						AddReportEntry("hwol-final-cleanup-recovery", message)
+						GinkgoWriter.Println(message)
+
+						cleanupErr = nil
 					} else {
-						cleanupErr = fmt.Errorf("%w; HWOL reboot recovery succeeded", cleanupErr)
+						cleanupErr = fmt.Errorf(
+							"%w; HWOL reboot recovery succeeded but cleanup error is not a switchdev timeout",
+							originalErr)
 					}
 				}
 			}

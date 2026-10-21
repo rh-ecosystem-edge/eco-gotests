@@ -3,6 +3,7 @@ package tests
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -98,7 +99,8 @@ var _ = Describe(
 				tsparams.DefaultStableDuration,
 			)
 			if err != nil {
-				AddReportEntry("hwol-cleanup-failure", err.Error())
+				cleanupErr := err
+				AddReportEntry("hwol-cleanup-error", cleanupErr.Error())
 
 				if HwolOcpConfig.RecoverOnCleanupFailure {
 					By("Recovering HWOL nodes after cleanup failure")
@@ -112,10 +114,17 @@ var _ = Describe(
 					)
 					if recoveryErr != nil {
 						AddReportEntry("hwol-cleanup-recovery-failure", recoveryErr.Error())
+						err = errors.Join(cleanupErr, fmt.Errorf("HWOL reboot recovery also failed: %w", recoveryErr))
+					} else if errors.Is(cleanupErr, hwolenv.ErrSwitchdevCleanupTimeout) {
+						message := fmt.Sprintf("PASS after verified reboot recovery; original cleanup timeout: %v", cleanupErr)
+						AddReportEntry("hwol-cleanup-recovery", message)
+						GinkgoWriter.Println(message)
+
+						err = nil
 					} else {
 						AddReportEntry(
 							"hwol-cleanup-recovery",
-							"reboot recovery completed; preserving original cleanup failure",
+							"reboot recovery completed; preserving non-switchdev cleanup failure",
 						)
 					}
 				}

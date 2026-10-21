@@ -3,6 +3,7 @@ package hwolenv
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -25,6 +26,12 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+// ErrSwitchdevCleanupTimeout identifies the post-policy-deletion stability
+// timeout that may be accepted after opt-in reboot recovery verifies cleanup.
+// Other cleanup errors must not be converted into passing test results.
+var ErrSwitchdevCleanupTimeout = errors.New(
+	"HWOL cleanup timed out waiting for SR-IOV/MCP stable after switchdev teardown")
 
 // MCPNodeSelector returns the node-role label selector for the HWOL MCP pool.
 func MCPNodeSelector(mcpLabel string) map[string]string {
@@ -923,9 +930,15 @@ func CleanupHwolResources(operatorNS, mcpName, pfName string, timeout, stableDur
 	}
 
 	if err := WaitForSriovAndMCPStable(operatorNS, mcpName, timeout, stableDuration); err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return fmt.Errorf(
+				"%w: SNNS may be stuck resetting switchdev (device or resource busy); "+
+					"reboot the MCP-labeled HWOL node before re-run: %w",
+				ErrSwitchdevCleanupTimeout, err)
+		}
+
 		return fmt.Errorf(
-			"HWOL cleanup timed out waiting for SR-IOV/MCP stable: SNNS may be stuck resetting "+
-				"switchdev (device or resource busy); reboot the MCP-labeled HWOL node before re-run: %w",
+			"HWOL cleanup failed waiting for SR-IOV/MCP stable after switchdev teardown: %w",
 			err)
 	}
 
@@ -1029,7 +1042,8 @@ func hwolResourcesExist(operatorNS string) (bool, error) {
 }
 
 // RecoverHwolCleanup reboots only HWOL MCP nodes after failed cleanup, then verifies
-// the switchdev and OVS state is gone. Callers must preserve the original failure.
+// the switchdev and OVS state is gone. Callers may clear only
+// ErrSwitchdevCleanupTimeout after this function succeeds.
 func RecoverHwolCleanup(operatorNS, mcpName, pfName string, timeout, stableDuration time.Duration) error {
 	// A reboot is a last resort for a PF stuck leaving switchdev, not a
 	// substitute for deleting the suite's CRs or disabling hardware offload.

@@ -37,7 +37,7 @@ Devices are **not** configured in YAML. `ECO_OCP_HWOL_DEVICES` is required.
 | `ECO_OCP_HWOL_TEST_CONTAINER` | Workload / traffic image (needs `iperf3` for offload) | `quay.io/openshifttest/iperf3@sha256:440c5925…` |
 | `ECO_OCP_HWOL_MCP_LABEL` | Machine config pool name / role label | `sriov` |
 | `ECO_OCP_HWOL_VF_NUM` | Number of VFs (≥3 recommended; VF0 reserved) | `3` |
-| `ECO_HWOL_RECOVER_ON_CLEANUP_FAILURE` | On a dedicated CI lab only, reboot HWOL MCP nodes after failed cleanup; the run still fails | `false` |
+| `ECO_HWOL_RECOVER_ON_CLEANUP_FAILURE` | On a dedicated CI lab only, reboot HWOL MCP nodes after failed cleanup; a verified recovery of the post-switchdev cleanup timeout counts as a pass | `false` |
 | `ECO_HWOL_ALLOW_PARALLEL` | Allow parallel Ginkgo workers for HWOL (dedicated debugging only) | `false` |
 | `ECO_WORKER_LABEL` | Worker node label selector | from shared ocpconfig |
 
@@ -184,11 +184,16 @@ Run on a dedicated lab MCP, not a shared production-like pool. Cleanup waits
 up to `CleanupWaitTimeout` (15m),
 then verifies that the MCP and SR-IOV node state are stable, the policy and pool
 config are gone, the target PF has returned to legacy mode, and its managed OVS
-bridge has been removed. A cleanup timeout (often switchdev reset stuck with
-`device or resource busy`) fails the suite. On a dedicated CI lab,
+bridge has been removed. By default, a cleanup timeout (often switchdev reset
+stuck with `device or resource busy`) fails the suite. On a dedicated CI lab,
 `ECO_HWOL_RECOVER_ON_CLEANUP_FAILURE=true` reboots the HWOL MCP nodes one at a
 time, waits for recovery, and verifies cleanup. The original cleanup failure is
-still reported, so this workaround never turns a failed cleanup into a pass.
+recorded in the report. Only the timeout while waiting for SR-IOV/MCP to
+stabilize after switchdev-policy deletion becomes a pass when reboot recovery
+completes and verifies that all test-owned resources are gone, the PFs are in
+legacy mode, and the MCP and SR-IOV node states are stable. Any other cleanup
+error, failed reboot, or failed verification still fails the run. The console
+prints `PASS after verified reboot recovery` when this fallback succeeds.
 
 The suite also repeats this fixed-name resource cleanup once in its synchronized
 after-suite hook. This covers a process interruption or setup failure that

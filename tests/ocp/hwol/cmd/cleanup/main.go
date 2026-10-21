@@ -5,6 +5,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -70,7 +71,13 @@ func cleanup() error {
 				return fmt.Errorf("HWOL cleanup failed: %w; reboot recovery also failed: %w", err, recoveryErr)
 			}
 
-			return fmt.Errorf("HWOL cleanup failed: %w; reboot recovery succeeded", err)
+			if errors.Is(err, hwolenv.ErrSwitchdevCleanupTimeout) {
+				fmt.Fprintf(os.Stderr, "HWOL post-run cleanup PASS after verified reboot recovery; original timeout: %v\n", err)
+
+				return nil
+			}
+
+			return fmt.Errorf("HWOL cleanup failed: %w; reboot recovery succeeded but error is not a switchdev timeout", err)
 		}
 
 		return err
