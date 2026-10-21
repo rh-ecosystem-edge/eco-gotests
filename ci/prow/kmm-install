@@ -69,7 +69,7 @@ oc wait --for=jsonpath='{.status.phase}'=Succeeded \
   "csv/${csv}" --namespace "${KMM_NAMESPACE}" --timeout=15m
 oc wait --for=condition=Available \
   deployment.apps/kmm-operator-controller \
-  deployment.apps/kmm-operator-webhook \
+  deployment.apps/kmm-operator-webhook-server \
   --namespace "${KMM_NAMESPACE}" --timeout=10m
 
 oc get csv "${csv}" --namespace "${KMM_NAMESPACE}"

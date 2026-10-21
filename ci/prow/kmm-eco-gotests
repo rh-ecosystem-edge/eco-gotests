@@ -23,8 +23,6 @@ if [[ -z "${ECO_HWACCEL_KMM_PULL_SECRET:-}" && \
   export ECO_HWACCEL_KMM_PULL_SECRET="$(tr -d '\r\n' < "${ECO_HWACCEL_KMM_PULL_SECRET_FILE}")"
 fi
 
-: "${ECO_HWACCEL_KMM_PULL_SECRET:?Set ECO_HWACCEL_KMM_PULL_SECRET or ECO_HWACCEL_KMM_PULL_SECRET_FILE}"
-
 echo "Cluster information"
 oc version || true
 oc get nodes -o wide | tee "${ARTIFACT_ROOT}/nodes.txt"
