@@ -37,7 +37,8 @@ Devices are **not** configured in YAML. `ECO_OCP_HWOL_DEVICES` is required.
 | `ECO_OCP_HWOL_TEST_CONTAINER` | Workload / traffic image (needs `iperf3` for offload) | `quay.io/openshifttest/iperf3@sha256:440c5925…` |
 | `ECO_OCP_HWOL_MCP_LABEL` | Machine config pool name / role label | `sriov` |
 | `ECO_OCP_HWOL_VF_NUM` | Number of VFs (≥3 recommended; VF0 reserved) | `3` |
-| `ECO_HWOL_RECOVER_ON_CLEANUP_FAILURE` | On a dedicated CI lab only, reboot HWOL MCP nodes after failed cleanup; the run still fails | `false` |
+| `ECO_HWOL_RECOVER_ON_CLEANUP_FAILURE` | On a dedicated CI lab only, reboot HWOL MCP nodes after failed cleanup; a verified recovery of the post-switchdev cleanup timeout counts as a pass | `false` |
+| `ECO_HWOL_ALLOW_PARALLEL` | Allow parallel Ginkgo workers for HWOL (dedicated debugging only) | `false` |
 | `ECO_WORKER_LABEL` | Worker node label selector | from shared ocpconfig |
 
 Default test image is the OpenShift org Quay `iperf3` image (digest-pinned). Prefer
@@ -143,28 +144,78 @@ export ECO_OCP_HWOL_VF_NUM=3
 make run-tests
 ```
 
-The Ordered HWOL spec ensures `SriovOperatorConfig`
-(`featureGates.manageSoftwareBridges`, `enableOvsOffload`; mellanox plugin left
-enabled so firmware SR-IOV/TotalVfs can be programmed on CX6), creates
+Before changing any HWOL-owned resource, the Ordered HWOL spec verifies that
+`SriovOperatorConfig` already enables `featureGates.manageSoftwareBridges` and
+`enableOvsOffload`, that the mellanox plugin is not disabled, and that no
+non-HWOL policy selects the requested PF. The suite never mutates the
+cluster-wide operator configuration. Configure these prerequisites on a
+dedicated HWOL MCP; a shared or externally OVS-managed PF is rejected before
+the suite changes cluster state. If this read-only preflight fails, the suite
+does not create a namespace, pull images, or perform cleanup against the PF.
+
+After this preflight, the Ordered HWOL spec creates
 `SriovNetworkPoolConfig` (OvsHardwareOffload only — no parallel
-nodeSelector/maxUnavailable), applies switchdev policy with `bridge.ovs: {}`,
-and waits for MCP/node-state sync. The `switchdev` spec asserts
+nodeSelector/maxUnavailable). The SR-IOV Operator renders the corresponding
+`00-<MCP>-ovs-hw-offload` MachineConfig; it is owned indirectly by the suite's
+PoolConfig, not by a hand-written MachineConfig. Cleanup deletes the workload
+networks, deletes that PoolConfig, waits for the operator to remove its
+MachineConfig and for the MCP to disable hardware offload, and only then
+removes the switchdev policy. This avoids asking mlx5 to change eSwitch mode
+while OVN's offloaded TC rules still hold eSwitch references (`E-BUSY`). A
+different PoolConfig already enabling OVS offload on the same MCP is rejected
+during preflight because it would share that MachineConfig. The suite then
+applies switchdev policy with `bridge.ovs: {}`, and waits for MCP/node-state
+sync. The `switchdev` spec asserts
 `eSwitchMode=switchdev` and a managed OVS bridge uplink. Attach table Entries
 create the network CR, assert NAD type/resource (and bridge for ovs), and run a
 sleep pod. The ovs offload Entry creates two same-node iperf pods, asserts
 representors on the managed bridge, runs traffic, and asserts non-empty
 `type=offloaded` datapath flows on the node.
 
-`AfterAll` removes only the HWOL-created OVSNetwork/SriovNetwork objects,
-`hwol-switchdev` policy, and HWOL pool config — run on a dedicated lab MCP, not
-a shared production-like pool. Cleanup waits up to `CleanupWaitTimeout` (15m),
+`AfterAll` first deletes the HWOL test namespace and waits for its pods to
+release their VFs and OVS representors. Ginkgo runs `AfterAll` before the last
+Ordered spec's `DeferCleanup` callbacks, so those callbacks alone are not a
+sufficient barrier. It then removes only the HWOL-created
+OVSNetwork/SriovNetwork objects, `hwol-switchdev` policy, and HWOL pool config.
+Every one of these resources
+carries `eco-gotests.openshift.io/test=ocp-hwol`; a matching unlabelled object
+is treated as externally owned and is rejected rather than changed or deleted.
+Run on a dedicated lab MCP, not a shared production-like pool. Cleanup waits
+up to `CleanupWaitTimeout` (15m),
 then verifies that the MCP and SR-IOV node state are stable, the policy and pool
 config are gone, the target PF has returned to legacy mode, and its managed OVS
-bridge has been removed. A cleanup timeout (often switchdev reset stuck with
-`device or resource busy`) fails the suite. On a dedicated CI lab,
+bridge has been removed. By default, a cleanup timeout (often switchdev reset
+stuck with `device or resource busy`) fails the suite. On a dedicated CI lab,
 `ECO_HWOL_RECOVER_ON_CLEANUP_FAILURE=true` reboots the HWOL MCP nodes one at a
 time, waits for recovery, and verifies cleanup. The original cleanup failure is
-still reported, so this workaround never turns a failed cleanup into a pass.
+recorded in the report. Only the timeout while waiting for SR-IOV/MCP to
+stabilize after switchdev-policy deletion becomes a pass when reboot recovery
+completes and verifies that all test-owned resources are gone, the PFs are in
+legacy mode, and the MCP and SR-IOV node states are stable. Any other cleanup
+error, failed reboot, or failed verification still fails the run. The console
+prints `PASS after verified reboot recovery` when this fallback succeeds.
+
+The suite also repeats this fixed-name resource cleanup once in its synchronized
+after-suite hook. This covers a process interruption or setup failure that
+prevents the ordered `AfterAll` from running. It reruns the stability wait and
+cleanup verification even when no resources remain, so it adds runtime.
+
+`scripts/test-runner.sh` forces HWOL to one Ginkgo process by default, then
+runs an independent post-run cleanup command after Ginkgo exits. The command
+deletes only suite-owned resources and fails unless every matching PF returns
+to `legacy` (or the operator's empty/default representation), with no managed
+HWOL bridge or rendered offload MachineConfig remaining. Configure the BOS2
+Jenkins job to run the same command from an unconditional post-build step;
+that post step is needed if the runner itself is interrupted before its normal
+post-run guard can execute:
+
+```bash
+go run ./tests/ocp/hwol/cmd/cleanup
+```
+
+The cleanup command revalidates PF/MCP ownership before it changes anything.
+If the PF has become shared or an unowned fixed-name resource exists, it exits
+unsuccessfully and leaves that resource untouched.
 
 ## Current coverage
 
