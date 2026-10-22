@@ -1,6 +1,6 @@
 ---
 # CNF Network default configurations.
-cnf_net_test_container: quay.io/ocp-edge-qe/eco-gotests-network-client:v4.15.2
+cnf_net_test_container: quay.io/ocp-edge-qe/eco-gotests-network-client:v4.20
 dpdk_test_container: quay.io/ocp-edge-qe/eco-gotests-rootless-dpdk:v4.15.0
 metal_lb_operator_namespace: metallb-system
 frr-k8s_namespace: openshift-frr-k8s
