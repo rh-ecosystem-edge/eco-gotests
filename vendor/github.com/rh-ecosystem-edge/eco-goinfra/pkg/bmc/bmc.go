@@ -65,6 +65,13 @@ type BMC struct {
 	sshPort     uint16
 	timeOuts    TimeOuts
 
+	// insecureSkipVerify determines whether to skip redfish TLS certificate verification. The default is true for
+	// backwards compatibility.
+	insecureSkipVerify bool
+	// sshHostKeyCallback is the callback function for SSH host key verification. It is set to nil by default,
+	// meaning SSH host key verification is skipped.
+	sshHostKeyCallback ssh.HostKeyCallback
+
 	systemIndex       int
 	powerControlIndex int
 
@@ -86,6 +93,9 @@ func New(host string) *BMC {
 		timeOuts:          DefaultTimeOuts,
 		systemIndex:       0,
 		powerControlIndex: 0,
+
+		// insecureSkipVerify is set to true by default for backwards compatibility.
+		insecureSkipVerify: true,
 	}
 
 	if host == "" {
@@ -262,6 +272,34 @@ func (bmc *BMC) WithSSHTimeout(timeout time.Duration) *BMC {
 	return bmc
 }
 
+// WithInsecureConnections allows setting whether to skip TLS certificate verification for Redfish connections. The
+// default of true means Redfish TLS verification is skipped.
+func (bmc *BMC) WithInsecureConnections(insecure bool) *BMC {
+	if valid, _ := bmc.validate(); !valid {
+		return bmc
+	}
+
+	bmc.insecureSkipVerify = insecure
+
+	klog.V(100).Infof("Setting insecure redfish connections to %t", insecure)
+
+	return bmc
+}
+
+// WithSSHHostKeyCallback provides a callback to verify the BMC's SSH host key. If no callback is set, host key
+// verification is skipped.
+func (bmc *BMC) WithSSHHostKeyCallback(callback ssh.HostKeyCallback) *BMC {
+	if valid, _ := bmc.validate(); !valid {
+		return bmc
+	}
+
+	bmc.sshHostKeyCallback = callback
+
+	klog.V(100).Info("Setting SSH host key callback")
+
+	return bmc
+}
+
 // SystemManufacturer gets system's manufacturer from the BMC's RedFish API endpoint.
 func (bmc *BMC) SystemManufacturer() (string, error) {
 	if valid, err := bmc.validateRedfish(); !valid {
@@ -274,7 +312,8 @@ func (bmc *BMC) SystemManufacturer() (string, error) {
 		bmc.host,
 		bmc.redfishUser.Name,
 		bmc.redfishUser.Password,
-		bmc.timeOuts.Redfish)
+		bmc.timeOuts.Redfish,
+		bmc.insecureSkipVerify)
 	if err != nil {
 		klog.V(100).Infof("Redfish connection error: %v", err)
 
@@ -308,7 +347,8 @@ func (bmc *BMC) IsSecureBootEnabled() (bool, error) {
 		bmc.host,
 		bmc.redfishUser.Name,
 		bmc.redfishUser.Password,
-		bmc.timeOuts.Redfish)
+		bmc.timeOuts.Redfish,
+		bmc.insecureSkipVerify)
 	if err != nil {
 		klog.V(100).Infof("Redfish connection error: %v", err)
 
@@ -342,7 +382,8 @@ func (bmc *BMC) SecureBootEnable() error {
 		bmc.host,
 		bmc.redfishUser.Name,
 		bmc.redfishUser.Password,
-		bmc.timeOuts.Redfish)
+		bmc.timeOuts.Redfish,
+		bmc.insecureSkipVerify)
 	if err != nil {
 		klog.V(100).Infof("Redfish connection error: %v", err)
 
@@ -391,7 +432,8 @@ func (bmc *BMC) SecureBootDisable() error {
 		bmc.host,
 		bmc.redfishUser.Name,
 		bmc.redfishUser.Password,
-		bmc.timeOuts.Redfish)
+		bmc.timeOuts.Redfish,
+		bmc.insecureSkipVerify)
 	if err != nil {
 		klog.V(100).Infof("Redfish connection error: %v", err)
 
@@ -440,7 +482,8 @@ func (bmc *BMC) SystemResetAction(action redfish.ResetType) error {
 		bmc.host,
 		bmc.redfishUser.Name,
 		bmc.redfishUser.Password,
-		bmc.timeOuts.Redfish)
+		bmc.timeOuts.Redfish,
+		bmc.insecureSkipVerify)
 	if err != nil {
 		klog.V(100).Infof("Redfish connection error: %v", err)
 
@@ -567,7 +610,8 @@ func (bmc *BMC) SystemPowerState() (string, error) {
 		bmc.host,
 		bmc.redfishUser.Name,
 		bmc.redfishUser.Password,
-		bmc.timeOuts.Redfish)
+		bmc.timeOuts.Redfish,
+		bmc.insecureSkipVerify)
 	if err != nil {
 		klog.V(100).Infof("Redfish connection error: %v", err)
 
@@ -623,7 +667,8 @@ func (bmc *BMC) PowerUsage() (float32, error) {
 		bmc.host,
 		bmc.redfishUser.Name,
 		bmc.redfishUser.Password,
-		bmc.timeOuts.Redfish)
+		bmc.timeOuts.Redfish,
+		bmc.insecureSkipVerify)
 	if err != nil {
 		klog.V(100).Infof("Redfish connection error: %v", err)
 
@@ -656,7 +701,8 @@ func (bmc *BMC) SystemBootOptions() (map[string]string, error) {
 		bmc.host,
 		bmc.redfishUser.Name,
 		bmc.redfishUser.Password,
-		bmc.timeOuts.Redfish)
+		bmc.timeOuts.Redfish,
+		bmc.insecureSkipVerify)
 	if err != nil {
 		klog.V(100).Infof("Redfish connection error: %v", err)
 
@@ -704,7 +750,8 @@ func (bmc *BMC) SystemBootOrderReferences() ([]string, error) {
 		bmc.host,
 		bmc.redfishUser.Name,
 		bmc.redfishUser.Password,
-		bmc.timeOuts.Redfish)
+		bmc.timeOuts.Redfish,
+		bmc.insecureSkipVerify)
 	if err != nil {
 		klog.V(100).Infof("Redfish connection error: %v", err)
 
@@ -743,7 +790,8 @@ func (bmc *BMC) SetSystemBootOrderReferences(bootOrderReferences []string) error
 		bmc.host,
 		bmc.redfishUser.Name,
 		bmc.redfishUser.Password,
-		bmc.timeOuts.Redfish)
+		bmc.timeOuts.Redfish,
+		bmc.insecureSkipVerify)
 	if err != nil {
 		klog.V(100).Infof("Redfish connection error: %v", err)
 
@@ -792,7 +840,8 @@ func (bmc *BMC) BootFromCD(isoURL, virtualMediaID string) error {
 		bmc.host,
 		bmc.redfishUser.Name,
 		bmc.redfishUser.Password,
-		bmc.timeOuts.Redfish)
+		bmc.timeOuts.Redfish,
+		bmc.insecureSkipVerify)
 	if err != nil {
 		klog.V(100).Infof("Redfish connection error: %v", err)
 
@@ -1046,15 +1095,16 @@ func (bmc *BMC) CloseSerialConsole() error {
 	return nil
 }
 
-// redfishConnect uses the provided host, credentials, and timeout to produce a gofish APIClient for accessing the
-// Redfish API.
+// redfishConnect uses the provided host, credentials, timeout, and TLS verification setting to produce a gofish
+// APIClient for accessing the Redfish API.
 func redfishConnect(
-	host, user, password string, sessionTimeout time.Duration) (*gofish.APIClient, context.CancelFunc, error) {
+	host, user, password string, sessionTimeout time.Duration, insecureSkipVerify bool) (
+	*gofish.APIClient, context.CancelFunc, error) {
 	gofishConfig := gofish.ClientConfig{
 		Endpoint: "https://" + host,
 		Username: user,
 		Password: password,
-		Insecure: true,
+		Insecure: insecureSkipVerify,
 	}
 
 	ctx, cancel := context.WithTimeout(context.TODO(), sessionTimeout)
@@ -1189,7 +1239,8 @@ func (bmc *BMC) getSupportedResetTypes() ([]redfish.ResetType, error) {
 		bmc.host,
 		bmc.redfishUser.Name,
 		bmc.redfishUser.Password,
-		bmc.timeOuts.Redfish)
+		bmc.timeOuts.Redfish,
+		bmc.insecureSkipVerify)
 	if err != nil {
 		klog.V(100).Infof("Redfish connection error: %v", err)
 
@@ -1211,15 +1262,18 @@ func (bmc *BMC) getSupportedResetTypes() ([]redfish.ResetType, error) {
 	return system.SupportedResetTypes, nil
 }
 
-// createCLISSHClient creates a ssh Session to the host.
-func (bmc *BMC) createCLISSHClient() (*ssh.Client, error) {
+// sshClientConfig builds the SSH client configuration for BMC CLI access.
+func (bmc *BMC) sshClientConfig() (*ssh.ClientConfig, error) {
 	if valid, err := bmc.validateSSH(); !valid {
 		return nil, err
 	}
 
-	klog.V(100).Info("Creating SSH session to run commands in the BMC's CLI.")
+	hostKeyCallback := bmc.sshHostKeyCallback
+	if hostKeyCallback == nil {
+		hostKeyCallback = ssh.InsecureIgnoreHostKey()
+	}
 
-	config := &ssh.ClientConfig{
+	return &ssh.ClientConfig{
 		User: bmc.sshUser.Name,
 		Auth: []ssh.AuthMethod{
 			ssh.Password(bmc.sshUser.Password),
@@ -1235,7 +1289,17 @@ func (bmc *BMC) createCLISSHClient() (*ssh.Client, error) {
 			}),
 		},
 		Timeout:         bmc.timeOuts.SSH,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		HostKeyCallback: hostKeyCallback,
+	}, nil
+}
+
+// createCLISSHClient creates a ssh Session to the host.
+func (bmc *BMC) createCLISSHClient() (*ssh.Client, error) {
+	klog.V(100).Info("Creating SSH session to run commands in the BMC's CLI.")
+
+	config, err := bmc.sshClientConfig()
+	if err != nil {
+		return nil, err
 	}
 
 	// Establish SSH connection

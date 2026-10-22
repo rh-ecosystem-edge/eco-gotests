@@ -226,7 +226,7 @@ func holdoverMapNormalizer(holdovers HoldOverMap) func(string) string {
 }
 
 // GetHoldoverSettings reads holdover settings for the profile, dispatching to the HardwareConfig CR path
-// (4.22+/GNRD E825) when one is associated, or the PtpConfig plugin path otherwise.
+// (4.22+/GNR-D T-BC or T-GM) when one is associated, or the PtpConfig plugin path otherwise.
 func GetHoldoverSettings(client *clients.Settings, profileInfo *ProfileInfo) (*HoldoverPluginSettings, error) {
 	if profileInfo.HardwareConfig != nil {
 		return GetHoldoverHardwareConfigSettings(profileInfo.HardwareConfig)
@@ -241,7 +241,7 @@ func GetHoldoverSettings(client *clients.Settings, profileInfo *ProfileInfo) (*H
 }
 
 // ApplyHoldoverSettings writes holdover settings for the profile, dispatching to the HardwareConfig CR path
-// (4.22+/GNRD E825) when one is associated, or the PtpConfig plugin path otherwise.
+// (4.22+/GNR-D T-BC or T-GM) when one is associated, or the PtpConfig plugin path otherwise.
 func ApplyHoldoverSettings(
 	client *clients.Settings, profileInfo *ProfileInfo, settings HoldoverPluginSettings) error {
 	if profileInfo.HardwareConfig != nil {

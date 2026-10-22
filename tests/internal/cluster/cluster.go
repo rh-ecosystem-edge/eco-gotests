@@ -1,7 +1,10 @@
 package cluster
 
 import (
+	"errors"
+	"io"
 	"regexp"
+	"slices"
 
 	configv1 "github.com/openshift/api/config/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/infrastructure"
@@ -59,6 +62,13 @@ func PullTestImageOnNodes(apiClient *clients.Settings, nodeSelector, image strin
 		if err != nil {
 			return err
 		}
+
+		// PullImage deletes the pod without waiting. The next pull reuses this name and
+		// would skip creation while the old pod is still terminating.
+		err = podBuilder.WaitUntilDeleted(time.Duration(pullTimeout) * time.Second)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -97,7 +107,7 @@ func ExecCmd(apiClient *clients.Settings, nodeSelector string, shellCmd string) 
 
 			klog.V(90).Infof("Exec cmd %v on pod %s", cmdToExec, mcPod.Definition.Name)
 
-			buf, err := mcPod.ExecCommand(cmdToExec)
+			buf, err := mcPod.ExecCommandWithTimeout(cmdToExec, 1*time.Minute)
 			if err != nil {
 				return fmt.Errorf("%w\n%s", err, buf.String())
 			}
@@ -181,7 +191,8 @@ func ExecCmdWithStdout(
 
 			commandBuf, err := mcPod.ExecCommand(cmdToExec)
 			if err != nil {
-				return nil, fmt.Errorf("failed executing command '%s' on node %s: %w", shellCmd, hostnameBuf.String(), err)
+				return nil, fmt.Errorf("failed executing command '%s' on node %s\noutput: %q\nerror: %w",
+					shellCmd, hostnameBuf.String(), commandBuf.String(), err)
 			}
 
 			hostname := regexp.MustCompile(`\r`).ReplaceAllString(hostnameBuf.String(), "")
@@ -308,11 +319,75 @@ func WaitForRouteAPIAvailable(
 		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
 			_, err := route.Pull(client, routeName, routeNamespace)
 			if err != nil {
-				return true, nil
+				klog.V(90).Infof(
+					"route API not ready yet (route %s/%s): %v", routeNamespace, routeName, err)
+
+				return false, nil
 			}
 
-			return false, nil
+			return true, nil
 		})
+}
+
+// SoftRebootNodes executes systemctl reboot on provided node names.
+func SoftRebootNodes(apiClient *clients.Settings, nodeNames []string) error {
+	if len(nodeNames) == 0 {
+		return fmt.Errorf("at least one node name is required")
+	}
+
+	rebootCmd := "sudo systemctl reboot"
+
+	klog.V(90).Infof("Rebooting nodes %v", nodeNames)
+
+	nodeList, err := nodes.List(
+		apiClient,
+	)
+	if err != nil {
+		return err
+	}
+
+	var nodeListNames []string
+	for _, node := range nodeList {
+		nodeListNames = append(nodeListNames, node.Object.Name)
+	}
+
+	for _, node := range nodeNames {
+		if !slices.Contains(nodeListNames, node) {
+			return fmt.Errorf("node %s not found in list of nodes names %v", node, nodeListNames)
+		}
+	}
+
+	for _, node := range nodeNames {
+		listOptions := metav1.ListOptions{
+			FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": node}).String(),
+			LabelSelector: labels.SelectorFromSet(labels.Set{"k8s-app": GeneralConfig.MCOConfigDaemonName}).String(),
+		}
+
+		mcPodList, err := pod.List(apiClient, GeneralConfig.MCONamespace, listOptions)
+		if err != nil {
+			return err
+		}
+
+		for _, mcPod := range mcPodList {
+			err = mcPod.WaitUntilRunning(300 * time.Second)
+			if err != nil {
+				return err
+			}
+
+			cmdToExec := []string{"sh", "-c", fmt.Sprintf("nsenter --mount=/proc/1/ns/mnt -- sh -c '%s'", rebootCmd)}
+
+			klog.V(90).Infof("Exec cmd %v on pod %s", cmdToExec, mcPod.Definition.Name)
+
+			buf, err := mcPod.ExecCommand(cmdToExec)
+			// Allow unexpected EOF, due to reboot SSH conncetions could be distrupted before
+			// the graceful exit of the command causing a 'Unexpected EOF'.
+			if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) {
+				return fmt.Errorf("soft reboot failed: %w\n%s", err, buf.String())
+			}
+		}
+	}
+
+	return nil
 }
 
 // SoftRebootSNO executes systemctl reboot on a node.
@@ -322,6 +397,12 @@ func SoftRebootSNO(apiClient *clients.Settings, retries uint, interval time.Dura
 	cmdToExec := "sudo systemctl reboot"
 
 	_, err := ExecCommandOnSNOWithRetries(apiClient, retries, interval, cmdToExec)
+
+	// Allow unexpected EOF, due to reboot SSH conncetions could be distrupted before
+	// the graceful exit of the command causing a 'Unexpected EOF'.
+	if errors.Is(err, io.ErrUnexpectedEOF) {
+		return nil
+	}
 
 	return err
 }

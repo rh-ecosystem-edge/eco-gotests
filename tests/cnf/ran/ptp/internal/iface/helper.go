@@ -17,7 +17,7 @@ import (
 )
 
 // GetNICDriver uses ethtool to retrieve the driver for a given network interface on a specified node.
-func GetNICDriver(client *clients.Settings, nodeName string, ifName Name) (string, error) {
+func GetNICDriver(client *clients.Settings, nodeName string, ifName Iface) (string, error) {
 	command := fmt.Sprintf("ethtool -i %s | grep --color=no driver | awk '{print $2}'", ifName)
 
 	output, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, command)
@@ -30,7 +30,7 @@ func GetNICDriver(client *clients.Settings, nodeName string, ifName Name) (strin
 
 // GetEgressInterfaceName retrieves the name of the interface that is connected to the egress network. Tests should
 // avoid bringing down this interface so they maintain cluster connectivity.
-func GetEgressInterfaceName(client *clients.Settings, nodeName string) (Name, error) {
+func GetEgressInterfaceName(client *clients.Settings, nodeName string) (Iface, error) {
 	command := "MAC=$(cat /sys/class/net/br-ex/address); ip addr | grep -B 1 ${MAC} | " +
 		"grep \" UP \" | grep -v br-ex | awk '{print $2}' | tr -d [:]"
 
@@ -40,12 +40,12 @@ func GetEgressInterfaceName(client *clients.Settings, nodeName string) (Name, er
 		return "", fmt.Errorf("failed to get OCP interface name for node %s: %w", nodeName, err)
 	}
 
-	return Name(strings.TrimSpace(output)), nil
+	return Iface(strings.TrimSpace(output)), nil
 }
 
 // GetPTPHardwareClock uses ethtool to retrieve the PTP hardware clock for a given network interface on a specified
 // node.
-func GetPTPHardwareClock(client *clients.Settings, nodeName string, ifName Name) (int, error) {
+func GetPTPHardwareClock(client *clients.Settings, nodeName string, ifName Iface) (int, error) {
 	command := fmt.Sprintf(
 		"ethtool -T %s | grep -E 'PTP Hardware Clock|Hardware timestamp provider index' | awk '{print $NF}'", ifName)
 
@@ -65,7 +65,7 @@ func GetPTPHardwareClock(client *clients.Settings, nodeName string, ifName Name)
 
 // AdjustPTPHardwareClock adjusts the PTP hardware clock for a given network interface on a specified node. This affects
 // the CLOCK_REALTIME offset. The amount is in seconds.
-func AdjustPTPHardwareClock(client *clients.Settings, nodeName string, ifName Name, amount float64) error {
+func AdjustPTPHardwareClock(client *clients.Settings, nodeName string, ifName Iface, amount float64) error {
 	hardwareClock, err := GetPTPHardwareClock(client, nodeName, ifName)
 	if err != nil {
 		return fmt.Errorf("failed to get PTP hardware clock for interface %s on node %s: %w", ifName, nodeName, err)
@@ -82,7 +82,7 @@ func AdjustPTPHardwareClock(client *clients.Settings, nodeName string, ifName Na
 }
 
 // ResetPTPHardwareClock resets the PTP hardware clock for a given network interface on a specified node.
-func ResetPTPHardwareClock(client *clients.Settings, nodeName string, ifName Name) error {
+func ResetPTPHardwareClock(client *clients.Settings, nodeName string, ifName Iface) error {
 	hardwareClock, err := GetPTPHardwareClock(client, nodeName, ifName)
 	if err != nil {
 		return fmt.Errorf("failed to get PTP hardware clock for interface %s on node %s: %w", ifName, nodeName, err)
@@ -100,7 +100,7 @@ func ResetPTPHardwareClock(client *clients.Settings, nodeName string, ifName Nam
 
 // SetInterfaceStatus sets a given interface to a given state. It will wait up to 15 seconds for the interface to be in
 // the expected state after setting it.
-func SetInterfaceStatus(client *clients.Settings, nodeName string, iface Name, state InterfaceState) error {
+func SetInterfaceStatus(client *clients.Settings, nodeName string, iface Iface, state InterfaceState) error {
 	command := fmt.Sprintf("ip link set %s %s", iface, state)
 
 	_, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, command,
@@ -125,7 +125,7 @@ func SetInterfaceStatus(client *clients.Settings, nodeName string, iface Name, s
 // SetInterfacesStatus sets each provided interface to the given state on nodeName.
 // Note: If setting an interface fails, the function returns an error immediately without rolling back
 // previously changed interfaces.
-func SetInterfacesStatus(client *clients.Settings, nodeName string, ifaces []Name, state InterfaceState) error {
+func SetInterfacesStatus(client *clients.Settings, nodeName string, ifaces []Iface, state InterfaceState) error {
 	for _, ifn := range ifaces {
 		err := SetInterfaceStatus(client, nodeName, ifn, state)
 		if err != nil {

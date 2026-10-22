@@ -1,8 +1,6 @@
-package version
+//go:build unit_test
 
-// The version package imports cluster (via version.go), which pulls inittools. For local unit tests of
-// IsVersionStringInRange only, run:
-// UNIT_TEST=true go test ./tests/cnf/ran/internal/version/... -run TestIsVersionStringInRange
+package version
 
 import (
 	"testing"

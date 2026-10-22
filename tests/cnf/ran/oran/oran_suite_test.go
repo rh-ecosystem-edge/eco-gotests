@@ -10,6 +10,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/mustgather"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/rancluster"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/oran/internal/tsparams"
@@ -42,18 +43,32 @@ var _ = JustAfterEach(func() {
 	)
 
 	if Spoke1APIClient != nil {
+		By("collecting k8sreporter for the spoke")
 		reporter.ReportIfFailed(
 			report, currentFile, tsparams.ReporterSpokeNamespacesToDump, tsparams.ReporterSpokeCRsToDump)
 	}
 
+	By("collecting k8sreporter for the hub cluster")
 	reporter.ReportIfFailedOnCluster(
 		RANConfig.HubKubeconfig,
 		report,
 		hubReportPath,
 		tsparams.ReporterHubNamespacesToDump,
 		tsparams.ReporterHubCRsToDump)
+
+	By("collecting o2ims must-gather on the hub cluster")
+	mustgather.CollectIfFailed(
+		report,
+		hubReportPath,
+		RANConfig.HubAPIClient,
+		"o2ims",
+		mustgather.StaticImage(RANConfig.O2IMSMustGatherImage),
+	)
 })
 
 var _ = ReportAfterSuite("", func(report Report) {
-	reportxml.Create(report, RANConfig.GetReportPath(), RANConfig.TCPrefix)
+	reportxml.Create(report, RANConfig.GetReportPath(), RANConfig.TCPrefix,
+		reportxml.WithSuiteProperties(map[string]string{
+			"o2ims-must-gather-image": RANConfig.O2IMSMustGatherImage,
+		}))
 })

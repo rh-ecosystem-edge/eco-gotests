@@ -75,6 +75,13 @@ var _ = Describe("PTP Dual T-BC", Label(tsparams.LabelDualTBC), func() {
 				assertDualTBCHoldoverInSpecToFreerun(testData, profiles.HoldoverPluginSettingsNoOutOfSpec,
 					timeout, profiles.TBCClockClasses())
 			})
+
+		// validates dual t-bc remains locked when backup upstream port is disconnected
+		It("validates dual t-bc remains locked when backup upstream port is disconnected",
+			reportxml.ID("90700"),
+			func() {
+				assertDualTBCBackupPortStaysLocked(testData)
+			})
 	})
 })
 
@@ -168,9 +175,78 @@ func assertDualTBCHoldoverInSpecToFreerun(
 	}
 }
 
+// assertDualTBCBackupPortStaysLocked brings the backup (LISTENING) time-receiver port down and verifies
+// that the clock remains LOCKED with the expected T-BC clock class, the active port stays FOLLOWER, the
+// backup port transitions to FAULTY, and no HOLDOVER event is generated.
+func assertDualTBCBackupPortStaysLocked(testData profiles.HoldoverTestData) {
+	GinkgoHelper()
+
+	activeIface, backupIface := dualTBCActiveBackupInterfaces(testData)
+
+	By(fmt.Sprintf("setting backup upstream interface %s down", backupIface))
+
+	ifaceDownTime := time.Now()
+
+	DeferCleanup(func() {
+		restoreInterfacesAndWaitForRelock(testData.PrometheusAPI, testData.NodeName, testData.UpstreamIfaces)
+	})
+
+	err := iface.SetInterfaceStatus(RANConfig.Spoke1APIClient, testData.NodeName,
+		backupIface, iface.InterfaceStateDown)
+	Expect(err).ToNot(HaveOccurred(),
+		"Failed to set backup upstream interface %s down on node %s", backupIface, testData.NodeName)
+
+	By("validating interface roles after backup port disconnection")
+
+	err = metrics.AssertQuery(context.TODO(), testData.PrometheusAPI, metrics.InterfaceRoleQuery{
+		Interface: metrics.Equals(backupIface),
+		Node:      metrics.Equals(testData.NodeName),
+		Process:   metrics.Equals(metrics.ProcessPTP4L),
+	}, metrics.InterfaceRoleFaulty, metrics.AssertWithTimeout(1*time.Minute))
+	Expect(err).ToNot(HaveOccurred(),
+		"expected backup interface %s to be FAULTY on node %s", backupIface, testData.NodeName)
+
+	err = metrics.AssertQuery(context.TODO(), testData.PrometheusAPI, metrics.InterfaceRoleQuery{
+		Interface: metrics.Equals(activeIface),
+		Node:      metrics.Equals(testData.NodeName),
+		Process:   metrics.Equals(metrics.ProcessPTP4L),
+	}, metrics.InterfaceRoleFollower, metrics.AssertWithTimeout(1*time.Minute))
+	Expect(err).ToNot(HaveOccurred(),
+		"expected active interface %s to remain FOLLOWER on node %s", activeIface, testData.NodeName)
+
+	By("validating clock state remains LOCKED")
+
+	clockStateQuery := metrics.ClockStateQuery{
+		Node:    metrics.Equals(testData.NodeName),
+		Process: metrics.Equals(metrics.ProcessTBC),
+	}
+	err = metrics.AssertQuery(context.TODO(), testData.PrometheusAPI, clockStateQuery, metrics.ClockStateLocked,
+		metrics.AssertWithStableDuration(10*time.Second),
+		metrics.AssertWithTimeout(1*time.Minute))
+	Expect(err).ToNot(HaveOccurred(),
+		"clock state should remain LOCKED on node %s when backup port is down", testData.NodeName)
+
+	expectedClockClass := profiles.TBCClockClasses().Locked
+
+	By(fmt.Sprintf("validating clock class remains %d", expectedClockClass))
+
+	clockClassQuery := metrics.ClockClassQuery{
+		Node:    metrics.Equals(testData.NodeName),
+		Process: metrics.Equals(metrics.ProcessPTP4L),
+		Config:  metrics.Equals(testData.ConfigFile),
+	}
+	err = metrics.AssertQuery(context.TODO(), testData.PrometheusAPI, clockClassQuery, expectedClockClass,
+		metrics.AssertWithStableDuration(10*time.Second),
+		metrics.AssertWithTimeout(1*time.Minute))
+	Expect(err).ToNot(HaveOccurred(),
+		"clock class should remain %d on node %s when backup port is down", expectedClockClass, testData.NodeName)
+
+	assertNoHoldoverEvent(testData.NodeName, ifaceDownTime)
+}
+
 // dualTBCActiveBackupInterfaces returns the currently active (FOLLOWER/SLAVE) and backup (LISTENING)
 // time-receiver interfaces for the dual T-BC profile.
-func dualTBCActiveBackupInterfaces(testData profiles.HoldoverTestData) (iface.Name, iface.Name) {
+func dualTBCActiveBackupInterfaces(testData profiles.HoldoverTestData) (iface.Iface, iface.Iface) {
 	GinkgoHelper()
 
 	clientIfaces := testData.ProfileInfo.GetInterfacesByClockType(profiles.ClockTypeClient)

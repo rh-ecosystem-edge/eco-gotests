@@ -110,7 +110,7 @@ var _ = Describe("CNF VRF", Ordered, Label(tsparams.LabelSriovVRFTestCases), Con
 		reportxml.ID("36303"),
 		func(sameNode bool) {
 			clientNetConfig, serverNetConfig := defineClientServerVRFsIPOverlapConfig(workerNodeList, sameNode)
-			runVRFScenario(workerNodeList, sameNode, redNetName, blueNetName, clientNetConfig, serverNetConfig, false)
+			runVRFScenario(workerNodeList, sameNode, redNetName, blueNetName, clientNetConfig, serverNetConfig, vrfIPAMStatic)
 		},
 		Entry("SameNode IPv4", true,
 			reportxml.SetProperty("Node", "SameNode"),
@@ -125,7 +125,7 @@ var _ = Describe("CNF VRF", Ordered, Label(tsparams.LabelSriovVRFTestCases), Con
 		reportxml.ID("36311"),
 		func(sameNode bool, ipStack string) {
 			clientNetConfig, serverNetConfig := defineClientServerVRFsIPConfig(true, ipStack)
-			runVRFScenario(workerNodeList, sameNode, redNetName, blueNetName, clientNetConfig, serverNetConfig, false)
+			runVRFScenario(workerNodeList, sameNode, redNetName, blueNetName, clientNetConfig, serverNetConfig, vrfIPAMStatic)
 		},
 		Entry("SameNode IPv4", true, netparam.IPV4Family,
 			reportxml.SetProperty("Node", "SameNode"),
@@ -146,7 +146,7 @@ var _ = Describe("CNF VRF", Ordered, Label(tsparams.LabelSriovVRFTestCases), Con
 		reportxml.ID("36319"),
 		func(sameNode bool, ipStack string) {
 			clientNetConfig, serverNetConfig := defineClientServerVRFsIPConfig(false, ipStack)
-			runVRFScenario(workerNodeList, sameNode, redNetName, blueNetName, clientNetConfig, serverNetConfig, false)
+			runVRFScenario(workerNodeList, sameNode, redNetName, blueNetName, clientNetConfig, serverNetConfig, vrfIPAMStatic)
 		},
 		Entry("SameNode IPv4", true, netparam.IPV4Family,
 			reportxml.SetProperty("Node", "SameNode"),

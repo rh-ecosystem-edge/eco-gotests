@@ -61,7 +61,10 @@ func GetPID(client *clients.Settings, nodeName string, process PtpProcess) (stri
 	command := fmt.Sprintf("pgrep %s", process)
 
 	output, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, command,
-		ptpdaemon.WithRetries(3), ptpdaemon.WithRetryOnEmptyOutput(true))
+		ptpdaemon.WithRetries(3),
+		ptpdaemon.WithRetryOnEmptyOutput(true),
+		ptpdaemon.WithRetryOnError(true),
+		ptpdaemon.WithRetryDelay(3*time.Second))
 	if err != nil {
 		return "", err
 	}

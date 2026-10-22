@@ -198,3 +198,17 @@ func WaitForPreinstallCompletion(
 
 	return nil
 }
+
+// SyncFilesystems runs sync(8) on the preinstall node so container storage
+// metadata on /var/lib/containers is flushed before lab teardown (BMH delete / power-off).
+func SyncFilesystems(parentCtx context.Context, host, user, sshKeyPath string) error {
+	klog.V(tsparams.LogLevel).Infof("Syncing filesystems on %s before preinstall BMH teardown", host)
+
+	// Sleep after sync so disks/HBAs can finish writeback before a hard power-off by BMH deletion.
+	_, err := SSHExec(parentCtx, host, user, sshKeyPath, "sync && sleep 2")
+	if err != nil {
+		return fmt.Errorf("sync on %s failed: %w", host, err)
+	}
+
+	return nil
+}

@@ -49,13 +49,13 @@ func (label MetricLabel[T]) ToAny() MetricLabel[any] {
 	return MetricLabel[any](label)
 }
 
-// ensureNIC treats T as [iface.NICName] and ensures that the value is a NIC name. Since Go does not allow generic
+// ensureNIC treats T as [iface.Alias] and ensures that the value is a NIC name. Since Go does not allow generic
 // specialization, this method cannot be guaranteed to be type safe at compile time. It is the caller's responsibility
-// to ensure that the type of T is actually [iface.NICName].
-func (label MetricLabel[T]) ensureNIC() MetricLabel[iface.NICName] {
-	label.value = string(iface.NICName(label.value).EnsureNIC())
+// to ensure that the type of T is actually [iface.Alias].
+func (label MetricLabel[T]) ensureNIC() MetricLabel[iface.Alias] {
+	label.value = string(iface.Alias(label.value).EnsureIfaceAlias())
 
-	return MetricLabel[iface.NICName](label)
+	return MetricLabel[iface.Alias](label)
 }
 
 // Equals returns a MetricLabel with the value and the = operator. It is used to match the value exactly. Callers are
@@ -222,7 +222,7 @@ func (query MetricQuery[V]) ToMetricQuery() MetricQuery[V] {
 // is converted to ending in x and will default to ignoring the master interface if not set.
 type ClockStateQuery struct {
 	Process   MetricLabel[PtpProcess]
-	Interface MetricLabel[iface.NICName]
+	Interface MetricLabel[iface.Alias]
 	Node      MetricLabel[string]
 }
 
@@ -274,7 +274,7 @@ func (query ProcessStatusQuery) ToMetricQuery() MetricQuery[PtpProcessStatus] {
 // InterfaceRoleQuery is a query for the openshift_ptp_interface_role metric. Unlike other queries, this query does not
 // aggregate interfaces by NIC and instead uses the interface name directly.
 type InterfaceRoleQuery struct {
-	Interface MetricLabel[iface.Name]
+	Interface MetricLabel[iface.Iface]
 	Node      MetricLabel[string]
 	Process   MetricLabel[PtpProcess]
 }
@@ -318,7 +318,7 @@ func (query ThresholdQuery) ToMetricQuery() MetricQuery[int64] {
 
 // NMEAStatusQuery is a query for the openshift_ptp_nmea_status metric.
 type NMEAStatusQuery struct {
-	Interface MetricLabel[iface.NICName]
+	Interface MetricLabel[iface.Alias]
 	Node      MetricLabel[string]
 	Process   MetricLabel[PtpProcess]
 }
@@ -363,7 +363,7 @@ func (query HAProfileStatusQuery) ToMetricQuery() MetricQuery[PtpHAProfileStatus
 // PPSStatusQuery is a query for the openshift_ptp_pps_status metric.
 type PPSStatusQuery struct {
 	From      MetricLabel[PtpProcess]
-	Interface MetricLabel[iface.NICName]
+	Interface MetricLabel[iface.Alias]
 	Node      MetricLabel[string]
 	Process   MetricLabel[PtpProcess]
 }
@@ -387,7 +387,7 @@ func (query PPSStatusQuery) ToMetricQuery() MetricQuery[PtpPPSStatus] {
 // PhaseStatusQuery is a query for the openshift_ptp_phase_status metric.
 type PhaseStatusQuery struct {
 	From      MetricLabel[PtpProcess]
-	Interface MetricLabel[iface.NICName]
+	Interface MetricLabel[iface.Alias]
 	Node      MetricLabel[string]
 	Process   MetricLabel[PtpProcess]
 }

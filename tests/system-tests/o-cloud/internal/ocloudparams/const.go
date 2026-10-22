@@ -45,6 +45,15 @@ const (
 
 	// LifecycleAgentNamespace is the namespace for the Lifecycle Agent operator.
 	LifecycleAgentNamespace = "openshift-lifecycle-agent"
+
+	// LabelMNOUpgrade is the Ginkgo label for MNO upgrade tests.
+	LabelMNOUpgrade = "ocloud-mno-upgrade"
+
+	// DefaultMNOUpgradeTimeout is the default timeout for MNO upgrades.
+	DefaultMNOUpgradeTimeout = 4 * time.Hour
+
+	// ManagedClusterOpenShiftVersionLabel is the ManagedCluster label reporting the spoke OCP version.
+	ManagedClusterOpenShiftVersionLabel = "openshiftVersion"
 )
 
 const (

@@ -13,14 +13,15 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/internal/nicinfo"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/mustgather"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/querier"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/rancluster"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/version"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/consumer"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/metrics"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/mustgather"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
 	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/tests"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/reporter"
@@ -59,7 +60,17 @@ var _ = BeforeSuite(func() {
 
 	By("initializing the NIC naming system based on the PTP version")
 
-	err = iface.InitNICNaming(RANConfig.Spoke1OperatorVersions[ranparam.PTP])
+	atLeast422, err := version.IsVersionStringInRange(RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.22.0-0", "")
+	Expect(err).ToNot(HaveOccurred(), "Failed to check PTP versin")
+
+	if atLeast422 {
+		err = iface.InitIfaceAliasingByAPI(RANConfig.Spoke1APIClient)
+		Expect(err).ToNot(HaveOccurred(), "Failed to init iface aliasing by API")
+	} else {
+		err = iface.InitIfaceAliasingByParsing(RANConfig.Spoke1OperatorVersions[ranparam.PTP])
+		Expect(err).ToNot(HaveOccurred(), "Failed to init iface aliasing by parsing")
+	}
+
 	Expect(err).ToNot(HaveOccurred(), "Failed to initialize NIC naming system based on the PTP version")
 
 	By("updating the PTP ServiceMonitor scrape interval to 1s")
@@ -107,7 +118,8 @@ var _ = JustAfterEach(func() {
 
 	reporter.ReportIfFailed(
 		CurrentSpecReport(), currentFile, tsparams.ReporterSpokeNamespacesToDump, tsparams.ReporterSpokeCRsToDump)
-	mustgather.MustGatherIfFailed(CurrentSpecReport(), currentFile, RANConfig.Spoke1APIClient)
+	mustgather.CollectIfFailed(
+		CurrentSpecReport(), currentFile, RANConfig.Spoke1APIClient, "ptp", RANConfig.ResolvePTPMustGatherImage)
 })
 
 var _ = ReportAfterSuite("", func(report Report) {
@@ -120,7 +132,7 @@ var _ = ReportAfterSuite("", func(report Report) {
 			"ptp-event-consumer-image":  RANConfig.PtpEventConsumerImage,
 			"ptp-event-consumer-v1-tag": RANConfig.PtpEventConsumerV1Tag,
 			"ptp-event-consumer-v2-tag": RANConfig.PtpEventConsumerV2Tag,
-			"ptp-must-gather-image":     RANConfig.PtpMustGatherImage,
+			"ptp-must-gather-image":     RANConfig.PTPMustGatherImage,
 			"metric-sampling-interval":  RANConfig.MetricSamplingInterval,
 			"workload-duration":         RANConfig.WorkloadDuration,
 			"no-workload-duration":      RANConfig.NoWorkloadDuration,

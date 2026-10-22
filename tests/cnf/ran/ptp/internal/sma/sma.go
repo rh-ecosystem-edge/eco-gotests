@@ -18,7 +18,7 @@ import (
 
 // DisconnectSma disables the given SMA pin on the node. It first tries the sysfs path; if the
 // pin file is absent (ice driver migrated to DPLL netlink), it falls back to the host DPLL CLI.
-func DisconnectSma(client *clients.Settings, nodeName string, ifaceName iface.Name, pinName string) error {
+func DisconnectSma(client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName string) error {
 	if hasSysfsSmaPin(client, nodeName, ifaceName, pinName) {
 		return disconnectSmaViaSysfs(client, nodeName, ifaceName, pinName)
 	}
@@ -33,7 +33,7 @@ func DisconnectSma(client *clients.Settings, nodeName string, ifaceName iface.Na
 // is not used because it is a sysfs-format string that has no meaning in the DPLL subsystem;
 // reconnectSmaViaDpll uses prio=3 as the conventional default instead.
 func ReconnectSma(
-	client *clients.Settings, nodeName string, ifaceName iface.Name, pinName, smaConfig string) error {
+	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName, smaConfig string) error {
 	if hasSysfsSmaPin(client, nodeName, ifaceName, pinName) {
 		return reconnectSmaViaSysfs(client, nodeName, ifaceName, pinName, smaConfig)
 	}
@@ -46,7 +46,7 @@ func ReconnectSma(
 // IsSmaConnected returns true if the given SMA pin is actively connected. It first tries the
 // sysfs path; if the pin file is absent, it falls back to the host DPLL CLI.
 func IsSmaConnected(
-	client *clients.Settings, nodeName string, ifaceName iface.Name, pinName string) (bool, error) {
+	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName string) (bool, error) {
 	if hasSysfsSmaPin(client, nodeName, ifaceName, pinName) {
 		return isSmaConnectedViaSysfs(client, nodeName, ifaceName, pinName)
 	}
@@ -58,7 +58,7 @@ func IsSmaConnected(
 
 // hasSysfsSmaPin checks whether the legacy sysfs pin file exists for the given interface and pin
 // name. Returns false when the ice driver has migrated pin management to the DPLL netlink subsystem.
-func hasSysfsSmaPin(client *clients.Settings, nodeName string, ifaceName iface.Name, pinName string) bool {
+func hasSysfsSmaPin(client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName string) bool {
 	cmd := fmt.Sprintf("ls /sys/class/net/%s/device/ptp/*/pins/%s 2>/dev/null", ifaceName, pinName)
 
 	out, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, cmd)
@@ -70,7 +70,10 @@ func hasSysfsSmaPin(client *clients.Settings, nodeName string, ifaceName iface.N
 // integers: func (0=disabled, 1=RX, 2=TX) and chan (the connector channel number, e.g. 1
 // for SMA1/U.FL1 or 2 for SMA2/U.FL2).
 func readSysfsSmaPin(
-	client *clients.Settings, nodeName string, ifaceName iface.Name, pinName string) (funcVal, channel string, err error) {
+	client *clients.Settings,
+	nodeName string,
+	ifaceName iface.Iface,
+	pinName string) (funcVal, channel string, err error) {
 	cmd := fmt.Sprintf("cat /sys/class/net/%s/device/ptp/*/pins/%s", ifaceName, pinName)
 
 	out, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, cmd,
@@ -91,7 +94,7 @@ func readSysfsSmaPin(
 
 // writeSysfsSmaPin writes a value to the sysfs SMA pin file.
 func writeSysfsSmaPin(
-	client *clients.Settings, nodeName string, ifaceName iface.Name, pinName, value string) error {
+	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName, value string) error {
 	cmd := fmt.Sprintf("echo %s > /sys/class/net/%s/device/ptp/*/pins/%s", value, ifaceName, pinName)
 
 	_, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, cmd,
@@ -105,7 +108,7 @@ func writeSysfsSmaPin(
 // disconnectSmaViaSysfs disables the SMA pin by reading the current channel from sysfs and
 // writing func=0 while preserving the channel value.
 func disconnectSmaViaSysfs(
-	client *clients.Settings, nodeName string, ifaceName iface.Name, pinName string) error {
+	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName string) error {
 	_, channel, err := readSysfsSmaPin(client, nodeName, ifaceName, pinName)
 	if err != nil {
 		return err
@@ -116,13 +119,13 @@ func disconnectSmaViaSysfs(
 
 // reconnectSmaViaSysfs restores the SMA pin to smaConfig by writing it directly to the sysfs pin file.
 func reconnectSmaViaSysfs(
-	client *clients.Settings, nodeName string, ifaceName iface.Name, pinName, smaConfig string) error {
+	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName, smaConfig string) error {
 	return writeSysfsSmaPin(client, nodeName, ifaceName, pinName, smaConfig)
 }
 
 // isSmaConnectedViaSysfs reads the SMA pin value and returns true if the func field is not "0".
 func isSmaConnectedViaSysfs(
-	client *clients.Settings, nodeName string, ifaceName iface.Name, pinName string) (bool, error) {
+	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName string) (bool, error) {
 	funcVal, _, err := readSysfsSmaPin(client, nodeName, ifaceName, pinName)
 	if err != nil {
 		return false, err
@@ -142,7 +145,7 @@ const dpllDirectionOutput = "output"
 // the PCI serial number via devlink, converts it to a DPLL clock-id, then queries the host dpll
 // binary (via nsenter) to look up the pin.
 func getDpllSmaPinID(
-	client *clients.Settings, nodeName string, ifaceName iface.Name, pinName string) (string, error) {
+	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName string) (string, error) {
 	cmd := fmt.Sprintf(
 		`PCI=$(readlink /sys/class/net/%s/device | xargs basename) && `+
 			`SERIAL=$(devlink dev info pci/$PCI 2>/dev/null | awk '/serial_number/{print $NF}') && `+
@@ -265,7 +268,7 @@ func parseParentDeviceLine(line string) dpllParentDevice {
 // parents to prio=255 state=selectable (lowest priority, effectively disabled). For output pins it
 // sets all parents to state=disconnected.
 func disconnectSmaViaDpll(
-	client *clients.Settings, nodeName string, ifaceName iface.Name, pinName string) error {
+	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName string) error {
 	pinID, err := getDpllSmaPinID(client, nodeName, ifaceName, pinName)
 	if err != nil {
 		return err
@@ -310,7 +313,7 @@ func disconnectSmaViaDpll(
 // all parents to state=connected. Note: the sysfs-format smaConfig string is not applicable to the
 // DPLL path and is intentionally not used here.
 func reconnectSmaViaDpll(
-	client *clients.Settings, nodeName string, ifaceName iface.Name, pinName string) error {
+	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName string) error {
 	pinID, err := getDpllSmaPinID(client, nodeName, ifaceName, pinName)
 	if err != nil {
 		return err
@@ -353,7 +356,7 @@ func reconnectSmaViaDpll(
 // input pins, connected means at least one parent has prio < 255. For output pins, connected means
 // at least one parent has state=connected.
 func isSmaConnectedViaDpll(
-	client *clients.Settings, nodeName string, ifaceName iface.Name, pinName string) (bool, error) {
+	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName string) (bool, error) {
 	pinID, err := getDpllSmaPinID(client, nodeName, ifaceName, pinName)
 	if err != nil {
 		return false, err

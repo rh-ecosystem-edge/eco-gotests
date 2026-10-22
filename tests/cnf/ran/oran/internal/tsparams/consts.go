@@ -38,8 +38,6 @@ const (
 	HugePagesSizeKey = "hugepages-size"
 	// OCloudSiteID is the name of the site in the hardware manager to provision in.
 	OCloudSiteID = "rdu3"
-	// PolicySelectorLabel is the ExtraLabel applied to the managed cluster that determines which policies to apply.
-	PolicySelectorLabel = "sno-ran-du-policy"
 	// ClusterInstanceDefaultsKey is the key used for the ClusterInstance defaults in its ConfigMap.
 	ClusterInstanceDefaultsKey = "clusterinstance-defaults"
 	// PolicyTemplateDefaultsKey is the key used for the PolicyTemplate defaults in its ConfigMap.
@@ -48,9 +46,9 @@ const (
 	// ImmutableMessage is the message to expect in a Policy's history when an immutable field cannot be updated.
 	ImmutableMessage = "cannot be updated, likely due to immutable fields not matching"
 
-	// PRValidationFailedDetailsSubstring is a substring of status.provisioningStatus.provisioningDetails when
-	// a ProvisioningRequest fails due to invalid policyTemplateParameters (e.g. integer value where string expected).
-	PRValidationFailedDetailsSubstring = "is not a string"
+	// PRValidationFailedDetailsSubstring is a substring of status.provisioningStatus.provisioningDetails when a
+	// ProvisioningRequest fails due to invalid policyTemplateParameters caused by an integer instead of a string.
+	PRValidationFailedDetailsSubstring = "Invalid type. Expected: string, given: integer"
 	// PRFulfilledDetailsSubstring is a substring of status.provisioningStatus.provisioningDetails when
 	// provisioning completes successfully.
 	PRFulfilledDetailsSubstring = "Provisioning request has completed successfully"
@@ -59,7 +57,7 @@ const (
 	PRNoHardwareMatchDetailsSubstring = "not enough free resources matching"
 	// PRMissingBootInterfaceDetailsSubstring is a substring of provisioningDetails when no NIC in the
 	// ClusterInstance defaults matches the boot interface label value.
-	PRMissingBootInterfaceDetailsSubstring = "no NIC found matching boot interface label value"
+	PRMissingBootInterfaceDetailsSubstring = "failed to assign MACs for node"
 	// PRExistingNamespaceDetailsSubstring is a substring of provisioningDetails when clusterName matches an
 	// existing namespace not owned by the ProvisioningRequest.
 	PRExistingNamespaceDetailsSubstring = "not owned by ProvisioningRequest"
@@ -86,8 +84,9 @@ const (
 	TemplateAddNew = "v10"
 	// TemplateUpdateSchema is the ClusterTemplate version for the policyTemplateParameters schema update test.
 	TemplateUpdateSchema = "v11"
-	// TemplateInlineBMCMissingSchema is the ClusterTemplate version for the missing inline BMC schema test (78245).
-	TemplateInlineBMCMissingSchema = "v12"
+	// TemplateUndefinedHwProvisioning is the ClusterTemplate version for test 78245: the template omits both
+	// hwMgmtDefaults.nodeGroupData and hwMgmtParameters, so hardware provisioning cannot be defined.
+	TemplateUndefinedHwProvisioning = "v12"
 	// TemplateBMCFirmwareUpdate is the ClusterTemplate version for BMC firmware upgrade test.
 	TemplateBMCFirmwareUpdate = "v14"
 	// TemplateBIOSFirmwareUpdate is the ClusterTemplate version for BIOS firmware upgrade test.
@@ -162,11 +161,11 @@ const (
 	// ClusterAPIVersion is the expected first version in cluster API version responses.
 	ClusterAPIVersion = "1.0.0"
 	// ClusterAPIURIPrefix is the expected uriPrefix in cluster API version responses.
-	ClusterAPIURIPrefix = "/o2ims-infrastructureCluster/v1"
+	ClusterAPIURIPrefix = "/O2ims_infrastructureCluster/v1"
 	// InventoryAPIVersion is the expected first version in inventory API version responses.
 	InventoryAPIVersion = "2.0.0"
 	// InventoryAPIURIPrefix is the expected uriPrefix in inventory API version responses.
-	InventoryAPIURIPrefix = "/o2ims-infrastructureInventory/v2"
+	InventoryAPIURIPrefix = "/O2ims_infrastructureInventory/v2"
 )
 
 // LogLevel is the glog verbosity level to use for logs in this suite or its helpers.

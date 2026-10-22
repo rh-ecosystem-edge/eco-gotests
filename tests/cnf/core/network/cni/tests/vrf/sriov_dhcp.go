@@ -118,7 +118,7 @@ var _ = Describe("CNF VRF", Ordered, Label(tsparams.LabelSriovVRFDhcpTestCases),
 		reportxml.ID("36323"),
 		func(sameNode bool) {
 			clientNetConfig, serverNetConfig := defineClientServerVRFsIPOverlapWithStaticMac()
-			runVRFScenario(workerNodeList, sameNode, redNetName, blueNetName, clientNetConfig, serverNetConfig, true)
+			runVRFScenario(workerNodeList, sameNode, redNetName, blueNetName, clientNetConfig, serverNetConfig, vrfIPAMDHCP)
 		},
 		Entry("SameNode IPv4", true,
 			reportxml.SetProperty("Node", "SameNode"),

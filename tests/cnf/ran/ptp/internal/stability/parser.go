@@ -25,7 +25,27 @@ var (
 	// phc2sysPattern is a regular expression that matches the phc2sys log lines. For example:
 	//  phc2sys[401304.879]: [ptp4l.1.config:6] CLOCK_REALTIME phc offset        -5 s2 freq  -19334 delay    470
 	phc2sysPattern = regexp.MustCompile(`^phc2sys\[.*?\boffset\s+(?P<offset>-?\d+)\s+(?P<state>s\d+).*delay`)
+
+	// ptp4lSummaryPattern matches enhanced log-reduction summaries. For example:
+	//  ptp4l[1788394724.219]: [ptp4l.1.config:6] master offset summary: cnt=161, min=-12, max=10, avg=0.70, SD=4.48
+	ptp4lSummaryPattern = regexp.MustCompile(
+		`^ptp4l\[.*?master offset summary: cnt=(?P<cnt>\d+), min=(?P<min>-?\d+), max=(?P<max>-?\d+)`)
+	// phc2sysSummaryPattern matches enhanced log-reduction summaries. For example:
+	//  phc2sys[1788394730.119]: [ptp4l.1.config:6] phc offset summary: cnt=160, min=-10, max=8, avg=-0.39, SD=4.38
+	phc2sysSummaryPattern = regexp.MustCompile(
+		`^phc2sys\[.*?phc offset summary: cnt=(?P<cnt>\d+), min=(?P<min>-?\d+), max=(?P<max>-?\d+)`)
 )
+
+// SummaryLogEntry is a parsed offset summary line emitted when log reduction is enabled.
+type SummaryLogEntry struct {
+	Raw string
+	Cnt int
+	Min int64
+	Max int64
+}
+
+// lockedServoState is assumed for summary windows during stability testing while clocks are locked.
+const lockedServoState = "s2"
 
 // ParseResult holds the outcome of attempting to parse a single log line.
 type ParseResult struct {
@@ -35,6 +55,47 @@ type ParseResult struct {
 	Matched bool
 	// Dropped is true when the line matched but the offset could not be parsed as an integer.
 	Dropped bool
+}
+
+// normalizeLinuxptpLine strips container log prefixes so linuxptp process lines can be matched.
+func normalizeLinuxptpLine(line string) string {
+	for _, marker := range []string{"ptp4l[", "phc2sys["} {
+		if idx := strings.Index(line, marker); idx >= 0 {
+			return line[idx:]
+		}
+	}
+
+	return line
+}
+
+// tryParseSummaryEntry attempts to parse a log-reduction offset summary line.
+func tryParseSummaryEntry(line string, pattern *regexp.Regexp) (SummaryLogEntry, bool) {
+	match := pattern.FindStringSubmatch(line)
+	if match == nil {
+		return SummaryLogEntry{}, false
+	}
+
+	cnt, err := strconv.Atoi(match[pattern.SubexpIndex("cnt")])
+	if err != nil || cnt <= 0 {
+		return SummaryLogEntry{Raw: line}, true
+	}
+
+	minOffset, err := strconv.ParseInt(match[pattern.SubexpIndex("min")], 10, 64)
+	if err != nil {
+		return SummaryLogEntry{Raw: line}, true
+	}
+
+	maxOffset, err := strconv.ParseInt(match[pattern.SubexpIndex("max")], 10, 64)
+	if err != nil {
+		return SummaryLogEntry{Raw: line}, true
+	}
+
+	return SummaryLogEntry{
+		Raw: line,
+		Cnt: cnt,
+		Min: minOffset,
+		Max: maxOffset,
+	}, true
 }
 
 // tryParseEntry attempts to parse a single log line against the given pattern.

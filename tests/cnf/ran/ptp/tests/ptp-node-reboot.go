@@ -57,13 +57,9 @@ var _ = Describe("PTP Node Reboot", Ordered, ContinueOnFailure, Label(tsparams.L
 		rebootTime = time.Now()
 
 		By("soft rebooting the node")
-		// Even though we do not care about the output, we need to use ExecCmdWithStdoutWithRetries to get
-		// access to the node list options directly.
-		_, err = cluster.ExecCmdWithStdoutWithRetries(
-			RANConfig.Spoke1APIClient, 3, 10*time.Second, "sudo systemctl reboot",
-			metav1.ListOptions{FieldSelector: fields.OneTermEqualSelector("metadata.name", nodeName).String()},
-		)
-		Expect(err).ToNot(HaveOccurred(), "Failed to soft reboot the node")
+
+		err = cluster.SoftRebootNodes(RANConfig.Spoke1APIClient, []string{nodeName})
+		Expect(err).ToNot(HaveOccurred(), "Failed to reboot node")
 
 		if isSNO {
 			By("Wait for SNO cluster to be unreachable")
@@ -103,7 +99,7 @@ var _ = Describe("PTP Node Reboot", Ordered, ContinueOnFailure, Label(tsparams.L
 		By("waiting for all clocks to be locked")
 
 		err := cluster.WaitForRouteAPIAvailable(
-			RANConfig.Spoke1APIClient, ranparam.ThanosQuerierRouteName, ranparam.OpenshiftMonitoringNamespace, 3*time.Minute)
+			RANConfig.Spoke1APIClient, ranparam.ThanosQuerierRouteName, ranparam.OpenshiftMonitoringNamespace, 10*time.Minute)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for monitoring Route API availability")
 
 		prometheusAPI, err := querier.CreatePrometheusAPIForCluster(RANConfig.Spoke1APIClient)

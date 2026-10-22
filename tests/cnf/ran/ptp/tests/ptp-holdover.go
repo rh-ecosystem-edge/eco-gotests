@@ -433,7 +433,7 @@ func assertLockedState(
 	expectedClockClass metrics.PtpClockClass,
 	clockClassChanges bool,
 	timeout time.Duration,
-	upstreamIfaces []iface.Name,
+	upstreamIfaces []iface.Iface,
 	configFile string,
 ) {
 	GinkgoHelper()
@@ -598,7 +598,7 @@ func assertHoldoverOutOfSpecClockClass(
 
 // assertDPLLPhaseLockedHoldoverAcquired validates that the DPLL phase status is LOCKED_HO_ACQ on every upstream NIC.
 func assertDPLLPhaseLockedHoldoverAcquired(
-	prometheusAPI prometheusv1.API, nodeName string, upstreamIfaces []iface.Name,
+	prometheusAPI prometheusv1.API, nodeName string, upstreamIfaces []iface.Iface,
 ) {
 	GinkgoHelper()
 
@@ -633,6 +633,23 @@ func assertNoFreerunEvent(nodeName string, sinceTime time.Time) {
 	)
 	err = events.WaitForEvent(eventPod, sinceTime, 30*time.Second, freerunFilter)
 	Expect(err).To(HaveOccurred(), "Expected no FREERUN event, but one was received")
+}
+
+// assertNoHoldoverEvent validates that no HOLDOVER ptp-state-change event is generated within 30 seconds.
+func assertNoHoldoverEvent(nodeName string, sinceTime time.Time) {
+	GinkgoHelper()
+
+	By("validating no HOLDOVER event is generated")
+
+	eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeName)
+	Expect(err).ToNot(HaveOccurred(), "Failed to get consumer pod for node")
+
+	holdoverFilter := events.All(
+		events.IsType(eventptp.PtpStateChange),
+		events.HasValue(events.WithSyncState(eventptp.HOLDOVER)),
+	)
+	err = events.WaitForEvent(eventPod, sinceTime, 30*time.Second, holdoverFilter)
+	Expect(err).To(HaveOccurred(), "Expected no HOLDOVER event, but one was received")
 }
 
 // changeHoldoverSettings updates holdover thresholds and waits for the daemon to re-lock.
@@ -760,7 +777,7 @@ func getPtp4lConfigFileForNode(nodeName string) string {
 func restoreInterfacesAndWaitForRelock(
 	prometheusAPI prometheusv1.API,
 	nodeName string,
-	upstreamIfaces []iface.Name,
+	upstreamIfaces []iface.Iface,
 ) {
 	GinkgoHelper()
 

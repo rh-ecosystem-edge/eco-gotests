@@ -58,6 +58,12 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 			Expect(neuronhelpers.AreAllOperatorsReady(APIClient, options)).To(BeTrue(),
 				"All operators (NFD, KMM, Neuron) must be pre-installed and ready")
 
+			By("Cleaning up the shared vLLM workload before DeviceConfig lifecycle operations")
+
+			err := neuronhelpers.CleanupVLLMWorkload(
+				APIClient, tsparams.DeviceConfigLifecycleTimeout)
+			Expect(err).ToNot(HaveOccurred(), "Shared vLLM workload should be fully deleted before upgrade")
+
 			By("Patching KMM subscription with Neuron upgrade toleration")
 
 			kmmSub, err := olm.PullSubscription(APIClient, "kmm-subscription", "openshift-kmm")
@@ -95,8 +101,22 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 					kmmSub.Definition.Spec.Config.Tolerations, upgradeToleration)
 			}
 
-			_, err = kmmSub.Update()
-			Expect(err).ToNot(HaveOccurred(), "Failed to patch KMM subscription with upgrade toleration")
+			if !hasToleration {
+				_, err = kmmSub.Update()
+				Expect(err).ToNot(HaveOccurred(), "Failed to patch KMM subscription with upgrade toleration")
+
+				By("Waiting for KMM to become ready after the Subscription update")
+
+				err = commonawait.KMMOperatorReadyWithToleration(
+					APIClient,
+					upgradeToleration.Key,
+					upgradeToleration.Effect,
+					tsparams.OperatorDeployTimeout)
+				Expect(err).ToNot(HaveOccurred(), "KMM operator should be ready after the Subscription update")
+			} else {
+				klog.V(params.NeuronLogLevel).Info(
+					"KMM Subscription already contains the Neuron upgrade toleration")
+			}
 
 			By("Creating initial DeviceConfig with driver version")
 
@@ -113,7 +133,8 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 					isStale = existingDC.Definition.Spec.DriverVersion != neuronConfig.DriverVersion ||
 						existingDC.Definition.Spec.DriversImage != ""
 				} else {
-					isStale = existingDC.Definition.Spec.DriversImage != neuronConfig.DriversImage
+					isStale = existingDC.Definition.Spec.DriversImage != neuronConfig.DriversImage ||
+						existingDC.Definition.Spec.DriverVersion != neuronConfig.DriverVersion
 				}
 
 				if isStale {
@@ -124,13 +145,12 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 					_, deleteErr := existingDC.Delete()
 					Expect(deleteErr).ToNot(HaveOccurred(), "Failed to delete stale DeviceConfig")
 
-					Eventually(func() bool {
-						_, checkErr := neuron.Pull(
-							APIClient, params.DefaultDeviceConfigName, params.NeuronNamespace)
-
-						return checkErr != nil
-					}, 5*time.Minute, 5*time.Second).Should(BeTrue(),
-						"DeviceConfig should be fully deleted")
+					err = neuronhelpers.WaitForDeviceConfigDeletion(
+						APIClient,
+						params.DefaultDeviceConfigName,
+						params.NeuronNamespace,
+						tsparams.DeviceConfigLifecycleTimeout)
+					Expect(err).ToNot(HaveOccurred(), "DeviceConfig and its KMM resources should be fully deleted")
 
 					_, err = builder.Create()
 					Expect(err).ToNot(HaveOccurred(), "Failed to create DeviceConfig with initial version")
@@ -144,6 +164,15 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 
 			err = neuronhelpers.WaitForClusterStabilityAfterDeviceConfig(APIClient)
 			Expect(err).ToNot(HaveOccurred(), "Cluster not stable after DeviceConfig")
+
+			By("Waiting for the recreated KMM Module rollout to be ready")
+
+			err = neuronhelpers.WaitForKMMModuleReady(
+				APIClient,
+				params.DefaultDeviceConfigName,
+				params.NeuronNamespace,
+				tsparams.DeviceConfigLifecycleTimeout)
+			Expect(err).ToNot(HaveOccurred(), "Recreated KMM Module should be ready before upgrade tests")
 
 			By("Waiting for Neuron nodes to be labeled")
 
@@ -282,15 +311,43 @@ var _ = Describe("Neuron Rolling Upgrade Tests", Ordered, Label(params.Label), L
 						neuronConfig.ImageRepoSecretName)
 				}
 
+				startTime := time.Now()
+
 				_, err = deviceConfigBuilder.Update(false)
 				Expect(err).ToNot(HaveOccurred(), "Failed to update DeviceConfig")
 
 				klog.V(params.NeuronLogLevel).Infof("DeviceConfig updated with driver version: %s",
 					neuronConfig.UpgradeTargetVersion)
 
-				By("Monitoring rolling upgrade process")
+				By("Waiting for DeviceConfig to contain the upgrade target")
 
-				startTime := time.Now()
+				expectedDriversImage := ""
+				if !neuronConfig.IsInClusterBuild() {
+					expectedDriversImage = neuronConfig.UpgradeTargetDriversImage
+				}
+
+				err = commonawait.DeviceConfigDriverUpdated(
+					APIClient,
+					params.DefaultDeviceConfigName,
+					params.NeuronNamespace,
+					neuronConfig.UpgradeTargetVersion,
+					expectedDriversImage,
+					tsparams.DevicePluginReadyTimeout)
+				Expect(err).ToNot(HaveOccurred(), "DeviceConfig should contain the upgrade target")
+
+				if expectedDriversImage != "" {
+					By("Waiting for KMM Module to contain the upgrade driver image")
+
+					err = commonawait.ModuleDriverImageUpdated(
+						APIClient,
+						params.DefaultDeviceConfigName,
+						params.NeuronNamespace,
+						expectedDriversImage,
+						tsparams.DevicePluginReadyTimeout)
+					Expect(err).ToNot(HaveOccurred(), "KMM Module should contain the upgrade driver image")
+				}
+
+				By("Monitoring rolling upgrade process")
 
 				updatedNodes := make(map[string]bool)
 

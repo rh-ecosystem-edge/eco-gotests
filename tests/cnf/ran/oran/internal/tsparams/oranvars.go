@@ -84,9 +84,9 @@ var (
 		Status: metav1.ConditionTrue,
 	}
 
-	// CTInvalidInlineBMCSchemaCondition is the ClusterTemplate condition where validation failed because
-	// clusterInstanceParameters is missing the inline BMC fields required when hwMgmtDefaults is omitted.
-	CTInvalidInlineBMCSchemaCondition = metav1.Condition{
+	// CTUndefinedHwProvisioningCondition is the ClusterTemplate condition where validation failed because the
+	// template does not define hardware provisioning via hwMgmtDefaults.nodeGroupData or hwMgmtParameters.
+	CTUndefinedHwProvisioningCondition = metav1.Condition{
 		Type:    string(provisioningv1alpha1.CTconditionTypes.Validated),
 		Reason:  string(provisioningv1alpha1.CTconditionReasons.Failed),
 		Status:  metav1.ConditionFalse,

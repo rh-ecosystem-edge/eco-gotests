@@ -1,3 +1,4 @@
+# Synced with oran-o2ims commit 14a520a4dd5ca6f58cf409c835aad077c20b6881
 #
 # Copyright (c) 2025 Red Hat, Inc.
 #
@@ -10,8 +11,6 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
 # implied. See the License for the specific language governing permissions and limitations under the
 # License.
-#
-# Synced with oran-o2ims commit 64800488a3190b322975a0b76325118813d14c13
 #
 
 openapi: 3.0.3
@@ -39,12 +38,16 @@ tags:
   description: |
     Information about provisioning requests.
 
+# Scope enforcement: OAuth scopes are not verified directly from the token's
+# scope claim. The OAuth server translates scopes into group memberships
+# (via the groups claim), and the Authorizer maps those groups to Kubernetes
+# RBAC permissions via SubjectAccessReview. See DD-003 in AGENTS.md.
 security:
 - oauth2:
   - role:o2ims-admin
 
 paths:
-  /o2ims-infrastructureProvisioning/api_versions:
+  /O2ims_infrastructureProvisioning/api_versions:
     get:
       operationId: getAllVersions
       summary: Get API versions
@@ -89,7 +92,7 @@ paths:
               schema:
                 $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
 
-  /o2ims-infrastructureProvisioning/v1/api_versions:
+  /O2ims_infrastructureProvisioning/v1/api_versions:
     get:
       operationId: getMinorVersions
       summary: Get minor API versions
@@ -134,7 +137,7 @@ paths:
               schema:
                 $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
 
-  /o2ims-infrastructureProvisioning/v1/provisioningRequests:
+  /O2ims_infrastructureProvisioning/v1/provisioningRequests:
     get:
       operationId: getProvisioningRequests
       summary: Get provisioning requests
@@ -249,7 +252,7 @@ paths:
               schema:
                 $ref: "../common/openapi.yaml#/components/schemas/ProblemDetails"
 
-  /o2ims-infrastructureProvisioning/v1/provisioningRequests/{provisioningRequestId}:
+  /O2ims_infrastructureProvisioning/v1/provisioningRequests/{provisioningRequestId}:
     get:
       operationId: getProvisioningRequest
       summary: Get the provisioning request

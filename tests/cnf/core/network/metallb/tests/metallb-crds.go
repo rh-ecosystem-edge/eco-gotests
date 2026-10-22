@@ -86,7 +86,7 @@ var _ = Describe("MetalLb New CRDs", Ordered, Label("newcrds"), ContinueOnFailur
 
 		By("Configuring BGP and BFD")
 
-		bfdProfile := createBFDProfileAndVerifyIfItsReady(frrk8sPods)
+		bfdProfile := createBFDProfileAndVerifyIfItsReady(frrk8sPods, false)
 
 		createBGPPeerAndVerifyIfItsReady(tsparams.BgpPeerName1, ipv4metalLbIPList[0], bfdProfile.Definition.Name,
 			"", tsparams.LocalBGPASN, nil, false, 0, frrk8sPods)

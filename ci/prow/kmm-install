@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+readonly KMM_NAMESPACE="${KMM_NAMESPACE:-openshift-kmm}"
+readonly KMM_SUBSCRIPTION_NAME="${KMM_SUBSCRIPTION_NAME:-kernel-module-management-subscription}"
+readonly KMM_PACKAGE_NAME="${KMM_PACKAGE_NAME:-kernel-module-management}"
+readonly KMM_CATALOG_SOURCE="${KMM_CATALOG_SOURCE:-redhat-operators}"
+readonly KMM_CATALOG_NAMESPACE="${KMM_CATALOG_NAMESPACE:-openshift-marketplace}"
+
+echo "Installing ${KMM_PACKAGE_NAME} from ${KMM_CATALOG_SOURCE}"
+
+oc get packagemanifest "${KMM_PACKAGE_NAME}" \
+  --namespace "${KMM_CATALOG_NAMESPACE}" \
+  --ignore-not-found >/dev/null
+
+oc create namespace "${KMM_NAMESPACE}" --dry-run=client -o yaml | oc apply -f -
+
+default_channel="$(oc get packagemanifest "${KMM_PACKAGE_NAME}" \
+  --namespace "${KMM_CATALOG_NAMESPACE}" \
+  -o jsonpath='{.status.defaultChannel}')"
+readonly KMM_CHANNEL="${KMM_CHANNEL:-${default_channel}}"
+
+if [[ -z "${KMM_CHANNEL}" ]]; then
+  echo "Unable to determine an OLM channel for ${KMM_PACKAGE_NAME}" >&2
+  exit 1
+fi
+
+oc apply -f - <<EOF
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: kmm-operator-group
+  namespace: ${KMM_NAMESPACE}
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: ${KMM_SUBSCRIPTION_NAME}
+  namespace: ${KMM_NAMESPACE}
+spec:
+  channel: ${KMM_CHANNEL}
+  name: ${KMM_PACKAGE_NAME}
+  source: ${KMM_CATALOG_SOURCE}
+  sourceNamespace: ${KMM_CATALOG_NAMESPACE}
+  installPlanApproval: Automatic
+EOF
+
+echo "Waiting for the KMM CSV to be installed"
+csv=""
+for _ in {1..90}; do
+  csv="$(oc get subscription "${KMM_SUBSCRIPTION_NAME}" \
+    --namespace "${KMM_NAMESPACE}" \
+    -o jsonpath='{.status.currentCSV}' 2>/dev/null || true)"
+  if [[ -n "${csv}" ]]; then
+    break
+  fi
+  sleep 10
+done
+
+if [[ -z "${csv}" ]]; then
+  oc get subscription,csv,installplan \
+    --namespace "${KMM_NAMESPACE}" || true
+  echo "KMM did not produce a current CSV" >&2
+  exit 1
+fi
+
+oc wait --for=jsonpath='{.status.phase}'=Succeeded \
+  "csv/${csv}" --namespace "${KMM_NAMESPACE}" --timeout=15m
+oc wait --for=condition=Available \
+  deployment.apps/kmm-operator-controller \
+  deployment.apps/kmm-operator-webhook-server \
+  --namespace "${KMM_NAMESPACE}" --timeout=10m
+
+oc get csv "${csv}" --namespace "${KMM_NAMESPACE}"

@@ -186,9 +186,9 @@ func WaitForAlarmToExist(
 
 // matchesExtensions returns true if each key-value pair in matchingExtensions is a key-value pair in the extensions
 // map. Keys not in matchingExtensions are ignored.
-func matchesExtensions(extensions map[string]string, matchingExtensions map[string]string) bool {
+func matchesExtensions(extensions map[string]interface{}, matchingExtensions map[string]string) bool {
 	for key, value := range matchingExtensions {
-		if extensions[key] != value {
+		if extensionValue, ok := extensions[key].(string); !ok || extensionValue != value {
 			return false
 		}
 	}
@@ -222,7 +222,7 @@ func WaitForAllNotifications(
 			}
 
 			for _, notification := range receivedNotifications {
-				if tracker, ok := notification.Extensions["tracker"]; ok {
+				if tracker, ok := notification.Extensions["tracker"].(string); ok {
 					klog.V(tsparams.LogLevel).Infof("Deleting expected tracker %s", tracker)
 
 					delete(expectedTrackers, tracker)

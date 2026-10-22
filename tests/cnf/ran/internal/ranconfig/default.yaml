@@ -22,4 +22,5 @@ mockSmoSubdomain: "smo"
 ptpEventConsumerImage: quay.io/redhat-cne/cloud-event-consumer
 ptpEventConsumerV1Tag: ":4.18"
 ptpEventConsumerV2Tag: ":latest"
+o2imsMustGatherImage: quay.io/openshift-kni/oran-o2ims-operator-must-gather:latest
 ...

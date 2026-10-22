@@ -77,6 +77,11 @@ var _ = Describe("Neuron DRA Migration Tests", Ordered,
 			err = await.DRADaemonSet(APIClient, params.NeuronNamespace, migrationTimeout)
 			Expect(err).ToNot(HaveOccurred(), "DRA DaemonSet should be ready after restore")
 
+			By("Waiting for the restored DRA driver to publish ResourceSlices")
+
+			err = await.DRAResourcesAvailable(APIClient, migrationTimeout)
+			Expect(err).ToNot(HaveOccurred(), "DRA ResourceSlices should be published after restore")
+
 			klog.V(params.NeuronLogLevel).Info("DRA mode restored after migration tests")
 		})
 

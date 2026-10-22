@@ -138,6 +138,8 @@ const (
 	TalmDefaultReconcileTime = 5 * time.Minute
 	// TalmSystemStablizationTime is the default time to wait for talm to settle.
 	TalmSystemStablizationTime = 15 * time.Second
+	// MinTalmCGUEventsVersion is the first TALM version that emits CGU events.
+	MinTalmCGUEventsVersion = "5.0.0-0"
 
 	// CguEventTypeAnnotation is annotation key for event type (global, batch, cluster).
 	CguEventTypeAnnotation = "cgu.openshift.io/event-type"

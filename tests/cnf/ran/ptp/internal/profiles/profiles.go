@@ -117,7 +117,7 @@ type ProfileInfo struct {
 	Reference   ProfileReference
 	// Interfaces is a map of interface names to a struct holding more detailed information. Values should never be
 	// nil.
-	Interfaces map[iface.Name]*InterfaceInfo
+	Interfaces map[iface.Iface]*InterfaceInfo
 	// ConfigIndex is the number in the config file for the ptp4l corresponding to this profile. Profiles should
 	// have a ptp4l process unless they are HA.
 	ConfigIndex *uint
@@ -257,7 +257,7 @@ func getClockIdentityFromPortIdentity(portIdentity string) string {
 // getPortIdentitiesFromPMC queries the pmc tool for port properties and returns a map of interface names to their port
 // identities.
 func getPortIdentitiesFromPMC(
-	client *clients.Settings, nodeName, configPath string) (map[iface.Name]string, error) {
+	client *clients.Settings, nodeName, configPath string) (map[iface.Iface]string, error) {
 	command := fmt.Sprintf(`pmc -u -b 0 -f %s "GET PORT_PROPERTIES_NP"`, configPath)
 
 	output, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, command,
@@ -279,17 +279,17 @@ var portPropertiesRegex = regexp.MustCompile(
 
 // parsePortPropertiesOutput parses the output of the pmc GET PORT_PROPERTIES_NP command and returns a map of interface
 // names to their port identities.
-func parsePortPropertiesOutput(output string) (map[iface.Name]string, error) {
+func parsePortPropertiesOutput(output string) (map[iface.Iface]string, error) {
 	matches := portPropertiesRegex.FindAllStringSubmatch(output, -1)
 	if len(matches) == 0 {
 		return nil, fmt.Errorf("no port identities found in pmc output")
 	}
 
-	portIdentities := make(map[iface.Name]string, len(matches))
+	portIdentities := make(map[iface.Iface]string, len(matches))
 
 	for _, match := range matches {
 		portIdentity := match[1]
-		ifaceName := iface.Name(match[2])
+		ifaceName := iface.Iface(match[2])
 		portIdentities[ifaceName] = portIdentity
 	}
 
@@ -351,7 +351,7 @@ func (profileInfo *ProfileInfo) Clone() *ProfileInfo {
 	clone := &ProfileInfo{
 		ProfileType:    profileInfo.ProfileType,
 		Reference:      profileInfo.Reference,
-		Interfaces:     make(map[iface.Name]*InterfaceInfo),
+		Interfaces:     make(map[iface.Iface]*InterfaceInfo),
 		HardwareConfig: profileInfo.HardwareConfig,
 	}
 
@@ -372,7 +372,7 @@ func (profileInfo *ProfileInfo) Clone() *ProfileInfo {
 // InterfaceInfo contains information about the PTP clock type of an interface, its parent profile, and port identity
 // metadata. In the future, it may also contain information about which interface it is connected to.
 type InterfaceInfo struct {
-	Name               iface.Name
+	Iface              iface.Iface
 	ClockType          PtpClockType
 	PortIdentity       string
 	ParentPortIdentity string
@@ -390,7 +390,7 @@ type InterfaceInfo struct {
 // it forms a circular reference.
 func (interfaceInfo *InterfaceInfo) Clone() *InterfaceInfo {
 	return &InterfaceInfo{
-		Name:               interfaceInfo.Name,
+		Iface:              interfaceInfo.Iface,
 		ClockType:          interfaceInfo.ClockType,
 		PortIdentity:       interfaceInfo.PortIdentity,
 		ParentPortIdentity: interfaceInfo.ParentPortIdentity,
@@ -402,11 +402,11 @@ func (interfaceInfo *InterfaceInfo) Clone() *InterfaceInfo {
 }
 
 // GetInterfacesNames returns a slice of interface names for the provided slice of InterfaceInfo pointers.
-func GetInterfacesNames(interfaces []*InterfaceInfo) []iface.Name {
-	names := make([]iface.Name, 0, len(interfaces))
+func GetInterfacesNames(interfaces []*InterfaceInfo) []iface.Iface {
+	names := make([]iface.Iface, 0, len(interfaces))
 
 	for _, interfaceInfo := range interfaces {
-		names = append(names, interfaceInfo.Name)
+		names = append(names, interfaceInfo.Iface)
 	}
 
 	return names
@@ -419,7 +419,7 @@ type ProfileCounts map[PtpProfileType]uint
 // NodeInfo contains all the PtpConfig-related information for a single node. Common operations are provided as methods
 // on this type to avoid the need to aggregate and query nested data.
 type NodeInfo struct {
-	// Name is the name of the node resource this struct is associated to.
+	// Iface is the name of the node resource this struct is associated to.
 	Name string
 	// Counts records the number of each profile type recommended to this node. It will never be nil when this
 	// struct is returned from a function in this package.

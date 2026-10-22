@@ -8,9 +8,11 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/deployment"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/kmm"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/neuron"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/resource"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/check"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/internal/neuronparams"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/hw-accel/neuron/params"
@@ -21,6 +23,150 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 )
+
+const (
+	kmmNamespace               = "openshift-kmm"
+	kmmControllerDeployment    = "kmm-operator-controller"
+	kmmWebhookDeployment       = "kmm-operator-webhook"
+	kmmLegacyWebhookDeployment = "kmm-operator-webhook-server"
+)
+
+// KMMOperatorReady waits for the KMM controller and webhook deployments to be
+// ready. This is useful after changing the KMM Subscription, which can cause
+// OLM to roll the operator while a test is reconciling a Module.
+func KMMOperatorReady(apiClient *clients.Settings, timeout time.Duration) error {
+	return kmmOperatorReady(apiClient, "", "", timeout)
+}
+
+// KMMOperatorReadyWithToleration waits for KMM to be ready and for the
+// controller pod template to contain the requested toleration. Checking the
+// pod template prevents the caller from racing an asynchronous OLM rollout by
+// observing the old, still-ready deployment.
+func KMMOperatorReadyWithToleration(apiClient *clients.Settings, key string,
+	effect corev1.TaintEffect, timeout time.Duration) error {
+	return kmmOperatorReady(apiClient, key, effect, timeout)
+}
+
+func kmmOperatorReady(apiClient *clients.Settings, tolerationKey string,
+	tolerationEffect corev1.TaintEffect, timeout time.Duration) error {
+	return wait.PollUntilContextTimeout(
+		context.TODO(), 5*time.Second, timeout, true,
+		func(context.Context) (bool, error) {
+			controller, err := deployment.Pull(apiClient, kmmControllerDeployment, kmmNamespace)
+			if err != nil {
+				klog.V(params.NeuronLogLevel).Infof("KMM controller deployment is not available yet: %v", err)
+
+				return false, nil
+			}
+
+			if controller == nil || !deploymentRolloutReady(controller) {
+				return false, nil
+			}
+
+			if tolerationKey != "" && !deploymentHasToleration(controller, tolerationKey, tolerationEffect) {
+				return false, nil
+			}
+
+			webhookReady := false
+
+			for _, deploymentName := range []string{kmmWebhookDeployment, kmmLegacyWebhookDeployment} {
+				kmmDeployment, pullErr := deployment.Pull(apiClient, deploymentName, kmmNamespace)
+				if pullErr != nil {
+					continue
+				}
+
+				if kmmDeployment == nil {
+					continue
+				}
+
+				webhookReady = deploymentRolloutReady(kmmDeployment)
+
+				break
+			}
+
+			return webhookReady, nil
+		})
+}
+
+func deploymentHasToleration(builder *deployment.Builder, key string, effect corev1.TaintEffect) bool {
+	for _, toleration := range builder.Definition.Spec.Template.Spec.Tolerations {
+		if toleration.Key == key && toleration.Effect == effect {
+			return true
+		}
+	}
+
+	return false
+}
+
+func deploymentRolloutReady(builder *deployment.Builder) bool {
+	desiredReplicas := int32(1)
+	if builder.Definition.Spec.Replicas != nil {
+		desiredReplicas = *builder.Definition.Spec.Replicas
+	}
+
+	return builder.Definition.Status.ObservedGeneration >= builder.Definition.Generation &&
+		builder.Definition.Status.UpdatedReplicas == desiredReplicas &&
+		builder.Definition.Status.AvailableReplicas == desiredReplicas
+}
+
+// DeviceConfigDriverUpdated waits until DeviceConfig contains the requested
+// driver version and, when supplied, the requested driver image.
+func DeviceConfigDriverUpdated(apiClient *clients.Settings, name, namespace,
+	expectedVersion, expectedImage string, timeout time.Duration) error {
+	var observedVersion, observedImage string
+
+	err := wait.PollUntilContextTimeout(
+		context.TODO(), 5*time.Second, timeout, true,
+		func(context.Context) (bool, error) {
+			deviceConfig, err := neuron.Pull(apiClient, name, namespace)
+			if err != nil {
+				return false, nil
+			}
+
+			observedVersion = deviceConfig.Definition.Spec.DriverVersion
+			observedImage = deviceConfig.Definition.Spec.DriversImage
+
+			return observedVersion == expectedVersion &&
+				(expectedImage == "" || observedImage == expectedImage), nil
+		})
+	if err != nil {
+		return fmt.Errorf(
+			"DeviceConfig %s in namespace %s did not reach driver version %q and image %q "+
+				"(observed version %q, image %q): %w",
+			name, namespace, expectedVersion, expectedImage, observedVersion, observedImage, err)
+	}
+
+	return nil
+}
+
+// ModuleDriverImageUpdated waits until KMM's Module references the requested
+// driver image. KMM appends the node kernel version to pre-built driver images.
+func ModuleDriverImageUpdated(apiClient *clients.Settings, name, namespace,
+	expectedImage string, timeout time.Duration) error {
+	var observedImage string
+
+	err := wait.PollUntilContextTimeout(
+		context.TODO(), 5*time.Second, timeout, true,
+		func(context.Context) (bool, error) {
+			module, err := kmm.Pull(apiClient, name, namespace)
+			if err != nil || module.Definition.Spec.ModuleLoader == nil ||
+				len(module.Definition.Spec.ModuleLoader.Container.KernelMappings) == 0 {
+				return false, nil
+			}
+
+			observedImage = module.Definition.Spec.ModuleLoader.Container.KernelMappings[0].ContainerImage
+
+			return observedImage == expectedImage ||
+				strings.HasPrefix(observedImage, expectedImage+"-"), nil
+		})
+	if err != nil {
+		return fmt.Errorf(
+			"module %s in namespace %s did not reach driver image %q (observed %q): %w",
+			name, namespace, expectedImage, observedImage, err)
+	}
+
+	return nil
+}
 
 // DRADeviceConfig waits for a DeviceConfig with a configured DRA driver image.
 func DRADeviceConfig(apiClient *clients.Settings, name, namespace string,
@@ -98,18 +244,46 @@ func ResourceClaimAllocatedAndReserved(
 		})
 }
 
-// DRAResourcesAvailable waits until ResourceSlices advertise at least one
-// Neuron device on a node.
+// DRAResourcesAvailable waits until every Neuron node has a populated
+// ResourceSlice for the Neuron DRA driver. Waiting for only one slice allows
+// callers to race the driver's per-node publication and observe a partial
+// inventory.
 func DRAResourcesAvailable(apiClient *clients.Settings, timeout time.Duration) error {
 	return wait.PollUntilContextTimeout(
 		context.TODO(), 10*time.Second, timeout, true,
 		func(context.Context) (bool, error) {
-			_, deviceCount, err := check.SmallestDRANode(apiClient)
+			neuronNodes, err := check.GetNeuronNodes(apiClient)
+			if err != nil || len(neuronNodes) == 0 {
+				return false, nil
+			}
+
+			slices, err := resource.ListResourceSlicesByDriver(apiClient, params.DRADriverName)
 			if err != nil {
 				return false, nil
 			}
 
-			return deviceCount > 0, nil
+			populatedNodes := make(map[string]struct{}, len(slices))
+			for _, slice := range slices {
+				if slice.Object.Spec.NodeName == nil || len(slice.Object.Spec.Devices) == 0 {
+					continue
+				}
+
+				populatedNodes[*slice.Object.Spec.NodeName] = struct{}{}
+			}
+
+			for _, node := range neuronNodes {
+				if _, found := populatedNodes[node.Object.Name]; !found {
+					klog.V(params.NeuronLogLevel).Infof(
+						"Neuron ResourceSlice for node %s is not populated yet", node.Object.Name)
+
+					return false, nil
+				}
+			}
+
+			klog.V(params.NeuronLogLevel).Infof(
+				"All %d Neuron nodes have populated ResourceSlices", len(neuronNodes))
+
+			return true, nil
 		})
 }
 
@@ -633,6 +807,38 @@ func DRADaemonSet(apiClient *clients.Settings, namespace string, timeout time.Du
 						"DRA DaemonSet %s is ready: %d/%d",
 						ds.Name, ds.Status.NumberReady, ds.Status.DesiredNumberScheduled)
 
+					return true, nil
+				}
+			}
+
+			return false, nil
+		})
+}
+
+// DRADaemonSetImage waits for the ready DRA DaemonSet to use the requested
+// image and to have observed the corresponding template generation.
+func DRADaemonSetImage(apiClient *clients.Settings, namespace, image string,
+	timeout time.Duration) error {
+	return wait.PollUntilContextTimeout(
+		context.TODO(), 10*time.Second, timeout, true,
+		func(ctx context.Context) (bool, error) {
+			daemonSets, err := apiClient.K8sClient.AppsV1().DaemonSets(namespace).List(
+				ctx, metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s",
+					params.DRADaemonSetLabelKey, params.DRADaemonSetLabelValue)})
+			if err != nil {
+				return false, nil
+			}
+
+			for _, daemonSet := range daemonSets.Items {
+				if len(daemonSet.Spec.Template.Spec.Containers) == 0 ||
+					daemonSet.Spec.Template.Spec.Containers[0].Image != image {
+					continue
+				}
+
+				if daemonSet.Status.ObservedGeneration == daemonSet.Generation &&
+					daemonSet.Status.DesiredNumberScheduled > 0 &&
+					daemonSet.Status.UpdatedNumberScheduled == daemonSet.Status.DesiredNumberScheduled &&
+					daemonSet.Status.NumberReady == daemonSet.Status.DesiredNumberScheduled {
 					return true, nil
 				}
 			}

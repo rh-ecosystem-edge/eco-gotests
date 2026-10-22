@@ -1,4 +1,4 @@
-# Synced with oran-o2ims commit 32d7280bed8ac83dc1bc0bcfbbb07a01309392fc
+# Synced with oran-o2ims commit 14a520a4dd5ca6f58cf409c835aad077c20b6881
 openapi: 3.0.3
 info:
   title: O2IMS Infrastructure Monitoring Alarms API
@@ -24,12 +24,16 @@ tags:
 - name: subscriptions
   description: Alarm subscription management
 
+# Scope enforcement: OAuth scopes are not verified directly from the token's
+# scope claim. The OAuth server translates scopes into group memberships
+# (via the groups claim), and the Authorizer maps those groups to Kubernetes
+# RBAC permissions via SubjectAccessReview. See DD-003 in AGENTS.md.
 security:
 - oauth2:
   - role:o2ims-admin
 
 paths:
-  /o2ims-infrastructureMonitoring/api_versions:
+  /O2ims_infrastructureMonitoring/api_versions:
     get:
       operationId: getAllVersions
       summary: Get API versions
@@ -74,7 +78,7 @@ paths:
               schema:
                 $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
 
-  /o2ims-infrastructureMonitoring/v1/api_versions:
+  /O2ims_infrastructureMonitoring/v1/api_versions:
     get:
       operationId: getMinorVersions
       summary: Get minor API versions
@@ -119,7 +123,7 @@ paths:
               schema:
                 $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
 
-  /o2ims-infrastructureMonitoring/v1/alarms:
+  /O2ims_infrastructureMonitoring/v1/alarms:
     get:
       operationId: GetAlarms
       summary: Retrieve the list of alarms
@@ -168,7 +172,7 @@ paths:
               schema:
                 $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
 
-  /o2ims-infrastructureMonitoring/v1/alarms/{alarmEventRecordId}:
+  /O2ims_infrastructureMonitoring/v1/alarms/{alarmEventRecordId}:
     get:
       operationId: GetAlarm
       summary: Retrieve exactly one alarm
@@ -297,7 +301,7 @@ paths:
               schema:
                 $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
 
-  /o2ims-infrastructureMonitoring/v1/alarmServiceConfiguration:
+  /O2ims_infrastructureMonitoring/v1/alarmServiceConfiguration:
     get:
       operationId: GetServiceConfiguration
       summary: Retrieve the alarm service configuration
@@ -446,7 +450,7 @@ paths:
               schema:
                 $ref: '../common/openapi.yaml#/components/schemas/ProblemDetails'
 
-  /o2ims-infrastructureMonitoring/v1/alarmSubscriptions:
+  /O2ims_infrastructureMonitoring/v1/alarmSubscriptions:
     get:
       operationId: GetSubscriptions
       summary: Retrieve the list of alarm subscriptions
@@ -565,7 +569,7 @@ paths:
                 '500':
                   description: Internal server error
 
-  /o2ims-infrastructureMonitoring/v1/alarmSubscriptions/{alarmSubscriptionId}:
+  /O2ims_infrastructureMonitoring/v1/alarmSubscriptions/{alarmSubscriptionId}:
     get:
       operationId: GetSubscription
       summary: Retrieve exactly one subscription
@@ -749,8 +753,7 @@ components:
           $ref: '#/components/schemas/PerceivedSeverity'
         extensions:
           type: object
-          additionalProperties:
-            type: string
+          additionalProperties: {}
           description: |
             These are unspecified (not standardized) properties (keys) which are tailored by the vendor or
             operator to extend the information provided about the O-Cloud Alarm.
@@ -786,8 +789,7 @@ components:
           example: 30
         extensions:
           type: object
-          additionalProperties:
-            type: string
+          additionalProperties: {}
           description: List of metadata key-value pairs used to associate meaningful metadata to the related alarm service
       required:
       - retentionPeriod
@@ -805,8 +807,7 @@ components:
           example: 30
         extensions:
           type: object
-          additionalProperties:
-            type: string
+          additionalProperties: {}
           description: List of metadata key-value pairs used to associate meaningful metadata to the related alarm service
 
     AlarmSubscriptionInfo:
@@ -983,7 +984,7 @@ components:
         objectRef:
           type: string
           description: The URL to the AlarmEventRecord object.
-          example: hostname.com/o2ims-infrastructureMonitoring/v1/alarms/bf3f8f2e-6f37-4882-96ad-c0b9cef6fc04
+          example: hostname.com/O2ims_infrastructureMonitoring/v1/alarms/bf3f8f2e-6f37-4882-96ad-c0b9cef6fc04
         alarmEventRecordId:
           type: string
           format: uuid
@@ -1032,8 +1033,7 @@ components:
           $ref: '#/components/schemas/PerceivedSeverity'
         extensions:
           type: object
-          additionalProperties:
-            type: string
+          additionalProperties: {}
           description: |
             These are unspecified (not standardized) properties (keys) which are tailored by the vendor or
             operator to extend the information provided about the O-Cloud Alarm.

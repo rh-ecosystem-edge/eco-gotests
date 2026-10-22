@@ -12,6 +12,8 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/rancluster"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/version"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/talm/internal/helper"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/talm/internal/setup"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/talm/internal/tsparams"
@@ -20,23 +22,34 @@ import (
 )
 
 var _ = Describe("TALM Canary Tests", Label(tsparams.LabelCanaryTestCases), func() {
-	var err error
+	var (
+		err             error
+		eventsSupported bool
+	)
 
 	BeforeEach(func() {
 		By("checking that hub and two spokes are present")
 		Expect(rancluster.AreClustersPresent([]*clients.Settings{HubAPIClient, Spoke1APIClient, Spoke2APIClient})).
 			To(BeTrue(), "Failed due to missing API client")
 
-		By(fmt.Sprintf("clearing CGU events in the %s namespace", tsparams.TestNamespace))
+		eventsSupported, err = version.IsVersionStringInRange(
+			RANConfig.HubOperatorVersions[ranparam.TALM], tsparams.MinTalmCGUEventsVersion, "")
+		Expect(err).ToNot(HaveOccurred(), "Failed to compare TALM version for CGU events")
 
-		err = helper.ClearCGUEvents()
-		Expect(err).ToNot(HaveOccurred(), "Failed to clear CGU events")
+		if eventsSupported {
+			By(fmt.Sprintf("clearing CGU events in the %s namespace", tsparams.TestNamespace))
+
+			err = helper.ClearCGUEvents()
+			Expect(err).ToNot(HaveOccurred(), "Failed to clear CGU events")
+		}
 	})
 
 	AfterEach(func() {
-		By(fmt.Sprintf("printing CGU events in the %s namespace", tsparams.TestNamespace))
+		if eventsSupported {
+			By(fmt.Sprintf("printing CGU events in the %s namespace", tsparams.TestNamespace))
 
-		helper.PrintCGUEvents()
+			helper.PrintCGUEvents()
+		}
 
 		By("cleaning up resources on hub")
 
@@ -101,29 +114,31 @@ var _ = Describe("TALM Canary Tests", Label(tsparams.LabelCanaryTestCases), func
 		_, err = cguBuilder.WaitForCondition(tsparams.CguTimeoutCanaryCondition, 11*time.Minute)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for timeout due to canary failure")
 
-		By("verifying CGU emitted timeout events for canary batch")
+		if eventsSupported {
+			By("verifying CGU emitted timeout events for canary batch")
 
-		Eventually(helper.EventPoller(tsparams.CguName, func(events []*eventsv1.Event) (bool, error) {
-			// OCPBUGS-120827: batch timeout for canary batch failure
-			batchTimeoutEvents := helper.FindEventsByReasonAndScope(events,
-				tsparams.CguTimedout, tsparams.EventScopeBatch)
-			if len(batchTimeoutEvents) == 0 {
-				return false, fmt.Errorf("no CguTimedout/batch events found for canary timeout (OCPBUGS-120827)")
-			}
+			Eventually(helper.EventPoller(tsparams.CguName, func(events []*eventsv1.Event) (bool, error) {
+				// OCPBUGS-120827: batch timeout for canary batch failure
+				batchTimeoutEvents := helper.FindEventsByReasonAndScope(events,
+					tsparams.CguTimedout, tsparams.EventScopeBatch)
+				if len(batchTimeoutEvents) == 0 {
+					return false, fmt.Errorf("no CguTimedout/batch events found for canary timeout (OCPBUGS-120827)")
+				}
 
-			globalTimeoutEvents := helper.FindEventsByReasonAndScope(events,
-				tsparams.CguTimedout, tsparams.EventScopeGlobal)
-			if len(globalTimeoutEvents) == 0 {
-				return false, fmt.Errorf("no CguTimedout/global events found")
-			}
+				globalTimeoutEvents := helper.FindEventsByReasonAndScope(events,
+					tsparams.CguTimedout, tsparams.EventScopeGlobal)
+				if len(globalTimeoutEvents) == 0 {
+					return false, fmt.Errorf("no CguTimedout/global events found")
+				}
 
-			if !helper.HasEventWithAnnotation(globalTimeoutEvents, tsparams.CguTimedoutClustersAnnotation) {
-				return false, fmt.Errorf("missing timedout-clusters annotation on global timeout event")
-			}
+				if !helper.HasEventWithAnnotation(globalTimeoutEvents, tsparams.CguTimedoutClustersAnnotation) {
+					return false, fmt.Errorf("missing timedout-clusters annotation on global timeout event")
+				}
 
-			return true, nil
-		})).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
-			"[EVENT CHECK] Missing canary timeout events or timedout-clusters annotation")
+				return true, nil
+			})).WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
+				"[EVENT CHECK] Missing canary timeout events or timedout-clusters annotation")
+		}
 	})
 
 	// 47947 - Tests successful ocp and operator upgrade with canaries and multiple batches.
@@ -156,23 +171,25 @@ var _ = Describe("TALM Canary Tests", Label(tsparams.LabelCanaryTestCases), func
 		_, err = cguBuilder.WaitForCondition(tsparams.CguSuccessfulFinishCondition, 10*time.Minute)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for CGU to finish successfully")
 
-		By("verifying CGU emitted correct lifecycle events for canary success")
+		if eventsSupported {
+			By("verifying CGU emitted correct lifecycle events for canary success")
 
-		// Expected sequence: global start, canary batch start, cluster completes, canary batch complete,
-		// next batch start, cluster complete, next batch complete, global success
-		expectedSequence := []helper.EventMatcher{
-			{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeGlobal},
-			{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeBatch}, // canary batch
-			{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeCluster},
-			{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeBatch}, // canary batch complete
-			{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeBatch}, // next batch
-			{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeCluster},
-			{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeBatch},
-			{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeGlobal},
+			// Expected sequence: global start, canary batch start, cluster completes, canary batch complete,
+			// next batch start, cluster complete, next batch complete, global success
+			expectedSequence := []helper.EventMatcher{
+				{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeGlobal},
+				{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeBatch}, // canary batch
+				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeCluster},
+				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeBatch}, // canary batch complete
+				{Reason: tsparams.CguStarted, Scope: tsparams.EventScopeBatch}, // next batch
+				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeCluster},
+				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeBatch},
+				{Reason: tsparams.CguSuccess, Scope: tsparams.EventScopeGlobal},
+			}
+
+			Eventually(helper.EventSequencePoller(tsparams.CguName, expectedSequence)).
+				WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
+				"[EVENT CHECK] CGU event sequence mismatch for successful canary lifecycle")
 		}
-
-		Eventually(helper.EventSequencePoller(tsparams.CguName, expectedSequence)).
-			WithTimeout(30*time.Second).WithPolling(5*time.Second).Should(BeTrue(),
-			"[EVENT CHECK] CGU event sequence mismatch for successful canary lifecycle")
 	})
 })
