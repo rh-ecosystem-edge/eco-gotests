@@ -10,7 +10,6 @@ import (
 	. "github.com/onsi/gomega"
 	prometheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	eventptp "github.com/redhat-cne/sdk-go/pkg/event/ptp"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ptp"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/querier"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
@@ -26,13 +25,11 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/profiles"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/ptpdaemon"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
-	"k8s.io/klog/v2"
 )
 
 var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 	var (
 		prometheusAPI        prometheusv1.API
-		savedPtpConfigs      []*ptp.PtpConfigBuilder
 		configSupported      bool
 		assertOsClockFreerun bool
 	)
@@ -60,11 +57,6 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 		err = metrics.EnsureClocksAreLocked(prometheusAPI)
 		Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
 
-		By("saving PtpConfigs before testing")
-
-		savedPtpConfigs, err = profiles.SavePtpConfigs(RANConfig.Spoke1APIClient)
-		Expect(err).ToNot(HaveOccurred(), "Failed to save PtpConfigs")
-
 		configSupported, err = version.IsVersionStringInRange(
 			RANConfig.Spoke1OperatorVersions[ranparam.PTP], "4.20.0-0", "")
 		Expect(err).ToNot(HaveOccurred(), "Failed to check PTP config label version range")
@@ -78,26 +70,9 @@ var _ = Describe("PTP T-GM GNSS Loss", Label(tsparams.LabelGNSSLoss), func() {
 			return
 		}
 
-		By("restoring PtpConfigs after testing")
-
-		startTime := time.Now()
-		changedProfiles, err := profiles.RestorePtpConfigs(RANConfig.Spoke1APIClient, savedPtpConfigs)
-		Expect(err).ToNot(HaveOccurred(), "Failed to restore PtpConfigs")
-
-		if len(changedProfiles) > 0 {
-			By("waiting for profile load on nodes")
-
-			err := daemonlogs.WaitForProfileLoadOnPTPNodes(RANConfig.Spoke1APIClient,
-				daemonlogs.WithStartTime(startTime),
-				daemonlogs.WithTimeout(5*time.Minute))
-			if err != nil {
-				klog.V(tsparams.LogLevel).Infof("Failed to wait for profile load on PTP nodes: %v", err)
-			}
-		}
-
 		By("ensuring clocks are locked after testing")
 
-		err = metrics.EnsureClocksAreLocked(prometheusAPI)
+		err := metrics.EnsureClocksAreLocked(prometheusAPI)
 		Expect(err).ToNot(HaveOccurred(), "Failed to assert clock state is locked")
 	})
 
@@ -648,14 +623,16 @@ func ensureGMHoldoverSettings(
 		restoreTime := time.Now()
 
 		restoreErr = profiles.WaitForHoldoverSettingsApplied(
-			RANConfig.Spoke1APIClient, nodeName, profileInfo, restoreTime, timeout)
+			RANConfig.Spoke1APIClient, nodeName, profileInfo, restoreTime, timeout,
+			RANConfig.Spoke1OperatorVersions[ranparam.PTP])
 		Expect(restoreErr).ToNot(HaveOccurred(), "Daemon did not reload after holdover restore on node %s", nodeName)
 	})
 
 	setTime := time.Now()
 
 	err = profiles.WaitForHoldoverSettingsApplied(
-		RANConfig.Spoke1APIClient, nodeName, profileInfo, setTime, timeout)
+		RANConfig.Spoke1APIClient, nodeName, profileInfo, setTime, timeout,
+		RANConfig.Spoke1OperatorVersions[ranparam.PTP])
 	Expect(err).ToNot(HaveOccurred(), "Daemon did not reload after holdover config change on node %s", nodeName)
 
 	By("ensuring clocks are locked and holdover settings stabilize")
