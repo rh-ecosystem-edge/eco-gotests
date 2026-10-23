@@ -92,6 +92,7 @@ var _ = Describe(
 					continue
 				}
 
+				executed = true
 				testNamespace := setupTestNamespace(caseID+"-", data)
 				networkName := caseID + "-" + data.Name
 				setupSriovNetwork(networkName, data.Name, testNamespace,
@@ -107,7 +108,6 @@ var _ = Describe(
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
-				executed = true
 			}
 
 			if !executed {
@@ -130,6 +130,7 @@ var _ = Describe(
 					continue
 				}
 
+				executed = true
 				testNamespace := setupTestNamespace(caseID+"-", data)
 				networkName := caseID + "-" + data.Name
 				setupSriovNetwork(networkName, data.Name, testNamespace,
@@ -144,7 +145,6 @@ var _ = Describe(
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
-				executed = true
 			}
 
 			if !executed {
@@ -167,6 +167,7 @@ var _ = Describe(
 					continue
 				}
 
+				executed = true
 				testNamespace := setupTestNamespace(caseID+"-", data)
 				networkName := caseID + "-" + data.Name
 				setupSriovNetwork(networkName, data.Name, testNamespace,
@@ -181,7 +182,6 @@ var _ = Describe(
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
-				executed = true
 			}
 
 			if !executed {
@@ -204,6 +204,7 @@ var _ = Describe(
 					continue
 				}
 
+				executed = true
 				testNamespace := setupTestNamespace(caseID+"-", data)
 				networkName := caseID + "-" + data.Name
 				setupSriovNetwork(networkName, data.Name, testNamespace,
@@ -218,7 +219,6 @@ var _ = Describe(
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
-				executed = true
 			}
 
 			if !executed {
@@ -247,6 +247,7 @@ var _ = Describe(
 					continue
 				}
 
+				executed = true
 				testNamespace := setupTestNamespace(caseID+"-", data)
 				networkName := caseID + "-" + data.Name
 				setupSriovNetwork(networkName, data.Name, testNamespace,
@@ -265,7 +266,6 @@ var _ = Describe(
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
-				executed = true
 			}
 
 			if !executed {
@@ -288,6 +288,7 @@ var _ = Describe(
 					continue
 				}
 
+				executed = true
 				testNamespace := setupTestNamespace(caseID+"-", data)
 				networkName := caseID + "-" + data.Name
 				setupSriovNetwork(networkName, data.Name, testNamespace,
@@ -302,7 +303,6 @@ var _ = Describe(
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
-				executed = true
 			}
 
 			if !executed {
@@ -325,6 +325,7 @@ var _ = Describe(
 					continue
 				}
 
+				executed = true
 				testNamespace := setupTestNamespace(caseID+"-", data)
 				networkName := caseID + "-" + data.Name
 				setupSriovNetwork(networkName, data.Name, testNamespace,
@@ -347,7 +348,6 @@ var _ = Describe(
 				err = sriovenv.CheckVFStatusWithPassTraffic(networkName, data.InterfaceName,
 					testNamespace, "link-state enable", tsparams.PodReadyTimeout)
 				Expect(err).ToNot(HaveOccurred(), "VF connectivity test failed")
-				executed = true
 			}
 
 			if !executed {
@@ -370,6 +370,7 @@ var _ = Describe(
 					continue
 				}
 
+				executed = true
 				// Configure MTU in SR-IOV policy
 				By(fmt.Sprintf("Updating SR-IOV policy %q with MTU %d", data.Name, tsparams.DefaultTestMTU))
 				err = sriovenv.UpdateSriovPolicyMTU(data.Name, tsparams.DefaultTestMTU)
@@ -393,7 +394,6 @@ var _ = Describe(
 				}
 
 				Expect(err).ToNot(HaveOccurred(), "Test verification failed")
-				executed = true
 			}
 
 			if !executed {
@@ -424,6 +424,7 @@ var _ = Describe(
 					continue
 				}
 
+				executed = true
 				testNamespace := setupTestNamespace(caseID+"-", data)
 				networkName := caseID + "-" + data.Name + "-dpdk"
 				setupSriovNetwork(networkName, data.Name, testNamespace)
@@ -473,7 +474,6 @@ var _ = Describe(
 					"Network status should contain PCI address")
 				Expect(podNetAnnotation).To(ContainSubstring(pciAddress),
 					"Network status should contain the assigned PCI address")
-				executed = true
 			}
 
 			if !executed {
