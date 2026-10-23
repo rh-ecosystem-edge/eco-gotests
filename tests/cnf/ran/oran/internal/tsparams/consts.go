@@ -1,6 +1,10 @@
 package tsparams
 
-import "k8s.io/klog/v2"
+import (
+	"time"
+
+	"k8s.io/klog/v2"
+)
 
 const (
 	// LabelSuite is the label applied to all cases in the oran suite.
@@ -69,6 +73,26 @@ const (
 	PRKubePrefixDetailsSubstring = `targets a reserved namespace (prefix "kube-")`
 	// PRDNS1123DetailsSubstring is a substring of API error detail when clusterName is not DNS-1123 compliant.
 	PRDNS1123DetailsSubstring = "not a valid DNS-1123 label"
+)
+
+// Staged ProvisioningRequest wait budgets for provision test 77394. Long stages scale with topology.
+const (
+	// PRValidatedTimeout is the wait for ProvisioningRequestValidated=Completed.
+	PRValidatedTimeout = 5 * time.Minute
+	// PRClusterInstanceProcessedTimeout is the wait for ClusterInstanceProcessed=Completed
+	// (implies render, resources, hardware provision, and node config).
+	PRClusterInstanceProcessedTimeout = 15 * time.Minute
+	// ClusterProvisionBaseTimeout is the fixed portion of the ClusterProvisioned wait.
+	ClusterProvisionBaseTimeout = 30 * time.Minute
+	// ClusterProvisionPerNodeTimeout is added once per spoke node for ClusterProvisioned.
+	ClusterProvisionPerNodeTimeout = 15 * time.Minute
+	// ConfigurationAppliedBaseTimeout is the fixed portion of the ConfigurationApplied wait.
+	ConfigurationAppliedBaseTimeout = 20 * time.Minute
+	// ConfigurationAppliedPerMasterTimeout is added once per master for ConfigurationApplied
+	// (MachineConfigPool master rolling reboot).
+	ConfigurationAppliedPerMasterTimeout = 30 * time.Minute
+	// PRFulfilledAfterConfigTimeout is the wait for phase fulfilled after ConfigurationApplied.
+	PRFulfilledAfterConfigTimeout = 5 * time.Minute
 )
 
 const (

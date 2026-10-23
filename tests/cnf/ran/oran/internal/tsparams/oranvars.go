@@ -83,6 +83,13 @@ var (
 		Reason: string(provisioningv1alpha1.CRconditionReasons.Completed),
 		Status: metav1.ConditionTrue,
 	}
+	// PRClusterProvisionedCondition is the ProvisioningRequest condition where Assisted Installer cluster
+	// provisioning has completed.
+	PRClusterProvisionedCondition = metav1.Condition{
+		Type:   string(provisioningv1alpha1.PRconditionTypes.ClusterProvisioned),
+		Reason: string(provisioningv1alpha1.CRconditionReasons.Completed),
+		Status: metav1.ConditionTrue,
+	}
 
 	// CTUndefinedHwProvisioningCondition is the ClusterTemplate condition where validation failed because the
 	// template does not define hardware provisioning via hwMgmtDefaults.nodeGroupData or hwMgmtParameters.
