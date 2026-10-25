@@ -86,11 +86,12 @@ fi
 echo "Waiting for PackageManifest ${KMM_PACKAGE_NAME}"
 package_available=false
 for _ in $(seq 1 "${KMM_READINESS_RETRIES}"); do
-  if oc get packagemanifest \
+  package_manifest_name="$(oc get packagemanifest \
     --namespace "${KMM_CATALOG_NAMESPACE}" \
     --selector "${KMM_PACKAGE_SELECTOR}" \
     --field-selector "metadata.name=${KMM_PACKAGE_NAME}" \
-    -o name 2>/dev/null | grep -qx "packagemanifest/${KMM_PACKAGE_NAME}"; then
+    -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)"
+  if [[ "${package_manifest_name}" == "${KMM_PACKAGE_NAME}" ]]; then
     package_available=true
     break
   fi
