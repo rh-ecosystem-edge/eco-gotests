@@ -10,6 +10,7 @@ readonly KMM_CATALOG_NAMESPACE="${KMM_CATALOG_NAMESPACE:-openshift-marketplace}"
 readonly KMM_MARKETPLACE_TIMEOUT="${KMM_MARKETPLACE_TIMEOUT:-10m}"
 readonly KMM_READINESS_RETRIES="${KMM_READINESS_RETRIES:-60}"
 readonly KMM_READINESS_INTERVAL="${KMM_READINESS_INTERVAL:-10}"
+readonly KMM_PACKAGE_SELECTOR="catalog=${KMM_CATALOG_SOURCE},catalog-namespace=${KMM_CATALOG_NAMESPACE}"
 
 echo "Installing ${KMM_PACKAGE_NAME} from ${KMM_CATALOG_SOURCE}"
 
@@ -37,23 +38,27 @@ if ! oc wait clusteroperator/marketplace \
 fi
 
 echo "Waiting for CatalogSource ${KMM_CATALOG_NAMESPACE}/${KMM_CATALOG_SOURCE}"
-if ! oc get catalogsource "${KMM_CATALOG_SOURCE}" \
-  --namespace "${KMM_CATALOG_NAMESPACE}" >/dev/null 2>&1; then
+catalog_available=false
+catalog_state=""
+for _ in $(seq 1 "${KMM_READINESS_RETRIES}"); do
+  if oc get catalogsource "${KMM_CATALOG_SOURCE}" \
+    --namespace "${KMM_CATALOG_NAMESPACE}" >/dev/null 2>&1; then
+    catalog_available=true
+    catalog_state="$(oc get catalogsource "${KMM_CATALOG_SOURCE}" \
+      --namespace "${KMM_CATALOG_NAMESPACE}" \
+      -o jsonpath='{.status.connectionState.lastObservedState}' 2>/dev/null || true)"
+    if [[ "${catalog_state}" == "READY" ]]; then
+      break
+    fi
+  fi
+  sleep "${KMM_READINESS_INTERVAL}"
+done
+
+if [[ "${catalog_available}" != true ]]; then
   echo "CatalogSource ${KMM_CATALOG_NAMESPACE}/${KMM_CATALOG_SOURCE} is not present" >&2
   print_marketplace_diagnostics
   exit 1
 fi
-
-catalog_state=""
-for _ in $(seq 1 "${KMM_READINESS_RETRIES}"); do
-  catalog_state="$(oc get catalogsource "${KMM_CATALOG_SOURCE}" \
-    --namespace "${KMM_CATALOG_NAMESPACE}" \
-    -o jsonpath='{.status.connectionState.lastObservedState}' 2>/dev/null || true)"
-  if [[ "${catalog_state}" == "READY" ]]; then
-    break
-  fi
-  sleep "${KMM_READINESS_INTERVAL}"
-done
 
 if [[ "${catalog_state}" != "READY" ]]; then
   echo "CatalogSource ${KMM_CATALOG_NAMESPACE}/${KMM_CATALOG_SOURCE} did not become READY" >&2
@@ -62,8 +67,17 @@ if [[ "${catalog_state}" != "READY" ]]; then
 fi
 
 echo "Checking the PackageManifest API"
-if ! oc api-resources --api-group=packages.operators.coreos.com --no-headers \
-  | awk '$1 == "packagemanifests" { found = 1 } END { exit found ? 0 : 1 }'; then
+package_api_available=false
+for _ in $(seq 1 "${KMM_READINESS_RETRIES}"); do
+  if oc api-resources --api-group=packages.operators.coreos.com --no-headers \
+    | awk '$1 == "packagemanifests" { found = 1 } END { exit found ? 0 : 1 }'; then
+    package_api_available=true
+    break
+  fi
+  sleep "${KMM_READINESS_INTERVAL}"
+done
+
+if [[ "${package_api_available}" != true ]]; then
   echo "The PackageManifest API is unavailable on the claimed cluster" >&2
   print_marketplace_diagnostics
   exit 1
@@ -72,8 +86,11 @@ fi
 echo "Waiting for PackageManifest ${KMM_PACKAGE_NAME}"
 package_available=false
 for _ in $(seq 1 "${KMM_READINESS_RETRIES}"); do
-  if oc get packagemanifest "${KMM_PACKAGE_NAME}" \
-    --namespace "${KMM_CATALOG_NAMESPACE}" >/dev/null 2>&1; then
+  if oc get packagemanifest \
+    --namespace "${KMM_CATALOG_NAMESPACE}" \
+    --selector "${KMM_PACKAGE_SELECTOR}" \
+    --field-selector "metadata.name=${KMM_PACKAGE_NAME}" \
+    -o name 2>/dev/null | grep -qx "packagemanifest/${KMM_PACKAGE_NAME}"; then
     package_available=true
     break
   fi
@@ -88,9 +105,11 @@ fi
 
 oc create namespace "${KMM_NAMESPACE}" --dry-run=client -o yaml | oc apply -f -
 
-default_channel="$(oc get packagemanifest "${KMM_PACKAGE_NAME}" \
+default_channel="$(oc get packagemanifest \
   --namespace "${KMM_CATALOG_NAMESPACE}" \
-  -o jsonpath='{.status.defaultChannel}')"
+  --selector "${KMM_PACKAGE_SELECTOR}" \
+  --field-selector "metadata.name=${KMM_PACKAGE_NAME}" \
+  -o jsonpath='{.items[0].status.defaultChannel}')"
 readonly KMM_CHANNEL="${KMM_CHANNEL:-${default_channel}}"
 
 if [[ -z "${KMM_CHANNEL}" ]]; then
