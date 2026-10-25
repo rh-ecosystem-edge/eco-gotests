@@ -7,12 +7,84 @@ readonly KMM_SUBSCRIPTION_NAME="${KMM_SUBSCRIPTION_NAME:-kernel-module-managemen
 readonly KMM_PACKAGE_NAME="${KMM_PACKAGE_NAME:-kernel-module-management}"
 readonly KMM_CATALOG_SOURCE="${KMM_CATALOG_SOURCE:-redhat-operators}"
 readonly KMM_CATALOG_NAMESPACE="${KMM_CATALOG_NAMESPACE:-openshift-marketplace}"
+readonly KMM_MARKETPLACE_TIMEOUT="${KMM_MARKETPLACE_TIMEOUT:-10m}"
+readonly KMM_READINESS_RETRIES="${KMM_READINESS_RETRIES:-60}"
+readonly KMM_READINESS_INTERVAL="${KMM_READINESS_INTERVAL:-10}"
 
 echo "Installing ${KMM_PACKAGE_NAME} from ${KMM_CATALOG_SOURCE}"
 
-oc get packagemanifest "${KMM_PACKAGE_NAME}" \
-  --namespace "${KMM_CATALOG_NAMESPACE}" \
-  --ignore-not-found >/dev/null
+print_marketplace_diagnostics() {
+  echo "Marketplace diagnostics:" >&2
+  oc get clusteroperator marketplace -o yaml >&2 || true
+  oc get catalogsource -n "${KMM_CATALOG_NAMESPACE}" >&2 || true
+  oc get pods -n "${KMM_CATALOG_NAMESPACE}" >&2 || true
+  oc api-resources --api-group=packages.operators.coreos.com >&2 || true
+}
+
+echo "Waiting for the OpenShift Marketplace operator"
+if ! oc get clusteroperator marketplace >/dev/null 2>&1; then
+  echo "The marketplace ClusterOperator is not present on the claimed cluster" >&2
+  print_marketplace_diagnostics
+  exit 1
+fi
+
+if ! oc wait clusteroperator/marketplace \
+  --for=condition=Available=True \
+  --timeout="${KMM_MARKETPLACE_TIMEOUT}"; then
+  echo "The marketplace ClusterOperator did not become Available" >&2
+  print_marketplace_diagnostics
+  exit 1
+fi
+
+echo "Waiting for CatalogSource ${KMM_CATALOG_NAMESPACE}/${KMM_CATALOG_SOURCE}"
+if ! oc get catalogsource "${KMM_CATALOG_SOURCE}" \
+  --namespace "${KMM_CATALOG_NAMESPACE}" >/dev/null 2>&1; then
+  echo "CatalogSource ${KMM_CATALOG_NAMESPACE}/${KMM_CATALOG_SOURCE} is not present" >&2
+  print_marketplace_diagnostics
+  exit 1
+fi
+
+catalog_state=""
+for _ in $(seq 1 "${KMM_READINESS_RETRIES}"); do
+  catalog_state="$(oc get catalogsource "${KMM_CATALOG_SOURCE}" \
+    --namespace "${KMM_CATALOG_NAMESPACE}" \
+    -o jsonpath='{.status.connectionState.lastObservedState}' 2>/dev/null || true)"
+  if [[ "${catalog_state}" == "READY" ]]; then
+    break
+  fi
+  sleep "${KMM_READINESS_INTERVAL}"
+done
+
+if [[ "${catalog_state}" != "READY" ]]; then
+  echo "CatalogSource ${KMM_CATALOG_NAMESPACE}/${KMM_CATALOG_SOURCE} did not become READY" >&2
+  print_marketplace_diagnostics
+  exit 1
+fi
+
+echo "Checking the PackageManifest API"
+if ! oc api-resources --api-group=packages.operators.coreos.com --no-headers \
+  | awk '$1 == "packagemanifests" { found = 1 } END { exit found ? 0 : 1 }'; then
+  echo "The PackageManifest API is unavailable on the claimed cluster" >&2
+  print_marketplace_diagnostics
+  exit 1
+fi
+
+echo "Waiting for PackageManifest ${KMM_PACKAGE_NAME}"
+package_available=false
+for _ in $(seq 1 "${KMM_READINESS_RETRIES}"); do
+  if oc get packagemanifest "${KMM_PACKAGE_NAME}" \
+    --namespace "${KMM_CATALOG_NAMESPACE}" >/dev/null 2>&1; then
+    package_available=true
+    break
+  fi
+  sleep "${KMM_READINESS_INTERVAL}"
+done
+
+if [[ "${package_available}" != true ]]; then
+  echo "PackageManifest ${KMM_PACKAGE_NAME} is not available from ${KMM_CATALOG_SOURCE}" >&2
+  print_marketplace_diagnostics
+  exit 1
+fi
 
 oc create namespace "${KMM_NAMESPACE}" --dry-run=client -o yaml | oc apply -f -
 
