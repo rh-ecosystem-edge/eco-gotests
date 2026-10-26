@@ -1,3 +1,11 @@
 ---
 # RHWA default configurations.
-...
+
+nhc_target_worker: ""       # e.g. "openshift-worker-0.ocp.example.org"
+nhc_failover_workers: []    # e.g. ["openshift-worker-1.ocp.example.org"]
+nhc_storage_class: ""       # e.g. "ocs-external-storagecluster-ceph-rbd"
+nhc_app_image: ""           # e.g. "registry.ocp.example.org:5000/test/ubi-minimal:latest"
+nhc_target_worker_bmc:
+  address: ""               # e.g. "10.1.0.2"
+  username: ""              # e.g. "example-user"
+  password: ""              # e.g. "example-pass"
