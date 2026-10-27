@@ -7,6 +7,12 @@ locally with `ECO_TEST_FEATURES=hwol` (`make run-tests`).
 ## Prerequisites
 
 - OCP cluster with the SR-IOV Network Operator installed and healthy
+- `SriovOperatorConfig/default` must already set
+  `spec.enableOvsOffload: true` and
+  `spec.featureGates.manageSoftwareBridges: true`, and `mellanox` must not be
+  listed in `spec.disablePlugins`. The suite checks these settings without
+  changing cluster-wide operator configuration; prepare a dedicated HWOL MCP
+  before running it.
 - At least one worker with an mlx5-capable NIC in a mode that supports host
   eswitch switchdev (BF-3 NIC mode / CX-6 Dx; BF-2 DPU mode is **not** enough)
 - MCP matching `ECO_OCP_HWOL_MCP_LABEL` (default `sriov`) with workers labeled
@@ -144,14 +150,11 @@ export ECO_OCP_HWOL_VF_NUM=3
 make run-tests
 ```
 
-Before changing any HWOL-owned resource, the Ordered HWOL spec verifies that
-`SriovOperatorConfig` already enables `featureGates.manageSoftwareBridges` and
-`enableOvsOffload`, that the mellanox plugin is not disabled, and that no
-non-HWOL policy selects the requested PF. The suite never mutates the
-cluster-wide operator configuration. Configure these prerequisites on a
-dedicated HWOL MCP; a shared or externally OVS-managed PF is rejected before
-the suite changes cluster state. If this read-only preflight fails, the suite
-does not create a namespace, pull images, or perform cleanup against the PF.
+Before changing any HWOL-owned resource, the Ordered HWOL spec verifies the
+operator configuration prerequisite above and that no non-HWOL policy selects the
+requested PF. A shared or externally OVS-managed PF is rejected before the
+suite changes cluster state. If this read-only preflight fails, the suite does
+not create a namespace, pull images, or perform cleanup against the PF.
 
 After this preflight, the Ordered HWOL spec creates
 `SriovNetworkPoolConfig` (OvsHardwareOffload only — no parallel
