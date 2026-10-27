@@ -58,7 +58,7 @@ fi
 # non-primary Ginkgo workers blocked until their launcher kills them, which
 # produces the misleading "parallel process disappeared" failure.  Keep the
 # suite serial unless a caller explicitly opts into parallel execution.
-if [[ " ${ECO_TEST_FEATURES} " == *" hwol "* ]]; then
+if [[ "${ECO_TEST_FEATURES}" == "all" || " ${ECO_TEST_FEATURES} " == *" hwol "* ]]; then
     hwol_suite=true
 fi
 
