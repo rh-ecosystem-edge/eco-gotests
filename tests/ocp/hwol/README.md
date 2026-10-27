@@ -6,7 +6,10 @@ locally with `ECO_TEST_FEATURES=hwol` (`make run-tests`).
 
 ## Prerequisites
 
-- OCP cluster with the SR-IOV Network Operator installed and healthy
+- `SriovOperatorConfig` must already enable OVS hardware offload — the suite is
+  read-only here and fails preflight otherwise:
+  `oc patch sriovoperatorconfig default -n openshift-sriov-network-operator --type=merge -p '{"spec":{"enableOvsOffload":true,"featureGates":{"manageSoftwareBridges":true}}}'`
+  `mellanox` must also not be listed in `spec.disablePlugins`.
 - `SriovOperatorConfig/default` must already set
   `spec.enableOvsOffload: true` and
   `spec.featureGates.manageSoftwareBridges: true`, and `mellanox` must not be
