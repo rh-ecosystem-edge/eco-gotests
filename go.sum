@@ -638,8 +638,8 @@ github.com/opencontainers/runtime-spec v1.2.1 h1:S4k4ryNgEpxW1dzyqffOmhI1BHYcjzU
 github.com/opencontainers/runtime-spec v1.2.1/go.mod h1:jwyrGlmzljRJv/Fgzds9SsS/C5hL+LL3ko9hs6T5lQ0=
 github.com/openshift-kni/cluster-group-upgrades-operator v0.0.0-20260707161822-9b9043d4494b h1:hEP583hUP3JILmRBfioynXbBVRQZiEj098CE9EoU0hw=
 github.com/openshift-kni/cluster-group-upgrades-operator v0.0.0-20260707161822-9b9043d4494b/go.mod h1:iIbyc1hCVKVzbIZ1tVoY/UCoiRiabuJ3RAHxryy7SfU=
-github.com/openshift-kni/k8sreporter v1.0.7 h1:uA5mTVmxYaKBxNAT2+rZkfU3NpT8gjb/2OokzL5b0ZY=
-github.com/openshift-kni/k8sreporter v1.0.7/go.mod h1:tX6LOg0m0oXje7WNLFo8LKHC9Ix8VV0a7vUc6eyeFBQ=
+github.com/openshift-kni/k8sreporter v1.1.0 h1:zKbzTAM/7AuOCqLD38QA7Me8IRidq2lVgMrVcoT0QUY=
+github.com/openshift-kni/k8sreporter v1.1.0/go.mod h1:tX6LOg0m0oXje7WNLFo8LKHC9Ix8VV0a7vUc6eyeFBQ=
 github.com/openshift-kni/lifecycle-agent v0.0.0-20260707161814-ec769a366476 h1:Uu5pPsXpcqdBd6tH7sRl/++PNNp9YwK5QF0oZNMgK/8=
 github.com/openshift-kni/lifecycle-agent v0.0.0-20260707161814-ec769a366476/go.mod h1:HMxo0ImjkBlQzfecnHWWYKkQ0cezZLJ2f8PXbAV1if0=
 github.com/openshift-kni/numaresources-operator v0.4.18-0.2024100201.0.20260707092512-254b162fcd0f h1:gRpHs3rWMZMtDHjAhnM2n5+GW0kzkZBaVEyJ3vhGUr0=

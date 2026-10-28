@@ -34,7 +34,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.32.0
 	github.com/onsi/gomega v1.42.1
 	github.com/openshift-kni/cluster-group-upgrades-operator v0.0.0-20260707161822-9b9043d4494b // release-4.22
-	github.com/openshift-kni/k8sreporter v1.0.7
+	github.com/openshift-kni/k8sreporter v1.1.0
 	github.com/openshift-kni/lifecycle-agent v0.0.0-20260707161814-ec769a366476 // release-4.22
 	github.com/openshift-kni/numaresources-operator v0.4.18-0.2024100201.0.20260707092512-254b162fcd0f // release-4.22
 	github.com/openshift-kni/oran-o2ims v0.0.0-20260707122918-22ed0a55833b // release-4.22
