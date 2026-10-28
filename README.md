@@ -82,7 +82,7 @@ In oder to disable reporterxml the following needs to be done:
 The test-runner [script](scripts/test-runner.sh) is the recommended way for executing tests.
 
 Parameters for the script are controlled by the following environment variables:
-- `ECO_TEST_FEATURES`: list of features to be tested ("all" will include all tests). All subdirectories under tests that match a feature will be included (internal directories are excluded) - _required_
+- `ECO_TEST_FEATURES`: list of features to be tested ("all" will include all tests). Each feature can be a directory name or a slash-separated path, such as `ran/gitopsztp`; matching subdirectories under tests are included (internal directories are excluded) - _required_
 - `ECO_TEST_LABELS`: ginkgo query passed to the label-filter option for including/excluding tests - _optional_ 
 - `ECO_VERBOSE_SCRIPT`: prints verbose script information when executing the script - _optional_
 - `ECO_TEST_VERBOSE`: executes ginkgo with verbose test output - _optional_
