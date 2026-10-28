@@ -61,6 +61,8 @@ func newReporter(
 		return nil, err
 	}
 
+	res.Timestamps = true
+
 	return res, nil
 }
 
