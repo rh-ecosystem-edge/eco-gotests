@@ -1,4 +1,11 @@
 ---
+# SystemReserved validation baseline values
+rdscore_control_plane_cpu_reserved: "40"
+rdscore_control_plane_memory_reserved: "30Gi"
+rdscore_worker_cpu_reserved: "1000m"
+rdscore_worker_memory_reserved: "11Gi"
+rdscore_performance_profile_name: ""
+
 rcore_nad_workload_ns_one: demo-ns-one
 rcore_nad_workload_ns_two: demo-ns-two
 rdscore_performance_profile_ht_name: customcnf

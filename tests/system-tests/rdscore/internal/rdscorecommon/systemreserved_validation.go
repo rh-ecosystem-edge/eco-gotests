@@ -3,7 +3,6 @@ package rdscorecommon
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -11,9 +10,9 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nto"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/remote"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreparams"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/internal/remote"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,23 +27,6 @@ const (
 )
 
 var (
-	// Default systemReserved values based on CNF-16828 and scale lab data.
-	// These can be overridden via environment variables.
-
-	// controlPlaneCPUReserved is the default CPU cores reserved for control plane nodes
-	// (40 cores based on scale lab max 39.1).
-	controlPlaneCPUReserved = getEnvOrDefault("CONTROL_PLANE_CPU_RESERVED", "40")
-	// controlPlaneMemoryReserved is the default memory reserved for control plane nodes
-	// (30Gi per CNF-16828).
-	controlPlaneMemoryReserved = getEnvOrDefault("CONTROL_PLANE_MEMORY_RESERVED", "30Gi")
-	// workerCPUReserved is the default CPU reserved for worker nodes (1 core / 1000m).
-	workerCPUReserved = getEnvOrDefault("WORKER_CPU_RESERVED", "1000m")
-	// workerMemoryReserved is the default memory reserved for worker nodes (11Gi per CNF-16828).
-	workerMemoryReserved = getEnvOrDefault("WORKER_MEMORY_RESERVED", "11Gi")
-
-	// performanceProfileName is the name of the PerformanceProfile to validate.
-	performanceProfileName = getEnvOrDefault("PERFORMANCE_PROFILE_NAME", "")
-
 	// Scale lab baseline data.
 	// scaleLabControlPlaneCPUMax is the maximum CPU usage observed in scale lab for
 	// control plane.
@@ -53,19 +35,6 @@ var (
 	// control plane in GB.
 	scaleLabControlPlaneMemoryMax = 33.9
 )
-
-// getEnvOrDefault retrieves environment variable or returns default value.
-func getEnvOrDefault(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Using environment variable %s=%s\n", key, value)
-
-		return value
-	}
-
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Using default value for %s=%s\n", key, defaultValue)
-
-	return defaultValue
-}
 
 // ValidatePerformanceProfileSystemReserved validates that PerformanceProfile contains
 // expected systemReserved configuration.
@@ -80,24 +49,23 @@ func ValidatePerformanceProfileSystemReserved() {
 		Skip("No PerformanceProfile found in cluster - skipping PerformanceProfile validation")
 	}
 
-	// Try to find PerformanceProfile - if name is specified, use it; otherwise use first one
-	var performanceProfile *nto.Builder
+	// Determine which profiles to validate
+	var profilesToValidate []*nto.Builder
 
-	profileName := performanceProfileName
+	profileName := RDSCoreConfig.PerformanceProfileName
 	if profileName == "" {
-		// Use the first PerformanceProfile for basic validation
-		performanceProfile = allProfiles[0]
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found PerformanceProfile: %s\n", performanceProfile.Object.Name)
+		// Validate all PerformanceProfiles
+		profilesToValidate = allProfiles
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found %d PerformanceProfile(s) to validate\n", len(allProfiles))
 	} else {
-		// Find specific PerformanceProfile by name
+		// Find and validate specific PerformanceProfile by name
 		found := false
 
 		for _, profile := range allProfiles {
 			if profile.Object.Name == profileName {
-				performanceProfile = profile
+				profilesToValidate = []*nto.Builder{profile}
 				found = true
-
-				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found PerformanceProfile: %s\n", performanceProfile.Object.Name)
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found PerformanceProfile: %s\n", profile.Object.Name)
 
 				break
 			}
@@ -109,37 +77,50 @@ func ValidatePerformanceProfileSystemReserved() {
 		}
 	}
 
-	By("Verifying PerformanceProfile exists and has systemReserved configuration")
-	Expect(performanceProfile.Object.Spec).ToNot(BeNil(), "PerformanceProfile spec is nil")
+	// Validate each PerformanceProfile
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Starting validation of %d PerformanceProfile(s)\n", len(profilesToValidate))
 
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("PerformanceProfile Name: %s\n", performanceProfile.Object.Name)
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("PerformanceProfile NodeSelector: %v\n", performanceProfile.Object.Spec.NodeSelector)
+	for index, performanceProfile := range profilesToValidate {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("━━━ Validating PerformanceProfile %d/%d: %s ━━━\n",
+			index+1, len(profilesToValidate), performanceProfile.Object.Name)
 
-	// Note: In PerformanceProfile v2, systemReserved is typically applied via MachineConfig
-	// generated by the Performance Addon Operator, not directly in the PerformanceProfile spec.
-	// The actual validation happens in Test Case 4.2 (kubelet config on nodes).
+		By(fmt.Sprintf("Verifying PerformanceProfile %s has systemReserved configuration", performanceProfile.Object.Name))
+		Expect(performanceProfile.Object.Spec).ToNot(BeNil(),
+			fmt.Sprintf("PerformanceProfile %s spec is nil", performanceProfile.Object.Name))
 
-	// Check WorkloadHints as systemReserved might affect them
-	if performanceProfile.Object.Spec.WorkloadHints != nil {
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("WorkloadHints configured: realTime=%v, highPowerConsumption=%v\n",
-			performanceProfile.Object.Spec.WorkloadHints.RealTime,
-			performanceProfile.Object.Spec.WorkloadHints.HighPowerConsumption)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Name: %s\n", performanceProfile.Object.Name)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  NodeSelector: %v\n",
+			performanceProfile.Object.Spec.NodeSelector)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  MachineConfigPoolSelector: %v\n",
+			performanceProfile.Object.Spec.MachineConfigPoolSelector)
+
+		// Check WorkloadHints as systemReserved might affect them
+		if performanceProfile.Object.Spec.WorkloadHints != nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  WorkloadHints: realTime=%v, highPowerConsumption=%v, perPodPowerManagement=%v\n",
+				performanceProfile.Object.Spec.WorkloadHints.RealTime,
+				performanceProfile.Object.Spec.WorkloadHints.HighPowerConsumption,
+				performanceProfile.Object.Spec.WorkloadHints.PerPodPowerManagement)
+		} else {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  WorkloadHints: not configured\n")
+		}
+
+		// At minimum, verify the PerformanceProfile has CPU configuration which affects systemReserved
+		Expect(performanceProfile.Object.Spec.CPU).ToNot(BeNil(),
+			fmt.Sprintf("PerformanceProfile %s CPU configuration is nil", performanceProfile.Object.Name))
+		Expect(performanceProfile.Object.Spec.CPU.Reserved).ToNot(BeNil(),
+			fmt.Sprintf("PerformanceProfile %s CPU reserved is nil", performanceProfile.Object.Name))
+		Expect(performanceProfile.Object.Spec.CPU.Isolated).ToNot(BeNil(),
+			fmt.Sprintf("PerformanceProfile %s CPU isolated is nil", performanceProfile.Object.Name))
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  CPU Reserved: %v\n", performanceProfile.Object.Spec.CPU.Reserved)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  CPU Isolated: %v\n", performanceProfile.Object.Spec.CPU.Isolated)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("✓ PerformanceProfile %s validated successfully\n",
+			performanceProfile.Object.Name)
 	}
 
-	// Note: In PerformanceProfile v2, systemReserved is typically applied via MachineConfig
-	// generated by the Performance Addon Operator, not directly in the PerformanceProfile spec.
-	// The actual validation happens in Test Case 4.2 (kubelet config on nodes).
-
-	// At minimum, verify the PerformanceProfile has CPU configuration which affects systemReserved
-	Expect(performanceProfile.Object.Spec.CPU).ToNot(BeNil(), "PerformanceProfile CPU configuration is nil")
-	Expect(performanceProfile.Object.Spec.CPU.Reserved).ToNot(BeNil(), "PerformanceProfile CPU reserved is nil")
-	Expect(performanceProfile.Object.Spec.CPU.Isolated).ToNot(BeNil(), "PerformanceProfile CPU isolated is nil")
-
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("✓ PerformanceProfile has CPU partitioning: reserved=%v, isolated=%v\n",
-		performanceProfile.Object.Spec.CPU.Reserved, performanceProfile.Object.Spec.CPU.Isolated)
-
-	// Log that systemReserved will be validated via kubelet config in Test Case 4.2
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Note: systemReserved memory/CPU values will be validated via kubelet config in Test Case 4.2\n")
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("✓ Successfully validated %d PerformanceProfile(s)\n",
+		len(profilesToValidate))
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Note: systemReserved memory/CPU values will be validated via kubelet config in subsequent tests\n")
 }
 
 // ValidateControlPlaneNodeSystemReserved validates systemReserved configuration
@@ -201,8 +182,8 @@ func ValidateControlPlaneNodeSystemReserved() {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 				"⚠ Node %s has no matching PerformanceProfile - using baseline values for comparison\n", nodeName)
 
-			expectedCPU = controlPlaneCPUReserved
-			expectedMemory = controlPlaneMemoryReserved
+			expectedCPU = RDSCoreConfig.ControlPlaneCPUReserved
+			expectedMemory = RDSCoreConfig.ControlPlaneMemoryReserved
 		}
 
 		By(fmt.Sprintf("Executing debug pod on node %s", nodeName))
@@ -339,8 +320,8 @@ func ValidateWorkerNodeSystemReserved() {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 				"⚠ Node %s has no matching PerformanceProfile - using baseline values for comparison\n", nodeName)
 
-			expectedCPU = workerCPUReserved
-			expectedMemory = workerMemoryReserved
+			expectedCPU = RDSCoreConfig.WorkerCPUReserved
+			expectedMemory = RDSCoreConfig.WorkerMemoryReserved
 		}
 
 		By(fmt.Sprintf("Executing debug pod on node %s", nodeName))
@@ -757,11 +738,11 @@ func validateNodeAllocatable(node *nodes.Builder) {
 	}
 
 	if isControlPlane {
-		cpuReserved = controlPlaneCPUReserved
-		memoryReserved = controlPlaneMemoryReserved
+		cpuReserved = RDSCoreConfig.ControlPlaneCPUReserved
+		memoryReserved = RDSCoreConfig.ControlPlaneMemoryReserved
 	} else {
-		cpuReserved = workerCPUReserved
-		memoryReserved = workerMemoryReserved
+		cpuReserved = RDSCoreConfig.WorkerCPUReserved
+		memoryReserved = RDSCoreConfig.WorkerMemoryReserved
 	}
 
 	// Parse systemReserved values
@@ -970,10 +951,17 @@ func normalizeCPUValue(cpuStr string) int64 {
 // findPerformanceProfileForNode checks if a node matches any PerformanceProfile's nodeSelector.
 // Returns the matching PerformanceProfile or nil if no match.
 func findPerformanceProfileForNode(nodeLabels map[string]string, profiles []*nto.Builder) *nto.Builder {
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  Checking node labels against %d PerformanceProfile(s)\n", len(profiles))
+
 	for _, profile := range profiles {
 		if profile.Object.Spec.NodeSelector == nil {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("    ⊘ Profile %s: no nodeSelector defined\n",
+				profile.Object.Name)
 			continue
 		}
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("    Checking profile %s with nodeSelector: %v\n",
+			profile.Object.Name, profile.Object.Spec.NodeSelector)
 
 		// Check if all nodeSelector labels match
 		allMatch := true
@@ -982,17 +970,31 @@ func findPerformanceProfileForNode(nodeLabels map[string]string, profiles []*nto
 			// Check if the label exists in node AND has the correct value
 			nodeValue, exists := nodeLabels[key]
 
-			if !exists || nodeValue != value {
+			if !exists {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("      ✗ Label %s not found on node\n", key)
 				allMatch = false
 
 				break
 			}
+
+			if nodeValue != value {
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("      ✗ Label %s mismatch: node=%s, profile=%s\n",
+					key, nodeValue, value)
+				allMatch = false
+
+				break
+			}
+
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("      ✓ Label %s=%s matches\n", key, value)
 		}
 
 		if allMatch {
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("    ✓ Profile %s matches node\n", profile.Object.Name)
 			return profile
 		}
 	}
+
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  ⊘ No matching PerformanceProfile found for node\n")
 
 	return nil
 }
