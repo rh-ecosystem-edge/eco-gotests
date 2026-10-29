@@ -155,6 +155,9 @@ func logPRStatusChange(prName string, snap prStatusSnapshot) {
 // WaitForPRCondition polls until the ProvisioningRequest matches expected, logging only when status fields change.
 // On timeout the error includes phase, details, and all conditions. onStatusChange is optional and invoked after each
 // logged change (errors from onStatusChange are ignored).
+//
+// prBuilder must use a Kubernetes client that returns status.conditions (hub kube API). The O2IMS provisioning API
+// client maps phase and details only — conditions are always empty there — so waits against it never succeed.
 func WaitForPRCondition(
 	prBuilder *oran.ProvisioningRequestBuilder,
 	expected metav1.Condition,

@@ -73,14 +73,20 @@ var _ = Describe("ORAN Pre-provision Tests", Label(tsparams.LabelPreProvision), 
 		})
 
 	When("a ProvisioningRequest is created", func() {
-		AfterEach(func() {
-			By("deleting the ProvisioningRequest if it exists")
+		BeforeEach(func() {
+			By("ensuring free O-Cloud BareMetalHost inventory for pre-provision")
 
-			prBuilder, err := oran.PullPR(o2imsAPIClient, tsparams.TestPRName)
-			if err == nil {
-				err := prBuilder.DeleteAndWait(10 * time.Minute)
-				Expect(err).ToNot(HaveOccurred(), "Failed to delete the ProvisioningRequest")
-			}
+			err := helper.EnsureFreeInventoryForProvision(HubAPIClient, o2imsAPIClient)
+			Expect(err).ToNot(HaveOccurred(),
+				"Lab inventory must have enough Available O-Cloud BMHs before pre-provision PR tests")
+		})
+
+		AfterEach(func() {
+			By("reclaiming suite ProvisioningRequests and stuck O-Cloud BMHs after pre-provision")
+
+			err := helper.ReclaimSuiteHardwareLeftovers(HubAPIClient, o2imsAPIClient)
+			Expect(err).ToNot(HaveOccurred(),
+				"Failed to reclaim suite ProvisioningRequests and stuck O-Cloud BMHs after pre-provision")
 		})
 
 		// 83880 - Failed provisioning due to no hardware matching resource selector

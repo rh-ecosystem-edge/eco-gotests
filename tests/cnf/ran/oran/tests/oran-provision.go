@@ -44,6 +44,24 @@ var _ = Describe("ORAN Provision Tests", Label(tsparams.LabelProvision), Ordered
 
 		o2imsAPIClient, err = clientBuilder.BuildProvisioning()
 		Expect(err).ToNot(HaveOccurred(), "Failed to create the O2IMS API client")
+
+		By("ensuring free O-Cloud BareMetalHost inventory for provision")
+
+		err = helper.EnsureFreeInventoryForProvision(HubAPIClient, o2imsAPIClient)
+		Expect(err).ToNot(HaveOccurred(),
+			"Lab inventory must have enough Available O-Cloud BMHs before provision tests")
+	})
+
+	AfterEach(func() {
+		if !CurrentSpecReport().Failed() {
+			return
+		}
+
+		By("reclaiming suite hardware leftovers after provision failure")
+
+		err := helper.ReclaimSuiteHardwareLeftovers(HubAPIClient, o2imsAPIClient)
+		Expect(err).ToNot(HaveOccurred(),
+			"Failed to reclaim suite ProvisioningRequests and stuck O-Cloud BMHs after provision failure")
 	})
 
 	// 77393 - Apply a ProvisioningRequest with missing required input parameter
@@ -122,16 +140,24 @@ var _ = Describe("ORAN Provision Tests", Label(tsparams.LabelProvision), Ordered
 			Expect(err).ToNot(HaveOccurred(), "Failed to create ProvisioningRequest since it does not exist")
 		}
 
+		// Condition waits must use the hub kube client. The O2IMS provisioning API maps phase/details
+		// but never returns status.conditions (eco-goinfra provisioningRequestFromInfo leaves them empty),
+		// so WaitForPRCondition against o2imsAPIClient always times out with conditions=[].
+		By("pulling the ProvisioningRequest from the hub for condition waits")
+
+		hubPRBuilder, err := oran.PullPR(HubAPIClient, tsparams.TestPRName)
+		Expect(err).ToNot(HaveOccurred(), "Failed to pull ProvisioningRequest from hub kube API")
+
 		By("waiting for ProvisioningRequestValidated")
 
 		err = helper.WaitForPRCondition(
-			prBuilder, tsparams.PRValidationSucceededCondition, tsparams.PRValidatedTimeout, nil)
+			hubPRBuilder, tsparams.PRValidationSucceededCondition, tsparams.PRValidatedTimeout, nil)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for ProvisioningRequestValidated")
 
 		By("waiting for ClusterInstanceProcessed")
 
 		err = helper.WaitForPRCondition(
-			prBuilder, tsparams.PRCIProcesssedCondition, tsparams.PRClusterInstanceProcessedTimeout, nil)
+			hubPRBuilder, tsparams.PRCIProcesssedCondition, tsparams.PRClusterInstanceProcessedTimeout, nil)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for ClusterInstanceProcessed")
 
 		hostnames, err := helper.GetSpokeHostnames()
@@ -140,7 +166,7 @@ var _ = Describe("ORAN Provision Tests", Label(tsparams.LabelProvision), Ordered
 		By("waiting for ClusterProvisioned")
 
 		err = helper.WaitForPRCondition(
-			prBuilder,
+			hubPRBuilder,
 			tsparams.PRClusterProvisionedCondition,
 			helper.ClusterProvisionTimeout(len(hostnames)),
 			func(_ *oran.ProvisioningRequestBuilder) {
@@ -160,7 +186,7 @@ var _ = Describe("ORAN Provision Tests", Label(tsparams.LabelProvision), Ordered
 		By("waiting for ConfigurationApplied")
 
 		err = helper.WaitForPRCondition(
-			prBuilder,
+			hubPRBuilder,
 			tsparams.PRConfigurationAppliedCondition,
 			helper.ConfigurationAppliedTimeout(masterCount),
 			nil,
