@@ -36,6 +36,14 @@ var (
 	scaleLabControlPlaneMemoryMax = 33.9
 )
 
+// kubeletConfigAnnotation represents the structure of kubeletconfig.experimental annotation.
+type kubeletConfigAnnotation struct {
+	SystemReserved struct {
+		CPU    string `json:"cpu"`
+		Memory string `json:"memory"`
+	} `json:"systemReserved"`
+}
+
 // ValidatePerformanceProfileSystemReserved validates that PerformanceProfile contains
 // expected systemReserved configuration.
 func ValidatePerformanceProfileSystemReserved() {
@@ -135,7 +143,7 @@ func ValidateControlPlaneNodeSystemReserved() {
 	Expect(err).ToNot(HaveOccurred(), "Failed to list control plane nodes")
 
 	if len(controlPlaneNodes) == 0 {
-		Skip("No control-plane nodes found - skipping kubelet config validation")
+		Skip("No control-plane nodes found - skipping systemReserved config validation")
 	}
 
 	By("Finding PerformanceProfiles")
@@ -273,7 +281,7 @@ func ValidateWorkerNodeSystemReserved() {
 	Expect(err).ToNot(HaveOccurred(), "Failed to list worker nodes")
 
 	if len(workerNodes) == 0 {
-		Skip("No worker nodes found - skipping kubelet config validation")
+		Skip("No worker nodes found - skipping systemReserved config validation")
 	}
 
 	By("Finding PerformanceProfiles")
@@ -885,11 +893,6 @@ func isNodeReadyForTesting(node *nodes.Builder, allProfiles []*nto.Builder) (boo
 		return false, "No matching PerformanceProfile"
 	}
 
-	// Check if node is schedulable
-	if nodeObj.Spec.Unschedulable {
-		return false, "Unschedulable"
-	}
-
 	// Check node conditions
 	for _, condition := range nodeObj.Status.Conditions {
 		if condition.Type == corev1.NodeReady {
@@ -1006,53 +1009,20 @@ func extractSystemReservedFromProfile(profile *nto.Builder) (string, string, err
 		return "", "", fmt.Errorf("profile or annotations are nil")
 	}
 
-	kubeletConfig, found := profile.Object.Annotations["kubeletconfig.experimental"]
+	kubeletConfigJSON, found := profile.Object.Annotations["kubeletconfig.experimental"]
 	if !found {
 		return "", "", fmt.Errorf("kubeletconfig.experimental annotation not found")
 	}
 
 	// Parse JSON to extract systemReserved values
-	// The annotation contains JSON like: { "systemReserved": { "memory": "38Gi", "cpu": "10000m" }, ... }
-	// Simple parsing - look for systemReserved CPU and memory values
-	var cpuValue, memoryValue string
-
-	// Extract CPU value
-	cpuStart := strings.Index(kubeletConfig, `"cpu":`)
-
-	if cpuStart != -1 {
-		cpuStart += len(`"cpu":`)
-		cpuEnd := strings.Index(kubeletConfig[cpuStart:], `"`)
-
-		if cpuEnd != -1 {
-			cpuStart += cpuEnd + 1
-			cpuEnd = strings.Index(kubeletConfig[cpuStart:], `"`)
-
-			if cpuEnd != -1 {
-				cpuValue = kubeletConfig[cpuStart : cpuStart+cpuEnd]
-			}
-		}
+	var config kubeletConfigAnnotation
+	if err := json.Unmarshal([]byte(kubeletConfigJSON), &config); err != nil {
+		return "", "", fmt.Errorf("failed to parse kubeletconfig JSON: %w", err)
 	}
 
-	// Extract memory value
-	memStart := strings.Index(kubeletConfig, `"memory":`)
-
-	if memStart != -1 {
-		memStart += len(`"memory":`)
-		memEnd := strings.Index(kubeletConfig[memStart:], `"`)
-
-		if memEnd != -1 {
-			memStart += memEnd + 1
-			memEnd = strings.Index(kubeletConfig[memStart:], `"`)
-
-			if memEnd != -1 {
-				memoryValue = kubeletConfig[memStart : memStart+memEnd]
-			}
-		}
+	if config.SystemReserved.CPU == "" || config.SystemReserved.Memory == "" {
+		return "", "", fmt.Errorf("systemReserved CPU or memory is empty in kubeletconfig annotation")
 	}
 
-	if cpuValue == "" || memoryValue == "" {
-		return "", "", fmt.Errorf("failed to parse systemReserved values from kubeletconfig annotation")
-	}
-
-	return cpuValue, memoryValue, nil
+	return config.SystemReserved.CPU, config.SystemReserved.Memory, nil
 }
