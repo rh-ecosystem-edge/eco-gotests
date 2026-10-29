@@ -265,10 +265,11 @@ func ApplyHoldoverSettings(
 }
 
 // WaitForHoldoverSettingsApplied waits for the daemon to acknowledge a holdover settings change.
-// HardwareConfig changes emit "Successfully applied profile"; PtpConfig changes emit "load profiles".
+// HardwareConfig changes emit "Successfully applied profile"; PtpConfig changes emit "All profiles applied" (4.22+)
+// or "load profiles" (pre-4.22).
 func WaitForHoldoverSettingsApplied(
 	client *clients.Settings, nodeName string, profileInfo *ProfileInfo,
-	since time.Time, timeout time.Duration) error {
+	since time.Time, timeout time.Duration, ptpVersion string) error {
 	if profileInfo.HardwareConfig != nil {
 		return daemonlogs.WaitForHardwareConfigLoad(client, nodeName,
 			daemonlogs.WithStartTime(since),
@@ -277,5 +278,6 @@ func WaitForHoldoverSettingsApplied(
 
 	return daemonlogs.WaitForProfileLoad(client, nodeName,
 		daemonlogs.WithStartTime(since),
-		daemonlogs.WithTimeout(timeout))
+		daemonlogs.WithTimeout(timeout),
+		daemonlogs.WithPTPVersion(ptpVersion))
 }
