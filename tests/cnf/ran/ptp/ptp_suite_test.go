@@ -1,8 +1,10 @@
 package ptp
 
 import (
+	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -120,6 +122,17 @@ var _ = JustAfterEach(func() {
 		CurrentSpecReport(), currentFile, tsparams.ReporterSpokeNamespacesToDump, tsparams.ReporterSpokeCRsToDump)
 	mustgather.CollectIfFailed(
 		CurrentSpecReport(), currentFile, RANConfig.Spoke1APIClient, "ptp", RANConfig.ResolvePTPMustGatherImage)
+
+	dumpDir := RANConfig.GetDumpFailedTestReportLocation(currentFile)
+	specReport := CurrentSpecReport()
+
+	if specReport.Failed() && dumpDir != "" {
+		prometheusAPI, err := querier.CreatePrometheusAPIForCluster(RANConfig.Spoke1APIClient)
+		Expect(err).ToNot(HaveOccurred(), "Failed to create Prometheus API client")
+
+		metricsLogPath := filepath.Join(dumpDir, strings.ReplaceAll(specReport.FullText(), " ", "_"), "ptp-metrics.log")
+		metrics.Collect(prometheusAPI, specReport.StartTime, time.Now(), metricsLogPath)
+	}
 })
 
 var _ = ReportAfterSuite("", func(report Report) {
