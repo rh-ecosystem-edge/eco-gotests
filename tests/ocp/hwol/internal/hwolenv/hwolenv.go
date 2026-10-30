@@ -2,6 +2,7 @@
 package hwolenv
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -20,6 +21,7 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/klog/v2"
 )
 
@@ -79,7 +81,11 @@ func EnsureSwitchdevFoundation(
 	operatorNS, mcpLabel string,
 	device hwolconfig.DeviceConfig,
 	vfNum int,
+	runID string,
 ) error {
+	if runID == "" {
+		return fmt.Errorf("HWOL run ID cannot be empty")
+	}
 	if err := EnsureHwolOperatorConfig(operatorNS); err != nil {
 		return err
 	}
@@ -93,7 +99,7 @@ func EnsureSwitchdevFoundation(
 		return fmt.Errorf("no nodes with label node-role.kubernetes.io/%s", mcpLabel)
 	}
 
-	if _, err := CreateOvsOffloadPoolConfig(tsparams.PoolConfigName, operatorNS, mcpLabel); err != nil {
+	if _, err := CreateOvsOffloadPoolConfig(tsparams.PoolConfigName, operatorNS, mcpLabel, runID); err != nil {
 		return err
 	}
 
@@ -104,6 +110,7 @@ func EnsureSwitchdevFoundation(
 		device,
 		vfNum,
 		MCPNodeSelector(mcpLabel),
+		runID,
 	); err != nil {
 		return err
 	}
@@ -119,7 +126,11 @@ func EnsureSwitchdevFoundation(
 // CreateOvsOffloadPoolConfig creates SriovNetworkPoolConfig with only
 // ovsHardwareOffloadConfig.name set to the MCP name.
 // Do not set nodeSelector/maxUnavailable together with OvsHardwareOffload — webhook rejects it.
-func CreateOvsOffloadPoolConfig(name, operatorNS, mcpName string) (*sriov.PoolConfigBuilder, error) {
+func CreateOvsOffloadPoolConfig(name, operatorNS, mcpName, runID string) (*sriov.PoolConfigBuilder, error) {
+	if runID == "" {
+		return nil, fmt.Errorf("HWOL run ID cannot be empty")
+	}
+
 	builder := sriov.NewPoolConfigBuilder(APIClient, name, operatorNS)
 	if builder == nil {
 		return nil, fmt.Errorf("failed to init SriovNetworkPoolConfig builder")
@@ -129,34 +140,29 @@ func CreateOvsOffloadPoolConfig(name, operatorNS, mcpName string) (*sriov.PoolCo
 		Name: mcpName,
 	}
 
-	if builder.Exists() {
-		builder.Definition.ResourceVersion = builder.Object.ResourceVersion
+	builder.Definition.Labels = map[string]string{tsparams.TestRunLabelKey: runID}
 
-		updated, err := builder.Update()
-		if err != nil {
-			return nil, fmt.Errorf("failed to update SriovNetworkPoolConfig %s: %w", name, err)
-		}
-
-		return updated, nil
-	}
-
-	created, err := builder.Create()
-	if err != nil {
+	if err := createOwnedTestResource(APIClient.Client, builder.Definition, runID); err != nil {
 		return nil, fmt.Errorf("failed to create SriovNetworkPoolConfig %s: %w", name, err)
 	}
-
-	return created, nil
+	builder.Object = builder.Definition
+	return builder, nil
 }
 
 // CreateSwitchdevPolicy creates a switchdev SriovNetworkNodePolicy with OVS bridge management.
 // VF0 is reserved as the management port (pfNames range starts at 1).
-// If a policy already exists with a different numVfs/pfNames selector, it is replaced.
+// Existing policies are not adopted or replaced.
 func CreateSwitchdevPolicy(
 	name, operatorNS, resourceName string,
 	device hwolconfig.DeviceConfig,
 	vfNum int,
 	nodeSelector map[string]string,
+	runID string,
 ) (*sriov.PolicyBuilder, error) {
+	if runID == "" {
+		return nil, fmt.Errorf("HWOL run ID cannot be empty")
+	}
+
 	if vfNum < 2 {
 		return nil, fmt.Errorf("vfNum must be >= 2 to reserve VF0 as management port, got %d", vfNum)
 	}
@@ -180,54 +186,13 @@ func CreateSwitchdevPolicy(
 		OVS: &sriovv1.OVSConfig{},
 	}
 
-	if policy.Exists() {
-		existing := policy.Object.Spec
-		same := existing.NumVfs == vfNum &&
-			existing.EswitchMode == tsparams.SwitchdevMode &&
-			existing.Bridge.OVS != nil &&
-			len(existing.NicSelector.PfNames) == 1 &&
-			existing.NicSelector.PfNames[0] == pfSelector &&
-			existing.NicSelector.Vendor == device.Vendor &&
-			existing.NicSelector.DeviceID == device.DeviceID
+	policy.Definition.Labels = map[string]string{tsparams.TestRunLabelKey: runID}
 
-		if same {
-			klog.V(90).Infof("SriovNetworkNodePolicy %s already matches desired HWOL config", name)
-
-			return policy, nil
-		}
-
-		klog.V(90).Infof(
-			"Replacing SriovNetworkNodePolicy %s (numVfs/pfNames mismatch: have %d %v, want %d [%s])",
-			name, existing.NumVfs, existing.NicSelector.PfNames, vfNum, pfSelector)
-
-		if err := policy.Delete(); err != nil {
-			return nil, fmt.Errorf("failed to delete outdated SriovNetworkNodePolicy %s: %w", name, err)
-		}
-
-		// Rebuild definition after delete; Exists()/Delete mutate builder state.
-		policy = sriov.NewPolicyBuilder(
-			APIClient,
-			name,
-			operatorNS,
-			resourceName,
-			vfNum,
-			[]string{pfSelector},
-			nodeSelector,
-		).WithDevType("netdevice").WithMTU(1500)
-		policy.Definition.Spec.NicSelector.Vendor = device.Vendor
-		policy.Definition.Spec.NicSelector.DeviceID = device.DeviceID
-		policy.Definition.Spec.EswitchMode = tsparams.SwitchdevMode
-		policy.Definition.Spec.Bridge = sriovv1.Bridge{
-			OVS: &sriovv1.OVSConfig{},
-		}
-	}
-
-	created, err := policy.Create()
-	if err != nil {
+	if err := createOwnedTestResource(APIClient.Client, policy.Definition, runID); err != nil {
 		return nil, fmt.Errorf("failed to create SriovNetworkNodePolicy %s: %w", name, err)
 	}
-
-	return created, nil
+	policy.Object = policy.Definition
+	return policy, nil
 }
 
 // CreateSriovNetwork creates a SriovNetwork for the HWOL resource in the test namespace.
@@ -238,8 +203,12 @@ func CreateSwitchdevPolicy(
 // OVS bridge, so L2 between same-node pods fails. Keep this helper for attach coverage;
 // the offload Entry that uses it is Pending until representor plumbing exists.
 func CreateSriovNetwork(
-	name, operatorNS, resourceName, networkNS, ipam string,
+	name, operatorNS, resourceName, networkNS, ipam, runID string,
 ) (*sriov.NetworkBuilder, error) {
+	if runID == "" {
+		return nil, fmt.Errorf("HWOL run ID cannot be empty")
+	}
+
 	network := sriov.NewNetworkBuilder(APIClient, name, operatorNS, networkNS, resourceName)
 	if network == nil {
 		return nil, fmt.Errorf("failed to init SriovNetwork builder")
@@ -250,13 +219,12 @@ func CreateSriovNetwork(
 	}
 
 	network.Definition.Spec.IPAM = ipam
-
-	created, err := network.Create()
-	if err != nil {
+	network.Definition.Labels = map[string]string{tsparams.TestRunLabelKey: runID}
+	if err := createOwnedTestResource(APIClient.Client, network.Definition, runID); err != nil {
 		return nil, fmt.Errorf("failed to create SriovNetwork %s: %w", name, err)
 	}
-
-	return created, nil
+	network.Object = network.Definition
+	return network, nil
 }
 
 // WaitForSriovAndMCPStable waits for SR-IOV node states and the HWOL MCP to stabilize.
@@ -455,7 +423,7 @@ done
 // AssertVFRepresentorsOnBridge maps each VF PCI address to its host representor netdev
 // (PF virtfnN → typically <pf>_<N>) and asserts that representor is an ovs-vsctl port
 // on bridge. Used for the ovs CNI offload path before iperf.
-func AssertVFRepresentorsOnBridge(nodeName, bridge, image string, pciAddrs ...string) error {
+func AssertVFRepresentorsOnBridge(nodeName, bridge, image string, pciAddrs ...string) (resultErr error) {
 	if nodeName == "" {
 		return fmt.Errorf("nodeName cannot be empty")
 	}
@@ -483,9 +451,7 @@ func AssertVFRepresentorsOnBridge(nodeName, bridge, image string, pciAddrs ...st
 		return err
 	}
 
-	defer func() {
-		_, _ = debugPod.DeleteAndWait(tsparams.DefaultTimeout)
-	}()
+	defer closeOvsDebugPod(debugPod, &resultErr)
 
 	args := []string{"chroot", "/host", "sh", "-c", vfRepresentorOnBridgeScript, "sh", bridge}
 	args = append(args, pciAddrs...)
@@ -503,7 +469,7 @@ func AssertVFRepresentorsOnBridge(nodeName, bridge, image string, pciAddrs ...st
 
 // AssertOvsOffloadedFlows runs ovs-appctl dpctl/dump-flows type=offloaded on the node
 // via a privileged hostNetwork debug pod with the host root mounted at /host.
-func AssertOvsOffloadedFlows(nodeName, image string) error {
+func AssertOvsOffloadedFlows(nodeName, image string) (resultErr error) {
 	if nodeName == "" {
 		return fmt.Errorf("nodeName cannot be empty")
 	}
@@ -517,9 +483,7 @@ func AssertOvsOffloadedFlows(nodeName, image string) error {
 		return err
 	}
 
-	defer func() {
-		_, _ = debugPod.DeleteAndWait(tsparams.DefaultTimeout)
-	}()
+	defer closeOvsDebugPod(debugPod, &resultErr)
 
 	out, err := debugPod.ExecCommand([]string{
 		"chroot", "/host", "ovs-appctl", "dpctl/dump-flows", "--names", "type=offloaded",
@@ -555,11 +519,18 @@ func AssertOvsOffloadedFlows(nodeName, image string) error {
 	return fmt.Errorf("offloaded flows on %s have zero packet counters:\n%s", nodeName, flows)
 }
 
+func closeOvsDebugPod(debugPod *pod.Builder, resultErr *error) {
+	if err := DeleteOwnedPod(debugPod, tsparams.DefaultTimeout); err != nil {
+		*resultErr = errors.Join(*resultErr, fmt.Errorf("failed to clean up OVS debug pod: %w", err))
+	}
+}
+
 func newOvsDebugPod(nodeName, image string) (*pod.Builder, error) {
 	hostPathType := corev1.HostPathDirectory
+	runID := string(uuid.NewUUID())
 	builder := pod.NewBuilder(
 		APIClient,
-		fmt.Sprintf("hwol-ovs-debug-%s", strings.ReplaceAll(nodeName, ".", "-")),
+		"hwol-ovs-debug-"+runID,
 		tsparams.TestNamespaceName,
 		image,
 	).DefineOnNode(nodeName).
@@ -587,7 +558,7 @@ func newOvsDebugPod(nodeName, image string) (*pod.Builder, error) {
 		corev1.VolumeMount{Name: "host", MountPath: "/host", ReadOnly: true},
 	)
 
-	created, err := builder.CreateAndWaitUntilRunning(tsparams.DefaultTimeout)
+	created, err := CreateOwnedPod(builder, runID, tsparams.DefaultTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OVS debug pod on %s: %w", nodeName, err)
 	}
@@ -598,39 +569,27 @@ func newOvsDebugPod(nodeName, image string) (*pod.Builder, error) {
 // CleanupHwolResources removes only HWOL-owned resources and verifies that the
 // target PFs have left switchdev before returning. A failure here must fail the
 // suite: otherwise a green run can leave the next suite with an unusable NIC.
-func CleanupHwolResources(operatorNS, mcpName, pfName string, timeout, stableDuration time.Duration) error {
+func CleanupHwolResources(operatorNS, mcpName, pfName, runID string, timeout, stableDuration time.Duration) error {
 	klog.V(90).Infof("Cleaning HWOL test resources in namespace %s", operatorNS)
 
-	ovsNet := NewOvsNetworkBuilder(
-		APIClient, tsparams.OvsNetworkName, operatorNS, tsparams.TestNamespaceName, tsparams.ResourceName)
-	if ovsNet != nil {
-		if err := ovsNet.Delete(); err != nil {
-			return fmt.Errorf("failed to delete OVSNetwork %s: %w", tsparams.OvsNetworkName, err)
-		}
-	}
-
-	if err := deleteHwolSriovNetwork(operatorNS, timeout); err != nil {
+	if err := DeleteOwnedTestResource(operatorNS, tsparams.OvsNetworkName, runID, &sriovv1.OVSNetwork{}); err != nil {
 		return err
 	}
 
-	if err := deleteHwolPolicy(operatorNS); err != nil {
+	if err := DeleteOwnedTestResource(operatorNS, tsparams.SriovNetworkName, runID, &sriovv1.SriovNetwork{}); err != nil {
 		return err
 	}
 
-	pool, err := sriov.PullPoolConfig(APIClient, tsparams.PoolConfigName, operatorNS)
-	if err != nil {
-		if !k8serrors.IsNotFound(err) && !strings.Contains(err.Error(), "does not exist") {
-			return fmt.Errorf("failed to pull SriovNetworkPoolConfig %s: %w", tsparams.PoolConfigName, err)
-		}
-	} else if delErr := pool.Delete(); delErr != nil {
-		return fmt.Errorf("failed to delete SriovNetworkPoolConfig %s: %w", tsparams.PoolConfigName, delErr)
+	if err := DeleteOwnedTestResource(operatorNS, tsparams.PolicyName, runID, &sriovv1.SriovNetworkNodePolicy{}); err != nil {
+		return err
+	}
+
+	if err := DeleteOwnedTestResource(operatorNS, tsparams.PoolConfigName, runID, &sriovv1.SriovNetworkPoolConfig{}); err != nil {
+		return err
 	}
 
 	if err := WaitForSriovAndMCPStable(operatorNS, mcpName, timeout, stableDuration); err != nil {
-		return fmt.Errorf(
-			"HWOL cleanup timed out waiting for SR-IOV/MCP stable: SNNS may be stuck resetting "+
-				"switchdev (device or resource busy); reboot the MCP-labeled HWOL node before re-run: %w",
-			err)
+		return fmt.Errorf("HWOL cleanup did not converge; inspect operator and MCP diagnostics: %w", err)
 	}
 
 	return verifyHwolCleanup(operatorNS, mcpName, pfName)
@@ -725,40 +684,6 @@ func isExpectedRebootDisconnect(err error) bool {
 		strings.Contains(message, "command terminated") ||
 		strings.Contains(message, "context canceled") ||
 		strings.Contains(message, "context deadline exceeded")
-}
-
-func deleteHwolSriovNetwork(operatorNS string, timeout time.Duration) error {
-	network, err := sriov.PullNetwork(APIClient, tsparams.SriovNetworkName, operatorNS)
-	if err != nil {
-		if k8serrors.IsNotFound(err) || strings.Contains(err.Error(), "does not exist") {
-			return nil
-		}
-
-		return fmt.Errorf("failed to pull HWOL SriovNetwork %s: %w", tsparams.SriovNetworkName, err)
-	}
-
-	if err := network.DeleteAndWait(timeout); err != nil {
-		return fmt.Errorf("failed to delete HWOL SriovNetwork %s: %w", tsparams.SriovNetworkName, err)
-	}
-
-	return nil
-}
-
-func deleteHwolPolicy(operatorNS string) error {
-	policy, err := sriov.PullPolicy(APIClient, tsparams.PolicyName, operatorNS)
-	if err != nil {
-		if k8serrors.IsNotFound(err) || strings.Contains(err.Error(), "does not exist") {
-			return nil
-		}
-
-		return fmt.Errorf("failed to pull HWOL SriovNetworkNodePolicy %s: %w", tsparams.PolicyName, err)
-	}
-
-	if err := policy.Delete(); err != nil {
-		return fmt.Errorf("failed to delete HWOL SriovNetworkNodePolicy %s: %w", tsparams.PolicyName, err)
-	}
-
-	return nil
 }
 
 func verifyHwolCleanup(operatorNS, mcpName, pfName string) error {

@@ -8,20 +8,21 @@ import (
 	"strings"
 	"time"
 
+	sriovv1 "github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/hwol/internal/hwolenv"
+	hwolconfig "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/hwol/internal/ocphwolconfig"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/hwol/internal/ocphwolinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/hwol/internal/tsparams"
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
@@ -45,12 +46,15 @@ var _ = Describe(
 			operatorNS     string
 			mcpLabel       string
 			pfName         string
+			device         hwolconfig.DeviceConfig
 			vfNum          int
 			workerNode     string
 			ovsBridge      string
+			cleanup        bool
 			cleanupBlocked bool
 			specPods       []*pod.Builder
 			specNetwork    *specNetworkIdentity
+			runID          string
 		)
 
 		BeforeAll(func() {
@@ -62,15 +66,22 @@ var _ = Describe(
 			devices, err := HwolOcpConfig.GetHwolDevices()
 			Expect(err).ToNot(HaveOccurred(), "Failed to get HWOL devices")
 			Expect(devices).ToNot(BeEmpty(), "No HWOL devices configured")
-			pfName = devices[0].InterfaceName
+			device = devices[0]
+			pfName = device.InterfaceName
 
 			vfNum, err = HwolOcpConfig.GetVFNum()
 			Expect(err).ToNot(HaveOccurred(), "Failed to get VF count")
 
+			By("Checking test resources are absent")
+
+			Expect(hwolenv.EnsureTestResourcesAbsent(operatorNS)).To(Succeed())
+			runID = string(uuid.NewUUID())
+			cleanup = true
+
 			By("Ensuring switchdev foundation (operator config, pool, policy, wait)")
 
 			Expect(hwolenv.EnsureSwitchdevFoundation(
-				operatorNS, mcpLabel, devices[0], vfNum,
+				operatorNS, mcpLabel, device, vfNum, runID,
 			)).To(Succeed(), "Failed to ensure switchdev foundation")
 
 			mcpNodes, err := hwolenv.ListMCPWorkerNodes(mcpLabel)
@@ -81,6 +92,7 @@ var _ = Describe(
 			ovsBridge, err = hwolenv.LookupManagedOVSBridge(operatorNS, mcpLabel, pfName)
 			Expect(err).ToNot(HaveOccurred(), "Failed to look up managed OVS bridge")
 			Expect(ovsBridge).ToNot(BeEmpty(), "Managed OVS bridge name is empty")
+
 		})
 
 		BeforeEach(func() {
@@ -94,13 +106,12 @@ var _ = Describe(
 		AfterEach(func() {
 			By("Cleaning workload pods before deleting their network")
 			err := cleanupSpecResources(specPods, func(p *pod.Builder) error {
-				_, err := p.DeleteAndWait(tsparams.DefaultTimeout)
-				return err
+				return hwolenv.DeleteOwnedPod(p, tsparams.DefaultTimeout)
 			}, func() error {
-				if specNetwork == nil {
+				if cleanupBlocked || specNetwork == nil {
 					return nil
 				}
-				if err := deleteAttachNetwork(specNetwork.cniType, specNetwork.name, operatorNS); err != nil {
+				if err := deleteAttachNetwork(specNetwork.cniType, specNetwork.name, operatorNS, runID); err != nil {
 					return err
 				}
 				return sriovoperator.WaitForNADDeletion(APIClient, specNetwork.name,
@@ -114,16 +125,21 @@ var _ = Describe(
 		})
 
 		AfterAll(func() {
+			if !cleanup {
+				return
+			}
 			if cleanupBlocked {
 				Fail("refusing to remove HWOL foundation after workload cleanup failure; inspect owned resources")
 				return
 			}
+
 			By("Cleaning HWOL resources")
 
 			err := hwolenv.CleanupHwolResources(
 				operatorNS,
 				mcpLabel,
 				pfName,
+				runID,
 				tsparams.CleanupWaitTimeout,
 				tsparams.DefaultStableDuration,
 			)
@@ -167,8 +183,10 @@ var _ = Describe(
 			func(cniType sriovoperator.CNIType, networkName string) {
 				By(fmt.Sprintf("Creating %s network %s", cniType, networkName))
 
-				err := createAttachNetwork(cniType, networkName, operatorNS, ovsBridge)
-				if err == nil {
+				err := createAttachNetwork(cniType, networkName, operatorNS, ovsBridge, runID)
+				if err != nil {
+					cleanupBlocked = true
+				} else {
 					specNetwork = &specNetworkIdentity{cniType: cniType, name: networkName}
 				}
 				Expect(err).ToNot(HaveOccurred(), "Failed to create attach network")
@@ -198,9 +216,12 @@ var _ = Describe(
 				By("Creating sleep pod with secondary network")
 
 				attachPod, err := createTrafficPod(
-					fmt.Sprintf("hwol-attach-%s", cniType), networkName, "", nil)
+					fmt.Sprintf("hwol-attach-%s", cniType), networkName, workerNode, runID, nil)
 				if attachPod != nil {
 					specPods = append(specPods, attachPod)
+				}
+				if err != nil {
+					cleanupBlocked = true
 				}
 				Expect(err).ToNot(HaveOccurred(), "Failed to create attach pod")
 
@@ -224,8 +245,10 @@ var _ = Describe(
 
 				By(fmt.Sprintf("Creating %s network %s for offload", cniType, networkName))
 
-				err := createAttachNetwork(cniType, networkName, operatorNS, ovsBridge)
-				if err == nil {
+				err := createAttachNetwork(cniType, networkName, operatorNS, ovsBridge, runID)
+				if err != nil {
+					cleanupBlocked = true
+				} else {
 					specNetwork = &specNetworkIdentity{cniType: cniType, name: networkName}
 				}
 				Expect(err).ToNot(HaveOccurred(), "Failed to create offload network")
@@ -261,10 +284,13 @@ var _ = Describe(
 				// Run iperf3 as the server container PID 1. Starting it via kubectl exec
 				// (even with -D / background) does not leave a listener in this image.
 				serverPod, err := createTrafficPod(
-					fmt.Sprintf("hwol-iperf-srv-%s", cniType), networkName, workerNode,
+					fmt.Sprintf("hwol-iperf-srv-%s", cniType), networkName, workerNode, runID,
 					iperfServerCMD())
 				if serverPod != nil {
 					specPods = append(specPods, serverPod)
+				}
+				if err != nil {
+					cleanupBlocked = true
 				}
 				Expect(err).ToNot(HaveOccurred(), "Failed to create iperf server pod")
 
@@ -272,9 +298,12 @@ var _ = Describe(
 					"need ≥1 openshift.io/hwolresource for iperf client")
 
 				clientPod, err := createTrafficPod(
-					fmt.Sprintf("hwol-iperf-cli-%s", cniType), networkName, workerNode, nil)
+					fmt.Sprintf("hwol-iperf-cli-%s", cniType), networkName, workerNode, runID, nil)
 				if clientPod != nil {
 					specPods = append(specPods, clientPod)
+				}
+				if err != nil {
+					cleanupBlocked = true
 				}
 				Expect(err).ToNot(HaveOccurred(), "Failed to create iperf client pod")
 
@@ -300,7 +329,6 @@ var _ = Describe(
 				)).To(Succeed(), "iperf3 traffic failed")
 
 				By("Asserting OVS datapath has type=offloaded flows")
-
 				Expect(hwolenv.AssertOvsOffloadedFlows(
 					workerNode, HwolOcpConfig.OcpHwolTestContainer,
 				)).To(Succeed(), "expected non-empty offloaded flows after iperf")
@@ -334,13 +362,13 @@ func cleanupSpecResources(pods []*pod.Builder, deletePod func(*pod.Builder) erro
 }
 
 func createAttachNetwork(
-	cniType sriovoperator.CNIType, networkName, operatorNS, ovsBridge string,
+	cniType sriovoperator.CNIType, networkName, operatorNS, ovsBridge, runID string,
 ) error {
 	switch cniType {
 	case sriovoperator.CNITypeOVS:
 		_, err := hwolenv.CreateOvsNetwork(
 			networkName, operatorNS, tsparams.ResourceName, tsparams.TestNamespaceName,
-			hwolenv.HostLocalIPAM, ovsBridge)
+			hwolenv.HostLocalIPAM, ovsBridge, runID)
 
 		return err
 	case sriovoperator.CNITypeSriov:
@@ -348,7 +376,7 @@ func createAttachNetwork(
 		// managed OVS bridge; the offload Entry is Pending until a supported plumbing path exists.
 		_, err := hwolenv.CreateSriovNetwork(
 			networkName, operatorNS, tsparams.ResourceName, tsparams.TestNamespaceName,
-			hwolenv.HostLocalIPAM)
+			hwolenv.HostLocalIPAM, runID)
 
 		return err
 	default:
@@ -356,27 +384,12 @@ func createAttachNetwork(
 	}
 }
 
-func deleteAttachNetwork(cniType sriovoperator.CNIType, networkName, operatorNS string) error {
+func deleteAttachNetwork(cniType sriovoperator.CNIType, networkName, operatorNS, runID string) error {
 	switch cniType {
 	case sriovoperator.CNITypeOVS:
-		builder := hwolenv.NewOvsNetworkBuilder(
-			APIClient, networkName, operatorNS, tsparams.TestNamespaceName, tsparams.ResourceName)
-		if builder == nil {
-			return fmt.Errorf("failed to init OVSNetwork builder for delete")
-		}
-
-		return builder.Delete()
+		return hwolenv.DeleteOwnedTestResource(operatorNS, networkName, runID, &sriovv1.OVSNetwork{})
 	case sriovoperator.CNITypeSriov:
-		builder, err := sriov.PullNetwork(APIClient, networkName, operatorNS)
-		if err != nil {
-			if k8serrors.IsNotFound(err) || strings.Contains(err.Error(), "does not exist") {
-				return nil
-			}
-
-			return err
-		}
-
-		return builder.Delete()
+		return hwolenv.DeleteOwnedTestResource(operatorNS, networkName, runID, &sriovv1.SriovNetwork{})
 	default:
 		return fmt.Errorf("unsupported CNI type %q", cniType)
 	}
@@ -390,10 +403,7 @@ func waitForNetworkStatusIP(trafficPod *pod.Builder, networkName string) (string
 	var lastErr error
 
 	Eventually(func() error {
-		if !trafficPod.Exists() {
-			lastErr = fmt.Errorf("pod %s/%s does not exist",
-				trafficPod.Definition.Namespace, trafficPod.Definition.Name)
-
+		if lastErr = hwolenv.RefreshOwnedPod(trafficPod); lastErr != nil {
 			return lastErr
 		}
 
@@ -414,10 +424,7 @@ func waitForNetworkStatusIPAndPCI(trafficPod *pod.Builder, networkName string) (
 	var lastErr error
 
 	Eventually(func() error {
-		if !trafficPod.Exists() {
-			lastErr = fmt.Errorf("pod %s/%s does not exist",
-				trafficPod.Definition.Namespace, trafficPod.Definition.Name)
-
+		if lastErr = hwolenv.RefreshOwnedPod(trafficPod); lastErr != nil {
 			return lastErr
 		}
 
@@ -441,9 +448,7 @@ func networkStatusIPAndPCI(
 	}
 
 	for _, entry := range entries {
-		if entry.Name == networkName ||
-			strings.HasSuffix(entry.Name, "/"+networkName) ||
-			strings.Contains(entry.Name, networkName) {
+		if matchesNetworkName(entry.Name, networkName) {
 			if len(entry.IPs) == 0 {
 				return "", "", fmt.Errorf("network-status entry %q has no ips", entry.Name)
 			}
@@ -469,9 +474,18 @@ func networkStatusIPAndPCI(
 	return "", "", fmt.Errorf("network-status has no entry for network %q", networkName)
 }
 
-// createTrafficPod creates a sleep pod with the HWOL secondary network.
-// If nodeName is non-empty, the pod is pinned to that node (required for host-local IPAM pairs).
-func createTrafficPod(podName, networkName, nodeName string, cmd []string) (*pod.Builder, error) {
+func matchesNetworkName(entry, name string) bool {
+	if name == "" {
+		return false
+	}
+	return entry == name || (!strings.Contains(name, "/") && entry == tsparams.TestNamespaceName+"/"+name)
+}
+
+// createTrafficPod creates a workload on the selected HWOL node.
+func createTrafficPod(podName, networkName, nodeName, runID string, cmd []string) (*pod.Builder, error) {
+	if nodeName == "" {
+		return nil, fmt.Errorf("HWOL workload node is required")
+	}
 	resName := corev1.ResourceName(tsparams.ResourceNamePrefix + tsparams.ResourceName)
 	secNetwork := pod.StaticIPAnnotation(networkName, nil)
 
@@ -490,11 +504,8 @@ func createTrafficPod(podName, networkName, nodeName string, cmd []string) (*pod
 		tsparams.TestNamespaceName,
 		HwolOcpConfig.OcpHwolTestContainer,
 	).RedefineDefaultCMD(cmd).
-		WithSecondaryNetwork(secNetwork)
-
-	if nodeName != "" {
-		builder = builder.DefineOnNode(nodeName)
-	}
+		WithSecondaryNetwork(secNetwork).
+		DefineOnNode(nodeName)
 
 	if builder == nil || builder.Definition == nil || len(builder.Definition.Spec.Containers) == 0 {
 		return nil, fmt.Errorf("failed to init traffic pod builder")
@@ -505,7 +516,7 @@ func createTrafficPod(podName, networkName, nodeName string, cmd []string) (*pod
 		Limits:   corev1.ResourceList{resName: resource.MustParse("1")},
 	}
 
-	return builder.CreateAndWaitUntilRunning(tsparams.DefaultTimeout)
+	return hwolenv.CreateOwnedPod(builder, runID, tsparams.DefaultTimeout)
 }
 
 // iperfServerCMD returns a shell command that waits for net1, then runs iperf3 bound to that IP.
@@ -590,12 +601,18 @@ func runIperfBetweenPods(
 	// Brief settle, then verify L2 reachability before iperf (sriov VF paths need ARP).
 	time.Sleep(3 * time.Second)
 
+	if err := hwolenv.RefreshOwnedPod(clientPod); err != nil {
+		return fmt.Errorf("cannot verify iperf client ownership: %w", err)
+	}
 	if _, err := clientPod.ExecCommand([]string{
 		"ping", "-I", clientIP, "-c", "3", "-W", "2", serverIP,
 	}); err != nil {
 		return fmt.Errorf("ping from %s to %s failed: %w", clientIP, serverIP, err)
 	}
 
+	if err := hwolenv.RefreshOwnedPod(clientPod); err != nil {
+		return fmt.Errorf("cannot verify iperf client ownership: %w", err)
+	}
 	out, err := clientPod.ExecCommandWithTimeout(
 		[]string{
 			"iperf3", "-c", serverIP, "-B", clientIP,

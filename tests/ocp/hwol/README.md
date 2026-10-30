@@ -168,6 +168,14 @@ still reported, so this workaround never turns a failed cleanup into a pass.
 
 ## Current coverage
 
+Each run atomically creates a unique `hwol-tests-<run-id>` namespace and retains
+it for manual review. Review all resources and the reported namespace UID before
+deleting it. Shared-name HWOL networks, policies and pool configs must be absent;
+the suite refuses to adopt or overwrite them. Creation is atomic and deletion
+checks the run label, original UID and current resource version. Run with one
+Ginkgo process. Workload pods are pinned to the selected HWOL worker; images are
+pulled by test-owned pods rather than shared pre-pull pods in `default`.
+
 Per-spec `AfterEach` deletes and waits for workload pods before deleting their
 network and waiting for its NAD to disappear. Foundation teardown runs in
 `AfterAll`; if workload cleanup fails, further specs are skipped and the

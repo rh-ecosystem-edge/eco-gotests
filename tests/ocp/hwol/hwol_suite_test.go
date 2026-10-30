@@ -1,25 +1,29 @@
 package hwol
 
 import (
+	"context"
 	"runtime"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
-	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/params"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/reporter"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/hwol/internal/ocphwolinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/hwol/internal/tsparams"
 	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/hwol/tests"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/uuid"
 )
 
 var (
 	_, currentFile, _, _ = runtime.Caller(0)
-	testNS               = namespace.NewBuilder(APIClient, tsparams.TestNamespaceName)
+	testNamespaceUID     types.UID
+	testNamespaceRunID   string
 )
 
 func TestHWOL(t *testing.T) {
@@ -39,31 +43,43 @@ var _ = BeforeSuite(func() {
 		Fail("HwolOcpConfig is nil: config init failed (see NewHwolOcpConfig logs)")
 	}
 
-	By("Creating test namespace with privileged labels")
+	By("Creating a new test namespace with privileged labels")
+	suiteConfig, _ := GinkgoConfiguration()
+	Expect(suiteConfig.ParallelTotal).To(Equal(1), "HWOL uses shared policy names and must run with one Ginkgo process")
 
+	testNamespaceRunID = string(uuid.NewUUID())
+	// A Kubernetes UUID is a valid DNS label suffix; Create still rejects collisions.
+	tsparams.TestNamespaceName = tsparams.TestNamespacePrefix + testNamespaceRunID
+	testNS := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+		Name:   tsparams.TestNamespaceName,
+		Labels: map[string]string{tsparams.TestRunLabelKey: testNamespaceRunID},
+	}}
 	for key, value := range params.PrivilegedNSLabels {
-		testNS.WithLabel(key, value)
+		testNS.Labels[key] = value
 	}
 
-	_, err := testNS.Create()
+	// Direct Create fails on an existing namespace instead of adopting it.
+	err := APIClient.Client.Create(context.TODO(), testNS)
 	Expect(err).ToNot(HaveOccurred(), "error to create test namespace")
+	Expect(testNS.UID).ToNot(BeEmpty(), "created test namespace has no UID")
+	testNamespaceUID = testNS.UID
+	tsparams.ReporterNamespacesToDump[tsparams.TestNamespaceName] = "other"
+	AddReportEntry("hwol-namespace-created", tsparams.TestNamespaceName+" (UID "+string(testNamespaceUID)+")")
 
 	By("Verifying if HWOL tests can be executed on given cluster")
 
 	err = sriovoperator.IsSriovDeployed(APIClient, HwolOcpConfig.OcpHwolOperatorNamespace)
 	Expect(err).ToNot(HaveOccurred(), "Cluster doesn't support HWOL test cases")
-
-	By("Pulling test images on cluster before running test cases")
-
-	err = cluster.PullTestImageOnNodes(APIClient, HwolOcpConfig.WorkerLabel, HwolOcpConfig.OcpHwolTestContainer, 300)
-	Expect(err).ToNot(HaveOccurred(), "Failed to pull test image on nodes")
 })
 
 var _ = AfterSuite(func() {
-	By("Deleting test namespace")
+	if testNamespaceUID == "" {
+		return
+	}
 
-	err := testNS.DeleteAndWait(tsparams.DefaultTimeout)
-	Expect(err).ToNot(HaveOccurred(), "error to delete test namespace")
+	By("Retaining the test namespace for a safe ownership review")
+	AddReportEntry("hwol-namespace-retained", "Review all namespaced resources before manually deleting "+
+		tsparams.TestNamespaceName+" (UID "+string(testNamespaceUID)+")")
 })
 
 var _ = JustAfterEach(func() {
