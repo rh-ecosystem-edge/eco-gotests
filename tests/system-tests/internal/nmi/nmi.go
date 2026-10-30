@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/stmcginnis/gofish/redfish"
+	"github.com/stmcginnis/gofish/schemas"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -84,7 +84,7 @@ func TriggerNMIViaRedfish(
 
 	err := wait.PollUntilContextTimeout(ctx, pollingInterval, timeout, true,
 		func(ctx context.Context) (bool, error) {
-			if err := bmcClient.SystemResetAction(redfish.NmiResetType); err != nil {
+			if err := bmcClient.SystemResetAction(schemas.NmiResetType); err != nil {
 				klog.V(logLevel).Infof("Failed to trigger NMI on %s -> %v", nodeName, err)
 
 				return false, nil

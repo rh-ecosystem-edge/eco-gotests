@@ -990,7 +990,7 @@ github.com/redhat-cne/sdk-go/pkg/event/ptp
 github.com/redhat-cne/sdk-go/pkg/event/redfish
 github.com/redhat-cne/sdk-go/pkg/pubsub
 github.com/redhat-cne/sdk-go/pkg/types
-# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261026182540-6850690c1d54
+# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261026182540-6850690c1d54 => github.com/klaskosk/eco-goinfra v0.0.0-20261030151126-ff99a8703b90
 ## explicit; go 1.27.0
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/amdgpu
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/apiservers
@@ -1216,12 +1216,10 @@ github.com/spf13/cobra
 # github.com/spf13/pflag v1.0.10
 ## explicit; go 1.12
 github.com/spf13/pflag
-# github.com/stmcginnis/gofish v0.20.0
+# github.com/stmcginnis/gofish v0.27.0
 ## explicit; go 1.21
 github.com/stmcginnis/gofish
-github.com/stmcginnis/gofish/common
-github.com/stmcginnis/gofish/redfish
-github.com/stmcginnis/gofish/swordfish
+github.com/stmcginnis/gofish/schemas
 # github.com/stolostron/kubernetes-dependency-watches v0.10.2
 ## explicit; go 1.23.0
 github.com/stolostron/kubernetes-dependency-watches/client
@@ -2285,6 +2283,7 @@ sigs.k8s.io/yaml/kyaml
 # github.com/openshift/assisted-service/models => github.com/openshift/assisted-service/models v0.0.0-20260702215625-3f47803587d4
 # github.com/openshift/installer => github.com/openshift/installer v0.0.0-20260626184649-2e33096a5884
 # github.com/portworx/sched-ops => github.com/portworx/sched-ops v1.20.4-rc1
+# github.com/rh-ecosystem-edge/eco-goinfra => github.com/klaskosk/eco-goinfra v0.0.0-20261030151126-ff99a8703b90
 # k8s.io/client-go => k8s.io/client-go v0.35.6
 # k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20260127142750-a19766b6e2d4
 # sigs.k8s.io/cluster-api-provider-azure => github.com/mboersma/cluster-api-provider-azure v0.3.1-0.20251030205607-3161b9cc8d3e
