@@ -29,6 +29,7 @@ import (
 type networkStatusEntry struct {
 	Name       string   `json:"name"`
 	IPs        []string `json:"ips"`
+	MAC        string   `json:"mac"`
 	DeviceInfo *struct {
 		Type string `json:"type"`
 		Pci  *struct {
@@ -315,6 +316,12 @@ var _ = Describe(
 				clientIP, clientPCI, err := waitForNetworkStatusIPAndPCI(clientPod, networkName)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get client secondary IP/PCI")
 
+				serverMAC, err := waitForNetworkStatusMAC(serverPod, networkName)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get server secondary MAC")
+
+				clientMAC, err := waitForNetworkStatusMAC(clientPod, networkName)
+				Expect(err).ToNot(HaveOccurred(), "Failed to get client secondary MAC")
+
 				if cniType == sriovoperator.CNITypeOVS {
 					By("Asserting VF representors are ports on the managed OVS bridge")
 
@@ -324,16 +331,25 @@ var _ = Describe(
 					)).To(Succeed(), "expected server and client VF representors on bridge")
 				}
 
+				By("Recording offloaded packet counters for the workload MAC pair")
+
+				datapathType := "system"
+				before, err := hwolenv.OvsOffloadedTrafficPackets(
+					workerNode, HwolOcpConfig.OcpHwolTestContainer, datapathType, clientMAC, serverMAC)
+				Expect(err).ToNot(HaveOccurred(), "Failed to record offload baseline")
+
 				By("Running iperf3 between pods on secondary network")
 
 				Expect(runIperfBetweenPods(
 					clientPod, serverIP, clientIP, tsparams.IperfDuration,
 				)).To(Succeed(), "iperf3 traffic failed")
 
-				By("Asserting OVS datapath has type=offloaded flows")
-				Expect(hwolenv.AssertOvsOffloadedFlows(
-					workerNode, HwolOcpConfig.OcpHwolTestContainer,
-				)).To(Succeed(), "expected non-empty offloaded flows after iperf")
+				By("Asserting offloaded IPv4 packet counters increased for the workload MAC pair")
+
+				after, err := hwolenv.OvsOffloadedTrafficPackets(
+					workerNode, HwolOcpConfig.OcpHwolTestContainer, datapathType, clientMAC, serverMAC)
+				Expect(err).ToNot(HaveOccurred(), "Failed to read workload offloaded flows")
+				Expect(after).To(BeNumerically(">", before), "workload offloaded counters did not increase")
 			},
 			Entry("ovs CNI",
 				Label(tsparams.LabelOffload), Label(tsparams.LabelOvsNetwork), reportxml.ID("85004"),
@@ -395,6 +411,47 @@ func deleteAttachNetwork(cniType sriovoperator.CNIType, networkName, operatorNS,
 	default:
 		return fmt.Errorf("unsupported CNI type %q", cniType)
 	}
+}
+
+// waitForNetworkStatusMAC waits for the workload MAC on the requested secondary NAD.
+func waitForNetworkStatusMAC(trafficPod *pod.Builder, networkName string) (string, error) {
+	var mac string
+
+	var lastErr error
+
+	Eventually(func() error {
+		if lastErr = hwolenv.RefreshOwnedPod(trafficPod); lastErr != nil {
+			return lastErr
+		}
+
+		var entries []networkStatusEntry
+		status := trafficPod.Object.Annotations["k8s.v1.cni.cncf.io/network-status"]
+		if err := json.Unmarshal([]byte(status), &entries); err != nil {
+			lastErr = fmt.Errorf("failed to parse network-status: %w", err)
+
+			return lastErr
+		}
+
+		for _, entry := range entries {
+			if matchesNetworkName(entry.Name, networkName) {
+				if entry.MAC == "" {
+					lastErr = fmt.Errorf("network-status entry %q has no MAC", entry.Name)
+
+					return lastErr
+				}
+
+				mac, lastErr = entry.MAC, nil
+
+				return nil
+			}
+		}
+
+		lastErr = fmt.Errorf("network-status has no entry for network %q", networkName)
+
+		return lastErr
+	}).WithTimeout(tsparams.DefaultTimeout).WithPolling(tsparams.RetryInterval).Should(Succeed())
+
+	return mac, lastErr
 }
 
 // waitForNetworkStatusIP refreshes the pod and waits until Multus network-status has an IP

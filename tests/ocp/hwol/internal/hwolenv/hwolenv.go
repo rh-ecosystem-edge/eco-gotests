@@ -4,6 +4,7 @@ package hwolenv
 import (
 	"errors"
 	"fmt"
+	"net"
 	"regexp"
 	"strconv"
 	"strings"
@@ -338,6 +339,8 @@ func assertOVSBridgeForPF(bridges sriovv1.Bridges, pfName, pciAddress string) er
 
 var offloadedPacketsRE = regexp.MustCompile(`packets:(\d+)`)
 
+var offloadedEthernetRE = regexp.MustCompile(`(?i)eth\(src=([0-9a-f:]{17}),dst=([0-9a-f:]{17})\)`)
+
 // vfRepresentorOnBridgeScript maps each VF PCI address to its host representor
 // netdev and asserts that representor is an ovs-vsctl port on $1.
 const vfRepresentorOnBridgeScript = `
@@ -453,56 +456,106 @@ func AssertVFRepresentorsOnBridge(nodeName, bridge, image string, pciAddrs ...st
 	return nil
 }
 
-// AssertOvsOffloadedFlows runs ovs-appctl dpctl/dump-flows type=offloaded on the node
-// via a privileged hostNetwork debug pod with the host root mounted at /host.
-func AssertOvsOffloadedFlows(nodeName, image string) (resultErr error) {
-	if nodeName == "" {
-		return fmt.Errorf("nodeName cannot be empty")
-	}
-
-	if image == "" {
-		return fmt.Errorf("debug pod image cannot be empty")
+// OvsOffloadedTrafficPackets counts offloaded IPv4 packets between two workload MACs.
+// The caller should compare snapshots before and after sending test traffic.
+func OvsOffloadedTrafficPackets(nodeName, image, datapathType, firstMAC, secondMAC string) (count uint64, resultErr error) {
+	if nodeName == "" || image == "" || datapathType == "" {
+		return 0, fmt.Errorf("node name, debug pod image and datapath type cannot be empty")
 	}
 
 	debugPod, err := newOvsDebugPod(nodeName, image)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	defer closeOvsDebugPod(debugPod, &resultErr)
 
+	dps, err := debugPod.ExecCommand([]string{"chroot", "/host", "ovs-appctl", "dpctl/dump-dps"})
+	if err != nil {
+		return 0, fmt.Errorf("failed to list datapaths on %s: %w (out=%s)", nodeName, err, dps.String())
+	}
+
+	datapath, err := selectOvsDatapath(dps.String(), datapathType)
+	if err != nil {
+		return 0, err
+	}
+
 	out, err := debugPod.ExecCommand([]string{
-		"chroot", "/host", "ovs-appctl", "dpctl/dump-flows", "--names", "type=offloaded",
+		"chroot", "/host", "ovs-appctl", "dpctl/dump-flows", "--names", datapath, "type=offloaded",
 	})
 	if err != nil {
-		return fmt.Errorf("ovs-appctl dpctl/dump-flows type=offloaded failed on %s: %w (out=%s)",
-			nodeName, err, out.String())
+		return 0, fmt.Errorf("failed to dump offloaded flows on %s: %w (out=%s)", nodeName, err, out.String())
 	}
 
-	flows := strings.TrimSpace(out.String())
-	if flows == "" {
-		return fmt.Errorf("no offloaded flows on node %s", nodeName)
-	}
+	return countOffloadedTrafficPackets(out.String(), firstMAC, secondMAC)
+}
 
-	matches := offloadedPacketsRE.FindAllStringSubmatch(flows, -1)
-	if len(matches) == 0 {
-		// Success when dump has offloaded flows but omits packets: (some OVS versions);
-		// all-zero packets: counters still fail below.
-		return nil
-	}
-
-	for _, m := range matches {
-		packets, convErr := strconv.ParseUint(m[1], 10, 64)
-		if convErr != nil {
+func selectOvsDatapath(output, datapathType string) (string, error) {
+	var selected string
+	for _, line := range strings.Split(output, "\n") {
+		name := strings.TrimSpace(line)
+		if !strings.HasPrefix(name, datapathType+"@") {
 			continue
 		}
 
-		if packets > 0 {
-			return nil
+		if selected != "" {
+			return "", fmt.Errorf("multiple %s datapaths found; cannot identify workload datapath", datapathType)
 		}
+
+		selected = name
 	}
 
-	return fmt.Errorf("offloaded flows on %s have zero packet counters:\n%s", nodeName, flows)
+	if selected == "" {
+		return "", fmt.Errorf("no %s datapath found in %q", datapathType, output)
+	}
+
+	return selected, nil
+}
+
+func countOffloadedTrafficPackets(flows, firstMAC, secondMAC string) (uint64, error) {
+	first, err := net.ParseMAC(firstMAC)
+	if err != nil || len(first) != 6 {
+		return 0, fmt.Errorf("invalid first workload MAC %q", firstMAC)
+	}
+
+	second, err := net.ParseMAC(secondMAC)
+	if err != nil || len(second) != 6 || first.String() == second.String() {
+		return 0, fmt.Errorf("invalid or duplicate second workload MAC %q", secondMAC)
+	}
+
+	var total uint64
+
+	for _, line := range strings.Split(flows, "\n") {
+		if !strings.Contains(strings.ToLower(line), "eth_type(0x0800)") {
+			continue
+		}
+
+		macs := offloadedEthernetRE.FindStringSubmatch(line)
+		if len(macs) != 3 {
+			continue
+		}
+
+		src, dst := strings.ToLower(macs[1]), strings.ToLower(macs[2])
+		if !((src == first.String() && dst == second.String()) ||
+			(src == second.String() && dst == first.String())) {
+			continue
+		}
+
+		counter := offloadedPacketsRE.FindStringSubmatch(line)
+		if len(counter) != 2 {
+			return 0, fmt.Errorf("matching offloaded flow has no packet counter: %s", line)
+		}
+
+		packets, err := strconv.ParseUint(counter[1], 10, 64)
+		if err != nil || ^uint64(0)-total < packets {
+			return 0, fmt.Errorf("invalid packet counter in offloaded flow: %s", line)
+		}
+
+		total += packets
+		klog.V(90).Infof("Matching workload offloaded flow: %s", line)
+	}
+
+	return total, nil
 }
 
 func closeOvsDebugPod(debugPod *pod.Builder, resultErr *error) {

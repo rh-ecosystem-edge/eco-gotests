@@ -153,8 +153,10 @@ and waits for MCP/node-state sync. The `switchdev` spec asserts
 `eSwitchMode=switchdev` and a managed OVS bridge uplink. Attach table Entries
 create the network CR, assert NAD type/resource (and bridge for ovs), and run a
 sleep pod. The ovs offload Entry creates two same-node iperf pods, asserts
-representors on the managed bridge, runs traffic, and asserts non-empty
-`type=offloaded` datapath flows on the node.
+representors on the managed bridge, records offloaded IPv4 counters for the
+workload MAC pair, runs traffic, and requires those counters to increase. Flows
+from unrelated workloads and ARP do not satisfy the assertion. Datapath selection
+is explicit and rejects missing or ambiguous datapaths.
 
 `AfterAll` removes only the HWOL-created OVSNetwork/SriovNetwork objects,
 `hwol-switchdev` policy, and HWOL pool config — run on a dedicated lab MCP, not
@@ -192,7 +194,7 @@ foundation is retained for investigation.
 | HWOL setup smoke | SR-IOV operator deployed, `ECO_OCP_HWOL_DEVICES` parses, ≥1 worker |
 | HWOL switchdev | Foundation + OVS bridge status on MCP nodes |
 | HWOL attach (ovs / sriov) | NAD `type` + resource (+ ovs bridge) + pod secondary network |
-| HWOL offload (ovs) | Representors on managed bridge + iperf3 + `type=offloaded` flows |
+| HWOL offload (ovs) | Representors on managed bridge + iperf3 + increasing `type=offloaded` counters for the workload MAC pair |
 | HWOL offload (sriov) | Pending — VF representors not on managed OVS bridge |
 
 Attach networks default to host-local IPAM (configurable on the create helpers);
