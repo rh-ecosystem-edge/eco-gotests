@@ -15,6 +15,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/serviceaccount"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/version"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -250,7 +251,7 @@ func createV1ConsumerDeploymentOnNode(client *clients.Settings, nodeName string,
 		return err
 	}
 
-	sidecarContainer, err := defineSidecarContainer(nodeName, images.cloudEventProxy)
+	sidecarContainer, err := defineSidecarContainer(nodeName, images.cloudEventProxy, RANConfig.Spoke1OCPVersion)
 	if err != nil {
 		return err
 	}
@@ -671,7 +672,7 @@ func defineConsumerContainer(nodeName string) (*corev1.Container, error) {
 
 // defineSidecarContainer creates the cloud-event-sidecar container. It uses the definition from
 // https://github.com/redhat-cne/cloud-event-proxy/blob/release-4.18/examples/manifests/consumer.yaml.
-func defineSidecarContainer(nodeName string, cloudEventProxyImage string) (*corev1.Container, error) {
+func defineSidecarContainer(nodeName, cloudEventProxyImage, ocpVersion string) (*corev1.Container, error) {
 	container, err := pod.NewContainerBuilder(
 		"cloud-event-sidecar", cloudEventProxyImage, []string{"cloud-event-proxy"}).
 		WithImagePullPolicy(corev1.PullAlways).
@@ -697,8 +698,18 @@ func defineSidecarContainer(nodeName string, cloudEventProxyImage string) (*core
 		transportHost,
 		"--http-event-publishers=ptp-event-publisher-service-NODE_NAME.openshift-ptp.svc.cluster.local:9043",
 		"--api-port=8089",
-		"--api-version=1.0",
 	}
+
+	// cloud-event-proxy added the api-version flag in OCP 4.16. Older versions reject it at startup.
+	supportsAPIVersionArg, err := version.IsVersionStringInRange(ocpVersion, "4.16.0-0", "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to check whether OCP version supports the sidecar api-version argument: %w", err)
+	}
+
+	if supportsAPIVersionArg {
+		container.Args = append(container.Args, "--api-version=1.0")
+	}
+
 	container.SecurityContext = nil
 	container.Command = nil
 
