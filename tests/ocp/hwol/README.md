@@ -40,6 +40,7 @@ Devices are **not** configured in YAML. `ECO_OCP_HWOL_DEVICES` is required.
 | `ECO_OCP_HWOL_VF_NUM` | Number of VFs (≥3 recommended; VF0 reserved) | `3` |
 | `ECO_OCP_HWOL_OVS_DOCA` | Verify OVS-DOCA and use the DOCA bridge and PF/VF representors | `false` |
 | `ECO_HWOL_RECOVER_ON_CLEANUP_FAILURE` | Dedicated labs only: reboot HWOL MCP nodes after failed cleanup; the run still fails | `false` |
+| `ECO_HWOL_RESTORE_OFFLOAD_ON_CLEANUP` | Dedicated labs only: restore a disabled/absent baseline and restart OVS if cleanup leaves offload enabled | `false` |
 | `ECO_WORKER_LABEL` | Worker node label selector | from shared ocpconfig |
 
 Default test image is the OpenShift org Quay `iperf3` image (digest-pinned). Prefer
@@ -183,7 +184,16 @@ potentially active workloads. `AfterAll` then removes only the HWOL-created OVSN
 a shared production-like pool. Cleanup waits up to `CleanupWaitTimeout` (15m),
 then verifies that the MCP and SR-IOV node state are stable, the policy and pool
 config are gone, the target PF has returned to legacy mode, and its managed OVS
-bridge has been removed. The suite refuses to adopt pre-existing test-named
+bridge has been removed. It also compares each node's `hw-offload` OVSDB setting
+with the pre-test baseline, distinguishing an absent key from `false`. A
+mismatch fails cleanup by default. On a dedicated lab only,
+`ECO_HWOL_RESTORE_OFFLOAD_ON_CLEANUP=true` allows the suite to restore an absent
+or disabled baseline, restart `ovs-vswitchd` and verify the node and setting.
+This restart can interrupt primary networking. The suite refuses recovery if
+another SR-IOV pool config or policy selects the node, if the node UID or role
+changed, if the node is not Ready, if OVS startup configuration mentions
+`hw-offload`, or if the setting changes during preflight; it never turns
+offload on to restore an enabled baseline. The suite refuses to adopt pre-existing test-named
 networks, policies or pool configs. Cleanup uses the shared SR-IOV/MCP stability
 helper. A convergence failure fails the suite. The existing
 `ECO_HWOL_RECOVER_ON_CLEANUP_FAILURE=true` option can reboot the selected MCP
@@ -202,6 +212,10 @@ reboots. A full ANL246 run starting with `False`/`0` pending passed all five
 runnable specs: the operator restored VF capacity during setup without manual
 firmware restoration. Cleanup queued `False`/`0` again. This validates that lab
 sequence, not arbitrary reboot/recovery scenarios.
+
+The HWOL MachineConfig sets `hw-offload=true` on OVS startup; deleting the
+drop-in does not itself remove the persistent OVSDB key. This is separate from
+the firmware reset and explains the optional OVS baseline restoration above.
 
 Each suite run atomically creates a uniquely named `hwol-tests-<run-id>`
 namespace and retains it after execution. Namespace ownership alone cannot

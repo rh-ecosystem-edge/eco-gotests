@@ -51,6 +51,7 @@ var _ = Describe(
 			vfNum          int
 			workerNode     string
 			ovsBridge      string
+			baseline       map[string]hwolenv.OvsOffloadBaseline
 			cleanup        bool
 			cleanupBlocked bool
 			specPods       []*pod.Builder
@@ -73,12 +74,14 @@ var _ = Describe(
 			vfNum, err = HwolOcpConfig.GetVFNum()
 			Expect(err).ToNot(HaveOccurred(), "Failed to get VF count")
 
-			By("Checking test resources are absent")
+			By("Checking test resources are absent and recording the OVS offload baseline")
 
 			Expect(hwolenv.EnsureTestResourcesAbsent(operatorNS)).To(Succeed())
 			Expect(hwolenv.ValidateSwitchdevPreconditions(operatorNS, mcpLabel, device, vfNum)).To(Succeed(),
 				"HWOL requires an unused PF and no other SR-IOV policy on the selected node")
 			runID = string(uuid.NewUUID())
+			baseline, err = hwolenv.CaptureOvsOffloadBaseline(mcpLabel, HwolOcpConfig.OcpHwolTestContainer)
+			Expect(err).ToNot(HaveOccurred(), "Failed to capture OVS offload baseline")
 			cleanup = true
 
 			By("Ensuring switchdev foundation (operator config, pool, policy, wait)")
@@ -180,6 +183,28 @@ var _ = Describe(
 							"reboot recovery completed; preserving original cleanup failure",
 						)
 					}
+				}
+			}
+			if err == nil {
+				By("Verifying the original OVS offload configuration was restored")
+
+				offloadErr := hwolenv.VerifyOvsOffloadBaseline(mcpLabel, HwolOcpConfig.OcpHwolTestContainer, baseline)
+				if offloadErr != nil && HwolOcpConfig.RestoreOffloadOnCleanup {
+					By("Restoring the OVS offload baseline on dedicated HWOL nodes")
+
+					if restoreErr := hwolenv.RestoreOvsOffloadBaseline(
+						operatorNS, mcpLabel, HwolOcpConfig.OcpHwolTestContainer, baseline,
+					); restoreErr != nil {
+						offloadErr = errors.Join(offloadErr, fmt.Errorf("OVS offload recovery failed: %w", restoreErr))
+					} else {
+						offloadErr = nil
+						AddReportEntry("hwol-offload-baseline-restored", "OVS offload baseline restored on dedicated nodes")
+					}
+				}
+
+				if offloadErr != nil {
+					AddReportEntry("hwol-offload-baseline-mismatch", offloadErr.Error())
+					err = errors.Join(err, offloadErr)
 				}
 			}
 
