@@ -25,7 +25,6 @@ import (
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/utils/ptr"
 )
 
 // IsSNOCluster checks if the cluster is a Single Node OpenShift (SNO) cluster.
@@ -297,7 +296,7 @@ func ExecCommandOnSNOWithRetries(client *clients.Settings, retries uint,
 func WaitForRecover(client *clients.Settings, namespaces []string, timeout time.Duration) error {
 	klog.V(90).Infof("Wait for cluster to recover for namespaces: %v timeout: %v", namespaces, timeout)
 
-	err := waitForReachable(client, timeout)
+	err := WaitForReachable(client, timeout)
 	if err != nil {
 		return err
 	}
@@ -407,14 +406,16 @@ func SoftRebootSNO(apiClient *clients.Settings, retries uint, interval time.Dura
 	return err
 }
 
-// WaitForUnreachable waits up to timeout for the cluster to become unavailable
-// by attempting to list nodes in the cluster.
+// WaitForUnreachable waits up to timeout for the cluster to become unavailable by attempting to list nodes in the
+// cluster.
 func WaitForUnreachable(client *clients.Settings, timeout time.Duration) error {
 	klog.V(90).Infof("Wait for cluster unreachable with timeout: %v", timeout)
 
+	const intervalSeconds = 3
+
 	return wait.PollUntilContextTimeout(
-		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			_, err := nodes.List(client, metav1.ListOptions{TimeoutSeconds: ptr.To[int64](3)})
+		context.TODO(), intervalSeconds*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			_, err := nodes.List(client, metav1.ListOptions{TimeoutSeconds: new(int64(intervalSeconds))})
 			if err != nil {
 				return true, nil
 			}
@@ -440,14 +441,15 @@ func WaitForMcpStable(apiClient *clients.Settings, waitingTime, stableDuration t
 	return nil
 }
 
-// waitForReachable waits up to timeout for the cluster to become available by attempting to list nodes in the
-// cluster.
-func waitForReachable(client *clients.Settings, timeout time.Duration) error {
+// WaitForReachable waits up to timeout for the cluster to become available by attempting to list nodes in the cluster.
+func WaitForReachable(client *clients.Settings, timeout time.Duration) error {
 	klog.V(90).Infof("Wait for cluster reachable with timeout: %v", timeout)
 
+	const intervalSeconds = 3
+
 	return wait.PollUntilContextTimeout(
-		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			_, err := nodes.List(client, metav1.ListOptions{TimeoutSeconds: ptr.To[int64](3)})
+		context.TODO(), intervalSeconds*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			_, err := nodes.List(client, metav1.ListOptions{TimeoutSeconds: new(int64(intervalSeconds))})
 			if err != nil {
 				return false, nil
 			}

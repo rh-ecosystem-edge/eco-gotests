@@ -288,6 +288,8 @@ replace (
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20261015075541-6446fecb0c88 // release-5.0
 	github.com/openshift/installer => github.com/openshift/installer v1.5.0-rc-2 // release-5.0
 	github.com/portworx/sched-ops => github.com/portworx/sched-ops v1.20.4-rc1
+	// REMOVE BEFORE MERGING
+	github.com/rh-ecosystem-edge/eco-goinfra => github.com/klaskosk/eco-goinfra v0.0.0-20261106210933-cc9bb8227c01
 	k8s.io/client-go => k8s.io/client-go v0.36.5
 	// The cluster-node-tuning-operator release-5.0 uses version k8s.io/kube-openapi v0.35.1, which does not exist.
 	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20260821135717-be32def86098 // master
