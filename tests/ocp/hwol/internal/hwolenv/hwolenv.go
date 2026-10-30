@@ -64,6 +64,7 @@ func EnsureSwitchdevFoundation(
 	operatorNS, mcpLabel string,
 	device hwolconfig.DeviceConfig,
 	vfNum int,
+	docaDatapath bool,
 	runID string,
 ) error {
 	if runID == "" {
@@ -97,6 +98,7 @@ func EnsureSwitchdevFoundation(
 		device,
 		vfNum,
 		MCPNodeSelector(mcpLabel),
+		docaDatapath,
 		runID,
 	); err != nil {
 		return err
@@ -126,7 +128,6 @@ func CreateOvsOffloadPoolConfig(name, operatorNS, mcpName, runID string) (*sriov
 	builder.Definition.Spec.OvsHardwareOffloadConfig = sriovv1.OvsHardwareOffloadConfig{
 		Name: mcpName,
 	}
-
 	builder.Definition.Labels = map[string]string{tsparams.TestRunLabelKey: runID}
 
 	if err := createOwnedTestResource(APIClient.Client, builder.Definition, runID); err != nil {
@@ -144,6 +145,7 @@ func CreateSwitchdevPolicy(
 	device hwolconfig.DeviceConfig,
 	vfNum int,
 	nodeSelector map[string]string,
+	docaDatapath bool,
 	runID string,
 ) (*sriov.PolicyBuilder, error) {
 	if runID == "" {
@@ -169,10 +171,7 @@ func CreateSwitchdevPolicy(
 	policy.Definition.Spec.NicSelector.Vendor = device.Vendor
 	policy.Definition.Spec.NicSelector.DeviceID = device.DeviceID
 	policy.Definition.Spec.EswitchMode = tsparams.SwitchdevMode
-	policy.Definition.Spec.Bridge = sriovv1.Bridge{
-		OVS: &sriovv1.OVSConfig{},
-	}
-
+	policy.Definition.Spec.Bridge = switchdevBridgeConfig(docaDatapath)
 	policy.Definition.Labels = map[string]string{tsparams.TestRunLabelKey: runID}
 
 	if err := createOwnedTestResource(APIClient.Client, policy.Definition, runID); err != nil {
@@ -180,6 +179,16 @@ func CreateSwitchdevPolicy(
 	}
 	policy.Object = policy.Definition
 	return policy, nil
+}
+
+func switchdevBridgeConfig(docaDatapath bool) sriovv1.Bridge {
+	config := &sriovv1.OVSConfig{}
+	if docaDatapath {
+		config.Bridge.DatapathType = "doca"
+		config.Uplink.Interface.Type = "doca"
+	}
+
+	return sriovv1.Bridge{OVS: config}
 }
 
 // CreateSriovNetwork creates a SriovNetwork for the HWOL resource in the test namespace.
@@ -341,12 +350,118 @@ var offloadedPacketsRE = regexp.MustCompile(`packets:(\d+)`)
 
 var offloadedEthernetRE = regexp.MustCompile(`(?i)eth\(src=([0-9a-f:]{17}),dst=([0-9a-f:]{17})\)`)
 
+const assertOvsDocaScript = `
+set -eu
+doca_init="$(ovs-vsctl get Open_vSwitch . other_config:doca-init | tr -d '\"')"
+hw_offload="$(ovs-vsctl get Open_vSwitch . other_config:hw-offload | tr -d '\"')"
+if [ "$doca_init" != "true" ]; then
+  echo "Open_vSwitch other_config:doca-init is $doca_init, want true" >&2
+  exit 1
+fi
+if [ "$hw_offload" != "true" ]; then
+  echo "Open_vSwitch other_config:hw-offload is $hw_offload, want true" >&2
+  exit 1
+fi
+if ! ovs-appctl list-commands | grep -q 'dpif-doca/dpif-impl-get'; then
+  echo "running ovs-vswitchd does not expose DOCA datapath commands" >&2
+  exit 1
+fi
+echo "OVS-DOCA capability and configuration verified: doca-init=$doca_init hw-offload=$hw_offload"
+`
+
+// AssertOvsDocaEnabled verifies that OVS-DOCA was provisioned on every HWOL MCP node.
+// OVS-DOCA provisioning is owned by the CI lane; this only validates its prerequisite.
+func AssertOvsDocaEnabled(mcpLabel, image string) error {
+	if image == "" {
+		return fmt.Errorf("debug pod image cannot be empty")
+	}
+
+	workerNodes, err := ListMCPWorkerNodes(mcpLabel)
+	if err != nil {
+		return fmt.Errorf("failed to list MCP nodes: %w", err)
+	}
+
+	if len(workerNodes) == 0 {
+		return fmt.Errorf("no nodes found with label node-role.kubernetes.io/%s", mcpLabel)
+	}
+
+	for _, node := range workerNodes {
+		nodeName := node.Object.Name
+		debugPod, err := newOvsDebugPod(nodeName, image)
+		if err != nil {
+			return err
+		}
+
+		out, execErr := debugPod.ExecCommand([]string{
+			"chroot", "/host", "sh", "-c", assertOvsDocaScript,
+		})
+		delErr := DeleteOwnedPod(debugPod, tsparams.DefaultTimeout)
+		if execErr != nil {
+			checkErr := fmt.Errorf("OVS-DOCA check failed on %s: %w (out=%s)", nodeName, execErr, out.String())
+			if delErr != nil {
+				return errors.Join(checkErr, fmt.Errorf("failed to delete OVS debug pod on %s: %w", nodeName, delErr))
+			}
+			return checkErr
+		}
+		if delErr != nil {
+			return fmt.Errorf("failed to delete OVS-DOCA debug pod on %s: %w", nodeName, delErr)
+		}
+
+		klog.V(90).Infof("OVS-DOCA configuration OK on node %s: %s", nodeName, out.String())
+	}
+
+	return nil
+}
+
+// AssertDocaBridge verifies the operator created a working DOCA datapath and uplink.
+func AssertDocaBridge(nodeName, bridge, pfName, image string) (resultErr error) {
+	if nodeName == "" || bridge == "" || pfName == "" || image == "" {
+		return fmt.Errorf("node, bridge, PF and debug image are required")
+	}
+
+	debugPod, err := newOvsDebugPod(nodeName, image)
+	if err != nil {
+		return err
+	}
+
+	defer closeOvsDebugPod(debugPod, &resultErr)
+
+	out, err := debugPod.ExecCommand([]string{"chroot", "/host", "sh", "-c", `
+set -eu
+bridge="$1"
+pf="$2"
+test "$(ovs-vsctl get Bridge "$bridge" datapath_type | tr -d '"')" = doca
+test "$(ovs-vsctl get Interface "$pf" type | tr -d '"')" = doca
+test "$(ovs-vsctl get Interface "$pf" ofport)" -gt 0
+error="$(ovs-vsctl get Interface "$pf" error)"
+test "$error" = '[]' || test -z "$error"
+ovs-appctl dpif/show
+`, "sh", bridge, pfName})
+	if err != nil {
+		return fmt.Errorf("DOCA bridge check failed on %s: %w (out=%s)", nodeName, err, out.String())
+	}
+
+	dps, err := debugPod.ExecCommand([]string{"chroot", "/host", "ovs-appctl", "dpctl/dump-dps"})
+	if err != nil {
+		return fmt.Errorf("failed to list datapaths on %s: %w (out=%s)", nodeName, err, dps.String())
+	}
+
+	if _, err := selectOvsDatapath(dps.String(), "doca"); err != nil {
+		return fmt.Errorf("DOCA datapath is not active on %s: %w", nodeName, err)
+	}
+
+	klog.V(90).Infof("DOCA bridge %s on %s: %s", bridge, nodeName, out.String())
+
+	return nil
+}
+
 // vfRepresentorOnBridgeScript maps each VF PCI address to its host representor
 // netdev and asserts that representor is an ovs-vsctl port on $1.
 const vfRepresentorOnBridgeScript = `
 set -eu
 bridge="$1"
-shift
+interface_type="$2"
+shift 2
 normalize_pci() {
   pci="$1"
   case "$pci" in
@@ -405,6 +520,13 @@ for pci in "$@"; do
     ovs-vsctl list-ports "$bridge" >&2 || true
     exit 1
   fi
+  if [ -n "$interface_type" ]; then
+    actual_type="$(ovs-vsctl get Interface "$rep" type | tr -d '"')"
+    [ "$actual_type" = "$interface_type" ] || { echo "representor $rep type is $actual_type, want $interface_type" >&2; exit 1; }
+    [ "$(ovs-vsctl get Interface "$rep" ofport)" -gt 0 ] || { echo "representor $rep has no valid OVS port" >&2; exit 1; }
+    error="$(ovs-vsctl get Interface "$rep" error)"
+    [ "$error" = '[]' ] || [ -z "$error" ] || { echo "representor $rep error: $error" >&2; exit 1; }
+  fi
   echo "OK $full -> $rep on $bridge"
 done
 `
@@ -412,7 +534,17 @@ done
 // AssertVFRepresentorsOnBridge maps each VF PCI address to its host representor netdev
 // (PF virtfnN → typically <pf>_<N>) and asserts that representor is an ovs-vsctl port
 // on bridge. Used for the ovs CNI offload path before iperf.
-func AssertVFRepresentorsOnBridge(nodeName, bridge, image string, pciAddrs ...string) (resultErr error) {
+func AssertVFRepresentorsOnBridge(nodeName, bridge, image string, pciAddrs ...string) error {
+	return assertVFRepresentorsOnBridge(nodeName, bridge, image, "", nil, pciAddrs...)
+}
+
+// AssertDocaVFRepresentorsOnBridge also verifies fresh DOCA flow API assignments.
+func AssertDocaVFRepresentorsOnBridge(nodeName, bridge, image string, cursor DocaProviderCursor, pciAddrs ...string) error {
+	return assertVFRepresentorsOnBridge(nodeName, bridge, image, "doca", &cursor, pciAddrs...)
+}
+
+func assertVFRepresentorsOnBridge(nodeName, bridge, image, interfaceType string,
+	cursor *DocaProviderCursor, pciAddrs ...string) (resultErr error) {
 	if nodeName == "" {
 		return fmt.Errorf("nodeName cannot be empty")
 	}
@@ -442,16 +574,30 @@ func AssertVFRepresentorsOnBridge(nodeName, bridge, image string, pciAddrs ...st
 
 	defer closeOvsDebugPod(debugPod, &resultErr)
 
-	args := []string{"chroot", "/host", "sh", "-c", vfRepresentorOnBridgeScript, "sh", bridge}
+	args := []string{"chroot", "/host", "sh", "-c", vfRepresentorOnBridgeScript, "sh", bridge, interfaceType}
 	args = append(args, pciAddrs...)
 
-	out, err := debugPod.ExecCommand(args)
+	out, err := debugPod.ExecCommandWithTimeout(args, 30*time.Second)
 	if err != nil {
 		return fmt.Errorf("VF representor-on-bridge check failed on %s bridge %s: %w (out=%s)",
 			nodeName, bridge, err, out.String())
 	}
 
 	klog.V(90).Infof("VF representors on bridge %s (%s):\n%s", bridge, nodeName, out.String())
+	if cursor != nil {
+		representors, err := parseRepresentorEvidence(out.String(), bridge, pciAddrs)
+		if err != nil {
+			return fmt.Errorf("cannot identify DOCA workload representors on %s: %w", nodeName, err)
+		}
+		log, err := readDocaProviderLog(debugPod, *cursor)
+		if err != nil {
+			return fmt.Errorf("cannot inspect DOCA provider assignments on %s: %w", nodeName, err)
+		}
+		if err := verifyDocaProviderAssignments(log, representors); err != nil {
+			return fmt.Errorf("DOCA provider assignment on %s: %w", nodeName, err)
+		}
+		klog.V(90).Infof("Verified fresh doca_flow_api assignments for workload representors %v on %s", representors, nodeName)
+	}
 
 	return nil
 }

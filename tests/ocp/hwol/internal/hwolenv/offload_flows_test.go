@@ -34,6 +34,18 @@ func TestCountOffloadedTrafficPackets(t *testing.T) {
 	require.ErrorContains(t, err, "invalid first workload MAC")
 }
 
+func TestSwitchdevBridgeConfig(t *testing.T) {
+	standard := switchdevBridgeConfig(false)
+	require.NotNil(t, standard.OVS)
+	require.Empty(t, standard.OVS.Bridge.DatapathType)
+	require.Empty(t, standard.OVS.Uplink.Interface.Type)
+
+	doca := switchdevBridgeConfig(true)
+	require.NotNil(t, doca.OVS)
+	require.Equal(t, "doca", doca.OVS.Bridge.DatapathType)
+	require.Equal(t, "doca", doca.OVS.Uplink.Interface.Type)
+}
+
 func TestSelectOvsDatapath(t *testing.T) {
 	output := "system@ovs-system\ndoca@ovs-doca\n"
 	datapath, err := selectOvsDatapath(output, "doca")

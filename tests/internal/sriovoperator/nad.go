@@ -27,8 +27,9 @@ const (
 )
 
 type nadConfigType struct {
-	Type   string `json:"type"`
-	Bridge string `json:"bridge,omitempty"`
+	Type          string `json:"type"`
+	Bridge        string `json:"bridge,omitempty"`
+	InterfaceType string `json:"interface_type,omitempty"`
 }
 
 // WaitForNADCreation waits for NetworkAttachmentDefinition to be created.
@@ -117,6 +118,29 @@ func AssertNAD(
 	if wantBridge != "" && cfg.Bridge != wantBridge {
 		return fmt.Errorf("NAD %s/%s bridge is %q, want %q",
 			namespace, name, cfg.Bridge, wantBridge)
+	}
+
+	return nil
+}
+
+// AssertNADInterfaceType checks the representor interface type passed to ovs-cni.
+func AssertNADInterfaceType(apiClient *clients.Settings, name, namespace, want string) error {
+	if apiClient == nil || name == "" || namespace == "" || want == "" {
+		return fmt.Errorf("API client, NAD name, namespace, and interface type are required")
+	}
+
+	obj, err := nad.Pull(apiClient, name, namespace)
+	if err != nil {
+		return fmt.Errorf("failed to pull NAD %s/%s: %w", namespace, name, err)
+	}
+
+	var cfg nadConfigType
+	if err := json.Unmarshal([]byte(obj.Object.Spec.Config), &cfg); err != nil {
+		return fmt.Errorf("failed to parse NAD %s/%s: %w", namespace, name, err)
+	}
+
+	if cfg.InterfaceType != want {
+		return fmt.Errorf("NAD %s/%s interface_type is %q, want %q", namespace, name, cfg.InterfaceType, want)
 	}
 
 	return nil

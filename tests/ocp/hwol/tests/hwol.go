@@ -84,8 +84,16 @@ var _ = Describe(
 			By("Ensuring switchdev foundation (operator config, pool, policy, wait)")
 
 			Expect(hwolenv.EnsureSwitchdevFoundation(
-				operatorNS, mcpLabel, device, vfNum, runID,
+				operatorNS, mcpLabel, device, vfNum, HwolOcpConfig.OvsDocaEnabled, runID,
 			)).To(Succeed(), "Failed to ensure switchdev foundation")
+
+			if HwolOcpConfig.OvsDocaEnabled {
+				By("Verifying OVS-DOCA is enabled on HWOL MCP nodes")
+
+				Expect(hwolenv.AssertOvsDocaEnabled(
+					mcpLabel, HwolOcpConfig.OcpHwolTestContainer,
+				)).To(Succeed(), "OVS-DOCA is not enabled on HWOL MCP nodes")
+			}
 
 			mcpNodes, err := hwolenv.ListMCPWorkerNodes(mcpLabel)
 			Expect(err).ToNot(HaveOccurred(), "Failed to list MCP nodes")
@@ -96,6 +104,11 @@ var _ = Describe(
 			Expect(err).ToNot(HaveOccurred(), "Failed to look up managed OVS bridge")
 			Expect(ovsBridge).ToNot(BeEmpty(), "Managed OVS bridge name is empty")
 
+			if HwolOcpConfig.OvsDocaEnabled {
+				By("Verifying the managed bridge and PF use the DOCA datapath")
+				Expect(hwolenv.AssertDocaBridge(workerNode, ovsBridge, pfName,
+					HwolOcpConfig.OcpHwolTestContainer)).To(Succeed())
+			}
 		})
 
 		BeforeEach(func() {
@@ -215,6 +228,11 @@ var _ = Describe(
 					tsparams.ResourceNamePrefix+tsparams.ResourceName,
 					wantBridge,
 				)).To(Succeed(), "NAD assertion failed")
+				if cniType == sriovoperator.CNITypeOVS && HwolOcpConfig.OvsDocaEnabled {
+					Expect(sriovoperator.AssertNADInterfaceType(
+						APIClient, networkName, tsparams.TestNamespaceName, "doca",
+					)).To(Succeed(), "NAD must request DOCA representors")
+				}
 
 				By("Creating sleep pod with secondary network")
 
@@ -245,6 +263,13 @@ var _ = Describe(
 				Expect(vfNum).To(BeNumerically(">=", tsparams.MinVFNumForOffload),
 					"offload needs ≥%d VFs (VF0 reserved + server/client); set ECO_OCP_HWOL_VF_NUM",
 					tsparams.MinVFNumForOffload)
+				var providerCursor hwolenv.DocaProviderCursor
+				if cniType == sriovoperator.CNITypeOVS && HwolOcpConfig.OvsDocaEnabled {
+					By("Recording the OVS provider log position before creating workload interfaces")
+					var err error
+					providerCursor, err = hwolenv.CaptureDocaProviderCursor(workerNode, HwolOcpConfig.OcpHwolTestContainer)
+					Expect(err).ToNot(HaveOccurred(), "Failed to record OVS provider log position")
+				}
 
 				By(fmt.Sprintf("Creating %s network %s for offload", cniType, networkName))
 
@@ -277,6 +302,11 @@ var _ = Describe(
 					tsparams.ResourceNamePrefix+tsparams.ResourceName,
 					wantBridge,
 				)).To(Succeed(), "NAD assertion failed")
+				if cniType == sriovoperator.CNITypeOVS && HwolOcpConfig.OvsDocaEnabled {
+					Expect(sriovoperator.AssertNADInterfaceType(
+						APIClient, networkName, tsparams.TestNamespaceName, "doca",
+					)).To(Succeed(), "NAD must request DOCA representors")
+				}
 
 				By(fmt.Sprintf("Creating iperf server/client pods on node %s", workerNode))
 
@@ -325,15 +355,26 @@ var _ = Describe(
 				if cniType == sriovoperator.CNITypeOVS {
 					By("Asserting VF representors are ports on the managed OVS bridge")
 
-					Expect(hwolenv.AssertVFRepresentorsOnBridge(
-						workerNode, ovsBridge, HwolOcpConfig.OcpHwolTestContainer,
-						serverPCI, clientPCI,
-					)).To(Succeed(), "expected server and client VF representors on bridge")
+					if HwolOcpConfig.OvsDocaEnabled {
+						Expect(hwolenv.AssertDocaVFRepresentorsOnBridge(
+							workerNode, ovsBridge, HwolOcpConfig.OcpHwolTestContainer,
+							providerCursor, serverPCI, clientPCI,
+						)).To(Succeed(), "expected operational DOCA VF representors assigned to doca_flow_api")
+					} else {
+						Expect(hwolenv.AssertVFRepresentorsOnBridge(
+							workerNode, ovsBridge, HwolOcpConfig.OcpHwolTestContainer,
+							serverPCI, clientPCI,
+						)).To(Succeed(), "expected server and client VF representors on bridge")
+					}
 				}
 
 				By("Recording offloaded packet counters for the workload MAC pair")
 
 				datapathType := "system"
+				if HwolOcpConfig.OvsDocaEnabled {
+					datapathType = "doca"
+				}
+
 				before, err := hwolenv.OvsOffloadedTrafficPackets(
 					workerNode, HwolOcpConfig.OcpHwolTestContainer, datapathType, clientMAC, serverMAC)
 				Expect(err).ToNot(HaveOccurred(), "Failed to record offload baseline")
@@ -384,9 +425,14 @@ func createAttachNetwork(
 ) error {
 	switch cniType {
 	case sriovoperator.CNITypeOVS:
+		interfaceType := ""
+		if HwolOcpConfig.OvsDocaEnabled {
+			interfaceType = "doca"
+		}
+
 		_, err := hwolenv.CreateOvsNetwork(
 			networkName, operatorNS, tsparams.ResourceName, tsparams.TestNamespaceName,
-			hwolenv.HostLocalIPAM, ovsBridge, runID)
+			hwolenv.HostLocalIPAM, ovsBridge, interfaceType, runID)
 
 		return err
 	case sriovoperator.CNITypeSriov:

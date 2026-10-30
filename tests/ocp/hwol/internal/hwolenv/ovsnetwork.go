@@ -236,7 +236,7 @@ func (builder *OvsNetworkBuilder) validate() (bool, error) {
 // bridge may be empty; when set it is written into the NAD so representors attach to the
 // managed HWOL bridge (e.g. br-0000_ca_00.0).
 func CreateOvsNetwork(
-	name, operatorNS, resourceName, networkNS, ipam, bridge, runID string,
+	name, operatorNS, resourceName, networkNS, ipam, bridge, interfaceType, runID string,
 ) (*OvsNetworkBuilder, error) {
 	if runID == "" {
 		return nil, fmt.Errorf("HWOL run ID cannot be empty")
@@ -257,6 +257,7 @@ func CreateOvsNetwork(
 		network = network.WithBridge(bridge)
 	}
 
+	network.Definition.Spec.InterfaceType = interfaceType
 	network.Definition.Labels[tsparams.TestRunLabelKey] = runID
 
 	created, err := network.Create()
