@@ -51,8 +51,8 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/common v1.20.99
 	github.com/redhat-cne/sdk-go v1.23.6
-	github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261102181326-6263d3e8ac35
-	github.com/stmcginnis/gofish v0.20.0 // v0.21.0 contains many breaking changes. Should be upgraded separately.
+	github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261104184309-d265e7c922ea
+	github.com/stmcginnis/gofish v0.27.0
 	github.com/stretchr/testify v1.11.1
 	github.com/vmware-tanzu/velero v1.18.0
 	github.com/walle/targz v0.0.0-20140417120357-57fe4206da5a

@@ -1,12 +1,16 @@
 package service
 
 import (
-	"fmt"
+	"context"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/common"
+	commonerrors "github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/common/errors"
+	commonkey "github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/common/key"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
+	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // List returns service inventory in the given namespace.
@@ -14,44 +18,17 @@ func List(apiClient *clients.Settings, nsname string, options ...metav1.ListOpti
 	if nsname == "" {
 		klog.V(100).Info("service 'nsname' parameter can not be empty")
 
-		return nil, fmt.Errorf("failed to list services, 'nsname' parameter is empty")
+		return nil, commonerrors.NewBuilderFieldEmpty(
+			commonkey.NewResourceKey("Service", "", ""), commonerrors.BuilderFieldNamespace)
 	}
 
-	passedOptions := metav1.ListOptions{}
-	logMessage := fmt.Sprintf("Listing services in the namespace %s", nsname)
-
-	if len(options) > 1 {
-		klog.V(100).Info("'options' parameter must be empty or single-valued")
-
-		return nil, fmt.Errorf("error: more than one ListOptions was passed")
-	}
-
-	if len(options) == 1 {
-		passedOptions = options[0]
-		logMessage += fmt.Sprintf(" with the options %v", passedOptions)
-	}
-
-	klog.V(100).Infof("%v", logMessage)
-
-	serviceList, err := apiClient.Services(nsname).List(logging.DiscardContext(), passedOptions)
+	convertedOptions, err := common.ConvertMetaListOptionsToListOptions(options)
 	if err != nil {
-		klog.V(100).Infof("Failed to list services in the namespace %s due to %s", nsname, err.Error())
-
 		return nil, err
 	}
 
-	var serviceObjects []*Builder
+	allOptions := append([]runtimeclient.ListOption{runtimeclient.InNamespace(nsname)}, convertedOptions...)
 
-	for _, runningService := range serviceList.Items {
-		copiedService := runningService
-		serviceBuilder := &Builder{
-			apiClient:  apiClient.CoreV1Interface,
-			Object:     &copiedService,
-			Definition: &copiedService,
-		}
-
-		serviceObjects = append(serviceObjects, serviceBuilder)
-	}
-
-	return serviceObjects, nil
+	return common.List[corev1.Service, corev1.ServiceList, Builder](
+		context.TODO(), apiClient, corev1.AddToScheme, allOptions...)
 }

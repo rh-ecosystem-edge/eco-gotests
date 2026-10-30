@@ -12,218 +12,55 @@ import (
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/common"
 	argocdtypes "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/argocd/argocdtypes/v1alpha1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
-	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // ApplicationBuilder provides a struct for an application object from the cluster and a definition.
 type ApplicationBuilder struct {
-	// application Definition, used to create the application object.
-	Definition *argocdtypes.Application
-	// created application object.
-	Object *argocdtypes.Application
-	// api client to interact with the cluster.
-	apiClient runtimeclient.Client
-	// used to store latest error message upon defining or mutating application definition.
-	errorMsg string
+	common.EmbeddableBuilder[argocdtypes.Application, *argocdtypes.Application]
+	common.EmbeddableCreator[argocdtypes.Application, ApplicationBuilder, *argocdtypes.Application, *ApplicationBuilder]
+	common.EmbeddableDeleteReturner[argocdtypes.Application, ApplicationBuilder, *argocdtypes.Application, *ApplicationBuilder]
+	common.EmbeddableForceUpdater[argocdtypes.Application, ApplicationBuilder, *argocdtypes.Application, *ApplicationBuilder]
+}
+
+// AttachMixins wires the embedded CRUD mixins to this builder instance.
+func (builder *ApplicationBuilder) AttachMixins() {
+	builder.EmbeddableCreator.SetBase(builder)
+	builder.EmbeddableDeleteReturner.SetBase(builder)
+	builder.EmbeddableForceUpdater.SetBase(builder)
+}
+
+// GetGVK returns the Application GVK for this builder.
+func (builder *ApplicationBuilder) GetGVK() schema.GroupVersionKind {
+	return argocdtypes.ApplicationSchemaGroupVersionKind
+}
+
+// NewApplicationBuilder creates a new ApplicationBuilder instance.
+func NewApplicationBuilder(apiClient *clients.Settings, name, nsname string) *ApplicationBuilder {
+	return common.NewNamespacedBuilder[argocdtypes.Application, ApplicationBuilder](
+		apiClient, argocdtypes.AddToScheme, name, nsname)
 }
 
 // PullApplication pulls existing application into ApplicationBuilder struct.
 func PullApplication(apiClient *clients.Settings, name, nsname string) (*ApplicationBuilder, error) {
-	klog.V(100).Infof("Pulling existing Application name %s under namespace %s from cluster", name, nsname)
-
-	if apiClient == nil {
-		klog.V(100).Info("The apiClient is empty")
-
-		return nil, fmt.Errorf("application 'apiClient' cannot be empty")
-	}
-
-	err := apiClient.AttachScheme(argocdtypes.AddToScheme)
-	if err != nil {
-		klog.V(100).Info("Failed to add argocd Application scheme to client schemes")
-
-		return nil, err
-	}
-
-	builder := &ApplicationBuilder{
-		apiClient: apiClient.Client,
-		Definition: &argocdtypes.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      name,
-				Namespace: nsname,
-			},
-		},
-	}
-
-	if name == "" {
-		klog.V(100).Info("The name of the Application is empty")
-
-		return nil, fmt.Errorf("application 'name' cannot be empty")
-	}
-
-	if nsname == "" {
-		klog.V(100).Info("The namespace of the Application is empty")
-
-		return nil, fmt.Errorf("application 'namespace' cannot be empty")
-	}
-
-	if !builder.Exists() {
-		return nil, fmt.Errorf("application object %s does not exist in namespace %s", name, nsname)
-	}
-
-	builder.Definition = builder.Object
-
-	return builder, nil
-}
-
-// Exists checks whether the given argocd application exists.
-func (builder *ApplicationBuilder) Exists() bool {
-	if valid, _ := builder.validate(); !valid {
-		return false
-	}
-
-	klog.V(100).Infof("Checking if argocd app %s exists in namespace %s",
-		builder.Definition.Name, builder.Definition.Namespace)
-
-	var err error
-
-	builder.Object, err = builder.Get()
-
-	return err == nil || !k8serrors.IsNotFound(err)
-}
-
-// Get returns argocd application object if found.
-func (builder *ApplicationBuilder) Get() (*argocdtypes.Application, error) {
-	if valid, err := builder.validate(); !valid {
-		return nil, err
-	}
-
-	klog.V(100).Infof("Getting argocd app %s in namespace %s",
-		builder.Definition.Name, builder.Definition.Namespace)
-
-	application := &argocdtypes.Application{}
-
-	err := builder.apiClient.Get(logging.DiscardContext(), runtimeclient.ObjectKey{
-		Name:      builder.Definition.Name,
-		Namespace: builder.Definition.Namespace,
-	}, application)
-	if err != nil {
-		klog.V(100).Infof(
-			"Failed to Get Application %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
-
-		return nil, err
-	}
-
-	return application, nil
-}
-
-// Update renovates the existing argocd application object with the argocd application definition in builder.
-func (builder *ApplicationBuilder) Update(force bool) (*ApplicationBuilder, error) {
-	if valid, err := builder.validate(); !valid {
-		return builder, err
-	}
-
-	klog.V(100).Infof("Updating the argocd application object %s in namespace %s", builder.Definition.Name,
-		builder.Definition.Namespace)
-
-	if !builder.Exists() {
-		klog.V(100).Infof(
-			"Application %s does not exist in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
-
-		return nil, fmt.Errorf("cannot update non-existent Application")
-	}
-
-	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
-
-	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
-	if err != nil {
-		if force {
-			klog.V(100).Infof("%v", msg.FailToUpdateNotification("Application", builder.Definition.Name, builder.Definition.Namespace))
-
-			builder, err := builder.Delete()
-			builder.Definition.ResourceVersion = ""
-
-			if err != nil {
-				klog.V(100).Infof("%v", msg.FailToUpdateError("Application", builder.Definition.Name, builder.Definition.Namespace))
-
-				return nil, err
-			}
-
-			return builder.Create()
-		}
-
-		return nil, err
-	}
-
-	builder.Object = builder.Definition
-
-	return builder, nil
-}
-
-// Delete removes the argocd application object from a cluster.
-func (builder *ApplicationBuilder) Delete() (*ApplicationBuilder, error) {
-	if valid, err := builder.validate(); !valid {
-		return builder, err
-	}
-
-	klog.V(100).Infof("Deleting the argocd application object %s from namespace: %s", builder.Definition.Name,
-		builder.Definition.Namespace)
-
-	if !builder.Exists() {
-		klog.V(100).Infof("application %s in namespace %s cannot be deleted because it does not exist",
-			builder.Definition.Name, builder.Definition.Namespace)
-
-		builder.Object = nil
-
-		return builder, nil
-	}
-
-	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Object)
-	if err != nil {
-		return builder, fmt.Errorf("can not delete argocd application: %w", err)
-	}
-
-	builder.Object = nil
-
-	return builder, nil
-}
-
-// Create makes an argocd application in the cluster and stores the created object in a struct.
-func (builder *ApplicationBuilder) Create() (*ApplicationBuilder, error) {
-	if valid, err := builder.validate(); !valid {
-		return builder, err
-	}
-
-	klog.V(100).Infof("Creating argocd application %s in namespace: %s", builder.Definition.Name,
-		builder.Definition.Namespace)
-
-	var err error
-	if !builder.Exists() {
-		err = builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
-		if err == nil {
-			builder.Object = builder.Definition
-		}
-	}
-
-	return builder, err
+	return common.PullNamespacedBuilder[argocdtypes.Application, ApplicationBuilder](
+		context.TODO(), apiClient, argocdtypes.AddToScheme, name, nsname)
 }
 
 // WithGitDetails applies git details to application definition.
 func (builder *ApplicationBuilder) WithGitDetails(gitRepo, gitBranch, gitPath string) *ApplicationBuilder {
-	if valid, _ := builder.validate(); !valid {
+	if err := common.Validate(builder); err != nil {
 		return builder
 	}
 
 	if gitRepo == "" {
 		klog.V(100).Info("The 'gitRepo' of the argocd application is empty")
 
-		builder.errorMsg = "'gitRepo' parameter is empty"
+		builder.SetError(fmt.Errorf("'gitRepo' parameter is empty"))
 
 		return builder
 	}
@@ -231,7 +68,7 @@ func (builder *ApplicationBuilder) WithGitDetails(gitRepo, gitBranch, gitPath st
 	if gitBranch == "" {
 		klog.V(100).Info("The 'gitBranch' of the argocd application is empty")
 
-		builder.errorMsg = "'gitBranch' parameter is empty"
+		builder.SetError(fmt.Errorf("'gitBranch' parameter is empty"))
 
 		return builder
 	}
@@ -239,7 +76,7 @@ func (builder *ApplicationBuilder) WithGitDetails(gitRepo, gitBranch, gitPath st
 	if gitPath == "" {
 		klog.V(100).Info("The 'gitPath' of the argocd application is empty")
 
-		builder.errorMsg = "'gitPath' parameter is empty"
+		builder.SetError(fmt.Errorf("'gitPath' parameter is empty"))
 
 		return builder
 	}
@@ -249,6 +86,10 @@ func (builder *ApplicationBuilder) WithGitDetails(gitRepo, gitBranch, gitPath st
 			"RepoURL: %s,TargetRevision: %s, Path: %s", builder.Definition.Name, builder.Definition.Namespace,
 		gitRepo, gitBranch, gitPath,
 	)
+
+	if builder.Definition.Spec.Source == nil {
+		builder.Definition.Spec.Source = &argocdtypes.ApplicationSource{}
+	}
 
 	builder.Definition.Spec.Source.RepoURL = gitRepo
 	builder.Definition.Spec.Source.TargetRevision = gitBranch
@@ -261,14 +102,14 @@ func (builder *ApplicationBuilder) WithGitDetails(gitRepo, gitBranch, gitPath st
 // [WithGitDetails] but does not change the RepoURL or TargetRevision and only appends the elements to the Path field,
 // rather than replaces it.
 func (builder *ApplicationBuilder) WithGitPathAppended(elements ...string) *ApplicationBuilder {
-	if valid, _ := builder.validate(); !valid {
+	if err := common.Validate(builder); err != nil {
 		return builder
 	}
 
 	if builder.Definition.Spec.Source == nil {
 		klog.V(100).Info("The source of the argocd application is nil")
 
-		builder.errorMsg = "cannot append to git path because the source is nil"
+		builder.SetError(fmt.Errorf("cannot append to git path because the source is nil"))
 
 		return builder
 	}
@@ -283,7 +124,7 @@ func (builder *ApplicationBuilder) WithGitPathAppended(elements ...string) *Appl
 // expected condition are ignored.
 func (builder *ApplicationBuilder) WaitForCondition(
 	expected argocdtypes.ApplicationCondition, timeout time.Duration) (*ApplicationBuilder, error) {
-	if valid, err := builder.validate(); !valid {
+	if err := common.Validate(builder); err != nil {
 		return nil, err
 	}
 
@@ -337,7 +178,7 @@ func (builder *ApplicationBuilder) WaitForCondition(
 // An expected use of this function may be checking `appBuilder.DoesGitPathExist("ztp-test", "ztp-test-case")` to know
 // if the application source can have the path `ztp-test/ztp-test-case` appended.
 func (builder *ApplicationBuilder) DoesGitPathExist(elements ...string) bool {
-	if valid, _ := builder.validate(); !valid {
+	if err := common.Validate(builder); err != nil {
 		return false
 	}
 
@@ -406,7 +247,7 @@ func (builder *ApplicationBuilder) DoesGitPathExist(elements ...string) bool {
 // WaitForSourceUpdate waits up to timeout until the Application has a source that matches the expected, checking only
 // the RepoURL, Path, and TargetRevision fields. If synced is true, it will also wait until the Application is synced.
 func (builder *ApplicationBuilder) WaitForSourceUpdate(synced bool, timeout time.Duration) error {
-	if valid, err := builder.validate(); !valid {
+	if err := common.Validate(builder); err != nil {
 		return err
 	}
 
@@ -453,36 +294,4 @@ func (builder *ApplicationBuilder) WaitForSourceUpdate(synced bool, timeout time
 
 			return true, nil
 		})
-}
-
-// validate will check that the builder and builder definition are properly initialized before
-// accessing any member fields.
-func (builder *ApplicationBuilder) validate() (bool, error) {
-	resourceCRD := "Application"
-
-	if builder == nil {
-		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
-
-		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
-	}
-
-	if builder.Definition == nil {
-		klog.V(100).Infof("The %s is undefined", resourceCRD)
-
-		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
-	}
-
-	if builder.apiClient == nil {
-		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
-
-		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
-	}
-
-	if builder.errorMsg != "" {
-		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
-
-		return false, fmt.Errorf("%s", builder.errorMsg)
-	}
-
-	return true, nil
 }

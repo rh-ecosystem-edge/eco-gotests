@@ -990,7 +990,7 @@ github.com/redhat-cne/sdk-go/pkg/event/ptp
 github.com/redhat-cne/sdk-go/pkg/event/redfish
 github.com/redhat-cne/sdk-go/pkg/pubsub
 github.com/redhat-cne/sdk-go/pkg/types
-# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261102181326-6263d3e8ac35
+# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261104184309-d265e7c922ea
 ## explicit; go 1.27.0
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/amdgpu
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/apiservers
@@ -1216,12 +1216,10 @@ github.com/spf13/cobra
 # github.com/spf13/pflag v1.0.10
 ## explicit; go 1.12
 github.com/spf13/pflag
-# github.com/stmcginnis/gofish v0.20.0
+# github.com/stmcginnis/gofish v0.27.0
 ## explicit; go 1.21
 github.com/stmcginnis/gofish
-github.com/stmcginnis/gofish/common
-github.com/stmcginnis/gofish/redfish
-github.com/stmcginnis/gofish/swordfish
+github.com/stmcginnis/gofish/schemas
 # github.com/stolostron/kubernetes-dependency-watches v0.10.2
 ## explicit; go 1.23.0
 github.com/stolostron/kubernetes-dependency-watches/client

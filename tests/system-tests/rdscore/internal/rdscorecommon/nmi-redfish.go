@@ -7,7 +7,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/stmcginnis/gofish/redfish"
+	"github.com/stmcginnis/gofish/schemas"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -92,7 +92,7 @@ func triggerNMIRedfish(ctx SpecContext, nodeLabel string) {
 
 		err = wait.PollUntilContextTimeout(ctx, 15*time.Second, 6*time.Minute, true,
 			func(ctx context.Context) (bool, error) {
-				if err := bmcClient.SystemResetAction(redfish.NmiResetType); err != nil {
+				if err := bmcClient.SystemResetAction(schemas.NmiResetType); err != nil {
 					klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 						"Failed to trigger NMI on %s -> %v", node.Definition.Name, err)
 

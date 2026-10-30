@@ -276,10 +276,6 @@ func GetModifiableTestClients(tcp TestClientParams) (*Settings, *fakeRuntimeClie
 		case *appsv1.DaemonSet:
 			k8sClientObjects = append(k8sClientObjects, v)
 		// Generic Client Objects
-		case *operatorv1.KubeAPIServer:
-			genericClientObjects = append(genericClientObjects, v)
-		case *operatorv1.OpenShiftAPIServer:
-			genericClientObjects = append(genericClientObjects, v)
 		case *configV1.Node:
 			genericClientObjects = append(genericClientObjects, v)
 		case *operatorv1.IngressController:
