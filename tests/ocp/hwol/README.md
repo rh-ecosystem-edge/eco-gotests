@@ -143,9 +143,10 @@ export ECO_OCP_HWOL_VF_NUM=3
 make run-tests
 ```
 
-The Ordered HWOL spec ensures `SriovOperatorConfig`
+The Ordered HWOL spec requires `SriovOperatorConfig`
 (`featureGates.manageSoftwareBridges`, `enableOvsOffload`; mellanox plugin left
-enabled so firmware SR-IOV/TotalVfs can be programmed on CX6), creates
+enabled so firmware SR-IOV/TotalVfs can be programmed on CX6). It validates these
+prerequisites without changing the existing operator configuration, then creates
 `SriovNetworkPoolConfig` (OvsHardwareOffload only — no parallel
 nodeSelector/maxUnavailable), applies switchdev policy with `bridge.ovs: {}`,
 and waits for MCP/node-state sync. The `switchdev` spec asserts
@@ -167,6 +168,11 @@ time, waits for recovery, and verifies cleanup. The original cleanup failure is
 still reported, so this workaround never turns a failed cleanup into a pass.
 
 ## Current coverage
+
+Before creating a pool or policy, every selected node must have no other
+selecting SR-IOV policy or pool config and an unused legacy PF with capacity for
+the requested VFs. This intentionally rejects shared nodes, including nodes with
+unrelated SR-IOV policies, rather than altering their state.
 
 Each run atomically creates a unique `hwol-tests-<run-id>` namespace and retains
 it for manual review. Review all resources and the reported namespace UID before

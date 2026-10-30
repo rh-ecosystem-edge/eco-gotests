@@ -3,13 +3,17 @@ package hwolenv
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	sriovv1 "github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1"
+	hwolconfig "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/hwol/internal/ocphwolconfig"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/hwol/internal/ocphwolinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/hwol/internal/tsparams"
+	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -57,6 +61,106 @@ func EnsureTestResourcesAbsent(operatorNS string) error {
 		}
 	}
 
+	return nil
+}
+
+// ValidateSwitchdevPreconditions refuses to alter nodes already managed by another SR-IOV policy.
+func ValidateSwitchdevPreconditions(operatorNS, mcpLabel string, device hwolconfig.DeviceConfig, vfNum int) error {
+	if APIClient == nil || APIClient.Client == nil {
+		return fmt.Errorf("API client is required")
+	}
+	if err := APIClient.AttachScheme(sriovv1.AddToScheme); err != nil {
+		return fmt.Errorf("cannot register SR-IOV types: %w", err)
+	}
+	nodeList, err := ListMCPWorkerNodes(mcpLabel)
+	if err != nil || len(nodeList) == 0 {
+		return fmt.Errorf("cannot list HWOL MCP nodes %s: %v", mcpLabel, err)
+	}
+	var policies sriovv1.SriovNetworkNodePolicyList
+	if err := APIClient.Client.List(context.TODO(), &policies, runtimeClient.InNamespace(operatorNS)); err != nil {
+		return fmt.Errorf("cannot inspect SR-IOV policies: %w", err)
+	}
+	var pools sriovv1.SriovNetworkPoolConfigList
+	if err := APIClient.Client.List(context.TODO(), &pools, runtimeClient.InNamespace(operatorNS)); err != nil {
+		return fmt.Errorf("cannot inspect SR-IOV pool configs: %w", err)
+	}
+	for _, node := range nodeList {
+		if node == nil || node.Object == nil {
+			return fmt.Errorf("MCP node object is unavailable")
+		}
+		state := &sriovv1.SriovNetworkNodeState{}
+		if err := APIClient.Client.Get(context.TODO(), runtimeClient.ObjectKey{
+			Name: node.Object.Name, Namespace: operatorNS,
+		}, state); err != nil {
+			return fmt.Errorf("cannot inspect SR-IOV state on %s: %w", node.Object.Name, err)
+		}
+		if err := validateNodeFoundationState(node.Object, state, device, vfNum, policies.Items, pools.Items); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateNodeFoundationState(node *corev1.Node, state *sriovv1.SriovNetworkNodeState,
+	device hwolconfig.DeviceConfig, vfNum int, policies []sriovv1.SriovNetworkNodePolicy,
+	pools []sriovv1.SriovNetworkPoolConfig) error {
+	if node == nil || state == nil || node.Name == "" || state.Name != node.Name || vfNum < 1 {
+		return fmt.Errorf("invalid node, SR-IOV state or VF count")
+	}
+	if state.Status.SyncStatus != "Succeeded" || len(state.Spec.Interfaces) != 0 {
+		return fmt.Errorf("node %s has non-idle or pre-existing desired SR-IOV interfaces", node.Name)
+	}
+	if err := validateUnclaimedNode(node, policies, pools); err != nil {
+		return fmt.Errorf("refusing HWOL setup: %w", err)
+	}
+	iface, err := findStatusInterface(state.Status.Interfaces, device.InterfaceName)
+	if err != nil {
+		return fmt.Errorf("node %s: %w", node.Name, err)
+	}
+	if !strings.EqualFold(iface.Vendor, device.Vendor) || !strings.EqualFold(iface.DeviceID, device.DeviceID) || iface.PciAddress == "" {
+		return fmt.Errorf("node %s PF %s does not match configured PCI identity", node.Name, device.InterfaceName)
+	}
+	if iface.NumVfs != 0 || len(iface.VFs) != 0 || iface.ExternallyManaged ||
+		(iface.EswitchMode != "" && iface.EswitchMode != "legacy") || iface.TotalVfs < vfNum {
+		return fmt.Errorf("node %s PF %s is not an unused legacy PF with capacity for %d VFs", node.Name, device.InterfaceName, vfNum)
+	}
+	for _, bridge := range state.Status.Bridges.OVS {
+		for _, uplink := range bridge.Uplinks {
+			if uplink.Name == iface.Name || uplink.PciAddress == iface.PciAddress {
+				return fmt.Errorf("node %s PF %s is already attached to managed bridge %s", node.Name, iface.Name, bridge.Name)
+			}
+		}
+	}
+	return nil
+}
+
+// validateUnclaimedNode rejects selecting policies, pool selectors and ambiguous pool targets.
+func validateUnclaimedNode(node *corev1.Node, policies []sriovv1.SriovNetworkNodePolicy,
+	pools []sriovv1.SriovNetworkPoolConfig) error {
+	for _, policy := range policies {
+		if len(policy.Spec.NodeSelector) == 0 || labels.SelectorFromSet(policy.Spec.NodeSelector).Matches(labels.Set(node.Labels)) {
+			return fmt.Errorf("SR-IOV policy %s selects node %s", policy.Name, node.Name)
+		}
+	}
+	for _, pool := range pools {
+		poolName := pool.Spec.OvsHardwareOffloadConfig.Name
+		if poolName != "" {
+			if _, selected := node.Labels["node-role.kubernetes.io/"+poolName]; selected {
+				return fmt.Errorf("SR-IOV pool config %s selects node %s", pool.Name, node.Name)
+			}
+		}
+		if pool.Spec.NodeSelector != nil {
+			selector, err := metav1.LabelSelectorAsSelector(pool.Spec.NodeSelector)
+			if err != nil {
+				return fmt.Errorf("invalid selector in SR-IOV pool config %s: %w", pool.Name, err)
+			}
+			if selector.Matches(labels.Set(node.Labels)) {
+				return fmt.Errorf("SR-IOV pool config %s selects node %s", pool.Name, node.Name)
+			}
+		} else if poolName == "" {
+			return fmt.Errorf("SR-IOV pool config %s has no identifiable target", pool.Name)
+		}
+	}
 	return nil
 }
 

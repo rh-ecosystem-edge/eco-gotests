@@ -36,42 +36,24 @@ func MCPNodeSelector(mcpLabel string) map[string]string {
 // Do not disable the mellanox plugin: on some beds CX6 firmware SR-IOV
 // (PCI SR-IOV / TotalVfs) is only enabled by that plugin during Apply.
 // Forcing disablePlugins=[mellanox] left Lab245 stuck at TotalVfs=0.
-func EnsureHwolOperatorConfig(operatorNS string) error {
+func EnsureHwolOperatorConfig(operatorNS, vendor string) error {
 	opCfg, err := sriov.PullOperatorConfig(APIClient, operatorNS)
 	if err != nil {
 		return fmt.Errorf("failed to pull SriovOperatorConfig: %w", err)
 	}
 
-	changed := false
+	return validateHwolOperatorConfig(opCfg.Definition.Spec, vendor)
+}
 
-	if len(opCfg.Definition.Spec.DisablePlugins) > 0 {
-		opCfg = opCfg.RemoveDisablePlugins()
-		changed = true
+func validateHwolOperatorConfig(spec sriovv1.SriovOperatorConfigSpec, vendor string) error {
+	for _, plugin := range spec.DisablePlugins {
+		if strings.EqualFold(vendor, tsparams.MlxVendorID) && strings.EqualFold(string(plugin), "mellanox") {
+			return fmt.Errorf("SriovOperatorConfig disables the Mellanox plugin; configure the prerequisite before running HWOL")
+		}
 	}
-
-	if opCfg.Definition.Spec.FeatureGates == nil {
-		opCfg.Definition.Spec.FeatureGates = map[string]bool{}
+	if !spec.FeatureGates[tsparams.ManageSoftwareBridgesGate] || !spec.EnableOvsOffload {
+		return fmt.Errorf("SriovOperatorConfig must enable manageSoftwareBridges and OVS offload before running HWOL")
 	}
-
-	if !opCfg.Definition.Spec.FeatureGates[tsparams.ManageSoftwareBridgesGate] {
-		opCfg.Definition.Spec.FeatureGates[tsparams.ManageSoftwareBridgesGate] = true
-		changed = true
-	}
-
-	if !opCfg.Definition.Spec.EnableOvsOffload {
-		opCfg.Definition.Spec.EnableOvsOffload = true
-		changed = true
-	}
-
-	if !changed {
-		return nil
-	}
-
-	_, err = opCfg.Update()
-	if err != nil {
-		return fmt.Errorf("failed to update SriovOperatorConfig for HWOL: %w", err)
-	}
-
 	return nil
 }
 
@@ -86,7 +68,11 @@ func EnsureSwitchdevFoundation(
 	if runID == "" {
 		return fmt.Errorf("HWOL run ID cannot be empty")
 	}
-	if err := EnsureHwolOperatorConfig(operatorNS); err != nil {
+	if err := ValidateSwitchdevPreconditions(operatorNS, mcpLabel, device, vfNum); err != nil {
+		return err
+	}
+
+	if err := EnsureHwolOperatorConfig(operatorNS, device.Vendor); err != nil {
 		return err
 	}
 

@@ -75,6 +75,8 @@ var _ = Describe(
 			By("Checking test resources are absent")
 
 			Expect(hwolenv.EnsureTestResourcesAbsent(operatorNS)).To(Succeed())
+			Expect(hwolenv.ValidateSwitchdevPreconditions(operatorNS, mcpLabel, device, vfNum)).To(Succeed(),
+				"HWOL requires an unused PF and no other SR-IOV policy on the selected node")
 			runID = string(uuid.NewUUID())
 			cleanup = true
 
