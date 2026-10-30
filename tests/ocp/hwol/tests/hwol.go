@@ -3,6 +3,7 @@ package tests
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -41,12 +42,15 @@ var _ = Describe(
 	ContinueOnFailure,
 	func() {
 		var (
-			operatorNS string
-			mcpLabel   string
-			pfName     string
-			vfNum      int
-			workerNode string
-			ovsBridge  string
+			operatorNS     string
+			mcpLabel       string
+			pfName         string
+			vfNum          int
+			workerNode     string
+			ovsBridge      string
+			cleanupBlocked bool
+			specPods       []*pod.Builder
+			specNetwork    *specNetworkIdentity
 		)
 
 		BeforeAll(func() {
@@ -79,7 +83,41 @@ var _ = Describe(
 			Expect(ovsBridge).ToNot(BeEmpty(), "Managed OVS bridge name is empty")
 		})
 
+		BeforeEach(func() {
+			specPods = nil
+			specNetwork = nil
+			if cleanupBlocked {
+				Skip("previous workload cleanup failed; refusing further HWOL mutations")
+			}
+		})
+
+		AfterEach(func() {
+			By("Cleaning workload pods before deleting their network")
+			err := cleanupSpecResources(specPods, func(p *pod.Builder) error {
+				_, err := p.DeleteAndWait(tsparams.DefaultTimeout)
+				return err
+			}, func() error {
+				if specNetwork == nil {
+					return nil
+				}
+				if err := deleteAttachNetwork(specNetwork.cniType, specNetwork.name, operatorNS); err != nil {
+					return err
+				}
+				return sriovoperator.WaitForNADDeletion(APIClient, specNetwork.name,
+					tsparams.TestNamespaceName, tsparams.DefaultTimeout)
+			})
+			if err != nil {
+				cleanupBlocked = true
+				AddReportEntry("hwol-workload-cleanup-failure", err.Error())
+			}
+			Expect(err).ToNot(HaveOccurred(), "workload cleanup failed; foundation will be retained")
+		})
+
 		AfterAll(func() {
+			if cleanupBlocked {
+				Fail("refusing to remove HWOL foundation after workload cleanup failure; inspect owned resources")
+				return
+			}
 			By("Cleaning HWOL resources")
 
 			err := hwolenv.CleanupHwolResources(
@@ -130,17 +168,10 @@ var _ = Describe(
 				By(fmt.Sprintf("Creating %s network %s", cniType, networkName))
 
 				err := createAttachNetwork(cniType, networkName, operatorNS, ovsBridge)
+				if err == nil {
+					specNetwork = &specNetworkIdentity{cniType: cniType, name: networkName}
+				}
 				Expect(err).ToNot(HaveOccurred(), "Failed to create attach network")
-
-				DeferCleanup(func() {
-					By(fmt.Sprintf("Deleting %s network %s", cniType, networkName))
-
-					Expect(deleteAttachNetwork(cniType, networkName, operatorNS)).To(Succeed(),
-						"Failed to delete attach network")
-					Expect(sriovoperator.WaitForNADDeletion(
-						APIClient, networkName, tsparams.TestNamespaceName, tsparams.DefaultTimeout,
-					)).To(Succeed(), "NAD was not deleted")
-				})
 
 				By("Waiting for NAD creation")
 
@@ -168,14 +199,10 @@ var _ = Describe(
 
 				attachPod, err := createTrafficPod(
 					fmt.Sprintf("hwol-attach-%s", cniType), networkName, "", nil)
+				if attachPod != nil {
+					specPods = append(specPods, attachPod)
+				}
 				Expect(err).ToNot(HaveOccurred(), "Failed to create attach pod")
-
-				DeferCleanup(func() {
-					By("Deleting attach pod")
-
-					_, delErr := attachPod.Delete()
-					Expect(delErr).ToNot(HaveOccurred(), "Failed to delete attach pod")
-				})
 
 				By("Asserting pod network-status includes the attach NAD with an IP")
 
@@ -198,17 +225,10 @@ var _ = Describe(
 				By(fmt.Sprintf("Creating %s network %s for offload", cniType, networkName))
 
 				err := createAttachNetwork(cniType, networkName, operatorNS, ovsBridge)
+				if err == nil {
+					specNetwork = &specNetworkIdentity{cniType: cniType, name: networkName}
+				}
 				Expect(err).ToNot(HaveOccurred(), "Failed to create offload network")
-
-				DeferCleanup(func() {
-					By(fmt.Sprintf("Deleting %s network %s", cniType, networkName))
-
-					Expect(deleteAttachNetwork(cniType, networkName, operatorNS)).To(Succeed(),
-						"Failed to delete offload network")
-					Expect(sriovoperator.WaitForNADDeletion(
-						APIClient, networkName, tsparams.TestNamespaceName, tsparams.DefaultTimeout,
-					)).To(Succeed(), "NAD was not deleted")
-				})
 
 				By("Waiting for NAD creation")
 
@@ -243,24 +263,20 @@ var _ = Describe(
 				serverPod, err := createTrafficPod(
 					fmt.Sprintf("hwol-iperf-srv-%s", cniType), networkName, workerNode,
 					iperfServerCMD())
+				if serverPod != nil {
+					specPods = append(specPods, serverPod)
+				}
 				Expect(err).ToNot(HaveOccurred(), "Failed to create iperf server pod")
-
-				DeferCleanup(func() {
-					_, delErr := serverPod.Delete()
-					Expect(delErr).ToNot(HaveOccurred(), "Failed to delete iperf server pod")
-				})
 
 				Expect(waitForHwolResource(workerNode, 1, tsparams.DefaultTimeout)).To(Succeed(),
 					"need ≥1 openshift.io/hwolresource for iperf client")
 
 				clientPod, err := createTrafficPod(
 					fmt.Sprintf("hwol-iperf-cli-%s", cniType), networkName, workerNode, nil)
+				if clientPod != nil {
+					specPods = append(specPods, clientPod)
+				}
 				Expect(err).ToNot(HaveOccurred(), "Failed to create iperf client pod")
-
-				DeferCleanup(func() {
-					_, delErr := clientPod.Delete()
-					Expect(delErr).ToNot(HaveOccurred(), "Failed to delete iperf client pod")
-				})
 
 				serverIP, serverPCI, err := waitForNetworkStatusIPAndPCI(serverPod, networkName)
 				Expect(err).ToNot(HaveOccurred(), "Failed to get server secondary IP/PCI")
@@ -298,6 +314,24 @@ var _ = Describe(
 				sriovoperator.CNITypeSriov, tsparams.SriovNetworkName),
 		)
 	})
+
+type specNetworkIdentity struct {
+	cniType sriovoperator.CNIType
+	name    string
+}
+
+func cleanupSpecResources(pods []*pod.Builder, deletePod func(*pod.Builder) error, deleteNetwork func() error) error {
+	var podErr error
+	for i := len(pods) - 1; i >= 0; i-- {
+		if err := deletePod(pods[i]); err != nil {
+			podErr = errors.Join(podErr, err)
+		}
+	}
+	if podErr != nil {
+		return fmt.Errorf("cannot safely delete network while workload pods remain: %w", podErr)
+	}
+	return deleteNetwork()
+}
 
 func createAttachNetwork(
 	cniType sriovoperator.CNIType, networkName, operatorNS, ovsBridge string,

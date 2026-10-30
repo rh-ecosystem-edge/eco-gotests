@@ -168,6 +168,11 @@ still reported, so this workaround never turns a failed cleanup into a pass.
 
 ## Current coverage
 
+Per-spec `AfterEach` deletes and waits for workload pods before deleting their
+network and waiting for its NAD to disappear. Foundation teardown runs in
+`AfterAll`; if workload cleanup fails, further specs are skipped and the
+foundation is retained for investigation.
+
 | Spec | What it checks |
 |------|----------------|
 | HWOL setup smoke | SR-IOV operator deployed, `ECO_OCP_HWOL_DEVICES` parses, ≥1 worker |
