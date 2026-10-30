@@ -3,6 +3,7 @@ package pod
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -254,6 +255,108 @@ func WaitForPodsInNamespacesHealthy(
 
 			return true, nil
 		})
+}
+
+// WaitForPodsRemainingHealthy waits up to timeout for healthy polls spanning stableDuration. Pods are polled
+// immediately and every five seconds. Unhealthy pods reset the window. Two consecutive list errors are tolerated; a
+// third resets the window. Errors cannot start or confirm a healthy window. Empty results are healthy and all failed
+// pods are ignored. Empty namespaces selects all namespaces. A zero stableDuration succeeds on the first healthy poll.
+// Success requires a healthy poll at or after the window ends and before the overall deadline; allow time for polling
+// and API calls when choosing timeout.
+func WaitForPodsRemainingHealthy(
+	apiClient *clients.Settings, namespaces []string, timeout, stableDuration time.Duration,
+	options ...metav1.ListOptions) error {
+	if apiClient == nil {
+		return fmt.Errorf("podList 'apiClient' cannot be empty")
+	}
+
+	if len(options) > 1 {
+		return fmt.Errorf("error: more than one ListOptions was passed")
+	}
+
+	if timeout <= 0 || stableDuration < 0 || stableDuration >= timeout {
+		return fmt.Errorf("timeout must be positive and stableDuration must be non-negative and less than timeout")
+	}
+
+	if slices.Contains(namespaces, "") {
+		return fmt.Errorf("failed to list pods, no namespace may be an empty string")
+	}
+
+	passedOptions := metav1.ListOptions{}
+	if len(options) == 1 {
+		passedOptions = options[0]
+	}
+
+	if len(namespaces) == 0 {
+		namespaces = []string{metav1.NamespaceAll}
+	}
+
+	var healthySince time.Time
+
+	consecutiveErrors := 0
+
+	return wait.PollUntilContextTimeout(
+		context.TODO(), 5*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			healthy, listErr := podsInNamespacesHealthy(ctx, apiClient, namespaces, passedOptions)
+			if err := ctx.Err(); err != nil {
+				return false, err
+			}
+
+			if listErr != nil {
+				consecutiveErrors++
+				if consecutiveErrors > 2 {
+					healthySince = time.Time{}
+				}
+
+				return false, nil
+			}
+
+			consecutiveErrors = 0
+
+			if !healthy {
+				healthySince = time.Time{}
+
+				return false, nil
+			}
+
+			now := time.Now()
+			// Check the deadline directly: its cancellation timer may not have run yet.
+			if deadline, ok := ctx.Deadline(); ok && !now.Before(deadline) {
+				return false, context.DeadlineExceeded
+			}
+
+			if healthySince.IsZero() {
+				healthySince = now
+			}
+
+			return now.Sub(healthySince) >= stableDuration, nil
+		})
+}
+
+// podsInNamespacesHealthy checks the current pods using the overall wait context for each list request.
+func podsInNamespacesHealthy(
+	ctx context.Context, apiClient *clients.Settings, namespaces []string, options metav1.ListOptions) (bool, error) {
+	for _, namespace := range namespaces {
+		pods, err := apiClient.Pods(namespace).List(ctx, options)
+		if err != nil {
+			klog.V(100).Infof("Failed to list pods in namespace %s: %v", namespace, err)
+
+			return false, err
+		}
+
+		for i := range pods.Items {
+			pod := &Builder{Object: &pods.Items[i]}
+			if pod.Object.Status.Phase == corev1.PodFailed {
+				continue
+			}
+
+			if !pod.isObjectHealthy() {
+				return false, nil
+			}
+		}
+	}
+
+	return true, nil
 }
 
 // listPodsInNamespaces lists pods only in the provided namespaces or all namespaces if the provided slice is empty. It
