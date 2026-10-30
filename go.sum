@@ -469,6 +469,8 @@ github.com/kevinburke/ssh_config v1.6.0/go.mod h1:q2RIzfka+BXARoNexmF9gkxEX7Dmvb
 github.com/kisielk/errcheck v1.2.0/go.mod h1:/BMXB+zMLi60iA8Vv6Ksmxu/1UDYcXs4uQLJ+jE2L00=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
+github.com/klaskosk/eco-goinfra v0.0.0-20261030151126-ff99a8703b90 h1:JnvURU0CZ5V+B1Dn7m0u70NytdFfsUw3id91zY742mg=
+github.com/klaskosk/eco-goinfra v0.0.0-20261030151126-ff99a8703b90/go.mod h1:JGNA4/A9K9Cj5Le/Y6ARDi6mBDDjo9RE2aJk4IQXNNk=
 github.com/klauspost/compress v1.19.0 h1:sXLILfc9jV2QYWkzFOPWStmcUVH2RHEB1JCdY2oVvCQ=
 github.com/klauspost/compress v1.19.0/go.mod h1:cwPg85FWrGar70rWktvGQj8/hthj3wpl0PGDogxkrSQ=
 github.com/klauspost/cpuid/v2 v2.3.0 h1:S4CRMLnYUhGeDFDqkGriYKdfoFlDnMtqTiI/sFzhA9Y=
@@ -711,8 +713,6 @@ github.com/red-hat-storage/odf-operator v0.0.0-20260226164309-08c71191d483 h1:I8
 github.com/red-hat-storage/odf-operator v0.0.0-20260226164309-08c71191d483/go.mod h1:ezzeJZeZyinngGE5Ox4wAZg6w+Bdu7/9PtdQeV3fXUk=
 github.com/redhat-cne/sdk-go v1.23.6 h1:L+Rs12UihwDBJc/tj1eEMc4Otf7Lxf0bkFjdsg7FPGA=
 github.com/redhat-cne/sdk-go v1.23.6/go.mod h1:5hK1sILdB33pdMsNYTyBKV/v5GjjibmQZcyRtVrVfvs=
-github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261026182540-6850690c1d54 h1:cT305OLnkuxgYq7kNsNMVaPly+ENUX64Jm7IdIQFb98=
-github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261026182540-6850690c1d54/go.mod h1:q33u9Px2xEYG1uUy1rS7z1PPOVfcCXrFCJxgfUv5IOE=
 github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=
 github.com/rivo/uniseg v0.4.7/go.mod h1:FN3SvrM+Zdj16jyLfmOkMNblXMcoc8DfTHruCPUcx88=
 github.com/rogpeppe/go-internal v1.9.0/go.mod h1:WtVeX8xhTBvf0smdhujwtBcq4Qrzq/fJaraNFVN+nFs=
@@ -749,8 +749,8 @@ github.com/spf13/pflag v1.0.9/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An
 github.com/spf13/pflag v1.0.10 h1:4EBh2KAYBwaONj6b2Ye1GiHfwjqyROoF4RwYO+vPwFk=
 github.com/spf13/pflag v1.0.10/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An2Bg=
 github.com/spkg/bom v0.0.0-20160624110644-59b7046e48ad/go.mod h1:qLr4V1qq6nMqFKkMo8ZTx3f+BZEkzsRUY10Xsm2mwU0=
-github.com/stmcginnis/gofish v0.20.0 h1:hH2V2Qe898F2wWT1loApnkDUrXXiLKqbSlMaH3Y1n08=
-github.com/stmcginnis/gofish v0.20.0/go.mod h1:PzF5i8ecRG9A2ol8XT64npKUunyraJ+7t0kYMpQAtqU=
+github.com/stmcginnis/gofish v0.27.0 h1:jyM2BlBhULXtHnayY+/wnkZYXKjIO0ZdR3oBXKl1VYs=
+github.com/stmcginnis/gofish v0.27.0/go.mod h1:PzF5i8ecRG9A2ol8XT64npKUunyraJ+7t0kYMpQAtqU=
 github.com/stoewer/go-strcase v1.2.0/go.mod h1:IBiWB2sKIp3wVVQ3Y035++gc+knqhUQag1KpM8ahLw8=
 github.com/stolostron/kubernetes-dependency-watches v0.10.2 h1:b8g3Wye6igeRrrSQwXGr4Ch4zTY4uouzHlDARw8/m7w=
 github.com/stolostron/kubernetes-dependency-watches v0.10.2/go.mod h1:pV1b/PwVNG4a5tzBcqxhUpMjjo5nY0gUb6ieu6sGH6o=

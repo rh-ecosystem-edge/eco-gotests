@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/stmcginnis/gofish"
-	"github.com/stmcginnis/gofish/redfish"
+	"github.com/stmcginnis/gofish/schemas"
 	"golang.org/x/crypto/ssh"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
@@ -471,7 +471,7 @@ func (bmc *BMC) SecureBootDisable() error {
 }
 
 // SystemResetAction performs the specified reset action against the system.
-func (bmc *BMC) SystemResetAction(action redfish.ResetType) error {
+func (bmc *BMC) SystemResetAction(action schemas.ResetType) error {
 	if valid, err := bmc.validateRedfish(); !valid {
 		return err
 	}
@@ -502,27 +502,29 @@ func (bmc *BMC) SystemResetAction(action redfish.ResetType) error {
 		return fmt.Errorf("failed to get redfish system: %w", err)
 	}
 
-	return system.Reset(action)
+	_, err = system.Reset(action)
+
+	return err
 }
 
 // SystemForceReset performs a (non-graceful) forced system reset using Redfish API.
 func (bmc *BMC) SystemForceReset() error {
-	return bmc.SystemResetAction(redfish.ForceRestartResetType)
+	return bmc.SystemResetAction(schemas.ForceRestartResetType)
 }
 
 // SystemGracefulShutdown performs a graceful shutdown using the Redfish API.
 func (bmc *BMC) SystemGracefulShutdown() error {
-	return bmc.SystemResetAction(redfish.GracefulShutdownResetType)
+	return bmc.SystemResetAction(schemas.GracefulShutdownResetType)
 }
 
 // SystemPowerOn powers on the system using the Redfish API.
 func (bmc *BMC) SystemPowerOn() error {
-	return bmc.SystemResetAction(redfish.OnResetType)
+	return bmc.SystemResetAction(schemas.OnResetType)
 }
 
 // SystemPowerOff performs a non-graceful power off of the system using the Redfish API.
 func (bmc *BMC) SystemPowerOff() error {
-	return bmc.SystemResetAction(redfish.ForceOffResetType)
+	return bmc.SystemResetAction(schemas.ForceOffResetType)
 }
 
 // SystemPowerCycle performs a power cycle in the system using the Redfish API. If PowerCycle reset type
@@ -543,15 +545,15 @@ func (bmc *BMC) SystemPowerCycle() error {
 	}
 
 	// If supported, perform power cycle reset.
-	if isResetTypeSupported(redfish.PowerCycleResetType, suppportedResetTypes) {
-		return bmc.SystemResetAction(redfish.PowerCycleResetType)
+	if isResetTypeSupported(schemas.PowerCycleResetType, suppportedResetTypes) {
+		return bmc.SystemResetAction(schemas.PowerCycleResetType)
 	}
 
 	klog.V(100).Info("PowerCycle reset type not supported. Trying with PowerOff and On reset actions")
 
 	// Workaround for PowerCycle type not supported: ForceOff + On.
-	if !isResetTypeSupported(redfish.ForceOffResetType, suppportedResetTypes) ||
-		!isResetTypeSupported(redfish.OnResetType, suppportedResetTypes) {
+	if !isResetTypeSupported(schemas.ForceOffResetType, suppportedResetTypes) ||
+		!isResetTypeSupported(schemas.OnResetType, suppportedResetTypes) {
 		klog.V(100).Infof("Unable to perform power cycle (supported reset types: %v)", suppportedResetTypes)
 
 		return fmt.Errorf("unable to perform power cycle (supported reset types: %v)", suppportedResetTypes)
@@ -564,7 +566,7 @@ func (bmc *BMC) SystemPowerCycle() error {
 		return fmt.Errorf("failed to perform ForceOff system reset: %w", err)
 	}
 
-	klog.V(100).Infof("Waiting for system to be in power state %v", redfish.OffPowerState)
+	klog.V(100).Infof("Waiting for system to be in power state %v", schemas.OffPowerState)
 
 	// First, make sure the system is off.
 	err = wait.PollUntilContextTimeout(context.TODO(),
@@ -581,7 +583,7 @@ func (bmc *BMC) SystemPowerCycle() error {
 
 			klog.V(100).Infof("System's current power state: %v", powerState)
 
-			if powerState == string(redfish.OffPowerState) {
+			if powerState == string(schemas.OffPowerState) {
 				return true, nil
 			}
 
@@ -589,9 +591,9 @@ func (bmc *BMC) SystemPowerCycle() error {
 			return false, nil
 		})
 	if err != nil {
-		klog.V(100).Infof("Failure waiting for system's power state to be %v: %v", redfish.OffPowerState, err)
+		klog.V(100).Infof("Failure waiting for system's power state to be %v: %v", schemas.OffPowerState, err)
 
-		return fmt.Errorf("failure waiting for system's power state to be %v: %w", redfish.OffPowerState, err)
+		return fmt.Errorf("failure waiting for system's power state to be %v: %w", schemas.OffPowerState, err)
 	}
 
 	return bmc.SystemPowerOn()
@@ -634,7 +636,7 @@ func (bmc *BMC) SystemPowerState() (string, error) {
 }
 
 // WaitForSystemPowerState waits up to timeout until the BMC returns the provided system power state.
-func (bmc *BMC) WaitForSystemPowerState(powerState redfish.PowerState, timeout time.Duration) error {
+func (bmc *BMC) WaitForSystemPowerState(powerState schemas.PowerState, timeout time.Duration) error {
 	if valid, err := bmc.validateRedfish(); !valid {
 		return err
 	}
@@ -687,7 +689,7 @@ func (bmc *BMC) PowerUsage() (float32, error) {
 		return 0.0, fmt.Errorf("failed to get redfish power control: %w", err)
 	}
 
-	return powerControl.PowerConsumedWatts, nil
+	return gofish.Deref(powerControl.PowerConsumedWatts), nil
 }
 
 // SystemBootOptions uses the redfish api to get the current system's boot options and
@@ -810,13 +812,13 @@ func (bmc *BMC) SetSystemBootOrderReferences(bootOrderReferences []string) error
 		return fmt.Errorf("failed to get redfish system: %w", err)
 	}
 
-	newBoot := redfish.Boot{
+	newBoot := schemas.Boot{
 		BootOrder: bootOrderReferences,
 	}
 
 	klog.V(100).Infof("Setting new Boot value: %+v", newBoot)
 
-	return system.SetBoot(newBoot)
+	return system.SetBoot(&newBoot)
 }
 
 // BootFromCD inserts the image available in isoUrl in the virtual media with virtualMediaID
@@ -867,7 +869,7 @@ func (bmc *BMC) BootFromCD(isoURL, virtualMediaID string) error {
 		klog.V(100).Infof("Failed to retrieve virtual media: %v", err)
 	}
 
-	var cdrom *redfish.VirtualMedia
+	var cdrom *schemas.VirtualMedia
 
 	for _, vm := range virtualMedia {
 		if vm.MediaTypes != nil && vm.ID == virtualMediaID {
@@ -885,21 +887,25 @@ func (bmc *BMC) BootFromCD(isoURL, virtualMediaID string) error {
 		return fmt.Errorf("no cd virtual media slot found")
 	}
 
-	err = cdrom.InsertMedia(isoURL, true, true)
+	_, err = cdrom.InsertMedia(&schemas.VirtualMediaInsertMediaParameters{
+		Image:          isoURL,
+		Inserted:       gofish.ToRef(true),
+		WriteProtected: gofish.ToRef(true),
+	})
 	if err != nil {
 		klog.V(100).Infof("Failed to insert virtual media: %v", err)
 
 		return err
 	}
 
-	newBoot := redfish.Boot{
-		BootSourceOverrideEnabled: redfish.OnceBootSourceOverrideEnabled,
-		BootSourceOverrideTarget:  redfish.CdBootSourceOverrideTarget,
+	newBoot := schemas.Boot{
+		BootSourceOverrideEnabled: schemas.OnceBootSourceOverrideEnabled,
+		BootSourceOverrideTarget:  schemas.CdBootSource,
 	}
 
 	klog.V(100).Infof("Setting new Boot value: %+v", newBoot)
 
-	err = system.SetBoot(newBoot)
+	err = system.SetBoot(&newBoot)
 
 	return err
 }
@@ -1120,7 +1126,7 @@ func redfishConnect(
 }
 
 // redfishGetSystem uses the provided gofish APIClient and the system index to get a system from the Redfish API.
-func redfishGetSystem(redfishClient *gofish.APIClient, index int) (*redfish.ComputerSystem, error) {
+func redfishGetSystem(redfishClient *gofish.APIClient, index int) (*schemas.ComputerSystem, error) {
 	systems, err := redfishClient.GetService().Systems()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get systems: %w", err)
@@ -1135,7 +1141,7 @@ func redfishGetSystem(redfishClient *gofish.APIClient, index int) (*redfish.Comp
 
 // redfishGetSystemSecureBoot uses the provided gofish APIClient and the system index to get the SecureBoot resource for
 // a system.
-func redfishGetSystemSecureBoot(redfishClient *gofish.APIClient, systemIndex int) (*redfish.SecureBoot, error) {
+func redfishGetSystemSecureBoot(redfishClient *gofish.APIClient, systemIndex int) (*schemas.SecureBoot, error) {
 	system, err := redfishGetSystem(redfishClient, systemIndex)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get redfish system: %w", err)
@@ -1151,7 +1157,7 @@ func redfishGetSystemSecureBoot(redfishClient *gofish.APIClient, systemIndex int
 
 // redfishGetPowerControl gets the specified PowerControl from the first chassis with a power link from the redfish API.
 func redfishGetPowerControl(
-	redfishClient *gofish.APIClient, powerControlIndex int) (*redfish.PowerControl, error) {
+	redfishClient *gofish.APIClient, powerControlIndex int) (*schemas.PowerControl, error) {
 	chassisCollection, err := redfishClient.GetService().Chassis()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get chassis collection: %w", err)
@@ -1224,7 +1230,7 @@ func (bmc *BMC) validate() (bool, error) {
 	return true, nil
 }
 
-func isResetTypeSupported(resetType redfish.ResetType, supportedTypes []redfish.ResetType) bool {
+func isResetTypeSupported(resetType schemas.ResetType, supportedTypes []schemas.ResetType) bool {
 	for _, supportedType := range supportedTypes {
 		if supportedType == resetType {
 			return true
@@ -1234,7 +1240,7 @@ func isResetTypeSupported(resetType redfish.ResetType, supportedTypes []redfish.
 	return false
 }
 
-func (bmc *BMC) getSupportedResetTypes() ([]redfish.ResetType, error) {
+func (bmc *BMC) getSupportedResetTypes() ([]schemas.ResetType, error) {
 	redfishClient, cancel, err := redfishConnect(
 		bmc.host,
 		bmc.redfishUser.Name,
@@ -1259,7 +1265,7 @@ func (bmc *BMC) getSupportedResetTypes() ([]redfish.ResetType, error) {
 		return nil, fmt.Errorf("failed to get redfish system: %w", err)
 	}
 
-	return system.SupportedResetTypes, nil
+	return system.GetSupportedResetTypes()
 }
 
 // sshClientConfig builds the SSH client configuration for BMC CLI access.

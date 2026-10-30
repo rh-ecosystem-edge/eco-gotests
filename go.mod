@@ -52,7 +52,7 @@ require (
 	github.com/prometheus/common v1.20.99
 	github.com/redhat-cne/sdk-go v1.23.6
 	github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261026182540-6850690c1d54
-	github.com/stmcginnis/gofish v0.20.0 // v0.21.0 contains many breaking changes. Should be upgraded separately.
+	github.com/stmcginnis/gofish v0.27.0
 	github.com/stretchr/testify v1.11.1
 	github.com/vmware-tanzu/velero v1.18.0
 	github.com/walle/targz v0.0.0-20140417120357-57fe4206da5a
@@ -291,6 +291,8 @@ replace (
 	// the branch name will fail.
 	github.com/openshift/installer => github.com/openshift/installer v0.0.0-20260626184649-2e33096a5884 // release-4.22
 	github.com/portworx/sched-ops => github.com/portworx/sched-ops v1.20.4-rc1
+	// REMOVE BEFORE MERGING
+	github.com/rh-ecosystem-edge/eco-goinfra => github.com/klaskosk/eco-goinfra v0.0.0-20261030151126-ff99a8703b90
 	k8s.io/client-go => k8s.io/client-go v0.35.6
 	// The cluster-node-tuning-operator release-4.22 uses version k8s.io/kube-openapi v0.35.1, which does not exist.
 	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20260127142750-a19766b6e2d4
