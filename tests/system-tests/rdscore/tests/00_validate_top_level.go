@@ -476,6 +476,26 @@ var _ = Describe(
 					rdscorecommon.MeasureMemoryWithDynamicDuration(suiteStartTime)
 				})
 
+			It("Verify /var/lib/containers is a separate mount point on worker nodes",
+				Label("disk-partitioning-mount-point"),
+				reportxml.ID("90938"),
+				rdscorecommon.VerifyContainersMountPoint)
+
+			It("Verify /var/lib/containers has XFS filesystem on worker nodes",
+				Label("disk-partitioning-xfs"),
+				reportxml.ID("90939"),
+				rdscorecommon.VerifyContainersXFSFilesystem)
+
+			It("Verify /var/lib/containers mount source contains containers partition label on worker nodes",
+				Label("disk-partitioning-source"),
+				reportxml.ID("90940"),
+				rdscorecommon.VerifyContainersPartitionSource)
+
+			It("Verify var-lib-containers systemd mount unit is active on worker nodes",
+				Label("disk-partitioning-mount-unit"),
+				reportxml.ID("90941"),
+				rdscorecommon.VerifyContainersMountUnit)
+
 			AfterEach(func(ctx SpecContext) {
 				// Check if the test failed using CurrentSpecReport
 				if CurrentSpecReport().Failed() {
