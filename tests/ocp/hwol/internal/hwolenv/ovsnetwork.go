@@ -3,13 +3,16 @@ package hwolenv
 import (
 	"context"
 	"fmt"
+	"time"
 
 	sriovv1 "github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/hwol/internal/ocphwolinittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/hwol/internal/tsparams"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	runtimeClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -172,13 +175,19 @@ func (builder *OvsNetworkBuilder) Create() (*OvsNetworkBuilder, error) {
 		return builder, err
 	}
 
-	if !builder.Exists() {
-		err := builder.apiClient.Create(context.TODO(), builder.Definition)
-		if err != nil {
-			klog.V(100).Info("Failed to create OVSNetwork")
-
+	if builder.Exists() {
+		if err := ensureHwolResourceOwnership("OVSNetwork", builder.Object.Name, builder.Object.Labels); err != nil {
 			return nil, err
 		}
+
+		return builder, nil
+	}
+
+	err := builder.apiClient.Create(context.TODO(), builder.Definition)
+	if err != nil {
+		klog.V(100).Info("Failed to create OVSNetwork")
+
+		return nil, err
 	}
 
 	builder.Object = builder.Definition
@@ -200,6 +209,10 @@ func (builder *OvsNetworkBuilder) Delete() error {
 		return nil
 	}
 
+	if err := ensureHwolResourceOwnership("OVSNetwork", builder.Object.Name, builder.Object.Labels); err != nil {
+		return err
+	}
+
 	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
 	if err != nil {
 		return err
@@ -208,6 +221,42 @@ func (builder *OvsNetworkBuilder) Delete() error {
 	builder.Object = nil
 
 	return nil
+}
+
+// DeleteAndWait removes the OVSNetwork object and waits until it is gone.
+// The SR-IOV operator may keep its managed bridge while an OVSNetwork is
+// terminating, so HWOL teardown must not proceed to delete its policy first.
+func (builder *OvsNetworkBuilder) DeleteAndWait(timeout time.Duration) error {
+	if valid, err := builder.validate(); !valid {
+		return err
+	}
+
+	if err := builder.Delete(); err != nil {
+		return err
+	}
+
+	return builder.WaitUntilDeleted(timeout)
+}
+
+// WaitUntilDeleted waits until the OVSNetwork object no longer exists.
+func (builder *OvsNetworkBuilder) WaitUntilDeleted(timeout time.Duration) error {
+	if valid, err := builder.validate(); !valid {
+		return err
+	}
+
+	return wait.PollUntilContextTimeout(
+		context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			_, err := builder.Get()
+			if err == nil {
+				return false, nil
+			}
+
+			if k8serrors.IsNotFound(err) {
+				return true, nil
+			}
+
+			return false, err
+		})
 }
 
 func (builder *OvsNetworkBuilder) validate() (bool, error) {

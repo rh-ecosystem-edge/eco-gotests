@@ -2,6 +2,8 @@
 package hwolenv
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -9,6 +11,7 @@ import (
 	"time"
 
 	sriovv1 "github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1"
+	mcfgv1 "github.com/openshift/api/machineconfiguration/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
@@ -21,53 +24,62 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+// ErrSwitchdevCleanupTimeout identifies the post-policy-deletion stability
+// timeout that may be accepted after opt-in reboot recovery verifies cleanup.
+// Other cleanup errors must not be converted into passing test results.
+var ErrSwitchdevCleanupTimeout = errors.New(
+	"HWOL cleanup timed out waiting for SR-IOV/MCP stable after switchdev teardown")
 
 // MCPNodeSelector returns the node-role label selector for the HWOL MCP pool.
 func MCPNodeSelector(mcpLabel string) map[string]string {
 	return map[string]string{fmt.Sprintf("node-role.kubernetes.io/%s", mcpLabel): ""}
 }
 
-// EnsureHwolOperatorConfig verifies SriovOperatorConfig is set for the
-// manageSoftwareBridges + mlx5 HWOL path (enable OVS offload).
-//
-// Do not disable the mellanox plugin: on some beds CX6 firmware SR-IOV
-// (PCI SR-IOV / TotalVfs) is only enabled by that plugin during Apply.
-// Forcing disablePlugins=[mellanox] left Lab245 stuck at TotalVfs=0.
+// hwolResourceLabels returns the label identifying CRs created by this suite.
+func hwolResourceLabels() map[string]string {
+	return map[string]string{tsparams.TestResourceLabelKey: tsparams.TestResourceLabelValue}
+}
+
+// ensureHwolResourceOwnership rejects a fixed-name resource not created by HWOL.
+func ensureHwolResourceOwnership(kind, name string, resourceLabels map[string]string) error {
+	if resourceLabels[tsparams.TestResourceLabelKey] == tsparams.TestResourceLabelValue {
+		return nil
+	}
+
+	return fmt.Errorf(
+		"%s %s exists but is not owned by the HWOL suite; expected label %s=%s",
+		kind, name, tsparams.TestResourceLabelKey, tsparams.TestResourceLabelValue)
+}
+
+// EnsureHwolOperatorConfig verifies the cluster-wide SriovOperatorConfig is
+// already suitable for the manageSoftwareBridges + mlx5 HWOL path. It must not
+// modify the object: HWOL cleanup owns only its fixed-name resources and cannot
+// safely restore administrator-owned operator settings after an interruption.
 func EnsureHwolOperatorConfig(operatorNS string) error {
 	opCfg, err := sriov.PullOperatorConfig(APIClient, operatorNS)
 	if err != nil {
 		return fmt.Errorf("failed to pull SriovOperatorConfig: %w", err)
 	}
 
-	changed := false
-
-	if len(opCfg.Definition.Spec.DisablePlugins) > 0 {
-		opCfg = opCfg.RemoveDisablePlugins()
-		changed = true
-	}
-
-	if opCfg.Definition.Spec.FeatureGates == nil {
-		opCfg.Definition.Spec.FeatureGates = map[string]bool{}
-	}
-
 	if !opCfg.Definition.Spec.FeatureGates[tsparams.ManageSoftwareBridgesGate] {
-		opCfg.Definition.Spec.FeatureGates[tsparams.ManageSoftwareBridgesGate] = true
-		changed = true
+		return fmt.Errorf(
+			"SriovOperatorConfig must enable featureGates.%s before running HWOL; "+
+				"configure a dedicated HWOL MCP instead of letting the suite mutate shared operator settings",
+			tsparams.ManageSoftwareBridgesGate)
 	}
 
 	if !opCfg.Definition.Spec.EnableOvsOffload {
-		opCfg.Definition.Spec.EnableOvsOffload = true
-		changed = true
+		return fmt.Errorf("SriovOperatorConfig must enable enableOvsOffload before running HWOL")
 	}
 
-	if !changed {
-		return nil
-	}
-
-	_, err = opCfg.Update()
-	if err != nil {
-		return fmt.Errorf("failed to update SriovOperatorConfig for HWOL: %w", err)
+	for _, plugin := range opCfg.Definition.Spec.DisablePlugins {
+		if plugin == "mellanox" {
+			return fmt.Errorf(
+				"SriovOperatorConfig disables the mellanox plugin; enable it before running HWOL on a dedicated MCP")
+		}
 	}
 
 	return nil
@@ -80,7 +92,7 @@ func EnsureSwitchdevFoundation(
 	device hwolconfig.DeviceConfig,
 	vfNum int,
 ) error {
-	if err := EnsureHwolOperatorConfig(operatorNS); err != nil {
+	if err := ValidateHwolPreconditions(operatorNS, mcpLabel, device); err != nil {
 		return err
 	}
 
@@ -116,6 +128,203 @@ func EnsureSwitchdevFoundation(
 	)
 }
 
+// ValidateHwolPreconditions performs only read-only checks required before an
+// HWOL run. It is called from the synchronized suite setup and again before
+// resource creation so a shared PF is rejected without creating test resources.
+func ValidateHwolPreconditions(operatorNS, mcpLabel string, device hwolconfig.DeviceConfig) error {
+	if err := ensureHwolTargetIsDedicated(operatorNS, mcpLabel, device.InterfaceName); err != nil {
+		return err
+	}
+
+	if err := ensureHwolMCPIsDedicated(operatorNS, mcpLabel); err != nil {
+		return err
+	}
+
+	return EnsureHwolOperatorConfig(operatorNS)
+}
+
+// ensureHwolTargetIsDedicated rejects a PF that is already claimed by an
+// administrator-owned policy. Replacing or coexisting with that policy can
+// force an in-place switchdev reset and leave a user-owned OVS bridge attached.
+func ensureHwolTargetIsDedicated(operatorNS, mcpLabel, pfName string) error {
+	policies, err := sriov.ListPolicy(APIClient, operatorNS)
+	if err != nil {
+		return fmt.Errorf("failed to list SriovNetworkNodePolicies for HWOL preflight: %w", err)
+	}
+
+	workerNodes, err := ListMCPWorkerNodes(mcpLabel)
+	if err != nil {
+		return fmt.Errorf("failed to list HWOL MCP nodes for policy preflight: %w", err)
+	}
+
+	if len(workerNodes) == 0 {
+		return fmt.Errorf("no nodes with label node-role.kubernetes.io/%s", mcpLabel)
+	}
+
+	for _, policy := range policies {
+		if policy.Object.Name == tsparams.PolicyName {
+			if err := ensureHwolResourceOwnership(
+				"SriovNetworkNodePolicy", policy.Object.Name, policy.Object.Labels,
+			); err != nil {
+				return err
+			}
+
+			continue
+		}
+
+		selectsPF, err := policySelectsHwolPF(policy.Object, workerNodes, operatorNS, pfName)
+		if err != nil {
+			return err
+		}
+
+		if selectsPF {
+			return fmt.Errorf(
+				"HWOL requires a dedicated PF: %s is already selected by SriovNetworkNodePolicy %s; "+
+					"do not run against a shared or externally OVS-managed PF",
+				pfName, policy.Object.Name)
+		}
+	}
+
+	return nil
+}
+
+// policySelectsHwolPF reports whether a non-HWOL policy selects the target PF on an HWOL MCP node.
+func policySelectsHwolPF(
+	policy *sriovv1.SriovNetworkNodePolicy,
+	workerNodes []*nodes.Builder,
+	operatorNS, pfName string,
+) (bool, error) {
+	for _, node := range workerNodes {
+		if !nodeMatchesSelector(node.Object.Labels, policy.Spec.NodeSelector) {
+			continue
+		}
+
+		state := sriov.NewNetworkNodeStateBuilder(APIClient, node.Object.Name, operatorNS)
+		if err := state.Discover(); err != nil {
+			if k8serrors.IsNotFound(err) {
+				continue
+			}
+
+			return false, fmt.Errorf(
+				"failed to discover SriovNetworkNodeState for %s while checking policy %s: %w",
+				node.Object.Name, policy.Name, err)
+		}
+
+		iface, err := findStatusInterface(state.Objects.Status.Interfaces, pfName)
+		if err == nil && nicSelectorMatchesInterface(policy.Spec.NicSelector, iface) {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// nodeMatchesSelector reports whether nodeLabels satisfy the policy node selector.
+func nodeMatchesSelector(nodeLabels, selector map[string]string) bool {
+	for key, value := range selector {
+		if nodeLabels[key] != value {
+			return false
+		}
+	}
+
+	return true
+}
+
+// nicSelectorMatchesInterface reports whether every specified NIC selector matches iface.
+func nicSelectorMatchesInterface(selector sriovv1.SriovNetworkNicSelector, iface *sriovv1.InterfaceExt) bool {
+	hasSelector := false
+
+	if len(selector.PfNames) > 0 {
+		hasSelector = true
+		matchedPF := false
+
+		for _, configuredPF := range selector.PfNames {
+			if strings.SplitN(configuredPF, "#", 2)[0] == iface.Name {
+				matchedPF = true
+
+				break
+			}
+		}
+
+		if !matchedPF {
+			return false
+		}
+	}
+
+	if len(selector.RootDevices) > 0 {
+		hasSelector = true
+		matchedRootDevice := false
+
+		for _, rootDevice := range selector.RootDevices {
+			if strings.EqualFold(rootDevice, iface.PciAddress) {
+				matchedRootDevice = true
+
+				break
+			}
+		}
+
+		if !matchedRootDevice {
+			return false
+		}
+	}
+
+	if selector.Vendor != "" {
+		hasSelector = true
+
+		if !strings.EqualFold(selector.Vendor, iface.Vendor) {
+			return false
+		}
+	}
+
+	if selector.DeviceID != "" {
+		hasSelector = true
+
+		if !strings.EqualFold(selector.DeviceID, iface.DeviceID) {
+			return false
+		}
+	}
+
+	return hasSelector
+}
+
+// ensureHwolMCPIsDedicated rejects an MCP already selected by another
+// OVS-hardware-offload PoolConfig. Such PoolConfigs share the operator-rendered
+// 00-<mcp>-ovs-hw-offload MachineConfig. Removing the HWOL PoolConfig would
+// otherwise also disable an administrator-owned HW offload configuration.
+func ensureHwolMCPIsDedicated(operatorNS, mcpName string) error {
+	poolConfigs, err := sriov.ListPoolConfigs(APIClient, operatorNS)
+	if err != nil {
+		return fmt.Errorf("failed to list SriovNetworkPoolConfigs for HWOL preflight: %w", err)
+	}
+
+	for _, poolConfig := range poolConfigs {
+		if poolConfig.Object.Name == tsparams.PoolConfigName {
+			if err := ensureHwolResourceOwnership(
+				"SriovNetworkPoolConfig", poolConfig.Object.Name, poolConfig.Object.Labels,
+			); err != nil {
+				return err
+			}
+
+			continue
+		}
+
+		if poolConfig.Object.Spec.OvsHardwareOffloadConfig.Name == mcpName {
+			return fmt.Errorf(
+				"HWOL requires a dedicated MCP: SriovNetworkPoolConfig %s already enables OVS hardware offload on %s; "+
+					"do not share its operator-owned MachineConfig with the suite",
+				poolConfig.Object.Name, mcpName)
+		}
+	}
+
+	return nil
+}
+
+// OvsOffloadMachineConfigName returns the name created by the SR-IOV Operator
+// for a SriovNetworkPoolConfig that targets an MCP for OVS hardware offload.
+func OvsOffloadMachineConfigName(mcpName string) string {
+	return tsparams.OvsOffloadMachineConfigPrefix + mcpName + tsparams.OvsOffloadMachineConfigSuffix
+}
+
 // CreateOvsOffloadPoolConfig creates SriovNetworkPoolConfig with only
 // ovsHardwareOffloadConfig.name set to the MCP name.
 // Do not set nodeSelector/maxUnavailable together with OvsHardwareOffload — webhook rejects it.
@@ -128,8 +337,13 @@ func CreateOvsOffloadPoolConfig(name, operatorNS, mcpName string) (*sriov.PoolCo
 	builder.Definition.Spec.OvsHardwareOffloadConfig = sriovv1.OvsHardwareOffloadConfig{
 		Name: mcpName,
 	}
+	builder.Definition.Labels = hwolResourceLabels()
 
 	if builder.Exists() {
+		if err := ensureHwolResourceOwnership("SriovNetworkPoolConfig", name, builder.Object.Labels); err != nil {
+			return nil, err
+		}
+
 		builder.Definition.ResourceVersion = builder.Object.ResourceVersion
 
 		updated, err := builder.Update()
@@ -179,8 +393,13 @@ func CreateSwitchdevPolicy(
 	policy.Definition.Spec.Bridge = sriovv1.Bridge{
 		OVS: &sriovv1.OVSConfig{},
 	}
+	policy.Definition.Labels = hwolResourceLabels()
 
 	if policy.Exists() {
+		if err := ensureHwolResourceOwnership("SriovNetworkNodePolicy", name, policy.Object.Labels); err != nil {
+			return nil, err
+		}
+
 		existing := policy.Object.Spec
 		same := existing.NumVfs == vfNum &&
 			existing.EswitchMode == tsparams.SwitchdevMode &&
@@ -220,6 +439,7 @@ func CreateSwitchdevPolicy(
 		policy.Definition.Spec.Bridge = sriovv1.Bridge{
 			OVS: &sriovv1.OVSConfig{},
 		}
+		policy.Definition.Labels = hwolResourceLabels()
 	}
 
 	created, err := policy.Create()
@@ -250,6 +470,19 @@ func CreateSriovNetwork(
 	}
 
 	network.Definition.Spec.IPAM = ipam
+	network.Definition.Labels = hwolResourceLabels()
+
+	if network.Exists() {
+		if network.Object == nil {
+			return nil, fmt.Errorf("failed to determine whether SriovNetwork %s is owned by HWOL", name)
+		}
+
+		if err := ensureHwolResourceOwnership("SriovNetwork", name, network.Object.Labels); err != nil {
+			return nil, err
+		}
+
+		return network, nil
+	}
 
 	created, err := network.Create()
 	if err != nil {
@@ -272,16 +505,43 @@ func ListMCPWorkerNodes(mcpLabel string) ([]*nodes.Builder, error) {
 	return nodes.List(APIClient, metav1.ListOptions{LabelSelector: selector})
 }
 
+// ListMCPWorkerNodesWithPF returns MCP workers that expose pfName in their
+// SriovNetworkNodeState. An MCP can contain workers with different NIC layouts.
+func ListMCPWorkerNodesWithPF(operatorNS, mcpLabel, pfName string) ([]*nodes.Builder, error) {
+	workerNodes, err := ListMCPWorkerNodes(mcpLabel)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list MCP nodes: %w", err)
+	}
+
+	matchingNodes := make([]*nodes.Builder, 0, len(workerNodes))
+	for _, node := range workerNodes {
+		state := sriov.NewNetworkNodeStateBuilder(APIClient, node.Object.Name, operatorNS)
+		if err := state.Discover(); err != nil {
+			if k8serrors.IsNotFound(err) {
+				continue
+			}
+
+			return nil, fmt.Errorf("failed to discover SriovNetworkNodeState for %s: %w", node.Object.Name, err)
+		}
+
+		if _, err := findStatusInterface(state.Objects.Status.Interfaces, pfName); err == nil {
+			matchingNodes = append(matchingNodes, node)
+		}
+	}
+
+	if len(matchingNodes) == 0 {
+		return nil, fmt.Errorf("no MCP-labeled workers expose interface %s", pfName)
+	}
+
+	return matchingNodes, nil
+}
+
 // AssertSwitchdevAndOVSBridge checks SriovNetworkNodeState for switchdev mode and a managed OVS bridge
 // on the given PF for each MCP-labeled node.
 func AssertSwitchdevAndOVSBridge(operatorNS, mcpLabel, pfName string) error {
-	workerNodes, err := ListMCPWorkerNodes(mcpLabel)
+	workerNodes, err := ListMCPWorkerNodesWithPF(operatorNS, mcpLabel, pfName)
 	if err != nil {
-		return fmt.Errorf("failed to list MCP nodes: %w", err)
-	}
-
-	if len(workerNodes) == 0 {
-		return fmt.Errorf("no nodes found with label node-role.kubernetes.io/%s", mcpLabel)
+		return err
 	}
 
 	for _, node := range workerNodes {
@@ -330,13 +590,9 @@ func findStatusInterface(ifaces sriovv1.InterfaceExts, pfName string) (*sriovv1.
 
 // LookupManagedOVSBridge returns the managed OVS bridge name for pfName on the first MCP worker.
 func LookupManagedOVSBridge(operatorNS, mcpLabel, pfName string) (string, error) {
-	workerNodes, err := ListMCPWorkerNodes(mcpLabel)
+	workerNodes, err := ListMCPWorkerNodesWithPF(operatorNS, mcpLabel, pfName)
 	if err != nil {
-		return "", fmt.Errorf("failed to list MCP nodes: %w", err)
-	}
-
-	if len(workerNodes) == 0 {
-		return "", fmt.Errorf("no nodes found with label node-role.kubernetes.io/%s", mcpLabel)
+		return "", err
 	}
 
 	nodeName := workerNodes[0].Object.Name
@@ -601,10 +857,38 @@ func newOvsDebugPod(nodeName, image string) (*pod.Builder, error) {
 func CleanupHwolResources(operatorNS, mcpName, pfName string, timeout, stableDuration time.Duration) error {
 	klog.V(90).Infof("Cleaning HWOL test resources in namespace %s", operatorNS)
 
+	exists, err := hwolResourcesExist(operatorNS)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		machineConfigExists, err := ovsOffloadMachineConfigExists(OvsOffloadMachineConfigName(mcpName))
+		if err != nil {
+			return err
+		}
+
+		if machineConfigExists {
+			return fmt.Errorf(
+				"operator-owned OVS hardware-offload MachineConfig %s remains without HWOL resources",
+				OvsOffloadMachineConfigName(mcpName))
+		}
+
+		// An interrupted run may have removed its CRs before the operator finished
+		// returning the PF to legacy mode. Treat the absence of fixed-name
+		// resources as a read-only cleanup-verification path, not as proof that
+		// teardown completed.
+		if err := WaitForSriovAndMCPStable(operatorNS, mcpName, timeout, stableDuration); err != nil {
+			return fmt.Errorf("HWOL cleanup verification timed out waiting for SR-IOV/MCP stable: %w", err)
+		}
+
+		return verifyHwolCleanup(operatorNS, mcpName, pfName)
+	}
+
 	ovsNet := NewOvsNetworkBuilder(
 		APIClient, tsparams.OvsNetworkName, operatorNS, tsparams.TestNamespaceName, tsparams.ResourceName)
 	if ovsNet != nil {
-		if err := ovsNet.Delete(); err != nil {
+		if err := ovsNet.DeleteAndWait(timeout); err != nil {
 			return fmt.Errorf("failed to delete OVSNetwork %s: %w", tsparams.OvsNetworkName, err)
 		}
 	}
@@ -613,39 +897,180 @@ func CleanupHwolResources(operatorNS, mcpName, pfName string, timeout, stableDur
 		return err
 	}
 
-	if err := deleteHwolPolicy(operatorNS); err != nil {
-		return err
-	}
-
 	pool, err := sriov.PullPoolConfig(APIClient, tsparams.PoolConfigName, operatorNS)
 	if err != nil {
 		if !k8serrors.IsNotFound(err) && !strings.Contains(err.Error(), "does not exist") {
 			return fmt.Errorf("failed to pull SriovNetworkPoolConfig %s: %w", tsparams.PoolConfigName, err)
 		}
-	} else if delErr := pool.Delete(); delErr != nil {
-		return fmt.Errorf("failed to delete SriovNetworkPoolConfig %s: %w", tsparams.PoolConfigName, delErr)
+	} else {
+		if err := ensureHwolResourceOwnership("SriovNetworkPoolConfig", pool.Object.Name, pool.Object.Labels); err != nil {
+			return err
+		}
+
+		if delErr := pool.Delete(); delErr != nil {
+			return fmt.Errorf("failed to delete SriovNetworkPoolConfig %s: %w", tsparams.PoolConfigName, delErr)
+		}
+	}
+
+	// The SR-IOV Operator owns the rendered MachineConfig. Do not delete it
+	// directly: wait for the PoolConfig finalizer to remove it, then let the
+	// MCO disable OVS HW offload before removing the switchdev policy. This
+	// ordering is essential: deleting the policy first makes mlx5 change eSwitch
+	// mode while OVN's hardware TC rules hold eSwitch references (E-BUSY).
+	if err := waitForOvsOffloadMachineConfigDeletion(mcpName, timeout); err != nil {
+		return err
 	}
 
 	if err := WaitForSriovAndMCPStable(operatorNS, mcpName, timeout, stableDuration); err != nil {
+		return fmt.Errorf("HWOL cleanup timed out disabling OVS hardware offload before switchdev teardown: %w", err)
+	}
+
+	if err := deleteHwolPolicy(operatorNS); err != nil {
+		return err
+	}
+
+	if err := WaitForSriovAndMCPStable(operatorNS, mcpName, timeout, stableDuration); err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return fmt.Errorf(
+				"%w: SNNS may be stuck resetting switchdev (device or resource busy); "+
+					"reboot the MCP-labeled HWOL node before re-run: %w",
+				ErrSwitchdevCleanupTimeout, err)
+		}
+
 		return fmt.Errorf(
-			"HWOL cleanup timed out waiting for SR-IOV/MCP stable: SNNS may be stuck resetting "+
-				"switchdev (device or resource busy); reboot the MCP-labeled HWOL node before re-run: %w",
+			"HWOL cleanup failed waiting for SR-IOV/MCP stable after switchdev teardown: %w",
 			err)
 	}
 
 	return verifyHwolCleanup(operatorNS, mcpName, pfName)
 }
 
-// RecoverHwolCleanup reboots only HWOL MCP nodes after failed cleanup, then verifies
-// the switchdev and OVS state is gone. Callers must preserve the original failure.
-func RecoverHwolCleanup(operatorNS, mcpName, pfName string, timeout, stableDuration time.Duration) error {
-	workerNodes, err := ListMCPWorkerNodes(mcpName)
-	if err != nil {
-		return fmt.Errorf("failed to list HWOL MCP nodes for recovery: %w", err)
+func waitForOvsOffloadMachineConfigDeletion(mcpName string, timeout time.Duration) error {
+	machineConfigName := OvsOffloadMachineConfigName(mcpName)
+	deadline := time.Now().Add(timeout)
+
+	for {
+		exists, err := ovsOffloadMachineConfigExists(machineConfigName)
+		if err != nil {
+			return err
+		}
+
+		if !exists {
+			return nil
+		}
+
+		if !time.Now().Before(deadline) {
+			return fmt.Errorf(
+				"timed out waiting for SR-IOV Operator to remove MachineConfig %s after deleting PoolConfig %s",
+				machineConfigName, tsparams.PoolConfigName)
+		}
+
+		time.Sleep(tsparams.RetryInterval)
+	}
+}
+
+func ovsOffloadMachineConfigExists(machineConfigName string) (bool, error) {
+	if err := APIClient.AttachScheme(mcfgv1.Install); err != nil {
+		return false, fmt.Errorf("failed to register MachineConfig API: %w", err)
 	}
 
-	if len(workerNodes) == 0 {
-		return fmt.Errorf("no nodes found with label node-role.kubernetes.io/%s", mcpName)
+	machineConfig := &mcfgv1.MachineConfig{}
+
+	err := APIClient.Client.Get(context.Background(), client.ObjectKey{Name: machineConfigName}, machineConfig)
+	if k8serrors.IsNotFound(err) {
+		return false, nil
+	}
+
+	if err != nil {
+		return false, fmt.Errorf("failed to get MachineConfig %s: %w", machineConfigName, err)
+	}
+
+	return true, nil
+}
+
+// hwolResourcesExist reports whether any fixed-name resources owned by the HWOL
+// suite remain. This makes CleanupHwolResources safe to call as a final suite
+// safeguard after the per-Describe cleanup has already completed.
+func hwolResourcesExist(operatorNS string) (bool, error) {
+	ovsNet := NewOvsNetworkBuilder(
+		APIClient, tsparams.OvsNetworkName, operatorNS, tsparams.TestNamespaceName, tsparams.ResourceName)
+	if ovsNet == nil {
+		return false, fmt.Errorf("failed to initialize OVSNetwork cleanup builder")
+	}
+
+	if ovsNet.Exists() {
+		if err := ensureHwolResourceOwnership("OVSNetwork", ovsNet.Object.Name, ovsNet.Object.Labels); err != nil {
+			return false, err
+		}
+
+		return true, nil
+	}
+
+	if network, err := sriov.PullNetwork(APIClient, tsparams.SriovNetworkName, operatorNS); err == nil {
+		if err := ensureHwolResourceOwnership("SriovNetwork", network.Object.Name, network.Object.Labels); err != nil {
+			return false, err
+		}
+
+		return true, nil
+	} else if !k8serrors.IsNotFound(err) && !strings.Contains(err.Error(), "does not exist") {
+		return false, fmt.Errorf("failed to look up HWOL SriovNetwork %s: %w", tsparams.SriovNetworkName, err)
+	}
+
+	if policy, err := sriov.PullPolicy(APIClient, tsparams.PolicyName, operatorNS); err == nil {
+		if err := ensureHwolResourceOwnership(
+			"SriovNetworkNodePolicy", policy.Object.Name, policy.Object.Labels,
+		); err != nil {
+			return false, err
+		}
+
+		return true, nil
+	} else if !k8serrors.IsNotFound(err) && !strings.Contains(err.Error(), "does not exist") {
+		return false, fmt.Errorf("failed to look up HWOL SriovNetworkNodePolicy %s: %w", tsparams.PolicyName, err)
+	}
+
+	if pool, err := sriov.PullPoolConfig(APIClient, tsparams.PoolConfigName, operatorNS); err == nil {
+		if err := ensureHwolResourceOwnership("SriovNetworkPoolConfig", pool.Object.Name, pool.Object.Labels); err != nil {
+			return false, err
+		}
+
+		return true, nil
+	} else if !k8serrors.IsNotFound(err) && !strings.Contains(err.Error(), "does not exist") {
+		return false, fmt.Errorf("failed to look up HWOL SriovNetworkPoolConfig %s: %w", tsparams.PoolConfigName, err)
+	}
+
+	return false, nil
+}
+
+// RecoverHwolCleanup reboots only HWOL MCP nodes after failed cleanup, then verifies
+// the switchdev and OVS state is gone. Callers may clear only
+// ErrSwitchdevCleanupTimeout after this function succeeds.
+func RecoverHwolCleanup(operatorNS, mcpName, pfName string, timeout, stableDuration time.Duration) error {
+	// A reboot is a last resort for a PF stuck leaving switchdev, not a
+	// substitute for deleting the suite's CRs or disabling hardware offload.
+	// In particular, never reboot while an operator-owned offload MC remains.
+	resourcesExist, err := hwolResourcesExist(operatorNS)
+	if err != nil {
+		return err
+	}
+
+	if resourcesExist {
+		return fmt.Errorf("refusing HWOL reboot recovery while test-owned resources remain")
+	}
+
+	machineConfigName := OvsOffloadMachineConfigName(mcpName)
+
+	machineConfigExists, err := ovsOffloadMachineConfigExists(machineConfigName)
+	if err != nil {
+		return err
+	}
+
+	if machineConfigExists {
+		return fmt.Errorf("refusing HWOL reboot recovery while MachineConfig %s remains", machineConfigName)
+	}
+
+	workerNodes, err := ListMCPWorkerNodesWithPF(operatorNS, mcpName, pfName)
+	if err != nil {
+		return err
 	}
 
 	for _, workerNode := range workerNodes {
@@ -737,8 +1162,40 @@ func deleteHwolSriovNetwork(operatorNS string, timeout time.Duration) error {
 		return fmt.Errorf("failed to pull HWOL SriovNetwork %s: %w", tsparams.SriovNetworkName, err)
 	}
 
+	if err := ensureHwolResourceOwnership(
+		"SriovNetwork", network.Object.Name, network.Object.Labels,
+	); err != nil {
+		return err
+	}
+
 	if err := network.DeleteAndWait(timeout); err != nil {
 		return fmt.Errorf("failed to delete HWOL SriovNetwork %s: %w", tsparams.SriovNetworkName, err)
+	}
+
+	return nil
+}
+
+// DeleteOwnedSriovNetwork deletes a suite-owned SriovNetwork. It rejects a
+// matching fixed-name object that was created by an administrator or another
+// test suite.
+func DeleteOwnedSriovNetwork(name, operatorNS string) error {
+	network, err := sriov.PullNetwork(APIClient, name, operatorNS)
+	if err != nil {
+		if k8serrors.IsNotFound(err) || strings.Contains(err.Error(), "does not exist") {
+			return nil
+		}
+
+		return fmt.Errorf("failed to pull SriovNetwork %s: %w", name, err)
+	}
+
+	if err := ensureHwolResourceOwnership(
+		"SriovNetwork", network.Object.Name, network.Object.Labels,
+	); err != nil {
+		return err
+	}
+
+	if err := network.Delete(); err != nil {
+		return fmt.Errorf("failed to delete SriovNetwork %s: %w", name, err)
 	}
 
 	return nil
@@ -754,6 +1211,12 @@ func deleteHwolPolicy(operatorNS string) error {
 		return fmt.Errorf("failed to pull HWOL SriovNetworkNodePolicy %s: %w", tsparams.PolicyName, err)
 	}
 
+	if err := ensureHwolResourceOwnership(
+		"SriovNetworkNodePolicy", policy.Object.Name, policy.Object.Labels,
+	); err != nil {
+		return err
+	}
+
 	if err := policy.Delete(); err != nil {
 		return fmt.Errorf("failed to delete HWOL SriovNetworkNodePolicy %s: %w", tsparams.PolicyName, err)
 	}
@@ -762,6 +1225,10 @@ func deleteHwolPolicy(operatorNS string) error {
 }
 
 func verifyHwolCleanup(operatorNS, mcpName, pfName string) error {
+	if err := verifyHwolOvsNetworkDeleted(operatorNS); err != nil {
+		return err
+	}
+
 	if err := verifyHwolSriovNetworkDeleted(operatorNS); err != nil {
 		return err
 	}
@@ -778,6 +1245,18 @@ func verifyHwolCleanup(operatorNS, mcpName, pfName string) error {
 		return fmt.Errorf("failed to verify deletion of HWOL SriovNetworkPoolConfig %s: %w", tsparams.PoolConfigName, err)
 	}
 
+	if exists, err := ovsOffloadMachineConfigExists(OvsOffloadMachineConfigName(mcpName)); err != nil {
+		return err
+	} else if exists {
+		return fmt.Errorf(
+			"operator-owned OVS hardware-offload MachineConfig %s still exists after HWOL cleanup",
+			OvsOffloadMachineConfigName(mcpName))
+	}
+
+	return verifyHwolNodeCleanup(operatorNS, mcpName, pfName)
+}
+
+func verifyHwolNodeCleanup(operatorNS, mcpName, pfName string) error {
 	workerNodes, err := ListMCPWorkerNodes(mcpName)
 	if err != nil {
 		return fmt.Errorf("failed to list HWOL MCP nodes: %w", err)
@@ -787,23 +1266,31 @@ func verifyHwolCleanup(operatorNS, mcpName, pfName string) error {
 		return fmt.Errorf("no nodes found with label node-role.kubernetes.io/%s", mcpName)
 	}
 
+	matchedPF := false
+
 	for _, node := range workerNodes {
 		nodeName := node.Object.Name
 
 		state := sriov.NewNetworkNodeStateBuilder(APIClient, nodeName, operatorNS)
 		if err := state.Discover(); err != nil {
+			if k8serrors.IsNotFound(err) {
+				continue
+			}
+
 			return fmt.Errorf("failed to discover SriovNetworkNodeState for %s: %w", nodeName, err)
 		}
+
+		iface, err := findStatusInterface(state.Objects.Status.Interfaces, pfName)
+		if err != nil {
+			continue
+		}
+
+		matchedPF = true
 
 		if state.Objects.Status.SyncStatus != "Succeeded" {
 			return fmt.Errorf(
 				"node %s syncStatus is %q after HWOL cleanup, want Succeeded",
 				nodeName, state.Objects.Status.SyncStatus)
-		}
-
-		iface, err := findStatusInterface(state.Objects.Status.Interfaces, pfName)
-		if err != nil {
-			return fmt.Errorf("node %s: %w", nodeName, err)
 		}
 		// Empty is the operator's representation of the default legacy mode.
 		if iface.EswitchMode != "" && iface.EswitchMode != "legacy" {
@@ -821,6 +1308,26 @@ func verifyHwolCleanup(operatorNS, mcpName, pfName string) error {
 				}
 			}
 		}
+	}
+
+	if !matchedPF {
+		return fmt.Errorf("no MCP-labeled workers expose interface %s", pfName)
+	}
+
+	return nil
+}
+
+func verifyHwolOvsNetworkDeleted(operatorNS string) error {
+	ovsNet := NewOvsNetworkBuilder(
+		APIClient, tsparams.OvsNetworkName, operatorNS, tsparams.TestNamespaceName, tsparams.ResourceName)
+	if ovsNet == nil {
+		return fmt.Errorf("failed to initialize OVSNetwork cleanup builder")
+	}
+
+	if _, err := ovsNet.Get(); err == nil {
+		return fmt.Errorf("HWOL OVSNetwork %s still exists after cleanup", tsparams.OvsNetworkName)
+	} else if !k8serrors.IsNotFound(err) {
+		return fmt.Errorf("failed to verify deletion of HWOL OVSNetwork %s: %w", tsparams.OvsNetworkName, err)
 	}
 
 	return nil
