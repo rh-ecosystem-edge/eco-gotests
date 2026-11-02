@@ -17,12 +17,12 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/system-tests/rdscore/internal/rdscoreparams"
 )
 
-func runCmdOnWorkerNodes(ctx context.Context, cmd []string, description string) map[string]string {
-	By(fmt.Sprintf("Listing worker nodes for %s", description))
+func runCmdOnNodes(ctx context.Context, cmd []string, description string) map[string]string {
+	By(fmt.Sprintf("Listing nodes for %s", description))
 
-	nodeList, err := nodes.List(APIClient, RDSCoreConfig.WorkerLabelListOption)
-	Expect(err).ToNot(HaveOccurred(), "Failed to list worker nodes")
-	Expect(nodeList).ToNot(BeEmpty(), "No worker nodes found")
+	nodeList, err := nodes.List(APIClient, RDSCoreConfig.DiskPartitioningLabelListOption)
+	Expect(err).ToNot(HaveOccurred(), "Failed to list nodes with disk partitioning")
+	Expect(nodeList).ToNot(BeEmpty(), "No nodes with disk partitioning found")
 
 	results := make(map[string]string)
 
@@ -55,12 +55,12 @@ func runCmdOnWorkerNodes(ctx context.Context, cmd []string, description string) 
 	return results
 }
 
-// VerifyContainersMountPointOnWorkers verifies /var/lib/containers is a separate mount point on worker nodes.
-func VerifyContainersMountPointOnWorkers(ctx SpecContext) {
+// VerifyContainersMountPoint verifies /var/lib/containers is a separate mount point on worker nodes.
+func VerifyContainersMountPoint(ctx SpecContext) {
 	cmd := []string{"chroot", "/rootfs", "/bin/sh", "-c",
 		fmt.Sprintf("findmnt -n %s", rdscoreparams.ContainersMountPoint)}
 
-	outputs := runCmdOnWorkerNodes(ctx, cmd, "verify containers mount point")
+	outputs := runCmdOnNodes(ctx, cmd, "verify containers mount point")
 
 	for nodeName, output := range outputs {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
@@ -70,12 +70,12 @@ func VerifyContainersMountPointOnWorkers(ctx SpecContext) {
 	}
 }
 
-// VerifyContainersXFSFilesystemOnWorkers verifies the filesystem type on /var/lib/containers is XFS on worker nodes.
-func VerifyContainersXFSFilesystemOnWorkers(ctx SpecContext) {
+// VerifyContainersXFSFilesystem verifies the filesystem type on /var/lib/containers is XFS on worker nodes.
+func VerifyContainersXFSFilesystem(ctx SpecContext) {
 	cmd := []string{"chroot", "/rootfs", "/bin/sh", "-c",
 		fmt.Sprintf("findmnt -n -o FSTYPE %s", rdscoreparams.ContainersMountPoint)}
 
-	outputs := runCmdOnWorkerNodes(ctx, cmd, "verify containers filesystem type")
+	outputs := runCmdOnNodes(ctx, cmd, "verify containers filesystem type")
 
 	for nodeName, fsType := range outputs {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
@@ -85,12 +85,12 @@ func VerifyContainersXFSFilesystemOnWorkers(ctx SpecContext) {
 	}
 }
 
-// VerifyContainersPartitionSourceOnWorkers verifies the mount source contains the containers partition label.
-func VerifyContainersPartitionSourceOnWorkers(ctx SpecContext) {
+// VerifyContainersPartitionSource verifies the mount source contains the containers partition label.
+func VerifyContainersPartitionSource(ctx SpecContext) {
 	cmd := []string{"chroot", "/rootfs", "/bin/sh", "-c",
 		fmt.Sprintf("findmnt -n -o SOURCE %s", rdscoreparams.ContainersMountPoint)}
 
-	outputs := runCmdOnWorkerNodes(ctx, cmd, "verify containers mount source")
+	outputs := runCmdOnNodes(ctx, cmd, "verify containers mount source")
 
 	for nodeName, source := range outputs {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
@@ -101,12 +101,12 @@ func VerifyContainersPartitionSourceOnWorkers(ctx SpecContext) {
 	}
 }
 
-// VerifyContainersMountUnitOnWorkers verifies the var-lib-containers systemd mount unit is active on worker nodes.
-func VerifyContainersMountUnitOnWorkers(ctx SpecContext) {
+// VerifyContainersMountUnit verifies the var-lib-containers systemd mount unit is active on worker nodes.
+func VerifyContainersMountUnit(ctx SpecContext) {
 	cmd := []string{"chroot", "/rootfs", "/bin/sh", "-c",
 		fmt.Sprintf("systemctl is-active %s", rdscoreparams.ContainersMountUnit)}
 
-	outputs := runCmdOnWorkerNodes(ctx, cmd, "verify containers mount unit")
+	outputs := runCmdOnNodes(ctx, cmd, "verify containers mount unit")
 
 	for nodeName, status := range outputs {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
