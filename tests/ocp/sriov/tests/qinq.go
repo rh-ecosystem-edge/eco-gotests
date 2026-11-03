@@ -395,10 +395,10 @@ var _ = Describe(
 					readAndValidateTCPDump(tcpDumpContainer, tcpDumpReadFileCMD, tcpDumpDot1ADOutput)
 				})
 			AfterAll(func() {
-				By("Remove 802.1AD TPID from switch interfaces")
+				By("Reset switch ports to access mode before the 802.1Q test")
 
-				err = removeSwitchTPID(switchCredentials, switchInterfaces)
-				Expect(err).ToNot(HaveOccurred(), "Failed to remove 802.1AD TPID from switch")
+				err = disableQinQOnSwitch(switchCredentials, switchInterfaces)
+				Expect(err).ToNot(HaveOccurred(), "Failed to reset switch ports to access mode")
 
 				By("Clean the test env of sriov and pod deployments")
 				cleanTestEnvSRIOVConfiguration()
@@ -991,6 +991,8 @@ func enableQinQTrunkOnSwitch(credentials *sriovocpenv.SwitchCredentials, switchI
 	for _, switchInterface := range switchInterfaces {
 		commands := []string{
 			fmt.Sprintf("delete interfaces %s unit 0", switchInterface),
+			fmt.Sprintf("set interfaces %s ether-options ethernet-switch-profile tag-protocol-id 0x8100",
+				switchInterface),
 			fmt.Sprintf("set interfaces %s flexible-vlan-tagging encapsulation extended-vlan-bridge", switchInterface),
 			fmt.Sprintf("set interfaces %s unit 0 family ethernet-switching interface-mode trunk",
 				switchInterface),
