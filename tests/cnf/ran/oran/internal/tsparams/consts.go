@@ -52,7 +52,8 @@ const (
 
 	// PRValidationFailedDetailsSubstring is a substring of status.provisioningStatus.provisioningDetails when a
 	// ProvisioningRequest fails due to invalid policyTemplateParameters caused by an integer instead of a string.
-	PRValidationFailedDetailsSubstring = "Invalid type. Expected: string, given: integer"
+	// Operator wording drifted from JSON-schema "Invalid type. Expected: string, given: integer".
+	PRValidationFailedDetailsSubstring = "oran-test key (1) is not a string"
 	// PRFulfilledDetailsSubstring is a substring of status.provisioningStatus.provisioningDetails when
 	// provisioning completes successfully.
 	PRFulfilledDetailsSubstring = "Provisioning request has completed successfully"
