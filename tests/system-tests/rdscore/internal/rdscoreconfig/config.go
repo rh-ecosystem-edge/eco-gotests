@@ -185,6 +185,8 @@ type CoreConfig struct {
 	WorkerMemoryReserved string `yaml:"rdscore_worker_memory_reserved" envconfig:"ECO_RDSCORE_WORKER_MEMORY_RESERVED"`
 	//nolint:lll
 	PerformanceProfileName string `yaml:"rdscore_performance_profile_name" envconfig:"ECO_RDSCORE_PERFORMANCE_PROFILE_NAME"`
+	//nolint:lll
+	ExcludedNodeLabels EnvSliceString `yaml:"rdscore_excluded_node_labels" envconfig:"ECO_RDSCORE_EXCLUDED_NODE_LABELS"`
 	//nolint:lll,nolintlint
 	WlkdTolerationList TolerationList `yaml:"rdscore_tolerations_list" envconfig:"ECO_RDSCORE_TOLERATIONS_LIST"`
 	//nolint:lll

@@ -33,6 +33,7 @@ See `default.yaml` in the same directory for default values.
 | `ECO_RDSCORE_KDUMP_WORKER_NODE_LABEL` | Kdump worker MCP node label |
 | `ECO_RDS_CORE_PERFORMANCE_PROFILE_HT_NAME` | Performance profile HT name |
 | `ECO_RDSCORE_PERFORMANCE_PROFILE_NAME` | Optional PerformanceProfile name to validate (validates all if empty) |
+| `ECO_RDSCORE_EXCLUDED_NODE_LABELS` | Node labels to exclude from systemReserved validation (default: node-role.kubernetes.io/storage). Use `|||` separator for multiple labels |
 | `ECO_RDSCORE_CONTROL_PLANE_CPU_RESERVED` | Control plane systemReserved CPU baseline for validation (default: 40 cores) |
 | `ECO_RDSCORE_CONTROL_PLANE_MEMORY_RESERVED` | Control plane systemReserved memory baseline for validation (default: 30Gi) |
 | `ECO_RDSCORE_WORKER_CPU_RESERVED` | Worker node systemReserved CPU baseline for validation (default: 1000m) |
