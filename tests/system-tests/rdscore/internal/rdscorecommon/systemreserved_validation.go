@@ -197,20 +197,48 @@ func ValidateControlPlaneNodeSystemReserved() {
 		By(fmt.Sprintf("Executing debug pod on node %s", nodeName))
 
 		cmd := []string{"chroot", "/rootfs", "cat", nodeSizingEnvPath}
-
 		output, err := remote.ExecuteOnNodeWithDebugPod(cmd, nodeName)
-		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to read %s from node %s", nodeSizingEnvPath, nodeName))
-		Expect(output).ToNot(BeEmpty(), fmt.Sprintf("%s is empty on node %s", nodeSizingEnvPath, nodeName))
 
-		By("Parsing node-sizing.env file")
+		var actualCPU, actualMemory string
 
-		envVars := parseEnvFile(output)
+		if err != nil || output == "" {
+			// Fallback to PerformanceProfile annotation (OCP 5.0+ compatibility)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"⚠ %s not found on node %s, using PerformanceProfile annotation (OCP 5.0+)\n",
+				nodeSizingEnvPath, nodeName)
 
-		By("Verifying SYSTEM_RESERVED_CPU")
+			if matchingProfile != nil {
+				actualCPU, actualMemory, err = extractSystemReservedFromProfile(matchingProfile)
+				Expect(err).ToNot(HaveOccurred(),
+					fmt.Sprintf("Failed to extract systemReserved from PerformanceProfile for node %s: %v", nodeName, err))
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Using systemReserved from PerformanceProfile: CPU=%s, Memory=%s\n",
+					actualCPU, actualMemory)
+			} else {
+				Skip(fmt.Sprintf("Node %s has no %s and no PerformanceProfile - cannot validate systemReserved",
+					nodeName, nodeSizingEnvPath))
+			}
+		} else {
+			// OCP 4.x: Parse node-sizing.env file
+			By("Parsing node-sizing.env file")
 
-		actualCPU, found := envVars["SYSTEM_RESERVED_CPU"]
-		Expect(found).To(BeTrue(), fmt.Sprintf("SYSTEM_RESERVED_CPU not found in %s on node %s", nodeSizingEnvPath, nodeName))
-		Expect(actualCPU).ToNot(BeEmpty(), fmt.Sprintf("SYSTEM_RESERVED_CPU is empty on node %s", nodeName))
+			envVars := parseEnvFile(output)
+
+			By("Verifying SYSTEM_RESERVED_CPU")
+
+			var found bool
+			actualCPU, found = envVars["SYSTEM_RESERVED_CPU"]
+			Expect(found).To(BeTrue(), fmt.Sprintf("SYSTEM_RESERVED_CPU not found in %s on node %s", nodeSizingEnvPath, nodeName))
+			Expect(actualCPU).ToNot(BeEmpty(), fmt.Sprintf("SYSTEM_RESERVED_CPU is empty on node %s", nodeName))
+
+			By("Verifying SYSTEM_RESERVED_MEMORY")
+
+			actualMemory, found = envVars["SYSTEM_RESERVED_MEMORY"]
+			Expect(found).To(BeTrue(),
+				fmt.Sprintf("SYSTEM_RESERVED_MEMORY not found in %s on node %s", nodeSizingEnvPath, nodeName))
+			Expect(actualMemory).ToNot(BeEmpty(), fmt.Sprintf("SYSTEM_RESERVED_MEMORY is empty on node %s", nodeName))
+		}
+
+		By("Validating CPU value")
 
 		// Validate that CPU value is parseable as a positive resource quantity
 		cpuQuantity, err := resource.ParseQuantity(actualCPU)
@@ -235,12 +263,7 @@ func ValidateControlPlaneNodeSystemReserved() {
 			}
 		}
 
-		By("Verifying SYSTEM_RESERVED_MEMORY")
-
-		actualMemory, found := envVars["SYSTEM_RESERVED_MEMORY"]
-		Expect(found).To(BeTrue(),
-			fmt.Sprintf("SYSTEM_RESERVED_MEMORY not found in %s on node %s", nodeSizingEnvPath, nodeName))
-		Expect(actualMemory).ToNot(BeEmpty(), fmt.Sprintf("SYSTEM_RESERVED_MEMORY is empty on node %s", nodeName))
+		By("Validating Memory value")
 
 		// Validate that memory value is parseable as a positive resource quantity
 		memQuantity, err := resource.ParseQuantity(actualMemory)
@@ -335,20 +358,48 @@ func ValidateWorkerNodeSystemReserved() {
 		By(fmt.Sprintf("Executing debug pod on node %s", nodeName))
 
 		cmd := []string{"chroot", "/rootfs", "cat", nodeSizingEnvPath}
-
 		output, err := remote.ExecuteOnNodeWithDebugPod(cmd, nodeName)
-		Expect(err).ToNot(HaveOccurred(), fmt.Sprintf("Failed to read %s from node %s", nodeSizingEnvPath, nodeName))
-		Expect(output).ToNot(BeEmpty(), fmt.Sprintf("%s is empty on node %s", nodeSizingEnvPath, nodeName))
 
-		By("Parsing node-sizing.env file")
+		var actualCPU, actualMemory string
 
-		envVars := parseEnvFile(output)
+		if err != nil || output == "" {
+			// Fallback to PerformanceProfile annotation (OCP 5.0+ compatibility)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"⚠ %s not found on node %s, using PerformanceProfile annotation (OCP 5.0+)\n",
+				nodeSizingEnvPath, nodeName)
 
-		By("Verifying SYSTEM_RESERVED_CPU")
+			if matchingProfile != nil {
+				actualCPU, actualMemory, err = extractSystemReservedFromProfile(matchingProfile)
+				Expect(err).ToNot(HaveOccurred(),
+					fmt.Sprintf("Failed to extract systemReserved from PerformanceProfile for node %s: %v", nodeName, err))
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Using systemReserved from PerformanceProfile: CPU=%s, Memory=%s\n",
+					actualCPU, actualMemory)
+			} else {
+				Skip(fmt.Sprintf("Node %s has no %s and no PerformanceProfile - cannot validate systemReserved",
+					nodeName, nodeSizingEnvPath))
+			}
+		} else {
+			// OCP 4.x: Parse node-sizing.env file
+			By("Parsing node-sizing.env file")
 
-		actualCPU, found := envVars["SYSTEM_RESERVED_CPU"]
-		Expect(found).To(BeTrue(), fmt.Sprintf("SYSTEM_RESERVED_CPU not found in %s on node %s", nodeSizingEnvPath, nodeName))
-		Expect(actualCPU).ToNot(BeEmpty(), fmt.Sprintf("SYSTEM_RESERVED_CPU is empty on node %s", nodeName))
+			envVars := parseEnvFile(output)
+
+			By("Verifying SYSTEM_RESERVED_CPU")
+
+			var found bool
+			actualCPU, found = envVars["SYSTEM_RESERVED_CPU"]
+			Expect(found).To(BeTrue(), fmt.Sprintf("SYSTEM_RESERVED_CPU not found in %s on node %s", nodeSizingEnvPath, nodeName))
+			Expect(actualCPU).ToNot(BeEmpty(), fmt.Sprintf("SYSTEM_RESERVED_CPU is empty on node %s", nodeName))
+
+			By("Verifying SYSTEM_RESERVED_MEMORY")
+
+			actualMemory, found = envVars["SYSTEM_RESERVED_MEMORY"]
+			Expect(found).To(BeTrue(),
+				fmt.Sprintf("SYSTEM_RESERVED_MEMORY not found in %s on node %s", nodeSizingEnvPath, nodeName))
+			Expect(actualMemory).ToNot(BeEmpty(), fmt.Sprintf("SYSTEM_RESERVED_MEMORY is empty on node %s", nodeName))
+		}
+
+		By("Validating CPU value")
 
 		// Validate that CPU value is parseable as a positive resource quantity
 		cpuQuantity, err := resource.ParseQuantity(actualCPU)
@@ -373,12 +424,7 @@ func ValidateWorkerNodeSystemReserved() {
 			}
 		}
 
-		By("Verifying SYSTEM_RESERVED_MEMORY")
-
-		actualMemory, found := envVars["SYSTEM_RESERVED_MEMORY"]
-		Expect(found).To(BeTrue(),
-			fmt.Sprintf("SYSTEM_RESERVED_MEMORY not found in %s on node %s", nodeSizingEnvPath, nodeName))
-		Expect(actualMemory).ToNot(BeEmpty(), fmt.Sprintf("SYSTEM_RESERVED_MEMORY is empty on node %s", nodeName))
+		By("Validating Memory value")
 
 		// Validate that memory value is parseable as a positive resource quantity
 		memQuantity, err := resource.ParseQuantity(actualMemory)
