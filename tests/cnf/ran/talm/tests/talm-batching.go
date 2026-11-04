@@ -161,8 +161,8 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 	})
 
 	When("there is a catalog source", Label(tsparams.LabelCatalogSourceTestCases), func() {
-		// 47952 - Tests upgrade failure of one cluster would not affect other clusters
-		It("should abort CGU when the first batch fails with the Abort batch timeout action", reportxml.ID("47952"), func() {
+		// 90989 - should abort remaining batches when the first batch times out with the Abort batch timeout action
+		It("should abort CGU when the first batch fails with the Abort batch timeout action", reportxml.ID("90989"), func() {
 			By("verifying the temporary namespace does not exist on spoke1")
 
 			tempExistsOnSpoke1 := namespace.NewBuilder(Spoke1APIClient, tsparams.TemporaryNamespace).Exists()
@@ -472,8 +472,8 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 	})
 
 	When("there is a temporary namespace", Label(tsparams.LabelTempNamespaceTestCases), func() {
-		// 47954 - Tests upgrade aborted due to short timeout.
-		It("should report the timeout value when one cluster is in a batch and it times out", reportxml.ID("47954"), func() {
+		// 90990 - should honor the configured timeout and delete the generated policy after a single-cluster batch times out
+		It("should report the timeout value when one cluster is in a batch and it times out", reportxml.ID("90990"), func() {
 			By("verifying the temporary namespace does not exist on spoke1")
 
 			tempExistsOnSpoke1 := namespace.NewBuilder(Spoke1APIClient, tsparams.TemporaryNamespace).Exists()
@@ -549,8 +549,8 @@ var _ = Describe("TALM Batching Tests", Label(tsparams.LabelBatchingTestCases), 
 			}
 		})
 
-		// 47947 - Tests successful ocp and operator upgrade with canaries and multiple batches.
-		It("should complete the CGU when two clusters are successful in a single batch", reportxml.ID("47947"), func() {
+		// 90988 - should complete the CGU when two non-canary clusters selected by label selectors succeed in a single batch
+		It("should complete the CGU when two clusters are successful in a single batch", reportxml.ID("90988"), func() {
 			By("creating the CGU and associated resources")
 
 			cguBuilder := cgu.NewCguBuilder(HubAPIClient, tsparams.CguName, tsparams.TestNamespace, 2).
