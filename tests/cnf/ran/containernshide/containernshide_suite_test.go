@@ -6,6 +6,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/containernshide/internal/tsparams"
 	_ "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/containernshide/tests"
@@ -21,3 +22,7 @@ func TestContainerNsHide(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Container Mount Namespace Hiding", Label(tsparams.Labels...), reporterConfig)
 }
+
+var _ = ReportAfterSuite("", func(report Report) {
+	reportxml.Create(report, RANConfig.GetReportPath(), RANConfig.TCPrefix)
+})
