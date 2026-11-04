@@ -953,6 +953,7 @@ func validateDot1Encapsulation(fileOutput, dot1X string) error {
 	return nil
 }
 
+// enableDot1ADonSwitchInterfaces configures the switch interfaces as 802.1ad VLAN trunks.
 func enableDot1ADonSwitchInterfaces(credentials *sriovocpenv.SwitchCredentials, switchInterfaces []string) error {
 	jnpr, err := sriovocpenv.NewJunosSession(credentials.SwitchIP, credentials.User, credentials.Password)
 	if err != nil {
@@ -981,6 +982,7 @@ func enableDot1ADonSwitchInterfaces(credentials *sriovocpenv.SwitchCredentials, 
 	return nil
 }
 
+// enableQinQTrunkOnSwitch configures each switch interface as an 802.1Q VLAN trunk with TPID 0x8100.
 func enableQinQTrunkOnSwitch(credentials *sriovocpenv.SwitchCredentials, switchInterfaces []string) error {
 	jnpr, err := sriovocpenv.NewJunosSession(credentials.SwitchIP, credentials.User, credentials.Password)
 	if err != nil {
@@ -1009,6 +1011,7 @@ func enableQinQTrunkOnSwitch(credentials *sriovocpenv.SwitchCredentials, switchI
 	return nil
 }
 
+// disableQinQOnSwitch removes QinQ settings and restores each switch interface as an access port.
 func disableQinQOnSwitch(switchCredentials *sriovocpenv.SwitchCredentials, switchInterfaces []string) error {
 	jnpr, err := sriovocpenv.NewJunosSession(switchCredentials.SwitchIP, switchCredentials.User,
 		switchCredentials.Password)
