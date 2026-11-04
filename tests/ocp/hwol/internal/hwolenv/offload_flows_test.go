@@ -9,12 +9,14 @@ import (
 )
 
 func TestCountOffloadedTrafficPackets(t *testing.T) {
-	const client = "3e:f5:01:0e:d5:61"
-	const server = "1a:77:44:80:66:20"
-	const unrelated = "recirc_id(0),in_port(ovn-k8s-mp0),eth(src=00:00:00:00:00:00,dst=0a:58:0a:81:02:03),eth_type(0x0800), packets:5194, actions:ct()"
-	const forward = "recirc_id(0),in_port(ens3f0np0_1),eth(src=3e:f5:01:0e:d5:61,dst=1a:77:44:80:66:20),eth_type(0x0800),ipv4(frag=no), packets:100, bytes:150000, actions:ens3f0np0_2"
-	const reverse = "recirc_id(0),in_port(ens3f0np0_2),eth(src=1a:77:44:80:66:20,dst=3e:f5:01:0e:d5:61),eth_type(0x0800),ipv4(frag=no), packets:5, bytes:500, actions:ens3f0np0_1"
-	const arp = "recirc_id(0),eth(src=1a:77:44:80:66:20,dst=3e:f5:01:0e:d5:61),eth_type(0x0806), packets:99"
+	const (
+		client    = "3e:f5:01:0e:d5:61"
+		server    = "1a:77:44:80:66:20"
+		unrelated = "recirc_id(0),in_port(ovn-k8s-mp0),eth(src=00:00:00:00:00:00,dst=0a:58:0a:81:02:03),eth_type(0x0800), packets:5194, actions:ct()"                                   //nolint:lll
+		forward   = "recirc_id(0),in_port(ens3f0np0_1),eth(src=3e:f5:01:0e:d5:61,dst=1a:77:44:80:66:20),eth_type(0x0800),ipv4(frag=no), packets:100, bytes:150000, actions:ens3f0np0_2" //nolint:lll
+		reverse   = "recirc_id(0),in_port(ens3f0np0_2),eth(src=1a:77:44:80:66:20,dst=3e:f5:01:0e:d5:61),eth_type(0x0800),ipv4(frag=no), packets:5, bytes:500, actions:ens3f0np0_1"      //nolint:lll
+		arp       = "recirc_id(0),eth(src=1a:77:44:80:66:20,dst=3e:f5:01:0e:d5:61),eth_type(0x0806), packets:99"
+	)
 
 	count, err := countOffloadedTrafficPackets(unrelated+"\n"+forward+"\n"+reverse+"\n"+arp, client, server)
 	require.NoError(t, err)

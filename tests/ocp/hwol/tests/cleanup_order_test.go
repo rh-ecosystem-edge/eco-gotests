@@ -23,12 +23,19 @@ import (
 func TestCleanupSpecResourcesOrderAndFailure(t *testing.T) {
 	server := &pod.Builder{Definition: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "server"}}}
 	client := &pod.Builder{Definition: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "client"}}}
+
 	var calls []string
+
 	deletePod := func(p *pod.Builder) error {
 		calls = append(calls, p.Definition.Name)
+
 		return nil
 	}
-	deleteNetwork := func() error { calls = append(calls, "network"); return nil }
+	deleteNetwork := func() error {
+		calls = append(calls, "network")
+
+		return nil
+	}
 	require.NoError(t, cleanupSpecResources([]*pod.Builder{server, client}, deletePod, deleteNetwork))
 	require.Equal(t, []string{"client", "server", "network"}, calls)
 
@@ -38,6 +45,7 @@ func TestCleanupSpecResourcesOrderAndFailure(t *testing.T) {
 		if p == client {
 			return fmt.Errorf("client delete failed")
 		}
+
 		return nil
 	}, deleteNetwork)
 	require.ErrorContains(t, err, "client delete failed")
@@ -50,19 +58,29 @@ func TestTrafficPodRequiresAndUsesSelectedNode(t *testing.T) {
 
 	kube := fake.NewSimpleClientset()
 	kube.PrependReactor("create", "pods", func(action ktesting.Action) (bool, runtime.Object, error) {
-		created := action.(ktesting.CreateAction).GetObject().(*corev1.Pod)
+		createAction, isCreateAction := action.(ktesting.CreateAction)
+		require.True(t, isCreateAction)
+
+		rawPod := createAction.GetObject()
+
+		created, isPod := rawPod.(*corev1.Pod)
+		require.True(t, isPod)
 		require.Equal(t, "wsfd-advnetlab246", created.Spec.NodeName)
 		created.UID = types.UID("owned-pod")
 		created.Status.Phase = corev1.PodRunning
+
 		return false, nil, nil
 	})
+
 	previousClient, previousConfig, previousNamespace := APIClient, HwolOcpConfig, tsparams.TestNamespaceName
 	APIClient = &clients.Settings{K8sClient: kube, CoreV1Interface: kube.CoreV1()}
 	HwolOcpConfig = &hwolconfig.HwolOcpConfig{OcpHwolTestContainer: "example.invalid/iperf"}
 	tsparams.TestNamespaceName = "hwol-tests-unit"
+
 	t.Cleanup(func() {
 		APIClient, HwolOcpConfig, tsparams.TestNamespaceName = previousClient, previousConfig, previousNamespace
 	})
+
 	created, err := createTrafficPod("attach", "network", "wsfd-advnetlab246", "run", nil)
 	require.NoError(t, err)
 	require.Equal(t, "wsfd-advnetlab246", created.Object.Spec.NodeName)

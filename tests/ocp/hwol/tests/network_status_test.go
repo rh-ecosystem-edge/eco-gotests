@@ -12,7 +12,9 @@ import (
 func TestNetworkStatusUsesExactTestNetwork(t *testing.T) {
 	oldNamespace := tsparams.TestNamespaceName
 	tsparams.TestNamespaceName = "hwol-tests-1234"
+
 	t.Cleanup(func() { tsparams.TestNamespaceName = oldNamespace })
+
 	status := `[
 	  {"name":"other/hwol-ovsnet","ips":["10.1.1.1/24"]},
 	  {"name":"hwol-tests-1234/hwol-ovsnet-extra","ips":["10.2.2.2/24"]},

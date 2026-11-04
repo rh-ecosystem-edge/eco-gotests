@@ -44,12 +44,14 @@ var _ = BeforeSuite(func() {
 	}
 
 	By("Creating a new test namespace with privileged labels")
+
 	suiteConfig, _ := GinkgoConfiguration()
 	Expect(suiteConfig.ParallelTotal).To(Equal(1), "HWOL uses shared policy names and must run with one Ginkgo process")
 
 	testNamespaceRunID = string(uuid.NewUUID())
 	// A Kubernetes UUID is a valid DNS label suffix; Create still rejects collisions.
 	tsparams.TestNamespaceName = tsparams.TestNamespacePrefix + testNamespaceRunID
+
 	testNS := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
 		Name:   tsparams.TestNamespaceName,
 		Labels: map[string]string{tsparams.TestRunLabelKey: testNamespaceRunID},

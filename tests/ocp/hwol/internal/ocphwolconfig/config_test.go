@@ -11,6 +11,7 @@ import (
 func TestReadEnvOvsDoca(t *testing.T) {
 	t.Setenv("ECO_OCP_HWOL_OVS_DOCA", "true")
 	t.Setenv("ECO_HWOL_RESTORE_OFFLOAD_ON_CLEANUP", "true")
+
 	var config HwolOcpConfig
 	require.NoError(t, readEnv(&config))
 	require.True(t, config.OvsDocaEnabled)
@@ -23,8 +24,10 @@ func TestReadEnvCleanupRecovery(t *testing.T) {
 		if enabled {
 			value = "true"
 		}
+
 		t.Run(value, func(t *testing.T) {
 			t.Setenv("ECO_HWOL_RECOVER_ON_CLEANUP_FAILURE", value)
+
 			var config HwolOcpConfig
 			require.NoError(t, readEnv(&config))
 			require.Equal(t, enabled, config.RecoverOnCleanupFailure)

@@ -52,9 +52,11 @@ func validateHwolOperatorConfig(spec sriovv1.SriovOperatorConfigSpec, vendor str
 			return fmt.Errorf("SriovOperatorConfig disables the Mellanox plugin; configure the prerequisite before running HWOL")
 		}
 	}
+
 	if !spec.FeatureGates[tsparams.ManageSoftwareBridgesGate] || !spec.EnableOvsOffload {
 		return fmt.Errorf("SriovOperatorConfig must enable manageSoftwareBridges and OVS offload before running HWOL")
 	}
+
 	return nil
 }
 
@@ -70,6 +72,7 @@ func EnsureSwitchdevFoundation(
 	if runID == "" {
 		return fmt.Errorf("HWOL run ID cannot be empty")
 	}
+
 	if err := ValidateSwitchdevPreconditions(operatorNS, mcpLabel, device, vfNum); err != nil {
 		return err
 	}
@@ -133,7 +136,9 @@ func CreateOvsOffloadPoolConfig(name, operatorNS, mcpName, runID string) (*sriov
 	if err := createOwnedTestResource(APIClient.Client, builder.Definition, runID); err != nil {
 		return nil, fmt.Errorf("failed to create SriovNetworkPoolConfig %s: %w", name, err)
 	}
+
 	builder.Object = builder.Definition
+
 	return builder, nil
 }
 
@@ -177,7 +182,9 @@ func CreateSwitchdevPolicy(
 	if err := createOwnedTestResource(APIClient.Client, policy.Definition, runID); err != nil {
 		return nil, fmt.Errorf("failed to create SriovNetworkNodePolicy %s: %w", name, err)
 	}
+
 	policy.Object = policy.Definition
+
 	return policy, nil
 }
 
@@ -215,11 +222,14 @@ func CreateSriovNetwork(
 	}
 
 	network.Definition.Spec.IPAM = ipam
+
 	network.Definition.Labels = map[string]string{tsparams.TestRunLabelKey: runID}
 	if err := createOwnedTestResource(APIClient.Client, network.Definition, runID); err != nil {
 		return nil, fmt.Errorf("failed to create SriovNetwork %s: %w", name, err)
 	}
+
 	network.Object = network.Definition
+
 	return network, nil
 }
 
@@ -387,6 +397,7 @@ func AssertOvsDocaEnabled(mcpLabel, image string) error {
 
 	for _, node := range workerNodes {
 		nodeName := node.Object.Name
+
 		debugPod, err := newOvsDebugPod(nodeName, image)
 		if err != nil {
 			return err
@@ -396,13 +407,16 @@ func AssertOvsDocaEnabled(mcpLabel, image string) error {
 			"chroot", "/host", "sh", "-c", assertOvsDocaScript,
 		})
 		delErr := DeleteOwnedPod(debugPod, tsparams.DefaultTimeout)
+
 		if execErr != nil {
 			checkErr := fmt.Errorf("OVS-DOCA check failed on %s: %w (out=%s)", nodeName, execErr, out.String())
 			if delErr != nil {
 				return errors.Join(checkErr, fmt.Errorf("failed to delete OVS debug pod on %s: %w", nodeName, delErr))
 			}
+
 			return checkErr
 		}
+
 		if delErr != nil {
 			return fmt.Errorf("failed to delete OVS-DOCA debug pod on %s: %w", nodeName, delErr)
 		}
@@ -522,8 +536,14 @@ for pci in "$@"; do
   fi
   if [ -n "$interface_type" ]; then
     actual_type="$(ovs-vsctl get Interface "$rep" type | tr -d '"')"
-    [ "$actual_type" = "$interface_type" ] || { echo "representor $rep type is $actual_type, want $interface_type" >&2; exit 1; }
-    [ "$(ovs-vsctl get Interface "$rep" ofport)" -gt 0 ] || { echo "representor $rep has no valid OVS port" >&2; exit 1; }
+    [ "$actual_type" = "$interface_type" ] || {
+      echo "representor $rep type is $actual_type, want $interface_type" >&2
+      exit 1
+    }
+    [ "$(ovs-vsctl get Interface "$rep" ofport)" -gt 0 ] || {
+      echo "representor $rep has no valid OVS port" >&2
+      exit 1
+    }
     error="$(ovs-vsctl get Interface "$rep" error)"
     [ "$error" = '[]' ] || [ -z "$error" ] || { echo "representor $rep error: $error" >&2; exit 1; }
   fi
@@ -539,7 +559,9 @@ func AssertVFRepresentorsOnBridge(nodeName, bridge, image string, pciAddrs ...st
 }
 
 // AssertDocaVFRepresentorsOnBridge also verifies fresh DOCA flow API assignments.
-func AssertDocaVFRepresentorsOnBridge(nodeName, bridge, image string, cursor DocaProviderCursor, pciAddrs ...string) error {
+func AssertDocaVFRepresentorsOnBridge(
+	nodeName, bridge, image string, cursor DocaProviderCursor, pciAddrs ...string,
+) error {
 	return assertVFRepresentorsOnBridge(nodeName, bridge, image, "doca", &cursor, pciAddrs...)
 }
 
@@ -584,19 +606,24 @@ func assertVFRepresentorsOnBridge(nodeName, bridge, image, interfaceType string,
 	}
 
 	klog.V(90).Infof("VF representors on bridge %s (%s):\n%s", bridge, nodeName, out.String())
+
 	if cursor != nil {
 		representors, err := parseRepresentorEvidence(out.String(), bridge, pciAddrs)
 		if err != nil {
 			return fmt.Errorf("cannot identify DOCA workload representors on %s: %w", nodeName, err)
 		}
+
 		log, err := readDocaProviderLog(debugPod, *cursor)
 		if err != nil {
 			return fmt.Errorf("cannot inspect DOCA provider assignments on %s: %w", nodeName, err)
 		}
+
 		if err := verifyDocaProviderAssignments(log, representors); err != nil {
 			return fmt.Errorf("DOCA provider assignment on %s: %w", nodeName, err)
 		}
-		klog.V(90).Infof("Verified fresh doca_flow_api assignments for workload representors %v on %s", representors, nodeName)
+
+		klog.V(90).Infof(
+			"Verified fresh doca_flow_api assignments for workload representors %v on %s", representors, nodeName)
 	}
 
 	return nil
@@ -604,7 +631,9 @@ func assertVFRepresentorsOnBridge(nodeName, bridge, image, interfaceType string,
 
 // OvsOffloadedTrafficPackets counts offloaded IPv4 packets between two workload MACs.
 // The caller should compare snapshots before and after sending test traffic.
-func OvsOffloadedTrafficPackets(nodeName, image, datapathType, firstMAC, secondMAC string) (count uint64, resultErr error) {
+func OvsOffloadedTrafficPackets(
+	nodeName, image, datapathType, firstMAC, secondMAC string,
+) (count uint64, resultErr error) {
 	if nodeName == "" || image == "" || datapathType == "" {
 		return 0, fmt.Errorf("node name, debug pod image and datapath type cannot be empty")
 	}
@@ -638,6 +667,7 @@ func OvsOffloadedTrafficPackets(nodeName, image, datapathType, firstMAC, secondM
 
 func selectOvsDatapath(output, datapathType string) (string, error) {
 	var selected string
+
 	for _, line := range strings.Split(output, "\n") {
 		name := strings.TrimSpace(line)
 		if !strings.HasPrefix(name, datapathType+"@") {
@@ -682,8 +712,11 @@ func countOffloadedTrafficPackets(flows, firstMAC, secondMAC string) (uint64, er
 		}
 
 		src, dst := strings.ToLower(macs[1]), strings.ToLower(macs[2])
-		if !((src == first.String() && dst == second.String()) ||
-			(src == second.String() && dst == first.String())) {
+
+		isWorkloadPair := (src == first.String() && dst == second.String()) ||
+			(src == second.String() && dst == first.String())
+
+		if !isWorkloadPair {
 			continue
 		}
 
@@ -698,6 +731,7 @@ func countOffloadedTrafficPackets(flows, firstMAC, secondMAC string) (uint64, er
 		}
 
 		total += packets
+
 		klog.V(90).Infof("Matching workload offloaded flow: %s", line)
 	}
 
@@ -765,11 +799,13 @@ func CleanupHwolResources(operatorNS, mcpName, pfName, runID string, timeout, st
 		return err
 	}
 
-	if err := DeleteOwnedTestResource(operatorNS, tsparams.PolicyName, runID, &sriovv1.SriovNetworkNodePolicy{}); err != nil {
+	if err := DeleteOwnedTestResource(
+		operatorNS, tsparams.PolicyName, runID, &sriovv1.SriovNetworkNodePolicy{}); err != nil {
 		return err
 	}
 
-	if err := DeleteOwnedTestResource(operatorNS, tsparams.PoolConfigName, runID, &sriovv1.SriovNetworkPoolConfig{}); err != nil {
+	if err := DeleteOwnedTestResource(
+		operatorNS, tsparams.PoolConfigName, runID, &sriovv1.SriovNetworkPoolConfig{}); err != nil {
 		return err
 	}
 

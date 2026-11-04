@@ -61,14 +61,19 @@ func TestSwitchdevPreflightRejectsForeignState(t *testing.T) {
 	state.Spec.Interfaces = nil
 	policy := sriovv1.SriovNetworkNodePolicy{ObjectMeta: metav1.ObjectMeta{Name: "foreign"}}
 	policy.Spec.NodeSelector = map[string]string{"node-role.kubernetes.io/canary": ""}
-	require.ErrorContains(t, validateNodeFoundationState(node, state, device, 3, []sriovv1.SriovNetworkNodePolicy{policy}, nil), "policy foreign")
+	require.ErrorContains(t,
+		validateNodeFoundationState(node, state, device, 3, []sriovv1.SriovNetworkNodePolicy{policy}, nil),
+		"policy foreign")
+
 	pool := sriovv1.SriovNetworkPoolConfig{ObjectMeta: metav1.ObjectMeta{Name: "foreign-pool"}}
 	pool.Spec.OvsHardwareOffloadConfig.Name = "canary"
-	require.ErrorContains(t, validateNodeFoundationState(node, state, device, 3, nil, []sriovv1.SriovNetworkPoolConfig{pool}), "pool config foreign-pool")
+	require.ErrorContains(t,
+		validateNodeFoundationState(node, state, device, 3, nil, []sriovv1.SriovNetworkPoolConfig{pool}),
+		"pool config foreign-pool")
 }
 
 func TestOvsOffloadBaseline(t *testing.T) {
-	for _, tc := range []struct {
+	for _, testCase := range []struct {
 		name    string
 		current map[string]OvsOffloadBaseline
 		wantErr string
@@ -80,12 +85,13 @@ func TestOvsOffloadBaseline(t *testing.T) {
 		{"replacement node", map[string]OvsOffloadBaseline{"node1": {NodeUID: "replacement", Value: "false"}}, "replaced"},
 		{"different count", map[string]OvsOffloadBaseline{}, "membership changed"},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
-			err := compareOvsOffloadBaseline(tc.current, map[string]OvsOffloadBaseline{"node1": {NodeUID: "uid", Value: "false"}})
-			if tc.wantErr == "" {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := compareOvsOffloadBaseline(testCase.current,
+				map[string]OvsOffloadBaseline{"node1": {NodeUID: "uid", Value: "false"}})
+			if testCase.wantErr == "" {
 				require.NoError(t, err)
 			} else {
-				require.ErrorContains(t, err, tc.wantErr)
+				require.ErrorContains(t, err, testCase.wantErr)
 			}
 		})
 	}
@@ -96,20 +102,29 @@ func TestOvsRecoveryRefusesClaimedOrReplacedNode(t *testing.T) {
 		Status: corev1.NodeStatus{Conditions: []corev1.NodeCondition{{Type: corev1.NodeReady, Status: corev1.ConditionTrue}}}}
 	require.NoError(t, validateOvsRecoveryNode(node, "canary", "uid", nil, nil))
 	require.ErrorContains(t, validateOvsRecoveryNode(node, "canary", "replacement", nil, nil), "identity")
+
 	policy := sriovv1.SriovNetworkNodePolicy{ObjectMeta: metav1.ObjectMeta{Name: "foreign"}}
 	policy.Spec.NodeSelector = MCPNodeSelector("canary")
 	policy.Spec.EswitchMode = "legacy"
-	require.ErrorContains(t, validateOvsRecoveryNode(node, "canary", "uid", []sriovv1.SriovNetworkNodePolicy{policy}, nil), "policy foreign")
+	require.ErrorContains(t,
+		validateOvsRecoveryNode(node, "canary", "uid", []sriovv1.SriovNetworkNodePolicy{policy}, nil),
+		"policy foreign")
+
 	pool := sriovv1.SriovNetworkPoolConfig{ObjectMeta: metav1.ObjectMeta{Name: "foreign-pool"}}
 	pool.Spec.NodeSelector = &metav1.LabelSelector{MatchLabels: MCPNodeSelector("canary")}
-	require.ErrorContains(t, validateOvsRecoveryNode(node, "canary", "uid", nil, []sriovv1.SriovNetworkPoolConfig{pool}), "pool config foreign-pool")
+	require.ErrorContains(t,
+		validateOvsRecoveryNode(node, "canary", "uid", nil, []sriovv1.SriovNetworkPoolConfig{pool}),
+		"pool config foreign-pool")
 	pool.Spec.NodeSelector = nil
-	require.ErrorContains(t, validateOvsRecoveryNode(node, "canary", "uid", nil, []sriovv1.SriovNetworkPoolConfig{pool}), "no identifiable target")
+	require.ErrorContains(t,
+		validateOvsRecoveryNode(node, "canary", "uid", nil, []sriovv1.SriovNetworkPoolConfig{pool}),
+		"no identifiable target")
 }
 
 func TestDeleteOwnedTestResource(t *testing.T) {
 	scheme := runtime.NewScheme()
 	require.NoError(t, sriovv1.AddToScheme(scheme))
+
 	obj := &sriovv1.SriovNetworkNodePolicy{ObjectMeta: metav1.ObjectMeta{
 		Name: "policy", Namespace: "operator", UID: types.UID("original-uid"),
 		Labels: map[string]string{tsparams.TestRunLabelKey: "other-run"},
@@ -118,24 +133,30 @@ func TestDeleteOwnedTestResource(t *testing.T) {
 
 	err := deleteOwnedTestResource(client, "operator", "policy", "this-run", &sriovv1.SriovNetworkNodePolicy{})
 	require.ErrorContains(t, err, "not owned")
-	require.NoError(t, client.Get(context.Background(), runtimeClient.ObjectKeyFromObject(obj), &sriovv1.SriovNetworkNodePolicy{}))
+	require.NoError(t,
+		client.Get(context.Background(), runtimeClient.ObjectKeyFromObject(obj), &sriovv1.SriovNetworkNodePolicy{}))
 
 	err = deleteOwnedTestResource(client, "operator", "policy", "other-run", &sriovv1.SriovNetworkNodePolicy{})
 	require.ErrorContains(t, err, "original created UID is missing")
+
 	key := resourceKey(obj, "other-run")
 	createdResourceUIDs.Store(key, types.UID("different-uid"))
 	t.Cleanup(func() { createdResourceUIDs.Delete(key) })
+
 	err = deleteOwnedTestResource(client, "operator", "policy", "other-run", &sriovv1.SriovNetworkNodePolicy{})
 	require.ErrorContains(t, err, "original created UID is missing or changed")
 	createdResourceUIDs.Store(key, obj.UID)
+
 	err = deleteOwnedTestResource(client, "operator", "policy", "other-run", &sriovv1.SriovNetworkNodePolicy{})
 	require.NoError(t, err)
-	require.Error(t, client.Get(context.Background(), runtimeClient.ObjectKeyFromObject(obj), &sriovv1.SriovNetworkNodePolicy{}))
+	require.Error(t,
+		client.Get(context.Background(), runtimeClient.ObjectKeyFromObject(obj), &sriovv1.SriovNetworkNodePolicy{}))
 }
 
 func TestCreateOwnedTestResourceNeverAdoptsExisting(t *testing.T) {
 	scheme := runtime.NewScheme()
 	require.NoError(t, sriovv1.AddToScheme(scheme))
+
 	foreign := &sriovv1.SriovNetworkNodePolicy{ObjectMeta: metav1.ObjectMeta{
 		Name: "policy", Namespace: "operator", UID: types.UID("foreign"),
 		Labels: map[string]string{tsparams.TestRunLabelKey: "other-run"},
@@ -146,6 +167,7 @@ func TestCreateOwnedTestResourceNeverAdoptsExisting(t *testing.T) {
 	}}
 	err := createOwnedTestResource(client, wanted, "this-run")
 	require.True(t, k8serrors.IsAlreadyExists(err), "got %v", err)
+
 	current := &sriovv1.SriovNetworkNodePolicy{}
 	require.NoError(t, client.Get(context.Background(), runtimeClient.ObjectKeyFromObject(foreign), current))
 	require.Equal(t, foreign.UID, current.UID)
@@ -162,6 +184,7 @@ func TestOwnedResourceRejectsReplacementWithCopiedLabel(t *testing.T) {
 		Labels: map[string]string{tsparams.TestRunLabelKey: "run-replacement-test"},
 	}}
 	key := resourceKey(created, "run-replacement-test")
+
 	t.Cleanup(func() { createdResourceUIDs.Delete(key) })
 	require.NoError(t, createOwnedTestResource(client, created, "run-replacement-test"))
 	require.NoError(t, client.Delete(context.Background(), created))
@@ -171,6 +194,7 @@ func TestOwnedResourceRejectsReplacementWithCopiedLabel(t *testing.T) {
 	require.NoError(t, client.Create(context.Background(), replacement))
 	err := deleteOwnedTestResource(client, "operator", "policy", "run-replacement-test", &sriovv1.SriovNetworkNodePolicy{})
 	require.ErrorContains(t, err, "original created UID is missing or changed")
+
 	current := &sriovv1.SriovNetworkNodePolicy{}
 	require.NoError(t, client.Get(context.Background(), runtimeClient.ObjectKeyFromObject(replacement), current))
 	require.Equal(t, types.UID("replacement"), current.UID)
@@ -192,7 +216,9 @@ func TestParseOvsOffloadValue(t *testing.T) {
 func TestOvsRestartRejectsConflictingStartupOrChangedState(t *testing.T) {
 	require.NoError(t, validateOvsRestartConfig("[Service]\nExecStart=/usr/bin/ovs-vswitchd\n", "\"true\"\n"))
 	require.ErrorContains(t, validateOvsRestartConfig("", "true"), "startup configuration")
-	require.ErrorContains(t, validateOvsRestartConfig("ExecStartPre=ovs-vsctl set other_config:hw-offload=true", "true"), "startup configuration")
+	require.ErrorContains(t,
+		validateOvsRestartConfig("ExecStartPre=ovs-vsctl set other_config:hw-offload=true", "true"),
+		"startup configuration")
 	require.ErrorContains(t, validateOvsRestartConfig("ExecStart=hw-\x1b[0moffload", "true"), "startup configuration")
 	require.ErrorContains(t, validateOvsRestartConfig("[Service]", "false"), "expected stale true")
 	require.ErrorContains(t, validateOvsRestartConfig("[Service]", "invalid"), "expected stale true")
@@ -209,19 +235,23 @@ esac
 `
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "systemctl"), []byte(systemctl), 0700))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "ovs-vsctl"), []byte("#!/bin/sh\nprintf 'false\\n'\n"), 0700))
-	for _, tc := range []struct {
+
+	for _, testCase := range []struct {
 		pid  string
 		pass bool
 	}{{"0", false}, {"123", false}, {"invalid", false}, {"124", true}} {
-		t.Run(tc.pid, func(t *testing.T) {
+		t.Run(testCase.pid, func(t *testing.T) {
 			cmd := exec.Command("sh", "-c", ovsRestartReadyScript, "sh", "123")
-			cmd.Env = append(os.Environ(), "PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH"), "HWOL_TEST_PID="+tc.pid)
+
+			cmd.Env = append(os.Environ(), "PATH="+dir+string(os.PathListSeparator)+os.Getenv("PATH"),
+				"HWOL_TEST_PID="+testCase.pid)
+
 			out, err := cmd.CombinedOutput()
-			if tc.pass {
+			if testCase.pass {
 				require.NoError(t, err, string(out))
 				require.Equal(t, "false\n", string(out))
 			} else {
-				require.Error(t, err, "PID %q must not pass restart verification", tc.pid)
+				require.Error(t, err, "PID %q must not pass restart verification", testCase.pid)
 			}
 		})
 	}
@@ -231,10 +261,13 @@ func TestOvsRestartCommandsAndTimeouts(t *testing.T) {
 	for _, want := range []string{"false", ""} {
 		t.Run("baseline="+want, func(t *testing.T) {
 			var commands [][]string
+
 			outputs := []string{"[Service]\nExecStart=/usr/bin/ovs-vswitchd", "true", "123", "", ""}
 			pid, err := startOvsBaselineRestart("node", want, func(cmd []string, timeout time.Duration) (bytes.Buffer, error) {
 				require.Equal(t, 30*time.Second, timeout)
+
 				commands = append(commands, append([]string(nil), cmd...))
+
 				return *bytes.NewBufferString(outputs[len(commands)-1]), nil
 			}, func() error { return nil })
 			require.NoError(t, err)
@@ -245,11 +278,13 @@ func TestOvsRestartCommandsAndTimeouts(t *testing.T) {
 			require.Contains(t, commands[1], "--timeout=10")
 			require.Contains(t, commands[2], "--no-pager")
 			require.Contains(t, commands[3], "--timeout=10")
+
 			if want == "false" {
 				require.Contains(t, commands[3], "other_config:hw-offload=false")
 			} else {
 				require.Contains(t, commands[3], "remove")
 			}
+
 			require.Contains(t, commands[4], "--no-block")
 			require.Contains(t, commands[4], "restart")
 		})
@@ -264,20 +299,25 @@ func TestOvsRestartStopsOnPreflightOrWriteFailure(t *testing.T) {
 			_, err := startOvsBaselineRestart("node", "false", func(cmd []string, timeout time.Duration) (bytes.Buffer, error) {
 				step := calls
 				calls++
+
 				if step == failedStep {
 					return bytes.Buffer{}, context.DeadlineExceeded
 				}
+
 				return *bytes.NewBufferString(outputs[step]), nil
 			}, func() error { return nil })
 			require.Error(t, err)
 			require.Equal(t, failedStep+1, calls, "restart must not be requested after a failed preflight or write")
+
 			if failedStep == 3 {
 				require.ErrorContains(t, err, "state may have changed")
 			}
 		})
 	}
+
 	_, err := startOvsBaselineRestart("node", "true", func([]string, time.Duration) (bytes.Buffer, error) {
 		t.Fatal("unsupported baseline must not execute commands")
+
 		return bytes.Buffer{}, nil
 	}, func() error { return nil })
 	require.ErrorContains(t, err, "unsupported")
@@ -291,16 +331,19 @@ func TestOvsRestartRechecksOwnershipBeforeMutations(t *testing.T) {
 			_, err := startOvsBaselineRestart("node", "false", func([]string, time.Duration) (bytes.Buffer, error) {
 				out := outputs[calls]
 				calls++
+
 				return *bytes.NewBufferString(out), nil
 			}, func() error {
 				checks++
 				if checks == failCheck {
 					return fmt.Errorf("foreign ownership")
 				}
+
 				return nil
 			})
 			require.ErrorContains(t, err, "foreign ownership")
 			require.Equal(t, 2+failCheck, calls, "must not issue a restart after safety check failure")
+
 			if failCheck == 2 {
 				require.ErrorContains(t, err, "baseline changed")
 			}
@@ -314,9 +357,11 @@ func TestOvsRestartReportsUncertainRequestWithoutRetry(t *testing.T) {
 	_, err := startOvsBaselineRestart("node", "false", func([]string, time.Duration) (bytes.Buffer, error) {
 		step := calls
 		calls++
+
 		if step == 4 {
 			return bytes.Buffer{}, context.DeadlineExceeded
 		}
+
 		return *bytes.NewBufferString(outputs[step]), nil
 	}, func() error { return nil })
 	require.ErrorContains(t, err, "restart request on node failed or is uncertain")
