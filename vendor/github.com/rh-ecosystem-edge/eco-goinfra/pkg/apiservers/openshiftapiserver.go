@@ -6,15 +6,12 @@ import (
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/common"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 
 	operatorV1 "github.com/openshift/api/operator/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -26,85 +23,27 @@ var openshiftAPIServerObjName = "cluster"
 
 // OpenshiftAPIServerBuilder provides struct for openshiftAPIServer object.
 type OpenshiftAPIServerBuilder struct {
-	// OpenshiftAPIServer definition. Used to create an openshiftAPIServer object.
-	Definition *operatorV1.OpenShiftAPIServer
-	// Created openshiftAPIServer object.
-	Object *operatorV1.OpenShiftAPIServer
-	// apiClient opens api connection to the cluster.
-	apiClient goclient.Client
-	// Used in functions that define or mutate openshiftAPIServer definition. errorMsg is processed before the
-	// OpenshiftApiServer object is created.
-	errorMsg string
+	common.EmbeddableBuilder[operatorV1.OpenShiftAPIServer, *operatorV1.OpenShiftAPIServer]
+}
+
+// AttachMixins wires the embedded mixins to this builder instance.
+func (builder *OpenshiftAPIServerBuilder) AttachMixins() {}
+
+// GetGVK returns the OpenShiftAPIServer GVK for this builder.
+func (builder *OpenshiftAPIServerBuilder) GetGVK() schema.GroupVersionKind {
+	return operatorV1.GroupVersion.WithKind("OpenShiftAPIServer")
 }
 
 // PullOpenshiftAPIServer pulls existing openshiftApiServer from the cluster.
 func PullOpenshiftAPIServer(apiClient *clients.Settings) (*OpenshiftAPIServerBuilder, error) {
-	klog.V(100).Info("Pulling existing openshiftApiServer from cluster")
-
-	if apiClient == nil {
-		klog.V(100).Info("The apiClient is empty")
-
-		return nil, fmt.Errorf("openshiftApiServer 'apiClient' cannot be empty")
-	}
-
-	builder := OpenshiftAPIServerBuilder{
-		apiClient: apiClient.Client,
-		Definition: &operatorV1.OpenShiftAPIServer{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: openshiftAPIServerObjName,
-			},
-		},
-	}
-
-	if !builder.Exists() {
-		return nil, fmt.Errorf("openshiftAPIServer object %s does not exist", openshiftAPIServerObjName)
-	}
-
-	builder.Definition = builder.Object
-
-	return &builder, nil
-}
-
-// Exists checks whether the given openshiftAPIServer exists.
-func (builder *OpenshiftAPIServerBuilder) Exists() bool {
-	if valid, _ := builder.validate(); !valid {
-		return false
-	}
-
-	var err error
-
-	builder.Object, err = builder.Get()
-	if err != nil {
-		klog.V(100).Infof("Failed to collect openshiftAPIServer object due to %s", err.Error())
-	}
-
-	return err == nil || !k8serrors.IsNotFound(err)
-}
-
-// Get returns openshiftAPIServer object if found.
-func (builder *OpenshiftAPIServerBuilder) Get() (*operatorV1.OpenShiftAPIServer, error) {
-	if valid, err := builder.validate(); !valid {
-		return nil, err
-	}
-
-	openshiftAPIServer := &operatorV1.OpenShiftAPIServer{}
-
-	err := builder.apiClient.Get(logging.DiscardContext(), goclient.ObjectKey{
-		Name: builder.Definition.Name,
-	}, openshiftAPIServer)
-	if err != nil {
-		klog.V(100).Info("openshiftAPIServer object does not exist")
-
-		return nil, err
-	}
-
-	return openshiftAPIServer, err
+	return common.PullClusterScopedBuilder[operatorV1.OpenShiftAPIServer, OpenshiftAPIServerBuilder](
+		context.TODO(), apiClient, operatorV1.Install, openshiftAPIServerObjName)
 }
 
 // GetCondition get specific openshiftAPIServer condition and message if presented.
 func (builder *OpenshiftAPIServerBuilder) GetCondition(conditionType string) (
 	*operatorV1.ConditionStatus, string, error) {
-	if valid, err := builder.validate(); !valid {
+	if err := common.Validate(builder); err != nil {
 		return nil, "", err
 	}
 
@@ -136,7 +75,7 @@ func (builder *OpenshiftAPIServerBuilder) GetCondition(conditionType string) (
 // WaitUntilConditionTrue waits for timeout duration or until openshiftAPIServer gets to a specific status.
 func (builder *OpenshiftAPIServerBuilder) WaitUntilConditionTrue(
 	conditionType string, timeout time.Duration) error {
-	if valid, err := builder.validate(); !valid {
+	if err := common.Validate(builder); err != nil {
 		return err
 	}
 
@@ -197,8 +136,6 @@ func (builder *OpenshiftAPIServerBuilder) WaitAllPodsAtTheLatestGeneration(timeo
 		timeout,
 		true,
 		func(ctx context.Context) (bool, error) {
-			var err error
-
 			_, reasonMsg, err := builder.GetCondition(conditionType)
 			if err != nil {
 				return false, nil
@@ -217,36 +154,4 @@ func (builder *OpenshiftAPIServerBuilder) WaitAllPodsAtTheLatestGeneration(timeo
 	}
 
 	return nil
-}
-
-// validate will check that the builder and builder definition are properly initialized before
-// accessing any member fields.
-func (builder *OpenshiftAPIServerBuilder) validate() (bool, error) {
-	resourceCRD := "OpenshiftAPIServer"
-
-	if builder == nil {
-		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
-
-		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
-	}
-
-	if builder.Definition == nil {
-		klog.V(100).Infof("The %s is undefined", resourceCRD)
-
-		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
-	}
-
-	if builder.apiClient == nil {
-		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
-
-		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
-	}
-
-	if builder.errorMsg != "" {
-		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
-
-		return false, fmt.Errorf("%s", builder.errorMsg)
-	}
-
-	return true, nil
 }

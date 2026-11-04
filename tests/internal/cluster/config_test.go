@@ -7,13 +7,11 @@ import (
 	"testing"
 
 	configv1 "github.com/openshift/api/config/v1"
-	configv1fake "github.com/openshift/client-go/config/clientset/versioned/fake"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
 type MockAPIClientGetter struct {
@@ -27,26 +25,13 @@ func NewMockAPIClientGetter() *MockAPIClientGetter {
 
 // SetFakeOCPClient sets a fake k8s client for testing purposes.
 func (m *MockAPIClientGetter) SetFakeOCPClient(runtimeObjs []runtime.Object) {
-	configv1Client := configv1fake.NewClientset(runtimeObjs...)
-
-	myClient := clients.GetTestClients(clients.TestClientParams{
+	m.testClients = clients.GetTestClients(clients.TestClientParams{
 		K8sMockObjects: runtimeObjs,
 		SchemeAttachers: []clients.SchemeAttacher{
 			configv1.Install,
+			corev1.AddToScheme,
 		},
 	})
-
-	myClient.ConfigV1Interface = configv1Client.ConfigV1()
-
-	m.testClients = myClient
-}
-
-// SetFakeK8sClient sets a fake k8s client for testing purposes.
-func (m *MockAPIClientGetter) SetFakeK8sClient(runtimeObjs []runtime.Object) {
-	m.testClients = &clients.Settings{
-		K8sClient:       k8sfake.NewClientset(runtimeObjs...),
-		CoreV1Interface: k8sfake.NewClientset(runtimeObjs...).CoreV1(),
-	}
 }
 
 // GetAPIClient returns the fake k8s client settings struct.
@@ -245,7 +230,7 @@ func TestGetOCPPullSecret(t *testing.T) {
 				generateFakeK8sSecret(testCase.containsDockerJSON, testCase.name, testCase.namespace))
 		}
 
-		mockAPIClient.SetFakeK8sClient(runtimeObjs)
+		mockAPIClient.SetFakeOCPClient(runtimeObjs)
 
 		secretObj, err := GetOCPPullSecret(mockAPIClient)
 

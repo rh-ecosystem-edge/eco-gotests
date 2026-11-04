@@ -1,40 +1,46 @@
 package service
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/common"
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	corev1Typed "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/klog/v2"
 )
 
 const (
-	errEmptyName                  = "Service 'name' cannot be empty"
 	errEmptyAnnotation            = "annotation can not be empty map"
 	failedToSetEmptyIpstackpolicy = "failed to set empty ipStackPolicy"
 )
 
-// Builder provides struct for service object containing connection to the cluster and the service definitions.
-type Builder struct {
-	// Service definition. Used to create a service object
-	Definition *corev1.Service
-	// Created service object
-	Object *corev1.Service
-	// Used in functions that define or mutate the service definition.
-	// errorMsg is processed before the service object is created
-	errorMsg  string
-	apiClient corev1Typed.CoreV1Interface
-}
-
 // AdditionalOptions additional options for service object.
 type AdditionalOptions func(builder *Builder) (*Builder, error)
+
+// Builder provides struct for service object containing connection to the cluster and the service definitions.
+type Builder struct {
+	common.EmbeddableBuilder[corev1.Service, *corev1.Service]
+	common.EmbeddableWithOptions[corev1.Service, Builder, *corev1.Service, *Builder, AdditionalOptions]
+	common.EmbeddableCreator[corev1.Service, Builder, *corev1.Service, *Builder]
+	common.EmbeddableDeleter[corev1.Service, *corev1.Service]
+	common.EmbeddableUpdater[corev1.Service, Builder, *corev1.Service, *Builder]
+}
+
+// AttachMixins wires the embedded CRUD mixins to this builder instance.
+func (builder *Builder) AttachMixins() {
+	builder.EmbeddableWithOptions.SetBase(builder)
+	builder.EmbeddableCreator.SetBase(builder)
+	builder.EmbeddableDeleter.SetBase(builder)
+	builder.EmbeddableUpdater.SetBase(builder)
+}
+
+// GetGVK returns the Service GVK for this builder.
+func (builder *Builder) GetGVK() schema.GroupVersionKind {
+	return corev1.SchemeGroupVersion.WithKind("Service")
+}
 
 // NewBuilder creates a new instance of Builder
 // Default type of service is ClusterIP
@@ -48,49 +54,25 @@ func NewBuilder(
 	klog.V(100).Infof(
 		"Initializing new service structure with the following params: %s, %s", name, nsname)
 
-	builder := Builder{
-		apiClient: apiClient.CoreV1Interface,
-		Definition: &corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      name,
-				Namespace: nsname,
-			},
-			Spec: corev1.ServiceSpec{
-				Selector: selector,
-				Ports:    []corev1.ServicePort{servicePort},
-			},
-		},
+	builder := common.NewNamespacedBuilder[corev1.Service, Builder](apiClient, corev1.AddToScheme, name, nsname)
+	builder.Definition.Spec = corev1.ServiceSpec{
+		Selector: selector,
+		Ports:    []corev1.ServicePort{servicePort},
 	}
 
-	if name == "" {
-		klog.V(100).Info("The name of the service is empty")
-
-		builder.errorMsg = errEmptyName
-
-		return &builder
-	}
-
-	if nsname == "" {
-		klog.V(100).Info("The namespace of the service is empty")
-
-		builder.errorMsg = "Service 'nsname' cannot be empty"
-
-		return &builder
-	}
-
-	return &builder
+	return builder
 }
 
 // WithNodePort redefines the service with NodePort service type.
 func (builder *Builder) WithNodePort() *Builder {
-	if valid, _ := builder.validate(); !valid {
+	if err := common.Validate(builder); err != nil {
 		return builder
 	}
 
 	builder.Definition.Spec.Type = "NodePort"
 
 	if len(builder.Definition.Spec.Ports) < 1 {
-		builder.errorMsg = "service does not have the available ports"
+		builder.SetError(fmt.Errorf("service does not have the available ports"))
 
 		return builder
 	}
@@ -102,147 +84,15 @@ func (builder *Builder) WithNodePort() *Builder {
 
 // Pull loads an existing service into Builder struct.
 func Pull(apiClient *clients.Settings, name, nsname string) (*Builder, error) {
-	klog.V(100).Infof("Pulling existing service name: %s under namespace: %s", name, nsname)
-
-	if apiClient == nil {
-		klog.V(100).Info("The apiClient is empty")
-
-		return nil, fmt.Errorf("service 'apiClient' cannot be empty")
-	}
-
-	builder := Builder{
-		apiClient: apiClient.CoreV1Interface,
-		Definition: &corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      name,
-				Namespace: nsname,
-			},
-		},
-	}
-
-	if name == "" {
-		return nil, fmt.Errorf("service 'name' cannot be empty")
-	}
-
-	if nsname == "" {
-		return nil, fmt.Errorf("service 'namespace' cannot be empty")
-	}
-
-	if !builder.Exists() {
-		return nil, fmt.Errorf("service object %s does not exist in namespace %s", name, nsname)
-	}
-
-	builder.Definition = builder.Object
-
-	return &builder, nil
-}
-
-// Create the service in the cluster and store the created object in Object.
-func (builder *Builder) Create() (*Builder, error) {
-	if valid, err := builder.validate(); !valid {
-		return builder, err
-	}
-
-	klog.V(100).Infof("Creating the service %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
-
-	var err error
-	if !builder.Exists() {
-		builder.Object, err = builder.apiClient.Services(builder.Definition.Namespace).Create(
-			logging.DiscardContext(), builder.Definition, metav1.CreateOptions{})
-	}
-
-	return builder, err
-}
-
-// Exists checks whether the given service exists.
-func (builder *Builder) Exists() bool {
-	if valid, _ := builder.validate(); !valid {
-		return false
-	}
-
-	klog.V(100).Infof(
-		"Checking if service %s exists in namespace %s",
-		builder.Definition.Name, builder.Definition.Namespace)
-
-	var err error
-
-	builder.Object, err = builder.apiClient.Services(builder.Definition.Namespace).Get(
-		logging.DiscardContext(), builder.Definition.Name, metav1.GetOptions{})
-
-	return err == nil || !k8serrors.IsNotFound(err)
-}
-
-// Delete a service.
-func (builder *Builder) Delete() error {
-	if valid, err := builder.validate(); !valid {
-		return err
-	}
-
-	klog.V(100).Infof("Deleting the service %s from namespace %s", builder.Definition.Name, builder.Definition.Namespace)
-
-	if !builder.Exists() {
-		builder.Object = nil
-
-		return nil
-	}
-
-	err := builder.apiClient.Services(builder.Definition.Namespace).Delete(
-		logging.DiscardContext(), builder.Definition.Name, metav1.DeleteOptions{})
-	if err != nil {
-		return err
-	}
-
-	builder.Object = nil
-
-	return nil
-}
-
-// Update renovates the existing service object with service definition in builder.
-func (builder *Builder) Update() (*Builder, error) {
-	if valid, err := builder.validate(); !valid {
-		return builder, err
-	}
-
-	klog.V(100).Infof("Updating service %s in namespace %s",
-		builder.Definition.Name, builder.Definition.Namespace)
-
-	var err error
-
-	builder.Object, err = builder.apiClient.Services(builder.Definition.Namespace).Update(
-		logging.DiscardContext(), builder.Definition, metav1.UpdateOptions{})
-
-	return builder, err
-}
-
-// WithOptions creates service with generic mutation options.
-func (builder *Builder) WithOptions(options ...AdditionalOptions) *Builder {
-	if valid, _ := builder.validate(); !valid {
-		return builder
-	}
-
-	klog.V(100).Info("Setting service additional options")
-
-	for _, option := range options {
-		if option != nil {
-			builder, err := option(builder)
-			if err != nil {
-				klog.V(100).Info("Error occurred in mutation function")
-
-				builder.errorMsg = err.Error()
-
-				return builder
-			}
-		}
-	}
-
-	return builder
+	return common.PullNamespacedBuilder[corev1.Service, Builder](
+		context.TODO(), apiClient, corev1.AddToScheme, name, nsname)
 }
 
 // WithExternalTrafficPolicy redefines the service with ServiceExternalTrafficPolicy type.
 //
 //nolint:staticcheck // Removing deprecated types would break consumers of eco-goinfra
 func (builder *Builder) WithExternalTrafficPolicy(policyType corev1.ServiceExternalTrafficPolicyType) *Builder {
-	if valid, _ := builder.validate(); !valid {
+	if err := common.Validate(builder); err != nil {
 		return builder
 	}
 
@@ -255,7 +105,7 @@ func (builder *Builder) WithExternalTrafficPolicy(policyType corev1.ServiceExter
 				"policyType can not be empty",
 			builder.Definition.Name, builder.Definition.Namespace)
 
-		builder.errorMsg = "ExternalTrafficPolicy can not be empty"
+		builder.SetError(fmt.Errorf("ExternalTrafficPolicy can not be empty"))
 
 		return builder
 	}
@@ -268,7 +118,7 @@ func (builder *Builder) WithExternalTrafficPolicy(policyType corev1.ServiceExter
 
 // WithLabels redefines the service with label.
 func (builder *Builder) WithLabels(labels map[string]string) *Builder {
-	if valid, _ := builder.validate(); !valid {
+	if err := common.Validate(builder); err != nil {
 		return builder
 	}
 
@@ -277,7 +127,7 @@ func (builder *Builder) WithLabels(labels map[string]string) *Builder {
 	if len(labels) == 0 {
 		klog.V(100).Info("labels can not be empty")
 
-		builder.errorMsg = "labels can not be empty"
+		builder.SetError(fmt.Errorf("labels can not be empty"))
 
 		return builder
 	}
@@ -286,7 +136,7 @@ func (builder *Builder) WithLabels(labels map[string]string) *Builder {
 		if key == "" {
 			klog.V(100).Info("The 'labels' key cannot be empty")
 
-			builder.errorMsg = "can not apply a labels with an empty key"
+			builder.SetError(fmt.Errorf("can not apply a labels with an empty key"))
 
 			return builder
 		}
@@ -299,7 +149,7 @@ func (builder *Builder) WithLabels(labels map[string]string) *Builder {
 
 // WithSelector redefines the service with Selector.
 func (builder *Builder) WithSelector(selector map[string]string) *Builder {
-	if valid, _ := builder.validate(); !valid {
+	if err := common.Validate(builder); err != nil {
 		return builder
 	}
 
@@ -308,7 +158,7 @@ func (builder *Builder) WithSelector(selector map[string]string) *Builder {
 	if len(selector) == 0 {
 		klog.V(100).Info("selector can not be empty")
 
-		builder.errorMsg = "selector can not be empty"
+		builder.SetError(fmt.Errorf("selector can not be empty"))
 
 		return builder
 	}
@@ -317,7 +167,7 @@ func (builder *Builder) WithSelector(selector map[string]string) *Builder {
 		if key == "" {
 			klog.V(100).Info("The 'selector' key cannot be empty")
 
-			builder.errorMsg = "can not apply a selector with an empty key"
+			builder.SetError(fmt.Errorf("can not apply a selector with an empty key"))
 
 			return builder
 		}
@@ -330,7 +180,7 @@ func (builder *Builder) WithSelector(selector map[string]string) *Builder {
 
 // WithAnnotation redefines the service with Annotation type.
 func (builder *Builder) WithAnnotation(annotation map[string]string) *Builder {
-	if valid, _ := builder.validate(); !valid {
+	if err := common.Validate(builder); err != nil {
 		return builder
 	}
 
@@ -342,7 +192,7 @@ func (builder *Builder) WithAnnotation(annotation map[string]string) *Builder {
 				"Service Annotation can not be empty",
 			builder.Definition.Name, builder.Definition.Namespace)
 
-		builder.errorMsg = errEmptyAnnotation
+		builder.SetError(fmt.Errorf("%s", errEmptyAnnotation))
 
 		return builder
 	}
@@ -351,7 +201,7 @@ func (builder *Builder) WithAnnotation(annotation map[string]string) *Builder {
 		if key == "" {
 			klog.V(100).Info("The 'annotation' key cannot be empty")
 
-			builder.errorMsg = "can not apply a annotation with an empty key"
+			builder.SetError(fmt.Errorf("can not apply a annotation with an empty key"))
 
 			return builder
 		}
@@ -366,7 +216,7 @@ func (builder *Builder) WithAnnotation(annotation map[string]string) *Builder {
 //
 //nolint:staticcheck // Removing deprecated types would break consumers of eco-goinfra
 func (builder *Builder) WithIPFamily(ipFamily []corev1.IPFamily, ipStackPolicy corev1.IPFamilyPolicyType) *Builder {
-	if valid, _ := builder.validate(); !valid {
+	if err := common.Validate(builder); err != nil {
 		return builder
 	}
 
@@ -376,7 +226,7 @@ func (builder *Builder) WithIPFamily(ipFamily []corev1.IPFamily, ipStackPolicy c
 		klog.V(100).Infof("Failed to set empty ipFamily on service %s in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
-		builder.errorMsg = "failed to set empty ipFamily"
+		builder.SetError(fmt.Errorf("failed to set empty ipFamily"))
 
 		return builder
 	}
@@ -385,7 +235,7 @@ func (builder *Builder) WithIPFamily(ipFamily []corev1.IPFamily, ipStackPolicy c
 		klog.V(100).Infof("Failed to set empty ipStackPolicy on service %s in namespace %s",
 			builder.Definition.Name, builder.Definition.Namespace)
 
-		builder.errorMsg = failedToSetEmptyIpstackpolicy
+		builder.SetError(fmt.Errorf("%s", failedToSetEmptyIpstackpolicy))
 
 		return builder
 	}
@@ -431,36 +281,4 @@ func isValidPort(port int32) bool {
 	}
 
 	return false
-}
-
-// validate will check that the builder and builder definition are properly initialized before
-// accessing any member fields.
-func (builder *Builder) validate() (bool, error) {
-	resourceCRD := "Service"
-
-	if builder == nil {
-		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
-
-		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
-	}
-
-	if builder.Definition == nil {
-		klog.V(100).Infof("The %s is undefined", resourceCRD)
-
-		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
-	}
-
-	if builder.apiClient == nil {
-		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
-
-		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
-	}
-
-	if builder.errorMsg != "" {
-		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
-
-		return false, fmt.Errorf("%s", builder.errorMsg)
-	}
-
-	return true, nil
 }
