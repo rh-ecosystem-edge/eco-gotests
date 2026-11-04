@@ -1009,28 +1009,6 @@ func enableQinQTrunkOnSwitch(credentials *sriovocpenv.SwitchCredentials, switchI
 	return nil
 }
 
-func removeSwitchTPID(credentials *sriovocpenv.SwitchCredentials, switchInterfaces []string) error {
-	jnpr, err := sriovocpenv.NewJunosSession(credentials.SwitchIP, credentials.User, credentials.Password)
-	if err != nil {
-		return err
-	}
-	defer jnpr.Close()
-
-	for _, switchInterface := range switchInterfaces {
-		commands := []string{
-			fmt.Sprintf("delete interfaces %s ether-options ethernet-switch-profile tag-protocol-id",
-				switchInterface),
-		}
-
-		err = jnpr.Config(commands)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func disableQinQOnSwitch(switchCredentials *sriovocpenv.SwitchCredentials, switchInterfaces []string) error {
 	jnpr, err := sriovocpenv.NewJunosSession(switchCredentials.SwitchIP, switchCredentials.User,
 		switchCredentials.Password)
