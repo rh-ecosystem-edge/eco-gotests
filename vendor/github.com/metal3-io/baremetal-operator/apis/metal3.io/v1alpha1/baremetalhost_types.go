@@ -81,6 +81,11 @@ const (
 
 	// InspectionModeAgent runs standard agent-based inspection.
 	InspectionModeAgent InspectionMode = "agent"
+
+	// InspectionModeFast runs out-of-band inspection via the BMC (e.g.
+	// Redfish) without booting a ramdisk. It completes in seconds but
+	// may return fewer details than agent-based inspection.
+	InspectionModeFast InspectionMode = "fast"
 )
 
 // RootDeviceHints holds the hints for specifying the storage location
@@ -404,6 +409,11 @@ type HardwareRAIDVolume struct {
 
 // SoftwareRAIDVolume defines the desired configuration of volume in software RAID.
 type SoftwareRAIDVolume struct {
+	// Setting this to true, causes installer to consider this volume as root device for installation.
+	// This can only be set for one of the volumes.
+	// +kubebuilder:default:=false
+	RootVolume bool `json:"rootVolume,omitempty"`
+
 	// Size of the logical disk to be created in GiB.
 	// If unspecified or set be 0, the maximum capacity of disk will be used for logical disk.
 	// +kubebuilder:validation:Minimum=0
@@ -458,14 +468,54 @@ type FirmwareConfig struct {
 	SriovEnabled *bool `json:"sriovEnabled,omitempty"`
 }
 
+// SwitchPort defines the attributes required to identify a switch port.
+type SwitchPort struct {
+	// SwitchID is expected to be the management MAC address of the switch
+	// +kubebuilder:validation:Pattern=`^[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}$`
+	SwitchID string `json:"switchID"`
+
+	// PortID is expected to be the configuration name of the port in the
+	// switch management system.
+	PortID string `json:"portID"`
+}
+
+// NetworkInterface defines the network configuration for a specific interface.
+type NetworkInterface struct {
+	// Name of the network interface (e.g., "eth0", "ens1f0")
+	// This must match the name of a NIC discovered during inspection
+	// (see HardwareData resource).
+	// Mutually exclusive with MACAddress.
+	// +optional
+	// +kubebuilder:validation:Pattern=`^[a-zA-Z0-9._-]+$`
+	Name string `json:"name,omitempty"`
+
+	// MAC address of the network interface.  This must match the MAC address
+	// of a NIC discovered during inspection (see HardwareData resource).
+	// Mutually exclusive with Name.
+	// +optional
+	// +kubebuilder:validation:Pattern=`^[0-9a-fA-F]{2}(:[0-9a-fA-F]{2}){5}$`
+	MACAddress string `json:"macAddress,omitempty"`
+
+	// HostNetworkAttachment references the HostNetworkAttachment for this interface
+	HostNetworkAttachment HostNetworkAttachmentRef `json:"hostNetworkAttachment,omitempty"`
+
+	// SwitchPort defines the switch port on which this interface is attached.
+	// This is intended to be a replacement for LLDP information if
+	// LLDP is not enabled on the neighboring switches or if inspection is not
+	// used on the BMH.  If LLDP information is acquired during inspection and
+	// this field is provided then it will override the LLDP provided
+	// information; therefore, caution must be exercised when supplying this
+	// value.
+	// +optional
+	SwitchPort *SwitchPort `json:"switchPort,omitempty"`
+}
+
 // BareMetalHostSpec defines the desired state of BareMetalHost.
 type BareMetalHostSpec struct {
-	// Important: Run "make generate manifests" to regenerate code
-	// after modifying this file
-
 	// Taints is the full, authoritative list of taints to apply to
-	// the corresponding Machine. This list will overwrite any
-	// modifications made to the Machine on an ongoing basis.
+	// the corresponding Machine.
+	//
+	// Deprecated: the Taints field was never actually implemented.
 	// +optional
 	Taints []corev1.Taint `json:"taints,omitempty"`
 
@@ -595,9 +645,18 @@ type BareMetalHostSpec struct {
 	// Specifies the mode for host inspection.
 	// "disabled" - no inspection will be performed
 	// "agent" - normal agent-based inspection will run
+	// "fast" - out-of-band inspection via BMC (Redfish), no ramdisk boot
 	// +optional
-	// +kubebuilder:validation:Enum=disabled;agent
+	// +kubebuilder:validation:Enum=disabled;agent;fast
 	InspectionMode InspectionMode `json:"inspectionMode,omitempty"`
+
+	// NetworkInterfaces defines the network configuration for each interface.
+	// This will be used to configure switch ports for the host.  Interface
+	// names must correspond to actual NICs discovered during inspection
+	// (see HardwareData resource).  They are referenced by either the name
+	// or MAC address of the NIC.
+	// +optional
+	NetworkInterfaces []NetworkInterface `json:"networkInterfaces,omitempty"`
 }
 
 // AutomatedCleaningMode is the interface to enable/disable automated cleaning
@@ -809,6 +868,19 @@ type BareMetalHostStatus struct {
 	// ErrorCount records how many times the host has encoutered an error since the last successful operation
 	// +kubebuilder:default:=0
 	ErrorCount int `json:"errorCount"`
+
+	// ProvisioningFailCount records how many times provisioning has failed
+	// consecutively for the current image. Unlike ErrorCount, it is not reset
+	// on deprovisioning and is only cleared on successful provisioning or when
+	// a new image is specified.
+	// +kubebuilder:default:=0
+	ProvisioningFailCount int `json:"provisioningFailCount"`
+
+	// LastAttemptedImage stores the full image spec of the last provisioning
+	// attempt, used to detect user-initiated image changes (URL, checksum,
+	// format, etc.) that should reset the provisioning retry limit counter.
+	// +optional
+	LastAttemptedImage *Image `json:"lastAttemptedImage,omitempty"`
 
 	// Conditions defines current service state of the BareMetalHost.
 	// +optional
@@ -1112,13 +1184,14 @@ func (image *Image) GetChecksum() (checksum, checksumType string, err error) {
 		return "", "", errors.New("image is not provided")
 	}
 
-	if image.DiskFormat != nil && *image.DiskFormat == "live-iso" {
-		// Checksum is not required for live-iso
+	if image.IsOCI() {
+		if image.Checksum != "" {
+			return "", "", errors.New("spec.image.checksum must be empty for OCI images (oci:// images have embedded checksums)")
+		}
 		return "", "", nil
 	}
 
-	// Checksum is not required for OCI images as they have embedded checksums
-	if image.IsOCI() && image.Checksum == "" {
+	if image.DiskFormat != nil && *image.DiskFormat == "live-iso" {
 		return "", "", nil
 	}
 
@@ -1138,6 +1211,29 @@ func (image *Image) GetChecksum() (checksum, checksumType string, err error) {
 
 	checksum = image.Checksum
 	return checksum, checksumType, nil
+}
+
+func (raid *RAIDConfig) GetRootVolumeCount() (rootCount int) {
+	for _, volume := range raid.SoftwareRAIDVolumes {
+		if volume.RootVolume {
+			rootCount++
+		}
+	}
+
+	return rootCount
+}
+
+// IsValid returns true if at least one of Name or MACAddress is set.
+func (iface *NetworkInterface) IsValid() bool {
+	return iface.Name != "" || iface.MACAddress != ""
+}
+
+// GetKey returns the key to use for the network interface.
+func (iface *NetworkInterface) GetKey() string {
+	if iface.MACAddress != "" {
+		return iface.MACAddress
+	}
+	return iface.Name
 }
 
 // +kubebuilder:object:root=true

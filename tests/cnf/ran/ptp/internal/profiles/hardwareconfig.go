@@ -3,8 +3,8 @@ package profiles
 import (
 	"fmt"
 
+	ptpv2alpha1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v2alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ptp"
-	ptpv2alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v2alpha1"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
 )
 

@@ -178,6 +178,12 @@ type ServiceMonitorConfig struct {
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Relabelings allows to rewrite labels on metric sets"
 	Relabelings []*promv1.RelabelConfig `json:"relabelings,omitempty"`
+
+	// MetricRelabelings allows to rewrite labels on samples scraped from the target,
+	// applied after the scrape and before ingestion
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
+	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="MetricRelabelings allows to rewrite labels on scraped samples"
+	MetricRelabelings []*promv1.RelabelConfig `json:"metricRelabelings,omitempty"`
 }
 
 // The Alias for backward compatibility
@@ -1967,6 +1973,7 @@ type CDIConfigSpec struct {
 
 	// Deprecated: This field is no longer used. Setting cdi.enabled=true will configure CDI as the default mechanism for making GPUs accessible to containers.
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=false
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors=true
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.displayName="Deprecated: This field is no longer used"
 	// +operator-sdk:gen-csv:customresourcedefinitions.specDescriptors.x-descriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch,urn:alm:descriptor:com.tectonic.ui:hidden"

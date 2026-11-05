@@ -6,10 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/httpstream"
 	"k8s.io/client-go/tools/portforward"
-	"k8s.io/client-go/transport/spdy"
+	transportspdy "k8s.io/client-go/transport/spdy"
 	"k8s.io/klog/v2"
+	streamhttp "k8s.io/streaming/pkg/httpstream"
 )
 
 const defaultPortForwardReadyTimeout = 60 * time.Second
@@ -38,26 +38,27 @@ func (builder *Builder) PortForward(localPort, remotePort int) (string, func(), 
 		Name(builder.Object.Name).
 		SubResource("portforward")
 
-	transport, upgrader, err := spdy.RoundTripperFor(restConfig)
+	transport, upgrader, err := transportspdy.RoundTripperFor(restConfig)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to create SPDY round-tripper: %w", err)
 	}
 
-	spdyDialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, req.URL())
+	spdyDialer := transportspdy.NewDialerForStreaming(
+		upgrader, &http.Client{Transport: transport}, http.MethodPost, req.URL())
 
-	wsDialer, err := portforward.NewSPDYOverWebsocketDialer(req.URL(), restConfig)
+	wsDialer, err := portforward.NewSPDYOverWebsocketDialerForStreaming(req.URL(), restConfig)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to create WebSocket dialer: %w", err)
 	}
 
-	dialer := portforward.NewFallbackDialer(wsDialer, spdyDialer, func(err error) bool {
-		return httpstream.IsUpgradeFailure(err) || httpstream.IsHTTPSProxyError(err)
+	dialer := portforward.NewFallbackDialerForStreaming(wsDialer, spdyDialer, func(err error) bool {
+		return streamhttp.IsUpgradeFailure(err) || streamhttp.IsHTTPSProxyError(err)
 	})
 
 	stopChan := make(chan struct{})
 	readyChan := make(chan struct{})
 
-	forwarder, err := portforward.New(dialer,
+	forwarder, err := portforward.NewForStreaming(dialer,
 		[]string{fmt.Sprintf("%d:%d", localPort, remotePort)},
 		stopChan, readyChan, nil, nil)
 	if err != nil {

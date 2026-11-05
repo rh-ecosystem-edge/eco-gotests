@@ -94,7 +94,7 @@ func BuildCertRenewalPrometheusRule(namespace, certName string,
 func QueryPrometheusAlertState(promAPI promv1.API, alertName string) (string, error) {
 	klog.V(100).Infof("Querying Prometheus alert state for %s", alertName)
 
-	result, err := promAPI.Rules(context.TODO())
+	result, err := promAPI.Rules(context.TODO(), nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to query Prometheus rules: %w", err)
 	}

@@ -35,7 +35,10 @@ type NUMAResourcesOperatorSpec struct {
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Group of nodes to enable RTE on"
 	NodeGroups []NodeGroup `json:"nodeGroups,omitempty"`
 	// Optional Resource Topology Exporter image URL
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Optional RTE image URL",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	//
+	// Deprecated: custom operand image override is restricted by default;
+	// set EXPORTER_IMAGE_RESTRICTION=false in the operator environment to re-enable.
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="DEPRECATED: Optional RTE image URL restricted by default",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	ExporterImage string `json:"imageSpec,omitempty"`
 	// Valid values are: "Normal", "Debug", "Trace", "TraceAll".
 	// Defaults to "Normal".
@@ -56,10 +59,10 @@ const (
 	// PodsFingerprintingDisabled disables the pod fingerprinting reporting.
 	PodsFingerprintingDisabled PodsFingerprintingMode = "Disabled"
 
-	// PodsFingerprintingEnabled enables the pod fingerprint considering all the pods running on nodes. It is the default.
+	// PodsFingerprintingEnabled enables the pod fingerprint considering all the pods running on nodes.
 	PodsFingerprintingEnabled PodsFingerprintingMode = "Enabled"
 
-	// PodsFingerprintingEnabledExclusiveResources enables the pod fingerprint considering only pods which have exclusive resources assigned.
+	// PodsFingerprintingEnabledExclusiveResources enables the pod fingerprint considering only pods which have exclusive resources assigned. It is the default.
 	PodsFingerprintingEnabledExclusiveResources PodsFingerprintingMode = "EnabledExclusiveResources"
 )
 
@@ -72,6 +75,17 @@ const (
 
 	// InfoRefreshPauseEnabled pauses RTE and disables the NRT sync
 	InfoRefreshPauseEnabled InfoRefreshPauseMode = "Enabled"
+)
+
+// +kubebuilder:validation:Enum=container;none
+type NUMAPlacementMode string
+
+const (
+	// NUMAPlacementContainer enables container NUMA placement reporting in NRT. It is the default.
+	NUMAPlacementContainer NUMAPlacementMode = "container"
+
+	// NUMAPlacementNone disables container NUMA placement reporting in NRT. Used to disable NUMA-aware eviction during default preemption.
+	NUMAPlacementNone NUMAPlacementMode = "none"
 )
 
 // +kubebuilder:validation:Enum=Periodic;Events;PeriodicAndEvents
@@ -106,6 +120,11 @@ type NodeGroupConfig struct {
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Enable or disable the RTE pause setting",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	InfoRefreshPause *InfoRefreshPauseMode `json:"infoRefreshPause,omitempty"`
+	// NUMAPlacement selects the NUMA placement reporting mode in NRT for the machines belonging to this group.
+	// Valid values are: "container", "none". Defaults to "container".
+	// +optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="NUMA placement reporting mode",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	NUMAPlacement *NUMAPlacementMode `json:"numaPlacement,omitempty"`
 	// Tolerations overrides tolerations to be set into RTE daemonsets for this NodeGroup. If not empty, the tolerations will be the one set here.
 	// Leave empty to make the system use the default tolerations.
 	// +optional
@@ -232,7 +251,7 @@ func (ngc *NodeGroupConfig) ToString() string {
 		return "nil"
 	}
 	ngc.SetDefaults()
-	return fmt.Sprintf("PodsFingerprinting mode: %s InfoRefreshMode: %s InfoRefreshPeriod: %s InfoRefreshPause: %s Tolerations: %+v", *ngc.PodsFingerprinting, *ngc.InfoRefreshMode, *ngc.InfoRefreshPeriod, *ngc.InfoRefreshPause, ngc.Tolerations)
+	return fmt.Sprintf("PodsFingerprinting mode: %s InfoRefreshMode: %s InfoRefreshPeriod: %s InfoRefreshPause: %s NUMAPlacement mode: %s Tolerations: %+v", *ngc.PodsFingerprinting, *ngc.InfoRefreshMode, *ngc.InfoRefreshPeriod, *ngc.InfoRefreshPause, *ngc.NUMAPlacement, ngc.Tolerations)
 }
 
 func (ng *NodeGroup) GetName() string {

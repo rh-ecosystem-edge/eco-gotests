@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"regexp"
 
+	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
-	ptpv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v1"
 	"k8s.io/utils/ptr"
 )
 

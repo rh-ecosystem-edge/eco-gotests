@@ -38,14 +38,18 @@ type Options struct {
 	ProfileMCP                  *mcov1.MachineConfigPool
 	MachineConfig               MachineConfigOptions
 	MixedCPUsFeatureGateEnabled bool
+	DRAResourceManagement       bool
 }
 
 type MachineConfigOptions struct {
-	PinningMode      *apiconfigv1.CPUPartitioningMode
-	MixedCPUsEnabled bool
+	PinningMode                    *apiconfigv1.CPUPartitioningMode
+	MixedCPUsEnabled               bool
+	OvsDpdkCPUs                    string
+	DisableLoadBalancingForOvsDpdk bool
 }
 
 type KubeletConfigOptions struct {
 	MachineConfigPoolSelector map[string]string
 	MixedCPUsEnabled          bool
+	DRAResourceManagement     bool
 }

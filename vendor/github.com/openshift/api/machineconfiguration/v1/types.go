@@ -113,6 +113,19 @@ type ControllerConfigSpec struct {
 	// +required
 	Images map[string]string `json:"images"`
 
+	// bgpVIPPeersJSON carries the BGP VIP peer configuration (the config.json
+	// payload of the bgp-vip-config ConfigMap) for rendering the frr-k8s
+	// static pod peer file on control plane nodes. Only set when BGP-based
+	// VIP management is enabled.
+	// When omitted, BGP-based VIP management is not configured and no
+	// frr-k8s peer file is rendered.
+	// When set, the value must be between 1 and 65536 characters long.
+	// +openshift:enable:FeatureGate=BGPBasedVIPManagement
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=65536
+	// +optional
+	BGPVIPPeersJSON string `json:"bgpVIPPeersJSON,omitempty"`
+
 	// baseOSContainerImage is the new-format container image for operating system updates.
 	// +required
 	BaseOSContainerImage string `json:"baseOSContainerImage"`
@@ -811,10 +824,17 @@ type KubeletConfigCondition struct {
 type KubeletConfigStatusConditionType string
 
 const (
+	// KubeletConfigAccepted designates whether a KubeletConfig CR has been accepted.
+	// When the condition status is True, the KubeletConfig has been accepted successfully.
+	// When the condition status is False, the KubeletConfig has not been accepted.
+	KubeletConfigAccepted KubeletConfigStatusConditionType = "Accepted"
+
 	// KubeletConfigSuccess designates a successful application of a KubeletConfig CR.
+	// Deprecated: Use KubeletConfigAccepted instead. KubeletConfigSuccess will be removed in a future release.
 	KubeletConfigSuccess KubeletConfigStatusConditionType = "Success"
 
 	// KubeletConfigFailure designates a failure applying a KubeletConfig CR.
+	// Deprecated: Use KubeletConfigAccepted with status False instead. KubeletConfigFailure will be removed in a future release.
 	KubeletConfigFailure KubeletConfigStatusConditionType = "Failure"
 )
 

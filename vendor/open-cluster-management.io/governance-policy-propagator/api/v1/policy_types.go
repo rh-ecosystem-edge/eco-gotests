@@ -50,7 +50,7 @@ const (
 	Pending      ComplianceState = "Pending"
 )
 
-// Each PolicyDependency defines an object reference which must be in a certain compliance
+// PolicyDependency defines an object reference which must be in a certain compliance
 // state before the policy should be created.
 type PolicyDependency struct {
 	metav1.TypeMeta `json:",inline"`
@@ -101,7 +101,7 @@ type PolicySpec struct {
 
 	// PolicyTemplates is a list of definitions of policy engine resources to apply to managed
 	// clusters along with configurations on how it should be applied.
-	PolicyTemplates []*PolicyTemplate `json:"policy-templates"`
+	PolicyTemplates []*PolicyTemplate `json:"policy-templates"` //nolint:tagliatelle
 
 	// PolicyDependencies is a list of dependency objects detailed with extra considerations for
 	// compliance that should be fulfilled before applying the policies to the managed clusters.
@@ -115,6 +115,11 @@ type PolicySpec struct {
 type PlacementDecision struct {
 	ClusterName      string `json:"clusterName,omitempty"`
 	ClusterNamespace string `json:"clusterNamespace,omitempty"`
+}
+
+// PolicyExclusion reports a managed cluster excluded from propagation by a policy set exclusion.
+type PolicyExclusion struct {
+	ClusterName string `json:"clusterName,omitempty"`
 }
 
 // Placement reports how and what managed cluster placement resources are attached to the policy.
@@ -138,14 +143,24 @@ type Placement struct {
 	// specified, then for this placement the policy is being propagated through this policy set
 	// rather than the policy being bound directly to a placement and propagated individually.
 	PolicySet string `json:"policySet,omitempty"`
+
+	// Exclusions lists managed clusters where the policy is excluded from propagation.
+	Exclusions []PolicyExclusion `json:"exclusions,omitempty"`
+}
+
+// RemainingBinding reports a placement binding that still places the policy on a managed cluster
+// when the policy is excluded on a policy set.
+type RemainingBinding struct {
+	PlacementBinding string `json:"placementBinding,omitempty"`
 }
 
 // CompliancePerClusterStatus reports the name of a managed cluster and its compliance state for
 // this policy.
 type CompliancePerClusterStatus struct {
-	ComplianceState  ComplianceState `json:"compliant,omitempty"`
-	ClusterName      string          `json:"clustername,omitempty"`
-	ClusterNamespace string          `json:"clusternamespace,omitempty"`
+	ComplianceState   ComplianceState    `json:"compliant,omitempty"`
+	ClusterName       string             `json:"clustername,omitempty"`
+	ClusterNamespace  string             `json:"clusternamespace,omitempty"`
+	RemainingBindings []RemainingBinding `json:"remainingBindings,omitempty"`
 }
 
 // DetailsPerTemplate reports the current compliance state and list of recent compliance messages

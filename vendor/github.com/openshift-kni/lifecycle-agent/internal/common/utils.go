@@ -38,6 +38,7 @@ import (
 	"github.com/go-logr/logr"
 	ibuv1 "github.com/openshift-kni/lifecycle-agent/api/imagebasedupgrade/v1"
 	cp "github.com/otiai10/copy"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -45,6 +46,32 @@ import (
 
 // TODO: Need a better way to change this but will require relatively big refactoring
 var OstreeDeployPathPrefix = ""
+
+// OperatorNamespace returns the OLM installation namespace.
+// MY_POD_NAMESPACE is injected by the Deployment; DefaultOperatorNamespace is used as a fallback.
+func OperatorNamespace() string {
+	if ns := os.Getenv(OperatorNamespaceEnvVar); ns != "" {
+		return ns
+	}
+	return DefaultOperatorNamespace
+}
+
+// OperatorServiceAccountName returns the service account used by the operator Deployment.
+func OperatorServiceAccountName(ctx context.Context, c client.Client) (string, error) {
+	deployment := &appsv1.Deployment{}
+	if err := c.Get(ctx, types.NamespacedName{
+		Namespace: OperatorNamespace(),
+		Name:      OperatorDeploymentName,
+	}, deployment); err != nil {
+		return "", fmt.Errorf("failed to get deployment %s/%s: %w", OperatorNamespace(), OperatorDeploymentName, err)
+	}
+
+	saName := deployment.Spec.Template.Spec.ServiceAccountName
+	if saName == "" {
+		return "", fmt.Errorf("deployment %s/%s has no serviceAccountName", OperatorNamespace(), OperatorDeploymentName)
+	}
+	return saName, nil
+}
 
 // GetConfigMap retrieves the configmap from cluster
 func GetConfigMap(ctx context.Context, c client.Client, configMap ibuv1.ConfigMapRef) (*corev1.ConfigMap, error) {
@@ -163,7 +190,7 @@ func LogPodLogs(job *kbatch.Job, log logr.Logger, clientset *kubernetes.Clientse
 	listOptions := metav1.ListOptions{
 		LabelSelector: labels.Set(labelSelector.MatchLabels).String(),
 	}
-	pods, err := clientset.CoreV1().Pods(LcaNamespace).List(context.Background(), listOptions)
+	pods, err := clientset.CoreV1().Pods(job.Namespace).List(context.Background(), listOptions)
 	if err != nil {
 		log.Info("Failed to get pod during pod log retrieval", "err", err.Error())
 		return

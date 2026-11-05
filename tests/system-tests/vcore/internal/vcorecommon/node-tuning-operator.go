@@ -235,7 +235,7 @@ func CreateNodesTuning(ctx SpecContext) {
 			Name: &tunedInstanceName,
 			Data: &tunedProfileData,
 		}
-		recommendPriority := uint64(19)
+		recommendPriority := int64(19)
 		recommendLabel := workerLabel
 		tunedRecommend := tunedv1.TunedRecommend{
 			Profile:  &tunedInstanceName,

@@ -15,11 +15,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/openshift-kni/oran-o2ims/internal/constants"
 	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/runtime"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	clustervalidation "github.com/openshift-kni/oran-o2ims/internal/validation"
@@ -33,8 +32,7 @@ var provisioningrequestlog = logf.Log.WithName("provisioningrequest-webhook")
 // SetupWebhookWithManager will setup the manager to manage the webhooks
 func (r *ProvisioningRequest) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	// nolint:wrapcheck
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(&ProvisioningRequest{}).
+	return ctrl.NewWebhookManagedBy(mgr, &ProvisioningRequest{}).
 		WithValidator(&provisioningRequestValidator{Client: mgr.GetClient()}).
 		Complete()
 }
@@ -48,14 +46,10 @@ type provisioningRequestValidator struct {
 	client.Client
 }
 
-var _ webhook.CustomValidator = &provisioningRequestValidator{}
+var _ admission.Validator[*ProvisioningRequest] = &provisioningRequestValidator{}
 
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (v *provisioningRequestValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
-	pr, casted := obj.(*ProvisioningRequest)
-	if !casted {
-		return nil, fmt.Errorf("expected a ProvisioningRequest but got a %T", obj)
-	}
+// ValidateCreate implements admission.Validator
+func (v *provisioningRequestValidator) ValidateCreate(ctx context.Context, pr *ProvisioningRequest) (admission.Warnings, error) {
 	provisioningrequestlog.Info("validate create", "name", pr.Spec.Name)
 
 	// Validate that metadata.name is a valid UUID
@@ -71,16 +65,8 @@ func (v *provisioningRequestValidator) ValidateCreate(ctx context.Context, obj r
 	return nil, nil
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (v *provisioningRequestValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
-	oldPr, casted := oldObj.(*ProvisioningRequest)
-	if !casted {
-		return nil, fmt.Errorf("expected a ProvisioningRequest but got a %T", oldObj)
-	}
-	newPr, casted := newObj.(*ProvisioningRequest)
-	if !casted {
-		return nil, fmt.Errorf("expected a ProvisioningRequest but got a %T", newObj)
-	}
+// ValidateUpdate implements admission.Validator
+func (v *provisioningRequestValidator) ValidateUpdate(ctx context.Context, oldPr, newPr *ProvisioningRequest) (admission.Warnings, error) {
 	provisioningrequestlog.Info("validate update", "name", oldPr.Name)
 
 	if !newPr.DeletionTimestamp.IsZero() {
@@ -96,13 +82,8 @@ func (v *provisioningRequestValidator) ValidateUpdate(ctx context.Context, oldOb
 	return nil, nil
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (v *provisioningRequestValidator) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
-
-	pr, casted := obj.(*ProvisioningRequest)
-	if !casted {
-		return nil, fmt.Errorf("expected a ProvisioningRequest but got a %T", obj)
-	}
+// ValidateDelete implements admission.Validator
+func (v *provisioningRequestValidator) ValidateDelete(ctx context.Context, pr *ProvisioningRequest) (admission.Warnings, error) {
 
 	// Re-fetch the object to ensure status is available
 	fetched := &ProvisioningRequest{}
@@ -137,6 +118,10 @@ func (v *provisioningRequestValidator) validateCreateOrUpdate(ctx context.Contex
 	}
 
 	if err := newPr.ValidateHwMgmtHwProfiles(ctx, v.Client, clusterTemplate); err != nil {
+		return err
+	}
+
+	if err := newPr.ValidateUpgradeInput(clusterTemplate); err != nil {
 		return err
 	}
 
@@ -222,18 +207,31 @@ func (v *provisioningRequestValidator) validateCreateOrUpdate(ctx context.Contex
 	} else if crProvisionedCond.Reason == string(CRconditionReasons.Completed) {
 		// Allow specific fields and node scaling after installation completes
 		// This enables Day 2 operations like annotation/label updates and cluster scaling
-		disallowedFields, _, err = FindClusterInstanceImmutableFieldUpdates(
+		disallowedFields, scalingNodes, err = FindClusterInstanceImmutableFieldUpdates(
 			oldPrClusterInstanceInput.(map[string]any), newPrClusterInstanceInput.(map[string]any),
 			[][]string{}, AllowedClusterInstanceFields)
 		if err != nil {
 			return fmt.Errorf("failed to find immutable field updates for ClusterInstance (%s): %w", newPr.Name, err)
 		}
 
+		if len(scalingNodes) > 0 {
+			// Reject scaling while an upgrade is active or in a non-healthy state.
+			// Check Status != True (rather than Reason == InProgress) to also block
+			// scaling during Pending, Unknown, Failed, TimedOut, and
+			// PreconditionChecksFailed states when the cluster may not be healthy.
+			upgradeCond := meta.FindStatusCondition(
+				newPr.Status.Conditions, string(PRconditionTypes.UpgradeCompleted))
+			if upgradeCond != nil && upgradeCond.Status != metav1.ConditionTrue {
+				return fmt.Errorf("node scaling is not supported while a cluster upgrade is in progress or incomplete")
+			}
+		}
+
 		// Only reject disallowed field changes; node scaling is explicitly allowed
 		if len(disallowedFields) > 0 {
-			return fmt.Errorf("only \"%s\" and/or \"%s\" changes in spec.TemplateParameters.ClusterInstanceParameters "+
-				"are allowed after cluster installation is completed, detected changes in immutable fields: %s",
-				AllowedClusterInstanceFields[0], AllowedClusterInstanceFields[1], strings.Join(disallowedFields, ", "))
+			return fmt.Errorf("only extraLabels/extraAnnotations and node scaling changes in "+
+				"spec.TemplateParameters.ClusterInstanceParameters are allowed after cluster "+
+				"installation is completed, detected changes in immutable fields: %s",
+				strings.Join(disallowedFields, ", "))
 		}
 	}
 

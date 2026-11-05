@@ -23,7 +23,7 @@ import (
 
 // OutputType is used to define the type of output to be created.
 //
-// +kubebuilder:validation:Enum:=azureMonitor;cloudwatch;elasticsearch;http;kafka;loki;lokiStack;googleCloudLogging;s3;splunk;syslog;otlp
+// +kubebuilder:validation:Enum:=azureLogsIngestion;azureMonitor;cloudwatch;elasticsearch;http;kafka;loki;lokiStack;googleCloudLogging;s3;splunk;syslog;otlp
 type OutputType string
 
 func (s OutputType) String() string {
@@ -32,6 +32,7 @@ func (s OutputType) String() string {
 
 // Output type constants, must match JSON tags of OutputTypeSpec fields.
 const (
+	OutputTypeAzureLogsIngestion OutputType = "azureLogsIngestion"
 	OutputTypeAzureMonitor       OutputType = "azureMonitor"
 	OutputTypeCloudwatch         OutputType = "cloudwatch"
 	OutputTypeElasticsearch      OutputType = "elasticsearch"
@@ -49,6 +50,7 @@ const (
 var (
 	// OutputTypes contains all supported output types.
 	OutputTypes = []OutputType{
+		OutputTypeAzureLogsIngestion,
 		OutputTypeAzureMonitor,
 		OutputTypeCloudwatch,
 		OutputTypeElasticsearch,
@@ -66,6 +68,7 @@ var (
 
 // OutputSpec defines a destination for log messages.
 //
+// +kubebuilder:validation:XValidation:rule="self.type != 'azureLogsIngestion' || has(self.azureLogsIngestion)", message="Additional type specific spec is required for the output type"
 // +kubebuilder:validation:XValidation:rule="self.type != 'azureMonitor' || has(self.azureMonitor)", message="Additional type specific spec is required for the output type"
 // +kubebuilder:validation:XValidation:rule="self.type != 'cloudwatch' || has(self.cloudwatch)", message="Additional type specific spec is required for the output type"
 // +kubebuilder:validation:XValidation:rule="self.type != 'elasticsearch' || has(self.elasticsearch)", message="Additional type specific spec is required for the output type"
@@ -106,6 +109,13 @@ type OutputSpec struct {
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Rate Limiting"
 	Limit *LimitSpec `json:"rateLimit,omitempty"`
 
+	// AzureLogsIngestion configures forwarding log events to the Azure Monitor Logs Ingestion API
+	//
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Azure Log Ingestion"
+	AzureLogsIngestion *AzureLogsIngestion `json:"azureLogsIngestion,omitempty"`
+
+	// DEPRECATED: Use AzureLogsIngestion instead. This output will be removed in a future release.
 	// AzureMonitor configures forwarding log events to the Azure Monitor Logs service
 	//
 	// +kubebuilder:validation:Optional
@@ -246,6 +256,8 @@ type BaseOutputTuningSpec struct {
 // In-memory buffers offer the highest performance due to low latency, but they have two limitations:
 // they will consume memory, and they do not provide durability — buffered data is lost on process termination or failure.
 //
+// Valid values are: AtLeastOnce, AtMostOnce.
+//
 // +kubebuilder:validation:Enum:=AtLeastOnce;AtMostOnce
 type DeliveryMode string
 
@@ -283,6 +295,142 @@ type HTTPAuthentication struct {
 	// +kubebuilder:validation:Optional
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Password"
 	Password *SecretReference `json:"password,omitempty"`
+}
+
+// AzureLogsIngestionAuthType sets the authentication type used for Azure Log Ingestion.
+//
+// Valid values are: clientSecret, workloadIdentity.
+//
+// +kubebuilder:validation:Enum:=clientSecret;workloadIdentity
+type AzureLogsIngestionAuthType string
+
+const (
+	// AzureLogsIngestionAuthTypeClientSecret uses Azure AD service principal client credentials.
+	AzureLogsIngestionAuthTypeClientSecret AzureLogsIngestionAuthType = "clientSecret"
+
+	// AzureLogsIngestionAuthTypeWorkloadIdentity uses Azure AD Workload Identity credentials
+	// from the environment (typically via pod-injected service account tokens).
+	AzureLogsIngestionAuthTypeWorkloadIdentity AzureLogsIngestionAuthType = "workloadIdentity"
+)
+
+// AzureLogsIngestionAuthentication contains configuration for authenticating requests to an Azure Log Ingestion output.
+// +kubebuilder:validation:XValidation:rule="self.type != 'clientSecret' || has(self.clientSecret)", message="Additional type specific spec is required for authentication"
+// +kubebuilder:validation:XValidation:rule="self.type != 'workloadIdentity' || has(self.workloadIdentity)", message="Additional type specific spec is required for authentication"
+type AzureLogsIngestionAuthentication struct {
+	// Type is the type of Azure authentication to configure.
+	//
+	// Valid values are: clientSecret, workloadIdentity.
+	//
+	// +kubebuilder:validation:Required
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Authentication Type"
+	Type AzureLogsIngestionAuthType `json:"type"`
+
+	// ClientSecret contains the Azure AD service principal credentials.
+	//
+	// +kubebuilder:validation:Optional
+	// +nullable
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Client Secret Credentials"
+	ClientSecret *AzureLogsIngestionClientSecret `json:"clientSecret,omitempty"`
+
+	// WorkloadIdentity contains the Azure AD Workload Identity credentials.
+	//
+	// +kubebuilder:validation:Optional
+	// +nullable
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Workload Identity Credentials"
+	WorkloadIdentity *AzureLogsIngestionWorkloadIdentity `json:"workloadIdentity,omitempty"`
+}
+
+// AzureLogsIngestionClientSecret contains Azure AD service principal credentials for authenticating requests.
+type AzureLogsIngestionClientSecret struct {
+	// TenantId is the Azure Active Directory tenant ID.
+	//
+	// +kubebuilder:validation:Required
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Azure Tenant ID",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	TenantId string `json:"tenantId"`
+
+	// ClientId is the Azure Active Directory application (client) ID.
+	//
+	// +kubebuilder:validation:Required
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Azure Client ID",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	ClientId string `json:"clientId"`
+
+	// Secret points to the secret containing the Azure Active Directory client secret.
+	//
+	// +nullable
+	// +kubebuilder:validation:Required
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Secret"
+	Secret *SecretReference `json:"secret"`
+}
+
+// AzureLogsIngestionWorkloadIdentity contains Azure AD Workload Identity configuration.
+type AzureLogsIngestionWorkloadIdentity struct {
+	// TenantId is the Azure Active Directory tenant ID.
+	//
+	// +kubebuilder:validation:Required
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Azure Tenant ID",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	TenantId string `json:"tenantId"`
+
+	// ClientId is the Azure Active Directory application (client) ID.
+	//
+	// +kubebuilder:validation:Required
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Azure Client ID",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	ClientId string `json:"clientId"`
+
+	// Token is the bearer token to be used for authenticating the requests.
+	// +kubebuilder:validation:Required
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Token",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	Token *BearerToken `json:"token"`
+}
+
+// AzureLogsIngestionTuningSpec contains tuning options for the Azure Logs Ingestion output.
+type AzureLogsIngestionTuningSpec struct {
+	BaseOutputTuningSpec `json:",inline"`
+}
+
+// AzureLogsIngestion provides configuration for the output type `azureLogsIngestion`.
+// This output sends log events to the Azure Monitor Logs Ingestion API using a Data Collection Rule (DCR).
+type AzureLogsIngestion struct {
+	URLSpec `json:",inline"`
+
+	// Authentication sets credentials for authenticating the requests to the Azure Logs Ingestion API.
+	//
+	// +kubebuilder:validation:Required
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Authentication Options"
+	Authentication *AzureLogsIngestionAuthentication `json:"authentication"`
+
+	// DcrImmutableId is the immutable ID of the Data Collection Rule (DCR).
+	//
+	// +kubebuilder:validation:Required
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="DCR Immutable ID",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	DcrImmutableId string `json:"dcrImmutableId"`
+
+	// StreamName is the name of the custom log stream in the DCR that the data should be sent to.
+	//
+	// +kubebuilder:validation:Required
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Stream Name",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	StreamName string `json:"streamName"`
+
+	// TokenScope is the token scope for dedicated Azure regions.
+	// Defaults to "https://monitor.azure.com/.default".
+	// https://learn.microsoft.com/en-us/azure/azure-monitor/logs/logs-ingestion-api-overview
+	//
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Token Scope",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	TokenScope string `json:"tokenScope,omitempty"`
+
+	// TimestampField is the destination field (column) for the timestamp.
+	// Most schemas use "TimeGenerated" (default), but some use "Timestamp" (legacy) or "EventStartTime" (ASIM).
+	// https://learn.microsoft.com/en-us/azure/azure-monitor/logs/log-standard-columns#timegenerated
+	//
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Timestamp Field",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	TimestampField string `json:"timestampField,omitempty"`
+
+	// Tuning specs tuning for the output
+	//
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Tuning Options"
+	Tuning *AzureLogsIngestionTuningSpec `json:"tuning,omitempty"`
 }
 
 // AzureMonitorAuthentication contains configuration for authenticating requests to a AzureMonitor output.
@@ -346,6 +494,8 @@ type CloudwatchTuningSpec struct {
 	// Compression causes data to be compressed before sending over the network.
 	// It is an error if the compression type is not supported by the output.
 	//
+	// Valid values are: gzip, none, snappy, zlib, zstd.
+	//
 	// +kubebuilder:validation:Enum:=gzip;none;snappy;zlib;zstd
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Compression"
 	Compression string `json:"compression,omitempty"`
@@ -358,7 +508,7 @@ type Cloudwatch struct {
 	// The 'username@password' part of `url` is ignored.
 	//
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:XValidation:rule="self == '' ||  isURL(self)", message="invalid URL"
+	// +kubebuilder:validation:XValidation:rule="self == '' || isURL(self)", message="invalid URL"
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Destination URL",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	URL string `json:"url,omitempty"`
 
@@ -381,26 +531,28 @@ type Cloudwatch struct {
 
 	// GroupName defines the strategy for grouping logstreams
 	//
-	// The GroupName can be a combination of static and dynamic values consisting of field paths followed by "\|\|" followed by another field path or a static value.
+	// The GroupName can be a combination of static and dynamic values consisting of field paths followed by `||` followed by another field path or a static value.
 	//
-	// A dynamic value is encased in single curly brackets "{}" and MUST end with a static fallback value separated with "\|\|".
+	// A dynamic value is encased in single curly brackets `{}` and MUST end with a static fallback value separated with `||`.
 	//
 	// Static values can only contain alphanumeric characters along with dashes, underscores, dots and forward slashes.
 	//
 	// Example:
 	//
-	//  1. foo-{.bar\|\|"none"}
+	//  1. foo-{.bar||"none"}
 	//
-	//  2. {.foo\|\|.bar\|\|"missing"}
+	//  2. {.foo||.bar||"missing"}
 	//
-	//  3. foo.{.bar.baz\|\|.qux.quux.corge\|\|.grault\|\|"nil"}-waldo.fred{.plugh\|\|"none"}
+	//  3. foo.{.bar.baz||.qux.quux.corge||.grault||"nil"}-waldo.fred{.plugh||"none"}
 	//
 	// +kubebuilder:validation:Pattern:=`^(([a-zA-Z0-9-_.\/])*(\{(\.[a-zA-Z0-9_]+|\."[^"]+")+((\|\|)(\.[a-zA-Z0-9_]+|\.?"[^"]+")+)*\|\|"[^"]*"\})*)*$`
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Group Name",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	GroupName string `json:"groupName"`
 }
 
-// AwsAuthType sets the authentication type used for CloudWatch.
+// AwsAuthType sets the authentication type used for an AWS service.
+//
+// Valid values are: awsAccessKey, iamRole.
 //
 // +kubebuilder:validation:Enum:=awsAccessKey;iamRole
 type AwsAuthType string
@@ -417,7 +569,9 @@ const (
 // +kubebuilder:validation:XValidation:rule="self.type != 'awsAccessKey' || has(self.awsAccessKey)", message="Additional type specific spec is required for authentication"
 // +kubebuilder:validation:XValidation:rule="self.type != 'iamRole' || has(self.iamRole)", message="Additional type specific spec is required for authentication"
 type AwsAuthentication struct {
-	// Type is the type of cloudwatch authentication to configure
+	// Type is the type of authentication to configure for an AWS service.
+	//
+	// Valid values are: awsAccessKey, iamRole.
 	//
 	// +kubebuilder:validation:Required
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Authentication Type"
@@ -515,13 +669,39 @@ type ElasticsearchTuningSpec struct {
 
 	// Compression causes data to be compressed before sending over the network.
 	//
+	// Valid values are: none, gzip, zlib.
+	//
 	// +kubebuilder:validation:Enum:=none;gzip;zlib
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Compression"
 	Compression string `json:"compression,omitempty"`
 }
 
+// EndpointURL is a URL to an Elasticsearch endpoint.
+// +kubebuilder:validation:XValidation:rule="isURL(self)", message="invalid URL"
+type EndpointURL string
+
+// Elasticsearch provides optional extra properties for `type: elasticsearch`
+//
+// +kubebuilder:validation:XValidation:rule="has(self.url) || (has(self.endpoints) && self.endpoints.size() > 0)", message="URL or endpoints required"
 type Elasticsearch struct {
-	URLSpec `json:",inline"`
+
+	// URL to send log records to.
+	// Basic TLS is enabled if the URL scheme requires it (for example 'https' or 'tls').
+	// The 'username@password' part of `url` is ignored.
+	//
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="isURL(self)", message="invalid URL"
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Destination URL",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	URL string `json:"url,omitempty"`
+
+	// Endpoints is a list of Elasticsearch endpoints to send log records to.
+	// Vector distributes events across endpoints using load balancing with
+	// automatic failover. When both URL and Endpoints are provided, URL is
+	// prepended to the Endpoints list.
+	//
+	// +kubebuilder:validation:Optional
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Elasticsearch Endpoints"
+	Endpoints []EndpointURL `json:"endpoints,omitempty"`
 
 	// Authentication sets credentials for authenticating the requests.
 	//
@@ -537,30 +717,30 @@ type Elasticsearch struct {
 
 	// Index is the index for the logs. This supports template syntax to allow dynamic per-event values.
 	//
-	// The Index can be a combination of static and dynamic values consisting of field paths followed by `\|\|` followed by another field path or a static value.
+	// The Index can be a combination of static and dynamic values consisting of field paths followed by `||` followed by another field path or a static value.
 	//
-	// A dynamic value is encased in single curly brackets `{}` and MUST end with a static fallback value separated with `\|\|`.
+	// A dynamic value is encased in single curly brackets `{}` and MUST end with a static fallback value separated with `||`.
 	//
 	// Static values can only contain alphanumeric characters along with dashes, underscores, dots and forward slashes.
 	//
-	// When forwarding logs to the Red Hat Managed Elasticsearch, the index must match the pattern ^(app\|infra\|audit)-write$
+	// When forwarding logs to the Red Hat Managed Elasticsearch, the index must match the pattern `^(app|infra|audit)-write$`
 	// where the prefix depends upon the log_type. This requires defining a distinct output for each log type or distinct pipelines
 	// with the openshiftLabels filter. See the product documentation for examples.
 	//
 	// Example:
 	//
-	//  1. foo-{.bar\|\|"none"}
+	//  1. foo-{.bar||"none"}
 	//
-	//  2. {.foo\|\|.bar\|\|"missing"}
+	//  2. {.foo||.bar||"missing"}
 	//
-	//  3. foo.{.bar.baz\|\|.qux.quux.corge\|\|.grault\|\|"nil"}-waldo.fred{.plugh\|\|"none"}
+	//  3. foo.{.bar.baz||.qux.quux.corge||.grault||"nil"}-waldo.fred{.plugh||"none"}
 	//
 	// +kubebuilder:validation:Pattern:=`^(([a-zA-Z0-9-_.\/])*(\{(\.[a-zA-Z0-9_]+|\."[^"]+")+((\|\|)(\.[a-zA-Z0-9_]+|\.?"[^"]+")+)*\|\|"[^"]*"\})*)*$`
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Log Index",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	Index string `json:"index"`
 
-	// Version specifies the version of Elasticsearch to be used.
-	// Must be one of: 6-8
+	// Version specifies the API version of Elasticsearch to be used. Must be one of: 6-8
+	// The value of '8' should be used when forwarding to Elasticsearch version v8 or greater.
 	//
 	// +kubebuilder:validation:Minimum:=6
 	// +kubebuilder:validation:Maximum:=8
@@ -577,11 +757,22 @@ type Elasticsearch struct {
 
 // GoogleCloudLoggingAuthentication contains configuration for authenticating requests to a GoogleCloudLogging output.
 type GoogleCloudLoggingAuthentication struct {
-	// Credentials points to the secret containing the `google-application-credentials.json`.
+	// Credentials points to the secret containing the GCP credentials JSON file.
+	// For service account auth, this is a service_account key file.
+	// For Workload Identity Federation (WIF), this is an external_account configuration file.
 	//
 	// +kubebuilder:validation:Required
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Secret with Credentials File"
 	Credentials *SecretReference `json:"credentials"`
+
+	// Token specifies the source of the bearer token used as the subject token for
+	// GCP Workload Identity Federation token exchange. Only needed when the credentials
+	// file is an external_account type.
+	//
+	// +kubebuilder:validation:Optional
+	// +nullable
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Token"
+	Token *BearerToken `json:"token,omitempty"`
 }
 
 type GoogleCloudLoggingTuningSpec struct {
@@ -659,6 +850,8 @@ type HTTPTuningSpec struct {
 
 	// Compression causes data to be compressed before sending over the network.
 	//
+	// Valid values are: none, gzip, snappy, zlib.
+	//
 	// +kubebuilder:validation:Enum:=none;gzip;snappy;zlib
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Compression"
 	Compression string `json:"compression,omitempty"`
@@ -718,7 +911,7 @@ type HTTP struct {
 	// ProxyURL URL of a HTTP or HTTPS proxy to be used instead of direct connection.
 	//
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:XValidation:rule="self == '' ||  isURL(self)", message="invalid URL"
+	// +kubebuilder:validation:XValidation:rule="self == '' || isURL(self)", message="invalid URL"
 	ProxyURL string `json:"proxyURL,omitempty"`
 
 	// Format defines data format used to send data to remote destination.
@@ -739,6 +932,8 @@ type KafkaTuningSpec struct {
 	MaxWrite *resource.Quantity `json:"maxWrite,omitempty"`
 
 	// Compression causes data to be compressed before sending over the network.
+	//
+	// Valid values are: none, snappy, zstd, lz4.
 	//
 	// +kubebuilder:validation:Enum:=none;snappy;zstd;lz4
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Compression"
@@ -841,6 +1036,8 @@ type LokiTuningSpec struct {
 	BaseOutputTuningSpec `json:",inline"`
 
 	// Compression causes data to be compressed before sending over the network.
+	//
+	// Valid values are: none, gzip, snappy.
 	//
 	// +kubebuilder:validation:Enum:=none;gzip;snappy
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Compression"
@@ -1084,7 +1281,7 @@ type Loki struct {
 	// ProxyURL URL of a HTTP or HTTPS proxy to be used instead of direct connection.
 	//
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:XValidation:rule="self == '' ||  isURL(self)", message="invalid URL"
+	// +kubebuilder:validation:XValidation:rule="self == '' || isURL(self)", message="invalid URL"
 	ProxyURL string `json:"proxyURL,omitempty"`
 }
 
@@ -1092,6 +1289,8 @@ type SplunkTuningSpec struct {
 	BaseOutputTuningSpec `json:",inline"`
 
 	// Compression causes data to be compressed before sending over the network.
+	//
+	// Valid values are: none, gzip.
 	//
 	// +kubebuilder:validation:Enum:=none;gzip
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Compression"
@@ -1109,6 +1308,7 @@ type SplunkAuthentication struct {
 
 // Splunk Deliver log data to Splunk’s HTTP Event Collector
 // Provides optional extra properties for `type: splunk_hec` ('splunk_hec_logs' after Vector 0.23
+// +kubebuilder:validation:XValidation:rule="!has(self.sourceType) || has(self.payloadKey)",message="sourceType can only be set when payloadKey is defined"
 type Splunk struct {
 	// Authentication sets credentials for authenticating the requests.
 	//
@@ -1161,7 +1361,7 @@ type Splunk struct {
 	// Source identifies the origin of a log event.
 	// The Source can be a combination of static and dynamic values consisting of field paths followed by `||` followed by another field path or a static value.
 	// A dynamic value is encased in single curly brackets `{}` and MUST end with a static fallback value separated with `||`.
-	// Static values can only contain alphanumeric characters along with dashes, underscores, dots and forward slashes.
+	// Static values can only contain alphanumeric characters along with dashes, underscores, dots, colons and forward slashes.
 	// If not specified will be detected according to .log_source and .log_type value.
 	// Details see in: docs/features/logforwarding/outputs/splunk-forwarding.adoc
 	//
@@ -1174,9 +1374,38 @@ type Splunk struct {
 	//  3. foo.{.bar.baz||.qux.quux.corge||.grault||"nil"}-waldo.fred{.plugh||"none"}
 	//
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Pattern:=`^(([a-zA-Z0-9-_.\/])*(\{(\.[a-zA-Z0-9_]+|\."[^"]+")+((\|\|)(\.[a-zA-Z0-9_]+|\.?"[^"]+")+)*\|\|"[^"]*"\})*)*$`
+	// +kubebuilder:validation:Pattern:=`^(([a-zA-Z0-9-_.:\/])*(\{(\.[a-zA-Z0-9_]+|\."[^"]+")+((\|\|)(\.[a-zA-Z0-9_]+|\.?"[^"]+")+)*\|\|"[^"]*"\})*)*$`
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Source",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	Source string `json:"source,omitempty"`
+
+	// SourceType can be used to specify a pretrained or custom source type in Splunk, but can only be set when PayloadKey is defined.
+	//
+	// WARNING: The administrator is responsible for configuring the pipeline so the source type matches the log entry. The collector makes no effort or validation to ensure they match.
+	//
+	// If SourceType is not specified, the source type used is `_json`. If using PayloadKey without SourceType, the source type used will be either `_json` or `generic_single_line`, depending on the structure of the final event payload.
+	// Details in: docs/features/logforwarding/outputs/splunk-forwarding.adoc
+	//
+	// The SourceType can be a combination of static and dynamic values consisting of field paths followed by `||` followed by another field path or a static value.
+	// A dynamic value is encased in single curly brackets `{}` and MUST end with a static fallback value separated with `||`.
+	//
+	// Static values can only contain alphanumeric characters along with dashes, underscores, dots, colons and forward slashes.
+	//
+	// Examples:
+	//
+	//  1. {.kubernetes.labels."splunk/sourcetype"||"generic_single_line"}
+	//
+	//  2. log4j
+	//
+	//  3. foo-{.bar||"none"}
+	//
+	//  4. {.foo||.bar||"missing"}
+	//
+	//  5. foo.{.bar.baz||.qux.quux.corge||.grault||"nil"}-waldo.fred{.plugh||"none"}
+	//
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Pattern:=`^(([a-zA-Z0-9-_.:\/])*(\{(\.[a-zA-Z0-9_]+|\."[^"]+")+((\|\|)(\.[a-zA-Z0-9_]+|\.?"[^"]+")+)*\|\|"[^"]*"\})*)*$`
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="SourceType",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	SourceType string `json:"sourceType,omitempty"`
 
 	// PayloadKey specifies record field to use as payload.
 	// The PayloadKey must be a single field path.
@@ -1322,7 +1551,7 @@ type Syslog struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Pattern:=`^(([a-zA-Z0-9-_.\/])*(\{(\.[a-zA-Z0-9_]+|\."[^"]+")+((\|\|)(\.[a-zA-Z0-9_]+|\.?"[^"]+")+)*\|\|"[^"]*"\})*)*$`
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="App Name",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
-	// TODO: DETERMIN HOW to default the app name that isnt based on fluentd assumptions of "tag" when this is empty
+	// TODO: DETERMINE HOW to default the app name that isn't based on fluentd assumptions of "tag" when this is empty
 	AppName string `json:"appName,omitempty"`
 
 	// ProcId is PROCID part of the syslog-msg header. This supports template syntax to allow dynamic per-event values.
@@ -1411,6 +1640,8 @@ type OTLPTuningSpec struct {
 	// Compression causes data to be compressed before sending over the network.
 	// It is an error if the compression type is not supported by the output.
 	//
+	// Valid values are: gzip, snappy, zlib, zstd, none.
+	//
 	// +kubebuilder:validation:Enum:=gzip;snappy;zlib;zstd;none
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Compression",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	Compression string `json:"compression,omitempty"`
@@ -1452,6 +1683,8 @@ type S3TuningSpec struct {
 	// Compression causes data to be compressed before sending over the network.
 	// It is an error if the compression type is not supported by the output.
 	//
+	// Valid values are: gzip, none, snappy, zlib, zstd.
+	//
 	// +kubebuilder:validation:Enum:=gzip;none;snappy;zlib;zstd
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Compression"
 	Compression string `json:"compression,omitempty"`
@@ -1486,22 +1719,22 @@ type S3 struct {
 	Bucket string `json:"bucket"`
 
 	// KeyPrefix is a templated string that defines the S3 key prefix for log objects.  It is a combination of
-	// static or dynamic values consisting of field paths separated by `\|\|` and ending with a static
-	// fallback value (e.g. logs_{.kubernetes.namespace_name\|\|.hostname\|\|"unknown"}_my_workload_{.openshift.sequence_id\|\|"none"}).
+	// static or dynamic values consisting of field paths separated by `||` and ending with a static
+	// fallback value (e.g. logs_{.kubernetes.namespace_name||.hostname||"unknown"}_my_workload_{.openshift.sequence_id||"none"}).
 	//
 	// Prefixes are necessary for partitioning logs from other objects in the bucket.  If the prefix represents a
 	// directory, it must end in `/` to act as a directory path. A trailing `/` (forward slash) is not automatically added.
 	//
 	// Dynamic values are encased in single curly brackets `{}` and MUST end with a static fallback value separated
-	// with `\|\|`. Static values can only contain alphanumeric characters along with dashes, underscores, dots and forward slashes.
+	// with `||`. Static values can only contain alphanumeric characters along with dashes, underscores, dots and forward slashes.
 	//
 	// Examples:
 	//
-	//  1. logs_{.kubernetes.namespace_name\|\|"none"}/
+	//  1. logs_{.kubernetes.namespace_name||"none"}/
 	//
-	//  2. {.log_type\|\|.log_source\|\|"missing"}/
+	//  2. {.log_type||.log_source||"missing"}/
 	//
-	//  3. my_workload.{.hostname\|\|.qux.quux.corge\|\|.grault\|\|"nil"}-waldo.fred{.plugh\|\|"none"}/
+	//  3. my_workload.{.hostname||.qux.quux.corge||.grault||"nil"}-waldo.fred{.plugh||"none"}/
 	//
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Pattern:=`^(([a-zA-Z0-9-_.\/])*(\{(\.[a-zA-Z0-9_]+|\."[^"]+")+((\|\|)(\.[a-zA-Z0-9_]+|\.?"[^"]+")+)*\|\|"[^"]*"\})*)*$`

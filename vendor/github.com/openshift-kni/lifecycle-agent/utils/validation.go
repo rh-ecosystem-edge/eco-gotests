@@ -56,7 +56,7 @@ func validateGatewayInNetworkCIDR(family, gateway, networkCIDR string) error {
 	gatewayIP := net.ParseIP(gateway)
 	if gatewayIP == nil {
 		return fmt.Errorf(
-			"invalid %s gateway: %s: %w", strings.ToUpper(family), gateway, err,
+			"invalid %s gateway: %s: not a valid IP address", strings.ToUpper(family), gateway,
 		)
 	}
 

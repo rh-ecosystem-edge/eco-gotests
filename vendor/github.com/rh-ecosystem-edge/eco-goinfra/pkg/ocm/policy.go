@@ -7,272 +7,68 @@ import (
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/common"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 	policiesv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
-	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+var policyGVK = policiesv1.GroupVersion.WithKind("Policy")
 
 // PolicyBuilder provides struct for the policy object containing connection to
 // the cluster and the policy definitions.
 type PolicyBuilder struct {
-	// policy Definition, used to create the policy object.
-	Definition *policiesv1.Policy
-	// created policy object.
-	Object *policiesv1.Policy
-	// api client to interact with the cluster.
-	apiClient runtimeclient.Client
-	// used to store latest error message upon defining or mutating application definition.
-	errorMsg string
+	common.EmbeddableBuilder[policiesv1.Policy, *policiesv1.Policy]
+	common.EmbeddableCreator[policiesv1.Policy, PolicyBuilder, *policiesv1.Policy, *PolicyBuilder]
+	common.EmbeddableDeleteReturner[policiesv1.Policy, PolicyBuilder, *policiesv1.Policy, *PolicyBuilder]
+	common.EmbeddableForceUpdater[policiesv1.Policy, PolicyBuilder, *policiesv1.Policy, *PolicyBuilder]
+}
+
+// AttachMixins wires the embedded CRUD mixins to this builder instance.
+func (builder *PolicyBuilder) AttachMixins() {
+	builder.EmbeddableCreator.SetBase(builder)
+	builder.EmbeddableDeleteReturner.SetBase(builder)
+	builder.EmbeddableForceUpdater.SetBase(builder)
+}
+
+// GetGVK returns the Policy GVK for this builder.
+func (builder *PolicyBuilder) GetGVK() schema.GroupVersionKind {
+	return policyGVK
 }
 
 // NewPolicyBuilder creates a new instance of PolicyBuilder.
 func NewPolicyBuilder(
 	apiClient *clients.Settings, name, nsname string, template *policiesv1.PolicyTemplate) *PolicyBuilder {
-	klog.V(100).Infof(
-		"Initializing new policy structure with the following params: name: %s, nsname: %s",
-		name, nsname)
-
-	if apiClient == nil {
-		klog.V(100).Info("The apiClient of the Policy is nil")
-
-		return nil
-	}
-
-	err := apiClient.AttachScheme(policiesv1.AddToScheme)
-	if err != nil {
-		klog.V(100).Info("Failed to add Policy scheme to client schemes")
-
-		return nil
-	}
-
-	builder := &PolicyBuilder{
-		apiClient: apiClient.Client,
-		Definition: &policiesv1.Policy{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      name,
-				Namespace: nsname,
-			},
-			Spec: policiesv1.PolicySpec{
-				PolicyTemplates: []*policiesv1.PolicyTemplate{template},
-			},
-		},
-	}
-
-	if name == "" {
-		klog.V(100).Info("The name of the Policy is empty")
-
-		builder.errorMsg = "policy 'name' cannot be empty"
-
-		return builder
-	}
-
-	if nsname == "" {
-		klog.V(100).Info("The namespace of the Policy is empty")
-
-		builder.errorMsg = "policy 'nsname' cannot be empty"
-
+	builder := common.NewNamespacedBuilder[policiesv1.Policy, PolicyBuilder](
+		apiClient, policiesv1.AddToScheme, name, nsname)
+	if builder.GetError() != nil {
 		return builder
 	}
 
 	if template == nil {
 		klog.V(100).Info("The PolicyTemplate of the Policy is nil")
 
-		builder.errorMsg = "policy 'template' cannot be nil"
+		builder.SetError(fmt.Errorf("policy 'template' cannot be nil"))
 
 		return builder
 	}
+
+	builder.Definition.Spec.PolicyTemplates = []*policiesv1.PolicyTemplate{template}
 
 	return builder
 }
 
 // PullPolicy pulls existing policy into Builder struct.
 func PullPolicy(apiClient *clients.Settings, name, nsname string) (*PolicyBuilder, error) {
-	klog.V(100).Infof("Pulling existing policy name %s under namespace %s from cluster", name, nsname)
-
-	if apiClient == nil {
-		klog.V(100).Info("The apiClient is nil")
-
-		return nil, fmt.Errorf("policy 'apiClient' cannot be nil")
-	}
-
-	err := apiClient.AttachScheme(policiesv1.AddToScheme)
-	if err != nil {
-		klog.V(100).Info("Failed to add Policy scheme to client schemes")
-
-		return nil, err
-	}
-
-	builder := &PolicyBuilder{
-		apiClient: apiClient.Client,
-		Definition: &policiesv1.Policy{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      name,
-				Namespace: nsname,
-			},
-		},
-	}
-
-	if name == "" {
-		klog.V(100).Info("The name of the policy is empty")
-
-		return nil, fmt.Errorf("policy's 'name' cannot be empty")
-	}
-
-	if nsname == "" {
-		klog.V(100).Info("The namespace of the policy is empty")
-
-		return nil, fmt.Errorf("policy's 'namespace' cannot be empty")
-	}
-
-	if !builder.Exists() {
-		return nil, fmt.Errorf("policy object %s does not exist in namespace %s", name, nsname)
-	}
-
-	builder.Definition = builder.Object
-
-	return builder, nil
-}
-
-// Exists checks whether the given policy exists.
-func (builder *PolicyBuilder) Exists() bool {
-	if valid, _ := builder.validate(); !valid {
-		return false
-	}
-
-	klog.V(100).Infof("Checking if policy %s exists in namespace %s",
-		builder.Definition.Name, builder.Definition.Namespace)
-
-	var err error
-
-	builder.Object, err = builder.Get()
-
-	return err == nil || !k8serrors.IsNotFound(err)
-}
-
-// Get returns a policy object if found.
-func (builder *PolicyBuilder) Get() (*policiesv1.Policy, error) {
-	if valid, err := builder.validate(); !valid {
-		return nil, err
-	}
-
-	klog.V(100).Infof("Getting policy %s in namespace %s",
-		builder.Definition.Name, builder.Definition.Namespace)
-
-	policy := &policiesv1.Policy{}
-
-	err := builder.apiClient.Get(logging.DiscardContext(), runtimeclient.ObjectKey{
-		Name:      builder.Definition.Name,
-		Namespace: builder.Definition.Namespace,
-	}, policy)
-	if err != nil {
-		klog.V(100).Infof("Failed to get policy %s in namespace %s: %v",
-			builder.Definition.Name, builder.Definition.Namespace, err)
-
-		return nil, err
-	}
-
-	return policy, nil
-}
-
-// Create makes a policy in the cluster and stores the created object in struct.
-func (builder *PolicyBuilder) Create() (*PolicyBuilder, error) {
-	if valid, err := builder.validate(); !valid {
-		return builder, err
-	}
-
-	klog.V(100).Infof("Creating the policy %s in namespace %s",
-		builder.Definition.Name, builder.Definition.Namespace)
-
-	if builder.Exists() {
-		return builder, nil
-	}
-
-	err := builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
-	if err != nil {
-		return builder, err
-	}
-
-	builder.Object = builder.Definition
-
-	return builder, nil
-}
-
-// Delete removes a policy from a cluster.
-func (builder *PolicyBuilder) Delete() (*PolicyBuilder, error) {
-	if valid, err := builder.validate(); !valid {
-		return builder, err
-	}
-
-	klog.V(100).Infof("Deleting the policy %s in namespace %s",
-		builder.Definition.Name, builder.Definition.Namespace)
-
-	if !builder.Exists() {
-		klog.V(100).Infof("policy %s namespace %s cannot be deleted because it does not exist",
-			builder.Definition.Name, builder.Definition.Namespace)
-
-		builder.Object = nil
-
-		return builder, nil
-	}
-
-	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Definition)
-	if err != nil {
-		return builder, fmt.Errorf("can not delete policy: %w", err)
-	}
-
-	builder.Object = nil
-
-	return builder, nil
-}
-
-// Update renovates the existing policy object with the policy definition in builder.
-func (builder *PolicyBuilder) Update(force bool) (*PolicyBuilder, error) {
-	if valid, err := builder.validate(); !valid {
-		return builder, err
-	}
-
-	if !builder.Exists() {
-		klog.V(100).Infof("Policy %s does not exist in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
-
-		return nil, fmt.Errorf("cannot update non-existent policy")
-	}
-
-	klog.V(100).Infof("Updating the policy object: %s in namespace: %s",
-		builder.Definition.Name, builder.Definition.Namespace)
-
-	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
-
-	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
-	if err != nil {
-		if force {
-			klog.V(100).Infof("%v", msg.FailToUpdateNotification("policy", builder.Definition.Name, builder.Definition.Namespace))
-
-			builder, err := builder.Delete()
-			builder.Definition.ResourceVersion = ""
-
-			if err != nil {
-				klog.V(100).Infof("%v", msg.FailToUpdateError("policy", builder.Definition.Name, builder.Definition.Namespace))
-
-				return nil, err
-			}
-
-			return builder.Create()
-		}
-	}
-
-	builder.Object = builder.Definition
-
-	return builder, nil
+	return common.PullNamespacedBuilder[policiesv1.Policy, PolicyBuilder](
+		context.TODO(), apiClient, policiesv1.AddToScheme, name, nsname)
 }
 
 // WithRemediationAction sets a RemediationAction in the policy definition.
 func (builder *PolicyBuilder) WithRemediationAction(action policiesv1.RemediationAction) *PolicyBuilder {
-	if valid, _ := builder.validate(); !valid {
+	if err := common.Validate(builder); err != nil {
 		return builder
 	}
 
@@ -282,7 +78,7 @@ func (builder *PolicyBuilder) WithRemediationAction(action policiesv1.Remediatio
 	if action != policiesv1.Inform && action != policiesv1.Enforce && action != "inform" && action != "enforce" {
 		klog.V(100).Info("The RemediationAction to be set in the Policy spec is neither 'Inform' nor 'Enforce'")
 
-		builder.errorMsg = "remediation action in policy spec must be either 'Inform' or 'Enforce'"
+		builder.SetError(fmt.Errorf("remediation action in policy spec must be either 'Inform' or 'Enforce'"))
 
 		return builder
 	}
@@ -294,7 +90,7 @@ func (builder *PolicyBuilder) WithRemediationAction(action policiesv1.Remediatio
 
 // WithAdditionalPolicyTemplate appends a PolicyTemplate to the PolicyTemplates in the policy definition.
 func (builder *PolicyBuilder) WithAdditionalPolicyTemplate(template *policiesv1.PolicyTemplate) *PolicyBuilder {
-	if valid, _ := builder.validate(); !valid {
+	if err := common.Validate(builder); err != nil {
 		return builder
 	}
 
@@ -303,7 +99,7 @@ func (builder *PolicyBuilder) WithAdditionalPolicyTemplate(template *policiesv1.
 	if template == nil {
 		klog.V(100).Info("The PolicyTemplate to be added to the Policy's PolicyTemplates is nil")
 
-		builder.errorMsg = "policy template in policy policytemplates cannot be nil"
+		builder.SetError(fmt.Errorf("policy template in policy policytemplates cannot be nil"))
 
 		return builder
 	}
@@ -315,7 +111,7 @@ func (builder *PolicyBuilder) WithAdditionalPolicyTemplate(template *policiesv1.
 
 // WaitUntilDeleted waits for the duration of the defined timeout or until the policy is deleted.
 func (builder *PolicyBuilder) WaitUntilDeleted(timeout time.Duration) error {
-	if valid, err := builder.validate(); !valid {
+	if err := common.Validate(builder); err != nil {
 		return err
 	}
 
@@ -347,7 +143,7 @@ func (builder *PolicyBuilder) WaitUntilDeleted(timeout time.Duration) error {
 // WaitUntilComplianceState waits for the duration of the defined timeout or until the policy is in the provided
 // compliance state.
 func (builder *PolicyBuilder) WaitUntilComplianceState(state policiesv1.ComplianceState, timeout time.Duration) error {
-	if valid, err := builder.validate(); !valid {
+	if err := common.Validate(builder); err != nil {
 		return err
 	}
 
@@ -373,7 +169,7 @@ func (builder *PolicyBuilder) WaitUntilComplianceState(state policiesv1.Complian
 // expectedMessage.
 func (builder *PolicyBuilder) WaitForStatusMessageToContain(
 	expectedMessage string, timeout time.Duration) (*PolicyBuilder, error) {
-	if valid, err := builder.validate(); !valid {
+	if err := common.Validate(builder); err != nil {
 		return nil, err
 	}
 
@@ -417,36 +213,4 @@ func (builder *PolicyBuilder) WaitForStatusMessageToContain(
 	}
 
 	return builder, nil
-}
-
-// validate will check that the builder and builder definition are properly initialized before
-// accessing any member fields.
-func (builder *PolicyBuilder) validate() (bool, error) {
-	resourceCRD := "policy"
-
-	if builder == nil {
-		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
-
-		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
-	}
-
-	if builder.Definition == nil {
-		klog.V(100).Infof("The %s is undefined", resourceCRD)
-
-		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
-	}
-
-	if builder.apiClient == nil {
-		klog.V(100).Infof("The %s builder apiclient is nil", resourceCRD)
-
-		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
-	}
-
-	if builder.errorMsg != "" {
-		klog.V(100).Infof("The %s builder has error message: %s", resourceCRD, builder.errorMsg)
-
-		return false, fmt.Errorf("%s", builder.errorMsg)
-	}
-
-	return true, nil
 }

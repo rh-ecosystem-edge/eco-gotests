@@ -29,7 +29,7 @@ var ConditionTypes = struct {
 	ConfigInProgress   ConditionType
 	ConfigCompleted    ConditionType
 }{
-	Idle:               "Idle",
+	Idle:               "Idle", //nolint:goconst
 	PrepInProgress:     "PrepInProgress",
 	PrepCompleted:      "PrepCompleted",
 	UpgradeInProgress:  "UpgradeInProgress",

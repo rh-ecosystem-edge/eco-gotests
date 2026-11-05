@@ -13,10 +13,11 @@ type ConditionType string
 
 // The following constants define the different types of conditions that will be set
 const (
-	Provisioned ConditionType = "Provisioned"
-	Configured  ConditionType = "Configured"
-	Validation  ConditionType = "Validation"
-	Unknown     ConditionType = "Unknown" // Indicates the condition has not been evaluated
+	Provisioned   ConditionType = "Provisioned"
+	Configured    ConditionType = "Configured"
+	Deprovisioned ConditionType = "Deprovisioned"
+	Validation    ConditionType = "Validation"
+	Unknown       ConditionType = "Unknown" // Indicates the condition has not been evaluated
 )
 
 // ConditionReason describes the reasons for a condition's status.

@@ -1,16 +1,15 @@
 package ocm
 
 import (
-	"fmt"
+	"context"
 	"strconv"
 
 	"github.com/google/uuid"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/common"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ocm/clusterv1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog/v2"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -25,44 +24,8 @@ const (
 
 // ListManagedClusters returns all ManagedCluster CRs on the hub.
 func ListManagedClusters(apiClient *clients.Settings, options ...runtimeclient.ListOption) ([]*ManagedClusterBuilder, error) {
-	if apiClient == nil {
-		klog.V(100).Info("ManagedClusters 'apiClient' parameter cannot be nil")
-
-		return nil, fmt.Errorf("failed to list managedClusters, 'apiClient' parameter is nil")
-	}
-
-	err := apiClient.AttachScheme(clusterv1.Install)
-	if err != nil {
-		klog.V(100).Info("Failed to add ManagedCluster scheme to client schemes")
-
-		return nil, err
-	}
-
-	klog.V(100).Info("Listing all managedClusters")
-
-	managedClusterList := new(clusterv1.ManagedClusterList)
-
-	err = apiClient.List(logging.DiscardContext(), managedClusterList, options...)
-	if err != nil {
-		klog.V(100).Infof("Failed to list all managedClusters due to %s", err.Error())
-
-		return nil, err
-	}
-
-	var managedClusterObjects []*ManagedClusterBuilder
-
-	for _, managedCluster := range managedClusterList.Items {
-		copiedManagedCluster := managedCluster
-		managedClusterBuilder := &ManagedClusterBuilder{
-			apiClient:  apiClient.Client,
-			Object:     &copiedManagedCluster,
-			Definition: &copiedManagedCluster,
-		}
-
-		managedClusterObjects = append(managedClusterObjects, managedClusterBuilder)
-	}
-
-	return managedClusterObjects, nil
+	return common.List[clusterv1.ManagedCluster, clusterv1.ManagedClusterList, ManagedClusterBuilder](
+		context.TODO(), apiClient, clusterv1.Install, options...)
 }
 
 // ListNodeClusterEligibleManagedClusters returns ManagedClusters eligible for the cluster API (NodeCluster): available

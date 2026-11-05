@@ -28,6 +28,8 @@ func ObjectBucketClaimGVK() schema.GroupVersionKind {
 }
 
 // ObjectBucketClaimSpec defines the desired state of ObjectBucketClaim
+// +kubebuilder:validation:XValidation:rule=`!has(oldSelf.bucketName) || oldSelf.bucketName == "" || self.bucketName == oldSelf.bucketName`,message="bucketName is immutable once set"
+// +kubebuilder:validation:XValidation:rule=`!has(oldSelf.generateBucketName) || oldSelf.generateBucketName == "" || self.generateBucketName == oldSelf.generateBucketName`,message="generateBucketName is immutable once set"
 type ObjectBucketClaimSpec struct {
 
 	// StorageClass names the StorageClass object representing the desired provisioner and parameters
@@ -58,21 +60,22 @@ type ObjectBucketClaimSpec struct {
 }
 
 // ObjectBucketClaimStatusPhase is set by the controller to save the state of the provisioning process.
+// +kubebuilder:validation:Enum=Pending;Bound;Released;Failed
 type ObjectBucketClaimStatusPhase string
 
 const (
 	// ObjectBucketClaimStatusPhasePending indicates that the provisioner has begun handling the request and that it is
 	// still in process
-	ObjectBucketClaimStatusPhasePending = "Pending"
+	ObjectBucketClaimStatusPhasePending ObjectBucketClaimStatusPhase = "Pending"
 	// ObjectBucketClaimStatusPhaseBound indicates that provisioning has succeeded, the objectBucket is marked bound, and
 	// there is now a configMap and secret containing the appropriate bucket data in the namespace of the claim
-	ObjectBucketClaimStatusPhaseBound = "Bound"
+	ObjectBucketClaimStatusPhaseBound ObjectBucketClaimStatusPhase = "Bound"
 	// ObjectBucketClaimStatusPhaseReleased TODO this would likely mean that the OB was deleted. That situation should never
 	// happen outside of the claim being deleted.  So this state shouldn't naturally arise out of automation.
-	ObjectBucketClaimStatusPhaseReleased = "Released"
+	ObjectBucketClaimStatusPhaseReleased ObjectBucketClaimStatusPhase = "Released"
 	// ObjectBucketClaimStatusPhaseFailed indicates that provisioning failed.  There should be no configMap, secret, or
 	// object bucket and no bucket should be left hanging in the object store
-	ObjectBucketClaimStatusPhaseFailed = "Failed"
+	ObjectBucketClaimStatusPhaseFailed ObjectBucketClaimStatusPhase = "Failed"
 )
 
 // ObjectBucketClaimStatus defines the observed state of ObjectBucketClaim
@@ -84,6 +87,7 @@ type ObjectBucketClaimStatus struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +k8s:openapi-gen=true
 // +kubebuilder:resource:shortName=obc;obcs
+// +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="StorageClass",type="string",JSONPath=".spec.storageClassName",description="StorageClass"
 // +kubebuilder:printcolumn:name="Phase",type="string",JSONPath=".status.phase",description="Phase"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
