@@ -76,6 +76,7 @@ func ValidatePerformanceProfileSystemReserved() {
 			if profile.Object.Name == profileName {
 				profilesToValidate = []*nto.Builder{profile}
 				found = true
+
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Found PerformanceProfile: %s\n", profile.Object.Name)
 
 				break
@@ -134,11 +135,12 @@ func ValidatePerformanceProfileSystemReserved() {
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("✓ Successfully validated %d PerformanceProfile(s)\n",
 		len(profilesToValidate))
 }
+
 // validateNodesSystemReserved validates systemReserved configuration for nodes matching the given role label.
 // This is a shared implementation for both control-plane and worker node validation.
 //
 //nolint:funlen,gocognit // Complex validation logic with node filtering and detailed checks
-func validateNodesSystemReserved(nodeRoleLabel, nodeRoleDescription, baselineCPU, baselineMemory string) {
+func validateNodesSystemReserved(nodeRoleLabel, nodeRoleDescription string) {
 	By(fmt.Sprintf("Getting %s nodes", nodeRoleDescription))
 
 	nodeList, err := nodes.List(APIClient,
@@ -224,7 +226,9 @@ func validateNodesSystemReserved(nodeRoleLabel, nodeRoleDescription, baselineCPU
 					Skip(fmt.Sprintf("Node %s: systemReserved files not found and PerformanceProfile has incomplete annotation: %v",
 						nodeName, err))
 				}
-				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Using systemReserved from PerformanceProfile: CPU=%s, Memory=%s\n",
+
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"Using systemReserved from PerformanceProfile: CPU=%s, Memory=%s\n",
 					actualCPU, actualMemory)
 			} else {
 				Skip(fmt.Sprintf("Node %s has no systemReserved files and no PerformanceProfile - cannot validate systemReserved",
@@ -239,6 +243,7 @@ func validateNodesSystemReserved(nodeRoleLabel, nodeRoleDescription, baselineCPU
 			By("Verifying SYSTEM_RESERVED_CPU")
 
 			var found bool
+
 			actualCPU, found = envVars["SYSTEM_RESERVED_CPU"]
 			Expect(found).To(BeTrue(),
 				fmt.Sprintf("SYSTEM_RESERVED_CPU not found in %s on node %s", nodeSizingEnvPath, nodeName))
@@ -269,10 +274,12 @@ func validateNodesSystemReserved(nodeRoleLabel, nodeRoleDescription, baselineCPU
 		} else {
 			// Informational for nodes without PerformanceProfile or without systemReserved annotation
 			if !skipValidation && normalizeCPUValue(actualCPU) != normalizeCPUValue(expectedCPU) {
-				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("ℹ Node %s: CPU systemReserved is %s (scale lab baseline suggests %s)\n",
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"ℹ Node %s: CPU systemReserved is %s (scale lab baseline suggests %s)\n",
 					nodeName, actualCPU, expectedCPU)
 			} else if skipValidation {
-				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("ℹ Node %s: CPU systemReserved is %s (PerformanceProfile exists but no annotation)\n",
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"ℹ Node %s: CPU systemReserved is %s (PerformanceProfile exists but no annotation)\n",
 					nodeName, actualCPU)
 			}
 		}
@@ -295,15 +302,18 @@ func validateNodesSystemReserved(nodeRoleLabel, nodeRoleDescription, baselineCPU
 		} else {
 			// Informational for nodes without PerformanceProfile or without systemReserved annotation
 			if !skipValidation && actualMemory != expectedMemory {
-				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("ℹ Node %s: Memory systemReserved is %s (scale lab baseline suggests %s)\n",
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"ℹ Node %s: Memory systemReserved is %s (scale lab baseline suggests %s)\n",
 					nodeName, actualMemory, expectedMemory)
 			} else if skipValidation {
-				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("ℹ Node %s: Memory systemReserved is %s (PerformanceProfile exists but no annotation)\n",
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"ℹ Node %s: Memory systemReserved is %s (PerformanceProfile exists but no annotation)\n",
 					nodeName, actualMemory)
 			}
 		}
 
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("✓ Node %s systemReserved validated: CPU=%s, Memory=%s\n", nodeName, actualCPU, actualMemory)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"✓ Node %s systemReserved validated: CPU=%s, Memory=%s\n", nodeName, actualCPU, actualMemory)
 	}
 }
 
@@ -313,8 +323,6 @@ func ValidateControlPlaneNodeSystemReserved() {
 	validateNodesSystemReserved(
 		"node-role.kubernetes.io/master",
 		"control plane",
-		RDSCoreConfig.ControlPlaneCPUReserved,
-		RDSCoreConfig.ControlPlaneMemoryReserved,
 	)
 }
 
@@ -323,8 +331,6 @@ func ValidateWorkerNodeSystemReserved() {
 	validateNodesSystemReserved(
 		"node-role.kubernetes.io/worker",
 		"worker",
-		RDSCoreConfig.WorkerCPUReserved,
-		RDSCoreConfig.WorkerMemoryReserved,
 	)
 }
 
@@ -482,7 +488,8 @@ func ValidateScaleLabBaseline() {
 
 		output, err := remote.ExecuteOnNodeWithDebugPod(cmd, cpNodeName)
 		if err != nil {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⚠ Failed to read systemReserved from control plane node %s - skipping\n", cpNodeName)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"⚠ Failed to read systemReserved from control plane node %s - skipping\n", cpNodeName)
 
 			continue
 		}
@@ -492,7 +499,8 @@ func ValidateScaleLabBaseline() {
 		memStr, foundMem := envVars["SYSTEM_RESERVED_MEMORY"]
 
 		if !foundCPU || !foundMem {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⚠ systemReserved not configured on control plane node %s - skipping\n", cpNodeName)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"⚠ systemReserved not configured on control plane node %s - skipping\n", cpNodeName)
 
 			continue
 		}
@@ -500,7 +508,8 @@ func ValidateScaleLabBaseline() {
 		// Validate CPU
 		cpuQuantity, err := resource.ParseQuantity(cpuStr)
 		if err != nil {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⚠ Failed to parse CPU on control plane node %s - skipping\n", cpNodeName)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"⚠ Failed to parse CPU on control plane node %s - skipping\n", cpNodeName)
 
 			continue
 		}
@@ -519,7 +528,8 @@ func ValidateScaleLabBaseline() {
 		// Validate Memory
 		memoryQuantity, err := resource.ParseQuantity(memStr)
 		if err != nil {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⚠ Failed to parse memory on control plane node %s - skipping memory\n", cpNodeName)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"⚠ Failed to parse memory on control plane node %s - skipping memory\n", cpNodeName)
 		} else {
 			memoryGB := float64(memoryQuantity.Value()) / (1024 * 1024 * 1024)
 			if memoryGB < scaleLabMaxMemory {
@@ -567,7 +577,8 @@ func ValidateScaleLabBaseline() {
 
 		output, err := remote.ExecuteOnNodeWithDebugPod(cmd, workerNodeName)
 		if err != nil {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⚠ Failed to read systemReserved from worker node %s - skipping\n", workerNodeName)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"⚠ Failed to read systemReserved from worker node %s - skipping\n", workerNodeName)
 
 			continue
 		}
@@ -576,7 +587,8 @@ func ValidateScaleLabBaseline() {
 		workerCPUStr, foundWorkerCPU := workerEnvVars["SYSTEM_RESERVED_CPU"]
 
 		if !foundWorkerCPU {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⚠ systemReserved not configured on worker node %s - skipping\n", workerNodeName)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"⚠ systemReserved not configured on worker node %s - skipping\n", workerNodeName)
 
 			continue
 		}
@@ -741,7 +753,8 @@ func validateNodeEnforcement(node *nodes.Builder) {
 		// If JSON parsing fails, try YAML
 		err = yaml.Unmarshal([]byte(output), &kubeletConfig)
 		if err != nil {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("❌ Node %s: Failed to parse kubelet config (tried JSON and YAML): %v\n", nodeName, err)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"❌ Node %s: Failed to parse kubelet config (tried JSON and YAML): %v\n", nodeName, err)
 
 			return // Skip this node, continue with others
 		}
@@ -750,7 +763,8 @@ func validateNodeEnforcement(node *nodes.Builder) {
 	// Check enforceNodeAllocatable field
 	enforceAllocatable, found := kubeletConfig["enforceNodeAllocatable"]
 	if !found {
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⚠ Node %s: enforceNodeAllocatable not found in kubelet config (may use default)\n", nodeName)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"⚠ Node %s: enforceNodeAllocatable not found in kubelet config (may use default)\n", nodeName)
 	} else {
 		// enforceNodeAllocatable is typically an array like ["pods", "system-reserved"]
 		hasSystemReserved := false
@@ -777,7 +791,8 @@ func validateNodeEnforcement(node *nodes.Builder) {
 		if hasSystemReserved {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("✓ Node %s has system-reserved in enforceNodeAllocatable\n", nodeName)
 		} else {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⚠ Node %s: enforceNodeAllocatable does not include system-reserved\n", nodeName)
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"⚠ Node %s: enforceNodeAllocatable does not include system-reserved\n", nodeName)
 		}
 	}
 
@@ -794,7 +809,8 @@ func validateNodeEnforcement(node *nodes.Builder) {
 		nodeName, cpuAllocatable.String(), cpuCapacity.String())
 	Expect(cpuAllocatable.Cmp(cpuCapacity)).To(Equal(-1), enforceMsg)
 
-	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("✓ Node %s has systemReserved enforcement in effect (allocatable < capacity)\n", nodeName)
+	klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+		"✓ Node %s has systemReserved enforcement in effect (allocatable < capacity)\n", nodeName)
 }
 
 // isNodeReadyForTesting checks if a node is in a state where it can be tested.
@@ -883,6 +899,7 @@ func findPerformanceProfileForNode(nodeLabels map[string]string, profiles []*nto
 		if profile.Object.Spec.NodeSelector == nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("    ⊘ Profile %s: no nodeSelector defined\n",
 				profile.Object.Name)
+
 			continue
 		}
 
@@ -898,6 +915,7 @@ func findPerformanceProfileForNode(nodeLabels map[string]string, profiles []*nto
 
 			if !exists {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("      ✗ Label %s not found on node\n", key)
+
 				allMatch = false
 
 				break
@@ -906,6 +924,7 @@ func findPerformanceProfileForNode(nodeLabels map[string]string, profiles []*nto
 			if nodeValue != value {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof("      ✗ Label %s mismatch: node=%s, profile=%s\n",
 					key, nodeValue, value)
+
 				allMatch = false
 
 				break
@@ -916,6 +935,7 @@ func findPerformanceProfileForNode(nodeLabels map[string]string, profiles []*nto
 
 		if allMatch {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("    ✓ Profile %s matches node\n", profile.Object.Name)
+
 			return profile
 		}
 	}
