@@ -82,8 +82,12 @@ func ValidateSwitchdevPreconditions(operatorNS, mcpLabel string, device hwolconf
 	}
 
 	nodeList, err := ListMCPWorkerNodes(mcpLabel)
-	if err != nil || len(nodeList) == 0 {
+	if err != nil {
 		return fmt.Errorf("cannot list HWOL MCP nodes %s: %w", mcpLabel, err)
+	}
+
+	if len(nodeList) == 0 {
+		return fmt.Errorf("no nodes with HWOL MCP label %s", mcpLabel)
 	}
 
 	var policies sriovv1.SriovNetworkNodePolicyList
