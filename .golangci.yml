@@ -103,6 +103,9 @@ linters:
             - golang.org/x/oauth2
             - github.com/google/uuid
             - github.com/google/go-cmp
+
+            - github.com/mdlayher/genetlink
+            - github.com/mdlayher/netlink
             - golang.org/x/exp/constraints
             - github.com/redhat-cne/sdk-go
             - github.com/prometheus-operator/prometheus-operator

@@ -5,10 +5,12 @@ package sma
 
 import (
 	"fmt"
-	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/mdlayher/genetlink"
+	"github.com/mdlayher/netlink"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/ptpdaemon"
@@ -17,19 +19,19 @@ import (
 )
 
 // DisconnectSma disables the given SMA pin on the node. It first tries the sysfs path; if the
-// pin file is absent (ice driver migrated to DPLL netlink), it falls back to the host DPLL CLI.
+// pin file is absent (ice driver migrated to DPLL netlink), it uses DPLL generic netlink.
 func DisconnectSma(client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName string) error {
 	if hasSysfsSmaPin(client, nodeName, ifaceName, pinName) {
 		return disconnectSmaViaSysfs(client, nodeName, ifaceName, pinName)
 	}
 
-	klog.V(tsparams.LogLevel).Infof("sysfs %s pin not found for %s, using DPLL CLI fallback", pinName, ifaceName)
+	klog.V(tsparams.LogLevel).Infof("sysfs %s pin not found for %s, using DPLL netlink", pinName, ifaceName)
 
 	return disconnectSmaViaDpll(client, nodeName, ifaceName, pinName)
 }
 
 // ReconnectSma restores the given SMA pin to smaConfig (e.g. "1 1"). It first tries the sysfs
-// path; if the pin file is absent, it falls back to the host DPLL CLI. On the DPLL path, smaConfig
+// path; if the pin file is absent, it uses DPLL generic netlink. On the DPLL path, smaConfig
 // is not used because it is a sysfs-format string that has no meaning in the DPLL subsystem;
 // reconnectSmaViaDpll uses prio=3 as the conventional default instead.
 func ReconnectSma(
@@ -38,20 +40,20 @@ func ReconnectSma(
 		return reconnectSmaViaSysfs(client, nodeName, ifaceName, pinName, smaConfig)
 	}
 
-	klog.V(tsparams.LogLevel).Infof("sysfs %s pin not found for %s, using DPLL CLI fallback", pinName, ifaceName)
+	klog.V(tsparams.LogLevel).Infof("sysfs %s pin not found for %s, using DPLL netlink", pinName, ifaceName)
 
 	return reconnectSmaViaDpll(client, nodeName, ifaceName, pinName)
 }
 
 // IsSmaConnected returns true if the given SMA pin is actively connected. It first tries the
-// sysfs path; if the pin file is absent, it falls back to the host DPLL CLI.
+// sysfs path; if the pin file is absent, it uses DPLL generic netlink.
 func IsSmaConnected(
 	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName string) (bool, error) {
 	if hasSysfsSmaPin(client, nodeName, ifaceName, pinName) {
 		return isSmaConnectedViaSysfs(client, nodeName, ifaceName, pinName)
 	}
 
-	klog.V(tsparams.LogLevel).Infof("sysfs %s pin not found for %s, using DPLL CLI fallback", pinName, ifaceName)
+	klog.V(tsparams.LogLevel).Infof("sysfs %s pin not found for %s, using DPLL netlink", pinName, ifaceName)
 
 	return isSmaConnectedViaDpll(client, nodeName, ifaceName, pinName)
 }
@@ -134,258 +136,396 @@ func isSmaConnectedViaSysfs(
 	return funcVal != "0", nil
 }
 
-// dpllPinIDPattern matches "id <number>" or a bare "<number>" anchored to end-of-string, avoiding
-// false positives on earlier numeric fields in the dpll CLI output.
-var dpllPinIDPattern = regexp.MustCompile(`(?:^|\s)(?:id\s+)?(\d+)\s*$`)
+// The DPLL uAPI is stable and defined in linux/dpll.h. Keep the values local so
+// this package does not need generated kernel bindings.
+const (
+	dpllFamilyName    = "dpll"
+	dpllFamilyVersion = 1
 
-// dpllDirectionOutput is the DPLL parent-device direction value for output pins.
-const dpllDirectionOutput = "output"
+	dpllCmdPinIDGet = 7
+	dpllCmdPinGet   = 8
+	dpllCmdPinSet   = 9
 
-// getDpllSmaPinID resolves the DPLL pin ID for the given network interface and pin name. It reads
-// the PCI serial number via devlink, converts it to a DPLL clock-id, then queries the host dpll
-// binary (via nsenter) to look up the pin.
-func getDpllSmaPinID(
-	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName string) (string, error) {
-	cmd := fmt.Sprintf(
-		`PCI=$(readlink /sys/class/net/%s/device | xargs basename) && `+
-			`SERIAL=$(devlink dev info pci/$PCI 2>/dev/null | awk '/serial_number/{print $NF}') && `+
-			`CLOCK_ID=$(printf '%%d' 0x$(echo $SERIAL | tr -d '-')) && `+
-			`nsenter -t 1 -m -n -- /usr/sbin/dpll pin id-get board-label %s clock-id $CLOCK_ID`,
-		ifaceName, pinName)
+	dpllPinAttrID           = 1
+	dpllPinAttrParentID     = 2
+	dpllPinAttrClockID      = 5
+	dpllPinAttrBoardLabel   = 6
+	dpllPinAttrDirection    = 10
+	dpllPinAttrPriority     = 14
+	dpllPinAttrState        = 15
+	dpllPinAttrParentDevice = 17
 
-	out, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, cmd,
-		ptpdaemon.WithRetries(3),
-		ptpdaemon.WithRetryOnError(true),
-		ptpdaemon.WithRetryOnEmptyOutput(true))
-	if err != nil {
-		return "", fmt.Errorf("failed to resolve DPLL %s pin ID for %s: %w", pinName, ifaceName, err)
-	}
+	dpllPinDirectionInput  = 1
+	dpllPinDirectionOutput = 2
 
-	cleaned := strings.ReplaceAll(strings.TrimSpace(out), "\r", "")
+	dpllPinStateConnected    = 1
+	dpllPinStateDisconnected = 2
+	dpllPinStateSelectable   = 3
 
-	m := dpllPinIDPattern.FindStringSubmatch(cleaned)
-	if len(m) < 2 {
-		return "", fmt.Errorf("failed to parse DPLL %s pin ID from output: %q", pinName, out)
-	}
-
-	return m[1], nil
-}
+	dpllDisconnectedPriority = 255
+	dpllDefaultPriority      = 3
+)
 
 type dpllParentDevice struct {
-	id        string
-	direction string
-	prio      string
-	state     string
+	id        uint32
+	direction uint32
+	priority  uint32
+	state     uint32
 }
 
 type dpllPinState struct {
 	parents []dpllParentDevice
 }
 
-// getDpllPinState runs "dpll pin show" on the host and parses the result.
-func getDpllPinState(client *clients.Settings, nodeName, pinID string) (dpllPinState, error) {
-	cmd := fmt.Sprintf("nsenter -t 1 -m -n -- /usr/sbin/dpll pin show id %s", pinID)
+type dpllExecutor interface {
+	Execute(genetlink.Message, uint16, netlink.HeaderFlags) ([]genetlink.Message, error)
+}
+
+type dpllNetlinkClient struct {
+	conn   dpllExecutor
+	family genetlink.Family
+}
+
+func newDpllNetlinkClient() (*dpllNetlinkClient, func() error, error) {
+	conn, err := genetlink.Dial(nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to open DPLL generic netlink connection: %w", err)
+	}
+
+	family, err := conn.GetFamily(dpllFamilyName)
+	if err != nil {
+		_ = conn.Close()
+
+		return nil, nil, fmt.Errorf("failed to find DPLL generic netlink family: %w", err)
+	}
+
+	return &dpllNetlinkClient{conn: conn, family: family}, conn.Close, nil
+}
+
+func (c *dpllNetlinkClient) execute(command uint8, data []byte) ([]genetlink.Message, error) {
+	responses, err := c.conn.Execute(genetlink.Message{
+		Header: genetlink.Header{Command: command, Version: c.family.Version},
+		Data:   data,
+	}, c.family.ID, netlink.Request)
+	if err != nil {
+		return nil, fmt.Errorf("DPLL netlink command %d failed: %w", command, err)
+	}
+
+	return responses, nil
+}
+
+// getDpllClockID obtains the clock ID associated with ifaceName. DPLL identifies
+// E810 devices by the PCI serial number, which devlink exposes in the daemon pod.
+func getDpllClockID(client *clients.Settings, nodeName string, ifaceName iface.Iface) (uint64, error) {
+	cmd := fmt.Sprintf(
+		`PCI=$(readlink /sys/class/net/%s/device | xargs basename) && `+
+			`devlink dev info pci/$PCI 2>/dev/null | awk '/serial_number/{print $NF}'`,
+		ifaceName)
 
 	out, err := ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, cmd,
-		ptpdaemon.WithRetryDelay(10*time.Second),
 		ptpdaemon.WithRetries(3),
 		ptpdaemon.WithRetryOnError(true),
 		ptpdaemon.WithRetryOnEmptyOutput(true))
 	if err != nil {
-		return dpllPinState{}, fmt.Errorf("failed to show DPLL pin %s: %w", pinID, err)
+		return 0, fmt.Errorf("failed to get DPLL clock ID for %s: %w", ifaceName, err)
 	}
 
-	pinState := parseDpllPinShow(out)
+	serial := strings.ReplaceAll(strings.TrimSpace(out), "-", "")
 
-	klog.V(tsparams.LogLevel).Infof("DPLL pin %s state: %+v", pinID, pinState)
+	clockID, err := strconv.ParseUint(serial, 16, 64)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse DPLL clock ID %q for %s: %w", out, ifaceName, err)
+	}
 
-	return pinState, nil
+	return clockID, nil
 }
 
-// parseDpllPinShow parses the human-readable output of "dpll pin show" into a structured pin state.
-// The parent-device section uses an inline format where each parent is a single indented line:
-//
-//	parent-device:
-//	  id 0 direction input prio 0 state connected phase-offset -12345
-func parseDpllPinShow(output string) dpllPinState {
+func (c *dpllNetlinkClient) pinID(clockID uint64, pinName string) (uint32, error) {
+	attrs, err := marshalDpllAttributes(func(ae *netlink.AttributeEncoder) {
+		ae.Uint64(dpllPinAttrClockID, clockID)
+		ae.String(dpllPinAttrBoardLabel, pinName)
+	})
+	if err != nil {
+		return 0, err
+	}
+
+	responses, err := c.execute(dpllCmdPinIDGet, attrs)
+	if err != nil {
+		return 0, err
+	}
+
+	for _, response := range responses {
+		pinIdentifier, found, err := dpllPinIDFromAttributes(response.Data)
+		if err != nil {
+			return 0, err
+		}
+
+		if found {
+			return pinIdentifier, nil
+		}
+	}
+
+	return 0, fmt.Errorf("DPLL pin ID response did not include an ID for %s", pinName)
+}
+
+func (c *dpllNetlinkClient) pinState(pinID uint32) (dpllPinState, error) {
+	attrs, err := marshalDpllAttributes(func(ae *netlink.AttributeEncoder) {
+		ae.Uint32(dpllPinAttrID, pinID)
+	})
+	if err != nil {
+		return dpllPinState{}, err
+	}
+
+	responses, err := c.execute(dpllCmdPinGet, attrs)
+	if err != nil {
+		return dpllPinState{}, err
+	}
+
+	if len(responses) == 0 {
+		return dpllPinState{}, fmt.Errorf("DPLL pin %d response was empty", pinID)
+	}
+
+	state, err := dpllPinStateFromAttributes(responses[0].Data)
+	if err != nil {
+		return dpllPinState{}, err
+	}
+
+	klog.V(tsparams.LogLevel).Infof("DPLL pin %d state: %+v", pinID, state)
+
+	return state, nil
+}
+
+func (c *dpllNetlinkClient) setPinParents(pinID uint32, parents []dpllParentDevice, reconnect bool) error {
+	attrs, err := marshalDpllAttributes(func(attributeEncoder *netlink.AttributeEncoder) {
+		attributeEncoder.Uint32(dpllPinAttrID, pinID)
+
+		for _, parent := range parents {
+			parent := parent
+
+			attributeEncoder.Nested(dpllPinAttrParentDevice, func(nae *netlink.AttributeEncoder) error {
+				nae.Uint32(dpllPinAttrParentID, parent.id)
+
+				if parent.direction == dpllPinDirectionOutput {
+					if reconnect {
+						nae.Uint32(dpllPinAttrState, dpllPinStateConnected)
+					} else {
+						nae.Uint32(dpllPinAttrState, dpllPinStateDisconnected)
+					}
+
+					return nil
+				}
+
+				if reconnect {
+					nae.Uint32(dpllPinAttrPriority, dpllDefaultPriority)
+				} else {
+					nae.Uint32(dpllPinAttrPriority, dpllDisconnectedPriority)
+				}
+
+				nae.Uint32(dpllPinAttrState, dpllPinStateSelectable)
+
+				return nil
+			})
+		}
+	})
+	if err != nil {
+		return err
+	}
+
+	_, err = c.execute(dpllCmdPinSet, attrs)
+
+	return err
+}
+
+func marshalDpllAttributes(encode func(*netlink.AttributeEncoder)) ([]byte, error) {
+	ae := netlink.NewAttributeEncoder()
+	encode(ae)
+
+	attrs, err := ae.Encode()
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode DPLL netlink attributes: %w", err)
+	}
+
+	return attrs, nil
+}
+
+func dpllPinIDFromAttributes(data []byte) (uint32, bool, error) {
+	attrDecoder, err := netlink.NewAttributeDecoder(data)
+	if err != nil {
+		return 0, false, fmt.Errorf("failed to decode DPLL pin ID response: %w", err)
+	}
+
+	for attrDecoder.Next() {
+		if attrDecoder.Type() == dpllPinAttrID {
+			return attrDecoder.Uint32(), true, attrDecoder.Err()
+		}
+	}
+
+	return 0, false, attrDecoder.Err()
+}
+
+func dpllPinStateFromAttributes(data []byte) (dpllPinState, error) {
+	attrDecoder, err := netlink.NewAttributeDecoder(data)
+	if err != nil {
+		return dpllPinState{}, fmt.Errorf("failed to decode DPLL pin response: %w", err)
+	}
+
 	var state dpllPinState
 
-	cleaned := strings.ReplaceAll(output, "\r", "")
-	inParentBlock := false
-
-	for _, line := range strings.Split(cleaned, "\n") {
-		trimmed := strings.TrimSpace(line)
-
-		if strings.HasPrefix(trimmed, "parent-device") && strings.HasSuffix(trimmed, ":") {
-			inParentBlock = true
-
+	for attrDecoder.Next() {
+		if attrDecoder.Type() != dpllPinAttrParentDevice {
 			continue
 		}
 
-		if inParentBlock {
-			if trimmed == "" {
-				continue
-			}
-
-			if strings.HasPrefix(trimmed, "id ") {
-				state.parents = append(state.parents, parseParentDeviceLine(trimmed))
-
-				continue
-			}
-
-			inParentBlock = false
+		parent, err := dpllParentDeviceFromAttributes(attrDecoder.Bytes())
+		if err != nil {
+			return dpllPinState{}, err
 		}
+
+		state.parents = append(state.parents, parent)
 	}
 
-	return state
+	if err := attrDecoder.Err(); err != nil {
+		return dpllPinState{}, fmt.Errorf("failed to decode DPLL pin response: %w", err)
+	}
+
+	return state, nil
 }
 
-// parseParentDeviceLine parses an inline parent-device line such as:
-//
-//	id 2 direction input prio 0 state connected phase-offset -12345
-func parseParentDeviceLine(line string) dpllParentDevice {
+func dpllParentDeviceFromAttributes(data []byte) (dpllParentDevice, error) {
+	attrDecoder, err := netlink.NewAttributeDecoder(data)
+	if err != nil {
+		return dpllParentDevice{}, fmt.Errorf("failed to decode DPLL parent device: %w", err)
+	}
+
 	var parent dpllParentDevice
 
-	fields := strings.Fields(line)
-
-	for idx := 0; idx < len(fields)-1; idx++ {
-		switch fields[idx] {
-		case "id":
-			parent.id = fields[idx+1]
-		case "direction":
-			parent.direction = fields[idx+1]
-		case "prio":
-			parent.prio = fields[idx+1]
-		case "state":
-			parent.state = fields[idx+1]
+	for attrDecoder.Next() {
+		switch attrDecoder.Type() {
+		case dpllPinAttrParentID:
+			parent.id = attrDecoder.Uint32()
+		case dpllPinAttrDirection:
+			parent.direction = attrDecoder.Uint32()
+		case dpllPinAttrPriority:
+			parent.priority = attrDecoder.Uint32()
+		case dpllPinAttrState:
+			parent.state = attrDecoder.Uint32()
 		}
 	}
 
-	return parent
+	if err := attrDecoder.Err(); err != nil {
+		return dpllParentDevice{}, fmt.Errorf("failed to decode DPLL parent device: %w", err)
+	}
+
+	return parent, nil
 }
 
-// disconnectSmaViaDpll disables the SMA pin via the host DPLL CLI. For input pins it sets all
+func withDpllNetlink(action func(*dpllNetlinkClient) error) error {
+	dpll, closeConn, err := newDpllNetlinkClient()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if closeErr := closeConn(); closeErr != nil {
+			klog.V(tsparams.LogLevel).Infof("failed to close DPLL netlink connection: %v", closeErr)
+		}
+	}()
+
+	return action(dpll)
+}
+
+// disconnectSmaViaDpll disables the SMA pin through DPLL generic netlink. For input pins it sets all
 // parents to prio=255 state=selectable (lowest priority, effectively disabled). For output pins it
 // sets all parents to state=disconnected.
 func disconnectSmaViaDpll(
 	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName string) error {
-	pinID, err := getDpllSmaPinID(client, nodeName, ifaceName, pinName)
+	clockID, err := getDpllClockID(client, nodeName, ifaceName)
 	if err != nil {
 		return err
 	}
 
-	pinState, err := getDpllPinState(client, nodeName, pinID)
-	if err != nil {
-		return err
-	}
-
-	if len(pinState.parents) == 0 {
-		return fmt.Errorf("no parent devices found for DPLL %s pin %s on %s", pinName, pinID, ifaceName)
-	}
-
-	dpllArgs := fmt.Sprintf("id %s", pinID)
-
-	if pinState.parents[0].direction == dpllDirectionOutput {
-		for _, p := range pinState.parents {
-			dpllArgs += fmt.Sprintf(" parent-device %s state disconnected", p.id)
+	return withDpllNetlink(func(dpll *dpllNetlinkClient) error {
+		pinID, err := dpll.pinID(clockID, pinName)
+		if err != nil {
+			return fmt.Errorf("failed to resolve DPLL %s pin ID for %s: %w", pinName, ifaceName, err)
 		}
-	} else {
-		for _, p := range pinState.parents {
-			dpllArgs += fmt.Sprintf(" parent-device %s prio 255 state selectable", p.id)
+
+		pinState, err := dpll.pinState(pinID)
+		if err != nil {
+			return fmt.Errorf("failed to show DPLL pin %d: %w", pinID, err)
 		}
-	}
 
-	cmd := fmt.Sprintf("nsenter -t 1 -m -n -- /usr/sbin/dpll pin set %s", dpllArgs)
+		if len(pinState.parents) == 0 {
+			return fmt.Errorf("no parent devices found for DPLL %s pin %d on %s", pinName, pinID, ifaceName)
+		}
 
-	klog.V(tsparams.LogLevel).Infof("DPLL disconnect %s: %s", pinName, cmd)
-
-	_, err = ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, cmd,
-		ptpdaemon.WithRetries(3),
-		ptpdaemon.WithRetryOnError(true),
-		ptpdaemon.WithRetryDelay(10*time.Second))
-
-	return err
+		return dpll.setPinParents(pinID, pinState.parents, false)
+	})
 }
 
-// reconnectSmaViaDpll re-enables the SMA pin via the host DPLL CLI. For input pins it sets all
-// parents to prio=3 state=selectable; prio=3 is used as a conventional default matching the value
-// the PTP operator assigns to SMA input pins during initial configuration. For output pins it sets
-// all parents to state=connected. Note: the sysfs-format smaConfig string is not applicable to the
-// DPLL path and is intentionally not used here.
+// reconnectSmaViaDpll restores the SMA pin through DPLL generic netlink. Input pins use the PTP
+// operator's conventional priority 3; output pins are reconnected. The sysfs-format smaConfig is
+// intentionally not used by the DPLL API.
 func reconnectSmaViaDpll(
 	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName string) error {
-	pinID, err := getDpllSmaPinID(client, nodeName, ifaceName, pinName)
+	clockID, err := getDpllClockID(client, nodeName, ifaceName)
 	if err != nil {
 		return err
 	}
 
-	pinState, err := getDpllPinState(client, nodeName, pinID)
-	if err != nil {
-		return err
-	}
-
-	if len(pinState.parents) == 0 {
-		return fmt.Errorf("no parent devices found for DPLL %s pin %s on %s", pinName, pinID, ifaceName)
-	}
-
-	dpllArgs := fmt.Sprintf("id %s", pinID)
-
-	if pinState.parents[0].direction == dpllDirectionOutput {
-		for _, p := range pinState.parents {
-			dpllArgs += fmt.Sprintf(" parent-device %s state connected", p.id)
+	return withDpllNetlink(func(dpll *dpllNetlinkClient) error {
+		pinID, err := dpll.pinID(clockID, pinName)
+		if err != nil {
+			return fmt.Errorf("failed to resolve DPLL %s pin ID for %s: %w", pinName, ifaceName, err)
 		}
-	} else {
-		for _, p := range pinState.parents {
-			dpllArgs += fmt.Sprintf(" parent-device %s prio 3 state selectable", p.id)
+
+		pinState, err := dpll.pinState(pinID)
+		if err != nil {
+			return fmt.Errorf("failed to show DPLL pin %d: %w", pinID, err)
 		}
-	}
 
-	cmd := fmt.Sprintf("nsenter -t 1 -m -n -- /usr/sbin/dpll pin set %s", dpllArgs)
+		if len(pinState.parents) == 0 {
+			return fmt.Errorf("no parent devices found for DPLL %s pin %d on %s", pinName, pinID, ifaceName)
+		}
 
-	klog.V(tsparams.LogLevel).Infof("DPLL reconnect %s: %s", pinName, cmd)
-
-	_, err = ptpdaemon.ExecuteCommandInPtpDaemonPod(client, nodeName, cmd,
-		ptpdaemon.WithRetries(3),
-		ptpdaemon.WithRetryOnError(true),
-		ptpdaemon.WithRetryDelay(10*time.Second))
-
-	return err
+		return dpll.setPinParents(pinID, pinState.parents, true)
+	})
 }
 
-// isSmaConnectedViaDpll returns true if the SMA pin is actively connected via the DPLL CLI. For
-// input pins, connected means at least one parent has prio < 255. For output pins, connected means
-// at least one parent has state=connected.
+// isSmaConnectedViaDpll reports connectivity from DPLL generic netlink. An input pin is connected
+// when a parent priority is below 255; an output pin is connected when a parent state is connected.
 func isSmaConnectedViaDpll(
 	client *clients.Settings, nodeName string, ifaceName iface.Iface, pinName string) (bool, error) {
-	pinID, err := getDpllSmaPinID(client, nodeName, ifaceName, pinName)
+	clockID, err := getDpllClockID(client, nodeName, ifaceName)
 	if err != nil {
 		return false, err
 	}
 
-	pinState, err := getDpllPinState(client, nodeName, pinID)
-	if err != nil {
-		return false, err
-	}
+	connected := false
+	err = withDpllNetlink(func(dpll *dpllNetlinkClient) error {
+		pinID, err := dpll.pinID(clockID, pinName)
+		if err != nil {
+			return fmt.Errorf("failed to resolve DPLL %s pin ID for %s: %w", pinName, ifaceName, err)
+		}
 
-	if len(pinState.parents) == 0 {
-		return false, fmt.Errorf("no parent devices found for DPLL %s pin %s on %s", pinName, pinID, ifaceName)
-	}
+		pinState, err := dpll.pinState(pinID)
+		if err != nil {
+			return fmt.Errorf("failed to show DPLL pin %d: %w", pinID, err)
+		}
 
-	if pinState.parents[0].direction == dpllDirectionOutput {
-		for _, p := range pinState.parents {
-			if p.state == "connected" {
-				return true, nil
+		if len(pinState.parents) == 0 {
+			return fmt.Errorf("no parent devices found for DPLL %s pin %d on %s", pinName, pinID, ifaceName)
+		}
+
+		for _, parent := range pinState.parents {
+			if parent.direction == dpllPinDirectionOutput {
+				connected = connected || parent.state == dpllPinStateConnected
+			} else {
+				connected = connected || parent.priority != dpllDisconnectedPriority
 			}
 		}
 
-		return false, nil
-	}
+		return nil
+	})
 
-	for _, p := range pinState.parents {
-		if p.prio != "255" {
-			return true, nil
-		}
-	}
-
-	return false, nil
+	return connected, err
 }

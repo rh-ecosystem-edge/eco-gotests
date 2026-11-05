@@ -29,6 +29,8 @@ require (
 	github.com/kedacore/keda/v2 v2.19.0 // aligned with k8s v0.35
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/klauspost/compress v1.19.0
+	github.com/mdlayher/genetlink v1.3.2
+	github.com/mdlayher/netlink v1.7.2
 	github.com/metal3-io/baremetal-operator/apis v0.13.1
 	github.com/nmstate/kubernetes-nmstate/api v0.0.0-20260707144101-8853341855d6
 	github.com/onsi/ginkgo/v2 v2.32.0
@@ -171,6 +173,7 @@ require (
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
+	github.com/josharian/native v1.1.0 // indirect
 	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kdomanski/iso9660 v0.2.1 // indirect
@@ -180,6 +183,7 @@ require (
 	github.com/lib/pq v1.12.3 // indirect
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
 	github.com/mailru/easyjson v0.9.1 // indirect
+	github.com/mdlayher/socket v0.5.1 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
