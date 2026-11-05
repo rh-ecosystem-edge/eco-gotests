@@ -30,6 +30,12 @@ const (
 	registryAuthFile = "/var/lib/kubelet/config.json"
 	mcpName          = "master"
 
+	// mcpStableWaitingTime is the outer deadline for the master pool to finish
+	// updating after seed generation.
+	mcpStableWaitingTime = 10 * time.Minute
+	// mcpStableDuration is the uninterrupted stable window once pool counts match.
+	mcpStableDuration = 5 * time.Second
+
 	// Outer retry around ExecCommandOnSNOWithRetries, which may stop early on
 	// non-exec faults. Nested retries can multiply total attempts.
 	seedImageVerifyOuterRetries  = 5
@@ -328,7 +334,7 @@ func GenerateSeedImage(
 	klog.V(lcaparams.LCALogLevel).Info("SeedGenerator completed successfully, verifying seed image exists")
 
 	// Wait for MCP to be stable
-	err = cluster.WaitForMcpStable(apiClient, 90*time.Second, 5*time.Second, mcpName)
+	err = cluster.WaitForMcpStable(apiClient, mcpStableWaitingTime, mcpStableDuration, mcpName)
 	if err != nil {
 		return "", fmt.Errorf("failed to wait for MCP to be stable: %w", err)
 	}
