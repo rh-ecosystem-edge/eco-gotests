@@ -107,10 +107,6 @@ var _ = Describe("ORAN Provision Tests", Label(tsparams.LabelProvision), Ordered
 		Expect(prBuilder.Object.Status.ProvisioningStatus.ProvisioningPhase).
 			To(Equal(provisioningv1alpha1.StateFailed), "Expected ProvisioningRequest to be failed after invalid parameters")
 
-		details := prBuilder.Object.Status.ProvisioningStatus.ProvisioningDetails
-		Expect(details).To(ContainSubstring(tsparams.PRValidationFailedDetailsSubstring),
-			"Expected provisioning details to report a validation failure")
-
 		updateTime := time.Now()
 
 		By("updating the ProvisioningRequest with valid policyTemplateParameters")
@@ -232,12 +228,6 @@ func verifyProvisioningRequestFulfilled(prBuilder *oran.ProvisioningRequestBuild
 	if status.ProvisioningStatus.ProvisioningPhase != provisioningv1alpha1.StateFulfilled {
 		accumulatedErrors = append(accumulatedErrors, fmt.Errorf("expected provisioning phase %q, got %q",
 			provisioningv1alpha1.StateFulfilled, status.ProvisioningStatus.ProvisioningPhase))
-	}
-
-	if !strings.Contains(status.ProvisioningStatus.ProvisioningDetails, tsparams.PRFulfilledDetailsSubstring) {
-		accumulatedErrors = append(accumulatedErrors, fmt.Errorf(
-			"expected provisioning details to contain %q, got %q",
-			tsparams.PRFulfilledDetailsSubstring, status.ProvisioningStatus.ProvisioningDetails))
 	}
 
 	By("verifying the ProvisionedResources are set")

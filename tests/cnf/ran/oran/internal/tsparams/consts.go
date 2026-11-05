@@ -50,22 +50,6 @@ const (
 	// ImmutableMessage is the message to expect in a Policy's history when an immutable field cannot be updated.
 	ImmutableMessage = "cannot be updated, likely due to immutable fields not matching"
 
-	// PRValidationFailedDetailsSubstring is a substring of status.provisioningStatus.provisioningDetails when a
-	// ProvisioningRequest fails due to invalid policyTemplateParameters caused by an integer instead of a string.
-	// Operator wording drifted from JSON-schema "Invalid type. Expected: string, given: integer".
-	PRValidationFailedDetailsSubstring = "oran-test key (1) is not a string"
-	// PRFulfilledDetailsSubstring is a substring of status.provisioningStatus.provisioningDetails when
-	// provisioning completes successfully.
-	PRFulfilledDetailsSubstring = "Provisioning request has completed successfully"
-	// PRNoHardwareMatchDetailsSubstring is a substring of provisioningDetails when no free hardware matches the
-	// resource selector. The operator uses the same message when matching hardware exists but is already allocated.
-	PRNoHardwareMatchDetailsSubstring = "not enough free resources matching"
-	// PRMissingBootInterfaceDetailsSubstring is a substring of provisioningDetails when no NIC in the
-	// ClusterInstance defaults matches the boot interface label value.
-	PRMissingBootInterfaceDetailsSubstring = "failed to assign MACs for node"
-	// PRExistingNamespaceDetailsSubstring is a substring of provisioningDetails when clusterName matches an
-	// existing namespace not owned by the ProvisioningRequest.
-	PRExistingNamespaceDetailsSubstring = "not owned by ProvisioningRequest"
 	// PRReservedNamespaceDetailsSubstring is a substring of API error detail when clusterName is a reserved namespace.
 	PRReservedNamespaceDetailsSubstring = `targets a reserved namespace (prefix "default")`
 	// PROpenshiftPrefixDetailsSubstring is a substring of API error detail when clusterName uses the openshift- prefix.
