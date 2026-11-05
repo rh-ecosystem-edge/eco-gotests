@@ -6,272 +6,49 @@ import (
 	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/logging"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/msg"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/common"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ocm/kacv1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
-	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
-)
-
-const (
-	errEmptyAddonConfigName = "klusterletAddonConfig 'name' cannot be empty"
-	errEmptyNsname          = "klusterletAddonConfig 'nsname' cannot be empty"
 )
 
 // KACBuilder provides a struct for the KlusterletAddonConfig resource containing a connection to the cluster and the
 // KlusterletAddonConfig definition.
 type KACBuilder struct {
-	// Definition of the KlusterletAddonConfig used to create the object.
-	Definition *kacv1.KlusterletAddonConfig
-	// Object of the KlusterletAddonConfig as it is on the cluster.
-	Object *kacv1.KlusterletAddonConfig
-	// apiClient used to interact with the cluster.
-	apiClient runtimeclient.Client
-	// errorMsg used to store latest error message from functions that do not return errors.
-	errorMsg string
+	common.EmbeddableBuilder[kacv1.KlusterletAddonConfig, *kacv1.KlusterletAddonConfig]
+	common.EmbeddableCreator[kacv1.KlusterletAddonConfig, KACBuilder, *kacv1.KlusterletAddonConfig, *KACBuilder]
+	common.EmbeddableDeleter[kacv1.KlusterletAddonConfig, *kacv1.KlusterletAddonConfig]
+	common.EmbeddableForceUpdater[kacv1.KlusterletAddonConfig, KACBuilder, *kacv1.KlusterletAddonConfig, *KACBuilder]
+}
+
+// AttachMixins wires the embedded CRUD mixins to this builder instance.
+func (builder *KACBuilder) AttachMixins() {
+	builder.EmbeddableCreator.SetBase(builder)
+	builder.EmbeddableDeleter.SetBase(builder)
+	builder.EmbeddableForceUpdater.SetBase(builder)
+}
+
+// GetGVK returns the KlusterletAddonConfig GVK for this builder.
+func (builder *KACBuilder) GetGVK() schema.GroupVersionKind {
+	return kacv1.SchemeGroupVersion.WithKind("KlusterletAddonConfig")
 }
 
 // NewKACBuilder creates a new instance of a KlusterletAddonConfig builder.
 func NewKACBuilder(apiClient *clients.Settings, name, nsname string) *KACBuilder {
-	klog.V(100).Infof(
-		"Initializing new KlusterletAddonConfig structure with the following params: name: %s, nsname: %s", name, nsname)
-
-	if apiClient == nil {
-		klog.V(100).Info("The apiClient of the KlusterletAddonConfig is nil")
-
-		return nil
-	}
-
-	err := apiClient.AttachScheme(kacv1.SchemeBuilder.AddToScheme)
-	if err != nil {
-		klog.V(100).Info("Failed to add KlusterletAddonConfig scheme to client schemes")
-
-		return nil
-	}
-
-	builder := &KACBuilder{
-		apiClient: apiClient.Client,
-		Definition: &kacv1.KlusterletAddonConfig{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      name,
-				Namespace: nsname,
-			},
-		},
-	}
-
-	if name == "" {
-		klog.V(100).Info("The name of the KlusterletAddonConfig is empty")
-
-		builder.errorMsg = errEmptyAddonConfigName
-
-		return builder
-	}
-
-	if nsname == "" {
-		klog.V(100).Info("The namespace of the KlusterletAddonConfig is empty")
-
-		builder.errorMsg = errEmptyNsname
-
-		return builder
-	}
-
-	return builder
+	return common.NewNamespacedBuilder[kacv1.KlusterletAddonConfig, KACBuilder](
+		apiClient, kacv1.SchemeBuilder.AddToScheme, name, nsname)
 }
 
 // PullKAC pulls an existing KlusterletAddonConfig into a Builder struct.
 func PullKAC(apiClient *clients.Settings, name, nsname string) (*KACBuilder, error) {
-	klog.V(100).Infof("Pulling existing KlusterletAddonConfig %s under namespace %s from cluster", name, nsname)
-
-	if apiClient == nil {
-		klog.V(100).Info("The apiClient is empty")
-
-		return nil, fmt.Errorf("klusterletAddonConfig 'apiClient' cannot be nil")
-	}
-
-	err := apiClient.AttachScheme(kacv1.SchemeBuilder.AddToScheme)
-	if err != nil {
-		klog.V(100).Info("Failed to add KlusterletAddonConfig scheme to client schemes")
-
-		return nil, err
-	}
-
-	builder := &KACBuilder{
-		apiClient: apiClient.Client,
-		Definition: &kacv1.KlusterletAddonConfig{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      name,
-				Namespace: nsname,
-			},
-		},
-	}
-
-	if name == "" {
-		klog.V(100).Info("The name of the KlusterletAddonConfig is empty")
-
-		return nil, fmt.Errorf(errEmptyAddonConfigName)
-	}
-
-	if nsname == "" {
-		klog.V(100).Info("The namespace of the KlusterletAddonConfig is empty")
-
-		return nil, fmt.Errorf(errEmptyNsname)
-	}
-
-	if !builder.Exists() {
-		klog.V(100).Infof("The KlusterletAddonConfig %s does not exist in namespace %s", name, nsname)
-
-		return nil, fmt.Errorf("klusterletAddonConfig object %s does not exist in namespace %s", name, nsname)
-	}
-
-	builder.Definition = builder.Object
-
-	return builder, nil
-}
-
-// Get returns the KlusterletAddonConfig object if found.
-func (builder *KACBuilder) Get() (*kacv1.KlusterletAddonConfig, error) {
-	if valid, err := builder.validate(); !valid {
-		return nil, err
-	}
-
-	klog.V(100).Infof(
-		"Getting KlusterletAddonConfig object %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
-
-	klusterletAddonConfig := &kacv1.KlusterletAddonConfig{}
-
-	err := builder.apiClient.Get(logging.DiscardContext(), runtimeclient.ObjectKey{
-		Name:      builder.Definition.Name,
-		Namespace: builder.Definition.Namespace,
-	}, klusterletAddonConfig)
-	if err != nil {
-		klog.V(100).Infof(
-			"KlusterletAddonConfig object %s does not exist in namespace %s",
-			builder.Definition.Name, builder.Definition.Namespace)
-
-		return nil, err
-	}
-
-	return klusterletAddonConfig, nil
-}
-
-// Exists checks whether the given KlusterletAddonConfig exists on the cluster.
-func (builder *KACBuilder) Exists() bool {
-	if valid, _ := builder.validate(); !valid {
-		return false
-	}
-
-	klog.V(100).Infof(
-		"Checking if KlusterletAddonConfig %s exists in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
-
-	var err error
-
-	builder.Object, err = builder.Get()
-
-	return err == nil || !k8serrors.IsNotFound(err)
-}
-
-// Create makes a KlusterletAddonConfig on the cluster if it does not already exist.
-func (builder *KACBuilder) Create() (*KACBuilder, error) {
-	if valid, err := builder.validate(); !valid {
-		return nil, err
-	}
-
-	klog.V(100).Infof(
-		"Creating KlusterletAddonConfig %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
-
-	if builder.Exists() {
-		return builder, nil
-	}
-
-	err := builder.apiClient.Create(logging.DiscardContext(), builder.Definition)
-	if err != nil {
-		return nil, err
-	}
-
-	builder.Object = builder.Definition
-
-	return builder, nil
-}
-
-// Update changes the existing KlusterletAddonConfig resource on the cluster, falling back to deleting and recreating if
-// the update fails when force is set.
-func (builder *KACBuilder) Update(force bool) (*KACBuilder, error) {
-	if valid, err := builder.validate(); !valid {
-		return nil, err
-	}
-
-	klog.V(100).Infof(
-		"Updating KlusterletAddonConfig %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
-
-	if !builder.Exists() {
-		klog.V(100).Infof(
-			"KlusterletAddonConfig %s does not exist in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
-
-		return nil, fmt.Errorf("cannot update non-existent klusterletAddonConfig")
-	}
-
-	builder.Definition.ResourceVersion = builder.Object.ResourceVersion
-
-	err := builder.apiClient.Update(logging.DiscardContext(), builder.Definition)
-	if err != nil {
-		if force {
-			klog.V(100).Infof("%v", msg.FailToUpdateNotification("klusterletAddonConfig", builder.Definition.Name))
-
-			err := builder.Delete()
-			builder.Definition.ResourceVersion = ""
-
-			if err != nil {
-				klog.V(100).Infof("%v", msg.FailToUpdateError("klusterletAddonConfig", builder.Definition.Name))
-
-				return nil, err
-			}
-
-			return builder.Create()
-		}
-
-		return nil, err
-	}
-
-	builder.Object = builder.Definition
-
-	return builder, nil
-}
-
-// Delete removes a KlusterletAddonConfig from the cluster if it exists.
-func (builder *KACBuilder) Delete() error {
-	if valid, err := builder.validate(); !valid {
-		return err
-	}
-
-	klog.V(100).Infof(
-		"Deleting KlusterletAddonConfig %s in namespace %s", builder.Definition.Name, builder.Definition.Namespace)
-
-	if !builder.Exists() {
-		klog.V(100).Infof(
-			"KlusterletAddonConfig %s in namespace %s does not exist",
-			builder.Definition.Name, builder.Definition.Namespace)
-
-		builder.Object = nil
-
-		return nil
-	}
-
-	err := builder.apiClient.Delete(logging.DiscardContext(), builder.Object)
-	if err != nil {
-		return err
-	}
-
-	builder.Object = nil
-
-	return nil
+	return common.PullNamespacedBuilder[kacv1.KlusterletAddonConfig, KACBuilder](
+		context.TODO(), apiClient, kacv1.SchemeBuilder.AddToScheme, name, nsname)
 }
 
 // WaitUntilSearchCollectorEnabled waits up to the specified timeout until the search collector config has been enabled.
 func (builder *KACBuilder) WaitUntilSearchCollectorEnabled(timeout time.Duration) (*KACBuilder, error) {
-	if valid, err := builder.validate(); !valid {
+	if err := common.Validate(builder); err != nil {
 		return nil, err
 	}
 
@@ -301,35 +78,4 @@ func (builder *KACBuilder) WaitUntilSearchCollectorEnabled(timeout time.Duration
 	}
 
 	return builder, nil
-}
-
-// validate checks that the builder, definition, and apiClient are properly initialized and there is no errorMsg.
-func (builder *KACBuilder) validate() (bool, error) {
-	resourceCRD := "klusterletAddonConfig"
-
-	if builder == nil {
-		klog.V(100).Infof("The %s builder is uninitialized", resourceCRD)
-
-		return false, fmt.Errorf("error: received nil %s builder", resourceCRD)
-	}
-
-	if builder.Definition == nil {
-		klog.V(100).Infof("The %s is uninitialized", resourceCRD)
-
-		return false, fmt.Errorf("%s", msg.UndefinedCrdObjectErrString(resourceCRD))
-	}
-
-	if builder.apiClient == nil {
-		klog.V(100).Infof("The %s builder apiClient is nil", resourceCRD)
-
-		return false, fmt.Errorf("%s builder cannot have nil apiClient", resourceCRD)
-	}
-
-	if builder.errorMsg != "" {
-		klog.V(100).Infof("The %s builder has error message %s", resourceCRD, builder.errorMsg)
-
-		return false, fmt.Errorf("%s", builder.errorMsg)
-	}
-
-	return true, nil
 }
