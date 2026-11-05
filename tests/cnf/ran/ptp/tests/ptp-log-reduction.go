@@ -100,7 +100,8 @@ var _ = Describe("PTP Log Reduction", Label(tsparams.LabelLogReduction), func() 
 
 			err := daemonlogs.WaitForProfileLoadOnPTPNodes(RANConfig.Spoke1APIClient,
 				daemonlogs.WithStartTime(startTime),
-				daemonlogs.WithTimeout(5*time.Minute))
+				daemonlogs.WithTimeout(5*time.Minute),
+				daemonlogs.WithPTPVersion(RANConfig.Spoke1OperatorVersions[ranparam.PTP]))
 			if err != nil {
 				klog.V(tsparams.LogLevel).Infof("Failed to wait for profile load on PTP nodes: %v", err)
 			}
@@ -322,7 +323,8 @@ func setLogReduceValForNode(prometheusAPI prometheusv1.API,
 
 		err = daemonlogs.WaitForProfileLoad(client, nodeName,
 			daemonlogs.WithStartTime(startTime),
-			daemonlogs.WithTimeout(5*time.Minute))
+			daemonlogs.WithTimeout(5*time.Minute),
+			daemonlogs.WithPTPVersion(RANConfig.Spoke1OperatorVersions[ranparam.PTP]))
 		if err != nil {
 			return fmt.Errorf("failed to wait for profile load on node %s: %w", nodeName, err)
 		}

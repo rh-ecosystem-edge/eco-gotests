@@ -11,6 +11,7 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/version"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/ptpdaemon"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/tsparams"
 	corev1 "k8s.io/api/core/v1"
@@ -44,6 +45,7 @@ type waitForPodLogOptions struct {
 	pollingInterval time.Duration
 	matcher         LogMatcher
 	ignoreTimeout   bool
+	ptpVersion      string
 }
 
 // WaitForPodLogOption is a function type that can be used to set the options for the WaitForPodLog function. It should
@@ -83,6 +85,14 @@ func WithPollingInterval(interval time.Duration) WaitForPodLogOption {
 
 	return func(o *waitForPodLogOptions) {
 		o.pollingInterval = interval
+	}
+}
+
+// WithPTPVersion records the PTP operator version so that version-aware helpers such as [WaitForProfileLoad] can
+// select the most accurate daemon log barrier. When omitted, helpers fall back to their pre-4.22 behavior.
+func WithPTPVersion(ptpVersion string) WaitForPodLogOption {
+	return func(o *waitForPodLogOptions) {
+		o.ptpVersion = ptpVersion
 	}
 }
 
@@ -174,17 +184,52 @@ func WaitForPodLog(client *clients.Settings, nodeName string, options ...WaitFor
 		})
 }
 
-// profileLoadMessage is the message that appears in the linuxptp-daemon-container logs when the profiles are loaded.
+// profileLoadMessage is the legacy log marker emitted when the daemon accepts a PtpConfig change.
+// It appears before old processes are stopped, so it is not a safe reload barrier.
 const profileLoadMessage = "load profiles"
+
+// allProfilesAppliedMessage is the log marker emitted (4.22+) after all profiles have been applied and
+// processes are about to start. It is a safer reload barrier because old processes have already been torn down.
+const allProfilesAppliedMessage = "All profiles applied"
+
+// allProfilesAppliedMinVersion is the minimum PTP operator version that emits [allProfilesAppliedMessage].
+const allProfilesAppliedMinVersion = "4.22.0-0"
 
 // hardwareConfigLoadMessage is the message that appears in the linuxptp-daemon-container logs when a profile has
 // been successfully applied following a HardwareConfig-triggered PTP restart.
 const hardwareConfigLoadMessage = "Successfully applied profile"
 
+// resolveProfileLoadMessage returns the most accurate daemon log barrier for the given PTP operator version.
+// For PTP 4.22+ it returns [allProfilesAppliedMessage]; otherwise it falls back to the legacy [profileLoadMessage].
+func resolveProfileLoadMessage(ptpVersion string) string {
+	if ptpVersion != "" {
+		inRange, err := version.IsVersionStringInRange(ptpVersion, allProfilesAppliedMinVersion, "")
+		if err == nil && inRange {
+			return allProfilesAppliedMessage
+		}
+	}
+
+	return profileLoadMessage
+}
+
 // WaitForProfileLoad waits for the profile load message to appear in the PTP daemon pod logs on the specified node. It
 // matches for the profile load message and uses the provided options for the WaitForPodLog function.
+//
+// When [WithPTPVersion] is supplied and the version is 4.22+, the function waits for the safer
+// "All profiles applied" barrier instead of the legacy "load profiles" message.
 func WaitForProfileLoad(client *clients.Settings, nodeName string, options ...WaitForPodLogOption) error {
-	options = append(options, WithMatcher(ContainsMatcher(profileLoadMessage)))
+	// Pre-process options to extract ptpVersion before deciding which matcher to use.
+	logOptions := getDefaultWaitForPodLogOptions()
+	for _, option := range options {
+		option(logOptions)
+	}
+
+	message := resolveProfileLoadMessage(logOptions.ptpVersion)
+
+	klog.V(tsparams.LogLevel).Infof(
+		"WaitForProfileLoad on node %s: using barrier message %q (ptpVersion=%q)", nodeName, message, logOptions.ptpVersion)
+
+	options = append(options, WithMatcher(ContainsMatcher(message)))
 
 	err := WaitForPodLog(client, nodeName, options...)
 	if err != nil {
