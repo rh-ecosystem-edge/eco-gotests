@@ -631,11 +631,10 @@ type CoreConfig struct {
 	// ImageSignatureConfigMapName.
 	//nolint:lll,nolintlint
 	ImageSignatureConfigMapNamespace string `yaml:"rdscore_image_signature_cm_namespace" envconfig:"ECO_RDSCORE_IMAGE_SIGNATURE_CM_NS"`
-	//nolint:lll
-	DiskPartitioningLabel string `yaml:"rdscore_disk_partitioning_label" envconfig:"ECO_RDSCORE_DISK_PARTITIONING_LABEL"`
+	DiskPartitioningLabel            string `yaml:"rdscore_disk_partitioning_label" envconfig:"ECO_RDSCORE_DISK_PARTITIONING_LABEL"`
 
-	WorkerLabelListOption            metav1.ListOptions
-	DiskPartitioningLabelListOption  metav1.ListOptions
+	WorkerLabelListOption           metav1.ListOptions
+	DiskPartitioningLabelListOption metav1.ListOptions
 }
 
 // NewCoreConfig returns instance of CoreConfig config type.
