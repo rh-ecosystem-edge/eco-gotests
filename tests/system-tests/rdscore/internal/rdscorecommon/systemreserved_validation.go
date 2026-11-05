@@ -53,12 +53,8 @@ func ValidatePerformanceProfileSystemReserved() {
 
 	allProfiles, err := nto.ListProfiles(APIClient)
 	Expect(err).ToNot(HaveOccurred(), "Failed to list PerformanceProfiles")
-
-	if len(allProfiles) == 0 {
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-			"⚠ No PerformanceProfile found in cluster - tests will use default baseline values\n")
-		Skip("No PerformanceProfile found in cluster - skipping PerformanceProfile validation")
-	}
+	Expect(len(allProfiles)).ToNot(BeZero(),
+		"No PerformanceProfile found in cluster - this is required for systemReserved validation")
 
 	// Determine which profiles to validate
 	var profilesToValidate []*nto.Builder
@@ -83,10 +79,8 @@ func ValidatePerformanceProfileSystemReserved() {
 			}
 		}
 
-		if !found {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof("⚠ PerformanceProfile %s not found - skipping validation\n", profileName)
-			Skip(fmt.Sprintf("PerformanceProfile %s not found", profileName))
-		}
+		Expect(found).To(BeTrue(),
+			fmt.Sprintf("PerformanceProfile %s not found", profileName))
 	}
 
 	// Validate each PerformanceProfile
@@ -515,15 +509,14 @@ func ValidateScaleLabBaseline() {
 		}
 
 		cpuCores := float64(cpuQuantity.MilliValue()) / 1000
-		if cpuCores < scaleLabMax {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-				"⚠ WARNING: Control plane node %s CPU systemReserved (%.1f cores) is BELOW scale lab max (%.1f cores)\n",
-				cpNodeName, cpuCores, scaleLabMax)
-		} else {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-				"✓ Control plane node %s CPU systemReserved (%.1f cores) meets scale lab requirement\n",
-				cpNodeName, cpuCores)
-		}
+
+		Expect(cpuCores).To(BeNumerically(">=", scaleLabMax),
+			fmt.Sprintf("Control plane node %s CPU systemReserved (%.1f cores) is below scale lab requirement (%.1f cores)",
+				cpNodeName, cpuCores, scaleLabMax))
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"✓ Control plane node %s CPU systemReserved (%.1f cores) meets scale lab requirement\n",
+			cpNodeName, cpuCores)
 
 		// Validate Memory
 		memoryQuantity, err := resource.ParseQuantity(memStr)
@@ -532,15 +525,14 @@ func ValidateScaleLabBaseline() {
 				"⚠ Failed to parse memory on control plane node %s - skipping memory\n", cpNodeName)
 		} else {
 			memoryGB := float64(memoryQuantity.Value()) / (1024 * 1024 * 1024)
-			if memoryGB < scaleLabMaxMemory {
-				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-					"⚠ WARNING: Control plane node %s memory systemReserved (%.1f GB) is BELOW scale lab max (%.1f GB)\n",
-					cpNodeName, memoryGB, scaleLabMaxMemory)
-			} else {
-				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-					"✓ Control plane node %s memory systemReserved (%.1f GB) meets scale lab requirement\n",
-					cpNodeName, memoryGB)
-			}
+
+			Expect(memoryGB).To(BeNumerically(">=", scaleLabMaxMemory),
+				fmt.Sprintf("Control plane node %s memory systemReserved (%.1f GB) is below scale lab requirement (%.1f GB)",
+					cpNodeName, memoryGB, scaleLabMaxMemory))
+
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"✓ Control plane node %s memory systemReserved (%.1f GB) meets scale lab requirement\n",
+				cpNodeName, memoryGB)
 		}
 
 		cpNodesChecked++
@@ -602,15 +594,13 @@ func ValidateScaleLabBaseline() {
 
 		workerCPUMillicores := workerCPUQuantity.MilliValue()
 
-		if workerCPUMillicores < 500 {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-				"⚠ WARNING: Worker node %s CPU systemReserved (%dm) is BELOW minimum (500m)\n",
-				workerNodeName, workerCPUMillicores)
-		} else {
-			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-				"✓ Worker node %s CPU systemReserved (%dm) meets minimum requirement\n",
-				workerNodeName, workerCPUMillicores)
-		}
+		Expect(workerCPUMillicores).To(BeNumerically(">=", 500),
+			fmt.Sprintf("Worker node %s CPU systemReserved (%dm) is below minimum (500m)",
+				workerNodeName, workerCPUMillicores))
+
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"✓ Worker node %s CPU systemReserved (%dm) meets minimum requirement\n",
+			workerNodeName, workerCPUMillicores)
 
 		workerNodesChecked++
 	}
