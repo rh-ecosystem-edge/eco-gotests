@@ -3,9 +3,9 @@ package ptp
 import (
 	"context"
 
+	ptpv2alpha1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v2alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/internal/common"
-	ptpv2alpha1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v2alpha1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )

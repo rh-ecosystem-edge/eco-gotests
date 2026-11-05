@@ -103,10 +103,20 @@ type DropTest struct {
 	DropConditions []DropCondition `json:"test,omitempty"`
 }
 
-// +kubebuilder:validation:XValidation:rule="!(has(self.matches) && has(self.notMatches))", message="only one of matches or notMatches can be defined per field"
+// +kubebuilder:validation:XValidation:rule="has(self.olderThan) != has(self.field)", message="must define exactly one of olderThan or field"
+// +kubebuilder:validation:XValidation:rule="has(self.field) ? (has(self.matches) != has(self.notMatches)) : (!has(self.matches) && !has(self.notMatches))", message="a field requires exactly one match expression, and match expressions cannot be used without a field"
 type DropCondition struct {
+	// Drop records whose timestamps are older than this date or timestamp.
+	// Accepts YYYY-MM-DD or an RFC3339 timestamp with an explicit offset.
+	// Date-only values are interpreted as midnight UTC.
+	//
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Pattern:=`^\d{4}-\d{2}-\d{2}(T[0-2]\d:[0-5]\d:[0-5]\d(\.\d+)?(Z|[+-][0-2]\d:[0-5]\d))?$`
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Older Than"
+	OlderThan string `json:"olderThan,omitempty"`
+
 	// A dot delimited path to a field in the log record. It must start with a `.`.
-	// The path can contain alpha-numeric characters and underscores (a-zA-Z0-9_).
+	// The path can contain alphanumeric characters and underscores (a-zA-Z0-9_).
 	// If segments contain characters outside of this range, the segment must be quoted.
 	// Examples: `.kubernetes.namespace_name`, `.log_type`, '.kubernetes.labels.foobar', `.kubernetes.labels."foo-bar/baz"`
 	//
@@ -119,6 +129,7 @@ type DropCondition struct {
 	// Must define only one of matches OR notMatches
 	//
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Pattern:=`^[^'\n\r]*$`
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Drop Match Expression"
 	Matches string `json:"matches,omitempty"`
 
@@ -127,6 +138,7 @@ type DropCondition struct {
 	// Must define only one of matches or notMatches
 	//
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Pattern:=`^[^'\n\r]*$`
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Keep Match Expression"
 	NotMatches string `json:"notMatches,omitempty"`
 }

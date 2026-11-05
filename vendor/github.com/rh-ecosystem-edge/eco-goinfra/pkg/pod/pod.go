@@ -19,13 +19,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/httpstream"
-	"k8s.io/apimachinery/pkg/util/httpstream/spdy"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
+	transportspdy "k8s.io/client-go/transport/spdy"
 	"k8s.io/klog/v2"
+	streamhttp "k8s.io/streaming/pkg/httpstream"
+	streamspdy "k8s.io/streaming/pkg/httpstream/spdy"
 	"k8s.io/utils/ptr"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
@@ -1471,7 +1472,7 @@ func (builder *Builder) getExecutorFromRequest(req *rest.Request) (remotecommand
 	// The UpgradeTransport field allows us to inject our custom transport with timeout configurations.
 	// Note: UpgradeTransport is mutually exclusive with TLS and Proxier fields - the transport
 	// already contains TLS config and proxy settings, so we must not set them here.
-	upgradeRoundTripper, err := spdy.NewRoundTripperWithConfig(spdy.RoundTripperConfig{
+	upgradeRoundTripper, err := streamspdy.NewRoundTripperWithConfig(streamspdy.RoundTripperConfig{
 		PingPeriod:       0,
 		UpgradeTransport: httpTransport, // Custom transport with TLS, proxy, and timeout configs
 	})
@@ -1484,7 +1485,8 @@ func (builder *Builder) getExecutorFromRequest(req *rest.Request) (remotecommand
 		return nil, err
 	}
 
-	spdyExec, err := remotecommand.NewSPDYExecutorForTransports(wrapper, upgradeRoundTripper, "POST", req.URL())
+	spdyExec, err := remotecommand.NewSPDYExecutorForTransports(
+		wrapper, transportspdy.NewUpgraderForStreaming(upgradeRoundTripper), "POST", req.URL())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new SPDY executor: %w", err)
 	}
@@ -1495,7 +1497,7 @@ func (builder *Builder) getExecutorFromRequest(req *rest.Request) (remotecommand
 	}
 
 	exec, err := remotecommand.NewFallbackExecutor(webSocketExec, spdyExec, func(err error) bool {
-		return httpstream.IsUpgradeFailure(err) || httpstream.IsHTTPSProxyError(err)
+		return streamhttp.IsUpgradeFailure(err) || streamhttp.IsHTTPSProxyError(err)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new fallback executor: %w", err)

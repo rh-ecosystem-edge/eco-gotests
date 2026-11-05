@@ -572,6 +572,12 @@ type DashboardSpec struct {
 	// SSL determines whether SSL should be used
 	// +optional
 	SSL bool `json:"ssl,omitempty"`
+	// SSLCertificateRef references a Kubernetes secret of type kubernetes.io/tls in the CephCluster namespace. If set, Rook will configure the dashboard with this certificate instead of creating a self-signed certificate.
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`
+	// +optional
+	SSLCertificateRef string `json:"sslCertificateRef,omitempty"`
 	// Endpoint for the Prometheus host
 	// +optional
 	PrometheusEndpoint string `json:"prometheusEndpoint,omitempty"`
@@ -581,6 +587,7 @@ type DashboardSpec struct {
 }
 
 // MonitoringSpec represents the settings for Prometheus based Ceph monitoring
+// +kubebuilder:validation:XValidation:message="scrapeTimeoutSeconds must not be greater than interval, which defaults to 10s",rule="!has(self.scrapeTimeoutSeconds) || (has(self.interval) ? duration(self.interval).getSeconds() : 10) >= self.scrapeTimeoutSeconds"
 type MonitoringSpec struct {
 	// Enabled determines whether to create the prometheus rules for the ceph cluster. If true, the prometheus
 	// types must exist or the creation will fail. Default is false.
@@ -613,9 +620,49 @@ type MonitoringSpec struct {
 	// +optional
 	Interval *metav1.Duration `json:"interval,omitempty"`
 
+	// ScrapeTimeoutSeconds determines the timeout of a prometheus scrape, in seconds. It must
+	// not be greater than the scrape interval, which defaults to 10s when unset. Defaults to the
+	// Prometheus global scrape timeout when unset.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	ScrapeTimeoutSeconds int64 `json:"scrapeTimeoutSeconds,omitempty"`
+
+	// MetricsTLS configures native HTTPS for the MGR Prometheus metrics endpoint.
+	// Requires Ceph with prometheus module TLS support: https://github.com/ceph/ceph/pull/70989
+	// Rook mounts a Kubernetes TLS Secret into the mgr pod and configures the module.
+	// +optional
+	MetricsTLS MetricsTLSSpec `json:"metricsTLS,omitzero"`
+
 	// Ceph exporter configuration
 	// +optional
 	Exporter *CephExporterSpec `json:"exporter,omitempty"`
+}
+
+// MetricsTLSSpec defines TLS for the MGR Prometheus metrics endpoint.
+// The presence of metricsTLS enables TLS.
+type MetricsTLSSpec struct {
+	// SecretName is the Kubernetes Secret containing tls.crt and tls.key for the
+	// mgr HTTPS listener.
+	// +required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=253
+	SecretName string `json:"secretName,omitempty"`
+
+	// CA is an optional trust anchor for the ServiceMonitor tlsConfig.ca.
+	// Omit when the server cert contains a public CA.
+	// +optional
+	CA MetricsTLSCASpec `json:"ca,omitzero"`
+}
+
+// MetricsTLSCASpec selects a CA bundle from a Secret or ConfigMap.
+// Exactly one of secret or configMap must be set.
+// +kubebuilder:validation:MinProperties=1
+// +kubebuilder:validation:MaxProperties=1
+type MetricsTLSCASpec struct {
+	// +optional
+	Secret *v1.SecretKeySelector `json:"secret,omitempty"`
+	// +optional
+	ConfigMap *v1.ConfigMapKeySelector `json:"configMap,omitempty"`
 }
 
 type CephExporterSpec struct {
@@ -1182,6 +1229,10 @@ type CephBlockPoolStatus struct {
 	// +optional
 	Phase ConditionType `json:"phase,omitempty"`
 	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=500
+	Message string `json:"message,omitempty"`
+	// +optional
 	Cephx PeerTokenCephxStatus `json:"cephx,omitempty"`
 	// +optional
 	MirroringStatus *MirroringStatusSpec `json:"mirroringStatus,omitempty"`
@@ -1680,6 +1731,10 @@ type SnapshotScheduleRetentionSpec struct {
 type CephFilesystemStatus struct {
 	// +optional
 	Phase ConditionType `json:"phase,omitempty"`
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=500
+	Message string `json:"message,omitempty"`
 	// +optional
 	SnapshotScheduleStatus *FilesystemSnapshotScheduleStatusSpec `json:"snapshotScheduleStatus,omitempty"`
 	// Use only info and put mirroringStatus in it?
@@ -2314,6 +2369,8 @@ type ObjectStoreStatus struct {
 	// +optional
 	Phase ConditionType `json:"phase,omitempty"`
 	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=500
 	Message string `json:"message,omitempty"`
 	// +optional
 	Endpoints ObjectEndpoints `json:"endpoints"`
@@ -2427,6 +2484,7 @@ type CephObjectStoreUserList struct {
 }
 
 // ObjectStoreUserSpec represents the spec of a CephObjectStoreUser
+// +kubebuilder:validation:XValidation:message="defaultStorageClass requires defaultPlacement",rule="!has(self.defaultStorageClass) || has(self.defaultPlacement)"
 type ObjectStoreUserSpec struct {
 	// The store the user will be created in
 	// +optional
@@ -2460,7 +2518,85 @@ type ObjectStoreUserSpec struct {
 	// +optional
 	// +kubebuilder:validation:XValidation:message="accountRef is immutable",rule="self == oldSelf"
 	AccountRef ObjectStoreUserAccountRef `json:"accountRef,omitzero"`
+	// DefaultPlacement sets the default pool placement target for buckets
+	// created by this user. It must name a placement target known to the
+	// zonegroup serving the referenced object store; RGW rejects unknown
+	// targets. If this field is absent the controller does not manage the
+	// user's placement: an existing value (set previously through this
+	// field, or outside of Rook) is left in place.
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=2048
+	// +kubebuilder:validation:Pattern=`^[a-zA-Z0-9._-]+$`
+	DefaultPlacement string `json:"defaultPlacement,omitempty"`
+	// DefaultStorageClass sets the default storage class for objects created
+	// by this user, within the placement set by DefaultPlacement (which must
+	// also be set). The storage class must exist on that placement target;
+	// RGW rejects unknown storage classes. If this field is absent the
+	// controller does not manage the user's storage class: an existing value
+	// is preserved, except when DefaultPlacement changes, which resets the
+	// storage class to the new target's default (STANDARD).
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=2048
+	// +kubebuilder:validation:Pattern=`^[a-zA-Z0-9._-]+$`
+	DefaultStorageClass string `json:"defaultStorageClass,omitempty"`
+	// SecretTemplate defines labels and annotations to add to the Secret that
+	// holds this user's credentials, for example to opt the Secret in to a
+	// tool that copies Secrets into other namespaces. Anyone who can edit this
+	// CephObjectStoreUser can use it to hand the credentials to such a tool.
+	// The labels app, user, rook_cluster and rook_object_store, which Rook
+	// sets on this Secret, are reserved.
+	// +optional
+	// +kubebuilder:validation:XValidation:rule="!has(self.labels) || self.labels.all(k, !(k in ['app', 'user', 'rook_cluster', 'rook_object_store']))",message="label keys app, user, rook_cluster and rook_object_store are reserved by Rook"
+	SecretTemplate SecretTemplate `json:"secretTemplate,omitzero"`
 }
+
+// SecretTemplate defines labels and annotations to add to a Secret that Rook
+// generates. Keys that Rook acts on in any Secret are rejected here; a resource
+// that uses this type also reserves the labels it sets on its own Secret.
+// +kubebuilder:validation:MinProperties=1
+type SecretTemplate struct {
+	// Labels to add to the Secret. The key do_not_reconcile, and keys with a
+	// rook.io or *.rook.io prefix, are reserved.
+	// +optional
+	// +kubebuilder:validation:MinProperties=1
+	// +kubebuilder:validation:MaxProperties=32
+	// +kubebuilder:validation:XValidation:rule="self.all(k, !format.qualifiedName().validate(k).hasValue())",message="label keys must be valid Kubernetes label keys"
+	// +kubebuilder:validation:XValidation:rule="self.all(k, k != 'do_not_reconcile')",message="label key do_not_reconcile is reserved by Rook"
+	// +kubebuilder:validation:XValidation:rule="self.all(k, !k.matches('^([^/]*[.])?rook[.]io/'))",message="label keys with a rook.io prefix are reserved by Rook"
+	Labels map[string]LabelValue `json:"labels,omitempty"`
+	// Annotations to add to the Secret, at most 256 KiB in total. The key
+	// cephx-keyring, and keys with a rook.io or *.rook.io prefix, are reserved.
+	// +optional
+	// +kubebuilder:validation:MinProperties=1
+	// +kubebuilder:validation:MaxProperties=32
+	// +kubebuilder:validation:XValidation:rule="self.all(k, !format.qualifiedName().validate(k.lowerAscii()).hasValue())",message="annotation keys must be valid Kubernetes annotation keys"
+	// +kubebuilder:validation:XValidation:rule="self.all(k, k != 'cephx-keyring')",message="annotation key cephx-keyring is reserved by Rook"
+	// +kubebuilder:validation:XValidation:rule="self.all(k, !k.matches('^([^/]*[.])?rook[.]io/'))",message="annotation keys with a rook.io prefix are reserved by Rook"
+	// +kubebuilder:validation:XValidation:rule="self.map(k, size(bytes(k)) + size(bytes(self[k]))).sum() <= 262144",message="annotations must total at most 256 KiB"
+	Annotations map[string]AnnotationValue `json:"annotations,omitempty"`
+}
+
+// IsZero reports whether the template sets no labels and no annotations, so
+// that an empty template is omitted when a CephObjectStoreUser is serialized.
+func (t SecretTemplate) IsZero() bool {
+	return len(t.Labels) == 0 && len(t.Annotations) == 0
+}
+
+// LabelValue is a Kubernetes label value: at most 63 characters, empty or
+// alphanumeric at both ends, with '-', '_' and '.' allowed in between.
+// +kubebuilder:validation:MaxLength=63
+// +kubebuilder:validation:Pattern=`^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$`
+type LabelValue string
+
+// AnnotationValue is a Kubernetes annotation value of at most 256 KiB. Its
+// length is also capped at 262144 characters, the most a 256 KiB value can
+// hold, because the API server needs that bound to accept the CEL rules that
+// check a template's annotations.
+// +kubebuilder:validation:MaxLength=262144
+// +kubebuilder:validation:XValidation:rule="size(bytes(self)) <= 262144",message="annotation values must be at most 256 KiB"
+type AnnotationValue string
 
 // ObjectStoreUserAccountRef is a reference to a CephObjectStoreAccount
 type ObjectStoreUserAccountRef struct {
@@ -2884,7 +3020,6 @@ type CephBucketNotificationList struct {
 
 // BucketNotificationEvent represents the event type of the bucket notification
 // See: https://docs.ceph.com/en/latest/radosgw/s3-notification-compatibility/#event-types
-// +kubebuilder:validation:Enum="s3:ObjectCreated:*";"s3:ObjectCreated:Put";"s3:ObjectCreated:Post";"s3:ObjectCreated:Copy";"s3:ObjectCreated:CompleteMultipartUpload";"s3:ObjectRemoved:*";"s3:ObjectRemoved:Delete";"s3:ObjectRemoved:DeleteMarkerCreated";"s3:ObjectLifecycle:Expiration:Current";"s3:ObjectLifecycle:Expiration:NonCurrent";"s3:ObjectLifecycle:Expiration:DeleteMarker";"s3:ObjectLifecycle:Expiration:AbortMultipartUpload";"s3:ObjectLifecycle:Transition:Current";"s3:ObjectLifecycle:Transition:NonCurrent";"s3:LifecycleExpiration:*";"s3:LifecycleExpiration:Delete";"s3:LifecycleExpiration:DeleteMarkerCreated";"s3:LifecycleTransition";"s3:ObjectSynced:*";"s3:ObjectSynced:Create";"s3:ObjectSynced:Delete";"s3:ObjectSynced:DeletionMarkerCreated";"s3:Replication:*";"s3:Replication:Create";"s3:Replication:Delete";"s3:Replication:DeletionMarkerCreated";"s3:ObjectRestore:*";"s3:ObjectRestore:Post";"s3:ObjectRestore:Completed";"s3:ObjectRestore:Delete"
 type BucketNotificationEvent string
 
 // BucketNotificationSpec represents the spec of a Bucket Notification
@@ -2892,7 +3027,13 @@ type BucketNotificationSpec struct {
 	// The name of the topic associated with this notification
 	// +kubebuilder:validation:MinLength=1
 	Topic string `json:"topic"`
-	// List of events that should trigger the notification
+	// List of events that should trigger the notification. The S3 API requires a
+	// non-empty list, so when this is unset or empty Rook sends s3:ObjectCreated:*
+	// and s3:ObjectRemoved:* itself rather than deferring to RGW; those are the same
+	// two families RGW uses as its own default. That fallback covers only those two
+	// families: to receive the lifecycle, replication or sync events RGW also
+	// supports, list them here explicitly. The values are not validated by the CRD,
+	// so one RGW does not recognize fails the notification at provisioning time.
 	// +optional
 	Events []BucketNotificationEvent `json:"events,omitempty"`
 	// Spec of notification filter
@@ -2940,6 +3081,10 @@ type RGWServiceSpec struct {
 	// The labels-related configuration to add/set on each rgw service.
 	// +optional
 	Labels Labels `json:"labels,omitempty"`
+	// The trafficDistribution to set on each rgw service.
+	// +kubebuilder:validation:Enum=PreferClose;PreferSameZone;PreferSameNode
+	// +optional
+	TrafficDistribution string `json:"trafficDistribution,omitempty"`
 }
 
 // +genclient
@@ -3050,6 +3195,10 @@ type CephNFS struct {
 type NFSStatus struct {
 	Status `json:",inline"`
 	Cephx  LocalCephxStatus `json:"cephx,omitempty"`
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=500
+	Message string `json:"message,omitempty"`
 }
 
 // CephNFSList represents a list Ceph NFSes
@@ -4083,6 +4232,10 @@ type CephFilesystemSubVolumeGroupStatus struct {
 	// +optional
 	Phase ConditionType `json:"phase,omitempty"`
 	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=500
+	Message string `json:"message,omitempty"`
+	// +optional
 	// +nullable
 	Info map[string]string `json:"info,omitempty"`
 	// ObservedGeneration is the latest generation observed by the controller.
@@ -4172,6 +4325,10 @@ type CephBlockPoolRadosNamespaceSpec struct {
 type CephBlockPoolRadosNamespaceStatus struct {
 	// +optional
 	Phase ConditionType `json:"phase,omitempty"`
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=500
+	Message string `json:"message,omitempty"`
 	// +optional
 	// +nullable
 	Info map[string]string `json:"info,omitempty"`
@@ -4291,6 +4448,10 @@ type CephNVMeOFGateway struct {
 type NVMeOFGatewayStatus struct {
 	Status `json:",inline"`
 	Cephx  LocalCephxStatus `json:"cephx,omitempty"`
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=500
+	Message string `json:"message,omitempty"`
 }
 
 // CephNVMeOFGatewayList represents a list of Ceph NVMe-oF Gateways
@@ -4354,6 +4515,14 @@ type NVMeOFGatewaySpec struct {
 	// Whether host networking is enabled for the gateway. If not set, the network settings from the cluster CR will be applied.
 	// +optional
 	HostNetwork *bool `json:"hostNetwork,omitempty"`
+
+	// InterruptMode controls whether SPDK runs in interrupt mode (true) or poll mode (false).
+	// In interrupt mode, SPDK reactors only consume CPU when processing I/O, dramatically
+	// reducing idle CPU usage. In poll mode, reactors spin at 100% CPU per core for lowest
+	// latency under heavy I/O workloads.
+	// If not set, defaults to true (interrupt mode).
+	// +optional
+	InterruptMode *bool `json:"interruptMode,omitempty"`
 
 	// Ports configuration for the NVMe-oF gateway
 	// +optional

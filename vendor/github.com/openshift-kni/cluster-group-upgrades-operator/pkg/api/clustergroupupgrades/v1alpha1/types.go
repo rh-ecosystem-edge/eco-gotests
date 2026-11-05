@@ -134,9 +134,8 @@ type ClusterGroupUpgradeSpec struct {
 	// pre-caching configurations.
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="PreCachingConfigRef",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	PreCachingConfigRef PreCachingConfigCR `json:"preCachingConfigRef,omitempty"`
-	// This field determines when the upgrade starts. While false, the upgrade doesn't start. The policies,
-	// placement rules and placement bindings are created, but clusters are not added to the placement rule.
-	// Once set to true, the clusters start being upgraded, one batch at a time.
+	// This field determines when the CGU starts. While false, the CGU doesn't start.
+	// Once set to true, policy rollout starts on the clusters, one batch at a time.
 	//+kubebuilder:default=true
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Enable",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:bool"}
 	Enable *bool `json:"enable,omitempty"`
@@ -301,8 +300,8 @@ type ClusterGroupUpgradeStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Placement Bindings"
 	PlacementBindings []string `json:"placementBindings,omitempty"`
-	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Placement Rules"
-	PlacementRules []string `json:"placementRules,omitempty"`
+	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Placements"
+	Placements []string `json:"placements,omitempty"`
 	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="Copied Policies"
 	// Deprecated
 	CopiedPolicies []string `json:"copiedPolicies,omitempty"`
@@ -363,14 +362,17 @@ type ClusterGroupUpgradeList struct {
 
 // PlatformPreCachingSpec modify the default pre-caching behavior and values derived by TALM.
 type PlatformPreCachingSpec struct {
-	// Override the pre-cached OpenShift platform image derived by TALM
+	// Deprecated: PlatformImage is no longer used by the controller and will be removed in a future release.
+	// The platform image is now always derived from the ClusterVersion object in the managed policies.
 	PlatformImage string `json:"platformImage,omitempty"`
-	// Override the pre-cached OLM index images derived by TALM (list of image pull specs)
+	// Deprecated: OperatorsIndexes is no longer used by the controller and will be removed in a future release.
+	// OLM index images are now derived automatically from policy-referenced CatalogSource objects.
 	OperatorsIndexes []string `json:"operatorsIndexes,omitempty"`
 	// Override the pre-cached operator packages and channels derived by TALM (list of <package:channel> string entries)
 	OperatorsPackagesAndChannels []string `json:"operatorsPackagesAndChannels,omitempty"`
-	// Override the pre-caching workload image pull spec - typically derived by TALM from the operator
-	// ClusterServiceVersion (csv) object.
+	// Deprecated: PreCacheImage is no longer used by the controller and will be removed in a future release.
+	// The pre-caching workload image is now always derived from the PRECACHE_IMG environment variable
+	// set via the operator CSV relatedImages.
 	PreCacheImage string `json:"preCacheImage,omitempty"`
 }
 

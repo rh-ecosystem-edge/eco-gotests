@@ -101,13 +101,16 @@ type Connection struct {
 // ObjectBucketSpec defines the desired state of ObjectBucket. Fields defined here should be normal among all providers.
 // Authentication must be of a type defined in this package to pass type checks in reconciler
 type ObjectBucketSpec struct {
-	StorageClassName string                                `json:"storageClassName"`
-	ReclaimPolicy    *corev1.PersistentVolumeReclaimPolicy `json:"reclaimPolicy"`
-	ClaimRef         *corev1.ObjectReference               `json:"claimRef"`
-	*Connection      `json:",inline"`
+	// +required
+	StorageClassName string `json:"storageClassName"`
+	// +kubebuilder:validation:Enum=Recycle;Retain;Delete
+	ReclaimPolicy *corev1.PersistentVolumeReclaimPolicy `json:"reclaimPolicy"`
+	ClaimRef      *corev1.ObjectReference               `json:"claimRef"`
+	*Connection   `json:",inline"`
 }
 
 // ObjectBucketStatusPhase is set by the controller to save the state of the provisioning process.
+// +kubebuilder:validation:Enum=Bound;Released;Failed
 type ObjectBucketStatusPhase string
 
 const (
@@ -135,6 +138,7 @@ type ObjectBucketStatus struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +k8s:openapi-gen=true
 // +kubebuilder:resource:scope=Cluster,shortName=ob;obs
+// +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="StorageClass",type="string",JSONPath=".spec.storageClassName",description="StorageClass"
 // +kubebuilder:printcolumn:name="ClaimNamespace",type="string",JSONPath=".spec.claimRef.namespace",description="ClaimNamespace"
 // +kubebuilder:printcolumn:name="ClaimName",type="string",JSONPath=".spec.claimRef.name",description="ClaimName"

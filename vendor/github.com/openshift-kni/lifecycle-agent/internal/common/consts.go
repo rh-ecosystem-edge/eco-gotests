@@ -117,8 +117,13 @@ const (
 	// ImageCleanupDisabledValue value to disable image cleanup
 	ImageCleanupDisabledValue = "Disabled"
 
-	LcaNamespace = "openshift-lifecycle-agent"
-	Host         = "/host"
+	// DefaultOperatorNamespace is used when MY_POD_NAMESPACE is unset (e.g. local dev).
+	DefaultOperatorNamespace = "openshift-lifecycle-agent"
+	// OperatorDeploymentName is the OLM-managed operator Deployment name.
+	OperatorDeploymentName = "lifecycle-agent-controller-manager"
+	// OperatorNamespaceEnvVar is set on the operator Deployment via downward API.
+	OperatorNamespaceEnvVar = "MY_POD_NAMESPACE"
+	Host                    = "/host"
 
 	CsvDeploymentName      = "cluster-version-operator"
 	CsvDeploymentNamespace = "openshift-cluster-version"

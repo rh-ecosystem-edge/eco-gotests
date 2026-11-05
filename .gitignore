@@ -22,7 +22,7 @@ reports
 .vscode
 
 # Test dump directories
-**/dump/
+tests/**/dump/
 
 tests/hw-accel/nfd/**/*.md
 tests/hw-accel/nfd/*.md

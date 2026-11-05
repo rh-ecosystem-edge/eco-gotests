@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"testing"
 
+	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ptp"
-	ptpv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v1"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/iface"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

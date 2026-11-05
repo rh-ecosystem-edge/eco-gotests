@@ -41,26 +41,34 @@ func (ngc *NodeGroupConfig) SetDefaults() {
 	if ngc.InfoRefreshPause == nil {
 		ngc.InfoRefreshPause = defaultInfoRefreshPause()
 	}
+	if ngc.NUMAPlacement == nil {
+		ngc.NUMAPlacement = defaultNUMAPlacement()
+	}
 }
 
 func defaultPodsFingerprinting() *PodsFingerprintingMode {
-	podsFp := PodsFingerprintingEnabledExclusiveResources
-	return &podsFp
+	v := PodsFingerprintingEnabledExclusiveResources
+	return &v
 }
 
 func defaultInfoRefreshMode() *InfoRefreshMode {
-	refMode := InfoRefreshPeriodic
-	return &refMode
+	v := InfoRefreshPeriodic
+	return &v
 }
 
 func defaultInfoRefreshPeriod() *metav1.Duration {
-	period := metav1.Duration{
+	v := metav1.Duration{
 		Duration: 10 * time.Second,
 	}
-	return &period
+	return &v
 }
 
 func defaultInfoRefreshPause() *InfoRefreshPauseMode {
-	infoRefreshPause := InfoRefreshPauseDisabled
-	return &infoRefreshPause
+	v := InfoRefreshPauseDisabled
+	return &v
+}
+
+func defaultNUMAPlacement() *NUMAPlacementMode {
+	v := NUMAPlacementContainer
+	return &v
 }

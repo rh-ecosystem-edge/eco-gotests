@@ -1,8 +1,8 @@
 package tsparams
 
 import (
+	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
 	"github.com/openshift-kni/k8sreporter"
-	ptpv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v1"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranparam"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/utils/ptr"

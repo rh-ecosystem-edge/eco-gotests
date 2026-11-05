@@ -45,6 +45,17 @@ const (
 	SchedulerInformerDedicated SchedulerInformerMode = "Dedicated"
 )
 
+// +kubebuilder:validation:Enum=Enabled;Disabled
+type PreemptionMode string
+
+const (
+	// PreemptionEnabled enables NUMA-aware preemption in the NodeResourceTopologyMatch plugin.
+	PreemptionEnabled PreemptionMode = "Enabled"
+
+	// PreemptionDisabled disables NUMA-aware preemption in the NodeResourceTopologyMatch plugin.
+	PreemptionDisabled PreemptionMode = "Disabled"
+)
+
 // +kubebuilder:validation:Enum=MostAllocated;BalancedAllocation;LeastAllocated
 type ScoringStrategyType string
 
@@ -82,7 +93,7 @@ const (
 
 // NUMAResourcesSchedulerSpec defines the desired state of NUMAResourcesScheduler
 type NUMAResourcesSchedulerSpec struct {
-	// Scheduler container image URL
+	// Scheduler container image URL, must be referenced by SHA256 digest, not by tag
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Scheduler container image URL",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	SchedulerImage string `json:"imageSpec"`
 	// Scheduler name to be used in pod templates
@@ -114,6 +125,11 @@ type NUMAResourcesSchedulerSpec struct {
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Scheduler scoring strategy setting",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	ScoringStrategy *ScoringStrategyParams `json:"scoringStrategy,omitempty"`
+	// PreemptionMode controls NUMA-aware preemption in the NodeResourceTopologyMatch plugin.
+	// When unset, preemption is disabled by default. Set explicitly to Enabled to enable preemption.
+	// +optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Scheduler preemption mode setting",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	PreemptionMode *PreemptionMode `json:"preemptionMode,omitempty"`
 	// Replicas control how many scheduler pods must be configured for High Availability (HA)
 	// +optional
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Scheduler replicas",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:int"}

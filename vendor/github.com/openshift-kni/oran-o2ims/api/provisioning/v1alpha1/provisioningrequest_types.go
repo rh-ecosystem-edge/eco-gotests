@@ -60,6 +60,29 @@ type ClusterDetails struct {
 
 	// Holds the first timestamp when the configuration was found NonCompliant for the cluster.
 	NonCompliantAt *metav1.Time `json:"nonCompliantAt,omitempty"`
+
+	// ClusterUpgradeStatus holds the state of a cluster upgrade in progress.
+	ClusterUpgradeStatus *ClusterUpgradeStatus `json:"clusterUpgradeStatus,omitempty"`
+
+	// FulfilledNodeCount records the number of nodes at the time the PR last
+	// reached Fulfilled. Used to detect scale-out operations on subsequent
+	// reconciles — if the rendered ClusterInstance has more nodes than this
+	// value, a scale-out is in progress.
+	FulfilledNodeCount int `json:"fulfilledNodeCount,omitempty"`
+}
+
+// ClusterUpgradeStatus holds the persisted state for a cluster upgrade lifecycle.
+type ClusterUpgradeStatus struct {
+	// StartedAt indicates when the cluster upgrade started.
+	StartedAt *metav1.Time `json:"startedAt,omitempty"`
+
+	// StartVersion is the current cluster version before the upgrade began.
+	StartVersion string `json:"startVersion,omitempty"`
+
+	// IntermediateVersion is the intermediate version selected for
+	// EUS-to-EUS upgrades, either from user configuration or
+	// auto-selected from the Cincinnati update graph.
+	IntermediateVersion string `json:"intermediateVersion,omitempty"`
 }
 
 // ResourceProvisioningPhase defines the provisioning phase of an individual infrastructure resource.

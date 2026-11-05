@@ -2,7 +2,7 @@ GOBASE=$(shell pwd)
 GOBIN=$(GOBASE)/bin
 
 $(GOBIN)/golangci-lint:
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOBIN) v2.10.1
+	curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $(GOBIN) v2.15.0
 
 .PHONY: tools
 tools: $(GOBIN)/golangci-lint
@@ -39,6 +39,6 @@ tidy:
 
 tidy-ci:
 	# for the root module, explicitly run the step, to prevent recursive calls
-	tidied -verbose
+	go mod tidy -diff
 	# then, for all child modules, use a module-managed `Makefile`
 	git ls-files '**/*go.mod' -z | xargs -0 -I{} bash -xc 'cd $$(dirname {}) && make tidy-ci'

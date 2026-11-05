@@ -20,12 +20,15 @@ const (
 	HardwareManagerInventoryAPIPath = "/hardware-manager/inventory"
 )
 
-// API version suffix
-const APIVersionV1 = "/v1"
+// API version suffixes
+const (
+	APIVersionV1 = "/v1"
+	APIVersionV2 = "/v2"
+)
 
 // Full API base URLs (computed constants)
 var (
-	O2IMSInventoryBaseURL           = O2IMSInventoryAPIPath + APIVersionV1
+	O2IMSInventoryBaseURL           = O2IMSInventoryAPIPath + APIVersionV2
 	O2IMSClusterBaseURL             = O2IMSClusterAPIPath + APIVersionV1
 	O2IMSMonitoringBaseURL          = O2IMSMonitoringAPIPath + APIVersionV1
 	O2IMSArtifactsBaseURL           = O2IMSArtifactsAPIPath + APIVersionV1
@@ -92,6 +95,11 @@ const (
 	ClusterLocalDomain   = "svc.cluster.local"
 	KubernetesAPIService = "kubernetes.default.svc"
 )
+
+// DefaultKubernetesAudience is the default audience carried by service account
+// tokens mounted via the standard volume projection. It matches the API
+// server's --service-account-issuer value.
+const DefaultKubernetesAudience = "https://" + KubernetesAPIService
 
 // Network addresses
 const (
@@ -179,4 +187,12 @@ const (
 	TemplateParamPolicyConfig    = "policyTemplateParameters"
 	TemplateParamHwMgmt          = "hwMgmtParameters"
 	TemplateParamUpgrade         = "upgradeParameters"
+)
+
+// ClusterInstance input field names used in ClusterInstanceParameters / ClusterInstance data.
+const (
+	// ClusterInstanceNodesKey is the legacy flat nodes list.
+	ClusterInstanceNodesKey = "nodes"
+	// ClusterInstanceNodeGroupsKey is the grouped node config list.
+	ClusterInstanceNodeGroupsKey = "nodeGroups"
 )

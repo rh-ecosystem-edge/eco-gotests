@@ -19,6 +19,7 @@ package mlboperator
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -100,6 +101,17 @@ type MetalLBSpec struct {
 
 	// The specific frr-k8s configuration
 	FRRK8SConfig *FRRK8SConfig `json:"frrk8sConfig,omitempty"`
+
+	// SpeakerGratuitousARPInterval is the interval at which the MetalLB speaker
+	// sends periodic gratuitous ARP / unsolicited NDP announcements for
+	// L2-advertised services. When unset or set to 0, periodic announcements
+	// are disabled and only the announcements triggered by service events are
+	// sent. The value must be a valid Go duration string (e.g. "30s", "1m")
+	// and, when non-zero, must be at least 1s to avoid flooding the network
+	// with announcements.
+	// +optional
+	// +kubebuilder:validation:XValidation:rule="duration(self) == duration('0s') || duration(self) >= duration('1s')",message="speakerGratuitousARPInterval must be 0 or at least 1s"
+	SpeakerGratuitousARPInterval *metav1.Duration `json:"speakerGratuitousARPInterval,omitempty"`
 }
 
 type FRRK8SConfig struct {
@@ -172,5 +184,9 @@ type MetalLBList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&MetalLB{}, &MetalLBList{})
+	SchemeBuilder.Register(func(scheme *runtime.Scheme) error {
+		scheme.AddKnownTypes(GroupVersion, &MetalLB{}, &MetalLBList{})
+		metav1.AddToGroupVersion(scheme, GroupVersion)
+		return nil
+	})
 }

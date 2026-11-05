@@ -101,6 +101,12 @@ type StorageClusterSpec struct {
 	// +optional
 	EnableCephTools bool `json:"enableCephTools,omitempty"`
 
+	// EnableRookServicesTLS turns on HTTPS for all supported Rook-Ceph service
+	// metrics endpoints (e.g. rook-ceph-mgr) using OpenShift service-serving
+	// certificates. Defaults to false.
+	// +optional
+	EnableRookServicesTLS bool `json:"enableRookServicesTLS,omitempty"`
+
 	// Logging represents loggings settings
 	// +optional
 	// +nullable
@@ -316,6 +322,40 @@ type ManageCephObjectStores struct {
 	MetadataPoolSpec *rookCephv1.PoolSpec `json:"metadataPoolSpec,omitempty"`
 	// DataPoolSpec specifies the pool specification for the default cephObjectStore data pool
 	DataPoolSpec *rookCephv1.PoolSpec `json:"dataPoolSpec,omitempty"`
+
+	// Hosting modifies advanced RGW object store hosting options.
+	// +optional
+	Hosting *CephObjectStoreHostingSpec `json:"hosting,omitempty"`
+}
+
+// ObjectVirtualHostingMode represents a mode for object store virtual hosting.
+type ObjectVirtualHostingMode string
+
+const (
+	// DisabledObjectVirtualHostingMode disables object virtual hosting.
+	DisabledObjectVirtualHostingMode ObjectVirtualHostingMode = "Disabled"
+	// HeadlessServiceObjectVirtualHostingMode uses a headless service architecture to allow for
+	// virtual-host-style S3 access. Additional DNS setup (required) must be configured separately.
+	// This is not guaranteed to support host network environments.
+	HeadlessServiceObjectVirtualHostingMode ObjectVirtualHostingMode = "HeadlessService"
+)
+
+type CephObjectStoreHostingSpec struct {
+	// VirtualHostingMode allows virtual-host-style access to be provided for the object store S3
+	// service.
+	// Options:
+	//  - Disabled : Do not enable virtual-host-style access.
+	//  - HeadlessService : Configure a headless service to support virtual hosting. Additional DNS
+	//    setup (required) must be configured separately.
+	// +kubebuilder:validation:Enum=Disabled;HeadlessService
+	// +required
+	VirtualHostingMode ObjectVirtualHostingMode `json:"virtualHostingMode,omitempty"`
+
+	// RouteWildcardHost specifies the Route.spec.host that should be added to Routes to support
+	// Route wildcarding. Without this option specified, Route wildcarding will be disabled.
+	// +kubebuilder:validation:MinLength=1
+	// +optional
+	RouteWildcardHost string `json:"routeWildcardHost,omitempty"`
 }
 
 // ManageCephObjectStoreUsers defines how to reconcile CephObjectStoreUsers
@@ -359,6 +399,7 @@ type ExternalStorageClusterSpec struct {
 
 // StorageDeviceSet defines a set of storage devices.
 // It configures the StorageClassDeviceSets field in Rook-Ceph.
+// +kubebuilder:validation:XValidation:rule="!has(self.storageClassDeviceSetIndices) || size(self.storageClassDeviceSetIndices) == 0 || size(self.storageClassDeviceSetIndices) == self.replica",message="storageClassDeviceSetIndices length must match replica"
 type StorageDeviceSet struct {
 	Name string `json:"name"`
 	// Count is the number of devices in each StorageClassDeviceSet
@@ -370,6 +411,13 @@ type StorageDeviceSet struct {
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	Replica int `json:"replica,omitempty"`
+
+	// StorageClassDeviceSetIndices optionally specifies the suffix indices
+	// used for StorageClassDeviceSet names. When unset, indices default to 0..Replica-1.
+	// Useful when after scale down events, the remaining replicas are not in the simple form (0..Replica-1).
+	// +kubebuilder:validation:MinItems=1
+	// +optional
+	StorageClassDeviceSetIndices []int `json:"storageClassDeviceSetIndices,omitempty"`
 
 	// DeviceType is the value of device type in
 	// this StorageDeviceSet. It can have one of the

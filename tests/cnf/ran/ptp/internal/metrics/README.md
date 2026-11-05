@@ -140,7 +140,7 @@ import (
     "context"
     "fmt"
 
-    ptpv1 "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/ptp/v1"
+    ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
     prometheusapi "github.com/prometheus/client_golang/api/prometheus/v1"
 
     "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/ptp/internal/metrics"

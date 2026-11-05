@@ -143,6 +143,15 @@ type CollectorSpec struct {
 	// +kubebuilder:validation:Pattern="^(?:[0-9]{1,2}|100)%?$"
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Max Unavailable",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
+
+	// TerminationGracePeriodSeconds defines the termination grace period for collector pods
+	// in seconds. If not specified, the default is 10 seconds.
+	//
+	// +nullable
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Minimum:=1
+	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Termination Grace Period Seconds",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:number"}
+	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
 }
 
 type NetworkPolicy struct {
@@ -208,7 +217,8 @@ type PipelineSpec struct {
 
 type LimitSpec struct {
 	// MaxRecordsPerSecond is the maximum number of log records
-	// allowed per input/output in a pipeline
+	// allowed per input/output in a pipeline.
+	// Log records exceeding this limit are dropped.
 	//
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:Minimum:=0
@@ -259,7 +269,9 @@ type SecretReference struct {
 // +kubebuilder:validation:XValidation:rule="self.from != 'secret' || has(self.secret)", message="Additional secret spec is required when bearer token is sourced from a secret"
 type BearerToken struct {
 
-	// From is the source from where to find the token
+	// From is the source from where to find the token.
+	//
+	// Valid values are: secret, serviceAccount.
 	//
 	// +kubebuilder:validation:Required
 	// +operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Token Source"
@@ -273,6 +285,8 @@ type BearerToken struct {
 }
 
 // BearerTokenFrom specifies the source used for the bearer token.
+//
+// Valid values are: secret, serviceAccount.
 //
 // +kubebuilder:validation:Enum:=secret;serviceAccount
 type BearerTokenFrom string

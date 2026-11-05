@@ -34,6 +34,16 @@ type OAuthConfig struct {
 	// authorize our requests
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="OAuth Scopes",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	Scopes []string `json:"scopes"`
+	// Audience represents the OAuth audience value to include in token requests.  When specified, this value is
+	// sent as the "audience" parameter in the client credentials token request to the authorization server.  If omitted,
+	// no audience parameter is included and the authorization server determines the audience based on other request
+	// attributes (e.g., scopes).
+	//+optional
+	//+kubebuilder:validation:MinLength=1
+	//+kubebuilder:validation:MaxLength=512
+	//+kubebuilder:validation:Pattern=`^\S+$`
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="OAuth Audience",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	Audience *string `json:"audience,omitempty"`
 	// UsernameClaim represents the claim contained within the OAuth JWT token which holds the username
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="OAuth Username Claim",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	//+kubebuilder:default=preferred_username

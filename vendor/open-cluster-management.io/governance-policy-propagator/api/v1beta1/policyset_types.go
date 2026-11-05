@@ -9,6 +9,8 @@ import (
 	policyv1 "open-cluster-management.io/governance-policy-propagator/api/v1"
 )
 
+// NonEmptyString is a string that must contain at least one character.
+//
 // +kubebuilder:validation:MinLength=1
 type NonEmptyString string
 
@@ -19,6 +21,26 @@ type PolicySetSpec struct {
 
 	// Policies is a list of policy names that are contained within the policy set.
 	Policies []NonEmptyString `json:"policies"`
+
+	// Exclusions lists policies that should not be propagated to specific managed clusters
+	// through this PolicySet's placement binding. Other policies in the PolicySet and other
+	// placement bindings are not affected.
+	Exclusions []PolicySetExclusion `json:"exclusions,omitempty"`
+}
+
+// PolicySetExclusion defines a policy in the set that should not be propagated to
+// specific managed clusters while keeping the PolicySet association intact.
+type PolicySetExclusion struct {
+	// PolicyName is the name of a policy in the PolicySet.
+	PolicyName NonEmptyString `json:"policyName"`
+
+	// Reason is an optional explanation for the exclusion.
+	Reason string `json:"reason,omitempty"`
+
+	// ClusterNames is a list of managed cluster names where the policy should not be propagated.
+	//
+	// +kubebuilder:validation:MinItems=1
+	ClusterNames []NonEmptyString `json:"clusterNames"`
 }
 
 // PolicySetStatusPlacement reports how and what managed cluster placement resources are attached to
@@ -38,6 +60,17 @@ type PolicySetStatusPlacement struct {
 	PlacementRule string `json:"placementRule,omitempty"`
 }
 
+// PolicySetStatusExclusion reports active cluster exclusions observed for a policy in the set.
+type PolicySetStatusExclusion struct {
+	// PolicyName is the name of the excluded policy.
+	PolicyName NonEmptyString `json:"policyName"`
+
+	// Clusters lists managed cluster names where the policy is excluded from propagation.
+	//
+	// +kubebuilder:validation:MinItems=1
+	Clusters []NonEmptyString `json:"clusters"`
+}
+
 // PolicySetStatus reports the observed status of the policy set resulting from its policies.
 type PolicySetStatus struct {
 	Placement []PolicySetStatusPlacement `json:"placement,omitempty"`
@@ -45,8 +78,11 @@ type PolicySetStatus struct {
 	// Compliant reports the observed status resulting from the compliance of the policies within.
 	Compliant policyv1.ComplianceState `json:"compliant,omitempty"`
 
-	// StatusMessge reports the current state while determining the compliance of the policy set.
+	// StatusMessage reports the current state while determining the compliance of the policy set.
 	StatusMessage string `json:"statusMessage,omitempty"`
+
+	// Exclusions reports cluster-level exclusions the controller has applied for policies in the set.
+	Exclusions []PolicySetStatusExclusion `json:"exclusions,omitempty"`
 }
 
 // PolicySet is the schema for the policysets API. A policy set is a logical grouping of policies

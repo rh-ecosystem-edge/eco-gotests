@@ -53,6 +53,8 @@ func SetDefaults_NUMAResourcesSchedulerSpec(spec *NUMAResourcesSchedulerSpec) {
 			Type: defaultScoringStrategy,
 		}
 	}
+	// do not set preemptionMode default value to differentiate between unset and set values
+
 	// do not set replicas default value
 	// it will be computed later
 }

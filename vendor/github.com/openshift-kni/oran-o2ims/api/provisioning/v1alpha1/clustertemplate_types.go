@@ -54,7 +54,6 @@ type ClusterTemplateSpec struct {
 }
 
 // HwMgmtDefaults defines the default hardware management parameters.
-// When NodeGroupData is empty, hardware provisioning is skipped.
 type HwMgmtDefaults struct {
 	// HardwareProvisioningTimeout defines the timeout for hardware provisioning.
 	// +optional
@@ -69,7 +68,6 @@ type HwMgmtDefaults struct {
 // TemplateDefaults defines the default values for templates required for ClusterTemplate.
 type TemplateDefaults struct {
 	// HwMgmtDefaults defines the default hardware management parameters.
-	// When nodeGroupData is empty, hardware provisioning is skipped.
 	// +optional
 	HwMgmtDefaults HwMgmtDefaults `json:"hwMgmtDefaults,omitempty"`
 
