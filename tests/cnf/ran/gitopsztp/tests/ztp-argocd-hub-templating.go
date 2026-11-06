@@ -93,8 +93,8 @@ var _ = Describe("ZTP Argo CD Hub Templating Tests", Label(tsparams.LabelArgoCdH
 		}
 	})
 
-	// 54240 - Hub-side ACM templating with TALM
-	It("should report an error for using autoindent function where not allowed", reportxml.ID("54240"), func() {
+	// 91022 - Hub-side ACM templating with TALM reports an error for disallowed autoindent usage
+	It("should report an error for using autoindent function where not allowed", reportxml.ID("91022"), func() {
 		setupHubTemplateTest(policiesApp, tsparams.ZtpTestPathTemplatingAutoIndent)
 
 		By("validating TALM reported a policy error")
