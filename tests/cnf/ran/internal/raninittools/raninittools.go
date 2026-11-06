@@ -6,6 +6,7 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/ranconfig"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/inittools"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/klogfilter"
 	"k8s.io/klog/v2"
 )
 
@@ -23,10 +24,14 @@ var (
 )
 
 func init() {
-	// If LogToStderr is true, klog will ignore the output and only write to stderr. Instead, we want to write to
+	klog.ClearLogger()
+
+	// If LogToStderr is true, klog ignores the configured output and only writes to stderr. Instead, we want to write to
 	// the GinkgoWriter, which is also written to stderr when using the -v flag.
 	klog.LogToStderr(false)
-	klog.SetOutput(ginkgo.GinkgoWriter)
+	// Client-go's tunneling connection and dialer log through global klog, bypassing their context loggers. Drop
+	// only that verbose tunnel diagnostics noise while preserving all other klog output.
+	klog.SetOutput(klogfilter.New(ginkgo.GinkgoWriter))
 
 	Spoke1APIClient = inittools.APIClient
 	RANConfig = ranconfig.NewRANConfig()
