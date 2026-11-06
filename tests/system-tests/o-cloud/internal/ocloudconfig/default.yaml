@@ -62,3 +62,7 @@ authfile_path: /kubeconfig/docker/config.json
 
 mock_smo_base_url: ""
 o2ims_base_url: ""
+
+scale_pr_name: ""
+scale_spoke_kubeconfig: ""
+scale_timeout: "90m"
