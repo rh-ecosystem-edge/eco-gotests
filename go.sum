@@ -420,6 +420,8 @@ github.com/kevinburke/ssh_config v1.6.0/go.mod h1:q2RIzfka+BXARoNexmF9gkxEX7Dmvb
 github.com/kisielk/errcheck v1.2.0/go.mod h1:/BMXB+zMLi60iA8Vv6Ksmxu/1UDYcXs4uQLJ+jE2L00=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
+github.com/klaskosk/eco-goinfra v0.0.0-20261106210933-cc9bb8227c01 h1:ZGdk1ff/oVRyCvJaUnpqioBWCAAelcfVdCu/vLUinJo=
+github.com/klaskosk/eco-goinfra v0.0.0-20261106210933-cc9bb8227c01/go.mod h1:6O/o7ZId2zkAN6jyoGrnVjqSXq03q2HTGLgjgPtrVbE=
 github.com/klauspost/compress v1.20.3 h1:zWNoFqq/lSuYQRim3dUXlXeA0IqwuZGicdG5ZTfY5j4=
 github.com/klauspost/compress v1.20.3/go.mod h1:LUdAzn7YLVvxLpc7y3V1m40wESHTgc1422pwwBSKYuI=
 github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
@@ -605,8 +607,6 @@ github.com/red-hat-storage/odf-operator v0.0.0-20260930105922-effed015aa23 h1:qf
 github.com/red-hat-storage/odf-operator v0.0.0-20260930105922-effed015aa23/go.mod h1:dqXnIfZrII4za/cbPkS2iTq2XogfBLsy8WDUeVr0gIs=
 github.com/redhat-cne/sdk-go v1.23.6 h1:L+Rs12UihwDBJc/tj1eEMc4Otf7Lxf0bkFjdsg7FPGA=
 github.com/redhat-cne/sdk-go v1.23.6/go.mod h1:5hK1sILdB33pdMsNYTyBKV/v5GjjibmQZcyRtVrVfvs=
-github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261105221851-74e192c67338 h1:NlVFO2ETDSF7uSbOmG7mxhm6To9Vr1M3b7NbacB3ASM=
-github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261105221851-74e192c67338/go.mod h1:6O/o7ZId2zkAN6jyoGrnVjqSXq03q2HTGLgjgPtrVbE=
 github.com/rogpeppe/go-internal v1.9.0/go.mod h1:WtVeX8xhTBvf0smdhujwtBcq4Qrzq/fJaraNFVN+nFs=
 github.com/rogpeppe/go-internal v1.14.1/go.mod h1:MaRKkUm5W0goXpeCfT7UZI6fk/L7L7so1lCWt35ZSgc=
 github.com/rogpeppe/go-internal v1.15.0 h1:D0RCU5rMAp+SpgkiNdrjfJ+LX4J1M32V2NeCY7EJ6hc=
