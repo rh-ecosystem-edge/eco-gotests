@@ -175,6 +175,15 @@ type CoreConfig struct {
 	NMIRedfishWorkerMCPNodeLabel string `yaml:"rdscore_nmi_redfish_worker_node_label" envconfig:"ECO_RDSCORE_NMI_REDFISH_WORKER_NODE_LABEL"`
 	//nolint:lll
 	NMIRedfishCNFMCPNodeLabel string `yaml:"rdscore_nmi_redfish_cnf_node_label" envconfig:"ECO_RDSCORE_NMI_REDFISH_CNF_NODE_LABEL"`
+	//nolint:lll
+	ControlPlaneCPUReserved string `yaml:"rdscore_control_plane_cpu_reserved" envconfig:"ECO_RDSCORE_CONTROL_PLANE_CPU_RESERVED"`
+	//nolint:lll
+	ControlPlaneMemoryReserved string `yaml:"rdscore_control_plane_memory_reserved" envconfig:"ECO_RDSCORE_CONTROL_PLANE_MEMORY_RESERVED"`
+	WorkerCPUReserved string `yaml:"rdscore_worker_cpu_reserved" envconfig:"ECO_RDSCORE_WORKER_CPU_RESERVED"`
+	WorkerMemoryReserved string `yaml:"rdscore_worker_memory_reserved" envconfig:"ECO_RDSCORE_WORKER_MEMORY_RESERVED"`
+	PerformanceProfileName string `yaml:"rdscore_performance_profile_name" envconfig:"ECO_RDSCORE_PERFORMANCE_PROFILE_NAME"`
+	//nolint:lll
+	ExcludedNodeLabels EnvSliceString `yaml:"rdscore_excluded_node_labels" envconfig:"ECO_RDSCORE_EXCLUDED_NODE_LABELS"`
 	//nolint:lll,nolintlint
 	WlkdTolerationList TolerationList `yaml:"rdscore_tolerations_list" envconfig:"ECO_RDSCORE_TOLERATIONS_LIST"`
 	//nolint:lll
