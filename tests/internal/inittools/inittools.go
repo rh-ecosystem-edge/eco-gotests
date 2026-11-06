@@ -7,6 +7,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/config"
+	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/klogfilter"
 	"k8s.io/klog/v2"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -26,6 +27,11 @@ func init() {
 	logf.SetLogger(logr.Discard())
 
 	_ = flag.Set("logtostderr", "true")
+	klogOutput := klogfilter.New(os.Stderr)
+
+	klog.SetLoggerWithOptions(logr.Discard(), klog.WriteKlogBuffer(func(data []byte) {
+		_, _ = klogOutput.Write(data)
+	}))
 
 	// Skip loading config if running unit tests
 	if os.Getenv("UNIT_TEST") == "true" {
