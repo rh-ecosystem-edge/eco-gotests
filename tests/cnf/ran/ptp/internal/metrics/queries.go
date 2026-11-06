@@ -219,7 +219,7 @@ func (query MetricQuery[V]) ToMetricQuery() MetricQuery[V] {
 }
 
 // ClockStateQuery is a query for the openshift_ptp_clock_state metric. It has the special case that the interface label
-// is converted to ending in x and will default to ignoring the master interface if not set.
+// defaults to ignoring the master interface if not set.
 type ClockStateQuery struct {
 	Process   MetricLabel[PtpProcess]
 	Interface MetricLabel[iface.Alias]
@@ -236,8 +236,6 @@ func (query ClockStateQuery) ToMetricQuery() MetricQuery[PtpClockState] {
 	if query.Interface.IsZero() {
 		ifaceLabel = DoesNotEqual(iface.Master)
 	}
-
-	ifaceLabel = ifaceLabel.ensureNIC()
 
 	return MetricQuery[PtpClockState]{
 		Metric: MetricClockState,
