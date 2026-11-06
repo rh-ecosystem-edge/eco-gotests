@@ -3,11 +3,43 @@
 package ranconfig
 
 import (
+	"regexp"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestTalmPreCachePolicies(t *testing.T) {
+	var config RANConfig
+
+	require.NoError(t, readFile(&config, PathToDefaultCnfRanParamsFile))
+	require.NotEmpty(t, config.TalmPreCachePolicies)
+
+	patterns := make([]*regexp.Regexp, 0, len(config.TalmPreCachePolicies))
+	for _, expression := range config.TalmPreCachePolicies {
+		pattern, err := regexp.Compile(expression)
+		require.NoError(t, err, "Failed to compile TALM pre-cache policy pattern %q", expression)
+
+		patterns = append(patterns, pattern)
+	}
+
+	policies := []string{
+		"common-config-policy",
+		"common-subscriptions-policy",
+		"common-v4.19-config-policy",
+		"common-v4.19-subscriptions-policy",
+		"common-v5.0-config-policy",
+		"common-v5.0-subscriptions-policy",
+	}
+
+	for _, policy := range policies {
+		assert.True(t,
+			slices.ContainsFunc(patterns, func(pattern *regexp.Regexp) bool { return pattern.MatchString(policy) }),
+			"Expected TALM pre-cache policies to include a pattern matching %q", policy)
+	}
+}
 
 func TestO2IMSMustGatherImageConfiguration(t *testing.T) {
 	var config RANConfig
