@@ -172,13 +172,11 @@ func (builder *OvsNetworkBuilder) Create() (*OvsNetworkBuilder, error) {
 		return builder, err
 	}
 
-	if !builder.Exists() {
-		err := builder.apiClient.Create(context.TODO(), builder.Definition)
-		if err != nil {
-			klog.V(100).Info("Failed to create OVSNetwork")
+	if err := createOwnedTestResource(builder.apiClient, builder.Definition,
+		builder.Definition.Labels[tsparams.TestRunLabelKey]); err != nil {
+		klog.V(100).Info("Failed to create OVSNetwork")
 
-			return nil, err
-		}
+		return nil, err
 	}
 
 	builder.Object = builder.Definition
@@ -186,22 +184,14 @@ func (builder *OvsNetworkBuilder) Create() (*OvsNetworkBuilder, error) {
 	return builder, nil
 }
 
-// Delete removes the OVSNetwork object.
+// Delete removes only the OVSNetwork created by this run.
 func (builder *OvsNetworkBuilder) Delete() error {
 	if valid, err := builder.validate(); !valid {
 		return err
 	}
 
-	if !builder.Exists() {
-		klog.V(100).Info("OVSNetwork cannot be deleted because it does not exist")
-
-		builder.Object = nil
-
-		return nil
-	}
-
-	err := builder.apiClient.Delete(context.TODO(), builder.Definition)
-	if err != nil {
+	if err := deleteOwnedTestResource(builder.apiClient, builder.Definition.Namespace, builder.Definition.Name,
+		builder.Definition.Labels[tsparams.TestRunLabelKey], &sriovv1.OVSNetwork{}); err != nil {
 		return err
 	}
 
@@ -246,8 +236,12 @@ func (builder *OvsNetworkBuilder) validate() (bool, error) {
 // bridge may be empty; when set it is written into the NAD so representors attach to the
 // managed HWOL bridge (e.g. br-0000_ca_00.0).
 func CreateOvsNetwork(
-	name, operatorNS, resourceName, networkNS, ipam, bridge string,
+	name, operatorNS, resourceName, networkNS, ipam, bridge, interfaceType, runID string,
 ) (*OvsNetworkBuilder, error) {
+	if runID == "" {
+		return nil, fmt.Errorf("HWOL run ID cannot be empty")
+	}
+
 	network := NewOvsNetworkBuilder(APIClient, name, operatorNS, networkNS, resourceName)
 	if network == nil {
 		return nil, fmt.Errorf("failed to init OVSNetwork builder")
@@ -262,6 +256,9 @@ func CreateOvsNetwork(
 	if bridge != "" {
 		network = network.WithBridge(bridge)
 	}
+
+	network.Definition.Spec.InterfaceType = interfaceType
+	network.Definition.Labels[tsparams.TestRunLabelKey] = runID
 
 	created, err := network.Create()
 	if err != nil {

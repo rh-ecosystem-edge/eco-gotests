@@ -36,7 +36,9 @@ type HwolOcpConfig struct {
 	OcpHwolTestContainer     string `yaml:"ocp_hwol_test_container" envconfig:"ECO_OCP_HWOL_TEST_CONTAINER"`
 	MCPLabel                 string `yaml:"mcp_label" envconfig:"ECO_OCP_HWOL_MCP_LABEL"`
 	VFNum                    int    `yaml:"vf_num" envconfig:"ECO_OCP_HWOL_VF_NUM"`
+	OvsDocaEnabled           bool   `envconfig:"ECO_OCP_HWOL_OVS_DOCA"`
 	RecoverOnCleanupFailure  bool   `envconfig:"ECO_HWOL_RECOVER_ON_CLEANUP_FAILURE"`
+	RestoreOffloadOnCleanup  bool   `envconfig:"ECO_HWOL_RESTORE_OFFLOAD_ON_CLEANUP"`
 	DevicesEnv               string `envconfig:"ECO_OCP_HWOL_DEVICES"`
 }
 

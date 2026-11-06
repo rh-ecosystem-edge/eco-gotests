@@ -11,8 +11,9 @@ locally with `ECO_TEST_FEATURES=hwol` (`make run-tests`).
   eswitch switchdev (BF-3 NIC mode / CX-6 Dx; BF-2 DPU mode is **not** enough)
 - MCP matching `ECO_OCP_HWOL_MCP_LABEL` (default `sriov`) with workers labeled
   `node-role.kubernetes.io/<mcp_label>=""`
-- Host IOMMU enabled (`intel_iommu=on iommu=pt`); Dell/BF often also need
-  `pci=realloc` (and sometimes BIOS MMIO High Size) before VF create works
+- Confirm IOMMU and PCI resource requirements for the selected device, driver
+  and platform. Do not change kernel or BIOS settings without validating that
+  they are required for the deployment.
 - `KUBECONFIG` pointing at the cluster
 - For the **ovs-network** path: Subscription must set `OVS_CNI_IMAGE` to a
   pullable ovs-cni image, with registry credentials configured on the cluster
@@ -37,13 +38,28 @@ Devices are **not** configured in YAML. `ECO_OCP_HWOL_DEVICES` is required.
 | `ECO_OCP_HWOL_TEST_CONTAINER` | Workload / traffic image (needs `iperf3` for offload) | `quay.io/openshifttest/iperf3@sha256:440c5925…` |
 | `ECO_OCP_HWOL_MCP_LABEL` | Machine config pool name / role label | `sriov` |
 | `ECO_OCP_HWOL_VF_NUM` | Number of VFs (≥3 recommended; VF0 reserved) | `3` |
-| `ECO_HWOL_RECOVER_ON_CLEANUP_FAILURE` | On a dedicated CI lab only, reboot HWOL MCP nodes after failed cleanup; the run still fails | `false` |
+| `ECO_OCP_HWOL_OVS_DOCA` | Verify OVS-DOCA and use the DOCA bridge and PF/VF representors | `false` |
+| `ECO_HWOL_RECOVER_ON_CLEANUP_FAILURE` | Dedicated labs only: reboot HWOL MCP nodes after failed cleanup; the run still fails | `false` |
+| `ECO_HWOL_RESTORE_OFFLOAD_ON_CLEANUP` | Dedicated labs only: restore a disabled/absent baseline and restart OVS if cleanup leaves offload enabled | `false` |
 | `ECO_WORKER_LABEL` | Worker node label selector | from shared ocpconfig |
 
 Default test image is the OpenShift org Quay `iperf3` image (digest-pinned). Prefer
 `openshift/network-tools` once it ships iperf3
 ([PR #189](https://github.com/openshift/network-tools/pull/189)). Override with
 `ECO_OCP_HWOL_TEST_CONTAINER` if the lab cannot pull Quay.
+Images are pulled by the test-owned pods on their target node; the suite does
+not create shared pre-pull pods in the `default` namespace.
+
+Set `ECO_OCP_HWOL_OVS_DOCA=true` only for a CI lane that has already provisioned
+OVS-DOCA on its dedicated MCP. The suite does not install OVS-DOCA; it verifies
+`doca-init=true`, `hw-offload=true`, and DOCA datapath availability, then uses
+a DOCA bridge, PF uplink and `OVSNetwork` representors. It checks the bridge,
+interface types, port health, fresh `doca_flow_api` assignments for both
+workload representors, and workload-specific offloaded counters. Provider
+verification fails closed if the OVS process or log changes, the log is rotated
+or truncated, or assignment evidence is missing. This mode is experimental and
+requires a compatible OVS-DOCA/CNI deployment. The
+default `false` leaves the existing kernel/TC path selected.
 
 ## Directory structure
 
@@ -143,28 +159,71 @@ export ECO_OCP_HWOL_VF_NUM=3
 make run-tests
 ```
 
-The Ordered HWOL spec ensures `SriovOperatorConfig`
+The Ordered HWOL spec requires `SriovOperatorConfig`
 (`featureGates.manageSoftwareBridges`, `enableOvsOffload`; mellanox plugin left
-enabled so firmware SR-IOV/TotalVfs can be programmed on CX6), creates
+enabled so firmware SR-IOV/TotalVfs can be programmed on CX6). It checks these
+prerequisites without changing the existing operator configuration, then creates
 `SriovNetworkPoolConfig` (OvsHardwareOffload only — no parallel
 nodeSelector/maxUnavailable), applies switchdev policy with `bridge.ovs: {}`,
 and waits for MCP/node-state sync. The `switchdev` spec asserts
 `eSwitchMode=switchdev` and a managed OVS bridge uplink. Attach table Entries
 create the network CR, assert NAD type/resource (and bridge for ovs), and run a
 sleep pod. The ovs offload Entry creates two same-node iperf pods, asserts
-representors on the managed bridge, runs traffic, and asserts non-empty
-`type=offloaded` datapath flows on the node.
+representors on the managed bridge, records offloaded IPv4 counters for the
+workload MAC pair, runs traffic, and requires those counters to increase.
 
-`AfterAll` removes only the HWOL-created OVSNetwork/SriovNetwork objects,
+Before creating a pool or policy, the suite requires every selected node to
+have no other selecting SR-IOV policy or pool config and an unused legacy PF
+with capacity for the requested VFs. This intentionally rejects shared nodes,
+including nodes with unrelated SR-IOV policies, rather than altering their state.
+
+Per-spec `AfterEach` removes workload pods before their network. If that
+cleanup fails, the suite retains the foundation rather than resetting a PF with
+potentially active workloads. `AfterAll` then removes only the HWOL-created OVSNetwork/SriovNetwork objects,
 `hwol-switchdev` policy, and HWOL pool config — run on a dedicated lab MCP, not
 a shared production-like pool. Cleanup waits up to `CleanupWaitTimeout` (15m),
 then verifies that the MCP and SR-IOV node state are stable, the policy and pool
 config are gone, the target PF has returned to legacy mode, and its managed OVS
-bridge has been removed. A cleanup timeout (often switchdev reset stuck with
-`device or resource busy`) fails the suite. On a dedicated CI lab,
-`ECO_HWOL_RECOVER_ON_CLEANUP_FAILURE=true` reboots the HWOL MCP nodes one at a
-time, waits for recovery, and verifies cleanup. The original cleanup failure is
-still reported, so this workaround never turns a failed cleanup into a pass.
+bridge has been removed. It also compares each node's `hw-offload` OVSDB setting
+with the pre-test baseline, distinguishing an absent key from `false`. A
+mismatch fails cleanup by default. On a dedicated lab only,
+`ECO_HWOL_RESTORE_OFFLOAD_ON_CLEANUP=true` allows the suite to restore an absent
+or disabled baseline, restart `ovs-vswitchd` and verify the node and setting.
+This restart can interrupt primary networking. The suite refuses recovery if
+another SR-IOV pool config or policy selects the node, if the node UID or role
+changed, if the node is not Ready, if OVS startup configuration mentions
+`hw-offload`, or if the setting changes during preflight; it never turns
+offload on to restore an enabled baseline. The suite refuses to adopt pre-existing test-named
+networks, policies or pool configs. Cleanup uses the shared SR-IOV/MCP stability
+helper. A convergence failure fails the suite. The existing
+`ECO_HWOL_RECOVER_ON_CLEANUP_FAILURE=true` option can reboot the selected MCP
+nodes and verify recovery, while preserving the original failure. Keep it
+disabled on ANL; investigate pending firmware settings before a manual reboot.
+Operator-managed changes may still reboot the node during setup or cleanup.
+
+On ANL246, deleting the test policy
+queued `SRIOV_EN=False` and `NUM_OF_VFS=0` for the next boot, while the running
+settings remained enabled. The suite does not inspect or restore firmware
+settings; the lab and operator own them. Check the next-boot configuration
+before a later reboot if VF capacity must be preserved.
+
+The pool controller creates/removes a HWOL MachineConfig, which can trigger MCD
+reboots. A full ANL246 run starting with `False`/`0` pending passed all five
+runnable specs: the operator restored VF capacity during setup without manual
+firmware restoration. Cleanup queued `False`/`0` again. This validates that lab
+sequence, not arbitrary reboot/recovery scenarios.
+
+The HWOL MachineConfig sets `hw-offload=true` on OVS startup; deleting the
+drop-in does not itself remove the persistent OVSDB key. This is separate from
+the firmware reset and explains the optional OVS baseline restoration above.
+
+Each suite run atomically creates a uniquely named `hwol-tests-<run-id>`
+namespace and retains it after execution. Namespace ownership alone cannot
+establish ownership of every resource inside it: review all namespaced resources
+and the reported UID before manually deleting it. Subsequent runs create new
+namespaces rather than adopting or deleting retained ones; they still refuse
+pre-existing HWOL policies, networks and pool configs. Run with one Ginkgo
+process because those operator resources have shared names.
 
 ## Current coverage
 
@@ -173,7 +232,7 @@ still reported, so this workaround never turns a failed cleanup into a pass.
 | HWOL setup smoke | SR-IOV operator deployed, `ECO_OCP_HWOL_DEVICES` parses, ≥1 worker |
 | HWOL switchdev | Foundation + OVS bridge status on MCP nodes |
 | HWOL attach (ovs / sriov) | NAD `type` + resource (+ ovs bridge) + pod secondary network |
-| HWOL offload (ovs) | Representors on managed bridge + iperf3 + `type=offloaded` flows |
+| HWOL offload (ovs) | Representors on managed bridge + iperf3 + increasing `type=offloaded` counters for the workload MAC pair |
 | HWOL offload (sriov) | Pending — VF representors not on managed OVS bridge |
 
 Attach networks default to host-local IPAM (configurable on the create helpers);
