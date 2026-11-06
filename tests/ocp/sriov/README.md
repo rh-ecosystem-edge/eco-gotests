@@ -59,6 +59,7 @@ export ECO_OCP_SRIOV_INTERFACE_LIST="ens2f0,ens3f0"
 | `ECO_OCP_SRIOV_SWITCH_PASS` | Switch password for switch-based tests | -- |
 | `ECO_OCP_SRIOV_SWITCH_IP` | Switch IP address for switch-based tests | -- |
 | `ECO_OCP_SRIOV_SWITCH_INTERFACES` | Switch interfaces for switch-based tests (comma-separated `name:port` pairs) | -- |
+| `ECO_OCP_SRIOV_SWITCH_LAGS` | Switch LAG interface names for switch-based tests (comma-separated pair) | -- |
 | `ECO_OCP_SRIOV_VLAN` | VLAN ID for switch-based tests (1-4094) | -- |
 
 ## Directory Structure
