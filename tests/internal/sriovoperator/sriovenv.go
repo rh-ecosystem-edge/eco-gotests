@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"time"
 
+	sriovv1 "github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/daemonset"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
 
@@ -55,7 +57,8 @@ func IsSriovDeployed(apiClient *clients.Settings, sriovOperatorNamespace string)
 	return nil
 }
 
-// WaitForSriovStable waits until all the SR-IOV node states are in sync.
+// WaitForSriovStable waits until all the SR-IOV node states are generation-fresh and stable
+// (Ready=True, Progressing/Draining != True, then syncStatus=Succeeded).
 func WaitForSriovStable(apiClient *clients.Settings, waitingTime time.Duration, sriovOperatorNamespace string) error {
 	klog.V(90).Infof("Waiting for SR-IOV become stable.")
 
@@ -69,7 +72,21 @@ func WaitForSriovStable(apiClient *clients.Settings, waitingTime time.Duration, 
 	}
 
 	for _, nodeState := range networkNodeStateList {
-		err = nodeState.WaitUntilSyncStatus("Succeeded", waitingTime)
+		err = nodeState.WaitForCondition(metav1.Condition{
+			Type:   sriovv1.ConditionReady,
+			Status: metav1.ConditionTrue,
+		}, waitingTime)
+		if err != nil {
+			if cond := nodeState.GetCondition(sriovv1.ConditionReady); cond != nil {
+				return fmt.Errorf("SriovNetworkNodeState %s not Ready (status=%s reason=%s): %w",
+					nodeState.Objects.Name, cond.Status, cond.Reason, err)
+			}
+
+			return fmt.Errorf("SriovNetworkNodeState %s Ready condition not met: %w",
+				nodeState.Objects.Name, err)
+		}
+
+		err = nodeState.WaitUntilStable(waitingTime)
 		if err != nil {
 			return err
 		}
