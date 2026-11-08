@@ -11,6 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 	prometheusv1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	eventptp "github.com/redhat-cne/sdk-go/pkg/event/ptp"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/pod"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ptp"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/internal/nicinfo"
@@ -581,6 +582,11 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 
 			testActuallyRan = true
 
+			By("getting the event pod for the node")
+
+			eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeName)
+			Expect(err).ToNot(HaveOccurred(), "Failed to get event pod for node %s", nodeName)
+
 			By("bringing down all HA interfaces")
 			DeferCleanup(func() {
 				By("restoring all HA interfaces")
@@ -591,12 +597,20 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 				}
 			})
 
+			startTime := time.Now()
+
 			for _, haInterface := range haInterfaces {
 				err = iface.SetInterfaceStatus(RANConfig.Spoke1APIClient, nodeName, haInterface, iface.InterfaceStateDown)
 				Expect(err).ToNot(HaveOccurred(), "Failed to set HA interface %s down", haInterface)
 			}
 
-			startTime := time.Now()
+			By("validating HOLDOVER events for the HA interfaces and the node sync state")
+
+			waitForHASyncStateEvents(eventPod, nodeName, haInterfaces, eventptp.HOLDOVER, startTime, 3*time.Minute)
+
+			By("validating FREERUN events for the HA interfaces and the node sync state")
+
+			waitForHASyncStateEvents(eventPod, nodeName, haInterfaces, eventptp.FREERUN, startTime, 5*time.Minute)
 
 			By("validating all HA Clock States are in FREERUN state")
 
@@ -633,11 +647,6 @@ var _ = Describe("PTP Interfaces", Label(tsparams.LabelInterfaces), func() {
 			Expect(verErr).ToNot(HaveOccurred(), "Failed to parse PTP operator version")
 
 			if versionInRange {
-				By("getting the event pod for the node")
-
-				eventPod, err := consumer.GetConsumerPodforNode(RANConfig.Spoke1APIClient, nodeName)
-				Expect(err).ToNot(HaveOccurred(), "Failed to get event pod for node %s", nodeName)
-
 				By("validating clock class is 248 for HA interfaces")
 
 				for _, haInterface := range haInterfaces {
@@ -834,6 +843,44 @@ func waitForActiveHAProfileChange(
 		"Active HA profile should have changed from %s on node %s", oldProfileName, nodeName)
 
 	return newActiveProfile
+}
+
+// waitForHASyncStateEvents waits for the provided sync state to be reported by both the ptp-state-change event of every
+// provided HA interface and the node level synchronization-state-change event. Every wait uses the same start time, so
+// the timeout applies to each event individually rather than to all of them combined.
+func waitForHASyncStateEvents(
+	eventPod *pod.Builder,
+	nodeName string,
+	haInterfaces []iface.Iface,
+	syncState eventptp.SyncState,
+	startTime time.Time,
+	timeout time.Duration,
+) {
+	GinkgoHelper()
+
+	for _, haInterface := range haInterfaces {
+		haNIC := haInterface.GetAlias()
+
+		By(fmt.Sprintf("waiting for ptp-state-change %s event for interface %s", syncState, haNIC))
+
+		ptpStateFilter := events.All(
+			events.IsType(eventptp.PtpStateChange),
+			events.HasValue(events.WithSyncState(syncState), events.OnInterface(haNIC)),
+		)
+		err := events.WaitForEvent(eventPod, startTime, timeout, ptpStateFilter)
+		Expect(err).ToNot(HaveOccurred(),
+			"Failed to wait for ptp-state-change %s event for interface %s on node %s", syncState, haNIC, nodeName)
+	}
+
+	By(fmt.Sprintf("waiting for synchronization-state-change %s event on node %s", syncState, nodeName))
+
+	syncStateFilter := events.All(
+		events.IsType(eventptp.SyncStateChange),
+		events.HasValue(events.WithSyncState(syncState)),
+	)
+	err := events.WaitForEvent(eventPod, startTime, timeout, syncStateFilter)
+	Expect(err).ToNot(HaveOccurred(),
+		"Failed to wait for synchronization-state-change %s event on node %s", syncState, nodeName)
 }
 
 // getHAProfileClientInterface returns the client interface for a given HA profile name.
