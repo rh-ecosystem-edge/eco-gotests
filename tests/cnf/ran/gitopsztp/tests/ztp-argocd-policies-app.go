@@ -13,7 +13,6 @@ import (
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/ocm"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/reportxml"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/argocd/argocdtypes/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/serviceaccount"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/storage"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/gitopsztp/internal/gitdetails"
@@ -129,9 +128,12 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 			app, err := argocd.PullApplication(HubAPIClient, tsparams.ArgoCdPoliciesAppName, ranparam.OpenshiftGitOpsNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull Argo CD policies app")
 
-			_, err = app.WaitForCondition(v1alpha1.ApplicationCondition{
-				Message: "evaluationInterval.compliant 'time: invalid duration",
-			}, tsparams.ArgoCdChangeTimeout)
+			err = helper.WaitForApplicationConditionMessage(
+				app,
+				tsparams.ArgoCdChangeTimeout,
+				"evaluationInterval.compliant 'time: invalid duration",
+				"policy.evaluationInterval.compliant value: time: invalid duration",
+			)
 			Expect(err).ToNot(HaveOccurred(), "Failed to check Argo CD conditions for expected error")
 		})
 	})
@@ -368,9 +370,12 @@ var _ = Describe("ZTP Argo CD Policies Tests", Label(tsparams.LabelArgoCdPolicie
 			app, err := argocd.PullApplication(HubAPIClient, tsparams.ArgoCdPoliciesAppName, ranparam.OpenshiftGitOpsNamespace)
 			Expect(err).ToNot(HaveOccurred(), "Failed to pull Argo CD policies app")
 
-			_, err = app.WaitForCondition(v1alpha1.ApplicationCondition{
-				Message: "test/NoCustomCr.yaml is not found",
-			}, tsparams.ArgoCdChangeTimeout)
+			err = helper.WaitForApplicationConditionMessage(
+				app,
+				tsparams.ArgoCdChangeTimeout,
+				"test/NoCustomCr.yaml is not found",
+				"could not read the manifest path test/NoCustomCr.yaml",
+			)
 			Expect(err).ToNot(HaveOccurred(), "Failed to check Argo CD conditions for expected error")
 		})
 
