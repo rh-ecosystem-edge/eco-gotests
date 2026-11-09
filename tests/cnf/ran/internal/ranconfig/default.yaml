@@ -15,8 +15,8 @@ bmcTimeout: "15s"
 ocpUpgradeUpstreamUrl: "https://api.openshift.com/api/upgrades_info/v1/graph"
 ptpOperatorNamespace: "openshift-ptp"
 talmPreCachePolicies:
-  - "^common(-v4\\.\\d\\d)?-config-policy"
-  - "^common(-v4\\.\\d\\d)?-subscriptions-policy"
+  - "^common(-v[45]\\.\\d{1,2})?-config-policy"
+  - "^common(-v[45]\\.\\d{1,2})?-subscriptions-policy"
 mockSmoNamespace: "oran-smo"
 mockSmoSubdomain: "smo"
 ptpEventConsumerImage: quay.io/redhat-cne/cloud-event-consumer
