@@ -247,6 +247,7 @@ func SetClockOffsetThresholds(
 	original = copyPtpClockThreshold(threshold)
 
 	effectiveMax, effectiveMin := int64(DefaultPtpClockThresholdOffset), -int64(DefaultPtpClockThresholdOffset)
+
 	if threshold != nil {
 		if threshold.MaxOffsetThreshold != 0 {
 			effectiveMax = threshold.MaxOffsetThreshold
