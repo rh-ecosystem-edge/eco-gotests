@@ -714,6 +714,7 @@ func changeHoldoverSettings(
 
 	if holdoverChanged {
 		change.holdoverRestoreNeeded = true
+
 		registerRestoreCleanup()
 
 		By("setting test case holdover settings")
@@ -756,7 +757,9 @@ func alignGNRDHoldoverClockThreshold(
 
 	change.originalThreshold, thresholdChanged, err = profiles.SetClockOffsetThresholds(
 		RANConfig.Spoke1APIClient, testData.ProfileInfo, maxOffset, -maxOffset)
+
 	change.thresholdRestoreNeeded = thresholdChanged
+
 	if change.thresholdRestoreNeeded {
 		registerRestoreCleanup()
 	}
