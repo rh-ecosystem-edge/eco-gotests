@@ -1019,7 +1019,7 @@ github.com/redhat-cne/sdk-go/pkg/event/ptp
 github.com/redhat-cne/sdk-go/pkg/event/redfish
 github.com/redhat-cne/sdk-go/pkg/pubsub
 github.com/redhat-cne/sdk-go/pkg/types
-# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261106180129-4c8182f230cd
+# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261109180708-52d132ac933f
 ## explicit; go 1.27.0
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/amdgpu
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/apiservers
@@ -1159,6 +1159,7 @@ github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/kmm/v1beta1
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/kmm/v1beta2
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/kserve/v1alpha1
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/kserve/v1beta1
+github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/lca/api/backupcontent/v1
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/frrtypes
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/mlboperator
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/metallb/mlbtypes
