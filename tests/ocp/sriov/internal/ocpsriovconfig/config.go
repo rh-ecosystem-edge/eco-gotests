@@ -49,6 +49,7 @@ type SriovOcpConfig struct {
 	SwitchPass                  string         `envconfig:"ECO_OCP_SRIOV_SWITCH_PASS"`
 	SwitchIP                    string         `envconfig:"ECO_OCP_SRIOV_SWITCH_IP"`
 	SwitchInterfacesEnv         string         `envconfig:"ECO_OCP_SRIOV_SWITCH_INTERFACES"`
+	SwitchLagNamesEnv           string         `envconfig:"ECO_OCP_SRIOV_SWITCH_LAGS"`
 	VLAN                        string         `envconfig:"ECO_OCP_SRIOV_VLAN"`
 }
 
@@ -260,6 +261,36 @@ func (sriovOcpConfig *SriovOcpConfig) GetSwitchInterfaces() ([]string, error) {
 	}
 
 	return envValue, nil
+}
+
+// GetSwitchLagNames returns ECO_OCP_SRIOV_SWITCH_LAGS as two LAG interface names.
+func (sriovOcpConfig *SriovOcpConfig) GetSwitchLagNames() ([]string, error) {
+	if sriovOcpConfig.SwitchLagNamesEnv == "" {
+		return nil, fmt.Errorf(
+			"no switch LAG names configured, check ECO_OCP_SRIOV_SWITCH_LAGS env var")
+	}
+
+	parts := strings.Split(sriovOcpConfig.SwitchLagNamesEnv, ",")
+
+	envValue := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			envValue = append(envValue, trimmed)
+		}
+	}
+
+	if len(envValue) != 2 {
+		return nil, fmt.Errorf("the number of the switch lag names is not equal to 2," +
+			" check ECO_OCP_SRIOV_SWITCH_LAGS env var")
+	}
+
+	return envValue, nil
+}
+
+// GetNativeVLANID returns ECO_OCP_SRIOV_VLAN as an integer in the 802.1Q range.
+func (sriovOcpConfig *SriovOcpConfig) GetNativeVLANID() (int, error) {
+	return sriovOcpConfig.GetVLAN()
 }
 
 func readFile(sriovOcpConfig *SriovOcpConfig, cfgFile string) error {

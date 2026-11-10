@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/nodes"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/sriovoperator"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/ocp/sriov/internal/ocpsriovinittools"
@@ -12,6 +13,43 @@ import (
 )
 
 const logLevelDebug = "debug"
+
+// ValidateSriovInterfaces checks that the requested interfaces (from env) exist on every worker
+// in workerNodeList. This ensures "Different Node" and other multi-worker tests do not fail
+// later when scheduling on a worker that does not expose the requested PF names.
+func ValidateSriovInterfaces(workerNodeList []*nodes.Builder, requestedNumber int) error {
+	requestedSriovInterfaceList, err := SriovOcpConfig.GetSriovInterfaces(requestedNumber)
+	if err != nil {
+		return err
+	}
+
+	for _, worker := range workerNodeList {
+		availableUpSriovInterfaces, err := sriov.NewNetworkNodeStateBuilder(APIClient,
+			worker.Definition.Name, SriovOcpConfig.OcpSriovOperatorNamespace).GetUpNICs()
+		if err != nil {
+			return fmt.Errorf("failed to get SR-IOV devices from node %s: %w", worker.Definition.Name, err)
+		}
+
+		var validCount int
+
+		for _, availableUpSriovInterface := range availableUpSriovInterfaces {
+			for _, requestedSriovInterface := range requestedSriovInterfaceList {
+				if availableUpSriovInterface.Name == requestedSriovInterface {
+					validCount++
+
+					break
+				}
+			}
+		}
+
+		if validCount < requestedNumber {
+			return fmt.Errorf("requested interfaces %v are not all present on node %s (found %d of %d)",
+				requestedSriovInterfaceList, worker.Definition.Name, validCount, requestedNumber)
+		}
+	}
+
+	return nil
+}
 
 // CreateSriovNetworkAndWaitForNADCreation creates a SriovNetwork and waits for NAD Creation on the test namespace.
 func CreateSriovNetworkAndWaitForNADCreation(sNet *sriov.NetworkBuilder, timeout time.Duration) error {
@@ -238,4 +276,61 @@ func CreateSriovNetworksForBothMTUs(
 	}
 
 	return nil
+}
+
+// GetMinTotalVFsAcrossWorkers returns the minimum total VFs for pfName across all workers.
+// Use when sizing VF ranges for cluster-wide SR-IOV policies (WorkerLabelMap).
+func GetMinTotalVFsAcrossWorkers(workerNodeList []*nodes.Builder, pfName string) (int, error) {
+	if len(workerNodeList) == 0 {
+		return 0, fmt.Errorf("workerNodeList is empty")
+	}
+
+	minTotal := -1
+
+	for _, worker := range workerNodeList {
+		total, err := sriov.NewNetworkNodeStateBuilder(APIClient,
+			worker.Definition.Name, SriovOcpConfig.OcpSriovOperatorNamespace).GetTotalVFs(pfName)
+		if err != nil {
+			return 0, fmt.Errorf("failed to get total VFs for %s on node %s: %w",
+				pfName, worker.Definition.Name, err)
+		}
+
+		if minTotal < 0 || total < minTotal {
+			minTotal = total
+		}
+	}
+
+	return minTotal, nil
+}
+
+// applyBondSlaveVFSettings sets bond slave VF params (cnf-gotests defineSriovBondNetwork).
+func applyBondSlaveVFSettings(builder *sriov.NetworkBuilder) *sriov.NetworkBuilder {
+	return builder.WithTrustFlag(true).WithSpoof(false).WithLinkState("auto")
+}
+
+// CreateSriovBondNetwork creates a bond slave SriovNetwork without IPAM.
+// Slave interfaces (net1, net2) are L2-only; the bond NAD carries the test IP on bond0.
+func CreateSriovBondNetwork(name, resourceName string) error {
+	klog.V(90).Infof("Creating bond slave SR-IOV network %s without IPAM", name)
+
+	networkBuilder := sriov.NewNetworkBuilder(
+		APIClient, name, SriovOcpConfig.OcpSriovOperatorNamespace,
+		tsparams.TestNamespaceName, resourceName)
+
+	networkBuilder = applyBondSlaveVFSettings(networkBuilder).WithMacAddressSupport()
+	networkBuilder.Definition.Spec.IPAM = ""
+
+	var err error
+
+	if networkBuilder.Exists() {
+		_, err = networkBuilder.Update(true)
+	} else {
+		_, err = networkBuilder.Create()
+	}
+
+	if err != nil {
+		return fmt.Errorf("create or update bond slave SriovNetwork %s: %w", name, err)
+	}
+
+	return WaitForNADCreation(name, tsparams.TestNamespaceName, tsparams.NADWaitTimeout)
 }

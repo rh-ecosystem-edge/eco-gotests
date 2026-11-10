@@ -2,6 +2,7 @@ package sriovocpenv
 
 import (
 	"context"
+	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -72,7 +73,10 @@ func (j *Junos) Close() {
 var (
 	rpcConfigStringSet = "<load-configuration action=\"set\"" +
 		" format=\"text\"><configuration-set>%s</configuration-set></load-configuration>"
-	rpcCommit = "<commit-configuration/>"
+	rpcGetInterfaceConfig = "<get-configuration><configuration><interfaces><interface><name>%s</name></interface>" +
+		"</interfaces></configuration></get-configuration>"
+	rpcApplyConfig = "<load-configuration format=\"xml\" action=\"replace\">%s</load-configuration>"
+	rpcCommit      = "<commit-configuration/>"
 )
 
 type commitError struct {
@@ -159,4 +163,154 @@ func (j *Junos) RunCommand(cmd string) (string, error) {
 	}
 
 	return reply.Data, nil
+}
+
+// InterfaceStatus collects Juniper interface operational data from JSON output.
+type InterfaceStatus struct {
+	InterfaceInformation []struct {
+		PhysicalInterface []struct {
+			OperStatus []struct {
+				Data string `json:"data"`
+			} `json:"oper-status"`
+		} `json:"physical-interface"`
+	} `json:"interface-information"`
+}
+
+// IsSwitchInterfaceUp reports whether the given switch interface oper-status is up.
+func (j *Junos) IsSwitchInterfaceUp(switchInterface string) (bool, error) {
+	jsonOutput, err := j.RunCommand(fmt.Sprintf("show interfaces %s", switchInterface))
+	if err != nil {
+		return false, err
+	}
+
+	var interfaceStatus InterfaceStatus
+
+	if err := json.Unmarshal([]byte(jsonOutput), &interfaceStatus); err != nil {
+		return false, err
+	}
+
+	if len(interfaceStatus.InterfaceInformation) == 0 ||
+		len(interfaceStatus.InterfaceInformation[0].PhysicalInterface) == 0 ||
+		len(interfaceStatus.InterfaceInformation[0].PhysicalInterface[0].OperStatus) == 0 {
+		return false, fmt.Errorf("no oper-status for switch interface %s", switchInterface)
+	}
+
+	return interfaceStatus.InterfaceInformation[0].PhysicalInterface[0].OperStatus[0].Data == "up", nil
+}
+
+// GetInterfaceConfig returns configuration for given interface.
+func (j *Junos) GetInterfaceConfig(switchInterface string) (string, error) {
+	command := fmt.Sprintf(rpcGetInterfaceConfig, switchInterface)
+
+	reply, err := j.Session.Exec(netconf.RawMethod(command))
+	if err != nil {
+		return "", err
+	}
+
+	if reply.Errors != nil {
+		for _, m := range reply.Errors {
+			return "", errors.New(m.Message)
+		}
+	}
+
+	if reply.Data == "" {
+		return "", errors.New("no output available, please check the syntax of your command")
+	}
+
+	return reply.Data, nil
+}
+
+// ApplyConfigInterface replaces a switch interface configuration from saved XML.
+func (j *Junos) ApplyConfigInterface(config string) error {
+	command := fmt.Sprintf(rpcApplyConfig, config)
+
+	reply, err := j.Session.Exec(netconf.RawMethod(command))
+	if err != nil {
+		return err
+	}
+
+	err = j.Commit()
+	if err != nil {
+		return err
+	}
+
+	if reply.Errors != nil {
+		for _, m := range reply.Errors {
+			return errors.New(m.Message)
+		}
+	}
+
+	return nil
+}
+
+// SaveInterfaceConfigs saves the configuration of multiple switch interfaces.
+func (j *Junos) SaveInterfaceConfigs(interfaces []string) ([]string, error) {
+	if len(interfaces) == 0 {
+		return nil, fmt.Errorf("interfaces list cannot be empty")
+	}
+
+	var configs []string
+
+	for _, iface := range interfaces {
+		config, err := j.GetInterfaceConfig(iface)
+		if err != nil {
+			klog.V(90).Infof("Failed to get config for interface %s: %v", iface, err)
+
+			continue
+		}
+
+		if config != "" {
+			configs = append(configs, config)
+		}
+	}
+
+	return configs, nil
+}
+
+// RestoreInterfaceConfigs restores the configuration of multiple switch interfaces.
+func (j *Junos) RestoreInterfaceConfigs(configs []string) error {
+	if len(configs) == 0 {
+		return fmt.Errorf("configs list cannot be empty")
+	}
+
+	for _, config := range configs {
+		err := j.ApplyConfigInterface(config)
+		if err != nil {
+			return fmt.Errorf("failed to restore interface config: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// DisableLACP removes LACP/802.3ad configuration from switch interfaces.
+func (j *Junos) DisableLACP(lacpInterfaces, physicalInterfaces []string) error {
+	if len(lacpInterfaces) == 0 {
+		return fmt.Errorf("lacpInterfaces list cannot be empty")
+	}
+
+	if len(physicalInterfaces) == 0 {
+		return fmt.Errorf("physicalInterfaces list cannot be empty")
+	}
+
+	var commands []string
+
+	for _, physicalInterface := range physicalInterfaces {
+		commands = append(commands, fmt.Sprintf("delete interfaces %s ether-options 802.3ad", physicalInterface))
+	}
+
+	for _, lacpInterface := range lacpInterfaces {
+		commands = append(commands, fmt.Sprintf("delete interfaces %s", lacpInterface))
+	}
+
+	for _, physicalInterface := range physicalInterfaces {
+		commands = append(commands, fmt.Sprintf("delete interfaces %s", physicalInterface))
+	}
+
+	err := j.Config(commands)
+	if err != nil {
+		return fmt.Errorf("failed to execute switch cleanup commands: %w", err)
+	}
+
+	return nil
 }
