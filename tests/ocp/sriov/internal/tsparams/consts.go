@@ -45,6 +45,9 @@ const (
 	LabelSriovIPvDual = "sriov-ipdual"
 	// LabelBondModeTestCases represents SR-IOV Bond CNI mode tests that can be used for test cases selection.
 	LabelBondModeTestCases = "bond-mode"
+	// LabelOperatorConfigDefaultsTestCases represents SriovOperatorConfig default values tests
+	// that can be used for test cases selection.
+	LabelOperatorConfigDefaultsTestCases = "operatorconfig-defaults"
 	// SCTPMachineConfigName is the MachineConfig that loads the SCTP kernel module on workers.
 	SCTPMachineConfigName = "load-sctp-module"
 	// SriovResourceNameExManagedTrue is the SR-IOV policy and network name for ExternallyManaged tests.
