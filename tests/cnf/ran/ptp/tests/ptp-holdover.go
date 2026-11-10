@@ -295,8 +295,10 @@ func assertHoldoverInSpecToOutOfSpec(
 		testData.NodeName, testData.UpstreamIfaces, iface.InterfaceStateDown)
 	Expect(err).ToNot(HaveOccurred(), "Failed to set upstream clock interfaces down")
 
+	// In-spec is event-only: GNR-D OOS presets (maxInSpec=40) leave ~1s before class 165,
+	// so current Prometheus samples already show 165 (CNF-30026 / helix104 #354).
 	assertHoldoverState(testData.PrometheusAPI, testData.NodeName, ifaceDownTime,
-		expected.HoldoverInSpec, clockClassChanges, timeout, true, testData.ConfigFile)
+		expected.HoldoverInSpec, clockClassChanges, timeout, false, testData.ConfigFile)
 
 	assertHoldoverOutOfSpecClockClass(testData.PrometheusAPI, testData.NodeName, ifaceDownTime,
 		expected.HoldoverOutOfSpec, clockClassChanges, timeout, testData.ConfigFile)
@@ -340,8 +342,10 @@ func assertHoldoverOutOfSpecToFreerun(
 		testData.NodeName, testData.UpstreamIfaces, iface.InterfaceStateDown)
 	Expect(err).ToNot(HaveOccurred(), "Failed to set upstream clock interfaces down")
 
+	// In-spec is event-only: GNR-D OOS presets (maxInSpec=40) leave ~1s before class 165,
+	// so current Prometheus samples already show 165 (CNF-30026 / helix104 #354).
 	assertHoldoverState(testData.PrometheusAPI, testData.NodeName, ifaceDownTime,
-		expected.HoldoverInSpec, clockClassChanges, timeout, true, testData.ConfigFile)
+		expected.HoldoverInSpec, clockClassChanges, timeout, false, testData.ConfigFile)
 
 	assertHoldoverOutOfSpecClockClass(testData.PrometheusAPI, testData.NodeName, ifaceDownTime,
 		expected.HoldoverOutOfSpec, clockClassChanges, timeout, testData.ConfigFile)
