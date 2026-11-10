@@ -38,6 +38,17 @@ import (
 )
 
 var _ = Describe("TALM precache", Label(tsparams.LabelPreCacheTestCases), func() {
+	BeforeEach(func() {
+		By("checking that the talm version is at most 5.0")
+
+		versionInRange, err := version.IsVersionStringInRange(RANConfig.HubOperatorVersions[ranparam.TALM], "", "5.1.0-0")
+		Expect(err).ToNot(HaveOccurred(), "Failed to compare talm version string")
+
+		if !versionInRange {
+			Skip("precache tests are deprecated for talm 5.1 and higher")
+		}
+	})
+
 	When("there is a single spoke", func() {
 		Context("precache operator", func() {
 			var (
