@@ -272,7 +272,7 @@ func SetClockOffsetThresholds(
 
 	_, err = ptpConfig.Update()
 	if err != nil {
-		return nil, false, fmt.Errorf("failed to update PtpConfig clock offset thresholds for profile %s: %w",
+		return original, false, fmt.Errorf("failed to update PtpConfig clock offset thresholds for profile %s: %w",
 			profileInfo.Reference.ProfileName, err)
 	}
 
