@@ -657,6 +657,16 @@ func assertNoHoldoverEvent(nodeName string, sinceTime time.Time) {
 	Expect(err).To(HaveOccurred(), "Expected no HOLDOVER event, but one was received")
 }
 
+// holdoverSettingsChange tracks cluster mutations performed by changeHoldoverSettings for restore.
+type holdoverSettingsChange struct {
+	originalThreshold      *ptpv1.PtpClockThreshold
+	originalHoldover       profiles.HoldoverPluginSettings
+	thresholdRestoreNeeded bool
+	holdoverRestoreNeeded  bool
+	thresholdSince         time.Time
+	holdoverSince          time.Time
+}
+
 // changeHoldoverSettings updates holdover thresholds and waits for the daemon to re-lock.
 // Routes through HardwareConfig CR on 4.22+/GNRD or PtpConfig plugin on pre-4.22.
 // HardwareConfig T-BC and dual T-BC remap WPC stress presets to QE-aligned values. When
@@ -678,31 +688,9 @@ func changeHoldoverSettings(
 	Expect(err).ToNot(HaveOccurred(), "Failed to get current holdover settings")
 
 	holdoverChanged := desired != *current
-	originalHoldover := *current
+	change := holdoverSettingsChange{originalHoldover: *current}
 
-	var (
-		originalThreshold        *ptpv1.PtpClockThreshold
-		thresholdRestoreNeeded   bool
-		holdoverRestoreNeeded    bool
-		restoreCleanupRegistered bool
-	)
-
-	waitForReload := func(since time.Time, waitTimeout time.Duration, message string) {
-		GinkgoHelper()
-
-		var waitErr error
-		if holdoverRestoreNeeded {
-			waitErr = profiles.WaitForHoldoverSettingsApplied(
-				RANConfig.Spoke1APIClient, testData.NodeName, testData.ProfileInfo, since, waitTimeout,
-				RANConfig.Spoke1OperatorVersions[ranparam.PTP])
-		} else {
-			waitErr = profiles.WaitForPtpConfigApplied(
-				RANConfig.Spoke1APIClient, testData.NodeName, since, waitTimeout,
-				RANConfig.Spoke1OperatorVersions[ranparam.PTP])
-		}
-
-		Expect(waitErr).ToNot(HaveOccurred(), message)
-	}
+	var restoreCleanupRegistered bool
 
 	registerRestoreCleanup := func() {
 		GinkgoHelper()
@@ -713,70 +701,130 @@ func changeHoldoverSettings(
 
 		restoreCleanupRegistered = true
 
-		DeferCleanup(func() {
-			restoreTime := time.Now()
-
-			if thresholdRestoreNeeded {
-				By("restoring original ptpClockThreshold Max/Min")
-
-				restoreErr := profiles.RestoreClockOffsetThresholds(
-					RANConfig.Spoke1APIClient, testData.ProfileInfo, originalThreshold)
-				Expect(restoreErr).ToNot(HaveOccurred(), "Failed to restore ptpClockThreshold Max/Min")
-			}
-
-			if holdoverRestoreNeeded {
-				By("restoring original holdover settings")
-
-				restoreErr := profiles.ApplyHoldoverSettings(
-					RANConfig.Spoke1APIClient, testData.ProfileInfo, originalHoldover)
-				Expect(restoreErr).ToNot(HaveOccurred(), "Failed to restore holdover settings")
-			}
-
-			waitForReload(restoreTime, 5*time.Minute, "Daemon did not reload after restore")
-
-			restoreTime = time.Now()
-
-			assertLockedState(testData.PrometheusAPI, testData.NodeName, restoreTime,
-				expectedLockedClass, clockClassChanges, timeout, testData.UpstreamIfaces, testData.ConfigFile)
-		})
+		registerChangeHoldoverRestoreCleanup(
+			testData, &change, expectedLockedClass, clockClassChanges, timeout)
 	}
 
-	if profiles.UsesGNRDHoldoverPresets(testData.ProfileInfo) &&
-		desired.LocalMaxHoldoverOffSet != profiles.DefaultPtpClockThresholdOffset {
-		maxOffset := int64(desired.LocalMaxHoldoverOffSet)
+	err = alignGNRDHoldoverClockThreshold(testData, desired, &change, registerRestoreCleanup)
+	Expect(err).ToNot(HaveOccurred(), "Failed to align ptpClockThreshold Max/Min")
 
-		By(fmt.Sprintf("aligning ptpClockThreshold Max/Min to ±%d", maxOffset))
-
-		var thresholdChanged bool
-
-		originalThreshold, thresholdChanged, err = profiles.SetClockOffsetThresholds(
-			RANConfig.Spoke1APIClient, testData.ProfileInfo, maxOffset, -maxOffset)
-		thresholdRestoreNeeded = thresholdChanged
-		if thresholdRestoreNeeded {
-			registerRestoreCleanup()
-		}
-
-		Expect(err).ToNot(HaveOccurred(), "Failed to align ptpClockThreshold Max/Min")
-	}
-
-	if !holdoverChanged && !thresholdRestoreNeeded {
+	if !holdoverChanged && !change.thresholdRestoreNeeded {
 		return
 	}
 
 	if holdoverChanged {
-		holdoverRestoreNeeded = true
+		change.holdoverRestoreNeeded = true
 		registerRestoreCleanup()
 
 		By("setting test case holdover settings")
+
+		change.holdoverSince = time.Now()
 
 		err = profiles.ApplyHoldoverSettings(RANConfig.Spoke1APIClient, testData.ProfileInfo, desired)
 		Expect(err).ToNot(HaveOccurred(), "Failed to apply holdover settings")
 	}
 
-	waitForReload(time.Now(), 3*time.Minute, "Daemon did not reload after config change")
+	waitForHoldoverConfigReload(testData, 3*time.Minute, holdoverChanged, change.thresholdRestoreNeeded,
+		change.holdoverSince, change.thresholdSince, "Daemon did not reload after config change")
 
 	assertLockedState(testData.PrometheusAPI, testData.NodeName, time.Now(),
 		expectedLockedClass, clockClassChanges, timeout, testData.UpstreamIfaces, testData.ConfigFile)
+}
+
+func alignGNRDHoldoverClockThreshold(
+	testData profiles.HoldoverTestData,
+	desired profiles.HoldoverPluginSettings,
+	change *holdoverSettingsChange,
+	registerRestoreCleanup func(),
+) error {
+	GinkgoHelper()
+
+	if !profiles.UsesGNRDHoldoverPresets(testData.ProfileInfo) ||
+		desired.LocalMaxHoldoverOffSet == profiles.DefaultPtpClockThresholdOffset {
+		return nil
+	}
+
+	maxOffset := int64(desired.LocalMaxHoldoverOffSet)
+
+	By(fmt.Sprintf("aligning ptpClockThreshold Max/Min to ±%d", maxOffset))
+
+	change.thresholdSince = time.Now()
+
+	var thresholdChanged bool
+
+	var err error
+
+	change.originalThreshold, thresholdChanged, err = profiles.SetClockOffsetThresholds(
+		RANConfig.Spoke1APIClient, testData.ProfileInfo, maxOffset, -maxOffset)
+	change.thresholdRestoreNeeded = thresholdChanged
+	if change.thresholdRestoreNeeded {
+		registerRestoreCleanup()
+	}
+
+	return err
+}
+
+func waitForHoldoverConfigReload(
+	testData profiles.HoldoverTestData,
+	waitTimeout time.Duration,
+	waitHoldoverSettings, waitPtpConfig bool,
+	holdoverSince, ptpConfigSince time.Time,
+	message string,
+) {
+	GinkgoHelper()
+
+	if waitHoldoverSettings {
+		waitErr := profiles.WaitForHoldoverSettingsApplied(
+			RANConfig.Spoke1APIClient, testData.NodeName, testData.ProfileInfo, holdoverSince, waitTimeout,
+			RANConfig.Spoke1OperatorVersions[ranparam.PTP])
+		Expect(waitErr).ToNot(HaveOccurred(), message)
+	}
+
+	if waitPtpConfig {
+		waitErr := profiles.WaitForPtpConfigApplied(
+			RANConfig.Spoke1APIClient, testData.NodeName, ptpConfigSince, waitTimeout,
+			RANConfig.Spoke1OperatorVersions[ranparam.PTP])
+		Expect(waitErr).ToNot(HaveOccurred(), message)
+	}
+}
+
+func registerChangeHoldoverRestoreCleanup(
+	testData profiles.HoldoverTestData,
+	change *holdoverSettingsChange,
+	expectedLockedClass metrics.PtpClockClass,
+	clockClassChanges bool,
+	timeout time.Duration,
+) {
+	GinkgoHelper()
+
+	DeferCleanup(func() {
+		restoreSince := time.Now()
+
+		var thresholdRestoreErr, holdoverRestoreErr error
+
+		if change.thresholdRestoreNeeded {
+			By("restoring original ptpClockThreshold Max/Min")
+
+			thresholdRestoreErr = profiles.RestoreClockOffsetThresholds(
+				RANConfig.Spoke1APIClient, testData.ProfileInfo, change.originalThreshold)
+		}
+
+		if change.holdoverRestoreNeeded {
+			By("restoring original holdover settings")
+
+			holdoverRestoreErr = profiles.ApplyHoldoverSettings(
+				RANConfig.Spoke1APIClient, testData.ProfileInfo, change.originalHoldover)
+		}
+
+		Expect(thresholdRestoreErr).ToNot(HaveOccurred(), "Failed to restore ptpClockThreshold Max/Min")
+		Expect(holdoverRestoreErr).ToNot(HaveOccurred(), "Failed to restore holdover settings")
+
+		waitForHoldoverConfigReload(testData, 5*time.Minute, change.holdoverRestoreNeeded, change.thresholdRestoreNeeded,
+			restoreSince, restoreSince, "Daemon did not reload after restore")
+
+		assertLockedState(testData.PrometheusAPI, testData.NodeName, time.Now(),
+			expectedLockedClass, clockClassChanges, timeout, testData.UpstreamIfaces, testData.ConfigFile)
+	})
 }
 
 // discoverHoldoverTestData finds the first node with a matching profile type that supports holdover tests
