@@ -225,6 +225,109 @@ func holdoverMapNormalizer(holdovers HoldOverMap) func(string) string {
 	}
 }
 
+// SetClockOffsetThresholds sets MaxOffsetThreshold and MinOffsetThreshold on the profile's
+// PtpClockThreshold, preserving other fields. It returns a copy of the original threshold
+// (nil if the field was unset) and whether the CR was updated.
+func SetClockOffsetThresholds(
+	client *clients.Settings, profileInfo *ProfileInfo, maxOffset, minOffset int64,
+) (original *ptpv1.PtpClockThreshold, changed bool, err error) {
+	ptpConfig, err := profileInfo.Reference.PullPtpConfig(client)
+	if err != nil {
+		return nil, false, fmt.Errorf("failed to pull PtpConfig for profile %s: %w",
+			profileInfo.Reference.ProfileName, err)
+	}
+
+	profileIndex := profileInfo.Reference.ProfileIndex
+	if profileIndex < 0 || profileIndex >= len(ptpConfig.Definition.Spec.Profile) {
+		return nil, false, fmt.Errorf("failed to set clock offset thresholds for profile %s at index %d: index out of bounds",
+			profileInfo.Reference.ProfileName, profileIndex)
+	}
+
+	threshold := ptpConfig.Definition.Spec.Profile[profileIndex].PtpClockThreshold
+	original = copyPtpClockThreshold(threshold)
+
+	effectiveMax, effectiveMin := int64(DefaultPtpClockThresholdOffset), -int64(DefaultPtpClockThresholdOffset)
+	if threshold != nil {
+		if threshold.MaxOffsetThreshold != 0 {
+			effectiveMax = threshold.MaxOffsetThreshold
+		}
+
+		if threshold.MinOffsetThreshold != 0 {
+			effectiveMin = threshold.MinOffsetThreshold
+		}
+	}
+
+	if effectiveMax == maxOffset && effectiveMin == minOffset {
+		return original, false, nil
+	}
+
+	if threshold == nil {
+		threshold = &ptpv1.PtpClockThreshold{}
+		ptpConfig.Definition.Spec.Profile[profileIndex].PtpClockThreshold = threshold
+	}
+
+	threshold.MaxOffsetThreshold = maxOffset
+	threshold.MinOffsetThreshold = minOffset
+
+	_, err = ptpConfig.Update()
+	if err != nil {
+		return nil, false, fmt.Errorf("failed to update PtpConfig clock offset thresholds for profile %s: %w",
+			profileInfo.Reference.ProfileName, err)
+	}
+
+	klog.V(tsparams.LogLevel).Infof(
+		"Set ptpClockThreshold Max/Min to %d/%d for profile %s",
+		maxOffset, minOffset, profileInfo.Reference.ProfileName)
+
+	return original, true, nil
+}
+
+// WaitForPtpConfigApplied waits for the daemon to reload after a PtpConfig (not HardwareConfig) change.
+func WaitForPtpConfigApplied(
+	client *clients.Settings, nodeName string, since time.Time, timeout time.Duration, ptpVersion string,
+) error {
+	return daemonlogs.WaitForProfileLoad(client, nodeName,
+		daemonlogs.WithStartTime(since),
+		daemonlogs.WithTimeout(timeout),
+		daemonlogs.WithPTPVersion(ptpVersion))
+}
+
+// RestoreClockOffsetThresholds restores PtpClockThreshold to the snapshot from SetClockOffsetThresholds.
+func RestoreClockOffsetThresholds(
+	client *clients.Settings, profileInfo *ProfileInfo, original *ptpv1.PtpClockThreshold,
+) error {
+	ptpConfig, err := profileInfo.Reference.PullPtpConfig(client)
+	if err != nil {
+		return fmt.Errorf("failed to pull PtpConfig for profile %s: %w", profileInfo.Reference.ProfileName, err)
+	}
+
+	profileIndex := profileInfo.Reference.ProfileIndex
+	if profileIndex < 0 || profileIndex >= len(ptpConfig.Definition.Spec.Profile) {
+		return fmt.Errorf("failed to restore clock offset thresholds for profile %s at index %d: index out of bounds",
+			profileInfo.Reference.ProfileName, profileIndex)
+	}
+
+	ptpConfig.Definition.Spec.Profile[profileIndex].PtpClockThreshold = copyPtpClockThreshold(original)
+
+	_, err = ptpConfig.Update()
+	if err != nil {
+		return fmt.Errorf("failed to restore PtpConfig clock offset thresholds for profile %s: %w",
+			profileInfo.Reference.ProfileName, err)
+	}
+
+	return nil
+}
+
+func copyPtpClockThreshold(threshold *ptpv1.PtpClockThreshold) *ptpv1.PtpClockThreshold {
+	if threshold == nil {
+		return nil
+	}
+
+	copied := *threshold
+
+	return &copied
+}
+
 // GetHoldoverSettings reads holdover settings for the profile, dispatching to the HardwareConfig CR path
 // (4.22+/GNR-D T-BC or T-GM) when one is associated, or the PtpConfig plugin path otherwise.
 func GetHoldoverSettings(client *clients.Settings, profileInfo *ProfileInfo) (*HoldoverPluginSettings, error) {
