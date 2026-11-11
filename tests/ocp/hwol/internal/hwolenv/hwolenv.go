@@ -356,12 +356,29 @@ func assertOVSBridgeForPF(bridges sriovv1.Bridges, pfName, pciAddress string) er
 	return fmt.Errorf("no OVS bridge uplink matching PF %s (%s)", pfName, pciAddress)
 }
 
+// Captures the packet counter of an offloaded flow line; the companion regex below
+// captures its MAC pair. Both are applied, while the workload pair exchanges iperf3
+// traffic, to:
+//
+//	ovs-appctl dpctl/dump-flows --names <datapath> type=offloaded
+//	* recirc_id(0),in_port(ens3f0np0_1),eth(src=0a:1c:da:2e:40:d7,dst=8a:a1:96:cb:ff:3a),
+//	eth_type(0x0800),ipv4(frag=no), packets:1383158, actions:ens3f0np0_2
+//	* recirc_id(0),in_port(ens3f0np0_2),eth(src=8a:a1:96:cb:ff:3a,dst=0a:1c:da:2e:40:d7),
+//	eth_type(0x0800),ipv4(frag=no), packets:62965881, actions:ens3f0np0_1
+//	recirc_id(0),in_port(ovn-k8s-mp0),eth(src=...,dst=...),eth_type(0x0806), packets:99
+//
+// Each flow is wrapped over two lines; * marks the flows whose counters are summed.
+// Only IPv4 flows between the two workload MACs are counted; ARP and other ports'
+// flows never match.
 var offloadedPacketsRE = regexp.MustCompile(`packets:(\d+)`)
 
 var offloadedEthernetRE = regexp.MustCompile(`(?i)eth\(src=([0-9a-f:]{17}),dst=([0-9a-f:]{17})\)`)
 
+// Verifies the host-side OVS-DOCA prerequisite: the doca-init and hw-offload flags,
+// plus DOCA appctl commands in the running daemon — loaded, not merely configured.
 const assertOvsDocaScript = `
 set -eu
+# Both other_config flags must be true.
 doca_init="$(ovs-vsctl get Open_vSwitch . other_config:doca-init | tr -d '\"')"
 hw_offload="$(ovs-vsctl get Open_vSwitch . other_config:hw-offload | tr -d '\"')"
 if [ "$doca_init" != "true" ]; then
@@ -372,6 +389,7 @@ if [ "$hw_offload" != "true" ]; then
   echo "Open_vSwitch other_config:hw-offload is $hw_offload, want true" >&2
   exit 1
 fi
+# The running daemon must expose the DOCA appctl commands.
 if ! ovs-appctl list-commands | grep -q 'dpif-doca/dpif-impl-get'; then
   echo "running ovs-vswitchd does not expose DOCA datapath commands" >&2
   exit 1
@@ -469,13 +487,18 @@ ovs-appctl dpif/show
 	return nil
 }
 
-// vfRepresentorOnBridgeScript maps each VF PCI address to its host representor
-// netdev and asserts that representor is an ovs-vsctl port on $1.
+// Maps each VF PCI address to its representor netdev via sysfs and asserts it is a
+// port on $1; with $2 set (doca) it also checks the port type, ofport and error
+// state. Representors are named <pf>_<vf-index>, and the script prints one line per
+// VF:
+//
+//	OK 0000:4b:00.4 -> ens3f0np0_1 on br-0000_4b_00.0
 const vfRepresentorOnBridgeScript = `
 set -eu
 bridge="$1"
 interface_type="$2"
 shift 2
+# normalize_pci pads short PCI addresses (4b:00.4) to the full sysfs form.
 normalize_pci() {
   pci="$1"
   case "$pci" in
@@ -491,6 +514,7 @@ for pci in "$@"; do
   full="$(normalize_pci "$pci")"
   short="$(pci_basename "$pci")"
   dev="/sys/bus/pci/devices/$full"
+  # The device must exist, and a VF exposes a physfn symlink to its parent PF.
   if [ ! -e "$dev" ]; then
     echo "PCI device $full not found on host" >&2
     exit 1
@@ -499,6 +523,7 @@ for pci in "$@"; do
     echo "PCI $full has no physfn (not a VF?)" >&2
     exit 1
   fi
+  # Resolve the parent PF PCI address, then read the PF's netdev name.
   pf_pci="$(basename "$(readlink -f "$dev/physfn")")"
   pf_net=""
   for n in /sys/bus/pci/devices/"$pf_pci"/net/*; do
@@ -510,6 +535,7 @@ for pci in "$@"; do
     echo "no netdev for PF $pf_pci" >&2
     exit 1
   fi
+  # Find this VF's index by matching the PF's virtfnN symlink targets.
   vf_idx=""
   for virtfn in /sys/bus/pci/devices/"$pf_pci"/virtfn*; do
     [ -e "$virtfn" ] || continue
@@ -523,7 +549,9 @@ for pci in "$@"; do
     echo "could not map PCI $full to a virtfn under PF $pf_pci" >&2
     exit 1
   fi
+  # The representor netdev for virtfnN is named <pf>_<N>.
   rep="${pf_net}_${vf_idx}"
+  # It must exist and be a port on the bridge.
   if [ ! -d "/sys/class/net/$rep" ]; then
     echo "representor netdev $rep for PCI $full not found" >&2
     exit 1
@@ -534,6 +562,7 @@ for pci in "$@"; do
     ovs-vsctl list-ports "$bridge" >&2 || true
     exit 1
   fi
+  # With a type (doca): assert the port type, ofport and error state.
   if [ -n "$interface_type" ]; then
     actual_type="$(ovs-vsctl get Interface "$rep" type | tr -d '"')"
     [ "$actual_type" = "$interface_type" ] || {

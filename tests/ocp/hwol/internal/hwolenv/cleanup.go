@@ -349,6 +349,9 @@ func compareOvsOffloadBaseline(current, baseline map[string]OvsOffloadBaseline) 
 	return nil
 }
 
+// Decides whether an ovs-vswitchd restart completed with the expected baseline: the
+// service active with a MainPID different from the pre-restart PID in $1, and the
+// OVSDB hw-offload key holding the restored value.
 const ovsRestartReadyScript = `
 set -eu
 systemctl --no-pager is-active --quiet ovs-vswitchd.service
