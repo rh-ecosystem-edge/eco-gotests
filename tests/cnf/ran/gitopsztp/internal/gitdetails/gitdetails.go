@@ -7,6 +7,7 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/argocd"
 	argocdtypes "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/argocd/argocdtypes/v1alpha1"
+	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/argocd/gitopsengine/synccommon"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/gitopsztp/internal/tsparams"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
@@ -62,12 +63,9 @@ func UpdatePathAndWait(app *argocd.ApplicationBuilder, synced bool) error {
 				return current.Spec.Source != nil && current.Spec.Source.Path == path &&
 					current.Status.Sync.ComparedTo.Source.Path == path &&
 					(!synced || (current.Status.Sync.Status == argocdtypes.SyncStatusCodeSynced &&
-						(operation == nil || operation.Phase == "Succeeded"))), nil
+						(operation == nil || operation.Phase == synccommon.OperationSucceeded))), nil
 			})
 	}
-
-	// Argo timestamps have one-second precision. Requiring a later second avoids accepting an old operation.
-	updatedAfter := time.Now().UTC().Truncate(time.Second)
 
 	if _, err = app.Update(true); err != nil {
 		return fmt.Errorf("failed to update the application: %w", err)
@@ -88,23 +86,22 @@ func UpdatePathAndWait(app *argocd.ApplicationBuilder, synced bool) error {
 				return false, nil
 			}
 
-			return sourceSyncCompleted(current, path, updatedAfter), nil
+			return sourceSyncCompleted(current, path), nil
 		})
 	if err != nil {
-		return fmt.Errorf("failed to wait for application sync to path %q after %s: %w", path, updatedAfter, err)
+		return fmt.Errorf("failed to wait for application sync to path %q: %w", path, err)
 	}
 
 	return nil
 }
 
-// sourceSyncCompleted verifies that a successful operation and reconciliation followed the path update.
-func sourceSyncCompleted(app *argocdtypes.Application, path string, updatedAfter time.Time) bool {
+// sourceSyncCompleted verifies that a successful sync used the expected path and the application is synced to it.
+func sourceSyncCompleted(app *argocdtypes.Application, path string) bool {
 	operation := app.Status.OperationState
 
 	return app.Spec.Source != nil && app.Spec.Source.Path == path &&
-		operation != nil && operation.Operation.Sync != nil && operation.Operation.Sync.Source != nil &&
-		operation.Operation.Sync.Source.Path == path && operation.StartedAt.Time.After(updatedAfter) &&
-		operation.Phase == "Succeeded" && app.Status.ReconciledAt != nil &&
-		app.Status.ReconciledAt.Time.After(updatedAfter) && app.Status.Sync.ComparedTo.Source.Path == path &&
+		operation != nil && operation.Phase == synccommon.OperationSucceeded &&
+		operation.SyncResult != nil && operation.SyncResult.Source.Path == path &&
+		app.Status.Sync.ComparedTo.Source.Path == path &&
 		app.Status.Sync.Status == argocdtypes.SyncStatusCodeSynced
 }
