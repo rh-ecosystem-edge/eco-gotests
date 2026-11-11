@@ -52,10 +52,7 @@ var _ = Describe("ZTP Siteconfig Operator's Failover Tests",
 			By("resetting the clusters app back to the original settings")
 
 			clustersApp.Definition.Spec.Source.Path = originalClustersGitPath
-			clustersApp, err := clustersApp.Update(true)
-			Expect(err).ToNot(HaveOccurred(), "Failed to reset clusters app git details")
-
-			err = clustersApp.WaitForSourceUpdate(true, tsparams.ArgoCdChangeTimeout)
+			err := gitdetails.UpdatePathAndWait(clustersApp, true)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for the clusters app to sync")
 		})
 

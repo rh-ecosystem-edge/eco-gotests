@@ -51,12 +51,7 @@ var _ = Describe("ZTP Argo CD Clusters Tests", Label(tsparams.LabelArgoCdCluster
 		By("resetting the clusters app back to the original settings")
 
 		clustersApp.Definition.Spec.Source.Path = originalClustersGitPath
-		clustersApp, err := clustersApp.Update(true)
-		Expect(err).ToNot(HaveOccurred(), "Failed to update the clusters app with the original git path")
-
-		By("waiting for the clusters app to sync")
-
-		err = clustersApp.WaitForSourceUpdate(true, tsparams.ArgoCdChangeTimeout)
+		err := gitdetails.UpdatePathAndWait(clustersApp, true)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for the clusters app to sync")
 	})
 

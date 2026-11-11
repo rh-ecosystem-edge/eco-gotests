@@ -67,12 +67,7 @@ var _ = Describe("ZTP Argo CD ACM CR Tests", Label(tsparams.LabelArgoCdAcmCrsTes
 		By("resetting the policies app back to the original settings")
 
 		policiesApp.Definition.Spec.Source.Path = originalPoliciesGitPath
-		policiesApp, err := policiesApp.Update(true)
-		Expect(err).ToNot(HaveOccurred(), "Failed to update the policies app back to the original settings")
-
-		By("waiting for the policies app to sync")
-
-		err = policiesApp.WaitForSourceUpdate(true, tsparams.ArgoCdChangeTimeout)
+		err := gitdetails.UpdatePathAndWait(policiesApp, true)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for the policies app to sync")
 	})
 
