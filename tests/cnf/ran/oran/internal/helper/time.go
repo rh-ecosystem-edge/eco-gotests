@@ -7,6 +7,9 @@ import "time"
 func GetStartTime() time.Time {
 	startTime := time.Now()
 
+	// Since we cannot verify that a second starts at the same time on the cluster versus the test executor, it is
+	// most reliable to wait for two seconds to ensure the time we count as starting is almost certainly not the
+	// same second on both machines.
 	time.Sleep(2 * time.Second)
 
 	return startTime
