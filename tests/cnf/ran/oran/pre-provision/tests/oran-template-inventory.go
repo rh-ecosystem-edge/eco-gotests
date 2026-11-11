@@ -20,10 +20,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// We use the pre provision label since these tests are intended to be run before provisioning. Although really they can
-// be run at any point unrelated to the provisioning process, by having them before provisioning they can be run
-// regardless of whether the provisioning succeeded.
-var _ = Describe("ORAN Template Inventory", Label(tsparams.LabelPreProvision, tsparams.LabelTemplateInventory), func() {
+// These tests run in the pre-provision subsuite since they can run regardless of whether provisioning succeeded.
+var _ = Describe("ORAN Template Inventory", Label(tsparams.LabelTemplateInventory), func() {
 	var artifactsClient *oranapi.ArtifactsClient
 
 	BeforeEach(func() {

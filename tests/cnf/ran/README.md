@@ -22,6 +22,7 @@ Some test suites (ZTP, TALM) require clusters to be deployed via GitOps ZTP and 
 | [talm](talm/talm_suite_test.go)                                  | Tests the topology aware lifecycle manager (TALM)   |
 | [gitopsztp](gitopsztp/ztp_suite_test.go)                         | Tests zero touch provisioning (ZTP) and Argo CD     |
 | [ibipreinstall](ibipreinstall/ibipreinstall_suite_test.go)       | Tests IBI (Image-Based Install) preinstall workflow |
+| [oran](oran/)                                                    | Tests O-RAN provisioning in ordered phase subsuites |
 
 ### Internal pkgs
 
@@ -104,7 +105,7 @@ These inputs are all specific to the PTP test suites and are optional.
 #### Spoke inputs
 
 * `ECO_CNF_RAN_SPOKE1_NAME`: Name of the spoke 1 cluster. Automatically updated if Spoke1Kubeconfig exists, otherwise provided as input.
-* `ECO_CNF_RAN_SPOKE1_PASSWORD`: Path to the admin password for spoke 1, saved in the O-RAN suite.
+* `ECO_CNF_RAN_SPOKE1_PASSWORD`: Path to the admin password for spoke 1, saved by the O-RAN provision suite.
 
 #### ACM inputs
 
@@ -126,7 +127,7 @@ These inputs are specific to the IBI preinstall test suite. The suite performs a
 
 #### O-RAN inputs
 
-These inputs are specific to the O-RAN test suite.
+These inputs are specific to the O-RAN test suites.
 
 * `ECO_CNF_RAN_HUB_APPS_DOMAIN`: Subdomain for the hub cluster routes (e.g. `apps.<hub-cluster-name>.<hub-cluster-domain>`).
 * `ECO_CNF_RAN_O2IMS_CLIENT_CERT_SECRET`: Name of the secret containing the client certificate for O2IMS and OAuth APIs.
@@ -144,6 +145,15 @@ These inputs are specific to the O-RAN test suite.
 ### Running the RAN test suites
 
 Except for the container namespace hiding tests, a dump of relevant CRs will be generated for failed tests only when `ECO_ENABLE_REPORT=true`.
+
+#### Running the O-RAN test suites
+
+The O-RAN phase suites are designed to run in order. List each feature path in the desired order; suites after a failed phase can be omitted from the list.
+
+```bash
+# export ECO_TEST_FEATURES="oran/pre-provision oran/provision oran/post-provision oran/metal3-day2"
+# make run-tests
+```
 
 #### Running the container namespace hiding test suite
 

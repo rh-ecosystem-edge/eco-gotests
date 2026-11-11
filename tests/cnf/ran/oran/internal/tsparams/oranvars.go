@@ -16,8 +16,14 @@ import (
 )
 
 var (
-	// Labels is the labels applied to all test cases in the suite.
-	Labels = append(ranparam.Labels, LabelSuite)
+	// PreProvisionLabels is the labels applied to the pre-provision subsuite.
+	PreProvisionLabels = suiteLabels(LabelPreProvision)
+	// ProvisionLabels is the labels applied to the provision subsuite.
+	ProvisionLabels = suiteLabels(LabelProvision)
+	// PostProvisionLabels is the labels applied to the post-provision subsuite.
+	PostProvisionLabels = suiteLabels(LabelPostProvision)
+	// Metal3Day2Labels is the labels applied to the Metal3 day-2 subsuite.
+	Metal3Day2Labels = suiteLabels(LabelMetal3Day2)
 
 	// ReporterHubNamespacesToDump tells the reporter which namespaces on the hub to collect pod logs from.
 	ReporterHubNamespacesToDump = map[string]string{
@@ -54,6 +60,14 @@ var (
 		{Cr: &policiesv1.PolicyList{}},
 	}
 )
+
+func suiteLabels(subsuiteLabel string) []string {
+	labels := make([]string, 0, len(ranparam.Labels)+2)
+	labels = append(labels, ranparam.Labels...)
+	labels = append(labels, LabelSuite, subsuiteLabel)
+
+	return labels
+}
 
 var (
 	// PRValidationFailedCondition is the ProvisioningRequest condition where ProvisioningRequest validation failed.

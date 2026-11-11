@@ -269,6 +269,9 @@ linters:
         path: tests/system-tests/vcore/internal/.*
       - linters:
           - depguard
+        path: tests/cnf/ran/oran/internal/oransuite
+      - linters:
+          - depguard
         path: tests/assisted/ztp/internal/tlsprofile
       - linters:
           - depguard
