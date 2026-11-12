@@ -348,9 +348,9 @@ func defineAndCreateSrIovNetwork(srIovNetwork, resName string, allMulti bool) {
 		srIovNetworkObject.WithTrustFlag(true).WithMetaPluginAllMultiFlag(true)
 	}
 
-	err := netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, srIovNetworkObject, tsparams.NADWaitTimeout)
+	err := netenv.CreateSriovNetworkAndWaitForNADCreation(srIovNetworkObject, tsparams.NADWaitTimeout)
 	Expect(err).ToNot(HaveOccurred(),
-		"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
+		"Failed to create and wait for SriovNetwork Ready for Sriov Network %s with error %v",
 		srIovNetworkObject.Definition.Name, err)
 }
 
@@ -486,9 +486,9 @@ func defineAndCreateSrIovNetworkWithOutIPAM(srIovNetwork string, allMulti bool) 
 		srIovNetworkObject.WithTrustFlag(true).WithMetaPluginAllMultiFlag(true)
 	}
 
-	err := netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, srIovNetworkObject, tsparams.NADWaitTimeout)
+	err := netenv.CreateSriovNetworkAndWaitForNADCreation(srIovNetworkObject, tsparams.NADWaitTimeout)
 	Expect(err).ToNot(HaveOccurred(),
-		"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
+		"Failed to create and wait for SriovNetwork Ready for Sriov Network %s with error %v",
 		srIovNetworkObject.Definition.Name, err)
 }
 

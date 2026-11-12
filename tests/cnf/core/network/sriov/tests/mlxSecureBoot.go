@@ -173,9 +173,9 @@ var _ = Describe("Mellanox Secure Boot", Ordered, Label(tsparams.LabelMlxSecureB
 				APIClient, sriovAndResourceNameSecureBoot, NetConfig.SriovOperatorNamespace,
 				tsparams.TestNamespaceName, sriovAndResourceNameSecureBoot).WithStaticIpam().
 				WithIPAddressSupport().WithLogLevel(netparam.LogLevelDebug)
-			err = netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, sriovNetworkMlxSecureBoot, tsparams.NADWaitTimeout)
+			err = netenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetworkMlxSecureBoot, tsparams.NADWaitTimeout)
 			Expect(err).ToNot(HaveOccurred(),
-				"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
+				"Failed to create and wait for SriovNetwork Ready for Sriov Network %s with error %v",
 				sriovAndResourceNameSecureBoot, err)
 
 			By("Creating test pods and checking connectivity")

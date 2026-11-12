@@ -449,9 +449,9 @@ func createTestResources(cRes, sRes testResource) (*pod.Builder, *pod.Builder) {
 
 		By("Create SriovNetwork")
 
-		err = netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, res.network, tsparams.NADWaitTimeout)
+		err = netenv.CreateSriovNetworkAndWaitForNADCreation(res.network, tsparams.NADWaitTimeout)
 		Expect(err).ToNot(HaveOccurred(),
-			"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
+			"Failed to create and wait for SriovNetwork Ready for Sriov Network %s with error %v",
 			res.network.Definition.Name, err)
 	}
 

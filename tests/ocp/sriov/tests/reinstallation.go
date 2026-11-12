@@ -96,8 +96,9 @@ var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.Label
 				WithLogLevel("debug").Create()
 			Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network")
 
-			err = sriovenv.WaitForNADCreation(sriovTestResourceName, tsparams.TestNamespaceName, tsparams.NADTimeout)
-			Expect(err).ToNot(HaveOccurred(), "Failed to detect SR-IOV NAD")
+			err = sriovenv.WaitForNADCreation(
+				sriovTestResourceName, SriovOcpConfig.SriovOperatorNamespace, tsparams.NADTimeout)
+			Expect(err).ToNot(HaveOccurred(), "Failed to wait for SriovNetwork Ready")
 		})
 
 		It("Operator re-installation. Verify SR-IOV operator data plane is operational before removal",
@@ -178,8 +179,9 @@ var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.Label
 					WithLogLevel("debug").Create()
 				Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network")
 
-				err = sriovenv.WaitForNADCreation(sriovTestResourceName, tsparams.TestNamespaceName, tsparams.NADTimeout)
-				Expect(err).ToNot(HaveOccurred(), "Failed to detect SR-IOV NAD")
+				err = sriovenv.WaitForNADCreation(
+					sriovTestResourceName, SriovOcpConfig.SriovOperatorNamespace, tsparams.NADTimeout)
+				Expect(err).ToNot(HaveOccurred(), "Failed to wait for SriovNetwork Ready")
 			})
 
 		It("Operator re-installation. Validate that re-installed SR-IOV operator’s data plane is up and running",

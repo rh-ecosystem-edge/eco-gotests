@@ -291,9 +291,9 @@ func createSriovConfigurationParallelDrain(sriovInterfaceName string) {
 		NetConfig.SriovOperatorNamespace, tsparams.TestNamespaceName, sriovAndResourceNameParallelDrain).
 		WithStaticIpam().WithMacAddressSupport().WithIPAddressSupport().WithLogLevel(netparam.LogLevelDebug)
 
-	err = netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, sriovNetworkBuilder, tsparams.NADWaitTimeout)
+	err = netenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetworkBuilder, tsparams.NADWaitTimeout)
 	Expect(err).ToNot(HaveOccurred(),
-		"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
+		"Failed to create and wait for SriovNetwork Ready for Sriov Network %s with error %v",
 		sriovAndResourceNameParallelDrain, err)
 }
 

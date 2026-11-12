@@ -439,7 +439,7 @@ var _ = Describe(
 					srIovPolicyResNameNetDevice).WithTrustFlag(true).WithLogLevel(logLevelDebug)
 				err = createSriovNetworkAndWaitForNAD(sriovNetworkBuilder, tsparams.NADWaitTimeout)
 				Expect(err).ToNot(HaveOccurred(),
-					"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
+					"Failed to create and wait for SriovNetwork Ready for Sriov Network %s with error %v",
 					srIovNetworkPromiscuous, err)
 
 				By("Define and create sriov-network with 802.1q S-VLAN")
@@ -823,7 +823,7 @@ func defineAndCreateSrIovNetworkWithQinQ(srIovNetwork, resName, vlanProtocol str
 		WithVlanProto(vlanProtocol).WithVLAN(uint16(vlan)).WithLogLevel(logLevelDebug)
 	err = createSriovNetworkAndWaitForNAD(sriovNetworkBuilder, tsparams.NADWaitTimeout)
 	Expect(err).ToNot(HaveOccurred(),
-		"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
+		"Failed to create and wait for SriovNetwork Ready for Sriov Network %s with error %v",
 		srIovNetwork, err)
 }
 
@@ -1224,7 +1224,7 @@ func defineAndCreateSriovNetworks(sriovNetworkPromiscName, sriovNetworkDot1ADNam
 		sriovResName).WithTrustFlag(true).WithLogLevel(logLevelDebug)
 	err := createSriovNetworkAndWaitForNAD(sriovNetworkBuilder, tsparams.NADWaitTimeout)
 	Expect(err).ToNot(HaveOccurred(),
-		"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
+		"Failed to create and wait for SriovNetwork Ready for Sriov Network %s with error %v",
 		sriovNetworkPromiscName, err)
 
 	By("Define and create sriov-network with 802.1ad S-VLAN")

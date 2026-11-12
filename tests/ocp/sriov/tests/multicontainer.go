@@ -189,8 +189,8 @@ func createSharedResourceSriovNetwork(networkName string) {
 		Create()
 	Expect(err).ToNot(HaveOccurred(), "Failed to create SriovNetwork %q", networkName)
 
-	err = sriovenv.WaitForNADCreation(networkName, tsparams.TestNamespaceName, tsparams.NADTimeout)
-	Expect(err).ToNot(HaveOccurred(), "Failed to wait for NAD %q", networkName)
+	err = sriovenv.WaitForNADCreation(networkName, SriovOcpConfig.OcpSriovOperatorNamespace, tsparams.NADTimeout)
+	Expect(err).ToNot(HaveOccurred(), "Failed to wait for SriovNetwork Ready %q", networkName)
 }
 
 func verifyNADSharesResourceName(networkName string) {

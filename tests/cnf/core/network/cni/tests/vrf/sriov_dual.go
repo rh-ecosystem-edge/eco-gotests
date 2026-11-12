@@ -73,7 +73,7 @@ var _ = Describe("CNF VRF", Ordered, Label(tsparams.LabelSriovVRFDualTestCases),
 			WithStaticIpam().WithLinkState("enable").
 			WithOptions(WithVRFMetaPlugin(vrfRedName))
 
-		err = netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, redNet, netparam.MCOWaitTimeout)
+		err = netenv.CreateSriovNetworkAndWaitForNADCreation(redNet, netparam.MCOWaitTimeout)
 		Expect(err).ToNot(HaveOccurred(), "Failed to create red VRF SR-IOV Network")
 
 		blueNet := sriov.NewNetworkBuilder(APIClient, dualBlueNetName, NetConfig.SriovOperatorNamespace,
@@ -81,7 +81,7 @@ var _ = Describe("CNF VRF", Ordered, Label(tsparams.LabelSriovVRFDualTestCases),
 			WithStaticIpam().WithLinkState("enable").
 			WithOptions(WithVRFMetaPlugin(vrfBlueName))
 
-		err = netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, blueNet, netparam.MCOWaitTimeout)
+		err = netenv.CreateSriovNetworkAndWaitForNADCreation(blueNet, netparam.MCOWaitTimeout)
 		Expect(err).ToNot(HaveOccurred(), "Failed to create blue VRF SR-IOV Network")
 
 		By("Waiting until cluster MCP and SR-IOV are stable")

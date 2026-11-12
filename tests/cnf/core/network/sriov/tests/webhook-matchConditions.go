@@ -66,9 +66,9 @@ var _ = Describe("webhook-resource-injector", Ordered, Label(tsparams.LabelWebho
 			Expect(err).ToNot(HaveOccurred(), "Failed to create SriovNetworkNodePolicy")
 
 			sriovNetworkBuilder := defineNetwork("client", "netdevice")
-			err = netenv.CreateSriovNetworkAndWaitForNADCreation(APIClient, sriovNetworkBuilder, tsparams.NADWaitTimeout)
+			err = netenv.CreateSriovNetworkAndWaitForNADCreation(sriovNetworkBuilder, tsparams.NADWaitTimeout)
 			Expect(err).ToNot(HaveOccurred(),
-				"Failed to create and wait for NAD creation for Sriov Network %s with error %v",
+				"Failed to create and wait for SriovNetwork Ready for Sriov Network %s with error %v",
 				sriovNetworkBuilder.Definition.Name, err)
 		})
 
