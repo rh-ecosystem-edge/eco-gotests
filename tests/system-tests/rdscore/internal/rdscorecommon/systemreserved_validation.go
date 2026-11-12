@@ -172,23 +172,57 @@ func validateNodesSystemReserved(nodeRoleLabel, nodeRoleDescription string) {
 
 		var skipValidation bool
 
+		// Determine baseline values based on node role
+		var baselineCPU, baselineMemory string
+
+		_, isControlPlane := nodeObj.Labels["node-role.kubernetes.io/master"]
+		if !isControlPlane {
+			_, isControlPlane = nodeObj.Labels["node-role.kubernetes.io/control-plane"]
+		}
+
+		if isControlPlane {
+			baselineCPU = RDSCoreConfig.ControlPlaneCPUReserved
+			baselineMemory = RDSCoreConfig.ControlPlaneMemoryReserved
+		} else {
+			baselineCPU = RDSCoreConfig.WorkerCPUReserved
+			baselineMemory = RDSCoreConfig.WorkerMemoryReserved
+		}
+
 		// Extract systemReserved from PerformanceProfile
 		cpu, mem, err := extractSystemReservedFromProfile(matchingProfile)
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-				"⚠ Node %s: PerformanceProfile %s found but no systemReserved annotation: %v\n",
+				"⚠ Node %s: PerformanceProfile %s found but systemReserved annotation not usable: %v\n",
 				nodeName, matchingProfile.Object.Name, err)
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-				"⚠ Skipping strict validation - will only verify that systemReserved is present\n")
+				"⚠ Using baseline values - will only verify that systemReserved is present\n")
 
+			expectedCPU = baselineCPU
+			expectedMemory = baselineMemory
 			skipValidation = true
 		} else {
-			expectedCPU = cpu
-			expectedMemory = mem
+			// Use PerformanceProfile values, fall back to baseline for empty fields
+			var cpuSource, memSource string
+
+			if cpu != "" {
+				expectedCPU = cpu
+				cpuSource = "PerformanceProfile"
+			} else {
+				expectedCPU = baselineCPU
+				cpuSource = "baseline"
+			}
+
+			if mem != "" {
+				expectedMemory = mem
+				memSource = "PerformanceProfile"
+			} else {
+				expectedMemory = baselineMemory
+				memSource = "baseline"
+			}
 
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-				"ℹ Node %s matched PerformanceProfile %s: expecting CPU=%s, Memory=%s\n",
-				nodeName, matchingProfile.Object.Name, expectedCPU, expectedMemory)
+				"ℹ Node %s matched PerformanceProfile %s: CPU=%s (%s), Memory=%s (%s)\n",
+				nodeName, matchingProfile.Object.Name, expectedCPU, cpuSource, expectedMemory, memSource)
 		}
 
 		By(fmt.Sprintf("Executing debug pod on node %s", nodeName))
@@ -229,8 +263,8 @@ func validateNodesSystemReserved(nodeRoleLabel, nodeRoleDescription string) {
 					nodeName))
 			}
 		} else {
-			// OCP 4.x: Parse node-sizing.env file
-			By("Parsing node-sizing.env file")
+			// OCP 4.x: Parse systemReserved configuration file
+			By("Parsing systemReserved configuration from node file")
 
 			envVars := parseEnvFile(output)
 
@@ -265,18 +299,13 @@ func validateNodesSystemReserved(nodeRoleLabel, nodeRoleDescription string) {
 			Expect(normalizeCPUValue(actualCPU)).To(Equal(normalizeCPUValue(expectedCPU)),
 				fmt.Sprintf("CPU systemReserved mismatch on %s node %s: expected %s (from PerformanceProfile), got %s",
 					nodeRoleDescription, nodeName, expectedCPU, actualCPU))
-		} else {
-			// Informational for nodes without PerformanceProfile or without systemReserved annotation
-			if !skipValidation && normalizeCPUValue(actualCPU) != normalizeCPUValue(expectedCPU) {
-				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-					"ℹ Node %s: CPU systemReserved is %s (scale lab baseline suggests %s)\n",
-					nodeName, actualCPU, expectedCPU)
-			} else if skipValidation {
-				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-					"ℹ Node %s: CPU systemReserved is %s (using baseline - PerformanceProfile %s systemReserved not configured)\n",
-					nodeName, actualCPU, matchingProfile.Object.Name)
-			}
+		} else if !skipValidation && normalizeCPUValue(actualCPU) != normalizeCPUValue(expectedCPU) {
+			// Informational: PerformanceProfile has systemReserved but actual value differs
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"ℹ Node %s: CPU systemReserved is %s (PerformanceProfile/baseline expects %s)\n",
+				nodeName, actualCPU, expectedCPU)
 		}
+		// If skipValidation, we already logged baseline usage at profile extraction
 
 		By("Validating Memory value")
 
@@ -293,18 +322,13 @@ func validateNodesSystemReserved(nodeRoleLabel, nodeRoleDescription string) {
 				"Memory systemReserved mismatch on %s node %s: expected %s (from PerformanceProfile), got %s",
 				nodeRoleDescription, nodeName, expectedMemory, actualMemory)
 			Expect(actualMemory).To(Equal(expectedMemory), expectedMsg)
-		} else {
-			// Informational for nodes without PerformanceProfile or without systemReserved annotation
-			if !skipValidation && actualMemory != expectedMemory {
-				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-					"ℹ Node %s: Memory systemReserved is %s (scale lab baseline suggests %s)\n",
-					nodeName, actualMemory, expectedMemory)
-			} else if skipValidation {
-				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-					"ℹ Node %s: Memory systemReserved is %s (using baseline - PerformanceProfile %s systemReserved not configured)\n",
-					nodeName, actualMemory, matchingProfile.Object.Name)
-			}
+		} else if !skipValidation && actualMemory != expectedMemory {
+			// Informational: PerformanceProfile has systemReserved but actual value differs
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"ℹ Node %s: Memory systemReserved is %s (PerformanceProfile/baseline expects %s)\n",
+				nodeName, actualMemory, expectedMemory)
 		}
+		// If skipValidation, we already logged baseline usage at profile extraction
 
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 			"✓ Node %s systemReserved validated: CPU=%s, Memory=%s\n", nodeName, actualCPU, actualMemory)
@@ -951,9 +975,11 @@ func extractSystemReservedFromProfile(profile *nto.Builder) (string, string, err
 		return "", "", fmt.Errorf("failed to parse kubeletconfig JSON: %w", err)
 	}
 
-	if config.SystemReserved.CPU == "" || config.SystemReserved.Memory == "" {
-		return "", "", fmt.Errorf("systemReserved CPU or memory is empty in kubeletconfig annotation")
+	// Allow partial configuration (CPU or Memory can be empty, but not both)
+	if config.SystemReserved.CPU == "" && config.SystemReserved.Memory == "" {
+		return "", "", fmt.Errorf("systemReserved annotation exists but both CPU and memory are empty")
 	}
 
+	// Return values - empty strings for unset fields are valid (fallback to baseline)
 	return config.SystemReserved.CPU, config.SystemReserved.Memory, nil
 }
