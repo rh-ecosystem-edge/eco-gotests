@@ -63,12 +63,7 @@ var _ = Describe("ZTP Siteconfig Operator's Cluster Instance Delete Tests",
 			By("resetting the clusters app back to the original settings")
 
 			clustersApp.Definition.Spec.Source.Path = originalClustersGitPath
-			updatedApp, err := clustersApp.Update(true)
-			Expect(err).ToNot(HaveOccurred(), "Failed to update clusters app back to the original settings")
-
-			By("waiting for the clusters app to sync")
-
-			err = updatedApp.WaitForSourceUpdate(true, tsparams.ArgoCdChangeTimeout)
+			err := gitdetails.UpdatePathAndWait(clustersApp, true)
 			Expect(err).ToNot(HaveOccurred(), "Failed to wait for clusters app to sync")
 
 			By("checking the infra env manifests exists on hub")

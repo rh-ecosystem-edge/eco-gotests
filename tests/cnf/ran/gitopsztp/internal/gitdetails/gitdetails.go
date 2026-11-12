@@ -1,10 +1,14 @@
 package gitdetails
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/argocd"
+	argocdtypes "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/argocd/argocdtypes/v1alpha1"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/gitopsztp/internal/tsparams"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 // GetGitPath retrieves the git path from the provided Argo CD application. It returns an error if it encounters any nil
@@ -25,18 +29,101 @@ func GetGitPath(app *argocd.ApplicationBuilder) (string, error) {
 	return app.Definition.Spec.Source.Path, nil
 }
 
-// UpdateAndWaitForSync appends elements to the git path of the provided Argo CD application and waits for the source to
-// be updated. The synced parameter indicates whether to wait for the application to be in a synced state or not.
+// UpdateAndWaitForSync appends elements to the git path and waits for the resulting comparison or sync.
 func UpdateAndWaitForSync(app *argocd.ApplicationBuilder, synced bool, elements ...string) error {
-	_, err := app.WithGitPathAppended(elements...).Update(true)
+	app.WithGitPathAppended(elements...)
+
+	return UpdatePathAndWait(app, synced)
+}
+
+// UpdatePathAndWait applies the path in the definition and waits for its reconciliation and, when requested, sync.
+func UpdatePathAndWait(app *argocd.ApplicationBuilder, synced bool) error {
+	path, err := GetGitPath(app)
 	if err != nil {
+		return err
+	}
+
+	current, err := app.Get()
+	if err != nil {
+		return fmt.Errorf("failed to get the application before updating it: %w", err)
+	}
+
+	// A repeated cleanup does not create another sync operation. Wait for any existing operation to finish.
+	if current.Spec.Source != nil && current.Spec.Source.Path == path {
+		return wait.PollUntilContextTimeout(context.TODO(), time.Second, tsparams.ArgoCdChangeTimeout, true,
+			func(ctx context.Context) (bool, error) {
+				current, err := app.Get()
+				if err != nil {
+					return false, nil
+				}
+
+				if !synced {
+					return current.Spec.Source != nil && current.Spec.Source.Path == path &&
+						current.Status.Sync.ComparedTo.Source.Path == path, nil
+				}
+
+				return sourceSyncCompleted(current, path), nil
+			})
+	}
+
+	if _, err = app.Update(true); err != nil {
 		return fmt.Errorf("failed to update the application: %w", err)
 	}
 
-	err = app.WaitForSourceUpdate(synced, tsparams.ArgoCdChangeTimeout)
+	if !synced {
+		if err = app.WaitForSourceUpdate(false, tsparams.ArgoCdChangeTimeout); err != nil {
+			return fmt.Errorf("failed to wait for the application source update: %w", err)
+		}
+
+		return nil
+	}
+
+	err = wait.PollUntilContextTimeout(context.TODO(), time.Second, tsparams.ArgoCdChangeTimeout, true,
+		func(ctx context.Context) (bool, error) {
+			current, err := app.Get()
+			if err != nil {
+				return false, nil
+			}
+
+			return sourceSyncCompleted(current, path), nil
+		})
 	if err != nil {
-		return fmt.Errorf("failed to wait for the application to sync: %w", err)
+		return fmt.Errorf("failed to wait for application sync to path %q: %w", path, err)
 	}
 
 	return nil
+}
+
+// sourceSyncCompleted verifies the application is synced at the expected path without a pending or related failure.
+func sourceSyncCompleted(app *argocdtypes.Application, path string) bool {
+	return app.Spec.Source != nil && app.Spec.Source.Path == path &&
+		app.Status.Sync.ComparedTo.Source.Path == path &&
+		app.Status.Sync.Status == argocdtypes.SyncStatusCodeSynced && app.Operation == nil &&
+		operationStateAllowsCompletion(app.Status.OperationState, path)
+}
+
+// operationStateAllowsCompletion accepts an absent or successful operation, or a terminal failure for another path.
+func operationStateAllowsCompletion(operation *argocdtypes.OperationState, path string) bool {
+	if operation == nil {
+		return true
+	}
+
+	if !operation.Phase.Completed() {
+		return false
+	}
+
+	if operation.Phase.Successful() {
+		return true
+	}
+
+	if operation.Operation.Sync != nil && operation.Operation.Sync.Source != nil {
+		return operation.Operation.Sync.Source.Path != path
+	}
+
+	if operation.SyncResult != nil {
+		return operation.SyncResult.Source.Path != path
+	}
+
+	// Without source information, assume an unsuccessful operation belongs to the requested path.
+	return false
 }

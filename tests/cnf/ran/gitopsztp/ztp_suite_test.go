@@ -1,7 +1,10 @@
 package ztp
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"net"
 	"path"
 	"runtime"
 	"strings"
@@ -18,6 +21,8 @@ import (
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/rancluster"
 	. "github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/internal/raninittools"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/reporter"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/klog/v2"
 )
 
 var _, currentFile, _, _ = runtime.Caller(0)
@@ -48,13 +53,32 @@ var _ = BeforeEach(func() {
 	By("deleting and recreating test namespace to ensure blank state")
 
 	for _, client := range []*clients.Settings{HubAPIClient, Spoke1APIClient} {
-		err := namespace.NewBuilder(client, tsparams.TestNamespace).DeleteAndWait(5 * time.Minute)
+		err := deleteTestNamespaceAndWait(client)
 		Expect(err).ToNot(HaveOccurred(), "Failed to delete ZTP test namespace")
 
 		_, err = namespace.NewBuilder(client, tsparams.TestNamespace).Create()
 		Expect(err).ToNot(HaveOccurred(), "Failed to create ZTP test namespace")
 	}
 })
+
+// deleteTestNamespaceAndWait deletes the test namespace, retrying while the API server is unreachable. The spoke API
+// server can be briefly unavailable when its kube-apiserver restarts, which changing the image registry configuration
+// causes.
+func deleteTestNamespaceAndWait(client *clients.Settings) error {
+	return wait.PollUntilContextTimeout(context.TODO(), tsparams.ArgoCdChangeInterval, 2*time.Minute, true,
+		func(_ context.Context) (bool, error) {
+			err := namespace.NewBuilder(client, tsparams.TestNamespace).DeleteAndWait(5 * time.Minute)
+
+			var netErr net.Error
+			if errors.As(err, &netErr) {
+				klog.V(tsparams.LogLevel).Infof("Retrying deletion of namespace %s: %v", tsparams.TestNamespace, err)
+
+				return false, nil
+			}
+
+			return err == nil, err
+		})
+}
 
 var _ = AfterSuite(func() {
 	By("deleting test namespace")
