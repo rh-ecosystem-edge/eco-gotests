@@ -197,7 +197,7 @@ func validateNodesSystemReserved(nodeRoleLabel, nodeRoleDescription string) {
 		cmd := []string{"chroot", "/rootfs", "cat", nodeSizingEnvPath}
 		output, err := remote.ExecuteOnNodeWithDebugPod(cmd, nodeName)
 
-		if (err != nil || output == "") {
+		if err != nil || output == "" {
 			// Try alternative path
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 				"⚠ %s not found, trying %s\n", nodeSizingEnvPath, nodeSizingEnabledEnvPath)
@@ -445,8 +445,6 @@ func ValidateWorkerNodeEnforcement() {
 }
 
 // ValidateScaleLabBaseline validates that systemReserved values are adequate for scale lab requirements.
-//
-//nolint:gocognit,funlen // Complex multi-node baseline validation with multiple conditional branches
 func ValidateScaleLabBaseline() {
 	By("Finding PerformanceProfiles")
 
