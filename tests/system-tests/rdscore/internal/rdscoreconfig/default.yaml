@@ -1,6 +1,6 @@
 ---
 # SystemReserved validation baseline values
-rdscore_control_plane_cpu_reserved: "40"
+rdscore_control_plane_cpu_reserved: "40000m"
 rdscore_control_plane_memory_reserved: "30Gi"
 rdscore_worker_cpu_reserved: "1000m"
 rdscore_worker_memory_reserved: "11Gi"

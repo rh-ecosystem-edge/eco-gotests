@@ -120,8 +120,8 @@ func ValidatePerformanceProfileSystemReserved() {
 		Expect(performanceProfile.Object.Spec.CPU.Isolated).ToNot(BeNil(),
 			fmt.Sprintf("PerformanceProfile %s CPU isolated is nil", performanceProfile.Object.Name))
 
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  CPU Reserved: %v\n", performanceProfile.Object.Spec.CPU.Reserved)
-		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  CPU Isolated: %v\n", performanceProfile.Object.Spec.CPU.Isolated)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  CPU Reserved: %s\n", *performanceProfile.Object.Spec.CPU.Reserved)
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("  CPU Isolated: %s\n", *performanceProfile.Object.Spec.CPU.Isolated)
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof("✓ PerformanceProfile %s validated successfully\n",
 			performanceProfile.Object.Name)
 	}
@@ -273,8 +273,8 @@ func validateNodesSystemReserved(nodeRoleLabel, nodeRoleDescription string) {
 					nodeName, actualCPU, expectedCPU)
 			} else if skipValidation {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-					"ℹ Node %s: CPU systemReserved is %s (PerformanceProfile exists but no annotation)\n",
-					nodeName, actualCPU)
+					"ℹ Node %s: CPU systemReserved is %s (using baseline - PerformanceProfile %s systemReserved not configured)\n",
+					nodeName, actualCPU, matchingProfile.Object.Name)
 			}
 		}
 
@@ -301,8 +301,8 @@ func validateNodesSystemReserved(nodeRoleLabel, nodeRoleDescription string) {
 					nodeName, actualMemory, expectedMemory)
 			} else if skipValidation {
 				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-					"ℹ Node %s: Memory systemReserved is %s (PerformanceProfile exists but no annotation)\n",
-					nodeName, actualMemory)
+					"ℹ Node %s: Memory systemReserved is %s (using baseline - PerformanceProfile %s systemReserved not configured)\n",
+					nodeName, actualMemory, matchingProfile.Object.Name)
 			}
 		}
 
