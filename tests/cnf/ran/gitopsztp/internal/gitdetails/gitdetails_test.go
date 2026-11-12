@@ -30,16 +30,25 @@ func TestSourceSyncCompleted(t *testing.T) {
 		{"completed", func(*argocdtypes.Application) {}, true},
 		{"missing source", func(app *argocdtypes.Application) { app.Spec.Source = nil }, false},
 		{"changed source", func(app *argocdtypes.Application) { app.Spec.Source.Path = "other" }, false},
-		{"missing operation", func(app *argocdtypes.Application) { app.Status.OperationState = nil }, false},
-		{"missing sync result", func(app *argocdtypes.Application) { app.Status.OperationState.SyncResult = nil }, false},
-		{"old result path", func(app *argocdtypes.Application) {
+		{"no operation state", func(app *argocdtypes.Application) { app.Status.OperationState = nil }, true},
+		{"stale operation without sync result", func(app *argocdtypes.Application) {
+			app.Status.OperationState.SyncResult = nil
+		}, true},
+		{"stale operation result path", func(app *argocdtypes.Application) {
 			app.Status.OperationState.SyncResult.Source.Path = "old"
-		}, false},
+		}, true},
 		{"running operation", func(app *argocdtypes.Application) {
 			app.Status.OperationState.Phase = synccommon.OperationRunning
 		}, false},
 		{"failed operation", func(app *argocdtypes.Application) {
 			app.Status.OperationState.Phase = synccommon.OperationFailed
+		}, true},
+		{"queued operation", func(app *argocdtypes.Application) {
+			app.Operation = &argocdtypes.Operation{Sync: &argocdtypes.SyncOperation{}}
+		}, false},
+		{"queued operation without state", func(app *argocdtypes.Application) {
+			app.Operation = &argocdtypes.Operation{Sync: &argocdtypes.SyncOperation{}}
+			app.Status.OperationState = nil
 		}, false},
 		{"old comparison", func(app *argocdtypes.Application) { app.Status.Sync.ComparedTo.Source.Path = "old" }, false},
 		{"out of sync", func(app *argocdtypes.Application) {

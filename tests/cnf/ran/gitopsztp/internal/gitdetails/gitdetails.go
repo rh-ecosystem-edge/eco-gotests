@@ -7,7 +7,6 @@ import (
 
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/argocd"
 	argocdtypes "github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/argocd/argocdtypes/v1alpha1"
-	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/schemes/argocd/gitopsengine/synccommon"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/cnf/ran/gitopsztp/internal/tsparams"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
@@ -58,12 +57,12 @@ func UpdatePathAndWait(app *argocd.ApplicationBuilder, synced bool) error {
 					return false, nil
 				}
 
-				operation := current.Status.OperationState
+				if !synced {
+					return current.Spec.Source != nil && current.Spec.Source.Path == path &&
+						current.Status.Sync.ComparedTo.Source.Path == path, nil
+				}
 
-				return current.Spec.Source != nil && current.Spec.Source.Path == path &&
-					current.Status.Sync.ComparedTo.Source.Path == path &&
-					(!synced || (current.Status.Sync.Status == argocdtypes.SyncStatusCodeSynced &&
-						(operation == nil || operation.Phase == synccommon.OperationSucceeded))), nil
+				return sourceSyncCompleted(current, path), nil
 			})
 	}
 
@@ -95,13 +94,12 @@ func UpdatePathAndWait(app *argocd.ApplicationBuilder, synced bool) error {
 	return nil
 }
 
-// sourceSyncCompleted verifies that a successful sync used the expected path and the application is synced to it.
+// sourceSyncCompleted verifies that the application is synced at the expected path and has no operation in progress.
 func sourceSyncCompleted(app *argocdtypes.Application, path string) bool {
-	operation := app.Status.OperationState
+	operationInProgress := app.Operation != nil ||
+		(app.Status.OperationState != nil && !app.Status.OperationState.Phase.Completed())
 
 	return app.Spec.Source != nil && app.Spec.Source.Path == path &&
-		operation != nil && operation.Phase == synccommon.OperationSucceeded &&
-		operation.SyncResult != nil && operation.SyncResult.Source.Path == path &&
 		app.Status.Sync.ComparedTo.Source.Path == path &&
-		app.Status.Sync.Status == argocdtypes.SyncStatusCodeSynced
+		app.Status.Sync.Status == argocdtypes.SyncStatusCodeSynced && !operationInProgress
 }
