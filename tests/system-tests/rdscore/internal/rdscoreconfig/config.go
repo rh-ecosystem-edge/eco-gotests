@@ -179,12 +179,10 @@ type CoreConfig struct {
 	ControlPlaneCPUReserved string `yaml:"rdscore_control_plane_cpu_reserved" envconfig:"ECO_RDSCORE_CONTROL_PLANE_CPU_RESERVED"`
 	//nolint:lll
 	ControlPlaneMemoryReserved string `yaml:"rdscore_control_plane_memory_reserved" envconfig:"ECO_RDSCORE_CONTROL_PLANE_MEMORY_RESERVED"`
-	WorkerCPUReserved string `yaml:"rdscore_worker_cpu_reserved" envconfig:"ECO_RDSCORE_WORKER_CPU_RESERVED"`
-	//nolint:lll
-	WorkerMemoryReserved string `yaml:"rdscore_worker_memory_reserved" envconfig:"ECO_RDSCORE_WORKER_MEMORY_RESERVED"`
+	WorkerCPUReserved      string `yaml:"rdscore_worker_cpu_reserved" envconfig:"ECO_RDSCORE_WORKER_CPU_RESERVED"`
+	WorkerMemoryReserved   string `yaml:"rdscore_worker_memory_reserved" envconfig:"ECO_RDSCORE_WORKER_MEMORY_RESERVED"`
 	//nolint:lll
 	PerformanceProfileName string `yaml:"rdscore_performance_profile_name" envconfig:"ECO_RDSCORE_PERFORMANCE_PROFILE_NAME"`
-	//nolint:lll
 	ExcludedNodeLabels EnvSliceString `yaml:"rdscore_excluded_node_labels" envconfig:"ECO_RDSCORE_EXCLUDED_NODE_LABELS"`
 	//nolint:lll,nolintlint
 	WlkdTolerationList TolerationList `yaml:"rdscore_tolerations_list" envconfig:"ECO_RDSCORE_TOLERATIONS_LIST"`
