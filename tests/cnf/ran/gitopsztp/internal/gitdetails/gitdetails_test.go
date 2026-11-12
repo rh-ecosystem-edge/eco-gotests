@@ -17,6 +17,11 @@ func TestSourceSyncCompleted(t *testing.T) {
 	valid.Status.Sync.Status = argocdtypes.SyncStatusCodeSynced
 	valid.Status.OperationState = &argocdtypes.OperationState{
 		Phase: synccommon.OperationSucceeded,
+		Operation: argocdtypes.Operation{
+			Sync: &argocdtypes.SyncOperation{
+				Source: &argocdtypes.ApplicationSource{Path: "new"},
+			},
+		},
 		SyncResult: &argocdtypes.SyncOperationResult{
 			Source: argocdtypes.ApplicationSource{Path: "new"},
 		},
@@ -40,9 +45,22 @@ func TestSourceSyncCompleted(t *testing.T) {
 		{"running operation", func(app *argocdtypes.Application) {
 			app.Status.OperationState.Phase = synccommon.OperationRunning
 		}, false},
-		{"failed operation", func(app *argocdtypes.Application) {
+		{"failed operation for path", func(app *argocdtypes.Application) {
 			app.Status.OperationState.Phase = synccommon.OperationFailed
+		}, false},
+		{"error operation for path", func(app *argocdtypes.Application) {
+			app.Status.OperationState.Phase = synccommon.OperationError
+		}, false},
+		{"failed operation for another path", func(app *argocdtypes.Application) {
+			app.Status.OperationState.Phase = synccommon.OperationFailed
+			app.Status.OperationState.Operation.Sync.Source.Path = "old"
+			app.Status.OperationState.SyncResult.Source.Path = "old"
 		}, true},
+		{"failed operation without source", func(app *argocdtypes.Application) {
+			app.Status.OperationState.Phase = synccommon.OperationFailed
+			app.Status.OperationState.Operation.Sync.Source = nil
+			app.Status.OperationState.SyncResult = nil
+		}, false},
 		{"queued operation", func(app *argocdtypes.Application) {
 			app.Operation = &argocdtypes.Operation{Sync: &argocdtypes.SyncOperation{}}
 		}, false},

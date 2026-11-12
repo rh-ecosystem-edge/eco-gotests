@@ -94,12 +94,36 @@ func UpdatePathAndWait(app *argocd.ApplicationBuilder, synced bool) error {
 	return nil
 }
 
-// sourceSyncCompleted verifies that the application is synced at the expected path and has no operation in progress.
+// sourceSyncCompleted verifies the application is synced at the expected path without a pending or related failure.
 func sourceSyncCompleted(app *argocdtypes.Application, path string) bool {
-	operationInProgress := app.Operation != nil ||
-		(app.Status.OperationState != nil && !app.Status.OperationState.Phase.Completed())
-
 	return app.Spec.Source != nil && app.Spec.Source.Path == path &&
 		app.Status.Sync.ComparedTo.Source.Path == path &&
-		app.Status.Sync.Status == argocdtypes.SyncStatusCodeSynced && !operationInProgress
+		app.Status.Sync.Status == argocdtypes.SyncStatusCodeSynced && app.Operation == nil &&
+		operationStateAllowsCompletion(app.Status.OperationState, path)
+}
+
+// operationStateAllowsCompletion accepts an absent or successful operation, or a terminal failure for another path.
+func operationStateAllowsCompletion(operation *argocdtypes.OperationState, path string) bool {
+	if operation == nil {
+		return true
+	}
+
+	if !operation.Phase.Completed() {
+		return false
+	}
+
+	if operation.Phase.Successful() {
+		return true
+	}
+
+	if operation.Operation.Sync != nil && operation.Operation.Sync.Source != nil {
+		return operation.Operation.Sync.Source.Path != path
+	}
+
+	if operation.SyncResult != nil {
+		return operation.SyncResult.Source.Path != path
+	}
+
+	// Without source information, assume an unsuccessful operation belongs to the requested path.
+	return false
 }
