@@ -469,6 +469,8 @@ func ValidateWorkerNodeEnforcement() {
 }
 
 // ValidateScaleLabBaseline validates that systemReserved values are adequate for scale lab requirements.
+//
+//nolint:funlen // Complex baseline validation across multiple node types with scale lab data
 func ValidateScaleLabBaseline() {
 	By("Finding PerformanceProfiles")
 
