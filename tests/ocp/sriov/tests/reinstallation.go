@@ -96,7 +96,7 @@ var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.Label
 				WithLogLevel("debug").Create()
 			Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network")
 
-			err = sriovenv.WaitForNADCreation(sriovTestResourceName, tsparams.TestNamespaceName, tsparams.NADTimeout)
+			err = sriovenv.WaitForNADCreation(sriovTestResourceName, SriovOcpConfig.OcpSriovOperatorNamespace, tsparams.NADTimeout)
 			Expect(err).ToNot(HaveOccurred(), "Failed to detect SR-IOV NAD")
 		})
 
@@ -178,7 +178,7 @@ var _ = Describe("SRIOV Operator re-installation", Ordered, Label(tsparams.Label
 					WithLogLevel("debug").Create()
 				Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network")
 
-				err = sriovenv.WaitForNADCreation(sriovTestResourceName, tsparams.TestNamespaceName, tsparams.NADTimeout)
+				err = sriovenv.WaitForNADCreation(sriovTestResourceName, SriovOcpConfig.OcpSriovOperatorNamespace, tsparams.NADTimeout)
 				Expect(err).ToNot(HaveOccurred(), "Failed to detect SR-IOV NAD")
 			})
 

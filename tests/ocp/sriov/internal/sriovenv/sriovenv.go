@@ -118,21 +118,26 @@ func CreateSriovNetwork(name, resourceName, targetNs string, opts ...NetworkOpti
 		networkBuilder = opt(networkBuilder)
 	}
 
-	if _, err := networkBuilder.Create(); err != nil {
+	sriovNetwork, err := networkBuilder.Create()
+	if err != nil {
 		return fmt.Errorf("failed to create network %q: %w", name, err)
 	}
 
-	return WaitForNADCreation(name, targetNs, tsparams.NADTimeout)
+	return sriovNetwork.WaitUntilReady(tsparams.NADTimeout)
 }
 
-// WaitForNADCreation waits for NetworkAttachmentDefinition to be created.
-func WaitForNADCreation(name, namespace string, timeout time.Duration) error {
-	return wait.PollUntilContextTimeout(context.Background(), tsparams.PollingInterval, timeout, true,
-		func(ctx context.Context) (bool, error) {
-			_, err := nad.Pull(APIClient, name, namespace)
+// WaitForNADCreation waits until the SriovNetwork CR is Ready (generation-fresh Ready=True).
+// sriovNetworkNamespace is the namespace of the SriovNetwork CR (where it was created),
+// not the Multus NAD target namespace. Those namespaces often differ.
+func WaitForNADCreation(name, sriovNetworkNamespace string, timeout time.Duration) error {
+	klog.V(90).Infof("Waiting for SriovNetwork %s/%s Ready", sriovNetworkNamespace, name)
 
-			return err == nil, nil
-		})
+	network, err := sriov.PullNetwork(APIClient, name, sriovNetworkNamespace)
+	if err != nil {
+		return fmt.Errorf("failed to pull SriovNetwork %s/%s: %w", sriovNetworkNamespace, name, err)
+	}
+
+	return network.WaitUntilReady(timeout)
 }
 
 // WaitForNADDeletion waits for the NAD to be deleted.

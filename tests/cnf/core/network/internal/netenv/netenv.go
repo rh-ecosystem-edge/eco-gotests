@@ -335,40 +335,41 @@ func ValidateSriovInterfaces(
 	return nil
 }
 
-// CreateSriovNetworkAndWaitForNADCreation creates a SriovNetwork and waits for NAD creation on the test namespace.
+// CreateSriovNetworkAndWaitForNADCreation creates a SriovNetwork and waits until it is Ready.
+// Prefer waiting on the builder returned by Create (CR namespace), not the NAD target namespace.
 func CreateSriovNetworkAndWaitForNADCreation(
 	apiClient *clients.Settings,
 	sNet *sriov.NetworkBuilder,
 	timeout time.Duration,
 ) error {
-	klog.V(90).Infof("Creating SriovNetwork %s and waiting for net-attach-def to be created", sNet.Definition.Name)
+	_ = apiClient
+
+	klog.V(90).Infof("Creating SriovNetwork %s and waiting until Ready", sNet.Definition.Name)
 
 	sriovNetwork, err := sNet.Create()
 	if err != nil {
 		return err
 	}
 
-	return WaitForNADCreation(apiClient, sriovNetwork.Object.Name, TargetNamespaceOf(sriovNetwork), timeout)
+	return sriovNetwork.WaitUntilReady(timeout)
 }
 
-// WaitForNADCreation waits for the NAD to be created.
+// WaitForNADCreation waits until the SriovNetwork CR is Ready (generation-fresh Ready=True).
+// sriovNetworkNamespace is the namespace of the SriovNetwork object (where the CR was created),
+// not the Multus NAD target namespace (NetworkNamespace). Those namespaces often differ.
 func WaitForNADCreation(
 	apiClient *clients.Settings,
-	name, namespace string,
+	name, sriovNetworkNamespace string,
 	timeout time.Duration,
 ) error {
-	return wait.PollUntilContextTimeout(context.TODO(),
-		time.Second, timeout, true, func(ctx context.Context) (bool, error) {
-			_, err := nad.Pull(apiClient, name, namespace)
-			if err != nil {
-				klog.V(100).Infof("Failed to get NAD %s in namespace %s: %v",
-					name, namespace, err)
+	klog.V(90).Infof("Waiting for SriovNetwork %s/%s Ready", sriovNetworkNamespace, name)
 
-				return false, nil
-			}
+	network, err := sriov.PullNetwork(apiClient, name, sriovNetworkNamespace)
+	if err != nil {
+		return fmt.Errorf("failed to pull SriovNetwork %s/%s: %w", sriovNetworkNamespace, name, err)
+	}
 
-			return true, nil
-		})
+	return network.WaitUntilReady(timeout)
 }
 
 // WaitForNADDeletion waits for the NAD to be deleted.

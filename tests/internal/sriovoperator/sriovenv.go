@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"time"
 
+	srIovV1 "github.com/k8snetworkplumbingwg/sriov-network-operator/api/v1"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/clients"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/daemonset"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/namespace"
 	"github.com/rh-ecosystem-edge/eco-goinfra/pkg/sriov"
 	"github.com/rh-ecosystem-edge/eco-gotests/tests/internal/cluster"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 )
 
@@ -31,6 +33,10 @@ var (
 )
 
 // IsSriovDeployed verifies that the sriov operator is deployed.
+// On builds that expose SriovOperatorConfig status.conditions, also requires
+// generation-fresh Ready=True with reason OperatorConfigReady. Daemonset Ready
+// checks are kept as an additional requirement until callers are proven not to
+// need them.
 func IsSriovDeployed(apiClient *clients.Settings, sriovOperatorNamespace string) error {
 	klog.V(90).Infof("Checking if SriovOperator is deployed")
 
@@ -51,6 +57,25 @@ func IsSriovDeployed(apiClient *clients.Settings, sriovOperatorNamespace string)
 				sriovDaemonsetName)
 		}
 	}
+
+	operatorConfig, err := sriov.PullOperatorConfig(apiClient, sriovOperatorNamespace)
+	if err != nil {
+		return fmt.Errorf("error to pull SriovOperatorConfig from namespace %s: %w",
+			sriovOperatorNamespace, err)
+	}
+
+	// WaitUntilReady does not enforce Reason; require OperatorConfigReady explicitly.
+	err = operatorConfig.WaitForCondition(metav1.Condition{
+		Type:   srIovV1.ConditionReady,
+		Status: metav1.ConditionTrue,
+		Reason: srIovV1.ReasonOperatorConfigReady,
+	}, 30*time.Second)
+	if err != nil {
+		return fmt.Errorf("SriovOperatorConfig not Ready/OperatorConfigReady in namespace %s: %w",
+			sriovOperatorNamespace, err)
+	}
+
+	klog.V(90).Infof("SriovOperator deploy check path=conditions+daemonsets")
 
 	return nil
 }
