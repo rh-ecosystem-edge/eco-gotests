@@ -31,6 +31,7 @@ See `default.yaml` in the same directory for default values.
 | `ECO_SYSTEM_RDSCORE_IPVLAN_NAD_FOUR_NAME` | IP VLAN NAD four name |
 | `ECO_RDSCORE_GRACEFUL_RESTART_APP_LABEL` | Graceful restart app label |
 | `ECO_RDSCORE_KDUMP_WORKER_NODE_LABEL` | Kdump worker MCP node label |
+| `ECO_RDSCORE_DISK_PARTITIONING_LABEL` | Disk partitioning node label |
 | `ECO_RDS_CORE_PERFORMANCE_PROFILE_HT_NAME` | Performance profile HT name |
 | `ECO_RDSCORE_NMI_REDFISH_CP_NODE_LABEL` | NMI Redfish control plane node label |
 | `ECO_RDSCORE_NMI_REDFISH_WORKER_NODE_LABEL` | NMI Redfish worker MCP node label |

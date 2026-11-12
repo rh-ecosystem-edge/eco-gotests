@@ -701,6 +701,12 @@ func readEnv(rdsConfig *CoreConfig) error {
 	}
 
 	rdsConfig.WorkerLabelListOption = metav1.ListOptions{LabelSelector: rdsConfig.WorkerLabel}
+
+	// Default disk partitioning label to worker label if not set
+	if rdsConfig.DiskPartitioningLabel == "" {
+		rdsConfig.DiskPartitioningLabel = rdsConfig.WorkerLabel
+	}
+
 	rdsConfig.DiskPartitioningLabelListOption = metav1.ListOptions{LabelSelector: rdsConfig.DiskPartitioningLabel}
 
 	return nil

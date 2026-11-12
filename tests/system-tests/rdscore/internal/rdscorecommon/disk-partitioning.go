@@ -88,16 +88,16 @@ func VerifyContainersXFSFilesystem(ctx SpecContext) {
 // VerifyContainersPartitionSource verifies the mount source contains the containers partition label.
 func VerifyContainersPartitionSource(ctx SpecContext) {
 	cmd := []string{"chroot", "/rootfs", "/bin/sh", "-c",
-		fmt.Sprintf("findmnt -n -o SOURCE %s", rdscoreparams.ContainersMountPoint)}
+		fmt.Sprintf("lsblk -no PARTLABEL $(findmnt -n -o SOURCE %s)", rdscoreparams.ContainersMountPoint)}
 
-	outputs := runCmdOnNodes(ctx, cmd, "verify containers mount source")
+	outputs := runCmdOnNodes(ctx, cmd, "verify containers partition label")
 
-	for nodeName, source := range outputs {
+	for nodeName, partLabel := range outputs {
 		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-			"Node %s: %s source = %q", nodeName, rdscoreparams.ContainersMountPoint, source)
-		Expect(source).To(ContainSubstring(rdscoreparams.ContainersPartLabel),
-			"Expected source containing %q on node %s, got %q",
-			rdscoreparams.ContainersPartLabel, nodeName, source)
+			"Node %s: %s partition label = %q", nodeName, rdscoreparams.ContainersMountPoint, partLabel)
+		Expect(partLabel).To(Equal(rdscoreparams.ContainersPartLabel),
+			"Expected partition label %q on node %s, got %q",
+			rdscoreparams.ContainersPartLabel, nodeName, partLabel)
 	}
 }
 
