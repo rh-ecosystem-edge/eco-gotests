@@ -192,7 +192,7 @@ func validateNodesSystemReserved(nodeRoleLabel, nodeRoleDescription string) {
 		cpu, mem, err := extractSystemReservedFromProfile(matchingProfile)
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-				"⚠ Node %s: PerformanceProfile %s found but systemReserved annotation not usable: %v\n",
+				"⚠ Node %s: PerformanceProfile %s found but systemReserved annotations not used: %v\n",
 				nodeName, matchingProfile.Object.Name, err)
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 				"⚠ Using baseline values - will only verify that systemReserved is present\n")
