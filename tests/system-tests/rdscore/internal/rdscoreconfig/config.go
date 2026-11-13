@@ -174,8 +174,7 @@ type CoreConfig struct {
 	//nolint:lll
 	NMIRedfishWorkerMCPNodeLabel string `yaml:"rdscore_nmi_redfish_worker_node_label" envconfig:"ECO_RDSCORE_NMI_REDFISH_WORKER_NODE_LABEL"`
 	//nolint:lll
-	NMIRedfishCNFMCPNodeLabel string `yaml:"rdscore_nmi_redfish_cnf_node_label" envconfig:"ECO_RDSCORE_NMI_REDFISH_CNF_NODE_LABEL"`
-	//nolint:lll
+	NMIRedfishCNFMCPNodeLabel  string         `yaml:"rdscore_nmi_redfish_cnf_node_label" envconfig:"ECO_RDSCORE_NMI_REDFISH_CNF_NODE_LABEL"`
 	ControlPlaneCPUReserved    string         `yaml:"rdscore_control_plane_cpu_reserved" envconfig:"ECO_RDSCORE_CONTROL_PLANE_CPU_RESERVED"` //nolint:lll
 	ControlPlaneMemoryReserved string         `yaml:"rdscore_control_plane_memory_reserved" envconfig:"ECO_RDSCORE_CONTROL_PLANE_MEMORY_RESERVED"` //nolint:lll
 	WorkerCPUReserved          string         `yaml:"rdscore_worker_cpu_reserved" envconfig:"ECO_RDSCORE_WORKER_CPU_RESERVED"` //nolint:lll
