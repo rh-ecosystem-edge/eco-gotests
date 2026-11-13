@@ -8,6 +8,9 @@ import (
 )
 
 var (
+	// TestNamespaceName is assigned once before creating the suite namespace.
+	TestNamespaceName string
+
 	// Labels represent the suite-level labels applied to all tests in the suite.
 	Labels = []string{LabelSuite}
 
@@ -27,6 +30,5 @@ var (
 	// init does not panic before suite setup can Fail clearly.
 	ReporterNamespacesToDump = map[string]string{
 		"openshift-sriov-network-operator": "openshift-sriov-network-operator",
-		TestNamespaceName:                  "other",
 	}
 )
