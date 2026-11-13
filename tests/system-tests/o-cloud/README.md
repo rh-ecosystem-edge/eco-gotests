@@ -57,3 +57,23 @@
 | `ECO_OCLOUD_AUTHFILE_PATH` | `/kubeconfig/docker/config.json` | Path to the auth file for Skopeo commands |
 | `ECO_OCLOUD_MOCK_SMO_BASE_URL` | _(empty)_ | Base URL of the mock SMO used for alarm subscription callbacks |
 | `ECO_OCLOUD_O2IMS_BASE_URL` | _(empty)_ | Base URL for the O2IMS API |
+| `ECO_OCLOUD_SCALE_PR_NAME` | _(empty)_ | Existing hub ProvisioningRequest to scale in and out |
+| `ECO_OCLOUD_SCALE_SPOKE_KUBECONFIG` | _(empty)_ | Kubeconfig path for the target spoke; regular `KUBECONFIG` remains the hub |
+| `ECO_OCLOUD_SCALE_TIMEOUT` | `90m` | Timeout for each scale-in/out controller operation and node-state wait |
+
+## Scale-in / scale-out tests
+
+The scale tests discover worker-only nodes from the configured PR and spoke. The one-worker case requires at least two worker-only nodes; the two-worker case requires at least three. Master/control-plane nodes are never selected, even if they also carry a worker label. Each case restores and verifies the original PR topology.
+
+Role detection uses the existing `ECO_KUBERNETES_ROLE_PREFIX`, `ECO_WORKER_LABEL`, and `ECO_CONTROL_PLANE_LABEL` settings documented in the [general configuration](../../README.md). Standard master/control-plane labels remain protected when custom labels are configured.
+
+Each scale update must reach an observed generation and a Fulfilled status updated after the operation began, using the same timestamp allowance as the MNO upgrade tests. Restoration cleanup has a separate deadline of twice `ECO_OCLOUD_SCALE_TIMEOUT` plus one minute, covering the controller and node-readiness waits when cleanup starts after a suite timeout or interruption.
+
+```bash
+export KUBECONFIG=/path/to/hub-kubeconfig
+export ECO_OCLOUD_SCALE_SPOKE_KUBECONFIG=/path/to/spoke-kubeconfig
+export ECO_OCLOUD_SCALE_PR_NAME='<existing-pr-name>'
+export ECO_TEST_FEATURES=o-cloud
+export ECO_TEST_LABELS=scale-in-out
+make run-tests
+```
