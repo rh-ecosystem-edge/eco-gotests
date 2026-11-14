@@ -1019,7 +1019,7 @@ github.com/redhat-cne/sdk-go/pkg/event/ptp
 github.com/redhat-cne/sdk-go/pkg/event/redfish
 github.com/redhat-cne/sdk-go/pkg/pubsub
 github.com/redhat-cne/sdk-go/pkg/types
-# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261111120532-c01f7d8a06a0
+# github.com/rh-ecosystem-edge/eco-goinfra v0.0.0-20261113181150-15a893637641
 ## explicit; go 1.27.0
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/amdgpu
 github.com/rh-ecosystem-edge/eco-goinfra/pkg/apiservers
