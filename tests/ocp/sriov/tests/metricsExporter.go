@@ -485,7 +485,7 @@ func createMetricsTestResources(cRes, sRes metricsTestResource) *pod.Builder {
 		Expect(err).ToNot(HaveOccurred(),
 			fmt.Sprintf("Failed to create SriovNetwork %s", res.network.Definition.Name))
 
-		err = sriovenv.WaitForNADCreation(res.network.Definition.Name, tsparams.TestNamespaceName, tsparams.NADTimeout)
+		err = sriovenv.WaitForNADCreation(res.network.Definition.Name, SriovOcpConfig.OcpSriovOperatorNamespace, tsparams.NADTimeout)
 		Expect(err).ToNot(HaveOccurred(),
 			"Failed to wait for NAD creation for Sriov Network %s with error %v",
 			res.network.Definition.Name, err)

@@ -425,7 +425,7 @@ func defineAndCreateSriovNetworkWithRdma(netName, resName string, withRdma bool)
 	Expect(err).ToNot(HaveOccurred(),
 		fmt.Sprintf("Failed to create Sriov Network %s", netName))
 
-	err = sriovenv.WaitForNADCreation(netName, tsparams.TestNamespaceName, tsparams.NADTimeout)
+	err = sriovenv.WaitForNADCreation(netName, SriovOcpConfig.OcpSriovOperatorNamespace, tsparams.NADTimeout)
 	Expect(err).ToNot(HaveOccurred(),
 		"Failed to wait for NAD creation for Sriov Network %s with error %v",
 		netName, err)

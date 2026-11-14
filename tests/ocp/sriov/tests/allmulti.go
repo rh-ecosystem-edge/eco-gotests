@@ -345,7 +345,7 @@ func defineAndCreateSrIovNetwork(srIovNetwork, resName string, allMulti bool) {
 	Expect(err).ToNot(HaveOccurred(),
 		"Failed to create Sriov Network %s", srIovNetworkObject.Definition.Name)
 
-	err = sriovenv.WaitForNADCreation(srIovNetwork, tsparams.TestNamespaceName, tsparams.NADTimeout)
+	err = sriovenv.WaitForNADCreation(srIovNetwork, SriovOcpConfig.OcpSriovOperatorNamespace, tsparams.NADTimeout)
 	Expect(err).ToNot(HaveOccurred(),
 		"Failed to wait for NAD creation for Sriov Network %s", srIovNetwork)
 }
@@ -500,7 +500,7 @@ func defineAndCreateSrIovNetworkWithOutIPAM(srIovNetwork string, allMulti bool) 
 	Expect(err).ToNot(HaveOccurred(),
 		"Failed to create Sriov Network %s", srIovNetworkObject.Definition.Name)
 
-	err = sriovenv.WaitForNADCreation(srIovNetwork, tsparams.TestNamespaceName, tsparams.NADTimeout)
+	err = sriovenv.WaitForNADCreation(srIovNetwork, SriovOcpConfig.OcpSriovOperatorNamespace, tsparams.NADTimeout)
 	Expect(err).ToNot(HaveOccurred(),
 		"Failed to wait for NAD creation for Sriov Network %s", srIovNetwork)
 }

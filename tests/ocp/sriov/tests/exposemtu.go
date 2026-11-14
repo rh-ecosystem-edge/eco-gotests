@@ -119,7 +119,7 @@ var _ = Describe("SRIOV: Expose MTU:", Ordered, Label(tsparams.LabelExposeMTUTes
 			WithIPAddressSupport().WithLogLevel("debug")
 		_, err = sriovNetworkBuilder5000.Create()
 		Expect(err).ToNot(HaveOccurred(), "Failed to create Sriov Network %s", sriovAndResourceName5000)
-		err = sriovenv.WaitForNADCreation(sriovAndResourceName5000, tsparams.TestNamespaceName, tsparams.NADTimeout)
+		err = sriovenv.WaitForNADCreation(sriovAndResourceName5000, SriovOcpConfig.OcpSriovOperatorNamespace, tsparams.NADTimeout)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait NAD for Sriov Network %s", sriovAndResourceName5000)
 
 		sriovNetworkBuilder9000 := sriov.NewNetworkBuilder(APIClient, sriovAndResourceName9000,
@@ -128,7 +128,7 @@ var _ = Describe("SRIOV: Expose MTU:", Ordered, Label(tsparams.LabelExposeMTUTes
 			WithIPAddressSupport().WithLogLevel("debug")
 		_, err = sriovNetworkBuilder9000.Create()
 		Expect(err).ToNot(HaveOccurred(), "Failed to create Sriov Network %s", sriovAndResourceName9000)
-		err = sriovenv.WaitForNADCreation(sriovAndResourceName9000, tsparams.TestNamespaceName, tsparams.NADTimeout)
+		err = sriovenv.WaitForNADCreation(sriovAndResourceName9000, SriovOcpConfig.OcpSriovOperatorNamespace, tsparams.NADTimeout)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait NAD for Sriov Network %s", sriovAndResourceName9000)
 
 		By("Creating 2 pods with different VFs")
@@ -195,7 +195,7 @@ func testExposeMTU(mtu int, interfacesUnderTest []string, devType string) {
 		WithStaticIpam().WithMacAddressSupport().WithIPAddressSupport().WithLogLevel("debug")
 	_, err = sriovNetworkBuilder.Create()
 	Expect(err).ToNot(HaveOccurred(), "Failed to create SR-IOV network")
-	err = sriovenv.WaitForNADCreation(sriovAndResourceNameExposeMTU, tsparams.TestNamespaceName, tsparams.NADTimeout)
+	err = sriovenv.WaitForNADCreation(sriovAndResourceNameExposeMTU, SriovOcpConfig.OcpSriovOperatorNamespace, tsparams.NADTimeout)
 	Expect(err).ToNot(HaveOccurred(), "Failed to wait for NAD for SR-IOV network")
 
 	By("Creating test pod")

@@ -329,7 +329,7 @@ func CreateSriovBondNetwork(name, resourceName string) error {
 		return fmt.Errorf("create or update bond slave SriovNetwork %s: %w", name, err)
 	}
 
-	return netenv.WaitForNADCreation(APIClient, name, tsparams.TestNamespaceName, tsparams.NADWaitTimeout)
+	return netenv.WaitForNADCreation(APIClient, name, NetConfig.SriovOperatorNamespace, tsparams.NADWaitTimeout)
 }
 
 // CreateSriovNetworkWithVLANAndWhereabouts creates an SR-IOV network with Whereabouts IPAM and VLAN tagging.
