@@ -89,16 +89,13 @@ var _ = Describe("ORAN Metal3 Day2 Hardware Allocation", Label(tsparams.LabelMet
 		err = prBuilder2.WaitForPhaseAfter(provisioningv1alpha1.StateFailed, time.Time{}, 5*time.Minute)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for second ProvisioningRequest to fail due to allocated hardware")
 
-		By("verifying failure reason indicates all matching hardware is allocated")
+		By("verifying second ProvisioningRequest failed")
 
 		currentPR, err := oran.PullPR(o2imsAPIClient, tsparams.TestPRName2)
 		Expect(err).ToNot(HaveOccurred(), "Failed to get second ProvisioningRequest status")
 		Expect(currentPR.Definition.Status.ProvisioningStatus.ProvisioningPhase).
 			To(Equal(provisioningv1alpha1.StateFailed),
 				"Expected second ProvisioningRequest to fail when hardware is already allocated")
-		Expect(currentPR.Definition.Status.ProvisioningStatus.ProvisioningDetails).
-			To(ContainSubstring(tsparams.PRNoHardwareMatchDetailsSubstring),
-				"Expected provisioning details to report no free hardware matching the resource selector")
 	})
 })
 

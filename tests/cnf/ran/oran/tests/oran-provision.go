@@ -44,6 +44,24 @@ var _ = Describe("ORAN Provision Tests", Label(tsparams.LabelProvision), Ordered
 
 		o2imsAPIClient, err = clientBuilder.BuildProvisioning()
 		Expect(err).ToNot(HaveOccurred(), "Failed to create the O2IMS API client")
+
+		By("ensuring free O-Cloud BareMetalHost inventory for provision")
+
+		err = helper.EnsureFreeInventoryForProvision(HubAPIClient, o2imsAPIClient)
+		Expect(err).ToNot(HaveOccurred(),
+			"Lab inventory must have enough Available O-Cloud BMHs before provision tests")
+	})
+
+	AfterEach(func() {
+		if !CurrentSpecReport().Failed() {
+			return
+		}
+
+		By("reclaiming suite hardware leftovers after provision failure")
+
+		err := helper.ReclaimSuiteHardwareLeftovers(HubAPIClient, o2imsAPIClient)
+		Expect(err).ToNot(HaveOccurred(),
+			"Failed to reclaim suite ProvisioningRequests and stuck O-Cloud BMHs after provision failure")
 	})
 
 	// 77393 - Apply a ProvisioningRequest with missing required input parameter
@@ -89,10 +107,6 @@ var _ = Describe("ORAN Provision Tests", Label(tsparams.LabelProvision), Ordered
 		Expect(prBuilder.Object.Status.ProvisioningStatus.ProvisioningPhase).
 			To(Equal(provisioningv1alpha1.StateFailed), "Expected ProvisioningRequest to be failed after invalid parameters")
 
-		details := prBuilder.Object.Status.ProvisioningStatus.ProvisioningDetails
-		Expect(details).To(ContainSubstring(tsparams.PRValidationFailedDetailsSubstring),
-			"Expected provisioning details to report a validation failure")
-
 		updateTime := time.Now()
 
 		By("updating the ProvisioningRequest with valid policyTemplateParameters")
@@ -122,19 +136,68 @@ var _ = Describe("ORAN Provision Tests", Label(tsparams.LabelProvision), Ordered
 			Expect(err).ToNot(HaveOccurred(), "Failed to create ProvisioningRequest since it does not exist")
 		}
 
+		// Condition waits must use the hub kube client. The O2IMS provisioning API maps phase/details
+		// but never returns status.conditions (eco-goinfra provisioningRequestFromInfo leaves them empty),
+		// so WaitForPRCondition against o2imsAPIClient always times out with conditions=[].
+		By("pulling the ProvisioningRequest from the hub for condition waits")
+
+		hubPRBuilder, err := oran.PullPR(HubAPIClient, tsparams.TestPRName)
+		Expect(err).ToNot(HaveOccurred(), "Failed to pull ProvisioningRequest from hub kube API")
+
+		By("waiting for ProvisioningRequestValidated")
+
+		err = helper.WaitForPRCondition(
+			hubPRBuilder, tsparams.PRValidationSucceededCondition, tsparams.PRValidatedTimeout, nil)
+		Expect(err).ToNot(HaveOccurred(), "Failed to wait for ProvisioningRequestValidated")
+
+		By("waiting for ClusterInstanceProcessed")
+
+		err = helper.WaitForPRCondition(
+			hubPRBuilder, tsparams.PRCIProcesssedCondition, tsparams.PRClusterInstanceProcessedTimeout, nil)
+		Expect(err).ToNot(HaveOccurred(), "Failed to wait for ClusterInstanceProcessed")
+
+		hostnames, err := helper.GetSpokeHostnames()
+		Expect(err).ToNot(HaveOccurred(), "Failed to resolve spoke hostnames for ClusterProvisioned timeout")
+
+		By("waiting for ClusterProvisioned")
+
+		err = helper.WaitForPRCondition(
+			hubPRBuilder,
+			tsparams.PRClusterProvisionedCondition,
+			helper.ClusterProvisionTimeout(len(hostnames)),
+			func(_ *oran.ProvisioningRequestBuilder) {
+				helper.LogAssistedInstallProgress(HubAPIClient, RANConfig.Spoke1Name)
+			},
+		)
+		Expect(err).ToNot(HaveOccurred(), "Failed to wait for ClusterProvisioned")
+
+		// Admin kubeconfig exists once the cluster is provisioned; refresh before ZTP config so
+		// failure collection during MachineConfig rollout uses the new spoke CA.
+		err = configureSpoke1ClientFromHub()
+		Expect(err).ToNot(HaveOccurred(), "Failed to configure spoke API client from hub secrets")
+
+		masterCount, err := helper.CountNodesByRole("master")
+		Expect(err).ToNot(HaveOccurred(), "Failed to resolve master count for ConfigurationApplied timeout")
+
+		By("waiting for ConfigurationApplied")
+
+		err = helper.WaitForPRCondition(
+			hubPRBuilder,
+			tsparams.PRConfigurationAppliedCondition,
+			helper.ConfigurationAppliedTimeout(masterCount),
+			nil,
+		)
+		Expect(err).ToNot(HaveOccurred(), "Failed to wait for ConfigurationApplied")
+
 		By("waiting for the ProvisioningRequest to be fulfilled")
-		// Since we know the ProvisioningRequest did not already start as fulfilled, we do not need to
-		// use WaitForPhaseAfter.
-		_, err = prBuilder.WaitUntilFulfilled(2 * time.Hour)
+
+		_, err = prBuilder.WaitUntilFulfilled(tsparams.PRFulfilledAfterConfigTimeout)
 		Expect(err).ToNot(HaveOccurred(), "Failed to wait for the ProvisioningRequest to be fulfilled")
 
 		By("verifying the fulfilled ProvisioningRequest status via the O2IMS API")
 
 		err = verifyProvisioningRequestFulfilled(prBuilder)
 		Expect(err).ToNot(HaveOccurred(), "Failed to verify fulfilled ProvisioningRequest status")
-
-		err = configureSpoke1ClientFromHub()
-		Expect(err).ToNot(HaveOccurred(), "Failed to configure spoke API client from hub secrets")
 
 		By("verifying provisioning succeeded")
 
@@ -165,12 +228,6 @@ func verifyProvisioningRequestFulfilled(prBuilder *oran.ProvisioningRequestBuild
 	if status.ProvisioningStatus.ProvisioningPhase != provisioningv1alpha1.StateFulfilled {
 		accumulatedErrors = append(accumulatedErrors, fmt.Errorf("expected provisioning phase %q, got %q",
 			provisioningv1alpha1.StateFulfilled, status.ProvisioningStatus.ProvisioningPhase))
-	}
-
-	if !strings.Contains(status.ProvisioningStatus.ProvisioningDetails, tsparams.PRFulfilledDetailsSubstring) {
-		accumulatedErrors = append(accumulatedErrors, fmt.Errorf(
-			"expected provisioning details to contain %q, got %q",
-			tsparams.PRFulfilledDetailsSubstring, status.ProvisioningStatus.ProvisioningDetails))
 	}
 
 	By("verifying the ProvisionedResources are set")

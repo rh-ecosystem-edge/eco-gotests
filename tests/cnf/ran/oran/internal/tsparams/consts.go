@@ -1,6 +1,10 @@
 package tsparams
 
-import "k8s.io/klog/v2"
+import (
+	"time"
+
+	"k8s.io/klog/v2"
+)
 
 const (
 	// LabelSuite is the label applied to all cases in the oran suite.
@@ -46,21 +50,6 @@ const (
 	// ImmutableMessage is the message to expect in a Policy's history when an immutable field cannot be updated.
 	ImmutableMessage = "cannot be updated, likely due to immutable fields not matching"
 
-	// PRValidationFailedDetailsSubstring is a substring of status.provisioningStatus.provisioningDetails when a
-	// ProvisioningRequest fails due to invalid policyTemplateParameters caused by an integer instead of a string.
-	PRValidationFailedDetailsSubstring = "Invalid type. Expected: string, given: integer"
-	// PRFulfilledDetailsSubstring is a substring of status.provisioningStatus.provisioningDetails when
-	// provisioning completes successfully.
-	PRFulfilledDetailsSubstring = "Provisioning request has completed successfully"
-	// PRNoHardwareMatchDetailsSubstring is a substring of provisioningDetails when no free hardware matches the
-	// resource selector. The operator uses the same message when matching hardware exists but is already allocated.
-	PRNoHardwareMatchDetailsSubstring = "not enough free resources matching"
-	// PRMissingBootInterfaceDetailsSubstring is a substring of provisioningDetails when no NIC in the
-	// ClusterInstance defaults matches the boot interface label value.
-	PRMissingBootInterfaceDetailsSubstring = "failed to assign MACs for node"
-	// PRExistingNamespaceDetailsSubstring is a substring of provisioningDetails when clusterName matches an
-	// existing namespace not owned by the ProvisioningRequest.
-	PRExistingNamespaceDetailsSubstring = "not owned by ProvisioningRequest"
 	// PRReservedNamespaceDetailsSubstring is a substring of API error detail when clusterName is a reserved namespace.
 	PRReservedNamespaceDetailsSubstring = `targets a reserved namespace (prefix "default")`
 	// PROpenshiftPrefixDetailsSubstring is a substring of API error detail when clusterName uses the openshift- prefix.
@@ -69,6 +58,26 @@ const (
 	PRKubePrefixDetailsSubstring = `targets a reserved namespace (prefix "kube-")`
 	// PRDNS1123DetailsSubstring is a substring of API error detail when clusterName is not DNS-1123 compliant.
 	PRDNS1123DetailsSubstring = "not a valid DNS-1123 label"
+)
+
+// Staged ProvisioningRequest wait budgets for provision test 77394. Long stages scale with topology.
+const (
+	// PRValidatedTimeout is the wait for ProvisioningRequestValidated=Completed.
+	PRValidatedTimeout = 5 * time.Minute
+	// PRClusterInstanceProcessedTimeout is the wait for ClusterInstanceProcessed=Completed
+	// (implies render, resources, hardware provision, and node config).
+	PRClusterInstanceProcessedTimeout = 15 * time.Minute
+	// ClusterProvisionBaseTimeout is the fixed portion of the ClusterProvisioned wait.
+	ClusterProvisionBaseTimeout = 30 * time.Minute
+	// ClusterProvisionPerNodeTimeout is added once per spoke node for ClusterProvisioned.
+	ClusterProvisionPerNodeTimeout = 15 * time.Minute
+	// ConfigurationAppliedBaseTimeout is the fixed portion of the ConfigurationApplied wait.
+	ConfigurationAppliedBaseTimeout = 20 * time.Minute
+	// ConfigurationAppliedPerMasterTimeout is added once per master for ConfigurationApplied
+	// (MachineConfigPool master rolling reboot).
+	ConfigurationAppliedPerMasterTimeout = 30 * time.Minute
+	// PRFulfilledAfterConfigTimeout is the wait for phase fulfilled after ConfigurationApplied.
+	PRFulfilledAfterConfigTimeout = 5 * time.Minute
 )
 
 const (
