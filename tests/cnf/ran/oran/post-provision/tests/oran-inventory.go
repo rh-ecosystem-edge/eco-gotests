@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("ORAN Inventory API Tests", Label(tsparams.LabelPostProvision, tsparams.LabelInventory), func() {
+var _ = Describe("ORAN Inventory API Tests", Label(tsparams.LabelInventory), func() {
 	var inventoryClient *oranapi.InventoryClient
 
 	BeforeEach(func() {

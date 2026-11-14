@@ -16,7 +16,7 @@ import (
 	runtimeclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("ORAN Pre-provision Tests", Label(tsparams.LabelPreProvision), func() {
+var _ = Describe("ORAN Pre-provision Tests", func() {
 	var o2imsAPIClient runtimeclient.Client
 
 	BeforeEach(func() {
