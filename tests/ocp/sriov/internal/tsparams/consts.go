@@ -48,6 +48,8 @@ const (
 	// LabelOperatorConfigDefaultsTestCases represents SriovOperatorConfig default values tests
 	// that can be used for test cases selection.
 	LabelOperatorConfigDefaultsTestCases = "operatorconfig-defaults"
+	// LabelResourceVisibilityTestCases represents resource visibility tests that can be used for test cases selection.
+	LabelResourceVisibilityTestCases = "resourcevisibility"
 	// SCTPMachineConfigName is the MachineConfig that loads the SCTP kernel module on workers.
 	SCTPMachineConfigName = "load-sctp-module"
 	// SriovResourceNameExManagedTrue is the SR-IOV policy and network name for ExternallyManaged tests.
