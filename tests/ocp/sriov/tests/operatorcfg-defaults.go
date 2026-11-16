@@ -20,6 +20,7 @@ import (
 const (
 	sriovOperatorConfigResourceName = "default"
 	operatorWebhookDaemonset        = "operator-webhook"
+	operatorWebhookService          = "operator-webhook-service"
 )
 
 var sriovOperatorConfigGVR = schema.GroupVersionResource{
@@ -91,6 +92,33 @@ var _ = Describe("SriovOperatorConfigDefaults", Ordered, Label(tsparams.LabelOpe
 				return patchErr
 			}, 2*time.Minute, 5*time.Second).Should(Succeed(),
 				"Failed to restore SriovOperatorConfig")
+
+			webhookEnabled := true
+			if configured, ok := originalSpec["enableOperatorWebhook"].(bool); ok {
+				webhookEnabled = configured
+			}
+
+			if webhookEnabled {
+				By("Waiting for operator webhook service endpoints after restoring config")
+
+				Eventually(func() error {
+					endpoints, endpointErr := APIClient.Endpoints(
+						SriovOcpConfig.OcpSriovOperatorNamespace).Get(
+						context.TODO(), operatorWebhookService, metav1.GetOptions{})
+					if endpointErr != nil {
+						return fmt.Errorf("failed to get %s endpoints: %w", operatorWebhookService, endpointErr)
+					}
+
+					for _, subset := range endpoints.Subsets {
+						if len(subset.Addresses) > 0 {
+							return nil
+						}
+					}
+
+					return fmt.Errorf("%s has no ready endpoints", operatorWebhookService)
+				}, 2*time.Minute, 5*time.Second).Should(Succeed(),
+					"Operator webhook service did not get ready endpoints after restoring SriovOperatorConfig")
+			}
 		})
 
 		It("Verifies spec fields with zero values are preserved when explicitly set",
