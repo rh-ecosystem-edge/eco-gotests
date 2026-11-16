@@ -111,6 +111,8 @@ const (
 	TALM HubOperatorName = "topology-aware-lifecycle-manager"
 	// GitOps is the name of the GitOps operator.
 	GitOps HubOperatorName = "openshift-gitops-operator"
+	// OCloudManager is the name of the O-Cloud Manager operator.
+	OCloudManager HubOperatorName = "o-cloud-manager"
 	// MCE is the name of the multicluster engine operator.
 	MCE HubOperatorName = "multicluster-engine"
 )

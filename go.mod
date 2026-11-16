@@ -32,6 +32,7 @@ require (
 	github.com/klauspost/compress v1.20.3
 	github.com/metal3-io/baremetal-operator/apis v0.14.2
 	github.com/nmstate/kubernetes-nmstate/api v0.0.0-20261103102427-4719031e11cd
+	github.com/oapi-codegen/nullable v1.1.0
 	github.com/onsi/ginkgo/v2 v2.34.0
 	github.com/onsi/gomega v1.44.0
 	github.com/openshift-kni/cluster-group-upgrades-operator v0.0.0-20261116192818-41f47e14d63b // main
@@ -292,3 +293,5 @@ replace (
 	// The cluster-node-tuning-operator release-5.0 uses version k8s.io/kube-openapi v0.35.1, which does not exist.
 	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20260721132016-d427ff9ee9ad
 )
+
+replace github.com/rh-ecosystem-edge/eco-goinfra => github.com/klaskosk/eco-goinfra v0.0.0-20261119161638-705cb3586232

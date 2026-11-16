@@ -236,3 +236,77 @@ func WaitForAllNotifications(
 			return len(expectedTrackers) == 0, nil
 		})
 }
+
+// WaitForAlarmV2ToExist waits for a v2 alarm matching the supplied extensions.
+func WaitForAlarmV2ToExist(
+	alarmsClient *oranapi.AlarmsV2Client,
+	matchingExtensions map[string]string,
+	timeout time.Duration) (*oranapi.AlarmEventRecordV2, error) {
+	var matchingAlarm *oranapi.AlarmEventRecordV2
+
+	err := wait.PollUntilContextTimeout(
+		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			alarms, err := alarmsClient.ListAlarms()
+			if err != nil {
+				klog.V(tsparams.LogLevel).Infof("Failed to list alarms: %v", err)
+
+				return false, nil
+			}
+
+			for _, alarm := range alarms {
+				if matchesExtensions(alarm.Extensions, matchingExtensions) {
+					matchingAlarm = &alarm
+
+					return true, nil
+				}
+			}
+
+			return false, nil
+		})
+	if err != nil {
+		return nil, fmt.Errorf("failed to wait for alarm matching %v to exist: %w", matchingExtensions, err)
+	}
+
+	return matchingAlarm, nil
+}
+
+// WaitForAllNotificationsV2 waits for the expected v2 notifications.
+func WaitForAllNotificationsV2(
+	client *clients.Settings,
+	namespace string,
+	observerID string,
+	startTime time.Time,
+	expectedTrackers map[string]bool,
+	timeout time.Duration) error {
+	return wait.PollUntilContextTimeout(
+		context.TODO(), 3*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+			// Set the new start time to right before we check so there is no risk of missing a
+			// notification. Delete is a no-op if the tracker is not in the map, so we can tolerate
+			// duplicates.
+			newStartTime := time.Now()
+
+			receivedNotifications, err := mocksmo.ListReceived[oranapi.AlarmEventNotificationV2](
+				client, namespace, startTime, observerID)
+			if err != nil {
+				klog.V(tsparams.LogLevel).Infof("Failed to list received notifications: %v", err)
+
+				return false, nil
+			}
+
+			for _, notification := range receivedNotifications {
+				if tracker, ok := notification.Extensions["tracker"].(string); ok &&
+					notification.NotificationEventType == oranapi.AlarmEventNotificationTypeV2NEW &&
+					notification.ObjectClass == "oran.o2ims.cluster.NodeCluster" {
+					klog.V(tsparams.LogLevel).Infof("Deleting expected tracker %s", tracker)
+
+					delete(expectedTrackers, tracker)
+				}
+			}
+
+			startTime = newStartTime
+
+			klog.V(tsparams.LogLevel).Infof("Waiting for %d more notifications", len(expectedTrackers))
+
+			return len(expectedTrackers) == 0, nil
+		})
+}

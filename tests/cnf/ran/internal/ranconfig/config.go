@@ -279,6 +279,12 @@ func (ranconfig *RANConfig) newHubConfig(configFile string) {
 		klog.V(ranparam.LogLevel).Infof("Failed to get TALM version from hub: %v", err)
 	}
 
+	ranconfig.HubConfig.HubOperatorVersions[ranparam.OCloudManager], err = version.GetOperatorVersionFromCsv(
+		ranconfig.HubConfig.HubAPIClient, string(ranparam.OCloudManager), ranparam.OCloudOperatorNamespace)
+	if err != nil {
+		klog.V(ranparam.LogLevel).Infof("Failed to get O-Cloud Manager version from hub: %v", err)
+	}
+
 	klog.V(ranparam.LogLevel).Infof("Found operator versions on hub: %v", ranconfig.HubConfig.HubOperatorVersions)
 
 	ranconfig.HubConfig.ZTPVersion, err = version.GetZTPVersionFromArgoCd(
