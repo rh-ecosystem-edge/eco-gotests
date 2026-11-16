@@ -1344,7 +1344,12 @@ func configureStaticLAGsOnSwitch(
 	}
 	defer jnpr.Close()
 
-	savedConfigs, err := jnpr.SaveInterfaceConfigs(physicalInterfaces)
+	// The cleanup below deletes both the physical ports and the named ae interfaces.
+	// Snapshot both sets so an existing LAG configuration is restored after the test.
+	interfacesToSave := make([]string, 0, len(physicalInterfaces)+len(lagInterfaces))
+	interfacesToSave = append(interfacesToSave, physicalInterfaces...)
+	interfacesToSave = append(interfacesToSave, lagInterfaces...)
+	savedConfigs, err := jnpr.SaveInterfaceConfigs(interfacesToSave)
 	if err != nil {
 		return nil, fmt.Errorf("save switch interface configs: %w", err)
 	}
