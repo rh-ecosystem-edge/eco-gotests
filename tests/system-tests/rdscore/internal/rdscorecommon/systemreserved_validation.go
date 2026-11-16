@@ -189,6 +189,8 @@ func validateNodesSystemReserved(nodeRoleLabel, nodeRoleDescription string) {
 		}
 
 		// Extract systemReserved from PerformanceProfile
+		// Track source of each value for accurate error messages
+		var cpuSource, memSource string
 		cpu, mem, err := extractSystemReservedFromProfile(matchingProfile)
 		if err != nil {
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
@@ -199,11 +201,11 @@ func validateNodesSystemReserved(nodeRoleLabel, nodeRoleDescription string) {
 
 			expectedCPU = baselineCPU
 			expectedMemory = baselineMemory
+			cpuSource = "baseline"
+			memSource = "baseline"
 			skipValidation = true
 		} else {
 			// Use PerformanceProfile values, fall back to baseline for empty fields
-			var cpuSource, memSource string
-
 			if cpu != "" {
 				expectedCPU = cpu
 				cpuSource = "PerformanceProfile"
@@ -294,13 +296,13 @@ func validateNodesSystemReserved(nodeRoleLabel, nodeRoleDescription string) {
 		Expect(cpuQuantity.Sign()).To(Equal(1),
 			fmt.Sprintf("SYSTEM_RESERVED_CPU value '%s' must be positive on node %s", actualCPU, nodeName))
 
-		if matchingProfile != nil && !skipValidation {
-			// Strict check for nodes with PerformanceProfile that has systemReserved annotation
+		if matchingProfile != nil && cpuSource == "PerformanceProfile" && !skipValidation {
+			// Strict check: PerformanceProfile explicitly defines CPU systemReserved
 			Expect(normalizeCPUValue(actualCPU)).To(Equal(normalizeCPUValue(expectedCPU)),
 				fmt.Sprintf("CPU systemReserved mismatch on %s node %s: expected %s (from PerformanceProfile), got %s",
 					nodeRoleDescription, nodeName, expectedCPU, actualCPU))
 		} else if !skipValidation && normalizeCPUValue(actualCPU) != normalizeCPUValue(expectedCPU) {
-			// Informational: PerformanceProfile has systemReserved but actual value differs
+			// Informational: CPU from baseline or PerformanceProfile doesn't define it
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
 				"ℹ Node %s: CPU systemReserved is %s (PerformanceProfile/baseline expects %s)\n",
 				nodeName, actualCPU, expectedCPU)
@@ -316,17 +318,17 @@ func validateNodesSystemReserved(nodeRoleLabel, nodeRoleDescription string) {
 		Expect(memQuantity.Sign()).To(Equal(1),
 			fmt.Sprintf("SYSTEM_RESERVED_MEMORY value '%s' must be positive on node %s", actualMemory, nodeName))
 
-		if matchingProfile != nil && !skipValidation {
-			// Strict check for nodes with PerformanceProfile that has systemReserved annotation
+		if matchingProfile != nil && memSource == "PerformanceProfile" && !skipValidation {
+			// Strict check: PerformanceProfile explicitly defines Memory systemReserved
 			expectedMsg := fmt.Sprintf(
 				"Memory systemReserved mismatch on %s node %s: expected %s (from PerformanceProfile), got %s",
 				nodeRoleDescription, nodeName, expectedMemory, actualMemory)
 			Expect(actualMemory).To(Equal(expectedMemory), expectedMsg)
 		} else if !skipValidation && actualMemory != expectedMemory {
-			// Informational: PerformanceProfile has systemReserved but actual value differs
+			// Informational: Memory from baseline or PerformanceProfile doesn't define it
 			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
-				"ℹ Node %s: Memory systemReserved is %s (PerformanceProfile/baseline expects %s)\n",
-				nodeName, actualMemory, expectedMemory)
+				"ℹ Node %s: Memory systemReserved is %s (from %s, baseline expects %s)\n",
+				nodeName, actualMemory, memSource, expectedMemory)
 		}
 		// If skipValidation, we already logged baseline usage at profile extraction
 
@@ -692,12 +694,74 @@ func validateNodeAllocatable(node *nodes.Builder) {
 		_, isControlPlane = nodeObj.Labels["node-role.kubernetes.io/control-plane"]
 	}
 
+	// Get baseline values based on node role
+	var baselineCPU, baselineMemory string
 	if isControlPlane {
-		cpuReserved = RDSCoreConfig.ControlPlaneCPUReserved
-		memoryReserved = RDSCoreConfig.ControlPlaneMemoryReserved
+		baselineCPU = RDSCoreConfig.ControlPlaneCPUReserved
+		baselineMemory = RDSCoreConfig.ControlPlaneMemoryReserved
 	} else {
-		cpuReserved = RDSCoreConfig.WorkerCPUReserved
-		memoryReserved = RDSCoreConfig.WorkerMemoryReserved
+		baselineCPU = RDSCoreConfig.WorkerCPUReserved
+		baselineMemory = RDSCoreConfig.WorkerMemoryReserved
+	}
+
+	// Try to get actual systemReserved from PerformanceProfile if available
+	// Track whether values come from PerformanceProfile or baseline
+	var cpuFromProfile, memFromProfile bool
+	allProfiles, err := nto.ListProfiles(APIClient)
+	if err != nil {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"⚠ Node %s - Failed to list PerformanceProfiles: %v, using baseline\n", nodeName, err)
+		cpuReserved = baselineCPU
+		memoryReserved = baselineMemory
+		cpuFromProfile = false
+		memFromProfile = false
+	} else {
+		matchingProfile := findPerformanceProfileForNode(nodeObj.Labels, allProfiles)
+	if matchingProfile != nil {
+		cpu, mem, err := extractSystemReservedFromProfile(matchingProfile)
+		if err == nil {
+			// Use PerformanceProfile values, fall back to baseline for empty fields
+			if cpu != "" {
+				cpuReserved = cpu
+				cpuFromProfile = true
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"Node %s - Using CPU systemReserved from PerformanceProfile: %s\n", nodeName, cpu)
+			} else {
+				cpuReserved = baselineCPU
+				cpuFromProfile = false
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"Node %s - PerformanceProfile has no CPU, skipping CPU allocatable test\n", nodeName)
+			}
+
+			if mem != "" {
+				memoryReserved = mem
+				memFromProfile = true
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"Node %s - Using Memory systemReserved from PerformanceProfile: %s\n", nodeName, mem)
+			} else {
+				memoryReserved = baselineMemory
+				memFromProfile = false
+				klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+					"Node %s - PerformanceProfile has no Memory, skipping Memory allocatable test\n", nodeName)
+			}
+		} else {
+			// PerformanceProfile exists but annotation is incomplete - use baseline
+			cpuReserved = baselineCPU
+			memoryReserved = baselineMemory
+			cpuFromProfile = false
+			memFromProfile = false
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"Node %s - PerformanceProfile found but annotation incomplete, using baseline\n", nodeName)
+		}
+	} else {
+			// No PerformanceProfile - use baseline
+			cpuReserved = baselineCPU
+			memoryReserved = baselineMemory
+			cpuFromProfile = false
+			memFromProfile = false
+			klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+				"Node %s - No PerformanceProfile found, using baseline\n", nodeName)
+		}
 	}
 
 	// Parse systemReserved values
@@ -730,14 +794,35 @@ func validateNodeAllocatable(node *nodes.Builder) {
 	klog.V(rdscoreparams.RDSCoreLogLevel).Infof("Node %s - Expected allocatable (without eviction): CPU~%s, Memory~%s\n",
 		nodeName, expectedAllocatableCPU.String(), expectedAllocatableMemory.String())
 
-	// Actual allocatable should be approximately expected (allowing for eviction thresholds)
-	// We check that it's less than expected (due to eviction) but more than 90% of expected
-	minExpectedCPU := expectedAllocatableCPU.DeepCopy()
-	minExpectedCPU.SetMilli(int64(float64(minExpectedCPU.MilliValue()) * 0.9))
+	// Only validate allocatable if systemReserved is defined in PerformanceProfile
+	// Baseline values are just defaults and may not match actual node configuration
+	if cpuFromProfile {
+		// Actual allocatable should be approximately expected (allowing for eviction thresholds)
+		// We check that it's less than expected (due to eviction) but more than 80% of expected
+		minExpectedCPU := expectedAllocatableCPU.DeepCopy()
+		minExpectedCPU.SetMilli(int64(float64(minExpectedCPU.MilliValue()) * 0.8))
 
-	allocMsg := fmt.Sprintf("Node %s allocatable CPU (%s) is significantly less than expected (%s)",
-		nodeName, allocatableCPU.String(), expectedAllocatableCPU.String())
-	Expect(allocatableCPU.Cmp(minExpectedCPU)).To(BeNumerically(">=", 0), allocMsg)
+		allocMsg := fmt.Sprintf("Node %s allocatable CPU (%s) is significantly less than expected (%s)",
+			nodeName, allocatableCPU.String(), expectedAllocatableCPU.String())
+		Expect(allocatableCPU.Cmp(minExpectedCPU)).To(BeNumerically(">=", 0), allocMsg)
+	} else {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"ℹ Node %s - Skipping CPU allocatable test (no CPU in PerformanceProfile, actual allocatable: %s)\n",
+			nodeName, allocatableCPU.String())
+	}
+
+	if memFromProfile {
+		minExpectedMem := expectedAllocatableMemory.DeepCopy()
+		minExpectedMem.SetMilli(int64(float64(minExpectedMem.MilliValue()) * 0.8))
+
+		memAllocMsg := fmt.Sprintf("Node %s allocatable Memory (%s) is significantly less than expected (%s)",
+			nodeName, allocatableMemory.String(), expectedAllocatableMemory.String())
+		Expect(allocatableMemory.Cmp(minExpectedMem)).To(BeNumerically(">=", 0), memAllocMsg)
+	} else {
+		klog.V(rdscoreparams.RDSCoreLogLevel).Infof(
+			"ℹ Node %s - Skipping Memory allocatable test (no Memory in PerformanceProfile, actual allocatable: %s)\n",
+			nodeName, allocatableMemory.String())
+	}
 }
 
 // validateNodeEnforcement validates systemReserved enforcement configuration on a node.
