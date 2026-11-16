@@ -227,6 +227,7 @@ func (j *Junos) GetInterfaceConfig(switchInterface string) (string, error) {
 	if err := xml.Unmarshal([]byte(reply.Data), &config); err != nil {
 		return "", fmt.Errorf("failed to parse config for interface %s: %w", switchInterface, err)
 	}
+
 	for _, iface := range config.Interfaces.Interface {
 		if iface.Name == switchInterface {
 			return reply.Data, nil

@@ -48,10 +48,11 @@ const (
 
 // Lab switch state for balance-rr/xor LAG setup (active-backup tests leave the switch untouched).
 var (
-	bondSwitchCredentials  *sriovocpenv.SwitchCredentials
-	bondSwitchInterfaces   []string
-	bondSwitchLagNames     []string
-	bondSwitchSavedConfigs []string
+	bondSwitchCredentials      *sriovocpenv.SwitchCredentials
+	bondSwitchInterfaces       []string
+	bondSwitchLagNames         []string
+	bondSwitchSavedConfigs     []string
+	bondSwitchLAGCleanupNeeded bool
 )
 
 var _ = Describe(
@@ -154,12 +155,13 @@ var _ = Describe(
 		})
 
 		AfterAll(func() {
-			if len(bondSwitchSavedConfigs) > 0 && bondSwitchCredentials != nil {
+			if bondSwitchLAGCleanupNeeded && bondSwitchCredentials != nil {
 				By("Restoring lab switch configuration after bond tests")
 
 				err = restoreBondSwitchLAG(
 					bondSwitchCredentials, bondSwitchInterfaces, bondSwitchLagNames, bondSwitchSavedConfigs)
 				Expect(err).ToNot(HaveOccurred(), "Failed to restore lab switch configuration")
+				bondSwitchSavedConfigs = nil
 			}
 
 			By("Removing SR-IOV configuration")
@@ -1273,7 +1275,7 @@ func setupBondSwitchLAGForActiveActiveTests() error {
 	bondSwitchSavedConfigs, err = configureStaticLAGsOnSwitch(
 		bondSwitchCredentials, bondSwitchInterfaces, bondSwitchLagNames)
 	if err != nil {
-		if len(bondSwitchSavedConfigs) > 0 {
+		if bondSwitchLAGCleanupNeeded || len(bondSwitchSavedConfigs) > 0 {
 			if restoreErr := restoreBondSwitchLAG(
 				bondSwitchCredentials, bondSwitchInterfaces, bondSwitchLagNames, bondSwitchSavedConfigs,
 			); restoreErr != nil {
@@ -1292,7 +1294,7 @@ func setupBondSwitchLAGForActiveActiveTests() error {
 }
 
 func restoreBondSwitchLAGAfterActiveActiveTest() {
-	if len(bondSwitchSavedConfigs) == 0 || bondSwitchCredentials == nil {
+	if !bondSwitchLAGCleanupNeeded || bondSwitchCredentials == nil {
 		return
 	}
 
@@ -1399,6 +1401,8 @@ func configureStaticLAGsOnSwitch(
 			fmt.Errorf("configure static LAGs: %w", err))
 	}
 
+	bondSwitchLAGCleanupNeeded = true
+
 	return savedConfigs, nil
 }
 
@@ -1422,9 +1426,11 @@ func restoreBondSwitchLAG(
 	credentials *sriovocpenv.SwitchCredentials,
 	physicalInterfaces, lagInterfaces, savedConfigs []string,
 ) error {
-	if credentials == nil || len(savedConfigs) == 0 {
+	if credentials == nil || (!bondSwitchLAGCleanupNeeded && len(savedConfigs) == 0) {
 		return nil
 	}
+
+	bondSwitchLAGCleanupNeeded = true
 
 	jnpr, err := sriovocpenv.NewJunosSession(credentials.SwitchIP, credentials.User, credentials.Password)
 	if err != nil {
@@ -1434,11 +1440,24 @@ func restoreBondSwitchLAG(
 
 	if len(lagInterfaces) > 0 && len(physicalInterfaces) > 0 {
 		if err := jnpr.DisableLACP(lagInterfaces, physicalInterfaces); err != nil {
+			if len(savedConfigs) == 0 {
+				bondSwitchLAGCleanupNeeded = true
+				return fmt.Errorf("failed to remove static LAG configuration from switch: %w", err)
+			}
+
 			klog.V(90).Infof("Failed to remove static LAG configuration from switch: %v", err)
 		}
 	}
 
-	return jnpr.RestoreInterfaceConfigs(savedConfigs)
+	if len(savedConfigs) > 0 {
+		if err := jnpr.RestoreInterfaceConfigs(savedConfigs); err != nil {
+			bondSwitchLAGCleanupNeeded = true
+			return err
+		}
+	}
+
+	bondSwitchLAGCleanupNeeded = false
+	return nil
 }
 
 func deleteBondNADIfExists(name string) error {
